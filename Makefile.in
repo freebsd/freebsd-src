@@ -87,10 +87,10 @@ LIBSSH_OBJS=${LIBOPENSSH_OBJS} \
 	authfd.o authfile.o \
 	canohost.o channels.o cipher.o cipher-aes.o cipher-aesctr.o \
 	cipher-ctr.o cleanup.o \
-	compat.o crc32.o fatal.o hostfile.o \
+	compat.o fatal.o hostfile.o \
 	log.o match.o moduli.o nchan.o packet.o \
 	readpass.o ttymodes.o xmalloc.o addrmatch.o \
-	atomicio.o dispatch.o mac.o uuencode.o misc.o utf8.o \
+	atomicio.o dispatch.o mac.o misc.o utf8.o \
 	monitor_fdpass.o rijndael.o ssh-dss.o ssh-ecdsa.o ssh-rsa.o dh.o \
 	msg.o progressmeter.o dns.o entropy.o gss-genr.o umac.o umac128.o \
 	ssh-pkcs11.o smult_curve25519_ref.o \
@@ -116,7 +116,7 @@ SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o \
 	monitor.o monitor_wrap.o auth-krb5.o \
 	auth2-gss.o gss-serv.o gss-serv-krb5.o \
 	loginrec.o auth-pam.o auth-shadow.o auth-sia.o md5crypt.o \
-	sftp-server.o sftp-common.o \
+	sftp-server.o sftp-common.o sftp-realpath.o \
 	sandbox-null.o sandbox-rlimit.o sandbox-systrace.o sandbox-darwin.o \
 	sandbox-seccomp-filter.o sandbox-capsicum.o sandbox-pledge.o \
 	sandbox-solaris.o uidswap.o
@@ -151,11 +151,16 @@ FIXPATHSCMD	= $(SED) $(PATHSUBS)
 FIXALGORITHMSCMD= $(SHELL) $(srcdir)/fixalgorithms $(SED) \
 		     @UNSUPPORTED_ALGORITHMS@
 
-all: $(CONFIGFILES) $(MANPAGES) $(TARGETS)
+all: configure-check $(CONFIGFILES) $(MANPAGES) $(TARGETS)
 
 $(LIBSSH_OBJS): Makefile.in config.h
 $(SSHOBJS): Makefile.in config.h
 $(SSHDOBJS): Makefile.in config.h
+configure-check: $(srcdir)/configure
+
+$(srcdir)/configure: configure.ac aclocal.m4
+	@echo "ERROR: configure is out of date; please run ${AUTORECONF} (and configure)" 1>&2
+	@exit 1
 
 .c.o:
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
@@ -184,8 +189,8 @@ ssh-add$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-add.o
 ssh-agent$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-agent.o ssh-pkcs11-client.o
 	$(LD) -o $@ ssh-agent.o ssh-pkcs11-client.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
-ssh-keygen$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keygen.o
-	$(LD) -o $@ ssh-keygen.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+ssh-keygen$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keygen.o sshsig.o
+	$(LD) -o $@ ssh-keygen.o sshsig.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
 ssh-keysign$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keysign.o readconf.o uidswap.o compat.o
 	$(LD) -o $@ ssh-keysign.o readconf.o uidswap.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
@@ -196,8 +201,8 @@ ssh-pkcs11-helper$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-pkcs11-helper.o ssh-pkcs11
 ssh-keyscan$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keyscan.o
 	$(LD) -o $@ ssh-keyscan.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)
 
-sftp-server$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-common.o sftp-server.o sftp-server-main.o
-	$(LD) -o $@ sftp-server.o sftp-common.o sftp-server-main.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+sftp-server$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-common.o sftp-server.o sftp-realpath.o sftp-server-main.o
+	$(LD) -o $@ sftp-server.o sftp-common.o sftp-realpath.o sftp-server-main.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
 sftp$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-client.o sftp-common.o sftp-glob.o progressmeter.o
 	$(LD) -o $@ progressmeter.o sftp.o sftp-client.o sftp-common.o sftp-glob.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(LIBEDIT)
@@ -572,11 +577,14 @@ regress/misc/kexfuzz/kexfuzz$(EXEEXT): ${MISC_KEX_FUZZ_OBJS} libssh.a
 	$(LD) -o $@ $(LDFLAGS) $(MISC_KEX_FUZZ_OBJS) \
 	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
-regress-binaries: regress/modpipe$(EXEEXT) \
+regress-binaries: regress-prep $(LIBCOMPAT) \
+	regress/modpipe$(EXEEXT) \
 	regress/setuid-allowed$(EXEEXT) \
 	regress/netcat$(EXEEXT) \
 	regress/check-perm$(EXEEXT) \
-	regress/mkdtemp$(EXEEXT) \
+	regress/mkdtemp$(EXEEXT)
+
+regress-unit-binaries: regress-prep $(REGRESSLIBS) \
 	regress/unittests/sshbuf/test_sshbuf$(EXEEXT) \
 	regress/unittests/sshkey/test_sshkey$(EXEEXT) \
 	regress/unittests/bitmap/test_bitmap$(EXEEXT) \
@@ -587,7 +595,18 @@ regress-binaries: regress/modpipe$(EXEEXT) \
 	regress/unittests/utf8/test_utf8$(EXEEXT) \
 	regress/misc/kexfuzz/kexfuzz$(EXEEXT)
 
-tests interop-tests t-exec unit: regress-prep regress-binaries $(TARGETS)
+tests:	file-tests t-exec interop-tests unit
+	echo all tests passed
+
+unit: regress-unit-binaries
+	BUILDDIR=`pwd`; \
+	cd $(srcdir)/regress || exit $$?; \
+	$(MAKE) \
+		.OBJDIR="$${BUILDDIR}/regress" \
+		.CURDIR="`pwd`" \
+		$@ && echo $@ tests passed
+
+interop-tests t-exec file-tests: regress-prep regress-binaries $(TARGETS)
 	BUILDDIR=`pwd`; \
 	TEST_SSH_SCP="$${BUILDDIR}/scp"; \
 	TEST_SSH_SSH="$${BUILDDIR}/ssh"; \
@@ -633,7 +652,7 @@ tests interop-tests t-exec unit: regress-prep regress-binaries $(TARGETS)
 		TEST_SSH_ECC="$${TEST_SSH_ECC}" \
 		TEST_SHELL="${TEST_SHELL}" \
 		EXEEXT="$(EXEEXT)" \
-		$@ && echo all tests passed
+		$@ && echo all $@ passed
 
 compat-tests: $(LIBCOMPAT)
 	(cd openbsd-compat/regress && $(MAKE))

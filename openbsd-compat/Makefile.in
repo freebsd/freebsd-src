@@ -34,11 +34,11 @@ OPENBSD=base64.o \
 	inet_ntoa.o \
 	inet_ntop.o \
 	md5.o \
+	memmem.o \
 	mktemp.o \
 	pwcache.o \
 	readpassphrase.o \
 	reallocarray.o \
-	realpath.o \
 	recallocarray.o \
 	rmd160.o \
 	rresvport.o \

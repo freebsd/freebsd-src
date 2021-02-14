@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.h,v 1.13 2019/01/21 09:54:11 djm Exp $	*/
+/*	$OpenBSD: sshbuf.h,v 1.18 2019/09/06 05:23:55 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -176,6 +176,26 @@ int	sshbuf_put_u32(struct sshbuf *buf, u_int32_t val);
 int	sshbuf_put_u16(struct sshbuf *buf, u_int16_t val);
 int	sshbuf_put_u8(struct sshbuf *buf, u_char val);
 
+/* Functions to peek at the contents of a buffer without modifying it. */
+int	sshbuf_peek_u64(const struct sshbuf *buf, size_t offset,
+    u_int64_t *valp);
+int	sshbuf_peek_u32(const struct sshbuf *buf, size_t offset,
+    u_int32_t *valp);
+int	sshbuf_peek_u16(const struct sshbuf *buf, size_t offset,
+    u_int16_t *valp);
+int	sshbuf_peek_u8(const struct sshbuf *buf, size_t offset,
+    u_char *valp);
+
+/*
+ * Functions to poke values into an exisiting buffer (e.g. a length header
+ * to a packet). The destination bytes must already exist in the buffer.
+ */
+int sshbuf_poke_u64(struct sshbuf *buf, size_t offset, u_int64_t val);
+int sshbuf_poke_u32(struct sshbuf *buf, size_t offset, u_int32_t val);
+int sshbuf_poke_u16(struct sshbuf *buf, size_t offset, u_int16_t val);
+int sshbuf_poke_u8(struct sshbuf *buf, size_t offset, u_char val);
+int sshbuf_poke(struct sshbuf *buf, size_t offset, void *v, size_t len);
+
 /*
  * Functions to extract or store SSH wire encoded strings (u32 len || data)
  * The "cstring" variants admit no \0 characters in the string contents.
@@ -202,7 +222,6 @@ int	sshbuf_get_string_direct(struct sshbuf *buf, const u_char **valp,
 /* Another variant: "peeks" into the buffer without modifying it */
 int	sshbuf_peek_string_direct(const struct sshbuf *buf, const u_char **valp,
 	    size_t *lenp);
-/* XXX peek_u8 / peek_u32 */
 
 /*
  * Functions to extract or store SSH wire encoded bignums and elliptic
@@ -232,10 +251,38 @@ void	sshbuf_dump_data(const void *s, size_t len, FILE *f);
 char	*sshbuf_dtob16(struct sshbuf *buf);
 
 /* Encode the contents of the buffer as base64 */
-char	*sshbuf_dtob64(struct sshbuf *buf);
+char	*sshbuf_dtob64_string(const struct sshbuf *buf, int wrap);
+int	sshbuf_dtob64(const struct sshbuf *d, struct sshbuf *b64, int wrap);
 
 /* Decode base64 data and append it to the buffer */
 int	sshbuf_b64tod(struct sshbuf *buf, const char *b64);
+
+/*
+ * Tests whether the buffer contains the specified byte sequence at the
+ * specified offset. Returns 0 on successful match, or a ssherr.h code
+ * otherwise. SSH_ERR_INVALID_FORMAT indicates sufficient bytes were
+ * present but the buffer contents did not match those supplied. Zero-
+ * length comparisons are not allowed.
+ *
+ * If sufficient data is present to make a comparison, then it is
+ * performed with timing independent of the value of the data. If
+ * insufficient data is present then the comparison is not attempted at
+ * all.
+ */
+int	sshbuf_cmp(const struct sshbuf *b, size_t offset,
+    const void *s, size_t len);
+
+/*
+ * Searches the buffer for the specified string. Returns 0 on success
+ * and updates *offsetp with the offset of the first match, relative to
+ * the start of the buffer. Otherwise sshbuf_find will return a ssherr.h
+ * error code. SSH_ERR_INVALID_FORMAT indicates sufficient bytes were
+ * present in the buffer for a match to be possible but none was found.
+ * Searches for zero-length data are not allowed.
+ */
+int
+sshbuf_find(const struct sshbuf *b, size_t start_offset,
+    const void *s, size_t len, size_t *offsetp);
 
 /*
  * Duplicate the contents of a buffer to a string (caller to free).

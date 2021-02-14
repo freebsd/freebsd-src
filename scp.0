@@ -100,7 +100,7 @@ DESCRIPTION
                    HostbasedKeyTypes
                    HostKeyAlgorithms
                    HostKeyAlias
-                   HostName
+                   Hostname
                    IdentitiesOnly
                    IdentityAgent
                    IdentityFile
@@ -179,4 +179,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 6.5                    January 26, 2019                    OpenBSD 6.5
+OpenBSD 6.6                      June 12, 2019                     OpenBSD 6.6

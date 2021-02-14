@@ -4,33 +4,36 @@ NAME
      ssh-keygen M-bM-^@M-^S authentication key generation, management and conversion
 
 SYNOPSIS
-     ssh-keygen [-q] [-b bits] [-t dsa | ecdsa | ed25519 | rsa]
-                [-N new_passphrase] [-C comment] [-f output_keyfile]
-                [-m format]
-     ssh-keygen -p [-P old_passphrase] [-N new_passphrase] [-f keyfile]
-                [-m format]
-     ssh-keygen -i [-m key_format] [-f input_keyfile]
-     ssh-keygen -e [-m key_format] [-f input_keyfile]
+     ssh-keygen [-q] [-b bits] [-C comment] [-f output_keyfile] [-m format]
+                [-N new_passphrase] [-t dsa | ecdsa | ed25519 | rsa]
+     ssh-keygen -p [-f keyfile] [-m format] [-N new_passphrase]
+                [-P old_passphrase]
+     ssh-keygen -i [-f input_keyfile] [-m key_format]
+     ssh-keygen -e [-f input_keyfile] [-m key_format]
      ssh-keygen -y [-f input_keyfile]
-     ssh-keygen -c [-P passphrase] [-C comment] [-f keyfile]
+     ssh-keygen -c [-C comment] [-f keyfile] [-P passphrase]
      ssh-keygen -l [-v] [-E fingerprint_hash] [-f input_keyfile]
      ssh-keygen -B [-f input_keyfile]
      ssh-keygen -D pkcs11
-     ssh-keygen -F hostname [-f known_hosts_file] [-l]
+     ssh-keygen -F hostname [-lv] [-f known_hosts_file]
      ssh-keygen -H [-f known_hosts_file]
      ssh-keygen -R hostname [-f known_hosts_file]
-     ssh-keygen -r hostname [-f input_keyfile] [-g]
+     ssh-keygen -r hostname [-g] [-f input_keyfile]
      ssh-keygen -G output_file [-v] [-b bits] [-M memory] [-S start_point]
-     ssh-keygen -T output_file -f input_file [-v] [-a rounds] [-J num_lines]
+     ssh-keygen -f input_file -T output_file [-v] [-a rounds] [-J num_lines]
                 [-j start_line] [-K checkpt] [-W generator]
-     ssh-keygen -s ca_key -I certificate_identity [-h] [-U]
-                [-D pkcs11_provider] [-n principals] [-O option]
-                [-V validity_interval] [-z serial_number] file ...
+     ssh-keygen -I certificate_identity -s ca_key [-hU] [-D pkcs11_provider]
+                [-n principals] [-O option] [-V validity_interval]
+                [-z serial_number] file ...
      ssh-keygen -L [-f input_keyfile]
      ssh-keygen -A [-f prefix_path]
      ssh-keygen -k -f krl_file [-u] [-s ca_public] [-z version_number]
                 file ...
      ssh-keygen -Q -f krl_file file ...
+     ssh-keygen -Y check-novalidate -n namespace -s signature_file
+     ssh-keygen -Y sign -f key_file -n namespace file ...
+     ssh-keygen -Y verify -f allowed_signers_file -I signer_identity
+                -n namespace -s signature_file [-r revocation_file]
 
 DESCRIPTION
      ssh-keygen generates, manages and converts authentication keys for
@@ -96,12 +99,12 @@ DESCRIPTION
              new host keys.
 
      -a rounds
-             When saving a private key this option specifies the number of KDF
-             (key derivation function) rounds used.  Higher numbers result in
-             slower passphrase verification and increased resistance to brute-
-             force password cracking (should the keys be stolen).
+             When saving a private key, this option specifies the number of
+             KDF (key derivation function) rounds used.  Higher numbers result
+             in slower passphrase verification and increased resistance to
+             brute-force password cracking (should the keys be stolen).
 
-             When screening DH-GEX candidates (using the -T command).  This
+             When screening DH-GEX candidates (using the -T command), this
              option specifies the number of primality tests to perform.
 
      -B      Show the bubblebabble digest of specified private or public key
@@ -109,8 +112,8 @@ DESCRIPTION
 
      -b bits
              Specifies the number of bits in the key to create.  For RSA keys,
-             the minimum size is 1024 bits and the default is 2048 bits.
-             Generally, 2048 bits is considered sufficient.  DSA keys must be
+             the minimum size is 1024 bits and the default is 3072 bits.
+             Generally, 3072 bits is considered sufficient.  DSA keys must be
              exactly 1024 bits as specified by FIPS 186-2.  For ECDSA keys,
              the -b flag determines the key length by selecting from one of
              three elliptic curve sizes: 256, 384 or 521 bits.  Attempting to
@@ -220,11 +223,12 @@ DESCRIPTION
              operation.  The latter may be used to convert between OpenSSH
              private key and PEM private key formats.  The supported key
              formats are: M-bM-^@M-^\RFC4716M-bM-^@M-^] (RFC 4716/SSH2 public or private key),
-             M-bM-^@M-^\PKCS8M-bM-^@M-^] (PEM PKCS8 public key) or M-bM-^@M-^\PEMM-bM-^@M-^] (PEM public key).  The
-             default conversion format is M-bM-^@M-^\RFC4716M-bM-^@M-^].  Setting a format of
-             M-bM-^@M-^\PEMM-bM-^@M-^] when generating or updating a supported private key type
-             will cause the key to be stored in the legacy PEM private key
-             format.
+             M-bM-^@M-^\PKCS8M-bM-^@M-^] (PKCS8 public or private key) or M-bM-^@M-^\PEMM-bM-^@M-^] (PEM public key).
+             By default OpenSSH will write newly-generated private keys in its
+             own format, but when converting public keys for export the
+             default format is M-bM-^@M-^\RFC4716M-bM-^@M-^].  Setting a format of M-bM-^@M-^\PEMM-bM-^@M-^] when
+             generating or updating a supported private key type will cause
+             the key to be stored in the legacy PEM private key format.
 
      -N new_passphrase
              Provides the new passphrase.
@@ -342,6 +346,11 @@ DESCRIPTION
              Specifies the type of key to create.  The possible values are
              M-bM-^@M-^\dsaM-bM-^@M-^], M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^], or M-bM-^@M-^\rsaM-bM-^@M-^].
 
+             This flag may also be used to specify the desired signature type
+             when signing certificates using an RSA CA key.  The available RSA
+             signature variants are M-bM-^@M-^\ssh-rsaM-bM-^@M-^] (SHA1 signatures, not
+             recommended), M-bM-^@M-^\rsa-sha2-256M-bM-^@M-^], and M-bM-^@M-^\rsa-sha2-512M-bM-^@M-^] (the default).
+
      -U      When used in combination with -s, this option indicates that a CA
              key resides in a ssh-agent(1).  See the CERTIFICATES section for
              more information.
@@ -387,6 +396,47 @@ DESCRIPTION
 
      -y      This option will read a private OpenSSH format file and print an
              OpenSSH public key to stdout.
+
+     -Y sign
+             Cryptographically sign a file or some data using a SSH key.  When
+             signing, ssh-keygen accepts zero or more files to sign on the
+             command-line - if no files are specified then ssh-keygen will
+             sign data presented on standard input.  Signatures are written to
+             the path of the input file with M-bM-^@M-^\.sigM-bM-^@M-^] appended, or to standard
+             output if the message to be signed was read from standard input.
+
+             The key used for signing is specified using the -f option and may
+             refer to either a private key, or a public key with the private
+             half available via ssh-agent(1).  An additional signature
+             namespace, used to prevent signature confusion across different
+             domains of use (e.g. file signing vs email signing) must be
+             provided via the -n flag.  Namespaces are arbitrary strings, and
+             may include: M-bM-^@M-^\fileM-bM-^@M-^] for file signing, M-bM-^@M-^\emailM-bM-^@M-^] for email signing.
+             For custom uses, it is recommended to use names following a
+             NAMESPACE@YOUR.DOMAIN pattern to generate unambiguous namespaces.
+
+     -Y verify
+             Request to verify a signature generated using ssh-keygen -Y sign
+             as described above.  When verifying a signature, ssh-keygen
+             accepts a message on standard input and a signature namespace
+             using -n.  A file containing the corresponding signature must
+             also be supplied using the -s flag, along with the identity of
+             the signer using -I and a list of allowed signers via the -f
+             flag.  The format of the allowed signers file is documented in
+             the ALLOWED SIGNERS section below.  A file containing revoked
+             keys can be passed using the -r flag.  The revocation file may be
+             a KRL or a one-per-line list of public keys.  Successful
+             verification by an authorized signer is signalled by ssh-keygen
+
+     -Y check-novalidate
+             Checks that a signature generated using ssh-keygen -Y sign has a
+             valid structure.  This does not validate if a signature comes
+             from an authorized signer.  When testing a signature, ssh-keygen
+             accepts a message on standard input and a signature namespace
+             using -n.  A file containing the corresponding signature must
+             also be supplied using the -s flag.  Successful testing of the
+             signature is signalled by ssh-keygen returning a zero exit
+             status.
 
      -z serial_number
              Specifies a serial number to be embedded in the certificate to
@@ -556,6 +606,51 @@ KEY REVOCATION LISTS
      non-zero exit status.  A zero exit status will only be returned if no key
      was revoked.
 
+ALLOWED SIGNERS
+     When verifying signatures, ssh-keygen uses a simple list of identities
+     and keys to determine whether a signature comes from an authorized
+     source.  This "allowed signers" file uses a format patterned after the
+     AUTHORIZED_KEYS FILE FORMAT described in sshd(8).  Each line of the file
+     contains the following space-separated fields: principals, options,
+     keytype, base64-encoded key.  Empty lines and lines starting with a M-bM-^@M-^X#M-bM-^@M-^Y
+     are ignored as comments.
+
+     The principals field is a pattern-list (See PATTERNS in ssh_config(5))
+     consisting of one or more comma-separated USER@DOMAIN identity patterns
+     that are accepted for signing.  When verifying, the identity presented
+     via the -I -option must match a principals pattern in order for the
+     corresponding key to be considered acceptable for verification.
+
+     The options (if present) consist of comma-separated option
+     specifications.  No spaces are permitted, except within double quotes.
+     The following option specifications are supported (note that option
+     keywords are case-insensitive):
+
+     cert-authority
+             Indicates that this key is accepted as a certificate authority
+             (CA) and that certificates signed by this CA may be accepted for
+             verification.
+
+     namespaces="namespace-list"
+             Specifies a pattern-list of namespaces that are accepted for this
+             key.  If this option is present, the signature namespace embedded
+             in the signature object and presented on the verification
+             command-line must match the specified list before the key will be
+             considered acceptable.
+
+     When verifying signatures made by certificates, the expected principal
+     name must match both the principals pattern in the allowed signers file
+     and the principals embedded in the certificate itself.
+
+     An example allowed signers file:
+
+        # Comments allowed at start of line
+        user1@example.com,user2@example.com ssh-rsa AAAAX1...
+        # A certificate authority, trusted for all principals in a domain.
+        *@example.com cert-authority ssh-ed25519 AAAB4...
+        # A key that is accepted only for file signing.
+        user2@example.com namespaces="file" ssh-ed25519 AAA41...
+
 FILES
      ~/.ssh/id_dsa
      ~/.ssh/id_ecdsa
@@ -596,4 +691,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.5                      March 5, 2019                     OpenBSD 6.5
+OpenBSD 6.6                     October 3, 2019                    OpenBSD 6.6

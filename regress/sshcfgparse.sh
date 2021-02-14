@@ -1,7 +1,14 @@
-#	$OpenBSD: sshcfgparse.sh,v 1.4 2018/07/04 13:51:12 djm Exp $
+#	$OpenBSD: sshcfgparse.sh,v 1.5 2019/07/23 13:32:48 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="ssh config parse"
+
+dsa=0
+for t in $SSH_KEYTYPES; do
+	case "$t" in
+		ssh-dss)	dsa=1 ;;
+	esac
+done
 
 expect_result_present() {
 	_str="$1" ; shift
@@ -75,15 +82,17 @@ f=`${SSH} -GF none -opubkeyacceptedkeytypes=-ssh-ed25519 host | \
 expect_result_present "$f" "ssh-ed25519-cert-v01.*"
 expect_result_absent "$f" "ssh-ed25519" "ssh-dss"
 # Append to default set.
-# XXX this will break for !WITH_OPENSSL
-f=`${SSH} -GF none -opubkeyacceptedkeytypes=+ssh-dss-cert* host | \
-    awk '/^pubkeyacceptedkeytypes /{print $2}'`
-expect_result_present "$f" "ssh-ed25519" "ssh-dss-cert-v01.*"
-expect_result_absent "$f" "ssh-dss"
-f=`${SSH} -GF none -opubkeyacceptedkeytypes=+ssh-dss host | \
-    awk '/^pubkeyacceptedkeytypes /{print $2}'`
-expect_result_present "$f" "ssh-ed25519" "ssh-ed25519-cert-v01.*" "ssh-dss"
-expect_result_absent "$f" "ssh-dss-cert-v01.*"
+# This is not tested when built !WITH_OPENSSL
+if [ "$dsa" = "1" ]; then
+	f=`${SSH} -GF none -opubkeyacceptedkeytypes=+ssh-dss-cert* host | \
+	    awk '/^pubkeyacceptedkeytypes /{print $2}'`
+	expect_result_present "$f" "ssh-ed25519" "ssh-dss-cert-v01.*"
+	expect_result_absent "$f" "ssh-dss"
+	f=`${SSH} -GF none -opubkeyacceptedkeytypes=+ssh-dss host | \
+	    awk '/^pubkeyacceptedkeytypes /{print $2}'`
+	expect_result_present "$f" "ssh-ed25519" "ssh-ed25519-cert-v01.*" "ssh-dss"
+	expect_result_absent "$f" "ssh-dss-cert-v01.*"
+fi
 
 # cleanup
 rm -f $OBJ/ssh_config.[012]

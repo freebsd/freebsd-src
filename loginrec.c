@@ -156,6 +156,7 @@
 
 #include <netinet/in.h>
 
+#include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
 #ifdef HAVE_PATHS_H
@@ -163,6 +164,7 @@
 #endif
 #include <pwd.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>

@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshkey.c,v 1.17 2018/09/13 09:03:20 djm Exp $ */
+/* 	$OpenBSD: test_sshkey.c,v 1.18 2019/06/21 04:21:45 djm Exp $ */
 /*
  * Regress test for sshkey.h key management API
  *
@@ -50,9 +50,10 @@ put_opt(struct sshbuf *b, const char *name, const char *value)
 	sshbuf_free(sect);
 }
 
+#ifdef WITH_OPENSSL
 static void
-build_cert(struct sshbuf *b, const struct sshkey *k, const char *type,
-    const struct sshkey *sign_key, const struct sshkey *ca_key,
+build_cert(struct sshbuf *b, struct sshkey *k, const char *type,
+    struct sshkey *sign_key, struct sshkey *ca_key,
     const char *sig_alg)
 {
 	struct sshbuf *ca_buf, *pk, *principals, *critopts, *exts;
@@ -110,6 +111,7 @@ build_cert(struct sshbuf *b, const struct sshkey *k, const char *type,
 	sshbuf_free(principals);
 	sshbuf_free(pk);
 }
+#endif /* WITH_OPENSSL */
 
 static void
 signature_test(struct sshkey *k, struct sshkey *bad, const char *sig_alg,
@@ -176,10 +178,13 @@ get_private(const char *n)
 void
 sshkey_tests(void)
 {
-	struct sshkey *k1, *k2, *k3, *k4, *kr, *kd, *kf;
+	struct sshkey *k1, *k2, *k3, *kf;
+#ifdef WITH_OPENSSL
+	struct sshkey *k4, *kr, *kd;
 #ifdef OPENSSL_HAS_ECC
 	struct sshkey *ke;
-#endif
+#endif /* OPENSSL_HAS_ECC */
+#endif /* WITH_OPENSSL */
 	struct sshbuf *b;
 
 	TEST_START("new invalid");
@@ -193,6 +198,7 @@ sshkey_tests(void)
 	sshkey_free(k1);
 	TEST_DONE();
 
+#ifdef WITH_OPENSSL
 	TEST_START("new/free KEY_RSA");
 	k1 = sshkey_new(KEY_RSA);
 	ASSERT_PTR_NE(k1, NULL);
@@ -281,7 +287,8 @@ sshkey_tests(void)
 	ASSERT_PTR_NE(EC_KEY_get0_public_key(ke->ecdsa), NULL);
 	ASSERT_PTR_NE(EC_KEY_get0_private_key(ke->ecdsa), NULL);
 	TEST_DONE();
-#endif
+#endif /* OPENSSL_HAS_ECC */
+#endif /* WITH_OPENSSL */
 
 	TEST_START("generate KEY_ED25519");
 	ASSERT_INT_EQ(sshkey_generate(KEY_ED25519, 256, &kf), 0);
@@ -291,6 +298,7 @@ sshkey_tests(void)
 	ASSERT_PTR_NE(kf->ed25519_sk, NULL);
 	TEST_DONE();
 
+#ifdef WITH_OPENSSL
 	TEST_START("demote KEY_RSA");
 	ASSERT_INT_EQ(sshkey_from_private(kr, &k1), 0);
 	ASSERT_PTR_NE(k1, NULL);
@@ -338,7 +346,8 @@ sshkey_tests(void)
 	ASSERT_INT_EQ(sshkey_equal(ke, k1), 1);
 	sshkey_free(k1);
 	TEST_DONE();
-#endif
+#endif /* OPENSSL_HAS_ECC */
+#endif /* WITH_OPENSSL */
 
 	TEST_START("demote KEY_ED25519");
 	ASSERT_INT_EQ(sshkey_from_private(kf, &k1), 0);
@@ -354,17 +363,20 @@ sshkey_tests(void)
 	sshkey_free(k1);
 	TEST_DONE();
 
+#ifdef WITH_OPENSSL
 	TEST_START("equal mismatched key types");
 	ASSERT_INT_EQ(sshkey_equal(kd, kr), 0);
 #ifdef OPENSSL_HAS_ECC
 	ASSERT_INT_EQ(sshkey_equal(kd, ke), 0);
 	ASSERT_INT_EQ(sshkey_equal(kr, ke), 0);
 	ASSERT_INT_EQ(sshkey_equal(ke, kf), 0);
-#endif
+#endif /* OPENSSL_HAS_ECC */
 	ASSERT_INT_EQ(sshkey_equal(kd, kf), 0);
 	TEST_DONE();
+#endif /* WITH_OPENSSL */
 
 	TEST_START("equal different keys");
+#ifdef WITH_OPENSSL
 	ASSERT_INT_EQ(sshkey_generate(KEY_RSA, 1024, &k1), 0);
 	ASSERT_INT_EQ(sshkey_equal(kr, k1), 0);
 	sshkey_free(k1);
@@ -375,17 +387,20 @@ sshkey_tests(void)
 	ASSERT_INT_EQ(sshkey_generate(KEY_ECDSA, 256, &k1), 0);
 	ASSERT_INT_EQ(sshkey_equal(ke, k1), 0);
 	sshkey_free(k1);
-#endif
+#endif /* OPENSSL_HAS_ECC */
+#endif /* WITH_OPENSSL */
 	ASSERT_INT_EQ(sshkey_generate(KEY_ED25519, 256, &k1), 0);
 	ASSERT_INT_EQ(sshkey_equal(kf, k1), 0);
 	sshkey_free(k1);
 	TEST_DONE();
 
+#ifdef WITH_OPENSSL
 	sshkey_free(kr);
 	sshkey_free(kd);
 #ifdef OPENSSL_HAS_ECC
 	sshkey_free(ke);
-#endif
+#endif /* OPENSSL_HAS_ECC */
+#endif /* WITH_OPENSSL */
 	sshkey_free(kf);
 
 	TEST_START("certify key");
@@ -434,6 +449,7 @@ sshkey_tests(void)
 	sshbuf_reset(b);
 	TEST_DONE();
 
+#ifdef WITH_OPENSSL
 	TEST_START("sign and verify RSA");
 	k1 = get_private("rsa_1");
 	ASSERT_INT_EQ(sshkey_load_public(test_data_file("rsa_2.pub"), &k2,
@@ -479,7 +495,8 @@ sshkey_tests(void)
 	sshkey_free(k1);
 	sshkey_free(k2);
 	TEST_DONE();
-#endif
+#endif /* OPENSSL_HAS_ECC */
+#endif /* WITH_OPENSSL */
 
 	TEST_START("sign and verify ED25519");
 	k1 = get_private("ed25519_1");
@@ -490,6 +507,7 @@ sshkey_tests(void)
 	sshkey_free(k2);
 	TEST_DONE();
 
+#ifdef WITH_OPENSSL
 	TEST_START("nested certificate");
 	ASSERT_INT_EQ(sshkey_load_cert(test_data_file("rsa_1"), &k1), 0);
 	ASSERT_INT_EQ(sshkey_load_public(test_data_file("rsa_1.pub"), &k2,
@@ -504,5 +522,5 @@ sshkey_tests(void)
 	sshkey_free(k3);
 	sshbuf_free(b);
 	TEST_DONE();
-
+#endif /* WITH_OPENSSL */
 }

@@ -1,4 +1,4 @@
-/* $OpenBSD: xmalloc.c,v 1.34 2017/05/31 09:15:42 deraadt Exp $ */
+/* $OpenBSD: xmalloc.c,v 1.35 2019/06/06 05:13:13 otto Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -17,7 +17,7 @@
 
 #include <stdarg.h>
 #ifdef HAVE_STDINT_H
-#include <stdint.h>
+# include <stdint.h>
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,15 +26,9 @@
 #include "xmalloc.h"
 #include "log.h"
 
-void
-ssh_malloc_init(void)
-{
 #if defined(__OpenBSD__)
-	extern char *malloc_options;
-
-	malloc_options = "S";
+char *malloc_options = "S";
 #endif /* __OpenBSD__ */
-}
 
 void *
 xmalloc(size_t size)

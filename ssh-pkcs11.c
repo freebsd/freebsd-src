@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.c,v 1.43 2019/03/08 17:24:43 markus Exp $ */
+/* $OpenBSD: ssh-pkcs11.c,v 1.46 2019/10/01 10:22:53 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  * Copyright (c) 2014 Pedro Martelletto. All rights reserved.
@@ -200,15 +200,15 @@ static void
 pkcs11_k11_free(void *parent, void *ptr, CRYPTO_EX_DATA *ad, int idx,
     long argl, void *argp)
 {
-        struct pkcs11_key       *k11 = ptr;
+	struct pkcs11_key	*k11 = ptr;
 
-        debug("%s: parent %p ptr %p idx %d", __func__, parent, ptr, idx);
-        if (k11 == NULL)
-                return;
-        if (k11->provider)
-                pkcs11_provider_unref(k11->provider);
-        free(k11->keyid);
-        free(k11);
+	debug("%s: parent %p ptr %p idx %d", __func__, parent, ptr, idx);
+	if (k11 == NULL)
+		return;
+	if (k11->provider)
+		pkcs11_provider_unref(k11->provider);
+	free(k11->keyid);
+	free(k11);
 }
 
 /* find a single 'obj' for given attributes */
@@ -240,20 +240,16 @@ pkcs11_find(struct pkcs11_provider *p, CK_ULONG slotidx, CK_ATTRIBUTE *attr,
 }
 
 static int
-pkcs11_login(struct pkcs11_key *k11, CK_USER_TYPE type)
+pkcs11_login_slot(struct pkcs11_provider *provider, struct pkcs11_slotinfo *si,
+    CK_USER_TYPE type)
 {
-	struct pkcs11_slotinfo	*si;
-	CK_FUNCTION_LIST	*f;
 	char			*pin = NULL, prompt[1024];
 	CK_RV			 rv;
 
-	if (!k11->provider || !k11->provider->valid) {
+	if (provider == NULL || si == NULL || !provider->valid) {
 		error("no pkcs11 (valid) provider found");
 		return (-1);
 	}
-
-	f = k11->provider->function_list;
-	si = &k11->provider->slotinfo[k11->slotidx];
 
 	if (!pkcs11_interactive) {
 		error("need pin entry%s",
@@ -271,7 +267,7 @@ pkcs11_login(struct pkcs11_key *k11, CK_USER_TYPE type)
 			return (-1);	/* bail out */
 		}
 	}
-	rv = f->C_Login(si->session, type, (u_char *)pin,
+	rv = provider->function_list->C_Login(si->session, type, (u_char *)pin,
 	    (pin != NULL) ? strlen(pin) : 0);
 	if (pin != NULL)
 		freezero(pin, strlen(pin));
@@ -282,6 +278,19 @@ pkcs11_login(struct pkcs11_key *k11, CK_USER_TYPE type)
 	si->logged_in = 1;
 	return (0);
 }
+
+static int
+pkcs11_login(struct pkcs11_key *k11, CK_USER_TYPE type)
+{
+	if (k11 == NULL || k11->provider == NULL || !k11->provider->valid) {
+		error("no pkcs11 (valid) provider found");
+		return (-1);
+	}
+
+	return pkcs11_login_slot(k11->provider,
+	    &k11->provider->slotinfo[k11->slotidx], type);
+}
+
 
 static int
 pkcs11_check_obj_bool_attrib(struct pkcs11_key *k11, CK_OBJECT_HANDLE obj,
@@ -624,17 +633,15 @@ pkcs11_open_session(struct pkcs11_provider *p, CK_ULONG slotidx, char *pin,
 	CK_FUNCTION_LIST	*f;
 	CK_RV			rv;
 	CK_SESSION_HANDLE	session;
-	int			login_required, have_pinpad, ret;
-	char			prompt[1024], *xpin = NULL;
+	int			login_required, ret;
 
 	f = p->function_list;
 	si = &p->slotinfo[slotidx];
 
-	have_pinpad = si->token.flags & CKF_PROTECTED_AUTHENTICATION_PATH;
 	login_required = si->token.flags & CKF_LOGIN_REQUIRED;
 
 	/* fail early before opening session */
-	if (login_required && !have_pinpad && !pkcs11_interactive &&
+	if (login_required && !pkcs11_interactive &&
 	    (pin == NULL || strlen(pin) == 0)) {
 		error("pin required");
 		return (-SSH_PKCS11_ERR_PIN_REQUIRED);
@@ -644,27 +651,8 @@ pkcs11_open_session(struct pkcs11_provider *p, CK_ULONG slotidx, char *pin,
 		error("C_OpenSession failed: %lu", rv);
 		return (-1);
 	}
-	if (login_required) {
-		if (have_pinpad && (pin == NULL || strlen(pin) == 0)) {
-			/* defer PIN entry to the reader keypad */
-			rv = f->C_Login(session, CKU_USER, NULL_PTR, 0);
-		} else {
-			if (pkcs11_interactive) {
-				snprintf(prompt, sizeof(prompt),
-				    "Enter PIN for '%s': ", si->token.label);
-				if ((xpin = read_passphrase(prompt,
-				    RP_ALLOW_EOF)) == NULL) {
-					debug("%s: no pin specified",
-					    __func__);
-					return (-SSH_PKCS11_ERR_PIN_REQUIRED);
-				}
-				pin = xpin;
-			}
-			rv = f->C_Login(session, CKU_USER,
-			    (u_char *)pin, strlen(pin));
-			if (xpin != NULL)
-				freezero(xpin, strlen(xpin));
-		}
+	if (login_required && pin != NULL && strlen(pin) != 0) {
+		rv = f->C_Login(session, user, (u_char *)pin, strlen(pin));
 		if (rv != CKR_OK && rv != CKR_USER_ALREADY_LOGGED_IN) {
 			error("C_Login failed: %lu", rv);
 			ret = (rv == CKR_PIN_LOCKED) ?
@@ -916,7 +904,9 @@ pkcs11_fetch_x509_pubkey(struct pkcs11_provider *p, CK_ULONG slotidx,
 	X509			*x509 = NULL;
 	EVP_PKEY		*evp;
 	RSA			*rsa = NULL;
+#ifdef OPENSSL_HAS_ECC
 	EC_KEY			*ec = NULL;
+#endif
 	struct sshkey		*key = NULL;
 	int			 i;
 #ifdef HAVE_EC_KEY_METHOD_NEW
@@ -1043,7 +1033,9 @@ fail:
 		free(cert_attr[i].pValue);
 	X509_free(x509);
 	RSA_free(rsa);
+#ifdef OPENSSL_HAS_ECC
 	EC_KEY_free(ec);
+#endif
 
 	return (key);
 }
@@ -1519,7 +1511,7 @@ pkcs11_register_provider(char *provider_id, char *pin, struct sshkey ***keyp,
 		goto fail;
 	}
 	if (p->nslots == 0) {
-		error("%s: provider %s returned no slots", __func__,
+		debug("%s: provider %s returned no slots", __func__,
 		    provider_id);
 		ret = -SSH_PKCS11_ERR_NO_SLOTS;
 		goto fail;
@@ -1561,9 +1553,22 @@ pkcs11_register_provider(char *provider_id, char *pin, struct sshkey ***keyp,
 		 * open session, login with pin and retrieve public
 		 * keys (if keyp is provided)
 		 */
-		if ((ret = pkcs11_open_session(p, i, pin, user)) == 0) {
-			if (keyp == NULL)
+		if ((ret = pkcs11_open_session(p, i, pin, user)) != 0 ||
+		    keyp == NULL)
+			continue;
+		pkcs11_fetch_keys(p, i, keyp, &nkeys);
+		pkcs11_fetch_certs(p, i, keyp, &nkeys);
+		if (nkeys == 0 && !p->slotinfo[i].logged_in &&
+		    pkcs11_interactive) {
+			/*
+			 * Some tokens require login before they will
+			 * expose keys.
+			 */
+			if (pkcs11_login_slot(p, &p->slotinfo[i],
+			    CKU_USER) < 0) {
+				error("login failed");
 				continue;
+			}
 			pkcs11_fetch_keys(p, i, keyp, &nkeys);
 			pkcs11_fetch_certs(p, i, keyp, &nkeys);
 		}
@@ -1785,6 +1790,14 @@ out:
 }
 #endif /* WITH_PKCS11_KEYGEN */
 #else /* ENABLE_PKCS11 */
+
+#include <sys/types.h>
+#include <stdarg.h>
+#include <stdio.h>
+
+#include "log.h"
+#include "sshkey.h"
+
 int
 pkcs11_init(int interactive)
 {

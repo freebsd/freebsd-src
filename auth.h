@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.h,v 1.99 2019/01/19 21:43:56 djm Exp $ */
+/* $OpenBSD: auth.h,v 1.100 2019/09/06 05:23:55 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -29,8 +29,6 @@
 #define AUTH_H
 
 #include <signal.h>
-
-#include <openssl/rsa.h>
 
 #ifdef HAVE_LOGIN_CAP
 #include <login_cap.h>
@@ -236,7 +234,7 @@ pid_t	subprocess(const char *, struct passwd *,
 int	 sys_auth_passwd(struct ssh *, const char *);
 
 #if defined(KRB5) && !defined(HEIMDAL)
-#include <krb5.h>
 krb5_error_code ssh_krb5_cc_gen(krb5_context, krb5_ccache *);
 #endif
-#endif
+
+#endif /* AUTH_H */

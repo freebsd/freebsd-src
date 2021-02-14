@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-passwd.c,v 1.16 2018/07/09 21:35:50 markus Exp $ */
+/* $OpenBSD: auth2-passwd.c,v 1.17 2019/09/06 04:53:27 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -27,8 +27,10 @@
 
 #include <sys/types.h>
 
+#include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "packet.h"
 #include "ssherr.h"

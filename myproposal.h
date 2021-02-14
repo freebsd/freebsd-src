@@ -136,9 +136,7 @@
 
 /* Not a KEX value, but here so all the algorithm defaults are together */
 #define	SSH_ALLOWED_CA_SIGALGS	\
-	"ecdsa-sha2-nistp256," \
-	"ecdsa-sha2-nistp384," \
-	"ecdsa-sha2-nistp521," \
+	HOSTKEY_ECDSA_METHODS \
 	"ssh-ed25519," \
 	"rsa-sha2-512," \
 	"rsa-sha2-256," \

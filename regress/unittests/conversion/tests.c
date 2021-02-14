@@ -1,4 +1,4 @@
-/* 	$OpenBSD: tests.c,v 1.1 2017/03/14 01:20:29 dtucker Exp $ */
+/* 	$OpenBSD: tests.c,v 1.2 2019/06/14 04:03:48 djm Exp $ */
 /*
  * Regress test for conversions
  *
@@ -40,6 +40,8 @@ tests(void)
 	ASSERT_LONG_EQ(convtime("-9d"), -1);
 	
 	/* overflow */
+	snprintf(buf, sizeof buf, "%llu", (unsigned long long)LONG_MAX);
+	ASSERT_LONG_EQ(convtime(buf), -1);
 	snprintf(buf, sizeof buf, "%llu", (unsigned long long)LONG_MAX + 1);
 	ASSERT_LONG_EQ(convtime(buf), -1);
 

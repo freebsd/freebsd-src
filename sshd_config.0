@@ -210,7 +210,7 @@ DESCRIPTION
              Specifies which algorithms are allowed for signing of
              certificates by certificate authorities (CAs).  The default is:
 
-                   ecdsa-sha2-nistp256.ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+                   ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
                    ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 
              Certificates signed using other algorithms will not be accepted
@@ -249,11 +249,13 @@ DESCRIPTION
 
      Ciphers
              Specifies the ciphers allowed.  Multiple ciphers must be comma-
-             separated.  If the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
+             separated.  If the specified list begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
              then the specified ciphers will be appended to the default set
-             instead of replacing them.  If the specified value begins with a
+             instead of replacing them.  If the specified list begins with a
              M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified ciphers (including wildcards)
              will be removed from the default set instead of replacing them.
+             If the specified list begins with a M-bM-^@M-^X^M-bM-^@M-^Y character, then the
+             specified ciphers will be placed at the head of the default set.
 
              The supported ciphers are:
 
@@ -288,7 +290,7 @@ DESCRIPTION
              spoofable.  The TCP keepalive option enabled by TCPKeepAlive is
              spoofable.  The client alive mechanism is valuable when the
              client or server depend on knowing when a connection has become
-             inactive.
+             unresponsive.
 
              The default value is 3.  If ClientAliveInterval is set to 15, and
              ClientAliveCountMax is left at the default, unresponsive SSH
@@ -393,12 +395,14 @@ DESCRIPTION
      HostbasedAcceptedKeyTypes
              Specifies the key types that will be accepted for hostbased
              authentication as a list of comma-separated patterns.
-             Alternately if the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
+             Alternately if the specified list begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
              then the specified key types will be appended to the default set
-             instead of replacing them.  If the specified value begins with a
+             instead of replacing them.  If the specified list begins with a
              M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified key types (including wildcards)
              will be removed from the default set instead of replacing them.
-             The default for this option is:
+             If the specified list begins with a M-bM-^@M-^X^M-bM-^@M-^Y character, then the
+             specified key types will be placed at the head of the default
+             set.  The default for this option is:
 
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
@@ -524,12 +528,13 @@ DESCRIPTION
      KexAlgorithms
              Specifies the available KEX (Key Exchange) algorithms.  Multiple
              algorithms must be comma-separated.  Alternately if the specified
-             value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified methods
-             will be appended to the default set instead of replacing them.
-             If the specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then the
-             specified methods (including wildcards) will be removed from the
-             default set instead of replacing them.  The supported algorithms
-             are:
+             list begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified methods will
+             be appended to the default set instead of replacing them.  If the
+             specified list begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified
+             methods (including wildcards) will be removed from the default
+             set instead of replacing them.  If the specified list begins with
+             a M-bM-^@M-^X^M-bM-^@M-^Y character, then the specified methods will be placed at the
+             head of the default set.  The supported algorithms are:
 
                    curve25519-sha256
                    curve25519-sha256@libssh.org
@@ -588,11 +593,14 @@ DESCRIPTION
      MACs    Specifies the available MAC (message authentication code)
              algorithms.  The MAC algorithm is used for data integrity
              protection.  Multiple algorithms must be comma-separated.  If the
-             specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified
+             specified list begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified
              algorithms will be appended to the default set instead of
-             replacing them.  If the specified value begins with a M-bM-^@M-^X-M-bM-^@M-^Y
+             replacing them.  If the specified list begins with a M-bM-^@M-^X-M-bM-^@M-^Y
              character, then the specified algorithms (including wildcards)
              will be removed from the default set instead of replacing them.
+             If the specified list begins with a M-bM-^@M-^X^M-bM-^@M-^Y character, then the
+             specified algorithms will be placed at the head of the default
+             set.
 
              The algorithms that contain "-etm" calculate the MAC after
              encryption (encrypt-then-mac).  These are considered safer and
@@ -668,7 +676,7 @@ DESCRIPTION
              PermitTTY, PermitTunnel, PermitUserRC, PubkeyAcceptedKeyTypes,
              PubkeyAuthentication, RekeyLimit, RevokedKeys, RDomain, SetEnv,
              StreamLocalBindMask, StreamLocalBindUnlink, TrustedUserCAKeys,
-             X11DisplayOffset, X11Forwarding and X11UseLocalHost.
+             X11DisplayOffset, X11Forwarding and X11UseLocalhost.
 
      MaxAuthTries
              Specifies the maximum number of authentication attempts permitted
@@ -811,12 +819,14 @@ DESCRIPTION
      PubkeyAcceptedKeyTypes
              Specifies the key types that will be accepted for public key
              authentication as a list of comma-separated patterns.
-             Alternately if the specified value begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
+             Alternately if the specified list begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
              then the specified key types will be appended to the default set
-             instead of replacing them.  If the specified value begins with a
+             instead of replacing them.  If the specified list begins with a
              M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified key types (including wildcards)
              will be removed from the default set instead of replacing them.
-             The default for this option is:
+             If the specified list begins with a M-bM-^@M-^X^M-bM-^@M-^Y character, then the
+             specified key types will be placed at the head of the default
+             set.  The default for this option is:
 
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
@@ -1089,4 +1099,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.5                     March 22, 2019                     OpenBSD 6.5
+OpenBSD 6.6                    September 6, 2019                   OpenBSD 6.6

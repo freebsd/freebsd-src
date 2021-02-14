@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.h,v 1.31 2019/01/20 22:51:37 djm Exp $ */
+/* $OpenBSD: sshkey.h,v 1.34 2019/09/03 08:31:20 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -88,6 +88,13 @@ enum sshkey_serialize_rep {
 	SSHKEY_SERIALIZE_INFO = 254,
 };
 
+/* Private key disk formats */
+enum sshkey_private_format {
+	SSHKEY_PRIVATE_OPENSSH = 0,
+	SSHKEY_PRIVATE_PEM = 1,
+	SSHKEY_PRIVATE_PKCS8 = 2,
+};
+
 /* key is stored in external hardware */
 #define SSHKEY_FLAG_EXT		0x0001
 
@@ -123,6 +130,10 @@ struct sshkey {
 	u_char	*xmss_sk;
 	u_char	*xmss_pk;
 	struct sshkey_cert *cert;
+	u_char	*shielded_private;
+	size_t	shielded_len;
+	u_char	*shield_prekey;
+	size_t	shield_prekey_len;
 };
 
 #define	ED25519_SK_SZ	crypto_sign_ed25519_SECRETKEYBYTES
@@ -146,6 +157,11 @@ u_int		 sshkey_size(const struct sshkey *);
 
 int		 sshkey_generate(int type, u_int bits, struct sshkey **keyp);
 int		 sshkey_from_private(const struct sshkey *, struct sshkey **);
+
+int		 sshkey_is_shielded(struct sshkey *);
+int		 sshkey_shield_private(struct sshkey *);
+int		 sshkey_unshield_private(struct sshkey *);
+
 int	 sshkey_type_from_name(const char *);
 int	 sshkey_is_cert(const struct sshkey *);
 int	 sshkey_type_is_cert(int);
@@ -161,7 +177,7 @@ int	 sshkey_check_cert_sigtype(const struct sshkey *, const char *);
 
 int	 sshkey_certify(struct sshkey *, struct sshkey *, const char *);
 /* Variant allowing use of a custom signature function (e.g. for ssh-agent) */
-typedef int sshkey_certify_signer(const struct sshkey *, u_char **, size_t *,
+typedef int sshkey_certify_signer(struct sshkey *, u_char **, size_t *,
     const u_char *, size_t, const char *, u_int, void *);
 int	 sshkey_certify_custom(struct sshkey *, struct sshkey *, const char *,
     sshkey_certify_signer *, void *);
@@ -192,27 +208,28 @@ int	 sshkey_puts_opts(const struct sshkey *, struct sshbuf *,
 int	 sshkey_plain_to_blob(const struct sshkey *, u_char **, size_t *);
 int	 sshkey_putb_plain(const struct sshkey *, struct sshbuf *);
 
-int	 sshkey_sign(const struct sshkey *, u_char **, size_t *,
+int	 sshkey_sign(struct sshkey *, u_char **, size_t *,
     const u_char *, size_t, const char *, u_int);
 int	 sshkey_verify(const struct sshkey *, const u_char *, size_t,
     const u_char *, size_t, const char *, u_int);
 int	 sshkey_check_sigtype(const u_char *, size_t, const char *);
 const char *sshkey_sigalg_by_name(const char *);
+int	 sshkey_get_sigtype(const u_char *, size_t, char **);
 
 /* for debug */
 void	sshkey_dump_ec_point(const EC_GROUP *, const EC_POINT *);
 void	sshkey_dump_ec_key(const EC_KEY *);
 
 /* private key parsing and serialisation */
-int	sshkey_private_serialize(const struct sshkey *key, struct sshbuf *buf);
-int	sshkey_private_serialize_opt(const struct sshkey *key, struct sshbuf *buf,
+int	sshkey_private_serialize(struct sshkey *key, struct sshbuf *buf);
+int	sshkey_private_serialize_opt(struct sshkey *key, struct sshbuf *buf,
     enum sshkey_serialize_rep);
 int	sshkey_private_deserialize(struct sshbuf *buf,  struct sshkey **keyp);
 
 /* private key file format parsing and serialisation */
 int	sshkey_private_to_fileblob(struct sshkey *key, struct sshbuf *blob,
     const char *passphrase, const char *comment,
-    int force_new_format, const char *new_format_cipher, int new_format_rounds);
+    int format, const char *openssh_format_cipher, int openssh_format_rounds);
 int	sshkey_parse_private_fileblob(struct sshbuf *buffer,
     const char *passphrase, struct sshkey **keyp, char **commentp);
 int	sshkey_parse_private_fileblob_type(struct sshbuf *blob, int type,
@@ -231,7 +248,7 @@ int	 sshkey_set_filename(struct sshkey *, const char *);
 int	 sshkey_enable_maxsign(struct sshkey *, u_int32_t);
 u_int32_t sshkey_signatures_left(const struct sshkey *);
 int	 sshkey_forward_state(const struct sshkey *, u_int32_t, sshkey_printfn *);
-int	 sshkey_private_serialize_maxsign(const struct sshkey *key, struct sshbuf *buf,
+int	 sshkey_private_serialize_maxsign(struct sshkey *key, struct sshbuf *buf,
     u_int32_t maxsign, sshkey_printfn *pr);
 
 #ifdef SSHKEY_INTERNAL

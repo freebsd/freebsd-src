@@ -1,13 +1,18 @@
-#	$OpenBSD: krl.sh,v 1.7 2018/09/12 01:23:48 djm Exp $
+#	$OpenBSD: krl.sh,v 1.8 2019/07/25 09:17:35 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="key revocation lists"
 
-# If we don't support ecdsa keys then this tell will be much slower.
-ECDSA=ecdsa
-if test "x$TEST_SSH_ECC" != "xyes"; then
-	ECDSA=rsa
-fi
+# Use ed25519 by default since it's fast and it's supported when building
+# w/out OpenSSL.  Populate ktype[2-4] with the other types if supported.
+ktype1=ed25519; ktype2=ed25519; ktype3=ed25519; ktype4=ed25519
+for t in `${SSH} -Q key-plain`; do
+	case "$t" in
+		ecdsa*)		ktype2=ecdsa ;;
+		ssh-rsa)	ktype3=rsa ;;
+		ssh-dss)	ktype4=dsa ;;
+	esac
+done
 
 # Do most testing with ssh-keygen; it uses the same verification code as sshd.
 
@@ -15,9 +20,9 @@ fi
 rm -f $OBJ/revoked-* $OBJ/krl-*
 
 # Generate a CA key
-$SSHKEYGEN -t $ECDSA -f $OBJ/revoked-ca  -C "" -N "" > /dev/null ||
+$SSHKEYGEN -t $ktype1 -f $OBJ/revoked-ca  -C "" -N "" > /dev/null ||
 	fatal "$SSHKEYGEN CA failed"
-$SSHKEYGEN -t ed25519 -f $OBJ/revoked-ca2  -C "" -N "" > /dev/null ||
+$SSHKEYGEN -t $ktype2 -f $OBJ/revoked-ca2  -C "" -N "" > /dev/null ||
 	fatal "$SSHKEYGEN CA2 failed"
 
 # A specification that revokes some certificates by serial numbers
@@ -55,11 +60,13 @@ done
 keygen() {
 	N=$1
 	f=$OBJ/revoked-`printf "%04d" $N`
-	# Vary the keytype. We use mostly ECDSA since this is fastest by far.
-	keytype=$ECDSA
+	# Vary the keytype. We use mostly ed25519 since this is fast and well
+	# supported.
+	keytype=$ktype1
 	case $N in
-	2 | 10 | 510 | 1001)	keytype=rsa;;
-	4 | 30 | 520 | 1002)	keytype=ed25519;;
+	2 | 10 | 510 | 1001)	keytype=$ktype2 ;;
+	4 | 30 | 520 | 1002)	keytype=$ktype3 ;;
+	8 | 50 | 530 | 1003)	keytype=$ktype4 ;;
 	esac
 	$SSHKEYGEN -t $keytype -f $f -C "" -N "" > /dev/null \
 		|| fatal "$SSHKEYGEN failed"

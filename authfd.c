@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.c,v 1.113 2018/12/27 23:02:11 djm Exp $ */
+/* $OpenBSD: authfd.c,v 1.117 2019/09/03 08:29:15 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -101,12 +101,12 @@ ssh_get_authentication_socket(int *fdp)
 	sunaddr.sun_family = AF_UNIX;
 	strlcpy(sunaddr.sun_path, authsocket, sizeof(sunaddr.sun_path));
 
-	if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+	if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 		return SSH_ERR_SYSTEM_ERROR;
 
 	/* close on exec */
 	if (fcntl(sock, F_SETFD, FD_CLOEXEC) == -1 ||
-	    connect(sock, (struct sockaddr *)&sunaddr, sizeof(sunaddr)) < 0) {
+	    connect(sock, (struct sockaddr *)&sunaddr, sizeof(sunaddr)) == -1) {
 		oerrno = errno;
 		close(sock);
 		errno = oerrno;
@@ -312,7 +312,35 @@ ssh_free_identitylist(struct ssh_identitylist *idl)
 		if (idl->comments != NULL)
 			free(idl->comments[i]);
 	}
+	free(idl->keys);
+	free(idl->comments);
 	free(idl);
+}
+
+/*
+ * Check if the ssh agent has a given key.
+ * Returns 0 if found, or a negative SSH_ERR_* error code on failure.
+ */
+int
+ssh_agent_has_key(int sock, struct sshkey *key)
+{
+	int r, ret = SSH_ERR_KEY_NOT_FOUND;
+	size_t i;
+	struct ssh_identitylist *idlist = NULL;
+
+	if ((r = ssh_fetch_identitylist(sock, &idlist)) < 0) {
+		return r;
+	}
+
+	for (i = 0; i < idlist->nkeys; i++) {
+		if (sshkey_equal_public(idlist->keys[i], key)) {
+			ret = 0;
+			break;
+		}
+	}
+
+	ssh_free_identitylist(idlist);
+	return ret;
 }
 
 /*
@@ -423,7 +451,7 @@ encode_constraints(struct sshbuf *m, u_int life, u_int confirm, u_int maxsign)
  * This call is intended only for use by ssh-add(1) and like applications.
  */
 int
-ssh_add_identity_constrained(int sock, const struct sshkey *key,
+ssh_add_identity_constrained(int sock, struct sshkey *key,
     const char *comment, u_int life, u_int confirm, u_int maxsign)
 {
 	struct sshbuf *msg;

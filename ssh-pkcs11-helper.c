@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11-helper.c,v 1.17 2019/01/23 02:01:10 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11-helper.c,v 1.21 2019/09/06 05:23:55 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -24,6 +24,7 @@
 
 #include "openbsd-compat/sys-queue.h"
 
+#include <stdlib.h>
 #include <errno.h>
 #include <poll.h>
 #include <stdarg.h>
@@ -40,6 +41,8 @@
 #include "ssherr.h"
 
 #ifdef ENABLE_PKCS11
+
+#ifdef WITH_OPENSSL
 
 /* borrows code from sftp-server and ssh-agent */
 
@@ -195,7 +198,6 @@ process_sign(void)
 	else {
 		if ((found = lookup_key(key)) != NULL) {
 #ifdef WITH_OPENSSL
-			u_int xslen;
 			int ret;
 
 			if (key->type == KEY_RSA) {
@@ -207,8 +209,10 @@ process_sign(void)
 					slen = ret;
 					ok = 0;
 				}
+#ifdef OPENSSL_HAS_ECC
 			} else if (key->type == KEY_ECDSA) {
-				xslen = ECDSA_size(key->ecdsa);
+				u_int xslen = ECDSA_size(key->ecdsa);
+
 				signature = xmalloc(xslen);
 				/* "The parameter type is ignored." */
 				ret = ECDSA_sign(-1, data, dlen, signature,
@@ -219,6 +223,7 @@ process_sign(void)
 					error("%s: ECDSA_sign"
 					    " returns %d", __func__, ret);
 				slen = xslen;
+#endif /* OPENSSL_HAS_ECC */
 			} else
 				error("%s: don't know how to sign with key "
 				    "type %d", __func__, (int)key->type);
@@ -320,7 +325,6 @@ main(int argc, char **argv)
 	extern char *__progname;
 	struct pollfd pfd[2];
 
-	ssh_malloc_init();	/* must be called before any mallocs */
 	__progname = ssh_get_progname(argv[0]);
 	seed_rng();
 	TAILQ_INIT(&pkcs11_keylist);
@@ -423,6 +427,21 @@ main(int argc, char **argv)
 			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	}
 }
+
+#else /* WITH_OPENSSL */
+void
+cleanup_exit(int i)
+{
+	_exit(i);
+}
+
+int
+main(int argc, char **argv)
+{
+	fprintf(stderr, "PKCS#11 code is not enabled\n");
+	return 1;
+}
+#endif /* WITH_OPENSSL */
 #else /* ENABLE_PKCS11 */
 int
 main(int argc, char **argv)

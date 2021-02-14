@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshbuf_misc.c,v 1.2 2016/05/03 13:48:33 djm Exp $ */
+/* 	$OpenBSD: test_sshbuf_misc.c,v 1.4 2019/07/16 22:16:49 djm Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *
@@ -19,6 +19,7 @@
 #include "../test_helper/test_helper.h"
 
 #include "sshbuf.h"
+#include "ssherr.h"
 
 void sshbuf_misc_tests(void);
 
@@ -26,7 +27,7 @@ void
 sshbuf_misc_tests(void)
 {
 	struct sshbuf *p1;
-	char tmp[512], *p;
+	char tmp[512], msg[] = "imploring ping silence ping over", *p;
 	FILE *out;
 	size_t sz;
 
@@ -60,48 +61,48 @@ sshbuf_misc_tests(void)
 	sshbuf_free(p1);
 	TEST_DONE();
 
-	TEST_START("sshbuf_dtob64 len 1");
+	TEST_START("sshbuf_dtob64_string len 1");
 	p1 = sshbuf_new();
 	ASSERT_PTR_NE(p1, NULL);
 	ASSERT_INT_EQ(sshbuf_put_u8(p1, 0x11), 0);
-	p = sshbuf_dtob64(p1);
+	p = sshbuf_dtob64_string(p1, 0);
 	ASSERT_PTR_NE(p, NULL);
 	ASSERT_STRING_EQ(p, "EQ==");
 	free(p);
 	sshbuf_free(p1);
 	TEST_DONE();
 
-	TEST_START("sshbuf_dtob64 len 2");
+	TEST_START("sshbuf_dtob64_string len 2");
 	p1 = sshbuf_new();
 	ASSERT_PTR_NE(p1, NULL);
 	ASSERT_INT_EQ(sshbuf_put_u8(p1, 0x11), 0);
 	ASSERT_INT_EQ(sshbuf_put_u8(p1, 0x22), 0);
-	p = sshbuf_dtob64(p1);
+	p = sshbuf_dtob64_string(p1, 0);
 	ASSERT_PTR_NE(p, NULL);
 	ASSERT_STRING_EQ(p, "ESI=");
 	free(p);
 	sshbuf_free(p1);
 	TEST_DONE();
 
-	TEST_START("sshbuf_dtob64 len 3");
+	TEST_START("sshbuf_dtob64_string len 3");
 	p1 = sshbuf_new();
 	ASSERT_PTR_NE(p1, NULL);
 	ASSERT_INT_EQ(sshbuf_put_u8(p1, 0x11), 0);
 	ASSERT_INT_EQ(sshbuf_put_u8(p1, 0x22), 0);
 	ASSERT_INT_EQ(sshbuf_put_u8(p1, 0x33), 0);
-	p = sshbuf_dtob64(p1);
+	p = sshbuf_dtob64_string(p1, 0);
 	ASSERT_PTR_NE(p, NULL);
 	ASSERT_STRING_EQ(p, "ESIz");
 	free(p);
 	sshbuf_free(p1);
 	TEST_DONE();
 
-	TEST_START("sshbuf_dtob64 len 8191");
+	TEST_START("sshbuf_dtob64_string len 8191");
 	p1 = sshbuf_new();
 	ASSERT_PTR_NE(p1, NULL);
 	ASSERT_INT_EQ(sshbuf_reserve(p1, 8192, NULL), 0);
 	bzero(sshbuf_mutable_ptr(p1), 8192);
-	p = sshbuf_dtob64(p1);
+	p = sshbuf_dtob64_string(p1, 0);
 	ASSERT_PTR_NE(p, NULL);
 	ASSERT_SIZE_T_EQ(strlen(p), ((8191 + 2) / 3) * 4);
 	free(p);
@@ -162,6 +163,56 @@ sshbuf_misc_tests(void)
 	p = sshbuf_dup_string(p1);
 	ASSERT_PTR_EQ(p, NULL);
 	sshbuf_free(p1);
+	TEST_DONE();
+
+	TEST_START("sshbuf_cmp");
+	p1 = sshbuf_from(msg, sizeof(msg) - 1);
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_cmp(p1, 0, "i", 1), 0);
+	ASSERT_INT_EQ(sshbuf_cmp(p1, 0, "j", 1), SSH_ERR_INVALID_FORMAT);
+	ASSERT_INT_EQ(sshbuf_cmp(p1, 0, "imploring", 9), 0);
+	ASSERT_INT_EQ(sshbuf_cmp(p1, 0, "implored", 9), SSH_ERR_INVALID_FORMAT);
+	ASSERT_INT_EQ(sshbuf_cmp(p1, 10, "ping", 4), 0);
+	ASSERT_INT_EQ(sshbuf_cmp(p1, 10, "ring", 4), SSH_ERR_INVALID_FORMAT);
+	ASSERT_INT_EQ(sshbuf_cmp(p1, 28, "over", 4), 0);
+	ASSERT_INT_EQ(sshbuf_cmp(p1, 28, "rove", 4), SSH_ERR_INVALID_FORMAT);
+	ASSERT_INT_EQ(sshbuf_cmp(p1, 28, "overt", 5),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_INT_EQ(sshbuf_cmp(p1, 32, "ping", 4),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_INT_EQ(sshbuf_cmp(p1, 1000, "silence", 7),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_INT_EQ(sshbuf_cmp(p1, 0, msg, sizeof(msg) - 1), 0);
+	TEST_DONE();
+
+	TEST_START("sshbuf_find");
+	p1 = sshbuf_from(msg, sizeof(msg) - 1);
+	ASSERT_PTR_NE(p1, NULL);
+	ASSERT_INT_EQ(sshbuf_find(p1, 0, "i", 1, &sz), 0);
+	ASSERT_SIZE_T_EQ(sz, 0);
+	ASSERT_INT_EQ(sshbuf_find(p1, 0, "j", 1, &sz), SSH_ERR_INVALID_FORMAT);
+	ASSERT_INT_EQ(sshbuf_find(p1, 0, "imploring", 9, &sz), 0);
+	ASSERT_SIZE_T_EQ(sz, 0);
+	ASSERT_INT_EQ(sshbuf_find(p1, 0, "implored", 9, &sz),
+	    SSH_ERR_INVALID_FORMAT);
+	ASSERT_INT_EQ(sshbuf_find(p1, 3, "ping", 4, &sz), 0);
+	ASSERT_SIZE_T_EQ(sz, 10);
+	ASSERT_INT_EQ(sshbuf_find(p1, 11, "ping", 4, &sz), 0);
+	ASSERT_SIZE_T_EQ(sz, 23);
+	ASSERT_INT_EQ(sshbuf_find(p1, 20, "over", 4, &sz), 0);
+	ASSERT_SIZE_T_EQ(sz, 28);
+	ASSERT_INT_EQ(sshbuf_find(p1, 28, "over", 4, &sz), 0);
+	ASSERT_SIZE_T_EQ(sz, 28);
+	ASSERT_INT_EQ(sshbuf_find(p1, 28, "rove", 4, &sz),
+	    SSH_ERR_INVALID_FORMAT);
+	ASSERT_INT_EQ(sshbuf_find(p1, 28, "overt", 5, &sz),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_INT_EQ(sshbuf_find(p1, 32, "ping", 4, &sz),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_INT_EQ(sshbuf_find(p1, 1000, "silence", 7, &sz),
+	    SSH_ERR_MESSAGE_INCOMPLETE);
+	ASSERT_INT_EQ(sshbuf_find(p1, 0, msg + 1, sizeof(msg) - 2, &sz), 0);
+	ASSERT_SIZE_T_EQ(sz, 1);
 	TEST_DONE();
 }
 

@@ -1,7 +1,11 @@
-#	$OpenBSD: Makefile,v 1.100 2019/01/20 23:24:19 djm Exp $
+#	$OpenBSD: Makefile,v 1.104 2019/09/03 08:37:45 djm Exp $
 
-REGRESS_TARGETS=	unit t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t-exec
-tests:		prep $(REGRESS_TARGETS)
+tests:		prep file-tests t-exec unit
+
+REGRESS_TARGETS=	t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12
+
+# File based tests
+file-tests: $(REGRESS_TARGETS)
 
 # Interop tests are not run by default
 interop interop-tests: t-exec-interop
@@ -26,6 +30,7 @@ LTESTS= 	connect \
 		transfer \
 		banner \
 		rekey \
+		dhgex \
 		stderr-data \
 		stderr-after-eof \
 		broken-pipe \
@@ -83,10 +88,10 @@ LTESTS= 	connect \
 		cert-file \
 		cfginclude \
 		allow-deny-users \
-		authinfo
+		authinfo \
+		sshsig
 
 
-#		dhgex \
 
 INTEROP_TESTS=	putty-transfer putty-ciphers putty-kex conch-ciphers
 #INTEROP_TESTS+=ssh-com ssh-com-client ssh-com-keygen ssh-com-sftp
@@ -102,18 +107,19 @@ CLEANFILES=	*.core actual agent-key.* authorized_keys_${USERNAME} \
 		copy.1 copy.2 data ed25519-agent ed25519-agent* \
 		ed25519-agent.pub ed25519 ed25519.pub empty.in \
 		expect failed-regress.log failed-ssh.log failed-sshd.log \
-		hkr.* host.ed25519 host.rsa host.rsa1 host_* \
-		host_ca_key* host_krl_* host_revoked_* key.* \
+		hkr.* host.ecdsa-sha2-nistp256 host.ecdsa-sha2-nistp384 \
+		host.ecdsa-sha2-nistp521 host.ssh-dss host.ssh-ed25519 \
+		host.ssh-rsa host_ca_key* host_krl_* host_revoked_* key.* \
 		key.dsa-* key.ecdsa-* key.ed25519-512 \
 		key.ed25519-512.pub key.rsa-* keys-command-args kh.* \
 		known_hosts known_hosts-cert known_hosts.* krl-* ls.copy \
 		modpipe netcat no_identity_config \
-		pidfile putty.rsa2 ready regress.log \
-		remote_pid revoked-* rsa rsa-agent rsa-agent.pub rsa.pub \
-		rsa1 rsa1-agent rsa1-agent.pub rsa1.pub rsa_ssh2_cr.prv \
+		pidfile putty.rsa2 ready regress.log remote_pid \
+		revoked-* rsa rsa-agent rsa-agent.pub rsa.pub rsa_ssh2_cr.prv \
 		rsa_ssh2_crnl.prv scp-ssh-wrapper.exe \
 		scp-ssh-wrapper.scp setuid-allowed sftp-server.log \
 		sftp-server.sh sftp.log ssh-log-wrapper.sh ssh.log \
+		ssh-rsa_oldfmt \
 		ssh_config ssh_config.* ssh_proxy ssh_proxy_bak \
 		ssh_proxy_envpass sshd.log sshd_config sshd_config_minimal \
 		sshd_config.orig sshd_proxy sshd_proxy.* sshd_proxy_bak \
@@ -204,8 +210,16 @@ t12: $(OBJ)/t12.out
 t-exec:	${LTESTS:=.sh}
 	@if [ "x$?" = "x" ]; then exit 0; fi; \
 	for TEST in ""$?; do \
-		echo "run test $${TEST}" ... 1>&2; \
-		(env SUDO="${SUDO}" TEST_ENV=${TEST_ENV} ${TEST_SHELL} ${.CURDIR}/test-exec.sh ${.OBJDIR} ${.CURDIR}/$${TEST}) || exit $$?; \
+		skip=no; \
+		for t in ""$${SKIP_LTESTS}; do \
+			if [ "x$${t}.sh" = "x$${TEST}" ]; then skip=yes; fi; \
+		done; \
+		if [ "x$${skip}" = "xno" ]; then \
+			echo "run test $${TEST}" ... 1>&2; \
+			(env SUDO="${SUDO}" TEST_ENV=${TEST_ENV} ${TEST_SHELL} ${.CURDIR}/test-exec.sh ${.OBJDIR} ${.CURDIR}/$${TEST}) || exit $$?; \
+		else \
+			echo skip test $${TEST} 1>&2; \
+		fi; \
 	done
 
 t-exec-interop:	${INTEROP_TESTS:=.sh}

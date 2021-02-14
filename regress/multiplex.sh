@@ -1,4 +1,4 @@
-#	$OpenBSD: multiplex.sh,v 1.29 2019/01/01 22:20:16 djm Exp $
+#	$OpenBSD: multiplex.sh,v 1.30 2019/07/05 04:03:13 dtucker Exp $
 #	Placed in the Public Domain.
 
 make_tmpdir
@@ -81,6 +81,7 @@ trace "forward over TCP/IP and check result"
 $NC -N -l 127.0.0.1 $((${PORT} + 1)) < ${DATA} > /dev/null &
 netcat_pid=$!
 ${SSH} -F $OBJ/ssh_config -S $CTL -Oforward -L127.0.0.1:$((${PORT} + 2)):127.0.0.1:$((${PORT} + 1)) otherhost >>$TEST_SSH_LOGFILE 2>&1
+sleep 1  # XXX remove once race fixed
 $NC 127.0.0.1 $((${PORT} + 2)) < /dev/null > ${COPY}
 cmp ${DATA} ${COPY}		|| fail "ssh: corrupted copy of ${DATA}"
 kill $netcat_pid 2>/dev/null
@@ -91,7 +92,8 @@ $NC -N -Ul $OBJ/unix-1.fwd < ${DATA} > /dev/null &
 netcat_pid=$!
 ${SSH} -F $OBJ/ssh_config -S $CTL -Oforward -L$OBJ/unix-2.fwd:$OBJ/unix-1.fwd otherhost >>$TEST_SSH_LOGFILE 2>&1
 ${SSH} -F $OBJ/ssh_config -S $CTL -Oforward -R$OBJ/unix-3.fwd:$OBJ/unix-2.fwd otherhost >>$TEST_SSH_LOGFILE 2>&1
-$NC -U $OBJ/unix-3.fwd < /dev/null > ${COPY} 2>/dev/null
+sleep 1  # XXX remove once race fixed
+$NC -U $OBJ/unix-3.fwd < /dev/null > ${COPY}
 cmp ${DATA} ${COPY}		|| fail "ssh: corrupted copy of ${DATA}"
 kill $netcat_pid 2>/dev/null
 rm -f ${COPY} $OBJ/unix-[123].fwd
@@ -122,6 +124,7 @@ ${SSH} -F $OBJ/ssh_config -S $CTL -Ocheck otherhost >>$TEST_REGRESS_LOGFILE 2>&1
 verbose "test $tid: cmd forward local (TCP)"
 ${SSH} -F $OBJ/ssh_config -S $CTL -Oforward -L $P:localhost:$PORT otherhost \
      || fail "request local forward failed"
+sleep 1  # XXX remove once race fixed
 ${SSH} -F $OBJ/ssh_config -p$P otherhost true \
      || fail "connect to local forward port failed"
 ${SSH} -F $OBJ/ssh_config -S $CTL -Ocancel -L $P:localhost:$PORT otherhost \
@@ -132,6 +135,7 @@ ${SSH} -F $OBJ/ssh_config -p$P otherhost true \
 verbose "test $tid: cmd forward remote (TCP)"
 ${SSH} -F $OBJ/ssh_config -S $CTL -Oforward -R $P:localhost:$PORT otherhost \
      || fail "request remote forward failed"
+sleep 1  # XXX remove once race fixed
 ${SSH} -F $OBJ/ssh_config -p$P otherhost true \
      || fail "connect to remote forwarded port failed"
 ${SSH} -F $OBJ/ssh_config -S $CTL -Ocancel -R $P:localhost:$PORT otherhost \
@@ -142,6 +146,7 @@ ${SSH} -F $OBJ/ssh_config -p$P otherhost true \
 verbose "test $tid: cmd forward local (UNIX)"
 ${SSH} -F $OBJ/ssh_config -S $CTL -Oforward -L $OBJ/unix-1.fwd:localhost:$PORT otherhost \
      || fail "request local forward failed"
+sleep 1  # XXX remove once race fixed
 echo "" | $NC -U $OBJ/unix-1.fwd | \
     grep "Invalid SSH identification string" >/dev/null 2>&1 \
      || fail "connect to local forward path failed"
@@ -154,6 +159,7 @@ rm -f $OBJ/unix-1.fwd
 verbose "test $tid: cmd forward remote (UNIX)"
 ${SSH} -F $OBJ/ssh_config -S $CTL -Oforward -R $OBJ/unix-1.fwd:localhost:$PORT otherhost \
      || fail "request remote forward failed"
+sleep 1  # XXX remove once race fixed
 echo "" | $NC -U $OBJ/unix-1.fwd | \
     grep "Invalid SSH identification string" >/dev/null 2>&1 \
      || fail "connect to remote forwarded path failed"

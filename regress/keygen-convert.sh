@@ -1,9 +1,17 @@
-#	$OpenBSD: keygen-convert.sh,v 1.1 2009/11/09 04:20:04 dtucker Exp $
+#	$OpenBSD: keygen-convert.sh,v 1.2 2019/07/23 07:55:29 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="convert keys"
 
-for t in rsa dsa; do
+types=""
+for i in ${SSH_KEYTYPES}; do
+	case "$i" in
+		ssh-dss)	types="$types dsa" ;;
+		ssh-rsa)	types="$types rsa" ;;
+	esac
+done
+
+for t in $types; do
 	# generate user key for agent
 	trace "generating $t key"
 	rm -f $OBJ/$t-key

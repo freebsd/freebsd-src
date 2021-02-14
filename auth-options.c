@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-options.c,v 1.84 2018/10/03 06:38:35 djm Exp $ */
+/* $OpenBSD: auth-options.c,v 1.89 2019/09/13 04:36:43 dtucker Exp $ */
 /*
  * Copyright (c) 2018 Damien Miller <djm@mindrot.org>
  *
@@ -19,6 +19,7 @@
 
 #include <sys/types.h>
 
+#include <stdlib.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <string.h>
@@ -38,75 +39,6 @@
 #include "match.h"
 #include "ssh2.h"
 #include "auth-options.h"
-
-/*
- * Match flag 'opt' in *optsp, and if allow_negate is set then also match
- * 'no-opt'. Returns -1 if option not matched, 1 if option matches or 0
- * if negated option matches.
- * If the option or negated option matches, then *optsp is updated to
- * point to the first character after the option.
- */
-static int
-opt_flag(const char *opt, int allow_negate, const char **optsp)
-{
-	size_t opt_len = strlen(opt);
-	const char *opts = *optsp;
-	int negate = 0;
-
-	if (allow_negate && strncasecmp(opts, "no-", 3) == 0) {
-		opts += 3;
-		negate = 1;
-	}
-	if (strncasecmp(opts, opt, opt_len) == 0) {
-		*optsp = opts + opt_len;
-		return negate ? 0 : 1;
-	}
-	return -1;
-}
-
-static char *
-opt_dequote(const char **sp, const char **errstrp)
-{
-	const char *s = *sp;
-	char *ret;
-	size_t i;
-
-	*errstrp = NULL;
-	if (*s != '"') {
-		*errstrp = "missing start quote";
-		return NULL;
-	}
-	s++;
-	if ((ret = malloc(strlen((s)) + 1)) == NULL) {
-		*errstrp = "memory allocation failed";
-		return NULL;
-	}
-	for (i = 0; *s != '\0' && *s != '"';) {
-		if (s[0] == '\\' && s[1] == '"')
-			s++;
-		ret[i++] = *s++;
-	}
-	if (*s == '\0') {
-		*errstrp = "missing end quote";
-		free(ret);
-		return NULL;
-	}
-	ret[i] = '\0';
-	s++;
-	*sp = s;
-	return ret;
-}
-
-static int
-opt_match(const char **opts, const char *term)
-{
-	if (strncasecmp((*opts), term, strlen(term)) == 0 &&
-	    (*opts)[strlen(term)] == '=') {
-		*opts += strlen(term) + 1;
-		return 1;
-	}
-	return 0;
-}
 
 static int
 dup_strings(char ***dstp, size_t *ndstp, char **src, size_t nsrc)
@@ -320,7 +252,7 @@ handle_permit(const char **optsp, int allow_bare_port,
 	size_t npermits = *npermitsp;
 	const char *errstr = "unknown error";
 
-	if (npermits > INT_MAX) {
+	if (npermits > SSH_AUTHOPT_PERMIT_MAX) {
 		*errstrp = "too many permission directives";
 		return -1;
 	}
@@ -332,7 +264,8 @@ handle_permit(const char **optsp, int allow_bare_port,
 		 * Allow a bare port number in permitlisten to indicate a
 		 * listen_host wildcard.
 		 */
-		if (asprintf(&tmp, "*:%s", opt) < 0) {
+		if (asprintf(&tmp, "*:%s", opt) == -1) {
+			free(opt);
 			*errstrp = "memory allocation failed";
 			return -1;
 		}

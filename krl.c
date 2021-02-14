@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $OpenBSD: krl.c,v 1.42 2018/09/12 01:21:34 djm Exp $ */
+/* $OpenBSD: krl.c,v 1.44 2019/09/06 04:53:27 djm Exp $ */
 
 #include "includes.h"
 
@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -732,7 +733,7 @@ revoked_certs_generate(struct revoked_certs *rc, struct sshbuf *buf)
 
 int
 ssh_krl_to_blob(struct ssh_krl *krl, struct sshbuf *buf,
-    const struct sshkey **sign_keys, u_int nsign_keys)
+    struct sshkey **sign_keys, u_int nsign_keys)
 {
 	int r = SSH_ERR_INTERNAL_ERROR;
 	struct revoked_certs *rc;

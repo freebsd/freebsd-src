@@ -172,7 +172,7 @@ fchownat(int fd, const char *path, uid_t owner, gid_t group, int flag)
 		return -1;
 	}
 # ifndef HAVE_FCHOWN
-	return chown(pathname, owner, group);
+	return chown(path, owner, group);
 # else
 #  ifdef O_NOFOLLOW
 	if (flag & AT_SYMLINK_NOFOLLOW)
@@ -203,7 +203,7 @@ fchmodat(int fd, const char *path, mode_t mode, int flag)
 		return -1;
 	}
 # ifndef HAVE_FCHMOD
-	return chown(pathname, owner, group);
+	return chmod(path, mode);
 # else
 #  ifdef O_NOFOLLOW
 	if (flag & AT_SYMLINK_NOFOLLOW)

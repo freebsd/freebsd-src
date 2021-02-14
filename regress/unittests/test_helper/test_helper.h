@@ -27,8 +27,10 @@
 # include <stdint.h>
 #endif
 
+#ifdef WITH_OPENSSL
 #include <openssl/bn.h>
 #include <openssl/err.h>
+#endif
 
 enum test_predicate {
 	TEST_EQ, TEST_NE, TEST_LT, TEST_LE, TEST_GT, TEST_GE
@@ -50,9 +52,11 @@ int test_is_slow(void);
 void test_subtest_info(const char *fmt, ...)
     __attribute__((format(printf, 1, 2)));
 void ssl_err_check(const char *file, int line);
+#ifdef WITH_OPENSSL
 void assert_bignum(const char *file, int line,
     const char *a1, const char *a2,
     const BIGNUM *aa1, const BIGNUM *aa2, enum test_predicate pred);
+#endif
 void assert_string(const char *file, int line,
     const char *a1, const char *a2,
     const char *aa1, const char *aa2, enum test_predicate pred);

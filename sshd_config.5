@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.284 2019/03/22 20:58:34 jmc Exp $
-.Dd $Mdocdate: March 22 2019 $
+.\" $OpenBSD: sshd_config.5,v 1.290 2019/09/06 14:45:34 naddy Exp $
+.Dd $Mdocdate: September 6 2019 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -277,9 +277,7 @@ is not, then
 will refuse to start.
 .It Cm AuthorizedKeysFile
 Specifies the file that contains the public keys used for user authentication.
-The format is described in the
-.Sx AUTHORIZED_KEYS FILE FORMAT
-section of
+The format is described in the AUTHORIZED_KEYS FILE FORMAT section of
 .Xr sshd 8 .
 Arguments to
 .Cm AuthorizedKeysFile
@@ -387,7 +385,7 @@ Specifies which algorithms are allowed for signing of certificates
 by certificate authorities (CAs).
 The default is:
 .Bd -literal -offset indent
-ecdsa-sha2-nistp256.ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
 ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
@@ -456,14 +454,18 @@ indicating not to
 .It Cm Ciphers
 Specifies the ciphers allowed.
 Multiple ciphers must be comma-separated.
-If the specified value begins with a
+If the specified list begins with a
 .Sq +
 character, then the specified ciphers will be appended to the default set
 instead of replacing them.
-If the specified value begins with a
+If the specified list begins with a
 .Sq -
 character, then the specified ciphers (including wildcards) will be removed
 from the default set instead of replacing them.
+If the specified list begins with a
+.Sq ^
+character, then the specified ciphers will be placed at the head of the
+default set.
 .Pp
 The supported ciphers are:
 .Pp
@@ -514,7 +516,7 @@ The TCP keepalive option enabled by
 .Cm TCPKeepAlive
 is spoofable.
 The client alive mechanism is valuable when the client or
-server depend on knowing when a connection has become inactive.
+server depend on knowing when a connection has become unresponsive.
 .Pp
 The default value is 3.
 If
@@ -670,14 +672,18 @@ The default is
 .It Cm HostbasedAcceptedKeyTypes
 Specifies the key types that will be accepted for hostbased authentication
 as a list of comma-separated patterns.
-Alternately if the specified value begins with a
+Alternately if the specified list begins with a
 .Sq +
 character, then the specified key types will be appended to the default set
 instead of replacing them.
-If the specified value begins with a
+If the specified list begins with a
 .Sq -
 character, then the specified key types (including wildcards) will be removed
 from the default set instead of replacing them.
+If the specified list begins with a
+.Sq ^
+character, then the specified key types will be placed at the head of the
+default set.
 The default for this option is:
 .Bd -literal -offset 3n
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
@@ -875,14 +881,18 @@ The default is
 .It Cm KexAlgorithms
 Specifies the available KEX (Key Exchange) algorithms.
 Multiple algorithms must be comma-separated.
-Alternately if the specified value begins with a
+Alternately if the specified list begins with a
 .Sq +
 character, then the specified methods will be appended to the default set
 instead of replacing them.
-If the specified value begins with a
+If the specified list begins with a
 .Sq -
 character, then the specified methods (including wildcards) will be removed
 from the default set instead of replacing them.
+If the specified list begins with a
+.Sq ^
+character, then the specified methods will be placed at the head of the
+default set.
 The supported algorithms are:
 .Pp
 .Bl -item -compact -offset indent
@@ -992,14 +1002,18 @@ Logging with a DEBUG level violates the privacy of users and is not recommended.
 Specifies the available MAC (message authentication code) algorithms.
 The MAC algorithm is used for data integrity protection.
 Multiple algorithms must be comma-separated.
-If the specified value begins with a
+If the specified list begins with a
 .Sq +
 character, then the specified algorithms will be appended to the default set
 instead of replacing them.
-If the specified value begins with a
+If the specified list begins with a
 .Sq -
 character, then the specified algorithms (including wildcards) will be removed
 from the default set instead of replacing them.
+If the specified list begins with a
+.Sq ^
+character, then the specified algorithms will be placed at the head of the
+default set.
 .Pp
 The algorithms that contain
 .Qq -etm
@@ -1157,7 +1171,7 @@ Available keywords are
 .Cm X11DisplayOffset ,
 .Cm X11Forwarding
 and
-.Cm X11UseLocalHost .
+.Cm X11UseLocalhost .
 .It Cm MaxAuthTries
 Specifies the maximum number of authentication attempts permitted per
 connection.
@@ -1397,14 +1411,18 @@ The default is
 .It Cm PubkeyAcceptedKeyTypes
 Specifies the key types that will be accepted for public key authentication
 as a list of comma-separated patterns.
-Alternately if the specified value begins with a
+Alternately if the specified list begins with a
 .Sq +
 character, then the specified key types will be appended to the default set
 instead of replacing them.
-If the specified value begins with a
+If the specified list begins with a
 .Sq -
 character, then the specified key types (including wildcards) will be removed
 from the default set instead of replacing them.
+If the specified list begins with a
+.Sq ^
+character, then the specified key types will be placed at the head of the
+default set.
 The default for this option is:
 .Bd -literal -offset 3n
 ecdsa-sha2-nistp256-cert-v01@openssh.com,

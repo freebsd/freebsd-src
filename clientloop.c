@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.322 2019/03/29 11:31:40 djm Exp $ */
+/* $OpenBSD: clientloop.c,v 1.327 2019/07/24 08:57:00 mestre Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -129,7 +129,7 @@ extern int muxserver_sock; /* XXX use mux_client_cleanup() instead */
 
 /*
  * Name of the host we are connecting to.  This is the name given on the
- * command line, or the HostName specified for the user-supplied name in a
+ * command line, or the Hostname specified for the user-supplied name in a
  * configuration file.
  */
 extern char *host;
@@ -338,7 +338,6 @@ client_x11_get_proto(struct ssh *ssh, const char *display,
 			    "%s/xauthfile", xauthdir)) < 0 ||
 			    (size_t)r >= sizeof(xauthfile)) {
 				error("%s: xauthfile path too long", __func__);
-				unlink(xauthfile);
 				rmdir(xauthdir);
 				return -1;
 			}
@@ -562,7 +561,7 @@ client_wait_until_can_do_something(struct ssh *ssh,
 	}
 
 	ret = select((*maxfdp)+1, *readsetp, *writesetp, NULL, tvp);
-	if (ret < 0) {
+	if (ret == -1) {
 		/*
 		 * We have to clear the select masks, because we return.
 		 * We have to return, because the mainloop checks for the flags
@@ -645,11 +644,11 @@ client_process_net_input(struct ssh *ssh, fd_set *readset)
 		 * There is a kernel bug on Solaris that causes select to
 		 * sometimes wake up even though there is no data available.
 		 */
-		if (len < 0 &&
+		if (len == -1 &&
 		    (errno == EAGAIN || errno == EINTR || errno == EWOULDBLOCK))
 			len = 0;
 
-		if (len < 0) {
+		if (len == -1) {
 			/*
 			 * An error has encountered.  Perhaps there is a
 			 * network problem.
@@ -1097,7 +1096,7 @@ process_escapes(struct ssh *ssh, Channel *c,
 
 				/* Fork into background. */
 				pid = fork();
-				if (pid < 0) {
+				if (pid == -1) {
 					error("fork: %.100s", strerror(errno));
 					continue;
 				}
@@ -1252,7 +1251,7 @@ client_loop(struct ssh *ssh, int have_pty, int escape_char_arg,
 	if (options.control_master &&
 	    !option_clear_or_none(options.control_path)) {
 		debug("pledge: id");
-		if (pledge("stdio rpath wpath cpath unix inet dns recvfd proc exec id tty",
+		if (pledge("stdio rpath wpath cpath unix inet dns recvfd sendfd proc exec id tty",
 		    NULL) == -1)
 			fatal("%s pledge(): %s", __func__, strerror(errno));
 
@@ -1881,7 +1880,7 @@ static void
 update_known_hosts(struct hostkeys_update_ctx *ctx)
 {
 	int r, was_raw = 0;
-	int loglevel = options.update_hostkeys == SSH_UPDATE_HOSTKEYS_ASK ?
+	LogLevel loglevel = options.update_hostkeys == SSH_UPDATE_HOSTKEYS_ASK ?
 	    SYSLOG_LEVEL_INFO : SYSLOG_LEVEL_VERBOSE;
 	char *fp, *response;
 	size_t i;
@@ -2249,7 +2248,7 @@ client_session2_setup(struct ssh *ssh, int id, int want_tty, int want_subsystem,
 		struct winsize ws;
 
 		/* Store window size in the packet. */
-		if (ioctl(in_fd, TIOCGWINSZ, &ws) < 0)
+		if (ioctl(in_fd, TIOCGWINSZ, &ws) == -1)
 			memset(&ws, 0, sizeof(ws));
 
 		channel_request_start(ssh, id, "pty-req", 1);

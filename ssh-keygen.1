@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.157 2019/03/05 16:17:12 naddy Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.171 2019/10/03 17:07:50 jmc Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,44 +35,43 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: March 5 2019 $
+.Dd $Mdocdate: October 3 2019 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
 .Nm ssh-keygen
 .Nd authentication key generation, management and conversion
 .Sh SYNOPSIS
-.Bk -words
 .Nm ssh-keygen
 .Op Fl q
 .Op Fl b Ar bits
-.Op Fl t Cm dsa | ecdsa | ed25519 | rsa
-.Op Fl N Ar new_passphrase
 .Op Fl C Ar comment
 .Op Fl f Ar output_keyfile
 .Op Fl m Ar format
+.Op Fl N Ar new_passphrase
+.Op Fl t Cm dsa | ecdsa | ed25519 | rsa
 .Nm ssh-keygen
 .Fl p
-.Op Fl P Ar old_passphrase
-.Op Fl N Ar new_passphrase
 .Op Fl f Ar keyfile
 .Op Fl m Ar format
+.Op Fl N Ar new_passphrase
+.Op Fl P Ar old_passphrase
 .Nm ssh-keygen
 .Fl i
-.Op Fl m Ar key_format
 .Op Fl f Ar input_keyfile
+.Op Fl m Ar key_format
 .Nm ssh-keygen
 .Fl e
-.Op Fl m Ar key_format
 .Op Fl f Ar input_keyfile
+.Op Fl m Ar key_format
 .Nm ssh-keygen
 .Fl y
 .Op Fl f Ar input_keyfile
 .Nm ssh-keygen
 .Fl c
-.Op Fl P Ar passphrase
 .Op Fl C Ar comment
 .Op Fl f Ar keyfile
+.Op Fl P Ar passphrase
 .Nm ssh-keygen
 .Fl l
 .Op Fl v
@@ -85,8 +84,8 @@
 .Fl D Ar pkcs11
 .Nm ssh-keygen
 .Fl F Ar hostname
+.Op Fl lv
 .Op Fl f Ar known_hosts_file
-.Op Fl l
 .Nm ssh-keygen
 .Fl H
 .Op Fl f Ar known_hosts_file
@@ -95,8 +94,8 @@
 .Op Fl f Ar known_hosts_file
 .Nm ssh-keygen
 .Fl r Ar hostname
-.Op Fl f Ar input_keyfile
 .Op Fl g
+.Op Fl f Ar input_keyfile
 .Nm ssh-keygen
 .Fl G Ar output_file
 .Op Fl v
@@ -104,8 +103,8 @@
 .Op Fl M Ar memory
 .Op Fl S Ar start_point
 .Nm ssh-keygen
-.Fl T Ar output_file
 .Fl f Ar input_file
+.Fl T Ar output_file
 .Op Fl v
 .Op Fl a Ar rounds
 .Op Fl J Ar num_lines
@@ -113,10 +112,9 @@
 .Op Fl K Ar checkpt
 .Op Fl W Ar generator
 .Nm ssh-keygen
-.Fl s Ar ca_key
 .Fl I Ar certificate_identity
-.Op Fl h
-.Op Fl U
+.Fl s Ar ca_key
+.Op Fl hU
 .Op Fl D Ar pkcs11_provider
 .Op Fl n Ar principals
 .Op Fl O Ar option
@@ -140,7 +138,22 @@
 .Fl Q
 .Fl f Ar krl_file
 .Ar
-.Ek
+.Nm ssh-keygen
+.Fl Y Cm check-novalidate
+.Fl n Ar namespace
+.Fl s Ar signature_file
+.Nm ssh-keygen
+.Fl Y Cm sign
+.Fl f Ar key_file
+.Fl n Ar namespace
+.Ar
+.Nm ssh-keygen
+.Fl Y Cm verify
+.Fl f Ar allowed_signers_file
+.Fl I Ar signer_identity
+.Fl n Ar namespace
+.Fl s Ar signature_file
+.Op Fl r Ar revocation_file
 .Sh DESCRIPTION
 .Nm
 generates, manages and converts authentication keys for
@@ -247,21 +260,21 @@ This is used by
 .Pa /etc/rc
 to generate new host keys.
 .It Fl a Ar rounds
-When saving a private key this option specifies the number of KDF
+When saving a private key, this option specifies the number of KDF
 (key derivation function) rounds used.
 Higher numbers result in slower passphrase verification and increased
 resistance to brute-force password cracking (should the keys be stolen).
 .Pp
 When screening DH-GEX candidates (using the
 .Fl T
-command).
-This option specifies the number of primality tests to perform.
+command),
+this option specifies the number of primality tests to perform.
 .It Fl B
 Show the bubblebabble digest of specified private or public key file.
 .It Fl b Ar bits
 Specifies the number of bits in the key to create.
-For RSA keys, the minimum size is 1024 bits and the default is 2048 bits.
-Generally, 2048 bits is considered sufficient.
+For RSA keys, the minimum size is 1024 bits and the default is 3072 bits.
+Generally, 3072 bits is considered sufficient.
 DSA keys must be exactly 1024 bits as specified by FIPS 186-2.
 For ECDSA keys, the
 .Fl b
@@ -419,11 +432,12 @@ The supported key formats are:
 .Dq RFC4716
 (RFC 4716/SSH2 public or private key),
 .Dq PKCS8
-(PEM PKCS8 public key)
+(PKCS8 public or private key)
 or
 .Dq PEM
 (PEM public key).
-The default conversion format is
+By default OpenSSH will write newly-generated private keys in its own
+format, but when converting public keys for export the default format is
 .Dq RFC4716 .
 Setting a format of
 .Dq PEM
@@ -577,6 +591,16 @@ The possible values are
 .Dq ed25519 ,
 or
 .Dq rsa .
+.Pp
+This flag may also be used to specify the desired signature type when
+signing certificates using an RSA CA key.
+The available RSA signature variants are
+.Dq ssh-rsa
+(SHA1 signatures, not recommended),
+.Dq rsa-sha2-256 ,
+and
+.Dq rsa-sha2-512
+(the default).
 .It Fl U
 When used in combination with
 .Fl s ,
@@ -637,6 +661,77 @@ Specify desired generator when testing candidate moduli for DH-GEX.
 .It Fl y
 This option will read a private
 OpenSSH format file and print an OpenSSH public key to stdout.
+.It Fl Y Cm sign
+Cryptographically sign a file or some data using a SSH key.
+When signing,
+.Nm
+accepts zero or more files to sign on the command-line - if no files
+are specified then
+.Nm
+will sign data presented on standard input.
+Signatures are written to the path of the input file with
+.Dq .sig
+appended, or to standard output if the message to be signed was read from
+standard input.
+.Pp
+The key used for signing is specified using the
+.Fl f
+option and may refer to either a private key, or a public key with the private
+half available via
+.Xr ssh-agent 1 .
+An additional signature namespace, used to prevent signature confusion across
+different domains of use (e.g. file signing vs email signing) must be provided
+via the
+.Fl n
+flag.
+Namespaces are arbitrary strings, and may include:
+.Dq file
+for file signing,
+.Dq email
+for email signing.
+For custom uses, it is recommended to use names following a
+NAMESPACE@YOUR.DOMAIN pattern to generate unambiguous namespaces.
+.It Fl Y Cm verify
+Request to verify a signature generated using
+.Nm
+.Fl Y Cm sign
+as described above.
+When verifying a signature,
+.Nm
+accepts a message on standard input and a signature namespace using
+.Fl n .
+A file containing the corresponding signature must also be supplied using the
+.Fl s
+flag, along with the identity of the signer using
+.Fl I
+and a list of allowed signers via the
+.Fl f
+flag.
+The format of the allowed signers file is documented in the
+.Sx ALLOWED SIGNERS
+section below.
+A file containing revoked keys can be passed using the
+.Fl r
+flag.
+The revocation file may be a KRL or a one-per-line list of public keys.
+Successful verification by an authorized signer is signalled by
+.Nm
+.It Fl Y Cm check-novalidate
+Checks that a signature generated using
+.Nm
+.Fl Y Cm sign
+has a valid structure.
+This does not validate if a signature comes from an authorized signer.
+When testing a signature,
+.Nm
+accepts a message on standard input and a signature namespace using
+.Fl n .
+A file containing the corresponding signature must also be supplied using the
+.Fl s
+flag.
+Successful testing of the signature is signalled by
+.Nm
+returning a zero exit status.
 .It Fl z Ar serial_number
 Specifies a serial number to be embedded in the certificate to distinguish
 this certificate from others from the same CA.
@@ -873,6 +968,57 @@ then
 .Nm
 will exit with a non-zero exit status.
 A zero exit status will only be returned if no key was revoked.
+.Sh ALLOWED SIGNERS
+When verifying signatures,
+.Nm
+uses a simple list of identities and keys to determine whether a signature
+comes from an authorized source.
+This "allowed signers" file uses a format patterned after the
+AUTHORIZED_KEYS FILE FORMAT described in
+.Xr sshd 8 .
+Each line of the file contains the following space-separated fields:
+principals, options, keytype, base64-encoded key.
+Empty lines and lines starting with a
+.Ql #
+are ignored as comments.
+.Pp
+The principals field is a pattern-list (See PATTERNS in
+.Xr ssh_config 5 )
+consisting of one or more comma-separated USER@DOMAIN identity patterns
+that are accepted for signing.
+When verifying, the identity presented via the
+.Fl I option
+must match a principals pattern in order for the corresponding key to be
+considered acceptable for verification.
+.Pp
+The options (if present) consist of comma-separated option specifications.
+No spaces are permitted, except within double quotes.
+The following option specifications are supported (note that option keywords
+are case-insensitive):
+.Bl -tag -width Ds
+.It Cm cert-authority
+Indicates that this key is accepted as a certificate authority (CA) and
+that certificates signed by this CA may be accepted for verification.
+.It Cm namespaces="namespace-list"
+Specifies a pattern-list of namespaces that are accepted for this key.
+If this option is present, the signature namespace embedded in the
+signature object and presented on the verification command-line must
+match the specified list before the key will be considered acceptable.
+.El
+.Pp
+When verifying signatures made by certificates, the expected principal
+name must match both the principals pattern in the allowed signers file and
+the principals embedded in the certificate itself.
+.Pp
+An example allowed signers file:
+.Bd -literal -offset 3n
+# Comments allowed at start of line
+user1@example.com,user2@example.com ssh-rsa AAAAX1...
+# A certificate authority, trusted for all principals in a domain.
+*@example.com cert-authority ssh-ed25519 AAAB4...
+# A key that is accepted only for file signing.
+user2@example.com namespaces="file" ssh-ed25519 AAA41...
+.Ed
 .Sh FILES
 .Bl -tag -width Ds -compact
 .It Pa ~/.ssh/id_dsa

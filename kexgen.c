@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgen.c,v 1.2 2019/01/23 00:30:41 djm Exp $ */
+/* $OpenBSD: kexgen.c,v 1.3 2019/09/06 05:23:55 djm Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl.  All rights reserved.
  *
@@ -27,6 +27,7 @@
 
 #include <sys/types.h>
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>

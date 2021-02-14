@@ -41,11 +41,11 @@ AC_PATH_PROG([TEST_MINUS_S_SH], [ksh])
 AC_PATH_PROG([TEST_MINUS_S_SH], [sh])
 AC_PATH_PROG([SH], [sh])
 AC_PATH_PROG([GROFF], [groff])
-AC_PATH_PROG([NROFF], [nroff])
+AC_PATH_PROG([NROFF], [nroff awf])
 AC_PATH_PROG([MANDOC], [mandoc])
 AC_SUBST([TEST_SHELL], [sh])
 
-dnl select manpage formatter
+dnl select manpage formatter to be used to build "cat" format pages.
 if test "x$MANDOC" != "x" ; then
 	MANFMT="$MANDOC"
 elif test "x$NROFF" != "x" ; then
@@ -53,7 +53,7 @@ elif test "x$NROFF" != "x" ; then
 elif test "x$GROFF" != "x" ; then
 	MANFMT="$GROFF -mandoc -Tascii"
 else
-	AC_MSG_WARN([no manpage formatted found])
+	AC_MSG_WARN([no manpage formatter found])
 	MANFMT="false"
 fi
 AC_SUBST([MANFMT])
@@ -152,9 +152,11 @@ CFLAGS="$saved_CFLAGS"
 
 if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	OSSH_CHECK_CFLAG_COMPILE([-pipe])
-	OSSH_CHECK_CFLAG_COMPILE([-Qunused-arguments])
 	OSSH_CHECK_CFLAG_COMPILE([-Wunknown-warning-option])
+	OSSH_CHECK_CFLAG_COMPILE([-Wno-error=format-truncation])
+	OSSH_CHECK_CFLAG_COMPILE([-Qunused-arguments])
 	OSSH_CHECK_CFLAG_COMPILE([-Wall])
+	OSSH_CHECK_CFLAG_COMPILE([-Wextra])
 	OSSH_CHECK_CFLAG_COMPILE([-Wpointer-arith])
 	OSSH_CHECK_CFLAG_COMPILE([-Wuninitialized])
 	OSSH_CHECK_CFLAG_COMPILE([-Wsign-compare])
@@ -588,7 +590,6 @@ case "$host" in
 	      #include <fcntl.h> ]
 	)
 	check_for_aix_broken_getaddrinfo=1
-	AC_DEFINE([BROKEN_REALPATH], [1], [Define if you have a broken realpath.])
 	AC_DEFINE([SETEUID_BREAKS_SETUID], [1],
 	    [Define if your platform breaks doing a seteuid before a setuid])
 	AC_DEFINE([BROKEN_SETREUID], [1], [Define if your setreuid() is broken])
@@ -680,6 +681,9 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_CHECK_LIB([sandbox], [sandbox_apply], [
 	    SSHDLIBS="$SSHDLIBS -lsandbox"
 	])
+	# proc_pidinfo()-based closefrom() replacement.
+	AC_CHECK_HEADERS([libproc.h])
+	AC_CHECK_FUNCS([proc_pidinfo])
 	;;
 *-*-dragonfly*)
 	SSHDLIBS="$SSHDLIBS -lcrypt"
@@ -817,7 +821,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	    AC_DEFINE([SYS_RDOMAIN_LINUX], [1],
 		[Support routing domains using Linux VRF]), [], [
 #ifdef HAVE_SYS_TYPES_H
-# include <sys/types.H>
+# include <sys/types.h>
 #endif
 	    ])
 	AC_CHECK_HEADERS([linux/seccomp.h linux/filter.h linux/audit.h], [],
@@ -948,7 +952,6 @@ mips-sony-bsd|mips-sony-newsos4)
 	conf_wtmp_location=/usr/adm/wtmp
 	maildir=/usr/spool/mail
 	AC_DEFINE([HAVE_NEXT], [1], [Define if you are on NeXT])
-	AC_DEFINE([BROKEN_REALPATH])
 	AC_DEFINE([USE_PIPES])
 	AC_DEFINE([BROKEN_SAVED_UIDS], [1], [Needed for NeXT])
 	;;
@@ -1701,6 +1704,9 @@ AC_CHECK_FUNCS([ \
 	Blowfish_expandstate \
 	Blowfish_expand0state \
 	Blowfish_stream2word \
+	SHA256Update \
+	SHA384Update \
+	SHA512Update \
 	asprintf \
 	b64_ntop \
 	__b64_ntop \
@@ -1753,6 +1759,7 @@ AC_CHECK_FUNCS([ \
 	llabs \
 	login_getcapbool \
 	md5_crypt \
+	memmem \
 	memmove \
 	memset_s \
 	mkdtemp \
@@ -2021,32 +2028,6 @@ AC_CHECK_FUNCS([setresgid], [
 			[Define if your setresgid() is broken])
 		 AC_MSG_RESULT([not implemented])],
 		[AC_MSG_WARN([cross compiling: not checking setresuid])]
-	)
-])
-
-AC_CHECK_FUNCS([realpath], [
-	dnl the sftp v3 spec says SSH_FXP_REALPATH will "canonicalize any given
-	dnl path name", however some implementations of realpath (and some
-	dnl versions of the POSIX spec) do not work on non-existent files,
-	dnl so we use the OpenBSD implementation on those platforms.
-	AC_MSG_CHECKING([if realpath works with non-existent files])
-	AC_RUN_IFELSE(
-		[AC_LANG_PROGRAM([[
-#include <limits.h>
-#include <stdlib.h>
-#include <errno.h>
-		]], [[
-		char buf[PATH_MAX];
-		if (realpath("/opensshnonexistentfilename1234", buf) == NULL)
-			if (errno == ENOENT)
-				exit(1);
-		exit(0);
-		]])],
-		[AC_MSG_RESULT([yes])],
-		[AC_DEFINE([BROKEN_REALPATH], [1],
-			[realpath does not work with nonexistent files])
-		 AC_MSG_RESULT([no])],
-		[AC_MSG_WARN([cross compiling: assuming working])]
 	)
 ])
 
@@ -2876,16 +2857,9 @@ if test "x$openssl" = "xyes" ; then
 	fi
 	AC_CHECK_FUNCS([crypt DES_crypt])
 
-	# Search for SHA256 support in libc and/or OpenSSL
-	AC_CHECK_FUNCS([SHA256_Update EVP_sha256], ,
-	    [unsupported_algorithms="$unsupported_algorithms \
-		hmac-sha2-256 \
-		hmac-sha2-512 \
-		diffie-hellman-group-exchange-sha256 \
-		hmac-sha2-256-etm@openssh.com \
-		hmac-sha2-512-etm@openssh.com"
-	     ]
-	)
+	# Check for SHA256, SHA384 and SHA512 support in OpenSSL
+	AC_CHECK_FUNCS([EVP_sha256 EVP_sha384 EVP_sha512])
+
 	# Search for RIPE-MD support in OpenSSL
 	AC_CHECK_FUNCS([EVP_ripemd160], ,
 	    [unsupported_algorithms="$unsupported_algorithms \
@@ -3342,8 +3316,7 @@ AC_RUN_IFELSE(
 #include <stdlib.h>
 	]],[[
 	struct rlimit rl_zero;
-	int fd, r;
-	fd_set fds;
+	int r;
 
 	rl_zero.rlim_cur = rl_zero.rlim_max = 0;
 	r = setrlimit(RLIMIT_NOFILE, &rl_zero);
@@ -4627,9 +4600,9 @@ AC_ARG_WITH([mantype],
 	]
 )
 if test -z "$MANTYPE"; then
-	TestPath="/usr/bin${PATH_SEPARATOR}/usr/ucb"
-	AC_PATH_PROGS([NROFF], [nroff awf], [/bin/false], [$TestPath])
-	if ${NROFF} -mdoc ${srcdir}/ssh.1 >/dev/null 2>&1; then
+	if ${MANDOC} ${srcdir}/ssh.1 >/dev/null 2>&1; then
+		MANTYPE=doc
+	elif ${NROFF} -mdoc ${srcdir}/ssh.1 >/dev/null 2>&1; then
 		MANTYPE=doc
 	elif ${NROFF} -man ${srcdir}/ssh.1 >/dev/null 2>&1; then
 		MANTYPE=man

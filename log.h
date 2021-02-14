@@ -1,4 +1,4 @@
-/* $OpenBSD: log.h,v 1.23 2018/07/27 12:03:17 markus Exp $ */
+/* $OpenBSD: log.h,v 1.24 2019/09/06 04:53:27 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -14,6 +14,8 @@
 
 #ifndef SSH_LOG_H
 #define SSH_LOG_H
+
+#include <stdarg.h> /* va_list */
 
 /* Supported syslog facilities and levels. */
 typedef enum {

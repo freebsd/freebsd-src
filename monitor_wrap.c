@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.112 2019/01/21 09:54:11 djm Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.113 2019/06/28 13:35:04 deraadt Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -612,7 +612,7 @@ mm_session_pty_cleanup2(Session *s)
 	sshbuf_free(m);
 
 	/* closed dup'ed master */
-	if (s->ptymaster != -1 && close(s->ptymaster) < 0)
+	if (s->ptymaster != -1 && close(s->ptymaster) == -1)
 		error("close(s->ptymaster/%d): %s",
 		    s->ptymaster, strerror(errno));
 

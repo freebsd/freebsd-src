@@ -7,6 +7,8 @@
 
 #include "includes.h"
 
+#ifdef WITH_OPENSSL
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <stdio.h>
@@ -276,3 +278,4 @@ sshbuf_getput_crypto_tests(void)
 #endif
 }
 
+#endif /* WITH_OPENSSL */

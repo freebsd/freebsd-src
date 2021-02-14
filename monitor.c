@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.197 2019/01/21 10:38:54 djm Exp $ */
+/* $OpenBSD: monitor.c,v 1.199 2019/10/07 23:10:38 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -40,7 +40,7 @@
 #include <pwd.h>
 #include <signal.h>
 #ifdef HAVE_STDINT_H
-#include <stdint.h>
+# include <stdint.h>
 #endif
 #include <stdlib.h>
 #include <string.h>
@@ -692,7 +692,7 @@ mm_answer_sign(struct ssh *ssh, int sock, struct sshbuf *m)
 		fatal("%s: no hostkey from index %d", __func__, keyid);
 
 	debug3("%s: %s signature %p(%zu)", __func__,
-	    is_proof ? "KEX" : "hostkey proof", signature, siglen);
+	    is_proof ? "hostkey proof" : "KEX", signature, siglen);
 
 	sshbuf_reset(m);
 	if ((r = sshbuf_put_string(m, signature, siglen)) != 0)
@@ -1470,7 +1470,7 @@ mm_record_login(struct ssh *ssh, Session *s, struct passwd *pw)
 	fromlen = sizeof(from);
 	if (ssh_packet_connection_is_on_socket(ssh)) {
 		if (getpeername(ssh_packet_get_connection_in(ssh),
-		    (struct sockaddr *)&from, &fromlen) < 0) {
+		    (struct sockaddr *)&from, &fromlen) == -1) {
 			debug("getpeername: %.100s", strerror(errno));
 			cleanup_exit(255);
 		}
@@ -1538,7 +1538,7 @@ mm_answer_pty(struct ssh *ssh, int sock, struct sshbuf *m)
 		fatal("%s: send fds failed", __func__);
 
 	/* make sure nothing uses fd 0 */
-	if ((fd0 = open(_PATH_DEVNULL, O_RDONLY)) < 0)
+	if ((fd0 = open(_PATH_DEVNULL, O_RDONLY)) == -1)
 		fatal("%s: open(/dev/null): %s", __func__, strerror(errno));
 	if (fd0 != 0)
 		error("%s: fd0 %d != 0", __func__, fd0);
@@ -1730,9 +1730,9 @@ monitor_openfds(struct monitor *mon, int do_logfds)
 	if (socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
 		fatal("%s: socketpair: %s", __func__, strerror(errno));
 #ifdef SO_ZEROIZE
-	if (setsockopt(pair[0], SOL_SOCKET, SO_ZEROIZE, &on, sizeof(on)) < 0)
+	if (setsockopt(pair[0], SOL_SOCKET, SO_ZEROIZE, &on, sizeof(on)) == -1)
 		error("setsockopt SO_ZEROIZE(0): %.100s", strerror(errno));
-	if (setsockopt(pair[1], SOL_SOCKET, SO_ZEROIZE, &on, sizeof(on)) < 0)
+	if (setsockopt(pair[1], SOL_SOCKET, SO_ZEROIZE, &on, sizeof(on)) == -1)
 		error("setsockopt SO_ZEROIZE(1): %.100s", strerror(errno));
 #endif
 	FD_CLOSEONEXEC(pair[0]);

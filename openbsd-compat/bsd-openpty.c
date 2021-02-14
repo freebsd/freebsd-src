@@ -121,6 +121,15 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 		return (-1);
 	}
 
+# if defined(I_FIND) && defined(__SVR4)
+	/*
+	 * If the streams modules have already been pushed then there
+	 * is no more work to do here.
+	 */
+	if (ioctl(*aslave, I_FIND, "ptem") != 0)
+		return 0;
+# endif
+
 	/*
 	 * Try to push the appropriate streams modules, as described
 	 * in Solaris pts(7).

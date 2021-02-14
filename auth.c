@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.138 2019/01/19 21:41:18 djm Exp $ */
+/* $OpenBSD: auth.c,v 1.141 2019/10/02 00:42:30 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -32,6 +32,7 @@
 
 #include <netinet/in.h>
 
+#include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
 #ifdef HAVE_PATHS_H
@@ -72,7 +73,6 @@
 #endif
 #include "authfile.h"
 #include "monitor_wrap.h"
-#include "authfile.h"
 #include "ssherr.h"
 #include "compat.h"
 #include "channels.h"
@@ -167,7 +167,7 @@ allowed_user(struct ssh *ssh, struct passwd * pw)
 		char *shell = xstrdup((pw->pw_shell[0] == '\0') ?
 		    _PATH_BSHELL : pw->pw_shell); /* empty = /bin/sh */
 
-		if (stat(shell, &st) != 0) {
+		if (stat(shell, &st) == -1) {
 			logit("User %.100s not allowed because shell %.100s "
 			    "does not exist", pw->pw_name, shell);
 			free(shell);
@@ -517,7 +517,7 @@ auth_openfile(const char *file, struct passwd *pw, int strict_modes,
 		return NULL;
 	}
 
-	if (fstat(fd, &st) < 0) {
+	if (fstat(fd, &st) == -1) {
 		close(fd);
 		return NULL;
 	}
@@ -746,7 +746,7 @@ remote_hostname(struct ssh *ssh)
 	fromlen = sizeof(from);
 	memset(&from, 0, sizeof(from));
 	if (getpeername(ssh_packet_get_connection_in(ssh),
-	    (struct sockaddr *)&from, &fromlen) < 0) {
+	    (struct sockaddr *)&from, &fromlen) == -1) {
 		debug("getpeername failed: %.100s", strerror(errno));
 		return strdup(ntop);
 	}
@@ -884,7 +884,7 @@ subprocess(const char *tag, struct passwd *pw, const char *command,
 		return 0;
 	}
 	temporarily_use_uid(pw);
-	if (stat(av[0], &st) < 0) {
+	if (stat(av[0], &st) == -1) {
 		error("Could not stat %s \"%s\": %s", tag,
 		    av[0], strerror(errno));
 		restore_uid();
@@ -896,7 +896,7 @@ subprocess(const char *tag, struct passwd *pw, const char *command,
 		return 0;
 	}
 	/* Prepare to keep the child's stdout if requested */
-	if (pipe(p) != 0) {
+	if (pipe(p) == -1) {
 		error("%s: pipe: %s", tag, strerror(errno));
 		restore_uid();
 		return 0;
@@ -946,12 +946,12 @@ subprocess(const char *tag, struct passwd *pw, const char *command,
 		closefrom(STDERR_FILENO + 1);
 
 		/* Don't use permanently_set_uid() here to avoid fatal() */
-		if (setresgid(pw->pw_gid, pw->pw_gid, pw->pw_gid) != 0) {
+		if (setresgid(pw->pw_gid, pw->pw_gid, pw->pw_gid) == -1) {
 			error("%s: setresgid %u: %s", tag, (u_int)pw->pw_gid,
 			    strerror(errno));
 			_exit(1);
 		}
-		if (setresuid(pw->pw_uid, pw->pw_uid, pw->pw_uid) != 0) {
+		if (setresuid(pw->pw_uid, pw->pw_uid, pw->pw_uid) == -1) {
 			error("%s: setresuid %u: %s", tag, (u_int)pw->pw_uid,
 			    strerror(errno));
 			_exit(1);

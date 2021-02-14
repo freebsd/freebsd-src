@@ -1,3 +1,2534 @@
+commit cdf1d0a9f5d18535e0a18ff34860e81a6d83aa5c
+Author: Damien Miller <djm@mindrot.org>
+Date:   Wed Oct 9 11:31:03 2019 +1100
+
+    prepare for 8.1 release
+
+commit 3b4e56d740b74324e2d7542957cad5a11518f455
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Wed Oct 9 00:04:57 2019 +0000
+
+    upstream: openssh-8.1
+    
+    OpenBSD-Commit-ID: 3356bb34e2aa287f0e6d6773c9ae659dc680147d
+
+commit 29e0ecd9b4eb3b9f305e2240351f0c59cad9ef81
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Wed Oct 9 00:04:42 2019 +0000
+
+    upstream: fix an unreachable integer overflow similar to the XMSS
+    
+    case, and some other NULL dereferences found by fuzzing.
+    
+    fix with and ok markus@
+    
+    OpenBSD-Commit-ID: 0f81adbb95ef887ce586953e1cb225fa45c7a47b
+
+commit a546b17bbaeb12beac4c9aeed56f74a42b18a93a
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Wed Oct 9 00:02:57 2019 +0000
+
+    upstream: fix integer overflow in XMSS private key parsing.
+    
+    Reported by Adam Zabrocki via SecuriTeam's SSH program.
+    
+    Note that this code is experimental and not compiled by default.
+    
+    ok markus@
+    
+    OpenBSD-Commit-ID: cd0361896d15e8a1bac495ac583ff065ffca2be1
+
+commit c2cc25480ba36ab48c1a577bebb12493865aad87
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Tue Oct 8 22:40:39 2019 +0000
+
+    upstream: Correct type for end-of-list sentinel; fixes initializer
+    
+    warnings on some platforms.  ok deraadt.
+    
+    OpenBSD-Commit-ID: a990dbc2dac25bdfa07e79321349c73fd991efa2
+
+commit e827aedf8818e75c0016b47ed8fc231427457c43
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Mon Oct 7 23:10:38 2019 +0000
+
+    upstream: reversed test yielded incorrect debug message
+    
+    OpenBSD-Commit-ID: 78bb512d04cfc238adb2c5b7504ac93eecf523b3
+
+commit 8ca491d29fbe26e5909ce22b344c0a848dc28d55
+Author: Damien Miller <djm@mindrot.org>
+Date:   Tue Oct 8 17:05:57 2019 +1100
+
+    depend
+
+commit 86a0323374cbd404629e75bb320b3fa1c16aaa6b
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Wed Oct 9 09:36:06 2019 +1100
+
+    Make MAKE_CLONE no-op macro more correct.
+    
+    Similar to the previous change to DEF_WEAK, some compilers don't like
+    the empty statement, so convert into a no-op function prototype.
+
+commit cfc1897a2002ec6c4dc879b24e8b3153c87ea2cf
+Author: Damien Miller <djm@mindrot.org>
+Date:   Wed Oct 9 09:06:35 2019 +1100
+
+    wrap stdint.h include in HAVE_STDINT_H
+    
+    make the indenting a little more consistent too..
+    
+    Fixes Solaris 2.6; reported by Tom G. Christensen
+
+commit 13b3369830a43b89a503915216a23816d1b25744
+Author: Damien Miller <djm@mindrot.org>
+Date:   Tue Oct 8 15:32:02 2019 +1100
+
+    avoid "return (value)" in void-declared function
+    
+    spotted by Tim Rice; ok dtucker
+
+commit 0c7f8d2326d812b371f7afd63aff846973ec80a4
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Oct 8 14:44:50 2019 +1100
+
+    Make DEF_WEAK more likely to be correct.
+    
+    Completely nop-ing out DEF_WEAK leaves an empty statemment which some
+    compilers don't like.  Replace with a no-op function template.  ok djm@
+
+commit b1e79ea8fae9c252399677a28707661d85c7d00c
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Sun Oct 6 11:49:50 2019 +0000
+
+    upstream: Instead of running sed over the whole log to remove CRs,
+    
+    remove them only where it's needed (and confuses test(1) on at least OS X in
+    portable).
+    
+    OpenBSD-Regress-ID: a6ab9b4bd1d33770feaf01b2dfb96f9e4189d2d0
+
+commit 8dc7d6b75a7f746fdd056acd41dffc0a13557a4c
+Author: Eduardo Barretto <ebarretto@linux.vnet.ibm.com>
+Date:   Tue May 9 13:33:30 2017 -0300
+
+    Enable specific ioctl call for EP11 crypto card (s390)
+    
+    The EP11 crypto card needs to make an ioctl call, which receives an
+    specific argument. This crypto card is for s390 only.
+    
+    Signed-off-by: Eduardo Barretto <ebarretto@linux.vnet.ibm.com>
+
+commit 07f2c7f34951c04d2cd796ac6c80e47c56c4969e
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Oct 4 04:31:59 2019 +0000
+
+    upstream: fix memory leak in error path; bz#3074 patch from
+    
+    krishnaiah.bommu@intel.com, ok dtucker
+    
+    OpenBSD-Commit-ID: d031853f3ecf47b35a0669588f4d9d8e3b307b3c
+
+commit b7fbc75e119170f4d15c94a7fda4a1050e0871d6
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Oct 4 04:13:39 2019 +0000
+
+    upstream: space
+    
+    OpenBSD-Commit-ID: 350648bcf00a2454e7ef998b7d88e42552b348ac
+
+commit 643ab68c79ac1644f4a31e36928c2bfc8a51db3c
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Oct 4 03:39:19 2019 +0000
+
+    upstream: more sshsig regress tests: check key revocation, the
+    
+    check-novalidate signature test mode and signing keys in ssh-agent.
+    
+    From Sebastian Kinne (slightly tweaked)
+    
+    OpenBSD-Regress-ID: b39566f5cec70140674658cdcedf38752a52e2e2
+
+commit 714031a10bbe378a395a93cf1040f4ee1451f45f
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri Oct 4 03:26:58 2019 +0000
+
+    upstream: Check for gmtime failure in moduli generation. Based on
+    
+    patch from krishnaiah.bommu@intel.com, ok djm@
+    
+    OpenBSD-Commit-ID: 4c6a4cde0022188ac83737de08da0e875704eeaa
+
+commit 6918974405cc28ed977f802fd97a9c9a9b2e141b
+Author: jmc@openbsd.org <jmc@openbsd.org>
+Date:   Thu Oct 3 17:07:50 2019 +0000
+
+    upstream: use a more common options order in SYNOPSIS and sync
+    
+    usage(); while here, no need for Bk/Ek;
+    
+    ok dtucker
+    
+    OpenBSD-Commit-ID: 38715c3f10b166f599a2283eb7bc14860211bb90
+
+commit feff96b7d4c0b99307f0459cbff128aede4a8984
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Wed Oct 2 09:50:50 2019 +0000
+
+    upstream: thinko in previous; spotted by Mantas
+    
+    =?UTF-8?q?=20Mikul=C4=97nas?=
+    MIME-Version: 1.0
+    Content-Type: text/plain; charset=UTF-8
+    Content-Transfer-Encoding: 8bit
+    
+    OpenBSD-Commit-ID: ffa3f5a45e09752fc47d9041e2203ee2ec15b24d
+
+commit b5a89eec410967d6b712665f8cf0cb632928d74b
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Wed Oct 2 08:07:13 2019 +0000
+
+    upstream: make signature format match PROTOCO
+    
+    =?UTF-8?q?=20as=20a=20string,=20not=20raw=20bytes.=20Spotted=20by=20Manta?=
+    =?UTF-8?q?s=20Mikul=C4=97nas?=
+    MIME-Version: 1.0
+    Content-Type: text/plain; charset=UTF-8
+    Content-Transfer-Encoding: 8bit
+    
+    OpenBSD-Commit-ID: 80fcc6d52893f80c6de2bedd65353cebfebcfa8f
+
+commit dc6f81ee94995deb11bbf7e19801022c5f6fd90a
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Wed Oct 2 08:05:50 2019 +0000
+
+    upstream: ban empty namespace strings for s
+    
+    =?UTF-8?q?shsig;=20spotted=20by=20Mantas=20Mikul=C4=97nas?=
+    MIME-Version: 1.0
+    Content-Type: text/plain; charset=UTF-8
+    Content-Transfer-Encoding: 8bit
+    
+    OpenBSD-Commit-ID: 7c5bcf40bed8f4e826230176f4aa353c52aeb698
+
+commit fa5bd8107e0e2b3e1e184f55d0f9320c119f65f0
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Wed Oct 2 14:30:55 2019 +1000
+
+    Put ssherr.h back as it's actually needed.
+
+commit 3ef92a657444f172b61f92d5da66d94fa8265602
+Author: Lonnie Abelbeck <lonnie@abelbeck.com>
+Date:   Tue Oct 1 09:05:09 2019 -0500
+
+    Deny (non-fatal) shmget/shmat/shmdt in preauth privsep child.
+    
+    New wait_random_seeded() function on OpenSSL 1.1.1d uses shmget, shmat, and shmdt
+    in the preauth codepath, deny (non-fatal) in seccomp_filter sandbox.
+
+commit edd1d3a6261aecbf9a55944fd7be1db83571b46e
+Author: Damien Miller <djm@mindrot.org>
+Date:   Wed Oct 2 10:54:28 2019 +1000
+
+    remove duplicate #includes
+    
+    Prompted by Jakub Jelen
+
+commit 13c508dfed9f25e6e54c984ad00a74ef08539e70
+Author: Damien Miller <djm@mindrot.org>
+Date:   Wed Oct 2 10:51:15 2019 +1000
+
+    typo in comment
+
+commit d0c3ac427f6c52b872d6617421421dd791664445
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Wed Oct 2 00:42:30 2019 +0000
+
+    upstream: remove some duplicate #includes
+    
+    OpenBSD-Commit-ID: ed6827ab921eff8027669848ef4f70dc1da4098c
+
+commit 084682786d9275552ee93857cb36e43c446ce92c
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Oct 1 10:22:53 2019 +0000
+
+    upstream: revert unconditional forced login implemented in r1.41 of
+    
+    ssh-pkcs11.c; r1.45 added a forced login as a fallback for cases where the
+    token returns no objects and this is less disruptive for users of tokens
+    directly in ssh (rather than via ssh-agent) and in ssh-keygen
+    
+    bz3006, patch from Jakub Jelen; ok markus
+    
+    OpenBSD-Commit-ID: 33d6df589b072094384631ff93b1030103b3d02e
+
+commit 6c91d42cce3f055917dc3fd2c305dfc5b3b584b3
+Author: jmc@openbsd.org <jmc@openbsd.org>
+Date:   Sun Sep 29 16:31:57 2019 +0000
+
+    upstream: group and sort single letter options; ok deraadt
+    
+    OpenBSD-Commit-ID: e1480e760a2b582f79696cdcff70098e23fc603f
+
+commit 3b44bf39ff4d7ef5d50861e2e9dda62d2926d2fe
+Author: jmc@openbsd.org <jmc@openbsd.org>
+Date:   Fri Sep 27 20:03:24 2019 +0000
+
+    upstream: fix the DH-GEX text in -a; because this required a comma,
+    
+    i added a comma to the first part, for balance...
+    
+    OpenBSD-Commit-ID: 2c3464e9e82a41e8cdfe8f0a16d94266e43dbb58
+
+commit 3e53ef28fab53094e3b19622ba0e9c3d5fe71273
+Author: deraadt@openbsd.org <deraadt@openbsd.org>
+Date:   Tue Sep 24 12:50:46 2019 +0000
+
+    upstream: identity_file[] should be PATH_MAX, not the arbitrary
+    
+    number 1024
+    
+    OpenBSD-Commit-ID: e775f94ad47ce9ab37bd1410d7cf3b7ea98b11b7
+
+commit 90d4b2541e8c907793233d9cbd4963f7624f4174
+Author: jmc@openbsd.org <jmc@openbsd.org>
+Date:   Fri Sep 20 18:50:58 2019 +0000
+
+    upstream: new sentence, new line;
+    
+    OpenBSD-Commit-ID: c35ca5ec07be460e95e7406af12eee04a77b6698
+
+commit fbec7dba01b70b49ac47f56031310865dff86200
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Mon Sep 30 18:01:12 2019 +1000
+
+    Include stdio.h for snprintf.
+    
+    Patch from vapier@gentoo.org.
+
+commit 0a403bfde71c4b82147473298d3a60b4171468bd
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Mon Sep 30 14:11:42 2019 +1000
+
+    Add SKIP_LTESTS for skipping specific tests.
+
+commit 4d59f7a5169c451ebf559aedec031ac9da2bf80c
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri Sep 27 05:25:12 2019 +0000
+
+    upstream: Test for empty result in expected bits. Remove CRs from log
+    
+    as they confuse tools on some platforms.  Re-enable the 3des-cbc test.
+    
+    OpenBSD-Regress-ID: edf536d4f29fc1ba412889b37247a47f1b49d250
+
+commit 7c817d129e2d48fc8a6f7965339313023ec45765
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Sep 27 15:26:22 2019 +1000
+
+    Re-enable dhgex test.
+    
+    Since we've added larger fallback groups to dh.c this test will pass
+    even if there is no moduli file installed on the system.
+
+commit c1e0a32fa852de6d1c82ece4f76add0ab0ca0eae
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Sep 24 21:17:20 2019 +1000
+
+    Add more ToS bits, currently only used by netcat.
+
+commit 5a273a33ca1410351cb484af7db7c13e8b4e8e4e
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Thu Sep 19 15:41:23 2019 +1000
+
+    Privsep is now required.
+
+commit 8aa2aa3cd4d27d14e74b247c773696349472ef20
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Mon Sep 16 03:23:02 2019 +0000
+
+    upstream: Allow testing signature syntax and validity without verifying
+    
+    that a signature came from a trusted signer. To discourage accidental or
+    unintentional use, this is invoked by the deliberately ugly option name
+    "check-novalidate"
+    
+    from Sebastian Kinne
+    
+    OpenBSD-Commit-ID: cea42c36ab7d6b70890e2d8635c1b5b943adcc0b
+
+commit 7047d5afe3103f0f07966c05b810682d92add359
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Sep 13 04:52:34 2019 +0000
+
+    upstream: clarify that IdentitiesOnly also applies to the default
+    
+    ~/.ssh/id_* keys; bz#3062
+    
+    OpenBSD-Commit-ID: 604be570e04646f0f4a17026f8b2aada6a585dfa
+
+commit b36ee3fcb2f1601693b1b7fd60dd6bd96006ea75
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri Sep 13 04:36:43 2019 +0000
+
+    upstream: Plug mem leaks on error paths, based in part on github
+    
+    pr#120 from David Carlier.  ok djm@.
+    
+    OpenBSD-Commit-ID: c57adeb1022a8148fc86e5a88837b3b156dbdb7e
+
+commit 2aefdf1aef906cf7548a2e5927d35aacb55948d4
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Sep 13 04:31:19 2019 +0000
+
+    upstream: whitespace
+    
+    OpenBSD-Commit-ID: 57a71dd5f4cae8d61e0ac631a862589fb2bfd700
+
+commit fbe24b142915331ceb2a3a76be3dc5b6d204fddf
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Sep 13 04:27:35 2019 +0000
+
+    upstream: allow %n to be expanded in ProxyCommand strings
+    
+    From Zachary Harmany via github.com/openssh/openssh-portable/pull/118
+    ok dtucker@
+    
+    OpenBSD-Commit-ID: 7eebf1b7695f50c66d42053d352a4db9e8fb84b6
+
+commit 2ce1d11600e13bee0667d6b717ffcc18a057b821
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Sep 13 04:07:42 2019 +0000
+
+    upstream: clarify that ConnectTimeout applies both to the TCP
+    
+    connection and to the protocol handshake/KEX. From Jean-Charles Longuet via
+    Github PR140
+    
+    OpenBSD-Commit-ID: ce1766abc6da080f0d88c09c2c5585a32b2256bf
+
+commit df780114278f406ef7cb2278802a2660092fff09
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Mon Sep 9 02:31:19 2019 +0000
+
+    upstream: Fix potential truncation warning. ok deraadt.
+    
+    OpenBSD-Commit-ID: d87b7e3a94ec935e8194e7fce41815e22804c3ff
+
+commit ec0e6243660bf2df30c620a6a0d83eded376c9c6
+Author: Damien Miller <djm@mindrot.org>
+Date:   Fri Sep 13 13:14:39 2019 +1000
+
+    memleak of buffer in sshpam_query
+    
+    coverity report via Ed Maste; ok dtucker@
+
+commit c17e4638e5592688264fc0349f61bfc7b4425aa5
+Author: Damien Miller <djm@mindrot.org>
+Date:   Fri Sep 13 13:12:42 2019 +1000
+
+    explicitly test set[ug]id() return values
+    
+    Legacy !_POSIX_SAVED_IDS path only; coverity report via Ed Maste
+    ok dtucker@
+
+commit 91a2135f32acdd6378476c5bae475a6e7811a6a2
+Author: naddy@openbsd.org <naddy@openbsd.org>
+Date:   Fri Sep 6 14:45:34 2019 +0000
+
+    upstream: Allow prepending a list of algorithms to the default set
+    
+    by starting the list with the '^' character, e.g.
+    
+    HostKeyAlgorithms ^ssh-ed25519
+    Ciphers ^aes128-gcm@openssh.com,aes256-gcm@openssh.com
+    
+    ok djm@ dtucker@
+    
+    OpenBSD-Commit-ID: 1e1996fac0dc8a4b0d0ff58395135848287f6f97
+
+commit c8bdd2db77ac2369d5cdee237656f266c8f41552
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Sep 6 07:53:40 2019 +0000
+
+    upstream: key conversion should fail for !openssl builds, not fall
+    
+    through to the key generation code
+    
+    OpenBSD-Commit-ID: b957436adc43c4941e61d61958a193a708bc83c9
+
+commit 823f6c37eb2d8191d45539f7b6fa877a4cb4ed3d
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Sep 6 06:08:11 2019 +0000
+
+    upstream: typo in previous
+    
+    OpenBSD-Commit-ID: 7c3b94110864771a6b80a0d8acaca34037c3c96e
+
+commit 6a710d3e06fd375e2c2ae02546b9541c488a2cdb
+Author: Damien Miller <djm@mindrot.org>
+Date:   Sun Sep 8 14:48:11 2019 +1000
+
+    needs time.h for --without-openssl
+
+commit f61f29afda6c71eda26effa54d3c2e5306fd0833
+Author: Damien Miller <djm@mindrot.org>
+Date:   Sat Sep 7 19:25:00 2019 +1000
+
+    make unittests pass for no-openssl case
+
+commit 105e1c9218940eb53473f55a9177652d889ddbad
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Sep 6 05:59:41 2019 +0000
+
+    upstream: avoid compiling certain files that deeply depend on
+    
+    libcrypto when WITH_OPENSSL isn't set
+    
+    OpenBSD-Commit-ID: 569f08445c27124ec7c7f6c0268d844ec56ac061
+
+commit 670104b923dd97b1c06c0659aef7c3e52af571b2
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Sep 6 05:23:55 2019 +0000
+
+    upstream: fixes for !WITH_OPENSSL compilation; ok dtucker@
+    
+    OpenBSD-Commit-ID: 7fd68eaa9e0f7482b5d4c7e8d740aed4770a839f
+
+commit be02d7cbde3d211ec2ed2320a1f7d86b2339d758
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Sep 6 04:53:27 2019 +0000
+
+    upstream: lots of things were relying on libcrypto headers to
+    
+    transitively include various system headers (mostly stdlib.h); include them
+    explicitly
+    
+    OpenBSD-Commit-ID: 5b522f4f2d844f78bf1cc4f3f4cc392e177b2080
+
+commit d05aaaaadcad592abfaa44540928e0c61ef72ebb
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Sep 6 03:30:42 2019 +0000
+
+    upstream: remove leakmalloc reference; we used this early when
+    
+    refactoring but not since
+    
+    OpenBSD-Commit-ID: bb28ebda8f7c490b87b37954044a6cdd43a7eb2c
+
+commit 1268f0bcd8fc844ac6c27167888443c8350005eb
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri Sep 6 04:24:06 2019 +0000
+
+    upstream: Check for RSA support before using it for the user key,
+    
+    otherwise use ed25519 which is supported when built without OpenSSL.
+    
+    OpenBSD-Regress-ID: 3d23ddfe83c5062f00ac845d463f19a2ec78c0f7
+
+commit fd7a2dec652b9efc8e97f03f118f935dce732c60
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Sep 6 14:07:10 2019 +1000
+
+    Provide explicit path to configure-check.
+    
+    On some platforms (at least OpenBSD) make won't search VPATH for target
+    files, so building out-of-tree will fail at configure-check.  Provide
+    explicit path.  ok djm@
+
+commit 00865c29690003b4523cc09a0e104724b9f911a4
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Sep 6 01:58:50 2019 +0000
+
+    upstream: better error code for bad arguments; inspired by
+    
+    OpenBSD-Commit-ID: dfc263b6041de7f0ed921a1de0b81ddebfab1e0a
+
+commit afdf27f5aceb4973b9f5308f4310c6e3fd8db1fb
+Author: Damien Miller <djm@mindrot.org>
+Date:   Thu Sep 5 21:38:40 2019 +1000
+
+    revert config.h/config.h.in freshness checks
+    
+    turns out autoreconf and configure don't touch some files if their content
+    doesn't change, so the mtime can't be relied upon in a makefile rule
+
+commit a97609e850c57bd2cc2fe7e175fc35cb865bc834
+Author: Damien Miller <djm@mindrot.org>
+Date:   Thu Sep 5 20:54:39 2019 +1000
+
+    extend autoconf freshness test
+    
+    make it cover config.h.in and config.h separately
+
+commit 182297c10edb21c4856c6a38326fd04d81de41a5
+Author: Damien Miller <djm@mindrot.org>
+Date:   Thu Sep 5 20:34:54 2019 +1000
+
+    check that configure/config.h is up to date
+    
+    Ensure they are newer than the configure.ac / aclocal.m4 source
+
+commit 7d6034bd020248e9fc0f8c39c71c858debd0d0c1
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Thu Sep 5 10:05:51 2019 +0000
+
+    upstream: if a PKCS#11 token returns no keys then try to login and
+    
+    refetch them. Based on patch from Jakub Jelen; bz#2430 ok markus@
+    
+    OpenBSD-Commit-ID: ab53bd6ddd54dd09e54a8bfbed1a984496f08b43
+
+commit 76f09bd95917862101b740afb19f4db5ccc752bf
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Thu Sep 5 09:35:19 2019 +0000
+
+    upstream: sprinkle in some explicit errors here, otherwise the
+    
+    percolate all the way up to dispatch_run_fatal() and lose all meaninful
+    context
+    
+    to help with bz#3063; ok dtucker@
+    
+    OpenBSD-Commit-ID: 5b2da83bb1c4a3471444b7910b2120ae36438a0a
+
+commit 0ea332497b2b2fc3995f72f6bafe9d664c0195b3
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Thu Sep 5 09:25:13 2019 +0000
+
+    upstream: only send ext_info for KEX_INITIAL; bz#2929 ok dtucker
+    
+    OpenBSD-Commit-ID: 00f5c6062f6863769f5447c6346f78c05d2e4a63
+
+commit f23d91f9fa7f6f42e70404e000fac88aebfe3076
+Author: jmc@openbsd.org <jmc@openbsd.org>
+Date:   Thu Sep 5 05:47:23 2019 +0000
+
+    upstream: macro fix; ok djm
+    
+    OpenBSD-Commit-ID: e891dd6c7996114cb32f0924cb7898ab55efde6e
+
+commit 8b57337c1c1506df2bb9f039d0628a6de618566b
+Author: Damien Miller <djm@mindrot.org>
+Date:   Thu Sep 5 15:46:39 2019 +1000
+
+    update fuzzing makefile to more recent clang
+
+commit ae631ad77daf8fd39723d15a687cd4b1482cbae8
+Author: Damien Miller <djm@mindrot.org>
+Date:   Thu Sep 5 15:45:32 2019 +1000
+
+    fuzzer for sshsig allowed_signers option parsing
+
+commit 69159afe24120c97e5ebaf81016c85968afb903e
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Thu Sep 5 05:42:59 2019 +0000
+
+    upstream: memleak on error path; found by libfuzzer
+    
+    OpenBSD-Commit-ID: 34d44cb0fb5bdb5fcbc6b02b804e71b20a7a5fc7
+
+commit bab6feb01f9924758ca7129dba708298a53dde5f
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Thu Sep 5 04:55:32 2019 +0000
+
+    upstream: expose allowed_signers options parsing code in header for
+    
+    fuzzing
+    
+    rename to make more consistent with philosophically-similar auth
+    options parsing API.
+    
+    OpenBSD-Commit-ID: 0c67600ef04187f98e2912ca57b60c22a8025b7c
+
+commit 4f9d75fbafde83d428e291516f8ce98e6b3a7c4b
+Author: naddy@openbsd.org <naddy@openbsd.org>
+Date:   Wed Sep 4 20:31:15 2019 +0000
+
+    upstream: Call comma-separated lists as such to clarify semantics.
+    
+    Options such as Ciphers take values that may be a list of ciphers; the
+    complete list, not indiviual elements, may be prefixed with a dash or plus
+    character to remove from or append to the default list, respectively.
+    
+    Users might read the current text as if each elment took an optional prefix,
+    so tweak the wording from "values" to "list" to prevent such ambiguity for
+    all options supporting these semantics.
+    
+    Fix instances missed in first commit.  ok jmc@ kn@
+    
+    OpenBSD-Commit-ID: 7112522430a54fb9f15a7a26d26190ed84d5e417
+
+commit db1e6f60f03641b2d17e0ab062242609f4ed4598
+Author: jmc@openbsd.org <jmc@openbsd.org>
+Date:   Wed Sep 4 05:56:54 2019 +0000
+
+    upstream: tweak previous;
+    
+    OpenBSD-Commit-ID: 0abd728aef6b5b35f6db43176aa83b7e3bf3ce27
+
+commit 0f44e5956c7c816f6600f2a47be4d7bb5a8d711d
+Author: naddy@openbsd.org <naddy@openbsd.org>
+Date:   Tue Sep 3 20:51:49 2019 +0000
+
+    upstream: repair typo and editing mishap
+    
+    OpenBSD-Commit-ID: d125ab720ca71ccf9baf83e08ddc8c12a328597e
+
+commit f4846dfc6a79f84bbc6356ae3184f142bacedc24
+Author: Damien Miller <djm@mindrot.org>
+Date:   Thu Sep 5 11:09:28 2019 +1000
+
+    Fuzzer harness for sshsig
+
+commit b08a6bc1cc7750c6f8a425d1cdbd86552fffc637
+Author: Damien Miller <djm@mindrot.org>
+Date:   Tue Sep 3 18:45:42 2019 +1000
+
+    oops; missed including the actual file
+
+commit 1a72c0dd89f09754df443c9576dde624a17d7dd0
+Author: Damien Miller <djm@mindrot.org>
+Date:   Tue Sep 3 18:44:10 2019 +1000
+
+    portability fixes for sshsig
+
+commit 6d6427d01304d967e58544cf1c71d2b4394c0522
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Sep 3 08:37:45 2019 +0000
+
+    upstream: regress test for sshsig; feedback and ok markus@
+    
+    OpenBSD-Regress-ID: 74c0974f2cdae8d9599b9d76a09680bae55d8a8b
+
+commit 59650f0eaf65115afe04c39abfb93a4fc994ec55
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Sep 3 08:37:06 2019 +0000
+
+    upstream: only add plain keys to prevent any certs laying around
+    
+    from confusing the test.
+    
+    OpenBSD-Regress-ID: b8f1508f822bc560b98dea910e61ecd76f34100f
+
+commit d637c4aee6f9b5280c13c020d7653444ac1fcaa5
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Sep 3 08:35:27 2019 +0000
+
+    upstream: sshsig tweaks and improvements from and suggested by
+    
+    Markus
+    
+    ok markus/me
+    
+    OpenBSD-Commit-ID: ea4f46ad5a16b27af96e08c4877423918c4253e9
+
+commit 2a9c9f7272c1e8665155118fe6536bebdafb6166
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Sep 3 08:34:19 2019 +0000
+
+    upstream: sshsig: lightweight signature and verification ability
+    
+    for OpenSSH
+    
+    This adds a simple manual signature scheme to OpenSSH.
+    Signatures can be made and verified using ssh-keygen -Y sign|verify
+    
+    Signatures embed the key used to make them. At verification time, this
+    is matched via principal name against an authorized_keys-like list
+    of allowed signers.
+    
+    Mostly by Sebastian Kinne w/ some tweaks by me
+    
+    ok markus@
+    
+    OpenBSD-Commit-ID: 2ab568e7114c933346616392579d72be65a4b8fb
+
+commit 5485f8d50a5bc46aeed829075ebf5d9c617027ea
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Sep 3 08:32:11 2019 +0000
+
+    upstream: move authorized_keys option parsing helpsers to misc.c
+    
+    and make them public; ok markus@
+    
+    OpenBSD-Commit-ID: c18bcb2a687227b3478377c981c2d56af2638ea2
+
+commit f8df0413f0a057b6a3d3dd7bd8bc7c5d80911d3a
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Sep 3 08:31:20 2019 +0000
+
+    upstream: make get_sigtype public as sshkey_get_sigtype(); ok
+    
+    markus@
+    
+    OpenBSD-Commit-ID: 01f8cdbec63350490d2249f41112c5780d1cfbb8
+
+commit dd8002fbe63d903ffea5be7b7f5fc2714acab4a0
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Sep 3 08:30:47 2019 +0000
+
+    upstream: move advance_past_options to authfile.c and make it
+    
+    public; ok markus@
+    
+    OpenBSD-Commit-ID: edda2fbba2c5b1f48e60f857a2010479e80c5f3c
+
+commit c72d78ccbe642e08591a626e5de18381489716e0
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Sep 3 08:29:58 2019 +0000
+
+    upstream: move skip_space() to misc.c and make it public; ok
+    
+    markus@
+    
+    OpenBSD-Commit-ID: caa77e8a3b210948e29ad3e28c5db00852961eae
+
+commit 06af3583f46e2c327fdd44d8a95b8b4e8dfd8db5
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Sep 3 08:29:15 2019 +0000
+
+    upstream: authfd: add function to check if key is in agent
+    
+    This commit adds a helper function which allows the caller to
+    check if a given public key is present in ssh-agent.
+    
+    work by Sebastian Kinne; ok markus@
+    
+    OpenBSD-Commit-ID: d43c5826353e1fdc1af71eb42961b30782c7bd13
+
+commit 2ab5a8464870cc4b29ddbe849bbbc255729437bf
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Sep 3 08:28:30 2019 +0000
+
+    upstream: fix memleak in ssh_free_identitylist(); ok markus@
+    
+    OpenBSD-Commit-ID: aa51f77ae2c5330a1f61b2d22933f24a443f9abf
+
+commit 85443f165b4169b2a448b3e24bc1d4dc5b3156a4
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Sep 3 08:27:52 2019 +0000
+
+    upstream: factor out confirm_overwrite(); ok markus@
+    
+    OpenBSD-Commit-ID: 304e95381b39c774c8fced7e5328b106a3ff0400
+
+commit 9a396e33685633581c67d5ad9664570ef95281f2
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Mon Sep 2 23:46:46 2019 +0000
+
+    upstream: constify an argument
+    
+    OpenBSD-Commit-ID: 724bafc9f993746ad4303e95bede2c030de6233b
+
+commit b52c0c2e64988277a35a955a474d944967059aeb
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Mon Sep 2 00:19:25 2019 +0000
+
+    upstream: downgrade PKCS#11 "provider returned no slots" warning
+    
+    from log level error to debug. This is common when attempting to enumerate
+    keys on smartcard readers with no cards plugged in. bz#3058 ok dtucker@
+    
+    OpenBSD-Commit-ID: bb8839ddeb77c271390488af1b771041d43e49c6
+
+commit 0713322e18162463c5ab5ddfb9f935055ca775d8
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Sun Sep 1 23:47:32 2019 +0000
+
+    upstream: print comment when printing pubkey from private
+    
+    bz#3052; ok dtucker
+    
+    OpenBSD-Commit-ID: a91b2a8d5f1053d34d7fce44523c53fb534ba914
+
+commit 368f1cc2fbd6ad10c66bc1b67c2c04aebf8a04a8
+Author: Damien Miller <djm@mindrot.org>
+Date:   Mon Sep 2 10:28:42 2019 +1000
+
+    fixed test in OSX closefrom() replacement
+    
+    from likan_999.student AT sina.com
+
+commit 6b7c53498def19a14dd9587bf521ab6dbee8988f
+Author: Damien Miller <djm@mindrot.org>
+Date:   Mon Sep 2 10:22:02 2019 +1000
+
+    retain Solaris PRIV_FILE_LINK_ANY in sftp-server
+    
+    Dropping this privilege removes the ability to create hard links to
+    files owned by other users. This is required for the legacy sftp rename
+    operation.
+    
+    bz#3036; approach ok Alex Wilson (the original author of the Solaris
+    sandbox/pledge replacement code)
+
+commit e50f808712393e86d69e42e9847cdf8d473412d7
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri Aug 30 05:08:28 2019 +0000
+
+    upstream: Use ed25519 for most hostkey rotation tests since it's
+    
+    supported even when built without OpenSSL.  Use RSA for the secondary type
+    test if supported, otherwise skip it.  Fixes this test for !OpenSSL builds.
+    
+    OpenBSD-Regress-ID: 101cb34a84fd974c623bdb2e496f25a6e91be109
+
+commit 5e4796c47dd8d6c38fb2ff0b3e817525fed6040d
+Author: bluhm@openbsd.org <bluhm@openbsd.org>
+Date:   Thu Aug 22 21:47:27 2019 +0000
+
+    upstream: Test did not compile due to missing symbols. Add source
+    
+    sshbuf-misc.c to regress as it was done in ssh make file. from Moritz Buhl
+    
+    OpenBSD-Regress-ID: 9e1c23476bb845f3cf3d15d9032da3ed0cb2fcf5
+
+commit e0e7e3d0e26f2c30697e6d0cfc293414908963c7
+Author: Damien Miller <djm@mindrot.org>
+Date:   Fri Aug 30 14:26:19 2019 +1000
+
+    tweak warning flags
+    
+    Enable -Wextra if compiler supports it
+    
+    Set -Wno-error=format-truncation if available to prevent expected
+    string truncations in openbsd-compat from breaking -Werror builds
+
+commit 28744182cf90e0073b76a9e98de58a47e688b2c4
+Author: Damien Miller <djm@mindrot.org>
+Date:   Fri Aug 30 13:21:38 2019 +1000
+
+    proc_pidinfo()-based closefrom() for OS X
+    
+    Refactor closefrom() to use a single brute-force close() loop fallback.
+    
+    Based on patch from likan_999.student@sina.com in bz#3049. ok dtucker@
+
+commit dc2ca588144f088a54febebfde3414568dc73d5f
+Author: kn@openbsd.org <kn@openbsd.org>
+Date:   Fri Aug 16 11:16:32 2019 +0000
+
+    upstream: Call comma-separated lists as such to clarify semantics
+    
+    Options such as Ciphers take values that may be a list of ciphers;  the
+    complete list, not indiviual elements, may be prefixed with a dash or plus
+    character to remove from or append to the default list respectively.
+    
+    Users might read the current text as if each elment took an optional prefix,
+    so tweak the wording from "values" to "list" to prevent such ambiguity for
+    all options supporting this semantics (those that provide a list of
+    available elements via "ssh -Q ...").
+    
+    Input and OK jmc
+    
+    OpenBSD-Commit-ID: 4fdd175b0e5f5cb10ab3f26ccc38a93bb6515d57
+
+commit c4736f39e66729ce2bf5b06ee6b391e092b48f47
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Aug 16 06:35:27 2019 +0000
+
+    upstream: include sshbuf-misc.c in SRCS_BASE
+    
+    OpenBSD-Commit-ID: 99dd10e72c04e93849981d43d64c946619efa474
+
+commit d0e51810f332fe44ebdba41113aacf319d35f5a5
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Sat Aug 24 15:12:11 2019 +1000
+
+    Fix pasto in fallback code.
+    
+    There is no parameter called "pathname", it should simply be "path".
+    bz#3059, patch from samuel at cendio.se.
+
+commit e83c989bfd9fc9838b7dfb711d1dc6da81814045
+Author: Damien Miller <djm@mindrot.org>
+Date:   Fri Aug 23 10:19:30 2019 +1000
+
+    use SC_ALLOW_ARG_MASK to limit mmap protections
+    
+    Restrict to PROT_(READ|WRITE|NONE), i.e. exclude PROT_EXEC
+
+commit f6906f9bf12c968debec3671bbf19926ff8a235b
+Author: Damien Miller <djm@mindrot.org>
+Date:   Fri Aug 23 10:08:48 2019 +1000
+
+    allow mprotect(2) with PROT_(READ|WRITE|NONE) only
+    
+    Used by some hardened heap allocators. Requested by Yegor
+    Timoshenko in https://github.com/openssh/openssh-portable/pull/142
+
+commit e3b6c966b79c3ea5d51b923c3bbdc41e13b96ea0
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Aug 16 06:13:15 2019 +0000
+
+    upstream: switch percent_expand() to use sshbuf instead of a limited
+    
+    fixed buffer; ok markus@
+    
+    OpenBSD-Commit-ID: 3f9ef20bca5ef5058b48c1cac67c53b9a1d15711
+
+commit 9ab5b9474779ac4f581d402ae397f871ed16b383
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Aug 9 05:05:54 2019 +0000
+
+    upstream: produce a useful error message if the user's shell is set
+    
+    incorrectly during "match exec" processing. bz#2791 reported by Dario
+    Bertini; ok dtucker
+    
+    OpenBSD-Commit-ID: cf9eddd6a6be726cb73bd9c3936f3888cd85c03d
+
+commit 8fdbc7247f432578abaaca1b72a0dbf5058d67e5
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri Aug 9 04:24:03 2019 +0000
+
+    upstream: Change description of TCPKeepAlive from "inactive" to
+    
+    "unresponsive" to clarify what it checks for.  Patch from jblaine at
+    kickflop.net via github pr#129, ok djm@.
+    
+    OpenBSD-Commit-ID: 3682f8ec7227f5697945daa25d11ce2d933899e9
+
+commit 7afc45c3ed72672690014dc432edc223b23ae288
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Thu Aug 8 08:02:57 2019 +0000
+
+    upstream: Allow the maximimum uint32 value for the argument passed to
+    
+    -b which allows better error messages from later validation.  bz#3050, ok
+    djm@
+    
+    OpenBSD-Commit-ID: 10adf6876b2401b3dc02da580ebf67af05861673
+
+commit c31e4f5fb3915c040061981a67224de7650ab34b
+Author: naddy@openbsd.org <naddy@openbsd.org>
+Date:   Mon Aug 5 21:45:27 2019 +0000
+
+    upstream: Many key types are supported now, so take care to check
+    
+    the size restrictions and apply the default size only to the matching key
+    type. tweak and ok dtucker@
+    
+    OpenBSD-Commit-ID: b825de92d79cc4cba19b298c61e99909488ff57e
+
+commit 6b39a7b49ebacec4e70e24bfc8ea2f11057aac22
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Mon Aug 5 11:50:33 2019 +0000
+
+    upstream: Remove now-redundant perm_ok arg since
+    
+    sshkey_load_private_type will now return SSH_ERR_KEY_BAD_PERMISSIONS in that
+    case.  Patch from jitendra.sharma at intel.com, ok djm@
+    
+    OpenBSD-Commit-ID: 07916a17ed0a252591b71e7fb4be2599cb5b0c77
+
+commit d46075b923bf25e6f25959a3f5b458852161cb3e
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Mon Aug 5 21:36:48 2019 +1000
+
+    Fix mem leak in unit test.
+    
+    Patch from jitendra.sharma at intel.com.
+
+commit c4ffb72593c08921cf9291bc05a5ef1d0aaa6891
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Aug 2 01:41:24 2019 +0000
+
+    upstream: fix some memleaks in test_helper code
+    
+    bz#3037 from Jitendra Sharma
+    
+    OpenBSD-Regress-ID: 71440fa9186f5842a65ce9a27159385c6cb6f751
+
+commit 6e76e69dc0c7712e9ac599af34bd091b0e7dcdb5
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Aug 2 01:23:19 2019 +0000
+
+    upstream: typo; from Christian Hesse
+    
+    OpenBSD-Commit-ID: 82f6de7438ea7ee5a14f44fdf5058ed57688fdc3
+
+commit 49fa065a1bfaeb88a59abdfa4432d3b9c35b0655
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Jul 30 05:04:49 2019 +0000
+
+    upstream: let sshbuf_find/cmp take a void* for the
+    
+    search/comparison argument, instead of a u_char*. Saves callers needing to
+    cast.
+    
+    OpenBSD-Commit-ID: d63b69b7c5dd570963e682f758f5a47b825605ed
+
+commit 7adf6c430d6fc17901e167bc0789d31638f5c2f8
+Author: mestre@openbsd.org <mestre@openbsd.org>
+Date:   Wed Jul 24 08:57:00 2019 +0000
+
+    upstream: When using a combination of a Yubikey+GnuPG+remote
+    
+    forwarding the gpg-agent (and options ControlMaster+RemoteForward in
+    ssh_config(5)) then the codepath taken will call mux_client_request_session
+    -> mm_send_fd -> sendmsg(2). Since sendmsg(2) is not allowed in that codepath
+    then pledge(2) kills the process.
+    
+    The solution is to add "sendfd" to pledge(2), which is not too bad considering
+    a little bit later we reduce pledge(2) to only "stdio proc tty" in that
+    codepath.
+    
+    Problem reported and diff provided by Timothy Brown <tbrown at freeshell.org>
+    
+    OK deraadt@
+    
+    OpenBSD-Commit-ID: 7ce38b6542bbec00e441595d0a178e970a9472ac
+
+commit 0e2fe18acc1da853a9120c2e9af68e8d05e6503e
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Tue Jul 23 23:06:57 2019 +0000
+
+    upstream: Fix typo in CASignatureAlgorithms wherein what should be
+    
+    a comma is a dot. Patch from hnj2 via github pr#141.
+    
+    OpenBSD-Commit-ID: 01f5a460438ff1af09aab483c0a70065309445f0
+
+commit e93ffd1a19fc47c49d68ae2fb332433690ecd389
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Mon Jul 29 16:04:01 2019 +1000
+
+    Report success of individual tests as well as all.
+    
+    This puts the "all tests passed" message back at the end where the
+    test harnesses can find it.
+
+commit 2ad5b36b18bddf2965fe60384c29b3f1d451b4ed
+Author: Damien Miller <djm@mindrot.org>
+Date:   Mon Jul 29 09:49:23 2019 +1000
+
+    convert to UTF-8; from Mike Frysinger
+
+commit d31e7c937ba0b97534f373cf5dea34675bcec602
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri Jul 26 04:22:21 2019 +0000
+
+    upstream: Restrict limit-keytype to types supported by build. This
+    
+    means we have to skip a couple tests when only one key type is supported.
+    
+    OpenBSD-Regress-ID: 22d05befb9c7ce21ce8dc22acf1ffe9e2ef2e95e
+
+commit 0967a233b8a28907ae8a4a6773c89f21d2ace11b
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Thu Jul 25 18:36:28 2019 +1000
+
+    Remove override disabling DH-GEX.
+    
+    The DH-GEX override doesn't work when build without OpenSSL, and
+    we'll prefer curve25519 these days, removing the need for it.
+
+commit 061407efc19b41ab4a7485e5adcff2a12befacdb
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Thu Jul 25 09:17:35 2019 +0000
+
+    upstream: Only use supported key types during KRL test, preferring
+    
+    ed25519 since it's supported by both OpenSSL and non-OpenSSL builds.
+    
+    OpenBSD-Regress-ID: 9f2bb3eadd50fcc8245b1bd8fd6f0e53602f71aa
+
+commit 47f8ff1fa5b76790c1d785815fd13ee6009f8012
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Thu Jul 25 08:48:11 2019 +0000
+
+    upstream: Switch keys-command test from rsa to ed25519 since it's
+    
+    supported for both OpenSSL and non-OpenSSL builds.
+    
+    OpenBSD-Regress-ID: 174be4be876edd493e4a5c851e5bc579885e7a0a
+
+commit 1e94afdfa8df774ab7dd3bad52912b636dc31bbd
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Thu Jul 25 08:28:15 2019 +0000
+
+    upstream: Make certificate tests work with the supported key
+    
+    algorithms.  Allows tests to pass when built without OpenSSL.
+    
+    OpenBSD-Regress-ID: 617169a6dd9d06db3697a449d9a26c284eca20fc
+
+commit 26bf693661a48b97b6023f702b2af643676ac21a
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Tue Jul 23 13:49:14 2019 +0000
+
+    upstream: Construct list of key types to test based on the types
+    
+    supported by the binaries.
+    
+    OpenBSD-Regress-ID: fcbd115efacec8ab0ecbdb3faef79ac696cb1d62
+
+commit 773c55b3d1230e8f7714a1b33873c37b85049c74
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Tue Jul 23 13:32:48 2019 +0000
+
+    upstream: Only use DSA key type in tests if binaries support it.
+    
+    OpenBSD-Regress-ID: 770e31fe61dc33ed8eea9c04ce839b33ddb4dc96
+
+commit 159e987a54d92ccd73875e7581ffc64e8927a715
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Wed Jul 24 14:21:19 2019 +1000
+
+    Split test targets further.
+    
+    Splits test into file-tests, t-exec, unit and interop-tests and their
+    respective dependencies.  Should allow running any set individually
+    without having to build the other dependencies that are not needed
+    for that specific test.
+
+commit 520d4550a2470106d63e30079bb05ce82f3a4f7d
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Wed Jul 24 11:20:18 2019 +1000
+
+    Add lib dependencies for regress binary targets.
+
+commit 4e8d0dd78d5f6142841a07dc8b8c6b4730eaf587
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Wed Jul 24 00:12:51 2019 +1000
+
+    Make "unit" a dependency of "test".
+
+commit 4317b2a0480e293e58ba115e47b49d3a384b6568
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Jul 23 23:24:47 2019 +1000
+
+    upstream rev 1.28: fix comment typo.
+
+commit e0055af2bd39fdb44566ff6594147664e1fac8b8
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Jul 23 23:06:22 2019 +1000
+
+    Split regress-binaries into two targets.
+    
+    Split the binaries for the unit tests out into a regress-unit-binaries
+    target, and add a dependency on it for only the unit tests.  This allows
+    us to run the integration tests only ("make t-exec") without building
+    the unit tests, which allows us to run a subset of the tests when
+    building --without-openssl without trying (and failing) to build the
+    unit tests.
+    
+    This means there are two targets for "unit" which I *think* is valid
+    (it works in testing, and makedepend will generate Makefiles of this
+    form)a but I could be wrong.
+
+commit 7cdf9fdcf11aaaa98c2bd22c92882ea559e772ad
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Tue Jul 23 08:19:29 2019 +0000
+
+    upstream: Skip DH group generation test if binaries don't support
+    
+    DH-GEX.
+    
+    OpenBSD-Regress-ID: 7c918230d969ecf7656babd6191a74526bffbffd
+
+commit 3a3eab8bb0da3d2f0f32cb85a1a268bcca6e4d69
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Tue Jul 23 07:55:29 2019 +0000
+
+    upstream: Only test conversion of key types supported by the
+    
+    binaries.
+    
+    OpenBSD-Regress-ID: e3f0938a0a7407e2dfbb90abc3ec979ab6e8eeea
+
+commit 7e66b7d98c6e3f48a1918c3e1940c9b11b10ec63
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Tue Jul 23 07:39:43 2019 +0000
+
+    upstream: Only add ssh-dss to allowed key types if it's supported
+    
+    by the binary.
+    
+    OpenBSD-Regress-ID: 395a54cab16e9e4ece9aec047ab257954eebd413
+
+commit fd0684b319e664d8821dc4ca3026126dfea3ccf4
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Jul 23 22:36:39 2019 +1000
+
+    Remove sys/cdefs.h include.
+    
+    It's not needed on -portable (that's handled by includes.h) and not all
+    platforms have it.
+
+commit 9634ffbf29b3c2493e69d10b37077b09a8cbf5ff
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Jul 23 22:25:44 2019 +1000
+
+    Add headers to prevent warnings w/out OpenSSL.
+
+commit 2ea60312e1c08dea88982fec68244f89a40912ff
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Jul 23 22:11:50 2019 +1000
+
+    Include stdlib.h for free() and calloc().
+
+commit 11cba2a4523fda447e2554ea457484655bedc831
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Jul 23 21:51:22 2019 +1000
+
+    Re-apply portability changes to current sha2.{c,h}.
+    
+    Rather than attempt to apply 14 years' worth of changes to OpenBSD's sha2
+    I imported the current versions directly then re-applied the portability
+    changes.  This also allowed re-syncing digest-libc.c against upstream.
+
+commit 09159594a3bbd363429ee6fafde57ce77986dd7c
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Jul 23 20:27:51 2019 +1000
+
+    Import current sha2.c and sha2.h from OpenBSD.
+    
+    These are not changed from their original state, the next commit will
+    re-apply the portable changes.
+
+commit 2e6035b900cc9d7432d95084e03993d1b426f812
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Jul 23 08:11:22 2019 +1000
+
+    Rename valgrind "errors" to "failures".
+    
+    When valgrind is enabled, test-exec.sh counts the number of invocations
+    that valgrind detects failures in, not the total number of errors detected.
+    This makes the name to be more accurate.
+
+commit e82c9bb9ffa65725cc2e03ea81cb79ce3387f66b
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Jul 19 18:51:18 2019 +1000
+
+    Skip running sftp-chroot under Valgrind.
+
+commit 41e22c2e05cb950b704945ac9408f6109c9b7848
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Sat Jul 20 09:50:58 2019 +0000
+
+    upstream: Remove the sleeps and thus races from the forwarding
+    
+    test.  They were originally required to work with Protocol 1, but now we can
+    use ssh -N and the control socket without the sleeps. While there, suppress
+    output fro the control exit commands.
+    
+    OpenBSD-Regress-ID: 4c51a1d651242f12c90074c18c61008a74c1c790
+
+commit 0423043c5e54293f4dd56041304fd0046c317be9
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Sat Jul 20 09:37:31 2019 +0000
+
+    upstream: Allow SLEEPTIME to be overridden.
+    
+    OpenBSD-Regress-ID: 1596ab168729954be3d219933b2d01cc93687e76
+
+commit d466b6a5cfba17a83c7aae9f584ab164e2ece0a1
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Sat Jul 20 09:14:40 2019 +0000
+
+    upstream: Move sleep time into a variable so that we can increase
+    
+    it for platforms or configurations that are much slower then usual.
+    
+    OpenBSD-Regress-ID: 88586cabc800062c260d0b876bdcd4ca3f58a872
+
+commit b4a7c9d2b5f928e0b902b580d35dc8b244a3aae0
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Jul 19 03:45:44 2019 +0000
+
+    upstream: add regression tests for scp for out-of-destination path file
+    
+    creation by Harry Sintonen via Jakub Jelen in bz3007
+    
+    OpenBSD-Regress-ID: 01ae5fbc6ce400b2df5a84dc3152a9e31f354c07
+
+commit bca0582063f148c7ddf409ec51435a5a726bee4c
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Jul 19 03:38:01 2019 +0000
+
+    upstream: Accept the verbose flag when searching for host keys in known
+    
+    hosts (i.e. "ssh-keygen -vF host") to print the matching host's random- art
+    signature too. bz#3003 "amusing, pretty" deraadt@
+    
+    OpenBSD-Commit-ID: 686221a5447d6507f40a2ffba5393984d889891f
+
+commit 5299a09fa2879a068af200c91028fcfa9283c0f0
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Jul 19 13:50:25 2019 +1000
+
+    Revert one dependency per line change.
+    
+    It turns out that having such a large number of lines in the .depend
+    file will cause the memory usage of awk during AC_SUBST to blow up on at
+    least NetBSD's awk, causing configure to fail.
+
+commit 01dddb231f23b4a7b616f9d33a0b9d937f9eaf0e
+Author: Damien Miller <djm@mindrot.org>
+Date:   Fri Jul 19 13:19:19 2019 +1000
+
+    fix SIGWINCH delivery of Solaris for mux sessions
+    
+    Remove PRIV_PROC_SESSION which was limiting ability to send SIGWINCH
+    signals to other sessions.  bz#3030; report and fix from Darren Moffat
+
+commit 05500af21d27c1a3ddac232b018cc23da7b1ee95
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Jul 19 13:20:03 2019 +1000
+
+    Force dependencies one per line.
+    
+    Force makedepend to output one dependency per line, which will make
+    reading diffs against it much easier.  ok djm@
+
+commit b5bc5d016bbb83eb7f8e685390044e78b1ea1427
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Jul 19 13:18:07 2019 +1000
+
+    make depend.
+
+commit 65333f7454365fe40f7367630e7dd10903b9d99e
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Jul 19 13:16:11 2019 +1000
+
+    Show when skipping valgrind for a test.
+
+commit fccb7eb3436da8ef3dcd22e5936ba1abc7ae6730
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Jul 19 10:41:56 2019 +1000
+
+    Enable connect-privsep test with valgrind.
+    
+    connect-privsep seems to work OK with valgrind now so don't skip
+    valgrind on it.
+
+commit d7423017265c5ae6d0be39340feb6c9f016b1f71
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Jul 19 07:43:07 2019 +1000
+
+    Show valgrind results and error counts.
+
+commit 22b9b3e944880db906c6ac5527c4228bd92b293a
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Thu Jul 18 13:40:12 2019 +1000
+
+    Fix format string integer type in error message.
+
+commit ed46a0c0705895834d3f47a46faa89c2a71b760a
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Thu Jul 18 13:26:00 2019 +0000
+
+    upstream: fix off-by-one in sshbuf_dtob64() base64 wrapping that could
+    
+    cause extra newlines to be appended at the end of the base64 text (ugly, but
+    harmless). Found and fixed by Sebastian Kinne
+    
+    OpenBSD-Commit-ID: 9fe290bd68f706ed8f986a7704ca5a2bd32d7b68
+
+commit a192021fedead23c375077f92346336d531f8cad
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Thu Jul 18 11:09:38 2019 +1000
+
+    Fail tests if Valgrind enabled and reports errors.
+    
+    Also dump the failing valgrind report to stdout (not the cleanest
+    solution, but better than nothing).
+
+commit d1c491ecb939ee10b341fa7bb6205dff19d297e5
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Thu Jul 18 10:17:54 2019 +1000
+
+    Allow low-priv tests to write to pipe dir.
+    
+    When running regression tests with Valgrind and SUDO, the low-priv agent
+    tests need to be able to create pipes in the appropriate directory.
+
+commit 8a5bb3e78191cc206f970c26d2a26c949971e91a
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Wed Jul 17 21:24:55 2019 +1000
+
+    Put valgrind vgdb files to a specific directory.
+    
+    Valgrind by default puts vgdb files and pipes under /tmp, however it
+    is not always able to clean them up, which can cause test failures when
+    there's a pid/file collision.  Using a specific directory ensures that
+    we can clean up and start clean.
+
+commit f8829fe57fb0479d6103cfe1190095da3c032c6d
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Jul 16 22:16:49 2019 +0000
+
+    upstream: adapt to sshbuf_dtob64() change
+    
+    OpenBSD-Regress-ID: 82374a83edf0955fd1477169eee3f5d6467405a6
+
+commit 1254fcbb2f005f745f2265016ee9fa52e16d37b0
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Tue Jul 16 03:21:54 2019 +0000
+
+    upstream: Remove ssh1 files from CLEANFILES since ssh1 no longer
+    
+    supported.
+    
+    OpenBSD-Regress-ID: 5b9ae869dc669bac05939b4a2fdf44ee067acfa0
+
+commit 9dc81a5adabc9a7d611ed2e63fbf4c85d43b15c6
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Tue Jul 16 02:09:29 2019 +0000
+
+    upstream: Update names of host key files in CLEANFILES to match
+    
+    recent changes to the tests.
+    
+    OpenBSD-Regress-ID: 28743052de3acf70b06f18333561497cd47c4ecf
+
+commit e44e4ad1190db22ed407a79f32a8cff5bcd2b815
+Author: Damien Miller <djm@mindrot.org>
+Date:   Tue Jul 16 23:26:53 2019 +1000
+
+    depend
+
+commit 16dd8b2c78a0de106c7429e2a294d203f6bda3c7
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Jul 16 13:18:39 2019 +0000
+
+    upstream: remove mostly vestigal uuencode.[ch]; moving the only unique
+    
+    functionality there (wrapping of base64-encoded data) to sshbuf functions;
+    feedback and ok markus@
+    
+    OpenBSD-Commit-ID: 4dba6735d88c57232f6fccec8a08bdcfea44ac4c
+
+commit 45478898f9590b5cc8bc7104e573b84be67443b0
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Jul 16 09:20:23 2019 +1000
+
+    Hook memmem compat code into build.
+    
+    This fixes builds on platforms that don't have it (at least old DragonFly,
+    probably others).
+
+commit c7bd4617293a903bd3fac3394a7e72d439af49a5
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Jul 16 09:07:18 2019 +1000
+
+    Import memmem.c from OpenBSD.
+
+commit 477e2a3be8b10df76e8d76f0427b043280d73d68
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Mon Jul 15 13:12:02 2019 +0000
+
+    upstream: unit tests for sshbuf_cmp() and sshbuf_find(); ok markus
+    
+    OpenBSD-Regress-ID: b52d36bc3ab6dc158c1e59a9a4735f821cf9e1fd
+
+commit eb0d8e708a1f958aecd2d6e2ff2450af488d4c2a
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Mon Jul 15 13:16:29 2019 +0000
+
+    upstream: support PKCS8 as an optional format for storage of
+    
+    private keys, enabled via "ssh-keygen -m PKCS8" on operations that save
+    private keys to disk.
+    
+    The OpenSSH native key format remains the default, but PKCS8 is a
+    superior format to PEM if interoperability with non-OpenSSH software
+    is required, as it may use a less terrible KDF (IIRC PEM uses a single
+    round of MD5 as a KDF).
+    
+    adapted from patch by Jakub Jelen via bz3013; ok markus
+    
+    OpenBSD-Commit-ID: 027824e3bc0b1c243dc5188504526d73a55accb1
+
+commit e18a27eedccb024acb3cd9820b650a5dff323f01
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Mon Jul 15 13:11:38 2019 +0000
+
+    upstream: two more bounds-checking sshbuf counterparts to common
+    
+    string operations: sshbuf_cmp() (bcmp-like) and sshbuf_find() (memmem like)
+    
+    feedback and ok markus@
+    
+    OpenBSD-Commit-ID: fd071ec2485c7198074a168ff363a0d6052a706a
+
+commit bc551dfebb55845537b1095cf3ccd01640a147b7
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Mon Jul 15 12:52:45 2019 +1000
+
+    Clear valgrind-out dir to prevent collisions.
+
+commit 5db9ba718e983661a9114ae1418f6e412d1f52d5
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Mon Jul 15 12:02:27 2019 +1000
+
+    Allow agent tests to write to valgrind dir.
+
+commit 121e48fa5305f41f0477d9908e3d862987a68a84
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Sun Jul 14 23:33:19 2019 +0000
+
+    upstream: unit tests for sshbuf_peek/poke bounds-checked random access
+    
+    functions. ok markus@
+    
+    OpenBSD-Regress-ID: 034c4284b1da6b12e25c762a6b958efacdafbaef
+
+commit 101d164723ffbc38f8036b6f3ea3bfef771ba250
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Sun Jul 14 23:32:27 2019 +0000
+
+    upstream: add some functions to perform random-access read/write
+    
+    operations inside buffers with bounds checking. Intended to replace manual
+    pointer arithmetic wherever possible.
+    
+    feedback and ok markus@
+    
+    OpenBSD-Commit-ID: 91771fde7732738f1ffed078aa5d3bee6d198409
+
+commit 7250879c72d28275a53f2f220e49646c3e42ef18
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Jul 12 04:08:39 2019 +0000
+
+    upstream: include SHA2-variant RSA key algorithms in KEX proposal;
+    
+    allows ssh-keyscan to harvest keys from servers that disable olde SHA1
+    ssh-rsa. bz#3029 from Jakub Jelen
+    
+    OpenBSD-Commit-ID: 9f95ebf76a150c2f727ca4780fb2599d50bbab7a
+
+commit a0876bd994cab9ba6e47ba2a163a4417c7597487
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Jul 12 03:56:21 2019 +0000
+
+    upstream: print explicit "not modified" message if a file was
+    
+    requested for resumed download but was considered already complete.
+    
+    bz#2978 ok dtucker
+    
+    OpenBSD-Commit-ID: f32084b26a662f16215ee4ca4a403d67e49ab986
+
+commit b9b0f2ac9625933db53a35b1c1ce423876630558
+Author: tb@openbsd.org <tb@openbsd.org>
+Date:   Wed Jul 10 07:04:27 2019 +0000
+
+    upstream: Fix a typo and make <esc><right> move right to the
+    
+    closest end of a word just like <esc><left> moves left to the closest
+    beginning of a word.
+    
+    ok djm
+    
+    OpenBSD-Commit-ID: 6afe01b05ed52d8b12eb1fda6e9af5afb5e198ee
+
+commit 8729498a5d239980a91d32f031b34e8c58c52f62
+Author: Damien Miller <djm@mindrot.org>
+Date:   Wed Jul 10 09:43:19 2019 +1000
+
+    fix typo that prevented detection of Linux VRF
+    
+    Reported by hexiaowen AT huawei.com
+
+commit 5b2b79ff7c057ee101518545727ed3023372891d
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Tue Jul 9 04:15:00 2019 +0000
+
+    upstream: cap the number of permiopen/permitlisten directives we're
+    
+    willing to parse on a single authorized_keys line; ok deraadt@
+    
+    OpenBSD-Commit-ID: a43a752c2555d26aa3fc754805a476f6e3e30f46
+
+commit eb0b51dac408fadd1fd13fa6d726ab8fdfcc4152
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Mon Jul 8 17:27:26 2019 +1000
+
+    Move log.h include inside ifdefs.
+    
+    Fixes build on some other platforms that don't have va_list immediately
+    available (eg NetBSD).
+
+commit 43702f8e6fa22a258e25c4dd950baaae0bc656b7
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Sat Jul 6 23:07:04 2019 +1000
+
+    Include log.h for debug() and friends.
+    
+    Should fix some compiler warnings on IRIX (bz#3032).
+
+commit 53a6ebf1445a857f5e487b18ee5e5830a9575149
+Author: Damien Miller <djm@mindrot.org>
+Date:   Mon Jul 8 13:44:32 2019 +1000
+
+    sftp-realpath.c needs includes.h
+
+commit 4efe1adf05ee5d3fce44320fcff68735891f4ee6
+Author: Damien Miller <djm@mindrot.org>
+Date:   Mon Jul 8 13:38:39 2019 +1000
+
+    remove realpath() compat replacement
+    
+    We shipped a BSD implementation of realpath() because sftp-server
+    depended on its behaviour.
+    
+    OpenBSD is now moving to a more strictly POSIX-compliant realpath(2),
+    so sftp-server now unconditionally requires its own BSD-style realpath
+    implementation. As such, there is no need to carry another independant
+    implementation in openbsd-compat.
+    
+    ok dtucker@
+
+commit 696fb4298e80f2ebcd188986a91b49af3b7ca14c
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Sun Jul 7 01:05:00 2019 +0000
+
+    upstream: Remove some set but never used variables. ok daraadt@
+    
+    OpenBSD-Commit-ID: 824baf9c59afc66a4637017e397b9b74a41684e7
+
+commit 156e9e85e92b46ca90226605d9eff49e8ec31b22
+Author: deraadt@openbsd.org <deraadt@openbsd.org>
+Date:   Fri Jul 5 12:35:40 2019 +0000
+
+    upstream: still compile uuencode.c, unbreaks build
+    
+    OpenBSD-Commit-ID: 5ea3d63ab972691f43e9087ab5fd8376d48e898f
+
+commit cec9ee527a12b1f6c2e0a1c155fec64a38d71cf6
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Jul 5 07:32:01 2019 +0000
+
+    upstream: revert header removal that snuck into previous
+    
+    OpenBSD-Commit-ID: 3919cdd58989786660b8269b325646ef8856428e
+
+commit 569b650f93b561c09c655f83f128e1dfffe74101
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Jul 5 04:55:40 2019 +0000
+
+    upstream: add a local implementation of BSD realpath() for
+    
+    sftp-server use ahead of OpenBSD's realpath changing to match POSIX;
+    
+    ok deraadt@ (thanks for snaps testing)
+    
+    OpenBSD-Commit-ID: 4f8cbf7ed8679f6237264301d104ecec64885d55
+
+commit b8e2b797362526437e0642a6c2f2970d794f2561
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Sat Jul 6 13:13:57 2019 +1000
+
+    Add prototype for strnlen to prevent warnings.
+
+commit 4c3e00b1ed7e596610f34590eb5d54ee50d77878
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Sat Jul 6 13:02:34 2019 +1000
+
+    Cast *ID types to unsigned long when printing.
+    
+    UID and GID types vary by platform so cast to u_long and use %lu when
+    printing them to prevent warnings.
+
+commit 2753521e899f30d1d58b5da0b4e68fde6fcf341e
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Sat Jul 6 12:54:43 2019 +1000
+
+    Add prototype for compat strndup.(bz#3032).
+
+commit 01a1e21cd55d99293c8ff8ed7c590f2ee440da43
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Sat Jul 6 12:00:41 2019 +1000
+
+    Add missing bracket in EGD seeding code.
+    
+    When configured --with-prngd-socket the code had a missing bracket after
+    an API change.  Fix that and a couple of warnings.  bz#3032 , from
+    ole.weidner at protonmail.ch
+
+commit e187b1d4607392cf2c19243afe0d0311a4ff3591
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri Jul 5 04:19:39 2019 +0000
+
+    upstream: Add (recently added) rsa_oldfmt to CLEANFILES.
+    
+    OpenBSD-Regress-ID: 405beda94e32aa6cc9c80969152fab91f7c54bd3
+
+commit 74b541bfabdcb57c1683cd9b3f1d1f4d5e41563e
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri Jul 5 04:12:46 2019 +0000
+
+    upstream: Adapt the PuTTY/Conch tests to new key names.
+    
+    A recent regress change (2a9b3a2ce411d16cda9c79ab713c55f65b0ec257 in
+    portable) broke the PuTTY and Twisted Conch interop tests, because the
+    key they want to use is now called ssh-rsa rather than rsa.  Adapt the
+    tests to the new file names.  bz#3020, patch from cjwatson at debian.org.
+    
+    OpenBSD-Regress-ID: fd342a37db4d55aa4ec85316f73082c8eb96e64e
+
+commit de08335a4cfaa9b7081e94ea4a8b7153c230546d
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri Jul 5 04:03:13 2019 +0000
+
+    upstream: Add a sleep to allow forwards to come up.
+    
+    Currently when the multiplex client requests a forward it returns
+    once the request has been sent but not necessarily when the forward
+    is up.  This causes intermittent text failures due to this race,
+    so add some sleeps to mitigate this until we can fix it properly.
+    
+    OpenBSD-Regress-ID: 384c7d209d2443d25ea941d7f677e932621fb253
+
+commit 4d249284729f864faa2e8f3e015f9a41b674544a
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Jul 5 14:58:57 2019 +1000
+
+    Remove nc stderr redirection to resync w/OpenBSD.
+
+commit c5cfa90e03432181ffcc7ad3f9f815179bd0c626
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Jul 5 13:21:45 2019 +1000
+
+    Do not fatal on failed lookup of group "tty".
+    
+    Some platforms (eg AIX and Cygwin) do not have a "tty" group.  In those
+    cases we will fall back to making the tty device the user's primary
+    group, so do not fatal if the group lookup fails.  ok djm@
+
+commit 8b4cc4bdc8a70bf209a274fa2b2a49c1e3c8d8a2
+Author: deraadt@openbsd.org <deraadt@openbsd.org>
+Date:   Thu Jul 4 16:20:10 2019 +0000
+
+    upstream: fatal() if getgrnam() cannot find "tty"
+    
+    OpenBSD-Commit-ID: d148c1c052fa0ed7d105b5428b5c1bab91630048
+
+commit 48cccc275c6a1e91d3f80fdb0dc0d5baf529aeca
+Author: deraadt@openbsd.org <deraadt@openbsd.org>
+Date:   Thu Jul 4 16:16:51 2019 +0000
+
+    upstream: stat() returns precisely -1 to indicate error
+    
+    OpenBSD-Commit-ID: 668e8d022ed4ab847747214f64119e5865365fa1
+
+commit 8142fcaf9ed8ff66252deecbfd29fc59d5f2df4f
+Author: deraadt@openbsd.org <deraadt@openbsd.org>
+Date:   Wed Jul 3 03:24:02 2019 +0000
+
+    upstream: snprintf/vsnprintf return < 0 on error, rather than -1.
+    
+    OpenBSD-Commit-ID: a261c421140a0639bb2b66bbceca72bf8239749d
+
+commit 4d28fa78abce2890e136281950633fae2066cc29
+Author: deraadt@openbsd.org <deraadt@openbsd.org>
+Date:   Fri Jun 28 13:35:04 2019 +0000
+
+    upstream: When system calls indicate an error they return -1, not
+    
+    some arbitrary value < 0.  errno is only updated in this case.  Change all
+    (most?) callers of syscalls to follow this better, and let's see if this
+    strictness helps us in the future.
+    
+    OpenBSD-Commit-ID: 48081f00db7518e3b712a49dca06efc2a5428075
+
+commit e8c974043c1648eab0ad67a7ba6a3e444fe79d2d
+Author: deraadt@openbsd.org <deraadt@openbsd.org>
+Date:   Fri Jun 28 05:44:09 2019 +0000
+
+    upstream: asprintf returns -1, not an arbitrary value < 0. Also
+    
+    upon error the (very sloppy specification) leaves an undefined value in *ret,
+    so it is wrong to inspect it, the error condition is enough. discussed a
+    little with nicm, and then much more with millert until we were exasperated
+    
+    OpenBSD-Commit-ID: 29258fa51edf8115d244b9d4b84028487bf8923e
+
+commit 1b2d55d15c6240c15a1e1cf4203b82e54a766272
+Author: deraadt@openbsd.org <deraadt@openbsd.org>
+Date:   Fri Jun 28 01:23:50 2019 +0000
+
+    upstream: oops, from asou
+    
+    OpenBSD-Commit-ID: 702e765d1639b732370d8f003bb84a1c71c4d0c6
+
+commit 5cdbaa78fcb718c39af4522d98016ad89d065427
+Author: deraadt@openbsd.org <deraadt@openbsd.org>
+Date:   Thu Jun 27 18:03:37 2019 +0000
+
+    upstream: Some asprintf() calls were checked < 0, rather than the
+    
+    precise == -1. ok millert nicm tb, etc
+    
+    OpenBSD-Commit-ID: caecf8f57938685c04f125515b9f2806ad408d53
+
+commit b2e3e57be4a933d9464bccbe592573725765486f
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Thu Jun 27 06:29:35 2019 +0000
+
+    upstream: fix NULL deference (bzero) on err
+    
+    =?UTF-8?q?or=20path=20added=20in=20last=20commit;=20spotted=20by=20Reynir?=
+    =?UTF-8?q?=20Bj=C3=B6rnsson?=
+    MIME-Version: 1.0
+    Content-Type: text/plain; charset=UTF-8
+    Content-Transfer-Encoding: 8bit
+    
+    ok deraadt@ markus@ tb@
+    
+    OpenBSD-Commit-ID: b11b084bcc551b2c630560eb08618dd501027bbd
+
+commit 58ceacdcbaebefc77d120712de55c6fc6aa32bb1
+Author: Jitendra Sharma <jitendra.sharma@intel.com>
+Date:   Fri Jun 21 09:54:17 2019 +0530
+
+    Update README doc to include missing test cases
+    
+    Readme regress document is missing various individual tests,
+    which are supported currently. Update README to
+    include those test cases.
+
+commit 7959330a554051b5587f8af3fec0c2c0d5820f64
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Wed Jun 26 22:29:43 2019 +0000
+
+    upstream: Remove unneeded unlink of xauthfile o
+    
+    =?UTF-8?q?n=20error=20path.=20=20From=20Erik=20Sj=C3=B6lund=20via=20githu?=
+    =?UTF-8?q?b,=20ok=20djm@=20deraadt@?=
+    MIME-Version: 1.0
+    Content-Type: text/plain; charset=UTF-8
+    Content-Transfer-Encoding: 8bit
+    
+    OpenBSD-Commit-ID: 62a4893cf83b29a4bbfedc40e7067c25c203e632
+
+commit 8de52eb224143783a49f9bddd9ab7800022a8276
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Sun Jun 23 12:21:46 2019 +0000
+
+    upstream: fix mismatch proto/decl from key shielding change; spotted
+    
+    via oss-fuzz
+    
+    OpenBSD-Commit-ID: 1ea0ba05ded2c5557507bd844cd446e5c8b5b3b7
+
+commit 1dfadb9b57c2985c95838a0292d1c2f6a501896e
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Jun 21 04:21:45 2019 +0000
+
+    upstream: adapt for key shielding API changes (const removal)
+    
+    OpenBSD-Regress-ID: 298890bc52f0cd09dba76dc1022fabe89bc0ded6
+
+commit 4f7a56d5e02e3d04ab69eac1213817a7536d0562
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Jun 21 04:21:04 2019 +0000
+
+    upstream: Add protection for private keys at rest in RAM against
+    
+    speculation and memory sidechannel attacks like Spectre, Meltdown, Rowhammer
+    and Rambleed. This change encrypts private keys when they are not in use with
+    a symmetic key that is derived from a relatively large "prekey" consisting of
+    random data (currently 16KB).
+    
+    Attackers must recover the entire prekey with high accuracy before
+    they can attempt to decrypt the shielded private key, but the current
+    generation of attacks have bit error rates that, when applied
+    cumulatively to the entire prekey, make this unlikely.
+    
+    Implementation-wise, keys are encrypted "shielded" when loaded and then
+    automatically and transparently unshielded when used for signatures or
+    when being saved/serialised.
+    
+    Hopefully we can remove this in a few years time when computer
+    architecture has become less unsafe.
+    
+    been in snaps for a bit already; thanks deraadt@
+    
+    ok dtucker@ deraadt@
+    
+    OpenBSD-Commit-ID: 19767213c312e46f94b303a512ef8e9218a39bd4
+
+commit 4cd6b12cc9c10bf59c8b425041f3ea5091285a0f
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Jun 21 03:19:59 2019 +0000
+
+    upstream: print the correct AuthorizedPrincipalsCommand rather than
+    
+    an uninitialised variable; spotted by dtucker@
+    
+    OpenBSD-Commit-ID: 02802018784250f68202f01c8561de82e17b0638
+
+commit 5f68ab436b0e01751d564e9a9041e6ac3673e45a
+Author: jmc@openbsd.org <jmc@openbsd.org>
+Date:   Wed Jun 19 20:12:44 2019 +0000
+
+    upstream: from tim: - for reput, it is remote-path which is
+    
+    optional, not local-path - sync help
+    
+    from deraadt:
+    - prefer -R and undocument -r (but add a comment for future editors)
+    
+    from schwarze:
+    - prefer -p and undocument -P (as above. the comment was schwarze's too)
+    
+    more:
+    - add the -f flag to reput and reget
+    - sort help (i can;t remember who suggested this originally)
+    
+    djm and deraadt were ok with earlier versions of this;
+    tim and schwarze ok
+    
+    OpenBSD-Commit-ID: 3c699b53b46111f5c57eed4533f132e7e58bacdd
+
+commit 99bcbbc77fbd5a5027031f42a5931b21b07c947e
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Jun 14 04:03:48 2019 +0000
+
+    upstream: check for convtime() refusing to accept times that
+    
+    resolve to LONG_MAX Reported by Kirk Wolf bz2977; ok dtucker
+    
+    OpenBSD-Regress-ID: 15c9fe87be1ec241d24707006a31123d3a3117e0
+
+commit e5cccb2410247c9b8151b9510a876abdf5424b24
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Sun Apr 28 22:53:26 2019 +0000
+
+    upstream: Add unit tests for user@host and URI parsing.
+    
+    OpenBSD-Regress-ID: 69d5b6f278e04ed32377046f7692c714c2d07a68
+
+commit 0bb7e38834e3f9886302bbaea630a6b0f8cfb520
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Thu Apr 18 18:57:16 2019 +0000
+
+    upstream: Add tests for sshd -T -C with Match.
+    
+    OpenBSD-Regress-ID: d4c34916fe20d717692f10ef50b5ae5a271c12c7
+
+commit 73eb6cef41daba0359c1888e4756108d41b4e819
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Sun Jun 16 12:55:27 2019 +1000
+
+    Include stdio.h for vsnprintf.
+    
+    Patch from mforney at mforney.org.
+
+commit adcaf40fd0a180e6cb5798317fdf479b52e3c09a
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Sat Jun 8 09:07:04 2019 +1000
+
+    upstream rev 1.27: fix integer overflow.
+    
+    Cast bitcount to u_in64_t before bit shifting to prevent integer overflow
+    on 32bit platforms which cause incorrect results when adding a block
+    >=512M in size.  sha1 patch from ante84 at gmail.com via openssh github,
+    sha2 with djm@, ok tedu@
+
+commit 7689048e6103d3c34cba24ac5aeea7bf8405d19a
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Sat Jun 8 09:06:06 2019 +1000
+
+    upstream rev 1.25: add DEF_WEAK.
+    
+    Wrap blowfish, sha*, md5, and rmd160 so that internal calls go direct
+    ok deraadt@
+
+commit 55f3153393ac7e072a4b4b21b194864460d8f44a
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Sat Jun 8 09:02:24 2019 +1000
+
+    upstream rev 1.25: add sys/types.h
+
+commit 10974f986fa842a3a3a693e3d5761072540002b4
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Sat Jun 8 09:01:14 2019 +1000
+
+    upstream: Use explicit_bzero instead of memset
+    
+    in hash Final and End functions.  OK deraadt@ djm@
+
+commit cb8f56570f70b00abae4267d4bcce2bfae7dfff6
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Jun 14 04:13:58 2019 +0000
+
+    upstream: slightly more instructive error message when the user
+    
+    specifies multiple -J options on the commandline. bz3015 ok dtucker@
+    
+    OpenBSD-Commit-ID: 181c15a65cac3b575819bc8d9a56212c3c748179
+
+commit 2317ce4b0ed7d8c4b0c684e2d47bff5006bd1178
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Jun 14 03:51:47 2019 +0000
+
+    upstream: process agent requests for RSA certificate private keys using
+    
+    correct signature algorithm when requested. Patch from Jakub Jelen in bz3016
+    ok dtucker markus
+    
+    OpenBSD-Commit-ID: 61f86efbeb4a1857a3e91298c1ccc6cf49b79624
+
+commit c95b90d40170473825904be561b1eafba354f376
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Jun 14 03:39:59 2019 +0000
+
+    upstream: for public key authentication, check AuthorizedKeysFiles
+    
+    files before consulting AuthorizedKeysCommand; ok dtucker markus
+    
+    OpenBSD-Commit-ID: 13652998bea5cb93668999c39c3c48e8429db8b3
+
+commit a5a53914989ddd3521b6edc452bc3291784a4f4f
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri Jun 14 03:28:19 2019 +0000
+
+    upstream: if passed a bad fd, log what it was
+    
+    OpenBSD-Commit-ID: 582e2bd05854e49365195b58989b68ac67f09140
+
+commit 7349149da1074d82b71722338e05b6a282f126cc
+Author: jmc@openbsd.org <jmc@openbsd.org>
+Date:   Wed Jun 12 11:31:50 2019 +0000
+
+    upstream: Hostname->HostName cleanup; from lauri tirkkonen ok
+    
+    dtucker
+    
+    OpenBSD-Commit-ID: 4ade73629ede63b691f36f9a929f943d4e7a44e4
+
+commit 76af9c57387243556d38935555c227d0b34062c5
+Author: jmc@openbsd.org <jmc@openbsd.org>
+Date:   Wed Jun 12 05:53:21 2019 +0000
+
+    upstream: deraadt noticed some inconsistency in the way we denote
+    
+    the "Hostname" and "X11UseLocalhost" keywords; this makes things consistent
+    (effectively reversing my commit of yesterday);
+    
+    ok deraadt markus djm
+    
+    OpenBSD-Commit-ID: 255c02adb29186ac91dcf47dfad7adb1b1e54667
+
+commit d1bbfdd932db9b9b799db865ee1ff50060dfc895
+Author: jmc@openbsd.org <jmc@openbsd.org>
+Date:   Tue Jun 11 13:39:40 2019 +0000
+
+    upstream: consistent lettering for "HostName" keyword; from lauri
+    
+    tirkkonen
+    
+    OpenBSD-Commit-ID: 0c267a1257ed7482b13ef550837b6496e657d563
+
+commit fc0340f7c4ee29bfb12bd1de9f99defa797e16b4
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Sat Jun 8 00:10:59 2019 +1000
+
+    Typo fixes in error messages.
+    
+    Patch from knweiss at gmail.com via github pull req #97 (portable-
+    specific parts).
+
+commit 4b7dd22b02b64b1ededd3c0e98a6e7ae21e31d38
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri Jun 7 14:18:48 2019 +0000
+
+    upstream: Typo and spelling fixes in comments and error messages.
+    
+    Patch from knweiss at gmail.com via -portable.
+    
+    OpenBSD-Commit-ID: 2577465442f761a39703762c4f87a8dfcb918b4b
+
+commit 130ef0695e1731392ca33831939fe89e8b70cc17
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Sat Jun 8 00:47:07 2019 +1000
+
+    Include missed bits from previous sync.
+
+commit 25e3bccbaa63d27b9d5e09c123f1eb28594d2bd6
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri Jun 7 03:47:12 2019 +0000
+
+    upstream: Check for user@host when parsing sftp target. This
+    
+    allows user@[1.2.3.4] to work without a path in addition to with one.
+    bz#2999, ok djm@
+    
+    OpenBSD-Commit-ID: d989217110932490ba8ce92127a9a6838878928b
+
+commit 0323d9b619d512f80c57575b810a05791891f657
+Author: otto@openbsd.org <otto@openbsd.org>
+Date:   Thu Jun 6 05:13:13 2019 +0000
+
+    upstream: Replace calls to ssh_malloc_init() by a static init of
+    
+    malloc_options. Prepares for changes in the way malloc is initialized.  ok
+    guenther@ dtucker@
+    
+    OpenBSD-Commit-ID: 154f4e3e174f614b09f792d4d06575e08de58a6b
+
+commit c586d2d3129265ea64b12960c379d634bccb6535
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Fri May 31 03:20:07 2019 +0000
+
+    upstream: fix ssh-keysign fd handling problem introduced in r1.304
+    
+    caused by a typo (STDIN_FILENO vs STDERR_FILENO)
+    
+    OpenBSD-Commit-ID: 57a0b4be7bef23963afe24150e24bf014fdd9cb0
+
+commit 410b231aa41ff830b2f5b09b5aaf5e5cdc1ab86b
+Author: lum@openbsd.org <lum@openbsd.org>
+Date:   Wed May 29 08:30:26 2019 +0000
+
+    upstream: Make the standard output messages of both methods of
+    
+    changing a key pair's comments (using -c and -C) more applicable to both
+    methods. ok and suggestions djm@ dtucker@
+    
+    OpenBSD-Commit-ID: b379338118109eb36e14a65bc0a12735205b3de6
+
+commit 2b3402dc9f1d9b0df70291b424f36e436cdfa7e0
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Sat Jun 8 00:03:07 2019 +1000
+
+    Always clean up before and after utimensat test.
+
+commit 182898192d4b720e4faeafd5b39c2cfb3b92aa21
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Jun 7 23:47:37 2019 +1000
+
+    Update utimensat test.
+    
+    POSIX specifies that when given a symlink, AT_SYMLINK_NOFOLLOW should
+    update the symlink and not the destination.  The compat code doesn't
+    have a way to do this, so where possible it fails instead of following a
+    symlink when explicitly asked not to. Instead of checking for an explicit
+    failure, check that it does not update the destination, which both the
+    real and compat implmentations should honour.
+    
+    Inspired by github pull req #125 from chutzpah at gentoo.org.
+
+commit d220b675205185e0b4d6b6524acc2e5c599ef0e2
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Jun 7 14:26:54 2019 +1000
+
+    Have pthread_create return errno on failure.
+    
+    According to POSIX, pthread_create returns the failure reason in
+    the non-zero function return code so make the fork wrapper do that.
+    Matches previous change.
+
+commit 1bd4f7f25f653e0cadb2e6f25d79bc3c35c6aa4d
+Author: Elliott Hughes <enh@google.com>
+Date:   Thu Apr 25 13:36:27 2019 -0700
+
+    pthread_create(3) returns positive values on failure.
+    
+    Found by inspection after finding similar bugs in other code used by
+    Android.
+
+commit b3a77b25e5f7880222b179431a74fad76d2cf60c
+Author: Harald Freudenberger <freude@linux.ibm.com>
+Date:   Fri May 24 10:11:15 2019 +0200
+
+    allow s390 specific ioctl for ecc hardware support
+    
+    Adding another s390 specific ioctl to be able to support ECC hardware
+    acceleration to the sandbox seccomp filter rules.
+    
+    Now the ibmca openssl engine provides elliptic curve cryptography
+    support with the help of libica and CCA crypto cards. This is done via
+    jet another ioctl call to the zcrypt device driver and so there is a
+    need to enable this on the openssl sandbox.
+    
+    Code is s390 specific and has been tested, verified and reviewed.
+    
+    Please note that I am also the originator of the previous changes in
+    that area.  I posted these changes to Eduardo and he forwarded the
+    patches to the openssl community.
+    
+    Signed-off-by: Harald Freudenberger <freude@linux.ibm.com>
+    Reviewed-by: Joerg Schmidbauer <jschmidb@de.ibm.com>
+
+commit 2459df9aa11820f8092a8651aeb381af7ebbccb1
+Author: Sorin Adrian Savu <sorin25@users.noreply.github.com>
+Date:   Sun May 26 21:50:08 2019 +0300
+
+    openssl-devel is obsoleted by libssl-devel
+    
+    openssl-devel is no longer installable via the cygwin setup and
+    it's hidden by default, so you can't see the replacement very easy.
+
+commit 85ceb0e64bff672558fc87958cd548f135c83cdd
+Author: jmc@openbsd.org <jmc@openbsd.org>
+Date:   Mon May 20 06:01:59 2019 +0000
+
+    upstream: tweak previous;
+    
+    OpenBSD-Commit-ID: 42f39f22f53cfcb913bce401ae0f1bb93e08dd6c
+
+commit 30615295609f5c57b3137b3021fe63bfa45c1985
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Mon May 20 00:25:55 2019 +0000
+
+    upstream: embiggen format buffer size for certificate serial number so
+    
+    that it will fit a full 64 bit integer. bz#3012 from Manoel Domingues Junior
+    
+    OpenBSD-Commit-ID: a51f3013056d05b976e5af6b978dcb9e27bbc12b
+
+commit 476e3551b2952ef73acc43d995e832539bf9bc4d
+Author: djm@openbsd.org <djm@openbsd.org>
+Date:   Mon May 20 00:20:35 2019 +0000
+
+    upstream: When signing certificates with an RSA key, default to
+    
+    using the rsa-sha2-512 signature algorithm. Certificates signed by RSA keys
+    will therefore be incompatible with OpenSSH < 7.2 unless the default is
+    overridden.
+    
+    Document the ability of the ssh-keygen -t flag to override the
+    signature algorithm when signing certificates, and the new default.
+    
+    ok deraadt@
+    
+    OpenBSD-Commit-ID: 400c9c15013978204c2cb80f294b03ae4cfc8b95
+
+commit 606077ee1e77af5908431d003fb28461ef7be092
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri May 17 13:14:12 2019 +1000
+
+    Add no-op implementation of pam_putenv.
+    
+    Some platforms such as HP-UX do not have pam_putenv.  Currently the
+    calls are ifdef'ed out, but a new one was recently added.  Remove the
+    ifdefs and add a no-op implementation.  bz#3008, ok djm.
+
+commit 1ac98be8724c9789d770ddb8e7f0dbf1b55e05a0
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri May 17 12:42:17 2019 +1000
+
+    Use the correct macro for SSH_ALLOWED_CA_SIGALGS.
+
+commit 97370f6c2c3b825f8c577b7e6c00b1a98d30a6cf
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri May 17 10:54:51 2019 +1000
+
+    Fix building w/out ECC.
+    
+    Ifdef out ECC specific code so that that it'll build against an OpenSSL
+    configured w/out ECC.  With & ok djm@
+
+commit 633703babf8d9a88da85f23b800e1b88dec7cdbd
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri May 17 10:50:29 2019 +1000
+
+    Conditionalize ECDH methods in CA algos.
+    
+    When building against an OpenSSL configured without ECC, don't include
+    those algos in CASignatureAlgorithms.  ok djm@
+
+commit 5c8d14c512f5d413095b22bdba08a6bb990f1e97
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Thu May 16 08:47:27 2019 +0000
+
+    upstream: Move a variable declaration to the block where it's used
+    
+    to make things a little tidier for -portable.
+    
+    OpenBSD-Commit-ID: 616379861be95619e5358768b7dee4793e2f3a75
+
+commit a1d29cc36a5e6eeabc935065a8780e1ba5b67014
+Author: deraadt@openbsd.org <deraadt@openbsd.org>
+Date:   Wed May 15 04:43:31 2019 +0000
+
+    upstream: When doing the fork+exec'ing for ssh-keysign, rearrange
+    
+    the socket into fd3, so as to not mistakenly leak other fd forward
+    accidentally. ok djm
+    
+    OpenBSD-Commit-ID: 24cc753f5aa2c6a7d0fbf62766adbc75cd785296
+
+commit db7606d4a62fee67b0cb2f32dfcbd7b3642bfef5
+Author: schwarze@openbsd.org <schwarze@openbsd.org>
+Date:   Tue May 14 12:47:17 2019 +0000
+
+    upstream: Delete some .Sx macros that were used in a wrong way.
+    
+    Part of a patch from Stephen Gregoratto <dev at sgregoratto dot me>.
+    
+    OpenBSD-Commit-ID: 15501ed13c595f135e7610b1a5d8345ccdb513b7
+
+commit cb4accb1233865d9151f8a50cc5f0c61a3fd4077
+Author: florian@openbsd.org <florian@openbsd.org>
+Date:   Fri May 10 18:55:17 2019 +0000
+
+    upstream: For PermitOpen violations add the remote host and port to
+    
+    be able to find out from where the request was comming.
+    
+    Add the same logging for PermitListen violations which where not
+    logged at all.
+    
+    Pointed out by Robert Kisteleki (robert AT ripe.net)
+    
+    input markus
+    OK deraadt
+    
+    OpenBSD-Commit-ID: 8a7d0f1b7175504c0d1dca8d9aca1588b66448c8
+
+commit cd16aceec148d55088fc8df6be88335578d85258
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Thu May 16 07:53:20 2019 +1000
+
+    Add OpenSSL 1.1.1 to the supported list.
+    
+    Clarify the language around prngd and egd.
+
+commit 6fd4aa2aafbce90acb11a328ca0aa0696cb01c6b
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Wed May 15 16:19:14 2019 +1000
+
+    Fix typo in man page formatter selector.
+
+commit 285546b73e2c172565c992a695927ac8cf3b4cc6
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri May 10 15:04:42 2019 +1000
+
+    Use "doc" man page format if mandoc present.
+    
+    Previously configure would not select the "doc" man page format if
+    mandoc was present but nroff was not.  This checks for mandoc first
+    and removes a now-superflous AC_PATH_PROG.  Based on a patch from
+    vehk at vehk.de and feedback from schwarze at usta.de.
+
+commit 62dd70613b77b229f53db3cc1c3e8a206fa2b582
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri May 3 06:06:30 2019 +0000
+
+    upstream: Use the correct (according to POSIX) format for
+    
+    left-justification in snmprintf. bz#3002, patch from velemas at gmail.com, ok
+    markus@.
+    
+    OpenBSD-Commit-ID: 65d252b799be0cc8f68b6c47cece0a57bb00fea7
+
+commit 62be1ffe5ffc68cfaac183320503c00a8c72e0b1
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri May 3 04:11:00 2019 +0000
+
+    upstream: Free channel objects on exit path. Patch from markus at
+    
+    blueflash.cc, ok deraadt
+    
+    OpenBSD-Commit-ID: dbe4db381603909482211ffdd2b48abd72169117
+
+commit 1c554a5d94b9de6bd5374e2992a5662746cc39ba
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri May 3 03:27:38 2019 +0000
+
+    upstream: Free host on exit path. Patch from markus at
+    
+    blueflash.cc, ok djm@
+    
+    OpenBSD-Commit-ID: c54e9945d93c4ce28350d8b9fa8b71f744ef2b5a
+
+commit 99043bd64e5e0f427173f4fa83ef25a4676624a3
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri May 3 03:25:18 2019 +0000
+
+    upstream: Wrap XMSS including in ifdef. Patch from markus at
+    
+    blueflash.cc, ok djm
+    
+    OpenBSD-Commit-ID: e3b34fc35cf12d33bde91ac03633210a3bc0f8b5
+
+commit 8fcfb7789c43a19d24162a7a4055cd09ee951b34
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri Apr 26 08:37:17 2019 +0000
+
+    upstream: Import regenerated moduli.
+    
+    OpenBSD-Commit-ID: db6375fc302e3bdf07d96430c63c991b2c2bd3ff
+
+commit 3a7db919d5dd09f797971b3cf8ee301767459774
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Tue Apr 23 11:56:41 2019 +0000
+
+    upstream: Use the LogLevel typdef instead of int where appropriate. Patch from Markus Schmidt via openssh-unix-dev, ok markus@
+    
+    OpenBSD-Commit-ID: 4c0f0f458e3da7807806b35e3eb5c1e8403c968a
+
+commit d7c6e38b87efab1f140745fd8b1106b82e6e4a68
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Fri Apr 19 05:47:44 2019 +0000
+
+    upstream: Document new default RSA key size. From
+    
+    sebastiaanlokhorst at gmail.com via bz#2997.
+    
+    OpenBSD-Commit-ID: bdd62ff5d4d649d2147904e91bf7cefa82fe11e1
+
+commit e826bbcafe26dac349a8593da5569e82faa45ab8
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Thu Apr 18 18:56:16 2019 +0000
+
+    upstream: When running sshd -T, assume any attibute not provided by
+    
+    -C does not match, which allows it to work when sshd_config contains a Match
+    directive with or without -C.  bz#2858, ok djm@
+    
+    OpenBSD-Commit-ID: 1a701f0a33e3bc96753cfda2fe0b0378520b82eb
+
+commit 5696512d7ad57e85e89f8011ce8dec617be686aa
+Author: dtucker@openbsd.org <dtucker@openbsd.org>
+Date:   Thu Apr 18 07:32:56 2019 +0000
+
+    upstream: Remove crc32.{c,h} which were only used by the now-gone
+    
+    SSH1 protocol. Patch from yumkam at gmail.com, ok deraadt.
+    
+    OpenBSD-Commit-ID: cceda5876c5ba6b4d8abcd52335329198cee3240
+
+commit 34e87fb5d9ce607f5701ab4c31d837ad8133e2d1
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Tue Apr 30 12:27:57 2019 +1000
+
+    Remove unused variables from RLIMIT_NOFILE test.
+
+commit 35e82e62c1ef53cfa457473a4c4d957d6197371a
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Apr 26 18:38:27 2019 +1000
+
+    Import regenerated moduli.
+
+commit 5590f53f99219e95dc23b0ebd220f19a6f46b101
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Apr 26 18:22:10 2019 +1000
+
+    Whitespace resync w/OpenBSD.
+    
+    Patch from markus at blueflash.cc via openssh-unix-dev.
+
+commit b7b8334914fb9397a6725f3b5d2de999b0bb69ac
+Author: Darren Tucker <dtucker@dtucker.net>
+Date:   Fri Apr 26 18:06:34 2019 +1000
+
+    Don't install duplicate STREAMS modules on Solaris
+    
+    Check if STREAMS modules are already installed on pty before installing
+    since when compiling with XPG>=4 they will likely be installed already.
+    Prevents hangs and duplicate lines on the terminal.  bz#2945 and bz#2998,
+    patch from djm@
+
 commit fd0fa130ecf06d7d092932adcd5d77f1549bfc8d
 Author: Damien Miller <djm@mindrot.org>
 Date:   Thu Apr 18 08:52:57 2019 +1000
@@ -7937,2406 +10468,3 @@ Date:   Thu Oct 5 12:56:50 2017 +0000
     %C is hashed; from klemens nanni ok markus
     
     Upstream-ID: 6ebed7b2e1b6ee5402a67875d74f5e2859d8f998
-
-commit a66714508b86d6814e9055fefe362d9fe4d49ab3
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Wed Oct 4 18:50:23 2017 +0000
-
-    upstream commit
-    
-    exercise PermitOpen a little more thoroughly
-    
-    Upstream-Regress-ID: f41592334e227a4c1f9a983044522de4502d5eac
-
-commit 609ecc8e57eb88e2eac976bd3cae7f7889aaeff6
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Tue Sep 26 22:39:25 2017 +0000
-
-    upstream commit
-    
-    UsePrivilegeSeparation is gone, stop trying to test it.
-    
-    Upstream-Regress-ID: 796a5057cfd79456a20ea935cc53f6eb80ace191
-
-commit 69bda0228861f3dacd4fb3d28b60ce9d103d254b
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Wed Oct 4 18:49:30 2017 +0000
-
-    upstream commit
-    
-    fix (another) problem in PermitOpen introduced during the
-    channels.c refactor: the third and subsequent arguments to PermitOpen were
-    being silently ignored; ok markus@
-    
-    Upstream-ID: 067c89f1f53cbc381628012ba776d6861e6782fd
-
-commit 66bf74a92131b7effe49fb0eefe5225151869dc5
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Mon Oct 2 19:33:20 2017 +0000
-
-    upstream commit
-    
-    Fix PermitOpen crash; spotted by benno@, ok dtucker@ deraadt@
-    
-    Upstream-ID: c2cc84ffac070d2e1ff76182c70ca230a387983c
-
-commit d63b38160a59039708fd952adc75a0b3da141560
-Author: Damien Miller <djm@mindrot.org>
-Date:   Sun Oct 1 10:32:25 2017 +1100
-
-    update URL again
-    
-    I spotted a typo in the draft so uploaded a new version...
-
-commit 6f64f596430cd3576c529f07acaaf2800aa17d58
-Author: Damien Miller <djm@mindrot.org>
-Date:   Sun Oct 1 10:01:56 2017 +1100
-
-    sync release notes URL
-
-commit 35ff70a04dd71663a5ac1e73b90d16d270a06e0d
-Author: Damien Miller <djm@mindrot.org>
-Date:   Sun Oct 1 10:01:25 2017 +1100
-
-    sync contrib/ssh-copy-id with upstream
-
-commit 290843b8ede85f8b30bf29cd7dceb805c3ea5b66
-Author: Damien Miller <djm@mindrot.org>
-Date:   Sun Oct 1 09:59:19 2017 +1100
-
-    update version in RPM spec files
-
-commit 4e4e0bb223c5be88d87d5798c75cc6b0d4fef31d
-Author: Damien Miller <djm@mindrot.org>
-Date:   Sun Oct 1 09:58:24 2017 +1100
-
-    update agent draft URL
-
-commit e4a798f001d2ecd8bf025c1d07658079f27cc604
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Sep 30 22:26:33 2017 +0000
-
-    upstream commit
-    
-    openssh-7.6; ok deraadt@
-    
-    Upstream-ID: a39c3a5b63a1baae109ae1ae4c7c34c2a59acde0
-
-commit 5fa1407e16e7e5fda9769d53b626ce39d5588d4d
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Wed Sep 27 06:45:53 2017 +0000
-
-    upstream commit
-    
-    tweak EposeAuthinfo; diff from lars nooden
-    
-    tweaked by sthen; ok djm dtucker
-    
-    Upstream-ID: 8f2ea5d2065184363e8be7a0ba24d98a3b259748
-
-commit bba69c246f0331f657fd6ec97724df99fc1ad174
-Author: Damien Miller <djm@mindrot.org>
-Date:   Thu Sep 28 16:06:21 2017 -0700
-
-    don't fatal ./configure for LibreSSL
-
-commit 04dc070e8b4507d9d829f910b29be7e3b2414913
-Author: Damien Miller <djm@mindrot.org>
-Date:   Thu Sep 28 14:54:34 2017 -0700
-
-    abort in configure when only openssl-1.1.x found
-    
-    We don't support openssl-1.1.x yet (see multiple threads on the
-    openssh-unix-dev@ mailing list for the reason), but previously
-    ./configure would accept it and the compilation would subsequently
-    fail. This makes ./configure display an explicit error message and
-    abort.
-    
-    ok dtucker@
-
-commit 74c1c3660acf996d9dc329e819179418dc115f2c
-Author: Darren Tucker <dtucker@zip.com.au>
-Date:   Wed Sep 27 07:44:41 2017 +1000
-
-    Check for and handle calloc(p, 0) = NULL.
-    
-    On some platforms (AIX, maybe others) allocating zero bytes of memory
-    via the various *alloc functions returns NULL, which is permitted
-    by the standards.  Autoconf has some macros for detecting this (with
-    the exception of calloc for some reason) so use these and if necessary
-    activate shims for them.  ok djm@
-
-commit 6a9481258a77b0b54b2a313d1761c87360c5f1f5
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Thu Sep 21 19:18:12 2017 +0000
-
-    upstream commit
-    
-    test reverse dynamic forwarding with SOCKS
-    
-    Upstream-Regress-ID: 95cf290470f7e5e2f691e4bc6ba19b91eced2f79
-
-commit 1b9f321605733754df60fac8c1d3283c89b74455
-Author: Damien Miller <djm@mindrot.org>
-Date:   Tue Sep 26 16:55:55 2017 +1000
-
-    sync missing changes in dynamic-forward.sh
-
-commit 44fc334c7a9ebdd08addb6d5fa005369897fddeb
-Author: Darren Tucker <dtucker@zip.com.au>
-Date:   Mon Sep 25 09:48:10 2017 +1000
-
-    Add minimal strsignal for platforms without it.
-
-commit 218e6f98df566fb9bd363f6aa47018cb65ede196
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Sep 24 13:45:34 2017 +0000
-
-    upstream commit
-    
-    fix inverted test on channel open failure path that
-    "upgraded" a transient failure into a fatal error; reported by sthen and also
-    seen by benno@; ok sthen@
-    
-    Upstream-ID: b58b3fbb79ba224599c6cd6b60c934fc46c68472
-
-commit c704f641f7b8777497dc82e81f2ac89afec7e401
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Sep 24 09:50:01 2017 +0000
-
-    upstream commit
-    
-    write the correct buffer when tunnel forwarding; doesn't
-    matter on OpenBSD (they are the same) but does matter on portable where we
-    use an output filter to translate os-specific tun/tap headers
-    
-    Upstream-ID: f1ca94eff48404827b12e1d12f6139ee99a72284
-
-commit 55486f5cef117354f0c64f991895835077b7c7f7
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Sep 23 22:04:07 2017 +0000
-
-    upstream commit
-    
-    fix tunnel forwarding problem introduced in refactor;
-    reported by stsp@ ok markus@
-    
-    Upstream-ID: 81a731cdae1122c8522134095d1a8b60fa9dcd04
-
-commit 609d7a66ce578abf259da2d5f6f68795c2bda731
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Thu Sep 21 19:16:53 2017 +0000
-
-    upstream commit
-    
-    Add 'reverse' dynamic forwarding which combines dynamic
-    forwarding (-D) with remote forwarding (-R) where the remote-forwarded port
-    expects SOCKS-requests.
-    
-    The SSH server code is unchanged and the parsing happens at the SSH
-    clients side. Thus the full SOCKS-request is sent over the forwarded
-    channel and the client parses c->output. Parsing happens in
-    channel_before_prepare_select(), _before_ the select bitmask is
-    computed in the pre[] handlers, but after network input processing
-    in the post[] handlers.
-    
-    help and ok djm@
-    
-    Upstream-ID: aa25a6a3851064f34fe719e0bf15656ad5a64b89
-
-commit 36945fa103176c00b39731e1fc1919a0d0808b81
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Wed Sep 20 05:19:00 2017 +0000
-
-    upstream commit
-    
-    Use strsignal in debug message instead of casting for the
-    benefit of portable where sig_atomic_t might not be int.  "much nicer"
-    deraadt@
-    
-    Upstream-ID: 2dac6c1e40511c700bd90664cd263ed2299dcf79
-
-commit 3e8d185af326bf183b6f78597d5e3d2eeb2dc40e
-Author: millert@openbsd.org <millert@openbsd.org>
-Date:   Tue Sep 19 12:10:30 2017 +0000
-
-    upstream commit
-    
-    Use explicit_bzero() instead of bzero() before free() to
-    prevent the compiler from optimizing away the bzero() call.  OK djm@
-    
-    Upstream-ID: cdc6197e64c9684c7250e23d60863ee1b53cef1d
-
-commit 5b8da1f53854c0923ec6e927e86709e4d72737b6
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Tue Sep 19 04:24:22 2017 +0000
-
-    upstream commit
-    
-    fix use-after-free in ~^Z escape handler path, introduced
-    in channels.c refactor; spotted by millert@ "makes sense" deraadt@
-    
-    Upstream-ID: 8fa2cdc65c23ad6420c1e59444b0c955b0589b22
-
-commit a3839d8d2b89ff1a80cadd4dd654336710de2c9e
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Mon Sep 18 12:03:24 2017 +0000
-
-    upstream commit
-    
-    Prevent type mismatch warning in debug on platforms where
-    sig_atomic_t != int.  ok djm@
-    
-    Upstream-ID: 306e2375eb0364a4c68e48f091739bea4f4892ed
-
-commit 30484e5e5f0b63d2c6ba32c6b85f06b6c6fa55fc
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Mon Sep 18 09:41:52 2017 +0000
-
-    upstream commit
-    
-    Add braces missing after channels refactor.  ok markus@
-    
-    Upstream-ID: 72ab325c84e010680dbc88f226e2aa96b11a3980
-
-commit b79569190b9b76dfacc6d996faa482f16e8fc026
-Author: Damien Miller <djm@mindrot.org>
-Date:   Tue Sep 19 12:29:23 2017 +1000
-
-    add freezero(3) replacement
-    
-    ok dtucker@
-
-commit 161af8f5ec0961b10cc032efb5cc1b44ced5a92e
-Author: Damien Miller <djm@mindrot.org>
-Date:   Tue Sep 19 10:18:56 2017 +1000
-
-    move FORTIFY_SOURCE into hardening options group
-    
-    It's still on by default, but now it's possible to turn it off using
-    --without-hardening. This is useful since it's known to cause problems
-    with some -fsanitize options. ok dtucker@
-
-commit 09eacf856e0fe1a6e3fe597ec8032b7046292914
-Author: bluhm@openbsd.org <bluhm@openbsd.org>
-Date:   Wed Sep 13 14:58:26 2017 +0000
-
-    upstream commit
-    
-    Print SKIPPED if sudo and doas configuration is missing.
-    Prevents that running the regression test with wrong environment is reported
-    as failure.  Keep the fatal there to avoid interfering with other setups for
-    portable ssh. OK dtucker@
-    
-    Upstream-Regress-ID: f0dc60023caef496ded341ac5aade2a606fa234e
-
-commit cdede10899892f25f1ccdccd7a3fe5e5ef0aa49a
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Mon Aug 7 03:52:55 2017 +0000
-
-    upstream commit
-    
-    Remove obsolete privsep=no fallback test.
-    
-    Upstream-Regress-ID: 7d6e1baa1678ac6be50c2a1555662eb1047638df
-
-commit ec218c105daa9f5b192f7aa890fdb2d4fdc4e9d8
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Mon Aug 7 00:53:51 2017 +0000
-
-    upstream commit
-    
-    Remove non-privsep test since disabling privsep is now
-    deprecated.
-    
-    Upstream-Regress-ID: 77ad3f3d8d52e87f514a80f285c6c1229b108ce8
-
-commit 239c57d5bc2253e27e3e6ad7ac52ec8c377ee24e
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Fri Jul 28 10:32:08 2017 +0000
-
-    upstream commit
-    
-    Don't call fatal from stop_sshd since it calls cleanup
-    which calls stop_sshd which will probably fail in the same way.  Instead,
-    just bail. Differentiate between sshd dying without cleanup and not shutting
-    down.
-    
-    Upstream-Regress-ID: f97315f538618b349e2b0bea02d6b0c9196c6bc4
-
-commit aea59a0d9f120f2a87c7f494a0d9c51eaa79b8ba
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Thu Sep 14 04:32:21 2017 +0000
-
-    upstream commit
-    
-    Revert commitid: gJtIN6rRTS3CHy9b.
-    
-    -------------
-    identify the case where SSHFP records are missing but other DNS RR
-    types are present and display a more useful error message for this
-    case; patch by Thordur Bjornsson; bz#2501; ok dtucker@
-    -------------
-    
-    This caused unexpected failures when VerifyHostKeyDNS=yes, SSHFP results
-    are missing but the user already has the key in known_hosts
-    
-    Spotted by dtucker@
-    
-    Upstream-ID: 97e31742fddaf72046f6ffef091ec0d823299920
-
-commit 871f1e4374420b07550041b329627c474abc3010
-Author: Damien Miller <djm@mindrot.org>
-Date:   Tue Sep 12 18:01:35 2017 +1000
-
-    adapt portable to channels API changes
-
-commit 4ec0bb9f9ad7b4eb0af110fa8eddf8fa199e46bb
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Tue Sep 12 07:55:48 2017 +0000
-
-    upstream commit
-    
-    unused variable
-    
-    Upstream-ID: 2f9ba09f2708993d35eac5aa71df910dcc52bac1
-
-commit 9145a73ce2ba30c82bbf91d7205bfd112529449f
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Tue Sep 12 07:32:04 2017 +0000
-
-    upstream commit
-    
-    fix tun/tap forwarding case in previous
-    
-    Upstream-ID: 43ebe37a930320e24bca6900dccc39857840bc53
-
-commit 9f53229c2ac97dbc6f5a03657de08a1150a9ac7e
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Tue Sep 12 06:35:31 2017 +0000
-
-    upstream commit
-    
-    Make remote channel ID a u_int
-    
-    Previously we tracked the remote channel IDs in an int, but this is
-    strictly incorrect: the wire protocol uses uint32 and there is nothing
-    in-principle stopping a SSH implementation from sending, say, 0xffff0000.
-    
-    In practice everyone numbers their channels sequentially, so this has
-    never been a problem.
-    
-    ok markus@
-    
-    Upstream-ID: b9f4cd3dc53155b4a5c995c0adba7da760d03e73
-
-commit dbee4119b502e3f8b6cd3282c69c537fd01d8e16
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Tue Sep 12 06:32:07 2017 +0000
-
-    upstream commit
-    
-    refactor channels.c
-    
-    Move static state to a "struct ssh_channels" that is allocated at
-    runtime and tracked as a member of struct ssh.
-    
-    Explicitly pass "struct ssh" to all channels functions.
-    
-    Replace use of the legacy packet APIs in channels.c.
-    
-    Rework sshd_config PermitOpen handling: previously the configuration
-    parser would call directly into the channels layer. After the refactor
-    this is not possible, as the channels structures are allocated at
-    connection time and aren't available when the configuration is parsed.
-    The server config parser now tracks PermitOpen itself and explicitly
-    configures the channels code later.
-    
-    ok markus@
-    
-    Upstream-ID: 11828f161656b965cc306576422613614bea2d8f
-
-commit abd59663df37a42152e37980113ccaa405b9a282
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Thu Sep 7 23:48:09 2017 +0000
-
-    upstream commit
-    
-    typo in comment
-    
-    Upstream-ID: a93b1e6f30f1f9b854b5b964b9fd092d0c422c47
-
-commit 149a8cd24ce9dd47c36f571738681df5f31a326c
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Mon Sep 4 06:34:43 2017 +0000
-
-    upstream commit
-    
-    tweak previous;
-    
-    Upstream-ID: bb8cc40b61b15f6a13d81da465ac5bfc65cbfc4b
-
-commit ec9d22cc251cc5acfe7b2bcef9cc7a1fe0e949d8
-Author: Damien Miller <djm@mindrot.org>
-Date:   Fri Sep 8 12:44:13 2017 +1000
-
-    Fuzzer harnesses for sig verify and pubkey parsing
-    
-    These are some basic clang libfuzzer harnesses for signature
-    verification and public key parsing. Some assembly (metaphorical)
-    required.
-
-commit de35c382894964a896a63ecd5607d3a3b93af75d
-Author: Damien Miller <djm@mindrot.org>
-Date:   Fri Sep 8 12:38:31 2017 +1000
-
-    Give configure ability to set CFLAGS/LDFLAGS later
-    
-    Some CFLAGS/LDFLAGS may disrupt the configure script's operation,
-    in particular santization and fuzzer options that break assumptions
-    about memory and file descriptor dispositions.
-    
-    This adds two flags to configure --with-cflags-after and
-    --with-ldflags-after that allow specifying additional compiler and
-    linker options that are added to the resultant Makefiles but not
-    used in the configure run itself.
-    
-    E.g.
-    
-    env CC=clang-3.9 ./configure \
-      --with-cflags-after=-fsantize=address \
-      --with-ldflags-after="-g -fsanitize=address"
-
-commit 22376d27a349f62c502fec3396dfe0fdcb2a40b7
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Sep 3 23:33:13 2017 +0000
-
-    upstream commit
-    
-    Expand ssh_config's StrictModes option with two new
-    settings:
-    
-    StrictModes=accept-new will automatically accept hitherto-unseen keys
-    but will refuse connections for changed or invalid hostkeys.
-    
-    StrictModes=off is the same as StrictModes=no
-    
-    Motivation:
-    
-    StrictModes=no combines two behaviours for host key processing:
-    automatically learning new hostkeys and continuing to connect to hosts
-    with invalid/changed hostkeys. The latter behaviour is quite dangerous
-    since it removes most of the protections the SSH protocol is supposed to
-    provide.
-    
-    Quite a few users want to automatically learn hostkeys however, so
-    this makes that feature available with less danger.
-    
-    At some point in the future, StrictModes=no will change to be a synonym
-    for accept-new, with its current behaviour remaining available via
-    StrictModes=off.
-    
-    bz#2400, suggested by Michael Samuel; ok markus
-    
-    Upstream-ID: 0f55502bf75fc93a74fb9853264a8276b9680b64
-
-commit ff3c42384033514e248ba5d7376aa033f4a2b99a
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Fri Sep 1 15:41:26 2017 +0000
-
-    upstream commit
-    
-    remove blank line;
-    
-    Upstream-ID: 2f46b51a0ddb3730020791719e94d3e418e9f423
-
-commit b828605d51f57851316d7ba402b4ae06cf37c55d
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri Sep 1 05:53:56 2017 +0000
-
-    upstream commit
-    
-    identify the case where SSHFP records are missing but
-    other DNS RR types are present and display a more useful error message for
-    this case; patch by Thordur Bjornsson; bz#2501; ok dtucker@
-    
-    Upstream-ID: 8f7a5a8344f684823d8317a9708b63e75be2c244
-
-commit 8042bad97e2789a50e8f742c3bcd665ebf0add32
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri Sep 1 05:50:48 2017 +0000
-
-    upstream commit
-    
-    document available AuthenticationMethods; bz#2453 ok
-    dtucker@
-    
-    Upstream-ID: 2c70576f237bb699aff59889dbf2acba4276d3d0
-
-commit 71e5a536ec815d542b199f2ae6d646c0db9f1b58
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Wed Aug 30 03:59:08 2017 +0000
-
-    upstream commit
-    
-    pass packet state down to some of the channels function
-    (more to come...); ok markus@
-    
-    Upstream-ID: d8ce7a94f4059d7ac1e01fb0eb01de0c4b36c81b
-
-commit 6227fe5b362239c872b91bbdee4bf63cf85aebc5
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Tue Aug 29 13:05:58 2017 +0000
-
-    upstream commit
-    
-    sort options;
-    
-    Upstream-ID: cf21d68cf54e81968bca629aaeddc87f0c684f3c
-
-commit 530591a5795a02d01c78877d58604723918aac87
-Author: dlg@openbsd.org <dlg@openbsd.org>
-Date:   Tue Aug 29 09:42:29 2017 +0000
-
-    upstream commit
-    
-    add a -q option to ssh-add to make it quiet on success.
-    
-    if you want to silence ssh-add without this you generally redirect
-    the output to /dev/null, but that can hide error output which you
-    should see.
-    
-    ok djm@
-    
-    Upstream-ID: 2f31b9b13f99dcf587e9a8ba443458e6c0d8997c
-
-commit a54eb27dd64b5eca3ba94e15cec3535124bd5029
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Sun Aug 27 00:38:41 2017 +0000
-
-    upstream commit
-    
-    Increase the buffer sizes for user prompts to ensure that
-    they won't be truncated by snprintf.  Based on patch from cjwatson at
-    debian.org via bz#2768, ok djm@
-    
-    Upstream-ID: 6ffacf1abec8f40b469de5b94bfb29997d96af3e
-
-commit dd9d9b3381a4597b840d480b043823112039327e
-Author: Darren Tucker <dtucker@zip.com.au>
-Date:   Mon Aug 28 16:48:27 2017 +1000
-
-    Switch Capsicum header to sys/capsicum.h.
-    
-    FreeBSD's <sys/capability.h> was renamed to <sys/capsicum.h> in 2014 to
-    avoid future conflicts with POSIX capabilities (the last release that
-    didn't have it was 9.3) so switch to that.  Patch from des at des.no.
-
-commit f5e917ab105af5dd6429348d9bc463e52b263f92
-Author: Darren Tucker <dtucker@zip.com.au>
-Date:   Sun Aug 27 08:55:40 2017 +1000
-
-    Add missing includes for bsd-err.c.
-    
-    Patch from cjwatson at debian.org via bz#2767.
-
-commit 878e029797cfc9754771d6f6ea17f8c89e11d225
-Author: Damien Miller <djm@mindrot.org>
-Date:   Fri Aug 25 13:25:01 2017 +1000
-
-    Split platform_sys_dir_uid into its own file
-    
-    platform.o is too heavy for libssh.a use; it calls into the server on
-    many platforms. Move just the function needed by misc.c into its own
-    file.
-
-commit 07949bfe9133234eddd01715592aa0dde67745f0
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed Aug 23 20:13:18 2017 +1000
-
-    misc.c needs functions from platform.c now
-
-commit b074c3c3f820000a21953441cea7699c4b17d72f
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri Aug 18 05:48:04 2017 +0000
-
-    upstream commit
-    
-    add a "quiet" flag to exited_cleanly() that supresses
-    errors about exit status (failure due to signal is still reported)
-    
-    Upstream-ID: db85c39c3aa08e6ff67fc1fb4ffa89f807a9d2f0
-
-commit de4ae07f12dabf8815ecede54235fce5d22e3f63
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri Aug 18 05:36:45 2017 +0000
-
-    upstream commit
-    
-    Move several subprocess-related functions from various
-    locations to misc.c. Extend subprocess() to offer a little more control over
-    stdio disposition.
-    
-    feedback & ok dtucker@
-    
-    Upstream-ID: 3573dd7109d13ef9bd3bed93a3deb170fbfce049
-
-commit 643c2ad82910691b2240551ea8b14472f60b5078
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Aug 12 06:46:01 2017 +0000
-
-    upstream commit
-    
-    make "--" before the hostname terminate command-line
-    option processing completely; previous behaviour would not prevent further
-    options appearing after the hostname (ssh has a supported options after the
-    hostname for >20 years, so that's too late to change).
-    
-    ok deraadt@
-    
-    Upstream-ID: ef5ee50571b98ad94dcdf8282204e877ec88ad89
-
-commit 0f3455356bc284d7c6f4d3c1614d31161bd5dcc2
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Aug 12 06:42:52 2017 +0000
-
-    upstream commit
-    
-    Switch from aes256-cbc to aes256-ctr for encrypting
-    new-style private keys. The latter having the advantage of being supported
-    for no-OpenSSL builds; bz#2754 ok markus@
-    
-    Upstream-ID: 54179a2afd28f93470471030567ac40431e56909
-
-commit c4972d0a9bd6f898462906b4827e09b7caea2d9b
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri Aug 11 04:47:12 2017 +0000
-
-    upstream commit
-    
-    refuse to a private keys when its corresponding .pub key
-    does not match. bz#2737 ok dtucker@
-    
-    Upstream-ID: 54ff5e2db00037f9db8d61690f26ef8f16e0d913
-
-commit 4b3ecbb663c919132dddb3758e17a23089413519
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri Aug 11 04:41:08 2017 +0000
-
-    upstream commit
-    
-    don't print verbose error message when ssh disconnects
-    under sftp; bz#2750; ok dtucker@
-    
-    Upstream-ID: 6d83708aed77b933c47cf155a87dc753ec01f370
-
-commit 42a8f8bc288ef8cac504c5c73f09ed610bc74a34
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Fri Aug 11 04:16:35 2017 +0000
-
-    upstream commit
-    
-    Tweak previous keepalive commit: if last_time + keepalive
-    <= now instead of just "<" so client_alive_check will fire if the select
-    happens to return on exact second of the timeout.  ok djm@
-    
-    Upstream-ID: e02756bd6038d11bb8522bfd75a4761c3a684fcc
-
-commit b60ff20051ef96dfb207b6bfa45c0ad6c34a542a
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Fri Aug 11 03:58:36 2017 +0000
-
-    upstream commit
-    
-    Keep track of the last time we actually heard from the
-    client and use this to also schedule a client_alive_check().  Prevents
-    activity on a forwarded port from indefinitely preventing the select timeout
-    so that client_alive_check() will eventually (although not optimally) be
-    called.
-    
-    Analysis by willchan at google com via bz#2756, feedback & ok djm@
-    
-    Upstream-ID: c08721e0bbda55c6d18e2760f3fe1b17fb71169e
-
-commit 94bc1e7ffba3cbdea8c7dcdab8376bf29283128f
-Author: Damien Miller <djm@mindrot.org>
-Date:   Fri Jul 28 14:50:59 2017 +1000
-
-    Expose list of completed auth methods to PAM
-    
-    bz#2408; ok dtucker@
-
-commit c78e6eec78c88acf8d51db90ae05a3e39458603d
-Author: Damien Miller <djm@mindrot.org>
-Date:   Fri Jul 21 14:38:16 2017 +1000
-
-    fix problems in tunnel forwarding portability code
-    
-    This fixes a few problems in the tun forwarding code, mostly to do
-    with host/network byte order confusion.
-    
-    Based on a  report and patch by stepe AT centaurus.uberspace.de;
-    bz#2735; ok dtucker@
-
-commit 2985d4062ebf4204bbd373456a810d558698f9f5
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Tue Jul 25 09:22:25 2017 +0000
-
-    upstream commit
-    
-    Make WinSCP patterns for SSH_OLD_DHGEX more specific to
-    exclude WinSCP 5.10.x and up.  bz#2748, from martin at winscp.net, ok djm@
-    
-    Upstream-ID: 6fd7c32e99af3952db007aa180e73142ddbc741a
-
-commit 9f0e44e1a0439ff4646495d5735baa61138930a9
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Mon Jul 24 04:34:28 2017 +0000
-
-    upstream commit
-    
-    g/c unused variable; make a little more portable
-    
-    Upstream-ID: 3f5980481551cb823c6fb2858900f93fa9217dea
-
-commit 51676ec61491ec6d7cbd06082034e29b377b3bf6
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Jul 23 23:37:02 2017 +0000
-
-    upstream commit
-    
-    Allow IPQoS=none in ssh/sshd to not set an explicit
-    ToS/DSCP value and just use the operating system default; ok dtucker@
-    
-    Upstream-ID: 77906ff8c7b660b02ba7cb1e47b17d66f54f1f7e
-
-commit 6c1fbd5a50d8d2415f06c920dd3b1279b741072d
-Author: Damien Miller <djm@mindrot.org>
-Date:   Fri Jul 21 14:24:26 2017 +1000
-
-    mention libedit
-
-commit dc2bd308768386b02c7337120203ca477e67ba62
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Wed Jul 19 08:30:41 2017 +0000
-
-    upstream commit
-    
-    fix support for unknown key types; ok djm@
-    
-    Upstream-ID: 53fb29394ed04d616d65b3748dee5aa06b07ab48
-
-commit fd0e8fa5f89d21290b1fb5f9d110ca4f113d81d9
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Wed Jul 19 01:15:02 2017 +0000
-
-    upstream commit
-    
-    switch from select() to poll() for the ssh-agent
-    mainloop; ok markus
-    
-    Upstream-ID: 4a94888ee67b3fd948fd10693973beb12f802448
-
-commit b1e72df2b813ecc15bd0152167bf4af5f91c36d3
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Fri Jul 14 03:18:21 2017 +0000
-
-    upstream commit
-    
-    Make ""Killed by signal 1" LogLevel verbose so it's not
-    shown at the default level.  Prevents it from appearing during ssh -J and
-    equivalent ProxyCommand configs. bz#1906, bz#2744, feedback&ok markus@
-    
-    Upstream-ID: debfaa7e859b272246c2f2633335d288d2e2ae28
-
-commit 1f3d202770a08ee6752ed2a234b7ca6f180eb498
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Thu Jul 13 19:16:33 2017 +0000
-
-    upstream commit
-    
-    man pages with pseudo synopses which list filenames end
-    up creating very ugly output in man -k; after some discussion with ingo, we
-    feel the simplest fix is to remove such SYNOPSIS sections: the info is hardly
-    helpful at page top, is contained already in FILES, and there are
-    sufficiently few that just zapping them is simple;
-    
-    ok schwarze, who also helpfully ran things through a build to check
-    output;
-    
-    Upstream-ID: 3e211b99457e2f4c925c5927d608e6f97431336c
-
-commit 7f13a4827fb28957161de4249bd6d71954f1f2ed
-Author: espie@openbsd.org <espie@openbsd.org>
-Date:   Mon Jul 10 14:09:59 2017 +0000
-
-    upstream commit
-    
-    zap redundant Makefile variables. okay djm@
-    
-    Upstream-ID: e39b3902fe1d6c4a7ba6a3c58e072219f3c1e604
-
-commit dc44dd3a9e2c9795394e6a7e1e71c929cbc70ce0
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Sat Jul 8 18:32:54 2017 +0000
-
-    upstream commit
-    
-    slightly rework previous, to avoid an article issue;
-    
-    Upstream-ID: 15a315f0460ddd3d4e2ade1f16d6c640a8c41b30
-
-commit 853edbe057a84ebd0024c8003e4da21bf2b469f7
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri Jul 7 03:53:12 2017 +0000
-
-    upstream commit
-    
-    When generating all hostkeys (ssh-keygen -A), clobber
-    existing keys if they exist but are zero length. zero-length keys could
-    previously be made if ssh-keygen failed part way through generating them, so
-    avoid that case too. bz#2561 reported by Krzysztof Cieplucha; ok dtucker@
-    
-    Upstream-ID: f662201c28ab8e1f086b5d43c59cddab5ade4044
-
-commit 43616876ba68a2ffaece6a6c792def4b039f2d6e
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Jul 1 22:55:44 2017 +0000
-
-    upstream commit
-    
-    actually remove these files
-    
-    Upstream-ID: 1bd41cba06a7752de4df304305a8153ebfb6b0ac
-
-commit 83fa3a044891887369ce8b487ce88d713a04df48
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Jul 1 13:50:45 2017 +0000
-
-    upstream commit
-    
-    remove post-SSHv1 removal dead code from rsa.c and merge
-    the remaining bit that it still used into ssh-rsa.c; ok markus
-    
-    Upstream-ID: ac8a048d24dcd89594b0052ea5e3404b473bfa2f
-
-commit 738c73dca2c99ee78c531b4cbeefc2008fe438f0
-Author: Damien Miller <djm@mindrot.org>
-Date:   Fri Jul 14 14:26:36 2017 +1000
-
-    make explicit_bzero/memset safe for sz=0
-
-commit 8433d51e067e0829f5521c0c646b6fd3fe17e732
-Author: Tim Rice <tim@multitalents.net>
-Date:   Tue Jul 11 18:47:56 2017 -0700
-
-    modified:   configure.ac
-    UnixWare needs BROKEN_TCGETATTR_ICANON like Solaris
-    Analysis by Robbie Zhang
-
-commit ff3507aea9c7d30cd098e7801e156c68faff7cc7
-Author: Damien Miller <djm@mindrot.org>
-Date:   Fri Jul 7 11:21:27 2017 +1000
-
-    typo
-
-commit d79bceb9311a9c137d268f5bc481705db4151810
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Fri Jun 30 04:17:23 2017 +0000
-
-    upstream commit
-    
-    Only call close once in confree().  ssh_packet_close will
-    close the FD so only explicitly close non-SSH channels.  bz#2734, from
-    bagajjal at microsoft.com, ok djm@
-    
-    Upstream-ID: a81ce0c8b023527167739fccf1732b154718ab02
-
-commit 197dc9728f062e23ce374f44c95a2b5f9ffa4075
-Author: Darren Tucker <dtucker@zip.com.au>
-Date:   Thu Jun 29 15:40:25 2017 +1000
-
-    Update link for my patches.
-
-commit a98339edbc1fc21342a390f345179a9c3031bef7
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Wed Jun 28 01:09:22 2017 +0000
-
-    upstream commit
-    
-    Allow ssh-keygen to use a key held in ssh-agent as a CA when
-    signing certificates. bz#2377 ok markus
-    
-    Upstream-ID: fb42e920b592edcbb5b50465739a867c09329c8f
-
-commit c9cdef35524bd59007e17d5bd2502dade69e2dfb
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Jun 24 06:35:24 2017 +0000
-
-    upstream commit
-    
-    regress test for ExposeAuthInfo
-    
-    Upstream-Regress-ID: 190e5b6866376f4061c411ab157ca4d4e7ae86fd
-
-commit f17ee61cad25d210edab69d04ed447ad55fe80c1
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Jun 24 07:08:57 2017 +0000
-
-    upstream commit
-    
-    correct env var name
-    
-    Upstream-ID: 721e761c2b1d6a4dcf700179f16fd53a1dadb313
-
-commit 40962198e3b132cecdb32e9350acd4294e6a1082
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Sat Jun 24 06:57:04 2017 +0000
-
-    upstream commit
-    
-    spelling;
-    
-    Upstream-ID: 606f933c8e2d0be902ea663946bc15e3eee40b25
-
-commit 33f86265d7e8a0e88d3a81745d746efbdd397370
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Jun 24 06:38:11 2017 +0000
-
-    upstream commit
-    
-    don't pass pointer to struct sshcipher between privsep
-    processes, just redo the lookup in each using the already-passed cipher name.
-    bz#2704 based on patch from Brooks Davis; ok markus dtucker
-    
-    Upstream-ID: 2eab434c09bdf549dafd7da3e32a0d2d540adbe0
-
-commit 8f574959272ac7fe9239c4f5d10fd913f8920ab0
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Jun 24 06:34:38 2017 +0000
-
-    upstream commit
-    
-    refactor authentication logging
-    
-    optionally record successful auth methods and public credentials
-    used in a file accessible to user sessions
-    
-    feedback and ok markus@
-    
-    Upstream-ID: 090b93036967015717b9a54fd0467875ae9d32fb
-
-commit e2004d4bb7eb01c663dd3a3e7eb224f1ccdc9bba
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Sat Jun 24 06:28:50 2017 +0000
-
-    upstream commit
-    
-    word fix;
-    
-    Upstream-ID: 8539bdaf2366603a34a9b2f034527ca13bb795c5
-
-commit 4540428cd0adf039bcf5a8a27f2d5cdf09191513
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Jun 24 05:37:44 2017 +0000
-
-    upstream commit
-    
-    switch sshconnect.c from (slightly abused) select() to
-    poll(); ok deraadt@ a while back
-    
-    Upstream-ID: efc1937fc591bbe70ac9e9542bb984f354c8c175
-
-commit 6f8ca3b92540fa1a9b91670edc98d15448e3d765
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Jun 24 05:35:05 2017 +0000
-
-    upstream commit
-    
-    use HostKeyAlias if specified instead of hostname for
-    matching host certificate principal names; bz#2728; ok dtucker@
-    
-    Upstream-ID: dc2e11c83ae9201bbe74872a0c895ae9725536dd
-
-commit 8904ffce057b80a7472955f1ec00d7d5c250076c
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Jun 24 05:24:11 2017 +0000
-
-    upstream commit
-    
-    no need to call log_init to reinitialise logged PID in
-    child sessions, since we haven't called openlog() in log_init() since 1999;
-    ok markus@
-    
-    Upstream-ID: 0906e4002af5d83d3d544df75e1187c932a3cf2e
-
-commit e238645d789cd7eb47541b66aea2a887ea122c9b
-Author: mestre@openbsd.org <mestre@openbsd.org>
-Date:   Fri Jun 23 07:24:48 2017 +0000
-
-    upstream commit
-    
-    When using the escape sequence &~ the code path is
-    client_loop() -> client_simple_escape_filter() -> process_escapes() -> fork()
-    and the pledge for this path lacks the proc promise and therefore aborts the
-    process. The solution is to just add proc the promise to this specific
-    pledge.
-    
-    Reported by Gregoire Jadi gjadi ! omecha.info
-    Insight with tb@, OK jca@
-    
-    Upstream-ID: 63c05e30c28209519f476023b65b0b1b0387a05b
-
-commit 5abbb31c4e7a6caa922cc1cbb14e87a77f9d19d3
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Fri Jun 23 03:30:42 2017 +0000
-
-    upstream commit
-    
-    Import regenerated moduli.
-    
-    Upstream-ID: b25bf747544265b39af74fe0716dc8d9f5b63b95
-
-commit 849c5468b6d9b4365784c5dd88e3f1fb568ba38f
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Fri Jun 23 03:25:53 2017 +0000
-
-    upstream commit
-    
-    Run the screen twice so we end up with more candidate
-    groups.  ok djm@
-    
-    Upstream-ID: b92c93266d8234d493857bb822260dacf4366157
-
-commit 4626e39c7053c6486c1c8b708ec757e464623f5f
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Wed Jun 14 00:31:38 2017 +0000
-
-    upstream commit
-    
-    Add user@host prefix to client's "Permisison denied"
-    messages, useful in particular when using "stacked" connections where it's
-    not clear which host is denying.  bz#2720, ok djm@ markus@
-    
-    Upstream-ID: de88e1e9dcb050c98e85377482d1287a9fe0d2be
-
-commit c948030d54911b2d3cddb96a7a8e9269e15d11cd
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Tue Jun 13 12:13:59 2017 +0000
-
-    upstream commit
-    
-    Do not require that unknown EXT_INFO extension values not
-    contain \0 characters. This would cause fatal connection errors if an
-    implementation sent e.g. string-encoded sub-values inside a value.
-    
-    Reported by Denis Bider; ok markus@
-    
-    Upstream-ID: 030e10fdc605563c040244c4b4f1d8ae75811a5c
-
-commit 6026f48dfca78b713e4a7f681ffa42a0afe0929e
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Tue Jun 13 11:22:15 2017 +0000
-
-    upstream commit
-    
-    missing prototype.
-    
-    Upstream-ID: f443d2be9910fd2165a0667956d03343c46f66c9
-
-commit bcd1485075aa72ba9418003f5cc27af2b049c51b
-Author: Damien Miller <djm@mindrot.org>
-Date:   Sat Jun 10 23:41:25 2017 +1000
-
-    portability for sftp globbed ls sort by mtime
-    
-    Include replacement timespeccmp() for systems that lack it.
-    Support time_t struct stat->st_mtime in addition to
-    timespec stat->st_mtim, as well as unsorted fallback.
-
-commit 072e172f1d302d2a2c6043ecbfb4004406717b96
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Jun 10 06:36:46 2017 +0000
-
-    upstream commit
-    
-    print '?' instead of incorrect link count (that the
-    protocol doesn't provide) for remote listings. bz#2710 ok dtucker@
-    
-    Upstream-ID: c611f98a66302cea452ef10f13fff8cf0385242e
-
-commit 72be5b2f8e7dc37235e8c4b8d0bc7b5ee1301505
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Jun 10 06:33:34 2017 +0000
-
-    upstream commit
-    
-    implement sorting for globbed ls; bz#2649 ok dtucker@
-    
-    Upstream-ID: ed3110f351cc9703411bf847ba864041fb7216a8
-
-commit 5b2f34a74aa6a524cd57e856b23e1b7b25007721
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri Jun 9 06:47:13 2017 +0000
-
-    upstream commit
-    
-    return failure rather than fatal() for more cases during
-    mux negotiations. Causes the session to fall back to a non-mux connection if
-    they occur. bz#2707 ok dtucker@
-    
-    Upstream-ID: d2a7892f464d434e1f615334a1c9d0cdb83b29ab
-
-commit 7f5637c4a67a49ef256cb4eedf14e8590ac30976
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri Jun 9 06:43:01 2017 +0000
-
-    upstream commit
-    
-    in description of public key authentication, mention that
-    the server will send debug messages to the client for some error conditions
-    after authentication has completed. bz#2709 ok dtucker
-    
-    Upstream-ID: 750127dbd58c5a2672c2d28bc35fe221fcc8d1dd
-
-commit 2076e4adb986512ce8c415dd194fd4e52136c4b4
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri Jun 9 06:40:24 2017 +0000
-
-    upstream commit
-    
-    better translate libcrypto errors by looking deeper in
-    the accursed error stack for codes that indicate the wrong passphrase was
-    supplied for a PEM key. bz#2699 ok dtucker@
-    
-    Upstream-ID: 4da4286326d570f4f0489459bb71f6297e54b681
-
-commit ad0531614cbe8ec424af3c0fa90c34a8e1ebee4c
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Fri Jun 9 04:40:04 2017 +0000
-
-    upstream commit
-    
-    Add comments referring to the relevant RFC sections for
-    rekeying behaviour.
-    
-    Upstream-ID: 6fc8e82485757a27633f9175ad00468f49a07d40
-
-commit ce9134260b9b1247e2385a1afed00c26112ba479
-Author: Damien Miller <djm@mindrot.org>
-Date:   Fri Jun 9 14:43:47 2017 +1000
-
-    drop two more privileges in the Solaris sandbox
-    
-    Drop PRIV_DAX_ACCESS and PRIV_SYS_IB_INFO.
-    Patch from huieying.lee AT oracle.com via bz#2723
-
-commit e0f609c8a2ab940374689ab8c854199c3c285a76
-Author: Darren Tucker <dtucker@zip.com.au>
-Date:   Fri Jun 9 13:36:29 2017 +1000
-
-    Wrap stdint.h include in #ifdef.
-
-commit 1de5e47a85850526a4fdaf77185134046c050f75
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Wed Jun 7 01:48:15 2017 +0000
-
-    upstream commit
-    
-    unbreak after sshv1 purge
-    
-    Upstream-Regress-ID: 8ea01a92d5f571b9fba88c1463a4254a7552d51b
-
-commit 550c053168123fcc0791f9952abad684704b5760
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Tue Jun 6 09:12:17 2017 +0000
-
-    upstream commit
-    
-    Fix compression output stats broken in rev 1.201.  Patch
-    originally by Russell Coker via Debian bug #797964 and Christoph Biedl.  ok
-    djm@
-    
-    Upstream-ID: 83a1903b95ec2e4ed100703debb4b4a313b01016
-
-commit 55d06c6e72a9abf1c06a7ac2749ba733134a1f39
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri Jun 2 06:06:10 2017 +0000
-
-    upstream commit
-    
-    rationalise the long list of manual CDIAGFLAGS that we
-    add; most of these were redundant to -Wall -Wextra
-    
-    Upstream-ID: ea80f445e819719ccdcb237022cacfac990fdc5c
-
-commit 1527d9f61e6d50f6c2b4a3fa5b45829034b1b0b1
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Thu Jun 1 06:59:21 2017 +0000
-
-    upstream commit
-    
-    no need to bzero allocated space now that we use use
-    recallocarray; ok deraadt@
-    
-    Upstream-ID: 53333c62ccf97de60b8cb570608c1ba5ca5803c8
-
-commit cc812baf39b93d5355565da98648d8c31f955990
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Thu Jun 1 06:58:25 2017 +0000
-
-    upstream commit
-    
-    unconditionally zero init size of buffer; ok markus@
-    deraadt@
-    
-    Upstream-ID: 218963e846d8f26763ba25afe79294547b99da29
-
-commit 65eb8fae0d7ba45ef4483a3cf0ae7fd0dbc7c226
-Author: Damien Miller <djm@mindrot.org>
-Date:   Thu Jun 1 16:25:09 2017 +1000
-
-    avoid compiler warning
-
-commit 2d75d74272dc2a0521fce13cfe6388800c9a2406
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Thu Jun 1 06:16:43 2017 +0000
-
-    upstream commit
-    
-    some warnings spotted by clang; ok markus@
-    
-    Upstream-ID: 24381d68ca249c5cee4388ceb0f383fa5b43991b
-
-commit 151c6e433a5f5af761c78de87d7b5d30a453cf5e
-Author: Damien Miller <djm@mindrot.org>
-Date:   Thu Jun 1 15:25:13 2017 +1000
-
-    add recallocarray replacement and dependency
-    
-    recallocarray() needs getpagesize() so add a tiny replacement for that.
-
-commit 01e6f78924da308447e71e9a32c8a6104ef4e888
-Author: Damien Miller <djm@mindrot.org>
-Date:   Thu Jun 1 15:16:24 2017 +1000
-
-    add *.0 manpage droppings
-
-commit 4b2e2d3fd9dccff357e1e26ce9a5f2e103837a36
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Thu Jun 1 04:51:58 2017 +0000
-
-    upstream commit
-    
-    fix casts re constness
-    
-    Upstream-ID: e38f2bac162b37dbaf784d349c8327a6626fa266
-
-commit 75b8af8de805c0694b37fcf80ce82783b2acc86f
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Wed May 31 10:54:00 2017 +0000
-
-    upstream commit
-    
-    make sure we don't pass a NULL string to vfprintf
-    (triggered by the principals-command regress test); ok bluhm
-    
-    Upstream-ID: eb49854f274ab37a0b57056a6af379a0b7111990
-
-commit 84008608c9ee944d9f72f5100f31ccff743b10f2
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Wed May 31 10:04:29 2017 +0000
-
-    upstream commit
-    
-    use SO_ZEROIZE for privsep communication (if available)
-    
-    Upstream-ID: abcbb6d2f8039fc4367a6a78096e5d5c39de4a62
-
-commit 9e509d4ec97cb3d71696f1a2f1fdad254cbbce11
-Author: deraadt@openbsd.org <deraadt@openbsd.org>
-Date:   Wed May 31 09:15:42 2017 +0000
-
-    upstream commit
-    
-    Switch to recallocarray() for a few operations.  Both
-    growth and shrinkage are handled safely, and there also is no need for
-    preallocation dances. Future changes in this area will be less error prone.
-    Review and one bug found by markus
-    
-    Upstream-ID: 822d664d6a5a1d10eccb23acdd53578a679d5065
-
-commit dc5dc45662773c0f7745c29cf77ae2d52723e55e
-Author: deraadt@openbsd.org <deraadt@openbsd.org>
-Date:   Wed May 31 08:58:52 2017 +0000
-
-    upstream commit
-    
-    These shutdown() SHUT_RDWR are not needed before close()
-    ok djm markus claudio
-    
-    Upstream-ID: 36f13ae4ba10f5618cb9347933101eb4a98dbcb5
-
-commit 1e0cdf8efb745d0d1116e1aa22bdc99ee731695e
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Wed May 31 08:09:45 2017 +0000
-
-    upstream commit
-    
-    clear session keys from memory; ok djm@
-    
-    Upstream-ID: ecd178819868975affd5fd6637458b7c712b6a0f
-
-commit 92e9fe633130376a95dd533df6e5e6a578c1e6b8
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Wed May 31 07:00:13 2017 +0000
-
-    upstream commit
-    
-    remove now obsolete ctx from ssh_dispatch_run; ok djm@
-    
-    Upstream-ID: 9870aabf7f4d71660c31fda91b942b19a8e68d29
-
-commit 17ad5b346043c5bbc5befa864d0dbeb76be39390
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Wed May 31 05:34:14 2017 +0000
-
-    upstream commit
-    
-    use the ssh_dispatch_run_fatal variant
-    
-    Upstream-ID: 28c5b364e37c755d1b22652b8cd6735a05c625d8
-
-commit 39896b777320a6574dd06707aebac5fb98e666da
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Wed May 31 05:08:46 2017 +0000
-
-    upstream commit
-    
-    another ctx => ssh conversion (in GSSAPI code)
-    
-    Upstream-ID: 4d6574c3948075c60608d8e045af42fe5b5d8ae0
-
-commit 6116bd4ed354a71a733c8fd0f0467ce612f12911
-Author: Damien Miller <djm@mindrot.org>
-Date:   Wed May 31 14:56:07 2017 +1000
-
-    fix conversion of kexc25519s.c to struct ssh too
-    
-    git cvsimport missed this commit for some reason
-
-commit d40dbdc85b6fb2fd78485ba02225511b8cbf20d7
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Wed May 31 04:29:44 2017 +0000
-
-    upstream commit
-    
-    spell out that custom options/extensions should follow the
-    usual SSH naming rules, e.g. "extension@example.com"
-    
-    Upstream-ID: ab326666d2fad40769ec96b5a6de4015ffd97b8d
-
-commit 2a108277f976e8d0955c8b29d1dfde04dcbb3d5b
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Wed May 31 04:17:12 2017 +0000
-
-    upstream commit
-    
-    one more void *ctx => struct ssh *ssh conversion
-    
-    Upstream-ID: d299d043471c10214cf52c03daa10f1c232759e2
-
-commit c04e979503e97f52b750d3b98caa6fe004ab2ab9
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Wed May 31 00:43:04 2017 +0000
-
-    upstream commit
-    
-    fix possible OOB strlen() in SOCKS4A hostname parsing;
-    ok markus@
-    
-    Upstream-ID: c67297cbeb0e5a19d81752aa18ec44d31270cd11
-
-commit a3bb250c93bfe556838c46ed965066afce61cffa
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Tue May 30 19:38:17 2017 +0000
-
-    upstream commit
-    
-    tweak previous;
-    
-    Upstream-ID: 66987651046c42d142f7318c9695fb81a6d14031
-
-commit 1112b534a6a7a07190e497e6bf86b0d5c5fb02dc
-Author: bluhm@openbsd.org <bluhm@openbsd.org>
-Date:   Tue May 30 18:58:37 2017 +0000
-
-    upstream commit
-    
-    Add RemoteCommand option to specify a command in the
-    ssh config file instead of giving it on the client's command line.  This
-    command will be executed on the remote host.  The feature allows to automate
-    tasks using ssh config. OK markus@
-    
-    Upstream-ID: 5d982fc17adea373a9c68cae1021ce0a0904a5ee
-
-commit eb272ea4099fd6157846f15c129ac5727933aa69
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Tue May 30 14:29:59 2017 +0000
-
-    upstream commit
-    
-    switch auth2 to ssh_dispatch API; ok djm@
-    
-    Upstream-ID: a752ca19e2782900dd83060b5c6344008106215f
-
-commit 5a146bbd4fdf5c571f9fb438e5210d28cead76d9
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Tue May 30 14:27:22 2017 +0000
-
-    upstream commit
-    
-    switch auth2-none.c to modern APIs; ok djm@
-    
-    Upstream-ID: 07252b58e064d332214bcabbeae8e08c44b2001b
-
-commit 60306b2d2f029f91927c6aa7c8e08068519a0fa2
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Tue May 30 14:26:49 2017 +0000
-
-    upstream commit
-    
-    switch auth2-passwd.c to modern APIs; ok djm@
-    
-    Upstream-ID: cba0a8b72b4f97adfb7e3b3fd2f8ba3159981fc7
-
-commit eb76698b91338bd798c978d4db2d6af624d185e4
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Tue May 30 14:25:42 2017 +0000
-
-    upstream commit
-    
-    switch auth2-hostbased.c to modern APIs; ok djm@
-    
-    Upstream-ID: 146af25c36daeeb83d5dbbb8ca52b5d25de88f4e
-
-commit 2ae666a8fc20b3b871b2f1b90ad65cc027336ccd
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Tue May 30 14:23:52 2017 +0000
-
-    upstream commit
-    
-    protocol handlers all get struct ssh passed; ok djm@
-    
-    Upstream-ID: 0ca9ea2a5d01a6d2ded94c5024456a930c5bfb5d
-
-commit 94583beb24a6c5fd19cedb9104ab2d2d5cd052b6
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Tue May 30 14:19:15 2017 +0000
-
-    upstream commit
-    
-    ssh: pass struct ssh to auth functions, too; ok djm@
-    
-    Upstream-ID: d13c509cc782f8f19728fbea47ac7cf36f6e85dd
-
-commit 5f4082d886c6173b9e90b9768c9a38a3bfd92c2b
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Tue May 30 14:18:15 2017 +0000
-
-    upstream commit
-    
-    sshd: pass struct ssh to auth functions; ok djm@
-    
-    Upstream-ID: b00a80c3460884ebcdd14ef550154c761aebe488
-
-commit 7da5df11ac788bc1133d8d598d298e33500524cc
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Tue May 30 14:16:41 2017 +0000
-
-    upstream commit
-    
-    remove unused wrapper functions from key.[ch]; ok djm@
-    
-    Upstream-ID: ea0f4016666a6817fc11f439dd4be06bab69707e
-
-commit ff7371afd08ac0bbd957d90451d4dcd0da087ef5
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Tue May 30 14:15:17 2017 +0000
-
-    upstream commit
-    
-    sshkey_new() might return NULL (pkcs#11 code only); ok
-    djm@
-    
-    Upstream-ID: de9f2ad4a42c0b430caaa7d08dea7bac943075dd
-
-commit beb965bbc5a984fa69fb1e2b45ebe766ae09d1ef
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Tue May 30 14:13:40 2017 +0000
-
-    upstream commit
-    
-    switch sshconnect.c to modern APIs; ok djm@
-    
-    Upstream-ID: 27be17f84b950d5e139b7a9b281aa487187945ad
-
-commit 00ed75c92d1f95fe50032835106c368fa22f0f02
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Tue May 30 14:10:53 2017 +0000
-
-    upstream commit
-    
-    switch auth2-pubkey.c to modern APIs; with & ok djm@
-    
-    Upstream-ID: 8f08d4316eb1b0c4ffe4a206c05cdd45ed1daf07
-
-commit 54d90ace1d3535b44d92a8611952dc109a74a031
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Tue May 30 08:52:19 2017 +0000
-
-    upstream commit
-    
-    switch from Key typedef with struct sshkey; ok djm@
-    
-    Upstream-ID: 3067d33e04efbe5131ce8f70668c47a58e5b7a1f
-
-commit c221219b1fbee47028dcaf66613f4f8d6b7640e9
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Tue May 30 08:49:58 2017 +0000
-
-    upstream commit
-    
-    remove ssh1 references; ok djm@
-    
-    Upstream-ID: fc23b7578e7b0a8daaec72946d7f5e58ffff5a3d
-
-commit afbfa68fa18081ef05a9cd294958509a5d3cda8b
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Tue May 30 08:49:32 2017 +0000
-
-    upstream commit
-    
-    revise sshkey_load_public(): remove ssh1 related
-    comments, remove extra open()/close() on keyfile, prevent leak of 'pub' if
-    'keyp' is NULL, replace strlcpy+cat with asprintf; ok djm@
-    
-    Upstream-ID: 6175e47cab5b4794dcd99c1175549a483ec673ca
-
-commit 813f55336a24fdfc45e7ed655fccc7d792e8f859
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Fri May 26 20:34:49 2017 +0000
-
-    upstream commit
-    
-    sshbuf_consume: reset empty buffer; ok djm@
-    
-    Upstream-ID: 0d4583ba57f69e369d38bbd7843d85cac37fa821
-
-commit 6cf711752cc2a7ffaad1fb4de18cae65715ed8bb
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Fri May 26 19:35:50 2017 +0000
-
-    upstream commit
-    
-    remove SSH_CHANNEL_XXX_DRAINING (ssh1 only); ok djm@
-    
-    Upstream-ID: e2e225b6ac67b84dd024f38819afff2554fafe42
-
-commit 364f0d5edea27767fb0f915ea7fc61aded88d3e8
-Author: markus@openbsd.org <markus@openbsd.org>
-Date:   Fri May 26 19:34:12 2017 +0000
-
-    upstream commit
-    
-    remove channel_input_close_confirmation (ssh1 only); ok
-    djm@
-    
-    Upstream-ID: 8e7c8c38f322d255bb0294a5c0ebef53fdf576f1
-
-commit 8ba0fd40082751dbbc23a830433488bbfb1abdca
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri May 26 01:40:07 2017 +0000
-
-    upstream commit
-    
-    fix references to obsolete v00 cert format; spotted by
-    Jakub Jelen
-    
-    Upstream-ID: 7600ce193ab8fd19451acfe24fc2eb39d46b2c4f
-
-commit dcc714c65cfb81eb6903095b4590719e8690f3da
-Author: Mike Frysinger <vapier@chromium.org>
-Date:   Wed May 24 23:21:19 2017 -0400
-
-    configure: actually set cache vars when cross-compiling
-    
-    The cross-compiling fallback message says it's assuming the test
-    passed, but it didn't actually set the cache var which causes
-    later tests to fail.
-
-commit 947a3e829a5b8832a4768fd764283709a4ca7955
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat May 20 02:35:47 2017 +0000
-
-    upstream commit
-    
-    there's no reason to artificially limit the key path
-    here, just check that it fits PATH_MAX; spotted by Matthew Patton
-    
-    Upstream-ID: 858addaf2009c9cf04d80164a41b2088edb30b58
-
-commit 773224802d7cb250bb8b461546fcce10567b4b2e
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri May 19 21:07:17 2017 +0000
-
-    upstream commit
-    
-    Now that we no longer support SSHv1, replace the contents
-    of this file with a pointer to
-    https://tools.ietf.org/html/draft-miller-ssh-agent-00 It's better edited,
-    doesn't need to document stuff we no longer implement and does document stuff
-    that we do implement (RSA SHA256/512 signature flags)
-    
-    Upstream-ID: da8cdc46bbcc266efabd565ddddd0d8e556f846e
-
-commit 54cd41a4663fad66406dd3c8fe0e4760ccd8a899
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Wed May 17 01:24:17 2017 +0000
-
-    upstream commit
-    
-    allow LogLevel in sshd_config Match blocks; ok dtucker
-    bz#2717
-    
-    Upstream-ID: 662e303be63148f47db1aa78ab81c5c2e732baa8
-
-commit 277abcda3f1b08d2376686f0ef20320160d4c8ab
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Tue May 16 16:56:15 2017 +0000
-
-    upstream commit
-    
-    remove duplicate check; spotted by Jakub Jelen
-    
-    Upstream-ID: 30c2996c1767616a8fdc49d4cee088efac69c3b0
-
-commit adb47ce839c977fa197e770c1be8f852508d65aa
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Tue May 16 16:54:05 2017 +0000
-
-    upstream commit
-    
-    mention that Ed25519 keys are valid as CA keys; spotted
-    by Jakub Jelen
-    
-    Upstream-ID: d3f6db58b30418cb1c3058211b893a1ffed3dfd4
-
-commit 6bdf70f01e700348bb4d8c064c31a0ab90896df6
-Author: Damien Miller <djm@mindrot.org>
-Date:   Tue May 9 14:35:03 2017 +1000
-
-    clean up regress files and add a .gitignore
-
-commit 7bdb2eeb1d3c26acdc409bd94532eefa252e440b
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Mon May 8 22:57:38 2017 +0000
-
-    upstream commit
-    
-    remove hmac-ripemd160; ok dtucker
-    
-    Upstream-ID: 896e737ea0bad6e23327d1c127e02d5e9e9c654d
-
-commit 5f02bb1f99f70bb422be8a5c2b77ef853f1db554
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Mon May 8 06:11:06 2017 +0000
-
-    upstream commit
-    
-    make requesting bad ECDSA bits yield the same error
-    (SSH_ERR_KEY_LENGTH) as the same mistake for RSA/DSA
-    
-    Upstream-ID: bf40d3fee567c271e33f05ef8e4e0fa0b6f0ece6
-
-commit d757a4b633e8874629a1442c7c2e7b1b55d28c19
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Mon May 8 06:08:42 2017 +0000
-
-    upstream commit
-    
-    fix for new SSH_ERR_KEY_LENGTH error value
-    
-    Upstream-Regress-ID: c38a6e6174d4c3feca3518df150d4fbae0dca8dc
-
-commit 2e58a69508ac49c02d1bb6057300fa6a76db1045
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Mon May 8 06:03:39 2017 +0000
-
-    upstream commit
-    
-    helps if I commit the correct version of the file. fix
-    missing return statement.
-    
-    Upstream-ID: c86394a3beeb1ec6611e659bfa830254f325546c
-
-commit effaf526bfa57c0ac9056ca236becf52385ce8af
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Mon May 8 01:52:49 2017 +0000
-
-    upstream commit
-    
-    remove arcfour, blowfish and CAST here too
-    
-    Upstream-Regress-ID: c613b3bcbef75df1fe84ca4dc2d3ef253dc5e920
-
-commit 7461a5bc571696273252df28a1f1578968cae506
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Mon May 8 00:21:36 2017 +0000
-
-    upstream commit
-    
-    I was too aggressive with the scalpel in the last commit;
-    unbreak sshd, spotted quickly by naddy@
-    
-    Upstream-ID: fb7e75d2b2c7e6ca57dee00ca645e322dd49adbf
-
-commit bd636f40911094a39c2920bf87d2ec340533c152
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun May 7 23:15:59 2017 +0000
-
-    upstream commit
-    
-    Refuse RSA keys <1024 bits in length. Improve reporting
-    for keys that do not meet this requirement. ok markus@
-    
-    Upstream-ID: b385e2a7b13b1484792ee681daaf79e1e203df6c
-
-commit 70c1218fc45757a030285051eb4d209403f54785
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun May 7 23:13:42 2017 +0000
-
-    upstream commit
-    
-    Don't offer CBC ciphers by default in the client. ok
-    markus@
-    
-    Upstream-ID: 94c9ce8d0d1a085052e11c7f3307950fdc0901ef
-
-commit acaf34fd823235d549c633c0146ee03ac5956e82
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun May 7 23:12:57 2017 +0000
-
-    upstream commit
-    
-    As promised in last release announcement: remove
-    support for Blowfish, RC4 and CAST ciphers. ok markus@ deraadt@
-    
-    Upstream-ID: 21f8facdba3fd8da248df6417000867cec6ba222
-
-commit 3e371bd2124427403971db853fb2e36ce789b6fd
-Author: naddy@openbsd.org <naddy@openbsd.org>
-Date:   Fri May 5 10:42:49 2017 +0000
-
-    upstream commit
-    
-    more simplification and removal of SSHv1-related code;
-    ok djm@
-    
-    Upstream-ID: d2f041aa0b79c0ebd98c68a01e5a0bfab2cf3b55
-
-commit 2e9c324b3a7f15c092d118c2ac9490939f6228fd
-Author: naddy@openbsd.org <naddy@openbsd.org>
-Date:   Fri May 5 10:41:58 2017 +0000
-
-    upstream commit
-    
-    remove superfluous protocol 2 mentions; ok jmc@
-    
-    Upstream-ID: 0aaf7567c9f2e50fac5906b6a500a39c33c4664d
-
-commit 744bde79c3361e2153cb395a2ecdcee6c713585d
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Thu May 4 06:10:57 2017 +0000
-
-    upstream commit
-    
-    since a couple of people have asked, leave a comment
-    explaining why we retain SSH v.1 support in the "delete all keys from agent"
-    path.
-    
-    Upstream-ID: 4b42dcfa339813c15fe9248a2c1b7ed41c21bbb4
-
-commit 0c378ff6d98d80bc465a4a6a787670fb9cc701ee
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Thu May 4 01:33:21 2017 +0000
-
-    upstream commit
-    
-    another tentacle: cipher_set_key_string() was only ever
-    used for SSHv1
-    
-    Upstream-ID: 7fd31eb6c48946f7e7cc12af0699fe8eb637e94a
-
-commit 9a82e24b986e3e0dc70849dbb2c19aa6c707b37f
-Author: naddy@openbsd.org <naddy@openbsd.org>
-Date:   Wed May 3 21:49:18 2017 +0000
-
-    upstream commit
-    
-    restore mistakenly deleted description of the
-    ConnectionAttempts option ok markus@
-    
-    Upstream-ID: 943002b1b7c470caea3253ba7b7348c359de0348
-
-commit 768405fddf64ff83aa6ef701ebb3c1f82d98a2f3
-Author: naddy@openbsd.org <naddy@openbsd.org>
-Date:   Wed May 3 21:08:09 2017 +0000
-
-    upstream commit
-    
-    remove miscellaneous SSH1 leftovers; ok markus@
-    
-    Upstream-ID: af23696022ae4d45a1abc2fb8b490d8d9dd63b7c
-
-commit 1a1b24f8229bf7a21f89df21987433283265527a
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Wed May 3 10:01:44 2017 +0000
-
-    upstream commit
-    
-    more protocol 1 bits removed; ok djm
-    
-    Upstream-ID: b5b977eaf756915acb56aef3604a650e27f7c2b9
-
-commit 2b6f799e9b230cf13a7eefc05ecead7d8569d6b5
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Wed May 3 06:32:02 2017 +0000
-
-    upstream commit
-    
-    more protocol 1 stuff to go; ok djm
-    
-    Upstream-ID: 307a30441d2edda480fd1661d998d36665671e47
-
-commit f10c0d32cde2084d2a0b19bc47d80cb93e85a093
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Tue May 2 17:04:09 2017 +0000
-
-    upstream commit
-    
-    rsa1 is no longer valid;
-    
-    Upstream-ID: 9953d09ed9841c44b7dcf7019fa874783a709d89
-
-commit 42b690b4fd0faef78c4d68225948b6e5c46c5163
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Tue May 2 14:06:37 2017 +0000
-
-    upstream commit
-    
-    add PubKeyAcceptedKeyTypes to the -o list: scp(1) has
-    it, so i guess this should too;
-    
-    Upstream-ID: 7fab32e869ca5831d09ab0c40d210b461d527a2c
-
-commit d852603214defd93e054de2877b20cc79c19d0c6
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Tue May 2 13:44:51 2017 +0000
-
-    upstream commit
-    
-    remove now obsolete protocol1 options from the -o
-    lists;
-    
-    Upstream-ID: 828e478a440bc5f9947672c392420510a362b3dd
-
-commit 8b60ce8d8111e604c711c4cdd9579ffe0edced74
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Tue May 2 09:05:58 2017 +0000
-
-    upstream commit
-    
-    more -O shuffle; ok djm
-    
-    Upstream-ID: c239991a3a025cdbb030b73e990188dd9bfbeceb
-
-commit 3575f0b12afe6b561681582fd3c34067d1196231
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Tue May 2 08:54:19 2017 +0000
-
-    upstream commit
-    
-    remove -1 / -2 options; pointed out by jmc@
-    
-    Upstream-ID: 65d2a816000741a95df1c7cfdb5fa8469fcc7daa
-
-commit 4f1ca823bad12e4f9614895eefe0d0073b84a28f
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Tue May 2 08:06:33 2017 +0000
-
-    upstream commit
-    
-    remove options -12 from usage();
-    
-    Upstream-ID: db7ceef25132e63b50ed05289bf447fece1d1270
-
-commit 6b84897f7fd39956b849eac7810319d8a9958568
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Tue May 2 07:13:31 2017 +0000
-
-    upstream commit
-    
-    tidy up -O somewhat; ok djm
-    
-    Upstream-ID: 804405f716bf7ef15c1f36ab48581ca16aeb4d52
-
-commit d1c6b7fdbdfe4a7a37ecd48a97f0796b061c2868
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Mon May 1 22:09:48 2017 +0000
-
-    upstream commit
-    
-    when freeing a bitmap, zero all it bytes; spotted by Ilya
-    Kaliman
-    
-    Upstream-ID: 834ac024f2c82389d6ea6b1c7d6701b3836e28e4
-
-commit 0f163983016c2988a92e039d18a7569f9ea8e071
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Mon May 1 14:08:26 2017 +0000
-
-    upstream commit
-    
-    this one I did forget to "cvs rm"
-    
-    Upstream-ID: 5781670c0578fe89663c9085ed3ba477cf7e7913
-
-commit 21ed00a8e26fe8a772bcca782175fafc2b0890ed
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Mon May 1 09:27:45 2017 +0000
-
-    upstream commit
-    
-    don't know why cvs didn't exterminate these the first
-    time around, I use rm -f and everuthing...
-    
-    pointed out by sobrado@
-    
-    Upstream-ID: a6c44a0c2885330d322ee01fcfd7f6f209b1e15d
-
-commit d29ba6f45086703fdcb894532848ada3427dfde6
-Author: Darren Tucker <dtucker@zip.com.au>
-Date:   Mon May 1 13:53:07 2017 +1000
-
-    Define INT32_MAX and INT64_MAX if needed.
-
-commit 329037e389f02ec95c8e16bf93ffede94d3d44ce
-Author: Darren Tucker <dtucker@zip.com.au>
-Date:   Mon May 1 13:19:41 2017 +1000
-
-    Wrap stdint.h in HAVE_STDINT_H
-
-commit f382362e8dfb6b277f16779ab1936399d7f2af78
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Mon May 1 02:27:11 2017 +0000
-
-    upstream commit
-    
-    remove unused variable
-    
-    Upstream-ID: 66011f00819d0e71b14700449a98414033284516
-
-commit dd369320d2435b630a5974ab270d686dcd92d024
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:34:55 2017 +0000
-
-    upstream commit
-    
-    eliminate explicit specification of protocol in tests and
-    loops over protocol. We only support SSHv2 now.
-    
-    Upstream-Regress-ID: 0082838a9b8a382b7ee9cbf0c1b9db727784fadd
-
-commit 557f921aad004be15805e09fd9572969eb3d9321
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:33:48 2017 +0000
-
-    upstream commit
-    
-    remove SSHv1 support from unit tests
-    
-    Upstream-Regress-ID: 395ca2aa48f1f7d23eefff6cb849ea733ca8bbfe
-
-commit e77e1562716fb3da413e4c2397811017b762f5e3
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Mon May 1 00:03:18 2017 +0000
-
-    upstream commit
-    
-    fixup setting ciphercontext->plaintext (lost in SSHv1 purge),
-    though it isn't really used for much anymore.
-    
-    Upstream-ID: 859b8bce84ff4865b32097db5430349d04b9b747
-
-commit f7849e6c83a4e0f602dea6c834a24091c622d68e
-Author: Damien Miller <djm@mindrot.org>
-Date:   Mon May 1 09:55:56 2017 +1000
-
-    remove configure --with-ssh1
-
-commit f4a6a88ddb6dba6d2f7bfb9e2c9879fcc9633043
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:29:10 2017 +0000
-
-    upstream commit
-    
-    flense SSHv1 support from ssh-agent, considerably
-    simplifying it
-    
-    ok markus
-    
-    Upstream-ID: 71d772cdcefcb29f76e01252e8361e6fc2dfc365
-
-commit 930e8d2827853bc2e196c20c3e000263cc87fb75
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:28:41 2017 +0000
-
-    upstream commit
-    
-    obliterate ssh1.h and some dead code that used it
-    
-    ok markus@
-    
-    Upstream-ID: 1ca9159a9fb95618f9d51e069ac8e1131a087343
-
-commit a3710d5d529a34b8f56aa62db798c70e85d576a0
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:28:12 2017 +0000
-
-    upstream commit
-    
-    exterminate the -1 flag from scp
-    
-    ok markus@
-    
-    Upstream-ID: 26d247f7065da15056b209cef5f594ff591b89db
-
-commit aebd0abfaa8a41e75d50f9f7934267b0a2d9acb4
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:26:54 2017 +0000
-
-    upstream commit
-    
-    purge the last traces of SSHv1 from the TTY modes
-    handling code
-    
-    ok markus
-    
-    Upstream-ID: 963a19f1e06577377c38a3b7ce468f121b966195
-
-commit dfa641f758d4b8b2608ab1b00abaf88df0a8e36a
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:26:16 2017 +0000
-
-    upstream commit
-    
-    remove the (in)famous SSHv1 CRC compensation attack
-    detector.
-    
-    Despite your cameo in The Matrix movies, you will not be missed.
-    
-    ok markus
-    
-    Upstream-ID: 44261fce51a56d93cdb2af7b6e184be629f667e0
-
-commit e5d3bd36ef67d82092861f39b5bf422cb12b31a6
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:25:03 2017 +0000
-
-    upstream commit
-    
-    undo some local debugging stuff that I committed by
-    accident
-    
-    Upstream-ID: fe5b31f69a60d47171836911f144acff77810217
-
-commit 3d6d09f2e90f4ad650ebda6520bf2da446f37f14
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:23:54 2017 +0000
-
-    upstream commit
-    
-    remove SSHv1 support from packet and buffer APIs
-    
-    ok markus@
-    
-    Upstream-ID: bfc290053d40b806ecac46317d300677d80e1dc9
-
-commit 05164358577c82de18ed7373196bc7dbd8a3f79c
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:21:54 2017 +0000
-
-    upstream commit
-    
-    remove SSHv1-related buffers from client code
-    
-    Upstream-ID: dca5d01108f891861ceaf7ba1c0f2eb274e0c7dd
-
-commit 873d3e7d9a4707d0934fb4c4299354418f91b541
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:18:44 2017 +0000
-
-    upstream commit
-    
-    remove KEY_RSA1
-    
-    ok markus@
-    
-    Upstream-ID: 7408517b077c892a86b581e19f82a163069bf133
-
-commit 788ac799a6efa40517f2ac0d895a610394298ffc
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:18:22 2017 +0000
-
-    upstream commit
-    
-    remove SSHv1 configuration options and man pages bits
-    
-    ok markus@
-    
-    Upstream-ID: 84638c23546c056727b7a7d653c72574e0f19424
-
-commit e6882463a8ae0594aacb6d6575a6318a41973d84
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:17:37 2017 +0000
-
-    upstream commit
-    
-    remove SSH1 make flag and associated files ok markus@
-    
-    Upstream-ID: ba9feacc5787337c413db7cf26ea3d53f854cfef
-
-commit cdccebdf85204bf7542b7fcc1aa2ea3f36661833
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:15:04 2017 +0000
-
-    upstream commit
-    
-    remove SSHv1 ciphers; ok markus@
-    
-    Upstream-ID: e5ebc5e540d7f23a8c1266db1839794d4d177890
-
-commit 97f4d3083b036ce3e68d6346a6140a22123d5864
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:13:25 2017 +0000
-
-    upstream commit
-    
-    remove compat20/compat13/compat15 variables
-    
-    ok markus@
-    
-    Upstream-ID: 43802c035ceb3fef6c50c400e4ecabf12354691c
-
-commit 99f95ba82673d33215dce17bfa1512b57f54ec09
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:11:45 2017 +0000
-
-    upstream commit
-    
-    remove options.protocol and client Protocol
-    configuration knob
-    
-    ok markus@
-    
-    Upstream-ID: 5a967f5d06e2d004b0235457b6de3a9a314e9366
-
-commit 56912dea6ef63dae4eb1194e5d88973a7c6c5740
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sun Apr 30 23:10:43 2017 +0000
-
-    upstream commit
-    
-    unifdef WITH_SSH1 ok markus@
-    
-    Upstream-ID: 9716e62a883ef8826c57f4d33b4a81a9cc7755c7
-
-commit d4084cd230f7319056559b00db8b99296dad49d5
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Sat Apr 29 06:06:01 2017 +0000
-
-    upstream commit
-    
-    tweak previous;
-    
-    Upstream-ID: a3abc6857455299aa42a046d232b7984568bceb9
-
-commit 249516e428e8461b46340a5df5d5ed1fbad2ccce
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Sat Apr 29 04:12:25 2017 +0000
-
-    upstream commit
-    
-    allow ssh-keygen to include arbitrary string or flag
-    certificate extensions and critical options. ok markus@ dtucker@
-    
-    Upstream-ID: 2cf28dd6c5489eb9fc136e0b667ac3ea10241646
-
-commit 47a287bb6ac936c26b4f3ae63279c02902ded3b9
-Author: jmc@openbsd.org <jmc@openbsd.org>
-Date:   Fri Apr 28 06:15:03 2017 +0000
-
-    upstream commit
-    
-    sort;
-    
-    Upstream-ID: 7e6b56e52b039cf44d0418e9de9aca20a2d2d15a
-
-commit 36465a76a79ad5040800711b41cf5f32249d5120
-Author: Darren Tucker <dtucker@zip.com.au>
-Date:   Fri Apr 28 14:44:28 2017 +1000
-
-    Typo.
-    
-    Upstream-Regress-ID: 1e6b51ddf767cbad0a4e63eb08026c127e654308
-
-commit 9d18cb7bdeb00b20205fd13d412aae8c0e0457ed
-Author: Darren Tucker <dtucker@zip.com.au>
-Date:   Fri Apr 28 14:41:17 2017 +1000
-
-    Add 2 regress commits I applied by hand.
-    
-    Upstream-Regress-ID: 30c20180c87cbc99fa1020489fe7fd8245b6420c
-    Upstream-Regress-ID: 1e6b51ddf767cbad0a4e63eb08026c127e654308
-
-commit 9504ea6b27f9f0ece64e88582ebb9235e664a100
-Author: Darren Tucker <dtucker@zip.com.au>
-Date:   Fri Apr 28 14:33:43 2017 +1000
-
-    Merge integrity.sh rev 1.22.
-    
-    Merge missing bits from Colin Watson's patch in bz#2658 which make integrity
-    tests more robust against timeouts.  ok djm@
-
-commit 06ec837a34542627e2183a412d6a9d2236f22140
-Author: Darren Tucker <dtucker@zip.com.au>
-Date:   Fri Apr 28 14:30:03 2017 +1000
-
-    Id sync for integrity.sh rev 1.21 which pulls in some shell portability fixes
-
-commit e0194b471efe7d3daedc9cc66686cb1ab69d3be8
-Author: jsg@openbsd.org <jsg@openbsd.org>
-Date:   Mon Apr 17 11:02:31 2017 +0000
-
-    upstream commit
-    
-    Change COMPILER_VERSION tests which limited additional
-    warnings to gcc4 to instead skip them on gcc3 as clang can handle
-    -Wpointer-sign and -Wold-style-definition.
-    
-    Upstream-Regress-ID: e48d7dc13e48d9334b8195ef884dfbc51316012f
-
-commit 6830be90e71f46bcd182a9202b151eaf2b299434
-Author: djm@openbsd.org <djm@openbsd.org>
-Date:   Fri Apr 28 03:24:53 2017 +0000
-
-    upstream commit
-    
-    include key fingerprint in "Offering public key" debug
-    message
-    
-    Upstream-ID: 964749f820c2ed4cf6a866268b1a05e907315c52
-
-commit 066437187e16dcafcbc19f9402ef0e6575899b1d
-Author: millert@openbsd.org <millert@openbsd.org>
-Date:   Fri Apr 28 03:21:12 2017 +0000
-
-    upstream commit
-    
-    Avoid relying on implementation-specific behavior when
-    detecting whether the timestamp or file size overflowed.  If time_t and off_t
-    are not either 32-bit or 64-bit scp will exit with an error. OK djm@
-    
-    Upstream-ID: f31caae73ddab6df496b7bbbf7da431e267ad135
-
-commit 68d3a2a059183ebd83b15e54984ffaced04d2742
-Author: dtucker@openbsd.org <dtucker@openbsd.org>
-Date:   Fri Apr 28 03:20:27 2017 +0000
-
-    upstream commit
-    
-    Add SyslogFacility option to ssh(1) matching the
-    equivalent option in sshd(8).  bz#2705, patch from erahn at arista.com, ok
-    djm@
-    
-    Upstream-ID: d5115c2c0193ceb056ed857813b2a7222abda9ed
-
-commit e13aad66e73a14b062d13aee4e98f1e21a3f6a14
-Author: jsg@openbsd.org <jsg@openbsd.org>
-Date:   Thu Apr 27 13:40:05 2017 +0000
-
-    upstream commit
-    
-    remove a static array unused since rev 1.306 spotted by
-    clang ok djm@
-    
-    Upstream-ID: 249b3eed2446f6074ba2219ccc46919dd235a7b8
-
-commit 91bd2181866659f00714903e78e1c3edd4c45f3d
-Author: millert@openbsd.org <millert@openbsd.org>
-Date:   Thu Apr 27 11:53:12 2017 +0000
-
-    upstream commit
-    
-    Avoid potential signed int overflow when parsing the file
-    size. Use strtoul() instead of parsing manually.  OK djm@
-    
-    Upstream-ID: 1f82640861c7d905bbb05e7d935d46b0419ced02
-
-commit 17a54a03f5a1d35e33cc24e22cd7a9d0f6865dc4
-Author: Darren Tucker <dtucker@zip.com.au>
-Date:   Tue Apr 25 08:32:27 2017 +1000
-
-    Fix typo in "socketcall".
-    
-    Pointed out by jjelen at redhat.com.
-
-commit 8b0eee148f7cf8b248c30d1bae57300f2cc5aafd
-Author: Darren Tucker <dtucker@zip.com.au>
-Date:   Mon Apr 24 19:40:31 2017 +1000
-
-    Deny socketcall in seccomp filter on ppc64le.
-    
-    OpenSSL is using socket() calls (in FIPS mode) when handling ECDSA keys
-    in privsep child. The socket() syscall is already denied in the seccomp
-    filter, but in ppc64le kernel, it is implemented using socketcall()
-    syscall, which is not denied yet (only SYS_SHUTDOWN is allowed) and
-    therefore fails hard.
-    
-    Patch from jjelen at redhat.com.
-
-commit f8500b2be599053daa05248a86a743232ec6a536
-Author: schwarze@openbsd.org <schwarze@openbsd.org>
-Date:   Mon Apr 17 14:31:23 2017 +0000
-
-    upstream commit
-    
-    Recognize nl_langinfo(CODESET) return values "646" and ""
-    as aliases for "US-ASCII", useful for different versions of NetBSD and
-    Solaris. Found by dtucker@ and by Tom G. Christensen <tgc at jupiterrise dot
-    com>. OK dtucker@ deraadt@
-    
-    Upstream-ID: 38c2133817cbcae75c88c63599ac54228f0fa384
-
-commit 7480dfedf8c5c93baaabef444b3def9331e86ad5
-Author: jsg@openbsd.org <jsg@openbsd.org>
-Date:   Mon Apr 17 11:02:31 2017 +0000
-
-    upstream commit
-    
-    Change COMPILER_VERSION tests which limited additional
-    warnings to gcc4 to instead skip them on gcc3 as clang can handle
-    -Wpointer-sign and -Wold-style-definition.
-    
-    Upstream-ID: 5cbe348aa76dc1adf55be6c0e388fafaa945439a

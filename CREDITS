@@ -33,7 +33,7 @@ David Agraz <dagraz@jahoopa.com> - Build fixes
 David Del Piero <David.DelPiero@qed.qld.gov.au> - bug fixes
 David Hesprich <darkgrue@gue-tech.org> - Configure fixes
 David Rankin <drankin@bohemians.lexington.ky.us> - libwrap, AIX, NetBSD fixes
-Dag-Erling Smørgrav <des at freebsd.org> - Challenge-Response PAM code.
+Dag-Erling SmÃ¸rgrav <des at freebsd.org> - Challenge-Response PAM code.
 Dhiraj Gulati <dgulati@sco.com> - UnixWare long passwords
 Ed Eden <ede370@stl.rural.usda.gov> - configure fixes
 Garrick James <garrick@james.net> - configure fixes

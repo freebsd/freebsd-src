@@ -1,4 +1,4 @@
-#	$OpenBSD: agent.sh,v 1.14 2019/01/28 00:12:36 dtucker Exp $
+#	$OpenBSD: agent.sh,v 1.15 2019/07/23 07:39:43 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="simple agent test"
@@ -26,9 +26,6 @@ ${SSHKEYGEN} -q -N '' -t ed25519 -f $OBJ/user_ca_key \
 
 trace "overwrite authorized keys"
 printf '' > $OBJ/authorized_keys_$USER
-
-echo "PubkeyAcceptedKeyTypes +ssh-dss" >> $OBJ/ssh_proxy
-echo "PubkeyAcceptedKeyTypes +ssh-dss" >> $OBJ/sshd_proxy
 
 for t in ${SSH_KEYTYPES}; do
 	# generate user key for agent
@@ -75,6 +72,10 @@ fi
 
 for t in ${SSH_KEYTYPES}; do
 	trace "connect via agent using $t key"
+	if [ "$t" = "ssh-dss" ]; then
+		echo "PubkeyAcceptedKeyTypes +ssh-dss" >> $OBJ/ssh_proxy
+		echo "PubkeyAcceptedKeyTypes +ssh-dss" >> $OBJ/sshd_proxy
+	fi
 	${SSH} -F $OBJ/ssh_proxy -i $OBJ/$t-agent.pub -oIdentitiesOnly=yes \
 		somehost exit 52
 	r=$?

@@ -137,7 +137,7 @@ DESCRIPTION
                    HostbasedKeyTypes
                    HostKeyAlgorithms
                    HostKeyAlias
-                   HostName
+                   Hostname
                    IdentitiesOnly
                    IdentityAgent
                    IdentityFile
@@ -238,7 +238,7 @@ INTERACTIVE COMMANDS
 
      exit    Quit sftp.
 
-     get [-afPpr] remote-path [local-path]
+     get [-afpR] remote-path [local-path]
              Retrieve the remote-path and store it on the local machine.  If
              the local path name is not specified, it is given the same name
              it has on the remote machine.  remote-path may contain glob(7)
@@ -255,10 +255,10 @@ INTERACTIVE COMMANDS
              If the -f flag is specified, then fsync(2) will be called after
              the file transfer has completed to flush the file to disk.
 
-             If either the -P or -p flag is specified, then full file
-             permissions and access times are copied too.
+             If the -p flag is specified, then full file permissions and
+             access times are copied too.
 
-             If the -r flag is specified then directories will be copied
+             If the -R flag is specified then directories will be copied
              recursively.  Note that sftp does not follow symbolic links when
              performing recursive transfers.
 
@@ -326,7 +326,7 @@ INTERACTIVE COMMANDS
      progress
              Toggle display of progress meter.
 
-     put [-afPpr] local-path [remote-path]
+     put [-afpR] local-path [remote-path]
              Upload local-path and store it on the remote machine.  If the
              remote path name is not specified, it is given the same name it
              has on the local machine.  local-path may contain glob(7)
@@ -345,10 +345,10 @@ INTERACTIVE COMMANDS
              Note that this is only supported by servers that implement the
              "fsync@openssh.com" extension.
 
-             If either the -P or -p flag is specified, then full file
-             permissions and access times are copied too.
+             If the -p flag is specified, then full file permissions and
+             access times are copied too.
 
-             If the -r flag is specified then directories will be copied
+             If the -R flag is specified then directories will be copied
              recursively.  Note that sftp does not follow symbolic links when
              performing recursive transfers.
 
@@ -356,13 +356,13 @@ INTERACTIVE COMMANDS
 
      quit    Quit sftp.
 
-     reget [-Ppr] remote-path [local-path]
+     reget [-fpR] remote-path [local-path]
              Resume download of remote-path.  Equivalent to get with the -a
              flag set.
 
-     reput [-Ppr] [local-path] remote-path
-             Resume upload of [local-path].  Equivalent to put with the -a
-             flag set.
+     reput [-fpR] local-path [remote-path]
+             Resume upload of local-path.  Equivalent to put with the -a flag
+             set.
 
      rename oldpath newpath
              Rename remote file from oldpath to newpath.
@@ -393,4 +393,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 6.5                    January 22, 2019                    OpenBSD 6.5
+OpenBSD 6.6                      June 19, 2019                     OpenBSD 6.6

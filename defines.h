@@ -96,6 +96,15 @@ enum
 #ifndef IPTOS_DSCP_EF
 # define	IPTOS_DSCP_EF		0xb8
 #endif /* IPTOS_DSCP_EF */
+#ifndef IPTOS_PREC_CRITIC_ECP
+# define IPTOS_PREC_CRITIC_ECP		0xa0
+#endif
+#ifndef IPTOS_PREC_INTERNETCONTROL
+# define IPTOS_PREC_INTERNETCONTROL	0xc0
+#endif
+#ifndef IPTOS_PREC_NETCONTROL
+# define IPTOS_PREC_NETCONTROL		0xe0
+#endif
 
 #ifndef PATH_MAX
 # ifdef _POSIX_PATH_MAX
@@ -108,10 +117,6 @@ enum
 #  define MAXPATHLEN PATH_MAX
 # else /* PATH_MAX */
 #  define MAXPATHLEN 64
-/* realpath uses a fixed buffer of size MAXPATHLEN, so force use of ours */
-#  ifndef BROKEN_REALPATH
-#   define BROKEN_REALPATH 1
-#  endif /* BROKEN_REALPATH */
 # endif /* PATH_MAX */
 #endif /* MAXPATHLEN */
 
@@ -834,9 +839,10 @@ struct winsize {
 /*
  * We want functions in openbsd-compat, if enabled, to override system ones.
  * We no-op out the weak symbol definition rather than remove it to reduce
- * future sync problems.
+ * future sync problems.  Some compilers (eg Unixware) do not allow an
+ * empty statement, so we use a bogus function declaration.
  */
-#define DEF_WEAK(x)
+#define DEF_WEAK(x)	void __ssh_compat_weak_##x(void)
 
 /*
  * Platforms that have arc4random_uniform() and not arc4random_stir()

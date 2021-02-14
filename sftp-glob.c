@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-glob.c,v 1.27 2015/01/14 13:54:13 djm Exp $ */
+/* $OpenBSD: sftp-glob.c,v 1.28 2019/10/02 00:42:30 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -25,7 +25,6 @@
 #include <dirent.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdlib.h>
 
 #include "xmalloc.h"
 #include "sftp.h"

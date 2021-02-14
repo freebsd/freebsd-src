@@ -1,4 +1,4 @@
-/* $OpenBSD: canohost.c,v 1.73 2016/03/07 19:02:43 djm Exp $ */
+/* $OpenBSD: canohost.c,v 1.74 2019/06/28 13:35:04 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -164,12 +164,12 @@ get_sock_port(int sock, int local)
 	fromlen = sizeof(from);
 	memset(&from, 0, sizeof(from));
 	if (local) {
-		if (getsockname(sock, (struct sockaddr *)&from, &fromlen) < 0) {
+		if (getsockname(sock, (struct sockaddr *)&from, &fromlen) == -1) {
 			error("getsockname failed: %.100s", strerror(errno));
 			return 0;
 		}
 	} else {
-		if (getpeername(sock, (struct sockaddr *)&from, &fromlen) < 0) {
+		if (getpeername(sock, (struct sockaddr *)&from, &fromlen) == -1) {
 			debug("getpeername failed: %.100s", strerror(errno));
 			return -1;
 		}

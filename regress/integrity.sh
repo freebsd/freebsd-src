@@ -14,8 +14,8 @@ macs="$macs `${SSH} -Q cipher-auth`"
 
 # avoid DH group exchange as the extra traffic makes it harder to get the
 # offset into the stream right.
-echo "KexAlgorithms diffie-hellman-group14-sha1,diffie-hellman-group1-sha1" \
-	>> $OBJ/ssh_proxy
+#echo "KexAlgorithms -diffie-hellman-group*" \
+#	>> $OBJ/ssh_proxy
 
 # sshd-command for proxy (see test-exec.sh)
 cmd="$SUDO sh ${SRC}/sshd-log-wrapper.sh ${TEST_SSHD_LOGFILE} ${SSHD} -i -f $OBJ/sshd_proxy"

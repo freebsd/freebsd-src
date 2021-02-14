@@ -73,24 +73,16 @@ int getpagesize(void);
 char *getcwd(char *pt, size_t size);
 #endif
 
+#ifdef HAVE_MEMMEM
+void *memmem(const void *, size_t, const void *, size_t);
+#endif
+
 #ifndef HAVE_REALLOCARRAY
 void *reallocarray(void *, size_t, size_t);
 #endif
 
 #ifndef HAVE_RECALLOCARRAY
 void *recallocarray(void *, size_t, size_t, size_t);
-#endif
-
-#if !defined(HAVE_REALPATH) || defined(BROKEN_REALPATH)
-/*
- * glibc's FORTIFY_SOURCE can redefine this and prevent us picking up the
- * compat version.
- */
-# ifdef BROKEN_REALPATH
-#  define realpath(x, y) _ssh_compat_realpath(x, y)
-# endif
-
-char *realpath(const char *path, char *resolved);
 #endif
 
 #ifndef HAVE_RRESVPORT_AF
@@ -107,6 +99,14 @@ size_t strlcat(char *dst, const char *src, size_t siz);
 
 #ifndef HAVE_STRCASESTR
 char *strcasestr(const char *, const char *);
+#endif
+
+#ifndef HAVE_STRNLEN
+size_t strnlen(const char *, size_t);
+#endif
+
+#ifndef HAVE_STRNDUP
+char *strndup(const char *s, size_t n);
 #endif
 
 #ifndef HAVE_SETENV

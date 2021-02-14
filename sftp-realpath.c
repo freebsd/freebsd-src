@@ -1,4 +1,4 @@
-/*	$OpenBSD: realpath.c,v 1.20 2015/10/13 20:55:37 millert Exp $ */
+/*	$OpenBSD: sftp-realpath.c,v 1.1 2019/07/05 04:55:40 djm Exp $ */
 /*
  * Copyright (c) 2003 Constantin S. Svintsoff <kostik@iclub.nsu.ru>
  *
@@ -27,11 +27,7 @@
  * SUCH DAMAGE.
  */
 
-/* OPENBSD ORIGINAL: lib/libc/stdlib/realpath.c */
-
 #include "includes.h"
-
-#if !defined(HAVE_REALPATH) || defined(BROKEN_REALPATH)
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -48,7 +44,9 @@
 # define SYMLOOP_MAX 32
 #endif
 
-/* A slightly modified copy of this file exists in libexec/ld.so */
+/* XXX rewrite sftp-server to use POSIX realpath and remove this hack */
+
+char *sftp_realpath(const char *path, char *resolved);
 
 /*
  * char *realpath(const char *path, char resolved[PATH_MAX]);
@@ -58,7 +56,7 @@
  * in which case the path which caused trouble is left in (resolved).
  */
 char *
-realpath(const char *path, char *resolved)
+sftp_realpath(const char *path, char *resolved)
 {
 	struct stat sb;
 	char *p, *q, *s;
@@ -226,4 +224,3 @@ err:
 		free(resolved);
 	return (NULL);
 }
-#endif /* !defined(HAVE_REALPATH) || defined(BROKEN_REALPATH) */

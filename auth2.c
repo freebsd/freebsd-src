@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.155 2019/03/25 22:34:52 djm Exp $ */
+/* $OpenBSD: auth2.c,v 1.157 2019/09/06 04:53:27 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -37,6 +37,7 @@
 #include <unistd.h>
 #include <time.h>
 
+#include "stdlib.h"
 #include "atomicio.h"
 #include "xmalloc.h"
 #include "ssh2.h"
@@ -51,14 +52,11 @@
 #include "auth.h"
 #include "dispatch.h"
 #include "pathnames.h"
-#include "sshbuf.h"
 #include "ssherr.h"
-
 #ifdef GSSAPI
 #include "ssh-gss.h"
 #endif
 #include "monitor_wrap.h"
-#include "ssherr.h"
 #include "digest.h"
 
 /* import */
@@ -717,7 +715,7 @@ auth2_record_info(Authctxt *authctxt, const char *fmt, ...)
 	i = vasprintf(&authctxt->auth_method_info, fmt, ap);
 	va_end(ap);
 
-	if (i < 0 || authctxt->auth_method_info == NULL)
+	if (i == -1)
 		fatal("%s: vasprintf failed", __func__);
 }
 

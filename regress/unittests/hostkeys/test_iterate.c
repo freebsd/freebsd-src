@@ -57,7 +57,7 @@ check(struct hostkey_foreach_line *l, void *_ctx)
 	int parse_key = (ctx->flags & HKF_WANT_PARSE_KEY) != 0;
 	const int matching = (ctx->flags & HKF_WANT_MATCH) != 0;
 	u_int expected_status, expected_match;
-	int expected_keytype;
+	int expected_keytype, skip = 0;
 
 	test_subtest_info("entry %zu/%zu, file line %ld",
 	    ctx->i + 1, ctx->nexpected, l->linenum);
@@ -92,13 +92,23 @@ check(struct hostkey_foreach_line *l, void *_ctx)
 
 #ifndef OPENSSL_HAS_ECC
 	if (expected->l.keytype == KEY_ECDSA ||
-	    expected->no_parse_keytype == KEY_ECDSA) {
+	    expected->no_parse_keytype == KEY_ECDSA)
+		skip = 1;
+#endif /* OPENSSL_HAS_ECC */
+#ifndef WITH_OPENSSL
+	if (expected->l.keytype == KEY_DSA ||
+	    expected->no_parse_keytype == KEY_DSA ||
+	    expected->l.keytype == KEY_RSA ||
+	    expected->no_parse_keytype == KEY_RSA ||
+	    expected->l.keytype == KEY_ECDSA ||
+	    expected->no_parse_keytype == KEY_ECDSA)
+		skip = 1;
+#endif /* WITH_OPENSSL */
+	if (skip) {
 		expected_status = HKF_STATUS_INVALID;
 		expected_keytype = KEY_UNSPEC;
 		parse_key = 0;
 	}
-#endif
-
 	UPDATE_MATCH_STATUS(match_host_p);
 	UPDATE_MATCH_STATUS(match_host_s);
 	UPDATE_MATCH_STATUS(match_ipv4);
@@ -145,7 +155,15 @@ prepare_expected(struct expected *expected, size_t n)
 #ifndef OPENSSL_HAS_ECC
 		if (expected[i].l.keytype == KEY_ECDSA)
 			continue;
-#endif
+#endif /* OPENSSL_HAS_ECC */
+#ifndef WITH_OPENSSL
+		switch (expected[i].l.keytype) {
+		case KEY_RSA:
+		case KEY_DSA:
+		case KEY_ECDSA:
+			continue;
+		}
+#endif /* WITH_OPENSSL */
 		ASSERT_INT_EQ(sshkey_load_public(
 		    test_data_file(expected[i].key_file), &expected[i].l.key,
 		    NULL), 0);

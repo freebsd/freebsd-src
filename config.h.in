@@ -45,9 +45,6 @@
    against it */
 #undef BROKEN_READ_COMPARISON
 
-/* realpath does not work with nonexistent files */
-#undef BROKEN_REALPATH
-
 /* Needed for NeXT */
 #undef BROKEN_SAVED_UIDS
 
@@ -519,6 +516,12 @@
 /* Define to 1 if you have the `EVP_sha256' function. */
 #undef HAVE_EVP_SHA256
 
+/* Define to 1 if you have the `EVP_sha384' function. */
+#undef HAVE_EVP_SHA384
+
+/* Define to 1 if you have the `EVP_sha512' function. */
+#undef HAVE_EVP_SHA512
+
 /* Define if you have ut_exit in utmp.h */
 #undef HAVE_EXIT_IN_UTMP
 
@@ -813,6 +816,9 @@
 /* Define to 1 if you have the `pam' library (-lpam). */
 #undef HAVE_LIBPAM
 
+/* Define to 1 if you have the <libproc.h> header file. */
+#undef HAVE_LIBPROC_H
+
 /* Define to 1 if you have the `socket' library (-lsocket). */
 #undef HAVE_LIBSOCKET
 
@@ -888,6 +894,9 @@
 
 /* Define if you want to allow MD5 passwords */
 #undef HAVE_MD5_PASSWORDS
+
+/* Define to 1 if you have the `memmem' function. */
+#undef HAVE_MEMMEM
 
 /* Define to 1 if you have the `memmove' function. */
 #undef HAVE_MEMMOVE
@@ -1001,6 +1010,9 @@
 /* Define if you have /proc/$pid/fd */
 #undef HAVE_PROC_PID
 
+/* Define to 1 if you have the `proc_pidinfo' function. */
+#undef HAVE_PROC_PIDINFO
+
 /* Define to 1 if you have the `pstat' function. */
 #undef HAVE_PSTAT
 
@@ -1028,9 +1040,6 @@
 
 /* Define to 1 if you have the `reallocarray' function. */
 #undef HAVE_REALLOCARRAY
-
-/* Define to 1 if you have the `realpath' function. */
-#undef HAVE_REALPATH
 
 /* Define to 1 if you have the `recallocarray' function. */
 #undef HAVE_RECALLOCARRAY
@@ -1191,11 +1200,17 @@
 /* Define to 1 if you have the `set_id' function. */
 #undef HAVE_SET_ID
 
-/* Define to 1 if you have the `SHA256_Update' function. */
-#undef HAVE_SHA256_UPDATE
+/* Define to 1 if you have the `SHA256Update' function. */
+#undef HAVE_SHA256UPDATE
 
 /* Define to 1 if you have the <sha2.h> header file. */
 #undef HAVE_SHA2_H
+
+/* Define to 1 if you have the `SHA384Update' function. */
+#undef HAVE_SHA384UPDATE
+
+/* Define to 1 if you have the `SHA512Update' function. */
+#undef HAVE_SHA512UPDATE
 
 /* Define to 1 if you have the <shadow.h> header file. */
 #undef HAVE_SHADOW_H

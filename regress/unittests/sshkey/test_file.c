@@ -19,13 +19,15 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifdef WITH_OPENSSL
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 #include <openssl/dsa.h>
 #include <openssl/objects.h>
 #ifdef OPENSSL_HAS_NISTP256
 # include <openssl/ec.h>
-#endif
+#endif /* OPENSSL_HAS_NISTP256 */
+#endif /* WITH_OPENSSL */
 
 #include "../test_helper/test_helper.h"
 
@@ -44,7 +46,9 @@ sshkey_file_tests(void)
 {
 	struct sshkey *k1, *k2;
 	struct sshbuf *buf, *pw;
+#ifdef WITH_OPENSSL
 	BIGNUM *a, *b, *c;
+#endif
 	char *cp;
 
 	TEST_START("load passphrase");
@@ -52,6 +56,7 @@ sshkey_file_tests(void)
 	TEST_DONE();
 
 
+#ifdef WITH_OPENSSL
 	TEST_START("parse RSA from private");
 	buf = load_file("rsa_1");
 	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
@@ -350,6 +355,7 @@ sshkey_file_tests(void)
 
 	sshkey_free(k1);
 #endif /* OPENSSL_HAS_ECC */
+#endif /* WITH_OPENSSL */
 
 	TEST_START("parse Ed25519 from private");
 	buf = load_file("ed25519_1");

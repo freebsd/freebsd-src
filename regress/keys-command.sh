@@ -1,4 +1,4 @@
-#	$OpenBSD: keys-command.sh,v 1.5 2018/11/22 08:48:32 dtucker Exp $
+#	$OpenBSD: keys-command.sh,v 1.6 2019/07/25 08:48:11 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="authorized keys from command"
@@ -14,8 +14,8 @@ rm -f $OBJ/keys-command-args
 touch $OBJ/keys-command-args
 chmod a+rw $OBJ/keys-command-args
 
-expected_key_text=`awk '{ print $2 }' < $OBJ/rsa.pub`
-expected_key_fp=`$SSHKEYGEN -lf $OBJ/rsa.pub | awk '{ print $2 }'`
+expected_key_text=`awk '{ print $2 }' < $OBJ/ssh-ed25519.pub`
+expected_key_fp=`$SSHKEYGEN -lf $OBJ/ssh-ed25519.pub | awk '{ print $2 }'`
 
 # Establish a AuthorizedKeysCommand in /var/run where it will have
 # acceptable directory permissions.

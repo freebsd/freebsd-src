@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.315 2019/02/22 03:37:11 djm Exp $ */
+/* $OpenBSD: session.c,v 1.316 2019/06/28 13:35:04 deraadt Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -399,17 +399,17 @@ do_exec_no_pty(struct ssh *ssh, Session *s, const char *command)
 		fatal("do_exec_no_pty: no session");
 
 	/* Allocate pipes for communicating with the program. */
-	if (pipe(pin) < 0) {
+	if (pipe(pin) == -1) {
 		error("%s: pipe in: %.100s", __func__, strerror(errno));
 		return -1;
 	}
-	if (pipe(pout) < 0) {
+	if (pipe(pout) == -1) {
 		error("%s: pipe out: %.100s", __func__, strerror(errno));
 		close(pin[0]);
 		close(pin[1]);
 		return -1;
 	}
-	if (pipe(perr) < 0) {
+	if (pipe(perr) == -1) {
 		error("%s: pipe err: %.100s", __func__,
 		    strerror(errno));
 		close(pin[0]);
@@ -425,11 +425,11 @@ do_exec_no_pty(struct ssh *ssh, Session *s, const char *command)
 		fatal("do_exec_no_pty: no session");
 
 	/* Uses socket pairs to communicate with the program. */
-	if (socketpair(AF_UNIX, SOCK_STREAM, 0, inout) < 0) {
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, inout) == -1) {
 		error("%s: socketpair #1: %.100s", __func__, strerror(errno));
 		return -1;
 	}
-	if (socketpair(AF_UNIX, SOCK_STREAM, 0, err) < 0) {
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, err) == -1) {
 		error("%s: socketpair #2: %.100s", __func__,
 		    strerror(errno));
 		close(inout[0]);
@@ -465,7 +465,7 @@ do_exec_no_pty(struct ssh *ssh, Session *s, const char *command)
 		 * Create a new session and process group since the 4.4BSD
 		 * setlogin() affects the entire process group.
 		 */
-		if (setsid() < 0)
+		if (setsid() == -1)
 			error("setsid failed: %.100s", strerror(errno));
 
 #ifdef USE_PIPES
@@ -474,19 +474,19 @@ do_exec_no_pty(struct ssh *ssh, Session *s, const char *command)
 		 * pair, and make the child side the standard input.
 		 */
 		close(pin[1]);
-		if (dup2(pin[0], 0) < 0)
+		if (dup2(pin[0], 0) == -1)
 			perror("dup2 stdin");
 		close(pin[0]);
 
 		/* Redirect stdout. */
 		close(pout[0]);
-		if (dup2(pout[1], 1) < 0)
+		if (dup2(pout[1], 1) == -1)
 			perror("dup2 stdout");
 		close(pout[1]);
 
 		/* Redirect stderr. */
 		close(perr[0]);
-		if (dup2(perr[1], 2) < 0)
+		if (dup2(perr[1], 2) == -1)
 			perror("dup2 stderr");
 		close(perr[1]);
 #else
@@ -497,12 +497,12 @@ do_exec_no_pty(struct ssh *ssh, Session *s, const char *command)
 		 */
 		close(inout[1]);
 		close(err[1]);
-		if (dup2(inout[0], 0) < 0)	/* stdin */
+		if (dup2(inout[0], 0) == -1)	/* stdin */
 			perror("dup2 stdin");
-		if (dup2(inout[0], 1) < 0)	/* stdout (same as stdin) */
+		if (dup2(inout[0], 1) == -1)	/* stdout (same as stdin) */
 			perror("dup2 stdout");
 		close(inout[0]);
-		if (dup2(err[0], 2) < 0)	/* stderr */
+		if (dup2(err[0], 2) == -1)	/* stderr */
 			perror("dup2 stderr");
 		close(err[0]);
 #endif
@@ -577,14 +577,14 @@ do_exec_pty(struct ssh *ssh, Session *s, const char *command)
 	 * Do this before forking (and cleanup in the child) so as to
 	 * detect and gracefully fail out-of-fd conditions.
 	 */
-	if ((fdout = dup(ptyfd)) < 0) {
+	if ((fdout = dup(ptyfd)) == -1) {
 		error("%s: dup #1: %s", __func__, strerror(errno));
 		close(ttyfd);
 		close(ptyfd);
 		return -1;
 	}
 	/* we keep a reference to the pty master */
-	if ((ptymaster = dup(ptyfd)) < 0) {
+	if ((ptymaster = dup(ptyfd)) == -1) {
 		error("%s: dup #2: %s", __func__, strerror(errno));
 		close(ttyfd);
 		close(ptyfd);
@@ -614,11 +614,11 @@ do_exec_pty(struct ssh *ssh, Session *s, const char *command)
 		pty_make_controlling_tty(&ttyfd, s->tty);
 
 		/* Redirect stdin/stdout/stderr from the pseudo tty. */
-		if (dup2(ttyfd, 0) < 0)
+		if (dup2(ttyfd, 0) == -1)
 			error("dup2 stdin: %s", strerror(errno));
-		if (dup2(ttyfd, 1) < 0)
+		if (dup2(ttyfd, 1) == -1)
 			error("dup2 stdout: %s", strerror(errno));
-		if (dup2(ttyfd, 2) < 0)
+		if (dup2(ttyfd, 2) == -1)
 			error("dup2 stderr: %s", strerror(errno));
 
 		/* Close the extra descriptor for the pseudo tty. */
@@ -755,7 +755,7 @@ do_login(struct ssh *ssh, Session *s, const char *command)
 	fromlen = sizeof(from);
 	if (ssh_packet_connection_is_on_socket(ssh)) {
 		if (getpeername(ssh_packet_get_connection_in(ssh),
-		    (struct sockaddr *)&from, &fromlen) < 0) {
+		    (struct sockaddr *)&from, &fromlen) == -1) {
 			debug("getpeername: %.100s", strerror(errno));
 			cleanup_exit(255);
 		}
@@ -1619,7 +1619,7 @@ do_child(struct ssh *ssh, Session *s, const char *command)
 #endif
 
 	/* Change current directory to the user's home directory. */
-	if (chdir(pw->pw_dir) < 0) {
+	if (chdir(pw->pw_dir) == -1) {
 		/* Suppress missing homedir warning for chroot case */
 #ifdef HAVE_LOGIN_CAP
 		r = login_getcapbool(lc, "requirehome", 0);
@@ -1973,7 +1973,7 @@ session_subsystem_req(struct ssh *ssh, Session *s)
 				s->is_subsystem = SUBSYSTEM_INT_SFTP;
 				debug("subsystem: %s", prog);
 			} else {
-				if (stat(prog, &st) < 0)
+				if (stat(prog, &st) == -1)
 					debug("subsystem: cannot stat %s: %s",
 					    prog, strerror(errno));
 				s->is_subsystem = SUBSYSTEM_EXT;
@@ -2062,7 +2062,7 @@ session_break_req(struct ssh *ssh, Session *s)
 	    (r = sshpkt_get_end(ssh)) != 0)
 		sshpkt_fatal(ssh, r, "%s: parse packet", __func__);
 
-	if (s->ptymaster == -1 || tcsendbreak(s->ptymaster, 0) < 0)
+	if (s->ptymaster == -1 || tcsendbreak(s->ptymaster, 0) == -1)
 		return 0;
 	return 1;
 }
@@ -2286,7 +2286,7 @@ session_pty_cleanup2(Session *s)
 	 * the pty cleanup, so that another process doesn't get this pty
 	 * while we're still cleaning up.
 	 */
-	if (s->ptymaster != -1 && close(s->ptymaster) < 0)
+	if (s->ptymaster != -1 && close(s->ptymaster) == -1)
 		error("close(s->ptymaster/%d): %s",
 		    s->ptymaster, strerror(errno));
 
@@ -2598,7 +2598,7 @@ session_setup_x11fwd(struct ssh *ssh, Session *s)
 	}
 
 	/* Set up a suitable value for the DISPLAY variable. */
-	if (gethostname(hostname, sizeof(hostname)) < 0)
+	if (gethostname(hostname, sizeof(hostname)) == -1)
 		fatal("gethostname: %.100s", strerror(errno));
 	/*
 	 * auth_display must be used as the displayname when the

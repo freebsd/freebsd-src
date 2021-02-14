@@ -1,4 +1,4 @@
-/* $OpenBSD: hostfile.c,v 1.73 2018/07/16 03:09:13 djm Exp $ */
+/* $OpenBSD: hostfile.c,v 1.76 2019/07/07 01:05:00 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -49,7 +49,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
 #include <unistd.h>
 
 #include "xmalloc.h"
@@ -163,13 +162,12 @@ int
 hostfile_read_key(char **cpp, u_int *bitsp, struct sshkey *ret)
 {
 	char *cp;
-	int r;
 
 	/* Skip leading whitespace. */
 	for (cp = *cpp; *cp == ' ' || *cp == '\t'; cp++)
 		;
 
-	if ((r = sshkey_read(ret, &cp)) != 0)
+	if (sshkey_read(ret, &cp) != 0)
 		return 0;
 
 	/* Skip trailing whitespace. */
@@ -545,8 +543,8 @@ hostfile_replace_entries(const char *filename, const char *host, const char *ip,
 	/*
 	 * Prepare temporary file for in-place deletion.
 	 */
-	if ((r = asprintf(&temp, "%s.XXXXXXXXXXX", filename)) < 0 ||
-	    (r = asprintf(&back, "%s.old", filename)) < 0) {
+	if ((r = asprintf(&temp, "%s.XXXXXXXXXXX", filename)) == -1 ||
+	    (r = asprintf(&back, "%s.old", filename)) == -1) {
 		r = SSH_ERR_ALLOC_FAIL;
 		goto fail;
 	}

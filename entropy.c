@@ -39,6 +39,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <stddef.h> /* for offsetof */
@@ -201,14 +202,15 @@ rexec_send_rng_seed(struct sshbuf *m)
 void
 rexec_recv_rng_seed(struct sshbuf *m)
 {
-	u_char *buf = NULL;
+	const u_char *buf = NULL;
 	size_t len = 0;
 	int r;
 
-	if ((r = sshbuf_get_string_direct(m, &buf, &len)) != 0
+	if ((r = sshbuf_get_string_direct(m, &buf, &len)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 
-	debug3("rexec_recv_rng_seed: seeding rng with %u bytes", len);
+	debug3("rexec_recv_rng_seed: seeding rng with %lu bytes",
+	    (unsigned long)len);
 	RAND_add(buf, len, len);
 }
 #endif /* OPENSSL_PRNG_ONLY */
@@ -247,7 +249,10 @@ seed_rng(void)
 
 #else /* WITH_OPENSSL */
 
-/* Acutal initialisation is handled in arc4random() */
+#include <stdlib.h>
+#include <string.h>
+
+/* Actual initialisation is handled in arc4random() */
 void
 seed_rng(void)
 {

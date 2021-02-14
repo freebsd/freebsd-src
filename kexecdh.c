@@ -208,4 +208,32 @@ kex_ecdh_dec(struct kex *kex, const struct sshbuf *server_blob,
 	kex->ec_client_key = NULL;
 	return r;
 }
+
+#else
+
+#include "ssherr.h"
+
+struct kex;
+struct sshbuf;
+struct sshkey;
+
+int
+kex_ecdh_keypair(struct kex *kex)
+{
+	return SSH_ERR_SIGN_ALG_UNSUPPORTED;
+}
+
+int
+kex_ecdh_enc(struct kex *kex, const struct sshbuf *client_blob,
+    struct sshbuf **server_blobp, struct sshbuf **shared_secretp)
+{
+	return SSH_ERR_SIGN_ALG_UNSUPPORTED;
+}
+
+int
+kex_ecdh_dec(struct kex *kex, const struct sshbuf *server_blob,
+    struct sshbuf **shared_secretp)
+{
+	return SSH_ERR_SIGN_ALG_UNSUPPORTED;
+}
 #endif /* defined(WITH_OPENSSL) && defined(OPENSSL_HAS_ECC) */

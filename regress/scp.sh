@@ -1,4 +1,4 @@
-#	$OpenBSD: scp.sh,v 1.10 2014/01/26 10:49:17 djm Exp $
+#	$OpenBSD: scp.sh,v 1.11 2019/07/19 03:45:44 djm Exp $
 #	Placed in the Public Domain.
 
 tid="scp"
@@ -25,6 +25,7 @@ export SCP # used in scp-ssh-wrapper.scp
 scpclean() {
 	rm -rf ${COPY} ${COPY2} ${DIR} ${DIR2}
 	mkdir ${DIR} ${DIR2}
+	chmod 755 ${DIR} ${DIR2}
 }
 
 verbose "$tid: simple copy local file to local file"
@@ -101,7 +102,7 @@ if [ ! -z "$SUDO" ]; then
 	$SUDO rm ${DIR2}/copy
 fi
 
-for i in 0 1 2 3 4; do
+for i in 0 1 2 3 4 5 6 7; do
 	verbose "$tid: disallow bad server #$i"
 	SCPTESTMODE=badserver_$i
 	export DIR SCPTESTMODE
@@ -113,6 +114,15 @@ for i in 0 1 2 3 4; do
 	scpclean
 	$SCP -r $scpopts somehost:${DATA} ${DIR2} >/dev/null 2>/dev/null
 	[ -d ${DIR}/dotpathdir ] && fail "allows dir creation outside of subdir"
+
+	scpclean
+	$SCP -pr $scpopts somehost:${DATA} ${DIR2} >/dev/null 2>/dev/null
+	[ ! -w ${DIR2} ] && fail "allows target root attribute change"
+
+	scpclean
+	$SCP $scpopts somehost:${DATA} ${DIR2} >/dev/null 2>/dev/null
+	[ -e ${DIR2}/extrafile ] && fail "allows unauth object creation"
+	rm -f ${DIR2}/extrafile
 done
 
 verbose "$tid: detect non-directory target"
