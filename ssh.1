@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.410 2020/02/07 03:54:44 dtucker Exp $
-.Dd $Mdocdate: February 7 2020 $
+.\" $OpenBSD: ssh.1,v 1.412 2020/04/17 03:34:42 djm Exp $
+.Dd $Mdocdate: April 17 2020 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -233,6 +233,9 @@ the system-wide configuration file
 will be ignored.
 The default for the per-user configuration file is
 .Pa ~/.ssh/config .
+If set to
+.Dq none ,
+no configuration files will be read.
 .Pp
 .It Fl f
 Requests
@@ -840,7 +843,7 @@ If the machine the user logs in from is listed in
 .Pa /etc/hosts.equiv
 or
 .Pa /etc/shosts.equiv
-on the remote machine, and the user names are
+on the remote machine, the user is non-root and the user names are
 the same on both sides, or if the files
 .Pa ~/.rhosts
 or

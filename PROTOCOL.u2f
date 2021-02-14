@@ -142,7 +142,7 @@ choose not to include this information in the public key or save it by
 default.
 
 Attestation information is useful for out-of-band key and certificate
-registration worksflows, e.g. proving to a CA that a key is backed
+registration workflows, e.g. proving to a CA that a key is backed
 by trusted hardware before it will issue a certificate. To support this
 case, OpenSSH optionally allows retaining the attestation information
 at the time of key generation. It will take the following format:
@@ -169,7 +169,7 @@ is signed over a blob that consists of:
 	byte[]		extensions
 	byte[32]	SHA256(message)
 
-No extensons are yet defined for SSH use. If any are defined in the future,
+No extensions are yet defined for SSH use. If any are defined in the future,
 it will be possible to infer their presence from the contents of the "flags"
 value.
 
@@ -236,7 +236,7 @@ support for the common case of USB HID security keys internally.
 
 The middleware library need only expose a handful of functions:
 
-	#define SSH_SK_VERSION_MAJOR		0x00040000 /* API version */
+	#define SSH_SK_VERSION_MAJOR		0x00050000 /* API version */
 	#define SSH_SK_VERSION_MAJOR_MASK	0xffff0000
 
 	/* Flags */

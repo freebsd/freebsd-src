@@ -209,8 +209,10 @@ sshsig_wrap_sign(struct sshkey *key, const char *hashalg,
 		goto done;
 	}
 
-	*out = blob;
-	blob = NULL;
+	if (out != NULL) {
+		*out = blob;
+		blob = NULL;
+	}
 	r = 0;
 done:
 	free(sig);
@@ -424,7 +426,7 @@ hash_buffer(const struct sshbuf *m, const char *hashalg, struct sshbuf **bp)
  out:
 	sshbuf_free(b);
 	explicit_bzero(hash, sizeof(hash));
-	return 0;
+	return r;
 }
 
 int
@@ -552,7 +554,7 @@ hash_file(int fd, const char *hashalg, struct sshbuf **bp)
 	sshbuf_free(b);
 	ssh_digest_free(ctx);
 	explicit_bzero(hash, sizeof(hash));
-	return 0;
+	return r;
 }
 
 int
@@ -835,7 +837,7 @@ sshsig_check_allowed_keys(const char *path, const struct sshkey *sign_key,
 	char *line = NULL;
 	size_t linesize = 0;
 	u_long linenum = 0;
-	int r, oerrno;
+	int r = SSH_ERR_INTERNAL_ERROR, oerrno;
 
 	/* Check key and principal against file */
 	if ((f = fopen(path, "r")) == NULL) {
@@ -879,8 +881,10 @@ cert_filter_principals(const char *path, u_long linenum,
 	oprincipals = principals = *principalsp;
 	*principalsp = NULL;
 
-	if ((nprincipals = sshbuf_new()) == NULL)
-		return SSH_ERR_ALLOC_FAIL;
+	if ((nprincipals = sshbuf_new()) == NULL) {
+		r = SSH_ERR_ALLOC_FAIL;
+		goto out;
+	}
 
 	while ((cp = strsep(&principals, ",")) != NULL && *cp != '\0') {
 		if (strcspn(cp, "!?*") != strlen(cp)) {
@@ -961,7 +965,7 @@ get_matching_principals_from_line(const char *path, u_long linenum, char *line,
 		goto done;
 	}
  done:
-	if (found) {
+	if (found && principalsp != NULL) {
 		*principalsp = principals;
 		principals = NULL; /* transferred */
 	}
@@ -979,7 +983,7 @@ sshsig_find_principals(const char *path, const struct sshkey *sign_key,
 	char *line = NULL;
 	size_t linesize = 0;
 	u_long linenum = 0;
-	int r, oerrno;
+	int r = SSH_ERR_INTERNAL_ERROR, oerrno;
 
 	if ((f = fopen(path, "r")) == NULL) {
 		oerrno = errno;
@@ -1024,8 +1028,8 @@ sshsig_get_pubkey(struct sshbuf *signature, struct sshkey **pubkey)
 	struct sshkey *pk = NULL;
 	int r = SSH_ERR_SIGNATURE_INVALID;
 
-	if (pubkey != NULL)
-		*pubkey = NULL;
+	if (pubkey == NULL)
+		return SSH_ERR_INTERNAL_ERROR;
 	if ((r = sshsig_parse_preamble(signature)) != 0)
 		return r;
 	if ((r = sshkey_froms(signature, &pk)) != 0)

@@ -24,6 +24,9 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdarg.h>
+#ifdef HAVE_SHA2_H
+#include <sha2.h>
+#endif
 
 #ifdef WITH_OPENSSL
 #include <openssl/opensslv.h>
@@ -31,6 +34,7 @@
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
+#include <openssl/evp.h>
 #endif /* WITH_OPENSSL */
 
 #include <fido.h>
@@ -710,8 +714,28 @@ check_sign_load_resident_options(struct sk_option **options, char **devicep)
 	return 0;
 }
 
+/* Calculate SHA256(m) */
+static int
+sha256_mem(const void *m, size_t mlen, u_char *d, size_t dlen)
+{
+#ifdef WITH_OPENSSL
+	u_int mdlen;
+#endif
+
+	if (dlen != 32)
+		return -1;
+#ifdef WITH_OPENSSL
+	mdlen = dlen;
+	if (!EVP_Digest(m, mlen, d, &mdlen, EVP_sha256(), NULL))
+		return -1;
+#else
+	SHA256Data(m, mlen, d);
+#endif
+	return 0;
+}
+
 int
-sk_sign(uint32_t alg, const uint8_t *message, size_t message_len,
+sk_sign(uint32_t alg, const uint8_t *data, size_t datalen,
     const char *application,
     const uint8_t *key_handle, size_t key_handle_len,
     uint8_t flags, const char *pin, struct sk_option **options,
@@ -721,6 +745,7 @@ sk_sign(uint32_t alg, const uint8_t *message, size_t message_len,
 	char *device = NULL;
 	fido_dev_t *dev = NULL;
 	struct sk_sign_response *response = NULL;
+	uint8_t message[32];
 	int ret = SSH_SK_ERR_GENERAL;
 	int r;
 
@@ -735,7 +760,12 @@ sk_sign(uint32_t alg, const uint8_t *message, size_t message_len,
 	*sign_response = NULL;
 	if (check_sign_load_resident_options(options, &device) != 0)
 		goto out; /* error already logged */
-	if ((dev = find_device(device, message, message_len,
+	/* hash data to be signed before it goes to the security key */
+	if ((r = sha256_mem(data, datalen, message, sizeof(message))) != 0) {
+		skdebug(__func__, "hash message failed");
+		goto out;
+	}
+	if ((dev = find_device(device, message, sizeof(message),
 	    application, key_handle, key_handle_len)) == NULL) {
 		skdebug(__func__, "couldn't find device for key handle");
 		goto out;
@@ -745,7 +775,7 @@ sk_sign(uint32_t alg, const uint8_t *message, size_t message_len,
 		goto out;
 	}
 	if ((r = fido_assert_set_clientdata_hash(assert, message,
-	    message_len)) != FIDO_OK) {
+	    sizeof(message))) != FIDO_OK) {
 		skdebug(__func__, "fido_assert_set_clientdata_hash: %s",
 		    fido_strerr(r));
 		goto out;
@@ -783,6 +813,7 @@ sk_sign(uint32_t alg, const uint8_t *message, size_t message_len,
 	response = NULL;
 	ret = 0;
  out:
+	explicit_bzero(message, sizeof(message));
 	free(device);
 	if (response != NULL) {
 		free(response->sig_r);

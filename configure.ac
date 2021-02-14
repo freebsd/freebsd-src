@@ -93,6 +93,7 @@ AC_SUBST([LD])
 AC_C_INLINE
 
 AC_CHECK_DECL([LLONG_MAX], [have_llong_max=1], , [#include <limits.h>])
+AC_CHECK_DECL([LONG_LONG_MAX], [have_long_long_max=1], , [#include <limits.h>])
 AC_CHECK_DECL([SYSTR_POLICY_KILL], [have_systr_policy_kill=1], , [
 	#include <sys/types.h>
 	#include <sys/param.h>
@@ -413,6 +414,7 @@ AC_CHECK_HEADERS([ \
 	string.h \
 	strings.h \
 	sys/bitypes.h \
+	sys/byteorder.h \
 	sys/bsdtty.h \
 	sys/cdefs.h \
 	sys/dir.h \
@@ -1967,6 +1969,19 @@ AC_SEARCH_LIBS([nanosleep], [rt posix4], [AC_DEFINE([HAVE_NANOSLEEP], [1],
 AC_SEARCH_LIBS([clock_gettime], [rt],
 	[AC_DEFINE([HAVE_CLOCK_GETTIME], [1], [Have clock_gettime])])
 
+dnl check if we need -D_REENTRANT for localtime_r declaration.
+AC_CHECK_DECL([localtime_r], [],
+	[ saved_CPPFLAGS="$CFLAGS"
+	  CPPFLAGS="$CPPFLAGS -D_REENTRANT"
+	  unset ac_cv_have_decl_localtime_r
+	  AC_CHECK_DECL([localtime_r], [],
+		[ CPPFLAGS="$saved_CPPFLAGS" ],
+		[ #include <time.h> ]
+	  )
+	],
+	[ #include <time.h> ]
+)
+
 dnl Make sure prototypes are defined for these before using them.
 AC_CHECK_DECL([strsep],
 	[AC_CHECK_FUNCS([strsep])],
@@ -1986,10 +2001,11 @@ AC_CHECK_DECL([tcsendbreak],
 
 AC_CHECK_DECLS([h_errno], , ,[#include <netdb.h>])
 
-AC_CHECK_DECLS([SHUT_RD], , ,
+AC_CHECK_DECLS([SHUT_RD, getpeereid], , ,
 	[
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <unistd.h>
 	])
 
 AC_CHECK_DECLS([O_NONBLOCK], , ,
@@ -2498,6 +2514,45 @@ static void sighandler(int sig) { _exit(1); }
 	)
 fi
 
+AC_MSG_CHECKING([if SA_RESTARTed signals interrupt select()])
+AC_RUN_IFELSE(
+	[AC_LANG_PROGRAM([[
+#ifdef HAVE_SYS_SELECT
+# include <sys/select.h>
+#endif
+#include <sys/types.h>
+#include <sys/time.h>
+#include <stdlib.h>
+#include <signal.h>
+static void sighandler(int sig) { }
+		]], [[
+	int r;
+	pid_t pid;
+	struct sigaction sa;
+
+	sa.sa_handler = sighandler;
+	sa.sa_flags = SA_RESTART;
+	(void)sigaction(SIGTERM, &sa, NULL);
+	if ((pid = fork()) == 0) { /* child */
+		pid = getppid();
+		sleep(1);
+		kill(pid, SIGTERM);
+		sleep(1);
+		if (getppid() == pid) /* if parent did not exit, shoot it */
+			kill(pid, SIGKILL);
+		exit(0);
+	} else { /* parent */
+		r = select(0, NULL, NULL, NULL, NULL);
+	}
+	exit(r == -1 ? 0 : 1);
+	]])],
+	[AC_MSG_RESULT([yes])],
+	[AC_MSG_RESULT([no])
+	 AC_DEFINE([NO_SA_RESTART], [1],
+	    [SA_RESTARTed signals do no interrupt select])],
+	[AC_MSG_WARN([cross compiling: assuming yes])]
+)
+
 AC_CHECK_FUNCS([getpgrp],[
 	AC_MSG_CHECKING([if getpgrp accepts zero args])
 	AC_COMPILE_IFELSE(
@@ -2803,6 +2858,7 @@ if test "x$openssl" = "xyes" ; then
 		EVP_PKEY_get0_RSA \
 		EVP_MD_CTX_new \
 		EVP_MD_CTX_free \
+		EVP_chacha20 \
 	])
 
 	if test "x$openssl_engine" = "xyes" ; then
@@ -3081,6 +3137,10 @@ AC_MSG_RESULT([$enable_pkcs11])
 AC_MSG_CHECKING([whether to enable U2F])
 if test "x$enable_sk" = "xyes" ; then
 	AC_DEFINE([ENABLE_SK], [], [Enable for U2F/FIDO support])
+	AC_SUBST(SK_DUMMY_LIBRARY, [regress/misc/sk-dummy/sk-dummy.so])
+else
+	# Do not try to build sk-dummy library.
+	AC_SUBST(SK_DUMMY_LIBRARY, [""])
 fi
 AC_MSG_RESULT([$enable_sk])
 
@@ -3110,8 +3170,14 @@ if test "x$enable_sk" = "xyes" -a "x$enable_sk_internal" = "xyes" ; then
 			AC_DEFINE([ENABLE_SK_INTERNAL], [],
 			    [Enable for built-in U2F/FIDO support])
 			enable_sk="built-in"
-		], [ ],
+		], [ AC_MSG_ERROR([no usable libfido2 found]) ],
 		[ $OTHERLIBS ]
+	)
+	AC_CHECK_HEADER([fido.h], [],
+		AC_MSG_ERROR([missing fido.h from libfido2]))
+	AC_CHECK_HEADER([fido/credman.h], [],
+		AC_MSG_ERROR([missing fido/credman.h from libfido2]),
+		[#include <fido.h>]
 	)
 fi
 
@@ -3565,7 +3631,7 @@ if test "x$ac_cv_sizeof_long_long_int" = "x4" ; then
 fi
 
 # compute LLONG_MIN and LLONG_MAX if we don't know them.
-if test -z "$have_llong_max"; then
+if test -z "$have_llong_max" && test -z "$have_long_long_max"; then
 	AC_MSG_CHECKING([for max value of long long])
 	AC_RUN_IFELSE(
 		[AC_LANG_PROGRAM([[

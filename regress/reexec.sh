@@ -9,7 +9,10 @@ SSHD_COPY=$OBJ/sshd
 # Start a sshd and then delete it
 start_sshd_copy ()
 {
-	cp $SSHD_ORIG $SSHD_COPY
+	# NB. prefer ln to cp here. On some OSX 19.4 configurations,
+	# djm has seen failure after fork() when the executable image
+	# has been removed from the filesystem.
+	ln $SSHD_ORIG $SSHD_COPY || cp $SSHD_ORIG $SSHD_COPY
 	SSHD=$SSHD_COPY
 	start_sshd
 	SSHD=$SSHD_ORIG

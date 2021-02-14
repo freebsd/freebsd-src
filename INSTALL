@@ -19,7 +19,7 @@ Zlib 1.1.4 or 1.2.1.2 or greater (earlier 1.2.x versions have problems):
 http://www.gzip.org/zlib/
 
 libcrypto from either of LibreSSL or OpenSSL.  Building without libcrypto
-is supported but severely restricts the avilable ciphers and algorithms.
+is supported but severely restricts the available ciphers and algorithms.
  - LibreSSL (https://www.libressl.org/)
  - OpenSSL (https://www.openssl.org) with any of the following versions:
    - 1.0.x >= 1.0.1 or 1.1.0 >= 1.1.0g or any 1.1.1
@@ -51,7 +51,7 @@ http://prngd.sourceforge.net/
 
 EGD:
 
-The Entropy Gathering Daemon (EGD) suppports the same interface as prngd.
+The Entropy Gathering Daemon (EGD) supports the same interface as prngd.
 It also supported only if libcrypto is configured to support it.
 
 http://egd.sourceforge.net/
@@ -277,6 +277,6 @@ summary data may be published.
 5. Problems?
 ------------
 
-If you experience problems compiling, installing or running OpenSSH.
-Please refer to the "reporting bugs" section of the webpage at
+If you experience problems compiling, installing or running OpenSSH,
+please refer to the "reporting bugs" section of the webpage at
 https://www.openssh.com/

@@ -60,7 +60,7 @@ Options:
 Please note that OpenSSH does never use the value of $HOME to
 search for the users configuration files! It always uses the
 value of the pw_dir field in /etc/passwd as the home directory.
-If no home diretory is set in /etc/passwd, the root directory
+If no home directory is set in /etc/passwd, the root directory
 is used instead!
 
 ================

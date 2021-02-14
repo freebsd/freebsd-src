@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.328 2020/01/25 07:17:18 djm Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.329 2020/03/13 04:01:56 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1276,6 +1276,7 @@ ssh_login(struct ssh *ssh, Sensitive *sensitive, const char *orighost,
 {
 	char *host;
 	char *server_user, *local_user;
+	int r;
 
 	local_user = xstrdup(pw->pw_name);
 	server_user = options.user ? options.user : local_user;
@@ -1285,8 +1286,8 @@ ssh_login(struct ssh *ssh, Sensitive *sensitive, const char *orighost,
 	lowercase(host);
 
 	/* Exchange protocol version identification strings with the server. */
-	if (kex_exchange_identification(ssh, timeout_ms, NULL) != 0)
-		cleanup_exit(255); /* error already logged */
+	if ((r = kex_exchange_identification(ssh, timeout_ms, NULL)) != 0)
+		sshpkt_fatal(ssh, r, "banner exchange");
 
 	/* Put the connection into non-blocking mode. */
 	ssh_packet_set_nonblocking(ssh);

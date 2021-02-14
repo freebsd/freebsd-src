@@ -1,4 +1,4 @@
-#	$OpenBSD: addrmatch.sh,v 1.4 2012/05/13 01:42:32 dtucker Exp $
+#	$OpenBSD: addrmatch.sh,v 1.5 2020/03/13 03:18:45 djm Exp $
 #	Placed in the Public Domain.
 
 tid="address match"
@@ -43,7 +43,7 @@ run_trial user 19.0.0.1 somehost 1.2.3.4 5678 match4 "localport"
 
 if test "$TEST_SSH_IPV6" != "no"; then
 run_trial user ::1 somehost.example.com ::2 1234 match2 "bare IP6 address"
-run_trial user ::2 somehost.exaple.com ::2 1234 nomatch "deny IPv6"
+run_trial user ::2 somehost.example.com ::2 1234 nomatch "deny IPv6"
 run_trial user ::3 somehost ::2 1234 nomatch "IP6 negated"
 run_trial user ::4 somehost ::2 1234 nomatch "IP6 no match"
 run_trial user 2000::1 somehost ::2 1234 match2 "IP6 network"

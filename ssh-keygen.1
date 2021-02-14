@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.201 2020/02/07 03:57:31 djm Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.203 2020/04/03 02:26:56 djm Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: February 7 2020 $
+.Dd $Mdocdate: April 3 2020 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -135,6 +135,7 @@
 .Ar
 .Nm ssh-keygen
 .Fl Q
+.Op Fl l
 .Fl f Ar krl_file
 .Ar
 .Nm ssh-keygen
@@ -521,6 +522,9 @@ containing the private key, for the old passphrase, and twice for the
 new passphrase.
 .It Fl Q
 Test whether keys have been revoked in a KRL.
+If the
+.Fl l
+option is also specified then the contents of the KRL will be printed.
 .It Fl q
 Silence
 .Nm ssh-keygen .
@@ -603,7 +607,7 @@ TIME FORMATS section of
 The end time may be specified as a YYYYMMDD date, a YYYYMMDDHHMM[SS] time,
 a relative time starting with a plus character or the string
 .Dq forever
-to indicate that the certificate has no expirty date.
+to indicate that the certificate has no expiry date.
 .Pp
 For example:
 .Dq +52w1d

@@ -73,7 +73,7 @@
  * Fix incorrect zpadlen handling in fmtfp.
  * Thanks to Ollie Oldham <ollie.oldham@metro-optix.com> for spotting it.
  * few mods to make it easier to compile the tests.
- * addedd the "Ollie" test to the floating point ones.
+ * added the "Ollie" test to the floating point ones.
  *
  * Martin Pool (mbp@samba.org) April 2003
  *    Remove NO_CONFIG_H so that the test case can be built within a source

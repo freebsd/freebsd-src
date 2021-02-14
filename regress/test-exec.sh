@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.75 2020/01/31 23:25:08 djm Exp $
+#	$OpenBSD: test-exec.sh,v 1.76 2020/04/04 23:04:41 dtucker Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -21,6 +21,16 @@ if [ ! -z "$TEST_SSH_PORT" ]; then
 	PORT="$TEST_SSH_PORT"
 else
 	PORT=4242
+fi
+
+# If configure tells us to use a different egrep, create a wrapper function
+# to call it.  This means we don't need to change all the tests that depend
+# on a good implementation.
+if test "x${EGREP}" != "x"; then
+	egrep ()
+{
+	 ${EGREP} "$@"
+}
 fi
 
 if [ -x /usr/ucb/whoami ]; then
@@ -512,7 +522,9 @@ fi
 rm -f $OBJ/known_hosts $OBJ/authorized_keys_$USER
 
 SSH_SK_PROVIDER=
-if [ -f "${SRC}/misc/sk-dummy/obj/sk-dummy.so" ] ; then
+if ! config_defined ENABLE_SK; then
+	trace skipping sk-dummy
+elif [ -f "${SRC}/misc/sk-dummy/obj/sk-dummy.so" ] ; then
 	SSH_SK_PROVIDER="${SRC}/misc/sk-dummy/obj/sk-dummy.so"
 elif [ -f "${SRC}/misc/sk-dummy/sk-dummy.so" ] ; then
 	SSH_SK_PROVIDER="${SRC}/misc/sk-dummy/sk-dummy.so"
@@ -537,14 +549,16 @@ maybe_filter_sk() {
 
 SSH_KEYTYPES=`$SSH -Q key-plain | maybe_filter_sk`
 SSH_HOSTKEY_TYPES=`$SSH -Q key-plain | maybe_filter_sk`
- 
+
 for t in ${SSH_KEYTYPES}; do
 	# generate user key
-	trace "generating key type $t"
 	if [ ! -f $OBJ/$t ] || [ ${SSHKEYGEN_BIN} -nt $OBJ/$t ]; then
+		trace "generating key type $t"
 		rm -f $OBJ/$t
 		${SSHKEYGEN} -q -N '' -t $t  -f $OBJ/$t ||\
 			fail "ssh-keygen for $t failed"
+	else
+		trace "using cached key type $t"
 	fi
 
 	# setup authorized keys

@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.81 2020/01/23 07:10:22 dtucker Exp $ */
+/* $OpenBSD: mux.c,v 1.82 2020/04/30 17:12:20 markus Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -1987,6 +1987,7 @@ mux_client_request_session(int fd)
 	case MUX_S_SESSION_OPENED:
 		if ((r = sshbuf_get_u32(m, &sid)) != 0)
 			fatal("%s: decode ID: %s", __func__, ssh_err(r));
+		debug("%s: master session id: %u", __func__, sid);
 		break;
 	case MUX_S_PERMISSION_DENIED:
 		if ((r = sshbuf_get_cstring(m, &e, NULL)) != 0)

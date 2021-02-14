@@ -8,9 +8,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.87 2019/11/30 07:07:59 jmc Exp $
+.\" $OpenBSD: scp.1,v 1.89 2020/04/30 18:28:37 jmc Exp $
 .\"
-.Dd $Mdocdate: November 30 2019 $
+.Dd $Mdocdate: April 30 2020 $
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -74,7 +74,10 @@ The options are as follows:
 Copies between two remote hosts are transferred through the local host.
 Without this option the data is copied directly between the two remote
 hosts.
-Note that this option disables the progress meter.
+Note that this option disables the progress meter and selects batch mode
+for the second host, since
+.Nm
+cannot ask for passwords or passphrases for both hosts.
 .It Fl 4
 Forces
 .Nm

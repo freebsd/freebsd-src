@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.290 2020/01/30 07:20:05 djm Exp $ */
+/* $OpenBSD: packet.c,v 1.291 2020/03/06 18:20:44 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1365,7 +1365,7 @@ ssh_packet_read_seqnr(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 		}
 		/* Wait for some data to arrive. */
 		for (;;) {
-			if (state->packet_timeout_ms != -1) {
+			if (state->packet_timeout_ms > 0) {
 				ms_to_timeval(&timeout, ms_remain);
 				monotime_tv(&start);
 			}
@@ -1377,7 +1377,7 @@ ssh_packet_read_seqnr(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 				r = SSH_ERR_SYSTEM_ERROR;
 				goto out;
 			}
-			if (state->packet_timeout_ms == -1)
+			if (state->packet_timeout_ms <= 0)
 				continue;
 			ms_subtract_diff(&start, &ms_remain);
 			if (ms_remain <= 0) {
@@ -2014,7 +2014,7 @@ ssh_packet_write_wait(struct ssh *ssh)
 			timeoutp = &timeout;
 		}
 		for (;;) {
-			if (state->packet_timeout_ms != -1) {
+			if (state->packet_timeout_ms > 0) {
 				ms_to_timeval(&timeout, ms_remain);
 				monotime_tv(&start);
 			}
@@ -2024,7 +2024,7 @@ ssh_packet_write_wait(struct ssh *ssh)
 			if (errno != EAGAIN && errno != EINTR &&
 			    errno != EWOULDBLOCK)
 				break;
-			if (state->packet_timeout_ms == -1)
+			if (state->packet_timeout_ms <= 0)
 				continue;
 			ms_subtract_diff(&start, &ms_remain);
 			if (ms_remain <= 0) {

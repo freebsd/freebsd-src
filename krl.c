@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $OpenBSD: krl.c,v 1.47 2020/01/25 23:02:13 djm Exp $ */
+/* $OpenBSD: krl.c,v 1.50 2020/04/03 05:48:57 djm Exp $ */
 
 #include "includes.h"
 
@@ -38,6 +38,7 @@
 #include "log.h"
 #include "digest.h"
 #include "bitmap.h"
+#include "utf8.h"
 
 #include "krl.h"
 
@@ -1354,4 +1355,98 @@ ssh_krl_file_contains_key(const char *path, const struct sshkey *key)
 	if (r != 0)
 		errno = oerrno;
 	return r;
+}
+
+int
+krl_dump(struct ssh_krl *krl, FILE *f)
+{
+	struct sshkey *key = NULL;
+	struct revoked_blob *rb;
+	struct revoked_certs *rc;
+	struct revoked_serial *rs;
+	struct revoked_key_id *rki;
+	int r, ret = 0;
+	char *fp, timestamp[64];
+
+	/* Try to print in a KRL spec-compatible format */
+	format_timestamp(krl->generated_date, timestamp, sizeof(timestamp));
+	fprintf(f, "# KRL version %llu\n",
+	    (unsigned long long)krl->krl_version);
+	fprintf(f, "# Generated at %s\n", timestamp);
+	if (krl->comment != NULL && *krl->comment != '\0') {
+		r = INT_MAX;
+		asmprintf(&fp, INT_MAX, &r, "%s", krl->comment);
+		fprintf(f, "# Comment: %s\n", fp);
+		free(fp);
+	}
+	fputc('\n', f);
+
+	RB_FOREACH(rb, revoked_blob_tree, &krl->revoked_keys) {
+		if ((r = sshkey_from_blob(rb->blob, rb->len, &key)) != 0) {
+			ret = SSH_ERR_INVALID_FORMAT;
+			error("Parse key in KRL: %s", ssh_err(r));
+			continue;
+		}
+		if ((fp = sshkey_fingerprint(key, SSH_FP_HASH_DEFAULT,
+		    SSH_FP_DEFAULT)) == NULL) {
+			ret = SSH_ERR_INVALID_FORMAT;
+			error("sshkey_fingerprint failed");
+			continue;
+		}
+		fprintf(f, "hash: SHA256:%s # %s\n", fp, sshkey_ssh_name(key));
+		free(fp);
+		free(key);
+	}
+	RB_FOREACH(rb, revoked_blob_tree, &krl->revoked_sha256s) {
+		fp = tohex(rb->blob, rb->len);
+		fprintf(f, "hash: SHA256:%s\n", fp);
+		free(fp);
+	}
+	RB_FOREACH(rb, revoked_blob_tree, &krl->revoked_sha1s) {
+		/*
+		 * There is not KRL spec keyword for raw SHA1 hashes, so
+		 * print them as comments.
+		 */
+		fp = tohex(rb->blob, rb->len);
+		fprintf(f, "# hash SHA1:%s\n", fp);
+		free(fp);
+	}
+
+	TAILQ_FOREACH(rc, &krl->revoked_certs, entry) {
+		fputc('\n', f);
+		if (rc->ca_key == NULL)
+			fprintf(f, "# Wildcard CA\n");
+		else {
+			if ((fp = sshkey_fingerprint(rc->ca_key,
+			    SSH_FP_HASH_DEFAULT, SSH_FP_DEFAULT)) == NULL) {
+				ret = SSH_ERR_INVALID_FORMAT;
+				error("sshkey_fingerprint failed");
+				continue;
+			}
+			fprintf(f, "# CA key %s %s\n",
+			    sshkey_ssh_name(rc->ca_key), fp);
+			free(fp);
+		}
+		RB_FOREACH(rs, revoked_serial_tree, &rc->revoked_serials) {
+			if (rs->lo == rs->hi) {
+				fprintf(f, "serial: %llu\n",
+				    (unsigned long long)rs->lo);
+			} else {
+				fprintf(f, "serial: %llu-%llu\n",
+				    (unsigned long long)rs->lo,
+				    (unsigned long long)rs->hi);
+			}
+		}
+		RB_FOREACH(rki, revoked_key_id_tree, &rc->revoked_key_ids) {
+			/*
+			 * We don't want key IDs with embedded newlines to
+			 * mess up the display.
+			 */
+			r = INT_MAX;
+			asmprintf(&fp, INT_MAX, &r, "%s", rki->key_id);
+			fprintf(f, "id: %s\n", fp);
+			free(fp);
+		}
+	}
+	return ret;
 }

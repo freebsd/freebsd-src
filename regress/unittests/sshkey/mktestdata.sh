@@ -1,5 +1,5 @@
 #!/bin/sh
-# $OpenBSD: mktestdata.sh,v 1.7 2018/09/12 01:36:45 djm Exp $
+# $OpenBSD: mktestdata.sh,v 1.10 2020/05/01 04:03:14 djm Exp $
 
 PW=mekmitasdigoat
 
@@ -56,8 +56,8 @@ ecdsa_params() {
 	    awk '/^pub:/,/^ASN1 OID:/' | #\
 	    grep -v '^[a-zA-Z]' | tr -d ' \n:' > ${_outbase}.pub
 	openssl ec -noout -text -in $_in | \
-	    grep "ASN1 OID:" | tr -d '\n' | \
-	    sed 's/.*: //;s/ *$//' > ${_outbase}.curve
+	    grep "ASN1 OID:" | \
+	    sed 's/.*: //;s/ *$//' | tr -d '\n' > ${_outbase}.curve
 	for x in priv pub curve ; do
 		echo "" >> ${_outbase}.$x
 		echo ============ ${_outbase}.$x
@@ -77,19 +77,23 @@ rm -f rsa_1_pw dsa_1_pw ecdsa_1_pw ed25519_1_pw
 rm -f rsa_n_pw dsa_n_pw ecdsa_n_pw
 rm -f pw *.pub *.bn.* *.param.* *.fp *.fp.bb
 
-ssh-keygen -t rsa -b 1024 -C "RSA test key #1" -N "" -f rsa_1
-ssh-keygen -t dsa -b 1024 -C "DSA test key #1" -N "" -f dsa_1
-ssh-keygen -t ecdsa -b 256 -C "ECDSA test key #1" -N "" -f ecdsa_1
+ssh-keygen -t rsa -b 1024 -C "RSA test key #1" -N "" -f rsa_1 -m PEM
+ssh-keygen -t dsa -b 1024 -C "DSA test key #1" -N "" -f dsa_1 -m PEM
+ssh-keygen -t ecdsa -b 256 -C "ECDSA test key #1" -N "" -f ecdsa_1 -m PEM
 ssh-keygen -t ed25519 -C "ED25519 test key #1" -N "" -f ed25519_1
 
-ssh-keygen -t rsa -b 2048 -C "RSA test key #2" -N "" -f rsa_2
-ssh-keygen -t dsa -b 1024 -C "DSA test key #2" -N "" -f dsa_2
-ssh-keygen -t ecdsa -b 521 -C "ECDSA test key #2" -N "" -f ecdsa_2
+ssh-keygen -t rsa -b 2048 -C "RSA test key #2" -N "" -f rsa_2 -m PEM
+ssh-keygen -t dsa -b 1024 -C "DSA test key #2" -N "" -f dsa_2 -m PEM
+ssh-keygen -t ecdsa -b 521 -C "ECDSA test key #2" -N "" -f ecdsa_2 -m PEM
 ssh-keygen -t ed25519 -C "ED25519 test key #1" -N "" -f ed25519_2
 
 cp rsa_1 rsa_n
 cp dsa_1 dsa_n
 cp ecdsa_1 ecdsa_n
+
+ssh-keygen -pf rsa_n -N ""
+ssh-keygen -pf dsa_n -N ""
+ssh-keygen -pf ecdsa_n -N ""
 
 cp rsa_1 rsa_1_pw
 cp dsa_1 dsa_1_pw
@@ -99,13 +103,13 @@ cp rsa_1 rsa_n_pw
 cp dsa_1 dsa_n_pw
 cp ecdsa_1 ecdsa_n_pw
 
-ssh-keygen -pf rsa_1_pw -N "$PW"
-ssh-keygen -pf dsa_1_pw -N "$PW"
-ssh-keygen -pf ecdsa_1_pw -N "$PW"
+ssh-keygen -pf rsa_1_pw -m PEM -N "$PW"
+ssh-keygen -pf dsa_1_pw -m PEM -N "$PW"
+ssh-keygen -pf ecdsa_1_pw -m PEM -N "$PW"
 ssh-keygen -pf ed25519_1_pw -N "$PW"
-ssh-keygen -opf rsa_n_pw -N "$PW"
-ssh-keygen -opf dsa_n_pw -N "$PW"
-ssh-keygen -opf ecdsa_n_pw -N "$PW"
+ssh-keygen -pf rsa_n_pw -N "$PW"
+ssh-keygen -pf dsa_n_pw -N "$PW"
+ssh-keygen -pf ecdsa_n_pw -N "$PW"
 
 rsa_params rsa_1 rsa_1.param
 rsa_params rsa_2 rsa_2.param

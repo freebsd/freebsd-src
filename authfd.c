@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.c,v 1.121 2019/12/21 02:19:13 djm Exp $ */
+/* $OpenBSD: authfd.c,v 1.123 2020/03/06 18:24:39 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -342,7 +342,7 @@ ssh_agent_has_key(int sock, struct sshkey *key)
 	size_t i;
 	struct ssh_identitylist *idlist = NULL;
 
-	if ((r = ssh_fetch_identitylist(sock, &idlist)) < 0) {
+	if ((r = ssh_fetch_identitylist(sock, &idlist)) != 0) {
 		return r;
 	}
 
@@ -561,10 +561,8 @@ ssh_remove_identity(int sock, struct sshkey *key)
 		goto out;
 	r = decode_reply(type);
  out:
-	if (blob != NULL) {
-		explicit_bzero(blob, blen);
-		free(blob);
-	}
+	if (blob != NULL)
+		freezero(blob, blen);
 	sshbuf_free(msg);
 	return r;
 }

@@ -97,7 +97,7 @@ char *sys_auth_get_lastlogin_msg(const char *, uid_t);
 # define CUSTOM_FAILED_LOGIN 1
 # if defined(S_AUTHDOMAIN)  && defined (S_AUTHNAME)
 # define USE_AIX_KRB_NAME
-char *aix_krb5_get_principal_name(char *);
+char *aix_krb5_get_principal_name(const char *);
 # endif
 #endif
 

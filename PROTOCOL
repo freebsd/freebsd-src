@@ -194,7 +194,7 @@ layer 2 frames or layer 3 packets. It may take one of the following values:
 	SSH_TUNMODE_ETHERNET     2		/* layer 2 frames */
 
 The "tunnel unit number" specifies the remote interface number, or may
-be 0x7fffffff to allow the server to automatically chose an interface. A
+be 0x7fffffff to allow the server to automatically choose an interface. A
 server that is not willing to open a client-specified unit should refuse
 the request with a SSH_MSG_CHANNEL_OPEN_FAILURE error. On successful
 open, the server should reply with SSH_MSG_CHANNEL_OPEN_SUCCESS.
@@ -298,7 +298,7 @@ Upon receiving this message, a client should check which of the
 supplied host keys are present in known_hosts.
 
 Note that the server may send key types that the client does not
-support. The client should disgregard such keys if they are received.
+support. The client should disregard such keys if they are received.
 
 If the client identifies any keys that are not present for the host,
 it should send a "hostkeys-prove@openssh.com" message to request the
@@ -496,4 +496,4 @@ OpenSSH's connection multiplexing uses messages as described in
 PROTOCOL.mux over a Unix domain socket for communications between a
 master instance and later clients.
 
-$OpenBSD: PROTOCOL,v 1.36 2018/10/02 12:51:58 djm Exp $
+$OpenBSD: PROTOCOL,v 1.37 2020/02/21 00:04:43 dtucker Exp $

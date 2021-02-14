@@ -646,6 +646,7 @@ SSHDLIBS
 SSHLIBS
 SSH_PRIVSEP_USER
 LIBFIDO2
+SK_DUMMY_LIBRARY
 COMMENT_OUT_ECC
 TEST_SSH_ECC
 PICFLAG
@@ -5412,6 +5413,12 @@ if test "x$ac_cv_have_decl_LLONG_MAX" = xyes; then :
   have_llong_max=1
 fi
 
+ac_fn_c_check_decl "$LINENO" "LONG_LONG_MAX" "ac_cv_have_decl_LONG_LONG_MAX" "#include <limits.h>
+"
+if test "x$ac_cv_have_decl_LONG_LONG_MAX" = xyes; then :
+  have_long_long_max=1
+fi
+
 ac_fn_c_check_decl "$LINENO" "SYSTR_POLICY_KILL" "ac_cv_have_decl_SYSTR_POLICY_KILL" "
 	#include <sys/types.h>
 	#include <sys/param.h>
@@ -6828,6 +6835,7 @@ for ac_header in  \
 	string.h \
 	strings.h \
 	sys/bitypes.h \
+	sys/byteorder.h \
 	sys/bsdtty.h \
 	sys/cdefs.h \
 	sys/dir.h \
@@ -11558,6 +11566,28 @@ $as_echo "#define HAVE_CLOCK_GETTIME 1" >>confdefs.h
 fi
 
 
+ac_fn_c_check_decl "$LINENO" "localtime_r" "ac_cv_have_decl_localtime_r" " #include <time.h>
+
+"
+if test "x$ac_cv_have_decl_localtime_r" = xyes; then :
+
+else
+   saved_CPPFLAGS="$CFLAGS"
+	  CPPFLAGS="$CPPFLAGS -D_REENTRANT"
+	  unset ac_cv_have_decl_localtime_r
+	  ac_fn_c_check_decl "$LINENO" "localtime_r" "ac_cv_have_decl_localtime_r" " #include <time.h>
+
+"
+if test "x$ac_cv_have_decl_localtime_r" = xyes; then :
+
+else
+   CPPFLAGS="$saved_CPPFLAGS"
+fi
+
+
+fi
+
+
 ac_fn_c_check_decl "$LINENO" "strsep" "ac_cv_have_decl_strsep" "
 #ifdef HAVE_STRING_H
 # include <string.h>
@@ -11616,6 +11646,7 @@ _ACEOF
 ac_fn_c_check_decl "$LINENO" "SHUT_RD" "ac_cv_have_decl_SHUT_RD" "
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 "
 if test "x$ac_cv_have_decl_SHUT_RD" = xyes; then :
@@ -11626,6 +11657,21 @@ fi
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_DECL_SHUT_RD $ac_have_decl
+_ACEOF
+ac_fn_c_check_decl "$LINENO" "getpeereid" "ac_cv_have_decl_getpeereid" "
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+"
+if test "x$ac_cv_have_decl_getpeereid" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_GETPEEREID $ac_have_decl
 _ACEOF
 
 
@@ -12719,6 +12765,68 @@ fi
 
 fi
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if SA_RESTARTed signals interrupt select()" >&5
+$as_echo_n "checking if SA_RESTARTed signals interrupt select()... " >&6; }
+if test "$cross_compiling" = yes; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: cross compiling: assuming yes" >&5
+$as_echo "$as_me: WARNING: cross compiling: assuming yes" >&2;}
+
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#ifdef HAVE_SYS_SELECT
+# include <sys/select.h>
+#endif
+#include <sys/types.h>
+#include <sys/time.h>
+#include <stdlib.h>
+#include <signal.h>
+static void sighandler(int sig) { }
+
+int
+main ()
+{
+
+	int r;
+	pid_t pid;
+	struct sigaction sa;
+
+	sa.sa_handler = sighandler;
+	sa.sa_flags = SA_RESTART;
+	(void)sigaction(SIGTERM, &sa, NULL);
+	if ((pid = fork()) == 0) { /* child */
+		pid = getppid();
+		sleep(1);
+		kill(pid, SIGTERM);
+		sleep(1);
+		if (getppid() == pid) /* if parent did not exit, shoot it */
+			kill(pid, SIGKILL);
+		exit(0);
+	} else { /* parent */
+		r = select(0, NULL, NULL, NULL, NULL);
+	}
+	exit(r == -1 ? 0 : 1);
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+$as_echo "#define NO_SA_RESTART 1" >>confdefs.h
+
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+
 for ac_func in getpgrp
 do :
   ac_fn_c_check_func "$LINENO" "getpgrp" "ac_cv_func_getpgrp"
@@ -13226,6 +13334,7 @@ fi
 		EVP_PKEY_get0_RSA \
 		EVP_MD_CTX_new \
 		EVP_MD_CTX_free \
+		EVP_chacha20 \
 
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
@@ -13856,6 +13965,12 @@ if test "x$enable_sk" = "xyes" ; then
 
 $as_echo "#define ENABLE_SK /**/" >>confdefs.h
 
+	SK_DUMMY_LIBRARY=regress/misc/sk-dummy/sk-dummy.so
+
+else
+	# Do not try to build sk-dummy library.
+	SK_DUMMY_LIBRARY=""
+
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $enable_sk" >&5
 $as_echo "$enable_sk" >&6; }
@@ -14025,7 +14140,27 @@ $as_echo "#define ENABLE_SK_INTERNAL /**/" >>confdefs.h
 
 			enable_sk="built-in"
 
+else
+   as_fn_error $? "no usable libfido2 found" "$LINENO" 5
 fi
+
+	ac_fn_c_check_header_mongrel "$LINENO" "fido.h" "ac_cv_header_fido_h" "$ac_includes_default"
+if test "x$ac_cv_header_fido_h" = xyes; then :
+
+else
+  as_fn_error $? "missing fido.h from libfido2" "$LINENO" 5
+fi
+
+
+	ac_fn_c_check_header_compile "$LINENO" "fido/credman.h" "ac_cv_header_fido_credman_h" "#include <fido.h>
+
+"
+if test "x$ac_cv_header_fido_credman_h" = xyes; then :
+
+else
+  as_fn_error $? "missing fido/credman.h from libfido2" "$LINENO" 5
+fi
+
 
 fi
 
@@ -14996,7 +15131,7 @@ if test "x$ac_cv_sizeof_long_long_int" = "x4" ; then
 fi
 
 # compute LLONG_MIN and LLONG_MAX if we don't know them.
-if test -z "$have_llong_max"; then
+if test -z "$have_llong_max" && test -z "$have_long_long_max"; then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for max value of long long" >&5
 $as_echo_n "checking for max value of long long... " >&6; }
 	if test "$cross_compiling" = yes; then :

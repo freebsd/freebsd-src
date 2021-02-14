@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.326 2020/02/06 22:46:31 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.329 2020/04/24 03:33:21 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -324,6 +324,24 @@ kex_default_pk_alg(void)
 	return kex_default_pk_alg_filtered;
 }
 
+char *
+ssh_connection_hash(const char *thishost, const char *host, const char *portstr,
+    const char *user)
+{
+	struct ssh_digest_ctx *md;
+	u_char conn_hash[SSH_DIGEST_MAX_LENGTH];
+
+	if ((md = ssh_digest_start(SSH_DIGEST_SHA1)) == NULL ||
+	    ssh_digest_update(md, thishost, strlen(thishost)) < 0 ||
+	    ssh_digest_update(md, host, strlen(host)) < 0 ||
+	    ssh_digest_update(md, portstr, strlen(portstr)) < 0 ||
+	    ssh_digest_update(md, user, strlen(user)) < 0 ||
+	    ssh_digest_final(md, conn_hash, sizeof(conn_hash)) < 0)
+		fatal("%s: mux digest failed", __func__);
+	ssh_digest_free(md);
+	return tohex(conn_hash, ssh_digest_bytes(SSH_DIGEST_SHA1));
+}
+
 /*
  * Adds a local TCP/IP port forward to options.  Never returns if there is an
  * error.
@@ -646,6 +664,8 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 			if (r == (negate ? 1 : 0))
 				this_result = result = 0;
 		} else if (strcasecmp(attrib, "exec") == 0) {
+			char *conn_hash_hex;
+
 			if (gethostname(thishost, sizeof(thishost)) == -1)
 				fatal("gethostname: %s", strerror(errno));
 			strlcpy(shorthost, thishost, sizeof(shorthost));
@@ -653,8 +673,11 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 			snprintf(portstr, sizeof(portstr), "%d", port);
 			snprintf(uidstr, sizeof(uidstr), "%llu",
 			    (unsigned long long)pw->pw_uid);
+			conn_hash_hex = ssh_connection_hash(thishost, host,
+			   portstr, ruser);
 
 			cmd = percent_expand(arg,
+			    "C", conn_hash_hex,
 			    "L", shorthost,
 			    "d", pw->pw_dir,
 			    "h", host,
@@ -665,6 +688,7 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 			    "u", pw->pw_name,
 			    "i", uidstr,
 			    (char *)NULL);
+			free(conn_hash_hex);
 			if (result != 1) {
 				/* skip execution if prior predicate failed */
 				debug3("%.200s line %d: skipped exec "
@@ -1151,7 +1175,7 @@ parse_char_array:
 			while ((arg = strdelim(&s)) != NULL && *arg != '\0') {
 				if ((*uintptr) >= max_entries)
 					fatal("%s line %d: "
-					    "too many authorized keys files.",
+					    "too many known hosts files.",
 					    filename, linenum);
 				cpptr[(*uintptr)++] = xstrdup(arg);
 			}

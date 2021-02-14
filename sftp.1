@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.128 2019/11/30 07:07:59 jmc Exp $
+.\" $OpenBSD: sftp.1,v 1.131 2020/04/23 21:28:09 jmc Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: November 30 2019 $
+.Dd $Mdocdate: April 23 2020 $
 .Dt SFTP 1
 .Os
 .Sh NAME
@@ -30,7 +30,7 @@
 .Nd OpenSSH secure file transfer
 .Sh SYNOPSIS
 .Nm sftp
-.Op Fl 46aCfpqrv
+.Op Fl 46aCfNpqrv
 .Op Fl B Ar buffer_size
 .Op Fl b Ar batchfile
 .Op Fl c Ar cipher
@@ -197,6 +197,10 @@ This option is directly passed to
 .Xr ssh 1 .
 .It Fl l Ar limit
 Limits the used bandwidth, specified in Kbit/s.
+.It Fl N
+Disables quiet mode, e.g. to override the implicit quiet mode set by the
+.Fl b
+flag.
 .It Fl o Ar ssh_option
 Can be used to pass options to
 .Nm ssh
@@ -631,7 +635,7 @@ Equivalent to
 with the
 .Fl a
 flag set.
-.It Ic rename Ar oldpath Ar newpath
+.It Ic rename Ar oldpath newpath
 Rename remote file from
 .Ar oldpath
 to
@@ -642,7 +646,7 @@ Delete remote file specified by
 .It Ic rmdir Ar path
 Remove remote directory specified by
 .Ar path .
-.It Ic symlink Ar oldpath Ar newpath
+.It Ic symlink Ar oldpath newpath
 Create a symbolic link from
 .Ar oldpath
 to

@@ -62,6 +62,12 @@ void ssh_libcrypto_init(void);
 # define OPENSSL_DSA_MAX_MODULUS_BITS	10000
 #endif
 
+#ifdef LIBRESSL_VERSION_NUMBER
+# if LIBRESSL_VERSION_NUMBER < 0x3010000fL
+#  define HAVE_BROKEN_CHACHA20
+# endif
+#endif
+
 #ifndef OPENSSL_HAVE_EVPCTR
 # define EVP_aes_128_ctr evp_aes_128_ctr
 # define EVP_aes_192_ctr evp_aes_128_ctr

@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.h,v 1.19 2020/01/25 23:02:14 djm Exp $	*/
+/*	$OpenBSD: sshbuf.h,v 1.21 2020/04/26 09:38:14 dtucker Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -140,7 +140,7 @@ int	sshbuf_allocate(struct sshbuf *buf, size_t len);
 /*
  * Reserve len bytes in buf.
  * Returns 0 on success and a pointer to the first reserved byte via the
- * optional dpp parameter or a negative * SSH_ERR_* error code on failure.
+ * optional dpp parameter or a negative SSH_ERR_* error code on failure.
  */
 int	sshbuf_reserve(struct sshbuf *buf, size_t len, u_char **dpp);
 
@@ -187,7 +187,7 @@ int	sshbuf_peek_u8(const struct sshbuf *buf, size_t offset,
     u_char *valp);
 
 /*
- * Functions to poke values into an exisiting buffer (e.g. a length header
+ * Functions to poke values into an existing buffer (e.g. a length header
  * to a packet). The destination bytes must already exist in the buffer.
  */
 int sshbuf_poke_u64(struct sshbuf *buf, size_t offset, u_int64_t val);

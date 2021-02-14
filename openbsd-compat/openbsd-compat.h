@@ -197,7 +197,7 @@ int writev(int, struct iovec *, int);
 #include "bsd-waitpid.h"
 #include "bsd-poll.h"
 
-#ifndef HAVE_GETPEEREID
+#if defined(HAVE_DECL_GETPEEREID) && HAVE_DECL_GETPEEREID == 0
 int getpeereid(int , uid_t *, gid_t *);
 #endif
 

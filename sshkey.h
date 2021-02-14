@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.h,v 1.44 2019/12/30 09:23:28 djm Exp $ */
+/* $OpenBSD: sshkey.h,v 1.45 2020/04/08 00:08:46 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -259,6 +259,8 @@ int	sshkey_parse_private_fileblob(struct sshbuf *buffer,
     const char *passphrase, struct sshkey **keyp, char **commentp);
 int	sshkey_parse_private_fileblob_type(struct sshbuf *blob, int type,
     const char *passphrase, struct sshkey **keyp, char **commentp);
+int	sshkey_parse_pubkey_from_private_fileblob_type(struct sshbuf *blob,
+    int type, struct sshkey **pubkeyp);
 
 /* XXX should be internal, but used by ssh-keygen */
 int ssh_rsa_complete_crt_parameters(struct sshkey *, const BIGNUM *);

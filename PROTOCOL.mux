@@ -39,7 +39,7 @@ messages between the client and server. The client therefore must
 speak a significant subset of the SSH protocol, but in return is able
 to access basically the full suite of connection protocol features.
 Moreover, as no file descriptor passing is required, the connection
-supporting a proxy client may iteself be forwarded or relayed to another
+supporting a proxy client may itself be forwarded or relayed to another
 host if necessary.
 
 1. Connection setup
@@ -295,4 +295,4 @@ XXX session inspection via master
 XXX signals via mux request
 XXX list active connections via mux
 
-$OpenBSD: PROTOCOL.mux,v 1.11 2018/09/26 07:30:05 djm Exp $
+$OpenBSD: PROTOCOL.mux,v 1.12 2020/03/13 03:17:07 djm Exp $

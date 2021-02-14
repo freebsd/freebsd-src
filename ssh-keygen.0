@@ -30,7 +30,7 @@ SYNOPSIS
      ssh-keygen -A [-f prefix_path]
      ssh-keygen -k -f krl_file [-u] [-s ca_public] [-z version_number]
                 file ...
-     ssh-keygen -Q -f krl_file file ...
+     ssh-keygen -Q [-l] -f krl_file file ...
      ssh-keygen -Y find-principals -s signature_file -f allowed_signers_file
      ssh-keygen -Y check-novalidate -n namespace -s signature_file
      ssh-keygen -Y sign -f key_file -n namespace file ...
@@ -301,7 +301,8 @@ DESCRIPTION
              containing the private key, for the old passphrase, and twice for
              the new passphrase.
 
-     -Q      Test whether keys have been revoked in a KRL.
+     -Q      Test whether keys have been revoked in a KRL.  If the -l option
+             is also specified then the contents of the KRL will be printed.
 
      -q      Silence ssh-keygen.
 
@@ -356,7 +357,7 @@ DESCRIPTION
              The end time may be specified as a YYYYMMDD date, a
              YYYYMMDDHHMM[SS] time, a relative time starting with a plus
              character or the string M-bM-^@M-^\foreverM-bM-^@M-^] to indicate that the
-             certificate has no expirty date.
+             certificate has no expiry date.
 
              For example: M-bM-^@M-^\+52w1dM-bM-^@M-^] (valid from now to 52 weeks and one day
              from now), M-bM-^@M-^\-4w:+4wM-bM-^@M-^] (valid from four weeks ago to four weeks
@@ -786,4 +787,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.6                    February 7, 2020                    OpenBSD 6.6
+OpenBSD 6.7                      April 3, 2020                     OpenBSD 6.7

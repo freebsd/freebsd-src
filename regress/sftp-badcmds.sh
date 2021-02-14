@@ -1,4 +1,4 @@
-#	$OpenBSD: sftp-badcmds.sh,v 1.6 2013/05/17 10:26:26 dtucker Exp $
+#	$OpenBSD: sftp-badcmds.sh,v 1.7 2020/03/13 03:18:45 djm Exp $
 #	Placed in the Public Domain.
 
 tid="sftp invalid commands"
@@ -58,7 +58,7 @@ rm -rf ${COPY}
 cp ${DATA2} ${COPY}
 verbose "$tid: glob put files to local file"
 echo "put /bin/l* $COPY" | ${SFTP} -D ${SFTPSERVER} >/dev/null 2>&1 
-cmp ${DATA2} ${COPY} || fail "put successed when it should have failed"
+cmp ${DATA2} ${COPY} || fail "put succeeded when it should have failed"
 
 rm -rf ${COPY} ${COPY}.1 ${COPY}.2 ${COPY}.dd
 

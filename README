@@ -1,4 +1,4 @@
-See https://www.openssh.com/releasenotes.html#8.2p1 for the release notes.
+See https://www.openssh.com/releasenotes.html#8.3p1 for the release notes.
 
 Please read https://www.openssh.com/report.html for bug reporting
 instructions and note that we do not use Github for bug reporting or
@@ -29,10 +29,10 @@ all logins, not just when using password authentication.
 There is now several mailing lists for this port of OpenSSH. Please
 refer to https://www.openssh.com/list.html for details on how to join.
 
-Please send bug reports and patches to the mailing list
-openssh-unix-dev@mindrot.org. The list is open to posting by unsubscribed
-users.  Code contribution are welcomed, but please follow the OpenBSD
-style guidelines[1].
+Please send bug reports and patches to https://bugzilla.mindrot.org or
+the mailing list openssh-unix-dev@mindrot.org.  To mitigate spam, the
+list only allows posting from subscribed addresses.  Code contribution
+are welcomed, but please follow the OpenBSD style guidelines[1].
 
 Please refer to the INSTALL document for information on dependencies and
 how to install OpenSSH on your system.

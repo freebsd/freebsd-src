@@ -109,7 +109,8 @@ DESCRIPTION
              Specifies an alternative per-user configuration file.  If a
              configuration file is given on the command line, the system-wide
              configuration file (/etc/ssh/ssh_config) will be ignored.  The
-             default for the per-user configuration file is ~/.ssh/config.
+             default for the per-user configuration file is ~/.ssh/config.  If
+             set to M-bM-^@M-^\noneM-bM-^@M-^], no configuration files will be read.
 
      -f      Requests ssh to go to background just before command execution.
              This is useful if ssh is going to ask for passwords or
@@ -460,17 +461,17 @@ AUTHENTICATION
 
      Host-based authentication works as follows: If the machine the user logs
      in from is listed in /etc/hosts.equiv or /etc/shosts.equiv on the remote
-     machine, and the user names are the same on both sides, or if the files
-     ~/.rhosts or ~/.shosts exist in the user's home directory on the remote
-     machine and contain a line containing the name of the client machine and
-     the name of the user on that machine, the user is considered for login.
-     Additionally, the server must be able to verify the client's host key
-     (see the description of /etc/ssh/ssh_known_hosts and ~/.ssh/known_hosts,
-     below) for login to be permitted.  This authentication method closes
-     security holes due to IP spoofing, DNS spoofing, and routing spoofing.
-     [Note to the administrator: /etc/hosts.equiv, ~/.rhosts, and the
-     rlogin/rsh protocol in general, are inherently insecure and should be
-     disabled if security is desired.]
+     machine, the user is non-root and the user names are the same on both
+     sides, or if the files ~/.rhosts or ~/.shosts exist in the user's home
+     directory on the remote machine and contain a line containing the name of
+     the client machine and the name of the user on that machine, the user is
+     considered for login.  Additionally, the server must be able to verify
+     the client's host key (see the description of /etc/ssh/ssh_known_hosts
+     and ~/.ssh/known_hosts, below) for login to be permitted.  This
+     authentication method closes security holes due to IP spoofing, DNS
+     spoofing, and routing spoofing.  [Note to the administrator:
+     /etc/hosts.equiv, ~/.rhosts, and the rlogin/rsh protocol in general, are
+     inherently insecure and should be disabled if security is desired.]
 
      Public key authentication works as follows: The scheme is based on
      public-key cryptography, using cryptosystems where encryption and
@@ -988,4 +989,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.6                    February 7, 2020                    OpenBSD 6.6
+OpenBSD 6.7                     April 17, 2020                     OpenBSD 6.7

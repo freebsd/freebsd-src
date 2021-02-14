@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.106 2020/01/31 23:25:08 djm Exp $
+#	$OpenBSD: Makefile,v 1.108 2020/04/20 04:44:47 djm Exp $
 
 tests:		prep file-tests t-exec unit
 
@@ -66,6 +66,7 @@ LTESTS= 	connect \
 		cfgparse \
 		cfgmatch \
 		cfgmatchlisten \
+		percent \
 		addrmatch \
 		localcommand \
 		forcecommand \
@@ -90,8 +91,8 @@ LTESTS= 	connect \
 		servcfginclude \
 		allow-deny-users \
 		authinfo \
-		sshsig
-
+		sshsig \
+		keygen-comment
 
 
 INTEROP_TESTS=	putty-transfer putty-ciphers putty-kex conch-ciphers

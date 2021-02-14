@@ -130,11 +130,10 @@ DESCRIPTION
              target user is used.
 
              The program should produce on standard output zero or more lines
-             of authorized_keys output (see AUTHORIZED_KEYS in sshd(8)).  If a
-             key supplied by AuthorizedKeysCommand does not successfully
-             authenticate and authorize the user then public key
-             authentication continues using the usual AuthorizedKeysFile
-             files.  By default, no AuthorizedKeysCommand is run.
+             of authorized_keys output (see AUTHORIZED_KEYS in sshd(8)).
+             AuthorizedKeysCommand is tried after the usual AuthorizedKeysFile
+             files and will not be executed if a matching key is found there.
+             By default, no AuthorizedKeysCommand is run.
 
      AuthorizedKeysCommandUser
              Specifies the user under whose account the AuthorizedKeysCommand
@@ -482,11 +481,13 @@ DESCRIPTION
              -Q HostKeyAlgorithms".
 
      IgnoreRhosts
-             Specifies that .rhosts and .shosts files will not be used in
-             HostbasedAuthentication.
+             Specifies whether to ignore per-user .rhosts and .shosts files
+             during HostbasedAuthentication.  The system-wide /etc/hosts.equiv
+             and /etc/shosts.equiv are still used regardless of this setting.
 
-             /etc/hosts.equiv and /etc/shosts.equiv are still used.  The
-             default is yes.
+             Accepted values are yes (the default) to ignore all per-user
+             files, shosts-only to allow the use of .shosts but to ignore
+             .rhosts or no to allow both .shosts and rhosts.
 
      IgnoreUserKnownHosts
              Specifies whether sshd(8) should ignore the user's
@@ -687,7 +688,7 @@ DESCRIPTION
              ClientAliveInterval, DenyGroups, DenyUsers, ForceCommand,
              GatewayPorts, GSSAPIAuthentication, HostbasedAcceptedKeyTypes,
              HostbasedAuthentication, HostbasedUsesNameFromPacketOnly,
-             Include, IPQoS, KbdInteractiveAuthentication,
+             IgnoreRhosts, Include, IPQoS, KbdInteractiveAuthentication,
              KerberosAuthentication, LogLevel, MaxAuthTries, MaxSessions,
              PasswordAuthentication, PermitEmptyPasswords, PermitListen,
              PermitOpen, PermitRootLogin, PermitTTY, PermitTunnel,
@@ -1142,4 +1143,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.6                    February 7, 2020                    OpenBSD 6.6
+OpenBSD 6.7                     April 17, 2020                     OpenBSD 6.7

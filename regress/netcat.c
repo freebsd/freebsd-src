@@ -64,6 +64,9 @@
 #ifdef HAVE_ERR_H
 # include <err.h>
 #endif
+#ifdef HAVE_SYS_BYTEORDER_H
+# include <sys/byteorder.h>
+#endif
 
 /* Telnet options from arpa/telnet.h */
 #define IAC	255

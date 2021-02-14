@@ -315,6 +315,10 @@
    */
 #undef HAVE_DECL_BZERO
 
+/* Define to 1 if you have the declaration of `getpeereid', and to 0 if you
+   don't. */
+#undef HAVE_DECL_GETPEEREID
+
 /* Define to 1 if you have the declaration of `GLOB_NOMATCH', and to 0 if you
    don't. */
 #undef HAVE_DECL_GLOB_NOMATCH
@@ -487,6 +491,9 @@
 
 /* Define if your system has /etc/default/login */
 #undef HAVE_ETC_DEFAULT_LOGIN
+
+/* Define to 1 if you have the `EVP_chacha20' function. */
+#undef HAVE_EVP_CHACHA20
 
 /* Define to 1 if you have the `EVP_CIPHER_CTX_ctrl' function. */
 #undef HAVE_EVP_CIPHER_CTX_CTRL
@@ -1409,6 +1416,9 @@
 /* Define to 1 if you have the <sys/bsdtty.h> header file. */
 #undef HAVE_SYS_BSDTTY_H
 
+/* Define to 1 if you have the <sys/byteorder.h> header file. */
+#undef HAVE_SYS_BYTEORDER_H
+
 /* Define to 1 if you have the <sys/capsicum.h> header file. */
 #undef HAVE_SYS_CAPSICUM_H
 
@@ -1721,6 +1731,9 @@
 
 /* compiler does not accept __attribute__ on return types */
 #undef NO_ATTRIBUTE_ON_RETURN_TYPE
+
+/* SA_RESTARTed signals do no interrupt select */
+#undef NO_SA_RESTART
 
 /* Define to disable UID restoration test */
 #undef NO_UID_RESTORATION_TEST

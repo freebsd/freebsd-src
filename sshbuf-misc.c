@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf-misc.c,v 1.13 2020/01/25 23:28:06 djm Exp $	*/
+/*	$OpenBSD: sshbuf-misc.c,v 1.14 2020/02/26 13:40:09 jsg Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -156,17 +156,14 @@ sshbuf_b64tod(struct sshbuf *buf, const char *b64)
 	if ((p = malloc(plen)) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
 	if ((nlen = b64_pton(b64, p, plen)) < 0) {
-		explicit_bzero(p, plen);
-		free(p);
+		freezero(p, plen);
 		return SSH_ERR_INVALID_FORMAT;
 	}
 	if ((r = sshbuf_put(buf, p, nlen)) < 0) {
-		explicit_bzero(p, plen);
-		free(p);
+		freezero(p, plen);
 		return r;
 	}
-	explicit_bzero(p, plen);
-	free(p);
+	freezero(p, plen);
 	return 0;
 }
 

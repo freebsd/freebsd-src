@@ -383,12 +383,13 @@ aix_restoreauthdb(void)
 
 # ifdef USE_AIX_KRB_NAME
 /*
- * aix_krb5_get_principal_name: returns the user's kerberos client principal name if
- * configured, otherwise NULL.  Caller must free returned string.
+ * aix_krb5_get_principal_name: returns the user's kerberos client principal
+ * name if configured, otherwise NULL.  Caller must free returned string.
  */
 char *
-aix_krb5_get_principal_name(char *pw_name)
+aix_krb5_get_principal_name(const char *const_pw_name)
 {
+	char *pw_name = (char *)const_pw_name;
 	char *authname = NULL, *authdomain = NULL, *principal = NULL;
 
 	setuserdb(S_READ);
@@ -398,7 +399,8 @@ aix_krb5_get_principal_name(char *pw_name)
 		debug("AIX getuserattr S_AUTHNAME: %s", strerror(errno));
 
 	if (authdomain != NULL)
-		xasprintf(&principal, "%s@%s", authname ? authname : pw_name, authdomain);
+		xasprintf(&principal, "%s@%s", authname ? authname : pw_name,
+		    authdomain);
 	else if (authname != NULL)
 		principal = xstrdup(authname);
 	enduserdb();

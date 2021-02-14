@@ -659,18 +659,22 @@ DESCRIPTION
      LocalForward
              Specifies that a TCP port on the local machine be forwarded over
              the secure channel to the specified host and port from the remote
-             machine.  The first argument must be [bind_address:]port and the
-             second argument must be host:hostport.  IPv6 addresses can be
-             specified by enclosing addresses in square brackets.  Multiple
-             forwardings may be specified, and additional forwardings can be
-             given on the command line.  Only the superuser can forward
-             privileged ports.  By default, the local port is bound in
-             accordance with the GatewayPorts setting.  However, an explicit
-             bind_address may be used to bind the connection to a specific
-             address.  The bind_address of localhost indicates that the
-             listening port be bound for local use only, while an empty
+             machine.  The first argument specifies the listener and may be
+             [bind_address:]port or a Unix domain socket path.  The second
+             argument is the destination and may be host:hostport or a Unix
+             domain socket path if the remote host supports it.
+
+             IPv6 addresses can be specified by enclosing addresses in square
+             brackets.  Multiple forwardings may be specified, and additional
+             forwardings can be given on the command line.  Only the superuser
+             can forward privileged ports.  By default, the local port is
+             bound in accordance with the GatewayPorts setting.  However, an
+             explicit bind_address may be used to bind the connection to a
+             specific address.  The bind_address of localhost indicates that
+             the listening port be bound for local use only, while an empty
              address or M-bM-^@M-^X*M-bM-^@M-^Y indicates that the port should be available from
-             all interfaces.
+             all interfaces.  Unix domain socket paths accept the tokens
+             described in the TOKENS section.
 
      LogLevel
              Gives the verbosity level that is used when logging messages from
@@ -846,16 +850,19 @@ DESCRIPTION
              specified host and port from the local machine, or may act as a
              SOCKS 4/5 proxy that allows a remote client to connect to
              arbitrary destinations from the local machine.  The first
-             argument must be [bind_address:]port If forwarding to a specific
-             destination then the second argument must be host:hostport,
-             otherwise if no destination argument is specified then the remote
-             forwarding will be established as a SOCKS proxy.
+             argument is the listening specification and may be
+             [bind_address:]port or, if the remote host supports it, a Unix
+             domain socket path.  If forwarding to a specific destination then
+             the second argument must be host:hostport or a Unix domain socket
+             path, otherwise if no destination argument is specified then the
+             remote forwarding will be established as a SOCKS proxy.
 
              IPv6 addresses can be specified by enclosing addresses in square
              brackets.  Multiple forwardings may be specified, and additional
              forwardings can be given on the command line.  Privileged ports
              can be forwarded only when logging in as root on the remote
-             machine.
+             machine.  Unix domain socket paths accept the tokens described in
+             the TOKENS section.
 
              If the port argument is 0, the listen port will be dynamically
              allocated on the server and reported to the client at run time.
@@ -1124,25 +1131,15 @@ TOKENS
                  tunnel forwarding was requested, or "NONE" otherwise.
            %u    The local username.
 
-     Match exec accepts the tokens %%, %h, %i, %L, %l, %n, %p, %r, and %u.
-
-     CertificateFile accepts the tokens %%, %d, %h, %i, %l, %r, and %u.
-
-     ControlPath accepts the tokens %%, %C, %h, %i, %L, %l, %n, %p, %r, and
-     %u.
+     CertificateFile, ControlPath, IdentityAgent, IdentityFile, LocalForward,
+     Match exec, RemoteCommand, and RemoteForward accept the tokens %%, %C,
+     %d, %h, %i, %L, %l, %n, %p, %r, and %u.
 
      Hostname accepts the tokens %% and %h.
 
-     IdentityAgent and IdentityFile accept the tokens %%, %d, %h, %i, %l, %r,
-     and %u.
-
-     LocalCommand accepts the tokens %%, %C, %d, %h, %i, %l, %n, %p, %r, %T,
-     and %u.
+     LocalCommand accepts all tokens.
 
      ProxyCommand accepts the tokens %%, %h, %n, %p, and %r.
-
-     RemoteCommand accepts the tokens %%, %C, %d, %h, %i, %l, %n, %p, %r, and
-     %u.
 
 FILES
      ~/.ssh/config
@@ -1167,4 +1164,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.6                    February 7, 2020                    OpenBSD 6.6
+OpenBSD 6.7                     April 11, 2020                     OpenBSD 6.7

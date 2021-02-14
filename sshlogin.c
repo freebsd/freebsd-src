@@ -90,8 +90,11 @@ static void
 store_lastlog_message(const char *user, uid_t uid)
 {
 #ifndef NO_SSH_LASTLOG
-	char *time_string, hostname[HOST_NAME_MAX+1] = "";
+# ifndef CUSTOM_SYS_AUTH_GET_LASTLOGIN_MSG
+	char hostname[HOST_NAME_MAX+1] = "";
 	time_t last_login_time;
+# endif
+	char *time_string;
 	int r;
 
 	if (!options.print_lastlog)

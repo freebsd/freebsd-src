@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-passwd.c,v 1.17 2019/09/06 04:53:27 djm Exp $ */
+/* $OpenBSD: auth2-passwd.c,v 1.18 2020/02/26 13:40:09 jsg Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -66,8 +66,7 @@ userauth_passwd(struct ssh *ssh)
 		logit("password change not supported");
 	else if (PRIVSEP(auth_password(ssh, password)) == 1)
 		authenticated = 1;
-	explicit_bzero(password, len);
-	free(password);
+	freezero(password, len);
 	return authenticated;
 }
 
