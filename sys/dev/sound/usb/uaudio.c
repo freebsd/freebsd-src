@@ -2313,11 +2313,16 @@ uaudio_chan_play_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 tr_setup:
 		if (ch_rec != NULL) {
+			/*
+			 * NOTE: The play and record callbacks are
+			 * executed from the same USB thread and
+			 * locking the record channel mutex here is
+			 * not needed. This avoids a LOR situation.
+			 */
+
 			/* reset receive jitter counters */
-			mtx_lock(ch_rec->pcm_mtx);
 			ch_rec->jitter_curr = 0;
 			ch_rec->jitter_rem = 0;
-			mtx_unlock(ch_rec->pcm_mtx);
 		}
 
 		/* reset transmit jitter counters */
@@ -2338,10 +2343,17 @@ tr_setup:
 		 */
 		if (ch_rec != NULL &&
 		    uaudio_chan_is_async(ch, ch->cur_alt) != 0) {
-			mtx_lock(ch_rec->pcm_mtx);
-			if (ch_rec->cur_alt < ch_rec->num_alt) {
+			uint32_t rec_alt = ch_rec->cur_alt;
+			if (rec_alt < ch_rec->num_alt) {
 				int64_t tx_jitter;
 				int64_t rx_rate;
+				/*
+				 * NOTE: The play and record callbacks
+				 * are executed from the same USB
+				 * thread and locking the record
+				 * channel mutex here is not needed.
+				 * This avoids a LOR situation.
+				 */
 
 				/* translate receive jitter into transmit jitter */
 				tx_jitter = ch->usb_alt[ch->cur_alt].sample_rate;
@@ -2353,11 +2365,10 @@ tr_setup:
 				ch_rec->jitter_rem = 0;
 		
 				/* compute exact number of transmit jitter samples */
-				rx_rate = ch_rec->usb_alt[ch_rec->cur_alt].sample_rate;
+				rx_rate = ch_rec->usb_alt[rec_alt].sample_rate;
 				ch->jitter_curr += tx_jitter / rx_rate;
 				ch->jitter_rem = tx_jitter % rx_rate;
 			}
-			mtx_unlock(ch_rec->pcm_mtx);
 		}
 
 		/* start the SYNC transfer one time per second, if any */
