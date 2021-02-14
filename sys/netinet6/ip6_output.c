@@ -1177,7 +1177,6 @@ passout:
 			counter_u64_add(ia6->ia_ifa.ifa_opackets, 1);
 			counter_u64_add(ia6->ia_ifa.ifa_obytes,
 			    m->m_pkthdr.len);
-			ifa_free(&ia6->ia_ifa);
 		}
 		error = ip6_output_send(inp, ifp, origifp, m, dst, ro,
 		    (flags & IP_NO_SND_TAG_RL) ? false : true);
