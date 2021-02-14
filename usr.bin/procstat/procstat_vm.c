@@ -155,6 +155,10 @@ procstat_vm(struct procstat *procstat, struct kinfo_proc *kipp)
 			str = "md";
 			lstr = "managed_device";
 			break;
+		case KVME_TYPE_GUARD:
+			str = "gd";
+			lstr = "guard";
+			break;
 		case KVME_TYPE_UNKNOWN:
 		default:
 			str = "??";
