@@ -303,10 +303,12 @@ spa_prop_get_config(spa_t *spa, nvlist_t **nvp)
 		alloc = metaslab_class_get_alloc(mc);
 		alloc += metaslab_class_get_alloc(spa_special_class(spa));
 		alloc += metaslab_class_get_alloc(spa_dedup_class(spa));
+		alloc += metaslab_class_get_alloc(spa_embedded_log_class(spa));
 
 		size = metaslab_class_get_space(mc);
 		size += metaslab_class_get_space(spa_special_class(spa));
 		size += metaslab_class_get_space(spa_dedup_class(spa));
+		size += metaslab_class_get_space(spa_embedded_log_class(spa));
 
 		spa_prop_add_list(*nvp, ZPOOL_PROP_NAME, spa_name(spa), 0, src);
 		spa_prop_add_list(*nvp, ZPOOL_PROP_SIZE, NULL, size, src);
@@ -1196,6 +1198,8 @@ spa_activate(spa_t *spa, spa_mode_t mode)
 
 	spa->spa_normal_class = metaslab_class_create(spa, zfs_metaslab_ops);
 	spa->spa_log_class = metaslab_class_create(spa, zfs_metaslab_ops);
+	spa->spa_embedded_log_class =
+	    metaslab_class_create(spa, zfs_metaslab_ops);
 	spa->spa_special_class = metaslab_class_create(spa, zfs_metaslab_ops);
 	spa->spa_dedup_class = metaslab_class_create(spa, zfs_metaslab_ops);
 
@@ -1346,6 +1350,9 @@ spa_deactivate(spa_t *spa)
 
 	metaslab_class_destroy(spa->spa_log_class);
 	spa->spa_log_class = NULL;
+
+	metaslab_class_destroy(spa->spa_embedded_log_class);
+	spa->spa_embedded_log_class = NULL;
 
 	metaslab_class_destroy(spa->spa_special_class);
 	spa->spa_special_class = NULL;
@@ -2103,6 +2110,9 @@ spa_check_logs(spa_t *spa)
 	return (rv);
 }
 
+/*
+ * Passivate any log vdevs (note, does not apply to embedded log metaslabs).
+ */
 static boolean_t
 spa_passivate_log(spa_t *spa)
 {
@@ -2113,10 +2123,10 @@ spa_passivate_log(spa_t *spa)
 
 	for (int c = 0; c < rvd->vdev_children; c++) {
 		vdev_t *tvd = rvd->vdev_child[c];
-		metaslab_group_t *mg = tvd->vdev_mg;
 
 		if (tvd->vdev_islog) {
-			metaslab_group_passivate(mg);
+			ASSERT3P(tvd->vdev_log_mg, ==, NULL);
+			metaslab_group_passivate(tvd->vdev_mg);
 			slog_found = B_TRUE;
 		}
 	}
@@ -2124,6 +2134,9 @@ spa_passivate_log(spa_t *spa)
 	return (slog_found);
 }
 
+/*
+ * Activate any log vdevs (note, does not apply to embedded log metaslabs).
+ */
 static void
 spa_activate_log(spa_t *spa)
 {
@@ -2133,10 +2146,11 @@ spa_activate_log(spa_t *spa)
 
 	for (int c = 0; c < rvd->vdev_children; c++) {
 		vdev_t *tvd = rvd->vdev_child[c];
-		metaslab_group_t *mg = tvd->vdev_mg;
 
-		if (tvd->vdev_islog)
-			metaslab_group_activate(mg);
+		if (tvd->vdev_islog) {
+			ASSERT3P(tvd->vdev_log_mg, ==, NULL);
+			metaslab_group_activate(tvd->vdev_mg);
+		}
 	}
 }
 
@@ -6236,6 +6250,7 @@ static int
 spa_export_common(const char *pool, int new_state, nvlist_t **oldconfig,
     boolean_t force, boolean_t hardforce)
 {
+	int error;
 	spa_t *spa;
 
 	if (oldconfig)
@@ -6288,13 +6303,9 @@ spa_export_common(const char *pool, int new_state, nvlist_t **oldconfig,
 	 * references.  If we are resetting a pool, allow references by
 	 * fault injection handlers.
 	 */
-	if (!spa_refcount_zero(spa) ||
-	    (spa->spa_inject_ref != 0 &&
-	    new_state != POOL_STATE_UNINITIALIZED)) {
-		spa_async_resume(spa);
-		spa->spa_is_exporting = B_FALSE;
-		mutex_exit(&spa_namespace_lock);
-		return (SET_ERROR(EBUSY));
+	if (!spa_refcount_zero(spa) || (spa->spa_inject_ref != 0)) {
+		error = SET_ERROR(EBUSY);
+		goto fail;
 	}
 
 	if (spa->spa_sync_on) {
@@ -6306,10 +6317,8 @@ spa_export_common(const char *pool, int new_state, nvlist_t **oldconfig,
 		 */
 		if (!force && new_state == POOL_STATE_EXPORTED &&
 		    spa_has_active_shared_spare(spa)) {
-			spa_async_resume(spa);
-			spa->spa_is_exporting = B_FALSE;
-			mutex_exit(&spa_namespace_lock);
-			return (SET_ERROR(EXDEV));
+			error = SET_ERROR(EXDEV);
+			goto fail;
 		}
 
 		/*
@@ -6371,6 +6380,12 @@ export_spa:
 
 	mutex_exit(&spa_namespace_lock);
 	return (0);
+
+fail:
+	spa->spa_is_exporting = B_FALSE;
+	spa_async_resume(spa);
+	mutex_exit(&spa_namespace_lock);
+	return (error);
 }
 
 /*
@@ -8033,12 +8048,16 @@ spa_async_thread(void *arg)
 		old_space = metaslab_class_get_space(spa_normal_class(spa));
 		old_space += metaslab_class_get_space(spa_special_class(spa));
 		old_space += metaslab_class_get_space(spa_dedup_class(spa));
+		old_space += metaslab_class_get_space(
+		    spa_embedded_log_class(spa));
 
 		spa_config_update(spa, SPA_CONFIG_UPDATE_POOL);
 
 		new_space = metaslab_class_get_space(spa_normal_class(spa));
 		new_space += metaslab_class_get_space(spa_special_class(spa));
 		new_space += metaslab_class_get_space(spa_dedup_class(spa));
+		new_space += metaslab_class_get_space(
+		    spa_embedded_log_class(spa));
 		mutex_exit(&spa_namespace_lock);
 
 		/*
