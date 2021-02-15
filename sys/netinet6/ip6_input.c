@@ -803,7 +803,7 @@ passin:
 	 * XXX: For now we keep link-local IPv6 addresses with embedded
 	 *      scope zone id, therefore we use zero zoneid here.
 	 */
-	ia = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
+	ia = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */, false);
 	if (ia != NULL) {
 		if (ia->ia6_flags & IN6_IFF_NOTREADY) {
 			char ip6bufs[INET6_ADDRSTRLEN];
@@ -813,13 +813,11 @@ passin:
 			    "ip6_input: packet to an unready address %s->%s\n",
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    ip6_sprintf(ip6bufd, &ip6->ip6_dst)));
-			ifa_free(&ia->ia_ifa);
 			goto bad;
 		}
 		/* Count the packet in the ip address stats */
 		counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
 		counter_u64_add(ia->ia_ifa.ifa_ibytes, m->m_pkthdr.len);
-		ifa_free(&ia->ia_ifa);
 		ours = 1;
 		goto hbhcheck;
 	}

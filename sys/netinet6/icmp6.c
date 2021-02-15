@@ -1218,19 +1218,17 @@ ni6_input(struct mbuf *m, int off, struct prison *pr)
 			goto bad;
 		/* else it's a link-local multicast, fine */
 	} else {		/* unicast or anycast */
-		ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
+		ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */, false);
 		if (ia6 == NULL)
 			goto bad; /* XXX impossible */
 
 		if ((ia6->ia6_flags & IN6_IFF_TEMPORARY) &&
 		    !(V_icmp6_nodeinfo & ICMP6_NODEINFO_TMPADDROK)) {
-			ifa_free(&ia6->ia_ifa);
 			nd6log((LOG_DEBUG, "ni6_input: ignore node info to "
 				"a temporary address in %s:%d",
 			       __FILE__, __LINE__));
 			goto bad;
 		}
-		ifa_free(&ia6->ia_ifa);
 	}
 
 	/* validate query Subject field. */
@@ -2101,7 +2099,7 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	 * destined to a duplicated address of ours.
 	 */
 	if (!IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
-		ia = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
+		ia = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */, false);
 		if (ia != NULL && !(ia->ia6_flags &
 		    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY))) {
 			src6 = ia->ia_addr.sin6_addr;
@@ -2113,8 +2111,6 @@ icmp6_reflect(struct mbuf *m, size_t off)
 			} else
 				hlim = V_ip6_defhlim;
 		}
-		if (ia != NULL)
-			ifa_free(&ia->ia_ifa);
 	}
 
 	if (srcp == NULL) {

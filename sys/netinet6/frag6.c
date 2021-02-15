@@ -396,11 +396,9 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 
 	dstifp = NULL;
 	/* Find the destination interface of the packet. */
-	ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
-	if (ia6 != NULL) {
+	ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */, false);
+	if (ia6 != NULL)
 		dstifp = ia6->ia_ifp;
-		ifa_free(&ia6->ia_ifa);
-	}
 
 	/* Jumbo payload cannot contain a fragment header. */
 	if (ip6->ip6_plen == 0) {
