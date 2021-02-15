@@ -9,6 +9,8 @@
 
 .if exists(${.CURDIR}/tests)
 PROG= make
+LINKS= make bmake
+MLINKS= ${MAN} b${MAN}
 .endif
 
 .if !defined(MK_SHARED_TOOLCHAIN) || ${MK_SHARED_TOOLCHAIN} == "no"
