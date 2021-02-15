@@ -333,15 +333,13 @@ kern_statfs(struct thread *td, const char *path, enum uio_seg pathseg,
 	struct nameidata nd;
 	int error;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1,
-	    pathseg, path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, pathseg, path, td);
 	error = namei(&nd);
 	if (error != 0)
 		return (error);
-	mp = nd.ni_vp->v_mount;
-	vfs_ref(mp);
+	mp = vfs_ref_from_vp(nd.ni_vp);
 	NDFREE_NOTHING(&nd);
-	vput(nd.ni_vp);
+	vrele(nd.ni_vp);
 	return (kern_do_statfs(td, mp, buf));
 }
 
@@ -381,14 +379,14 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	if (error != 0)
 		return (error);
 	vp = fp->f_vnode;
-	vn_lock(vp, LK_SHARED | LK_RETRY);
 #ifdef AUDIT
-	AUDIT_ARG_VNODE1(vp);
+	if (AUDITING_TD(td)) {
+		vn_lock(vp, LK_SHARED | LK_RETRY);
+		AUDIT_ARG_VNODE1(vp);
+		VOP_UNLOCK(vp);
+	}
 #endif
-	mp = vp->v_mount;
-	if (mp != NULL)
-		vfs_ref(mp);
-	VOP_UNLOCK(vp);
+	mp = vfs_ref_from_vp(vp);
 	fdrop(fp, td);
 	return (kern_do_statfs(td, mp, buf));
 }
