@@ -950,6 +950,10 @@ vn_read_from_obj(struct vnode *vp, struct uio *uio)
 #else
 	vsz = atomic_load_64(&obj->un_pager.vnp.vnp_size);
 #endif
+	if (uio->uio_offset >= vsz) {
+		error = EJUSTRETURN;
+		goto out;
+	}
 	if (uio->uio_offset + resid > vsz)
 		resid = vsz - uio->uio_offset;
 
