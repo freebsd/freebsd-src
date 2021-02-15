@@ -976,8 +976,8 @@ ffs_write(ap)
 		} else if (xfersize + blkoffset == fs->fs_bsize) {
 			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0) {
 				bp->b_flags |= B_CLUSTEROK;
-				cluster_write(vp, bp, ip->i_size, seqcount,
-				    GB_UNMAPPED);
+				cluster_write(vp, &ip->i_clusterw, bp,
+				    ip->i_size, seqcount, GB_UNMAPPED);
 			} else {
 				bawrite(bp);
 			}

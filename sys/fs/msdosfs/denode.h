@@ -52,6 +52,8 @@
 #ifndef _FS_MSDOSFS_DENODE_H_
 #define	_FS_MSDOSFS_DENODE_H_
 
+#include <sys/buf.h>
+
 /*
  * This is the pc filesystem specific portion of the vnode structure.
  *
@@ -142,6 +144,7 @@ struct fatcache {
  */
 struct denode {
 	struct vnode *de_vnode;	/* addr of vnode we are part of */
+	struct vn_clusterw de_clusterw;	/* buffer clustering information */
 	u_long de_flag;		/* flag bits */
 	u_long de_dirclust;	/* cluster of the directory file containing this entry */
 	u_long de_diroffset;	/* offset of this entry in the directory cluster */

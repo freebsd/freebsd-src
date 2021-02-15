@@ -354,7 +354,7 @@ ffs_truncate(vp, length, flags, cred)
 		panic("ffs_truncate: read-only filesystem");
 	if (IS_SNAPSHOT(ip))
 		ffs_snapremove(vp);
-	vp->v_lasta = vp->v_clen = vp->v_cstart = vp->v_lastw = 0;
+	cluster_init_vn(&ip->i_clusterw);
 	osize = ip->i_size;
 	/*
 	 * Lengthen the size of the file. We must ensure that the

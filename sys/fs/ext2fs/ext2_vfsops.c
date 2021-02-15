@@ -1229,6 +1229,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	ip->i_e2fs = fs = ump->um_e2fs;
 	ip->i_ump = ump;
 	ip->i_number = ino;
+	cluster_init_vn(&ip->i_clusterw);
 
 	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
 	error = insmntque(vp, mp);
