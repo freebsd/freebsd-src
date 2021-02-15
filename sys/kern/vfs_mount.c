@@ -449,6 +449,44 @@ sys_nmount(struct thread *td, struct nmount_args *uap)
  * Various utility functions
  */
 
+/*
+ * Get a reference on a mount point from a vnode.
+ *
+ * The vnode is allowed to be passed unlocked and race against dooming. Note in
+ * such case there are no guarantees the referenced mount point will still be
+ * associated with it after the function returns.
+ */
+struct mount *
+vfs_ref_from_vp(struct vnode *vp)
+{
+	struct mount *mp;
+	struct mount_pcpu *mpcpu;
+
+	mp = atomic_load_ptr(&vp->v_mount);
+	if (__predict_false(mp == NULL)) {
+		return (mp);
+	}
+	if (vfs_op_thread_enter(mp, mpcpu)) {
+		if (__predict_true(mp == vp->v_mount)) {
+			vfs_mp_count_add_pcpu(mpcpu, ref, 1);
+			vfs_op_thread_exit(mp, mpcpu);
+		} else {
+			vfs_op_thread_exit(mp, mpcpu);
+			mp = NULL;
+		}
+	} else {
+		MNT_ILOCK(mp);
+		if (mp == vp->v_mount) {
+			MNT_REF(mp);
+			MNT_IUNLOCK(mp);
+		} else {
+			MNT_IUNLOCK(mp);
+			mp = NULL;
+		}
+	}
+	return (mp);
+}
+
 void
 vfs_ref(struct mount *mp)
 {
