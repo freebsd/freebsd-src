@@ -510,6 +510,27 @@ free_elf(struct elfcopy *ecp)
 	}
 }
 
+/*
+ * Remove a temporary file, without freeing its filename.
+ *
+ * Safe to pass NULL, will just ignore it.
+ */
+int
+cleanup_tempfile(char *fn)
+{
+	int errno_save, retval;
+
+	if (fn == NULL)
+		return 0;
+	errno_save = errno;
+	if ((retval = unlink(fn)) < 0) {
+		warn("unlink tempfile %s failed", fn);
+		errno = errno_save;
+		return retval;
+	}
+	return 0;
+}
+
 /* Create a temporary file. */
 void
 create_tempfile(const char *src, char **fn, int *fd)
@@ -656,8 +677,10 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 	}
 #endif
 
-	if (lseek(ifd, 0, SEEK_SET) < 0)
+	if (lseek(ifd, 0, SEEK_SET) < 0) {
+		cleanup_tempfile(tempfile);
 		err(EXIT_FAILURE, "lseek failed");
+	}
 
 	/*
 	 * If input object is not ELF file, convert it to an intermediate
@@ -677,9 +700,12 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 				ecp->oed = ELFDATA2LSB;
 		}
 		create_tempfile(src, &elftemp, &efd);
-		if ((ecp->eout = elf_begin(efd, ELF_C_WRITE, NULL)) == NULL)
+		if ((ecp->eout = elf_begin(efd, ELF_C_WRITE, NULL)) == NULL) {
+			cleanup_tempfile(elftemp);
+			cleanup_tempfile(tempfile);
 			errx(EXIT_FAILURE, "elf_begin() failed: %s",
 			    elf_errmsg(-1));
+		}
 		elf_flagelf(ecp->eout, ELF_C_SET, ELF_F_LAYOUT);
 		if (ecp->itf == ETF_BINARY)
 			create_elf_from_binary(ecp, ifd, src);
@@ -687,31 +713,45 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 			create_elf_from_ihex(ecp, ifd);
 		else if (ecp->itf == ETF_SREC)
 			create_elf_from_srec(ecp, ifd);
-		else
+		else {
+			cleanup_tempfile(elftemp);
+			cleanup_tempfile(tempfile);
 			errx(EXIT_FAILURE, "Internal: invalid target flavour");
+		}
 		elf_end(ecp->eout);
 
 		/* Open intermediate ELF object as new input object. */
 		close(ifd);
-		if ((ifd = open(elftemp, O_RDONLY)) == -1)
+		if ((ifd = open(elftemp, O_RDONLY)) == -1) {
+			cleanup_tempfile(elftemp);
+			cleanup_tempfile(tempfile);
 			err(EXIT_FAILURE, "open %s failed", src);
+		}
 		close(efd);
-		if (unlink(elftemp) < 0)
+		if (cleanup_tempfile(elftemp) < 0) {
+			cleanup_tempfile(tempfile);
 			err(EXIT_FAILURE, "unlink %s failed", elftemp);
+		}
 		free(elftemp);
+		elftemp = NULL;
 	}
 
-	if ((ecp->ein = elf_begin(ifd, ELF_C_READ, NULL)) == NULL)
+	if ((ecp->ein = elf_begin(ifd, ELF_C_READ, NULL)) == NULL) {
+		cleanup_tempfile(tempfile);
 		errx(EXIT_FAILURE, "elf_begin() failed: %s",
 		    elf_errmsg(-1));
+	}
 
 	switch (elf_kind(ecp->ein)) {
 	case ELF_K_NONE:
+		cleanup_tempfile(tempfile);
 		errx(EXIT_FAILURE, "file format not recognized");
 	case ELF_K_ELF:
-		if ((ecp->eout = elf_begin(ofd, ELF_C_WRITE, NULL)) == NULL)
+		if ((ecp->eout = elf_begin(ofd, ELF_C_WRITE, NULL)) == NULL) {
+			cleanup_tempfile(tempfile);
 			errx(EXIT_FAILURE, "elf_begin() failed: %s",
 			    elf_errmsg(-1));
+		}
 
 		/* elfcopy(1) manage ELF layout by itself. */
 		elf_flagelf(ecp->eout, ELF_C_SET, ELF_F_LAYOUT);
@@ -730,21 +770,21 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 			 * Create (another) tempfile for binary/srec/ihex
 			 * output object.
 			 */
-			if (tempfile != NULL) {
-				if (unlink(tempfile) < 0)
-					err(EXIT_FAILURE, "unlink %s failed",
-					    tempfile);
-				free(tempfile);
-			}
+			if (cleanup_tempfile(tempfile) < 0)
+				errx(EXIT_FAILURE, "unlink %s failed",
+				    tempfile);
+			free(tempfile);
 			create_tempfile(src, &tempfile, &ofd0);
 
 
 			/*
 			 * Rewind the file descriptor being processed.
 			 */
-			if (lseek(ofd, 0, SEEK_SET) < 0)
+			if (lseek(ofd, 0, SEEK_SET) < 0) {
+				cleanup_tempfile(tempfile);
 				err(EXIT_FAILURE,
 				    "lseek failed for the output object");
+			}
 
 			/*
 			 * Call flavour-specific conversion routine.
@@ -765,11 +805,13 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 #if	WITH_PE
 				create_pe(ecp, ofd, ofd0);
 #else
+				cleanup_tempfile(tempfile);
 				errx(EXIT_FAILURE, "PE/EFI support not enabled"
 				    " at compile time");
 #endif
 				break;
 			default:
+				cleanup_tempfile(tempfile);
 				errx(EXIT_FAILURE, "Internal: unsupported"
 				    " output flavour %d", ecp->oec);
 			}
@@ -784,6 +826,7 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 		/* XXX: Not yet supported. */
 		break;
 	default:
+		cleanup_tempfile(tempfile);
 		errx(EXIT_FAILURE, "file format not supported");
 	}
 
@@ -802,9 +845,13 @@ copy_done:
 				in_place = 1;
 		}
 
-		if (copy_from_tempfile(tempfile, dst, ofd, &tfd, in_place) < 0)
+		if (copy_from_tempfile(tempfile, dst, ofd,
+		    &tfd, in_place) < 0) {
+			cleanup_tempfile(tempfile);
 			err(EXIT_FAILURE, "creation of %s failed", dst);
+		}
 
+		/* 'tempfile' has been removed by copy_from_tempfile(). */
 		free(tempfile);
 		tempfile = NULL;
 
