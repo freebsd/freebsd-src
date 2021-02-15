@@ -680,7 +680,6 @@ vop_stdgetwritemount(ap)
 	} */ *ap;
 {
 	struct mount *mp;
-	struct mount_pcpu *mpcpu;
 	struct vnode *vp;
 
 	/*
@@ -693,29 +692,7 @@ vop_stdgetwritemount(ap)
 	 * with releasing it.
 	 */
 	vp = ap->a_vp;
-	mp = vp->v_mount;
-	if (mp == NULL) {
-		*(ap->a_mpp) = NULL;
-		return (0);
-	}
-	if (vfs_op_thread_enter(mp, mpcpu)) {
-		if (mp == vp->v_mount) {
-			vfs_mp_count_add_pcpu(mpcpu, ref, 1);
-			vfs_op_thread_exit(mp, mpcpu);
-		} else {
-			vfs_op_thread_exit(mp, mpcpu);
-			mp = NULL;
-		}
-	} else {
-		MNT_ILOCK(mp);
-		if (mp == vp->v_mount) {
-			MNT_REF(mp);
-			MNT_IUNLOCK(mp);
-		} else {
-			MNT_IUNLOCK(mp);
-			mp = NULL;
-		}
-	}
+	mp = vfs_ref_from_vp(vp);
 	*(ap->a_mpp) = mp;
 	return (0);
 }
