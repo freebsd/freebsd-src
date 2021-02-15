@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/vnode.h>
 
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+
 #include <geom/geom.h>
 
 #include <ufs/ufs/extattr.h>
@@ -328,6 +331,7 @@ restart:
 		goto out;
 	bawrite(bp);
 	ip->i_size = lblktosize(fs, (off_t)(numblks + 1));
+	vnode_pager_setsize(vp, ip->i_size);
 	DIP_SET(ip, i_size, ip->i_size);
 	UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
 	/*
