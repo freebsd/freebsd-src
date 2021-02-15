@@ -136,7 +136,7 @@ int
 linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
 {
 
-	return (linux_mmap_common(td, PTROUT(args->addr), args->len, args->prot,
+	return (linux_mmap_common(td, args->addr, args->len, args->prot,
 		args->flags, args->fd, args->pgoff));
 }
 
@@ -144,14 +144,14 @@ int
 linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
 {
 
-	return (linux_mprotect_common(td, PTROUT(uap->addr), uap->len, uap->prot));
+	return (linux_mprotect_common(td, uap->addr, uap->len, uap->prot));
 }
 
 int
 linux_madvise(struct thread *td, struct linux_madvise_args *uap)
 {
 
-	return (linux_madvise_common(td, PTROUT(uap->addr), uap->len, uap->behav));
+	return (linux_madvise_common(td, uap->addr, uap->len, uap->behav));
 }
 
 int
