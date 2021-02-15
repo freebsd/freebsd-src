@@ -63,16 +63,18 @@ run(int domain, int type, int flags)
 	while ((i = open("/", O_RDONLY)) < 3)
 		ATF_REQUIRE(i != -1);
 
-#ifdef __FreeBSD__
-	closefrom(3);
-#else
+#ifdef __NetBSD__
+	/* This check is harmful since it closes atf's output file */
 	ATF_REQUIRE(closefrom(3) != -1);
 #endif
 
 	ATF_REQUIRE(socketpair(domain, type | flags, 0, fd) == 0);
 
+#if __NetBSD__
+	/* This check is harmful since it requires closing atf's output file */
 	ATF_REQUIRE(fd[0] == 3);
 	ATF_REQUIRE(fd[1] == 4);
+#endif
 
 	connected(fd[0]);
 	connected(fd[1]);
@@ -125,12 +127,25 @@ ATF_TC_BODY(null_sv, tc)
 {
 	int fd;
 
+#ifdef __NetBSD__
+	/* This check is harmful since it closes atf's output file */
 	closefrom(3);
+#else
+	int lowfd = open("/", O_RDONLY);
+	ATF_REQUIRE(lowfd > 0);
+	ATF_REQUIRE_EQ(0, close(lowfd));
+#endif
 	ATF_REQUIRE_EQ(socketpair(AF_UNIX, SOCK_DGRAM, 0, NULL), -1);
 	ATF_REQUIRE_EQ(EFAULT, errno);
 	fd = open("/", O_RDONLY);
+#ifdef __NetBSD__
 	ATF_REQUIRE_EQ_MSG(fd, 3,
 	    "socketpair(..., NULL) allocated descriptors");
+#else
+	ATF_REQUIRE_EQ_MSG(fd, lowfd,
+	    "socketpair(..., NULL) allocated descriptors: fd=%d, lowfd=%d",
+	    fd, lowfd);
+#endif
 }
 
 ATF_TC(socketpair_basic);
