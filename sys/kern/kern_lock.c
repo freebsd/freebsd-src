@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/ktr.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/lock_profile.h>
 #include <sys/lockmgr.h>
@@ -60,6 +61,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmckern.h>
 PMC_SOFT_DECLARE( , , lock, failed);
 #endif
+
+/*
+ * Hack. There should be prio_t or similar so that this is not necessary.
+ */
+_Static_assert((PRILASTFLAG * 2) - 1 <= USHRT_MAX,
+    "prio flags wont fit in u_short pri in struct lock");
 
 CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
     ~(LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS)));
@@ -280,8 +287,10 @@ sleeplk(struct lock *lk, u_int flags, struct lock_object *ilk,
 
 	if (flags & LK_INTERLOCK)
 		class->lc_unlock(ilk);
-	if (queue == SQ_EXCLUSIVE_QUEUE && (flags & LK_SLEEPFAIL) != 0)
-		lk->lk_exslpfail++;
+	if (queue == SQ_EXCLUSIVE_QUEUE && (flags & LK_SLEEPFAIL) != 0) {
+		if (lk->lk_exslpfail < USHRT_MAX)
+			lk->lk_exslpfail++;
+	}
 	GIANT_SAVE();
 	sleepq_add(&lk->lock_object, NULL, wmesg, SLEEPQ_LK | (catch ?
 	    SLEEPQ_INTERRUPTIBLE : 0), queue);
@@ -345,7 +354,7 @@ retry_sleepq:
 		realexslp = sleepq_sleepcnt(&lk->lock_object,
 		    SQ_EXCLUSIVE_QUEUE);
 		if ((x & LK_EXCLUSIVE_WAITERS) != 0 && realexslp != 0) {
-			if (lk->lk_exslpfail < realexslp) {
+			if (lk->lk_exslpfail != USHRT_MAX && lk->lk_exslpfail < realexslp) {
 				lk->lk_exslpfail = 0;
 				queue = SQ_EXCLUSIVE_QUEUE;
 				v |= (x & LK_SHARED_WAITERS);
@@ -362,7 +371,6 @@ retry_sleepq:
 				    SLEEPQ_LK, 0, SQ_EXCLUSIVE_QUEUE);
 				queue = SQ_SHARED_QUEUE;
 			}
-				
 		} else {
 			/*
 			 * Exclusive waiters sleeping with LK_SLEEPFAIL on
@@ -1170,7 +1178,7 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 	MPASS((x & LK_EXCLUSIVE_SPINNERS) == 0);
 	realexslp = sleepq_sleepcnt(&lk->lock_object, SQ_EXCLUSIVE_QUEUE);
 	if ((x & LK_EXCLUSIVE_WAITERS) != 0 && realexslp != 0) {
-		if (lk->lk_exslpfail < realexslp) {
+		if (lk->lk_exslpfail != USHRT_MAX && lk->lk_exslpfail < realexslp) {
 			lk->lk_exslpfail = 0;
 			queue = SQ_EXCLUSIVE_QUEUE;
 			v |= (x & LK_SHARED_WAITERS);
