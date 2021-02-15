@@ -3214,7 +3214,7 @@ fget_only_user(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	haverights = cap_rights_fde_inline(fde);
 	error = cap_check_inline(haverights, needrightsp);
 	if (__predict_false(error != 0))
-		return (EBADF);
+		return (error);
 	*fpp = fp;
 	return (0);
 }
