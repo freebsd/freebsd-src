@@ -133,6 +133,79 @@ proto_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "direction" "cleanup"
+direction_head()
+{
+	atf_set descr 'Test directionality of ether rules'
+	atf_set require.user root
+	atf_set require.progs jq
+}
+
+direction_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	epair_a_mac=$(ifconfig ${epair}a ether | awk '/ether/ { print $2; }')
+	epair_b_mac=$(ifconfig ${epair}b ether | awk '/ether/ { print $2; }')
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	pft_set_rules alcatraz \
+		"ether block in proto 0x0806"
+	jexec alcatraz pfctl -e
+
+	arp -d 192.0.2.2
+	jexec alcatraz arp -d 192.0.2.1
+
+	# We don't allow the jail to receive ARP requests, so if we try to ping
+	# from host to jail the host can't resolve the MAC address
+	ping -c 1 -t 1 192.0.2.2
+
+	mac=$(arp -an --libxo json \
+	    | jq '."arp"."arp-cache"[] |
+	    select(."ip-address"=="192.0.2.2")."mac-address"')
+	atf_check_not_equal "$mac" "$epair_b_mac"
+
+	# Clear ARP table again
+	arp -d 192.0.2.2
+	jexec alcatraz arp -d 192.0.2.1
+
+	# However, we allow outbound ARP, so the host will learn our MAC if the
+	# jail tries to ping
+	jexec alcatraz ping -c 1 -t 1 192.0.2.1
+
+	mac=$(arp -an --libxo json \
+	    | jq '."arp"."arp-cache"[] |
+	    select(."ip-address"=="192.0.2.2")."mac-address"')
+	atf_check_equal "$mac" "$epair_b_mac"
+
+	# Now do the same, but with outbound ARP blocking
+	pft_set_rules alcatraz \
+		"ether block out proto 0x0806"
+
+	# Clear ARP table again
+	arp -d 192.0.2.2
+	jexec alcatraz arp -d 192.0.2.1
+
+	# The jail can't send ARP requests to us, so we'll never learn our MAC
+	# address
+	jexec alcatraz ping -c 1 -t 1 192.0.2.1
+
+	mac=$(jexec alcatraz arp -an --libxo json \
+	    | jq '."arp"."arp-cache"[] |
+	    select(."ip-address"=="192.0.2.1")."mac-address"')
+	atf_check_not_equal "$mac" "$epair_a_mac"
+}
+
+direction_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "captive" "cleanup"
 captive_head()
 {
@@ -211,5 +284,6 @@ atf_init_test_cases()
 {
 	atf_add_test_case "mac"
 	atf_add_test_case "proto"
+	atf_add_test_case "direction"
 	atf_add_test_case "captive"
 }
