@@ -252,15 +252,11 @@ in6_selectsrc(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 		 * ancillary data.
 		 */
 		if ((inp->inp_flags & INP_BINDANY) == 0) {
-			ia = in6ifa_ifwithaddr(&tmp, 0 /* XXX */);
+			ia = in6ifa_ifwithaddr(&tmp, 0 /* XXX */, false);
 			if (ia == NULL || (ia->ia6_flags & (IN6_IFF_ANYCAST |
-			    IN6_IFF_NOTREADY))) {
-				if (ia != NULL)
-					ifa_free(&ia->ia_ifa);
+			    IN6_IFF_NOTREADY)))
 				return (EADDRNOTAVAIL);
-			}
 			bcopy(&ia->ia_addr.sin6_addr, srcp, sizeof(*srcp));
-			ifa_free(&ia->ia_ifa);
 		} else
 			bcopy(&tmp, srcp, sizeof(*srcp));
 		pi->ipi6_addr = tmp; /* XXX: this overrides pi */

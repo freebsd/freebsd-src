@@ -713,11 +713,9 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 		/*
 		 * check that loopback address doesn't exist yet.
 		 */
-		ia = in6ifa_ifwithaddr(&in6addr_loopback, 0);
+		ia = in6ifa_ifwithaddr(&in6addr_loopback, 0, false);
 		if (ia == NULL)
 			in6_ifattach_loopback(ifp);
-		else
-			ifa_free(&ia->ia_ifa);
 	}
 
 	/*

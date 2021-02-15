@@ -1550,10 +1550,10 @@ in6ifa_ifpforlinklocal(struct ifnet *ifp, int ignoreflags)
 
 /*
  * find the interface address corresponding to a given IPv6 address.
- * ifaddr is returned referenced.
+ * ifaddr is returned referenced if @referenced flag is set.
  */
 struct in6_ifaddr *
-in6ifa_ifwithaddr(const struct in6_addr *addr, uint32_t zoneid)
+in6ifa_ifwithaddr(const struct in6_addr *addr, uint32_t zoneid, bool referenced)
 {
 	struct rm_priotracker in6_ifa_tracker;
 	struct in6_ifaddr *ia;
@@ -1564,7 +1564,8 @@ in6ifa_ifwithaddr(const struct in6_addr *addr, uint32_t zoneid)
 			if (zoneid != 0 &&
 			    zoneid != ia->ia_addr.sin6_scope_id)
 				continue;
-			ifa_ref(&ia->ia_ifa);
+			if (referenced)
+				ifa_ref(&ia->ia_ifa);
 			break;
 		}
 	}
