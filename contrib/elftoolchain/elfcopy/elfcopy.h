@@ -277,6 +277,7 @@ void	add_to_symtab(struct elfcopy *_ecp, const char *_name,
     unsigned char _st_info, unsigned char _st_other, int _ndx_known);
 int	add_to_inseg_list(struct elfcopy *_ecp, struct section *_sec);
 void	adjust_addr(struct elfcopy *_ecp);
+int	cleanup_tempfile(char *_fn);
 void	copy_content(struct elfcopy *_ecp);
 void	copy_data(struct section *_s);
 void	copy_phdr(struct elfcopy *_ecp);

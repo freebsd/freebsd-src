@@ -69,9 +69,11 @@ process_ar_obj(struct elfcopy *ecp, struct ar_obj *obj)
 
 	/* Output to a temporary file. */
 	create_tempfile(NULL, &tempfile, &fd);
-	if ((ecp->eout = elf_begin(fd, ELF_C_WRITE, NULL)) == NULL)
+	if ((ecp->eout = elf_begin(fd, ELF_C_WRITE, NULL)) == NULL) {
+		cleanup_tempfile(tempfile);
 		errx(EXIT_FAILURE, "elf_begin() failed: %s",
 		    elf_errmsg(-1));
+	}
 	elf_flagelf(ecp->eout, ELF_C_SET, ELF_F_LAYOUT);
 	create_elf(ecp);
 	elf_end(ecp->ein);
@@ -80,27 +82,40 @@ process_ar_obj(struct elfcopy *ecp, struct ar_obj *obj)
 	obj->buf = NULL;
 
 	/* Extract archive symbols. */
-	if (lseek(fd, 0, SEEK_SET) < 0)
+	if (lseek(fd, 0, SEEK_SET) < 0) {
+		cleanup_tempfile(tempfile);
 		err(EXIT_FAILURE, "lseek failed for '%s'", tempfile);
-	if ((ecp->eout = elf_begin(fd, ELF_C_READ, NULL)) == NULL)
+	}
+	if ((ecp->eout = elf_begin(fd, ELF_C_READ, NULL)) == NULL) {
+		cleanup_tempfile(tempfile);
 		errx(EXIT_FAILURE, "elf_begin() failed: %s",
 		    elf_errmsg(-1));
+	}
 	extract_arsym(ecp);
 	elf_end(ecp->eout);
 
-	if (fstat(fd, &sb) == -1)
+	if (fstat(fd, &sb) == -1) {
+		cleanup_tempfile(tempfile);
 		err(EXIT_FAILURE, "fstat %s failed", tempfile);
-	if (lseek(fd, 0, SEEK_SET) < 0)
+	}
+	if (lseek(fd, 0, SEEK_SET) < 0) {
+		cleanup_tempfile(tempfile);
 		err(EXIT_FAILURE, "lseek %s failed", tempfile);
+	}
 	obj->size = sb.st_size;
-	if ((obj->maddr = malloc(obj->size)) == NULL)
+	if ((obj->maddr = malloc(obj->size)) == NULL) {
+		cleanup_tempfile(tempfile);
 		err(EXIT_FAILURE, "memory allocation failed for '%s'",
 		    tempfile);
-	if ((size_t) read(fd, obj->maddr, obj->size) != obj->size)
+	}
+	if ((size_t) read(fd, obj->maddr, obj->size) != obj->size) {
+		cleanup_tempfile(tempfile);
 		err(EXIT_FAILURE, "read failed for '%s'", tempfile);
-	if (unlink(tempfile))
+	}
+	if (cleanup_tempfile(tempfile) < 0)
 		err(EXIT_FAILURE, "unlink %s failed", tempfile);
 	free(tempfile);
+	tempfile = NULL;
 	close(fd);
 	if (strlen(obj->name) > _MAXNAMELEN_SVR4)
 		add_to_ar_str_table(ecp, obj->name);
