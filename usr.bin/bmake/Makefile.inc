@@ -9,7 +9,7 @@
 
 .if exists(${.CURDIR}/tests)
 PROG= make
-LINKS= make bmake
+LINKS= ${BINDIR}/make ${BINDIR}/bmake
 MLINKS= ${MAN} b${MAN}
 .endif
 
