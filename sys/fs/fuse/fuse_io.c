@@ -870,7 +870,8 @@ again:
 				bp->b_flags |= B_CLUSTEROK;
 				SDT_PROBE2(fusefs, , io, write_biobackend_issue,
 					4, bp);
-				cluster_write(vp, bp, filesize, seqcount, 0);
+				cluster_write(vp, &fvdat->clusterw, bp,
+				    filesize, seqcount, 0);
 			} else {
 				SDT_PROBE2(fusefs, , io, write_biobackend_issue,
 					5, bp);

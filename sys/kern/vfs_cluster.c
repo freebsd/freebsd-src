@@ -59,7 +59,7 @@ static uma_zone_t cluster_pbuf_zone;
 
 static void cluster_init(void *);
 static struct cluster_save *cluster_collectbufs(struct vnode *vp,
-	    struct buf *last_bp, int gbflags);
+	    struct vn_clusterw *vnc, struct buf *last_bp, int gbflags);
 static struct buf *cluster_rbuild(struct vnode *vp, u_quad_t filesize,
 	    daddr_t lbn, daddr_t blkno, long size, int run, int gbflags,
 	    struct buf *fbp);
@@ -643,8 +643,8 @@ cluster_wbuild_wb(struct vnode *vp, long size, daddr_t start_lbn, int len,
  *	4.	end of a cluster - asynchronously write cluster
  */
 void
-cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount,
-    int gbflags)
+cluster_write(struct vnode *vp, struct vn_clusterw *vnc, struct buf *bp,
+    u_quad_t filesize, int seqcount, int gbflags)
 {
 	daddr_t lbn;
 	int maxclen, cursize;
@@ -666,12 +666,12 @@ cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount,
 
 	/* Initialize vnode to beginning of file. */
 	if (lbn == 0)
-		vp->v_lasta = vp->v_clen = vp->v_cstart = vp->v_lastw = 0;
+		vnc->v_lasta = vnc->v_clen = vnc->v_cstart = vnc->v_lastw = 0;
 
-	if (vp->v_clen == 0 || lbn != vp->v_lastw + 1 ||
-	    (bp->b_blkno != vp->v_lasta + btodb(lblocksize))) {
+	if (vnc->v_clen == 0 || lbn != vnc->v_lastw + 1 ||
+	    (bp->b_blkno != vnc->v_lasta + btodb(lblocksize))) {
 		maxclen = vp->v_mount->mnt_iosize_max / lblocksize - 1;
-		if (vp->v_clen != 0) {
+		if (vnc->v_clen != 0) {
 			/*
 			 * Next block is not sequential.
 			 *
@@ -688,18 +688,19 @@ cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount,
 			 * later on in the buf_daemon or update daemon
 			 * flush.
 			 */
-			cursize = vp->v_lastw - vp->v_cstart + 1;
-			if (((u_quad_t) bp->b_offset + lblocksize) != filesize ||
-			    lbn != vp->v_lastw + 1 || vp->v_clen <= cursize) {
+			cursize = vnc->v_lastw - vnc->v_cstart + 1;
+			if ((u_quad_t)bp->b_offset + lblocksize != filesize ||
+			    lbn != vnc->v_lastw + 1 || vnc->v_clen <= cursize) {
 				if (!async && seqcount > 0) {
 					cluster_wbuild_wb(vp, lblocksize,
-					    vp->v_cstart, cursize, gbflags);
+					    vnc->v_cstart, cursize, gbflags);
 				}
 			} else {
 				struct buf **bpp, **endbp;
 				struct cluster_save *buflist;
 
-				buflist = cluster_collectbufs(vp, bp, gbflags);
+				buflist = cluster_collectbufs(vp, vnc, bp,
+				    gbflags);
 				if (buflist == NULL) {
 					/*
 					 * Cluster build failed so just write
@@ -725,7 +726,7 @@ cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount,
 					free(buflist, M_SEGMENT);
 					if (seqcount > 1) {
 						cluster_wbuild_wb(vp, 
-						    lblocksize, vp->v_cstart, 
+						    lblocksize, vnc->v_cstart,
 						    cursize, gbflags);
 					}
 				} else {
@@ -736,8 +737,8 @@ cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount,
 					     bpp <= endbp; bpp++)
 						bdwrite(*bpp);
 					free(buflist, M_SEGMENT);
-					vp->v_lastw = lbn;
-					vp->v_lasta = bp->b_blkno;
+					vnc->v_lastw = lbn;
+					vnc->v_lasta = bp->b_blkno;
 					return;
 				}
 			}
@@ -747,27 +748,27 @@ cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount,
 		 * cluster as large as possible, otherwise find size of
 		 * existing cluster.
 		 */
-		if ((vp->v_type == VREG) &&
-			((u_quad_t) bp->b_offset + lblocksize) != filesize &&
-		    (bp->b_blkno == bp->b_lblkno) &&
-		    (VOP_BMAP(vp, lbn, NULL, &bp->b_blkno, &maxclen, NULL) ||
-		     bp->b_blkno == -1)) {
+		if (vp->v_type == VREG &&
+		    (u_quad_t) bp->b_offset + lblocksize != filesize &&
+		    bp->b_blkno == bp->b_lblkno &&
+		    (VOP_BMAP(vp, lbn, NULL, &bp->b_blkno, &maxclen,
+		    NULL) != 0 || bp->b_blkno == -1)) {
 			bawrite(bp);
-			vp->v_clen = 0;
-			vp->v_lasta = bp->b_blkno;
-			vp->v_cstart = lbn + 1;
-			vp->v_lastw = lbn;
+			vnc->v_clen = 0;
+			vnc->v_lasta = bp->b_blkno;
+			vnc->v_cstart = lbn + 1;
+			vnc->v_lastw = lbn;
 			return;
 		}
-		vp->v_clen = maxclen;
+		vnc->v_clen = maxclen;
 		if (!async && maxclen == 0) {	/* I/O not contiguous */
-			vp->v_cstart = lbn + 1;
+			vnc->v_cstart = lbn + 1;
 			bawrite(bp);
 		} else {	/* Wait for rest of cluster */
-			vp->v_cstart = lbn;
+			vnc->v_cstart = lbn;
 			bdwrite(bp);
 		}
-	} else if (lbn == vp->v_cstart + vp->v_clen) {
+	} else if (lbn == vnc->v_cstart + vnc->v_clen) {
 		/*
 		 * At end of cluster, write it out if seqcount tells us we
 		 * are operating sequentially, otherwise let the buf or
@@ -775,11 +776,11 @@ cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount,
 		 */
 		bdwrite(bp);
 		if (seqcount > 1) {
-			cluster_wbuild_wb(vp, lblocksize, vp->v_cstart,
-			    vp->v_clen + 1, gbflags);
+			cluster_wbuild_wb(vp, lblocksize, vnc->v_cstart,
+			    vnc->v_clen + 1, gbflags);
 		}
-		vp->v_clen = 0;
-		vp->v_cstart = lbn + 1;
+		vnc->v_clen = 0;
+		vnc->v_cstart = lbn + 1;
 	} else if (vm_page_count_severe()) {
 		/*
 		 * We are low on memory, get it going NOW
@@ -791,8 +792,8 @@ cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount,
 		 */
 		bdwrite(bp);
 	}
-	vp->v_lastw = lbn;
-	vp->v_lasta = bp->b_blkno;
+	vnc->v_lastw = lbn;
+	vnc->v_lasta = bp->b_blkno;
 }
 
 /*
@@ -1039,19 +1040,20 @@ cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
  * Plus add one additional buffer.
  */
 static struct cluster_save *
-cluster_collectbufs(struct vnode *vp, struct buf *last_bp, int gbflags)
+cluster_collectbufs(struct vnode *vp, struct vn_clusterw *vnc,
+    struct buf *last_bp, int gbflags)
 {
 	struct cluster_save *buflist;
 	struct buf *bp;
 	daddr_t lbn;
 	int i, j, len, error;
 
-	len = vp->v_lastw - vp->v_cstart + 1;
+	len = vnc->v_lastw - vnc->v_cstart + 1;
 	buflist = malloc(sizeof(struct buf *) * (len + 1) + sizeof(*buflist),
 	    M_SEGMENT, M_WAITOK);
 	buflist->bs_nchildren = 0;
 	buflist->bs_children = (struct buf **) (buflist + 1);
-	for (lbn = vp->v_cstart, i = 0; i < len; lbn++, i++) {
+	for (lbn = vnc->v_cstart, i = 0; i < len; lbn++, i++) {
 		error = bread_gb(vp, lbn, last_bp->b_bcount, NOCRED,
 		    gbflags, &bp);
 		if (error != 0) {
@@ -1074,4 +1076,13 @@ cluster_collectbufs(struct vnode *vp, struct buf *last_bp, int gbflags)
 		VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL, NULL);
 	buflist->bs_nchildren = i + 1;
 	return (buflist);
+}
+
+void
+cluster_init_vn(struct vn_clusterw *vnc)
+{
+	vnc->v_lasta = 0;
+	vnc->v_clen = 0;
+	vnc->v_cstart = 0;
+	vnc->v_lastw = 0;
 }

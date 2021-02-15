@@ -68,6 +68,7 @@
 #include <sys/fnv_hash.h>
 #include <sys/types.h>
 #include <sys/mutex.h>
+#include <sys/buf.h>
 
 #include "fuse_file.h"
 
@@ -118,6 +119,7 @@ struct fuse_vnode_data {
 	struct vattr	cached_attrs;
 	uint64_t	nlookup;
 	enum vtype	vtype;
+	struct vn_clusterw clusterw;
 };
 
 /*

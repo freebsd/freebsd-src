@@ -163,14 +163,6 @@ struct vnode {
 	struct lockf *v_lockf;		/* Byte-level advisory lock list */
 	struct rangelock v_rl;			/* Byte-range lock */
 
-	/*
-	 * clustering stuff
-	 */
-	daddr_t	v_cstart;			/* v start block of cluster */
-	daddr_t	v_lasta;			/* v last allocation  */
-	daddr_t	v_lastw;			/* v last write  */
-	int	v_clen;				/* v length of cur. cluster */
-
 	u_int	v_holdcnt;			/* I prevents recycling. */
 	u_int	v_usecount;			/* I ref count of users */
 	u_short	v_iflag;			/* i vnode flags (see below) */

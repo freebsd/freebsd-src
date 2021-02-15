@@ -1823,7 +1823,6 @@ freevnode(struct vnode *vp)
 	vp->v_unpcb = NULL;
 	vp->v_rdev = NULL;
 	vp->v_fifoinfo = NULL;
-	vp->v_lasta = vp->v_clen = vp->v_cstart = vp->v_lastw = 0;
 	vp->v_iflag = 0;
 	vp->v_vflag = 0;
 	bo->bo_flag = 0;

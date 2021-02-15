@@ -47,6 +47,7 @@
 #ifdef DIAGNOSTIC
 #include <sys/stack.h>
 #endif
+#include <sys/buf.h>
 
 /*
  * This must agree with the definition in <ufs/ufs/dir.h>.
@@ -114,6 +115,8 @@ struct inode {
 #endif
 
 	int	i_nextclustercg; /* last cg searched for cluster */
+
+	struct vn_clusterw i_clusterw;	/* Buffer clustering information */
 
 	/*
 	 * Data for extended attribute modification.
