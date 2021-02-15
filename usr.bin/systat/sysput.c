@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2019 Yoshihiro Ota
+ * Copyright (c) 2019, 2020 Yoshihiro Ota
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,17 +43,28 @@ __FBSDID("$FreeBSD$");
 void
 sysputspaces(WINDOW *wd, int row, int col, int width)
 {
-	static char str40[] = "                                        ";
+	static char str60[] = "                    "
+	    "                                        ";
 
-	mvwaddstr(wd, row, col, str40 + sizeof(str40) - width - 1);
+	mvwaddstr(wd, row, col, str60 + sizeof(str60) - width - 1);
 }
 
 void
 sysputstrs(WINDOW *wd, int row, int col, int width)
 {
-	static char str40[] = "****************************************";
+	static char str60[] = "********************"
+	    "****************************************";
 
-	mvwaddstr(wnd, row, col, str40 + sizeof(str40) - width - 1);
+	mvwaddstr(wnd, row, col, str60 + sizeof(str60) - width - 1);
+}
+
+void
+sysputXs(WINDOW *wd, int row, int col, int width)
+{
+	static char str60[] = "XXXXXXXXXXXXXXXXXXXX"
+	    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+
+	mvwaddstr(wnd, row, col, str60 + sizeof(str60) - width - 1);
 }
 
 void
