@@ -309,7 +309,7 @@ dump_peer(const nvlist_t *nvl_peer)
 
 		sa = __DECONST(void *, &aips[i].a_addr);
 		bitmask = __DECONST(void *,
-		    ((const struct sockaddr *)&aips->a_mask)->sa_data);
+		    ((const struct sockaddr *)&(&aips[i])->a_mask)->sa_data);
 		family = aips[i].a_addr.ss_family;
 		getnameinfo(sa, sa->sa_len, addr_buf, INET6_ADDRSTRLEN, NULL,
 		    0, NI_NUMERICHOST);
