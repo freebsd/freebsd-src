@@ -216,6 +216,7 @@ struct prison_racct {
 					/* primary jail address. */
 
 /* Internal flag bits */
+#define	PR_REMOVE	0x01000000	/* In process of being removed */
 #define	PR_IP4		0x02000000	/* IPv4 restricted or disabled */
 					/* by this jail or an ancestor */
 #define	PR_IP6		0x04000000	/* IPv6 restricted or disabled */
