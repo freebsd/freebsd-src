@@ -240,7 +240,9 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 #endif
 	VI_LOCK(vp);
 	vp->v_iflag &= ~VI_MOUNT;
+#ifdef VIRF_MOUNTPOINT
 	vn_irflag_set_locked(vp, VIRF_MOUNTPOINT);
+#endif
 	vp->v_mountedhere = mp;
 	VI_UNLOCK(vp);
 	/* Put the new filesystem on the mount list. */

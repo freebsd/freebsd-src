@@ -87,15 +87,18 @@
  *      must be checked with ZFS_VERIFY_ZP(zp).  Both of these macros
  *      can return EIO from the calling function.
  *
- *  (2)	zrele() should always be the last thing except for zil_commit()
- *	(if necessary) and ZFS_EXIT(). This is for 3 reasons:
- *	First, if it's the last reference, the vnode/znode
- *	can be freed, so the zp may point to freed memory.  Second, the last
- *	reference will call zfs_zinactive(), which may induce a lot of work --
- *	pushing cached pages (which acquires range locks) and syncing out
- *	cached atime changes.  Third, zfs_zinactive() may require a new tx,
- *	which could deadlock the system if you were already holding one.
- *	If you must call zrele() within a tx then use zfs_zrele_async().
+ *  (2) zrele() should always be the last thing except for zil_commit() (if
+ *	necessary) and ZFS_EXIT(). This is for 3 reasons: First, if it's the
+ *	last reference, the vnode/znode can be freed, so the zp may point to
+ *	freed memory.  Second, the last reference will call zfs_zinactive(),
+ *	which may induce a lot of work -- pushing cached pages (which acquires
+ *	range locks) and syncing out cached atime changes.  Third,
+ *	zfs_zinactive() may require a new tx, which could deadlock the system
+ *	if you were already holding one. This deadlock occurs because the tx
+ *	currently being operated on prevents a txg from syncing, which
+ *	prevents the new tx from progressing, resulting in a deadlock.  If you
+ *	must call zrele() within a tx, use zfs_zrele_async(). Note that iput()
+ *	is a synonym for zrele().
  *
  *  (3)	All range locks must be grabbed before calling dmu_tx_assign(),
  *	as they can span dmu_tx_assign() calls.
@@ -298,7 +301,7 @@ update_pages(znode_t *zp, int64_t start, int len, objset_t *os)
  *	 the file is memory mapped.
  */
 int
-mappedread(znode_t *zp, int nbytes, uio_t *uio)
+mappedread(znode_t *zp, int nbytes, zfs_uio_t *uio)
 {
 	struct inode *ip = ZTOI(zp);
 	struct address_space *mp = ip->i_mapping;
@@ -320,7 +323,7 @@ mappedread(znode_t *zp, int nbytes, uio_t *uio)
 			unlock_page(pp);
 
 			pb = kmap(pp);
-			error = uiomove(pb + off, bytes, UIO_READ, uio);
+			error = zfs_uiomove(pb + off, bytes, UIO_READ, uio);
 			kunmap(pp);
 
 			if (mapping_writably_mapped(mp))
@@ -372,8 +375,8 @@ zfs_write_simple(znode_t *zp, const void *data, size_t len,
 	iov.iov_base = (void *)data;
 	iov.iov_len = len;
 
-	uio_t uio;
-	uio_iovec_init(&uio, &iov, 1, pos, UIO_SYSSPACE, len, 0);
+	zfs_uio_t uio;
+	zfs_uio_iovec_init(&uio, &iov, 1, pos, UIO_SYSSPACE, len, 0);
 
 	cookie = spl_fstrans_mark();
 	error = zfs_write(zp, &uio, 0, kcred);
@@ -381,8 +384,8 @@ zfs_write_simple(znode_t *zp, const void *data, size_t len,
 
 	if (error == 0) {
 		if (residp != NULL)
-			*residp = uio_resid(&uio);
-		else if (uio_resid(&uio) != 0)
+			*residp = zfs_uio_resid(&uio);
+		else if (zfs_uio_resid(&uio) != 0)
 			error = SET_ERROR(EIO);
 	}
 
@@ -398,11 +401,18 @@ zfs_zrele_async(znode_t *zp)
 	ASSERT(atomic_read(&ip->i_count) > 0);
 	ASSERT(os != NULL);
 
-	if (atomic_read(&ip->i_count) == 1)
+	/*
+	 * If decrementing the count would put us at 0, we can't do it inline
+	 * here, because that would be synchronous. Instead, dispatch an iput
+	 * to run later.
+	 *
+	 * For more information on the dangers of a synchronous iput, see the
+	 * header comment of this file.
+	 */
+	if (!atomic_add_unless(&ip->i_count, -1, 1)) {
 		VERIFY(taskq_dispatch(dsl_pool_zrele_taskq(dmu_objset_pool(os)),
 		    (task_func_t *)iput, ip, TQ_SLEEP) != TASKQID_INVALID);
-	else
-		zrele(zp);
+	}
 }
 
 
@@ -516,7 +526,7 @@ zfs_lookup(znode_t *zdp, char *nm, znode_t **zpp, int flags, cred_t *cr,
 
 	error = zfs_dirlook(zdp, nm, zpp, flags, direntflags, realpnp);
 	if ((error == 0) && (*zpp))
-		zfs_inode_update(*zpp);
+		zfs_znode_update_vfs(*zpp);
 
 	ZFS_EXIT(zfsvfs);
 	return (error);
@@ -779,8 +789,8 @@ out:
 		if (zp)
 			zrele(zp);
 	} else {
-		zfs_inode_update(dzp);
-		zfs_inode_update(zp);
+		zfs_znode_update_vfs(dzp);
+		zfs_znode_update_vfs(zp);
 		*zpp = zp;
 	}
 
@@ -902,8 +912,8 @@ out:
 		if (zp)
 			zrele(zp);
 	} else {
-		zfs_inode_update(dzp);
-		zfs_inode_update(zp);
+		zfs_znode_update_vfs(dzp);
+		zfs_znode_update_vfs(zp);
 		*ipp = ZTOI(zp);
 	}
 
@@ -1129,8 +1139,8 @@ out:
 		pn_free(realnmp);
 
 	zfs_dirent_unlock(dl);
-	zfs_inode_update(dzp);
-	zfs_inode_update(zp);
+	zfs_znode_update_vfs(dzp);
+	zfs_znode_update_vfs(zp);
 
 	if (delete_now)
 		zrele(zp);
@@ -1138,7 +1148,7 @@ out:
 		zfs_zrele_async(zp);
 
 	if (xzp) {
-		zfs_inode_update(xzp);
+		zfs_znode_update_vfs(xzp);
 		zfs_zrele_async(xzp);
 	}
 
@@ -1335,8 +1345,8 @@ out:
 	if (error != 0) {
 		zrele(zp);
 	} else {
-		zfs_inode_update(dzp);
-		zfs_inode_update(zp);
+		zfs_znode_update_vfs(dzp);
+		zfs_znode_update_vfs(zp);
 	}
 	ZFS_EXIT(zfsvfs);
 	return (error);
@@ -1461,8 +1471,8 @@ top:
 out:
 	zfs_dirent_unlock(dl);
 
-	zfs_inode_update(dzp);
-	zfs_inode_update(zp);
+	zfs_znode_update_vfs(dzp);
+	zfs_znode_update_vfs(zp);
 	zrele(zp);
 
 	if (zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
@@ -2532,7 +2542,7 @@ out:
 				err2 = zfs_setattr_dir(attrzp);
 			zrele(attrzp);
 		}
-		zfs_inode_update(zp);
+		zfs_znode_update_vfs(zp);
 	}
 
 out2:
@@ -2990,17 +3000,17 @@ out:
 	zfs_dirent_unlock(sdl);
 	zfs_dirent_unlock(tdl);
 
-	zfs_inode_update(sdzp);
+	zfs_znode_update_vfs(sdzp);
 	if (sdzp == tdzp)
 		rw_exit(&sdzp->z_name_lock);
 
 	if (sdzp != tdzp)
-		zfs_inode_update(tdzp);
+		zfs_znode_update_vfs(tdzp);
 
-	zfs_inode_update(szp);
+	zfs_znode_update_vfs(szp);
 	zrele(szp);
 	if (tzp) {
-		zfs_inode_update(tzp);
+		zfs_znode_update_vfs(tzp);
 		zrele(tzp);
 	}
 
@@ -3159,8 +3169,8 @@ top:
 			txtype |= TX_CI;
 		zfs_log_symlink(zilog, tx, txtype, dzp, zp, name, link);
 
-		zfs_inode_update(dzp);
-		zfs_inode_update(zp);
+		zfs_znode_update_vfs(dzp);
+		zfs_znode_update_vfs(zp);
 	}
 
 	zfs_acl_ids_free(&acl_ids);
@@ -3198,7 +3208,7 @@ top:
  */
 /* ARGSUSED */
 int
-zfs_readlink(struct inode *ip, uio_t *uio, cred_t *cr)
+zfs_readlink(struct inode *ip, zfs_uio_t *uio, cred_t *cr)
 {
 	znode_t		*zp = ITOZ(ip);
 	zfsvfs_t	*zfsvfs = ITOZSB(ip);
@@ -3409,8 +3419,8 @@ top:
 	if (is_tmpfile && zfsvfs->z_os->os_sync != ZFS_SYNC_DISABLED)
 		txg_wait_synced(dmu_objset_pool(zfsvfs->z_os), txg);
 
-	zfs_inode_update(tdzp);
-	zfs_inode_update(szp);
+	zfs_znode_update_vfs(tdzp);
+	zfs_znode_update_vfs(szp);
 	ZFS_EXIT(zfsvfs);
 	return (error);
 }
