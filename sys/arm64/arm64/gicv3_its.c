@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpuset.h>
+#include <sys/domainset.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -246,6 +247,7 @@ struct gicv3_its_softc {
 	struct resource *sc_its_res;
 
 	cpuset_t	sc_cpus;
+	struct domainset *sc_ds;
 	u_int		gic_irq_cpu;
 
 	struct its_ptable sc_its_ptab[GITS_BASER_NUM];
@@ -385,8 +387,9 @@ gicv3_its_cmdq_init(struct gicv3_its_softc *sc)
 	uint64_t reg, tmp;
 
 	/* Set up the command circular buffer */
-	sc->sc_its_cmd_base = contigmalloc(ITS_CMDQ_SIZE, M_GICV3_ITS,
-	    M_WAITOK | M_ZERO, 0, (1ul << 48) - 1, ITS_CMDQ_ALIGN, 0);
+	sc->sc_its_cmd_base = contigmalloc_domainset(ITS_CMDQ_SIZE, M_GICV3_ITS,
+	    sc->sc_ds, M_WAITOK | M_ZERO, 0, (1ul << 48) - 1, ITS_CMDQ_ALIGN,
+	    0);
 	sc->sc_its_cmd_next_idx = 0;
 
 	cmd_paddr = vtophys(sc->sc_its_cmd_base);
@@ -486,9 +489,9 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 		npages = howmany(its_tbl_size, PAGE_SIZE);
 
 		/* Allocate the table */
-		table = (vm_offset_t)contigmalloc(npages * PAGE_SIZE,
-		    M_GICV3_ITS, M_WAITOK | M_ZERO, 0, (1ul << 48) - 1,
-		    PAGE_SIZE_64K, 0);
+		table = (vm_offset_t)contigmalloc_domainset(npages * PAGE_SIZE,
+		    M_GICV3_ITS, sc->sc_ds, M_WAITOK | M_ZERO, 0,
+		    (1ul << 48) - 1, PAGE_SIZE_64K, 0);
 
 		sc->sc_its_ptab[i].ptab_vaddr = table;
 		sc->sc_its_ptab[i].ptab_size = npages * PAGE_SIZE;
@@ -844,6 +847,7 @@ gicv3_its_attach(device_t dev)
 	sc->ma = malloc(sizeof(struct vm_page), M_DEVBUF, M_WAITOK | M_ZERO);
 	vm_page_initfake(sc->ma, phys, VM_MEMATTR_DEFAULT);
 
+	CPU_COPY(&all_cpus, &sc->sc_cpus);
 	iidr = gic_its_read_4(sc, GITS_IIDR);
 	for (i = 0; i < nitems(its_quirks); i++) {
 		if ((iidr & its_quirks[i].iidr_mask) == its_quirks[i].iidr) {
@@ -854,6 +858,12 @@ gicv3_its_attach(device_t dev)
 			its_quirks[i].func(dev);
 			break;
 		}
+	}
+
+	if (bus_get_domain(dev, &domain) == 0 && domain < MAXMEMDOM) {
+		sc->sc_ds = DOMAINSET_PREF(domain);
+	} else {
+		sc->sc_ds = DOMAINSET_RR();
 	}
 
 	/* Allocate the private tables */
@@ -867,22 +877,15 @@ gicv3_its_attach(device_t dev)
 	/* Protects access to the ITS command circular buffer. */
 	mtx_init(&sc->sc_its_cmd_lock, "ITS cmd lock", NULL, MTX_SPIN);
 
-	CPU_ZERO(&sc->sc_cpus);
-	if (bus_get_domain(dev, &domain) == 0) {
-		if (domain < MAXMEMDOM)
-			CPU_COPY(&cpuset_domain[domain], &sc->sc_cpus);
-	} else {
-		CPU_COPY(&all_cpus, &sc->sc_cpus);
-	}
-
 	/* Allocate the command circular buffer */
 	gicv3_its_cmdq_init(sc);
 
 	/* Allocate the per-CPU collections */
 	for (int cpu = 0; cpu <= mp_maxid; cpu++)
 		if (CPU_ISSET(cpu, &sc->sc_cpus) != 0)
-			sc->sc_its_cols[cpu] = malloc(
+			sc->sc_its_cols[cpu] = malloc_domainset(
 			    sizeof(*sc->sc_its_cols[0]), M_GICV3_ITS,
+			    DOMAINSET_PREF(pcpu_find(cpu)->pc_domain),
 			    M_WAITOK | M_ZERO);
 		else
 			sc->sc_its_cols[cpu] = NULL;
@@ -934,9 +937,23 @@ static void
 its_quirk_cavium_22375(device_t dev)
 {
 	struct gicv3_its_softc *sc;
+	int domain;
 
 	sc = device_get_softc(dev);
 	sc->sc_its_flags |= ITS_FLAGS_ERRATA_CAVIUM_22375;
+
+	/*
+	 * We need to limit which CPUs we send these interrupts to on
+	 * the original dual socket ThunderX as it is unable to
+	 * forward them between the two sockets.
+	 */
+	if (bus_get_domain(dev, &domain) == 0) {
+		if (domain < MAXMEMDOM) {
+			CPU_COPY(&cpuset_domain[domain], &sc->sc_cpus);
+		} else {
+			CPU_ZERO(&sc->sc_cpus);
+		}
+	}
 }
 
 static void
@@ -1171,9 +1188,9 @@ its_device_get(device_t dev, device_t child, u_int nvecs)
 	 * PA has to be 256 B aligned. At least two entries for device.
 	 */
 	its_dev->itt_size = roundup2(MAX(nvecs, 2) * esize, 256);
-	its_dev->itt = (vm_offset_t)contigmalloc(its_dev->itt_size,
-	    M_GICV3_ITS, M_NOWAIT | M_ZERO, 0, LPI_INT_TRANS_TAB_MAX_ADDR,
-	    LPI_INT_TRANS_TAB_ALIGN, 0);
+	its_dev->itt = (vm_offset_t)contigmalloc_domainset(its_dev->itt_size,
+	    M_GICV3_ITS, sc->sc_ds, M_NOWAIT | M_ZERO, 0,
+	    LPI_INT_TRANS_TAB_MAX_ADDR, LPI_INT_TRANS_TAB_ALIGN, 0);
 	if (its_dev->itt == 0) {
 		vmem_free(sc->sc_irq_alloc, its_dev->lpis.lpi_base, nvecs);
 		free(its_dev, M_GICV3_ITS);
