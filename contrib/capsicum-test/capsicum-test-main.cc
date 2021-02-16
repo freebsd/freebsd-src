@@ -84,24 +84,30 @@ private:
 
 std::string capsicum_test_bindir;
 
+// Adds a directory to $PATH.
+static void AddDirectoryToPath(const char *dir) {
+  char *new_path, *old_path;
+
+  old_path = getenv("PATH");
+  assert(old_path);
+
+  assert(asprintf(&new_path, "%s:%s", dir, old_path) > 0);
+  assert(setenv("PATH", new_path, 1) == 0);
+}
+
 int main(int argc, char* argv[]) {
   // Set up the test program path, so capsicum-test can find programs, like
   // mini-me* when executed from an absolute path.
-  {
-    char *new_path, *old_path, *program_name;
+  char *program_name;
 
-    program_name = strdup(argv[0]);
-    assert(program_name);
-    capsicum_test_bindir = std::string(dirname(program_name));
-    free(program_name);
+  // Copy argv[0], so dirname can do an in-place manipulation of the buffer's
+  // contents.
+  program_name = strdup(argv[0]);
+  assert(program_name);
+  capsicum_test_bindir = std::string(dirname(program_name));
+  free(program_name);
 
-    old_path = getenv("PATH");
-    assert(old_path);
-
-    assert(asprintf(&new_path, "%s:%s", capsicum_test_bindir.c_str(),
-      old_path) > 0);
-    assert(setenv("PATH", new_path, 1) == 0);
-  }
+  AddDirectoryToPath(capsicum_test_bindir.c_str());
 
   ::testing::InitGoogleTest(&argc, argv);
   for (int ii = 1; ii < argc; ii++) {
@@ -150,7 +156,5 @@ int main(int argc, char* argv[]) {
 #endif
 
   testing::AddGlobalTestEnvironment(new SetupEnvironment());
-  int rc = RUN_ALL_TESTS();
-  ShowSkippedTests(std::cerr);
-  return rc;
+  return RUN_ALL_TESTS();
 }
