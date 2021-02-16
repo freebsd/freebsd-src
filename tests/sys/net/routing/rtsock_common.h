@@ -826,10 +826,6 @@ _validate_message_sockaddrs(char *buffer, int rtm_len, size_t offset, int rtm_ad
 		}
 		sa = (struct sockaddr *)((char *)sa + SA_SIZE(sa));
 	}
-
-	RTSOCK_ATF_REQUIRE_MSG((struct rt_msghdr *)buffer, parsed_len == rtm_len,
-	    "message len != parsed len: expected %d parsed %d",
-	    rtm_len, (int)parsed_len);
 }
 
 /*
