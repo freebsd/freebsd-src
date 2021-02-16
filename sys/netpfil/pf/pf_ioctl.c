@@ -240,7 +240,9 @@ static pfil_return_t pf_check6_out(struct mbuf **m, struct ifnet *ifp,
     int flags, void *ruleset __unused, struct inpcb *inp);
 #endif
 
+static void		hook_pf_eth(void);
 static void		hook_pf(void);
+static void		dehook_pf_eth(void);
 static void		dehook_pf(void);
 static int		shutdown_pf(void);
 static int		pf_load(void);
@@ -254,6 +256,8 @@ static struct cdevsw pf_cdevsw = {
 
 volatile VNET_DEFINE_STATIC(int, pf_pfil_hooked);
 #define V_pf_pfil_hooked	VNET(pf_pfil_hooked)
+volatile VNET_DEFINE_STATIC(int, pf_pfil_eth_hooked);
+#define V_pf_pfil_eth_hooked	VNET(pf_pfil_eth_hooked)
 
 /*
  * We need a flag that is neither hooked nor running to know when
@@ -372,6 +376,7 @@ pfattach_vnet(void)
 	V_pf_status.debug = PF_DEBUG_URGENT;
 
 	V_pf_pfil_hooked = 0;
+	V_pf_pfil_eth_hooked = 0;
 
 	/* XXX do our best to avoid a conflict */
 	V_pf_status.hostid = arc4random();
@@ -2470,6 +2475,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			int cpu;
 
 			hook_pf();
+			if (! TAILQ_EMPTY(&V_pf_keth->rules))
+				hook_pf_eth();
 			V_pf_status.running = 1;
 			V_pf_status.since = time_second;
 
@@ -2487,6 +2494,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		else {
 			V_pf_status.running = 0;
 			dehook_pf();
+			dehook_pf_eth();
 			V_pf_status.since = time_second;
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: stopped\n"));
 		}
@@ -5027,6 +5035,13 @@ DIOCCHANGEADDR_error:
 			}
 		}
 		PF_RULES_WUNLOCK();
+
+		/* Only hook into EtherNet taffic if we've got rules for it. */
+		if (! TAILQ_EMPTY(&V_pf_keth->rules))
+			hook_pf_eth();
+		else
+			dehook_pf_eth();
+
 		free(ioes, M_TEMP);
 		break;
 	}
@@ -6076,13 +6091,13 @@ VNET_DEFINE_STATIC(pfil_hook_t, pf_ip6_out_hook);
 #endif
 
 static void
-hook_pf(void)
+hook_pf_eth(void)
 {
 	struct pfil_hook_args pha;
 	struct pfil_link_args pla;
 	int ret __diagused;
 
-	if (V_pf_pfil_hooked)
+	if (V_pf_pfil_eth_hooked)
 		return;
 
 	pha.pa_version = PFIL_VERSION;
@@ -6099,7 +6114,8 @@ hook_pf(void)
 	pla.pa_flags = PFIL_IN | PFIL_HEADPTR | PFIL_HOOKPTR;
 	pla.pa_head = V_link_pfil_head;
 	pla.pa_hook = V_pf_eth_in_hook;
-	(void)pfil_link(&pla);
+	ret = pfil_link(&pla);
+	MPASS(ret == 0);
 	pha.pa_func = pf_eth_check_out;
 	pha.pa_flags = PFIL_OUT;
 	pha.pa_rulname = "eth-out";
@@ -6107,7 +6123,27 @@ hook_pf(void)
 	pla.pa_flags = PFIL_OUT | PFIL_HEADPTR | PFIL_HOOKPTR;
 	pla.pa_head = V_link_pfil_head;
 	pla.pa_hook = V_pf_eth_out_hook;
-	(void)pfil_link(&pla);
+	ret = pfil_link(&pla);
+	MPASS(ret == 0);
+
+	V_pf_pfil_eth_hooked = 1;
+}
+
+static void
+hook_pf(void)
+{
+	struct pfil_hook_args pha;
+	struct pfil_link_args pla;
+	int ret;
+
+	if (V_pf_pfil_hooked)
+		return;
+
+	pha.pa_version = PFIL_VERSION;
+	pha.pa_modname = "pf";
+	pha.pa_ruleset = NULL;
+
+	pla.pa_version = PFIL_VERSION;
 
 #ifdef INET
 	pha.pa_type = PFIL_TYPE_IP4;
@@ -6156,14 +6192,24 @@ hook_pf(void)
 }
 
 static void
+dehook_pf_eth(void)
+{
+
+	if (V_pf_pfil_eth_hooked == 0)
+		return;
+
+	pfil_remove_hook(V_pf_eth_in_hook);
+	pfil_remove_hook(V_pf_eth_out_hook);
+
+	V_pf_pfil_eth_hooked = 0;
+}
+
+static void
 dehook_pf(void)
 {
 
 	if (V_pf_pfil_hooked == 0)
 		return;
-
-	pfil_remove_hook(V_pf_eth_in_hook);
-	pfil_remove_hook(V_pf_eth_out_hook);
 
 #ifdef INET
 	pfil_remove_hook(V_pf_ip4_in_hook);
@@ -6231,6 +6277,7 @@ pf_unload_vnet(void)
 	V_pf_vnet_active = 0;
 	V_pf_status.running = 0;
 	dehook_pf();
+	dehook_pf_eth();
 
 	PF_RULES_WLOCK();
 	pf_syncookies_cleanup();
