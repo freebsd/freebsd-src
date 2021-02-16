@@ -10,6 +10,7 @@
 
 #include <ios>
 #include <ostream>
+#include <string>
 
 #include "gtest/gtest.h"
 
@@ -75,7 +76,7 @@ const char *TmpFile(const char *pathname);
       }                                                        \
     } else if (pid > 0) {                                      \
       int rc, status;                                          \
-      int remaining_us = 10000000;                             \
+      int remaining_us = 30000000;                             \
       while (remaining_us > 0) {                               \
         status = 0;                                            \
         rc = waitpid(pid, &status, WNOHANG);                   \
@@ -169,12 +170,14 @@ const char *TmpFile(const char *pathname);
       } else { \
         EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY, result); \
       } \
+      if (result >= 0) { close(result); } \
     } while (0)
 #else
 #define EXPECT_OPENAT_FAIL_TRAVERSAL(fd, path, flags) \
     do { \
       const int result = openat((fd), (path), (flags)); \
       EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY, result); \
+      if (result >= 0) { close(result); } \
     } while (0)
 #endif
 
@@ -241,21 +244,10 @@ char ProcessState(int pid);
 #define EXPECT_PID_ZOMBIE(pid)  EXPECT_PID_REACHES_STATES(pid, 'Z', 'Z');
 #define EXPECT_PID_GONE(pid)    EXPECT_PID_REACHES_STATES(pid, '\0', '\0');
 
-void ShowSkippedTests(std::ostream& os);
-void TestSkipped(const char *testcase, const char *test, const std::string& reason);
-#define TEST_SKIPPED(reason) \
-  do { \
-    const ::testing::TestInfo* const info = ::testing::UnitTest::GetInstance()->current_test_info(); \
-    std::cerr << "Skipping " << info->test_case_name() << "::" << info->name() << " because: " << reason << std::endl; \
-    TestSkipped(info->test_case_name(), info->name(), reason);          \
-    GTEST_SKIP(); \
-  } while (0)
-
 // Mark a test that can only be run as root.
-#define REQUIRE_ROOT() \
-  if (getuid() != 0) { \
-    TEST_SKIPPED("requires root"); \
-    return; \
-  }
+#define GTEST_SKIP_IF_NOT_ROOT() \
+  if (getuid() != 0) { GTEST_SKIP() << "requires root"; }
+
+extern std::string capsicum_test_bindir;
 
 #endif  // CAPSICUM_TEST_H
