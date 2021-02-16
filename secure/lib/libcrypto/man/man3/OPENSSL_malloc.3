@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL_MALLOC 3"
-.TH OPENSSL_MALLOC 3 "2020-12-08" "1.1.1i" "OpenSSL"
+.TH OPENSSL_MALLOC 3 "2021-02-16" "1.1.1j" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -224,7 +224,7 @@ before ultimately calling \fBOPENSSL_free()\fR.
 .PP
 \&\fBOPENSSL_cleanse()\fR fills \fBptr\fR of size \fBlen\fR with a string of 0's.
 Use \fBOPENSSL_cleanse()\fR with care if the memory is a mapping of a file.
-If the storage controller uses write compression, then its possible
+If the storage controller uses write compression, then it's possible
 that sensitive tail bytes will survive zeroization because the block of
 zeros will be compressed. If the storage controller uses wear leveling,
 then the old sensitive data will not be overwritten; rather, a block of

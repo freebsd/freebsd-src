@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PKCS12 1"
-.TH PKCS12 1 "2020-12-08" "1.1.1i" "OpenSSL"
+.TH PKCS12 1 "2021-02-16" "1.1.1j" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -205,13 +205,11 @@ default.  They are all written in \s-1PEM\s0 format.
 .IP "\fB\-passin arg\fR" 4
 .IX Item "-passin arg"
 The PKCS#12 file (i.e. input file) password source. For more information about
-the format of \fBarg\fR see the \fB\s-1PASS PHRASE ARGUMENTS\s0\fR section in
-\&\fBopenssl\fR\|(1).
+the format of \fBarg\fR see \*(L"Pass Phrase Options\*(R" in \fBopenssl\fR\|(1).
 .IP "\fB\-passout arg\fR" 4
 .IX Item "-passout arg"
 Pass phrase source to encrypt any outputted private keys with. For more
-information about the format of \fBarg\fR see the \fB\s-1PASS PHRASE ARGUMENTS\s0\fR section
-in \fBopenssl\fR\|(1).
+information about the format of \fBarg\fR see \*(L"Pass Phrase Options\*(R" in \fBopenssl\fR\|(1).
 .IP "\fB\-password arg\fR" 4
 .IX Item "-password arg"
 With \-export, \-password is equivalent to \-passout.
@@ -304,13 +302,11 @@ displays them.
 .IP "\fB\-pass arg\fR, \fB\-passout arg\fR" 4
 .IX Item "-pass arg, -passout arg"
 The PKCS#12 file (i.e. output file) password source. For more information about
-the format of \fBarg\fR see the \fB\s-1PASS PHRASE ARGUMENTS\s0\fR section in
-\&\fBopenssl\fR\|(1).
+the format of \fBarg\fR see \*(L"Pass Phrase Options\*(R" in \fBopenssl\fR\|(1).
 .IP "\fB\-passin password\fR" 4
 .IX Item "-passin password"
 Pass phrase source to decrypt any input private keys with. For more information
-about the format of \fBarg\fR see the \fB\s-1PASS PHRASE ARGUMENTS\s0\fR section in
-\&\fBopenssl\fR\|(1).
+about the format of \fBarg\fR see \*(L"Pass Phrase Options\*(R" in \fBopenssl\fR\|(1).
 .IP "\fB\-chain\fR" 4
 .IX Item "-chain"
 If this option is present then an attempt is made to include the entire
@@ -471,7 +467,7 @@ Include some extra certificates:
 \&\fBpkcs8\fR\|(1)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

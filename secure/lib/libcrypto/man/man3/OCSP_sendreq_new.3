@@ -133,13 +133,13 @@
 .\" ========================================================================
 .\"
 .IX Title "OCSP_SENDREQ_NEW 3"
-.TH OCSP_SENDREQ_NEW 3 "2020-12-08" "1.1.1i" "OpenSSL"
+.TH OCSP_SENDREQ_NEW 3 "2021-02-16" "1.1.1j" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-OCSP_sendreq_new, OCSP_sendreq_nbio, OCSP_REQ_CTX_free, OCSP_set_max_response_length, OCSP_REQ_CTX_add1_header, OCSP_REQ_CTX_set1_req, OCSP_sendreq_bio \- OCSP responder query functions
+OCSP_sendreq_new, OCSP_sendreq_nbio, OCSP_REQ_CTX_free, OCSP_set_max_response_length, OCSP_REQ_CTX_add1_header, OCSP_REQ_CTX_set1_req, OCSP_sendreq_bio, OCSP_REQ_CTX_i2d \&\- OCSP responder query functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -160,6 +160,9 @@ OCSP_sendreq_new, OCSP_sendreq_nbio, OCSP_REQ_CTX_free, OCSP_set_max_response_le
 \& int OCSP_REQ_CTX_set1_req(OCSP_REQ_CTX *rctx, OCSP_REQUEST *req);
 \&
 \& OCSP_RESPONSE *OCSP_sendreq_bio(BIO *io, const char *path, OCSP_REQUEST *req);
+\&
+\& int OCSP_REQ_CTX_i2d(OCSP_REQ_CTX *rctx, const char *content_type,
+\&                      const ASN1_ITEM *it, ASN1_VALUE *req);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -186,6 +189,17 @@ additional headers are set.
 .PP
 \&\fBOCSP_REQ_CTX_set1_req()\fR sets the \s-1OCSP\s0 request in \fBrctx\fR to \fBreq\fR. This
 function should be called after any calls to \fBOCSP_REQ_CTX_add1_header()\fR.
+OCSP_REQ_CTX_set1_req(rctx, req) is equivalent to the following:
+.PP
+.Vb 2
+\& OCSP_REQ_CTX_i2d(rctx, "application/ocsp\-request",
+\&                        ASN1_ITEM_rptr(OCSP_REQUEST), (ASN1_VALUE *)req)
+.Ve
+.PP
+\&\fBOCSP_REQ_CTX_i2d()\fR sets the request context \fBrctx\fR to have the request
+\&\fBreq\fR, which has the \s-1ASN.1\s0 type \fBit\fR.
+The \fBcontent_type\fR, if not \s-1NULL,\s0 will be included in the \s-1HTTP\s0 request.
+The function should be called after all other headers have already been added.
 .PP
 \&\fBOCSP_sendreq_bio()\fR performs an \s-1OCSP\s0 request using the responder \fBio\fR, the \s-1URL\s0
 path \fBpath\fR, and the \s-1OCSP\s0 request \fBreq\fR with a response header maximum line
@@ -198,8 +212,8 @@ an error occurred.
 \&\fBOCSP_sendreq_nbio()\fR returns \fB1\fR if the operation was completed successfully,
 \&\fB\-1\fR if the operation should be retried and \fB0\fR if an error occurred.
 .PP
-\&\fBOCSP_REQ_CTX_add1_header()\fR and \fBOCSP_REQ_CTX_set1_req()\fR return \fB1\fR for success
-and \fB0\fR for failure.
+\&\fBOCSP_REQ_CTX_add1_header()\fR, \fBOCSP_REQ_CTX_set1_req()\fR, and \fBOCSP_REQ_CTX_i2d()\fR
+return \fB1\fR for success and \fB0\fR for failure.
 .PP
 \&\fBOCSP_sendreq_bio()\fR returns the \fB\s-1OCSP_RESPONSE\s0\fR structure sent by the
 responder or \fB\s-1NULL\s0\fR if an error occurred.
