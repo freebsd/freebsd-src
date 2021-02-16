@@ -1857,8 +1857,18 @@ fail:
 void
 ifa_ref(struct ifaddr *ifa)
 {
+	u_int old;
 
-	refcount_acquire(&ifa->ifa_refcnt);
+	old = refcount_acquire(&ifa->ifa_refcnt);
+	KASSERT(old > 0, ("%s: ifa %p has 0 refs", __func__, ifa));
+}
+
+int
+ifa_try_ref(struct ifaddr *ifa)
+{
+
+	NET_EPOCH_ASSERT();
+	return (refcount_acquire_if_not_zero(&ifa->ifa_refcnt));
 }
 
 static void
