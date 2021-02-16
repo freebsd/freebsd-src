@@ -1653,7 +1653,8 @@ zpool_do_create(int argc, char **argv)
 				if (strcmp(propval, ZFS_FEATURE_DISABLED) == 0)
 					(void) nvlist_remove_all(props,
 					    propname);
-			} else if (enable_all_pool_feat) {
+			} else if (enable_all_pool_feat &&
+			    feat->fi_zfs_mod_supported) {
 				ret = add_prop_list(propname,
 				    ZFS_FEATURE_ENABLED, &props, B_TRUE);
 				if (ret != 0)
@@ -2009,7 +2010,7 @@ zpool_print_cmd(vdev_cmd_data_list_t *vcdl, const char *pool, char *path)
 			 * Mark empty values with dashes to make output
 			 * awk-able.
 			 */
-			if (is_blank_str(val))
+			if (val == NULL || is_blank_str(val))
 				val = "-";
 
 			printf("%*s", vcdl->uniq_cols_width[j], val);
@@ -9063,7 +9064,7 @@ print_history_records(nvlist_t *nvhis, hist_cbdata_t *cb)
 	    &records, &numrecords) == 0);
 	for (i = 0; i < numrecords; i++) {
 		nvlist_t *rec = records[i];
-		char tbuf[30] = "";
+		char tbuf[64] = "";
 
 		if (nvlist_exists(rec, ZPOOL_HIST_TIME)) {
 			time_t tsec;
@@ -9073,6 +9074,14 @@ print_history_records(nvlist_t *nvhis, hist_cbdata_t *cb)
 			    ZPOOL_HIST_TIME);
 			(void) localtime_r(&tsec, &t);
 			(void) strftime(tbuf, sizeof (tbuf), "%F.%T", &t);
+		}
+
+		if (nvlist_exists(rec, ZPOOL_HIST_ELAPSED_NS)) {
+			uint64_t elapsed_ns = fnvlist_lookup_int64(records[i],
+			    ZPOOL_HIST_ELAPSED_NS);
+			(void) snprintf(tbuf + strlen(tbuf),
+			    sizeof (tbuf) - strlen(tbuf),
+			    " (%lldms)", (long long)elapsed_ns / 1000 / 1000);
 		}
 
 		if (nvlist_exists(rec, ZPOOL_HIST_CMD)) {

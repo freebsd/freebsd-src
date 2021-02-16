@@ -166,9 +166,6 @@ extern "C" {
 #define	ECHRNG ENXIO
 #define	ETIME ETIMEDOUT
 
-#define	O_LARGEFILE 0
-#define	O_RSYNC 0
-
 #ifndef LOCORE
 #ifndef HAVE_RPC_TYPES
 typedef int bool_t;
