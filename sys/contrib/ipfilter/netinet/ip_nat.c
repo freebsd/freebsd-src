@@ -321,11 +321,19 @@ ipf_nat_soft_create(softc)
 
 	softn->ipf_nat_list_tail = &softn->ipf_nat_list;
 
-	softn->ipf_nat_table_max = NAT_TABLE_MAX;
-	softn->ipf_nat_table_sz = NAT_TABLE_SZ;
-	softn->ipf_nat_maprules_sz = NAT_SIZE;
-	softn->ipf_nat_rdrrules_sz = RDR_SIZE;
-	softn->ipf_nat_hostmap_sz = HOSTMAP_SIZE;
+	if (softc->ipf_large_nat) {
+	softn->ipf_nat_table_max = NAT_TABLE_MAX_LARGE;
+	softn->ipf_nat_table_sz = NAT_TABLE_SZ_LARGE;
+	softn->ipf_nat_maprules_sz = NAT_SIZE_LARGE;
+	softn->ipf_nat_rdrrules_sz = RDR_SIZE_LARGE;
+	softn->ipf_nat_hostmap_sz = HOSTMAP_SIZE_LARGE;
+	} else {
+	softn->ipf_nat_table_max = NAT_TABLE_MAX_NORMAL;
+	softn->ipf_nat_table_sz = NAT_TABLE_SZ_NORMAL;
+	softn->ipf_nat_maprules_sz = NAT_SIZE_NORMAL;
+	softn->ipf_nat_rdrrules_sz = RDR_SIZE_NORMAL;
+	softn->ipf_nat_hostmap_sz = HOSTMAP_SIZE_NORMAL;
+	}
 	softn->ipf_nat_doflush = 0;
 #ifdef  IPFILTER_LOG
 	softn->ipf_nat_logging = 1;
@@ -492,10 +500,8 @@ ipf_nat_soft_init(softc, arg)
 	for (i = 0, tq = softn->ipf_nat_tcptq; i < IPF_TCP_NSTATES; i++, tq++) {
 		if (tq->ifq_ttl < softn->ipf_nat_deficmpage)
 			tq->ifq_ttl = softn->ipf_nat_deficmpage;
-#ifdef LARGE_NAT
-		else if (tq->ifq_ttl > softn->ipf_nat_defage)
+		else if (tq->ifq_ttl > softn->ipf_nat_defage && softc->ipf_large_nat)
 			tq->ifq_ttl = softn->ipf_nat_defage;
-#endif
 	}
 
 	/*
@@ -6139,10 +6145,8 @@ ipf_nat_log(softc, softn, nat, action)
 	u_int action;
 {
 #ifdef	IPFILTER_LOG
-# ifndef LARGE_NAT
 	struct ipnat *np;
 	int rulen;
-# endif
 	struct natlog natl;
 	void *items[1];
 	size_t sizes[1];
@@ -6178,8 +6182,7 @@ ipf_nat_log(softc, softn, nat, action)
 	bcopy(nat->nat_ifnames[1], natl.nl_ifnames[1],
 	      sizeof(nat->nat_ifnames[1]));
 
-# ifndef LARGE_NAT
-	if (nat->nat_ptr != NULL) {
+	if (softc->ipf_large_nat && nat->nat_ptr != NULL) {
 		for (rulen = 0, np = softn->ipf_nat_list; np != NULL;
 		     np = np->in_next, rulen++)
 			if (np == nat->nat_ptr) {
@@ -6187,7 +6190,6 @@ ipf_nat_log(softc, softn, nat, action)
 				break;
 			}
 	}
-# endif
 	items[0] = &natl;
 	sizes[0] = sizeof(natl);
 	types[0] = 0;

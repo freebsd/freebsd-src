@@ -1480,3 +1480,10 @@ ipf_pcksum6(m, ip6, off, len)
 #endif
 }
 #endif
+
+void
+ipf_fbsd_kenv_get(ipf_main_softc_t *softc)
+{
+	TUNABLE_INT_FETCH("net.inet.ipf.large_nat",
+		&softc->ipf_large_nat);
+}
