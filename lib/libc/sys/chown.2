@@ -28,7 +28,7 @@
 .\"     @(#)chown.2	8.4 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd September 23, 2020
+.Dd February 23, 2021
 .Dt CHOWN 2
 .Os
 .Sh NAME
@@ -118,16 +118,10 @@ list, defined in
 If
 .Fa path
 names a symbolic link, ownership of the symbolic link is changed.
-.It Dv AT_BENEATH
-Only allow to change ownership of a file which is beneath of
-the topping directory.
-See the description of the
-.Dv O_BENEATH
-flag in the
-.Xr open 2
-manual page.
 .It Dv AT_RESOLVE_BENEATH
-Only walks paths below the topping directory.
+Only walk paths below the directory specified by the
+.Ar fd
+descriptor.
 See the description of the
 .Dv O_RESOLVE_BENEATH
 flag in the
@@ -252,18 +246,9 @@ is an absolute path,
 or contained a ".." component leading to a
 directory outside of the directory hierarchy specified by
 .Fa fd ,
-and the process is in capability mode.
-.It Bq Er ENOTCAPABLE
-The
-.Dv AT_BENEATH
-flag was provided to
-.Fn fchownat ,
-and the absolute
-.Fa path
-does not have its tail fully contained under the topping directory,
-or the relative
-.Fa path
-escapes it.
+and the process is in capability mode or the
+.Dv AT_RESOLVE_BENEATH
+flag was specified.
 .El
 .Sh SEE ALSO
 .Xr chgrp 1 ,

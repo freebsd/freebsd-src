@@ -199,8 +199,6 @@ open2nameif(int fmode, u_int vn_open_flags)
 	uint64_t res;
 
 	res = ISOPEN | LOCKLEAF;
-	if ((fmode & O_BENEATH) != 0)
-		res |= BENEATH;
 	if ((fmode & O_RESOLVE_BENEATH) != 0)
 		res |= RBENEATH;
 	if ((vn_open_flags & VN_OPEN_NOAUDIT) == 0)
