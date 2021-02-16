@@ -56,17 +56,13 @@ static cl::opt<bool> EnableMachineCombinerPass("x86-machine-combiner",
                                cl::desc("Enable the machine combiner pass"),
                                cl::init(true), cl::Hidden);
 
-static cl::opt<bool> EnableCondBrFoldingPass("x86-condbr-folding",
-                               cl::desc("Enable the conditional branch "
-                                        "folding pass"),
-                               cl::init(false), cl::Hidden);
-
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeX86Target() {
   // Register the target.
   RegisterTargetMachine<X86TargetMachine> X(getTheX86_32Target());
   RegisterTargetMachine<X86TargetMachine> Y(getTheX86_64Target());
 
   PassRegistry &PR = *PassRegistry::getPassRegistry();
+  initializeX86LowerAMXTypeLegacyPassPass(PR);
   initializeGlobalISel(PR);
   initializeWinEHStatePassPass(PR);
   initializeFixupBWInstPassPass(PR);
@@ -76,6 +72,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeX86Target() {
   initializeX86FixupSetCCPassPass(PR);
   initializeX86CallFrameOptimizationPass(PR);
   initializeX86CmovConverterPassPass(PR);
+  initializeX86TileConfigPass(PR);
   initializeX86ExpandPseudoPass(PR);
   initializeX86ExecutionDomainFixPass(PR);
   initializeX86DomainReassignmentPass(PR);
@@ -84,11 +81,11 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeX86Target() {
   initializeX86SpeculativeLoadHardeningPassPass(PR);
   initializeX86SpeculativeExecutionSideEffectSuppressionPass(PR);
   initializeX86FlagsCopyLoweringPassPass(PR);
-  initializeX86CondBrFoldingPassPass(PR);
   initializeX86LoadValueInjectionLoadHardeningPassPass(PR);
   initializeX86LoadValueInjectionRetHardeningPassPass(PR);
   initializeX86OptimizeLEAPassPass(PR);
   initializeX86PartialReductionPass(PR);
+  initializePseudoProbeInserterPass(PR);
 }
 
 static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
@@ -239,19 +236,57 @@ X86TargetMachine::~X86TargetMachine() = default;
 const X86Subtarget *
 X86TargetMachine::getSubtargetImpl(const Function &F) const {
   Attribute CPUAttr = F.getFnAttribute("target-cpu");
+  Attribute TuneAttr = F.getFnAttribute("tune-cpu");
   Attribute FSAttr = F.getFnAttribute("target-features");
 
-  StringRef CPU = !CPUAttr.hasAttribute(Attribute::None)
-                      ? CPUAttr.getValueAsString()
-                      : (StringRef)TargetCPU;
-  StringRef FS = !FSAttr.hasAttribute(Attribute::None)
-                     ? FSAttr.getValueAsString()
-                     : (StringRef)TargetFS;
+  StringRef CPU =
+      CPUAttr.isValid() ? CPUAttr.getValueAsString() : (StringRef)TargetCPU;
+  StringRef TuneCPU =
+      TuneAttr.isValid() ? TuneAttr.getValueAsString() : (StringRef)CPU;
+  StringRef FS =
+      FSAttr.isValid() ? FSAttr.getValueAsString() : (StringRef)TargetFS;
 
   SmallString<512> Key;
-  Key.reserve(CPU.size() + FS.size());
+  // The additions here are ordered so that the definitely short strings are
+  // added first so we won't exceed the small size. We append the
+  // much longer FS string at the end so that we only heap allocate at most
+  // one time.
+
+  // Extract prefer-vector-width attribute.
+  unsigned PreferVectorWidthOverride = 0;
+  Attribute PreferVecWidthAttr = F.getFnAttribute("prefer-vector-width");
+  if (PreferVecWidthAttr.isValid()) {
+    StringRef Val = PreferVecWidthAttr.getValueAsString();
+    unsigned Width;
+    if (!Val.getAsInteger(0, Width)) {
+      Key += "prefer-vector-width=";
+      Key += Val;
+      PreferVectorWidthOverride = Width;
+    }
+  }
+
+  // Extract min-legal-vector-width attribute.
+  unsigned RequiredVectorWidth = UINT32_MAX;
+  Attribute MinLegalVecWidthAttr = F.getFnAttribute("min-legal-vector-width");
+  if (MinLegalVecWidthAttr.isValid()) {
+    StringRef Val = MinLegalVecWidthAttr.getValueAsString();
+    unsigned Width;
+    if (!Val.getAsInteger(0, Width)) {
+      Key += "min-legal-vector-width=";
+      Key += Val;
+      RequiredVectorWidth = Width;
+    }
+  }
+
+  // Add CPU to the Key.
   Key += CPU;
-  Key += FS;
+
+  // Add tune CPU to the Key.
+  Key += "tune=";
+  Key += TuneCPU;
+
+  // Keep track of the start of the feature portion of the string.
+  unsigned FSStart = Key.size();
 
   // FIXME: This is related to the code below to reset the target options,
   // we need to know whether or not the soft float flag is set on the
@@ -263,41 +298,13 @@ X86TargetMachine::getSubtargetImpl(const Function &F) const {
   // If the soft float attribute is set on the function turn on the soft float
   // subtarget feature.
   if (SoftFloat)
-    Key += FS.empty() ? "+soft-float" : ",+soft-float";
+    Key += FS.empty() ? "+soft-float" : "+soft-float,";
 
-  // Keep track of the key width after all features are added so we can extract
-  // the feature string out later.
-  unsigned CPUFSWidth = Key.size();
+  Key += FS;
 
-  // Extract prefer-vector-width attribute.
-  unsigned PreferVectorWidthOverride = 0;
-  if (F.hasFnAttribute("prefer-vector-width")) {
-    StringRef Val = F.getFnAttribute("prefer-vector-width").getValueAsString();
-    unsigned Width;
-    if (!Val.getAsInteger(0, Width)) {
-      Key += ",prefer-vector-width=";
-      Key += Val;
-      PreferVectorWidthOverride = Width;
-    }
-  }
-
-  // Extract min-legal-vector-width attribute.
-  unsigned RequiredVectorWidth = UINT32_MAX;
-  if (F.hasFnAttribute("min-legal-vector-width")) {
-    StringRef Val =
-        F.getFnAttribute("min-legal-vector-width").getValueAsString();
-    unsigned Width;
-    if (!Val.getAsInteger(0, Width)) {
-      Key += ",min-legal-vector-width=";
-      Key += Val;
-      RequiredVectorWidth = Width;
-    }
-  }
-
-  // Extracted here so that we make sure there is backing for the StringRef. If
-  // we assigned earlier, its possible the SmallString reallocated leaving a
-  // dangling StringRef.
-  FS = Key.slice(CPU.size(), CPUFSWidth);
+  // We may have added +soft-float to the features so move the StringRef to
+  // point to the full string in the Key.
+  FS = Key.substr(FSStart);
 
   auto &I = SubtargetMap[Key];
   if (!I) {
@@ -306,11 +313,19 @@ X86TargetMachine::getSubtargetImpl(const Function &F) const {
     // function that reside in TargetOptions.
     resetTargetOptions(F);
     I = std::make_unique<X86Subtarget>(
-        TargetTriple, CPU, FS, *this,
+        TargetTriple, CPU, TuneCPU, FS, *this,
         MaybeAlign(Options.StackAlignmentOverride), PreferVectorWidthOverride,
         RequiredVectorWidth);
   }
   return I.get();
+}
+
+bool X86TargetMachine::isNoopAddrSpaceCast(unsigned SrcAS,
+                                           unsigned DestAS) const {
+  assert(SrcAS != DestAS && "Expected different address spaces!");
+  if (getPointerSize(SrcAS) != getPointerSize(DestAS))
+    return false;
+  return SrcAS < 256 && DestAS < 256;
 }
 
 //===----------------------------------------------------------------------===//
@@ -366,6 +381,7 @@ public:
   void addPreEmitPass() override;
   void addPreEmitPass2() override;
   void addPreSched2() override;
+  bool addPreRewrite() override;
 
   std::unique_ptr<CSEConfigBase> getCSEConfig() const override;
 };
@@ -394,6 +410,7 @@ TargetPassConfig *X86TargetMachine::createPassConfig(PassManagerBase &PM) {
 
 void X86PassConfig::addIRPasses() {
   addPass(createAtomicExpandPass());
+  addPass(createX86LowerAMXTypePass());
 
   TargetPassConfig::addIRPasses();
 
@@ -432,7 +449,7 @@ bool X86PassConfig::addInstSelector() {
 }
 
 bool X86PassConfig::addIRTranslator() {
-  addPass(new IRTranslator());
+  addPass(new IRTranslator(getOptLevel()));
   return false;
 }
 
@@ -452,8 +469,6 @@ bool X86PassConfig::addGlobalInstructionSelect() {
 }
 
 bool X86PassConfig::addILPOpts() {
-  if (EnableCondBrFoldingPass)
-    addPass(createX86CondBrFolding());
   addPass(&EarlyIfConverterID);
   if (EnableMachineCombinerPass)
     addPass(&MachineCombinerID);
@@ -481,7 +496,12 @@ void X86PassConfig::addPreRegAlloc() {
   addPass(createX86SpeculativeLoadHardeningPass());
   addPass(createX86FlagsCopyLoweringPass());
   addPass(createX86WinAllocaExpander());
+
+  if (getOptLevel() != CodeGenOpt::None) {
+    addPass(createX86PreTileConfigPass());
+  }
 }
+
 void X86PassConfig::addMachineSSAOptimization() {
   addPass(createX86DomainReassignmentPass());
   TargetPassConfig::addMachineSSAOptimization();
@@ -552,6 +572,11 @@ void X86PassConfig::addPreEmitPass2() {
   if (TT.isOSWindows())
     addPass(createCFGuardLongjmpPass());
   addPass(createX86LoadValueInjectionRetHardeningPass());
+}
+
+bool X86PassConfig::addPreRewrite() {
+  addPass(createX86TileConfigPass());
+  return true;
 }
 
 std::unique_ptr<CSEConfigBase> X86PassConfig::getCSEConfig() const {

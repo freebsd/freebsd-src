@@ -125,7 +125,7 @@ int kmpc_get_affinity_mask_proc(int proc, void **mask) {
 /* kmp API functions */
 void kmp_set_stacksize(omp_int_t arg) {
   i;
-  __kmps_set_stacksize(arg);
+  __kmps_set_stacksize((size_t)arg);
 }
 void kmp_set_stacksize_s(size_t arg) {
   i;
@@ -250,12 +250,12 @@ int __kmps_get_nested(void) {
 
 static size_t __kmps_stacksize = KMP_DEFAULT_STKSIZE;
 
-void __kmps_set_stacksize(int arg) {
+void __kmps_set_stacksize(size_t arg) {
   i;
   __kmps_stacksize = arg;
 } // __kmps_set_stacksize
 
-int __kmps_get_stacksize(void) {
+size_t __kmps_get_stacksize(void) {
   i;
   return __kmps_stacksize;
 } // __kmps_get_stacksize
@@ -365,6 +365,17 @@ omp_memspace_handle_t const omp_low_lat_mem_space =
 void *omp_alloc(size_t size, const omp_allocator_handle_t allocator) {
   i;
   return malloc(size);
+}
+void *omp_calloc(size_t nmemb, size_t size,
+                 const omp_allocator_handle_t allocator) {
+  i;
+  return calloc(nmemb, size);
+}
+void *omp_realloc(void *ptr, size_t size,
+                  const omp_allocator_handle_t allocator,
+                  const omp_allocator_handle_t free_allocator) {
+  i;
+  return realloc(ptr, size);
 }
 void omp_free(void *ptr, const omp_allocator_handle_t allocator) {
   i;

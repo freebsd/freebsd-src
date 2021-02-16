@@ -117,7 +117,7 @@ bool LocalStackSlotPass::runOnMachineFunction(MachineFunction &MF) {
 
   // If the target doesn't want/need this pass, or if there are no locals
   // to consider, early exit.
-  if (!TRI->requiresVirtualBaseRegisters(MF) || LocalObjectCount == 0)
+  if (LocalObjectCount == 0 || !TRI->requiresVirtualBaseRegisters(MF))
     return true;
 
   // Make sure we have enough space to store the local offsets.
@@ -220,6 +220,8 @@ void LocalStackSlotPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
         continue;
       if (StackProtectorFI == (int)i)
         continue;
+      if (!TFI.isStackIdSafeForLocalArea(MFI.getStackID(i)))
+        continue;
 
       switch (MFI.getObjectSSPLayout(i)) {
       case MachineFrameInfo::SSPLK_None:
@@ -253,6 +255,8 @@ void LocalStackSlotPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
     if (MFI.getStackProtectorIndex() == (int)i)
       continue;
     if (ProtectedObjs.count(i))
+      continue;
+    if (!TFI.isStackIdSafeForLocalArea(MFI.getStackID(i)))
       continue;
 
     AdjustStackOffset(MFI, i, Offset, StackGrowsDown, MaxAlign);
@@ -412,15 +416,16 @@ bool LocalStackSlotPass::insertFrameReferenceRegisters(MachineFunction &Fn) {
       const TargetRegisterClass *RC = TRI->getPointerRegClass(*MF);
       BaseReg = Fn.getRegInfo().createVirtualRegister(RC);
 
-      LLVM_DEBUG(dbgs() << "  Materializing base register " << BaseReg
+      LLVM_DEBUG(dbgs() << "  Materializing base register"
                         << " at frame local offset "
-                        << LocalOffset + InstrOffset << "\n");
+                        << LocalOffset + InstrOffset);
 
       // Tell the target to insert the instruction to initialize
       // the base register.
       //            MachineBasicBlock::iterator InsertionPt = Entry->begin();
-      TRI->materializeFrameBaseRegister(Entry, BaseReg, FrameIdx,
-                                        InstrOffset);
+      BaseReg = TRI->materializeFrameBaseRegister(Entry, FrameIdx, InstrOffset);
+
+      LLVM_DEBUG(dbgs() << " into " << printReg(BaseReg, TRI) << '\n');
 
       // The base register already includes any offset specified
       // by the instruction, so account for that so it doesn't get

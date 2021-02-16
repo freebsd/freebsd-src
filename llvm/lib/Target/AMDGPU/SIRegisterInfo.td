@@ -17,9 +17,7 @@ class Indexes<int N> {
                    24, 25, 26, 27, 28, 29, 30, 31];
 
   // Returns list of indexes [0..N)
-  list<int> slice =
-    !foldl([]<int>, all, acc, cur,
-           !listconcat(acc, !if(!lt(cur, N), [cur], [])));
+  list<int> slice = !filter(i, all, !lt(i, N));
 }
 
 let Namespace = "AMDGPU" in {
@@ -27,17 +25,17 @@ let Namespace = "AMDGPU" in {
 def lo16 : SubRegIndex<16, 0>;
 def hi16 : SubRegIndex<16, 16>;
 
-foreach Index = 0-31 in {
+foreach Index = 0...31 in {
   def sub#Index : SubRegIndex<32, !shl(Index, 5)>;
 }
 
-foreach Index = 1-31 in {
+foreach Index = 1...31 in {
   def sub#Index#_lo16 : ComposedSubRegIndex<!cast<SubRegIndex>(sub#Index), lo16>;
   def sub#Index#_hi16 : ComposedSubRegIndex<!cast<SubRegIndex>(sub#Index), hi16>;
 }
 
-foreach Size = {2-6,8,16} in {
-  foreach Index = Indexes<!add(33, !mul(Size, -1))>.slice in {
+foreach Size = {2...6,8,16} in {
+  foreach Index = Indexes<!sub(33, Size)>.slice in {
     def !foldl("", Indexes<Size>.slice, acc, cur,
                !strconcat(acc#!if(!eq(acc,""),"","_"), "sub"#!add(cur, Index))) :
       SubRegIndex<!mul(Size, 32), !shl(Index, 5)> {
@@ -89,7 +87,7 @@ class getSubRegs<int size> {
 class RegSeqNames<int last_reg, int stride, int size, string prefix,
                   int start = 0> {
   int next = !add(start, stride);
-  int end_reg = !add(!add(start, size), -1);
+  int end_reg = !add(start, size, -1);
   list<string> ret =
     !if(!le(end_reg, last_reg),
         !listconcat([prefix # "[" # start # ":" # end_reg # "]"],
@@ -102,7 +100,7 @@ class RegSeqDags<RegisterClass RC, int last_reg, int stride, int size,
                 int start = 0> {
   dag trunc_rc = (trunc RC,
                   !if(!and(!eq(stride, 1), !eq(start, 0)),
-                      !add(!add(last_reg, 2), !mul(size, -1)),
+                      !sub(!add(last_reg, 2), size),
                       !add(last_reg, 1)));
   list<dag> ret =
     !if(!lt(start, size),
@@ -149,7 +147,7 @@ multiclass SIRegLoHi16 <string n, bits<16> regIdx, bit ArtificialHigh = 1,
                                    !cast<Register>(NAME#"_HI16")]> {
     let Namespace = "AMDGPU";
     let SubRegIndices = [lo16, hi16];
-    let CoveredBySubRegs = !if(ArtificialHigh,0,1);
+    let CoveredBySubRegs = !not(ArtificialHigh);
     let HWEncoding = regIdx;
     let HWEncoding{8} = HWEncodingHigh;
   }
@@ -247,10 +245,10 @@ def TMA : RegisterWithSubRegs<"tma", [TMA_LO, TMA_HI]> {
   let HWEncoding = 110;
 }
 
-foreach Index = 0-15 in {
-  defm TTMP#Index#_vi         : SIRegLoHi16<"ttmp"#Index, !add(112, Index)>;
-  defm TTMP#Index#_gfx9_gfx10 : SIRegLoHi16<"ttmp"#Index, !add(108, Index)>;
-  defm TTMP#Index             : SIRegLoHi16<"ttmp"#Index, 0>;
+foreach Index = 0...15 in {
+  defm TTMP#Index#_vi       : SIRegLoHi16<"ttmp"#Index, !add(112, Index)>;
+  defm TTMP#Index#_gfx9plus : SIRegLoHi16<"ttmp"#Index, !add(108, Index)>;
+  defm TTMP#Index           : SIRegLoHi16<"ttmp"#Index, 0>;
 }
 
 multiclass FLAT_SCR_LOHI_m <string n, bits<16> ci_e, bits<16> vi_e> {
@@ -274,7 +272,7 @@ def FLAT_SCR_vi : FlatReg<FLAT_SCR_LO_vi, FLAT_SCR_HI_vi, 102>;
 def FLAT_SCR : FlatReg<FLAT_SCR_LO, FLAT_SCR_HI, 0>;
 
 // SGPR registers
-foreach Index = 0-105 in {
+foreach Index = 0...105 in {
   defm SGPR#Index :
      SIRegLoHi16 <"s"#Index, Index>,
      DwarfRegNum<[!if(!le(Index, 63), !add(Index, 32), !add(Index, 1024)),
@@ -282,14 +280,14 @@ foreach Index = 0-105 in {
 }
 
 // VGPR registers
-foreach Index = 0-255 in {
+foreach Index = 0...255 in {
   defm VGPR#Index :
     SIRegLoHi16 <"v"#Index, Index, 0, 1>,
     DwarfRegNum<[!add(Index, 2560), !add(Index, 1536)]>;
 }
 
 // AccVGPR registers
-foreach Index = 0-255 in {
+foreach Index = 0...255 in {
   defm AGPR#Index :
       SIRegLoHi16 <"a"#Index, Index, 1, 1>,
       DwarfRegNum<[!add(Index, 3072), !add(Index, 2048)]>;
@@ -389,7 +387,7 @@ def TTMP_512Regs : SIRegisterTuples<getSubRegs<16>.ret, TTMP_32, 15, 4, 16, "ttm
 class TmpRegTuplesBase<int index, int size,
                        list<Register> subRegs,
                        list<SubRegIndex> indices = getSubRegs<size>.ret,
-                       int index1 = !add(index, !add(size, -1)),
+                       int index1 = !add(index, size, -1),
                        string name = "ttmp["#index#":"#index1#"]"> :
   RegisterWithSubRegs<name, subRegs> {
   let HWEncoding = subRegs[0].HWEncoding;
@@ -421,8 +419,8 @@ class TmpRegTuples<string tgt,
                    getSubRegs<size>.ret>;
 
 foreach Index = {0, 2, 4, 6, 8, 10, 12, 14} in {
-  def TTMP#Index#_TTMP#!add(Index,1)#_vi         : TmpRegTuples<"_vi",   2, Index>;
-  def TTMP#Index#_TTMP#!add(Index,1)#_gfx9_gfx10 : TmpRegTuples<"_gfx9_gfx10", 2, Index>;
+  def TTMP#Index#_TTMP#!add(Index,1)#_vi       : TmpRegTuples<"_vi",   2, Index>;
+  def TTMP#Index#_TTMP#!add(Index,1)#_gfx9plus : TmpRegTuples<"_gfx9plus", 2, Index>;
 }
 
 foreach Index = {0, 4, 8, 12} in {
@@ -431,7 +429,7 @@ foreach Index = {0, 4, 8, 12} in {
                  _TTMP#!add(Index,3)#_vi : TmpRegTuples<"_vi",   4, Index>;
   def TTMP#Index#_TTMP#!add(Index,1)#
                  _TTMP#!add(Index,2)#
-                 _TTMP#!add(Index,3)#_gfx9_gfx10 : TmpRegTuples<"_gfx9_gfx10", 4, Index>;
+                 _TTMP#!add(Index,3)#_gfx9plus : TmpRegTuples<"_gfx9plus", 4, Index>;
 }
 
 foreach Index = {0, 4, 8} in {
@@ -448,7 +446,7 @@ foreach Index = {0, 4, 8} in {
                  _TTMP#!add(Index,4)#
                  _TTMP#!add(Index,5)#
                  _TTMP#!add(Index,6)#
-                 _TTMP#!add(Index,7)#_gfx9_gfx10 : TmpRegTuples<"_gfx9_gfx10", 8, Index>;
+                 _TTMP#!add(Index,7)#_gfx9plus : TmpRegTuples<"_gfx9plus", 8, Index>;
 }
 
 def TTMP0_TTMP1_TTMP2_TTMP3_TTMP4_TTMP5_TTMP6_TTMP7_TTMP8_TTMP9_TTMP10_TTMP11_TTMP12_TTMP13_TTMP14_TTMP15_vi :
@@ -458,12 +456,12 @@ def TTMP0_TTMP1_TTMP2_TTMP3_TTMP4_TTMP5_TTMP6_TTMP7_TTMP8_TTMP9_TTMP10_TTMP11_TT
                     TTMP8_vi, TTMP9_vi, TTMP10_vi, TTMP11_vi,
                     TTMP12_vi, TTMP13_vi, TTMP14_vi, TTMP15_vi]>;
 
-def TTMP0_TTMP1_TTMP2_TTMP3_TTMP4_TTMP5_TTMP6_TTMP7_TTMP8_TTMP9_TTMP10_TTMP11_TTMP12_TTMP13_TTMP14_TTMP15_gfx9_gfx10 :
+def TTMP0_TTMP1_TTMP2_TTMP3_TTMP4_TTMP5_TTMP6_TTMP7_TTMP8_TTMP9_TTMP10_TTMP11_TTMP12_TTMP13_TTMP14_TTMP15_gfx9plus :
   TmpRegTuplesBase<0, 16,
-                   [TTMP0_gfx9_gfx10, TTMP1_gfx9_gfx10, TTMP2_gfx9_gfx10, TTMP3_gfx9_gfx10,
-                    TTMP4_gfx9_gfx10, TTMP5_gfx9_gfx10, TTMP6_gfx9_gfx10, TTMP7_gfx9_gfx10,
-                    TTMP8_gfx9_gfx10, TTMP9_gfx9_gfx10, TTMP10_gfx9_gfx10, TTMP11_gfx9_gfx10,
-                    TTMP12_gfx9_gfx10, TTMP13_gfx9_gfx10, TTMP14_gfx9_gfx10, TTMP15_gfx9_gfx10]>;
+                   [TTMP0_gfx9plus, TTMP1_gfx9plus, TTMP2_gfx9plus, TTMP3_gfx9plus,
+                    TTMP4_gfx9plus, TTMP5_gfx9plus, TTMP6_gfx9plus, TTMP7_gfx9plus,
+                    TTMP8_gfx9plus, TTMP9_gfx9plus, TTMP10_gfx9plus, TTMP11_gfx9plus,
+                    TTMP12_gfx9plus, TTMP13_gfx9plus, TTMP14_gfx9plus, TTMP15_gfx9plus]>;
 
 class RegisterTypes<list<ValueType> reg_types> {
   list<ValueType> types = reg_types;

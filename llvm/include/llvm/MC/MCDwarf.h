@@ -25,6 +25,7 @@
 #include <cassert>
 #include <cstdint>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -387,11 +388,11 @@ public:
                      int64_t LineDelta, uint64_t AddrDelta, raw_ostream &OS);
 
   /// Utility function to encode a Dwarf pair of LineDelta and AddrDeltas using
-  /// fixed length operands.
-  static bool FixedEncode(MCContext &Context,
-                          MCDwarfLineTableParams Params,
-                          int64_t LineDelta, uint64_t AddrDelta,
-                          raw_ostream &OS, uint32_t *Offset, uint32_t *Size);
+  /// fixed length operands. Returns (Offset, Size, SetDelta).
+  static std::tuple<uint32_t, uint32_t, bool> fixedEncode(MCContext &Context,
+                                                          int64_t LineDelta,
+                                                          uint64_t AddrDelta,
+                                                          raw_ostream &OS);
 
   /// Utility function to emit the encoding to a streamer.
   static void Emit(MCStreamer *MCOS, MCDwarfLineTableParams Params,
@@ -467,10 +468,12 @@ private:
     unsigned Register2;
   };
   std::vector<char> Values;
+  std::string Comment;
 
-  MCCFIInstruction(OpType Op, MCSymbol *L, unsigned R, int O, StringRef V)
+  MCCFIInstruction(OpType Op, MCSymbol *L, unsigned R, int O, StringRef V,
+                   StringRef Comment = "")
       : Operation(Op), Label(L), Register(R), Offset(O),
-        Values(V.begin(), V.end()) {
+        Values(V.begin(), V.end()), Comment(Comment) {
     assert(Op != OpRegister);
   }
 
@@ -570,8 +573,9 @@ public:
 
   /// .cfi_escape Allows the user to add arbitrary bytes to the unwind
   /// info.
-  static MCCFIInstruction createEscape(MCSymbol *L, StringRef Vals) {
-    return MCCFIInstruction(OpEscape, L, 0, 0, Vals);
+  static MCCFIInstruction createEscape(MCSymbol *L, StringRef Vals,
+                                       StringRef Comment = "") {
+    return MCCFIInstruction(OpEscape, L, 0, 0, Vals, Comment);
   }
 
   /// A special wrapper for .cfi_escape that indicates GNU_ARGS_SIZE
@@ -605,6 +609,10 @@ public:
   StringRef getValues() const {
     assert(Operation == OpEscape);
     return StringRef(&Values[0], Values.size());
+  }
+
+  StringRef getComment() const {
+    return Comment;
   }
 };
 

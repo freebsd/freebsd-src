@@ -34,13 +34,13 @@ using namespace llvm;
 #define DEBUG_TYPE "wasm"
 
 // Emscripten's asm.js-style exception handling
-static cl::opt<bool> EnableEmException(
+cl::opt<bool> EnableEmException(
     "enable-emscripten-cxx-exceptions",
     cl::desc("WebAssembly Emscripten-style exception handling"),
     cl::init(false));
 
 // Emscripten's asm.js-style setjmp/longjmp handling
-static cl::opt<bool> EnableEmSjLj(
+cl::opt<bool> EnableEmSjLj(
     "enable-emscripten-sjlj",
     cl::desc("WebAssembly Emscripten-style setjmp/longjmp handling"),
     cl::init(false));
@@ -145,6 +145,11 @@ WebAssemblyTargetMachine::WebAssemblyTargetMachine(
 
 WebAssemblyTargetMachine::~WebAssemblyTargetMachine() = default; // anchor.
 
+const WebAssemblySubtarget *WebAssemblyTargetMachine::getSubtargetImpl() const {
+  return getSubtargetImpl(std::string(getTargetCPU()),
+                          std::string(getTargetFeatureString()));
+}
+
 const WebAssemblySubtarget *
 WebAssemblyTargetMachine::getSubtargetImpl(std::string CPU,
                                            std::string FS) const {
@@ -160,12 +165,10 @@ WebAssemblyTargetMachine::getSubtargetImpl(const Function &F) const {
   Attribute CPUAttr = F.getFnAttribute("target-cpu");
   Attribute FSAttr = F.getFnAttribute("target-features");
 
-  std::string CPU = !CPUAttr.hasAttribute(Attribute::None)
-                        ? CPUAttr.getValueAsString().str()
-                        : TargetCPU;
-  std::string FS = !FSAttr.hasAttribute(Attribute::None)
-                       ? FSAttr.getValueAsString().str()
-                       : TargetFS;
+  std::string CPU =
+      CPUAttr.isValid() ? CPUAttr.getValueAsString().str() : TargetCPU;
+  std::string FS =
+      FSAttr.isValid() ? FSAttr.getValueAsString().str() : TargetFS;
 
   // This needs to be done before we create a new subtarget since any
   // creation will depend on the TM and the code generation flags on the
@@ -193,6 +196,7 @@ public:
     FeatureBitset Features = coalesceFeatures(M);
 
     std::string FeatureStr = getFeatureString(Features);
+    WasmTM->setTargetFeatureString(FeatureStr);
     for (auto &F : M)
       replaceFeatures(F, FeatureStr);
 
@@ -273,10 +277,9 @@ private:
   bool stripThreadLocals(Module &M) {
     bool Stripped = false;
     for (auto &GV : M.globals()) {
-      if (GV.getThreadLocalMode() !=
-          GlobalValue::ThreadLocalMode::NotThreadLocal) {
+      if (GV.isThreadLocal()) {
         Stripped = true;
-        GV.setThreadLocalMode(GlobalValue::ThreadLocalMode::NotThreadLocal);
+        GV.setThreadLocal(false);
       }
     }
     return Stripped;
@@ -323,10 +326,10 @@ public:
   void addPreEmitPass() override;
 
   // No reg alloc
-  bool addRegAssignmentFast() override { return false; }
+  bool addRegAssignAndRewriteFast() override { return false; }
 
   // No reg alloc
-  bool addRegAssignmentOptimized() override { return false; }
+  bool addRegAssignAndRewriteOptimized() override { return false; }
 };
 } // end anonymous namespace
 
@@ -350,7 +353,7 @@ FunctionPass *WebAssemblyPassConfig::createTargetRegisterAllocator(bool) {
 //===----------------------------------------------------------------------===//
 
 void WebAssemblyPassConfig::addIRPasses() {
-  // Runs LowerAtomicPass if necessary
+  // Lower atomics and TLS if necessary
   addPass(new CoalesceFeaturesAndStripAtomics(&getWebAssemblyTargetMachine()));
 
   // This is a no-op if atomics are not used in the module
@@ -443,7 +446,8 @@ void WebAssemblyPassConfig::addPreEmitPass() {
 
   // Do various transformations for exception handling.
   // Every CFG-changing optimizations should come before this.
-  addPass(createWebAssemblyLateEHPrepare());
+  if (TM->Options.ExceptionModel == ExceptionHandling::Wasm)
+    addPass(createWebAssemblyLateEHPrepare());
 
   // Now that we have a prologue and epilogue and all frame indices are
   // rewritten, eliminate SP and FP. This allows them to be stackified,

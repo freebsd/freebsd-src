@@ -265,10 +265,25 @@ public:
   // FIXME: Deprecated, move clients to getName().
   std::string getNameAsString() const { return Name.getAsString(); }
 
+  /// Pretty-print the unqualified name of this declaration. Can be overloaded
+  /// by derived classes to provide a more user-friendly name when appropriate.
   virtual void printName(raw_ostream &os) const;
 
   /// Get the actual, stored name of the declaration, which may be a special
   /// name.
+  ///
+  /// Note that generally in diagnostics, the non-null \p NamedDecl* itself
+  /// should be sent into the diagnostic instead of using the result of
+  /// \p getDeclName().
+  ///
+  /// A \p DeclarationName in a diagnostic will just be streamed to the output,
+  /// which will directly result in a call to \p DeclarationName::print.
+  ///
+  /// A \p NamedDecl* in a diagnostic will also ultimately result in a call to
+  /// \p DeclarationName::print, but with two customisation points along the
+  /// way (\p getNameForDiagnostic and \p printName). These are used to print
+  /// the template arguments if any, and to provide a user-friendly name for
+  /// some entities (such as unnamed variables and anonymous records).
   DeclarationName getDeclName() const { return Name; }
 
   /// Set the name of this declaration.
@@ -788,18 +803,11 @@ struct EvaluatedStmt {
   /// Whether this statement is being evaluated.
   bool IsEvaluating : 1;
 
-  /// Whether we already checked whether this statement was an
-  /// integral constant expression.
-  bool CheckedICE : 1;
-
-  /// Whether we are checking whether this statement is an
-  /// integral constant expression.
-  bool CheckingICE : 1;
-
-  /// Whether this statement is an integral constant expression,
-  /// or in C++11, whether the statement is a constant expression. Only
-  /// valid if CheckedICE is true.
-  bool IsICE : 1;
+  /// Whether this variable is known to have constant initialization. This is
+  /// currently only computed in C++, for static / thread storage duration
+  /// variables that might have constant initialization and for variables that
+  /// are usable in constant expressions.
+  bool HasConstantInitialization : 1;
 
   /// Whether this variable is known to have constant destruction. That is,
   /// whether running the destructor on the initial value is a side-effect
@@ -808,12 +816,18 @@ struct EvaluatedStmt {
   /// non-trivial.
   bool HasConstantDestruction : 1;
 
+  /// In C++98, whether the initializer is an ICE. This affects whether the
+  /// variable is usable in constant expressions.
+  bool HasICEInit : 1;
+  bool CheckedForICEInit : 1;
+
   Stmt *Value;
   APValue Evaluated;
 
   EvaluatedStmt()
-      : WasEvaluated(false), IsEvaluating(false), CheckedICE(false),
-        CheckingICE(false), IsICE(false), HasConstantDestruction(false) {}
+      : WasEvaluated(false), IsEvaluating(false),
+        HasConstantInitialization(false), HasConstantDestruction(false),
+        HasICEInit(false), CheckedForICEInit(false) {}
 };
 
 /// Represents a variable declaration or definition.
@@ -1248,22 +1262,29 @@ public:
   /// constant expression, according to the relevant language standard.
   /// This only checks properties of the declaration, and does not check
   /// whether the initializer is in fact a constant expression.
-  bool mightBeUsableInConstantExpressions(ASTContext &C) const;
+  ///
+  /// This corresponds to C++20 [expr.const]p3's notion of a
+  /// "potentially-constant" variable.
+  bool mightBeUsableInConstantExpressions(const ASTContext &C) const;
 
   /// Determine whether this variable's value can be used in a
   /// constant expression, according to the relevant language standard,
   /// including checking whether it was initialized by a constant expression.
-  bool isUsableInConstantExpressions(ASTContext &C) const;
+  bool isUsableInConstantExpressions(const ASTContext &C) const;
 
   EvaluatedStmt *ensureEvaluatedStmt() const;
+  EvaluatedStmt *getEvaluatedStmt() const;
 
   /// Attempt to evaluate the value of the initializer attached to this
-  /// declaration, and produce notes explaining why it cannot be evaluated or is
-  /// not a constant expression. Returns a pointer to the value if evaluation
-  /// succeeded, 0 otherwise.
+  /// declaration, and produce notes explaining why it cannot be evaluated.
+  /// Returns a pointer to the value if evaluation succeeded, 0 otherwise.
   APValue *evaluateValue() const;
-  APValue *evaluateValue(SmallVectorImpl<PartialDiagnosticAt> &Notes) const;
 
+private:
+  APValue *evaluateValueImpl(SmallVectorImpl<PartialDiagnosticAt> &Notes,
+                             bool IsConstantInitialization) const;
+
+public:
   /// Return the already-evaluated value of this variable's
   /// initializer, or NULL if the value is not yet known. Returns pointer
   /// to untyped APValue if the value could not be evaluated.
@@ -1272,25 +1293,29 @@ public:
   /// Evaluate the destruction of this variable to determine if it constitutes
   /// constant destruction.
   ///
-  /// \pre isInitICE()
+  /// \pre hasConstantInitialization()
   /// \return \c true if this variable has constant destruction, \c false if
   ///         not.
   bool evaluateDestruction(SmallVectorImpl<PartialDiagnosticAt> &Notes) const;
 
-  /// Determines whether it is already known whether the
-  /// initializer is an integral constant expression or not.
-  bool isInitKnownICE() const;
-
-  /// Determines whether the initializer is an integral constant
-  /// expression, or in C++11, whether the initializer is a constant
-  /// expression.
+  /// Determine whether this variable has constant initialization.
   ///
-  /// \pre isInitKnownICE()
-  bool isInitICE() const;
+  /// This is only set in two cases: when the language semantics require
+  /// constant initialization (globals in C and some globals in C++), and when
+  /// the variable is usable in constant expressions (constexpr, const int, and
+  /// reference variables in C++).
+  bool hasConstantInitialization() const;
 
-  /// Determine whether the value of the initializer attached to this
-  /// declaration is an integral constant expression.
-  bool checkInitIsICE() const;
+  /// Determine whether the initializer of this variable is an integer constant
+  /// expression. For use in C++98, where this affects whether the variable is
+  /// usable in constant expressions.
+  bool hasICEInitializer(const ASTContext &Context) const;
+
+  /// Evaluate the initializer of this variable to determine whether it's a
+  /// constant initializer. Should only be called once, after completing the
+  /// definition of the variable.
+  bool checkForConstantInitialization(
+      SmallVectorImpl<PartialDiagnosticAt> &Notes) const;
 
   void setInitStyle(InitializationStyle Style) {
     VarDeclBits.InitStyle = Style;
@@ -1639,6 +1664,9 @@ public:
     return ParmVarDeclBits.IsObjCMethodParam;
   }
 
+  /// Determines whether this parameter is destroyed in the callee function.
+  bool isDestroyedInCallee() const;
+
   unsigned getFunctionScopeDepth() const {
     if (ParmVarDeclBits.IsObjCMethodParam) return 0;
     return ParmVarDeclBits.ScopeDepthOrObjCQuals;
@@ -1956,7 +1984,7 @@ public:
          SourceLocation NLoc, DeclarationName N, QualType T,
          TypeSourceInfo *TInfo, StorageClass SC, bool isInlineSpecified = false,
          bool hasWrittenPrototype = true,
-         ConstexprSpecKind ConstexprKind = CSK_unspecified,
+         ConstexprSpecKind ConstexprKind = ConstexprSpecKind::Unspecified,
          Expr *TrailingRequiresClause = nullptr) {
     DeclarationNameInfo NameInfo(N, NLoc);
     return FunctionDecl::Create(C, DC, StartLoc, NameInfo, T, TInfo, SC,
@@ -2028,7 +2056,14 @@ public:
   ///
   /// The variant that accepts a FunctionDecl pointer will set that function
   /// declaration to the declaration that is a definition (if there is one).
-  bool isDefined(const FunctionDecl *&Definition) const;
+  ///
+  /// \param CheckForPendingFriendDefinition If \c true, also check for friend
+  ///        declarations that were instantiataed from function definitions.
+  ///        Such a declaration behaves as if it is a definition for the
+  ///        purpose of redefinition checking, but isn't actually a "real"
+  ///        definition until its body is instantiated.
+  bool isDefined(const FunctionDecl *&Definition,
+                 bool CheckForPendingFriendDefinition = false) const;
 
   bool isDefined() const {
     const FunctionDecl* Definition;
@@ -2073,6 +2108,11 @@ public:
            doesThisDeclarationHaveABody() || hasSkippedBody() ||
            willHaveBody() || hasDefiningAttr();
   }
+
+  /// Determine whether this specific declaration of the function is a friend
+  /// declaration that was instantiated from a function definition. Such
+  /// declarations behave like definitions in some contexts.
+  bool isThisDeclarationInstantiatedFromAFriendDefinition() const;
 
   /// Returns whether this specific declaration of the function has a body.
   bool doesThisDeclarationHaveABody() const {
@@ -2196,19 +2236,19 @@ public:
 
   /// Whether this is a (C++11) constexpr function or constexpr constructor.
   bool isConstexpr() const {
-    return FunctionDeclBits.ConstexprKind != CSK_unspecified;
+    return getConstexprKind() != ConstexprSpecKind::Unspecified;
   }
   void setConstexprKind(ConstexprSpecKind CSK) {
-    FunctionDeclBits.ConstexprKind = CSK;
+    FunctionDeclBits.ConstexprKind = static_cast<uint64_t>(CSK);
   }
   ConstexprSpecKind getConstexprKind() const {
     return static_cast<ConstexprSpecKind>(FunctionDeclBits.ConstexprKind);
   }
   bool isConstexprSpecified() const {
-    return FunctionDeclBits.ConstexprKind == CSK_constexpr;
+    return getConstexprKind() == ConstexprSpecKind::Constexpr;
   }
   bool isConsteval() const {
-    return FunctionDeclBits.ConstexprKind == CSK_consteval;
+    return getConstexprKind() == ConstexprSpecKind::Consteval;
   }
 
   /// Whether the instantiation of this function is pending.
@@ -2230,10 +2270,6 @@ public:
   /// Indicates the function uses __try.
   bool usesSEHTry() const { return FunctionDeclBits.UsesSEHTry; }
   void setUsesSEHTry(bool UST) { FunctionDeclBits.UsesSEHTry = UST; }
-
-  /// Indicates the function uses Floating Point constrained intrinsics
-  bool usesFPIntrin() const { return FunctionDeclBits.UsesFPIntrin; }
-  void setUsesFPIntrin(bool Val) { FunctionDeclBits.UsesFPIntrin = Val; }
 
   /// Whether this function has been deleted.
   ///
@@ -4498,14 +4534,8 @@ public:
 
 /// Insertion operator for diagnostics.  This allows sending NamedDecl's
 /// into a diagnostic with <<.
-inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
-                                           const NamedDecl* ND) {
-  DB.AddTaggedVal(reinterpret_cast<intptr_t>(ND),
-                  DiagnosticsEngine::ak_nameddecl);
-  return DB;
-}
-inline const PartialDiagnostic &operator<<(const PartialDiagnostic &PD,
-                                           const NamedDecl* ND) {
+inline const StreamingDiagnostic &operator<<(const StreamingDiagnostic &PD,
+                                             const NamedDecl *ND) {
   PD.AddTaggedVal(reinterpret_cast<intptr_t>(ND),
                   DiagnosticsEngine::ak_nameddecl);
   return PD;

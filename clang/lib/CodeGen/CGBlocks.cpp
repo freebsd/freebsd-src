@@ -557,11 +557,10 @@ static void computeBlockInfo(CodeGenModule &CGM, CodeGenFunction *CGF,
     // Theoretically, this could be in a different address space, so
     // don't assume standard pointer size/align.
     llvm::Type *llvmType = CGM.getTypes().ConvertType(thisType);
-    std::pair<CharUnits,CharUnits> tinfo
-      = CGM.getContext().getTypeInfoInChars(thisType);
-    maxFieldAlign = std::max(maxFieldAlign, tinfo.second);
+    auto TInfo = CGM.getContext().getTypeInfoInChars(thisType);
+    maxFieldAlign = std::max(maxFieldAlign, TInfo.Align);
 
-    layout.push_back(BlockLayoutChunk(tinfo.second, tinfo.first,
+    layout.push_back(BlockLayoutChunk(TInfo.Align, TInfo.Width,
                                       Qualifiers::OCL_None,
                                       nullptr, llvmType, thisType));
   }
@@ -580,7 +579,7 @@ static void computeBlockInfo(CodeGenModule &CGM, CodeGenFunction *CGF,
 
       // Since a __block variable cannot be captured by lambdas, its type and
       // the capture field type should always match.
-      assert(getCaptureFieldType(*CGF, CI) == variable->getType() &&
+      assert(CGF && getCaptureFieldType(*CGF, CI) == variable->getType() &&
              "capture type differs from the variable type");
       layout.push_back(BlockLayoutChunk(align, CGM.getPointerSize(),
                                         Qualifiers::OCL_None, &CI,
@@ -1024,7 +1023,7 @@ llvm::Value *CodeGenFunction::EmitBlockLiteral(const CGBlockInfo &blockInfo) {
                           type, VK_LValue, SourceLocation());
 
       ImplicitCastExpr l2r(ImplicitCastExpr::OnStack, type, CK_LValueToRValue,
-                           &declRef, VK_RValue);
+                           &declRef, VK_RValue, FPOptionsOverride());
       // FIXME: Pass a specific location for the expr init so that the store is
       // attributed to a reasonable location - otherwise it may be attributed to
       // locations of subexpressions in the initialization.
@@ -2698,7 +2697,7 @@ const BlockByrefInfo &CodeGenFunction::getBlockByrefInfo(const VarDecl *D) {
   }
 
   bool HasByrefExtendedLayout = false;
-  Qualifiers::ObjCLifetime Lifetime;
+  Qualifiers::ObjCLifetime Lifetime = Qualifiers::OCL_None;
   if (getContext().getByrefLifetime(Ty, Lifetime, HasByrefExtendedLayout) &&
       HasByrefExtendedLayout) {
     /// void *__byref_variable_layout;
@@ -2768,8 +2767,8 @@ void CodeGenFunction::emitByrefStructureInit(const AutoVarEmission &emission) {
   const VarDecl &D = *emission.Variable;
   QualType type = D.getType();
 
-  bool HasByrefExtendedLayout;
-  Qualifiers::ObjCLifetime ByrefLifetime;
+  bool HasByrefExtendedLayout = false;
+  Qualifiers::ObjCLifetime ByrefLifetime = Qualifiers::OCL_None;
   bool ByRefHasLifetime =
     getContext().getByrefLifetime(type, ByrefLifetime, HasByrefExtendedLayout);
 

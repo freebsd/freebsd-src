@@ -50,10 +50,14 @@ static MCInstrInfo *createAArch64MCInstrInfo() {
 
 static MCSubtargetInfo *
 createAArch64MCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
-  if (CPU.empty())
+  if (CPU.empty()) {
     CPU = "generic";
 
-  return createAArch64MCSubtargetInfoImpl(TT, CPU, FS);
+    if (TT.isArm64e())
+      CPU = "apple-a12";
+  }
+
+  return createAArch64MCSubtargetInfoImpl(TT, CPU, /*TuneCPU*/ CPU, FS);
 }
 
 void AArch64_MC::initLLVMToCVRegMapping(MCRegisterInfo *MRI) {

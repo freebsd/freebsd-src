@@ -29,6 +29,7 @@ namespace lld {
 namespace elf {
 
 class Defined;
+class InputFile;
 class InputSection;
 class InputSectionBase;
 class OutputSection;
@@ -58,6 +59,10 @@ struct ExprValue {
 
   uint64_t val;
   uint64_t alignment = 1;
+
+  // The original st_type if the expression represents a symbol. Any operation
+  // resets type to STT_NOTYPE.
+  uint8_t type = llvm::ELF::STT_NOTYPE;
 
   // Original source location. Used for error messages.
   std::string loc;
@@ -142,19 +147,32 @@ struct MemoryRegion {
 // This struct represents one section match pattern in SECTIONS() command.
 // It can optionally have negative match pattern for EXCLUDED_FILE command.
 // Also it may be surrounded with SORT() command, so contains sorting rules.
-struct SectionPattern {
+class SectionPattern {
+  StringMatcher excludedFilePat;
+
+  // Cache of the most recent input argument and result of excludesFile().
+  mutable llvm::Optional<std::pair<const InputFile *, bool>> excludesFileCache;
+
+public:
   SectionPattern(StringMatcher &&pat1, StringMatcher &&pat2)
       : excludedFilePat(pat1), sectionPat(pat2),
         sortOuter(SortSectionPolicy::Default),
         sortInner(SortSectionPolicy::Default) {}
 
-  StringMatcher excludedFilePat;
+  bool excludesFile(const InputFile *file) const;
+
   StringMatcher sectionPat;
   SortSectionPolicy sortOuter;
   SortSectionPolicy sortInner;
 };
 
-struct InputSectionDescription : BaseCommand {
+class InputSectionDescription : public BaseCommand {
+  SingleStringMatcher filePat;
+
+  // Cache of the most recent input argument and result of matchesFile().
+  mutable llvm::Optional<std::pair<const InputFile *, bool>> matchesFileCache;
+
+public:
   InputSectionDescription(StringRef filePattern, uint64_t withFlags = 0,
                           uint64_t withoutFlags = 0)
       : BaseCommand(InputSectionKind), filePat(filePattern),
@@ -164,7 +182,7 @@ struct InputSectionDescription : BaseCommand {
     return c->kind == InputSectionKind;
   }
 
-  SingleStringMatcher filePat;
+  bool matchesFile(const InputFile *file) const;
 
   // Input sections that matches at least one of SectionPatterns
   // will be associated with this InputSectionDescription.

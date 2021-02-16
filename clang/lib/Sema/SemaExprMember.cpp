@@ -231,12 +231,10 @@ static void diagnoseInstanceReference(Sema &SemaRef,
 }
 
 /// Builds an expression which might be an implicit member expression.
-ExprResult
-Sema::BuildPossibleImplicitMemberExpr(const CXXScopeSpec &SS,
-                                      SourceLocation TemplateKWLoc,
-                                      LookupResult &R,
-                                const TemplateArgumentListInfo *TemplateArgs,
-                                      const Scope *S) {
+ExprResult Sema::BuildPossibleImplicitMemberExpr(
+    const CXXScopeSpec &SS, SourceLocation TemplateKWLoc, LookupResult &R,
+    const TemplateArgumentListInfo *TemplateArgs, const Scope *S,
+    UnresolvedLookupExpr *AsULE) {
   switch (ClassifyImplicitMemberAccess(*this, R)) {
   case IMA_Instance:
     return BuildImplicitMemberExpr(SS, TemplateKWLoc, R, TemplateArgs, true, S);
@@ -257,7 +255,7 @@ Sema::BuildPossibleImplicitMemberExpr(const CXXScopeSpec &SS,
   case IMA_Unresolved_StaticContext:
     if (TemplateArgs || TemplateKWLoc.isValid())
       return BuildTemplateIdExpr(SS, TemplateKWLoc, R, false, TemplateArgs);
-    return BuildDeclarationNameExpr(SS, R, false);
+    return AsULE ? AsULE : BuildDeclarationNameExpr(SS, R, false);
 
   case IMA_Error_StaticContext:
   case IMA_Error_Unrelated:
@@ -946,28 +944,6 @@ static bool IsInFnTryBlockHandler(const Scope *S) {
   return false;
 }
 
-VarDecl *
-Sema::getVarTemplateSpecialization(VarTemplateDecl *VarTempl,
-                      const TemplateArgumentListInfo *TemplateArgs,
-                      const DeclarationNameInfo &MemberNameInfo,
-                      SourceLocation TemplateKWLoc) {
-  if (!TemplateArgs) {
-    diagnoseMissingTemplateArguments(TemplateName(VarTempl),
-                                     MemberNameInfo.getBeginLoc());
-    return nullptr;
-  }
-
-  DeclResult VDecl = CheckVarTemplateId(VarTempl, TemplateKWLoc,
-                                        MemberNameInfo.getLoc(), *TemplateArgs);
-  if (VDecl.isInvalid())
-    return nullptr;
-  VarDecl *Var = cast<VarDecl>(VDecl.get());
-  if (!Var->getTemplateSpecializationKind())
-    Var->setTemplateSpecializationKind(TSK_ImplicitInstantiation,
-                                       MemberNameInfo.getLoc());
-  return Var;
-}
-
 ExprResult
 Sema::BuildMemberReferenceExpr(Expr *BaseExpr, QualType BaseExprType,
                                SourceLocation OpLoc, bool IsArrow,
@@ -1099,19 +1075,11 @@ Sema::BuildMemberReferenceExpr(Expr *BaseExpr, QualType BaseExprType,
   if (!BaseExpr) {
     // If this is not an instance member, convert to a non-member access.
     if (!MemberDecl->isCXXInstanceMember()) {
-      // If this is a variable template, get the instantiated variable
-      // declaration corresponding to the supplied template arguments
-      // (while emitting diagnostics as necessary) that will be referenced
-      // by this expression.
-      assert((!TemplateArgs || isa<VarTemplateDecl>(MemberDecl)) &&
-             "How did we get template arguments here sans a variable template");
-      if (isa<VarTemplateDecl>(MemberDecl)) {
-        MemberDecl = getVarTemplateSpecialization(
-            cast<VarTemplateDecl>(MemberDecl), TemplateArgs,
-            R.getLookupNameInfo(), TemplateKWLoc);
-        if (!MemberDecl)
-          return ExprError();
-      }
+      // We might have a variable template specialization (or maybe one day a
+      // member concept-id).
+      if (TemplateArgs || TemplateKWLoc.isValid())
+        return BuildTemplateIdExpr(SS, TemplateKWLoc, R, /*ADL*/false, TemplateArgs);
+
       return BuildDeclarationNameExpr(SS, R.getLookupNameInfo(), MemberDecl,
                                       FoundDecl, TemplateArgs);
     }
@@ -1170,14 +1138,32 @@ Sema::BuildMemberReferenceExpr(Expr *BaseExpr, QualType BaseExprType,
                            MemberNameInfo, Enum->getType(), VK_RValue,
                            OK_Ordinary);
   }
+
   if (VarTemplateDecl *VarTempl = dyn_cast<VarTemplateDecl>(MemberDecl)) {
-    if (VarDecl *Var = getVarTemplateSpecialization(
-            VarTempl, TemplateArgs, MemberNameInfo, TemplateKWLoc))
-      return BuildMemberExpr(
-          BaseExpr, IsArrow, OpLoc, &SS, TemplateKWLoc, Var, FoundDecl,
-          /*HadMultipleCandidates=*/false, MemberNameInfo,
-          Var->getType().getNonReferenceType(), VK_LValue, OK_Ordinary);
-    return ExprError();
+    if (!TemplateArgs) {
+      diagnoseMissingTemplateArguments(TemplateName(VarTempl), MemberLoc);
+      return ExprError();
+    }
+
+    DeclResult VDecl = CheckVarTemplateId(VarTempl, TemplateKWLoc,
+                                          MemberNameInfo.getLoc(), *TemplateArgs);
+    if (VDecl.isInvalid())
+      return ExprError();
+
+    // Non-dependent member, but dependent template arguments.
+    if (!VDecl.get())
+      return ActOnDependentMemberExpr(
+          BaseExpr, BaseExpr->getType(), IsArrow, OpLoc, SS, TemplateKWLoc,
+          FirstQualifierInScope, MemberNameInfo, TemplateArgs);
+
+    VarDecl *Var = cast<VarDecl>(VDecl.get());
+    if (!Var->getTemplateSpecializationKind())
+      Var->setTemplateSpecializationKind(TSK_ImplicitInstantiation, MemberLoc);
+
+    return BuildMemberExpr(
+        BaseExpr, IsArrow, OpLoc, &SS, TemplateKWLoc, Var, FoundDecl,
+        /*HadMultipleCandidates=*/false, MemberNameInfo,
+        Var->getType().getNonReferenceType(), VK_LValue, OK_Ordinary);
   }
 
   // We found something that we didn't expect. Complain.
@@ -1748,14 +1734,28 @@ ExprResult Sema::ActOnMemberAccessExpr(Scope *S, Expr *Base,
 }
 
 void Sema::CheckMemberAccessOfNoDeref(const MemberExpr *E) {
-  QualType ResultTy = E->getType();
-
-  // Do not warn on member accesses to arrays since this returns an array
-  // lvalue and does not actually dereference memory.
-  if (isa<ArrayType>(ResultTy))
+  if (isUnevaluatedContext())
     return;
 
-  if (E->isArrow()) {
+  QualType ResultTy = E->getType();
+
+  // Member accesses have four cases:
+  // 1: non-array member via "->": dereferences
+  // 2: non-array member via ".": nothing interesting happens
+  // 3: array member access via "->": nothing interesting happens
+  //    (this returns an array lvalue and does not actually dereference memory)
+  // 4: array member access via ".": *adds* a layer of indirection
+  if (ResultTy->isArrayType()) {
+    if (!E->isArrow()) {
+      // This might be something like:
+      //     (*structPtr).arrayMember
+      // which behaves roughly like:
+      //     &(*structPtr).pointerMember
+      // in that the apparent dereference in the base expression does not
+      // actually happen.
+      CheckAddressOfNoDeref(E->getBase());
+    }
+  } else if (E->isArrow()) {
     if (const auto *Ptr = dyn_cast<PointerType>(
             E->getBase()->getType().getDesugaredType(Context))) {
       if (Ptr->getPointeeType()->hasAttr(attr::NoDeref))
@@ -1810,6 +1810,14 @@ Sema::BuildFieldReferenceExpr(Expr *BaseExpr, bool IsArrow,
     Qualifiers Combined = BaseQuals + MemberQuals;
     if (Combined != MemberQuals)
       MemberType = Context.getQualifiedType(MemberType, Combined);
+
+    // Pick up NoDeref from the base in case we end up using AddrOf on the
+    // result. E.g. the expression
+    //     &someNoDerefPtr->pointerMember
+    // should be a noderef pointer again.
+    if (BaseType->hasAttr(attr::NoDeref))
+      MemberType =
+          Context.getAttributedType(attr::NoDeref, MemberType, MemberType);
   }
 
   auto *CurMethod = dyn_cast<CXXMethodDecl>(CurContext);
@@ -1854,7 +1862,6 @@ Sema::BuildImplicitMemberExpr(const CXXScopeSpec &SS,
 
   // If this is known to be an instance access, go ahead and build an
   // implicit 'this' expression now.
-  // 'this' expression now.
   QualType ThisTy = getCurrentThisType();
   assert(!ThisTy.isNull() && "didn't correctly pre-flight capture of 'this'");
 

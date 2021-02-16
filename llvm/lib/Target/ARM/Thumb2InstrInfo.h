@@ -60,6 +60,14 @@ public:
   ///
   const ThumbRegisterInfo &getRegisterInfo() const override { return RI; }
 
+  MachineInstr *optimizeSelect(MachineInstr &MI,
+                               SmallPtrSetImpl<MachineInstr *> &SeenMIs,
+                               bool) const override;
+
+  MachineInstr *commuteInstructionImpl(MachineInstr &MI, bool NewMI,
+                                       unsigned OpIdx1,
+                                       unsigned OpIdx2) const override;
+
 private:
   void expandLoadStackGuard(MachineBasicBlock::iterator MI) const override;
 };

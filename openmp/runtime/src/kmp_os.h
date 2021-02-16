@@ -14,8 +14,9 @@
 #define KMP_OS_H
 
 #include "kmp_config.h"
-#include <stdlib.h>
 #include <atomic>
+#include <stdarg.h>
+#include <stdlib.h>
 
 #define KMP_FTN_PLAIN 1
 #define KMP_FTN_APPEND 2
@@ -69,7 +70,7 @@
 #error Unknown compiler
 #endif
 
-#if (KMP_OS_LINUX || KMP_OS_WINDOWS || KMP_OS_FREEBSD) && !KMP_OS_CNK
+#if (KMP_OS_LINUX || KMP_OS_WINDOWS || KMP_OS_FREEBSD)
 #define KMP_AFFINITY_SUPPORTED 1
 #if KMP_OS_WINDOWS && KMP_ARCH_X86_64
 #define KMP_GROUP_AFFINITY 1
@@ -200,6 +201,18 @@ typedef kmp_uint32 kmp_uint;
 #define KMP_INT_MAX ((kmp_int32)0x7FFFFFFF)
 #define KMP_INT_MIN ((kmp_int32)0x80000000)
 
+// stdarg handling
+#if (KMP_ARCH_ARM || KMP_ARCH_X86_64 || KMP_ARCH_AARCH64) &&                   \
+    (KMP_OS_FREEBSD || KMP_OS_LINUX)
+typedef va_list *kmp_va_list;
+#define kmp_va_deref(ap) (*(ap))
+#define kmp_va_addr_of(ap) (&(ap))
+#else
+typedef va_list kmp_va_list;
+#define kmp_va_deref(ap) (ap)
+#define kmp_va_addr_of(ap) (ap)
+#endif
+
 #ifdef __cplusplus
 // macros to cast out qualifiers and to re-interpret types
 #define CCAST(type, var) const_cast<type>(var)
@@ -268,6 +281,16 @@ template <> struct traits_t<unsigned long long> {
 #define __forceinline __inline
 #endif
 
+/* Check if the OS/arch can support user-level mwait */
+// All mwait code tests for UMWAIT first, so it should only fall back to ring3
+// MWAIT for KNL.
+#define KMP_HAVE_MWAIT                                                         \
+  ((KMP_ARCH_X86 || KMP_ARCH_X86_64) && (KMP_OS_LINUX || KMP_OS_WINDOWS) &&    \
+   !KMP_MIC2)
+#define KMP_HAVE_UMWAIT                                                        \
+  ((KMP_ARCH_X86 || KMP_ARCH_X86_64) && (KMP_OS_LINUX || KMP_OS_WINDOWS) &&    \
+   !KMP_MIC)
+
 #if KMP_OS_WINDOWS
 #include <windows.h>
 
@@ -319,6 +342,18 @@ extern "C" {
 #  define KMP_FALLTHROUGH() ((void)0)
 #endif
 
+#if KMP_HAVE_ATTRIBUTE_WAITPKG
+#define KMP_ATTRIBUTE_TARGET_WAITPKG __attribute__((target("waitpkg")))
+#else
+#define KMP_ATTRIBUTE_TARGET_WAITPKG /* Nothing */
+#endif
+
+#if KMP_HAVE_ATTRIBUTE_RTM
+#define KMP_ATTRIBUTE_TARGET_RTM __attribute__((target("rtm")))
+#else
+#define KMP_ATTRIBUTE_TARGET_RTM /* Nothing */
+#endif
+
 // Define attribute that indicates a function does not return
 #if __cplusplus >= 201103L
 #define KMP_NORETURN [[noreturn]]
@@ -338,10 +373,16 @@ extern "C" {
 #define KMP_ALIAS(alias_of) __attribute__((alias(alias_of)))
 #endif
 
-#if KMP_HAVE_WEAK_ATTRIBUTE
-#define KMP_WEAK_ATTRIBUTE __attribute__((weak))
+#if KMP_HAVE_WEAK_ATTRIBUTE && !KMP_DYNAMIC_LIB
+#define KMP_WEAK_ATTRIBUTE_EXTERNAL __attribute__((weak))
 #else
-#define KMP_WEAK_ATTRIBUTE /* Nothing */
+#define KMP_WEAK_ATTRIBUTE_EXTERNAL /* Nothing */
+#endif
+
+#if KMP_HAVE_WEAK_ATTRIBUTE
+#define KMP_WEAK_ATTRIBUTE_INTERNAL __attribute__((weak))
+#else
+#define KMP_WEAK_ATTRIBUTE_INTERNAL /* Nothing */
 #endif
 
 // Define KMP_VERSION_SYMBOL and KMP_EXPAND_NAME

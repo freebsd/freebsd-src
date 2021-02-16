@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// This file describes the RISC-V instructions from the standard 'V' Vector
-/// extension, version 0.8.
+/// extension, version 0.9.
 /// This version is still experimental as the 'V' extension hasn't been
 /// ratified yet.
 ///
@@ -29,18 +29,6 @@ def VTypeIOp : Operand<XLenVT> {
   let ParserMatchClass = VTypeIAsmOperand;
   let PrintMethod = "printVTypeI";
   let DecoderMethod = "decodeUImmOperand<11>";
-}
-
-def VRegAsmOperand : AsmOperandClass {
-  let Name = "RVVRegOpOperand";
-  let RenderMethod = "addRegOperands";
-  let PredicateMethod = "isReg";
-  let ParserMethod = "parseRegister";
-}
-
-def VRegOp : RegisterOperand<VR> {
-  let ParserMatchClass = VRegAsmOperand;
-  let PrintMethod = "printOperand";
 }
 
 def VMaskAsmOperand : AsmOperandClass {
@@ -74,14 +62,13 @@ def simm5 : Operand<XLenVT>, ImmLeaf<XLenVT, [{return isInt<5>(Imm);}]> {
 
 def SImm5Plus1AsmOperand : AsmOperandClass {
   let Name = "SImm5Plus1";
-  let RenderMethod = "addSImm5Plus1Operands";
+  let RenderMethod = "addImmOperands";
   let DiagnosticType = "InvalidSImm5Plus1";
 }
 
 def simm5_plus1 : Operand<XLenVT>, ImmLeaf<XLenVT,
                                            [{return isInt<5>(Imm - 1);}]> {
   let ParserMatchClass = SImm5Plus1AsmOperand;
-  let PrintMethod = "printSImm5Plus1";
   let MCOperandPredicate = [{
     int64_t Imm;
     if (MCOp.evaluateAsConstantImm(Imm))
@@ -96,160 +83,228 @@ def simm5_plus1 : Operand<XLenVT>, ImmLeaf<XLenVT,
 
 let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in {
 // load vd, (rs1), vm
-class VUnitStrideLoad<RISCVMOP mop, RISCVLSUMOP lumop, RISCVWidth width,
-                        string opcodestr>
-    : RVInstVLU<0b000, mop, lumop, width, (outs VRegOp:$vd),
+class VUnitStrideLoad<RISCVLSUMOP lumop, RISCVWidth width,
+                      string opcodestr>
+    : RVInstVLU<0b000, width.Value{3}, lumop, width.Value{2-0},
+                (outs VR:$vd),
                 (ins GPR:$rs1, VMaskOp:$vm), opcodestr, "$vd, (${rs1})$vm">;
 
 // load vd, (rs1), rs2, vm
-class VStridedLoad<RISCVMOP mop, RISCVWidth width, string opcodestr>
-    : RVInstVLS<0b000, mop, width, (outs VRegOp:$vd),
+class VStridedLoad<RISCVWidth width, string opcodestr>
+    : RVInstVLS<0b000, width.Value{3}, width.Value{2-0},
+                (outs VR:$vd),
                 (ins GPR:$rs1, GPR:$rs2, VMaskOp:$vm), opcodestr,
                 "$vd, (${rs1}), $rs2$vm">;
 
 // load vd, (rs1), vs2, vm
 class VIndexedLoad<RISCVMOP mop, RISCVWidth width, string opcodestr>
-    : RVInstVLX<0b000, mop, width, (outs VRegOp:$vd),
-                (ins GPR:$rs1, VRegOp:$vs2, VMaskOp:$vm), opcodestr,
+    : RVInstVLX<0b000, width.Value{3}, mop, width.Value{2-0},
+                (outs VR:$vd),
+                (ins GPR:$rs1, VR:$vs2, VMaskOp:$vm), opcodestr,
                 "$vd, (${rs1}), $vs2$vm">;
 
 // vl<nf>r.v vd, (rs1)
-class VWholeLoad<bits<3> nf, string opcodestr>
-    : RVInstVLU<nf, MOPLDUnitStrideU, LUMOPUnitStrideWholeReg,
-                LSWidthVSEW, (outs VRegOp:$vd), (ins GPR:$rs1),
+class VWholeLoad<bits<3> nf, RISCVWidth width, string opcodestr>
+    : RVInstVLU<nf, width.Value{3}, LUMOPUnitStrideWholeReg,
+                width.Value{2-0}, (outs VR:$vd), (ins GPR:$rs1),
                 opcodestr, "$vd, (${rs1})"> {
   let vm = 1;
   let Uses = [];
+  let RVVConstraint = NoConstraint;
 }
+
+// segment load vd, (rs1), vm
+class VUnitStrideSegmentLoad<bits<3> nf, RISCVLSUMOP lumop,
+                             RISCVWidth width, string opcodestr>
+    : RVInstVLU<nf, width.Value{3}, lumop, width.Value{2-0},
+                (outs VR:$vd),
+                (ins GPR:$rs1, VMaskOp:$vm), opcodestr, "$vd, (${rs1})$vm">;
+
+// segment load vd, (rs1), rs2, vm
+class VStridedSegmentLoad<bits<3> nf, RISCVWidth width, string opcodestr>
+    : RVInstVLS<nf, width.Value{3}, width.Value{2-0},
+                (outs VR:$vd),
+                (ins GPR:$rs1, GPR:$rs2, VMaskOp:$vm), opcodestr,
+                "$vd, (${rs1}), $rs2$vm">;
+
+// segment load vd, (rs1), vs2, vm
+class VIndexedSegmentLoad<bits<3> nf, RISCVMOP mop, RISCVWidth width,
+                          string opcodestr>
+    : RVInstVLX<nf, width.Value{3}, mop, width.Value{2-0},
+                (outs VR:$vd),
+                (ins GPR:$rs1, VR:$vs2, VMaskOp:$vm), opcodestr,
+                "$vd, (${rs1}), $vs2$vm">;
 } // hasSideEffects = 0, mayLoad = 1, mayStore = 0
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in {
 // store vd, vs3, (rs1), vm
-class VUnitStrideStore<RISCVMOP mop, RISCVLSUMOP sumop, RISCVWidth width,
+class VUnitStrideStore<RISCVLSUMOP sumop, RISCVWidth width,
                          string opcodestr>
-    : RVInstVSU<0b000, mop, sumop, width, (outs),
-                (ins VRegOp:$vs3, GPR:$rs1, VMaskOp:$vm), opcodestr,
+    : RVInstVSU<0b000, width.Value{3}, sumop, width.Value{2-0},
+                (outs), (ins VR:$vs3, GPR:$rs1, VMaskOp:$vm), opcodestr,
                 "$vs3, (${rs1})$vm">;
 
 // store vd, vs3, (rs1), rs2, vm
-class VStridedStore<RISCVMOP mop, RISCVWidth width, string opcodestr>
-    : RVInstVSS<0b000, mop, width, (outs),
-                (ins VRegOp:$vs3, GPR:$rs1, GPR:$rs2, VMaskOp:$vm),
+class VStridedStore<RISCVWidth width, string opcodestr>
+    : RVInstVSS<0b000, width.Value{3}, width.Value{2-0}, (outs),
+                (ins VR:$vs3, GPR:$rs1, GPR:$rs2, VMaskOp:$vm),
                 opcodestr, "$vs3, (${rs1}), $rs2$vm">;
 
 // store vd, vs3, (rs1), vs2, vm
 class VIndexedStore<RISCVMOP mop, RISCVWidth width, string opcodestr>
-    : RVInstVSX<0b000, mop, width, (outs),
-                (ins VRegOp:$vs3, GPR:$rs1, VRegOp:$vs2, VMaskOp:$vm),
+    : RVInstVSX<0b000, width.Value{3}, mop, width.Value{2-0}, (outs),
+                (ins VR:$vs3, GPR:$rs1, VR:$vs2, VMaskOp:$vm),
                 opcodestr, "$vs3, (${rs1}), $vs2$vm">;
 
 // vs<nf>r.v vd, (rs1)
 class VWholeStore<bits<3> nf, string opcodestr>
-    : RVInstVSU<nf, MOPSTUnitStride, SUMOPUnitStrideWholeReg,
-                LSWidthVSEW, (outs), (ins VRegOp:$vs3, GPR:$rs1),
+    : RVInstVSU<nf, 0, SUMOPUnitStrideWholeReg,
+                0b000, (outs), (ins VR:$vs3, GPR:$rs1),
                 opcodestr, "$vs3, (${rs1})"> {
   let vm = 1;
   let Uses = [];
 }
+
+// segment store vd, vs3, (rs1), vm
+class VUnitStrideSegmentStore<bits<3> nf, RISCVWidth width, string opcodestr>
+    : RVInstVSU<nf, width.Value{3}, SUMOPUnitStride, width.Value{2-0},
+                (outs), (ins VR:$vs3, GPR:$rs1, VMaskOp:$vm), opcodestr,
+                "$vs3, (${rs1})$vm">;
+
+// segment store vd, vs3, (rs1), rs2, vm
+class VStridedSegmentStore<bits<3> nf, RISCVWidth width, string opcodestr>
+    : RVInstVSS<nf, width.Value{3}, width.Value{2-0}, (outs),
+                (ins VR:$vs3, GPR:$rs1, GPR:$rs2, VMaskOp:$vm),
+                opcodestr, "$vs3, (${rs1}), $rs2$vm">;
+
+// segment store vd, vs3, (rs1), vs2, vm
+class VIndexedSegmentStore<bits<3> nf, RISCVMOP mop, RISCVWidth width,
+                           string opcodestr>
+    : RVInstVSX<nf, width.Value{3}, mop, width.Value{2-0}, (outs),
+                (ins VR:$vs3, GPR:$rs1, VR:$vs2, VMaskOp:$vm),
+                opcodestr, "$vs3, (${rs1}), $vs2$vm">;
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 1
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 // op vd, vs2, vs1, vm
 class VALUVV<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVV<funct6, opv, (outs VRegOp:$vd),
-                (ins VRegOp:$vs2, VRegOp:$vs1, VMaskOp:$vm),
+    : RVInstVV<funct6, opv, (outs VR:$vd),
+                (ins VR:$vs2, VR:$vs1, VMaskOp:$vm),
                 opcodestr, "$vd, $vs2, $vs1$vm">;
 
 // op vd, vs2, vs1, v0 (without mask, use v0 as carry input)
 class VALUmVV<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVV<funct6, opv, (outs VRegOp:$vd),
-                (ins VRegOp:$vs2, VRegOp:$vs1, VMV0:$v0),
+    : RVInstVV<funct6, opv, (outs VR:$vd),
+                (ins VR:$vs2, VR:$vs1, VMV0:$v0),
                 opcodestr, "$vd, $vs2, $vs1, v0"> {
   let vm = 0;
 }
 
 // op vd, vs1, vs2, vm (reverse the order of vs1 and vs2)
 class VALUrVV<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVV<funct6, opv, (outs VRegOp:$vd),
-                (ins VRegOp:$vs1, VRegOp:$vs2, VMaskOp:$vm),
+    : RVInstVV<funct6, opv, (outs VR:$vd),
+                (ins VR:$vs1, VR:$vs2, VMaskOp:$vm),
                 opcodestr, "$vd, $vs1, $vs2$vm">;
 
-// op vd, vs1, vs2
+// op vd, vs2, vs1
 class VALUVVNoVm<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVV<funct6, opv, (outs VRegOp:$vd),
-               (ins VRegOp:$vs2, VRegOp:$vs1),
+    : RVInstVV<funct6, opv, (outs VR:$vd),
+               (ins VR:$vs2, VR:$vs1),
                opcodestr, "$vd, $vs2, $vs1"> {
   let vm = 1;
 }
 
 // op vd, vs2, rs1, vm
 class VALUVX<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVX<funct6, opv, (outs VRegOp:$vd),
-                (ins VRegOp:$vs2, GPR:$rs1, VMaskOp:$vm),
+    : RVInstVX<funct6, opv, (outs VR:$vd),
+                (ins VR:$vs2, GPR:$rs1, VMaskOp:$vm),
                 opcodestr, "$vd, $vs2, $rs1$vm">;
 
 // op vd, vs2, rs1, v0 (without mask, use v0 as carry input)
 class VALUmVX<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVX<funct6, opv, (outs VRegOp:$vd),
-                (ins VRegOp:$vs2, GPR:$rs1, VMV0:$v0),
+    : RVInstVX<funct6, opv, (outs VR:$vd),
+                (ins VR:$vs2, GPR:$rs1, VMV0:$v0),
                 opcodestr, "$vd, $vs2, $rs1, v0"> {
   let vm = 0;
 }
 
 // op vd, rs1, vs2, vm (reverse the order of rs1 and vs2)
 class VALUrVX<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVX<funct6, opv, (outs VRegOp:$vd),
-                (ins GPR:$rs1, VRegOp:$vs2, VMaskOp:$vm),
+    : RVInstVX<funct6, opv, (outs VR:$vd),
+                (ins GPR:$rs1, VR:$vs2, VMaskOp:$vm),
                 opcodestr, "$vd, $rs1, $vs2$vm">;
 
 // op vd, vs1, vs2
 class VALUVXNoVm<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVX<funct6, opv, (outs VRegOp:$vd),
-               (ins VRegOp:$vs2, GPR:$rs1),
+    : RVInstVX<funct6, opv, (outs VR:$vd),
+               (ins VR:$vs2, GPR:$rs1),
                opcodestr, "$vd, $vs2, $rs1"> {
   let vm = 1;
 }
 
 // op vd, vs2, imm, vm
 class VALUVI<bits<6> funct6, string opcodestr, Operand optype = simm5>
-    : RVInstIVI<funct6, (outs VRegOp:$vd),
-                (ins VRegOp:$vs2, optype:$imm, VMaskOp:$vm),
+    : RVInstIVI<funct6, (outs VR:$vd),
+                (ins VR:$vs2, optype:$imm, VMaskOp:$vm),
                 opcodestr, "$vd, $vs2, $imm$vm">;
 
 // op vd, vs2, imm, v0 (without mask, use v0 as carry input)
 class VALUmVI<bits<6> funct6, string opcodestr, Operand optype = simm5>
-    : RVInstIVI<funct6, (outs VRegOp:$vd),
-                (ins VRegOp:$vs2, optype:$imm, VMV0:$v0),
+    : RVInstIVI<funct6, (outs VR:$vd),
+                (ins VR:$vs2, optype:$imm, VMV0:$v0),
                 opcodestr, "$vd, $vs2, $imm, v0"> {
   let vm = 0;
 }
 
 // op vd, vs2, imm, vm
 class VALUVINoVm<bits<6> funct6, string opcodestr, Operand optype = simm5>
-    : RVInstIVI<funct6, (outs VRegOp:$vd),
-                (ins VRegOp:$vs2, optype:$imm),
+    : RVInstIVI<funct6, (outs VR:$vd),
+                (ins VR:$vs2, optype:$imm),
                 opcodestr, "$vd, $vs2, $imm"> {
   let vm = 1;
 }
 
 // op vd, vs2, rs1, vm (Float)
 class VALUVF<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVX<funct6, opv, (outs VRegOp:$vd),
-                (ins VRegOp:$vs2, FPR32:$rs1, VMaskOp:$vm),
+    : RVInstVX<funct6, opv, (outs VR:$vd),
+                (ins VR:$vs2, FPR32:$rs1, VMaskOp:$vm),
                 opcodestr, "$vd, $vs2, $rs1$vm">;
 
 // op vd, rs1, vs2, vm (Float) (with mask, reverse the order of rs1 and vs2)
 class VALUrVF<bits<6> funct6, RISCVVFormat opv, string opcodestr>
-    : RVInstVX<funct6, opv, (outs VRegOp:$vd),
-                (ins FPR32:$rs1, VRegOp:$vs2, VMaskOp:$vm),
+    : RVInstVX<funct6, opv, (outs VR:$vd),
+                (ins FPR32:$rs1, VR:$vs2, VMaskOp:$vm),
                 opcodestr, "$vd, $rs1, $vs2$vm">;
 
 // op vd, vs2, vm (use vs1 as instruction encoding)
 class VALUVs2<bits<6> funct6, bits<5> vs1, RISCVVFormat opv, string opcodestr>
-    : RVInstV<funct6, vs1, opv, (outs VRegOp:$vd),
-               (ins VRegOp:$vs2, VMaskOp:$vm),
+    : RVInstV<funct6, vs1, opv, (outs VR:$vd),
+               (ins VR:$vs2, VMaskOp:$vm),
                opcodestr, "$vd, $vs2$vm">;
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
+
+let hasSideEffects = 0, mayLoad = 1, mayStore = 1 in {
+// vamo vd, (rs1), vs2, vd, vm
+class VAMOWd<RISCVAMOOP amoop, RISCVWidth width, string opcodestr>
+    : RVInstVAMO<amoop, width.Value{2-0}, (outs VR:$vd_wd),
+            (ins GPR:$rs1, VR:$vs2, VR:$vd, VMaskOp:$vm),
+            opcodestr, "$vd_wd, (${rs1}), $vs2, $vd$vm"> {
+    let Constraints = "$vd_wd = $vd";
+    let wd = 1;
+    bits<5> vd;
+    let Inst{11-7} = vd;
+}
+
+// vamo x0, (rs1), vs2, vs3, vm
+class VAMONoWd<RISCVAMOOP amoop, RISCVWidth width, string opcodestr>
+    : RVInstVAMO<amoop, width.Value{2-0}, (outs),
+            (ins GPR:$rs1, VR:$vs2, VR:$vs3, VMaskOp:$vm),
+            opcodestr, "x0, (${rs1}), $vs2, $vs3$vm"> {
+    bits<5> vs3;
+    let Inst{11-7} = vs3;
+}
+
+} // hasSideEffects = 0, mayLoad = 1, mayStore = 1
 
 //===----------------------------------------------------------------------===//
 // Combination of instruction classes.
@@ -358,6 +413,22 @@ multiclass VALU_FV_VS2<string opcodestr, bits<6> funct6, bits<5> vs1> {
   def "" : VALUVs2<funct6, vs1, OPFVV, opcodestr>;
 }
 
+multiclass VAMO<RISCVAMOOP amoop, RISCVWidth width, string opcodestr> {
+  def _WD : VAMOWd<amoop, width, opcodestr>;
+  def _UNWD : VAMONoWd<amoop, width, opcodestr>;
+}
+
+multiclass VWholeLoad<bits<3> nf, string opcodestr> {
+  def E8_V : VWholeLoad<nf, LSWidth8, opcodestr # "e8.v">;
+  def E16_V : VWholeLoad<nf, LSWidth16, opcodestr # "e16.v">;
+  def E32_V : VWholeLoad<nf, LSWidth32, opcodestr # "e32.v">;
+  def E64_V : VWholeLoad<nf, LSWidth64, opcodestr # "e64.v">;
+  def E128_V : VWholeLoad<nf, LSWidth128, opcodestr # "e128.v">;
+  def E256_V : VWholeLoad<nf, LSWidth256, opcodestr # "e256.v">;
+  def E512_V : VWholeLoad<nf, LSWidth512, opcodestr # "e512.v">;
+  def E1024_V : VWholeLoad<nf, LSWidth1024, opcodestr # "e1024.v">;
+}
+
 //===----------------------------------------------------------------------===//
 // Instructions
 //===----------------------------------------------------------------------===//
@@ -372,76 +443,93 @@ def VSETVL : RVInstSetVL<(outs GPR:$rd), (ins GPR:$rs1, GPR:$rs2),
 } // hasSideEffects = 1, mayLoad = 0, mayStore = 0
 
 // Vector Unit-Stride Instructions
-def VLB_V : VUnitStrideLoad<MOPLDUnitStrideS, LUMOPUnitStride, LSWidthVByte, "vlb.v">;
-def VLH_V : VUnitStrideLoad<MOPLDUnitStrideS, LUMOPUnitStride, LSWidthVHalf, "vlh.v">;
-def VLW_V : VUnitStrideLoad<MOPLDUnitStrideS, LUMOPUnitStride, LSWidthVWord, "vlw.v">;
+def VLE8_V : VUnitStrideLoad<LUMOPUnitStride, LSWidth8, "vle8.v">;
+def VLE16_V : VUnitStrideLoad<LUMOPUnitStride, LSWidth16, "vle16.v">;
+def VLE32_V : VUnitStrideLoad<LUMOPUnitStride, LSWidth32, "vle32.v">;
+def VLE64_V : VUnitStrideLoad<LUMOPUnitStride, LSWidth64, "vle64.v">;
+def VLE128_V : VUnitStrideLoad<LUMOPUnitStride, LSWidth128, "vle128.v">;
+def VLE256_V : VUnitStrideLoad<LUMOPUnitStride, LSWidth256, "vle256.v">;
+def VLE512_V : VUnitStrideLoad<LUMOPUnitStride, LSWidth512, "vle512.v">;
+def VLE1024_V : VUnitStrideLoad<LUMOPUnitStride, LSWidth1024, "vle1024.v">;
 
-def VLBU_V : VUnitStrideLoad<MOPLDUnitStrideU, LUMOPUnitStride, LSWidthVByte, "vlbu.v">;
-def VLHU_V : VUnitStrideLoad<MOPLDUnitStrideU, LUMOPUnitStride, LSWidthVHalf, "vlhu.v">;
-def VLWU_V : VUnitStrideLoad<MOPLDUnitStrideU, LUMOPUnitStride, LSWidthVWord, "vlwu.v">;
+def VLE8FF_V : VUnitStrideLoad<LUMOPUnitStrideFF, LSWidth8, "vle8ff.v">;
+def VLE16FF_V : VUnitStrideLoad<LUMOPUnitStrideFF, LSWidth16, "vle16ff.v">;
+def VLE32FF_V : VUnitStrideLoad<LUMOPUnitStrideFF, LSWidth32, "vle32ff.v">;
+def VLE64FF_V : VUnitStrideLoad<LUMOPUnitStrideFF, LSWidth64, "vle64ff.v">;
+def VLE128FF_V : VUnitStrideLoad<LUMOPUnitStrideFF, LSWidth128, "vle128ff.v">;
+def VLE256FF_V : VUnitStrideLoad<LUMOPUnitStrideFF, LSWidth256, "vle256ff.v">;
+def VLE512FF_V : VUnitStrideLoad<LUMOPUnitStrideFF, LSWidth512, "vle512ff.v">;
+def VLE1024FF_V : VUnitStrideLoad<LUMOPUnitStrideFF, LSWidth1024, "vle1024ff.v">;
 
-def VLE_V : VUnitStrideLoad<MOPLDUnitStrideU, LUMOPUnitStride, LSWidthVSEW, "vle.v">;
-
-def VLBFF_V : VUnitStrideLoad<MOPLDUnitStrideS, LUMOPUnitStrideFF, LSWidthVByte, "vlbff.v">;
-def VLHFF_V : VUnitStrideLoad<MOPLDUnitStrideS, LUMOPUnitStrideFF, LSWidthVHalf, "vlhff.v">;
-def VLWFF_V : VUnitStrideLoad<MOPLDUnitStrideS, LUMOPUnitStrideFF, LSWidthVWord, "vlwff.v">;
-
-def VLBUFF_V : VUnitStrideLoad<MOPLDUnitStrideU, LUMOPUnitStrideFF, LSWidthVByte, "vlbuff.v">;
-def VLHUFF_V : VUnitStrideLoad<MOPLDUnitStrideU, LUMOPUnitStrideFF, LSWidthVHalf, "vlhuff.v">;
-def VLWUFF_V : VUnitStrideLoad<MOPLDUnitStrideU, LUMOPUnitStrideFF, LSWidthVWord, "vlwuff.v">;
-
-def VLEFF_V : VUnitStrideLoad<MOPLDUnitStrideU, LUMOPUnitStrideFF, LSWidthVSEW, "vleff.v">;
-
-def VSB_V : VUnitStrideStore<MOPSTUnitStride, SUMOPUnitStride, LSWidthVByte, "vsb.v">;
-def VSH_V : VUnitStrideStore<MOPSTUnitStride, SUMOPUnitStride, LSWidthVHalf, "vsh.v">;
-def VSW_V : VUnitStrideStore<MOPSTUnitStride, SUMOPUnitStride, LSWidthVWord, "vsw.v">;
-
-def VSE_V : VUnitStrideStore<MOPSTUnitStride, SUMOPUnitStride, LSWidthVSEW, "vse.v">;
+def VSE8_V : VUnitStrideStore<SUMOPUnitStride, LSWidth8, "vse8.v">;
+def VSE16_V : VUnitStrideStore<SUMOPUnitStride, LSWidth16, "vse16.v">;
+def VSE32_V : VUnitStrideStore<SUMOPUnitStride, LSWidth32, "vse32.v">;
+def VSE64_V : VUnitStrideStore<SUMOPUnitStride, LSWidth64, "vse64.v">;
+def VSE128_V : VUnitStrideStore<SUMOPUnitStride, LSWidth128, "vse128.v">;
+def VSE256_V : VUnitStrideStore<SUMOPUnitStride, LSWidth256, "vse256.v">;
+def VSE512_V : VUnitStrideStore<SUMOPUnitStride, LSWidth512, "vse512.v">;
+def VSE1024_V : VUnitStrideStore<SUMOPUnitStride, LSWidth1024, "vse1024.v">;
 
 // Vector Strided Instructions
-def VLSB_V : VStridedLoad<MOPLDStridedS, LSWidthVByte, "vlsb.v">;
-def VLSH_V : VStridedLoad<MOPLDStridedS, LSWidthVHalf, "vlsh.v">;
-def VLSW_V : VStridedLoad<MOPLDStridedS, LSWidthVWord, "vlsw.v">;
+def VLSE8_V : VStridedLoad<LSWidth8, "vlse8.v">;
+def VLSE16_V : VStridedLoad<LSWidth16, "vlse16.v">;
+def VLSE32_V : VStridedLoad<LSWidth32, "vlse32.v">;
+def VLSE64_V : VStridedLoad<LSWidth64, "vlse64.v">;
+def VLSE128_V : VStridedLoad<LSWidth128, "vlse128.v">;
+def VLSE256_V : VStridedLoad<LSWidth256, "vlse256.v">;
+def VLSE512_V : VStridedLoad<LSWidth512, "vlse512.v">;
+def VLSE1024_V : VStridedLoad<LSWidth1024, "vlse1024.v">;
 
-def VLSBU_V : VStridedLoad<MOPLDStridedU, LSWidthVByte, "vlsbu.v">;
-def VLSHU_V : VStridedLoad<MOPLDStridedU, LSWidthVHalf, "vlshu.v">;
-def VLSWU_V : VStridedLoad<MOPLDStridedU, LSWidthVWord, "vlswu.v">;
-
-def VLSE_V : VStridedLoad<MOPLDStridedU, LSWidthVSEW, "vlse.v">;
-
-def VSSB_V : VStridedStore<MOPSTStrided, LSWidthVByte, "vssb.v">;
-def VSSH_V : VStridedStore<MOPSTStrided, LSWidthVHalf, "vssh.v">;
-def VSSW_V : VStridedStore<MOPSTStrided, LSWidthVWord, "vssw.v">;
-def VSSE_V : VStridedStore<MOPSTStrided, LSWidthVSEW, "vsse.v">;
+def VSSE8_V : VStridedStore<LSWidth8, "vsse8.v">;
+def VSSE16_V : VStridedStore<LSWidth16, "vsse16.v">;
+def VSSE32_V : VStridedStore<LSWidth32, "vsse32.v">;
+def VSSE64_V : VStridedStore<LSWidth64, "vsse64.v">;
+def VSSE128_V : VStridedStore<LSWidth128, "vsse128.v">;
+def VSSE256_V : VStridedStore<LSWidth256, "vsse256.v">;
+def VSSE512_V : VStridedStore<LSWidth512, "vsse512.v">;
+def VSSE1024_V : VStridedStore<LSWidth1024, "vsse1024.v">;
 
 // Vector Indexed Instructions
-def VLXB_V : VIndexedLoad<MOPLDIndexedS, LSWidthVByte, "vlxb.v">;
-def VLXH_V : VIndexedLoad<MOPLDIndexedS, LSWidthVHalf, "vlxh.v">;
-def VLXW_V : VIndexedLoad<MOPLDIndexedS, LSWidthVWord, "vlxw.v">;
+def VLUXEI8_V : VIndexedLoad<MOPLDIndexedUnord, LSWidth8, "vluxei8.v">;
+def VLUXEI16_V : VIndexedLoad<MOPLDIndexedUnord, LSWidth16, "vluxei16.v">;
+def VLUXEI32_V : VIndexedLoad<MOPLDIndexedUnord, LSWidth32, "vluxei32.v">;
+def VLUXEI64_V : VIndexedLoad<MOPLDIndexedUnord, LSWidth64, "vluxei64.v">;
 
-def VLXBU_V : VIndexedLoad<MOPLDIndexedU, LSWidthVByte, "vlxbu.v">;
-def VLXHU_V : VIndexedLoad<MOPLDIndexedU, LSWidthVHalf, "vlxhu.v">;
-def VLXWU_V : VIndexedLoad<MOPLDIndexedU, LSWidthVWord, "vlxwu.v">;
+def VLOXEI8_V : VIndexedLoad<MOPLDIndexedOrder, LSWidth8, "vloxei8.v">;
+def VLOXEI16_V : VIndexedLoad<MOPLDIndexedOrder, LSWidth16, "vloxei16.v">;
+def VLOXEI32_V : VIndexedLoad<MOPLDIndexedOrder, LSWidth32, "vloxei32.v">;
+def VLOXEI64_V : VIndexedLoad<MOPLDIndexedOrder, LSWidth64, "vloxei64.v">;
 
-def VLXE_V : VIndexedLoad<MOPLDIndexedU, LSWidthVSEW, "vlxe.v">;
+def VSUXEI8_V : VIndexedStore<MOPSTIndexedUnord, LSWidth8, "vsuxei8.v">;
+def VSUXEI16_V : VIndexedStore<MOPSTIndexedUnord, LSWidth16, "vsuxei16.v">;
+def VSUXEI32_V : VIndexedStore<MOPSTIndexedUnord, LSWidth32, "vsuxei32.v">;
+def VSUXEI64_V : VIndexedStore<MOPSTIndexedUnord, LSWidth64, "vsuxei64.v">;
 
-def VSXB_V : VIndexedStore<MOPSTIndexedOrder, LSWidthVByte, "vsxb.v">;
-def VSXH_V : VIndexedStore<MOPSTIndexedOrder, LSWidthVHalf, "vsxh.v">;
-def VSXW_V : VIndexedStore<MOPSTIndexedOrder, LSWidthVWord, "vsxw.v">;
-def VSXE_V : VIndexedStore<MOPSTIndexedOrder, LSWidthVSEW, "vsxe.v">;
+def VSOXEI8_V : VIndexedStore<MOPSTIndexedOrder, LSWidth8, "vsoxei8.v">;
+def VSOXEI16_V : VIndexedStore<MOPSTIndexedOrder, LSWidth16, "vsoxei16.v">;
+def VSOXEI32_V : VIndexedStore<MOPSTIndexedOrder, LSWidth32, "vsoxei32.v">;
+def VSOXEI64_V : VIndexedStore<MOPSTIndexedOrder, LSWidth64, "vsoxei64.v">;
 
-def VSUXB_V : VIndexedStore<MOPSTIndexedUnOrd, LSWidthVByte, "vsuxb.v">;
-def VSUXH_V : VIndexedStore<MOPSTIndexedUnOrd, LSWidthVHalf, "vsuxh.v">;
-def VSUXW_V : VIndexedStore<MOPSTIndexedUnOrd, LSWidthVWord, "vsuxw.v">;
-def VSUXE_V : VIndexedStore<MOPSTIndexedUnOrd, LSWidthVSEW, "vsuxe.v">;
+defm VL1R : VWholeLoad<1, "vl1r">;
+defm VL2R : VWholeLoad<2, "vl2r">;
+defm VL4R : VWholeLoad<4, "vl4r">;
+defm VL8R : VWholeLoad<8, "vl8r">;
+def : InstAlias<"vl1r.v $vd, (${rs1})", (VL1RE8_V VR:$vd, GPR:$rs1)>;
+def : InstAlias<"vl2r.v $vd, (${rs1})", (VL2RE8_V VR:$vd, GPR:$rs1)>;
+def : InstAlias<"vl4r.v $vd, (${rs1})", (VL4RE8_V VR:$vd, GPR:$rs1)>;
+def : InstAlias<"vl8r.v $vd, (${rs1})", (VL8RE8_V VR:$vd, GPR:$rs1)>;
 
-def VL1R_V : VWholeLoad<0, "vl1r.v">;
-def VS1R_V : VWholeStore<0, "vs1r.v">;
+def VS1R_V : VWholeStore<1, "vs1r.v">;
+def VS2R_V : VWholeStore<2, "vs2r.v">;
+def VS4R_V : VWholeStore<4, "vs4r.v">;
+def VS8R_V : VWholeStore<8, "vs8r.v">;
 
 // Vector Single-Width Integer Add and Subtract
 defm VADD_V : VALU_IV_V_X_I<"vadd", 0b000000>;
 defm VSUB_V : VALU_IV_V_X<"vsub", 0b000010>;
 defm VRSUB_V : VALU_IV_X_I<"vrsub", 0b000011>;
+
+def : InstAlias<"vneg.v $vd, $vs$vm", (VRSUB_VX VR:$vd, VR:$vs, X0, VMaskOp:$vm)>;
 
 // Vector Widening Integer Add/Subtract
 // Refer to 11.2 Widening Vector Arithmetic Instructions
@@ -468,17 +556,29 @@ defm VWSUB_W : VALU_MV_V_X<"vwsub", 0b110111, "w">;
 } // Constraints = "@earlyclobber $vd"
 
 def : InstAlias<"vwcvt.x.x.v $vd, $vs$vm",
-                (VWADD_VX VRegOp:$vd, VRegOp:$vs, X0, VMaskOp:$vm)>;
+                (VWADD_VX VR:$vd, VR:$vs, X0, VMaskOp:$vm)>;
 def : InstAlias<"vwcvtu.x.x.v $vd, $vs$vm",
-                (VWADDU_VX VRegOp:$vd, VRegOp:$vs, X0, VMaskOp:$vm)>;
+                (VWADDU_VX VR:$vd, VR:$vs, X0, VMaskOp:$vm)>;
+
+// Vector Integer Extension
+defm VZEXT_VF8 : VALU_MV_VS2<"vzext.vf8", 0b010010, 0b00010>;
+defm VSEXT_VF8 : VALU_MV_VS2<"vsext.vf8", 0b010010, 0b00011>;
+defm VZEXT_VF4 : VALU_MV_VS2<"vzext.vf4", 0b010010, 0b00100>;
+defm VSEXT_VF4 : VALU_MV_VS2<"vsext.vf4", 0b010010, 0b00101>;
+defm VZEXT_VF2 : VALU_MV_VS2<"vzext.vf2", 0b010010, 0b00110>;
+defm VSEXT_VF2 : VALU_MV_VS2<"vsext.vf2", 0b010010, 0b00111>;
 
 // Vector Integer Add-with-Carry / Subtract-with-Borrow Instructions
 defm VADC_V : VALUm_IV_V_X_I<"vadc", 0b010000>;
+let Constraints = "@earlyclobber $vd", RVVConstraint = NoConstraint in {
 defm VMADC_V : VALUm_IV_V_X_I<"vmadc", 0b010001>;
 defm VMADC_V : VALUNoVm_IV_V_X_I<"vmadc", 0b010001>;
+} // Constraints = "@earlyclobber $vd", RVVConstraint = NoConstraint
 defm VSBC_V : VALUm_IV_V_X<"vsbc", 0b010010>;
+let Constraints = "@earlyclobber $vd", RVVConstraint = NoConstraint in {
 defm VMSBC_V : VALUm_IV_V_X<"vmsbc", 0b010011>;
 defm VMSBC_V : VALUNoVm_IV_V_X<"vmsbc", 0b010011>;
+} // Constraints = "@earlyclobber $vd", RVVConstraint = NoConstraint
 
 // Vector Bitwise Logical Instructions
 defm VAND_V : VALU_IV_V_X_I<"vand", 0b001001>;
@@ -486,7 +586,7 @@ defm VOR_V : VALU_IV_V_X_I<"vor", 0b001010>;
 defm VXOR_V : VALU_IV_V_X_I<"vxor", 0b001011>;
 
 def : InstAlias<"vnot.v $vd, $vs$vm",
-                (VXOR_VI VRegOp:$vd, VRegOp:$vs, -1, VMaskOp:$vm)>;
+                (VXOR_VI VR:$vd, VR:$vs, -1, VMaskOp:$vm)>;
 
 // Vector Single-Width Bit Shift Instructions
 defm VSLL_V : VALU_IV_V_X_I<"vsll", 0b100101, uimm5>;
@@ -498,12 +598,16 @@ defm VSRA_V : VALU_IV_V_X_I<"vsra", 0b101001, uimm5>;
 // The destination vector register group cannot overlap the first source
 // vector register group (specified by vs2). The destination vector register
 // group cannot overlap the mask register if used, unless LMUL=1.
-let Constraints = "@earlyclobber $vd", RVVConstraint = Narrow in {
+let Constraints = "@earlyclobber $vd" in {
 defm VNSRL_W : VALU_IV_V_X_I<"vnsrl", 0b101100, uimm5, "w">;
 defm VNSRA_W : VALU_IV_V_X_I<"vnsra", 0b101101, uimm5, "w">;
-} // Constraints = "@earlyclobber $vd", RVVConstraint = Narrow
+} // Constraints = "@earlyclobber $vd"
+
+def : InstAlias<"vncvt.x.x.w $vd, $vs$vm",
+                (VNSRL_WX VR:$vd, VR:$vs, X0, VMaskOp:$vm)>;
 
 // Vector Integer Comparison Instructions
+let RVVConstraint = NoConstraint in {
 defm VMSEQ_V : VALU_IV_V_X_I<"vmseq", 0b011000>;
 defm VMSNE_V : VALU_IV_V_X_I<"vmsne", 0b011001>;
 defm VMSLTU_V : VALU_IV_V_X<"vmsltu", 0b011010>;
@@ -512,27 +616,61 @@ defm VMSLEU_V : VALU_IV_V_X_I<"vmsleu", 0b011100>;
 defm VMSLE_V : VALU_IV_V_X_I<"vmsle", 0b011101>;
 defm VMSGTU_V : VALU_IV_X_I<"vmsgtu", 0b011110>;
 defm VMSGT_V : VALU_IV_X_I<"vmsgt", 0b011111>;
+} // RVVConstraint = NoConstraint
 
 def : InstAlias<"vmsgtu.vv $vd, $va, $vb$vm",
-                (VMSLTU_VV VRegOp:$vd, VRegOp:$vb, VRegOp:$va, VMaskOp:$vm), 0>;
+                (VMSLTU_VV VR:$vd, VR:$vb, VR:$va, VMaskOp:$vm), 0>;
 def : InstAlias<"vmsgt.vv $vd, $va, $vb$vm",
-                (VMSLT_VV VRegOp:$vd, VRegOp:$vb, VRegOp:$va, VMaskOp:$vm), 0>;
+                (VMSLT_VV VR:$vd, VR:$vb, VR:$va, VMaskOp:$vm), 0>;
 def : InstAlias<"vmsgeu.vv $vd, $va, $vb$vm",
-                (VMSLEU_VV VRegOp:$vd, VRegOp:$vb, VRegOp:$va, VMaskOp:$vm), 0>;
+                (VMSLEU_VV VR:$vd, VR:$vb, VR:$va, VMaskOp:$vm), 0>;
 def : InstAlias<"vmsge.vv $vd, $va, $vb$vm",
-                (VMSLE_VV VRegOp:$vd, VRegOp:$vb, VRegOp:$va, VMaskOp:$vm), 0>;
-def : InstAlias<"vmsltu.vi $vd, $va, $imm$vm",
-                (VMSLEU_VI VRegOp:$vd, VRegOp:$va, simm5_plus1:$imm,
-                 VMaskOp:$vm), 0>;
-def : InstAlias<"vmslt.vi $vd, $va, $imm$vm",
-                (VMSLE_VI VRegOp:$vd, VRegOp:$va, simm5_plus1:$imm,
-                 VMaskOp:$vm), 0>;
-def : InstAlias<"vmsgeu.vi $vd, $va, $imm$vm",
-                (VMSGTU_VI VRegOp:$vd, VRegOp:$va, simm5_plus1:$imm,
-                 VMaskOp:$vm), 0>;
-def : InstAlias<"vmsge.vi $vd, $va, $imm$vm",
-                (VMSGT_VI VRegOp:$vd, VRegOp:$va, simm5_plus1:$imm,
-                 VMaskOp:$vm), 0>;
+                (VMSLE_VV VR:$vd, VR:$vb, VR:$va, VMaskOp:$vm), 0>;
+
+let isCodeGenOnly = 0, isAsmParserOnly = 1, hasSideEffects = 0, mayLoad = 0,
+    mayStore = 0 in {
+// For unsigned comparisons we need to special case 0 immediate to maintain
+// the always true/false semantics we would invert if we just decremented the
+// immediate like we do for signed. To match the GNU assembler we will use
+// vmseq/vmsne.vv with the same register for both operands which we can't do
+// from an InstAlias.
+def PseudoVMSGEU_VI : Pseudo<(outs VR:$vd),
+                             (ins VR:$vs2, simm5_plus1:$imm, VMaskOp:$vm),
+                             [], "vmsgeu.vi", "$vd, $vs2, $imm$vm">;
+def PseudoVMSLTU_VI : Pseudo<(outs VR:$vd),
+                             (ins VR:$vs2, simm5_plus1:$imm, VMaskOp:$vm),
+                             [], "vmsltu.vi", "$vd, $vs2, $imm$vm">;
+// Handle signed with pseudos as well for more consistency in the
+// implementation.
+def PseudoVMSGE_VI : Pseudo<(outs VR:$vd),
+                            (ins VR:$vs2, simm5_plus1:$imm, VMaskOp:$vm),
+                            [], "vmsge.vi", "$vd, $vs2, $imm$vm">;
+def PseudoVMSLT_VI : Pseudo<(outs VR:$vd),
+                            (ins VR:$vs2, simm5_plus1:$imm, VMaskOp:$vm),
+                            [], "vmslt.vi", "$vd, $vs2, $imm$vm">;
+}
+
+let isCodeGenOnly = 0, isAsmParserOnly = 1, hasSideEffects = 0, mayLoad = 0,
+    mayStore = 0 in {
+def PseudoVMSGEU_VX : Pseudo<(outs VR:$vd),
+                             (ins VR:$vs2, GPR:$rs1),
+                             [], "vmsgeu.vx", "$vd, $vs2, $rs1">;
+def PseudoVMSGE_VX : Pseudo<(outs VR:$vd),
+                            (ins VR:$vs2, GPR:$rs1),
+                            [], "vmsge.vx", "$vd, $vs2, $rs1">;
+def PseudoVMSGEU_VX_M : Pseudo<(outs VRNoV0:$vd),
+                               (ins VR:$vs2, GPR:$rs1, VMaskOp:$vm),
+                               [], "vmsgeu.vx", "$vd, $vs2, $rs1$vm">;
+def PseudoVMSGE_VX_M : Pseudo<(outs VRNoV0:$vd),
+                              (ins VR:$vs2, GPR:$rs1, VMaskOp:$vm),
+                              [], "vmsge.vx", "$vd, $vs2, $rs1$vm">;
+def PseudoVMSGEU_VX_M_T : Pseudo<(outs VMV0:$vd, VR:$scratch),
+                                 (ins VR:$vs2, GPR:$rs1, VMaskOp:$vm),
+                                 [], "vmsgeu.vx", "$vd, $vs2, $rs1$vm, $scratch">;
+def PseudoVMSGE_VX_M_T : Pseudo<(outs VMV0:$vd, VR:$scratch),
+                                (ins VR:$vs2, GPR:$rs1, VMaskOp:$vm),
+                                [], "vmsge.vx", "$vd, $vs2, $rs1$vm, $scratch">;
+}
 
 // Vector Integer Min/Max Instructions
 defm VMINU_V : VALU_IV_V_X<"vminu", 0b000100>;
@@ -577,15 +715,16 @@ defm VWMACCUS_V : VALUr_MV_X<"vwmaccus", 0b111110>;
 defm VMERGE_V : VALUm_IV_V_X_I<"vmerge", 0b010111>;
 
 // Vector Integer Move Instructions
-let hasSideEffects = 0, mayLoad = 0, mayStore = 0, vs2 = 0, vm = 1 in {
+let hasSideEffects = 0, mayLoad = 0, mayStore = 0, vs2 = 0, vm = 1,
+    RVVConstraint = NoConstraint  in {
 // op vd, vs1
-def VMV_V_V : RVInstVV<0b010111, OPIVV, (outs VRegOp:$vd),
-                       (ins VRegOp:$vs1), "vmv.v.v", "$vd, $vs1">;
+def VMV_V_V : RVInstVV<0b010111, OPIVV, (outs VR:$vd),
+                       (ins VR:$vs1), "vmv.v.v", "$vd, $vs1">;
 // op vd, rs1
-def VMV_V_X : RVInstVX<0b010111, OPIVX, (outs VRegOp:$vd),
+def VMV_V_X : RVInstVX<0b010111, OPIVX, (outs VR:$vd),
                        (ins GPR:$rs1), "vmv.v.x", "$vd, $rs1">;
 // op vd, imm
-def VMV_V_I : RVInstIVI<0b010111, (outs VRegOp:$vd),
+def VMV_V_I : RVInstIVI<0b010111, (outs VR:$vd),
                        (ins simm5:$imm), "vmv.v.i", "$vd, $imm">;
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
 
@@ -609,11 +748,13 @@ defm VSSRL_V : VALU_IV_V_X_I<"vssrl", 0b101010, uimm5>;
 defm VSSRA_V : VALU_IV_V_X_I<"vssra", 0b101011, uimm5>;
 
 // Vector Narrowing Fixed-Point Clip Instructions
-let Constraints = "@earlyclobber $vd", RVVConstraint = Narrow in {
+let Constraints = "@earlyclobber $vd" in {
 defm VNCLIPU_W : VALU_IV_V_X_I<"vnclipu", 0b101110, uimm5, "w">;
 defm VNCLIP_W : VALU_IV_V_X_I<"vnclip", 0b101111, uimm5, "w">;
-} // Constraints = "@earlyclobber $vd", RVVConstraint = Narrow
+} // Constraints = "@earlyclobber $vd"
+} // Predicates = [HasStdExtV]
 
+let Predicates = [HasStdExtV, HasStdExtF] in {
 // Vector Single-Width Floating-Point Add/Subtract Instructions
 defm VFADD_V : VALU_FV_V_F<"vfadd", 0b000000>;
 defm VFSUB_V : VALU_FV_V_F<"vfsub", 0b000010>;
@@ -664,7 +805,9 @@ defm VFWNMSAC_V : VALUr_FV_V_F<"vfwnmsac", 0b111111>;
 } // Constraints = "@earlyclobber $vd", RVVConstraint = WidenV
 
 // Vector Floating-Point Square-Root Instruction
-defm VFSQRT_V : VALU_FV_VS2<"vfsqrt.v", 0b100011, 0b00000>;
+defm VFSQRT_V : VALU_FV_VS2<"vfsqrt.v", 0b010011, 0b00000>;
+defm VFRSQRTE7_V : VALU_FV_VS2<"vfrsqrte7.v", 0b010011, 0b00100>;
+defm VFRECE7_V : VALU_FV_VS2<"vfrece7.v", 0b010011, 0b00101>;
 
 // Vector Floating-Point MIN/MAX Instructions
 defm VFMIN_V : VALU_FV_V_F<"vfmin", 0b000100>;
@@ -675,32 +818,38 @@ defm VFSGNJ_V : VALU_FV_V_F<"vfsgnj", 0b001000>;
 defm VFSGNJN_V : VALU_FV_V_F<"vfsgnjn", 0b001001>;
 defm VFSGNJX_V : VALU_FV_V_F<"vfsgnjx", 0b001010>;
 
+def : InstAlias<"vfneg.v $vd, $vs$vm",
+                (VFSGNJN_VV VR:$vd, VR:$vs, VR:$vs, VMaskOp:$vm)>;
+
 // Vector Floating-Point Compare Instructions
+let RVVConstraint = NoConstraint in {
 defm VMFEQ_V : VALU_FV_V_F<"vmfeq", 0b011000>;
 defm VMFNE_V : VALU_FV_V_F<"vmfne", 0b011100>;
 defm VMFLT_V : VALU_FV_V_F<"vmflt", 0b011011>;
 defm VMFLE_V : VALU_FV_V_F<"vmfle", 0b011001>;
 defm VMFGT_V : VALU_FV_F<"vmfgt", 0b011101>;
 defm VMFGE_V : VALU_FV_F<"vmfge", 0b011111>;
+} // RVVConstraint = NoConstraint
 
 def : InstAlias<"vmfgt.vv $vd, $va, $vb$vm",
-                (VMFLT_VV VRegOp:$vd, VRegOp:$vb, VRegOp:$va, VMaskOp:$vm), 0>;
+                (VMFLT_VV VR:$vd, VR:$vb, VR:$va, VMaskOp:$vm), 0>;
 def : InstAlias<"vmfge.vv $vd, $va, $vb$vm",
-                (VMFLE_VV VRegOp:$vd, VRegOp:$vb, VRegOp:$va, VMaskOp:$vm), 0>;
+                (VMFLE_VV VR:$vd, VR:$vb, VR:$va, VMaskOp:$vm), 0>;
 
 // Vector Floating-Point Classify Instruction
-defm VFCLASS_V : VALU_FV_VS2<"vfclass.v", 0b100011, 0b10000>;
+defm VFCLASS_V : VALU_FV_VS2<"vfclass.v", 0b010011, 0b10000>;
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
 // Vector Floating-Point Merge Instruction
-def VFMERGE_VFM : RVInstVX<0b010111, OPFVF, (outs VRegOp:$vd),
-                           (ins VRegOp:$vs2, FPR32:$rs1, VMV0:$v0),
+def VFMERGE_VFM : RVInstVX<0b010111, OPFVF, (outs VR:$vd),
+                           (ins VR:$vs2, FPR32:$rs1, VMV0:$v0),
                            "vfmerge.vfm", "$vd, $vs2, $rs1, v0"> {
   let vm = 0;
 }
 
 // Vector Floating-Point Move Instruction
-def VFMV_V_F : RVInstVX<0b010111, OPFVF, (outs VRegOp:$vd),
+let RVVConstraint = NoConstraint in
+def VFMV_V_F : RVInstVX<0b010111, OPFVF, (outs VR:$vd),
                        (ins FPR32:$rs1), "vfmv.v.f", "$vd, $rs1"> {
   let vs2 = 0;
   let vm = 1;
@@ -708,31 +857,40 @@ def VFMV_V_F : RVInstVX<0b010111, OPFVF, (outs VRegOp:$vd),
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
 
 // Single-Width Floating-Point/Integer Type-Convert Instructions
-defm VFCVT_XU_F_V : VALU_FV_VS2<"vfcvt.xu.f.v", 0b100010, 0b00000>;
-defm VFCVT_X_F_V : VALU_FV_VS2<"vfcvt.x.f.v", 0b100010, 0b00001>;
-defm VFCVT_F_XU_V : VALU_FV_VS2<"vfcvt.f.xu.v", 0b100010, 0b00010>;
-defm VFCVT_F_X_V : VALU_FV_VS2<"vfcvt.f.x.v", 0b100010, 0b00011>;
+defm VFCVT_XU_F_V : VALU_FV_VS2<"vfcvt.xu.f.v", 0b010010, 0b00000>;
+defm VFCVT_X_F_V : VALU_FV_VS2<"vfcvt.x.f.v", 0b010010, 0b00001>;
+defm VFCVT_RTZ_XU_F_V : VALU_FV_VS2<"vfcvt.rtz.xu.f.v", 0b010010, 0b00110>;
+defm VFCVT_RTZ_X_F_V : VALU_FV_VS2<"vfcvt.rtz.x.f.v", 0b010010, 0b00111>;
+defm VFCVT_F_XU_V : VALU_FV_VS2<"vfcvt.f.xu.v", 0b010010, 0b00010>;
+defm VFCVT_F_X_V : VALU_FV_VS2<"vfcvt.f.x.v", 0b010010, 0b00011>;
 
 // Widening Floating-Point/Integer Type-Convert Instructions
 let Constraints = "@earlyclobber $vd", RVVConstraint = WidenCvt in {
-defm VFWCVT_XU_F_V : VALU_FV_VS2<"vfwcvt.xu.f.v", 0b100010, 0b01000>;
-defm VFWCVT_X_F_V : VALU_FV_VS2<"vfwcvt.x.f.v", 0b100010, 0b01001>;
-defm VFWCVT_F_XU_V : VALU_FV_VS2<"vfwcvt.f.xu.v", 0b100010, 0b01010>;
-defm VFWCVT_F_X_V : VALU_FV_VS2<"vfwcvt.f.x.v", 0b100010, 0b01011>;
-defm VFWCVT_F_F_V : VALU_FV_VS2<"vfwcvt.f.f.v", 0b100010, 0b01100>;
+defm VFWCVT_XU_F_V : VALU_FV_VS2<"vfwcvt.xu.f.v", 0b010010, 0b01000>;
+defm VFWCVT_X_F_V : VALU_FV_VS2<"vfwcvt.x.f.v", 0b010010, 0b01001>;
+defm VFWCVT_RTZ_XU_F_V : VALU_FV_VS2<"vfwcvt.rtz.xu.f.v", 0b010010, 0b01110>;
+defm VFWCVT_RTZ_X_F_V : VALU_FV_VS2<"vfwcvt.rtz.x.f.v", 0b010010, 0b01111>;
+defm VFWCVT_F_XU_V : VALU_FV_VS2<"vfwcvt.f.xu.v", 0b010010, 0b01010>;
+defm VFWCVT_F_X_V : VALU_FV_VS2<"vfwcvt.f.x.v", 0b010010, 0b01011>;
+defm VFWCVT_F_F_V : VALU_FV_VS2<"vfwcvt.f.f.v", 0b010010, 0b01100>;
 } // Constraints = "@earlyclobber $vd", RVVConstraint = WidenCvt
 
 // Narrowing Floating-Point/Integer Type-Convert Instructions
-let Constraints = "@earlyclobber $vd", RVVConstraint = Narrow in {
-defm VFNCVT_XU_F_W : VALU_FV_VS2<"vfncvt.xu.f.w", 0b100010, 0b10000>;
-defm VFNCVT_X_F_W : VALU_FV_VS2<"vfncvt.x.f.w", 0b100010, 0b10001>;
-defm VFNCVT_F_XU_W : VALU_FV_VS2<"vfncvt.f.xu.w", 0b100010, 0b10010>;
-defm VFNCVT_F_X_W : VALU_FV_VS2<"vfncvt.f.x.w", 0b100010, 0b10011>;
-defm VFNCVT_F_F_W : VALU_FV_VS2<"vfncvt.f.f.w", 0b100010, 0b10100>;
-defm VFNCVT_ROD_F_F_W : VALU_FV_VS2<"vfncvt.rod.f.f.w", 0b100010, 0b10101>;
-} // Constraints = "@earlyclobber $vd", RVVConstraint = Narrow
+let Constraints = "@earlyclobber $vd" in {
+defm VFNCVT_XU_F_W : VALU_FV_VS2<"vfncvt.xu.f.w", 0b010010, 0b10000>;
+defm VFNCVT_X_F_W : VALU_FV_VS2<"vfncvt.x.f.w", 0b010010, 0b10001>;
+defm VFNCVT_RTZ_XU_F_W : VALU_FV_VS2<"vfncvt.rtz.xu.f.w", 0b010010, 0b10110>;
+defm VFNCVT_RTZ_X_F_W : VALU_FV_VS2<"vfncvt.rtz.x.f.w", 0b010010, 0b10111>;
+defm VFNCVT_F_XU_W : VALU_FV_VS2<"vfncvt.f.xu.w", 0b010010, 0b10010>;
+defm VFNCVT_F_X_W : VALU_FV_VS2<"vfncvt.f.x.w", 0b010010, 0b10011>;
+defm VFNCVT_F_F_W : VALU_FV_VS2<"vfncvt.f.f.w", 0b010010, 0b10100>;
+defm VFNCVT_ROD_F_F_W : VALU_FV_VS2<"vfncvt.rod.f.f.w", 0b010010, 0b10101>;
+} // Constraints = "@earlyclobber $vd"
+} // Predicates = [HasStdExtV, HasStdExtF]
 
+let Predicates = [HasStdExtV] in {
 // Vector Single-Width Integer Reduction Instructions
+let RVVConstraint = NoConstraint in {
 defm VREDSUM : VALU_MV_V<"vredsum", 0b000000>;
 defm VREDMAXU : VALU_MV_V<"vredmaxu", 0b000110>;
 defm VREDMAX : VALU_MV_V<"vredmax", 0b000111>;
@@ -741,34 +899,42 @@ defm VREDMIN : VALU_MV_V<"vredmin", 0b000101>;
 defm VREDAND : VALU_MV_V<"vredand", 0b000001>;
 defm VREDOR : VALU_MV_V<"vredor", 0b000010>;
 defm VREDXOR : VALU_MV_V<"vredxor", 0b000011>;
+} // RVVConstraint = NoConstraint
 
 // Vector Widening Integer Reduction Instructions
-let Constraints = "@earlyclobber $vd" in {
+let Constraints = "@earlyclobber $vd", RVVConstraint = NoConstraint in {
 // Set earlyclobber for following instructions for second and mask operands.
 // This has the downside that the earlyclobber constraint is too coarse and
 // will impose unnecessary restrictions by not allowing the destination to
 // overlap with the first (wide) operand.
 defm VWREDSUMU : VALU_IV_V<"vwredsumu", 0b110000>;
 defm VWREDSUM : VALU_IV_V<"vwredsum", 0b110001>;
-} // Constraints = "@earlyclobber $vd"
+} // Constraints = "@earlyclobber $vd", RVVConstraint = NoConstraint
+} // Predicates = [HasStdExtV]
 
+let Predicates = [HasStdExtV, HasStdExtF] in {
 // Vector Single-Width Floating-Point Reduction Instructions
+let RVVConstraint = NoConstraint in {
 defm VFREDOSUM : VALU_FV_V<"vfredosum", 0b000011>;
 defm VFREDSUM : VALU_FV_V<"vfredsum", 0b000001>;
 defm VFREDMAX : VALU_FV_V<"vfredmax", 0b000111>;
 defm VFREDMIN : VALU_FV_V<"vfredmin", 0b000101>;
+} // RVVConstraint = NoConstraint
 
 // Vector Widening Floating-Point Reduction Instructions
-let Constraints = "@earlyclobber $vd" in {
+let Constraints = "@earlyclobber $vd", RVVConstraint = NoConstraint in {
 // Set earlyclobber for following instructions for second and mask operands.
 // This has the downside that the earlyclobber constraint is too coarse and
 // will impose unnecessary restrictions by not allowing the destination to
 // overlap with the first (wide) operand.
 defm VFWREDOSUM : VALU_FV_V<"vfwredosum", 0b110011>;
 defm VFWREDSUM : VALU_FV_V<"vfwredsum", 0b110001>;
-} // Constraints = "@earlyclobber $vd"
+} // Constraints = "@earlyclobber $vd", RVVConstraint = NoConstraint
+} // Predicates = [HasStdExtV, HasStdExtF]
 
+let Predicates = [HasStdExtV] in {
 // Vector Mask-Register Logical Instructions
+let RVVConstraint = NoConstraint in {
 defm VMAND_M : VALU_MV_Mask<"vmand", 0b011001, "m">;
 defm VMNAND_M : VALU_MV_Mask<"vmnand", 0b011101, "m">;
 defm VMANDNOT_M : VALU_MV_Mask<"vmandnot", 0b011000, "m">;
@@ -777,82 +943,95 @@ defm VMOR_M : VALU_MV_Mask<"vmor", 0b011010, "m">;
 defm VMNOR_M : VALU_MV_Mask<"vmnor", 0b011110, "m">;
 defm VMORNOT_M : VALU_MV_Mask<"vmornot", 0b011100, "m">;
 defm VMXNOR_M : VALU_MV_Mask<"vmxnor", 0b011111, "m">;
+}
 
-def : InstAlias<"vmcpy.m $vd, $vs",
-                (VMAND_MM VRegOp:$vd, VRegOp:$vs, VRegOp:$vs)>;
+def : InstAlias<"vmmv.m $vd, $vs",
+                (VMAND_MM VR:$vd, VR:$vs, VR:$vs)>;
 def : InstAlias<"vmclr.m $vd",
-                (VMXOR_MM VRegOp:$vd, VRegOp:$vd, VRegOp:$vd)>;
+                (VMXOR_MM VR:$vd, VR:$vd, VR:$vd)>;
 def : InstAlias<"vmset.m $vd",
-                (VMXNOR_MM VRegOp:$vd, VRegOp:$vd, VRegOp:$vd)>;
+                (VMXNOR_MM VR:$vd, VR:$vd, VR:$vd)>;
 def : InstAlias<"vmnot.m $vd, $vs",
-                (VMNAND_MM VRegOp:$vd, VRegOp:$vs, VRegOp:$vs)>;
+                (VMNAND_MM VR:$vd, VR:$vs, VR:$vs)>;
 
-let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
+let hasSideEffects = 0, mayLoad = 0, mayStore = 0,
+    RVVConstraint = NoConstraint  in {
 // Vector mask population count vpopc
 def VPOPC_M : RVInstV<0b010000, 0b10000, OPMVV, (outs GPR:$vd),
-                        (ins VRegOp:$vs2, VMaskOp:$vm),
+                        (ins VR:$vs2, VMaskOp:$vm),
                         "vpopc.m", "$vd, $vs2$vm">;
 
 // vfirst find-first-set mask bit
 def VFIRST_M : RVInstV<0b010000, 0b10001, OPMVV, (outs GPR:$vd),
-                        (ins VRegOp:$vs2, VMaskOp:$vm),
+                        (ins VR:$vs2, VMaskOp:$vm),
                         "vfirst.m", "$vd, $vs2$vm">;
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
 
+let Constraints = "@earlyclobber $vd", RVVConstraint = Iota in {
 // vmsbf.m set-before-first mask bit
 defm VMSBF_M : VALU_MV_VS2<"vmsbf.m", 0b010100, 0b00001>;
-
 // vmsif.m set-including-first mask bit
 defm VMSIF_M : VALU_MV_VS2<"vmsif.m", 0b010100, 0b00011>;
-
 // vmsof.m set-only-first mask bit
 defm VMSOF_M : VALU_MV_VS2<"vmsof.m", 0b010100, 0b00010>;
-
 // Vector Iota Instruction
-let Constraints = "@earlyclobber $vd", RVVConstraint = Iota in {
 defm VIOTA_M : VALU_MV_VS2<"viota.m", 0b010100, 0b10000>;
 } // Constraints = "@earlyclobber $vd", RVVConstraint = Iota
 
 // Vector Element Index Instruction
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
-def VID_V : RVInstV<0b010100, 0b10001, OPMVV, (outs VRegOp:$vd),
+def VID_V : RVInstV<0b010100, 0b10001, OPMVV, (outs VR:$vd),
                       (ins VMaskOp:$vm), "vid.v", "$vd$vm"> {
   let vs2 = 0;
 }
 
 // Integer Scalar Move Instructions
-let vm = 1 in {
+let vm = 1, RVVConstraint = NoConstraint in {
 def VMV_X_S : RVInstV<0b010000, 0b00000, OPMVV, (outs GPR:$vd),
-                      (ins VRegOp:$vs2), "vmv.x.s", "$vd, $vs2">;
-def VMV_S_X : RVInstV2<0b010000, 0b00000, OPMVX, (outs VRegOp:$vd),
-                      (ins GPR:$rs1), "vmv.s.x", "$vd, $rs1">;
+                      (ins VR:$vs2), "vmv.x.s", "$vd, $vs2">;
+let Constraints = "$vd = $vd_wb" in
+def VMV_S_X : RVInstV2<0b010000, 0b00000, OPMVX, (outs VR:$vd_wb),
+                      (ins VR:$vd, GPR:$rs1), "vmv.s.x", "$vd, $rs1">;
 
 }
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
+} // Predicates = [HasStdExtV]
 
-let hasSideEffects = 0, mayLoad = 0, mayStore = 0, vm = 1 in {
+let Predicates = [HasStdExtV, HasStdExtF] in {
+let hasSideEffects = 0, mayLoad = 0, mayStore = 0, vm = 1,
+    RVVConstraint = NoConstraint  in {
 // Floating-Point Scalar Move Instructions
 def VFMV_F_S : RVInstV<0b010000, 0b00000, OPFVV, (outs FPR32:$vd),
-                      (ins VRegOp:$vs2), "vfmv.f.s", "$vd, $vs2">;
-def VFMV_S_F : RVInstV2<0b010000, 0b00000, OPFVF, (outs VRegOp:$vd),
-                      (ins FPR32:$rs1), "vfmv.s.f", "$vd, $rs1">;
+                      (ins VR:$vs2), "vfmv.f.s", "$vd, $vs2">;
+let Constraints = "$vd = $vd_wb" in
+def VFMV_S_F : RVInstV2<0b010000, 0b00000, OPFVF, (outs VR:$vd_wb),
+                      (ins VR:$vd, FPR32:$rs1), "vfmv.s.f", "$vd, $rs1">;
 
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0, vm = 1
+} // Predicates = [HasStdExtV, HasStdExtF]
 
+let Predicates = [HasStdExtV] in {
 // Vector Slide Instructions
 let Constraints = "@earlyclobber $vd", RVVConstraint = SlideUp in {
 defm VSLIDEUP_V : VALU_IV_X_I<"vslideup", 0b001110, uimm5>;
-} // Constraints = "@earlyclobber $vd", RVVConstraint = SlideUp
-defm VSLIDEDOWN_V : VALU_IV_X_I<"vslidedown", 0b001111, uimm5>;
-
-let Constraints = "@earlyclobber $vd", RVVConstraint = SlideUp in {
 defm VSLIDE1UP_V : VALU_MV_X<"vslide1up", 0b001110>;
 } // Constraints = "@earlyclobber $vd", RVVConstraint = SlideUp
+defm VSLIDEDOWN_V : VALU_IV_X_I<"vslidedown", 0b001111, uimm5>;
 defm VSLIDE1DOWN_V : VALU_MV_X<"vslide1down", 0b001111>;
+} // Predicates = [HasStdExtV]
 
+let Predicates = [HasStdExtV, HasStdExtF] in {
+let Constraints = "@earlyclobber $vd", RVVConstraint = SlideUp in {
+defm VFSLIDE1UP_V : VALU_FV_F<"vfslide1up", 0b001110>;
+} // Constraints = "@earlyclobber $vd", RVVConstraint = SlideUp
+defm VFSLIDE1DOWN_V : VALU_FV_F<"vfslide1down", 0b001111>;
+} // Predicates = [HasStdExtV, HasStdExtF]
+
+let Predicates = [HasStdExtV] in {
 // Vector Register Gather Instruction
 let Constraints = "@earlyclobber $vd", RVVConstraint = Vrgather in {
 defm VRGATHER_V : VALU_IV_V_X_I<"vrgather", 0b001100, uimm5>;
+def VRGATHEREI16_VV : VALUVV<0b001110, OPIVV, "vrgatherei16.vv">;
 } // Constraints = "@earlyclobber $vd", RVVConstraint = Vrgather
 
 // Vector Compress Instruction
@@ -860,10 +1039,11 @@ let Constraints = "@earlyclobber $vd", RVVConstraint = Vcompress in {
 defm VCOMPRESS_V : VALU_MV_Mask<"vcompress", 0b010111>;
 } // Constraints = "@earlyclobber $vd", RVVConstraint = Vcompress
 
-let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in {
+let hasSideEffects = 0, mayLoad = 0, mayStore = 0,
+    RVVConstraint = NoConstraint in {
 foreach nf = [1, 2, 4, 8] in {
-  def VMV#nf#R_V  : RVInstV<0b100111, !add(nf, -1), OPIVI, (outs VRegOp:$vd),
-                            (ins VRegOp:$vs2), "vmv" # nf # "r.v",
+  def VMV#nf#R_V  : RVInstV<0b100111, !add(nf, -1), OPIVI, (outs VR:$vd),
+                            (ins VR:$vs2), "vmv" # nf # "r.v",
                             "$vd, $vs2"> {
     let Uses = [];
     let vm = 1;
@@ -871,3 +1051,174 @@ foreach nf = [1, 2, 4, 8] in {
 }
 } // hasSideEffects = 0, mayLoad = 0, mayStore = 0
 } // Predicates = [HasStdExtV]
+
+let Predicates = [HasStdExtZvlsseg] in {
+  foreach nf=2-8 in {
+    def VLSEG#nf#E8_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStride, LSWidth8, "vlseg"#nf#"e8.v">;
+    def VLSEG#nf#E16_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStride, LSWidth16, "vlseg"#nf#"e16.v">;
+    def VLSEG#nf#E32_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStride, LSWidth32, "vlseg"#nf#"e32.v">;
+    def VLSEG#nf#E64_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStride, LSWidth64, "vlseg"#nf#"e64.v">;
+    def VLSEG#nf#E128_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStride, LSWidth128, "vlseg"#nf#"e128.v">;
+    def VLSEG#nf#E256_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStride, LSWidth256, "vlseg"#nf#"e256.v">;
+    def VLSEG#nf#E512_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStride, LSWidth512, "vlseg"#nf#"e512.v">;
+    def VLSEG#nf#E1024_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStride, LSWidth1024, "vlseg"#nf#"e1024.v">;
+
+    def VLSEG#nf#E8FF_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStrideFF, LSWidth8, "vlseg"#nf#"e8ff.v">;
+    def VLSEG#nf#E16FF_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStrideFF, LSWidth16, "vlseg"#nf#"e16ff.v">;
+    def VLSEG#nf#E32FF_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStrideFF, LSWidth32, "vlseg"#nf#"e32ff.v">;
+    def VLSEG#nf#E64FF_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStrideFF, LSWidth64, "vlseg"#nf#"e64ff.v">;
+    def VLSEG#nf#E128FF_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStrideFF, LSWidth128, "vlseg"#nf#"e128ff.v">;
+    def VLSEG#nf#E256FF_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStrideFF, LSWidth256, "vlseg"#nf#"e256ff.v">;
+    def VLSEG#nf#E512FF_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStrideFF, LSWidth512, "vlseg"#nf#"e512ff.v">;
+    def VLSEG#nf#E1024FF_V : VUnitStrideSegmentLoad<!add(nf, -1), LUMOPUnitStrideFF, LSWidth1024, "vlseg"#nf#"e1024ff.v">;
+
+    def VSSEG#nf#E8_V : VUnitStrideSegmentStore<!add(nf, -1), LSWidth8, "vsseg"#nf#"e8.v">;
+    def VSSEG#nf#E16_V : VUnitStrideSegmentStore<!add(nf, -1), LSWidth16, "vsseg"#nf#"e16.v">;
+    def VSSEG#nf#E32_V : VUnitStrideSegmentStore<!add(nf, -1), LSWidth32, "vsseg"#nf#"e32.v">;
+    def VSSEG#nf#E64_V : VUnitStrideSegmentStore<!add(nf, -1), LSWidth64, "vsseg"#nf#"e64.v">;
+    def VSSEG#nf#E128_V : VUnitStrideSegmentStore<!add(nf, -1), LSWidth128, "vsseg"#nf#"e128.v">;
+    def VSSEG#nf#E256_V : VUnitStrideSegmentStore<!add(nf, -1), LSWidth256, "vsseg"#nf#"e256.v">;
+    def VSSEG#nf#E512_V : VUnitStrideSegmentStore<!add(nf, -1), LSWidth512, "vsseg"#nf#"e512.v">;
+    def VSSEG#nf#E1024_V : VUnitStrideSegmentStore<!add(nf, -1), LSWidth1024, "vsseg"#nf#"e1024.v">;
+
+    // Vector Strided Instructions
+    def VLSSEG#nf#E8_V : VStridedSegmentLoad<!add(nf, -1), LSWidth8, "vlsseg"#nf#"e8.v">;
+    def VLSSEG#nf#E16_V : VStridedSegmentLoad<!add(nf, -1), LSWidth16, "vlsseg"#nf#"e16.v">;
+    def VLSSEG#nf#E32_V : VStridedSegmentLoad<!add(nf, -1), LSWidth32, "vlsseg"#nf#"e32.v">;
+    def VLSSEG#nf#E64_V : VStridedSegmentLoad<!add(nf, -1), LSWidth64, "vlsseg"#nf#"e64.v">;
+    def VLSSEG#nf#E128_V : VStridedSegmentLoad<!add(nf, -1), LSWidth128, "vlsseg"#nf#"e128.v">;
+    def VLSSEG#nf#E256_V : VStridedSegmentLoad<!add(nf, -1), LSWidth256, "vlsseg"#nf#"e256.v">;
+    def VLSSEG#nf#E512_V : VStridedSegmentLoad<!add(nf, -1), LSWidth512, "vlsseg"#nf#"e512.v">;
+    def VLSSEG#nf#E1024_V : VStridedSegmentLoad<!add(nf, -1), LSWidth1024, "vlsseg"#nf#"e1024.v">;
+
+    def VSSSEG#nf#E8_V : VStridedSegmentStore<!add(nf, -1), LSWidth8, "vssseg"#nf#"e8.v">;
+    def VSSSEG#nf#E16_V : VStridedSegmentStore<!add(nf, -1), LSWidth16, "vssseg"#nf#"e16.v">;
+    def VSSSEG#nf#E32_V : VStridedSegmentStore<!add(nf, -1), LSWidth32, "vssseg"#nf#"e32.v">;
+    def VSSSEG#nf#E64_V : VStridedSegmentStore<!add(nf, -1), LSWidth64, "vssseg"#nf#"e64.v">;
+    def VSSSEG#nf#E128_V : VStridedSegmentStore<!add(nf, -1), LSWidth128, "vssseg"#nf#"e128.v">;
+    def VSSSEG#nf#E256_V : VStridedSegmentStore<!add(nf, -1), LSWidth256, "vssseg"#nf#"e256.v">;
+    def VSSSEG#nf#E512_V : VStridedSegmentStore<!add(nf, -1), LSWidth512, "vssseg"#nf#"e512.v">;
+    def VSSSEG#nf#E1024_V : VStridedSegmentStore<!add(nf, -1), LSWidth1024, "vssseg"#nf#"e1024.v">;
+
+    // Vector Indexed Instructions
+    def VLUXSEG#nf#EI8_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedUnord,
+                             LSWidth8, "vluxseg"#nf#"ei8.v">;
+    def VLUXSEG#nf#EI16_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedUnord,
+                              LSWidth16, "vluxseg"#nf#"ei16.v">;
+    def VLUXSEG#nf#EI32_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedUnord,
+                              LSWidth32, "vluxseg"#nf#"ei32.v">;
+    def VLUXSEG#nf#EI64_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedUnord,
+                              LSWidth64, "vluxseg"#nf#"ei64.v">;
+    def VLUXSEG#nf#EI128_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedUnord,
+                               LSWidth128, "vluxseg"#nf#"ei128.v">;
+    def VLUXSEG#nf#EI256_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedUnord,
+                               LSWidth256, "vluxseg"#nf#"ei256.v">;
+    def VLUXSEG#nf#EI512_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedUnord,
+                               LSWidth512, "vluxseg"#nf#"ei512.v">;
+    def VLUXSEG#nf#EI1024_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedUnord,
+                               LSWidth1024, "vluxseg"#nf#"ei1024.v">;
+
+    def VLOXSEG#nf#EI8_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedOrder,
+                             LSWidth8, "vloxseg"#nf#"ei8.v">;
+    def VLOXSEG#nf#EI16_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedOrder,
+                              LSWidth16, "vloxseg"#nf#"ei16.v">;
+    def VLOXSEG#nf#EI32_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedOrder,
+                              LSWidth32, "vloxseg"#nf#"ei32.v">;
+    def VLOXSEG#nf#EI64_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedOrder,
+                              LSWidth64, "vloxseg"#nf#"ei64.v">;
+    def VLOXSEG#nf#EI128_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedOrder,
+                               LSWidth128, "vloxseg"#nf#"ei128.v">;
+    def VLOXSEG#nf#EI256_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedOrder,
+                               LSWidth256, "vloxseg"#nf#"ei256.v">;
+    def VLOXSEG#nf#EI512_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedOrder,
+                               LSWidth512, "vloxseg"#nf#"ei512.v">;
+    def VLOXSEG#nf#EI1024_V : VIndexedSegmentLoad<!add(nf, -1), MOPLDIndexedOrder,
+                               LSWidth1024, "vloxseg"#nf#"ei1024.v">;
+
+    def VSUXSEG#nf#EI8_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedUnord,
+                             LSWidth8, "vsuxseg"#nf#"ei8.v">;
+    def VSUXSEG#nf#EI16_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedUnord,
+                              LSWidth16, "vsuxseg"#nf#"ei16.v">;
+    def VSUXSEG#nf#EI32_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedUnord,
+                              LSWidth32, "vsuxseg"#nf#"ei32.v">;
+    def VSUXSEG#nf#EI64_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedUnord,
+                              LSWidth64, "vsuxseg"#nf#"ei64.v">;
+    def VSUXSEG#nf#EI128_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedUnord,
+                               LSWidth128, "vsuxseg"#nf#"ei128.v">;
+    def VSUXSEG#nf#EI256_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedUnord,
+                               LSWidth256, "vsuxseg"#nf#"ei256.v">;
+    def VSUXSEG#nf#EI512_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedUnord,
+                               LSWidth512, "vsuxseg"#nf#"ei512.v">;
+    def VSUXSEG#nf#EI1024_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedUnord,
+                                LSWidth1024, "vsuxseg"#nf#"ei1024.v">;
+
+    def VSOXSEG#nf#EI8_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedOrder,
+                             LSWidth8, "vsoxseg"#nf#"ei8.v">;
+    def VSOXSEG#nf#EI16_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedOrder,
+                              LSWidth16, "vsoxseg"#nf#"ei16.v">;
+    def VSOXSEG#nf#EI32_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedOrder,
+                              LSWidth32, "vsoxseg"#nf#"ei32.v">;
+    def VSOXSEG#nf#EI64_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedOrder,
+                              LSWidth64, "vsoxseg"#nf#"ei64.v">;
+    def VSOXSEG#nf#EI128_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedOrder,
+                               LSWidth128, "vsoxseg"#nf#"ei128.v">;
+    def VSOXSEG#nf#EI256_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedOrder,
+                               LSWidth256, "vsoxseg"#nf#"ei256.v">;
+    def VSOXSEG#nf#EI512_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedOrder,
+                               LSWidth512, "vsoxseg"#nf#"ei512.v">;
+    def VSOXSEG#nf#EI1024_V : VIndexedSegmentStore<!add(nf, -1), MOPSTIndexedOrder,
+                                LSWidth1024, "vsoxseg"#nf#"ei1024.v">;
+  }
+} // Predicates = [HasStdExtZvlsseg]
+
+let Predicates = [HasStdExtZvamo, HasStdExtA] in {
+  defm VAMOSWAPEI8 : VAMO<AMOOPVamoSwap, LSWidth8, "vamoswapei8.v">;
+  defm VAMOSWAPEI16 : VAMO<AMOOPVamoSwap, LSWidth16, "vamoswapei16.v">;
+  defm VAMOSWAPEI32 : VAMO<AMOOPVamoSwap, LSWidth32, "vamoswapei32.v">;
+
+  defm VAMOADDEI8 : VAMO<AMOOPVamoAdd, LSWidth8, "vamoaddei8.v">;
+  defm VAMOADDEI16 : VAMO<AMOOPVamoAdd, LSWidth16, "vamoaddei16.v">;
+  defm VAMOADDEI32 : VAMO<AMOOPVamoAdd, LSWidth32, "vamoaddei32.v">;
+
+  defm VAMOXOREI8 : VAMO<AMOOPVamoXor, LSWidth8, "vamoxorei8.v">;
+  defm VAMOXOREI16 : VAMO<AMOOPVamoXor, LSWidth16, "vamoxorei16.v">;
+  defm VAMOXOREI32 : VAMO<AMOOPVamoXor, LSWidth32, "vamoxorei32.v">;
+
+  defm VAMOANDEI8 : VAMO<AMOOPVamoAnd, LSWidth8, "vamoandei8.v">;
+  defm VAMOANDEI16 : VAMO<AMOOPVamoAnd, LSWidth16, "vamoandei16.v">;
+  defm VAMOANDEI32 : VAMO<AMOOPVamoAnd, LSWidth32, "vamoandei32.v">;
+
+  defm VAMOOREI8 : VAMO<AMOOPVamoOr, LSWidth8, "vamoorei8.v">;
+  defm VAMOOREI16 : VAMO<AMOOPVamoOr, LSWidth16, "vamoorei16.v">;
+  defm VAMOOREI32 : VAMO<AMOOPVamoOr, LSWidth32, "vamoorei32.v">;
+
+  defm VAMOMINEI8 : VAMO<AMOOPVamoMin, LSWidth8, "vamominei8.v">;
+  defm VAMOMINEI16 : VAMO<AMOOPVamoMin, LSWidth16, "vamominei16.v">;
+  defm VAMOMINEI32 : VAMO<AMOOPVamoMin, LSWidth32, "vamominei32.v">;
+
+  defm VAMOMAXEI8 : VAMO<AMOOPVamoMax, LSWidth8, "vamomaxei8.v">;
+  defm VAMOMAXEI16 : VAMO<AMOOPVamoMax, LSWidth16, "vamomaxei16.v">;
+  defm VAMOMAXEI32 : VAMO<AMOOPVamoMax, LSWidth32, "vamomaxei32.v">;
+
+  defm VAMOMINUEI8 : VAMO<AMOOPVamoMinu, LSWidth8, "vamominuei8.v">;
+  defm VAMOMINUEI16 : VAMO<AMOOPVamoMinu, LSWidth16, "vamominuei16.v">;
+  defm VAMOMINUEI32 : VAMO<AMOOPVamoMinu, LSWidth32, "vamominuei32.v">;
+
+  defm VAMOMAXUEI8 : VAMO<AMOOPVamoMaxu, LSWidth8, "vamomaxuei8.v">;
+  defm VAMOMAXUEI16 : VAMO<AMOOPVamoMaxu, LSWidth16, "vamomaxuei16.v">;
+  defm VAMOMAXUEI32 : VAMO<AMOOPVamoMaxu, LSWidth32, "vamomaxuei32.v">;
+} // Predicates = [HasStdExtZvamo, HasStdExtA]
+
+let Predicates = [HasStdExtZvamo, HasStdExtA, IsRV64] in {
+  defm VAMOSWAPEI64 : VAMO<AMOOPVamoSwap, LSWidth64, "vamoswapei64.v">;
+  defm VAMOADDEI64 : VAMO<AMOOPVamoAdd, LSWidth64, "vamoaddei64.v">;
+  defm VAMOXOREI64 : VAMO<AMOOPVamoXor, LSWidth64, "vamoxorei64.v">;
+  defm VAMOANDEI64 : VAMO<AMOOPVamoAnd, LSWidth64, "vamoandei64.v">;
+  defm VAMOOREI64 : VAMO<AMOOPVamoOr, LSWidth64, "vamoorei64.v">;
+  defm VAMOMINEI64 : VAMO<AMOOPVamoMin, LSWidth64, "vamominei64.v">;
+  defm VAMOMAXEI64 : VAMO<AMOOPVamoMax, LSWidth64, "vamomaxei64.v">;
+  defm VAMOMINUEI64 : VAMO<AMOOPVamoMinu, LSWidth64, "vamominuei64.v">;
+  defm VAMOMAXUEI64 : VAMO<AMOOPVamoMaxu, LSWidth64, "vamomaxuei64.v">;
+} // Predicates = [HasStdExtZvamo, HasStdExtA, IsRV64]
+
+include "RISCVInstrInfoVPseudos.td"

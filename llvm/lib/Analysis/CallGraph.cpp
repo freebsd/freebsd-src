@@ -167,20 +167,6 @@ Function *CallGraph::removeFunctionFromModule(CallGraphNode *CGN) {
   return F;
 }
 
-/// spliceFunction - Replace the function represented by this node by another.
-/// This does not rescan the body of the function, so it is suitable when
-/// splicing the body of the old function to the new while also updating all
-/// callers from old to new.
-void CallGraph::spliceFunction(const Function *From, const Function *To) {
-  assert(FunctionMap.count(From) && "No CallGraphNode for function!");
-  assert(!FunctionMap.count(To) &&
-         "Pointing CallGraphNode at a function that already exists");
-  FunctionMapTy::iterator I = FunctionMap.find(From);
-  I->second->F = const_cast<Function*>(To);
-  FunctionMap[To] = std::move(I->second);
-  FunctionMap.erase(I);
-}
-
 // getOrInsertFunction - This method is identical to calling operator[], but
 // it will insert a new CallGraphNode for the specified function if one does
 // not already exist.
@@ -281,13 +267,37 @@ void CallGraphNode::replaceCallEdge(CallBase &Call, CallBase &NewCall,
       I->second = NewNode;
       NewNode->AddRef();
 
-      // Refresh callback references.
-      forEachCallbackFunction(Call, [=](Function *CB) {
-        removeOneAbstractEdgeTo(CG->getOrInsertFunction(CB));
+      // Refresh callback references. Do not resize CalledFunctions if the
+      // number of callbacks is the same for new and old call sites.
+      SmallVector<CallGraphNode *, 4u> OldCBs;
+      SmallVector<CallGraphNode *, 4u> NewCBs;
+      forEachCallbackFunction(Call, [this, &OldCBs](Function *CB) {
+        OldCBs.push_back(CG->getOrInsertFunction(CB));
       });
-      forEachCallbackFunction(NewCall, [=](Function *CB) {
-        addCalledFunction(nullptr, CG->getOrInsertFunction(CB));
+      forEachCallbackFunction(NewCall, [this, &NewCBs](Function *CB) {
+        NewCBs.push_back(CG->getOrInsertFunction(CB));
       });
+      if (OldCBs.size() == NewCBs.size()) {
+        for (unsigned N = 0; N < OldCBs.size(); ++N) {
+          CallGraphNode *OldNode = OldCBs[N];
+          CallGraphNode *NewNode = NewCBs[N];
+          for (auto J = CalledFunctions.begin();; ++J) {
+            assert(J != CalledFunctions.end() &&
+                   "Cannot find callsite to update!");
+            if (!J->first && J->second == OldNode) {
+              J->second = NewNode;
+              OldNode->DropRef();
+              NewNode->AddRef();
+              break;
+            }
+          }
+        }
+      } else {
+        for (auto *CGN : OldCBs)
+          removeOneAbstractEdgeTo(CGN);
+        for (auto *CGN : NewCBs)
+          addCalledFunction(nullptr, CGN);
+      }
       return;
     }
   }

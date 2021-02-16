@@ -18,6 +18,7 @@
 namespace fuzzer {
 
 const size_t Dictionary::kMaxDictSize;
+static const size_t kMaxMutationsToPrint = 10;
 
 static void PrintASCII(const Word &W, const char *PrintAfter) {
   PrintASCII(W.data(), W.size(), PrintAfter);
@@ -425,26 +426,26 @@ size_t MutationDispatcher::Mutate_CrossOver(uint8_t *Data, size_t Size,
   if (!CrossOverWith) return 0;
   const Unit &O = *CrossOverWith;
   if (O.empty()) return 0;
-  MutateInPlaceHere.resize(MaxSize);
-  auto &U = MutateInPlaceHere;
   size_t NewSize = 0;
   switch(Rand(3)) {
     case 0:
-      NewSize = CrossOver(Data, Size, O.data(), O.size(), U.data(), U.size());
+      MutateInPlaceHere.resize(MaxSize);
+      NewSize = CrossOver(Data, Size, O.data(), O.size(),
+                          MutateInPlaceHere.data(), MaxSize);
+      memcpy(Data, MutateInPlaceHere.data(), NewSize);
       break;
     case 1:
-      NewSize = InsertPartOf(O.data(), O.size(), U.data(), U.size(), MaxSize);
+      NewSize = InsertPartOf(O.data(), O.size(), Data, Size, MaxSize);
       if (!NewSize)
-        NewSize = CopyPartOf(O.data(), O.size(), U.data(), U.size());
+        NewSize = CopyPartOf(O.data(), O.size(), Data, Size);
       break;
     case 2:
-      NewSize = CopyPartOf(O.data(), O.size(), U.data(), U.size());
+      NewSize = CopyPartOf(O.data(), O.size(), Data, Size);
       break;
     default: assert(0);
   }
   assert(NewSize > 0 && "CrossOver returned empty unit");
   assert(NewSize <= MaxSize && "CrossOver returned overisized unit");
-  memcpy(Data, U.data(), NewSize);
   return NewSize;
 }
 
@@ -481,17 +482,32 @@ void MutationDispatcher::PrintRecommendedDictionary() {
   Printf("###### End of recommended dictionary. ######\n");
 }
 
-void MutationDispatcher::PrintMutationSequence() {
+void MutationDispatcher::PrintMutationSequence(bool Verbose) {
   Printf("MS: %zd ", CurrentMutatorSequence.size());
-  for (auto M : CurrentMutatorSequence)
-    Printf("%s-", M.Name);
+  size_t EntriesToPrint =
+      Verbose ? CurrentMutatorSequence.size()
+              : std::min(kMaxMutationsToPrint, CurrentMutatorSequence.size());
+  for (size_t i = 0; i < EntriesToPrint; i++)
+    Printf("%s-", CurrentMutatorSequence[i].Name);
   if (!CurrentDictionaryEntrySequence.empty()) {
     Printf(" DE: ");
-    for (auto DE : CurrentDictionaryEntrySequence) {
+    EntriesToPrint = Verbose ? CurrentDictionaryEntrySequence.size()
+                             : std::min(kMaxMutationsToPrint,
+                                        CurrentDictionaryEntrySequence.size());
+    for (size_t i = 0; i < EntriesToPrint; i++) {
       Printf("\"");
-      PrintASCII(DE->GetW(), "\"-");
+      PrintASCII(CurrentDictionaryEntrySequence[i]->GetW(), "\"-");
     }
   }
+}
+
+std::string MutationDispatcher::MutationSequence() {
+  std::string MS;
+  for (auto M : CurrentMutatorSequence) {
+    MS += M.Name;
+    MS += "-";
+  }
+  return MS;
 }
 
 size_t MutationDispatcher::Mutate(uint8_t *Data, size_t Size, size_t MaxSize) {

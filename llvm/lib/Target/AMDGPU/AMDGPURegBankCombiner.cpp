@@ -11,19 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "AMDGPUTargetMachine.h"
+#include "AMDGPU.h"
 #include "AMDGPULegalizerInfo.h"
+#include "GCNSubtarget.h"
 #include "llvm/CodeGen/GlobalISel/Combiner.h"
 #include "llvm/CodeGen/GlobalISel/CombinerHelper.h"
 #include "llvm/CodeGen/GlobalISel/CombinerInfo.h"
 #include "llvm/CodeGen/GlobalISel/GISelKnownBits.h"
 #include "llvm/CodeGen/GlobalISel/MIPatternMatch.h"
 #include "llvm/CodeGen/MachineDominators.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
-#include "llvm/Support/Debug.h"
-#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
-
+#include "llvm/Target/TargetMachine.h"
 #define DEBUG_TYPE "amdgpu-regbank-combiner"
 
 using namespace llvm;
@@ -39,7 +37,7 @@ namespace {
 #include "AMDGPUGenRegBankGICombiner.inc"
 #undef AMDGPUREGBANKCOMBINERHELPER_GENCOMBINERHELPER_H
 
-class AMDGPURegBankCombinerInfo : public CombinerInfo {
+class AMDGPURegBankCombinerInfo final : public CombinerInfo {
   GISelKnownBits *KB;
   MachineDominatorTree *MDT;
 

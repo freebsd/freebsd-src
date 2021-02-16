@@ -14,6 +14,8 @@
 #include "lldb/Host/Host.h"
 #include "lldb/Initialization/SystemInitializerCommon.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
+#include "lldb/Target/ProcessTrace.h"
+#include "lldb/Utility/Reproducer.h"
 #include "lldb/Utility/Timer.h"
 #include "llvm/Support/TargetSelect.h"
 
@@ -33,8 +35,16 @@ SystemInitializerFull::SystemInitializerFull() = default;
 SystemInitializerFull::~SystemInitializerFull() = default;
 
 llvm::Error SystemInitializerFull::Initialize() {
-  if (auto e = SystemInitializerCommon::Initialize())
-    return e;
+  llvm::Error error = SystemInitializerCommon::Initialize();
+  if (error) {
+    // During active replay, the ::Initialize call is replayed like any other
+    // SB API call and the return value is ignored. Since we can't intercept
+    // this, we terminate here before the uninitialized debugger inevitably
+    // crashes.
+    if (repro::Reproducer::Instance().IsReplaying())
+      llvm::report_fatal_error(std::move(error));
+    return error;
+  }
 
   // Initialize LLVM and Clang
   llvm::InitializeAllTargets();
@@ -44,6 +54,9 @@ llvm::Error SystemInitializerFull::Initialize() {
 
 #define LLDB_PLUGIN(p) LLDB_PLUGIN_INITIALIZE(p);
 #include "Plugins/Plugins.def"
+
+  // Initialize plug-ins in core LLDB
+  ProcessTrace::Initialize();
 
   // Scan for any system or user LLDB plug-ins
   PluginManager::Initialize();
@@ -56,10 +69,10 @@ llvm::Error SystemInitializerFull::Initialize() {
 }
 
 void SystemInitializerFull::Terminate() {
-  static Timer::Category func_cat(LLVM_PRETTY_FUNCTION);
-  Timer scoped_timer(func_cat, LLVM_PRETTY_FUNCTION);
-
   Debugger::SettingsTerminate();
+
+  // Terminate plug-ins in core LLDB
+  ProcessTrace::Terminate();
 
   // Terminate and unload and loaded system or user LLDB plug-ins
   PluginManager::Terminate();

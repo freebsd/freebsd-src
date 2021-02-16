@@ -33,8 +33,7 @@
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/DataBufferLLVM.h"
 #include "lldb/Utility/StreamString.h"
-
-
+#include "llvm/Support/MathExtras.h"
 #include <cinttypes>
 #include <memory>
 
@@ -1281,29 +1280,6 @@ public:
 
   Options *GetOptions() override { return &m_option_group; }
 
-  bool UIntValueIsValidForSize(uint64_t uval64, size_t total_byte_size) {
-    if (total_byte_size > 8)
-      return false;
-
-    if (total_byte_size == 8)
-      return true;
-
-    const uint64_t max = ((uint64_t)1 << (uint64_t)(total_byte_size * 8)) - 1;
-    return uval64 <= max;
-  }
-
-  bool SIntValueIsValidForSize(int64_t sval64, size_t total_byte_size) {
-    if (total_byte_size > 8)
-      return false;
-
-    if (total_byte_size == 8)
-      return true;
-
-    const int64_t max = ((int64_t)1 << (uint64_t)(total_byte_size * 8 - 1)) - 1;
-    const int64_t min = ~(max);
-    return min <= sval64 && sval64 <= max;
-  }
-
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     // No need to check "process" for validity as eCommandRequiresProcess
@@ -1449,7 +1425,7 @@ protected:
               "'%s' is not a valid hex string value.\n", entry.c_str());
           result.SetStatus(eReturnStatusFailed);
           return false;
-        } else if (!UIntValueIsValidForSize(uval64, item_byte_size)) {
+        } else if (!llvm::isUIntN(item_byte_size * 8, uval64)) {
           result.AppendErrorWithFormat("Value 0x%" PRIx64
                                        " is too large to fit in a %" PRIu64
                                        " byte unsigned integer value.\n",
@@ -1477,7 +1453,7 @@ protected:
               "'%s' is not a valid binary string value.\n", entry.c_str());
           result.SetStatus(eReturnStatusFailed);
           return false;
-        } else if (!UIntValueIsValidForSize(uval64, item_byte_size)) {
+        } else if (!llvm::isUIntN(item_byte_size * 8, uval64)) {
           result.AppendErrorWithFormat("Value 0x%" PRIx64
                                        " is too large to fit in a %" PRIu64
                                        " byte unsigned integer value.\n",
@@ -1516,7 +1492,7 @@ protected:
               "'%s' is not a valid signed decimal value.\n", entry.c_str());
           result.SetStatus(eReturnStatusFailed);
           return false;
-        } else if (!SIntValueIsValidForSize(sval64, item_byte_size)) {
+        } else if (!llvm::isIntN(item_byte_size * 8, sval64)) {
           result.AppendErrorWithFormat(
               "Value %" PRIi64 " is too large or small to fit in a %" PRIu64
               " byte signed integer value.\n",
@@ -1535,7 +1511,7 @@ protected:
               entry.c_str());
           result.SetStatus(eReturnStatusFailed);
           return false;
-        } else if (!UIntValueIsValidForSize(uval64, item_byte_size)) {
+        } else if (!llvm::isUIntN(item_byte_size * 8, uval64)) {
           result.AppendErrorWithFormat("Value %" PRIu64
                                        " is too large to fit in a %" PRIu64
                                        " byte unsigned integer value.\n",
@@ -1552,7 +1528,7 @@ protected:
               "'%s' is not a valid octal string value.\n", entry.c_str());
           result.SetStatus(eReturnStatusFailed);
           return false;
-        } else if (!UIntValueIsValidForSize(uval64, item_byte_size)) {
+        } else if (!llvm::isUIntN(item_byte_size * 8, uval64)) {
           result.AppendErrorWithFormat("Value %" PRIo64
                                        " is too large to fit in a %" PRIu64
                                        " byte unsigned integer value.\n",
@@ -1687,63 +1663,72 @@ public:
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     ProcessSP process_sp = m_exe_ctx.GetProcessSP();
-    if (process_sp) {
-      Status error;
-      lldb::addr_t load_addr = m_prev_end_addr;
-      m_prev_end_addr = LLDB_INVALID_ADDRESS;
-
-      const size_t argc = command.GetArgumentCount();
-      if (argc > 1 || (argc == 0 && load_addr == LLDB_INVALID_ADDRESS)) {
-        result.AppendErrorWithFormat("'%s' takes one argument:\nUsage: %s\n",
-                                     m_cmd_name.c_str(), m_cmd_syntax.c_str());
-        result.SetStatus(eReturnStatusFailed);
-      } else {
-        if (command.GetArgumentCount() == 1) {
-          auto load_addr_str = command[0].ref();
-          load_addr = OptionArgParser::ToAddress(&m_exe_ctx, load_addr_str,
-                                                 LLDB_INVALID_ADDRESS, &error);
-          if (error.Fail() || load_addr == LLDB_INVALID_ADDRESS) {
-            result.AppendErrorWithFormat(
-                "invalid address argument \"%s\": %s\n", command[0].c_str(),
-                error.AsCString());
-            result.SetStatus(eReturnStatusFailed);
-          }
-        }
-
-        lldb_private::MemoryRegionInfo range_info;
-        error = process_sp->GetMemoryRegionInfo(load_addr, range_info);
-        if (error.Success()) {
-          lldb_private::Address addr;
-          ConstString name = range_info.GetName();
-          ConstString section_name;
-          if (process_sp->GetTarget().ResolveLoadAddress(load_addr, addr)) {
-            SectionSP section_sp(addr.GetSection());
-            if (section_sp) {
-              // Got the top most section, not the deepest section
-              while (section_sp->GetParent())
-                section_sp = section_sp->GetParent();
-              section_name = section_sp->GetName();
-            }
-          }
-          result.AppendMessageWithFormatv(
-              "[{0:x16}-{1:x16}) {2:r}{3:w}{4:x}{5}{6}{7}{8}\n",
-              range_info.GetRange().GetRangeBase(),
-              range_info.GetRange().GetRangeEnd(), range_info.GetReadable(),
-              range_info.GetWritable(), range_info.GetExecutable(),
-              name ? " " : "", name, section_name ? " " : "", section_name);
-          m_prev_end_addr = range_info.GetRange().GetRangeEnd();
-          result.SetStatus(eReturnStatusSuccessFinishResult);
-        } else {
-          result.SetStatus(eReturnStatusFailed);
-          result.AppendErrorWithFormat("%s\n", error.AsCString());
-        }
-      }
-    } else {
+    if (!process_sp) {
       m_prev_end_addr = LLDB_INVALID_ADDRESS;
       result.AppendError("invalid process");
       result.SetStatus(eReturnStatusFailed);
+      return false;
     }
-    return result.Succeeded();
+
+    Status error;
+    lldb::addr_t load_addr = m_prev_end_addr;
+    m_prev_end_addr = LLDB_INVALID_ADDRESS;
+
+    const size_t argc = command.GetArgumentCount();
+    if (argc > 1 || (argc == 0 && load_addr == LLDB_INVALID_ADDRESS)) {
+      result.AppendErrorWithFormat("'%s' takes one argument:\nUsage: %s\n",
+                                   m_cmd_name.c_str(), m_cmd_syntax.c_str());
+      result.SetStatus(eReturnStatusFailed);
+      return false;
+    }
+
+    if (argc == 1) {
+      auto load_addr_str = command[0].ref();
+      load_addr = OptionArgParser::ToAddress(&m_exe_ctx, load_addr_str,
+                                             LLDB_INVALID_ADDRESS, &error);
+      if (error.Fail() || load_addr == LLDB_INVALID_ADDRESS) {
+        result.AppendErrorWithFormat("invalid address argument \"%s\": %s\n",
+                                     command[0].c_str(), error.AsCString());
+        result.SetStatus(eReturnStatusFailed);
+        return false;
+      }
+    }
+
+    lldb_private::MemoryRegionInfo range_info;
+    error = process_sp->GetMemoryRegionInfo(load_addr, range_info);
+    if (error.Success()) {
+      lldb_private::Address addr;
+      ConstString name = range_info.GetName();
+      ConstString section_name;
+      if (process_sp->GetTarget().ResolveLoadAddress(load_addr, addr)) {
+        SectionSP section_sp(addr.GetSection());
+        if (section_sp) {
+          // Got the top most section, not the deepest section
+          while (section_sp->GetParent())
+            section_sp = section_sp->GetParent();
+          section_name = section_sp->GetName();
+        }
+      }
+
+      result.AppendMessageWithFormatv(
+          "[{0:x16}-{1:x16}) {2:r}{3:w}{4:x}{5}{6}{7}{8}",
+          range_info.GetRange().GetRangeBase(),
+          range_info.GetRange().GetRangeEnd(), range_info.GetReadable(),
+          range_info.GetWritable(), range_info.GetExecutable(), name ? " " : "",
+          name, section_name ? " " : "", section_name);
+      MemoryRegionInfo::OptionalBool memory_tagged =
+          range_info.GetMemoryTagged();
+      if (memory_tagged == MemoryRegionInfo::OptionalBool::eYes)
+        result.AppendMessage("memory tagging: enabled");
+
+      m_prev_end_addr = range_info.GetRange().GetRangeEnd();
+      result.SetStatus(eReturnStatusSuccessFinishResult);
+      return true;
+    }
+
+    result.SetStatus(eReturnStatusFailed);
+    result.AppendErrorWithFormat("%s\n", error.AsCString());
+    return false;
   }
 
   const char *GetRepeatCommand(Args &current_command_args,

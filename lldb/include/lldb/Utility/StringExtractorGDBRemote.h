@@ -76,6 +76,7 @@ public:
     eServerPacketType_QSetSTDERR,
     eServerPacketType_QSetWorkingDir,
     eServerPacketType_QStartNoAckMode,
+    eServerPacketType_qPathComplete,
     eServerPacketType_qPlatform_shell,
     eServerPacketType_qPlatform_mkdir,
     eServerPacketType_qPlatform_chmod,
@@ -161,11 +162,13 @@ public:
     eServerPacketType__m,
     eServerPacketType_notify, // '%' notification
 
-    eServerPacketType_jTraceStart,
-    eServerPacketType_jTraceBufferRead,
-    eServerPacketType_jTraceMetaRead,
-    eServerPacketType_jTraceStop,
-    eServerPacketType_jTraceConfigRead,
+    eServerPacketType_jTraceStart,      // deprecated
+    eServerPacketType_jTraceBufferRead, // deprecated
+    eServerPacketType_jTraceMetaRead,   // deprecated
+    eServerPacketType_jTraceStop,       // deprecated
+    eServerPacketType_jTraceConfigRead, // deprecated
+
+    eServerPacketType_jLLDBTraceSupportedType,
   };
 
   ServerPacketType GetServerPacketType() const;

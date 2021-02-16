@@ -771,6 +771,9 @@ public:
   LoadVTablePtr(CodeGenFunction &CGF, Address This,
                 const CXXRecordDecl *RD) override;
 
+  virtual bool
+  isPermittedToBeHomogeneousAggregate(const CXXRecordDecl *RD) const override;
+
 private:
   typedef std::pair<const CXXRecordDecl *, CharUnits> VFTableIdTy;
   typedef llvm::DenseMap<VFTableIdTy, llvm::GlobalVariable *> VTablesMapTy;
@@ -816,34 +819,40 @@ private:
 
 CGCXXABI::RecordArgABI
 MicrosoftCXXABI::getRecordArgABI(const CXXRecordDecl *RD) const {
+  // Use the default C calling convention rules for things that can be passed in
+  // registers, i.e. non-trivially copyable records or records marked with
+  // [[trivial_abi]].
+  if (RD->canPassInRegisters())
+    return RAA_Default;
+
   switch (CGM.getTarget().getTriple().getArch()) {
   default:
     // FIXME: Implement for other architectures.
-    return RAA_Default;
+    return RAA_Indirect;
 
   case llvm::Triple::thumb:
-    // Use the simple Itanium rules for now.
+    // Pass things indirectly for now because it is simple.
     // FIXME: This is incompatible with MSVC for arguments with a dtor and no
     // copy ctor.
-    return !RD->canPassInRegisters() ? RAA_Indirect : RAA_Default;
+    return RAA_Indirect;
 
-  case llvm::Triple::x86:
-    // All record arguments are passed in memory on x86.  Decide whether to
-    // construct the object directly in argument memory, or to construct the
-    // argument elsewhere and copy the bytes during the call.
+  case llvm::Triple::x86: {
+    // If the argument has *required* alignment greater than four bytes, pass
+    // it indirectly. Prior to MSVC version 19.14, passing overaligned
+    // arguments was not supported and resulted in a compiler error. In 19.14
+    // and later versions, such arguments are now passed indirectly.
+    TypeInfo Info = getContext().getTypeInfo(RD->getTypeForDecl());
+    if (Info.AlignIsRequired && Info.Align > 4)
+      return RAA_Indirect;
 
     // If C++ prohibits us from making a copy, construct the arguments directly
     // into argument memory.
-    if (!RD->canPassInRegisters())
-      return RAA_DirectInMemory;
-
-    // Otherwise, construct the argument into a temporary and copy the bytes
-    // into the outgoing argument memory.
-    return RAA_Default;
+    return RAA_DirectInMemory;
+  }
 
   case llvm::Triple::x86_64:
   case llvm::Triple::aarch64:
-    return !RD->canPassInRegisters() ? RAA_Indirect : RAA_Default;
+    return RAA_Indirect;
   }
 
   llvm_unreachable("invalid enum");
@@ -1064,11 +1073,7 @@ bool MicrosoftCXXABI::hasMostDerivedReturn(GlobalDecl GD) const {
   return isDeletingDtor(GD);
 }
 
-static bool IsSizeGreaterThan128(const CXXRecordDecl *RD) {
-  return RD->getASTContext().getTypeSize(RD->getTypeForDecl()) > 128;
-}
-
-static bool hasMicrosoftABIRestrictions(const CXXRecordDecl *RD) {
+static bool isTrivialForAArch64MSVC(const CXXRecordDecl *RD) {
   // For AArch64, we use the C++14 definition of an aggregate, so we also
   // check for:
   //   No private or protected non static data members.
@@ -1077,19 +1082,19 @@ static bool hasMicrosoftABIRestrictions(const CXXRecordDecl *RD) {
   // Additionally, we need to ensure that there is a trivial copy assignment
   // operator, a trivial destructor and no user-provided constructors.
   if (RD->hasProtectedFields() || RD->hasPrivateFields())
-    return true;
+    return false;
   if (RD->getNumBases() > 0)
-    return true;
+    return false;
   if (RD->isPolymorphic())
-    return true;
+    return false;
   if (RD->hasNonTrivialCopyAssignment())
-    return true;
+    return false;
   for (const CXXConstructorDecl *Ctor : RD->ctors())
     if (Ctor->isUserProvided())
-      return true;
+      return false;
   if (RD->hasNonTrivialDestructor())
-    return true;
-  return false;
+    return false;
+  return true;
 }
 
 bool MicrosoftCXXABI::classifyReturnType(CGFunctionInfo &FI) const {
@@ -1097,21 +1102,29 @@ bool MicrosoftCXXABI::classifyReturnType(CGFunctionInfo &FI) const {
   if (!RD)
     return false;
 
+  // Normally, the C++ concept of "is trivially copyable" is used to determine
+  // if a struct can be returned directly. However, as MSVC and the language
+  // have evolved, the definition of "trivially copyable" has changed, while the
+  // ABI must remain stable. AArch64 uses the C++14 concept of an "aggregate",
+  // while other ISAs use the older concept of "plain old data".
+  bool isTrivialForABI = RD->isPOD();
   bool isAArch64 = CGM.getTarget().getTriple().isAArch64();
-  bool isSimple = !isAArch64 || !hasMicrosoftABIRestrictions(RD);
-  bool isIndirectReturn =
-      isAArch64 ? (!RD->canPassInRegisters() ||
-                   IsSizeGreaterThan128(RD))
-                : !RD->isPOD();
-  bool isInstanceMethod = FI.isInstanceMethod();
+  if (isAArch64)
+    isTrivialForABI = RD->canPassInRegisters() && isTrivialForAArch64MSVC(RD);
 
-  if (isIndirectReturn || !isSimple || isInstanceMethod) {
+  // MSVC always returns structs indirectly from C++ instance methods.
+  bool isIndirectReturn = !isTrivialForABI || FI.isInstanceMethod();
+
+  if (isIndirectReturn) {
     CharUnits Align = CGM.getContext().getTypeAlignInChars(FI.getReturnType());
     FI.getReturnInfo() = ABIArgInfo::getIndirect(Align, /*ByVal=*/false);
-    FI.getReturnInfo().setSRetAfterThis(isInstanceMethod);
 
-    FI.getReturnInfo().setInReg(isAArch64 &&
-                                !(isSimple && IsSizeGreaterThan128(RD)));
+    // MSVC always passes `this` before the `sret` parameter.
+    FI.getReturnInfo().setSRetAfterThis(FI.isInstanceMethod());
+
+    // On AArch64, use the `inreg` attribute if the object is considered to not
+    // be trivially copyable, or if this is an instance method struct return.
+    FI.getReturnInfo().setInReg(isAArch64);
 
     return true;
   }
@@ -1234,12 +1247,14 @@ void MicrosoftCXXABI::EmitCXXConstructors(const CXXConstructorDecl *D) {
   // the typical calling convention and have a single 'this' pointer for an
   // argument -or- they get a wrapper function which appropriately thunks to the
   // real default constructor.  This thunk is the default constructor closure.
-  if (D->hasAttr<DLLExportAttr>() && D->isDefaultConstructor())
+  if (D->hasAttr<DLLExportAttr>() && D->isDefaultConstructor() &&
+      D->isDefined()) {
     if (!hasDefaultCXXMethodCC(getContext(), D) || D->getNumParams() != 0) {
       llvm::Function *Fn = getAddrOfCXXCtorClosure(D, Ctor_DefaultClosure);
       Fn->setLinkage(llvm::GlobalValue::WeakODRLinkage);
       CGM.setGVProperties(Fn, D);
     }
+  }
 }
 
 void MicrosoftCXXABI::EmitVBPtrStores(CodeGenFunction &CGF,
@@ -1637,8 +1652,9 @@ void MicrosoftCXXABI::emitVTableTypeMetadata(const VPtrInfo &Info,
   // TODO: Should VirtualFunctionElimination also be supported here?
   // See similar handling in CodeGenModule::EmitVTableTypeMetadata.
   if (CGM.getCodeGenOpts().WholeProgramVTables) {
+    llvm::DenseSet<const CXXRecordDecl *> Visited;
     llvm::GlobalObject::VCallVisibility TypeVis =
-        CGM.GetVCallVisibilityLevel(RD);
+        CGM.GetVCallVisibilityLevel(RD, Visited);
     if (TypeVis != llvm::GlobalObject::VCallVisibilityPublic)
       VTable->setVCallVisibilityMetadata(TypeVis);
   }
@@ -4344,4 +4360,13 @@ MicrosoftCXXABI::LoadVTablePtr(CodeGenFunction &CGF, Address This,
   std::tie(This, std::ignore, RD) =
       performBaseAdjustment(CGF, This, QualType(RD->getTypeForDecl(), 0));
   return {CGF.GetVTablePtr(This, CGM.Int8PtrTy, RD), RD};
+}
+
+bool MicrosoftCXXABI::isPermittedToBeHomogeneousAggregate(
+    const CXXRecordDecl *CXXRD) const {
+  // MSVC Windows on Arm64 considers a type not HFA if it is not an
+  // aggregate according to the C++14 spec. This is not consistent with the
+  // AAPCS64, but is defacto spec on that platform.
+  return !CGM.getTarget().getTriple().isAArch64() ||
+         isTrivialForAArch64MSVC(CXXRD);
 }

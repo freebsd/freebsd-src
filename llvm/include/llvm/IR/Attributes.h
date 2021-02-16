@@ -108,7 +108,16 @@ public:
                                         unsigned ElemSizeArg,
                                         const Optional<unsigned> &NumElemsArg);
   static Attribute getWithByValType(LLVMContext &Context, Type *Ty);
+  static Attribute getWithStructRetType(LLVMContext &Context, Type *Ty);
+  static Attribute getWithByRefType(LLVMContext &Context, Type *Ty);
   static Attribute getWithPreallocatedType(LLVMContext &Context, Type *Ty);
+
+  /// For a typed attribute, return the equivalent attribute with the type
+  /// changed to \p ReplacementTy.
+  Attribute getWithNewType(LLVMContext &Context, Type *ReplacementTy) {
+    assert(isTypeAttribute() && "this requires a typed attribute");
+    return get(Context, getKindAsEnum(), ReplacementTy);
+  }
 
   static Attribute::AttrKind getAttrKindFromName(StringRef AttrName);
 
@@ -137,6 +146,9 @@ public:
 
   /// Return true if the attribute is a type attribute.
   bool isTypeAttribute() const;
+
+  /// Return true if the attribute is any kind of attribute.
+  bool isValid() const { return pImpl; }
 
   /// Return true if the attribute is present.
   bool hasAttribute(AttrKind Val) const;
@@ -303,6 +315,8 @@ public:
   uint64_t getDereferenceableBytes() const;
   uint64_t getDereferenceableOrNullBytes() const;
   Type *getByValType() const;
+  Type *getStructRetType() const;
+  Type *getByRefType() const;
   Type *getPreallocatedType() const;
   std::pair<unsigned, Optional<unsigned>> getAllocSizeArgs() const;
   std::string getAsString(bool InAttrGrp = false) const;
@@ -384,6 +398,9 @@ private:
   explicit AttributeList(AttributeListImpl *LI) : pImpl(LI) {}
 
   static AttributeList getImpl(LLVMContext &C, ArrayRef<AttributeSet> AttrSets);
+
+  AttributeList setAttributes(LLVMContext &C, unsigned Index,
+                              AttributeSet Attrs) const;
 
 public:
   AttributeList() = default;
@@ -501,6 +518,17 @@ public:
   LLVM_NODISCARD AttributeList removeParamAttributes(LLVMContext &C,
                                                      unsigned ArgNo) const {
     return removeAttributes(C, ArgNo + FirstArgIndex);
+  }
+
+  /// Replace the type contained by attribute \p AttrKind at index \p ArgNo wih
+  /// \p ReplacementTy, preserving all other attributes.
+  LLVM_NODISCARD AttributeList replaceAttributeType(LLVMContext &C,
+                                                    unsigned ArgNo,
+                                                    Attribute::AttrKind Kind,
+                                                    Type *ReplacementTy) const {
+    Attribute Attr = getAttribute(ArgNo, Kind);
+    auto Attrs = removeAttribute(C, ArgNo, Kind);
+    return Attrs.addAttribute(C, ArgNo, Attr.getWithNewType(C, ReplacementTy));
   }
 
   /// \brief Add the dereferenceable attribute to the attribute set at the given
@@ -626,6 +654,12 @@ public:
   /// Return the byval type for the specified function parameter.
   Type *getParamByValType(unsigned ArgNo) const;
 
+  /// Return the sret type for the specified function parameter.
+  Type *getParamStructRetType(unsigned ArgNo) const;
+
+  /// Return the byref type for the specified function parameter.
+  Type *getParamByRefType(unsigned ArgNo) const;
+
   /// Return the preallocated type for the specified function parameter.
   Type *getParamPreallocatedType(unsigned ArgNo) const;
 
@@ -729,6 +763,8 @@ class AttrBuilder {
   uint64_t DerefOrNullBytes = 0;
   uint64_t AllocSizeArgs = 0;
   Type *ByValType = nullptr;
+  Type *StructRetType = nullptr;
+  Type *ByRefType = nullptr;
   Type *PreallocatedType = nullptr;
 
 public:
@@ -744,7 +780,14 @@ public:
   void clear();
 
   /// Add an attribute to the builder.
-  AttrBuilder &addAttribute(Attribute::AttrKind Val);
+  AttrBuilder &addAttribute(Attribute::AttrKind Val) {
+    assert((unsigned)Val < Attribute::EndAttrKinds &&
+           "Attribute out of range!");
+    assert(!Attribute::doesAttrKindHaveArgument(Val) &&
+           "Adding integer attribute without adding a value!");
+    Attrs[Val] = true;
+    return *this;
+  }
 
   /// Add the Attribute object to the builder.
   AttrBuilder &addAttribute(Attribute A);
@@ -808,6 +851,12 @@ public:
   /// Retrieve the byval type.
   Type *getByValType() const { return ByValType; }
 
+  /// Retrieve the sret type.
+  Type *getStructRetType() const { return StructRetType; }
+
+  /// Retrieve the byref type.
+  Type *getByRefType() const { return ByRefType; }
+
   /// Retrieve the preallocated type.
   Type *getPreallocatedType() const { return PreallocatedType; }
 
@@ -854,6 +903,12 @@ public:
   /// This turns a byval type into the form used internally in Attribute.
   AttrBuilder &addByValAttr(Type *Ty);
 
+  /// This turns a sret type into the form used internally in Attribute.
+  AttrBuilder &addStructRetAttr(Type *Ty);
+
+  /// This turns a byref type into the form used internally in Attribute.
+  AttrBuilder &addByRefAttr(Type *Ty);
+
   /// This turns a preallocated type into the form used internally in Attribute.
   AttrBuilder &addPreallocatedAttr(Type *Ty);
 
@@ -886,10 +941,8 @@ public:
 
   bool td_empty() const { return TargetDepAttrs.empty(); }
 
-  bool operator==(const AttrBuilder &B);
-  bool operator!=(const AttrBuilder &B) {
-    return !(*this == B);
-  }
+  bool operator==(const AttrBuilder &B) const;
+  bool operator!=(const AttrBuilder &B) const { return !(*this == B); }
 };
 
 namespace AttributeFuncs {
@@ -901,8 +954,23 @@ AttrBuilder typeIncompatible(Type *Ty);
 /// attributes for inlining purposes.
 bool areInlineCompatible(const Function &Caller, const Function &Callee);
 
+
+/// Checks  if there are any incompatible function attributes between
+/// \p A and \p B.
+///
+/// \param [in] A - The first function to be compared with.
+/// \param [in] B - The second function to be compared with.
+/// \returns true if the functions have compatible attributes.
+bool areOutlineCompatible(const Function &A, const Function &B);
+
 /// Merge caller's and callee's attributes.
 void mergeAttributesForInlining(Function &Caller, const Function &Callee);
+
+/// Merges the functions attributes from \p ToMerge into function \p Base.
+///
+/// \param [in,out] Base - The function being merged into.
+/// \param [in] ToMerge - The function to merge attributes from.
+void mergeAttributesForOutlining(Function &Base, const Function &ToMerge);
 
 } // end namespace AttributeFuncs
 

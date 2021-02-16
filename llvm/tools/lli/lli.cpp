@@ -31,7 +31,7 @@
 #include "llvm/ExecutionEngine/Orc/MachOPlatform.h"
 #include "llvm/ExecutionEngine/Orc/OrcRemoteTargetClient.h"
 #include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
-#include "llvm/ExecutionEngine/OrcMCJITReplacement.h"
+#include "llvm/ExecutionEngine/Orc/TargetProcess/TargetExecutionUtils.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
@@ -76,7 +76,7 @@ static codegen::RegisterCodeGenFlags CGF;
 
 namespace {
 
-  enum class JITKind { MCJIT, OrcMCJITReplacement, OrcLazy };
+  enum class JITKind { MCJIT, OrcLazy };
 
   cl::opt<std::string>
   InputFile(cl::desc("<input bitcode>"), cl::Positional, cl::init("-"));
@@ -92,9 +92,6 @@ namespace {
       "jit-kind", cl::desc("Choose underlying JIT kind."),
       cl::init(JITKind::MCJIT),
       cl::values(clEnumValN(JITKind::MCJIT, "mcjit", "MCJIT"),
-                 clEnumValN(JITKind::OrcMCJITReplacement, "orc-mcjit",
-                            "Orc-based MCJIT replacement "
-                            "(deprecated)"),
                  clEnumValN(JITKind::OrcLazy, "orc-lazy",
                             "Orc-based lazy JIT.")));
 
@@ -449,8 +446,6 @@ int main(int argc, char **argv, char * const *envp) {
   builder.setEngineKind(ForceInterpreter
                         ? EngineKind::Interpreter
                         : EngineKind::JIT);
-  builder.setUseOrcMCJITReplacement(AcknowledgeORCv1Deprecation,
-                                    UseJITKind == JITKind::OrcMCJITReplacement);
 
   // If we are supposed to override the target triple, do so now.
   if (!TargetTriple.empty())
@@ -476,7 +471,8 @@ int main(int argc, char **argv, char * const *envp) {
 
   builder.setOptLevel(getOptLevel());
 
-  TargetOptions Options = codegen::InitTargetOptionsFromCodeGenFlags();
+  TargetOptions Options =
+      codegen::InitTargetOptionsFromCodeGenFlags(Triple(TargetTriple));
   if (codegen::getFloatABIForCalls() != FloatABI::Default)
     Options.FloatABIType = codegen::getFloatABIForCalls();
 
@@ -674,7 +670,7 @@ int main(int argc, char **argv, char * const *envp) {
     // MCJIT itself. FIXME.
 
     // Lanch the remote process and get a channel to it.
-    std::unique_ptr<FDRawChannel> C = launchRemote();
+    std::unique_ptr<orc::shared::FDRawByteChannel> C = launchRemote();
     if (!C) {
       WithColor::error(errs(), argv[0]) << "failed to launch remote JIT.\n";
       exit(1);
@@ -695,14 +691,7 @@ int main(int argc, char **argv, char * const *envp) {
 
     // Forward MCJIT's symbol resolution calls to the remote.
     static_cast<ForwardingMemoryManager *>(RTDyldMM)->setResolver(
-        orc::createLambdaResolver(
-            AcknowledgeORCv1Deprecation,
-            [](const std::string &Name) { return nullptr; },
-            [&](const std::string &Name) {
-              if (auto Addr = ExitOnErr(R->getSymbolAddress(Name)))
-                return JITSymbol(Addr, JITSymbolFlags::Exported);
-              return JITSymbol(nullptr);
-            }));
+        std::make_unique<RemoteResolver<MyRemote>>(*R));
 
     // Grab the target address of the JIT'd main function on the remote and call
     // it.
@@ -1026,7 +1015,7 @@ void disallowOrcOptions() {
   }
 }
 
-std::unique_ptr<FDRawChannel> launchRemote() {
+std::unique_ptr<orc::shared::FDRawByteChannel> launchRemote() {
 #ifndef LLVM_ON_UNIX
   llvm_unreachable("launchRemote not supported on non-Unix platforms");
 #else
@@ -1076,6 +1065,7 @@ std::unique_ptr<FDRawChannel> launchRemote() {
   close(PipeFD[1][1]);
 
   // Return an RPC channel connected to our end of the pipes.
-  return std::make_unique<FDRawChannel>(PipeFD[1][0], PipeFD[0][1]);
+  return std::make_unique<orc::shared::FDRawByteChannel>(PipeFD[1][0],
+                                                         PipeFD[0][1]);
 #endif
 }

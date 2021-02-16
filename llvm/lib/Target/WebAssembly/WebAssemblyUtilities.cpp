@@ -15,6 +15,7 @@
 #include "WebAssemblyMachineFunctionInfo.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/MC/MCContext.h"
 using namespace llvm;
 
 const char *const WebAssembly::ClangCallTerminateFn = "__clang_call_terminate";
@@ -95,4 +96,36 @@ const MachineOperand &WebAssembly::getCalleeOp(const MachineInstr &MI) {
   default:
     llvm_unreachable("Not a call instruction");
   }
+}
+
+MCSymbolWasm *
+WebAssembly::getOrCreateFunctionTableSymbol(MCContext &Ctx,
+                                            const StringRef &Name) {
+  // FIXME: Duplicates functionality from
+  // MC/WasmObjectWriter::recordRelocation.
+  MCSymbolWasm *Sym = cast_or_null<MCSymbolWasm>(Ctx.lookupSymbol(Name));
+  if (Sym) {
+    if (!Sym->isFunctionTable())
+      Ctx.reportError(SMLoc(), "symbol is not a wasm funcref table");
+  } else {
+    Sym = cast<MCSymbolWasm>(Ctx.getOrCreateSymbol(Name));
+    Sym->setFunctionTable();
+    // The default function table is synthesized by the linker.
+    Sym->setUndefined();
+  }
+  return Sym;
+}
+
+// Find a catch instruction from an EH pad.
+MachineInstr *WebAssembly::findCatch(MachineBasicBlock *EHPad) {
+  assert(EHPad->isEHPad());
+  auto Pos = EHPad->begin();
+  // Skip any label or debug instructions. Also skip 'end' marker instructions
+  // that may exist after marker placement in CFGStackify.
+  while (Pos != EHPad->end() &&
+         (Pos->isLabel() || Pos->isDebugInstr() || isMarker(Pos->getOpcode())))
+    Pos++;
+  if (Pos != EHPad->end() && WebAssembly::isCatch(Pos->getOpcode()))
+    return &*Pos;
+  return nullptr;
 }

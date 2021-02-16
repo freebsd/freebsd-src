@@ -78,7 +78,7 @@ private:
 
 class LinkerDriver {
 public:
-  void link(llvm::ArrayRef<const char *> args);
+  void linkerMain(llvm::ArrayRef<const char *> args);
 
   // Used by the resolver to parse .drectve section contents.
   void parseDirectives(InputFile *file);
@@ -95,9 +95,6 @@ public:
 
 private:
   std::unique_ptr<llvm::TarWriter> tar; // for /linkrepro
-
-  // Opens a file. Path has to be resolved already.
-  MemoryBufferRef openFile(StringRef path);
 
   // Searches a file from search paths.
   Optional<StringRef> findFile(StringRef filename);
@@ -168,7 +165,7 @@ void parseVersion(StringRef arg, uint32_t *major, uint32_t *minor);
 
 // Parses a string in the form of "<subsystem>[,<integer>[.<integer>]]".
 void parseSubsystem(StringRef arg, WindowsSubsystem *sys, uint32_t *major,
-                    uint32_t *minor);
+                    uint32_t *minor, bool *gotVersion = nullptr);
 
 void parseAlternateName(StringRef);
 void parseMerge(StringRef);
@@ -205,8 +202,6 @@ void checkFailIfMismatch(StringRef arg, InputFile *source);
 // Convert Windows resource files (.res files) to a .obj file.
 MemoryBufferRef convertResToCOFF(ArrayRef<MemoryBufferRef> mbs,
                                  ArrayRef<ObjFile *> objs);
-
-void runMSVCLinker(std::string rsp, ArrayRef<StringRef> objects);
 
 // Create enum with OPT_xxx values for each option in Options.td
 enum {

@@ -17,13 +17,11 @@
 #define GET_REGINFO_HEADER
 #include "AMDGPUGenRegisterInfo.inc"
 
-#include "SIDefines.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-
 namespace llvm {
 
 class GCNSubtarget;
 class LiveIntervals;
+class RegisterBank;
 class SIMachineFunctionInfo;
 
 class SIRegisterInfo final : public AMDGPUGenRegisterInfo {
@@ -39,6 +37,11 @@ private:
   /// Provided a register can be fully split with given subregs,
   /// all elements of the inner vector combined give a full lane mask.
   static std::array<std::vector<int16_t>, 16> RegSplitParts;
+
+  // Table representing sub reg of given width and offset.
+  // First index is subreg size: 32, 64, 96, 128, 160, 192, 224, 256, 512.
+  // Second index is 32 different dword offsets.
+  static std::array<std::array<uint16_t, 32>, 9> SubRegFromChannelTable;
 
   void reserveRegisterTuples(BitVector &, MCRegister Reg) const;
 
@@ -63,6 +66,7 @@ public:
   const MCPhysReg *getCalleeSavedRegsViaCopy(const MachineFunction *MF) const;
   const uint32_t *getCallPreservedMask(const MachineFunction &MF,
                                        CallingConv::ID) const override;
+  const uint32_t *getNoPreservedMask() const override;
 
   // Stack access is very expensive. CSRs are also the high registers, and we
   // want to minimize the number of used registers.
@@ -83,16 +87,15 @@ public:
     const MachineFunction &MF) const override;
   bool requiresVirtualBaseRegisters(const MachineFunction &Fn) const override;
 
-  int64_t getMUBUFInstrOffset(const MachineInstr *MI) const;
+  int64_t getScratchInstrOffset(const MachineInstr *MI) const;
 
   int64_t getFrameIndexInstrOffset(const MachineInstr *MI,
                                    int Idx) const override;
 
   bool needsFrameBaseReg(MachineInstr *MI, int64_t Offset) const override;
 
-  void materializeFrameBaseRegister(MachineBasicBlock *MBB, Register BaseReg,
-                                    int FrameIdx,
-                                    int64_t Offset) const override;
+  Register materializeFrameBaseRegister(MachineBasicBlock *MBB, int FrameIdx,
+                                        int64_t Offset) const override;
 
   void resolveFrameIndex(MachineInstr &MI, Register BaseReg,
                          int64_t Offset) const override;
@@ -126,6 +129,7 @@ public:
 
   StringRef getRegAsmName(MCRegister Reg) const override;
 
+  // Pseudo regs are not allowed
   unsigned getHWRegIndex(MCRegister Reg) const {
     return getEncodingValue(Reg) & 0xff;
   }
@@ -148,14 +152,7 @@ public:
     return isSGPRClass(getRegClass(RCID));
   }
 
-  bool isSGPRReg(const MachineRegisterInfo &MRI, Register Reg) const {
-    const TargetRegisterClass *RC;
-    if (Reg.isVirtual())
-      RC = MRI.getRegClass(Reg);
-    else
-      RC = getPhysRegClass(Reg);
-    return isSGPRClass(RC);
-  }
+  bool isSGPRReg(const MachineRegisterInfo &MRI, Register Reg) const;
 
   /// \returns true if this class contains only AGPR registers
   bool isAGPRClass(const TargetRegisterClass *RC) const {
@@ -198,11 +195,7 @@ public:
 
   /// \returns True if operands defined with this operand type can accept
   /// a literal constant (i.e. any 32-bit immediate).
-  bool opCanUseLiteralConstant(unsigned OpType) const {
-    // TODO: 64-bit operands have extending behavior from 32-bit literal.
-    return OpType >= AMDGPU::OPERAND_REG_IMM_FIRST &&
-           OpType <= AMDGPU::OPERAND_REG_IMM_LAST;
-  }
+  bool opCanUseLiteralConstant(unsigned OpType) const;
 
   /// \returns True if operands defined with this operand type can accept
   /// an inline constant. i.e. An integer value in the range (-16, 64) or
@@ -317,13 +310,13 @@ public:
   /// of the subtarget.
   ArrayRef<MCPhysReg> getAllSGPR128(const MachineFunction &MF) const;
 
+  /// Return all SGPR64 which satisfy the waves per execution unit requirement
+  /// of the subtarget.
+  ArrayRef<MCPhysReg> getAllSGPR64(const MachineFunction &MF) const;
+
   /// Return all SGPR32 which satisfy the waves per execution unit requirement
   /// of the subtarget.
   ArrayRef<MCPhysReg> getAllSGPR32(const MachineFunction &MF) const;
-
-  /// Return all VGPR32 which satisfy the waves per execution unit requirement
-  /// of the subtarget.
-  ArrayRef<MCPhysReg> getAllVGPR32(const MachineFunction &MF) const;
 
 private:
   void buildSpillLoadStore(MachineBasicBlock::iterator MI,
@@ -331,7 +324,6 @@ private:
                            int Index,
                            Register ValueReg,
                            bool ValueIsKill,
-                           MCRegister ScratchRsrcReg,
                            MCRegister ScratchOffsetReg,
                            int64_t InstrOffset,
                            MachineMemOperand *MMO,

@@ -6,14 +6,15 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Option/OptTable.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
-#include "llvm/Option/Option.h"
 #include "llvm/Option/OptSpecifier.h"
-#include "llvm/Option/OptTable.h"
+#include "llvm/Option/Option.h"
+#include "llvm/Support/CommandLine.h" // for expandResponseFiles
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -195,10 +196,13 @@ static unsigned matchOption(const OptTable::Info *I, StringRef Str,
 
 // Returns true if one of the Prefixes + In.Names matches Option
 static bool optionMatches(const OptTable::Info &In, StringRef Option) {
-  if (In.Prefixes)
+  if (In.Prefixes) {
+    StringRef InName(In.Name);
     for (size_t I = 0; In.Prefixes[I]; I++)
-      if (Option == std::string(In.Prefixes[I]) + In.Name)
-        return true;
+      if (Option.endswith(InName))
+        if (Option.slice(0, Option.size() - InName.size()) == In.Prefixes[I])
+          return true;
+  }
   return false;
 }
 
@@ -226,7 +230,7 @@ OptTable::suggestValueCompletions(StringRef Option, StringRef Arg) const {
 }
 
 std::vector<std::string>
-OptTable::findByPrefix(StringRef Cur, unsigned short DisableFlags) const {
+OptTable::findByPrefix(StringRef Cur, unsigned int DisableFlags) const {
   std::vector<std::string> Ret;
   for (size_t I = FirstSearchableIndex, E = OptionInfos.size(); I < E; I++) {
     const Info &In = OptionInfos[I];
@@ -239,7 +243,7 @@ OptTable::findByPrefix(StringRef Cur, unsigned short DisableFlags) const {
       std::string S = std::string(In.Prefixes[I]) + std::string(In.Name) + "\t";
       if (In.HelpText)
         S += In.HelpText;
-      if (StringRef(S).startswith(Cur) && S.compare(std::string(Cur) + "\t"))
+      if (StringRef(S).startswith(Cur) && S != std::string(Cur) + "\t")
         Ret.push_back(S);
     }
   }
@@ -330,6 +334,60 @@ bool OptTable::addValues(const char *Option, const char *Values) {
   return false;
 }
 
+// Parse a single argument, return the new argument, and update Index. If
+// GroupedShortOptions is true, -a matches "-abc" and the argument in Args will
+// be updated to "-bc". This overload does not support
+// FlagsToInclude/FlagsToExclude or case insensitive options.
+Arg *OptTable::parseOneArgGrouped(InputArgList &Args, unsigned &Index) const {
+  // Anything that doesn't start with PrefixesUnion is an input, as is '-'
+  // itself.
+  const char *CStr = Args.getArgString(Index);
+  StringRef Str(CStr);
+  if (isInput(PrefixesUnion, Str))
+    return new Arg(getOption(TheInputOptionID), Str, Index++, CStr);
+
+  const Info *End = OptionInfos.data() + OptionInfos.size();
+  StringRef Name = Str.ltrim(PrefixChars);
+  const Info *Start = std::lower_bound(
+      OptionInfos.data() + FirstSearchableIndex, End, Name.data());
+  const Info *Fallback = nullptr;
+  unsigned Prev = Index;
+
+  // Search for the option which matches Str.
+  for (; Start != End; ++Start) {
+    unsigned ArgSize = matchOption(Start, Str, IgnoreCase);
+    if (!ArgSize)
+      continue;
+
+    Option Opt(Start, this);
+    if (Arg *A = Opt.accept(Args, StringRef(Args.getArgString(Index), ArgSize),
+                            false, Index))
+      return A;
+
+    // If Opt is a Flag of length 2 (e.g. "-a"), we know it is a prefix of
+    // the current argument (e.g. "-abc"). Match it as a fallback if no longer
+    // option (e.g. "-ab") exists.
+    if (ArgSize == 2 && Opt.getKind() == Option::FlagClass)
+      Fallback = Start;
+
+    // Otherwise, see if the argument is missing.
+    if (Prev != Index)
+      return nullptr;
+  }
+  if (Fallback) {
+    Option Opt(Fallback, this);
+    if (Arg *A = Opt.accept(Args, Str.substr(0, 2), true, Index)) {
+      if (Str.size() == 2)
+        ++Index;
+      else
+        Args.replaceArgString(Index, Twine('-') + Str.substr(2));
+      return A;
+    }
+  }
+
+  return new Arg(getOption(TheUnknownOptionID), Str, Index++, CStr);
+}
+
 Arg *OptTable::ParseOneArg(const ArgList &Args, unsigned &Index,
                            unsigned FlagsToInclude,
                            unsigned FlagsToExclude) const {
@@ -373,7 +431,8 @@ Arg *OptTable::ParseOneArg(const ArgList &Args, unsigned &Index,
       continue;
 
     // See if this option matches.
-    if (Arg *A = Opt.accept(Args, Index, ArgSize))
+    if (Arg *A = Opt.accept(Args, StringRef(Args.getArgString(Index), ArgSize),
+                            false, Index))
       return A;
 
     // Otherwise, see if this argument was missing values.
@@ -414,8 +473,11 @@ InputArgList OptTable::ParseArgs(ArrayRef<const char *> ArgArr,
     }
 
     unsigned Prev = Index;
-    Arg *A = ParseOneArg(Args, Index, FlagsToInclude, FlagsToExclude);
-    assert(Index > Prev && "Parser failed to consume argument.");
+    Arg *A = GroupedShortOptions
+                 ? parseOneArgGrouped(Args, Index)
+                 : ParseOneArg(Args, Index, FlagsToInclude, FlagsToExclude);
+    assert((Index > Prev || GroupedShortOptions) &&
+           "Parser failed to consume argument.");
 
     // Check for missing argument error.
     if (!A) {
@@ -429,6 +491,33 @@ InputArgList OptTable::ParseArgs(ArrayRef<const char *> ArgArr,
     Args.append(A);
   }
 
+  return Args;
+}
+
+InputArgList OptTable::parseArgs(int Argc, char *const *Argv,
+                                 OptSpecifier Unknown, StringSaver &Saver,
+                                 function_ref<void(StringRef)> ErrorFn) const {
+  SmallVector<const char *, 0> NewArgv;
+  // The environment variable specifies initial options which can be overridden
+  // by commnad line options.
+  cl::expandResponseFiles(Argc, Argv, EnvVar, Saver, NewArgv);
+
+  unsigned MAI, MAC;
+  opt::InputArgList Args = ParseArgs(makeArrayRef(NewArgv), MAI, MAC);
+  if (MAC)
+    ErrorFn((Twine(Args.getArgString(MAI)) + ": missing argument").str());
+
+  // For each unknwon option, call ErrorFn with a formatted error message. The
+  // message includes a suggested alternative option spelling if available.
+  std::string Nearest;
+  for (const opt::Arg *A : Args.filtered(Unknown)) {
+    std::string Spelling = A->getAsString(Args);
+    if (findNearest(Spelling, Nearest) > 1)
+      ErrorFn("unknown argument '" + A->getAsString(Args) + "'");
+    else
+      ErrorFn("unknown argument '" + A->getAsString(Args) +
+              "', did you mean '" + Nearest + "'?");
+  }
   return Args;
 }
 

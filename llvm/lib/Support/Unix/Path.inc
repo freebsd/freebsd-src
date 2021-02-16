@@ -33,6 +33,7 @@
 
 #include <dirent.h>
 #include <pwd.h>
+#include <sys/file.h>
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -146,6 +147,9 @@ test_dir(char ret[PATH_MAX], const char *dir, const char *bin)
 static char *
 getprogpath(char ret[PATH_MAX], const char *bin)
 {
+  if (bin == nullptr)
+    return nullptr;
+
   /* First approach: absolute path. */
   if (bin[0] == '/') {
     if (test_dir(ret, "/", bin) == 0)
@@ -681,8 +685,6 @@ void expand_tilde(const Twine &path, SmallVectorImpl<char> &dest) {
 
   path.toVector(dest);
   expandTildeExpr(dest);
-
-  return;
 }
 
 static file_type typeForMode(mode_t Mode) {
@@ -789,6 +791,16 @@ std::error_code setLastAccessAndModificationTime(int FD, TimePoint<> AccessTime,
       sys::toTimeVal(std::chrono::time_point_cast<std::chrono::microseconds>(
           ModificationTime));
   if (::futimes(FD, Times))
+    return std::error_code(errno, std::generic_category());
+  return std::error_code();
+#elif defined(__MVS__)
+  attrib_t Attr;
+  memset(&Attr, 0, sizeof(Attr));
+  Attr.att_atimechg = 1;
+  Attr.att_atime = sys::toTimeT(AccessTime);
+  Attr.att_mtimechg = 1;
+  Attr.att_mtime = sys::toTimeT(ModificationTime);
+  if (::__fchattr(FD, &Attr, sizeof(Attr)) != 0)
     return std::error_code(errno, std::generic_category());
   return std::error_code();
 #else
@@ -1055,8 +1067,13 @@ file_t getStdoutHandle() { return 1; }
 file_t getStderrHandle() { return 2; }
 
 Expected<size_t> readNativeFile(file_t FD, MutableArrayRef<char> Buf) {
+#if defined(__APPLE__)
+  size_t Size = std::min<size_t>(Buf.size(), INT32_MAX);
+#else
+  size_t Size = Buf.size();
+#endif
   ssize_t NumRead =
-      sys::RetryAfterSignal(-1, ::read, FD, Buf.data(), Buf.size());
+      sys::RetryAfterSignal(-1, ::read, FD, Buf.data(), Size);
   if (ssize_t(NumRead) == -1)
     return errorCodeToError(std::error_code(errno, std::generic_category()));
   return NumRead;
@@ -1064,18 +1081,67 @@ Expected<size_t> readNativeFile(file_t FD, MutableArrayRef<char> Buf) {
 
 Expected<size_t> readNativeFileSlice(file_t FD, MutableArrayRef<char> Buf,
                                      uint64_t Offset) {
+#if defined(__APPLE__)
+  size_t Size = std::min<size_t>(Buf.size(), INT32_MAX);
+#else
+  size_t Size = Buf.size();
+#endif
 #ifdef HAVE_PREAD
   ssize_t NumRead =
-      sys::RetryAfterSignal(-1, ::pread, FD, Buf.data(), Buf.size(), Offset);
+      sys::RetryAfterSignal(-1, ::pread, FD, Buf.data(), Size, Offset);
 #else
   if (lseek(FD, Offset, SEEK_SET) == -1)
     return errorCodeToError(std::error_code(errno, std::generic_category()));
   ssize_t NumRead =
-      sys::RetryAfterSignal(-1, ::read, FD, Buf.data(), Buf.size());
+      sys::RetryAfterSignal(-1, ::read, FD, Buf.data(), Size);
 #endif
   if (NumRead == -1)
     return errorCodeToError(std::error_code(errno, std::generic_category()));
   return NumRead;
+}
+
+std::error_code tryLockFile(int FD, std::chrono::milliseconds Timeout) {
+  auto Start = std::chrono::steady_clock::now();
+  auto End = Start + Timeout;
+  do {
+    struct flock Lock;
+    memset(&Lock, 0, sizeof(Lock));
+    Lock.l_type = F_WRLCK;
+    Lock.l_whence = SEEK_SET;
+    Lock.l_start = 0;
+    Lock.l_len = 0;
+    if (::fcntl(FD, F_SETLK, &Lock) != -1)
+      return std::error_code();
+    int Error = errno;
+    if (Error != EACCES && Error != EAGAIN)
+      return std::error_code(Error, std::generic_category());
+    usleep(1000);
+  } while (std::chrono::steady_clock::now() < End);
+  return make_error_code(errc::no_lock_available);
+}
+
+std::error_code lockFile(int FD) {
+  struct flock Lock;
+  memset(&Lock, 0, sizeof(Lock));
+  Lock.l_type = F_WRLCK;
+  Lock.l_whence = SEEK_SET;
+  Lock.l_start = 0;
+  Lock.l_len = 0;
+  if (::fcntl(FD, F_SETLKW, &Lock) != -1)
+    return std::error_code();
+  int Error = errno;
+  return std::error_code(Error, std::generic_category());
+}
+
+std::error_code unlockFile(int FD) {
+  struct flock Lock;
+  Lock.l_type = F_UNLCK;
+  Lock.l_whence = SEEK_SET;
+  Lock.l_start = 0;
+  Lock.l_len = 0;
+  if (::fcntl(FD, F_SETLK, &Lock) != -1)
+    return std::error_code();
+  return std::error_code(errno, std::generic_category());
 }
 
 std::error_code closeFile(file_t &F) {

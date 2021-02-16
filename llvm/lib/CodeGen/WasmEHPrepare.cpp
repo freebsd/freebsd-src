@@ -23,7 +23,7 @@
 //
 // - After:
 //   catchpad ...
-//   exn = wasm.extract.exception();
+//   exn = wasm.catch(WebAssembly::CPP_EXCEPTION);
 //   // Only add below in case it's not a single catch (...)
 //   wasm.landingpad.index(index);
 //   __wasm_lpad_context.lpad_index = index;
@@ -112,7 +112,7 @@ class WasmEHPrepare : public FunctionPass {
   Function *LPadIndexF = nullptr;   // wasm.landingpad.index() intrinsic
   Function *LSDAF = nullptr;        // wasm.lsda() intrinsic
   Function *GetExnF = nullptr;      // wasm.get.exception() intrinsic
-  Function *ExtractExnF = nullptr;  // wasm.extract.exception() intrinsic
+  Function *CatchF = nullptr;       // wasm.catch() intrinsic
   Function *GetSelectorF = nullptr; // wasm.get.ehselector() intrinsic
   FunctionCallee CallPersonalityF =
       nullptr; // _Unwind_CallPersonality() wrapper
@@ -124,7 +124,6 @@ class WasmEHPrepare : public FunctionPass {
   void setupEHPadFunctions(Function &F);
   void prepareEHPad(BasicBlock *BB, bool NeedPersonality, bool NeedLSDA = false,
                     unsigned Index = 0);
-  void prepareTerminateCleanupPad(BasicBlock *BB);
 
 public:
   static char ID; // Pass identification, replacement for typeid
@@ -169,7 +168,7 @@ static void eraseDeadBBsAndChildren(const Container &BBs, DomTreeUpdater *DTU) {
   SmallVector<BasicBlock *, 8> WL(BBs.begin(), BBs.end());
   while (!WL.empty()) {
     auto *BB = WL.pop_back_val();
-    if (pred_begin(BB) != pred_end(BB))
+    if (!pred_empty(BB))
       continue;
     WL.append(succ_begin(BB), succ_end(BB));
     DeleteDeadBlock(BB, DTU);
@@ -205,7 +204,7 @@ bool WasmEHPrepare::prepareThrows(Function &F) {
       continue;
     Changed = true;
     auto *BB = ThrowI->getParent();
-    SmallVector<BasicBlock *, 4> Succs(succ_begin(BB), succ_end(BB));
+    SmallVector<BasicBlock *, 4> Succs(successors(BB));
     auto &InstList = BB->getInstList();
     InstList.erase(std::next(BasicBlock::iterator(ThrowI)), InstList.end());
     IRB.SetInsertPoint(BB);
@@ -328,12 +327,9 @@ void WasmEHPrepare::setupEHPadFunctions(Function &F) {
   GetExnF = Intrinsic::getDeclaration(&M, Intrinsic::wasm_get_exception);
   GetSelectorF = Intrinsic::getDeclaration(&M, Intrinsic::wasm_get_ehselector);
 
-  // wasm.extract.exception() is the same as wasm.get.exception() but it does
-  // not take a token argument. This will be lowered down to EXTRACT_EXCEPTION
-  // pseudo instruction in instruction selection, which will be expanded using
-  // 'br_on_exn' instruction later.
-  ExtractExnF =
-      Intrinsic::getDeclaration(&M, Intrinsic::wasm_extract_exception);
+  // wasm.catch() will be lowered down to wasm 'catch' instruction in
+  // instruction selection.
+  CatchF = Intrinsic::getDeclaration(&M, Intrinsic::wasm_catch);
 
   // _Unwind_CallPersonality() wrapper function, which calls the personality
   CallPersonalityF = M.getOrInsertFunction(
@@ -373,8 +369,13 @@ void WasmEHPrepare::prepareEHPad(BasicBlock *BB, bool NeedPersonality,
     return;
   }
 
-  Instruction *ExtractExnCI = IRB.CreateCall(ExtractExnF, {}, "exn");
-  GetExnCI->replaceAllUsesWith(ExtractExnCI);
+  // Replace wasm.get.exception intrinsic with wasm.catch intrinsic, which will
+  // be lowered to wasm 'catch' instruction. We do this mainly because
+  // instruction selection cannot handle wasm.get.exception intrinsic's token
+  // argument.
+  Instruction *CatchCI =
+      IRB.CreateCall(CatchF, {IRB.getInt32(WebAssembly::CPP_EXCEPTION)}, "exn");
+  GetExnCI->replaceAllUsesWith(CatchCI);
   GetExnCI->eraseFromParent();
 
   // In case it is a catchpad with single catch (...) or a cleanuppad, we don't
@@ -387,7 +388,7 @@ void WasmEHPrepare::prepareEHPad(BasicBlock *BB, bool NeedPersonality,
     }
     return;
   }
-  IRB.SetInsertPoint(ExtractExnCI->getNextNode());
+  IRB.SetInsertPoint(CatchCI->getNextNode());
 
   // This is to create a map of <landingpad EH label, landingpad index> in
   // SelectionDAGISel, which is to be used in EHStreamer to emit LSDA tables.
@@ -403,7 +404,7 @@ void WasmEHPrepare::prepareEHPad(BasicBlock *BB, bool NeedPersonality,
     IRB.CreateStore(IRB.CreateCall(LSDAF), LSDAField);
 
   // Pseudocode: _Unwind_CallPersonality(exn);
-  CallInst *PersCI = IRB.CreateCall(CallPersonalityF, ExtractExnCI,
+  CallInst *PersCI = IRB.CreateCall(CallPersonalityF, CatchCI,
                                     OperandBundleDef("funclet", CPI));
   PersCI->setDoesNotThrow();
 

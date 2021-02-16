@@ -249,7 +249,12 @@ Error CoverageMapping::loadFunctionRecord(
       consumeError(std::move(E));
       return Error::success();
     }
-    Function.pushRegion(Region, *ExecutionCount);
+    Expected<int64_t> AltExecutionCount = Ctx.evaluate(Region.FalseCount);
+    if (auto E = AltExecutionCount.takeError()) {
+      consumeError(std::move(E));
+      return Error::success();
+    }
+    Function.pushRegion(Region, *ExecutionCount, *AltExecutionCount);
   }
 
   // Don't create records for (filenames, function) pairs we've already seen.
@@ -485,9 +490,15 @@ class SegmentBuilder {
       if (CurStartLoc == CR.value().endLoc()) {
         // Avoid making zero-length regions active. If it's the last region,
         // emit a skipped segment. Otherwise use its predecessor's count.
-        const bool Skipped = (CR.index() + 1) == Regions.size();
+        const bool Skipped =
+            (CR.index() + 1) == Regions.size() ||
+            CR.value().Kind == CounterMappingRegion::SkippedRegion;
         startSegment(ActiveRegions.empty() ? CR.value() : *ActiveRegions.back(),
                      CurStartLoc, !GapRegion, Skipped);
+        // If it is skipped segment, create a segment with last pushed
+        // regions's count at CurStartLoc.
+        if (Skipped && !ActiveRegions.empty())
+          startSegment(*ActiveRegions.back(), CurStartLoc, false);
         continue;
       }
       if (CR.index() + 1 == Regions.size() ||
@@ -587,6 +598,8 @@ public:
       const auto &L = Segments[I - 1];
       const auto &R = Segments[I];
       if (!(L.Line < R.Line) && !(L.Line == R.Line && L.Col < R.Col)) {
+        if (L.Line == R.Line && L.Col == R.Col && !L.HasCount)
+          continue;
         LLVM_DEBUG(dbgs() << " ! Segment " << L.Line << ":" << L.Col
                           << " followed by " << R.Line << ":" << R.Col << "\n");
         assert(false && "Coverage segments not unique or sorted");
@@ -603,8 +616,7 @@ public:
 std::vector<StringRef> CoverageMapping::getUniqueSourceFiles() const {
   std::vector<StringRef> Filenames;
   for (const auto &Function : getCoveredFunctions())
-    Filenames.insert(Filenames.end(), Function.Filenames.begin(),
-                     Function.Filenames.end());
+    llvm::append_range(Filenames, Function.Filenames);
   llvm::sort(Filenames);
   auto Last = std::unique(Filenames.begin(), Filenames.end());
   Filenames.erase(Last, Filenames.end());
@@ -664,6 +676,10 @@ CoverageData CoverageMapping::getCoverageForFile(StringRef Filename) const {
         if (MainFileID && isExpansion(CR, *MainFileID))
           FileCoverage.Expansions.emplace_back(CR, Function);
       }
+    // Capture branch regions specific to the function (excluding expansions).
+    for (const auto &CR : Function.CountedBranchRegions)
+      if (FileIDs.test(CR.FileID) && (CR.FileID == CR.ExpandedFileID))
+        FileCoverage.BranchRegions.push_back(CR);
   }
 
   LLVM_DEBUG(dbgs() << "Emitting segments for file: " << Filename << "\n");
@@ -711,6 +727,10 @@ CoverageMapping::getCoverageForFunction(const FunctionRecord &Function) const {
       if (isExpansion(CR, *MainFileID))
         FunctionCoverage.Expansions.emplace_back(CR, Function);
     }
+  // Capture branch regions specific to the function (excluding expansions).
+  for (const auto &CR : Function.CountedBranchRegions)
+    if (CR.FileID == *MainFileID)
+      FunctionCoverage.BranchRegions.push_back(CR);
 
   LLVM_DEBUG(dbgs() << "Emitting segments for function: " << Function.Name
                     << "\n");
@@ -730,6 +750,10 @@ CoverageData CoverageMapping::getCoverageForExpansion(
       if (isExpansion(CR, Expansion.FileID))
         ExpansionCoverage.Expansions.emplace_back(CR, Expansion.Function);
     }
+  for (const auto &CR : Expansion.Function.CountedBranchRegions)
+    // Capture branch regions that only pertain to the corresponding expansion.
+    if (CR.FileID == Expansion.FileID)
+      ExpansionCoverage.BranchRegions.push_back(CR);
 
   LLVM_DEBUG(dbgs() << "Emitting segments for expansion of file "
                     << Expansion.FileID << "\n");
@@ -770,6 +794,7 @@ LineCoverageStats::LineCoverageStats(
     ExecutionCount = WrappedSegment->Count;
   if (!MinRegionCount)
     return;
+  ExecutionCount = 0;
   for (const auto *LS : LineSegments)
     if (isStartOfRegion(LS))
       ExecutionCount = std::max(ExecutionCount, LS->Count);
@@ -807,6 +832,8 @@ static std::string getCoverageMapErrString(coveragemap_error Err) {
     return "Malformed coverage data";
   case coveragemap_error::decompression_failed:
     return "Failed to decompress coverage data (zlib)";
+  case coveragemap_error::invalid_or_missing_arch_specifier:
+    return "`-arch` specifier is invalid or missing for universal binary";
   }
   llvm_unreachable("A value of coveragemap_error has no message.");
 }

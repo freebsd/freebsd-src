@@ -12,6 +12,7 @@
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/CodeGen/LexicalScopes.h"
 #include <utility>
 
 namespace llvm {
@@ -22,6 +23,24 @@ class DINode;
 class MachineFunction;
 class MachineInstr;
 class TargetRegisterInfo;
+
+/// Record instruction ordering so we can query their relative positions within
+/// a function. Meta instructions are given the same ordinal as the preceding
+/// non-meta instruction. Class state is invalid if MF is modified after
+/// calling initialize.
+class InstructionOrdering {
+public:
+  void initialize(const MachineFunction &MF);
+  void clear() { InstNumberMap.clear(); }
+
+  /// Check if instruction \p A comes before \p B, where \p A and \p B both
+  /// belong to the MachineFunction passed to initialize().
+  bool isBefore(const MachineInstr *A, const MachineInstr *B) const;
+
+private:
+  /// Each instruction is assigned an order number.
+  DenseMap<const MachineInstr *, unsigned> InstNumberMap;
+};
 
 /// For each user variable, keep a list of instruction ranges where this
 /// variable is accessible. The variables are listed in order of appearance.
@@ -52,6 +71,8 @@ public:
   ///   register-described debug values that have their end index
   ///   set to this entry's position in the entry vector.
   class Entry {
+    friend DbgValueHistoryMap;
+
   public:
     enum EntryKind { DbgValue, Clobber };
 
@@ -89,6 +110,9 @@ public:
     return Entries[Index];
   }
 
+  /// Drop location ranges which exist entirely outside each variable's scope.
+  void trimLocationRanges(const MachineFunction &MF, LexicalScopes &LScopes,
+                          const InstructionOrdering &Ordering);
   bool empty() const { return VarEntries.empty(); }
   void clear() { VarEntries.clear(); }
   EntriesMap::const_iterator begin() const { return VarEntries.begin(); }

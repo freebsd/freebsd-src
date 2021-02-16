@@ -22,6 +22,7 @@
 #include "lldb/Utility/GDBRemote.h"
 #include "lldb/Utility/ProcessInfo.h"
 #include "lldb/Utility/StructuredData.h"
+#include "lldb/Utility/TraceOptions.h"
 #if defined(_WIN32)
 #include "lldb/Host/windows/PosixApi.h"
 #endif
@@ -375,6 +376,9 @@ public:
 
   lldb::user_id_t GetFileSize(const FileSpec &file_spec);
 
+  void AutoCompleteDiskFileOrDirectory(CompletionRequest &request,
+                                       bool only_dir);
+
   Status GetFilePermissions(const FileSpec &file_spec,
                             uint32_t &file_permissions);
 
@@ -396,7 +400,7 @@ public:
   bool GetFileExists(const FileSpec &file_spec);
 
   Status RunShellCommand(
-      const char *command,         // Shouldn't be nullptr
+      llvm::StringRef command,
       const FileSpec &working_dir, // Pass empty FileSpec to use the current
                                    // working directory
       int *status_ptr, // Pass nullptr if you don't want the process exit status
@@ -515,6 +519,8 @@ public:
                                size_t offset = 0);
 
   Status SendGetTraceConfigPacket(lldb::user_id_t uid, TraceOptions &options);
+
+  llvm::Expected<TraceTypeInfo> SendGetSupportedTraceType();
 
 protected:
   LazyBool m_supports_not_sending_acks;

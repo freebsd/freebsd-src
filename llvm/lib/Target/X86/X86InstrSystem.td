@@ -49,6 +49,7 @@ let Uses = [EFLAGS] in
 def INT3 : I<0xcc, RawFrm, (outs), (ins), "int3", [(int_x86_int (i8 3))]>;
 } // SchedRW
 
+def UBSAN_UD1 : PseudoI<(outs), (ins i32imm:$kind), [(ubsantrap (i32 timm:$kind))]>;
 // The long form of "int $3" turns into int3 as a size optimization.
 // FIXME: This doesn't work because InstAlias can't match immediate constants.
 //def : InstAlias<"int\t$3", (INT3)>;
@@ -171,6 +172,17 @@ def GS_PREFIX : I<0x65, PrefixByte, (outs), (ins), "gs", []>;
 } // SchedRW
 
 //===----------------------------------------------------------------------===//
+// Address-size override prefixes.
+//
+
+let SchedRW = [WriteNop] in {
+def ADDR16_PREFIX : I<0x67, PrefixByte, (outs), (ins), "addr16", []>,
+                      Requires<[In32BitMode]>;
+def ADDR32_PREFIX : I<0x67, PrefixByte, (outs), (ins), "addr32", []>,
+                      Requires<[In64BitMode]>;
+} // SchedRW
+
+//===----------------------------------------------------------------------===//
 // Moves to and from segment registers.
 //
 
@@ -207,45 +219,41 @@ let mayLoad = 1 in
 def LAR16rm : I<0x02, MRMSrcMem, (outs GR16:$dst), (ins i16mem:$src),
                 "lar{w}\t{$src, $dst|$dst, $src}", []>, TB,
                 OpSize16, NotMemoryFoldable;
-def LAR16rr : I<0x02, MRMSrcReg, (outs GR16:$dst), (ins GR16:$src),
+def LAR16rr : I<0x02, MRMSrcReg, (outs GR16:$dst), (ins GR16orGR32orGR64:$src),
                 "lar{w}\t{$src, $dst|$dst, $src}", []>, TB,
                 OpSize16, NotMemoryFoldable;
 
-// i16mem operand in LAR32rm and GR32 operand in LAR32rr is not a typo.
 let mayLoad = 1 in
 def LAR32rm : I<0x02, MRMSrcMem, (outs GR32:$dst), (ins i16mem:$src),
                 "lar{l}\t{$src, $dst|$dst, $src}", []>, TB,
                 OpSize32, NotMemoryFoldable;
-def LAR32rr : I<0x02, MRMSrcReg, (outs GR32:$dst), (ins GR32:$src),
+def LAR32rr : I<0x02, MRMSrcReg, (outs GR32:$dst), (ins GR16orGR32orGR64:$src),
                 "lar{l}\t{$src, $dst|$dst, $src}", []>, TB,
                 OpSize32, NotMemoryFoldable;
-// i16mem operand in LAR64rm and GR32 operand in LAR64rr is not a typo.
 let mayLoad = 1 in
 def LAR64rm : RI<0x02, MRMSrcMem, (outs GR64:$dst), (ins i16mem:$src),
                  "lar{q}\t{$src, $dst|$dst, $src}", []>, TB, NotMemoryFoldable;
-def LAR64rr : RI<0x02, MRMSrcReg, (outs GR64:$dst), (ins GR32:$src),
+def LAR64rr : RI<0x02, MRMSrcReg, (outs GR64:$dst), (ins GR16orGR32orGR64:$src),
                  "lar{q}\t{$src, $dst|$dst, $src}", []>, TB, NotMemoryFoldable;
 
-// i16mem operand in LSL32rm and GR32 operand in LSL32rr is not a typo.
 let mayLoad = 1 in
 def LSL16rm : I<0x03, MRMSrcMem, (outs GR16:$dst), (ins i16mem:$src),
                 "lsl{w}\t{$src, $dst|$dst, $src}", []>, TB,
                 OpSize16, NotMemoryFoldable;
-def LSL16rr : I<0x03, MRMSrcReg, (outs GR16:$dst), (ins GR16:$src),
+def LSL16rr : I<0x03, MRMSrcReg, (outs GR16:$dst), (ins GR16orGR32orGR64:$src),
                 "lsl{w}\t{$src, $dst|$dst, $src}", []>, TB,
                 OpSize16, NotMemoryFoldable;
-// i16mem operand in LSL64rm and GR32 operand in LSL64rr is not a typo.
 let mayLoad = 1 in
 def LSL32rm : I<0x03, MRMSrcMem, (outs GR32:$dst), (ins i16mem:$src),
                 "lsl{l}\t{$src, $dst|$dst, $src}", []>, TB,
                 OpSize32, NotMemoryFoldable;
-def LSL32rr : I<0x03, MRMSrcReg, (outs GR32:$dst), (ins GR32:$src),
+def LSL32rr : I<0x03, MRMSrcReg, (outs GR32:$dst), (ins GR16orGR32orGR64:$src),
                 "lsl{l}\t{$src, $dst|$dst, $src}", []>, TB,
                 OpSize32, NotMemoryFoldable;
 let mayLoad = 1 in
 def LSL64rm : RI<0x03, MRMSrcMem, (outs GR64:$dst), (ins i16mem:$src),
                  "lsl{q}\t{$src, $dst|$dst, $src}", []>, TB, NotMemoryFoldable;
-def LSL64rr : RI<0x03, MRMSrcReg, (outs GR64:$dst), (ins GR32:$src),
+def LSL64rr : RI<0x03, MRMSrcReg, (outs GR64:$dst), (ins GR16orGR32orGR64:$src),
                  "lsl{q}\t{$src, $dst|$dst, $src}", []>, TB, NotMemoryFoldable;
 
 def INVLPG : I<0x01, MRM7m, (outs), (ins i8mem:$addr), "invlpg\t$addr", []>, TB;
@@ -451,7 +459,7 @@ let Defs = [EAX, EBX, ECX, EDX], Uses = [EAX, ECX] in
 // Cache instructions
 let SchedRW = [WriteSystem] in {
 def INVD : I<0x08, RawFrm, (outs), (ins), "invd", []>, TB;
-def WBINVD : I<0x09, RawFrm, (outs), (ins), "wbinvd", [(int_x86_wbinvd)]>, TB;
+def WBINVD : I<0x09, RawFrm, (outs), (ins), "wbinvd", [(int_x86_wbinvd)]>, PS;
 
 // wbnoinvd is like wbinvd, except without invalidation
 // encoding: like wbinvd + an 0xF3 prefix

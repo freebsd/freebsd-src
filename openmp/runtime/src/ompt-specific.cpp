@@ -27,7 +27,7 @@
 #define THREAD_LOCAL __thread
 #endif
 
-#define OMPT_WEAK_ATTRIBUTE KMP_WEAK_ATTRIBUTE
+#define OMPT_WEAK_ATTRIBUTE KMP_WEAK_ATTRIBUTE_INTERNAL
 
 //******************************************************************************
 // macros
@@ -455,7 +455,7 @@ int __ompt_get_task_memory_internal(void **addr, size_t *size, int blocknum) {
     return 0;
 
   *addr = ret_addr;
-  *size = ret_size;
+  *size = (size_t)ret_size;
   return 1;
 }
 

@@ -18,11 +18,8 @@
 #include "llvm/Analysis/LegacyDivergenceAnalysis.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
-#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/InitializePasses.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
 
 #define DEBUG_TYPE "amdgpu-annotate-uniform"
 
@@ -108,9 +105,11 @@ bool AMDGPUAnnotateUniformValues::isClobberedInFunction(LoadInst * Load) {
   for (auto &BB : Checklist) {
     BasicBlock::iterator StartIt = (!L && (BB == Load->getParent())) ?
       BasicBlock::iterator(Load) : BB->end();
-    auto Q = MDR->getPointerDependencyFrom(MemoryLocation(Ptr), true,
-                                           StartIt, BB, Load);
-    if (Q.isClobber() || Q.isUnknown())
+    auto Q = MDR->getPointerDependencyFrom(
+        MemoryLocation::getBeforeOrAfter(Ptr), true, StartIt, BB, Load);
+    if (Q.isClobber() || Q.isUnknown() ||
+        // Store defines the load and thus clobbers it.
+        (Q.isDef() && Q.getInst()->mayWriteToMemory()))
       return true;
   }
   return false;
@@ -131,10 +130,21 @@ void AMDGPUAnnotateUniformValues::visitLoadInst(LoadInst &I) {
   // We're tracking up to the Function boundaries, and cannot go beyond because
   // of FunctionPass restrictions. We can ensure that is memory not clobbered
   // for memory operations that are live in to entry points only.
-  bool NotClobbered = isEntryFunc && !isClobberedInFunction(&I);
   Instruction *PtrI = dyn_cast<Instruction>(Ptr);
-  if (!PtrI && NotClobbered && isGlobalLoad(I)) {
-    if (isa<Argument>(Ptr) || isa<GlobalValue>(Ptr)) {
+
+  if (!isEntryFunc) {
+    if (PtrI)
+      setUniformMetadata(PtrI);
+    return;
+  }
+
+  bool NotClobbered = false;
+  bool GlobalLoad = isGlobalLoad(I);
+  if (PtrI)
+    NotClobbered = GlobalLoad && !isClobberedInFunction(&I);
+  else if (isa<Argument>(Ptr) || isa<GlobalValue>(Ptr)) {
+    if (GlobalLoad && !isClobberedInFunction(&I)) {
+      NotClobbered = true;
       // Lookup for the existing GEP
       if (noClobberClones.count(Ptr)) {
         PtrI = noClobberClones[Ptr];

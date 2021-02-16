@@ -20,12 +20,14 @@
 #include "WebAssemblyMachineFunctionInfo.h"
 #include "WebAssemblySubtarget.h"
 #include "WebAssemblyTargetMachine.h"
+#include "WebAssemblyUtilities.h"
 #include "llvm/Analysis/BranchProbabilityInfo.h"
 #include "llvm/CodeGen/FastISel.h"
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -58,6 +60,9 @@ class WebAssemblyFastISel final : public FastISel {
       int FI;
     } Base;
 
+    // Whether the base has been determined yet
+    bool IsBaseSet = false;
+
     int64_t Offset = 0;
 
     const GlobalValue *GV = nullptr;
@@ -74,8 +79,9 @@ class WebAssemblyFastISel final : public FastISel {
     bool isFIBase() const { return Kind == FrameIndexBase; }
     void setReg(unsigned Reg) {
       assert(isRegBase() && "Invalid base register access!");
-      assert(Base.Reg == 0 && "Overwriting non-zero register");
+      assert(!IsBaseSet && "Base cannot be reset");
       Base.Reg = Reg;
+      IsBaseSet = true;
     }
     unsigned getReg() const {
       assert(isRegBase() && "Invalid base register access!");
@@ -83,8 +89,9 @@ class WebAssemblyFastISel final : public FastISel {
     }
     void setFI(unsigned FI) {
       assert(isFIBase() && "Invalid base frame index access!");
-      assert(Base.FI == 0 && "Overwriting non-zero frame index");
+      assert(!IsBaseSet && "Base cannot be reset");
       Base.FI = FI;
+      IsBaseSet = true;
     }
     unsigned getFI() const {
       assert(isFIBase() && "Invalid base frame index access!");
@@ -98,13 +105,7 @@ class WebAssemblyFastISel final : public FastISel {
     int64_t getOffset() const { return Offset; }
     void setGlobalValue(const GlobalValue *G) { GV = G; }
     const GlobalValue *getGlobalValue() const { return GV; }
-    bool isSet() const {
-      if (isRegBase()) {
-        return Base.Reg != 0;
-      } else {
-        return Base.FI != 0;
-      }
-    }
+    bool isSet() const { return IsBaseSet; }
   };
 
   /// Keep a pointer to the WebAssemblySubtarget around so that we can make the
@@ -129,7 +130,8 @@ private:
     case MVT::i64:
     case MVT::f32:
     case MVT::f64:
-    case MVT::exnref:
+    case MVT::funcref:
+    case MVT::externref:
       return VT;
     case MVT::f16:
       return MVT::f32;
@@ -705,9 +707,13 @@ bool WebAssemblyFastISel::fastLowerArguments() {
       Opc = WebAssembly::ARGUMENT_v2f64;
       RC = &WebAssembly::V128RegClass;
       break;
-    case MVT::exnref:
-      Opc = WebAssembly::ARGUMENT_exnref;
-      RC = &WebAssembly::EXNREFRegClass;
+    case MVT::funcref:
+      Opc = WebAssembly::ARGUMENT_funcref;
+      RC = &WebAssembly::FUNCREFRegClass;
+      break;
+    case MVT::externref:
+      Opc = WebAssembly::ARGUMENT_externref;
+      RC = &WebAssembly::EXTERNREFRegClass;
       break;
     default:
       return false;
@@ -807,8 +813,11 @@ bool WebAssemblyFastISel::selectCall(const Instruction *I) {
     case MVT::v2f64:
       ResultReg = createResultReg(&WebAssembly::V128RegClass);
       break;
-    case MVT::exnref:
-      ResultReg = createResultReg(&WebAssembly::EXNREFRegClass);
+    case MVT::funcref:
+      ResultReg = createResultReg(&WebAssembly::FUNCREFRegClass);
+      break;
+    case MVT::externref:
+      ResultReg = createResultReg(&WebAssembly::EXTERNREFRegClass);
       break;
     default:
       return false;
@@ -863,6 +872,15 @@ bool WebAssemblyFastISel::selectCall(const Instruction *I) {
     // Add placeholders for the type index and immediate flags
     MIB.addImm(0);
     MIB.addImm(0);
+
+    // Ensure that the object file has a __indirect_function_table import, as we
+    // call_indirect against it.
+    MCSymbolWasm *Sym = WebAssembly::getOrCreateFunctionTableSymbol(
+        MF->getMMI().getContext(), "__indirect_function_table");
+    // Until call_indirect emits TABLE_NUMBER relocs against this symbol, mark
+    // it as NO_STRIP so as to ensure that the indirect function table makes it
+    // to linked output.
+    Sym->setNoStrip();
   }
 
   for (unsigned ArgReg : Args)
@@ -917,9 +935,13 @@ bool WebAssemblyFastISel::selectSelect(const Instruction *I) {
     Opc = WebAssembly::SELECT_F64;
     RC = &WebAssembly::F64RegClass;
     break;
-  case MVT::exnref:
-    Opc = WebAssembly::SELECT_EXNREF;
-    RC = &WebAssembly::EXNREFRegClass;
+  case MVT::funcref:
+    Opc = WebAssembly::SELECT_FUNCREF;
+    RC = &WebAssembly::FUNCREFRegClass;
+    break;
+  case MVT::externref:
+    Opc = WebAssembly::SELECT_EXTERNREF;
+    RC = &WebAssembly::EXTERNREFRegClass;
     break;
   default:
     return false;
@@ -1322,7 +1344,8 @@ bool WebAssemblyFastISel::selectRet(const Instruction *I) {
   case MVT::v2i64:
   case MVT::v4f32:
   case MVT::v2f64:
-  case MVT::exnref:
+  case MVT::funcref:
+  case MVT::externref:
     break;
   default:
     return false;

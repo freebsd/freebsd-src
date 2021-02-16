@@ -14,6 +14,7 @@
 #ifndef LLVM_CLANG_STATICANALYZER_CORE_ANALYZEROPTIONS_H
 #define LLVM_CLANG_STATICANALYZER_CORE_ANALYZEROPTIONS_H
 
+#include "clang/Analysis/PathDiagnostic.h"
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/Optional.h"
@@ -177,23 +178,23 @@ public:
   /// description in a formatted manner. If \p MinLineWidth is set to 0, no line
   /// breaks are introduced for the description.
   ///
-  /// Format, depending whether the option name's length is less then
-  /// \p OptionWidth:
+  /// Format, depending whether the option name's length is less than
+  /// \p EntryWidth:
   ///
   ///   <padding>EntryName<padding>Description
   ///   <---------padding--------->Description
   ///   <---------padding--------->Description
   ///
-  ///   <padding>VeryVeryLongOptionName
+  ///   <padding>VeryVeryLongEntryName
   ///   <---------padding--------->Description
   ///   <---------padding--------->Description
-  ///   ^~~~~~~~ InitialPad
-  ///   ^~~~~~~~~~~~~~~~~~~~~~~~~~ EntryWidth
+  ///   ^~~~~~~~~InitialPad
+  ///            ^~~~~~~~~~~~~~~~~~EntryWidth
   ///   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~MinLineWidth
-  static void printFormattedEntry(
-      llvm::raw_ostream &Out,
-      std::pair<StringRef, StringRef> EntryDescPair,
-      size_t EntryWidth, size_t InitialPad, size_t MinLineWidth = 0);
+  static void printFormattedEntry(llvm::raw_ostream &Out,
+                                  std::pair<StringRef, StringRef> EntryDescPair,
+                                  size_t InitialPad, size_t EntryWidth,
+                                  size_t MinLineWidth = 0);
 
   /// Pairs of checker/package name and enable/disable.
   std::vector<std::pair<std::string, bool>> CheckersAndPackages;
@@ -255,11 +256,10 @@ public:
   unsigned NoRetryExhausted : 1;
 
   /// Emit analyzer warnings as errors.
-  unsigned AnalyzerWerror : 1;
+  bool AnalyzerWerror : 1;
 
   /// The inlining stack depth limit.
-  // Cap the stack depth at 4 calls (5 stack frames, base + 4 calls).
-  unsigned InlineMaxStackDepth = 5;
+  unsigned InlineMaxStackDepth;
 
   /// The mode of function selection used during inlining.
   AnalysisInliningMode InliningMode = NoRedundancy;
@@ -390,6 +390,16 @@ public:
   ///
   /// \sa CXXMemberInliningMode
   bool mayInlineCXXMemberFunction(CXXInlineableMemberKind K) const;
+
+  ento::PathDiagnosticConsumerOptions getDiagOpts() const {
+    return {FullCompilerInvocation,
+            ShouldDisplayMacroExpansions,
+            ShouldSerializeStats,
+            ShouldWriteStableReportFilename,
+            AnalyzerWerror,
+            ShouldApplyFixIts,
+            ShouldDisplayCheckerNameForText};
+  }
 };
 
 using AnalyzerOptionsRef = IntrusiveRefCntPtr<AnalyzerOptions>;

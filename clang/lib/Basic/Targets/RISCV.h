@@ -24,24 +24,45 @@ namespace targets {
 // RISC-V Target
 class RISCVTargetInfo : public TargetInfo {
 protected:
-  std::string ABI;
-  bool HasM;
-  bool HasA;
-  bool HasF;
-  bool HasD;
-  bool HasC;
-  bool HasB;
+  std::string ABI, CPU;
+  bool HasM = false;
+  bool HasA = false;
+  bool HasF = false;
+  bool HasD = false;
+  bool HasC = false;
+  bool HasB = false;
+  bool HasV = false;
+  bool HasZba = false;
+  bool HasZbb = false;
+  bool HasZbc = false;
+  bool HasZbe = false;
+  bool HasZbf = false;
+  bool HasZbm = false;
+  bool HasZbp = false;
+  bool HasZbproposedc = false;
+  bool HasZbr = false;
+  bool HasZbs = false;
+  bool HasZbt = false;
+  bool HasZfh = false;
+  bool HasZvamo = false;
+  bool HasZvlsseg = false;
 
 public:
   RISCVTargetInfo(const llvm::Triple &Triple, const TargetOptions &)
-      : TargetInfo(Triple), HasM(false), HasA(false), HasF(false),
-        HasD(false), HasC(false), HasB(false) {
+      : TargetInfo(Triple) {
     LongDoubleWidth = 128;
     LongDoubleAlign = 128;
     LongDoubleFormat = &llvm::APFloat::IEEEquad();
     SuitableAlign = 128;
     WCharType = SignedInt;
     WIntType = UnsignedInt;
+  }
+
+  bool setCPU(const std::string &Name) override {
+    if (!isValidCPUName(Name))
+      return false;
+    CPU = Name;
+    return true;
   }
 
   StringRef getABI() const override { return ABI; }
@@ -97,6 +118,11 @@ public:
     return false;
   }
 
+  bool isValidCPUName(StringRef Name) const override;
+  void fillValidCPUList(SmallVectorImpl<StringRef> &Values) const override;
+  bool isValidTuneCPUName(StringRef Name) const override;
+  void fillValidTuneCPUList(SmallVectorImpl<StringRef> &Values) const override;
+
   void setMaxAtomicWidth() override {
     MaxAtomicPromoteWidth = 128;
 
@@ -120,6 +146,11 @@ public:
     }
     return false;
   }
+
+  bool isValidCPUName(StringRef Name) const override;
+  void fillValidCPUList(SmallVectorImpl<StringRef> &Values) const override;
+  bool isValidTuneCPUName(StringRef Name) const override;
+  void fillValidTuneCPUList(SmallVectorImpl<StringRef> &Values) const override;
 
   void setMaxAtomicWidth() override {
     MaxAtomicPromoteWidth = 128;

@@ -58,33 +58,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPU.h"
-#include "AMDGPUSubtarget.h"
+#include "GCNSubtarget.h"
 #include "MCTargetDesc/AMDGPUMCTargetDesc.h"
-#include "SIInstrInfo.h"
-#include "SIRegisterInfo.h"
-#include "Utils/AMDGPUBaseInfo.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineOperand.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/IR/DebugLoc.h"
 #include "llvm/InitializePasses.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/MathExtras.h"
-#include "llvm/Support/raw_ostream.h"
-#include <algorithm>
-#include <cassert>
-#include <cstdlib>
-#include <iterator>
-#include <utility>
 
 using namespace llvm;
 
@@ -171,7 +149,7 @@ class SILoadStoreOptimizer : public MachineFunctionPass {
           return false;
 
         // TODO: We should be able to merge physical reg addreses.
-        if (Register::isPhysicalRegister(AddrOp->getReg()))
+        if (AddrOp->getReg().isPhysical())
           return false;
 
         // If an address has only one use then there will be on other
@@ -393,6 +371,15 @@ static InstClassEnum getInstClass(unsigned Opc, const SIInstrInfo &TII) {
   case AMDGPU::DS_WRITE_B64:
   case AMDGPU::DS_WRITE_B64_gfx9:
     return DS_WRITE;
+  case AMDGPU::IMAGE_BVH_INTERSECT_RAY_sa:
+  case AMDGPU::IMAGE_BVH64_INTERSECT_RAY_sa:
+  case AMDGPU::IMAGE_BVH_INTERSECT_RAY_a16_sa:
+  case AMDGPU::IMAGE_BVH64_INTERSECT_RAY_a16_sa:
+  case AMDGPU::IMAGE_BVH_INTERSECT_RAY_nsa:
+  case AMDGPU::IMAGE_BVH64_INTERSECT_RAY_nsa:
+  case AMDGPU::IMAGE_BVH_INTERSECT_RAY_a16_nsa:
+  case AMDGPU::IMAGE_BVH64_INTERSECT_RAY_a16_nsa:
+    return UNKNOWN;
   }
 }
 
@@ -604,7 +591,7 @@ static void addDefsUsesToList(const MachineInstr &MI,
     if (Op.isReg()) {
       if (Op.isDef())
         RegDefs.insert(Op.getReg());
-      else if (Op.readsReg() && Register::isPhysicalRegister(Op.getReg()))
+      else if (Op.readsReg() && Op.getReg().isPhysical())
         PhysRegUses.insert(Op.getReg());
     }
   }
@@ -633,11 +620,10 @@ static bool addToListsIfDependent(MachineInstr &MI, DenseSet<Register> &RegDefs,
     // be moved for merging, then we need to move the def-instruction as well.
     // This can only happen for physical registers such as M0; virtual
     // registers are in SSA form.
-    if (Use.isReg() &&
-        ((Use.readsReg() && RegDefs.count(Use.getReg())) ||
-         (Use.isDef() && RegDefs.count(Use.getReg())) ||
-         (Use.isDef() && Register::isPhysicalRegister(Use.getReg()) &&
-          PhysRegUses.count(Use.getReg())))) {
+    if (Use.isReg() && ((Use.readsReg() && RegDefs.count(Use.getReg())) ||
+                        (Use.isDef() && RegDefs.count(Use.getReg())) ||
+                        (Use.isDef() && Use.getReg().isPhysical() &&
+                         PhysRegUses.count(Use.getReg())))) {
       Insts.push_back(&MI);
       addDefsUsesToList(MI, RegDefs, PhysRegUses);
       return true;
@@ -1667,7 +1653,7 @@ Register SILoadStoreOptimizer::computeBase(MachineInstr &MI,
   Register DestSub0 = MRI->createVirtualRegister(&AMDGPU::VGPR_32RegClass);
   Register DestSub1 = MRI->createVirtualRegister(&AMDGPU::VGPR_32RegClass);
   MachineInstr *LoHalf =
-    BuildMI(*MBB, MBBI, DL, TII->get(AMDGPU::V_ADD_I32_e64), DestSub0)
+    BuildMI(*MBB, MBBI, DL, TII->get(AMDGPU::V_ADD_CO_U32_e64), DestSub0)
       .addReg(CarryReg, RegState::Define)
       .addReg(Addr.Base.LoReg, 0, Addr.Base.LoSubReg)
       .add(OffsetLo)
@@ -1730,7 +1716,7 @@ SILoadStoreOptimizer::extractConstOffset(const MachineOperand &Op) const {
 // Expecting base computation as:
 //   %OFFSET0:sgpr_32 = S_MOV_B32 8000
 //   %LO:vgpr_32, %c:sreg_64_xexec =
-//       V_ADD_I32_e64 %BASE_LO:vgpr_32, %103:sgpr_32,
+//       V_ADD_CO_U32_e64 %BASE_LO:vgpr_32, %103:sgpr_32,
 //   %HI:vgpr_32, = V_ADDC_U32_e64 %BASE_HI:vgpr_32, 0, killed %c:sreg_64_xexec
 //   %Base:vreg_64 =
 //       REG_SEQUENCE %LO:vgpr_32, %subreg.sub0, %HI:vgpr_32, %subreg.sub1
@@ -1752,7 +1738,7 @@ void SILoadStoreOptimizer::processBaseWithConstOffset(const MachineOperand &Base
   MachineInstr *BaseLoDef = MRI->getUniqueVRegDef(BaseLo.getReg());
   MachineInstr *BaseHiDef = MRI->getUniqueVRegDef(BaseHi.getReg());
 
-  if (!BaseLoDef || BaseLoDef->getOpcode() != AMDGPU::V_ADD_I32_e64 ||
+  if (!BaseLoDef || BaseLoDef->getOpcode() != AMDGPU::V_ADD_CO_U32_e64 ||
       !BaseHiDef || BaseHiDef->getOpcode() != AMDGPU::V_ADDC_U32_e64)
     return;
 

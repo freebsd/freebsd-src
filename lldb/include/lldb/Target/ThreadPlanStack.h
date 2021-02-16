@@ -35,8 +35,6 @@ public:
   ThreadPlanStack(const Thread &thread, bool make_empty = false);
   ~ThreadPlanStack() {}
 
-  enum StackKind { ePlans, eCompletedPlans, eDiscardedPlans };
-
   using PlanStack = std::vector<lldb::ThreadPlanSP>;
 
   void DumpThreadPlans(Stream &s, lldb::DescriptionLevel desc_level,
@@ -95,9 +93,13 @@ public:
 
   void WillResume();
 
-private:
-  const PlanStack &GetStackOfKind(ThreadPlanStack::StackKind kind) const;
+  /// Clear the Thread* cache that each ThreadPlan contains.
+  ///
+  /// This is useful in situations like when a new Thread list is being
+  /// generated.
+  void ClearThreadCache();
 
+private:
   void PrintOneStack(Stream &s, llvm::StringRef stack_name,
                      const PlanStack &stack, lldb::DescriptionLevel desc_level,
                      bool include_internal) const;
@@ -143,6 +145,15 @@ public:
       return nullptr;
     else
       return &result->second;
+  }
+
+  /// Clear the Thread* cache that each ThreadPlan contains.
+  ///
+  /// This is useful in situations like when a new Thread list is being
+  /// generated.
+  void ClearThreadCache() {
+    for (auto &plan_list : m_plans_list)
+      plan_list.second.ClearThreadCache();
   }
 
   void Clear() {

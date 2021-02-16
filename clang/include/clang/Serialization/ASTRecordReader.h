@@ -24,6 +24,7 @@
 
 namespace clang {
 class OMPTraitInfo;
+class OMPChildren;
 
 /// An object for streaming information from a record.
 class ASTRecordReader
@@ -266,6 +267,9 @@ public:
   /// Read an OpenMP clause, advancing Idx.
   OMPClause *readOMPClause();
 
+  /// Read an OpenMP children, advancing Idx.
+  void readOMPChildren(OMPChildren *Data);
+
   /// Read a source location, advancing Idx.
   SourceLocation readSourceLocation() {
     return Reader->ReadSourceLocation(*F, Record, Idx);
@@ -277,7 +281,7 @@ public:
   }
 
   /// Read an arbitrary constant value, advancing Idx.
-  APValue readAPValue();
+  // APValue readAPValue(); (inherited)
 
   /// Read an integral value, advancing Idx.
   // llvm::APInt readAPInt(); (inherited)

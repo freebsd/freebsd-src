@@ -165,7 +165,7 @@ namespace {
     Value *InitLoopCount();
 
     // Insert the set_loop_iteration intrinsic.
-    void InsertIterationSetup(Value *LoopCountInit);
+    Value *InsertIterationSetup(Value *LoopCountInit);
 
     // Insert the loop_decrement intrinsic.
     void InsertLoopDec();
@@ -187,7 +187,7 @@ namespace {
                  const DataLayout &DL,
                  OptimizationRemarkEmitter *ORE) :
       SE(SE), DL(DL), ORE(ORE), L(Info.L), M(L->getHeader()->getModule()),
-      ExitCount(Info.ExitCount),
+      TripCount(Info.TripCount),
       CountType(Info.CountType),
       ExitBranch(Info.ExitBranch),
       LoopDecrement(Info.LoopDecrement),
@@ -202,7 +202,7 @@ namespace {
     OptimizationRemarkEmitter *ORE = nullptr;
     Loop *L                 = nullptr;
     Module *M               = nullptr;
-    const SCEV *ExitCount   = nullptr;
+    const SCEV *TripCount   = nullptr;
     Type *CountType         = nullptr;
     BranchInst *ExitBranch  = nullptr;
     Value *LoopDecrement    = nullptr;
@@ -234,7 +234,7 @@ bool HardwareLoops::runOnFunction(Function &F) {
 
   for (LoopInfo::iterator I = LI->begin(), E = LI->end(); I != E; ++I) {
     Loop *L = *I;
-    if (!L->getParentLoop())
+    if (L->isOutermost())
       TryConvertLoop(L);
   }
 
@@ -298,7 +298,7 @@ bool HardwareLoops::TryConvertLoop(HardwareLoopInfo &HWLoopInfo) {
   }
 
   assert(
-      (HWLoopInfo.ExitBlock && HWLoopInfo.ExitBranch && HWLoopInfo.ExitCount) &&
+      (HWLoopInfo.ExitBlock && HWLoopInfo.ExitBranch && HWLoopInfo.TripCount) &&
       "Hardware Loop must have set exit info.");
 
   BasicBlock *Preheader = L->getLoopPreheader();
@@ -325,11 +325,11 @@ void HardwareLoop::Create() {
     return;
   }
 
-  InsertIterationSetup(LoopCountInit);
+  Value *Setup = InsertIterationSetup(LoopCountInit);
 
   if (UsePHICounter || ForceHardwareLoopPHI) {
     Instruction *LoopDec = InsertLoopRegDec(LoopCountInit);
-    Value *EltsRem = InsertPHICounter(LoopCountInit, LoopDec);
+    Value *EltsRem = InsertPHICounter(Setup, LoopDec);
     LoopDec->setOperand(0, EltsRem);
     UpdateBranch(LoopDec);
   } else
@@ -383,18 +383,13 @@ Value *HardwareLoop::InitLoopCount() {
   // loop counter and tests that is not zero?
 
   SCEVExpander SCEVE(SE, DL, "loopcnt");
-  if (!ExitCount->getType()->isPointerTy() &&
-      ExitCount->getType() != CountType)
-    ExitCount = SE.getZeroExtendExpr(ExitCount, CountType);
-
-  ExitCount = SE.getAddExpr(ExitCount, SE.getOne(CountType));
 
   // If we're trying to use the 'test and set' form of the intrinsic, we need
   // to replace a conditional branch that is controlling entry to the loop. It
   // is likely (guaranteed?) that the preheader has an unconditional branch to
   // the loop header, so also check if it has a single predecessor.
-  if (SE.isLoopEntryGuardedByCond(L, ICmpInst::ICMP_NE, ExitCount,
-                                  SE.getZero(ExitCount->getType()))) {
+  if (SE.isLoopEntryGuardedByCond(L, ICmpInst::ICMP_NE, TripCount,
+                                  SE.getZero(TripCount->getType()))) {
     LLVM_DEBUG(dbgs() << " - Attempting to use test.set counter.\n");
     UseLoopGuard |= ForceGuardLoopEntry;
   } else
@@ -402,16 +397,23 @@ Value *HardwareLoop::InitLoopCount() {
 
   BasicBlock *BB = L->getLoopPreheader();
   if (UseLoopGuard && BB->getSinglePredecessor() &&
-      cast<BranchInst>(BB->getTerminator())->isUnconditional())
-    BB = BB->getSinglePredecessor();
+      cast<BranchInst>(BB->getTerminator())->isUnconditional()) {
+    BasicBlock *Predecessor = BB->getSinglePredecessor();
+    // If it's not safe to create a while loop then don't force it and create a
+    // do-while loop instead
+    if (!isSafeToExpandAt(TripCount, Predecessor->getTerminator(), SE))
+        UseLoopGuard = false;
+    else
+        BB = Predecessor;
+  }
 
-  if (!isSafeToExpandAt(ExitCount, BB->getTerminator(), SE)) {
-    LLVM_DEBUG(dbgs() << "- Bailing, unsafe to expand ExitCount "
-               << *ExitCount << "\n");
+  if (!isSafeToExpandAt(TripCount, BB->getTerminator(), SE)) {
+    LLVM_DEBUG(dbgs() << "- Bailing, unsafe to expand TripCount "
+               << *TripCount << "\n");
     return nullptr;
   }
 
-  Value *Count = SCEVE.expandCodeFor(ExitCount, CountType,
+  Value *Count = SCEVE.expandCodeFor(TripCount, CountType,
                                      BB->getTerminator());
 
   // FIXME: We've expanded Count where we hope to insert the counter setting
@@ -430,11 +432,13 @@ Value *HardwareLoop::InitLoopCount() {
   return Count;
 }
 
-void HardwareLoop::InsertIterationSetup(Value *LoopCountInit) {
+Value* HardwareLoop::InsertIterationSetup(Value *LoopCountInit) {
   IRBuilder<> Builder(BeginBB->getTerminator());
   Type *Ty = LoopCountInit->getType();
-  Intrinsic::ID ID = UseLoopGuard ?
-    Intrinsic::test_set_loop_iterations : Intrinsic::set_loop_iterations;
+  bool UsePhi = UsePHICounter || ForceHardwareLoopPHI;
+  Intrinsic::ID ID = UseLoopGuard ? Intrinsic::test_set_loop_iterations
+                                  : (UsePhi ? Intrinsic::start_loop_iterations
+                                           : Intrinsic::set_loop_iterations);
   Function *LoopIter = Intrinsic::getDeclaration(M, ID, Ty);
   Value *SetCount = Builder.CreateCall(LoopIter, LoopCountInit);
 
@@ -450,6 +454,7 @@ void HardwareLoop::InsertIterationSetup(Value *LoopCountInit) {
   }
   LLVM_DEBUG(dbgs() << "HWLoops: Inserted loop counter: "
              << *SetCount << "\n");
+  return UseLoopGuard ? LoopCountInit : SetCount;
 }
 
 void HardwareLoop::InsertLoopDec() {

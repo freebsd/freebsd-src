@@ -217,7 +217,7 @@ JSONCompilationDatabase::loadFromBuffer(StringRef DatabaseString,
                                         std::string &ErrorMessage,
                                         JSONCommandLineSyntax Syntax) {
   std::unique_ptr<llvm::MemoryBuffer> DatabaseBuffer(
-      llvm::MemoryBuffer::getMemBuffer(DatabaseString));
+      llvm::MemoryBuffer::getMemBufferCopy(DatabaseString));
   std::unique_ptr<JSONCompilationDatabase> Database(
       new JSONCompilationDatabase(std::move(DatabaseBuffer), Syntax));
   if (!Database->parse(ErrorMessage))
@@ -272,7 +272,8 @@ static bool unwrapCommand(std::vector<std::string> &Args) {
     return false;
   StringRef Wrapper =
       stripExecutableExtension(llvm::sys::path::filename(Args.front()));
-  if (Wrapper == "distcc" || Wrapper == "gomacc" || Wrapper == "ccache") {
+  if (Wrapper == "distcc" || Wrapper == "gomacc" || Wrapper == "ccache" ||
+      Wrapper == "sccache") {
     // Most of these wrappers support being invoked 3 ways:
     // `distcc g++ file.c` This is the mode we're trying to match.
     //                     We need to drop `distcc`.
@@ -369,16 +370,11 @@ bool JSONCompilationDatabase::parse(std::string &ErrorMessage) {
       }
       auto *ValueString = dyn_cast<llvm::yaml::ScalarNode>(Value);
       auto *SequenceString = dyn_cast<llvm::yaml::SequenceNode>(Value);
-      if (KeyValue == "arguments" && !SequenceString) {
-        ErrorMessage = "Expected sequence as value.";
-        return false;
-      } else if (KeyValue != "arguments" && !ValueString) {
-        ErrorMessage = "Expected string as value.";
-        return false;
-      }
-      if (KeyValue == "directory") {
-        Directory = ValueString;
-      } else if (KeyValue == "arguments") {
+      if (KeyValue == "arguments") {
+        if (!SequenceString) {
+          ErrorMessage = "Expected sequence as value.";
+          return false;
+        }
         Command = std::vector<llvm::yaml::ScalarNode *>();
         for (auto &Argument : *SequenceString) {
           auto *Scalar = dyn_cast<llvm::yaml::ScalarNode>(&Argument);
@@ -388,17 +384,25 @@ bool JSONCompilationDatabase::parse(std::string &ErrorMessage) {
           }
           Command->push_back(Scalar);
         }
-      } else if (KeyValue == "command") {
-        if (!Command)
-          Command = std::vector<llvm::yaml::ScalarNode *>(1, ValueString);
-      } else if (KeyValue == "file") {
-        File = ValueString;
-      } else if (KeyValue == "output") {
-        Output = ValueString;
       } else {
-        ErrorMessage = ("Unknown key: \"" +
-                        KeyString->getRawValue() + "\"").str();
-        return false;
+        if (!ValueString) {
+          ErrorMessage = "Expected string as value.";
+          return false;
+        }
+        if (KeyValue == "directory") {
+          Directory = ValueString;
+        } else if (KeyValue == "command") {
+          if (!Command)
+            Command = std::vector<llvm::yaml::ScalarNode *>(1, ValueString);
+        } else if (KeyValue == "file") {
+          File = ValueString;
+        } else if (KeyValue == "output") {
+          Output = ValueString;
+        } else {
+          ErrorMessage =
+              ("Unknown key: \"" + KeyString->getRawValue() + "\"").str();
+          return false;
+        }
       }
     }
     if (!File) {

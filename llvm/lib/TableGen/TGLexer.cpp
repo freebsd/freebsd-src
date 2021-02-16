@@ -150,7 +150,7 @@ tgtok::TokKind TGLexer::LexToken(bool FileOrLineStart) {
   case EOF:
     // Lex next token, if we just left an include file.
     // Note that leaving an include file means that the next
-    // symbol is located at the end of 'include "..."'
+    // symbol is located at the end of the 'include "..."'
     // construct, so LexToken() is called with default
     // false parameter.
     if (processEOF())
@@ -161,7 +161,6 @@ tgtok::TokKind TGLexer::LexToken(bool FileOrLineStart) {
 
   case ':': return tgtok::colon;
   case ';': return tgtok::semi;
-  case '.': return tgtok::period;
   case ',': return tgtok::comma;
   case '<': return tgtok::less;
   case '>': return tgtok::greater;
@@ -180,6 +179,19 @@ tgtok::TokKind TGLexer::LexToken(bool FileOrLineStart) {
     }
 
     return tgtok::paste;
+
+  // The period is a separate case so we can recognize the "..."
+  // range punctuator.
+  case '.':
+    if (peekNextChar(0) == '.') {
+      ++CurPtr; // Eat second dot.
+      if (peekNextChar(0) == '.') {
+        ++CurPtr; // Eat third dot.
+        return tgtok::dotdotdot;
+      }
+      return ReturnError(TokStart, "Invalid '..' punctuation");
+    }
+    return tgtok::dot;
 
   case '\r':
     PrintFatalError("getNextChar() must never return '\r'");
@@ -326,13 +338,8 @@ tgtok::TokKind TGLexer::LexIdentifier() {
   while (isalpha(*CurPtr) || isdigit(*CurPtr) || *CurPtr == '_')
     ++CurPtr;
 
-  // Check to see if this identifier is a keyword.
+  // Check to see if this identifier is a reserved keyword.
   StringRef Str(IdentStart, CurPtr-IdentStart);
-
-  if (Str == "include") {
-    if (LexInclude()) return tgtok::Error;
-    return Lex();
-  }
 
   tgtok::TokKind Kind = StringSwitch<tgtok::TokKind>(Str)
     .Case("int", tgtok::Int)
@@ -344,6 +351,8 @@ tgtok::TokKind TGLexer::LexIdentifier() {
     .Case("dag", tgtok::Dag)
     .Case("class", tgtok::Class)
     .Case("def", tgtok::Def)
+    .Case("true", tgtok::TrueVal)
+    .Case("false", tgtok::FalseVal)
     .Case("foreach", tgtok::Foreach)
     .Case("defm", tgtok::Defm)
     .Case("defset", tgtok::Defset)
@@ -352,13 +361,25 @@ tgtok::TokKind TGLexer::LexIdentifier() {
     .Case("let", tgtok::Let)
     .Case("in", tgtok::In)
     .Case("defvar", tgtok::Defvar)
+    .Case("include", tgtok::Include)
     .Case("if", tgtok::If)
     .Case("then", tgtok::Then)
     .Case("else", tgtok::ElseKW)
+    .Case("assert", tgtok::Assert)
     .Default(tgtok::Id);
 
-  if (Kind == tgtok::Id)
-    CurStrVal.assign(Str.begin(), Str.end());
+  // A couple of tokens require special processing.
+  switch (Kind) {
+    case tgtok::Include:
+      if (LexInclude()) return tgtok::Error;
+      return Lex();
+    case tgtok::Id:
+      CurStrVal.assign(Str.begin(), Str.end());
+      break;
+    default:
+      break;
+  }
+
   return Kind;
 }
 
@@ -520,7 +541,7 @@ tgtok::TokKind TGLexer::LexBracket() {
     }
   }
 
-  return ReturnError(CodeStart-2, "Unterminated Code Block");
+  return ReturnError(CodeStart - 2, "Unterminated code block");
 }
 
 /// LexExclaim - Lex '!' and '![a-zA-Z]+'.
@@ -550,9 +571,12 @@ tgtok::TokKind TGLexer::LexExclaim() {
     .Case("con", tgtok::XConcat)
     .Case("dag", tgtok::XDag)
     .Case("add", tgtok::XADD)
+    .Case("sub", tgtok::XSUB)
     .Case("mul", tgtok::XMUL)
+    .Case("not", tgtok::XNOT)
     .Case("and", tgtok::XAND)
     .Case("or", tgtok::XOR)
+    .Case("xor", tgtok::XXOR)
     .Case("shl", tgtok::XSHL)
     .Case("sra", tgtok::XSRA)
     .Case("srl", tgtok::XSRL)
@@ -561,11 +585,14 @@ tgtok::TokKind TGLexer::LexExclaim() {
     .Case("subst", tgtok::XSubst)
     .Case("foldl", tgtok::XFoldl)
     .Case("foreach", tgtok::XForEach)
+    .Case("filter", tgtok::XFilter)
     .Case("listconcat", tgtok::XListConcat)
     .Case("listsplat", tgtok::XListSplat)
     .Case("strconcat", tgtok::XStrConcat)
-    .Case("setop", tgtok::XSetOp)
-    .Case("getop", tgtok::XGetOp)
+    .Case("interleave", tgtok::XInterleave)
+    .Case("substr", tgtok::XSubstr)
+    .Cases("setdagop", "setop", tgtok::XSetDagOp) // !setop is deprecated.
+    .Cases("getdagop", "getop", tgtok::XGetDagOp) // !getop is deprecated.
     .Default(tgtok::Error);
 
   return Kind != tgtok::Error ? Kind : ReturnError(Start-1, "Unknown operator");

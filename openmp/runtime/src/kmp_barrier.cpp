@@ -78,7 +78,7 @@ static bool __kmp_linear_barrier_gather_template(
        is valid any more - it could be deallocated by the master thread at any
        time. */
     ANNOTATE_BARRIER_BEGIN(this_thr);
-    kmp_flag_64 flag(&thr_bar->b_arrived, other_threads[0]);
+    kmp_flag_64<> flag(&thr_bar->b_arrived, other_threads[0]);
     flag.release();
   } else {
     kmp_balign_team_t *team_bar = &team->t.t_bar[bt];
@@ -101,14 +101,14 @@ static bool __kmp_linear_barrier_gather_template(
                     &other_threads[i]->th.th_bar[bt].bb.b_arrived, new_state));
 
       // Wait for worker thread to arrive
-      kmp_flag_64 flag(&other_threads[i]->th.th_bar[bt].bb.b_arrived,
-                       new_state);
       if (cancellable) {
-        bool cancelled = flag.wait_cancellable_nosleep(
-            this_thr, FALSE USE_ITT_BUILD_ARG(itt_sync_obj));
-        if (cancelled)
+        kmp_flag_64<true, false> flag(
+            &other_threads[i]->th.th_bar[bt].bb.b_arrived, new_state);
+        if (flag.wait(this_thr, FALSE USE_ITT_BUILD_ARG(itt_sync_obj)))
           return true;
       } else {
+        kmp_flag_64<> flag(&other_threads[i]->th.th_bar[bt].bb.b_arrived,
+                           new_state);
         flag.wait(this_thr, FALSE USE_ITT_BUILD_ARG(itt_sync_obj));
       }
       ANNOTATE_BARRIER_END(other_threads[i]);
@@ -203,7 +203,7 @@ static bool __kmp_linear_barrier_release_template(
              other_threads[i]->th.th_bar[bt].bb.b_go,
              other_threads[i]->th.th_bar[bt].bb.b_go + KMP_BARRIER_STATE_BUMP));
         ANNOTATE_BARRIER_BEGIN(other_threads[i]);
-        kmp_flag_64 flag(&other_threads[i]->th.th_bar[bt].bb.b_go,
+        kmp_flag_64<> flag(&other_threads[i]->th.th_bar[bt].bb.b_go,
                          other_threads[i]);
         flag.release();
       }
@@ -211,14 +211,12 @@ static bool __kmp_linear_barrier_release_template(
   } else { // Wait for the MASTER thread to release us
     KA_TRACE(20, ("__kmp_linear_barrier_release: T#%d wait go(%p) == %u\n",
                   gtid, &thr_bar->b_go, KMP_BARRIER_STATE_BUMP));
-    kmp_flag_64 flag(&thr_bar->b_go, KMP_BARRIER_STATE_BUMP);
     if (cancellable) {
-      bool cancelled = flag.wait_cancellable_nosleep(
-          this_thr, TRUE USE_ITT_BUILD_ARG(itt_sync_obj));
-      if (cancelled) {
+      kmp_flag_64<true, false> flag(&thr_bar->b_go, KMP_BARRIER_STATE_BUMP);
+      if (flag.wait(this_thr, TRUE USE_ITT_BUILD_ARG(itt_sync_obj)))
         return true;
-      }
     } else {
+      kmp_flag_64<> flag(&thr_bar->b_go, KMP_BARRIER_STATE_BUMP);
       flag.wait(this_thr, TRUE USE_ITT_BUILD_ARG(itt_sync_obj));
     }
     ANNOTATE_BARRIER_END(this_thr);
@@ -339,7 +337,7 @@ __kmp_tree_barrier_gather(enum barrier_type bt, kmp_info_t *this_thr, int gtid,
                 gtid, team->t.t_id, tid, __kmp_gtid_from_tid(child_tid, team),
                 team->t.t_id, child_tid, &child_bar->b_arrived, new_state));
       // Wait for child to arrive
-      kmp_flag_64 flag(&child_bar->b_arrived, new_state);
+      kmp_flag_64<> flag(&child_bar->b_arrived, new_state);
       flag.wait(this_thr, FALSE USE_ITT_BUILD_ARG(itt_sync_obj));
       ANNOTATE_BARRIER_END(child_thr);
 #if USE_ITT_BUILD && USE_ITT_NOTIFY
@@ -384,7 +382,7 @@ __kmp_tree_barrier_gather(enum barrier_type bt, kmp_info_t *this_thr, int gtid,
        is valid any more - it could be deallocated by the master thread at any
        time.  */
     ANNOTATE_BARRIER_BEGIN(this_thr);
-    kmp_flag_64 flag(&thr_bar->b_arrived, other_threads[parent_tid]);
+    kmp_flag_64<> flag(&thr_bar->b_arrived, other_threads[parent_tid]);
     flag.release();
   } else {
     // Need to update the team arrived pointer if we are the master thread
@@ -420,7 +418,7 @@ static void __kmp_tree_barrier_release(
     KA_TRACE(20, ("__kmp_tree_barrier_release: T#%d wait go(%p) == %u\n", gtid,
                   &thr_bar->b_go, KMP_BARRIER_STATE_BUMP));
     // Wait for parent thread to release us
-    kmp_flag_64 flag(&thr_bar->b_go, KMP_BARRIER_STATE_BUMP);
+    kmp_flag_64<> flag(&thr_bar->b_go, KMP_BARRIER_STATE_BUMP);
     flag.wait(this_thr, TRUE USE_ITT_BUILD_ARG(itt_sync_obj));
     ANNOTATE_BARRIER_END(this_thr);
 #if USE_ITT_BUILD && USE_ITT_NOTIFY
@@ -498,7 +496,7 @@ static void __kmp_tree_barrier_release(
                 child_bar->b_go + KMP_BARRIER_STATE_BUMP));
       // Release child from barrier
       ANNOTATE_BARRIER_BEGIN(child_thr);
-      kmp_flag_64 flag(&child_bar->b_go, child_thr);
+      kmp_flag_64<> flag(&child_bar->b_go, child_thr);
       flag.release();
       child++;
       child_tid++;
@@ -540,7 +538,7 @@ __kmp_hyper_barrier_gather(enum barrier_type bt, kmp_info_t *this_thr, int gtid,
 #endif
   /* Perform a hypercube-embedded tree gather to wait until all of the threads
      have arrived, and reduce any required data as we go.  */
-  kmp_flag_64 p_flag(&thr_bar->b_arrived);
+  kmp_flag_64<> p_flag(&thr_bar->b_arrived);
   for (level = 0, offset = 1; offset < num_threads;
        level += branch_bits, offset <<= branch_bits) {
     kmp_uint32 child;
@@ -588,7 +586,7 @@ __kmp_hyper_barrier_gather(enum barrier_type bt, kmp_info_t *this_thr, int gtid,
                 gtid, team->t.t_id, tid, __kmp_gtid_from_tid(child_tid, team),
                 team->t.t_id, child_tid, &child_bar->b_arrived, new_state));
       // Wait for child to arrive
-      kmp_flag_64 c_flag(&child_bar->b_arrived, new_state);
+      kmp_flag_64<> c_flag(&child_bar->b_arrived, new_state);
       c_flag.wait(this_thr, FALSE USE_ITT_BUILD_ARG(itt_sync_obj));
       ANNOTATE_BARRIER_END(child_thr);
       KMP_MB(); // Synchronize parent and child threads.
@@ -670,7 +668,7 @@ static void __kmp_hyper_barrier_release(
     KA_TRACE(20, ("__kmp_hyper_barrier_release: T#%d wait go(%p) == %u\n", gtid,
                   &thr_bar->b_go, KMP_BARRIER_STATE_BUMP));
     // Wait for parent thread to release us
-    kmp_flag_64 flag(&thr_bar->b_go, KMP_BARRIER_STATE_BUMP);
+    kmp_flag_64<> flag(&thr_bar->b_go, KMP_BARRIER_STATE_BUMP);
     flag.wait(this_thr, TRUE USE_ITT_BUILD_ARG(itt_sync_obj));
     ANNOTATE_BARRIER_END(this_thr);
 #if USE_ITT_BUILD && USE_ITT_NOTIFY
@@ -772,7 +770,7 @@ static void __kmp_hyper_barrier_release(
              child_bar->b_go + KMP_BARRIER_STATE_BUMP));
         // Release child from barrier
         ANNOTATE_BARRIER_BEGIN(child_thr);
-        kmp_flag_64 flag(&child_bar->b_go, child_thr);
+        kmp_flag_64<> flag(&child_bar->b_go, child_thr);
         flag.release();
       }
     }
@@ -830,8 +828,8 @@ static bool __kmp_init_hierarchical_barrier_thread(enum barrier_type bt,
           thr_bar->parent_tid = 0;
           thr_bar->my_level = d;
           break;
-        } else if ((rem = tid % thr_bar->skip_per_level[d + 1]) !=
-                   0) { // TODO: can we make this op faster?
+        } else if ((rem = tid % thr_bar->skip_per_level[d + 1]) != 0) {
+          // TODO: can we make the above op faster?
           // thread is not a subtree root at next level, so this is max
           thr_bar->parent_tid = tid - rem;
           thr_bar->my_level = d;
@@ -840,7 +838,9 @@ static bool __kmp_init_hierarchical_barrier_thread(enum barrier_type bt,
         ++d;
       }
     }
-    thr_bar->offset = 7 - (tid - thr_bar->parent_tid - 1);
+    __kmp_type_convert(7 - ((tid - thr_bar->parent_tid) /
+                            (thr_bar->skip_per_level[thr_bar->my_level])),
+                       &(thr_bar->offset));
     thr_bar->old_tid = tid;
     thr_bar->wait_flag = KMP_BARRIER_NOT_WAITING;
     thr_bar->team = team;
@@ -859,7 +859,7 @@ static bool __kmp_init_hierarchical_barrier_thread(enum barrier_type bt,
     if (thr_bar->my_level == 0)
       thr_bar->leaf_kids = 0;
     if (thr_bar->leaf_kids && (kmp_uint32)tid + thr_bar->leaf_kids + 1 > nproc)
-      thr_bar->leaf_kids = nproc - tid - 1;
+      __kmp_type_convert(nproc - tid - 1, &(thr_bar->leaf_kids));
     thr_bar->leaf_state = 0;
     for (int i = 0; i < thr_bar->leaf_kids; ++i)
       ((char *)&(thr_bar->leaf_state))[7 - i] = 1;
@@ -917,7 +917,7 @@ static void __kmp_hierarchical_barrier_gather(
         KA_TRACE(20, ("__kmp_hierarchical_barrier_gather: T#%d(%d:%d) waiting "
                       "for leaf kids\n",
                       gtid, team->t.t_id, tid));
-        kmp_flag_64 flag(&thr_bar->b_arrived, leaf_state);
+        kmp_flag_64<> flag(&thr_bar->b_arrived, leaf_state);
         flag.wait(this_thr, FALSE USE_ITT_BUILD_ARG(itt_sync_obj));
         if (reduce) {
           ANNOTATE_REDUCE_AFTER(reduce);
@@ -957,7 +957,7 @@ static void __kmp_hierarchical_barrier_gather(
                         gtid, team->t.t_id, tid,
                         __kmp_gtid_from_tid(child_tid, team), team->t.t_id,
                         child_tid, &child_bar->b_arrived, new_state));
-          kmp_flag_64 flag(&child_bar->b_arrived, new_state);
+          kmp_flag_64<> flag(&child_bar->b_arrived, new_state);
           flag.wait(this_thr, FALSE USE_ITT_BUILD_ARG(itt_sync_obj));
           ANNOTATE_BARRIER_END(child_thr);
           if (reduce) {
@@ -990,7 +990,7 @@ static void __kmp_hierarchical_barrier_gather(
                         gtid, team->t.t_id, tid,
                         __kmp_gtid_from_tid(child_tid, team), team->t.t_id,
                         child_tid, &child_bar->b_arrived, new_state));
-          kmp_flag_64 flag(&child_bar->b_arrived, new_state);
+          kmp_flag_64<> flag(&child_bar->b_arrived, new_state);
           flag.wait(this_thr, FALSE USE_ITT_BUILD_ARG(itt_sync_obj));
           ANNOTATE_BARRIER_END(child_thr);
           if (reduce) {
@@ -1025,12 +1025,14 @@ static void __kmp_hierarchical_barrier_gather(
         !thr_bar->use_oncore_barrier) { // Parent is waiting on my b_arrived
       // flag; release it
       ANNOTATE_BARRIER_BEGIN(this_thr);
-      kmp_flag_64 flag(&thr_bar->b_arrived, other_threads[thr_bar->parent_tid]);
+      kmp_flag_64<> flag(&thr_bar->b_arrived,
+                         other_threads[thr_bar->parent_tid]);
       flag.release();
     } else {
       // Leaf does special release on "offset" bits of parent's b_arrived flag
       thr_bar->b_arrived = team->t.t_bar[bt].b_arrived + KMP_BARRIER_STATE_BUMP;
-      kmp_flag_oncore flag(&thr_bar->parent_bar->b_arrived, thr_bar->offset);
+      kmp_flag_oncore flag(&thr_bar->parent_bar->b_arrived,
+                           thr_bar->offset + 1);
       flag.set_waiter(other_threads[thr_bar->parent_tid]);
       flag.release();
     }
@@ -1069,7 +1071,7 @@ static void __kmp_hierarchical_barrier_release(
         thr_bar->team == NULL) {
       // Use traditional method of waiting on my own b_go flag
       thr_bar->wait_flag = KMP_BARRIER_OWN_FLAG;
-      kmp_flag_64 flag(&thr_bar->b_go, KMP_BARRIER_STATE_BUMP);
+      kmp_flag_64<> flag(&thr_bar->b_go, KMP_BARRIER_STATE_BUMP);
       flag.wait(this_thr, TRUE USE_ITT_BUILD_ARG(itt_sync_obj));
       ANNOTATE_BARRIER_END(this_thr);
       TCW_8(thr_bar->b_go,
@@ -1079,7 +1081,7 @@ static void __kmp_hierarchical_barrier_release(
       // Wait on my "offset" bits on parent's b_go flag
       thr_bar->wait_flag = KMP_BARRIER_PARENT_FLAG;
       kmp_flag_oncore flag(&thr_bar->parent_bar->b_go, KMP_BARRIER_STATE_BUMP,
-                           thr_bar->offset, bt,
+                           thr_bar->offset + 1, bt,
                            this_thr USE_ITT_BUILD_ARG(itt_sync_obj));
       flag.wait(this_thr, TRUE);
       if (thr_bar->wait_flag ==
@@ -1088,7 +1090,7 @@ static void __kmp_hierarchical_barrier_release(
               KMP_INIT_BARRIER_STATE); // Reset my b_go flag for next time
       } else { // Reset my bits on parent's b_go flag
         (RCAST(volatile char *,
-               &(thr_bar->parent_bar->b_go)))[thr_bar->offset] = 0;
+               &(thr_bar->parent_bar->b_go)))[thr_bar->offset + 1] = 0;
       }
     }
     thr_bar->wait_flag = KMP_BARRIER_NOT_WAITING;
@@ -1218,7 +1220,7 @@ static void __kmp_hierarchical_barrier_release(
                  child_bar->b_go + KMP_BARRIER_STATE_BUMP));
             // Release child using child's b_go flag
             ANNOTATE_BARRIER_BEGIN(child_thr);
-            kmp_flag_64 flag(&child_bar->b_go, child_thr);
+            kmp_flag_64<> flag(&child_bar->b_go, child_thr);
             flag.release();
           }
         } else { // Release all children at once with leaf_state bits on my own
@@ -1244,7 +1246,7 @@ static void __kmp_hierarchical_barrier_release(
                         child_bar->b_go + KMP_BARRIER_STATE_BUMP));
           // Release child using child's b_go flag
           ANNOTATE_BARRIER_BEGIN(child_thr);
-          kmp_flag_64 flag(&child_bar->b_go, child_thr);
+          kmp_flag_64<> flag(&child_bar->b_go, child_thr);
           flag.release();
         }
       }
@@ -1453,7 +1455,8 @@ static int __kmp_barrier_template(enum barrier_type bt, int gtid, int is_split,
       // Barrier - report frame end (only if active_level == 1)
       if ((__itt_frame_submit_v3_ptr || KMP_ITT_DEBUG) &&
           __kmp_forkjoin_frames_mode &&
-          this_thr->th.th_teams_microtask == NULL &&
+          (this_thr->th.th_teams_microtask == NULL || // either not in teams
+           this_thr->th.th_teams_size.nteams == 1) && // or inside single team
           team->t.t_active_level == 1) {
         ident_t *loc = __kmp_threads[gtid]->th.th_ident;
         kmp_uint64 cur_time = __itt_get_timestamp();
@@ -1839,7 +1842,9 @@ void __kmp_join_barrier(int gtid) {
 #if USE_ITT_BUILD && USE_ITT_NOTIFY
     // Join barrier - report frame end
     if ((__itt_frame_submit_v3_ptr || KMP_ITT_DEBUG) &&
-        __kmp_forkjoin_frames_mode && this_thr->th.th_teams_microtask == NULL &&
+        __kmp_forkjoin_frames_mode &&
+        (this_thr->th.th_teams_microtask == NULL || // either not in teams
+         this_thr->th.th_teams_size.nteams == 1) && // or inside single team
         team->t.t_active_level == 1) {
       kmp_uint64 cur_time = __itt_get_timestamp();
       ident_t *loc = team->t.t_ident;

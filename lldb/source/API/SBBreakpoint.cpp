@@ -81,6 +81,16 @@ bool SBBreakpoint::operator!=(const lldb::SBBreakpoint &rhs) {
   return m_opaque_wp.lock() != rhs.m_opaque_wp.lock();
 }
 
+SBTarget SBBreakpoint::GetTarget() const {
+  LLDB_RECORD_METHOD_CONST_NO_ARGS(lldb::SBTarget, SBBreakpoint, GetTarget);
+
+  BreakpointSP bkpt_sp = GetSP();
+  if (bkpt_sp)
+    return LLDB_RECORD_RESULT(SBTarget(bkpt_sp->GetTargetSP()));
+
+  return LLDB_RECORD_RESULT(SBTarget());
+}
+
 break_id_t SBBreakpoint::GetID() const {
   LLDB_RECORD_METHOD_CONST_NO_ARGS(lldb::break_id_t, SBBreakpoint, GetID);
 
@@ -575,7 +585,22 @@ SBError SBBreakpoint::AddLocation(SBAddress &address) {
   return LLDB_RECORD_RESULT(error);
 }
 
-void SBBreakpoint ::SetCallback(SBBreakpointHitCallback callback, void *baton) {
+SBStructuredData SBBreakpoint::SerializeToStructuredData() {
+  LLDB_RECORD_METHOD_NO_ARGS(lldb::SBStructuredData, SBBreakpoint,
+                             SerializeToStructuredData);
+
+  SBStructuredData data;
+  BreakpointSP bkpt_sp = GetSP();
+
+  if (!bkpt_sp)
+    return LLDB_RECORD_RESULT(data);
+
+  StructuredData::ObjectSP bkpt_dict = bkpt_sp->SerializeToStructuredData();
+  data.m_impl_up->SetObjectSP(bkpt_dict);
+  return LLDB_RECORD_RESULT(data);
+}
+
+void SBBreakpoint::SetCallback(SBBreakpointHitCallback callback, void *baton) {
   LLDB_RECORD_DUMMY(void, SBBreakpoint, SetCallback,
                     (lldb::SBBreakpointHitCallback, void *), callback, baton);
 
@@ -972,6 +997,7 @@ void RegisterMethods<SBBreakpoint>(Registry &R) {
                        SBBreakpoint, operator==,(const lldb::SBBreakpoint &));
   LLDB_REGISTER_METHOD(bool,
                        SBBreakpoint, operator!=,(const lldb::SBBreakpoint &));
+  LLDB_REGISTER_METHOD_CONST(lldb::SBTarget, SBBreakpoint, GetTarget, ());
   LLDB_REGISTER_METHOD_CONST(lldb::break_id_t, SBBreakpoint, GetID, ());
   LLDB_REGISTER_METHOD_CONST(bool, SBBreakpoint, IsValid, ());
   LLDB_REGISTER_METHOD_CONST(bool, SBBreakpoint, operator bool, ());
@@ -1017,6 +1043,8 @@ void RegisterMethods<SBBreakpoint>(Registry &R) {
                        (lldb::SBStream &, bool));
   LLDB_REGISTER_METHOD(lldb::SBError, SBBreakpoint, AddLocation,
                        (lldb::SBAddress &));
+  LLDB_REGISTER_METHOD(lldb::SBStructuredData, SBBreakpoint,
+                       SerializeToStructuredData, ());
   LLDB_REGISTER_METHOD(void, SBBreakpoint, SetScriptCallbackFunction,
                        (const char *));
   LLDB_REGISTER_METHOD(lldb::SBError, SBBreakpoint, SetScriptCallbackFunction,

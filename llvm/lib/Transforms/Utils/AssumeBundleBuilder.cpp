@@ -52,6 +52,7 @@ namespace {
 bool isUsefullToPreserve(Attribute::AttrKind Kind) {
   switch (Kind) {
     case Attribute::NonNull:
+    case Attribute::NoUndef:
     case Attribute::Alignment:
     case Attribute::Dereferenceable:
     case Attribute::DereferenceableOrNull:
@@ -69,7 +70,7 @@ RetainedKnowledge canonicalizedKnowledge(RetainedKnowledge RK, Module *M) {
   default:
     return RK;
   case Attribute::NonNull:
-    RK.WasOn = GetUnderlyingObject(RK.WasOn, M->getDataLayout());
+    RK.WasOn = getUnderlyingObject(RK.WasOn);
     return RK;
   case Attribute::Alignment: {
     Value *V = RK.WasOn->stripInBoundsOffsets([&](const Value *Strip) {
@@ -145,7 +146,7 @@ struct AssumeBuilderState {
     if (!RK.WasOn)
       return true;
     if (RK.WasOn->getType()->isPointerTy()) {
-      Value *UnderlyingPtr = GetUnderlyingObject(RK.WasOn, M->getDataLayout());
+      Value *UnderlyingPtr = getUnderlyingObject(RK.WasOn);
       if (isa<AllocaInst>(UnderlyingPtr) || isa<GlobalValue>(UnderlyingPtr))
         return false;
     }

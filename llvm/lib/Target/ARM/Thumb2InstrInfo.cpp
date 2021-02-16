@@ -12,6 +12,7 @@
 
 #include "Thumb2InstrInfo.h"
 #include "ARMMachineFunctionInfo.h"
+#include "ARMSubtarget.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -37,6 +38,11 @@ static cl::opt<bool>
 OldT2IfCvt("old-thumb2-ifcvt", cl::Hidden,
            cl::desc("Use old-style Thumb2 if-conversion heuristics"),
            cl::init(false));
+
+static cl::opt<bool>
+PreferNoCSEL("prefer-no-csel", cl::Hidden,
+             cl::desc("Prefer predicated Move to CSEL"),
+             cl::init(false));
 
 Thumb2InstrInfo::Thumb2InstrInfo(const ARMSubtarget &STI)
     : ARMBaseInstrInfo(STI) {}
@@ -116,6 +122,31 @@ Thumb2InstrInfo::isLegalToSplitMBBAt(MachineBasicBlock &MBB,
 
   Register PredReg;
   return getITInstrPredicate(*MBBI, PredReg) == ARMCC::AL;
+}
+
+MachineInstr *
+Thumb2InstrInfo::optimizeSelect(MachineInstr &MI,
+                                SmallPtrSetImpl<MachineInstr *> &SeenMIs,
+                                bool PreferFalse) const {
+  // Try to use the base optimizeSelect, which uses canFoldIntoMOVCC to fold the
+  // MOVCC into another instruction. If that fails on 8.1-M fall back to using a
+  // CSEL.
+  MachineInstr *RV = ARMBaseInstrInfo::optimizeSelect(MI, SeenMIs, PreferFalse);
+  if (!RV && getSubtarget().hasV8_1MMainlineOps() && !PreferNoCSEL) {
+    Register DestReg = MI.getOperand(0).getReg();
+
+    if (!DestReg.isVirtual())
+      return nullptr;
+
+    MachineInstrBuilder NewMI = BuildMI(*MI.getParent(), MI, MI.getDebugLoc(),
+                                        get(ARM::t2CSEL), DestReg)
+                                    .add(MI.getOperand(2))
+                                    .add(MI.getOperand(1))
+                                    .add(MI.getOperand(3));
+    SeenMIs.insert(NewMI);
+    return NewMI;
+  }
+  return RV;
 }
 
 void Thumb2InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
@@ -225,6 +256,22 @@ void Thumb2InstrInfo::expandLoadStackGuard(
     expandLoadStackGuardBase(MI, ARM::t2MOV_ga_pcrel, ARM::t2LDRi12);
   else
     expandLoadStackGuardBase(MI, ARM::t2MOVi32imm, ARM::t2LDRi12);
+}
+
+MachineInstr *Thumb2InstrInfo::commuteInstructionImpl(MachineInstr &MI,
+                                                      bool NewMI,
+                                                      unsigned OpIdx1,
+                                                      unsigned OpIdx2) const {
+  switch (MI.getOpcode()) {
+  case ARM::MVE_VMAXNMAf16:
+  case ARM::MVE_VMAXNMAf32:
+  case ARM::MVE_VMINNMAf16:
+  case ARM::MVE_VMINNMAf32:
+    // Don't allow predicated instructions to be commuted.
+    if (getVPTInstrPredicate(MI) != ARMVCC::None)
+      return nullptr;
+  }
+  return ARMBaseInstrInfo::commuteInstructionImpl(MI, NewMI, OpIdx1, OpIdx2);
 }
 
 void llvm::emitT2RegPlusImmediate(MachineBasicBlock &MBB,

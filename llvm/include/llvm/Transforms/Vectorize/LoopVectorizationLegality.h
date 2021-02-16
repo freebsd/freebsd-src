@@ -29,6 +29,7 @@
 #include "llvm/ADT/MapVector.h"
 #include "llvm/Analysis/LoopAccessAnalysis.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
+#include "llvm/Support/TypeSize.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 
 namespace llvm {
@@ -43,8 +44,14 @@ namespace llvm {
 /// for example 'force', means a decision has been made. So, we need to be
 /// careful NOT to add them if the user hasn't specifically asked so.
 class LoopVectorizeHints {
-  enum HintKind { HK_WIDTH, HK_UNROLL, HK_FORCE, HK_ISVECTORIZED,
-                  HK_PREDICATE };
+  enum HintKind {
+    HK_WIDTH,
+    HK_UNROLL,
+    HK_FORCE,
+    HK_ISVECTORIZED,
+    HK_PREDICATE,
+    HK_SCALABLE
+  };
 
   /// Hint - associates name and validation with the hint value.
   struct Hint {
@@ -73,6 +80,9 @@ class LoopVectorizeHints {
   /// Vector Predicate
   Hint Predicate;
 
+  /// Says whether we should use fixed width or scalable vectorization.
+  Hint Scalable;
+
   /// Return the loop metadata prefix.
   static StringRef Prefix() { return "llvm.loop."; }
 
@@ -98,7 +108,9 @@ public:
   /// Dumps all the hint information.
   void emitRemarkWithHints() const;
 
-  unsigned getWidth() const { return Width.Value; }
+  ElementCount getWidth() const {
+    return ElementCount::get(Width.Value, isScalable());
+  }
   unsigned getInterleave() const { return Interleave.Value; }
   unsigned getIsVectorized() const { return IsVectorized.Value; }
   unsigned getPredicate() const { return Predicate.Value; }
@@ -108,6 +120,8 @@ public:
       return FK_Disabled;
     return (ForceKind)Force.Value;
   }
+
+  bool isScalable() const { return Scalable.Value; }
 
   /// If hints are provided that force vectorization, use the AlwaysPrint
   /// pass name to force the frontend to print the diagnostic.
@@ -119,7 +133,9 @@ public:
     // enabled by default because can be unsafe or inefficient. For example,
     // reordering floating-point operations will change the way round-off
     // error accumulates in the loop.
-    return getForce() == LoopVectorizeHints::FK_Enabled || getWidth() > 1;
+    ElementCount EC = getWidth();
+    return getForce() == LoopVectorizeHints::FK_Enabled ||
+           EC.getKnownMinValue() > 1;
   }
 
   bool isPotentiallyUnsafe() const {
@@ -202,9 +218,10 @@ public:
       Function *F, std::function<const LoopAccessInfo &(Loop &)> *GetLAA,
       LoopInfo *LI, OptimizationRemarkEmitter *ORE,
       LoopVectorizationRequirements *R, LoopVectorizeHints *H, DemandedBits *DB,
-      AssumptionCache *AC)
+      AssumptionCache *AC, BlockFrequencyInfo *BFI, ProfileSummaryInfo *PSI)
       : TheLoop(L), LI(LI), PSE(PSE), TTI(TTI), TLI(TLI), DT(DT),
-        GetLAA(GetLAA), ORE(ORE), Requirements(R), Hints(H), DB(DB), AC(AC) {}
+        GetLAA(GetLAA), ORE(ORE), Requirements(R), Hints(H), DB(DB), AC(AC),
+        BFI(BFI), PSI(PSI) {}
 
   /// ReductionList contains the reduction descriptors for all
   /// of the reductions that were found in the loop.
@@ -229,6 +246,7 @@ public:
 
   /// Return true if we can vectorize this loop while folding its tail by
   /// masking, and mark all respective loads/stores for masking.
+  /// This object's state is only modified iff this function returns true.
   bool prepareToFoldTailByMasking();
 
   /// Returns the primary induction variable.
@@ -287,6 +305,19 @@ public:
   /// Returns true if the value V is uniform within the loop.
   bool isUniform(Value *V);
 
+  /// A uniform memory op is a load or store which accesses the same memory
+  /// location on all lanes.
+  bool isUniformMemOp(Instruction &I) {
+    Value *Ptr = getLoadStorePointerOperand(&I);
+    if (!Ptr)
+      return false;
+    // Note: There's nothing inherent which prevents predicated loads and
+    // stores from being uniform.  The current lowering simply doesn't handle
+    // it; in particular, the cost model distinguishes scatter/gather from
+    // scalar w/predication, and we currently rely on the scalar path.
+    return isUniform(Ptr) && !blockNeedsPredication(I.getParent());
+  }
+
   /// Returns the information that we collected about runtime memory check.
   const RuntimePointerChecking *getRuntimePointerChecking() const {
     return LAI->getRuntimePointerChecking();
@@ -294,17 +325,21 @@ public:
 
   const LoopAccessInfo *getLAI() const { return LAI; }
 
+  bool isSafeForAnyVectorWidth() const {
+    return LAI->getDepChecker().isSafeForAnyVectorWidth();
+  }
+
   unsigned getMaxSafeDepDistBytes() { return LAI->getMaxSafeDepDistBytes(); }
 
-  uint64_t getMaxSafeRegisterWidth() const {
-    return LAI->getDepChecker().getMaxSafeRegisterWidth();
+  uint64_t getMaxSafeVectorWidthInBits() const {
+    return LAI->getDepChecker().getMaxSafeVectorWidthInBits();
   }
 
   bool hasStride(Value *V) { return LAI->hasStride(V); }
 
   /// Returns true if vector representation of the instruction \p I
   /// requires mask.
-  bool isMaskRequired(const Instruction *I) { return (MaskedOp.count(I) != 0); }
+  bool isMaskRequired(const Instruction *I) { return MaskedOp.contains(I); }
 
   unsigned getNumStores() const { return LAI->getNumStores(); }
   unsigned getNumLoads() const { return LAI->getNumLoads(); }
@@ -369,8 +404,14 @@ private:
   /// its original trip-count, under a proper guard, which should be preserved.
   /// \p SafePtrs is a list of addresses that are known to be legal and we know
   /// that we can read from them without segfault.
+  /// \p MaskedOp is a list of instructions that have to be transformed into
+  /// calls to the appropriate masked intrinsic when the loop is vectorized.
+  /// \p ConditionalAssumes is a list of assume instructions in predicated
+  /// blocks that must be dropped if the CFG gets flattened.
   bool blockCanBePredicated(BasicBlock *BB, SmallPtrSetImpl<Value *> &SafePtrs,
-                            bool PreserveGuards = false);
+                            SmallPtrSetImpl<const Instruction *> &MaskedOp,
+                            SmallPtrSetImpl<Instruction *> &ConditionalAssumes,
+                            bool PreserveGuards = false) const;
 
   /// Updates the vectorization state by adding \p Phi to the inductions list.
   /// This can set \p Phi as the main induction of the loop if \p Phi is a
@@ -478,6 +519,10 @@ private:
   /// Assume instructions in predicated blocks must be dropped if the CFG gets
   /// flattened.
   SmallPtrSet<Instruction *, 8> ConditionalAssumes;
+
+  /// BFI and PSI are used to check for profile guided size optimizations.
+  BlockFrequencyInfo *BFI;
+  ProfileSummaryInfo *PSI;
 };
 
 } // namespace llvm

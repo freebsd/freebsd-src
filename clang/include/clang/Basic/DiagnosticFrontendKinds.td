@@ -108,10 +108,8 @@ def err_fe_action_not_available : Error<
     "action %0 not compiled in">;
 def err_fe_invalid_alignment : Error<
     "invalid value '%1' in '%0'; alignment must be a power of 2">;
-def err_fe_invalid_wchar_type
-    : Error<"invalid wchar_t type '%0'; must be one of 'char', 'short', 'int'">;
 def err_fe_invalid_exception_model
-   : Error<"invalid exception model '%0' for target '%1'">;
+   : Error<"invalid exception model '%select{none|dwarf|sjlj|arm|seh|wasm|aix}0' for target '%1'">;
 def warn_fe_concepts_ts_flag : Warning<
   "-fconcepts-ts is deprecated - use '-std=c++20' for Concepts support">,
   InGroup<Deprecated>;
@@ -270,8 +268,16 @@ def err_ifunc_resolver_return : Error<
   "ifunc resolver function must return a pointer">;
 
 def warn_atomic_op_misaligned : Warning<
-  "%select{large|misaligned}0 atomic operation may incur "
-  "significant performance penalty">, InGroup<DiagGroup<"atomic-alignment">>;
+  "misaligned atomic operation may incur "
+  "significant performance penalty"
+  "; the expected alignment (%0 bytes) exceeds the actual alignment (%1 bytes)">,
+  InGroup<AtomicAlignment>;
+
+def warn_atomic_op_oversized : Warning<
+  "large atomic operation may incur "
+  "significant performance penalty"
+  "; the access size (%0 bytes) exceeds the max lock-free size (%1  bytes)">,
+InGroup<AtomicAlignment>;
 
 def warn_alias_with_section : Warning<
   "%select{alias|ifunc}1 will not be in section '%0' but in the same section "
@@ -291,12 +297,6 @@ def warn_profile_data_missing : Warning<
 def warn_profile_data_unprofiled : Warning<
   "no profile data available for file \"%0\"">,
   InGroup<ProfileInstrUnprofiled>;
-def warn_profile_data_misexpect : Warning<
-  "Potential performance regression from use of __builtin_expect(): "
-  "Annotation was correct on %0 of profiled executions.">,
-  BackendInfo,
-  InGroup<MisExpect>,
-  DefaultIgnore;
 } // end of instrumentation issue category
 
 }

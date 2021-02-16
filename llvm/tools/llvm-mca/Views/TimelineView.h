@@ -100,12 +100,13 @@
 #ifndef LLVM_TOOLS_LLVM_MCA_TIMELINEVIEW_H
 #define LLVM_TOOLS_LLVM_MCA_TIMELINEVIEW_H
 
-#include "Views/View.h"
+#include "Views/InstructionView.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstPrinter.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/FormattedStream.h"
+#include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
@@ -118,11 +119,7 @@ namespace mca {
 /// a TimelineViewEntry object. TimelineViewEntry objects are then used
 /// to print the timeline information, as well as the "average wait times"
 /// for every instruction in the input assembly sequence.
-class TimelineView : public View {
-  const llvm::MCSubtargetInfo &STI;
-  llvm::MCInstPrinter &MCIP;
-  llvm::ArrayRef<llvm::MCInst> Source;
-
+class TimelineView : public InstructionView {
   unsigned CurrentCycle;
   unsigned MaxCycle;
   unsigned LastCycle;
@@ -182,6 +179,8 @@ public:
     printTimeline(OS);
     printAverageWaitTimes(OS);
   }
+  StringRef getNameAsString() const override { return "TimelineView"; }
+  json::Value toJSON() const override;
 };
 } // namespace mca
 } // namespace llvm

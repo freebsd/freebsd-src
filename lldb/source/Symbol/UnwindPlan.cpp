@@ -83,7 +83,7 @@ static void DumpDWARFExpr(Stream &s, llvm::ArrayRef<uint8_t> expr, Thread *threa
     llvm::DataExtractor data(expr, order_and_width->first == eByteOrderLittle,
                              order_and_width->second);
     llvm::DWARFExpression(data, order_and_width->second, llvm::dwarf::DWARF32)
-        .print(s.AsRawOstream(), nullptr, nullptr);
+        .print(s.AsRawOstream(), llvm::DIDumpOptions(), nullptr, nullptr);
   } else
     s.PutCString("dwarf-expr");
 }
@@ -517,6 +517,18 @@ void UnwindPlan::Dump(Stream &s, Thread *thread, lldb::addr_t base_addr) const {
   }
   s.Printf("This UnwindPlan is valid at all instruction locations: ");
   switch (m_plan_is_valid_at_all_instruction_locations) {
+  case eLazyBoolYes:
+    s.Printf("yes.\n");
+    break;
+  case eLazyBoolNo:
+    s.Printf("no.\n");
+    break;
+  case eLazyBoolCalculate:
+    s.Printf("not specified.\n");
+    break;
+  }
+  s.Printf("This UnwindPlan is for a trap handler function: ");
+  switch (m_plan_is_for_signal_trap) {
   case eLazyBoolYes:
     s.Printf("yes.\n");
     break;

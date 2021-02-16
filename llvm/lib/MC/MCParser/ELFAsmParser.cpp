@@ -450,8 +450,14 @@ bool ELFAsmParser::parseLinkedToSym(MCSymbolELF *&LinkedToSym) {
   Lex();
   StringRef Name;
   SMLoc StartLoc = L.getLoc();
-  if (getParser().parseIdentifier(Name))
+  if (getParser().parseIdentifier(Name)) {
+    if (getParser().getTok().getString() == "0") {
+      getParser().Lex();
+      LinkedToSym = nullptr;
+      return false;
+    }
     return TokError("invalid linked-to symbol");
+  }
   LinkedToSym = dyn_cast_or_null<MCSymbolELF>(getContext().lookupSymbol(Name));
   if (!LinkedToSym || !LinkedToSym->isInSection())
     return Error(StartLoc, "linked-to symbol is not in a section: " + Name);
@@ -620,6 +626,8 @@ EndStmt:
       Type = ELF::SHT_LLVM_DEPENDENT_LIBRARIES;
     else if (TypeName == "llvm_sympart")
       Type = ELF::SHT_LLVM_SYMPART;
+    else if (TypeName == "llvm_bb_addr_map")
+      Type = ELF::SHT_LLVM_BB_ADDR_MAP;
     else if (TypeName.getAsInteger(0, Type))
       return TokError("unknown section type");
   }
@@ -644,14 +652,19 @@ EndStmt:
       !(SectionName == ".eh_frame" && Type == ELF::SHT_PROGBITS))
     Error(loc, "changed section type for " + SectionName + ", expected: 0x" +
                    utohexstr(Section->getType()));
-  if (Section->getFlags() != Flags)
+  // Check that flags are used consistently. However, the GNU assembler permits
+  // to leave out in subsequent uses of the same sections; for compatibility,
+  // do likewise.
+  if ((Flags || Size || !TypeName.empty()) && Section->getFlags() != Flags)
     Error(loc, "changed section flags for " + SectionName + ", expected: 0x" +
                    utohexstr(Section->getFlags()));
-  if (Section->getEntrySize() != Size)
+  if ((Flags || Size || !TypeName.empty()) && Section->getEntrySize() != Size)
     Error(loc, "changed section entsize for " + SectionName +
                    ", expected: " + Twine(Section->getEntrySize()));
 
-  if (getContext().getGenDwarfForAssembly()) {
+  if (getContext().getGenDwarfForAssembly() &&
+      (Section->getFlags() & ELF::SHF_ALLOC) &&
+      (Section->getFlags() & ELF::SHF_EXECINSTR)) {
     bool InsertResult = getContext().addGenDwarfSection(Section);
     if (InsertResult) {
       if (getContext().getDwarfVersion() <= 2)

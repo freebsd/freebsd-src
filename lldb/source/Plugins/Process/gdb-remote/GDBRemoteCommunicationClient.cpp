@@ -1053,7 +1053,7 @@ void GDBRemoteCommunicationClient::MaybeEnableCompression(
   }
 #endif
 
-#if defined(HAVE_LIBZ)
+#if LLVM_ENABLE_ZLIB
   if (avail_type == CompressionType::None) {
     for (auto compression : supported_compressions) {
       if (compression == "zlib-deflate") {
@@ -1529,6 +1529,22 @@ Status GDBRemoteCommunicationClient::GetMemoryRegionInfo(
           std::string name;
           name_extractor.GetHexByteString(name);
           region_info.SetName(name.c_str());
+        } else if (name.equals("flags")) {
+          region_info.SetMemoryTagged(MemoryRegionInfo::eNo);
+
+          llvm::StringRef flags = value;
+          llvm::StringRef flag;
+          while (flags.size()) {
+            flags = flags.ltrim();
+            std::tie(flag, flags) = flags.split(' ');
+            // To account for trailing whitespace
+            if (flag.size()) {
+              if (flag == "mt") {
+                region_info.SetMemoryTagged(MemoryRegionInfo::eYes);
+                break;
+              }
+            }
+          }
         } else if (name.equals("error")) {
           StringExtractorGDBRemote error_extractor(value);
           std::string error_string;
@@ -1701,14 +1717,9 @@ Status GDBRemoteCommunicationClient::GetWatchpointSupportInfo(uint32_t &num) {
   // Set num to 0 first.
   num = 0;
   if (m_supports_watchpoint_support_info != eLazyBoolNo) {
-    char packet[64];
-    const int packet_len =
-        ::snprintf(packet, sizeof(packet), "qWatchpointSupportInfo:");
-    assert(packet_len < (int)sizeof(packet));
-    UNUSED_IF_ASSERT_DISABLED(packet_len);
     StringExtractorGDBRemote response;
-    if (SendPacketAndWaitForResponse(packet, response, false) ==
-        PacketResult::Success) {
+    if (SendPacketAndWaitForResponse("qWatchpointSupportInfo:", response,
+                                     false) == PacketResult::Success) {
       m_supports_watchpoint_support_info = eLazyBoolYes;
       llvm::StringRef name;
       llvm::StringRef value;
@@ -2120,6 +2131,7 @@ bool GDBRemoteCommunicationClient::GetCurrentProcessInfo(bool allow_lazy) {
         case llvm::Triple::COFF:
           m_process_arch.SetArchitecture(eArchTypeCOFF, cpu, sub);
           break;
+        case llvm::Triple::GOFF:
         case llvm::Triple::Wasm:
         case llvm::Triple::XCOFF:
           LLDB_LOGF(log, "error: not supported target architecture");
@@ -2816,7 +2828,7 @@ lldb::addr_t GDBRemoteCommunicationClient::GetShlibInfoAddr() {
 }
 
 lldb_private::Status GDBRemoteCommunicationClient::RunShellCommand(
-    const char *command, // Shouldn't be NULL
+    llvm::StringRef command,
     const FileSpec &
         working_dir, // Pass empty FileSpec to use the current working directory
     int *status_ptr, // Pass NULL if you don't want the process exit status
@@ -2827,7 +2839,7 @@ lldb_private::Status GDBRemoteCommunicationClient::RunShellCommand(
     const Timeout<std::micro> &timeout) {
   lldb_private::StreamString stream;
   stream.PutCString("qPlatform_shell:");
-  stream.PutBytesAsRawHex8(command, strlen(command));
+  stream.PutBytesAsRawHex8(command.data(), command.size());
   stream.PutChar(',');
   uint32_t timeout_sec = UINT32_MAX;
   if (timeout) {
@@ -2979,6 +2991,31 @@ lldb::user_id_t GDBRemoteCommunicationClient::GetFileSize(
     return retcode;
   }
   return UINT64_MAX;
+}
+
+void GDBRemoteCommunicationClient::AutoCompleteDiskFileOrDirectory(
+    CompletionRequest &request, bool only_dir) {
+  lldb_private::StreamString stream;
+  stream.PutCString("qPathComplete:");
+  stream.PutHex32(only_dir ? 1 : 0);
+  stream.PutChar(',');
+  stream.PutStringAsRawHex8(request.GetCursorArgumentPrefix());
+  StringExtractorGDBRemote response;
+  if (SendPacketAndWaitForResponse(stream.GetString(), response, false) ==
+      PacketResult::Success) {
+    StreamString strm;
+    char ch = response.GetChar();
+    if (ch != 'M')
+      return;
+    while (response.Peek()) {
+      strm.Clear();
+      while ((ch = response.GetHexU8(0, false)) != '\0')
+        strm.PutChar(ch);
+      request.AddCompletion(strm.GetString());
+      if (response.GetChar() != ',')
+        break;
+    }
+  }
 }
 
 Status
@@ -3431,6 +3468,35 @@ Status GDBRemoteCommunicationClient::SendGetMetaDataPacket(
   StreamGDBRemote escaped_packet;
   escaped_packet.PutCString("jTraceMetaRead:");
   return SendGetTraceDataPacket(escaped_packet, uid, thread_id, buffer, offset);
+}
+
+llvm::Expected<TraceTypeInfo>
+GDBRemoteCommunicationClient::SendGetSupportedTraceType() {
+  Log *log(ProcessGDBRemoteLog::GetLogIfAllCategoriesSet(GDBR_LOG_PROCESS));
+
+  StreamGDBRemote escaped_packet;
+  escaped_packet.PutCString("jLLDBTraceSupportedType");
+
+  StringExtractorGDBRemote response;
+  if (SendPacketAndWaitForResponse(escaped_packet.GetString(), response,
+                                   true) ==
+      GDBRemoteCommunication::PacketResult::Success) {
+    if (response.IsErrorResponse())
+      return response.GetStatus().ToError();
+    if (response.IsUnsupportedResponse())
+      return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                     "jLLDBTraceSupportedType is unsupported");
+
+    if (llvm::Expected<TraceTypeInfo> type =
+            llvm::json::parse<TraceTypeInfo>(response.Peek()))
+      return *type;
+    else
+      return type.takeError();
+  }
+  LLDB_LOG(log, "failed to send packet: jLLDBTraceSupportedType");
+  return llvm::createStringError(
+      llvm::inconvertibleErrorCode(),
+      "failed to send packet: jLLDBTraceSupportedType");
 }
 
 Status

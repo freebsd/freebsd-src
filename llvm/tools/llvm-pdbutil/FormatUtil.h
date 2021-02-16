@@ -66,7 +66,7 @@ std::string typesetStringList(uint32_t IndentLevel,
 std::string formatChunkKind(codeview::DebugSubsectionKind Kind,
                             bool Friendly = true);
 std::string formatSymbolKind(codeview::SymbolKind K);
-StringRef formatTypeLeafKind(codeview::TypeLeafKind K);
+std::string formatTypeLeafKind(codeview::TypeLeafKind K);
 
 /// Returns the number of digits in the given integer.
 inline int NumDigits(uint64_t N) {
@@ -123,7 +123,7 @@ struct EndianAdapter final
   explicit EndianAdapter(EndianType &&Item)
       : FormatAdapter<EndianType>(std::move(Item)) {}
 
-  void format(llvm::raw_ostream &Stream, StringRef Style) {
+  void format(llvm::raw_ostream &Stream, StringRef Style) override {
     format_provider<T>::format(static_cast<T>(this->Item), Stream, Style);
   }
 };

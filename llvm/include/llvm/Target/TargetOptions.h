@@ -67,7 +67,16 @@ namespace llvm {
     Labels, // Do not use Basic Block Sections but label basic blocks.  This
             // is useful when associating profile counts from virtual addresses
             // to basic blocks.
+    Preset, // Similar to list but the blocks are identified by passes which
+            // seek to use Basic Block Sections, e.g. MachineFunctionSplitter.
+            // This option cannot be set via the command line.
     None    // Do not use Basic Block Sections.
+  };
+
+  enum class StackProtectorGuards {
+    None,
+    TLS,
+    Global
   };
 
   enum class EABI {
@@ -113,32 +122,33 @@ namespace llvm {
   class TargetOptions {
   public:
     TargetOptions()
-        : PrintMachineCode(false), UnsafeFPMath(false), NoInfsFPMath(false),
-          NoNaNsFPMath(false), NoTrappingFPMath(true),
-          NoSignedZerosFPMath(false),
+        : UnsafeFPMath(false), NoInfsFPMath(false), NoNaNsFPMath(false),
+          NoTrappingFPMath(true), NoSignedZerosFPMath(false),
+          EnableAIXExtendedAltivecABI(false),
           HonorSignDependentRoundingFPMathOption(false), NoZerosInBSS(false),
           GuaranteedTailCallOpt(false), StackSymbolOrdering(true),
           EnableFastISel(false), EnableGlobalISel(false), UseInitArray(false),
           DisableIntegratedAS(false), RelaxELFRelocations(false),
           FunctionSections(false), DataSections(false),
+          IgnoreXCOFFVisibility(false), XCOFFTracebackTable(true),
           UniqueSectionNames(true), UniqueBasicBlockSectionNames(false),
           TrapUnreachable(false), NoTrapAfterNoreturn(false), TLSSize(0),
           EmulatedTLS(false), ExplicitEmulatedTLS(false), EnableIPRA(false),
           EmitStackSizeSection(false), EnableMachineOutliner(false),
-          SupportsDefaultOutlining(false), EmitAddrsig(false),
-          EmitCallSiteInfo(false), SupportsDebugEntryValues(false),
-          EnableDebugEntryValues(false), ForceDwarfFrameSection(false),
-          XRayOmitFunctionIndex(false),
+          EnableMachineFunctionSplitter(false), SupportsDefaultOutlining(false),
+          EmitAddrsig(false), EmitCallSiteInfo(false),
+          SupportsDebugEntryValues(false), EnableDebugEntryValues(false),
+          PseudoProbeForProfiling(false), ValueTrackingVariableLocations(false),
+          ForceDwarfFrameSection(false), XRayOmitFunctionIndex(false),
           FPDenormalMode(DenormalMode::IEEE, DenormalMode::IEEE) {}
-
-    /// PrintMachineCode - This flag is enabled when the -print-machineinstrs
-    /// option is specified on the command line, and should enable debugging
-    /// output from the code generator.
-    unsigned PrintMachineCode : 1;
 
     /// DisableFramePointerElim - This returns true if frame pointer elimination
     /// optimization should be disabled for the given machine function.
     bool DisableFramePointerElim(const MachineFunction &MF) const;
+
+    /// If greater than 0, override the default value of
+    /// MCAsmInfo::BinutilsVersion.
+    std::pair<int, int> BinutilsVersion{0, 0};
 
     /// UnsafeFPMath - This flag is enabled when the
     /// -enable-unsafe-fp-math flag is specified on the command line.  When
@@ -169,6 +179,12 @@ namespace llvm {
     /// specifies that optimizations are allowed to treat the sign of a zero
     /// argument or result as insignificant.
     unsigned NoSignedZerosFPMath : 1;
+
+    /// EnableAIXExtendedAltivecABI - This flag returns true when -vec-extabi is
+    /// specified. The code generator is then able to use both volatile and
+    /// nonvolitle vector regisers. When false, the code generator only uses
+    /// volatile vector registers which is the default setting on AIX.
+    unsigned EnableAIXExtendedAltivecABI : 1;
 
     /// HonorSignDependentRoundingFPMath - This returns true when the
     /// -enable-sign-dependent-rounding-fp-math is specified.  If this returns
@@ -232,6 +248,12 @@ namespace llvm {
     /// Emit data into separate sections.
     unsigned DataSections : 1;
 
+    /// Do not emit visibility attribute for xcoff.
+    unsigned IgnoreXCOFFVisibility : 1;
+
+    /// Emit XCOFF traceback table.
+    unsigned XCOFFTracebackTable : 1;
+
     unsigned UniqueSectionNames : 1;
 
     /// Use unique names for basic block sections.
@@ -263,6 +285,9 @@ namespace llvm {
     /// Enables the MachineOutliner pass.
     unsigned EnableMachineOutliner : 1;
 
+    /// Enables the MachineFunctionSplitter pass.
+    unsigned EnableMachineFunctionSplitter : 1;
+
     /// Set if the target supports default outlining behaviour.
     unsigned SupportsDefaultOutlining : 1;
 
@@ -291,11 +316,29 @@ namespace llvm {
     /// production.
     bool ShouldEmitDebugEntryValues() const;
 
+    /// Emit pseudo probes into the binary for sample profiling
+    unsigned PseudoProbeForProfiling : 1;
+
+    // When set to true, use experimental new debug variable location tracking,
+    // which seeks to follow the values of variables rather than their location,
+    // post isel.
+    unsigned ValueTrackingVariableLocations : 1;
+
     /// Emit DWARF debug frame section.
     unsigned ForceDwarfFrameSection : 1;
 
     /// Emit XRay Function Index section
     unsigned XRayOmitFunctionIndex : 1;
+
+    /// Stack protector guard offset to use.
+    unsigned StackProtectorGuardOffset : 32;
+
+    /// Stack protector guard mode to use, e.g. tls, global.
+    StackProtectorGuards StackProtectorGuard =
+                                         StackProtectorGuards::None;
+
+    /// Stack protector guard reg to use, e.g. usually fs or gs in X86.
+    std::string StackProtectorGuardReg = "None";
 
     /// FloatABIType - This setting is set by -float-abi=xxx option is specfied
     /// on the command line. This setting may either be Default, Soft, or Hard.

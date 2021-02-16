@@ -14,6 +14,7 @@
 #define LLVM_CODEGEN_TARGETFRAMELOWERING_H
 
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/Support/TypeSize.h"
 #include <vector>
 
 namespace llvm {
@@ -26,7 +27,7 @@ namespace TargetStackID {
   enum Value {
     Default = 0,
     SGPRSpill = 1,
-    SVEVector = 2,
+    ScalableVector = 2,
     NoAlloc = 255
   };
 }
@@ -133,6 +134,12 @@ public:
   /// certain conditions (e.g. stack was adjusted before function \p MF
   /// was called).
   virtual unsigned getStackAlignmentSkew(const MachineFunction &MF) const;
+
+  /// This method returns whether or not it is safe for an object with the
+  /// given stack id to be bundled into the local area.
+  virtual bool isStackIdSafeForLocalArea(unsigned StackId) const {
+    return true;
+  }
 
   /// getOffsetOfLocalArea - This method returns the offset of the local area
   /// from the stack pointer on entrance to a function.
@@ -291,8 +298,8 @@ public:
   /// getFrameIndexReference - This method should return the base register
   /// and offset used to reference a frame index location. The offset is
   /// returned directly, and the base register is returned via FrameReg.
-  virtual int getFrameIndexReference(const MachineFunction &MF, int FI,
-                                     Register &FrameReg) const;
+  virtual StackOffset getFrameIndexReference(const MachineFunction &MF, int FI,
+                                             Register &FrameReg) const;
 
   /// Same as \c getFrameIndexReference, except that the stack pointer (as
   /// opposed to the frame pointer) will be the preferred value for \p
@@ -300,9 +307,10 @@ public:
   /// use offsets from RSP.  If \p IgnoreSPUpdates is true, the returned
   /// offset is only guaranteed to be valid with respect to the value of SP at
   /// the end of the prologue.
-  virtual int getFrameIndexReferencePreferSP(const MachineFunction &MF, int FI,
-                                             Register &FrameReg,
-                                             bool IgnoreSPUpdates) const {
+  virtual StackOffset
+  getFrameIndexReferencePreferSP(const MachineFunction &MF, int FI,
+                                 Register &FrameReg,
+                                 bool IgnoreSPUpdates) const {
     // Always safe to dispatch to getFrameIndexReference.
     return getFrameIndexReference(MF, FI, FrameReg);
   }
@@ -310,8 +318,8 @@ public:
   /// getNonLocalFrameIndexReference - This method returns the offset used to
   /// reference a frame index location. The offset can be from either FP/BP/SP
   /// based on which base register is returned by llvm.localaddress.
-  virtual int getNonLocalFrameIndexReference(const MachineFunction &MF,
-                                       int FI) const {
+  virtual StackOffset getNonLocalFrameIndexReference(const MachineFunction &MF,
+                                                     int FI) const {
     // By default, dispatch to getFrameIndexReference. Interested targets can
     // override this.
     Register FrameReg;

@@ -40,8 +40,8 @@ public:
   void applyJumpInstrMod(uint8_t *loc, JumpModType type,
                          unsigned size) const override;
 
-  RelExpr adjustRelaxExpr(RelType type, const uint8_t *data,
-                          RelExpr expr) const override;
+  RelExpr adjustGotPcExpr(RelType type, int64_t addend,
+                          const uint8_t *loc) const override;
   void relaxGot(uint8_t *loc, const Relocation &rel,
                 uint64_t val) const override;
   void relaxTlsGdToIe(uint8_t *loc, const Relocation &rel,
@@ -324,7 +324,7 @@ RelExpr X86_64::getRelExpr(RelType type, const Symbol &s,
   case R_X86_64_DTPOFF64:
     return R_DTPREL;
   case R_X86_64_TPOFF32:
-    return R_TLS;
+    return R_TPREL;
   case R_X86_64_TLSDESC_CALL:
     return R_TLSDESC_CALL;
   case R_X86_64_TLSLD:
@@ -728,12 +728,17 @@ void X86_64::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
   }
 }
 
-RelExpr X86_64::adjustRelaxExpr(RelType type, const uint8_t *data,
-                                RelExpr relExpr) const {
-  if (type != R_X86_64_GOTPCRELX && type != R_X86_64_REX_GOTPCRELX)
-    return relExpr;
-  const uint8_t op = data[-2];
-  const uint8_t modRm = data[-1];
+RelExpr X86_64::adjustGotPcExpr(RelType type, int64_t addend,
+                                const uint8_t *loc) const {
+  // Only R_X86_64_[REX_]GOTPCRELX can be relaxed. GNU as may emit GOTPCRELX
+  // with addend != -4. Such an instruction does not load the full GOT entry, so
+  // we cannot relax the relocation. E.g. movl x@GOTPCREL+4(%rip), %rax
+  // (addend=0) loads the high 32 bits of the GOT entry.
+  if ((type != R_X86_64_GOTPCRELX && type != R_X86_64_REX_GOTPCRELX) ||
+      addend != -4)
+    return R_GOT_PC;
+  const uint8_t op = loc[-2];
+  const uint8_t modRm = loc[-1];
 
   // FIXME: When PIC is disabled and foo is defined locally in the
   // lower 32 bit address space, memory operand in mov can be converted into
@@ -746,12 +751,13 @@ RelExpr X86_64::adjustRelaxExpr(RelType type, const uint8_t *data,
   if (op == 0xff && (modRm == 0x15 || modRm == 0x25))
     return R_RELAX_GOT_PC;
 
+  // We don't support test/binop instructions without a REX prefix.
+  if (type == R_X86_64_GOTPCRELX)
+    return R_GOT_PC;
+
   // Relaxation of test, adc, add, and, cmp, or, sbb, sub, xor.
   // If PIC then no relaxation is available.
-  // We also don't relax test/binop instructions without REX byte,
-  // they are 32bit operations and not common to have.
-  assert(type == R_X86_64_REX_GOTPCRELX);
-  return config->isPic ? relExpr : R_RELAX_GOT_PC_NOPIC;
+  return config->isPic ? R_GOT_PC : R_RELAX_GOT_PC_NOPIC;
 }
 
 // A subset of relaxations can only be applied for no-PIC. This method
@@ -822,7 +828,8 @@ static void relaxGotNoPic(uint8_t *loc, uint64_t val, uint8_t op,
   write32le(loc, val);
 }
 
-void X86_64::relaxGot(uint8_t *loc, const Relocation &, uint64_t val) const {
+void X86_64::relaxGot(uint8_t *loc, const Relocation &rel, uint64_t val) const {
+  checkInt(loc, val, 32, rel);
   const uint8_t op = loc[-2];
   const uint8_t modRm = loc[-1];
 

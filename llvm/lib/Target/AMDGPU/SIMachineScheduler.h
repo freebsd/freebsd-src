@@ -14,19 +14,17 @@
 #ifndef LLVM_LIB_TARGET_AMDGPU_SIMACHINESCHEDULER_H
 #define LLVM_LIB_TARGET_AMDGPU_SIMACHINESCHEDULER_H
 
-#include "SIInstrInfo.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/RegisterPressure.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
-#include <cassert>
 #include <cstdint>
-#include <map>
-#include <memory>
 #include <set>
 #include <vector>
 
 namespace llvm {
+
+class SIInstrInfo;
+class SIRegisterInfo;
 
 enum SIScheduleCandReason {
   NoCand,
@@ -455,7 +453,7 @@ public:
   MachineRegisterInfo *getMRI() { return &MRI; }
   const TargetRegisterInfo *getTRI() { return TRI; }
   ScheduleDAGTopologicalSort *GetTopo() { return &Topo; }
-  SUnit& getEntrySU() { return EntrySU; }
+  SUnit &getEntrySU() { return EntrySU; }
   SUnit& getExitSU() { return ExitSU; }
 
   void restoreSULinksLeft();

@@ -40,8 +40,8 @@
 
 using namespace clang;
 
-const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
-                                           DiagNullabilityKind nullability) {
+const StreamingDiagnostic &clang::operator<<(const StreamingDiagnostic &DB,
+                                             DiagNullabilityKind nullability) {
   StringRef string;
   switch (nullability.first) {
   case NullabilityKind::NonNull:
@@ -55,14 +55,20 @@ const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
   case NullabilityKind::Unspecified:
     string = nullability.second ? "'null_unspecified'" : "'_Null_unspecified'";
     break;
+
+  case NullabilityKind::NullableResult:
+    assert(!nullability.second &&
+           "_Nullable_result isn't supported as context-sensitive keyword");
+    string = "_Nullable_result";
+    break;
   }
 
   DB.AddString(string);
   return DB;
 }
 
-const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
-                                           llvm::Error &&E) {
+const StreamingDiagnostic &clang::operator<<(const StreamingDiagnostic &DB,
+                                             llvm::Error &&E) {
   DB.AddString(toString(std::move(E)));
   return DB;
 }
@@ -265,7 +271,8 @@ void DiagnosticsEngine::DiagStateMap::dump(SourceManager &SrcMgr,
       PrintedOuterHeading = true;
 
       llvm::errs() << "File " << &File << " <FileID " << ID.getHashValue()
-                   << ">: " << SrcMgr.getBuffer(ID)->getBufferIdentifier();
+                   << ">: " << SrcMgr.getBufferOrFake(ID).getBufferIdentifier();
+
       if (F.second.Parent) {
         std::pair<FileID, unsigned> Decomp =
             SrcMgr.getDecomposedIncludedLoc(ID);
@@ -481,13 +488,15 @@ void DiagnosticsEngine::Report(const StoredDiagnostic &storedDiag) {
 
   CurDiagLoc = storedDiag.getLocation();
   CurDiagID = storedDiag.getID();
-  NumDiagArgs = 0;
+  DiagStorage.NumDiagArgs = 0;
 
-  DiagRanges.clear();
-  DiagRanges.append(storedDiag.range_begin(), storedDiag.range_end());
+  DiagStorage.DiagRanges.clear();
+  DiagStorage.DiagRanges.append(storedDiag.range_begin(),
+                                storedDiag.range_end());
 
-  DiagFixItHints.clear();
-  DiagFixItHints.append(storedDiag.fixit_begin(), storedDiag.fixit_end());
+  DiagStorage.FixItHints.clear();
+  DiagStorage.FixItHints.append(storedDiag.fixit_begin(),
+                                storedDiag.fixit_end());
 
   assert(Client && "DiagnosticConsumer not set!");
   Level DiagLevel = storedDiag.getLevel();
@@ -805,7 +814,7 @@ FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
   /// QualTypeVals - Pass a vector of arrays so that QualType names can be
   /// compared to see if more information is needed to be printed.
   SmallVector<intptr_t, 2> QualTypeVals;
-  SmallVector<char, 64> Tree;
+  SmallString<64> Tree;
 
   for (unsigned i = 0, e = getNumArgs(); i < e; ++i)
     if (getArgKind(i) == DiagnosticsEngine::ak_qualtype)
@@ -1140,13 +1149,13 @@ bool ForwardingDiagnosticConsumer::IncludeInDiagnosticCounts() const {
   return Target.IncludeInDiagnosticCounts();
 }
 
-PartialDiagnostic::StorageAllocator::StorageAllocator() {
+PartialDiagnostic::DiagStorageAllocator::DiagStorageAllocator() {
   for (unsigned I = 0; I != NumCached; ++I)
     FreeList[I] = Cached + I;
   NumFreeListEntries = NumCached;
 }
 
-PartialDiagnostic::StorageAllocator::~StorageAllocator() {
+PartialDiagnostic::DiagStorageAllocator::~DiagStorageAllocator() {
   // Don't assert if we are in a CrashRecovery context, as this invariant may
   // be invalidated during a crash.
   assert((NumFreeListEntries == NumCached ||

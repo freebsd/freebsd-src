@@ -8,6 +8,7 @@
 
 #include "llvm/DebugInfo/DWARF/DWARFDebugArangeSet.h"
 #include "llvm/BinaryFormat/Dwarf.h"
+#include "llvm/DebugInfo/DWARF/DWARFFormValue.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
@@ -20,9 +21,11 @@ using namespace llvm;
 
 void DWARFDebugArangeSet::Descriptor::dump(raw_ostream &OS,
                                            uint32_t AddressSize) const {
-  OS << format("[0x%*.*" PRIx64 ", ", AddressSize * 2, AddressSize * 2, Address)
-     << format(" 0x%*.*" PRIx64 ")", AddressSize * 2, AddressSize * 2,
-               getEndAddress());
+  OS << '[';
+  DWARFFormValue::dumpAddress(OS, AddressSize, Address);
+  OS << ", ";
+  DWARFFormValue::dumpAddress(OS, AddressSize, getEndAddress());
+  OS << ')';
 }
 
 void DWARFDebugArangeSet::clear() {
@@ -32,7 +35,8 @@ void DWARFDebugArangeSet::clear() {
 }
 
 Error DWARFDebugArangeSet::extract(DWARFDataExtractor data,
-                                   uint64_t *offset_ptr) {
+                                   uint64_t *offset_ptr,
+                                   function_ref<void(Error)> WarningHandler) {
   assert(data.isValidOffset(*offset_ptr));
   ArangeDescriptors.clear();
   Offset = *offset_ptr;
@@ -132,19 +136,20 @@ Error DWARFDebugArangeSet::extract(DWARFDataExtractor data,
 
   uint64_t end_offset = Offset + full_length;
   while (*offset_ptr < end_offset) {
+    uint64_t EntryOffset = *offset_ptr;
     arangeDescriptor.Address = data.getUnsigned(offset_ptr, HeaderData.AddrSize);
     arangeDescriptor.Length = data.getUnsigned(offset_ptr, HeaderData.AddrSize);
 
-    if (arangeDescriptor.Length == 0) {
-      // Each set of tuples is terminated by a 0 for the address and 0
-      // for the length.
-      if (arangeDescriptor.Address == 0 && *offset_ptr == end_offset)
+    // Each set of tuples is terminated by a 0 for the address and 0
+    // for the length.
+    if (arangeDescriptor.Length == 0 && arangeDescriptor.Address == 0) {
+      if (*offset_ptr == end_offset)
         return ErrorSuccess();
-      return createStringError(
+      WarningHandler(createStringError(
           errc::invalid_argument,
           "address range table at offset 0x%" PRIx64
-          " has an invalid tuple (length = 0) at offset 0x%" PRIx64,
-          Offset, *offset_ptr - tuple_size);
+          " has a premature terminator entry at offset 0x%" PRIx64,
+          Offset, EntryOffset));
     }
 
     ArangeDescriptors.push_back(arangeDescriptor);

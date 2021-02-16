@@ -11,9 +11,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "PPCSubtarget.h"
+#include "GISel/PPCCallLowering.h"
+#include "GISel/PPCLegalizerInfo.h"
+#include "GISel/PPCRegisterBankInfo.h"
 #include "PPC.h"
 #include "PPCRegisterInfo.h"
 #include "PPCTargetMachine.h"
+#include "llvm/CodeGen/GlobalISel/InstructionSelect.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/IR/Attributes.h"
@@ -35,10 +39,6 @@ using namespace llvm;
 static cl::opt<bool> UseSubRegLiveness("ppc-track-subreg-liveness",
 cl::desc("Enable subregister liveness tracking for PPC"), cl::Hidden);
 
-static cl::opt<bool> QPXStackUnaligned("qpx-stack-unaligned",
-  cl::desc("Even when QPX is enabled the stack is not 32-byte aligned"),
-  cl::Hidden);
-
 static cl::opt<bool>
     EnableMachinePipeliner("ppc-enable-pipeliner",
                            cl::desc("Enable Machine Pipeliner for PPC"),
@@ -53,11 +53,19 @@ PPCSubtarget &PPCSubtarget::initializeSubtargetDependencies(StringRef CPU,
 
 PPCSubtarget::PPCSubtarget(const Triple &TT, const std::string &CPU,
                            const std::string &FS, const PPCTargetMachine &TM)
-    : PPCGenSubtargetInfo(TT, CPU, FS), TargetTriple(TT),
+    : PPCGenSubtargetInfo(TT, CPU, /*TuneCPU*/ CPU, FS), TargetTriple(TT),
       IsPPC64(TargetTriple.getArch() == Triple::ppc64 ||
               TargetTriple.getArch() == Triple::ppc64le),
       TM(TM), FrameLowering(initializeSubtargetDependencies(CPU, FS)),
-      InstrInfo(*this), TLInfo(TM, *this) {}
+      InstrInfo(*this), TLInfo(TM, *this) {
+  CallLoweringInfo.reset(new PPCCallLowering(*getTargetLowering()));
+  Legalizer.reset(new PPCLegalizerInfo(*this));
+  auto *RBI = new PPCRegisterBankInfo(*getRegisterInfo());
+  RegBankInfo.reset(RBI);
+
+  InstSelector.reset(createPPCInstructionSelector(
+      *static_cast<const PPCTargetMachine *>(&TM), *this, *RBI));
+}
 
 void PPCSubtarget::initializeEnvironment() {
   StackAlignment = Align(16);
@@ -69,8 +77,8 @@ void PPCSubtarget::initializeEnvironment() {
   HasHardFloat = false;
   HasAltivec = false;
   HasSPE = false;
+  HasEFPU2 = false;
   HasFPU = false;
-  HasQPX = false;
   HasVSX = false;
   NeedsTwoConstNR = false;
   HasP8Vector = false;
@@ -78,6 +86,7 @@ void PPCSubtarget::initializeEnvironment() {
   HasP8Crypto = false;
   HasP9Vector = false;
   HasP9Altivec = false;
+  HasMMA = false;
   HasP10Vector = false;
   HasPrefixInstrs = false;
   HasPCRelativeMemops = false;
@@ -109,10 +118,10 @@ void PPCSubtarget::initializeEnvironment() {
   HasInvariantFunctionDescriptors = false;
   HasPartwordAtomics = false;
   HasDirectMove = false;
-  IsQPXStackUnaligned = false;
   HasHTM = false;
   HasFloat128 = false;
   HasFusion = false;
+  HasStoreFusion = false;
   HasAddiLoadFusion = false;
   HasAddisLoadFusion = false;
   IsISA3_0 = false;
@@ -122,7 +131,10 @@ void PPCSubtarget::initializeEnvironment() {
   VectorsUseTwoUnits = false;
   UsePPCPreRASchedStrategy = false;
   UsePPCPostRASchedStrategy = false;
+  PairedVectorMemops = false;
   PredictableSelectIsExpensive = false;
+  HasModernAIXAs = false;
+  IsAIX = false;
 
   HasPOPCNTD = POPCNTD_Unavailable;
 }
@@ -144,7 +156,7 @@ void PPCSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   InstrItins = getInstrItineraryForCPU(CPUName);
 
   // Parse features string.
-  ParseSubtargetFeatures(CPUName, FS);
+  ParseSubtargetFeatures(CPUName, /*TuneCPU*/ CPUName, FS);
 
   // If the user requested use of 64-bit regs, but the cpu selected doesn't
   // support it, ignore.
@@ -158,7 +170,7 @@ void PPCSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
 
   if (HasSPE && IsPPC64)
     report_fatal_error( "SPE is only supported for 32-bit targets.\n", false);
-  if (HasSPE && (HasAltivec || HasQPX || HasVSX || HasFPU))
+  if (HasSPE && (HasAltivec || HasVSX || HasFPU))
     report_fatal_error(
         "SPE and traditional floating point cannot both be enabled.\n", false);
 
@@ -166,15 +178,12 @@ void PPCSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   if (!HasSPE)
     HasFPU = true;
 
-  // QPX requires a 32-byte aligned stack. Note that we need to do this if
-  // we're compiling for a BG/Q system regardless of whether or not QPX
-  // is enabled because external functions will assume this alignment.
-  IsQPXStackUnaligned = QPXStackUnaligned;
   StackAlignment = getPlatformStackAlignment();
 
   // Determine endianness.
   // FIXME: Part of the TargetMachine.
-  IsLittleEndian = (TargetTriple.getArch() == Triple::ppc64le);
+  IsLittleEndian = (TargetTriple.getArch() == Triple::ppc64le ||
+                    TargetTriple.getArch() == Triple::ppcle);
 }
 
 bool PPCSubtarget::enableMachineScheduler() const { return true; }
@@ -234,4 +243,21 @@ bool PPCSubtarget::isPPC64() const { return TM.isPPC64(); }
 bool PPCSubtarget::isUsingPCRelativeCalls() const {
   return isPPC64() && hasPCRelativeMemops() && isELFv2ABI() &&
          CodeModel::Medium == getTargetMachine().getCodeModel();
+}
+
+// GlobalISEL
+const CallLowering *PPCSubtarget::getCallLowering() const {
+  return CallLoweringInfo.get();
+}
+
+const RegisterBankInfo *PPCSubtarget::getRegBankInfo() const {
+  return RegBankInfo.get();
+}
+
+const LegalizerInfo *PPCSubtarget::getLegalizerInfo() const {
+  return Legalizer.get();
+}
+
+InstructionSelector *PPCSubtarget::getInstructionSelector() const {
+  return InstSelector.get();
 }

@@ -133,6 +133,9 @@ def NZCV  : AArch64Reg<0, "nzcv">;
 // First fault status register
 def FFR : AArch64Reg<0, "ffr">, DwarfRegNum<[47]>;
 
+// Purely virtual Vector Granule (VG) Dwarf register
+def VG : AArch64Reg<0, "vg">, DwarfRegNum<[46]>;
+
 // GPR register classes with the intersections of GPR32/GPR32sp and
 // GPR64/GPR64sp for use by the coalescer.
 def GPR32common : RegisterClass<"AArch64", [i32], 32, (sequence "W%u", 0, 30)> {
@@ -707,6 +710,32 @@ def XSeqPairClassOperand :
 
 
 //===----- END: v8.1a atomic CASP register operands -----------------------===//
+
+//===----------------------------------------------------------------------===//
+// Armv8.7a accelerator extension register operands: 8 consecutive GPRs
+// starting with an even one
+
+let Namespace = "AArch64" in {
+  foreach i = 0-7 in
+    def "x8sub_"#i : SubRegIndex<64, !mul(64, i)>;
+}
+
+def Tuples8X : RegisterTuples<
+  !foreach(i, [0,1,2,3,4,5,6,7], !cast<SubRegIndex>("x8sub_"#i)),
+  !foreach(i, [0,1,2,3,4,5,6,7], (trunc (decimate (rotl GPR64, i), 2), 12))>;
+
+def GPR64x8Class : RegisterClass<"AArch64", [i64], 64, (trunc Tuples8X, 12)>;
+def GPR64x8AsmOp : AsmOperandClass {
+  let Name = "GPR64x8";
+  let ParserMethod = "tryParseGPR64x8";
+  let RenderMethod = "addRegOperands";
+}
+def GPR64x8 : RegisterOperand<GPR64x8Class, "printGPR64x8"> {
+  let ParserMatchClass = GPR64x8AsmOp;
+  let PrintMethod = "printGPR64x8";
+}
+
+//===----- END: v8.7a accelerator extension register operands -------------===//
 
 // SVE predicate registers
 def P0    : AArch64Reg<0,   "p0">, DwarfRegNum<[48]>;

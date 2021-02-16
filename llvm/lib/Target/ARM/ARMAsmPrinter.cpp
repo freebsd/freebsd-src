@@ -285,7 +285,7 @@ bool ARMAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
       return false;
     case 'y': // Print a VFP single precision register as indexed double.
       if (MI->getOperand(OpNum).isReg()) {
-        Register Reg = MI->getOperand(OpNum).getReg();
+        MCRegister Reg = MI->getOperand(OpNum).getReg().asMCReg();
         const TargetRegisterInfo *TRI = MF->getSubtarget().getRegisterInfo();
         // Find the 'd' register that has this 's' register as a sub-register,
         // and determine the lane number.
@@ -903,7 +903,7 @@ void ARMAsmPrinter::emitMachineConstantPoolValue(
 
   MCSymbol *MCSym;
   if (ACPV->isLSDA()) {
-    MCSym = getCurExceptionSym();
+    MCSym = getMBBExceptionSym(MF->front());
   } else if (ACPV->isBlockAddress()) {
     const BlockAddress *BA =
       cast<ARMConstantPoolConstant>(ACPV)->getBlockAddress();
@@ -1897,7 +1897,7 @@ void ARMAsmPrinter::emitInstruction(const MachineInstr *MI) {
     // LSJLJEH:
     Register SrcReg = MI->getOperand(0).getReg();
     Register ValReg = MI->getOperand(1).getReg();
-    MCSymbol *Label = OutContext.createTempSymbol("SJLJEH", false, true);
+    MCSymbol *Label = OutContext.createTempSymbol("SJLJEH");
     OutStreamer->AddComment("eh_setjmp begin");
     EmitToStreamer(*OutStreamer, MCInstBuilder(ARM::tMOVr)
       .addReg(ValReg)
@@ -2180,6 +2180,48 @@ void ARMAsmPrinter::emitInstruction(const MachineInstr *MI) {
   case ARM::PATCHABLE_TAIL_CALL:
     LowerPATCHABLE_TAIL_CALL(*MI);
     return;
+  case ARM::SpeculationBarrierISBDSBEndBB: {
+    // Print DSB SYS + ISB
+    MCInst TmpInstDSB;
+    TmpInstDSB.setOpcode(ARM::DSB);
+    TmpInstDSB.addOperand(MCOperand::createImm(0xf));
+    EmitToStreamer(*OutStreamer, TmpInstDSB);
+    MCInst TmpInstISB;
+    TmpInstISB.setOpcode(ARM::ISB);
+    TmpInstISB.addOperand(MCOperand::createImm(0xf));
+    EmitToStreamer(*OutStreamer, TmpInstISB);
+    return;
+  }
+  case ARM::t2SpeculationBarrierISBDSBEndBB: {
+    // Print DSB SYS + ISB
+    MCInst TmpInstDSB;
+    TmpInstDSB.setOpcode(ARM::t2DSB);
+    TmpInstDSB.addOperand(MCOperand::createImm(0xf));
+    TmpInstDSB.addOperand(MCOperand::createImm(ARMCC::AL));
+    TmpInstDSB.addOperand(MCOperand::createReg(0));
+    EmitToStreamer(*OutStreamer, TmpInstDSB);
+    MCInst TmpInstISB;
+    TmpInstISB.setOpcode(ARM::t2ISB);
+    TmpInstISB.addOperand(MCOperand::createImm(0xf));
+    TmpInstISB.addOperand(MCOperand::createImm(ARMCC::AL));
+    TmpInstISB.addOperand(MCOperand::createReg(0));
+    EmitToStreamer(*OutStreamer, TmpInstISB);
+    return;
+  }
+  case ARM::SpeculationBarrierSBEndBB: {
+    // Print SB
+    MCInst TmpInstSB;
+    TmpInstSB.setOpcode(ARM::SB);
+    EmitToStreamer(*OutStreamer, TmpInstSB);
+    return;
+  }
+  case ARM::t2SpeculationBarrierSBEndBB: {
+    // Print SB
+    MCInst TmpInstSB;
+    TmpInstSB.setOpcode(ARM::t2SB);
+    EmitToStreamer(*OutStreamer, TmpInstSB);
+    return;
+  }
   }
 
   MCInst TmpInst;

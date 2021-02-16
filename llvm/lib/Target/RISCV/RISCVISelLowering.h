@@ -28,6 +28,12 @@ enum NodeType : unsigned {
   SRET_FLAG,
   MRET_FLAG,
   CALL,
+  /// Select with condition operator - This selects between a true value and
+  /// a false value (ops #3 and #4) based on the boolean result of comparing
+  /// the lhs and rhs (ops #0 and #1) of a conditional expression with the
+  /// condition code in op #2, a XLenVT constant from the ISD::CondCode enum.
+  /// The lhs and rhs are XLenVT integers. The true and false values can be
+  /// integer or floating point.
   SELECT_CC,
   BuildPairF64,
   SplitF64,
@@ -38,22 +44,75 @@ enum NodeType : unsigned {
   SRAW,
   SRLW,
   // 32-bit operations from RV64M that can't be simply matched with a pattern
-  // at instruction selection time.
+  // at instruction selection time. These have undefined behavior for division
+  // by 0 or overflow (divw) like their target independent counterparts.
   DIVW,
   DIVUW,
   REMUW,
-  // FPR32<->GPR transfer operations for RV64. Needed as an i32<->f32 bitcast
-  // is not legal on RV64. FMV_W_X_RV64 matches the semantics of the FMV.W.X.
+  // RV64IB rotates, directly matching the semantics of the named RISC-V
+  // instructions.
+  ROLW,
+  RORW,
+  // RV64IB funnel shifts, with the semantics of the named RISC-V instructions,
+  // but the same operand order as fshl/fshr intrinsics.
+  FSRW,
+  FSLW,
+  // FPR<->GPR transfer operations when the FPR is smaller than XLEN, needed as
+  // XLEN is the only legal integer width.
+  //
+  // FMV_H_X matches the semantics of the FMV.H.X.
+  // FMV_X_ANYEXTH is similar to FMV.X.H but has an any-extended result.
+  // FMV_W_X_RV64 matches the semantics of the FMV.W.X.
   // FMV_X_ANYEXTW_RV64 is similar to FMV.X.W but has an any-extended result.
+  //
   // This is a more convenient semantic for producing dagcombines that remove
   // unnecessary GPR->FPR->GPR moves.
+  FMV_H_X,
+  FMV_X_ANYEXTH,
   FMV_W_X_RV64,
   FMV_X_ANYEXTW_RV64,
   // READ_CYCLE_WIDE - A read of the 64-bit cycle CSR on a 32-bit target
   // (returns (Lo, Hi)). It takes a chain operand.
-  READ_CYCLE_WIDE
+  READ_CYCLE_WIDE,
+  // Generalized Reverse and Generalized Or-Combine - directly matching the
+  // semantics of the named RISC-V instructions. Lowered as custom nodes as
+  // TableGen chokes when faced with commutative permutations in deeply-nested
+  // DAGs. Each node takes an input operand and a TargetConstant immediate
+  // shift amount, and outputs a bit-manipulated version of input. All operands
+  // are of type XLenVT.
+  GREVI,
+  GREVIW,
+  GORCI,
+  GORCIW,
+  // Vector Extension
+  // VMV_X_S matches the semantics of vmv.x.s. The result is always XLenVT
+  // sign extended from the vector element size. NOTE: The result size will
+  // never be less than the vector element size.
+  VMV_X_S,
+  // Splats an i64 scalar to a vector type (with element type i64) where the
+  // scalar is a sign-extended i32.
+  SPLAT_VECTOR_I64,
+  // Read VLENB CSR
+  READ_VLENB,
+  // Truncates a RVV integer vector by one power-of-two.
+  TRUNCATE_VECTOR,
+  // Unit-stride fault-only-first load
+  VLEFF,
+  VLEFF_MASK,
+  // Unit-stride fault-only-first segment load
+  VLSEGFF,
+  VLSEGFF_MASK,
+  // read vl CSR
+  READ_VL,
+  // Matches the semantics of vslideup/vslidedown. The first operand is the
+  // pass-thru operand, the second is the source vector, and the third is the
+  // XLenVT index (either constant or non-constant).
+  VSLIDEUP,
+  VSLIDEDOWN,
+  // Matches the semantics of the unmasked vid.v instruction.
+  VID,
 };
-}
+} // namespace RISCVISD
 
 class RISCVTargetLowering : public TargetLowering {
   const RISCVSubtarget &Subtarget;
@@ -61,6 +120,8 @@ class RISCVTargetLowering : public TargetLowering {
 public:
   explicit RISCVTargetLowering(const TargetMachine &TM,
                                const RISCVSubtarget &STI);
+
+  const RISCVSubtarget &getSubtarget() const { return Subtarget; }
 
   bool getTgtMemIntrinsic(IntrinsicInfo &Info, const CallInst &I,
                           MachineFunction &MF,
@@ -74,6 +135,8 @@ public:
   bool isTruncateFree(EVT SrcVT, EVT DstVT) const override;
   bool isZExtFree(SDValue Val, EVT VT2) const override;
   bool isSExtCheaperThanZExt(EVT SrcVT, EVT DstVT) const override;
+  bool isCheapToSpeculateCttz() const override;
+  bool isCheapToSpeculateCtlz() const override;
   bool isFPImmLegal(const APFloat &Imm, EVT VT,
                     bool ForCodeSize) const override;
 
@@ -86,6 +149,15 @@ public:
 
   SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
 
+  bool targetShrinkDemandedConstant(SDValue Op, const APInt &DemandedBits,
+                                    const APInt &DemandedElts,
+                                    TargetLoweringOpt &TLO) const override;
+
+  void computeKnownBitsForTargetNode(const SDValue Op,
+                                     KnownBits &Known,
+                                     const APInt &DemandedElts,
+                                     const SelectionDAG &DAG,
+                                     unsigned Depth) const override;
   unsigned ComputeNumSignBitsForTargetNode(SDValue Op,
                                            const APInt &DemandedElts,
                                            const SelectionDAG &DAG,
@@ -126,6 +198,9 @@ public:
   Instruction *emitTrailingFence(IRBuilder<> &Builder, Instruction *Inst,
                                  AtomicOrdering Ord) const override;
 
+  bool isFMAFasterThanFMulAndFAdd(const MachineFunction &MF,
+                                  EVT VT) const override;
+
   ISD::NodeType getExtendForAtomicOps() const override {
     return ISD::SIGN_EXTEND;
   }
@@ -153,6 +228,7 @@ public:
   getExceptionSelectorRegister(const Constant *PersonalityFn) const override;
 
   bool shouldExtendTypeInLibCall(EVT Type) const override;
+  bool shouldSignExtendTypeInLibCall(EVT Type, bool IsSigned) const override;
 
   /// Returns the register with the specified architectural or ABI name. This
   /// method is necessary to lower the llvm.read_register.* and
@@ -220,6 +296,7 @@ private:
   SDValue lowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerBlockAddress(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerConstantPool(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerSELECT(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerVASTART(SDValue Op, SelectionDAG &DAG) const;
@@ -227,7 +304,14 @@ private:
   SDValue lowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerShiftLeftParts(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerShiftRightParts(SDValue Op, SelectionDAG &DAG, bool IsSRA) const;
+  SDValue lowerSPLATVECTOR(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerVectorMaskExt(SDValue Op, SelectionDAG &DAG,
+                             int64_t ExtTrueVal) const;
+  SDValue lowerVectorMaskTrunc(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerINSERT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerINTRINSIC_W_CHAIN(SDValue Op, SelectionDAG &DAG) const;
 
   bool isEligibleForTailCallOptimization(
       CCState &CCInfo, CallLoweringInfo &CLI, MachineFunction &MF,
@@ -239,6 +323,37 @@ private:
       const SmallVectorImpl<std::pair<llvm::Register, llvm::SDValue>> &Regs,
       MachineFunction &MF) const;
 };
+
+namespace RISCVVIntrinsicsTable {
+
+struct RISCVVIntrinsicInfo {
+  unsigned int IntrinsicID;
+  unsigned int ExtendedOperand;
+};
+
+using namespace RISCV;
+
+#define GET_RISCVVIntrinsicsTable_DECL
+#include "RISCVGenSearchableTables.inc"
+
+} // end namespace RISCVVIntrinsicsTable
+
+namespace RISCVZvlssegTable {
+
+struct RISCVZvlsseg {
+  unsigned int IntrinsicID;
+  unsigned int SEW;
+  unsigned int LMUL;
+  unsigned int IndexLMUL;
+  unsigned int Pseudo;
+};
+
+using namespace RISCV;
+
+#define GET_RISCVZvlssegTable_DECL
+#include "RISCVGenSearchableTables.inc"
+
+} // namespace RISCVZvlssegTable
 }
 
 #endif

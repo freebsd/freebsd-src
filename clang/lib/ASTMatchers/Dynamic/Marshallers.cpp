@@ -89,8 +89,9 @@ llvm::Optional<std::string>
 clang::ast_matchers::dynamic::internal::ArgTypeTraits<
     clang::OpenMPClauseKind>::getBestGuess(const VariantValue &Value) {
   static constexpr llvm::StringRef Allowed[] = {
-#define OMP_CLAUSE_CLASS(Enum, Str, Class) #Enum,
-#include "llvm/Frontend/OpenMP/OMPKinds.def"
+#define GEN_CLANG_CLAUSE_CLASS
+#define CLAUSE_CLASS(Enum, Str, Class) #Enum,
+#include "llvm/Frontend/OpenMP/OMP.inc"
   };
   if (Value.isString())
     return ::getBestGuess(Value.getString(), llvm::makeArrayRef(Allowed),
@@ -120,7 +121,8 @@ static constexpr std::pair<llvm::StringRef, llvm::Regex::RegexFlags>
         {"BasicRegex", llvm::Regex::RegexFlags::BasicRegex},
 };
 
-llvm::Optional<llvm::Regex::RegexFlags> getRegexFlag(llvm::StringRef Flag) {
+static llvm::Optional<llvm::Regex::RegexFlags>
+getRegexFlag(llvm::StringRef Flag) {
   for (const auto &StringFlag : RegexMap) {
     if (Flag == StringFlag.first)
       return StringFlag.second;
@@ -128,7 +130,8 @@ llvm::Optional<llvm::Regex::RegexFlags> getRegexFlag(llvm::StringRef Flag) {
   return llvm::None;
 }
 
-llvm::Optional<llvm::StringRef> getCloseRegexMatch(llvm::StringRef Flag) {
+static llvm::Optional<llvm::StringRef>
+getCloseRegexMatch(llvm::StringRef Flag) {
   for (const auto &StringFlag : RegexMap) {
     if (Flag.edit_distance(StringFlag.first) < 3)
       return StringFlag.first;

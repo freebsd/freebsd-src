@@ -333,7 +333,7 @@ size_t SBValue::GetByteSize() {
   ValueLocker locker;
   lldb::ValueObjectSP value_sp(GetSP(locker));
   if (value_sp) {
-    result = value_sp->GetByteSize();
+    result = value_sp->GetByteSize().getValueOr(0);
   }
 
   return result;
@@ -1356,7 +1356,7 @@ lldb::SBAddress SBValue::GetAddress() {
     }
   }
 
-  return LLDB_RECORD_RESULT(SBAddress(new Address(addr)));
+  return LLDB_RECORD_RESULT(SBAddress(addr));
 }
 
 lldb::SBData SBValue::GetPointeeData(uint32_t item_idx, uint32_t item_count) {

@@ -9,11 +9,11 @@
 // This provides C++ code generation targeting the Itanium C++ ABI.  The class
 // in this file generates structures that follow the Itanium C++ ABI, which is
 // documented at:
-//  http://www.codesourcery.com/public/cxx-abi/abi.html
-//  http://www.codesourcery.com/public/cxx-abi/abi-eh.html
+//  https://itanium-cxx-abi.github.io/cxx-abi/abi.html
+//  https://itanium-cxx-abi.github.io/cxx-abi/abi-eh.html
 //
 // It also supports the closely-related ARM ABI, documented at:
-// http://infocenter.arm.com/help/topic/com.arm.doc.ihi0041c/IHI0041C_cppabi.pdf
+// https://developer.arm.com/documentation/ihi0041/g/
 //
 //===----------------------------------------------------------------------===//
 
@@ -361,10 +361,11 @@ public:
       return !VD->needsDestruction(getContext()) && InitDecl->evaluateValue();
 
     // Otherwise, we need a thread wrapper unless we know that every
-    // translation unit will emit the value as a constant. We rely on
-    // ICE-ness not varying between translation units, which isn't actually
+    // translation unit will emit the value as a constant. We rely on the
+    // variable being constant-initialized in every translation unit if it's
+    // constant-initialized in any translation unit, which isn't actually
     // guaranteed by the standard but is necessary for sanity.
-    return InitDecl->isInitKnownICE() && InitDecl->isInitICE();
+    return InitDecl->hasConstantInitialization();
   }
 
   bool usesThreadWrapperFunction(const VarDecl *VD) const override {
@@ -485,9 +486,9 @@ public:
                                    CharUnits cookieSize) override;
 };
 
-class iOS64CXXABI : public ARMCXXABI {
+class AppleARM64CXXABI : public ARMCXXABI {
 public:
-  iOS64CXXABI(CodeGen::CodeGenModule &CGM) : ARMCXXABI(CGM) {
+  AppleARM64CXXABI(CodeGen::CodeGenModule &CGM) : ARMCXXABI(CGM) {
     Use32BitVTableOffsetABI = true;
   }
 
@@ -550,8 +551,8 @@ CodeGen::CGCXXABI *CodeGen::CreateItaniumCXXABI(CodeGenModule &CGM) {
   case TargetCXXABI::WatchOS:
     return new ARMCXXABI(CGM);
 
-  case TargetCXXABI::iOS64:
-    return new iOS64CXXABI(CGM);
+  case TargetCXXABI::AppleARM64:
+    return new AppleARM64CXXABI(CGM);
 
   case TargetCXXABI::Fuchsia:
     return new FuchsiaCXXABI(CGM);
@@ -770,7 +771,7 @@ CGCallee ItaniumCXXABI::EmitLoadOfMemberFunctionPointer(
       };
 
       if (CGM.getCodeGenOpts().SanitizeTrap.has(SanitizerKind::CFIMFCall)) {
-        CGF.EmitTrapCheck(CheckResult);
+        CGF.EmitTrapCheck(CheckResult, SanitizerHandler::CFICheckFail);
       } else {
         llvm::Value *AllVtables = llvm::MetadataAsValue::get(
             CGM.getLLVMContext(),
@@ -1087,7 +1088,7 @@ llvm::Constant *ItaniumCXXABI::EmitMemberPointer(const APValue &MP,
   if (!MPD)
     return EmitNullMemberPointer(MPT);
 
-  CharUnits ThisAdjustment = getMemberPointerPathAdjustment(MP);
+  CharUnits ThisAdjustment = getContext().getMemberPointerPathAdjustment(MP);
 
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(MPD))
     return BuildMemberPointer(MD, ThisAdjustment);
@@ -2111,7 +2112,7 @@ CharUnits ItaniumCXXABI::getArrayCookieSizeImpl(QualType elementType) {
   // The array cookie is a size_t; pad that up to the element alignment.
   // The cookie is actually right-justified in that space.
   return std::max(CharUnits::fromQuantity(CGM.SizeSizeInBytes),
-                  CGM.getContext().getTypeAlignInChars(elementType));
+                  CGM.getContext().getPreferredTypeAlignInChars(elementType));
 }
 
 Address ItaniumCXXABI::InitializeArrayCookie(CodeGenFunction &CGF,
@@ -2128,7 +2129,7 @@ Address ItaniumCXXABI::InitializeArrayCookie(CodeGenFunction &CGF,
 
   // The size of the cookie.
   CharUnits CookieSize =
-    std::max(SizeSize, Ctx.getTypeAlignInChars(ElementType));
+      std::max(SizeSize, Ctx.getPreferredTypeAlignInChars(ElementType));
   assert(CookieSize == getArrayCookieSizeImpl(ElementType));
 
   // Compute an offset to the cookie.
@@ -2330,7 +2331,8 @@ void ItaniumCXXABI::EmitGuardedInit(CodeGenFunction &CGF,
                              CGM.getDataLayout().getABITypeAlignment(guardTy));
     }
   }
-  llvm::PointerType *guardPtrTy = guardTy->getPointerTo();
+  llvm::PointerType *guardPtrTy = guardTy->getPointerTo(
+      CGF.CGM.getDataLayout().getDefaultGlobalsAddressSpace());
 
   // Create the guard variable if we don't already have it (as we
   // might if we're double-emitting this function body).
@@ -2529,48 +2531,132 @@ static void emitGlobalDtorWithCXAAtExit(CodeGenFunction &CGF,
   CGF.EmitNounwindRuntimeCall(atexit, args);
 }
 
+static llvm::Function *createGlobalInitOrCleanupFn(CodeGen::CodeGenModule &CGM,
+                                                   StringRef FnName) {
+  // Create a function that registers/unregisters destructors that have the same
+  // priority.
+  llvm::FunctionType *FTy = llvm::FunctionType::get(CGM.VoidTy, false);
+  llvm::Function *GlobalInitOrCleanupFn = CGM.CreateGlobalInitOrCleanUpFunction(
+      FTy, FnName, CGM.getTypes().arrangeNullaryFunction(), SourceLocation());
+
+  return GlobalInitOrCleanupFn;
+}
+
+static FunctionDecl *
+createGlobalInitOrCleanupFnDecl(CodeGen::CodeGenModule &CGM, StringRef FnName) {
+  ASTContext &Ctx = CGM.getContext();
+  QualType FunctionTy = Ctx.getFunctionType(Ctx.VoidTy, llvm::None, {});
+  return FunctionDecl::Create(
+      Ctx, Ctx.getTranslationUnitDecl(), SourceLocation(), SourceLocation(),
+      &Ctx.Idents.get(FnName), FunctionTy, nullptr, SC_Static, false, false);
+}
+
+void CodeGenModule::unregisterGlobalDtorsWithUnAtExit() {
+  for (const auto &I : DtorsUsingAtExit) {
+    int Priority = I.first;
+    std::string GlobalCleanupFnName =
+        std::string("__GLOBAL_cleanup_") + llvm::to_string(Priority);
+
+    llvm::Function *GlobalCleanupFn =
+        createGlobalInitOrCleanupFn(*this, GlobalCleanupFnName);
+
+    FunctionDecl *GlobalCleanupFD =
+        createGlobalInitOrCleanupFnDecl(*this, GlobalCleanupFnName);
+
+    CodeGenFunction CGF(*this);
+    CGF.StartFunction(GlobalDecl(GlobalCleanupFD), getContext().VoidTy,
+                      GlobalCleanupFn, getTypes().arrangeNullaryFunction(),
+                      FunctionArgList(), SourceLocation(), SourceLocation());
+
+    // Get the destructor function type, void(*)(void).
+    llvm::FunctionType *dtorFuncTy = llvm::FunctionType::get(CGF.VoidTy, false);
+    llvm::Type *dtorTy = dtorFuncTy->getPointerTo();
+
+    // Destructor functions are run/unregistered in non-ascending
+    // order of their priorities.
+    const llvm::TinyPtrVector<llvm::Function *> &Dtors = I.second;
+    auto itv = Dtors.rbegin();
+    while (itv != Dtors.rend()) {
+      llvm::Function *Dtor = *itv;
+
+      // We're assuming that the destructor function is something we can
+      // reasonably call with the correct CC.  Go ahead and cast it to the
+      // right prototype.
+      llvm::Constant *dtor = llvm::ConstantExpr::getBitCast(Dtor, dtorTy);
+      llvm::Value *V = CGF.unregisterGlobalDtorWithUnAtExit(dtor);
+      llvm::Value *NeedsDestruct =
+          CGF.Builder.CreateIsNull(V, "needs_destruct");
+
+      llvm::BasicBlock *DestructCallBlock =
+          CGF.createBasicBlock("destruct.call");
+      llvm::BasicBlock *EndBlock = CGF.createBasicBlock(
+          (itv + 1) != Dtors.rend() ? "unatexit.call" : "destruct.end");
+      // Check if unatexit returns a value of 0. If it does, jump to
+      // DestructCallBlock, otherwise jump to EndBlock directly.
+      CGF.Builder.CreateCondBr(NeedsDestruct, DestructCallBlock, EndBlock);
+
+      CGF.EmitBlock(DestructCallBlock);
+
+      // Emit the call to casted Dtor.
+      llvm::CallInst *CI = CGF.Builder.CreateCall(dtorFuncTy, dtor);
+      // Make sure the call and the callee agree on calling convention.
+      CI->setCallingConv(Dtor->getCallingConv());
+
+      CGF.EmitBlock(EndBlock);
+
+      itv++;
+    }
+
+    CGF.FinishFunction();
+    AddGlobalDtor(GlobalCleanupFn, Priority);
+  }
+}
+
 void CodeGenModule::registerGlobalDtorsWithAtExit() {
   for (const auto &I : DtorsUsingAtExit) {
     int Priority = I.first;
-    const llvm::TinyPtrVector<llvm::Function *> &Dtors = I.second;
+    std::string GlobalInitFnName =
+        std::string("__GLOBAL_init_") + llvm::to_string(Priority);
+    llvm::Function *GlobalInitFn =
+        createGlobalInitOrCleanupFn(*this, GlobalInitFnName);
+    FunctionDecl *GlobalInitFD =
+        createGlobalInitOrCleanupFnDecl(*this, GlobalInitFnName);
 
-    // Create a function that registers destructors that have the same priority.
-    //
+    CodeGenFunction CGF(*this);
+    CGF.StartFunction(GlobalDecl(GlobalInitFD), getContext().VoidTy,
+                      GlobalInitFn, getTypes().arrangeNullaryFunction(),
+                      FunctionArgList(), SourceLocation(), SourceLocation());
+
     // Since constructor functions are run in non-descending order of their
     // priorities, destructors are registered in non-descending order of their
     // priorities, and since destructor functions are run in the reverse order
     // of their registration, destructor functions are run in non-ascending
     // order of their priorities.
-    CodeGenFunction CGF(*this);
-    std::string GlobalInitFnName =
-        std::string("__GLOBAL_init_") + llvm::to_string(Priority);
-    llvm::FunctionType *FTy = llvm::FunctionType::get(VoidTy, false);
-    llvm::Function *GlobalInitFn = CreateGlobalInitOrCleanUpFunction(
-        FTy, GlobalInitFnName, getTypes().arrangeNullaryFunction(),
-        SourceLocation());
-    ASTContext &Ctx = getContext();
-    QualType ReturnTy = Ctx.VoidTy;
-    QualType FunctionTy = Ctx.getFunctionType(ReturnTy, llvm::None, {});
-    FunctionDecl *FD = FunctionDecl::Create(
-        Ctx, Ctx.getTranslationUnitDecl(), SourceLocation(), SourceLocation(),
-        &Ctx.Idents.get(GlobalInitFnName), FunctionTy, nullptr, SC_Static,
-        false, false);
-    CGF.StartFunction(GlobalDecl(FD), ReturnTy, GlobalInitFn,
-                      getTypes().arrangeNullaryFunction(), FunctionArgList(),
-                      SourceLocation(), SourceLocation());
-
+    const llvm::TinyPtrVector<llvm::Function *> &Dtors = I.second;
     for (auto *Dtor : Dtors) {
       // Register the destructor function calling __cxa_atexit if it is
       // available. Otherwise fall back on calling atexit.
-      if (getCodeGenOpts().CXAAtExit)
+      if (getCodeGenOpts().CXAAtExit) {
         emitGlobalDtorWithCXAAtExit(CGF, Dtor, nullptr, false);
-      else
-        CGF.registerGlobalDtorWithAtExit(Dtor);
+      } else {
+        // Get the destructor function type, void(*)(void).
+        llvm::Type *dtorTy =
+            llvm::FunctionType::get(CGF.VoidTy, false)->getPointerTo();
+
+        // We're assuming that the destructor function is something we can
+        // reasonably call with the correct CC.  Go ahead and cast it to the
+        // right prototype.
+        CGF.registerGlobalDtorWithAtExit(
+            llvm::ConstantExpr::getBitCast(Dtor, dtorTy));
+      }
     }
 
     CGF.FinishFunction();
     AddGlobalCtor(GlobalInitFn, Priority, nullptr);
   }
+
+  if (getCXXABI().useSinitAndSterm())
+    unregisterGlobalDtorsWithUnAtExit();
 }
 
 /// Register a global destructor as best as we know how.
@@ -3092,6 +3178,9 @@ static bool TypeInfoIsInStandardLibrary(const BuiltinType *Ty) {
 #define SVE_TYPE(Name, Id, SingletonId) \
     case BuiltinType::Id:
 #include "clang/Basic/AArch64SVEACLETypes.def"
+#define PPC_VECTOR_TYPE(Name, Id, Size) \
+    case BuiltinType::Id:
+#include "clang/Basic/PPCTypes.def"
     case BuiltinType::ShortAccum:
     case BuiltinType::Accum:
     case BuiltinType::LongAccum:
@@ -4567,7 +4656,8 @@ void XLCXXABI::emitCXXStermFinalizer(const VarDecl &D, llvm::Function *dtorStub,
   CodeGenFunction CGF(CGM);
 
   CGF.StartFunction(GlobalDecl(), CGM.getContext().VoidTy, StermFinalizer, FI,
-                    FunctionArgList());
+                    FunctionArgList(), D.getLocation(),
+                    D.getInit()->getExprLoc());
 
   // The unatexit subroutine unregisters __dtor functions that were previously
   // registered by the atexit subroutine. If the referenced function is found,
@@ -4596,5 +4686,16 @@ void XLCXXABI::emitCXXStermFinalizer(const VarDecl &D, llvm::Function *dtorStub,
 
   CGF.FinishFunction();
 
-  CGM.AddCXXStermFinalizerEntry(StermFinalizer);
+  assert(!D.getAttr<InitPriorityAttr>() &&
+         "Prioritized sinit and sterm functions are not yet supported.");
+
+  if (isTemplateInstantiation(D.getTemplateSpecializationKind()) ||
+      getContext().GetGVALinkageForVariable(&D) == GVA_DiscardableODR)
+    // According to C++ [basic.start.init]p2, class template static data
+    // members (i.e., implicitly or explicitly instantiated specializations)
+    // have unordered initialization. As a consequence, we can put them into
+    // their own llvm.global_dtors entry.
+    CGM.AddCXXStermFinalizerToGlobalDtor(StermFinalizer, 65535);
+  else
+    CGM.AddCXXStermFinalizerEntry(StermFinalizer);
 }

@@ -51,7 +51,7 @@ def MIMGBaseOpcodesTable : GenericTable {
   let Fields = ["BaseOpcode", "Store", "Atomic", "AtomicX2", "Sampler",
                 "Gather4", "NumExtraArgs", "Gradients", "G16", "Coordinates",
                 "LodOrClampOrMip", "HasD16"];
-  GenericEnum TypeOf_BaseOpcode = MIMGBaseOpcode;
+  string TypeOf_BaseOpcode = "MIMGBaseOpcode";
 
   let PrimaryKey = ["BaseOpcode"];
   let PrimaryKeyName = "getMIMGBaseOpcodeInfo";
@@ -65,7 +65,7 @@ def MIMGDimInfoTable : GenericTable {
   let FilterClass = "AMDGPUDimProps";
   let CppTypeName = "MIMGDimInfo";
   let Fields = ["Dim", "NumCoords", "NumGradients", "DA", "Encoding", "AsmSuffix"];
-  GenericEnum TypeOf_Dim = MIMGDim;
+  string TypeOf_Dim = "MIMGDim";
 
   let PrimaryKey = ["Dim"];
   let PrimaryKeyName = "getMIMGDimInfo";
@@ -95,8 +95,8 @@ def MIMGLZMappingTable : GenericTable {
   let FilterClass = "MIMGLZMapping";
   let CppTypeName = "MIMGLZMappingInfo";
   let Fields = ["L", "LZ"];
-  GenericEnum TypeOf_L = MIMGBaseOpcode;
-  GenericEnum TypeOf_LZ = MIMGBaseOpcode;
+  string TypeOf_L = "MIMGBaseOpcode";
+  string TypeOf_LZ = "MIMGBaseOpcode";
 
   let PrimaryKey = ["L"];
   let PrimaryKeyName = "getMIMGLZMappingInfo";
@@ -111,8 +111,8 @@ def MIMGMIPMappingTable : GenericTable {
   let FilterClass = "MIMGMIPMapping";
   let CppTypeName = "MIMGMIPMappingInfo";
   let Fields = ["MIP", "NONMIP"];
-  GenericEnum TypeOf_MIP = MIMGBaseOpcode;
-  GenericEnum TypeOf_NONMIP = MIMGBaseOpcode;
+  string TypeOf_MIP = "MIMGBaseOpcode";
+  string TypeOf_NONMIP = "MIMGBaseOpcode";
 
   let PrimaryKey = ["MIP"];
   let PrimaryKeyName = "getMIMGMIPMappingInfo";
@@ -127,8 +127,8 @@ def MIMGG16MappingTable : GenericTable {
   let FilterClass = "MIMGG16Mapping";
   let CppTypeName = "MIMGG16MappingInfo";
   let Fields = ["G", "G16"];
-  GenericEnum TypeOf_G = MIMGBaseOpcode;
-  GenericEnum TypeOf_G16 = MIMGBaseOpcode;
+  string TypeOf_G = "MIMGBaseOpcode";
+  string TypeOf_G16 = "MIMGBaseOpcode";
 
   let PrimaryKey = ["G"];
   let PrimaryKeyName = "getMIMGG16MappingInfo";
@@ -148,7 +148,7 @@ class MIMG_Base <dag outs, string dns = "">
   let hasSideEffects = 0; // XXX ????
 
   let DecoderNamespace = dns;
-  let isAsmParserOnly = !if(!eq(dns,""), 1, 0);
+  let isAsmParserOnly = !eq(dns, "");
 }
 
 class MIMG <dag outs, string dns = "">
@@ -168,8 +168,8 @@ def MIMGInfoTable : GenericTable {
   let FilterClass = "MIMG";
   let CppTypeName = "MIMGInfo";
   let Fields = ["Opcode", "BaseOpcode", "MIMGEncoding", "VDataDwords", "VAddrDwords"];
-  GenericEnum TypeOf_BaseOpcode = MIMGBaseOpcode;
-  GenericEnum TypeOf_MIMGEncoding = MIMGEncoding;
+  string TypeOf_BaseOpcode = "MIMGBaseOpcode";
+  string TypeOf_MIMGEncoding = "MIMGEncoding";
 
   let PrimaryKey = ["BaseOpcode", "MIMGEncoding", "VDataDwords", "VAddrDwords"];
   let PrimaryKeyName = "getMIMGOpcodeHelper";
@@ -180,14 +180,14 @@ def getMIMGInfo : SearchIndex {
   let Key = ["Opcode"];
 }
 
-// This is a separate class so that TableGen memoizes the computations.
+// This class used to use !foldl to memoize the AddrAsmNames list.
+// It turned out that that was much slower than using !filter.
 class MIMGNSAHelper<int num_addrs> {
   list<string> AddrAsmNames =
-    !foldl([]<string>, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], lhs, i,
-           !if(!lt(i, num_addrs), !listconcat(lhs, ["vaddr"#!size(lhs)]), lhs));
+    !foreach(i, !filter(i, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+                        !lt(i, num_addrs)), "vaddr" # i);
   dag AddrIns = !dag(ins, !foreach(arg, AddrAsmNames, VGPR_32), AddrAsmNames);
-  string AddrAsm = "[" # !foldl("$" # !head(AddrAsmNames), !tail(AddrAsmNames), lhs, rhs,
-                                lhs # ", $" # rhs) # "]";
+  string AddrAsm = "[$" # !interleave(AddrAsmNames, ", $") # "]";
 
   int NSA = !if(!le(num_addrs, 1), ?,
             !if(!le(num_addrs, 5), 1,
@@ -308,13 +308,13 @@ multiclass MIMG_NoSampler_Src_Helper <bits<8> op, string asm,
 multiclass MIMG_NoSampler <bits<8> op, string asm, bit has_d16, bit mip = 0,
                            bit isResInfo = 0> {
   def "" : MIMGBaseOpcode {
-    let Coordinates = !if(isResInfo, 0, 1);
+    let Coordinates = !not(isResInfo);
     let LodOrClampOrMip = mip;
     let HasD16 = has_d16;
   }
 
   let BaseOpcode = !cast<MIMGBaseOpcode>(NAME),
-      mayLoad = !if(isResInfo, 0, 1) in {
+      mayLoad = !not(isResInfo) in {
     let VDataDwords = 1 in
     defm _V1 : MIMG_NoSampler_Src_Helper <op, asm, VGPR_32, 1>;
     let VDataDwords = 2 in
@@ -413,6 +413,8 @@ multiclass MIMG_Store <bits<8> op, string asm, bit has_d16, bit mip = 0> {
     defm _V3 : MIMG_Store_Addr_Helper <op, asm, VReg_96, 0>;
     let VDataDwords = 4 in
     defm _V4 : MIMG_Store_Addr_Helper <op, asm, VReg_128, 0>;
+    let VDataDwords = 5 in
+    defm _V5 : MIMG_Store_Addr_Helper <op, asm, VReg_160, 0>;
   }
 }
 
@@ -665,12 +667,12 @@ multiclass MIMG_Sampler <bits<8> op, AMDGPUSampleVariant sample, bit wqm = 0,
                          bit isG16 = 0, bit isGetLod = 0,
                          string asm = "image_sample"#sample.LowerCaseMod#!if(isG16, "_g16", "")> {
   def "" : MIMG_Sampler_BaseOpcode<sample> {
-    let HasD16 = !if(isGetLod, 0, 1);
+    let HasD16 = !not(isGetLod);
     let G16 = isG16;
   }
 
   let BaseOpcode = !cast<MIMGBaseOpcode>(NAME), WQM = wqm,
-      mayLoad = !if(isGetLod, 0, 1) in {
+      mayLoad = !not(isGetLod) in {
     let VDataDwords = 1 in
     defm _V1 : MIMG_Sampler_Src_Helper<op, asm, sample, VGPR_32, 1>;
     let VDataDwords = 2 in
@@ -707,6 +709,55 @@ multiclass MIMG_Gather <bits<8> op, AMDGPUSampleVariant sample, bit wqm = 0,
 
 multiclass MIMG_Gather_WQM <bits<8> op, AMDGPUSampleVariant sample>
     : MIMG_Gather<op, sample, 1>;
+
+class MIMG_IntersectRay_gfx10<int op, string opcode, RegisterClass AddrRC, bit A16>
+    : MIMG_gfx10<op, (outs VReg_128:$vdata), "AMDGPU"> {
+
+  let InOperandList = !con((ins AddrRC:$vaddr0, SReg_128:$srsrc),
+                           !if(A16, (ins GFX10A16:$a16), (ins)));
+  let AsmString = opcode#" $vdata, $vaddr0, $srsrc"#!if(A16, "$a16", "");
+
+  let nsa = 0;
+}
+
+class MIMG_IntersectRay_nsa_gfx10<int op, string opcode, int num_addrs, bit A16>
+    : MIMG_nsa_gfx10<op, (outs VReg_128:$vdata), num_addrs, "AMDGPU"> {
+  let InOperandList = !con(nsah.AddrIns,
+                           (ins SReg_128:$srsrc),
+                           !if(A16, (ins GFX10A16:$a16), (ins)));
+  let AsmString = opcode#" $vdata, "#nsah.AddrAsm#", $srsrc"#!if(A16, "$a16", "");
+}
+
+multiclass MIMG_IntersectRay<int op, string opcode, int num_addrs, bit A16> {
+  def "" : MIMGBaseOpcode;
+  let SubtargetPredicate = HasGFX10_BEncoding,
+      AssemblerPredicate = HasGFX10_BEncoding,
+      AsmMatchConverter = !if(A16, "cvtIntersectRay", ""),
+      dmask = 0xf,
+      unorm = 1,
+      d16 = 0,
+      glc = 0,
+      slc = 0,
+      dlc = 0,
+      tfe = 0,
+      lwe = 0,
+      r128 = 1,
+      ssamp = 0,
+      dim = {0, 0, 0},
+      a16 = A16,
+      d16 = 0,
+      BaseOpcode = !cast<MIMGBaseOpcode>(NAME),
+      VDataDwords = 4 in {
+    // TODO: MIMGAddrSize will choose VReg_512 which is a 16 register tuple,
+    // when we only need 9, 11 or 12 depending on A16 field and ptr size.
+    def "_sa" : MIMG_IntersectRay_gfx10<op, opcode, MIMGAddrSize<num_addrs, 0>.RegClass, A16> {
+      let VAddrDwords = !srl(MIMGAddrSize<num_addrs, 0>.RegClass.Size, 5);
+    }
+    def _nsa : MIMG_IntersectRay_nsa_gfx10<op, opcode, num_addrs, A16> {
+      let VAddrDwords = num_addrs;
+    }
+  }
+}
 
 //===----------------------------------------------------------------------===//
 // MIMG Instructions
@@ -832,6 +883,11 @@ defm IMAGE_SAMPLE_C_CD_CL_O_G16 : MIMG_Sampler <0x000000ef, AMDGPUSample_c_cd_cl
 let SubtargetPredicate = HasGFX10_BEncoding in
 defm IMAGE_MSAA_LOAD : MIMG_NoSampler <0x00000080, "image_msaa_load", 1>;
 
+defm IMAGE_BVH_INTERSECT_RAY       : MIMG_IntersectRay<0xe6, "image_bvh_intersect_ray", 11, 0>;
+defm IMAGE_BVH_INTERSECT_RAY_a16   : MIMG_IntersectRay<0xe6, "image_bvh_intersect_ray", 8, 1>;
+defm IMAGE_BVH64_INTERSECT_RAY     : MIMG_IntersectRay<0xe7, "image_bvh64_intersect_ray", 12, 0>;
+defm IMAGE_BVH64_INTERSECT_RAY_a16 : MIMG_IntersectRay<0xe7, "image_bvh64_intersect_ray", 9, 1>;
+
 /********** ========================================= **********/
 /********** Table of dimension-aware image intrinsics **********/
 /********** ========================================= **********/
@@ -840,13 +896,40 @@ class ImageDimIntrinsicInfo<AMDGPUImageDimIntrinsic I> {
   Intrinsic Intr = I;
   MIMGBaseOpcode BaseOpcode = !cast<MIMGBaseOpcode>(!strconcat("IMAGE_", I.P.OpMod));
   AMDGPUDimProps Dim = I.P.Dim;
+  AMDGPUImageDimIntrinsicEval DimEval = AMDGPUImageDimIntrinsicEval<I.P>;
+
+  bits<8> NumGradients = DimEval.NumGradientArgs;
+  bits<8> NumDmask = DimEval.NumDmaskArgs;
+  bits<8> NumData = DimEval.NumDataArgs;
+  bits<8> NumVAddrs = DimEval.NumVAddrArgs;
+  bits<8> NumArgs = !add(DimEval.CachePolicyArgIndex, 1);
+
+  bits<8> DMaskIndex = DimEval.DmaskArgIndex;
+  bits<8> VAddrStart = DimEval.VAddrArgIndex;
+  bits<8> GradientStart = DimEval.GradientArgIndex;
+  bits<8> CoordStart = DimEval.CoordArgIndex;
+  bits<8> LodIndex = DimEval.LodArgIndex;
+  bits<8> MipIndex = DimEval.MipArgIndex;
+  bits<8> VAddrEnd = !add(DimEval.VAddrArgIndex, DimEval.NumVAddrArgs);
+  bits<8> RsrcIndex = DimEval.RsrcArgIndex;
+  bits<8> SampIndex = DimEval.SampArgIndex;
+  bits<8> UnormIndex = DimEval.UnormArgIndex;
+  bits<8> TexFailCtrlIndex = DimEval.TexFailCtrlArgIndex;
+  bits<8> CachePolicyIndex = DimEval.CachePolicyArgIndex;
+
+  bits<8> GradientTyArg = !add(I.P.NumRetAndDataAnyTypes,
+    !foldl(0, I.P.ExtraAddrArgs, cnt, arg, !add(cnt, arg.Type.isAny)));
+  bits<8> CoordTyArg = !add(GradientTyArg, !if(I.P.Gradients, 1, 0));
 }
 
 def ImageDimIntrinsicTable : GenericTable {
   let FilterClass = "ImageDimIntrinsicInfo";
-  let Fields = ["Intr", "BaseOpcode", "Dim"];
-  GenericEnum TypeOf_BaseOpcode = MIMGBaseOpcode;
-  GenericEnum TypeOf_Dim = MIMGDim;
+  let Fields = ["Intr", "BaseOpcode", "Dim", "NumGradients", "NumDmask", "NumData", "NumVAddrs", "NumArgs",
+    "DMaskIndex", "VAddrStart", "GradientStart", "CoordStart", "LodIndex", "MipIndex", "VAddrEnd",
+    "RsrcIndex", "SampIndex", "UnormIndex", "TexFailCtrlIndex", "CachePolicyIndex",
+    "GradientTyArg", "CoordTyArg"];
+  string TypeOf_BaseOpcode = "MIMGBaseOpcode";
+  string TypeOf_Dim = "MIMGDim";
 
   let PrimaryKey = ["Intr"];
   let PrimaryKeyName = "getImageDimIntrinsicInfo";

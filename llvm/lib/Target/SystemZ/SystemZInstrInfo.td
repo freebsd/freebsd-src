@@ -101,10 +101,20 @@ let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
   }
 }
 
-// NOPs.  These are again variants of the conditional branches,
-// with the condition mask set to "never".
+// NOPs.  These are again variants of the conditional branches, with the
+// condition mask set to "never".  NOP_bare can't be an InstAlias since it
+// would need R0D hard coded which is not part of ADDR64BitRegClass.
 def NOP  : InstAlias<"nop\t$XBD", (BCAsm 0, bdxaddr12only:$XBD), 0>;
+let isAsmParserOnly = 1, hasNoSchedulingInfo = 1, M1 = 0, XBD2 = 0 in
+  def NOP_bare  : InstRXb<0x47,(outs), (ins), "nop", []>;
 def NOPR : InstAlias<"nopr\t$R", (BCRAsm 0, GR64:$R), 0>;
+def NOPR_bare : InstAlias<"nopr", (BCRAsm 0, R0D), 0>;
+
+// An alias of BRC 0, label
+def JNOP : InstAlias<"jnop\t$RI2", (BRCAsm 0, brtarget16:$RI2), 0>;
+
+// An alias of BRCL 0, label
+def JGNOP : InstAlias<"jgnop\t$RI2", (BRCLAsm 0, brtarget32:$RI2), 0>;
 
 // Fused compare-and-branch instructions.
 //
@@ -280,33 +290,32 @@ let isCall = 1, Defs = [R14D, CC] in {
                          [(z_tls_ldcall tglobaltlsaddr:$I2)]>;
 }
 
-// Sibling calls.  Indirect sibling calls must be via R1, since R2 upwards
-// are argument registers and since branching to R0 is a no-op.
+// Sibling calls.
 let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in {
   def CallJG : Alias<6, (outs), (ins pcrel32:$I2),
                      [(z_sibcall pcrel32:$I2)]>;
-  let Uses = [R1D] in
-    def CallBR : Alias<2, (outs), (ins), [(z_sibcall R1D)]>;
+  def CallBR : Alias<2, (outs), (ins ADDR64:$R2),
+                     [(z_sibcall ADDR64:$R2)]>;
 }
 
 // Conditional sibling calls.
 let CCMaskFirst = 1, isCall = 1, isTerminator = 1, isReturn = 1 in {
   def CallBRCL : Alias<6, (outs), (ins cond4:$valid, cond4:$R1,
                                    pcrel32:$I2), []>;
-  let Uses = [R1D] in
-    def CallBCR : Alias<2, (outs), (ins cond4:$valid, cond4:$R1), []>;
+  def CallBCR : Alias<2, (outs), (ins cond4:$valid, cond4:$R1,
+                                  ADDR64:$R2), []>;
 }
 
 // Fused compare and conditional sibling calls.
-let isCall = 1, isTerminator = 1, isReturn = 1, Uses = [R1D] in {
-  def CRBCall : Alias<6, (outs), (ins GR32:$R1, GR32:$R2, cond4:$M3), []>;
-  def CGRBCall : Alias<6, (outs), (ins GR64:$R1, GR64:$R2, cond4:$M3), []>;
-  def CIBCall : Alias<6, (outs), (ins GR32:$R1, imm32sx8:$I2, cond4:$M3), []>;
-  def CGIBCall : Alias<6, (outs), (ins GR64:$R1, imm64sx8:$I2, cond4:$M3), []>;
-  def CLRBCall : Alias<6, (outs), (ins GR32:$R1, GR32:$R2, cond4:$M3), []>;
-  def CLGRBCall : Alias<6, (outs), (ins GR64:$R1, GR64:$R2, cond4:$M3), []>;
-  def CLIBCall : Alias<6, (outs), (ins GR32:$R1, imm32zx8:$I2, cond4:$M3), []>;
-  def CLGIBCall : Alias<6, (outs), (ins GR64:$R1, imm64zx8:$I2, cond4:$M3), []>;
+let isCall = 1, isTerminator = 1, isReturn = 1 in {
+  def CRBCall : Alias<6, (outs), (ins GR32:$R1, GR32:$R2, cond4:$M3, ADDR64:$R4), []>;
+  def CGRBCall : Alias<6, (outs), (ins GR64:$R1, GR64:$R2, cond4:$M3, ADDR64:$R4), []>;
+  def CIBCall : Alias<6, (outs), (ins GR32:$R1, imm32sx8:$I2, cond4:$M3, ADDR64:$R4), []>;
+  def CGIBCall : Alias<6, (outs), (ins GR64:$R1, imm64sx8:$I2, cond4:$M3, ADDR64:$R4), []>;
+  def CLRBCall : Alias<6, (outs), (ins GR32:$R1, GR32:$R2, cond4:$M3, ADDR64:$R4), []>;
+  def CLGRBCall : Alias<6, (outs), (ins GR64:$R1, GR64:$R2, cond4:$M3, ADDR64:$R4), []>;
+  def CLIBCall : Alias<6, (outs), (ins GR32:$R1, imm32zx8:$I2, cond4:$M3, ADDR64:$R4), []>;
+  def CLGIBCall : Alias<6, (outs), (ins GR64:$R1, imm64zx8:$I2, cond4:$M3, ADDR64:$R4), []>;
 }
 
 // A return instruction (br %r14).
@@ -828,16 +837,13 @@ def GOT : Alias<6, (outs GR64:$R1), (ins),
 
 let Defs = [CC] in {
   let CCValues = 0xF, CompareZeroCCMask = 0x8 in {
-    def LPR  : UnaryRR <"lpr",  0x10,   z_iabs, GR32, GR32>;
-    def LPGR : UnaryRRE<"lpgr", 0xB900, z_iabs, GR64, GR64>;
+    def LPR  : UnaryRR <"lpr",  0x10,   abs, GR32, GR32>;
+    def LPGR : UnaryRRE<"lpgr", 0xB900, abs, GR64, GR64>;
   }
   let CCValues = 0xE, CompareZeroCCMask = 0xE in
     def LPGFR : UnaryRRE<"lpgfr", 0xB910, null_frag, GR64, GR32>;
 }
-def : Pat<(z_iabs32 GR32:$src), (LPR  GR32:$src)>;
-def : Pat<(z_iabs64 GR64:$src), (LPGR GR64:$src)>;
-defm : SXU<z_iabs,   LPGFR>;
-defm : SXU<z_iabs64, LPGFR>;
+defm : SXU<abs, LPGFR>;
 
 let Defs = [CC] in {
   let CCValues = 0xF, CompareZeroCCMask = 0x8 in {
@@ -847,10 +853,7 @@ let Defs = [CC] in {
   let CCValues = 0xE, CompareZeroCCMask = 0xE in
     def LNGFR : UnaryRRE<"lngfr", 0xB911, null_frag, GR64, GR32>;
 }
-def : Pat<(z_inegabs32 GR32:$src), (LNR  GR32:$src)>;
-def : Pat<(z_inegabs64 GR64:$src), (LNGR GR64:$src)>;
-defm : SXU<z_inegabs,   LNGFR>;
-defm : SXU<z_inegabs64, LNGFR>;
+defm : SXU<z_inegabs, LNGFR>;
 
 let Defs = [CC] in {
   let CCValues = 0xF, CompareZeroCCMask = 0x8 in {
@@ -2242,6 +2245,31 @@ let isCodeGenOnly = 1, hasSideEffects = 1 in {
                                  (ins imm64zx48:$enc, bdaddr12only:$BD1,
                                       bdaddr12only:$BD2, AnyReg:$R3),
                                  ".insn ssf,$enc,$BD1,$BD2,$R3", []>;
+  def InsnVRI : DirectiveInsnVRI<(outs),
+                                 (ins imm64zx48:$enc, VR128:$V1, VR128:$V2,
+                                  imm32zx12:$I3, imm32zx4:$M4, imm32zx4:$M5),
+                                 ".insn vri,$enc,$V1,$V2,$I3,$M4,$M5", []>;
+  def InsnVRR : DirectiveInsnVRR<(outs),
+                                 (ins imm64zx48:$enc, VR128:$V1, VR128:$V2,
+                                  VR128:$V3, imm32zx4:$M4, imm32zx4:$M5,
+                                  imm32zx4:$M6),
+                                  ".insn vrr,$enc,$V1,$V2,$V3,$M4,$M5,$M6", []>;
+  def InsnVRS : DirectiveInsnVRS<(outs),
+                                 (ins imm64zx48:$enc, AnyReg:$R1, VR128:$V3,
+                                  bdaddr12only:$BD2, imm32zx4:$M4),
+                                 ".insn vrs,$enc,$BD2,$M4", []>;
+  def InsnVRV : DirectiveInsnVRV<(outs),
+                                 (ins imm64zx48:$enc, VR128:$V1,
+                                      bdvaddr12only:$VBD2, imm32zx4:$M3),
+                                 ".insn vrv,$enc,$V1,$VBD2,$M3", []>;
+  def InsnVRX : DirectiveInsnVRX<(outs),
+                                 (ins imm64zx48:$enc, VR128:$V1,
+                                  bdxaddr12only:$XBD2, imm32zx4:$M3),
+                                 ".insn vrx,$enc,$V1,$XBD2,$M3", []>;
+  def InsnVSI : DirectiveInsnVSI<(outs),
+                                 (ins imm64zx48:$enc, VR128:$V1,
+                                  bdaddr12only:$BD2, imm32zx8:$I3),
+                                  ".insn vsi,$enc,$V1,$BD2,$I3", []>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -2315,3 +2343,25 @@ defm : BlockLoadStore<anyextloadi32, i64, MVCSequence, NCSequence, OCSequence,
                       XCSequence, 4>;
 defm : BlockLoadStore<load, i64, MVCSequence, NCSequence, OCSequence,
                       XCSequence, 8>;
+
+//===----------------------------------------------------------------------===//
+// Mnemonic Aliases
+//===----------------------------------------------------------------------===//
+
+def JCT   : MnemonicAlias<"jct", "brct">;
+def JCTG  : MnemonicAlias<"jctg", "brctg">;
+def JAS   : MnemonicAlias<"jas", "bras">;
+def JASL  : MnemonicAlias<"jasl", "brasl">;
+def JXH   : MnemonicAlias<"jxh", "brxh">;
+def JXLE  : MnemonicAlias<"jxle", "brxle">;
+def JXHG  : MnemonicAlias<"jxhg", "brxhg">;
+def JXLEG : MnemonicAlias<"jxleg", "brxlg">;
+
+def BRU   : MnemonicAlias<"bru", "j">;
+def BRUL  : MnemonicAlias<"brul", "jg">;
+
+foreach V = [ "E", "NE", "H", "NH", "L", "NL", "HE", "NHE", "LE", "NLE",
+              "Z", "NZ", "P", "NP", "M", "NM", "LH", "NLH", "O", "NO" ] in {
+  def BRUAsm#V : MnemonicCondBranchAlias <CV<V>, "br#", "j#">;
+  def BRULAsm#V : MnemonicCondBranchAlias <CV<V>, "br#l", "jg#">;
+}

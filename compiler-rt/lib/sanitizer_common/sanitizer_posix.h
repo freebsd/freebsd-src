@@ -17,7 +17,6 @@
 #include "sanitizer_internal_defs.h"
 #include "sanitizer_platform_limits_freebsd.h"
 #include "sanitizer_platform_limits_netbsd.h"
-#include "sanitizer_platform_limits_openbsd.h"
 #include "sanitizer_platform_limits_posix.h"
 #include "sanitizer_platform_limits_solaris.h"
 
@@ -42,6 +41,7 @@ uptr internal_mmap(void *addr, uptr length, int prot, int flags,
                    int fd, u64 offset);
 uptr internal_munmap(void *addr, uptr length);
 int internal_mprotect(void *addr, uptr length, int prot);
+int internal_madvise(uptr addr, uptr length, int advice);
 
 // OS
 uptr internal_filesize(fd_t fd);  // -1 on error.

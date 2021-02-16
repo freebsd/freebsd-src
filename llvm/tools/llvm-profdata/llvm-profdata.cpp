@@ -251,6 +251,7 @@ static void loadInput(const WeightedFile &Input, SymbolRemapper *Remapper,
         Filename);
     return;
   }
+  WC->Writer.setInstrEntryBBEnabled(Reader->instrEntryBBEnabled());
 
   for (auto &I : *Reader) {
     if (Remapper)
@@ -295,7 +296,9 @@ static void writeInstrProfile(StringRef OutputFilename,
                               ProfileFormat OutputFormat,
                               InstrProfWriter &Writer) {
   std::error_code EC;
-  raw_fd_ostream Output(OutputFilename.data(), EC, sys::fs::OF_None);
+  raw_fd_ostream Output(OutputFilename.data(), EC,
+                        OutputFormat == PF_Text ? sys::fs::OF_Text
+                                                : sys::fs::OF_None);
   if (EC)
     exitWithErrorCode(EC, OutputFilename);
 
@@ -383,6 +386,172 @@ static void mergeInstrProfile(const WeightedFileVector &Inputs,
     exitWithError("No profiles could be merged.");
 
   writeInstrProfile(OutputFilename, OutputFormat, Contexts[0]->Writer);
+}
+
+/// The profile entry for a function in instrumentation profile.
+struct InstrProfileEntry {
+  uint64_t MaxCount = 0;
+  float ZeroCounterRatio = 0.0;
+  InstrProfRecord *ProfRecord;
+  InstrProfileEntry(InstrProfRecord *Record);
+  InstrProfileEntry() = default;
+};
+
+InstrProfileEntry::InstrProfileEntry(InstrProfRecord *Record) {
+  ProfRecord = Record;
+  uint64_t CntNum = Record->Counts.size();
+  uint64_t ZeroCntNum = 0;
+  for (size_t I = 0; I < CntNum; ++I) {
+    MaxCount = std::max(MaxCount, Record->Counts[I]);
+    ZeroCntNum += !Record->Counts[I];
+  }
+  ZeroCounterRatio = (float)ZeroCntNum / CntNum;
+}
+
+/// Either set all the counters in the instr profile entry \p IFE to -1
+/// in order to drop the profile or scale up the counters in \p IFP to
+/// be above hot threshold. We use the ratio of zero counters in the
+/// profile of a function to decide the profile is helpful or harmful
+/// for performance, and to choose whether to scale up or drop it.
+static void updateInstrProfileEntry(InstrProfileEntry &IFE,
+                                    uint64_t HotInstrThreshold,
+                                    float ZeroCounterThreshold) {
+  InstrProfRecord *ProfRecord = IFE.ProfRecord;
+  if (!IFE.MaxCount || IFE.ZeroCounterRatio > ZeroCounterThreshold) {
+    // If all or most of the counters of the function are zero, the
+    // profile is unaccountable and shuld be dropped. Reset all the
+    // counters to be -1 and PGO profile-use will drop the profile.
+    // All counters being -1 also implies that the function is hot so
+    // PGO profile-use will also set the entry count metadata to be
+    // above hot threshold.
+    for (size_t I = 0; I < ProfRecord->Counts.size(); ++I)
+      ProfRecord->Counts[I] = -1;
+    return;
+  }
+
+  // Scale up the MaxCount to be multiple times above hot threshold.
+  const unsigned MultiplyFactor = 3;
+  uint64_t Numerator = HotInstrThreshold * MultiplyFactor;
+  uint64_t Denominator = IFE.MaxCount;
+  ProfRecord->scale(Numerator, Denominator, [&](instrprof_error E) {
+    warn(toString(make_error<InstrProfError>(E)));
+  });
+}
+
+const uint64_t ColdPercentileIdx = 15;
+const uint64_t HotPercentileIdx = 11;
+
+/// Adjust the instr profile in \p WC based on the sample profile in
+/// \p Reader.
+static void
+adjustInstrProfile(std::unique_ptr<WriterContext> &WC,
+                   std::unique_ptr<sampleprof::SampleProfileReader> &Reader,
+                   unsigned SupplMinSizeThreshold, float ZeroCounterThreshold,
+                   unsigned InstrProfColdThreshold) {
+  // Function to its entry in instr profile.
+  StringMap<InstrProfileEntry> InstrProfileMap;
+  InstrProfSummaryBuilder IPBuilder(ProfileSummaryBuilder::DefaultCutoffs);
+  for (auto &PD : WC->Writer.getProfileData()) {
+    // Populate IPBuilder.
+    for (const auto &PDV : PD.getValue()) {
+      InstrProfRecord Record = PDV.second;
+      IPBuilder.addRecord(Record);
+    }
+
+    // If a function has multiple entries in instr profile, skip it.
+    if (PD.getValue().size() != 1)
+      continue;
+
+    // Initialize InstrProfileMap.
+    InstrProfRecord *R = &PD.getValue().begin()->second;
+    InstrProfileMap[PD.getKey()] = InstrProfileEntry(R);
+  }
+
+  ProfileSummary InstrPS = *IPBuilder.getSummary();
+  ProfileSummary SamplePS = Reader->getSummary();
+
+  // Compute cold thresholds for instr profile and sample profile.
+  uint64_t ColdSampleThreshold =
+      ProfileSummaryBuilder::getEntryForPercentile(
+          SamplePS.getDetailedSummary(),
+          ProfileSummaryBuilder::DefaultCutoffs[ColdPercentileIdx])
+          .MinCount;
+  uint64_t HotInstrThreshold =
+      ProfileSummaryBuilder::getEntryForPercentile(
+          InstrPS.getDetailedSummary(),
+          ProfileSummaryBuilder::DefaultCutoffs[HotPercentileIdx])
+          .MinCount;
+  uint64_t ColdInstrThreshold =
+      InstrProfColdThreshold
+          ? InstrProfColdThreshold
+          : ProfileSummaryBuilder::getEntryForPercentile(
+                InstrPS.getDetailedSummary(),
+                ProfileSummaryBuilder::DefaultCutoffs[ColdPercentileIdx])
+                .MinCount;
+
+  // Find hot/warm functions in sample profile which is cold in instr profile
+  // and adjust the profiles of those functions in the instr profile.
+  for (const auto &PD : Reader->getProfiles()) {
+    StringRef FName = PD.getKey();
+    const sampleprof::FunctionSamples &FS = PD.getValue();
+    auto It = InstrProfileMap.find(FName);
+    if (FS.getHeadSamples() > ColdSampleThreshold &&
+        It != InstrProfileMap.end() &&
+        It->second.MaxCount <= ColdInstrThreshold &&
+        FS.getBodySamples().size() >= SupplMinSizeThreshold) {
+      updateInstrProfileEntry(It->second, HotInstrThreshold,
+                              ZeroCounterThreshold);
+    }
+  }
+}
+
+/// The main function to supplement instr profile with sample profile.
+/// \Inputs contains the instr profile. \p SampleFilename specifies the
+/// sample profile. \p OutputFilename specifies the output profile name.
+/// \p OutputFormat specifies the output profile format. \p OutputSparse
+/// specifies whether to generate sparse profile. \p SupplMinSizeThreshold
+/// specifies the minimal size for the functions whose profile will be
+/// adjusted. \p ZeroCounterThreshold is the threshold to check whether
+/// a function contains too many zero counters and whether its profile
+/// should be dropped. \p InstrProfColdThreshold is the user specified
+/// cold threshold which will override the cold threshold got from the
+/// instr profile summary.
+static void supplementInstrProfile(
+    const WeightedFileVector &Inputs, StringRef SampleFilename,
+    StringRef OutputFilename, ProfileFormat OutputFormat, bool OutputSparse,
+    unsigned SupplMinSizeThreshold, float ZeroCounterThreshold,
+    unsigned InstrProfColdThreshold) {
+  if (OutputFilename.compare("-") == 0)
+    exitWithError("Cannot write indexed profdata format to stdout.");
+  if (Inputs.size() != 1)
+    exitWithError("Expect one input to be an instr profile.");
+  if (Inputs[0].Weight != 1)
+    exitWithError("Expect instr profile doesn't have weight.");
+
+  StringRef InstrFilename = Inputs[0].Filename;
+
+  // Read sample profile.
+  LLVMContext Context;
+  auto ReaderOrErr =
+      sampleprof::SampleProfileReader::create(SampleFilename.str(), Context);
+  if (std::error_code EC = ReaderOrErr.getError())
+    exitWithErrorCode(EC, SampleFilename);
+  auto Reader = std::move(ReaderOrErr.get());
+  if (std::error_code EC = Reader->read())
+    exitWithErrorCode(EC, SampleFilename);
+
+  // Read instr profile.
+  std::mutex ErrorLock;
+  SmallSet<instrprof_error, 4> WriterErrorCodes;
+  auto WC = std::make_unique<WriterContext>(OutputSparse, ErrorLock,
+                                            WriterErrorCodes);
+  loadInput(Inputs[0], nullptr, WC.get());
+  if (WC->Errors.size() > 0)
+    exitWithError(std::move(WC->Errors[0].first), InstrFilename);
+
+  adjustInstrProfile(WC, Reader, SupplMinSizeThreshold, ZeroCounterThreshold,
+                     InstrProfColdThreshold);
+  writeInstrProfile(OutputFilename, OutputFormat, WC->Writer);
 }
 
 /// Make a copy of the given function samples with all symbol names remapped
@@ -493,6 +662,7 @@ mergeSampleProfile(const WeightedFileVector &Inputs, SymbolRemapper *Remapper,
   SmallVector<std::unique_ptr<sampleprof::SampleProfileReader>, 5> Readers;
   LLVMContext Context;
   sampleprof::ProfileSymbolList WriterList;
+  Optional<bool> ProfileIsProbeBased;
   for (const auto &Input : Inputs) {
     auto ReaderOrErr = SampleProfileReader::create(Input.Filename, Context);
     if (std::error_code EC = ReaderOrErr.getError()) {
@@ -513,6 +683,11 @@ mergeSampleProfile(const WeightedFileVector &Inputs, SymbolRemapper *Remapper,
     }
 
     StringMap<FunctionSamples> &Profiles = Reader->getProfiles();
+    if (ProfileIsProbeBased &&
+        ProfileIsProbeBased != FunctionSamples::ProfileIsProbeBased)
+      exitWithError(
+          "cannot merge probe-based profile with non-probe-based profile");
+    ProfileIsProbeBased = FunctionSamples::ProfileIsProbeBased;
     for (StringMap<FunctionSamples>::iterator I = Profiles.begin(),
                                               E = Profiles.end();
          I != E; ++I) {
@@ -679,6 +854,28 @@ static int merge_main(int argc, const char *argv[]) {
   cl::opt<bool> GenPartialProfile(
       "gen-partial-profile", cl::init(false), cl::Hidden,
       cl::desc("Generate a partial profile (only meaningful for -extbinary)"));
+  cl::opt<std::string> SupplInstrWithSample(
+      "supplement-instr-with-sample", cl::init(""), cl::Hidden,
+      cl::desc("Supplement an instr profile with sample profile, to correct "
+               "the profile unrepresentativeness issue. The sample "
+               "profile is the input of the flag. Output will be in instr "
+               "format (The flag only works with -instr)"));
+  cl::opt<float> ZeroCounterThreshold(
+      "zero-counter-threshold", cl::init(0.7), cl::Hidden,
+      cl::desc("For the function which is cold in instr profile but hot in "
+               "sample profile, if the ratio of the number of zero counters "
+               "divided by the the total number of counters is above the "
+               "threshold, the profile of the function will be regarded as "
+               "being harmful for performance and will be dropped. "));
+  cl::opt<unsigned> SupplMinSizeThreshold(
+      "suppl-min-size-threshold", cl::init(10), cl::Hidden,
+      cl::desc("If the size of a function is smaller than the threshold, "
+               "assume it can be inlined by PGO early inliner and it won't "
+               "be adjusted based on sample profile. "));
+  cl::opt<unsigned> InstrProfColdThreshold(
+      "instr-prof-cold-threshold", cl::init(0), cl::Hidden,
+      cl::desc("User specified cold threshold for instr profile which will "
+               "override the cold threshold got from profile summary. "));
 
   cl::ParseCommandLineOptions(argc, argv, "LLVM profile data merger\n");
 
@@ -706,6 +903,17 @@ static int merge_main(int argc, const char *argv[]) {
   std::unique_ptr<SymbolRemapper> Remapper;
   if (!RemappingFile.empty())
     Remapper = SymbolRemapper::create(RemappingFile);
+
+  if (!SupplInstrWithSample.empty()) {
+    if (ProfileKind != instr)
+      exitWithError(
+          "-supplement-instr-with-sample can only work with -instr. ");
+
+    supplementInstrProfile(WeightedInputs, SupplInstrWithSample, OutputFilename,
+                           OutputFormat, OutputSparse, SupplMinSizeThreshold,
+                           ZeroCounterThreshold, InstrProfColdThreshold);
+    return 0;
+  }
 
   if (ProfileKind == instr)
     mergeInstrProfile(WeightedInputs, Remapper.get(), OutputFilename,
@@ -745,6 +953,933 @@ static void overlapInstrProfile(const std::string &BaseFilename,
   Overlap.dump(OS);
 }
 
+namespace {
+struct SampleOverlapStats {
+  StringRef BaseName;
+  StringRef TestName;
+  // Number of overlap units
+  uint64_t OverlapCount;
+  // Total samples of overlap units
+  uint64_t OverlapSample;
+  // Number of and total samples of units that only present in base or test
+  // profile
+  uint64_t BaseUniqueCount;
+  uint64_t BaseUniqueSample;
+  uint64_t TestUniqueCount;
+  uint64_t TestUniqueSample;
+  // Number of units and total samples in base or test profile
+  uint64_t BaseCount;
+  uint64_t BaseSample;
+  uint64_t TestCount;
+  uint64_t TestSample;
+  // Number of and total samples of units that present in at least one profile
+  uint64_t UnionCount;
+  uint64_t UnionSample;
+  // Weighted similarity
+  double Similarity;
+  // For SampleOverlapStats instances representing functions, weights of the
+  // function in base and test profiles
+  double BaseWeight;
+  double TestWeight;
+
+  SampleOverlapStats()
+      : OverlapCount(0), OverlapSample(0), BaseUniqueCount(0),
+        BaseUniqueSample(0), TestUniqueCount(0), TestUniqueSample(0),
+        BaseCount(0), BaseSample(0), TestCount(0), TestSample(0), UnionCount(0),
+        UnionSample(0), Similarity(0.0), BaseWeight(0.0), TestWeight(0.0) {}
+};
+} // end anonymous namespace
+
+namespace {
+struct FuncSampleStats {
+  uint64_t SampleSum;
+  uint64_t MaxSample;
+  uint64_t HotBlockCount;
+  FuncSampleStats() : SampleSum(0), MaxSample(0), HotBlockCount(0) {}
+  FuncSampleStats(uint64_t SampleSum, uint64_t MaxSample,
+                  uint64_t HotBlockCount)
+      : SampleSum(SampleSum), MaxSample(MaxSample),
+        HotBlockCount(HotBlockCount) {}
+};
+} // end anonymous namespace
+
+namespace {
+enum MatchStatus { MS_Match, MS_FirstUnique, MS_SecondUnique, MS_None };
+
+// Class for updating merging steps for two sorted maps. The class should be
+// instantiated with a map iterator type.
+template <class T> class MatchStep {
+public:
+  MatchStep() = delete;
+
+  MatchStep(T FirstIter, T FirstEnd, T SecondIter, T SecondEnd)
+      : FirstIter(FirstIter), FirstEnd(FirstEnd), SecondIter(SecondIter),
+        SecondEnd(SecondEnd), Status(MS_None) {}
+
+  bool areBothFinished() const {
+    return (FirstIter == FirstEnd && SecondIter == SecondEnd);
+  }
+
+  bool isFirstFinished() const { return FirstIter == FirstEnd; }
+
+  bool isSecondFinished() const { return SecondIter == SecondEnd; }
+
+  /// Advance one step based on the previous match status unless the previous
+  /// status is MS_None. Then update Status based on the comparison between two
+  /// container iterators at the current step. If the previous status is
+  /// MS_None, it means two iterators are at the beginning and no comparison has
+  /// been made, so we simply update Status without advancing the iterators.
+  void updateOneStep();
+
+  T getFirstIter() const { return FirstIter; }
+
+  T getSecondIter() const { return SecondIter; }
+
+  MatchStatus getMatchStatus() const { return Status; }
+
+private:
+  // Current iterator and end iterator of the first container.
+  T FirstIter;
+  T FirstEnd;
+  // Current iterator and end iterator of the second container.
+  T SecondIter;
+  T SecondEnd;
+  // Match status of the current step.
+  MatchStatus Status;
+};
+} // end anonymous namespace
+
+template <class T> void MatchStep<T>::updateOneStep() {
+  switch (Status) {
+  case MS_Match:
+    ++FirstIter;
+    ++SecondIter;
+    break;
+  case MS_FirstUnique:
+    ++FirstIter;
+    break;
+  case MS_SecondUnique:
+    ++SecondIter;
+    break;
+  case MS_None:
+    break;
+  }
+
+  // Update Status according to iterators at the current step.
+  if (areBothFinished())
+    return;
+  if (FirstIter != FirstEnd &&
+      (SecondIter == SecondEnd || FirstIter->first < SecondIter->first))
+    Status = MS_FirstUnique;
+  else if (SecondIter != SecondEnd &&
+           (FirstIter == FirstEnd || SecondIter->first < FirstIter->first))
+    Status = MS_SecondUnique;
+  else
+    Status = MS_Match;
+}
+
+// Return the sum of line/block samples, the max line/block sample, and the
+// number of line/block samples above the given threshold in a function
+// including its inlinees.
+static void getFuncSampleStats(const sampleprof::FunctionSamples &Func,
+                               FuncSampleStats &FuncStats,
+                               uint64_t HotThreshold) {
+  for (const auto &L : Func.getBodySamples()) {
+    uint64_t Sample = L.second.getSamples();
+    FuncStats.SampleSum += Sample;
+    FuncStats.MaxSample = std::max(FuncStats.MaxSample, Sample);
+    if (Sample >= HotThreshold)
+      ++FuncStats.HotBlockCount;
+  }
+
+  for (const auto &C : Func.getCallsiteSamples()) {
+    for (const auto &F : C.second)
+      getFuncSampleStats(F.second, FuncStats, HotThreshold);
+  }
+}
+
+/// Predicate that determines if a function is hot with a given threshold. We
+/// keep it separate from its callsites for possible extension in the future.
+static bool isFunctionHot(const FuncSampleStats &FuncStats,
+                          uint64_t HotThreshold) {
+  // We intentionally compare the maximum sample count in a function with the
+  // HotThreshold to get an approximate determination on hot functions.
+  return (FuncStats.MaxSample >= HotThreshold);
+}
+
+namespace {
+class SampleOverlapAggregator {
+public:
+  SampleOverlapAggregator(const std::string &BaseFilename,
+                          const std::string &TestFilename,
+                          double LowSimilarityThreshold, double Epsilon,
+                          const OverlapFuncFilters &FuncFilter)
+      : BaseFilename(BaseFilename), TestFilename(TestFilename),
+        LowSimilarityThreshold(LowSimilarityThreshold), Epsilon(Epsilon),
+        FuncFilter(FuncFilter) {}
+
+  /// Detect 0-sample input profile and report to output stream. This interface
+  /// should be called after loadProfiles().
+  bool detectZeroSampleProfile(raw_fd_ostream &OS) const;
+
+  /// Write out function-level similarity statistics for functions specified by
+  /// options --function, --value-cutoff, and --similarity-cutoff.
+  void dumpFuncSimilarity(raw_fd_ostream &OS) const;
+
+  /// Write out program-level similarity and overlap statistics.
+  void dumpProgramSummary(raw_fd_ostream &OS) const;
+
+  /// Write out hot-function and hot-block statistics for base_profile,
+  /// test_profile, and their overlap. For both cases, the overlap HO is
+  /// calculated as follows:
+  ///    Given the number of functions (or blocks) that are hot in both profiles
+  ///    HCommon and the number of functions (or blocks) that are hot in at
+  ///    least one profile HUnion, HO = HCommon / HUnion.
+  void dumpHotFuncAndBlockOverlap(raw_fd_ostream &OS) const;
+
+  /// This function tries matching functions in base and test profiles. For each
+  /// pair of matched functions, it aggregates the function-level
+  /// similarity into a profile-level similarity. It also dump function-level
+  /// similarity information of functions specified by --function,
+  /// --value-cutoff, and --similarity-cutoff options. The program-level
+  /// similarity PS is computed as follows:
+  ///     Given function-level similarity FS(A) for all function A, the
+  ///     weight of function A in base profile WB(A), and the weight of function
+  ///     A in test profile WT(A), compute PS(base_profile, test_profile) =
+  ///     sum_A(FS(A) * avg(WB(A), WT(A))) ranging in [0.0f to 1.0f] with 0.0
+  ///     meaning no-overlap.
+  void computeSampleProfileOverlap(raw_fd_ostream &OS);
+
+  /// Initialize ProfOverlap with the sum of samples in base and test
+  /// profiles. This function also computes and keeps the sum of samples and
+  /// max sample counts of each function in BaseStats and TestStats for later
+  /// use to avoid re-computations.
+  void initializeSampleProfileOverlap();
+
+  /// Load profiles specified by BaseFilename and TestFilename.
+  std::error_code loadProfiles();
+
+private:
+  SampleOverlapStats ProfOverlap;
+  SampleOverlapStats HotFuncOverlap;
+  SampleOverlapStats HotBlockOverlap;
+  std::string BaseFilename;
+  std::string TestFilename;
+  std::unique_ptr<sampleprof::SampleProfileReader> BaseReader;
+  std::unique_ptr<sampleprof::SampleProfileReader> TestReader;
+  // BaseStats and TestStats hold FuncSampleStats for each function, with
+  // function name as the key.
+  StringMap<FuncSampleStats> BaseStats;
+  StringMap<FuncSampleStats> TestStats;
+  // Low similarity threshold in floating point number
+  double LowSimilarityThreshold;
+  // Block samples above BaseHotThreshold or TestHotThreshold are considered hot
+  // for tracking hot blocks.
+  uint64_t BaseHotThreshold;
+  uint64_t TestHotThreshold;
+  // A small threshold used to round the results of floating point accumulations
+  // to resolve imprecision.
+  const double Epsilon;
+  std::multimap<double, SampleOverlapStats, std::greater<double>>
+      FuncSimilarityDump;
+  // FuncFilter carries specifications in options --value-cutoff and
+  // --function.
+  OverlapFuncFilters FuncFilter;
+  // Column offsets for printing the function-level details table.
+  static const unsigned int TestWeightCol = 15;
+  static const unsigned int SimilarityCol = 30;
+  static const unsigned int OverlapCol = 43;
+  static const unsigned int BaseUniqueCol = 53;
+  static const unsigned int TestUniqueCol = 67;
+  static const unsigned int BaseSampleCol = 81;
+  static const unsigned int TestSampleCol = 96;
+  static const unsigned int FuncNameCol = 111;
+
+  /// Return a similarity of two line/block sample counters in the same
+  /// function in base and test profiles. The line/block-similarity BS(i) is
+  /// computed as follows:
+  ///    For an offsets i, given the sample count at i in base profile BB(i),
+  ///    the sample count at i in test profile BT(i), the sum of sample counts
+  ///    in this function in base profile SB, and the sum of sample counts in
+  ///    this function in test profile ST, compute BS(i) = 1.0 - fabs(BB(i)/SB -
+  ///    BT(i)/ST), ranging in [0.0f to 1.0f] with 0.0 meaning no-overlap.
+  double computeBlockSimilarity(uint64_t BaseSample, uint64_t TestSample,
+                                const SampleOverlapStats &FuncOverlap) const;
+
+  void updateHotBlockOverlap(uint64_t BaseSample, uint64_t TestSample,
+                             uint64_t HotBlockCount);
+
+  void getHotFunctions(const StringMap<FuncSampleStats> &ProfStats,
+                       StringMap<FuncSampleStats> &HotFunc,
+                       uint64_t HotThreshold) const;
+
+  void computeHotFuncOverlap();
+
+  /// This function updates statistics in FuncOverlap, HotBlockOverlap, and
+  /// Difference for two sample units in a matched function according to the
+  /// given match status.
+  void updateOverlapStatsForFunction(uint64_t BaseSample, uint64_t TestSample,
+                                     uint64_t HotBlockCount,
+                                     SampleOverlapStats &FuncOverlap,
+                                     double &Difference, MatchStatus Status);
+
+  /// This function updates statistics in FuncOverlap, HotBlockOverlap, and
+  /// Difference for unmatched callees that only present in one profile in a
+  /// matched caller function.
+  void updateForUnmatchedCallee(const sampleprof::FunctionSamples &Func,
+                                SampleOverlapStats &FuncOverlap,
+                                double &Difference, MatchStatus Status);
+
+  /// This function updates sample overlap statistics of an overlap function in
+  /// base and test profile. It also calculates a function-internal similarity
+  /// FIS as follows:
+  ///    For offsets i that have samples in at least one profile in this
+  ///    function A, given BS(i) returned by computeBlockSimilarity(), compute
+  ///    FIS(A) = (2.0 - sum_i(1.0 - BS(i))) / 2, ranging in [0.0f to 1.0f] with
+  ///    0.0 meaning no overlap.
+  double computeSampleFunctionInternalOverlap(
+      const sampleprof::FunctionSamples &BaseFunc,
+      const sampleprof::FunctionSamples &TestFunc,
+      SampleOverlapStats &FuncOverlap);
+
+  /// Function-level similarity (FS) is a weighted value over function internal
+  /// similarity (FIS). This function computes a function's FS from its FIS by
+  /// applying the weight.
+  double weightForFuncSimilarity(double FuncSimilarity, uint64_t BaseFuncSample,
+                                 uint64_t TestFuncSample) const;
+
+  /// The function-level similarity FS(A) for a function A is computed as
+  /// follows:
+  ///     Compute a function-internal similarity FIS(A) by
+  ///     computeSampleFunctionInternalOverlap(). Then, with the weight of
+  ///     function A in base profile WB(A), and the weight of function A in test
+  ///     profile WT(A), compute FS(A) = FIS(A) * (1.0 - fabs(WB(A) - WT(A)))
+  ///     ranging in [0.0f to 1.0f] with 0.0 meaning no overlap.
+  double
+  computeSampleFunctionOverlap(const sampleprof::FunctionSamples *BaseFunc,
+                               const sampleprof::FunctionSamples *TestFunc,
+                               SampleOverlapStats *FuncOverlap,
+                               uint64_t BaseFuncSample,
+                               uint64_t TestFuncSample);
+
+  /// Profile-level similarity (PS) is a weighted aggregate over function-level
+  /// similarities (FS). This method weights the FS value by the function
+  /// weights in the base and test profiles for the aggregation.
+  double weightByImportance(double FuncSimilarity, uint64_t BaseFuncSample,
+                            uint64_t TestFuncSample) const;
+};
+} // end anonymous namespace
+
+bool SampleOverlapAggregator::detectZeroSampleProfile(
+    raw_fd_ostream &OS) const {
+  bool HaveZeroSample = false;
+  if (ProfOverlap.BaseSample == 0) {
+    OS << "Sum of sample counts for profile " << BaseFilename << " is 0.\n";
+    HaveZeroSample = true;
+  }
+  if (ProfOverlap.TestSample == 0) {
+    OS << "Sum of sample counts for profile " << TestFilename << " is 0.\n";
+    HaveZeroSample = true;
+  }
+  return HaveZeroSample;
+}
+
+double SampleOverlapAggregator::computeBlockSimilarity(
+    uint64_t BaseSample, uint64_t TestSample,
+    const SampleOverlapStats &FuncOverlap) const {
+  double BaseFrac = 0.0;
+  double TestFrac = 0.0;
+  if (FuncOverlap.BaseSample > 0)
+    BaseFrac = static_cast<double>(BaseSample) / FuncOverlap.BaseSample;
+  if (FuncOverlap.TestSample > 0)
+    TestFrac = static_cast<double>(TestSample) / FuncOverlap.TestSample;
+  return 1.0 - std::fabs(BaseFrac - TestFrac);
+}
+
+void SampleOverlapAggregator::updateHotBlockOverlap(uint64_t BaseSample,
+                                                    uint64_t TestSample,
+                                                    uint64_t HotBlockCount) {
+  bool IsBaseHot = (BaseSample >= BaseHotThreshold);
+  bool IsTestHot = (TestSample >= TestHotThreshold);
+  if (!IsBaseHot && !IsTestHot)
+    return;
+
+  HotBlockOverlap.UnionCount += HotBlockCount;
+  if (IsBaseHot)
+    HotBlockOverlap.BaseCount += HotBlockCount;
+  if (IsTestHot)
+    HotBlockOverlap.TestCount += HotBlockCount;
+  if (IsBaseHot && IsTestHot)
+    HotBlockOverlap.OverlapCount += HotBlockCount;
+}
+
+void SampleOverlapAggregator::getHotFunctions(
+    const StringMap<FuncSampleStats> &ProfStats,
+    StringMap<FuncSampleStats> &HotFunc, uint64_t HotThreshold) const {
+  for (const auto &F : ProfStats) {
+    if (isFunctionHot(F.second, HotThreshold))
+      HotFunc.try_emplace(F.first(), F.second);
+  }
+}
+
+void SampleOverlapAggregator::computeHotFuncOverlap() {
+  StringMap<FuncSampleStats> BaseHotFunc;
+  getHotFunctions(BaseStats, BaseHotFunc, BaseHotThreshold);
+  HotFuncOverlap.BaseCount = BaseHotFunc.size();
+
+  StringMap<FuncSampleStats> TestHotFunc;
+  getHotFunctions(TestStats, TestHotFunc, TestHotThreshold);
+  HotFuncOverlap.TestCount = TestHotFunc.size();
+  HotFuncOverlap.UnionCount = HotFuncOverlap.TestCount;
+
+  for (const auto &F : BaseHotFunc) {
+    if (TestHotFunc.count(F.first()))
+      ++HotFuncOverlap.OverlapCount;
+    else
+      ++HotFuncOverlap.UnionCount;
+  }
+}
+
+void SampleOverlapAggregator::updateOverlapStatsForFunction(
+    uint64_t BaseSample, uint64_t TestSample, uint64_t HotBlockCount,
+    SampleOverlapStats &FuncOverlap, double &Difference, MatchStatus Status) {
+  assert(Status != MS_None &&
+         "Match status should be updated before updating overlap statistics");
+  if (Status == MS_FirstUnique) {
+    TestSample = 0;
+    FuncOverlap.BaseUniqueSample += BaseSample;
+  } else if (Status == MS_SecondUnique) {
+    BaseSample = 0;
+    FuncOverlap.TestUniqueSample += TestSample;
+  } else {
+    ++FuncOverlap.OverlapCount;
+  }
+
+  FuncOverlap.UnionSample += std::max(BaseSample, TestSample);
+  FuncOverlap.OverlapSample += std::min(BaseSample, TestSample);
+  Difference +=
+      1.0 - computeBlockSimilarity(BaseSample, TestSample, FuncOverlap);
+  updateHotBlockOverlap(BaseSample, TestSample, HotBlockCount);
+}
+
+void SampleOverlapAggregator::updateForUnmatchedCallee(
+    const sampleprof::FunctionSamples &Func, SampleOverlapStats &FuncOverlap,
+    double &Difference, MatchStatus Status) {
+  assert((Status == MS_FirstUnique || Status == MS_SecondUnique) &&
+         "Status must be either of the two unmatched cases");
+  FuncSampleStats FuncStats;
+  if (Status == MS_FirstUnique) {
+    getFuncSampleStats(Func, FuncStats, BaseHotThreshold);
+    updateOverlapStatsForFunction(FuncStats.SampleSum, 0,
+                                  FuncStats.HotBlockCount, FuncOverlap,
+                                  Difference, Status);
+  } else {
+    getFuncSampleStats(Func, FuncStats, TestHotThreshold);
+    updateOverlapStatsForFunction(0, FuncStats.SampleSum,
+                                  FuncStats.HotBlockCount, FuncOverlap,
+                                  Difference, Status);
+  }
+}
+
+double SampleOverlapAggregator::computeSampleFunctionInternalOverlap(
+    const sampleprof::FunctionSamples &BaseFunc,
+    const sampleprof::FunctionSamples &TestFunc,
+    SampleOverlapStats &FuncOverlap) {
+
+  using namespace sampleprof;
+
+  double Difference = 0;
+
+  // Accumulate Difference for regular line/block samples in the function.
+  // We match them through sort-merge join algorithm because
+  // FunctionSamples::getBodySamples() returns a map of sample counters ordered
+  // by their offsets.
+  MatchStep<BodySampleMap::const_iterator> BlockIterStep(
+      BaseFunc.getBodySamples().cbegin(), BaseFunc.getBodySamples().cend(),
+      TestFunc.getBodySamples().cbegin(), TestFunc.getBodySamples().cend());
+  BlockIterStep.updateOneStep();
+  while (!BlockIterStep.areBothFinished()) {
+    uint64_t BaseSample =
+        BlockIterStep.isFirstFinished()
+            ? 0
+            : BlockIterStep.getFirstIter()->second.getSamples();
+    uint64_t TestSample =
+        BlockIterStep.isSecondFinished()
+            ? 0
+            : BlockIterStep.getSecondIter()->second.getSamples();
+    updateOverlapStatsForFunction(BaseSample, TestSample, 1, FuncOverlap,
+                                  Difference, BlockIterStep.getMatchStatus());
+
+    BlockIterStep.updateOneStep();
+  }
+
+  // Accumulate Difference for callsite lines in the function. We match
+  // them through sort-merge algorithm because
+  // FunctionSamples::getCallsiteSamples() returns a map of callsite records
+  // ordered by their offsets.
+  MatchStep<CallsiteSampleMap::const_iterator> CallsiteIterStep(
+      BaseFunc.getCallsiteSamples().cbegin(),
+      BaseFunc.getCallsiteSamples().cend(),
+      TestFunc.getCallsiteSamples().cbegin(),
+      TestFunc.getCallsiteSamples().cend());
+  CallsiteIterStep.updateOneStep();
+  while (!CallsiteIterStep.areBothFinished()) {
+    MatchStatus CallsiteStepStatus = CallsiteIterStep.getMatchStatus();
+    assert(CallsiteStepStatus != MS_None &&
+           "Match status should be updated before entering loop body");
+
+    if (CallsiteStepStatus != MS_Match) {
+      auto Callsite = (CallsiteStepStatus == MS_FirstUnique)
+                          ? CallsiteIterStep.getFirstIter()
+                          : CallsiteIterStep.getSecondIter();
+      for (const auto &F : Callsite->second)
+        updateForUnmatchedCallee(F.second, FuncOverlap, Difference,
+                                 CallsiteStepStatus);
+    } else {
+      // There may be multiple inlinees at the same offset, so we need to try
+      // matching all of them. This match is implemented through sort-merge
+      // algorithm because callsite records at the same offset are ordered by
+      // function names.
+      MatchStep<FunctionSamplesMap::const_iterator> CalleeIterStep(
+          CallsiteIterStep.getFirstIter()->second.cbegin(),
+          CallsiteIterStep.getFirstIter()->second.cend(),
+          CallsiteIterStep.getSecondIter()->second.cbegin(),
+          CallsiteIterStep.getSecondIter()->second.cend());
+      CalleeIterStep.updateOneStep();
+      while (!CalleeIterStep.areBothFinished()) {
+        MatchStatus CalleeStepStatus = CalleeIterStep.getMatchStatus();
+        if (CalleeStepStatus != MS_Match) {
+          auto Callee = (CalleeStepStatus == MS_FirstUnique)
+                            ? CalleeIterStep.getFirstIter()
+                            : CalleeIterStep.getSecondIter();
+          updateForUnmatchedCallee(Callee->second, FuncOverlap, Difference,
+                                   CalleeStepStatus);
+        } else {
+          // An inlined function can contain other inlinees inside, so compute
+          // the Difference recursively.
+          Difference += 2.0 - 2 * computeSampleFunctionInternalOverlap(
+                                      CalleeIterStep.getFirstIter()->second,
+                                      CalleeIterStep.getSecondIter()->second,
+                                      FuncOverlap);
+        }
+        CalleeIterStep.updateOneStep();
+      }
+    }
+    CallsiteIterStep.updateOneStep();
+  }
+
+  // Difference reflects the total differences of line/block samples in this
+  // function and ranges in [0.0f to 2.0f]. Take (2.0 - Difference) / 2 to
+  // reflect the similarity between function profiles in [0.0f to 1.0f].
+  return (2.0 - Difference) / 2;
+}
+
+double SampleOverlapAggregator::weightForFuncSimilarity(
+    double FuncInternalSimilarity, uint64_t BaseFuncSample,
+    uint64_t TestFuncSample) const {
+  // Compute the weight as the distance between the function weights in two
+  // profiles.
+  double BaseFrac = 0.0;
+  double TestFrac = 0.0;
+  assert(ProfOverlap.BaseSample > 0 &&
+         "Total samples in base profile should be greater than 0");
+  BaseFrac = static_cast<double>(BaseFuncSample) / ProfOverlap.BaseSample;
+  assert(ProfOverlap.TestSample > 0 &&
+         "Total samples in test profile should be greater than 0");
+  TestFrac = static_cast<double>(TestFuncSample) / ProfOverlap.TestSample;
+  double WeightDistance = std::fabs(BaseFrac - TestFrac);
+
+  // Take WeightDistance into the similarity.
+  return FuncInternalSimilarity * (1 - WeightDistance);
+}
+
+double
+SampleOverlapAggregator::weightByImportance(double FuncSimilarity,
+                                            uint64_t BaseFuncSample,
+                                            uint64_t TestFuncSample) const {
+
+  double BaseFrac = 0.0;
+  double TestFrac = 0.0;
+  assert(ProfOverlap.BaseSample > 0 &&
+         "Total samples in base profile should be greater than 0");
+  BaseFrac = static_cast<double>(BaseFuncSample) / ProfOverlap.BaseSample / 2.0;
+  assert(ProfOverlap.TestSample > 0 &&
+         "Total samples in test profile should be greater than 0");
+  TestFrac = static_cast<double>(TestFuncSample) / ProfOverlap.TestSample / 2.0;
+  return FuncSimilarity * (BaseFrac + TestFrac);
+}
+
+double SampleOverlapAggregator::computeSampleFunctionOverlap(
+    const sampleprof::FunctionSamples *BaseFunc,
+    const sampleprof::FunctionSamples *TestFunc,
+    SampleOverlapStats *FuncOverlap, uint64_t BaseFuncSample,
+    uint64_t TestFuncSample) {
+  // Default function internal similarity before weighted, meaning two functions
+  // has no overlap.
+  const double DefaultFuncInternalSimilarity = 0;
+  double FuncSimilarity;
+  double FuncInternalSimilarity;
+
+  // If BaseFunc or TestFunc is nullptr, it means the functions do not overlap.
+  // In this case, we use DefaultFuncInternalSimilarity as the function internal
+  // similarity.
+  if (!BaseFunc || !TestFunc) {
+    FuncInternalSimilarity = DefaultFuncInternalSimilarity;
+  } else {
+    assert(FuncOverlap != nullptr &&
+           "FuncOverlap should be provided in this case");
+    FuncInternalSimilarity = computeSampleFunctionInternalOverlap(
+        *BaseFunc, *TestFunc, *FuncOverlap);
+    // Now, FuncInternalSimilarity may be a little less than 0 due to
+    // imprecision of floating point accumulations. Make it zero if the
+    // difference is below Epsilon.
+    FuncInternalSimilarity = (std::fabs(FuncInternalSimilarity - 0) < Epsilon)
+                                 ? 0
+                                 : FuncInternalSimilarity;
+  }
+  FuncSimilarity = weightForFuncSimilarity(FuncInternalSimilarity,
+                                           BaseFuncSample, TestFuncSample);
+  return FuncSimilarity;
+}
+
+void SampleOverlapAggregator::computeSampleProfileOverlap(raw_fd_ostream &OS) {
+  using namespace sampleprof;
+
+  StringMap<const FunctionSamples *> BaseFuncProf;
+  const auto &BaseProfiles = BaseReader->getProfiles();
+  for (const auto &BaseFunc : BaseProfiles) {
+    BaseFuncProf.try_emplace(BaseFunc.second.getName(), &(BaseFunc.second));
+  }
+  ProfOverlap.UnionCount = BaseFuncProf.size();
+
+  const auto &TestProfiles = TestReader->getProfiles();
+  for (const auto &TestFunc : TestProfiles) {
+    SampleOverlapStats FuncOverlap;
+    FuncOverlap.TestName = TestFunc.second.getName();
+    assert(TestStats.count(FuncOverlap.TestName) &&
+           "TestStats should have records for all functions in test profile "
+           "except inlinees");
+    FuncOverlap.TestSample = TestStats[FuncOverlap.TestName].SampleSum;
+
+    const auto Match = BaseFuncProf.find(FuncOverlap.TestName);
+    if (Match == BaseFuncProf.end()) {
+      const FuncSampleStats &FuncStats = TestStats[FuncOverlap.TestName];
+      ++ProfOverlap.TestUniqueCount;
+      ProfOverlap.TestUniqueSample += FuncStats.SampleSum;
+      FuncOverlap.TestUniqueSample = FuncStats.SampleSum;
+
+      updateHotBlockOverlap(0, FuncStats.SampleSum, FuncStats.HotBlockCount);
+
+      double FuncSimilarity = computeSampleFunctionOverlap(
+          nullptr, nullptr, nullptr, 0, FuncStats.SampleSum);
+      ProfOverlap.Similarity +=
+          weightByImportance(FuncSimilarity, 0, FuncStats.SampleSum);
+
+      ++ProfOverlap.UnionCount;
+      ProfOverlap.UnionSample += FuncStats.SampleSum;
+    } else {
+      ++ProfOverlap.OverlapCount;
+
+      // Two functions match with each other. Compute function-level overlap and
+      // aggregate them into profile-level overlap.
+      FuncOverlap.BaseName = Match->second->getName();
+      assert(BaseStats.count(FuncOverlap.BaseName) &&
+             "BaseStats should have records for all functions in base profile "
+             "except inlinees");
+      FuncOverlap.BaseSample = BaseStats[FuncOverlap.BaseName].SampleSum;
+
+      FuncOverlap.Similarity = computeSampleFunctionOverlap(
+          Match->second, &TestFunc.second, &FuncOverlap, FuncOverlap.BaseSample,
+          FuncOverlap.TestSample);
+      ProfOverlap.Similarity +=
+          weightByImportance(FuncOverlap.Similarity, FuncOverlap.BaseSample,
+                             FuncOverlap.TestSample);
+      ProfOverlap.OverlapSample += FuncOverlap.OverlapSample;
+      ProfOverlap.UnionSample += FuncOverlap.UnionSample;
+
+      // Accumulate the percentage of base unique and test unique samples into
+      // ProfOverlap.
+      ProfOverlap.BaseUniqueSample += FuncOverlap.BaseUniqueSample;
+      ProfOverlap.TestUniqueSample += FuncOverlap.TestUniqueSample;
+
+      // Remove matched base functions for later reporting functions not found
+      // in test profile.
+      BaseFuncProf.erase(Match);
+    }
+
+    // Print function-level similarity information if specified by options.
+    assert(TestStats.count(FuncOverlap.TestName) &&
+           "TestStats should have records for all functions in test profile "
+           "except inlinees");
+    if (TestStats[FuncOverlap.TestName].MaxSample >= FuncFilter.ValueCutoff ||
+        (Match != BaseFuncProf.end() &&
+         FuncOverlap.Similarity < LowSimilarityThreshold) ||
+        (Match != BaseFuncProf.end() && !FuncFilter.NameFilter.empty() &&
+         FuncOverlap.BaseName.find(FuncFilter.NameFilter) !=
+             FuncOverlap.BaseName.npos)) {
+      assert(ProfOverlap.BaseSample > 0 &&
+             "Total samples in base profile should be greater than 0");
+      FuncOverlap.BaseWeight =
+          static_cast<double>(FuncOverlap.BaseSample) / ProfOverlap.BaseSample;
+      assert(ProfOverlap.TestSample > 0 &&
+             "Total samples in test profile should be greater than 0");
+      FuncOverlap.TestWeight =
+          static_cast<double>(FuncOverlap.TestSample) / ProfOverlap.TestSample;
+      FuncSimilarityDump.emplace(FuncOverlap.BaseWeight, FuncOverlap);
+    }
+  }
+
+  // Traverse through functions in base profile but not in test profile.
+  for (const auto &F : BaseFuncProf) {
+    assert(BaseStats.count(F.second->getName()) &&
+           "BaseStats should have records for all functions in base profile "
+           "except inlinees");
+    const FuncSampleStats &FuncStats = BaseStats[F.second->getName()];
+    ++ProfOverlap.BaseUniqueCount;
+    ProfOverlap.BaseUniqueSample += FuncStats.SampleSum;
+
+    updateHotBlockOverlap(FuncStats.SampleSum, 0, FuncStats.HotBlockCount);
+
+    double FuncSimilarity = computeSampleFunctionOverlap(
+        nullptr, nullptr, nullptr, FuncStats.SampleSum, 0);
+    ProfOverlap.Similarity +=
+        weightByImportance(FuncSimilarity, FuncStats.SampleSum, 0);
+
+    ProfOverlap.UnionSample += FuncStats.SampleSum;
+  }
+
+  // Now, ProfSimilarity may be a little greater than 1 due to imprecision
+  // of floating point accumulations. Make it 1.0 if the difference is below
+  // Epsilon.
+  ProfOverlap.Similarity = (std::fabs(ProfOverlap.Similarity - 1) < Epsilon)
+                               ? 1
+                               : ProfOverlap.Similarity;
+
+  computeHotFuncOverlap();
+}
+
+void SampleOverlapAggregator::initializeSampleProfileOverlap() {
+  const auto &BaseProf = BaseReader->getProfiles();
+  for (const auto &I : BaseProf) {
+    ++ProfOverlap.BaseCount;
+    FuncSampleStats FuncStats;
+    getFuncSampleStats(I.second, FuncStats, BaseHotThreshold);
+    ProfOverlap.BaseSample += FuncStats.SampleSum;
+    BaseStats.try_emplace(I.second.getName(), FuncStats);
+  }
+
+  const auto &TestProf = TestReader->getProfiles();
+  for (const auto &I : TestProf) {
+    ++ProfOverlap.TestCount;
+    FuncSampleStats FuncStats;
+    getFuncSampleStats(I.second, FuncStats, TestHotThreshold);
+    ProfOverlap.TestSample += FuncStats.SampleSum;
+    TestStats.try_emplace(I.second.getName(), FuncStats);
+  }
+
+  ProfOverlap.BaseName = StringRef(BaseFilename);
+  ProfOverlap.TestName = StringRef(TestFilename);
+}
+
+void SampleOverlapAggregator::dumpFuncSimilarity(raw_fd_ostream &OS) const {
+  using namespace sampleprof;
+
+  if (FuncSimilarityDump.empty())
+    return;
+
+  formatted_raw_ostream FOS(OS);
+  FOS << "Function-level details:\n";
+  FOS << "Base weight";
+  FOS.PadToColumn(TestWeightCol);
+  FOS << "Test weight";
+  FOS.PadToColumn(SimilarityCol);
+  FOS << "Similarity";
+  FOS.PadToColumn(OverlapCol);
+  FOS << "Overlap";
+  FOS.PadToColumn(BaseUniqueCol);
+  FOS << "Base unique";
+  FOS.PadToColumn(TestUniqueCol);
+  FOS << "Test unique";
+  FOS.PadToColumn(BaseSampleCol);
+  FOS << "Base samples";
+  FOS.PadToColumn(TestSampleCol);
+  FOS << "Test samples";
+  FOS.PadToColumn(FuncNameCol);
+  FOS << "Function name\n";
+  for (const auto &F : FuncSimilarityDump) {
+    double OverlapPercent =
+        F.second.UnionSample > 0
+            ? static_cast<double>(F.second.OverlapSample) / F.second.UnionSample
+            : 0;
+    double BaseUniquePercent =
+        F.second.BaseSample > 0
+            ? static_cast<double>(F.second.BaseUniqueSample) /
+                  F.second.BaseSample
+            : 0;
+    double TestUniquePercent =
+        F.second.TestSample > 0
+            ? static_cast<double>(F.second.TestUniqueSample) /
+                  F.second.TestSample
+            : 0;
+
+    FOS << format("%.2f%%", F.second.BaseWeight * 100);
+    FOS.PadToColumn(TestWeightCol);
+    FOS << format("%.2f%%", F.second.TestWeight * 100);
+    FOS.PadToColumn(SimilarityCol);
+    FOS << format("%.2f%%", F.second.Similarity * 100);
+    FOS.PadToColumn(OverlapCol);
+    FOS << format("%.2f%%", OverlapPercent * 100);
+    FOS.PadToColumn(BaseUniqueCol);
+    FOS << format("%.2f%%", BaseUniquePercent * 100);
+    FOS.PadToColumn(TestUniqueCol);
+    FOS << format("%.2f%%", TestUniquePercent * 100);
+    FOS.PadToColumn(BaseSampleCol);
+    FOS << F.second.BaseSample;
+    FOS.PadToColumn(TestSampleCol);
+    FOS << F.second.TestSample;
+    FOS.PadToColumn(FuncNameCol);
+    FOS << F.second.TestName << "\n";
+  }
+}
+
+void SampleOverlapAggregator::dumpProgramSummary(raw_fd_ostream &OS) const {
+  OS << "Profile overlap infomation for base_profile: " << ProfOverlap.BaseName
+     << " and test_profile: " << ProfOverlap.TestName << "\nProgram level:\n";
+
+  OS << "  Whole program profile similarity: "
+     << format("%.3f%%", ProfOverlap.Similarity * 100) << "\n";
+
+  assert(ProfOverlap.UnionSample > 0 &&
+         "Total samples in two profile should be greater than 0");
+  double OverlapPercent =
+      static_cast<double>(ProfOverlap.OverlapSample) / ProfOverlap.UnionSample;
+  assert(ProfOverlap.BaseSample > 0 &&
+         "Total samples in base profile should be greater than 0");
+  double BaseUniquePercent = static_cast<double>(ProfOverlap.BaseUniqueSample) /
+                             ProfOverlap.BaseSample;
+  assert(ProfOverlap.TestSample > 0 &&
+         "Total samples in test profile should be greater than 0");
+  double TestUniquePercent = static_cast<double>(ProfOverlap.TestUniqueSample) /
+                             ProfOverlap.TestSample;
+
+  OS << "  Whole program sample overlap: "
+     << format("%.3f%%", OverlapPercent * 100) << "\n";
+  OS << "    percentage of samples unique in base profile: "
+     << format("%.3f%%", BaseUniquePercent * 100) << "\n";
+  OS << "    percentage of samples unique in test profile: "
+     << format("%.3f%%", TestUniquePercent * 100) << "\n";
+  OS << "    total samples in base profile: " << ProfOverlap.BaseSample << "\n"
+     << "    total samples in test profile: " << ProfOverlap.TestSample << "\n";
+
+  assert(ProfOverlap.UnionCount > 0 &&
+         "There should be at least one function in two input profiles");
+  double FuncOverlapPercent =
+      static_cast<double>(ProfOverlap.OverlapCount) / ProfOverlap.UnionCount;
+  OS << "  Function overlap: " << format("%.3f%%", FuncOverlapPercent * 100)
+     << "\n";
+  OS << "    overlap functions: " << ProfOverlap.OverlapCount << "\n";
+  OS << "    functions unique in base profile: " << ProfOverlap.BaseUniqueCount
+     << "\n";
+  OS << "    functions unique in test profile: " << ProfOverlap.TestUniqueCount
+     << "\n";
+}
+
+void SampleOverlapAggregator::dumpHotFuncAndBlockOverlap(
+    raw_fd_ostream &OS) const {
+  assert(HotFuncOverlap.UnionCount > 0 &&
+         "There should be at least one hot function in two input profiles");
+  OS << "  Hot-function overlap: "
+     << format("%.3f%%", static_cast<double>(HotFuncOverlap.OverlapCount) /
+                             HotFuncOverlap.UnionCount * 100)
+     << "\n";
+  OS << "    overlap hot functions: " << HotFuncOverlap.OverlapCount << "\n";
+  OS << "    hot functions unique in base profile: "
+     << HotFuncOverlap.BaseCount - HotFuncOverlap.OverlapCount << "\n";
+  OS << "    hot functions unique in test profile: "
+     << HotFuncOverlap.TestCount - HotFuncOverlap.OverlapCount << "\n";
+
+  assert(HotBlockOverlap.UnionCount > 0 &&
+         "There should be at least one hot block in two input profiles");
+  OS << "  Hot-block overlap: "
+     << format("%.3f%%", static_cast<double>(HotBlockOverlap.OverlapCount) /
+                             HotBlockOverlap.UnionCount * 100)
+     << "\n";
+  OS << "    overlap hot blocks: " << HotBlockOverlap.OverlapCount << "\n";
+  OS << "    hot blocks unique in base profile: "
+     << HotBlockOverlap.BaseCount - HotBlockOverlap.OverlapCount << "\n";
+  OS << "    hot blocks unique in test profile: "
+     << HotBlockOverlap.TestCount - HotBlockOverlap.OverlapCount << "\n";
+}
+
+std::error_code SampleOverlapAggregator::loadProfiles() {
+  using namespace sampleprof;
+
+  LLVMContext Context;
+  auto BaseReaderOrErr = SampleProfileReader::create(BaseFilename, Context);
+  if (std::error_code EC = BaseReaderOrErr.getError())
+    exitWithErrorCode(EC, BaseFilename);
+
+  auto TestReaderOrErr = SampleProfileReader::create(TestFilename, Context);
+  if (std::error_code EC = TestReaderOrErr.getError())
+    exitWithErrorCode(EC, TestFilename);
+
+  BaseReader = std::move(BaseReaderOrErr.get());
+  TestReader = std::move(TestReaderOrErr.get());
+
+  if (std::error_code EC = BaseReader->read())
+    exitWithErrorCode(EC, BaseFilename);
+  if (std::error_code EC = TestReader->read())
+    exitWithErrorCode(EC, TestFilename);
+  if (BaseReader->profileIsProbeBased() != TestReader->profileIsProbeBased())
+    exitWithError(
+        "cannot compare probe-based profile with non-probe-based profile");
+
+  // Load BaseHotThreshold and TestHotThreshold as 99-percentile threshold in
+  // profile summary.
+  const uint64_t HotCutoff = 990000;
+  ProfileSummary &BasePS = BaseReader->getSummary();
+  for (const auto &SummaryEntry : BasePS.getDetailedSummary()) {
+    if (SummaryEntry.Cutoff == HotCutoff) {
+      BaseHotThreshold = SummaryEntry.MinCount;
+      break;
+    }
+  }
+
+  ProfileSummary &TestPS = TestReader->getSummary();
+  for (const auto &SummaryEntry : TestPS.getDetailedSummary()) {
+    if (SummaryEntry.Cutoff == HotCutoff) {
+      TestHotThreshold = SummaryEntry.MinCount;
+      break;
+    }
+  }
+  return std::error_code();
+}
+
+void overlapSampleProfile(const std::string &BaseFilename,
+                          const std::string &TestFilename,
+                          const OverlapFuncFilters &FuncFilter,
+                          uint64_t SimilarityCutoff, raw_fd_ostream &OS) {
+  using namespace sampleprof;
+
+  // We use 0.000005 to initialize OverlapAggr.Epsilon because the final metrics
+  // report 2--3 places after decimal point in percentage numbers.
+  SampleOverlapAggregator OverlapAggr(
+      BaseFilename, TestFilename,
+      static_cast<double>(SimilarityCutoff) / 1000000, 0.000005, FuncFilter);
+  if (std::error_code EC = OverlapAggr.loadProfiles())
+    exitWithErrorCode(EC);
+
+  OverlapAggr.initializeSampleProfileOverlap();
+  if (OverlapAggr.detectZeroSampleProfile(OS))
+    return;
+
+  OverlapAggr.computeSampleProfileOverlap(OS);
+
+  OverlapAggr.dumpProgramSummary(OS);
+  OverlapAggr.dumpHotFuncAndBlockOverlap(OS);
+  OverlapAggr.dumpFuncSimilarity(OS);
+}
+
 static int overlap_main(int argc, const char *argv[]) {
   cl::opt<std::string> BaseFilename(cl::Positional, cl::Required,
                                     cl::desc("<base profile file>"));
@@ -763,6 +1898,15 @@ static int overlap_main(int argc, const char *argv[]) {
   cl::opt<std::string> FuncNameFilter(
       "function",
       cl::desc("Function level overlap information for matching functions"));
+  cl::opt<unsigned long long> SimilarityCutoff(
+      "similarity-cutoff", cl::init(0),
+      cl::desc(
+          "For sample profiles, list function names for overlapped functions "
+          "with similarities below the cutoff (percentage times 10000)."));
+  cl::opt<ProfileKinds> ProfileKind(
+      cl::desc("Profile kind:"), cl::init(instr),
+      cl::values(clEnumVal(instr, "Instrumentation profile (default)"),
+                 clEnumVal(sample, "Sample profile")));
   cl::ParseCommandLineOptions(argc, argv, "LLVM profile data overlap tool\n");
 
   std::error_code EC;
@@ -770,9 +1914,14 @@ static int overlap_main(int argc, const char *argv[]) {
   if (EC)
     exitWithErrorCode(EC, Output);
 
-  overlapInstrProfile(BaseFilename, TestFilename,
-                      OverlapFuncFilters{ValueCutoff, FuncNameFilter}, OS,
-                      IsCS);
+  if (ProfileKind == instr)
+    overlapInstrProfile(BaseFilename, TestFilename,
+                        OverlapFuncFilters{ValueCutoff, FuncNameFilter}, OS,
+                        IsCS);
+  else
+    overlapSampleProfile(BaseFilename, TestFilename,
+                         OverlapFuncFilters{ValueCutoff, FuncNameFilter},
+                         SimilarityCutoff, OS);
 
   return 0;
 }
@@ -903,6 +2052,8 @@ static int showInstrProfile(const std::string &Filename, bool ShowCounts,
     uint64_t FuncMax = 0;
     uint64_t FuncSum = 0;
     for (size_t I = 0, E = Func.Counts.size(); I < E; ++I) {
+      if (Func.Counts[I] == (uint64_t)-1)
+        continue;
       FuncMax = std::max(FuncMax, Func.Counts[I]);
       FuncSum += Func.Counts[I];
     }
@@ -977,8 +2128,11 @@ static int showInstrProfile(const std::string &Filename, bool ShowCounts,
   if (TextFormat)
     return 0;
   std::unique_ptr<ProfileSummary> PS(Builder.getSummary());
-  OS << "Instrumentation level: "
-     << (Reader->isIRLevelProfile() ? "IR" : "Front-end") << "\n";
+  bool IsIR = Reader->isIRLevelProfile();
+  OS << "Instrumentation level: " << (IsIR ? "IR" : "Front-end");
+  if (IsIR)
+    OS << "  entry_first = " << Reader->instrEntryBBEnabled();
+  OS << "\n";
   if (ShowAllFunctions || !ShowFunction.empty())
     OS << "Functions shown: " << ShownFunctions << "\n";
   OS << "Total functions: " << PS->getNumFunctions() << "\n";
@@ -1062,17 +2216,21 @@ static void dumpHotFunctionList(const std::vector<std::string> &ColumnTitle,
                                 uint64_t HotProfCount, uint64_t TotalProfCount,
                                 const std::string &HotFuncMetric,
                                 raw_fd_ostream &OS) {
-  assert(ColumnOffset.size() == ColumnTitle.size());
-  assert(ColumnTitle.size() >= 4);
-  assert(TotalFuncCount > 0);
+  assert(ColumnOffset.size() == ColumnTitle.size() &&
+         "ColumnOffset and ColumnTitle should have the same size");
+  assert(ColumnTitle.size() >= 4 &&
+         "ColumnTitle should have at least 4 elements");
+  assert(TotalFuncCount > 0 &&
+         "There should be at least one function in the profile");
   double TotalProfPercent = 0;
   if (TotalProfCount > 0)
-    TotalProfPercent = ((double)HotProfCount) / TotalProfCount * 100;
+    TotalProfPercent = static_cast<double>(HotProfCount) / TotalProfCount * 100;
 
   formatted_raw_ostream FOS(OS);
   FOS << HotFuncCount << " out of " << TotalFuncCount
       << " functions with profile ("
-      << format("%.2f%%", (((double)HotFuncCount) / TotalFuncCount * 100))
+      << format("%.2f%%",
+                (static_cast<double>(HotFuncCount) / TotalFuncCount * 100))
       << ") are considered hot functions";
   if (!HotFuncMetric.empty())
     FOS << " (" << HotFuncMetric << ")";
@@ -1096,7 +2254,6 @@ static void dumpHotFunctionList(const std::vector<std::string> &ColumnTitle,
     FOS.PadToColumn(ColumnOffset[3]);
     FOS << R.FuncName << "\n";
   }
-  return;
 }
 
 static int
@@ -1113,7 +2270,6 @@ showHotFunctionList(const StringMap<sampleprof::FunctionSamples> &Profiles,
       break;
     }
   }
-  assert(MinCountThreshold != 0);
 
   // Traverse all functions in the profile and keep only hot functions.
   // The following loop also calculates the sum of total samples of all
@@ -1124,18 +2280,16 @@ showHotFunctionList(const StringMap<sampleprof::FunctionSamples> &Profiles,
   uint64_t ProfileTotalSample = 0;
   uint64_t HotFuncSample = 0;
   uint64_t HotFuncCount = 0;
-  uint64_t MaxCount = 0;
+
   for (const auto &I : Profiles) {
+    FuncSampleStats FuncStats;
     const FunctionSamples &FuncProf = I.second;
     ProfileTotalSample += FuncProf.getTotalSamples();
-    MaxCount = FuncProf.getMaxCountInside();
+    getFuncSampleStats(FuncProf, FuncStats, MinCountThreshold);
 
-    // MinCountThreshold is a block/line threshold computed for a given cutoff.
-    // We intentionally compare the maximum sample count in a function with this
-    // threshold to get an approximate threshold for hot functions.
-    if (MaxCount >= MinCountThreshold) {
+    if (isFunctionHot(FuncStats, MinCountThreshold)) {
       HotFunc.emplace(FuncProf.getTotalSamples(),
-                      std::make_pair(&(I.second), MaxCount));
+                      std::make_pair(&(I.second), FuncStats.MaxSample));
       HotFuncSample += FuncProf.getTotalSamples();
       ++HotFuncCount;
     }
@@ -1153,9 +2307,9 @@ showHotFunctionList(const StringMap<sampleprof::FunctionSamples> &Profiles,
         (ProfileTotalSample > 0)
             ? (Func.getTotalSamples() * 100.0) / ProfileTotalSample
             : 0;
-    PrintValues.emplace_back(HotFuncInfo(
-        Func.getFuncName(), Func.getTotalSamples(), TotalSamplePercent,
-        FuncPair.second.second, Func.getEntrySamples()));
+    PrintValues.emplace_back(
+        HotFuncInfo(Func.getName(), Func.getTotalSamples(), TotalSamplePercent,
+                    FuncPair.second.second, Func.getEntrySamples()));
   }
   dumpHotFunctionList(ColumnTitle, ColumnOffset, PrintValues, HotFuncCount,
                       Profiles.size(), HotFuncSample, ProfileTotalSample,
@@ -1275,7 +2429,7 @@ static int show_main(int argc, const char *argv[]) {
   if (OutputFilename.empty())
     OutputFilename = "-";
 
-  if (!Filename.compare(OutputFilename)) {
+  if (Filename == OutputFilename) {
     errs() << sys::path::filename(argv[0])
            << ": Input file name cannot be the same as the output file name!\n";
     return 1;
