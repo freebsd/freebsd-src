@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2021
+.Dd February 13, 2021
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -560,6 +560,14 @@ high losses leading to RTO, but reduces PRR effectiveness in more common setting
 .It Va rfc6675_pipe
 Calculate the bytes in flight using the algorithm described in RFC 6675, and
 is also an improvement when Proportional Rate Reduction is enabled.
+Also enables two other mechanisms from RFC6675.
+Rescue Retransmission helps timely loss recovery, when the trailing segments
+of a transmission are lost, while no additional data is ready to be sent.
+In case a partial ACK without a SACK block is received during SACK loss
+recovery, the trailing segment is immediately resent, rather than waiting
+for a Retransmission timeout.
+SACK loss recovery is also engaged, once two segments plus one byte are
+SACKed - even if no traditional duplicate ACKs were seen.
 .It Va rfc3042
 Enable the Limited Transmit algorithm as described in RFC 3042.
 It helps avoid timeouts on lossy links and also when the congestion window

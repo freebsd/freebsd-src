@@ -750,6 +750,16 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 		else
 			sblkp--;
 	}
+	if (!(to->to_flags & TOF_SACK))
+		/*
+		 * If this ACK did not contain any
+		 * SACK blocks, any only moved the
+		 * left edge right, it is a pure
+		 * cumulative ACK. Do not count
+		 * DupAck for this. Also required
+		 * for RFC6675 rescue retransmission.
+		 */
+		sack_changed = 0;
 	tp->sackhint.delivered_data = delivered_data;
 	tp->sackhint.sacked_bytes += delivered_data - left_edge_delta;
 	KASSERT((delivered_data >= 0), ("delivered_data < 0"));
@@ -800,6 +810,31 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 	if (tp->snd_cwnd > tp->snd_ssthresh)
 		tp->snd_cwnd = tp->snd_ssthresh;
 	tp->t_flags |= TF_ACKNOW;
+	/*
+	 * RFC6675 rescue retransmission
+	 * Add a hole between th_ack (snd_una is not yet set) and snd_max,
+	 * if this was a pure cumulative ACK and no data was send beyond
+	 * recovery point. Since the data in the socket has not been freed
+	 * at this point, we check if the scoreboard is empty, and the ACK
+	 * delivered some new data, indicating a full ACK. Also, if the
+	 * recovery point is still at snd_max, we are probably application
+	 * limited. However, this inference might not always be true. The
+	 * rescue retransmission may rarely be slightly premature
+	 * compared to RFC6675.
+	 * The corresponding ACK+SACK will cause any further outstanding
+	 * segments to be retransmitted. This addresses a corner case, when
+	 * the trailing packets of a window are lost and no further data
+	 * is available for sending.
+	 */
+	if ((V_tcp_do_rfc6675_pipe) &&
+	    SEQ_LT(th->th_ack, tp->snd_recover) &&
+	    (tp->snd_recover == tp->snd_max) &&
+	    TAILQ_EMPTY(&tp->snd_holes) &&
+	    (tp->sackhint.delivered_data > 0)) {
+		struct sackhole *hole;
+		int maxseg = tcp_maxseg(tp);
+		hole = tcp_sackhole_insert(tp, SEQ_MAX(th->th_ack, tp->snd_max - maxseg), tp->snd_max, NULL);
+	}
 	(void) tp->t_fb->tfb_tcp_output(tp);
 }
 
