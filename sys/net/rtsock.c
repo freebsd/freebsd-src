@@ -1235,6 +1235,7 @@ rt_xaddrs(caddr_t cp, caddr_t cplim, struct rt_addrinfo *rtinfo)
 	return (0);
 }
 
+#ifdef INET
 static inline void
 fill_sockaddr_inet(struct sockaddr_in *sin, struct in_addr addr)
 {
@@ -1246,7 +1247,9 @@ fill_sockaddr_inet(struct sockaddr_in *sin, struct in_addr addr)
 	};
 	*sin = nsin;
 }
+#endif
 
+#ifdef INET6
 static inline void
 fill_sockaddr_inet6(struct sockaddr_in6 *sin6, const struct in6_addr *addr6,
     uint32_t scopeid)
@@ -1260,6 +1263,7 @@ fill_sockaddr_inet6(struct sockaddr_in6 *sin6, const struct in6_addr *addr6,
 	};
 	*sin6 = nsin6;
 }
+#endif
 
 static int
 cleanup_xaddrs_gateway(struct rt_addrinfo *info)
@@ -1314,6 +1318,7 @@ cleanup_xaddrs_gateway(struct rt_addrinfo *info)
 	return (0);
 }
 
+#ifdef INET
 static int
 cleanup_xaddrs_inet(struct rt_addrinfo *info)
 {
@@ -1354,7 +1359,9 @@ cleanup_xaddrs_inet(struct rt_addrinfo *info)
 
 	return (0);
 }
+#endif
 
+#ifdef INET6
 static int
 cleanup_xaddrs_inet6(struct rt_addrinfo *info)
 {
@@ -1392,6 +1399,7 @@ cleanup_xaddrs_inet6(struct rt_addrinfo *info)
 
 	return (0);
 }
+#endif
 
 static int
 cleanup_xaddrs(struct rt_addrinfo *info)
