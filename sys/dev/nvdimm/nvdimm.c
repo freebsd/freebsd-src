@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sbuf.h>
+#include <sys/sysctl.h>
 #include <sys/uuid.h>
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -319,12 +321,21 @@ static int
 nvdimm_attach(device_t dev)
 {
 	struct nvdimm_dev *nv;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *oid;
+	struct sysctl_oid_list *children;
+	struct sbuf *sb;
 	ACPI_TABLE_NFIT *nfitbl;
 	ACPI_HANDLE handle;
 	ACPI_STATUS status;
-	int error;
+	ACPI_NFIT_MEMORY_MAP **maps;
+	int error, i, num_maps;
+	uint16_t flags;
 
 	nv = device_get_softc(dev);
+	ctx = device_get_sysctl_ctx(dev);
+	oid = device_get_sysctl_tree(dev);
+	children = SYSCTL_CHILDREN(oid);
 	handle = nvdimm_root_get_acpi_handle(dev);
 	if (handle == NULL)
 		return (EINVAL);
@@ -339,6 +350,57 @@ nvdimm_attach(device_t dev)
 	}
 	acpi_nfit_get_flush_addrs(nfitbl, nv->nv_handle, &nv->nv_flush_addr,
 	    &nv->nv_flush_addr_cnt);
+
+	/*
+	 * Each NVDIMM should have at least one memory map associated with it.
+	 * If any of the maps have one of the error flags set, reflect that in
+	 * the overall status.
+	 */
+	acpi_nfit_get_memory_maps_by_dimm(nfitbl, nv->nv_handle, &maps,
+	    &num_maps);
+	if (num_maps == 0) {
+		free(nv->nv_flush_addr, M_NVDIMM);
+		free(maps, M_NVDIMM);
+		device_printf(dev, "cannot find memory map\n");
+		return (ENXIO);
+	}
+	flags = 0;
+	for (i = 0; i < num_maps; i++) {
+		flags |= maps[i]->Flags;
+	}
+	free(maps, M_NVDIMM);
+
+	/* sbuf_new_auto(9) is M_WAITOK; no need to check for NULL. */
+	sb = sbuf_new_auto();
+	(void) sbuf_printf(sb, "0x%b", flags,
+	    "\20"
+	    "\001SAVE_FAILED"
+	    "\002RESTORE_FAILED"
+	    "\003FLUSH_FAILED"
+	    "\004NOT_ARMED"
+	    "\005HEALTH_OBSERVED"
+	    "\006HEALTH_ENABLED"
+	    "\007MAP_FAILED");
+	error = sbuf_finish(sb);
+	if (error != 0) {
+		sbuf_delete(sb);
+		free(nv->nv_flush_addr, M_NVDIMM);
+		device_printf(dev, "cannot convert flags to string\n");
+		return (error);
+	}
+	/* strdup(9) is M_WAITOK; no need to check for NULL. */
+	nv->nv_flags_str = strdup(sbuf_data(sb), M_NVDIMM);
+	sbuf_delete(sb);
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "flags",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, nv->nv_flags_str, 0,
+	    "NVDIMM State Flags");
+	/*
+	 * Anything other than HEALTH_ENABLED indicates a fault condition of
+	 * some kind, so log if that's seen.
+	 */
+	if ((flags & ~ACPI_NFIT_MEM_HEALTH_ENABLED) != 0)
+		device_printf(dev, "flags: %s\n", nv->nv_flags_str);
+
 	AcpiPutTable(&nfitbl->Header);
 	error = read_label_area_size(nv);
 	if (error == 0) {
@@ -358,6 +420,7 @@ nvdimm_detach(device_t dev)
 	struct nvdimm_label_entry *label, *next;
 
 	nv = device_get_softc(dev);
+	free(nv->nv_flags_str, M_NVDIMM);
 	free(nv->nv_flush_addr, M_NVDIMM);
 	free(nv->label_index, M_NVDIMM);
 	SLIST_FOREACH_SAFE(label, &nv->labels, link, next) {

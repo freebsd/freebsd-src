@@ -97,6 +97,7 @@ struct nvdimm_dev {
 	device_t	nv_dev;
 	nfit_handle_t	nv_handle;
 	uint64_t	**nv_flush_addr;
+	char		*nv_flags_str;
 	int		nv_flush_addr_cnt;
 	uint32_t	label_area_size;
 	uint32_t	max_label_xfer;
@@ -167,6 +168,8 @@ void acpi_nfit_get_control_region(ACPI_TABLE_NFIT *nfitbl,
     uint16_t control_region_index, ACPI_NFIT_CONTROL_REGION **out);
 void acpi_nfit_get_flush_addrs(ACPI_TABLE_NFIT *nfitbl, nfit_handle_t dimm,
     uint64_t ***listp, int *countp);
+void acpi_nfit_get_memory_maps_by_dimm(ACPI_TABLE_NFIT *nfitbl,
+    nfit_handle_t dimm, ACPI_NFIT_MEMORY_MAP ***listp, int *countp);
 enum SPA_mapping_type nvdimm_spa_type_from_uuid(struct uuid *);
 struct nvdimm_dev *nvdimm_find_by_handle(nfit_handle_t nv_handle);
 int nvdimm_spa_init(struct SPA_mapping *spa, ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr,
