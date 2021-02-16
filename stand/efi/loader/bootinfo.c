@@ -533,7 +533,9 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 		    "device tree blob found!\n");
 #endif
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof(kernend), &kernend);
+#ifdef MODINFOMD_MODULEP
 	file_addmetadata(kfp, MODINFOMD_MODULEP, sizeof(module), &module);
+#endif
 	file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof(ST), &ST);
 #ifdef LOADER_GELI_SUPPORT
 	geli_export_key_metadata(kfp);
