@@ -577,6 +577,7 @@ struct ifaddr {
 struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
+int	ifa_try_ref(struct ifaddr *ifa);
 
 /*
  * Multicast address structure.  This is analogous to the ifaddr
