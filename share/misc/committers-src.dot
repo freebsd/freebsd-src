@@ -297,6 +297,7 @@ pkelsey [label="Patrick Kelsey\pkelsey@FreeBSD.org\n2014/05/29"]
 pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2010/10/05"]
 ps [label="Paul Saab\nps@FreeBSD.org\n2000/02/23"]
 qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
+rajeshasp [label="Rajesh Kumar M A\nrajeshasp@FreeBSD.org\n2021/01/27"]
 ram [label="Ram Kishore Vegesna\nram@FreeBSD.org\n2018/04/04"]
 ray [label="Aleksandr Rybalko\nray@FreeBSD.org\n2011/05/25"]
 rdivacky [label="Roman Divacky\nrdivacky@FreeBSD.org\n2008/03/13"]
@@ -529,6 +530,7 @@ erj -> jeb
 fjoe -> versus
 
 gallatin -> ticso
+gallatin -> rajeshasp
 
 gavin -> versus
 
@@ -900,6 +902,8 @@ ume -> tshiozak
 
 vangyzen -> badger
 vangyzen -> dab
+
+vmaffione -> rajeshasp
 
 wes -> scf
 
