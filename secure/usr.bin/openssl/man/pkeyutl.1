@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "PKEYUTL 1"
-.TH PKEYUTL 1 "2020-12-08" "1.1.1i" "OpenSSL"
+.TH PKEYUTL 1 "2021-02-16" "1.1.1j" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -199,7 +199,7 @@ The key format \s-1PEM, DER\s0 or \s-1ENGINE.\s0 Default is \s-1PEM.\s0
 .IP "\fB\-passin arg\fR" 4
 .IX Item "-passin arg"
 The input key password source. For more information about the format of \fBarg\fR
-see the \fB\s-1PASS PHRASE ARGUMENTS\s0\fR section in \fBopenssl\fR\|(1).
+see \*(L"Pass Phrase Options\*(R" in \fBopenssl\fR\|(1).
 .IP "\fB\-peerkey file\fR" 4
 .IX Item "-peerkey file"
 The peer key file, used by key derivation (agreement) operations.
@@ -420,7 +420,7 @@ seed consisting of the single byte 0xFF:
 \&\fBEVP_PKEY_CTX_set_hkdf_md\fR\|(3), \fBEVP_PKEY_CTX_set_tls1_prf_md\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2006\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
