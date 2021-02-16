@@ -66,8 +66,6 @@ __FBSDID("$FreeBSD$");
 static void xen_hvm_cpu_init(void);
 
 /*-------------------------------- Global Data -------------------------------*/
-enum xen_domain_type xen_domain_type = XEN_NATIVE;
-
 #ifdef SMP
 struct cpu_ops xen_hvm_cpu_ops = {
 	.cpu_init	= xen_hvm_cpu_init,
@@ -84,12 +82,6 @@ static MALLOC_DEFINE(M_XENHVM, "xen_hvm", "Xen HVM PV Support");
 int xen_vector_callback_enabled;
 
 /**
- * Start info flags. ATM this only used to store the initial domain flag for
- * PVHv2, and it's always empty for HVM guests.
- */
-uint32_t hvm_start_flags;
-
-/**
  * Signal whether the vector injected for the event channel upcall requires to
  * be EOI'ed on the local APIC.
  */
@@ -98,9 +90,6 @@ bool xen_evtchn_needs_ack;
 /*------------------------------- Per-CPU Data -------------------------------*/
 DPCPU_DEFINE(struct vcpu_info, vcpu_local_info);
 DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
-
-/*------------------ Hypervisor Access Shared Memory Regions -----------------*/
-shared_info_t *HYPERVISOR_shared_info;
 
 /*------------------------------ Sysctl tunables -----------------------------*/
 int xen_disable_pv_disks = 0;
