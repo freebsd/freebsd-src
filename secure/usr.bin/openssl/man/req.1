@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "REQ 1"
-.TH REQ 1 "2020-12-08" "1.1.1i" "OpenSSL"
+.TH REQ 1 "2021-02-16" "1.1.1j" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -217,7 +217,7 @@ Names and values of these options are algorithm-specific.
 .IP "\fB\-passin arg\fR" 4
 .IX Item "-passin arg"
 The input file password source. For more information about the format of \fBarg\fR
-see the \fB\s-1PASS PHRASE ARGUMENTS\s0\fR section in \fBopenssl\fR\|(1).
+see \*(L"Pass Phrase Options\*(R" in \fBopenssl\fR\|(1).
 .IP "\fB\-out filename\fR" 4
 .IX Item "-out filename"
 This specifies the output filename to write to or standard output by
@@ -225,7 +225,7 @@ default.
 .IP "\fB\-passout arg\fR" 4
 .IX Item "-passout arg"
 The output file password source. For more information about the format of \fBarg\fR
-see the \fB\s-1PASS PHRASE ARGUMENTS\s0\fR section in \fBopenssl\fR\|(1).
+see \*(L"Pass Phrase Options\*(R" in \fBopenssl\fR\|(1).
 .IP "\fB\-text\fR" 4
 .IX Item "-text"
 Prints out the certificate request in text form.
@@ -789,7 +789,7 @@ address in subjectAltName should be input by the user.
 \&\fBx509v3_config\fR\|(5)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509_GET_EXTENSION_FLAGS 3"
-.TH X509_GET_EXTENSION_FLAGS 3 "2020-12-08" "1.1.1i" "OpenSSL"
+.TH X509_GET_EXTENSION_FLAGS 3 "2021-02-16" "1.1.1j" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -194,11 +194,15 @@ The freshest \s-1CRL\s0 extension is present in the certificate.
 The certificate contains an unhandled critical extension.
 .IP "\fB\s-1EXFLAG_INVALID\s0\fR" 4
 .IX Item "EXFLAG_INVALID"
-Some certificate extension values are invalid or inconsistent. The
-certificate should be rejected.
+Some certificate extension values are invalid or inconsistent.
+The certificate should be rejected.
 This bit may also be raised after an out-of-memory error while
 processing the X509 object, so it may not be related to the processed
 \&\s-1ASN1\s0 object itself.
+.IP "\fB\s-1EXFLAG_NO_FINGERPRINT\s0\fR" 4
+.IX Item "EXFLAG_NO_FINGERPRINT"
+Failed to compute the internal \s-1SHA1\s0 hash value of the certificate.
+This may be due to malloc failure or because no \s-1SHA1\s0 implementation was found.
 .IP "\fB\s-1EXFLAG_INVALID_POLICY\s0\fR" 4
 .IX Item "EXFLAG_INVALID_POLICY"
 The NID_certificate_policies certificate extension is invalid or
@@ -300,7 +304,7 @@ certificate is a proxy one and has a path length set, and \-1 otherwise.
 \&\fBX509_get_proxy_pathlen()\fR were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2015\-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015\-2021 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy
