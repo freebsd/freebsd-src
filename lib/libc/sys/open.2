@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd September 23, 2020
+.Dd February 23, 2021
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -75,9 +75,7 @@ function is equivalent to the
 .Fn open
 function except in the case where the
 .Fa path
-specifies a relative path, or the
-.Dv O_BENEATH
-flag is provided.
+specifies a relative path.
 For
 .Fn openat
 and relative
@@ -104,28 +102,10 @@ and the behavior is identical to a call to
 When
 .Fn openat
 is called with an absolute
-.Fa path
-without the
-.Dv O_BENEATH
-flag, it ignores the
+.Fa path ,
+it ignores the
 .Fa fd
 argument.
-When
-.Dv O_BENEATH
-is specified with an absolute
-.Fa path ,
-a directory passed by the
-.Fa fd
-argument is used as the topping point for the resolution.
-When
-.Dv O_BENEATH
-is specified with a relative path, the
-.Fa fd
-argument is used both as the starting point, and as the topping point
-for the resolution.
-See the definition of the
-.Dv O_BENEATH
-flag below.
 .Pp
 In
 .Xr capsicum 4
@@ -137,9 +117,7 @@ The
 argument to
 .Fn openat
 must be strictly relative to a file descriptor
-.Fa fd ,
-as defined in
-.Pa sys/kern/vfs_lookup.c .
+.Fa fd .
 .Fa path
 must not be an absolute path and must not contain ".." components
 which cause the path resolution to escape the directory hierarchy
@@ -156,9 +134,8 @@ If the
 .Dv vfs.lookup_cap_dotdot
 .Xr sysctl 3
 MIB is set to zero, ".." components in the paths,
-used in capability mode, or with the
-.Dv O_BENEATH
-flag, are completely disabled.
+used in capability mode,
+are completely disabled.
 If the
 .Dv vfs.lookup_cap_dotdot_nonlocal
 MIB is set to zero, ".." is not allowed if found on non-local filesystem.
@@ -189,8 +166,7 @@ O_TTY_INIT	ignored
 O_DIRECTORY	error if file is not a directory
 O_CLOEXEC	set FD_CLOEXEC upon open
 O_VERIFY	verify the contents of the file
-O_BENEATH	require resolved path to be strictly relative to topping directory
-O_RESOLVE_BENEATH	require walked path to be strictly relative to topping directory
+O_RESOLVE_BENEATH	path resolution must not cross the fd directory
 .Ed
 .Pp
 Opening a file with
@@ -314,32 +290,13 @@ The details of what
 means is implementation specific.
 The run-time linker (rtld) uses this flag to ensure shared objects have
 been verified before operating on them.
-.Dv O_BENEATH
-returns
-.Er ENOTCAPABLE
-if the specified path, after resolving all symlinks and ".."
-references, does not end up with tail residing in the directory hierarchy of
-children beneath the topping directory.
-Topping directory is the process current directory if relative
-.Fa path
-is used for
-.Fn open ,
-and the directory referenced by the
-.Fa fd
-argument when using
-.Fn openat .
-.Dv O_BENEATH
-allows arbitrary prefix that ends up at the topping directory,
-after which all further resolved components must be under it.
 .Pp
 .Dv O_RESOLVE_BENEATH
 returns
 .Er ENOTCAPABLE
 if any intermediate component of the specified relative path does not
-reside in the directory hierarchy beneath the topping directory.
-Comparing to
-.Dv O_BENEATH,
-absolute paths or even the temporal escape from beneath of the topping
+reside in the directory hierarchy beneath the starting directory.
+Absolute paths or even the temporal escape from beneath of the starting
 directory is not allowed.
 .Pp
 When
@@ -597,19 +554,12 @@ directory outside of the directory hierarchy specified by
 and the process is in capability mode.
 .It Bq Er ENOTCAPABLE
 The
-.Dv O_BENEATH
-flag was provided, and the absolute
-.Fa path
-does not have its tail fully contained under the topping directory,
-or the relative
-.Fa path
-escapes it.
-.It Bq Er ENOTCAPABLE
-The
 .Dv O_RESOLVE_BENEATH
 flag was provided, and the relative
 .Fa path
-escapes topping directory.
+escapes the
+.Ar fd
+directory.
 .El
 .Sh SEE ALSO
 .Xr chmod 2 ,
