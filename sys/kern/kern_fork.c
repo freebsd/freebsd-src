@@ -1138,6 +1138,12 @@ fork_return(struct thread *td, struct trapframe *frame)
 		PROC_UNLOCK(p);
 	}
 
+	/*
+	 * If the prison was killed mid-fork, die along with it.
+	 */
+	if (td->td_ucred->cr_prison->pr_flags & PR_REMOVE)
+		exit1(td, 0, SIGKILL);
+
 	userret(td, frame);
 
 #ifdef KTRACE
