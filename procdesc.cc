@@ -519,8 +519,8 @@ TEST_F(PipePdfork, CloseLast) {
   signal(SIGCHLD, original);
 }
 
-FORK_TEST(Pdfork, OtherUser) {
-  REQUIRE_ROOT();
+FORK_TEST(Pdfork, OtherUserIfRoot) {
+  GTEST_SKIP_IF_NOT_ROOT();
   int pd;
   pid_t pid = pdfork(&pd, 0);
   EXPECT_OK(pid);
@@ -531,7 +531,10 @@ FORK_TEST(Pdfork, OtherUser) {
   usleep(100);
 
   // Now that the second process has been pdfork()ed, change euid.
-  setuid(other_uid);
+  ASSERT_NE(0u, other_uid) << "other_uid not initialized correctly, "
+                              "please pass the -u <uid> flag.";
+  EXPECT_EQ(0, setuid(other_uid));
+  EXPECT_EQ(other_uid, getuid());
   if (verbose) fprintf(stderr, "uid=%d euid=%d\n", getuid(), geteuid());
 
   // Fail to kill child with normal PID operation.

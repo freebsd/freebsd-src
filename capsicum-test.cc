@@ -76,27 +76,3 @@ char ProcessState(int pid) {
   }
 #endif
 }
-
-typedef std::vector<std::string> TestList;
-typedef std::map<std::string, TestList*> SkippedTestMap;
-static SkippedTestMap skipped_tests;
-void TestSkipped(const char *testcase, const char *test, const std::string& reason) {
-  if (skipped_tests.find(reason) == skipped_tests.end()) {
-    skipped_tests[reason] = new TestList;
-  }
-  std::string testname(testcase);
-  testname += ".";
-  testname += test;
-  skipped_tests[reason]->push_back(testname);
-}
-
-void ShowSkippedTests(std::ostream& os) {
-  for (SkippedTestMap::iterator skiplist = skipped_tests.begin();
-       skiplist != skipped_tests.end(); ++skiplist) {
-    os << "Following tests were skipped because: " << skiplist->first << std::endl;
-    for (size_t ii = 0; ii < skiplist->second->size(); ++ii) {
-      const std::string& testname((*skiplist->second)[ii]);
-      os << "  " << testname << std::endl;
-    }
-  }
-}

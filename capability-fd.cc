@@ -1085,8 +1085,6 @@ TEST(Capability, SyscallAt) {
   cap_rights_init(&r_no_mkdir, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKFIFOAT);
   cap_rights_t r_no_mkfifo;
   cap_rights_init(&r_no_mkfifo, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKDIRAT);
-  cap_rights_t r_no_mknod;
-  cap_rights_init(&r_no_mknod, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKDIRAT);
   cap_rights_t r_create;
   cap_rights_init(&r_create, CAP_READ, CAP_LOOKUP, CAP_CREATE);
   cap_rights_t r_bind;
@@ -1106,9 +1104,6 @@ TEST(Capability, SyscallAt) {
   int cap_dfd_no_mkfifo = dup(dfd);
   EXPECT_OK(cap_dfd_no_mkfifo);
   EXPECT_OK(cap_rights_limit(cap_dfd_no_mkfifo, &r_no_mkfifo));
-  int cap_dfd_no_mknod = dup(dfd);
-  EXPECT_OK(cap_dfd_no_mknod);
-  EXPECT_OK(cap_rights_limit(cap_dfd_no_mknod, &r_no_mknod));
   int cap_dfd_create = dup(dfd);
   EXPECT_OK(cap_dfd_create);
   EXPECT_OK(cap_rights_limit(cap_dfd_create, &r_create));
@@ -1148,24 +1143,7 @@ TEST(Capability, SyscallAt) {
   unlink(TmpFile("cap_at_topdir/cap_socket"));
 #endif
 
-  if (getuid() == 0) {
-    // Need CAP_MKNODAT to mknodat(2) a device
-    EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mknod, "cap_device", S_IFCHR|0755, makedev(99, 123)));
-    unlink(TmpFile("cap_at_topdir/cap_device"));
-    EXPECT_OK(mknodat(cap_dfd_all, "cap_device", S_IFCHR|0755, makedev(99, 123)));
-    unlink(TmpFile("cap_at_topdir/cap_device"));
-
-    // Need CAP_MKFIFOAT to mknodat(2) for a FIFO.
-    EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mkfifo, "cap_fifo", S_IFIFO|0755, 0));
-    unlink(TmpFile("cap_at_topdir/cap_fifo"));
-    EXPECT_OK(mknodat(cap_dfd_all, "cap_fifo", S_IFIFO|0755, 0));
-    unlink(TmpFile("cap_at_topdir/cap_fifo"));
-  } else {
-    TEST_SKIPPED("requires root (partial)");
-  }
-
   close(cap_dfd_all);
-  close(cap_dfd_no_mknod);
   close(cap_dfd_no_mkfifo);
   close(cap_dfd_no_mkdir);
   close(cap_dfd_no_unlink);
@@ -1177,7 +1155,53 @@ TEST(Capability, SyscallAt) {
   rmdir(TmpFile("cap_at_topdir"));
 }
 
-FORK_TEST_ON(Capability, ExtendedAttributes, TmpFile("cap_extattr")) {
+TEST(Capability, SyscallAtIfRoot) {
+  GTEST_SKIP_IF_NOT_ROOT();
+  int rc = mkdir(TmpFile("cap_at_topdir"), 0755);
+  EXPECT_OK(rc);
+  if (rc < 0 && errno != EEXIST) return;
+
+  cap_rights_t r_all;
+  cap_rights_init(&r_all, CAP_READ, CAP_LOOKUP, CAP_MKNODAT, CAP_UNLINKAT, CAP_MKDIRAT, CAP_MKFIFOAT);
+  cap_rights_t r_no_mkfifo;
+  cap_rights_init(&r_no_mkfifo, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKDIRAT);
+  cap_rights_t r_no_mknod;
+  cap_rights_init(&r_no_mknod, CAP_READ, CAP_LOOKUP, CAP_UNLINKAT, CAP_MKDIRAT);
+
+  int dfd = open(TmpFile("cap_at_topdir"), O_RDONLY);
+  EXPECT_OK(dfd);
+  int cap_dfd_all = dup(dfd);
+  EXPECT_OK(cap_dfd_all);
+  EXPECT_OK(cap_rights_limit(cap_dfd_all, &r_all));
+  int cap_dfd_no_mkfifo = dup(dfd);
+  EXPECT_OK(cap_dfd_no_mkfifo);
+  EXPECT_OK(cap_rights_limit(cap_dfd_no_mkfifo, &r_no_mkfifo));
+  int cap_dfd_no_mknod = dup(dfd);
+  EXPECT_OK(cap_dfd_no_mknod);
+  EXPECT_OK(cap_rights_limit(cap_dfd_no_mknod, &r_no_mknod));
+
+  // Need CAP_MKNODAT to mknodat(2) a device
+  EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mknod, "cap_device", S_IFCHR|0755, makedev(99, 123)));
+  unlink(TmpFile("cap_at_topdir/cap_device"));
+  EXPECT_OK(mknodat(cap_dfd_all, "cap_device", S_IFCHR|0755, makedev(99, 123)));
+  unlink(TmpFile("cap_at_topdir/cap_device"));
+
+  // Need CAP_MKFIFOAT to mknodat(2) for a FIFO.
+  EXPECT_NOTCAPABLE(mknodat(cap_dfd_no_mkfifo, "cap_fifo", S_IFIFO|0755, 0));
+  unlink(TmpFile("cap_at_topdir/cap_fifo"));
+  EXPECT_OK(mknodat(cap_dfd_all, "cap_fifo", S_IFIFO|0755, 0));
+  unlink(TmpFile("cap_at_topdir/cap_fifo"));
+
+  close(cap_dfd_all);
+  close(cap_dfd_no_mknod);
+  close(cap_dfd_no_mkfifo);
+  close(dfd);
+
+  // Tidy up.
+  rmdir(TmpFile("cap_at_topdir"));
+}
+
+FORK_TEST_ON(Capability, ExtendedAttributesIfAvailable, TmpFile("cap_extattr")) {
   int fd = open(TmpFile("cap_extattr"), O_RDONLY|O_CREAT, 0644);
   EXPECT_OK(fd);
 
@@ -1185,9 +1209,8 @@ FORK_TEST_ON(Capability, ExtendedAttributes, TmpFile("cap_extattr")) {
   int rc = fgetxattr_(fd, "user.capsicumtest", buffer, sizeof(buffer));
   if (rc < 0 && errno == ENOTSUP) {
     // Need user_xattr mount option for non-root users on Linux
-    TEST_SKIPPED("/tmp doesn't support extended attributes");
     close(fd);
-    return;
+    GTEST_SKIP() << "/tmp doesn't support extended attributes";
   }
 
   cap_rights_t r_rws;
@@ -1278,8 +1301,8 @@ TEST(Capability, PipeUnseekable) {
   close(fds[1]);
 }
 
-TEST(Capability, NoBypassDAC) {
-  REQUIRE_ROOT();
+TEST(Capability, NoBypassDACIfRoot) {
+  GTEST_SKIP_IF_NOT_ROOT();
   int fd = open(TmpFile("cap_root_owned"), O_RDONLY|O_CREAT, 0644);
   EXPECT_OK(fd);
   cap_rights_t rights;
@@ -1289,7 +1312,10 @@ TEST(Capability, NoBypassDAC) {
   pid_t child = fork();
   if (child == 0) {
     // Child: change uid to a lesser being
-    setuid(other_uid);
+    ASSERT_NE(0u, other_uid) << "other_uid not initialized correctly, "
+                                "please pass the -u <uid> flag.";
+    EXPECT_EQ(0, setuid(other_uid));
+    EXPECT_EQ(other_uid, getuid());
     // Attempt to fchmod the file, and fail.
     // Having CAP_FCHMOD doesn't bypass the need to comply with DAC policy.
     int rc = fchmod(fd, 0666);

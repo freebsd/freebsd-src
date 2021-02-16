@@ -2,15 +2,24 @@
 #ifdef __linux__
 #include <sys/vfs.h>
 #include <linux/magic.h>
+#elif defined(__FreeBSD__)
+#include <sys/sysctl.h>
 #endif
 #include <ctype.h>
 #include <errno.h>
+#include <libgen.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <iostream>
 #include "gtest/gtest.h"
 #include "capsicum-test.h"
+
+// For versions of googletest that lack GTEST_SKIP.
+#ifndef GTEST_SKIP
+#define GTEST_SKIP GTEST_FAIL
+#endif
 
 std::string tmpdir;
 
@@ -19,6 +28,7 @@ class SetupEnvironment : public ::testing::Environment
 public:
   SetupEnvironment() : teardown_tmpdir_(false) {}
   void SetUp() override {
+    CheckCapsicumSupport();
     if (tmpdir.empty()) {
       std::cerr << "Generating temporary directory root: ";
       CreateTemporaryRoot();
@@ -26,6 +36,31 @@ public:
       std::cerr << "User provided temporary directory root: ";
     }
     std::cerr << tmpdir << std::endl;
+  }
+  void CheckCapsicumSupport() {
+#ifdef __FreeBSD__
+    int rc;
+    bool trap_enotcap_enabled;
+    size_t trap_enotcap_enabled_len = sizeof(trap_enotcap_enabled);
+
+    if (feature_present("security_capabilities") == 0) {
+      GTEST_SKIP() << "Skipping tests because capsicum support is not "
+                   << "enabled in the kernel.";
+    }
+    // If this OID is enabled, it will send SIGTRAP to the process when
+    // `ENOTCAPABLE` is returned.
+    const char *oid = "kern.trap_enotcap";
+    rc = sysctlbyname(oid, &trap_enotcap_enabled, &trap_enotcap_enabled_len,
+      nullptr, 0);
+    if (rc != 0) {
+      GTEST_FAIL() << "sysctlbyname failed: " << strerror(errno);
+    }
+    if (trap_enotcap_enabled) {
+      GTEST_SKIP() << "Debug sysctl, " << oid << ", enabled. "
+                   << "Skipping tests because its enablement invalidates the "
+                   << "test results.";
+    }
+#endif /* FreeBSD */
   }
   void CreateTemporaryRoot() {
     char *tmpdir_name = tempnam(nullptr, "cptst");
@@ -47,7 +82,33 @@ private:
   bool teardown_tmpdir_;
 };
 
+std::string capsicum_test_bindir;
+
+// Adds a directory to $PATH.
+static void AddDirectoryToPath(const char *dir) {
+  char *new_path, *old_path;
+
+  old_path = getenv("PATH");
+  assert(old_path);
+
+  assert(asprintf(&new_path, "%s:%s", dir, old_path) > 0);
+  assert(setenv("PATH", new_path, 1) == 0);
+}
+
 int main(int argc, char* argv[]) {
+  // Set up the test program path, so capsicum-test can find programs, like
+  // mini-me* when executed from an absolute path.
+  char *program_name;
+
+  // Copy argv[0], so dirname can do an in-place manipulation of the buffer's
+  // contents.
+  program_name = strdup(argv[0]);
+  assert(program_name);
+  capsicum_test_bindir = std::string(dirname(program_name));
+  free(program_name);
+
+  AddDirectoryToPath(capsicum_test_bindir.c_str());
+
   ::testing::InitGoogleTest(&argc, argv);
   for (int ii = 1; ii < argc; ii++) {
     if (strcmp(argv[ii], "-v") == 0) {
@@ -95,7 +156,5 @@ int main(int argc, char* argv[]) {
 #endif
 
   testing::AddGlobalTestEnvironment(new SetupEnvironment());
-  int rc = RUN_ALL_TESTS();
-  ShowSkippedTests(std::cerr);
-  return rc;
+  return RUN_ALL_TESTS();
 }
