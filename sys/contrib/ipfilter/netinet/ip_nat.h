@@ -34,44 +34,44 @@
 			 * appropriate sizes.  The figures below were used for
 			 * a setup with 1000-2000 networks to NAT.
 			 */
-#ifndef NAT_SIZE
-# ifdef LARGE_NAT
-#  define	NAT_SIZE	2047
-# else
-#  define	NAT_SIZE	127
-# endif
+#ifdef NAT_SIZE
+# define	NAT_SIZE_LARGE		NAT_SIZE
+# define	NAT_SIZE_NORMAL		NAT_SIZE
+#else
+# define	NAT_SIZE_LARGE		2047
+# define	NAT_SIZE_NORMAL		127
 #endif
-#ifndef RDR_SIZE
-# ifdef LARGE_NAT
-#  define	RDR_SIZE	2047
-# else
-#  define	RDR_SIZE	127
-# endif
+#ifdef RDR_SIZE
+# define	RDR_SIZE_LARGE		RDR_SIZE
+# define	RDR_SIZE_NORMAL		RDR_SIZE
+#else
+# define	RDR_SIZE_LARGE		2047
+# define	RDR_SIZE_NORMAL		127
 #endif
-#ifndef HOSTMAP_SIZE
-# ifdef LARGE_NAT
-#  define	HOSTMAP_SIZE	8191
-# else
-#  define	HOSTMAP_SIZE	2047
-# endif
+#ifdef HOSTMAP_SIZE
+# define	HOSTMAP_SIZE_LARGE	HOSTMAP_SIZE
+# define	HOSTMAP_SIZE_NORMAL	HOSTMAP_SIZE
+#else
+# define	HOSTMAP_SIZE_LARGE	8191
+# define	HOSTMAP_SIZE_NORMAL	2047
 #endif
-#ifndef NAT_TABLE_MAX
 /*
  * This is newly introduced and for the sake of "least surprise", the numbers
  * present aren't what we'd normally use for creating a proper hash table.
  */
-# ifdef	LARGE_NAT
-#  define	NAT_TABLE_MAX	180000
-# else
-#  define	NAT_TABLE_MAX	30000
-# endif
+#ifdef NAT_TABLE_MAX
+# define	NAT_TABLE_MAX_LARGE	NAT_TABLE_MAX
+# define	NAT_TABLE_MAX_NORMAL	NAT_TABLE_MAX
+#else
+# define	NAT_TABLE_MAX_LARGE	180000
+# define	NAT_TABLE_MAX_NORMAL	30000
 #endif
-#ifndef NAT_TABLE_SZ
-# ifdef LARGE_NAT
-#  define	NAT_TABLE_SZ	16383
-# else
-#  define	NAT_TABLE_SZ	2047
-# endif
+#ifdef NAT_TABLE_SZ
+# define	NAT_TABLE_SZ_LARGE	NAT_TABLE_SZ
+# define	NAT_TABLE_SZ_NORMAL	NAT_TABLE_SZ
+#else
+# define	NAT_TABLE_SZ_LARGE	16383
+# define	NAT_TABLE_SZ_NORMAL	2047
 #endif
 #ifndef	APR_LABELLEN
 #define	APR_LABELLEN	16

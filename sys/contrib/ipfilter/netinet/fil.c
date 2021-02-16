@@ -9330,6 +9330,11 @@ ipf_main_soft_create(arg)
 	softc->ipf_icmpminfragmtu = 68;
 	softc->ipf_flags = IPF_LOGGING;
 
+#ifdef LARGE_NAT
+	softc->ipf_large_nat = 1;
+#endif
+	ipf_fbsd_kenv_get(softc);
+
 	return softc;
 }
 
