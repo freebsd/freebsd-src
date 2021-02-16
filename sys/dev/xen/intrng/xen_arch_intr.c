@@ -99,7 +99,8 @@ xen_dt_probe(void)
 /* in case of console being disabled, probe again as a fallback */
 C_SYSINIT(xen_probe_fdt, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, (sysinit_cfunc_t)xen_dt_probe, NULL);
 
-static void xen_init(const void *arg __unused)
+static void
+xen_map_shared_info(void)
 {
 	int rc;
 	struct xen_add_to_physmap xatp;
@@ -125,8 +126,9 @@ static void xen_init(const void *arg __unused)
 		panic("Unable to map shared info error=%d\n", rc);
 }
 
-/* xen_init() won't work during console probe, thus this */
-C_SYSINIT(xen_init, SI_SUB_HYPERVISOR, SI_ORDER_SECOND, xen_init, NULL);
+/* xen_map_shared_info() won't work during console probe, thus this */
+C_SYSINIT(xen_shared_info, SI_SUB_HYPERVISOR, SI_ORDER_SECOND,
+    (sysinit_cfunc_t)xen_map_shared_info, NULL);
 
 struct xen_softc {
 	struct resource		*intr;
