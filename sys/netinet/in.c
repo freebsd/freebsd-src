@@ -163,18 +163,23 @@ in_ifhasaddr(struct ifnet *ifp, struct in_addr in)
  * the supplied one but with same IP address value.
  */
 static struct in_ifaddr *
-in_localip_more(struct in_ifaddr *ia)
+in_localip_more(struct in_ifaddr *original_ia)
 {
 	struct rm_priotracker in_ifa_tracker;
-	in_addr_t in = IA_SIN(ia)->sin_addr.s_addr;
-	struct in_ifaddr *it;
+	in_addr_t original_addr = IA_SIN(original_ia)->sin_addr.s_addr;
+	uint32_t original_fib = original_ia->ia_ifa.ifa_ifp->if_fib;
+	struct in_ifaddr *ia;
 
 	IN_IFADDR_RLOCK(&in_ifa_tracker);
-	LIST_FOREACH(it, INADDR_HASH(in), ia_hash) {
-		if (it != ia && IA_SIN(it)->sin_addr.s_addr == in) {
-			ifa_ref(&it->ia_ifa);
+	LIST_FOREACH(ia, INADDR_HASH(original_addr), ia_hash) {
+		in_addr_t addr = IA_SIN(ia)->sin_addr.s_addr;
+		uint32_t fib = ia->ia_ifa.ifa_ifp->if_fib;
+		if (!V_rt_add_addr_allfibs && (original_fib != fib))
+			continue;
+		if ((original_ia != ia) && (original_addr == addr)) {
+			ifa_ref(&ia->ia_ifa);
 			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
-			return (it);
+			return (ia);
 		}
 	}
 	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
@@ -1007,11 +1012,6 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	if (ia_need_loopback_route(target) && (flags & LLE_STATIC)) {
 		struct in_ifaddr *eia;
 
-		/*
-		 * XXXME: add fib-aware in_localip.
-		 * We definitely don't want to switch between
-		 * prefixes in different fibs.
-		 */
 		eia = in_localip_more(target);
 
 		if (eia != NULL) {
