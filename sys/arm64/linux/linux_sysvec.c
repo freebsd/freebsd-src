@@ -461,7 +461,8 @@ linux_vdso_deinstall(const void *param)
 {
 
 	LIN_SDT_PROBE0(sysvec, linux_vdso_deinstall, todo);
-	__elfN(linux_shared_page_fini)(linux_shared_page_obj);
+	__elfN(linux_shared_page_fini)(linux_shared_page_obj,
+	    linux_shared_page_mapping);
 }
 SYSUNINIT(elf_linux_vdso_uninit, SI_SUB_EXEC, SI_ORDER_FIRST,
     linux_vdso_deinstall, NULL);
