@@ -129,6 +129,15 @@ SDT_PROBE_DEFINE5(pf, ip, state, lookup, "struct pfi_kkif *",
     "struct pf_state_key_cmp *", "int", "struct pf_pdesc *",
     "struct pf_kstate *");
 
+SDT_PROBE_DEFINE3(pf, eth, test_rule, entry, "int", "struct ifnet *",
+    "struct mbuf *");
+SDT_PROBE_DEFINE2(pf, eth, test_rule, test, "int", "struct pf_keth_rule *");
+SDT_PROBE_DEFINE3(pf, eth, test_rule, mismatch,
+    "int", "struct pf_keth_rule *", "char *");
+SDT_PROBE_DEFINE2(pf, eth, test_rule, match, "int", "struct pf_keth_rule *");
+SDT_PROBE_DEFINE2(pf, eth, test_rule, final_match,
+    "int", "struct pf_keth_rule *");
+
 /*
  * Global variables
  */
@@ -3720,6 +3729,8 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf *m)
 	MPASS(kif->pfik_ifp->if_vnet == curvnet);
 	NET_EPOCH_ASSERT();
 
+	SDT_PROBE3(pf, eth, test_rule, entry, dir, kif->pfik_ifp, m);
+
 	e = mtod(m, struct ether_header *);
 
 	settings = ck_pr_load_ptr(&V_pf_keth);
@@ -3728,20 +3739,38 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf *m)
 
 	while (r != NULL) {
 		counter_u64_add(r->evaluations, 1);
-		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
+		SDT_PROBE2(pf, eth, test_rule, test, r->nr, r);
+
+		if (pfi_kkif_match(r->kif, kif) == r->ifnot) {
+			SDT_PROBE3(pf, eth, test_rule, mismatch, r->nr, r,
+			    "kif");
 			r = r->skip[PFE_SKIP_IFP].ptr;
-		else if (r->direction && r->direction != dir)
+		}
+		else if (r->direction && r->direction != dir) {
+			SDT_PROBE3(pf, eth, test_rule, mismatch, r->nr, r,
+			    "dir");
 			r = r->skip[PFE_SKIP_DIR].ptr;
-		else if (r->proto && r->proto != ntohs(e->ether_type))
+		}
+		else if (r->proto && r->proto != ntohs(e->ether_type)) {
+			SDT_PROBE3(pf, eth, test_rule, mismatch, r->nr, r,
+			    "proto");
 			r = r->skip[PFE_SKIP_PROTO].ptr;
-		else if (! pf_match_eth_addr(e->ether_shost, &r->src))
+		}
+		else if (! pf_match_eth_addr(e->ether_shost, &r->src)) {
+			SDT_PROBE3(pf, eth, test_rule, mismatch, r->nr, r,
+			    "src");
 			r = r->skip[PFE_SKIP_SRC_ADDR].ptr;
+		}
 		else if (! pf_match_eth_addr(e->ether_dhost, &r->dst)) {
+			SDT_PROBE3(pf, eth, test_rule, mismatch, r->nr, r,
+			    "dst");
 			r = TAILQ_NEXT(r, entries);
 		}
 		else {
 			/* Rule matches */
 			rm = r;
+
+			SDT_PROBE2(pf, eth, test_rule, match, r->nr, r);
 
 			if (r->quick)
 				break;
@@ -3751,6 +3780,8 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf *m)
 	}
 
 	r = rm;
+
+	SDT_PROBE2(pf, eth, test_rule, final_match, (r != NULL ? r->nr : -1), r);
 
 	/* Default to pass. */
 	if (r == NULL)
