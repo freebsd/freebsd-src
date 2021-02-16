@@ -5205,6 +5205,7 @@ vm/vm_swapout_dummy.c		optional NO_SWAPPING
 vm/vm_unix.c			standard
 vm/vnode_pager.c		standard
 xen/features.c			optional xenhvm
+xen/xen_common.c		optional xenhvm
 xen/xenbus/xenbus_if.m		optional xenhvm
 xen/xenbus/xenbus.c		optional xenhvm
 xen/xenbus/xenbusb_if.m		optional xenhvm
