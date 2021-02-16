@@ -99,7 +99,7 @@ xen_dt_probe(void)
 /* in case of console being disabled, probe again as a fallback */
 C_SYSINIT(xen_probe_fdt, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, (sysinit_cfunc_t)xen_dt_probe, NULL);
 
-static void xen_init(void *arg __unused)
+static void xen_init(const void *arg __unused)
 {
 	int rc;
 	struct xen_add_to_physmap xatp;
@@ -109,10 +109,12 @@ static void xen_init(void *arg __unused)
 	if (!xen_domain())
 		return;
 
-	shared_info = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ | VM_ALLOC_ZERO);
+	shared_info = vm_page_alloc_noobj(VM_ALLOC_ZERO | VM_ALLOC_WIRED |
+	    VM_ALLOC_WAITFAIL);
 	KASSERT(shared_info != NULL, ("Unable to allocate shared page\n"));
 	shared_paddr = VM_PAGE_TO_PHYS(shared_info);
-	HYPERVISOR_shared_info = xen_pmap(shared_paddr, PAGE_SIZE);
+	HYPERVISOR_shared_info = pmap_mapdev_attr(shared_paddr, PAGE_SIZE,
+	    VM_MEMATTR_XEN);
 
 	xatp.domid = DOMID_SELF;
 	xatp.idx = 0;
@@ -122,7 +124,8 @@ static void xen_init(void *arg __unused)
 	KASSERT(rc == 0, ("Unable to map shared info\n"));
 }
 
-SYSINIT(xen_init, SI_SUB_HYPERVISOR, SI_ORDER_SECOND, xen_init, NULL);
+/* xen_init() won't work during console probe, thus this */
+C_SYSINIT(xen_init, SI_SUB_HYPERVISOR, SI_ORDER_SECOND, xen_init, NULL);
 
 struct xen_softc {
 	struct resource		*intr;
