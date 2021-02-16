@@ -40,6 +40,7 @@
 #include <sys/zil.h>
 #include <sys/zfs_project.h>
 #include <vm/vm_object.h>
+#include <sys/uio.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -118,7 +119,8 @@ extern minor_t zfsdev_minor_alloc(void);
 #define	Z_ISDIR(type) ((type) == VDIR)
 
 #define	zn_has_cached_data(zp)	vn_has_cached_data(ZTOV(zp))
-#define	zn_rlimit_fsize(zp, uio, td)	vn_rlimit_fsize(ZTOV(zp), (uio), (td))
+#define	zn_rlimit_fsize(zp, uio) \
+    vn_rlimit_fsize(ZTOV(zp), GET_UIO_STRUCT(uio), zfs_uio_td(uio))
 
 /* Called on entry to each ZFS vnode and vfs operation  */
 #define	ZFS_ENTER(zfsvfs) \
@@ -179,7 +181,6 @@ extern int zfsfstype;
 
 extern int zfs_znode_parent_and_name(struct znode *zp, struct znode **dzpp,
     char *buf);
-extern void	zfs_inode_update(struct znode *);
 #ifdef	__cplusplus
 }
 #endif
