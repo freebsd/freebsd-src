@@ -135,10 +135,9 @@ typedef	__pid_t		pid_t;
 
 #if __BSD_VISIBLE
 #define	O_VERIFY	0x00200000	/* open only after verification */
-#define	O_BENEATH	0x00400000	/* Fail if not under cwd */
-#define	O_RESOLVE_BENEATH 0x00800000	/* As O_BENEATH, but do not allow
-					   resolve to walk out of cwd even to
-					   return back */
+/* #define O_UNUSED1	0x00400000   */	/* Was O_BENEATH */
+#define	O_RESOLVE_BENEATH 0x00800000	/* Do not allow name resolution to walk
+					   out of cwd */
 #endif
 
 #define	O_DSYNC		0x01000000	/* POSIX data sync */
@@ -220,10 +219,9 @@ typedef	__pid_t		pid_t;
 #define	AT_SYMLINK_NOFOLLOW	0x0200	/* Do not follow symbolic links */
 #define	AT_SYMLINK_FOLLOW	0x0400	/* Follow symbolic link */
 #define	AT_REMOVEDIR		0x0800	/* Remove directory instead of file */
-#define	AT_BENEATH		0x1000	/* Fail if not under dirfd */
-#define	AT_RESOLVE_BENEATH	0x2000	/* As AT_BENEATH, but do not allow
-					   resolve to walk out of dirfd even
-					   to return back */
+/* #define AT_UNUSED1		0x1000 *//* Was AT_BENEATH */
+#define	AT_RESOLVE_BENEATH	0x2000	/* Do not allow name resolution
+					   to walk out of dirfd */
 #endif
 
 /*
