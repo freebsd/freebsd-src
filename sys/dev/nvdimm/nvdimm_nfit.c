@@ -201,3 +201,13 @@ acpi_nfit_get_flush_addrs(ACPI_TABLE_NFIT *nfitbl, nfit_handle_t dimm,
 	for (i = 0; i < subtable->HintCount; i++)
 		(*listp)[i] = (uint64_t *)(intptr_t)subtable->HintAddress[i];
 }
+
+void
+acpi_nfit_get_memory_maps_by_dimm(ACPI_TABLE_NFIT *nfitbl, nfit_handle_t dimm,
+    ACPI_NFIT_MEMORY_MAP ***listp, int *countp)
+{
+
+	malloc_find_matches(nfitbl, ACPI_NFIT_TYPE_MEMORY_MAP,
+	    offsetof(ACPI_NFIT_MEMORY_MAP, DeviceHandle), UINT32_MAX, dimm,
+	    (void ***)listp, countp);
+}
