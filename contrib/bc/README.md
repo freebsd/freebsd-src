@@ -342,7 +342,7 @@ Folders:
 [20]: https://git.yzena.com/gavin/bc
 [21]: https://gavinhoward.com/2020/04/i-am-moving-away-from-github/
 [22]: https://www.deepl.com/translator
-[23]: https://svnweb.freebsd.org/base/head/contrib/bc/
+[23]: https://cgit.freebsd.org/src/tree/contrib/bc
 [24]: https://bugs.freebsd.org/
 [25]: https://reviews.freebsd.org/
 [26]: ./manuals/bcl.3.md

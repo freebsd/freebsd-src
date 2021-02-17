@@ -25,7 +25,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH "DC" "1" "January 2021" "Gavin D. Howard" "General Commands Manual"
+.TH "DC" "1" "February 2021" "Gavin D. Howard" "General Commands Manual"
 .SH Name
 .PP
 dc - arbitrary-precision decimal reverse-Polish notation calculator
@@ -116,9 +116,16 @@ This means that if a file is given before an expression, the file is
 read in and evaluated first.
 .RS
 .PP
-After processing all expressions and files, dc(1) will exit, unless
+If this option is given on the command-line (i.e., not in
+\f[B]DC_ENV_ARGS\f[R], see the \f[B]ENVIRONMENT VARIABLES\f[R] section),
+then after processing all expressions and files, dc(1) will exit, unless
 \f[B]-\f[R] (\f[B]stdin\f[R]) was given as an argument at least once to
-\f[B]-f\f[R] or \f[B]\[en]file\f[R].
+\f[B]-f\f[R] or \f[B]\[en]file\f[R], whether on the command-line or in
+\f[B]DC_ENV_ARGS\f[R].
+However, if any other \f[B]-e\f[R], \f[B]\[en]expression\f[R],
+\f[B]-f\f[R], or \f[B]\[en]file\f[R] arguments are given after
+\f[B]-f-\f[R] or equivalent is given, dc(1) will give a fatal error and
+exit.
 .PP
 This is a \f[B]non-portable extension\f[R].
 .RE
@@ -130,12 +137,15 @@ If expressions are also given (see above), the expressions are evaluated
 in the order given.
 .RS
 .PP
-After processing all expressions and files, dc(1) will exit, unless
+If this option is given on the command-line (i.e., not in
+\f[B]DC_ENV_ARGS\f[R], see the \f[B]ENVIRONMENT VARIABLES\f[R] section),
+then after processing all expressions and files, dc(1) will exit, unless
 \f[B]-\f[R] (\f[B]stdin\f[R]) was given as an argument at least once to
 \f[B]-f\f[R] or \f[B]\[en]file\f[R].
 However, if any other \f[B]-e\f[R], \f[B]\[en]expression\f[R],
-\f[B]-f\f[R], or \f[B]\[en]file\f[R] arguments are given after that,
-bc(1) will give a fatal error and exit.
+\f[B]-f\f[R], or \f[B]\[en]file\f[R] arguments are given after
+\f[B]-f-\f[R] or equivalent is given, dc(1) will give a fatal error and
+exit.
 .PP
 This is a \f[B]non-portable extension\f[R].
 .RE
@@ -144,6 +154,9 @@ All long options are \f[B]non-portable extensions\f[R].
 .SH STDOUT
 .PP
 Any non-error output is written to \f[B]stdout\f[R].
+In addition, if history (see the \f[B]HISTORY\f[R] section) and the
+prompt (see the \f[B]TTY MODE\f[R] section) are enabled, both are output
+to \f[B]stdout\f[R].
 .PP
 \f[B]Note\f[R]: Unlike other dc(1) implementations, this dc(1) will
 issue a fatal error (see the \f[B]EXIT STATUS\f[R] section) if it cannot
@@ -235,7 +248,7 @@ guaranteed to \f[B]NOT\f[R] be cryptographically secure.
 This is a consequence of using a seeded pseudo-random number generator.
 However, they \f[I]are\f[R] guaranteed to be reproducible with identical
 \f[B]seed\f[R] values.
-This means that the pseudo-random values from bc(1) should only be used
+This means that the pseudo-random values from dc(1) should only be used
 where a reproducible stream of pseudo-random numbers is
 \f[I]ESSENTIAL\f[R].
 In any other case, use a non-seeded pseudo-random number generator.
@@ -1164,7 +1177,7 @@ will be correctly parsed, but the string \f[B]\[lq]/home/gavin/some
 The quote parsing will handle either kind of quotes, \f[B]\[cq]\f[R] or
 \f[B]\[lq]\f[R]. Thus, if you have a file with any number of single
 quotes in the name, you can use double quotes as the outside quotes, as
-in \f[B]\[rq]some `bc' file.bc\[dq]\f[R], and vice versa if you have a
+in \f[B]\[rq]some `dc' file.dc\[dq]\f[R], and vice versa if you have a
 file with double quotes.
 However, handling a file with both kinds of quotes in
 \f[B]DC_ENV_ARGS\f[R] is not supported due to the complexity of the
