@@ -1293,6 +1293,7 @@ lro_set_mtime(struct timeval *tv, struct timespec *ts)
 	tv->tv_usec = ts->tv_nsec / 1000;
 }
 
+#ifdef TCPHPTS
 static void
 build_ack_entry(struct tcp_ackent *ae, struct tcphdr *th, struct mbuf *m, uint16_t hdr_len, uint16_t iptos)
 {
@@ -1487,6 +1488,7 @@ do_bpf_and_csum(struct inpcb *inp, struct lro_ctrl *lc, struct lro_entry *le,
 	} /* end switch */
 	return (m);
 }
+#endif
 
 static int
 tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
