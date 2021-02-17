@@ -88,7 +88,7 @@ static struct listen_ctx *listen_hash_find(struct adapter *, struct inpcb *);
 static struct listen_ctx *listen_hash_del(struct adapter *, struct inpcb *);
 static struct inpcb *release_lctx(struct adapter *, struct listen_ctx *);
 
-static void send_reset_synqe(struct toedev *, struct synq_entry *);
+static void send_abort_rpl_synqe(struct toedev *, struct synq_entry *, int);
 
 static int
 alloc_stid(struct adapter *sc, struct listen_ctx *lctx, int isipv6)
@@ -391,7 +391,8 @@ send_flowc_wr_synqe(struct adapter *sc, struct synq_entry *synqe)
 }
 
 static void
-send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
+send_abort_rpl_synqe(struct toedev *tod, struct synq_entry *synqe,
+    int rst_status)
 {
 	struct adapter *sc = tod->tod_softc;
 	struct wrqe *wr;
@@ -419,7 +420,7 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 	INIT_TP_WR_MIT_CPL(req, CPL_ABORT_REQ, synqe->tid);
 	req->rsvd0 = 0;	/* don't have a snd_nxt */
 	req->rsvd1 = 1;	/* no data sent yet */
-	req->cmd = CPL_ABORT_SEND_RST;
+	req->cmd = rst_status;
 
 	t4_l2t_send(sc, wr, &sc->l2t->l2tab[synqe->params.l2t_idx]);
 }
@@ -1465,6 +1466,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 	struct in_conninfo inc;
 	struct toepcb *toep;
 	struct epoch_tracker et;
+	int rstreason;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
@@ -1491,7 +1493,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 
 	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
 reset:
-		send_reset_synqe(TOEDEV(ifp), synqe);
+		send_abort_rpl_synqe(TOEDEV(ifp), synqe, CPL_ABORT_SEND_RST);
 		INP_WUNLOCK(inp);
 		NET_EPOCH_EXIT(et);
 		CURVNET_RESTORE();
@@ -1524,7 +1526,15 @@ reset:
 	so = inp->inp_socket;
 	KASSERT(so != NULL, ("%s: socket is NULL", __func__));
 
-	if (!toe_syncache_expand(&inc, &to, &th, &so) || so == NULL) {
+	rstreason = toe_syncache_expand(&inc, &to, &th, &so);
+	if (rstreason < 0) {
+		free_toepcb(toep);
+		send_abort_rpl_synqe(TOEDEV(ifp), synqe, CPL_ABORT_NO_RST);
+		INP_WUNLOCK(inp);
+		NET_EPOCH_EXIT(et);
+		CURVNET_RESTORE();
+		return (0);
+	} else if (rstreason == 0 || so == NULL) {
 		free_toepcb(toep);
 		goto reset;
 	}
