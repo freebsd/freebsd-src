@@ -2696,7 +2696,7 @@ fwohci_get_plen(struct fwohci_softc *sc, struct fwohci_dbch *dbch, struct fw_pkt
 	info = &tinfo[fp->mode.common.tcode];
 	r = info->hdr_len + sizeof(uint32_t);
 	if ((info->flag & FWTI_BLOCK_ASY) != 0)
-		r += roundup2(fp->mode.wreqb.len, sizeof(uint32_t));
+		r += roundup2((uint32_t)fp->mode.wreqb.len, sizeof(uint32_t));
 
 	if (r == sizeof(uint32_t)) {
 		/* XXX */
