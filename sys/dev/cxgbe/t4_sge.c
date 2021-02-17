@@ -4524,7 +4524,7 @@ refill_fl(struct adapter *sc, struct sge_fl *fl, int n)
 	caddr_t cl;
 	struct rx_buf_info *rxb;
 	struct cluster_metadata *clm;
-	uint16_t max_pidx;
+	uint16_t max_pidx, zidx = fl->zidx;
 	uint16_t hw_cidx = fl->hw_cidx;		/* stable snapshot */
 
 	FL_LOCK_ASSERT_OWNED(fl);
@@ -4540,6 +4540,7 @@ refill_fl(struct adapter *sc, struct sge_fl *fl, int n)
 
 	d = &fl->desc[fl->pidx];
 	sd = &fl->sdesc[fl->pidx];
+	rxb = &sc->sge.rx_buf_info[zidx];
 
 	while (n > 0) {
 
@@ -4573,11 +4574,11 @@ refill_fl(struct adapter *sc, struct sge_fl *fl, int n)
 			sd->cl = NULL;	/* gave up my reference */
 		}
 		MPASS(sd->cl == NULL);
-		rxb = &sc->sge.rx_buf_info[fl->zidx];
 		cl = uma_zalloc(rxb->zone, M_NOWAIT);
 		if (__predict_false(cl == NULL)) {
-			if (fl->zidx != fl->safe_zidx) {
-				rxb = &sc->sge.rx_buf_info[fl->safe_zidx];
+			if (zidx != fl->safe_zidx) {
+				zidx = fl->safe_zidx;
+				rxb = &sc->sge.rx_buf_info[zidx];
 				cl = uma_zalloc(rxb->zone, M_NOWAIT);
 			}
 			if (cl == NULL)
@@ -4588,7 +4589,7 @@ refill_fl(struct adapter *sc, struct sge_fl *fl, int n)
 
 		pa = pmap_kextract((vm_offset_t)cl);
 		sd->cl = cl;
-		sd->zidx = fl->zidx;
+		sd->zidx = zidx;
 
 		if (fl->flags & FL_BUF_PACKING) {
 			*d = htobe64(pa | rxb->hwidx2);
