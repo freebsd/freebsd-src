@@ -164,6 +164,22 @@ Can be overridden by passing the `--bindir` option to `configure.sh`.
 
 Defaults to `$PREFIX/bin`.
 
+### `INCLUDEDIR`
+
+The directory to install header files in.
+
+Can be overridden by passing the `--includedir` option to `configure.sh`.
+
+Defaults to `$PREFIX/include`.
+
+### `LIBDIR`
+
+The directory to install libraries in.
+
+Can be overridden by passing the `--libdir` option to `configure.sh`.
+
+Defaults to `$PREFIX/lib`.
+
 ### `DATAROOTDIR`
 
 The root directory to install data files in.

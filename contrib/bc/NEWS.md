@@ -1,5 +1,25 @@
 # News
 
+## 3.3.0
+
+This is a production release that changes one behavior and fixes documentation
+bugs.
+
+The changed behavior is the treatment of `-e` and `-f` when given through
+`BC_ENV_ARGS` or `DC_ENV_ARGS`. Now `bc` and `dc` do not exit when those options
+(or their equivalents) are given through those environment variables. However,
+`bc` and `dc` still exit when they or their equivalents are given on the
+command-line.
+
+## 3.2.7
+
+This is a production release that removes a small non-portable shell operation
+in `configure.sh`. This problem was only noticed on OpenBSD, not FreeBSD or
+Linux.
+
+Non-OpenBSD users do ***NOT*** need to upgrade, although NetBSD users may also
+need to upgrade.
+
 ## 3.2.6
 
 This is a production release that fixes the build on FreeBSD.
