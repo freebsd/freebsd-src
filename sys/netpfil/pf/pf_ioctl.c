@@ -4560,6 +4560,7 @@ hook_pf(void)
 {
 	struct pfil_hook_args pha;
 	struct pfil_link_args pla;
+	int ret;
 
 	if (V_pf_pfil_hooked)
 		return;
@@ -4579,7 +4580,8 @@ hook_pf(void)
 	pla.pa_flags = PFIL_IN | PFIL_HEADPTR | PFIL_HOOKPTR;
 	pla.pa_head = V_inet_pfil_head;
 	pla.pa_hook = V_pf_ip4_in_hook;
-	(void)pfil_link(&pla);
+	ret = pfil_link(&pla);
+	MPASS(ret == 0);
 	pha.pa_func = pf_check_out;
 	pha.pa_flags = PFIL_OUT;
 	pha.pa_rulname = "default-out";
@@ -4587,7 +4589,8 @@ hook_pf(void)
 	pla.pa_flags = PFIL_OUT | PFIL_HEADPTR | PFIL_HOOKPTR;
 	pla.pa_head = V_inet_pfil_head;
 	pla.pa_hook = V_pf_ip4_out_hook;
-	(void)pfil_link(&pla);
+	ret = pfil_link(&pla);
+	MPASS(ret == 0);
 #endif
 #ifdef INET6
 	pha.pa_type = PFIL_TYPE_IP6;
@@ -4598,7 +4601,8 @@ hook_pf(void)
 	pla.pa_flags = PFIL_IN | PFIL_HEADPTR | PFIL_HOOKPTR;
 	pla.pa_head = V_inet6_pfil_head;
 	pla.pa_hook = V_pf_ip6_in_hook;
-	(void)pfil_link(&pla);
+	ret = pfil_link(&pla);
+	MPASS(ret == 0);
 	pha.pa_func = pf_check6_out;
 	pha.pa_rulname = "default-out6";
 	pha.pa_flags = PFIL_OUT;
@@ -4606,7 +4610,8 @@ hook_pf(void)
 	pla.pa_flags = PFIL_OUT | PFIL_HEADPTR | PFIL_HOOKPTR;
 	pla.pa_head = V_inet6_pfil_head;
 	pla.pa_hook = V_pf_ip6_out_hook;
-	(void)pfil_link(&pla);
+	ret = pfil_link(&pla);
+	MPASS(ret == 0);
 #endif
 
 	V_pf_pfil_hooked = 1;
