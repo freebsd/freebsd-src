@@ -141,7 +141,7 @@ if [ -f "$orig" ]; then
 elif [ -f "$results" ]; then
 	res="$results"
 elif [ "$generate" -eq 0 ]; then
-	printf 'Skipping %s script %s\n' "$d" "$s"
+	printf 'Skipping %s script %s\n' "$d" "$f"
 	exit 0
 else
 	printf 'Generating %s results...' "$f"
