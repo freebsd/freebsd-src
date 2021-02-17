@@ -101,8 +101,13 @@ The following are the options that dc(1) accepts.
     evaluated in the order given. This means that if a file is given before an
     expression, the file is read in and evaluated first.
 
-    After processing all expressions and files, dc(1) will exit, unless **-**
-    (**stdin**) was given as an argument at least once to **-f** or **--file**.
+    If this option is given on the command-line (i.e., not in **DC_ENV_ARGS**,
+    see the **ENVIRONMENT VARIABLES** section), then after processing all
+    expressions and files, dc(1) will exit, unless **-** (**stdin**) was given
+    as an argument at least once to **-f** or **--file**, whether on the
+    command-line or in **DC_ENV_ARGS**. However, if any other **-e**,
+    **--expression**, **-f**, or **--file** arguments are given after **-f-** or
+    equivalent is given, dc(1) will give a fatal error and exit.
 
     This is a **non-portable extension**.
 
@@ -112,10 +117,12 @@ The following are the options that dc(1) accepts.
     through **stdin**. If expressions are also given (see above), the
     expressions are evaluated in the order given.
 
-    After processing all expressions and files, dc(1) will exit, unless **-**
-    (**stdin**) was given as an argument at least once to **-f** or **--file**.
-    However, if any other **-e**, **--expression**, **-f**, or **--file**
-    arguments are given after that, bc(1) will give a fatal error and exit.
+    If this option is given on the command-line (i.e., not in **DC_ENV_ARGS**,
+    see the **ENVIRONMENT VARIABLES** section), then after processing all
+    expressions and files, dc(1) will exit, unless **-** (**stdin**) was given
+    as an argument at least once to **-f** or **--file**. However, if any other
+    **-e**, **--expression**, **-f**, or **--file** arguments are given after
+    **-f-** or equivalent is given, dc(1) will give a fatal error and exit.
 
     This is a **non-portable extension**.
 
@@ -123,7 +130,9 @@ All long options are **non-portable extensions**.
 
 # STDOUT
 
-Any non-error output is written to **stdout**.
+Any non-error output is written to **stdout**. In addition, if history (see the
+**HISTORY** section) and the prompt (see the **TTY MODE** section) are enabled,
+both are output to **stdout**.
 
 **Note**: Unlike other dc(1) implementations, this dc(1) will issue a fatal
 error (see the **EXIT STATUS** section) if it cannot write to **stdout**, so if
@@ -198,7 +207,7 @@ command or the **"** command that does not get receive a value of **0** or
 **'** and **"** commands are guaranteed to **NOT** be cryptographically secure.
 This is a consequence of using a seeded pseudo-random number generator. However,
 they *are* guaranteed to be reproducible with identical **seed** values. This
-means that the pseudo-random values from bc(1) should only be used where a
+means that the pseudo-random values from dc(1) should only be used where a
 reproducible stream of pseudo-random numbers is *ESSENTIAL*. In any other case,
 use a non-seeded pseudo-random number generator.
 
@@ -1033,7 +1042,7 @@ dc(1) recognizes the following environment variables:
 
     The quote parsing will handle either kind of quotes, **'** or **"**. Thus,
     if you have a file with any number of single quotes in the name, you can use
-    double quotes as the outside quotes, as in **"some 'bc' file.bc"**, and vice
+    double quotes as the outside quotes, as in **"some 'dc' file.dc"**, and vice
     versa if you have a file with double quotes. However, handling a file with
     both kinds of quotes in **DC_ENV_ARGS** is not supported due to the
     complexity of the parsing, though such files are still supported on the

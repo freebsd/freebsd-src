@@ -229,10 +229,13 @@ The following are the options that bc(1) accepts.
     evaluated in the order given. This means that if a file is given before an
     expression, the file is read in and evaluated first.
 
-    After processing all expressions and files, bc(1) will exit, unless **-**
-    (**stdin**) was given as an argument at least once to **-f** or **--file**.
-    However, if any other **-e**, **--expression**, **-f**, or **--file**
-    arguments are given after that, bc(1) will give a fatal error and exit.
+    If this option is given on the command-line (i.e., not in **BC_ENV_ARGS**,
+    see the **ENVIRONMENT VARIABLES** section), then after processing all
+    expressions and files, bc(1) will exit, unless **-** (**stdin**) was given
+    as an argument at least once to **-f** or **--file**, whether on the
+    command-line or in **BC_ENV_ARGS**. However, if any other **-e**,
+    **--expression**, **-f**, or **--file** arguments are given after **-f-** or
+    equivalent is given, bc(1) will give a fatal error and exit.
 
     This is a **non-portable extension**.
 
@@ -242,8 +245,12 @@ The following are the options that bc(1) accepts.
     through **stdin**. If expressions are also given (see above), the
     expressions are evaluated in the order given.
 
-    After processing all expressions and files, bc(1) will exit, unless **-**
-    (**stdin**) was given as an argument at least once to **-f** or **--file**.
+    If this option is given on the command-line (i.e., not in **BC_ENV_ARGS**,
+    see the **ENVIRONMENT VARIABLES** section), then after processing all
+    expressions and files, bc(1) will exit, unless **-** (**stdin**) was given
+    as an argument at least once to **-f** or **--file**. However, if any other
+    **-e**, **--expression**, **-f**, or **--file** arguments are given after
+    **-f-** or equivalent is given, bc(1) will give a fatal error and exit.
 
     This is a **non-portable extension**.
 
@@ -251,7 +258,9 @@ All long options are **non-portable extensions**.
 
 # STDOUT
 
-Any non-error output is written to **stdout**.
+Any non-error output is written to **stdout**. In addition, if history (see the
+**HISTORY** section) and the prompt (see the **TTY MODE** section) are enabled,
+both are output to **stdout**.
 
 **Note**: Unlike other bc(1) implementations, this bc(1) will issue a fatal
 error (see the **EXIT STATUS** section) if it cannot write to **stdout**, so if

@@ -356,6 +356,7 @@ typedef struct BcVm {
 	uint16_t line_len;
 
 	bool no_exit_exprs;
+	bool exit_exprs;
 	bool eof;
 #endif // !BC_ENABLE_LIBRARY
 

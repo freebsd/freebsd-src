@@ -253,7 +253,7 @@ replace_ext() {
 	_replace_ext_ext1="$2"
 	_replace_ext_ext2="$3"
 
-	_replace_ext_result=${_replace_ext_file%.$_replace_ext_ext1}.$_replace_ext_ext2
+	_replace_ext_result="${_replace_ext_file%.$_replace_ext_ext1}.$_replace_ext_ext2"
 
 	printf '%s\n' "$_replace_ext_result"
 }
@@ -1199,16 +1199,11 @@ SRC_TARGETS=""
 
 src_files=$(find_src_files $unneeded)
 
-temp_ifs="$IFS"
-IFS=$'\n'
-
 for f in $src_files; do
 	o=$(replace_ext "$f" "c" "o")
 	SRC_TARGETS=$(printf '%s\n\n%s: %s %s\n\t$(CC) $(CFLAGS) -o %s -c %s\n' \
 		"$SRC_TARGETS" "$o" "$headers" "$f" "$o" "$f")
 done
-
-IFS="$temp_ifs"
 
 contents=$(replace "$contents" "HEADERS" "$headers")
 

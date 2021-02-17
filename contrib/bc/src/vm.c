@@ -315,7 +315,7 @@ static void bc_vm_envArgs(const char* const env_args_name) {
 	buf = NULL;
 	bc_vec_push(&vm.env_args, &buf);
 
-	bc_args((int) vm.env_args.len - 1, bc_vec_item(&vm.env_args, 0));
+	bc_args((int) vm.env_args.len - 1, bc_vec_item(&vm.env_args, 0), false);
 }
 
 static size_t bc_vm_envLen(const char *var) {
@@ -820,7 +820,7 @@ static void bc_vm_exec(void) {
 
 		BC_SIG_UNLOCK;
 
-		if (!vm.no_exit_exprs) return;
+		if (!vm.no_exit_exprs && vm.exit_exprs) return;
 	}
 
 	for (i = 0; i < vm.files.len; ++i) {
@@ -905,7 +905,7 @@ void bc_vm_boot(int argc, char *argv[], const char *env_len,
 #endif // BC_ENABLED
 
 	bc_vm_envArgs(env_args);
-	bc_args(argc, argv);
+	bc_args(argc, argv, true);
 
 #if BC_ENABLED
 	if (BC_IS_POSIX) vm.flags &= ~(BC_FLAG_G);
