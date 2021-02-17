@@ -10,7 +10,6 @@ LCRYPTO_SRC=	${SRCTOP}/crypto/openssl
 LCRYPTO_DOC=	${LCRYPTO_SRC}/doc
 
 CFLAGS+=	-I${LCRYPTO_SRC}
-CFLAGS+=	-I${LCRYPTO_SRC}/crypto/include
 CFLAGS+=	-I${LCRYPTO_SRC}/include
 
 .include <bsd.endian.mk>
