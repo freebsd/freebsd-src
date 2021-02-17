@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 
+#include <sys/bitset.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/rman.h>
@@ -49,9 +50,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/arm/gic_common.h>
+
+#include <dt-bindings/interrupt-controller/irq.h>
+
+#include "msi_if.h"
 #include "pic_if.h"
 
 #define	MV_AP806_GICP_MAX_NIRQS	207
+
+MALLOC_DECLARE(M_GICP);
+MALLOC_DEFINE(M_GICP, "gicp", "Marvell gicp driver");
 
 struct mv_ap806_gicp_softc {
 	device_t		dev;
@@ -61,6 +70,9 @@ struct mv_ap806_gicp_softc {
 	ssize_t			spi_ranges_cnt;
 	uint32_t		*spi_ranges;
 	struct intr_map_data_fdt *parent_map_data;
+
+	ssize_t			msi_bitmap_size; /* Nr of bits in the bitmap. */
+	BITSET_DEFINE_VAR()     *msi_bitmap;
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -70,6 +82,10 @@ static struct ofw_compat_data compat_data[] = {
 
 #define	RD4(sc, reg)		bus_read_4((sc)->res, (reg))
 #define	WR4(sc, reg, val)	bus_write_4((sc)->res, (reg), (val))
+
+static msi_alloc_msi_t mv_ap806_gicp_alloc_msi;
+static msi_release_msi_t mv_ap806_gicp_release_msi;
+static msi_map_msi_t mv_ap806_gicp_map_msi;
 
 static int
 mv_ap806_gicp_probe(device_t dev)
@@ -90,6 +106,7 @@ mv_ap806_gicp_attach(device_t dev)
 {
 	struct mv_ap806_gicp_softc *sc;
 	phandle_t node, xref, intr_parent;
+	int i, rid;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -107,8 +124,27 @@ mv_ap806_gicp_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	rid = 0;
+	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	if (sc->res == NULL) {
+		device_printf(dev, "cannot allocate resources for device\n");
+		return (ENXIO);
+        }
+
 	sc->spi_ranges_cnt = OF_getencprop_alloc_multi(node, "marvell,spi-ranges",
 	    sizeof(*sc->spi_ranges), (void **)&sc->spi_ranges);
+
+	sc->msi_bitmap_size = 0;
+	for (i = 0; i < sc->spi_ranges_cnt; i += 2)
+		sc->msi_bitmap_size += sc->spi_ranges[i + 1];
+
+	/*
+	 * Create a bitmap of all MSIs that we have.
+	 * Each has a correspoding SPI in the GIC.
+	 * It will be used to dynamically allocate IRQs when requested.
+	 */
+	sc->msi_bitmap = BITSET_ALLOC(sc->msi_bitmap_size, M_GICP, M_WAITOK);
+	BIT_FILL(sc->msi_bitmap_size, sc->msi_bitmap);	/* 1 - available, 0 - used. */
 
 	xref = OF_xref_from_node(node);
 	if (intr_pic_register(dev, xref) == NULL) {
@@ -131,38 +167,58 @@ mv_ap806_gicp_detach(device_t dev)
 	return (EBUSY);
 }
 
+static uint32_t
+mv_ap806_gicp_msi_to_spi(struct mv_ap806_gicp_softc *sc, int irq)
+{
+	int i;
+
+	for (i = 0; i < sc->spi_ranges_cnt; i += 2) {
+		if (irq < sc->spi_ranges[i + 1]) {
+			irq += sc->spi_ranges[i];
+			break;
+		}
+		irq -= sc->spi_ranges[i + 1];
+	}
+
+	return (irq - GIC_FIRST_SPI);
+}
+
+static uint32_t
+mv_ap806_gicp_irq_to_msi(struct mv_ap806_gicp_softc *sc, int irq)
+{
+	int i;
+
+	for (i = 0; i < sc->spi_ranges_cnt; i += 2) {
+		if (irq >= sc->spi_ranges[i] &&
+		    irq - sc->spi_ranges[i] < sc->spi_ranges[i + 1]) {
+			irq -= sc->spi_ranges[i];
+			break;
+		}
+	}
+
+	return (irq);
+}
+
 static struct intr_map_data *
 mv_ap806_gicp_convert_map_data(struct mv_ap806_gicp_softc *sc,
     struct intr_map_data *data)
 {
 	struct intr_map_data_fdt *daf;
-	uint32_t i, irq_num, irq_type;
+	uint32_t irq_num;
 
 	daf = (struct intr_map_data_fdt *)data;
 	if (daf->ncells != 2)
 		return (NULL);
 
 	irq_num = daf->cells[0];
-	irq_type = daf->cells[1];
 	if (irq_num >= MV_AP806_GICP_MAX_NIRQS)
 		return (NULL);
 
 	/* Construct GIC compatible mapping. */
 	sc->parent_map_data->ncells = 3;
 	sc->parent_map_data->cells[0] = 0; /* SPI */
-	sc->parent_map_data->cells[2] = irq_type;
-
-	/* Map the interrupt number to SPI number */
-	for (i = 0; i < sc->spi_ranges_cnt; i += 2) {
-		if (irq_num < sc->spi_ranges[i + 1]) {
-			irq_num += sc->spi_ranges[i];
-			break;
-		}
-
-		irq_num -= sc->spi_ranges[i];
-	}
-
-	sc->parent_map_data->cells[1] = irq_num - 32;
+	sc->parent_map_data->cells[1] = mv_ap806_gicp_msi_to_spi(sc, irq_num);
+	sc->parent_map_data->cells[2] = IRQ_TYPE_LEVEL_HIGH;
 
 	return ((struct intr_map_data *)sc->parent_map_data);
 }
@@ -205,21 +261,9 @@ static int
 mv_ap806_gicp_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
-	struct mv_ap806_gicp_softc *sc;
-	int ret;
 
-	sc = device_get_softc(dev);
-
-	if (data->type != INTR_MAP_DATA_FDT)
-		return (ENOTSUP);
-
-	data = mv_ap806_gicp_convert_map_data(sc, data);
-	if (data == NULL)
-		return (EINVAL);
-
-	ret = PIC_MAP_INTR(sc->parent, data, isrcp);
-	(*isrcp)->isrc_dev = sc->dev;
-	return(ret);
+	panic("%s: MSI interface has to be used to map an interrupt.\n",
+	    __func__);
 }
 
 static int
@@ -295,6 +339,83 @@ mv_ap806_gicp_post_filter(device_t dev, struct intr_irqsrc *isrc)
 	PIC_POST_FILTER(sc->parent, isrc);
 }
 
+static int
+mv_ap806_gicp_alloc_msi(device_t dev, device_t child, int count, int maxcount,
+    device_t *pic, struct intr_irqsrc **srcs)
+{
+	struct mv_ap806_gicp_softc *sc;
+	int i, ret, vector;
+
+	sc = device_get_softc(dev);
+
+	for (i = 0; i < count; i++) {
+		/*
+		 * Find first available vector represented by first set bit
+		 * in the bitmap. BIT_FFS starts the count from 1, 0 means
+		 * that nothing was found.
+		 */
+		vector = BIT_FFS(sc->msi_bitmap_size, sc->msi_bitmap);
+		if (vector == 0) {
+			ret = ENOMEM;
+			i--;
+			goto fail;
+		}
+		vector--;
+		BIT_CLR(sc->msi_bitmap_size, vector, sc->msi_bitmap);
+
+		/* Create GIC compatible SPI interrupt description. */
+		sc->parent_map_data->ncells = 3;
+		sc->parent_map_data->cells[0] = 0;	/* SPI */
+		sc->parent_map_data->cells[1] = mv_ap806_gicp_msi_to_spi(sc, vector);
+		sc->parent_map_data->cells[2] = IRQ_TYPE_LEVEL_HIGH;
+
+		ret = PIC_MAP_INTR(sc->parent,
+		    (struct intr_map_data *)sc->parent_map_data,
+		    &srcs[i]);
+		if (ret != 0)
+			goto fail;
+
+		srcs[i]->isrc_dev = dev;
+	}
+
+	return (0);
+fail:
+	mv_ap806_gicp_release_msi(dev, child, i + 1, srcs);
+	return (ret);
+}
+
+static int
+mv_ap806_gicp_release_msi(device_t dev, device_t child, int count,
+    struct intr_irqsrc **srcs)
+{
+	struct mv_ap806_gicp_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+
+	for (i = 0; i < count; i++) {
+		BIT_SET(sc->msi_bitmap_size,
+		    mv_ap806_gicp_irq_to_msi(sc, srcs[i]->isrc_irq),
+		    sc->msi_bitmap);
+	}
+
+	return (0);
+}
+
+static int
+mv_ap806_gicp_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
+    uint64_t *addr, uint32_t *data)
+{
+	struct mv_ap806_gicp_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	*addr = rman_get_start(sc->res);
+	*data = mv_ap806_gicp_irq_to_msi(sc, isrc->isrc_irq);
+
+	return (0);
+}
+
 static device_method_t mv_ap806_gicp_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		mv_ap806_gicp_probe),
@@ -312,6 +433,11 @@ static device_method_t mv_ap806_gicp_methods[] = {
 	DEVMETHOD(pic_post_filter,	mv_ap806_gicp_post_filter),
 	DEVMETHOD(pic_post_ithread,	mv_ap806_gicp_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	mv_ap806_gicp_pre_ithread),
+
+	/* MSI interface */
+	DEVMETHOD(msi_alloc_msi,	mv_ap806_gicp_alloc_msi),
+	DEVMETHOD(msi_release_msi,	mv_ap806_gicp_release_msi),
+	DEVMETHOD(msi_map_msi,		mv_ap806_gicp_map_msi),
 
 	DEVMETHOD_END
 };
