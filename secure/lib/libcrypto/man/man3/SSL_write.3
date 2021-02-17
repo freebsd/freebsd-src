@@ -133,7 +133,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_WRITE 3"
-.TH SSL_WRITE 3 "2021-02-16" "1.1.1j" "OpenSSL"
+.TH SSL_WRITE 3 "2021-02-17" "1.1.1j" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -245,7 +245,8 @@ For \fBSSL_sendfile()\fR, the following return values can occur:
 .IP ">= 0" 4
 .IX Item ">= 0"
 The write operation was successful, the return value is the number
-of bytes of the file written to the \s-1TLS/SSL\s0 connection.
+of bytes of the file written to the \s-1TLS/SSL\s0 connection. The return
+value can be less than \fBsize\fR for a partial write.
 .IP "< 0" 4
 .IX Item "< 0"
 The write operation was not successful, because either the connection was
