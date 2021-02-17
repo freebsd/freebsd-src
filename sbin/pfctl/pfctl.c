@@ -98,7 +98,7 @@ int	 pfctl_get_pool(int, struct pfctl_pool *, u_int32_t, u_int32_t, int,
 	    char *);
 void	 pfctl_print_eth_rule_counters(struct pfctl_eth_rule *, int);
 void	 pfctl_print_rule_counters(struct pfctl_rule *, int);
-int	 pfctl_show_eth_rules(int, int);
+int	 pfctl_show_eth_rules(int, int, enum pfctl_show);
 int	 pfctl_show_rules(int, char *, int, enum pfctl_show, char *, int);
 int	 pfctl_show_nat(int, int, char *);
 int	 pfctl_show_src_nodes(int, int);
@@ -1052,7 +1052,7 @@ pfctl_print_title(char *title)
 }
 
 int
-pfctl_show_eth_rules(int dev, int opts)
+pfctl_show_eth_rules(int dev, int opts, enum pfctl_show format)
 {
 	struct pfctl_eth_rules_info info;
 	struct pfctl_eth_rule rule;
@@ -1063,8 +1063,8 @@ pfctl_show_eth_rules(int dev, int opts)
 		return (-1);
 	}
 	for (int nr = 0; nr < info.nr; nr++) {
-		if (pfctl_get_eth_rule(dev, nr, info.ticket, &rule, false)
-		    != 0) {
+		if (pfctl_get_eth_rule(dev, nr, info.ticket, &rule,
+		    opts & PF_OPT_CLRRULECTRS) != 0) {
 			warn("DIOCGETETHRULE");
 			return (-1);
 		}
@@ -2640,13 +2640,13 @@ main(int argc, char *argv[])
 			pfctl_show_limits(dev, opts);
 			break;
 		case 'e':
-			pfctl_show_eth_rules(dev, opts);
+			pfctl_show_eth_rules(dev, opts, 0);
 			break;
 		case 'a':
 			opts |= PF_OPT_SHOWALL;
 			pfctl_load_fingerprints(dev, opts);
 
-			pfctl_show_eth_rules(dev, opts);
+			pfctl_show_eth_rules(dev, opts, 0);
 
 			pfctl_show_nat(dev, opts, anchorname);
 			pfctl_show_rules(dev, path, opts, 0, anchorname, 0);
@@ -2673,9 +2673,11 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if ((opts & PF_OPT_CLRRULECTRS) && showopt == NULL)
+	if ((opts & PF_OPT_CLRRULECTRS) && showopt == NULL) {
+		pfctl_show_eth_rules(dev, opts, PFCTL_SHOW_NOTHING);
 		pfctl_show_rules(dev, path, opts, PFCTL_SHOW_NOTHING,
 		    anchorname, 0);
+	}
 
 	if (clearopt != NULL) {
 		if (anchorname[0] == '_' || strstr(anchorname, "/_") != NULL)
