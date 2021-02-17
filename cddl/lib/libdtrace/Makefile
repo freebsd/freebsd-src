@@ -129,8 +129,6 @@ SRCS+=		dis_tables.c
 DSRCS+=		regs_x86.d
 .endif
 
-LFLAGS+=-l
-
 YFLAGS+=-d
 
 LIBADD=	ctf elf proc pthread rtld_db
