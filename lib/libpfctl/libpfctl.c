@@ -549,6 +549,7 @@ pf_nvrule_to_rule(const nvlist_t *nvl, struct pfctl_rule *rule)
 static void
 pfctl_nveth_addr_to_eth_addr(const nvlist_t *nvl, struct pfctl_eth_addr *addr)
 {
+	static const u_int8_t EMPTY_MAC[ETHER_ADDR_LEN] = { 0 };
 	size_t len;
 	const void *data;
 
@@ -557,6 +558,9 @@ pfctl_nveth_addr_to_eth_addr(const nvlist_t *nvl, struct pfctl_eth_addr *addr)
 	memcpy(addr->addr, data, sizeof(addr->addr));
 
 	addr->neg = nvlist_get_bool(nvl, "neg");
+
+	/* To make checks for 'is this address set?' easier. */
+	addr->isset = memcmp(addr->addr, EMPTY_MAC, ETHER_ADDR_LEN) != 0;
 }
 
 static nvlist_t *
