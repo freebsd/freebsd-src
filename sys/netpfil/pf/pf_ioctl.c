@@ -2555,6 +2555,7 @@ DIOCGETETHRULES_error:
 		void			*nvlpacked = NULL;
 		struct pf_keth_rule	*rule = NULL;
 		u_int32_t		 ticket, nr;
+		bool			 clear = false;
 
 #define ERROUT(x)	do { error = (x); goto DIOCGETETHRULE_error; } while (0)
 
@@ -2570,6 +2571,12 @@ DIOCGETETHRULES_error:
 		if (! nvlist_exists_number(nvl, "ticket"))
 			ERROUT(EBADMSG);
 		ticket = nvlist_get_number(nvl, "ticket");
+
+		if (nvlist_exists_bool(nvl, "clear"))
+			clear = nvlist_get_bool(nvl, "clear");
+
+		if (clear && !(flags & FWRITE))
+			ERROUT(EACCES);
 
 		if (! nvlist_exists_number(nvl, "nr"))
 			ERROUT(EBADMSG);
@@ -2612,6 +2619,13 @@ DIOCGETETHRULES_error:
 			ERROUT(ENOSPC);
 
 		error = copyout(nvlpacked, nv->data, nv->len);
+		if (error == 0 && clear) {
+			counter_u64_zero(rule->evaluations);
+			for (int i = 0; i < 2; i++) {
+				counter_u64_zero(rule->packets[i]);
+				counter_u64_zero(rule->bytes[i]);
+			}
+		}
 
 #undef ERROUT
 DIOCGETETHRULE_error:
