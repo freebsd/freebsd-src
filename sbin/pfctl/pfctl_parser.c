@@ -694,6 +694,16 @@ print_src_node(struct pf_src_node *sn, int opts)
 static void
 print_eth_addr(const struct pfctl_eth_addr *a)
 {
+	int i;
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		if (a->addr[i] != 0)
+			break;
+	}
+
+	/* Unset, so don't print anything. */
+	if (i == ETHER_ADDR_LEN)
+		return;
+
 	printf("%s%02x:%02x:%02x:%02x:%02x:%02x", a->neg ? "! " : "",
 	    a->addr[0], a->addr[1], a->addr[2], a->addr[3], a->addr[4],
 	    a->addr[5]);
@@ -724,10 +734,14 @@ print_eth_rule(struct pfctl_eth_rule *r, int rule_numbers)
 	if (r->proto)
 		printf(" proto 0x%04x", r->proto);
 
-	printf(" from ");
-	print_eth_addr(&r->src);
-	printf(" to ");
-	print_eth_addr(&r->dst);
+	if (r->src.isset) {
+		printf(" from ");
+		print_eth_addr(&r->src);
+	}
+	if (r->dst.isset) {
+		printf(" to ");
+		print_eth_addr(&r->dst);
+	}
 
 	if (r->qname[0])
 		printf(" queue %s", r->qname);
