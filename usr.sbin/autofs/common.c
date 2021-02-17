@@ -140,7 +140,7 @@ create_directory(const char *path)
 	 */
 	copy = tofree = checked_strdup(path + 1);
 
-	partial = checked_strdup("");
+	partial = checked_strdup("/");
 	for (;;) {
 		component = strsep(&copy, "/");
 		if (component == NULL)
