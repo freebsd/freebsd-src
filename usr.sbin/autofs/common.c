@@ -1204,6 +1204,19 @@ lesser_daemon(void)
 	}
 }
 
+/*
+ * Applicable to NFSv3 only, see rpc.umntall(8).
+ */
+void
+rpc_umntall(void)
+{
+	FILE *f;
+
+	f = auto_popen("rpc.umntall", "-k", NULL);
+	assert(f != NULL);
+	auto_pclose(f);
+}
+
 int
 main(int argc, char **argv)
 {
