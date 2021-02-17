@@ -157,6 +157,7 @@ enum bcm_gpio_pud {
 static struct ofw_compat_data compat_data[] = {
 	{"broadcom,bcm2835-gpio",	1},
 	{"brcm,bcm2835-gpio",		1},
+	{"brcm,bcm2711-gpio",		1},
 	{NULL,				0}
 };
 
