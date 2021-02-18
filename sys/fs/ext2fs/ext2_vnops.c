@@ -322,9 +322,6 @@ ext2_access(struct vop_access_args *ap)
 	accmode_t accmode = ap->a_accmode;
 	int error;
 
-	if (vp->v_type == VBLK || vp->v_type == VCHR)
-		return (EOPNOTSUPP);
-
 	/*
 	 * Disallow write attempts on read-only file systems;
 	 * unless the file is a socket, fifo, or a block or
@@ -622,6 +619,18 @@ ext2_fsync(struct vop_fsync_args *ap)
 	return (ext2_update(ap->a_vp, ap->a_waitfor == MNT_WAIT));
 }
 
+static int
+ext2_check_mknod_limits(dev_t dev)
+{
+	unsigned maj = major(dev);
+	unsigned min = minor(dev);
+
+	if (maj > EXT2_MAJOR_MAX || min > EXT2_MINOR_MAX)
+		return (EINVAL);
+
+	return (0);
+}
+
 /*
  * Mknod vnode call
  */
@@ -635,20 +644,21 @@ ext2_mknod(struct vop_mknod_args *ap)
 	ino_t ino;
 	int error;
 
+	if (vap->va_rdev != VNOVAL) {
+		error = ext2_check_mknod_limits(vap->va_rdev);
+		if (error)
+			return (error);
+	}
+
 	error = ext2_makeinode(MAKEIMODE(vap->va_type, vap->va_mode),
 	    ap->a_dvp, vpp, ap->a_cnp);
 	if (error)
 		return (error);
 	ip = VTOI(*vpp);
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
-	if (vap->va_rdev != VNOVAL) {
-		/*
-		 * Want to be able to use this to make badblock
-		 * inodes, so don't truncate the dev number.
-		 */
-		if (!(ip->i_flag & IN_E4EXTENTS))
-			ip->i_rdev = vap->va_rdev;
-	}
+	if (vap->va_rdev != VNOVAL)
+		ip->i_rdev = vap->va_rdev;
+
 	/*
 	 * Remove inode, then reload it through VFS_VGET so it is
 	 * checked to see if it is an alias of an existing entry in
