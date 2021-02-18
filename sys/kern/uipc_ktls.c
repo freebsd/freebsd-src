@@ -199,6 +199,11 @@ static COUNTER_U64_DEFINE_EARLY(ktls_sw_gcm);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_sw, OID_AUTO, gcm, CTLFLAG_RD, &ktls_sw_gcm,
     "Active number of software TLS sessions using AES-GCM");
 
+static COUNTER_U64_DEFINE_EARLY(ktls_sw_chacha20);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_sw, OID_AUTO, chacha20, CTLFLAG_RD,
+    &ktls_sw_chacha20,
+    "Active number of software TLS sessions using Chacha20-Poly1305");
+
 static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_cbc);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_ifnet, OID_AUTO, cbc, CTLFLAG_RD,
     &ktls_ifnet_cbc,
@@ -208,6 +213,11 @@ static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_gcm);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_ifnet, OID_AUTO, gcm, CTLFLAG_RD,
     &ktls_ifnet_gcm,
     "Active number of ifnet TLS sessions using AES-GCM");
+
+static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_chacha20);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_ifnet, OID_AUTO, chacha20, CTLFLAG_RD,
+    &ktls_ifnet_chacha20,
+    "Active number of ifnet TLS sessions using Chacha20-Poly1305");
 
 static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_reset);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_ifnet, OID_AUTO, reset, CTLFLAG_RD,
@@ -238,6 +248,11 @@ static COUNTER_U64_DEFINE_EARLY(ktls_toe_gcm);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_toe, OID_AUTO, gcm, CTLFLAG_RD,
     &ktls_toe_gcm,
     "Active number of TOE TLS sessions using AES-GCM");
+
+static counter_u64_t ktls_toe_chacha20;
+SYSCTL_COUNTER_U64(_kern_ipc_tls_toe, OID_AUTO, chacha20, CTLFLAG_RD,
+    &ktls_toe_chacha20,
+    "Active number of TOE TLS sessions using Chacha20-Poly1305");
 #endif
 
 static MALLOC_DEFINE(M_KTLS, "ktls", "Kernel TLS");
@@ -508,6 +523,15 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 		if (en->auth_key_len == 0)
 			return (EINVAL);
 		break;
+	case CRYPTO_CHACHA20_POLY1305:
+		if (en->auth_algorithm != 0 || en->auth_key_len != 0)
+			return (EINVAL);
+		if (en->tls_vminor != TLS_MINOR_VER_TWO &&
+		    en->tls_vminor != TLS_MINOR_VER_THREE)
+			return (EINVAL);
+		if (en->iv_len != TLS_CHACHA20_IV_LEN)
+			return (EINVAL);
+		break;
 	default:
 		return (EINVAL);
 	}
@@ -539,15 +563,6 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 		if (en->tls_vminor < TLS_MINOR_VER_THREE)
 			tls->params.tls_hlen += sizeof(uint64_t);
 		tls->params.tls_tlen = AES_GMAC_HASH_LEN;
-
-		/*
-		 * TLS 1.3 includes optional padding which we
-		 * do not support, and also puts the "real" record
-		 * type at the end of the encrypted data.
-		 */
-		if (en->tls_vminor == TLS_MINOR_VER_THREE)
-			tls->params.tls_tlen += sizeof(uint8_t);
-
 		tls->params.tls_bs = 1;
 		break;
 	case CRYPTO_AES_CBC:
@@ -576,9 +591,24 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 		}
 		tls->params.tls_bs = AES_BLOCK_LEN;
 		break;
+	case CRYPTO_CHACHA20_POLY1305:
+		/*
+		 * Chacha20 uses a 12 byte implicit IV.
+		 */
+		tls->params.tls_tlen = POLY1305_HASH_LEN;
+		tls->params.tls_bs = 1;
+		break;
 	default:
 		panic("invalid cipher");
 	}
+
+	/*
+	 * TLS 1.3 includes optional padding which we do not support,
+	 * and also puts the "real" record type at the end of the
+	 * encrypted data.
+	 */
+	if (en->tls_vminor == TLS_MINOR_VER_THREE)
+		tls->params.tls_tlen += sizeof(uint8_t);
 
 	KASSERT(tls->params.tls_hlen <= MBUF_PEXT_HDR_LEN,
 	    ("TLS header length too long: %d", tls->params.tls_hlen));
@@ -603,9 +633,9 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 		goto out;
 
 	/*
-	 * This holds the implicit portion of the nonce for GCM and
-	 * the initial implicit IV for TLS 1.0.  The explicit portions
-	 * of the IV are generated in ktls_frame().
+	 * This holds the implicit portion of the nonce for AEAD
+	 * ciphers and the initial implicit IV for TLS 1.0.  The
+	 * explicit portions of the IV are generated in ktls_frame().
 	 */
 	if (en->iv_len != 0) {
 		tls->params.iv_len = en->iv_len;
@@ -614,8 +644,8 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 			goto out;
 
 		/*
-		 * For TLS 1.2, generate an 8-byte nonce as a counter
-		 * to generate unique explicit IVs.
+		 * For TLS 1.2 with GCM, generate an 8-byte nonce as a
+		 * counter to generate unique explicit IVs.
 		 *
 		 * Store this counter in the last 8 bytes of the IV
 		 * array so that it is 8-byte aligned.
@@ -681,6 +711,9 @@ ktls_cleanup(struct ktls_session *tls)
 		case CRYPTO_AES_NIST_GCM_16:
 			counter_u64_add(ktls_sw_gcm, -1);
 			break;
+		case CRYPTO_CHACHA20_POLY1305:
+			counter_u64_add(ktls_sw_chacha20, -1);
+			break;
 		}
 		tls->free(tls);
 		break;
@@ -691,6 +724,9 @@ ktls_cleanup(struct ktls_session *tls)
 			break;
 		case CRYPTO_AES_NIST_GCM_16:
 			counter_u64_add(ktls_ifnet_gcm, -1);
+			break;
+		case CRYPTO_CHACHA20_POLY1305:
+			counter_u64_add(ktls_ifnet_chacha20, -1);
 			break;
 		}
 		if (tls->snd_tag != NULL)
@@ -704,6 +740,9 @@ ktls_cleanup(struct ktls_session *tls)
 			break;
 		case CRYPTO_AES_NIST_GCM_16:
 			counter_u64_add(ktls_toe_gcm, -1);
+			break;
+		case CRYPTO_CHACHA20_POLY1305:
+			counter_u64_add(ktls_toe_chacha20, -1);
 			break;
 		}
 		break;
@@ -762,6 +801,9 @@ ktls_try_toe(struct socket *so, struct ktls_session *tls, int direction)
 			break;
 		case CRYPTO_AES_NIST_GCM_16:
 			counter_u64_add(ktls_toe_gcm, 1);
+			break;
+		case CRYPTO_CHACHA20_POLY1305:
+			counter_u64_add(ktls_toe_chacha20, 1);
 			break;
 		}
 	}
@@ -885,6 +927,9 @@ ktls_try_ifnet(struct socket *so, struct ktls_session *tls, bool force)
 		case CRYPTO_AES_NIST_GCM_16:
 			counter_u64_add(ktls_ifnet_gcm, 1);
 			break;
+		case CRYPTO_CHACHA20_POLY1305:
+			counter_u64_add(ktls_ifnet_chacha20, 1);
+			break;
 		}
 	}
 	return (error);
@@ -927,6 +972,9 @@ ktls_try_sw(struct socket *so, struct ktls_session *tls, int direction)
 		break;
 	case CRYPTO_AES_NIST_GCM_16:
 		counter_u64_add(ktls_sw_gcm, 1);
+		break;
+	case CRYPTO_CHACHA20_POLY1305:
+		counter_u64_add(ktls_sw_chacha20, 1);
 		break;
 	}
 	return (0);
