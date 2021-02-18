@@ -377,7 +377,7 @@ ext2_getattr(struct vop_getattr_args *ap)
 	vap->va_mtime.tv_nsec = E2DI_HAS_XTIME(ip) ? ip->i_mtimensec : 0;
 	vap->va_ctime.tv_sec = ip->i_ctime;
 	vap->va_ctime.tv_nsec = E2DI_HAS_XTIME(ip) ? ip->i_ctimensec : 0;
-	if E2DI_HAS_XTIME(ip) {
+	if (E2DI_HAS_XTIME(ip)) {
 		vap->va_birthtime.tv_sec = ip->i_birthtime;
 		vap->va_birthtime.tv_nsec = ip->i_birthnsec;
 	}
@@ -506,8 +506,10 @@ ext2_setattr(struct vop_setattr_args *ap)
 			ip->i_mtime = vap->va_mtime.tv_sec;
 			ip->i_mtimensec = vap->va_mtime.tv_nsec;
 		}
-		ip->i_birthtime = vap->va_birthtime.tv_sec;
-		ip->i_birthnsec = vap->va_birthtime.tv_nsec;
+		if (E2DI_HAS_XTIME(ip) && vap->va_birthtime.tv_sec != VNOVAL) {
+			ip->i_birthtime = vap->va_birthtime.tv_sec;
+			ip->i_birthnsec = vap->va_birthtime.tv_nsec;
+		}
 		error = ext2_update(vp, 0);
 		if (error)
 			return (error);
