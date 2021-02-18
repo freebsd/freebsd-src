@@ -87,10 +87,20 @@ SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls12_gcm_crypts,
     CTLFLAG_RD, &ocf_tls12_gcm_crypts,
     "Total number of OCF TLS 1.2 GCM encryption operations");
 
+static COUNTER_U64_DEFINE_EARLY(ocf_tls12_chacha20_crypts);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls12_chacha20_crypts,
+    CTLFLAG_RD, &ocf_tls12_chacha20_crypts,
+    "Total number of OCF TLS 1.2 Chacha20-Poly1305 encryption operations");
+
 static COUNTER_U64_DEFINE_EARLY(ocf_tls13_gcm_crypts);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls13_gcm_crypts,
     CTLFLAG_RD, &ocf_tls13_gcm_crypts,
     "Total number of OCF TLS 1.3 GCM encryption operations");
+
+static COUNTER_U64_DEFINE_EARLY(ocf_tls13_chacha20_crypts);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls13_chacha20_crypts,
+    CTLFLAG_RD, &ocf_tls13_chacha20_crypts,
+    "Total number of OCF TLS 1.3 Chacha20-Poly1305 encryption operations");
 
 static COUNTER_U64_DEFINE_EARLY(ocf_inplace);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, inplace,
@@ -315,7 +325,7 @@ ktls_ocf_tls_cbc_encrypt(struct ktls_session *tls,
 }
 
 static int
-ktls_ocf_tls12_gcm_encrypt(struct ktls_session *tls,
+ktls_ocf_tls12_aead_encrypt(struct ktls_session *tls,
     const struct tls_record_layer *hdr, uint8_t *trailer, struct iovec *iniov,
     struct iovec *outiov, int iovcnt, uint64_t seqno,
     uint8_t record_type __unused)
@@ -346,12 +356,26 @@ ktls_ocf_tls12_gcm_encrypt(struct ktls_session *tls,
 	crypto_initreq(&crp, os->sid);
 
 	/* Setup the IV. */
-	memcpy(crp.crp_iv, tls->params.iv, TLS_AEAD_GCM_LEN);
-	memcpy(crp.crp_iv + TLS_AEAD_GCM_LEN, hdr + 1, sizeof(uint64_t));
+	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16) {
+		memcpy(crp.crp_iv, tls->params.iv, TLS_AEAD_GCM_LEN);
+		memcpy(crp.crp_iv + TLS_AEAD_GCM_LEN, hdr + 1,
+		    sizeof(uint64_t));
+	} else {
+		/*
+		 * Chacha20-Poly1305 constructs the IV for TLS 1.2
+		 * identically to constructing the IV for AEAD in TLS
+		 * 1.3.
+		 */
+		memcpy(crp.crp_iv, tls->params.iv, tls->params.iv_len);
+		*(uint64_t *)(crp.crp_iv + 4) ^= htobe64(seqno);
+	}
 
 	/* Setup the AAD. */
-	tls_comp_len = ntohs(hdr->tls_length) -
-	    (AES_GMAC_HASH_LEN + sizeof(uint64_t));
+	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
+		tls_comp_len = ntohs(hdr->tls_length) -
+		    (AES_GMAC_HASH_LEN + sizeof(uint64_t));
+	else
+		tls_comp_len = ntohs(hdr->tls_length) - POLY1305_HASH_LEN;
 	ad.seq = htobe64(seqno);
 	ad.type = hdr->tls_type;
 	ad.tls_vmajor = hdr->tls_vmajor;
@@ -391,7 +415,10 @@ ktls_ocf_tls12_gcm_encrypt(struct ktls_session *tls,
 	if (!inplace)
 		crypto_use_output_uio(&crp, &out_uio);
 
-	counter_u64_add(ocf_tls12_gcm_crypts, 1);
+	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
+		counter_u64_add(ocf_tls12_gcm_crypts, 1);
+	else
+		counter_u64_add(ocf_tls12_chacha20_crypts, 1);
 	if (inplace)
 		counter_u64_add(ocf_inplace, 1);
 	else
@@ -403,7 +430,7 @@ ktls_ocf_tls12_gcm_encrypt(struct ktls_session *tls,
 }
 
 static int
-ktls_ocf_tls12_gcm_decrypt(struct ktls_session *tls,
+ktls_ocf_tls12_aead_decrypt(struct ktls_session *tls,
     const struct tls_record_layer *hdr, struct mbuf *m, uint64_t seqno,
     int *trailer_len)
 {
@@ -422,12 +449,26 @@ ktls_ocf_tls12_gcm_decrypt(struct ktls_session *tls,
 	crypto_initreq(&crp, os->sid);
 
 	/* Setup the IV. */
-	memcpy(crp.crp_iv, tls->params.iv, TLS_AEAD_GCM_LEN);
-	memcpy(crp.crp_iv + TLS_AEAD_GCM_LEN, hdr + 1, sizeof(uint64_t));
+	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16) {
+		memcpy(crp.crp_iv, tls->params.iv, TLS_AEAD_GCM_LEN);
+		memcpy(crp.crp_iv + TLS_AEAD_GCM_LEN, hdr + 1,
+		    sizeof(uint64_t));
+	} else {
+		/*
+		 * Chacha20-Poly1305 constructs the IV for TLS 1.2
+		 * identically to constructing the IV for AEAD in TLS
+		 * 1.3.
+		 */
+		memcpy(crp.crp_iv, tls->params.iv, tls->params.iv_len);
+		*(uint64_t *)(crp.crp_iv + 4) ^= htobe64(seqno);
+	}
 
 	/* Setup the AAD. */
-	tls_comp_len = ntohs(hdr->tls_length) -
-	    (AES_GMAC_HASH_LEN + sizeof(uint64_t));
+	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
+		tls_comp_len = ntohs(hdr->tls_length) -
+		    (AES_GMAC_HASH_LEN + sizeof(uint64_t));
+	else
+		tls_comp_len = ntohs(hdr->tls_length) - POLY1305_HASH_LEN;
 	ad.seq = htobe64(seqno);
 	ad.type = hdr->tls_type;
 	ad.tls_vmajor = hdr->tls_vmajor;
@@ -444,7 +485,10 @@ ktls_ocf_tls12_gcm_decrypt(struct ktls_session *tls,
 	crp.crp_flags = CRYPTO_F_CBIMM | CRYPTO_F_IV_SEPARATE;
 	crypto_use_mbuf(&crp, m);
 
-	counter_u64_add(ocf_tls12_gcm_crypts, 1);
+	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
+		counter_u64_add(ocf_tls12_gcm_crypts, 1);
+	else
+		counter_u64_add(ocf_tls12_chacha20_crypts, 1);
 	error = ktls_ocf_dispatch(os, &crp);
 
 	crypto_destroyreq(&crp);
@@ -453,7 +497,7 @@ ktls_ocf_tls12_gcm_decrypt(struct ktls_session *tls,
 }
 
 static int
-ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
+ktls_ocf_tls13_aead_encrypt(struct ktls_session *tls,
     const struct tls_record_layer *hdr, uint8_t *trailer, struct iovec *iniov,
     struct iovec *outiov, int iovcnt, uint64_t seqno, uint8_t record_type)
 {
@@ -503,11 +547,11 @@ ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
 	 */
 	memcpy(iov, iniov, iovcnt * sizeof(*iov));
 	iov[iovcnt].iov_base = trailer;
-	iov[iovcnt].iov_len = AES_GMAC_HASH_LEN + 1;
+	iov[iovcnt].iov_len = tls->params.tls_tlen;
 	uio.uio_iov = iov;
 	uio.uio_iovcnt = iovcnt + 1;
 	uio.uio_offset = 0;
-	uio.uio_resid = crp.crp_payload_length + AES_GMAC_HASH_LEN;
+	uio.uio_resid = crp.crp_payload_length + tls->params.tls_tlen - 1;
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_td = curthread;
 	crypto_use_uio(&crp, &uio);
@@ -521,7 +565,7 @@ ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
 		out_uio.uio_iovcnt = iovcnt + 1;
 		out_uio.uio_offset = 0;
 		out_uio.uio_resid = crp.crp_payload_length +
-		    AES_GMAC_HASH_LEN;
+		    tls->params.tls_tlen - 1;
 		out_uio.uio_segflg = UIO_SYSSPACE;
 		out_uio.uio_td = curthread;
 		crypto_use_output_uio(&crp, &out_uio);
@@ -532,7 +576,10 @@ ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
 
 	memcpy(crp.crp_iv, nonce, sizeof(nonce));
 
-	counter_u64_add(ocf_tls13_gcm_crypts, 1);
+	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
+		counter_u64_add(ocf_tls13_gcm_crypts, 1);
+	else
+		counter_u64_add(ocf_tls13_chacha20_crypts, 1);
 	if (inplace)
 		counter_u64_add(ocf_inplace, 1);
 	else
@@ -640,6 +687,32 @@ ktls_ocf_try(struct socket *so, struct ktls_session *tls, int direction)
 		mac_csp.csp_auth_key = tls->params.auth_key;
 		mac_csp.csp_auth_klen = tls->params.auth_key_len;
 		break;
+	case CRYPTO_CHACHA20_POLY1305:
+		switch (tls->params.cipher_key_len) {
+		case 256 / 8:
+			break;
+		default:
+			return (EINVAL);
+		}
+
+		/* Only TLS 1.2 and 1.3 are supported. */
+		if (tls->params.tls_vmajor != TLS_MAJOR_VER_ONE ||
+		    tls->params.tls_vminor < TLS_MINOR_VER_TWO ||
+		    tls->params.tls_vminor > TLS_MINOR_VER_THREE)
+			return (EPROTONOSUPPORT);
+
+		/* TLS 1.3 is not yet supported for receive. */
+		if (direction == KTLS_RX &&
+		    tls->params.tls_vminor == TLS_MINOR_VER_THREE)
+			return (EPROTONOSUPPORT);
+
+		csp.csp_flags |= CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD;
+		csp.csp_mode = CSP_MODE_AEAD;
+		csp.csp_cipher_alg = CRYPTO_CHACHA20_POLY1305;
+		csp.csp_cipher_key = tls->params.cipher_key;
+		csp.csp_cipher_klen = tls->params.cipher_key_len;
+		csp.csp_ivlen = CHACHA20_POLY1305_IV_LEN;
+		break;
 	default:
 		return (EPROTONOSUPPORT);
 	}
@@ -668,14 +741,15 @@ ktls_ocf_try(struct socket *so, struct ktls_session *tls, int direction)
 
 	mtx_init(&os->lock, "ktls_ocf", NULL, MTX_DEF);
 	tls->cipher = os;
-	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16) {
+	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16 ||
+	    tls->params.cipher_algorithm == CRYPTO_CHACHA20_POLY1305) {
 		if (direction == KTLS_TX) {
 			if (tls->params.tls_vminor == TLS_MINOR_VER_THREE)
-				tls->sw_encrypt = ktls_ocf_tls13_gcm_encrypt;
+				tls->sw_encrypt = ktls_ocf_tls13_aead_encrypt;
 			else
-				tls->sw_encrypt = ktls_ocf_tls12_gcm_encrypt;
+				tls->sw_encrypt = ktls_ocf_tls12_aead_encrypt;
 		} else {
-			tls->sw_decrypt = ktls_ocf_tls12_gcm_decrypt;
+			tls->sw_decrypt = ktls_ocf_tls12_aead_decrypt;
 		}
 	} else {
 		tls->sw_encrypt = ktls_ocf_tls_cbc_encrypt;
