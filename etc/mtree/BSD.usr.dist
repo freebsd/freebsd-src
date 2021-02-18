@@ -1230,6 +1230,10 @@
             keymaps
             ..
         ..
+        zfs
+            compatibility.d
+            ..
+        ..
         zoneinfo
             Africa
             ..

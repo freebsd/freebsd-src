@@ -2,10 +2,11 @@
 
 .include <src.opts.mk>
 
-SUBDIR=	lib .WAIT \
-	sbin share usr.bin usr.sbin
+SUBDIR= ${_zfs}
 
-SUBDIR.${MK_TESTS}+= tests
+.if ${MK_ZFS} != "no"
+_zfs=   zfs
+.endif
 
 SUBDIR_PARALLEL=
 
