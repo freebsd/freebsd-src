@@ -452,7 +452,7 @@ gitarc::patch()
 
 gitarc::stage()
 {
-    local branch commit commits diff reviewers tmp
+    local author branch commit commits diff reviewers tmp
 
     branch=main
     while getopts b: o; do
@@ -488,12 +488,13 @@ gitarc::stage()
             fi
             printf "Differential Revision:\thttps://reviews.freebsd.org/${diff}" >> $tmp
         fi
+        author=$(git show -s --format='%an <%ae>' ${commit})
         if ! git cherry-pick --no-commit ${commit}; then
             warn "Failed to apply $(git rev-parse --short ${commit}).  Are you staging patches in the wrong order?"
             git checkout -f
             break
         fi
-        git commit --edit --file $tmp
+        git commit --edit --file $tmp --author "${author}"
     done
 }
 
