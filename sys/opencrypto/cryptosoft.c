@@ -537,6 +537,9 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 		}
 	}
 
+	if (crp->crp_cipher_key != NULL)
+		exf->setkey(swe->sw_kschedule, crp->crp_cipher_key,
+		    crypto_get_params(crp->crp_session)->csp_cipher_klen);
 	exf->reinit(swe->sw_kschedule, iv);
 
 	/* Do encryption with MAC */
@@ -755,6 +758,9 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	if (error)
 		return (error);
 
+	if (crp->crp_cipher_key != NULL)
+		exf->setkey(swe->sw_kschedule, crp->crp_cipher_key,
+		    crypto_get_params(crp->crp_session)->csp_cipher_klen);
 	exf->reinit(swe->sw_kschedule, iv);
 
 	/* Do encryption/decryption with MAC */
