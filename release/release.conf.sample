@@ -17,8 +17,7 @@ SVNROOT="svn://svn.FreeBSD.org/"
 
 ## Set the src/, ports/, and doc/ branches or tags.
 SRCBRANCH="base/stable/12@rHEAD"
-DOCBRANCH="doc/head@rHEAD"
-PORTBRANCH="ports/head@rHEAD"
+PORTBRANCH="main"
 
 ## Run svn co --force for src checkout.
 #SRC_FORCE_CHECKOUT=yes
@@ -29,6 +28,15 @@ PORTBRANCH="ports/head@rHEAD"
 #SRCBRANCH="https://github.com/freebsd/freebsd"
 #DOCBRANCH="https://github.com/freebsd/freebsd-doc"
 #PORTBRANCH="https://github.com/freebsd/freebsd-ports"
+## Do not explicitly require the devel/git port to be installed.
+#NOGIT=1
+## Set the version control system host.
+GITROOT="https://git.freebsd.org/"
+GITSRC="src.git"
+GITPORTS="ports.git"
+
+## Sample configuration for using git from ports.
+#GITCMD="/usr/local/bin/git clone -q --branch main"
 
 ## Set to override the default target architecture.
 #TARGET="amd64"
@@ -49,7 +57,6 @@ PORTBRANCH="ports/head@rHEAD"
 #KERNEL_FLAGS="-j $(( $(( $(sysctl -n hw.ncpu) + 1 )) / 2 ))"
 
 ## Set miscellaneous 'make release' settings.
-#NODOC=
 #NOPORTS=
 #NOSRC=
 #WITH_DVD=
@@ -83,10 +90,6 @@ PORTBRANCH="ports/head@rHEAD"
 ## Set to a non-empty value skip checkout or update of /usr/src in
 ## the chroot.  This is intended for use when /usr/src already exists.
 #SRC_UPDATE_SKIP=
-
-## Set to a non-empty value skip checkout or update of /usr/doc in
-## the chroot.  This is intended for use when /usr/doc already exists.
-#DOC_UPDATE_SKIP=
 
 ## Set to a non-empty value skip checkout or update of /usr/ports in
 ## the chroot.  This is intended for use when /usr/ports already exists.

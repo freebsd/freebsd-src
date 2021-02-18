@@ -70,9 +70,10 @@ env_setup() {
 	# The default svn checkout server, and svn branches for src/, doc/,
 	# and ports/.
 	SVNROOT="svn://svn.FreeBSD.org/"
-	SRCBRANCH="base/head@rHEAD"
-	DOCBRANCH="doc/head@rHEAD"
-	PORTBRANCH="ports/head@rHEAD"
+	SRCBRANCH="base/stable/12@rHEAD"
+	PORTBRANCH="main"
+	GITROOT="https://git.FreeBSD.org/"
+	GITPORTS="ports.git"
 
 	# Set for embedded device builds.
 	EMBEDDEDBUILD=
@@ -98,8 +99,6 @@ env_setup() {
 	KERNEL="GENERIC"
 
 	# Set to non-empty value to disable checkout of doc/ and/or ports/.
-	# Disabling ports/ checkout also forces NODOC to be set.
-	NODOC=
 	NOPORTS=
 
 	# Set to non-empty value to disable distributing source tree.
@@ -140,13 +139,12 @@ env_check() {
 
 	# Prefix the branches with the SVNROOT for the full checkout URL.
 	SRCBRANCH="${SVNROOT}${SRCBRANCH}"
-	DOCBRANCH="${SVNROOT}${DOCBRANCH}"
-	PORTBRANCH="${SVNROOT}${PORTBRANCH}"
+	# Prefix the branches with the GITROOT for the full checkout URL.
+	PORT="${GITROOT}${GITPORTS}"
 
 	if [ -n "${EMBEDDEDBUILD}" ]; then
 		WITH_DVD=
 		WITH_COMPRESSED_IMAGES=
-		NODOC=yes
 		case ${EMBEDDED_TARGET}:${EMBEDDED_TARGET_ARCH} in
 			arm:arm*|arm64:aarch64)
 				chroot_build_release_cmd="chroot_arm_build_release"
@@ -156,26 +154,15 @@ env_check() {
 		esac
 	fi
 
-	# If PORTS is set and NODOC is unset, force NODOC=yes because the ports
-	# tree is required to build the documentation set.
-	if [ -n "${NOPORTS}" ] && [ -z "${NODOC}" ]; then
-		echo "*** NOTICE: Setting NODOC=1 since ports tree is required"
-		echo "            and NOPORTS is set."
-		NODOC=yes
-	fi
-
-	# If NOSRC, NOPORTS and/or NODOC are unset, they must not pass to make
+	# If NOSRC and/or NOPORTS are unset, they must not pass to make
 	# as variables.  The release makefile verifies definedness of the
-	# NOPORTS/NODOC variables instead of their values.
-	SRCDOCPORTS=
+	# NOPORTS variable instead of its value.
+	SRCPORTS=
 	if [ -n "${NOPORTS}" ]; then
-		SRCDOCPORTS="NOPORTS=yes"
-	fi
-	if [ -n "${NODOC}" ]; then
-		SRCDOCPORTS="${SRCDOCPORTS}${SRCDOCPORTS:+ }NODOC=yes"
+		SRCPORTS="NOPORTS=yes"
 	fi
 	if [ -n "${NOSRC}" ]; then
-		SRCDOCPORTS="${SRCDOCPORTS}${SRCDOCPORTS:+ }NOSRC=yes"
+		SRCPORTS="${SRCPORTS}${SRCPORTS:+ }NOSRC=yes"
 	fi
 
 	# The aggregated build-time flags based upon variables defined within
@@ -218,7 +205,7 @@ env_check() {
 	RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} \
 		KERNCONF=\"${KERNEL}\" ${ARCH_FLAGS} ${CONF_FILES}"
 	RELEASE_RMAKEFLAGS="${ARCH_FLAGS} \
-		KERNCONF=\"${KERNEL}\" ${CONF_FILES} ${SRCDOCPORTS} \
+		KERNCONF=\"${KERNEL}\" ${CONF_FILES} ${SRCPORTS} \
 		WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES} \
 		WITH_CLOUDWARE=${WITH_CLOUDWARE} XZ_THREADS=${XZ_THREADS}"
 
@@ -232,9 +219,6 @@ chroot_setup() {
 
 	if [ -z "${SRC_UPDATE_SKIP}" ]; then
 		${VCSCMD} ${FORCE_SRC_KEY} ${SRCBRANCH} ${CHROOTDIR}/usr/src
-	fi
-	if [ -z "${NODOC}" ] && [ -z "${DOC_UPDATE_SKIP}" ]; then
-		${VCSCMD} ${DOCBRANCH} ${CHROOTDIR}/usr/doc
 	fi
 	if [ -z "${NOPORTS}" ] && [ -z "${PORTS_UPDATE_SKIP}" ]; then
 		${VCSCMD} ${PORTBRANCH} ${CHROOTDIR}/usr/ports
@@ -274,24 +258,37 @@ extra_chroot_setup() {
 		cp ${SRC_CONF} ${CHROOTDIR}/${SRC_CONF}
 	fi
 
-	if [ -d ${CHROOTDIR}/usr/ports ]; then
-		# Trick the ports 'run-autotools-fixup' target to do the right
-		# thing.
-		_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
-		REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
-		BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
-		UNAME_r=${REVISION}-${BRANCH}
-		if [ -d ${CHROOTDIR}/usr/doc ] && [ -z "${NODOC}" ]; then
+	if [ -z "${NOGIT}" ]; then
+		# Install git from ports or packages if the ports tree is
+		# available and VCSCMD is unset.
+		_gitcmd="$(which git)"
+		if [ -d ${CHROOTDIR}/usr/ports -a -z "${_gitcmd}" ]; then
+			# Trick the ports 'run-autotools-fixup' target to do the right
+			# thing.
+			_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
+			REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
+			BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
+			UNAME_r=${REVISION}-${BRANCH}
+			GITUNSETOPTS="CONTRIB CURL CVS GITWEB GUI HTMLDOCS"
+			GITUNSETOPTS="${GITUNSETOPTS} ICONV NLS P4 PERL"
+			GITUNSETOPTS="${GITUNSETOPTS} SEND_EMAIL SUBTREE SVN"
+			GITUNSETOPTS="${GITUNSETOPTS} PCRE PCRE2"
 			PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
 			PBUILD_FLAGS="${PBUILD_FLAGS} UNAME_r=${UNAME_r}"
 			PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
 			PBUILD_FLAGS="${PBUILD_FLAGS} WRKDIRPREFIX=/tmp/ports"
 			PBUILD_FLAGS="${PBUILD_FLAGS} DISTDIR=/tmp/distfiles"
-			chroot ${CHROOTDIR} env ${PBUILD_FLAGS} \
-				OPTIONS_UNSET="AVAHI FOP IGOR" make -C \
-				/usr/ports/textproc/docproj \
-				FORCE_PKG_REGISTER=1 \
+			eval chroot ${CHROOTDIR} env OPTIONS_UNSET=\"${GITUNSETOPTS}\" \
+				${PBUILD_FLAGS} \
+				make -C /usr/ports/devel/git FORCE_PKG_REGISTER=1 \
+				WRKDIRPREFIX=/tmp/ports \
+				DISTDIR=/tmp/distfiles \
 				install clean distclean
+		else
+			eval chroot ${CHROOTDIR} env ASSUME_ALWAYS_YES=yes \
+				pkg install -y devel/git
+			eval chroot ${CHROOTDIR} env ASSUME_ALWAYS_YES=yes \
+				pkg clean -y
 		fi
 	fi
 
