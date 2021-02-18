@@ -16,11 +16,9 @@ CHROOTDIR="/scratch"
 GITROOT="https://git.freebsd.org/"
 GITSRC="src.git"
 GITPORTS="ports.git"
-GITDOC="doc.git"
 
 ## Set the src/, ports/, and doc/ branches or tags.
 SRCBRANCH="main"
-DOCBRANCH="main"
 PORTBRANCH="main"
 
 ## Sample configuration for using git from ports.
@@ -45,7 +43,6 @@ PORTBRANCH="main"
 #KERNEL_FLAGS="-j $(( $(( $(sysctl -n hw.ncpu) + 1 )) / 2 ))"
 
 ## Set miscellaneous 'make release' settings.
-#NODOC=
 #NOPORTS=
 #NOSRC=
 #WITH_DVD=
@@ -79,10 +76,6 @@ PORTBRANCH="main"
 ## Set to a non-empty value skip checkout or update of /usr/src in
 ## the chroot.  This is intended for use when /usr/src already exists.
 #SRC_UPDATE_SKIP=
-
-## Set to a non-empty value skip checkout or update of /usr/doc in
-## the chroot.  This is intended for use when /usr/doc already exists.
-#DOC_UPDATE_SKIP=
 
 ## Set to a non-empty value skip checkout or update of /usr/ports in
 ## the chroot.  This is intended for use when /usr/ports already exists.

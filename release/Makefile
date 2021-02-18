@@ -20,12 +20,10 @@
 #  WORLDDIR: location of src tree -- must have built world and default kernel
 #            (by default, the directory above this one)
 #  PORTSDIR: location of ports tree to distribute (default: /usr/ports)
-#  DOCDIR:   location of doc tree (default: /usr/doc)
 #  XTRADIR:  xtra-bits-dir argument for <arch>/mkisoimages.sh
 #  NOPKG:    if set, do not distribute third-party packages
 #  NOPORTS:  if set, do not distribute ports tree
 #  NOSRC:    if set, do not distribute source tree
-#  NODOC:    if set, do not generate release documentation
 #  WITH_DVD: if set, generate dvd1.iso
 #  WITH_COMPRESSED_IMAGES: if set, compress installation images with xz(1)
 #		(uncompressed images are not removed)
@@ -38,7 +36,6 @@
 
 WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
-DOCDIR?=	/usr/doc
 RELNOTES_LANG?= en_US.ISO8859-1
 
 .if !defined(TARGET) || empty(TARGET)
@@ -74,9 +71,6 @@ VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
 VOLUME_LABEL=	FreeBSD_Install
 .endif
 
-.if !exists(${DOCDIR})
-NODOC= true
-.endif
 .if !exists(${PORTSDIR})
 NOPORTS= true
 .endif
@@ -88,9 +82,6 @@ EXTRA_PACKAGES+= ports.txz
 .if !defined(NOSRC)
 EXTRA_PACKAGES+= src.txz
 .endif
-#.if !defined(NODOC)
-#EXTRA_PACKAGES+= reldoc
-#.endif
 
 RELEASE_TARGETS= ftp
 IMAGES=
@@ -119,9 +110,6 @@ CLEANFILES+=	${I}.xz
 CLEANFILES+=	pkg-stage
 .endif
 CLEANDIRS=	dist ftp disc1 bootonly dvd
-#.if !defined(NODOC)
-#CLEANDIRS+=    reldoc rdoc
-#.endif
 beforeclean:
 	chflags -R noschg .
 .include <bsd.obj.mk>
@@ -161,23 +149,6 @@ ports.txz:
 	    --exclude 'usr/ports/INDEX*' --exclude work usr/ports | \
 	    ${XZ_CMD} > ${.OBJDIR}/ports.txz
 
-#reldoc:
-#	cd ${DOCDIR}/en_US.ISO8859-1/htdocs/releases/${REVISION}R && \
-#	    env MAN4DIR=${WORLDDIR}/share/man/man4 \
-#	    _BRANCH=${BRANCH} \
-#	    ${MAKE} all install clean "FORMATS=html txt" \
-#	    INSTALL_COMPRESSED='' URLS_ABSOLUTE=YES DOCDIR=${.OBJDIR}/rdoc \
-#	    WEBDIR=${DOCDIR} DESTDIR=${.OBJDIR}/rdoc
-#	mkdir -p reldoc
-#.for i in hardware readme relnotes errata
-#	ln -f ${.OBJDIR}/rdoc/${i:tl}.txt \
-#		reldoc/${i:tu}.TXT
-#	ln -f ${.OBJDIR}/rdoc/${i:tl}.html \
-#		reldoc/${i:tu}.HTML
-#.endfor
-#	cp ${.OBJDIR}/rdoc/docbook.css \
-#		reldoc/
-
 disc1: packagesystem
 # Install system
 	mkdir -p ${.TARGET}
@@ -193,10 +164,6 @@ disc1: packagesystem
 	for dist in MANIFEST $$(ls *.txz | grep -vE -- '(base|lib32)-dbg'); \
 	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
 	done
-# Copy documentation, if generated
-#.if !defined(NODOC)
-#	cp reldoc/* ${.TARGET}
-#.endif
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
@@ -221,10 +188,6 @@ bootonly: packagesystem
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	cp MANIFEST ${.TARGET}/usr/freebsd-dist
-# Copy documentation, if generated
-#.if !defined(NODOC)
-#	cp reldoc/* ${.TARGET}
-#.endif
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
@@ -246,10 +209,6 @@ dvd: packagesystem
 	for dist in MANIFEST $$(ls *.txz | grep -v -- '(base|lib32)-dbg'); \
 	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
 	done
-# Copy documentation, if generated
-#.if !defined(NODOC)
-#	cp reldoc/* ${.TARGET}
-#.endif
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
