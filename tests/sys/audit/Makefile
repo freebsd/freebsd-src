@@ -48,10 +48,19 @@ SRCS.miscellaneous+=		utils.c
 
 TEST_METADATA+= timeout="30"
 TEST_METADATA+= required_user="root"
+# Only one process can be auditing, if we attempt to run these tests in parallel
+# some of them will fail to start auditing.
+# TODO: it would be nice to be able to run them in parallel with other non-audit
+# tests using some internal form of synchronization.
+# TODO: In addititon to test failures, running in parallel can trigger a kernel
+# panic: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=253616
 TEST_METADATA+= is_exclusive="true"
 TEST_METADATA+=	required_files="/etc/rc.d/auditd /dev/auditpipe"
 
 LDFLAGS+=	-lbsm -lutil
+OPENBSMDIR=${SRCTOP}/contrib/openbsm
+CFLAGS+=	-I${OPENBSMDIR}
+LDADD+=	${LIBAUDITD}
 
 CFLAGS.process-control.c+=	-I${SRCTOP}/tests
 
