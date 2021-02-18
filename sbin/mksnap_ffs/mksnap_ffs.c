@@ -40,7 +40,11 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+
+#include <ufs/ufs/extattr.h>
+#include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>

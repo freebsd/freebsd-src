@@ -49,12 +49,12 @@ struct componentname;
 struct makefs_fsinfo;
 struct ucred;
 
-struct vnode {
+struct m_vnode {
 	struct makefs_fsinfo *fs;
 	void *v_data;
 };
 
-struct buf {
+struct m_buf {
 	char *		b_data;
 	long		b_bufsize;
 	long		b_bcount;
@@ -62,15 +62,15 @@ struct buf {
 	daddr_t		b_lblkno;
 	struct makefs_fsinfo *b_fs;
 
-	TAILQ_ENTRY(buf)	b_tailq;
+	TAILQ_ENTRY(m_buf)	b_tailq;
 };
 
 void		bcleanup(void);
-int		bread(struct vnode *, daddr_t, int, struct ucred *,
-    struct buf **);
-void		brelse(struct buf *);
-int		bwrite(struct buf *);
-struct buf *	getblk(struct vnode *, daddr_t, int, int, int, int);
+int		bread(struct m_vnode *, daddr_t, int, struct ucred *,
+    struct m_buf **);
+void		brelse(struct m_buf *);
+int		bwrite(struct m_buf *);
+struct m_buf *	getblk(struct m_vnode *, daddr_t, int, int, int, int);
 
 #define	bdwrite(bp)	bwrite(bp)
 #define	clrbuf(bp)	memset((bp)->b_data, 0, (u_int)(bp)->b_bcount)

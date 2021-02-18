@@ -37,8 +37,6 @@
 
 #include <sys/queue.h>
 
-#ifdef _KERNEL
-
 struct devfs_dirent;
 struct devfs_mount;
 
@@ -75,6 +73,8 @@ struct cdev_priv {
 };
 
 #define	cdev2priv(c)	__containerof(c, struct cdev_priv, cdp_c)
+
+#ifdef _KERNEL
 
 struct cdev	*devfs_alloc(int);
 int	devfs_dev_exists(const char *);

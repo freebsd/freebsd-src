@@ -104,10 +104,6 @@ struct extattr {
 #define	EXTATTR_BASE_LENGTH(eap) \
 	roundup2((sizeof(struct extattr) - 1 + (eap)->ea_namelength), 8)
 
-#ifdef _KERNEL
-
-#include <sys/_sx.h>
-
 struct vnode;
 LIST_HEAD(ufs_extattr_list_head, ufs_extattr_list_entry);
 struct ufs_extattr_list_entry {
@@ -118,6 +114,9 @@ struct ufs_extattr_list_entry {
 	struct vnode	*uele_backing_vnode;
 };
 
+#include <sys/_lock.h>
+#include <sys/_sx.h>
+
 struct ucred;
 struct ufs_extattr_per_mount {
 	struct sx	uepm_lock;
@@ -125,6 +124,8 @@ struct ufs_extattr_per_mount {
 	struct ucred	*uepm_ucred;
 	int	uepm_flags;
 };
+
+#ifdef _KERNEL
 
 struct vop_getextattr_args;
 struct vop_deleteextattr_args;

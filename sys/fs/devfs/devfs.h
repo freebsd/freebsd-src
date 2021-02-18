@@ -124,6 +124,8 @@ struct devfs_rule {
 MALLOC_DECLARE(M_DEVFS);
 #endif
 
+#endif /* _KERNEL */
+
 struct componentname;
 
 TAILQ_HEAD(devfs_dlist_head, devfs_dirent);
@@ -156,6 +158,9 @@ struct devfs_dirent {
 	int			de_usecount;
 };
 
+#include <sys/_lock.h>
+#include <sys/_sx.h>
+
 struct devfs_mount {
 	u_int			dm_idx;
 	struct mount		*dm_mount;
@@ -167,6 +172,8 @@ struct devfs_mount {
 };
 
 #define DEVFS_ROOTINO 2
+
+#ifdef _KERNEL
 
 extern unsigned devfs_rule_depth;
 

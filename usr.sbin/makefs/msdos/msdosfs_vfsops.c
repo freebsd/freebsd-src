@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <util.h>
 
-#include "ffs/buf.h"
 #include <fs/msdosfs/bootsect.h>
 #include <fs/msdosfs/bpb.h>
 #include "msdos/direntry.h"
@@ -71,16 +70,16 @@ __FBSDID("$FreeBSD$");
 
 #include <mkfs_msdos.h>
 
+#undef clrbuf
+#include "ffs/buf.h"
 #include "makefs.h"
 #include "msdos.h"
 
-
-
 struct msdosfsmount *
-msdosfs_mount(struct vnode *devvp)
+m_msdosfs_mount(struct m_vnode *devvp)
 {
 	struct msdosfsmount *pmp = NULL;
-	struct buf *bp;
+	struct m_buf *bp;
 	union bootsector *bsp;
 	struct byte_bpb33 *b33;
 	struct byte_bpb50 *b50;
@@ -91,7 +90,7 @@ msdosfs_mount(struct vnode *devvp)
 	unsigned secsize = 512;
 
 	MSDOSFS_DPRINTF(("%s(bread 0)\n", __func__));
-	if ((error = bread(devvp, 0, secsize, 0, &bp)) != 0)
+	if ((error = bread((void *)devvp, 0, secsize, 0, &bp)) != 0)
 		goto error_exit;
 
 	bsp = (union bootsector *)bp->b_data;
@@ -273,8 +272,8 @@ msdosfs_mount(struct vnode *devvp)
 		 *	2KB or larger sectors, is the fsinfo structure
 		 *	padded at the end or in the middle?
 		 */
-		if ((error = bread(devvp, pmp->pm_fsinfo, pmp->pm_BytesPerSec,
-		    0, &bp)) != 0)
+		if ((error = bread((void *)devvp, pmp->pm_fsinfo,
+		    pmp->pm_BytesPerSec, 0, &bp)) != 0)
 			goto error_exit;
 		fp = (struct fsinfo *)bp->b_data;
 		if (!memcmp(fp->fsisig1, "RRaA", 4)
@@ -307,7 +306,7 @@ msdosfs_mount(struct vnode *devvp)
 	 * fillinusemap() needs pm_devvp.
 	 */
 	pmp->pm_dev = 0;
-	pmp->pm_devvp = devvp;
+	pmp->pm_devvp = (void *)devvp;
 
 	/*
 	 * Have the inuse map filled in.
@@ -348,11 +347,11 @@ error_exit:
 }
 
 int
-msdosfs_root(struct msdosfsmount *pmp, struct vnode *vp) {
+msdosfs_root(struct msdosfsmount *pmp, struct m_vnode *vp) {
 	struct denode *ndep;
 	int error;
 
-	*vp = *pmp->pm_devvp;
+	*vp = *(struct m_vnode *)pmp->pm_devvp;
 	if ((error = deget(pmp, MSDOSFSROOT, MSDOSFSROOT_OFS, &ndep)) != 0) {
 		errno = error;
 		return -1;
@@ -368,15 +367,15 @@ int
 msdosfs_fsiflush(struct msdosfsmount *pmp)
 {
 	struct fsinfo *fp;
-	struct buf *bp;
+	struct m_buf *bp;
 	int error;
 
 	if (pmp->pm_fsinfo == 0 || (pmp->pm_flags & MSDOSFS_FSIMOD) == 0) {
 		error = 0;
 		goto out;
 	}
-	error = bread(pmp->pm_devvp, pmp->pm_fsinfo, pmp->pm_BytesPerSec,
-	    NOCRED, &bp);
+	error = bread((void *)pmp->pm_devvp, pmp->pm_fsinfo,
+	    pmp->pm_BytesPerSec, NOCRED, &bp);
 	if (error != 0) {
 		brelse(bp);
 		goto out;

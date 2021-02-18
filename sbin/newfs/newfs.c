@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+#include <ufs/ufs/extattr.h>
+#include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
 
 #include <ctype.h>
