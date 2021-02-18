@@ -426,7 +426,7 @@ nopgrp:
 					    TD_CAN_RUN(&mtd) ||
 					    TD_IS_RUNNING(&mtd)) {
 						kp->ki_stat = SRUN;
-					} else if (mtd.td_state ==
+					} else if (TD_GET_STATE(&mtd) ==
 					    TDS_INHIBITED) {
 						if (P_SHOULDSTOP(&proc)) {
 							kp->ki_stat = SSTOP;

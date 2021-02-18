@@ -510,11 +510,11 @@ do_qXfer_threads_read(void)
 
 			sbuf_putc(&ctx.qXfer.sb, '>');
 
-			if (ctx.iter->td_state == TDS_RUNNING)
+			if (TD_GET_STATE(ctx.iter) == TDS_RUNNING)
 				sbuf_cat(&ctx.qXfer.sb, "Running");
-			else if (ctx.iter->td_state == TDS_RUNQ)
+			else if (TD_GET_STATE(ctx.iter) == TDS_RUNQ)
 				sbuf_cat(&ctx.qXfer.sb, "RunQ");
-			else if (ctx.iter->td_state == TDS_CAN_RUN)
+			else if (TD_GET_STATE(ctx.iter) == TDS_CAN_RUN)
 				sbuf_cat(&ctx.qXfer.sb, "CanRun");
 			else if (TD_ON_LOCK(ctx.iter))
 				sbuf_cat(&ctx.qXfer.sb, "Blocked");

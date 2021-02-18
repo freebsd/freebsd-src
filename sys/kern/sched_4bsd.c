@@ -1764,7 +1764,7 @@ sched_affinity(struct thread *td)
 	if (td->td_pinned != 0 || td->td_flags & TDF_BOUND)
 		return;
 
-	switch (td->td_state) {
+	switch (TD_GET_STATE(td)) {
 	case TDS_RUNQ:
 		/*
 		 * If we are on a per-CPU runqueue that is in the set,

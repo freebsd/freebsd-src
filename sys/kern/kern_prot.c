@@ -1955,7 +1955,7 @@ credbatch_add(struct credbatch *crb, struct thread *td)
 
 	MPASS(td->td_realucred != NULL);
 	MPASS(td->td_realucred == td->td_ucred);
-	MPASS(td->td_state == TDS_INACTIVE);
+	MPASS(TD_GET_STATE(td) == TDS_INACTIVE);
 	cr = td->td_realucred;
 	KASSERT(cr->cr_users > 0, ("%s: users %d not > 0 on cred %p",
 	    __func__, cr->cr_users, cr));

@@ -1054,7 +1054,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 				state = "X (exiting)";
 				break;
 			}
-			switch(td2->td_state) {
+			switch(TD_GET_STATE(td2)) {
 			case TDS_INHIBITED:
 				state = "S (sleeping)";
 				break;
