@@ -1623,5 +1623,6 @@ ext4_ext_remove_space(struct inode *ip, off_t length, int flags,
 	ext4_ext_drop_refs(path);
 	free(path, M_EXT2EXTENTS);
 
+	ip->i_ext_cache.ec_type = EXT4_EXT_CACHE_NO;
 	return (error);
 }
