@@ -826,16 +826,15 @@ hwsz_ok(struct adapter *sc, int hwsz)
 }
 
 /*
- * XXX: driver really should be able to deal with unexpected settings.
+ * Initialize the rx buffer sizes and figure out which zones the buffers will
+ * be allocated from.
  */
-int
-t4_read_chip_settings(struct adapter *sc)
+void
+t4_init_rx_buf_info(struct adapter *sc)
 {
 	struct sge *s = &sc->sge;
 	struct sge_params *sp = &sc->params.sge;
-	int i, j, n, rc = 0;
-	uint32_t m, v, r;
-	uint16_t indsz = min(RX_COPY_THRESHOLD - 1, M_INDICATESIZE);
+	int i, j, n;
 	static int sw_buf_sizes[] = {	/* Sorted by size */
 		MCLBYTES,
 #if MJUMPAGESIZE != MCLBYTES
@@ -845,23 +844,6 @@ t4_read_chip_settings(struct adapter *sc)
 		MJUM16BYTES
 	};
 	struct rx_buf_info *rxb;
-
-	m = F_RXPKTCPLMODE;
-	v = F_RXPKTCPLMODE;
-	r = sc->params.sge.sge_control;
-	if ((r & m) != v) {
-		device_printf(sc->dev, "invalid SGE_CONTROL(0x%x)\n", r);
-		rc = EINVAL;
-	}
-
-	/*
-	 * If this changes then every single use of PAGE_SHIFT in the driver
-	 * needs to be carefully reviewed for PAGE_SHIFT vs sp->page_shift.
-	 */
-	if (sp->page_shift != PAGE_SHIFT) {
-		device_printf(sc->dev, "invalid SGE_HOST_PAGE_SIZE(0x%x)\n", r);
-		rc = EINVAL;
-	}
 
 	s->safe_zidx = -1;
 	rxb = &s->rx_buf_info[0];
@@ -907,6 +889,36 @@ t4_read_chip_settings(struct adapter *sc)
 		if (s->safe_zidx == -1 && rxb->size1 == safest_rx_cluster)
 			s->safe_zidx = i;
 	}
+}
+
+/*
+ * Verify some basic SGE settings for the PF and VF driver, and other
+ * miscellaneous settings for the PF driver.
+ */
+int
+t4_verify_chip_settings(struct adapter *sc)
+{
+	struct sge_params *sp = &sc->params.sge;
+	uint32_t m, v, r;
+	int rc = 0;
+	const uint16_t indsz = min(RX_COPY_THRESHOLD - 1, M_INDICATESIZE);
+
+	m = F_RXPKTCPLMODE;
+	v = F_RXPKTCPLMODE;
+	r = sp->sge_control;
+	if ((r & m) != v) {
+		device_printf(sc->dev, "invalid SGE_CONTROL(0x%x)\n", r);
+		rc = EINVAL;
+	}
+
+	/*
+	 * If this changes then every single use of PAGE_SHIFT in the driver
+	 * needs to be carefully reviewed for PAGE_SHIFT vs sp->page_shift.
+	 */
+	if (sp->page_shift != PAGE_SHIFT) {
+		device_printf(sc->dev, "invalid SGE_HOST_PAGE_SIZE(0x%x)\n", r);
+		rc = EINVAL;
+	}
 
 	if (sc->flags & IS_VF)
 		return (0);
@@ -915,14 +927,16 @@ t4_read_chip_settings(struct adapter *sc)
 	r = t4_read_reg(sc, A_ULP_RX_TDDP_PSZ);
 	if (r != v) {
 		device_printf(sc->dev, "invalid ULP_RX_TDDP_PSZ(0x%x)\n", r);
-		rc = EINVAL;
+		if (sc->vres.ddp.size != 0)
+			rc = EINVAL;
 	}
 
 	m = v = F_TDDPTAGTCB;
 	r = t4_read_reg(sc, A_ULP_RX_CTL);
 	if ((r & m) != v) {
 		device_printf(sc->dev, "invalid ULP_RX_CTL(0x%x)\n", r);
-		rc = EINVAL;
+		if (sc->vres.ddp.size != 0)
+			rc = EINVAL;
 	}
 
 	m = V_INDICATESIZE(M_INDICATESIZE) | F_REARMDDPOFFSET |
@@ -931,13 +945,9 @@ t4_read_chip_settings(struct adapter *sc)
 	r = t4_read_reg(sc, A_TP_PARA_REG5);
 	if ((r & m) != v) {
 		device_printf(sc->dev, "invalid TP_PARA_REG5(0x%x)\n", r);
-		rc = EINVAL;
+		if (sc->vres.ddp.size != 0)
+			rc = EINVAL;
 	}
-
-	t4_init_tp_params(sc, 1);
-
-	t4_read_mtu_tbl(sc, sc->params.mtus, NULL);
-	t4_load_mtus(sc, sc->params.mtus, sc->params.a_wnd, sc->params.b_wnd);
 
 	return (rc);
 }

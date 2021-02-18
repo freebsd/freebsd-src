@@ -9677,7 +9677,7 @@ static void read_filter_mode_and_ingress_config(struct adapter *adap,
  *
  *      Initialize various fields of the adapter's TP Parameters structure.
  */
-int t4_init_tp_params(struct adapter *adap, bool sleep_ok)
+int t4_init_tp_params(struct adapter *adap)
 {
 	int chan;
 	u32 tx_len, rx_len, r, v;
@@ -9691,7 +9691,7 @@ int t4_init_tp_params(struct adapter *adap, bool sleep_ok)
 	for (chan = 0; chan < MAX_NCHAN; chan++)
 		tpp->tx_modq[chan] = chan;
 
-	read_filter_mode_and_ingress_config(adap, sleep_ok);
+	read_filter_mode_and_ingress_config(adap, true);
 
 	if (chip_id(adap) > CHELSIO_T5) {
 		v = t4_read_reg(adap, A_TP_OUT_CONFIG);
