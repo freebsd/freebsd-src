@@ -49,48 +49,61 @@ int
 main(int argc, char **argv)
 {
 	int res = EXIT_SUCCESS;
+	long lowfd;
 	char buf[BUFSIZE];
 	struct stat sb0, sb1;
 
+	if (argc < 2) {
+		fprintf(stderr, "%s: Not enough arguments: %d\n", getprogname(),
+		    argc);
+		return EXIT_FAILURE;
+	}
+	lowfd = strtol(argv[1], NULL, 10);
+	if (lowfd < 3) {
+		fprintf(stderr, "%s: Invalid lowfd %d (as str: %s) \n",
+		    getprogname(), argc, argv[1]);
+		return EXIT_FAILURE;
+	}
+
 	strcpy(buf, "test...");
-	/* file desc 3 should be closed via addclose */
-	if (read(3, buf, BUFSIZE) != -1 || errno != EBADF) {
-		fprintf(stderr, "%s: filedesc 3 is not closed\n",
+	/* First fd should be closed via addclose */
+	if (read(lowfd, buf, BUFSIZE) != -1 || errno != EBADF) {
+		fprintf(stderr, "%s: first filedesc is not closed\n",
 		    getprogname());
 		res = EXIT_FAILURE;
 	}
-	/* file desc 4 should be closed via closeonexec */
-	if (read(4, buf, BUFSIZE) != -1 || errno != EBADF) {
-		fprintf(stderr, "%s: filedesc 4 is not closed\n",
+	/* Next file desc should be closed via closeonexec */
+	if (read(lowfd + 1, buf, BUFSIZE) != -1 || errno != EBADF) {
+		fprintf(stderr, "%s: filedesc +1 is not closed\n",
 		    getprogname());
 		res = EXIT_FAILURE;
 	}
-	/* file desc 5 remains open */
-	if (write(5, buf, BUFSIZE) <= 0) {
-		fprintf(stderr, "%s: could not write to filedesc 5\n",
+	/* file desc + 2 remains open */
+	if (write(lowfd + 2, buf, BUFSIZE) <= 0) {
+		fprintf(stderr, "%s: could not write to filedesc +2\n",
 		    getprogname());
 		res = EXIT_FAILURE;
 	}
-	/* file desc 6 should be open (via addopen) */
-	if (write(6, buf, BUFSIZE) <= 0) {
-		fprintf(stderr, "%s: could not write to filedesc 6\n",
+	/* file desc + 3 should be open (via addopen) */
+	if (write(lowfd + 3, buf, BUFSIZE) <= 0) {
+		fprintf(stderr, "%s: could not write to filedesc +3\n",
 		    getprogname());
 		res = EXIT_FAILURE;
 	}
-	/* file desc 7 should refer to stdout */
+	/* file desc + 4 should refer to stdout */
 	fflush(stdout);
 	if (fstat(fileno(stdout), &sb0) != 0) {
 		fprintf(stderr, "%s: could not fstat stdout\n",
 		    getprogname());
 		res = EXIT_FAILURE;
 	}
-	if (fstat(7, &sb1) != 0) {
-		fprintf(stderr, "%s: could not fstat filedesc 7\n",
+	if (fstat(lowfd + 4, &sb1) != 0) {
+		fprintf(stderr, "%s: could not fstat filedesc +4\n",
 		    getprogname());
 		res = EXIT_FAILURE;
 	}
-	if (write(7, buf, strlen(buf)) <= 0) {
-		fprintf(stderr, "%s: could not write to filedesc 7\n",
+	if (write(lowfd + 4, buf, strlen(buf)) <= 0) {
+		fprintf(stderr, "%s: could not write to filedesc +4\n",
 		    getprogname());
 		res = EXIT_FAILURE;
 	}
