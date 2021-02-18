@@ -294,6 +294,11 @@ ena_free_pci_resources(struct ena_adapter *adapter)
 		bus_release_resource(pdev, SYS_RES_MEMORY,
 		    PCIR_BAR(ENA_REG_BAR), adapter->registers);
 	}
+
+	if (adapter->msix != NULL) {
+		bus_release_resource(pdev, SYS_RES_MEMORY,
+		    adapter->msix_rid, adapter->msix);
+	}
 }
 
 static int
@@ -3516,6 +3521,7 @@ ena_attach(device_t pdev)
 	struct ena_adapter *adapter;
 	struct ena_com_dev *ena_dev = NULL;
 	uint32_t max_num_io_queues;
+	int msix_rid;
 	int rid, rc;
 
 	adapter = device_get_softc(pdev);
@@ -3552,6 +3558,20 @@ ena_attach(device_t pdev)
 		    "unable to allocate bus resource: registers!\n");
 		rc = ENOMEM;
 		goto err_dev_free;
+	}
+
+	/* MSIx vector table may reside on BAR0 with registers or on BAR1. */
+	msix_rid = pci_msix_table_bar(pdev);
+	if (msix_rid != rid) {
+		adapter->msix = bus_alloc_resource_any(pdev, SYS_RES_MEMORY,
+		    &msix_rid, RF_ACTIVE);
+		if (unlikely(adapter->msix == NULL)) {
+			device_printf(pdev,
+			    "unable to allocate bus resource: msix!\n");
+			rc = ENOMEM;
+			goto err_pci_free;
+		}
+		adapter->msix_rid = msix_rid;
 	}
 
 	ena_dev->bus = malloc(sizeof(struct ena_bus), M_DEVBUF,
@@ -3727,6 +3747,7 @@ err_com_free:
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
 err_bus_free:
 	free(ena_dev->bus, M_DEVBUF);
+err_pci_free:
 	ena_free_pci_resources(adapter);
 err_dev_free:
 	free(ena_dev, M_DEVBUF);
