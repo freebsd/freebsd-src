@@ -2732,9 +2732,6 @@ options 	NSWBUF_MIN=120
 
 options 	CAM_DEBUG_DELAY
 
-# VFS cluster debugging.
-options 	CLUSTERDEBUG
-
 options 	DEBUG
 
 # Kernel filelock debugging.
