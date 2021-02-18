@@ -288,7 +288,7 @@ propagate_priority(struct thread *td)
 		 */
 		KASSERT(TD_ON_LOCK(td), (
 		    "thread %d(%s):%d holds %s but isn't blocked on a lock\n",
-		    td->td_tid, td->td_name, td->td_state,
+		    td->td_tid, td->td_name, TD_GET_STATE(td),
 		    ts->ts_lockobj->lo_name));
 
 		/*
@@ -1185,7 +1185,7 @@ print_lockchain(struct thread *td, const char *prefix)
 		}
 		db_printf("%sthread %d (pid %d, %s) is ", prefix, td->td_tid,
 		    td->td_proc->p_pid, td->td_name);
-		switch (td->td_state) {
+		switch (TD_GET_STATE(td)) {
 		case TDS_INACTIVE:
 			db_printf("inactive\n");
 			return;
@@ -1224,7 +1224,7 @@ print_lockchain(struct thread *td, const char *prefix)
 			db_printf("inhibited: %s\n", KTDSTATE(td));
 			return;
 		default:
-			db_printf("??? (%#x)\n", td->td_state);
+			db_printf("??? (%#x)\n", TD_GET_STATE(td));
 			return;
 		}
 	}

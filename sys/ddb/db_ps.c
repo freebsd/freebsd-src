@@ -173,9 +173,9 @@ db_ps_proc(struct proc *p)
 			 */
 			rflag = sflag = dflag = lflag = wflag = 0;
 			FOREACH_THREAD_IN_PROC(p, td) {
-				if (td->td_state == TDS_RUNNING ||
-				    td->td_state == TDS_RUNQ ||
-				    td->td_state == TDS_CAN_RUN)
+				if (TD_GET_STATE(td) == TDS_RUNNING ||
+				    TD_GET_STATE(td) == TDS_RUNQ ||
+				    TD_GET_STATE(td) == TDS_CAN_RUN)
 					rflag++;
 				if (TD_ON_LOCK(td))
 					lflag++;
@@ -267,7 +267,7 @@ dumpthread(volatile struct proc *p, volatile struct thread *td, int all)
 
 	if (all) {
 		db_printf("%6d                  ", td->td_tid);
-		switch (td->td_state) {
+		switch (TD_GET_STATE(td)) {
 		case TDS_RUNNING:
 			snprintf(state, sizeof(state), "Run");
 			break;
@@ -367,7 +367,7 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 	db_printf(" flags: %#x ", td->td_flags);
 	db_printf(" pflags: %#x\n", td->td_pflags);
 	db_printf(" state: ");
-	switch (td->td_state) {
+	switch (TD_GET_STATE(td)) {
 	case TDS_INACTIVE:
 		db_printf("INACTIVE\n");
 		break;
@@ -413,7 +413,7 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 		db_printf("}\n");
 		break;
 	default:
-		db_printf("??? (%#x)\n", td->td_state);
+		db_printf("??? (%#x)\n", TD_GET_STATE(td));
 		break;
 	}
 	if (TD_ON_LOCK(td))

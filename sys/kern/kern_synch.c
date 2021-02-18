@@ -570,7 +570,7 @@ setrunnable(struct thread *td, int srqflags)
 	    ("setrunnable: pid %d is a zombie", td->td_proc->p_pid));
 
 	swapin = 0;
-	switch (td->td_state) {
+	switch (TD_GET_STATE(td)) {
 	case TDS_RUNNING:
 	case TDS_RUNQ:
 		break;
@@ -593,7 +593,7 @@ setrunnable(struct thread *td, int srqflags)
 		}
 		break;
 	default:
-		panic("setrunnable: state 0x%x", td->td_state);
+		panic("setrunnable: state 0x%x", TD_GET_STATE(td));
 	}
 	if ((srqflags & (SRQ_HOLD | SRQ_HOLDTD)) == 0)
 		thread_unlock(td);

@@ -207,7 +207,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		if (p->p_state != PRS_NEW) {
 			FOREACH_THREAD_IN_PROC(p, td) {
 				thread_lock(td);
-				switch (td->td_state) {
+				switch (TD_GET_STATE(td)) {
 				case TDS_INHIBITED:
 					if (TD_IS_SWAPPED(td))
 						total.t_sw++;

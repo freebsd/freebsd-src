@@ -854,7 +854,7 @@ _db_stack_trace_all(bool active_only)
 	for (td = kdb_thr_first(); td != NULL; td = kdb_thr_next(td)) {
 		prev_jb = kdb_jmpbuf(jb);
 		if (setjmp(jb) == 0) {
-			if (td->td_state == TDS_RUNNING)
+			if (TD_IS_RUNNING(td))
 				db_printf("\nTracing command %s pid %d"
 				    " tid %ld td %p (CPU %d)\n",
 				    td->td_proc->p_comm, td->td_proc->p_pid,

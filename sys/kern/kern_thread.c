@@ -346,7 +346,7 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	struct thread	*td;
 
 	td = (struct thread *)mem;
-	td->td_state = TDS_INACTIVE;
+	TD_SET_STATE(td, TDS_INACTIVE);
 	td->td_lastcpu = td->td_oncpu = NOCPU;
 
 	/*
@@ -379,7 +379,7 @@ thread_dtor(void *mem, int size, void *arg)
 
 #ifdef INVARIANTS
 	/* Verify that this thread is in a safe state to free. */
-	switch (td->td_state) {
+	switch (TD_GET_STATE(td)) {
 	case TDS_INHIBITED:
 	case TDS_RUNNING:
 	case TDS_CAN_RUN:
@@ -944,7 +944,7 @@ thread_exit(void)
 	rucollect(&p->p_ru, &td->td_ru);
 	PROC_STATUNLOCK(p);
 
-	td->td_state = TDS_INACTIVE;
+	TD_SET_STATE(td, TDS_INACTIVE);
 #ifdef WITNESS
 	witness_thread_exit(td);
 #endif
@@ -993,7 +993,7 @@ thread_link(struct thread *td, struct proc *p)
 	 * its lock has been created.
 	 * PROC_LOCK_ASSERT(p, MA_OWNED);
 	 */
-	td->td_state    = TDS_INACTIVE;
+	TD_SET_STATE(td, TDS_INACTIVE);
 	td->td_proc     = p;
 	td->td_flags    = TDF_INMEM;
 

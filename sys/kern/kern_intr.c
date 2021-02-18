@@ -992,7 +992,7 @@ intr_event_schedule_thread(struct intr_event *ie)
 		sched_add(td, SRQ_INTR);
 	} else {
 		CTR5(KTR_INTR, "%s: pid %d (%s): it_need %d, state %d",
-		    __func__, td->td_proc->p_pid, td->td_name, it->it_need, td->td_state);
+		    __func__, td->td_proc->p_pid, td->td_name, it->it_need, TD_GET_STATE(td));
 		thread_unlock(td);
 	}
 
