@@ -155,6 +155,25 @@ instead.
 Specify the locale of the input data.
 Set to C if the input data locale is unknown.
 .El
+.Sh EXAMPLES
+Visualize characters encoding white spaces and tabs:
+.Bd -literal -offset indent
+$ echo -e "\\x10\\n\\t" | vis -w -t
+\\^P\\012\\011\\012
+.Ed
+.Pp
+Same as above but using `\\$' for newline followed by an actual newline:
+.Bd -literal -offset indent
+$ echo -e "\\x10\\n\\t" | vis -w -t -l
+\\^P\\$
+\\011\\$
+.Ed
+.Pp
+Visualize string using URI encoding:
+.Bd -literal -offset indent
+$ echo http://www.freebsd.org | vis -h
+http%3a%2f%2fwww.freebsd.org%0a
+.Ed
 .Sh SEE ALSO
 .Xr unvis 1 ,
 .Xr svis 3 ,
