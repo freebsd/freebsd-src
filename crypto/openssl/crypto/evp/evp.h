@@ -1491,6 +1491,7 @@ void ERR_load_EVP_strings(void);
 # define EVP_F_EVP_DECRYPTFINAL_EX                        101
 # define EVP_F_EVP_DECRYPTUPDATE                          181
 # define EVP_F_EVP_DIGESTINIT_EX                          128
+# define EVP_F_EVP_ENCRYPTDECRYPTUPDATE                   182
 # define EVP_F_EVP_ENCRYPTFINAL_EX                        127
 # define EVP_F_EVP_ENCRYPTUPDATE                          180
 # define EVP_F_EVP_MD_CTX_COPY_EX                         110
@@ -1602,6 +1603,7 @@ void ERR_load_EVP_strings(void);
 # define EVP_R_NO_VERIFY_FUNCTION_CONFIGURED              105
 # define EVP_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE   150
 # define EVP_R_OPERATON_NOT_INITIALIZED                   151
+# define EVP_R_OUTPUT_WOULD_OVERFLOW                      172
 # define EVP_R_PKCS8_UNKNOWN_BROKEN_TYPE                  117
 # define EVP_R_PRIVATE_KEY_DECODE_ERROR                   145
 # define EVP_R_PRIVATE_KEY_ENCODE_ERROR                   146
