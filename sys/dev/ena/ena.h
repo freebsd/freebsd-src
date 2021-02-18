@@ -41,7 +41,7 @@
 
 #define DRV_MODULE_VER_MAJOR	2
 #define DRV_MODULE_VER_MINOR	3
-#define DRV_MODULE_VER_SUBMINOR 0
+#define DRV_MODULE_VER_SUBMINOR 1
 
 #define DRV_MODULE_NAME		"ena"
 
@@ -398,6 +398,8 @@ struct ena_adapter {
 	/* OS resources */
 	struct resource *memory;
 	struct resource *registers;
+	struct resource *msix;
+	int msix_rid;
 
 	struct sx global_lock;
 
