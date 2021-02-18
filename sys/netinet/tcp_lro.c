@@ -470,6 +470,7 @@ tcp_lro_rx_ipv4(struct lro_ctrl *lc, struct mbuf *m, struct ip *ip4,
 }
 #endif
 
+#ifdef TCPHPTS
 static void
 tcp_lro_log(struct tcpcb *tp, struct lro_ctrl *lc,
 	    struct lro_entry *le, struct mbuf *m, int frm, int32_t tcp_data_len,
@@ -520,6 +521,7 @@ tcp_lro_log(struct tcpcb *tp, struct lro_ctrl *lc,
 			       0, &log, false, &tv);
 	}
 }
+#endif
 
 static void
 tcp_flush_out_le(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le)
