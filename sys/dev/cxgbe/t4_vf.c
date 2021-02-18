@@ -253,10 +253,6 @@ get_params__post_init(struct adapter *sc)
 		return (EINVAL);
 	}
 
-	rc = t4_read_chip_settings(sc);
-	if (rc != 0)
-		return (rc);
-
 	/*
 	 * Grab our Virtual Interface resource allocation, extract the
 	 * features that we're interested in and do a bit of sanity testing on
@@ -289,6 +285,11 @@ get_params__post_init(struct adapter *sc)
 		sc->params.max_pkts_per_eth_tx_pkts_wr = val;
 	else
 		sc->params.max_pkts_per_eth_tx_pkts_wr = 14;
+
+	rc = t4_verify_chip_settings(sc);
+	if (rc != 0)
+		return (rc);
+	t4_init_rx_buf_info(sc);
 
 	return (0);
 }

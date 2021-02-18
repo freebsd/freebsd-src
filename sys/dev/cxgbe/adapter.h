@@ -1262,7 +1262,8 @@ void t4_sge_modload(void);
 void t4_sge_modunload(void);
 uint64_t t4_sge_extfree_refs(void);
 void t4_tweak_chip_settings(struct adapter *);
-int t4_read_chip_settings(struct adapter *);
+int t4_verify_chip_settings(struct adapter *);
+void t4_init_rx_buf_info(struct adapter *);
 int t4_create_dma_tag(struct adapter *);
 void t4_sge_sysctls(struct adapter *, struct sysctl_ctx_list *,
     struct sysctl_oid_list *);
