@@ -29,7 +29,6 @@
 
 # TODO:
 # - roll back after errors or SIGINT
-#   - current checkout
 #   - created revs
 #   - main (for git arc stage)
 
@@ -320,20 +319,20 @@ show_and_prompt()
 
 save_head()
 {
-    local commit orig
+    local orig
 
     if ! orig=$(git symbolic-ref --short -q HEAD); then
         orig=$(git show -s --pretty=%H HEAD)
     fi
-    echo $orig
+    SAVED_HEAD=$orig
 }
 
 restore_head()
 {
-    local orig
-
-    orig=$1
-    git checkout -q $orig
+    if [ -n "$SAVED_HEAD" ]; then
+        git checkout -q $SAVED_HEAD
+        SAVED_HEAD=
+    fi
 }
 
 build_commit_list()
@@ -353,8 +352,7 @@ build_commit_list()
 
 gitarc::create()
 {
-    local commit commits doprompt list o orig prev reviewers
-    local subscribers
+    local commit commits doprompt list o prev reviewers subscribers
 
     list=
     if eval $(git config --bool --default false --get arc.list); then
@@ -391,7 +389,7 @@ gitarc::create()
         doprompt=
     fi
 
-    orig=$(save_head)
+    save_head
     prev=""
     for commit in ${commits}; do
         if create_one_review "$commit" "$reviewers" "$subscribers" "$prev" \
@@ -401,7 +399,7 @@ gitarc::create()
             prev=""
         fi
     done
-    restore_head $orig
+    restore_head
 }
 
 gitarc::list()
@@ -501,7 +499,7 @@ gitarc::stage()
 
 gitarc::update()
 {
-    local commit diff orig
+    local commit diff
 
     commit=$1
     diff=$(commit2diff $commit)
@@ -510,7 +508,8 @@ gitarc::update()
         return
     fi
 
-    orig=$(save_head)
+    save_head
+
     git checkout -q $commit
 
     # The linter is stupid and applies patches to the working copy.
@@ -518,7 +517,7 @@ gitarc::update()
     # names.
     arc diff --allow-untracked --never-apply-patches --update $diff HEAD~
 
-    restore_head $orig
+    restore_head
 }
 
 set -e
@@ -590,5 +589,7 @@ esac
 if eval $(git config --bool --default false --get arc.browse); then
     BROWSE=--browse
 fi
+
+trap restore_head EXIT INT
 
 gitarc::${verb} $@
