@@ -120,6 +120,7 @@
  *	aes-ccm		128-bit AES-CCM
  *	aes-ccm192	192-bit AES-CCM
  *	aes-ccm256	256-bit AES-CCM
+ *	chacha20-poly1305 Chacha20 (96 bit nonce) with Poly1305 per RFC 8439
  */
 
 #include <sys/param.h>
@@ -149,6 +150,7 @@ static const struct alg {
 	int cipher;
 	int mac;
 	enum { T_HASH, T_HMAC, T_GMAC, T_CIPHER, T_ETA, T_AEAD } type;
+	int tag_len;
 	const EVP_CIPHER *(*evp_cipher)(void);
 	const EVP_MD *(*evp_md)(void);
 } algs[] = {
@@ -177,11 +179,11 @@ static const struct alg {
 	{ .name = "blake2s", .mac = CRYPTO_BLAKE2S, .type = T_HASH,
 	  .evp_md = EVP_blake2s256 },
 	{ .name = "gmac", .mac = CRYPTO_AES_NIST_GMAC, .type = T_GMAC,
-	  .evp_cipher = EVP_aes_128_gcm },
+	  .tag_len = AES_GMAC_HASH_LEN, .evp_cipher = EVP_aes_128_gcm },
 	{ .name = "gmac192", .mac = CRYPTO_AES_NIST_GMAC, .type = T_GMAC,
-	  .evp_cipher = EVP_aes_192_gcm },
+	  .tag_len = AES_GMAC_HASH_LEN, .evp_cipher = EVP_aes_192_gcm },
 	{ .name = "gmac256", .mac = CRYPTO_AES_NIST_GMAC, .type = T_GMAC,
-	  .evp_cipher = EVP_aes_256_gcm },
+	  .tag_len = AES_GMAC_HASH_LEN, .evp_cipher = EVP_aes_256_gcm },
 	{ .name = "aes-cbc", .cipher = CRYPTO_AES_CBC, .type = T_CIPHER,
 	  .evp_cipher = EVP_aes_128_cbc },
 	{ .name = "aes-cbc192", .cipher = CRYPTO_AES_CBC, .type = T_CIPHER,
@@ -201,17 +203,22 @@ static const struct alg {
 	{ .name = "chacha20", .cipher = CRYPTO_CHACHA20, .type = T_CIPHER,
 	  .evp_cipher = EVP_chacha20 },
 	{ .name = "aes-gcm", .cipher = CRYPTO_AES_NIST_GCM_16, .type = T_AEAD,
-	  .evp_cipher = EVP_aes_128_gcm },
+	  .tag_len = AES_GMAC_HASH_LEN, .evp_cipher = EVP_aes_128_gcm },
 	{ .name = "aes-gcm192", .cipher = CRYPTO_AES_NIST_GCM_16,
-	  .type = T_AEAD, .evp_cipher = EVP_aes_192_gcm },
+	  .type = T_AEAD, .tag_len = AES_GMAC_HASH_LEN,
+	  .evp_cipher = EVP_aes_192_gcm },
 	{ .name = "aes-gcm256", .cipher = CRYPTO_AES_NIST_GCM_16,
-	  .type = T_AEAD, .evp_cipher = EVP_aes_256_gcm },
+	  .type = T_AEAD, .tag_len = AES_GMAC_HASH_LEN,
+	  .evp_cipher = EVP_aes_256_gcm },
 	{ .name = "aes-ccm", .cipher = CRYPTO_AES_CCM_16, .type = T_AEAD,
-	  .evp_cipher = EVP_aes_128_ccm },
+	  .evp_cipher = EVP_aes_128_ccm, .tag_len = AES_CBC_MAC_HASH_LEN },
 	{ .name = "aes-ccm192", .cipher = CRYPTO_AES_CCM_16, .type = T_AEAD,
-	  .evp_cipher = EVP_aes_192_ccm },
+	  .evp_cipher = EVP_aes_192_ccm, .tag_len = AES_CBC_MAC_HASH_LEN },
 	{ .name = "aes-ccm256", .cipher = CRYPTO_AES_CCM_16, .type = T_AEAD,
-	  .evp_cipher = EVP_aes_256_ccm },
+	  .evp_cipher = EVP_aes_256_ccm, .tag_len = AES_CBC_MAC_HASH_LEN },
+	{ .name = "chacha20-poly1305", .cipher = CRYPTO_CHACHA20_POLY1305,
+	  .type = T_AEAD, .tag_len = POLY1305_HASH_LEN,
+	  .evp_cipher = EVP_chacha20_poly1305 },
 };
 
 static bool verbose;
@@ -1046,7 +1053,7 @@ openssl_gmac(const struct alg *alg, const EVP_CIPHER *cipher, const char *key,
 	if (EVP_EncryptFinal_ex(ctx, NULL, &outl) != 1)
 		errx(1, "OpenSSL %s (%zu) final failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, AES_GMAC_HASH_LEN,
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, alg->tag_len,
 	    tag) != 1)
 		errx(1, "OpenSSL %s (%zu) get tag failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
@@ -1133,7 +1140,7 @@ out:
 }
 
 static void
-openssl_gcm_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
+openssl_aead_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
     const char *key, const char *iv, const char *aad, size_t aad_len,
     const char *input, char *output, size_t size, char *tag)
 {
@@ -1168,7 +1175,7 @@ openssl_gcm_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 	if ((size_t)total != size)
 		errx(1, "OpenSSL %s (%zu) encrypt size mismatch: %d", alg->name,
 		    size, total);
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, AES_GMAC_HASH_LEN,
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, alg->tag_len,
 	    tag) != 1)
 		errx(1, "OpenSSL %s (%zu) get tag failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
@@ -1177,7 +1184,7 @@ openssl_gcm_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 
 #ifdef notused
 static bool
-openssl_gcm_decrypt(const struct alg *alg, const EVP_CIPHER *cipher,
+openssl_aead_decrypt(const struct alg *alg, const EVP_CIPHER *cipher,
     const char *key, const char *iv, const char *aad, size_t aad_len,
     const char *input, char *output, size_t size, char *tag)
 {
@@ -1206,7 +1213,7 @@ openssl_gcm_decrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 		errx(1, "OpenSSL %s (%zu) decrypt update failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
 	total = outl;
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, AES_GMAC_HASH_LEN,
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, alg->tag_len,
 	    tag) != 1)
 		errx(1, "OpenSSL %s (%zu) get tag failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
@@ -1235,10 +1242,10 @@ openssl_ccm_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 	if (EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL) != 1)
 		errx(1, "OpenSSL %s (%zu) ctx init failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_IVLEN, iv_len, NULL) != 1)
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, iv_len, NULL) != 1)
 		errx(1, "OpenSSL %s (%zu) setting iv length failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_TAG, AES_CBC_MAC_HASH_LEN, NULL) != 1)
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, AES_CBC_MAC_HASH_LEN, NULL) != 1)
 		errx(1, "OpenSSL %s (%zu) setting tag length failed: %s", alg->name,
 		     size, ERR_error_string(ERR_get_error(), NULL));
 	if (EVP_EncryptInit_ex(ctx, NULL, NULL, (const u_char *)key,
@@ -1268,7 +1275,7 @@ openssl_ccm_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 	if ((size_t)total != size)
 		errx(1, "OpenSSL %s (%zu) encrypt size mismatch: %d", alg->name,
 		    size, total);
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_GET_TAG, AES_CBC_MAC_HASH_LEN,
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, AES_CBC_MAC_HASH_LEN,
 	    tag) != 1)
 		errx(1, "OpenSSL %s (%zu) get tag failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
@@ -1311,7 +1318,8 @@ ocf_aead(const struct ocf_session *ses, const char *iv, size_t iv_len,
 	return (0);
 }
 
-#define	AEAD_MAX_TAG_LEN	MAX(AES_GMAC_HASH_LEN, AES_CBC_MAC_HASH_LEN)
+#define	AEAD_MAX_TAG_LEN				\
+	MAX(MAX(AES_GMAC_HASH_LEN, AES_CBC_MAC_HASH_LEN), POLY1305_HASH_LEN)
 
 static void
 run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
@@ -1368,7 +1376,7 @@ run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
 		openssl_ccm_encrypt(alg, cipher, key, iv, iv_len, aad,
 		    aad_len, cleartext, ciphertext, size, control_tag);
 	else
-		openssl_gcm_encrypt(alg, cipher, key, iv, aad, aad_len,
+		openssl_aead_encrypt(alg, cipher, key, iv, aad, aad_len,
 		    cleartext, ciphertext, size, control_tag);
 
 	if (!ocf_init_aead_session(alg, key, key_len, &ses))
