@@ -128,8 +128,6 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		return (EFBIG);
 	gbflags = (flags & BA_UNMAPPED) != 0 ? GB_UNMAPPED : 0;
 
-	if (DOINGSOFTDEP(vp))
-		softdep_prealloc(vp, MNT_WAIT);
 	/*
 	 * If the next write will extend the file into a new block,
 	 * and the file is currently composed of a fragment
@@ -620,9 +618,6 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	if (lbn < 0)
 		return (EFBIG);
 	gbflags = (flags & BA_UNMAPPED) != 0 ? GB_UNMAPPED : 0;
-
-	if (DOINGSOFTDEP(vp))
-		softdep_prealloc(vp, MNT_WAIT);
 
 	/*
 	 * Check for allocating external data.

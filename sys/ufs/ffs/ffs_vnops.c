@@ -834,6 +834,11 @@ ffs_write(ap)
 	int blkoffset, error, flags, ioflag, size, xfersize;
 
 	vp = ap->a_vp;
+	if (DOINGSUJ(vp))
+		softdep_prealloc(vp, MNT_WAIT);
+	if (vp->v_data == NULL)
+		return (EBADF);
+
 	uio = ap->a_uio;
 	ioflag = ap->a_ioflag;
 	if (ap->a_ioflag & IO_EXT)
