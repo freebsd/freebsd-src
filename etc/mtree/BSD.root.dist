@@ -95,6 +95,8 @@
         syslog.d
         ..
         zfs
+            compatibility.d
+            ..
         ..
     ..
     lib
