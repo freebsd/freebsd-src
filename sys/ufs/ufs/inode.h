@@ -207,13 +207,13 @@ struct inode {
 #define	i_din1 dinode_u.din1
 #define	i_din2 dinode_u.din2
 
-#ifdef _KERNEL
-
 #define	ITOUMP(ip)	((ip)->i_ump)
 #define	ITODEV(ip)	(ITOUMP(ip)->um_dev)
 #define	ITODEVVP(ip)	(ITOUMP(ip)->um_devvp)
 #define	ITOFS(ip)	(ITOUMP(ip)->um_fs)
 #define	ITOVFS(ip)	((ip)->i_vnode->v_mount)
+
+#ifdef _KERNEL
 
 static inline _Bool
 I_IS_UFS1(const struct inode *ip)
@@ -228,6 +228,7 @@ I_IS_UFS2(const struct inode *ip)
 
 	return ((ip->i_flag & IN_UFS2) != 0);
 }
+#endif	/* _KERNEL */
 
 /*
  * The DIP macro is used to access fields in the dinode that are
@@ -275,6 +276,7 @@ struct ufid {
 	uint32_t  ufid_gen;	/* Generation number. */
 };
 
+#ifdef _KERNEL
 #ifdef DIAGNOSTIC
 void ufs_init_trackers(struct inode *ip);
 void ufs_unlock_tracker(struct inode *ip);

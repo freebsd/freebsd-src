@@ -132,7 +132,8 @@ struct buf {
 	union {
 		TAILQ_ENTRY(buf) b_freelist; /* (Q) */
 		struct {
-			void	(*b_pgiodone)(void *, vm_page_t *, int, int);
+			void	(*b_pgiodone)(void *, struct vm_page **,
+				    int, int);
 			int	b_pgbefore;
 			int	b_pgafter;
 		};

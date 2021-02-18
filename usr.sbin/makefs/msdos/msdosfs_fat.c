@@ -59,14 +59,14 @@
 #include <string.h>
 #include <strings.h>
 
-#include "ffs/buf.h"
-
 #include <fs/msdosfs/bpb.h>
 #include "msdos/direntry.h"
 #include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
 #include <fs/msdosfs/msdosfsmount.h>
 
+#undef clrbuf
+#include "ffs/buf.h"
 #include "makefs.h"
 #include "msdos.h"
 
@@ -84,7 +84,7 @@ static int	fatchain(struct msdosfsmount *pmp, u_long start, u_long count,
 		    u_long fillwith);
 static void	fc_lookup(struct denode *dep, u_long findcn, u_long *frcnp,
 		    u_long *fsrcnp);
-static void	updatefats(struct msdosfsmount *pmp, struct buf *bp,
+static void	updatefats(struct msdosfsmount *pmp, struct m_buf *bp,
 		    u_long fatbn);
 static __inline void
 		usemap_alloc(struct msdosfsmount *pmp, u_long cn);
@@ -142,7 +142,7 @@ pcbmap(struct denode *dep, u_long findcn, daddr_t *bnp, u_long *cnp, int *sp)
 	u_long byteoffset;
 	u_long bn;
 	u_long bo;
-	struct buf *bp = NULL;
+	struct m_buf *bp = NULL;
 	u_long bp_bn = -1;
 	struct msdosfsmount *pmp = dep->de_pmp;
 	u_long bsize;
@@ -206,7 +206,8 @@ pcbmap(struct denode *dep, u_long findcn, daddr_t *bnp, u_long *cnp, int *sp)
 		if (bn != bp_bn) {
 			if (bp)
 				brelse(bp);
-			error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
+			error = bread((void *)pmp->pm_devvp, bn, bsize,
+			    NOCRED, &bp);
 			if (error) {
 				brelse(bp);
 				return (error);
@@ -309,9 +310,9 @@ fc_purge(struct denode *dep, u_int frcn)
  * fatbn - block number relative to begin of filesystem of the modified FAT block.
  */
 static void
-updatefats(struct msdosfsmount *pmp, struct buf *bp, u_long fatbn)
+updatefats(struct msdosfsmount *pmp, struct m_buf *bp, u_long fatbn)
 {
-	struct buf *bpn;
+	struct m_buf *bpn;
 	int cleanfat, i;
 
 #ifdef MSDOSFS_DEBUG
@@ -338,8 +339,8 @@ updatefats(struct msdosfsmount *pmp, struct buf *bp, u_long fatbn)
 		for (i = 1; i < pmp->pm_FATs; i++) {
 			fatbn += pmp->pm_FATsecs;
 			/* getblk() never fails */
-			bpn = getblk(pmp->pm_devvp, fatbn, bp->b_bcount,
-			    0, 0, 0);
+			bpn = getblk((void *)pmp->pm_devvp, fatbn,
+			    bp->b_bcount, 0, 0, 0);
 			memcpy(bpn->b_data, bp->b_data, bp->b_bcount);
 			/* Force the clean bit on in the other copies. */
 			if (cleanfat == 16)
@@ -456,7 +457,7 @@ fatentry(int function, struct msdosfsmount *pmp, u_long cn, u_long *oldcontents,
 	int error;
 	u_long readcn;
 	u_long bn, bo, bsize, byteoffset;
-	struct buf *bp;
+	struct m_buf *bp;
 
 #ifdef	MSDOSFS_DEBUG
 	printf("fatentry(func %d, pmp %p, clust %lu, oldcon %p, newcon %lx)\n",
@@ -494,7 +495,7 @@ fatentry(int function, struct msdosfsmount *pmp, u_long cn, u_long *oldcontents,
 
 	byteoffset = FATOFS(pmp, cn);
 	fatblock(pmp, byteoffset, &bn, &bsize, &bo);
-	error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
+	error = bread((void *)pmp->pm_devvp, bn, bsize, NOCRED, &bp);
 	if (error) {
 		brelse(bp);
 		return (error);
@@ -562,7 +563,7 @@ fatchain(struct msdosfsmount *pmp, u_long start, u_long count, u_long fillwith)
 {
 	int error;
 	u_long bn, bo, bsize, byteoffset, readcn, newc;
-	struct buf *bp;
+	struct m_buf *bp;
 
 #ifdef MSDOSFS_DEBUG
 	printf("fatchain(pmp %p, start %lu, count %lu, fillwith %lx)\n",
@@ -577,7 +578,7 @@ fatchain(struct msdosfsmount *pmp, u_long start, u_long count, u_long fillwith)
 	while (count > 0) {
 		byteoffset = FATOFS(pmp, start);
 		fatblock(pmp, byteoffset, &bn, &bsize, &bo);
-		error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
+		error = bread((void *)pmp->pm_devvp, bn, bsize, NOCRED, &bp);
 		if (error) {
 			brelse(bp);
 			return (error);
@@ -813,7 +814,7 @@ int
 freeclusterchain(struct msdosfsmount *pmp, u_long cluster)
 {
 	int error;
-	struct buf *bp = NULL;
+	struct m_buf *bp = NULL;
 	u_long bn, bo, bsize, byteoffset;
 	u_long readcn, lbn = -1;
 
@@ -823,7 +824,8 @@ freeclusterchain(struct msdosfsmount *pmp, u_long cluster)
 		if (lbn != bn) {
 			if (bp)
 				updatefats(pmp, bp, lbn);
-			error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
+			error = bread((void *)pmp->pm_devvp, bn, bsize,
+			    NOCRED, &bp);
 			if (error) {
 				brelse(bp);
 				return (error);
@@ -871,7 +873,7 @@ freeclusterchain(struct msdosfsmount *pmp, u_long cluster)
 int
 fillinusemap(struct msdosfsmount *pmp)
 {
-	struct buf *bp;
+	struct m_buf *bp;
 	u_long bn, bo, bsize, byteoffset, cn, readcn;
 	int error;
 
@@ -898,7 +900,8 @@ fillinusemap(struct msdosfsmount *pmp)
 			if (bp != NULL)
 				brelse(bp);
 			fatblock(pmp, byteoffset, &bn, &bsize, NULL);
-			error = bread(pmp->pm_devvp, bn, bsize, NOCRED, &bp);
+			error = bread((void *)pmp->pm_devvp, bn, bsize,
+			    NOCRED, &bp);
 			if (error != 0)
 				return (error);
 		}
@@ -951,14 +954,14 @@ fillinusemap(struct msdosfsmount *pmp)
  * field.  This is left for the caller to do.
  */
 int
-extendfile(struct denode *dep, u_long count, struct buf **bpp, u_long *ncp,
+m_extendfile(struct denode *dep, u_long count, struct m_buf **bpp, u_long *ncp,
     int flags)
 {
 	int error;
 	u_long frcn;
 	u_long cn, got;
 	struct msdosfsmount *pmp = dep->de_pmp;
-	struct buf *bp;
+	struct m_buf *bp;
 
 	/*
 	 * Don't try to extend the root directory
@@ -1039,7 +1042,7 @@ extendfile(struct denode *dep, u_long count, struct buf **bpp, u_long *ncp,
 		if ((flags & DE_CLEAR) &&
 		    (dep->de_Attributes & ATTR_DIRECTORY)) {
 			while (got-- > 0) {
-				bp = getblk(pmp->pm_devvp,
+				bp = getblk((void *)pmp->pm_devvp,
 				    cntobn(pmp, cn++),
 				    pmp->pm_bpcluster, 0, 0, 0);
 				clrbuf(bp);

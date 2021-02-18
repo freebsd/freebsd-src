@@ -271,6 +271,7 @@ int msdosfs_reclaim(struct vop_reclaim_args *);
 /*
  * Internal service routine prototypes.
  */
+struct componentname;
 int deget(struct msdosfsmount *, u_long, u_long, struct denode **);
 int uniqdosname(struct denode *, struct componentname *, u_char *);
 

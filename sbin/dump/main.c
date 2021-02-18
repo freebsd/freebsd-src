@@ -48,6 +48,8 @@ static const char rcsid[] =
 #include <sys/mount.h>
 #include <sys/disklabel.h>
 
+#include <ufs/ufs/extattr.h>
+#include <ufs/ufs/quota.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ffs/fs.h>

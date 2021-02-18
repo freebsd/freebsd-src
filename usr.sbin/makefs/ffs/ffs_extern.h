@@ -59,7 +59,7 @@ void ffs_blkfree(struct inode *, daddr_t, long);
 void ffs_clusteracct(struct fs *, struct cg *, int32_t, int);
 
 	/* ffs_balloc.c */
-int ffs_balloc(struct inode *, off_t, int, struct buf **);
+int ffs_balloc(struct inode *, off_t, int, struct m_buf **);
 
 	/* ffs_bswap.c */
 void ffs_sb_swap(struct fs*, struct fs *);

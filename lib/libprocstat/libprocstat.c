@@ -68,15 +68,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/capsicum.h>
 #include <sys/ptrace.h>
-#define	_KERNEL
+#define	_WANT_MOUNT
 #include <sys/mount.h>
 #include <sys/filedesc.h>
 #include <sys/pipe.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
 #include <fs/devfs/devfs.h>
 #include <fs/devfs/devfs_int.h>
-#undef _KERNEL
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
