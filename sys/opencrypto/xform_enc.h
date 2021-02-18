@@ -81,6 +81,7 @@ extern struct enc_xform enc_xform_aes_nist_gmac;
 extern struct enc_xform enc_xform_aes_xts;
 extern struct enc_xform enc_xform_camellia;
 extern struct enc_xform enc_xform_chacha20;
+extern struct enc_xform enc_xform_chacha20_poly1305;
 extern struct enc_xform enc_xform_ccm;
 
 struct aes_icm_ctx {
