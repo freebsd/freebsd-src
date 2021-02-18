@@ -267,7 +267,7 @@ wait_intr(ig4iic_softc_t *sc, uint32_t intr)
 	int error;
 	int txlvl = -1;
 	u_int count_us = 0;
-	u_int limit_us = 25000; /* 25ms */
+	u_int limit_us = 1000000; /* 1sec */
 
 	for (;;) {
 		/*
