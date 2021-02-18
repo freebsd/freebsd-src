@@ -96,6 +96,42 @@ ext2_print_inode(struct inode *in)
 
 #define XTIME_TO_NSEC(x)	((le32toh(x) & EXT3_NSEC_MASK) >> 2)
 
+static inline bool
+ext2_old_valid_dev(dev_t dev)
+{
+	return (major(dev) < 256 && minor(dev) < 256);
+}
+
+static inline uint16_t
+ext2_old_encode_dev(dev_t dev)
+{
+	return ((major(dev) << 8) | minor(dev));
+}
+
+static inline dev_t
+ext2_old_decode_dev(uint16_t val)
+{
+	return (makedev((val >> 8) & 255, val & 255));
+}
+
+static inline uint32_t
+ext2_new_encode_dev(dev_t dev)
+{
+	unsigned maj = major(dev);
+	unsigned min = minor(dev);
+
+	return ((min & 0xff) | (maj << 8) | ((min & ~0xff) << 12));
+}
+
+static inline dev_t
+ext2_new_decode_dev(uint32_t dev)
+{
+	unsigned maj = (dev & 0xfff00) >> 8;
+	unsigned min = (dev & 0xff) | ((dev >> 12) & 0xfff00);
+
+	return (makedev(maj, min));
+}
+
 /*
  *	raw ext2 inode LE to host inode conversion
  */
@@ -172,7 +208,12 @@ ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 	ip->i_uid |= (uint32_t)le16toh(ei->e2di_uid_high) << 16;
 	ip->i_gid |= (uint32_t)le16toh(ei->e2di_gid_high) << 16;
 
-	if ((ip->i_flag & IN_E4EXTENTS)) {
+	if (S_ISCHR(ip->i_mode) || S_ISBLK(ip->i_mode)) {
+		if (ei->e2di_blocks[0])
+			ip->i_rdev = ext2_old_decode_dev(le32toh(ei->e2di_blocks[0]));
+		else
+			ip->i_rdev = ext2_new_decode_dev(le32toh(ei->e2di_blocks[1]));
+	} else if ((ip->i_flag & IN_E4EXTENTS)) {
 		memcpy(ip->i_data, ei->e2di_blocks, sizeof(ei->e2di_blocks));
 	} else {
 		for (i = 0; i < EXT2_NDADDR; i++)
@@ -247,7 +288,16 @@ ext2_i2ei(struct inode *ip, struct ext2fs_dinode *ei)
 	ei->e2di_gid = htole16(ip->i_gid & 0xffff);
 	ei->e2di_gid_high = htole16(ip->i_gid >> 16 & 0xffff);
 
-	if ((ip->i_flag & IN_E4EXTENTS)) {
+	if (S_ISCHR(ip->i_mode) || S_ISBLK(ip->i_mode)) {
+		if (ext2_old_valid_dev(ip->i_rdev)) {
+			ei->e2di_blocks[0] = htole32(ext2_old_encode_dev(ip->i_rdev));
+			ei->e2di_blocks[1] = 0;
+		} else {
+			ei->e2di_blocks[0] = 0;
+			ei->e2di_blocks[1] = htole32(ext2_new_encode_dev(ip->i_rdev));
+			ei->e2di_blocks[2] = 0;
+		}
+	} else if ((ip->i_flag & IN_E4EXTENTS)) {
 		memcpy(ei->e2di_blocks, ip->i_data, sizeof(ei->e2di_blocks));
 	} else {
 		for (i = 0; i < EXT2_NDADDR; i++)

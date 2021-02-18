@@ -110,6 +110,7 @@ struct inode {
 	uint32_t	i_gen;		/* Generation number. */
 	uint64_t	i_facl;		/* EA block number. */
 	uint32_t	i_flags;	/* Status flags (chflags). */
+	dev_t		i_rdev; 	/* Major/minor inode values. */
 	union {
 		struct {
 			uint32_t i_db[EXT2_NDADDR]; /* Direct disk blocks. */
@@ -131,7 +132,6 @@ struct inode {
  * di_db area.
  */
 #define	i_shortlink	i_db
-#define	i_rdev		i_db[0]
 
 /* File permissions. */
 #define	IEXEC		0000100		/* Executable. */

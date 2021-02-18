@@ -429,4 +429,11 @@ struct ext2_gd {
 #define	EXT2_FIRST_INO(s)	(le32toh((EXT2_SB(s)->e2fs->e2fs_rev) == \
     E2FS_REV0) ? EXT2_FIRSTINO : le32toh(EXT2_SB(s)->e2fs->e2fs_first_ino))
 
+/*
+ * Linux major/minor values limits
+ */
+#define	EXT2_MINORBITS	(20)
+#define	EXT2_MAJOR_MAX	(0xffffffff >> EXT2_MINORBITS)
+#define	EXT2_MINOR_MAX	((1 << EXT2_MINORBITS) - 1)
+
 #endif	/* !_FS_EXT2FS_EXT2FS_H_ */
