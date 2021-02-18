@@ -1056,6 +1056,40 @@ cleanup:
 	return (ret);
 }
 
+#define	PKG_NAME	"pkg"
+#define	PKG_DEVEL_NAME	PKG_NAME "-devel"
+#define	PKG_PKG		PKG_NAME "."
+
+static bool
+pkg_is_pkg_pkg(const char *pkg)
+{
+	char *vstart;
+	size_t namelen;
+
+	/*
+	 * Chop off the final "-" (version delimiter) and check the name that
+	 * precedes it.  If we didn't have a version delimiter, it must be the
+	 * pkg.$archive short form but we'll check it anyways.  pkg-devel short
+	 * form will look like a pkg archive with 'devel' version, but that's
+	 * OK.  We otherwise assumed that non-pkg packages will always have a
+	 * version component.
+	 */
+	vstart = strrchr(pkg, '-');
+	if (vstart == NULL) {
+		return (strlen(pkg) > sizeof(PKG_PKG) - 1 &&
+		    strncmp(pkg, PKG_PKG, sizeof(PKG_PKG) - 1) == 0);
+	}
+
+	namelen = vstart - pkg;
+	if (namelen == sizeof(PKG_NAME) - 1 &&
+	    strncmp(pkg, PKG_NAME, sizeof(PKG_NAME) - 1) == 0)
+		return (true);
+	if (namelen == sizeof(PKG_DEVEL_NAME) - 1 &&
+	    strncmp(pkg, PKG_DEVEL_NAME, sizeof(PKG_DEVEL_NAME) - 1) == 0)
+		return (true);
+	return (false);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -1159,13 +1193,25 @@ main(int argc, char *argv[])
 				fprintf(stderr, args_bootstrap_message);
 				exit(EXIT_FAILURE);
 			}
-			// For add, we accept exactly one further argument
 			else if (add_pkg && pkgarg != NULL) {
-				fprintf(stderr, args_add_message);
-				exit(EXIT_FAILURE);
+				/*
+				 * Additional arguments also means it's not a
+				 * local bootstrap request.
+				 */
+				add_pkg = false;
 			}
 			else if (add_pkg) {
-				pkgarg = argv[optind-1];
+				/*
+				 * If it's not a request for pkg or pkg-devel,
+				 * then we must assume they were trying to
+				 * install some other local package and we
+				 * should try to bootstrap from the repo.
+				 */
+				if (!pkg_is_pkg_pkg(argv[optind-1])) {
+					add_pkg = false;
+				} else {
+					pkgarg = argv[optind-1];
+				}
 			}
 			break;
 		default:
