@@ -1356,7 +1356,9 @@ do_bpf_and_csum(struct inpcb *inp, struct lro_ctrl *lc, struct lro_entry *le,
 
 	uint16_t drop_hdrlen;
 	int etype, tlen;
+#ifdef INET
 	uint8_t iptos;
+#endif
 
 	/* Let the BPF see the packet */
 	if (bpf_req && lc->ifp)
