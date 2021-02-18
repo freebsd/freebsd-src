@@ -67,6 +67,7 @@ SRCS	+= randombytes.c
 CFLAGS.randombytes.c		+= -I${LIBSODIUM_INC} -I${LIBSODIUM_COMPAT}
 SRCS	+= utils.c
 CFLAGS.utils.c			+= -I${LIBSODIUM_INC} -I${LIBSODIUM_COMPAT}
+SRCS	+= xform_chacha20_poly1305.c
 
 SRCS	+= opt_param.h cryptodev_if.h bus_if.h device_if.h
 SRCS	+= opt_compat.h

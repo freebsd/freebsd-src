@@ -428,6 +428,9 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 	case CRYPTO_AES_CCM_16:
 		txform = &enc_xform_ccm;
 		break;
+	case CRYPTO_CHACHA20_POLY1305:
+		txform = &enc_xform_chacha20_poly1305;
+		break;
 	default:
 		CRYPTDEB("invalid cipher");
 		SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
@@ -586,6 +589,12 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 			return (EINVAL);
 		}
 		csp.csp_mode = CSP_MODE_AEAD;
+	} else if (sop->cipher == CRYPTO_CHACHA20_POLY1305) {
+		if (sop->mac != 0) {
+			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+			return (EINVAL);
+		}
+		csp.csp_mode = CSP_MODE_AEAD;
 	} else if (txform != NULL && thash != NULL)
 		csp.csp_mode = CSP_MODE_ETA;
 	else if (txform != NULL)
@@ -679,6 +688,8 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 		cse->hashsize = AES_GMAC_HASH_LEN;
 	else if (csp.csp_cipher_alg == CRYPTO_AES_CCM_16)
 		cse->hashsize = AES_CBC_MAC_HASH_LEN;
+	else if (csp.csp_cipher_alg == CRYPTO_CHACHA20_POLY1305)
+		cse->hashsize = POLY1305_HASH_LEN;
 	cse->ivsize = csp.csp_ivlen;
 
 	mtx_lock(&fcr->lock);
