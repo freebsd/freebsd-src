@@ -297,7 +297,7 @@ read_start:
 		len += count - 1;
 
 		/* If this was the last block we are done. */
-		if (ssif_buf[0] != 0xff)
+		if (ssif_buf[0] == 0xff)
 			break;
 		block++;
 	}
