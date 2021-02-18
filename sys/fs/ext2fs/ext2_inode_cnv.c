@@ -86,7 +86,7 @@ ext2_print_inode(struct inode *in)
 		    le16toh(ep->e_start_hi));
 		printf("\n");
 	} else {
-		printf("BLOCKS:");
+		printf("Blocks:");
 		for (i = 0; i < (in->i_blocks <= 24 ? (in->i_blocks + 1) / 2 : 12); i++)
 			printf("  %d", in->i_db[i]);
 		printf("\n");
