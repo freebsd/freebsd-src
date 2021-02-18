@@ -768,8 +768,7 @@
 #endif
 #endif /* __STDC_WANT_LIB_EXT1__ */
 
-#if defined(__mips) || \
-    (defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1))
+#if defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1)
 #define	__NO_TLS 1
 #endif
 
