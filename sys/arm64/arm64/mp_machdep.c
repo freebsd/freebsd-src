@@ -437,8 +437,35 @@ ipi_stop(void *dummy __unused)
 struct cpu_group *
 cpu_topo(void)
 {
+	struct cpu_group *dom, *root;
+	int i;
 
-	return (smp_topo_none());
+	root = smp_topo_alloc(1);
+	dom = smp_topo_alloc(vm_ndomains);
+
+	root->cg_parent = NULL;
+	root->cg_child = dom;
+	CPU_COPY(&all_cpus, &root->cg_mask);
+	root->cg_count = mp_ncpus;
+	root->cg_children = vm_ndomains;
+	root->cg_level = CG_SHARE_NONE;
+	root->cg_flags = 0;
+
+	/*
+	 * Redundant layers will be collapsed by the caller so we don't need a
+	 * special case for a single domain.
+	 */
+	for (i = 0; i < vm_ndomains; i++, dom++) {
+		dom->cg_parent = root;
+		dom->cg_child = NULL;
+		CPU_COPY(&cpuset_domain[i], &dom->cg_mask);
+		dom->cg_count = CPU_COUNT(&dom->cg_mask);
+		dom->cg_children = 0;
+		dom->cg_level = CG_SHARE_L3;
+		dom->cg_flags = 0;
+	}
+
+	return (root);
 }
 
 /* Determine if we running MP machine */
