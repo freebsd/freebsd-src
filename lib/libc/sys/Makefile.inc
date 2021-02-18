@@ -251,6 +251,7 @@ MAN+=	abort2.2 \
 	mq_receive.2 \
 	mq_send.2 \
 	mq_setattr.2 \
+	mq_unlink.2 \
 	msgctl.2 \
 	msgget.2 \
 	msgrcv.2 \
