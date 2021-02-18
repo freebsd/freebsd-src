@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2020
+.Dd February 18, 2021
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -284,17 +284,19 @@ from the system.
 Make a binary package for the port.
 The port will be installed if it has not already been.
 The package is a
-.Pa .tbz
+.Pa .txz
 file that you can use to
 install the port on other machines with
 .Xr pkg-add 8 .
 If the directory specified by
 .Va PACKAGES
-does not exist, the package will be put into the current directory.
+does not exist, the package will be put in
+.Pa /usr/ports/category/port/work/pkg .
 See
 .Va PKGREPOSITORY
 and
-.Va PKGFILE .
+.Va PKGFILE
+for more information.
 .It Cm package-recursive
 Like
 .Cm package ,
