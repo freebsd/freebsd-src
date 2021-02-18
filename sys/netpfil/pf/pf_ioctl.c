@@ -1624,7 +1624,7 @@ pf_rule_to_krule(const struct pf_rule *rule, struct pf_krule *krule)
 	/* Don't allow userspace to set evaulations, packets or bytes. */
 	/* kif, anchor, overload_tbl are not copied over. */
 
-	krule->os_fingerprint = krule->os_fingerprint;
+	krule->os_fingerprint = rule->os_fingerprint;
 
 	krule->rtableid = rule->rtableid;
 	bcopy(rule->timeout, krule->timeout, sizeof(krule->timeout));
