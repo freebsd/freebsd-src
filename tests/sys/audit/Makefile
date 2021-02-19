@@ -57,6 +57,7 @@ TEST_METADATA+= required_user="root"
 TEST_METADATA+= is_exclusive="true"
 TEST_METADATA+=	required_files="/etc/rc.d/auditd /dev/auditpipe"
 
+MK_PIE:=	no	# XXX libprivateauditd.a is not PIE
 LDFLAGS+=	-lbsm -lutil
 OPENBSMDIR=${SRCTOP}/contrib/openbsm
 CFLAGS+=	-I${OPENBSMDIR}
