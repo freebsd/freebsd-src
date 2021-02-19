@@ -185,7 +185,7 @@ void __set_thread_rune_locale(locale_t loc);
  * locale has ever been set, then we always use the global locale.
  */
 extern int __has_thread_locale;
-#ifndef __NO_TLS
+
 /**
  * The per-thread locale.  Avoids the need to use pthread lookup functions when
  * getting the per-thread locale.
@@ -206,9 +206,6 @@ static inline locale_t __get_locale(void)
 	}
 	return (__thread_locale ? __thread_locale : &__xlocale_global_locale);
 }
-#else
-locale_t __get_locale(void);
-#endif
 
 /**
  * Two magic values are allowed for locale_t objects.  NULL and -1.  This
