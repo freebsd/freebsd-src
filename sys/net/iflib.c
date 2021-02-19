@@ -2454,7 +2454,7 @@ iflib_init_locked(if_ctx_t ctx)
 		callout_stop(&txq->ift_netmap_timer);
 #endif /* DEV_NETMAP */
 		CALLOUT_UNLOCK(txq);
-		iflib_netmap_txq_init(ctx, txq);
+		(void)iflib_netmap_txq_init(ctx, txq);
 	}
 
 	/*
