@@ -107,8 +107,8 @@ mv_ap806_gicp_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->spi_ranges_cnt = OF_getencprop_alloc(node, "marvell,spi-ranges",
-	    (void **)&sc->spi_ranges);
+	sc->spi_ranges_cnt = OF_getencprop_alloc_multi(node, "marvell,spi-ranges",
+	    sizeof(*sc->spi_ranges), (void **)&sc->spi_ranges);
 
 	xref = OF_xref_from_node(node);
 	if (intr_pic_register(dev, xref) == NULL) {
@@ -153,7 +153,7 @@ mv_ap806_gicp_convert_map_data(struct mv_ap806_gicp_softc *sc,
 	sc->parent_map_data->cells[2] = irq_type;
 
 	/* Map the interrupt number to SPI number */
-	for (i = 0; i < sc->spi_ranges_cnt / 2; i += 2) {
+	for (i = 0; i < sc->spi_ranges_cnt; i += 2) {
 		if (irq_num < sc->spi_ranges[i + 1]) {
 			irq_num += sc->spi_ranges[i];
 			break;
