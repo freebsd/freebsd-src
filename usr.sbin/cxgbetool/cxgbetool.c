@@ -100,7 +100,7 @@ usage(FILE *fp)
 	    "\thashfilter [<param> <val>] ...      set a hashfilter\n"
 	    "\thashfilter <idx> delete|clear       delete a hashfilter\n"
 	    "\thashfilter list                     list all hashfilters\n"
-	    "\thashfilter mode                     get global hashfilter mode\n"
+	    "\thashfilter mode [<match>] ...       get/set global hashfilter mode\n"
 	    "\ti2c <port> <devaddr> <addr> [<len>] read from i2c device\n"
 	    "\tloadboot <bi.bin> [pf|offset <val>] install boot image\n"
 	    "\tloadboot clear [pf|offset <val>]    remove boot image\n"
@@ -1046,6 +1046,8 @@ get_filter_mode(int hashfilter)
 	if (mode & T4_FILTER_VNIC) {
 		if (mode & T4_FILTER_IC_VNIC)
 			printf("vnic_id ");
+		else if (mode & T4_FILTER_IC_ENCAP)
+			printf("encap ");
 		else
 			printf("ovlan ");
 	}
@@ -1062,57 +1064,69 @@ get_filter_mode(int hashfilter)
 }
 
 static int
-set_filter_mode(int argc, const char *argv[])
+set_filter_mode(int argc, const char *argv[], int hashfilter)
 {
 	uint32_t mode = 0;
-	int vnic = 0, ovlan = 0;
+	int vnic = 0, ovlan = 0, invalid = 0;
 
 	for (; argc; argc--, argv++) {
-		if (!strcmp(argv[0], "frag"))
+		if (!strcmp(argv[0], "ipv4") || !strcmp(argv[0], "ipv6") ||
+		    !strcmp(argv[0], "sip") || !strcmp(argv[0], "dip") ||
+		    !strcmp(argv[0], "sport") || !strcmp(argv[0], "dport")) {
+			/* These are always available and enabled. */
+			continue;
+		} else if (!strcmp(argv[0], "frag"))
 			mode |= T4_FILTER_IP_FRAGMENT;
-
-		if (!strcmp(argv[0], "matchtype"))
+		else if (!strcmp(argv[0], "matchtype"))
 			mode |= T4_FILTER_MPS_HIT_TYPE;
-
-		if (!strcmp(argv[0], "macidx"))
+		else if (!strcmp(argv[0], "macidx"))
 			mode |= T4_FILTER_MAC_IDX;
-
-		if (!strcmp(argv[0], "ethtype"))
+		else if (!strcmp(argv[0], "ethtype"))
 			mode |= T4_FILTER_ETH_TYPE;
-
-		if (!strcmp(argv[0], "proto"))
+		else if (!strcmp(argv[0], "proto"))
 			mode |= T4_FILTER_IP_PROTO;
-
-		if (!strcmp(argv[0], "tos"))
+		else if (!strcmp(argv[0], "tos"))
 			mode |= T4_FILTER_IP_TOS;
-
-		if (!strcmp(argv[0], "vlan"))
+		else if (!strcmp(argv[0], "vlan"))
 			mode |= T4_FILTER_VLAN;
-
-		if (!strcmp(argv[0], "ovlan")) {
+		else if (!strcmp(argv[0], "ovlan")) {
 			mode |= T4_FILTER_VNIC;
-			ovlan++;
-		}
-
-		if (!strcmp(argv[0], "vnic_id")) {
+			ovlan = 1;
+		} else if (!strcmp(argv[0], "vnic_id")) {
 			mode |= T4_FILTER_VNIC;
 			mode |= T4_FILTER_IC_VNIC;
-			vnic++;
+			vnic = 1;
 		}
-
-		if (!strcmp(argv[0], "iport"))
+#ifdef notyet
+		else if (!strcmp(argv[0], "encap")) {
+			mode |= T4_FILTER_VNIC;
+			mode |= T4_FILTER_IC_ENCAP;
+			encap = 1;
+		}
+#endif
+		else if (!strcmp(argv[0], "iport"))
 			mode |= T4_FILTER_PORT;
-
-		if (!strcmp(argv[0], "fcoe"))
+		else if (!strcmp(argv[0], "fcoe"))
 			mode |= T4_FILTER_FCoE;
+		else {
+			warnx("\"%s\" is not valid while setting filter mode.",
+			    argv[0]);
+			invalid++;
+		}
 	}
 
-	if (vnic > 0 && ovlan > 0) {
+	if (vnic + ovlan > 1) {
 		warnx("\"vnic_id\" and \"ovlan\" are mutually exclusive.");
-		return (EINVAL);
+		invalid++;
 	}
 
-	return doit(CHELSIO_T4_SET_FILTER_MODE, &mode);
+	if (invalid > 0)
+		return (EINVAL);
+
+	if (hashfilter)
+		return doit(CHELSIO_T4_SET_FILTER_MASK, &mode);
+	else
+		return doit(CHELSIO_T4_SET_FILTER_MODE, &mode);
 }
 
 static int
@@ -1420,8 +1434,8 @@ filter_cmd(int argc, const char *argv[], int hashfilter)
 		return get_filter_mode(hashfilter);
 
 	/* mode <mode> */
-	if (!hashfilter && strcmp(argv[0], "mode") == 0)
-		return set_filter_mode(argc - 1, argv + 1);
+	if (strcmp(argv[0], "mode") == 0)
+		return set_filter_mode(argc - 1, argv + 1, hashfilter);
 
 	/* <idx> ... */
 	s = str_to_number(argv[0], NULL, &val);
