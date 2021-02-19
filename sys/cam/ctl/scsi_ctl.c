@@ -1912,7 +1912,7 @@ ctlfe_datamove(union ctl_io *io)
 	struct ctlfe_lun_softc *softc;
 
 	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI,
-	    ("Unexpected io_type (%d) in ctlfe_datamove", io->io_hdr.io_type));
+	    ("%s: unexpected I/O type %x", __func__, io->io_hdr.io_type));
 
 	io->scsiio.ext_data_filled = 0;
 	ccb = PRIV_CCB(io);

@@ -1689,8 +1689,7 @@ ctl_be_block_worker(void *context, int pending)
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->datamove_queue);
 		if (io != NULL) {
 			DPRINTF("datamove queue\n");
-			STAILQ_REMOVE(&be_lun->datamove_queue, &io->io_hdr,
-				      ctl_io_hdr, links);
+			STAILQ_REMOVE_HEAD(&be_lun->datamove_queue, links);
 			mtx_unlock(&be_lun->queue_lock);
 			beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
@@ -1704,8 +1703,7 @@ ctl_be_block_worker(void *context, int pending)
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->config_write_queue);
 		if (io != NULL) {
 			DPRINTF("config write queue\n");
-			STAILQ_REMOVE(&be_lun->config_write_queue, &io->io_hdr,
-				      ctl_io_hdr, links);
+			STAILQ_REMOVE_HEAD(&be_lun->config_write_queue, links);
 			mtx_unlock(&be_lun->queue_lock);
 			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
 				ctl_set_busy(&io->scsiio);
@@ -1718,8 +1716,7 @@ ctl_be_block_worker(void *context, int pending)
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->config_read_queue);
 		if (io != NULL) {
 			DPRINTF("config read queue\n");
-			STAILQ_REMOVE(&be_lun->config_read_queue, &io->io_hdr,
-				      ctl_io_hdr, links);
+			STAILQ_REMOVE_HEAD(&be_lun->config_read_queue, links);
 			mtx_unlock(&be_lun->queue_lock);
 			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
 				ctl_set_busy(&io->scsiio);
@@ -1732,8 +1729,7 @@ ctl_be_block_worker(void *context, int pending)
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->input_queue);
 		if (io != NULL) {
 			DPRINTF("input queue\n");
-			STAILQ_REMOVE(&be_lun->input_queue, &io->io_hdr,
-				      ctl_io_hdr, links);
+			STAILQ_REMOVE_HEAD(&be_lun->input_queue, links);
 			mtx_unlock(&be_lun->queue_lock);
 			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
 				ctl_set_busy(&io->scsiio);
@@ -1767,11 +1763,8 @@ ctl_be_block_submit(union ctl_io *io)
 
 	be_lun = (struct ctl_be_block_lun *)CTL_BACKEND_LUN(io);
 
-	/*
-	 * Make sure we only get SCSI I/O.
-	 */
-	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI, ("Non-SCSI I/O (type "
-		"%#x) encountered", io->io_hdr.io_type));
+	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI,
+	    ("%s: unexpected I/O type %x", __func__, io->io_hdr.io_type));
 
 	PRIV(io)->len = 0;
 
