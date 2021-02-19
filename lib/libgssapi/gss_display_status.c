@@ -174,16 +174,6 @@ supplementary_error(OM_uint32 v)
 	return msgs[v];
 }
 
-#if defined(__NO_TLS)
-
-/*
- * These platforms don't support TLS on FreeBSD - threads will just
- * have to step on each other's error values for now.
- */
-#define __thread
-
-#endif
-
 struct mg_thread_ctx {
     gss_OID mech;
     OM_uint32 maj_stat;

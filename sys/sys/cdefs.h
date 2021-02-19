@@ -768,10 +768,6 @@
 #endif
 #endif /* __STDC_WANT_LIB_EXT1__ */
 
-#if defined(__powerpc64__) && (!defined(_CALL_ELF) || _CALL_ELF == 1)
-#define	__NO_TLS 1
-#endif
-
 /*
  * Old versions of GCC use non-standard ARM arch symbols; acle-compat.h
  * translates them to __ARM_ARCH and the modern feature symbols defined by ARM.
