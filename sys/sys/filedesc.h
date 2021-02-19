@@ -333,6 +333,7 @@ void	pdunshare(struct thread *td);
 
 void	pwd_chdir(struct thread *td, struct vnode *vp);
 int	pwd_chroot(struct thread *td, struct vnode *vp);
+int	pwd_chroot_chdir(struct thread *td, struct vnode *vp);
 void	pwd_ensure_dirs(void);
 void	pwd_set_rootvnode(void);
 

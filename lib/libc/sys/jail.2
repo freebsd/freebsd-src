@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2012
+.Dd February 19, 2021
 .Dt JAIL 2
 .Os
 .Sh NAME
@@ -228,6 +228,9 @@ The
 system call attaches the current process to an existing jail,
 identified by
 .Fa jid .
+It changes the process's root and current directories to the jail's
+.Va path
+directory.
 .Pp
 The
 .Fn jail_remove
