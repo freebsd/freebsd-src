@@ -9241,6 +9241,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.cng_ch_bits_log = 2,
 			.nsched_cls = 15,
 			.cim_num_obq = CIM_NUM_OBQ,
+			.filter_opt_len = FILTER_OPT_LEN,
 			.mps_rplc_size = 128,
 			.vfcount = 128,
 			.sge_fl_db = F_DBPRIO,
@@ -9254,6 +9255,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.cng_ch_bits_log = 2,
 			.nsched_cls = 16,
 			.cim_num_obq = CIM_NUM_OBQ_T5,
+			.filter_opt_len = T5_FILTER_OPT_LEN,
 			.mps_rplc_size = 128,
 			.vfcount = 128,
 			.sge_fl_db = F_DBPRIO | F_DBTYPE,
@@ -9267,6 +9269,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.cng_ch_bits_log = 3,
 			.nsched_cls = 16,
 			.cim_num_obq = CIM_NUM_OBQ_T5,
+			.filter_opt_len = T5_FILTER_OPT_LEN,
 			.mps_rplc_size = 256,
 			.vfcount = 256,
 			.sge_fl_db = 0,
@@ -10863,7 +10866,7 @@ int t4_set_filter_cfg(struct adapter *adap, int mode, int mask, int vnic_mode)
 	int i, nbits, rc;
 	uint32_t param, val;
 	uint16_t fmode, fmask;
-	const int maxbits = FILTER_OPT_LEN;
+	const int maxbits = adap->chip_params->filter_opt_len;
 
 	if (mode != -1 || mask != -1) {
 		if (mode != -1) {
