@@ -3216,10 +3216,9 @@ chroot_refuse_vdir_fds(struct filedesc *fdp)
 }
 
 /*
- * Common routine for kern_chroot() and jail_attach().  The caller is
- * responsible for invoking priv_check() and mac_vnode_check_chroot() to
- * authorize this operation.
- */
+* The caller is responsible for invoking priv_check() and
+* mac_vnode_check_chroot() to authorize this operation.
+*/
 int
 pwd_chroot(struct thread *td, struct vnode *vp)
 {
@@ -3263,6 +3262,39 @@ pwd_chdir(struct thread *td, struct vnode *vp)
 	fdp->fd_cdir = vp;
 	FILEDESC_XUNLOCK(fdp);
 	vrele(oldvp);
+}
+
+/*
+ * jail_attach(2) changes both root and working directories.
+ */
+int
+pwd_chroot_chdir(struct thread *td, struct vnode *vp)
+{
+	struct filedesc *fdp;
+	struct vnode *oldvrp, *oldvcp;
+	int error;
+
+	fdp = td->td_proc->p_fd;
+	FILEDESC_XLOCK(fdp);
+	error = chroot_refuse_vdir_fds(fdp);
+	if (error != 0) {
+		FILEDESC_XUNLOCK(fdp);
+		return (error);
+	}
+	oldvrp = fdp->fd_rdir;
+	vrefact(vp);
+	fdp->fd_rdir = vp;
+	oldvcp = fdp->fd_cdir;
+	vrefact(vp);
+	fdp->fd_cdir = vp;
+	if (fdp->fd_jdir == NULL) {
+		vrefact(vp);
+		fdp->fd_jdir = vp;
+	}
+	FILEDESC_XUNLOCK(fdp);
+	vrele(oldvrp);
+	vrele(oldvcp);
+	return (0);
 }
 
 /*
