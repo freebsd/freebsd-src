@@ -557,9 +557,9 @@ cfiscsi_pdu_handle_scsi_command(struct icl_pdu *request)
 	io->scsiio.cdb_len = sizeof(bhssc->bhssc_cdb); /* Which is 16. */
 	memcpy(io->scsiio.cdb, bhssc->bhssc_cdb, sizeof(bhssc->bhssc_cdb));
 	refcount_acquire(&cs->cs_outstanding_ctl_pdus);
-	error = ctl_queue(io);
+	error = ctl_run(io);
 	if (error != CTL_RETVAL_COMPLETE) {
-		CFISCSI_SESSION_WARN(cs, "ctl_queue() failed; error %d; "
+		CFISCSI_SESSION_WARN(cs, "ctl_run() failed; error %d; "
 		    "dropping connection", error);
 		ctl_free_io(io);
 		refcount_release(&cs->cs_outstanding_ctl_pdus);
@@ -679,9 +679,9 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 	}
 
 	refcount_acquire(&cs->cs_outstanding_ctl_pdus);
-	error = ctl_queue(io);
+	error = ctl_run(io);
 	if (error != CTL_RETVAL_COMPLETE) {
-		CFISCSI_SESSION_WARN(cs, "ctl_queue() failed; error %d; "
+		CFISCSI_SESSION_WARN(cs, "ctl_run() failed; error %d; "
 		    "dropping connection", error);
 		ctl_free_io(io);
 		refcount_release(&cs->cs_outstanding_ctl_pdus);
@@ -1128,9 +1128,9 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 	io->taskio.task_action = CTL_TASK_I_T_NEXUS_RESET;
 	wait = cs->cs_outstanding_ctl_pdus;
 	refcount_acquire(&cs->cs_outstanding_ctl_pdus);
-	error = ctl_queue(io);
+	error = ctl_run(io);
 	if (error != CTL_RETVAL_COMPLETE) {
-		CFISCSI_SESSION_WARN(cs, "ctl_queue() failed; error %d", error);
+		CFISCSI_SESSION_WARN(cs, "ctl_run() failed; error %d", error);
 		refcount_release(&cs->cs_outstanding_ctl_pdus);
 		ctl_free_io(io);
 	}
