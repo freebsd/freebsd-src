@@ -389,7 +389,8 @@ int
 db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 {
 
-	return (dbreg_set_watchpoint((vm_offset_t)addr, (vm_size_t)size));
+	return (dbreg_set_watchpoint((vm_offset_t)addr, (vm_size_t)size,
+	    DBREG_DR7_WRONLY));
 }
 
 int
