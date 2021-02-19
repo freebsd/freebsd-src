@@ -569,8 +569,7 @@ ctl_backend_ramdisk_worker(void *context, int pending)
 	for (;;) {
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->cont_queue);
 		if (io != NULL) {
-			STAILQ_REMOVE(&be_lun->cont_queue, &io->io_hdr,
-				      ctl_io_hdr, links);
+			STAILQ_REMOVE_HEAD(&be_lun->cont_queue, links);
 			mtx_unlock(&be_lun->queue_lock);
 			if (ARGS(io)->flags & CTL_LLF_COMPARE)
 				ctl_backend_ramdisk_compare(io);

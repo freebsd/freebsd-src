@@ -391,7 +391,7 @@ struct ctl_lun {
 	sbintime_t			idle_time;
 	sbintime_t			last_busy;
 #endif
-	TAILQ_HEAD(ctl_ooaq, ctl_io_hdr)  ooa_queue;
+	LIST_HEAD(ctl_ooaq, ctl_io_hdr)	ooa_queue;
 	STAILQ_ENTRY(ctl_lun)		links;
 	struct scsi_sense_data		**pending_sense;
 	ctl_ua_type			**pending_ua;
