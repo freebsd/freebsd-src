@@ -543,7 +543,7 @@ ffs_reallocblks(ap)
 	 * here.  Instead we simply fail to reallocate blocks if this
 	 * rare condition arises.
 	 */
-	if (DOINGSOFTDEP(ap->a_vp))
+	if (DOINGSUJ(ap->a_vp))
 		if (softdep_prealloc(ap->a_vp, MNT_NOWAIT) != 0)
 			return (ENOSPC);
 	if (ump->um_fstype == UFS1)
