@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_pci.h>
+#include <dev/ofw/ofw_subr.h>
 
 struct ofwfb_softc {
 	struct fb_info	fb;
@@ -55,7 +56,12 @@ struct ofwfb_softc {
 	ihandle_t	sc_handle;
 	bus_space_tag_t	sc_memt;
 	int		iso_palette;
+	int		argb;
+	int		endian_flip;
+	uint32_t	vendor_id;
 };
+
+#define PCI_VENDOR_ID_NVIDIA	0x10de
 
 static void ofwfb_initialize(struct vt_device *vd);
 static vd_probe_t	ofwfb_probe;
@@ -297,7 +303,6 @@ ofwfb_initialize(struct vt_device *vd)
 	struct ofwfb_softc *sc = vd->vd_softc;
 	int i, err;
 	cell_t retval;
-	uint32_t oldpix;
 
 	sc->fb.fb_cmsize = 16;
 
@@ -311,6 +316,10 @@ ofwfb_initialize(struct vt_device *vd)
 	sc->iso_palette = 0;
 	switch (sc->fb.fb_bpp) {
 	case 8:
+		/*
+		 * No color format issues here, since we are passing the RGB
+		 * components separately to Open Firmware.
+		 */
 		vt_generate_cons_palette(sc->fb.fb_cmap, COLOR_FORMAT_RGB, 255,
 		    16, 255, 8, 255, 0);
 
@@ -330,21 +339,38 @@ ofwfb_initialize(struct vt_device *vd)
 
 	case 32:
 		/*
-		 * We bypass the usual bus_space_() accessors here, mostly
-		 * for performance reasons. In particular, we don't want
-		 * any barrier operations that may be performed and handle
-		 * endianness slightly different. Figure out the host-view
-		 * endianness of the frame buffer.
+		 * There are two main color formats in use.
+		 * ARGB32 is used mainly on hardware that was designed for
+		 * LE systems, and RGBA32 is used mainly on hardware designed
+		 * for BE systems.
+		 *
+		 * PowerMacs use either, depending on the video card option.
+		 * NVidia cards tend to be RGBA32, and ATI cards tend to be ARGB32.
+		 *
+		 * There is no good way to determine the correct option, as this
+		 * is independent of endian swapping.
 		 */
-		oldpix = bus_space_read_4(sc->sc_memt, sc->fb.fb_vbase, 0);
-		bus_space_write_4(sc->sc_memt, sc->fb.fb_vbase, 0, 0xff000000);
-		if (*(uint8_t *)(sc->fb.fb_vbase) == 0xff)
-			vt_generate_cons_palette(sc->fb.fb_cmap,
-			    COLOR_FORMAT_RGB, 255, 0, 255, 8, 255, 16);
+		if (sc->vendor_id == PCI_VENDOR_ID_NVIDIA)
+			sc->argb = 0;
 		else
-			vt_generate_cons_palette(sc->fb.fb_cmap,
-			    COLOR_FORMAT_RGB, 255, 16, 255, 8, 255, 0);
-		bus_space_write_4(sc->sc_memt, sc->fb.fb_vbase, 0, oldpix);
+			sc->argb = 1;
+
+		TUNABLE_INT_FETCH("hw.ofwfb.argb32_pixel", &sc->argb);
+		if (sc->endian_flip) {
+			if (sc->argb)
+				vt_generate_cons_palette(sc->fb.fb_cmap,
+				    COLOR_FORMAT_RGB, 255, 8, 255, 16, 255, 24);
+			else
+				vt_generate_cons_palette(sc->fb.fb_cmap,
+				    COLOR_FORMAT_RGB, 255, 24, 255, 16, 255, 8);
+		} else {
+			if (sc->argb)
+				vt_generate_cons_palette(sc->fb.fb_cmap,
+				    COLOR_FORMAT_RGB, 255, 16, 255, 8, 255, 0);
+			else
+				vt_generate_cons_palette(sc->fb.fb_cmap,
+				    COLOR_FORMAT_RGB, 255, 0, 255, 8, 255, 16);
+		}
 		break;
 
 	default:
@@ -361,8 +387,12 @@ ofwfb_init(struct vt_device *vd)
 	phandle_t chosen;
 	phandle_t node;
 	uint32_t depth, height, width, stride;
-	uint32_t fb_phys;
-	int i, len;
+	uint32_t vendor_id = 0;
+	cell_t adr[2];
+	uint64_t user_phys;
+	bus_addr_t fb_phys;
+	bus_size_t fb_phys_size;
+	int i, j, len;
 
 	/* Initialize softc */
 	vd->vd_softc = sc = &ofwfb_conssoftc;
@@ -390,6 +420,16 @@ ofwfb_init(struct vt_device *vd)
 	OF_getprop(node, "device_type", buf, sizeof(buf));
 	if (strcmp(buf, "display") != 0)
 		return (CN_DEAD);
+
+	/*
+	 * Retrieve vendor-id from /chosen parent node, usually pointing to
+	 * video card device. This is used to select pixel format later on
+	 * ofwfb_initialize()
+	 */
+	if (OF_getencprop(OF_parent(node), "vendor-id", &vendor_id,
+	    sizeof(vendor_id)) == sizeof(vendor_id))
+		sc->vendor_id = vendor_id;
+
 
 	/* Keep track of the OF node */
 	sc->sc_node = node;
@@ -419,35 +459,69 @@ ofwfb_init(struct vt_device *vd)
 	    sizeof(stride))
 		stride = width*depth/8;
 
+
 	sc->fb.fb_height = height;
 	sc->fb.fb_width = width;
 	sc->fb.fb_stride = stride;
 	sc->fb.fb_size = sc->fb.fb_height * sc->fb.fb_stride;
+	sc->endian_flip = 0;
+
+#if defined(__powerpc__)
+	if (OF_hasprop(node, "little-endian")) {
+		sc->sc_memt = &bs_le_tag;
+#if BYTE_ORDER == BIG_ENDIAN
+		sc->endian_flip = 1;
+#endif
+        } else if (OF_hasprop(node, "big-endian")) {
+		sc->sc_memt = &bs_be_tag;
+#if BYTE_ORDER == LITTLE_ENDIAN
+		sc->endian_flip = 1;
+#endif
+	}
+	else {
+		/* Assume the framebuffer is in native endian. */
+#if BYTE_ORDER == BIG_ENDIAN
+		sc->sc_memt = &bs_be_tag;
+#else
+		sc->sc_memt = &bs_le_tag;
+#endif
+	}
+#elif defined(__arm__)
+	sc->sc_memt = fdtbus_bs_tag;
+#else
+	#error Unsupported platform!
+#endif
+
 
 	/*
 	 * Grab the physical address of the framebuffer, and then map it
 	 * into our memory space. If the MMU is not yet up, it will be
 	 * remapped for us when relocation turns on.
 	 */
-	if (OF_getproplen(node, "address") == sizeof(fb_phys)) {
-		/* XXX We assume #address-cells is 1 at this point. */
-		OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
+	user_phys = 0;
+	TUNABLE_UINT64_FETCH("hw.ofwfb.physaddr", &user_phys);
+	fb_phys = (bus_addr_t)user_phys;
+	if (fb_phys)
+		sc->fb.fb_pbase = (vm_paddr_t)fb_phys;
+	else if (OF_hasprop(node, "address")) {
 
-	#if defined(__powerpc__)
-		sc->sc_memt = &bs_be_tag;
-		bus_space_map(sc->sc_memt, fb_phys, sc->fb.fb_size,
-		    BUS_SPACE_MAP_PREFETCHABLE, &sc->fb.fb_vbase);
-	#elif defined(__arm__)
-		sc->sc_memt = fdtbus_bs_tag;
-		bus_space_map(sc->sc_memt, sc->fb.fb_pbase, sc->fb.fb_size,
-		    BUS_SPACE_MAP_PREFETCHABLE,
-		    (bus_space_handle_t *)&sc->fb.fb_vbase);
-	#else
-		#error Unsupported platform!
-	#endif
+		switch (OF_getproplen(node, "address")) {
+		case 4:
+			OF_getencprop(node, "address", adr, 4);
+			fb_phys = adr[0];
+			break;
+		case 8:
+			OF_getencprop(node, "address", adr, 8);
+			fb_phys = ((uint64_t)adr[0] << 32) | adr[1];
+			break;
+		default:
+			/* Bad property? */
+			return (CN_DEAD);
+		}
 
-		sc->fb.fb_pbase = fb_phys;
+		sc->fb.fb_pbase = (vm_paddr_t)fb_phys;
 	} else {
+#if defined(__powerpc__)
 		/*
 		 * Some IBM systems don't have an address property. Try to
 		 * guess the framebuffer region from the assigned addresses.
@@ -473,7 +547,7 @@ ofwfb_init(struct vt_device *vd)
 			len = 0;
 		num_pciaddrs = len / sizeof(struct ofw_pci_register);
 
-		fb_phys = num_pciaddrs;
+		j = num_pciaddrs;
 		for (i = 0; i < num_pciaddrs; i++) {
 			/* If it is too small, not the framebuffer */
 			if (pciaddrs[i].size_lo < sc->fb.fb_stride * height)
@@ -484,25 +558,32 @@ ofwfb_init(struct vt_device *vd)
 				continue;
 
 			/* This could be the framebuffer */
-			fb_phys = i;
+			j = i;
 
 			/* If it is prefetchable, it certainly is */
 			if (pciaddrs[i].phys_hi & OFW_PCI_PHYS_HI_PREFETCHABLE)
 				break;
 		}
 
-		if (fb_phys == num_pciaddrs) /* No candidates found */
+		if (j == num_pciaddrs) /* No candidates found */
 			return (CN_DEAD);
 
-	#if defined(__powerpc__)
-		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->fb.fb_vbase,
-		    NULL);
-		sc->fb.fb_pbase = sc->fb.fb_vbase & ~DMAP_BASE_ADDRESS;
-	#else
+		if (ofw_reg_to_paddr(node, j, &fb_phys, &fb_phys_size, NULL) < 0)
+			return (CN_DEAD);
+
+		sc->fb.fb_pbase = (vm_paddr_t)fb_phys;
+#else
 		/* No ability to interpret assigned-addresses otherwise */
 		return (CN_DEAD);
-	#endif
+#endif
         }
+
+	if (!sc->fb.fb_pbase)
+		return (CN_DEAD);
+
+	bus_space_map(sc->sc_memt, sc->fb.fb_pbase, sc->fb.fb_size,
+	    BUS_SPACE_MAP_PREFETCHABLE,
+	    (bus_space_handle_t *)&sc->fb.fb_vbase);
 
 	#if defined(__powerpc__)
 	/*
