@@ -10970,6 +10970,9 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	case CHELSIO_T4_SET_FILTER_MODE:
 		rc = set_filter_mode(sc, *(uint32_t *)data);
 		break;
+	case CHELSIO_T4_SET_FILTER_MASK:
+		rc = set_filter_mask(sc, *(uint32_t *)data);
+		break;
 	case CHELSIO_T4_GET_FILTER:
 		rc = get_filter(sc, (struct t4_filter *)data);
 		break;

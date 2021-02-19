@@ -1337,6 +1337,7 @@ void cxgbe_ratelimit_query(struct ifnet *, struct if_ratelimit_query_results *);
 /* t4_filter.c */
 int get_filter_mode(struct adapter *, uint32_t *);
 int set_filter_mode(struct adapter *, uint32_t);
+int set_filter_mask(struct adapter *, uint32_t);
 int get_filter(struct adapter *, struct t4_filter *);
 int set_filter(struct adapter *, struct t4_filter *);
 int del_filter(struct adapter *, struct t4_filter *);
