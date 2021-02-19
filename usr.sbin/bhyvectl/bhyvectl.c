@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #define	NO_ARG		no_argument
 #define	OPT_ARG		optional_argument
 
-#define CHECKPOINT_RUN_DIR "/var/run/bhyve/checkpoint"
 #define MAX_VMNAME 100
 
 static const char *progname;
@@ -1708,7 +1707,7 @@ send_checkpoint_op_req(struct vmctx *ctx, struct checkpoint_op *op)
 		goto done;
 	}
 
-	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s", CHECKPOINT_RUN_DIR, vmname_buf);
+	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s%s", BHYVE_RUN_DIR, vmname_buf);
 
 	if (connect(socket_fd, (struct sockaddr *)&addr,
 			sizeof(struct sockaddr_un)) != 0) {
