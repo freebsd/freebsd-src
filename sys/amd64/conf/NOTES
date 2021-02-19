@@ -505,6 +505,7 @@ device		hvhid		# HyperV HID device
 
 # Xen HVM Guest Optimizations
 options 	XENHVM		# Xen HVM kernel infrastructure
+device		xenefi		# Xen EFI timer device
 device 		xenpci		# Xen HVM Hypervisor services driver
 device		xentimer	# Xen x86 PV timer device
 
