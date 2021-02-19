@@ -81,13 +81,11 @@ int
 iflib_pseudo_detach(device_t dev)
 {
 	if_ctx_t ctx;
-	uint32_t ifc_flags;
 
 	ctx = device_get_softc(dev);
-	ifc_flags = iflib_get_flags(ctx);
-	if ((ifc_flags & IFC_INIT_DONE) == 0)
-		return (0);
-	return (IFDI_DETACH(ctx));
+	if ((iflib_get_flags(ctx) & IFC_IN_DETACH) == 0)
+		return (EBUSY);
+	return (0);
 }
 
 static device_t iflib_pseudodev;
