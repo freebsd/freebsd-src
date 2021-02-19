@@ -63,9 +63,6 @@ dumpsys_wbinv_all(void)
 	 * part of stopping.
 	 */
 	dcache_wbinv_poc_all();
-#ifdef __XSCALE__
-	xscale_cache_clean_minidata();
-#endif
 }
 
 void
