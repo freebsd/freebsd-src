@@ -513,8 +513,7 @@ static int ctl_scsiio_lun_check(struct ctl_lun *lun,
 				const struct ctl_cmd_entry *entry,
 				struct ctl_scsiio *ctsio);
 static void ctl_failover_lun(union ctl_io *io);
-static int ctl_scsiio_precheck(struct ctl_softc *ctl_softc,
-			       struct ctl_scsiio *ctsio);
+static void ctl_scsiio_precheck(struct ctl_scsiio *ctsio);
 static int ctl_scsiio(struct ctl_scsiio *ctsio);
 
 static int ctl_target_reset(union ctl_io *io);
@@ -11435,14 +11434,14 @@ ctl_failover_lun(union ctl_io *rio)
 	mtx_unlock(&lun->lun_lock);
 }
 
-static int
-ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
+static void
+ctl_scsiio_precheck(struct ctl_scsiio *ctsio)
 {
+	struct ctl_softc *softc = CTL_SOFTC(ctsio);
 	struct ctl_lun *lun;
 	const struct ctl_cmd_entry *entry;
 	union ctl_io *bio;
 	uint32_t initidx, targ_lun;
-	int retval = 0;
 
 	lun = NULL;
 	targ_lun = ctsio->io_hdr.nexus.targ_mapped_lun;
@@ -11480,7 +11479,7 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 	if (entry == NULL) {
 		if (lun)
 			mtx_unlock(&lun->lun_lock);
-		return (retval);
+		return;
 	}
 
 	ctsio->io_hdr.flags &= ~CTL_FLAG_DATA_MASK;
@@ -11497,13 +11496,13 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 		if (entry->flags & CTL_CMD_FLAG_OK_ON_NO_LUN) {
 			ctsio->io_hdr.flags |= CTL_FLAG_IS_WAS_ON_RTR;
 			ctl_enqueue_rtr((union ctl_io *)ctsio);
-			return (retval);
+			return;
 		}
 
 		ctl_set_unsupported_lun(ctsio);
 		ctl_done((union ctl_io *)ctsio);
 		CTL_DEBUG_PRINT(("ctl_scsiio_precheck: bailing out due to invalid LUN\n"));
-		return (retval);
+		return;
 	} else {
 		/*
 		 * Make sure we support this particular command on this LUN.
@@ -11513,7 +11512,7 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 			mtx_unlock(&lun->lun_lock);
 			ctl_set_invalid_opcode(ctsio);
 			ctl_done((union ctl_io *)ctsio);
-			return (retval);
+			return;
 		}
 	}
 
@@ -11567,14 +11566,14 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 			ctsio->io_hdr.status = CTL_SCSI_ERROR | CTL_AUTOSENSE;
 			ctsio->sense_len = sense_len;
 			ctl_done((union ctl_io *)ctsio);
-			return (retval);
+			return;
 		}
 	}
 
 	if (ctl_scsiio_lun_check(lun, entry, ctsio) != 0) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_done((union ctl_io *)ctsio);
-		return (retval);
+		return;
 	}
 
 	/*
@@ -11611,9 +11610,9 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 		    M_WAITOK)) > CTL_HA_STATUS_SUCCESS) {
 			ctl_set_busy(ctsio);
 			ctl_done((union ctl_io *)ctsio);
-			return (retval);
+			return;
 		}
-		return (retval);
+		return;
 	}
 
 	bio = (union ctl_io *)TAILQ_PREV(&ctsio->io_hdr, ctl_ooaq, ooa_links);
@@ -11623,7 +11622,7 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 		TAILQ_INSERT_TAIL(&bio->io_hdr.blocked_queue, &ctsio->io_hdr,
 				  blocked_links);
 		mtx_unlock(&lun->lun_lock);
-		return (retval);
+		break;
 	case CTL_ACTION_PASS:
 	case CTL_ACTION_SKIP:
 		ctsio->io_hdr.flags |= CTL_FLAG_IS_WAS_ON_RTR;
@@ -11649,7 +11648,6 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 		ctl_done((union ctl_io *)ctsio);
 		break;
 	}
-	return (retval);
 }
 
 const struct ctl_cmd_entry *
@@ -13251,6 +13249,41 @@ ctl_queue(union ctl_io *io)
 	return (CTL_RETVAL_COMPLETE);
 }
 
+int
+ctl_run(union ctl_io *io)
+{
+	struct ctl_port *port = CTL_PORT(io);
+
+	CTL_DEBUG_PRINT(("ctl_run cdb[0]=%02X\n", io->scsiio.cdb[0]));
+
+#ifdef CTL_TIME_IO
+	io->io_hdr.start_time = time_uptime;
+	getbinuptime(&io->io_hdr.start_bt);
+#endif /* CTL_TIME_IO */
+
+	/* Map FE-specific LUN ID into global one. */
+	io->io_hdr.nexus.targ_mapped_lun =
+	    ctl_lun_map_from_port(port, io->io_hdr.nexus.targ_lun);
+
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		if (ctl_debug & CTL_DEBUG_CDB)
+			ctl_io_print(io);
+		ctl_scsiio_precheck(&io->scsiio);
+		break;
+	case CTL_IO_TASK:
+		if (ctl_debug & CTL_DEBUG_CDB)
+			ctl_io_print(io);
+		ctl_run_task(io);
+		break;
+	default:
+		printf("ctl_run: unknown I/O type %d\n", io->io_hdr.io_type);
+		return (EINVAL);
+	}
+
+	return (CTL_RETVAL_COMPLETE);
+}
+
 #ifdef CTL_IO_DELAY
 static void
 ctl_done_timer_wakeup(void *arg)
@@ -13381,7 +13414,7 @@ ctl_work_thread(void *arg)
 			if (io->io_hdr.io_type == CTL_IO_TASK)
 				ctl_run_task(io);
 			else
-				ctl_scsiio_precheck(softc, &io->scsiio);
+				ctl_scsiio_precheck(&io->scsiio);
 			continue;
 		}
 		io = (union ctl_io *)STAILQ_FIRST(&thr->rtr_queue);
