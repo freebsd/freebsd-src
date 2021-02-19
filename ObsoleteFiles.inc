@@ -2601,8 +2601,9 @@ OLD_FILES+=usr/bin/mklocale
 OLD_FILES+=usr/share/man/man1/mklocale.1.gz
 OLD_FILES+=usr/bin/colldef
 OLD_FILES+=usr/share/man/man1/colldef.1.gz
-# 20190904: Remove boot1.efifat
+# 20190904: Remove boot1.efifat and gptboot.efifat (which never should have been)
 OLD_FILES+=boot/boot1.efifat
+OLD_FILES+=boot/gptboot.efifat
 # 20190903: pc-sysinstall(8) removed
 OLD_FILES+=usr/share/examples/pc-sysinstall/README
 OLD_FILES+=usr/share/examples/pc-sysinstall/pc-autoinstall.conf
