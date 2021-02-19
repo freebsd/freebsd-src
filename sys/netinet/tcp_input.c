@@ -3972,8 +3972,8 @@ tcp_prr_partialack(struct tcpcb *tp, struct tcphdr *th)
 	 * If there is going to be a SACK retransmission, adjust snd_cwnd
 	 * accordingly.
 	 */
-	tp->snd_cwnd = tp->snd_nxt - tp->snd_recover +
-		tp->sackhint.sack_bytes_rexmit + (snd_cnt * maxseg);
+	tp->snd_cwnd = max(maxseg, (int64_t)tp->snd_nxt - tp->snd_recover +
+		tp->sackhint.sack_bytes_rexmit + (snd_cnt * maxseg));
 	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
 }
