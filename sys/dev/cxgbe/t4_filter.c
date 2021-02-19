@@ -231,9 +231,8 @@ filter_eq(struct t4_filter_specification *fs1,
 		return (false);
 
 	/*
-	 * We know the masks are the same because all hashfilter masks have to
-	 * conform to the global tp->hash_filter_mask and the driver has
-	 * verified that already.
+	 * We know the masks are the same because all hashfilters conform to the
+	 * global tp->filter_mask and the driver has verified that already.
 	 */
 
 	if ((fs1->mask.pfvf_vld || fs1->mask.ovlan_vld) &&
@@ -325,7 +324,11 @@ remove_hftid(struct adapter *sc, struct filter_entry *f)
 	LIST_REMOVE(f, link_tid);
 }
 
-static uint32_t
+/*
+ * Input: driver's 32b filter mode.
+ * Returns: hardware filter mode (bits to set in vlan_pri_map) for the input.
+ */
+static uint16_t
 mode_to_fconf(uint32_t mode)
 {
 	uint32_t fconf = 0;
@@ -363,13 +366,22 @@ mode_to_fconf(uint32_t mode)
 	return (fconf);
 }
 
-static uint32_t
+/*
+ * Input: driver's 32b filter mode.
+ * Returns: hardware vnic mode (ingress config) matching the input.
+ */
+static int
 mode_to_iconf(uint32_t mode)
 {
+	if ((mode & T4_FILTER_VNIC) == 0)
+		return (-1);	/* ingress config doesn't matter. */
 
 	if (mode & T4_FILTER_IC_VNIC)
-		return (F_VNIC);
-	return (0);
+		return (FW_VNIC_MODE_PF_VF);
+	else if (mode & T4_FILTER_IC_ENCAP)
+		return (FW_VNIC_MODE_ENCAP_EN);
+	else
+		return (FW_VNIC_MODE_OUTER_VLAN);
 }
 
 static int
@@ -401,16 +413,24 @@ check_fspec_against_fconf_iconf(struct adapter *sc,
 		fconf |= F_VLAN;
 
 	if (fs->val.ovlan_vld || fs->mask.ovlan_vld) {
-		fconf |= F_VNIC_ID;
-		if (tpp->ingress_config & F_VNIC)
+		if (tpp->vnic_mode != FW_VNIC_MODE_OUTER_VLAN)
 			return (EINVAL);
+		fconf |= F_VNIC_ID;
 	}
 
 	if (fs->val.pfvf_vld || fs->mask.pfvf_vld) {
-		fconf |= F_VNIC_ID;
-		if ((tpp->ingress_config & F_VNIC) == 0)
+		if (tpp->vnic_mode != FW_VNIC_MODE_PF_VF)
 			return (EINVAL);
+		fconf |= F_VNIC_ID;
 	}
+
+#ifdef notyet
+	if (fs->val.encap_vld || fs->mask.encap_vld) {
+		if (tpp->vnic_mode != FW_VNIC_MODE_ENCAP_EN);
+			return (EINVAL);
+		fconf |= F_VNIC_ID;
+	}
+#endif
 
 	if (fs->val.iport || fs->mask.iport)
 		fconf |= F_PORT;
@@ -418,46 +438,70 @@ check_fspec_against_fconf_iconf(struct adapter *sc,
 	if (fs->val.fcoe || fs->mask.fcoe)
 		fconf |= F_FCOE;
 
-	if ((tpp->vlan_pri_map | fconf) != tpp->vlan_pri_map)
+	if ((tpp->filter_mode | fconf) != tpp->filter_mode)
 		return (E2BIG);
 
 	return (0);
+}
+
+/*
+ * Input: hardware filter configuration (filter mode/mask, ingress config).
+ * Input: driver's 32b filter mode matching the input.
+ */
+static uint32_t
+fconf_to_mode(uint16_t hwmode, int vnic_mode)
+{
+	uint32_t mode = T4_FILTER_IPv4 | T4_FILTER_IPv6 | T4_FILTER_IP_SADDR |
+	    T4_FILTER_IP_DADDR | T4_FILTER_IP_SPORT | T4_FILTER_IP_DPORT;
+
+	if (hwmode & F_FRAGMENTATION)
+		mode |= T4_FILTER_IP_FRAGMENT;
+	if (hwmode & F_MPSHITTYPE)
+		mode |= T4_FILTER_MPS_HIT_TYPE;
+	if (hwmode & F_MACMATCH)
+		mode |= T4_FILTER_MAC_IDX;
+	if (hwmode & F_ETHERTYPE)
+		mode |= T4_FILTER_ETH_TYPE;
+	if (hwmode & F_PROTOCOL)
+		mode |= T4_FILTER_IP_PROTO;
+	if (hwmode & F_TOS)
+		mode |= T4_FILTER_IP_TOS;
+	if (hwmode & F_VLAN)
+		mode |= T4_FILTER_VLAN;
+	if (hwmode & F_VNIC_ID)
+		mode |= T4_FILTER_VNIC; /* real meaning depends on vnic_mode. */
+	if (hwmode & F_PORT)
+		mode |= T4_FILTER_PORT;
+	if (hwmode & F_FCOE)
+		mode |= T4_FILTER_FCoE;
+
+	switch (vnic_mode) {
+	case FW_VNIC_MODE_PF_VF:
+		mode |= T4_FILTER_IC_VNIC;
+		break;
+	case FW_VNIC_MODE_ENCAP_EN:
+		mode |= T4_FILTER_IC_ENCAP;
+		break;
+	case FW_VNIC_MODE_OUTER_VLAN:
+	default:
+		break;
+	}
+
+	return (mode);
 }
 
 int
 get_filter_mode(struct adapter *sc, uint32_t *mode)
 {
 	struct tp_params *tp = &sc->params.tp;
-	uint64_t mask;
+	uint16_t filter_mode;
+
+	/* Filter mask must comply with the global filter mode. */
+	MPASS((tp->filter_mode | tp->filter_mask) == tp->filter_mode);
 
 	/* Non-zero incoming value in mode means "hashfilter mode". */
-	mask = *mode ? tp->hash_filter_mask : UINT64_MAX;
-
-	/* Always */
-	*mode = T4_FILTER_IPv4 | T4_FILTER_IPv6 | T4_FILTER_IP_SADDR |
-	    T4_FILTER_IP_DADDR | T4_FILTER_IP_SPORT | T4_FILTER_IP_DPORT;
-
-#define CHECK_FIELD(fconf_bit, field_shift, field_mask, mode_bit)  do { \
-	if (tp->vlan_pri_map & (fconf_bit)) { \
-		MPASS(tp->field_shift >= 0); \
-		if ((mask >> tp->field_shift & field_mask) == field_mask) \
-		*mode |= (mode_bit); \
-	} \
-} while (0)
-
-	CHECK_FIELD(F_FRAGMENTATION, frag_shift, M_FT_FRAGMENTATION, T4_FILTER_IP_FRAGMENT);
-	CHECK_FIELD(F_MPSHITTYPE, matchtype_shift, M_FT_MPSHITTYPE, T4_FILTER_MPS_HIT_TYPE);
-	CHECK_FIELD(F_MACMATCH, macmatch_shift, M_FT_MACMATCH, T4_FILTER_MAC_IDX);
-	CHECK_FIELD(F_ETHERTYPE, ethertype_shift, M_FT_ETHERTYPE, T4_FILTER_ETH_TYPE);
-	CHECK_FIELD(F_PROTOCOL, protocol_shift, M_FT_PROTOCOL, T4_FILTER_IP_PROTO);
-	CHECK_FIELD(F_TOS, tos_shift, M_FT_TOS, T4_FILTER_IP_TOS);
-	CHECK_FIELD(F_VLAN, vlan_shift, M_FT_VLAN, T4_FILTER_VLAN);
-	CHECK_FIELD(F_VNIC_ID, vnic_shift, M_FT_VNIC_ID , T4_FILTER_VNIC);
-	if (tp->ingress_config & F_VNIC)
-		*mode |= T4_FILTER_IC_VNIC;
-	CHECK_FIELD(F_PORT, port_shift, M_FT_PORT , T4_FILTER_PORT);
-	CHECK_FIELD(F_FCOE, fcoe_shift, M_FT_FCOE , T4_FILTER_FCoE);
-#undef CHECK_FIELD
+	filter_mode = *mode ? tp->filter_mask : tp->filter_mode;
+	*mode = fconf_to_mode(filter_mode, tp->vnic_mode);
 
 	return (0);
 }
@@ -465,33 +509,22 @@ get_filter_mode(struct adapter *sc, uint32_t *mode)
 int
 set_filter_mode(struct adapter *sc, uint32_t mode)
 {
-	struct tp_params *tpp = &sc->params.tp;
-	uint32_t fconf, iconf;
-	int rc;
+	struct tp_params *tp = &sc->params.tp;
+	int rc, iconf;
+	uint16_t fconf;
 
 	iconf = mode_to_iconf(mode);
-	if ((iconf ^ tpp->ingress_config) & F_VNIC) {
-		/*
-		 * For now we just complain if A_TP_INGRESS_CONFIG is not
-		 * already set to the correct value for the requested filter
-		 * mode.  It's not clear if it's safe to write to this register
-		 * on the fly.  (And we trust the cached value of the register).
-		 *
-		 * check_fspec_against_fconf_iconf and other code that looks at
-		 * tp->vlan_pri_map and tp->ingress_config needs to be reviewed
-		 * thorougly before allowing dynamic filter mode changes.
-		 */
-		return (EBUSY);
-	}
-
 	fconf = mode_to_fconf(mode);
+	if ((iconf == -1 || iconf == tp->vnic_mode) && fconf == tp->filter_mode)
+		return (0);	/* Nothing to do */
 
-	rc = begin_synchronized_op(sc, NULL, HOLD_LOCK | SLEEP_OK | INTR_OK,
-	    "t4setfm");
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4setfm");
 	if (rc)
 		return (rc);
 
-	if (sc->tids.ftids_in_use > 0 || sc->tids.hpftids_in_use > 0) {
+	if (sc->tids.ftids_in_use > 0 ||	/* TCAM filters active */
+	    sc->tids.hpftids_in_use > 0 ||	/* hi-pri TCAM filters active */
+	    sc->tids.tids_in_use > 0) {		/* TOE or hashfilters active */
 		rc = EBUSY;
 		goto done;
 	}
@@ -503,9 +536,10 @@ set_filter_mode(struct adapter *sc, uint32_t mode)
 	}
 #endif
 
-	rc = -t4_set_filter_mode(sc, fconf, true);
+	/* Note that filter mask will get clipped to the new filter mode. */
+	rc = -t4_set_filter_cfg(sc, fconf, -1, iconf);
 done:
-	end_synchronized_op(sc, LOCK_HELD);
+	end_synchronized_op(sc, 0);
 	return (rc);
 }
 
@@ -718,7 +752,7 @@ hashfilter_ntuple(struct adapter *sc, const struct t4_filter_specification *fs,
     uint64_t *ftuple)
 {
 	struct tp_params *tp = &sc->params.tp;
-	uint64_t fmask;
+	uint16_t fmask;
 
 	*ftuple = fmask = 0;
 
@@ -727,63 +761,67 @@ hashfilter_ntuple(struct adapter *sc, const struct t4_filter_specification *fs,
 	 * in the Compressed Filter Tuple.
 	 */
 	if (tp->vlan_shift >= 0 && fs->mask.vlan) {
-		*ftuple |= (F_FT_VLAN_VLD | fs->val.vlan) << tp->vlan_shift;
-		fmask |= M_FT_VLAN << tp->vlan_shift;
+		*ftuple |= (uint64_t)(F_FT_VLAN_VLD | fs->val.vlan) <<
+		    tp->vlan_shift;
+		fmask |= F_VLAN;
 	}
 
 	if (tp->port_shift >= 0 && fs->mask.iport) {
 		*ftuple |= (uint64_t)fs->val.iport << tp->port_shift;
-		fmask |= M_FT_PORT << tp->port_shift;
+		fmask |= F_PORT;
 	}
 
 	if (tp->protocol_shift >= 0 && fs->mask.proto) {
 		*ftuple |= (uint64_t)fs->val.proto << tp->protocol_shift;
-		fmask |= M_FT_PROTOCOL << tp->protocol_shift;
+		fmask |= F_PROTOCOL;
 	}
 
 	if (tp->tos_shift >= 0 && fs->mask.tos) {
 		*ftuple |= (uint64_t)(fs->val.tos) << tp->tos_shift;
-		fmask |= M_FT_TOS << tp->tos_shift;
+		fmask |= F_TOS;
 	}
 
 	if (tp->vnic_shift >= 0 && fs->mask.vnic) {
-		/* F_VNIC in ingress config was already validated. */
-		if (tp->ingress_config & F_VNIC)
+		/* vnic_mode was already validated. */
+		if (tp->vnic_mode == FW_VNIC_MODE_PF_VF)
 			MPASS(fs->mask.pfvf_vld);
-		else
+		else if (tp->vnic_mode == FW_VNIC_MODE_OUTER_VLAN)
 			MPASS(fs->mask.ovlan_vld);
-
+#ifdef notyet
+		else if (tp->vnic_mode == FW_VNIC_MODE_ENCAP_EN)
+			MPASS(fs->mask.encap_vld);
+#endif
 		*ftuple |= ((1ULL << 16) | fs->val.vnic) << tp->vnic_shift;
-		fmask |= M_FT_VNIC_ID << tp->vnic_shift;
+		fmask |= F_VNIC_ID;
 	}
 
 	if (tp->macmatch_shift >= 0 && fs->mask.macidx) {
 		*ftuple |= (uint64_t)(fs->val.macidx) << tp->macmatch_shift;
-		fmask |= M_FT_MACMATCH << tp->macmatch_shift;
+		fmask |= F_MACMATCH;
 	}
 
 	if (tp->ethertype_shift >= 0 && fs->mask.ethtype) {
 		*ftuple |= (uint64_t)(fs->val.ethtype) << tp->ethertype_shift;
-		fmask |= M_FT_ETHERTYPE << tp->ethertype_shift;
+		fmask |= F_ETHERTYPE;
 	}
 
 	if (tp->matchtype_shift >= 0 && fs->mask.matchtype) {
 		*ftuple |= (uint64_t)(fs->val.matchtype) << tp->matchtype_shift;
-		fmask |= M_FT_MPSHITTYPE << tp->matchtype_shift;
+		fmask |= F_MPSHITTYPE;
 	}
 
 	if (tp->frag_shift >= 0 && fs->mask.frag) {
 		*ftuple |= (uint64_t)(fs->val.frag) << tp->frag_shift;
-		fmask |= M_FT_FRAGMENTATION << tp->frag_shift;
+		fmask |= F_FRAGMENTATION;
 	}
 
 	if (tp->fcoe_shift >= 0 && fs->mask.fcoe) {
 		*ftuple |= (uint64_t)(fs->val.fcoe) << tp->fcoe_shift;
-		fmask |= M_FT_FCOE << tp->fcoe_shift;
+		fmask |= F_FCOE;
 	}
 
-	/* A hashfilter must conform to the filterMask. */
-	if (fmask != tp->hash_filter_mask)
+	/* A hashfilter must conform to the hardware filter mask. */
+	if (fmask != tp->filter_mask)
 		return (EINVAL);
 
 	return (0);
