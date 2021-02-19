@@ -717,7 +717,6 @@ rtmsg(int cmd, struct sockaddr_in *dst, struct sockaddr_dl *sdl)
 	static int seq;
 	int rlen;
 	int l;
-	struct sockaddr_in so_mask, *som = &so_mask;
 	static int s = -1;
 	static pid_t pid;
 
@@ -735,9 +734,6 @@ rtmsg(int cmd, struct sockaddr_in *dst, struct sockaddr_dl *sdl)
 			xo_err(1, "socket");
 		pid = getpid();
 	}
-	bzero(&so_mask, sizeof(so_mask));
-	so_mask.sin_len = 8;
-	so_mask.sin_addr.s_addr = 0xffffffff;
 
 	errno = 0;
 	/*
@@ -758,10 +754,6 @@ rtmsg(int cmd, struct sockaddr_in *dst, struct sockaddr_dl *sdl)
 		rtm->rtm_rmx.rmx_expire = expire_time;
 		rtm->rtm_inits = RTV_EXPIRE;
 		rtm->rtm_flags |= (RTF_HOST | RTF_STATIC | RTF_LLDATA);
-		if (doing_proxy) {
-			rtm->rtm_addrs |= RTA_NETMASK;
-			rtm->rtm_flags &= ~RTF_HOST;
-		}
 		/* FALLTHROUGH */
 	case RTM_GET:
 		rtm->rtm_addrs |= RTA_DST;
@@ -776,7 +768,6 @@ rtmsg(int cmd, struct sockaddr_in *dst, struct sockaddr_dl *sdl)
 
 	NEXTADDR(RTA_DST, dst);
 	NEXTADDR(RTA_GATEWAY, sdl);
-	NEXTADDR(RTA_NETMASK, som);
 
 	rtm->rtm_msglen = cp - (char *)&m_rtmsg;
 doit:
