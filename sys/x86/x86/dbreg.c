@@ -27,11 +27,13 @@
 #include "opt_ddb.h"
 
 #include <sys/types.h>
+#include <sys/kdb.h>
 #include <sys/pcpu.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
 
 #include <machine/frame.h>
+#include <machine/kdb.h>
 #include <machine/md_var.h>
 
 #include <ddb/ddb.h>
@@ -127,7 +129,7 @@ dbreg_sync(struct dbreg *dp)
 }
 
 int
-dbreg_set_watchpoint(vm_offset_t addr, vm_size_t size)
+dbreg_set_watchpoint(vm_offset_t addr, vm_size_t size, int access)
 {
 	struct dbreg *d;
 	int avail, i, wsize;
@@ -139,6 +141,11 @@ dbreg_set_watchpoint(vm_offset_t addr, vm_size_t size)
 	struct dbreg d_temp;
 	d = &d_temp;
 #endif
+
+	/* Validate the access type */
+	if (access != DBREG_DR7_EXEC && access != DBREG_DR7_WRONLY &&
+	    access != DBREG_DR7_RDWR)
+		return (EINVAL);
 
 	fill_dbregs(NULL, d);
 
@@ -153,7 +160,7 @@ dbreg_set_watchpoint(vm_offset_t addr, vm_size_t size)
 	}
 
 	if (avail * MAXWATCHSIZE < size)
-		return (-1);
+		return (EBUSY);
 
 	for (i = 0; i < NDBREGS && size > 0; i++) {
 		if (!DBREG_DR7_ENABLED(d->dr[7], i)) {
@@ -164,7 +171,7 @@ dbreg_set_watchpoint(vm_offset_t addr, vm_size_t size)
 				wsize = 4;
 			else
 				wsize = size;
-			dbreg_set_watchreg(i, addr, wsize, DBREG_DR7_WRONLY, d);
+			dbreg_set_watchreg(i, addr, wsize, access, d);
 			addr += wsize;
 			size -= wsize;
 			avail--;
@@ -265,3 +272,31 @@ amd64_db_resume_dbreg(void)
 	}
 }
 #endif
+
+int
+kdb_cpu_set_watchpoint(vm_offset_t addr, vm_size_t size, int access)
+{
+
+	/* Convert the KDB access type */
+	switch (access) {
+	case KDB_DBG_ACCESS_W:
+		access = DBREG_DR7_WRONLY;
+		break;
+	case KDB_DBG_ACCESS_RW:
+		access = DBREG_DR7_RDWR;
+		break;
+	case KDB_DBG_ACCESS_R:
+		/* FALLTHROUGH: read-only not supported */
+	default:
+		return (EINVAL);
+	}
+
+	return (dbreg_set_watchpoint(addr, size, access));
+}
+
+int
+kdb_cpu_clr_watchpoint(vm_offset_t addr, vm_size_t size)
+{
+
+	return (dbreg_clr_watchpoint(addr, size));
+}

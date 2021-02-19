@@ -120,7 +120,7 @@ vm_paddr_t cpu_getmaxphyaddr(void);
 bool	cpu_mwait_usable(void);
 void	cpu_probe_amdc1e(void);
 void	cpu_setregs(void);
-int	dbreg_set_watchpoint(vm_offset_t addr, vm_size_t size);
+int	dbreg_set_watchpoint(vm_offset_t addr, vm_size_t size, int access);
 int	dbreg_clr_watchpoint(vm_offset_t addr, vm_size_t size);
 void	dbreg_list_watchpoints(void);
 bool	disable_wp(void);
