@@ -242,7 +242,7 @@ struct ctl_io_hdr {
 	union ctl_priv	  ctl_private[CTL_NUM_PRIV];/* CTL private area */
 	TAILQ_HEAD(, ctl_io_hdr) blocked_queue;	/* I/Os blocked by this one */
 	STAILQ_ENTRY(ctl_io_hdr) links;	/* linked list pointer */
-	TAILQ_ENTRY(ctl_io_hdr) ooa_links;	/* ooa_queue links */
+	LIST_ENTRY(ctl_io_hdr) ooa_links;	/* ooa_queue links */
 	TAILQ_ENTRY(ctl_io_hdr) blocked_links;	/* blocked_queue links */
 };
 
