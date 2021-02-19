@@ -42,6 +42,7 @@
 #include <libxo/xo.h>
 #include <ucl.h>
 
+#define BHYVE_RUN_DIR "/var/run/bhyve/"
 #define MAX_SNAPSHOT_VMNAME 100
 
 struct vmctx;
