@@ -543,6 +543,48 @@ done:
 	return (rc);
 }
 
+int
+set_filter_mask(struct adapter *sc, uint32_t mode)
+{
+	struct tp_params *tp = &sc->params.tp;
+	int rc, iconf;
+	uint16_t fmask;
+
+	iconf = mode_to_iconf(mode);
+	fmask = mode_to_fconf(mode);
+	if ((iconf == -1 || iconf == tp->vnic_mode) && fmask == tp->filter_mask)
+		return (0);	/* Nothing to do */
+
+	/*
+	 * We aren't going to change the global filter mode or VNIC mode here.
+	 * The given filter mask must conform to them.
+	 */
+	if ((fmask | tp->filter_mode) != tp->filter_mode)
+		return (EINVAL);
+	if (iconf != -1 && iconf != tp->vnic_mode)
+		return (EINVAL);
+
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4sethfm");
+	if (rc)
+		return (rc);
+
+	if (sc->tids.tids_in_use > 0) {		/* TOE or hashfilters active */
+		rc = EBUSY;
+		goto done;
+	}
+
+#ifdef TCP_OFFLOAD
+	if (uld_active(sc, ULD_TOM)) {
+		rc = EBUSY;
+		goto done;
+	}
+#endif
+	rc = -t4_set_filter_cfg(sc, -1, fmask, -1);
+done:
+	end_synchronized_op(sc, 0);
+	return (rc);
+}
+
 static inline uint64_t
 get_filter_hits(struct adapter *sc, uint32_t tid)
 {

@@ -63,6 +63,7 @@ enum {
 	T4_LOAD_BOOT,			/* flash boot rom */
 	T4_LOAD_BOOTCFG,		/* flash bootcfg */
 	T4_CUDBG_DUMP,			/* debug dump of chip state */
+	T4_SET_FILTER_MASK,		/* set filter mask (hashfilter mode) */
 };
 
 struct t4_reg {
@@ -429,4 +430,5 @@ struct t4_offload_policy {
 #define CHELSIO_T4_LOAD_BOOTCFG	_IOW('f', T4_LOAD_BOOTCFG, struct t4_data)
 #define CHELSIO_T4_CUDBG_DUMP	_IOWR('f', T4_CUDBG_DUMP, struct t4_cudbg_dump)
 #define CHELSIO_T4_SET_OFLD_POLICY _IOW('f', T4_SET_OFLD_POLICY, struct t4_offload_policy)
+#define CHELSIO_T4_SET_FILTER_MASK _IOW('f', T4_SET_FILTER_MASK, uint32_t)
 #endif
