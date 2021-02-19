@@ -4874,6 +4874,11 @@ enum fw_params_param_dev_diag {
 enum fw_params_param_dev_filter{
 	FW_PARAM_DEV_FILTER_VNIC_MODE	= 0x00,
 	FW_PARAM_DEV_FILTER_MODE_MASK	= 0x01,
+
+	/* VNIC modes */
+	FW_VNIC_MODE_PF_VF	= 0,
+	FW_VNIC_MODE_OUTER_VLAN	= 1,
+	FW_VNIC_MODE_ENCAP_EN	= 2,
 };
 
 enum fw_params_param_dev_ktls_hw {
