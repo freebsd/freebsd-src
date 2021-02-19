@@ -128,16 +128,11 @@ strerror_r(int errnum, char *strerrbuf, size_t buflen)
 char *
 strerror_l(int num, locale_t locale)
 {
-#ifndef __NO_TLS
 	static _Thread_local char ebuf[NL_TEXTMAX];
 
 	if (strerror_rl(num, ebuf, sizeof(ebuf), locale) != 0)
 		errno = EINVAL;
 	return (ebuf);
-#else
-	errno = ENOTSUP;
-	return (NULL);
-#endif
 }
 
 char *
