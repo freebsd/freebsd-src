@@ -1628,7 +1628,7 @@ tpc_done(union ctl_io *io)
 			io->io_hdr.flags &= ~CTL_FLAG_ABORT;
 			io->io_hdr.flags &= ~CTL_FLAG_SENT_2OTHER_SC;
 			if (tpcl_queue(io, tio->lun) != CTL_RETVAL_COMPLETE) {
-				printf("%s: error returned from ctl_queue()!\n",
+				printf("%s: error returned from tpcl_queue()!\n",
 				       __func__);
 				io->io_hdr.status = old_status;
 			} else

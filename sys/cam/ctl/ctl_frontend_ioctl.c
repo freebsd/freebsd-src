@@ -526,7 +526,7 @@ cfi_submit_wait(union ctl_io *io)
 	CTL_DEBUG_PRINT(("cfi_submit_wait\n"));
 
 	/* This shouldn't happen */
-	if ((retval = ctl_queue(io)) != CTL_RETVAL_COMPLETE)
+	if ((retval = ctl_run(io)) != CTL_RETVAL_COMPLETE)
 		return (retval);
 
 	done = 0;
