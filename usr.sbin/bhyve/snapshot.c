@@ -115,8 +115,6 @@ static sig_t old_winch_handler;
 #define	SNAPSHOT_CHUNK	(4 * MB)
 #define	PROG_BUF_SZ	(8192)
 
-#define	BHYVE_RUN_DIR "/var/run/bhyve"
-#define	CHECKPOINT_RUN_DIR BHYVE_RUN_DIR "/checkpoint"
 #define	MAX_VMNAME 100
 
 #define	MAX_MSG_SIZE 1024
@@ -1506,26 +1504,6 @@ checkpoint_thread(void *param)
 }
 
 /*
- * Create directory tree to store runtime specific information:
- * i.e. UNIX sockets for IPC with bhyvectl.
- */
-static int
-make_checkpoint_dir(void)
-{
-	int err;
-
-	err = mkdir(BHYVE_RUN_DIR, 0755);
-	if (err < 0 && errno != EEXIST)
-		return (err);
-
-	err = mkdir(CHECKPOINT_RUN_DIR, 0755);
-	if (err < 0 && errno != EEXIST)
-		return (err);
-
-	return 0;
-}
-
-/*
  * Create the listening socket for IPC with bhyvectl
  */
 int
@@ -1556,12 +1534,6 @@ init_checkpoint_thread(struct vmctx *ctx)
 		goto fail;
 	}
 
-	err = make_checkpoint_dir();
-	if (err < 0) {
-		perror("Failed to create checkpoint runtime directory");
-		goto fail;
-	}
-
 	addr.sun_family = AF_UNIX;
 
 	err = vm_get_name(ctx, vmname_buf, MAX_VMNAME - 1);
@@ -1570,8 +1542,8 @@ init_checkpoint_thread(struct vmctx *ctx)
 		goto fail;
 	}
 
-	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s",
-		 CHECKPOINT_RUN_DIR, vmname_buf);
+	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s%s",
+		 BHYVE_RUN_DIR, vmname_buf);
 	addr.sun_len = SUN_LEN(&addr);
 	unlink(addr.sun_path);
 
