@@ -309,6 +309,7 @@ struct chip_params {
 	u8 cng_ch_bits_log;		/* congestion channel map bits width */
 	u8 nsched_cls;
 	u8 cim_num_obq;
+	u8 filter_opt_len;
 	u16 mps_rplc_size;
 	u16 vfcount;
 	u32 sge_fl_db;
