@@ -311,6 +311,13 @@ void ctl_port_offline(struct ctl_port *fe);
 int ctl_queue(union ctl_io *io);
 
 /*
+ * This routine starts execution of I/O and task management requests from
+ * the FETD to the CTL layer.  May sleep.  Returns 0 for success, non-zero
+ * for failure.
+ */
+int ctl_run(union ctl_io *io);
+
+/*
  * This routine is used if the front end interface doesn't support
  * autosense (e.g. non-packetized parallel SCSI).  This will queue the
  * scsiio structure back to a per-lun pending sense queue.  This MUST be
