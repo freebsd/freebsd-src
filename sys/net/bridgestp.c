@@ -2232,6 +2232,7 @@ bstp_enable(struct bstp_port *bp)
 
 	switch (ifp->if_type) {
 		case IFT_ETHER:	/* These can do spanning tree. */
+		case IFT_L2VLAN:
 			break;
 		default:
 			/* Nothing else can. */
