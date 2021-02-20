@@ -1863,6 +1863,113 @@ reset_font_flags(void)
 	}
 }
 
+/* Return  w^2 + h^2 or 0, if the dimensions are unknown */
+static unsigned
+edid_diagonal_squared(void)
+{
+	unsigned w, h;
+
+	if (edid_info == NULL)
+		return (0);
+
+	w = edid_info->display.max_horizontal_image_size;
+	h = edid_info->display.max_vertical_image_size;
+
+	/* If either one is 0, we have aspect ratio, not size */
+	if (w == 0 || h == 0)
+		return (0);
+
+	/*
+	 * some monitors encode the aspect ratio instead of the physical size.
+	 */
+	if ((w == 16 && h == 9) || (w == 16 && h == 10) ||
+	    (w == 4 && h == 3) || (w == 5 && h == 4))
+		return (0);
+
+	/*
+	 * translate cm to inch, note we scale by 100 here.
+	 */
+	w = w * 100 / 254;
+	h = h * 100 / 254;
+
+	/* Return w^2 + h^2 */
+	return (w * w + h * h);
+}
+
+/*
+ * calculate pixels per inch.
+ */
+static unsigned
+gfx_get_ppi(void)
+{
+	unsigned dp, di;
+
+	di = edid_diagonal_squared();
+	if (di == 0)
+		return (0);
+
+	dp = gfx_state.tg_fb.fb_width *
+	    gfx_state.tg_fb.fb_width +
+	    gfx_state.tg_fb.fb_height *
+	    gfx_state.tg_fb.fb_height;
+
+	return (isqrt(dp / di));
+}
+
+/*
+ * Calculate font size from density independent pixels (dp):
+ * ((16dp * ppi) / 160) * display_factor.
+ * Here we are using fixed constants: 1dp == 160 ppi and
+ * display_factor 2.
+ *
+ * We are rounding font size up and are searching for font which is
+ * not smaller than calculated size value.
+ */
+static vt_font_bitmap_data_t *
+gfx_get_font(void)
+{
+	unsigned ppi, size;
+	vt_font_bitmap_data_t *font = NULL;
+	struct fontlist *fl, *next;
+
+	/* Text mode is not supported here. */
+	if (gfx_state.tg_fb_type == FB_TEXT)
+		return (NULL);
+
+	ppi = gfx_get_ppi();
+	if (ppi == 0)
+		return (NULL);
+
+	/*
+	 * We will search for 16dp font.
+	 * We are using scale up by 10 for roundup.
+	 */
+	size = (16 * ppi * 10) / 160;
+	/* Apply display factor 2.  */
+	size = roundup(size * 2, 10) / 10;
+
+	STAILQ_FOREACH(fl, &fonts, font_next) {
+		next = STAILQ_NEXT(fl, font_next);
+
+		/*
+		 * If this is last font or, if next font is smaller,
+		 * we have our font. Make sure, it actually is loaded.
+		 */
+		if (next == NULL || next->font_data->vfbd_height < size) {
+			font = fl->font_data;
+			if (font->vfbd_font == NULL ||
+			    fl->font_flags == FONT_RELOAD) {
+				if (fl->font_load != NULL &&
+				    fl->font_name != NULL)
+					font = fl->font_load(fl->font_name);
+			}
+			break;
+		}
+	}
+
+	return (font);
+}
+
 static vt_font_bitmap_data_t *
 set_font(teken_unit_t *rows, teken_unit_t *cols, teken_unit_t h, teken_unit_t w)
 {
@@ -1886,6 +1993,9 @@ set_font(teken_unit_t *rows, teken_unit_t *cols, teken_unit_t h, teken_unit_t w)
 			break;
 		}
 	}
+
+	if (font == NULL)
+		font = gfx_get_font();
 
 	if (font != NULL) {
 		*rows = height / font->vfbd_height;
