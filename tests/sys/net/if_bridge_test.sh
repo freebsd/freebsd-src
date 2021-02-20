@@ -124,6 +124,71 @@ stp_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "stp_vlan" "cleanup"
+stp_vlan_head()
+{
+	atf_set descr 'Spanning tree on VLAN test'
+	atf_set require.user root
+}
+
+stp_vlan_body()
+{
+	vnet_init
+
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+	bridge_a=$(vnet_mkbridge)
+	bridge_b=$(vnet_mkbridge)
+
+	vnet_mkjail a ${bridge_a} ${epair_one}a ${epair_two}a
+	vnet_mkjail b ${bridge_b} ${epair_one}b ${epair_two}b
+
+	jexec a ifconfig ${epair_one}a up
+	jexec a ifconfig ${epair_two}a up
+	vlan_a_one=$(jexec a ifconfig vlan create vlandev ${epair_one}a vlan 42)
+	vlan_a_two=$(jexec a ifconfig vlan create vlandev ${epair_two}a vlan 42)
+	jexec a ifconfig ${vlan_a_one} up
+	jexec a ifconfig ${vlan_a_two} up
+	jexec a ifconfig ${bridge_a} addm ${vlan_a_one}
+	jexec a ifconfig ${bridge_a} addm ${vlan_a_two}
+
+	jexec b ifconfig ${epair_one}b up
+	jexec b ifconfig ${epair_two}b up
+	vlan_b_one=$(jexec b ifconfig vlan create vlandev ${epair_one}b vlan 42)
+	vlan_b_two=$(jexec b ifconfig vlan create vlandev ${epair_two}b vlan 42)
+	jexec b ifconfig ${vlan_b_one} up
+	jexec b ifconfig ${vlan_b_two} up
+	jexec b ifconfig ${bridge_b} addm ${vlan_b_one}
+	jexec b ifconfig ${bridge_b} addm ${vlan_b_two}
+
+	jexec a ifconfig ${bridge_a} 192.0.2.1/24
+
+	# Enable spanning tree
+	jexec a ifconfig ${bridge_a} stp ${vlan_a_one}
+	jexec a ifconfig ${bridge_a} stp ${vlan_a_two}
+	jexec b ifconfig ${bridge_b} stp ${vlan_b_one}
+	jexec b ifconfig ${bridge_b} stp ${vlan_b_two}
+
+	jexec b ifconfig ${bridge_b} up
+	jexec a ifconfig ${bridge_a} up
+
+	# Give STP time to do its thing
+	sleep 5
+
+	a_discard=$(jexec a ifconfig ${bridge_a} | grep discarding)
+	b_discard=$(jexec b ifconfig ${bridge_b} | grep discarding)
+
+	if [ -z "${a_discard}" ] && [ -z "${b_discard}" ]
+	then
+		atf_fail "STP failed to detect bridging loop"
+	fi
+}
+
+stp_vlan_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_test_case "static" "cleanup"
 static_head()
 {
@@ -329,6 +394,7 @@ atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
 	atf_add_test_case "stp"
+	atf_add_test_case "stp_vlan"
 	atf_add_test_case "static"
 	atf_add_test_case "span"
 	atf_add_test_case "inherit_mac"
