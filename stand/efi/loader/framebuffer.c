@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <efilib.h>
 #include <efiuga.h>
 #include <efipciio.h>
+#include <Protocol/EdidActive.h>
+#include <Protocol/EdidDiscovered.h>
 #include <machine/metadata.h>
 
 #include "bootstrap.h"
@@ -47,6 +49,12 @@ static EFI_GUID conout_guid = EFI_CONSOLE_OUT_DEVICE_GUID;
 EFI_GUID gop_guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 static EFI_GUID pciio_guid = EFI_PCI_IO_PROTOCOL_GUID;
 static EFI_GUID uga_guid = EFI_UGA_DRAW_PROTOCOL_GUID;
+static EFI_GUID active_edid_guid = EFI_EDID_ACTIVE_PROTOCOL_GUID;
+static EFI_GUID discovered_edid_guid = EFI_EDID_DISCOVERED_PROTOCOL_GUID;
+static EFI_HANDLE gop_handle;
+
+/* Cached EDID. */
+struct vesa_edid_info *edid_info = NULL;
 
 static EFI_GRAPHICS_OUTPUT *gop;
 static EFI_UGA_DRAW_PROTOCOL *uga;
@@ -467,10 +475,71 @@ efifb_from_uga(struct efi_fb *efifb)
 	return (0);
 }
 
+/*
+ * Fetch EDID info. Caller must free the buffer.
+ */
+static struct vesa_edid_info *
+efifb_gop_get_edid(EFI_HANDLE h)
+{
+	const uint8_t magic[] = EDID_MAGIC;
+	EFI_EDID_ACTIVE_PROTOCOL *edid;
+	struct vesa_edid_info *edid_infop;
+	EFI_GUID *guid;
+	EFI_STATUS status;
+	size_t size;
+
+	guid = &active_edid_guid;
+	status = BS->OpenProtocol(h, guid, (void **)&edid, IH, NULL,
+	    EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+	if (status != EFI_SUCCESS ||
+	    edid->SizeOfEdid == 0) {
+		guid = &discovered_edid_guid;
+		status = BS->OpenProtocol(h, guid, (void **)&edid, IH, NULL,
+		    EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+		if (status != EFI_SUCCESS ||
+		    edid->SizeOfEdid == 0)
+			return (NULL);
+	}
+
+	size = MAX(sizeof(*edid_infop), edid->SizeOfEdid);
+
+	edid_infop = calloc(1, size);
+	if (edid_infop == NULL)
+		return (NULL);
+
+	memcpy(edid_infop, edid->Edid, edid->SizeOfEdid);
+
+	/* Validate EDID */
+	if (memcmp(edid_infop, magic, sizeof (magic)) != 0)
+		goto error;
+
+	if (edid_infop->header.version != 1)
+		goto error;
+
+	return (edid_infop);
+error:
+	free(edid_infop);
+	return (NULL);
+}
+
+static bool
+efifb_get_edid(edid_res_list_t *res)
+{
+	bool rv = false;
+
+	if (edid_info == NULL)
+		edid_info = efifb_gop_get_edid(gop_handle);
+
+	if (edid_info != NULL)
+		rv = gfx_get_edid_resolution(edid_info, res);
+
+	return (rv);
+}
+
 int
 efi_find_framebuffer(teken_gfx_t *gfx_state)
 {
-	EFI_HANDLE h, *hlist;
+	EFI_HANDLE *hlist;
 	UINTN nhandles, i, hsize;
 	struct efi_fb efifb;
 	EFI_STATUS status;
@@ -498,23 +567,25 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 	/*
 	 * Search for ConOut protocol, if not found, use first handle.
 	 */
-	h = *hlist;
+	gop_handle = *hlist;
 	for (i = 0; i < nhandles; i++) {
 		void *dummy = NULL;
 
 		status = OpenProtocolByHandle(hlist[i], &conout_guid, &dummy);
 		if (status == EFI_SUCCESS) {
-			h = hlist[i];
+			gop_handle = hlist[i];
 			break;
 		}
 	}
 
-	status = OpenProtocolByHandle(h, &gop_guid, (void **)&gop);
+	status = OpenProtocolByHandle(gop_handle, &gop_guid, (void **)&gop);
 	free(hlist);
 
 	if (status == EFI_SUCCESS) {
 		gfx_state->tg_fb_type = FB_GOP;
 		gfx_state->tg_private = gop;
+		if (edid_info == NULL)
+			edid_info = efifb_gop_get_edid(gop_handle);
 	} else {
 		status = BS->LocateProtocol(&uga_guid, NULL, (VOID **)&uga);
 		if (status == EFI_SUCCESS) {
@@ -767,9 +838,25 @@ command_gop(int argc, char *argv[])
 	} else if (strcmp(argv[1], "off") == 0) {
 		(void) cons_update_mode(false);
 	} else if (strcmp(argv[1], "get") == 0) {
+		edid_res_list_t res;
+
 		if (argc != 2)
 			goto usage;
+		TAILQ_INIT(&res);
 		efifb_from_gop(&efifb, gop->Mode, gop->Mode->Info);
+		if (efifb_get_edid(&res)) {
+			struct resolution *rp;
+
+			printf("EDID");
+			while ((rp = TAILQ_FIRST(&res)) != NULL) {
+				printf(" %dx%d", rp->width, rp->height);
+				TAILQ_REMOVE(&res, rp, next);
+				free(rp);
+			}
+			printf("\n");
+		} else {
+			printf("no EDID information\n");
+		}
 		print_efifb(gop->Mode->Mode, &efifb, 1);
 		printf("\n");
 	} else if (!strcmp(argv[1], "list")) {
@@ -778,6 +865,7 @@ command_gop(int argc, char *argv[])
 
 		if (argc != 2)
 			goto usage;
+
 		pager_open();
 		for (mode = 0; mode < gop->Mode->MaxMode; mode++) {
 			status = gop->QueryMode(gop, mode, &infosz, &info);

@@ -51,6 +51,7 @@ static struct modeinfoblock *vbe_mode;
 
 static uint16_t *vbe_mode_list;
 static size_t vbe_mode_list_size;
+struct vesa_edid_info *edid_info = NULL;
 
 /* The default VGA color palette format is 6 bits per primary color. */
 int palette_format = 6;
@@ -836,34 +837,40 @@ vbe_dump_mode(int modenum, struct modeinfoblock *mi)
 static bool
 vbe_get_edid(edid_res_list_t *res)
 {
-	struct vesa_edid_info *edid_info;
+	struct vesa_edid_info *edidp;
 	const uint8_t magic[] = EDID_MAGIC;
 	int ddc_caps;
 	bool ret = false;
+
+	if (edid_info != NULL)
+		return (gfx_get_edid_resolution(edid_info, res));
 
 	ddc_caps = biosvbe_ddc_caps();
 	if (ddc_caps == 0) {
 		return (ret);
 	}
 
-	edid_info = bio_alloc(sizeof (*edid_info));
-	if (edid_info == NULL)
+	edidp = bio_alloc(sizeof(*edidp));
+	if (edidp == NULL)
 		return (ret);
-	memset(edid_info, 0, sizeof (*edid_info));
+	memset(edidp, 0, sizeof(*edidp));
 
-	if (VBE_ERROR(biosvbe_ddc_read_edid(0, edid_info)))
+	if (VBE_ERROR(biosvbe_ddc_read_edid(0, edidp)))
 		goto done;
 
-	if (memcmp(edid_info, magic, sizeof (magic)) != 0)
+	if (memcmp(edidp, magic, sizeof(magic)) != 0)
 		goto done;
 
 	/* Unknown EDID version. */
-	if (edid_info->header.version != 1)
+	if (edidp->header.version != 1)
 		goto done;
 
-	ret = gfx_get_edid_resolution(edid_info, res);
+	ret = gfx_get_edid_resolution(edidp, res);
+	edid_info = malloc(sizeof(*edid_info));
+	if (edid_info != NULL)
+		memcpy(edid_info, edidp, sizeof (*edid_info));
 done:
-	bio_free(edid_info, sizeof (*edid_info));
+	bio_free(edidp, sizeof(*edidp));
 	return (ret);
 }
 

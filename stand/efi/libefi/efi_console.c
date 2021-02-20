@@ -952,13 +952,24 @@ cons_update_mode(bool use_gfx_mode)
 
 			/*
 			 * setup_font() can adjust terminal size.
-			 * Note, we do use UEFI terminal dimensions first,
-			 * this is because the font selection will attempt
-			 * to achieve at least this terminal dimension and
-			 * we do not end up with too small font.
+			 * We can see two kind of bad happening.
+			 * We either can get too small console font - requested
+			 * terminal size is large, display resolution is
+			 * large, and we get very small font.
+			 * Or, we can get too large font - requested
+			 * terminal size is small and this will cause large
+			 * font to be selected.
+			 * Now, the setup_font() is updated to consider
+			 * display density and this should give us mostly
+			 * acceptable font. However, the catch is, not all
+			 * display devices will give us display density.
+			 * Still, we do hope, external monitors do - this is
+			 * where the display size will matter the most.
+			 * And for laptop screens, we should still get good
+			 * results by requesting 80x25 terminal.
 			 */
-			gfx_state.tg_tp.tp_row = rows;
-			gfx_state.tg_tp.tp_col = cols;
+			gfx_state.tg_tp.tp_row = 25;
+			gfx_state.tg_tp.tp_col = 80;
 			setup_font(&gfx_state, fb_height, fb_width);
 			rows = gfx_state.tg_tp.tp_row;
 			cols = gfx_state.tg_tp.tp_col;
