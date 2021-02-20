@@ -109,6 +109,8 @@ struct vesa_edid_info {
 	uint8_t checksum;
 } __packed;
 
+extern struct vesa_edid_info *edid_info;
+
 #define	STD_TIMINGS	8
 #define	DET_TIMINGS	4
 
