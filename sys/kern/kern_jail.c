@@ -2793,11 +2793,17 @@ prison_complete(void *context, int pending)
 static void
 prison_deref(struct prison *pr, int flags)
 {
-	struct prison *ppr, *tpr;
+	struct prisonlist freeprison;
+	struct prison *rpr, *tpr;
 	int lastref, lasturef;
 
+	TAILQ_INIT(&freeprison);
 	if (!(flags & PD_LOCKED))
 		mtx_lock(&pr->pr_mtx);
+	/*
+	 * Release this prison as requested, which may cause its parent
+	 * to be released, and then maybe its grandparent, etc.
+	 */
 	for (;;) {
 		if (flags & PD_DEUREF) {
 			KASSERT(refcount_load(&pr->pr_uref) > 0,
@@ -2840,56 +2846,63 @@ prison_deref(struct prison *pr, int flags)
 			mtx_unlock(&pr->pr_mtx);
 		}
 
-		/* If the prison still has references, nothing else to do. */
-		if (!lastref) {
-			if (flags & PD_LIST_SLOCKED)
-				sx_sunlock(&allprison_lock);
-			else if (flags & PD_LIST_XLOCKED)
-				sx_xunlock(&allprison_lock);
-			return;
-		}
+		if (!lastref)
+			break;
 
 		if (flags & PD_LIST_SLOCKED) {
 			if (!sx_try_upgrade(&allprison_lock)) {
 				sx_sunlock(&allprison_lock);
 				sx_xlock(&allprison_lock);
 			}
+			flags &= ~PD_LIST_SLOCKED;
 		} else if (!(flags & PD_LIST_XLOCKED))
 			sx_xlock(&allprison_lock);
+		flags |= PD_LIST_XLOCKED;
 
 		TAILQ_REMOVE(&allprison, pr, pr_list);
 		LIST_REMOVE(pr, pr_sibling);
-		ppr = pr->pr_parent;
-		for (tpr = ppr; tpr != NULL; tpr = tpr->pr_parent)
+		TAILQ_INSERT_TAIL(&freeprison, pr, pr_list);
+		for (tpr = pr->pr_parent; tpr != NULL; tpr = tpr->pr_parent)
 			tpr->pr_childcount--;
-		sx_xunlock(&allprison_lock);
-
-#ifdef VIMAGE
-		if (pr->pr_vnet != ppr->pr_vnet)
-			vnet_destroy(pr->pr_vnet);
-#endif
-		if (pr->pr_root != NULL)
-			vrele(pr->pr_root);
-		mtx_destroy(&pr->pr_mtx);
-#ifdef INET
-		free(pr->pr_ip4, M_PRISON);
-#endif
-#ifdef INET6
-		free(pr->pr_ip6, M_PRISON);
-#endif
-		if (pr->pr_cpuset != NULL)
-			cpuset_rel(pr->pr_cpuset);
-		osd_jail_exit(pr);
-#ifdef RACCT
-		if (racct_enable)
-			prison_racct_detach(pr);
-#endif
-		free(pr, M_PRISON);
 
 		/* Removing a prison frees a reference on its parent. */
-		pr = ppr;
+		pr = pr->pr_parent;
 		mtx_lock(&pr->pr_mtx);
-		flags = PD_DEREF | PD_DEUREF;
+		flags |= PD_DEREF | PD_DEUREF;
+	}
+
+	/* Release all the prison locks. */
+	if (flags & PD_LIST_SLOCKED)
+		sx_sunlock(&allprison_lock);
+	else if (flags & PD_LIST_XLOCKED)
+		sx_xunlock(&allprison_lock);
+
+	/*
+	 * Finish removing any unreferenced prisons, which couldn't happen
+	 * while allprison_lock was held (to avoid a LOR on vrele).
+	 */
+	TAILQ_FOREACH_SAFE(rpr, &freeprison, pr_list, tpr) {
+#ifdef VIMAGE
+		if (rpr->pr_vnet != rpr->pr_parent->pr_vnet)
+			vnet_destroy(rpr->pr_vnet);
+#endif
+		if (rpr->pr_root != NULL)
+			vrele(rpr->pr_root);
+		mtx_destroy(&rpr->pr_mtx);
+#ifdef INET
+		free(rpr->pr_ip4, M_PRISON);
+#endif
+#ifdef INET6
+		free(rpr->pr_ip6, M_PRISON);
+#endif
+		if (rpr->pr_cpuset != NULL)
+			cpuset_rel(rpr->pr_cpuset);
+		osd_jail_exit(rpr);
+#ifdef RACCT
+		if (racct_enable)
+			prison_racct_detach(rpr);
+#endif
+		free(rpr, M_PRISON);
 	}
 }
 
