@@ -249,7 +249,7 @@ SYSCTL_COUNTER_U64(_kern_ipc_tls_toe, OID_AUTO, gcm, CTLFLAG_RD,
     &ktls_toe_gcm,
     "Active number of TOE TLS sessions using AES-GCM");
 
-static counter_u64_t ktls_toe_chacha20;
+static COUNTER_U64_DEFINE_EARLY(ktls_toe_chacha20);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_toe, OID_AUTO, chacha20, CTLFLAG_RD,
     &ktls_toe_chacha20,
     "Active number of TOE TLS sessions using Chacha20-Poly1305");
