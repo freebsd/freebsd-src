@@ -2586,8 +2586,11 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						 * estimate to be in the network.
 						 */
 						del_data = tp->sackhint.delivered_data;
-						pipe = (tp->snd_nxt - tp->snd_fack) +
-							tp->sackhint.sack_bytes_rexmit;
+						if (V_tcp_do_rfc6675_pipe)
+							pipe = tcp_compute_pipe(tp);
+						else
+							pipe = (tp->snd_nxt - tp->snd_fack) +
+								tp->sackhint.sack_bytes_rexmit;
 						tp->sackhint.prr_delivered += del_data;
 						if (pipe > tp->snd_ssthresh) {
 							if (tp->sackhint.recover_fs == 0)
@@ -3942,7 +3945,10 @@ tcp_prr_partialack(struct tcpcb *tp, struct tcphdr *th)
 	if (SEQ_GEQ(th->th_ack, tp->snd_una))
 		del_data = BYTES_THIS_ACK(tp, th);
 	del_data += tp->sackhint.delivered_data;
-	pipe = (tp->snd_nxt - tp->snd_fack) + tp->sackhint.sack_bytes_rexmit;
+	if (V_tcp_do_rfc6675_pipe)
+		pipe = tcp_compute_pipe(tp);
+	else
+		pipe = (tp->snd_nxt - tp->snd_fack) + tp->sackhint.sack_bytes_rexmit;
 	tp->sackhint.prr_delivered += del_data;
 	/*
 	 * Proportional Rate Reduction
