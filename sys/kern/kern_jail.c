@@ -2671,7 +2671,7 @@ prison_free_not_last(struct prison *pr)
 	    ("prison_free_not_last freed last ref on prison %p (jid=%d).",
 	     pr, pr->pr_id));
 #else
-	refcount_release(&pr>pr_ref);
+	refcount_release(&pr->pr_ref);
 #endif
 }
 
