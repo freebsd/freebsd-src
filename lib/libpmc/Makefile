@@ -8,6 +8,12 @@ INCS=	pmc.h pmclog.h pmcformat.h
 
 CFLAGS+= -I${.CURDIR}
 CWARNFLAGS.gcc+= -Wno-shadow -Wno-cast-align
+.include <bsd.compiler.mk>
+.if ${COMPILER_TYPE} == "gcc"
+LDADD+=	-lstdc++
+.else
+LDADD+=	-lc++
+.endif
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 
