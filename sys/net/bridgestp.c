@@ -154,6 +154,8 @@ static void	bstp_reinit(struct bstp_state *);
 static void
 bstp_transmit(struct bstp_state *bs, struct bstp_port *bp)
 {
+	NET_EPOCH_ASSERT();
+
 	if (bs->bs_running == 0)
 		return;
 
@@ -346,6 +348,7 @@ bstp_send_bpdu(struct bstp_state *bs, struct bstp_port *bp,
 	struct ether_header *eh;
 
 	BSTP_LOCK_ASSERT(bs);
+	NET_EPOCH_ASSERT();
 
 	ifp = bp->bp_ifp;
 
@@ -923,6 +926,8 @@ bstp_update_state(struct bstp_state *bs, struct bstp_port *bp)
 static void
 bstp_update_roles(struct bstp_state *bs, struct bstp_port *bp)
 {
+	NET_EPOCH_ASSERT();
+
 	switch (bp->bp_role) {
 	case BSTP_ROLE_DISABLED:
 		/* Clear any flags if set */
@@ -1862,6 +1867,7 @@ bstp_disable_port(struct bstp_state *bs, struct bstp_port *bp)
 static void
 bstp_tick(void *arg)
 {
+	struct epoch_tracker et;
 	struct bstp_state *bs = arg;
 	struct bstp_port *bp;
 
@@ -1870,6 +1876,7 @@ bstp_tick(void *arg)
 	if (bs->bs_running == 0)
 		return;
 
+	NET_EPOCH_ENTER(et);
 	CURVNET_SET(bs->bs_vnet);
 
 	/* poll link events on interfaces that do not support linkstate */
@@ -1908,6 +1915,7 @@ bstp_tick(void *arg)
 	}
 
 	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 
 	callout_reset(&bs->bs_bstpcallout, hz, bstp_tick, bs);
 }
@@ -2229,6 +2237,7 @@ bstp_enable(struct bstp_port *bp)
 	struct ifnet *ifp = bp->bp_ifp;
 
 	KASSERT(bp->bp_active == 0, ("already a bstp member"));
+	NET_EPOCH_ASSERT(); /* Because bstp_update_roles() causes traffic. */
 
 	switch (ifp->if_type) {
 		case IFT_ETHER:	/* These can do spanning tree. */

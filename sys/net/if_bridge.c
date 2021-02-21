@@ -1351,6 +1351,7 @@ bridge_ioctl_gifflags(struct bridge_softc *sc, void *arg)
 static int
 bridge_ioctl_sifflags(struct bridge_softc *sc, void *arg)
 {
+	struct epoch_tracker et;
 	struct ifbreq *req = arg;
 	struct bridge_iflist *bif;
 	struct bstp_port *bp;
@@ -1365,11 +1366,15 @@ bridge_ioctl_sifflags(struct bridge_softc *sc, void *arg)
 		/* SPAN is readonly */
 		return (EINVAL);
 
+	NET_EPOCH_ENTER(et);
+
 	if (req->ifbr_ifsflags & IFBIF_STP) {
 		if ((bif->bif_flags & IFBIF_STP) == 0) {
 			error = bstp_enable(&bif->bif_stp);
-			if (error)
+			if (error) {
+				NET_EPOCH_EXIT(et);
 				return (error);
+			}
 		}
 	} else {
 		if ((bif->bif_flags & IFBIF_STP) != 0)
@@ -1384,6 +1389,8 @@ bridge_ioctl_sifflags(struct bridge_softc *sc, void *arg)
 
 	/* Save the bits relating to the bridge */
 	bif->bif_flags = req->ifbr_ifsflags & IFBIFMASK;
+
+	NET_EPOCH_EXIT(et);
 
 	return (0);
 }
