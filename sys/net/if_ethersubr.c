@@ -117,9 +117,6 @@ static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 
 static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
 		struct sockaddr *);
-#ifdef VIMAGE
-static	void ether_reassign(struct ifnet *, struct vnet *, char *);
-#endif
 static	int ether_requestencap(struct ifnet *, struct if_encap_req *);
 
 
