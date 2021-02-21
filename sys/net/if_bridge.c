@@ -670,6 +670,28 @@ SYSCTL_PROC(_net_link_bridge, OID_AUTO, ipfw,
     &VNET_NAME(pfil_ipfw), 0, &sysctl_pfil_ipfw, "I",
     "Layer2 filter with IPFW");
 
+#ifdef VIMAGE
+static void
+bridge_reassign(struct ifnet *ifp, struct vnet *newvnet, char *arg)
+{
+	struct bridge_softc *sc = ifp->if_softc;
+	struct bridge_iflist *bif;
+
+	BRIDGE_LOCK(sc);
+
+	while ((bif = CK_LIST_FIRST(&sc->sc_iflist)) != NULL)
+		bridge_delete_member(sc, bif, 0);
+
+	while ((bif = CK_LIST_FIRST(&sc->sc_spanlist)) != NULL) {
+		bridge_delete_span(sc, bif);
+	}
+
+	BRIDGE_UNLOCK(sc);
+
+	ether_reassign(ifp, newvnet, arg);
+}
+#endif
+
 /*
  * bridge_clone_create:
  *
@@ -716,6 +738,9 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	/* Now undo some of the damage... */
 	ifp->if_baudrate = 0;
 	ifp->if_type = IFT_BRIDGE;
+#ifdef VIMAGE
+	ifp->if_reassign = bridge_reassign;
+#endif
 
 	BRIDGE_LIST_LOCK();
 	LIST_INSERT_HEAD(&V_bridge_list, sc, sc_list);
