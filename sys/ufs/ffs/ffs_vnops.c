@@ -1552,6 +1552,12 @@ struct vop_closeextattr_args {
 	if (ap->a_commit && (vp->v_mount->mnt_flag & MNT_RDONLY) != 0)
 		return (EROFS);
 
+	if (ap->a_commit && DOINGSUJ(vp)) {
+		ASSERT_VOP_ELOCKED(vp, "ffs_closeextattr commit");
+		softdep_prealloc(vp, MNT_WAIT);
+		if (vp->v_data == NULL)
+			return (EBADF);
+	}
 	return (ffs_close_ea(vp, ap->a_commit, ap->a_cred, ap->a_td));
 }
 
@@ -1598,6 +1604,13 @@ vop_deleteextattr {
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
 			ip->i_ea_error = error;
 		return (error);
+	}
+
+	if (DOINGSUJ(vp)) {
+		ASSERT_VOP_ELOCKED(vp, "ffs_deleteextattr");
+		softdep_prealloc(vp, MNT_WAIT);
+		if (vp->v_data == NULL)
+			return (EBADF);
 	}
 
 	error = ffs_open_ea(vp, ap->a_cred, ap->a_td);
@@ -1799,6 +1812,13 @@ vop_setextattr {
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
 			ip->i_ea_error = error;
 		return (error);
+	}
+
+	if (DOINGSUJ(vp)) {
+		ASSERT_VOP_ELOCKED(vp, "ffs_deleteextattr");
+		softdep_prealloc(vp, MNT_WAIT);
+		if (vp->v_data == NULL)
+			return (EBADF);
 	}
 
 	error = ffs_open_ea(vp, ap->a_cred, ap->a_td);
