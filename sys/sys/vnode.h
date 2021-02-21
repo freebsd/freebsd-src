@@ -109,6 +109,7 @@ struct vnode {
 	short	v_irflag;			/* i frequently read flags */
 	seqc_t	v_seqc;				/* i modification count */
 	uint32_t v_nchash;			/* u namecache hash */
+	u_int	v_hash;
 	struct	vop_vector *v_op;		/* u vnode operations vector */
 	void	*v_data;			/* u private data for fs */
 
@@ -172,8 +173,18 @@ struct vnode {
 	int	v_writecount;			/* I ref count of writers or
 						   (negative) text users */
 	int	v_seqc_users;			/* i modifications pending */
-	u_int	v_hash;
 };
+
+#ifndef DEBUG_LOCKS
+#ifdef _LP64
+/*
+ * Not crossing 448 bytes fits 9 vnodes per page. If you have to add fields
+ * to the structure and there is nothing which can be done to prevent growth
+ * then so be it. But don't grow it without a good reason.
+ */
+_Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
+#endif
+#endif
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
 
