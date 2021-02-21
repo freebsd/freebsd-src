@@ -886,6 +886,9 @@ cons_update_mode(bool use_gfx_mode)
 	EFI_STATUS status;
 	char env[10], *ptr;
 
+	if (!efi_started)
+		return (false);
+
 	/*
 	 * Despite the use_gfx_mode, we want to make sure we call
 	 * efi_find_framebuffer(). This will populate the fb data,
