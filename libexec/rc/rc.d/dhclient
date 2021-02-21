@@ -49,6 +49,11 @@ dhclient_prestart()
 		rc_flags="${rc_flags} -b"
 	fi
 
+
+	# /var/run/dhclient is not guaranteed to exist,
+	# e.g. if /var/run is a tmpfs
+	install -d -o root -g wheel -m 755 ${pidfile%/*}
+
 	rc_flags="${rc_flags} ${ifn}"
 }
 
