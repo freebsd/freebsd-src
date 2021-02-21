@@ -255,7 +255,7 @@ tpcl_datamove(union ctl_io *io)
 			 __func__, ctsio->ext_data_len, ctsio->kern_data_len));
 
 bailout:
-	io->scsiio.be_move_done(io);
+	ctl_datamove_done(io, true);
 }
 
 static void

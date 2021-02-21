@@ -478,7 +478,7 @@ cfumass_terminate(struct cfumass_softc *sc)
 		if (sc->sc_ctl_io != NULL) {
 			CFUMASS_DEBUG(sc, "terminating CTL transfer");
 			ctl_set_data_phase_error(&sc->sc_ctl_io->scsiio);
-			sc->sc_ctl_io->scsiio.be_move_done(sc->sc_ctl_io);
+			ctl_datamove_done(sc->sc_ctl_io, false);
 			sc->sc_ctl_io = NULL;
 		}
 
@@ -733,7 +733,7 @@ cfumass_t_data_callback(struct usb_xfer *xfer, usb_error_t usb_error)
 		    sc->sc_current_residue == 0 ||
 		    io->scsiio.kern_data_resid == 0) {
 			sc->sc_ctl_io = NULL;
-			io->scsiio.be_move_done(io);
+			ctl_datamove_done(io, false);
 			break;
 		}
 		/* FALLTHROUGH */
@@ -890,7 +890,7 @@ cfumass_datamove(union ctl_io *io)
 
 fail:
 	ctl_set_data_phase_error(&io->scsiio);
-	io->scsiio.be_move_done(io);
+	ctl_datamove_done(io, true);
 	sc->sc_ctl_io = NULL;
 }
 
