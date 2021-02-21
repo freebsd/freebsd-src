@@ -155,7 +155,8 @@ struct prison_racct;
  *   (m) locked by pr_mtx
  *   (p) locked by pr_mtx, and also at least shared allprison_lock required
  *       to update
- *   (r) atomic via refcount(9), pr_mtx required to decrement to zero
+ *   (r) atomic via refcount(9), pr_mtx and allprison_lock required to
+ *       decrement to zero
  */
 struct prison {
 	TAILQ_ENTRY(prison) pr_list;			/* (a) all prisons */
