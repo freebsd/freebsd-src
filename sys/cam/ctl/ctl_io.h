@@ -42,6 +42,10 @@
 #ifndef	_CTL_IO_H_
 #define	_CTL_IO_H_
 
+#ifndef _KERNEL
+#include <stdbool.h>
+#endif
+
 #define	CTL_MAX_CDBLEN	32
 /*
  * Uncomment this next line to enable printing out times for I/Os
