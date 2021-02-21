@@ -170,7 +170,8 @@ int ctl_sap_log_sense_handler(struct ctl_scsiio *ctsio,
 int ctl_ie_log_sense_handler(struct ctl_scsiio *ctsio,
 				   struct ctl_page_index *page_index,
 				   int pc);
-int ctl_config_move_done(union ctl_io *io);
+int ctl_config_move_done(union ctl_io *io, bool samethr);
+void ctl_datamove_done(union ctl_io *io, bool samethr);
 void ctl_datamove(union ctl_io *io);
 void ctl_serseq_done(union ctl_io *io);
 void ctl_done(union ctl_io *io);

@@ -329,7 +329,7 @@ struct ctl_scsiio {
 	ctl_tag_type tag_type;		/* simple, ordered, head of queue,etc.*/
 	uint8_t    cdb_len;		/* CDB length */
 	uint8_t	   cdb[CTL_MAX_CDBLEN];	/* CDB */
-	int	   (*be_move_done)(union ctl_io *io); /* called by fe */
+	int	   (*be_move_done)(union ctl_io *io, bool samethr); /* called by fe */
 	int        (*io_cont)(union ctl_io *io); /* to continue processing */
 	ctl_ref	    kern_data_ref;	/* Method to reference/release data */
 	void	   *kern_data_arg;	/* Opaque argument for kern_data_ref() */

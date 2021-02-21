@@ -1394,8 +1394,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 				xpt_release_ccb(done_ccb);
 				mtx_unlock(mtx);
 
-				/* Call the backend move done callback */
-				io->scsiio.be_move_done(io);
+				ctl_datamove_done(io, false);
 			}
 			return;
 		}
