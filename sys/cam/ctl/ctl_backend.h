@@ -186,7 +186,6 @@ struct ctl_backend_driver {
 	be_init_t	  init;			 /* passed to CTL */
 	be_shutdown_t	  shutdown;		 /* passed to CTL */
 	be_func_t	  data_submit;		 /* passed to CTL */
-	be_func_t	  data_move_done;	 /* passed to CTL */
 	be_func_t	  config_read;		 /* passed to CTL */
 	be_func_t	  config_write;		 /* passed to CTL */
 	be_ioctl_t	  ioctl;		 /* passed to CTL */
