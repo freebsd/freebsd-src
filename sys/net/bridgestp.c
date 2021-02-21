@@ -1871,6 +1871,7 @@ bstp_tick(void *arg)
 	if (bs->bs_running == 0)
 		return;
 
+	NET_EPOCH_ENTER();
 	CURVNET_SET(bs->bs_vnet);
 
 	/* poll link events on interfaces that do not support linkstate */
@@ -1909,6 +1910,7 @@ bstp_tick(void *arg)
 	}
 
 	CURVNET_RESTORE();
+	NET_EPOCH_EXIT();
 
 	callout_reset(&bs->bs_bstpcallout, hz, bstp_tick, bs);
 }

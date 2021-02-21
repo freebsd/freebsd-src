@@ -1408,11 +1408,15 @@ bridge_ioctl_sifflags(struct bridge_softc *sc, void *arg)
 		/* SPAN is readonly */
 		return (EINVAL);
 
+	NET_EPOCH_ENTER();
+
 	if (req->ifbr_ifsflags & IFBIF_STP) {
 		if ((bif->bif_flags & IFBIF_STP) == 0) {
 			error = bstp_enable(&bif->bif_stp);
-			if (error)
+			if (error) {
+				NET_EPOCH_EXIT();
 				return (error);
+			}
 		}
 	} else {
 		if ((bif->bif_flags & IFBIF_STP) != 0)
@@ -1427,6 +1431,8 @@ bridge_ioctl_sifflags(struct bridge_softc *sc, void *arg)
 
 	/* Save the bits relating to the bridge */
 	bif->bif_flags = req->ifbr_ifsflags & IFBIFMASK;
+
+	NET_EPOCH_EXIT();
 
 	return (0);
 }
