@@ -535,9 +535,9 @@ static void ctl_done_timer_wakeup(void *arg);
 
 static void ctl_send_datamove_done(union ctl_io *io, int have_lock);
 static void ctl_datamove_remote_write_cb(struct ctl_ha_dt_req *rq);
-static int ctl_datamove_remote_dm_write_cb(union ctl_io *io);
+static int ctl_datamove_remote_dm_write_cb(union ctl_io *io, bool samethr);
 static void ctl_datamove_remote_write(union ctl_io *io);
-static int ctl_datamove_remote_dm_read_cb(union ctl_io *io);
+static int ctl_datamove_remote_dm_read_cb(union ctl_io *io, bool samethr);
 static void ctl_datamove_remote_read_cb(struct ctl_ha_dt_req *rq);
 static int ctl_datamove_remote_sgl_setup(union ctl_io *io);
 static int ctl_datamove_remote_xfer(union ctl_io *io, unsigned command,
@@ -736,7 +736,7 @@ ctl_ha_datamove(union ctl_io *io)
 		    sizeof(struct ctl_sg_entry) * msg.dt.cur_sg_entries,
 		    M_WAITOK) > CTL_HA_STATUS_SUCCESS) {
 			io->io_hdr.port_status = 31341;
-			io->scsiio.be_move_done(io);
+			ctl_datamove_done(io, true);
 			return;
 		}
 		msg.dt.sent_sg_entries = sg_entries_sent;
@@ -753,7 +753,7 @@ ctl_ha_datamove(union ctl_io *io)
 		if (lun)
 			mtx_unlock(&lun->lun_lock);
 		io->io_hdr.port_status = 31342;
-		io->scsiio.be_move_done(io);
+		ctl_datamove_done(io, true);
 		return;
 	}
 	io->io_hdr.flags &= ~CTL_FLAG_IO_ACTIVE;
@@ -5028,25 +5028,13 @@ ctl_lun_capacity_changed(struct ctl_be_lun *be_lun)
  * make it down to say RAIDCore's configuration code.
  */
 int
-ctl_config_move_done(union ctl_io *io)
+ctl_config_move_done(union ctl_io *io, bool samethr)
 {
 	int retval;
 
 	CTL_DEBUG_PRINT(("ctl_config_move_done\n"));
 	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI,
 	    ("%s: unexpected I/O type %x", __func__, io->io_hdr.io_type));
-
-	if ((io->io_hdr.port_status != 0) &&
-	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
-	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
-		ctl_set_internal_failure(&io->scsiio, /*sks_valid*/ 1,
-		    /*retry_count*/ io->io_hdr.port_status);
-	} else if (io->scsiio.kern_data_resid != 0 &&
-	    (io->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_OUT &&
-	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
-	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
-		ctl_set_invalid_field_ciu(&io->scsiio);
-	}
 
 	if (ctl_debug & CTL_DEBUG_CDB_DATA)
 		ctl_data_print(io);
@@ -12301,7 +12289,7 @@ ctl_handle_isc(union ctl_io *io)
 		ctl_datamove_remote(io);
 		break;
 	case CTL_MSG_DATAMOVE_DONE:	/* Only used in XFER mode */
-		io->scsiio.be_move_done(io);
+		ctl_datamove_done(io, false);
 		break;
 	case CTL_MSG_FAILOVER:
 		ctl_failover_lun(io);
@@ -12460,6 +12448,45 @@ ctl_datamove_timer_wakeup(void *arg)
 }
 #endif /* CTL_IO_DELAY */
 
+static void
+ctl_datamove_done_process(union ctl_io *io)
+{
+#ifdef CTL_TIME_IO
+	struct bintime cur_bt;
+#endif
+
+	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI,
+	    ("%s: unexpected I/O type %x", __func__, io->io_hdr.io_type));
+
+#ifdef CTL_TIME_IO
+	getbinuptime(&cur_bt);
+	bintime_sub(&cur_bt, &io->io_hdr.dma_start_bt);
+	bintime_add(&io->io_hdr.dma_bt, &cur_bt);
+#endif
+	io->io_hdr.num_dmas++;
+
+	if ((io->io_hdr.port_status != 0) &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
+	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
+		ctl_set_internal_failure(&io->scsiio, /*sks_valid*/ 1,
+		    /*retry_count*/ io->io_hdr.port_status);
+	} else if (io->scsiio.kern_data_resid != 0 &&
+	    (io->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_OUT &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
+	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
+		ctl_set_invalid_field_ciu(&io->scsiio);
+	} else if (ctl_debug & CTL_DEBUG_CDB_DATA)
+		ctl_data_print(io);
+}
+
+void
+ctl_datamove_done(union ctl_io *io, bool samethr)
+{
+
+	ctl_datamove_done_process(io);
+	io->scsiio.be_move_done(io, samethr);
+}
+
 void
 ctl_datamove(union ctl_io *io)
 {
@@ -12473,39 +12500,7 @@ ctl_datamove(union ctl_io *io)
 	io->scsiio.kern_data_resid = io->scsiio.kern_data_len;
 
 #ifdef CTL_TIME_IO
-	if ((time_uptime - io->io_hdr.start_time) > ctl_time_io_secs) {
-		char str[256];
-		char path_str[64];
-		struct sbuf sb;
-
-		ctl_scsi_path_string(io, path_str, sizeof(path_str));
-		sbuf_new(&sb, str, sizeof(str), SBUF_FIXEDLEN);
-
-		sbuf_cat(&sb, path_str);
-		switch (io->io_hdr.io_type) {
-		case CTL_IO_SCSI:
-			ctl_scsi_command_string(&io->scsiio, NULL, &sb);
-			sbuf_printf(&sb, "\n");
-			sbuf_cat(&sb, path_str);
-			sbuf_printf(&sb, "Tag: 0x%04x/%d, Prio: %d\n",
-				    io->scsiio.tag_num, io->scsiio.tag_type,
-				    io->scsiio.priority);
-			break;
-		case CTL_IO_TASK:
-			sbuf_printf(&sb, "Task Action: %d Tag: 0x%04x/%d\n",
-				    io->taskio.task_action,
-				    io->taskio.tag_num, io->taskio.tag_type);
-			break;
-		default:
-			panic("%s: Invalid CTL I/O type %d\n",
-			    __func__, io->io_hdr.io_type);
-		}
-		sbuf_cat(&sb, path_str);
-		sbuf_printf(&sb, "ctl_datamove: %jd seconds\n",
-			    (intmax_t)time_uptime - io->io_hdr.start_time);
-		sbuf_finish(&sb);
-		printf("%s", sbuf_data(&sb));
-	}
+	getbinuptime(&io->io_hdr.dma_start_bt);
 #endif /* CTL_TIME_IO */
 
 #ifdef CTL_IO_DELAY
@@ -12540,18 +12535,15 @@ ctl_datamove(union ctl_io *io)
 		       io->io_hdr.nexus.targ_port,
 		       io->io_hdr.nexus.targ_lun);
 		io->io_hdr.port_status = 31337;
-		/*
-		 * Note that the backend, in this case, will get the
-		 * callback in its context.  In other cases it may get
-		 * called in the frontend's interrupt thread context.
-		 */
-		io->scsiio.be_move_done(io);
+		ctl_datamove_done_process(io);
+		io->scsiio.be_move_done(io, true);
 		return;
 	}
 
 	/* Don't confuse frontend with zero length data move. */
 	if (io->scsiio.kern_data_len == 0) {
-		io->scsiio.be_move_done(io);
+		ctl_datamove_done_process(io);
+		io->scsiio.be_move_done(io, true);
 		return;
 	}
 
@@ -12638,7 +12630,7 @@ ctl_datamove_remote_write_cb(struct ctl_ha_dt_req *rq)
  * need to push it over to the remote controller's memory.
  */
 static int
-ctl_datamove_remote_dm_write_cb(union ctl_io *io)
+ctl_datamove_remote_dm_write_cb(union ctl_io *io, bool samethr)
 {
 	int retval;
 
@@ -12677,7 +12669,7 @@ ctl_datamove_remote_write(union ctl_io *io)
 }
 
 static int
-ctl_datamove_remote_dm_read_cb(union ctl_io *io)
+ctl_datamove_remote_dm_read_cb(union ctl_io *io, bool samethr)
 {
 	uint32_t i;
 

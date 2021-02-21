@@ -566,7 +566,7 @@ cfi_submit_wait(union ctl_io *io)
 			 * will immediately call back and wake us up,
 			 * probably using our own context.
 			 */
-			io->scsiio.be_move_done(io);
+			ctl_datamove_done(io, false);
 			break;
 		case CTL_IOCTL_DONE:
 			mtx_unlock(&params.ioctl_mtx);

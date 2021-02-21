@@ -415,7 +415,7 @@ cfcs_datamove(union ctl_io *io)
 		xpt_done(ccb);
 	}
 
-	io->scsiio.be_move_done(io);
+	ctl_datamove_done(io, true);
 }
 
 static void

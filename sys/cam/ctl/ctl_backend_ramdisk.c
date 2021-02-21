@@ -139,7 +139,7 @@ extern struct ctl_softc *control_softc;
 
 static int ctl_backend_ramdisk_init(void);
 static int ctl_backend_ramdisk_shutdown(void);
-static int ctl_backend_ramdisk_move_done(union ctl_io *io);
+static int ctl_backend_ramdisk_move_done(union ctl_io *io, bool samethr);
 static void ctl_backend_ramdisk_compare(union ctl_io *io);
 static void ctl_backend_ramdisk_rw(union ctl_io *io);
 static int ctl_backend_ramdisk_submit(union ctl_io *io);
@@ -164,7 +164,6 @@ static struct ctl_backend_driver ctl_be_ramdisk_driver =
 	.init = ctl_backend_ramdisk_init,
 	.shutdown = ctl_backend_ramdisk_shutdown,
 	.data_submit = ctl_backend_ramdisk_submit,
-	.data_move_done = ctl_backend_ramdisk_move_done,
 	.config_read = ctl_backend_ramdisk_config_read,
 	.config_write = ctl_backend_ramdisk_config_write,
 	.ioctl = ctl_backend_ramdisk_ioctl,
@@ -402,38 +401,17 @@ ctl_backend_ramdisk_cmp(union ctl_io *io)
 }
 
 static int
-ctl_backend_ramdisk_move_done(union ctl_io *io)
+ctl_backend_ramdisk_move_done(union ctl_io *io, bool samethr)
 {
 	struct ctl_be_ramdisk_lun *be_lun =
 	    (struct ctl_be_ramdisk_lun *)CTL_BACKEND_LUN(io);
-#ifdef CTL_TIME_IO
-	struct bintime cur_bt;
-#endif
 
 	CTL_DEBUG_PRINT(("ctl_backend_ramdisk_move_done\n"));
-#ifdef CTL_TIME_IO
-	getbinuptime(&cur_bt);
-	bintime_sub(&cur_bt, &io->io_hdr.dma_start_bt);
-	bintime_add(&io->io_hdr.dma_bt, &cur_bt);
-#endif
-	io->io_hdr.num_dmas++;
 	if (io->scsiio.kern_sg_entries > 0)
 		free(io->scsiio.kern_data_ptr, M_RAMDISK);
 	io->scsiio.kern_rel_offset += io->scsiio.kern_data_len;
-	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
-		;
-	} else if (io->io_hdr.port_status != 0 &&
-	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
-	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
-		ctl_set_internal_failure(&io->scsiio, /*sks_valid*/ 1,
-		    /*retry_count*/ io->io_hdr.port_status);
-	} else if (io->scsiio.kern_data_resid != 0 &&
-	    (io->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_OUT &&
-	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
-	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
-		ctl_set_invalid_field_ciu(&io->scsiio);
-	} else if ((io->io_hdr.port_status == 0) &&
-	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
+	if ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0 &&
+	    (io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE) {
 		if (ARGS(io)->flags & CTL_LLF_COMPARE) {
 			/* We have data block ready for comparison. */
 			if (ctl_backend_ramdisk_cmp(io))
@@ -471,9 +449,6 @@ ctl_backend_ramdisk_compare(union ctl_io *io)
 	io->scsiio.kern_sg_entries = 0;
 	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	PRIV(io)->len += lbas;
-#ifdef CTL_TIME_IO
-	getbinuptime(&io->io_hdr.dma_start_bt);
-#endif
 	ctl_datamove(io);
 }
 
@@ -534,9 +509,6 @@ nospc:
 		ctl_set_success(&io->scsiio);
 		ctl_serseq_done(io);
 	}
-#ifdef CTL_TIME_IO
-	getbinuptime(&io->io_hdr.dma_start_bt);
-#endif
 	ctl_datamove(io);
 }
 
