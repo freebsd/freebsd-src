@@ -37,4 +37,9 @@ __FBSDID("$FreeBSD$");
 #define ZFS_MODULE_PARAM_ARGS void
 typedef int boolean_t;	/* This one may be tough to get rid of */
 
+/* TODO: openzfs/include/sys/uio_impl.h must not be included */
+#ifndef _SYS_UIO_IMPL_H
+#define _SYS_UIO_IMPL_H
+#endif
+
 #include <contrib/openzfs/module/zstd/zfs_zstd.c>
