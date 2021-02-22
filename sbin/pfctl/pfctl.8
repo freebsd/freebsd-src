@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2016
+.Dd February 22, 2021
 .Dt PFCTL 8
 .Os
 .Sh NAME
@@ -404,6 +404,12 @@ When used together with
 .Nm
 will loop and show updated queue statistics every five seconds, including
 measured bandwidth and packets per second.
+.It Fl s Cm ether
+Show the currently loaded Ethernet rules.
+When used together with
+.Fl v ,
+the per-rule statistics (number of evaluations,
+packets and bytes) are also shown.
 .It Fl s Cm rules
 Show the currently loaded filter rules.
 When used together with
