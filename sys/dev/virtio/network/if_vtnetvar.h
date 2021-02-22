@@ -161,7 +161,7 @@ struct vtnet_softc {
 #define VTNET_FLAG_FIXUP_NEEDS_CSUM 0x2000
 #define VTNET_FLAG_SW_LRO	 0x4000
 
-	int			 vtnet_hdr_size;
+	u_int			 vtnet_hdr_size;
 	int			 vtnet_rx_nmbufs;
 	int			 vtnet_rx_clustersz;
 	int			 vtnet_rx_nsegs;
@@ -172,7 +172,7 @@ struct vtnet_softc {
 	int			 vtnet_max_vq_pairs;
 	int			 vtnet_tx_nsegs;
 	int			 vtnet_if_flags;
-	int			 vtnet_max_mtu;
+	u_int			 vtnet_max_mtu;
 	int			 vtnet_lro_entry_count;
 	int			 vtnet_lro_mbufq_depth;
 
@@ -189,7 +189,7 @@ struct vtnet_softc {
 
 	struct mtx		 vtnet_mtx;
 	char			 vtnet_mtx_name[16];
-	char			 vtnet_hwaddr[ETHER_ADDR_LEN];
+	uint8_t			 vtnet_hwaddr[ETHER_ADDR_LEN];
 };
 
 static bool
