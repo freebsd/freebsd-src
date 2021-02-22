@@ -141,12 +141,13 @@ static int get_next_prid(struct prison **insprp);
 static int do_jail_attach(struct thread *td, struct prison *pr, int drflags);
 static void prison_complete(void *context, int pending);
 static void prison_deref(struct prison *pr, int flags);
+static void prison_deref_kill(struct prison *pr, struct prisonlist *freeprison);
 static int prison_lock_xlock(struct prison *pr, int flags);
 static void prison_free_not_last(struct prison *pr);
+static void prison_proc_free_not_last(struct prison *pr);
 static void prison_set_allow_locked(struct prison *pr, unsigned flag,
     int enable);
 static char *prison_path(struct prison *pr1, struct prison *pr2);
-static void prison_remove_one(struct prison *pr);
 #ifdef RACCT
 static void prison_racct_attach(struct prison *pr);
 static void prison_racct_modify(struct prison *pr);
@@ -156,9 +157,10 @@ static void prison_racct_detach(struct prison *pr);
 /* Flags for prison_deref */
 #define	PD_DEREF	0x01	/* Decrement pr_ref */
 #define	PD_DEUREF	0x02	/* Decrement pr_uref */
-#define	PD_LOCKED	0x04	/* pr_mtx is held */
-#define	PD_LIST_SLOCKED	0x08	/* allprison_lock is held shared */
-#define	PD_LIST_XLOCKED	0x10	/* allprison_lock is held exclusive */
+#define	PD_KILL		0x04	/* Remove jail, kill processes, etc */
+#define	PD_LOCKED	0x10	/* pr_mtx is held */
+#define	PD_LIST_SLOCKED	0x20	/* allprison_lock is held shared */
+#define	PD_LIST_XLOCKED	0x40	/* allprison_lock is held exclusive */
 
 /*
  * Parameter names corresponding to PR_* flag values.  Size values are for kvm
@@ -1756,6 +1758,12 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	pr->pr_flags = (pr->pr_flags & ~ch_flags) | pr_flags;
 	mtx_unlock(&pr->pr_mtx);
 	drflags &= ~PD_LOCKED;
+	/*
+	 * Any errors past this point will need to de-persist newly created
+	 * prisons, as well as call remove methods.
+	 */
+	if (born)
+		drflags |= PD_KILL;
 
 #ifdef RACCT
 	if (racct_enable && created)
@@ -1815,17 +1823,12 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	/* Let the modules do their work. */
 	if (born) {
 		error = osd_jail_call(pr, PR_METHOD_CREATE, opts);
-		if (error) {
-			(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
+		if (error)
 			goto done_deref;
-		}
 	}
 	error = osd_jail_call(pr, PR_METHOD_SET, opts);
-	if (error) {
-		if (born)
-			(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
+	if (error)
 		goto done_deref;
-	}
 
 	/*
 	 * A new prison is now ready to be seen; either it has gained a user
@@ -1856,6 +1859,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 #endif
 
+	drflags &= ~PD_KILL;
 	td->td_retval[0] = pr->pr_id;
 
  done_deref:
@@ -2279,8 +2283,8 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 int
 sys_jail_remove(struct thread *td, struct jail_remove_args *uap)
 {
-	struct prison *pr, *cpr, *lpr;
-	int descend, error;
+	struct prison *pr;
+	int error;
 
 	error = priv_check(td, PRIV_JAIL_REMOVE);
 	if (error)
@@ -2292,88 +2296,14 @@ sys_jail_remove(struct thread *td, struct jail_remove_args *uap)
 		sx_xunlock(&allprison_lock);
 		return (EINVAL);
 	}
-
-	/* Remove all descendants of this prison, then remove this prison. */
-	prison_hold(pr);
-	if (!LIST_EMPTY(&pr->pr_children)) {
+	if (!prison_isalive(pr)) {
+		/* Silently ignore already-dying prisons. */
 		mtx_unlock(&pr->pr_mtx);
-		lpr = NULL;
-		FOREACH_PRISON_DESCENDANT(pr, cpr, descend) {
-			prison_hold(cpr);
-			if (lpr != NULL) {
-				mtx_lock(&lpr->pr_mtx);
-				prison_remove_one(lpr);
-				sx_xlock(&allprison_lock);
-			}
-			lpr = cpr;
-		}
-		if (lpr != NULL) {
-			mtx_lock(&lpr->pr_mtx);
-			prison_remove_one(lpr);
-			sx_xlock(&allprison_lock);
-		}
-		mtx_lock(&pr->pr_mtx);
+		sx_xunlock(&allprison_lock);
+		return (0);
 	}
-	prison_remove_one(pr);
+	prison_deref(pr, PD_KILL | PD_LOCKED | PD_LIST_XLOCKED);
 	return (0);
-}
-
-static void
-prison_remove_one(struct prison *pr)
-{
-	struct proc *p;
-	int was_alive, drflags;
-
-	drflags = PD_DEREF | PD_LOCKED | PD_LIST_XLOCKED;
-
-	/*
-	 * Mark the prison as doomed, so it doesn't accidentally come back
-	 * to life.  It may still be explicitly brought back by jail_set(2).
-	 */
-	was_alive = pr->pr_state == PRISON_STATE_ALIVE;
-	pr->pr_state = PRISON_STATE_DYING;
-
-	/* If the prison was persistent, it is not anymore. */
-	if (pr->pr_flags & PR_PERSIST) {
-		drflags |= PD_DEUREF;
-		prison_free_not_last(pr);
-		pr->pr_flags &= ~PR_PERSIST;
-	}
-
-	/*
-	 * jail_remove added a reference.  If that's the only one, remove
-	 * the prison now.  refcount(9) doesn't guarantee the cache coherence
-	 * of non-zero counters, so force it here.
-	 */
-	KASSERT(refcount_load(&pr->pr_ref) > 0,
-	    ("prison_remove_one removing a dead prison (jid=%d)", pr->pr_id));
-	if (atomic_load_acq_int(&pr->pr_ref) == 1) {
-		prison_deref(pr, drflags);
-		return;
-	}
-
-	/* Tell modules this prison has died. */
-	mtx_unlock(&pr->pr_mtx);
-	drflags &= ~PD_LOCKED;
-	if (was_alive)
-		(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
-
-	sx_xunlock(&allprison_lock);
-	drflags &= ~PD_LIST_XLOCKED;
-	/*
-	 * Kill all processes unfortunate enough to be attached to this prison.
-	 */
-	sx_slock(&allproc_lock);
-	FOREACH_PROC_IN_SYSTEM(p) {
-		PROC_LOCK(p);
-		if (p->p_state != PRS_NEW && p->p_ucred &&
-		    p->p_ucred->cr_prison == pr)
-			kern_psignal(p, SIGKILL);
-		PROC_UNLOCK(p);
-	}
-	sx_sunlock(&allproc_lock);
-	/* Remove the temporary reference added by jail_remove. */
-	prison_deref(pr, drflags);
 }
 
 /*
@@ -2727,6 +2657,24 @@ prison_proc_free(struct prison *pr)
 	}
 }
 
+static void
+prison_proc_free_not_last(struct prison *pr)
+{
+#ifdef INVARIANTS
+	int lastref;
+
+	KASSERT(refcount_load(&pr->pr_uref) > 0,
+	    ("Trying to free dead prison %p (jid=%d).",
+	     pr, pr->pr_id));
+	lastref = refcount_release(&pr->pr_uref);
+	KASSERT(!lastref,
+	    ("prison_proc_free_not_last freed last uref on prison %p (jid=%d).",
+	     pr, pr->pr_id));
+#else
+	refcount_release(&pr->pr_uref);
+#endif
+}
+
 /*
  * Complete a call to either prison_free or prison_proc_free.
  */
@@ -2760,14 +2708,25 @@ static void
 prison_deref(struct prison *pr, int flags)
 {
 	struct prisonlist freeprison;
-	struct prison *rpr, *ppr, *tpr;
+	struct prison *killpr, *rpr, *ppr, *tpr;
+	struct proc *p;
 
+	killpr = NULL;
 	TAILQ_INIT(&freeprison);
 	/*
 	 * Release this prison as requested, which may cause its parent
 	 * to be released, and then maybe its grandparent, etc.
 	 */
 	for (;;) {
+		if (flags & PD_KILL) {
+			/* Kill the prison and its descendents. */
+			if (!(flags & PD_DEREF)) {
+				prison_hold(pr);
+				flags |= PD_DEREF;
+			}
+			flags = prison_lock_xlock(pr, flags);
+			prison_deref_kill(pr, &freeprison);
+		}
 		if (flags & PD_DEUREF) {
 			/* Drop a user reference. */
 			KASSERT(refcount_load(&pr->pr_uref) > 0,
@@ -2795,6 +2754,16 @@ prison_deref(struct prison *pr, int flags)
 					    PR_METHOD_REMOVE, NULL);
 				}
 			}
+		}
+		if (flags & PD_KILL) {
+			flags &= ~PD_KILL;
+			/*
+			 * Any remaining user references are probably processes
+			 * that need to be killed, either in this prison or its
+			 * descendants.
+			 */
+			if (refcount_load(&pr->pr_uref) > 0)
+				killpr = pr;
 		}
 		if (flags & PD_DEREF) {
 			/* Drop a reference. */
@@ -2848,6 +2817,25 @@ prison_deref(struct prison *pr, int flags)
 	else if (flags & PD_LIST_XLOCKED)
 		sx_xunlock(&allprison_lock);
 
+	/* Kill any processes attached to a killed prison. */
+	if (killpr != NULL) {
+		sx_slock(&allproc_lock);
+		FOREACH_PROC_IN_SYSTEM(p) {
+			PROC_LOCK(p);
+			if (p->p_state != PRS_NEW && p->p_ucred != NULL) {
+				for (ppr = p->p_ucred->cr_prison;
+				     ppr != &prison0;
+				     ppr = ppr->pr_parent)
+					if (ppr == killpr) {
+						kern_psignal(p, SIGKILL);
+						break;
+					}
+			}
+			PROC_UNLOCK(p);
+		}
+		sx_sunlock(&allproc_lock);
+	}
+
 	/*
 	 * Finish removing any unreferenced prisons, which couldn't happen
 	 * while allprison_lock was held (to avoid a LOR on vrele).
@@ -2876,6 +2864,90 @@ prison_deref(struct prison *pr, int flags)
 		TAILQ_REMOVE(&freeprison, rpr, pr_list);
 		free(rpr, M_PRISON);
 	}
+}
+
+/*
+ * Kill the prison and its descendants.  Mark them as dying, clear the
+ * persist flag, and call module remove methods.
+ */
+static void
+prison_deref_kill(struct prison *pr, struct prisonlist *freeprison)
+{
+	struct prison *cpr, *ppr, *rpr;
+	bool descend;
+
+	/*
+	 * Unlike the descendants, the target prison can be killed
+	 * even if it is currently dying.  This is useful for failed
+	 * creation in jail_set(2).
+	 */
+	KASSERT(refcount_load(&pr->pr_ref) > 0,
+	    ("Trying to kill dead prison %p (jid=%d).",
+	     pr, pr->pr_id));
+	refcount_acquire(&pr->pr_uref);
+	pr->pr_state = PRISON_STATE_DYING;
+	mtx_unlock(&pr->pr_mtx);
+
+	rpr = NULL;
+	FOREACH_PRISON_DESCENDANT_PRE_POST(pr, cpr, descend) {
+		if (descend) {
+			if (!prison_isalive(cpr)) {
+				descend = false;
+				continue;
+			}
+			prison_hold(cpr);
+			prison_proc_hold(cpr);
+			mtx_lock(&cpr->pr_mtx);
+			cpr->pr_state = PRISON_STATE_DYING;
+			cpr->pr_flags |= PR_REMOVE;
+			mtx_unlock(&cpr->pr_mtx);
+		}
+		if (!(cpr->pr_flags & PR_REMOVE))
+			continue;
+		(void)osd_jail_call(cpr, PR_METHOD_REMOVE, NULL);
+		mtx_lock(&cpr->pr_mtx);
+		cpr->pr_flags &= ~PR_REMOVE;
+		if (cpr->pr_flags & PR_PERSIST) {
+			cpr->pr_flags &= ~PR_PERSIST;
+			prison_proc_free_not_last(cpr);
+			prison_free_not_last(cpr);
+		}
+		(void)refcount_release(&cpr->pr_uref);
+		if (refcount_release(&cpr->pr_ref)) {
+			/*
+			 * When the last reference goes, unlink the prison
+			 * and set it aside for prison_deref() to handle.
+			 * Delay unlinking the sibling list to keep the loop
+			 * safe.
+			 */
+			if (rpr != NULL)
+				LIST_REMOVE(rpr, pr_sibling);
+			rpr = cpr;
+			rpr->pr_state = PRISON_STATE_INVALID;
+			TAILQ_REMOVE(&allprison, rpr, pr_list);
+			TAILQ_INSERT_TAIL(freeprison, rpr, pr_list);
+			/*
+			 * Removing a prison frees references from its parent.
+			 */
+			ppr = rpr->pr_parent;
+			prison_proc_free_not_last(ppr);
+			prison_free_not_last(ppr);
+			for (; ppr != NULL; ppr = ppr->pr_parent)
+				ppr->pr_childcount--;
+		}
+		mtx_unlock(&cpr->pr_mtx);
+	}
+	if (rpr != NULL)
+		LIST_REMOVE(rpr, pr_sibling);
+
+	(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
+	mtx_lock(&pr->pr_mtx);
+	if (pr->pr_flags & PR_PERSIST) {
+		pr->pr_flags &= ~PR_PERSIST;
+		prison_proc_free_not_last(pr);
+		prison_free_not_last(pr);
+	}
+	(void)refcount_release(&pr->pr_uref);
 }
 
 /*

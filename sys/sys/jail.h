@@ -342,6 +342,19 @@ prison_unlock(struct prison *pr)
 		else
 
 /*
+ * Traverse a prison's descendants, visiting both preorder and postorder.
+ */
+#define FOREACH_PRISON_DESCENDANT_PRE_POST(ppr, cpr, descend)		\
+	for ((cpr) = (ppr), (descend) = 1;				\
+	     ((cpr) = (descend)						\
+	      ? ((descend) = !LIST_EMPTY(&(cpr)->pr_children))		\
+		? LIST_FIRST(&(cpr)->pr_children)			\
+		: (cpr)							\
+	      : ((descend) = LIST_NEXT(cpr, pr_sibling) != NULL)	\
+		? LIST_NEXT(cpr, pr_sibling)				\
+		: cpr->pr_parent) != (ppr);)
+
+/*
  * Attributes of the physical system, and the root of the jail tree.
  */
 extern struct	prison prison0;
