@@ -1851,6 +1851,10 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 
 #ifdef RACCT
 	if (racct_enable && !created) {
+		if (drflags & PD_LOCKED) {
+			mtx_unlock(&pr->pr_mtx);
+			drflags &= ~PD_LOCKED;
+		}
 		if (drflags & PD_LIST_XLOCKED) {
 			sx_xunlock(&allprison_lock);
 			drflags &= ~PD_LIST_XLOCKED;
