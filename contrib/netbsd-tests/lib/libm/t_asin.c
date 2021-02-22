@@ -1,4 +1,4 @@
-/* $NetBSD: t_asin.c,v 1.3 2014/03/03 10:39:08 martin Exp $ */
+/* $NetBSD: t_asin.c,v 1.4 2018/11/07 03:59:36 riastradh Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -30,6 +30,7 @@
  */
 
 #include <atf-c.h>
+#include <float.h>
 #include <math.h>
 
 static const struct {
@@ -117,13 +118,14 @@ ATF_TC_HEAD(asin_inrange, tc)
 
 ATF_TC_BODY(asin_inrange, tc)
 {
-	const double eps = 1.0e-15;
-	double y;
+	const double eps = DBL_EPSILON;
 	size_t i;
 
 	for (i = 0; i < __arraycount(values); i++) {
-		y = asin(values[i].x);
-		if (fabs(y - values[i].y) > eps)
+		double x = values[i].x;
+		double y = values[i].y;
+
+		if (!(fabs((asin(x) - y)/y) <= eps))
 			atf_tc_fail_nonfatal("asin(%g) != %g",
 				values[i].x, values[i].y);
 	}
@@ -230,16 +232,25 @@ ATF_TC_HEAD(asinf_inrange, tc)
 
 ATF_TC_BODY(asinf_inrange, tc)
 {
-	const float eps = 1.0e-6;
-	float x;
-	float y;
+	const float eps = FLT_EPSILON;
 	size_t i;
 
 	for (i = 0; i < __arraycount(values); i++) {
-		x = values[i].x;
-		y = values[i].y;
-		if (fabs(asinf(x) - y) > eps)
-			atf_tc_fail_nonfatal("asinf(%g) != %g", x, y);
+		float x = values[i].x;
+		float y = values[i].y;
+
+#ifdef __NetBSD__
+		if (fabs(x) == 0.5)
+			atf_tc_expect_fail("asinf is busted,"
+			    " gives ~2ulp error");
+#endif
+		if (!(fabsf((asinf(x) - y)/y) <= eps)) {
+			atf_tc_fail_nonfatal("asinf(%.8g) = %.8g != %.8g,"
+			    " error=~%.1fulp",
+			    x, asinf(x), y, fabsf(((asinf(x) - y)/y)/eps));
+		}
+		if (fabs(x) == 0.5)
+			atf_tc_expect_pass();
 	}
 }
 

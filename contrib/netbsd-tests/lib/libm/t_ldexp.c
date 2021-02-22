@@ -1,4 +1,4 @@
-/* $NetBSD: t_ldexp.c,v 1.16 2016/08/25 00:32:31 maya Exp $ */
+/* $NetBSD: t_ldexp.c,v 1.17 2018/11/07 03:59:36 riastradh Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,14 +29,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_ldexp.c,v 1.16 2016/08/25 00:32:31 maya Exp $");
+__RCSID("$NetBSD: t_ldexp.c,v 1.17 2018/11/07 03:59:36 riastradh Exp $");
 
 #include <sys/param.h>
 
 #include <atf-c.h>
 
-#include <math.h>
+#include <float.h>
 #include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -195,22 +196,17 @@ ATF_TC_HEAD(ldexp_exp2, tc)
 ATF_TC_BODY(ldexp_exp2, tc)
 {
 	const double n[] = { 1, 2, 3, 10, 50, 100 };
-#if __DBL_MIN_10_EXP__ <= -40
-	const double eps = 1.0e-40;
-#else
-	const double eps = __DBL_MIN__*4.0;
-#endif
+	const double eps = DBL_EPSILON;
 	const double x = 12.0;
-	double y;
 	size_t i;
 
 	for (i = 0; i < __arraycount(n); i++) {
+		double y = ldexp(x, n[i]);
 
-		y = ldexp(x, n[i]);
-
-		if (fabs(y - (x * exp2(n[i]))) > eps) {
-			atf_tc_fail_nonfatal("ldexp(%0.01f, %0.01f) "
-			    "!= %0.01f * exp2(%0.01f)", x, n[i], x, n[i]);
+		if (!(fabs((y - (x * exp2(n[i])))/y) <= eps)) {
+			atf_tc_fail_nonfatal("ldexp(%.17g, %.17g) = %.17g "
+			    "!= %.17g * exp2(%.17g) = %.17g",
+			    x, n[i], y, x, n[i], (x * exp2(n[i])));
 		}
 	}
 }
@@ -320,18 +316,17 @@ ATF_TC_HEAD(ldexpf_exp2f, tc)
 ATF_TC_BODY(ldexpf_exp2f, tc)
 {
 	const float n[] = { 1, 2, 3, 10, 50, 100 };
-	const float eps = 1.0e-9;
+	const float eps = FLT_EPSILON;
 	const float x = 12.0;
-	float y;
 	size_t i;
 
 	for (i = 0; i < __arraycount(n); i++) {
+		float y = ldexpf(x, n[i]);
 
-		y = ldexpf(x, n[i]);
-
-		if (fabsf(y - (x * exp2f(n[i]))) > eps) {
-			atf_tc_fail_nonfatal("ldexpf(%0.01f, %0.01f) "
-			    "!= %0.01f * exp2f(%0.01f)", x, n[i], x, n[i]);
+		if (!(fabsf((y - (x * exp2f(n[i])))/y) <= eps)) {
+			atf_tc_fail_nonfatal("ldexpf(%.17g, %.17g) = %.17g "
+			    "!= %.17g * exp2f(%.17g) = %.17g",
+			    x, n[i], y, x, n[i], (x * exp2f(n[i])));
 		}
 	}
 }
