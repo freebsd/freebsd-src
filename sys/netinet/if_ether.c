@@ -1479,6 +1479,10 @@ arp_handle_ifllchange(struct ifnet *ifp)
 static void
 arp_iflladdr(void *arg __unused, struct ifnet *ifp)
 {
+	/* if_bridge can update its lladdr during if_vmove(), after we've done
+	 * if_detach_internal()/dom_ifdetach(). */
+	if (ifp->if_afdata[AF_INET] == NULL)
+		return;
 
 	lltable_update_ifaddr(LLTABLE(ifp));
 
