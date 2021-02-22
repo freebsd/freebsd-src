@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -20,10 +19,19 @@
  * CDDL HEADER END
  */
 
-#ifndef ZFS_CONTEXT_OS_H
-#define	ZFS_CONTEXT_OS_H
+/*
+ * Portions Copyright 2021 iXsystems, Inc.
+ */
 
-#include <linux/dcache_compat.h>
-#include <linux/utsname_compat.h>
+#ifndef _SYS_ZFS_RACCT_H
+#define	_SYS_ZFS_RACCT_H
 
-#endif
+#include <sys/zfs_context.h>
+
+/*
+ * Platform-dependent resource accounting hooks
+ */
+void zfs_racct_read(uint64_t size, uint64_t iops);
+void zfs_racct_write(uint64_t size, uint64_t iops);
+
+#endif /* _SYS_ZFS_RACCT_H */
