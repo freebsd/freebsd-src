@@ -113,7 +113,7 @@ static void	vtnet_free_rx_filters(struct vtnet_softc *);
 static int	vtnet_alloc_virtqueues(struct vtnet_softc *);
 static int	vtnet_alloc_interface(struct vtnet_softc *);
 static int	vtnet_setup_interface(struct vtnet_softc *);
-static int	vtnet_ioctl_mtu(struct vtnet_softc *, int);
+static int	vtnet_ioctl_mtu(struct vtnet_softc *, u_int);
 static int	vtnet_ioctl_ifflags(struct vtnet_softc *);
 static int	vtnet_ioctl_multi(struct vtnet_softc *);
 static int	vtnet_ioctl_ifcap(struct vtnet_softc *, struct ifreq *);
@@ -206,9 +206,9 @@ static void	vtnet_exec_ctrl_cmd(struct vtnet_softc *, void *,
 static int	vtnet_ctrl_mac_cmd(struct vtnet_softc *, uint8_t *);
 static int	vtnet_ctrl_guest_offloads(struct vtnet_softc *, uint64_t);
 static int	vtnet_ctrl_mq_cmd(struct vtnet_softc *, uint16_t);
-static int	vtnet_ctrl_rx_cmd(struct vtnet_softc *, uint8_t, int);
-static int	vtnet_set_promisc(struct vtnet_softc *, int);
-static int	vtnet_set_allmulti(struct vtnet_softc *, int);
+static int	vtnet_ctrl_rx_cmd(struct vtnet_softc *, uint8_t, bool);
+static int	vtnet_set_promisc(struct vtnet_softc *, bool);
+static int	vtnet_set_allmulti(struct vtnet_softc *, bool);
 static void	vtnet_rx_filter(struct vtnet_softc *);
 static void	vtnet_rx_filter_mac(struct vtnet_softc *);
 static int	vtnet_exec_vlan_filter(struct vtnet_softc *, int, uint16_t);
@@ -373,7 +373,7 @@ MODULE_DEPEND(vtnet, netmap, 1, 1, 1);
 VIRTIO_SIMPLE_PNPINFO(vtnet, VIRTIO_ID_NETWORK, "VirtIO Networking Adapter");
 
 static int
-vtnet_modevent(module_t mod, int type, void *unused)
+vtnet_modevent(module_t mod __unused, int type, void *unused __unused)
 {
 	int error = 0;
 	static int loaded = 0;
@@ -1247,7 +1247,7 @@ vtnet_rx_cluster_size(struct vtnet_softc *sc, int mtu)
 }
 
 static int
-vtnet_ioctl_mtu(struct vtnet_softc *sc, int mtu)
+vtnet_ioctl_mtu(struct vtnet_softc *sc, u_int mtu)
 {
 	struct ifnet *ifp;
 	int clustersz;
@@ -1808,7 +1808,7 @@ vtnet_rxq_csum_needs_csum(struct vtnet_rxq *rxq, struct mbuf *m, uint16_t etype,
 
 static int
 vtnet_rxq_csum_data_valid(struct vtnet_rxq *rxq, struct mbuf *m,
-    uint16_t etype, int hoff, struct virtio_net_hdr *hdr)
+    uint16_t etype, int hoff, struct virtio_net_hdr *hdr __unused)
 {
 	struct vtnet_softc *sc;
 	int protocol;
@@ -1928,7 +1928,7 @@ vtnet_rxq_merged_eof(struct vtnet_rxq *rxq, struct mbuf *m_head, int nbufs)
 
 	while (--nbufs > 0) {
 		struct mbuf *m;
-		int len;
+		uint32_t len;
 
 		m = virtqueue_dequeue(vq, &len);
 		if (m == NULL) {
@@ -2058,7 +2058,7 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 
 	while (count-- > 0) {
 		struct mbuf *m;
-		int len, nbufs, adjsz;
+		uint32_t len, nbufs, adjsz;
 
 		m = virtqueue_dequeue(vq, &len);
 		if (m == NULL)
@@ -2158,7 +2158,7 @@ vtnet_rx_vq_process(struct vtnet_rxq *rxq, int tries)
 {
 	struct vtnet_softc *sc;
 	struct ifnet *ifp;
-	int more;
+	u_int more;
 #ifdef DEV_NETMAP
 	int nmirq;
 #endif /* DEV_NETMAP */
@@ -2232,7 +2232,7 @@ vtnet_rx_vq_intr(void *xrxq)
 }
 
 static void
-vtnet_rxq_tq_intr(void *xrxq, int pending)
+vtnet_rxq_tq_intr(void *xrxq, int pending __unused)
 {
 	struct vtnet_rxq *rxq;
 
@@ -2749,7 +2749,7 @@ vtnet_txq_mq_start(struct ifnet *ifp, struct mbuf *m)
 }
 
 static void
-vtnet_txq_tq_deferred(void *xtxq, int pending)
+vtnet_txq_tq_deferred(void *xtxq, int pending __unused)
 {
 	struct vtnet_softc *sc;
 	struct vtnet_txq *txq;
@@ -2784,7 +2784,7 @@ vtnet_txq_start(struct vtnet_txq *txq)
 }
 
 static void
-vtnet_txq_tq_intr(void *xtxq, int pending)
+vtnet_txq_tq_intr(void *xtxq, int pending __unused)
 {
 	struct vtnet_softc *sc;
 	struct vtnet_txq *txq;
@@ -3619,7 +3619,7 @@ vtnet_ctrl_mq_cmd(struct vtnet_softc *sc, uint16_t npairs)
 }
 
 static int
-vtnet_ctrl_rx_cmd(struct vtnet_softc *sc, uint8_t cmd, int on)
+vtnet_ctrl_rx_cmd(struct vtnet_softc *sc, uint8_t cmd, bool on)
 {
 	struct sglist_seg segs[3];
 	struct sglist sg;
@@ -3637,7 +3637,7 @@ vtnet_ctrl_rx_cmd(struct vtnet_softc *sc, uint8_t cmd, int on)
 
 	s.hdr.class = VIRTIO_NET_CTRL_RX;
 	s.hdr.cmd = cmd;
-	s.onoff = !!on;
+	s.onoff = on;
 	s.ack = VIRTIO_NET_ERR;
 
 	sglist_init(&sg, nitems(segs), segs);
@@ -3653,13 +3653,13 @@ vtnet_ctrl_rx_cmd(struct vtnet_softc *sc, uint8_t cmd, int on)
 }
 
 static int
-vtnet_set_promisc(struct vtnet_softc *sc, int on)
+vtnet_set_promisc(struct vtnet_softc *sc, bool on)
 {
 	return (vtnet_ctrl_rx_cmd(sc, VIRTIO_NET_CTRL_RX_PROMISC, on));
 }
 
 static int
-vtnet_set_allmulti(struct vtnet_softc *sc, int on)
+vtnet_set_allmulti(struct vtnet_softc *sc, bool on)
 {
 	return (vtnet_ctrl_rx_cmd(sc, VIRTIO_NET_CTRL_RX_ALLMULTI, on));
 }
@@ -3781,9 +3781,9 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 		if_printf(ifp, "error setting host MAC filter table\n");
 
 out:
-	if (promisc != 0 && vtnet_set_promisc(sc, 1) != 0)
+	if (promisc != 0 && vtnet_set_promisc(sc, true) != 0)
 		if_printf(ifp, "cannot enable promiscuous mode\n");
-	if (allmulti != 0 && vtnet_set_allmulti(sc, 1) != 0)
+	if (allmulti != 0 && vtnet_set_allmulti(sc, true) != 0)
 		if_printf(ifp, "cannot enable all-multicast mode\n");
 }
 
@@ -3912,7 +3912,7 @@ vtnet_update_speed_duplex(struct vtnet_softc *sc)
 	/* BMV: Ignore duplex. */
 	speed = virtio_read_dev_config_4(sc->vtnet_dev,
 	    offsetof(struct virtio_net_config, speed));
-	if (speed != -1)
+	if (speed != UINT32_MAX)
 		ifp->if_baudrate = IF_Mbps(speed);
 }
 
@@ -3952,7 +3952,7 @@ vtnet_update_link_status(struct vtnet_softc *sc)
 }
 
 static int
-vtnet_ifmedia_upd(struct ifnet *ifp)
+vtnet_ifmedia_upd(struct ifnet *ifp __unused)
 {
 	return (EOPNOTSUPP);
 }
