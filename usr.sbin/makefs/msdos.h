@@ -41,7 +41,6 @@
 } while (0);
 
 
-struct vnode;
 struct denode;
 struct fsnode;
 struct msdosfsmount;

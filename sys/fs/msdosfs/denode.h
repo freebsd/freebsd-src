@@ -52,8 +52,6 @@
 #ifndef _FS_MSDOSFS_DENODE_H_
 #define	_FS_MSDOSFS_DENODE_H_
 
-#include <sys/buf.h>
-
 /*
  * This is the pc filesystem specific portion of the vnode structure.
  *

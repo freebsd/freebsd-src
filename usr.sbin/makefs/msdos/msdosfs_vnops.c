@@ -65,13 +65,10 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include <fs/msdosfs/bpb.h>
-#include "msdos/direntry.h"
-#include <fs/msdosfs/denode.h>
+#include "msdos/denode.h"
 #include <fs/msdosfs/fat.h>
 #include <fs/msdosfs/msdosfsmount.h>
 
-#undef clrbuf
-#include "ffs/buf.h"
 #include "makefs.h"
 #include "msdos.h"
 
