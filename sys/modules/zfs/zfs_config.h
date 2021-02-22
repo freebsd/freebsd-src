@@ -764,7 +764,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_gbf156c966"
+#define ZFS_META_RELEASE "FreeBSD_g9312e0fd1"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.0.0"
