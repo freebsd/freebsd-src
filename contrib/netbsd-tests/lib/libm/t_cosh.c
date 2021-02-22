@@ -1,4 +1,4 @@
-/* $NetBSD: t_cosh.c,v 1.6 2014/03/03 10:39:08 martin Exp $ */
+/* $NetBSD: t_cosh.c,v 1.7 2018/11/07 03:59:36 riastradh Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,28 +29,28 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_cosh.c,v 1.6 2014/03/03 10:39:08 martin Exp $");
+__RCSID("$NetBSD: t_cosh.c,v 1.7 2018/11/07 03:59:36 riastradh Exp $");
 
 #include <atf-c.h>
+#include <float.h>
 #include <math.h>
 #include <stdio.h>
 
 static const struct {
 	double x;
 	double y;
-	double e;
 } values[] = {
-	{ -10,    11013.23292010332, 1e4, },
-	{ -2,     3.762195691083631, 1,   },
-	{ -1,     1.543080634815244, 1,   },
-	{ -0.05,  1.001250260438369, 1,   },
-	{ -0.001, 1.000000500000042, 1,   },
-	{  0,     1,                 1,   },
-	{  0.001, 1.000000500000042, 1,   },
-	{  0.05,  1.001250260438369, 1,   },
-	{  1,     1.543080634815244, 1,   },
-	{  2,     3.762195691083631, 1,   },
-	{  10,    11013.23292010332, 1e4, },
+	{ -10,    11013.232920103323, },
+	{ -2,     3.762195691083631, },
+	{ -1,     1.543080634815244, },
+	{ -0.05,  1.001250260438369, },
+	{ -0.001, 1.0000005000000418, },
+	{  0,     1,                 },
+	{  0.001, 1.0000005000000418, },
+	{  0.05,  1.001250260438369, },
+	{  1,     1.543080634815244, },
+	{  2,     3.762195691083631, },
+	{  10,    11013.232920103323, },
 };
 
 /*
@@ -64,18 +64,17 @@ ATF_TC_HEAD(cosh_inrange, tc)
 
 ATF_TC_BODY(cosh_inrange, tc)
 {
-	double eps;
-	double x;
-	double y;
+	const double eps = DBL_EPSILON;
 	size_t i;
 
 	for (i = 0; i < __arraycount(values); i++) {
-		x = values[i].x;
-		y = values[i].y;
-		eps = 1e-15 * values[i].e;
+		double x = values[i].x;
+		double cosh_x = values[i].y;
 
-		if (fabs(cosh(x) - y) > eps)
-			atf_tc_fail_nonfatal("cosh(%g) != %g\n", x, y);
+		if (!(fabs((cosh(x) - cosh_x)/cosh_x) <= eps)) {
+			atf_tc_fail_nonfatal("cosh(%.17g) = %.17g != %.17g\n",
+			    x, cosh(x), cosh_x);
+		}
 	}
 }
 
@@ -162,18 +161,17 @@ ATF_TC_HEAD(coshf_inrange, tc)
 
 ATF_TC_BODY(coshf_inrange, tc)
 {
-	float eps;
-	float x;
-	float y;
+	const float eps = FLT_EPSILON;
 	size_t i;
 
 	for (i = 0; i < __arraycount(values); i++) {
-		x = values[i].x;
-		y = values[i].y;
-		eps = 1e-6 * values[i].e;
+		float x = values[i].x;
+		float cosh_x = values[i].y;
 
-		if (fabsf(coshf(x) - y) > eps)
-			atf_tc_fail_nonfatal("coshf(%g) != %g\n", x, y);
+		if (!(fabsf((coshf(x) - cosh_x)/cosh_x) <= eps)) {
+			atf_tc_fail_nonfatal("coshf(%.17g) = %.17g != %.17g\n",
+			    x, coshf(x), cosh_x);
+		}
 	}
 }
 

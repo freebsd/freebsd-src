@@ -1,11 +1,9 @@
-/* $NetBSD: t_fmod.c,v 1.4 2020/08/25 13:39:16 gson Exp $ */
-
 /*-
- * Copyright (c) 2013 The NetBSD Foundation, Inc.
+ * Copyright (c) 2018 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Joerg Sonnenberger.
+ * by Maya Rashish
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,42 +27,40 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <atf-c.h>
-#include <float.h>
-#include <math.h>
+/*
+ * Test that C++ "cabsl" is usable. PR lib/50646
+ */
 
-#include "isqemu.h"
+#include <atf-c++.hpp>
+#include <complex>
 
-ATF_TC(fmod);
-ATF_TC_HEAD(fmod, tc)
+ATF_TEST_CASE(cabsl);
+ATF_TEST_CASE_HEAD(cabsl)
 {
-	atf_tc_set_md_var(tc, "descr","Check fmod family");
+	set_md_var("descr", "Check that cabsl is usable from C++");
 }
-
-ATF_TC_BODY(fmod, tc)
+ATF_TEST_CASE_BODY(cabsl)
 {
-#ifdef __NetBSD__
-	if (isQEMU())
-		atf_tc_expect_fail("PR misc/44767");
+	int sum = 0;
+
+#ifdef __HAVE_LONG_DOUBLE
+	std::complex<long double> cld(3.0,4.0);
+	sum += std::abs(cld);
 #endif
+	std::complex<double> cd(3.0,4.0);
+	sum += std::abs(cd);
 
-	ATF_CHECK(fmodf(2.0, 1.0) == 0);
-	ATF_CHECK(fmod(2.0, 1.0) == 0);
-	ATF_CHECK(fmodl(2.0, 1.0) == 0);
+	std::complex<float> cf(3.0,4.0);
+	sum += std::abs(cf);
 
-	ATF_CHECK(fmodf(2.0, 0.5) == 0);
-	ATF_CHECK(fmod(2.0, 0.5) == 0);
-	ATF_CHECK(fmodl(2.0, 0.5) == 0);
-
-	ATF_CHECK(fabsf(fmodf(1.0, 0.1) - 0.1f) <= 55 * FLT_EPSILON);
-	ATF_CHECK(fabs(fmod(1.0, 0.1) - 0.1) <= 55 * DBL_EPSILON);
-	ATF_CHECK(fabsl(fmodl(1.0, 0.1L) - 0.1L) <= 55 * LDBL_EPSILON);
+#ifdef __HAVE_LONG_DOUBLE
+	ATF_REQUIRE_EQ(sum, 3*5);
+#else
+	ATF_REQUIRE_EQ(sum, 2*5);
+#endif
 }
 
-ATF_TP_ADD_TCS(tp)
+ATF_INIT_TEST_CASES(tcs)
 {
-
-	ATF_TP_ADD_TC(tp, fmod);
-
-	return atf_no_error();
+	ATF_ADD_TEST_CASE(tcs, cabsl);
 }

@@ -1,4 +1,4 @@
-/* $NetBSD: t_sqrt.c,v 1.7 2014/03/12 21:40:07 martin Exp $ */
+/* $NetBSD: t_sqrt.c,v 1.8 2018/11/07 03:59:36 riastradh Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_sqrt.c,v 1.7 2014/03/12 21:40:07 martin Exp $");
+__RCSID("$NetBSD: t_sqrt.c,v 1.8 2018/11/07 03:59:36 riastradh Exp $");
 
 #include <atf-c.h>
 #include <math.h>
@@ -62,22 +62,25 @@ ATF_TC_HEAD(sqrt_pow, tc)
 ATF_TC_BODY(sqrt_pow, tc)
 {
 	const double x[] = { 0.0, 0.005, 1.0, 99.0, 123.123, 9999.9999 };
-#if __DBL_MIN_10_EXP__ <= -40
-	const double eps = 1.0e-40;
-#else
-	const double eps = __DBL_MIN__*4.0;
-#endif
-	double y, z;
+	const double eps = DBL_EPSILON;
 	size_t i;
 
 	for (i = 0; i < __arraycount(x); i++) {
+		double x_sqrt = sqrt(x[i]);
+		double x_pow12 = pow(x[i], 1.0 / 2.0);
+		bool ok;
 
-		y = sqrt(x[i]);
-		z = pow(x[i], 1.0 / 2.0);
+		if (x[i] == 0) {
+			ok = (x_sqrt == x_pow12);
+		} else {
+			ok = (fabs((x_sqrt - x_pow12)/x_sqrt) <= eps);
+		}
 
-		if (fabs(y - z) > eps)
-			atf_tc_fail_nonfatal("sqrt(%0.03f) != "
-			    "pow(%0.03f, 1/2)\n", x[i], x[i]);
+		if (!ok) {
+			atf_tc_fail_nonfatal("sqrt(%.17g) = %.17g != "
+			    "pow(%.17g, 1/2) = %.17g\n",
+			    x[i], x_sqrt, x[i], x_pow12);
+		}
 	}
 }
 
@@ -166,18 +169,26 @@ ATF_TC_HEAD(sqrtf_powf, tc)
 ATF_TC_BODY(sqrtf_powf, tc)
 {
 	const float x[] = { 0.0, 0.005, 1.0, 99.0, 123.123, 9999.9999 };
-	const float eps = 1.0e-30;
-	volatile float y, z;
+	const float eps = FLT_EPSILON;
 	size_t i;
 
 	for (i = 0; i < __arraycount(x); i++) {
+		float x_sqrt = sqrtf(x[i]);
+		float x_pow12 = powf(x[i], 1.0 / 2.0);
+		bool ok;
 
-		y = sqrtf(x[i]);
-		z = powf(x[i], 1.0 / 2.0);
+		if (x[i] == 0) {
+			ok = (x_sqrt == x_pow12);
+		} else {
+			ok = (fabsf((x_sqrt - x_pow12)/x_sqrt) <= eps);
+		}
 
-		if (fabsf(y - z) > eps)
-			atf_tc_fail_nonfatal("sqrtf(%0.03f) != "
-			    "powf(%0.03f, 1/2)\n", x[i], x[i]);
+		if (!ok) {
+			atf_tc_fail_nonfatal("sqrtf(%.8g) = %.8g != "
+			    "powf(%.8g, 1/2) = %.8g\n",
+			    (double)x[i], (double)x_sqrt,
+			    (double)x[i], (double)x_pow12);
+		}
 	}
 }
 
@@ -266,18 +277,25 @@ ATF_TC_HEAD(sqrtl_powl, tc)
 ATF_TC_BODY(sqrtl_powl, tc)
 {
 	const long double x[] = { 0.0, 0.005, 1.0, 99.0, 123.123, 9999.9999 };
-	const long double eps = 5.0*DBL_EPSILON; /* XXX powl == pow for now */
-	volatile long double y, z;
+	const long double eps = DBL_EPSILON; /* XXX powl == pow for now */
 	size_t i;
 
 	for (i = 0; i < __arraycount(x); i++) {
+		long double x_sqrt = sqrtl(x[i]);
+		long double x_pow12 = powl(x[i], 1.0 / 2.0);
+		bool ok;
 
-		y = sqrtl(x[i]);
-		z = powl(x[i], 1.0 / 2.0);
+		if (x[i] == 0) {
+			ok = (x_sqrt == x_pow12);
+		} else {
+			ok = (fabsl((x_sqrt - x_pow12)/x_sqrt) <= eps);
+		}
 
-		if (fabsl(y - z) > eps)
-			atf_tc_fail_nonfatal("sqrtl(%0.03Lf) != "
-			    "powl(%0.03Lf, 1/2)\n", x[i], x[i]);
+		if (!ok) {
+			atf_tc_fail_nonfatal("sqrtl(%.35Lg) = %.35Lg != "
+			    "powl(%.35Lg, 1/2) = %.35Lg\n",
+			    x[i], x_sqrt, x[i], x_pow12);
+		}
 	}
 }
 

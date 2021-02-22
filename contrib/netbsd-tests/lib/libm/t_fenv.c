@@ -1,4 +1,4 @@
-/* $NetBSD: t_fenv.c,v 1.3 2015/12/22 14:20:59 christos Exp $ */
+/* $NetBSD: t_fenv.c,v 1.6 2019/04/25 20:48:54 kamil Exp $ */
 
 /*-
  * Copyright (c) 2014 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_fenv.c,v 1.3 2015/12/22 14:20:59 christos Exp $");
+__RCSID("$NetBSD: t_fenv.c,v 1.6 2019/04/25 20:48:54 kamil Exp $");
 
 #include <atf-c.h>
 
@@ -40,15 +40,15 @@ __RCSID("$NetBSD: t_fenv.c,v 1.3 2015/12/22 14:20:59 christos Exp $");
 #include <stdlib.h>
 
 
-#if __arm__ && !__SOFTFP__
+#if (__arm__ && !__SOFTFP__) || __aarch64__
 	/*
-	 * Some NEON fpus do not implement IEEE exception handling,
-	 * skip these tests if running on them and compiled for
+	 * Some NEON fpus  do not trap on IEEE 754 FP exceptions.
+	 * Skip these tests if running on them and compiled for
 	 * hard float.
 	 */
 #define	FPU_EXC_PREREQ()						\
 	if (0 == fpsetmask(fpsetmask(FP_X_INV)))			\
-		atf_tc_skip("FPU does not implement exception handling");
+		atf_tc_skip("FPU does not implement traps on FP exceptions");
 
 	/*
 	 * Same as above: some don't allow configuring the rounding mode.

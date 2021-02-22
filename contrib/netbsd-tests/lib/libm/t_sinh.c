@@ -1,4 +1,4 @@
-/* $NetBSD: t_sinh.c,v 1.6 2014/03/03 10:39:08 martin Exp $ */
+/* $NetBSD: t_sinh.c,v 1.7 2018/11/07 03:59:36 riastradh Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,27 +29,27 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_sinh.c,v 1.6 2014/03/03 10:39:08 martin Exp $");
+__RCSID("$NetBSD: t_sinh.c,v 1.7 2018/11/07 03:59:36 riastradh Exp $");
 
 #include <atf-c.h>
+#include <float.h>
 #include <math.h>
 #include <stdio.h>
 
 static const struct {
 	double x;
 	double y;
-	double e;
 } values[] = {
-	{ -10,   -11013.23287470339, 1e4, },
-	{ -2,    -3.626860407847019, 1,   },
-	{ -1,    -1.175201193643801, 1,   },
-	{ -0.05, -0.050020835937655, 1,   },
-	{ -0.001,-0.001000000166667, 1,   },
-	{  0.001, 0.001000000166667, 1,   },
-	{  0.05,  0.050020835937655, 1,   },
-	{  1,     1.175201193643801, 1,   },
-	{  2,     3.626860407847019, 1,   },
-	{  10,    11013.23287470339, 1e4, },
+	{ -10,   -11013.232874703393, },
+	{ -2,    -3.626860407847019, },
+	{ -1,    -1.1752011936438014, },
+	{ -0.05, -0.050020835937655016, },
+	{ -0.001,-0.0010000001666666751, },
+	{  0.001, 0.0010000001666666751, },
+	{  0.05,  0.050020835937655016, },
+	{  1,     1.1752011936438014, },
+	{  2,     3.626860407847019, },
+	{  10,    11013.232874703393, },
 };
 
 /*
@@ -63,18 +63,17 @@ ATF_TC_HEAD(sinh_inrange, tc)
 
 ATF_TC_BODY(sinh_inrange, tc)
 {
-	double eps;
-	double x;
-	double y;
+	const double eps = DBL_EPSILON;
 	size_t i;
 
 	for (i = 0; i < __arraycount(values); i++) {
-		x = values[i].x;
-		y = values[i].y;
-		eps = 1e-15 * values[i].e;
+		double x = values[i].x;
+		double sinh_x = values[i].y;
 
-		if (fabs(sinh(x) - y) > eps)
-			atf_tc_fail_nonfatal("sinh(%g) != %g\n", x, y);
+		if (!(fabs((sinh(x) - sinh_x)/sinh_x) <= eps)) {
+			atf_tc_fail_nonfatal("sinh(%.17g) = %.17g != %.17g\n",
+			    x, sinh(x), sinh_x);
+		}
 	}
 }
 
@@ -163,18 +162,17 @@ ATF_TC_HEAD(sinhf_inrange, tc)
 
 ATF_TC_BODY(sinhf_inrange, tc)
 {
-	float eps;
-	float x;
-	float y;
+	const float eps = FLT_EPSILON;
 	size_t i;
 
 	for (i = 0; i < __arraycount(values); i++) {
-		x = values[i].x;
-		y = values[i].y;
-		eps = 1e-6 * values[i].e;
+		float x = values[i].x;
+		float sinh_x = values[i].y;
 
-		if (fabsf(sinhf(x) - y) > eps)
-			atf_tc_fail_nonfatal("sinhf(%g) != %g\n", x, y);
+		if (!(fabsf((sinhf(x) - sinh_x)/sinh_x) <= eps)) {
+			atf_tc_fail_nonfatal("sinhf(%.8g) = %.8g != %.8g\n",
+			    (double)x, (double)sinhf(x), (double)sinh_x);
+		}
 	}
 }
 

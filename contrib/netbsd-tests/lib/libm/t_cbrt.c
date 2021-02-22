@@ -1,4 +1,4 @@
-/* $NetBSD: t_cbrt.c,v 1.3 2014/03/03 10:39:08 martin Exp $ */
+/* $NetBSD: t_cbrt.c,v 1.5 2018/11/15 05:14:20 riastradh Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,9 +29,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_cbrt.c,v 1.3 2014/03/03 10:39:08 martin Exp $");
+__RCSID("$NetBSD: t_cbrt.c,v 1.5 2018/11/15 05:14:20 riastradh Exp $");
 
 #include <atf-c.h>
+#include <float.h>
 #include <math.h>
 #include <stdio.h>
 
@@ -61,18 +62,26 @@ ATF_TC_HEAD(cbrt_pow, tc)
 ATF_TC_BODY(cbrt_pow, tc)
 {
 	const double x[] = { 0.0, 0.005, 1.0, 99.0, 123.123, 9999.0 };
-	const double eps = 1.0e-14;
-	double y, z;
+	/* Neither cbrt nor pow is required to be correctly rounded.  */
+	const double eps = 2*DBL_EPSILON;
 	size_t i;
 
 	for (i = 0; i < __arraycount(x); i++) {
+		double x_cbrt = cbrt(x[i]);
+		double x_pow13 = pow(x[i], 1.0 / 3.0);
+		bool ok;
 
-		y = cbrt(x[i]);
-		z = pow(x[i], 1.0 / 3.0);
+		if (x[i] == 0) {
+			ok = (x_cbrt == x_pow13);
+		} else {
+			ok = (fabs((x_cbrt - x_pow13)/x_cbrt) <= eps);
+		}
 
-		if (fabs(y - z) > eps)
-			atf_tc_fail_nonfatal("cbrt(%0.03f) != "
-			    "pow(%0.03f, 1/3)\n", x[i], x[i]);
+		if (!ok) {
+			atf_tc_fail_nonfatal("cbrt(%.17g) = %.17g != "
+			    "pow(%.17g, 1/3) = %.17g\n",
+			    x[i], x_cbrt, x[i], x_pow13);
+		}
 	}
 }
 
@@ -162,18 +171,27 @@ ATF_TC_HEAD(cbrtf_powf, tc)
 ATF_TC_BODY(cbrtf_powf, tc)
 {
 	const float x[] = { 0.0, 0.005, 1.0, 99.0, 123.123, 9999.0 };
-	const float eps = 1.0e-5;
-	float y, z;
+	/* Neither cbrt nor pow is required to be correctly rounded.  */
+	const float eps = 2*FLT_EPSILON;
 	size_t i;
 
 	for (i = 0; i < __arraycount(x); i++) {
+		float x_cbrt = cbrtf(x[i]);
+		float x_pow13 = powf(x[i], 1.0 / 3.0);
+		bool ok;
 
-		y = cbrtf(x[i]);
-		z = powf(x[i], 1.0 / 3.0);
+		if (x[i] == 0) {
+			ok = (x_cbrt == x_pow13);
+		} else {
+			ok = (fabsf((x_cbrt - x_pow13)/x_cbrt) <= eps);
+		}
 
-		if (fabsf(y - z) > eps)
-			atf_tc_fail_nonfatal("cbrtf(%0.03f) != "
-			    "powf(%0.03f, 1/3)\n", x[i], x[i]);
+		if (!ok) {
+			atf_tc_fail_nonfatal("cbrtf(%.9g) = %.9g. != "
+			    "powf(%.9g, 1/3) = %.9g\n",
+			    (double)x[i], (double)x_cbrt,
+			    (double)x[i], (double)x_pow13);
+		}
 	}
 }
 
@@ -264,27 +282,42 @@ ATF_TC_HEAD(cbrtl_powl, tc)
 ATF_TC_BODY(cbrtl_powl, tc)
 {
 	const long double x[] = { 0.0, 0.005, 1.0, 99.0, 123.123, 9999.0 };
-	const long double eps = 1.0e-15;
-	long double y, z;
+	/* Neither cbrt nor pow is required to be correctly rounded.  */
+	const long double eps = 2*LDBL_EPSILON;
 	size_t i;
 
 #if defined(__amd64__) && defined(__clang__) && __clang_major__ >= 7 && \
     __clang_major__ < 10 && __FreeBSD_cc_version < 1300002
 	atf_tc_expect_fail("test fails with clang 7-9 - bug 234040");
 #endif
-
 	for (i = 0; i < __arraycount(x); i++) {
-
-		y = cbrtl(x[i]);
+		long double x_cbrt = cbrtl(x[i]);
 #ifdef __FreeBSD__
-		z = powl(x[i], (long double)1.0 / 3.0);
+		/*
+		 * NetBSD doesn't have a real powl/cbrtl implementation, they
+		 * just call the double version. On FreeBSD we have a real
+		 * powl implementation so we have to cast the second argument
+		 * to long double before dividing to get a more precise
+		 * approximation of 1/3.
+		 * TODO: upstream this diff.
+		 */
+		long double x_pow13 = powl(x[i], (long double)1.0 / 3.0);
 #else
-		z = powl(x[i], 1.0 / 3.0);
+		long double x_pow13 = powl(x[i], 1.0 / 3.0);
 #endif
+		bool ok;
 
-		if (fabsl(y - z) > eps * fabsl(1 + x[i]))
-			atf_tc_fail_nonfatal("cbrtl(%0.03Lf) != "
-			    "powl(%0.03Lf, 1/3)\n", x[i], x[i]);
+		if (x[i] == 0) {
+			ok = (x_cbrt == x_pow13);
+		} else {
+			ok = (fabsl((x_cbrt - x_pow13)/x_cbrt) <= eps);
+		}
+
+		if (!ok) {
+			atf_tc_fail_nonfatal("cbrtl(%.35Lg) = %.35Lg != "
+			    "powl(%.35Lg, 1/3) = %.35Lg\n",
+			    x[i], x_cbrt, x[i], x_pow13);
+		}
 	}
 }
 

@@ -1,4 +1,4 @@
-/* $NetBSD: t_tan.c,v 1.5 2014/03/03 10:39:08 martin Exp $ */
+/* $NetBSD: t_tan.c,v 1.7 2018/11/07 04:00:13 riastradh Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,26 +29,29 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <atf-c.h>
+#include <float.h>
 #include <math.h>
 
 static const struct {
 	int		angle;
 	double		x;
 	double		y;
+	float		fy;
 } angles[] = {
-	{ -180, -3.141592653589793,  0.0000000000000000 },
-	{ -135, -2.356194490192345,  1.0000000000000000 },
-	{  -45, -0.785398163397448, -1.0000000000000000 },
-	{    0,  0.000000000000000,  0.0000000000000000 },
-	{   30,  0.523598775598299,  0.5773502691896258 },
-	{   45,  0.785398163397448,  1.0000000000000000 },
-	{   60,  1.047197551196598,  1.7320508075688773 },
-	{  120,  2.094395102393195, -1.7320508075688773 },
-	{  135,  2.356194490192345, -1.0000000000000000 },
-	{  150,  2.617993877991494, -0.5773502691896258 },
-	{  180,  3.141592653589793,  0.0000000000000000 },
-	{  360,  6.283185307179586,  0.0000000000000000 }
+	{ -180, -3.141592653589793,  1.2246467991473532e-16, -8.7422777e-08 },
+	{ -135, -2.356194490192345,  1.0000000000000002, 999 },
+	{  -45, -0.785398163397448, -0.9999999999999992, 999 },
+	{    0,  0.000000000000000,  0.0000000000000000, 999 },
+	{   30,  0.5235987755982988, 0.57735026918962573, 999 },
+	{   45,  0.785398163397448,  0.9999999999999992, 999 },
+	{   60,  1.047197551196598,  1.7320508075688785,  1.7320509 },
+	{  120,  2.094395102393195, -1.7320508075688801, -1.7320505 },
+	{  135,  2.356194490192345, -1.0000000000000002, 999 },
+	{  150,  2.617993877991494, -0.57735026918962629, -0.57735032 },
+	{  180,  3.141592653589793, -1.2246467991473532e-16, 8.7422777e-08 },
+	{  360,  6.283185307179586, -2.4492935982947064e-16, 1.7484555e-07 },
 };
 
 /*
@@ -62,14 +65,29 @@ ATF_TC_HEAD(tan_angles, tc)
 
 ATF_TC_BODY(tan_angles, tc)
 {
-	const double eps = 1.0e-14;
+	const double eps = DBL_EPSILON;
 	size_t i;
 
 	for (i = 0; i < __arraycount(angles); i++) {
+		int deg = angles[i].angle;
+		double theta = angles[i].x;
+		double tan_theta = angles[i].y;
+		bool ok;
 
-		if (fabs(tan(angles[i].x) - angles[i].y) > eps)
-			atf_tc_fail_nonfatal("tan(%d deg) != %0.01f",
-			    angles[i].angle, angles[i].y);
+		if (theta == 0) {
+			/* Should be computed exactly.  */
+			assert(tan_theta == 0);
+			ok = (tan(theta) == 0);
+		} else {
+			assert(tan_theta != 0);
+			ok = (fabs((tan(theta) - tan_theta)/tan_theta) <= eps);
+		}
+
+		if (!ok) {
+			atf_tc_fail_nonfatal("tan(%d deg = %.17g) = %.17g"
+			    " != %.17g",
+			    deg, theta, tan(theta), tan_theta);
+		}
 	}
 }
 
@@ -151,18 +169,32 @@ ATF_TC_HEAD(tanf_angles, tc)
 
 ATF_TC_BODY(tanf_angles, tc)
 {
-	const float eps = 1.0e-6;
-	float x, y;
+	const float eps = FLT_EPSILON;
 	size_t i;
 
 	for (i = 0; i < __arraycount(angles); i++) {
+		int deg = angles[i].angle;
+		float theta = angles[i].x;
+		float tan_theta = angles[i].fy;
+		bool ok;
 
-		x = angles[i].x;
-		y = angles[i].y;
+		if (tan_theta == 999)
+			tan_theta = angles[i].y;
 
-		if (fabsf(tanf(x) - y) > eps)
-			atf_tc_fail_nonfatal("tanf(%d deg) != %0.01f",
-			    angles[i].angle, angles[i].y);
+		if (theta == 0) {
+			/* Should be computed exactly.  */
+			assert(tan_theta == 0);
+			ok = (tan(theta) == 0);
+		} else {
+			assert(tan_theta != 0);
+			ok = (fabsf((tanf(theta) - tan_theta)/tan_theta)
+			    <= eps);
+		}
+
+		if (!ok) {
+			atf_tc_fail_nonfatal("tanf(%d deg) = %.8g != %.8g",
+			    deg, tanf(theta), tan_theta);
+		}
 	}
 }
 

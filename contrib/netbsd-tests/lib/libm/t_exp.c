@@ -1,4 +1,4 @@
-/* $NetBSD: t_exp.c,v 1.8 2014/10/07 16:53:44 gson Exp $ */
+/* $NetBSD: t_exp.c,v 1.9 2018/11/07 03:59:36 riastradh Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -30,6 +30,7 @@
  */
 
 #include <atf-c.h>
+#include <float.h>
 #include <math.h>
 #include "t_libm.h"
 
@@ -37,17 +38,16 @@
 static const struct {
 	double x;
 	double y;
-	double e;
 } exp_values[] = {
-	{  -10, 0.4539992976248485e-4, 1e-4, },
-	{   -5, 0.6737946999085467e-2, 1e-2, },
-	{   -1, 0.3678794411714423,    1e-1, },
-	{ -0.1, 0.9048374180359595,    1e-1, },
-	{    0, 1.0000000000000000,    1,    },
-	{  0.1, 1.1051709180756477,    1,    },
-	{    1, 2.7182818284590452,    1,    },
-	{    5, 148.41315910257660,    1e2, },
-	{   10, 22026.465794806718,    1e4, },
+	{  -10, 0.4539992976248485e-4, },
+	{   -5, 0.6737946999085467e-2, },
+	{   -1, 0.3678794411714423,    },
+	{ -0.1, 0.9048374180359595,    },
+	{    0, 1.0000000000000000,    },
+	{  0.1, 1.1051709180756477,    },
+	{    1, 2.7182818284590452,    },
+	{    5, 148.41315910257660,    },
+	{   10, 22026.465794806718,    },
 };
 
 /*
@@ -238,18 +238,17 @@ ATF_TC_HEAD(exp_product, tc)
 
 ATF_TC_BODY(exp_product, tc)
 {
-	double eps;
-	double x;
-	double y;
+	const double eps = DBL_EPSILON;
 	size_t i;
 
 	for (i = 0; i < __arraycount(exp_values); i++) {
-		x = exp_values[i].x;
-		y = exp_values[i].y;
-		eps = 1e-15 * exp_values[i].e;
+		double x = exp_values[i].x;
+		double e_x = exp_values[i].y;
 
-		if (fabs(exp(x) - y) > eps)
-			atf_tc_fail_nonfatal("exp(%0.01f) != %18.18e", x, y);
+		if (!(fabs((exp(x) - e_x)/e_x) <= eps)) {
+			atf_tc_fail_nonfatal("exp(%.17g) = %.17g != %.17g",
+			    x, exp(x), e_x);
+		}
 	}
 }
 
@@ -336,18 +335,17 @@ ATF_TC_HEAD(expf_product, tc)
 
 ATF_TC_BODY(expf_product, tc)
 {
-	float eps;
-	float x;
-	float y;
+	const float eps = FLT_EPSILON;
 	size_t i;
 
 	for (i = 0; i < __arraycount(exp_values); i++) {
-		x = exp_values[i].x;
-		y = exp_values[i].y;
-		eps = 1e-6 * exp_values[i].e;
+		float x = exp_values[i].x;
+		float e_x = exp_values[i].y;
 
-		if (fabsf(expf(x) - y) > eps)
-			atf_tc_fail_nonfatal("expf(%0.01f) != %18.18e", x, y);
+		if (!(fabsf((expf(x) - e_x)/e_x) <= eps)) {
+			atf_tc_fail_nonfatal("expf(%.8g) = %.8g != %.8g",
+			    x, exp(x), e_x);
+		}
 	}
 }
 
