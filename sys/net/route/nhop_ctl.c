@@ -84,7 +84,7 @@ static int get_nhop(struct rib_head *rnh, struct rt_addrinfo *info,
     struct nhop_priv **pnh_priv);
 static int finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
     struct nhop_priv *nh_priv);
-static struct ifnet *get_aifp(const struct nhop_object *nh, int reference);
+static struct ifnet *get_aifp(const struct nhop_object *nh);
 static void fill_sdl_from_ifp(struct sockaddr_dl_short *sdl, const struct ifnet *ifp);
 
 static void destroy_nhop_epoch(epoch_context_t ctx);
@@ -120,12 +120,10 @@ nhops_init(void)
  * this interface ifp instead of loopback. This is needed to support
  * link-local IPv6 loopback communications.
  *
- * If @reference is non-zero, found ifp is referenced.
- *
  * Returns found ifp.
  */
 static struct ifnet *
-get_aifp(const struct nhop_object *nh, int reference)
+get_aifp(const struct nhop_object *nh)
 {
 	struct ifnet *aifp = NULL;
 
@@ -138,21 +136,15 @@ get_aifp(const struct nhop_object *nh, int reference)
 	 */
 	if ((nh->nh_ifp->if_flags & IFF_LOOPBACK) &&
 			nh->gw_sa.sa_family == AF_LINK) {
-		if (reference)
-			aifp = ifnet_byindex_ref(nh->gwl_sa.sdl_index);
-		else
-			aifp = ifnet_byindex(nh->gwl_sa.sdl_index);
+		aifp = ifnet_byindex(nh->gwl_sa.sdl_index);
 		if (aifp == NULL) {
 			DPRINTF("unable to get aifp for %s index %d",
 				if_name(nh->nh_ifp), nh->gwl_sa.sdl_index);
 		}
 	}
 
-	if (aifp == NULL) {
+	if (aifp == NULL)
 		aifp = nh->nh_ifp;
-		if (reference)
-			if_ref(aifp);
-	}
 
 	return (aifp);
 }
@@ -297,7 +289,7 @@ fill_nhop_from_info(struct nhop_priv *nh_priv, struct rt_addrinfo *info)
 	nh->nh_ifp = info->rti_ifa->ifa_ifp;
 	nh->nh_ifa = info->rti_ifa;
 	/* depends on the gateway */
-	nh->nh_aifp = get_aifp(nh, 0);
+	nh->nh_aifp = get_aifp(nh);
 
 	/*
 	 * Note some of the remaining data is set by the
@@ -438,7 +430,7 @@ alter_nhop_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 		nh->nh_ifa = info->rti_ifa;
 	if (info->rti_ifp != NULL)
 		nh->nh_ifp = info->rti_ifp;
-	nh->nh_aifp = get_aifp(nh, 0);
+	nh->nh_aifp = get_aifp(nh);
 
 	return (0);
 }
@@ -512,6 +504,26 @@ alloc_nhop_structure()
 	return (nh_priv);
 }
 
+static bool
+reference_nhop_deps(struct nhop_object *nh)
+{
+	if (!ifa_try_ref(nh->nh_ifa))
+		return (false);
+	nh->nh_aifp = get_aifp(nh);
+	if (!if_try_ref(nh->nh_aifp)) {
+		ifa_free(nh->nh_ifa);
+		return (false);
+	}
+	DPRINTF("AIFP: %p nh_ifp %p", nh->nh_aifp, nh->nh_ifp);
+	if (!if_try_ref(nh->nh_ifp)) {
+		ifa_free(nh->nh_ifa);
+		if_rele(nh->nh_aifp);
+		return (false);
+	}
+
+	return (true);
+}
+
 /*
  * Alocates/references the remaining bits of nexthop data and links
  *  it to the hash table.
@@ -522,9 +534,7 @@ static int
 finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
     struct nhop_priv *nh_priv)
 {
-	struct nhop_object *nh;
-
-	nh = nh_priv->nh;
+	struct nhop_object *nh = nh_priv->nh;
 
 	/* Allocate per-cpu packet counter */
 	nh->nh_pksent = counter_u64_alloc(M_NOWAIT);
@@ -535,14 +545,16 @@ finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
 		return (ENOMEM);
 	}
 
+	if (!reference_nhop_deps(nh)) {
+		counter_u64_free(nh->nh_pksent);
+		uma_zfree(nhops_zone, nh);
+		RTSTAT_INC(rts_nh_alloc_failure);
+		DPRINTF("nh_alloc_finalize failed - reference failure");
+		return (EAGAIN);
+	}
+
 	/* Save vnet to ease destruction */
 	nh_priv->nh_vnet = curvnet;
-
-	/* Reference external objects and calculate (referenced) ifa */
-	if_ref(nh->nh_ifp);
-	ifa_ref(nh->nh_ifa);
-	nh->nh_aifp = get_aifp(nh, 1);
-	DPRINTF("AIFP: %p nh_ifp %p", nh->nh_aifp, nh->nh_ifp);
 
 	refcount_init(&nh_priv->nh_refcnt, 1);
 
