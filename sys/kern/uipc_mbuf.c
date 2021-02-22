@@ -1656,6 +1656,7 @@ m_uiotombuf_nomap(struct uio *uio, int how, int len, int maxseg, int flags)
 	    VM_ALLOC_WIRED;
 
 	MPASS((flags & M_PKTHDR) == 0);
+	MPASS((how & M_ZERO) == 0);
 
 	/*
 	 * len can be zero or an arbitrary large value bound by
@@ -1709,7 +1710,6 @@ retry_page:
 					goto retry_page;
 				}
 			}
-			pg_array[i]->flags &= ~PG_ZERO;
 			mb->m_epg_pa[i] = VM_PAGE_TO_PHYS(pg_array[i]);
 			mb->m_epg_npgs++;
 		}
