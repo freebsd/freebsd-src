@@ -151,6 +151,7 @@ c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->status_page->qp_size = sc->vres.qp.size;
 	rdev->status_page->cq_start = sc->vres.cq.start;
 	rdev->status_page->cq_size = sc->vres.cq.size;
+	rdev->status_page->fid_base = sc->tids.ftid_base;
 
 	/* T5 and above devices don't need Doorbell recovery logic,
 	 * so db_off is always set to '0'.

@@ -726,7 +726,7 @@ struct t4_dev_status_page {
 	u8 wc_supported;
 	u8 write_cmpl_supported;
 	u8 pad2;
-	u32 pad3;
+	u32 fid_base;
 	u64 qp_start;
 	u64 qp_size;
 	u64 cq_start;
