@@ -1,4 +1,4 @@
-/* $NetBSD: t_acos.c,v 1.10 2014/03/05 20:14:46 dsl Exp $ */
+/* $NetBSD: t_acos.c,v 1.11 2018/11/07 03:59:36 riastradh Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -72,7 +72,7 @@ ATF_LIBM_TEST(acos_inrange, "Test acos/acosf(x) for some valid values")
 		{  0,    M_PI / 2,          },
 		{  0.1,  1.470628905633337, },
 		{  0.5,  1.047197551196598, },
-		{  0.99, 0.141539473324427, },
+		{  0.99, 0.1415394733244273, },
 	};
 	unsigned int i;
 
