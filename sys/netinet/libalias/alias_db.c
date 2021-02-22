@@ -1937,14 +1937,18 @@ TCP packet.  To do this, a circular list of ACK numbers where the TCP
 packet size was altered is searched.
 */
 
-	int i;
+	int i, j;
 	int delta, ack_diff_min;
 
 	delta = 0;
 	ack_diff_min = -1;
-	for (i = 0; i < N_LINK_TCP_DATA; i++) {
+	i = lnk->data.tcp->state.index;
+	for (j = 0; j < N_LINK_TCP_DATA; j++) {
 		struct ack_data_record x;
 
+		if (i == 0)
+			i = N_LINK_TCP_DATA;
+		i--;
 		x = lnk->data.tcp->ack[i];
 		if (x.active == 1) {
 			int ack_diff;
@@ -1976,14 +1980,18 @@ TCP packet.  To do this, a circular list of ACK numbers where the TCP
 packet size was altered is searched.
 */
 
-	int i;
+	int i, j;
 	int delta, seq_diff_min;
 
 	delta = 0;
 	seq_diff_min = -1;
-	for (i = 0; i < N_LINK_TCP_DATA; i++) {
+	i = lnk->data.tcp->state.index;
+	for (j = 0; j < N_LINK_TCP_DATA; j++) {
 		struct ack_data_record x;
 
+		if (i == 0)
+			i = N_LINK_TCP_DATA;
+		i--;
 		x = lnk->data.tcp->ack[i];
 		if (x.active == 1) {
 			int seq_diff;
