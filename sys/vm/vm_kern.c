@@ -127,7 +127,7 @@ SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
 /* On non-superpage architectures we want large import sizes. */
 #define	KVA_QUANTUM_SHIFT	(8 + PAGE_SHIFT)
 #endif
-#define	KVA_QUANTUM		(1 << KVA_QUANTUM_SHIFT)
+#define	KVA_QUANTUM		(1ul << KVA_QUANTUM_SHIFT)
 #define	KVA_NUMA_IMPORT_QUANTUM	(KVA_QUANTUM * 128)
 
 extern void     uma_startup2(void);
