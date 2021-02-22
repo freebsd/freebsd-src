@@ -41,7 +41,7 @@ packet filter modifies, drops or passes packets according to rules or
 definitions specified in
 .Nm pf.conf .
 .Sh STATEMENT ORDER
-There are seven types of statements in
+There are eight types of statements in
 .Nm pf.conf :
 .Bl -tag -width xxxx
 .It Cm Macros
@@ -54,6 +54,8 @@ Tables provide a mechanism for increasing the performance and flexibility of
 rules with large numbers of source or destination addresses.
 .It Cm Options
 Options tune the behaviour of the packet filtering engine.
+.It Cm Ethernet Filtering
+Ethernet filtering provides rule-based blocking or passing of Ethernet packets.
 .It Cm Traffic Normalization Li (e.g. Em scrub )
 Traffic normalization protects internal machines against inconsistencies
 in Internet protocols and implementations.
@@ -654,6 +656,94 @@ With
 set pf will attempt to find matching rules between old and new rulesets
 and preserve the rule counters.
 .El
+.Sh ETHERNET FILTERING
+.Xr pf 4
+has the ability to
+.Ar block
+and
+.Ar pass
+packets based on attributes of their Ethernet (layer 2) header.
+.Pp
+For each packet processed by the packet filter, the filter rules are
+evaluated in sequential order, from first to last.
+The last matching rule decides what action is taken.
+If no rule matches the packet, the default action is to pass
+the packet.
+.Pp
+The folliwing actions can be used in the filter:
+.Bl -tag -width xxxx
+.It Ar block
+The packet is blocked.
+Unlike for layer 3 traffic the packet is always silently dropped.
+.It Ar pass
+The packet is passed;
+no state is created for layer 2 traffic.
+.El
+.Sh PARAMETERS
+The rule parameters specify the packets to which a rule applies.
+A packet always comes in on, or goes out through, one interface.
+Most parameters are optional.
+If a parameter is specified, the rule only applies to packets with
+matching attributes.
+Certain parameters can be expressed as lists, in which case
+.Xr pfctl 8
+generates all needed rule combinations.
+.Bl -tag -width xxxx
+.It Ar in No or Ar out
+This rule applies to incoming or outgoing packets.
+If neither
+.Ar in
+nor
+.Ar out
+are specified, the rule will match packets in both directions.
+.It Ar quick
+If a packet matches a rule which has the
+.Ar quick
+option set, this rule
+is considered the last matching rule, and evaluation of subsequent rules
+is skipped.
+.It Ar on Aq Ar interface
+This rule applies only to packets coming in on, or going out through, this
+particular interface or interface group.
+For more information on interface groups,
+see the
+.Ic group
+keyword in
+.Xr ifconfig 8 .
+.It Ar proto Aq Ar protocol
+This rule applies only to packets of this protocol.
+Note that Ethernet protocol numbers are different from those used in
+.Xr ip 4
+and
+.Xr ip6 4 .
+.It Xo
+.Ar from Aq Ar source
+.Ar to Aq Ar dest
+.Xc
+This rule applies only to packets with the specified source and destination
+MAC addresses.
+.It Xo Ar queue Aq Ar queue
+.Xc
+Packets matching this rule will be assigned to the specified queue.
+See
+.Sx QUEUEING
+for setup details.
+.Pp
+.It Ar tag Aq Ar string
+Packets matching this rule will be tagged with the
+specified string.
+The tag acts as an internal marker that can be used to
+identify these packets later on.
+This can be used, for example, to provide trust between
+interfaces and to determine if packets have been
+processed by translation rules.
+Tags are
+.Qq sticky ,
+meaning that the packet will be tagged even if the rule
+is not the last matching rule.
+Further matching rules can replace the tag with a
+new one but will not remove a previously applied tag.
+A packet is only ever assigned one tag at a time.
 .Sh TRAFFIC NORMALIZATION
 Traffic normalization is used to sanitize packet content in such
 a way that there are no ambiguities in packet interpretation on
@@ -1952,8 +2042,9 @@ A packet is only ever assigned one tag at a time.
 Packet tagging can be done during
 .Ar nat ,
 .Ar rdr ,
-or
 .Ar binat
+or
+.Ar ether
 rules in addition to filter rules.
 Tags take the same macros as labels (see above).
 .It Ar tagged Aq Ar string
@@ -2958,10 +3049,10 @@ Syntax for
 .Nm
 in BNF:
 .Bd -literal
-line           = ( option | pf-rule | nat-rule | binat-rule | rdr-rule |
-                 antispoof-rule | altq-rule | queue-rule | trans-anchors |
-                 anchor-rule | anchor-close | load-anchor | table-rule |
-                 include )
+line           = ( option | ether-rule | pf-rule | nat-rule | binat-rule |
+                 rdr-rule | antispoof-rule | altq-rule | queue-rule |
+                 trans-anchors | anchor-rule | anchor-close | load-anchor |
+                 table-rule | include )
 
 option         = "set" ( [ "timeout" ( timeout | "{" timeout-list "}" ) ] |
                  [ "ruleset-optimization" [ "none" | "basic" | "profile" ]] |
@@ -2979,6 +3070,10 @@ option         = "set" ( [ "timeout" ( timeout | "{" timeout-list "}" ) ] |
                  [ "debug" ( "none" | "urgent" | "misc" | "loud" ) ]
                  [ "keepcounters" ] )
 
+ether-rule     = "ether" etheraction [ ( "in" | "out" ) ]
+                 [ "quick" ] [ "on" ifspec ] [ etherprotospec ]
+                 etherhosts [ etherfilteropt-list ]
+
 pf-rule        = action [ ( "in" | "out" ) ]
                  [ "log" [ "(" logopts ")"] ] [ "quick" ]
                  [ "on" ifspec ] [ route ] [ af ] [ protospec ]
@@ -2986,6 +3081,9 @@ pf-rule        = action [ ( "in" | "out" ) ]
 
 logopts        = logopt [ "," logopts ]
 logopt         = "all" | "user" | "to" interface-name
+
+etherfilteropt-list = etherfilteropt-list etherfilteropt | etherfilteropt
+etherfilteropt = "tag" string | "queue" ( string )
 
 filteropt-list = filteropt-list filteropt | filteropt
 filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |
@@ -3057,6 +3155,7 @@ queueopts      = [ "bandwidth" bandwidth-spec ] |
 schedulers     = ( cbq-def | priq-def | hfsc-def )
 bandwidth-spec = "number" ( "b" | "Kb" | "Mb" | "Gb" | "%" )
 
+etheraction    = "pass" | "block"
 action         = "pass" | "block" [ return ] | [ "no" ] "scrub"
 return         = "drop" | "return" | "return-rst" [ "( ttl" number ")" ] |
                  "return-icmp" [ "(" icmpcode [ [ "," ] icmp6code ] ")" ] |
@@ -3073,10 +3172,12 @@ route          = ( "route-to" | "reply-to" | "dup-to" )
                  [ pooltype ]
 af             = "inet" | "inet6"
 
+etherprotospec = "proto" ( proto-number | "{" proto-list "}" )
 protospec      = "proto" ( proto-name | proto-number |
                  "{" proto-list "}" )
 proto-list     = ( proto-name | proto-number ) [ [ "," ] proto-list ]
 
+etherhosts     = "from" macaddress "to" macaddress
 hosts          = "all" |
                  "from" ( "any" | "no-route" | "urpf-failed" | "self" | host |
                  "{" host-list "}" ) [ port ] [ os ]
