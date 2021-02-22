@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <mkfs_msdos.h>
 #include <fs/msdosfs/bpb.h>
 #include "msdos/direntry.h"
-#include <fs/msdosfs/denode.h>
+#include "msdos/denode.h"
 #include <fs/msdosfs/msdosfsmount.h>
 
 #undef clrbuf
