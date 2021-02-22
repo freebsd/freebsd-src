@@ -589,12 +589,9 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 		error = rt_getifa_fib(info, rnh->rib_fibnum);
 		if (error)
 			return (error);
-	} else {
-		ifa_ref(info->rti_ifa);
 	}
 
 	error = nhop_create_from_info(rnh, info, &nh);
-	ifa_free(info->rti_ifa);
 	if (error != 0)
 		return (error);
 
@@ -912,7 +909,6 @@ static int
 change_nhop(struct rib_head *rnh, struct rt_addrinfo *info,
     struct nhop_object *nh_orig, struct nhop_object **nh_new)
 {
-	int free_ifa = 0;
 	int error;
 
 	/*
@@ -926,24 +922,15 @@ change_nhop(struct rib_head *rnh, struct rt_addrinfo *info,
 	    (info->rti_info[RTAX_IFA] != NULL &&
 	     !sa_equal(info->rti_info[RTAX_IFA], nh_orig->nh_ifa->ifa_addr))) {
 		error = rt_getifa_fib(info, rnh->rib_fibnum);
-		if (info->rti_ifa != NULL)
-			free_ifa = 1;
 
 		if (error != 0) {
-			if (free_ifa) {
-				ifa_free(info->rti_ifa);
-				info->rti_ifa = NULL;
-			}
-
+			info->rti_ifa = NULL;
 			return (error);
 		}
 	}
 
 	error = nhop_create_from_nhop(rnh, nh_orig, info, nh_new);
-	if (free_ifa) {
-		ifa_free(info->rti_ifa);
-		info->rti_ifa = NULL;
-	}
+	info->rti_ifa = NULL;
 
 	return (error);
 }

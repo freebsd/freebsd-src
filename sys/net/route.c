@@ -207,7 +207,6 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 	/* Get the best ifa for the given interface and gateway. */
 	if ((ifa = ifaof_ifpforaddr(gateway, ifp)) == NULL)
 		return (ENETUNREACH);
-	ifa_ref(ifa);
 
 	bzero(&info, sizeof(info));
 	info.rti_info[RTAX_DST] = dst;
@@ -224,7 +223,6 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 	info.rti_rmx = &rti_rmx;
 
 	error = rib_action(fibnum, RTM_ADD, &info, &rc);
-	ifa_free(ifa);
 
 	if (error != 0) {
 		/* TODO: add per-fib redirect stats. */
@@ -518,8 +516,7 @@ rt_flushifroutes(struct ifnet *ifp)
 }
 
 /*
- * Look up rt_addrinfo for a specific fib.  Note that if rti_ifa is defined,
- * it will be referenced so the caller must free it.
+ * Look up rt_addrinfo for a specific fib.
  *
  * Assume basic consistency checks are executed by callers:
  * RTAX_DST exists, if RTF_GATEWAY is set, RTAX_GATEWAY exists as well.
@@ -528,8 +525,7 @@ int
 rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 {
 	const struct sockaddr *dst, *gateway, *ifpaddr, *ifaaddr;
-	struct epoch_tracker et;
-	int needref, error, flags;
+	int error, flags;
 
 	dst = info->rti_info[RTAX_DST];
 	gateway = info->rti_info[RTAX_GATEWAY];
@@ -542,8 +538,6 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	 * when protocol address is ambiguous.
 	 */
 	error = 0;
-	needref = (info->rti_ifa == NULL);
-	NET_EPOCH_ENTER(et);
 
 	/* If we have interface specified by the ifindex in the address, use it */
 	if (info->rti_ifp == NULL && ifpaddr != NULL &&
@@ -598,13 +592,11 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 			info->rti_ifa = ifa_ifwithroute(flags, sa, sa,
 							fibnum);
 	}
-	if (needref && info->rti_ifa != NULL) {
+	if (info->rti_ifa != NULL) {
 		if (info->rti_ifp == NULL)
 			info->rti_ifp = info->rti_ifa->ifa_ifp;
-		ifa_ref(info->rti_ifa);
 	} else
 		error = ENETUNREACH;
-	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
