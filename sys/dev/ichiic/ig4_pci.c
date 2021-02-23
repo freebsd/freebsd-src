@@ -136,6 +136,14 @@ static int ig4iic_pci_detach(device_t dev);
 #define PCI_CHIP_TIGERLAKE_LP_I2C_5	0xa0e98086
 #define PCI_CHIP_TIGERLAKE_LP_I2C_6	0xa0ea8086
 #define PCI_CHIP_TIGERLAKE_LP_I2C_7	0xa0eb8086
+#define PCI_CHIP_GEMINILAKE_I2C_0	0x31ac8086
+#define PCI_CHIP_GEMINILAKE_I2C_1	0x31ae8086
+#define PCI_CHIP_GEMINILAKE_I2C_2	0x31b08086
+#define PCI_CHIP_GEMINILAKE_I2C_3	0x31b28086
+#define PCI_CHIP_GEMINILAKE_I2C_4	0x31b48086
+#define PCI_CHIP_GEMINILAKE_I2C_5	0x31b68086
+#define PCI_CHIP_GEMINILAKE_I2C_6	0x31b88086
+#define PCI_CHIP_GEMINILAKE_I2C_7	0x31ba8086
 
 struct ig4iic_pci_device {
 	uint32_t	devid;
@@ -214,6 +222,14 @@ static struct ig4iic_pci_device ig4iic_pci_devices[] = {
 	{ PCI_CHIP_TIGERLAKE_LP_I2C_5, "Intel Tiger Lake-LP I2C Controller-5", IG4_SKYLAKE},
 	{ PCI_CHIP_TIGERLAKE_LP_I2C_6, "Intel Tiger Lake-LP I2C Controller-6", IG4_SKYLAKE},
 	{ PCI_CHIP_TIGERLAKE_LP_I2C_7, "Intel Tiger Lake-LP I2C Controller-7", IG4_SKYLAKE},
+	{ PCI_CHIP_GEMINILAKE_I2C_0, "Intel Gemini Lake I2C Controller-0", IG4_GEMINILAKE},
+	{ PCI_CHIP_GEMINILAKE_I2C_1, "Intel Gemini Lake I2C Controller-1", IG4_GEMINILAKE},
+	{ PCI_CHIP_GEMINILAKE_I2C_2, "Intel Gemini Lake I2C Controller-2", IG4_GEMINILAKE},
+	{ PCI_CHIP_GEMINILAKE_I2C_3, "Intel Gemini Lake I2C Controller-3", IG4_GEMINILAKE},
+	{ PCI_CHIP_GEMINILAKE_I2C_4, "Intel Gemini Lake I2C Controller-4", IG4_GEMINILAKE},
+	{ PCI_CHIP_GEMINILAKE_I2C_5, "Intel Gemini Lake I2C Controller-5", IG4_GEMINILAKE},
+	{ PCI_CHIP_GEMINILAKE_I2C_6, "Intel Gemini Lake I2C Controller-6", IG4_GEMINILAKE},
+	{ PCI_CHIP_GEMINILAKE_I2C_7, "Intel Gemini Lake I2C Controller-7", IG4_GEMINILAKE},
 };
 
 static int
