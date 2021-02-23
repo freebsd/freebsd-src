@@ -5520,9 +5520,14 @@ get_device_type(struct cam_device *dev, int retry_count, int timeout,
 		 * For a retry count of -1, used only the cached data to avoid
 		 * I/O to the drive. Sending the identify command to the drive
 		 * can cause issues for SATL attachaed drives since identify is
-		 * not an NCQ command.
+		 * not an NCQ command. We check for the strings that windows
+		 * displays since those will not be NULs (they are supposed
+		 * to be space padded). We could check other bits, but anything
+		 * non-zero implies SATL.
 		 */
-		if (cgd.ident_data.config != 0)
+		if (cgd.ident_data.serial[0] != 0 ||
+		    cgd.ident_data.revision[0] != 0 ||
+		    cgd.ident_data.model[0] != 0)
 			*devtype = CC_DT_SATL;
 		else
 			*devtype = CC_DT_SCSI;
