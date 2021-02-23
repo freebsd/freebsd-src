@@ -213,6 +213,7 @@ KLDLOAD='kldload %s'
 LN_SF='ln -sf "%s" "%s"'
 MKDIR_P='mkdir -p "%s"'
 MOUNT_TYPE='mount -t %s "%s" "%s"'
+NEWFS_ESP='newfs_msdos "%s"'
 PRINTF_CONF="printf '%s=\"%%s\"\\\n' %s >> \"%s\""
 PRINTF_FSTAB='printf "$FSTAB_FMT" "%s" "%s" "%s" "%s" "%s" "%s" >> "%s"'
 SHELL_TRUNCATE=':> "%s"'
@@ -845,12 +846,25 @@ zfs_create_diskpart()
 		if [ "$ZFSBOOT_BOOT_TYPE" = "UEFI" -o \
 		     "$ZFSBOOT_BOOT_TYPE" = "BIOS+UEFI" ]
 		then
-			f_eval_catch $funcname gpart \
+			f_eval_catch -k justaddedpart $funcname gpart \
 			             "$GPART_ADD_ALIGN_LABEL_WITH_SIZE" \
-			             "$align_small" efiboot$index efi 200M \
+			             "$align_small" efiboot$index efi 260M \
 			             $disk || return $FAILURE
 
 			# We'll configure the ESP in bootconfig
+			if [ -z "$efibootpart" ]; then
+				efibootpart="/dev/$(echo $justaddedpart | cut -f 1 -d ' ')"
+				f_dprintf "$funcname: configuring ESP at [%s]" \
+				          "${efibootpart}"
+
+				f_eval_catch $funcname newfs_msdos "$NEWFS_ESP"\
+				             "$efibootpart" \
+				             || return $FAILURE
+				f_eval_catch $funcname printf "$PRINTF_FSTAB" \
+					     $efibootpart /boot/efi msdosfs \
+				             rw 2 2 "$BSDINSTALL_TMPETC/fstab" \
+				             || return $FAILURE
+			fi
 		fi
 
 		if [ "$ZFSBOOT_BOOT_TYPE" = "BIOS" -o \
@@ -1066,6 +1080,7 @@ zfs_create_boot()
 	local isswapmirror
 	local bootpart targetpart swappart # Set by zfs_create_diskpart() below
 	local create_options
+	local efibootpart
 
 	#
 	# Pedantic checks; should never be seen
