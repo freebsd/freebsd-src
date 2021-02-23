@@ -131,4 +131,3 @@ static driver_t ipmi_smbus_driver = {
 
 DRIVER_MODULE(ipmi_smbus, smbus, ipmi_smbus_driver, ipmi_devclass, 0, 0);
 MODULE_DEPEND(ipmi_smbus, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
-MODULE_DEPEND(ipmi_smbus, smbios, 1, 1, 1);
