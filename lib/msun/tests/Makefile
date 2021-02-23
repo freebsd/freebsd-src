@@ -18,6 +18,10 @@ CFLAGS+=	-I${TESTSRC:H}/libc/gen
 CFLAGS+=	-D__HAVE_LONG_DOUBLE
 .endif
 
+# Avoid builtins, to force the compiler to emit calls to the libm
+# functions, and not calculate any results in advance.
+CFLAGS+=        -fno-builtin
+
 NETBSD_ATF_TESTS_C=	acos_test
 NETBSD_ATF_TESTS_C+=	asin_test
 NETBSD_ATF_TESTS_C+=	atan_test
