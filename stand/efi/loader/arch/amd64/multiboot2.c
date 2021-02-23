@@ -107,7 +107,7 @@ loadfile(char *filename, uint64_t dest, struct preloaded_file **result)
 			break;
 	}
 
-	if (i >= MULTIBOOT_SEARCH) {
+	if (i >= search_size) {
 		error = EFTYPE;
 		goto out;
 	}
