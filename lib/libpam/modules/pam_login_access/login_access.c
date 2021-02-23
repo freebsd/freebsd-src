@@ -137,10 +137,10 @@ list_match(char *list, const char *item,
     if (match != NO) {
 	while ((tok = strtok((char *) 0, listsep)) && strcmp(tok, "EXCEPT")) {
 	     /* VOID */ ;
-	    if (tok == NULL || list_match((char *) 0, item, match_fn,
-		login_access_opts) == NO) {
+	}
+	if (tok == NULL ||
+	    list_match((char *) 0, item, match_fn, login_access_opts) == NO) {
 		return (match);
-	    }
 	}
     }
     return (NO);
