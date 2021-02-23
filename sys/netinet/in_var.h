@@ -450,8 +450,6 @@ int	inm_record_source(struct in_multi *inm, const in_addr_t);
 void	inm_release_deferred(struct in_multi *);
 void	inm_release_list_deferred(struct in_multi_head *);
 void	inm_release_wait(void *);
-struct	in_multi *
-in_addmulti(struct in_addr *, struct ifnet *);
 int	in_joingroup(struct ifnet *, const struct in_addr *,
 	    /*const*/ struct in_mfilter *, struct in_multi **);
 int	in_joingroup_locked(struct ifnet *, const struct in_addr *,

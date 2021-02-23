@@ -120,8 +120,6 @@ int ifma_restart;
  * Functions with non-static linkage defined in this file should be
  * declared in in_var.h:
  *  imo_multi_filter()
- *  in_addmulti()
- *  in_delmulti()
  *  in_joingroup()
  *  in_joingroup_locked()
  *  in_leavegroup()
@@ -130,9 +128,6 @@ int ifma_restart;
  *  inp_freemoptions()
  *  inp_getmoptions()
  *  inp_setmoptions()
- *
- * XXX: Both carp and pf need to use the legacy (*,G) KPIs in_addmulti()
- * and in_delmulti().
  */
 static void	imf_commit(struct in_mfilter *);
 static int	imf_get_source(struct in_mfilter *imf,
@@ -1367,30 +1362,6 @@ in_leavegroup_locked(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
 }
 
 /*#ifndef BURN_BRIDGES*/
-/*
- * Join an IPv4 multicast group in (*,G) exclusive mode.
- * The group must be a 224.0.0.0/24 link-scope group.
- * This KPI is for legacy kernel consumers only.
- */
-struct in_multi *
-in_addmulti(struct in_addr *ap, struct ifnet *ifp)
-{
-	struct in_multi *pinm;
-	int error;
-#ifdef INVARIANTS
-	char addrbuf[INET_ADDRSTRLEN];
-#endif
-
-	KASSERT(IN_LOCAL_GROUP(ntohl(ap->s_addr)),
-	    ("%s: %s not in 224.0.0.0/24", __func__,
-	    inet_ntoa_r(*ap, addrbuf)));
-
-	error = in_joingroup(ifp, ap, NULL, &pinm);
-	if (error != 0)
-		pinm = NULL;
-
-	return (pinm);
-}
 
 /*
  * Block or unblock an ASM multicast source on an inpcb.
