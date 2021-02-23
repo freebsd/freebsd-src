@@ -113,8 +113,10 @@ const char *
 bootpart_type(const char *scheme, const char **mountpoint)
 {
 
-	if (strcmp(x86_bootmethod(), "UEFI") == 0)
+	if (strcmp(x86_bootmethod(), "UEFI") == 0) {
+		*mountpoint = "/boot/efi";
 		return ("efi");
+	}
 
 	return ("freebsd-boot");
 }
