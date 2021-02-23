@@ -293,7 +293,6 @@ x86/acpica/OsdEnvironment.c	optional	acpi
 x86/acpica/acpi_apm.c		optional	acpi
 x86/acpica/acpi_wakeup.c	optional	acpi
 x86/acpica/srat.c		optional	acpi
-x86/bios/smbios.c		optional	smbios
 x86/bios/vpd.c			optional	vpd
 x86/cpufreq/est.c		optional	cpufreq
 x86/cpufreq/hwpstate_amd.c	optional	cpufreq

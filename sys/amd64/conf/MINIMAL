@@ -103,6 +103,7 @@ device		cpufreq
 
 # Bus support.
 device		acpi
+device		smbios
 options 	IOMMU
 device		pci
 

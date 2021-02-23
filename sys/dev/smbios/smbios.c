@@ -46,7 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <machine/md_var.h>
+#if defined(__amd64__) || defined(__i386__)
 #include <machine/pc/bios.h>
+#endif
+#include <dev/smbios/smbios.h>
 
 /*
  * System Management BIOS Reference Specification, v2.4 Final
@@ -62,7 +65,6 @@ struct smbios_softc {
 };
 
 #define	RES2EPS(res)	((struct smbios_eps *)rman_get_virtual(res))
-#define	ADDR2EPS(addr)  ((struct smbios_eps *)BIOS_PADDRTOVADDR(addr))
 
 static devclass_t	smbios_devclass;
 
@@ -77,25 +79,32 @@ static int	smbios_cksum	(struct smbios_eps *);
 static void
 smbios_identify (driver_t *driver, device_t parent)
 {
+	struct smbios_eps *eps;
 	device_t child;
-	u_int32_t addr;
+	vm_paddr_t addr;
 	int length;
 	int rid;
 
 	if (!device_is_alive(parent))
 		return;
 
+#if defined(__amd64__) || defined(__i386__)
 	addr = bios_sigsearch(SMBIOS_START, SMBIOS_SIG, SMBIOS_LEN,
-			      SMBIOS_STEP, SMBIOS_OFF);
+	    SMBIOS_STEP, SMBIOS_OFF);
+#else
+	addr = 0;
+#endif
+
 	if (addr != 0) {
+		eps = pmap_mapbios(addr, 0x1f);
 		rid = 0;
-		length = ADDR2EPS(addr)->length;
+		length = eps->length;
 
 		if (length != 0x1f) {
 			u_int8_t major, minor;
 
-			major = ADDR2EPS(addr)->major_version;
-			minor = ADDR2EPS(addr)->minor_version;
+			major = eps->major_version;
+			minor = eps->minor_version;
 
 			/* SMBIOS v2.1 implementation might use 0x1e. */
 			if (length == 0x1e && major == 2 && minor == 1)
@@ -108,6 +117,7 @@ smbios_identify (driver_t *driver, device_t parent)
 		device_set_driver(child, driver);
 		bus_set_resource(child, SYS_RES_MEMORY, rid, addr, length);
 		device_set_desc(child, "System Management BIOS");
+		pmap_unmapbios((vm_offset_t)eps, 0x1f);
 	}
 
 	return;
