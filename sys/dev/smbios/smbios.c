@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <dev/smbios/smbios.h>
 
+static struct smbios_softc *smbios;
+
 /*
  * System Management BIOS Reference Specification, v2.4 Final
  * http://www.dmtf.org/standards/published_documents/DSP0134.pdf
@@ -179,6 +181,7 @@ smbios_attach (device_t dev)
 			bcd2bin(sc->eps->BCD_revision & 0x0f));
 	printf("\n");
 
+	smbios = sc;
 	return (0);
 bad:
 	if (sc->res)
@@ -191,6 +194,7 @@ smbios_detach (device_t dev)
 {
 	struct smbios_softc *sc;
 
+	smbios = NULL;
 	sc = device_get_softc(dev);
 
 	if (sc->res)
@@ -198,6 +202,23 @@ smbios_detach (device_t dev)
 
 	return (0);
 }
+
+int
+smbios_get_structure_table(vm_paddr_t *table, vm_size_t *size)
+{
+
+	if (smbios == NULL)
+		return (ENXIO);
+	if (smbios->eps_64bit) {
+		*table = smbios->eps3->structure_table_address;
+		*size = smbios->eps3->structure_table_max_size;
+	} else {
+		*table = smbios->eps->structure_table_address;
+		*size = smbios->eps->structure_table_length;
+	}
+	return (0);
+}
+
 
 static int
 smbios_modevent (mod, what, arg)

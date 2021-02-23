@@ -32,6 +32,8 @@
 #ifndef _SMBIOS_H_
 #define _SMBIOS_H_
 
+int smbios_get_structure_table(vm_paddr_t *table, vm_size_t *size);
+
 /*
  * System Management BIOS
  */
