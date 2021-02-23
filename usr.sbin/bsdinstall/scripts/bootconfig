@@ -46,84 +46,8 @@ if [ `uname -m` == powerpc ]; then
 	fi
 fi
 
-# Update the ESP (EFI System Partition) with the new bootloader
-if [ "$(uname -m)" = "amd64" ] || [ "$(uname -m)" = "i386" ]; then
-	X86_BOOTMETHOD=$(sysctl -n machdep.bootmethod)
-fi
-
-if [ "$(uname -m)" = "arm64" ] || [ "$(uname -m)" = "riscv" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
-	UFSBOOT_ESPS=$(cat $TMPDIR/bsdinstall-esps 2>/dev/null)
-	ZFSBOOT_DISKS=$(cat $TMPDIR/bsdinstall-zfsboot 2>/dev/null)
-	num_esps=0
-
-	if [ -n "$ZFSBOOT_DISKS" ]; then
-		# We're in a ZFS install environment
-		for disk in $ZFSBOOT_DISKS; do
-			index=$(gpart show "$disk" | cut -w -f 4,5 | grep "efi" | cut -w -f 1)
-			# Check that $index is an integer
-			[ -n "$index" ] && [ "$index" -eq "$index" ] && [ "$index" -ge 0 ] 2> /dev/null
-			if [ $? -ne 0 ]; then
-				continue
-			fi
-
-			if [ -e "/dev/${disk}p${index}" ]; then
-				ESPS="$ESPS ${disk}p${index}"
-			elif [ -e "/dev/${disk}s${index}" ]; then
-				ESPS="$ESPS ${disk}s${index}"
-			else
-				continue
-			fi
-
-			num_esps=$((num_esps + 1))
-		done
-	fi
-
-	if [ -n "$UFSBOOT_ESPS" ]; then
-		# We're in a UFS install environment
-		for partition in $UFSBOOT_ESPS; do
-			ESPS="$ESPS $partition"
-			num_esps=$((num_esps + 1))
-		done
-	fi
-
-	if [ -z "$ESPS" ]; then
-		# The installer hasn't given us any ESPs to use.
-		# Try and figure out which to use by looking for an
-		# unformatted efi partition
-
-		for geom in $(gpart status -sg | awk '{print $1}'); do
-			hasfreebsd=$(gpart show "${geom}" | cut -w -f 4,5 | grep "freebsd")
-			if [ -n "$hasfreebsd" ]; then
-				index=$(gpart show "${geom}" | cut -w -f 4,5 | grep "efi" | cut -w -f 1)
-				# Check that $index is a valid integer
-				[ -n "$index" ] && [ "$index" -eq "$index" ] && [ "$index" -ge 0 ] 2> /dev/null 
-				if [ $? -ne 0 ]; then
-					continue
-				fi
-
-				mntpt=$(mktemp -d $TMPDIR/stand-test.XXXXXX)
-				if [ -e "/dev/${geom}p${index}" ]; then
-					dev=${geom}p${index}
-				elif [ -e "/dev/${geom}s${index}" ]; then
-					dev=/${geom}s${index}
-				else
-					continue
-				fi
-
-				# Try and mount it. If it fails, assume it's
-				# unformatted and should be used.
-				mount -t msdosfs -o ro "/dev/${dev}" "${mntpt}"
-				if [ $? -ne 0 ]; then
-					ESPS="$ESPS ${dev}"
-					num_esps=$((num_esps + 1))
-				else
-					umount "${mntpt}"
-				fi
-				rmdir "${mntpt}"
-			fi
-		done
-	fi
-
+# Update the ESP (EFI System Partition) with the new bootloader if we have an ESP
+if [ -n "$(awk '{if ($2=="/boot/efi") printf("%s\n",$1);}' $PATH_FSTAB)" ]; then
 	case $(uname -m) in
 	    arm64)	ARCHBOOTNAME=aa64 ;;
 	    amd64)	ARCHBOOTNAME=x64 ;;
@@ -136,55 +60,33 @@ if [ "$(uname -m)" = "arm64" ] || [ "$(uname -m)" = "riscv" ] || [ "$X86_BOOTMET
 	BOOTNAME="${BOOTDIR}/boot${ARCHBOOTNAME}.efi"
 	FREEBSD_BOOTDIR="/efi/freebsd"
 	FREEBSD_BOOTNAME="${FREEBSD_BOOTDIR}/loader.efi"
+	mntpt="$BSDINSTALL_CHROOT/boot/efi"
 
-	for esp in $ESPS; do
-		f_dprintf "Formatting /dev/${esp} as FAT32"
-		newfs_msdos -F 32 -c 1 -L EFISYS "/dev/$esp" > /dev/null 2>&1
-		if [ $? -ne 0 ]; then
-			die "Failed to format ESP $esp as FAT32"
-		fi
+	f_dprintf "Installing loader.efi onto ESP"
+	mkdir -p "${mntpt}/${FREEBSD_BOOTDIR}" "${mntpt}/${BOOTDIR}"
+	cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/${FREEBSD_BOOTNAME}"
 
-		mntpt=$(mktemp -d $TMPDIR/stand-test.XXXXXX)
-		f_dprintf "Mounting ESP /dev/${esp}"
-		mount -t msdosfs "/dev/${esp}" "${mntpt}"
-		if [ $? -ne 0 ]; then
-			die "Failed to mount ESP ${dev} on ${mntpt}"
-		fi
+	#
+	# The following shouldn't be necessary. UEFI defines a way to
+	# specifically select what to boot (which we do via
+	# efibootmgr). However, virtual environments often times lack
+	# support for the NV variables efibootmgr sets. In addition,
+	# some UEFI implementations have features that interfere with
+	# the setting of these variables. To combat that, we install the
+	# default removable media boot file as a fallback if it doesn't
+	# exist. We don't install it all the time since that can
+	# interfere with other installations on the drive (like rEFInd).
+	#
+	if [ ! -f "${mntpt}/${BOOTNAME}" ]; then
+		cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/${BOOTNAME}"
+	fi
 
-		f_dprintf "Installing loader.efi onto ESP"
-		mkdir -p "${mntpt}/${FREEBSD_BOOTDIR}" "${mntpt}/${BOOTDIR}"
-		cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/${FREEBSD_BOOTNAME}"
+	bootlabel="FreeBSD"
 
-		#
-		# The following shouldn't be necessary. UEFI defines a way to
-		# specifically select what to boot (which we do via
-		# efibootmgr). However, virtual environments often times lack
-		# support for the NV variables efibootmgr sets. In addition,
-		# some UEFI implementations have features that interfere with
-		# the setting of these variables. To combat that, we install the
-		# default removable media boot file as a fallback if it doesn't
-		# exist. We don't install it all the time since that can
-		# interfere with other installations on the drive (like rEFInd).
-		#
-		if [ ! -f "${mntpt}/${BOOTNAME}" ]; then
-			cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/${BOOTNAME}"
-		fi
+	f_dprintf "Creating UEFI boot entry"
+	efibootmgr --create --activate --label "$bootlabel" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
 
-		if [ "$num_esps" -gt 1 ]; then
-			bootlabel="FreeBSD (${esp})"
-		else
-			bootlabel="FreeBSD"
-		fi
-
-		f_dprintf "Creating UEFI boot entry"
-		efibootmgr --create --activate --label "$bootlabel" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
-
-		f_dprintf "Unmounting ESP"
-		umount "${mntpt}"
-		rmdir "${mntpt}"
-
-		f_dprintf "Finished configuring /dev/${esp} as ESP"
-	done
+	f_dprintf "Finished configuring ESP"
 fi
 
 # Add boot0cfg for MBR BIOS booting?
