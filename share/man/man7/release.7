@@ -613,7 +613,7 @@ The following sequence of commands can be used to build a
 .Dq "-CURRENT snapshot":
 .Bd -literal -offset indent
 cd /usr
-git clone https://git.freebsd.org/src.git src
+git clone -b main https://git.freebsd.org/src.git src
 cd src
 make buildworld buildkernel
 cd release
