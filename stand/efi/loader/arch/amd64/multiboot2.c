@@ -115,8 +115,8 @@ loadfile(char *filename, uint64_t dest, struct preloaded_file **result)
 	/* Valid multiboot header has been found, validate checksum */
 	if (header->magic + header->architecture + header->header_length +
 	    header->checksum != 0) {
-		printf("Multiboot checksum failed, magic: %#x architecture: %#x"
-		    "header_length %#x checksum: %#x\n",
+		printf("Multiboot checksum failed, magic: %#x "
+		    "architecture: %#x header_length %#x checksum: %#x\n",
 		    header->magic, header->architecture, header->header_length,
 		    header->checksum);
 		error = EFTYPE;
