@@ -94,6 +94,7 @@ device		cpufreq
 
 # Bus support.
 device		acpi
+device		smbios
 device		pci
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
