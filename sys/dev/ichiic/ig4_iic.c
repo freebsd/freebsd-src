@@ -125,6 +125,12 @@ static const struct ig4_hw ig4iic_hw[] = {
 		.scl_fall_time = 208,
 		.sda_hold_time = 42,
 	},
+	[IG4_GEMINILAKE] = {
+		.ic_clock_rate = 133,
+		.sda_fall_time = 171,
+		.scl_fall_time = 290,
+		.sda_hold_time = 313,
+	},
 };
 
 static int ig4iic_set_config(ig4iic_softc_t *sc, bool reset);
