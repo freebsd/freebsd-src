@@ -32,6 +32,7 @@ unaligned_head()
 {
 	atf_set descr 'Test unaligned checksum updates'
 	atf_set require.user root
+	atf_set require.progs scapy
 }
 
 unaligned_body()

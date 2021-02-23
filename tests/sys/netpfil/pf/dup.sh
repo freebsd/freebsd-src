@@ -30,10 +30,11 @@
 common_dir=$(atf_get_srcdir)/../common
 
 atf_test_case "dup_to" "cleanup"
-do_to_head()
+dup_to_head()
 {
 	atf_set descr 'dup-to test'
 	atf_set require.user root
+	atf_set require.progs scapy
 }
 
 dup_to_body()
