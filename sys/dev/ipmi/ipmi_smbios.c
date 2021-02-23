@@ -39,7 +39,10 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#if defined(__amd64__) || defined(__i386__)
 #include <machine/pc/bios.h>
+#endif
+#include <dev/smbios/smbios.h>
 
 #ifdef LOCAL_MODULE
 #include <ipmi.h>
