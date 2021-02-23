@@ -455,7 +455,7 @@ iicsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	int error;
 
 	/* Have to do this because the command is split in two transfers. */
-	error = iicbus_request_bus(parent, dev, IIC_WAIT);
+	error = iicbus_request_bus(parent, dev, IIC_WAIT | IIC_RECURSIVE);
 	if (error == 0)
 		error = TRANSFER_MSGS(dev, msgs);
 	if (error == 0) {
