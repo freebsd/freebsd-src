@@ -3947,7 +3947,8 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 	if (fpid == 0) {
 		trace_me();
 		kill(getpid(), 0);
-		close(3);
+		/* Close a fd that should not exist. */
+		close(12345);
 		exit(1);
 	}
 
@@ -4049,7 +4050,7 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 
 	ATF_REQUIRE(ptrace(PT_GET_SC_ARGS, wpid, (caddr_t)args,
 	    sizeof(args)) != -1);
-	REQUIRE_EQ(args[0], 3);
+	REQUIRE_EQ(args[0], 12345);
 
 	REQUIRE_EQ(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0), 0);
 
