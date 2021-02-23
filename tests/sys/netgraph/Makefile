@@ -7,7 +7,8 @@ BINDIR=		${TESTSDIR}
 
 TAP_TESTS_SH+=	ng_macfilter_test
 
-TEST_METADATA.runtests+= required_user="root"
+TEST_METADATA.ng_macfilter_test+=	required_user="root"
+TEST_METADATA.ng_macfilter_test+=	required_programs="perl"
 
 MAN=
 
