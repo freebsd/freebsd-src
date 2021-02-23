@@ -87,7 +87,6 @@ static struct mtx ipmi_info_mtx;
 MTX_SYSINIT(ipmi_info, &ipmi_info_mtx, "ipmi info", MTX_DEF);
 
 static void	ipmi_smbios_probe(struct ipmi_get_info *);
-static int	smbios_cksum(struct smbios_eps *);
 static void	smbios_walk_table(uint8_t *, vm_size_t, smbios_callback_t,
 		    void *);
 static void	smbios_ipmi_info(struct smbios_structure_header *, void *);
@@ -236,20 +235,4 @@ ipmi_smbios_identify(struct ipmi_get_info *info)
 	mtx_unlock(&ipmi_info_mtx);
 
 	return (info->iface_type != 0);
-}
-
-static int
-smbios_cksum(struct smbios_eps *e)
-{
-	u_int8_t *ptr;
-	u_int8_t cksum;
-	int i;
-
-	ptr = (u_int8_t *)e;
-	cksum = 0;
-	for (i = 0; i < e->length; i++) {
-		cksum += ptr[i];
-	}
-
-	return (cksum);
 }
