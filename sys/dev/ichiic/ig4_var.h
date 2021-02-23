@@ -49,7 +49,8 @@ enum ig4_vers {
 	IG4_SKYLAKE,
 	IG4_APL,
 	IG4_CANNONLAKE,
-	IG4_TIGERLAKE
+	IG4_TIGERLAKE,
+	IG4_GEMINILAKE
 };
 
 /* Controller has additional registers */
