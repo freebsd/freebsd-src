@@ -941,6 +941,21 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		break;
 
+	case AUE_CLOSERANGE:
+		if (ARG_IS_VALID(kar, ARG_FD)) {
+			tok = au_to_arg32(1, "lowfd", ar->ar_arg_fd);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_CMD)) {
+			tok = au_to_arg32(2, "highfd", ar->ar_arg_cmd);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
+			tok = au_to_arg32(3, "flags", ar->ar_arg_fflags);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_CORE:
 		if (ARG_IS_VALID(kar, ARG_SIGNUM)) {
 			tok = au_to_arg32(1, "signal", ar->ar_arg_signum);

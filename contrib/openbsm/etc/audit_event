@@ -614,6 +614,8 @@
 43261:AUE_LGETUUID:lgetuuid(2):ip
 43262:AUE_EXECVEAT:execveat(2):pc,ex
 43263:AUE_SHMRENAME:shm_rename(2):ip
+43264:AUE_REALPATHAT:realpathat(2):fa
+43265:AUE_CLOSERANGE:close_range(2):cl
 #
 # Solaris userspace events.
 #
