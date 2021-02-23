@@ -78,4 +78,6 @@
 #define	atomic_load_consume_ptr(p)	\
     ((__typeof(*p)) atomic_load_acq_ptr((uintptr_t *)p))
 
+#define	atomic_interrupt_fence()	__compiler_membar()
+
 #endif
