@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2020, Intel Corporation
+/*  Copyright (c) 2021, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -117,11 +117,9 @@ ice_write_tx_drbell_q_ctx(struct ice_hw *hw,
 			  u32 tx_drbell_q_index);
 
 enum ice_status
-ice_aq_get_rss_lut(struct ice_hw *hw, u16 vsi_handle, u8 lut_type, u8 *lut,
-		   u16 lut_size);
+ice_aq_get_rss_lut(struct ice_hw *hw, struct ice_aq_get_set_rss_lut_params *get_params);
 enum ice_status
-ice_aq_set_rss_lut(struct ice_hw *hw, u16 vsi_handle, u8 lut_type, u8 *lut,
-		   u16 lut_size);
+ice_aq_set_rss_lut(struct ice_hw *hw, struct ice_aq_get_set_rss_lut_params *set_params);
 enum ice_status
 ice_aq_get_rss_key(struct ice_hw *hw, u16 vsi_handle,
 		   struct ice_aqc_get_set_rss_keys *keys);
@@ -240,13 +238,6 @@ ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 		struct ice_sq_cd *cd);
 enum ice_status ice_replay_vsi(struct ice_hw *hw, u16 vsi_handle);
 void ice_replay_post(struct ice_hw *hw);
-void ice_sched_replay_agg_vsi_preinit(struct ice_hw *hw);
-void ice_sched_replay_agg(struct ice_hw *hw);
-enum ice_status ice_sched_replay_tc_node_bw(struct ice_port_info *pi);
-enum ice_status ice_replay_vsi_agg(struct ice_hw *hw, u16 vsi_handle);
-enum ice_status ice_sched_replay_root_node_bw(struct ice_port_info *pi);
-enum ice_status
-ice_sched_replay_q_bw(struct ice_port_info *pi, struct ice_q_ctx *q_ctx);
 struct ice_q_ctx *
 ice_get_lan_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 q_handle);
 void
@@ -277,7 +268,7 @@ enum ice_status
 ice_get_cur_lldp_persist_status(struct ice_hw *hw, u32 *lldp_status);
 enum ice_status
 ice_get_dflt_lldp_persist_status(struct ice_hw *hw, u32 *lldp_status);
-enum ice_status ice_get_netlist_ver_info(struct ice_hw *hw);
+enum ice_status ice_get_netlist_ver_info(struct ice_hw *hw, struct ice_netlist_info *netlist);
 enum ice_status
 ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
 		    struct ice_sq_cd *cd);

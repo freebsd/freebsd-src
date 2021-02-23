@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2020, Intel Corporation
+/*  Copyright (c) 2021, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -134,6 +134,71 @@ ice_aq_get_sw_cfg(struct ice_hw *hw, struct ice_aqc_get_sw_cfg_resp_elem *buf,
 		*num_elems = LE16_TO_CPU(cmd->num_elems);
 	}
 
+	return status;
+}
+
+/**
+ * ice_alloc_rss_global_lut - allocate a RSS global LUT
+ * @hw: pointer to the HW struct
+ * @shared_res: true to allocate as a shared resource and false to allocate as a dedicated resource
+ * @global_lut_id: output parameter for the RSS global LUT's ID
+ */
+enum ice_status ice_alloc_rss_global_lut(struct ice_hw *hw, bool shared_res, u16 *global_lut_id)
+{
+	struct ice_aqc_alloc_free_res_elem *sw_buf;
+	enum ice_status status;
+	u16 buf_len;
+
+	buf_len = ice_struct_size(sw_buf, elem, 1);
+	sw_buf = (struct ice_aqc_alloc_free_res_elem *)ice_malloc(hw, buf_len);
+	if (!sw_buf)
+		return ICE_ERR_NO_MEMORY;
+
+	sw_buf->num_elems = CPU_TO_LE16(1);
+	sw_buf->res_type = CPU_TO_LE16(ICE_AQC_RES_TYPE_GLOBAL_RSS_HASH |
+				       (shared_res ? ICE_AQC_RES_TYPE_FLAG_SHARED :
+				       ICE_AQC_RES_TYPE_FLAG_DEDICATED));
+
+	status = ice_aq_alloc_free_res(hw, 1, sw_buf, buf_len, ice_aqc_opc_alloc_res, NULL);
+	if (status) {
+		ice_debug(hw, ICE_DBG_RES, "Failed to allocate %s RSS global LUT, status %d\n",
+			  shared_res ? "shared" : "dedicated", status);
+		goto ice_alloc_global_lut_exit;
+	}
+
+	*global_lut_id = LE16_TO_CPU(sw_buf->elem[0].e.sw_resp);
+
+ice_alloc_global_lut_exit:
+	ice_free(hw, sw_buf);
+	return status;
+}
+
+/**
+ * ice_free_global_lut - free a RSS global LUT
+ * @hw: pointer to the HW struct
+ * @global_lut_id: ID of the RSS global LUT to free
+ */
+enum ice_status ice_free_rss_global_lut(struct ice_hw *hw, u16 global_lut_id)
+{
+	struct ice_aqc_alloc_free_res_elem *sw_buf;
+	u16 buf_len, num_elems = 1;
+	enum ice_status status;
+
+	buf_len = ice_struct_size(sw_buf, elem, num_elems);
+	sw_buf = (struct ice_aqc_alloc_free_res_elem *)ice_malloc(hw, buf_len);
+	if (!sw_buf)
+		return ICE_ERR_NO_MEMORY;
+
+	sw_buf->num_elems = CPU_TO_LE16(num_elems);
+	sw_buf->res_type = CPU_TO_LE16(ICE_AQC_RES_TYPE_GLOBAL_RSS_HASH);
+	sw_buf->elem[0].e.sw_resp = CPU_TO_LE16(global_lut_id);
+
+	status = ice_aq_alloc_free_res(hw, num_elems, sw_buf, buf_len, ice_aqc_opc_free_res, NULL);
+	if (status)
+		ice_debug(hw, ICE_DBG_RES, "Failed to free RSS global LUT %d, status %d\n",
+			  global_lut_id, status);
+
+	ice_free(hw, sw_buf);
 	return status;
 }
 
@@ -1425,8 +1490,7 @@ ice_create_vsi_list_map(struct ice_hw *hw, u16 *vsi_handle_arr, u16 num_vsi,
 	struct ice_vsi_list_map_info *v_map;
 	int i;
 
-	v_map = (struct ice_vsi_list_map_info *)ice_calloc(hw, 1,
-		sizeof(*v_map));
+	v_map = (struct ice_vsi_list_map_info *)ice_malloc(hw, sizeof(*v_map));
 	if (!v_map)
 		return NULL;
 
