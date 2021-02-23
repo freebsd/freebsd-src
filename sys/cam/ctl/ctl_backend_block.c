@@ -226,7 +226,7 @@ struct ctl_be_block_io {
 
 extern struct ctl_softc *control_softc;
 
-static int cbb_num_threads = 14;
+static int cbb_num_threads = 32;
 SYSCTL_NODE(_kern_cam_ctl, OID_AUTO, block, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 	    "CAM Target Layer Block Backend");
 SYSCTL_INT(_kern_cam_ctl_block, OID_AUTO, num_threads, CTLFLAG_RWTUN,
