@@ -30,36 +30,31 @@
  */
 /*$FreeBSD$*/
 
-#ifndef _ICE_SRIOV_H_
-#define _ICE_SRIOV_H_
+#ifndef _ICE_VLAN_MODE_H_
+#define _ICE_VLAN_MODE_H_
 
-#include "ice_type.h"
-#include "ice_controlq.h"
+struct ice_hw;
 
-/* Defining the mailbox message threshold as 63 asynchronous
- * pending messages. Normal VF functionality does not require
- * sending more than 63 asynchronous pending message.
+enum ice_status ice_set_vlan_mode(struct ice_hw *hw);
+void ice_init_vlan_mode_ops(struct ice_hw *hw);
+
+/* This structure defines the VLAN mode configuration interface. It is used to set the VLAN mode.
+ *
+ * Note: These operations will be called while the global configuration lock is held.
+ *
+ * enum ice_status (*set_svm)(struct ice_hw *hw);
+ *	This function is called when the DDP and/or Firmware don't support double VLAN mode (DVM) or
+ *	if the set_dvm op is not implemented and/or returns failure. It will set the device in
+ *	single VLAN mode (SVM).
+ *
+ * enum ice_status (*set_dvm)(struct ice_hw *hw);
+ *	This function is called when the DDP and Firmware support double VLAN mode (DVM). It should
+ *	be implemented to set double VLAN mode. If it fails or remains unimplemented, set_svm will
+ *	be called as a fallback plan.
  */
-#define ICE_ASYNC_VF_MSG_THRESHOLD	63
+struct ice_vlan_mode_ops {
+	enum ice_status (*set_svm)(struct ice_hw *hw);
+	enum ice_status (*set_dvm)(struct ice_hw *hw);
+};
 
-enum ice_status
-ice_aq_send_msg_to_pf(struct ice_hw *hw, enum virtchnl_ops v_opcode,
-		      enum ice_status v_retval, u8 *msg, u16 msglen,
-		      struct ice_sq_cd *cd);
-enum ice_status
-ice_aq_send_msg_to_vf(struct ice_hw *hw, u16 vfid, u32 v_opcode, u32 v_retval,
-		      u8 *msg, u16 msglen, struct ice_sq_cd *cd);
-
-u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed);
-enum ice_status
-ice_mbx_vf_state_handler(struct ice_hw *hw, struct ice_mbx_data *mbx_data,
-			 u16 vf_id, bool *is_mal_vf);
-enum ice_status
-ice_mbx_clear_malvf(struct ice_mbx_snapshot *snap, ice_bitmap_t *all_malvfs,
-		    u16 bitmap_len, u16 vf_id);
-enum ice_status ice_mbx_init_snapshot(struct ice_hw *hw, u16 vf_count);
-void ice_mbx_deinit_snapshot(struct ice_hw *hw);
-enum ice_status
-ice_mbx_report_malvf(struct ice_hw *hw, ice_bitmap_t *all_malvfs,
-		     u16 bitmap_len, u16 vf_id, bool *report_malvf);
-#endif /* _ICE_SRIOV_H_ */
+#endif /* _ICE_VLAN_MODE_H */

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2020, Intel Corporation
+/*  Copyright (c) 2021, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -414,6 +414,8 @@ ice_free_vlan_res_counter(struct ice_hw *hw, u16 counter_id);
 
 /* Switch/bridge related commands */
 enum ice_status ice_update_sw_rule_bridge_mode(struct ice_hw *hw);
+enum ice_status ice_alloc_rss_global_lut(struct ice_hw *hw, bool shared_res, u16 *global_lut_id);
+enum ice_status ice_free_rss_global_lut(struct ice_hw *hw, u16 global_lut_id);
 enum ice_status
 ice_alloc_sw(struct ice_hw *hw, bool ena_stats, bool shared_res, u16 *sw_id,
 	     u16 *counter_id);

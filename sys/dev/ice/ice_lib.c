@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2020, Intel Corporation
+/*  Copyright (c) 2021, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -2206,9 +2206,9 @@ ice_active_pkg_version_str(struct ice_hw *hw, struct sbuf *buf)
 static void
 ice_nvm_version_str(struct ice_hw *hw, struct sbuf *buf)
 {
-	struct ice_nvm_info *nvm = &hw->nvm;
-	struct ice_orom_info *orom = &nvm->orom;
-	struct ice_netlist_ver_info *netlist_ver = &hw->netlist_ver;
+	struct ice_nvm_info *nvm = &hw->flash.nvm;
+	struct ice_orom_info *orom = &hw->flash.orom;
+	struct ice_netlist_info *netlist = &hw->flash.netlist;
 
 	/* Note that the netlist versions are stored in packed Binary Coded
 	 * Decimal format. The use of '%x' will correctly display these as
@@ -2220,10 +2220,10 @@ ice_nvm_version_str(struct ice_hw *hw, struct sbuf *buf)
 		    "fw %u.%u.%u api %u.%u nvm %x.%02x etid %08x netlist %x.%x.%x-%x.%x.%x.%04x oem %u.%u.%u",
 		    hw->fw_maj_ver, hw->fw_min_ver, hw->fw_patch,
 		    hw->api_maj_ver, hw->api_min_ver,
-		    nvm->major_ver, nvm->minor_ver, nvm->eetrack,
-		    netlist_ver->major, netlist_ver->minor,
-		    netlist_ver->type >> 16, netlist_ver->type & 0xFFFF,
-		    netlist_ver->rev, netlist_ver->cust_ver, netlist_ver->hash,
+		    nvm->major, nvm->minor, nvm->eetrack,
+		    netlist->major, netlist->minor,
+		    netlist->type >> 16, netlist->type & 0xFFFF,
+		    netlist->rev, netlist->cust_ver, netlist->hash,
 		    orom->major, orom->build, orom->patch);
 }
 
@@ -5892,6 +5892,7 @@ ice_set_rss_flow_flds(struct ice_vsi *vsi)
 {
 	struct ice_softc *sc = vsi->sc;
 	struct ice_hw *hw = &sc->hw;
+	struct ice_rss_hash_cfg rss_cfg = { 0, 0, ICE_RSS_ANY_HEADERS, false };
 	device_t dev = sc->dev;
 	enum ice_status status;
 	u_int rss_hash_config;
@@ -5899,48 +5900,54 @@ ice_set_rss_flow_flds(struct ice_vsi *vsi)
 	rss_hash_config = rss_gethashconfig();
 
 	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV4) {
-		status = ice_add_rss_cfg(hw, vsi->idx, ICE_FLOW_HASH_IPV4,
-					 ICE_FLOW_SEG_HDR_IPV4);
+		rss_cfg.addl_hdrs = ICE_FLOW_SEG_HDR_IPV4;
+		rss_cfg.hash_flds = ICE_FLOW_HASH_IPV4;
+		status = ice_add_rss_cfg(hw, vsi->idx, &rss_cfg);
 		if (status)
 			device_printf(dev,
 				      "ice_add_rss_cfg on VSI %d failed for ipv4 flow, err %s aq_err %s\n",
 				      vsi->idx, ice_status_str(status), ice_aq_str(hw->adminq.sq_last_status));
 	}
 	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV4) {
-		status = ice_add_rss_cfg(hw, vsi->idx, ICE_HASH_TCP_IPV4,
-					 ICE_FLOW_SEG_HDR_TCP | ICE_FLOW_SEG_HDR_IPV4);
+		rss_cfg.addl_hdrs = ICE_FLOW_SEG_HDR_IPV4 | ICE_FLOW_SEG_HDR_TCP;
+		rss_cfg.hash_flds = ICE_HASH_TCP_IPV4;
+		status = ice_add_rss_cfg(hw, vsi->idx, &rss_cfg);
 		if (status)
 			device_printf(dev,
 				      "ice_add_rss_cfg on VSI %d failed for tcp4 flow, err %s aq_err %s\n",
 				      vsi->idx, ice_status_str(status), ice_aq_str(hw->adminq.sq_last_status));
 	}
 	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4) {
-		status = ice_add_rss_cfg(hw, vsi->idx, ICE_HASH_UDP_IPV4,
-					 ICE_FLOW_SEG_HDR_UDP | ICE_FLOW_SEG_HDR_IPV4);
+		rss_cfg.addl_hdrs = ICE_FLOW_SEG_HDR_IPV4 | ICE_FLOW_SEG_HDR_UDP;
+		rss_cfg.hash_flds = ICE_HASH_UDP_IPV4;
+		status = ice_add_rss_cfg(hw, vsi->idx, &rss_cfg);
 		if (status)
 			device_printf(dev,
 				      "ice_add_rss_cfg on VSI %d failed for udp4 flow, err %s aq_err %s\n",
 				      vsi->idx, ice_status_str(status), ice_aq_str(hw->adminq.sq_last_status));
 	}
 	if (rss_hash_config & (RSS_HASHTYPE_RSS_IPV6 | RSS_HASHTYPE_RSS_IPV6_EX)) {
-		status = ice_add_rss_cfg(hw, vsi->idx, ICE_FLOW_HASH_IPV6,
-					 ICE_FLOW_SEG_HDR_IPV6);
+		rss_cfg.addl_hdrs = ICE_FLOW_SEG_HDR_IPV6;
+		rss_cfg.hash_flds = ICE_FLOW_HASH_IPV6;
+		status = ice_add_rss_cfg(hw, vsi->idx, &rss_cfg);
 		if (status)
 			device_printf(dev,
 				      "ice_add_rss_cfg on VSI %d failed for ipv6 flow, err %s aq_err %s\n",
 				      vsi->idx, ice_status_str(status), ice_aq_str(hw->adminq.sq_last_status));
 	}
 	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6) {
-		status = ice_add_rss_cfg(hw, vsi->idx, ICE_HASH_TCP_IPV6,
-					 ICE_FLOW_SEG_HDR_TCP | ICE_FLOW_SEG_HDR_IPV6);
+		rss_cfg.addl_hdrs = ICE_FLOW_SEG_HDR_IPV6 | ICE_FLOW_SEG_HDR_TCP;
+		rss_cfg.hash_flds = ICE_HASH_TCP_IPV6;
+		status = ice_add_rss_cfg(hw, vsi->idx, &rss_cfg);
 		if (status)
 			device_printf(dev,
 				      "ice_add_rss_cfg on VSI %d failed for tcp6 flow, err %s aq_err %s\n",
 				      vsi->idx, ice_status_str(status), ice_aq_str(hw->adminq.sq_last_status));
 	}
 	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6) {
-		status = ice_add_rss_cfg(hw, vsi->idx, ICE_HASH_UDP_IPV6,
-					 ICE_FLOW_SEG_HDR_UDP | ICE_FLOW_SEG_HDR_IPV6);
+		rss_cfg.addl_hdrs = ICE_FLOW_SEG_HDR_IPV6 | ICE_FLOW_SEG_HDR_UDP;
+		rss_cfg.hash_flds = ICE_HASH_UDP_IPV6;
+		status = ice_add_rss_cfg(hw, vsi->idx, &rss_cfg);
 		if (status)
 			device_printf(dev,
 				      "ice_add_rss_cfg on VSI %d failed for udp6 flow, err %s aq_err %s\n",
@@ -5972,6 +5979,7 @@ ice_set_rss_lut(struct ice_vsi *vsi)
 	struct ice_softc *sc = vsi->sc;
 	struct ice_hw *hw = &sc->hw;
 	device_t dev = sc->dev;
+	struct ice_aq_get_set_rss_lut_params lut_params;
 	enum ice_status status;
 	int i, err = 0;
 	u8 *lut;
@@ -5992,8 +6000,12 @@ ice_set_rss_lut(struct ice_vsi *vsi)
 		lut[i] = rss_get_indirection_to_bucket(i) % vsi->num_rx_queues;
 	}
 
-	status = ice_aq_set_rss_lut(hw, vsi->idx, vsi->rss_lut_type,
-				    lut, vsi->rss_table_size);
+	lut_params.vsi_handle = vsi->idx;
+	lut_params.lut_size = vsi->rss_table_size;
+	lut_params.lut_type = vsi->rss_lut_type;
+	lut_params.lut = lut;
+	lut_params.global_lut_id = 0;
+	status = ice_aq_set_rss_lut(hw, &lut_params);
 	if (status) {
 		device_printf(dev,
 			      "Cannot set RSS lut, err %s aq_err %s\n",

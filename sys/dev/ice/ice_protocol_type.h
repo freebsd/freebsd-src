@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2020, Intel Corporation
+/*  Copyright (c) 2021, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -72,6 +72,7 @@ enum ice_protocol_type {
 	ICE_GENEVE,
 	ICE_VXLAN_GPE,
 	ICE_NVGRE,
+	ICE_GTP,
 	ICE_PROTOCOL_LAST
 };
 
@@ -87,6 +88,14 @@ enum ice_sw_tunnel_type {
 	ICE_SW_TUN_UDP, /* This means all "UDP" tunnel types: VXLAN-GPE, VXLAN
 			 * and GENEVE
 			 */
+	ICE_SW_TUN_IPV4_GTP_IPV4_TCP,
+	ICE_SW_TUN_IPV4_GTP_IPV4_UDP,
+	ICE_SW_TUN_IPV4_GTP_IPV6_TCP,
+	ICE_SW_TUN_IPV4_GTP_IPV6_UDP,
+	ICE_SW_TUN_IPV6_GTP_IPV4_TCP,
+	ICE_SW_TUN_IPV6_GTP_IPV4_UDP,
+	ICE_SW_TUN_IPV6_GTP_IPV6_TCP,
+	ICE_SW_TUN_IPV6_GTP_IPV6_UDP,
 	ICE_ALL_TUNNELS /* All tunnel types including NVGRE */
 };
 
@@ -143,6 +152,7 @@ enum ice_prot_id {
 #define ICE_MAC_OFOS_HW		1
 #define ICE_MAC_IL_HW		4
 #define ICE_ETYPE_OL_HW		9
+#define ICE_VLAN_OF_HW		16
 #define ICE_VLAN_OL_HW		17
 #define ICE_IPV4_OFOS_HW	32
 #define ICE_IPV4_IL_HW		33
@@ -248,6 +258,20 @@ struct ice_udp_tnl_hdr {
 	__be32 vni;	/* only use lower 24-bits */
 };
 
+struct ice_udp_gtp_hdr {
+	u8 flags;
+	u8 msg_type;
+	__be16 rsrvd_len;
+	__be32 teid;
+	__be16 rsrvd_seq_nbr;
+	u8 rsrvd_n_pdu_nbr;
+	u8 rsrvd_next_ext;
+	u8 rsvrd_ext_len;
+	u8 pdu_type;
+	u8 qfi;
+	u8 rsvrd;
+};
+
 struct ice_nvgre {
 	__be16 flags;
 	__be16 protocol;
@@ -264,6 +288,7 @@ union ice_prot_hdr {
 	struct ice_sctp_hdr sctp_hdr;
 	struct ice_udp_tnl_hdr tnl_hdr;
 	struct ice_nvgre nvgre_hdr;
+	struct ice_udp_gtp_hdr gtp_hdr;
 };
 
 /* This is mapping table entry that maps every word within a given protocol

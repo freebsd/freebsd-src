@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2020, Intel Corporation
+/*  Copyright (c) 2021, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -63,16 +63,16 @@
  * @var ice_rc_version
  * @brief driver release candidate version number
  */
-const char ice_driver_version[] = "0.26.16-k";
+const char ice_driver_version[] = "0.28.1-k";
 const uint8_t ice_major_version = 0;
-const uint8_t ice_minor_version = 26;
-const uint8_t ice_patch_version = 16;
+const uint8_t ice_minor_version = 28;
+const uint8_t ice_patch_version = 1;
 const uint8_t ice_rc_version = 0;
 
 #define PVIDV(vendor, devid, name) \
-	PVID(vendor, devid, name " - 0.26.16-k")
+	PVID(vendor, devid, name " - 0.28.1-k")
 #define PVIDV_OEM(vendor, devid, svid, sdevid, revid, name) \
-	PVID_OEM(vendor, devid, svid, sdevid, revid, name " - 0.26.16-k")
+	PVID_OEM(vendor, devid, svid, sdevid, revid, name " - 0.28.1-k")
 
 /**
  * @var ice_vendor_info_array
@@ -113,20 +113,11 @@ static pci_vendor_info_t ice_vendor_info_array[] = {
 	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_QSFP,
 		ICE_INTEL_VENDOR_ID, 0x0008, 0,
 		"Intel(R) Ethernet Network Adapter E810-C-Q2 for OCP3.0"),
+	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_QSFP,
+		ICE_INTEL_VENDOR_ID, 0x000D, 0,
+		"Intel(R) Ethernet Network Adapter E810-L-Q2 for OCP3.0"),
 	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_QSFP,
 		"Intel(R) Ethernet Controller E810-C for QSFP"),
-	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_SFP,
-		ICE_INTEL_VENDOR_ID, 0x0001, 0,
-		"Intel(R) Ethernet Network Adapter E810-L-1"),
-	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_SFP,
-		ICE_INTEL_VENDOR_ID, 0x0002, 0,
-		"Intel(R) Ethernet Network Adapter E810-L-2"),
-	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_SFP,
-		ICE_INTEL_VENDOR_ID, 0x0003, 0,
-		"Intel(R) Ethernet Network Adapter E810-L-1"),
-	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_SFP,
-		ICE_INTEL_VENDOR_ID, 0x0004, 0,
-		"Intel(R) Ethernet Network Adapter E810-L-2"),
 	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_SFP,
 		ICE_INTEL_VENDOR_ID, 0x0005, 0,
 		"Intel(R) Ethernet Network Adapter E810-XXV-4"),
