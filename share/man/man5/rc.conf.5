@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 10, 2021
+.Dd February 23, 2021
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -140,6 +140,14 @@ If set to
 show
 .Dq Starting foo:
 when faststart is used (e.g., at boot time).
+.It Va rc_parallel_start
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+enable parallel startup of services.
+Care should be taken to ensure that no loops occur, by using
+.Nm rcorder
+.Fl p .
 .It Va early_late_divider
 .Pq Vt str
 The name of the script that should be used as the
@@ -4670,6 +4678,7 @@ it will be made permanently active.
 .Xr quotaon 8 ,
 .Xr rc 8 ,
 .Xr rc.sendmail 8 ,
+.Xr rcorder 8 ,
 .Xr rfcomm_pppd 8 ,
 .Xr route 8 ,
 .Xr routed 8 ,
