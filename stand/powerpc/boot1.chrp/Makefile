@@ -43,5 +43,7 @@ boot1.hfs: boot1.elf bootinfo.txt
 
 CLEANFILES+= boot1.hfs
 
+MK_PIE=		no
+
 .include <bsd.prog.mk>
 

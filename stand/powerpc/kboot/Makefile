@@ -42,4 +42,6 @@ LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 DPADD=		${LDR_INTERP} ${LIBOFW} ${LIBFDT} ${LIBSA}
 LDADD=		${LDR_INTERP} ${LIBOFW} ${LIBFDT} ${LIBSA}
 
+MK_PIE=		no
+
 .include <bsd.prog.mk>
