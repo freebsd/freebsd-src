@@ -16,6 +16,28 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20210223:	p4	FreeBSD-SA-21:03.pam_login_access
+			FreeBSD-SA-21:04.jail_remove
+			FreeBSD-SA-21:05.jail_chdir
+			FreeBSD-SA-21:06.xen
+			FreeBSD-EN-21:06.microcode
+			FreeBSD-EN-21:07.caroot
+			FreeBSD-EN-21:08.freebsd-update
+
+	login.access fails to apply rules [SA-21:03.pam_login_access]
+
+	jail_remove(2) fails to kill all jailed processes [SA-21:04.jail_remove]
+
+	jail_attach(2) relies on the caller to change the cwd [SA-21:05.jail_chdir]
+
+	Xen grant mapping error handling issues [SA-21:06.xen]
+
+	Boot-time microcode loading causes a boot hang [EN-21:06.microcode]
+
+	Root certificate bundle update [EN-21:07.caroot]
+
+	freebsd-update passwd regeneration [EN-21:08.freebsd-update]
+
 20210128:	p3	FreeBSD-EN-21:01.tzdata
 			FreeBSD-EN-21:03.vnet
 			FreeBSD-EN-21:04.zfs
