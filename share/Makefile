@@ -26,6 +26,7 @@ SUBDIR=	${_colldef} \
 	${_syscons} \
 	tabset \
 	termcap \
+	terminfo \
 	${_timedef} \
 	${_vt} \
 	${_zoneinfo}
