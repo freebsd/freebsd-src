@@ -88,7 +88,7 @@ MTX_SYSINIT(ipmi_info, &ipmi_info_mtx, "ipmi info", MTX_DEF);
 
 static void	ipmi_smbios_probe(struct ipmi_get_info *);
 static int	smbios_cksum(struct smbios_eps *);
-static void	smbios_walk_table(uint8_t *, vm_size_t, smbios_callback_t,
+static void	smbios_walk_table(uint8_t *, int, smbios_callback_t,
 		    void *);
 static void	smbios_ipmi_info(struct smbios_structure_header *, void *);
 
@@ -147,12 +147,11 @@ smbios_ipmi_info(struct smbios_structure_header *h, void *arg)
 }
 
 static void
-smbios_walk_table(uint8_t *table, vm_size_t size, smbios_callback_t cb, void *arg)
+smbios_walk_table(uint8_t *p, int entries, smbios_callback_t cb, void *arg)
 {
 	struct smbios_structure_header *s;
-	uint8_t *p;
 
-	for (p = table; p < table + size;) {
+	while (entries--) {
 		s = (struct smbios_structure_header *)p;
 		cb(s, arg);
 
@@ -161,11 +160,8 @@ smbios_walk_table(uint8_t *table, vm_size_t size, smbios_callback_t cb, void *ar
 		 * formatted area of this structure.
 		 */
 		p += s->length;
-		while (!(p[0] == 0 && p[1] == 0)) {
+		while (!(p[0] == 0 && p[1] == 0))
 			p++;
-			if (p >= table + size)
-				return;
-		}
 
 		/*
 		 * Skip over the double-nul to the start of the next
@@ -183,23 +179,41 @@ smbios_walk_table(uint8_t *table, vm_size_t size, smbios_callback_t cb, void *ar
 static void
 ipmi_smbios_probe(struct ipmi_get_info *info)
 {
+	struct smbios_eps *header;
 	void *table;
-	vm_paddr_t table_paddr;
-	vm_size_t table_size;
-	int err;
+	u_int32_t addr;
 
 	bzero(info, sizeof(struct ipmi_get_info));
 
-	err = smbios_get_structure_table(&table_paddr, &table_size);
-	if (err != 0)
+	/* Find the SMBIOS table header. */
+	addr = bios_sigsearch(SMBIOS_START, SMBIOS_SIG, SMBIOS_LEN,
+			      SMBIOS_STEP, SMBIOS_OFF);
+	if (addr == 0)
 		return;
 
-	table = pmap_mapbios(table_paddr, table_size);
+	/*
+	 * Map the header.  We first map a fixed size to get the actual
+	 * length and then map it a second time with the actual length so
+	 * we can verify the checksum.
+	 */
+	header = pmap_mapbios(addr, sizeof(struct smbios_eps));
+	table = pmap_mapbios(addr, header->length);
+	pmap_unmapbios((vm_offset_t)header, sizeof(struct smbios_eps));
+	header = table;
+	if (smbios_cksum(header) != 0) {
+		pmap_unmapbios((vm_offset_t)header, header->length);
+		return;
+	}
 
-	smbios_walk_table(table, table_size, smbios_ipmi_info, info);
+	/* Now map the actual table and walk it looking for an IPMI entry. */
+	table = pmap_mapbios(header->structure_table_address,
+	    header->structure_table_length);
+	smbios_walk_table(table, header->number_structures, smbios_ipmi_info,
+	    info);
 
 	/* Unmap everything. */
-	pmap_unmapbios((vm_offset_t)table, table_size);
+	pmap_unmapbios((vm_offset_t)table, header->structure_table_length);
+	pmap_unmapbios((vm_offset_t)header, header->length);
 }
 
 /*

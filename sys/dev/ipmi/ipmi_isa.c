@@ -286,4 +286,3 @@ static driver_t ipmi_isa_driver = {
 };
 
 DRIVER_MODULE(ipmi_isa, isa, ipmi_isa_driver, ipmi_devclass, 0, 0);
-MODULE_DEPEND(ipmi_isa, smbios, 1, 1, 1);

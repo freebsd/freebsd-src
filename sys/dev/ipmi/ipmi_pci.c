@@ -179,7 +179,6 @@ static driver_t ipmi_pci_driver = {
 };
 
 DRIVER_MODULE(ipmi_pci, pci, ipmi_pci_driver, ipmi_devclass, 0, 0);
-MODULE_DEPEND(ipmi_pci, smbios, 1, 1, 1);
 
 /* Native IPMI on PCI driver. */
 
