@@ -85,6 +85,7 @@ bootpart_type(const char *scheme, const char **mountpoint)
 {
 
 	/* Only EFI is supported as boot partition */
+	*mountpoint = "/boot/efi";
 	return ("efi");
 }
 
