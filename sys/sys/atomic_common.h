@@ -70,4 +70,6 @@
     (*(volatile uint64_t *)(p) = (uint64_t)(v))
 #endif
 
+#define	atomic_interrupt_fence()	__compiler_membar()
+
 #endif
