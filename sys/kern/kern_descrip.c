@@ -1422,6 +1422,10 @@ int
 sys_close_range(struct thread *td, struct close_range_args *uap)
 {
 
+	AUDIT_ARG_FD(uap->lowfd);
+	AUDIT_ARG_CMD(uap->highfd);
+	AUDIT_ARG_FFLAGS(uap->flags);
+
 	/* No flags currently defined */
 	if (uap->flags != 0)
 		return (EINVAL);

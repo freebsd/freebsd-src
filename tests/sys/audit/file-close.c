@@ -154,10 +154,10 @@ ATF_TC_HEAD(closefrom_success, tc)
 
 ATF_TC_BODY(closefrom_success, tc)
 {
-	const char *regex = "closefrom.*return,success";
+	const char *regex = "close_range\\(2\\),.*,0x7fffffff,lowfd,.*"
+	    "0xffffffff,highfd,.*return,success";
 	FILE *pipefd = setup(fds, auclass);
 
-	atf_tc_expect_fail("closefrom was converted to close_range");
 	/* closefrom(2) returns 'void' */
 	closefrom(INT_MAX);
 	check_audit(fds, regex, pipefd);
