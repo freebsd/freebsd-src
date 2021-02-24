@@ -293,7 +293,7 @@ db_cmd_match(char *name, struct command *cmd, struct command **cmdp,
 			*resultp = CMD_AMBIGUOUS;
 			/* but keep looking for a full match -
 			   this lets us match single letters */
-		} else {
+		} else if (*resultp == CMD_NONE) {
 			*cmdp = cmd;
 			*resultp = CMD_FOUND;
 		}
