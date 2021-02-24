@@ -117,6 +117,15 @@ stp_body()
 	then
 		atf_fail "STP failed to detect bridging loop"
 	fi
+
+	# We must also have at least some forwarding interfaces
+	a_forwarding=$(jexec a ifconfig ${bridge_a} | grep forwarding)
+	b_forwarding=$(jexec b ifconfig ${bridge_b} | grep forwarding)
+
+	if [ -z "${a_forwarding}" ] && [ -z "${b_forwarding}" ]
+	then
+		atf_fail "STP failed to detect bridging loop"
+	fi
 }
 
 stp_cleanup()
@@ -179,6 +188,15 @@ stp_vlan_body()
 	b_discard=$(jexec b ifconfig ${bridge_b} | grep discarding)
 
 	if [ -z "${a_discard}" ] && [ -z "${b_discard}" ]
+	then
+		atf_fail "STP failed to detect bridging loop"
+	fi
+
+	# We must also have at least some forwarding interfaces
+	a_forwarding=$(jexec a ifconfig ${bridge_a} | grep forwarding)
+	b_forwarding=$(jexec b ifconfig ${bridge_b} | grep forwarding)
+
+	if [ -z "${a_forwarding}" ] && [ -z "${b_forwarding}" ]
 	then
 		atf_fail "STP failed to detect bridging loop"
 	fi
