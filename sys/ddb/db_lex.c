@@ -97,18 +97,12 @@ db_flush_line()
 	db_endlp = db_line;
 }
 
-static int	db_look_char = 0;
-
 static int
 db_read_char(void)
 {
 	int	c;
 
-	if (db_look_char != 0) {
-	    c = db_look_char;
-	    db_look_char = 0;
-	}
-	else if (db_lp >= db_endlp)
+	if (db_lp >= db_endlp)
 	    c = -1;
 	else
 	    c = *db_lp++;
@@ -116,10 +110,22 @@ db_read_char(void)
 }
 
 static void
-db_unread_char(c)
-	int c;
+db_unread_char(int c)
 {
-	db_look_char = c;
+
+	if (c == -1) {
+		/* Unread EOL at EOL is okay. */
+		if (db_lp < db_endlp)
+			db_error("db_unread_char(-1) before end of line\n");
+	} else {
+		if (db_lp > db_line) {
+			db_lp--;
+			if (*db_lp != c)
+				db_error("db_unread_char() wrong char\n");
+		} else {
+			db_error("db_unread_char() at beginning of line\n");
+		}
+	}
 }
 
 static int	db_look_token = 0;
@@ -155,7 +161,6 @@ void
 db_flush_lex(void)
 {
 	db_flush_line();
-	db_look_char = 0;
 	db_look_token = 0;
 }
 
