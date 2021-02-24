@@ -11,6 +11,13 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20210223:	p1	FreeBSD-SA-21:03.pam_login_access
+			FreeBSD-SA-21:06.xen
+
+	login.access fails to apply rules [SA-21:03.pam_login_access]
+
+	Xen grant mapping error handling issues [SA-21:06.xen]
+
 20210202:
 	Various LinuxKPI functionality was added which conflicts with DRM.
 	Please update your drm-kmod port to after the __FreeBSD_verison 1300139
