@@ -236,6 +236,8 @@ typedef struct if_softc_ctx {
 	int isc_disable_msix;
 	if_txrx_t isc_txrx;
 	struct ifmedia *isc_media;
+	bus_size_t isc_dma_width;	/* device dma width in bits, 0 means
+					   use BUS_SPACE_MAXADDR instead */
 } *if_softc_ctx_t;
 
 /*
