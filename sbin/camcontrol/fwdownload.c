@@ -465,9 +465,6 @@ fw_validate_ibm(struct cam_device *dev, int retry_count, int timeout, int fd,
 		goto bailout;
 	}
 
-	/* cam_getccb cleans up the header, caller has to zero the payload */
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	bzero(&vpd_page, sizeof(vpd_page));
 
 	scsi_inquiry(&ccb->csio,
@@ -671,8 +668,6 @@ fw_check_device_ready(struct cam_device *dev, camcontrol_devtype devtype,
 		goto bailout;
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
-
 	if (devtype != CC_DT_SCSI) {
 		dxfer_len = sizeof(struct ata_params);
 
@@ -801,8 +796,6 @@ fw_download_img(struct cam_device *cam_dev, struct fw_vendor *vp,
 		retval = 1;
 		goto bailout;
 	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
 
 	max_pkt_size = vp->max_pkt_size;
 	if (max_pkt_size == 0)

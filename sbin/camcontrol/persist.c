@@ -453,8 +453,6 @@ scsipersist(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		goto bailout;
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
 		case 'a':

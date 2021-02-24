@@ -1021,9 +1021,6 @@ scsiinquiry(struct cam_device *device, int task_attr, int retry_count,
 		return (1);
 	}
 
-	/* cam_getccb cleans up the header, caller has to zero the payload */
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	inq_buf = (struct scsi_inquiry_data *)malloc(
 		sizeof(struct scsi_inquiry_data));
 
@@ -1131,9 +1128,6 @@ scsiserial(struct cam_device *device, int task_attr, int retry_count,
 		return (1);
 	}
 
-	/* cam_getccb cleans up the header, caller has to zero the payload */
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	serial_buf = (struct scsi_vpd_unit_serial_number *)
 		malloc(sizeof(*serial_buf));
 
@@ -1217,8 +1211,6 @@ camxferrate(struct cam_device *device)
 		warnx("couldn't allocate CCB");
 		return (1);
 	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cts);
 
 	ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	ccb->cts.type = CTS_TYPE_CURRENT_SETTINGS;
@@ -4480,8 +4472,6 @@ mode_select(struct cam_device *device, int cdb_len, int save_pages,
 	if (ccb == NULL)
 		errx(1, "mode_select: couldn't allocate CCB");
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	scsi_mode_select_len(&ccb->csio,
 			 /* retries */ retry_count,
 			 /* cbfcnp */ NULL,
@@ -4619,8 +4609,6 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		warnx("scsicmd: error allocating ccb");
 		return (1);
 	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
@@ -5106,7 +5094,6 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 	cam_path_string(device, pathstr, sizeof(pathstr));
 
 	if (numtags >= 0) {
-		CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->crs);
 		ccb->ccb_h.func_code = XPT_REL_SIMQ;
 		ccb->ccb_h.flags = CAM_DEV_QFREEZE;
 		ccb->crs.release_flags = RELSIM_ADJUST_OPENINGS;
@@ -5350,7 +5337,6 @@ get_cpi(struct cam_device *device, struct ccb_pathinq *cpi)
 		warnx("get_cpi: couldn't allocate CCB");
 		return (1);
 	}
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cpi);
 	ccb->ccb_h.func_code = XPT_PATH_INQ;
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("get_cpi: error sending Path Inquiry CCB");
@@ -5385,7 +5371,6 @@ get_cgd(struct cam_device *device, struct ccb_getdev *cgd)
 		warnx("get_cgd: couldn't allocate CCB");
 		return (1);
 	}
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cgd);
 	ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("get_cgd: error sending Get type information CCB");
@@ -5425,9 +5410,6 @@ dev_has_vpd_page(struct cam_device *dev, uint8_t page_id, int retry_count,
 		retval = -1;
 		goto bailout;
 	}
-
-	/* cam_getccb cleans up the header, caller has to zero the payload */
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	bzero(&sup_pages, sizeof(sup_pages));
 
@@ -5963,8 +5945,6 @@ get_print_cts(struct cam_device *device, int user_settings, int quiet,
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cts);
-
 	ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 
 	if (user_settings == 0)
@@ -6107,7 +6087,6 @@ ratecontrol(struct cam_device *device, int task_attr, int retry_count,
 	 */
 	if ((retval = get_cpi(device, &cpi)) != 0)
 		goto ratecontrol_bailout;
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cts);
 	if (quiet == 0) {
 		fprintf(stdout, "%s parameters:\n",
 		    user_settings ? "User" : "Current");
@@ -6355,8 +6334,6 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 		warnx("scsiformat: error allocating ccb");
 		return (1);
 	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
@@ -6851,8 +6828,6 @@ sanitize(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
 		case 'a':
@@ -7209,8 +7184,6 @@ scsireportluns(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	countonly = 0;
 	lunsonly = 0;
 
@@ -7453,8 +7426,6 @@ scsireadcapacity(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
 		case 'b':
@@ -7653,8 +7624,6 @@ smpcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		warnx("%s: error allocating CCB", __func__);
 		return (1);
 	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
@@ -8203,8 +8172,6 @@ smpreportgeneral(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
-
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
 		case 'l':
@@ -8346,8 +8313,6 @@ smpphycontrol(struct cam_device *device, int argc, char **argv,
 		warnx("%s: error allocating CCB", __func__);
 		return (1);
 	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
@@ -8604,8 +8569,6 @@ smpmaninfo(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
-
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
 		case 'l':
@@ -8697,8 +8660,6 @@ getdevid(struct cam_devitem *item)
 		retval = 1;
 		goto bailout;
 	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cdai);
 
 	/*
 	 * On the first try, we just probe for the size of the data, and
@@ -8983,7 +8944,6 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
 	STAILQ_INIT(&devlist.dev_queue);
 
 	rgrequest = malloc(sizeof(*rgrequest));
@@ -9448,9 +9408,6 @@ scsigetopcodes(struct cam_device *device, int opcode_set, int opcode,
 		goto bailout;
 	}
 
-	/* cam_getccb cleans up the header, caller has to zero the payload */
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	if (opcode_set != 0) {
 		options |= RSO_OPTIONS_OC;
 		num_opcodes = 1;
@@ -9887,8 +9844,6 @@ reprobe(struct cam_device *device)
 		warnx("%s: error allocating ccb", __func__);
 		return (1);
 	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
 
 	ccb->ccb_h.func_code = XPT_REPROBE_LUN;
 
