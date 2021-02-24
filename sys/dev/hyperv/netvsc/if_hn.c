@@ -3073,13 +3073,24 @@ hn_encap(struct ifnet *ifp, struct hn_tx_ring *txr, struct hn_txdesc *txd,
 
 	if (txr->hn_tx_flags & HN_TX_FLAG_HASHVAL) {
 		/*
-		 * Set the hash value for this packet, so that the host could
-		 * dispatch the TX done event for this packet back to this TX
-		 * ring's channel.
+		 * Set the hash value for this packet.
 		 */
 		pi_data = hn_rndis_pktinfo_append(pkt, HN_RNDIS_PKT_LEN,
 		    HN_NDIS_HASH_VALUE_SIZE, HN_NDIS_PKTINFO_TYPE_HASHVAL);
-		*pi_data = txr->hn_tx_idx;
+
+		if (M_HASHTYPE_ISHASH(m_head))
+			/*
+			 * The flowid field contains the hash value host
+			 * set in the rx queue if it is a ip forwarding pkt.
+			 * Set the same hash value so host can send on the
+			 * cpu it was received.
+			 */
+			*pi_data = m_head->m_pkthdr.flowid;
+		else
+			/*
+			 * Otherwise just put the tx queue index.
+			 */
+			*pi_data = txr->hn_tx_idx;
 	}
 
 	if (m_head->m_flags & M_VLANTAG) {
