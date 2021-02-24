@@ -3545,9 +3545,8 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m, uint8_t queue)
 			counter_u64_add(queue_nops, 1);
 			break;
 		}
-		KASSERT(old.queue != PQ_NONE ||
-		    (old.flags & PGA_QUEUE_STATE_MASK) == 0,
-		    ("%s: page %p has unexpected queue state", __func__, m));
+		KASSERT((m->oflags & VPO_UNMANAGED) == 0,
+		    ("%s: page %p is unmanaged", __func__, m));
 
 		new = old;
 		if ((old.flags & PGA_DEQUEUE) != 0) {
@@ -3594,8 +3593,6 @@ vm_page_pqbatch_submit(vm_page_t m, uint8_t queue)
 	struct vm_pagequeue *pq;
 	int domain;
 
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("page %p is unmanaged", m));
 	KASSERT(queue < PQ_COUNT, ("invalid queue %d", queue));
 
 	domain = vm_page_domain(m);
