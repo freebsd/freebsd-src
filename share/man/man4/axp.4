@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd January 24, 2021
+.Dd February 19, 2021
 .Dt AXP 4
 .Os
 .Sh NAME
@@ -133,10 +133,23 @@ of the register by reading the second variable.
 Configure the log-level for the driver.
 Default is 0.
 Supports 0-3.
-.It Va dev.ax.X.single_fl
+.It Va dev.ax.X.link_workaround
+This variable enables the workaround for an intermittent link issue.
+When link does not come up for long time, this variable can be set to 1 to
+reset the phy and bring up the link.
+.El
+.Sh LOADER TUNABLES
+The following variable is available as
+.Xr loader.conf 5
+tunable.
+.Bl -tag -width indent
+.It Va dev.ax.X.sph_enable
+This variable controls split header feature for the interface.
+Default is 1, meaning the split header support is enabled.
+.Pp
 This variable must be set before loading the driver, either via
 .Xr loader.conf 5
-or through the use of
+or through
 .Xr kenv 1 .
 This cannot be modified when driver is loaded.
 .Pp
@@ -146,55 +159,13 @@ needs the system to be restarted to take effect.
 When using
 .Xr kenv 1 ,
 use the wrapper variable
-.Va dev.ax.single_fl\&,
-which will configure all AMD interfaces with single freelist per receive queue.
-Default is 2 freelist per receive queue.
+.Va dev.ax.sph_enable ,
+which will configure(enable/disable) split header support for all
+.Nm
+interfaces.
 .Pp
-This variable is to configure the interface when single freelist is needed.
-(For Eg. netmap).
-Basically, this will control the software behavior of how the receive
-descriptors are used.
-.Pp
-Setting this variable to 1, will use 1 Freelist per receive queue.
-.Pp
-Setting this variable to 0, will use 2 Freelist per receive queue.
-.Pp
-Based on the setting, the receive buffers are programmed accordingly on the
-received descriptors.
-.Pp
-By default, this variable will be set to 0, meaning the interfaces will be
-configured for regular data traffic (not netmap traffic).
-.It Va dev.ax.X.sph_enabled
-This variable must be set before loading the driver, either via
-.Xr loader.conf 5
-or through the use of
-.Xr kenv 1 .
-This cannot be modified when driver is loaded.
-.Pp
-Setting this variable in
-.Xr loader.conf 5
-needs the system to be restarted to take effect.
-When using
-.Xr kenv 1 ,
-use the wrapper variable
-.Va dev.ax.sph_enable\&,
-which will configure(enable/disable) split header support in all
-AMD interfaces.
-.Pp
-This variable is to control enable/disable of the split header feature in
-the interface.
-.Pp
-Setting this variable to 1, will enable split header feature.
-.Pp
-Setting this variable to 0, will disable split header feature.
-.Pp
-By default, this variable will be set to 1, meaning the Split header support be
-enabled.
-.Pp
-NOTE: It is recommended to use this variable only when
-.Va single_fl\&
-is configured.
-Otherwise let it be default value.
+To use netmap with this device, split header support must be disabled
+(set this variable to 0).
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
