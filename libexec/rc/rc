@@ -119,6 +119,7 @@ for _rc_group in ${files}; do
 done
 
 unset files local_rc
+unset IFS
 
 # Now that disks are mounted, for each dir in $local_startup
 # search for init scripts that use the new rc.d semantics.
