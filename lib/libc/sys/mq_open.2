@@ -297,9 +297,9 @@ There is insufficient space for the creation of the new message queue.
 .Xr mq_receive 2 ,
 .Xr mq_send 2 ,
 .Xr mq_setattr 2 ,
+.Xr mq_unlink 2 ,
 .Xr mq_timedreceive 3 ,
 .Xr mq_timedsend 3 ,
-.Xr mq_unlink 3 ,
 .Xr mqueuefs 5
 .Sh STANDARDS
 The
@@ -307,9 +307,7 @@ The
 system call conforms to
 .St -p1003.1-2004 .
 .Sh HISTORY
-Support for
-.Tn POSIX
-message queues first appeared in
+Support for POSIX message queues first appeared in
 .Fx 7.0 .
 .Sh BUGS
 This implementation places strict requirements on the value of
