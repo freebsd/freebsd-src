@@ -52,7 +52,16 @@ write_partition_layout() {
 		# Create an ESP
 		espfilename=$(mktemp /tmp/efiboot.XXXXXX)
 		make_esp_file ${espfilename} ${fat32min} ${BOOTFILES}/efi/loader_lua/loader_lua.efi
-		BOOTPARTS="${BOOTPARTS} -p efi:=${espfilename}"
+		BOOTPARTS="${BOOTPARTS} -p efi/efiesp:=${espfilename}"
+
+		# Add this to fstab, requires temporarily remounting the fs
+		mddev=$(mdconfig -f ${VMBASE})
+		mount /dev/${mddev} ${DESTDIR}
+		mkdir -p ${DESTDIR}/boot/efi
+		echo "/dev/${ROOTLABEL}/efiesp	/boot/efi       msdosfs     rw      2       2" \
+			>> ${DESTDIR}/etc/fstab
+		umount ${DESTDIR}
+		mdconfig -d -u ${mddev}
 	fi
 
 	mkimg -s ${SCHEME} -f ${VMFORMAT} \
