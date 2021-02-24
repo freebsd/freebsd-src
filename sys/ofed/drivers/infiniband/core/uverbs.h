@@ -64,8 +64,10 @@
 
 #define INIT_UDATA_BUF_OR_NULL(udata, ibuf, obuf, ilen, olen)			\
 	do {									\
-		(udata)->inbuf  = (ilen) ? (const void __user *) (ibuf) : NULL;	\
-		(udata)->outbuf = (olen) ? (void __user *) (obuf) : NULL;	\
+		(udata)->inbuf  = ((ilen) != 0) ?				\
+		    (const void __user *) (ibuf) : NULL;			\
+		(udata)->outbuf = ((olen) != 0) ?				\
+		    (void __user *) (obuf) : NULL;				\
 		(udata)->inlen  = (ilen);					\
 		(udata)->outlen = (olen);					\
 	} while (0)
