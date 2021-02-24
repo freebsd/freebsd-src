@@ -2046,7 +2046,7 @@ bstp_reinit(struct bstp_state *bs)
 	 */
 	IFNET_RLOCK_NOSLEEP();
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		if (ifp->if_type != IFT_ETHER)
+		if (ifp->if_type != IFT_ETHER && ifp->if_type != IFT_L2VLAN)
 			continue;	/* Not Ethernet */
 
 		if (ifp->if_bridge != bridgeptr)
