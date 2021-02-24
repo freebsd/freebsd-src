@@ -333,7 +333,7 @@ mvebu_gpio_isrc_eoi(struct mvebu_gpio_softc *sc,
 {
 
 	if (!mgi->is_level)
-		intr_modify(sc, GPIO_INT_CAUSE, mgi, 1, 1);
+		intr_modify(sc, GPIO_INT_CAUSE, mgi, 0, 1);
 }
 
 static int
@@ -778,7 +778,7 @@ mvebu_gpio_attach(device_t dev)
 		/* Init HW */
 		gpio_write(sc, GPIO_INT_MASK, pin, 0);
 		gpio_write(sc, GPIO_INT_LEVEL_MASK, pin, 0);
-		gpio_write(sc, GPIO_INT_CAUSE, pin, 1);
+		gpio_write(sc, GPIO_INT_CAUSE, pin, 0);
 		gpio_write(sc, GPIO_DATA_IN_POL, pin, 1);
 		gpio_write(sc, GPIO_BLINK_ENA, pin, 0);
 	}
