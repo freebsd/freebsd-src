@@ -48,7 +48,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: parse_entry.c,v 1.99 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: parse_entry.c,v 1.101 2020/10/24 21:37:13 tom Exp $")
 
 #ifdef LINT
 static short const parametrized[] =
@@ -544,10 +544,14 @@ _nc_parse_entry(ENTRY * entryp, int literal, bool silent)
 
 	    case STRING:
 		ptr = _nc_curr_token.tk_valstring;
-		if (_nc_syntax == SYN_TERMCAP)
+		if (_nc_syntax == SYN_TERMCAP) {
+		    int n = entry_ptr->nte_index;
 		    ptr = _nc_captoinfo(_nc_curr_token.tk_name,
 					ptr,
-					parametrized[entry_ptr->nte_index]);
+					(n < (int) SIZEOF(parametrized))
+					? parametrized[n]
+					: 0);
+		}
 		entryp->tterm.Strings[entry_ptr->nte_index] = _nc_save_str(ptr);
 		break;
 

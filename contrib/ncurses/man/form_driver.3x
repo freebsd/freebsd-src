@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_driver.3x,v 1.33 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_driver.3x,v 1.35 2020/12/19 21:34:15 tom Exp $
 .TH form_driver 3X ""
 .de bP
 .ie n  .IP \(bu 4
@@ -38,7 +38,7 @@
 \fBform_driver_w\fR \- command-processing loop of the form system
 .SH SYNOPSIS
 \fB#include <form.h>\fR
-.br
+.sp
 \fBint form_driver(FORM *\fP\fIform\fP\fB, int \fP\fIc\fP\fB);\fP
 .br
 \fBint form_driver_w(FORM *\fP\fIform\fP\fB, int \fP\fIc\fP\fB, wchar_t \fP\fIwch\fP\fB);\fP
@@ -254,9 +254,9 @@ The form driver code saw an unknown request code.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBform\fR(3X),
+\fBform_fieldtype\fR(3X),
 \fBform_field_buffer\fR(3X),
 \fBform_field_validation\fR(3X),
-\fBform_fieldtype\fR(3X),
 \fBform_variables\fR(3X),
 \fBgetch\fR(3X).
 .SH NOTES

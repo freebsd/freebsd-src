@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_page.c,v 1.13 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: frm_page.c,v 1.14 2020/05/24 01:40:20 anonymous.maarten Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -47,7 +47,7 @@ MODULE_ID("$Id: frm_page.c,v 1.13 2020/02/02 23:34:34 tom Exp $")
 |                    E_INVALID_FIELD   - current field can't be left
 |                    E_SYSTEM_ERROR    - system error
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 set_form_page(FORM *form, int page)
 {
   int err = E_OK;
@@ -96,7 +96,7 @@ set_form_page(FORM *form, int page)
 |   Return Values :  >= 0  : current page number
 |                    -1    : invalid form pointer
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 form_page(const FORM *form)
 {
   T((T_CALLED("form_page(%p)"), (const void *)form));

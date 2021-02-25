@@ -36,7 +36,7 @@
 #include <ctype.h>
 #include <termcap.h>
 
-MODULE_ID("$Id: lib_tgoto.c,v 1.19 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_tgoto.c,v 1.21 2020/05/27 23:55:56 tom Exp $")
 
 #if !PURE_TERMINFO
 static bool
@@ -207,6 +207,6 @@ tgoto(const char *string, int x, int y)
 	result = tgoto_internal(string, x, y);
     else
 #endif
-	result = TPARM_2(string, y, x);
+	result = TIPARM_2(string, y, x);
     returnPtr(result);
 }

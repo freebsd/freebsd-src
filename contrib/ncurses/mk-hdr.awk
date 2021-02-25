@@ -1,4 +1,4 @@
-# $Id: mk-hdr.awk,v 1.5 2020/02/02 23:34:34 tom Exp $
+# $Id: mk-hdr.awk,v 1.7 2020/08/31 23:48:44 tom Exp $
 ##############################################################################
 # Copyright 2020 Thomas E. Dickey                                            #
 # Copyright 2007-2010,2013 Free Software Foundation, Inc.                    #
@@ -39,6 +39,13 @@ function basename(path) {
 	sub(/^.*\//,"",path)
 	return path;
 }
+function in_subset(value) {
+	value = " " value " ";
+	check = subset;
+	gsub("[+]", " ", check);
+	check = " " check " ";
+	return index(check,value);
+}
 BEGIN	{
 		found = 0
 		using = 1
@@ -48,7 +55,7 @@ BEGIN	{
 		using = 0
 		if (subset == "none") {
 			using = 1
-		} else if (index(subset,$2) > 0) {
+		} else if (in_subset($2) > 0) {
 			using = 1
 		} else {
 			using = 0

@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_just.3x,v 1.16 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_field_just.3x,v 1.18 2020/10/18 00:12:55 tom Exp $
 .TH form_field_just 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -39,10 +39,10 @@
 \fBfield_just\fP \- retrieve field characteristics
 .SH SYNOPSIS
 \fB#include <form.h>\fR
+.sp
+\fBint set_field_just(FIELD *\fP\fIfield\fP\fB, int \fP\fIjustification\fP\fB);\fP
 .br
-int set_field_just(FIELD *field, int justification);
-.br
-int field_just(const FIELD *field);
+\fBint field_just(const FIELD *\fP\fIfield\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBset_field_just\fR sets the justification attribute of

@@ -39,11 +39,29 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_new.c,v 1.17 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: p_new.c,v 1.22 2020/12/26 18:25:48 tom Exp $")
 
 #ifdef TRACE
 static char *stdscr_id;
 static char *new_id;
+
+static PANEL *
+AllocPanel(const char *name)
+{
+  PANEL *result = typeMalloc(PANEL, 1);
+
+  _tracef("create :%s %p", name, (void *)result);
+  return result;
+}
+#define InitUser(name) \
+	if (!name ## _id) \
+	    name ## _id = strdup(#name); \
+	pan->user = name ## _id; \
+	_tracef("create :user_ptr %p", pan->user)
+#else
+#define AllocPanel(name) typeMalloc(PANEL, 1)
+#define InitUser(name) \
+	  pan->user = (void *)0
 #endif
 
 /*+-------------------------------------------------------------------------
@@ -60,39 +78,33 @@ root_panel(NCURSES_SP_DCL0)
   struct panelhook *ph = _nc_panelhook();
 #endif
 
-  if (_nc_stdscr_pseudo_panel == (PANEL *) 0)
+  if (_nc_stdscr_pseudo_panel == (PANEL *)0)
     {
 
       assert(SP_PARM && SP_PARM->_stdscr && !_nc_bottom_panel && !_nc_top_panel);
 #if NO_LEAKS
       ph->destroy = del_panel;
 #endif
-      _nc_stdscr_pseudo_panel = typeMalloc(PANEL, 1);
+      _nc_stdscr_pseudo_panel = AllocPanel("root_panel");
       if (_nc_stdscr_pseudo_panel != 0)
 	{
 	  PANEL *pan = _nc_stdscr_pseudo_panel;
 	  WINDOW *win = SP_PARM->_stdscr;
 
 	  pan->win = win;
-	  pan->below = (PANEL *) 0;
-	  pan->above = (PANEL *) 0;
-#ifdef TRACE
-	  if (!stdscr_id)
-	    stdscr_id = strdup("stdscr");
-	  pan->user = stdscr_id;
-#else
-	  pan->user = (void *)0;
-#endif
+	  pan->below = (PANEL *)0;
+	  pan->above = (PANEL *)0;
+	  InitUser(stdscr);
 	  _nc_bottom_panel = _nc_top_panel = pan;
 	}
     }
   return _nc_stdscr_pseudo_panel;
 }
 
-NCURSES_EXPORT(PANEL *)
+PANEL_EXPORT(PANEL *)
 new_panel(WINDOW *win)
 {
-  PANEL *pan = (PANEL *) 0;
+  PANEL *pan = (PANEL *)0;
 
   GetWindowHook(win);
 
@@ -105,18 +117,12 @@ new_panel(WINDOW *win)
     (void)root_panel(NCURSES_SP_ARG);
   assert(_nc_stdscr_pseudo_panel);
 
-  if (!(win->_flags & _ISPAD) && (pan = typeMalloc(PANEL, 1)))
+  if (!(win->_flags & _ISPAD) && (pan = AllocPanel("new_panel")))
     {
       pan->win = win;
-      pan->above = (PANEL *) 0;
-      pan->below = (PANEL *) 0;
-#ifdef TRACE
-      if (!new_id)
-	new_id = strdup("new");
-      pan->user = new_id;
-#else
-      pan->user = (char *)0;
-#endif
+      pan->above = (PANEL *)0;
+      pan->below = (PANEL *)0;
+      InitUser(new);
       (void)show_panel(pan);
     }
   returnPanel(pan);

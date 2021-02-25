@@ -98,7 +98,7 @@
 char *ttyname(int fd);
 #endif
 
-MODULE_ID("$Id: tset.c,v 1.121 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: tset.c,v 1.125 2020/09/05 22:54:47 tom Exp $")
 
 #ifndef environ
 extern char **environ;
@@ -133,7 +133,7 @@ exit_error(void)
 }
 
 static void
-err(const char *fmt,...)
+err(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -227,10 +227,16 @@ static MAP *cur, *maplist;
 #define DATA(name,value) { { name }, value }
 
 typedef struct speeds {
-    const char string[7];
+    const char string[8];
     int speed;
 } SPEEDS;
 
+#if defined(EXP_WIN32_DRIVER)
+static const SPEEDS speeds[] =
+{
+    {"0", 0}
+};
+#else
 static const SPEEDS speeds[] =
 {
     DATA("0", B0),
@@ -331,6 +337,7 @@ static const SPEEDS speeds[] =
 #endif
 };
 #undef DATA
+#endif
 
 static int
 tbaudrate(char *rate)
@@ -839,6 +846,8 @@ main(int argc, char **argv)
     oldmode = mode;
 #ifdef TERMIOS
     ospeed = (NCURSES_OSPEED) cfgetospeed(&mode);
+#elif defined(EXP_WIN32_DRIVER)
+    ospeed = 0;
 #else
     ospeed = (NCURSES_OSPEED) mode.sg_ospeed;
 #endif

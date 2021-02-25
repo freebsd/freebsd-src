@@ -30,7 +30,7 @@
 # Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995
 #    and: Eric S. Raymond <esr@snark.thyrsus.com>
 #
-# $Id: Caps,v 1.45 2020/02/02 23:34:34 tom Exp $
+# $Id: Caps,v 1.46 2020/10/17 21:30:19 tom Exp $
 #
 # This is the master termcap/terminfo capability table.
 #
@@ -189,8 +189,12 @@
 #%indicates that padding may be specified
 #%.TP
 #%#[1-9]
-#%in the description field indicates that the string is passed through tparm with
-#%parms as given (#\fIi\fP).
+#%in the description field indicates that the string is passed
+#%through \fBtparm\fP(3X) with parameters as given (#\fIi\fP).
+#%.IP
+#%If no parameters are listed in the description,
+#%passing the string through \fBtparm\fP(3X) may give unexpected results,
+#%e.g., if it contains percent (%%) signs.
 #%.TP
 #%(P*)
 #%indicates that padding may vary in proportion to the number of

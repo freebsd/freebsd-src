@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_inopts.3x,v 1.29 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_inopts.3x,v 1.33 2020/12/05 19:38:18 Benno.Schulenberg Exp $
 .TH curs_inopts 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -44,12 +44,14 @@
 \fBintrflush\fR,
 \fBkeypad\fR,
 \fBmeta\fR,
+\fBnl\fR,
+\fBnonl\fR,
 \fBnodelay\fR,
 \fBnotimeout\fR,
 \fBraw\fR,
 \fBnoraw\fR,
-\fBnoqiflush\fR,
 \fBqiflush\fR,
+\fBnoqiflush\fR,
 \fBtimeout\fR,
 \fBwtimeout\fR,
 \fBtypeahead\fR \- \fBcurses\fR input options
@@ -61,36 +63,40 @@
 \fBint cbreak(void);\fR
 .br
 \fBint nocbreak(void);\fR
-.br
+.sp
 \fBint echo(void);\fR
 .br
 \fBint noecho(void);\fR
+.sp
+\fBint intrflush(WINDOW *\fP\fIwin\fP\fB, bool \fP\fIbf\fP\fB);\fR
 .br
-\fBint halfdelay(int tenths);\fR
+\fBint keypad(WINDOW *\fP\fIwin\fP\fB, bool \fP\fIbf\fP\fB);\fR
 .br
-\fBint intrflush(WINDOW *win, bool bf);\fR
+\fBint meta(WINDOW *\fP\fIwin\fP\fB, bool \fP\fIbf\fP\fB);\fR
 .br
-\fBint keypad(WINDOW *win, bool bf);\fR
+\fBint nodelay(WINDOW *\fP\fIwin\fP\fB, bool \fP\fIbf\fP\fB);\fR
 .br
-\fBint meta(WINDOW *win, bool bf);\fR
+\fBint notimeout(WINDOW *\fP\fIwin\fP\fB, bool \fP\fIbf\fP\fB);\fR
+.sp
+\fBint nl(void);\fR
 .br
-\fBint nodelay(WINDOW *win, bool bf);\fR
-.br
+\fBint nonl(void);\fR
+.sp
 \fBint raw(void);\fR
 .br
 \fBint noraw(void);\fR
-.br
-\fBvoid noqiflush(void);\fR
-.br
+.sp
 \fBvoid qiflush(void);\fR
 .br
-\fBint notimeout(WINDOW *win, bool bf);\fR
+\fBvoid noqiflush(void);\fR
+.sp
+\fBint halfdelay(int \fP\fItenths\fP\fB);\fR
 .br
-\fBvoid timeout(int delay);\fR
+\fBvoid timeout(int \fP\fIdelay\fP\fB);\fR
 .br
-\fBvoid wtimeout(WINDOW *win, int delay);\fR
-.br
-\fBint typeahead(int fd);\fR
+\fBvoid wtimeout(WINDOW *\fP\fIwin\fP\fB, int \fP\fIdelay\fP\fB);\fR
+.sp
+\fBint typeahead(int \fP\fIfd\fP\fB);\fR
 .br
 .SH DESCRIPTION
 The \fBncurses\fP library provides several functions which let an application
@@ -102,7 +108,7 @@ windows.
 An application must apply these to each window, if the same behavior
 is needed.
 .\"
-.SS cbreak
+.SS cbreak/nocbreak
 Normally, the tty driver buffers typed characters until a newline or carriage
 return is typed.
 The \fBcbreak\fR routine disables line buffering and
@@ -194,14 +200,20 @@ If the terminfo capabilities \fBsmm\fR
 \fBTRUE\fR) is called and \fBrmm\fR is sent when \fBmeta\fR(\fIwin\fR,
 \fBFALSE\fR) is called.
 .\"
+.SS nl/nonl
+.PP
+The \fBnl\fR and \fBnonl\fR routines control whether the underlying display
+device translates the return key into newline on input.
+.\"
 .SS nodelay
 .PP
 The \fBnodelay\fR option causes \fBgetch\fR to be a non-blocking call.
 If no input is ready, \fBgetch\fR returns \fBERR\fR.
 If disabled
 (\fIbf\fR is \fBFALSE\fR), \fBgetch\fR waits until a key is pressed.
+.SS notimeout
 .PP
-While interpreting an input escape sequence, \fBwgetch\fR(3X) sets a timer
+When interpreting an escape sequence, \fBwgetch\fR(3X) sets a timer
 while waiting for the next character.
 If \fBnotimeout(\fR\fIwin\fR,
 \fBTRUE\fR) is called, then \fBwgetch\fR does not set a timer.
@@ -222,7 +234,7 @@ The behavior of
 the BREAK key depends on other bits in the tty driver that are not set by
 \fBcurses\fR.
 .\"
-.SS noqiflush
+.SS qiflush/noqiflush
 .PP
 When the \fBnoqiflush\fR routine is used, normal flush of input and
 output queues associated with the \fBINTR\fR, \fBQUIT\fR and
@@ -292,8 +304,16 @@ initializes the terminal state.
 BSD curses differed from this slightly; it
 left the echo bit on at initialization, but the BSD \fBraw\fR call turned it
 off as a side-effect.
-For best portability, set echo or noecho explicitly
+For best portability, set \fBecho \fPor \fBnoecho\fP explicitly
 just after initialization, even if your program remains in cooked mode.
+.PP
+The XSI Curses standard is ambiguous on the question of whether \fBraw\fR
+should disable the CRLF translations controlled by \fBnl\fR and \fBnonl\fR.
+BSD curses did turn off these translations; AT&T curses (at least as late as
+SVr1) did not.
+We chose to do so, on the theory that a programmer requesting
+raw input wants a clean (ideally 8-bit clean) connection that the operating
+system will not alter.
 .PP
 When \fBkeypad\fP is first enabled,
 ncurses loads the key-definitions for the current terminal description.
@@ -331,9 +351,20 @@ and if a capability's value is the same as a previously-loaded
 key definition,
 the later definition is the one used.
 .SH NOTES
-Note that \fBecho\fR, \fBnoecho\fR, \fBhalfdelay\fR, \fBintrflush\fR,
-\fBmeta\fR, \fBnodelay\fR, \fBnotimeout\fR, \fBnoqiflush\fR,
-\fBqiflush\fR, \fBtimeout\fR, and \fBwtimeout\fR may be macros.
+Note that
+\fBecho\fR,
+\fBnoecho\fR,
+\fBhalfdelay\fR,
+\fBintrflush\fR,
+\fBmeta\fR,
+\fBnl\fR,
+\fBnonl\fR,
+\fBnodelay\fR,
+\fBnotimeout\fR,
+\fBnoqiflush\fR,
+\fBqiflush\fR,
+\fBtimeout\fR, and
+\fBwtimeout\fR may be macros.
 .PP
 The \fBnoraw\fR and \fBnocbreak\fR calls follow historical practice in that
 they attempt to restore to normal (\*(``cooked\*('') mode

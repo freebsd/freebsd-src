@@ -30,7 +30,7 @@
 /****************************************************************************
  *  Author: Thomas E. Dickey                    1996-on                     *
  ****************************************************************************/
-/* $Id: nc_alloc.h,v 1.26 2020/02/02 23:34:34 tom Exp $ */
+/* $Id: nc_alloc.h,v 1.27 2020/07/04 20:01:13 tom Exp $ */
 
 #ifndef NC_ALLOC_included
 #define NC_ALLOC_included 1
@@ -78,7 +78,7 @@ extern NCURSES_EXPORT(void) _nc_free_tinfo(int) GCC_NORETURN GCC_DEPRECATED("use
 #ifdef NCURSES_INTERNALS
 extern NCURSES_EXPORT(void) _nc_free_tic(int) GCC_NORETURN;
 extern NCURSES_EXPORT(void) _nc_free_tparm(void);
-extern NCURSES_EXPORT(void) _nc_leaks_dump_entry(void);
+extern void _nc_leaks_dump_entry(void);
 extern NCURSES_EXPORT(void) _nc_leaks_tic(void);
 
 #if NCURSES_SP_FUNCS

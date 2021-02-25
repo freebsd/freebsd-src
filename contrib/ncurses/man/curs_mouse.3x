@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_mouse.3x,v 1.52 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_mouse.3x,v 1.53 2020/10/17 23:25:08 tom Exp $
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
 .ie \n(.g .ds '' \(rq
@@ -76,21 +76,20 @@
 .fi
 .PP
 \fBbool has_mouse(void);\fR
-.br
+.sp
 \fBint getmouse(MEVENT *\fP\fIevent\fP\fB);\fR
 .br
 \fBint ungetmouse(MEVENT *\fP\fIevent\fP\fB);\fR
-.br
+.sp
 \fBmmask_t mousemask(mmask_t \fP\fInewmask\fP\fB, mmask_t *\fP\fIoldmask\fP\fB);\fR
-.br
+.sp
 \fBbool wenclose(const WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB);\fR
-.br
+.sp
 \fBbool mouse_trafo(int* \fP\fIpY\fP\fB, int* \fP\fIpX\fP\fB, bool \fP\fIto_screen\fP\fB);\fR
 .br
-\fBbool wmouse_trafo(const WINDOW* \fP\fIwin\fP\fB, int* \fP\fIpY\fP\fB, int* \fP\fIpX\fP\fB,\fR
-.br
-	\fBbool \fP\fIto_screen\fP\fB);\fR
-.br
+\fBbool wmouse_trafo(const WINDOW* \fP\fIwin\fP\fB,\fR
+                  \fBint* \fP\fIpY\fP\fB, int* \fP\fIpX\fP\fB, bool \fP\fIto_screen\fP\fB);\fR
+.sp
 \fBint mouseinterval(int \fP\fIerval\fP\fB);\fR
 .br
 .SH DESCRIPTION

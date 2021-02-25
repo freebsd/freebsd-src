@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2019,2020 Thomas E. Dickey                                     *
+.\" Copyright 2019-2020,2021 Thomas E. Dickey                                *
 .\" Copyright 2008-2010,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_memleaks.3x,v 1.8 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_memleaks.3x,v 1.11 2021/01/02 23:47:51 tom Exp $
 .TH curs_memleaks 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -36,31 +36,32 @@
 .na
 .hy 0
 .SH NAME
-\fB_nc_freeall\fP,
-\fB_nc_free_and_exit\fP,
-\fB_nc_free_tinfo\fP \- \fBcurses\fR memory-leak checking
+\fBexit_curses\fP,
+\fBexit_terminfo\fP \- \fBcurses\fR memory-leak checking
 .ad
 .hy
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
-.sp
-\fBvoid exit_curses(int);\fR
 .br
-\fBvoid exit_terminfo(int);\fR
+\fBvoid exit_curses(int \fP\fIcode\fP\fB);\fR
 .sp
-/* deprecated */
+\fB#include <term.h>\fR
+.br
+\fBvoid exit_terminfo(int \fP\fIcode\fP\fB);\fR
+.sp
+/* deprecated (intentionally not declared in curses.h or term.h) */
 .br
 \fBvoid _nc_freeall(void);\fR
 .br
-\fBvoid _nc_free_and_exit(int);\fR
+\fBvoid _nc_free_and_exit(int \fP\fIcode\fP\fB);\fR
 .br
-\fBvoid _nc_free_tinfo(int);\fR
+\fBvoid _nc_free_tinfo(int \fP\fIcode\fP\fB);\fR
 .SH DESCRIPTION
 These functions are used to simplify analysis of memory leaks in the ncurses
 library.
 .PP
 Any implementation of curses must not free the memory associated with
-a screen, since (even after calling \fBendwin\fP), it must be available
+a screen, since (even after calling \fBendwin\fP(3X)), it must be available
 for use in the next call to \fBrefresh\fP(3X).
 There are also chunks of memory held for performance reasons.
 That makes it hard to analyze curses applications for memory leaks.

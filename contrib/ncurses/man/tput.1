@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: tput.1,v 1.63 2020/02/02 23:34:34 tom Exp $
+.\" $Id: tput.1,v 1.65 2020/12/19 22:17:47 tom Exp $
 .TH @TPUT@ 1 ""
 .ds d @TERMINFO@
 .ds n 1
@@ -276,7 +276,7 @@ named \fBinit\fP has a more well-established use.
 .PP
 Besides the special commands (e.g., \fBclear\fP),
 @TPUT@ treats certain terminfo capabilities specially:
-\fBlines\fP and \fBcolumns\fP.
+\fBlines\fP and \fBcols\fP.
 @TPUT@ calls \fBsetupterm\fP(3X) to obtain the terminal size:
 .bP
 first, it gets the size from the terminal database
@@ -590,8 +590,8 @@ to either ncurses or X/Open.
 \fBstty\fR(1),
 \fB@TABS@\fR(\*n),
 \fB@TSET@\fR(\*n),
-\fBterminfo\fR(5),
-\fBcurs_termcap\fR(3X).
+\fBcurs_termcap\fR(3X),
+\fBterminfo\fR(5).
 .PP
 This describes \fBncurses\fR
 version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).

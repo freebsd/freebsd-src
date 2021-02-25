@@ -33,19 +33,19 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_just.c,v 1.14 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: fld_just.c,v 1.16 2020/12/11 23:16:37 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
 |   Function      :  int set_field_just(FIELD *field, int just)
 |   
-|   Description   :  Set the fields type of justification.
+|   Description   :  Set the field's type of justification.
 |
 |   Return Values :  E_OK            - success
 |                    E_BAD_ARGUMENT  - one of the arguments was incorrect
 |                    E_SYSTEM_ERROR  - system error
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 set_field_just(FIELD *field, int just)
 {
   int res = E_BAD_ARGUMENT;
@@ -60,7 +60,7 @@ set_field_just(FIELD *field, int just)
       Normalize_Field(field);
       if (field->just != just)
 	{
-	  field->just = (short) just;
+	  field->just = (short)just;
 	  res = _nc_Synchronize_Attributes(field);
 	}
       else
@@ -73,11 +73,11 @@ set_field_just(FIELD *field, int just)
 |   Facility      :  libnform  
 |   Function      :  int field_just( const FIELD *field )
 |   
-|   Description   :  Retrieve the fields type of justification
+|   Description   :  Retrieve the field's type of justification
 |
 |   Return Values :  The justification type.
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 field_just(const FIELD *field)
 {
   T((T_CALLED("field_just(%p)"), (const void *)field));

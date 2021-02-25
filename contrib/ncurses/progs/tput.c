@@ -51,7 +51,7 @@
 #include <transform.h>
 #include <tty_settings.h>
 
-MODULE_ID("$Id: tput.c,v 1.81 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: tput.c,v 1.84 2020/10/24 18:29:38 tom Exp $")
 
 #define PUTS(s)		fputs(s, stdout)
 
@@ -63,7 +63,7 @@ static bool is_reset = FALSE;
 static bool is_clear = FALSE;
 
 static void
-quit(int status, const char *fmt,...)
+quit(int status, const char *fmt, ...)
 {
     va_list argp;
 
@@ -251,6 +251,21 @@ tput_cmd(int fd, TTY * saved_settings, bool opt_x, int argc, char *argv[])
 		s = TPARM_3(s, numbers[1], strings[2], strings[3]);
 		break;
 	    case Numbers:
+#define myParam(n) numbers[n]
+		s = TIPARM_9(s,
+			     myParam(1),
+			     myParam(2),
+			     myParam(3),
+			     myParam(4),
+			     myParam(5),
+			     myParam(6),
+			     myParam(7),
+			     myParam(8),
+			     myParam(9));
+#undef myParam
+		break;
+	    case Other:
+		/* FALLTHRU */
 	    default:
 		(void) _nc_tparm_analyze(s, p_is_s, &ignored);
 #define myParam(n) (p_is_s[n - 1] != 0 ? ((TPARM_ARG) strings[n]) : numbers[n])
@@ -264,6 +279,7 @@ tput_cmd(int fd, TTY * saved_settings, bool opt_x, int argc, char *argv[])
 			    myParam(7),
 			    myParam(8),
 			    myParam(9));
+#undef myParam
 		break;
 	    }
 	}

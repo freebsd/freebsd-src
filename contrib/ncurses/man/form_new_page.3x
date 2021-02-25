@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_new_page.3x,v 1.15 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_new_page.3x,v 1.17 2020/10/18 00:04:36 tom Exp $
 .TH form_new_page 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -39,10 +39,10 @@
 \fBnew_page\fR \- form pagination functions
 .SH SYNOPSIS
 \fB#include <form.h>\fR
+.sp
+\fBint set_new_page(FIELD *\fP\fIfield\fP\fB, bool \fP\fInew_page_flag\fP\fB);\fP
 .br
-int set_new_page(FIELD *field, bool new_page_flag);
-.br
-bool new_page(const FIELD *field);
+\fBbool new_page(const FIELD *\fP\fIfield\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBset_new_page\fR sets or resets a flag marking the given field

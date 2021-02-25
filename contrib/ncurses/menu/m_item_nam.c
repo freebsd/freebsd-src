@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_nam.c,v 1.16 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: m_item_nam.c,v 1.18 2020/12/12 00:38:08 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -48,8 +48,8 @@ MODULE_ID("$Id: m_item_nam.c,v 1.16 2020/02/02 23:34:34 tom Exp $")
 |
 |   Return Values :  See above; returns NULL if item is invalid
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(const char *)
-item_name(const ITEM * item)
+MENU_EXPORT(const char *)
+item_name(const ITEM *item)
 {
   T((T_CALLED("item_name(%p)"), (const void *)item));
   returnCPtr((item) ? item->name.str : (char *)0);
@@ -63,8 +63,8 @@ item_name(const ITEM * item)
 |
 |   Return Values :  See above; Returns NULL if item is invalid
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(const char *)
-item_description(const ITEM * item)
+MENU_EXPORT(const char *)
+item_description(const ITEM *item)
 {
   T((T_CALLED("item_description(%p)"), (const void *)item));
   returnCPtr((item) ? item->description.str : (char *)0);

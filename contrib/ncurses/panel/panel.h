@@ -33,7 +33,7 @@
  *     and: Juergen Pfeifer                         1996-1999,2008          *
  ****************************************************************************/
 
-/* $Id: panel.h,v 1.13 2020/02/02 23:34:34 tom Exp $ */
+/* $Id: panel.h,v 1.14 2020/07/04 20:38:43 tom Exp $ */
 
 /* panel.h -- interface file for panels library */
 
@@ -57,27 +57,38 @@ PANEL;
 extern "C" {
 #endif
 
-extern NCURSES_EXPORT(WINDOW*) panel_window (const PANEL *);
-extern NCURSES_EXPORT(void)    update_panels (void);
-extern NCURSES_EXPORT(int)     hide_panel (PANEL *);
-extern NCURSES_EXPORT(int)     show_panel (PANEL *);
-extern NCURSES_EXPORT(int)     del_panel (PANEL *);
-extern NCURSES_EXPORT(int)     top_panel (PANEL *);
-extern NCURSES_EXPORT(int)     bottom_panel (PANEL *);
-extern NCURSES_EXPORT(PANEL*)  new_panel (WINDOW *);
-extern NCURSES_EXPORT(PANEL*)  panel_above (const PANEL *);
-extern NCURSES_EXPORT(PANEL*)  panel_below (const PANEL *);
-extern NCURSES_EXPORT(int)     set_panel_userptr (PANEL *, NCURSES_CONST void *);
-extern NCURSES_EXPORT(NCURSES_CONST void*) panel_userptr (const PANEL *);
-extern NCURSES_EXPORT(int)     move_panel (PANEL *, int, int);
-extern NCURSES_EXPORT(int)     replace_panel (PANEL *,WINDOW *);
-extern NCURSES_EXPORT(int)     panel_hidden (const PANEL *);
+#if defined(BUILDING_PANEL)
+# define PANEL_IMPEXP NCURSES_EXPORT_GENERAL_EXPORT
+#else
+# define PANEL_IMPEXP NCURSES_EXPORT_GENERAL_IMPORT
+#endif
+
+#define PANEL_WRAPPED_VAR(type,name) extern PANEL_IMPEXP type NCURSES_PUBLIC_VAR(name)(void)
+
+#define PANEL_EXPORT(type) PANEL_IMPEXP type NCURSES_API
+#define PANEL_EXPORT_VAR(type) PANEL_IMPEXP type
+
+extern PANEL_EXPORT(WINDOW*) panel_window (const PANEL *);
+extern PANEL_EXPORT(void)    update_panels (void);
+extern PANEL_EXPORT(int)     hide_panel (PANEL *);
+extern PANEL_EXPORT(int)     show_panel (PANEL *);
+extern PANEL_EXPORT(int)     del_panel (PANEL *);
+extern PANEL_EXPORT(int)     top_panel (PANEL *);
+extern PANEL_EXPORT(int)     bottom_panel (PANEL *);
+extern PANEL_EXPORT(PANEL*)  new_panel (WINDOW *);
+extern PANEL_EXPORT(PANEL*)  panel_above (const PANEL *);
+extern PANEL_EXPORT(PANEL*)  panel_below (const PANEL *);
+extern PANEL_EXPORT(int)     set_panel_userptr (PANEL *, NCURSES_CONST void *);
+extern PANEL_EXPORT(NCURSES_CONST void*) panel_userptr (const PANEL *);
+extern PANEL_EXPORT(int)     move_panel (PANEL *, int, int);
+extern PANEL_EXPORT(int)     replace_panel (PANEL *,WINDOW *);
+extern PANEL_EXPORT(int)     panel_hidden (const PANEL *);
 
 #if NCURSES_SP_FUNCS
-extern NCURSES_EXPORT(PANEL *) ground_panel(SCREEN *);
-extern NCURSES_EXPORT(PANEL *) ceiling_panel(SCREEN *);
+extern PANEL_EXPORT(PANEL *) ground_panel(SCREEN *);
+extern PANEL_EXPORT(PANEL *) ceiling_panel(SCREEN *);
 
-extern NCURSES_EXPORT(void)    NCURSES_SP_NAME(update_panels) (SCREEN*);
+extern PANEL_EXPORT(void)    NCURSES_SP_NAME(update_panels) (SCREEN*);
 #endif
 
 #if	defined(__cplusplus)

@@ -33,18 +33,18 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_stat.c,v 1.15 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: fld_stat.c,v 1.17 2020/12/11 22:05:24 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
 |   Function      :  int set_field_status(FIELD *field, bool status)
 |   
 |   Description   :  Set or clear the 'changed' indication flag for that
-|                    fields primary buffer.
+|                    field's primary buffer.
 |
 |   Return Values :  E_OK            - success
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 set_field_status(FIELD *field, bool status)
 {
   T((T_CALLED("set_field_status(%p,%d)"), (void *)field, status));
@@ -64,12 +64,12 @@ set_field_status(FIELD *field, bool status)
 |   Function      :  bool field_status(const FIELD *field)
 |   
 |   Description   :  Retrieve the value of the 'changed' indication flag
-|                    for that fields primary buffer. 
+|                    for that field's primary buffer. 
 |
 |   Return Values :  TRUE  - buffer has been changed
 |                    FALSE - buffer has not been changed
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(bool)
+FORM_EXPORT(bool)
 field_status(const FIELD *field)
 {
   T((T_CALLED("field_status(%p)"), (const void *)field));

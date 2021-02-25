@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_inchstr.3x,v 1.19 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_inchstr.3x,v 1.21 2020/10/18 00:24:36 tom Exp $
 .TH curs_inchstr 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -53,21 +53,21 @@
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
-\fBint inchstr(chtype *chstr);\fR
+\fBint inchstr(chtype *\fP\fIchstr\fP\fB);\fR
 .br
-\fBint inchnstr(chtype *chstr, int n);\fR
+\fBint inchnstr(chtype *\fP\fIchstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint winchstr(WINDOW *win, chtype *chstr);\fR
+\fBint winchstr(WINDOW *\fP\fIwin\fP\fB, chtype *\fP\fIchstr\fP\fB);\fR
 .br
-\fBint winchnstr(WINDOW *win, chtype *chstr, int n);\fR
+\fBint winchnstr(WINDOW *\fP\fIwin\fP\fB, chtype *\fP\fIchstr\fP\fB, int \fP\fIn\fP\fB);\fR
+.sp
+\fBint mvinchstr(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype *\fP\fIchstr\fP\fB);\fR
 .br
-\fBint mvinchstr(int y, int x, chtype *chstr);\fR
+\fBint mvinchnstr(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype *\fP\fIchstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint mvinchnstr(int y, int x, chtype *chstr, int n);\fR
+\fBint mvwinchstr(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype *\fP\fIchstr\fP\fB);\fR
 .br
-\fBint mvwinchstr(WINDOW *win, int y, int x, chtype *chstr);\fR
-.br
-\fBint mvwinchnstr(WINDOW *win, int y, int x, chtype *chstr, int n);\fR
+\fBint mvwinchnstr(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype *\fP\fIchstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
 .SH DESCRIPTION
 These routines return a NULL-terminated array of \fBchtype\fR quantities,

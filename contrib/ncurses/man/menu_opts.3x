@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_opts.3x,v 1.17 2020/02/02 23:34:34 tom Exp $
+.\" $Id: menu_opts.3x,v 1.18 2020/10/17 23:46:35 tom Exp $
 .TH menu_opts 3X ""
 .SH NAME
 \fBset_menu_opts\fP,
@@ -37,14 +37,14 @@
 \fBmenu_opts\fR \- set and get menu options
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
+.sp
+\fBint set_menu_opts(MENU *\fP\fImenu\fP\fB, Menu_Options \fP\fIopts\fP\fB);\fP
 .br
-int set_menu_opts(MENU *menu, Menu_Options opts);
+\fBMenu_Options menu_opts(const MENU *\fP\fImenu\fP\fB);\fP
+.sp
+\fBint menu_opts_on(MENU *\fP\fImenu\fP\fB, Menu_Options \fP\fIopts\fP\fB);\fP
 .br
-int menu_opts_on(MENU *menu, Menu_Options opts);
-.br
-int menu_opts_off(MENU *menu, Menu_Options opts);
-.br
-Menu_Options menu_opts(const MENU *menu);
+\fBint menu_opts_off(MENU *\fP\fImenu\fP\fB, Menu_Options \fP\fIopts\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBset_menu_opts\fR sets all the given menu's option bits (menu

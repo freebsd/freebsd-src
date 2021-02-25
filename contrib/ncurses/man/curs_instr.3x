@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_instr.3x,v 1.20 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_instr.3x,v 1.22 2020/10/18 00:18:27 tom Exp $
 .TH curs_instr 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -49,21 +49,21 @@
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
-\fBint instr(char *str);\fR
+\fBint instr(char *\fP\fIstr\fP\fB);\fR
 .br
-\fBint innstr(char *str, int n);\fR
+\fBint innstr(char *\fP\fIstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint winstr(WINDOW *win, char *str);\fR
+\fBint winstr(WINDOW *\fP\fIwin\fP\fB, char *\fP\fIstr\fP\fB);\fR
 .br
-\fBint winnstr(WINDOW *win, char *str, int n);\fR
+\fBint winnstr(WINDOW *\fP\fIwin\fP\fB, char *\fP\fIstr\fP\fB, int \fP\fIn\fP\fB);\fR
+.sp
+\fBint mvinstr(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, char *\fP\fIstr\fP\fB);\fR
 .br
-\fBint mvinstr(int y, int x, char *str);\fR
+\fBint mvinnstr(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, char *\fP\fIstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint mvinnstr(int y, int x, char *str, int n);\fR
+\fBint mvwinstr(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, char *\fP\fIstr\fP\fB);\fR
 .br
-\fBint mvwinstr(WINDOW *win, int y, int x, char *str);\fR
-.br
-\fBint mvwinnstr(WINDOW *win, int y, int x, char *str, int n);\fR
+\fBint mvwinnstr(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, char *\fP\fIstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
 .SH DESCRIPTION
 These routines return a string of characters in \fIstr\fR, extracted starting

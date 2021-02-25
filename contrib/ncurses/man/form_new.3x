@@ -28,17 +28,17 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_new.3x,v 1.12 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_new.3x,v 1.15 2020/10/24 09:02:26 tom Exp $
 .TH form_new 3X ""
 .SH NAME
 \fBnew_form\fR,
 \fBfree_form\fP \- create and destroy forms
 .SH SYNOPSIS
 \fB#include <form.h>\fR
+.sp
+\fBFORM *new_form(FIELD **\fP\fIfields\fP\fB);\fP
 .br
-FORM *new_form(FIELD **fields);
-.br
-int free_form(FORM *form);
+\fBint free_form(FORM *\fP\fIform\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBnew_form\fR creates a new form connected to a specified field
@@ -48,7 +48,7 @@ The function \fBfree_form\fR disconnects \fIform\fR from its field array
 and frees the storage allocated for the form.
 .SH RETURN VALUE
 The function \fBnew_form\fR returns \fBNULL\fR on error.
-It sets errno according to the function's success:
+It sets \fBerrno\fP according to the function's success:
 .TP 5
 .B E_OK
 The routine succeeded.

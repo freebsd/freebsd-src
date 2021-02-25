@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_driver.c,v 1.34 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: m_driver.c,v 1.36 2020/12/12 00:38:02 tom Exp $")
 
 /* Macros */
 
@@ -115,9 +115,9 @@ Is_Sub_String(
 |   Return Values :  E_OK        - an item matching the pattern was found
 |                    E_NO_MATCH  - nothing found
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+MENU_EXPORT(int)
 _nc_Match_Next_Character_In_Item_Name
-(MENU * menu, int ch, ITEM ** item)
+(MENU *menu, int ch, ITEM **item)
 {
   bool found = FALSE, passed = FALSE;
   int idx, last;
@@ -209,8 +209,8 @@ _nc_Match_Next_Character_In_Item_Name
 |                    E_BAD_STATE     - menu is in user hook routine
 |                    E_NOT_POSTED    - menu is not posted
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
-menu_driver(MENU * menu, int c)
+MENU_EXPORT(int)
+menu_driver(MENU *menu, int c)
 {
 #define NAVIGATE(dir) \
   if (!item->dir)\

@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: user_caps.5,v 1.12 2020/02/02 23:34:34 tom Exp $
+.\" $Id: user_caps.5,v 1.16 2020/12/19 21:26:11 tom Exp $
 .TH user_caps 5
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -409,16 +409,29 @@ given the list of values,
 ask \fBkey_defined\fP(3X) for the \fIkey-code\fP which
 would be returned for those keys by \fBwgetch\fP(3X).
 .PP
+.\"
 .SH PORTABILITY
 .PP
 The \*(``\-x\*('' extension feature of \fB@TIC@\fP and \fB@INFOCMP@\fP
 has been adopted in NetBSD curses.
 That implementation stores user-defined capabilities,
 but makes no use of these capabilities itself.
+.\"
 .SH SEE ALSO
 .PP
-\fB@TIC@\fR(1M),
-\fB@INFOCMP@\fR(1M).
+\fB@INFOCMP@\fR(1M),
+\fB@TIC@\fR(1M).
+.PP
+The terminal database section
+.I "NCURSES USER-DEFINABLE CAPABILITIES"
+summarizes commonly-used user-defined capabilities
+which are used in the terminal descriptions.
+Some of those features are mentioned in \fBscreen\fR(1) or \fBtmux\fR(1).
+.PP
+.I "XTerm Control Sequences"
+provides further information on the \fBxterm\fP features
+which are used in these extended capabilities.
+.\"
 .SH AUTHORS
 .PP
 Thomas E. Dickey

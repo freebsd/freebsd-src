@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_val.c,v 1.16 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: m_item_val.c,v 1.18 2020/12/12 00:38:08 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -53,8 +53,8 @@ MODULE_ID("$Id: m_item_val.c,v 1.16 2020/02/02 23:34:34 tom Exp $")
 |   Return Values :  E_OK              - success
 |                    E_REQUEST_DENIED  - not selectable or single valued menu
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
-set_item_value(ITEM * item, bool value)
+MENU_EXPORT(int)
+set_item_value(ITEM *item, bool value)
 {
   MENU *menu;
 
@@ -95,8 +95,8 @@ set_item_value(ITEM * item, bool value)
 |   Return Values :  TRUE   - if item is selected
 |                    FALSE  - if item is not selected
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(bool)
-item_value(const ITEM * item)
+MENU_EXPORT(bool)
+item_value(const ITEM *item)
 {
   T((T_CALLED("item_value(%p)"), (const void *)item));
   returnBool((Normalize_Item(item)->value) ? TRUE : FALSE);

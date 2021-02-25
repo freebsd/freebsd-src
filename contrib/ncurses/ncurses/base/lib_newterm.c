@@ -49,7 +49,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: lib_newterm.c,v 1.102 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_newterm.c,v 1.103 2020/09/05 21:34:04 tom Exp $")
 
 #ifdef USE_TERM_DRIVER
 #define NumLabels      InfoOf(SP_PARM).numlabels
@@ -88,6 +88,12 @@ _nc_initscr(NCURSES_SP_DCL0)
 	buf.c_oflag &= (unsigned) ~(ONLCR);
 #elif HAVE_SGTTY_H
 	buf.sg_flags &= ~(ECHO | CRMOD);
+#elif defined(EXP_WIN32_DRIVER)
+	buf.dwFlagIn = CONMODE_IN_DEFAULT;
+	buf.dwFlagOut = CONMODE_OUT_DEFAULT | VT_FLAG_OUT;
+	if (WINCONSOLE.isTermInfoConsole) {
+	    buf.dwFlagIn |= VT_FLAG_IN;
+	}
 #else
 	memset(&buf, 0, sizeof(buf));
 #endif
@@ -194,6 +200,11 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
 
     current = CURRENT_SCREEN;
     its_term = (current ? current->_term : 0);
+
+#if defined(EXP_WIN32_DRIVER)
+    _setmode(fileno(_ifp), _O_BINARY);
+    _setmode(fileno(_ofp), _O_BINARY);
+#endif
 
     INIT_TERM_DRIVER();
     /* this loads the capability entry, then sets LINES and COLS */

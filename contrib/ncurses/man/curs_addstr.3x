@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_addstr.3x,v 1.20 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_addstr.3x,v 1.23 2020/10/17 23:11:02 tom Exp $
 .TH curs_addstr 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -61,7 +61,7 @@
 \fBint waddstr(WINDOW *\fR\fIwin\fR\fB, const char *\fR\fIstr\fR\fB);\fR
 .br
 \fBint waddnstr(WINDOW *\fR\fIwin\fR\fB, const char *\fR\fIstr\fR\fB, int \fR\fIn\fR\fB);\fR
-.br
+.sp
 \fBint mvaddstr(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const char *\fR\fIstr\fR\fB);\fR
 .br
 \fBint mvaddnstr(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const char *\fR\fIstr\fR\fB, int \fR\fIn\fR\fB);\fR
@@ -73,14 +73,14 @@
 .SH DESCRIPTION
 These functions write the (null-terminated) character string
 \fIstr\fR on the given window.
-It is similar to calling \fBwaddch\fR once for each character in the string.
+It is similar to calling \fBwaddch\fR once for each byte in the string.
 .PP
 The \fImv\fR functions perform cursor movement once, before writing any
 characters.
 Thereafter, the cursor is advanced as a side-effect of writing to the window.
 .PP
 The four functions with \fIn\fR as the last argument
-write at most \fIn\fR characters,
+write at most \fIn\fR bytes,
 or until a terminating null is reached.
 If \fIn\fR is \-1, then the entire string will be added.
 .SH RETURN VALUE
@@ -98,6 +98,18 @@ if the corresponding calls to \fBwaddch\fP return an error.
 Functions with a \*(``mv\*('' prefix first perform a cursor movement using
 \fBwmove\fP, and return an error if the position is outside the window,
 or if the window pointer is null.
+If an error is returned by the \fBwmove\fP,
+no characters are added to the window.
+.PP
+If an error is returned by \fBwaddch\fP
+(e.g.,
+because the window is not large enough,
+or an illegal byte sequence was detected)
+only part of the string may be added.
+Aside from that,
+there is a special case in \fBwaddch\fP where an error may be
+returned after successfully writing a character to the lower-right corner
+of a window when \fBscrollok\fP is disabled.
 .SH NOTES
 All of these functions except \fBwaddnstr\fR may be macros.
 .SH PORTABILITY

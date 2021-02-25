@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: mitem_opts.3x,v 1.15 2020/02/02 23:34:34 tom Exp $
+.\" $Id: mitem_opts.3x,v 1.16 2020/10/17 23:52:26 tom Exp $
 .TH mitem_opts 3X ""
 .SH NAME
 \fBset_item_opts\fP,
@@ -37,14 +37,14 @@
 \fBitem_opts\fR \- set and get menu item options
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
+.sp
+\fBint set_item_opts(ITEM *\fP\fIitem\fP\fB, Item_Options \fP\fIopts\fP\fB);\fP
 .br
-int set_item_opts(ITEM *item, Item_Options opts);
+\fBItem_Options item_opts(const ITEM *\fP\fIitem\fP\fB);\fP
+.sp
+\fBint item_opts_on(ITEM *\fP\fIitem\fP\fB, Item_Options \fP\fIopts\fP\fB);\fP
 .br
-int item_opts_on(ITEM *item, Item_Options opts);
-.br
-int item_opts_off(ITEM *item, Item_Options opts);
-.br
-Item_Options item_opts(const ITEM *item);
+\fBint item_opts_off(ITEM *\fP\fIitem\fP\fB, Item_Options \fP\fIopts\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBset_item_opts\fR sets all the given item's option bits (menu

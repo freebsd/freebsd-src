@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2021 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -37,7 +37,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_addch.c,v 1.134 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_addch.c,v 1.137 2021/02/20 22:24:34 tom Exp $")
 
 static const NCURSES_CH_T blankchar = NewChar(BLANK_TEXT);
 
@@ -207,6 +207,20 @@ _nc_build_wch(WINDOW *win, ARG_CH_T ch)
     }
     WINDOW_EXT(win, addch_x) = x;
     WINDOW_EXT(win, addch_y) = y;
+
+    /*
+     * If the background character is a wide-character, that may interfere with
+     * processing multibyte characters in this function.
+     */
+    if (!is8bits(CharOf(CHDEREF(ch)))) {
+	if (WINDOW_EXT(win, addch_used) != 0) {
+	    /* discard the incomplete multibyte character */
+	    WINDOW_EXT(win, addch_used) = 0;
+	    TR(TRACE_VIRTPUT,
+	       ("Alert discarded incomplete multibyte"));
+	}
+	return 1;
+    }
 
     init_mb(state);
     buffer[WINDOW_EXT(win, addch_used)] = (char) CharOf(CHDEREF(ch));

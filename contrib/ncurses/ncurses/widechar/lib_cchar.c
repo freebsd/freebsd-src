@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2019,2020 Thomas E. Dickey                                     *
+ * Copyright 2019-2020,2021 Thomas E. Dickey                                *
  * Copyright 2001-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -35,8 +35,9 @@
 */
 
 #include <curses.priv.h>
+#include <wchar.h>
 
-MODULE_ID("$Id: lib_cchar.c,v 1.33 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_cchar.c,v 1.35 2021/01/17 00:04:08 tom Exp $")
 
 /* 
  * The SuSv2 description leaves some room for interpretation.  We'll assume wch
@@ -55,7 +56,7 @@ setcchar(cchar_t *wcval,
     int color_pair = pair_arg;
     unsigned len;
 
-    TR(TRACE_CCALLS, (T_CALLED("setcchar(%p,%s,%lu,%d,%p)"),
+    TR(TRACE_CCALLS, (T_CALLED("setcchar(%p,%s,attrs=%lu,pair=%d,%p)"),
 		      (void *) wcval, _nc_viswbuf(wch),
 		      (unsigned long) attrs, color_pair, opts));
 
@@ -113,7 +114,12 @@ getcchar(const cchar_t *wcval,
 		      (void *) pair_arg,
 		      opts));
 
-    if (opts == NULL && wcval != NULL) {
+#if !NCURSES_EXT_COLORS
+    if (opts != NULL) {
+	;			/* empty */
+    } else
+#endif
+    if (wcval != NULL) {
 	wchar_t *wp;
 	int len;
 
@@ -130,6 +136,8 @@ getcchar(const cchar_t *wcval,
 	} else if (attrs == 0 || pair_arg == 0) {
 	    code = ERR;
 	} else if (len >= 0) {
+	    TR(TRACE_CCALLS, ("copy %d wchars, first is %s", len,
+			      _tracecchar_t(wcval)));
 	    *attrs = AttrOf(*wcval) & A_ATTRIBUTES;
 	    color_pair = GetPair(*wcval);
 	    get_extended_pair(opts, color_pair);

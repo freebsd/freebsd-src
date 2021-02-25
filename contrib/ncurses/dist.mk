@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright 2018-2019,2020 Thomas E. Dickey                                  #
+# Copyright 2018-2020,2021 Thomas E. Dickey                                  #
 # Copyright 1998-2017,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -26,7 +26,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: dist.mk,v 1.1335 2020/02/15 09:30:48 tom Exp $
+# $Id: dist.mk,v 1.1401 2021/02/20 12:06:34 tom Exp $
 # Makefile for creating ncurses distributions.
 #
 # This only needs to be used directly as a makefile by developers, but
@@ -38,7 +38,7 @@ SHELL = /bin/sh
 # These define the major/minor/patch versions of ncurses.
 NCURSES_MAJOR = 6
 NCURSES_MINOR = 2
-NCURSES_PATCH = 20200215
+NCURSES_PATCH = 20210220
 
 # We don't append the patch to the version, since this only applies to releases
 VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
@@ -97,7 +97,7 @@ doc/hackguide.doc: doc/html/hackguide.html
 # If that conflicts with the --without-manpage-renames, you can install those
 # in a different location using the --with-install-prefix option of the
 # configure script.
-MANPROG	= tbl | nroff -mandoc -rLL=78n -rLT=78n -Tascii
+MANPROG	= tbl | nroff -mandoc -rHY=0 -rLL=78n -rLT=78n -Tascii
 
 manhtml:
 	@for f in doc/html/man/*.html; do \

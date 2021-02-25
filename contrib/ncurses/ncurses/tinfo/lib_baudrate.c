@@ -84,7 +84,7 @@
 #undef USE_OLD_TTY
 #endif /* USE_OLD_TTY */
 
-MODULE_ID("$Id: lib_baudrate.c,v 1.44 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_baudrate.c,v 1.45 2020/09/05 21:15:32 tom Exp $")
 
 /*
  *	int
@@ -99,7 +99,8 @@ struct speed {
     int actual_speed;		/* the actual speed */
 };
 
-#define DATA(number) { (NCURSES_OSPEED)B##number, number }
+#if !defined(EXP_WIN32_DRIVER)
+#define DATA(number) { B##number, number }
 
 static struct speed const speeds[] =
 {
@@ -188,10 +189,16 @@ static struct speed const speeds[] =
 #endif
 #endif
 };
+#endif /* !EXP_WIN32_DRIVER */
 
 NCURSES_EXPORT(int)
 _nc_baudrate(int OSpeed)
 {
+#if defined(EXP_WIN32_DRIVER)
+    /* On Windows this is a noop */
+    (void) OSpeed;
+    return (OK);
+#else
 #if !USE_REENTRANT
     static int last_OSpeed;
     static int last_baudrate;
@@ -230,13 +237,16 @@ _nc_baudrate(int OSpeed)
 #endif
     }
     return (result);
+#endif /* !EXP_WIN32_DRIVER */
 }
 
 NCURSES_EXPORT(int)
 _nc_ospeed(int BaudRate)
 {
     int result = 1;
-
+#if defined(EXP_WIN32_DRIVER)
+    (void) BaudRate;
+#else
     if (BaudRate >= 0) {
 	unsigned i;
 
@@ -247,6 +257,7 @@ _nc_ospeed(int BaudRate)
 	    }
 	}
     }
+#endif
     return (result);
 }
 
@@ -257,6 +268,9 @@ NCURSES_SP_NAME(baudrate) (NCURSES_SP_DCL0)
 
     T((T_CALLED("baudrate(%p)"), (void *) SP_PARM));
 
+#if defined(EXP_WIN32_DRIVER)
+    result = OK;
+#else
     /*
      * In debugging, allow the environment symbol to override when we're
      * redirecting to a file, so we can construct repeatable test-cases
@@ -290,7 +304,7 @@ NCURSES_SP_NAME(baudrate) (NCURSES_SP_DCL0)
     } else {
 	result = ERR;
     }
-
+#endif /* !EXP_WIN32_DRIVER */
     returnCode(result);
 }
 

@@ -40,7 +40,7 @@
 #include "termsort.c"		/* this C file is generated */
 #include <parametrized.h>	/* so is this */
 
-MODULE_ID("$Id: dump_entry.c,v 1.176 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: dump_entry.c,v 1.181 2020/12/26 18:25:18 tom Exp $")
 
 #define DISCARD(string) string = ABSENT_STRING
 #define PRINTF (void) printf
@@ -747,7 +747,7 @@ leading_DYN(DYNBUF * buffer, const char *leading)
 }
 
 bool
-has_params(const char *src)
+has_params(const char *src, bool formatting)
 {
     bool result = FALSE;
     int len = (int) strlen(src);
@@ -765,7 +765,11 @@ has_params(const char *src)
 	}
     }
     if (!ifthen) {
-	result = ((len > 50) && params);
+	if (formatting) {
+	    result = ((len > 50) && params);
+	} else {
+	    result = params;
+	}
     }
     return result;
 }
@@ -774,7 +778,7 @@ static char *
 fmt_complex(TERMTYPE2 *tterm, const char *capability, char *src, int level)
 {
     bool percent = FALSE;
-    bool params = has_params(src);
+    bool params = has_params(src, TRUE);
 
     while (*src != '\0') {
 	switch (*src) {
@@ -801,7 +805,7 @@ fmt_complex(TERMTYPE2 *tterm, const char *capability, char *src, int level)
 		    strncpy_DYN(&tmpbuf, "%", (size_t) 1);
 		    strncpy_DYN(&tmpbuf, src, (size_t) 1);
 		    src++;
-		    params = has_params(src);
+		    params = has_params(src, TRUE);
 		    if (!params && *src != '\0' && *src != '%') {
 			strncpy_DYN(&tmpbuf, "\n", (size_t) 1);
 			indent_DYN(&tmpbuf, level + 1);
@@ -1110,7 +1114,7 @@ fmt_entry(TERMTYPE2 *tterm,
 			      ? parametrized[i]
 			      : ((*srccap == 'k')
 				 ? 0
-				 : has_params(srccap)));
+				 : has_params(srccap, FALSE)));
 		char *cv = _nc_infotocap(name, srccap, params);
 
 		if (cv == 0) {
@@ -1125,7 +1129,7 @@ fmt_entry(TERMTYPE2 *tterm,
 			char *s = srccap, *d = buffer;
 			int need = 3 + (int) strlen(name);
 			while ((*d = *s++) != 0) {
-			    if ((d - buffer + 1) >= (int) sizeof(buffer)) {
+			    if ((d - buffer + 2) >= (int) sizeof(buffer)) {
 				fprintf(stderr,
 					"%s: value for %s is too long\n",
 					_nc_progname,
@@ -1343,7 +1347,7 @@ kill_labels(TERMTYPE2 *tterm, int target)
     int n;
     int result = 0;
     char *cap;
-    char name[10];
+    char name[20];
 
     for (n = 0; n <= 10; ++n) {
 	_nc_SPRINTF(name, _nc_SLIMIT(sizeof(name)) "lf%d", n);
@@ -1369,7 +1373,7 @@ kill_fkeys(TERMTYPE2 *tterm, int target)
     int n;
     int result = 0;
     char *cap;
-    char name[10];
+    char name[20];
 
     for (n = 60; n >= 0; --n) {
 	_nc_SPRINTF(name, _nc_SLIMIT(sizeof(name)) "kf%d", n);

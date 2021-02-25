@@ -28,7 +28,7 @@
 #
 # Author: Thomas E. Dickey
 #
-# $Id: Caps-ncurses,v 1.8 2020/02/02 23:34:34 tom Exp $
+# $Id: Caps-ncurses,v 1.10 2020/09/29 19:05:19 tom Exp $
 #
 #############################################################################
 #
@@ -342,6 +342,7 @@ infoalias	ksel	kslt	IBM	key_select
 # are not listed here.
 #
 used_by ncurses
+userdef	CO 	num	n	number of indexed colors overlaying RGB space
 userdef	E3	str	-	clears the terminal's scrollback buffer.
 userdef	RGB	bool	-	use direct colors with 1/3 of color-pair bits per color.
 userdef	RGB	num	n	use direct colors with given number of bits per color.
@@ -360,6 +361,15 @@ userdef	xm	str	nnnsn	mouse response, p5 = y-ordinate starting region
 userdef	xm	str	nnnsnn	mouse response, p6 = x-ordinate starting region
 userdef	xm	str	nnnsnnn	mouse response, p7 = y-ordinate ending region
 userdef	xm	str	nnnsnnnn mouse response, p8 = x-ordinate ending region
+#
+used_by mintty
+userdef Rmol	str	-	remove overline-mode
+userdef Smol	str	-	set overline-mode
+userdef blink2	str	-	turn on rapid blinking
+userdef norm	str	-	turn off bold and half-bright mode
+userdef opaq	str	-	turn off blank mode
+userdef	setal	str	n	set underline-color
+userdef smul2	str	-	begin double underline mode
 #
 used_by screen
 userdef	AN	bool	-	turn on autonuke.

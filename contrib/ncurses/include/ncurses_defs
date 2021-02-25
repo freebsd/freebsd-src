@@ -1,4 +1,4 @@
-# $Id: ncurses_defs,v 1.92 2020/02/02 23:34:34 tom Exp $
+# $Id: ncurses_defs,v 1.95 2020/08/01 19:48:21 tom Exp $
 ##############################################################################
 # Copyright 2018-2019,2020 Thomas E. Dickey                                  #
 # Copyright 2000-2016,2017 Free Software Foundation, Inc.                    #
@@ -63,6 +63,8 @@ HAVE_DERWIN	1
 HAVE_DIRENT_H
 HAVE_DUPWIN	1
 HAVE_ERRNO
+HAVE_EXIT_CURSES	1
+HAVE_EXIT_TERMINFO	1
 HAVE_FCNTL_H
 HAVE_FILTER	1
 HAVE_FORM_H
@@ -120,7 +122,7 @@ HAVE_NANOSLEEP
 HAVE_NC_ALLOC_H
 HAVE_NEWPAD	1
 HAVE_PANEL_H
-HAVE_PCRE2_POSIX_H
+HAVE_PCRE2POSIX_H
 HAVE_PCREPOSIX_H
 HAVE_POLL
 HAVE_POLL_H

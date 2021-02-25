@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_win.c,v 1.17 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: frm_win.c,v 1.18 2020/05/24 01:40:20 anonymous.maarten Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -44,7 +44,7 @@ MODULE_ID("$Id: frm_win.c,v 1.17 2020/02/02 23:34:34 tom Exp $")
 |   Return Values :  E_OK       - success
 |                    E_POSTED   - form is posted
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 set_form_win(FORM *form, WINDOW *win)
 {
   T((T_CALLED("set_form_win(%p,%p)"), (void *)form, (void *)win));
@@ -73,7 +73,7 @@ set_form_win(FORM *form, WINDOW *win)
 |
 |   Return Values :  The pointer to the Window or stdscr if there is none.
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(WINDOW *)
+FORM_EXPORT(WINDOW *)
 form_win(const FORM *form)
 {
   WINDOW *result;

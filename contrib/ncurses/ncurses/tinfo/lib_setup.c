@@ -49,7 +49,7 @@
 #include <locale.h>
 #endif
 
-MODULE_ID("$Id: lib_setup.c,v 1.207 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_setup.c,v 1.212 2020/09/09 19:43:00 juergen Exp $")
 
 /****************************************************************************
  *
@@ -305,11 +305,19 @@ _nc_get_screensize(SCREEN *sp,
     bool useEnv = _nc_prescreen.use_env;
     bool useTioctl = _nc_prescreen.use_tioctl;
 
+#ifdef EXP_WIN32_DRIVER
+    /* If we are here, then Windows console is used in terminfo mode.
+       We need to figure out the size using the console API
+     */
+    _nc_console_size(linep, colp);
+    T(("screen size: winconsole lines = %d columns = %d", *linep, *colp));
+#else
     /* figure out the size of the screen */
     T(("screen size: terminfo lines = %d columns = %d", lines, columns));
 
     *linep = (int) lines;
     *colp = (int) columns;
+#endif
 
 #if NCURSES_SP_FUNCS
     if (sp) {
@@ -566,7 +574,7 @@ NCURSES_EXPORT(int)
 _nc_unicode_locale(void)
 {
     int result = 0;
-#if defined(_WIN32) && USE_WIDEC_SUPPORT
+#if defined(_NC_WINDOWS) && USE_WIDEC_SUPPORT
     result = 1;
 #elif HAVE_LANGINFO_CODESET
     char *env = nl_langinfo(CODESET);
@@ -655,13 +663,20 @@ TINFO_SETUP_TERM(TERMINAL **tp,
 
     if (tname == 0) {
 	tname = getenv("TERM");
-	if (tname == 0 || *tname == '\0') {
-#ifdef USE_TERM_DRIVER
+#if defined(EXP_WIN32_DRIVER)
+	if (!VALID_TERM_ENV(tname, NO_TERMINAL)) {
+	    T(("Failure with TERM=%s", NonNull(tname)));
+	    ret_error0(TGETENT_ERR, "TERM environment variable not set.\n");
+	}
+#elif defined(USE_TERM_DRIVER)
+	if (!NonEmpty(tname))
 	    tname = "unknown";
 #else
+	if (!NonEmpty(tname)) {
+	    T(("Failure with TERM=%s", NonNull(tname)));
 	    ret_error0(TGETENT_ERR, "TERM environment variable not set.\n");
-#endif
 	}
+#endif
     }
     myname = strdup(tname);
 
@@ -680,6 +695,10 @@ TINFO_SETUP_TERM(TERMINAL **tp,
      */
     if (Filedes == STDOUT_FILENO && !NC_ISATTY(Filedes))
 	Filedes = STDERR_FILENO;
+#if defined(EXP_WIN32_DRIVER)
+    if (Filedes != STDERR_FILENO && NC_ISATTY(Filedes))
+	_setmode(Filedes, _O_BINARY);
+#endif
 
     /*
      * Check if we have already initialized to use this terminal.  If so, we

@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_color.3x,v 1.62 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_color.3x,v 1.63 2020/10/24 09:35:23 tom Exp $
 .TH curs_color 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -66,31 +66,31 @@
 .br
 \fBbool can_change_color(void);\fR
 .sp
-\fBint init_pair(short pair, short f, short b);\fR
+\fBint init_pair(short \fP\fIpair\fP\fB, short \fP\fIf\fP\fB, short \fP\fIb\fP\fB);\fR
 .br
-\fBint init_color(short color, short r, short g, short b);\fR
+\fBint init_color(short \fP\fIcolor\fP\fB, short \fP\fIr\fP\fB, short \fP\fIg\fP\fB, short \fP\fIb\fP\fB);\fR
 .br
 /* extensions */
 .br
-\fBint init_extended_pair(int pair, int f, int b);\fR
+\fBint init_extended_pair(int \fP\fIpair\fP\fB, int \fP\fIf\fP\fB, int \fP\fIb\fP\fB);\fR
 .br
-\fBint init_extended_color(int color, int r, int g, int b);\fR
+\fBint init_extended_color(int \fP\fIcolor\fP\fB, int \fP\fIr\fP\fB, int \fP\fIg\fP\fB, int \fP\fIb\fP\fB);\fR
 .sp
-\fBint color_content(short color, short *r, short *g, short *b);\fR
+\fBint color_content(short \fP\fIcolor\fP\fB, short *\fP\fIr\fP\fB, short *\fP\fIg\fP\fB, short *\fP\fIb\fP\fB);\fR
 .br
-\fBint pair_content(short pair, short *f, short *b);\fR
+\fBint pair_content(short \fP\fIpair\fP\fB, short *\fP\fIf\fP\fB, short *\fP\fIb\fP\fB);\fR
 .br
 /* extensions */
 .br
-\fBint extended_color_content(int color, int *r, int *g, int *b);\fR
+\fBint extended_color_content(int \fP\fIcolor\fP\fB, int *\fP\fIr\fP\fB, int *\fP\fIg\fP\fB, int *\fP\fIb\fP\fB);\fR
 .br
-\fBint extended_pair_content(int pair, int *f, int *b);\fR
+\fBint extended_pair_content(int \fP\fIpair\fP\fB, int *\fP\fIf\fP\fB, int *\fP\fIb\fP\fB);\fR
 .sp
 /* extensions */
 .br
 \fBvoid reset_color_pairs(void);\fR
 .sp
-\fBint COLOR_PAIR(int n);\fR
+\fBint COLOR_PAIR(int \fP\fIn\fP\fB);\fR
 .br
 \fBPAIR_NUMBER(\fR\fIattrs\fR\fB);\fP
 .br

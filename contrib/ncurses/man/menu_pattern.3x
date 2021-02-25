@@ -27,17 +27,17 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_pattern.3x,v 1.18 2020/02/02 23:34:34 tom Exp $
+.\" $Id: menu_pattern.3x,v 1.21 2020/10/18 00:41:14 tom Exp $
 .TH menu_pattern 3X ""
 .SH NAME
 \fBset_menu_pattern\fP,
 \fBmenu_pattern\fR \- set and get a menu's pattern buffer
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
+.sp
+\fBint set_menu_pattern(MENU *\fP\fImenu\fP\fB, const char *\fP\fIpattern\fP\fB);\fP
 .br
-int set_menu_pattern(MENU *menu, const char *pattern);
-.br
-char *menu_pattern(const MENU *menu);
+\fBchar *menu_pattern(const MENU *\fP\fImenu\fP\fB);\fP
 .br
 .SH DESCRIPTION
 Every menu has an associated pattern match buffer.
@@ -57,7 +57,7 @@ The function \fBmenu_pattern\fR returns a pointer,
 which is \fBNULL\fR if the \fImenu\fP parameter is \fBNULL\fP.
 Otherwise, it is a pointer to a string which is empty
 if no pattern has been set.
-It does not set errno.
+It does not set \fBerrno\fP.
 .PP
 The function \fBset_menu_pattern\fR may return the following error codes:
 .TP 5

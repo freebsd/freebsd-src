@@ -2,7 +2,7 @@
 #
 # MKlib_gen.sh -- generate sources from curses.h macro definitions
 #
-# ($Id: MKlib_gen.sh,v 1.64 2020/02/15 14:58:02 tom Exp $)
+# ($Id: MKlib_gen.sh,v 1.68 2020/08/23 00:02:29 tom Exp $)
 #
 ##############################################################################
 # Copyright 2018,2020 Thomas E. Dickey                                       #
@@ -73,12 +73,12 @@ USE="$3"
 # appears in gcc 5.0 and (with modification) in 5.1, making it necessary to
 # determine if we are using gcc, and if so, what version because the proposed
 # solution uses a nonstandard option.
-PRG=`echo "$1" | $AWK '{ sub(/^[ 	]*/,""); sub(/[ 	].*$/, ""); print; }' || exit 0`
+PRG=`echo "$1" | "$AWK" '{ sub(/^[ 	]*/,""); sub(/[ 	].*$/, ""); print; }' || exit 0`
 FSF=`("$PRG" --version 2>/dev/null || exit 0) | fgrep "Free Software Foundation" | head -n 1`
 ALL=`"$PRG" -dumpversion 2>/dev/null || exit 0`
-ONE=`echo "$ALL" | sed -e 's/\..*$//'`
+ONE=`echo "$ALL" | sed -e 's/[^0-9].*$//'`
 if test -n "$FSF" && test -n "$ALL" && test -n "$ONE" ; then
-	if test $ONE -ge 5 ; then
+	if test "$ONE" -ge 5 ; then
 		echo ".. adding -P option to work around $PRG $ALL" >&2
 		preprocessor="$preprocessor -P"
 	fi
@@ -96,7 +96,6 @@ trap "rm -f $ED1 $ED2 $ED3 $ED4 $AW1 $AW2 $TMP" 0 1 2 3 15
 
 ALL=$USE
 if test "$USE" = implemented ; then
-	CALL="call_"
 	cat >$ED1 <<EOF1
 /^extern.*implemented/{
 	h
@@ -119,7 +118,6 @@ if test "$USE" = implemented ; then
 }
 EOF1
 else
-	CALL=""
 	cat >$ED1 <<EOF1
 /^extern.*${ALL}/{
 	h
@@ -178,7 +176,7 @@ EOF3
 
 if test "$USE" = generated ; then
 cat >$ED4 <<EOF
-	s/^\(.*\) \(.*\) (\(.*\))\$/NCURSES_EXPORT(\1) (\2) (\3)/
+	s/^\(.*\) \(.*\) (\(.*\))\$/NCURSES_EXPORT(\1) \2 (\3)/
 	/attr_[sg]et.* z)/s,z),z GCC_UNUSED),
 EOF
 else
@@ -433,6 +431,7 @@ BEGIN		{
 		print "#include <ncurses_cfg.h>"
 		print ""
 		print "#undef NCURSES_NOMACROS	/* _this_ file uses macros */"
+		print "#define NCURSES_NOMACROS 1"
 		print ""
 		print "#include <curses.priv.h>"
 		print ""
@@ -495,7 +494,7 @@ EOF
 sed -n -f $ED1 \
 | sed -e 's/NCURSES_EXPORT(\(.*\)) \(.*\) (\(.*\))/\1 \2(\3)/' \
 | sed -f $ED2 \
-| $AWK -f $AW1 using=$USE \
+| "$AWK" -f $AW1 using="$USE" \
 | sed \
 	-e 's/ [ ]*$//g' \
 	-e 's/^\([a-zA-Z_][a-zA-Z_]*[ *]*\)/\1 gen_/' \
@@ -507,7 +506,7 @@ $preprocessor $TMP 2>/dev/null \
 	-e 's/  / /g' \
 	-e 's/^ //' \
 	-e 's/_Bool/NCURSES_BOOL/g' \
-| $AWK -f $AW2 \
+| "$AWK" -f $AW2 \
 | sed -f $ED3 \
 | sed \
 	-e 's/^.*T_CALLED.*returnCode( \([a-z].*) \));/	return \1;/' \

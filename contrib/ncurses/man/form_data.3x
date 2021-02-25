@@ -28,17 +28,17 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_data.3x,v 1.13 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_data.3x,v 1.15 2020/10/18 00:15:00 tom Exp $
 .TH form_data 3X ""
 .SH NAME
 \fBdata_ahead\fP,
 \fBdata_behind\fR \- test for off-screen data in given forms
 .SH SYNOPSIS
 \fB#include <form.h>\fR
+.sp
+\fBbool data_ahead(const FORM *\fP\fIform\fP\fB);\fP
 .br
-bool data_ahead(const FORM *form);
-.br
-bool data_behind(const FORM *form);
+\fBbool data_behind(const FORM *\fP\fIform\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBdata_ahead\fR tests whether there is off-screen data

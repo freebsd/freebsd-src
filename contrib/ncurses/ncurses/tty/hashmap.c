@@ -74,7 +74,7 @@ AUTHOR
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: hashmap.c,v 1.68 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: hashmap.c,v 1.69 2020/05/31 17:50:48 tom Exp $")
 
 #ifdef HASHDEBUG
 
@@ -88,7 +88,7 @@ MODULE_ID("$Id: hashmap.c,v 1.68 2020/02/02 23:34:34 tom Exp $")
 # undef screen_lines
 # define screen_lines(sp) MAXLINES
 # define TEXTWIDTH(sp)	1
-int oldnums[MAXLINES], reallines[MAXLINES];
+static int oldnums[MAXLINES], reallines[MAXLINES];
 static NCURSES_CH_T oldtext[MAXLINES][TEXTWIDTH(sp)];
 static NCURSES_CH_T newtext[MAXLINES][TEXTWIDTH(sp)];
 # define OLDNUM(sp,n)	oldnums[n]

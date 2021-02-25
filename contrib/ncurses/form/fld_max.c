@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_max.c,v 1.16 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: fld_max.c,v 1.17 2020/05/24 01:40:20 anonymous.maarten Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -45,7 +45,7 @@ MODULE_ID("$Id: fld_max.c,v 1.16 2020/02/02 23:34:34 tom Exp $")
 |   Return Values :  E_OK           - success
 |                    E_BAD_ARGUMENT - invalid argument
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 set_max_field(FIELD *field, int maxgrow)
 {
   T((T_CALLED("set_max_field(%p,%d)"), (void *)field, maxgrow));

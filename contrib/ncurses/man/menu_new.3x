@@ -28,17 +28,17 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_new.3x,v 1.15 2020/02/02 23:34:34 tom Exp $
+.\" $Id: menu_new.3x,v 1.18 2020/10/24 08:57:51 tom Exp $
 .TH menu_new 3X ""
 .SH NAME
 \fBnew_menu\fP,
 \fBfree_menu\fR \- create and destroy menus
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
+.sp
+\fBMENU *new_menu(ITEM **\fP\fIitems\fP\fB);\fP
 .br
-MENU *new_menu(ITEM **items);
-.br
-int free_menu(MENU *menu);
+\fBint free_menu(MENU *\fP\fImenu\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBnew_menu\fR creates a new menu connected to a specified item
@@ -48,7 +48,7 @@ The function \fBfree_menu\fR disconnects \fImenu\fR from its item array
 and frees the storage allocated for the menu.
 .SH RETURN VALUE
 The function \fBnew_menu\fR returns \fBNULL\fR on error.
-It sets errno according to the function's failure:
+It sets \fBerrno\fP according to the function's failure:
 .TP 5
 .B E_NOT_CONNECTED
 No items are connected to the menu.

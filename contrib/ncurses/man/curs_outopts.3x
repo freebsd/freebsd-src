@@ -27,10 +27,14 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_outopts.3x,v 1.30 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_outopts.3x,v 1.33 2020/10/03 22:04:09 tom Exp $
 .TH curs_outopts 3X ""
 .na
 .hy 0
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
 .SH NAME
 \fBclearok\fR,
 \fBidlok\fR,
@@ -39,9 +43,7 @@
 \fBleaveok\fR,
 \fBsetscrreg\fR,
 \fBwsetscrreg\fR,
-\fBscrollok\fR,
-\fBnl\fR,
-\fBnonl\fR \- \fBcurses\fR output options
+\fBscrollok\fR \- \fBcurses\fR output options
 .ad
 .hy
 .SH SYNOPSIS
@@ -57,17 +59,14 @@
 .br
 \fBint leaveok(WINDOW *\fP\fIwin\fP\fB, bool \fP\fIbf\fP\fB);\fR
 .br
+\fBint scrollok(WINDOW *\fP\fIwin\fP\fB, bool \fP\fIbf\fP\fB);\fR
+.sp
 \fBint setscrreg(int \fP\fItop\fP\fB, int \fP\fIbot\fP\fB);\fR
 .br
 \fBint wsetscrreg(WINDOW *\fP\fIwin\fP\fB, int \fP\fItop\fP\fB, int \fP\fIbot\fP\fB);\fR
 .br
-\fBint scrollok(WINDOW *\fP\fIwin\fP\fB, bool \fP\fIbf\fP\fB);\fR
-.br
-\fBint nl(void);\fR
-.br
-\fBint nonl(void);\fR
-.br
 .SH DESCRIPTION
+.PP
 These routines set options that change the style of output within
 \fBcurses\fR.
 All options are initially \fBFALSE\fR, unless otherwise stated.
@@ -121,7 +120,18 @@ The \fBleaveok\fR option allows the cursor to be left
 wherever the update happens to leave it.
 It is useful for applications where
 the cursor is not used, since it reduces the need for cursor motions.
-.SS setscrreg
+.SS scrollok
+.PP
+The \fBscrollok\fR option controls what happens when the cursor of a window is
+moved off the edge of the window or scrolling region, either as a result of a
+newline action on the bottom line, or typing the last character of the last
+line.
+If disabled, (\fIbf\fR is \fBFALSE\fR), the cursor is left on the bottom
+line.
+If enabled, (\fIbf\fR is \fBTRUE\fR), the window is scrolled up one line
+(Note that to get the physical scrolling effect on the terminal, it is
+also necessary to call \fBidlok\fR).
+.SS  setscrreg/wsetscrreg
 .PP
 The \fBsetscrreg\fR and \fBwsetscrreg\fR routines allow the application
 programmer to set a software scrolling region in a window.
@@ -140,30 +150,6 @@ terminal, like that in the VT100.
 If \fBidlok\fR is enabled and the terminal
 has either a scrolling region or insert/delete line capability, they will
 probably be used by the output routines.)
-.SS scrollok
-.PP
-The \fBscrollok\fR option controls what happens when the cursor of a window is
-moved off the edge of the window or scrolling region, either as a result of a
-newline action on the bottom line, or typing the last character of the last
-line.
-If disabled, (\fIbf\fR is \fBFALSE\fR), the cursor is left on the bottom
-line.
-If enabled, (\fIbf\fR is \fBTRUE\fR), the window is scrolled up one line
-(Note that to get the physical scrolling effect on the terminal, it is
-also necessary to call \fBidlok\fR).
-.SS nl, nonl
-.PP
-The \fBnl\fR and \fBnonl\fR routines control whether the underlying display
-device translates the return key into newline on input, and whether it
-translates newline into return and line-feed on output (in either case, the
-call \fBaddch('\\n')\fR does the equivalent of return and line feed on the
-\fIvirtual screen\fP).
-Initially, these translations do occur.
-If you disable them
-using \fBnonl\fR, \fBcurses\fR will be able to make better use of the line-feed
-capability, resulting in faster cursor motion.
-Also, \fBcurses\fR will then be
-able to detect the return key.
 .SH RETURN VALUE
 The functions \fBsetscrreg\fR and \fBwsetscrreg\fR return \fBOK\fR upon success
 and \fBERR\fR upon failure.
@@ -172,15 +158,12 @@ return \fBOK\fR.
 .PP
 X/Open Curses does not define any error conditions.
 .PP
-In this implementation, those functions that have a window pointer
-will return an error if the window pointer is null.
-.RS
-.TP 5
-.B wclrtoeol
-returns an error
-if the cursor position is about to wrap.
-.TP 5
-.B wsetscrreg
+In this implementation,
+.bP
+those functions that have a window pointer
+will return an error if the window pointer is null
+.bP
+\fBwsetscrreg\fP
 returns an error if the scrolling region limits extend outside the window.
 .RE
 .PP
@@ -190,19 +173,23 @@ if the window pointer is null.
 .SH PORTABILITY
 These functions are described in the XSI Curses standard, Issue 4.
 .PP
-The XSI Curses standard is ambiguous on the question of whether \fBraw\fR
-should disable the CRLF translations controlled by \fBnl\fR and \fBnonl\fR.
-BSD curses did turn off these translations; AT&T curses (at least as late as
-SVr1) did not.
-We choose to do so, on the theory that a programmer requesting
-raw input wants a clean (ideally 8-bit clean) connection that the operating
-system will not alter.
+From the outset, ncurses used \fBnl\fP/\fBnonl\fP to control the conversion
+of newlines to carriage return/line-feed on output as well as input.
+XSI Curses documents only the use of these functions for input.
+This difference arose from converting the \fIpcurses\fP source
+(which used \fBioctl\fP calls with the \fBsgttyb\fP structure)
+to termios (i.e., the POSIX terminal interface).
+In the former, both input and output were controlled via a single
+option \fBCRMOD\fP,
+while the latter separates these features.
+Because that conversion interferes with output optimization,
+\fBnl\fP/\fBnonl\fP were amended after ncurses 6.2
+to eliminate their effect on output.
 .PP
 Some historic curses implementations had, as an undocumented feature, the
 ability to do the equivalent of \fBclearok(..., 1)\fR by saying
 \fBtouchwin(stdscr)\fR or \fBclear(stdscr)\fR.
-This will not work under
-ncurses.
+This will not work under ncurses.
 .PP
 Earlier System V curses implementations specified that with \fBscrollok\fR
 enabled, any window modification triggering a scroll also forced a physical
@@ -216,8 +203,12 @@ made invisible as a side-effect of \fBleaveok\fR.
 SVr4 curses documentation does this, but the code does not.
 Use \fBcurs_set\fR to make the cursor invisible.
 .SH NOTES
-Note that \fBclearok\fR, \fBleaveok\fR, \fBscrollok\fR, \fBidcok\fR, \fBnl\fR,
-\fBnonl\fR and \fBsetscrreg\fR may be macros.
+Note that
+\fBclearok\fR,
+\fBleaveok\fR,
+\fBscrollok\fR,
+\fBidcok\fR, and
+\fBsetscrreg\fR may be macros.
 .PP
 The \fBimmedok\fR routine is useful for windows that are used as terminal
 emulators.

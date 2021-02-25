@@ -28,17 +28,17 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_post.3x,v 1.18 2020/02/02 23:34:34 tom Exp $
+.\" $Id: menu_post.3x,v 1.19 2020/10/17 23:47:21 tom Exp $
 .TH menu_post 3X ""
 .SH NAME
 \fBpost_menu\fR,
 \fBunpost_menu\fR \- write or erase menus from associated subwindows
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
+.sp
+\fBint post_menu(MENU *\fP\fImenu\fP\fB);\fP
 .br
-int post_menu(MENU *menu);
-.br
-int unpost_menu(MENU *menu);
+\fBint unpost_menu(MENU *\fP\fImenu\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBpost_menu\fR displays a menu to its associated subwindow.

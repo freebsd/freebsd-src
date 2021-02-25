@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_new.3x,v 1.21 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_field_new.3x,v 1.24 2020/10/24 09:09:18 tom Exp $
 .TH form_field_new 3X ""
 .SH NAME
 \fBnew_field\fR,
@@ -37,16 +37,16 @@
 \fBfree_field\fR \- create and destroy form fields
 .SH SYNOPSIS
 \fB#include <form.h>\fR
+.sp
+\fBFIELD *new_field(int \fP\fIheight\fP\fB, int \fP\fIwidth\fP\fB,\fP
+                 \fBint \fP\fItoprow\fP\fB, int \fP\fIleftcol\fP\fB,\fP
+                 \fBint \fP\fIoffscreen\fP\fB, int \fP\fInbuffers\fP\fB);\fP
 .br
-FIELD *new_field(int height, int width,
-                 int toprow, int leftcol,
-                 int offscreen, int nbuffers);
+\fBFIELD *dup_field(FIELD *\fP\fIfield\fP\fB, int \fP\fItoprow\fP\fB, int \fP\fIleftcol\fP\fB);\fP
 .br
-FIELD *dup_field(FIELD *field, int toprow, int leftcol);
+\fBFIELD *link_field(FIELD *\fP\fIfield\fP\fB, int \fP\fItoprow\fP\fB, int \fP\fIleftcol\fP\fB);\fP
 .br
-FIELD *link_field(FIELD *field, int toprow, int leftcol);
-.br
-int free_field(FIELD *field);
+\fBint free_field(FIELD *\fP\fIfield\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBnew_field\fR allocates a new field and initializes it from the
@@ -67,9 +67,9 @@ Attribute data is separate.
 .PP
 The function \fBfree_field\fR de-allocates storage associated with a field.
 .SH RETURN VALUE
-The function, \fBnew_field\fR, \fBdup_field\fR, \fBlink_field\fR return
+The functions \fBnew_field\fR, \fBdup_field\fR, \fBlink_field\fR return
 \fBNULL\fR on error.
-They set errno according to their success:
+They set \fBerrno\fP according to their success:
 .TP 5
 .B E_OK
 The routine succeeded.

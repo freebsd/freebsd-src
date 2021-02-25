@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright 2018-2019,2020 Thomas E. Dickey                                 --
+-- Copyright 2018-2020,2021 Thomas E. Dickey                                 --
 -- Copyright 1998-2017,2018 Free Software Foundation, Inc.                   --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
@@ -26,7 +26,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: NEWS,v 1.3450 2020/02/15 18:56:00 tom Exp $
+-- $Id: NEWS,v 1.3634 2021/02/21 00:18:55 tom Exp $
 -------------------------------------------------------------------------------
 
 This is a log of changes that ncurses has gone through since Zeyd started
@@ -45,6 +45,469 @@ See the AUTHORS file for the corresponding full names.
 
 Changes through 1.9.9e did not credit all contributions;
 it is not possible to add this information.
+
+20210220
+	+ improve tic warning when oc/op do not mention SGR 39/49 for xterm
+	  compatible XT flag.
+	+ revert change to lib_addch.c in waddch_literal() from 20210130, since
+	  the followup fix in PutCharLR() actually corrects the problem while
+	  this change causes too-early filling/wrapping (report by Johannes
+	  Altmanninger).
+	+ add/use vt220+pcedit and vt220+vtedit  -TD
+	+ add scrt/securecrt and absolute -TD
+	+ add nel to xterm-new, though supported since X11R5 -TD
+	+ add/use xterm+nofkeys -TD
+	+ move use of ecma+italics from xterm-basic to xterm+nofkeys -TD
+
+20210213
+	+ add test/back_ground.c, to exercise the wide-character background
+	  functions.
+	+ add a check in _nc_build_wch() in case the background character is a
+	  wide-character, rather than a new part of a multibyte character.
+	+ improve tracemunch's coverage of form/menu/panel libraries.
+	+ improve tracemunch's checking/reporting the type for the first
+	  parameter, e.g., "WINDOW*" rather than "#1".
+
+20210206
+	+ provide for wide-characters as background character in wbkgrnd
+	  (report/testcase by Anton Vidovic)
+	+ add name for Fedora's pcre2 to configure check for "--with-pcre2"
+	  option, from xterm #363 -TD
+	+ modify adjustment in PutCharLR to restore the cursor position before
+	  writing to the lower-right corner, rather than decrementing the
+	  cursor column, in case it was a double-width character (cf: 20210130).
+
+20210130
+	+ correct an off-by-one in comparison in waddch_literal() which caused
+	  scrolling when a double-cell character would not fit at the lower
+	  right corner of the screen (report by Benno Schulenberg).
+	+ split-out att610+cvis, vt220+cvis, vt220+cvis8 -TD
+	+ add vt220-base, for terminal emulators which generally have not
+	  supported att610's blinking cursor control -TD
+	+ use vt220+cvis in vt220, etc -TD
+	+ use att610+cvis, xterm+tmux and ansi+enq in kitty -TD
+	+ use vt220+cvis in st, terminology, termite since they ignore
+	  blinking-cursor detail in att610+cvis -TD
+
+20210123
+	+ modify package/config scripts to provide an explicit -L option for
+	  cases when the loader search path has other directories preceding
+	  the one in which ncurses is installed (report by Yuri Victorovich).
+	+ minor build-fixes in configure script and makefiles to work around
+	  quirks of pmake.
+
+20210116
+	+ add comment for linux2.6 regarding CONFIG_CONSOLE_TRANSLATIONS
+	  (report by Patrick McDermott) -TD
+	+ make opts extension for getcchar work as documented for ncurses 6.1,
+	  adding "-g" flag to test/demo_new_pair to illustrate.
+
+20210109
+	+ fix errata in man/ncurses.3x from recent updates.
+	+ improve quoting/escaping in configure script, uses some features of
+	  autoconf 2.52.20210105
+
+20210102
+	+ update man/curs_memleaks.3x, to include <term.h> which declares
+	  exit_terminfo.
+	+ clarify man/curs_terminfo.3x, to mention why the macro setterm is
+	  defined in <curses.h>, and remove it from the list of prototypes
+	  (prompted by patch by Graeme McCutcheon).
+	+ amend man/curs_terminfo.3x, to note that <curses.h> is required
+	  for certain functions, e.g., those using chtype or attr_t for
+	  types, as well as mvcur (cf: 20201031).
+	+ use parameter-names in prototypes in curs_sp_funcs.3x, for
+	  consistency with other manpages.
+
+20201227
+	+ update terminology entry to 1.8.1 -TD
+	+ fix some compiler-warnings which gcc8 reports incorrectly.
+
+20201219
+	+ suppress hyphenation in generated html for manpages, to address
+	  regression in upgrade of groff 1.22.2 to 1.22.3.
+	+ fix inconsistent sort-order in see-also sections of manpages (report
+	  by Chris Bennett).
+
+20201212
+	+ improve manual pages for form field-types.
+
+20201205
+	+ amend build-fixes for gnat 10 to work with certain systems lacking
+	  gprbuild (cf: 20200627).
+	+ eliminate an additional strlen and wsclen.
+	+ eliminate an unnecessary strlen in waddnstr() (suggested by Benjamin
+	  Abendroth).
+	+ modify inopts manpage, separating the items for nodelay and notimeout
+	  (patch by Benno Schulenberg).
+	+ correct mlterm3 kf1-kf4 (Debian #975322) -TD
+	+ add flash to mlterm3 -TD
+
+20201128
+	+ add Smulx to alacritty (Christian Duerr).
+	+ add rep to PuTTY -TD
+	+ add putty+keypad -TD
+	+ add another fflush(stdout) in _nc_flush() to handle time-delays in
+	  the middle of strings such as flash when the application uses
+	  low-level calls rather than curses (cf: 20161217).
+	+ modify configure check for c89/c99 aliases of clang to use its
+	  -std option instead, because some platforms, in particular macOS,
+	  do not provide workable c89/c99 aliases.
+
+20201121
+	+ fix some compiler-warnings in experimental Windows-10 driver.
+	+ add the definitions needed in recent configure-check for clang
+	  (report by Steven Pitman).
+
+20201114
+	+ fix some compiler-warnings in experimental Windows-10 driver.
+	+ modify a check for parameters in terminfo capabilities to handle the
+	  special case where short extended capability strings were not
+	  converted from terminfo to termcap format.
+	+ modify CF_MIXEDCASE_FILENAMES macro, adding darwin as special case
+	  when cross-compiling (report by Eli Rykoff).
+
+20201107
+	+ update kitty+common -TD
+	+ add putty+screen and putty-screen (suggested by Alexandre Montaron).
+	+ explain in ncurses.3x that functions in the tinfo library do not rely
+	  upon wide-characters (prompted by discussion with Reuben Thomas).
+
+20201031
+	+ modify MKterm.h.in so that it is not necessary to include <curses.h>
+	  before <term.h> (prompted by discussion with Reuben Thomas).
+	+ review/improve synopsis for curs_sp_funcs.3x (prompted by discussion
+	  with Reuben Thomas).
+	+ improve format of output in tic's check_infotocap() function, to
+	  ensure that the messages contain only printable text.
+	+ modify configure-check for clang to verify that -Qunused-arguments
+	  is supported.  IBM's xlclang does not support it (report by Steven
+	  Pitman).
+
+20201024
+	+ provide workaround configure-check for bool when cross-compiling.
+	+ fix a potential indexing error in _nc_parse_entry(), seen with
+	  Herlim's test data using address-sanitizer.
+	+ change a null-pointer check in set_curterm to a valid-string check,
+	  needed in to tic's use-resolution when pad_char is cancelled
+	  (report/testcase by Robert Sebastian Herlim)
+	+ improve tic's -c option to validate the number and type of parameters
+	  and compare against expected number/type before deciding which set of
+	  parameter-lists to use in tparm calls (report/testcase by Robert
+	  Sebastian Herlim).
+	+ fix a link for tabs.1 manpage in announce.html.in (report by Nick
+	  Black), as well as some fixes via linklint.
+
+20201017
+	+ improve manpage typography.
+	+ improve discussion in curs_addch.3x of the use of unctrl to display
+	  nonprintable characters.
+	+ add a note in terminfo.5 explaining that no-parameter strings such
+	  as sgr0 or cnorm should not be used with tparm.
+
+20201010
+	+ correct sgr in aaa+rv (report by Florian Weimer) -TD
+	+ fix some sgr inconsistencies in d230c, ibm6153, ibm6154,
+	  ncrvt100an -TD
+	+ improve tic's check for errors detected in tparm (prompted by
+	  discussion with Florian Weimer).
+	+ set output-mode to binary in experimental Windows-10 driver (Juergen
+	  Pfeifer).
+
+20201003
+	+ remove output-related checks for nl/nonl (report by Leon Winter).
+	+ change tmux's kbs to ^? (report by Premysl Eric Janouch)
+	+ simplify mlterm initialization with DECSTR -TD
+	+ fix a typo in man/curs_terminfo.3 (Reuben Thomas).
+	+ add tmux-direct (tmux #2370, Debian #895754)
+	+ add user-defined capabilities from mintty to Caps-ncurses, for
+	  checking consistency with tic.
+
+20200926
+	+ correct configure-check for gnurx library.
+	+ regenerate llib-* files.
+	+ modify tracemunch and the panel library to show readable traces for
+	  panel- and user-pointers.
+
+20200919
+	+ update mlterm3 for 3.9.0 (report by Premysl Eric Janouch) -TD
+
+20200918
+	+ corrected condition for appending curses.events to the generated
+	  curses.h (report by Sven Joachim, Debian #970545).
+
+20200912
+	+ add configure-check for systre/tre with mingw configuration, to get
+	  the library-dependencies as seen in msys2 configuration for mingw64.
+	+ build-fixes for the win32-driver configuration.
+	+ use more defensive binary mode setting for Win32 (Juergen Pfeifer).
+
+20200907
+	+ fix regression in setupterm validating non-empty $TERM (report by
+	  Soren Tempel).
+
+20200906
+	+ merge/adapt in-progress work by Juergen Pfeifer for new version of
+	  win32-driver.
+	+ correct description of vt330/vt340 (Ross Combs).
+
+20200831
+	+ build-fix for awk-scripts modified for win32-driver (report by Werner
+	  Fink).
+
+20200829
+	+ remove a redundant NCURSES_EXPORT as a build-fix for "Maarten
+	  Anonymous".
+	+ merge/adapt in-progress work by Juergen Pfeifer for new version of
+	  win32-driver.
+	+ modify configure script, moving gcc -Werror options to EXTRA_CFLAGS
+	  to avoid breaking configure-checks (adapted from ongoing work on
+	  mawk and lynx).
+	> errata for terminfo.src (report by Florian Weimer):
+	+ correct icl6404 csr
+	+ correct ti916 cup
+	+ improve ndr9500
+
+20200822
+	+ improve version-number extraction in MKlib_gen.sh
+	+ make the test-package for manpages installable by adjusting the
+	  man_db.renames file.
+	+ correct an off-by-one loop-limit in convert_strings function
+	  (report by Yue Tai).
+	+ add CF_SHARED_OPTS cases for HPE NonStop systems (Randall S Becker).
+	+ modify CF_SHARED_OPTS case for NetBSD to use the same "-shared"
+	  option for the non-rpath case as for the rpath case, to allow gcc to
+	  provide suitable runtime initialization (report by Rajeev V Pillai).
+
+20200817
+	+ reduce build-warnings by excluding ncurses-internals from deprecation
+	  warnings.
+	+ mark wgetch-events feature as deprecated.
+	+ add definition for $(LIBS) to ncurses/Makefile.in, to simplify builds
+	  using the string-hacks option.
+	+ prevent KEY_EVENT from appearing in curses.h unless the configure
+	  option --enable-wgetch-events is used (report by Werner Fink).
+
+20200816
+	+ amend tic/infocmp check to allow for the respective tool's absence
+	  (report by Steve Wills, cf: 20200808).
+	+ improved some of the build-scripts with shellcheck
+	+ filter out -MT/-MD/-MTd/-MDd options in script for Visual Studio C++
+	  (discussion with "Maarten Anonymous").
+
+20200808
+	+ improve discussion of the system's tic utility when used as part
+	  of cross-compiling (discussion with Keith Marshall).
+	+ modify configuration checks for build-time tic/infocmp to use
+	  AC_CHECK_TOOL. That can still be overridden by --with-tic-path and
+	  --with-infocmp-path when fallbacks are used, but even if not using
+	  fallbacks, the improved check may help with cross-compiling
+	  (discussion with Keith Marshall).
+	+ other build-fixes for Ada95 with MinGW.
+	+ modify Ada95 source-generation utility to write to a file given as
+	  parameter rather than to the standard output, allowing builds with
+	  MinGW.
+
+20200801
+	+ remove remaining parts of checks for ISC Unix (cf: 20121006).
+	+ add user32.lib to LDFLAGS for Visual Studio C++ configuration
+	  (discussion with "Maarten Anonymous").
+	+ modify MKkey_defs.sh to hide ncurses' definition of KEY_EVENTS to
+	  reduce Visual Studio C++ redefinition warnings.
+	+ improve/update checks for external functions in test/configure
+
+20200725
+	+ set LINK_TESTS in CF_SHARED_OPTS for msvc (patch by
+	  "Maarten Anonymous")
+	+ improved workaround for redefinition-warnings for KEY_EVENT.
+	+ improve man/term.5 section on legacy storage format (report by
+	  Florian Weimer).
+
+20200718
+	+ reduce redefinition-warnings for KEY_EVENT when building with Visual
+	  Studio C++.
+	+ define NCURSES_STATIC when compiling programs to link with static
+	  libraries, to work with MinGW vs Visual Studio C++.
+	> additional changes for building with Visual Studio C++ and msys2
+	  (reports/patches by "Maarten Anonymous")
+	+ modify c++/Makefile.in to set the current directory while compiling
+	  the main program, so the linker can find related objects.
+	+ several changes to allow the c++/demo program to compile/link.
+	+ change an ifdef in test-directory, to use VC++ wide-character funcs.
+
+20200711
+	+ fix pound-sign mapping in acsc of linux2.6 entry (report by Ingo
+	  Bruckl).
+	+ additional changes for building with Visual Studio C++ and msys2
+	  (reports/patches by "Maarten Anonymous")
+	+ build-improvements for Windows 10 and MinGW (patch by Juergen
+	  Pfeifer).
+	+ fix a typo in curs_printw.3x (patch by William Pursell).
+	+ fix two errors in infotocap which allowed indexing outside the
+	  buffer (report/testcases by Zhang Gan).
+	+ update length of strings in infocmp's usage function to restore a
+	  trailing null on the longest string (report/testcase by Zhang Gen).
+
+20200704
+	+ modify version-check with Ada generics to use the same pattern as in
+	  the check for supported gnat versions (report by Pascal Pignard).
+	> additional changes for building with Visual Studio C++ and msys2
+	  (patches by "Maarten Anonymous"):
+	+ adjust headers/declarations to provide for "dllimport" vs "dllexport"
+	  declarations when constructing DLLs, to worko with Visual Studio C++.
+
+20200627
+	+ build-fixes for gnat 10.1.1, whose gnatmake drops integration with
+	  gprbuild.
+	+ correct buffer-length in test/color_name.h
+
+20200613
+	+ update list of functions in ncurses.3x
+	+ move dlclose() call from lib_mouse.c to delscreen() to avoid a case
+	  in the former which could be called from SIGTSTP handler (Debian
+	  #961097).
+
+20200606
+	+ add xterm+256color2, xterm+88color2, to deprecate nonstandard usage
+	  in xterm+256color, xterm+88color -TD
+	+ add shifted Linux console keys in linux+sfkeys entry for
+	  screen.linux (report by Alexandre Montaron).
+	+ use vt100+enq in screen (report by Alexandre Montaron).
+	+ add screen.linux-s alias (suggested by Alexandre Montaron).
+
+20200531
+	+ correct configure version-check/warnng for g++ to allow for 10.x
+	+ re-enable "bel" in konsole-base (report by Nia Huang)
+	+ add linux-s entry (patch by Alexandre Montaron).
+	+ drop long-obsolete convert_configure.pl
+	+ add test/test_parm.c, for checking tparm changes.
+	+ improve parameter-checking for tparm, adding function _nc_tiparm() to
+	  handle the most-used case, which accepts only numeric parameters
+	  (report/testcase by "puppet-meteor").
+	+ use a more conservative estimate of the buffer-size in lib_tparm.c's
+	  save_text() and save_number(), in case the sprintf() function
+	  passes-through unexpected characters from a format specifier
+	  (report/testcase by "puppet-meteor").
+	+ add a check for end-of-string in cvtchar to handle a malformed
+	  string in infotocap (report/testcase by "puppet-meteor").
+
+20200523
+	+ update version-check for gnat to allow for gnat 10.x to 99.x
+	+ fix an uninitialized variable in lib_mouse.c changes (cf: 20200502)
+	+ add a check in EmitRange to guard against repeat_char emitting digits
+	  which could be interpreted as BSD-style padding when --enable-bsdpad
+	  is configured (report/patch by Hiltjo Posthuma).
+	+ add --disable-pkg-ldflags to suppress EXTRA_LDFLAGS from the
+	  generated pkg-config and ncurses*-config files, to simplify
+	  configuring in the case where rpath is used but the packager wants
+	  to hide the feature (report by Michael Stapelberg).
+	> fixes for building with Visual Studio C++ and msys2 (patches by
+	  "Maarten Anonymous"):
+	+ modify CF_SHARED_OPTS to generate a script which translates linker
+	  options into Visual Studio's dialect.
+	+ omit parentheses around function-names in generated lib_gen.c to
+	  work around a Visual Studio C++ limitation.
+
+20200516
+	+ add notes on termcap.h header in curs_termcap.3x
+	+ update notes on vscode / xterm.js -TD
+
+20200509
+	+ add "-r" option to the dots test-programs, to help with scripting
+	  a performance comparison.
+	+ build-fix test/move_field.c for NetBSD curses, whose form headers
+	  use different names than SVr4 or ncurses.
+
+20200502
+	+ add details on the change to Linux SGR 21 in 2018 -TD
+	+ add xterm-direct16 and xterm-direct256 -TD
+	+ modify lib_mouse.c to check for out-of-range button numbers, convert
+	  those to position reports.
+
+20200425
+	+ use vt100+fnkeys in putty -TD
+	+ fix a typo in tput.1; "columns" should be "cols".
+
+20200418
+	+ improve tracemunch logic for "RUN" compaction.
+	+ fix a special case in wresize() where copying the old text did not
+	  check if the last cell on a row was the beginning of a fullwidth
+	  character (adapted from patch by Benno Schulenberg).
+	+ use vt52+keypad in xterm-vt52, from xterm #354 -TD
+	+ improve see-also section of user_caps.5
+
+20200411
+	+ fix find_pair(), overlooked when refactoring for _nc_reserve_pairs()
+	  (report/testcase by Brad Town, cf: 20170812).
+	+ add a trailing null for magic-string in putwin, flagged by gcc 10
+	+ update check for gcc version versus gnat to work with gcc 10.x
+
+20200404
+	+ modify -fvisibility check to work with g++
+	> fixes for building with Visual Studio C++ and msys2 (patches by
+	  "Maarten Anonymous"):
+	+ add configure option and check for gcc -fvisibility=hidden feature
+	+ define NCURSES_NOMACROS in lib_gen.c to work around Visual Studio
+	  C++ preprocessor limitations.
+	+ modify some of the configure-macros, as well as mk-1st.awk to work
+	  with Visual Studio C++ default filenaming.
+
+20200328
+	+ correct length of buffer copied in dup_field().
+	+ remove "$(srcdir)/" from path of library.gpr, needed for out-of-tree
+	  builds of Ada95 (patch by Adam Van Ymeren).
+
+20200321
+	+ improve configure-checks to reduce warnings about unused variables.
+	+ improve description of error-returns in waddch and waddnstr manual
+	  pages (prompted by patch by Benno Schulenberg).
+	+ add test/move_field.c to demonstrate move_field(), and a stub for
+	  a corresponding demo of dup_field().
+
+20200314
+	+ add history note to curs_scanw.3x for <stdarg.h> and <varargs.h>
+	+ add history note to curs_printw.3x for <stdarg.h> and <varargs.h>
+	+ add portability note to ncurses.3x regarding <stdarg.h>
+
+20200308
+	+ update copyright notices in test-packages.
+	+ modify tracemunch to guard against errors in its known_p1 table.
+	+ add several --with-xxx-libname options, to help with pkgsrc (prompted
+	  by discussion with Thomas Klausner).
+
+20200301
+	+ modify wbkgd() and wbkgrnd() to avoid storing a null in the
+	  background character, because it may be used in cases where the
+	  corresponding 0x80 is not treated as a null (report by Marc Rechte,
+	  cf: 20181208).
+
+20200229
+	+ modify CF_NCURSES_CONFIG to work around xcode's c99 "-W" option,
+	  which conflicts with conventional use for passing linker options.
+	> fixes for building with Visual Studio C++ and msys2 (patches by
+	  "Maarten Anonymous"):
+	+ check for pcre2posix.h instead of pcre2-posix.h
+	+ add case in CF_SHARED_OPTS for msys2 + msvc
+	+ add fallback definition for STDIN_FILENO in progs.priv.h
+	+ modify win_driver.c to use _alloca() rather than gcc's variable
+	  length array feature.
+	+ add NCURSES_IMPEXP to ncurses wrapped-variable declarations
+	+ remove NCURSES_IMPEXP from class variables in c++/cursslk.h
+	+ remove fallback prototype for exit() from c++/etip.h.in
+	+ use configured check for <sys/time.h> in a couple of places
+	+ conditionally include winsock.h in ncurses/win32con/gettimeofday.c,
+	  because Visual Studio needs this for the timestruct declaration.
+	+ adjust syntax in a couple of files using the NCURSES_API symbol.
+
+20200222
+	+ expanded note in ncurses.3x regarding automatically-included headers
+	+ improve vt50h and vt52 based on DECScope manual -TD
+	+ add/use vt52+keypad and vt52-basic -TD
+	+ check/workaround for line-too-long in Ada95 generate utility when
+	  building out-of-tree.
+	+ improve/update HEADER_DEPS in */Makefile.in
+	+ add "check" rule to include/Makefile, to demonstrate that the headers
+	  include all of the required headers for the types used.
 
 20200215
 	+ improve manual page for panel library, extending the portability
@@ -220,7 +683,7 @@ it is not possible to add this information.
 	+ build-fixes for Ada95 configure-script and corresponding test package
 
 20190907
-	+ add --with-ada-libname option and modify Ada95 configuration to 
+	+ add --with-ada-libname option and modify Ada95 configuration to
 	  allow renaming the "AdaCurses" library (prompted by proposed changes
 	  by Pascal Pignard).
 	+ modify configure script to distinguish gcc from icc and clang when

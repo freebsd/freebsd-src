@@ -98,7 +98,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: captoinfo.c,v 1.98 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: captoinfo.c,v 1.100 2020/07/08 21:39:54 tom Exp $")
 
 #if 0
 #define DEBUG_THIS(p) DEBUG(9, p)
@@ -216,12 +216,15 @@ cvtchar(register const char *sp)
 	}
 	break;
     case '^':
-	c = UChar(*++sp);
-	if (c == '?')
-	    c = 127;
-	else
-	    c &= 0x1f;
 	len = 2;
+	c = UChar(*++sp);
+	if (c == '?') {
+	    c = 127;
+	} else if (c == '\0') {
+	    len = 1;
+	} else {
+	    c &= 0x1f;
+	}
 	break;
     default:
 	c = UChar(*sp);
@@ -636,7 +639,7 @@ _nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parameteriz
     /* we may have to move some trailing mandatory padding up front */
     padding = str + strlen(str) - 1;
     if (padding > str && *padding == '>') {
-	if (*--padding == '/')
+	if (padding > (str + 1) && *--padding == '/')
 	    --padding;
 	while (isdigit(UChar(*padding)) || *padding == '.' || *padding == '*')
 	    padding--;

@@ -28,7 +28,7 @@
  ****************************************************************************/
 #include <curses.priv.h>
 
-MODULE_ID("$Id: wcwidth.c,v 1.3 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: wcwidth.c,v 1.4 2020/07/11 21:02:10 tom Exp $")
 
 #if USE_WIDEC_SUPPORT
 #define mk_wcwidth(ucs)          _nc_wcwidth(ucs)
@@ -36,10 +36,10 @@ MODULE_ID("$Id: wcwidth.c,v 1.3 2020/02/02 23:34:34 tom Exp $")
 #define mk_wcwidth_cjk(ucs)      _nc_wcwidth_cjk(ucs)
 #define mk_wcswidth_cjk(pwcs, n) _nc_wcswidth_cjk(pwcs, n)
 
-extern int mk_wcwidth(wchar_t);
-extern int mk_wcswidth(const wchar_t *, size_t);
-extern int mk_wcwidth_cjk(wchar_t);
-extern int mk_wcswidth_cjk(const wchar_t *, size_t);
+NCURSES_EXPORT(int) mk_wcwidth(wchar_t);
+NCURSES_EXPORT(int) mk_wcswidth(const wchar_t *, size_t);
+NCURSES_EXPORT(int) mk_wcwidth_cjk(wchar_t);
+NCURSES_EXPORT(int) mk_wcswidth_cjk(const wchar_t *, size_t);
 
 #include <wcwidth.h>
 #else

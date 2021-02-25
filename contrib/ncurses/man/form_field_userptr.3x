@@ -28,18 +28,17 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_userptr.3x,v 1.13 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_field_userptr.3x,v 1.16 2020/10/24 09:06:33 tom Exp $
 .TH form_field_userptr 3X ""
 .SH NAME
 \fBset_field_userptr\fR,
 \fBfield_userptr\fR \- associate application data with a form field
 .SH SYNOPSIS
 \fB#include <form.h>\fR
+.sp
+\fBint set_field_userptr(FIELD *\fP\fIfield\fP\fB, void *\fP\fIuserptr\fP\fB);\fP
 .br
-int set_field_userptr(FIELD *field, void*userptr);
-.br
-void *field_userptr(const FIELD *field);
-.br
+\fBvoid *field_userptr(const FIELD *\fP\fIfield\fP\fB);\fP
 .SH DESCRIPTION
 Every form field has a field that can be used to hold application-specific data
 (that is, the form-driver code leaves it alone).
@@ -47,7 +46,7 @@ These functions get and set
 that field.
 .SH RETURN VALUE
 The function \fBfield_userptr\fR returns a pointer (which may be \fBNULL\fR).
-It does not set errno.
+It does not set \fBerrno\fP.
 .PP
 The function \fBset_field_userptr\fR returns \fBE_OK\fP (success).
 .SH SEE ALSO

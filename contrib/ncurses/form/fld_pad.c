@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_pad.c,v 1.11 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: fld_pad.c,v 1.13 2020/12/11 22:05:24 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -46,7 +46,7 @@ MODULE_ID("$Id: fld_pad.c,v 1.11 2020/02/02 23:34:34 tom Exp $")
 |                    E_BAD_ARGUMENT - invalid field pointer or pad character
 |                    E_SYSTEM_ERROR - system error
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 set_field_pad(FIELD *field, int ch)
 {
   int res = E_BAD_ARGUMENT;
@@ -71,11 +71,11 @@ set_field_pad(FIELD *field, int ch)
 |   Facility      :  libnform  
 |   Function      :  int field_pad(const FIELD *field)
 |   
-|   Description   :  Retrieve the fields pad character.
+|   Description   :  Retrieve the field's pad character.
 |
 |   Return Values :  The pad character.
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 field_pad(const FIELD *field)
 {
   T((T_CALLED("field_pad(%p)"), (const void *)field));

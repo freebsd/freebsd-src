@@ -42,7 +42,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_screen.c,v 1.97 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_screen.c,v 1.100 2020/05/25 22:48:41 tom Exp $")
 
 #define MAX_SIZE 0x3fff		/* 16k is big enough for a window or pad */
 
@@ -58,7 +58,7 @@ MODULE_ID("$Id: lib_screen.c,v 1.97 2020/02/02 23:34:34 tom Exp $")
 #define ARG_SLIMIT(name)	/* nothing */
 #endif
 
-#define CUR_SLIMIT _nc_SLIMIT(limit - (target - base))
+#define CUR_SLIMIT _nc_SLIMIT(limit - (size_t) (target - base))
 #define TOP_SLIMIT _nc_SLIMIT(sizeof(buffer))
 
 /*
@@ -67,7 +67,7 @@ MODULE_ID("$Id: lib_screen.c,v 1.97 2020/02/02 23:34:34 tom Exp $")
  * format.  It happens to be unused in the file 5.22 database (2015/03/07).
  */
 static const char my_magic[] =
-{'\210', '\210', '\210', '\210'};
+{'\210', '\210', '\210', '\210', 0};
 
 #if NCURSES_EXT_PUTWIN
 typedef enum {
@@ -441,7 +441,7 @@ read_win(WINDOW *win, FILE *fp)
 }
 
 static int
-read_row(char *source, NCURSES_CH_T * prior, NCURSES_CH_T * target, int length)
+read_row(char *source, NCURSES_CH_T *prior, NCURSES_CH_T *target, int length)
 {
     while (*source != '\0' && length > 0) {
 #if NCURSES_WIDECHAR

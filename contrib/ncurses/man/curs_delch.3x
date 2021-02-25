@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_delch.3x,v 1.14 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_delch.3x,v 1.15 2020/10/24 09:36:43 tom Exp $
 .TH curs_delch 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -43,11 +43,11 @@
 .sp
 \fBint delch(void);\fR
 .br
-\fBint wdelch(WINDOW *win);\fR
+\fBint wdelch(WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBint mvdelch(int y, int x);\fR
+\fBint mvdelch(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB);\fR
 .br
-\fBint mvwdelch(WINDOW *win, int y, int x);\fR
+\fBint mvwdelch(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB);\fR
 .br
 .SH DESCRIPTION
 These routines delete the character under the cursor; all characters to the

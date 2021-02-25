@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_scale.c,v 1.11 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: m_scale.c,v 1.13 2020/12/12 00:38:14 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -51,8 +51,8 @@ MODULE_ID("$Id: m_scale.c,v 1.11 2020/02/02 23:34:34 tom Exp $")
 |                    E_BAD_ARGUMENT        - invalid menu pointer
 |                    E_NOT_CONNECTED       - no items are connected to menu
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
-scale_menu(const MENU * menu, int *rows, int *cols)
+MENU_EXPORT(int)
+scale_menu(const MENU *menu, int *rows, int *cols)
 {
   T((T_CALLED("scale_menu(%p,%p,%p)"),
      (const void *)menu,

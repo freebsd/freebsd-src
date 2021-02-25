@@ -35,7 +35,7 @@
  ****************************************************************************/
 
 /*
- * $Id: curses.priv.h,v 1.628 2020/02/02 23:34:34 tom Exp $
+ * $Id: curses.priv.h,v 1.639 2020/11/14 23:37:54 tom Exp $
  *
  *	curses.priv.h
  *
@@ -72,10 +72,6 @@ extern "C" {
 #include <unistd.h>
 #endif
 
-#if HAVE_SYS_BSDTYPES_H && !(defined(_WIN32) || defined(_WIN64))
-#include <sys/bsdtypes.h>	/* needed for ISC */
-#endif
-
 #if HAVE_LIMITS_H
 # include <limits.h>
 #elif HAVE_SYS_PARAM_H
@@ -105,6 +101,24 @@ extern "C" {
 
 #if DECL_ERRNO
 extern int errno;
+#endif
+
+/* Some Windows related defines */
+#undef _NC_WINDOWS
+#if (defined(_WIN32) || defined(_WIN64))
+#define _NC_WINDOWS
+#else
+#undef EXP_WIN32_DRIVER
+#endif
+
+#undef _NC_MINGW
+#if (defined(__MINGW32__) || defined(__MINGW64__))
+#define _NC_MINGW
+#endif
+
+#undef _NC_MSC
+#ifdef _MSC_VER
+#define _NC_MSC
 #endif
 
 /* Some systems have a broken 'select()', but workable 'poll()'.  Use that */
@@ -185,7 +199,7 @@ extern int errno;
  * the path separator in configure doesn't work properly. So, if building
  * for MinGW, we enforce the correct Windows PATH separator
  */
-#ifdef _WIN32
+#if defined(_NC_WINDOWS)
 #  ifdef NCURSES_PATHSEP
 #    undef NCURSES_PATHSEP
 #  endif
@@ -275,10 +289,19 @@ extern NCURSES_EXPORT(void *) _nc_memmove (void *, const void *, size_t);
  * Options for terminal drivers, etc...
  */
 #ifdef USE_TERM_DRIVER
+#define NO_TERMINAL "unknown"
 #define USE_SP_RIPOFF     1
 #define USE_SP_TERMTYPE   1
 #define USE_SP_WINDOWLIST 1
+#else
+#define NO_TERMINAL 0
 #endif
+
+#define VALID_TERM_ENV(term_env, no_terminal) \
+	(term_env = (NonEmpty(term_env) \
+		     ? term_env \
+		     : no_terminal), \
+	 NonEmpty(term_env))
 
 /*
  * Note:  ht/cbt expansion flakes out randomly under Linux 1.1.47, but only
@@ -336,6 +359,10 @@ typedef TRIES {
 #define NCURSES_OPAQUE 0
 
 #include <curses.h>	/* we'll use -Ipath directive to get the right one! */
+
+#if !(defined(NCURSES_WGETCH_EVENTS) && defined(NEED_KEY_EVENT))
+#undef KEY_EVENT		/* reduce compiler-warnings with Visual C++ */
+#endif
 
 typedef struct
 {
@@ -953,6 +980,11 @@ typedef struct {
 	time_t		dbd_time;	/* cache last updated */
 	ITERATOR_VARS	dbd_vars[dbdLAST];
 
+#if HAVE_TSEARCH
+	void		*cached_tparm;
+	int		count_tparm;
+#endif /* HAVE_TSEARCH */
+
 #ifdef USE_TERM_DRIVER
 	int		(*term_driver)(struct DriverTCB*, const char*, int*);
 #endif
@@ -1334,7 +1366,7 @@ struct screen {
 	int		_sysmouse_new_buttons;
 #endif
 
-#ifdef USE_TERM_DRIVER
+#if defined(USE_TERM_DRIVER) || defined(EXP_WIN32_DRIVER)
 	MEVENT		_drv_mouse_fifo[FIFO_SIZE];
 	int		_drv_mouse_head;
 	int		_drv_mouse_tail;
@@ -1828,7 +1860,7 @@ extern NCURSES_EXPORT(SCREEN *)         _nc_retrace_sp (SCREEN *);
 extern NCURSES_EXPORT(WINDOW *)         _nc_retrace_win (WINDOW *);
 extern NCURSES_EXPORT(attr_t)           _nc_retrace_attr_t (attr_t);
 extern NCURSES_EXPORT(char *)           _nc_retrace_ptr (char *);
-extern NCURSES_EXPORT(char *)           _nc_trace_ttymode(TTY *tty);
+extern NCURSES_EXPORT(char *)           _nc_trace_ttymode(const TTY *tty);
 extern NCURSES_EXPORT(char *)           _nc_varargs (const char *, va_list);
 extern NCURSES_EXPORT(chtype)           _nc_retrace_chtype (chtype);
 extern NCURSES_EXPORT(const char *)     _nc_altcharset_name(attr_t, chtype);
@@ -2344,11 +2376,10 @@ extern NCURSES_EXPORT(int) _nc_eventlist_timeout(_nc_eventlist *);
  */
 #if USE_WIDEC_SUPPORT
 
-#if defined(_WIN32)
+#if defined(_NC_WINDOWS) && !defined(_NC_MSC) && !defined(EXP_WIN32_DRIVER)
 /*
  * MinGW has wide-character functions, but they do not work correctly.
  */
-
 extern int __MINGW_NOTHROW _nc_wctomb(char *, wchar_t);
 #define wctomb(s,wc) _nc_wctomb(s,wc)
 #define wcrtomb(s,wc,n) _nc_wctomb(s,wc)
@@ -2359,7 +2390,7 @@ extern int __MINGW_NOTHROW _nc_mbtowc(wchar_t *, const char *, size_t);
 extern int __MINGW_NOTHROW _nc_mblen(const char *, size_t);
 #define mblen(s,n) _nc_mblen(s, n)
 
-#endif /* _WIN32 */
+#endif /* _NC_WINDOWS && !_NC_MSC */
 
 #if HAVE_MBTOWC && HAVE_MBLEN
 #define reset_mbytes(state) IGNORE_RC(mblen(NULL, (size_t) 0)), IGNORE_RC(mbtowc(NULL, NULL, (size_t) 0))
@@ -2581,6 +2612,10 @@ extern NCURSES_EXPORT(int)      TINFO_MVCUR(SCREEN*, int, int, int, int);
 #define TINFO_MVCUR             NCURSES_SP_NAME(_nc_mvcur)
 #endif
 
+#if defined(EXP_WIN32_DRIVER)
+#include <nc_win32.h>
+#endif
+
 /*
  * Entrypoints using an extra parameter with the terminal driver.
  */
@@ -2603,6 +2638,9 @@ extern NCURSES_EXPORT(void)   _nc_get_screensize(SCREEN *, int *, int *);
 	_nc_setupterm(name, fd, err, reuse)
 #endif /* !USE_TERM_DRIVER */
 
+#ifdef EXP_WIN32_DRIVER
+extern NCURSES_EXPORT_VAR(TERM_DRIVER) _nc_TINFO_DRIVER;
+#else
 #ifdef USE_TERM_DRIVER
 #if defined(USE_WIN32CON_DRIVER)
 #include <nc_mingw.h>
@@ -2620,9 +2658,12 @@ extern NCURSES_EXPORT(int) _nc_mingw_testmouse(
 #else
 #endif
 extern NCURSES_EXPORT_VAR(TERM_DRIVER) _nc_TINFO_DRIVER;
-#endif
+#endif /* USE_TERM_DRIVER */
+#endif /* EXP_WIN32_DRIVER */
 
-#if defined(USE_TERM_DRIVER) && defined(USE_WIN32CON_DRIVER)
+#if defined(USE_TERM_DRIVER) && defined(EXP_WIN32_DRIVER)
+#define NC_ISATTY(fd) (0 != _nc_console_isatty(fd))
+#elif defined(USE_TERM_DRIVER) && defined(USE_WIN32CON_DRIVER)
 #define NC_ISATTY(fd) _nc_mingw_isatty(fd)
 #else
 #define NC_ISATTY(fd) isatty(fd)
@@ -2631,15 +2672,21 @@ extern NCURSES_EXPORT_VAR(TERM_DRIVER) _nc_TINFO_DRIVER;
 #ifdef USE_TERM_DRIVER
 #  define IsTermInfo(sp)       ((TCBOf(sp) != 0) && ((TCBOf(sp)->drv->isTerminfo)))
 #  define HasTInfoTerminal(sp) ((0 != TerminalOf(sp)) && IsTermInfo(sp))
-#  if defined(USE_WIN32CON_DRIVER)
+#  if defined(EXP_WIN32_DRIVER)
+#    define IsTermInfoOnConsole(sp) (IsTermInfo(sp)&&_nc_console_test(TerminalOf(sp)->Filedes))
+#  elif defined(USE_WIN32CON_DRIVER)
 #    define IsTermInfoOnConsole(sp) (IsTermInfo(sp)&&_nc_mingw_isconsole(TerminalOf(sp)->Filedes))
-#else
+#  else
 #    define IsTermInfoOnConsole(sp) FALSE
 #  endif
 #else
 #  define IsTermInfo(sp)       TRUE
 #  define HasTInfoTerminal(sp) (0 != TerminalOf(sp))
-#  define IsTermInfoOnConsole(sp) FALSE
+#  if defined(EXP_WIN32_DRIVER)
+#    define IsTermInfoOnConsole(sp) _nc_console_test(TerminalOf(sp)->Filedes)
+#  else
+#    define IsTermInfoOnConsole(sp) FALSE
+#  endif
 #endif
 
 #define IsValidTIScreen(sp)  (HasTInfoTerminal(sp))

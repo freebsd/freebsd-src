@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_scroll.3x,v 1.18 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_scroll.3x,v 1.19 2020/10/24 09:45:48 tom Exp $
 .TH curs_scroll 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -44,11 +44,11 @@
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
-\fBint scroll(WINDOW *win);\fR
+\fBint scroll(WINDOW *\fP\fIwin\fP\fB);\fR
+.sp
+\fBint scrl(int \fP\fIn\fP\fB);\fR
 .br
-\fBint scrl(int n);\fR
-.br
-\fBint wscrl(WINDOW *win, int n);\fR
+\fBint wscrl(WINDOW *\fP\fIwin\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
 .SH DESCRIPTION
 The \fBscroll\fR routine scrolls the window up one line.

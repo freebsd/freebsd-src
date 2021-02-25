@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_items.c,v 1.18 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: m_items.c,v 1.20 2020/12/12 00:38:08 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -53,8 +53,8 @@ MODULE_ID("$Id: m_items.c,v 1.18 2020/02/02 23:34:34 tom Exp $")
 |                    E_BAD_ARGUMENT - An incorrect menu or item array was
 |                                     passed to the function
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
-set_menu_items(MENU * menu, ITEM ** items)
+MENU_EXPORT(int)
+set_menu_items(MENU *menu, ITEM **items)
 {
   T((T_CALLED("set_menu_items(%p,%p)"), (void *)menu, (void *)items));
 
@@ -85,11 +85,11 @@ set_menu_items(MENU * menu, ITEM ** items)
 |
 |   Return Values :  NULL on error
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(ITEM **)
-menu_items(const MENU * menu)
+MENU_EXPORT(ITEM **)
+menu_items(const MENU *menu)
 {
   T((T_CALLED("menu_items(%p)"), (const void *)menu));
-  returnItemPtr(menu ? menu->items : (ITEM **) 0);
+  returnItemPtr(menu ? menu->items : (ITEM **)0);
 }
 
 /*---------------------------------------------------------------------------
@@ -101,8 +101,8 @@ menu_items(const MENU * menu)
 |
 |   Return Values :  Number of items or -1 to indicate error.
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
-item_count(const MENU * menu)
+MENU_EXPORT(int)
+item_count(const MENU *menu)
 {
   T((T_CALLED("item_count(%p)"), (const void *)menu));
   returnCode(menu ? menu->nitems : -1);

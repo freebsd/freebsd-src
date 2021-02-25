@@ -53,7 +53,7 @@
 #include <sys/ptem.h>
 #endif
 
-MODULE_ID("$Id: reset_cmd.c,v 1.19 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: reset_cmd.c,v 1.24 2020/11/21 22:11:10 tom Exp $")
 
 /*
  * SCO defines TIOCGSIZE and the corresponding struct.  Other systems (SunOS,
@@ -363,6 +363,13 @@ default_erase(void)
 void
 set_control_chars(TTY * tty_settings, int my_erase, int my_intr, int my_kill)
 {
+#if defined(EXP_WIN32_DRIVER)
+    /* noop */
+    (void) tty_settings;
+    (void) my_erase;
+    (void) my_intr;
+    (void) my_kill;
+#else
     if (DISABLED(tty_settings->c_cc[VERASE]) || my_erase >= 0) {
 	tty_settings->c_cc[VERASE] = UChar((my_erase >= 0)
 					   ? my_erase
@@ -380,6 +387,7 @@ set_control_chars(TTY * tty_settings, int my_erase, int my_intr, int my_kill)
 					  ? my_kill
 					  : CKILL);
     }
+#endif
 }
 
 /*
@@ -389,6 +397,9 @@ set_control_chars(TTY * tty_settings, int my_erase, int my_intr, int my_kill)
 void
 set_conversions(TTY * tty_settings)
 {
+#if defined(EXP_WIN32_DRIVER)
+    /* FIXME */
+#else
 #ifdef ONLCR
     tty_settings->c_oflag |= ONLCR;
 #endif
@@ -412,6 +423,7 @@ set_conversions(TTY * tty_settings)
 	tty_settings->c_oflag &= ~OXTABS;
 #endif /* OXTABS */
     tty_settings->c_lflag |= (ECHOE | ECHOK);
+#endif
 }
 
 static bool
@@ -501,16 +513,15 @@ send_init_strings(int fd GCC_UNUSED, TTY * old_settings)
 	} else
 #if defined(set_lr_margin)
 	if (VALID_STRING(set_lr_margin)) {
-	    need_flush |= sent_string(TPARM_2(set_lr_margin, 0,
-					      columns - 1));
+	    need_flush |= sent_string(TIPARM_2(set_lr_margin, 0, columns - 1));
 	} else
 #endif
 #if defined(set_left_margin_parm) && defined(set_right_margin_parm)
 	    if (VALID_STRING(set_left_margin_parm)
 		&& VALID_STRING(set_right_margin_parm)) {
-	    need_flush |= sent_string(TPARM_1(set_left_margin_parm, 0));
-	    need_flush |= sent_string(TPARM_1(set_right_margin_parm,
-					      columns - 1));
+	    need_flush |= sent_string(TIPARM_1(set_left_margin_parm, 0));
+	    need_flush |= sent_string(TIPARM_1(set_right_margin_parm,
+					       columns - 1));
 	} else
 #endif
 	    if (VALID_STRING(set_left_margin)
@@ -518,8 +529,8 @@ send_init_strings(int fd GCC_UNUSED, TTY * old_settings)
 	    need_flush |= to_left_margin();
 	    need_flush |= sent_string(set_left_margin);
 	    if (VALID_STRING(parm_right_cursor)) {
-		need_flush |= sent_string(TPARM_1(parm_right_cursor,
-						  columns - 1));
+		need_flush |= sent_string(TIPARM_1(parm_right_cursor,
+						   columns - 1));
 	    } else {
 		for (i = 0; i < columns - 1; i++) {
 		    out_char(' ');
@@ -552,15 +563,23 @@ show_tty_change(TTY * old_settings,
 		int which,
 		unsigned def)
 {
-    unsigned older, newer;
+    unsigned older = 0, newer = 0;
     char *p;
 
+#if defined(EXP_WIN32_DRIVER)
+    /* noop */
+    (void) old_settings;
+    (void) new_settings;
+    (void) name;
+    (void) which;
+    (void) def;
+#else
     newer = new_settings->c_cc[which];
     older = old_settings->c_cc[which];
 
     if (older == newer && older == def)
 	return;
-
+#endif
     (void) fprintf(stderr, "%s %s ", name, older == newer ? "is" : "set to");
 
     if (DISABLED(newer)) {
@@ -604,9 +623,13 @@ reset_flush(void)
 void
 print_tty_chars(TTY * old_settings, TTY * new_settings)
 {
+#if defined(EXP_WIN32_DRIVER)
+    /* noop */
+#else
     show_tty_change(old_settings, new_settings, "Erase", VERASE, CERASE);
     show_tty_change(old_settings, new_settings, "Kill", VKILL, CKILL);
     show_tty_change(old_settings, new_settings, "Interrupt", VINTR, CINTR);
+#endif
 }
 
 #if HAVE_SIZECHANGE

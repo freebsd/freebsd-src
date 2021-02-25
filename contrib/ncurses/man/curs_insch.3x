@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_insch.3x,v 1.17 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_insch.3x,v 1.19 2020/10/18 00:21:39 tom Exp $
 .TH curs_insch 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -41,13 +41,13 @@
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
-\fBint insch(chtype ch);\fR
+\fBint insch(chtype \fP\fIch\fP\fB);\fR
 .br
-\fBint winsch(WINDOW *win, chtype ch);\fR
+\fBint winsch(WINDOW *\fP\fIwin\fP\fB, chtype \fP\fIch\fP\fB);\fR
+.sp
+\fBint mvinsch(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype \fP\fIch\fP\fB);\fR
 .br
-\fBint mvinsch(int y, int x, chtype ch);\fR
-.br
-\fBint mvwinsch(WINDOW *win, int y, int x, chtype ch);\fR
+\fBint mvwinsch(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype \fP\fIch\fP\fB);\fR
 .br
 .SH DESCRIPTION
 These routines insert the character \fIch\fR before the character under the

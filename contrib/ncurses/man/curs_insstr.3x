@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_insstr.3x,v 1.24 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_insstr.3x,v 1.26 2020/10/18 00:20:36 tom Exp $
 .TH curs_insstr 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -45,21 +45,21 @@
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .br
-\fBint insstr(const char *str);\fR
+\fBint insstr(const char *\fP\fIstr\fP\fB);\fR
 .br
-\fBint insnstr(const char *str, int n);\fR
+\fBint insnstr(const char *\fP\fIstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint winsstr(WINDOW *win, const char *str);\fR
+\fBint winsstr(WINDOW *\fP\fIwin\fP\fB, const char *\fP\fIstr\fP\fB);\fR
 .br
-\fBint winsnstr(WINDOW *win, const char *str, int n);\fR
+\fBint winsnstr(WINDOW *\fP\fIwin\fP\fB, const char *\fP\fIstr\fP\fB, int \fP\fIn\fP\fB);\fR
+.sp
+\fBint mvinsstr(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, const char *\fP\fIstr\fP\fB);\fR
 .br
-\fBint mvinsstr(int y, int x, const char *str);\fR
+\fBint mvinsnstr(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, const char *\fP\fIstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint mvinsnstr(int y, int x, const char *str, int n);\fR
+\fBint mvwinsstr(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, const char *\fP\fIstr\fP\fB);\fR
 .br
-\fBint mvwinsstr(WINDOW *win, int y, int x, const char *str);\fR
-.br
-\fBint mvwinsnstr(WINDOW *win, int y, int x, const char *str, int n);\fR
+\fBint mvwinsnstr(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, const char *\fP\fIstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
 .SH DESCRIPTION
 These routines insert a character string
