@@ -1649,7 +1649,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			TCPSTAT_INC(tcps_ecn_shs);
 		}
 		if ((to.to_flags & TOF_SCALE) &&
-		    (tp->t_flags & TF_REQ_SCALE)) {
+		    (tp->t_flags & TF_REQ_SCALE) &&
+		    !(tp->t_flags & TF_NOOPT)) {
 			tp->t_flags |= TF_RCVD_SCALE;
 			tp->snd_scale = to.to_wscale;
 		} else
@@ -1660,7 +1661,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 */
 		tp->snd_wnd = th->th_win;
 		if ((to.to_flags & TOF_TS) &&
-		    (tp->t_flags & TF_REQ_TSTMP)) {
+		    (tp->t_flags & TF_REQ_TSTMP) &&
+		    !(tp->t_flags & TF_NOOPT)) {
 			tp->t_flags |= TF_RCVD_TSTMP;
 			tp->ts_recent = to.to_tsval;
 			tp->ts_recent_age = tcp_ts_getticks();
@@ -1669,10 +1671,12 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (to.to_flags & TOF_MSS)
 			tcp_mss(tp, to.to_mss);
 		if ((tp->t_flags & TF_SACK_PERMIT) &&
-		    (to.to_flags & TOF_SACKPERM) == 0)
+		    (!(to.to_flags & TOF_SACKPERM) ||
+		    (tp->t_flags & TF_NOOPT)))
 			tp->t_flags &= ~TF_SACK_PERMIT;
 		if (IS_FASTOPEN(tp->t_flags)) {
-			if (to.to_flags & TOF_FASTOPEN) {
+			if ((to.to_flags & TOF_FASTOPEN) &&
+			    !(tp->t_flags & TF_NOOPT)) {
 				uint16_t mss;
 
 				if (to.to_flags & TOF_MSS)
