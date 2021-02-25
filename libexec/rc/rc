@@ -105,7 +105,7 @@ files=`rcorder ${skip} ${skip_firstboot} ${_rc_parallel} /etc/rc.d/* 2>/dev/null
 _rc_elem_done=' '
 IFS=$'\n'
 for _rc_group in ${files}; do
-	IFS=$' '
+	unset IFS
 	for _rc_elem in ${_rc_group}; do
 		run_rc_script ${_rc_elem} ${_boot} &
 		_rc_elem_done="${_rc_elem_done}${_rc_elem} "
@@ -138,7 +138,7 @@ fi
 files=`rcorder ${skip} ${skip_firstboot} /etc/rc.d/* ${local_rc} ${_rc_parallel} 2>/dev/null`
 IFS=$'\n'
 for _rc_group in ${files}; do
-	IFS=$' '
+	unset IFS
 	for _rc_elem in ${_rc_group}; do
 		case "$_rc_elem_done" in
 		*" $_rc_elem "*) continue ;;
