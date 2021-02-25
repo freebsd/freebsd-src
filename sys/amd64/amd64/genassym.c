@@ -227,7 +227,6 @@ ASSYM(PC_GS32P, offsetof(struct pcpu, pc_gs32p));
 ASSYM(PC_LDT, offsetof(struct pcpu, pc_ldt));
 ASSYM(PC_COMMONTSS, offsetof(struct pcpu, pc_common_tss));
 ASSYM(PC_TSS, offsetof(struct pcpu, pc_tss));
-ASSYM(PC_PM_SAVE_CNT, offsetof(struct pcpu, pc_pm_save_cnt));
 ASSYM(PC_KCR3, offsetof(struct pcpu, pc_kcr3));
 ASSYM(PC_UCR3, offsetof(struct pcpu, pc_ucr3));
 ASSYM(PC_UCR3_LOAD_MASK, offsetof(struct pcpu, pc_ucr3_load_mask));
