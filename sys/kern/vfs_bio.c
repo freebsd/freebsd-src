@@ -2325,11 +2325,13 @@ void
 bufbdflush(struct bufobj *bo, struct buf *bp)
 {
 	struct buf *nbp;
+	struct bufdomain *bd;
 
-	if (bo->bo_dirty.bv_cnt > dirtybufthresh + 10) {
+	bd = &bdomain[bo->bo_domain];
+	if (bo->bo_dirty.bv_cnt > bd->bd_dirtybufthresh + 10) {
 		(void) VOP_FSYNC(bp->b_vp, MNT_NOWAIT, curthread);
 		altbufferflushes++;
-	} else if (bo->bo_dirty.bv_cnt > dirtybufthresh) {
+	} else if (bo->bo_dirty.bv_cnt > bd->bd_dirtybufthresh) {
 		BO_LOCK(bo);
 		/*
 		 * Try to find a buffer to flush.
