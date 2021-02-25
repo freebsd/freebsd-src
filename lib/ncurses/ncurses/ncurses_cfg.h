@@ -1,6 +1,7 @@
 /* include/ncurses_cfg.h.  Generated automatically by configure.  */
 /****************************************************************************
- * Copyright (c) 1998-2016,2017 Free Software Foundation, Inc.              *
+ * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +32,7 @@
  *  Author: Thomas E. Dickey      1997-on                                   *
  ****************************************************************************/
 /*
- * $Id: ncurses_cfg.hin,v 1.11 2017/12/09 20:41:54 tom Exp $
+ * $Id: ncurses_cfg.hin,v 1.13 2020/03/08 12:37:59 tom Exp $
  *
  * Both ncurses_cfg.h and ncurses_def.h are internal header-files used when
  * building ncurses.
@@ -43,7 +44,7 @@
  * 971222) to autoconf 2.12 or 2.13 to do this.
  *
  * See:
- *	http://invisible-island.net/autoconf/
+ *	https://invisible-island.net/autoconf/
  *	ftp://ftp.invisible-island.net/autoconf/
  */
 
@@ -52,6 +53,9 @@
 #ifndef NC_CONFIG_H
 #define NC_CONFIG_H
 
+#define PACKAGE "ncurses"
+#define NCURSES_VERSION "6.2"
+#define NCURSES_PATCHDATE 20210220
 #define SYSTEM_NAME "FreeBSD"
 #if 0
 #include <stdlib.h>
@@ -224,7 +228,7 @@
 #define HAVE_FORM_H 1
 #define HAVE_LIBFORM 1
 #define NCURSES_PATHSEP ':'
-#define NCURSES_VERSION_STRING "6.2.20200215"
+#define NCURSES_VERSION_STRING "6.2.20210220"
 #define NCURSES_OSPEED_COMPAT 1
 #define HAVE_CURSES_DATA_BOOLNAMES 1
 
