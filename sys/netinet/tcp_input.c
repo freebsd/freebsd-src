@@ -3950,9 +3950,7 @@ tcp_prr_partialack(struct tcpcb *tp, struct tcphdr *th)
 	 * (del_data) and an estimate of how many bytes are in the
 	 * network.
 	 */
-	if (SEQ_GEQ(th->th_ack, tp->snd_una))
-		del_data = BYTES_THIS_ACK(tp, th);
-	del_data += tp->sackhint.delivered_data;
+	del_data = tp->sackhint.delivered_data;
 	if (V_tcp_do_rfc6675_pipe)
 		pipe = tcp_compute_pipe(tp);
 	else
