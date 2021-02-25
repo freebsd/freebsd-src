@@ -113,7 +113,6 @@ l_getparams(lua_State *L)
 	    "expected a jail name (string) or id (integer)");
 	luaL_checktype(L, 2, LUA_TTABLE);
 	params_count = 1 + lua_rawlen(L, 2);
-	luaL_argcheck(L, params_count > 1, 2, "expected #params > 0");
 	flags = luaL_optinteger(L, 3, 0);
 
 	params = malloc(params_count * sizeof(struct jailparam));
@@ -236,7 +235,6 @@ l_setparams(lua_State *L)
 	lua_pushnil(L);
 	for (params_count = 1; lua_next(L, 2) != 0; ++params_count)
 		lua_pop(L, 1);
-	luaL_argcheck(L, params_count > 1, 2, "expected #params > 0");
 
 	flags = luaL_optinteger(L, 3, 0);
 
