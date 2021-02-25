@@ -189,9 +189,92 @@ mtu_diff_cleanup()
 	pft_cleanup
 }
 
+frag_common()
+{
+	name=$1
+
+	pft_init
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}a
+
+	ifconfig ${epair}b inet 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair}a 192.0.2.2/24 up
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"scrub all fragment reassemble"
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	atf_check -s exit:0 -o ignore $(atf_get_srcdir)/frag-${1}.py \
+		--to 192.0.2.2 \
+		--fromaddr 192.0.2.1 \
+		--sendif ${epair}b \
+		--recvif ${epair}b
+}
+
+atf_test_case "overreplace" "cleanup"
+overreplace_head()
+{
+	atf_set descr 'ping fragment that overlaps fragment at index boundary and replace it'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+overreplace_body()
+{
+	frag_common overreplace
+}
+
+overreplace_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "overindex" "cleanup"
+overindex_head()
+{
+	atf_set descr 'ping fragment that overlaps the first fragment at index boundary'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+overindex_body()
+{
+	frag_common overindex
+}
+
+overindex_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "overlimit" "cleanup"
+overlimit_head()
+{
+	atf_set descr 'ping fragment at index boundary that cannot be requeued'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+overlimit_body()
+{
+	frag_common overlimit
+}
+
+overlimit_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "too_many_fragments"
 	atf_add_test_case "v6"
 	atf_add_test_case "mtu_diff"
+	atf_add_test_case "overreplace"
+	atf_add_test_case "overindex"
+	atf_add_test_case "overlimit"
 }
