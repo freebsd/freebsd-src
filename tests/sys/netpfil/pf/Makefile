@@ -29,9 +29,17 @@ ATF_TESTS_SH+=	anchor \
 ${PACKAGE}FILES+=	utils.subr \
 			echo_inetd.conf \
 			CVE-2019-5597.py \
-			CVE-2019-5598.py
+			CVE-2019-5598.py \
+			fragcommon.py \
+			frag-overindex.py \
+			frag-overlimit.py \
+			frag-overreplace.py
 
 ${PACKAGE}FILESMODE_CVE-2019-5597.py=	0555
 ${PACKAGE}FILESMODE_CVE-2019-5598.py=	0555
+${PACKAGE}FILESMODE_fragcommon.py=	0555
+${PACKAGE}FILESMODE_frag-overindex.py=	0555
+${PACKAGE}FILESMODE_frag-overlimit.py=	0555
+${PACKAGE}FILESMODE_frag-overreplace.py=	0555
 
 .include <bsd.test.mk>
