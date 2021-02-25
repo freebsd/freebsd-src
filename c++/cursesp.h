@@ -35,7 +35,7 @@
 #ifndef NCURSES_CURSESP_H_incl
 #define NCURSES_CURSESP_H_incl 1
 
-// $Id: cursesp.h,v 1.33 2020/02/02 23:34:34 tom Exp $
+// $Id: cursesp.h,v 1.34 2020/05/24 01:40:20 anonymous.maarten Exp $
 
 #include <cursesw.h>
 
@@ -43,7 +43,7 @@ extern "C" {
 #  include <panel.h>
 }
 
-class NCURSES_IMPEXP NCursesPanel
+class NCURSES_CXX_IMPEXP NCursesPanel
   : public NCursesWindow
 {
 protected:

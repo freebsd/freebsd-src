@@ -1,4 +1,4 @@
-# $Id: manhtml.aliases,v 1.16 2020/02/15 21:02:48 tom Exp $
+# $Id: manhtml.aliases,v 1.19 2020/12/12 14:45:55 tom Exp $
 #***************************************************************************
 # Copyright 2019,2020 Thomas E. Dickey                                     *
 # Copyright 2013,2017 Free Software Foundation, Inc.                       *
@@ -28,14 +28,15 @@
 # authorization.                                                           *
 #***************************************************************************
 # Items in this list will be linked to the corresponding manpages by man2html
-assume_default_colors(3X)	default_colors(3X)
 addch(3X)		curs_addch(3X)
+assume_default_colors(3X)	default_colors(3X)
 curs_set(3X)		curs_kernel(3X)
 delscreen(3X)		curs_initscr(3X)
 doupdate(3X)		curs_refresh(3X)
 endwin(3X)		curs_initscr(3X)
 filter(3X)		curs_util(3X)
 get_wch(3X)		curs_get_wch(3X)
+getcchar(3X)		curs_getcchar(3X)
 getch(3X)		curs_getch(3X)
 inch(3X)		curs_inch(3X)
 infocmp(1)		infocmp(1M)
@@ -49,17 +50,19 @@ mvwin(3X)		curs_window(3X)
 newterm(3X)		curs_initscr(3X)
 refresh(3X)		curs_refresh(3X)
 reset_shell_mode(3X)	curs_kernel(3X)
-set_fieldtype(3X)	form_fieldtype(3X)
 set_term(3X)		curs_initscr(3X)
+setcchar(3X)		curs_getcchar(3X)
 setupterm(3X)		curs_terminfo(3X)
 slk_init(3X)		curs_slk(3X)
+slk_touch(3X)		curs_slk(3X)
 tic(1)			tic(1M)
 tigetstr(3X)		curs_terminfo(3X)
 tparm(3X)		curs_terminfo(3X)
 tputs(3X)		curs_terminfo(3X)
-use_env(3X)		curs_util(3X)
 use_default_colors(3X)	default_colors(3X)
+use_env(3X)		curs_util(3X)
 use_extended_names(3X)	curs_extend(3X)
+use_legacy_coding(3X)	legacy_coding(3X)
 vidputs(3X)		curs_terminfo(3X)
 wgetch(3X)		curs_getch(3X)
 wnoutrefresh(3X)	curs_refresh(3X)

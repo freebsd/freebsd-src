@@ -28,7 +28,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: form.3x,v 1.34 2020/02/02 23:34:34 tom Exp @
+  * @Id: form.3x,v 1.36 2020/12/12 16:34:33 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -59,8 +59,8 @@
        The <STRONG>form</STRONG> library provides terminal-independent facilities for composing
        form screens on character-cell terminals.  The library includes:  field
        routines, which create and modify form fields; and form routines, which
-       group fields into forms, display forms on the screen, and handle inter-
-       action with the user.
+       group fields into forms,  display  forms  on  the  screen,  and  handle
+       interaction with the user.
 
        The  <STRONG>form</STRONG>  library uses the <STRONG>curses</STRONG> libraries.  To use the <STRONG>form</STRONG> library,
        link with the options <STRONG>-lform</STRONG> <STRONG>-lcurses</STRONG>.
@@ -85,7 +85,8 @@
 
 </PRE><H3><a name="h3-Routine-Name-Index">Routine Name Index</a></H3><PRE>
        The  following table lists each <STRONG>form</STRONG> routine and the name of the manual
-       page on which it is described.
+       page on which it is described.  Routines flagged with "*" are  ncurses-
+       specific, not present in SVr4.
 
        <STRONG>curses</STRONG> Routine Name     Manual Page Name
        --------------------------------------------------
@@ -111,8 +112,8 @@
        field_term              <STRONG><A HREF="form_hook.3x.html">form_hook(3x)</A></STRONG>
        field_type              <STRONG><A HREF="form_field_validation.3x.html">form_field_validation(3x)</A></STRONG>
        field_userptr           <STRONG><A HREF="form_field_userptr.3x.html">form_field_userptr(3x)</A></STRONG>
-       form_driver             <STRONG><A HREF="form_driver.3x.html">form_driver(3x)</A></STRONG>
 
+       form_driver             <STRONG><A HREF="form_driver.3x.html">form_driver(3x)</A></STRONG>
        form_driver_w           <STRONG><A HREF="form_driver.3x.html">form_driver(3x)</A></STRONG>*
        form_fields             <STRONG><A HREF="form_field.3x.html">form_field(3x)</A></STRONG>
        form_init               <STRONG><A HREF="form_hook.3x.html">form_hook(3x)</A></STRONG>
@@ -120,8 +121,8 @@
        form_opts_off           <STRONG><A HREF="form_opts.3x.html">form_opts(3x)</A></STRONG>
        form_opts_on            <STRONG><A HREF="form_opts.3x.html">form_opts(3x)</A></STRONG>
        form_page               <STRONG><A HREF="form_page.3x.html">form_page(3x)</A></STRONG>
-       form_request_by_name    <STRONG><A HREF="form_requestname.3x.html">form_requestname(3x)</A></STRONG>
-       form_request_name       <STRONG><A HREF="form_requestname.3x.html">form_requestname(3x)</A></STRONG>
+       form_request_by_name    <STRONG><A HREF="form_requestname.3x.html">form_requestname(3x)</A></STRONG>*
+       form_request_name       <STRONG><A HREF="form_requestname.3x.html">form_requestname(3x)</A></STRONG>*
        form_sub                <STRONG><A HREF="form_win.3x.html">form_win(3x)</A></STRONG>
        form_term               <STRONG><A HREF="form_hook.3x.html">form_hook(3x)</A></STRONG>
        form_userptr            <STRONG><A HREF="form_userptr.3x.html">form_userptr(3x)</A></STRONG>
@@ -163,15 +164,15 @@
        set_form_win            <STRONG><A HREF="form_win.3x.html">form_win(3x)</A></STRONG>
        set_max_field           <STRONG><A HREF="form_field_buffer.3x.html">form_field_buffer(3x)</A></STRONG>
        set_new_page            <STRONG><A HREF="form_new_page.3x.html">form_new_page(3x)</A></STRONG>
-       unfocus_current_field   <STRONG><A HREF="form_page.3x.html">form_page(3x)</A></STRONG>
+       unfocus_current_field   <STRONG><A HREF="form_page.3x.html">form_page(3x)</A></STRONG>*
        unpost_form             <STRONG><A HREF="form_post.3x.html">form_post(3x)</A></STRONG>
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       Routines that return pointers return <STRONG>NULL</STRONG> on error, and  set  errno  to
-       the  corresponding  error-code returned by functions returning an inte-
-       ger.  Routines that return an integer return one of the following error
-       codes:
+       Routines  that  return  pointers return <STRONG>NULL</STRONG> on error, and set <STRONG>errno</STRONG> to
+       the  corresponding  error-code  returned  by  functions  returning   an
+       integer.   Routines  that return an integer return one of the following
+       error codes:
 
        <STRONG>E_OK</STRONG> The routine succeeded.
 
@@ -210,19 +211,19 @@
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       The  header  file  <STRONG>&lt;form.h&gt;</STRONG>  automatically  includes  the  header files
+       The header  file  <STRONG>&lt;form.h&gt;</STRONG>  automatically  includes  the  header  files
        <STRONG>&lt;curses.h&gt;</STRONG> and <STRONG>&lt;eti.h&gt;</STRONG>.
 
        In your library list, libform.a should be before libncurses.a; that is,
-       you  want  to  say  "-lform -lncurses", not the other way around (which
+       you want to say "-lform -lncurses", not the  other  way  around  (which
        would give you a link error when using static libraries).
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These routines emulate the System V forms library.  They were not  sup-
-       ported on Version 7 or BSD versions.
+       These  routines  emulate  the  System  V  forms library.  They were not
+       supported on Version 7 or BSD versions.
 
-       The  menu facility was documented in SVr4.2 in <EM>Character</EM> <EM>User</EM> <EM>Interface</EM>
+       The menu facility was documented in SVr4.2 in <EM>Character</EM> <EM>User</EM>  <EM>Interface</EM>
        <EM>Programming</EM> <EM>(UNIX</EM> <EM>SVR4.2)</EM>.
 
        It is not part of X/Open Curses.
@@ -233,21 +234,21 @@
 
        <STRONG>o</STRONG>   NetBSD curses.
 
-       A few  functions  in  this  implementation  are  extensions  added  for
+       A  few  functions  in  this  implementation  are  extensions  added for
        ncurses,   but   not   provided   by   other   implementations,   e.g.,
        <STRONG>form_driver_w</STRONG>, <STRONG>unfocus_current_field</STRONG>.
 
 
 </PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>
-       Juergen Pfeifer.  Manual pages and adaptation for ncurses  by  Eric  S.
+       Juergen  Pfeifer.   Manual  pages and adaptation for ncurses by Eric S.
        Raymond.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>  and  related  pages  whose names begin "form_" for detailed
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG> and related pages whose names  begin  "form_"  for  detailed
        descriptions of the entry points.
 
-       This describes <STRONG>ncurses</STRONG> version 6.2 (patch 20200215).
+       This describes <STRONG>ncurses</STRONG> version 6.2 (patch 20210109).
 
 
 

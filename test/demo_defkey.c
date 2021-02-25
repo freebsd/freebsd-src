@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_defkey.c,v 1.30 2020/02/02 23:34:34 tom Exp $
+ * $Id: demo_defkey.c,v 1.31 2020/12/26 17:55:13 tom Exp $
  *
  * Demonstrate the define_key() function.
  * Thomas Dickey - 2002/11/23
@@ -74,7 +74,7 @@ log_last_line(WINDOW *win)
 static char *
 visichar(int ch)
 {
-    static char temp[10];
+    static char temp[20];
 
     ch = UChar(ch);
     assert(ch >= 0 && ch < 256);
@@ -242,7 +242,7 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
      * keypad() initializes the corresponding data.
      */
     for (n = 0; n < 12; ++n) {
-	char name[10];
+	char name[20];
 	_nc_SPRINTF(name, _nc_SLIMIT(sizeof(name)) "kf%d", n + 1);
 	fkeys[n] = tigetstr(name);
     }

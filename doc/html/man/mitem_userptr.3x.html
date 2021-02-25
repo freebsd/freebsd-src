@@ -28,7 +28,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: mitem_userptr.3x,v 1.14 2020/02/02 23:34:34 tom Exp @
+  * @Id: mitem_userptr.3x,v 1.17 2020/10/18 00:36:16 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -54,19 +54,20 @@
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;menu.h&gt;</STRONG>
-       int set_item_userptr(ITEM *item, void *userptr);
-       void *item_userptr(const ITEM *item);
+
+       <STRONG>int</STRONG> <STRONG>set_item_userptr(ITEM</STRONG> <STRONG>*</STRONG><EM>item</EM><STRONG>,</STRONG> <STRONG>void</STRONG> <STRONG>*</STRONG><EM>userptr</EM><STRONG>);</STRONG>
+       <STRONG>void</STRONG> <STRONG>*item_userptr(const</STRONG> <STRONG>ITEM</STRONG> <STRONG>*</STRONG><EM>item</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       Every menu item has a field that can be used to  hold  application-spe-
-       cific  data  (that  is,  the  menu-driver code leaves it alone).  These
+       Every menu item has a field that  can  be  used  to  hold  application-
+       specific  data  (that is, the menu-driver code leaves it alone).  These
        functions get and set that field.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
        The function <STRONG>item_userptr</STRONG> returns a pointer (possibly <STRONG>NULL</STRONG>).   It  does
-       not set errno.
+       not set <STRONG>errno</STRONG>.
 
        The <STRONG>set_item_userptr</STRONG> always returns <STRONG>E_OK</STRONG> (success).
 
@@ -81,8 +82,8 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These routines emulate the System V menu library.  They were  not  sup-
-       ported on Version 7 or BSD versions.
+       These routines emulate the  System  V  menu  library.   They  were  not
+       supported on Version 7 or BSD versions.
 
        The user pointer is a void pointer.  We chose not to leave it as a char
        pointer for SVr4 compatibility.

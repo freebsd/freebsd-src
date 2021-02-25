@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2019-2020,2021 Thomas E. Dickey                                  #
 # Copyright 1998-2015,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -28,8 +28,9 @@
 ##############################################################################
 #
 #  Author:  Juergen Pfeifer, 1996
+#     and:  Thomas E. Dickey, 1997
 #
-#  $Id: Makefile.in,v 1.90 2020/02/02 23:34:34 tom Exp $
+#  $Id: Makefile.in,v 1.96 2021/01/23 20:42:08 tom Exp $
 #
 .SUFFIXES:
 
@@ -57,7 +58,7 @@ LN_S		= @LN_S@
 CC		= @CC@
 HOST_CC		= @BUILD_CC@
 
-CFLAGS		= @CFLAGS@
+CFLAGS		= @CFLAGS@ @EXTRA_CFLAGS@
 HOST_CFLAGS	= @BUILD_CFLAGS@
 
 CPPFLAGS	= @CPPFLAGS@
@@ -65,9 +66,9 @@ HOST_CPPFLAGS	= @ACPPFLAGS@ @BUILD_CPPFLAGS@ \
 		  -DHAVE_CONFIG_H -I$(srcdir)
 
 CCFLAGS		= $(HOST_CPPFLAGS) $(HOST_CFLAGS)
-CFLAGS_NORMAL	= $(CCFLAGS)
-CFLAGS_DEBUG	= $(CCFLAGS) @CC_G_OPT@ -DTRACE
-CFLAGS_PROFILE	= $(CCFLAGS) -pg
+CFLAGS_NORMAL	= $(CCFLAGS) -DNCURSES_STATIC
+CFLAGS_DEBUG	= $(CCFLAGS) -DNCURSES_STATIC @CC_G_OPT@ -DTRACE
+CFLAGS_PROFILE	= $(CCFLAGS) -DNCURSES_STATIC -pg
 CFLAGS_SHARED	= $(CCFLAGS) @CC_SHARED_OPTS@
 
 CFLAGS_DEFAULT	= $(CFLAGS_@DFT_UPR_MODEL@)
@@ -167,7 +168,7 @@ gen.o:	$(srcdir)/gen.c
 	$(HOST_CC) $(CFLAGS_NORMAL) -c -o $@ $(srcdir)/gen.c
 
 $(ADA_SRCDIR)/$(ABASE)_constants.ads: $(PROG_GENERATE)
-	$(WRAPPER) "$(GENERATE)" >$@
+	$(WRAPPER) "$(GENERATE) $@"
 ################################################################################
 $(ADA_SRCDIR)/$(ABASE).ads: 	$(srcdir)/$(ABASE).ads.m4 \
 				$(srcdir)/normal.m4
@@ -310,7 +311,7 @@ adahtml:
 	test -n "$(GNATHTML)" || exit 1
 	@find $(HTML_DIR) -type f -exec rm -f {} \;
 	@mkdir -p $(HTML_DIR)
-	cp -p ../src/*.ad[sb] . && chmod +w *.ad[sb]
+	( cp -p ../src/*.ad[sb] . && chmod +w *.ad[sb] )
 @USE_OLD_MAKERULES@	ln -sf ../src/*.ali .
 @USE_GNAT_PROJECTS@	ln -sf ../static-ali/*.ali .
 	@echo "Filtering generated files"

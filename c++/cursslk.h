@@ -32,17 +32,17 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursslk.h,v 1.15 2020/02/02 23:34:34 tom Exp $
+// $Id: cursslk.h,v 1.18 2020/07/18 19:57:11 anonymous.maarten Exp $
 
 #ifndef NCURSES_CURSSLK_H_incl
 #define NCURSES_CURSSLK_H_incl
 
 #include <cursesw.h>
 
-class NCURSES_IMPEXP Soft_Label_Key_Set {
+class NCURSES_CXX_IMPEXP Soft_Label_Key_Set {
 public:
   // This inner class represents the attributes of a Soft Label Key (SLK)
-  class NCURSES_IMPEXP Soft_Label_Key {
+  class NCURSES_CXX_IMPEXP Soft_Label_Key {
     friend class Soft_Label_Key_Set;
   public:
     typedef enum { Left=0, Center=1, Right=2 } Justification;
@@ -101,10 +101,10 @@ public:
   } Label_Layout;
 
 private:
-  static long NCURSES_IMPEXP count;               // Number of Key Sets
-  static Label_Layout NCURSES_IMPEXP  format;     // Layout of the Key Sets
-  static int  NCURSES_IMPEXP num_labels;          // Number Of Labels in Key Sets
-  bool NCURSES_IMPEXP b_attrInit;                 // Are attributes initialized
+  static long count;               // Number of Key Sets
+  static Label_Layout  format;     // Layout of the Key Sets
+  static int  num_labels;          // Number Of Labels in Key Sets
+  bool b_attrInit;                 // Are attributes initialized
 
   Soft_Label_Key *slk_array;       // The array of SLK's
 
@@ -144,7 +144,7 @@ public:
 
   // This constructor assumes, that you already constructed a Key Set
   // with a layout by the constructor above. This layout will be reused.
-  NCURSES_IMPEXP Soft_Label_Key_Set();
+  Soft_Label_Key_Set();
 
   Soft_Label_Key_Set& operator=(const Soft_Label_Key_Set& rhs)
   {
@@ -165,10 +165,10 @@ public:
   virtual ~Soft_Label_Key_Set() THROWS(NCursesException);
 
   // Get Label# i. Label counting starts with 1!
-  NCURSES_IMPEXP Soft_Label_Key& operator[](int i);
+  Soft_Label_Key& operator[](int i);
 
   // Retrieve number of Labels
-  inline int labels() const { return num_labels; }
+  int labels() const;
 
   // Refresh the SLK portion of the screen
   inline void refresh() {

@@ -1,7 +1,5 @@
 #!/usr/bin/make -f
-# Made with the aid of dh_make, by Craig Small
-# Sample debian/rules that uses debhelper. GNU copyright 1997 by Joey Hess.
-# Some lines taken from debmake, by Cristoph Lameter.
+# $Id: rules,v 1.39 2020/08/22 22:03:06 tom Exp $
 
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
@@ -90,6 +88,7 @@ configure = \
 		--with-xterm-kbs=DEL \
 		--without-ada \
 		--without-debug \
+		--without-manpage-aliases \
 		--without-normal
 
 NCURSES6_DIR = $(CURDIR)/debian/ncurses6
@@ -120,14 +119,29 @@ build-arch: $(PACKAGES.arch:%=build-%-stamp)
 install-indep: $(PACKAGES.indep:%=install-%-stamp)
 install-arch: $(PACKAGES.arch:%=install-%-stamp)
 
-config-ncurses6-stamp:
+# make the doc-package installable by renaming everything to avoid clashing
+patch-ncurses6-stamp:
+	dh_testdir
+	sed -i.bak \
+		-e 's/-config\.1$$/dev-config.1/;t' \
+		-e 's/\.3ncurses$$/.3ncurses6/' \
+		-e 's/\.3curses$$/.3curses6/' \
+		-e 's/\.3form$$/.3form6/' \
+		-e 's/\.3menu$$/.3menu6/' \
+		-e 's/\.3panel$$/.3panel6/' \
+		-e 's/\.\([157]\)$$/6.\1/' \
+		man/man_db.renames
+	diff -u man/man_db.renames.bak man/man_db.renames || true
+	touch $@
+
+config-ncurses6-stamp: patch-ncurses6-stamp
 	dh_testdir
 	rm -rf t/ncurses6
 	mkdir -p t/ncurses6
 	cd t/ncurses6; $(configure)
 	touch $@
 
-config-ncursest6-stamp:
+config-ncursest6-stamp: patch-ncurses6-stamp
 	dh_testdir
 	rm -rf t/ncursest6
 	mkdir -p t/ncursest6

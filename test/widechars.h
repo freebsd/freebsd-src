@@ -34,7 +34,7 @@
 
 #if USE_WIDEC_SUPPORT
 
-#if defined(_WIN32)
+#if defined(_NC_WINDOWS) && !defined(_MSC_VER) && !defined(EXP_WIN32_DRIVER)
 /*
  * MinGW has wide-character functions, but they do not work correctly.
  */
@@ -46,7 +46,7 @@ extern int __MINGW_NOTHROW _nc_mbtowc(wchar_t *pwc, const char *s, size_t n);
 extern int __MINGW_NOTHROW _nc_mblen(const char *, size_t);
 #define mblen(s,n) _nc_mblen(s, n)
 
-#endif /* _WIN32 */
+#endif /* _WIN32||_WIN64 */
 
 #if HAVE_MBTOWC && HAVE_MBLEN
 #define reset_mbytes(state) IGNORE_RC(mblen(NULL, 0)), IGNORE_RC(mbtowc(NULL, NULL, 0))

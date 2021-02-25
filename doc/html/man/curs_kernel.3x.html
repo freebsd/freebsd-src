@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_kernel.3x,v 1.28 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_kernel.3x,v 1.29 2020/10/17 23:22:35 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -57,12 +57,16 @@
 
        <STRONG>int</STRONG> <STRONG>def_prog_mode(void);</STRONG>
        <STRONG>int</STRONG> <STRONG>def_shell_mode(void);</STRONG>
+
        <STRONG>int</STRONG> <STRONG>reset_prog_mode(void);</STRONG>
        <STRONG>int</STRONG> <STRONG>reset_shell_mode(void);</STRONG>
+
        <STRONG>int</STRONG> <STRONG>resetty(void);</STRONG>
        <STRONG>int</STRONG> <STRONG>savetty(void);</STRONG>
+
        <STRONG>void</STRONG> <STRONG>getsyx(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
        <STRONG>void</STRONG> <STRONG>setsyx(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
+
        <STRONG>int</STRONG> <STRONG>ripoffline(int</STRONG> <EM>line</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <STRONG>(*</STRONG><EM>init</EM><STRONG>)(WINDOW</STRONG> <STRONG>*,</STRONG> <STRONG>int));</STRONG>
        <STRONG>int</STRONG> <STRONG>curs_set(int</STRONG> <EM>visibility</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>napms(int</STRONG> <EM>ms</EM><STRONG>);</STRONG>

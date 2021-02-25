@@ -71,10 +71,10 @@
 
 </PRE><H2><a name="h2-OPTIONS">OPTIONS</a></H2><PRE>
        <STRONG>-T</STRONG> <EM>type</EM>
-            indicates the <EM>type</EM> of terminal.  Normally this option is  unneces-
-            sary,  because  the default is taken from the environment variable
-            <STRONG>TERM</STRONG>.  If <STRONG>-T</STRONG> is specified, then the shell variables <STRONG>LINES</STRONG> and <STRONG>COL-</STRONG>
-            <STRONG>UMNS</STRONG> will also be ignored.
+            indicates  the  <EM>type</EM>  of  terminal.   Normally  this   option   is
+            unnecessary,  because  the  default  is taken from the environment
+            variable <STRONG>TERM</STRONG>.  If <STRONG>-T</STRONG> is specified, then the shell variables <STRONG>LINES</STRONG>
+            and <STRONG>COLUMNS</STRONG> will also be ignored.
 
        <STRONG>-V</STRONG>   reports the version of ncurses which was used in this program, and
             exits.  The options are as follows:
@@ -94,20 +94,21 @@
            /usr/bin/tput ${1:+-T$1} clear 2&gt; /dev/null
            exit
 
-       In 1989, when Keith Bostic revised the BSD <STRONG>tput</STRONG> command to make it sim-
-       ilar to the AT&amp;T <STRONG>tput</STRONG>, he added a shell script for the <STRONG>clear</STRONG> command:
+       In 1989, when Keith Bostic revised the BSD  <STRONG>tput</STRONG>  command  to  make  it
+       similar  to  the  AT&amp;T  <STRONG>tput</STRONG>,  he  added  a  shell script for the <STRONG>clear</STRONG>
+       command:
 
            exec tput clear
 
        The remainder of the script in each case is a copyright notice.
 
-       The  ncurses  <STRONG>clear</STRONG>  command began in 1995 by adapting the original BSD
+       The ncurses <STRONG>clear</STRONG> command began in 1995 by adapting  the  original  BSD
        <STRONG>clear</STRONG> command (with terminfo, of course).
 
        The <STRONG>E3</STRONG> extension came later:
 
-       <STRONG>o</STRONG>   In June 1999, xterm provided an extension to the  standard  control
-           sequence  for  clearing  the screen.  Rather than clearing just the
+       <STRONG>o</STRONG>   In  June  1999, xterm provided an extension to the standard control
+           sequence for clearing the screen.  Rather than  clearing  just  the
            visible part of the screen using
 
                printf '\033[2J'
@@ -116,24 +117,24 @@
 
                printf '\033[<STRONG>3</STRONG>J'
 
-           This is documented in <EM>XTerm</EM> <EM>Control</EM> <EM>Sequences</EM> as a  feature  origi-
-           nating with xterm.
+           This  is  documented  in  <EM>XTerm</EM>  <EM>Control</EM>  <EM>Sequences</EM>  as  a  feature
+           originating with xterm.
 
        <STRONG>o</STRONG>   A few other terminal developers adopted the feature, e.g., PuTTY in
            2006.
 
-       <STRONG>o</STRONG>   In April 2011, a Red Hat developer submitted a patch to  the  Linux
-           kernel,  modifying  its  console  driver to do the same thing.  The
-           Linux change, part of the  3.0  release,  did  not  mention  xterm,
+       <STRONG>o</STRONG>   In  April  2011, a Red Hat developer submitted a patch to the Linux
+           kernel, modifying its console driver to do  the  same  thing.   The
+           Linux  change,  part  of  the  3.0  release, did not mention xterm,
            although it was cited in the Red Hat bug report (#683733) which led
            to the change.
 
-       <STRONG>o</STRONG>   Again, a few other terminal developers adopted  the  feature.   But
+       <STRONG>o</STRONG>   Again,  a  few  other terminal developers adopted the feature.  But
            the next relevant step was a change to the <STRONG>clear</STRONG> program in 2013 to
            incorporate this extension.
 
-       <STRONG>o</STRONG>   In 2013, the <STRONG>E3</STRONG> extension was overlooked in <STRONG>tput</STRONG> with  the  "clear"
-           parameter.   That  was  addressed  in  2016 by reorganizing <STRONG>tput</STRONG> to
+       <STRONG>o</STRONG>   In  2013,  the <STRONG>E3</STRONG> extension was overlooked in <STRONG>tput</STRONG> with the "clear"
+           parameter.  That was addressed in  2016  by  reorganizing  <STRONG>tput</STRONG>  to
            share its logic with <STRONG>clear</STRONG> and <STRONG>tset</STRONG>.
 
 
@@ -141,15 +142,15 @@
        Neither IEEE Std 1003.1/The Open  Group  Base  Specifications  Issue  7
        (POSIX.1-2008) nor X/Open Curses Issue 7 documents tset or reset.
 
-       The  latter documents <STRONG>tput</STRONG>, which could be used to replace this utility
-       either via a shell script or by an alias (such as a symbolic  link)  to
+       The latter documents <STRONG>tput</STRONG>, which could be used to replace this  utility
+       either  via  a shell script or by an alias (such as a symbolic link) to
        run <STRONG>tput</STRONG> as <STRONG>clear</STRONG>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="tput.1.html">tput(1)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>
 
-       This describes <STRONG>ncurses</STRONG> version 6.2 (patch 20200215).
+       This describes <STRONG>ncurses</STRONG> version 6.2 (patch 20210109).
 
 
 

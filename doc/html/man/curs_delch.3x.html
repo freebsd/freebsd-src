@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_delch.3x,v 1.14 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_delch.3x,v 1.15 2020/10/24 09:36:43 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -55,24 +55,24 @@
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
        <STRONG>int</STRONG> <STRONG>delch(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wdelch(WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvdelch(int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwdelch(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wdelch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvdelch(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwdelch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        These routines delete the character under the cursor; all characters to
        the  right  of  the  cursor  on the same line are moved to the left one
        position and the last character on the line is  filled  with  a  blank.
-       The  cursor  position  does not change (after moving to <EM>y</EM>, <EM>x</EM>, if speci-
-       fied).  (This does not imply use of the hardware delete character  fea-
-       ture.)
+       The  cursor  position  does  not  change  (after  moving  to  <EM>y</EM>,  <EM>x</EM>, if
+       specified).  (This does not imply use of the hardware delete  character
+       feature.)
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       All routines return the integer <STRONG>ERR</STRONG> upon failure and an <STRONG>OK</STRONG> (SVr4 speci-
-       fies only "an integer value other than <STRONG>ERR</STRONG>")  upon  successful  comple-
-       tion.
+       All  routines  return  the  integer  <STRONG>ERR</STRONG>  upon  failure and an <STRONG>OK</STRONG> (SVr4
+       specifies only "an integer  value  other  than  <STRONG>ERR</STRONG>")  upon  successful
+       completion.
 
        Functions  with  a  "mv"  prefix  first perform a cursor movement using
        <STRONG>wmove</STRONG>, and return an error if the position is outside the window, or if

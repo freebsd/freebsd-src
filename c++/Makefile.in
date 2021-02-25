@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.119 2020/02/02 23:34:34 tom Exp $
+# $Id: Makefile.in,v 1.128 2021/01/23 20:42:08 tom Exp $
 ##############################################################################
-# Copyright 2018,2020 Thomas E. Dickey                                       #
+# Copyright 2018-2020,2021 Thomas E. Dickey                                  #
 # Copyright 1998-2015,2016 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -89,7 +89,7 @@ CXXFLAGS	= @CXXFLAGS@ @EXTRA_CXXFLAGS@
 CXXLIBS		= @CXXLIBS@
 
 INCDIR		= ../include
-CPPFLAGS	= -DHAVE_CONFIG_H -I../c++ @CPPFLAGS@
+CPPFLAGS	= -DHAVE_CONFIG_H -DBUILDING_NCURSES_CXX -I../c++ @CPPFLAGS@
 
 CTAGS		= @CTAGS@
 ETAGS		= @ETAGS@
@@ -98,9 +98,9 @@ CC		= ${CXX}
 CCFLAGS		= $(CPPFLAGS) $(CXXFLAGS)
 
 CFLAGS_LIBTOOL	= $(CCFLAGS)
-CFLAGS_NORMAL	= $(CCFLAGS)
-CFLAGS_DEBUG	= $(CCFLAGS) @CXX_G_OPT@ -DTRACE
-CFLAGS_PROFILE	= $(CCFLAGS) -pg
+CFLAGS_NORMAL	= $(CCFLAGS) -DNCURSES_STATIC
+CFLAGS_DEBUG	= $(CCFLAGS) -DNCURSES_STATIC @CXX_G_OPT@ -DTRACE
+CFLAGS_PROFILE	= $(CCFLAGS) -DNCURSES_STATIC -pg
 CFLAGS_SHARED	= $(CCFLAGS) @CC_SHARED_OPTS@
 
 CFLAGS_DEFAULT	= $(CFLAGS_@DFT_UPR_MODEL@)
@@ -114,7 +114,11 @@ LOCAL_LIBDIR	= @top_builddir@/lib
 
 LINK		= @LINK_PROGS@ $(LIBTOOL_LINK) @CXXLDFLAGS@
 SHLIB_DIRS	= -L../lib
-SHLIB_LIST	= $(SHLIB_DIRS) -lform@USE_LIB_SUFFIX@ -lmenu@USE_LIB_SUFFIX@ -lpanel@USE_LIB_SUFFIX@ -lncurses@USE_LIB_SUFFIX@ @SHLIB_LIST@
+SHLIB_LIST	= $(SHLIB_DIRS) \
+		-l@FORM_NAME@@USE_LIB_SUFFIX@ \
+		-l@MENU_NAME@@USE_LIB_SUFFIX@ \
+		-l@PANEL_NAME@@USE_LIB_SUFFIX@ \
+		-lncurses@USE_LIB_SUFFIX@ @SHLIB_LIST@
 
 LIBROOT		= ncurses++
 
@@ -186,29 +190,34 @@ realclean :: distclean
 
 ###############################################################################
 
-internal_h	= $(srcdir)/internal.h \
-		  $(INCDIR)/ncurses_cfg.h \
-		  $(INCDIR)/nc_mingw.h \
-		  $(INCDIR)/nc_string.h
-
-etip_h		= etip.h \
-		  $(INCDIR)/ncurses_dll.h
+HEADER_DEPS	= @INTERNALS_HDR@ \
+	etip.h \
+	../include/curses.h \
+	../include/eti.h \
+	../include/form.h \
+	../include/menu.h \
+	../include/ncurses_cfg.h \
+	../include/ncurses_def.h \
+	../include/ncurses_dll.h \
+	../include/panel.h \
+	../include/unctrl.h \
+	$(INCDIR)/nc_string.h \
+	$(srcdir)/cursesp.h \
+	$(srcdir)/cursesw.h \
+	$(srcdir)/cursslk.h \
+	$(srcdir)/internal.h
 
 cursesw_h	= $(srcdir)/cursesw.h \
-		  $(etip_h) \
-		  $(INCDIR)/curses.h
+		  $(HEADER_DEPS)
 
 cursesp_h	= $(srcdir)/cursesp.h \
-		  $(cursesw_h) \
-		  $(INCDIR)/panel.h
+		  $(cursesw_h)
 
 cursesf_h	= $(srcdir)/cursesf.h \
-		  $(cursesp_h) \
-		  $(INCDIR)/form.h
+		  $(cursesp_h)
 
 cursesm_h	= $(srcdir)/cursesm.h \
-		  $(cursesp_h) \
-		  $(INCDIR)/menu.h
+		  $(cursesp_h)
 
 cursslk_h	= $(srcdir)/cursslk.h \
 		  $(cursesw_h)
@@ -217,25 +226,25 @@ cursesapp_h	= $(srcdir)/cursesapp.h \
 		  $(cursslk_h)
 
 $(INCDIR)/form.h :
-	cd ../form && $(MAKE) $@
+	( cd ../form && $(MAKE) $@ )
 
 $(INCDIR)/menu.h :
-	cd ../menu && $(MAKE) $@
+	( cd ../menu && $(MAKE) $@ )
 
 $(INCDIR)/panel.h :
-	cd ../panel && $(MAKE) $@
+	( cd ../panel && $(MAKE) $@ )
 
 ###############################################################################
 
 OBJS_DEMO = $(MODEL)/demo$o
 
 $(MODEL)/demo$o : $(srcdir)/demo.cc \
-		$(internal_h) \
+		$(HEADER_DEPS) \
 		$(cursesf_h) \
 		$(cursesm_h) \
 		$(cursesapp_h)
 	@echo 'compiling demo (obj_s)'
-	@$(LIBTOOL_COMPILE) $(CXX) $(CFLAGS_DEFAULT) -c $(srcdir)/demo.cc -o $@
+	@( cd $(MODEL) && $(LIBTOOL_COMPILE) $(CXX) $(CFLAGS_DEFAULT) -c $(top_srcdir)/c++/demo.cc -o $@ )
 
 demo$x:	$(OBJS_DEMO) \
 	$(LIBRARIES)  \

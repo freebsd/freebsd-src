@@ -28,7 +28,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_util.3x,v 1.57 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_util.3x,v 1.60 2020/12/19 22:44:46 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -56,17 +56,22 @@
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*unctrl(chtype</STRONG> <STRONG>c);</STRONG>
-       <STRONG>wchar_t</STRONG> <STRONG>*wunctrl(cchar_t</STRONG> <STRONG>*c);</STRONG>
-       <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*keyname(int</STRONG> <STRONG>c);</STRONG>
-       <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*key_name(wchar_t</STRONG> <STRONG>w);</STRONG>
+       <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*unctrl(chtype</STRONG> <EM>c</EM><STRONG>);</STRONG>
+       <STRONG>wchar_t</STRONG> <STRONG>*wunctrl(cchar_t</STRONG> <STRONG>*</STRONG><EM>c</EM><STRONG>);</STRONG>
+
+       <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*keyname(int</STRONG> <EM>c</EM><STRONG>);</STRONG>
+       <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*key_name(wchar_t</STRONG> <EM>w</EM><STRONG>);</STRONG>
+
        <STRONG>void</STRONG> <STRONG>filter(void);</STRONG>
        <STRONG>void</STRONG> <STRONG>nofilter(void);</STRONG>
-       <STRONG>void</STRONG> <STRONG>use_env(bool</STRONG> <STRONG>f);</STRONG>
-       <STRONG>void</STRONG> <STRONG>use_tioctl(bool</STRONG> <STRONG>f);</STRONG>
-       <STRONG>int</STRONG> <STRONG>putwin(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>FILE</STRONG> <STRONG>*filep);</STRONG>
-       <STRONG>WINDOW</STRONG> <STRONG>*getwin(FILE</STRONG> <STRONG>*filep);</STRONG>
-       <STRONG>int</STRONG> <STRONG>delay_output(int</STRONG> <STRONG>ms);</STRONG>
+
+       <STRONG>void</STRONG> <STRONG>use_env(bool</STRONG> <EM>f</EM><STRONG>);</STRONG>
+       <STRONG>void</STRONG> <STRONG>use_tioctl(bool</STRONG> <EM>f</EM><STRONG>);</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>putwin(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>FILE</STRONG> <STRONG>*</STRONG><EM>filep</EM><STRONG>);</STRONG>
+       <STRONG>WINDOW</STRONG> <STRONG>*getwin(FILE</STRONG> <STRONG>*</STRONG><EM>filep</EM><STRONG>);</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>delay_output(int</STRONG> <EM>ms</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>flushinp(void);</STRONG>
 
 
@@ -176,6 +181,7 @@
                                   uses operating system calls unless over-
                                   ridden by $LINES or $COLUMNS environment
                                   variables.
+
            TRUE      TRUE         <STRONG>ncurses</STRONG>   updates  $LINES  and  $COLUMNS
                                   based on operating system calls.
            FALSE     TRUE         <STRONG>ncurses</STRONG> ignores $LINES and $COLUMNS, us-
@@ -302,9 +308,9 @@
            X/Open Curses documented.
 
        <STRONG>o</STRONG>   the parameter is in the range 128-159, i.e., a C1 control code.  If
-           <STRONG>use_legacy_coding</STRONG>  has  been  called with a <STRONG>2</STRONG> parameter, <STRONG>unctrl</STRONG> re-
-           turns the parameter, i.e., a one-character string with the  parame-
-           ter  as  the  first  character.   Otherwise, it returns "~@", "~A",
+           <STRONG><A HREF="legacy_coding.3x.html">use_legacy_coding(3x)</A></STRONG>  has  been  called with a <STRONG>2</STRONG> parameter, <STRONG>unctrl</STRONG>
+           returns the parameter, i.e., a one-character string with the param-
+           eter  as  the  first  character.  Otherwise, it returns "~@", "~A",
            etc., analogous to "^@", "^A", C0 controls.
 
            X/Open Curses does not document whether <STRONG>unctrl</STRONG> can be called before
@@ -321,16 +327,16 @@
        "^", and strip the parameter to 7 bits.  Or they may ignore C1 controls
        and treat all of the upper-128 codes as printable.  This implementation
        uses  8  bits  but  does  not modify the string to reflect locale.  The
-       <STRONG>use_legacy_coding</STRONG> function allows the caller to change  the  output  of
-       <STRONG>unctrl</STRONG>.
+       <STRONG><A HREF="legacy_coding.3x.html">use_legacy_coding(3x)</A></STRONG> function allows the caller to change  the  output
+       of <STRONG>unctrl</STRONG>.
 
        Likewise,  the <STRONG><A HREF="curs_inopts.3x.html">meta(3x)</A></STRONG> function allows the caller to change the output
        of <STRONG>keyname</STRONG>, i.e., it determines whether to  use  the  "M-"  prefix  for
-       "meta"  keys  (codes  in the range 128 to 255).  Both <STRONG>use_legacy_coding</STRONG>
-       and <STRONG>meta</STRONG> succeed only after curses is initialized.  X/Open Curses  does
-       not  document the treatment of codes 128 to 159.  When treating them as
-       "meta" keys (or if <STRONG>keyname</STRONG> is called before initializing curses),  this
-       implementation returns strings "M-^@", "M-^A", etc.
+       "meta"  keys  (codes  in  the  range 128 to 255).  Both <STRONG>use_legacy_cod-</STRONG>
+       <STRONG><A HREF="use_legacy_coding.3x.html">ing(3x)</A></STRONG> and <STRONG><A HREF="curs_inopts.3x.html">meta(3x)</A></STRONG> succeed only after curses is initialized.   X/Open
+       Curses  does  not  document  the  treatment  of codes 128 to 159.  When
+       treating them as "meta" keys (or if <STRONG>keyname</STRONG> is called before initializ-
+       ing curses), this implementation returns strings "M-^@", "M-^A", etc.
 
        X/Open Curses documents <STRONG>unctrl</STRONG> as declared in <STRONG>&lt;unctrl.h&gt;</STRONG>, which <STRONG>ncurses</STRONG>
        does.  However, <STRONG>ncurses</STRONG>' <STRONG>&lt;curses.h&gt;</STRONG> includes <STRONG>&lt;unctrl.h&gt;</STRONG>,  matching  the
@@ -345,9 +351,9 @@
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>,   <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,   <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>,   <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>,
-       <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>,   <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>,   <STRONG><A HREF="curs_sp_funcs.3x.html">curs_sp_funcs(3x)</A></STRONG>,   <STRONG>curs_vari-</STRONG>
-       <STRONG><A HREF="curs_variables.3x.html">ables(3x)</A></STRONG>, <STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>.
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,   <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>,    <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>,    <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>,
+       <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>,  <STRONG><A HREF="curs_sp_funcs.3x.html">curs_sp_funcs(3x)</A></STRONG>,  <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG>legacy_cod-</STRONG>
+       <STRONG><A HREF="legacy_coding.3x.html">ing(3x)</A></STRONG>.
 
 
 

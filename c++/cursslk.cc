@@ -36,7 +36,7 @@
 #include "cursslk.h"
 #include "cursesapp.h"
 
-MODULE_ID("$Id: cursslk.cc,v 1.18 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: cursslk.cc,v 1.19 2020/07/18 19:57:11 anonymous.maarten Exp $")
 
 Soft_Label_Key_Set::Soft_Label_Key&
   Soft_Label_Key_Set::Soft_Label_Key::operator=(char *text)
@@ -100,6 +100,10 @@ Soft_Label_Key_Set::Soft_Label_Key& Soft_Label_Key_Set::operator[](int i) {
   if (i<1 || i>num_labels)
     Error("Invalid Label index");
   return slk_array[i-1];
+}
+
+int Soft_Label_Key_Set::labels() const {
+  return num_labels;
 }
 
 void Soft_Label_Key_Set::activate_label(int i, bool bf) {

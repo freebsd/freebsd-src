@@ -30,13 +30,13 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: dots_curses.c,v 1.16 2020/02/02 23:34:34 tom Exp $
+ * $Id: dots_curses.c,v 1.21 2020/08/29 16:22:03 juergen Exp $
  *
  * A simple demo of the curses interface used for comparison with termcap.
  */
 #include <test.priv.h>
 
-#if !defined(_WIN32)
+#if !defined(_NC_WINDOWS)
 #include <sys/time.h>
 #endif
 
@@ -51,9 +51,10 @@ cleanup(void)
 {
     endwin();
 
-    printf("\n\n%ld total cells, rate %.2f/sec\n",
-	   total_chars,
-	   ((double) (total_chars) / (double) (time((time_t *) 0) - started)));
+    fflush(stdout);
+    fprintf(stderr, "\n\n%ld total cells, rate %.2f/sec\n",
+	    total_chars,
+	    ((double) (total_chars) / (double) (time((time_t *) 0) - started)));
 }
 
 static void
@@ -101,6 +102,7 @@ usage(void)
 	," -e       allow environment $LINES / $COLUMNS"
 #endif
 	," -m SIZE  set margin (default: 2)"
+	," -r SECS  self-interrupt/exit after specified number of seconds"
 	," -s MSECS delay 1% of the time (default: 1 msecs)"
     };
     size_t n;
@@ -122,11 +124,12 @@ main(int argc, char *argv[])
     bool d_option = FALSE;
 #endif
     int m_option = 2;
+    int r_option = 0;
     int s_option = 1;
     size_t need;
     char *my_env;
 
-    while ((ch = getopt(argc, argv, "T:dem:s:")) != -1) {
+    while ((ch = getopt(argc, argv, "T:dem:r:s:")) != -1) {
 	switch (ch) {
 	case 'T':
 	    need = 6 + strlen(optarg);
@@ -147,6 +150,9 @@ main(int argc, char *argv[])
 	case 'm':
 	    m_option = atoi(optarg);
 	    break;
+	case 'r':
+	    r_option = atoi(optarg);
+	    break;
 	case 's':
 	    s_option = atoi(optarg);
 	    break;
@@ -158,7 +164,9 @@ main(int argc, char *argv[])
 
     srand((unsigned) time(0));
 
+    SetupAlarm(r_option);
     InitAndCatch(initscr(), onsig);
+
     if (has_colors()) {
 	start_color();
 #if HAVE_USE_DEFAULT_COLORS
@@ -198,7 +206,8 @@ main(int argc, char *argv[])
 		attron(COLOR_PAIR(mypair(fg, bg)));
 	    } else {
 		set_colors(fg, bg = z);
-		napms(s_option);
+		if (s_option)
+		    napms(s_option);
 	    }
 	} else {
 	    if (ranf() <= 0.01) {
@@ -207,7 +216,8 @@ main(int argc, char *argv[])
 		} else {
 		    attroff(A_REVERSE);
 		}
-		napms(s_option);
+		if (s_option)
+		    napms(s_option);
 	    }
 	}
 	AddCh(p);

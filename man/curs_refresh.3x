@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_refresh.3x,v 1.21 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_refresh.3x,v 1.22 2020/10/24 09:43:49 tom Exp $
 .TH curs_refresh 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -53,15 +53,15 @@
 .sp
 \fBint refresh(void);\fR
 .br
-\fBint wrefresh(WINDOW *win);\fR
+\fBint wrefresh(WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBint wnoutrefresh(WINDOW *win);\fR
+\fBint wnoutrefresh(WINDOW *\fP\fIwin\fP\fB);\fR
 .br
 \fBint doupdate(void);\fR
+.sp
+\fBint redrawwin(WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBint redrawwin(WINDOW *win);\fR
-.br
-\fBint wredrawln(WINDOW *win, int beg_line, int num_lines);\fR
+\fBint wredrawln(WINDOW *\fP\fIwin\fP\fB, int \fP\fIbeg_line\fP\fB, int \fP\fInum_lines\fP\fB);\fR
 .br
 .SH DESCRIPTION
 .SS refresh/wrefresh

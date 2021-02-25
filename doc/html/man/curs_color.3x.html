@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_color.3x,v 1.62 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_color.3x,v 1.63 2020/10/24 09:35:23 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -61,22 +61,22 @@
        <STRONG>bool</STRONG> <STRONG>has_colors(void);</STRONG>
        <STRONG>bool</STRONG> <STRONG>can_change_color(void);</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>init_pair(short</STRONG> <STRONG>pair,</STRONG> <STRONG>short</STRONG> <STRONG>f,</STRONG> <STRONG>short</STRONG> <STRONG>b);</STRONG>
-       <STRONG>int</STRONG> <STRONG>init_color(short</STRONG> <STRONG>color,</STRONG> <STRONG>short</STRONG> <STRONG>r,</STRONG> <STRONG>short</STRONG> <STRONG>g,</STRONG> <STRONG>short</STRONG> <STRONG>b);</STRONG>
+       <STRONG>int</STRONG> <STRONG>init_pair(short</STRONG> <EM>pair</EM><STRONG>,</STRONG> <STRONG>short</STRONG> <EM>f</EM><STRONG>,</STRONG> <STRONG>short</STRONG> <EM>b</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>init_color(short</STRONG> <EM>color</EM><STRONG>,</STRONG> <STRONG>short</STRONG> <EM>r</EM><STRONG>,</STRONG> <STRONG>short</STRONG> <EM>g</EM><STRONG>,</STRONG> <STRONG>short</STRONG> <EM>b</EM><STRONG>);</STRONG>
        /* extensions */
-       <STRONG>int</STRONG> <STRONG>init_extended_pair(int</STRONG> <STRONG>pair,</STRONG> <STRONG>int</STRONG> <STRONG>f,</STRONG> <STRONG>int</STRONG> <STRONG>b);</STRONG>
-       <STRONG>int</STRONG> <STRONG>init_extended_color(int</STRONG> <STRONG>color,</STRONG> <STRONG>int</STRONG> <STRONG>r,</STRONG> <STRONG>int</STRONG> <STRONG>g,</STRONG> <STRONG>int</STRONG> <STRONG>b);</STRONG>
+       <STRONG>int</STRONG> <STRONG>init_extended_pair(int</STRONG> <EM>pair</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>f</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>b</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>init_extended_color(int</STRONG> <EM>color</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>r</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>g</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>b</EM><STRONG>);</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>color_content(short</STRONG> <STRONG>color,</STRONG> <STRONG>short</STRONG> <STRONG>*r,</STRONG> <STRONG>short</STRONG> <STRONG>*g,</STRONG> <STRONG>short</STRONG> <STRONG>*b);</STRONG>
-       <STRONG>int</STRONG> <STRONG>pair_content(short</STRONG> <STRONG>pair,</STRONG> <STRONG>short</STRONG> <STRONG>*f,</STRONG> <STRONG>short</STRONG> <STRONG>*b);</STRONG>
+       <STRONG>int</STRONG> <STRONG>color_content(short</STRONG> <EM>color</EM><STRONG>,</STRONG> <STRONG>short</STRONG> <STRONG>*</STRONG><EM>r</EM><STRONG>,</STRONG> <STRONG>short</STRONG> <STRONG>*</STRONG><EM>g</EM><STRONG>,</STRONG> <STRONG>short</STRONG> <STRONG>*</STRONG><EM>b</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>pair_content(short</STRONG> <EM>pair</EM><STRONG>,</STRONG> <STRONG>short</STRONG> <STRONG>*</STRONG><EM>f</EM><STRONG>,</STRONG> <STRONG>short</STRONG> <STRONG>*</STRONG><EM>b</EM><STRONG>);</STRONG>
        /* extensions */
-       <STRONG>int</STRONG> <STRONG>extended_color_content(int</STRONG> <STRONG>color,</STRONG> <STRONG>int</STRONG> <STRONG>*r,</STRONG> <STRONG>int</STRONG> <STRONG>*g,</STRONG> <STRONG>int</STRONG> <STRONG>*b);</STRONG>
-       <STRONG>int</STRONG> <STRONG>extended_pair_content(int</STRONG> <STRONG>pair,</STRONG> <STRONG>int</STRONG> <STRONG>*f,</STRONG> <STRONG>int</STRONG> <STRONG>*b);</STRONG>
+       <STRONG>int</STRONG> <STRONG>extended_color_content(int</STRONG> <EM>color</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <STRONG>*</STRONG><EM>r</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <STRONG>*</STRONG><EM>g</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <STRONG>*</STRONG><EM>b</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>extended_pair_content(int</STRONG> <EM>pair</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <STRONG>*</STRONG><EM>f</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <STRONG>*</STRONG><EM>b</EM><STRONG>);</STRONG>
 
        /* extensions */
        <STRONG>void</STRONG> <STRONG>reset_color_pairs(void);</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>COLOR_PAIR(int</STRONG> <STRONG>n);</STRONG>
+       <STRONG>int</STRONG> <STRONG>COLOR_PAIR(int</STRONG> <EM>n</EM><STRONG>);</STRONG>
        <STRONG>PAIR_NUMBER(</STRONG><EM>attrs</EM><STRONG>);</STRONG>
 
 
@@ -135,8 +135,8 @@
 
        <STRONG>o</STRONG>   If the parameter passed to <STRONG>waddch</STRONG> is <EM>not</EM> <EM>blank</EM>, or it does not  use
            the  special  color  pair 0, <STRONG>curses</STRONG> prefers the color pair from the
-           parameter, if it is nonzero.  Otherwise, it tries  the  window  at-
-           tribute next, and finally the background character.
+           parameter, if it is nonzero.  Otherwise, it tries the window attri-
+           bute next, and finally the background character.
 
        Some  <STRONG>curses</STRONG>  functions such as <STRONG>wprintw</STRONG> call <STRONG>waddch</STRONG>.  Those do not com-
        bine its parameter with a color pair.  Consequently those calls use on-

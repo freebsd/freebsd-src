@@ -28,7 +28,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: menu_win.3x,v 1.14 2020/02/02 23:34:34 tom Exp @
+  * @Id: menu_win.3x,v 1.15 2020/10/17 23:50:51 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -53,29 +53,32 @@
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;menu.h&gt;</STRONG>
-       int set_menu_win(MENU *menu, WINDOW *win);
-       WINDOW *menu_win(const MENU *menu);
-       int set_menu_sub(MENU *menu, WINDOW *sub);
-       WINDOW *menu_sub(const MENU *menu);
-       int scale_menu(const MENU *menu, int *rows, int *columns);
+
+       <STRONG>int</STRONG> <STRONG>set_menu_win(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>WINDOW</STRONG> <STRONG>*menu_win(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>);</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>set_menu_sub(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>sub</EM><STRONG>);</STRONG>
+       <STRONG>WINDOW</STRONG> <STRONG>*menu_sub(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>);</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>scale_menu(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu,</EM> <EM>int</EM> <EM>*rows</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <STRONG>*</STRONG><EM>columns);</EM>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        Every  menu  has an associated pair of <STRONG>curses</STRONG> windows.  The menu window
-       displays any title and border associated with the window; the menu sub-
-       window  displays the items of the menu that are currently available for
-       selection.
+       displays any title and border associated  with  the  window;  the  menu
+       subwindow  displays  the items of the menu that are currently available
+       for selection.
 
-       The first four functions get and set those windows.  It is  not  neces-
-       sary  to set either window; by default, the driver code uses <STRONG>stdscr</STRONG> for
-       both.
+       The first four  functions  get  and  set  those  windows.   It  is  not
+       necessary to set either window; by default, the driver code uses <STRONG>stdscr</STRONG>
+       for both.
 
        In the <STRONG>set_</STRONG> functions, window argument of <STRONG>NULL</STRONG> is treated as though  it
        were <STRONG>stsdcr</STRONG>.  A menu argument of <STRONG>NULL</STRONG> is treated as a request to change
        the system default menu window or subwindow.
 
-       The function <STRONG>scale_menu</STRONG> returns the minimum size required for the  sub-
-       window of <EM>menu</EM>.
+       The function <STRONG>scale_menu</STRONG> returns  the  minimum  size  required  for  the
+       subwindow of <EM>menu</EM>.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
@@ -107,8 +110,8 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These  routines  emulate the System V menu library.  They were not sup-
-       ported on Version 7 or BSD versions.
+       These  routines  emulate  the  System  V  menu  library.  They were not
+       supported on Version 7 or BSD versions.
 
 
 </PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>

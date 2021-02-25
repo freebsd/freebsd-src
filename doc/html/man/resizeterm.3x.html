@@ -28,7 +28,7 @@
   * authorization.                                                           *
   ****************************************************************************
   * Author: Thomas E. Dickey 1996-on
-  * @Id: resizeterm.3x,v 1.27 2020/02/02 23:34:34 tom Exp @
+  * @Id: resizeterm.3x,v 1.28 2020/10/17 23:55:41 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -55,15 +55,15 @@
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>bool</STRONG> <STRONG>is_term_resized(int</STRONG> <STRONG>lines,</STRONG> <STRONG>int</STRONG> <STRONG>columns);</STRONG>
-       <STRONG>int</STRONG> <STRONG>resize_term(int</STRONG> <STRONG>lines,</STRONG> <STRONG>int</STRONG> <STRONG>columns);</STRONG>
-       <STRONG>int</STRONG> <STRONG>resizeterm(int</STRONG> <STRONG>lines,</STRONG> <STRONG>int</STRONG> <STRONG>columns);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_term_resized(int</STRONG> <EM>lines</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>columns</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>resize_term(int</STRONG> <EM>lines</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>columns</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>resizeterm(int</STRONG> <EM>lines</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>columns</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        This is an extension to the curses library.  It provides callers with a
-       hook into the <STRONG>ncurses</STRONG> data to resize windows, primarily for use by pro-
-       grams running in an X Window terminal (e.g., xterm).
+       hook  into  the  <STRONG>ncurses</STRONG>  data  to resize windows, primarily for use by
+       programs running in an X Window terminal (e.g., xterm).
 
 
 </PRE><H3><a name="h3-resizeterm">resizeterm</a></H3><PRE>
@@ -76,7 +76,7 @@
 </PRE><H3><a name="h3-resize_term">resize_term</a></H3><PRE>
        Most  of the work is done by the inner function <STRONG>resize_term</STRONG>.  The outer
        function <STRONG>resizeterm</STRONG> adds bookkeeping for the <STRONG>SIGWINCH</STRONG> handler, as  well
-       as repainting the soft-key area (see <STRONG><A HREF="slk_touch.3x.html">slk_touch(3x)</A></STRONG>).
+       as repainting the soft-key area (see <STRONG><A HREF="curs_slk.3x.html">slk_touch(3x)</A></STRONG>).
 
        When  resizing  the windows, <STRONG>resize_term</STRONG> blank-fills the areas that are
        extended.  The calling application should  fill  in  these  areas  with
@@ -102,15 +102,15 @@
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
        Except  as  noted,  these functions return the integer <STRONG>ERR</STRONG> upon failure
        and <STRONG>OK</STRONG> on success.  They will fail if either of the dimensions are less
-       than  or equal to zero, or if an error occurs while (re)allocating mem-
-       ory for the windows.
+       than  or  equal  to  zero,  or  if an error occurs while (re)allocating
+       memory for the windows.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       While these functions are intended to be used to support a signal  han-
-       dler  (i.e., for <STRONG>SIGWINCH</STRONG>), care should be taken to avoid invoking them
-       in a context where <STRONG>malloc</STRONG> or <STRONG>realloc</STRONG> may have been  interrupted,  since
-       it uses those functions.
+       While these functions are intended to  be  used  to  support  a  signal
+       handler  (i.e.,  for  <STRONG>SIGWINCH</STRONG>), care should be taken to avoid invoking
+       them in a context where <STRONG>malloc</STRONG> or <STRONG>realloc</STRONG> may  have  been  interrupted,
+       since it uses those functions.
 
        If ncurses is configured to supply its own <STRONG>SIGWINCH</STRONG> handler,
 
@@ -132,9 +132,9 @@
            resize the ncurses data structures.
 
        If the environment variables <STRONG>LINES</STRONG> or <STRONG>COLUMNS</STRONG> are set,  this  overrides
-       the  library's  use of the window size obtained from the operating sys-
-       tem.  Thus, even if a <STRONG>SIGWINCH</STRONG> is received, no screen size  change  may
-       be recorded.
+       the  library's  use  of  the  window  size  obtained from the operating
+       system.  Thus, even if a <STRONG>SIGWINCH</STRONG> is received, no  screen  size  change
+       may be recorded.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>

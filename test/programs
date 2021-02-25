@@ -1,6 +1,6 @@
-# $Id: programs,v 1.45 2020/02/02 23:34:34 tom Exp $
+# $Id: programs,v 1.48 2021/02/13 16:33:51 tom Exp $
 ##############################################################################
-# Copyright 2018-2019,2020 Thomas E. Dickey                                  #
+# Copyright 2018-2020,2021 Thomas E. Dickey                                  #
 # Copyright 2006-2016,2017 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -31,6 +31,7 @@
 # Author: Thomas E. Dickey
 #
 # programs used for ncurses tests
+back_ground	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	back_ground dump_window
 background	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	background dump_window
 blue		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	blue
 bs		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	bs
@@ -55,6 +56,7 @@ dots_curses	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	dots_curses
 dots_mvcur	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	dots_mvcur
 dots_termcap	$(LDFLAGS_TINFO)	$(LOCAL_LIBS)	dots_termcap
 dots_xcurses	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	dots_xcurses
+dup_field	$(LDFLAGS_DEFAULT)	$(LOCAL_LIBS)	dup_field edit_field popup_msg
 echochar	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	echochar
 extended_color	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	extended_color
 filter		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	filter
@@ -75,6 +77,7 @@ keynames	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	keynames
 knight		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	knight
 list_keys	$(LDFLAGS_TINFO)	$(LOCAL_LIBS)	list_keys
 lrtest		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	lrtest
+move_field	$(LDFLAGS_DEFAULT)	$(LOCAL_LIBS)	move_field edit_field popup_msg
 movewindow	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	movewindow popup_msg
 ncurses		$(LDFLAGS_DEFAULT)	$(LOCAL_LIBS)	ncurses
 newdemo		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	newdemo
@@ -100,6 +103,7 @@ test_opaque	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_opaque
 test_setupterm	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_setupterm
 test_sgr	$(LDFLAGS_TINFO)	$(LOCAL_LIBS)	test_sgr
 test_termattrs	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_termattrs
+test_tparm	$(LDFLAGS_TINFO)	$(LOCAL_LIBS)	test_tparm
 test_vid_puts	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_vid_puts
 test_vidputs	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_vidputs
 testaddch	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	testaddch

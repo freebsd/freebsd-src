@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_in_wch.3x,v 1.9 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_in_wch.3x,v 1.10 2020/10/17 23:19:29 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -55,9 +55,10 @@
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
        <STRONG>int</STRONG> <STRONG>in_wch(cchar_t</STRONG> <STRONG>*</STRONG><EM>wcval</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>win_wch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wcval</EM><STRONG>);</STRONG>
+
        <STRONG>int</STRONG> <STRONG>mvin_wch(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wcval</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvwin_wch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wcval</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>win_wch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wcval</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -68,8 +69,8 @@
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
        No errors are defined in the XSI Curses standard.  This  implementation
-       checks  for null pointers, returns <STRONG>ERR</STRONG> in that case.  Also, the <EM>mv</EM> rou-
-       tines check for error moving the cursor, returning <STRONG>ERR</STRONG>  in  that  case.
+       checks  for  null  pointers,  returns  <STRONG>ERR</STRONG>  in that case.  Also, the <EM>mv</EM>
+       routines check for error moving the cursor, returning <STRONG>ERR</STRONG> in that case.
        Otherwise they return <STRONG>OK</STRONG>.
 
        Functions  with  a  "mv"  prefix  first perform a cursor movement using

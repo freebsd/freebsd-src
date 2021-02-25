@@ -28,7 +28,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: mitem_opts.3x,v 1.15 2020/02/02 23:34:34 tom Exp @
+  * @Id: mitem_opts.3x,v 1.16 2020/10/17 23:52:26 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -54,10 +54,12 @@
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;menu.h&gt;</STRONG>
-       int set_item_opts(ITEM *item, Item_Options opts);
-       int item_opts_on(ITEM *item, Item_Options opts);
-       int item_opts_off(ITEM *item, Item_Options opts);
-       Item_Options item_opts(const ITEM *item);
+
+       <STRONG>int</STRONG> <STRONG>set_item_opts(ITEM</STRONG> <STRONG>*</STRONG><EM>item</EM><STRONG>,</STRONG> <STRONG>Item_Options</STRONG> <EM>opts</EM><STRONG>);</STRONG>
+       <STRONG>Item_Options</STRONG> <STRONG>item_opts(const</STRONG> <STRONG>ITEM</STRONG> <STRONG>*</STRONG><EM>item</EM><STRONG>);</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>item_opts_on(ITEM</STRONG> <STRONG>*</STRONG><EM>item</EM><STRONG>,</STRONG> <STRONG>Item_Options</STRONG> <EM>opts</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>item_opts_off(ITEM</STRONG> <STRONG>*</STRONG><EM>item</EM><STRONG>,</STRONG> <STRONG>Item_Options</STRONG> <EM>opts</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -96,8 +98,8 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These routines emulate the System V menu library.  They were  not  sup-
-       ported on Version 7 or BSD versions.
+       These routines emulate the  System  V  menu  library.   They  were  not
+       supported on Version 7 or BSD versions.
 
 
 </PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>

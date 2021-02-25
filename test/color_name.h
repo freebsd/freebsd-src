@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: color_name.h,v 1.7 2020/02/02 23:34:34 tom Exp $
+ * $Id: color_name.h,v 1.8 2020/06/20 18:58:20 tom Exp $
  */
 
 #ifndef __COLORNAME_H
@@ -90,7 +90,7 @@ color_name(int color)
     const char *result = 0;
 
     if (color >= (int) SIZEOF(the_color_names)) {
-	_nc_SPRINTF(temp, _nc_SLIMIT(sizeof(result)) "%d", color);
+	_nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp)) "%d", color);
 	result = temp;
     } else if (color < 0) {
 	result = "default";

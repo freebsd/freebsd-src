@@ -30,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: demo_terminfo.c,v 1.50 2020/02/02 23:34:34 tom Exp $
+ * $Id: demo_terminfo.c,v 1.51 2020/05/09 13:56:40 tom Exp $
  *
  * A simple demo of the terminfo interface.
  */
@@ -842,10 +842,12 @@ main(int argc, char *argv[])
 	case 's':
 	    s_opt = TRUE;
 	    break;
-#ifdef NCURSES_VERSION
 	case 'x':
+#ifdef NCURSES_VERSION
 	    x_opt = TRUE;
+#endif
 	    break;
+#ifdef NCURSES_VERSION
 	case 'y':
 	    y_opt = TRUE;
 	    x_opt = TRUE;

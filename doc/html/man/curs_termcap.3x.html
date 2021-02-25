@@ -1,6 +1,6 @@
 <!-- 
   ****************************************************************************
-  * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+  * Copyright 2018-2020,2021 Thomas E. Dickey                                *
   * Copyright 1998-2017,2018 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_termcap.3x,v 1.43 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_termcap.3x,v 1.48 2021/01/09 11:07:15 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -48,7 +48,7 @@
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
        <STRONG>PC</STRONG>, <STRONG>UP</STRONG>, <STRONG>BC</STRONG>, <STRONG>ospeed</STRONG>, <STRONG>tgetent</STRONG>, <STRONG>tgetflag</STRONG>, <STRONG>tgetnum</STRONG>, <STRONG>tgetstr</STRONG>, <STRONG>tgoto</STRONG>, <STRONG>tputs</STRONG> -
-       direct <STRONG>curses</STRONG> interface to the terminfo capability database
+       <STRONG>curses</STRONG> emulation of termcap
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -60,17 +60,17 @@
        <STRONG>extern</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <STRONG>BC;</STRONG>
        <STRONG>extern</STRONG> <STRONG>short</STRONG> <STRONG>ospeed;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>tgetent(char</STRONG> <STRONG>*bp,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*name);</STRONG>
-       <STRONG>int</STRONG> <STRONG>tgetflag(const</STRONG> <STRONG>char</STRONG> <STRONG>*id);</STRONG>
-       <STRONG>int</STRONG> <STRONG>tgetnum(const</STRONG> <STRONG>char</STRONG> <STRONG>*id);</STRONG>
-       <STRONG>char</STRONG> <STRONG>*tgetstr(const</STRONG> <STRONG>char</STRONG> <STRONG>*id,</STRONG> <STRONG>char</STRONG> <STRONG>**area);</STRONG>
-       <STRONG>char</STRONG> <STRONG>*tgoto(const</STRONG> <STRONG>char</STRONG> <STRONG>*cap,</STRONG> <STRONG>int</STRONG> <STRONG>col,</STRONG> <STRONG>int</STRONG> <STRONG>row);</STRONG>
-       <STRONG>int</STRONG> <STRONG>tputs(const</STRONG> <STRONG>char</STRONG> <STRONG>*str,</STRONG> <STRONG>int</STRONG> <STRONG>affcnt,</STRONG> <STRONG>int</STRONG> <STRONG>(*putc)(int));</STRONG>
+       <STRONG>int</STRONG> <STRONG>tgetent(char</STRONG> <STRONG>*</STRONG><EM>bp</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>name</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>tgetflag(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>id</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>tgetnum(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>id</EM><STRONG>);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*tgetstr(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>id</EM><STRONG>,</STRONG> <STRONG>char</STRONG> <STRONG>**</STRONG><EM>area</EM><STRONG>);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*tgoto(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>cap</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>col</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>row</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>tputs(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>affcnt</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <STRONG>(*</STRONG><EM>putc</EM><STRONG>)(int));</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        These routines are included as a conversion aid for programs  that  use
-       the  <EM>termcap</EM>  library.   Their parameters are the same and the routines
+       the  <EM>termcap</EM>  library.  Their parameters are the same, but the routines
        are emulated using the <EM>terminfo</EM> database.  Thus, they can only be  used
        to  query  the  capabilities  of entries for which a terminfo entry has
        been compiled.
@@ -195,6 +195,8 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
+
+</PRE><H3><a name="h3-Standards">Standards</a></H3><PRE>
        These functions are provided for supporting  legacy  applications,  and
        should not be used in new programs:
 
@@ -213,6 +215,8 @@
        bility  with the <EM>termcap</EM> library, that is a defect in XCurses, Issue 4,
        Version 2 rather than in ncurses.
 
+
+</PRE><H3><a name="h3-Compatibility-with-BSD-Termcap">Compatibility with BSD Termcap</a></H3><PRE>
        External variables are provided for support of certain termcap applica-
        tions.  However, termcap applications' use of those variables is poorly
        documented, e.g., not distinguishing between input and output.  In par-
@@ -237,9 +241,63 @@
            against extended capability names which are longer than two charac-
            ters.
 
+       The BSD termcap function <STRONG>tgetent</STRONG> returns the text of a termcap entry in
+       the  buffer  passed  as an argument.  This library (like other terminfo
+       implementations) does not store terminal descriptions as text.  It sets
+       the buffer contents to a null-terminated string.
+
+
+</PRE><H3><a name="h3-Other-Compatibility">Other Compatibility</a></H3><PRE>
+       This  library includes a termcap.h header, for compatibility with other
+       implementations.  But the header is rarely used because the  other  im-
+       plementations are not strictly compatible.
+
+       The original BSD termcap (through 4.3BSD) had no header file which gave
+       function prototypes, because that was a feature of ANSI C.  BSD termcap
+       was  written  several  years before C was standardized.  However, there
+       were two different termcap.h header files in the BSD sources:
+
+       <STRONG>o</STRONG>   One was used internally by the <EM>jove</EM> editor in 2BSD through  4.4BSD.
+           It defined global symbols for the termcap variables which it used.
+
+       <STRONG>o</STRONG>   The  other  appeared in 4.4BSD Lite Release 2 (mid-1993) as part of
+           <EM>libedit</EM> (also known as the <EM>editline</EM> library).  The CSRG source his-
+           tory  shows  that  this  was added in mid-1992.  The <EM>libedit</EM> header
+           file was used internally, as a convenience for compiling the  <EM>edit-</EM>
+           <EM>line</EM> library.  It declared function prototypes, but no global vari-
+           ables.
+
+       The header file from <EM>libedit</EM> was added to NetBSD's termcap  library  in
+       mid-1994.
+
+       Meanwhile,  GNU  termcap  was under development, starting in 1990.  The
+       first release (termcap 1.0) in 1991 included a termcap.h  header.   The
+       second  release  (termcap 1.1) in September 1992 modified the header to
+       use <STRONG>const</STRONG> for the function prototypes in the header where one would ex-
+       pect  the parameters to be read-only.  This was a difference versus the
+       original BSD termcap.  The prototype for <STRONG>tputs</STRONG> also  differed,  but  in
+       that instance, it was <EM>libedit</EM> which differed from BSD termcap.
+
+       A copy of GNU termcap 1.3 was bundled with <EM>bash</EM> in mid-1993, to support
+       the <EM>readline</EM> library.
+
+       A termcap.h file was provided in ncurses 1.8.1 (November  1993).   That
+       reflected influence by <EM>emacs</EM> (rather than <EM>jove</EM>) and GNU termcap:
+
+       <STRONG>o</STRONG>   it provided declarations for a few global symbols used by <EM>emacs</EM>
+
+       <STRONG>o</STRONG>   it provided function prototypes (using <STRONG>const</STRONG>).
+
+       <STRONG>o</STRONG>   a prototype for <STRONG>tparam</STRONG> (a GNU termcap feature) was provided.
+
+       Later (in mid-1996) the <STRONG>tparam</STRONG> function was removed from ncurses.  As a
+       result, there are differences between any of the four  implementations,
+       which  must  be  taken into account by programs which can work with all
+       termcap library interfaces.
+
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>, <STRONG><A HREF="term_variables.3x.html">term_variables(3x)</A></STRONG>, <STRONG>putc(3)</STRONG>.
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG>putc(3)</STRONG>, <STRONG><A HREF="term_variables.3x.html">term_variables(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>.
 
        https://invisible-island.net/ncurses/tctest.html
 
@@ -261,7 +319,13 @@
 </li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-BUGS">BUGS</a></li>
-<li><a href="#h2-PORTABILITY">PORTABILITY</a></li>
+<li><a href="#h2-PORTABILITY">PORTABILITY</a>
+<ul>
+<li><a href="#h3-Standards">Standards</a></li>
+<li><a href="#h3-Compatibility-with-BSD-Termcap">Compatibility with BSD Termcap</a></li>
+<li><a href="#h3-Other-Compatibility">Other Compatibility</a></li>
+</ul>
+</li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 </ul>
 </div>

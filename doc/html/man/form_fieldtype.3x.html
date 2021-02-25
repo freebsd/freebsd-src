@@ -28,7 +28,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: form_fieldtype.3x,v 1.20 2020/02/02 23:34:34 tom Exp @
+  * @Id: form_fieldtype.3x,v 1.28 2020/12/12 17:11:21 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -53,63 +53,95 @@
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;form.h&gt;</STRONG>
-       FIELDTYPE *new_fieldtype(
-           bool (* const field_check)(FIELD *, const void *),
-           bool (* const char_check)(int, const void *));
-       int free_fieldtype(FIELDTYPE *fieldtype);
-       int set_fieldtype_arg(
-           FIELDTYPE *fieldtype,
-           void *(* const make_arg)(va_list *),
-           void *(* const copy_arg)(const void *),
-           void  (* const free_arg)(void *));
-       int set_fieldtype_choice(
-           FIELDTYPE *fieldtype,
-           bool (* const next_choice)(FIELD *, const void *),
-           bool (* const prev_choice)(FIELD *, const void *));
-       FIELDTYPE *link_fieldtype(FIELDTYPE *type1,
-                                 FIELDTYPE *type2);
+
+       <STRONG>FIELDTYPE</STRONG> <STRONG>*new_fieldtype(</STRONG>
+           <STRONG>bool</STRONG> <STRONG>(*</STRONG> <STRONG>const</STRONG> <EM>field</EM><STRONG>_</STRONG><EM>check</EM><STRONG>)(FIELD</STRONG> <STRONG>*,</STRONG> <STRONG>const</STRONG> <STRONG>void</STRONG> <STRONG>*),</STRONG>
+           <STRONG>bool</STRONG> <STRONG>(*</STRONG> <STRONG>const</STRONG> <EM>char</EM><STRONG>_</STRONG><EM>check</EM><STRONG>)(int,</STRONG> <STRONG>const</STRONG> <STRONG>void</STRONG> <STRONG>*));</STRONG>
+       <STRONG>int</STRONG> <STRONG>free_fieldtype(FIELDTYPE</STRONG> <STRONG>*</STRONG><EM>fieldtype</EM><STRONG>);</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>set_fieldtype_arg(</STRONG>
+           <STRONG>FIELDTYPE</STRONG> <STRONG>*</STRONG><EM>fieldtype</EM><STRONG>,</STRONG>
+           <STRONG>void</STRONG> <STRONG>*(*</STRONG> <STRONG>const</STRONG> <EM>make</EM><STRONG>_</STRONG><EM>arg</EM><STRONG>)(va_list</STRONG> <STRONG>*),</STRONG>
+           <STRONG>void</STRONG> <STRONG>*(*</STRONG> <STRONG>const</STRONG> <EM>copy</EM><STRONG>_</STRONG><EM>arg</EM><STRONG>)(const</STRONG> <STRONG>void</STRONG> <STRONG>*),</STRONG>
+           <STRONG>void</STRONG>  <STRONG>(*</STRONG> <STRONG>const</STRONG> <EM>free</EM><STRONG>_</STRONG><EM>arg</EM><STRONG>)(void</STRONG> <STRONG>*));</STRONG>
+       <STRONG>int</STRONG> <STRONG>set_fieldtype_choice(</STRONG>
+           <STRONG>FIELDTYPE</STRONG> <STRONG>*</STRONG><EM>fieldtype</EM><STRONG>,</STRONG>
+           <STRONG>bool</STRONG> <STRONG>(*</STRONG> <STRONG>const</STRONG> <EM>next</EM><STRONG>_</STRONG><EM>choice</EM><STRONG>)(FIELD</STRONG> <STRONG>*,</STRONG> <STRONG>const</STRONG> <STRONG>void</STRONG> <STRONG>*),</STRONG>
+           <STRONG>bool</STRONG> <STRONG>(*</STRONG> <STRONG>const</STRONG> <EM>prev</EM><STRONG>_</STRONG><EM>choice</EM><STRONG>)(FIELD</STRONG> <STRONG>*,</STRONG> <STRONG>const</STRONG> <STRONG>void</STRONG> <STRONG>*));</STRONG>
+
+       <STRONG>FIELDTYPE</STRONG> <STRONG>*link_fieldtype(FIELDTYPE</STRONG> <STRONG>*</STRONG><EM>type1</EM><STRONG>,</STRONG>
+                                 <STRONG>FIELDTYPE</STRONG> <STRONG>*</STRONG><EM>type2</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
+
+</PRE><H3><a name="h3-new_fieldtype">new_fieldtype</a></H3><PRE>
        The  function  <STRONG>new_fieldtype</STRONG>  creates  a new field type usable for data
-       validation.  You supply it with <EM>field</EM><STRONG>_</STRONG><EM>check</EM>, a predicate to  check  the
-       validity  of an entered data string whenever the user attempts to leave
-       a field.  The (FIELD *) argument is passed in so the validation  predi-
-       cate can see the field's buffer, sizes and other attributes; the second
-       argument is an argument-block structure, about which more below.
+       validation.  Its parameters are function pointers:
 
-       You also supply <STRONG>new_fieldtype</STRONG> with <EM>char</EM><STRONG>_</STRONG><EM>check</EM>, a function  to  validate
-       input  characters  as they are entered; it will be passed the character
-       to be checked and a pointer to an argument-block structure.
+       <EM>field</EM><STRONG>_</STRONG><EM>check</EM>
+            This function checks  the  validity  of  an  entered  data  string
+            whenever  the  user  attempts  to  leave  a  field.   It  has  two
+            arguments:
 
-       The function <STRONG>free_fieldtype</STRONG> frees the space allocated for a given vali-
-       dation type.
+            <STRONG>o</STRONG>   The  (FIELD  *)  argument  is  passed  in  so  the  validation
+                predicate   can  see  the  field's  buffer,  sizes  and  other
+                attributes.
 
+            <STRONG>o</STRONG>   The second argument  is  an  argument-block  structure,  about
+                which more below.
+
+       <EM>char</EM><STRONG>_</STRONG><EM>check</EM>
+            This function validates input characters as they are entered.  The
+            form library passes it the character to be checked and  a  pointer
+            to an argument-block structure.
+
+
+</PRE><H3><a name="h3-free_fieldtype">free_fieldtype</a></H3><PRE>
+       The  <STRONG>free_fieldtype</STRONG>  function  frees  the  space  allocated for a given
+       validation type by <STRONG>new_fieldtype</STRONG>.
+
+
+</PRE><H3><a name="h3-set_fieldtype_arg">set_fieldtype_arg</a></H3><PRE>
        The  function  <STRONG>set_fieldtype_arg</STRONG>  associates  three  storage-management
-       functions with a field type.  The <EM>make</EM><STRONG>_</STRONG><EM>arg</EM>  function  is  automatically
-       applied to the list of arguments you give <STRONG>set_field_type</STRONG> when attaching
-       validation to a field; its job is to bundle  these  into  an  allocated
-       argument-block  object  which  can later be passed to validation predi-
-       cated.  The other two hook arguments should  copy  and  free  argument-
-       block  structures.   They  will  be used by the forms-driver code.  You
-       must supply the <EM>make</EM><STRONG>_</STRONG><EM>arg</EM> function, the other two are optional, you  may
-       supply  NULL  for  them.  In this case it is assumed that <EM>make</EM><STRONG>_</STRONG><EM>arg</EM> does
-       not allocate memory but simply loads the argument into a single  scalar
-       value.
+       functions with a field type:
 
+       <EM>make</EM><STRONG>_</STRONG><EM>arg</EM>
+            This  function  is  automatically applied to the list of arguments
+            you give <STRONG>set_field_type</STRONG> when attaching validation to a field.   It
+            stores  the  arguments in an allocated argument-block object which
+            is used when validating input.
+
+       <EM>copy</EM><STRONG>_</STRONG><EM>arg</EM>
+            This function may be used by applications to copy argument-blocks.
+
+       <EM>free</EM><STRONG>_</STRONG><EM>arg</EM>
+            Frees an argument-block structure.
+
+       You must supply the <EM>make</EM><STRONG>_</STRONG><EM>arg</EM> function.  The other two are optional: you
+       may  supply NULL for them.  In this case, the form library assumes that
+       <EM>make</EM><STRONG>_</STRONG><EM>arg</EM> does not allocate memory but simply loads the argument into  a
+       single scalar value.
+
+
+</PRE><H3><a name="h3-set_fieldtype_choice">set_fieldtype_choice</a></H3><PRE>
+       The  form  driver  requests  <STRONG>REQ_NEXT_CHOICE</STRONG> and <STRONG>REQ_PREV_CHOICE</STRONG> assume
+       that the possible values of a field form an ordered  set,  and  provide
+       the forms user with a way to move through the set.
+
+       The  <STRONG>set_fieldtype_choice</STRONG>  function  allows forms programmers to define
+       successor  and  predecessor  functions  for  the  field  type.    These
+       functions  take  the  field  pointer and an argument-block structure as
+       arguments.
+
+
+</PRE><H3><a name="h3-link_fieldtype">link_fieldtype</a></H3><PRE>
        The function <STRONG>link_fieldtype</STRONG> creates a new field type from the two given
        types.  They are connected by an logical 'OR'.
 
-       The form driver requests  <STRONG>REQ_NEXT_CHOICE</STRONG>  and  <STRONG>REQ_PREV_CHOICE</STRONG>  assume
-       that  the  possible  values of a field form an ordered set, and provide
-       the forms user with a way to move  through  the  set.   The  <STRONG>set_field-</STRONG>
-       <STRONG>type_choice</STRONG>  function  allows forms programmers to define successor and
-       predecessor functions for the field type.   These  functions  take  the
-       field pointer and an argument-block structure as arguments.
-
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       The  pointer-valued  routines  return  NULL  on  error.  They set errno
+       The  pointer-valued  routines  return  NULL  on  error.  They set <STRONG>errno</STRONG>
        according to their success:
 
        <STRONG>E_OK</STRONG> The routine succeeded.
@@ -138,21 +170,17 @@
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="form.3x.html">form(3x)</A></STRONG>.
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="form.3x.html">form(3x)</A></STRONG>, <STRONG><A HREF="form_field_validation.3x.html">form_field_validation(3x)</A></STRONG>.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
        The  header  file  <STRONG>&lt;form.h&gt;</STRONG>  automatically  includes  the  header  file
        <STRONG>&lt;curses.h&gt;</STRONG>.
 
-       All  of  the  <STRONG>(char</STRONG>  <STRONG>*)</STRONG> arguments of these functions should actually be
-       <STRONG>(void</STRONG> <STRONG>*)</STRONG>.  The type has been left uncorrected for strict  compatibility
-       with System V.
-
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These  routines emulate the System V forms library.  They were not sup-
-       ported on Version 7 or BSD versions.
+       These  routines  emulate  the  System  V  forms library.  They were not
+       supported on Version 7 or BSD versions.
 
 
 </PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>
@@ -167,7 +195,15 @@
 <ul>
 <li><a href="#h2-NAME">NAME</a></li>
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
-<li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
+<li><a href="#h2-DESCRIPTION">DESCRIPTION</a>
+<ul>
+<li><a href="#h3-new_fieldtype">new_fieldtype</a></li>
+<li><a href="#h3-free_fieldtype">free_fieldtype</a></li>
+<li><a href="#h3-set_fieldtype_arg">set_fieldtype_arg</a></li>
+<li><a href="#h3-set_fieldtype_choice">set_fieldtype_choice</a></li>
+<li><a href="#h3-link_fieldtype">link_fieldtype</a></li>
+</ul>
+</li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018,2020 Thomas E. Dickey                                     *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 2003-2014,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: background.c,v 1.19 2020/02/02 23:34:34 tom Exp $
+ * $Id: background.c,v 1.20 2021/02/13 20:54:08 tom Exp $
  */
 
 #define NEED_COLOR_CODE 1
@@ -144,6 +144,7 @@ usage(void)
 	," -d       invoke use_default_colors, repeat to use in init_pair"
 #endif
 	," -f XXX   specify foreground color"
+	," -l FILE  log window-dumps to this file"
     };
     size_t n;
 

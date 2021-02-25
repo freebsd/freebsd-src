@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_current.c,v 1.15 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: fld_current.c,v 1.16 2020/05/24 01:40:20 anonymous.maarten Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform
@@ -48,7 +48,7 @@ MODULE_ID("$Id: fld_current.c,v 1.15 2020/02/02 23:34:34 tom Exp $")
 |                    E_INVALID_FIELD   - current field can't be left
 |                    E_SYSTEM_ERROR    - system error
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 set_current_field(FORM *form, FIELD *field)
 {
   int err = E_OK;
@@ -113,7 +113,7 @@ set_current_field(FORM *form, FIELD *field)
 |                    E_BAD_ARGUMENT    - invalid form pointer
 |                    E_REQUEST_DENIED  - there is no current field to unfocus
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 unfocus_current_field(FORM *const form)
 {
   T((T_CALLED("unfocus_current_field(%p)"), (const void *)form));
@@ -137,7 +137,7 @@ unfocus_current_field(FORM *const form)
 |
 |   Return Values :  Pointer to the current field.
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(FIELD *)
+FORM_EXPORT(FIELD *)
 current_field(const FORM *form)
 {
   T((T_CALLED("current_field(%p)"), (const void *)form));
@@ -154,7 +154,7 @@ current_field(const FORM *form)
 |   Return Values :  >= 0   : field index
 |                    -1     : fieldpointer invalid or field not connected
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 field_index(const FIELD *field)
 {
   T((T_CALLED("field_index(%p)"), (const void *)field));

@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_bkgd.3x,v 1.30 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_bkgd.3x,v 1.31 2020/10/17 23:12:52 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -56,8 +56,10 @@
 
        <STRONG>void</STRONG> <STRONG>bkgdset(chtype</STRONG> <EM>ch</EM><STRONG>);</STRONG>
        <STRONG>void</STRONG> <STRONG>wbkgdset(WINDOW</STRONG> <STRONG>*</STRONG><EM>win,</EM> <EM>chtype</EM> <EM>ch</EM><STRONG>);</STRONG>
+
        <STRONG>int</STRONG> <STRONG>bkgd(chtype</STRONG> <EM>ch</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>wbkgd(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>chtype</STRONG> <EM>ch</EM><STRONG>);</STRONG>
+
        <STRONG>chtype</STRONG> <STRONG>getbkgd(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
 
 
@@ -65,8 +67,8 @@
 
 </PRE><H3><a name="h3-bkgdset">bkgdset</a></H3><PRE>
        The <STRONG>bkgdset</STRONG> and <STRONG>wbkgdset</STRONG> routines  manipulate  the  background  of  the
-       named window.  The window background is a <STRONG>chtype</STRONG> consisting of any com-
-       bination  of  attributes  (i.e.,  rendition)  and  a  character.    The
+       named  window.   The  window  background  is a <STRONG>chtype</STRONG> consisting of any
+       combination of attributes  (i.e.,  rendition)  and  a  character.   The
        attribute part of the background is combined (OR'ed) with all non-blank
        characters that are written into the  window  with  <STRONG>waddch</STRONG>.   Both  the
        character  and  attribute parts of the background are combined with the
@@ -97,9 +99,9 @@
 
        This  implementation,  like  SVr4 curses, does not store the background
        and window attribute contributions to each cell separately.  It updates
-       the rendition by comparing the character, non-color attributes and col-
-       ors contained in the background.  For each cell in the window,  whether
-       or not it is blank:
+       the  rendition  by  comparing  the  character, non-color attributes and
+       colors contained in the background.   For  each  cell  in  the  window,
+       whether or not it is blank:
 
        <STRONG>o</STRONG>   The  library  first  compares  the <EM>character</EM>, and if it matches the
            current character part of the background, it replaces that with the
@@ -107,20 +109,20 @@
 
        <STRONG>o</STRONG>   The  library  then  checks  if the cell uses color, i.e., its color
            pair value is nonzero.  If not, it simply replaces  the  attributes
-           and color pair in the cell with those from the new background char-
-           acter.
+           and  color  pair  in  the  cell  with those from the new background
+           character.
 
        <STRONG>o</STRONG>   If the cell uses color, and that matches the color in  the  current
            background, the library removes attributes which may have come from
            the current background and adds attributes from the new background.
-           It finishes by setting the cell to use the color from the new back-
-           ground.
+           It  finishes  by  setting  the  cell  to use the color from the new
+           background.
 
        <STRONG>o</STRONG>   If the cell uses color, and that does not match the  color  in  the
            current   background,   the  library  updates  only  the  non-color
-           attributes, first removing those which may have come from the  cur-
-           rent  background,  and  then  adding  attributes from the new back-
-           ground.
+           attributes, first removing those  which  may  have  come  from  the
+           current  background,  and  then  adding  attributes  from  the  new
+           background.
 
        If the background's character value is zero, a space is assumed.
 
@@ -136,8 +138,8 @@
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
        These  functions are described in the XSI Curses standard, Issue 4.  It
-       specifies that <STRONG>bkgd</STRONG> and <STRONG>wbkgd</STRONG> return <STRONG>ERR</STRONG> on failure, but gives no fail-
-       ure conditions.
+       specifies that <STRONG>bkgd</STRONG> and <STRONG>wbkgd</STRONG> return  <STRONG>ERR</STRONG>  on  failure,  but  gives  no
+       failure conditions.
 
        The  routines  <STRONG>bkgd</STRONG> and <STRONG>wbkgd</STRONG> return the integer <STRONG>OK</STRONG>, unless the library
        has not been initialized.

@@ -32,7 +32,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursesf.h,v 1.35 2020/02/02 23:34:34 tom Exp $
+// $Id: cursesf.h,v 1.37 2020/07/18 19:57:11 anonymous.maarten Exp $
 
 #ifndef NCURSES_CURSESF_H_incl
 #define NCURSES_CURSESF_H_incl 1
@@ -51,11 +51,11 @@ extern "C" {
 // The abstract base class for builtin and user defined Fieldtypes.
 // -------------------------------------------------------------------------
 //
-class NCURSES_IMPEXP NCursesFormField; // forward declaration
+class NCURSES_CXX_IMPEXP NCursesFormField; // forward declaration
 
 // Class to represent builtin field types as well as C++ written new
 // fieldtypes (see classes UserDefineFieldType...
-class NCURSES_IMPEXP NCursesFieldType
+class NCURSES_CXX_IMPEXP NCursesFieldType
 {
   friend class NCursesFormField;
 
@@ -101,7 +101,7 @@ public:
 // The class representing a forms field, wrapping the lowlevel FIELD struct
 // -------------------------------------------------------------------------
 //
-class NCURSES_IMPEXP NCursesFormField
+class NCURSES_CXX_IMPEXP NCursesFormField
 {
   friend class NCursesForm;
 
@@ -338,7 +338,7 @@ extern "C" {
 // The class representing a form, wrapping the lowlevel FORM struct
 // -------------------------------------------------------------------------
 //
-class NCURSES_IMPEXP NCursesForm : public NCursesPanel
+class NCURSES_CXX_IMPEXP NCursesForm : public NCursesPanel
 {
 protected:
   FORM* form;  // the lowlevel structure
@@ -629,7 +629,7 @@ public:
 // data belongs to some class T. Use T as template argument
 // to create a UserField.
 // -------------------------------------------------------------------------
-template<class T> class NCURSES_IMPEXP NCursesUserField : public NCursesFormField
+template<class T> class NCURSES_CXX_IMPEXP NCursesUserField : public NCursesFormField
 {
 public:
   NCursesUserField (int rows,
@@ -662,7 +662,7 @@ public:
 // The same mechanism is used to attach user data to a form
 // -------------------------------------------------------------------------
 //
-template<class T> class NCURSES_IMPEXP NCursesUserForm : public NCursesForm
+template<class T> class NCURSES_CXX_IMPEXP NCursesUserForm : public NCursesForm
 {
 protected:
   // 'Internal' constructor, builds an object without association to a
@@ -721,7 +721,7 @@ public:
 // Builtin Fieldtypes
 // -------------------------------------------------------------------------
 //
-class NCURSES_IMPEXP Alpha_Field : public NCursesFieldType
+class NCURSES_CXX_IMPEXP Alpha_Field : public NCursesFieldType
 {
 private:
   int min_field_width;
@@ -737,7 +737,7 @@ public:
   }
 };
 
-class NCURSES_IMPEXP Alphanumeric_Field : public NCursesFieldType
+class NCURSES_CXX_IMPEXP Alphanumeric_Field : public NCursesFieldType
 {
 private:
   int min_field_width;
@@ -753,7 +753,7 @@ public:
   }
 };
 
-class NCURSES_IMPEXP Integer_Field : public NCursesFieldType
+class NCURSES_CXX_IMPEXP Integer_Field : public NCursesFieldType
 {
 private:
   int precision;
@@ -771,7 +771,7 @@ public:
   }
 };
 
-class NCURSES_IMPEXP Numeric_Field : public NCursesFieldType
+class NCURSES_CXX_IMPEXP Numeric_Field : public NCursesFieldType
 {
 private:
   int precision;
@@ -789,7 +789,7 @@ public:
   }
 };
 
-class NCURSES_IMPEXP Regular_Expression_Field : public NCursesFieldType
+class NCURSES_CXX_IMPEXP Regular_Expression_Field : public NCursesFieldType
 {
 private:
   char* regex;
@@ -834,7 +834,7 @@ public:
   }
 };
 
-class NCURSES_IMPEXP Enumeration_Field : public NCursesFieldType
+class NCURSES_CXX_IMPEXP Enumeration_Field : public NCursesFieldType
 {
 private:
   const char** list;
@@ -873,7 +873,7 @@ public:
   }
 };
 
-class NCURSES_IMPEXP IPV4_Address_Field : public NCursesFieldType
+class NCURSES_CXX_IMPEXP IPV4_Address_Field : public NCursesFieldType
 {
 private:
   void set(NCursesFormField& f) {
@@ -896,7 +896,7 @@ extern "C" {
 // Abstract base class for User-Defined Fieldtypes
 // -------------------------------------------------------------------------
 //
-class NCURSES_IMPEXP UserDefinedFieldType : public NCursesFieldType
+class NCURSES_CXX_IMPEXP UserDefinedFieldType : public NCursesFieldType
 {
   friend class UDF_Init; // Internal helper to set up statics
 private:
@@ -925,8 +925,7 @@ protected:
   virtual bool char_check (int c) = 0;
 
 public:
-  UserDefinedFieldType() : NCursesFieldType(generic_fieldtype) {
-  }
+  UserDefinedFieldType();
 };
 
 extern "C" {
@@ -939,7 +938,7 @@ extern "C" {
 // Abstract base class for User-Defined Fieldtypes with Choice functions
 // -------------------------------------------------------------------------
 //
-class NCURSES_IMPEXP UserDefinedFieldType_With_Choice : public UserDefinedFieldType
+class NCURSES_CXX_IMPEXP UserDefinedFieldType_With_Choice : public UserDefinedFieldType
 {
   friend class UDF_Init; // Internal helper to set up statics
 private:
@@ -962,9 +961,7 @@ protected:
   virtual bool previous(NCursesFormField& f) = 0;
 
 public:
-  UserDefinedFieldType_With_Choice() {
-    fieldtype = generic_fieldtype_with_choice;
-  }
+  UserDefinedFieldType_With_Choice();
 };
 
 #endif /* NCURSES_CURSESF_H_incl */

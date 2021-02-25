@@ -79,8 +79,8 @@
 </PRE><H3><a name="h3-erasechar_-erasewchar">erasechar, erasewchar</a></H3><PRE>
        The <STRONG>erasechar</STRONG> routine returns the user's current erase character.
 
-       The  <STRONG>erasewchar</STRONG> routine stores the current erase character in the loca-
-       tion referenced by <EM>ch</EM>.  If no erase character  has  been  defined,  the
+       The  <STRONG>erasewchar</STRONG>  routine  stores  the  current  erase  character in the
+       location referenced by <EM>ch</EM>.  If no erase character has been defined, the
        routine fails and the location referenced by <EM>ch</EM> is not changed.
 
 
@@ -113,12 +113,13 @@
 
 
 </PRE><H3><a name="h3-termattrs_-term_attrs">termattrs, term_attrs</a></H3><PRE>
-       If a given terminal does not support a video attribute that an applica-
-       tion program is trying to use, <STRONG>curses</STRONG> may substitute a different  video
-       attribute for it.  The <STRONG>termattrs</STRONG> and <STRONG>term_attrs</STRONG> functions return a log-
-       ical <STRONG>OR</STRONG> of all video attributes supported by the terminal using <EM>A</EM><STRONG>_</STRONG>  and
-       <EM>WA</EM><STRONG>_</STRONG>  constants  respectively.  This information is useful when a <STRONG>curses</STRONG>
-       program needs complete control over the appearance of the screen.
+       If  a  given  terminal  does  not  support  a  video  attribute that an
+       application program is trying to use, <STRONG>curses</STRONG> may substitute a different
+       video  attribute for it.  The <STRONG>termattrs</STRONG> and <STRONG>term_attrs</STRONG> functions return
+       a logical <STRONG>OR</STRONG> of all video attributes supported by the terminal using <EM>A</EM><STRONG>_</STRONG>
+       and  <EM>WA</EM><STRONG>_</STRONG>  constants  respectively.   This  information is useful when a
+       <STRONG>curses</STRONG> program needs  complete  control  over  the  appearance  of  the
+       screen.
 
 
 </PRE><H3><a name="h3-termname">termname</a></H3><PRE>
@@ -128,9 +129,9 @@
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
        <STRONG>longname</STRONG> and <STRONG>termname</STRONG> return <STRONG>NULL</STRONG> on error.
 
-       Routines that return an integer return <STRONG>ERR</STRONG> upon failure  and  <STRONG>OK</STRONG>  (SVr4
-       only  specifies "an integer value other than <STRONG>ERR</STRONG>") upon successful com-
-       pletion.
+       Routines  that  return  an integer return <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> (SVr4
+       only specifies "an integer  value  other  than  <STRONG>ERR</STRONG>")  upon  successful
+       completion.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
@@ -139,7 +140,7 @@
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
        The XSI Curses standard, Issue 4 describes these functions.  It changes
-       the  return type of <STRONG>termattrs</STRONG> to the new type <STRONG>attr_t</STRONG>.  Most versions of
+       the return type of <STRONG>termattrs</STRONG> to the new type <STRONG>attr_t</STRONG>.  Most versions  of
        curses truncate the result returned by <STRONG>termname</STRONG> to 14 characters.
 
 

@@ -29,7 +29,7 @@
 #
 # Author: Thomas Dickey
 #
-# $Id: Caps.uwin,v 1.12 2020/02/02 23:34:34 tom Exp $
+# $Id: Caps.uwin,v 1.13 2020/10/17 21:30:19 tom Exp $
 #
 # This is an adaptation of ncurses' termcap/terminfo capability table, which
 # is designed to align with U/Win's terminfo.
@@ -189,8 +189,12 @@
 #%indicates that padding may be specified
 #%.TP
 #%#[1-9]
-#%in the description field indicates that the string is passed through tparm with
-#%parms as given (#\fIi\fP).
+#%in the description field indicates that the string is passed
+#%through \fBtparm\fP(3X) with parameters as given (#\fIi\fP).
+#%.IP
+#%If no parameters are listed in the description,
+#%passing the string through \fBtparm\fP(3X) may give unexpected results,
+#%e.g., if it contains percent (%%) signs.
 #%.TP
 #%(P*)
 #%indicates that padding may vary in proportion to the number of

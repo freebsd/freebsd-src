@@ -28,7 +28,7 @@
   * authorization.                                                           *
   ****************************************************************************
   * Author: Thomas E. Dickey 1999
-  * @Id: keybound.3x,v 1.10 2020/02/02 23:34:34 tom Exp @
+  * @Id: keybound.3x,v 1.11 2020/10/17 23:39:30 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -54,7 +54,7 @@
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>char</STRONG> <STRONG>*</STRONG> <STRONG>keybound(int</STRONG> <STRONG>keycode,</STRONG> <STRONG>int</STRONG> <STRONG>count);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*</STRONG> <STRONG>keybound(int</STRONG> <EM>keycode</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>count);</EM>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -67,8 +67,8 @@
        The <EM>keycode</EM> parameter must be greater than zero, else NULL is returned.
        If it does not correspond to a defined key, then NULL is returned.  The
        <EM>count</EM>  parameter  is  used  to allow the application to iterate through
-       multiple definitions, counting from zero.  When successful,  the  func-
-       tion returns a string which must be freed by the caller.
+       multiple  definitions,  counting  from  zero.   When  successful,   the
+       function returns a string which must be freed by the caller.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>

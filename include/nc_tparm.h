@@ -31,7 +31,7 @@
  *  Author: Thomas E. Dickey                        2006                    *
  ****************************************************************************/
 
-/* $Id: nc_tparm.h,v 1.10 2020/02/02 23:34:34 tom Exp $ */
+/* $Id: nc_tparm.h,v 1.11 2020/05/27 23:33:31 tom Exp $ */
 
 #ifndef NC_TPARM_included
 #define NC_TPARM_included 1
@@ -75,6 +75,18 @@
 #define TPARM_2(a,b,c) TPARM_3(a,b,c,0)
 #define TPARM_1(a,b) TPARM_2(a,b,0)
 #define TPARM_0(a) TPARM_1(a,0)
+#endif
+
+#ifdef NCURSES_INTERNALS
+#define TIPARM_1(s,a) _nc_tiparm(1,s,a)
+#define TIPARM_2(s,a,b) _nc_tiparm(2,s,a,b)
+#define TIPARM_3(s,a,b,c) _nc_tiparm(3,s,a,b,c)
+#define TIPARM_4(s,a,b,c,d) _nc_tiparm(4,s,a,b,c,d)
+#define TIPARM_5(s,a,b,c,d,e) _nc_tiparm(5,s,a,b,c,d,e)
+#define TIPARM_6(s,a,b,c,d,e,f) _nc_tiparm(6,s,a,b,c,d,e,f)
+#define TIPARM_7(s,a,b,c,d,e,f,g) _nc_tiparm(7,s,a,b,c,d,e,f,g)
+#define TIPARM_8(s,a,b,c,d,e,f,g,h) _nc_tiparm(8,s,a,b,c,d,e,f,g,h)
+#define TIPARM_9(s,a,b,c,d,e,f,g,h,i) _nc_tiparm(9,s,a,b,c,d,e,f,g,h,i)
 #endif
 
 #endif /* NC_TPARM_included */

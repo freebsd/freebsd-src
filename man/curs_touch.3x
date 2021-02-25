@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_touch.3x,v 1.22 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_touch.3x,v 1.23 2020/10/24 09:51:21 tom Exp $
 .TH curs_touch 3X ""
 .na
 .hy 0
@@ -42,18 +42,18 @@
 .hy
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
+.sp
+\fBint touchline(WINDOW *\fP\fIwin\fP\fB, int \fP\fIstart\fP\fB, int \fP\fIcount\fP\fB);\fR
+.sp
+\fBint touchwin(WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBint touchwin(WINDOW *win);\fR
+\fBint wtouchln(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIn\fP\fB, int \fP\fIchanged\fP\fB);\fR
+.sp
+\fBint untouchwin(WINDOW *\fP\fIwin\fP\fB);\fR
+.sp
+\fBbool is_linetouched(WINDOW *\fP\fIwin\fP\fB, int \fP\fIline\fP\fB);\fR
 .br
-\fBint touchline(WINDOW *win, int start, int count);\fR
-.br
-\fBint untouchwin(WINDOW *win);\fR
-.br
-\fBint wtouchln(WINDOW *win, int y, int n, int changed);\fR
-.br
-\fBbool is_linetouched(WINDOW *win, int line);\fR
-.br
-\fBbool is_wintouched(WINDOW *win);\fR
+\fBbool is_wintouched(WINDOW *\fP\fIwin\fP\fB);\fR
 .br
 .SH DESCRIPTION
 The \fBtouchwin\fR and \fBtouchline\fR routines throw away all

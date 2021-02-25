@@ -73,8 +73,8 @@
 
 </PRE><H3><a name="h3-getcchar">getcchar</a></H3><PRE>
        The <STRONG>getcchar</STRONG> function gets a wide-character string and rendition from a
-       <STRONG>cchar_t</STRONG>  argument.   When <EM>wch</EM> is not a null pointer, the <STRONG>getcchar</STRONG> func-
-       tion does the following:
+       <STRONG>cchar_t</STRONG>  argument.   When  <EM>wch</EM>  is  not  a  null  pointer, the <STRONG>getcchar</STRONG>
+       function does the following:
 
        <STRONG>o</STRONG>   Extracts information from a <STRONG>cchar_t</STRONG> value <EM>wcval</EM>
 
@@ -123,8 +123,8 @@
 
        <STRONG>o</STRONG>   For  functions which retrieve the color, e.g., <STRONG>getcchar</STRONG>, if <EM>opts</EM> is
            set it is treated as a pointer to <STRONG>int</STRONG>, and  used  to  retrieve  the
-           color pair as an <STRONG>int</STRONG> value, in addition retrieving it via the stan-
-           dard pointer to <STRONG>short</STRONG> parameter.
+           color  pair  as  an  <STRONG>int</STRONG>  value,  in addition retrieving it via the
+           standard pointer to <STRONG>short</STRONG> parameter.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
@@ -134,8 +134,8 @@
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       When <EM>wch</EM> is a null pointer, <STRONG>getcchar</STRONG> returns the number of wide charac-
-       ters referenced by <EM>wcval</EM>, including one for a trailing null.
+       When <EM>wch</EM> is a  null  pointer,  <STRONG>getcchar</STRONG>  returns  the  number  of  wide
+       characters referenced by <EM>wcval</EM>, including one for a trailing null.
 
        When  <EM>wch</EM>  is  not  a null pointer, <STRONG>getcchar</STRONG> returns <STRONG>OK</STRONG> upon successful
        completion, and <STRONG>ERR</STRONG> otherwise.
@@ -180,8 +180,8 @@
        of  spacing and non-spacing characters (<STRONG>CCHARW_MAX</STRONG>).  That was probably
        due to a misreading of the  AIX 4  header  files,  because  the  X/Open
        Curses  document  was  not generally available at that time.  Later (in
-       2002), this detail was overlooked when beginning to implement the func-
-       tions using the structure.
+       2002), this detail was  overlooked  when  beginning  to  implement  the
+       functions using the structure.
 
        In  practice, even four non-spacing characters may seem enough.  X/Open
        Curses documents possible uses for  non-spacing  characters,  including

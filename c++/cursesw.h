@@ -32,11 +32,22 @@
 #ifndef NCURSES_CURSESW_H_incl
 #define NCURSES_CURSESW_H_incl 1
 
-// $Id: cursesw.h,v 1.56 2020/02/02 23:34:34 tom Exp $
+// $Id: cursesw.h,v 1.57 2020/07/04 20:38:43 tom Exp $
 
 extern "C" {
 #  include   <curses.h>
 }
+
+#if defined(BUILDING_NCURSES_CXX)
+# define NCURSES_CXX_IMPEXP NCURSES_EXPORT_GENERAL_EXPORT
+#else
+# define NCURSES_CXX_IMPEXP NCURSES_EXPORT_GENERAL_IMPORT
+#endif
+
+#define NCURSES_CXX_WRAPPED_VAR(type,name) extern NCURSES_CXX_IMPEXP type NCURSES_PUBLIC_VAR(name)(void)
+
+#define NCURSES_CXX_EXPORT(type) NCURSES_CXX_IMPEXP type NCURSES_API
+#define NCURSES_CXX_EXPORT_VAR(type) NCURSES_CXX_IMPEXP type
 
 #include <etip.h>
 
@@ -757,7 +768,7 @@ extern "C" int     _nc_ripoffline(int, int (*init)(WINDOW*, int));
 extern "C" int     _nc_xx_ripoff_init(WINDOW *, int);
 extern "C" int     _nc_has_mouse(void);
 
-class NCURSES_IMPEXP NCursesWindow
+class NCURSES_CXX_IMPEXP NCursesWindow
 {
   friend class NCursesMenu;
   friend class NCursesForm;
@@ -1371,7 +1382,7 @@ public:
 // -------------------------------------------------------------------------
 // We leave this here for compatibility reasons.
 // -------------------------------------------------------------------------
-class NCURSES_IMPEXP NCursesColorWindow : public NCursesWindow
+class NCURSES_CXX_IMPEXP NCursesColorWindow : public NCursesWindow
 {
 public:
   NCursesColorWindow(WINDOW* &window)   // useful only for stdscr
@@ -1417,7 +1428,7 @@ public:
 // Pad Support. We allow an association of a pad with a "real" window
 // through which the pad may be viewed.
 // -------------------------------------------------------------------------
-class NCURSES_IMPEXP NCursesPad : public NCursesWindow
+class NCURSES_CXX_IMPEXP NCursesPad : public NCursesWindow
 {
 private:
   NCursesWindow* viewWin;       // the "viewport" window
@@ -1533,7 +1544,7 @@ public:
 // A FramedPad is constructed always with a viewport window. This viewport
 // will be framed (by a box() command) and the interior of the box is the
 // viewport subwindow. On the frame we display scrollbar sliders.
-class NCURSES_IMPEXP NCursesFramedPad : public NCursesPad
+class NCURSES_CXX_IMPEXP NCursesFramedPad : public NCursesPad
 {
 protected:
   virtual void OnOperation(int pad_req);

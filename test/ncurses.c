@@ -41,7 +41,7 @@ AUTHOR
    Author: Eric S. Raymond <esr@snark.thyrsus.com> 1993
            Thomas E. Dickey (beginning revision 1.27 in 1996).
 
-$Id: ncurses.c,v 1.522 2020/02/02 23:34:34 tom Exp $
+$Id: ncurses.c,v 1.523 2020/08/29 16:22:03 juergen Exp $
 
 ***************************************************************************/
 
@@ -490,7 +490,7 @@ ShellOut(bool message)
 	addstr("Shelling out...");
     def_prog_mode();
     endwin();
-#ifdef _WIN32
+#ifdef _NC_WINDOWS
     system("cmd.exe");
 #else
     IGNORE_RC(system("sh"));
@@ -7618,6 +7618,8 @@ settings_test(bool recur GCC_UNUSED)
 #if HAVE_COLOR_CONTENT
     show_boolean_setting("can_change_color", can_change_color());
 #endif
+    show_setting_name("LINES"); printw("%d\n", LINES);
+    show_setting_name("COLS");  printw("%d\n", COLS);
     Pause();
     erase();
     stop_curses();
@@ -7659,7 +7661,7 @@ usage(void)
 #if USE_LIBPANEL
 	,"  -s msec  specify nominal time for panel-demo (default: 1, to hold)"
 #endif
-#if defined(NCURSES_VERSION_PATCH) && (NCURSES_VERSION_PATCH >= 20120714) && !defined(_WIN32)
+#if defined(NCURSES_VERSION_PATCH) && (NCURSES_VERSION_PATCH >= 20120714) && !defined(_NC_WINDOWS)
 	,"  -T       call use_tioctl(TRUE) to allow SIGWINCH to override environment"
 #endif
 #ifdef TRACE
@@ -7785,8 +7787,7 @@ main_menu(bool top)
 
     int (*doit) (bool);
     char command;
-    unsigned n;
-
+    unsigned n;    
     do {
 	printf("This is the ncurses main menu (uppercase for wide-characters)\n");
 	for (n = 0; n < SIZEOF(cmds); ++n) {
@@ -7962,7 +7963,7 @@ main(int argc, char *argv[])
 	    nap_msec = (int) atol(optarg);
 	    break;
 #endif
-#if defined(NCURSES_VERSION_PATCH) && (NCURSES_VERSION_PATCH >= 20120714) && !defined(_WIN32)
+#if defined(NCURSES_VERSION_PATCH) && (NCURSES_VERSION_PATCH >= 20120714) && !defined(_NC_WINDOWS)
 	case 'T':
 	    use_tioctl(TRUE);
 	    break;

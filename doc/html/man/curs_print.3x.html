@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_print.3x,v 1.14 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_print.3x,v 1.16 2020/10/24 09:25:14 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -53,7 +53,7 @@
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>mcprint(char</STRONG> <STRONG>*data,</STRONG> <STRONG>int</STRONG> <STRONG>len);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mcprint(char</STRONG> <STRONG>*</STRONG><EM>data</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>len</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -64,15 +64,15 @@
        printer  or  to  know  how  much buffering it has.  Your application is
        responsible for keeping the rate of writes to  the  printer  below  its
        continuous  throughput  rate  (typically  about half of its nominal cps
-       rating).  Dot-matrix printers and 6-page-per-minute  lasers  can  typi-
-       cally  handle  80cps,  so a good conservative rule of thumb is to sleep
-       for a second after shipping each 80-character line.
+       rating).   Dot-matrix  printers  and   6-page-per-minute   lasers   can
+       typically  handle  80cps,  so  a  good conservative rule of thumb is to
+       sleep for a second after shipping each 80-character line.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
        The <STRONG>mcprint</STRONG> function returns <STRONG>ERR</STRONG> if the  write  operation  aborted  for
-       some  reason.  In this case, errno will contain either an error associ-
-       ated with <STRONG>write(2)</STRONG> or one of the following:
+       some  reason.   In  this  case,  <STRONG>errno</STRONG>  will  contain  either  an error
+       associated with <STRONG>write(2)</STRONG> or one of the following:
 
        ENODEV
             Capabilities for printer redirection do not exist.

@@ -5,11 +5,12 @@ Current ncurses maintainer: Thomas Dickey <dickey@invisible-island.net>
 
 -------------------------------------------------------------------------------
 Files: *
-Copyright: 1998-2019,2020 Free Software Foundation, Inc.
+Copyright: 2017-2020,2021 by Thomas E. Dickey
+Copyright: 1998-2016,2017 Free Software Foundation, Inc.
 Licence: X11
 
 Files: aclocal.m4 package
-Copyright: 1996-2019,2020 by Thomas E. Dickey
+Copyright: 1996-2020,2021 by Thomas E. Dickey
 Licence: X11
 
 Files: doc/html/NCURSES-Programming-HOWTO.html

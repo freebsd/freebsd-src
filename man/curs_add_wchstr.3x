@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_add_wchstr.3x,v 1.13 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_add_wchstr.3x,v 1.15 2020/12/19 21:39:06 tom Exp $
 .TH curs_add_wchstr 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -61,7 +61,7 @@
 \fBint wadd_wchstr(WINDOW *\fR \fIwin\fR\fB, const cchar_t *\fR\fIwchstr\fR\fB);\fR
 .br
 \fBint wadd_wchnstr(WINDOW *\fR \fIwin\fR\fB, const cchar_t *\fR\fIwchstr\fR\fB, int \fR\fIn\fR\fB);\fR
-.br
+.sp
 \fBint mvadd_wchstr(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const cchar_t *\fR\fIwchstr\fR\fB);\fR
 .br
 \fBint mvadd_wchnstr(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const cchar_t *\fR\fIwchstr\fR\fB, int \fR\fIn\fR\fB);\fR
@@ -115,8 +115,8 @@ All functions except \fBwadd_wchnstr\fR may be macros.
 .SH PORTABILITY
 These entry points are described in the XSI Curses standard, Issue 4.
 .SH SEE ALSO
-\fBcurs_addwstr\fR(3X),
-\fBcurses\fR(3X).
+\fBcurses\fR(3X),
+\fBcurs_addwstr\fR(3X).
 .PP
 Comparable functions in the narrow-character (ncurses) library are
 described in

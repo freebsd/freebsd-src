@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: picsmap.c,v 1.132 2020/02/02 23:34:34 tom Exp $
+ * $Id: picsmap.c,v 1.135 2020/12/26 18:04:03 tom Exp $
  *
  * Author: Thomas E. Dickey
  *
@@ -955,6 +955,20 @@ parse_rgb(char **data)
     return result;
 }
 
+#define LOWERCASE(c) ((isalpha(UChar(c)) && isupper(UChar(c))) ? tolower(UChar(c)) : (c))
+
+static int
+CaselessCmp(const char *a, const char *b)
+{				/* strcasecmp isn't portable */
+    while (*a && *b) {
+	int cmp = LOWERCASE(*a) - LOWERCASE(*b);
+	if (cmp != 0)
+	    break;
+	a++, b++;
+    }
+    return LOWERCASE(*a) - LOWERCASE(*b);
+}
+
 static RGB_NAME *
 lookup_rgb(const char *name)
 {
@@ -962,7 +976,7 @@ lookup_rgb(const char *name)
     if (rgb_table != 0) {
 	int n;
 	for (n = 0; rgb_table[n].name != 0; ++n) {
-	    if (!strcasecmp(name, rgb_table[n].name)) {
+	    if (!CaselessCmp(name, rgb_table[n].name)) {
 		result = &rgb_table[n];
 		break;
 	    }
@@ -1598,7 +1612,7 @@ report_colors(PICS_HEAD * pics)
 	    for (k = 0; k < wide; ++k) {
 		int n = j + (k * high);
 		size_t want = (sizeof(buffer) - (size_t) (s - buffer));
-		if (want < 100)
+		if (want < 100 || want >= sizeof(buffer))
 		    break;
 		if (n >= pics->colors)
 		    break;

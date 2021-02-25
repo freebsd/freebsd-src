@@ -28,7 +28,7 @@
   * authorization.                                                           *
   ****************************************************************************
   * Author: Thomas E. Dickey
-  * @Id: legacy_coding.3x,v 1.7 2020/02/02 23:34:34 tom Exp @
+  * @Id: legacy_coding.3x,v 1.8 2020/10/17 23:40:23 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -54,7 +54,7 @@
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>use_legacy_coding(int</STRONG> <STRONG>level);</STRONG>
+       <STRONG>int</STRONG> <STRONG>use_legacy_coding(int</STRONG> <EM>level</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -66,8 +66,8 @@
 
        The <EM>level</EM> parameter controls the result:
 
-              0    the library functions normally, rendering nonprinting char-
-                   acters as described in <STRONG>unctrl</STRONG>.
+              0    the   library  functions  normally,  rendering  nonprinting
+                   characters as described in <STRONG>unctrl</STRONG>.
 
               1    the  library  ignores  <STRONG>isprintf</STRONG>  for  codes  in  the  range
                    160-255.

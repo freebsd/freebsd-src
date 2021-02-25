@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright 2018-2019,2020 Thomas E. Dickey                                *
+dnl Copyright 2018-2020,2021 Thomas E. Dickey                                *
 dnl Copyright 2010-2016,2018 Free Software Foundation, Inc.                  *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -29,7 +29,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey
 dnl
-dnl $Id: configure.in,v 1.76 2020/02/08 21:03:20 tom Exp $
+dnl $Id: configure.in,v 1.82 2021/01/09 11:20:33 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl
 dnl For additional information, see
@@ -38,7 +38,7 @@ dnl     https://invisible-island.net/autoconf/my-autoconf.html
 dnl
 dnl ---------------------------------------------------------------------------
 AC_PREREQ(2.52.20200111)
-AC_REVISION($Revision: 1.76 $)
+AC_REVISION($Revision: 1.82 $)
 AC_INIT(gen/gen.c)
 AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
 
@@ -353,18 +353,10 @@ CF_HELP_MESSAGE(Testing/development Options:)
 ###	use option --disable-echo to suppress full display compiling commands
 CF_DISABLE_ECHO
 
-###	use option --enable-warnings to turn on all gcc warnings
-AC_MSG_CHECKING(if you want to see compiler warnings)
-AC_ARG_ENABLE(warnings,
-	[  --enable-warnings       build: turn on GCC compiler warnings],
-	[with_warnings=$enableval])
-AC_MSG_RESULT($with_warnings)
-
-if test "x$with_warnings" = "xyes"; then
+CF_ENABLE_WARNINGS(Wno-unknown-pragmas Wswitch-enum,yes)
+if test "x$enable_warnings" = "xyes"; then
  	CF_ADD_ADAFLAGS(-gnatg)
-	CF_GCC_WARNINGS(Wno-unknown-pragmas Wswitch-enum)
 fi
-CF_GCC_ATTRIBUTES
 
 ###	use option --enable-assertions to turn on generation of assertion code
 AC_MSG_CHECKING(if you want to enable runtime assertions)
@@ -549,9 +541,6 @@ SUB_MAKEFILES="gen/adacurses${USE_ARG_SUFFIX}-config:gen/adacurses-config.in"
 
 AC_DEFINE_UNQUOTED(NCURSES_PATHSEP,'$PATH_SEPARATOR',[Define to override ':' as the library path-separator])
 
-### Now that we're done running tests, add the compiler-warnings, if any
-CF_ADD_CFLAGS($EXTRA_CFLAGS)
-
 ################################################################################
 
 TEST_ARG2=
@@ -615,6 +604,8 @@ NCURSES_MAJOR="$NCURSES_MAJOR"
 NCURSES_MINOR="$NCURSES_MINOR"
 NCURSES_PATCH="$NCURSES_PATCH"
 USE_OLD_MAKERULES="$USE_OLD_MAKERULES"
+cf_cv_VERSION_GNATMAKE=$cf_cv_VERSION_GNATMAKE
+cf_cv_VERSION_GPRBUILD=$cf_cv_VERSION_GPRBUILD
 cf_cv_abi_version="$cf_cv_abi_version"
 cf_cv_rel_version="$cf_cv_rel_version"
 cf_cv_rm_so_locs="$cf_cv_rm_so_locs"

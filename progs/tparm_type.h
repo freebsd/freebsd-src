@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /*
- * $Id: tparm_type.h,v 1.2 2020/02/02 23:34:34 tom Exp $
+ * $Id: tparm_type.h,v 1.3 2020/10/24 17:11:33 tom Exp $
  *
  * determine expected/actual number of parameters to setup for tparm
  */
@@ -43,11 +43,13 @@
 #include <progs.priv.h>
 
 typedef enum {
-    Numbers = 0
+    Other = -1
+    ,Numbers = 0
     ,Num_Str
     ,Num_Str_Str
 } TParams;
 
 extern TParams tparm_type(const char *name);
+extern TParams guess_tparm_type(int nparam, char **p_is_s);
 
 #endif /* TPARM_TYPE_H */

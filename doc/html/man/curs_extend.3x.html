@@ -28,7 +28,7 @@
   * authorization.                                                           *
   ****************************************************************************
   * Author: Thomas E. Dickey 1999-on
-  * @Id: curs_extend.3x,v 1.23 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_extend.3x,v 1.24 2020/10/24 09:37:07 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -55,7 +55,7 @@
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
        <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <STRONG>curses_version(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>use_extended_names(bool</STRONG> <STRONG>enable);</STRONG>
+       <STRONG>int</STRONG> <STRONG>use_extended_names(bool</STRONG> <EM>enable</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -69,11 +69,11 @@
 
 
 </PRE><H3><a name="h3-use_extended_names">use_extended_names</a></H3><PRE>
-       The  <STRONG>use_extended_names</STRONG>  function controls whether the calling applica-
-       tion is able to use user-defined or nonstandard names which may be com-
-       piled  into the terminfo description, i.e., via the terminfo or termcap
-       interfaces.  Normally these names are  available  for  use,  since  the
-       essential  decision  is  made  by using the <STRONG>-x</STRONG> option of <STRONG>tic</STRONG> to compile
+       The   <STRONG>use_extended_names</STRONG>   function   controls   whether   the  calling
+       application is able to use user-defined or nonstandard names which  may
+       be  compiled  into  the terminfo description, i.e., via the terminfo or
+       termcap interfaces.  Normally these names are available for use,  since
+       the essential decision is made by using the <STRONG>-x</STRONG> option of <STRONG>tic</STRONG> to compile
        extended terminal definitions.  However you can disable this feature to
        ensure compatibility with other implementations of curses.
 

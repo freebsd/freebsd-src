@@ -1,4 +1,4 @@
-# $Id: modules,v 1.124 2020/02/02 23:34:34 tom Exp $
+# $Id: modules,v 1.127 2020/09/12 17:58:12 tom Exp $
 ##############################################################################
 # Copyright 2019,2020 Thomas E. Dickey                                       #
 # Copyright 1998-2013,2017 Free Software Foundation, Inc.                    #
@@ -240,6 +240,12 @@ gettimeofday	lib		$(win32con)	$(HEADER_DEPS)
 wcwidth		lib             $(win32con)	$(HEADER_DEPS)
 widechars	lib             $(wide)		$(HEADER_DEPS)
 win_driver	lib             $(win32con)	$(HEADER_DEPS)
+
+@ port_win32
+lib_win32con	lib		$(tinfo)	$(HEADER_DEPS)
+lib_win32util	lib		$(tinfo)	$(HEADER_DEPS)
+wcwidth		lib             $(win32con)	$(HEADER_DEPS)
+win32_driver	lib             $(win32con)	$(HEADER_DEPS)
 
 @ port_tinfo
 tinfo_driver	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h

@@ -36,7 +36,7 @@
 #include "internal.h"
 #include "cursesapp.h"
 
-MODULE_ID("$Id: cursesapp.cc,v 1.17 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: cursesapp.cc,v 1.18 2020/07/18 19:57:11 anonymous.maarten Exp $")
 
 void
 NCursesApplication::init(bool bColors)
@@ -69,6 +69,11 @@ NCursesApplication* NCursesApplication::theApp = 0;
 NCursesWindow* NCursesApplication::titleWindow = 0;
 NCursesApplication::SLK_Link* NCursesApplication::slk_stack = 0;
 
+
+NCursesWindow *&NCursesApplication::getTitleWindow() {
+  return titleWindow;
+}
+
 NCursesApplication::~NCursesApplication() THROWS(NCursesException)
 {
   Soft_Label_Key_Set* S;
@@ -85,6 +90,10 @@ NCursesApplication::~NCursesApplication() THROWS(NCursesException)
   Root_Window = 0;
 
   ::endwin();
+}
+
+NCursesApplication* NCursesApplication::getApplication() {
+  return theApp;
 }
 
 int NCursesApplication::rinit(NCursesWindow& w)

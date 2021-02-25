@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_outopts.3x,v 1.30 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_outopts.3x,v 1.33 2020/10/03 22:04:09 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -48,7 +48,7 @@
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
        <STRONG>clearok</STRONG>, <STRONG>idlok</STRONG>, <STRONG>idcok</STRONG>, <STRONG>immedok</STRONG>, <STRONG>leaveok</STRONG>, <STRONG>setscrreg</STRONG>, <STRONG>wsetscrreg</STRONG>,
-       <STRONG>scrollok</STRONG>, <STRONG>nl</STRONG>, <STRONG>nonl</STRONG> - <STRONG>curses</STRONG> output options
+       <STRONG>scrollok</STRONG> - <STRONG>curses</STRONG> output options
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
@@ -59,11 +59,10 @@
        <STRONG>void</STRONG> <STRONG>idcok(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>bool</STRONG> <EM>bf</EM><STRONG>);</STRONG>
        <STRONG>void</STRONG> <STRONG>immedok(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>bool</STRONG> <EM>bf</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>leaveok(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>bool</STRONG> <EM>bf</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>scrollok(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>bool</STRONG> <EM>bf</EM><STRONG>);</STRONG>
+
        <STRONG>int</STRONG> <STRONG>setscrreg(int</STRONG> <EM>top</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>bot</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>wsetscrreg(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>top</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>bot</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>scrollok(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>bool</STRONG> <EM>bf</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>nl(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>nonl(void);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -118,7 +117,17 @@
        cursor motions.
 
 
-</PRE><H3><a name="h3-setscrreg">setscrreg</a></H3><PRE>
+</PRE><H3><a name="h3-scrollok">scrollok</a></H3><PRE>
+       The <STRONG>scrollok</STRONG> option controls what happens when the cursor of  a  window
+       is  moved  off  the edge of the window or scrolling region, either as a
+       result of a newline action on the bottom line, or typing the last char-
+       acter of the last line.  If disabled, (<EM>bf</EM> is <STRONG>FALSE</STRONG>), the cursor is left
+       on the bottom line.  If enabled, (<EM>bf</EM> is <STRONG>TRUE</STRONG>), the window  is  scrolled
+       up one line (Note that to get the physical scrolling effect on the ter-
+       minal, it is also necessary to call <STRONG>idlok</STRONG>).
+
+
+</PRE><H3><a name="h3-setscrreg_wsetscrreg">setscrreg/wsetscrreg</a></H3><PRE>
        The <STRONG>setscrreg</STRONG> and <STRONG>wsetscrreg</STRONG> routines allow the application  programmer
        to set a software scrolling region in a window.  The <EM>top</EM> and <EM>bot</EM> param-
        eters are the line  numbers  of  the  top  and  bottom  margin  of  the
@@ -132,57 +141,37 @@
        line capability, they will probably be used by the output routines.)
 
 
-</PRE><H3><a name="h3-scrollok">scrollok</a></H3><PRE>
-       The <STRONG>scrollok</STRONG> option controls what happens when the cursor of  a  window
-       is  moved  off  the edge of the window or scrolling region, either as a
-       result of a newline action on the bottom line, or typing the last char-
-       acter of the last line.  If disabled, (<EM>bf</EM> is <STRONG>FALSE</STRONG>), the cursor is left
-       on the bottom line.  If enabled, (<EM>bf</EM> is <STRONG>TRUE</STRONG>), the window  is  scrolled
-       up one line (Note that to get the physical scrolling effect on the ter-
-       minal, it is also necessary to call <STRONG>idlok</STRONG>).
-
-
-</PRE><H3><a name="h3-nl_-nonl">nl, nonl</a></H3><PRE>
-       The <STRONG>nl</STRONG> and <STRONG>nonl</STRONG> routines control whether the underlying display  device
-       translates  the return key into newline on input, and whether it trans-
-       lates newline into return and line-feed on output (in either case,  the
-       call  <STRONG>addch('\n')</STRONG>  does  the  equivalent of return and line feed on the
-       <EM>virtual</EM> <EM>screen</EM>).  Initially, these translations do occur.  If you  dis-
-       able  them  using  <STRONG>nonl</STRONG>,  <STRONG>curses</STRONG> will be able to make better use of the
-       line-feed capability, resulting in faster cursor motion.  Also,  <STRONG>curses</STRONG>
-       will then be able to detect the return key.
-
-
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       The  functions  <STRONG>setscrreg</STRONG> and <STRONG>wsetscrreg</STRONG> return <STRONG>OK</STRONG> upon success and <STRONG>ERR</STRONG>
-       upon failure.  All other routines that return an integer always  return
+       The functions <STRONG>setscrreg</STRONG> and <STRONG>wsetscrreg</STRONG> return <STRONG>OK</STRONG> upon success  and  <STRONG>ERR</STRONG>
+       upon  failure.  All other routines that return an integer always return
        <STRONG>OK</STRONG>.
 
        X/Open Curses does not define any error conditions.
 
-       In this implementation, those functions that have a window pointer will
-       return an error if the window pointer is null.
+       In this implementation,
 
-              <STRONG>wclrtoeol</STRONG>
-                   returns an error if the cursor position is about to wrap.
+       <STRONG>o</STRONG>   those functions that have a window pointer will return an error  if
+           the window pointer is null
 
-              <STRONG>wsetscrreg</STRONG>
-                   returns an error if the scrolling region limits extend out-
-                   side the window.
+       <STRONG>o</STRONG>   <STRONG>wsetscrreg</STRONG>  returns  an error if the scrolling region limits extend
+           outside the window.
 
-       X/Open  does  not define any error conditions.  This implementation re-
+       X/Open does not define any error conditions.  This  implementation  re-
        turns an error if the window pointer is null.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
        These functions are described in the XSI Curses standard, Issue 4.
 
-       The XSI Curses standard is ambiguous on the  question  of  whether  <STRONG>raw</STRONG>
-       should  disable  the  CRLF translations controlled by <STRONG>nl</STRONG> and <STRONG>nonl</STRONG>.  BSD
-       curses did turn off these translations; AT&amp;T curses (at least  as  late
-       as  SVr1) did not.  We choose to do so, on the theory that a programmer
-       requesting raw input wants a clean  (ideally  8-bit  clean)  connection
-       that the operating system will not alter.
+       From the outset, ncurses used <STRONG>nl</STRONG>/<STRONG>nonl</STRONG> to control the conversion of new-
+       lines to carriage return/line-feed on output as  well  as  input.   XSI
+       Curses  documents only the use of these functions for input.  This dif-
+       ference arose from converting the  <EM>pcurses</EM>  source  (which  used  <STRONG>ioctl</STRONG>
+       calls  with  the <STRONG>sgttyb</STRONG> structure) to termios (i.e., the POSIX terminal
+       interface).  In the former, both input and output were controlled via a
+       single  option  <STRONG>CRMOD</STRONG>,  while the latter separates these features.  Be-
+       cause that conversion interferes with output optimization, <STRONG>nl</STRONG>/<STRONG>nonl</STRONG> were
+       amended after ncurses 6.2 to eliminate their effect on output.
 
        Some  historic  curses implementations had, as an undocumented feature,
        the ability to do the equivalent of <STRONG>clearok(...,</STRONG> <STRONG>1)</STRONG>  by  saying  <STRONG>touch-</STRONG>
@@ -201,8 +190,8 @@
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
-       Note that <STRONG>clearok</STRONG>, <STRONG>leaveok</STRONG>, <STRONG>scrollok</STRONG>, <STRONG>idcok</STRONG>, <STRONG>nl</STRONG>, <STRONG>nonl</STRONG> and <STRONG>setscrreg</STRONG> may
-       be macros.
+       Note that <STRONG>clearok</STRONG>, <STRONG>leaveok</STRONG>,  <STRONG>scrollok</STRONG>,  <STRONG>idcok</STRONG>,  and  <STRONG>setscrreg</STRONG>  may  be
+       macros.
 
        The <STRONG>immedok</STRONG> routine is useful for windows that are used as terminal em-
        ulators.
@@ -227,9 +216,8 @@
 <li><a href="#h3-idcok">idcok</a></li>
 <li><a href="#h3-immedok">immedok</a></li>
 <li><a href="#h3-leaveok">leaveok</a></li>
-<li><a href="#h3-setscrreg">setscrreg</a></li>
 <li><a href="#h3-scrollok">scrollok</a></li>
-<li><a href="#h3-nl_-nonl">nl, nonl</a></li>
+<li><a href="#h3-setscrreg_wsetscrreg">setscrreg/wsetscrreg</a></li>
 </ul>
 </li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>

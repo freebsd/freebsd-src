@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: menu_driver.3x,v 1.26 2020/02/02 23:34:34 tom Exp @
+  * @Id: menu_driver.3x,v 1.28 2020/12/19 21:33:37 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -52,7 +52,8 @@
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;menu.h&gt;</STRONG>
-       int menu_driver(MENU *menu, int c);
+
+       <STRONG>int</STRONG> <STRONG>menu_driver(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>c</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -64,8 +65,8 @@
            and character codes returned by <STRONG><A HREF="curs_getch.3x.html">wgetch(3x)</A></STRONG>.
 
        <STRONG>o</STRONG>   The input is a printable character.   Printable  characters  (which
-           must  be positive, less than 256) are checked according to the pro-
-           gram's locale settings.
+           must  be  positive,  less  than  256)  are checked according to the
+           program's locale settings.
 
        <STRONG>o</STRONG>   The input is the KEY_MOUSE special key  associated  with  an  mouse
            event.
@@ -173,10 +174,10 @@
 
 </PRE><H3><a name="h3-APPLICATION-DEFINED-COMMANDS">APPLICATION-DEFINED COMMANDS</a></H3><PRE>
        If the second argument is neither printable nor one of the  above  pre-
-       defined menu requests or KEY_MOUSE, the drive assumes it is an applica-
-       tion-specific  command  and  returns  <STRONG>E_UNKNOWN_COMMAND</STRONG>.   Application-
-       defined commands should be defined relative to <STRONG>MAX_COMMAND</STRONG>, the maximum
-       value of these pre-defined requests.
+       defined  menu  requests  or  KEY_MOUSE,  the  drive  assumes  it  is an
+       application-specific    command    and    returns    <STRONG>E_UNKNOWN_COMMAND</STRONG>.
+       Application-defined commands should be defined relative to <STRONG>MAX_COMMAND</STRONG>,
+       the maximum value of these pre-defined requests.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
@@ -207,7 +208,7 @@
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>, <STRONG><A HREF="curs_getch.3x.html">getch(3x)</A></STRONG>.
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_getch.3x.html">getch(3x)</A></STRONG>, <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
@@ -216,9 +217,9 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These  routines  emulate the System V menu library.  They were not sup-
-       ported on Version 7 or BSD versions.  The support for mouse  events  is
-       ncurses specific.
+       These  routines  emulate  the  System  V  menu  library.  They were not
+       supported on Version 7 or BSD versions.  The support for  mouse  events
+       is ncurses specific.
 
 
 </PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>

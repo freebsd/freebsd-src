@@ -1,4 +1,4 @@
-/* $Id: tclock.c,v 1.41 2020/01/18 16:46:35 tom Exp $ */
+/* $Id: tclock.c,v 1.42 2020/12/26 17:56:36 tom Exp $ */
 
 #define NEED_TIME_H
 #include <test.priv.h>
@@ -140,7 +140,7 @@ main(int argc, char *argv[])
     bool odd = FALSE;
     time_t tim;
     struct tm *t;
-    char szChar[10];
+    char szChar[20];
     char *text;
     short my_bg = COLOR_BLACK;
 #if HAVE_GETTIMEOFDAY

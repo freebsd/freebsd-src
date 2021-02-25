@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: toe.1m,v 1.32 2020/02/02 23:34:34 tom Exp @
+  * @Id: toe.1m,v 1.33 2020/12/19 21:52:09 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -57,17 +57,17 @@
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        With no options, <STRONG>toe</STRONG> lists all available terminal types by primary name
        with descriptions.   File  arguments  specify  the  directories  to  be
-       scanned;  if  no such arguments are given, your default terminfo direc-
-       tory is scanned.  If you also specify the <STRONG>-h</STRONG> option, a directory header
-       will be issued as each directory is entered.
+       scanned;  if  no  such  arguments  are  given,  your  default  terminfo
+       directory is scanned.  If you also specify the <STRONG>-h</STRONG> option,  a  directory
+       header will be issued as each directory is entered.
 
        There are other options intended for use by terminfo file maintainers:
 
        <STRONG>-a</STRONG>     report  on  all  of  the  terminal databases which ncurses would
               search, rather than only the first one that it finds.
 
-              If the <STRONG>-s</STRONG> is also given, <STRONG>toe</STRONG> adds a column to the report,  show-
-              ing  (like  <STRONG>conflict(1)</STRONG>)  which  entries which belong to a given
+              If the <STRONG>-s</STRONG> is also given,  <STRONG>toe</STRONG>  adds  a  column  to  the  report,
+              showing (like <STRONG>conflict(1)</STRONG>) which entries which belong to a given
               terminal database.  An "*" marks entries which differ,  and  "+"
               marks equivalent entries.
 
@@ -77,22 +77,22 @@
        <STRONG>-s</STRONG>     sort the output by the entry names.
 
        <STRONG>-u</STRONG> <EM>file</EM>
-              says to write a report to the standard output, listing dependen-
-              cies in the given terminfo/termcap source file.  The report con-
-              denses the "use" relation: each line  consists  of  the  primary
-              name  of  a  terminal  that  has use capabilities, followed by a
-              colon, followed by the whitespace-separated primary names of all
-              terminals  which  occur in those use capabilities, followed by a
-              newline
+              says  to  write  a  report  to  the  standard  output,   listing
+              dependencies  in  the  given  terminfo/termcap source file.  The
+              report condenses the "use" relation: each line consists  of  the
+              primary  name  of a terminal that has use capabilities, followed
+              by a colon, followed by the whitespace-separated  primary  names
+              of all terminals which occur in those use capabilities, followed
+              by a newline
 
        <STRONG>-U</STRONG> <EM>file</EM>
               says to write a report to the standard output,  listing  reverse
               dependencies  in  the  given  terminfo/termcap source file.  The
               report reverses the "use" relation: each line  consists  of  the
-              primary name of a terminal that occurs in use capabilities, fol-
-              lowed by a colon, followed by the  whitespace-separated  primary
-              names  of  all  terminals which depend on it, followed by a new-
-              line.
+              primary  name  of  a  terminal  that occurs in use capabilities,
+              followed  by  a  colon,  followed  by  the  whitespace-separated
+              primary names of all terminals which depend on it, followed by a
+              newline.
 
        <STRONG>-v</STRONG><EM>n</EM>    specifies that (verbose) output be written  to  standard  error,
               showing <STRONG>toe</STRONG>'s progress.
@@ -107,8 +107,8 @@
 
 </PRE><H2><a name="h2-EXAMPLES">EXAMPLES</a></H2><PRE>
        Without sorting, the <STRONG>-a</STRONG> option reports all of the names found in all of
-       the terminal databases found by the <STRONG>TERMINFO</STRONG> and <STRONG>TERMINFO_DIRS</STRONG> environ-
-       ment variables:
+       the   terminal  databases  found  by  the  <STRONG>TERMINFO</STRONG>  and  <STRONG>TERMINFO_DIRS</STRONG>
+       environment variables:
 
            MtxOrb162      16x2 Matrix Orbital LCD display
            MtxOrb204      20x4 Matrix Orbital LCD display
@@ -124,8 +124,8 @@
            qansi-t        QNX ansi without console writes
            . . .
 
-       Use the <STRONG>-a</STRONG> and <STRONG>-s</STRONG> options together to show where each terminal descrip-
-       tion was found:
+       Use the <STRONG>-a</STRONG>  and  <STRONG>-s</STRONG>  options  together  to  show  where  each  terminal
+       description was found:
 
            --&gt; /usr/local/ncurses/share/terminfo
            ----&gt; /usr/share/terminfo
@@ -168,10 +168,10 @@
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="tic.1m.html">tic(1m)</A></STRONG>, <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG>, <STRONG><A HREF="captoinfo.1m.html">captoinfo(1m)</A></STRONG>,  <STRONG><A HREF="infotocap.1m.html">infotocap(1m)</A></STRONG>,  <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,  <STRONG>ter-</STRONG>
-       <STRONG><A HREF="terminfo.5.html">minfo(5)</A></STRONG>.
+       <STRONG><A HREF="captoinfo.1m.html">captoinfo(1m)</A></STRONG>,   <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG>,   <STRONG><A HREF="infotocap.1m.html">infotocap(1m)</A></STRONG>,   <STRONG><A HREF="tic.1m.html">tic(1m)</A></STRONG>,   <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,
+       <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>.
 
-       This describes <STRONG>ncurses</STRONG> version 6.2 (patch 20200215).
+       This describes <STRONG>ncurses</STRONG> version 6.2 (patch 20210109).
 
 
 

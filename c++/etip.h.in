@@ -32,7 +32,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: etip.h.in,v 1.43 2020/02/02 23:34:34 tom Exp $
+// $Id: etip.h.in,v 1.45 2020/05/24 01:40:20 anonymous.maarten Exp $
 
 #ifndef NCURSES_ETIP_H_incl
 #define NCURSES_ETIP_H_incl 1
@@ -140,11 +140,11 @@ extern "C" {
 #endif
 
 // Forward Declarations
-class NCURSES_IMPEXP NCursesPanel;
-class NCURSES_IMPEXP NCursesMenu;
-class NCURSES_IMPEXP NCursesForm;
+class NCURSES_CXX_IMPEXP NCursesPanel;
+class NCURSES_CXX_IMPEXP NCursesMenu;
+class NCURSES_CXX_IMPEXP NCursesForm;
 
-class NCURSES_IMPEXP NCursesException
+class NCURSES_CXX_IMPEXP NCursesException
 {
 public:
   const char *message;
@@ -178,7 +178,7 @@ public:
   }
 };
 
-class NCURSES_IMPEXP NCursesPanelException : public NCursesException
+class NCURSES_CXX_IMPEXP NCursesPanelException : public NCursesException
 {
 public:
   const NCursesPanel* p;
@@ -229,7 +229,7 @@ public:
   }
 };
 
-class NCURSES_IMPEXP NCursesMenuException : public NCursesException
+class NCURSES_CXX_IMPEXP NCursesMenuException : public NCursesException
 {
 public:
   const NCursesMenu* m;
@@ -280,7 +280,7 @@ public:
   }
 };
 
-class NCURSES_IMPEXP NCursesFormException : public NCursesException
+class NCURSES_CXX_IMPEXP NCursesFormException : public NCursesException
 {
 public:
   const NCursesForm* f;
@@ -341,7 +341,6 @@ using std::endl;
 #  else
 #     include <iostream.h>
 #  endif
-   extern "C" void exit(int);
 #endif
 
 inline void THROW(const NCursesException *e) {

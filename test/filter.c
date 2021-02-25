@@ -30,7 +30,7 @@
 /*
  * Author:  Thomas E. Dickey 1998
  *
- * $Id: filter.c,v 1.34 2020/02/02 23:34:34 tom Exp $
+ * $Id: filter.c,v 1.35 2020/07/25 22:40:57 tom Exp $
  *
  * An example of the 'filter()' function in ncurses, this program prompts
  * for commands and executes them (like a command shell).  It illustrates
@@ -42,6 +42,7 @@
  * reset_shell_mode() and reset_prog_mode() functions, we could invoke endwin()
  * and refresh(), but that does not work any better.
  */
+#define NEED_KEY_EVENT
 #include <test.priv.h>
 
 #if HAVE_FILTER

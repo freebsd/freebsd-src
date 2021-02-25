@@ -30,7 +30,7 @@
 /****************************************************************************
  *  Author: Thomas E. Dickey                    1996-on                     *
  ****************************************************************************/
-/* $Id: test.priv.h,v 1.185 2020/02/02 23:34:34 tom Exp $ */
+/* $Id: test.priv.h,v 1.191 2020/09/12 23:54:42 tom Exp $ */
 
 #ifndef __TEST_PRIV_H
 #define __TEST_PRIV_H 1
@@ -391,6 +391,10 @@
 #include <curses.h>
 #endif
 
+#if !(defined(NCURSES_WGETCH_EVENTS) && defined(NEED_KEY_EVENT))
+#undef KEY_EVENT		/* reduce compiler-warnings with Visual C++ */
+#endif
+
 #if defined(HAVE_XCURSES) || defined(PDCURSES)
 /* no other headers */
 #undef  HAVE_SETUPTERM		/* nonfunctional */
@@ -436,6 +440,13 @@ extern int optind;
 
 #include <assert.h>
 #include <ctype.h>
+
+#if defined(_MSC_VER)
+#undef popen
+#define popen(s,n) _popen(s,n)
+#undef pclose
+#define pclose(s) _pclose(s)
+#endif
 
 #ifndef GCC_NORETURN
 #define GCC_NORETURN		/* nothing */
@@ -903,7 +914,7 @@ extern int TABSIZE;
 
 #if defined(NCURSES_VERSION) && HAVE_NC_ALLOC_H
 #include <nc_alloc.h>
-#if HAVE_NC_FREEALL && defined(USE_TINFO)
+#if HAVE_EXIT_TERMINFO && defined(USE_TINFO)
 #undef ExitProgram
 #define ExitProgram(code) exit_terminfo(code)
 #endif
@@ -924,7 +935,12 @@ extern int TABSIZE;
 #define EXIT_FAILURE 1
 #endif
 
-#if defined(_WIN32) || defined(USE_WIN32CON_DRIVER)
+#undef _NC_WINDOWS
+#if (defined(_WIN32) || defined(_WIN64))
+#define _NC_WINDOWS 1
+#endif
+
+#if defined(_NC_WINDOWS) || defined(USE_WIN32CON_DRIVER)
 
 #if defined(PDCURSES)
 #ifdef WINVER
@@ -942,12 +958,26 @@ extern int TABSIZE;
 #define SIGKILL 9
 #define getlogin() "username"
 
-#elif defined(HAVE_NCURSESW_NCURSES_H)
+#elif defined(EXP_WIN32_DRIVER)
+
+#if defined(HAVE_NCURSESW_NCURSES_H)
+#include <ncursesw/nc_win32.h>
+#elif defined(HAVE_NCURSES_NCURSES_H)
+#include <ncurses/nc_win32.h>
+#else
+#include <nc_win32.h>
+#endif
+
+#else
+
+#if defined(HAVE_NCURSESW_NCURSES_H)
 #include <ncursesw/nc_mingw.h>
 #elif defined(HAVE_NCURSES_NCURSES_H)
 #include <ncurses/nc_mingw.h>
 #else
 #include <nc_mingw.h>
+#endif
+
 #endif
 
 /* conflicts in test/firstlast.c */
@@ -1020,6 +1050,12 @@ extern char *_nc_strstr(const char *, const char *);
 #define InitAndCatch(init,handler) do { CATCHALL(handler); init; } while (0)
 #else
 #define InitAndCatch(init,handler) do { init; CATCHALL(handler); } while (0)
+#endif
+
+#if defined(_NC_WINDOWS) || defined(USE_WIN32CON_DRIVER)
+#define SetupAlarm(opt)	(void)opt
+#else
+#define SetupAlarm(opt)	if (opt) alarm((unsigned)opt)
 #endif
 
 /*

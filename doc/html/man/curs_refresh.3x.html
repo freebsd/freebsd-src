@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_refresh.3x,v 1.21 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_refresh.3x,v 1.22 2020/10/24 09:43:49 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -55,11 +55,12 @@
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
        <STRONG>int</STRONG> <STRONG>refresh(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wrefresh(WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wnoutrefresh(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wrefresh(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wnoutrefresh(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>doupdate(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>redrawwin(WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wredrawln(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>beg_line,</STRONG> <STRONG>int</STRONG> <STRONG>num_lines);</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>redrawwin(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wredrawln(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>beg</EM><STRONG>_</STRONG><EM>line</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>num</EM><STRONG>_</STRONG><EM>lines</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>

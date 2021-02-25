@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_attributes.3x,v 1.17 2020/02/02 23:34:34 tom Exp $
+.\" $Id: menu_attributes.3x,v 1.19 2020/10/17 23:58:58 tom Exp $
 .TH menu_attributes 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -45,22 +45,22 @@
 \fBset_menu_pad\fR \- color and attribute control for menus
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
+.sp
+\fBint set_menu_fore(MENU *\fP\fImenu\fP\fB, chtype \fP\fIattr\fP\fB);\fP
 .br
-int set_menu_fore(MENU *menu, chtype attr);
+\fBchtype menu_fore(const MENU *\fP\fImenu\fP\fB);\fP
+.sp
+\fBint set_menu_back(MENU *\fP\fImenu\fP\fB, chtype \fP\fIattr\fP\fB);\fP
 .br
-chtype menu_fore(const MENU *menu);
+\fBchtype menu_back(const MENU *\fP\fImenu\fP\fB);\fP
+.sp
+\fBint set_menu_grey(MENU *\fP\fImenu\fP\fB, chtype \fP\fIattr\fP\fB);\fP
 .br
-int set_menu_back(MENU *menu, chtype attr);
+\fBchtype menu_grey(const MENU *\fP\fImenu\fP\fB);\fP
+.sp
+\fBint set_menu_pad(MENU *\fP\fImenu\fP\fB, int \fP\fIpad\fP\fB);\fP
 .br
-chtype menu_back(const MENU *menu);
-.br
-int set_menu_grey(MENU *menu, chtype attr);
-.br
-chtype menu_grey(const MENU *menu);
-.br
-int set_menu_pad(MENU *menu, int pad);
-.br
-int menu_pad(const MENU *menu);
+\fBint menu_pad(const MENU *\fP\fImenu\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBset_menu_fore\fR sets the foreground attribute of

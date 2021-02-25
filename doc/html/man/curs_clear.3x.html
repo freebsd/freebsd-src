@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_clear.3x,v 1.17 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_clear.3x,v 1.20 2020/10/24 09:19:37 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -52,16 +52,19 @@
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
-       <STRONG>#</STRONG> <STRONG>include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
        <STRONG>int</STRONG> <STRONG>erase(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>werase(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>werase(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+
        <STRONG>int</STRONG> <STRONG>clear(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wclear(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wclear(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+
        <STRONG>int</STRONG> <STRONG>clrtobot(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wclrtobot(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wclrtobot(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+
        <STRONG>int</STRONG> <STRONG>clrtoeol(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wclrtoeol(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wclrtoeol(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -85,12 +88,14 @@
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       All routines return the integer <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.   The
-       SVr4.0  manual  says "or a non-negative integer if <STRONG>immedok</STRONG> is set", but
-       this appears to be an error.
+       All routines return the integer <STRONG>OK</STRONG> on success and <STRONG>ERR</STRONG> on failure.
 
-       X/Open defines no error conditions.  In this implementation,  functions
-       using a window pointer parameter return an error if it is null.
+       X/Open defines no error conditions.  In this implementation,
+
+       <STRONG>o</STRONG>   functions using a window pointer parameter return an error if it is
+           null
+
+       <STRONG>o</STRONG>   <STRONG>wclrtoeol</STRONG> returns an error if the cursor position is about to wrap.
 
 
 </PRE><H2><a name="h2-NOTES">NOTES</a></H2><PRE>
@@ -103,17 +108,22 @@
        standard  specifies  that  they return <STRONG>ERR</STRONG> on failure, but specifies no
        error conditions.
 
-       Some historic curses implementations had, as an  undocumented  feature,
-       the  ability  to  do the equivalent of <STRONG>clearok(...,</STRONG> <STRONG>1)</STRONG> by saying <STRONG>touch-</STRONG>
+       The SVr4.0 manual says that these functions could return  "a  non-nega-
+       tive  integer if <STRONG>immedok</STRONG> is set", referring to the return-value of <STRONG>wre-</STRONG>
+       <STRONG>fresh</STRONG>.  In that implementation, <STRONG>wrefresh</STRONG> would return a  count  of  the
+       number of characters written to the terminal.
+
+       Some  historic  curses implementations had, as an undocumented feature,
+       the ability to do the equivalent of <STRONG>clearok(...,</STRONG> <STRONG>1)</STRONG>  by  saying  <STRONG>touch-</STRONG>
        <STRONG>win(stdscr)</STRONG> or <STRONG>clear(stdscr)</STRONG>.  This will not work under ncurses.
 
        This implementation, and others such as Solaris, sets the current posi-
        tion to 0,0 after erasing via <STRONG>werase</STRONG> and <STRONG>wclear</STRONG>.  That fact is not doc-
-       umented in other implementations, and may not be  true  of  implementa-
+       umented  in  other  implementations, and may not be true of implementa-
        tions which were not derived from SVr4 source.
 
        Not obvious from the description, most implementations clear the screen
-       after <STRONG>wclear</STRONG> even for a subwindow or derived window.   If  you  do  not
+       after  <STRONG>wclear</STRONG>  even  for  a subwindow or derived window.  If you do not
        want to clear the screen during the next <STRONG>wrefresh</STRONG>, use <STRONG>werase</STRONG> instead.
 
 

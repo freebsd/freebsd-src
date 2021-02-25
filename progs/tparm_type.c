@@ -33,7 +33,7 @@
 
 #include <tparm_type.h>
 
-MODULE_ID("$Id: tparm_type.c,v 1.3 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: tparm_type.c,v 1.4 2020/10/24 17:30:32 tom Exp $")
 
 /*
  * Lookup the type of call we should make to tparm().  This ignores the actual
@@ -67,6 +67,34 @@ tparm_type(const char *name)
 	    result = table[n].code;
 	    break;
 	}
+    }
+    return result;
+}
+
+TParams
+guess_tparm_type(int nparam, char **p_is_s)
+{
+    TParams result = Other;
+    switch (nparam) {
+    case 0:
+    case 1:
+	if (!p_is_s[0])
+	    result = Numbers;
+	break;
+    case 2:
+	if (!p_is_s[0] && !p_is_s[1])
+	    result = Numbers;
+	if (!p_is_s[0] && p_is_s[1])
+	    result = Num_Str;
+	break;
+    case 3:
+	if (!p_is_s[0] && !p_is_s[1] && !p_is_s[2])
+	    result = Numbers;
+	if (!p_is_s[0] && p_is_s[1] && p_is_s[2])
+	    result = Num_Str_Str;
+	break;
+    default:
+	break;
     }
     return result;
 }

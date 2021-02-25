@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_addchstr.3x,v 1.19 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_addchstr.3x,v 1.22 2020/12/19 21:39:20 tom Exp $
 .TH curs_addchstr 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -54,21 +54,21 @@
 .nf
 \fB#include <curses.h>\fR
 .PP
-\fBint addchstr(const chtype *chstr);\fR
+\fBint addchstr(const chtype *\fP\fIchstr\fP\fB);\fR
 .br
-\fBint addchnstr(const chtype *chstr, int n);\fR
+\fBint addchnstr(const chtype *\fP\fIchstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint waddchstr(WINDOW *win, const chtype *chstr);\fR
+\fBint waddchstr(WINDOW *\fP\fIwin\fP\fB, const chtype *\fP\fIchstr\fP\fB);\fR
 .br
-\fBint waddchnstr(WINDOW *win, const chtype *chstr, int n);\fR
+\fBint waddchnstr(WINDOW *\fP\fIwin\fP\fB, const chtype *\fP\fIchstr\fP\fB, int \fP\fIn\fP\fB);\fR
+.sp
+\fBint mvaddchstr(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, const chtype *\fP\fIchstr\fP\fB);\fR
 .br
-\fBint mvaddchstr(int y, int x, const chtype *chstr);\fR
+\fBint mvaddchnstr(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, const chtype *\fP\fIchstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint mvaddchnstr(int y, int x, const chtype *chstr, int n);\fR
+\fBint mvwaddchstr(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, const chtype *\fP\fIchstr\fP\fB);\fR
 .br
-\fBint mvwaddchstr(WINDOW *win, int y, int x, const chtype *chstr);\fR
-.br
-\fBint mvwaddchnstr(WINDOW *win, int y, int x, const chtype *chstr, int n);\fR
+\fBint mvwaddchnstr(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, const chtype *\fP\fIchstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .fi
 .SH DESCRIPTION
 These functions copy the (null-terminated)
@@ -109,8 +109,8 @@ All functions except \fBwaddchnstr\fR may be macros.
 .SH PORTABILITY
 These entry points are described in the XSI Curses standard, Issue 4.
 .SH SEE ALSO
-\fBcurs_addstr\fR(3X),
-\fBcurses\fR(3X).
+\fBcurses\fR(3X),
+\fBcurs_addstr\fR(3X).
 .PP
 Comparable functions in the wide-character (ncursesw) library are
 described in

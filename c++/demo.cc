@@ -36,7 +36,7 @@
  *   Demo code for NCursesMenu and NCursesForm written by
  *   Juergen Pfeifer
  *
- * $Id: demo.cc,v 1.45 2020/02/02 23:34:34 tom Exp $
+ * $Id: demo.cc,v 1.49 2020/09/13 00:47:00 tom Exp $
  */
 
 #include "internal.h"
@@ -44,11 +44,10 @@
 #include "cursesm.h"
 #include "cursesf.h"
 
-#ifdef _WIN32
+#if (defined(_WIN32) || defined(_WIN64))
 #undef KEY_EVENT
-#endif
-
-#ifndef _WIN32
+#define sleep(n) Sleep(n)
+#else
 extern "C" unsigned int sleep(unsigned int);
 #endif
 
@@ -187,7 +186,7 @@ public:
 };
 
 template class MyAction<UserData>;
-template class NCURSES_IMPEXP NCursesUserItem<UserData>;
+template class NCURSES_CXX_IMPEXP NCursesUserItem<UserData>;
 
 class QuitItem : public NCursesMenuItem
 {
@@ -552,9 +551,9 @@ void TestApplication::title()
   const char * const titleText = "Simple C++ Binding Demo";
   const int len = ::strlen(titleText);
 
-  titleWindow->bkgd(screen_titles());
-  titleWindow->addstr(0, (titleWindow->cols() - len)/2, titleText);
-  titleWindow->noutrefresh();
+  getTitleWindow()->bkgd(screen_titles());
+  getTitleWindow()->addstr(0, (getTitleWindow()->cols() - len)/2, titleText);
+  getTitleWindow()->noutrefresh();
 }
 
 
@@ -569,3 +568,8 @@ int TestApplication::run()
 // -------------------------------------------------------------------------
 //
 static TestApplication *Demo = new TestApplication();
+
+#if (defined(_WIN32) || defined(_WIN64))
+// This is actually only needed when ncurses is a dll
+NCURSES_CXX_MAIN
+#endif

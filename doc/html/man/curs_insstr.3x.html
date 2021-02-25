@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_insstr.3x,v 1.24 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_insstr.3x,v 1.26 2020/10/18 00:20:36 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -53,14 +53,15 @@
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
-       <STRONG>int</STRONG> <STRONG>insstr(const</STRONG> <STRONG>char</STRONG> <STRONG>*str);</STRONG>
-       <STRONG>int</STRONG> <STRONG>insnstr(const</STRONG> <STRONG>char</STRONG> <STRONG>*str,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
-       <STRONG>int</STRONG> <STRONG>winsstr(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*str);</STRONG>
-       <STRONG>int</STRONG> <STRONG>winsnstr(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*str,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvinsstr(int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*str);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvinsnstr(int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*str,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwinsstr(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*str);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwinsnstr(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*str,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
+       <STRONG>int</STRONG> <STRONG>insstr(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>insnstr(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>winsstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>winsnstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>mvinsstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvinsnstr(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwinsstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwinsnstr(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>str</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>n</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -78,8 +79,8 @@
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
        All routines that return an integer return  <STRONG>ERR</STRONG>  upon  failure  and  <STRONG>OK</STRONG>
        (SVr4 specifies only "an integer value other than <STRONG>ERR</STRONG>") upon successful
-       completion, unless otherwise noted in the  preceding  routine  descrip-
-       tions.
+       completion,  unless  otherwise   noted   in   the   preceding   routine
+       descriptions.
 
        X/Open  defines  no  error  conditions.  In this implementation, if the
        window parameter is null or the str parameter  is  null,  an  error  is
@@ -98,10 +99,10 @@
        These  functions  are  described  in  the XSI Curses standard, Issue 4,
        which adds const qualifiers to the arguments.
 
-       The Single Unix Specification, Version 2 states that <STRONG>insnstr</STRONG>  and  <STRONG>win-</STRONG>
-       <STRONG>snstr</STRONG> perform wrapping.  This is probably an error, since it makes this
-       group of functions inconsistent.  Also,  no  implementation  of  curses
-       documents this inconsistency.
+       The Single Unix  Specification,  Version  2  states  that  <STRONG>insnstr</STRONG>  and
+       <STRONG>winsnstr</STRONG>  perform  wrapping.  This is probably an error, since it makes
+       this group of  functions  inconsistent.   Also,  no  implementation  of
+       curses documents this inconsistency.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>

@@ -1,6 +1,6 @@
 <!-- 
   ****************************************************************************
-  * Copyright 2019,2020 Thomas E. Dickey                                     *
+  * Copyright 2019-2020,2021 Thomas E. Dickey                                *
   * Copyright 2008-2010,2017 Free Software Foundation, Inc.                  *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_memleaks.3x,v 1.8 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_memleaks.3x,v 1.11 2021/01/02 23:47:51 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -47,36 +47,36 @@
 
 
 </PRE><H2><a name="h2-NAME">NAME</a></H2><PRE>
-       <STRONG>_nc_freeall</STRONG>, <STRONG>_nc_free_and_exit</STRONG>, <STRONG>_nc_free_tinfo</STRONG> - <STRONG>curses</STRONG> memory-leak
-       checking
+       <STRONG>exit_curses</STRONG>, <STRONG>exit_terminfo</STRONG> - <STRONG>curses</STRONG> memory-leak checking
 
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+       <STRONG>void</STRONG> <STRONG>exit_curses(int</STRONG> <EM>code</EM><STRONG>);</STRONG>
 
-       <STRONG>void</STRONG> <STRONG>exit_curses(int);</STRONG>
-       <STRONG>void</STRONG> <STRONG>exit_terminfo(int);</STRONG>
+       <STRONG>#include</STRONG> <STRONG>&lt;term.h&gt;</STRONG>
+       <STRONG>void</STRONG> <STRONG>exit_terminfo(int</STRONG> <EM>code</EM><STRONG>);</STRONG>
 
-       /* deprecated */
+       /* deprecated (intentionally not declared in curses.h or term.h) */
        <STRONG>void</STRONG> <STRONG>_nc_freeall(void);</STRONG>
-       <STRONG>void</STRONG> <STRONG>_nc_free_and_exit(int);</STRONG>
-       <STRONG>void</STRONG> <STRONG>_nc_free_tinfo(int);</STRONG>
+       <STRONG>void</STRONG> <STRONG>_nc_free_and_exit(int</STRONG> <EM>code</EM><STRONG>);</STRONG>
+       <STRONG>void</STRONG> <STRONG>_nc_free_tinfo(int</STRONG> <EM>code</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
-       These functions are used to simplify analysis of memory  leaks  in  the
+       These  functions  are  used to simplify analysis of memory leaks in the
        ncurses library.
 
        Any implementation of curses must not free the memory associated with a
-       screen, since (even after calling <STRONG>endwin</STRONG>), it must be available for use
-       in  the next call to <STRONG><A HREF="curs_refresh.3x.html">refresh(3x)</A></STRONG>.  There are also chunks of memory held
-       for performance reasons.  That makes it hard to analyze curses applica-
-       tions  for memory leaks.  When using the specially configured debugging
-       version of the ncurses library, applications can call  functions  which
-       free  those  chunks  of  memory, simplifying the process of memory-leak
-       checking.
+       screen, since (even after calling <STRONG><A HREF="curs_initscr.3x.html">endwin(3x)</A></STRONG>), it must be available for
+       use in the next call to <STRONG><A HREF="curs_refresh.3x.html">refresh(3x)</A></STRONG>.  There are also chunks  of  memory
+       held for performance reasons.  That makes it hard to analyze curses ap-
+       plications for memory leaks.  When using the specially  configured  de-
+       bugging version of the ncurses library, applications can call functions
+       which free those chunks of memory, simplifying the process  of  memory-
+       leak checking.
 
-       Some of the functions are named with a "_nc_" prefix because  they  are
+       Some  of  the functions are named with a "_nc_" prefix because they are
        not intended for use in the non-debugging library:
 
        <STRONG>_nc_freeall</STRONG>
@@ -89,18 +89,18 @@
             ply exiting (with the given exit-code) is safer.
 
        <STRONG>_nc_free_tinfo</STRONG>
-            Use this function if only the low-level  terminfo  functions  (and
+            Use  this  function  if only the low-level terminfo functions (and
             corresponding library) are used.  Like <STRONG>_nc_free_and_exit</STRONG>, it exits
             the program after freeing memory.
 
-       The functions prefixed "_nc" are normally not available; they  must  be
+       The  functions  prefixed "_nc" are normally not available; they must be
        configured into the library at build time using the <STRONG>--disable-leaks</STRONG> op-
-       tion.  That compiles-in code that frees memory that normally would  not
+       tion.   That compiles-in code that frees memory that normally would not
        be freed.
 
-       The  <STRONG>exit_curses</STRONG> and <STRONG>exit_terminfo</STRONG> functions call <STRONG>_nc_free_and_exit</STRONG> and
-       <STRONG>_nc_free_tinfo</STRONG> if the library  is  configured  to  support  memory-leak
-       checking.   If  the  library  is  not configured to support memory-leak
+       The <STRONG>exit_curses</STRONG> and <STRONG>exit_terminfo</STRONG> functions call <STRONG>_nc_free_and_exit</STRONG>  and
+       <STRONG>_nc_free_tinfo</STRONG>  if  the  library  is  configured to support memory-leak
+       checking.  If the library is  not  configured  to  support  memory-leak
        checking, they simply call <STRONG>exit</STRONG>.
 
 

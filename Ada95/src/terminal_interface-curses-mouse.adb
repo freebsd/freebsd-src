@@ -36,8 +36,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.27 $
---  $Date: 2020/02/02 23:34:34 $
+--  $Revision: 1.28 $
+--  $Date: 2020/06/27 18:50:44 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Terminal_Interface.Curses.Aux; use Terminal_Interface.Curses.Aux;
@@ -147,6 +147,7 @@ package body Terminal_Interface.Curses.Mouse is
          Button := Button4;
       end if;
       if Button in Real_Buttons then
+         State := Released;  --  preset to non real button;
          L := 2 ** (6 * Mouse_Button'Pos (Button));
          for I in Button_State'Range loop
             if (Mask and L) /= 0 then

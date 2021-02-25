@@ -30,7 +30,7 @@
 /*
  * Author: Thomas E. Dickey <dickey@clark.net> 1999
  *
- * $Id: dots.c,v 1.36 2020/02/02 23:34:34 tom Exp $
+ * $Id: dots.c,v 1.40 2020/05/29 23:04:02 tom Exp $
  *
  * A simple demo of the terminfo interface.
  */
@@ -79,9 +79,10 @@ cleanup(void)
     outs(clear_screen);
     outs(cursor_normal);
 
-    printf("\n\n%ld total cells, rate %.2f/sec\n",
-	   total_chars,
-	   ((double) (total_chars) / (double) (time((time_t *) 0) - started)));
+    fflush(stdout);
+    fprintf(stderr, "\n\n%ld total cells, rate %.2f/sec\n",
+	    total_chars,
+	    ((double) (total_chars) / (double) (time((time_t *) 0) - started)));
 }
 
 static void
@@ -123,6 +124,7 @@ usage(void)
 #endif
 	," -f       use tigetnum rather than <term.h> mapping"
 	," -m SIZE  set margin (default: 2)"
+	," -r SECS  self-interrupt/exit after specified number of seconds"
 	," -s MSECS delay 1% of the time (default: 1 msecs)"
     };
     size_t n;
@@ -143,11 +145,12 @@ main(int argc,
     int my_colors;
     int f_option = 0;
     int m_option = 2;
+    int r_option = 0;
     int s_option = 1;
     size_t need;
     char *my_env;
 
-    while ((ch = getopt(argc, argv, "T:efm:s:")) != -1) {
+    while ((ch = getopt(argc, argv, "T:efm:r:s:")) != -1) {
 	switch (ch) {
 	case 'T':
 	    need = 6 + strlen(optarg);
@@ -166,6 +169,9 @@ main(int argc,
 	case 'm':
 	    m_option = atoi(optarg);
 	    break;
+	case 'r':
+	    r_option = atoi(optarg);
+	    break;
 	case 's':
 	    s_option = atoi(optarg);
 	    break;
@@ -175,6 +181,7 @@ main(int argc,
 	}
     }
 
+    SetupAlarm(r_option);
     InitAndCatch(setupterm((char *) 0, 1, (int *) 0), onsig);
 
     srand((unsigned) time(0));
@@ -207,7 +214,8 @@ main(int argc,
 		tputs(tparm2(set_a_foreground, z), 1, outc);
 	    } else {
 		tputs(tparm2(set_a_background, z), 1, outc);
-		napms(s_option);
+		if (s_option)
+		    napms(s_option);
 	    }
 	} else if (VALID_STRING(exit_attribute_mode)
 		   && VALID_STRING(enter_reverse_mode)) {
@@ -215,7 +223,8 @@ main(int argc,
 		outs((ranf() > 0.6)
 		     ? enter_reverse_mode
 		     : exit_attribute_mode);
-		napms(s_option);
+		if (s_option)
+		    napms(s_option);
 	    }
 	}
 	outc(p);

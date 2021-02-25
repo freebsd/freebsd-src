@@ -32,14 +32,25 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursesapp.h,v 1.14 2020/02/02 23:34:34 tom Exp $
+// $Id: cursesapp.h,v 1.17 2020/08/29 16:22:03 juergen Exp $
 
 #ifndef NCURSES_CURSESAPP_H_incl
 #define NCURSES_CURSESAPP_H_incl
 
 #include <cursslk.h>
 
-class NCURSES_IMPEXP NCursesApplication {
+#if (defined(_WIN32) || defined(_WIN64))
+# define NCURSES_CXX_MAIN_NAME cursespp_main
+# define NCURSES_CXX_MAIN \
+  int main(int argc, char *argv[]) { \
+  	return NCURSES_CXX_MAIN_NAME(argc, argv); \
+  }
+#else
+# define NCURSES_CXX_MAIN_NAME main
+#endif
+NCURSES_CXX_IMPEXP int NCURSES_CXX_MAIN_NAME(int argc, char *argv[]);
+
+class NCURSES_CXX_IMPEXP NCursesApplication {
 public:
   typedef struct _slk_link {          // This structure is used to maintain
     struct _slk_link* prev;           // a stack of SLKs
@@ -106,13 +117,13 @@ protected:
   {
   }
 
+  static NCursesWindow *&getTitleWindow();
+
 public:
   virtual ~NCursesApplication() THROWS(NCursesException);
 
   // Get a pointer to the current application object
-  static NCursesApplication* getApplication() {
-    return theApp;
-  }
+  static NCursesApplication* getApplication();
 
   // This method runs the application and returns its exit value
   int operator()(void);

@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: term.5,v 1.33 2020/02/02 23:34:34 tom Exp @
+  * @Id: term.5,v 1.38 2020/07/25 21:56:02 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -65,108 +65,139 @@
             A two-level scheme is used to avoid a linear search of a huge UNIX
             system directory: <STRONG>/usr/share/terminfo/c/name</STRONG>  where  <EM>name</EM>  is  the
             name of the terminal, and <EM>c</EM> is the first character of <EM>name</EM>.  Thus,
-            <EM>act4</EM> can be found in the  file  <STRONG>/usr/share/terminfo/a/act4</STRONG>.   Syn-
-            onyms  for  the same terminal are implemented by multiple links to
-            the same compiled file.
+            <EM>act4</EM>  can  be  found  in  the   file   <STRONG>/usr/share/terminfo/a/act4</STRONG>.
+            Synonyms  for  the same terminal are implemented by multiple links
+            to the same compiled file.
 
        <STRONG>hashed</STRONG> <STRONG>database</STRONG>
-            Using Berkeley database, two types of records are stored: the ter-
-            minfo  data  in the same format as stored in a directory tree with
-            the terminfo's primary name as a key, and records containing  only
-            aliases pointing to the primary name.
+            Using Berkeley database, two types  of  records  are  stored:  the
+            terminfo  data  in  the  same format as stored in a directory tree
+            with the terminfo's primary name as a key, and records  containing
+            only aliases pointing to the primary name.
 
-            If  built  to  write hashed databases, <STRONG>ncurses</STRONG> can still read ter-
-            minfo databases organized as a directory tree,  but  cannot  write
+            If  built  to  write  hashed  databases,  <STRONG>ncurses</STRONG>  can  still read
+            terminfo databases organized as a directory tree, but cannot write
             entries  into  the  directory  tree.   It  can  write (or rewrite)
             entries in the hashed database.
 
-            <STRONG>ncurses</STRONG> distinguishes the two  cases  in  the  TERMINFO  and  TER-
-            MINFO_DIRS  environment  variable by assuming a directory tree for
-            entries that correspond to an existing directory, and hashed data-
-            base otherwise.
+            <STRONG>ncurses</STRONG>  distinguishes  the  two  cases  in   the   TERMINFO   and
+            TERMINFO_DIRS  environment  variable  by assuming a directory tree
+            for entries that correspond to an existing directory,  and  hashed
+            database otherwise.
 
 
 </PRE><H3><a name="h3-LEGACY-STORAGE-FORMAT">LEGACY STORAGE FORMAT</a></H3><PRE>
        The format has been chosen so that it will be the same on all hardware.
-       An 8 or more bit byte is assumed, but no assumptions about byte  order-
-       ing or sign extension are made.
+       An 8 or more bit  byte  is  assumed,  but  no  assumptions  about  byte
+       ordering or sign extension are made.
 
-       The compiled file is created with the <STRONG>tic</STRONG> program, and read by the rou-
-       tine <STRONG><A HREF="curs_terminfo.3x.html">setupterm(3x)</A></STRONG>.  The file is divided into six  parts:  the  header,
-       terminal names, boolean flags, numbers, strings, and string table.
+       The  compiled  file  is  created  with the <STRONG>tic</STRONG> program, and read by the
+       routine <STRONG><A HREF="curs_terminfo.3x.html">setupterm(3x)</A></STRONG>.  The file is divided into six parts:
 
-       The  header  section  begins the file.  This section contains six short
+            a) <EM>header</EM>,
+
+            b) <EM>terminal</EM> <EM>names</EM>,
+
+            c) <EM>boolean</EM> <EM>flags</EM>,
+
+            d) <EM>numbers</EM>,
+
+            e) <EM>strings</EM>, and
+
+            f) <EM>string</EM> <EM>table</EM>.
+
+       The <EM>header</EM> section begins the file.  This section  contains  six  short
        integers in the format described below.  These integers are
 
-            (1) the magic number (octal 0432);
+            (1) the <EM>magic</EM> <EM>number</EM> (octal 0432);
 
-            (2) the size, in bytes, of the names section;
+            (2) the size, in bytes, of the <EM>terminal</EM> <EM>names</EM> section;
 
-            (3) the number of bytes in the boolean section;
+            (3) the number of bytes in the <EM>boolean</EM> <EM>flags</EM> section;
 
-            (4) the number of short integers in the numbers section;
+            (4) the number of short integers in the <EM>numbers</EM> section;
 
-            (5) the number of offsets (short integers) in the strings section;
+            (5) the number of offsets (short integers) in the <EM>strings</EM> section;
 
-            (6) the size, in bytes, of the string table.
+            (6) the size, in bytes, of the <EM>string</EM> <EM>table</EM>.
 
-       Short integers are stored in two 8-bit bytes.  The first byte  contains
-       the least significant 8 bits of the value, and the second byte contains
-       the most significant 8 bits.  (Thus, the value represented is  256*sec-
-       ond+first.)   The  value -1 is represented by the two bytes 0377, 0377;
-       other negative values are illegal.  This value generally means that the
-       corresponding capability is missing from this terminal.  Note that this
-       format corresponds to the hardware of the VAX and PDP-11 (that is, lit-
-       tle-endian  machines).   Machines where this does not correspond to the
-       hardware must read the integers as two bytes and  compute  the  little-
-       endian value.
+       The  capabilities  in  the <EM>boolean</EM> <EM>flags</EM>, <EM>numbers</EM>, and <EM>strings</EM> sections
+       are in the same order as the file &lt;term.h&gt;.
 
-       The  terminal  names section comes next.  It contains the first line of
-       the terminfo description, listing the various names for  the  terminal,
-       separated  by  the  "|"  character.   The section is terminated with an
-       ASCII NUL character.
+       Short integers are signed, in the range  -32768  to  32767.   They  are
+       stored  as  two  8-bit  bytes.   The  first  byte  contains  the  least
+       significant 8 bits of the value, and the second byte contains the  most
+       significant 8 bits.  (Thus, the value represented is 256*second+first.)
+       This format corresponds to the hardware of the VAX and PDP-11 (that is,
+       little-endian  machines).   Machines  where this does not correspond to
+       the hardware must read the  integers  as  two  bytes  and  compute  the
+       little-endian value.
 
-       The boolean flags have one byte for each flag.  This byte is  either  0
-       or  1  as  the  flag is present or absent.  The capabilities are in the
-       same order as the file &lt;term.h&gt;.
+       Numbers  in  a  terminal  description,  whether they are entries in the
+       <EM>numbers</EM> or <EM>strings</EM> table, are positive  integers.   Boolean  flags  are
+       treated  as  positive  one-byte integers.  In each case, those positive
+       integers represent a terminal capability.  The  terminal  compiler  tic
+       uses  negative  integers  to handle the cases where a capability is not
+       available:
 
-       Between the boolean section and the number section, a null byte will be
-       inserted,  if necessary, to ensure that the number section begins on an
-       even byte (this is a relic of the PDP-11's word-addressed architecture,
-       originally  designed in to avoid IOT traps induced by addressing a word
-       on an odd byte boundary).  All short integers are aligned  on  a  short
-       word boundary.
+       <STRONG>o</STRONG>   If a capability is absent from this terminal, tic stores  a  -1  in
+           the corresponding table.
 
-       The  numbers  section is similar to the flags section.  Each capability
-       takes up two bytes, and is stored as a little-endian short integer.  If
-       the value represented is -1, the capability is taken to be missing.
+           The integer value -1 is represented by two bytes 0377, 0377.
+           Absent boolean values are represented by the byte 0 (false).
 
-       The  strings  section  is also similar.  Each capability is stored as a
-       short integer, in the format above.  A value of -1 means the capability
-       is missing.  Otherwise, the value is taken as an offset from the begin-
-       ning of the string table.  Special characters in ^X or \c notation  are
-       stored  in  their  interpreted  form,  not the printing representation.
-       Padding information $&lt;nn&gt;  and  parameter  information  %x  are  stored
-       intact in uninterpreted form.
+       <STRONG>o</STRONG>   If  a capability has been canceled from this terminal, tic stores a
+           -2 in the corresponding table.
 
-       The  final  section is the string table.  It contains all the values of
-       string capabilities referenced in the string section.  Each  string  is
-       null terminated.
+           The integer value -2 is represented by two bytes 0377, 0376.
+           The boolean value -2 is represented by the byte 0376.
+
+       <STRONG>o</STRONG>   Other negative values are illegal.
+
+       The <EM>terminal</EM> <EM>names</EM> section comes after the  <EM>header</EM>.   It  contains  the
+       first  line  of the terminfo description, listing the various names for
+       the terminal, separated by  the  "|"  character.   The  <EM>terminal</EM>  <EM>names</EM>
+       section is terminated with an ASCII NUL character.
+
+       The  <EM>boolean</EM>  <EM>flags</EM>  section  has  one  byte  for  each  flag.  Boolean
+       capabilities are either 1 or 0 (true or false) according to whether the
+       terminal supports the given capability or not.
+
+       Between  the  <EM>boolean</EM> <EM>flags</EM> section and the <EM>number</EM> section, a null byte
+       will be inserted, if necessary,  to  ensure  that  the  <EM>number</EM>  section
+       begins  on  an even byte This is a relic of the PDP-11's word-addressed
+       architecture, originally designed to avoid traps induced by  addressing
+       a  word  on  an odd byte boundary.  All short integers are aligned on a
+       short word boundary.
+
+       The <EM>numbers</EM> section is similar to  the  <EM>boolean</EM>  <EM>flags</EM>  section.   Each
+       capability  takes  up two bytes, and is stored as a little-endian short
+       integer.
+
+       The <EM>strings</EM> section is also similar.  Each capability is  stored  as  a
+       short integer.  The capability value is an index into the <EM>string</EM> <EM>table</EM>.
+
+       The <EM>string</EM> <EM>table</EM> is the last section.  It contains all of the values of
+       string capabilities referenced in the <EM>strings</EM> section.  Each string  is
+       null-terminated.  Special characters in ^X or \c notation are stored in
+       their interpreted  form,  not  the  printing  representation.   Padding
+       information  $&lt;nn&gt;  and  parameter  information %x are stored intact in
+       uninterpreted form.
 
 
 </PRE><H3><a name="h3-EXTENDED-STORAGE-FORMAT">EXTENDED STORAGE FORMAT</a></H3><PRE>
        The previous section describes the conventional terminfo binary format.
-       With some minor variations of the offsets (see PORTABILITY),  the  same
-       binary  format  is used in all modern UNIX systems.  Each system uses a
+       With  some  minor variations of the offsets (see PORTABILITY), the same
+       binary format is used in all modern UNIX systems.  Each system  uses  a
        predefined set of boolean, number or string capabilities.
 
        The <STRONG>ncurses</STRONG> libraries and applications support extended terminfo binary
-       format,  allowing users to define capabilities which are loaded at run-
-       time.  This extension is made possible by using the fact that the other
-       implementations  stop  reading the terminfo data when they have reached
-       the end of the size given in the header.  <STRONG>ncurses</STRONG> checks the size,  and
-       if  it  exceeds  that  due  to  the predefined data, continues to parse
-       according to its own scheme.
+       format, allowing users to  define  capabilities  which  are  loaded  at
+       runtime.   This  extension  is made possible by using the fact that the
+       other implementations stop reading the terminfo  data  when  they  have
+       reached  the  end  of the size given in the header.  <STRONG>ncurses</STRONG> checks the
+       size, and if it exceeds that due to the predefined data,  continues  to
+       parse according to its own scheme.
 
        First, it reads the extended header (5 short integers):
 
@@ -180,103 +211,103 @@
 
             (5)  size of the extended string table in bytes
 
-       The count- and size-values for the extended string  table  include  the
+       The  count-  and  size-values for the extended string table include the
        extended capability <EM>names</EM> as well as extended capability <EM>values</EM>.
 
        Using the counts and sizes, <STRONG>ncurses</STRONG> allocates arrays and reads data for
        the extended capabilities in the same order as the header information.
 
-       The extended string table  contains  values  for  string  capabilities.
-       After  the  end  of these values, it contains the names for each of the
-       extended capabilities  in  order,  e.g.,  booleans,  then  numbers  and
+       The  extended  string  table  contains  values for string capabilities.
+       After the end of these values, it contains the names for  each  of  the
+       extended  capabilities  in  order,  e.g.,  booleans,  then  numbers and
        finally strings.
 
-       Applications  which  manipulate  terminal  data can use the definitions
-       described in <STRONG><A HREF="term_variables.3x.html">term_variables(3x)</A></STRONG> which  associate  the  long  capability
+       Applications which manipulate terminal data  can  use  the  definitions
+       described  in  <STRONG><A HREF="term_variables.3x.html">term_variables(3x)</A></STRONG>  which  associate the long capability
        names with members of a <STRONG>TERMTYPE</STRONG> structure.
 
 
 </PRE><H3><a name="h3-EXTENDED-NUMBER-FORMAT">EXTENDED NUMBER FORMAT</a></H3><PRE>
        On occasion, 16-bit signed integers are not large enough.  With <STRONG>ncurses</STRONG>
-       6.1, a new format was introduced by making a few changes to the  legacy
+       6.1,  a new format was introduced by making a few changes to the legacy
        format:
 
        <STRONG>o</STRONG>   a different magic number (octal 01036)
 
-       <STRONG>o</STRONG>   changing  the type for the <EM>number</EM> array from signed 16-bit integers
+       <STRONG>o</STRONG>   changing the type for the <EM>number</EM> array from signed 16-bit  integers
            to signed 32-bit integers.
 
-       To maintain compatibility, the library presents the  same  data  struc-
-       tures to direct users of the <STRONG>TERMTYPE</STRONG> structure as in previous formats.
-       However, that cannot provide callers with the  extended  numbers.   The
-       library  uses  a similar but hidden data structure <STRONG>TERMTYPE2</STRONG> to provide
-       data for the terminfo functions.
+       To   maintain   compatibility,  the  library  presents  the  same  data
+       structures to direct users of the <STRONG>TERMTYPE</STRONG>  structure  as  in  previous
+       formats.   However,  that  cannot  provide  callers  with  the extended
+       numbers.   The  library  uses  a  similar  but  hidden  data  structure
+       <STRONG>TERMTYPE2</STRONG> to provide data for the terminfo functions.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
 
 </PRE><H3><a name="h3-setupterm">setupterm</a></H3><PRE>
-       Note that it is possible for <STRONG>setupterm</STRONG> to expect  a  different  set  of
-       capabilities  than  are actually present in the file.  Either the data-
-       base may have been updated since <STRONG>setupterm</STRONG> has been recompiled (result-
-       ing  in extra unrecognized entries in the file) or the program may have
-       been recompiled more recently than the database was updated  (resulting
-       in  missing  entries).  The routine <STRONG>setupterm</STRONG> must be prepared for both
-       possibilities - this is why the numbers and sizes are included.   Also,
-       new  capabilities must always be added at the end of the lists of bool-
-       ean, number, and string capabilities.
+       Note  that  it  is  possible for <STRONG>setupterm</STRONG> to expect a different set of
+       capabilities than  are  actually  present  in  the  file.   Either  the
+       database  may  have  been  updated  since <STRONG>setupterm</STRONG> has been recompiled
+       (resulting in extra unrecognized entries in the file)  or  the  program
+       may  have  been  recompiled more recently than the database was updated
+       (resulting in missing entries).  The routine <STRONG>setupterm</STRONG> must be prepared
+       for  both  possibilities  -  this  is  why  the  numbers  and sizes are
+       included.  Also, new capabilities must always be added at  the  end  of
+       the lists of boolean, number, and string capabilities.
 
 
 </PRE><H3><a name="h3-Binary-format">Binary format</a></H3><PRE>
-       X/Open Curses does not specify a  format  for  the  terminfo  database.
-       UNIX  System  V  curses  used a directory-tree of binary files, one per
+       X/Open  Curses  does  not  specify  a format for the terminfo database.
+       UNIX System V curses used a directory-tree of  binary  files,  one  per
        terminal description.
 
-       Despite the consistent use of little-endian for numbers and the  other-
-       wise  self-describing format, it is not wise to count on portability of
-       binary terminfo entries between commercial UNIX versions.  The  problem
-       is  that  there  are  at least three versions of terminfo (under HP-UX,
-       AIX, and OSF/1) which diverged from System V terminfo after  SVr1,  and
-       have  added  extension  capabilities  to  the string table that (in the
-       binary format) collide with System V and XSI  Curses  extensions.   See
-       <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>  for  detailed  discussion of terminfo source compatibility
-       issues.
+       Despite  the  consistent  use  of  little-endian  for  numbers  and the
+       otherwise  self-describing  format,  it  is  not  wise  to   count   on
+       portability   of   binary  terminfo  entries  between  commercial  UNIX
+       versions.  The problem is that there are at  least  three  versions  of
+       terminfo  (under  HP-UX,  AIX,  and OSF/1) which diverged from System V
+       terminfo after SVr1, and  have  added  extension  capabilities  to  the
+       string  table that (in the binary format) collide with System V and XSI
+       Curses extensions.  See <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG> for detailed discussion of terminfo
+       source compatibility issues.
 
-       This implementation is by default compatible with the  binary  terminfo
-       format  used by Solaris curses, except in a few less-used details where
-       it was found that the latter did not match X/Open Curses.   The  format
+       This  implementation  is by default compatible with the binary terminfo
+       format used by Solaris curses, except in a few less-used details  where
+       it  was  found that the latter did not match X/Open Curses.  The format
        used by the other Unix versions can be matched by building ncurses with
        different configuration options.
 
 
 </PRE><H3><a name="h3-Magic-codes">Magic codes</a></H3><PRE>
-       The magic number in a binary terminfo file is the  first  16-bits  (two
-       bytes).   Besides making it more reliable for the library to check that
-       a file is terminfo, utilities such as <STRONG>file</STRONG> also use that to  tell  what
-       the  file-format is.  System V defined more than one magic number, with
+       The  magic  number  in a binary terminfo file is the first 16-bits (two
+       bytes).  Besides making it more reliable for the library to check  that
+       a  file  is terminfo, utilities such as <STRONG>file</STRONG> also use that to tell what
+       the file-format is.  System V defined more than one magic number,  with
        0433, 0435 as screen-dumps (see <STRONG><A HREF="scr_dump.5.html">scr_dump(5)</A></STRONG>).  This implementation uses
-       01036  as  a  continuation of that sequence, but with a different high-
+       01036 as a continuation of that sequence, but with  a  different  high-
        order byte to avoid confusion.
 
 
 </PRE><H3><a name="h3-The-TERMTYPE-structure">The TERMTYPE structure</a></H3><PRE>
-       Direct access to the <STRONG>TERMTYPE</STRONG> structure is provided for legacy applica-
-       tions.   Portable  applications  should  use  the <STRONG>tigetflag</STRONG> and related
-       functions described in <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG> for reading terminal capabili-
-       ties.
+       Direct  access  to  the  <STRONG>TERMTYPE</STRONG>  structure  is  provided  for  legacy
+       applications.  Portable  applications  should  use  the  <STRONG>tigetflag</STRONG>  and
+       related  functions  described in <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG> for reading terminal
+       capabilities.
 
 
 </PRE><H3><a name="h3-Mixed-case-terminal-names">Mixed-case terminal names</a></H3><PRE>
-       A  small  number  of  terminal descriptions use uppercase characters in
-       their names.  If  the  underlying  filesystem  ignores  the  difference
-       between  uppercase and lowercase, <STRONG>ncurses</STRONG> represents the "first charac-
-       ter" of the terminal name used as the intermediate level of a directory
-       tree in (two-character) hexadecimal form.
+       A small number of terminal descriptions  use  uppercase  characters  in
+       their  names.   If  the  underlying  filesystem  ignores the difference
+       between  uppercase  and  lowercase,  <STRONG>ncurses</STRONG>  represents   the   "first
+       character"  of  the  terminal  name used as the intermediate level of a
+       directory tree in (two-character) hexadecimal form.
 
 
 </PRE><H2><a name="h2-EXAMPLE">EXAMPLE</a></H2><PRE>
-       As an example, here is a description for the Lear-Siegler ADM-3, a pop-
-       ular though rather stupid early terminal:
+       As an example, here is a description  for  the  Lear-Siegler  ADM-3,  a
+       popular though rather stupid early terminal:
 
            adm3a|lsi adm3a,
                    am,
@@ -316,13 +347,18 @@
 </PRE><H2><a name="h2-LIMITS">LIMITS</a></H2><PRE>
        Some limitations:
 
-       <STRONG>o</STRONG>   total compiled entries cannot exceed 4096 bytes in the legacy  for-
-           mat.
+       <STRONG>o</STRONG>   total  compiled  entries  cannot  exceed  4096  bytes in the legacy
+           format.
 
-       <STRONG>o</STRONG>   total  compiled  entries  cannot exceed 32768 bytes in the extended
+       <STRONG>o</STRONG>   total compiled entries cannot exceed 32768 bytes  in  the  extended
            format.
 
        <STRONG>o</STRONG>   the name field cannot exceed 128 bytes.
+
+       Compiled  entries  are  limited to 32768 bytes because offsets into the
+       <EM>strings</EM> <EM>table</EM> use two-byte integers.   The  legacy  format  could  have
+       supported  32768-byte  entries, but was limited a virtual memory page's
+       4096 bytes.
 
 
 </PRE><H2><a name="h2-FILES">FILES</a></H2><PRE>

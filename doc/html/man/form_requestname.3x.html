@@ -28,7 +28,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: form_requestname.3x,v 1.12 2020/02/02 23:34:34 tom Exp @
+  * @Id: form_requestname.3x,v 1.16 2020/12/12 16:37:14 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -54,23 +54,30 @@
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;form.h&gt;</STRONG>
-       const char *form_request_name(int request);
-       int form_request_by_name(const char *name);
+
+       <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*form_request_name(int</STRONG> <EM>request</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>form_request_by_name(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>name</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
+
+</PRE><H3><a name="h3-form_request_name">form_request_name</a></H3><PRE>
        The function <STRONG>form_request_name</STRONG> returns the printable  name  of  a  form
        request code.
+
+
+</PRE><H3><a name="h3-form_request_name_by_name">form_request_name_by_name</a></H3><PRE>
        The  function  <STRONG>form_request_by_name</STRONG>  searches  in  the name-table for a
        request with the given name and returns its  request  code.   Otherwise
        E_NO_MATCH is returned.
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       <STRONG>form_request_name</STRONG>  returns  <STRONG>NULL</STRONG> on error and sets errno to <STRONG>E_BAD_ARGU-</STRONG>
-       <STRONG>MENT</STRONG>.
+       <STRONG>form_request_name</STRONG>   returns   <STRONG>NULL</STRONG>   on   error   and   sets  <STRONG>errno</STRONG>  to
+       <STRONG>E_BAD_ARGUMENT</STRONG>.
+
        <STRONG>form_request_by_name</STRONG> returns <STRONG>E_NO_MATCH</STRONG> on  error.   It  does  not  set
-       errno.
+       <STRONG>errno</STRONG>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
@@ -100,7 +107,12 @@
 <ul>
 <li><a href="#h2-NAME">NAME</a></li>
 <li><a href="#h2-SYNOPSIS">SYNOPSIS</a></li>
-<li><a href="#h2-DESCRIPTION">DESCRIPTION</a></li>
+<li><a href="#h2-DESCRIPTION">DESCRIPTION</a>
+<ul>
+<li><a href="#h3-form_request_name">form_request_name</a></li>
+<li><a href="#h3-form_request_name_by_name">form_request_name_by_name</a></li>
+</ul>
+</li>
 <li><a href="#h2-RETURN-VALUE">RETURN VALUE</a></li>
 <li><a href="#h2-SEE-ALSO">SEE ALSO</a></li>
 <li><a href="#h2-NOTES">NOTES</a></li>

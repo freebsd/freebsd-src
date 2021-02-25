@@ -71,12 +71,12 @@
 #  include <sys/select.h>
 # endif
 #endif
-#ifdef _WIN32
+#if HAVE_SYS_TIME_H
 #  include <sys/time.h>
 #endif
 #undef CUR
 
-MODULE_ID("$Id: lib_twait.c,v 1.74 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_twait.c,v 1.75 2020/02/29 15:46:00 anonymous.maarten Exp $")
 
 static long
 _nc_gettime(TimeType * t0, int first)

@@ -32,7 +32,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: internal.h,v 1.20 2020/02/02 23:34:34 tom Exp $
+// $Id: internal.h,v 1.22 2020/08/29 23:06:41 tom Exp $
 
 #ifndef NCURSES_CPLUS_INTERNAL_H
 #define NCURSES_CPLUS_INTERNAL_H 1
@@ -45,8 +45,12 @@
 #define MODULE_ID(id)		/*nothing */
 #endif
 
-#ifdef _WIN32
+#if (defined(_WIN32) || defined(_WIN64))
+#if defined(EXP_WIN32_DRIVER)
+#include <nc_win32.h>
+#else
 #include <nc_mingw.h>
+#endif
 #undef KEY_EVENT
 #endif
 

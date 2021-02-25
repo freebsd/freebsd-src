@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: clip_printw.c,v 1.17 2020/02/02 23:34:34 tom Exp $
+ * $Id: clip_printw.c,v 1.19 2020/05/10 00:40:23 tom Exp $
  *
  * demonstrate how to use printw without wrapping.
  */
@@ -331,7 +331,10 @@ test_clipping(WINDOW *win)
 		need = (unsigned) st.count + 1;
 		_nc_SPRINTF(fmt, _nc_SLIMIT(sizeof(fmt)) "%%c%%%ds%%c", st.count);
 	    } else {
-		need = (unsigned) getmaxx(win) - 1;
+		int want = getmaxx(win);
+		if (want < 10)
+		    want = 10;
+		need = (unsigned) want - 1;
 		_nc_STRCPY(fmt, "%c%s%c", sizeof(fmt));
 	    }
 	    if ((buffer = typeMalloc(char, need + 1)) != 0) {

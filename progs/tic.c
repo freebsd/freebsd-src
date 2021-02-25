@@ -49,7 +49,7 @@
 #include <parametrized.h>
 #include <transform.h>
 
-MODULE_ID("$Id: tic.c,v 1.282 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: tic.c,v 1.291 2021/02/20 23:57:24 tom Exp $")
 
 #define STDIN_NAME "<stdin>"
 
@@ -1179,6 +1179,14 @@ check_acs(TERMTYPE2 *tp)
     }
 }
 
+static char *
+safe_strdup(const char *value)
+{
+    if (value == NULL)
+	value = "";
+    return strdup(value);
+}
+
 static bool
 same_color(NCURSES_CONST char *oldcap, NCURSES_CONST char *newcap, int limit)
 {
@@ -1189,8 +1197,8 @@ same_color(NCURSES_CONST char *oldcap, NCURSES_CONST char *newcap, int limit)
 	int n;
 	int same;
 	for (n = same = 0; n < limit; ++n) {
-	    char *oldvalue = strdup(TPARM_1(oldcap, n));
-	    char *newvalue = strdup(TPARM_1(newcap, n));
+	    char *oldvalue = safe_strdup(TIPARM_1(oldcap, n));
+	    char *newvalue = safe_strdup(TIPARM_1(newcap, n));
 	    same += !strcmp(oldvalue, newvalue);
 	    free(oldvalue);
 	    free(newvalue);
@@ -1703,6 +1711,7 @@ check_screen(TERMTYPE2 *tp)
 	int have_bce = back_color_erase;
 	bool have_kmouse = FALSE;
 	bool use_sgr_39_49 = FALSE;
+	const char *name_39_49 = "orig_pair or orig_colors";
 	char *name = _nc_first_name(tp->term_names);
 	bool is_screen = !strncmp(name, "screen", 6);
 	bool screen_base = (is_screen
@@ -1720,10 +1729,15 @@ check_screen(TERMTYPE2 *tp)
 	if (VALID_STRING(key_mouse)) {
 	    have_kmouse = !strcmp("\033[M", key_mouse);
 	}
-	if (VALID_STRING(orig_colors)) {
-	    use_sgr_39_49 = uses_SGR_39_49(orig_colors);
-	} else if (VALID_STRING(orig_pair)) {
-	    use_sgr_39_49 = uses_SGR_39_49(orig_pair);
+	if (have_bce) {
+	    if (VALID_STRING(orig_pair)) {
+		name_39_49 = "orig_pair";
+		use_sgr_39_49 = uses_SGR_39_49(orig_pair);
+	    }
+	    if (!use_sgr_39_49 && VALID_STRING(orig_colors)) {
+		name_39_49 = "orig_colors";
+		use_sgr_39_49 = uses_SGR_39_49(orig_colors);
+	    }
 	}
 
 	if (have_XM && have_XT) {
@@ -1738,10 +1752,14 @@ check_screen(TERMTYPE2 *tp)
 		    _nc_warning("expected kmous capability with XT");
 		}
 	    }
-	    if (!have_bce && max_colors > 0)
-		_nc_warning("expected bce capability with XT");
-	    if (!use_sgr_39_49 && have_bce && max_colors > 0)
-		_nc_warning("expected orig_colors capability with XT to have 39/49 parameters");
+	    if (max_colors > 0) {
+		if (!have_bce) {
+		    _nc_warning("expected bce capability with XT");
+		} else if (!use_sgr_39_49) {
+		    _nc_warning("expected %s capability with XT "
+				"to have 39/49 parameters", name_39_49);
+		}
+	    }
 	    if (VALID_STRING(to_status_line))
 		_nc_warning("\"tsl\" capability is redundant, given XT");
 	} else {
@@ -1835,7 +1853,6 @@ expected_params(const char *name)
 	DATA( "wingo",		1 ),
     };
     /* *INDENT-ON* */
-
 #undef DATA
 
     unsigned n;
@@ -1910,7 +1927,7 @@ check_params(TERMTYPE2 *tp, const char *name, char *value, int extended)
     int expected = expected_params(name);
     int actual = 0;
     int n;
-    bool params[NUM_PARM];
+    bool params[1 + NUM_PARM];
     char *s = value;
 
 #ifdef set_top_margin_parm
@@ -1919,7 +1936,7 @@ check_params(TERMTYPE2 *tp, const char *name, char *value, int extended)
 	expected = 2;
 #endif
 
-    for (n = 0; n < NUM_PARM; n++)
+    for (n = 0; n <= NUM_PARM; n++)
 	params[n] = FALSE;
 
     while (*s != 0) {
@@ -2173,6 +2190,9 @@ check_1_infotocap(const char *name, NCURSES_CONST char *value, int count)
     char *result;
     char blob[NUM_PARM * 10];
     char *next = blob;
+    TParams expect;
+    TParams actual;
+    int nparam;
 
     *next++ = '\0';
     for (k = 1; k <= NUM_PARM; k++) {
@@ -2184,7 +2204,16 @@ check_1_infotocap(const char *name, NCURSES_CONST char *value, int count)
 	next += strlen(next) + 1;
     }
 
-    switch (tparm_type(name)) {
+    expect = tparm_type(name);
+    nparam = _nc_tparm_analyze(value, p_is_s, &ignored);
+    actual = guess_tparm_type(nparam, p_is_s);
+
+    if (expect != actual) {
+	_nc_warning("%s has mismatched parameters", name);
+	actual = Other;
+    }
+
+    switch (actual) {
     case Num_Str:
 	result = TPARM_2(value, numbers[1], strings[2]);
 	break;
@@ -2192,8 +2221,21 @@ check_1_infotocap(const char *name, NCURSES_CONST char *value, int count)
 	result = TPARM_3(value, numbers[1], strings[2], strings[3]);
 	break;
     case Numbers:
+#define myParam(n) numbers[n]
+	result = TIPARM_9(value,
+			  myParam(1),
+			  myParam(2),
+			  myParam(3),
+			  myParam(4),
+			  myParam(5),
+			  myParam(6),
+			  myParam(7),
+			  myParam(8),
+			  myParam(9));
+#undef myParam
+	break;
+    case Other:
     default:
-	(void) _nc_tparm_analyze(value, p_is_s, &ignored);
 #define myParam(n) (p_is_s[n - 1] != 0 ? ((TPARM_ARG) strings[n]) : numbers[n])
 	result = TPARM_9(value,
 			 myParam(1),
@@ -2205,6 +2247,7 @@ check_1_infotocap(const char *name, NCURSES_CONST char *value, int count)
 			 myParam(7),
 			 myParam(8),
 			 myParam(9));
+#undef myParam
 	break;
     }
     return strdup(result);
@@ -2339,14 +2382,13 @@ check_infotocap(TERMTYPE2 *tp, int i, const char *value)
 		  ? parametrized[i]
 		  : ((*value == 'k')
 		     ? 0
-		     : has_params(value)));
-    int to_char = 0;
+		     : has_params(value, FALSE)));
     char *ti_value;
     char *tc_value;
     bool embedded;
 
     assert(SIZEOF(parametrized) == STRCOUNT);
-    if ((ti_value = _nc_tic_expand(value, TRUE, to_char)) == ABSENT_STRING) {
+    if (!VALID_STRING(value) || (ti_value = strdup(value)) == NULL) {
 	_nc_warning("tic-expansion of %s failed", name);
     } else if ((tc_value = _nc_infotocap(name, ti_value, params)) == ABSENT_STRING) {
 	_nc_warning("tic-conversion of %s failed", name);
@@ -2369,12 +2411,14 @@ check_infotocap(TERMTYPE2 *tp, int i, const char *value)
 	    if (strcmp(ti_check, tc_check)) {
 		if (first) {
 		    fprintf(stderr, "check_infotocap(%s)\n", name);
-		    fprintf(stderr, "...ti '%s'\n", ti_value);
-		    fprintf(stderr, "...tc '%s'\n", tc_value);
+		    fprintf(stderr, "...ti '%s'\n", _nc_visbuf2(0, ti_value));
+		    fprintf(stderr, "...tc '%s'\n", _nc_visbuf2(0, tc_value));
 		    first = FALSE;
 		}
 		_nc_warning("tparm-conversion of %s(%d) differs between\n\tterminfo %s\n\ttermcap  %s",
-			    name, count, ti_check, tc_check);
+			    name, count,
+			    _nc_visbuf2(0, ti_check),
+			    _nc_visbuf2(1, tc_check));
 	    }
 	    free(ti_check);
 	    free(tc_check);
@@ -2509,22 +2553,29 @@ similar_sgr(int num, char *a, char *b)
     return ((num != 0) || (*a == 0));
 }
 
+static void
+check_tparm_err(int num)
+{
+    if (_nc_tparm_err)
+	_nc_warning("tparam error in sgr(%d): %s", num, sgr_names[num]);
+}
+
 static char *
 check_sgr(TERMTYPE2 *tp, char *zero, int num, char *cap, const char *name)
 {
     char *test;
 
     _nc_tparm_err = 0;
-    test = TPARM_9(set_attributes,
-		   num == 1,
-		   num == 2,
-		   num == 3,
-		   num == 4,
-		   num == 5,
-		   num == 6,
-		   num == 7,
-		   num == 8,
-		   num == 9);
+    test = TIPARM_9(set_attributes,
+		    num == 1,
+		    num == 2,
+		    num == 3,
+		    num == 4,
+		    num == 5,
+		    num == 6,
+		    num == 7,
+		    num == 8,
+		    num == 9);
     if (test != 0) {
 	if (PRESENT(cap)) {
 	    if (!similar_sgr(num, test, cap)) {
@@ -2539,8 +2590,7 @@ check_sgr(TERMTYPE2 *tp, char *zero, int num, char *cap, const char *name)
     } else if (PRESENT(cap)) {
 	_nc_warning("sgr(%d) missing, but %s present", num, name);
     }
-    if (_nc_tparm_err)
-	_nc_warning("stack error in sgr(%d) string", num);
+    check_tparm_err(num);
     return test;
 }
 
@@ -2695,7 +2745,6 @@ check_conflict(TERMTYPE2 *tp)
 		{ NULL,   NULL },
 	    };
 	    /* *INDENT-ON* */
-
 	    /*
 	     * SVr4 curses defines the "xcurses" names listed above except for
 	     * the special cases in the "shifted" column.  When using these
@@ -2973,10 +3022,9 @@ check_termtype(TERMTYPE2 *tp, bool literal)
 	if (PRESENT(exit_attribute_mode)) {
 	    zero = strdup(CHECK_SGR(0, exit_attribute_mode));
 	} else {
-	    zero = strdup(TPARM_9(set_attributes, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+	    zero = strdup(TIPARM_9(set_attributes, 0, 0, 0, 0, 0, 0, 0, 0, 0));
 	}
-	if (_nc_tparm_err)
-	    _nc_warning("stack error in sgr(0) string");
+	check_tparm_err(0);
 
 	if (zero != 0) {
 	    CHECK_SGR(1, enter_standout_mode);

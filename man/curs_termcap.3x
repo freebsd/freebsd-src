@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2020,2021 Thomas E. Dickey                                *
 .\" Copyright 1998-2017,2018 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_termcap.3x,v 1.43 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_termcap.3x,v 1.48 2021/01/09 11:07:15 tom Exp $
 .TH curs_termcap 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -50,7 +50,7 @@
 \fBtgetnum\fR,
 \fBtgetstr\fR,
 \fBtgoto\fR,
-\fBtputs\fR \- direct \fBcurses\fR interface to the terminfo capability database
+\fBtputs\fR \- \fBcurses\fR emulation of termcap
 .ad
 .hy
 .SH SYNOPSIS
@@ -66,22 +66,22 @@
 .br
 \fBextern @NCURSES_OSPEED@ ospeed;\fR
 .sp
-\fBint tgetent(char *bp, const char *name);\fR
+\fBint tgetent(char *\fP\fIbp\fP\fB, const char *\fP\fIname\fP\fB);\fR
 .br
-\fBint tgetflag(const char *id);\fR
+\fBint tgetflag(const char *\fP\fIid\fP\fB);\fR
 .br
-\fBint tgetnum(const char *id);\fR
+\fBint tgetnum(const char *\fP\fIid\fP\fB);\fR
 .br
-\fBchar *tgetstr(const char *id, char **area);\fR
+\fBchar *tgetstr(const char *\fP\fIid\fP\fB, char **\fP\fIarea\fP\fB);\fR
 .br
-\fBchar *tgoto(const char *cap, int col, int row);\fR
+\fBchar *tgoto(const char *\fP\fIcap\fP\fB, int \fP\fIcol\fP\fB, int \fP\fIrow\fP\fB);\fR
 .br
-\fBint tputs(const char *str, int affcnt, int (*putc)(int));\fR
+\fBint tputs(const char *\fP\fIstr\fP\fB, int \fP\fIaffcnt\fP\fB, int (*\fP\fIputc\fP\fB)(int));\fR
 .br
 .SH DESCRIPTION
 These routines are included as a conversion aid for programs that use
 the \fItermcap\fR library.
-Their parameters are the same and the
+Their parameters are the same, but the
 routines are emulated using the \fIterminfo\fR database.
 Thus, they
 can only be used to query the capabilities of entries for which a
@@ -228,6 +228,7 @@ One consequence of this is that termcap applications assume \fRme\fR
 This implementation checks for, and modifies the data shown to the
 termcap interface to accommodate termcap's limitation in this respect.
 .SH PORTABILITY
+.SS Standards
 These functions are provided for supporting legacy applications,
 and should not be used in new programs:
 .bP
@@ -246,6 +247,7 @@ misinterpreted to mean that \fBtgetent\fR returns \fBOK\fR or \fBERR\fR.
 Because the purpose of these functions is to provide compatibility with
 the \fItermcap\fR library, that is a defect in XCurses, Issue 4, Version 2
 rather than in ncurses.
+.SS Compatibility with BSD Termcap
 .PP
 External variables are provided for support of certain termcap applications.
 However, termcap applications' use of those variables is poorly documented,
@@ -270,10 +272,67 @@ This implementation disallows matches against single-character capability names.
 .bP
 This implementation disallows matches by the termcap interface against
 extended capability names which are longer than two characters.
+.PP
+The BSD termcap function \fBtgetent\fP returns the text of a termcap
+entry in the buffer passed as an argument.
+This library (like other terminfo implementations) does not store
+terminal descriptions as text.
+It sets the buffer contents to a null-terminated string.
+.SS Other Compatibility
+This library includes a termcap.h header,
+for compatibility with other implementations.
+But the header is rarely used because the other implementations
+are not strictly compatible.
+.PP
+The original BSD termcap (through 4.3BSD) had no header file which
+gave function prototypes, because that was a feature of ANSI C.
+BSD termcap was written several years before C was standardized.
+However, there were two different termcap.h header files in the BSD
+sources:
+.bP
+One was used internally by the \fIjove\fP editor in 2BSD through 4.4BSD.
+It defined global symbols for the termcap variables which it used.
+.bP
+The other appeared in 4.4BSD Lite Release 2 (mid-1993)
+as part of \fIlibedit\fP (also known as the \fIeditline\fP library).
+The CSRG source history shows that this was added in mid-1992.
+The \fIlibedit\fP header file was used internally,
+as a convenience for compiling the \fIeditline\fP library.
+It declared function prototypes, but no global variables.
+.PP
+The header file from \fIlibedit\fP was added to NetBSD's termcap
+library in mid-1994.
+.PP
+Meanwhile, GNU termcap was under development, starting in 1990.
+The first release (termcap 1.0) in 1991 included a termcap.h header.
+The second release (termcap 1.1) in September 1992 modified the
+header to use \fBconst\fP for the function prototypes in the header
+where one would expect the parameters to be read-only.
+This was a difference versus the original BSD termcap.
+The prototype for \fBtputs\fP also differed,
+but in that instance, it was \fIlibedit\fP which differed from BSD termcap.
+.PP
+A copy of GNU termcap 1.3 was bundled with \fIbash\fP in mid-1993,
+to support the \fIreadline\fP library.
+.PP
+A termcap.h file was provided in ncurses 1.8.1 (November 1993).
+That reflected influence by \fIemacs\fP (rather than \fIjove\fP)
+and GNU termcap:
+.bP
+it provided declarations for a few global symbols used by \fIemacs\fP
+.bP
+it provided function prototypes (using \fBconst\fP).
+.bP
+a prototype for \fBtparam\fP (a GNU termcap feature) was provided.
+.PP
+Later (in mid-1996) the \fBtparam\fP function was removed from ncurses.
+As a result, there are differences between any of the four implementations,
+which must be taken into account by programs which can work with all
+termcap library interfaces.
 .SH SEE ALSO
 \fBcurses\fR(3X),
-\fBterminfo\fR(\*n),
+\fBputc\fR(3),
 \fBterm_variables\fR(3X),
-\fBputc\fR(3).
+\fBterminfo\fR(\*n).
 .sp
 https://invisible-island.net/ncurses/tctest.html

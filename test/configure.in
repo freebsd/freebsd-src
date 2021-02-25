@@ -29,7 +29,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey 1996-on
 dnl
-dnl $Id: configure.in,v 1.157 2020/02/02 23:34:34 tom Exp $
+dnl $Id: configure.in,v 1.162 2020/08/29 13:23:50 tom Exp $
 dnl This is a simple configuration-script for the ncurses test programs that
 dnl allows the test-directory to be separately configured against a reference
 dnl system (i.e., sysvr4 curses)
@@ -176,6 +176,10 @@ case $cf_cv_screen in
 	;;
 esac
 
+CF_WITH_LIB_BASENAME(FORM_NAME,form)
+CF_WITH_LIB_BASENAME(MENU_NAME,menu)
+CF_WITH_LIB_BASENAME(PANEL_NAME,panel)
+
 AC_MSG_CHECKING(if you want to check for panel functions)
 CF_ARG_DISABLE(panel,
 	[  --disable-panel         disable checks for panel functions],
@@ -185,7 +189,7 @@ CF_ARG_DISABLE(panel,
 AC_MSG_RESULT($cf_enable_panel)
 if test $cf_enable_panel = yes
 then
-	CF_CHECK_CURSES_LIB(panel,$cf_cv_libtype,new_panel,0)
+	CF_CHECK_CURSES_LIB($PANEL_NAME,$cf_cv_libtype,new_panel,0)
 	cf_curses_headers="$cf_curses_headers panel.h"
 fi
 
@@ -205,7 +209,7 @@ then
 		CF_NETBSD_MENU_H
 		;;
 	esac
-	CF_CHECK_CURSES_LIB(menu,$cf_cv_libtype,menu_driver,[0,0])
+	CF_CHECK_CURSES_LIB($MENU_NAME,$cf_cv_libtype,menu_driver,[0,0])
 	cf_curses_headers="$cf_curses_headers menu.h"
 fi
 
@@ -225,7 +229,7 @@ then
 		CF_NETBSD_FORM_H
 		;;
 	esac
-	CF_CHECK_CURSES_LIB(form,$cf_cv_libtype,form_driver,[0,0])
+	CF_CHECK_CURSES_LIB($FORM_NAME,$cf_cv_libtype,form_driver,[0,0])
 	cf_curses_headers="$cf_curses_headers form.h"
 fi
 
@@ -252,6 +256,8 @@ CF_GETOPT_HEADER
 AC_CHECK_FUNCS( \
 getopt \
 gettimeofday \
+snprintf \
+strdup \
 strstr \
 tsearch \
 )
@@ -318,6 +324,8 @@ color_set \
 copywin \
 delscreen \
 dupwin \
+exit_curses \
+exit_terminfo \
 filter \
 getbegx \
 getcurx \
@@ -344,6 +352,7 @@ setupterm \
 slk_color \
 slk_init \
 termattrs \
+termname \
 tgetent \
 tigetnum \
 tigetstr \
@@ -480,6 +489,7 @@ ttytype)
 
 dnl ---------------------------------------------------------------------------
 CF_HELP_MESSAGE(Testing/development Options:)
+CF_WITH_SCREEN_PDCURSES
 CF_ENABLE_WARNINGS(Wno-unknown-pragmas)
 CF_DISABLE_LEAKS
 CF_DISABLE_RPATH_HACK

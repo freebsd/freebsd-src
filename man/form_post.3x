@@ -28,17 +28,17 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_post.3x,v 1.14 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_post.3x,v 1.16 2020/10/18 00:01:05 tom Exp $
 .TH form_post 3X ""
 .SH NAME
 \fBpost_form\fR,
 \fBunpost_form\fR \- write or erase forms from associated subwindows
 .SH SYNOPSIS
 \fB#include <form.h>\fR
+.sp
+\fBint post_form(FORM *\fP\fIform\fP\fB);\fP
 .br
-int post_form(FORM *form);
-.br
-int unpost_form(FORM *form);
+\fBint unpost_form(FORM *\fP\fIform\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBpost_form\fR displays a form to its associated subwindow.

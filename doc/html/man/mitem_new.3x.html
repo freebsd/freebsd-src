@@ -28,7 +28,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: mitem_new.3x,v 1.16 2020/02/02 23:34:34 tom Exp @
+  * @Id: mitem_new.3x,v 1.19 2020/10/18 00:37:03 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -53,8 +53,9 @@
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;menu.h&gt;</STRONG>
-       ITEM *new_item(const char *name, const char *description);
-       int free_item(ITEM *item);
+
+       <STRONG>ITEM</STRONG> <STRONG>*new_item(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>name</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>description</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>free_item(ITEM</STRONG> <STRONG>*</STRONG><EM>item</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -69,7 +70,7 @@
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       The  function  <STRONG>new_item</STRONG> returns <STRONG>NULL</STRONG> on error.  It sets errno according
+       The  function  <STRONG>new_item</STRONG> returns <STRONG>NULL</STRONG> on error.  It sets <STRONG>errno</STRONG> according
        to the function's failure:
 
        <STRONG>E_BAD_ARGUMENT</STRONG>
@@ -102,8 +103,8 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These  routines  emulate the System V menu library.  They were not sup-
-       ported on Version 7 or BSD versions.
+       These  routines  emulate  the  System  V  menu  library.  They were not
+       supported on Version 7 or BSD versions.
 
 
 </PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>

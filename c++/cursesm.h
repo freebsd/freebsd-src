@@ -32,7 +32,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursesm.h,v 1.33 2020/02/02 23:34:34 tom Exp $
+// $Id: cursesm.h,v 1.34 2020/05/24 01:40:20 anonymous.maarten Exp $
 
 #ifndef NCURSES_CURSESM_H_incl
 #define NCURSES_CURSESM_H_incl 1
@@ -47,7 +47,7 @@ extern "C" {
 // This wraps the ITEM type of <menu.h>
 // -------------------------------------------------------------------------
 //
-class NCURSES_IMPEXP NCursesMenuItem
+class NCURSES_CXX_IMPEXP NCursesMenuItem
 {
   friend class NCursesMenu;
 
@@ -153,7 +153,7 @@ typedef bool ITEMCALLBACK(NCursesMenuItem&);
 // If you don't like to create a child class for individual items to
 // overload action(), you may use this class and provide a callback
 // function pointer for items.
-class NCURSES_IMPEXP NCursesMenuCallbackItem : public NCursesMenuItem
+class NCURSES_CXX_IMPEXP NCursesMenuCallbackItem : public NCursesMenuItem
 {
 private:
   ITEMCALLBACK* p_fct;
@@ -200,7 +200,7 @@ extern "C" {
 // This wraps the MENU type of <menu.h>
 // -------------------------------------------------------------------------
 //
-class NCURSES_IMPEXP NCursesMenu : public NCursesPanel
+class NCURSES_CXX_IMPEXP NCursesMenu : public NCursesPanel
 {
 protected:
   MENU *menu;
@@ -596,7 +596,7 @@ public:
 // to create a UserItem.
 // -------------------------------------------------------------------------
 //
-template<class T> class NCURSES_IMPEXP NCursesUserItem : public NCursesMenuItem
+template<class T> class NCURSES_CXX_IMPEXP NCursesUserItem : public NCursesMenuItem
 {
 public:
   NCursesUserItem (const char* p_name,
@@ -623,7 +623,7 @@ public:
 // The same mechanism is used to attach user data to a menu
 // -------------------------------------------------------------------------
 //
-template<class T> class NCURSES_IMPEXP NCursesUserMenu : public NCursesMenu
+template<class T> class NCURSES_CXX_IMPEXP NCursesUserMenu : public NCursesMenu
 {
 protected:
   NCursesUserMenu( int  nlines,

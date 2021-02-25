@@ -29,7 +29,7 @@
 .\"
 .\" Author: Thomas E. Dickey
 .\"
-.\" $Id: new_pair.3x,v 1.14 2020/02/02 23:34:34 tom Exp $
+.\" $Id: new_pair.3x,v 1.15 2020/10/17 23:54:50 tom Exp $
 .TH new_pair 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -60,11 +60,11 @@
 .SH SYNOPSIS
 \fB#include <curses.h>\fP
 .sp
-\fBint alloc_pair(int fg, int bg);\fP
+\fBint alloc_pair(int \fP\fIfg\fP\fB, int \fP\fIbg\fP\fB);\fP
 .br
-\fBint find_pair(int fg, int bg);\fP
+\fBint find_pair(int \fP\fIfg\fP\fB, int \fP\fIbg\fP\fB);\fP
 .br
-\fBint free_pair(int pair);\fP
+\fBint free_pair(int \fP\fIpair\fP\fB);\fP
 .SH DESCRIPTION
 These functions are an extension to the curses library.
 They permit an application to dynamically allocate a color pair using

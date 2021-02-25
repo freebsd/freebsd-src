@@ -235,7 +235,6 @@
 ./config.sub
 ./configure
 ./configure.in
-./convert_configure.pl
 ./dist.mk
 ./doc/hackguide.doc
 ./doc/html/Ada95.html
@@ -547,6 +546,7 @@
 ./include/MKterm.h.awk.in
 ./include/Makefile.in
 ./include/capdefaults.c
+./include/curses.events
 ./include/curses.h.in
 ./include/curses.tail
 ./include/curses.wide
@@ -559,6 +559,7 @@
 ./include/nc_string.h
 ./include/nc_termios.h
 ./include/nc_tparm.h
+./include/nc_win32.h
 ./include/ncurses_cfg.hin
 ./include/ncurses_defs
 ./include/ncurses_dll.h.in
@@ -567,6 +568,7 @@
 ./include/termcap.h.in
 ./include/tic.h
 ./include/unctrl.h.in
+./include/win32_curses.h
 ./install-sh
 ./man/MKada_config.in
 ./man/MKncu_config.in
@@ -942,6 +944,8 @@
 ./ncurses/tinfo/lib_tparm.c
 ./ncurses/tinfo/lib_tputs.c
 ./ncurses/tinfo/lib_ttyflags.c
+./ncurses/tinfo/lib_win32con.c
+./ncurses/tinfo/lib_win32util.c
 ./ncurses/tinfo/make_hash.c
 ./ncurses/tinfo/make_keys.c
 ./ncurses/tinfo/name_match.c
@@ -998,6 +1002,7 @@
 ./ncurses/widechar/widechars.c
 ./ncurses/win32con/gettimeofday.c
 ./ncurses/win32con/wcwidth.c
+./ncurses/win32con/win32_driver.c
 ./ncurses/win32con/win_driver.c
 ./package/debian-mingw/changelog
 ./package/debian-mingw/compat
@@ -1089,6 +1094,7 @@
 ./test/Makefile.in
 ./test/README
 ./test/aclocal.m4
+./test/back_ground.c
 ./test/background.c
 ./test/blue.c
 ./test/bs.6
@@ -1123,6 +1129,7 @@
 ./test/dots_xcurses.c
 ./test/dump_window.c
 ./test/dump_window.h
+./test/dup_field.c
 ./test/echochar.c
 ./test/edit_field.c
 ./test/edit_field.h
@@ -1155,6 +1162,7 @@
 ./test/mini.xterm_48x48.xpm
 ./test/mk-test.awk
 ./test/modules
+./test/move_field.c
 ./test/movewindow.c
 ./test/ncurses.c
 ./test/ncurses_tst.hin
@@ -1212,6 +1220,7 @@
 ./test/test_setupterm.c
 ./test/test_sgr.c
 ./test/test_termattrs.c
+./test/test_tparm.c
 ./test/test_vid_puts.c
 ./test/test_vidputs.c
 ./test/testaddch.c

@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_info.3x,v 1.17 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_field_info.3x,v 1.18 2020/10/17 23:35:05 tom Exp $
 .TH form_field_info 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -38,13 +38,17 @@
 \fBdynamic_field_info\fP,
 \fBfield_info\fR \- retrieve field characteristics
 .SH SYNOPSIS
+.nf
 \fB#include <form.h>\fR
-.br
-int field_info(const FIELD *field, int *rows, int *cols,
-              int *frow, int *fcol, int *nrow, int *nbuf);
-.br
-int dynamic_field_info(const FIELD *field, int *rows, int *cols, int *max);
-.br
+.sp
+\fBint field_info(const FIELD *\fP\fIfield\fP\fB,\fP
+               \fBint *\fP\fIrows\fP\fB, int *\fP\fIcols\fP\fB,\fP
+               \fBint *\fP\fIfrow\fP\fB, int *\fP\fIfcol\fP\fB,\fP
+               \fBint *\fP\fInrow\fP\fB, int *\fP\fInbuf\fB);\fP
+.sp
+\fBint dynamic_field_info(const FIELD *\fP\fIfield\fP\fB,\fP
+                       \fBint *\fP\fIrows\fP\fB, int *\fP\fIcols\fP\fB, int *\fImax\fB);\fP
+.fi
 .SH DESCRIPTION
 The function \fBfield_info\fR returns the sizes and other attributes passed in
 to the field at its creation time.

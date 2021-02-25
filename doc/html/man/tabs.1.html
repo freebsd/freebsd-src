@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: tabs.1,v 1.27 2020/02/02 23:34:34 tom Exp @
+  * @Id: tabs.1,v 1.28 2020/12/19 21:50:22 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -63,20 +63,21 @@
            stty tab0
 
        Like <STRONG><A HREF="clear.1.html">clear(1)</A></STRONG>, <STRONG>tabs</STRONG> writes to the standard output.   You  can  redirect
-       the standard output to a file (which prevents <STRONG>tabs</STRONG> from actually chang-
-       ing the tabstops), and later <STRONG>cat</STRONG> the file to the screen,  setting  tab-
-       stops at that point.
+       the  standard  output  to  a  file  (which  prevents <STRONG>tabs</STRONG> from actually
+       changing the tabstops), and later <STRONG>cat</STRONG> the file to the  screen,  setting
+       tabstops at that point.
 
-       These  are  hardware  tabs, which cannot be queried rapidly by applica-
-       tions running in the terminal, if at all.  Curses and other full-screen
-       applications  may  use  hardware tabs in optimizing their output to the
-       terminal.  If the hardware tabstops differ from the information in  the
-       terminal  database, the result is unpredictable.  Before running curses
-       programs, you should either reset tab-stops to the standard interval
+       These   are   hardware   tabs,  which  cannot  be  queried  rapidly  by
+       applications running in the terminal, if  at  all.   Curses  and  other
+       full-screen  applications  may  use  hardware  tabs in optimizing their
+       output to the terminal.  If  the  hardware  tabstops  differ  from  the
+       information  in  the  terminal  database,  the result is unpredictable.
+       Before running curses programs, you should either  reset  tab-stops  to
+       the standard interval
 
            tabs -8
 
-       or use the <STRONG>reset</STRONG> program, since the normal initialization sequences  do
+       or  use the <STRONG>reset</STRONG> program, since the normal initialization sequences do
        not ensure that tab-stops are reset.
 
 
@@ -84,29 +85,29 @@
 
 </PRE><H3><a name="h3-General-Options">General Options</a></H3><PRE>
        <STRONG>-T</STRONG><EM>name</EM>
-            Tell  <STRONG>tabs</STRONG>  which  terminal  type  to  use.  If this option is not
-            given, <STRONG>tabs</STRONG> will use the <STRONG>$TERM</STRONG> environment variable.  If  that  is
+            Tell <STRONG>tabs</STRONG> which terminal type to  use.   If  this  option  is  not
+            given,  <STRONG>tabs</STRONG>  will use the <STRONG>$TERM</STRONG> environment variable.  If that is
             not set, it will use the <EM>ansi+tabs</EM> entry.
 
-       <STRONG>-d</STRONG>   The  debugging  option  shows  a  ruler line, followed by two data
-            lines.  The first data line shows the  expected  tab-stops  marked
-            with  asterisks.  The second data line shows the actual tab-stops,
+       <STRONG>-d</STRONG>   The debugging option shows a ruler  line,  followed  by  two  data
+            lines.   The  first  data line shows the expected tab-stops marked
+            with asterisks.  The second data line shows the actual  tab-stops,
             marked with asterisks.
 
-       <STRONG>-n</STRONG>   This option tells <STRONG>tabs</STRONG> to check the options and run any  debugging
+       <STRONG>-n</STRONG>   This  option tells <STRONG>tabs</STRONG> to check the options and run any debugging
             option, but not to modify the terminal settings.
 
        <STRONG>-V</STRONG>   reports the version of ncurses which was used in this program, and
             exits.
 
        The <STRONG>tabs</STRONG> program processes a single list of tab stops.  The last option
-       to  be  processed  which  defines a list is the one that determines the
+       to be processed which defines a list is the  one  that  determines  the
        list to be processed.
 
 
 </PRE><H3><a name="h3-Implicit-Lists">Implicit Lists</a></H3><PRE>
-       Use a single number as an option, e.g., "<STRONG>-5</STRONG>" to set tabs at  the  given
-       interval  (in  this case 1, 6, 11, 16, 21, etc.).  Tabs are repeated up
+       Use  a  single number as an option, e.g., "<STRONG>-5</STRONG>" to set tabs at the given
+       interval (in this case 1, 6, 11, 16, 21, etc.).  Tabs are  repeated  up
        to the right margin of the screen.
 
        Use "<STRONG>-0</STRONG>" to clear all tabs.
@@ -115,15 +116,15 @@
 
 
 </PRE><H3><a name="h3-Explicit-Lists">Explicit Lists</a></H3><PRE>
-       An explicit list can be defined after the options (this does not use  a
-       "-").   The values in the list must be in increasing numeric order, and
-       greater than zero.  They are separated by a comma or a blank, for exam-
-       ple,
+       An  explicit list can be defined after the options (this does not use a
+       "-").  The values in the list must be in increasing numeric order,  and
+       greater  than  zero.   They  are  separated  by a comma or a blank, for
+       example,
 
            tabs 1,6,11,16,21
            tabs 1 6 11 16 21
 
-       Use  a  "+"  to treat a number as an increment relative to the previous
+       Use a "+" to treat a number as an increment relative  to  the  previous
        value, e.g.,
 
            tabs 1,+5,+5,+5,+5
@@ -154,59 +155,59 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       <EM>IEEE</EM>  <EM>Std</EM>  <EM>1003.1/The</EM>  <EM>Open</EM>   <EM>Group</EM>   <EM>Base</EM>   <EM>Specifications</EM>   <EM>Issue</EM>   <EM>7</EM>
+       <EM>IEEE</EM>   <EM>Std</EM>   <EM>1003.1/The</EM>   <EM>Open</EM>   <EM>Group</EM>   <EM>Base</EM>  <EM>Specifications</EM>  <EM>Issue</EM>  <EM>7</EM>
        (POSIX.1-2008) describes a <STRONG>tabs</STRONG> utility.  However
 
-       <STRONG>o</STRONG>   This  standard describes a <STRONG>+m</STRONG> option, to set a terminal's left-mar-
-           gin.  Very few of the entries in the terminal database provide  the
-           <STRONG>smgl</STRONG>  (<STRONG>set_left_margin</STRONG>)  or <STRONG>smglp</STRONG> (<STRONG>set_left_margin_parm</STRONG>) capability
-           needed to support the feature.
+       <STRONG>o</STRONG>   This standard describes a <STRONG>+m</STRONG> option,  to  set  a  terminal's  left-
+           margin.   Very  few of the entries in the terminal database provide
+           the  <STRONG>smgl</STRONG>   (<STRONG>set_left_margin</STRONG>)   or   <STRONG>smglp</STRONG>   (<STRONG>set_left_margin_parm</STRONG>)
+           capability needed to support the feature.
 
-       <STRONG>o</STRONG>   There is no counterpart in X/Open Curses Issue 7 for this  utility,
+       <STRONG>o</STRONG>   There  is no counterpart in X/Open Curses Issue 7 for this utility,
            unlike <STRONG>tput(1)</STRONG>.
 
-       The  <STRONG>-d</STRONG>  (debug)  and <STRONG>-n</STRONG> (no-op) options are extensions not provided by
+       The <STRONG>-d</STRONG> (debug) and <STRONG>-n</STRONG> (no-op) options are extensions  not  provided  by
        other implementations.
 
-       A <STRONG>tabs</STRONG> utility appeared in PWB/Unix 1.0 (1977).  There  was  a  reduced
-       version  of  the  <STRONG>tabs</STRONG>  utility in Unix 7th edition and in 3BSD (1979).
-       The latter supported a single "-n" option (to cause the first tab  stop
+       A  <STRONG>tabs</STRONG>  utility  appeared in PWB/Unix 1.0 (1977).  There was a reduced
+       version of the <STRONG>tabs</STRONG> utility in Unix 7th edition  and  in  3BSD  (1979).
+       The  latter supported a single "-n" option (to cause the first tab stop
        to be set on the left margin).  That option is not documented by POSIX.
 
-       The  PWB/Unix  <STRONG>tabs</STRONG>  utility,  which was included in System III (1980),
-       used built-in tables rather than the terminal database,  to  support  a
-       half-dozen  terminal  types.  It also had built-in logic to support the
-       left-margin, as well as a feature for copying the tab settings  from  a
+       The PWB/Unix <STRONG>tabs</STRONG> utility, which was included  in  System  III  (1980),
+       used  built-in  tables  rather than the terminal database, to support a
+       half-dozen terminal types.  It also had built-in logic to  support  the
+       left-margin,  as  well as a feature for copying the tab settings from a
        file.
 
-       Later  versions  of  Unix,  e.g.,  SVr4, added support for the terminal
-       database, but kept the tables, as a fallback.  In an  earlier  develop-
-       ment  effort,  the  tab-stop initialization provided by <STRONG>tset</STRONG> (1982) and
-       incorporated into <STRONG>tput</STRONG> uses the terminal database,
+       Later versions of Unix, e.g., SVr4,  added  support  for  the  terminal
+       database,   but  kept  the  tables,  as  a  fallback.   In  an  earlier
+       development effort, the tab-stop initialization provided by <STRONG>tset</STRONG> (1982)
+       and incorporated into <STRONG>tput</STRONG> uses the terminal database,
 
-       POSIX documents no limits on the number of  tab  stops.   Documentation
+       POSIX  documents  no  limits on the number of tab stops.  Documentation
        for other implementations states that there is a limit on the number of
-       tab stops (e.g., 20 in PWB/Unix's <STRONG>tabs</STRONG> utility).  While some  terminals
-       may  not  accept  an arbitrary number of tab stops, this implementation
-       will attempt to set tab stops up to the right margin of the screen,  if
+       tab  stops (e.g., 20 in PWB/Unix's <STRONG>tabs</STRONG> utility).  While some terminals
+       may not accept an arbitrary number of tab  stops,  this  implementation
+       will  attempt to set tab stops up to the right margin of the screen, if
        the given list happens to be that long.
 
-       The  <EM>Rationale</EM> section of the POSIX documentation goes into some detail
-       about the ways the committee considered redesigning the <STRONG>tabs</STRONG>  and  <STRONG>tput</STRONG>
+       The <EM>Rationale</EM> section of the POSIX documentation goes into some  detail
+       about  the  ways the committee considered redesigning the <STRONG>tabs</STRONG> and <STRONG>tput</STRONG>
        utilities, without proposing an improved solution.  It comments that
 
-            no  known  historical  version  of tabs supports the capability of
+            no known historical version of tabs  supports  the  capability  of
             setting arbitrary tab stops.
 
-       However, the <EM>Explicit</EM> <EM>Lists</EM> described in this manual page  were  imple-
-       mented  in  PWB/Unix.  Those provide the capability of setting abitrary
-       tab stops.
+       However,  the  <EM>Explicit</EM>  <EM>Lists</EM>  described  in  this  manual  page  were
+       implemented in PWB/Unix.   Those  provide  the  capability  of  setting
+       abitrary tab stops.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="tset.1.html">tset(1)</A></STRONG>, <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG>, <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>.
+       <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG>, <STRONG><A HREF="tset.1.html">tset(1)</A></STRONG>, <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>.
 
-       This describes <STRONG>ncurses</STRONG> version 6.2 (patch 20200215).
+       This describes <STRONG>ncurses</STRONG> version 6.2 (patch 20210109).
 
 
 

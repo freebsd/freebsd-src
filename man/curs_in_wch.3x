@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_in_wch.3x,v 1.9 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_in_wch.3x,v 1.10 2020/10/17 23:19:29 tom Exp $
 .TH curs_in_wch 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -43,11 +43,11 @@
 .sp
 \fBint in_wch(cchar_t *\fR\fIwcval\fR\fB);\fR
 .br
+\fBint win_wch(WINDOW *\fR\fIwin\fR\fB, cchar_t *\fR\fIwcval\fR\fB);\fR
+.sp
 \fBint mvin_wch(int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, cchar_t *\fR\fIwcval\fR\fB);\fR
 .br
 \fBint mvwin_wch(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, cchar_t *\fR\fIwcval\fR\fB);\fR
-.br
-\fBint win_wch(WINDOW *\fR\fIwin\fR\fB, cchar_t *\fR\fIwcval\fR\fB);\fR
 .SH DESCRIPTION
 These functions extract the complex character and rendition from
 the current position in the named window into the \fBcchar_t\fR object

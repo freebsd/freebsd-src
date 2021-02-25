@@ -27,14 +27,14 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_print.3x,v 1.14 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_print.3x,v 1.16 2020/10/24 09:25:14 tom Exp $
 .TH curs_print 3X ""
 .SH NAME
 \fBmcprint\fR \- ship binary data to printer
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
-\fBint mcprint(char *data, int len);\fR
+\fBint mcprint(char *\fP\fIdata\fP\fB, int \fP\fIlen\fP\fB);\fR
 .SH DESCRIPTION
 This function uses the \fBmc5p\fR or \fBmc4\fR and \fBmc5\fR capabilities,
 if they are present, to ship given data to a printer attached to the terminal.
@@ -51,7 +51,7 @@ rule of thumb is to sleep for a second after shipping each 80-character line.
 .SH RETURN VALUE
 The \fBmcprint\fR function returns \fBERR\fR if the write operation aborted
 for some reason.
-In this case, errno will contain either an error associated
+In this case, \fBerrno\fP will contain either an error associated
 with \fBwrite\fP(2) or one of the following:
 .TP 5
 ENODEV

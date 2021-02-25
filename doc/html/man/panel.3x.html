@@ -100,11 +100,11 @@
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
        Panels  are  <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG> windows with the added feature of depth.  Panel
-       functions allow the use of stacked windows and ensure the  proper  por-
-       tions  of  each  window and the curses <STRONG>stdscr</STRONG> window are hidden or dis-
-       played when panels are added, moved, modified or removed.  The  set  of
-       currently  visible panels is the stack of panels.  The <STRONG>stdscr</STRONG> window is
-       beneath all panels, and is not considered part of the stack.
+       functions allow the use  of  stacked  windows  and  ensure  the  proper
+       portions  of  each  window  and  the curses <STRONG>stdscr</STRONG> window are hidden or
+       displayed when panels are added, moved, modified or removed.   The  set
+       of  currently visible panels is the stack of panels.  The <STRONG>stdscr</STRONG> window
+       is beneath all panels, and is not considered part of the stack.
 
        A window is associated with every panel.  The panel routines enable you
        to  create, move, hide, and show panels, as well as position a panel at
@@ -125,8 +125,8 @@
 
 
 </PRE><H3><a name="h3-del_panel">del_panel</a></H3><PRE>
-       <STRONG>del_panel(</STRONG><EM>pan</EM><STRONG>)</STRONG>  removes the given panel <EM>pan</EM> from the  stack and deallo-
-       cates the <STRONG>PANEL</STRONG> structure (but not its associated window).
+       <STRONG>del_panel(</STRONG><EM>pan</EM><STRONG>)</STRONG>  removes  the  given  panel  <EM>pan</EM>  from  the   stack  and
+       deallocates the <STRONG>PANEL</STRONG> structure (but not its associated window).
 
 
 </PRE><H3><a name="h3-ground_panel">ground_panel</a></H3><PRE>
@@ -213,8 +213,8 @@
 
 </PRE><H2><a name="h2-DIAGNOSTICS">DIAGNOSTICS</a></H2><PRE>
        Each routine that returns a pointer returns <STRONG>NULL</STRONG> if  an  error  occurs.
-       Each  routine  that returns an int value returns <STRONG>OK</STRONG> if it executes suc-
-       cessfully and <STRONG>ERR</STRONG> if not.
+       Each  routine  that  returns  an  int  value  returns <STRONG>OK</STRONG> if it executes
+       successfully and <STRONG>ERR</STRONG> if not.
 
        Except as noted, the <EM>pan</EM> and <EM>window</EM> parameters must  be  non-null.   If
        those are null, an error is returned.
@@ -227,16 +227,16 @@
        Reasonable care has been taken  to   ensure   compatibility  with   the
        native   panel  facility introduced in System V (inspection of the SVr4
        manual pages suggests the programming  interface  is  unchanged).   The
-       <STRONG>PANEL</STRONG>  data  structures  are  merely  similar.  The  programmer is cau-
-       tioned not to directly use <STRONG>PANEL</STRONG> fields.
+       <STRONG>PANEL</STRONG>   data  structures  are  merely   similar.   The   programmer  is
+       cautioned not to directly use <STRONG>PANEL</STRONG> fields.
 
-       The functions <STRONG>show_panel</STRONG> and <STRONG>top_panel</STRONG> are identical in this  implemen-
-       tation,  and work equally well with displayed or hidden panels.  In the
-       native System V implementation, <STRONG>show_panel</STRONG> is  intended  for  making  a
-       hidden  panel  visible  (at  the  top  of  the  stack) and <STRONG>top_panel</STRONG> is
-       intended for making an already-visible panel move to  the  top  of  the
-       stack.  You are cautioned to use the correct function to ensure compat-
-       ibility with native panel libraries.
+       The  functions  <STRONG>show_panel</STRONG>  and  <STRONG>top_panel</STRONG>  are   identical   in   this
+       implementation,  and work equally well with displayed or hidden panels.
+       In the native System  V  implementation,  <STRONG>show_panel</STRONG>  is  intended  for
+       making  a  hidden panel visible (at the top of the stack) and <STRONG>top_panel</STRONG>
+       is intended for making an already-visible panel move to the top of  the
+       stack.   You  are  cautioned  to  use  the  correct  function to ensure
+       compatibility with native panel libraries.
 
 
 </PRE><H2><a name="h2-NOTE">NOTE</a></H2><PRE>
@@ -281,13 +281,13 @@
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>,
 
-       This describes <STRONG>ncurses</STRONG> version 6.2 (patch 20200215).
+       This describes <STRONG>ncurses</STRONG> version 6.2 (patch 20210109).
 
 
 </PRE><H2><a name="h2-AUTHOR">AUTHOR</a></H2><PRE>
-       Originally  written by Warren Tucker &lt;wht@n4hgf.mt-park.ga.us&gt;, primar-
-       ily to assist in porting <EM>u386mon</EM> to systems  without  a  native  panels
-       library.
+       Originally   written   by   Warren   Tucker  &lt;wht@n4hgf.mt-park.ga.us&gt;,
+       primarily to assist in porting <EM>u386mon</EM>  to  systems  without  a  native
+       panels library.
 
        Repackaged for ncurses by Zeyd ben-Halim.
 

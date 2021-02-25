@@ -42,7 +42,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_ttyflags.c,v 1.34 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_ttyflags.c,v 1.36 2020/09/05 22:54:47 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(_nc_get_tty_mode) (NCURSES_SP_DCLx TTY * buf)
@@ -156,6 +156,8 @@ NCURSES_SP_NAME(def_shell_mode) (NCURSES_SP_DCL0)
 #ifdef TERMIOS
 	    if (termp->Ottyb.c_oflag & OFLAGS_TABS)
 		tab = back_tab = NULL;
+#elif defined(EXP_WIN32_DRIVER)
+	    /* noop */
 #else
 	    if (termp->Ottyb.sg_flags & XTABS)
 		tab = back_tab = NULL;
@@ -193,6 +195,8 @@ NCURSES_SP_NAME(def_prog_mode) (NCURSES_SP_DCL0)
 	if (_nc_get_tty_mode(&termp->Nttyb) == OK) {
 #ifdef TERMIOS
 	    termp->Nttyb.c_oflag &= (unsigned) (~OFLAGS_TABS);
+#elif defined(EXP_WIN32_DRIVER)
+	    /* noop */
 #else
 	    termp->Nttyb.sg_flags &= (unsigned) (~XTABS);
 #endif

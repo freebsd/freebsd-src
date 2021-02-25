@@ -28,7 +28,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: menu_hook.3x,v 1.14 2020/02/02 23:34:34 tom Exp @
+  * @Id: menu_hook.3x,v 1.15 2020/10/17 23:44:57 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -53,14 +53,18 @@
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;menu.h&gt;</STRONG>
-       int set_item_init(MENU *menu, Menu_Hook func);
-       Menu_Hook item_init(const MENU *menu);
-       int set_item_term(MENU *menu, Menu_Hook func);
-       Menu_Hook item_term(const MENU *menu);
-       int set_menu_init(MENU *menu, Menu_Hook func);
-       Menu_Hook menu_init(const MENU *menu);
-       int set_menu_term(MENU *menu, Menu_Hook func);
-       Menu_Hook menu_term(const MENU *menu);
+
+       <STRONG>int</STRONG> <STRONG>set_item_init(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>Menu_Hook</STRONG> <EM>func);</EM>
+       <STRONG>Menu_Hook</STRONG> <STRONG>item_init(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu);</EM>
+
+       <STRONG>int</STRONG> <STRONG>set_item_term(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>Menu_Hook</STRONG> <EM>func);</EM>
+       <STRONG>Menu_Hook</STRONG> <STRONG>item_term(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu);</EM>
+
+       <STRONG>int</STRONG> <STRONG>set_menu_init(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>Menu_Hook</STRONG> <EM>func);</EM>
+       <STRONG>Menu_Hook</STRONG> <STRONG>menu_init(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu);</EM>
+
+       <STRONG>int</STRONG> <STRONG>set_menu_term(MENU</STRONG> <STRONG>*</STRONG><EM>menu</EM><STRONG>,</STRONG> <STRONG>Menu_Hook</STRONG> <EM>func);</EM>
+       <STRONG>Menu_Hook</STRONG> <STRONG>menu_term(const</STRONG> <STRONG>MENU</STRONG> <STRONG>*</STRONG><EM>menu);</EM>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -109,8 +113,8 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These  routines  emulate the System V menu library.  They were not sup-
-       ported on Version 7 or BSD versions.
+       These  routines  emulate  the  System  V  menu  library.  They were not
+       supported on Version 7 or BSD versions.
 
 
 </PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>

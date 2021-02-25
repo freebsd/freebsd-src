@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_ins_wch.3x,v 1.8 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_ins_wch.3x,v 1.10 2020/10/18 00:22:21 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -55,9 +55,10 @@
        #include &lt;curses.h&gt;
 
        <STRONG>int</STRONG> <STRONG>ins_wch(const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wins_wch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win,</EM> <EM>const</EM> <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM> <EM>*wch</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvins_wch(int</STRONG> <EM>y,</EM> <EM>int</EM> <EM>x,</EM> <EM>const</EM> <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM> <EM>*wch</EM><STRONG>);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwins_wch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win,</EM> <EM>int</EM> <EM>y,</EM> <EM>int</EM> <EM>x,</EM> <EM>const</EM> <EM>cchar</EM><STRONG>_</STRONG><EM>t</EM> <EM>*wch</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wins_wch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>mvins_wch(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwins_wch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>

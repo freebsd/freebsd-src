@@ -28,7 +28,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_getch.3x,v 1.55 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_getch.3x,v 1.57 2020/12/19 21:38:20 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -57,9 +57,13 @@
 
        <STRONG>int</STRONG> <STRONG>getch(void);</STRONG>
        <STRONG>int</STRONG> <STRONG>wgetch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win);</EM>
+
        <STRONG>int</STRONG> <STRONG>mvgetch(int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvwgetch(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>);</STRONG>
+
        <STRONG>int</STRONG> <STRONG>ungetch(int</STRONG> <EM>ch</EM><STRONG>);</STRONG>
+
+       /* extension */
        <STRONG>int</STRONG> <STRONG>has_key(int</STRONG> <EM>ch</EM><STRONG>);</STRONG>
 
 
@@ -176,11 +180,11 @@
                   KEY_ENTER       Enter or send
                   KEY_SRESET      Soft (partial) reset
                   KEY_RESET       Reset or hard reset
+
                   KEY_PRINT       Print or copy
                   KEY_LL          Home down or bottom (lower left)
                   KEY_A1          Upper left of keypad
                   KEY_A3          Upper right of keypad
-
                   KEY_B2          Center of keypad
                   KEY_C1          Lower left of keypad
                   KEY_C3          Lower right of keypad
@@ -371,8 +375,8 @@
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,    <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>,    <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,    <STRONG><A HREF="curs_mouse.3x.html">curs_mouse(3x)</A></STRONG>,
-       <STRONG><A HREF="curs_move.3x.html">curs_move(3x)</A></STRONG>, <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG><A HREF="resizeterm.3x.html">resizeterm(3x)</A></STRONG>.
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>, <STRONG><A HREF="curs_mouse.3x.html">curs_mouse(3x)</A></STRONG>,  <STRONG><A HREF="curs_move.3x.html">curs_move(3x)</A></STRONG>,  <STRONG>curs_out-</STRONG>
+       <STRONG><A HREF="curs_outopts.3x.html">opts(3x)</A></STRONG>, <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG><A HREF="resizeterm.3x.html">resizeterm(3x)</A></STRONG>.
 
        Comparable  functions  in the wide-character (ncursesw) library are de-
        scribed in <STRONG><A HREF="curs_get_wch.3x.html">curs_get_wch(3x)</A></STRONG>.

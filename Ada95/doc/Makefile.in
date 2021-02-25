@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.7 2020/02/02 23:34:34 tom Exp $
+# $Id: Makefile.in,v 1.8 2021/01/23 20:42:08 tom Exp $
 ##############################################################################
-# Copyright 2019,2020 Thomas E. Dickey                                       #
+# Copyright 2019-2020,2021 Thomas E. Dickey                                  #
 # Copyright 2011-2015,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -69,7 +69,7 @@ uninstall uninstall.man :
 
 # HTML documentation is optional, usually in a separate package.
 install.html : $(DOCDIR)
-	cd $(srcdir) && tar -cf - *.htm* ada | tar -C $(DOCDIR) -xf -
+	( cd $(srcdir) && tar -cf - *.htm* ada | tar -C $(DOCDIR) -xf - )
 
 uninstall.html :
 	-rm -rf $(DOCDIR)

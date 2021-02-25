@@ -58,8 +58,8 @@
 
        A default <STRONG>TERM</STRONG> value  will  be  set  on  a  per-line  basis  by  either
        <STRONG>/etc/inittab</STRONG>  (e.g.,  System-V-like  UNIXes) or <STRONG>/etc/ttys</STRONG> (BSD UNIXes).
-       This will nearly always suffice for workstation and microcomputer  con-
-       soles.
+       This will nearly  always  suffice  for  workstation  and  microcomputer
+       consoles.
 
        If  you  use a dialup line, the type of device attached to it may vary.
        Older UNIX systems pre-set a very dumb terminal  type  like  "dumb"  or
@@ -69,10 +69,10 @@
 
        Modern  telnets pass your <STRONG>TERM</STRONG> environment variable from the local side
        to the remote one.  There can be problems if  the  remote  terminfo  or
-       termcap entry for your type is not compatible with yours, but this sit-
-       uation is rare and can almost always be avoided by explicitly exporting
-       "vt100"  (assuming you are in fact using a VT100-superset console, ter-
-       minal, or terminal emulator.)
+       termcap  entry  for  your  type  is not compatible with yours, but this
+       situation is rare and  can  almost  always  be  avoided  by  explicitly
+       exporting  "vt100"  (assuming  you  are  in fact using a VT100-superset
+       console, terminal, or terminal emulator.)
 
        In any case, you are free to override the system <STRONG>TERM</STRONG> setting  to  your
        taste in your shell profile.  The <STRONG><A HREF="tset.1.html">tset(1)</A></STRONG> utility may be of assistance;
@@ -90,10 +90,10 @@
 
             toe | more
 
-       from your shell.  These capability files are in a binary  format  opti-
-       mized  for  retrieval  speed  (unlike the old text-based <STRONG>termcap</STRONG> format
-       they replace); to examine an entry, you must use the  <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG>  com-
-       mand.  Invoke it as follows:
+       from your shell.   These  capability  files  are  in  a  binary  format
+       optimized for retrieval speed (unlike the old text-based <STRONG>termcap</STRONG> format
+       they replace); to examine  an  entry,  you  must  use  the  <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG>
+       command.  Invoke it as follows:
 
             infocmp <EM>entry</EM><STRONG>_</STRONG><EM>name</EM>
 
@@ -109,21 +109,21 @@
        name field (if distinct from the first) is actually  a  description  of
        the  terminal  type  (it  may contain blanks; the others must be single
        words).  Name fields between  the  first  and  last  (if  present)  are
-       aliases for the terminal, usually historical names retained for compat-
-       ibility.
+       aliases  for  the  terminal,  usually  historical  names  retained  for
+       compatibility.
 
        There are some conventions for how to  choose  terminal  primary  names
        that  help  keep  them  informative and unique.  Here is a step-by-step
        guide to naming terminals that also explains how to parse them:
 
-       First, choose a root name.  The root will consist of a lower-case  let-
-       ter  followed by up to seven lower-case letters or digits.  You need to
-       avoid using punctuation characters in root names, because they are used
-       and  interpreted  as filenames and shell meta-characters (such as !, $,
-       *, ?, etc.) embedded in them may cause odd and unhelpful behavior.  The
-       slash  (/),  or any other character that may be interpreted by anyone's
-       file system (\, $, [, ]), is especially dangerous  (terminfo  is  plat-
-       form-independent,  and  choosing  names  with  special characters could
+       First, choose a root name.  The  root  will  consist  of  a  lower-case
+       letter  followed by up to seven lower-case letters or digits.  You need
+       to avoid using punctuation characters in root names, because  they  are
+       used and interpreted as filenames and shell meta-characters (such as !,
+       $, *, ?, etc.) embedded in them may cause odd and  unhelpful  behavior.
+       The  slash  (/),  or  any  other  character  that may be interpreted by
+       anyone's file system (\, $, [, ]), is especially dangerous (terminfo is
+       platform-independent,  and choosing names with special characters could
        someday make life difficult for users of a future port).  The  dot  (.)
        character  is  relatively safe as long as there is at most one per root
        name; some historical terminfo names use it.
@@ -144,18 +144,18 @@
        or the console driver release level.
 
        The  root name for a terminal emulator (assuming it does not fit one of
-       the standard ANSI or vt100 types) should be the program name or a read-
-       ily recognizable abbreviation of it (i.e., <STRONG>versaterm</STRONG>, <STRONG>ctrm</STRONG>).
+       the standard ANSI or vt100 types) should  be  the  program  name  or  a
+       readily recognizable abbreviation of it (i.e., <STRONG>versaterm</STRONG>, <STRONG>ctrm</STRONG>).
 
        Following  the  root name, you may add any reasonable number of hyphen-
        separated feature suffixes.
 
        2p   Has two pages of memory.  Likewise 4p, 8p, etc.
 
-       mc   Magic-cookie.  Some terminals (notably older Wyses) can only  sup-
-            port one attribute without magic-cookie lossage.  Their base entry
-            is usually paired with another that has this suffix and uses magic
-            cookies to support multiple attributes.
+       mc   Magic-cookie.  Some  terminals  (notably  older  Wyses)  can  only
+            support  one  attribute  without magic-cookie lossage.  Their base
+            entry is usually paired with another that has this suffix and uses
+            magic cookies to support multiple attributes.
 
        -am  Enable auto-margin (right-margin wraparound).
 
@@ -191,8 +191,8 @@
 
        Commands which use a terminal type to control display often accept a -T
        option that accepts a terminal name  argument.   Such  programs  should
-       fall  back on the <STRONG>TERM</STRONG> environment variable when no -T option is speci-
-       fied.
+       fall  back  on  the  <STRONG>TERM</STRONG>  environment  variable  when  no -T option is
+       specified.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>

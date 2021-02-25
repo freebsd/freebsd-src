@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_threads.3x,v 1.25 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_threads.3x,v 1.27 2020/12/30 18:28:51 tom Exp $
 .TH curs_threads 3X ""
 .de bP
 .ie n  .IP \(bu 4
@@ -45,16 +45,16 @@
 \fBtypedef int (*NCURSES_WINDOW_CB)(WINDOW *, void *);\fR
 .br
 \fBtypedef int (*NCURSES_SCREEN_CB)(SCREEN *, void *);\fR
-.br
+.sp
 \fBint get_escdelay(void);\fR
 .br
-\fBint set_escdelay(int size);\fR
+\fBint set_escdelay(int \fP\fIms\fP\fB);\fR
 .br
-\fBint set_tabsize(int size);\fR
+\fBint set_tabsize(int \fP\fIcols\fP\fB);\fR
+.sp
+\fBint use_screen(SCREEN *\fP\fIscr\fP\fB, NCURSES_SCREEN_CB \fP\fIfunc\fP\fB, void *\fP\fIdata\fP\fB);\fR
 .br
-\fBint use_screen(SCREEN *scr, NCURSES_SCREEN_CB func, void *data);\fR
-.br
-\fBint use_window(WINDOW *win, NCURSES_WINDOW_CB func, void *data);\fR
+\fBint use_window(WINDOW *\fP\fIwin\fP\fB, NCURSES_WINDOW_CB \fP\fIfunc\fP\fB, void *\fP\fIdata\fP\fB);\fR
 .br
 .SH DESCRIPTION
 This implementation can be configured to provide rudimentary support

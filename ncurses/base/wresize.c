@@ -34,7 +34,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: wresize.c,v 1.39 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: wresize.c,v 1.41 2020/04/18 21:01:00 tom Exp $")
 
 static int
 cleanup_lines(struct ldat *data, int length)
@@ -176,7 +176,15 @@ wresize(WINDOW *win, int ToLines, int ToCols)
 		    if (s == 0)
 			returnCode(cleanup_lines(new_lines, row));
 		    for (col = 0; col <= ToCols; ++col) {
-			s[col] = (col <= size_x
+			bool valid = (col <= size_x);
+			if_WIDEC({
+			    if (col == ToCols
+				&& col < size_x
+				&& isWidecBase(win->_line[row].text[col])) {
+				valid = FALSE;
+			    }
+			});
+			s[col] = (valid
 				  ? win->_line[row].text[col]
 				  : win->_nc_bkgd);
 		    }

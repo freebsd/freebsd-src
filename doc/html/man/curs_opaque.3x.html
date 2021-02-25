@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_opaque.3x,v 1.14 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_opaque.3x,v 1.15 2020/10/24 09:41:22 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -55,21 +55,21 @@
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>bool</STRONG> <STRONG>is_cleared(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>bool</STRONG> <STRONG>is_idcok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>bool</STRONG> <STRONG>is_idlok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>bool</STRONG> <STRONG>is_immedok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>bool</STRONG> <STRONG>is_keypad(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>bool</STRONG> <STRONG>is_leaveok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>bool</STRONG> <STRONG>is_nodelay(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>bool</STRONG> <STRONG>is_notimeout(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>bool</STRONG> <STRONG>is_pad(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>bool</STRONG> <STRONG>is_scrollok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>bool</STRONG> <STRONG>is_subwin(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>bool</STRONG> <STRONG>is_syncok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>WINDOW</STRONG> <STRONG>*</STRONG> <STRONG>wgetparent(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wgetdelay(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
-       <STRONG>int</STRONG> <STRONG>wgetscrreg(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>*top,</STRONG> <STRONG>int</STRONG> <STRONG>*bottom);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_cleared(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_idcok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_idlok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_immedok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_keypad(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_leaveok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_nodelay(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_notimeout(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_pad(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_scrollok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_subwin(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_syncok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>WINDOW</STRONG> <STRONG>*</STRONG> <STRONG>wgetparent(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wgetdelay(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wgetscrreg(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <STRONG>*</STRONG><EM>top</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <STRONG>*</STRONG><EM>bottom</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>

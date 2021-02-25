@@ -28,7 +28,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: mitem_name.3x,v 1.11 2020/02/02 23:34:34 tom Exp @
+  * @Id: mitem_name.3x,v 1.14 2020/10/18 00:37:48 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -53,8 +53,9 @@
 
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;menu.h&gt;</STRONG>
-       const char *item_name(const ITEM *item);
-       const char *item_description(const ITEM *item);
+
+       <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*item_name(const</STRONG> <STRONG>ITEM</STRONG> <STRONG>*</STRONG><EM>item</EM><STRONG>);</STRONG>
+       <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*item_description(const</STRONG> <STRONG>ITEM</STRONG> <STRONG>*</STRONG><EM>item</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -65,7 +66,7 @@
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
        These routines return a pointer (which may be <STRONG>NULL</STRONG>).  They do  not  set
-       errno.
+       <STRONG>errno</STRONG>.
 
 
 </PRE><H2><a name="h2-SEE-ALSO">SEE ALSO</a></H2><PRE>
@@ -78,8 +79,8 @@
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>
-       These routines emulate the System V menu library.  They were  not  sup-
-       ported on Version 7 or BSD versions.
+       These routines emulate the  System  V  menu  library.   They  were  not
+       supported on Version 7 or BSD versions.
 
 
 </PRE><H2><a name="h2-AUTHORS">AUTHORS</a></H2><PRE>

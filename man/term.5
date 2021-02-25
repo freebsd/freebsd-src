@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: term.5,v 1.33 2020/02/02 23:34:34 tom Exp $
+.\" $Id: term.5,v 1.38 2020/07/25 21:56:02 tom Exp $
 .TH term 5
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -99,83 +99,116 @@ or sign extension are made.
 The compiled file is created with the \fB@TIC@\fP program,
 and read by the routine \fBsetupterm\fP(3X).
 The file is divided into six parts:
-the header,
-terminal names,
-boolean flags,
-numbers,
-strings,
-and
-string table.
+.RS 5
+.TP 3
+a) \fIheader\fP,
+.TP 3
+b) \fIterminal names\fP,
+.TP 3
+c) \fIboolean flags\fP,
+.TP 3
+d) \fInumbers\fP,
+.TP 3
+e) \fIstrings\fP, and
+.TP 3
+f) \fIstring table\fP.
+.RE
 .PP
-The header section begins the file.
+The \fIheader\fP section begins the file.
 This section contains six short integers in the format
 described below.
 These integers are
 .RS 5
 .TP 5
-(1) the magic number (octal 0432);
+(1) the \fImagic number\fP (octal 0432);
 .TP 5
-(2) the size, in bytes, of the names section;
+(2) the size, in bytes, of the \fIterminal names\fP section;
 .TP 5
-(3) the number of bytes in the boolean section;
+(3) the number of bytes in the \fIboolean flags\fP section;
 .TP 5
-(4) the number of short integers in the numbers section;
+(4) the number of short integers in the \fInumbers\fP section;
 .TP 5
-(5) the number of offsets (short integers) in the strings section;
+(5) the number of offsets (short integers) in the \fIstrings\fP section;
 .TP 5
-(6) the size, in bytes, of the string table.
+(6) the size, in bytes, of the \fIstring table\fP.
 .RE
 .PP
-Short integers are stored in two 8-bit bytes.
+The capabilities in the
+\fIboolean flags\fP,
+\fInumbers\fP, and
+\fIstrings\fP
+sections are in the same order as the file <term.h>.
+.PP
+Short integers are signed, in the range \-32768 to 32767.
+They are stored as two 8-bit bytes.
 The first byte contains the least significant 8 bits of the value,
 and the second byte contains the most significant 8 bits.
 (Thus, the value represented is 256*second+first.)
-The value \-1 is represented by the two bytes 0377, 0377; other negative
-values are illegal.
-This value generally
-means that the corresponding capability is missing from this terminal.
-Note that this format corresponds to the hardware of the \s-1VAX\s+1
+This format corresponds to the hardware of the \s-1VAX\s+1
 and \s-1PDP\s+1-11 (that is, little-endian machines).
 Machines where this does not correspond to the hardware must read the
 integers as two bytes and compute the little-endian value.
 .PP
-The terminal names section comes next.
+Numbers in a terminal description,
+whether they are entries in the \fInumbers\fP or \fIstrings\fP table,
+are positive integers.
+Boolean flags are treated as positive one-byte integers.
+In each case, those positive integers represent a terminal capability.
+The terminal compiler @TIC@ uses negative integers to handle the cases where
+a capability is not available:
+.bP
+If a capability is absent from this terminal,
+@TIC@ stores a \-1 in the corresponding table.
+.IP
+The integer value \-1 is represented by two bytes 0377, 0377.
+.br
+Absent boolean values are represented by the byte 0 (false).
+.bP
+If a capability has been canceled from this terminal,
+@TIC@ stores a \-2 in the corresponding table.
+.IP
+The integer value \-2 is represented by two bytes 0377, 0376.
+.br
+The boolean value \-2 is represented by the byte 0376.
+.br
+.bP
+Other negative values are illegal.
+.PP
+The \fIterminal names\fP section comes after the \fIheader\fP.
 It contains the first line of the terminfo description,
 listing the various names for the terminal,
 separated by the \*(``|\*('' character.
-The section is terminated with an \s-1ASCII NUL\s+1 character.
+The \fIterminal names\fP section is terminated
+with an \s-1ASCII NUL\s+1 character.
 .PP
-The boolean flags have one byte for each flag.
-This byte is either 0 or 1 as the flag is present or absent.
-The capabilities are in the same order as the file <term.h>.
+The \fIboolean flags\fP section has one byte for each flag.
+Boolean capabilities are either 1 or 0 (true or false)
+according to whether the terminal supports the given capability or not.
 .PP
-Between the boolean section and the number section,
+Between the \fIboolean flags\fP section and the \fInumber\fP section,
 a null byte will be inserted, if necessary,
-to ensure that the number section begins on an even byte (this is a
-relic of the PDP\-11's word-addressed architecture, originally
-designed in to avoid IOT traps induced by addressing a word on an
-odd byte boundary).
+to ensure that the \fInumber\fP section begins on an even byte
+This is a relic of the PDP\-11's word-addressed architecture,
+originally designed to avoid traps induced
+by addressing a word on an odd byte boundary.
 All short integers are aligned on a short word boundary.
 .PP
-The numbers section is similar to the flags section.
+The \fInumbers\fP section is similar to the \fIboolean flags\fP section.
 Each capability takes up two bytes,
 and is stored as a little-endian short integer.
-If the value represented is \-1, the capability is taken to be missing.
 .PP
-The strings section is also similar.
-Each capability is stored as a short integer, in the format above.
-A value of \-1 means the capability is missing.
-Otherwise, the value is taken as an offset from the beginning
-of the string table.
+The \fIstrings\fP section is also similar.
+Each capability is stored as a short integer.
+The capability value is an index into the \fIstring table\fP.
+.PP
+The \fIstring table\fP is the last section.
+It contains all of the values of string capabilities referenced in
+the \fIstrings\fP section.
+Each string is null-terminated.
 Special characters in ^X or \ec notation are stored in their
 interpreted form, not the printing representation.
 Padding information $<nn> and parameter information %x are
 stored intact in uninterpreted form.
-.PP
-The final section is the string table.
-It contains all the values of string capabilities referenced in
-the string section.
-Each string is null terminated.
 .SS EXTENDED STORAGE FORMAT
 The previous section describes the conventional terminfo binary format.
 With some minor variations of the offsets (see PORTABILITY),
@@ -361,6 +394,11 @@ total compiled entries cannot exceed 4096 bytes in the legacy format.
 total compiled entries cannot exceed 32768 bytes in the extended format.
 .bP
 the name field cannot exceed 128 bytes.
+.PP
+Compiled entries are limited to 32768 bytes because offsets into the
+\fIstrings table\fP use two-byte integers.
+The legacy format could have supported 32768-byte entries,
+but was limited a virtual memory page's 4096 bytes.
 .SH FILES
 \*d/*/*	compiled terminal capability data base
 .SH SEE ALSO

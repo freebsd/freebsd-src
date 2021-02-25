@@ -28,7 +28,7 @@
   * authorization.                                                           *
   ****************************************************************************
   * Author: Thomas E. Dickey 1997
-  * @Id: define_key.3x,v 1.17 2020/02/02 23:34:34 tom Exp @
+  * @Id: define_key.3x,v 1.18 2020/10/24 09:52:54 tom Exp @
 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <HTML>
@@ -54,7 +54,7 @@
 </PRE><H2><a name="h2-SYNOPSIS">SYNOPSIS</a></H2><PRE>
        <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
 
-       <STRONG>int</STRONG> <STRONG>define_key(const</STRONG> <STRONG>char</STRONG> <STRONG>*definition,</STRONG> <STRONG>int</STRONG> <STRONG>keycode);</STRONG>
+       <STRONG>int</STRONG> <STRONG>define_key(const</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG><EM>definition</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>keycode</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -69,10 +69,10 @@
 
 
 </PRE><H2><a name="h2-RETURN-VALUE">RETURN VALUE</a></H2><PRE>
-       The keycode must be greater than zero, and the string non-null,  other-
-       wise  <STRONG>ERR</STRONG>  is  returned.  <STRONG>ERR</STRONG> may also be returned if there is insuffi-
-       cient memory to allocate the data to store the definition.  If no error
-       is detected, <STRONG>OK</STRONG> is returned.
+       The keycode must  be  greater  than  zero,  and  the  string  non-null,
+       otherwise  <STRONG>ERR</STRONG>  is  returned.   <STRONG>ERR</STRONG>  may  also  be returned if there is
+       insufficient memory to allocate the data to store the  definition.   If
+       no error is detected, <STRONG>OK</STRONG> is returned.
 
 
 </PRE><H2><a name="h2-PORTABILITY">PORTABILITY</a></H2><PRE>

@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_threads.3x,v 1.25 2020/02/02 23:34:34 tom Exp @
+  * @Id: curs_threads.3x,v 1.27 2020/12/30 18:28:51 tom Exp @
   * ***************************************************************************
   * ***************************************************************************
 -->
@@ -57,11 +57,13 @@
 
        <STRONG>typedef</STRONG> <STRONG>int</STRONG> <STRONG>(*NCURSES_WINDOW_CB)(WINDOW</STRONG> <STRONG>*,</STRONG> <STRONG>void</STRONG> <STRONG>*);</STRONG>
        <STRONG>typedef</STRONG> <STRONG>int</STRONG> <STRONG>(*NCURSES_SCREEN_CB)(SCREEN</STRONG> <STRONG>*,</STRONG> <STRONG>void</STRONG> <STRONG>*);</STRONG>
+
        <STRONG>int</STRONG> <STRONG>get_escdelay(void);</STRONG>
-       <STRONG>int</STRONG> <STRONG>set_escdelay(int</STRONG> <STRONG>size);</STRONG>
-       <STRONG>int</STRONG> <STRONG>set_tabsize(int</STRONG> <STRONG>size);</STRONG>
-       <STRONG>int</STRONG> <STRONG>use_screen(SCREEN</STRONG> <STRONG>*scr,</STRONG> <STRONG>NCURSES_SCREEN_CB</STRONG> <STRONG>func,</STRONG> <STRONG>void</STRONG> <STRONG>*data);</STRONG>
-       <STRONG>int</STRONG> <STRONG>use_window(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>NCURSES_WINDOW_CB</STRONG> <STRONG>func,</STRONG> <STRONG>void</STRONG> <STRONG>*data);</STRONG>
+       <STRONG>int</STRONG> <STRONG>set_escdelay(int</STRONG> <EM>ms</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>set_tabsize(int</STRONG> <EM>cols</EM><STRONG>);</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>use_screen(SCREEN</STRONG> <STRONG>*</STRONG><EM>scr</EM><STRONG>,</STRONG> <STRONG>NCURSES_SCREEN_CB</STRONG> <EM>func</EM><STRONG>,</STRONG> <STRONG>void</STRONG> <STRONG>*</STRONG><EM>data</EM><STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>use_window(WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>NCURSES_WINDOW_CB</STRONG> <EM>func</EM><STRONG>,</STRONG> <STRONG>void</STRONG> <STRONG>*</STRONG><EM>data</EM><STRONG>);</STRONG>
 
 
 </PRE><H2><a name="h2-DESCRIPTION">DESCRIPTION</a></H2><PRE>
@@ -178,9 +180,9 @@
             clrtobot                window (stdscr)
             clrtoeol                window (stdscr)
             color_content           screen
+
             color_set               window (stdscr)
             copywin                 window locks(source, target)
-
             cur_term                terminal
             curs_set                screen
             curscr                  screen (readonly)
@@ -245,9 +247,9 @@
             inchstr                 window (stdscr)
             init_color              screen
             init_pair               screen
+
             initscr                 global locks(screenlist)
             innstr                  window (stdscr)
-
             innwstr                 window (stdscr)
             ins_nwstr               window (stdscr)
             ins_wch                 window (stdscr)
@@ -312,9 +314,9 @@
             mvgetstr                screen (input-operation)
             mvhline                 window (stdscr)
             mvhline_set             window (stdscr)
+
             mvin_wch                window (stdscr)
             mvin_wchnstr            window (stdscr)
-
             mvin_wchstr             window (stdscr)
             mvinch                  window (stdscr)
             mvinchnstr              window (stdscr)
@@ -379,9 +381,9 @@
             newscr                  screen (readonly)
             newterm                 global locks(screenlist)
             newwin                  global locks(windowlist)
+
             nl                      screen
             nocbreak                screen
-
             nodelay                 window
             noecho                  screen
             nofilter                global
@@ -446,9 +448,9 @@
             slk_restore             screen
             slk_set                 screen
             slk_touch               screen
+
             slk_wset                screen
             standend                window
-
             standout                window
             start_color             screen
             stdscr                  screen (readonly)
@@ -513,9 +515,9 @@
             wattr_on                window
             wattr_set               window
             wattroff                window
+
             wattron                 window
             wattrset                window
-
             wbkgd                   window
             wbkgdset                window
             wbkgrnd                 window
@@ -580,9 +582,9 @@
             wsyncup                 screen (affects window plus parents)
             wtimeout                window
             wtouchln                window
+
             wunctrl                 global (static data)
             wvline                  window
-
             wvline_set              window
 
 

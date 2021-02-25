@@ -36,7 +36,7 @@
 #include "cursesf.h"
 #include "cursesapp.h"
 
-MODULE_ID("$Id: cursesf.cc,v 1.24 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: cursesf.cc,v 1.25 2020/07/18 19:57:11 anonymous.maarten Exp $")
 
 NCursesFormField::~NCursesFormField () THROWS(NCursesException)
 {
@@ -406,9 +406,18 @@ FIELDTYPE* UserDefinedFieldType::generic_fieldtype =
   ::new_fieldtype(_nc_xx_fld_fcheck,
 		  _nc_xx_fld_ccheck);
 
+
+UserDefinedFieldType::UserDefinedFieldType() : NCursesFieldType(generic_fieldtype) {
+}
+
 FIELDTYPE* UserDefinedFieldType_With_Choice::generic_fieldtype_with_choice =
   ::new_fieldtype(_nc_xx_fld_fcheck,
 		  _nc_xx_fld_ccheck);
+
+
+UserDefinedFieldType_With_Choice::UserDefinedFieldType_With_Choice() {
+  fieldtype = generic_fieldtype_with_choice;
+}
 
 bool _nc_xx_next_choice(FIELD *f, const void *u)
 {
@@ -461,3 +470,5 @@ public:
 };
 
 UDF_Init* UDF_Init::I = new UDF_Init();
+
+
