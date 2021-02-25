@@ -93,8 +93,6 @@ main() {
 		. "${VMCONFIG}"
 	fi
 
-	ROOTLABEL="gpt"
-
 	vm_create_base
 	vm_install_base
 	vm_extra_install_base

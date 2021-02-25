@@ -12,70 +12,17 @@ scriptdir=$(dirname $(realpath $0))
 export PATH="/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 trap "cleanup" INT QUIT TRAP ABRT TERM
 
-write_partition_layout() {
-	if [ -z "${NOSWAP}" ]; then
-		SWAPOPT="-p freebsd-swap/swapfs::${SWAPSIZE}"
-	fi
-
-	BOOTFILES="$(env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		WITH_UNIFIED_OBJDIR=yes \
-		make -C ${WORLDDIR}/stand -V .OBJDIR)"
-	BOOTFILES="$(realpath ${BOOTFILES})"
-
-	case "${TARGET}:${TARGET_ARCH}" in
-		amd64:amd64 | i386:i386)
-			ESP=yes
-			SCHEME=gpt
-			BOOTPARTS="-b ${BOOTFILES}/i386/pmbr/pmbr \
-				   -p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot"
-			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
-			;;
-		arm64:aarch64 | riscv:riscv64*)
-			ESP=yes
-			SCHEME=gpt
-			BOOTPARTS=
-			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
-			;;
-		powerpc:powerpc*)
-			ESP=no
-			SCHEME=apm
-			BOOTPARTS="-p apple-boot/bootfs:=${BOOTFILES}/powerpc/boot1.chrp/boot1.hfs"
-			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
-			;;
-		*)
-			echo "vmimage.subr: unsupported target '${TARGET}:${TARGET_ARCH}'" >&2
-			exit 1
-			;;
-	esac
-
-	if [ ${ESP} = "yes" ]; then
-		# Create an ESP
-		espfilename=$(mktemp /tmp/efiboot.XXXXXX)
-		make_esp_file ${espfilename} ${fat32min} ${BOOTFILES}/efi/loader_lua/loader_lua.efi
-		BOOTPARTS="${BOOTPARTS} -p efi/efiesp:=${espfilename}"
-
-		# Add this to fstab, requires temporarily remounting the fs
-		mddev=$(mdconfig -f ${VMBASE})
-		mount /dev/${mddev} ${DESTDIR}
-		mkdir -p ${DESTDIR}/boot/efi
-		echo "/dev/${ROOTLABEL}/efiesp	/boot/efi       msdosfs     rw      2       2" \
-			>> ${DESTDIR}/etc/fstab
-		umount ${DESTDIR}
-		mdconfig -d -u ${mddev}
-	fi
-
-	mkimg -s ${SCHEME} -f ${VMFORMAT} \
-		${BOOTPARTS} \
-		${SWAPOPT} \
-		${ROOTFSPART} \
-		-o ${VMIMAGE}
-
-	if [ ${ESP} = "yes" ]; then
-		rm ${espfilename}
-	fi
-
-	return 0
-}
+# Platform-specific large-scale setup
+# Most platforms use GPT, so put that as default, then special cases
+PARTSCHEME=gpt
+ROOTLABEL="gpt"
+case "${TARGET}:${TARGET_ARCH}" in
+	powerpc:powerpc*)
+		PARTSCHEME=mbr
+		ROOTLABEL="ufs"
+		NOSWAP=yes # Can't label swap partition with MBR, so no swap
+	;;
+esac
 
 err() {
 	printf "${@}\n"
@@ -87,10 +34,6 @@ cleanup() {
 	if [ -c "${DESTDIR}/dev/null" ]; then
 		umount_loop ${DESTDIR}/dev 2>/dev/null
 	fi
-	umount_loop ${DESTDIR}
-	if [ ! -z "${mddev}" ]; then
-		mdconfig -d -u ${mddev}
-	fi
 
 	return 0
 }
@@ -100,42 +43,12 @@ vm_create_base() {
 	# written to the formatted disk image with mkimg(1).
 
 	mkdir -p ${DESTDIR}
-	truncate -s ${VMSIZE} ${VMBASE}
-	mddev=$(mdconfig -f ${VMBASE})
-	newfs -L rootfs /dev/${mddev}
-	mount /dev/${mddev} ${DESTDIR}
 
 	return 0
 }
 
 vm_copy_base() {
-	# Creates a new UFS root filesystem and copies the contents of the
-	# current root filesystem into it.  This produces a "clean" disk
-	# image without any remnants of files which were created temporarily
-	# during image-creation and have since been deleted (e.g., downloaded
-	# package archives).
-
-	mkdir -p ${DESTDIR}/old
-	mdold=$(mdconfig -f ${VMBASE})
-	mount /dev/${mdold} ${DESTDIR}/old
-
-	truncate -s ${VMSIZE} ${VMBASE}.tmp
-	mkdir -p ${DESTDIR}/new
-	mdnew=$(mdconfig -f ${VMBASE}.tmp)
-	newfs -L rootfs /dev/${mdnew}
-	mount /dev/${mdnew} ${DESTDIR}/new
-
-	tar -cf- -C ${DESTDIR}/old . | tar -xUf- -C ${DESTDIR}/new
-
-	umount_loop /dev/${mdold}
-	rmdir ${DESTDIR}/old
-	mdconfig -d -u ${mdold}
-
-	umount_loop /dev/${mdnew}
-	rmdir ${DESTDIR}/new
-	tunefs -n enable /dev/${mdnew}
-	mdconfig -d -u ${mdnew}
-	mv ${VMBASE}.tmp ${VMBASE}
+	# Defunct
 }
 
 vm_install_base() {
@@ -276,7 +189,71 @@ vm_create_disk() {
 	echo "Creating image...  Please wait."
 	echo
 
-	write_partition_layout || return 1
+	if [ -z "${NOSWAP}" ]; then
+		SWAPOPT="-p freebsd-swap/swapfs::${SWAPSIZE}"
+	fi
+
+	BOOTFILES="$(env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		WITH_UNIFIED_OBJDIR=yes \
+		make -C ${WORLDDIR}/stand -V .OBJDIR)"
+	BOOTFILES="$(realpath ${BOOTFILES})"
+
+	case "${TARGET}:${TARGET_ARCH}" in
+		amd64:amd64 | i386:i386)
+			ESP=yes
+			BOOTPARTS="-b ${BOOTFILES}/i386/pmbr/pmbr \
+				   -p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot"
+			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
+			MAKEFSARGS="-B little"
+			;;
+		arm64:aarch64 | riscv:riscv64*)
+			ESP=yes
+			BOOTPARTS=
+			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
+			MAKEFSARGS="-B little"
+			;;
+		powerpc:powerpc*)
+			ESP=no
+			BOOTPARTS="-p prepboot:=${BOOTFILES}/powerpc/boot1.chrp/boot1.elf -a 1"
+			ROOTFSPART="-p freebsd:=${VMBASE}"
+			if [ ${TARGET_ARCH} = powerpc64le ]; then
+				MAKEFSARGS="-B little"
+			else
+				MAKEFSARGS="-B big"
+			fi
+			;;
+		*)
+			echo "vmimage.subr: unsupported target '${TARGET}:${TARGET_ARCH}'" >&2
+			exit 1
+			;;
+	esac
+
+	if [ ${ESP} = "yes" ]; then
+		# Create an ESP
+		espfilename=$(mktemp /tmp/efiboot.XXXXXX)
+		make_esp_file ${espfilename} ${fat32min} ${BOOTFILES}/efi/loader_lua/loader_lua.efi
+		BOOTPARTS="${BOOTPARTS} -p efi/efiesp:=${espfilename}"
+
+		# Add this to fstab
+		mkdir -p ${DESTDIR}/boot/efi
+		echo "/dev/${ROOTLABEL}/efiesp	/boot/efi       msdosfs     rw      2       2" \
+			>> ${DESTDIR}/etc/fstab
+	fi
+
+	echo "Building filesystem...  Please wait."
+	makefs ${MAKEFSARGS} -o label=rootfs -o version=2 -o softupdates=1 \
+	    -s ${VMSIZE} ${VMBASE} ${DESTDIR}
+
+	echo "Building final disk image...  Please wait."
+	mkimg -s ${PARTSCHEME} -f ${VMFORMAT} \
+		${BOOTPARTS} \
+		${SWAPOPT} \
+		${ROOTFSPART} \
+		-o ${VMIMAGE}
+
+	if [ ${ESP} = "yes" ]; then
+		rm ${espfilename}
+	fi
 
 	return 0
 }
