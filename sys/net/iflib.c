@@ -1390,7 +1390,7 @@ _iflib_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
 }
 
 #define	DMA_WIDTH_TO_BUS_LOWADDR(width)				\
-	(((width) == 0) || (width) == flsl(BUS_SPACE_MAXADDR) ?	\
+	(((width) == 0) || (width) == flsll(BUS_SPACE_MAXADDR) ?	\
 	    BUS_SPACE_MAXADDR : (1ULL << (width)) - 1ULL)
 
 int
@@ -4761,7 +4761,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	_iflib_pre_assert(scctx);
 	ctx->ifc_txrx = *scctx->isc_txrx;
 
-	MPASS(scctx->isc_dma_width <= flsl(BUS_SPACE_MAXADDR));
+	MPASS(scctx->isc_dma_width <= flsll(BUS_SPACE_MAXADDR));
 
 	if (sctx->isc_flags & IFLIB_DRIVER_MEDIA)
 		ctx->ifc_mediap = scctx->isc_media;
