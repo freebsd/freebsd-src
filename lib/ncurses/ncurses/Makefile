@@ -425,7 +425,9 @@ MKterm.h.awk: MKterm.h.awk.in
 	    -e "/@HAVE_TERMIOS_H@/s%%${HAVE_TERMIOS_H}%" \
 	    -e "/@HAVE_TERMIO_H@/s%%${HAVE_TERMIO_H}%" \
 	    -e "/@HAVE_TCGETATTR@/s%%${HAVE_TCGETATTR}%" \
-	    -e "s%@cf_cv_enable_reentrant@%${ENABLE_REENTRANT}%g"
+	    -e "s%@cf_cv_enable_reentrant@%${ENABLE_REENTRANT}%g" \
+	    -e "s%@NCURSES_SP_FUNCS@%1%" \
+	    -e "s%@NCURSES_PATCH@%${NCURSES_PATCH}%"
 
 termcap.h: termcap.h.in
 	sed <${NCURSES_DIR}/include/termcap.h.in >$@ \
