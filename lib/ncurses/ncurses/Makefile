@@ -362,7 +362,7 @@ fallback.c: MKfallback.sh
 	    mv -f ${.TARGET}.tmp ${.TARGET}
 
 comp_userdefs.c: MKuserdefs.sh Caps Caps-ncurses make_hash
-	env PATH=${BTOOLSPATH:U.}:${PATH} sh -x ${NCURSES_DIR}/ncurses/tinfo/MKuserdefs.sh "${AWK}" \
+	env PATH=${BTOOLSPATH:U.}:${PATH} sh ${NCURSES_DIR}/ncurses/tinfo/MKuserdefs.sh "${AWK}" \
 	    ${USE_BIG_STRINGS} ${NCURSES_DIR}/include/Caps ${NCURSES_DIR}/include/Caps-ncurses > ${.TARGET}
 
 # Generated headers
