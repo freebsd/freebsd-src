@@ -84,7 +84,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	struct vnode *vp;
 	char *fullpath, *freepath, *type;
 	struct ucred *cred;
-	vm_object_t obj, tobj, lobj;
+	vm_object_t lobj, nobj, obj, tobj;
 	int error, privateresident, ref_count, resident, shadow_count, flags;
 	vm_offset_t e_start, e_end;
 	vm_eflags_t e_eflags;
@@ -144,7 +144,8 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		}
 		if (obj != NULL)
 			kern_proc_vmmap_resident(map, entry, &resident, &super);
-		for (tobj = obj; tobj != NULL; tobj = tobj->backing_object) {
+		for (tobj = obj; tobj != NULL; tobj = nobj) {
+			nobj = tobj->backing_object;
 			if (tobj != obj && tobj != lobj)
 				VM_OBJECT_RUNLOCK(tobj);
 		}
