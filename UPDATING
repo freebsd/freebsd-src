@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20220123:
+	For 64-bit architectures the base system is now built with Position
+	Independent Executable (PIE) support enabled by default.  It may be
+	disabled using the WITHOUT_PIE knob.  A clean build is required.
+
 20220114:
 	The macros provided for the manipulation of CPU sets (e.g. CPU_AND)
 	have been modified to take 2 source arguments instead of only 1.
