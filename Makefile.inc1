@@ -2519,7 +2519,7 @@ ${_bt}-usr.bin/xinstall: ${_bt}-lib/libmd
 ${_bt}-sbin/md5: ${_bt}-lib/libmd
 .endif
 
-if target(${_bt}-usr.bin/ncurses)
+.if target(${_bt}-usr.bin/ncurses)
 ${_bt}-usr.bin/ncurses: ${_bt}-lib/ncurses/ncurses
 .endif
 
