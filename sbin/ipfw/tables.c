@@ -83,6 +83,15 @@ static struct _s_x tabletypes[] = {
       { NULL, 0 }
 };
 
+/* Default algorithms for various table types */
+static struct _s_x tablealgos[] = {
+      { "addr:radix",	IPFW_TABLE_ADDR },
+      { "flow:hash",	IPFW_TABLE_FLOW },
+      { "iface:array",	IPFW_TABLE_INTERFACE },
+      { "number:array",	IPFW_TABLE_NUMBER },
+      { NULL, 0 }
+};
+
 static struct _s_x tablevaltypes[] = {
       { "skipto",	IPFW_VTYPE_SKIPTO },
       { "pipe",		IPFW_VTYPE_PIPE },
@@ -469,8 +478,15 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 	}
 
 	/* Set some defaults to preserve compatibility. */
-	if (xi.algoname[0] == '\0' && xi.type == 0)
-		xi.type = IPFW_TABLE_ADDR;
+	if (xi.algoname[0] == '\0') {
+		const char *algo;
+
+		if (xi.type == 0)
+			xi.type = IPFW_TABLE_ADDR;
+		algo = match_value(tablealgos, xi.type);
+		if (algo != NULL)
+			strlcpy(xi.algoname, algo, sizeof(xi.algoname));
+	}
 	if (xi.vmask == 0)
 		xi.vmask = IPFW_VTYPE_LEGACY;
 
