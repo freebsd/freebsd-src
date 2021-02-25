@@ -28,17 +28,17 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: mitem_new.3x,v 1.16 2020/02/02 23:34:34 tom Exp $
+.\" $Id: mitem_new.3x,v 1.19 2020/10/18 00:37:03 tom Exp $
 .TH mitem_new 3X ""
 .SH NAME
 \fBnew_item\fP,
 \fBfree_item\fR \- create and destroy menu items
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
+.sp
+\fBITEM *new_item(const char *\fP\fIname\fP\fB, const char *\fP\fIdescription\fP\fB);\fP
 .br
-ITEM *new_item(const char *name, const char *description);
-.br
-int free_item(ITEM *item);
+\fBint free_item(ITEM *\fP\fIitem\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBnew_item\fR allocates a new item and initializes it from the
@@ -56,7 +56,7 @@ is the responsibility of the application to release the memory for the
 name or the description of the item.
 .SH RETURN VALUE
 The function \fBnew_item\fR returns \fBNULL\fR on error.
-It sets errno according to the function's failure:
+It sets \fBerrno\fP according to the function's failure:
 .TP 5
 .B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.

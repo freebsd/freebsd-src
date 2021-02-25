@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_ins_wch.3x,v 1.8 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_ins_wch.3x,v 1.10 2020/10/18 00:22:21 tom Exp $
 .TH curs_ins_wch 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -43,11 +43,11 @@
 .sp
 \fBint ins_wch(const cchar_t *\fR\fIwch\fR\fB);\fR
 .br
-\fBint wins_wch(WINDOW *\fR\fIwin, const cchar_t *\fR\fIwch\fR\fB);\fR
+\fBint wins_wch(WINDOW *\fR\fIwin\fP\fB, const cchar_t *\fR\fIwch\fR\fB);\fR
+.sp
+\fBint mvins_wch(int \fR\fIy\fP\fB, int \fR\fIx\fP\fB, const cchar_t *\fR\fIwch\fR\fB);\fR
 .br
-\fBint mvins_wch(int \fR\fIy, int \fR\fIx, const cchar_t *\fR\fIwch\fR\fB);\fR
-.br
-\fBint mvwins_wch(WINDOW *\fR\fIwin, int \fR\fIy, int \fR\fIx, const cchar_t *\fR\fIwch\fR\fB);\fR
+\fBint mvwins_wch(WINDOW *\fR\fIwin\fP\fB, int \fR\fIy\fP\fB, int \fR\fIx\fP\fB, const cchar_t *\fR\fIwch\fR\fB);\fR
 .SH DESCRIPTION
 These routines, insert the complex character \fIwch\fR with rendition
 before the character under the cursor.

@@ -37,9 +37,9 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_replace.c,v 1.12 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: p_replace.c,v 1.13 2020/05/24 01:40:20 anonymous.maarten Exp $")
 
-NCURSES_EXPORT(int)
+PANEL_EXPORT(int)
 replace_panel(PANEL * pan, WINDOW *win)
 {
   int rc = ERR;

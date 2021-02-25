@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_def.c,v 1.27 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: frm_def.c,v 1.29 2020/12/11 23:47:16 tom Exp $")
 
 /* this can't be readonly */
 static FORM default_form =
@@ -62,14 +62,14 @@ static FORM default_form =
   NULL				/* fieldterm  */
 };
 
-NCURSES_EXPORT_VAR(FORM *) _nc_Default_Form = &default_form;
-
+FORM_EXPORT_VAR(FORM *) _nc_Default_Form = &default_form;
+
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  static FIELD *Insert_Field_By_Position(
-|                                     FIELD *new_field, 
+|                                     FIELD *new_field,
 |                                     FIELD *head )
-|   
+|
 |   Description   :  Insert new_field into sorted fieldlist with head "head"
 |                    and return new head of sorted fieldlist. Sorting
 |                    criteria is (row,column). This is a circular list.
@@ -113,9 +113,9 @@ Insert_Field_By_Position(FIELD *newfield, FIELD *head)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  static void Disconnect_Fields(FORM *form)
-|   
+|
 |   Description   :  Break association between form and array of fields.
 |
 |   Return Values :  -
@@ -143,9 +143,9 @@ Disconnect_Fields(FORM *form)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  static int Connect_Fields(FORM *form, FIELD **fields)
-|   
+|
 |   Description   :  Set association between form and array of fields.
 |
 |   Return Values :  E_OK            - no error
@@ -200,14 +200,14 @@ Connect_Fields(FORM *form, FIELD **fields)
   for (j = 0; j < field_cnt; j++)
     {
       if (j == 0)
-	pg->pmin = (short) j;
+	pg->pmin = (short)j;
       else
 	{
 	  if (fields[j]->status & _NEWPAGE)
 	    {
-	      pg->pmax = (short) (j - 1);
+	      pg->pmax = (short)(j - 1);
 	      pg++;
-	      pg->pmin = (short) j;
+	      pg->pmin = (short)j;
 	    }
 	}
 
@@ -215,14 +215,14 @@ Connect_Fields(FORM *form, FIELD **fields)
       maximum_col_in_field = fields[j]->fcol + fields[j]->cols;
 
       if (form->rows < maximum_row_in_field)
-	form->rows = (short) maximum_row_in_field;
+	form->rows = (short)maximum_row_in_field;
       if (form->cols < maximum_col_in_field)
-	form->cols = (short) maximum_col_in_field;
+	form->cols = (short)maximum_col_in_field;
     }
 
-  pg->pmax = (short) (field_cnt - 1);
-  form->maxfield = (short) field_cnt;
-  form->maxpage = (short) page_nr;
+  pg->pmax = (short)(field_cnt - 1);
+  form->maxfield = (short)field_cnt;
+  form->maxpage = (short)page_nr;
 
   /* Sort fields on form pages */
   for (page_nr = 0; page_nr < form->maxpage; page_nr++)
@@ -231,8 +231,8 @@ Connect_Fields(FORM *form, FIELD **fields)
 
       for (j = form->page[page_nr].pmin; j <= form->page[page_nr].pmax; j++)
 	{
-	  fields[j]->index = (short) j;
-	  fields[j]->page = (short) page_nr;
+	  fields[j]->index = (short)j;
+	  fields[j]->page = (short)page_nr;
 	  fld = Insert_Field_By_Position(fields[j], fld);
 	}
       if (fld)
@@ -250,10 +250,10 @@ Connect_Fields(FORM *form, FIELD **fields)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  static int Associate_Fields(FORM *form, FIELD **fields)
-|   
-|   Description   :  Set association between form and array of fields. 
+|
+|   Description   :  Set association between form and array of fields.
 |                    If there are fields, position to first active field.
 |
 |   Return Values :  E_OK            - success
@@ -283,9 +283,9 @@ Associate_Fields(FORM *form, FIELD **fields)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  FORM *new_form_sp(SCREEN* sp, FIELD** fields )
-|   
+|
 |   Description   :  Create new form with given array of fields.
 |
 |   Return Values :  Pointer to form. NULL if error occurred.
@@ -295,7 +295,7 @@ Associate_Fields(FORM *form, FIELD **fields)
 |                    E_CONNECTED     - a field is already connected
 |                    E_SYSTEM_ERROR  - not enough memory
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(FORM *)
+FORM_EXPORT(FORM *)
 NCURSES_SP_NAME(new_form) (NCURSES_SP_DCLx FIELD **fields)
 {
   int err = E_SYSTEM_ERROR;
@@ -331,9 +331,9 @@ NCURSES_SP_NAME(new_form) (NCURSES_SP_DCLx FIELD **fields)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  FORM* new_form(FIELD** fields )
-|   
+|
 |   Description   :  Create new form with given array of fields.
 |
 |   Return Values :  Pointer to form. NULL if error occurred.
@@ -344,7 +344,7 @@ NCURSES_SP_NAME(new_form) (NCURSES_SP_DCLx FIELD **fields)
 |                    E_SYSTEM_ERROR  - not enough memory
 +--------------------------------------------------------------------------*/
 #if NCURSES_SP_FUNCS
-NCURSES_EXPORT(FORM *)
+FORM_EXPORT(FORM *)
 new_form(FIELD **fields)
 {
   return NCURSES_SP_NAME(new_form) (CURRENT_SCREEN, fields);
@@ -352,16 +352,16 @@ new_form(FIELD **fields)
 #endif
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int free_form( FORM *form )
-|   
+|
 |   Description   :  Release internal memory associated with form.
 |
 |   Return Values :  E_OK           - no error
 |                    E_BAD_ARGUMENT - invalid form pointer
 |                    E_POSTED       - form is posted
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 free_form(FORM *form)
 {
   T((T_CALLED("free_form(%p)"), (void *)form));
@@ -381,9 +381,9 @@ free_form(FORM *form)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int set_form_fields( FORM *form, FIELD **fields )
-|   
+|
 |   Description   :  Set a new association of an array of fields to a form
 |
 |   Return Values :  E_OK            - no error
@@ -392,7 +392,7 @@ free_form(FORM *form)
 |                    E_POSTED        - form is posted
 |                    E_SYSTEM_ERROR  - not enough memory
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 set_form_fields(FORM *form, FIELD **fields)
 {
   FIELD **old;
@@ -416,14 +416,14 @@ set_form_fields(FORM *form, FIELD **fields)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  FIELD **form_fields( const FORM *form )
-|   
+|
 |   Description   :  Retrieve array of fields
 |
 |   Return Values :  Pointer to field array
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(FIELD **)
+FORM_EXPORT(FIELD **)
 form_fields(const FORM *form)
 {
   T((T_CALLED("form_field(%p)"), (const void *)form));
@@ -431,14 +431,14 @@ form_fields(const FORM *form)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int field_count( const FORM *form )
-|   
+|
 |   Description   :  Retrieve number of fields
 |
 |   Return Values :  Number of fields, -1 if none are defined
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 field_count(const FORM *form)
 {
   T((T_CALLED("field_count(%p)"), (const void *)form));

@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_opts.3x,v 1.25 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_field_opts.3x,v 1.27 2020/10/18 00:11:45 tom Exp $
 .TH form_field_opts 3X ""
 .SH NAME
 \fBset_field_opts\fP,
@@ -37,14 +37,14 @@
 \fBfield_opts\fP \- set and get field options
 .SH SYNOPSIS
 \fB#include <form.h>\fR
+.sp
+\fBint set_field_opts(FIELD *\fP\fIfield\fP\fB, Field_Options \fP\fIopts\fP\fB);\fP
 .br
-int set_field_opts(FIELD *field, Field_Options opts);
+\fBField_Options field_opts(const FIELD *\fP\fIfield\fP\fB);\fP
+.sp
+\fBint field_opts_on(FIELD *\fP\fIfield\fP\fB, Field_Options \fP\fIopts\fP\fB);\fP
 .br
-int field_opts_on(FIELD *field, Field_Options opts);
-.br
-int field_opts_off(FIELD *field, Field_Options opts);
-.br
-Field_Options field_opts(const FIELD *field);
+\fBint field_opts_off(FIELD *\fP\fIfield\fP\fB, Field_Options \fP\fIopts\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBset_field_opts\fR sets all the given field's option bits (field

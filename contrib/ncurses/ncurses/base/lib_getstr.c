@@ -39,9 +39,10 @@
 **
 */
 
+#define NEED_KEY_EVENT
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_getstr.c,v 1.34 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_getstr.c,v 1.35 2020/07/18 20:02:24 tom Exp $")
 
 /*
  * This wipes out the last character, no matter whether it was a tab, control

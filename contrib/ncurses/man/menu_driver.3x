@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_driver.3x,v 1.26 2020/02/02 23:34:34 tom Exp $
+.\" $Id: menu_driver.3x,v 1.28 2020/12/19 21:33:37 tom Exp $
 .TH menu_driver 3X ""
 .de bP
 .ie n  .IP \(bu 4
@@ -37,8 +37,8 @@
 \fBmenu_driver\fR \- command-processing loop of the menu system
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
-.br
-int menu_driver(MENU *menu, int c);
+.sp
+\fBint menu_driver(MENU *\fP\fImenu\fP\fB, int \fP\fIc\fP\fB);\fP
 .br
 .SH DESCRIPTION
 Once a menu has been posted (displayed), you should funnel input events to it
@@ -193,8 +193,8 @@ Character failed to match.
 The menu driver could not process the request.
 .SH SEE ALSO
 \fBcurses\fR(3X),
-\fBmenu\fR(3X),
-\fBgetch\fR(3X).
+\fBgetch\fR(3X),
+\fBmenu\fR(3X).
 .SH NOTES
 The header file \fB<menu.h>\fR automatically includes the header files
 \fB<curses.h>\fR.

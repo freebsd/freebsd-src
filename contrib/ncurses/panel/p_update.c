@@ -38,9 +38,9 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_update.c,v 1.12 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: p_update.c,v 1.13 2020/05/24 01:40:20 anonymous.maarten Exp $")
 
-NCURSES_EXPORT(void)
+PANEL_EXPORT(void)
 NCURSES_SP_NAME(update_panels) (NCURSES_SP_DCL0)
 {
   PANEL *pan;
@@ -71,7 +71,7 @@ NCURSES_SP_NAME(update_panels) (NCURSES_SP_DCL0)
 }
 
 #if NCURSES_SP_FUNCS
-NCURSES_EXPORT(void)
+PANEL_EXPORT(void)
 update_panels(void)
 {
   NCURSES_SP_NAME(update_panels) (CURRENT_SCREEN);

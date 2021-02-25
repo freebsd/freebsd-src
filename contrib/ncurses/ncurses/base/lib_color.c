@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -49,7 +49,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_color.c,v 1.143 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_color.c,v 1.146 2021/02/14 00:17:09 tom Exp $")
 
 #ifdef USE_TERM_DRIVER
 #define CanChange      InfoOf(SP_PARM).canchange
@@ -140,7 +140,6 @@ NCURSES_EXPORT_VAR(const color_t*) _nc_hls_palette = hls_palette;
 #endif
 
 /* *INDENT-ON* */
-
 #if NCURSES_EXT_FUNCS
 /*
  * These are called from _nc_do_color(), which in turn is called from
@@ -190,12 +189,12 @@ set_background_color(NCURSES_SP_DCLx int bg, NCURSES_SP_OUTC outc)
     if (set_a_background) {
 	TPUTS_TRACE("set_a_background");
 	NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx
-				TPARM_1(set_a_background, bg),
+				TIPARM_1(set_a_background, bg),
 				1, outc);
     } else {
 	TPUTS_TRACE("set_background");
 	NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx
-				TPARM_1(set_background, toggled_colors(bg)),
+				TIPARM_1(set_background, toggled_colors(bg)),
 				1, outc);
     }
 #endif
@@ -210,12 +209,12 @@ set_foreground_color(NCURSES_SP_DCLx int fg, NCURSES_SP_OUTC outc)
     if (set_a_foreground) {
 	TPUTS_TRACE("set_a_foreground");
 	NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx
-				TPARM_1(set_a_foreground, fg),
+				TIPARM_1(set_a_foreground, fg),
 				1, outc);
     } else {
 	TPUTS_TRACE("set_foreground");
 	NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx
-				TPARM_1(set_foreground, toggled_colors(fg)),
+				TIPARM_1(set_foreground, toggled_colors(fg)),
 				1, outc);
     }
 #endif
@@ -253,14 +252,15 @@ init_direct_colors(NCURSES_SP_DCL0)
 {
     static NCURSES_CONST char name[] = "RGB";
 
-    int n;
-    const char *s;
-    int width;
     rgb_bits_t *result = &(SP_PARM->_direct_color);
 
     result->value = 0;
 
     if (COLORS >= 8) {
+	int n;
+	const char *s;
+	int width;
+
 	/* find the number of bits needed for the maximum color value */
 	for (width = 0; (1 << width) - 1 < (COLORS - 1); ++width) {
 	    ;
@@ -361,7 +361,6 @@ NCURSES_EXPORT(int)
 NCURSES_SP_NAME(start_color) (NCURSES_SP_DCL0)
 {
     int result = ERR;
-    int maxpairs = 0, maxcolors = 0;
 
     T((T_CALLED("start_color(%p)"), (void *) SP_PARM));
 
@@ -370,8 +369,8 @@ NCURSES_SP_NAME(start_color) (NCURSES_SP_DCL0)
     } else if (SP_PARM->_coloron) {
 	result = OK;
     } else {
-	maxpairs = MaxPairs;
-	maxcolors = MaxColors;
+	int maxpairs = MaxPairs;
+	int maxcolors = MaxColors;
 	if (reset_color_pair(NCURSES_SP_ARG) != TRUE) {
 	    set_foreground_color(NCURSES_SP_ARGx
 				 default_fg(NCURSES_SP_ARG),
@@ -672,14 +671,14 @@ _nc_init_pair(SCREEN *sp, int pair, int f, int b)
 	    (int) tp[b].red, (int) tp[b].green, (int) tp[b].blue));
 
 	NCURSES_PUTP2("initialize_pair",
-		      TPARM_7(initialize_pair,
-			      pair,
-			      (int) tp[f].red,
-			      (int) tp[f].green,
-			      (int) tp[f].blue,
-			      (int) tp[b].red,
-			      (int) tp[b].green,
-			      (int) tp[b].blue));
+		      TIPARM_7(initialize_pair,
+			       pair,
+			       (int) tp[f].red,
+			       (int) tp[f].green,
+			       (int) tp[f].blue,
+			       (int) tp[b].red,
+			       (int) tp[b].green,
+			       (int) tp[b].blue));
     }
 #endif
 
@@ -746,7 +745,7 @@ _nc_init_color(SCREEN *sp, int color, int r, int g, int b)
 	CallDriver_4(sp, td_initcolor, color, r, g, b);
 #else
 	NCURSES_PUTP2("initialize_color",
-		      TPARM_4(initialize_color, color, r, g, b));
+		      TIPARM_4(initialize_color, color, r, g, b));
 #endif
 	sp->_color_defs = max(color + 1, sp->_color_defs);
 
@@ -1004,7 +1003,7 @@ NCURSES_SP_NAME(_nc_do_color) (NCURSES_SP_DCLx
 	if (set_color_pair) {
 	    TPUTS_TRACE("set_color_pair");
 	    NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx
-				    TPARM_1(set_color_pair, pair),
+				    TIPARM_1(set_color_pair, pair),
 				    1, outc);
 	    return;
 	} else if (SP_PARM != 0) {

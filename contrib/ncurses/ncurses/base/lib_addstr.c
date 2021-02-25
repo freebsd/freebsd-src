@@ -45,7 +45,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_addstr.c,v 1.56 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_addstr.c,v 1.57 2020/12/05 20:06:19 tom Exp $")
 
 NCURSES_EXPORT(int)
 waddnstr(WINDOW *win, const char *astr, int n)
@@ -60,10 +60,10 @@ waddnstr(WINDOW *win, const char *astr, int n)
 	   ("... current %s", _traceattr(WINDOW_ATTRS(win))));
 	code = OK;
 	if (n < 0)
-	    n = (int) strlen(astr);
+	    n = INT_MAX;
 
 	TR(TRACE_VIRTPUT, ("str is not null, length = %d", n));
-	while ((n-- > 0) && (*str != '\0')) {
+	while ((*str != '\0') && (n-- > 0)) {
 	    NCURSES_CH_T ch;
 	    TR(TRACE_VIRTPUT, ("*str = %#o", UChar(*str)));
 	    SetChar(ch, UChar(*str++), A_NORMAL);
@@ -232,10 +232,10 @@ waddnwstr(WINDOW *win, const wchar_t *str, int n)
 	   ("... current %s", _traceattr(WINDOW_ATTRS(win))));
 	code = OK;
 	if (n < 0)
-	    n = (int) wcslen(str);
+	    n = INT_MAX;
 
 	TR(TRACE_VIRTPUT, ("str is not null, length = %d", n));
-	while ((n-- > 0) && (*str != L('\0'))) {
+	while ((*str != L('\0')) && (n-- > 0)) {
 	    NCURSES_CH_T ch;
 	    TR(TRACE_VIRTPUT, ("*str[0] = %#lx", (unsigned long) *str));
 	    SetChar(ch, *str++, A_NORMAL);

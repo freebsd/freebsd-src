@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_scr_dump.3x,v 1.15 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_scr_dump.3x,v 1.16 2020/10/24 09:44:43 tom Exp $
 .TH curs_scr_dump 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -49,13 +49,13 @@
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
-\fBint scr_dump(const char *filename);\fR
+\fBint scr_dump(const char *\fP\fIfilename\fP\fB);\fR
 .br
-\fBint scr_restore(const char *filename);\fR
+\fBint scr_restore(const char *\fP\fIfilename\fP\fB);\fR
 .br
-\fBint scr_init(const char *filename);\fR
+\fBint scr_init(const char *\fP\fIfilename\fP\fB);\fR
 .br
-\fBint scr_set(const char *filename);\fR
+\fBint scr_set(const char *\fP\fIfilename\fP\fB);\fR
 .br
 .SH DESCRIPTION
 The \fBscr_dump\fR routine dumps the current contents

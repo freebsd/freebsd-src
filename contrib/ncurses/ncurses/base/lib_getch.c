@@ -41,9 +41,10 @@
 **
 */
 
+#define NEED_KEY_EVENT
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_getch.c,v 1.139 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_getch.c,v 1.141 2020/09/05 22:50:47 tom Exp $")
 
 #include <fifo_defs.h>
 
@@ -134,7 +135,7 @@ _nc_use_meta(WINDOW *win)
 }
 
 #ifdef USE_TERM_DRIVER
-# ifdef _WIN32
+# if defined(_NC_WINDOWS) && !defined(EXP_WIN32_DRIVER)
 static HANDLE
 _nc_get_handle(int fd)
 {
@@ -155,7 +156,14 @@ check_mouse_activity(SCREEN *sp, int delay EVENTLIST_2nd(_nc_eventlist * evl))
 #ifdef USE_TERM_DRIVER
     TERMINAL_CONTROL_BLOCK *TCB = TCBOf(sp);
     rc = TCBOf(sp)->drv->td_testmouse(TCBOf(sp), delay EVENTLIST_2nd(evl));
-# ifdef _WIN32
+# if defined(EXP_WIN32_DRIVER)
+    /* if we emulate terminfo on console, we have to use the console routine */
+    if (IsTermInfoOnConsole(sp)) {
+	rc = _nc_console_testmouse(sp,
+				   _nc_console_handle(sp->_ifd),
+				   delay EVENTLIST_2nd(evl));
+    } else
+# elif defined(_NC_WINDOWS)
     /* if we emulate terminfo on console, we have to use the console routine */
     if (IsTermInfoOnConsole(sp)) {
 	HANDLE fd = _nc_get_handle(sp->_ifd);
@@ -163,29 +171,36 @@ check_mouse_activity(SCREEN *sp, int delay EVENTLIST_2nd(_nc_eventlist * evl))
     } else
 # endif
 	rc = TCB->drv->td_testmouse(TCB, delay EVENTLIST_2nd(evl));
-#else
-#if USE_SYSMOUSE
+#else /* !USE_TERM_DRIVER */
+# if USE_SYSMOUSE
     if ((sp->_mouse_type == M_SYSMOUSE)
 	&& (sp->_sysmouse_head < sp->_sysmouse_tail)) {
 	rc = TW_MOUSE;
     } else
-#endif
+# endif
     {
+# if defined(EXP_WIN32_DRIVER)
+	rc = _nc_console_testmouse(sp,
+				   _nc_console_handle(sp->_ifd),
+				   delay
+				   EVENTLIST_2nd(evl));
+# else
 	rc = _nc_timed_wait(sp,
 			    TWAIT_MASK,
 			    delay,
 			    (int *) 0
 			    EVENTLIST_2nd(evl));
-#if USE_SYSMOUSE
+# endif
+# if USE_SYSMOUSE
 	if ((sp->_mouse_type == M_SYSMOUSE)
 	    && (sp->_sysmouse_head < sp->_sysmouse_tail)
 	    && (rc == 0)
 	    && (errno == EINTR)) {
 	    rc |= TW_MOUSE;
 	}
-#endif
+# endif
     }
-#endif
+#endif /* USE_TERM_DRIVER */
     return rc;
 }
 
@@ -290,31 +305,54 @@ fifo_push(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
     } else
 #endif
     {				/* Can block... */
-#ifdef USE_TERM_DRIVER
+#if defined(USE_TERM_DRIVER)
 	int buf;
-#ifdef _WIN32
+# if defined(EXP_WIN32_DRIVER)
+	if (NC_ISATTY(sp->_ifd) && IsTermInfoOnConsole(sp) && sp->_cbreak) {
+#  if USE_PTHREADS_EINTR
+	    if ((pthread_self) && (pthread_kill) && (pthread_equal))
+		_nc_globals.read_thread = pthread_self();
+#  endif
+	    n = _nc_console_read(sp,
+				 _nc_console_handle(sp->_ifd),
+				 &buf);
+#  if USE_PTHREADS_EINTR
+	    _nc_globals.read_thread = 0;
+#  endif
+	} else
+# elif defined(_NC_WINDOWS)
 	if (NC_ISATTY(sp->_ifd) && IsTermInfoOnConsole(sp) && sp->_cbreak)
 	    n = _nc_mingw_console_read(sp,
 				       _nc_get_handle(sp->_ifd),
 				       &buf);
 	else
-#endif
+# endif	/* EXP_WIN32_DRIVER */
 	    n = CallDriver_1(sp, td_read, &buf);
 	ch = buf;
-#else
+#else /* !USE_TERM_DRIVER */
+#if defined(EXP_WIN32_DRIVER)
+	int buf;
+#endif
 	unsigned char c2 = 0;
-# if USE_PTHREADS_EINTR
-#  if USE_WEAK_SYMBOLS
+#if USE_PTHREADS_EINTR
+#if USE_WEAK_SYMBOLS
 	if ((pthread_self) && (pthread_kill) && (pthread_equal))
-#  endif
+#endif
 	    _nc_globals.read_thread = pthread_self();
-# endif
+#endif
+#if defined(EXP_WIN32_DRIVER)
+	n = _nc_console_read(sp,
+			     _nc_console_handle(sp->_ifd),
+			     &buf);
+	c2 = buf;
+#else
 	n = (int) read(sp->_ifd, &c2, (size_t) 1);
+#endif
 #if USE_PTHREADS_EINTR
 	_nc_globals.read_thread = 0;
 #endif
 	ch = c2;
-#endif
+#endif /* USE_TERM_DRIVER */
     }
 
     if ((n == -1) || (n == 0)) {

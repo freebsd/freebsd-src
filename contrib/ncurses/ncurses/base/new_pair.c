@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 2017 Free Software Foundation, Inc.                            *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -61,7 +61,7 @@
 
 #endif
 
-MODULE_ID("$Id: new_pair.c,v 1.19 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: new_pair.c,v 1.21 2021/02/14 00:17:09 tom Exp $")
 
 #if NCURSES_EXT_COLORS
 
@@ -144,17 +144,16 @@ static int
 _nc_find_color_pair(SCREEN *sp, int fg, int bg)
 {
     colorpair_t find;
-    int result;
-    void *pp;
+    int result = -1;
 
     find.fg = fg;
     find.bg = bg;
-    if (sp != 0 &&
-	(pp = tfind(&find, &sp->_ordered_pairs, compare_data)) != 0) {
-	colorpair_t *temp = *(colorpair_t **) pp;
-	result = (int) (temp - sp->_color_pairs);
-    } else {
-	result = -1;
+    if (sp != 0) {
+	void *pp;
+	if ((pp = tfind(&find, &sp->_ordered_pairs, compare_data)) != 0) {
+	    colorpair_t *temp = *(colorpair_t **) pp;
+	    result = (int) (temp - sp->_color_pairs);
+	}
     }
     return result;
 }
@@ -197,7 +196,10 @@ NCURSES_EXPORT(void)
 _nc_reset_color_pair(SCREEN *sp, int pair, colorpair_t * next)
 {
     colorpair_t *last;
+
     if (ValidPair(sp, pair)) {
+	bool used;
+
 	ReservePairs(sp, pair);
 	last = &(sp->_color_pairs[pair]);
 	delink_color_pair(sp, pair);
@@ -205,6 +207,11 @@ _nc_reset_color_pair(SCREEN *sp, int pair, colorpair_t * next)
 	    (last->fg != next->fg || last->bg != next->bg)) {
 	    /* remove the old entry from fast index */
 	    tdelete(last, &sp->_ordered_pairs, compare_data);
+	    used = FALSE;
+	} else {
+	    used = (last->mode != cpFREE);
+	}
+	if (!used) {
 	    /* create a new entry in fast index */
 	    *last = *next;
 	    tsearch(last, &sp->_ordered_pairs, compare_data);

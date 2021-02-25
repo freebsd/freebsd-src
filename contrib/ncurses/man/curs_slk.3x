@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_slk.3x,v 1.36 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_slk.3x,v 1.37 2020/12/30 18:37:43 tom Exp $
 .TH curs_slk 3X ""
 .de bP
 .ie n  .IP \(bu 4
@@ -62,6 +62,8 @@
 \fBint slk_init(int \fP\fIfmt\fP\fB);\fR
 .sp
 \fBint slk_set(int \fP\fIlabnum\fP\fB, const char *\fP\fIlabel\fP\fB, int \fP\fIfmt\fP\fB);\fR
+.br
+/* extension */
 .br
 \fBint slk_wset(int \fP\fIlabnum\fP\fB, const wchar_t *\fP\fIlabel\fP\fB, int \fP\fIfmt\fP\fB);\fR
 .sp

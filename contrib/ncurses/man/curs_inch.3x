@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_inch.3x,v 1.23 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_inch.3x,v 1.25 2020/10/18 00:25:23 tom Exp $
 .TH curs_inch 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -48,11 +48,11 @@
 .sp
 \fBchtype inch(void);\fR
 .br
-\fBchtype winch(WINDOW *win);\fR
+\fBchtype winch(WINDOW *\fP\fIwin\fP\fB);\fR
+.sp
+\fBchtype mvinch(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB);\fR
 .br
-\fBchtype mvinch(int y, int x);\fR
-.br
-\fBchtype mvwinch(WINDOW *win, int y, int x);\fR
+\fBchtype mvwinch(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB);\fR
 .br
 .SH DESCRIPTION
 These routines return the character, of type \fBchtype\fR, at the current

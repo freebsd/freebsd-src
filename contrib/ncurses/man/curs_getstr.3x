@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getstr.3x,v 1.29 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_getstr.3x,v 1.31 2020/10/18 00:27:44 tom Exp $
 .TH curs_getstr 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -53,21 +53,21 @@
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
-\fBint getstr(char *str);\fR
+\fBint getstr(char *\fP\fIstr\fP\fB);\fR
 .br
-\fBint getnstr(char *str, int n);\fR
+\fBint getnstr(char *\fP\fIstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint wgetstr(WINDOW *win, char *str);\fR
+\fBint wgetstr(WINDOW *\fP\fIwin\fP\fB, char *\fP\fIstr\fP\fB);\fR
 .br
-\fBint wgetnstr(WINDOW *win, char *str, int n);\fR
+\fBint wgetnstr(WINDOW *\fP\fIwin\fP\fB, char *\fP\fIstr\fP\fB, int \fP\fIn\fP\fB);\fR
+.sp
+\fBint mvgetstr(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, char *\fP\fIstr\fP\fB);\fR
 .br
-\fBint mvgetstr(int y, int x, char *str);\fR
+\fBint mvwgetstr(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, char *\fP\fIstr\fP\fB);\fR
 .br
-\fBint mvwgetstr(WINDOW *win, int y, int x, char *str);\fR
+\fBint mvgetnstr(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, char *\fP\fIstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint mvgetnstr(int y, int x, char *str, int n);\fR
-.br
-\fBint mvwgetnstr(WINDOW *, int y, int x, char *str, int n);\fR
+\fBint mvwgetnstr(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, char *\fP\fIstr\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
 .SH DESCRIPTION
 The function \fBgetstr\fR is equivalent to a series of calls to \fBgetch\fR,

@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getyx.3x,v 1.19 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_getyx.3x,v 1.20 2020/10/24 09:38:43 tom Exp $
 .TH curs_getyx 3X ""
 .SH NAME
 \fBgetyx\fR,
@@ -37,13 +37,13 @@
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
-\fBvoid getyx(WINDOW *win, int y, int x);\fR
+\fBvoid getyx(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB);\fR
 .br
-\fBvoid getparyx(WINDOW *win, int y, int x);\fR
+\fBvoid getparyx(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB);\fR
 .br
-\fBvoid getbegyx(WINDOW *win, int y, int x);\fR
+\fBvoid getbegyx(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB);\fR
 .br
-\fBvoid getmaxyx(WINDOW *win, int y, int x);\fR
+\fBvoid getmaxyx(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB);\fR
 .br
 .SH DESCRIPTION
 The \fBgetyx\fR macro places the current cursor position of the given window in

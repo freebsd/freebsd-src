@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_win.c,v 1.18 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: m_win.c,v 1.20 2020/12/12 00:38:14 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -49,8 +49,8 @@ MODULE_ID("$Id: m_win.c,v 1.18 2020/02/02 23:34:34 tom Exp $")
 |   Return Values :  E_OK               - success
 |                    E_POSTED           - menu is already posted
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
-set_menu_win(MENU * menu, WINDOW *win)
+MENU_EXPORT(int)
+set_menu_win(MENU *menu, WINDOW *win)
 {
   T((T_CALLED("set_menu_win(%p,%p)"), (void *)menu, (void *)win));
 
@@ -89,8 +89,8 @@ set_menu_win(MENU * menu, WINDOW *win)
 |
 |   Return Values :  NULL on error, otherwise pointer to window
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(WINDOW *)
-menu_win(const MENU * menu)
+MENU_EXPORT(WINDOW *)
+menu_win(const MENU *menu)
 {
   const MENU *m = Normalize_Menu(menu);
 

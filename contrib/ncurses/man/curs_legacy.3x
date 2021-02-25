@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_legacy.3x,v 1.10 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_legacy.3x,v 1.12 2020/10/18 00:16:04 tom Exp $
 .de bP
 .ie n  .IP \(bu 4
 .el    .IP \(bu 2
@@ -38,23 +38,23 @@ curs_legacy \- get \fBcurses\fP cursor and window coordinates, attributes
 .SH SYNOPSIS
 \fB#include <curses.h>\fP
 .sp
-\fBint getattrs(const WINDOW *win);\fP
+\fBint getattrs(const WINDOW *\fP\fIwin\fP\fB);\fP
+.sp
+\fBint getbegx(const WINDOW *\fP\fIwin\fP\fB);\fP
 .br
-\fBint getbegx(const WINDOW *win);\fP
+\fBint getbegy(const WINDOW *\fP\fIwin\fP\fB);\fP
+.sp
+\fBint getcurx(const WINDOW *\fP\fIwin\fP\fB);\fP
 .br
-\fBint getbegy(const WINDOW *win);\fP
+\fBint getcury(const WINDOW *\fP\fIwin\fP\fB);\fP
+.sp
+\fBint getmaxx(const WINDOW *\fP\fIwin\fP\fB);\fP
 .br
-\fBint getcurx(const WINDOW *win);\fP
+\fBint getmaxy(const WINDOW *\fP\fIwin\fP\fB);\fP
+.sp
+\fBint getparx(const WINDOW *\fP\fIwin\fP\fB);\fP
 .br
-\fBint getcury(const WINDOW *win);\fP
-.br
-\fBint getmaxx(const WINDOW *win);\fP
-.br
-\fBint getmaxy(const WINDOW *win);\fP
-.br
-\fBint getparx(const WINDOW *win);\fP
-.br
-\fBint getpary(const WINDOW *win);\fP
+\fBint getpary(const WINDOW *\fP\fIwin\fP\fB);\fP
 .br
 .SH DESCRIPTION
 These legacy functions are simpler to use than the X/Open Curses functions:

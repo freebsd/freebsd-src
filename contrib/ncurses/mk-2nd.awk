@@ -1,4 +1,4 @@
-# $Id: mk-2nd.awk,v 1.20 2020/02/02 23:34:34 tom Exp $
+# $Id: mk-2nd.awk,v 1.22 2020/08/31 23:49:17 tom Exp $
 ##############################################################################
 # Copyright 2020 Thomas E. Dickey                                            #
 # Copyright 1998-2004,2005 Free Software Foundation, Inc.                    #
@@ -53,6 +53,13 @@
 #
 # Fields in src/modules past $3 are dependencies
 #
+function in_subset(value) {
+		value = " " value " ";
+		check = subset;
+		gsub("[+]", " ", check);
+		check = " " check " ";
+		return index(check,value);
+	}
 BEGIN	{
 		found = 0
 		using = 0
@@ -61,7 +68,7 @@ BEGIN	{
 		using = 0
 		if (subset == "none") {
 			using = 1
-		} else if (index(subset,$2) > 0) {
+		} else if (in_subset($2) > 0) {
 			if (using == 0) {
 				if (found == 0) {
 					print  ""

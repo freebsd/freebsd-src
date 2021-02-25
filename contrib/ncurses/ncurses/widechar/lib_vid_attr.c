@@ -37,7 +37,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_vid_attr.c,v 1.28 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_vid_attr.c,v 1.30 2020/05/27 23:54:31 tom Exp $")
 
 #define doPut(mode) \
 	TPUTS_TRACE(#mode); \
@@ -191,16 +191,16 @@ NCURSES_SP_NAME(vid_puts) (NCURSES_SP_DCLx
 	if (turn_on || turn_off) {
 	    TPUTS_TRACE("set_attributes");
 	    NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx
-				    TPARM_9(set_attributes,
-					    (newmode & A_STANDOUT) != 0,
-					    (newmode & A_UNDERLINE) != 0,
-					    (newmode & A_REVERSE) != 0,
-					    (newmode & A_BLINK) != 0,
-					    (newmode & A_DIM) != 0,
-					    (newmode & A_BOLD) != 0,
-					    (newmode & A_INVIS) != 0,
-					    (newmode & A_PROTECT) != 0,
-					    (newmode & A_ALTCHARSET) != 0),
+				    TIPARM_9(set_attributes,
+					       (newmode & A_STANDOUT) != 0,
+					       (newmode & A_UNDERLINE) != 0,
+					       (newmode & A_REVERSE) != 0,
+					       (newmode & A_BLINK) != 0,
+					       (newmode & A_DIM) != 0,
+					       (newmode & A_BOLD) != 0,
+					       (newmode & A_INVIS) != 0,
+					       (newmode & A_PROTECT) != 0,
+					       (newmode & A_ALTCHARSET) != 0),
 				    1, outc);
 	    previous_attr &= ALL_BUT_COLOR;
 	    previous_pair = 0;
@@ -264,7 +264,6 @@ NCURSES_SP_NAME(vid_puts) (NCURSES_SP_DCLx
 	TurnOn(A_VERTICAL,	enter_vertical_hl_mode);
 #endif
 	/* *INDENT-ON* */
-
     }
 
     if (reverse)

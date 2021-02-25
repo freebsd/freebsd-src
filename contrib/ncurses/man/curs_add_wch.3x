@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_add_wch.3x,v 1.26 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_add_wch.3x,v 1.28 2020/10/17 23:10:38 tom Exp $
 .TH curs_add_wch 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -55,7 +55,7 @@
 .B "int mvadd_wch( int \fIy\fP, int \fIx\fP, const cchar_t *\fIwch\fB );"
 .br
 .B "int mvwadd_wch( WINDOW *\fIwin\fP, int \fIy\fP, int \fIx\fP, const cchar_t *\fIwch\fB );"
-.br
+.sp
 .B "int echo_wchar( const cchar_t *\fIwch\fB );"
 .br
 .B "int wecho_wchar( WINDOW *\fIwin\fP, const cchar_t *\fIwch\fB );"
@@ -211,6 +211,25 @@ U+2550 BOX DRAWINGS DOUBLE HORIZONTAL
 .SH RETURN VALUE
 .PP
 All routines return the integer \fBERR\fR upon failure and \fBOK\fR on success.
+.PP
+X/Open does not define any error conditions.
+This implementation returns an error
+.bP
+if the window pointer is null or
+.bP
+if it is not possible to add a complete character in the window.
+.PP
+The latter may be due to different causes:
+.bP
+If \fBscrollok\fR is not enabled,
+writing a character at the lower right margin succeeds.
+However, an error is returned because
+it is not possible to wrap to a new line
+.bP
+If an error is detected when converting a multibyte character to a sequence
+of bytes,
+or if it is not possible to add all of the resulting bytes in the window,
+an error is returned.
 .PP
 Functions with a \*(``mv\*('' prefix first perform a cursor movement using
 \fBwmove\fP, and return an error if the position is outside the window,

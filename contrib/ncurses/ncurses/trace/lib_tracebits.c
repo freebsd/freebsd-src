@@ -35,7 +35,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_tracebits.c,v 1.28 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_tracebits.c,v 1.31 2020/11/14 23:38:11 tom Exp $")
 
 #if HAVE_SYS_TERMIO_H
 #include <sys/termio.h>		/* needed for ISC */
@@ -72,9 +72,15 @@ MODULE_ID("$Id: lib_tracebits.c,v 1.28 2020/02/02 23:34:34 tom Exp $")
 
 #ifdef TRACE
 
+#if defined(EXP_WIN32_DRIVER)
+#define BITNAMELEN 36
+#else
+#define BITNAMELEN 8
+#endif
+
 typedef struct {
     unsigned int val;
-    const char name[8];
+    const char name[BITNAMELEN];
 } BITNAMES;
 
 #define TRACE_BUF_SIZE(num) (_nc_globals.tracebuf_ptr[num].size)
@@ -98,7 +104,7 @@ lookup_bits(char *buf, const BITNAMES * table, const char *label, unsigned int v
 }
 
 NCURSES_EXPORT(char *)
-_nc_trace_ttymode(TTY * tty)
+_nc_trace_ttymode(const TTY * tty)
 /* describe the state of the terminal control bits exactly */
 {
     char *buf;
@@ -211,6 +217,36 @@ _nc_trace_ttymode(TTY * tty)
 
 	if (tty->c_lflag & ALLLOCAL)
 	    lookup_bits(buf, lflags, "lflags", tty->c_lflag);
+    }
+#elif defined(EXP_WIN32_DRIVER)
+#define DATA(name)        { name, { #name } }
+    static const BITNAMES dwFlagsOut[] =
+    {
+	DATA(ENABLE_PROCESSED_OUTPUT),
+	DATA(ENABLE_WRAP_AT_EOL_OUTPUT),
+	DATA(ENABLE_VIRTUAL_TERMINAL_PROCESSING),
+	DATA(DISABLE_NEWLINE_AUTO_RETURN),
+	DATA(ENABLE_LVB_GRID_WORLDWIDE)
+    };
+    static const BITNAMES dwFlagsIn[] =
+    {
+	DATA(ENABLE_PROCESSED_INPUT),
+	DATA(ENABLE_LINE_INPUT),
+	DATA(ENABLE_ECHO_INPUT),
+	DATA(ENABLE_MOUSE_INPUT),
+	DATA(ENABLE_INSERT_MODE),
+	DATA(ENABLE_QUICK_EDIT_MODE),
+	DATA(ENABLE_EXTENDED_FLAGS),
+	DATA(ENABLE_AUTO_POSITION),
+	DATA(ENABLE_VIRTUAL_TERMINAL_INPUT)
+    };
+
+    buf = _nc_trace_buf(0,
+			8 + sizeof(dwFlagsOut) +
+			8 + sizeof(dwFlagsIn));
+    if (buf != 0) {
+	lookup_bits(buf, dwFlagsIn, "dwIn", tty->dwFlagIn);
+	lookup_bits(buf, dwFlagsOut, "dwOut", tty->dwFlagOut);
     }
 #else
     /* reference: ttcompat(4M) on SunOS 4.1 */

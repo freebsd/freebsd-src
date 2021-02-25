@@ -34,7 +34,7 @@
 /*
  * Common type definitions and macros for new_pair.c, lib_color.c
  *
- * $Id: new_pair.h,v 1.10 2020/02/02 23:34:34 tom Exp $
+ * $Id: new_pair.h,v 1.11 2020/04/11 16:43:47 tom Exp $
  */
 
 #ifndef NEW_PAIR_H
@@ -77,8 +77,7 @@
 typedef enum {
     cpKEEP = -1,		/* color pair 0 */
     cpFREE = 0,			/* free for use */
-    cpINIT = 1,			/* init_pair() */
-    cpAUTO = 1			/* alloc_pair() */
+    cpINIT = 1			/* initialized */
 } CPMODE;
 
 typedef struct _color_pairs

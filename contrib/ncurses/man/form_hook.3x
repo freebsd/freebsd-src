@@ -28,28 +28,28 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_hook.3x,v 1.14 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_hook.3x,v 1.16 2020/10/18 00:06:29 tom Exp $
 .TH form_hook 3X ""
 .SH NAME
 \fBform_hook\fR \- set hooks for automatic invocation by applications
 .SH SYNOPSIS
 \fB#include <form.h>\fR
+.sp
+\fBint set_field_init(FORM *\fP\fIform\fP\fB, Form_Hook \fP\fIfunc\fP\fB);\fP
 .br
-int set_field_init(FORM *form, Form_Hook func);
+\fBForm_Hook field_init(const FORM *\fP\fIform\fP\fB);\fP
+.sp
+\fBint set_field_term(FORM *\fP\fIform\fP\fB, Form_Hook \fP\fIfunc\fP\fB);\fP
 .br
-Form_Hook field_init(const FORM *form);
+\fBForm_Hook field_term(const FORM *\fP\fIform\fP\fB);\fP
+.sp
+\fBint set_form_init(FORM *\fP\fIform\fP\fB, Form_Hook \fP\fIfunc\fP\fB);\fP
 .br
-int set_field_term(FORM *form, Form_Hook func);
+\fBForm_Hook form_init(const FORM *\fP\fIform\fP\fB);\fP
+.sp
+\fBint set_form_term(FORM *\fP\fIform\fP\fB, Form_Hook \fP\fIfunc\fP\fB);\fP
 .br
-Form_Hook field_term(const FORM *form);
-.br
-int set_form_init(FORM *form, Form_Hook func);
-.br
-Form_Hook form_init(const FORM *form);
-.br
-int set_form_term(FORM *form, Form_Hook func);
-.br
-Form_Hook form_term(const FORM *form);
+\fBForm_Hook form_term(const FORM *\fP\fIform\fP\fB);\fP
 .br
 .SH DESCRIPTION
 These functions make it possible to set hook functions to be called at various

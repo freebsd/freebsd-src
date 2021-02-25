@@ -28,17 +28,17 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_requestname.3x,v 1.12 2020/02/02 23:34:34 tom Exp $
+.\" $Id: menu_requestname.3x,v 1.15 2020/10/18 00:40:34 tom Exp $
 .TH menu_requestname 3X ""
 .SH NAME
 \fBmenu_request_by_name\fP,
 \fBmenu_request_name\fR \- handle printable menu request names
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
+.sp
+\fBconst char *menu_request_name(int \fP\fIrequest\fP\fB);\fP
 .br
-const char *menu_request_name(int request);
-.br
-int menu_request_by_name(const char *name);
+\fBint menu_request_by_name(const char *\fP\fIname\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBmenu_request_name\fR returns the printable name of a menu
@@ -49,10 +49,10 @@ with the given name and returns its request code.
 Otherwise E_NO_MATCH is returned.
 .SH RETURN VALUE
 \fBmenu_request_name\fR returns \fBNULL\fR on error
-and sets errno to \fBE_BAD_ARGUMENT\fR.
+and sets \fBerrno\fP to \fBE_BAD_ARGUMENT\fR.
 .br
 \fBmenu_request_by_name\fR returns \fBE_NO_MATCH\fR on error.
-It does not set errno.
+It does not set \fBerrno\fP.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBmenu\fR(3X).
 .SH NOTES
