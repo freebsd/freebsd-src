@@ -53,7 +53,7 @@ struct ldexp_test {
 	const char *result;
 };
 
-struct ldexp_test ldexp_basic[] = {
+static struct ldexp_test ldexp_basic[] = {
 	{ 1.0,	5,	SKIP,	"                     32" },
 	{ 1.0,	1022,	SKIP,	"4.4942328371557897693233e+307" },
 	{ 1.0,	1023,	-1,	"4.4942328371557897693233e+307" },
@@ -71,7 +71,7 @@ struct ldexp_test ldexp_basic[] = {
 	{ 0,	0,	0,	NULL }
 };
 
-struct ldexp_test ldexp_zero[] = {
+static struct ldexp_test ldexp_zero[] = {
 	{ 0.0,	-1,	SKIP,	"                      0" },
 	{ 0.0,	0,	SKIP,	"                      0" },
 	{ 0.0,	1,	SKIP,	"                      0" },
@@ -82,7 +82,7 @@ struct ldexp_test ldexp_zero[] = {
 	{ 0,	0,	0,	NULL }
 };
 
-struct ldexp_test ldexp_infinity[] = {
+static struct ldexp_test ldexp_infinity[] = {
 	{ 1.0,	1024,	-1,	"                    inf" },
 	{ 1.0,	1024,	0,	"                    inf" },
 	{ 1.0,	1024,	1,	"                    inf" },
@@ -92,7 +92,7 @@ struct ldexp_test ldexp_infinity[] = {
 	{ 0,	0,	0,	NULL }
 };
 
-struct ldexp_test ldexp_overflow[] = {
+static struct ldexp_test ldexp_overflow[] = {
 	{ 1.0,	1024,	SKIP,	"                    inf" },
 	{ 1.0,	1023,	1,	"                    inf" },
 	{ 1.0,	-1022,	2046,	"                    inf" },
@@ -106,7 +106,7 @@ struct ldexp_test ldexp_overflow[] = {
 	{ 0,	0,	0,	NULL }
 };
 
-struct ldexp_test ldexp_denormal[] = {
+static struct ldexp_test ldexp_denormal[] = {
 	{ 1.0,	-1023,	SKIP,	"1.1125369292536006915451e-308" },
 	{ 1.0,	-1022,	-1,	"1.1125369292536006915451e-308" },
 	{ 1.0,	1023,	-2046,	"1.1125369292536006915451e-308" },
@@ -120,7 +120,7 @@ struct ldexp_test ldexp_denormal[] = {
 	{ 0,	0,	0,	NULL }
 };
 
-struct ldexp_test ldexp_underflow[] = {
+static struct ldexp_test ldexp_underflow[] = {
 	{ 1.0,	-1075,	SKIP,	"                      0" },
 	{ 1.0,	-1074,	-1,	"                      0" },
 	{ 1.0,	1023,	-2098,	"                      0" },
@@ -132,7 +132,7 @@ struct ldexp_test ldexp_underflow[] = {
 	{ 0,	0,	0,	NULL }
 };
 
-struct ldexp_test ldexp_denormal_large[] = {
+static struct ldexp_test ldexp_denormal_large[] = {
 	{ 1.0,	-1028,	1024,	"                 0.0625" },
 	{ 1.0,	-1028,	1025,	"                  0.125" },
 	{ 1.0,	-1028,	1026,	"                   0.25" },
@@ -177,10 +177,9 @@ run_test(struct ldexp_test *table)
 			v = ldexp(v, table->exp2);
 
 		(void)snprintf(outbuf, sizeof(outbuf), FORMAT, v);
-
 		ATF_CHECK_STREQ_MSG(table->result, outbuf,
-			    "Entry %zu:\n\tExp: \"%s\"\n\tAct: \"%s\"",
-			    i, table->result, outbuf);
+			    "Entry %zu:\n\tExp: \"%s\"\n\tAct: \"%s\"/%a",
+			    i, table->result, outbuf, v);
 	}
 }
 
