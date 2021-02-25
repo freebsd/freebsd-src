@@ -528,10 +528,8 @@ mkimg(void)
 				    (long long)blkoffset);
 			}
 		}
-		if (!abs_offset) {
-			block = scheme_metadata(SCHEME_META_PART_AFTER,
-			    part->block + part->size);
-		}
+		block = scheme_metadata(SCHEME_META_PART_AFTER,
+		    part->block + part->size);
 	}
 
 	mkimg_validate();
