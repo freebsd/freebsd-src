@@ -88,7 +88,7 @@ SRCS.ilogb2_test=	ilogb_test.c
 
 LIBADD+=	m
 
-WARNS?=		1
+WARNS?=		6
 
 # Copied from lib/msun/Makefile
 .if ${MACHINE_CPUARCH} == "i386"

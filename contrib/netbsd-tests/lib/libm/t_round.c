@@ -117,7 +117,7 @@ ATF_TC_HEAD(rounding_alpha_simple, tc)
 }
 
 
-double rounding_alpha_simple_even = 9223372036854775808.000000; /* 2^63 */
+static double rounding_alpha_simple_even = 9223372036854775808.000000; /* 2^63 */
 
 ATF_TC_BODY(rounding_alpha_simple, tc)
 {

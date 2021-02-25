@@ -49,7 +49,7 @@ struct testcase {
 	int error;
 	int except;
 };
-struct testcase test_vals[] = {
+static struct testcase test_vals[] = {
 	{ 0,		1.00085,	1.00085,	0, 0 },
 	{ 0,		0.99755,	0.99755,	0, 0 },
 	{ 0,		-1.00085,	-1.00085,	0, 0 },
