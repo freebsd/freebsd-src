@@ -18,6 +18,7 @@ CFLAGS+=	-I${.CURDIR:H}/ncurses
 
 CFLAGS+=	-I${NCURSES_DIR}/include
 CFLAGS+=	-I${NCURSES_DIR}/ncurses
+CFLAGS+=	-I${.OBJDIR:H}/ncurses/
 
 CFLAGS+=	-Wall
 
