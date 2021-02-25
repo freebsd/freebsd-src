@@ -46,3 +46,7 @@ hint.gpioled.0.at="gpiobus0"
 hint.gpioled.0.name="rf"
 # pin 2
 hint.gpioled.0.pins=0x0004
+
+# Override this to ensure we definitely point to the last 64K of the
+# 16MiB flash chip in case underlying block size of the flash driver changes.
+hint.redboot.0.fisoffset="0xff0000"
