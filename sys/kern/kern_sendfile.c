@@ -588,28 +588,40 @@ sendfile_getobj(struct thread *td, struct file *fp, vm_object_t *obj_res,
 			goto out;
 		}
 		*bsize = vp->v_mount->mnt_stat.f_iosize;
-		error = VOP_GETATTR(vp, &va, td->td_ucred);
-		if (error != 0)
-			goto out;
-		*obj_size = va.va_size;
 		obj = vp->v_object;
 		if (obj == NULL) {
 			error = EINVAL;
 			goto out;
 		}
+
+		/*
+		 * Use the pager size when available to simplify synchronization
+		 * with filesystems, which otherwise must atomically update both
+		 * the vnode pager size and file size.
+		 */
+		if (obj->type == OBJT_VNODE) {
+			VM_OBJECT_RLOCK(obj);
+			*obj_size = obj->un_pager.vnp.vnp_size;
+		} else {
+			error = VOP_GETATTR(vp, &va, td->td_ucred);
+			if (error != 0)
+				goto out;
+			*obj_size = va.va_size;
+			VM_OBJECT_RLOCK(obj);
+		}
 	} else if (fp->f_type == DTYPE_SHM) {
 		error = 0;
 		shmfd = fp->f_data;
 		obj = shmfd->shm_object;
+		VM_OBJECT_RLOCK(obj);
 		*obj_size = shmfd->shm_size;
 	} else {
 		error = EINVAL;
 		goto out;
 	}
 
-	VM_OBJECT_WLOCK(obj);
 	if ((obj->flags & OBJ_DEAD) != 0) {
-		VM_OBJECT_WUNLOCK(obj);
+		VM_OBJECT_RUNLOCK(obj);
 		error = EBADF;
 		goto out;
 	}
@@ -620,7 +632,7 @@ sendfile_getobj(struct thread *td, struct file *fp, vm_object_t *obj_res,
 	 * immediately destroy it.
 	 */
 	vm_object_reference_locked(obj);
-	VM_OBJECT_WUNLOCK(obj);
+	VM_OBJECT_RUNLOCK(obj);
 	*obj_res = obj;
 	*vp_res = vp;
 	*shmfd_res = shmfd;
@@ -679,7 +691,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct shmfd *shmfd;
 	struct sendfile_sync *sfs;
 	struct vattr va;
-	off_t off, sbytes, rem, obj_size;
+	off_t off, sbytes, rem, obj_size, nobj_size;
 	int bsize, error, ext_pgs_idx, hdrlen, max_pgs, softerr;
 #ifdef KERN_TLS
 	int tls_enq_cnt;
@@ -852,15 +864,30 @@ retry_space:
 			error = vn_lock(vp, LK_SHARED);
 			if (error != 0)
 				goto done;
-			error = VOP_GETATTR(vp, &va, td->td_ucred);
-			if (error != 0 || off >= va.va_size) {
+
+			/*
+			 * Check to see if the file size has changed.
+			 */
+			if (obj->type == OBJT_VNODE) {
+				VM_OBJECT_RLOCK(obj);
+				nobj_size = obj->un_pager.vnp.vnp_size;
+				VM_OBJECT_RUNLOCK(obj);
+			} else {
+				error = VOP_GETATTR(vp, &va, td->td_ucred);
+				if (error != 0) {
+					VOP_UNLOCK(vp);
+					goto done;
+				}
+				nobj_size = va.va_size;
+			}
+			if (off >= nobj_size) {
 				VOP_UNLOCK(vp);
 				goto done;
 			}
-			if (va.va_size != obj_size) {
-				obj_size = va.va_size;
-				rem = nbytes ?
-				    omin(nbytes + offset, obj_size) : obj_size;
+			if (nobj_size != obj_size) {
+				obj_size = nobj_size;
+				rem = nbytes ? omin(nbytes + offset, obj_size) :
+				    obj_size;
 				rem -= off;
 			}
 		}
