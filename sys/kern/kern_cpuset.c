@@ -1255,6 +1255,11 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask,
 	 * as the parent, then we'll check if the process was previously using
 	 * the root set and, if it wasn't, create a new base with the process's
 	 * mask applied to it.
+	 *
+	 * If the new root is incompatible with the existing mask, then we allow
+	 * the process to take on the new root if and only if they have
+	 * privilege to widen their mask anyways.  Unprivileged processes get
+	 * rejected with EDEADLK.
 	 */
 	if (set != NULL && rebase && nroot != tdroot) {
 		cpusetid_t base_id, root_id;
@@ -1265,6 +1270,9 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask,
 		if (base_id != root_id) {
 			error = cpuset_setproc_newbase(td, set, nroot, &base,
 			    &freelist, &domainlist);
+			if (error == EDEADLK &&
+			    priv_check(td, PRIV_SCHED_CPUSET) == 0)
+				error = 0;
 			if (error != 0)
 				goto unlock_out;
 		}
