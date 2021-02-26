@@ -61,6 +61,8 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 
+#include <libifconfig.h>
+
 #include "ifconfig.h"
 
 static const char *stpstates[] = { STP_STATES };
@@ -117,74 +119,6 @@ do_bridgeflag(int sock, const char *ifs, int flag, int set)
 }
 
 static void
-bridge_interfaces(int s, const char *prefix)
-{
-	struct ifbifconf bifc;
-	struct ifbreq *req;
-	char *inbuf = NULL, *ninbuf;
-	char *p, *pad;
-	int i, len = 8192;
-
-	pad = strdup(prefix);
-	if (pad == NULL)
-		err(1, "strdup");
-	/* replace the prefix with whitespace */
-	for (p = pad; *p != '\0'; p++) {
-		if(isprint(*p))
-			*p = ' ';
-	}
-
-	for (;;) {
-		ninbuf = realloc(inbuf, len);
-		if (ninbuf == NULL)
-			err(1, "unable to allocate interface buffer");
-		bifc.ifbic_len = len;
-		bifc.ifbic_buf = inbuf = ninbuf;
-		if (do_cmd(s, BRDGGIFS, &bifc, sizeof(bifc), 0) < 0)
-			err(1, "unable to get interface list");
-		if ((bifc.ifbic_len + sizeof(*req)) < len)
-			break;
-		len *= 2;
-	}
-
-	for (i = 0; i < bifc.ifbic_len / sizeof(*req); i++) {
-		req = bifc.ifbic_req + i;
-		printf("%s%s ", prefix, req->ifbr_ifsname);
-		printb("flags", req->ifbr_ifsflags, IFBIFBITS);
-		printf("\n");
-
-		printf("%s", pad);
-		printf("ifmaxaddr %u", req->ifbr_addrmax);
-		printf(" port %u priority %u", req->ifbr_portno,
-		    req->ifbr_priority);
-		printf(" path cost %u", req->ifbr_path_cost);
-
-		if (req->ifbr_ifsflags & IFBIF_STP) {
-			if (req->ifbr_proto < nitems(stpproto))
-				printf(" proto %s", stpproto[req->ifbr_proto]);
-			else
-				printf(" <unknown proto %d>",
-				    req->ifbr_proto);
-
-			printf("\n%s", pad);
-			if (req->ifbr_role < nitems(stproles))
-				printf("role %s", stproles[req->ifbr_role]);
-			else
-				printf("<unknown role %d>",
-				    req->ifbr_role);
-			if (req->ifbr_state < nitems(stpstates))
-				printf(" state %s", stpstates[req->ifbr_state]);
-			else
-				printf(" <unknown state %d>",
-				    req->ifbr_state);
-		}
-		printf("\n");
-	}
-	free(pad);
-	free(inbuf);
-}
-
-static void
 bridge_addresses(int s, const char *prefix)
 {
 	struct ifbaconf ifbac;
@@ -222,44 +156,79 @@ bridge_addresses(int s, const char *prefix)
 static void
 bridge_status(int s)
 {
-	struct ifbropreq ifbp;
-	struct ifbrparam param;
-	u_int16_t pri;
-	u_int8_t ht, fd, ma, hc, pro;
-	u_int8_t lladdr[ETHER_ADDR_LEN];
-	u_int16_t bprio;
-	u_int32_t csize, ctime;
+	ifconfig_handle_t *lifh;
+	struct ifconfig_bridge_status *bridge;
+	struct ifbropreq *params;
+	const char *pad, *prefix;
+	uint8_t lladdr[ETHER_ADDR_LEN];
+	uint16_t bprio;
 
-	if (do_cmd(s, BRDGGCACHE, &param, sizeof(param), 0) < 0)
+	lifh = ifconfig_open();
+	if (lifh == NULL)
 		return;
-	csize = param.ifbrp_csize;
-	if (do_cmd(s, BRDGGTO, &param, sizeof(param), 0) < 0)
-		return;
-	ctime = param.ifbrp_ctime;
-	if (do_cmd(s, BRDGPARAM, &ifbp, sizeof(ifbp), 0) < 0)
-		return;
-	pri = ifbp.ifbop_priority;
-	pro = ifbp.ifbop_protocol;
-	ht = ifbp.ifbop_hellotime;
-	fd = ifbp.ifbop_fwddelay;
-	hc = ifbp.ifbop_holdcount;
-	ma = ifbp.ifbop_maxage;
 
-	PV2ID(ifbp.ifbop_bridgeid, bprio, lladdr);
+	if (ifconfig_bridge_get_bridge_status(lifh, name, &bridge) == -1)
+		goto close;
+
+	params = bridge->params;
+
+	PV2ID(params->ifbop_bridgeid, bprio, lladdr);
 	printf("\tid %s priority %u hellotime %u fwddelay %u\n",
-	    ether_ntoa((struct ether_addr *)lladdr), pri, ht, fd);
+	    ether_ntoa((struct ether_addr *)lladdr),
+	    params->ifbop_priority,
+	    params->ifbop_hellotime,
+	    params->ifbop_fwddelay);
 	printf("\tmaxage %u holdcnt %u proto %s maxaddr %u timeout %u\n",
-	    ma, hc, stpproto[pro], csize, ctime);
-
-	PV2ID(ifbp.ifbop_designated_root, bprio, lladdr);
+	    params->ifbop_maxage,
+	    params->ifbop_holdcount,
+	    stpproto[params->ifbop_protocol],
+	    bridge->cache_size,
+	    bridge->cache_lifetime);
+	PV2ID(params->ifbop_designated_root, bprio, lladdr);
 	printf("\troot id %s priority %d ifcost %u port %u\n",
-	    ether_ntoa((struct ether_addr *)lladdr), bprio,
-	    ifbp.ifbop_root_path_cost, ifbp.ifbop_root_port & 0xfff);
+	    ether_ntoa((struct ether_addr *)lladdr),
+	    bprio,
+	    params->ifbop_root_path_cost,
+	    params->ifbop_root_port & 0xfff);
 
-	bridge_interfaces(s, "\tmember: ");
+	prefix = "\tmember: ";
+	pad    = "\t        ";
+	for (size_t i = 0; i < bridge->members_count; ++i) {
+		struct ifbreq *member = &bridge->members[i];
 
-	return;
+		printf("%s%s ", prefix, member->ifbr_ifsname);
+		printb("flags", member->ifbr_ifsflags, IFBIFBITS);
+		printf("\n%s", pad);
+		printf("ifmaxaddr %u port %u priority %u path cost %u",
+		    member->ifbr_addrmax,
+		    member->ifbr_portno,
+		    member->ifbr_priority,
+		    member->ifbr_path_cost);
+		if (member->ifbr_ifsflags & IFBIF_STP) {
+			uint8_t proto = member->ifbr_proto;
+			uint8_t role = member->ifbr_role;
+			uint8_t state = member->ifbr_state;
 
+			if (proto < nitems(stpproto))
+				printf(" proto %s", stpproto[proto]);
+			else
+				printf(" <unknown proto %d>", proto);
+			printf("\n%s", pad);
+			if (role < nitems(stproles))
+				printf("role %s", stproles[role]);
+			else
+				printf("<unknown role %d>", role);
+			if (state < nitems(stpstates))
+				printf(" state %s", stpstates[state]);
+			else
+				printf(" <unknown state %d>", state);
+		}
+		printf("\n");
+	}
+
+	ifconfig_bridge_free_bridge_status(bridge);
+close:
+	ifconfig_close(lifh);
 }
 
 static void
