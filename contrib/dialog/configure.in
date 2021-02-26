@@ -1,7 +1,7 @@
-dnl $Id: configure.in,v 1.92 2018/06/18 08:59:49 tom Exp $
+dnl $Id: configure.in,v 1.101 2020/11/26 16:21:27 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl ---------------------------------------------------------------------------
-dnl Copyright 1999-2016,2018 -- Thomas E. Dickey
+dnl Copyright 1999-2019,2020 -- Thomas E. Dickey
 dnl
 dnl Permission is hereby granted, free of charge, to any person obtaining a
 dnl copy of this software and associated documentation files (the
@@ -27,7 +27,7 @@ dnl holders shall not be used in advertising or otherwise to promote the
 dnl sale, use or other dealings in this Software without prior written
 dnl authorization.
 dnl ---------------------------------------------------------------------------
-AC_PREREQ(2.52.20170501)
+AC_PREREQ(2.52.20200802)
 AC_INIT(dialog.h)
 AC_CONFIG_HEADER(dlg_config.h:config.hin)
 
@@ -63,7 +63,8 @@ CF_XOPEN_SOURCE
 CF_LARGEFILE
 
 CF_WITH_INSTALL_PREFIX
-CF_WITH_WARNINGS
+CF_WITH_SCREEN_PDCURSES
+CF_ENABLE_WARNINGS(,yes)
 CF_PKG_CONFIG
 
 dnl
@@ -113,12 +114,11 @@ CF_ARG_MSG_ENABLE([if you want --trace option],
 	[EXTRAOBJS="$EXTRAOBJS trace\$o"
 	 AC_DEFINE(HAVE_DLG_TRACE,1,[Define to 1 to support --trace option])],,yes)
 
+CF_ENABLE_RPATH
 CF_LD_RPATH_OPT
 CF_WITH_SHARED_OR_LIBTOOL(DIALOG,${VERSION_MAJOR}.${VERSION_MINOR},`echo "$VERSION" |sed -e 's/:/./g'`)
 
 CF_WITH_CURSES_DIR
-
-CF_ENABLE_RPATH
 
 CF_WITH_NCURSES_ETC
 CF_WIDEC_CURSES
@@ -129,11 +129,20 @@ CF_ARG_MSG_ENABLE([if you want extra dialogs],
 	[  --disable-extras        do not include extra dialogs],
 	[cf_all_widgets=yes],[cf_all_widgets=no],yes)
 
+cf_use_dialogrc=yes
 CF_ARG_MSG_ENABLE([if you want config-file support],
 	rc-file,
 	[  --disable-rc-file       do not include config-file support],
 	[EXTRAOBJS="$EXTRAOBJS rc\$o"
-	 AC_DEFINE(HAVE_RC_FILE,1,[Define to 1 to include config-file support])],,$cf_all_widgets)
+	 AC_DEFINE(HAVE_RC_FILE,1,[Define to 1 to include config-file support])],cf_use_dialogrc=no,$cf_all_widgets)
+
+cf_use_dialogrc2=yes
+if test "$cf_use_dialogrc" = yes; then
+CF_ARG_MSG_ENABLE([if you want extra attributes in config-file],
+	rc-file2,
+	[  --disable-rc-file2      do not use extra attributes in config-file],
+	[AC_DEFINE(HAVE_RC_FILE2,1,[Define to 1 to use extra attributes in config-file])],cf_use_dialogrc2=no,$cf_all_widgets)
+fi
 
 CF_ARG_MSG_ENABLE([if you want Xdialog-style dialogs],
 	Xdialog,
@@ -195,7 +204,7 @@ dnl
 AC_HEADER_STDC
 AC_HEADER_TIME
 AC_HEADER_DIRENT
-AC_CHECK_HEADERS(search.h stdint.h unistd.h)
+AC_CHECK_HEADERS(search.h stdint.h sys/param.h unistd.h)
 CF_CURSES_TERM_H
 
 dnl
@@ -203,7 +212,6 @@ dnl Checks for library functions.
 dnl
 AC_TYPE_SIGNAL
 AC_CHECK_FUNCS(\
-_nc_free_and_exit \
 btowc \
 mblen \
 mbrlen \
@@ -241,6 +249,8 @@ wget_wch \
 wsyncup \
 )
 
+CF_CURSES_EXIT
+
 AC_CHECK_FUNC(start_color,[AC_DEFINE(HAVE_COLOR,1,[Define to 1 if (n)curses has start_color function])])
 CF_CURSES_CHTYPE
 CF_CURSES_WACS_SYMBOLS
@@ -254,9 +264,11 @@ CF_HEADERS_SH(DLG,dlg_config.h)
 AC_TRY_LINK([#include <locale.h>],[setlocale(LC_ALL, "")],[AC_DEFINE(HAVE_SETLOCALE,1,[Define to 1 if locale feature can be enabled])])
 CF_NL_LANGINFO_1STDAY
 
+CF_MERGE_EXTRA_CFLAGS
 CF_DISABLE_RPATH_HACK
 
 CF__DEFINE_SHLIB_VARS
+CF_LD_SEARCHPATH
 
 AC_OUTPUT(
 	dialog-config

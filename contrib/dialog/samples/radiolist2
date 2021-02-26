@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: radiolist2,v 1.8 2010/01/13 10:20:03 tom Exp $
+# $Id: radiolist2,v 1.9 2020/11/26 00:05:11 tom Exp $
 
 . ./setup-vars
 
@@ -25,6 +25,6 @@ Press SPACE to toggle an option on/off. \n\n\
         "Fish"   "Cats like fish." off \
         "Lemon"  "You know how it tastes." off 2> $tempfile
 
-retval=$?
+returncode=$?
 
 . ./report-tempfile

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: menubox5,v 1.9 2010/01/13 10:20:03 tom Exp $
+# $Id: menubox5,v 1.11 2020/11/26 00:03:58 tom Exp $
 
 . ./setup-vars
 
@@ -21,10 +21,10 @@ Try it now!\n\n\
         "WIN NT" "Microsoft Windows NT xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"                "hmm" \
         "WIN 2K" "Microsoft Windows 2000 xxxxxxxxxxxxxxxxxxxxxxxxxxxx"                "hmm" \
         "WIN XP" "Microsoft Windows XP (son of Windows 95) xxxxxxxxxx"                "hmm" \
-        "WIN 95" "Microsoft Windows 95 (son of MSDOS) xxxxxxxxxxxxxxx"                "hmm" \
-        "PCDOS"  "IBM PC DOS xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"                          "clone of a clone" \
-        "MSDOS"  "Microsoft DOS xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"                       "DOS: Disk Operating System, originally for an IBM contract, hence using the same jargon" 2> $tempfile
+        "WIN 95" "Microsoft Windows 95 (son of MS-DOS) xxxxxxxxxxxxxx"                "hmm" \
+        "PC-DOS" "IBM PC DOS xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"                          "clone of a clone" \
+        "MS-DOS" "Microsoft DOS xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"                       "DOS: Disk Operating System, originally for an IBM contract, hence using the same jargon" 2> $tempfile
 
-retval=$?
+returncode=$?
 
 . ./report-tempfile

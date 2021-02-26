@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# $Id: dialog.py,v 1.4 2012/06/29 09:33:18 tom Exp $
+# $Id: dialog.py,v 1.5 2019/12/10 22:52:52 tom Exp $
 # Module: dialog.py
 # Copyright (c) 2000 Robb Shecter <robb@acm.org>
 # All rights reserved.
@@ -252,11 +252,11 @@ class Dialog:
     def gauge_start(self, perc=0, text='', height=8, width=54, title=''):
 	"""
 	Display gauge output window.
-	Gauge normal usage (assuming that there is an instace of 'Dialog'
+	Gauge normal usage (assuming that there is an instance of 'Dialog'
 	class named 'd'):
 	    d.gauge_start()
 	    # do something
-	    d.gauge_iterate(10)  # passed throgh 10%
+	    d.gauge_iterate(10)  # passed through 10%
 	    # ...
 	    d.gauge_iterate(100, 'any text here')  # work is done
 	    d.stop_gauge()  # clean-up actions

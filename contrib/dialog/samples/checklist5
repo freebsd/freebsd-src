@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: checklist5,v 1.11 2010/01/13 10:20:03 tom Exp $
+# $Id: checklist5,v 1.12 2020/11/26 00:03:58 tom Exp $
 
 . ./setup-vars
 
@@ -24,6 +24,6 @@ Press SPACE to toggle an option on/off. \n\n\
         "Fish"       "Cats like fish. xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"                         On  "not a fruit" \
         "Lemon"      "You know how it tastes. xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"                 on  "the only one you wouldn't eat" 2> $tempfile
 
-retval=$?
+returncode=$?
 
 . ./report-tempfile
