@@ -998,13 +998,13 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			jid = 0;
 	}
 	sx_xlock(&allprison_lock);
+	drflags = PD_LIST_XLOCKED;
 	ppr = mypr;
 	if (!prison_isalive(ppr)) {
 		/* This jail is dying.  This process will surely follow. */
 		error = EAGAIN;
 		goto done_deref;
 	}
-	drflags = PD_LIST_XLOCKED;
 	if (jid != 0) {
 		if (jid < 0) {
 			error = EINVAL;
