@@ -11023,16 +11023,15 @@ ctl_check_for_blockage(struct ctl_lun *lun, union ctl_io *pending_io,
 		return (CTL_ACTION_BLOCK);
 	case CTL_SER_EXTENT:
 		return (ctl_extent_check(ooa_io, pending_io,
-		    (lun->be_lun && lun->be_lun->serseq == CTL_LUN_SERSEQ_ON)));
+		    (lun->be_lun->serseq == CTL_LUN_SERSEQ_ON)));
 	case CTL_SER_EXTENTOPT:
 		if ((lun->MODE_CTRL.queue_flags & SCP_QUEUE_ALG_MASK) !=
 		    SCP_QUEUE_ALG_UNRESTRICTED)
 			return (ctl_extent_check(ooa_io, pending_io,
-			    (lun->be_lun &&
-			     lun->be_lun->serseq == CTL_LUN_SERSEQ_ON)));
+			    (lun->be_lun->serseq == CTL_LUN_SERSEQ_ON)));
 		return (CTL_ACTION_PASS);
 	case CTL_SER_EXTENTSEQ:
-		if (lun->be_lun && lun->be_lun->serseq != CTL_LUN_SERSEQ_OFF)
+		if (lun->be_lun->serseq != CTL_LUN_SERSEQ_OFF)
 			return (ctl_extent_check_seq(ooa_io, pending_io));
 		return (CTL_ACTION_PASS);
 	case CTL_SER_PASS:
@@ -11276,8 +11275,7 @@ ctl_scsiio_lun_check(struct ctl_lun *lun,
 	}
 
 	if (entry->pattern & CTL_LUN_PAT_WRITE) {
-		if (lun->be_lun &&
-		    lun->be_lun->flags & CTL_LUN_FLAG_READONLY) {
+		if (lun->be_lun->flags & CTL_LUN_FLAG_READONLY) {
 			ctl_set_hw_write_protected(ctsio);
 			retval = 1;
 			goto bailout;
@@ -13269,8 +13267,7 @@ ctl_serseq_done(union ctl_io *io)
 {
 	struct ctl_lun *lun = CTL_LUN(io);
 
-	if (lun->be_lun == NULL ||
-	    lun->be_lun->serseq == CTL_LUN_SERSEQ_OFF)
+	if (lun->be_lun->serseq == CTL_LUN_SERSEQ_OFF)
 		return;
 	mtx_lock(&lun->lun_lock);
 	io->io_hdr.flags |= CTL_FLAG_SERSEQ_DONE;
