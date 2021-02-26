@@ -38,11 +38,11 @@ For the future, if any volunteer want, the way to evolve cdialog is to
    multithreading.
 2) add an option that could permit to read commands (--options) from a
    file, like as in a normal programming language, but maintaining 
-   compatiblity with older version of dialog.
+   compatibility with older version of dialog.
 
 I no longer could maintain cdialog...
 Executable and library name of cdialog are the same of dialog, for
-compatiblity.
+compatibility.
 
 I think that only one directive should be follow: don't use a resource
 like stdin, stdout when you'll write new options for cdialog; these 

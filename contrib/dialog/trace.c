@@ -1,12 +1,13 @@
 /*
- *  $Id: trace.c,v 1.26 2018/06/13 00:06:48 tom Exp $
+ *  $Id: trace.c,v 1.33 2020/11/23 23:32:43 tom Exp $
  *
  *  trace.c -- implements screen-dump and keystroke-logging
  *
- *  Copyright 2007-2017,2018	Thomas E. Dickey
+ *  Copyright 2007-2019,2020	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
+ *  as published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful, but
  *  WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -41,7 +42,7 @@ dlg_trace_time(const char *tag)
 }
 
 void
-dlg_trace_msg(const char *fmt,...)
+dlg_trace_msg(const char *fmt, ...)
 {
     if (myFP != 0) {
 	va_list ap;
@@ -53,16 +54,26 @@ dlg_trace_msg(const char *fmt,...)
 }
 
 void
+dlg_trace_va_msg(const char *fmt, va_list ap)
+{
+    if (myFP != 0) {
+	vfprintf(myFP, fmt, ap);
+	fflush(myFP);
+    }
+}
+
+void
 dlg_trace_2s(const char *name, const char *value)
 {
     bool first = TRUE;
-    const char *next;
     int left, right = 0;
 
     if (value == 0)
 	value = "<NULL>";
 
     while (value[right] != '\0') {
+	const char *next;
+
 	value += right;
 	if ((next = strchr(value, '\n')) != 0) {
 	    left = (int) (next - value);
@@ -73,9 +84,9 @@ dlg_trace_2s(const char *name, const char *value)
 	}
 	if (first) {
 	    first = FALSE;
-	    dlg_trace_msg("#%14s=%.*s\n", name, left, value);
+	    dlg_trace_msg("#%14s = %.*s\n", name, left, value);
 	} else {
-	    dlg_trace_msg("#+\t\t%.*s\n", left, value);
+	    dlg_trace_msg("#+%13s%.*s\n", " ", left, value);
 	}
     }
 }
@@ -83,15 +94,13 @@ dlg_trace_2s(const char *name, const char *value)
 void
 dlg_trace_2n(const char *name, int value)
 {
-    dlg_trace_msg("#\t%7s=%d\n", name, value);
+    dlg_trace_msg("#%14s = %d\n", name, value);
 }
 
 void
 dlg_trace_win(WINDOW *win)
 {
     if (myFP != 0) {
-	int y, x;
-	int j, k;
 	WINDOW *top = wgetparent(win);
 
 	while (top != 0 && top != stdscr) {
@@ -103,6 +112,8 @@ dlg_trace_win(WINDOW *win)
 	    int rc = getmaxy(win);
 	    int cc = getmaxx(win);
 	    chtype ch, c2;
+	    int y, x;
+	    int j, k;
 
 	    fprintf(myFP, "window %dx%d at %d,%d\n",
 		    rc, cc, getbegy(win), getbegx(win));
@@ -124,7 +135,7 @@ dlg_trace_win(WINDOW *win)
 			buffer[1] = '\0';
 		    } else {
 			cchar_t cch;
-			wchar_t *uc;
+			const wchar_t *uc;
 
 			if (win_wch(win, &cch) == ERR
 			    || (uc = wunctrl((&cch))) == 0
@@ -220,6 +231,7 @@ dlg_trace_chr(int ch, int fkey)
 		    CASE(DLGK_HELPFILE);
 		    CASE(DLGK_TRACE);
 		    CASE(DLGK_TOGGLE);
+		    CASE(DLGK_LEAVE);
 		}
 	    }
 	} else if (ch == ERR) {

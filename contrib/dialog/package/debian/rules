@@ -1,4 +1,5 @@
 #!/usr/bin/make -f
+# $Id: rules,v 1.11 2019/07/24 00:53:35 tom Exp $
 # Made with the aid of dh_make, by Craig Small
 # Sample debian/rules that uses debhelper. GNU copyright 1997 by Joey Hess.
 # Some lines taken from debmake, by Cristoph Lameter.
@@ -15,7 +16,16 @@ CPPFLAGS	:= $(shell dpkg-buildflags --get CPPFLAGS)
 CFLAGS		:= $(shell dpkg-buildflags --get CFLAGS)
 LDFLAGS		:= $(shell dpkg-buildflags --get LDFLAGS)
 
+TMP = $(CURDIR)/debian/tmp
+
 ACTUAL_PROG	= cdialog
+DEV_PACKAGE	= $(ACTUAL_PROG)-dev
+
+BINDIR		= /usr/bin
+LIBDIR		= /usr/lib
+LOCALE		= /usr/share/locale
+MANDIR		= /usr/share/man
+HEADER		= /usr/include
 
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
         CFLAGS += -O0
@@ -77,7 +87,31 @@ install-stamp: build-stamp
 	dh_clean -k
 	dh_installdirs
 
-	$(MAKE) install DESTDIR=$(CURDIR)/debian/${ACTUAL_PROG}
+	$(MAKE) install-full DESTDIR=$(TMP)
+
+	dh_install -p${ACTUAL_PROG} $(BINDIR)/$(ACTUAL_PROG)
+	dh_install -p${ACTUAL_PROG} $(LIBDIR)
+	dh_install -p${ACTUAL_PROG} $(LOCALE)
+	dh_install -p${ACTUAL_PROG} $(MANDIR)/man1
+	dh_install -p${DEV_PACKAGE} $(BINDIR)/$(ACTUAL_PROG)-config
+	dh_install -p${DEV_PACKAGE} $(MANDIR)/man3
+	dh_install -p${DEV_PACKAGE} $(HEADER)
+
+	echo FIXME
+	for P in lib${ACTUAL_PROG}.so*; \
+	do \
+		[ -L "$$P" ] || continue; \
+		case "$$P" in \
+		*.so) \
+			echo "DEV: $$P"; \
+			dh_link -p${DEV_PACKAGE} $(LIBDIR)/`readlink $$P` $(LIBDIR)/$$P ; \
+			;; \
+		*) \
+			echo "BIN: $$P"; \
+			dh_link -p${ACTUAL_PROG} $(LIBDIR)/`readlink $$P` $(LIBDIR)/$$P ; \
+			;; \
+		esac; \
+	done
 
 	touch install-stamp
 

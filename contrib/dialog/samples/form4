@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: form4,v 1.6 2010/01/13 10:49:52 tom Exp $
+# $Id: form4,v 1.9 2020/11/26 00:32:31 tom Exp $
 # form3 with --item-help
 
 . ./setup-vars
@@ -17,7 +17,7 @@ returncode=0
 while test $returncode != 1 && test $returncode != 250
 do
 exec 3>&1
-value=`$DIALOG --ok-label "Submit" \
+returntext=`$DIALOG --ok-label "Submit" \
 	  --help-button \
 	  --item-help \
 	  --backtitle "$backtitle" "$@" \
@@ -31,7 +31,7 @@ value=`$DIALOG --ok-label "Submit" \
 returncode=$?
 exec 3>&-
 
-show=`echo "$value" |sed -e 's/^/	/'`
+show=`echo "$returntext" |sed -e 's/^/	/'`
 
 	case $returncode in
 	$DIALOG_CANCEL)
@@ -63,7 +63,7 @@ $show" 10 40
 $show" 10 40
 		;;
 	*)
-		echo "Return code was $returncode"
+		. ./report-button
 		exit
 		;;
 	esac

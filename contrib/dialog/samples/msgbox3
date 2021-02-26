@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: msgbox3,v 1.7 2010/01/13 10:26:52 tom Exp $
+# $Id: msgbox3,v 1.8 2019/12/11 00:03:44 tom Exp $
 
 . ./setup-vars
 
@@ -17,6 +17,6 @@ $DIALOG --title "MESSAGE BOX (width $width)" --clear --no-collapse "$@" \
 Hi, this is a simple message box.  You can use this to \
 display any message you like.  The box will remain until \
 you press the ENTER key." 15 $width
-test $? = $DIALOG_ESC && break
+test $? = "$DIALOG_ESC" && break
 width=`expr $width + 1`
 done

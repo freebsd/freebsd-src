@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: editbox2,v 1.7 2010/01/13 10:20:03 tom Exp $
+# $Id: editbox2,v 1.8 2020/11/26 00:03:58 tom Exp $
 # example with extra- and help-buttons
 
 . ./setup-vars
@@ -40,6 +40,6 @@ $DIALOG --title "EDIT BOX" \
 	--extra-button \
 	--help-button \
 	--fixed-font "$@" --editbox $input 0 0 2>$output
-retval=$?
+returncode=$?
 
 . ./report-edit

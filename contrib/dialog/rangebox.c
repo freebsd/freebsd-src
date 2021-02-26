@@ -1,9 +1,9 @@
 /*
- *  $Id: rangebox.c,v 1.24 2018/06/19 22:57:01 tom Exp $
+ *  $Id: rangebox.c,v 1.32 2020/11/22 23:25:09 tom Exp $
  *
  *  rangebox.c -- implements the rangebox dialog
  *
- *  Copyright 2012-2017,2018	Thomas E. Dickey
+ *  Copyright 2012-2019,2020	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -21,26 +21,13 @@
  *	Boston, MA 02110, USA.
  */
 
-#include <dialog.h>
+#include <dlg_internals.h>
 #include <dlg_keys.h>
 
 #define ONE_HIGH 1
 
 #define MIN_HIGH (ONE_HIGH + 1 + (4 * MARGIN))
 #define MIN_WIDE (10 + 2 + (2 * MARGIN))
-
-struct _box;
-
-typedef struct _box {
-    WINDOW *parent;
-    WINDOW *window;
-    int x;
-    int y;
-    int width;
-    int height;
-    int period;
-    int value;
-} BOX;
 
 typedef struct {
     /* window in which the value and slider are drawn */
@@ -209,7 +196,7 @@ dialog_rangebox(const char *title,
     int old_width = width;
 #endif
     VALUE data;
-    int key = 0, key2, fkey;
+    int key, fkey;
     int button;
     int result = DLG_EXIT_UNKNOWN;
     WINDOW *dialog;
@@ -245,11 +232,8 @@ dialog_rangebox(const char *title,
 #endif
 
     prompt = dlg_strclone(cprompt);
-    dlg_auto_size(title, prompt, &height, &width, 0, 0);
+    dlg_auto_size(title, prompt, &height, &width, MIN_HIGH, MIN_WIDE);
 
-    height += MIN_HIGH;
-    if (width < MIN_WIDE)
-	width = MIN_WIDE;
     dlg_button_layout(buttons, &width);
     dlg_print_size(height, width);
     dlg_ctl_size(height, width);
@@ -313,7 +297,10 @@ dialog_rangebox(const char *title,
     dlg_print_autowrap(dialog, prompt, height, width);
 
     dlg_trace_win(dialog);
+
     while (result == DLG_EXIT_UNKNOWN) {
+	int key2;
+
 	draw_value(&data, cur_value);
 	button = (state < 0) ? 0 : state;
 	dlg_draw_buttons(dialog, height - 2, 0, buttons, button, FALSE, width);
@@ -323,8 +310,10 @@ dialog_rangebox(const char *title,
 	}
 
 	key = dlg_mouse_wgetch(dialog, &fkey);
-	if (dlg_result_key(key, fkey, &result))
-	    break;
+	if (dlg_result_key(key, fkey, &result)) {
+	    if (!dlg_button_key(result, &button, &key, &fkey))
+		break;
+	}
 
 	if ((key2 = dlg_char_to_button(key, buttons)) >= 0) {
 	    result = key2;
@@ -334,6 +323,9 @@ dialog_rangebox(const char *title,
 		switch (key) {
 		case DLGK_TOGGLE:
 		case DLGK_ENTER:
+		    result = dlg_enter_buttoncode(button);
+		    break;
+		case DLGK_LEAVE:
 		    result = dlg_ok_buttoncode(button);
 		    break;
 		case DLGK_FIELD_PREV:
@@ -392,9 +384,7 @@ dialog_rangebox(const char *title,
 		    width = old_width;
 		    /* repaint */
 		    free(prompt);
-		    dlg_clear();
-		    dlg_del_window(dialog);
-		    dlg_mouse_free_regions();
+		    _dlg_resize_cleanup(dialog);
 		    goto retry;
 #endif
 		case DLGK_MOUSE('i'):
@@ -421,8 +411,7 @@ dialog_rangebox(const char *title,
 
     sprintf(buffer, "%d", cur_value);
     dlg_add_result(buffer);
-    dlg_add_separator();
-    dlg_add_last_key(-1);
+    AddLastKey();
 
     dlg_del_window(dialog);
     dlg_mouse_free_regions();

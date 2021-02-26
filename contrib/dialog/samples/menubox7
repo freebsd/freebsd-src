@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: menubox7,v 1.9 2010/01/13 10:20:03 tom Exp $
+# $Id: menubox7,v 1.11 2020/11/26 00:03:58 tom Exp $
 # example with --extra-button
 
 . ./setup-vars
@@ -21,9 +21,9 @@ Try it now!\n\n\
         "NetBSD" "Another free Unix Clone for 386/486" "Or NetBSD?" \
         "OS/2"   "IBM OS/2"                            "aka \"Warp\"" \
         "WIN NT" "Microsoft Windows NT"                "hmm" \
-        "PCDOS"  "IBM PC DOS"                          "clone of a clone" \
-        "MSDOS"  "Microsoft DOS"                       "DOS: Disk Operating System, originally for an IBM contract, hence using the same jargon" 2> $tempfile
+        "PC-DOS"  "IBM PC DOS"                         "clone of a clone" \
+        "MS-DOS"  "Microsoft DOS"                      "DOS: Disk Operating System, originally for an IBM contract, hence using the same jargon" 2> $tempfile
 
-retval=$?
+returncode=$?
 
 . ./report-tempfile

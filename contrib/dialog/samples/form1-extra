@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: form1-extra,v 1.5 2010/01/13 10:47:35 tom Exp $
+# $Id: form1-extra,v 1.8 2020/11/26 00:34:05 tom Exp $
 
 . ./setup-vars
 
@@ -16,7 +16,7 @@ returncode=0
 while test $returncode != 1 && test $returncode != 250
 do
 exec 3>&1
-value=`$DIALOG --ok-label "Submit" \
+returntext=`$DIALOG --ok-label "Submit" \
 	  --extra-button \
 	  --backtitle "$backtitle" "$@" \
 	  --form "Here is a possible piece of a configuration program." \
@@ -29,7 +29,7 @@ value=`$DIALOG --ok-label "Submit" \
 returncode=$?
 exec 3>&-
 
-show=`echo "$value" |sed -e 's/^/	/'`
+show=`echo "$returntext" |sed -e 's/^/	/'`
 
 	case $returncode in
 	$DIALOG_CANCEL)
@@ -53,16 +53,8 @@ show=`echo "$value" |sed -e 's/^/	/'`
 		--msgbox "Resulting data:\n\
 $show" 10 40
 		;;
-	$DIALOG_HELP)
-		echo "Button 2 (Help) pressed."
-		exit
-		;;
-	$DIALOG_EXTRA)
-		echo "Button 3 (Extra) pressed."
-		exit
-		;;
 	*)
-		echo "Return code was $returncode"
+		. ./report-button
 		exit
 		;;
 	esac

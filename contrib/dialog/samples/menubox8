@@ -1,11 +1,11 @@
 #!/bin/sh
-# $Id: menubox8,v 1.7 2010/01/13 10:34:32 tom Exp $
+# $Id: menubox8,v 1.10 2020/11/26 00:09:12 tom Exp $
 
 . ./setup-vars
 
 exec 3>&1
-RESULT=`$DIALOG --help-button \
-	--default-item "MSDOS" \
+returntext=`$DIALOG --help-button \
+	--default-item "MS-DOS" \
 	--clear \
 	--title "MENU BOX" "$@" \
         --menu "Hi, this is a menu box. You can use this to \n\
@@ -21,10 +21,10 @@ Try it now!\n\n\
         "NetBSD" "Another free Unix Clone for 386/486" \
         "OS/2" "IBM OS/2" \
         "WIN NT" "Microsoft Windows NT" \
-        "PCDOS"  "IBM PC DOS" \
-        "MSDOS"  "Microsoft DOS" \
+        "PC-DOS" "IBM PC DOS" \
+        "MS-DOS" "Microsoft DOS" \
 2>&1 1>&3`
-retval=$?
+returncode=$?
 exec 3>&-
 
 . ./report-string

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: inputbox3,v 1.7 2010/01/13 10:20:03 tom Exp $
+# $Id: inputbox3,v 1.8 2020/11/26 00:03:58 tom Exp $
 
 . ./setup-vars
 
@@ -16,6 +16,6 @@ input field will be automatically scrolled. \n\
 You can use BACKSPACE to correct errors. \n\n\
 Try entering your name below:" 16 51 2> $tempfile
 
-retval=$?
+returncode=$?
 
 . ./report-tempfile

@@ -1,9 +1,9 @@
 /*
- *  $Id: fselect.c,v 1.102 2018/06/21 23:28:04 tom Exp $
+ *  $Id: fselect.c,v 1.115 2021/01/16 17:19:15 tom Exp $
  *
  *  fselect.c -- implements the file-selector box
  *
- *  Copyright 2000-2017,2018	Thomas E. Dickey
+ *  Copyright 2000-2020,2021	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -21,7 +21,7 @@
  *	Boston, MA 02110, USA.
  */
 
-#include <dialog.h>
+#include <dlg_internals.h>
 #include <dlg_keys.h>
 
 #include <sys/types.h>
@@ -125,9 +125,9 @@ data_of(LIST * list)
 static void
 free_list(LIST * list, int reinit)
 {
-    int n;
-
     if (list->data != 0) {
+	int n;
+
 	for (n = 0; list->data[n] != 0; n++)
 	    free(list->data[n]);
 	free(list->data);
@@ -173,13 +173,14 @@ keep_visible(LIST * list)
 static int
 find_choice(char *target, LIST * list)
 {
-    int n;
     int choice = list->choice;
-    int len_1, len_2, cmp_1, cmp_2;
 
     if (*target == 0) {
 	list->choice = 0;
     } else {
+	int n;
+	int len_1, cmp_1;
+
 	/* find the match with the longest length.  If more than one has the
 	 * same length, choose the one with the closest match of the final
 	 * character.
@@ -189,6 +190,7 @@ find_choice(char *target, LIST * list)
 	for (n = 0; n < list->length; n++) {
 	    char *a = target;
 	    char *b = list->data[n];
+	    int len_2, cmp_2;
 
 	    len_2 = 0;
 	    while ((*a != 0) && (*b != 0) && (*a == *b)) {
@@ -216,13 +218,13 @@ find_choice(char *target, LIST * list)
 static void
 display_list(LIST * list)
 {
-    int n;
-    int x;
-    int y;
-    int top;
-    int bottom;
-
     if (list->win != 0) {
+	int n;
+	int x;
+	int y;
+	int top;
+	int bottom;
+
 	dlg_attr_clear(list->win, getmaxy(list->win), getmaxx(list->win), item_attr);
 	for (n = list->offset; n < list->length && list->data[n]; n++) {
 	    y = n - list->offset;
@@ -264,16 +266,17 @@ display_list(LIST * list)
  * that is really required is that they're distinct, so we can put them in a
  * switch statement.
  */
+#if USE_MOUSE
 static void
 fix_arrows(LIST * list)
 {
-    int x;
-    int y;
-    int top;
-    int right;
-    int bottom;
-
     if (list->win != 0) {
+	int x;
+	int y;
+	int top;
+	int right;
+	int bottom;
+
 	getparyx(list->win, y, x);
 	top = y - 1;
 	right = getmaxx(list->win);
@@ -289,6 +292,10 @@ fix_arrows(LIST * list)
 			: KEY_NPAGE));
     }
 }
+
+#else
+#define fix_arrows(list)	/* nothing */
+#endif
 
 static bool
 show_list(char *target, LIST * list, bool keep)
@@ -356,18 +363,29 @@ match(char *name, LIST * d_list, LIST * f_list, MATCH * match_list)
     size_t test_len = strlen(test);
     char **matches = dlg_malloc(char *, (size_t) (d_list->length + f_list->length));
     size_t data_len = 0;
-    int i;
-    for (i = 2; i < d_list->length; i++) {
-	if (strncmp(test, d_list->data[i], test_len) == 0) {
-	    matches[data_len++] = d_list->data[i];
+
+    if (matches != 0) {
+	int i;
+	char **new_ptr;
+
+	for (i = 2; i < d_list->length; i++) {
+	    if (strncmp(test, d_list->data[i], test_len) == 0) {
+		matches[data_len++] = d_list->data[i];
+	    }
+	}
+	for (i = 0; i < f_list->length; i++) {
+	    if (strncmp(test, f_list->data[i], test_len) == 0) {
+		matches[data_len++] = f_list->data[i];
+	    }
+	}
+	if ((new_ptr = dlg_realloc(char *, data_len + 1, matches)) != 0) {
+	    matches = new_ptr;
+	} else {
+	    free(matches);
+	    matches = 0;
+	    data_len = 0;
 	}
     }
-    for (i = 0; i < f_list->length; i++) {
-	if (strncmp(test, f_list->data[i], test_len) == 0) {
-	    matches[data_len++] = f_list->data[i];
-	}
-    }
-    matches = dlg_realloc(char *, data_len + 1, matches);
     match_list->data = matches;
     match_list->length = (int) data_len;
 }
@@ -386,11 +404,11 @@ complete(char *name, LIST * d_list, LIST * f_list, char **buff_ptr)
     char *test;
     size_t test_len;
     size_t i;
-    int j;
     char *buff;
 
     match(name, d_list, f_list, &match_list);
     if (match_list.length == 0) {
+	free(match_list.data);
 	*buff_ptr = NULL;
 	return 0;
     }
@@ -406,6 +424,8 @@ complete(char *name, LIST * d_list, LIST * f_list, char **buff_ptr)
 	    i++;
 	}
     } else {
+	int j;
+
 	for (i = 0; i < test_len; i++) {
 	    char test_char = test[i];
 	    if (test_char == '\0')
@@ -433,12 +453,9 @@ fill_lists(char *current, char *input, LIST * d_list, LIST * f_list, bool keep)
 {
     bool result = TRUE;
     bool rescan = FALSE;
-    DIR *dp;
-    DIRENT *de;
     struct stat sb;
     int n;
     char path[MAX_LEN + 1];
-    char *leaf;
 
     /* check if we've updated the lists */
     for (n = 0; current[n] && input[n]; n++) {
@@ -457,7 +474,9 @@ fill_lists(char *current, char *input, LIST * d_list, LIST * f_list, bool keep)
     }
 
     if (rescan) {
+	DIR *dp;
 	size_t have = strlen(input);
+	char *leaf;
 
 	if (have > MAX_LEN)
 	    have = MAX_LEN;
@@ -477,6 +496,8 @@ fill_lists(char *current, char *input, LIST * d_list, LIST * f_list, bool keep)
 	}
 	DLG_TRACE(("opendir '%s'\n", path));
 	if ((dp = opendir(path)) != 0) {
+	    DIRENT *de;
+
 	    while ((de = readdir(dp)) != 0) {
 		size_t len = NAMLEN(de);
 		if (len == 0 || (len + have + 2) >= MAX_LEN)
@@ -624,10 +645,8 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 #ifdef KEY_RESIZE
   retry:
 #endif
-    dlg_auto_size(title, (char *) 0, &height, &width, 6, 25);
-    height += MIN_HIGH + min_items;
-    if (width < min_wide)
-	width = min_wide;
+    dlg_auto_size(title, "", &height, &width, MIN_HIGH + min_items, min_wide);
+
     dlg_print_size(height, width);
     dlg_ctl_size(height, width);
 
@@ -651,13 +670,12 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
     tbox_y = height - (BTN_HIGH * 2) + MARGIN;
     tbox_x = (width - tbox_width) / 2;
 
-    w_text = derwin(dialog, tbox_height, tbox_width, tbox_y, tbox_x);
+    w_text = dlg_der_window(dialog, tbox_height, tbox_width, tbox_y, tbox_x);
     if (w_text == 0) {
 	result = DLG_EXIT_ERROR;
 	goto finish;
     }
 
-    (void) keypad(w_text, TRUE);
     dlg_draw_box(dialog, tbox_y - MARGIN, tbox_x - MARGIN,
 		 (2 * MARGIN + 1), tbox_width + (MARGIN + EXT_WIDE),
 		 menubox_border_attr, menubox_border2_attr);
@@ -678,13 +696,12 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
     dbox_y = (2 * MARGIN + 1);
     dbox_x = tbox_x;
 
-    w_work = derwin(dialog, dbox_height, dbox_width, dbox_y, dbox_x);
+    w_work = dlg_der_window(dialog, dbox_height, dbox_width, dbox_y, dbox_x);
     if (w_work == 0) {
 	result = DLG_EXIT_ERROR;
 	goto finish;
     }
 
-    (void) keypad(w_work, TRUE);
     (void) mvwaddstr(dialog, dbox_y - (MARGIN + 1), dbox_x - MARGIN, d_label);
     dlg_draw_box(dialog,
 		 dbox_y - MARGIN, dbox_x - MARGIN,
@@ -699,13 +716,12 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 	fbox_y = dbox_y;
 	fbox_x = tbox_x + dbox_width + (2 * MARGIN);
 
-	w_work = derwin(dialog, fbox_height, fbox_width, fbox_y, fbox_x);
+	w_work = dlg_der_window(dialog, fbox_height, fbox_width, fbox_y, fbox_x);
 	if (w_work == 0) {
 	    result = DLG_EXIT_ERROR;
 	    goto finish;
 	}
 
-	(void) keypad(w_work, TRUE);
 	(void) mvwaddstr(dialog, fbox_y - (MARGIN + 1), fbox_x - MARGIN, f_label);
 	dlg_draw_box(dialog,
 		     fbox_y - MARGIN, fbox_x - MARGIN,
@@ -763,8 +779,10 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 	    fix_arrows(&d_list);
 	    fix_arrows(&f_list);
 	    key = dlg_mouse_wgetch((state == sTEXT) ? w_text : dialog, &fkey);
-	    if (dlg_result_key(key, fkey, &result))
-		break;
+	    if (dlg_result_key(key, fkey, &result)) {
+		if (!dlg_button_key(result, &button, &key, &fkey))
+		    break;
+	    }
 	}
 
 	if (key == DLGK_TOGGLE) {
@@ -851,6 +869,10 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 	    case DLGK_ENTER:
 		result = (state > 0) ? dlg_enter_buttoncode(state) : DLG_EXIT_OK;
 		continue;
+	    case DLGK_LEAVE:
+		if (state >= 0)
+		    result = dlg_ok_buttoncode(state);
+		break;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
 		dlg_will_resize(dialog);
@@ -861,10 +883,9 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 		*current = 0;
 		resized = TRUE;
 		/* repaint */
-		dlg_clear();
-		dlg_del_window(dialog);
-		refresh();
-		dlg_mouse_free_regions();
+		free_list(&d_list, FALSE);
+		free_list(&f_list, FALSE);
+		_dlg_resize_cleanup(dialog);
 		goto retry;
 #endif
 	    default:
@@ -903,12 +924,12 @@ dlg_fselect(const char *title, const char *path, int height, int width, int dsel
 		first = FALSE;
 		state = sTEXT;
 	    }
-	} else if (state >= 0 &&
-		   (code = dlg_char_to_button(key, buttons)) >= 0) {
+	} else if ((code = dlg_char_to_button(key, buttons)) >= 0) {
 	    result = dlg_ok_buttoncode(code);
 	    break;
 	}
     }
+    AddLastKey();
 
     dlg_unregister_window(w_text);
     dlg_del_window(dialog);

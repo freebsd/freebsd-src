@@ -1,9 +1,9 @@
 /*
- *  $Id: pause.c,v 1.39 2018/06/19 22:57:01 tom Exp $
+ *  $Id: pause.c,v 1.48 2020/11/23 00:38:19 tom Exp $
  *
  *  pause.c -- implements the pause dialog
  *
- *  Copyright 2004-2012,2018	Thomas E. Dickey
+ *  Copyright 2004-2019,2020	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -72,7 +72,7 @@ dialog_pause(const char *title,
     const char **buttons = dlg_ok_labels();
     bool have_buttons = (dlg_button_count(buttons) != 0);
     bool first;
-    int key = 0, fkey;
+    int key, fkey;
     int result = DLG_EXIT_UNKNOWN;
     int button_high = (have_buttons ? BTN_HIGH : MARGIN);
     int gauge_y;
@@ -88,8 +88,9 @@ dialog_pause(const char *title,
 
     curs_set(0);
 
-    dialog_vars.timeout_secs = 0;
     seconds_orig = (seconds > 0) ? seconds : 1;
+    dialog_vars.pause_secs = seconds_orig;
+    dialog_vars.timeout_secs = 0;
 
 #ifdef KEY_RESIZE
   retry:
@@ -194,8 +195,8 @@ dialog_pause(const char *title,
 	    key = dlg_mouse_wgetch_nowait(dialog, &fkey);
 	    if (key == ERR) {
 		;		/* ignore errors in nodelay mode */
-	    } else {
-		if (dlg_result_key(key, fkey, &result))
+	    } else if (dlg_result_key(key, fkey, &result)) {
+		if (!dlg_button_key(result, &button, &key, &fkey))
 		    break;
 	    }
 
@@ -203,12 +204,10 @@ dialog_pause(const char *title,
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
 		dlg_will_resize(dialog);
-		dlg_clear();	/* fill the background */
-		dlg_del_window(dialog);		/* delete this window */
 		height = old_height;
 		width = old_width;
 		free(prompt);
-		refresh();	/* get it all onto the terminal */
+		_dlg_resize_cleanup(dialog);
 		goto retry;
 #endif
 	    case DLGK_FIELD_NEXT:
@@ -232,6 +231,9 @@ dialog_pause(const char *title,
 	    case DLGK_ENTER:
 		result = dlg_enter_buttoncode(button);
 		break;
+	    case DLGK_LEAVE:
+		result = dlg_ok_buttoncode(button);
+		break;
 	    case ERR:
 		break;
 	    default:
@@ -244,6 +246,7 @@ dialog_pause(const char *title,
 	    }
 	}
     } while ((result == DLG_EXIT_UNKNOWN) && (seconds-- > 0));
+    dlg_add_last_key(-1);
 
     curs_set(1);
     dlg_mouse_free_regions();

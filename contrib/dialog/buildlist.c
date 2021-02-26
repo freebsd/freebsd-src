@@ -1,9 +1,9 @@
 /*
- *  $Id: buildlist.c,v 1.83 2018/06/19 22:57:01 tom Exp $
+ *  $Id: buildlist.c,v 1.94 2020/11/23 00:37:17 tom Exp $
  *
  *  buildlist.c -- implements the buildlist dialog
  *
- *  Copyright 2012-2017,2018	Thomas E. Dickey
+ *  Copyright 2012-2019,2020	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -21,7 +21,7 @@
  *	Boston, MA 02110, USA.
  */
 
-#include <dialog.h>
+#include <dlg_internals.h>
 #include <dlg_keys.h>
 
 /*
@@ -77,9 +77,10 @@ index2row(ALL_DATA * all, int choice, int selected)
 {
     MY_DATA *data = all->list + selected;
     int result = -1;
-    int row;
 
     if (okIndex(all, choice)) {
+	int row;
+
 	for (row = 0; row < all->item_no; ++row) {
 	    TRACE(("!... choice %d: %p vs row %d: %p\n",
 		   choice, all->items + choice,
@@ -270,9 +271,10 @@ first_item(ALL_DATA * all, int selected)
 {
     MY_DATA *data = all->list + selected;
     int result = -1;
-    int n;
 
     if (myItem(data, 0) != 0) {
+	int n;
+
 	for (n = 0; n < all->item_no; ++n) {
 	    if (myItem(data, 0) == &all->items[n]) {
 		result = n;
@@ -309,9 +311,10 @@ skip_rows(ALL_DATA * all, int row, int skip, int selected)
 {
     MY_DATA *data = all->list + selected;
     int result = row;
-    int n;
 
     if (skip > 0) {
+	int n;
+
 	for (n = row + 1; (n < all->item_no) && (n <= row + skip); ++n) {
 	    if (myItem(data, n) == 0)
 		break;
@@ -550,11 +553,10 @@ dlg_buildlist(const char *title,
     ALL_DATA all;
     MY_DATA *data = all.list;
     int i, j, k, key2, found, x, y, cur_x, cur_y;
-    int key = 0, fkey;
+    int key, fkey;
     bool save_visit = dialog_state.visit_items;
     int button;
     int cur_item;
-    int was_mouse;
     int name_width, text_width, full_width, list_width;
     int result = DLG_EXIT_UNKNOWN;
     int num_states;
@@ -650,8 +652,7 @@ dlg_buildlist(const char *title,
      * After displaying the prompt, we know how much space we really have.
      * Limit the list to avoid overwriting the ok-button.
      */
-    if (all.use_height + MIN_HIGH > height - cur_y)
-	all.use_height = height - MIN_HIGH - cur_y;
+    all.use_height = height - MIN_HIGH - cur_y;
     if (all.use_height <= 0)
 	all.use_height = 1;
 
@@ -742,6 +743,7 @@ dlg_buildlist(const char *title,
 	int at_top = index2row(&all, moi->top_index, which);
 	int at_end = index2row(&all, -1, which);
 	int at_bot = skip_rows(&all, at_top, all.use_height, which);
+	int was_mouse;
 
 	DLG_TRACE(("# ** state %d:%d top %d (%d:%d:%d) %s\n",
 		   cur_item, item_no - 1,
@@ -769,8 +771,10 @@ dlg_buildlist(const char *title,
 	}
 
 	key = dlg_mouse_wgetch(dialog, &fkey);
-	if (dlg_result_key(key, fkey, &result))
-	    break;
+	if (dlg_result_key(key, fkey, &result)) {
+	    if (!dlg_button_key(result, &button, &key, &fkey))
+		break;
+	}
 
 	was_mouse = (fkey && is_DLGK_MOUSE(key));
 	if (was_mouse)
@@ -1090,6 +1094,9 @@ dlg_buildlist(const char *title,
 	    case DLGK_ENTER:
 		result = dlg_enter_buttoncode(button);
 		break;
+	    case DLGK_LEAVE:
+		result = dlg_ok_buttoncode(button);
+		break;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
 		dlg_will_resize(dialog);
@@ -1097,9 +1104,7 @@ dlg_buildlist(const char *title,
 		height = old_height;
 		width = old_width;
 		free(prompt);
-		dlg_clear();
-		dlg_del_window(dialog);
-		dlg_mouse_free_regions();
+		_dlg_resize_cleanup(dialog);
 		/* repaint */
 		first = TRUE;
 		goto retry;
@@ -1113,7 +1118,7 @@ dlg_buildlist(const char *title,
 		    beep();
 		}
 	    }
-	} else {
+	} else if (key > 0) {
 	    beep();
 	}
     }
@@ -1232,7 +1237,6 @@ dialog_buildlist(const char *title,
 	if ((show_status = dialog_vars.help_status)) {
 	    if (separate_output) {
 		dlg_add_string(help_result);
-		dlg_add_separator();
 	    } else {
 		dlg_add_quoted(help_result);
 	    }
@@ -1245,17 +1249,16 @@ dialog_buildlist(const char *title,
     if (show_status) {
 	for (i = 0; i < item_no; i++) {
 	    if (listitems[i].state) {
+		if (dlg_need_separator())
+		    dlg_add_separator();
 		if (separate_output) {
 		    dlg_add_string(listitems[i].name);
-		    dlg_add_separator();
 		} else {
-		    if (dlg_need_separator())
-			dlg_add_separator();
 		    dlg_add_quoted(listitems[i].name);
 		}
 	    }
 	}
-	dlg_add_last_key(-1);
+	AddLastKey();
     }
 
     dlg_free_columns(&listitems[0].text, (int) sizeof(DIALOG_LISTITEM), item_no);

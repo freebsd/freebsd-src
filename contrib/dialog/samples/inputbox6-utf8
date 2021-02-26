@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: inputbox6-utf8,v 1.9 2013/09/24 00:06:02 tom Exp $
+# $Id: inputbox6-utf8,v 1.10 2020/11/26 00:03:58 tom Exp $
 
 . ./setup-vars
 
@@ -13,6 +13,6 @@ $DIALOG \
 --title    "$TITLE" "$@" \
 --inputbox "$TITLE" 10 20 "Ｄ.Ｏ.Ｇ"	 2>$tempfile
 
-retval=$?
+returncode=$?
 
 . ./report-tempfile

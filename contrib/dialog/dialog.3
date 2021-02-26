@@ -1,6 +1,6 @@
 '\" t
-.\" $Id: dialog.3,v 1.121 2018/06/20 01:21:53 tom Exp $
-.\" Copyright 2005-2017,2018  Thomas E. Dickey
+.\" $Id: dialog.3,v 1.138 2021/01/17 18:02:44 tom Exp $
+.\" Copyright 2005-2020,2021  Thomas E. Dickey
 .\"
 .\" This program is free software; you can redistribute it and/or modify
 .\" it under the terms of the GNU Lesser General Public License, version 2.1
@@ -47,15 +47,15 @@
 .el       .ds `` ``
 .ie \n(.g .ds '' \(rq
 .el       .ds '' ''
-.TH \*D 3 "" "$Date: 2018/06/20 01:21:53 $"
+.TH \*D 3 "" "$Date: 2021/01/17 18:02:44 $"
 .SH NAME
 dialog \- widgets and utilities for the \*p program
 .SH SYNOPSIS
-.B cc [ flag ... ] file ...  -l\*l [ library ... ]
+.B cc [ flag ... ] file ...  \-l\*l [ library ... ]
 .br
 \ \ \ or
 .br
-.B cc $(\*p-config --cflags) file ... $(\*p-config --libs) ]
+.B cc $(\*p\-config \-\-cflags) file ... $(\*p\-config \-\-libs) ]
 .sp
 .B #include <\*l.h>
 .PP
@@ -80,7 +80,7 @@ int main(void)
 	int status;
 	init_dialog(stdin, stdout);
 	status = dialog_yesno(
-			"Hello, in dialog-format",
+			"Hello, in dialog\-format",
 			"Hello World!",
 			0, 0);
 	end_dialog();
@@ -112,7 +112,7 @@ to the widget functions.
 Some of those parameters are single values,
 but some of the widgets accept data as an array of values.
 Those include checklist/radiobox, menubox and formbox.
-When the \fB--item-help\fP option is given, an extra column
+When the \fB\-\-item\-help\fP option is given, an extra column
 of data is expected.
 The USE_ITEM_HELP(), CHECKBOX_TAGS, MENUBOX_TAGS and FORMBOX_TAGS
 macros are used to hide this difference from the calling application.
@@ -152,7 +152,7 @@ The \fBdlg_del_window\fP function uses this to locate windows which
 may be redrawn after deleting a window.
 .\" ---------------------------------------------------------------------------
 .SS .aspect_ratio
-This corresponds to the command-line option "\fB--aspect-ratio\fP".
+This corresponds to the command-line option "\fB\-\-aspect\-ratio\fP".
 The value gives the application
 some control over the box dimensions when using auto
 sizing (specifying 0 for height and width).
@@ -175,8 +175,14 @@ If the control window for \fIDIALOG_STATE.getc_callbacks\fP is
 closed, the list is transferred to this variable.
 Closing all windows causes the application to exit.
 .\" ---------------------------------------------------------------------------
+.SS .had_resize
+This is set to TRUE
+in \fBdlg_will_resize\fP or \fBdlg_result_key\fP
+when \fBKEY_RESIZE\fP is read,
+to tell \fB\*p\fP to ignore subsequent \fBERR\fPs.
+.\" ---------------------------------------------------------------------------
 .SS .no_mouse
-This corresponds to the command-line option "\fB--no-mouse\fP".
+This corresponds to the command-line option "\fB\-\-no\-mouse\fP".
 If true, \fB\*p\fP will not initialize (and enable) the mouse in
 \fIinit_dialog\fP.
 .\" ---------------------------------------------------------------------------
@@ -187,7 +193,7 @@ Normally that is the standard error,
 since the curses library prefers to write its data to the standard output.
 Some scripts, trading portability for convenience,
 prefer to write results to the standard output,
-e.g., by using the "\fB--stdout\fP" option.
+e.g., by using the "\fB\-\-stdout\fP" option.
 .\" ---------------------------------------------------------------------------
 .SS .output_count
 This is incremented by \fBdlg_does_output\fP,
@@ -202,7 +208,7 @@ This is set in \fIinit_dialog\fP to a stream which can be used by the
 \fBgauge\fP widget, which must be the application's standard input.
 The \fB\*p\fP application calls \fIinit_dialog\fP normally with
 \fIinput\fP set to the standard input, but optionally based on the
-"\fB--input-fd\fP" option.
+"\fB\-\-input\-fd\fP" option.
 Since the application cannot read from
 a pipe (standard input) and at the same time read
 the curses input from the standard input,
@@ -210,6 +216,14 @@ it must allow for reopening the latter from either
 a specific file descriptor,
 or directly from the terminal.
 The adjusted pipe stream value is stored in this variable.
+.\" ---------------------------------------------------------------------------
+.SS .screen_height
+The text-formatting functions use this for the number of rows used for
+formatting a string.
+.LP
+It is used by \fB\*l\fP for the command-line options
+"\fB\-\-print\-text\-size\fP" and
+"\fB\-\-print\-text\-only\fP".
 .\" ---------------------------------------------------------------------------
 .SS .screen_initialized
 This is set in \fIinit_dialog\fP and
@@ -224,8 +238,16 @@ Normally that is the standard output,
 unless that happens to not be a terminal (and if \fIinit_dialog\fP can
 successfully open the terminal directly).
 .\" ---------------------------------------------------------------------------
+.SS .screen_width
+The text-formatting functions use this for the number of columns used for
+formatting a string.
+.LP
+It is used by \fB\*l\fP for the command-line options
+"\fB\-\-print\-text\-size\fP" and
+"\fB\-\-print\-text\-only\fP".
+.\" ---------------------------------------------------------------------------
 .SS .separate_str
-This corresponds to the command-line option "\fB--separate-widget\fP".
+This corresponds to the command-line option "\fB\-\-separate\-widget\fP".
 The given string
 specifies a string that will separate the output on \fB\*p\fP's output from
 each widget.
@@ -234,22 +256,22 @@ If this option is not given,
 the default separator string is a tab character.
 .\" ---------------------------------------------------------------------------
 .SS .tab_len
-This corresponds to the command-line option "\fB--tab-len\fP \fInumber\/\fP".
+This corresponds to the command-line option "\fB\-\-tab\-len\fP \fInumber\/\fP".
 Specify the number of spaces that a tab character occupies if the
-"\fB--tab-correct\fP"
+"\fB\-\-tab\-correct\fP"
 option is given.
 The default is 8.
 .\" ---------------------------------------------------------------------------
 .SS .text_height
-This text-formatting functions set this to the number of lines used for
+The text-formatting functions set this to the number of lines used for
 formatting a string.
 .LP
 It is used by \fB\*l\fP for the command-line options
-"\fB--print-text-size\fP" and
-"\fB--print-text-only\fP".
+"\fB\-\-print\-text\-size\fP" and
+"\fB\-\-print\-text\-only\fP".
 .\" ---------------------------------------------------------------------------
 .SS .text_only
-\fB\*L\fP uses this in the command-line option "\fB--print-text-only\fP".
+\fB\*L\fP uses this in the command-line option "\fB\-\-print\-text\-only\fP".
 .LP
 The text-formatting functions
 (\fBdlg_print_text\fP,
@@ -263,33 +285,33 @@ Also,
 \fBinit_dialog\fP is called.
 .\" ---------------------------------------------------------------------------
 .SS .text_width
-This text-formatting functions set this to the number of columns used for
+The text-formatting functions set this to the number of columns used for
 formatting a string.
 .LP
 It is used by \fB\*l\fP for the command-line options
-"\fB--print-text-size\fP" and
-"\fB--print-text-only\fP".
+"\fB\-\-print\-text\-size\fP" and
+"\fB\-\-print\-text\-only\fP".
 .\" ---------------------------------------------------------------------------
 .SS .trace_output
-This corresponds to the command-line option "\fB--trace\fP \fIfile\fP".
+This corresponds to the command-line option "\fB\-\-trace\fP \fIfile\fP".
 It is the file pointer to which trace messages are written.
 .\" ---------------------------------------------------------------------------
 .SS .use_colors
 This is set in \fIinit_dialog\fP if the curses implementation supports color.
 .\" ---------------------------------------------------------------------------
 .SS .use_scrollbar
-This corresponds to the command-line option "\fB--scrollbar\fP".
+This corresponds to the command-line option "\fB\-\-scrollbar\fP".
 If true,
 draw a scrollbar to make windows holding scrolled data more readable.
 .\" ---------------------------------------------------------------------------
 .SS .use_shadow
-This corresponds to the command-line option "\fB--no-shadow\fP".
+This corresponds to the command-line option "\fB\-\-no\-shadow\fP".
 This is set in \fIinit_dialog\fP if the curses implementation supports color.
 If true,
 suppress shadows that would be drawn to the right and bottom of each dialog box.
 .\" ---------------------------------------------------------------------------
 .SS .visit_items
-This corresponds to the command-line option "\fB--visit-items\fP".
+This corresponds to the command-line option "\fB\-\-visit\-items\fP".
 Modify the tab-traversal of the list-oriented widgets
 (buildlist, checklist, radiobox, menubox, inputmenu, and treeview)
 to include the list of items as one of the states.
@@ -309,38 +331,38 @@ In contrast to \fBDIALOG_STATE\fP, the members of \fBDIALOG_VARS\fP
 are set by command-line options in \fB\*p\fP.
 .\" ---------------------------------------------------------------------------
 .SS .ascii_lines
-This corresponds to the command-line option "\fB--ascii-lines\fP.
-It causes line-drawing to be done with ASCII characters, e.g., "+" and "-".
+This corresponds to the command-line option "\fB\-\-ascii\-lines\fP.
+It causes line-drawing to be done with ASCII characters, e.g., "+" and "\-".
 See \fIDIALOG_VARS.no_lines\fP.
 .\" ---------------------------------------------------------------------------
 .SS .backtitle
 This corresponds to the command-line option
-"\fB--backtitle\fP \fIbacktitle\/\fP".
+"\fB\-\-backtitle\fP \fIbacktitle\/\fP".
 It specifies a
 \fIbacktitle\fP
 string to be displayed on the backdrop, at the top of the screen.
 .\" ---------------------------------------------------------------------------
 .SS .beep_after_signal
-This corresponds to the command-line option "\fB--beep-after\fP".
+This corresponds to the command-line option "\fB\-\-beep\-after\fP".
 If true, beep after a user has completed a widget
 by pressing one of the buttons.
 .\" ---------------------------------------------------------------------------
 .SS .beep_signal
-This corresponds to the command-line option "\fB--beep\fP".
+This corresponds to the command-line option "\fB\-\-beep\fP".
 It is obsolete.
 .\" ---------------------------------------------------------------------------
 .SS .begin_set
-This is true if the command-line option "\fB--begin\fP \fIy x\/\fP" was used.
+This is true if the command-line option "\fB\-\-begin\fP \fIy x\/\fP" was used.
 It specifies the position of the upper left corner
 of a dialog box on the screen.
 .\" ---------------------------------------------------------------------------
 .SS .begin_x
 This corresponds to the \fIx\fP value from
-the command-line option "\fB--begin\fP \fIy x\/\fP" (second value).
+the command-line option "\fB\-\-begin\fP \fIy x\/\fP" (second value).
 .\" ---------------------------------------------------------------------------
 .SS .begin_y
 This corresponds to the \fIy\fP value from
-the command-line option "\fB--begin\fP \fIy x\/\fP" (first value).
+the command-line option "\fB\-\-begin\fP \fIy x\/\fP" (first value).
 .\" ---------------------------------------------------------------------------
 .SS .cancel_label
 This corresponds to the command-line option
@@ -348,7 +370,7 @@ This corresponds to the command-line option
 The given \fIstring\fP overrides the label used for \*(``Cancel\*('' buttons.
 .\" ---------------------------------------------------------------------------
 .SS .cant_kill
-This corresponds to the command-line option "\fB--no-kill\fP".
+This corresponds to the command-line option "\fB\-\-no\-kill\fP".
 If true, this tells
 \fB\*p\fP
 to put the
@@ -358,7 +380,7 @@ printing its process id to \fB\*p\fP's output.
 SIGHUP is disabled for the background process.
 .\" ---------------------------------------------------------------------------
 .SS .colors
-This corresponds to the command-line option "\fB--colors\fP".
+This corresponds to the command-line option "\fB\-\-colors\fP".
 If true, interpret embedded "\eZ" sequences in the dialog text
 by the following character,
 which tells \fB\*p\fP to set colors or video attributes:
@@ -379,12 +401,12 @@ bright red.
 Restore normal settings with "\eZn".
 .\" ---------------------------------------------------------------------------
 .SS .column_separator
-This corresponds to the command-line option "\fB--column-separator\fP".
+This corresponds to the command-line option "\fB\-\-column\-separator\fP".
 \fB\*L\fP splits data for radio/checkboxes and menus on the
 occurrences of the given string, and aligns the split data into columns.
 .\" ---------------------------------------------------------------------------
 .SS .cr_wrap
-This corresponds to the command-line option "\fB--cr-wrap\fP".
+This corresponds to the command-line option "\fB\-\-cr\-wrap\fP".
 If true,
 interpret embedded newlines in the dialog text as a newline on the screen.
 Otherwise, \fB\*p\fR will only wrap lines where needed
@@ -395,25 +417,32 @@ Without cr-wrap, the layout of your text may be formatted to look nice
 in the source code of your script without affecting the way it will
 look in the dialog.
 .\" ---------------------------------------------------------------------------
+.SS .cursor_off_label
+This corresponds to the command-line option "\fB\-\-cursor\-off\-label\fP".
+If true, place the terminal cursor at the end of a button instead of
+on the first character of the button label.
+This is useful to reduce visual confusion when the cursor coloration
+interacts poorly with the button-label text colors.
+.\" ---------------------------------------------------------------------------
 .SS .date_format
 This corresponds to the command-line option
-"\fB--date-format\fP \fIstring\/\fP".
+"\fB\-\-date\-format\fP \fIstring\/\fP".
 If the host provides \fBstrftime\fP, and the value is nonnull,
 the calendar widget uses this to format its output.
 .\" ---------------------------------------------------------------------------
 .SS .default_button
-This is set by the command-line option "\fB--default-button\fP.
+This is set by the command-line option "\fB\-\-default\-button\fP.
 It is used by \fBdlg_default_button\fP.
 .\" ---------------------------------------------------------------------------
 .SS .default_item
 This corresponds to the command-line option
-"\fB--default-item\fP \fIstring\/\fP".
+"\fB\-\-default\-item\fP \fIstring\/\fP".
 The given string is used as
 the default item in a checklist, form or menu box.
 Normally the first item in the box is the default.
 .\" ---------------------------------------------------------------------------
 .SS .defaultno
-This corresponds to the command-line option "\fB--defaultno\fP".
+This corresponds to the command-line option "\fB\-\-defaultno\fP".
 If true,
 make the default value of the
 \fByes/no\fP
@@ -422,43 +451,53 @@ box a
 Likewise, treat the default button of widgets that provide
 \*(``OK\*('' and \*(``Cancel\*(''
 as a \fICancel\fP.
-If \fB--nocancel\fP was given that option overrides this,
+If \fB\-\-no\-cancel\fP was given that option overrides this,
 making the default button always \*(``Yes\*(''
 (internally the same as \*(``OK\*('').
 .\" ---------------------------------------------------------------------------
 .SS .dlg_clear_screen
-This corresponds to the command-line option "\fB--clear\fP".
+This corresponds to the command-line option "\fB\-\-clear\fP".
 This option is implemented in the main program, not the library.
 If true,
 the screen will be cleared on exit.
 This may be used alone, without other options.
 .\" ---------------------------------------------------------------------------
+.SS .erase_on_exit
+This corresponds to the command-line option "\fB\-\-erase\-on\-exit\fP".
+If true, remove the dialog widget on program exit, erasing the entire
+screen to its native background color, and place the terminal cursor
+at the lower left corner of the screen.
+This is useful for making the window contents invisible at the end of
+a series of dialog boxes.
+But it can also be used at earlier stages of a series of invocations
+of \fB\*p\fP, if the series may be aborted before it is fully completed.
+.\" ---------------------------------------------------------------------------
 .SS .exit_label
-This corresponds to the command-line option "\fB--exit-label string\fP".
+This corresponds to the command-line option "\fB\-\-exit\-label string\fP".
 The given string overrides the label used for \*(``EXIT\*('' buttons.
 .\" ---------------------------------------------------------------------------
 .SS .extra_button
-This corresponds to the command-line option "\fB--extra-button\fP".
+This corresponds to the command-line option "\fB\-\-extra\-button\fP".
 If true, some widgets show an extra button,
 between \*(``OK\*('' and \*(``Cancel\*('' buttons.
 .\" ---------------------------------------------------------------------------
 .SS .extra_label
 This corresponds to the command-line option
-"\fB--extra-label\fP \fIstring\/\fP".
+"\fB\-\-extra\-label\fP \fIstring\/\fP".
 The given string overrides the label used for \*(``Extra\*('' buttons.
 Note: for inputmenu widgets, this defaults to \*(``Rename\*(''.
 .\" ---------------------------------------------------------------------------
 .SS .formitem_type
-This is set by the command-line option "\fB--passwordform\fP"
+This is set by the command-line option "\fB\-\-passwordform\fP"
 to tell the form widget that its text fields should be treated like
 password widgets.
 .\" ---------------------------------------------------------------------------
 .SS .help_button
-This corresponds to the command-line option "\fB--help-button\fP".
+This corresponds to the command-line option "\fB\-\-help\-button\fP".
 If true, some widgets show a help-button after
 \*(``OK\*('' and \*(``Cancel\*('' buttons,
 i.e., in checklist, radiolist and menu boxes.
-If \fB--item-help\fR is also given, on exit
+If \fB\-\-item\-help\fR is also given, on exit
 the return status will be the same as for the \*(``OK\*('' button,
 and the item-help text will be written to \fB\*p\fP's output
 after the token \*(``HELP\*(''.
@@ -466,21 +505,22 @@ Otherwise, the return status will indicate that the Help button was pressed,
 and no message printed.
 .\" ---------------------------------------------------------------------------
 .SS .help_file
-This corresponds to the command-line option "\fB--hfile\fP \fIstring\/\fP".
+This corresponds to the command-line option "\fB\-\-hfile\fP \fIstring\/\fP".
 The given filename is passed to \fBdialog_helpfile\fP when the user
 presses F1.
 .\" ---------------------------------------------------------------------------
 .SS .help_label
-This corresponds to the command-line option "\fB--help-label\fP \fIstring\/\fP".
+This corresponds to the
+command-line option "\fB\-\-help\-label\fP \fIstring\/\fP".
 The given string overrides the label used for \*(``Help\*('' buttons.
 .\" ---------------------------------------------------------------------------
 .SS .help_line
-This corresponds to the command-line option "\fB--hline\fP \fIstring\/\fP".
+This corresponds to the command-line option "\fB\-\-hline\fP \fIstring\/\fP".
 The given string is displayed in the bottom of dialog windows,
 like a subtitle.
 .\" ---------------------------------------------------------------------------
 .SS .help_status
-This corresponds to the command-line option "\fB--help-status\fP".
+This corresponds to the command-line option "\fB\-\-help\-status\fP".
 If true, and the the help-button is selected,
 writes the checklist or radiolist information
 after the item-help \*(``HELP\*('' information.
@@ -488,7 +528,7 @@ This can be used to reconstruct the state of a checklist after processing
 the help request.
 .\" ---------------------------------------------------------------------------
 .SS .help_tags
-This corresponds to the command-line option "\fB--help-tags\fP".
+This corresponds to the command-line option "\fB\-\-help\-tags\fP".
 If true,
 \fBdlg_add_help_formitem\fP and
 \fBdlg_add_help_listitem\fP use the item's tag value consistently
@@ -524,7 +564,7 @@ and sets \fIDIALOG_VARS.input_length\fP.
 Callers should check for this case if they have supplied their own buffer.
 .\" ---------------------------------------------------------------------------
 .SS .insecure
-This corresponds to the command-line option "\fB--insecure\fP".
+This corresponds to the command-line option "\fB\-\-insecure\fP".
 If true, make the password widget friendlier but less secure,
 by echoing asterisks for each character.
 .\" ---------------------------------------------------------------------------
@@ -533,7 +573,7 @@ This variable is used to prevent \fBdialog_helpfile\fP from showing
 anything, e.g., if F1 were pressed within a help-file display.
 .\" ---------------------------------------------------------------------------
 .SS .iso_week
-This corresponds to the command-line option "\fB--iso-week\fP".
+This corresponds to the command-line option "\fB\-\-iso\-week\fP".
 It is used in the calendar widget to tell how
 to compute the starting week for the year:
 .bP
@@ -545,14 +585,14 @@ a Thursday in the current year.
 January 1 may be in the \fIprevious\fP year.
 .\" ---------------------------------------------------------------------------
 .SS .item_help
-This corresponds to the command-line option "\fB--item-help\fP".
+This corresponds to the command-line option "\fB\-\-item\-help\fP".
 If true,
 interpret the tags data for checklist, radiolist and menu boxes
 adding a column whose text is displayed in the bottom line of the
 screen, for the currently selected item.
 .\" ---------------------------------------------------------------------------
 .SS .keep_tite
-This is set by the command-line option "\fB--keep-tite\fP"
+This is set by the command-line option "\fB\-\-keep\-tite\fP"
 to tell \fB\*p\fP to not attempt to cancel the terminal initialization
 (termcap \fIti\/\fP/\,\fIte\/\fP) sequences
 which correspond to xterm's alternate-screen switching.
@@ -560,22 +600,38 @@ Normally \fB\*p\fP does this to avoid flickering when run several times
 in a script.
 .\" ---------------------------------------------------------------------------
 .SS .keep_window
-This corresponds to the command-line option "\fB--keep-window\fP".
+This corresponds to the command-line option "\fB\-\-keep\-window\fP".
 If true, do not remove/repaint the window on exit.
 This is useful for keeping the window contents visible when several
 widgets are run in the same process.
 Note that curses will clear the screen when starting a new process.
 .\" ---------------------------------------------------------------------------
 .SS .last_key
-This corresponds to the command-line option "\fB--last-key\fP".
+This corresponds to the command-line option "\fB\-\-last\-key\fP".
 .\" ---------------------------------------------------------------------------
 .SS .max_input
-This corresponds to the command-line option "\fB--max-input\fP \fIsize\/\fP".
+This corresponds to the command-line option "\fB\-\-max\-input\fP \fIsize\/\fP".
 Limit input strings to the given size.
 If not specified, the limit is 2048.
 .\" ---------------------------------------------------------------------------
+.SS .no_hot_key
+This corresponds to the command-line option "\fB\-\-no\-hot\-list\fP".
+.LP
+Some widgets
+(buildlist,
+checklist,
+inputmenu,
+menu,
+radiolist,
+treeview)
+display a list
+for which the leading capital letter in each entry is accepted as a hot-key,
+to quickly move the focus to that entry.
+.LP
+Setting this variable to TRUE disables the feature.
+.\" ---------------------------------------------------------------------------
 .SS .no_items
-This corresponds to the command-line option "\fB--no-items\fP".
+This corresponds to the command-line option "\fB\-\-no\-items\fP".
 Some widgets (checklist, inputmenu, radiolist, menu) display a list
 with two columns (a \*(``tag\*('' and \*(``item\*('',
 i.e., \*(``description\*('').
@@ -583,31 +639,32 @@ This tells \fB\*p\fP to read shorter rows from data,
 omitting the \*(``list\*(''.
 .\" ---------------------------------------------------------------------------
 .SS .no_label
-This corresponds to the command-line option "\fB--no-label\fP \fIstring\/\fP".
+This corresponds to the command-line
+option "\fB\-\-no\-label\fP \fIstring\/\fP".
 The given string overrides the label used for \*(``No\*('' buttons.
 .\" ---------------------------------------------------------------------------
 .SS .no_lines
-This corresponds to the command-line option "\fB--no-lines\fP.
+This corresponds to the command-line option "\fB\-\-no\-lines\fP.
 It suppresses line-drawing.
 See \fIDIALOG_VARS.ascii_lines\fP.
 .\" ---------------------------------------------------------------------------
 .SS .no_nl_expand
-This corresponds to the command-line option "\fB--no-nl-expand\fP".
+This corresponds to the command-line option "\fB\-\-no\-nl\-expand\fP".
 If false, \fBdlg_trim_string\fP converts literal "\en" substrings
 in a message into newlines.
 .\" ---------------------------------------------------------------------------
 .SS .no_tags
-This corresponds to the command-line option "\fB--no-tags\fP".
+This corresponds to the command-line option "\fB\-\-no\-tags\fP".
 Some widgets (checklist, inputmenu, radiolist, menu) display a list
 with two columns (a \*(``tag\*('' and \*(``item\*('',
 also known as \*(``description\*('').
 The tag is useful for scripting, but may not help the user.
-The \fB--no-tags\fP option (from Xdialog) may be used to suppress the
+The \fB\-\-no\-tags\fP option (from Xdialog) may be used to suppress the
 column of tags from the display.
 .LP
 Normally \fB\*p\fP allows you to quickly move to entries on the displayed list,
 by matching a single character to the first character of the tag.
-When the \fB--no-tags\fP option is given, \fB\*p\fP matches against
+When the \fB\-\-no\-tags\fP option is given, \fB\*p\fP matches against
 the first character of the description.
 In either case, the matchable character is highlighted.
 .LP
@@ -653,54 +710,59 @@ However the library interface defaults to displaying the tag column.
 Your application can enable or disable the tag column as needed for each widget.
 .\" ---------------------------------------------------------------------------
 .SS .nocancel
-This corresponds to the command-line option "\fB--no-cancel\fP".
+This corresponds to the command-line option "\fB\-\-no\-cancel\fP".
 If true,
 suppress the \*(``Cancel\*('' button in checklist, inputbox and menu box modes.
 A script can still test if the user pressed the ESC key to cancel to quit.
 .\" ---------------------------------------------------------------------------
 .SS .nocollapse
-This corresponds to the command-line option "\fB--no-collapse\fP".
+This corresponds to the command-line option "\fB\-\-no\-collapse\fP".
 Normally \fB\*p\fR converts tabs to spaces and reduces multiple
 spaces to a single space for text which is displayed in a message boxes, etc.
 It true, that feature is disabled.
-Note that \fB\*p\fR will still wrap text, subject to the \fB--cr-wrap\fR
+Note that \fB\*p\fR will still wrap text, subject to the \fB\-\-cr\-wrap\fR
 option.
 .\" ---------------------------------------------------------------------------
 .SS .nook
-This corresponds to the command-line option "\fB--nook\fP.
+This corresponds to the command-line option "\fB\-\-no\-ok\fP.
 \fB\*L\fP will suppress the \*(``ok\*('' (or \*(``yes\*('') button
 from the widget.
 .\" ---------------------------------------------------------------------------
 .SS .ok_label
-This corresponds to the command-line option "\fB--ok-label\fP \fIstring\/\fP".
+This corresponds to the command-line
+option "\fB\-\-ok\-label\fP \fIstring\/\fP".
 The given string overrides the label used for \*(``OK\*('' buttons.
 .\" ---------------------------------------------------------------------------
+.SS .pause_secs
+When set, force \fBdlg_set_timeout\fP to use 10 milliseconds
+rather than using the \fIDIALOG_VARS.timeout_secs\fP value.
+.\" ---------------------------------------------------------------------------
 .SS .print_siz
-This corresponds to the command-line option "\fB--print-size\fP".
+This corresponds to the command-line option "\fB\-\-print\-size\fP".
 If true,
 each widget prints its size to \fB\*p\fP's output when it is invoked.
 .\" ---------------------------------------------------------------------------
 .SS .quoted
-This corresponds to the command-line option "\fB--quoted\fP.
+This corresponds to the command-line option "\fB\-\-quoted\fP.
 Normally \fB\*p\fP quotes the strings returned by checklist's
 as well as the item-help text.
 If true, \fB\*p\fP will quote all string results.
 .\" ---------------------------------------------------------------------------
 .SS .reorder
-This corresponds to the command-line option "\fB--reorder\fP.
+This corresponds to the command-line option "\fB\-\-reorder\fP.
 By default, the buildlist widget uses the same order for the output (right)
 list as for the input (left).
 If true, \fB\*p\fP will use the order in which a user adds selections
 to the output list.
 .\" ---------------------------------------------------------------------------
 .SS .separate_output
-This corresponds to the command-line option "\fB--separate-output\fP".
+This corresponds to the command-line option "\fB\-\-separate\-output\fP".
 If true,
 checklist widgets output result one line at a time, with no quoting.
 This facilitates parsing by another program.
 .\" ---------------------------------------------------------------------------
 .SS .single_quoted
-This corresponds to the command-line option "\fB--single-quoted\fP".
+This corresponds to the command-line option "\fB\-\-single\-quoted\fP".
 If true,
 use single-quoting as needed (and no quotes if unneeded) for the
 output of checklist's as well as the item-help text.
@@ -709,47 +771,47 @@ The latter requires occasional use of backslashes to make the output useful in
 shell scripts.
 .\" ---------------------------------------------------------------------------
 .SS .size_err
-This corresponds to the command-line option "\fB--size-err\fP".
+This corresponds to the command-line option "\fB\-\-size\-err\fP".
 If true,
 check the resulting size of a dialog box before trying to use it,
 printing the resulting size if it is larger than the screen.
 (This option is obsolete, since all new-window calls are checked).
 .\" ---------------------------------------------------------------------------
 .SS .sleep_secs
-This corresponds to the command-line option "\fB--sleep\fP \fIsecs\/\fP".
+This corresponds to the command-line option "\fB\-\-sleep\fP \fIsecs\/\fP".
 This option is implemented in the main program, not the library.
 If nonzero, this is the number of seconds after to delay
 after processing a dialog box.
 .\" ---------------------------------------------------------------------------
 .SS .tab_correct
-This corresponds to the command-line option "\fB--tab-correct\fP".
+This corresponds to the command-line option "\fB\-\-tab-correct\fP".
 If true, convert each tab character of the text to one or more spaces.
 Otherwise, tabs are rendered according to the curses library's interpretation.
 .\" ---------------------------------------------------------------------------
 .SS .time_format
 This corresponds to the command-line option
-"\fB--time-format\fP \fIstring\/\fP".
+"\fB\-\-time\-format\fP \fIstring\/\fP".
 If the host provides \fBstrftime\fP, and the value is nonnull,
 the timebox widget uses this to format its output.
 .\" ---------------------------------------------------------------------------
 .SS .timeout_secs
-This corresponds to the command-line option "\fB--timeout\fP \fIsecs\/\fP".
+This corresponds to the command-line option "\fB\-\-timeout\fP \fIsecs\/\fP".
 If nonzero, timeout input requests (exit with error code)
 if no user response within the given number of seconds.
 .\" ---------------------------------------------------------------------------
 .SS .title
-This corresponds to the command-line option "\fB--title\fP \fItitle\/\fP".
+This corresponds to the command-line option "\fB\-\-title\fP \fItitle\/\fP".
 Specifies a
 \fItitle\fP
 string to be displayed at the top of the dialog box.
 .\" ---------------------------------------------------------------------------
 .SS .trim_whitespace
-This corresponds to the command-line option "\fB--trim\fP".
+This corresponds to the command-line option "\fB\-\-trim\fP".
 If true, eliminate leading blanks,
 trim literal newlines and repeated blanks from message text.
 .\" ---------------------------------------------------------------------------
 .SS .week_start
-This corresponds to the command-line option "\fB--week-start\fP".
+This corresponds to the command-line option "\fB\-\-week\-start\fP".
 It is used in the calendar widget to set the starting day for the week.
 The string value can be
 .bP
@@ -763,7 +825,8 @@ a string matching one of the abbreviations for the day of the week
 shown in the \fBcalendar\fP widget, e.g., \*(``Mo\*('' for \*(``Monday\*(''.
 .\" ---------------------------------------------------------------------------
 .SS .yes_label
-This corresponds to the command-line option "\fB--yes-label\fP \fIstring\/\fP".
+This corresponds to the command-line
+option "\fB\-\-yes\-label\fP \fIstring\/\fP".
 The given string overrides the label used for \*(``Yes\*('' buttons.
 .
 .\" ************************************************************************
@@ -789,7 +852,7 @@ Other parameters depend on the box type.
 .
 .\" ************************************************************************
 .SS dialog_buildlist
-implements the "\fB--buildlist\fP" option.
+implements the "\fB\-\-buildlist\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -830,7 +893,7 @@ is reserved for future enhancements
 .
 .\" ************************************************************************
 .SS dialog_calendar
-implements the "\fB--calendar\fP" option.
+implements the "\fB\-\-calendar\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -860,7 +923,7 @@ is the initial year shown.
 If the value is negative, the current year is used.
 .\" ************************************************************************
 .SS dialog_checklist
-implements the "\fB--checklist\fP" and "\fB--radiolist\fP" options
+implements the "\fB\-\-checklist\fP" and "\fB\-\-radiolist\fP" options
 depending on the \fIflag\fP parameter.
 .TP 5
 .B const char * \fItitle
@@ -901,7 +964,7 @@ is either \fIFLAG_CHECK\fP, for checklists,
 or \fIFLAG_RADIO\fP for radiolists.
 .\" ************************************************************************
 .SS dialog_dselect
-implements the "\fB--dselect\fP" option.
+implements the "\fB\-\-dselect\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -919,7 +982,7 @@ is the desired width of the box.
 If zero, the height is based on the screen size.
 .\" ************************************************************************
 .SS dialog_editbox
-implements the "\fB--editbox\fP" option.
+implements the "\fB\-\-editbox\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -936,7 +999,7 @@ is the desired width of the box.
 If zero, the height is adjusted to use the available screen size.
 .\" ************************************************************************
 .SS dialog_form
-implements the "\fB--form\fP" option.
+implements the "\fB\-\-form\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -973,7 +1036,7 @@ or
 depending on whether \fBdialog_vars.item_help\fP is set.
 .\" ************************************************************************
 .SS dialog_fselect
-implements the "\fB--fselect\fP" option.
+implements the "\fB\-\-fselect\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -991,7 +1054,7 @@ is the desired width of the box.
 If zero, the height is based on the screen size.
 .\" ************************************************************************
 .SS dialog_gauge
-implements the "\fB--gauge\fP" option.
+implements the "\fB\-\-gauge\fP" option.
 Alternatively, a simpler or customized gauge widget can be
 set up using
 \fBdlg_allocate_gauge\fP,
@@ -1017,8 +1080,8 @@ If zero, the height is based on the screen size.
 is the percentage to show in the progress bar.
 .\" ************************************************************************
 .SS dialog_inputbox
-implements the "\fB--inputbox\fP" or
-"\fB--password\fP" option, depending on the value of \fIpassword\fP.
+implements the "\fB\-\-inputbox\fP" or
+"\fB\-\-password\fP" option, depending on the value of \fIpassword\fP.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -1042,7 +1105,7 @@ when auto-sizing the width of the dialog box.
 if true, causes typed input to be echoed as asterisks.
 .\" ************************************************************************
 .SS dialog_helpfile
-implements the "\fB--hfile\fP" option.
+implements the "\fB\-\-hfile\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -1051,7 +1114,7 @@ is the title on the top of the widget.
 is the name of a file containing the text to display.
 This function is internally bound to F1 (function key \*(``1\*(''),
 passing \fBdialog_vars.help_file\fP as a parameter.
-The \fBdialog\fP program sets that variable when the \fB--hfile\fP option
+The \fB\*p\fP program sets that variable when the \fB\-\-hfile\fP option
 is given.
 .TP 5
 .B int \fIheight
@@ -1063,7 +1126,7 @@ is the desired width of the box.
 If zero, the height is based on the screen size.
 .\" ************************************************************************
 .SS dialog_menu
-implements the "\fB--menu\fP" or "\fB--inputmenu\fP" option
+implements the "\fB\-\-menu\fP" or "\fB\-\-inputmenu\fP" option
 depending on whether \fBdialog_vars.input_menu\fP is set.
 .TP 5
 .B const char * \fItitle
@@ -1101,7 +1164,7 @@ or
 depending on whether \fBdialog_vars.item_help\fP is set.
 .\" ************************************************************************
 .SS dialog_mixedform
-implements the "\fB--mixedform\fP" option.
+implements the "\fB\-\-mixedform\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -1138,7 +1201,7 @@ or
 depending on whether \fBdialog_vars.item_help\fP is set.
 .\" ************************************************************************
 .SS dialog_mixedgauge
-implements the "\fB--mixedgauge\fP" option
+implements the "\fB\-\-mixedgauge\fP" option
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -1196,7 +1259,7 @@ For example, "-75" is displayed as "75%".
 Other strings are displayed as is.
 .\" ************************************************************************
 .SS dialog_msgbox
-implements the "\fB--msgbox\fP" or "\fB--infobox\fP" option
+implements the "\fB\-\-msgbox\fP" or "\fB\-\-infobox\fP" option
 depending on whether \fIpauseopt\fP is set.
 .TP 5
 .B const char * \fItitle
@@ -1220,7 +1283,7 @@ With an \*(``OK\*('' button, it is denoted a \*(``msgbox\*('',
 without an \*(``OK\*('' button, it is denoted an \*(``infobox\*(''.
 .\" ************************************************************************
 .SS dialog_pause
-implements the "\fB--pause\fP" option.
+implements the "\fB\-\-pause\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -1237,7 +1300,7 @@ If zero, the height is based on the screen size.
 is the timeout to use for the progress bar.
 .\" ************************************************************************
 .SS dialog_prgbox
-implements the "\fB--prgbox\fP" option.
+implements the "\fB\-\-prgbox\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -1262,7 +1325,7 @@ if true, an \*(``OK\*('' button will be shown,
 and the dialog will wait for it to complete.
 .\" ************************************************************************
 .SS dialog_progressbox
-implements the "\fB--progressbox\fP" option.
+implements the "\fB\-\-progressbox\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -1280,7 +1343,7 @@ is the desired width of the box.
 If zero, the height is based on the screen size.
 .\" ************************************************************************
 .SS dialog_rangebox
-implements the "\fB--rangebox\fP" option.
+implements the "\fB\-\-rangebox\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -1307,7 +1370,7 @@ is the maximum value to allow.
 is the default value, if no change is made.
 .\" ************************************************************************
 .SS dialog_tailbox
-implements the "\fB--tailbox\fP" or "\fB--tailboxbg\fP" option
+implements the "\fB\-\-tailbox\fP" or "\fB\-\-tailboxbg\fP" option
 depending on whether \fIbg_task\fP is set.
 .TP 5
 .B const char * \fItitle
@@ -1332,7 +1395,7 @@ Otherwise an \*(``OK\*('' button is added to the window,
 and it will be closed when the button is activated.
 .\" ************************************************************************
 .SS dialog_textbox
-implements the "\fB--textbox\fP" option.
+implements the "\fB\-\-textbox\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -1349,7 +1412,7 @@ is the desired width of the box.
 If zero, the height is based on the screen size.
 .\" ************************************************************************
 .SS dialog_timebox
-implements the "\fB--timebox\fP" option.
+implements the "\fB\-\-timebox\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -1381,7 +1444,7 @@ If the value is negative, the current second is used.
 Returns DLG_EXIT_ERROR if the value specified is greater than or equal to 60.
 .\" ************************************************************************
 .SS dialog_treeview
-implements the "\fB--treeview\fP" option.
+implements the "\fB\-\-treeview\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -1415,7 +1478,7 @@ is either \fIFLAG_CHECK\fP, for checklists (multiple selections),
 or \fIFLAG_RADIO\fP for radiolists (a single selection).
 .\" ************************************************************************
 .SS dialog_yesno
-implements the "\fB--yesno\fP" option.
+implements the "\fB\-\-yesno\fP" option.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -1442,6 +1505,10 @@ display and end it are named \fIinit_dialog\fP and \fIend_dialog\fP.
 The only non-widget function whose name begins with "\fIdialog_\fP"
 is \fBdialog_version\fP, which returns the version number of the
 library as a string.
+.PP
+A few functions are prefixed "\fI_dlg_\fP",
+because they are required for internal use,
+but not intended as part of the library application programming interface.
 .
 .PP
 Here is a brief summary of the utility functions and their parameters:
@@ -1494,7 +1561,7 @@ contains the list item to use for tag- or help-text.
 .\" ---------------------------------------------------------------------------
 .SS dlg_add_last_key
 Report the last key entered by the user.
-This implements the \fB--last-key\fP command-line option,
+This implements the \fB\-\-last\-key\fP command-line option,
 using \fBdialog_vars.last_key\fP.
 .TP 5
 .B int \fImode
@@ -1649,7 +1716,7 @@ if the value is zero,
 \fB\*l\fP updates it to the required height of the window,
 taking into account a (possibly) multi-line \fIprompt\fP.
 .bP
-if the value is greater than zero, 
+if the value is greater than zero,
 \fB\*l\fP uses it internally, but restores the value on return.
 .RE
 .TP 5
@@ -1669,7 +1736,7 @@ if the value is zero,
 \fB\*l\fP updates it to the required width of the window,
 taking into account a (possibly) multi-line \fIprompt\fP.
 .bP
-if the value is greater than zero, 
+if the value is greater than zero,
 \fB\*l\fP uses it internally, but restores the value on return.
 .RE
 .TP 5
@@ -1808,6 +1875,14 @@ Count the buttons in the list.
 .B const char ** \fIlabels
 is a list of (pointers to) button labels terminated by a null pointer.
 .\" ---------------------------------------------------------------------------
+.SS dlg_button_key
+If a key was bound to one of the button-codes in \fBdlg_result_key\fP, fake
+a button-value and an \*(``Cancel\*(''  key
+to cause the calling widget to return the corresponding status.
+.PP
+See \fBdlg_ok_buttoncode\fP, which maps settings for ok/extra/help and button
+number into exit-code.
+.\" ---------------------------------------------------------------------------
 .SS dlg_button_layout
 Make sure there is enough space for the buttons by
 computing the width required for their labels,
@@ -1937,7 +2012,7 @@ is the character to find.
 is a list of (pointers to) button labels terminated by a null pointer.
 .\" ---------------------------------------------------------------------------
 .SS dlg_checklist
-This entrypoint provides the \fB--checklist\fP or \fB--radiolist\fP
+This entrypoint provides the \fB\-\-checklist\fP or \fB\-\-radiolist\fP
 functionality without the limitations of \fB\*p\fP's command-line syntax
 (compare to \fBdialog_checklist\fP).
 .TP 5
@@ -2126,6 +2201,24 @@ Remove a window, repainting everything else.
 .TP 5
 .B WINDOW * \fIwin
 is the window to remove.
+.\" ---------------------------------------------------------------------------
+.SS dlg_der_window
+create a derived window, e.g., for an input area of a widget
+.TP 5
+.B WINDOW * \fIwin
+is the parent window
+.TP 5
+.B int \fIheight
+is the subwindow's height
+.TP 5
+.B int \fIwidth
+is the subwindow's width
+.TP 5
+.B int \fIy
+is the subwindow's top-row
+.TP 5
+.B int \fIx
+is the subwindow's left-column
 .\" ---------------------------------------------------------------------------
 .SS dlg_does_output
 This is called each time a widget is invoked which may do output.
@@ -2381,7 +2474,7 @@ is the window to update.
 is the title string to display at the top of the widget.
 .\" ---------------------------------------------------------------------------
 .SS dlg_dummy_menutext
-This is a utility function which supports the \fB--inputmenu\fP option of
+This is a utility function which supports the \fB\-\-inputmenu\fP option of
 the \fB\*p\fP program.
 If \fBdialog_vars.input_menu\fP is set, \fBdialog_menu\fP passes this
 pointer to \fBdlg_menu\fP as the \fIrename_menutext\fP parameter.
@@ -2449,7 +2542,7 @@ e.g., the window's size.
 Updates the string and character-offset, given various editing characters
 or literal characters which are inserted at the character-offset.
 Returns true if an editing change was made (and the display should
-be updated), and false if the key was something like KEY_ENTER,
+be updated), and false if the key was something like \fBKEY_ENTER\fP,
 which is a non-editing action outside this function.
 .TP 5
 .B char * \fIstring
@@ -2481,6 +2574,21 @@ which may be remapped.
 The \fB\*p\fP program uses this function
 to allow shell scripts to remap the exit codes so they can distinguish ESC
 from ERROR.
+.\" ---------------------------------------------------------------------------
+.SS dlg_exitcode2s
+Returns the name of an exit-code, e.g.,
+\*(``OK\*('' for \fBDLG_EXIT_OK\fP.
+.TP 5
+.B int \fIcode
+is an exit-code for \fB\*p\fP as defined in \fB<\*p.h>\fP.
+.\" ---------------------------------------------------------------------------
+.SS dlg_exitname2n
+Returns an exit-code as the reverse of \fBdlg_exitcode2n\fP, e.g.,
+0 (\fBDLG_EXIT_OK\fP) for the \*(``OK\*('' string.
+.TP 5
+.B const char * \fIname
+is the name of an exit-code for \fB\*p\fP as defined in \fB<\*p.h>\fP
+but omitting the \*(``DLG_EXIT_\*('' prefix.
 .\" ---------------------------------------------------------------------------
 .SS dlg_exit_buttoncode
 Map the given button index for \fBdlg_exit_label\fP into \fB\*p\fP's exit-code.
@@ -2533,7 +2641,7 @@ some of the caching is used for editable input-fields.
 Cancel the local data saved by \fBdlg_last_getc\fP.
 .\" ---------------------------------------------------------------------------
 .SS dlg_editbox
-This entrypoint provides the \fB--editbox\fP
+This entrypoint provides the \fB\-\-editbox\fP
 functionality without the limitations of \fB\*p\fP's command-line syntax
 (compare to \fBdialog_editbox\fP).
 .TP 5
@@ -2560,7 +2668,7 @@ is the desired width of the box.
 If zero, the height is adjusted to use the available screen size.
 .\" ---------------------------------------------------------------------------
 .SS dlg_form
-This entrypoint provides the \fB--form\fP
+This entrypoint provides the \fB\-\-form\fP
 functionality without the limitations of \fB\*p\fP's command-line syntax
 (compare to \fBdialog_form\fP).
 .TP 5
@@ -2632,6 +2740,29 @@ is the window within which to read.
 .B int * \fIfkey
 as a side-effect, set this to true if the key-code is really a function-key.
 .\" ---------------------------------------------------------------------------
+.SS dlg_getenv_num
+Get a number from the environment:
+.bP
+If the caller provides a pointer in the second parameter, return
+success/failure for the function return, and the actual value via the pointer.
+Use this for decoding arbitrary numbers, e.g., negative or zero.
+.bP
+If the caller does not provide a pointer, return the decoded value for
+the function-return.
+Use this when only values greater than zero are useful.
+.TP 5
+.B char * \fIname
+is the name of the environment-variable to retrieve.
+.TP 5
+.B int * \fIvalue
+is the optional pointer to a return-value.
+.\" ---------------------------------------------------------------------------
+.SS dlg_getenv_str
+Get a string from the environment, rejecting those which are entirely blank.
+.TP 5
+.B char * \fIname
+is the name of the environment-variable to retrieve.
+.\" ---------------------------------------------------------------------------
 .SS dlg_get_attrs
 extract the video attributes from the given window.
 .TP 5
@@ -2674,6 +2805,17 @@ Draw the string for the \fBdialog_vars.item_help\fP feature.
 .TP 5
 .B const char * \fItxt
 is the help-message
+.\" ---------------------------------------------------------------------------
+.SS dlg_keep_tite
+This performs the check and modifications
+for the command-line option "\fB\-\-keep\-tite\fP",
+used in \fBinit_dialog\fP as well as for
+the command-line option \fB\-\-erase\-on\-exit\fP.
+.TP 5
+.B FILE * \fIoutput
+is the output stream used for displaying widgets.
+It is either \fIstdout\fP or \fIstderr\fP,
+depending on the \fB\-\-stdout\fP option.
 .\" ---------------------------------------------------------------------------
 .SS dlg_killall_bg
 If \fB\*p\fP has callbacks active,
@@ -2736,7 +2878,7 @@ is the character to check
 is the string to search
 .\" ---------------------------------------------------------------------------
 .SS dlg_menu
-This entrypoint provides the \fB--menu\fP
+This entrypoint provides the \fB\-\-menu\fP
 functionality without the limitations of \fB\*p\fP's command-line syntax
 (compare to \fBdialog_menu\fP).
 .TP 5
@@ -2984,6 +3126,10 @@ into \fB\*p\fP's exit-code.
 is the button-index (which is not necessarily the same as the index
 in the list of labels).
 .\" ---------------------------------------------------------------------------
+.SS dlg_ok_button_key
+Calls \fBdlg_button_key\fP with the \*(``Cancel\*('' button disabled,
+e.g., for the textbox widget.
+.\" ---------------------------------------------------------------------------
 .SS dlg_ok_label
 Returns a list with the \*(``Ok\*('' label,
 and if \fBdialog_vars.help_button\fP is true, the \*(``Help\*('' label as well.
@@ -3163,7 +3309,7 @@ holds the starting attributes, and is updated to reflect the final attributes
 applied to the string.
 .\" ---------------------------------------------------------------------------
 .SS dlg_progressbox
-implements the "\fB--prgbox\fP" and "\fB--progressbox\fP" options.
+implements the "\fB\-\-prgbox\fP" and "\fB\-\-progressbox\fP" options.
 .TP 5
 .B const char * \fItitle
 is the title on the top of the widget.
@@ -3255,7 +3401,7 @@ Remove a callback.
 contains the callback information.
 .\" ---------------------------------------------------------------------------
 .SS dlg_renamed_menutext
-This is a utility function which supports the \fB--inputmenu\fP option of
+This is a utility function which supports the \fB\-\-inputmenu\fP option of
 the \fB\*p\fP program.
 If \fBdialog_vars.input_menu\fP is set, \fBdialog_menu\fP passes this
 pointer to \fBdlg_menu\fP as the \fIrename_menutext\fP parameter.
@@ -3274,6 +3420,10 @@ is the index of the currently-selected item
 .TP 5
 .B char * \fInewtext
 is the updated text for the menu item
+.\" ---------------------------------------------------------------------------
+.SS dlg_reset_timeout
+Calls \fBwtimeout\fP with the value saved for a window in the
+last call to \fBdlg_set_timeout\fP.
 .\" ---------------------------------------------------------------------------
 .SS dlg_restore_vars
 Restore \fB\*p\fP's variables from the given variable
@@ -3325,6 +3475,22 @@ Setup a fixed-buffer for the result in \fBdialog_vars.input_result\fP
 .TP 5
 .B const char * \fIstring
 is the new contents for the result
+.\" ---------------------------------------------------------------------------
+.SS dlg_set_timeout
+Calls \fBwtimeout\fP to establish a preferred timeout for nonblocking
+reads, e.g., to allow the gauge widget to handle window-resizing events.
+The \fBdlg_may_resize\fP function temporarily overrides this value,
+to allow it to skip over the error codes returned while the ncurses
+library processes window-resizing events.
+It restores the value established in this call
+by calling \fBdlg_restore_timeout\fP.
+.TP 5
+.B WINDOW * \fIwin
+is the window whose input-timeout should be set
+.TP 5
+.B bool \fIwill_getc
+is true if the widget is expected to read keyboard characters.
+Some (such as the gauge widget) do not.
 .\" ---------------------------------------------------------------------------
 .SS dlg_show_string
 Displays the string, shifted as necessary, to fit within the box and show
@@ -3432,7 +3598,7 @@ is the name to log in the comment.
 .B int \fIvalue
 is the value to log in the comment.
 .\" ---------------------------------------------------------------------------
-.SS dlg_trace_2n
+.SS dlg_trace_2s
 logs a string value as a comment.
 If the value contains embedded newlines,
 the comment is continued with \*(``#+\*('' markers.
@@ -3472,6 +3638,25 @@ parameters, e.g.,
 .Ex
 DLG_TRACE(("this is dialog version %s\en", dialog_version()));
 .Ee
+.\" ---------------------------------------------------------------------------
+.SS dlg_trace_va_msg
+Write a formatted message to the trace file.
+.TP 5
+.B const char *\fIfmt
+is the format of the \fBprintf\fP-like message to write.
+.TP 5
+.B va_list \fIap
+are the variables to apply to the \fIfmt\fP format.
+.LP
+This is used in \fBdlg_exiterr\fP to capture error messages in the trace file:
+.Ex
+va_start(ap, fmt);
+dlg_trace_msg("## Error: ");
+dlg_trace_va_msg(fmt, ap);
+va_end(ap);
+.Ee
+.LP
+Unlike \fBdlg_trace_msg\fP, an extra macro is not needed.
 .\" ---------------------------------------------------------------------------
 .SS dlg_ttysize
 Returns the screensize without using curses.
@@ -3535,7 +3720,7 @@ The widget sets the referenced location to the index of the current display
 item (cursor) when it returns.
 .\" ---------------------------------------------------------------------------
 .SS dlg_trim_string
-The \fBdialog\fP program uses this in each widget to adjust the
+The \fB\*p\fP program uses this in each widget to adjust the
 message string,
 which may contain the newline character (referred to as '\en')
 and/or the special substring "\en"
@@ -3622,12 +3807,12 @@ Do some initialization for \fB\*p\fP.
 .B FILE *\fIinput
 is the real tty input of \fB\*p\fP.
 Usually it is the standard input, but if
-\fB--input-fd\fP option is used, it may be anything.
+\fB\-\-input\-fd\fP option is used, it may be anything.
 .TP 5
 .B FILE *\fIoutput
 is where \fB\*p\fP will send its result.
 Usually it is the standard error, but
-if \fB--stdout\fP or \fB--output-fd\fP is used, it may be anything.
+if \fB\-\-stdout\fP or \fB\-\-output\-fd\fP is used, it may be anything.
 .
 .\" ************************************************************************
 .SH SEE ALSO

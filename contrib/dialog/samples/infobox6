@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: infobox6,v 1.7 2011/01/18 09:20:59 tom Exp $
+# $Id: infobox6,v 1.8 2019/12/10 23:38:49 tom Exp $
 # get rid of all flickering by constructing a script unroll the loop, leaving
 # us in curses-mode until we're done counting.
 #
@@ -33,7 +33,7 @@ You have $left $unit to read this..." 0 0 $last
 EOF
 
 left=`expr $left - 1`
-test $left = 1 && unit="second"
+test "$left" = 1 && unit="second"
 done
 
 echo >>$tempfile
