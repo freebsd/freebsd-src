@@ -2602,7 +2602,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 								    imax(1, tp->snd_nxt - tp->snd_una);
 							snd_cnt = howmany((long)tp->sackhint.prr_delivered *
 							    tp->snd_ssthresh, tp->sackhint.recover_fs) -
-							    tp->sackhint.sack_bytes_rexmit;
+							    (tp->sackhint.sack_bytes_rexmit +
+							    (tp->snd_nxt - tp->snd_recover));
 						} else {
 							if (V_tcp_do_prr_conservative)
 								limit = tp->sackhint.prr_delivered -
@@ -3951,7 +3952,8 @@ tcp_prr_partialack(struct tcpcb *tp, struct tcphdr *th)
 			    imax(1, tp->snd_nxt - tp->snd_una);
 		snd_cnt = howmany((long)tp->sackhint.prr_delivered *
 			    tp->snd_ssthresh, tp->sackhint.recover_fs) -
-			    tp->sackhint.sack_bytes_rexmit;
+			    (tp->sackhint.sack_bytes_rexmit +
+			    (tp->snd_nxt - tp->snd_recover));
 	} else {
 		if (V_tcp_do_prr_conservative)
 			limit = tp->sackhint.prr_delivered -
