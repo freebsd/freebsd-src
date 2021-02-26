@@ -299,6 +299,9 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 	bool do_vmap;
 
 #if defined(__amd64__) || defined(__aarch64__)
+static void
+bi_load_efifb(struct preloaded_file *kfp)
+{
 	struct efi_fb efifb;
 
 	efifb.fb_addr = gfx_state.tg_fb.fb_addr;
@@ -321,6 +324,25 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 
 	if (efifb.fb_addr != 0)
 		file_addmetadata(kfp, MODINFOMD_EFI_FB, sizeof(efifb), &efifb);
+}
+#endif
+
+static int
+bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
+{
+	EFI_MEMORY_DESCRIPTOR *mm;
+	EFI_PHYSICAL_ADDRESS addr = 0;
+	EFI_STATUS status;
+	const char *efi_novmap;
+	size_t efisz;
+	UINTN efi_mapkey;
+	UINTN dsz, pages, retry, sz;
+	UINT32 mmver;
+	struct efi_map_header *efihdr;
+	bool do_vmap;
+
+#if defined(__amd64__) || defined(__aarch64__)
+	bi_load_efifb(kfp);
 #endif
 
 	do_vmap = true;
