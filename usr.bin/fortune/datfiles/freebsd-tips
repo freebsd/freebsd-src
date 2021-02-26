@@ -799,3 +799,9 @@ always have space left this way.
 
 		-- Benedict Reuschling <bcr@FreeBSD.org>
 %
+Sometimes a single slow HDD can cripple the performance of your entire system.  You can spot one like this:
+
+# gstat -I5s | sort -rn -k9 | head
+
+		-- Alan Somers <asomers@FreeBSD.org>
+%
