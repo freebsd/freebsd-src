@@ -17,7 +17,7 @@ packer  /usr/bin/zip $F $P
 # Maximum arcmail file size, will start new arcmail file if exceeds
 maxfsize 65000
 
-# Maximum packet size, ifmail/ifnews will start new packet if exeeds.
+# Maximum packet size, ifmail/ifnews will start new packet if exceeds.
 # .out files are NOT created if nonzero specified, you must run ifpack
 # to make packets out. (unimplemented)
 maxpsize    65000
@@ -60,7 +60,7 @@ msgidbm  /tmp/ifmsgids
 # \D untranslated telephone no. (send strings only)
 
 # ModemPort present a blank-separated list of ports with possible speed
-# extention (separated by colon); if speed is prefixed with 'L', it is
+# extension (separated by colon); if speed is prefixed with 'L', it is
 # a "locked" port speed, otherwise it is a maximum speed to be set, while
 # actual speed is taken from the nodelist.  If speed is omitted (or set
 # to zero), previous port speed is not changed.

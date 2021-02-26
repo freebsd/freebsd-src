@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: editbox4,v 1.1 2010/01/17 22:29:50 tom Exp $
+# $Id: editbox4,v 1.2 2020/11/26 00:03:58 tom Exp $
 
 . ./setup-vars
 
@@ -40,6 +40,6 @@ EOF
 
 $DIALOG --title "EDIT BOX" \
 	--fixed-font "$@" --editbox $input 20 40 2>$output
-retval=$?
+returncode=$?
 
 . ./report-edit

@@ -1,9 +1,9 @@
 /*
- *  $Id: guage.c,v 1.76 2018/06/21 08:23:43 tom Exp $
+ *  $Id: guage.c,v 1.83 2020/03/27 20:54:43 tom Exp $
  *
  *  guage.c -- implements the gauge dialog
  *
- *  Copyright 2000-2015,2018	Thomas E. Dickey
+ *  Copyright 2000-2019,2020	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -119,9 +119,10 @@ static void
 repaint_text(MY_OBJ * obj)
 {
     WINDOW *dialog = obj->obj.win;
-    int i, x;
 
     if (dialog != 0) {
+	int i, x;
+
 	(void) werase(dialog);
 	dlg_draw_box2(dialog, 0, 0, obj->height, obj->width, dialog_attr,
 		      border_attr, border2_attr);
@@ -301,7 +302,7 @@ dlg_reallocate_gauge(void *objptr,
 		     int percent)
 {
     char *prompt = dlg_strclone(cprompt);
-    MY_OBJ *obj = objptr;
+    MY_OBJ *obj;
     bool save_finish_string = dialog_state.finish_string;
 
     dialog_state.finish_string = TRUE;
@@ -377,6 +378,10 @@ dlg_free_gauge(void *objptr)
     MY_OBJ *obj = (MY_OBJ *) objptr;
 
     if (valid(obj)) {
+	if (obj->title)
+	    free(obj->title);
+	if (obj->prompt)
+	    free(obj->prompt);
 	obj->obj.keep_win = FALSE;
 	dlg_remove_callback(&(obj->obj));
 	delink(obj);
@@ -422,7 +427,6 @@ dialog_gauge(const char *title,
 	    MY_OBJ *oldobj = obj;
 
 	    dlg_will_resize(obj->obj.win);
-	    dlg_mouse_free_regions();
 
 	    obj = dlg_allocate_gauge(title,
 				     cprompt,
@@ -436,9 +440,8 @@ dialog_gauge(const char *title,
 	    oldobj->obj.keep_win = FALSE;
 
 	    /* remove the old version of the gauge */
-	    dlg_clear();
+	    _dlg_resize_cleanup(oldobj->obj.win);
 	    dlg_remove_callback(&(oldobj->obj));
-	    refresh();
 
 	    dlg_add_callback_ref((DIALOG_CALLBACK **) & obj, my_cleanup);
 	    dlg_update_gauge(obj, obj->percent);

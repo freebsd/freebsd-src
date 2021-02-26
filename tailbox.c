@@ -1,9 +1,9 @@
 /*
- *  $Id: tailbox.c,v 1.72 2018/06/19 22:57:01 tom Exp $
+ *  $Id: tailbox.c,v 1.79 2020/11/21 21:31:49 tom Exp $
  *
  *  tailbox.c -- implements the tail box
  *
- *  Copyright 2000-2012,2018	Thomas E. Dickey
+ *  Copyright 2000-2019,2020	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -104,12 +104,6 @@ static void
 last_lines(MY_OBJ * obj, int target)
 {
     FILE *fp = obj->obj.input;
-    size_t inx;
-    int count = 0;
-    char buf[BUFSIZ + 1];
-    size_t size_to_read;
-    size_t size_as_read;
-    long offset = 0;
     long fpos = 0;
 
     if (fseek(fp, 0L, SEEK_END) == -1
@@ -117,8 +111,16 @@ last_lines(MY_OBJ * obj, int target)
 	dlg_exiterr("Error moving file pointer in last_lines().");
 
     if (fpos != 0) {
+	long offset = 0;
+
 	++target;
 	for (;;) {
+	    size_t inx;
+	    size_t size_to_read;
+	    size_t size_as_read;
+	    int count = 0;
+	    char buf[BUFSIZ + 1];
+
 	    if (fpos >= BUFSIZ) {
 		size_to_read = BUFSIZ;
 	    } else {
@@ -261,7 +263,16 @@ handle_my_getc(DIALOG_CALLBACK * cb, int ch, int fkey, int *result)
 		obj->hscroll += 1;
 	    break;
 	default:
-	    beep();
+	    if (is_DLGK_MOUSE(ch)) {
+		*result = dlg_ok_buttoncode(ch - M_EVENT);
+		if (*result != DLG_EXIT_ERROR) {
+		    done = TRUE;
+		} else {
+		    beep();
+		}
+	    } else {
+		beep();
+	    }
 	    break;
 	}
 	if ((obj->hscroll != obj->old_hscroll))
@@ -320,7 +331,7 @@ dialog_tailbox(const char *title,
     int old_width = width;
 #endif
     int fkey;
-    int x, y, result, thigh;
+    int x, y, result = DLG_EXIT_UNKNOWN, thigh;
     WINDOW *dialog, *text;
     const char **buttons = 0;
     MY_OBJ *obj;
@@ -383,7 +394,7 @@ dialog_tailbox(const char *title,
     obj->obj.handle_getc = handle_my_getc;
     obj->obj.handle_input = bg_task ? handle_input : 0;
     obj->obj.keep_bg = bg_task && dialog_vars.cant_kill;
-    obj->obj.bg_task = bg_task;
+    obj->obj.bg_task = (bool) bg_task;
     obj->text = text;
     obj->buttons = buttons;
     dlg_add_callback(&(obj->obj));
@@ -401,7 +412,7 @@ dialog_tailbox(const char *title,
     } else {
 	int ch;
 	do {
-	    ch = dlg_getc(dialog, &fkey);
+	    ch = dlg_mouse_wgetch(dialog, &fkey);
 #ifdef KEY_RESIZE
 	    if (fkey && ch == KEY_RESIZE) {
 		dlg_will_resize(dialog);
@@ -409,10 +420,7 @@ dialog_tailbox(const char *title,
 		height = old_height;
 		width = old_width;
 		/* repaint */
-		dlg_clear();
-		dlg_del_window(dialog);
-		refresh();
-		dlg_mouse_free_regions();
+		_dlg_resize_cleanup(dialog);
 		dlg_button_layout(buttons, &min_width);
 		goto retry;
 	    }

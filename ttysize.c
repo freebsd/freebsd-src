@@ -1,9 +1,9 @@
 /*
- *  $Id: ttysize.c,v 1.1 2018/06/09 02:03:03 tom Exp $
+ *  $Id: ttysize.c,v 1.2 2019/07/25 00:07:15 tom Exp $
  *
  *  ttysize.c -- obtain terminal-size for dialog
  *
- *  Copyright 2018	Thomas E. Dickey
+ *  Copyright 2018,2019	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -80,8 +80,8 @@ dlg_ttysize(int fd, int *high, int *wide)
 	}
     }
 #else
-    high = 24;
-    wide = 80;
+    *high = 24;
+    *wide = 80;
 #endif /* HAVE_SIZECHANGE */
     return rc;
 }

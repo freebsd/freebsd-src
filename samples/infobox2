@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: infobox2,v 1.5 2010/01/13 10:20:03 tom Exp $
+# $Id: infobox2,v 1.6 2019/12/10 23:37:10 tom Exp $
 
 . ./setup-vars
 
@@ -17,5 +17,5 @@ the message. The pause here is only introduced
 by the sleep command within dialog.
 You have $left $unit to read this..." 0 0
 left=`expr $left - 1`
-test $left = 1 && unit="second"
+test "$left" = 1 && unit="second"
 done

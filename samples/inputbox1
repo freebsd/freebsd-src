@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: inputbox1,v 1.13 2010/01/13 10:20:03 tom Exp $
+# $Id: inputbox1,v 1.14 2020/11/26 00:03:58 tom Exp $
 
 . ./setup-vars
 
@@ -18,6 +18,6 @@ You can use BACKSPACE to correct errors.
 
 Try entering your name below:" 0 0 2> $tempfile
 
-retval=$?
+returncode=$?
 
 . ./report-tempfile

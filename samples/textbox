@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: textbox,v 1.12 2010/01/13 10:36:35 tom Exp $
+# $Id: textbox,v 1.14 2020/11/26 00:05:11 tom Exp $
 
 . ./setup-vars
 
@@ -35,10 +35,10 @@ EOF
 TEXT=/usr/share/common-licenses/GPL
 test -f $TEXT || TEXT=../COPYING
 
-cat $TEXT | expand >> $tempfile
+expand < $TEXT >> $tempfile
 
 $DIALOG --clear --title "TEXT BOX" "$@" --textbox "$tempfile" 22 77
 
-retval=$?
+returncode=$?
 
 . ./report-button

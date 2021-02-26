@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: run_test.sh,v 1.4 2017/02/01 01:50:09 tom Exp $
+# $Id: run_test.sh,v 1.5 2019/12/10 23:54:52 tom Exp $
 # vile:ts=4 sw=4
-THIS=`basename $0`
+THIS=`basename "$0"`
 
 if [ -z "$DIALOG" ]
 then
@@ -43,14 +43,14 @@ do
 	[ -f "$name" ] || continue
 	[ -x "$name" ] || continue
 	# skip this script and known utility-scripts
-	case `basename $name` in
+	case `basename "$name"` in
 	$THIS|dft-*|killall|listing|rotated-data|shortlist|with-*)
 		echo "** skipping $name" >>$mylog
 		continue
 		;;
 	esac
-	rm -f trace $want.log $name.log
+	rm -f trace "$want.log" "$name.log"
 	echo "** running $name" >>$mylog
 	$name
-	[ -f $want.log ] && cp $want.log $name.log
+	[ -f "$want.log" ] && cp "$want.log" "$name.log"
 done

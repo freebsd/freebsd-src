@@ -1,9 +1,9 @@
 /*
- *  $Id: dialog.h,v 1.283 2018/06/19 22:52:11 tom Exp $
+ *  $Id: dialog.h,v 1.304 2021/01/17 16:58:22 tom Exp $
  *
  *  dialog.h -- common declarations for all dialog modules
  *
- *  Copyright 2000-2017,2018	Thomas E. Dickey
+ *  Copyright 2000-2020,2021	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -126,14 +126,27 @@
 #define USE_SHADOW TRUE
 #define USE_COLORS TRUE
 
+/*
+ * These allow using the print-formatting code before curses is initialized.
+ */
+#define DLG_COLS  (COLS  ? COLS  : dialog_state.screen_width)
+#define DLG_LINES (LINES ? LINES : dialog_state.screen_height)
+
+/*
+ * Define the usable size of a window, discounting the area needed for shadow.
+ */
 #ifdef HAVE_COLOR
-#define SCOLS	(COLS - (dialog_state.use_shadow ? SHADOW_COLS : 0))
-#define SLINES	(LINES - (dialog_state.use_shadow ? SHADOW_ROWS : 0))
+#define SCOLS	(DLG_COLS  - (dialog_state.use_shadow ? SHADOW_COLS : 0))
+#define SLINES	(DLG_LINES - (dialog_state.use_shadow ? SHADOW_ROWS : 0))
 #else
 #define SCOLS	COLS
 #define SLINES	LINES
 #endif
 
+/*
+ * These are the default values for exit-codes, which can be overridden by
+ * environment variables, e.g., $DIALOG_CANCEL for DLG_EXIT_CANCEL.
+ */
 #define DLG_EXIT_ESC		255
 #define DLG_EXIT_UNKNOWN	-2	/* never return this (internal use) */
 #define DLG_EXIT_ERROR		-1	/* the shell sees this as 255 */
@@ -142,19 +155,21 @@
 #define DLG_EXIT_HELP		2
 #define DLG_EXIT_EXTRA		3
 #define DLG_EXIT_ITEM_HELP	4	/* actually DLG_EXIT_HELP */
+#define DLG_EXIT_TIMEOUT	5
 
 #define DLG_CTRL(n)	((n) & 0x1f)	/* CTRL is preferred, but conflicts */
 
+#define CHR_LEAVE	DLG_CTRL('D')
 #define CHR_HELP	DLG_CTRL('E')
 #define CHR_BACKSPACE	DLG_CTRL('H')
 #define CHR_REPAINT	DLG_CTRL('L')
-#define CHR_KILL	DLG_CTRL('U')
-#define CHR_LITERAL	DLG_CTRL('V')
-#define CHR_DELETE	127
 #define CHR_NEXT	DLG_CTRL('N')
 #define CHR_PREVIOUS	DLG_CTRL('P')
+#define CHR_KILL	DLG_CTRL('U')
 #define CHR_TRACE	DLG_CTRL('T')
+#define CHR_LITERAL	DLG_CTRL('V')
 #define CHR_SPACE 	' '
+#define CHR_DELETE	127
 
 #define ESC		27
 #define TAB		DLG_CTRL('I')
@@ -179,6 +194,7 @@
 /* how many spaces is a tab long (default)? */
 #define TAB_LEN 8
 #define WTIMEOUT_VAL        10	/* minimum amount of time needed for curses */
+#define WTIMEOUT_OFF        -1	/* value to disable timeout */
 
 #ifndef A_CHARTEXT
 #define A_CHARTEXT 0xff
@@ -429,6 +445,7 @@ typedef struct _dlg_windows {
     struct _dlg_windows *next;
     WINDOW *normal;
     WINDOW *shadow;
+    int getc_timeout;
 } DIALOG_WINDOWS;
 
 /*
@@ -467,6 +484,13 @@ typedef struct {
     bool text_only;		/* option "--print-text-only", etc. */
     int text_height;
     int text_width;
+    /* 1.3-20190211 */
+    int screen_height;
+    int screen_width;
+#ifdef KEY_RESIZE
+    /* 1.3-20190724 */
+    bool had_resize;		/* ERR may follow KEY_RESIZE when polling */
+#endif
 } DIALOG_STATE;
 
 extern DIALOG_STATE dialog_state;
@@ -552,6 +576,13 @@ typedef struct {
     bool iso_week;		/* option "--iso-week" */
     /* 1.3-20170131 */
     bool reorder;		/* option "--reorder" */
+    /* 1.3-20201117 */
+    int pause_secs;		/* used by pause widget */
+    /* 1.3-20201126 */
+    bool erase_on_exit;		/* option "--erase-on-exit" */
+    bool cursor_off_label;	/* option "--cursor-off-label" */
+    /* 1.3-20210117 */
+    bool no_hot_list;		/* option "--no-hot-list" */
 } DIALOG_VARS;
 
 #define USE_ITEM_HELP(s)        (dialog_vars.item_help && (s) != 0)
@@ -595,12 +626,16 @@ extern DIALOG_VARS dialog_vars;
  * Table for attribute- and color-values.
  */
 typedef struct {
-    chtype atr;
+    chtype atr;			/* attribute corresponding to fg, bg, etc */
 #ifdef HAVE_COLOR
-    int fg;
-    int bg;
-    int hilite;
-#endif
+    int fg;			/* foreground color-number */
+    int bg;			/* background color-number */
+    int hilite;			/* true if bold */
+#ifdef HAVE_RC_FILE2
+    int ul;			/* true if underline */
+    int rv;			/* true if reverse */
+#endif /* HAVE_RC_FILE2 */
+#endif /* HAVE_COLOR */
 #ifdef HAVE_RC_FILE
     const char *name;
     const char *comment;
@@ -768,16 +803,20 @@ extern void dlg_remove_callback(DIALOG_CALLBACK * /*p*/);
 extern void dlg_killall_bg(int *retval);
 
 /* util.c */
+extern DIALOG_WINDOWS * _dlg_find_window(WINDOW * /* win */);
+extern WINDOW * dlg_der_window(WINDOW * /*win*/, int /*height*/, int /*width*/, int /*y*/, int /*x*/);
 extern WINDOW * dlg_new_modal_window(WINDOW * /*parent*/, int /*height*/, int /*width*/, int /*y*/, int /*x*/);
 extern WINDOW * dlg_new_window(int /*height*/, int /*width*/, int /*y*/, int /*x*/);
 extern WINDOW * dlg_sub_window(WINDOW * /*win*/, int /*height*/, int /*width*/, int /*y*/, int /*x*/);
 extern bool dlg_need_separator(void);
+extern char * dlg_getenv_str(const char * /*name*/);
 extern char * dlg_set_result(const char * /*string*/);
 extern char * dlg_strclone(const char * /*cprompt*/);
 extern char * dlg_strempty(void);
 extern chtype dlg_asciibox(chtype /*ch*/);
 extern chtype dlg_boxchar(chtype /*ch*/);
 extern chtype dlg_get_attrs(WINDOW * /*win*/);
+extern const char * dlg_exitcode2s(int /*code*/);
 extern const char * dlg_print_line(WINDOW * /*win*/, chtype * /*attr*/, const char * /*prompt*/, int /*lm*/, int /*rm*/, int * /*x*/);
 extern int dlg_box_x_ordinate(int /*width*/);
 extern int dlg_box_y_ordinate(int /*height*/);
@@ -789,8 +828,11 @@ extern int dlg_default_item(char ** /*items*/, int /*llen*/);
 extern int dlg_default_listitem(DIALOG_LISTITEM * /*items*/);
 extern int dlg_defaultno_button(void);
 extern int dlg_default_button(void);
+extern int dlg_exitname2n(const char * /*name*/);
+extern int dlg_getenv_num(const char * /*name*/, int * /* value */);
 extern int dlg_max_input(int /*max_len*/);
 extern int dlg_print_scrolled(WINDOW * /* win */, const char * /* prompt */, int /* offset */, int /* height */, int /* width */, int /* pauseopt */);
+extern int dlg_set_timeout(WINDOW * /* win */, bool /* will_getc */);
 extern void dlg_add_help_formitem(int * /* result */, char ** /* tag */, DIALOG_FORMITEM * /* item */);
 extern void dlg_add_help_listitem(int * /* result */, char ** /* tag */, DIALOG_LISTITEM * /* item */);
 extern void dlg_add_quoted(char * /*string*/);
@@ -814,11 +856,13 @@ extern void dlg_draw_box2(WINDOW * /*win*/, int /*y*/, int /*x*/, int /*height*/
 extern void dlg_draw_title(WINDOW *win, const char *title);
 extern void dlg_exit(int /*code*/) GCC_NORETURN;
 extern void dlg_item_help(const char * /*txt*/);
+extern void dlg_keep_tite(FILE * /*output */);
 extern void dlg_print_autowrap(WINDOW * /*win*/, const char * /*prompt*/, int /*height*/, int /*width*/);
 extern void dlg_print_listitem(WINDOW * /*win*/, const char * /*text*/, int /*climit*/, bool /*first*/, int /*selected*/);
 extern void dlg_print_size(int /*height*/, int /*width*/);
 extern void dlg_print_text(WINDOW * /*win*/, const char * /*txt*/, int /*len*/, chtype * /*attr*/);
 extern void dlg_put_backtitle(void);
+extern void dlg_reset_timeout(WINDOW * /* win */);
 extern void dlg_restore_vars(DIALOG_VARS * /* save */);
 extern void dlg_save_vars(DIALOG_VARS * /* save */);
 extern void dlg_set_focus(WINDOW * /*parent*/, WINDOW * /*win*/);
@@ -845,6 +889,7 @@ extern int dlg_strcmp(const char * /*a*/, const char * /*b*/);
 #ifdef HAVE_DLG_TRACE
 #define DLG_TRACE(params) dlg_trace_msg params
 extern void dlg_trace_msg(const char *fmt, ...) GCC_PRINTFLIKE(1,2);
+extern void dlg_trace_va_msg(const char *fmt, va_list ap);
 #define DLG_TRACE2S(name,value) dlg_trace_2s (name,value)
 #define DLG_TRACE2N(name,value) dlg_trace_2n (name,value)
 extern void dlg_trace_2s(const char * /*name*/, const char * /*value*/);
@@ -856,12 +901,14 @@ extern void dlg_trace(const char * /*fname*/);
 #define DLG_TRACE(params) /* nothing */
 #define DLG_TRACE2S(name,value) /* nothing */
 #define DLG_TRACE2N(name,value) /* nothing */
+#define dlg_trace_va_msg(fmt, ap) /* nothing */
 #define dlg_trace_win(win) /* nothing */
 #define dlg_trace_chr(ch,fkey) /* nothing */
 #define dlg_trace(fname) /* nothing */
 #endif
 
 #ifdef KEY_RESIZE
+extern void _dlg_resize_cleanup(WINDOW * /*win*/);
 extern void dlg_move_window(WINDOW * /*win*/, int /*height*/, int /*width*/, int /*y*/, int /*x*/);
 extern void dlg_will_resize(WINDOW * /*win*/);
 #endif
@@ -937,10 +984,15 @@ extern int dlg_mouse_wgetch_nowait (WINDOW * /*win*/, int * /*fkey*/);
  */
 #ifdef NO_LEAKS
 extern void _dlg_inputstr_leaks(void);
-#if defined(NCURSES_VERSION) && defined(HAVE__NC_FREE_AND_EXIT)
+#if defined(NCURSES_VERSION)
+#if defined(HAVE_CURSES_EXIT)
+/* just use curses_exit() */
+#elif defined(HAVE__NC_FREE_AND_EXIT)
 extern void _nc_free_and_exit(int);	/* nc_alloc.h normally not installed */
+#define curses_exit(code) _nc_free_and_exit(code)
 #endif
-#endif
+#endif /* NCURSES_VERSION */
+#endif /* NO_LEAKS */
 
 #ifdef __cplusplus
 }
