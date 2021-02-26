@@ -759,12 +759,12 @@ tpc_resolve(struct tpc_list *list, uint16_t idx, uint32_t *ss,
 {
 
 	if (idx == 0xffff) {
-		if (ss && list->lun->be_lun)
+		if (ss)
 			*ss = list->lun->be_lun->blocksize;
-		if (pb && list->lun->be_lun)
+		if (pb)
 			*pb = list->lun->be_lun->blocksize <<
 			    list->lun->be_lun->pblockexp;
-		if (pbo && list->lun->be_lun)
+		if (pbo)
 			*pbo = list->lun->be_lun->blocksize *
 			    list->lun->be_lun->pblockoff;
 		return (list->lun->lun);
