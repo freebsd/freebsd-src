@@ -6818,6 +6818,23 @@ static unsigned int t4_get_rx_e_chan_map(struct adapter *adap, int idx)
 	return 1 << idx;
 }
 
+/*
+ * TP RX c-channel associated with the port.
+ */
+static unsigned int t4_get_rx_c_chan(struct adapter *adap, int idx)
+{
+	u32 param, val;
+	int ret;
+
+	param = (V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_TPCHMAP));
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
+	if (!ret)
+		return (val >> (8 * idx)) & 0xff;
+
+        return 0;
+}
+
 /**
  *      t4_get_port_type_description - return Port Type string description
  *      @port_type: firmware Port Type enumeration
@@ -9840,6 +9857,7 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 	p->tx_chan = j;
 	p->mps_bg_map = t4_get_mps_bg_map(adap, j);
 	p->rx_e_chan_map = t4_get_rx_e_chan_map(adap, j);
+	p->rx_c_chan = t4_get_rx_c_chan(adap, j);
 	p->lport = j;
 
 	if (!(adap->flags & IS_VF) ||
