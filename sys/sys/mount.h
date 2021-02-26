@@ -1086,7 +1086,7 @@ void resume_all_fs(void);
 	_mpcpu = vfs_mount_pcpu(mp);				\
 	MPASS(mpcpu->mntp_thread_in_ops == 0);			\
 	_mpcpu->mntp_thread_in_ops = 1;				\
-	__compiler_membar();					\
+	atomic_interrupt_fence();					\
 	if (__predict_false(mp->mnt_vfs_ops > 0)) {		\
 		vfs_op_thread_exit_crit(mp, _mpcpu);		\
 		_retval_crit = false;				\
@@ -1106,7 +1106,7 @@ void resume_all_fs(void);
 #define vfs_op_thread_exit_crit(mp, _mpcpu) do {		\
 	MPASS(_mpcpu == vfs_mount_pcpu(mp));			\
 	MPASS(_mpcpu->mntp_thread_in_ops == 1);			\
-	__compiler_membar();					\
+	atomic_interrupt_fence();					\
 	_mpcpu->mntp_thread_in_ops = 0;				\
 } while (0)
 
