@@ -15,7 +15,7 @@ MAN=		dialog.3
 
 LIBADD=		ncursesw m
 
-CFLAGS+= 	-I${.CURDIR} -I${DIALOG} -D_XOPEN_SOURCE_EXTENDED -DGCC_UNUSED=__unused
+CFLAGS+= 	-I${.CURDIR} -I${DIALOG} -D_XOPEN_SOURCE_EXTENDED -Wno-macro-redefined
 .PATH:		${DIALOG}
 WARNS?=		1
 
