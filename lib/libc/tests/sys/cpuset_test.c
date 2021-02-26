@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020 Kyle Evans <kevans@FreeBSD.org>
+ * Copyright (c) 2020-2021 Kyle Evans <kevans@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD");
 #include <sys/param.h>
 #include <sys/cpuset.h>
 #include <sys/jail.h>
+#include <sys/procdesc.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
@@ -64,6 +66,10 @@ typedef void (*jail_test_cb)(struct jail_test_cb_params *);
 #define	FAILURE_JAILSET	44
 #define	FAILURE_PIDSET	45
 #define	FAILURE_SEND	46
+#define	FAILURE_DEADLK	47
+#define	FAILURE_ATTACH	48
+#define	FAILURE_BADAFFIN	49
+#define	FAILURE_SUCCESS	50
 
 static const char *
 do_jail_errstr(int error)
@@ -80,6 +86,14 @@ do_jail_errstr(int error)
 		return ("Failed to get the pid setid");
 	case FAILURE_SEND:
 		return ("Failed to send(2) cpuset information");
+	case FAILURE_DEADLK:
+		return ("Deadlock hit trying to attach to jail");
+	case FAILURE_ATTACH:
+		return ("jail_attach(2) failed");
+	case FAILURE_BADAFFIN:
+		return ("Unexpected post-attach affinity");
+	case FAILURE_SUCCESS:
+		return ("jail_attach(2) succeeded, but should have failed.");
 	default:
 		return (NULL);
 	}
@@ -444,6 +458,192 @@ ATF_TC_BODY(jail_attach_plain, tc)
 	do_jail_test(1, false, &jail_attach_plain_pro, &jail_attach_jset_epi);
 }
 
+static int
+jail_attach_disjoint_newjail(int fd)
+{
+	struct iovec iov[2];
+	char *name;
+	int jid;
+
+	if (asprintf(&name, "cpuset_%d", getpid()) == -1)
+		_exit(42);
+
+	iov[0].iov_base = "name";
+	iov[0].iov_len = sizeof("name");
+
+	iov[1].iov_base = name;
+	iov[1].iov_len = strlen(name) + 1;
+
+	if ((jid = jail_set(iov, 2, JAIL_CREATE | JAIL_ATTACH)) < 0)
+		return (FAILURE_JAIL);
+
+	/* Signal that we're ready. */
+	write(fd, &jid, sizeof(jid));
+	for (;;) {
+		/* Spin */
+	}
+}
+
+static int
+wait_jail(int fd, int pfd)
+{
+	fd_set lset;
+	struct timeval tv;
+	int error, jid, maxfd;
+
+	FD_ZERO(&lset);
+	FD_SET(fd, &lset);
+	FD_SET(pfd, &lset);
+
+	maxfd = MAX(fd, pfd);
+
+	tv.tv_sec = 5;
+	tv.tv_usec = 0;
+
+	/* Wait for jid to be written. */
+	do {
+		error = select(maxfd + 1, &lset, NULL, NULL, &tv);
+	} while (error == -1 && errno == EINTR);
+
+	if (error == 0) {
+		atf_tc_fail("Jail creator did not respond in time.");
+	}
+
+	ATF_REQUIRE_MSG(error > 0, "Unexpected error %d from select()", errno);
+
+	if (FD_ISSET(pfd, &lset)) {
+		/* Process died */
+		atf_tc_fail("Jail creator died unexpectedly.");
+	}
+
+	ATF_REQUIRE(FD_ISSET(fd, &lset));
+	ATF_REQUIRE_EQ(sizeof(jid), recv(fd, &jid, sizeof(jid), 0));
+
+	return (jid);
+}
+
+static int
+try_attach_child(int jid, cpuset_t *expected_mask)
+{
+	cpuset_t mask;
+
+	if (jail_attach(jid) == -1) {
+		if (errno == EDEADLK)
+			return (FAILURE_DEADLK);
+		return (FAILURE_ATTACH);
+	}
+
+	if (expected_mask == NULL)
+		return (FAILURE_SUCCESS);
+
+	/* If we had an expected mask, check it against the new process mask. */
+	CPU_ZERO(&mask);
+	if (cpuset_getaffinity(CPU_LEVEL_CPUSET, CPU_WHICH_PID,
+	    -1, sizeof(mask), &mask) != 0) {
+		return (FAILURE_MASK);
+	}
+
+	if (CPU_CMP(expected_mask, &mask) != 0)
+		return (FAILURE_BADAFFIN);
+
+	return (0);
+}
+
+static void
+try_attach(int jid, cpuset_t *expected_mask)
+{
+	const char *errstr;
+	pid_t pid;
+	int error, fail, status;
+
+	ATF_REQUIRE(expected_mask != NULL);
+	ATF_REQUIRE((pid = fork()) != -1);
+	if (pid == 0)
+		_exit(try_attach_child(jid, expected_mask));
+
+	while ((error = waitpid(pid, &status, 0)) == -1 && errno == EINTR) {
+		/* Try again. */
+	}
+
+	/* Sanity check the exit info. */
+	ATF_REQUIRE_EQ(pid, error);
+	ATF_REQUIRE(WIFEXITED(status));
+	if ((fail = WEXITSTATUS(status)) != 0) {
+		errstr = do_jail_errstr(fail);
+		if (errstr != NULL)
+			atf_tc_fail("%s", errstr);
+		else
+			atf_tc_fail("Unknown error '%d'", WEXITSTATUS(status));
+	}
+}
+
+ATF_TC(jail_attach_disjoint);
+ATF_TC_HEAD(jail_attach_disjoint, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test root attachment into completely disjoint jail cpuset.");
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+ATF_TC_BODY(jail_attach_disjoint, tc)
+{
+	cpuset_t smask, jmask;
+	int sockpair[2];
+	cpusetid_t setid;
+	pid_t pid;
+	int fcpu, jid, pfd, sock, scpu;
+
+	ATF_REQUIRE_EQ(0, cpuset(&setid));
+
+	skip_ltncpu(2, &jmask);
+	fcpu = CPU_FFS(&jmask) - 1;
+	ATF_REQUIRE_EQ(0, socketpair(PF_UNIX, SOCK_STREAM, 0, sockpair));
+
+	/* We'll wait on the procdesc, too, so we can fail faster if it dies. */
+	ATF_REQUIRE((pid = pdfork(&pfd, 0)) != -1);
+
+	if (pid == 0) {
+		/* First child sets up the jail. */
+		sock = sockpair[SP_CHILD];
+		close(sockpair[SP_PARENT]);
+
+		_exit(jail_attach_disjoint_newjail(sock));
+	}
+
+	close(sockpair[SP_CHILD]);
+	sock = sockpair[SP_PARENT];
+
+	ATF_REQUIRE((jid = wait_jail(sock, pfd)) > 0);
+
+	/*
+	 * This process will be clamped down to the first cpu, while the jail
+	 * will simply have the first CPU removed to make it a completely
+	 * disjoint operation.
+	 */
+	CPU_ZERO(&smask);
+	CPU_SET(fcpu, &smask);
+	CPU_CLR(fcpu, &jmask);
+
+	/*
+	 * We'll test with the first and second cpu set as well.  Only the
+	 * second cpu should be used.
+	 */
+	scpu = CPU_FFS(&jmask) - 1;
+
+	ATF_REQUIRE_EQ(0, cpuset_setaffinity(CPU_LEVEL_ROOT, CPU_WHICH_JAIL,
+	    jid, sizeof(jmask), &jmask));
+	ATF_REQUIRE_EQ(0, cpuset_setaffinity(CPU_LEVEL_CPUSET, CPU_WHICH_CPUSET,
+	    setid, sizeof(smask), &smask));
+
+	try_attach(jid, &jmask);
+
+	CPU_SET(scpu, &smask);
+	ATF_REQUIRE_EQ(0, cpuset_setaffinity(CPU_LEVEL_CPUSET, CPU_WHICH_CPUSET,
+	    setid, sizeof(smask), &smask));
+
+	CPU_CLR(fcpu, &smask);
+	try_attach(jid, &smask);
+}
+
 ATF_TC(badparent);
 ATF_TC_HEAD(badparent, tc)
 {
@@ -488,6 +688,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, jail_attach_newbase_plain);
 	ATF_TP_ADD_TC(tp, jail_attach_prevbase);
 	ATF_TP_ADD_TC(tp, jail_attach_plain);
+	ATF_TP_ADD_TC(tp, jail_attach_disjoint);
 	ATF_TP_ADD_TC(tp, badparent);
 	return (atf_no_error());
 }
