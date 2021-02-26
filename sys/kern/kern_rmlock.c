@@ -366,7 +366,7 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 	 * Check to see if the IPI granted us the lock after all.  The load of
 	 * rmp_flags must happen after the tracker is removed from the list.
 	 */
-	__compiler_membar();
+	atomic_interrupt_fence();
 	if (tracker->rmp_flags) {
 		/* Just add back tracker - we hold the lock. */
 		rm_tracker_add(pc, tracker);
@@ -448,7 +448,7 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 
 	td->td_critnest++;	/* critical_enter(); */
 
-	__compiler_membar();
+	atomic_interrupt_fence();
 
 	pc = cpuid_to_pcpu[td->td_oncpu]; /* pcpu_find(td->td_oncpu); */
 
@@ -456,7 +456,7 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 
 	sched_pin();
 
-	__compiler_membar();
+	atomic_interrupt_fence();
 
 	td->td_critnest--;
 
@@ -873,16 +873,14 @@ db_show_rm(const struct lock_object *lock)
  * Concurrent writers take turns taking the lock while going off cpu. If this is
  * of concern for your usecase, this is not the right primitive.
  *
- * Neither rms_rlock nor rms_runlock use fences. Instead compiler barriers are
- * inserted to prevert reordering of generated code. Execution ordering is
- * provided with the use of an IPI handler.
+ * Neither rms_rlock nor rms_runlock use thread fences. Instead interrupt
+ * fences are inserted to ensure ordering with the code executed in the IPI
+ * handler.
  *
  * No attempt is made to track which CPUs read locked at least once,
  * consequently write locking sends IPIs to all of them. This will become a
  * problem at some point. The easiest way to lessen it is to provide a bitmap.
  */
-
-#define rms_int_membar()	__compiler_membar()
 
 #define	RMS_NOOWNER	((void *)0x1)
 #define	RMS_TRANSIENT	((void *)0x2)
@@ -1030,14 +1028,14 @@ rms_rlock(struct rmslock *rms)
 	critical_enter();
 	pcpu = rms_int_pcpu(rms);
 	rms_int_influx_enter(rms, pcpu);
-	rms_int_membar();
+	atomic_interrupt_fence();
 	if (__predict_false(rms->writers > 0)) {
 		rms_rlock_fallback(rms);
 		return;
 	}
-	rms_int_membar();
+	atomic_interrupt_fence();
 	rms_int_readers_inc(rms, pcpu);
-	rms_int_membar();
+	atomic_interrupt_fence();
 	rms_int_influx_exit(rms, pcpu);
 	critical_exit();
 }
@@ -1052,15 +1050,15 @@ rms_try_rlock(struct rmslock *rms)
 	critical_enter();
 	pcpu = rms_int_pcpu(rms);
 	rms_int_influx_enter(rms, pcpu);
-	rms_int_membar();
+	atomic_interrupt_fence();
 	if (__predict_false(rms->writers > 0)) {
 		rms_int_influx_exit(rms, pcpu);
 		critical_exit();
 		return (0);
 	}
-	rms_int_membar();
+	atomic_interrupt_fence();
 	rms_int_readers_inc(rms, pcpu);
-	rms_int_membar();
+	atomic_interrupt_fence();
 	rms_int_influx_exit(rms, pcpu);
 	critical_exit();
 	return (1);
@@ -1092,14 +1090,14 @@ rms_runlock(struct rmslock *rms)
 	critical_enter();
 	pcpu = rms_int_pcpu(rms);
 	rms_int_influx_enter(rms, pcpu);
-	rms_int_membar();
+	atomic_interrupt_fence();
 	if (__predict_false(rms->writers > 0)) {
 		rms_runlock_fallback(rms);
 		return;
 	}
-	rms_int_membar();
+	atomic_interrupt_fence();
 	rms_int_readers_dec(rms, pcpu);
-	rms_int_membar();
+	atomic_interrupt_fence();
 	rms_int_influx_exit(rms, pcpu);
 	critical_exit();
 }

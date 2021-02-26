@@ -173,13 +173,13 @@ static __inline void
 sched_pin(void)
 {
 	curthread->td_pinned++;
-	__compiler_membar();
+	atomic_interrupt_fence();
 }
 
 static __inline void
 sched_unpin(void)
 {
-	__compiler_membar();
+	atomic_interrupt_fence();
 	curthread->td_pinned--;
 }
 
