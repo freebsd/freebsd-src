@@ -124,9 +124,14 @@ def default_cross_toolchain():
     # default to homebrew-installed clang on MacOS if available
     if sys.platform.startswith("darwin"):
         if shutil.which("brew"):
-            llvm_dir = subprocess.getoutput("brew --prefix llvm")
-            if llvm_dir and Path(llvm_dir, "bin").exists():
-                return str(Path(llvm_dir, "bin"))
+            llvm_dir = subprocess.run(["brew", "--prefix", "llvm"],
+                                      capture_output=True).stdout.strip()
+            debug("Inferred LLVM dir as", llvm_dir)
+            try:
+                if llvm_dir and Path(llvm_dir.decode("utf-8"), "bin").exists():
+                    return str(Path(llvm_dir.decode("utf-8"), "bin"))
+            except OSError:
+                return None
     return None
 
 
@@ -137,7 +142,7 @@ if __name__ == "__main__":
                         help="Directory to look for cc/c++/cpp/ld to build "
                              "host (" + sys.platform + ") binaries",
                         default="/usr/bin")
-    parser.add_argument("--cross-bindir", default=default_cross_toolchain(),
+    parser.add_argument("--cross-bindir", default=None,
                         help="Directory to look for cc/c++/cpp/ld to build "
                              "target binaries (only needed if XCC/XCPP/XLD "
                              "are not set)")
@@ -165,6 +170,8 @@ if __name__ == "__main__":
     except ImportError:
         pass
     parsed_args, bmake_args = parser.parse_known_args()
+    if parsed_args.cross_bindir is None:
+        parsed_args.cross_bindir = default_cross_toolchain()
 
     MAKEOBJDIRPREFIX = os.getenv("MAKEOBJDIRPREFIX")
     if not MAKEOBJDIRPREFIX:
