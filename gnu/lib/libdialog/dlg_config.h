@@ -6,8 +6,15 @@
  */
 
 #define CURSES_WACS_ARRAY _nc_wacs
-#define DIALOG_PATCHDATE 20180621
+#define CURSES_WACS_SYMBOLS 1
+#define DIALOG_PATCHDATE 20210117
 #define DIALOG_VERSION "1.3"
+#define GCC_NORETURN __attribute__((noreturn))
+#define GCC_PRINTF 1
+#define GCC_PRINTFLIKE(fmt,var) __attribute__((format(printf,fmt,var)))
+#define GCC_SCANF 1
+#define GCC_SCANFLIKE(fmt,var) __attribute__((format(scanf,fmt,var)))
+#define GCC_UNUSED __attribute__((unused))
 #define HAVE_ALLOCA 1
 #define HAVE_BTOWC 1
 #define HAVE_COLOR 1
@@ -58,6 +65,7 @@
 #define HAVE_NL_TYPES_H 1
 #define HAVE_PUTENV 1
 #define HAVE_RC_FILE 1
+#define HAVE_RC_FILE2 1
 #define HAVE_SEARCH_H 1
 #define HAVE_SETENV 1
 #define HAVE_SETLOCALE 1
@@ -93,11 +101,11 @@
 #define HAVE_WCTOMB 1
 #define HAVE_WCURSYNCUP 1
 #define HAVE_WGETPARENT 1
+#define HAVE_WGET_WCH 1
 #define HAVE_WHIPTAIL 1
 #define HAVE_WSYNCUP 1
 #define HAVE_XDIALOG 1
 #define HAVE_XDIALOG2 1
-#define HAVE__NC_FREE_AND_EXIT 1
 #define ICONV_CONST 
 #define MIXEDCASE_FILENAMES 1
 #define NCURSES 1
@@ -105,7 +113,8 @@
 #define PACKAGE "dialog"
 #define RETSIGTYPE void
 #define STDC_HEADERS 1
-#define SYSTEM_NAME "freebsd12.0"
+#define SYSTEM_NAME "FreeBSD"
 #define TIME_WITH_SYS_TIME 1
 #define TYPE_CHTYPE_IS_SCALAR 1
 #define USE_WIDE_CURSES 1
+#define WIDEC_CURSES 1
