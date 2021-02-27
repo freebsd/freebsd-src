@@ -60,9 +60,9 @@ struct restore_state {
 	ucl_object_t *meta_root_obj;
 };
 
-enum checkpoint_opcodes {
-	START_CHECKPOINT = 0,
-	START_SUSPEND = 1,
+enum ipc_opcode {
+	START_CHECKPOINT,
+	START_SUSPEND,
 };
 
 struct checkpoint_op {
