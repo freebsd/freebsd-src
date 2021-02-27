@@ -511,7 +511,9 @@ ifconfig_get_groups(ifconfig_handle_t *h, const char *name,
 	len = ifgr->ifgr_len;
 	ifgr->ifgr_groups = (struct ifg_req *)malloc(len);
 	if (ifgr->ifgr_groups == NULL) {
-		return (1);
+		h->error.errtype = OTHER;
+		h->error.errcode = ENOMEM;
+		return (-1);
 	}
 	bzero(ifgr->ifgr_groups, len);
 	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCGIFGROUP, ifgr) == -1) {
