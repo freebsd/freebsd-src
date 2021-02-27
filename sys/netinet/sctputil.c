@@ -2277,14 +2277,19 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		}
 		rndval = sctp_select_initial_TSN(&inp->sctp_ep);
 		jitter = rndval % to_ticks;
-		if (jitter >= (to_ticks >> 1)) {
-			to_ticks = to_ticks + (jitter - (to_ticks >> 1));
+		to_ticks >>= 1;
+		if (jitter < (UINT32_MAX - to_ticks)) {
+			to_ticks += jitter;
 		} else {
-			to_ticks = to_ticks - jitter;
+			to_ticks = UINT32_MAX;
 		}
 		if (!(net->dest_state & SCTP_ADDR_UNCONFIRMED) &&
 		    !(net->dest_state & SCTP_ADDR_PF)) {
-			to_ticks += net->heart_beat_delay;
+			if (net->heart_beat_delay < (UINT32_MAX - to_ticks)) {
+				to_ticks += net->heart_beat_delay;
+			} else {
+				to_ticks = UINT32_MAX;
+			}
 		}
 		/*
 		 * Now we must convert the to_ticks that are now in ms to
