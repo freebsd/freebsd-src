@@ -43,6 +43,8 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#include <libifconfig.h>
+
 #include "ifconfig.h"
 
 /* ARGSUSED */
@@ -84,33 +86,21 @@ unsetifgroup(const char *group_name, int d, int s, const struct afswtch *rafp)
 static void
 getifgroups(int s)
 {
-	int			 len, cnt;
-	struct ifgroupreq	 ifgr;
-	struct ifg_req		*ifg;
+	ifconfig_handle_t *lifh;
+	struct ifgroupreq ifgr;
+	size_t cnt;
 
-	memset(&ifgr, 0, sizeof(ifgr));
-	strlcpy(ifgr.ifgr_name, name, IFNAMSIZ);
+	lifh = ifconfig_open();
+	if (lifh == NULL)
+		return;
 
-	if (ioctl(s, SIOCGIFGROUP, (caddr_t)&ifgr) == -1) {
-		if (errno == EINVAL || errno == ENOTTY)
-			return;
-		else
-			err(1, "SIOCGIFGROUP");
-	}
-
-	len = ifgr.ifgr_len;
-	ifgr.ifgr_groups =
-	    (struct ifg_req *)calloc(len / sizeof(struct ifg_req),
-	    sizeof(struct ifg_req));
-	if (ifgr.ifgr_groups == NULL)
-		err(1, "getifgroups");
-	if (ioctl(s, SIOCGIFGROUP, (caddr_t)&ifgr) == -1)
-		err(1, "SIOCGIFGROUP");
+	if (ifconfig_get_groups(lifh, name, &ifgr) == -1)
+		goto close;
 
 	cnt = 0;
-	ifg = ifgr.ifgr_groups;
-	for (; ifg && len >= sizeof(struct ifg_req); ifg++) {
-		len -= sizeof(struct ifg_req);
+	for (size_t i = 0; i < ifgr.ifgr_len / sizeof(struct ifg_req); ++i) {
+		struct ifg_req *ifg = &ifgr.ifgr_groups[i];
+
 		if (strcmp(ifg->ifgrq_group, "all")) {
 			if (cnt == 0)
 				printf("\tgroups:");
@@ -122,6 +112,8 @@ getifgroups(int s)
 		printf("\n");
 
 	free(ifgr.ifgr_groups);
+close:
+	ifconfig_close(lifh);
 }
 
 static void
