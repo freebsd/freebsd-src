@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/disk.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
@@ -476,10 +477,12 @@ SYSCTL_INT(_kern_devstat, OID_AUTO, version, CTLFLAG_RD,
 
 #define statsperpage (PAGE_SIZE / sizeof(struct devstat))
 
+static d_ioctl_t devstat_ioctl;
 static d_mmap_t devstat_mmap;
 
 static struct cdevsw devstat_cdevsw = {
 	.d_version =	D_VERSION,
+	.d_ioctl =	devstat_ioctl,
 	.d_mmap =	devstat_mmap,
 	.d_name =	"devstat",
 };
@@ -490,8 +493,25 @@ struct statspage {
 	u_int			nfree;
 };
 
+static size_t pagelist_pages = 0;
 static TAILQ_HEAD(, statspage)	pagelist = TAILQ_HEAD_INITIALIZER(pagelist);
 static MALLOC_DEFINE(M_DEVSTAT, "devstat", "Device statistics");
+
+static int
+devstat_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
+    struct thread *td)
+{
+	int error = ENOTTY;
+
+	switch (cmd) {
+	case DIOCGMEDIASIZE:
+		error = 0;
+		*(off_t *)data = pagelist_pages * PAGE_SIZE;
+		break;
+	}
+
+	return (error);
+}
 
 static int
 devstat_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
@@ -559,6 +579,7 @@ devstat_alloc(void)
 			 * head but the order on the list determine the
 			 * sequence of the mapping so we can't do that.
 			 */
+			pagelist_pages++;
 			TAILQ_INSERT_TAIL(&pagelist, spp, list);
 		} else
 			break;
