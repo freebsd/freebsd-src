@@ -1739,7 +1739,7 @@ snapshot_request(struct vmctx *ctx, const char *file, enum ipc_opcode code)
 	struct checkpoint_op op;
 
 	op.op = code;
-	strlcpy(op.snapshot_filename, file, MAX_SNAPSHOT_VMNAME);
+	strlcpy(op.snapshot_filename, file, MAX_SNAPSHOT_FILENAME);
 
 	return (send_checkpoint_op_req(ctx, &op));
 }
