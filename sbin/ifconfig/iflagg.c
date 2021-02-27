@@ -28,6 +28,8 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 
+#include <libifconfig.h>
+
 #include "ifconfig.h"
 
 static struct iflaggparam params = {
@@ -216,93 +218,87 @@ lacp_format_peer(struct lacp_opreq *req, const char *sep)
 static void
 lagg_status(int s)
 {
-	struct lagg_protos lpr[] = LAGG_PROTOS;
-	struct lagg_reqport rpbuf[LAGG_MAX_PORTS];
-	struct lagg_reqall ra;
-	struct lagg_reqopts ro;
-	struct lagg_reqflags rf;
+	struct lagg_protos protos[] = LAGG_PROTOS;
+	ifconfig_handle_t *lifh;
+	struct ifconfig_lagg_status *lagg;
+	struct lagg_reqall *ra;
+	struct lagg_reqflags *rf;
+	struct lagg_reqopts *ro;
+	struct lagg_reqport *ports;
 	struct lacp_opreq *lp;
-	const char *proto = "<unknown>";
-	int i;
+	const char *proto;
 
-	bzero(&ra, sizeof(ra));
-	bzero(&ro, sizeof(ro));
+	lifh = ifconfig_open();
+	if (lifh == NULL)
+		return;
 
-	strlcpy(ra.ra_ifname, name, sizeof(ra.ra_ifname));
-	ra.ra_size = sizeof(rpbuf);
-	ra.ra_port = rpbuf;
+	if (ifconfig_lagg_get_lagg_status(lifh, name, &lagg) == -1)
+		goto close;
 
-	strlcpy(ro.ro_ifname, name, sizeof(ro.ro_ifname));
-	ioctl(s, SIOCGLAGGOPTS, &ro);
+	ra = lagg->ra;
+	rf = lagg->rf;
+	ro = lagg->ro;
+	ports = ra->ra_port;
 
-	strlcpy(rf.rf_ifname, name, sizeof(rf.rf_ifname));
-	if (ioctl(s, SIOCGLAGGFLAGS, &rf) != 0)
-		rf.rf_flags = 0;
-
-	if (ioctl(s, SIOCGLAGG, &ra) == 0) {
-		lp = (struct lacp_opreq *)&ra.ra_lacpreq;
-
-		for (i = 0; i < nitems(lpr); i++) {
-			if (ra.ra_proto == lpr[i].lpr_proto) {
-				proto = lpr[i].lpr_name;
-				break;
-			}
-		}
-
-		printf("\tlaggproto %s", proto);
-		if (rf.rf_flags & LAGG_F_HASHMASK) {
-			const char *sep = "";
-
-			printf(" lagghash ");
-			if (rf.rf_flags & LAGG_F_HASHL2) {
-				printf("%sl2", sep);
-				sep = ",";
-			}
-			if (rf.rf_flags & LAGG_F_HASHL3) {
-				printf("%sl3", sep);
-				sep = ",";
-			}
-			if (rf.rf_flags & LAGG_F_HASHL4) {
-				printf("%sl4", sep);
-				sep = ",";
-			}
-		}
-		putchar('\n');
-		if (verbose) {
-			printf("\tlagg options:\n");
-			printb("\t\tflags", ro.ro_opts, LAGG_OPT_BITS);
-			putchar('\n');
-			printf("\t\tflowid_shift: %d\n", ro.ro_flowid_shift);
-			if (ra.ra_proto == LAGG_PROTO_ROUNDROBIN)
-				printf("\t\trr_limit: %d\n", ro.ro_bkt);
-			printf("\tlagg statistics:\n");
-			printf("\t\tactive ports: %d\n", ro.ro_active);
-			printf("\t\tflapping: %u\n", ro.ro_flapping);
-			if (ra.ra_proto == LAGG_PROTO_LACP) {
-				printf("\tlag id: %s\n",
-				    lacp_format_peer(lp, "\n\t\t "));
-			}
-		}
-
-		for (i = 0; i < ra.ra_ports; i++) {
-			lp = (struct lacp_opreq *)&rpbuf[i].rp_lacpreq;
-			printf("\tlaggport: %s ", rpbuf[i].rp_portname);
-			printb("flags", rpbuf[i].rp_flags, LAGG_PORT_BITS);
-			if (verbose && ra.ra_proto == LAGG_PROTO_LACP)
-				printb(" state", lp->actor_state,
-				    LACP_STATE_BITS);
-			putchar('\n');
-			if (verbose && ra.ra_proto == LAGG_PROTO_LACP)
-				printf("\t\t%s\n",
-				    lacp_format_peer(lp, "\n\t\t "));
-		}
-
-		if (0 /* XXX */) {
-			printf("\tsupported aggregation protocols:\n");
-			for (i = 0; i < nitems(lpr); i++)
-				printf("\t\tlaggproto %s\n", lpr[i].lpr_name);
+	proto = "<unknown>";
+	for (size_t i = 0; i < nitems(protos); ++i) {
+		if (ra->ra_proto == protos[i].lpr_proto) {
+			proto = protos[i].lpr_name;
+			break;
 		}
 	}
+	printf("\tlaggproto %s", proto);
+
+	if (rf->rf_flags & LAGG_F_HASHMASK) {
+		const char *sep = "";
+
+		printf(" lagghash ");
+		if (rf->rf_flags & LAGG_F_HASHL2) {
+			printf("%sl2", sep);
+			sep = ",";
+		}
+		if (rf->rf_flags & LAGG_F_HASHL3) {
+			printf("%sl3", sep);
+			sep = ",";
+		}
+		if (rf->rf_flags & LAGG_F_HASHL4) {
+			printf("%sl4", sep);
+			sep = ",";
+		}
+	}
+	putchar('\n');
+	if (verbose) {
+		printf("\tlagg options:\n");
+		printb("\t\tflags", ro->ro_opts, LAGG_OPT_BITS);
+		putchar('\n');
+		printf("\t\tflowid_shift: %d\n", ro->ro_flowid_shift);
+		if (ra->ra_proto == LAGG_PROTO_ROUNDROBIN)
+			printf("\t\trr_limit: %d\n", ro->ro_bkt);
+		printf("\tlagg statistics:\n");
+		printf("\t\tactive ports: %d\n", ro->ro_active);
+		printf("\t\tflapping: %u\n", ro->ro_flapping);
+		if (ra->ra_proto == LAGG_PROTO_LACP) {
+			lp = &ra->ra_lacpreq;
+			printf("\tlag id: %s\n",
+			    lacp_format_peer(lp, "\n\t\t "));
+		}
+	}
+
+	for (size_t i = 0; i < ra->ra_ports; ++i) {
+		lp = &ports[i].rp_lacpreq;
+		printf("\tlaggport: %s ", ports[i].rp_portname);
+		printb("flags", ports[i].rp_flags, LAGG_PORT_BITS);
+		if (verbose && ra->ra_proto == LAGG_PROTO_LACP)
+			printb(" state", lp->actor_state, LACP_STATE_BITS);
+		putchar('\n');
+		if (verbose && ra->ra_proto == LAGG_PROTO_LACP)
+			printf("\t\t%s\n",
+			    lacp_format_peer(lp, "\n\t\t "));
+	}
+
+	ifconfig_lagg_free_lagg_status(lagg);
+close:
+	ifconfig_close(lifh);
 }
 
 static
