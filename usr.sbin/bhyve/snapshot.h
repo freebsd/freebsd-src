@@ -43,7 +43,7 @@
 #include <ucl.h>
 
 #define BHYVE_RUN_DIR "/var/run/bhyve/"
-#define MAX_SNAPSHOT_VMNAME 100
+#define MAX_SNAPSHOT_FILENAME PATH_MAX
 
 struct vmctx;
 
@@ -67,7 +67,7 @@ enum ipc_opcode {
 
 struct checkpoint_op {
 	unsigned int op;
-	char snapshot_filename[MAX_SNAPSHOT_VMNAME];
+	char snapshot_filename[MAX_SNAPSHOT_FILENAME];
 };
 
 struct checkpoint_thread_info {
