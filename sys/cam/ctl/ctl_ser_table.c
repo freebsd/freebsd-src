@@ -43,11 +43,8 @@
 /* TABLE       ctlSerTbl                                                    */
 /*                                                                          */
 /*  The matrix which drives the serialization algorithm. The major index    */
-/*  (the first) into this table is the command being checked and the minor  */
-/*  index is the command against which the first command is being checked.  */
-/*  i.e., the major index (row) command is ahead of the minor index command */
-/*  (column) in the queue.  This allows the code to optimize by capturing   */
-/*  the result of the first indexing operation into a pointer.              */
+/*  (the first, row) into this table is the new command.  The minor index   */
+/*  (column) is the older, possibly already running, command.               */
 /*                                                                          */
 /*  Whenever a new value is added to the IDX_T type, this matrix must be    */
 /*  expanded by one row AND one column -- Because of this, some effort      */
@@ -55,30 +52,29 @@
 /*                                                                          */
 /****************************************************************************/
 
-#define	sK	CTL_SER_SKIP		/* Skip */
 #define	pS	CTL_SER_PASS		/* Pass */
 #define	bK	CTL_SER_BLOCK		/* Blocked */
 #define	bO	CTL_SER_BLOCKOPT	/* Optional block */
 #define	xT	CTL_SER_EXTENT		/* Extent check */
 #define	xO	CTL_SER_EXTENTOPT	/* Optional extent check */
-#define	xS	CTL_SER_EXTENTSEQ	/* Sequential extent check */
+#define	xS	CTL_SER_SEQ		/* Sequential check */
 
-const static ctl_serialize_action
+const static uint8_t
 ctl_serialize_table[CTL_SERIDX_COUNT][CTL_SERIDX_COUNT] = {
 /**>IDX_ :: 2nd:TUR RD  WRT UNM SYN MDSN MDSL RQSN INQ RDCP RES LSNS FMT STR*/
-/*TUR     */{   pS, pS, pS, pS, pS, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
-/*READ    */{   pS, xS, xT, bO, pS, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
-/*WRITE   */{   pS, xT, xT, bO, bO, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
-/*UNMAP   */{   pS, xO, xO, pS, pS, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
-/*SYNC    */{   pS, pS, pS, pS, pS, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
-/*MD_SNS  */{   bK, bK, bK, bK, bK, pS,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
-/*MD_SEL  */{   bK, bK, bK, bK, bK, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
-/*RQ_SNS  */{   pS, pS, pS, pS, pS, pS,  pS,  bK,  pS, pS,  bK, pS,  bK, bK},
-/*INQ     */{   pS, pS, pS, pS, pS, pS,  pS,  bK,  pS, pS,  pS, pS,  bK, bK},
-/*RD_CAP  */{   pS, pS, pS, pS, pS, pS,  pS,  bK,  pS, pS,  pS, pS,  bK, pS},
-/*RES     */{   bK, bK, bK, bK, bK, bK,  bK,  bK,  pS, bK,  bK, bK,  bK, bK},
-/*LOG_SNS */{   pS, pS, pS, pS, pS, pS,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
-/*FORMAT  */{   pS, bK, bK, bK, bK, bK,  bK,  pS,  pS, bK,  bK, bK,  bK, bK},
-/*START   */{   bK, bK, bK, bK, bK, bK,  bK,  bK,  pS, bK,  bK, bK,  bK, bK},
+/*TUR     */{   pS, pS, pS, pS, pS, bK,  bK,  pS,  pS, pS,  bK, pS,  pS, bK},
+/*READ    */{   pS, xS, xT, xO, pS, bK,  bK,  pS,  pS, pS,  bK, pS,  bK, bK},
+/*WRITE   */{   pS, xT, xT, xO, pS, bK,  bK,  pS,  pS, pS,  bK, pS,  bK, bK},
+/*UNMAP   */{   pS, bO, bO, pS, pS, bK,  bK,  pS,  pS, pS,  bK, pS,  bK, bK},
+/*SYNC    */{   pS, pS, bO, pS, pS, bK,  bK,  pS,  pS, pS,  bK, pS,  bK, bK},
+/*MD_SNS  */{   bK, bK, bK, bK, bK, pS,  bK,  pS,  pS, pS,  bK, pS,  bK, bK},
+/*MD_SEL  */{   bK, bK, bK, bK, bK, bK,  bK,  pS,  pS, pS,  bK, bK,  bK, bK},
+/*RQ_SNS  */{   bK, bK, bK, bK, bK, bK,  bK,  bK,  bK, bK,  bK, bK,  pS, bK},
+/*INQ     */{   pS, pS, pS, pS, pS, pS,  pS,  pS,  pS, pS,  pS, pS,  pS, pS},
+/*RD_CAP  */{   pS, pS, pS, pS, pS, pS,  pS,  pS,  pS, pS,  bK, pS,  bK, bK},
+/*RES     */{   bK, bK, bK, bK, bK, bK,  bK,  bK,  pS, pS,  bK, bK,  bK, bK},
+/*LOG_SNS */{   pS, pS, pS, pS, pS, pS,  pS,  pS,  pS, pS,  bK, pS,  bK, bK},
+/*FORMAT  */{   bK, bK, bK, bK, bK, bK,  bK,  bK,  bK, bK,  bK, bK,  bK, bK},
+/*START   */{   bK, bK, bK, bK, bK, bK,  bK,  bK,  bK, pS,  bK, bK,  bK, bK},
 };
 

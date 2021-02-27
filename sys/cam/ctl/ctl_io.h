@@ -325,7 +325,7 @@ struct ctl_scsiio {
 	struct     scsi_sense_data sense_data;	/* sense data */
 	uint8_t	   sense_len;		/* Returned sense length */
 	uint8_t	   scsi_status;		/* SCSI status byte */
-	uint8_t	   sense_residual;	/* Unused. */
+	uint8_t	   seridx;		/* Serialization index. */
 	uint8_t	   priority;		/* Command priority */
 	uint32_t   residual;		/* Unused */
 	uint32_t   tag_num;		/* tag number */
