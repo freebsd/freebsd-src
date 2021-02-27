@@ -255,7 +255,6 @@ wg_transmit(struct ifnet *ifp, struct mbuf *m)
 	peer = wg_route_lookup(&sc->sc_routes, m, OUT);
 	if (__predict_false(peer == NULL)) {
 		rc = ENOKEY;
-		printf("peer not found - dropping %p\n", m);
 		/* XXX log */
 		goto err;
 	}
@@ -360,8 +359,15 @@ wg_init(if_ctx_t ctx)
 	struct wg_softc *sc;
 	int rc;
 
+	if (iflib_in_detach(ctx))
+		return;
+
 	sc = iflib_get_softc(ctx);
 	ifp = iflib_get_ifp(ctx);
+	if (sc->sc_socket.so_so4 != NULL)
+		printf("XXX wg_init, socket non-NULL %p\n",
+		    sc->sc_socket.so_so4);
+	wg_socket_reinit(sc, NULL, NULL);
 	rc = wg_socket_init(sc);
 	if (rc)
 		return;
@@ -377,6 +383,7 @@ wg_stop(if_ctx_t ctx)
 	sc  = iflib_get_softc(ctx);
 	ifp = iflib_get_ifp(ctx);
 	if_link_state_change(ifp, LINK_STATE_DOWN);
+	wg_socket_reinit(sc, NULL, NULL);
 }
 
 static nvlist_t *
@@ -386,13 +393,20 @@ wg_peer_to_nvl(struct wg_peer *peer)
 	int i, count;
 	nvlist_t *nvl;
 	caddr_t key;
+	size_t sa_sz;
 	struct wg_allowedip *aip;
+	struct wg_endpoint *ep;
 
 	if ((nvl = nvlist_create(0)) == NULL)
 		return (NULL);
 	key = peer->p_remote.r_public;
 	nvlist_add_binary(nvl, "public-key", key, WG_KEY_SIZE);
-	nvlist_add_binary(nvl, "endpoint", &peer->p_endpoint.e_remote, sizeof(struct sockaddr));
+	ep = &peer->p_endpoint;
+	if (ep->e_remote.r_sa.sa_family != 0) {
+		sa_sz = (ep->e_remote.r_sa.sa_family == AF_INET) ?
+			sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
+		nvlist_add_binary(nvl, "endpoint", &ep->e_remote, sa_sz);
+	}
 	i = count = 0;
 	CK_LIST_FOREACH(rt, &peer->p_routes, r_entry) {
 		count++;
@@ -587,13 +601,12 @@ wg_peer_add(struct wg_softc *sc, const nvlist_t *nvl)
 	}
 	if (nvlist_exists_binary(nvl, "endpoint")) {
 		endpoint = nvlist_get_binary(nvl, "endpoint", &size);
-		if (size != sizeof(*endpoint)) {
+		if (size > sizeof(peer->p_endpoint.e_remote)) {
 			device_printf(dev, "%s bad length for endpoint %zu\n", __func__, size);
 			err = EBADMSG;
 			goto out;
 		}
-		memcpy(&peer->p_endpoint.e_remote, endpoint,
-		    sizeof(peer->p_endpoint.e_remote));
+		memcpy(&peer->p_endpoint.e_remote, endpoint, size);
 	}
 	if (nvlist_exists_binary(nvl, "pre-shared-key")) {
 		const void *key;
