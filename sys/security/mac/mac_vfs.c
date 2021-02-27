@@ -1021,6 +1021,10 @@ vop_stdsetlabel_ea(struct vop_setlabel_args *ap)
 	if (error)
 		return (error);
 
+	/*
+	 * XXXRW: See the comment below in vn_setlabel() as to why this might
+	 * be the wrong place to call mac_vnode_relabel().
+	 */
 	mac_vnode_relabel(ap->a_cred, vp, intlabel);
 
 	return (0);
@@ -1045,9 +1049,6 @@ vn_setlabel(struct vnode *vp, struct label *intlabel, struct ucred *cred)
 	 * Multi-phase commit.  First check the policies to confirm the
 	 * change is OK.  Then commit via the filesystem.  Finally, update
 	 * the actual vnode label.
-	 *
-	 * Question: maybe the filesystem should update the vnode at the end
-	 * as part of VOP_SETLABEL()?
 	 */
 	error = mac_vnode_check_relabel(cred, vp, intlabel);
 	if (error)
@@ -1067,6 +1068,14 @@ vn_setlabel(struct vnode *vp, struct label *intlabel, struct ucred *cred)
 	error = VOP_SETLABEL(vp, intlabel, cred, curthread);
 	if (error)
 		return (error);
+
+	/*
+	 * It would be more symmetric if mac_vnode_relabel() was called here
+	 * rather than in VOP_SETLABEL(), but we don't for historical reasons.
+	 * We should think about moving it so that the filesystem is
+	 * responsible only for persistence in VOP_SETLABEL(), not the vnode
+	 * label update itself.
+	 */
 
 	return (0);
 }
