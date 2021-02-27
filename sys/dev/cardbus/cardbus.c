@@ -256,10 +256,11 @@ cardbus_detach_card(device_t cbdev)
 {
 	int err = 0;
 
+	mtx_lock(&Giant);
 	err = bus_generic_detach(cbdev);
-	if (err)
-		return (err);
-	err = device_delete_children(cbdev);
+	if (err == 0)
+		err = device_delete_children(cbdev);
+	mtx_unlock(&Giant);
 	if (err)
 		return (err);
 
