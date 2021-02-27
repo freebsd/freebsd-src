@@ -32,9 +32,12 @@
  */
 
 #include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/mman.h>
 #include <sys/time.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
@@ -53,7 +56,7 @@ geom_stats_close(void)
 {
 	if (statsfd == -1)
 		return;
-	munmap(statp, npages *pagesize);
+	munmap(statp, npages * pagesize);
 	statp = NULL;
 	close (statsfd);
 	statsfd = -1;
@@ -63,17 +66,22 @@ void
 geom_stats_resync(void)
 {
 	void *p;
+	off_t mediasize;
+	int error;
 
 	if (statsfd == -1)
 		return;
-	for (;;) {
-		p = mmap(statp, (npages + 1) * pagesize,
-		    PROT_READ, MAP_SHARED, statsfd, 0);
-		if (p == MAP_FAILED)
-			break;
-		else
-			statp = p;
-		npages++;
+	error = ioctl(statsfd, DIOCGMEDIASIZE, &mediasize);
+	if (error)
+		err(1, "DIOCGMEDIASIZE(" _PATH_DEV DEVSTAT_DEVICE_NAME ")");
+
+	munmap(statp, npages * pagesize);
+	p = mmap(statp, mediasize, PROT_READ, MAP_SHARED, statsfd, 0);
+	if (p == MAP_FAILED)
+		err(1, "mmap(/dev/devstat):");
+	else {
+		statp = p;
+		npages = mediasize / pagesize;
 	}
 }
 
