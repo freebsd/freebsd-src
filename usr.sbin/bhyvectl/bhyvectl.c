@@ -1734,25 +1734,12 @@ done:
 }
 
 static int
-send_start_checkpoint(struct vmctx *ctx, const char *checkpoint_file)
+snapshot_request(struct vmctx *ctx, const char *file, enum ipc_opcode code)
 {
 	struct checkpoint_op op;
 
-	op.op = START_CHECKPOINT;
-	strncpy(op.snapshot_filename, checkpoint_file, MAX_SNAPSHOT_VMNAME);
-	op.snapshot_filename[MAX_SNAPSHOT_VMNAME - 1] = 0;
-
-	return (send_checkpoint_op_req(ctx, &op));
-}
-
-static int
-send_start_suspend(struct vmctx *ctx, const char *suspend_file)
-{
-	struct checkpoint_op op;
-
-	op.op = START_SUSPEND;
-	strncpy(op.snapshot_filename, suspend_file, MAX_SNAPSHOT_VMNAME);
-	op.snapshot_filename[MAX_SNAPSHOT_VMNAME - 1] = 0;
+	op.op = code;
+	strlcpy(op.snapshot_filename, file, MAX_SNAPSHOT_VMNAME);
 
 	return (send_checkpoint_op_req(ctx, &op));
 }
@@ -2416,10 +2403,10 @@ main(int argc, char *argv[])
 
 #ifdef BHYVE_SNAPSHOT
 	if (!error && vm_checkpoint_opt)
-		error = send_start_checkpoint(ctx, checkpoint_file);
+		error = snapshot_request(ctx, checkpoint_file, START_CHECKPOINT);
 
 	if (!error && vm_suspend_opt)
-		error = send_start_suspend(ctx, suspend_file);
+		error = snapshot_request(ctx, suspend_file, START_SUSPEND);
 #endif
 
 	free (opts);
