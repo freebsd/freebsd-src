@@ -1792,10 +1792,10 @@ softdep_process_worklist(mp, full)
 	long starttime;
 
 	KASSERT(mp != NULL, ("softdep_process_worklist: NULL mp"));
-	if (MOUNTEDSOFTDEP(mp) == 0)
+	ump = VFSTOUFS(mp);
+	if (ump->um_softdep == NULL)
 		return (0);
 	matchcnt = 0;
-	ump = VFSTOUFS(mp);
 	ACQUIRE_LOCK(ump);
 	starttime = time_second;
 	softdep_process_journal(mp, NULL, full ? MNT_WAIT : 0);
@@ -2134,6 +2134,8 @@ softdep_waitidle(struct mount *mp, int flags __unused)
 	int error, i;
 
 	ump = VFSTOUFS(mp);
+	KASSERT(ump->um_softdep != NULL,
+	    ("softdep_waitidle called on non-softdep filesystem"));
 	devvp = ump->um_devvp;
 	td = curthread;
 	error = 0;
@@ -2171,14 +2173,15 @@ softdep_flushfiles(oldmnt, flags, td)
 	int flags;
 	struct thread *td;
 {
-#ifdef QUOTA
 	struct ufsmount *ump;
+#ifdef QUOTA
 	int i;
 #endif
 	int error, early, depcount, loopcnt, retry_flush_count, retry;
 	int morework;
 
-	KASSERT(MOUNTEDSOFTDEP(oldmnt) != 0,
+	ump = VFSTOUFS(oldmnt);
+	KASSERT(ump->um_softdep != NULL,
 	    ("softdep_flushfiles called on non-softdep filesystem"));
 	loopcnt = 10;
 	retry_flush_count = 3;
@@ -2222,7 +2225,6 @@ retry_flush:
 			MNT_ILOCK(oldmnt);
 			morework = oldmnt->mnt_nvnodelistsize > 0;
 #ifdef QUOTA
-			ump = VFSTOUFS(oldmnt);
 			UFS_LOCK(ump);
 			for (i = 0; i < MAXQUOTAS; i++) {
 				if (ump->um_quotas[i] != NULLVP)
@@ -2783,7 +2785,7 @@ softdep_unmount(mp)
 	    ("softdep_unmount called on non-softdep filesystem"));
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_SOFTDEP;
-	if (MOUNTEDSUJ(mp) == 0) {
+	if ((mp->mnt_flag & MNT_SUJ) == 0) {
 		MNT_IUNLOCK(mp);
 	} else {
 		mp->mnt_flag &= ~MNT_SUJ;
@@ -3706,12 +3708,12 @@ softdep_process_journal(mp, needwk, flags)
 	int off;
 	int devbsize;
 
-	if (MOUNTEDSUJ(mp) == 0)
+	ump = VFSTOUFS(mp);
+	if (ump->um_softdep == NULL || ump->um_softdep->sd_jblocks == NULL)
 		return;
 	shouldflush = softdep_flushcache;
 	bio = NULL;
 	jseg = NULL;
-	ump = VFSTOUFS(mp);
 	LOCK_OWNED(ump);
 	fs = ump->um_fs;
 	jblocks = ump->softdep_jblocks;
@@ -14201,7 +14203,8 @@ check_clear_deps(mp)
 	 * causes deferred work to be done sooner.
 	 */
 	ump = VFSTOUFS(mp);
-	suj_susp = MOUNTEDSUJ(mp) && ump->softdep_jblocks->jb_suspended;
+	suj_susp = ump->um_softdep->sd_jblocks != NULL &&
+	    ump->softdep_jblocks->jb_suspended;
 	if (req_clear_remove || req_clear_inodedeps || suj_susp) {
 		FREE_LOCK(ump);
 		softdep_send_speedup(ump, 0, BIO_SPEEDUP_TRIM | BIO_SPEEDUP_WRITE);
