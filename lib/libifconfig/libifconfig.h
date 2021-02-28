@@ -207,6 +207,15 @@ const char *ifconfig_media_get_subtype(int ifmw);
 const char *ifconfig_media_get_status(const struct ifmediareq *ifmr);
 void ifconfig_media_get_options_string(int ifmw, char *buf, size_t buflen);
 
+/** Retrieve the reason the interface is down
+ * @param h	An open ifconfig state object
+ * @param name	The interface name
+ * @param ifdr	Return argument.
+ * @return	0 on success, nonzero on failure
+ */
+int ifconfig_media_get_downreason(ifconfig_handle_t *h, const char *name,
+    struct ifdownreason *ifdr);
+
 int ifconfig_carp_get_info(ifconfig_handle_t *h, const char *name,
     struct carpreq *carpr, int ncarpr);
 
