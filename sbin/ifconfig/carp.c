@@ -73,14 +73,9 @@ static void
 carp_status(int s)
 {
 	struct carpreq carpr[CARP_MAXVHID];
-	ifconfig_handle_t *lifh;
-
-	lifh = ifconfig_open();
-	if (lifh == NULL)
-		return;
 
 	if (ifconfig_carp_get_info(lifh, name, carpr, CARP_MAXVHID) == -1)
-		goto close;
+		return;
 
 	for (size_t i = 0; i < carpr[0].carpr_count; i++) {
 		printf("\tcarp: %s vhid %d advbase %d advskew %d",
@@ -91,8 +86,6 @@ carp_status(int s)
 		else
 			printf("\n");
 	}
-close:
-	ifconfig_close(lifh);
 }
 
 static void

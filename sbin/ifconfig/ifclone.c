@@ -57,17 +57,11 @@ typedef enum {
 static void
 list_cloners(void)
 {
-	ifconfig_handle_t *lifh;
 	char *cloners;
 	size_t cloners_count;
 
-	lifh = ifconfig_open();
-	if (lifh == NULL)
-		return;
-
 	if (ifconfig_list_cloners(lifh, &cloners, &cloners_count) < 0)
 		errc(1, ifconfig_err_errno(lifh), "unable to list cloners");
-	ifconfig_close(lifh);
 
 	for (const char *name = cloners;
 	    name < cloners + cloners_count * IFNAMSIZ;

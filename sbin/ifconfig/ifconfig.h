@@ -36,6 +36,10 @@
  * $FreeBSD$
  */
 
+#pragma once
+
+#include <libifconfig.h>
+
 #define	__constructor	__attribute__((constructor))
 
 struct afswtch;
@@ -128,6 +132,7 @@ struct option {
 };
 void	opt_register(struct option *);
 
+extern	ifconfig_handle_t *lifh;
 extern	struct ifreq ifr;
 extern	char name[IFNAMSIZ];	/* name of interface */
 extern	int allmedia;
