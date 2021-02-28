@@ -1569,6 +1569,7 @@ softdep_flush(addr)
 	struct mount *mp;
 	struct thread *td;
 	struct ufsmount *ump;
+	int cleanups;
 
 	td = curthread;
 	td->td_pflags |= TDP_NORUNNINGBUF;
@@ -1603,10 +1604,14 @@ softdep_flush(addr)
 			continue;
 		}
 		ump->softdep_flags &= ~FLUSH_EXIT;
+		cleanups = ump->um_softdep->sd_cleanups;
 		FREE_LOCK(ump);
 		wakeup(&ump->softdep_flags);
-		if (print_threads)
-			printf("Stop thread %s: searchfailed %d, did cleanups %d\n", td->td_name, searchfailed, ump->um_softdep->sd_cleanups);
+		if (print_threads) {
+			printf("Stop thread %s: searchfailed %d, "
+			    "did cleanups %d\n",
+			    td->td_name, searchfailed, cleanups);
+		}
 		atomic_subtract_int(&stat_flush_threads, 1);
 		kthread_exit();
 		panic("kthread_exit failed\n");
