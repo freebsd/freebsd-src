@@ -31,6 +31,7 @@ FBSD_1.6 {
 	ifconfig_media_get_status;
 	ifconfig_media_get_subtype;
 	ifconfig_media_get_type;
+	ifconfig_media_get_downreason;
 	ifconfig_open;
 	ifconfig_set_capability;
 	ifconfig_set_description;
