@@ -122,7 +122,7 @@ armv8_crypto_probe(device_t dev)
 	default:
 		break;
 	case ID_AA64ISAR0_AES_NONE:
-		device_printf(dev, "CPU lacks AES instructions");
+		device_printf(dev, "CPU lacks AES instructions\n");
 		break;
 	}
 
