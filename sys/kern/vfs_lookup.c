@@ -237,8 +237,12 @@ nameicap_check_dotdot(struct nameidata *ndp, struct vnode *dp)
 		return (ENOTCAPABLE);
 	TAILQ_FOREACH_REVERSE(nt, &ndp->ni_cap_tracker, nameicap_tracker_head,
 	    nm_link) {
-		if (dp == nt->dp)
+		if (dp == nt->dp) {
+			nt = TAILQ_NEXT(nt, nm_link);
+			if (nt != NULL)
+				nameicap_cleanup_from(ndp, nt);
 			return (0);
+		}
 	}
 	return (ENOTCAPABLE);
 }
