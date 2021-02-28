@@ -118,6 +118,7 @@ ncl_uninit(struct vfsconf *vfsp)
 #endif
 }
 
+/* Returns with NFSLOCKNODE() held. */
 void 
 ncl_dircookie_lock(struct nfsnode *np)
 {
@@ -125,7 +126,6 @@ ncl_dircookie_lock(struct nfsnode *np)
 	while (np->n_flag & NDIRCOOKIELK)
 		(void) msleep(&np->n_flag, &np->n_mtx, PZERO, "nfsdirlk", 0);
 	np->n_flag |= NDIRCOOKIELK;
-	NFSUNLOCKNODE(np);
 }
 
 void 
@@ -330,6 +330,7 @@ ncl_invaldir(struct vnode *vp)
 	KASSERT(vp->v_type == VDIR, ("nfs: invaldir not dir"));
 	ncl_dircookie_lock(np);
 	np->n_direofoffset = 0;
+	NFSUNLOCKNODE(np);
 	np->n_cookieverf.nfsuquad[0] = 0;
 	np->n_cookieverf.nfsuquad[1] = 0;
 	if (LIST_FIRST(&np->n_cookies))
