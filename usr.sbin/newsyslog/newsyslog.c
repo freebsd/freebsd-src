@@ -114,7 +114,8 @@ __FBSDID("$FreeBSD$");
 #define	CE_PID2CMD	0x0400	/* Replace PID file with a shell command.*/
 #define	CE_PLAIN0	0x0800	/* Do not compress zero'th history file */
 #define	CE_RFC5424	0x1000	/* Use RFC5424 format rotation message */
-
+#define CE_NOEMPTY	0x2000	/* Do not rotate the file when its size */
+				/* is zero */
 #define	MIN_PID         5	/* Don't touch pids lower than this */
 #define	MAX_PID		99999	/* was lower, see /usr/include/sys/proc.h */
 
@@ -531,6 +532,11 @@ do_entry(struct conf_entry * ent)
 			printf("does not exist, skipped%s.\n", temp_reason);
 		}
 	} else {
+		if (ent->flags & CE_NOEMPTY && ent->fsize == 0) {
+			if (verbose)
+				printf("--> Not rotating empty file\n");
+			return (free_or_keep);
+		}
 		if (ent->flags & CE_TRIMAT && !force && !rotatereq &&
 		    !oversized) {
 			diffsecs = ptimeget_diff(timenow, ent->trim_at);
@@ -1290,6 +1296,9 @@ no_trimat:
 				break;
 			case 'd':
 				working->flags |= CE_NODUMP;
+				break;
+			case 'e':
+				working->flags |= CE_NOEMPTY;
 				break;
 			case 'g':
 				working->flags |= CE_GLOB;
