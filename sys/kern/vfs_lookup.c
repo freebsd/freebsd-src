@@ -475,7 +475,7 @@ namei(struct nameidata *ndp)
 
 	if (error == 0 && (cnp->cn_flags & RBENEATH) != 0) {
 		if (cnp->cn_pnbuf[0] == '/') {
-			error = EINVAL;
+			error = ENOTCAPABLE;
 		} else if ((ndp->ni_lcf & NI_LCF_STRICTRELATIVE) == 0) {
 			ndp->ni_lcf |= NI_LCF_STRICTRELATIVE |
 			    NI_LCF_CAP_DOTDOT;
