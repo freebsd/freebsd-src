@@ -380,6 +380,7 @@ ffs_mount(struct mount *mp)
 	accmode_t accmode;
 	struct nameidata ndp;
 	char *fspec;
+	bool mounted_softdep;
 
 	td = curthread;
 	if (vfs_filteropt(mp->mnt_optnew, ffs_opts))
@@ -491,6 +492,16 @@ ffs_mount(struct mount *mp)
 			error = vfs_write_suspend_umnt(mp);
 			if (error != 0)
 				return (error);
+
+			fs->fs_ronly = 1;
+			if (MOUNTEDSOFTDEP(mp)) {
+				MNT_ILOCK(mp);
+				mp->mnt_flag &= ~MNT_SOFTDEP;
+				MNT_IUNLOCK(mp);
+				mounted_softdep = true;
+			} else
+				mounted_softdep = false;
+
 			/*
 			 * Check for and optionally get rid of files open
 			 * for writing.
@@ -498,15 +509,22 @@ ffs_mount(struct mount *mp)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			if (MOUNTEDSOFTDEP(mp)) {
+			if (mounted_softdep) {
 				error = softdep_flushfiles(mp, flags, td);
 			} else {
 				error = ffs_flushfiles(mp, flags, td);
 			}
 			if (error) {
+				fs->fs_ronly = 0;
+				if (mounted_softdep) {
+					MNT_ILOCK(mp);
+					mp->mnt_flag |= MNT_SOFTDEP;
+					MNT_IUNLOCK(mp);
+				}
 				vfs_write_resume(mp, 0);
 				return (error);
 			}
+
 			if (fs->fs_pendingblocks != 0 ||
 			    fs->fs_pendinginodes != 0) {
 				printf("WARNING: %s Update error: blocks %jd "
@@ -521,10 +539,15 @@ ffs_mount(struct mount *mp)
 			if ((error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0) {
 				fs->fs_ronly = 0;
 				fs->fs_clean = 0;
+				if (mounted_softdep) {
+					MNT_ILOCK(mp);
+					mp->mnt_flag |= MNT_SOFTDEP;
+					MNT_IUNLOCK(mp);
+				}
 				vfs_write_resume(mp, 0);
 				return (error);
 			}
-			if (MOUNTEDSOFTDEP(mp))
+			if (mounted_softdep)
 				softdep_unmount(mp);
 			g_topology_lock();
 			/*
@@ -532,7 +555,6 @@ ffs_mount(struct mount *mp)
 			 */
 			g_access(ump->um_cp, 0, -1, -1);
 			g_topology_unlock();
-			fs->fs_ronly = 1;
 			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_RDONLY;
 			MNT_IUNLOCK(mp);
