@@ -33,9 +33,6 @@
 static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
 #if 0
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #endif
@@ -215,8 +212,6 @@ ioctl_ifcreate(int s, struct ifreq *ifr)
 	}
 }
 
-#define ORDERS_SIZE(x) sizeof(x) / sizeof(x[0])
-
 static int
 calcorders(struct ifaddrs *ifa, struct ifa_queue *q)
 {
@@ -246,7 +241,7 @@ calcorders(struct ifaddrs *ifa, struct ifa_queue *q)
 		if (ifa->ifa_addr) {
 			af = ifa->ifa_addr->sa_family;
 
-			if (af < ORDERS_SIZE(cur->af_orders) &&
+			if (af < nitems(cur->af_orders) &&
 			    cur->af_orders[af] == 0)
 				cur->af_orders[af] = ++ord;
 		}
@@ -297,8 +292,7 @@ cmpifaddrs(struct ifaddrs *a, struct ifaddrs *b, struct ifa_queue *q)
 		af1 = a->ifa_addr->sa_family;
 		af2 = b->ifa_addr->sa_family;
 
-		if (af1 < ORDERS_SIZE(e1->af_orders) &&
-		    af2 < ORDERS_SIZE(e1->af_orders))
+		if (af1 < nitems(e1->af_orders) && af2 < nitems(e1->af_orders))
 			return (e1->af_orders[af1] - e1->af_orders[af2]);
 	}
 
@@ -346,8 +340,6 @@ static void setformat(char *input)
 	}
 	free(formatstr);
 }
-
-#undef ORDERS_SIZE
 
 static struct ifaddrs *
 sortifaddrs(struct ifaddrs *list,
