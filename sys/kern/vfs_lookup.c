@@ -1143,8 +1143,10 @@ success:
 			goto bad2;
 		}
 	}
-	if (ndp->ni_vp != NULL && ndp->ni_vp->v_type == VDIR)
-		nameicap_tracker_add(ndp, ndp->ni_vp);
+	if (ndp->ni_vp != NULL && ndp->ni_vp->v_type == VDIR) {
+		if ((cnp->cn_flags & ISDOTDOT) == 0)
+			nameicap_tracker_add(ndp, ndp->ni_vp);
+	}
 	return (0);
 
 bad2:
