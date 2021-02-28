@@ -161,7 +161,7 @@ void	sfp_status(int s, struct ifreq *ifr, int verbose);
  * XXX expose this so modules that neeed to know of any pending
  * operations on ifmedia can avoid cmd line ordering confusion.
  */
-struct ifmediareq *ifmedia_getstate(int s);
+struct ifmediareq *ifmedia_getstate(void);
 
 void print_vhid(const struct ifaddrs *, const char *);
 

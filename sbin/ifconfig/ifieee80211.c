@@ -239,7 +239,7 @@ getchaninfo(int s)
 	if (get80211(s, IEEE80211_IOC_CHANINFO, chaninfo,
 	    IEEE80211_CHANINFO_SIZE(MAXCHAN)) < 0)
 		err(1, "unable to get channel information");
-	ifmr = ifmedia_getstate(s);
+	ifmr = ifmedia_getstate();
 	gethtconf(s);
 	getvhtconf(s);
 }
