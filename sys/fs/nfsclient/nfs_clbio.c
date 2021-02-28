@@ -584,11 +584,14 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		break;
 	    case VDIR:
 		NFSINCRGLOBAL(nfsstatsv1.biocache_readdirs);
+		NFSLOCKNODE(np);
 		if (np->n_direofoffset
 		    && uio->uio_offset >= np->n_direofoffset) {
+			NFSUNLOCKNODE(np);
 			error = 0;
 			goto out;
 		}
+		NFSUNLOCKNODE(np);
 		lbn = (uoff_t)uio->uio_offset / NFS_DIRBLKSIZ;
 		on = uio->uio_offset & (NFS_DIRBLKSIZ - 1);
 		bp = nfs_getcacheblk(vp, lbn, NFS_DIRBLKSIZ, td);
@@ -620,11 +623,14 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 			 * NFSERR_BAD_COOKIE (double yuch!).
 			 */
 			for (i = 0; i <= lbn && !error; i++) {
+			    NFSLOCKNODE(np);
 			    if (np->n_direofoffset
 				&& (i * NFS_DIRBLKSIZ) >= np->n_direofoffset) {
+				    NFSUNLOCKNODE(np);
 				    error = 0;
 				    goto out;
 			    }
+			    NFSUNLOCKNODE(np);
 			    bp = nfs_getcacheblk(vp, i, NFS_DIRBLKSIZ, td);
 			    if (!bp) {
 				error = newnfs_sigintr(nmp, td);
@@ -667,11 +673,13 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		 * (You need the current block first, so that you have the
 		 *  directory offset cookie of the next block.)
 		 */
+		NFSLOCKNODE(np);
 		if (nmp->nm_readahead > 0 &&
 		    (bp->b_flags & B_INVAL) == 0 &&
 		    (np->n_direofoffset == 0 ||
 		    (lbn + 1) * NFS_DIRBLKSIZ < np->n_direofoffset) &&
 		    incore(&vp->v_bufobj, lbn + 1) == NULL) {
+			NFSUNLOCKNODE(np);
 			rabp = nfs_getcacheblk(vp, lbn + 1, NFS_DIRBLKSIZ, td);
 			if (rabp) {
 			    if ((rabp->b_flags & (B_CACHE|B_DELWRI)) == 0) {
@@ -688,6 +696,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 				brelse(rabp);
 			    }
 			}
+			NFSLOCKNODE(np);
 		}
 		/*
 		 * Unlike VREG files, whos buffer size ( bp->b_bcount ) is
@@ -704,6 +713,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		n = lmin(uio->uio_resid, NFS_DIRBLKSIZ - bp->b_resid - on);
 		if (np->n_direofoffset && n > np->n_direofoffset - uio->uio_offset)
 			n = np->n_direofoffset - uio->uio_offset;
+		NFSUNLOCKNODE(np);
 		break;
 	    default:
 		printf(" ncl_bioread: type %x unexpected\n", vp->v_type);
