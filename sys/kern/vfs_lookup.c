@@ -189,17 +189,24 @@ nameicap_tracker_add(struct nameidata *ndp, struct vnode *dp)
 }
 
 static void
-nameicap_cleanup(struct nameidata *ndp)
+nameicap_cleanup_from(struct nameidata *ndp, struct nameicap_tracker *first)
 {
 	struct nameicap_tracker *nt, *nt1;
 
-	KASSERT(TAILQ_EMPTY(&ndp->ni_cap_tracker) ||
-	    (ndp->ni_lcf & NI_LCF_CAP_DOTDOT) != 0, ("not strictrelative"));
-	TAILQ_FOREACH_SAFE(nt, &ndp->ni_cap_tracker, nm_link, nt1) {
+	nt = first;
+	TAILQ_FOREACH_FROM_SAFE(nt, &ndp->ni_cap_tracker, nm_link, nt1) {
 		TAILQ_REMOVE(&ndp->ni_cap_tracker, nt, nm_link);
 		vdrop(nt->dp);
 		uma_zfree(nt_zone, nt);
 	}
+}
+
+static void
+nameicap_cleanup(struct nameidata *ndp)
+{
+	KASSERT(TAILQ_EMPTY(&ndp->ni_cap_tracker) ||
+	    (ndp->ni_lcf & NI_LCF_CAP_DOTDOT) != 0, ("not strictrelative"));
+	nameicap_cleanup_from(ndp, NULL);
 }
 
 /*
