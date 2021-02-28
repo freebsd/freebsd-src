@@ -2324,8 +2324,10 @@ nfs_readdir(struct vop_readdir_args *ap)
 	/*
 	 * First, check for hit on the EOF offset cache
 	 */
+	NFSLOCKNODE(np);
 	if (np->n_direofoffset > 0 && uio->uio_offset >= np->n_direofoffset &&
 	    (np->n_flag & NMODIFIED) == 0) {
+		NFSUNLOCKNODE(np);
 		if (VOP_GETATTR(vp, &vattr, ap->a_cred) == 0) {
 			NFSLOCKNODE(np);
 			if ((NFS_ISV4(vp) && np->n_change == vattr.va_filerev) ||
@@ -2338,7 +2340,8 @@ nfs_readdir(struct vop_readdir_args *ap)
 			} else
 				NFSUNLOCKNODE(np);
 		}
-	}
+	} else
+		NFSUNLOCKNODE(np);
 
 	/*
 	 * NFS always guarantees that directory entries don't straddle
@@ -2391,6 +2394,7 @@ ncl_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	 * If there is no cookie, assume directory was stale.
 	 */
 	ncl_dircookie_lock(dnp);
+	NFSUNLOCKNODE(dnp);
 	cookiep = ncl_getcookie(dnp, uiop->uio_offset, 0);
 	if (cookiep) {
 		cookie = *cookiep;
@@ -2413,12 +2417,15 @@ ncl_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		 * We are now either at the end of the directory or have filled
 		 * the block.
 		 */
-		if (eof)
+		if (eof) {
+			NFSLOCKNODE(dnp);
 			dnp->n_direofoffset = uiop->uio_offset;
-		else {
+			NFSUNLOCKNODE(dnp);
+		} else {
 			if (uiop->uio_resid > 0)
 				printf("EEK! readdirrpc resid > 0\n");
 			ncl_dircookie_lock(dnp);
+			NFSUNLOCKNODE(dnp);
 			cookiep = ncl_getcookie(dnp, uiop->uio_offset, 1);
 			*cookiep = cookie;
 			ncl_dircookie_unlock(dnp);
@@ -2451,6 +2458,7 @@ ncl_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	 * If there is no cookie, assume directory was stale.
 	 */
 	ncl_dircookie_lock(dnp);
+	NFSUNLOCKNODE(dnp);
 	cookiep = ncl_getcookie(dnp, uiop->uio_offset, 0);
 	if (cookiep) {
 		cookie = *cookiep;
@@ -2472,12 +2480,15 @@ ncl_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		 * We are now either at end of the directory or have filled the
 		 * the block.
 		 */
-		if (eof)
+		if (eof) {
+			NFSLOCKNODE(dnp);
 			dnp->n_direofoffset = uiop->uio_offset;
-		else {
+			NFSUNLOCKNODE(dnp);
+		} else {
 			if (uiop->uio_resid > 0)
 				printf("EEK! readdirplusrpc resid > 0\n");
 			ncl_dircookie_lock(dnp);
+			NFSUNLOCKNODE(dnp);
 			cookiep = ncl_getcookie(dnp, uiop->uio_offset, 1);
 			*cookiep = cookie;
 			ncl_dircookie_unlock(dnp);
