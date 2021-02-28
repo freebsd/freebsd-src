@@ -1258,7 +1258,8 @@ success:
 		}
 	}
 	if (ndp->ni_vp != NULL) {
-		nameicap_tracker_add(ndp, ndp->ni_vp);
+		if ((cnp->cn_flags & ISDOTDOT) == 0)
+			nameicap_tracker_add(ndp, ndp->ni_vp);
 		if ((cnp->cn_flags & (FAILIFEXISTS | ISSYMLINK)) == FAILIFEXISTS)
 			goto bad_eexist;
 	}
