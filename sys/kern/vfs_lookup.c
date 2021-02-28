@@ -182,6 +182,9 @@ nameicap_tracker_add(struct nameidata *ndp, struct vnode *dp)
 	if ((ndp->ni_lcf & NI_LCF_CAP_DOTDOT) == 0 || dp->v_type != VDIR)
 		return;
 	cnp = &ndp->ni_cnd;
+	nt = TAILQ_LAST(&ndp->ni_cap_tracker, nameicap_tracker_head);
+	if (nt != NULL && nt->dp == dp)
+		return;
 	nt = malloc(sizeof(*nt), M_NAMEITRACKER, M_WAITOK);
 	vhold(dp);
 	nt->dp = dp;
