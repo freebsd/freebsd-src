@@ -2805,10 +2805,13 @@ softdep_unmount(mp)
 		ACQUIRE_LOCK(ump);
 		ump->softdep_flags |= FLUSH_EXIT;
 		wakeup(&ump->softdep_flushtd);
-		msleep(&ump->softdep_flags, LOCK_PTR(ump), PVM | PDROP,
-		    "sdwait", 0);
+		while ((ump->softdep_flags & FLUSH_EXIT) != 0) {
+			msleep(&ump->softdep_flags, LOCK_PTR(ump), PVM,
+			    "sdwait", 0);
+		}
 		KASSERT((ump->softdep_flags & FLUSH_EXIT) == 0,
 		    ("Thread shutdown failed"));
+		FREE_LOCK(ump);
 	}
 
 	/*
