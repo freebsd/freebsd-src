@@ -62,14 +62,11 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 	struct ifconfig_sfp_vendor_info vendor_info;
 	struct ifconfig_sfp_status status;
 	ifconfig_handle_t *lifh;
-	const char *name;
 	size_t channel_count;
 
 	lifh = ifconfig_open();
 	if (lifh == NULL)
 		return;
-
-	name = ifr->ifr_name;
 
 	if (ifconfig_sfp_get_sfp_info(lifh, name, &info) == -1)
 		goto close;
