@@ -61,15 +61,10 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 	struct ifconfig_sfp_info_strings strings;
 	struct ifconfig_sfp_vendor_info vendor_info;
 	struct ifconfig_sfp_status status;
-	ifconfig_handle_t *lifh;
 	size_t channel_count;
 
-	lifh = ifconfig_open();
-	if (lifh == NULL)
-		return;
-
 	if (ifconfig_sfp_get_sfp_info(lifh, name, &info) == -1)
-		goto close;
+		return;
 
 	ifconfig_sfp_get_sfp_info_strings(&info, &strings);
 
@@ -79,7 +74,7 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 	    strings.sfp_conn);
 
 	if (ifconfig_sfp_get_sfp_vendor_info(lifh, name, &vendor_info) == -1)
-		goto close;
+		return;
 
 	printf("\tvendor: %s PN: %s SN: %s DATE: %s\n",
 	    vendor_info.name, vendor_info.pn, vendor_info.sn, vendor_info.date);
@@ -118,7 +113,7 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 		struct ifconfig_sfp_dump dump;
 
 		if (ifconfig_sfp_get_sfp_dump(lifh, name, &dump) == -1)
-			goto close;
+			return;
 
 		if (ifconfig_sfp_id_is_qsfp(info.sfp_id)) {
 			printf("\n\tSFF8436 DUMP (0xA0 128..255 range):\n");
@@ -133,7 +128,4 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 			    "\t", HD_OMIT_COUNT | HD_OMIT_CHARS);
 		}
 	}
-
-close:
-	ifconfig_close(lifh);
 }

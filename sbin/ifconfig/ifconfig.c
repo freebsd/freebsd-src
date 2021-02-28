@@ -75,7 +75,11 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#include <libifconfig.h>
+
 #include "ifconfig.h"
+
+ifconfig_handle_t *lifh;
 
 /*
  * Since "struct ifreq" is composed of various union members, callers
@@ -419,6 +423,10 @@ main(int argc, char *argv[])
 	f_inet = f_inet6 = f_ether = f_addr = NULL;
 	matchgroup = nogroup = NULL;
 
+	lifh = ifconfig_open();
+	if (lifh == NULL)
+		err(EXIT_FAILURE, "ifconfig_open");
+
 	envformat = getenv("IFCONFIG_FORMAT");
 	if (envformat != NULL)
 		setformat(envformat);
@@ -691,6 +699,7 @@ main(int argc, char *argv[])
 
 done:
 	freeformat();
+	ifconfig_close(lifh);
 	exit(exit_code);
 }
 
