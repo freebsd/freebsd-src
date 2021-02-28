@@ -156,19 +156,14 @@ bridge_addresses(int s, const char *prefix)
 static void
 bridge_status(int s)
 {
-	ifconfig_handle_t *lifh;
 	struct ifconfig_bridge_status *bridge;
 	struct ifbropreq *params;
 	const char *pad, *prefix;
 	uint8_t lladdr[ETHER_ADDR_LEN];
 	uint16_t bprio;
 
-	lifh = ifconfig_open();
-	if (lifh == NULL)
-		return;
-
 	if (ifconfig_bridge_get_bridge_status(lifh, name, &bridge) == -1)
-		goto close;
+		return;
 
 	params = bridge->params;
 
@@ -227,8 +222,6 @@ bridge_status(int s)
 	}
 
 	ifconfig_bridge_free_bridge_status(bridge);
-close:
-	ifconfig_close(lifh);
 }
 
 static void

@@ -219,7 +219,6 @@ static void
 lagg_status(int s)
 {
 	struct lagg_protos protos[] = LAGG_PROTOS;
-	ifconfig_handle_t *lifh;
 	struct ifconfig_lagg_status *lagg;
 	struct lagg_reqall *ra;
 	struct lagg_reqflags *rf;
@@ -228,12 +227,8 @@ lagg_status(int s)
 	struct lacp_opreq *lp;
 	const char *proto;
 
-	lifh = ifconfig_open();
-	if (lifh == NULL)
-		return;
-
 	if (ifconfig_lagg_get_lagg_status(lifh, name, &lagg) == -1)
-		goto close;
+		return;
 
 	ra = lagg->ra;
 	rf = lagg->rf;
@@ -297,8 +292,6 @@ lagg_status(int s)
 	}
 
 	ifconfig_lagg_free_lagg_status(lagg);
-close:
-	ifconfig_close(lifh);
 }
 
 static

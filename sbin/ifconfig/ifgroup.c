@@ -86,16 +86,11 @@ unsetifgroup(const char *group_name, int d, int s, const struct afswtch *rafp)
 static void
 getifgroups(int s)
 {
-	ifconfig_handle_t *lifh;
 	struct ifgroupreq ifgr;
 	size_t cnt;
 
-	lifh = ifconfig_open();
-	if (lifh == NULL)
-		return;
-
 	if (ifconfig_get_groups(lifh, name, &ifgr) == -1)
-		goto close;
+		return;
 
 	cnt = 0;
 	for (size_t i = 0; i < ifgr.ifgr_len / sizeof(struct ifg_req); ++i) {
@@ -112,8 +107,6 @@ getifgroups(int s)
 		printf("\n");
 
 	free(ifgr.ifgr_groups);
-close:
-	ifconfig_close(lifh);
 }
 
 static void
