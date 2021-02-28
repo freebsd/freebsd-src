@@ -2595,7 +2595,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 							pipe = (tp->snd_nxt - tp->snd_fack) +
 								tp->sackhint.sack_bytes_rexmit;
 						tp->sackhint.prr_delivered += del_data;
-						if (pipe > tp->snd_ssthresh) {
+						if (pipe >= tp->snd_ssthresh) {
 							if (tp->sackhint.recover_fs == 0)
 								tp->sackhint.recover_fs =
 								    imax(1, tp->snd_nxt - tp->snd_una);
@@ -2695,7 +2695,8 @@ enter_recovery:
 						 * snd_ssthresh is already updated by
 						 * cc_cong_signal.
 						 */
-						tp->sackhint.prr_delivered = 0;
+						tp->sackhint.prr_delivered =
+						    tp->sackhint.sacked_bytes;
 						tp->sackhint.sack_bytes_rexmit = 0;
 						tp->sackhint.recover_fs = max(1,
 						    tp->snd_nxt - tp->snd_una);
@@ -3970,7 +3971,7 @@ tcp_prr_partialack(struct tcpcb *tp, struct tcphdr *th)
 	/*
 	 * Proportional Rate Reduction
 	 */
-	if (pipe > tp->snd_ssthresh) {
+	if (pipe >= tp->snd_ssthresh) {
 		if (tp->sackhint.recover_fs == 0)
 			tp->sackhint.recover_fs =
 			    imax(1, tp->snd_nxt - tp->snd_una);
