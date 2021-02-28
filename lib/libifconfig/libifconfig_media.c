@@ -392,3 +392,13 @@ ifconfig_media_get_options_string(int ifmw, char *buf, size_t buflen)
 		}
 	}
 }
+
+int
+ifconfig_media_get_downreason(ifconfig_handle_t *h, const char *name,
+    struct ifdownreason *ifdr)
+{
+
+	(void)memset(ifdr, 0, sizeof(*ifdr));
+	(void)strlcpy(ifdr->ifdr_name, name, sizeof(ifdr->ifdr_name));
+	return (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCGIFDOWNREASON, ifdr));
+}
