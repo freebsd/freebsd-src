@@ -3126,7 +3126,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 		rem = *inoffp % blksize;
 		if (rem > 0)
 			rem = blksize - rem;
-		if (len - rem > blksize)
+		if (len > rem && len - rem > blksize)
 			len = savlen = rounddown(len - rem, blksize) + rem;
 	}
 
