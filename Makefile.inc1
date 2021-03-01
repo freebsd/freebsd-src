@@ -2433,9 +2433,6 @@ ${_bt}-usr.sbin/config: ${_bt}-usr.bin/file2c ${_bt_lex_depend}
 # since "make" will usually point to GNU make there.
 _other_bootstrap_tools+=usr.bin/bmake
 
-_other_bootstrap_tools+=lib/ncurses/ncurses
-${_bt}-usr.bin/ncurses: ${_bt}-lib/ncurses/ncurses
-
 # Avoid dependency on host bz2 headers:
 _other_bootstrap_tools+=lib/libbz2
 ${_bt}-usr.bin/grep: ${_bt}-lib/libbz2
