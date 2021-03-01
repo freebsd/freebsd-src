@@ -35,43 +35,7 @@
 #ifndef _MACHINE_ENDIAN_H_
 #define	_MACHINE_ENDIAN_H_
 
-#include <sys/cdefs.h>
 #include <sys/_types.h>
-
-/*
- * Define the order of 32-bit words in 64-bit words.
- */
-#define	_QUAD_HIGHWORD 1
-#define	_QUAD_LOWWORD 0
-
-/*
- * Definitions for byte order, according to byte significance from low
- * address to high.
- */
-#define	_LITTLE_ENDIAN	1234	/* LSB first: i386, vax */
-#define	_BIG_ENDIAN	4321	/* MSB first: 68000, ibm, net */
-#define	_PDP_ENDIAN	3412	/* LSB first in word, MSW first in long */
-
-#define	_BYTE_ORDER	_LITTLE_ENDIAN
-
-/*
- * Deprecated variants that don't have enough underscores to be useful in more
- * strict namespaces.
- */
-#if __BSD_VISIBLE
-#define	LITTLE_ENDIAN	_LITTLE_ENDIAN
-#define	BIG_ENDIAN	_BIG_ENDIAN
-#define	PDP_ENDIAN	_PDP_ENDIAN
-#define	BYTE_ORDER	_BYTE_ORDER
-#endif
-
-#define	__bswap16(x)	__builtin_bswap16(x)
-#define	__bswap32(x)	__builtin_bswap32(x)
-#define	__bswap64(x)	__builtin_bswap64(x)
-
-#define	__htonl(x)	__bswap32(x)
-#define	__htons(x)	__bswap16(x)
-#define	__ntohl(x)	__bswap32(x)
-#define	__ntohs(x)	__bswap16(x)
+#include <sys/_endian.h>
 
 #endif /* !_MACHINE_ENDIAN_H_ */
