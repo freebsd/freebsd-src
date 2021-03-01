@@ -1346,13 +1346,20 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td)
 	/* Validate disk xattrfile contents. */
 	for (eap = (void *)eae, eaend = (void *)(eae + easize); eap < eaend;
 	    eap = eapnext) {
+		/* Detect zeroed out tail */
+		if (eap->ea_length < sizeof(*eap) || eap->ea_length == 0) {
+			easize = (const u_char *)eap - eae;
+			break;
+		}
+			
 		eapnext = EXTATTR_NEXT(eap);
-		/* Bogusly short entry or bogusly long entry. */
-		if (eap->ea_length < sizeof(*eap) || eapnext > eaend) {
+		/* Bogusly long entry. */
+		if (eapnext > eaend) {
 			free(eae, M_TEMP);
 			return (EINTEGRITY);
 		}
 	}
+	ip->i_ea_len = easize;
 	*p = eae;
 	return (0);
 }
@@ -1407,7 +1414,6 @@ ffs_open_ea(struct vnode *vp, struct ucred *cred, struct thread *td)
 		ffs_unlock_ea(vp);
 		return (error);
 	}
-	ip->i_ea_len = dp->di_extsize;
 	ip->i_ea_error = 0;
 	ip->i_ea_refs++;
 	ffs_unlock_ea(vp);
@@ -1426,6 +1432,7 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 	struct ufs2_dinode *dp;
 	size_t ea_len, tlen;
 	int error, i, lcnt;
+	bool truncate;
 
 	ip = VTOI(vp);
 
@@ -1436,6 +1443,7 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 	}
 	dp = ip->i_din2;
 	error = ip->i_ea_error;
+	truncate = false;
 	if (commit && error == 0) {
 		ASSERT_VOP_ELOCKED(vp, "ffs_close_ea commit");
 		if (cred == NOCRED)
@@ -1452,12 +1460,12 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 
 		liovec[0].iov_base = ip->i_ea_area;
 		liovec[0].iov_len = ip->i_ea_len;
-		for (i = 1, tlen = ea_len; i < lcnt; i++) {
+		for (i = 1, tlen = ea_len - ip->i_ea_len; i < lcnt; i++) {
 			liovec[i].iov_base = __DECONST(void *, zero_region);
 			liovec[i].iov_len = MIN(ZERO_REGION_SIZE, tlen);
 			tlen -= liovec[i].iov_len;
 		}
-		MPASS(tlen == ip->i_ea_len);
+		MPASS(tlen == 0);
 
 		luio.uio_iov = liovec;
 		luio.uio_offset = 0;
@@ -1466,6 +1474,8 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 		luio.uio_rw = UIO_WRITE;
 		luio.uio_td = td;
 		error = ffs_extwrite(vp, &luio, IO_EXT | IO_SYNC, cred);
+		if (error == 0 && ip->i_ea_len == 0)
+			truncate = true;
 	}
 	if (--ip->i_ea_refs == 0) {
 		free(ip->i_ea_area, M_TEMP);
@@ -1475,7 +1485,7 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 	}
 	ffs_unlock_ea(vp);
 
-	if (commit && error == 0 && ip->i_ea_len == 0)
+	if (truncate)
 		ffs_truncate(vp, 0, IO_EXT, cred);
 	return (error);
 }
