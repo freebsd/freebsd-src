@@ -15,9 +15,13 @@ task:
   install_script:
   - pkg install -y llvm11
   setup_script:
-  - df -h
+  - uname -a
+  - df -m
   - pw useradd user
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
   script:
   - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=llvm11 WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
+  post_script:
+  - df -m
+  - du -m -s /usr/obj
