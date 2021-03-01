@@ -1,3 +1,4 @@
+#include <float.h>
 #include <math.h>
 #include <stdint.h>
 
@@ -32,7 +33,7 @@ double scalbn(double x, int n)
 	return x;
 }
 
-#if (LDBL_MANT_DIG == 53)
+#if (LDBL_MANT_DIG == 53) && !defined(scalbn)
 __weak_reference(scalbn, ldexpl);
 __weak_reference(scalbn, scalbnl);
 #endif
