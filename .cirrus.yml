@@ -14,7 +14,9 @@ task:
   timeout_in: 120m
   install_script:
   - pkg install -y qemu42 uefi-edk2-qemu-x86_64 llvm11
-  setup_user_script:
+  setup_script:
+  - uname -a
+  - df -m
   - pw useradd user
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
@@ -24,3 +26,6 @@ task:
   - su user -c "make CROSS_TOOLCHAIN=llvm11 WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
   test_script:
   - sh tools/boot/ci-qemu-test.sh
+  post_script:
+  - df -m
+  - du -m -s /usr/obj
