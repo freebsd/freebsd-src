@@ -76,8 +76,12 @@ __FBSDID("$FreeBSD$");
 
 	ldr	x0, [x18, #(PC_CURTHREAD)]
 	bl	dbg_monitor_enter
-.endif
 	msr	daifclr, #8	/* Enable the debug exception */
+.endif
+	/*
+	 * For EL1, debug exceptions are conditionally unmasked in
+	 * do_el1h_sync().
+	 */
 .endm
 
 .macro	restore_registers el

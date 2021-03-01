@@ -377,6 +377,14 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 	    "do_el1_sync: curthread: %p, esr %lx, elr: %lx, frame: %p", td,
 	    esr, frame->tf_elr, frame);
 
+	/*
+	 * Enable debug exceptions if we aren't already handling one. They will
+	 * be masked again in the exception handler's epilogue.
+	 */
+	if (exception != EXCP_BRK && exception != EXCP_WATCHPT_EL1 &&
+	    exception != EXCP_SOFTSTP_EL1)
+		dbg_enable();
+
 	switch (exception) {
 	case EXCP_FP_SIMD:
 	case EXCP_TRAP_FP:
