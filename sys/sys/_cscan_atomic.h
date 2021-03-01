@@ -373,6 +373,7 @@ void	kcsan_atomic_thread_fence_seq_cst(void);
 #define	atomic_thread_fence_acq_rel	kcsan_atomic_thread_fence_acq_rel
 #define	atomic_thread_fence_rel		kcsan_atomic_thread_fence_rel
 #define	atomic_thread_fence_seq_cst	kcsan_atomic_thread_fence_seq_cst
+#define	atomic_interrupt_fence		__compiler_membar
 
 #endif /* !KCSAN_RUNTIME */
 
