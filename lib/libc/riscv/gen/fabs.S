@@ -43,8 +43,8 @@ ENTRY(fabs)
 #ifdef __riscv_float_abi_double
 	fabs.d	fa0, fa0
 #else
-	slli a0,a0,1
-	srli a0,a0,1
+	slli	a0, a0, 1
+	srli	a0, a0, 1
 #endif
 	ret
 END(fabs)
