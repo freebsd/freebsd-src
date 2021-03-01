@@ -83,6 +83,9 @@ if [ -n "$RESTART" ]; then
 	skip="-s nostart"
 	if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
 		skip="$skip -s nojail"
+		if [ `/sbin/sysctl -n security.jail.vnet` -ne 1 ]; then
+			skip="$skip -s nojailvnet"
+		fi
 	fi
 	[ -n "$local_startup" ] && find_local_scripts_new
 	files=`rcorder ${skip} ${local_rc} 2>/dev/null`
@@ -113,6 +116,9 @@ if [ -n "$ENABLED" -o -n "$RCORDER" ]; then
 	skip="-s nostart"
 	if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
 		skip="$skip -s nojail"
+		if [ `/sbin/sysctl -n security.jail.vnet` -ne 1 ]; then
+			skip="$skip -s nojailvnet"
+		fi
 	fi
 	[ -n "$local_startup" ] && find_local_scripts_new
 	files=`rcorder ${skip} /etc/rc.d/* ${local_rc} 2>/dev/null`
