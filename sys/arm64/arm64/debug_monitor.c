@@ -186,6 +186,9 @@ void
 kdb_cpu_set_singlestep(void)
 {
 
+	KASSERT((READ_SPECIALREG(daif) & PSR_D) == PSR_D,
+	    ("%s: debug exceptions are not masked", __func__));
+
 	kdb_frame->tf_spsr |= DBG_SPSR_SS;
 	WRITE_SPECIALREG(mdscr_el1, READ_SPECIALREG(mdscr_el1) |
 	    DBG_MDSCR_SS | DBG_MDSCR_KDE);
@@ -204,6 +207,9 @@ kdb_cpu_set_singlestep(void)
 void
 kdb_cpu_clear_singlestep(void)
 {
+
+	KASSERT((READ_SPECIALREG(daif) & PSR_D) == PSR_D,
+	    ("%s: debug exceptions are not masked", __func__));
 
 	WRITE_SPECIALREG(mdscr_el1, READ_SPECIALREG(mdscr_el1) &
 	    ~(DBG_MDSCR_SS | DBG_MDSCR_KDE));
