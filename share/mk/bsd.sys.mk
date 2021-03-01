@@ -247,7 +247,7 @@ CFLAGS+=	${SSP_CFLAGS}
 
 # Additional flags passed in CFLAGS and CXXFLAGS when MK_DEBUG_FILES is
 # enabled.
-DEBUG_FILES_CFLAGS?= -g
+DEBUG_FILES_CFLAGS?= -g -gz=zlib
 
 # Allow user-specified additional warning flags, plus compiler and file
 # specific flag overrides, unless we've overridden this...

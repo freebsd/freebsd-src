@@ -93,7 +93,11 @@ CFLAGS+=${CRUNCH_CFLAGS}
 .else
 .if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
     empty(DEBUG_FLAGS:M-gdwarf-*)
+.if !${COMPILER_FEATURES:Mcompressed-debug}
+CFLAGS+= ${DEBUG_FILES_CFLAGS:N-gz*}
+.else
 CFLAGS+= ${DEBUG_FILES_CFLAGS}
+.endif
 CTFFLAGS+= -g
 .endif
 .endif
