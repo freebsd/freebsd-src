@@ -237,9 +237,6 @@ ATF_TC_BODY(ptrace__parent_wait_after_attach, tc)
 	int cpipe[2], status;
 	char c;
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/244055");
-
 	REQUIRE_EQ(pipe(cpipe), 0);
 	ATF_REQUIRE((child = fork()) != -1);
 	if (child == 0) {
@@ -286,9 +283,6 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_child_debugger, tc)
 	pid_t child, debugger, wpid;
 	int cpipe[2], dpipe[2], status;
 	char c;
-
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/239399");
 
 	REQUIRE_EQ(pipe(cpipe), 0);
 	ATF_REQUIRE((child = fork()) != -1);
@@ -492,9 +486,6 @@ ATF_TC_BODY(ptrace__parent_exits_before_child, tc)
 	ssize_t n;
 	int cpipe1[2], cpipe2[2], gcpipe[2], status;
 	pid_t child, gchild;
-
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/244056");
 
 	REQUIRE_EQ(pipe(cpipe1), 0);
 	REQUIRE_EQ(pipe(cpipe2), 0);
@@ -834,9 +825,6 @@ ATF_TC_BODY(ptrace__follow_fork_both_attached_unrelated_debugger, tc)
 	pid_t children[2], fpid, wpid;
 	int cpipe[2], status;
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/239397");
-
 	REQUIRE_EQ(pipe(cpipe), 0);
 	ATF_REQUIRE((fpid = fork()) != -1);
 	if (fpid == 0) {
@@ -905,9 +893,6 @@ ATF_TC_BODY(ptrace__follow_fork_child_detached_unrelated_debugger, tc)
 	pid_t children[2], fpid, wpid;
 	int cpipe[2], status;
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/239292");
-
 	REQUIRE_EQ(pipe(cpipe), 0);
 	ATF_REQUIRE((fpid = fork()) != -1);
 	if (fpid == 0) {
@@ -971,9 +956,6 @@ ATF_TC_BODY(ptrace__follow_fork_parent_detached_unrelated_debugger, tc)
 	pid_t children[2], fpid, wpid;
 	int cpipe[2], status;
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/239425");
-
 	REQUIRE_EQ(pipe(cpipe), 0);
 	ATF_REQUIRE((fpid = fork()) != -1);
 	if (fpid == 0) {
@@ -1035,9 +1017,6 @@ ATF_TC_BODY(ptrace__getppid, tc)
 	pid_t child, debugger, ppid, wpid;
 	int cpipe[2], dpipe[2], status;
 	char c;
-
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/240510");
 
 	REQUIRE_EQ(pipe(cpipe), 0);
 	ATF_REQUIRE((child = fork()) != -1);
@@ -2122,9 +2101,6 @@ ATF_TC_BODY(ptrace__PT_KILL_competing_stop, tc)
 	lwpid_t main_lwp;
 	struct ptrace_lwpinfo pl;
 	struct sched_param sched_param;
-
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/220841");
 
 	ATF_REQUIRE((fpid = fork()) != -1);
 	if (fpid == 0) {
@@ -4219,9 +4195,6 @@ ATF_TC_BODY(ptrace__procdesc_reparent_wait_child, tc)
 	pid_t traced, debuger, wpid;
 	int pd, status;
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/243605");
-
 	traced = pdfork(&pd, 0);
 	ATF_REQUIRE(traced >= 0);
 	if (traced == 0) {
@@ -4230,6 +4203,8 @@ ATF_TC_BODY(ptrace__procdesc_reparent_wait_child, tc)
 	}
 	ATF_REQUIRE(pd >= 0);
 
+	/* Wait until the child process has stopped before fork()ing again. */
+	REQUIRE_EQ(traced, waitpid(traced, &status, WSTOPPED));
 	debuger = fork();
 	ATF_REQUIRE(debuger >= 0);
 	if (debuger == 0) {
