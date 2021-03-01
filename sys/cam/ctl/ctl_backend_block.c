@@ -438,7 +438,6 @@ ctl_be_block_move_done(union ctl_io *io, bool samethr)
 	struct ctl_lba_len_flags *lbalen;
 
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
-	be_lun = beio->lun;
 
 	DPRINTF("entered\n");
 	io->scsiio.kern_rel_offset += io->scsiio.kern_data_len;
@@ -448,7 +447,7 @@ ctl_be_block_move_done(union ctl_io *io, bool samethr)
 	 */
 	if ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0 &&
 	    (io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE) {
-		lbalen = ARGS(beio->io);
+		lbalen = ARGS(io);
 		if (lbalen->flags & CTL_LLF_READ) {
 			ctl_set_success(&io->scsiio);
 		} else if (lbalen->flags & CTL_LLF_COMPARE) {
@@ -476,6 +475,7 @@ ctl_be_block_move_done(union ctl_io *io, bool samethr)
 	 * This move done routine is generally called in the SIM's
 	 * interrupt context, and therefore we cannot block.
 	 */
+	be_lun = (struct ctl_be_block_lun *)CTL_BACKEND_LUN(io);
 	if (samethr) {
 		be_lun->dispatch(be_lun, beio);
 	} else {
@@ -1280,7 +1280,7 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	DPRINTF("entered\n");
 
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
-	lbalen = ARGS(beio->io);
+	lbalen = ARGS(io);
 
 	if (lbalen->flags & ~(SWS_LBDATA | SWS_UNMAP | SWS_ANCHOR | SWS_NDOB) ||
 	    (lbalen->flags & (SWS_UNMAP | SWS_ANCHOR) && be_lun->unmap == NULL)) {
