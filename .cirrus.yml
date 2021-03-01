@@ -14,7 +14,8 @@ task:
   timeout_in: 120m
   install_script:
   - pkg install -y qemu42 uefi-edk2-qemu-x86_64 llvm11
-  setup_user_script:
+  setup_script:
+  - df -h
   - pw useradd user
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
