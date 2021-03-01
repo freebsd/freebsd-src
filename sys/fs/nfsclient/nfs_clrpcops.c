@@ -6024,7 +6024,7 @@ nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 
 	np = VTONFS(vp);
 	rel_off = off - flp->nfsfl_patoff;
-	stripe_unit_size = (flp->nfsfl_util >> 6) & 0x3ffffff;
+	stripe_unit_size = flp->nfsfl_util & NFSFLAYUTIL_STRIPE_MASK;
 	stripe_pos = (rel_off / stripe_unit_size + flp->nfsfl_stripe1) %
 	    dp->nfsdi_stripecnt;
 	transfer = stripe_unit_size - (rel_off % stripe_unit_size);
