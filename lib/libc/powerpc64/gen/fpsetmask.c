@@ -43,11 +43,11 @@ fp_except_t
 fpsetmask(fp_except_t mask)
 {
 	u_int64_t fpscr;
-	fp_rnd_t old;
+	fp_except_t old;
 
 	__asm__("mffs %0" : "=f"(fpscr));
-	old = (fp_rnd_t)((fpscr >> 3) & 0x1f);
-	fpscr = (fpscr & 0xffffff07) | (mask << 3);
+	old = (fp_except_t)((fpscr >> 3) & 0x1f);
+	fpscr = (fpscr & 0xffffff07) | ((mask & 0x1f) << 3);
 	__asm__ __volatile("mtfsf 0xff,%0" :: "f"(fpscr));
 	return (old);
 }
