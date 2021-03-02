@@ -29,69 +29,33 @@
 #
 # $FreeBSD$
 
-SRCDIR=$(atf_get_srcdir)
 CAPSICUM_TEST_BIN=capsicum-test
 
-check()
-{
-	local tc=${1}
+atf_test_case "test_root"
+test_root_head() {
 
-	atf_check -s exit:0 -o match:PASSED  -e ignore \
-		${SRCDIR}/${CAPSICUM_TEST_BIN} --gtest_filter=${tc}
+	atf_set descr 'Run capsicum-test as root'
+	atf_set require.user root
 }
 
-skip()
-{
-	local reason=${1}
-
-	atf_skip "${reason}"
+test_root_body() {
+	atf_check -s exit:0 -o match:PASSED -e ignore \
+		"$(atf_get_srcdir)/${CAPSICUM_TEST_BIN}" -u "$(id -u tests)"
 }
 
-add_testcase()
-{
-	local tc=${1}
-	local tc_escaped word
+atf_test_case "test_unprivileged"
+test_unprivileged_head() {
 
-	tc_escaped=$(echo ${tc} | sed -e 's/\./__/')
-
-	atf_test_case ${tc_escaped}
-
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		case "${tc_escaped}" in
-		ForkedOpenatTest_WithFlagInCapabilityMode___|OpenatTest__WithFlag)
-			eval "${tc_escaped}_body() { skip \"https://bugs.freebsd.org/249960\"; }"
-			;;
-		PipePdfork__WildcardWait)
-			eval "${tc_escaped}_body() { skip \"https://bugs.freebsd.org/244165\"; }"
-			;;
-		Capability__NoBypassDAC)
-			eval "${tc_escaped}_body() { skip \"https://bugs.freebsd.org/250178\"; }"
-			;;
-		Pdfork__OtherUserForked)
-			eval "${tc_escaped}_body() { skip \"https://bugs.freebsd.org/250179\"; }"
-			;;
-		*)
-			eval "${tc_escaped}_body() { check ${tc}; }"
-			;;
-		esac
-	else
-		eval "${tc_escaped}_body() { check ${tc}; }"
-	fi
-
-	atf_add_test_case ${tc_escaped}
+	atf_set descr 'Run capsicum-test as an unprivileged user'
+	atf_set require.user unprivileged
 }
 
-list_tests()
-{
-	${SRCDIR}/${CAPSICUM_TEST_BIN} --gtest_list_tests | awk '
-		/^[^ ]/ { CAT=$0 }
-		/^[ ]/ { print CAT $1}'
+test_unprivileged_body() {
+	atf_check -s exit:0 -o match:PASSED -e ignore \
+		"$(atf_get_srcdir)/${CAPSICUM_TEST_BIN}" -u "$(id -u)"
 }
 
-atf_init_test_cases()
-{
-	local t
-	for t in `list_tests`; do
-		add_testcase $t
-	done
+atf_init_test_cases() {
+	atf_add_test_case test_root
+	atf_add_test_case test_unprivileged
 }
