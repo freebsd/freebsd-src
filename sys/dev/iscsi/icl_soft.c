@@ -1290,9 +1290,11 @@ icl_soft_conn_close(struct icl_conn *ic)
 	ICL_CONN_LOCK(ic);
 	if (!ic->ic_disconnecting) {
 		so = ic->ic_socket;
-		SOCKBUF_LOCK(&so->so_rcv);
+		if (so)
+			SOCKBUF_LOCK(&so->so_rcv);
 		ic->ic_disconnecting = true;
-		SOCKBUF_UNLOCK(&so->so_rcv);
+		if (so)
+			SOCKBUF_UNLOCK(&so->so_rcv);
 	}
 	while (ic->ic_receive_running || ic->ic_send_running) {
 		cv_signal(&ic->ic_receive_cv);
