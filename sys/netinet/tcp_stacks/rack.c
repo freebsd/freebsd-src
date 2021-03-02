@@ -7383,7 +7383,7 @@ again:
 			sb_offset = tp->snd_nxt - tp->snd_una;
 		else
 			sb_offset = 0;
-		if (IN_RECOVERY(tp->t_flags) == 0) {
+		if (IN_FASTRECOVERY(tp->t_flags) == 0) {
 			if (rack->r_ctl.rc_tlp_new_data) {
 				/* TLP is forcing out new data */
 				if (rack->r_ctl.rc_tlp_new_data > (uint32_t) (avail - sb_offset)) {
