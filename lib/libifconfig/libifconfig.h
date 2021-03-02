@@ -202,10 +202,73 @@ int ifconfig_get_ifstatus(ifconfig_handle_t *h, const char *name,
  */
 int ifconfig_media_get_mediareq(ifconfig_handle_t *h, const char *name,
     struct ifmediareq **ifmr);
-const char *ifconfig_media_get_type(int ifmw);
-const char *ifconfig_media_get_subtype(int ifmw);
+
 const char *ifconfig_media_get_status(const struct ifmediareq *ifmr);
-void ifconfig_media_get_options_string(int ifmw, char *buf, size_t buflen);
+
+typedef int ifmedia_t;
+
+#define INVALID_IFMEDIA ((ifmedia_t)-1)
+
+/** Retrieve the name of a media type
+ * @param media	The media to be named
+ * @return	A pointer to the media type name, or NULL on failure
+ */
+const char *ifconfig_media_get_type(ifmedia_t media);
+
+/** Retrieve a media type by its name
+ * @param name	The name of a media type
+ * @return	The media type value, or INVALID_IFMEDIA on failure
+ */
+ifmedia_t ifconfig_media_lookup_type(const char *name);
+
+/** Retrieve the name of a media subtype
+ * @param media	The media subtype to be named
+ * @return	A pointer to the media subtype name, or NULL on failure
+ */
+const char *ifconfig_media_get_subtype(ifmedia_t media);
+
+/** Retrieve a media subtype by its name
+ * @param media	The top level media type whose subtype we want
+ * @param name	The name of a media subtype
+ * @return	The media subtype value, or INVALID_IFMEDIA on failure
+ */
+ifmedia_t ifconfig_media_lookup_subtype(ifmedia_t media, const char *name);
+
+/** Retrieve the name of a media mode
+ * @param media	The media mode to be named
+ * @return	A pointer to the media mode name, or NULL on failure
+ */
+const char *ifconfig_media_get_mode(ifmedia_t media);
+
+/** Retrieve a media mode by its name
+ * @param media	The top level media type whose mode we want
+ * @param name	The name of a media mode
+ * @return	The media mode value, or INVALID_IFMEDIA on failure
+ */
+ifmedia_t ifconfig_media_lookup_mode(ifmedia_t media, const char *name);
+
+/** Retrieve an array of media options
+ * @param media	The media for which to obtain the options
+ * @return	Pointer to an array of pointers to option names,
+ * 		terminated by a NULL pointer, or simply NULL on failure.
+ * 		The caller is responsible for freeing the array but not its
+ * 		contents.
+ */
+const char **ifconfig_media_get_options(ifmedia_t media);
+
+/** Retrieve an array of media options by names
+ * @param media	The top level media type whose options we want
+ * @param opts	Pointer to an array of string pointers naming options
+ * @param nopts Number of elements in the opts array
+ * @return	Pointer to an array of media options, one for each option named
+ * 		in opts.  NULL is returned instead with errno set to ENOMEM if
+ * 		allocating the return array fails or EINVAL if media is not
+ * 		valid.  A media option in the array will be INVALID_IFMEDIA
+ * 		when lookup failed for the option named in that position in
+ * 		opts.  The caller is responsible for freeing the array.
+ */
+ifmedia_t *ifconfig_media_lookup_options(ifmedia_t media, const char **opts,
+    size_t nopts);
 
 /** Retrieve the reason the interface is down
  * @param h	An open ifconfig state object
