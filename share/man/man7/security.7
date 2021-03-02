@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2020
+.Dd February 28, 2021
 .Dt SECURITY 7
 .Os
 .Sh NAME
@@ -1080,6 +1080,12 @@ Enables non-executable stack for 32bit processes.
 Enabled by default if supported by hardware and corresponding binary.
 .It Dv kern.elf64.nxstack
 Enables non-executable stack for 64bit processes.
+.It Dv kern.elf32.allow_wx
+Enables mapping of simultaneously writable and executable pages for
+32bit processes.
+.It Dv kern.elf64.allow_wx
+Enables mapping of simultaneously writable and executable pages for
+64bit processes.
 .El
 .Sh SEE ALSO
 .Xr chflags 1 ,
