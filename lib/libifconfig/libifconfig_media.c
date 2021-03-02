@@ -45,6 +45,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,11 +54,9 @@
 #include "libifconfig.h"
 #include "libifconfig_internal.h"
 
-
-static struct ifmedia_description *get_toptype_desc(int);
-static struct ifmedia_type_to_subtype *get_toptype_ttos(int);
-static struct ifmedia_description *get_subtype_desc(int,
-    struct ifmedia_type_to_subtype *ttos);
+static const struct ifmedia_description *lookup_media_desc(
+    const struct ifmedia_description *, const char *);
+static const struct ifmedia_type_to_subtype *get_toptype_ttos(ifmedia_t);
 
 #define IFM_OPMODE(x)							 \
 	((x) & (IFM_IEEE80211_ADHOC | IFM_IEEE80211_HOSTAP |		 \
@@ -65,74 +64,100 @@ static struct ifmedia_description *get_subtype_desc(int,
 	IFM_IEEE80211_MBSS))
 #define IFM_IEEE80211_STA    0
 
-static struct ifmedia_description ifm_type_descriptions[] =
+static const struct ifmedia_description
+    ifm_type_descriptions[] =
     IFM_TYPE_DESCRIPTIONS;
 
-static struct ifmedia_description ifm_subtype_ethernet_descriptions[] =
+static const struct ifmedia_description
+    ifm_subtype_ethernet_descriptions[] =
     IFM_SUBTYPE_ETHERNET_DESCRIPTIONS;
 
-static struct ifmedia_description ifm_subtype_ethernet_aliases[] =
+static const struct ifmedia_description
+    ifm_subtype_ethernet_aliases[] =
     IFM_SUBTYPE_ETHERNET_ALIASES;
 
-static struct ifmedia_description ifm_subtype_ethernet_option_descriptions[] =
+static const struct ifmedia_description
+    ifm_subtype_ethernet_option_descriptions[] =
     IFM_SUBTYPE_ETHERNET_OPTION_DESCRIPTIONS;
 
-static struct ifmedia_description ifm_subtype_ieee80211_descriptions[] =
+static const struct ifmedia_description
+    ifm_subtype_ieee80211_descriptions[] =
     IFM_SUBTYPE_IEEE80211_DESCRIPTIONS;
 
-static struct ifmedia_description ifm_subtype_ieee80211_aliases[] =
+static const struct ifmedia_description
+    ifm_subtype_ieee80211_aliases[] =
     IFM_SUBTYPE_IEEE80211_ALIASES;
 
-static struct ifmedia_description ifm_subtype_ieee80211_option_descriptions[] =
+static const struct ifmedia_description
+    ifm_subtype_ieee80211_option_descriptions[] =
     IFM_SUBTYPE_IEEE80211_OPTION_DESCRIPTIONS;
 
-static struct ifmedia_description ifm_subtype_ieee80211_mode_descriptions[] =
+static const struct ifmedia_description
+    ifm_subtype_ieee80211_mode_descriptions[] =
     IFM_SUBTYPE_IEEE80211_MODE_DESCRIPTIONS;
 
-static struct ifmedia_description ifm_subtype_ieee80211_mode_aliases[] =
+static const struct ifmedia_description
+    ifm_subtype_ieee80211_mode_aliases[] =
     IFM_SUBTYPE_IEEE80211_MODE_ALIASES;
 
-static struct ifmedia_description ifm_subtype_atm_descriptions[] =
+static const struct ifmedia_description
+    ifm_subtype_atm_descriptions[] =
     IFM_SUBTYPE_ATM_DESCRIPTIONS;
 
-static struct ifmedia_description ifm_subtype_atm_aliases[] =
+static const struct ifmedia_description
+    ifm_subtype_atm_aliases[] =
     IFM_SUBTYPE_ATM_ALIASES;
 
-static struct ifmedia_description ifm_subtype_atm_option_descriptions[] =
+static const struct ifmedia_description
+    ifm_subtype_atm_option_descriptions[] =
     IFM_SUBTYPE_ATM_OPTION_DESCRIPTIONS;
 
-static struct ifmedia_description ifm_subtype_shared_descriptions[] =
+static const struct ifmedia_description
+    ifm_subtype_shared_descriptions[] =
     IFM_SUBTYPE_SHARED_DESCRIPTIONS;
 
-static struct ifmedia_description ifm_subtype_shared_aliases[] =
+static const struct ifmedia_description
+    ifm_subtype_shared_aliases[] =
     IFM_SUBTYPE_SHARED_ALIASES;
 
-static struct ifmedia_description ifm_shared_option_descriptions[] =
+static const struct ifmedia_description
+    ifm_shared_option_descriptions[] =
     IFM_SHARED_OPTION_DESCRIPTIONS;
 
-static struct ifmedia_description ifm_shared_option_aliases[] =
+static const struct ifmedia_description
+    ifm_shared_option_aliases[] =
     IFM_SHARED_OPTION_ALIASES;
+
+static const struct ifmedia_description *
+lookup_media_desc(const struct ifmedia_description *desc, const char *name)
+{
+
+	for (; desc->ifmt_string != NULL; ++desc)
+		if (strcasecmp(desc->ifmt_string, name) == 0)
+			return (desc);
+	return (NULL);
+}
 
 struct ifmedia_type_to_subtype {
 	struct {
-		struct ifmedia_description *desc;
-		int alias;
+		const struct ifmedia_description *desc;
+		bool alias;
 	}
 	subtypes[5];
 	struct {
-		struct ifmedia_description *desc;
-		int alias;
+		const struct ifmedia_description *desc;
+		bool alias;
 	}
 	options[4];
 	struct {
-		struct ifmedia_description *desc;
-		int alias;
+		const struct ifmedia_description *desc;
+		bool alias;
 	}
 	modes[3];
 };
 
 /* must be in the same order as IFM_TYPE_DESCRIPTIONS */
-static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] =
+static const struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] =
 {
 	{
 		{
@@ -192,83 +217,214 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] =
 	},
 };
 
-static struct ifmedia_description *
-get_toptype_desc(int ifmw)
+static const struct ifmedia_type_to_subtype *
+get_toptype_ttos(ifmedia_t media)
 {
-	struct ifmedia_description *desc;
-
-	for (desc = ifm_type_descriptions; desc->ifmt_string != NULL; desc++) {
-		if (IFM_TYPE(ifmw) == desc->ifmt_word) {
-			break;
-		}
-	}
-
-	return (desc);
-}
-
-static struct ifmedia_type_to_subtype *
-get_toptype_ttos(int ifmw)
-{
-	struct ifmedia_description *desc;
-	struct ifmedia_type_to_subtype *ttos;
+	const struct ifmedia_description *desc;
+	const struct ifmedia_type_to_subtype *ttos;
 
 	for (desc = ifm_type_descriptions, ttos = ifmedia_types_to_subtypes;
 	    desc->ifmt_string != NULL; desc++, ttos++) {
-		if (IFM_TYPE(ifmw) == desc->ifmt_word) {
-			break;
-		}
+		if (IFM_TYPE(media) == desc->ifmt_word)
+			return (ttos);
 	}
-
-	return (ttos);
-}
-
-static struct ifmedia_description *
-get_subtype_desc(int ifmw,
-    struct ifmedia_type_to_subtype *ttos)
-{
-	int i;
-	struct ifmedia_description *desc;
-
-	for (i = 0; ttos->subtypes[i].desc != NULL; i++) {
-		if (ttos->subtypes[i].alias) {
-			continue;
-		}
-		for (desc = ttos->subtypes[i].desc;
-		    desc->ifmt_string != NULL; desc++) {
-			if (IFM_SUBTYPE(ifmw) == desc->ifmt_word) {
-				return (desc);
-			}
-		}
-	}
-
+	errno = ENOENT;
 	return (NULL);
 }
 
 const char *
-ifconfig_media_get_type(int ifmw)
+ifconfig_media_get_type(ifmedia_t media)
 {
-	struct ifmedia_description *desc;
+	const struct ifmedia_description *desc;
 
-	/*int seen_option = 0, i;*/
-
-	/* Find the top-level interface type. */
-	desc = get_toptype_desc(ifmw);
-	if (desc->ifmt_string == NULL) {
-		return ("<unknown type>");
-	} else {
-		return (desc->ifmt_string);
+	for (desc = ifm_type_descriptions; desc->ifmt_string != NULL; ++desc) {
+		if (IFM_TYPE(media) == desc->ifmt_word)
+			return (desc->ifmt_string);
 	}
+	errno = ENOENT;
+	return (NULL);
+}
+
+ifmedia_t
+ifconfig_media_lookup_type(const char *name)
+{
+	const struct ifmedia_description *desc;
+
+	desc = lookup_media_desc(ifm_type_descriptions, name);
+	return (desc == NULL ? INVALID_IFMEDIA : desc->ifmt_word);
 }
 
 const char *
-ifconfig_media_get_subtype(int ifmw)
+ifconfig_media_get_subtype(ifmedia_t media)
 {
-	struct ifmedia_description *desc;
-	struct ifmedia_type_to_subtype *ttos;
+	const struct ifmedia_description *desc;
+	const struct ifmedia_type_to_subtype *ttos;
 
-	ttos = get_toptype_ttos(ifmw);
-	desc = get_subtype_desc(ifmw, ttos);
-	return (desc->ifmt_string);
+	ttos = get_toptype_ttos(media);
+	if (ttos == NULL) {
+		errno = EINVAL;
+		return (NULL);
+	}
+
+	for (size_t i = 0; ttos->subtypes[i].desc != NULL; ++i) {
+		if (ttos->subtypes[i].alias)
+			continue;
+		for (desc = ttos->subtypes[i].desc;
+		    desc->ifmt_string != NULL; ++desc) {
+			if (IFM_SUBTYPE(media) == desc->ifmt_word)
+				return (desc->ifmt_string);
+		}
+	}
+	errno = ENOENT;
+	return (NULL);
+}
+
+ifmedia_t
+ifconfig_media_lookup_subtype(ifmedia_t media, const char *name)
+{
+	const struct ifmedia_description *desc;
+	const struct ifmedia_type_to_subtype *ttos;
+
+	ttos = get_toptype_ttos(media);
+	if (ttos == NULL) {
+		errno = EINVAL;
+		return (INVALID_IFMEDIA);
+	}
+
+	for (size_t i = 0; ttos->subtypes[i].desc != NULL; ++i) {
+		desc = lookup_media_desc(ttos->subtypes[i].desc, name);
+		if (desc != NULL)
+			return (desc->ifmt_word);
+	}
+	errno = ENOENT;
+	return (INVALID_IFMEDIA);
+}
+
+const char *
+ifconfig_media_get_mode(ifmedia_t media)
+{
+	const struct ifmedia_description *desc;
+	const struct ifmedia_type_to_subtype *ttos;
+
+	ttos = get_toptype_ttos(media);
+	if (ttos == NULL) {
+		errno = EINVAL;
+		return (NULL);
+	}
+
+	for (size_t i = 0; ttos->modes[i].desc != NULL; ++i) {
+		if (ttos->modes[i].alias)
+			continue;
+		for (desc = ttos->modes[i].desc;
+		    desc->ifmt_string != NULL; ++desc) {
+			if (IFM_MODE(media) == desc->ifmt_word)
+				return (desc->ifmt_string);
+		}
+	}
+	errno = ENOENT;
+	return (NULL);
+}
+
+ifmedia_t
+ifconfig_media_lookup_mode(ifmedia_t media, const char *name)
+{
+	const struct ifmedia_description *desc;
+	const struct ifmedia_type_to_subtype *ttos;
+
+	ttos = get_toptype_ttos(media);
+	if (ttos == NULL) {
+		errno = EINVAL;
+		return (INVALID_IFMEDIA);
+	}
+
+	for (size_t i = 0; ttos->modes[i].desc != NULL; ++i) {
+		desc = lookup_media_desc(ttos->modes[i].desc, name);
+		if (desc != NULL)
+			return (desc->ifmt_word);
+	}
+	errno = ENOENT;
+	return (INVALID_IFMEDIA);
+}
+
+const char **
+ifconfig_media_get_options(ifmedia_t media)
+{
+	const char **options;
+	const struct ifmedia_description *desc;
+	const struct ifmedia_type_to_subtype *ttos;
+	size_t n;
+
+	ttos = get_toptype_ttos(media);
+	if (ttos == NULL) {
+		errno = EINVAL;
+		return (NULL);
+	}
+
+	n = 0;
+	for (size_t i = 0; ttos->options[i].desc != NULL; ++i) {
+		if (ttos->options[i].alias)
+			continue;
+		for (desc = ttos->options[i].desc;
+		    desc->ifmt_string != NULL; ++desc) {
+			if ((media & desc->ifmt_word) != 0)
+				++n;
+		}
+	}
+	if (n == 0) {
+		errno = ENOENT;
+		return (NULL);
+	}
+
+	options = calloc(n + 1, sizeof(*options));
+	if (options == NULL)
+		return (NULL);
+
+	options[n] = NULL;
+	n = 0;
+	for (size_t i = 0; ttos->options[i].desc != NULL; ++i) {
+		if (ttos->options[i].alias)
+			continue;
+		for (desc = ttos->options[i].desc;
+		    desc->ifmt_string != NULL; ++desc) {
+			if ((media & desc->ifmt_word) != 0) {
+				options[n] = desc->ifmt_string;
+				++n;
+			}
+		}
+	}
+	return (options);
+}
+
+ifmedia_t *
+ifconfig_media_lookup_options(ifmedia_t media, const char **opts, size_t nopts)
+{
+	ifmedia_t *options;
+	const struct ifmedia_description *desc, *opt;
+	const struct ifmedia_type_to_subtype *ttos;
+
+	assert(opts != NULL);
+	assert(nopts > 0);
+
+	ttos = get_toptype_ttos(media);
+	if (ttos == NULL) {
+		errno = EINVAL;
+		return (NULL);
+	}
+
+	options = calloc(nopts, sizeof(*options));
+	if (options == NULL)
+		return (NULL);
+	(void)memset(options, INVALID_IFMEDIA, nopts * sizeof(ifmedia_t));
+
+	for (size_t i = 0; ttos->options[i].desc != NULL; ++i) {
+		desc = ttos->options[i].desc;
+		for (size_t j = 0; j < nopts; ++j) {
+			opt = lookup_media_desc(desc, opts[j]);
+			if (opt != NULL)
+				options[j] = opt->ifmt_word;
+		}
+	}
+	return (options);
 }
 
 /***************************************************************************
@@ -295,7 +451,6 @@ ifconfig_media_get_mediareq(ifconfig_handle_t *h, const char *name,
 		h->error.errcode = ENOMEM;
 		return (-1);
 	}
-	(void)memset(ms, 0, sizeof(*ms));
 	(void)strlcpy(ms->ifmr.ifm_name, name, sizeof(ms->ifmr.ifm_name));
 
 	/*
@@ -360,36 +515,6 @@ ifconfig_media_get_status(const struct ifmediareq *ifmr)
 		break;
 	default:
 		return ("");
-	}
-}
-
-void
-ifconfig_media_get_options_string(int ifmw, char *buf, size_t buflen)
-{
-	struct ifmedia_type_to_subtype *ttos;
-	struct ifmedia_description *desc;
-	int i, seen_option = 0;
-	size_t len;
-
-	assert(buflen > 0);
-	buf[0] = '\0';
-	ttos = get_toptype_ttos(ifmw);
-	for (i = 0; ttos->options[i].desc != NULL; i++) {
-		if (ttos->options[i].alias) {
-			continue;
-		}
-		for (desc = ttos->options[i].desc;
-		    desc->ifmt_string != NULL; desc++) {
-			if (ifmw & desc->ifmt_word) {
-				if (seen_option++) {
-					strlcat(buf, ",", buflen);
-				}
-				len = strlcat(buf, desc->ifmt_string, buflen);
-				assert(len < buflen);
-				buf += len;
-				buflen -= len;
-			}
-		}
 	}
 }
 
