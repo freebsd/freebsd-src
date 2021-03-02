@@ -528,6 +528,8 @@ TEST(Capmode, Abort) {
 FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
   umask(022);
   mode_t um_before = umask(022);
+  int pipefds[2];
+  EXPECT_OK(pipe(pipefds));
   EXPECT_OK(cap_enter());  // Enter capability mode.
 
   mode_t um = umask(022);
@@ -540,13 +542,19 @@ FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
   pid_t pid = fork();
   EXPECT_OK(pid);
   if (pid == 0) {
-    // Child: almost immediately exit.
-    sleep(1);
+    // Child: wait for an exit message from parent (so we can test waitpid).
+    EXPECT_OK(close(pipefds[0]));
+    SEND_INT_MESSAGE(pipefds[1], MSG_CHILD_STARTED);
+    AWAIT_INT_MESSAGE(pipefds[1], MSG_PARENT_REQUEST_CHILD_EXIT);
     exit(0);
   } else if (pid > 0) {
+    EXPECT_OK(close(pipefds[1]));
+    AWAIT_INT_MESSAGE(pipefds[0], MSG_CHILD_STARTED);
     errno = 0;
     EXPECT_CAPMODE(ptrace_(PTRACE_PEEKDATA_, pid, &pid, NULL));
-    EXPECT_CAPMODE(waitpid(pid, NULL, 0));
+    EXPECT_CAPMODE(waitpid(pid, NULL, WNOHANG));
+    SEND_INT_MESSAGE(pipefds[0], MSG_PARENT_REQUEST_CHILD_EXIT);
+    if (verbose) fprintf(stderr, "  child finished\n");
   }
 
   // No error return from sync(2) to test, but check errno remains unset.
@@ -568,68 +576,136 @@ FORK_TEST_F(WithFiles, AllowedMiscSyscalls) {
 }
 
 void *thread_fn(void *p) {
-  int delay = *(int *)p;
-  sleep(delay);
+  int fd = (int)(intptr_t)p;
+  if (verbose) fprintf(stderr, "  thread waiting to run\n");
+  AWAIT_INT_MESSAGE(fd, MSG_PARENT_CHILD_SHOULD_RUN);
   EXPECT_OK(getpid_());
   EXPECT_CAPMODE(open("/dev/null", O_RDWR));
-  return NULL;
+  // Return whether there have been any failures to the main thread.
+  void *rval = (void *)(intptr_t)testing::Test::HasFailure();
+  if (verbose) fprintf(stderr, "  thread finished: %p\n", rval);
+  return rval;
 }
 
 // Check that restrictions are the same in subprocesses and threads
 FORK_TEST(Capmode, NewThread) {
   // Fire off a new thread before entering capability mode
   pthread_t early_thread;
-  int one = 1;  // second
-  EXPECT_OK(pthread_create(&early_thread, NULL, thread_fn, &one));
+  void *thread_rval;
+  // Create two pipes, one for synchronization with the threads, the other to
+  // synchronize with the children (since we can't use waitpid after cap_enter).
+  // Note: Could use pdfork+pdwait instead, but that is tested in procdesc.cc.
+  int thread_pipe[2];
+  EXPECT_OK(pipe(thread_pipe));
+  int proc_pipe[2];
+  EXPECT_OK(pipe(proc_pipe));
+  EXPECT_OK(pthread_create(&early_thread, NULL, thread_fn,
+                           (void *)(intptr_t)thread_pipe[1]));
 
   // Fire off a new process before entering capability mode.
+  if (verbose) fprintf(stderr, "  starting second child (non-capability mode)\n");
   int early_child = fork();
   EXPECT_OK(early_child);
   if (early_child == 0) {
-    // Child: wait and then confirm this process is unaffect by capability mode in the parent.
-    sleep(1);
+    if (verbose) fprintf(stderr, "  first child started\n");
+    EXPECT_OK(close(proc_pipe[0]));
+    // Child: wait and then confirm this process is unaffected by capability mode in the parent.
+    AWAIT_INT_MESSAGE(proc_pipe[1], MSG_PARENT_CHILD_SHOULD_RUN);
     int fd = open("/dev/null", O_RDWR);
     EXPECT_OK(fd);
     close(fd);
-    exit(0);
+    // Notify the parent of success/failure.
+    int rval = (int)testing::Test::HasFailure();
+    SEND_INT_MESSAGE(proc_pipe[1], rval);
+    if (verbose) fprintf(stderr, "  first child finished: %d\n", rval);
+    exit(rval);
   }
 
   EXPECT_OK(cap_enter());  // Enter capability mode.
+  // At this point the current process has both a child process and a
+  // child thread that were created before entering capability mode.
+  //  - The child process is unaffected by capability mode.
+  //  - The child thread is affected by capability mode.
+  SEND_INT_MESSAGE(proc_pipe[0], MSG_PARENT_CHILD_SHOULD_RUN);
+
   // Do an allowed syscall.
   EXPECT_OK(getpid_());
+  // Wait for the first child to exit (should get a zero exit code message).
+  AWAIT_INT_MESSAGE(proc_pipe[0], 0);
+
+  // The child processes/threads return HasFailure(), so we depend on no prior errors.
+  ASSERT_FALSE(testing::Test::HasFailure())
+              << "Cannot continue test with pre-existing failures.";
+  // Now that we're in capability mode, if we create a second child process
+  // it will be affected by capability mode.
+  if (verbose) fprintf(stderr, "  starting second child (in capability mode)\n");
   int child = fork();
   EXPECT_OK(child);
   if (child == 0) {
+    if (verbose) fprintf(stderr, "  second child started\n");
+    EXPECT_OK(close(proc_pipe[0]));
     // Child: do an allowed and a disallowed syscall.
     EXPECT_OK(getpid_());
     EXPECT_CAPMODE(open("/dev/null", O_RDWR));
-    exit(0);
+    // Notify the parent of success/failure.
+    int rval = (int)testing::Test::HasFailure();
+    SEND_INT_MESSAGE(proc_pipe[1], rval);
+    if (verbose) fprintf(stderr, "  second child finished: %d\n", rval);
+    exit(rval);
   }
-  // Don't (can't) wait for either child.
-
+  // Now tell the early_started thread that it can run. We expect it to also
+  // be affected by capability mode since it's per-process not per-thread.
+  // Note: it is important that we don't allow the thread to run before fork(),
+  // since that could result in fork() being called while the thread holds one
+  // of the gtest-internal mutexes, so the child process deadlocks.
+  SEND_INT_MESSAGE(thread_pipe[0], MSG_PARENT_CHILD_SHOULD_RUN);
   // Wait for the early-started thread.
-  EXPECT_OK(pthread_join(early_thread, NULL));
+  EXPECT_OK(pthread_join(early_thread, &thread_rval));
+  EXPECT_FALSE((bool)(intptr_t)thread_rval) << "thread returned failure";
 
-  // Fire off a new thread.
+  // Wait for the second child to exit (should get a zero exit code message).
+  AWAIT_INT_MESSAGE(proc_pipe[0], 0);
+
+  // Fire off a new (second) child thread, which is also affected by capability mode.
+  ASSERT_FALSE(testing::Test::HasFailure())
+      << "Cannot continue test with pre-existing failures.";
   pthread_t child_thread;
-  int zero = 0; // seconds
-  EXPECT_OK(pthread_create(&child_thread, NULL, thread_fn, &zero));
-  EXPECT_OK(pthread_join(child_thread, NULL));
+  EXPECT_OK(pthread_create(&child_thread, NULL, thread_fn,
+                           (void *)(intptr_t)thread_pipe[1]));
+  SEND_INT_MESSAGE(thread_pipe[0], MSG_PARENT_CHILD_SHOULD_RUN);
+  EXPECT_OK(pthread_join(child_thread, &thread_rval));
+  EXPECT_FALSE((bool)(intptr_t)thread_rval) << "thread returned failure";
 
   // Fork a subprocess which fires off a new thread.
+  ASSERT_FALSE(testing::Test::HasFailure())
+              << "Cannot continue test with pre-existing failures.";
+  if (verbose) fprintf(stderr, "  starting third child (in capability mode)\n");
   child = fork();
   EXPECT_OK(child);
   if (child == 0) {
+    if (verbose) fprintf(stderr, "  third child started\n");
+    EXPECT_OK(close(proc_pipe[0]));
     pthread_t child_thread2;
-    EXPECT_OK(pthread_create(&child_thread2, NULL, thread_fn, &zero));
-    EXPECT_OK(pthread_join(child_thread2, NULL));
-    exit(0);
+    EXPECT_OK(pthread_create(&child_thread2, NULL, thread_fn,
+                             (void *)(intptr_t)thread_pipe[1]));
+    SEND_INT_MESSAGE(thread_pipe[0], MSG_PARENT_CHILD_SHOULD_RUN);
+    EXPECT_OK(pthread_join(child_thread2, &thread_rval));
+    EXPECT_FALSE((bool)(intptr_t)thread_rval) << "thread returned failure";
+    // Notify the parent of success/failure.
+    int rval = (int)testing::Test::HasFailure();
+    SEND_INT_MESSAGE(proc_pipe[1], rval);
+    if (verbose) fprintf(stderr, "  third child finished: %d\n", rval);
+    exit(rval);
   }
-  // Sleep for a bit to allow the subprocess to finish.
-  sleep(2);
+  // Wait for the third child to exit (should get a zero exit code message).
+  AWAIT_INT_MESSAGE(proc_pipe[0], 0);
+  close(proc_pipe[0]);
+  close(proc_pipe[1]);
+  close(thread_pipe[0]);
+  close(thread_pipe[1]);
 }
 
-static int had_signal = 0;
+static volatile sig_atomic_t had_signal = 0;
 static void handle_signal(int) { had_signal = 1; }
 
 FORK_TEST(Capmode, SelfKill) {

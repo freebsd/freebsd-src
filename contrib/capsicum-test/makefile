@@ -8,7 +8,7 @@ CXXFLAGS+=$(ARCHFLAG) -Wall -g $(GTEST_INCS) $(GTEST_FLAGS) --std=c++11
 CFLAGS+=$(ARCHFLAG) -Wall -g
 
 capsicum-test: $(OBJECTS) libgtest.a $(LOCAL_LIBS)
-	$(CXX) $(CXXFLAGS) -g -o $@ $(OBJECTS) libgtest.a -lpthread -lrt $(LIBSCTP) $(LIBCAPRIGHTS)
+	$(CXX) $(CXXFLAGS) -g -o $@ $(OBJECTS) libgtest.a -lpthread -lrt $(LIBSCTP) $(LIBCAPRIGHTS) $(EXTRA_LIBS)
 
 # Small statically-linked program for fexecve tests
 # (needs to be statically linked so that execve()ing it

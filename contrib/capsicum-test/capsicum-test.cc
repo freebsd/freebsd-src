@@ -1,5 +1,15 @@
 #include "capsicum-test.h"
 
+#ifdef __FreeBSD__
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
+#include <sys/socket.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
+#include <libprocstat.h>
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
@@ -48,31 +58,59 @@ char ProcessState(int pid) {
   return '?';
 #endif
 #ifdef __FreeBSD__
-  char buffer[1024];
-  snprintf(buffer, sizeof(buffer), "ps -p %d -o state | grep -v STAT", pid);
-  sig_t original = signal(SIGCHLD, SIG_IGN);
-  FILE* cmd = popen(buffer, "r");
-  usleep(50000);  // allow any pending SIGCHLD signals to arrive
-  signal(SIGCHLD, original);
-  int result = fgetc(cmd);
-  fclose(cmd);
-  // Map FreeBSD codes to Linux codes.
-  switch (result) {
-    case EOF:
-      return '\0';
-    case 'D': // disk wait
-    case 'R': // runnable
-    case 'S': // sleeping
-    case 'T': // stopped
-    case 'Z': // zombie
-      return result;
-    case 'W': // idle interrupt thread
-      return 'S';
-    case 'I': // idle
-      return 'S';
-    case 'L': // waiting to acquire lock
-    default:
-      return '?';
+  // First check if the process exists/we have permission to see it. This
+  // Avoids warning messages being printed to stderr by libprocstat.
+  size_t len = 0;
+  int name[4];
+  name[0] = CTL_KERN;
+  name[1] = KERN_PROC;
+  name[2] = KERN_PROC_PID;
+  name[3] = pid;
+  if (sysctl(name, nitems(name), NULL, &len, NULL, 0) < 0 && errno == ESRCH) {
+    if (verbose) fprintf(stderr, "Process %d does not exist\n", pid);
+    return '\0'; // No such process.
   }
+  unsigned int count = 0;
+  struct procstat *prstat = procstat_open_sysctl();
+  EXPECT_NE(NULL, prstat) << "procstat_open_sysctl failed.";
+  errno = 0;
+  struct kinfo_proc *p = procstat_getprocs(prstat, KERN_PROC_PID, pid, &count);
+  if (p == NULL || count == 0) {
+    if (verbose) fprintf(stderr, "procstat_getprocs failed with %p/%d: %s\n", p, count, strerror(errno));
+    procstat_close(prstat);
+    return '\0';
+  }
+  char result = '\0';
+  // See state() in bin/ps/print.c
+  switch (p->ki_stat) {
+  case SSTOP:
+    result = 'T';
+    break;
+  case SSLEEP:
+    if (p->ki_tdflags & TDF_SINTR) /* interruptable (long) */
+      result = 'S';
+    else
+      result = 'D';
+    break;
+  case SRUN:
+  case SIDL:
+    result = 'R';
+    break;
+  case SWAIT:
+  case SLOCK:
+    // We treat SWAIT/SLOCK as 'S' here (instead of 'W'/'L').
+    result = 'S';
+    break;
+  case SZOMB:
+    result = 'Z';
+    break;
+  default:
+    result = '?';
+    break;
+  }
+  procstat_freeprocs(prstat, p);
+  procstat_close(prstat);
+  if (verbose) fprintf(stderr, "Process %d in state '%c'\n", pid, result);
+  return result;
 #endif
 }
