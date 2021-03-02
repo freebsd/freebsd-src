@@ -40,3 +40,6 @@ BUILDDATE!=		date +%Y%m%d
 .export BUILDDATE
 .endif
 
+# Override UNAME_r to allow building ports for a different branch.
+UNAME_r=	${REVISION}-${BRANCH}
+.export UNAME_r
