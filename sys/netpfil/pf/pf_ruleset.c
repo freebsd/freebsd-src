@@ -95,6 +95,7 @@ pf_get_ruleset_number(u_int8_t action)
 		return (PF_RULESET_SCRUB);
 		break;
 	case PF_PASS:
+	case PF_MATCH:
 	case PF_DROP:
 		return (PF_RULESET_FILTER);
 		break;
