@@ -486,6 +486,7 @@ FORK_TEST_ON(Capability, Mmap, TmpFile("cap_mmap_operations")) {
 // Given a file descriptor, create a capability with specific rights and
 // make sure only those rights work.
 #define TRY_FILE_OPS(fd, ...) do {       \
+  SCOPED_TRACE(#__VA_ARGS__);            \
   cap_rights_t rights;                   \
   cap_rights_init(&rights, __VA_ARGS__); \
   TryFileOps((fd), rights);              \
@@ -1019,6 +1020,8 @@ FORK_TEST_ON(Capability, SocketTransfer, TmpFile("cap_fd_transfer")) {
   if (child == 0) {
     // Child: enter cap mode
     EXPECT_OK(cap_enter());
+    // Child: send startup notification
+    SEND_INT_MESSAGE(sock_fds[0], MSG_CHILD_STARTED);
 
     // Child: wait to receive FD over socket
     int rc = recvmsg(sock_fds[0], &mh, 0);
@@ -1036,10 +1039,12 @@ FORK_TEST_ON(Capability, SocketTransfer, TmpFile("cap_fd_transfer")) {
     EXPECT_RIGHTS_EQ(&r_rs, &rights);
     TryReadWrite(cap_fd);
 
+    // Child: acknowledge that we have received and tested the file descriptor
+    SEND_INT_MESSAGE(sock_fds[0], MSG_CHILD_FD_RECEIVED);
+
     // Child: wait for a normal read
-    int val;
-    read(sock_fds[0], &val, sizeof(val));
-    exit(0);
+    AWAIT_INT_MESSAGE(sock_fds[0], MSG_PARENT_REQUEST_CHILD_EXIT);
+    exit(testing::Test::HasFailure());
   }
 
   int fd = open(TmpFile("cap_fd_transfer"), O_RDWR | O_CREAT, 0644);
@@ -1054,6 +1059,9 @@ FORK_TEST_ON(Capability, SocketTransfer, TmpFile("cap_fd_transfer")) {
   // Confirm we can do the right operations on the capability
   TryReadWrite(cap_fd);
 
+  // Wait for child to start up:
+  AWAIT_INT_MESSAGE(sock_fds[1], MSG_CHILD_STARTED);
+
   // Send the file descriptor over the pipe to the sub-process
   mh.msg_controllen = CMSG_LEN(sizeof(int));
   cmptr = CMSG_FIRSTHDR(&mh);
@@ -1063,13 +1071,14 @@ FORK_TEST_ON(Capability, SocketTransfer, TmpFile("cap_fd_transfer")) {
   *(int *)CMSG_DATA(cmptr) = cap_fd;
   buffer1[0] = 0;
   iov[0].iov_len = 1;
-  sleep(3);
   int rc = sendmsg(sock_fds[1], &mh, 0);
   EXPECT_OK(rc);
 
-  sleep(1);  // Ensure subprocess runs
-  int zero = 0;
-  write(sock_fds[1], &zero, sizeof(zero));
+  // Check that the child received the message
+  AWAIT_INT_MESSAGE(sock_fds[1], MSG_CHILD_FD_RECEIVED);
+
+  // Tell the child to exit
+  SEND_INT_MESSAGE(sock_fds[1], MSG_PARENT_REQUEST_CHILD_EXIT);
 }
 
 TEST(Capability, SyscallAt) {
