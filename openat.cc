@@ -11,6 +11,7 @@
 
 // Check an open call works and close the resulting fd.
 #define EXPECT_OPEN_OK(f) do { \
+    SCOPED_TRACE(#f);          \
     int _fd = f;               \
     EXPECT_OK(_fd);            \
     close(_fd);                \
