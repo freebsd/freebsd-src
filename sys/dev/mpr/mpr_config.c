@@ -142,7 +142,7 @@ mpr_config_get_ioc_pg8(struct mpr_softc *sc, Mpi2ConfigReply_t *mpi_reply,
 	request->Header.PageNumber = 8;
 	request->Header.PageVersion = mpi_reply->Header.PageVersion;
 	request->Header.PageLength = mpi_reply->Header.PageLength;
-	cm->cm_length =  le16toh(mpi_reply->Header.PageLength) * 4;
+	cm->cm_length = mpi_reply->Header.PageLength * 4;
 	cm->cm_sge = &request->PageBufferSGE;
 	cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
 	cm->cm_flags = MPR_CM_FLAGS_SGE_SIMPLE | MPR_CM_FLAGS_DATAIN;
@@ -274,7 +274,7 @@ mpr_config_get_iounit_pg8(struct mpr_softc *sc, Mpi2ConfigReply_t *mpi_reply,
 	request->Header.PageNumber = 8;
 	request->Header.PageVersion = mpi_reply->Header.PageVersion;
 	request->Header.PageLength = mpi_reply->Header.PageLength;
-	cm->cm_length =  le16toh(mpi_reply->Header.PageLength) * 4;
+	cm->cm_length = mpi_reply->Header.PageLength * 4;
 	cm->cm_sge = &request->PageBufferSGE;
 	cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
 	cm->cm_flags = MPR_CM_FLAGS_SGE_SIMPLE | MPR_CM_FLAGS_DATAIN;
@@ -406,7 +406,7 @@ mpr_config_get_man_pg11(struct mpr_softc *sc, Mpi2ConfigReply_t *mpi_reply,
 	request->Header.PageNumber = 11;
 	request->Header.PageVersion = mpi_reply->Header.PageVersion;
 	request->Header.PageLength = mpi_reply->Header.PageLength;
-	cm->cm_length =  le16toh(mpi_reply->Header.PageLength) * 4;
+	cm->cm_length = mpi_reply->Header.PageLength * 4;
 	cm->cm_sge = &request->PageBufferSGE;
 	cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
 	cm->cm_flags = MPR_CM_FLAGS_SGE_SIMPLE | MPR_CM_FLAGS_DATAIN;
@@ -602,7 +602,7 @@ mpr_config_get_dpm_pg0(struct mpr_softc *sc, Mpi2ConfigReply_t *mpi_reply,
 	request->PageAddress = sc->max_dpm_entries <<
 	    MPI2_DPM_PGAD_ENTRY_COUNT_SHIFT;
 	request->ExtPageLength = mpi_reply->ExtPageLength;
-	cm->cm_length =  le16toh(request->ExtPageLength) * 4;
+	cm->cm_length = le16toh(request->ExtPageLength) * 4;
 	cm->cm_sge = &request->PageBufferSGE;
 	cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
 	cm->cm_flags = MPR_CM_FLAGS_SGE_SIMPLE | MPR_CM_FLAGS_DATAIN;
@@ -1282,7 +1282,7 @@ mpr_config_get_bios_pg3(struct mpr_softc *sc, Mpi2ConfigReply_t *mpi_reply,
 	request->Header.PageNumber = 3;
 	request->Header.PageVersion = mpi_reply->Header.PageVersion;
 	request->Header.PageLength = mpi_reply->Header.PageLength;
-	cm->cm_length = le16toh(mpi_reply->Header.PageLength) * 4;
+	cm->cm_length = mpi_reply->Header.PageLength * 4;
 	cm->cm_sge = &request->PageBufferSGE;
 	cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
 	cm->cm_flags = MPR_CM_FLAGS_SGE_SIMPLE | MPR_CM_FLAGS_DATAIN;
@@ -1414,7 +1414,7 @@ mpr_config_get_raid_volume_pg0(struct mpr_softc *sc, Mpi2ConfigReply_t
 	request->Header.PageLength = mpi_reply->Header.PageLength;
 	request->Header.PageVersion = mpi_reply->Header.PageVersion;
 	request->PageAddress = page_address;
-	cm->cm_length = le16toh(mpi_reply->Header.PageLength) * 4;
+	cm->cm_length = mpi_reply->Header.PageLength * 4;
 	cm->cm_sge = &request->PageBufferSGE;
 	cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
 	cm->cm_flags = MPR_CM_FLAGS_SGE_SIMPLE | MPR_CM_FLAGS_DATAIN;
@@ -1546,7 +1546,7 @@ mpr_config_get_raid_volume_pg1(struct mpr_softc *sc, Mpi2ConfigReply_t
 	request->Header.PageLength = mpi_reply->Header.PageLength;
 	request->Header.PageVersion = mpi_reply->Header.PageVersion;
 	request->PageAddress = htole32(form | handle);
-	cm->cm_length = le16toh(mpi_reply->Header.PageLength) * 4;
+	cm->cm_length = mpi_reply->Header.PageLength * 4;
 	cm->cm_sge = &request->PageBufferSGE;
 	cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
 	cm->cm_flags = MPR_CM_FLAGS_SGE_SIMPLE | MPR_CM_FLAGS_DATAIN;
@@ -1704,7 +1704,7 @@ mpr_config_get_raid_pd_pg0(struct mpr_softc *sc, Mpi2ConfigReply_t *mpi_reply,
 	request->Header.PageLength = mpi_reply->Header.PageLength;
 	request->Header.PageVersion = mpi_reply->Header.PageVersion;
 	request->PageAddress = page_address;
-	cm->cm_length = le16toh(mpi_reply->Header.PageLength) * 4;
+	cm->cm_length = mpi_reply->Header.PageLength * 4;
 	cm->cm_sge = &request->PageBufferSGE;
 	cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
 	cm->cm_flags = MPR_CM_FLAGS_SGE_SIMPLE | MPR_CM_FLAGS_DATAIN;
