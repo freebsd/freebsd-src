@@ -442,6 +442,7 @@ MAN=	accept_filter.9 \
 	vrele.9 \
 	vslock.9 \
 	watchdog.9 \
+	zero_region.9 \
 	zone.9
 
 MLINKS=	unr.9 alloc_unr.9 \
