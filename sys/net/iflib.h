@@ -399,6 +399,11 @@ typedef enum {
 #define IFLIB_PSEUDO_ETHER	0x80000
 
 /*
+ * Interface has an admin completion queue
+ */
+#define IFLIB_HAS_ADMINCQ	0x100000
+
+/*
  * These enum values are used in iflib_needs_restart to indicate to iflib
  * functions whether or not the interface needs restarting when certain events
  * happen.
