@@ -332,6 +332,11 @@ struct pf_kpool {
 	u_int8_t		 opts;
 };
 
+struct pf_rule_actions {
+	u_int32_t       qid;
+	u_int32_t       pqid;
+};
+
 union pf_krule_ptr {
 	struct pf_krule		*ptr;
 	u_int32_t		 nr;
@@ -607,6 +612,8 @@ struct pf_kstate {
 	u_int32_t		 creation;
 	u_int32_t	 	 expire;
 	u_int32_t		 pfsync_time;
+	u_int32_t                qid;
+	u_int32_t                pqid;
 	u_int16_t		 tag;
 	u_int8_t		 log;
 	u_int8_t		 state_flags;
@@ -1057,6 +1064,7 @@ struct pf_pdesc {
 	u_int16_t *sport;
 	u_int16_t *dport;
 	struct pf_mtag	*pf_mtag;
+	struct pf_rule_actions	act;
 
 	u_int32_t	 p_len;		/* total length of payload */
 
