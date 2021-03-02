@@ -321,6 +321,10 @@ METHOD void link_intr_enable {
 	if_ctx_t _ctx;
 } DEFAULT null_void_op;
 
+METHOD void admin_completion_handle {
+	if_ctx_t _ctx;
+} DEFAULT null_void_op;
+
 #
 # interface configuration
 #

@@ -4008,6 +4008,8 @@ _task_fn_admin(void *context)
 		callout_stop(&txq->ift_timer);
 		CALLOUT_UNLOCK(txq);
 	}
+	if (ctx->ifc_sctx->isc_flags & IFLIB_HAS_ADMINCQ)
+		IFDI_ADMIN_COMPLETION_HANDLE(ctx);
 	if (do_watchdog) {
 		ctx->ifc_watchdog_events++;
 		IFDI_WATCHDOG_RESET(ctx);
