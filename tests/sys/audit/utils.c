@@ -79,6 +79,7 @@ get_records(const char *auditregex, FILE *pipestream)
 
 		/* Print the tokens as they are obtained, in the default form */
 		au_print_flags_tok(memstream, &token, del, AU_OFLAG_NONE);
+		fputc(',', memstream);
 		bytes += token.len;
 	}
 
