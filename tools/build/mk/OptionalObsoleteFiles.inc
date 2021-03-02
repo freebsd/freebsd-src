@@ -1684,11 +1684,6 @@ OLD_FILES+=usr/sbin/uefisign
 OLD_FILES+=usr/share/examples/uefisign/uefikeys
 .endif
 
-.if ${MK_FMTREE} == no
-OLD_FILES+=usr/sbin/fmtree
-OLD_FILES+=usr/share/man/man8/fmtree.8.gz
-.endif
-
 .if ${MK_FTP} == no
 OLD_FILES+=etc/ftpusers
 OLD_FILES+=etc/newsyslog.conf.d/ftp.conf

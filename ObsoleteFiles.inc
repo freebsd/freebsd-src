@@ -36,6 +36,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210302: fmtree removed
+OLD_FILES+=usr/sbin/fmtree
+OLD_FILES+=usr/share/man/man8/fmtree.8.gz
+
 # 20210201: bump shared libraries which link against ncurses
 OLD_LIBS+=lib/libedit.so.7
 OLD_LIBS+=usr/lib/libdialog.so.8
