@@ -760,6 +760,10 @@ do {							\
 	mpr_printf((sc), tag "\n")
 #define MPR_PRINTFIELD(sc, facts, attr, fmt)	\
 	mpr_print_field((sc), #attr ": " #fmt "\n", (facts)->attr)
+#define MPR_PRINTFIELD_16(sc, facts, attr, fmt)	\
+	mpr_print_field((sc), #attr ": " #fmt "\n", le16toh((facts)->attr))
+#define MPR_PRINTFIELD_32(sc, facts, attr, fmt)	\
+	mpr_print_field((sc), #attr ": " #fmt "\n", le32toh((facts)->attr))
 
 static __inline void
 mpr_from_u64(uint64_t data, U64 *mpr)

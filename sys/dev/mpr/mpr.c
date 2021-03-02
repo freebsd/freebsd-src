@@ -111,6 +111,7 @@ static int mpr_wait_db_ack(struct mpr_softc *sc, int timeout, int sleep_flag);
 static int mpr_debug_sysctl(SYSCTL_HANDLER_ARGS);
 static int mpr_dump_reqs(SYSCTL_HANDLER_ARGS);
 static void mpr_parse_debug(struct mpr_softc *sc, char *list);
+static void adjust_iocfacts_endianness(MPI2_IOC_FACTS_REPLY *facts);
 
 SYSCTL_NODE(_hw, OID_AUTO, mpr, CTLFLAG_RD, 0, "MPR Driver Parameters");
 
@@ -416,7 +417,7 @@ mpr_resize_queues(struct mpr_softc *sc)
 	 * the size of an IEEE Simple SGE.
 	 */
 	if (sc->facts->MsgVersion >= MPI2_VERSION_02_05) {
-		chain_seg_size = htole16(sc->facts->IOCMaxChainSegmentSize);
+		chain_seg_size = sc->facts->IOCMaxChainSegmentSize;
 		if (chain_seg_size == 0)
 			chain_seg_size = MPR_DEFAULT_CHAIN_SEG_SIZE;
 		sc->chain_frame_size = chain_seg_size *
@@ -1055,15 +1056,21 @@ mpr_request_sync(struct mpr_softc *sc, void *req, MPI2_DEFAULT_REPLY *reply,
 		mpr_dprint(sc, MPR_FAULT, "Timeout reading doorbell 0\n");
 		return (ENXIO);
 	}
+
+	/*
+	 * If in a BE platform, swap bytes using le16toh to not
+	 * disturb 8 bit field neighbors in destination structure
+	 * pointed by data16.
+	 */
 	data16[0] =
-	    mpr_regread(sc, MPI2_DOORBELL_OFFSET) & MPI2_DOORBELL_DATA_MASK;
+	    le16toh(mpr_regread(sc, MPI2_DOORBELL_OFFSET)) & MPI2_DOORBELL_DATA_MASK;
 	mpr_regwrite(sc, MPI2_HOST_INTERRUPT_STATUS_OFFSET, 0x0);
 	if (mpr_wait_db_int(sc) != 0) {
 		mpr_dprint(sc, MPR_FAULT, "Timeout reading doorbell 1\n");
 		return (ENXIO);
 	}
 	data16[1] =
-	    mpr_regread(sc, MPI2_DOORBELL_OFFSET) & MPI2_DOORBELL_DATA_MASK;
+	    le16toh(mpr_regread(sc, MPI2_DOORBELL_OFFSET)) & MPI2_DOORBELL_DATA_MASK;
 	mpr_regwrite(sc, MPI2_HOST_INTERRUPT_STATUS_OFFSET, 0x0);
 
 	/* Number of 32bit words in the message */
@@ -1088,7 +1095,7 @@ mpr_request_sync(struct mpr_softc *sc, void *req, MPI2_DEFAULT_REPLY *reply,
 			    "Timeout reading doorbell %d\n", i);
 			return (ENXIO);
 		}
-		data16[i] = mpr_regread(sc, MPI2_DOORBELL_OFFSET) &
+		data16[i] = le16toh(mpr_regread(sc, MPI2_DOORBELL_OFFSET)) &
 		    MPI2_DOORBELL_DATA_MASK;
 		mpr_regwrite(sc, MPI2_HOST_INTERRUPT_STATUS_OFFSET, 0x0);
 	}
@@ -1143,14 +1150,43 @@ mpr_enqueue_request(struct mpr_softc *sc, struct mpr_command *cm)
 		mpr_regwrite(sc, MPI26_ATOMIC_REQUEST_DESCRIPTOR_POST_OFFSET,
 		    rd.u.low);
 	} else {
-		rd.u.low = cm->cm_desc.Words.Low;
-		rd.u.high = cm->cm_desc.Words.High;
-		rd.word = htole64(rd.word);
+		rd.u.low = htole32(cm->cm_desc.Words.Low);
+		rd.u.high = htole32(cm->cm_desc.Words.High);
 		mpr_regwrite(sc, MPI2_REQUEST_DESCRIPTOR_POST_LOW_OFFSET,
 		    rd.u.low);
 		mpr_regwrite(sc, MPI2_REQUEST_DESCRIPTOR_POST_HIGH_OFFSET,
 		    rd.u.high);
 	}
+}
+
+/*
+ * Ioc facts are read in 16 bit words and and stored with le16toh,
+ * this takes care of proper U8 fields endianness in
+ * MPI2_IOC_FACTS_REPLY, but we still need to swap back U16 fields.
+ */
+static void
+adjust_iocfacts_endianness(MPI2_IOC_FACTS_REPLY *facts)
+{
+	facts->HeaderVersion = le16toh(facts->HeaderVersion);
+	facts->Reserved1 = le16toh(facts->Reserved1);
+	facts->IOCExceptions = le16toh(facts->IOCExceptions);
+	facts->IOCStatus = le16toh(facts->IOCStatus);
+	facts->IOCLogInfo = le32toh(facts->IOCLogInfo);
+	facts->RequestCredit = le16toh(facts->RequestCredit);
+	facts->ProductID = le16toh(facts->ProductID);
+	facts->IOCCapabilities = le32toh(facts->IOCCapabilities);
+	facts->IOCRequestFrameSize = le16toh(facts->IOCRequestFrameSize);
+	facts->IOCMaxChainSegmentSize = le16toh(facts->IOCMaxChainSegmentSize);
+	facts->MaxInitiators = le16toh(facts->MaxInitiators);
+	facts->MaxTargets = le16toh(facts->MaxTargets);
+	facts->MaxSasExpanders = le16toh(facts->MaxSasExpanders);
+	facts->MaxEnclosures = le16toh(facts->MaxEnclosures);
+	facts->ProtocolFlags = le16toh(facts->ProtocolFlags);
+	facts->HighPriorityCredit = le16toh(facts->HighPriorityCredit);
+	facts->MaxReplyDescriptorPostQueueDepth = le16toh(facts->MaxReplyDescriptorPostQueueDepth);
+	facts->MaxDevHandle = le16toh(facts->MaxDevHandle);
+	facts->MaxPersistentEntries = le16toh(facts->MaxPersistentEntries);
+	facts->MinDevHandle = le16toh(facts->MinDevHandle);
 }
 
 /*
@@ -1173,6 +1209,9 @@ mpr_get_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 	bzero(&request, req_sz);
 	request.Function = MPI2_FUNCTION_IOC_FACTS;
 	error = mpr_request_sync(sc, &request, reply, req_sz, reply_sz, 5);
+
+	adjust_iocfacts_endianness(facts);
+	mpr_dprint(sc, MPR_TRACE, "facts->IOCCapabilities 0x%x\n", facts->IOCCapabilities);
 
 	mpr_dprint(sc, MPR_INIT, "%s exit, error= %d\n", __func__, error);
 	return (error);
@@ -1232,10 +1271,10 @@ mpr_send_iocinit(struct mpr_softc *sc)
 	init.HostPageSize = HOST_PAGE_SIZE_4K;
 
 	error = mpr_request_sync(sc, &init, &reply, req_sz, reply_sz, 5);
-	if ((reply.IOCStatus & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS)
+	if ((le16toh(reply.IOCStatus) & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS)
 		error = ENXIO;
 
-	mpr_dprint(sc, MPR_INIT, "IOCInit status= 0x%x\n", reply.IOCStatus);
+	mpr_dprint(sc, MPR_INIT, "IOCInit status= 0x%x\n", le16toh(reply.IOCStatus));
 	mpr_dprint(sc, MPR_INIT, "%s exit\n", __func__);
 	return (error);
 }
@@ -1568,7 +1607,7 @@ mpr_alloc_requests(struct mpr_softc *sc)
 		cm->cm_req_busaddr = sc->req_busaddr + i * sc->reqframesz;
 		cm->cm_sense = &sc->sense_frames[i];
 		cm->cm_sense_busaddr = sc->sense_busaddr + i * MPR_SENSE_LEN;
-		cm->cm_desc.Default.SMID = i;
+		cm->cm_desc.Default.SMID = htole16(i);
 		cm->cm_sc = sc;
 		cm->cm_state = MPR_CM_STATE_BUSY;
 		TAILQ_INIT(&cm->cm_chain_list);
@@ -1691,7 +1730,7 @@ mpr_init_queues(struct mpr_softc *sc)
 	 * Initialize all of the free queue entries.
 	 */
 	for (i = 0; i < sc->fqdepth; i++) {
-		sc->free_queue[i] = sc->reply_busaddr + (i * sc->replyframesz);
+		sc->free_queue[i] = htole32(sc->reply_busaddr + (i * sc->replyframesz));
 	}
 	sc->replyfreeindex = sc->num_replies;
 
@@ -2756,7 +2795,8 @@ mpr_update_events(struct mpr_softc *sc, struct mpr_event_handle *handle,
 		bcopy(fullmask, (uint8_t *)&evtreq->EventMasks, 16);
 	}
 #else
-		bcopy(sc->event_mask, (uint8_t *)&evtreq->EventMasks, 16);
+	for (i = 0; i < MPI2_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
+		evtreq->EventMasks[i] = htole32(sc->event_mask[i]);
 #endif
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	cm->cm_data = NULL;
@@ -2810,7 +2850,8 @@ mpr_reregister_events(struct mpr_softc *sc)
 		bcopy(fullmask, (uint8_t *)&evtreq->EventMasks, 16);
 	}
 #else
-		bcopy(sc->event_mask, (uint8_t *)&evtreq->EventMasks, 16);
+	for (i = 0; i < MPI2_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
+		evtreq->EventMasks[i] = htole32(sc->event_mask[i]);
 #endif
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	cm->cm_data = NULL;
@@ -3483,8 +3524,6 @@ mpr_push_sge(struct mpr_command *cm, MPI2_SGE_SIMPLE64 *sge, size_t len,
 		/* Endian Safe code */
 		sge_flags = sge->FlagsLength;
 		sge->FlagsLength = htole32(sge_flags);
-		sge->Address.High = htole32(sge->Address.High);	
-		sge->Address.Low = htole32(sge->Address.Low);
 		bcopy(sge, cm->cm_sge, len);
 		cm->cm_sge = (MPI2_SGE_IO_UNION *)((uintptr_t)cm->cm_sge + len);
 	}
@@ -3511,8 +3550,6 @@ mpr_push_sge(struct mpr_command *cm, MPI2_SGE_SIMPLE64 *sge, size_t len,
 	/* Endian Safe code */
 	sge_flags = sge->FlagsLength;
 	sge->FlagsLength = htole32(sge_flags);
-	sge->Address.High = htole32(sge->Address.High);	
-	sge->Address.Low = htole32(sge->Address.Low);
 	bcopy(sge, cm->cm_sge, len);
 	cm->cm_sge = (MPI2_SGE_IO_UNION *)((uintptr_t)cm->cm_sge + len);
 	return (0);
@@ -3571,8 +3608,6 @@ mpr_push_ieee_sge(struct mpr_command *cm, void *sgep, int segsleft)
 			/* Endian Safe code */
 			sge_length = sge->Length;
 			sge->Length = htole32(sge_length);
-			sge->Address.High = htole32(sge->Address.High);	
-			sge->Address.Low = htole32(sge->Address.Low);
 			bcopy(sgep, cm->cm_sge, ieee_sge_size);
 			cm->cm_sge =
 			    (MPI25_SGE_IO_UNION *)((uintptr_t)cm->cm_sge +
@@ -3590,8 +3625,6 @@ mpr_push_ieee_sge(struct mpr_command *cm, void *sgep, int segsleft)
 	/* Endian Safe code */
 	sge_length = sge->Length;
 	sge->Length = htole32(sge_length);
-	sge->Address.High = htole32(sge->Address.High);	
-	sge->Address.Low = htole32(sge->Address.Low);
 	bcopy(sgep, cm->cm_sge, ieee_sge_size);
 	cm->cm_sge = (MPI25_SGE_IO_UNION *)((uintptr_t)cm->cm_sge +
 	    ieee_sge_size);

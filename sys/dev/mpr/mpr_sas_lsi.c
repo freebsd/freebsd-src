@@ -160,11 +160,11 @@ mprsas_evt_handler(struct mpr_softc *sc, uintptr_t data,
 	}
 
 	bcopy(event->EventData, fw_event->event_data, sz);
-	fw_event->event = event->Event;
-	if ((event->Event == MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST ||
-	    event->Event == MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST ||
-	    event->Event == MPI2_EVENT_SAS_ENCL_DEVICE_STATUS_CHANGE ||
-	    event->Event == MPI2_EVENT_IR_CONFIGURATION_CHANGE_LIST) &&
+	fw_event->event = le16toh(event->Event);
+	if ((fw_event->event == MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST ||
+	    fw_event->event == MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST ||
+	    fw_event->event == MPI2_EVENT_SAS_ENCL_DEVICE_STATUS_CHANGE ||
+	    fw_event->event == MPI2_EVENT_IR_CONFIGURATION_CHANGE_LIST) &&
 	    sc->track_mapping_events)
 		sc->pending_map_events++;
 
@@ -173,9 +173,9 @@ mprsas_evt_handler(struct mpr_softc *sc, uintptr_t data,
 	 * are processed. Increment the startup_refcount and decrement it after
 	 * events are processed.
 	 */
-	if ((event->Event == MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST ||
-	    event->Event == MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST ||
-	    event->Event == MPI2_EVENT_IR_CONFIGURATION_CHANGE_LIST) &&
+	if ((fw_event->event == MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST ||
+	    fw_event->event == MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST ||
+	    fw_event->event == MPI2_EVENT_IR_CONFIGURATION_CHANGE_LIST) &&
 	    sc->wait_for_port_enable)
 		mprsas_startup_increment(sc->sassc);
 
@@ -868,9 +868,8 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 			parent_devinfo = le32toh(parent_config_page.DeviceInfo);
 		}
 	}
-	/* TODO Check proper endianness */
-	sas_address = config_page.SASAddress.High;
-	sas_address = (sas_address << 32) | config_page.SASAddress.Low;
+	sas_address = htole32(config_page.SASAddress.High);
+	sas_address = (sas_address << 32) | htole32(config_page.SASAddress.Low);
 	mpr_dprint(sc, MPR_MAPPING, "Handle 0x%04x SAS Address from SAS device "
 	    "page0 = %jx\n", handle, sas_address);
 

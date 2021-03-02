@@ -2572,7 +2572,7 @@ mpr_mapping_initialize(struct mpr_softc *sc)
 	sc->pending_map_events = 0;
 	sc->num_enc_table_entries = 0;
 	sc->num_rsvd_entries = 0;
-	sc->max_dpm_entries = sc->ioc_pg8.MaxPersistentEntries;
+	sc->max_dpm_entries = le16toh(sc->ioc_pg8.MaxPersistentEntries);
 	sc->is_dpm_enable = (sc->max_dpm_entries) ? 1 : 0;
 	sc->track_mapping_events = 0;
 
@@ -2586,7 +2586,7 @@ mpr_mapping_initialize(struct mpr_softc *sc)
 	if (ioc_pg8_flags & MPI2_IOCPAGE8_FLAGS_RESERVED_TARGETID_0)
 		sc->num_rsvd_entries = 1;
 
-	volume_mapping_flags = sc->ioc_pg8.IRVolumeMappingFlags &
+	volume_mapping_flags = le16toh(sc->ioc_pg8.IRVolumeMappingFlags) &
 	    MPI2_IOCPAGE8_IRFLAGS_MASK_VOLUME_MAPPING_MODE;
 	if (sc->ir_firmware && (volume_mapping_flags ==
 	    MPI2_IOCPAGE8_IRFLAGS_LOW_VOLUME_MAPPING))

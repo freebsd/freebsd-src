@@ -2130,7 +2130,7 @@ mprsas_action_scsiio(struct mprsas_softc *sassc, union ccb *ccb)
 		}
 
 		if ((lun != NULL) && (lun->eedp_formatted)) {
-			req->EEDPBlockSize = htole16(lun->eedp_block_size);
+			req->EEDPBlockSize = htole32(lun->eedp_block_size);
 			eedp_flags |= (MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG |
 			    MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG |
 			    MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD);
@@ -2501,10 +2501,6 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 	target_id_t target_id;
 
 	MPR_FUNCTRACE(sc);
-	mpr_dprint(sc, MPR_TRACE,
-	    "cm %p SMID %u ccb %p reply %p outstanding %u\n", cm,
-	    cm->cm_desc.Default.SMID, cm->cm_ccb, cm->cm_reply,
-	    cm->cm_targ->outstanding);
 
 	callout_stop(&cm->cm_callout);
 	mtx_assert(&sc->mpr_mtx, MA_OWNED);
@@ -2514,6 +2510,12 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 	csio = &ccb->csio;
 	target_id = csio->ccb_h.target_id;
 	rep = (MPI2_SCSI_IO_REPLY *)cm->cm_reply;
+	mpr_dprint(sc, MPR_TRACE,
+	    "cm %p SMID %u ccb %p reply %p outstanding %u csio->scsi_status 0x%x,"
+	    "csio->dxfer_len 0x%x, csio->msg_le 0x%xn\n", cm,
+	    cm->cm_desc.Default.SMID, cm->cm_ccb, cm->cm_reply,
+	    cm->cm_targ->outstanding, csio->scsi_status,
+	    csio->dxfer_len, csio->msg_len);
 	/*
 	 * XXX KDM if the chain allocation fails, does it matter if we do
 	 * the sync and unload here?  It is simpler to do it in every case,
@@ -3892,7 +3894,7 @@ mprsas_portenable_complete(struct mpr_softc *sc, struct mpr_command *cm)
 	reply = (MPI2_PORT_ENABLE_REPLY *)cm->cm_reply;
 	if (reply == NULL)
 		mpr_dprint(sc, MPR_FAULT, "Portenable NULL reply\n");
-	else if (le16toh(reply->IOCStatus & MPI2_IOCSTATUS_MASK) !=
+	else if ((le16toh(reply->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
 	    MPI2_IOCSTATUS_SUCCESS)
 		mpr_dprint(sc, MPR_FAULT, "Portenable failed\n");
 
