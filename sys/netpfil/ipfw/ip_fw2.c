@@ -2620,9 +2620,7 @@ do {								\
 #ifndef USERSPACE	/* not supported in userspace */
 				struct inpcb *inp = args->inp;
 				struct inpcbinfo *pi;
-				
-				if (is_ipv6) /* XXX can we remove this ? */
-					break;
+				bool inp_locked = false;
 
 				if (proto == IPPROTO_TCP)
 					pi = &V_tcbinfo;
@@ -2638,27 +2636,37 @@ do {								\
 				 * certainly be inp_user_cookie?
 				 */
 
-				/* For incoming packet, lookup up the 
-				inpcb using the src/dest ip/port tuple */
-				if (inp == NULL) {
-					inp = in_pcblookup(pi, 
-						src_ip, htons(src_port),
-						dst_ip, htons(dst_port),
-						INPLOOKUP_RLOCKPCB, NULL);
-					if (inp != NULL) {
-						tablearg =
-						    inp->inp_socket->so_user_cookie;
-						if (tablearg)
-							match = 1;
-						INP_RUNLOCK(inp);
-					}
-				} else {
+				/*
+				 * For incoming packet lookup the inpcb
+				 * using the src/dest ip/port tuple.
+				 */
+				if (is_ipv4 && inp == NULL) {
+					inp = in_pcblookup(pi,
+					    src_ip, htons(src_port),
+					    dst_ip, htons(dst_port),
+					    INPLOOKUP_RLOCKPCB, NULL);
+					inp_locked = true;
+				}
+#ifdef INET6
+				if (is_ipv6 && inp == NULL) {
+					inp = in6_pcblookup(pi,
+					    &args->f_id.src_ip6,
+					    htons(src_port),
+					    &args->f_id.dst_ip6,
+					    htons(dst_port),
+					    INPLOOKUP_RLOCKPCB, NULL);
+					inp_locked = true;
+				}
+#endif /* INET6 */
+				if (inp != NULL) {
 					if (inp->inp_socket) {
 						tablearg =
 						    inp->inp_socket->so_user_cookie;
 						if (tablearg)
 							match = 1;
 					}
+					if (inp_locked)
+						INP_RUNLOCK(inp);
 				}
 #endif /* !USERSPACE */
 				break;
