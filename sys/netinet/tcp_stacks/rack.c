@@ -12305,7 +12305,7 @@ again:
 			sb_offset = tp->snd_nxt - tp->snd_una;
 		else
 			sb_offset = 0;
-		if ((IN_RECOVERY(tp->t_flags) == 0) || rack->rack_no_prr) {
+		if ((IN_FASTRECOVERY(tp->t_flags) == 0) || rack->rack_no_prr) {
 			if (rack->r_ctl.rc_tlp_new_data) {
 				/* TLP is forcing out new data */
 				if (rack->r_ctl.rc_tlp_new_data > (uint32_t) (avail - sb_offset)) {
@@ -12319,7 +12319,7 @@ again:
 				new_data_tlp = doing_tlp = 1;
 			}  else
 				len = rack_what_can_we_send(tp, rack, cwnd_to_use, avail, sb_offset);
-			if (IN_RECOVERY(tp->t_flags) && (len > segsiz)) {
+			if (IN_FASTRECOVERY(tp->t_flags) && (len > segsiz)) {
 				/*
 				 * For prr=off, we need to send only 1 MSS
 				 * at a time. We do this because another sack could
