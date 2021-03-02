@@ -1236,8 +1236,10 @@ below.
 .Xr pf 4
 has the ability to
 .Ar block
-and
+,
 .Ar pass
+and
+.Ar match
 packets based on attributes of their layer 3 (see
 .Xr ip 4
 and
@@ -1253,7 +1255,15 @@ assigned to queues for the purpose of bandwidth control.
 .Pp
 For each packet processed by the packet filter, the filter rules are
 evaluated in sequential order, from first to last.
-The last matching rule decides what action is taken.
+For
+.Ar block
+and
+.Ar pass
+, the last matching rule decides what action is taken.
+For
+.Ar match
+, rules are evaulated every time they match; the pass/block state of a packet
+remains unchanged.
 If no rule matches the packet, the default action is to pass
 the packet.
 .Pp
@@ -1301,6 +1311,21 @@ packets that match explicit rules is specify a first filter rule of:
 .Bd -literal -offset indent
 block all
 .Ed
+.It Ar match
+The packet is matched.
+This mechanism is used to provide fine grained filtering without altering the
+block/pass state of a packet.
+.Ar match
+rules differ from
+.Ar block
+and
+.Ar pass
+rules in that parameters are set every time a packet matches the rule, not only
+on the last matching rule.
+For the following parameters, this means that the parameter effectively becomes
+"sticky" until explicitly overridden:
+.Ar queue
+.
 .It Ar pass
 The packet is passed;
 state is created unless the
