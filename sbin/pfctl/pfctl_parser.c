@@ -708,7 +708,9 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 
 	if (verbose)
 		printf("@%d ", r->nr);
-	if (r->action > PF_NORDR)
+	if (r->action == PF_MATCH)
+		printf("match");
+	else if (r->action > PF_NORDR)
 		printf("action(%d)", r->action);
 	else if (anchor_call[0]) {
 		if (anchor_call[0] == '_') {

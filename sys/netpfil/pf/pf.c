@@ -257,6 +257,8 @@ static int		 pf_state_key_attach(struct pf_state_key *,
 static void		 pf_state_key_detach(struct pf_kstate *, int);
 static int		 pf_state_key_ctor(void *, int, void *, int);
 static u_int32_t	 pf_tcp_iss(struct pf_pdesc *);
+void			 pf_rule_to_actions(struct pf_krule *,
+			    struct pf_rule_actions *);
 static int		 pf_test_rule(struct pf_krule **, struct pf_kstate **,
 			    int, struct pfi_kkif *, struct mbuf *, int,
 			    struct pf_pdesc *, struct pf_krule **,
@@ -3112,6 +3114,15 @@ pf_addr_inc(struct pf_addr *addr, sa_family_t af)
 }
 #endif /* INET6 */
 
+void
+pf_rule_to_actions(struct pf_krule *r, struct pf_rule_actions *a)
+{
+	if (r->qid)
+		a->qid = r->qid;
+	if (r->pqid)
+		a->pqid = r->pqid;
+}
+
 int
 pf_socket_lookup(int direction, struct pf_pdesc *pd, struct mbuf *m)
 {
@@ -3620,10 +3631,20 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, int direction,
 			if (r->rtableid >= 0)
 				rtableid = r->rtableid;
 			if (r->anchor == NULL) {
-				match = 1;
-				*rm = r;
-				*am = a;
-				*rsm = ruleset;
+				if (r->action == PF_MATCH) {
+					counter_u64_add(r->packets[direction == PF_OUT], 1);
+					counter_u64_add(r->bytes[direction == PF_OUT], pd->tot_len);
+					pf_rule_to_actions(r, &pd->act);
+					if (r->log)
+						PFLOG_PACKET(kif, m, af,
+						    direction, PFRES_MATCH, r,
+						    a, ruleset, pd, 1);
+				} else {
+					match = 1;
+					*rm = r;
+					*am = a;
+					*rsm = ruleset;
+				}
 				if ((*rm)->quick)
 					break;
 				r = TAILQ_NEXT(r, entries);
@@ -3641,6 +3662,9 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, int direction,
 	ruleset = *rsm;
 
 	REASON_SET(&reason, PFRES_MATCH);
+
+	/* apply actions for last matching pass/block rule */
+	pf_rule_to_actions(r, &pd->act);
 
 	if (r->log || (nr != NULL && nr->log)) {
 		if (rewrite)
@@ -3760,6 +3784,8 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		s->state_flags |= PFSTATE_SLOPPY;
 	s->log = r->log & PF_LOG_ALL;
 	s->sync_state = PFSYNC_S_NONE;
+	s->qid = pd->act.qid;
+	s->pqid = pd->act.pqid;
 	if (nr != NULL)
 		s->log |= nr->log & PF_LOG_ALL;
 	switch (pd->proto) {
@@ -4019,10 +4045,20 @@ pf_test_fragment(struct pf_krule **rm, int direction, struct pfi_kkif *kif,
 			r = TAILQ_NEXT(r, entries);
 		else {
 			if (r->anchor == NULL) {
-				match = 1;
-				*rm = r;
-				*am = a;
-				*rsm = ruleset;
+				if (r->action == PF_MATCH) {
+					counter_u64_add(r->packets[direction == PF_OUT], 1);
+					counter_u64_add(r->bytes[direction == PF_OUT], pd->tot_len);
+					pf_rule_to_actions(r, &pd->act);
+					if (r->log)
+						PFLOG_PACKET(kif, m, af,
+						    direction, PFRES_MATCH, r,
+						    a, ruleset, pd, 1);
+				} else {
+					match = 1;
+					*rm = r;
+					*am = a;
+					*rsm = ruleset;
+				}
 				if ((*rm)->quick)
 					break;
 				r = TAILQ_NEXT(r, entries);
@@ -4040,6 +4076,9 @@ pf_test_fragment(struct pf_krule **rm, int direction, struct pfi_kkif *kif,
 	ruleset = *rsm;
 
 	REASON_SET(&reason, PFRES_MATCH);
+
+	/* apply actions for last matching pass/block rule */
+	pf_rule_to_actions(r, &pd->act);
 
 	if (r->log)
 		PFLOG_PACKET(kif, m, af, direction, reason, r, a, ruleset, pd,
@@ -6152,7 +6191,14 @@ done:
 	}
 
 #ifdef ALTQ
-	if (action == PF_PASS && r->qid) {
+	if (s && s->qid) {
+		pd.act.pqid = s->pqid;
+		pd.act.qid = s->qid;
+	} else if (r->qid) {
+		pd.act.pqid = r->pqid;
+		pd.act.qid = r->qid;
+	}
+	if (action == PF_PASS && pd.act.qid) {
 		if (pd.pf_mtag == NULL &&
 		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
 			action = PF_DROP;
@@ -6161,9 +6207,9 @@ done:
 			if (s != NULL)
 				pd.pf_mtag->qid_hash = pf_state_hash(s);
 			if (pqid || (pd.tos & IPTOS_LOWDELAY))
-				pd.pf_mtag->qid = r->pqid;
+				pd.pf_mtag->qid = pd.act.pqid;
 			else
-				pd.pf_mtag->qid = r->qid;
+				pd.pf_mtag->qid = pd.act.qid;
 			/* Add hints for ecn. */
 			pd.pf_mtag->hdr = h;
 		}
@@ -6592,7 +6638,14 @@ done:
 	}
 
 #ifdef ALTQ
-	if (action == PF_PASS && r->qid) {
+	if (s && s->qid) {
+		pd.act.pqid = s->pqid;
+		pd.act.qid = s->qid;
+	} else if (r->qid) {
+		pd.act.pqid = r->pqid;
+		pd.act.qid = r->qid;
+	}
+	if (action == PF_PASS && pd.act.qid) {
 		if (pd.pf_mtag == NULL &&
 		    ((pd.pf_mtag = pf_get_mtag(m)) == NULL)) {
 			action = PF_DROP;
@@ -6601,9 +6654,9 @@ done:
 			if (s != NULL)
 				pd.pf_mtag->qid_hash = pf_state_hash(s);
 			if (pd.tos & IPTOS_LOWDELAY)
-				pd.pf_mtag->qid = r->pqid;
+				pd.pf_mtag->qid = pd.act.pqid;
 			else
-				pd.pf_mtag->qid = r->qid;
+				pd.pf_mtag->qid = pd.act.qid;
 			/* Add hints for ecn. */
 			pd.pf_mtag->hdr = h;
 		}
