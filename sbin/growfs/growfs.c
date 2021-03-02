@@ -1461,10 +1461,9 @@ main(int argc, char **argv)
 		}
 	}
 	/*
-	 * Check for unclean filesystem.
+	 * Check for filesystem that was unclean at mount time.
 	 */
-	if (fs->fs_clean == 0 ||
-	    (fs->fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) != 0)
+	if ((fs->fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) != 0)
 		errx(1, "%s is not clean - run fsck.\n", *argv);
 	memcpy(&osblock, fs, fs->fs_sbsize);
 	free(fs);
