@@ -849,6 +849,7 @@ static void
 icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 {
 	struct icl_pdu *request, *request2;
+	struct mbuf *m;
 	struct socket *so;
 	long available, size, size2;
 	int coalesced, error;
@@ -908,8 +909,8 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 			return;
 		}
 		if (coalesce) {
-			coalesced = 1;
-			for (;;) {
+			m = request->ip_bhs_mbuf;
+			for (coalesced = 1; ; coalesced++) {
 				request2 = STAILQ_FIRST(queue);
 				if (request2 == NULL)
 					break;
@@ -926,13 +927,14 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 					icl_conn_fail(ic);
 					return;
 				}
-				m_cat(request->ip_bhs_mbuf, request2->ip_bhs_mbuf);
+				while (m->m_next)
+					m = m->m_next;
+				m_cat(m, request2->ip_bhs_mbuf);
 				request2->ip_bhs_mbuf = NULL;
 				request->ip_bhs_mbuf->m_pkthdr.len += size2;
 				size += size2;
 				STAILQ_REMOVE_AFTER(queue, request, ip_next);
 				icl_soft_pdu_done(request2, 0);
-				coalesced++;
 			}
 #if 0
 			if (coalesced > 1) {
