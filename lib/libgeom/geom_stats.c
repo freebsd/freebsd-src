@@ -136,9 +136,8 @@ geom_stats_snapshot_get(void)
 		free(sp);
 		return (NULL);
 	}
-	memset(sp->ptr, 0, pagesize * npages); 	/* page in, cache */
+	explicit_bzero(sp->ptr, pagesize * npages); 	/* page in, cache */
 	clock_gettime(CLOCK_REALTIME, &sp->time);
-	memset(sp->ptr, 0, pagesize * npages); 	/* page in, cache */
 	memcpy(sp->ptr, statp, pagesize * npages);
 	sp->pages = npages;
 	sp->perpage = spp;
