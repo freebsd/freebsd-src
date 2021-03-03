@@ -536,6 +536,18 @@ struct adapter {
         "\t2 - tx pause\n" \
         "\t3 - tx and rx pause"
 
+#define IXGBE_SYSCTL_DESC_RX_ERRS \
+		"\nSum of the following RX errors counters:\n" \
+		" * CRC errors,\n" \
+		" * illegal byte error count,\n" \
+		" * checksum error count,\n" \
+		" * missed packet count,\n" \
+		" * length error count,\n" \
+		" * undersized packets count,\n" \
+		" * fragmented packets count,\n" \
+		" * oversized packets count,\n" \
+		" * jabber count."
+
 /* Workaround to make 8.0 buildable */
 #if __FreeBSD_version >= 800000 && __FreeBSD_version < 800504
 static __inline int
