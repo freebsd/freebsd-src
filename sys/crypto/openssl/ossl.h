@@ -39,6 +39,10 @@ struct crypto_session_params;
 
 int	ossl_chacha20(struct cryptop *crp,
 	    const struct crypto_session_params *csp);
+int	ossl_chacha20_poly1305_decrypt(struct cryptop *crp,
+	    const struct crypto_session_params *csp);
+int	ossl_chacha20_poly1305_encrypt(struct cryptop *crp,
+	    const struct crypto_session_params *csp);
 void ossl_cpuid(void);
 
 /* Needs to be big enough to hold any hash context. */
