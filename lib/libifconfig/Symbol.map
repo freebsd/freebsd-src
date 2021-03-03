@@ -10,7 +10,7 @@ FBSD_1.6 {
 	ifconfig_err_errtype;
 	ifconfig_err_ioctlreq;
 	ifconfig_foreach_ifaddr;
-	ifconfig_foreach_interface;
+	ifconfig_foreach_iface;
 	ifconfig_get_capability;
 	ifconfig_get_description;
 	ifconfig_get_fib;
