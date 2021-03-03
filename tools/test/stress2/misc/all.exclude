@@ -1,0 +1,111 @@
+# List of tests not to run, unless the '-a' option is used with run.sh
+# Exclude names must start in column 1
+
+backingstore.sh		g_vfs_done():md6a[WRITE(offset=...)]error = 28			20111220
+backingstore2.sh	panic: 43 vncache entries remaining				20111220
+backingstore3.sh	g_vfs_done():md6a[WRITE(offset=...)]error = 28			20111230
+collapse.sh		panic: freeing mapped page 0xfffffe0028ed1d50			20200106
+dd.sh			CAM stuck in vmwait						20200116
+devfs4.sh		Hang seen							20210210
+fsync.sh		panic: Journal overflow						20190208
+fuse.sh			Memory corruption seen in log file kostik734.txt		20141114
+fuse2.sh		Deadlock seen							20121129
+fuse3.sh		Deadlock seen							20141120
+getrandom.sh		Known DoS issue							20201107
+getrandom2.sh		Known DoS issue							20200302
+gjournal.sh		panic: Journal overflow						20190626
+gjournal2.sh		panic: Journal overflow						20180125
+gjournal3.sh		panic: Bio not on queue						20171225
+gjournal4.sh		CAM stuck in vmwait						20180517
+gnop7.sh		Waiting for patch commit					20190820
+gnop8.sh		Waiting for patch commit					20201214
+gnop9.sh		Waiting for patch commit					20201214
+gnop10.sh		Waiting for patch commit					20210105
+graid1_8.sh		Known issue							20170909
+graid1_9.sh		panic: Bad effnlink						20180212
+lockf5.sh		Spinning threads seen						20160718
+ifconfig2.sh		https://people.freebsd.org/~pho/stress/log/log0051.txt		20210210
+maxvnodes.sh		Only supposed to work in single user mode			20190412
+maxvnodes2.sh		Only supposed to work in single user mode			20190412
+memguard.sh		Waiting for fix commit
+memguard2.sh		Waiting for fix commit
+memguard3.sh		Waiting for fix commit
+memsetdomain.sh		May change policy for random threads to to domainset_fixed	20210104
+mlockall2.sh		Unrecoverable OOM killing seen					20190203
+mlockall7.sh		Needs further investigation					20210123
+nfs15lockd.sh		panic: Assertion td->td_realucred == td->td_ucred failed ...	20210211
+Xnfs15lockd2.sh		WiP								20200805
+Xnfs15lockd3.sh		WiP								20200805
+newfs4.sh		watchdog fired. newbuf						20190225
+nfs10.sh		Double fault							20151013
+nfs13.sh		mount_nfs hangs in mntref					20191007
+nfs16.sh		panic: Failed to register NFS lock locally - error=11		20160608
+oom2.sh			Hang in pfault							20180324
+overcommit2.sh		CAM stuck in vmwait seen					20200112
+pageout.sh		panic: handle_written_filepage: not started			20190218
+pmc4.sh			ld: error: /usr/lib/libpmc.so: undefined reference		20210124
+pmc5.sh			ld: error: /usr/lib/libpmc.so: undefined reference		20210124
+pmc6.sh			ld: error: /usr/lib/libpmc.so: undefined reference		20210124
+quota10.sh		people.freebsd.org/~pho/stress/log/quota10-2.txt		20200525
+quota2.sh		panic: dqflush: stray dquot					20120221
+quota3.sh		panic: softdep_deallocate_dependencies: unrecovered ...		20111222
+quota7.sh		panic: dqflush: stray dquot					20120221
+Xrename14.sh		mark136.txt							20200525
+sctp.sh			panic: Queues are not empty when handling ... i386		20201104
+sctp2.sh		panic: soclose: SS_NOFDREF on enter				20200307
+sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
+sendfile25.sh		WiP								20200611
+signal.sh		Timing issues. Needs fixing					20171116
+snap8.sh		https://people.freebsd.org/~pho/stress/log/log0049.txt		20210216
+snap9.sh		panic: handle_written_filepage: not started			20170722
+snap11.sh		panic: handle_written_filepage: not started			20200928
+suj13.sh		Stuck with suspfs						20210105
+suj31.sh		Stuck with suspfs						20210105
+suj34.sh		Various hangs and panics (SUJ + NULLFS issue)			20131210
+Xswap4.sh		WiP								20171208
+swapoff2.sh		swap_pager_force_pagein: read from swap failed			20171223
+swapoff5.sh		log0005.txt, known issue					20210111
+systrace.sh		WiP								20200227
+systrace2.sh		WiP								20200227
+syzkaller11.sh		WiP								20200721
+syzkaller15.sh		WiP								20200712
+syzkaller16.sh		WiP								20200620
+syzkaller17.sh		WiP								20200630
+syzkaller19.sh		WiP								20200712
+syzkaller25.sh		WiP								20201116
+syzkaller28.sh		WiP								20201120
+syzkaller29.sh		May change policy for random threads to to domainset_fixed	20210104
+syzkaller30.sh		May change policy for random threads to to domainset_fixed	20210104
+truss3.sh		WiP								20200915
+unionfs.sh		insmntque: non-locked vp: xx is not exclusive locked...		20130909
+unionfs2.sh		insmntque: mp-safe fs and non-locked vp is not ...		20111219
+unionfs3.sh		insmntque: mp-safe fs and non-locked vp is not ...		20111216
+
+# Test not to run for other reasons:
+
+fuzz.sh			A know issue
+marcus3.sh		OK, but runs for a long time
+statfs.sh		Not very interesting
+vunref.sh		No problems ever seen
+vunref2.sh		No problems ever seen
+
+# Snapshots has been disabled on SU+J
+suj15.sh
+suj16.sh
+suj19.sh
+suj20.sh
+suj21.sh
+suj22.sh
+suj24.sh
+suj25.sh
+suj26.sh
+suj27.sh
+suj28.sh
+
+# Exclude NFS loopback tests
+nfs2.sh			panic: wrong diroffset						20140219
+nfs5.sh
+nfs6.sh
+nfs11.sh		vmwait deadlock							20151004
+nullfs8.sh
+tmpfs18.sh		mntref hang seen						20191019

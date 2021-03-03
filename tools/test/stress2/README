@@ -1,0 +1,20 @@
+stress2 is a tool for finding problems in the kernel.
+
+It is composed of a large number of regression tests, tests that
+stress various components of the kernel and a few validation tests.
+There are currently some 700 different tests.
+
+The key idea behind stress2 is to randomize as much as possible in
+a test, as a way of achieving better coverage.  For example, varying
+VM pressure, varying numbers of threads, varying delays, etc.
+stress2 has found a large number of problems:
+https://people.freebsd.org/~pho/stress/log/
+
+To run the full test suite type "make test" in the stress2 directory.
+
+To run a subset of tests, go to the stress2/misc directory.
+    To run for example all tmpfs tests, type ./all.sh -o $(grep -l tmpfs *.sh)
+    To run fdatasync.sh for one hour, type ./all.sh -m 60 fdatasync.sh"
+    To run dup2.sh three times, type ./all.sh -l 3 dup2.sh
+
+Peter Holm <pho@FreeBSD.org>
