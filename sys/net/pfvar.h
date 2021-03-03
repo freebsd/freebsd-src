@@ -896,6 +896,7 @@ struct pfi_kkif {
 #define	PFI_IFLAG_REFS		0x0001	/* has state references */
 #define PFI_IFLAG_SKIP		0x0100	/* skip filtering on interface */
 
+#ifdef _KERNEL
 struct pf_pdesc {
 	struct {
 		int	 done;
@@ -935,6 +936,7 @@ struct pf_pdesc {
 	u_int8_t	 sidx;		/* key index for source */
 	u_int8_t	 didx;		/* key index for destination */
 };
+#endif
 
 /* flags for RDR options */
 #define PF_DPORT_RANGE	0x01		/* Dest port uses range */
