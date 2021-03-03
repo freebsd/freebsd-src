@@ -72,7 +72,7 @@ char ProcessState(int pid) {
   }
   unsigned int count = 0;
   struct procstat *prstat = procstat_open_sysctl();
-  EXPECT_NE(NULL, prstat) << "procstat_open_sysctl failed.";
+  EXPECT_NE(nullptr, prstat) << "procstat_open_sysctl failed.";
   errno = 0;
   struct kinfo_proc *p = procstat_getprocs(prstat, KERN_PROC_PID, pid, &count);
   if (p == NULL || count == 0) {
