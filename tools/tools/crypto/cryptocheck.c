@@ -1141,6 +1141,7 @@ run_gmac_test(const struct alg *alg, size_t size)
 
 out:
 	free(buffer);
+	free(iv);
 	free(key);
 }
 
