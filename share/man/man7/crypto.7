@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 18, 2021
+.Dd March 3, 2021
 .Dt CRYPTO 7
 .Os
 .Sh NAME
@@ -136,7 +136,7 @@ counter rollover.
 .Dv CRYPTO_CHACHA20
 accepts a 16 byte IV.
 The first 8 bytes are used as a nonce.
-The last 8 bytes are used as 64-bit big-endian block counter.
+The last 8 bytes are used as a 64-bit little-endian block counter.
 .Ss Authenticated Encryption with Associated Data Algorithms
 AEAD algorithms in OCF combine a stream cipher with an authentication
 algorithm to provide both secrecy and authentication.
