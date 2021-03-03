@@ -387,6 +387,7 @@ struct rx_ring {
 	u64			rx_packets;
 	u64 			rx_bytes;
 	u64 			desc_errs;
+	u64			csum_errs;
 };
 
 /*
