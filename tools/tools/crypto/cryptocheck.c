@@ -98,6 +98,7 @@
  *	gmac		128-bit GMAC
  *	gmac192		192-bit GMAC
  *	gmac256		256-bit GMAC
+ *	poly1305
  *
  * Ciphers:
  *	aes-cbc		128-bit AES-CBC
@@ -149,10 +150,12 @@ static const struct alg {
 	const char *name;
 	int cipher;
 	int mac;
-	enum { T_HASH, T_HMAC, T_GMAC, T_CIPHER, T_ETA, T_AEAD } type;
+	enum { T_HASH, T_HMAC, T_GMAC, T_DIGEST, T_CIPHER, T_ETA, T_AEAD } type;
+	int key_len;
 	int tag_len;
 	const EVP_CIPHER *(*evp_cipher)(void);
 	const EVP_MD *(*evp_md)(void);
+	int pkey;
 } algs[] = {
 	{ .name = "sha1", .mac = CRYPTO_SHA1, .type = T_HASH,
 	  .evp_md = EVP_sha1 },
@@ -184,6 +187,8 @@ static const struct alg {
 	  .tag_len = AES_GMAC_HASH_LEN, .evp_cipher = EVP_aes_192_gcm },
 	{ .name = "gmac256", .mac = CRYPTO_AES_NIST_GMAC, .type = T_GMAC,
 	  .tag_len = AES_GMAC_HASH_LEN, .evp_cipher = EVP_aes_256_gcm },
+	{ .name = "poly1305", .mac = CRYPTO_POLY1305, .type = T_DIGEST,
+	  .key_len = POLY1305_KEY_LEN, .pkey = EVP_PKEY_POLY1305 },
 	{ .name = "aes-cbc", .cipher = CRYPTO_AES_CBC, .type = T_CIPHER,
 	  .evp_cipher = EVP_aes_128_cbc },
 	{ .name = "aes-cbc192", .cipher = CRYPTO_AES_CBC, .type = T_CIPHER,
@@ -1061,7 +1066,7 @@ openssl_gmac(const struct alg *alg, const EVP_CIPHER *cipher, const char *key,
 }
 
 static bool
-ocf_gmac(const struct alg *alg, const char *input, size_t size, const char *key,
+ocf_mac(const struct alg *alg, const char *input, size_t size, const char *key,
     size_t key_len, const char *iv, char *tag, int *cridp)
 {
 	struct ocf_session ses;
@@ -1072,7 +1077,7 @@ ocf_gmac(const struct alg *alg, const char *input, size_t size, const char *key,
 	sop.mackeylen = key_len;
 	sop.mackey = key;
 	sop.mac = alg->mac;
-	if (!ocf_init_session(&sop, "GMAC", alg->name, &ses))
+	if (!ocf_init_session(&sop, "MAC", alg->name, &ses))
 		return (false);
 
 	ocf_init_cop(&ses, &cop);
@@ -1119,7 +1124,78 @@ run_gmac_test(const struct alg *alg, size_t size)
 	openssl_gmac(alg, cipher, key, iv, buffer, size, control_tag);
 
 	/* OCF GMAC. */
-	if (!ocf_gmac(alg, buffer, size, key, key_len, iv, test_tag, &crid))
+	if (!ocf_mac(alg, buffer, size, key, key_len, iv, test_tag, &crid))
+		goto out;
+	if (memcmp(control_tag, test_tag, sizeof(control_tag)) != 0) {
+		printf("%s (%zu) mismatch:\n", alg->name, size);
+		printf("control:\n");
+		hexdump(control_tag, sizeof(control_tag), NULL, 0);
+		printf("test (cryptodev device %s):\n", crfind(crid));
+		hexdump(test_tag, sizeof(test_tag), NULL, 0);
+		goto out;
+	}
+
+	if (verbose)
+		printf("%s (%zu) matched (cryptodev device %s)\n",
+		    alg->name, size, crfind(crid));
+
+out:
+	free(buffer);
+	free(key);
+}
+
+static void
+openssl_digest(const struct alg *alg, const char *key, u_int key_len,
+    const char *input, size_t size, char *tag, u_int tag_len)
+{
+	EVP_MD_CTX *mdctx;
+	EVP_PKEY *pkey;
+	size_t len;
+
+	pkey = EVP_PKEY_new_raw_private_key(alg->pkey, NULL, key, key_len);
+	if (pkey == NULL)
+		errx(1, "OpenSSL %s (%zu) pkey new failed: %s", alg->name,
+		    size, ERR_error_string(ERR_get_error(), NULL));
+	mdctx = EVP_MD_CTX_new();
+	if (mdctx == NULL)
+		errx(1, "OpenSSL %s (%zu) ctx new failed: %s", alg->name,
+		    size, ERR_error_string(ERR_get_error(), NULL));
+	if (EVP_DigestSignInit(mdctx, NULL, NULL, NULL, pkey) != 1)
+		errx(1, "OpenSSL %s (%zu) digest sign init failed: %s",
+		    alg->name, size, ERR_error_string(ERR_get_error(), NULL));
+	if (EVP_DigestSignUpdate(mdctx, input, size) != 1)
+		errx(1, "OpenSSL %s (%zu) digest update failed: %s", alg->name,
+		    size, ERR_error_string(ERR_get_error(), NULL));
+	len = tag_len;
+	if (EVP_DigestSignFinal(mdctx, tag, &len) != 1)
+		errx(1, "OpenSSL %s (%zu) digest final failed: %s", alg->name,
+		    size, ERR_error_string(ERR_get_error(), NULL));
+	EVP_MD_CTX_free(mdctx);
+	EVP_PKEY_free(pkey);
+}
+
+static void
+run_digest_test(const struct alg *alg, size_t size)
+{
+	char *key, *buffer;
+	u_int key_len;
+	int crid;
+	char control_tag[EVP_MAX_MD_SIZE], test_tag[EVP_MAX_MD_SIZE];
+
+	memset(control_tag, 0x3c, sizeof(control_tag));
+	memset(test_tag, 0x3c, sizeof(test_tag));
+
+	key_len = alg->key_len;
+
+	key = alloc_buffer(key_len);
+	buffer = alloc_buffer(size);
+
+	/* OpenSSL Poly1305. */
+	openssl_digest(alg, key, key_len, buffer, size, control_tag,
+	    sizeof(control_tag));
+
+	/* OCF Poly1305. */
+	if (!ocf_mac(alg, buffer, size, key, key_len, NULL, test_tag, &crid))
 		goto out;
 	if (memcmp(control_tag, test_tag, sizeof(control_tag)) != 0) {
 		printf("%s (%zu) mismatch:\n", alg->name, size);
@@ -1471,6 +1547,9 @@ run_test(const struct alg *alg, size_t aad_len, size_t size)
 	case T_GMAC:
 		run_gmac_test(alg, size);
 		break;
+	case T_DIGEST:
+		run_digest_test(alg, size);
+		break;
 	case T_CIPHER:
 		run_cipher_test(alg, size);
 		break;
@@ -1518,7 +1597,8 @@ run_mac_tests(void)
 	u_int i;
 
 	for (i = 0; i < nitems(algs); i++)
-		if (algs[i].type == T_HMAC || algs[i].type == T_GMAC)
+		if (algs[i].type == T_HMAC || algs[i].type == T_GMAC ||
+		    algs[i].type == T_DIGEST)
 			run_test_sizes(&algs[i]);
 }
 
