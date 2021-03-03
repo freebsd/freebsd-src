@@ -88,6 +88,7 @@ enum ixl_pf_state {
 	IXL_PF_STATE_EMP_RESET_REQ	= (1 << 8),
 	IXL_PF_STATE_FW_LLDP_DISABLED	= (1 << 9),
 	IXL_PF_STATE_EEE_ENABLED	= (1 << 10),
+	IXL_PF_STATE_LINK_ACTIVE_ON_DOWN = (1 << 11),
 };
 
 #define IXL_PF_IN_RECOVERY_MODE(pf)	\
@@ -229,6 +230,11 @@ struct ixl_pf {
 "\t0 - disable\n"			\
 "\t1 - enable\n"
 
+#define IXL_SYSCTL_HELP_SET_LINK_ACTIVE			\
+"\nKeep link active after setting interface down:\n"	\
+"\t0 - disable\n"					\
+"\t1 - enable\n"
+
 #define IXL_SYSCTL_HELP_READ_I2C		\
 "\nRead a byte from I2C bus\n"			\
 "Input: 32-bit value\n"				\
@@ -351,6 +357,7 @@ void	ixl_pf_reset_stats(struct ixl_pf *);
 void	ixl_get_bus_info(struct ixl_pf *pf);
 int	ixl_aq_get_link_status(struct ixl_pf *,
     struct i40e_aqc_get_link_status *);
+void	ixl_set_link(struct ixl_pf *, bool);
 
 int	ixl_handle_nvmupd_cmd(struct ixl_pf *, struct ifdrv *);
 int	ixl_handle_i2c_eeprom_read_cmd(struct ixl_pf *, struct ifreq *ifr);
