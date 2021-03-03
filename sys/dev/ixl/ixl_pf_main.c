@@ -808,6 +808,11 @@ ixl_vsi_add_sysctls(struct ixl_vsi * vsi, const char * sysctl_name, bool queues_
 	vsi_list = SYSCTL_CHILDREN(vsi->vsi_node);
 	ixl_add_sysctls_eth_stats(&vsi->sysctl_ctx, vsi_list, &vsi->eth_stats);
 
+	/* Copy of netstat RX errors counter for validation purposes */
+	SYSCTL_ADD_UQUAD(&vsi->sysctl_ctx, vsi_list, OID_AUTO, "rx_errors",
+			CTLFLAG_RD, &vsi->ierrors,
+			"RX packet errors");
+
 	if (queues_sysctls)
 		ixl_vsi_add_queues_stats(vsi, &vsi->sysctl_ctx);
 }
@@ -2183,7 +2188,7 @@ ixl_update_vsi_stats(struct ixl_vsi *vsi)
 	struct ixl_pf		*pf;
 	struct ifnet		*ifp;
 	struct i40e_eth_stats	*es;
-	u64			tx_discards;
+	u64			tx_discards, csum_errs;
 
 	struct i40e_hw_port_stats *nsd;
 
@@ -2195,6 +2200,11 @@ ixl_update_vsi_stats(struct ixl_vsi *vsi)
 	ixl_update_eth_stats(vsi);
 
 	tx_discards = es->tx_discards + nsd->tx_dropped_link_down;
+
+	csum_errs = 0;
+	for (int i = 0; i < vsi->num_rx_queues; i++)
+		csum_errs += vsi->rx_queues[i].rxr.csum_errs;
+	nsd->checksum_error = csum_errs;
 
 	/* Update ifnet stats */
 	IXL_SET_IPACKETS(vsi, es->rx_unicast +
@@ -2209,7 +2219,8 @@ ixl_update_vsi_stats(struct ixl_vsi *vsi)
 	IXL_SET_OMCASTS(vsi, es->tx_multicast);
 
 	IXL_SET_IERRORS(vsi, nsd->crc_errors + nsd->illegal_bytes +
-	    nsd->rx_undersize + nsd->rx_oversize + nsd->rx_fragments +
+	    nsd->checksum_error + nsd->rx_length_errors +
+	    nsd->rx_undersize + nsd->rx_fragments + nsd->rx_oversize +
 	    nsd->rx_jabber);
 	IXL_SET_OERRORS(vsi, es->tx_errors);
 	IXL_SET_IQDROPS(vsi, es->rx_discards + nsd->eth.rx_discards);
