@@ -770,6 +770,12 @@ ixl_if_attach_post(if_ctx_t ctx)
 	ixl_update_stats_counters(pf);
 	ixl_add_hw_stats(pf);
 
+	/*
+	 * Driver may have been reloaded. Ensure that the link state
+	 * is consistent with current settings.
+	 */
+	ixl_set_link(pf, (pf->state & IXL_PF_STATE_LINK_ACTIVE_ON_DOWN) != 0);
+
 	hw->phy.get_link_info = true;
 	i40e_get_link_status(hw, &pf->link_up);
 	ixl_update_link_status(pf);
@@ -961,6 +967,8 @@ ixl_if_init(if_ctx_t ctx)
 		return;
 	}
 
+	ixl_set_link(pf, true);
+
 	/* Reconfigure multicast filters in HW */
 	ixl_if_multi_set(ctx);
 
@@ -1003,6 +1011,7 @@ void
 ixl_if_stop(if_ctx_t ctx)
 {
 	struct ixl_pf *pf = iflib_get_softc(ctx);
+	struct ifnet *ifp = iflib_get_ifp(ctx);
 	struct ixl_vsi *vsi = &pf->vsi;
 
 	INIT_DEBUGOUT("ixl_if_stop: begin\n");
@@ -1019,6 +1028,15 @@ ixl_if_stop(if_ctx_t ctx)
 
 	ixl_disable_rings_intr(vsi);
 	ixl_disable_rings(pf, vsi, &pf->qtag);
+
+	/*
+	 * Don't set link state if only reconfiguring
+	 * e.g. on MTU change.
+	 */
+	if ((if_getflags(ifp) & IFF_UP) == 0 &&
+	    (atomic_load_acq_32(&pf->state) &
+	    IXL_PF_STATE_LINK_ACTIVE_ON_DOWN) == 0)
+		ixl_set_link(pf, false);
 }
 
 static int
