@@ -292,7 +292,8 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_child_debugger, tc)
 		close(cpipe[0]);
 
 		/* Wait for parent to be ready. */
-		CHILD_REQUIRE_EQ(read(cpipe[1], &c, sizeof(c)), sizeof(c));
+		CHILD_REQUIRE_EQ(read(cpipe[1], &c, sizeof(c)),
+		    (ssize_t)sizeof(c));
 
 		_exit(1);
 	}
@@ -315,7 +316,8 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_child_debugger, tc)
 		CHILD_REQUIRE(ptrace(PT_CONTINUE, child, (caddr_t)1, 0) != -1);
 
 		/* Signal parent that debugger is attached. */
-		CHILD_REQUIRE_EQ(write(dpipe[1], &c, sizeof(c)), sizeof(c));
+		CHILD_REQUIRE_EQ(write(dpipe[1], &c, sizeof(c)),
+		    (ssize_t)sizeof(c));
 
 		/* Wait for parent's failed wait. */
 		CHILD_REQUIRE_EQ(read(dpipe[1], &c, sizeof(c)), 0);
@@ -332,10 +334,10 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_child_debugger, tc)
 	/* Parent process. */
 
 	/* Wait for the debugger to attach to the child. */
-	REQUIRE_EQ(read(dpipe[0], &c, sizeof(c)), sizeof(c));
+	REQUIRE_EQ(read(dpipe[0], &c, sizeof(c)), (ssize_t)sizeof(c));
 
 	/* Release the child. */
-	REQUIRE_EQ(write(cpipe[0], &c, sizeof(c)), sizeof(c));
+	REQUIRE_EQ(write(cpipe[0], &c, sizeof(c)), (ssize_t)sizeof(c));
 	REQUIRE_EQ(read(cpipe[0], &c, sizeof(c)), 0);
 	close(cpipe[0]);
 
@@ -386,7 +388,8 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 		close(cpipe[0]);
 
 		/* Wait for parent to be ready. */
-		CHILD_REQUIRE_EQ(read(cpipe[1], &c, sizeof(c)), sizeof(c));
+		CHILD_REQUIRE_EQ(read(cpipe[1], &c, sizeof(c)),
+		    (ssize_t)sizeof(c));
 
 		_exit(1);
 	}
@@ -419,10 +422,12 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 		CHILD_REQUIRE(ptrace(PT_CONTINUE, child, (caddr_t)1, 0) != -1);
 
 		/* Signal parent that debugger is attached. */
-		CHILD_REQUIRE_EQ(write(dpipe[1], &c, sizeof(c)), sizeof(c));
+		CHILD_REQUIRE_EQ(write(dpipe[1], &c, sizeof(c)),
+		    (ssize_t)sizeof(c));
 
 		/* Wait for parent's failed wait. */
-		CHILD_REQUIRE_EQ(read(dpipe[1], &c, sizeof(c)), sizeof(c));
+		CHILD_REQUIRE_EQ(read(dpipe[1], &c, sizeof(c)),
+		    (ssize_t)sizeof(c));
 
 		wpid = waitpid(child, &status, 0);
 		CHILD_REQUIRE_EQ(wpid, child);
@@ -446,10 +451,10 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 	REQUIRE_EQ(wpid, 0);
 
 	/* Wait for the debugger to attach to the child. */
-	REQUIRE_EQ(read(dpipe[0], &c, sizeof(c)), sizeof(c));
+	REQUIRE_EQ(read(dpipe[0], &c, sizeof(c)), (ssize_t)sizeof(c));
 
 	/* Release the child. */
-	REQUIRE_EQ(write(cpipe[0], &c, sizeof(c)), sizeof(c));
+	REQUIRE_EQ(write(cpipe[0], &c, sizeof(c)), (ssize_t)sizeof(c));
 	REQUIRE_EQ(read(cpipe[0], &c, sizeof(c)), 0);
 	close(cpipe[0]);
 
@@ -464,7 +469,7 @@ ATF_TC_BODY(ptrace__parent_sees_exit_after_unrelated_debugger, tc)
 	REQUIRE_EQ(wpid, 0);
 
 	/* Signal the debugger to wait for the child. */
-	REQUIRE_EQ(write(dpipe[0], &c, sizeof(c)), sizeof(c));
+	REQUIRE_EQ(write(dpipe[0], &c, sizeof(c)), (ssize_t)sizeof(c));
 
 	/* Wait for the debugger. */
 	REQUIRE_EQ(read(dpipe[0], &c, sizeof(c)), 0);
@@ -504,25 +509,28 @@ ATF_TC_BODY(ptrace__parent_exits_before_child, tc)
 			_exit(status);
 		}
 
-		CHILD_REQUIRE(write(cpipe1[1], &gchild, sizeof(gchild)) ==
-		    sizeof(gchild));
-		CHILD_REQUIRE(read(cpipe2[0], &status, sizeof(status)) ==
-		    sizeof(status));
+		CHILD_REQUIRE_EQ(write(cpipe1[1], &gchild, sizeof(gchild)),
+		    (ssize_t)sizeof(gchild));
+		CHILD_REQUIRE_EQ(read(cpipe2[0], &status, sizeof(status)),
+		    (ssize_t)sizeof(status));
 		_exit(status);
 	}
 
-	REQUIRE_EQ(read(cpipe1[0], &gchild, sizeof(gchild)), sizeof(gchild));
+	REQUIRE_EQ(read(cpipe1[0], &gchild, sizeof(gchild)),
+	    (ssize_t)sizeof(gchild));
 
 	REQUIRE_EQ(ptrace(PT_ATTACH, gchild, NULL, 0), 0);
 
 	status = 0;
-	REQUIRE_EQ(write(cpipe2[1], &status, sizeof(status)), sizeof(status));
+	REQUIRE_EQ(write(cpipe2[1], &status, sizeof(status)),
+	    (ssize_t)sizeof(status));
 	REQUIRE_EQ(waitpid(child, &status, 0), child);
 	ATF_REQUIRE(WIFEXITED(status));
 	REQUIRE_EQ(WEXITSTATUS(status), 0);
 
 	status = 0;
-	REQUIRE_EQ(write(gcpipe[1], &status, sizeof(status)), sizeof(status));
+	REQUIRE_EQ(write(gcpipe[1], &status, sizeof(status)),
+	    (ssize_t)sizeof(status));
 	REQUIRE_EQ(waitpid(gchild, &status, 0), gchild);
 	ATF_REQUIRE(WIFSTOPPED(status));
 	REQUIRE_EQ(ptrace(PT_DETACH, gchild, (caddr_t)1, 0), 0);
@@ -807,7 +815,8 @@ attach_fork_parent(int cpipe[2])
 	
 	/* Send the pid of the disassociated child to the debugger. */
 	fpid = getpid();
-	CHILD_REQUIRE_EQ(write(cpipe[1], &fpid, sizeof(fpid)), sizeof(fpid));
+	CHILD_REQUIRE_EQ(write(cpipe[1], &fpid, sizeof(fpid)),
+	    (ssize_t)sizeof(fpid));
 
 	/* Wait for the debugger to attach. */
 	CHILD_REQUIRE_EQ(read(cpipe[1], &fpid, sizeof(fpid)), 0);
@@ -843,7 +852,7 @@ ATF_TC_BODY(ptrace__follow_fork_both_attached_unrelated_debugger, tc)
 
 	/* Read the pid of the fork parent. */
 	REQUIRE_EQ(read(cpipe[0], &children[0], sizeof(children[0])),
-	    sizeof(children[0]));
+	    (ssize_t)sizeof(children[0]));
 
 	/* Attach to the fork parent. */
 	attach_child(children[0]);
@@ -911,7 +920,7 @@ ATF_TC_BODY(ptrace__follow_fork_child_detached_unrelated_debugger, tc)
 
 	/* Read the pid of the fork parent. */
 	REQUIRE_EQ(read(cpipe[0], &children[0], sizeof(children[0])),
-	    sizeof(children[0]));
+	    (ssize_t)sizeof(children[0]));
 
 	/* Attach to the fork parent. */
 	attach_child(children[0]);
@@ -974,7 +983,7 @@ ATF_TC_BODY(ptrace__follow_fork_parent_detached_unrelated_debugger, tc)
 
 	/* Read the pid of the fork parent. */
 	REQUIRE_EQ(read(cpipe[0], &children[0], sizeof(children[0])),
-	    sizeof(children[0]));
+	    (ssize_t)sizeof(children[0]));
 
 	/* Attach to the fork parent. */
 	attach_child(children[0]);
@@ -1026,12 +1035,13 @@ ATF_TC_BODY(ptrace__getppid, tc)
 		close(cpipe[0]);
 
 		/* Wait for parent to be ready. */
-		CHILD_REQUIRE_EQ(read(cpipe[1], &c, sizeof(c)), sizeof(c));
+		CHILD_REQUIRE_EQ(read(cpipe[1], &c, sizeof(c)),
+		    (ssize_t)sizeof(c));
 
 		/* Report the parent PID to the parent. */
 		ppid = getppid();
-		CHILD_REQUIRE(write(cpipe[1], &ppid, sizeof(ppid)) ==
-		    sizeof(ppid));
+		CHILD_REQUIRE_EQ(write(cpipe[1], &ppid, sizeof(ppid)),
+		    (ssize_t)sizeof(ppid));
 
 		_exit(1);
 	}
@@ -1054,7 +1064,8 @@ ATF_TC_BODY(ptrace__getppid, tc)
 		CHILD_REQUIRE(ptrace(PT_CONTINUE, child, (caddr_t)1, 0) != -1);
 
 		/* Signal parent that debugger is attached. */
-		CHILD_REQUIRE_EQ(write(dpipe[1], &c, sizeof(c)), sizeof(c));
+		CHILD_REQUIRE_EQ(write(dpipe[1], &c, sizeof(c)),
+		    (ssize_t)sizeof(c));
 
 		/* Wait for traced child to exit. */
 		wpid = waitpid(child, &status, 0);
@@ -1069,13 +1080,13 @@ ATF_TC_BODY(ptrace__getppid, tc)
 	/* Parent process. */
 
 	/* Wait for the debugger to attach to the child. */
-	REQUIRE_EQ(read(dpipe[0], &c, sizeof(c)), sizeof(c));
+	REQUIRE_EQ(read(dpipe[0], &c, sizeof(c)), (ssize_t)sizeof(c));
 
 	/* Release the child. */
-	REQUIRE_EQ(write(cpipe[0], &c, sizeof(c)), sizeof(c));
+	REQUIRE_EQ(write(cpipe[0], &c, sizeof(c)), (ssize_t)sizeof(c));
 
 	/* Read the parent PID from the child. */
-	REQUIRE_EQ(read(cpipe[0], &ppid, sizeof(ppid)), sizeof(ppid));
+	REQUIRE_EQ(read(cpipe[0], &ppid, sizeof(ppid)), (ssize_t)sizeof(ppid));
 	close(cpipe[0]);
 
 	REQUIRE_EQ(ppid, getpid());
@@ -1130,7 +1141,7 @@ ATF_TC_BODY(ptrace__new_child_pl_syscall_code_fork, tc)
 
 	ATF_REQUIRE((pl[0].pl_flags & PL_FLAG_SCX) != 0);
 	ATF_REQUIRE((pl[1].pl_flags & PL_FLAG_SCX) != 0);
-	REQUIRE_EQ(pl[0].pl_syscall_code, SYS_fork);
+	REQUIRE_EQ(pl[0].pl_syscall_code, (unsigned)SYS_fork);
 	REQUIRE_EQ(pl[0].pl_syscall_code, pl[1].pl_syscall_code);
 	REQUIRE_EQ(pl[0].pl_syscall_narg, pl[1].pl_syscall_narg);
 
@@ -1193,7 +1204,7 @@ ATF_TC_BODY(ptrace__new_child_pl_syscall_code_vfork, tc)
 
 	ATF_REQUIRE((pl[0].pl_flags & PL_FLAG_SCX) != 0);
 	ATF_REQUIRE((pl[1].pl_flags & PL_FLAG_SCX) != 0);
-	REQUIRE_EQ(pl[0].pl_syscall_code, SYS_vfork);
+	REQUIRE_EQ(pl[0].pl_syscall_code, (unsigned)SYS_vfork);
 	REQUIRE_EQ(pl[0].pl_syscall_code, pl[1].pl_syscall_code);
 	REQUIRE_EQ(pl[0].pl_syscall_narg, pl[1].pl_syscall_narg);
 
@@ -2861,7 +2872,7 @@ ATF_TC_BODY(ptrace__PT_CONTINUE_with_signal_kqueue, tc)
 				continue;
 			CHILD_REQUIRE(nevents > 0);
 			CHILD_REQUIRE_EQ(kev.filter, EVFILT_SIGNAL);
-			CHILD_REQUIRE_EQ(kev.ident, SIGUSR1);
+			CHILD_REQUIRE_EQ(kev.ident, (uintptr_t)SIGUSR1);
 			break;
 		}
 
@@ -3974,7 +3985,7 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 
 	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl, sizeof(pl)) != -1);
 	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SCE);
-	REQUIRE_EQ(pl.pl_syscall_code, SYS_getpid);
+	REQUIRE_EQ(pl.pl_syscall_code, (unsigned)SYS_getpid);
 
 	REQUIRE_EQ(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0), 0);
 
@@ -3988,7 +3999,7 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 
 	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl, sizeof(pl)) != -1);
 	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SCX);
-	REQUIRE_EQ(pl.pl_syscall_code, SYS_getpid);
+	REQUIRE_EQ(pl.pl_syscall_code, (unsigned)SYS_getpid);
 
 	ATF_REQUIRE(ptrace(PT_GET_SC_RET, wpid, (caddr_t)&psr,
 	    sizeof(psr)) != -1);
@@ -4007,8 +4018,8 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 
 	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl, sizeof(pl)) != -1);
 	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SCE);
-	REQUIRE_EQ(pl.pl_syscall_code, SYS_kill);
-	REQUIRE_EQ(pl.pl_syscall_narg, 2);
+	REQUIRE_EQ(pl.pl_syscall_code, (unsigned)SYS_kill);
+	REQUIRE_EQ(pl.pl_syscall_narg, 2u);
 
 	ATF_REQUIRE(ptrace(PT_GET_SC_ARGS, wpid, (caddr_t)args,
 	    sizeof(args)) != -1);
@@ -4027,7 +4038,7 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 
 	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl, sizeof(pl)) != -1);
 	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SCX);
-	REQUIRE_EQ(pl.pl_syscall_code, SYS_kill);
+	REQUIRE_EQ(pl.pl_syscall_code, (unsigned)SYS_kill);
 
 	ATF_REQUIRE(ptrace(PT_GET_SC_RET, wpid, (caddr_t)&psr,
 	    sizeof(psr)) != -1);
@@ -4045,8 +4056,8 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 
 	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl, sizeof(pl)) != -1);
 	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SCE);
-	REQUIRE_EQ(pl.pl_syscall_code, SYS_close);
-	REQUIRE_EQ(pl.pl_syscall_narg, 1);
+	REQUIRE_EQ(pl.pl_syscall_code, (unsigned)SYS_close);
+	REQUIRE_EQ(pl.pl_syscall_narg, 1u);
 
 	ATF_REQUIRE(ptrace(PT_GET_SC_ARGS, wpid, (caddr_t)args,
 	    sizeof(args)) != -1);
@@ -4064,7 +4075,7 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 
 	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl, sizeof(pl)) != -1);
 	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SCX);
-	REQUIRE_EQ(pl.pl_syscall_code, SYS_close);
+	REQUIRE_EQ(pl.pl_syscall_code, (unsigned)SYS_close);
 
 	ATF_REQUIRE(ptrace(PT_GET_SC_RET, wpid, (caddr_t)&psr,
 	    sizeof(psr)) != -1);
