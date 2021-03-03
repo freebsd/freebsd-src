@@ -6481,7 +6481,7 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	pd.sidx = (dir == PF_IN) ? 0 : 1;
 	pd.didx = (dir == PF_IN) ? 1 : 0;
 	pd.af = AF_INET6;
-	pd.tos = 0;
+	pd.tos = (ntohl(h->ip6_flow) >> 20) & 0xfc;
 	pd.tot_len = ntohs(h->ip6_plen) + sizeof(struct ip6_hdr);
 
 	off = ((caddr_t)h - m->m_data) + sizeof(struct ip6_hdr);
