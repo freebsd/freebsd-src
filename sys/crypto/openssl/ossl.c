@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/xform_auth.h>
 
 #include <crypto/openssl/ossl.h>
+#include <crypto/openssl/ossl_chacha.h>
 
 #include "cryptodev_if.h"
 
@@ -154,6 +155,16 @@ ossl_probesession(device_t dev, const struct crypto_session_params *csp)
 		if (ossl_lookup_hash(csp) == NULL)
 			return (EINVAL);
 		break;
+	case CSP_MODE_CIPHER:
+		switch (csp->csp_cipher_alg) {
+		case CRYPTO_CHACHA20:
+			if (csp->csp_cipher_klen != CHACHA_KEY_SIZE)
+				return (EINVAL);
+			break;
+		default:
+			return (EINVAL);
+		}
+		break;
 	default:
 		return (EINVAL);
 	}
@@ -161,14 +172,11 @@ ossl_probesession(device_t dev, const struct crypto_session_params *csp)
 	return (CRYPTODEV_PROBE_ACCEL_SOFTWARE);
 }
 
-static int
-ossl_newsession(device_t dev, crypto_session_t cses,
+static void
+ossl_newsession_hash(struct ossl_session *s,
     const struct crypto_session_params *csp)
 {
-	struct ossl_session *s;
 	struct auth_hash *axf;
-
-	s = crypto_get_driver_session(cses);
 
 	axf = ossl_lookup_hash(csp);
 	s->hash.axf = axf;
@@ -195,30 +203,34 @@ ossl_newsession(device_t dev, crypto_session_t cses,
 			fpu_kern_leave(curthread, NULL);
 		}
 	}
+}
+
+static int
+ossl_newsession(device_t dev, crypto_session_t cses,
+    const struct crypto_session_params *csp)
+{
+	struct ossl_session *s;
+
+	s = crypto_get_driver_session(cses);
+	switch (csp->csp_mode) {
+	case CSP_MODE_DIGEST:
+		ossl_newsession_hash(s, csp);
+		break;
+	}
+
 	return (0);
 }
 
 static int
-ossl_process(device_t dev, struct cryptop *crp, int hint)
+ossl_process_hash(struct ossl_session *s, struct cryptop *crp,
+    const struct crypto_session_params *csp)
 {
 	struct ossl_hash_context ctx;
 	char digest[HASH_MAX_LEN];
-	const struct crypto_session_params *csp;
-	struct ossl_session *s;
 	struct auth_hash *axf;
 	int error;
-	bool fpu_entered;
 
-	s = crypto_get_driver_session(crp->crp_session);
-	csp = crypto_get_params(crp->crp_session);
 	axf = s->hash.axf;
-
-	if (is_fpu_kern_thread(0)) {
-		fpu_entered = false;
-	} else {
-		fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);
-		fpu_entered = true;
-	}
 
 	if (crp->crp_auth_key == NULL) {
 		ctx = s->hash.ictx;
@@ -273,13 +285,45 @@ ossl_process(device_t dev, struct cryptop *crp, int hint)
 	explicit_bzero(digest, sizeof(digest));
 
 out:
+	explicit_bzero(&ctx, sizeof(ctx));
+	return (error);
+}
+
+static int
+ossl_process(device_t dev, struct cryptop *crp, int hint)
+{
+	const struct crypto_session_params *csp;
+	struct ossl_session *s;
+	int error;
+	bool fpu_entered;
+
+	s = crypto_get_driver_session(crp->crp_session);
+	csp = crypto_get_params(crp->crp_session);
+
+	if (is_fpu_kern_thread(0)) {
+		fpu_entered = false;
+	} else {
+		fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);
+		fpu_entered = true;
+	}
+
+	switch (csp->csp_mode) {
+	case CSP_MODE_DIGEST:
+		error = ossl_process_hash(s, crp, csp);
+		break;
+	case CSP_MODE_CIPHER:
+		error = ossl_chacha20(crp, csp);
+		break;
+	default:
+		__assert_unreachable();
+	}
+
 	if (fpu_entered)
 		fpu_kern_leave(curthread, NULL);
 
 	crp->crp_etype = error;
 	crypto_done(crp);
 
-	explicit_bzero(&ctx, sizeof(ctx));
 	return (0);
 }
 
