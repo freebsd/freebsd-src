@@ -2679,50 +2679,52 @@ softdep_mount(devvp, mp, fs, cred)
 	u_int cyl, i;
 	int error;
 
+	ump = VFSTOUFS(mp);
+
 	sdp = malloc(sizeof(struct mount_softdeps), M_MOUNTDATA,
 	    M_WAITOK | M_ZERO);
-	MNT_ILOCK(mp);
-	mp->mnt_flag = (mp->mnt_flag & ~MNT_ASYNC) | MNT_SOFTDEP;
-	if ((mp->mnt_kern_flag & MNTK_SOFTDEP) == 0) {
-		mp->mnt_kern_flag = (mp->mnt_kern_flag & ~MNTK_ASYNC) | 
-			MNTK_SOFTDEP | MNTK_NOASYNC;
-	}
-	ump = VFSTOUFS(mp);
-	ump->um_softdep = sdp;
-	MNT_IUNLOCK(mp);
-	rw_init(LOCK_PTR(ump), "per-fs softdep");
+	rw_init(&sdp->sd_fslock, "SUrw");
 	sdp->sd_ump = ump;
-	LIST_INIT(&ump->softdep_workitem_pending);
-	LIST_INIT(&ump->softdep_journal_pending);
-	TAILQ_INIT(&ump->softdep_unlinked);
-	LIST_INIT(&ump->softdep_dirtycg);
-	ump->softdep_worklist_tail = NULL;
-	ump->softdep_on_worklist = 0;
-	ump->softdep_deps = 0;
-	LIST_INIT(&ump->softdep_mkdirlisthd);
-	ump->pagedep_hashtbl = hashinit(desiredvnodes / 5, M_PAGEDEP,
-	    &ump->pagedep_hash_size);
-	ump->pagedep_nextclean = 0;
-	ump->inodedep_hashtbl = hashinit(desiredvnodes, M_INODEDEP,
-	    &ump->inodedep_hash_size);
-	ump->inodedep_nextclean = 0;
-	ump->newblk_hashtbl = hashinit(max_softdeps / 2,  M_NEWBLK,
-	    &ump->newblk_hash_size);
-	ump->bmsafemap_hashtbl = hashinit(1024, M_BMSAFEMAP,
-	    &ump->bmsafemap_hash_size);
+	LIST_INIT(&sdp->sd_workitem_pending);
+	LIST_INIT(&sdp->sd_journal_pending);
+	TAILQ_INIT(&sdp->sd_unlinked);
+	LIST_INIT(&sdp->sd_dirtycg);
+	sdp->sd_worklist_tail = NULL;
+	sdp->sd_on_worklist = 0;
+	sdp->sd_deps = 0;
+	LIST_INIT(&sdp->sd_mkdirlisthd);
+	sdp->sd_pdhash = hashinit(desiredvnodes / 5, M_PAGEDEP,
+	    &sdp->sd_pdhashsize);
+	sdp->sd_pdnextclean = 0;
+	sdp->sd_idhash = hashinit(desiredvnodes, M_INODEDEP,
+	    &sdp->sd_idhashsize);
+	sdp->sd_idnextclean = 0;
+	sdp->sd_newblkhash = hashinit(max_softdeps / 2,  M_NEWBLK,
+	    &sdp->sd_newblkhashsize);
+	sdp->sd_bmhash = hashinit(1024, M_BMSAFEMAP, &sdp->sd_bmhashsize);
 	i = 1 << (ffs(desiredvnodes / 10) - 1);
-	ump->indir_hashtbl = malloc(i * sizeof(struct indir_hashhead),
+	sdp->sd_indirhash = malloc(i * sizeof(struct indir_hashhead),
 	    M_FREEWORK, M_WAITOK);
-	ump->indir_hash_size = i - 1;
-	for (i = 0; i <= ump->indir_hash_size; i++)
-		TAILQ_INIT(&ump->indir_hashtbl[i]);
+	sdp->sd_indirhashsize = i - 1;
+	for (i = 0; i <= sdp->sd_indirhashsize; i++)
+		TAILQ_INIT(&sdp->sd_indirhash[i]);
 #ifdef INVARIANTS
 	for (i = 0; i <= D_LAST; i++)
-		LIST_INIT(&ump->softdep_alldeps[i]);
+		LIST_INIT(&sdp->sd_alldeps[i]);
 #endif
 	ACQUIRE_GBLLOCK(&lk);
 	TAILQ_INSERT_TAIL(&softdepmounts, sdp, sd_next);
 	FREE_GBLLOCK(&lk);
+
+	ump->um_softdep = sdp;
+	MNT_ILOCK(mp);
+	mp->mnt_flag = (mp->mnt_flag & ~MNT_ASYNC) | MNT_SOFTDEP;
+	if ((mp->mnt_kern_flag & MNTK_SOFTDEP) == 0) {
+		mp->mnt_kern_flag = (mp->mnt_kern_flag & ~MNTK_ASYNC) |
+		    MNTK_SOFTDEP | MNTK_NOASYNC;
+	}
+	MNT_IUNLOCK(mp);
+
 	if ((fs->fs_flags & FS_SUJ) &&
 	    (error = journal_mount(mp, fs, cred)) != 0) {
 		printf("Failed to start journal: %d\n", error);
