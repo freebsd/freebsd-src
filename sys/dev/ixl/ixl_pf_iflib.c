@@ -413,6 +413,8 @@ ixl_link_event(struct ixl_pf *pf, struct i40e_arq_event_info *e)
 	/* Print out message if an unqualified module is found */
 	if ((status->link_info & I40E_AQ_MEDIA_AVAILABLE) &&
 	    (pf->advertised_speed) &&
+	    (atomic_load_32(&pf->state) &
+	     IXL_PF_STATE_LINK_ACTIVE_ON_DOWN) != 0 &&
 	    (!(status->an_info & I40E_AQ_QUALIFIED_MODULE)) &&
 	    (!(status->link_info & I40E_AQ_LINK_UP)))
 		device_printf(dev, "Link failed because "
