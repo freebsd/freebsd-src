@@ -2776,13 +2776,11 @@ softdep_unmount(mp)
 	struct mount *mp;
 {
 	struct ufsmount *ump;
-#ifdef INVARIANTS
-	int i;
-#endif
+	struct mount_softdeps *ums;
 
-	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
-	    ("softdep_unmount called on non-softdep filesystem"));
 	ump = VFSTOUFS(mp);
+	KASSERT(ump->um_softdep != NULL,
+	    ("softdep_unmount called on non-softdep filesystem"));
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_SOFTDEP;
 	if (MOUNTEDSUJ(mp) == 0) {
@@ -2805,30 +2803,37 @@ softdep_unmount(mp)
 		KASSERT((ump->softdep_flags & FLUSH_EXIT) == 0,
 		    ("Thread shutdown failed"));
 	}
+
+	/*
+	 * We are no longer have softdep structure attached to ump.
+	 */
+	ums = ump->um_softdep;
+	ACQUIRE_GBLLOCK(&lk);
+	TAILQ_REMOVE(&softdepmounts, ums, sd_next);
+	FREE_GBLLOCK(&lk);
+	ump->um_softdep = NULL;
+
 	/*
 	 * Free up our resources.
 	 */
-	ACQUIRE_GBLLOCK(&lk);
-	TAILQ_REMOVE(&softdepmounts, ump->um_softdep, sd_next);
-	FREE_GBLLOCK(&lk);
-	rw_destroy(LOCK_PTR(ump));
-	hashdestroy(ump->pagedep_hashtbl, M_PAGEDEP, ump->pagedep_hash_size);
-	hashdestroy(ump->inodedep_hashtbl, M_INODEDEP, ump->inodedep_hash_size);
-	hashdestroy(ump->newblk_hashtbl, M_NEWBLK, ump->newblk_hash_size);
-	hashdestroy(ump->bmsafemap_hashtbl, M_BMSAFEMAP,
-	    ump->bmsafemap_hash_size);
-	free(ump->indir_hashtbl, M_FREEWORK);
+	rw_destroy(&ums->sd_fslock);
+	hashdestroy(ums->sd_pdhash, M_PAGEDEP, ums->sd_pdhashsize);
+	hashdestroy(ums->sd_idhash, M_INODEDEP, ums->sd_idhashsize);
+	hashdestroy(ums->sd_newblkhash, M_NEWBLK, ums->sd_newblkhashsize);
+	hashdestroy(ums->sd_bmhash, M_BMSAFEMAP, ums->sd_bmhashsize);
+	free(ums->sd_indirhash, M_FREEWORK);
 #ifdef INVARIANTS
-	for (i = 0; i <= D_LAST; i++) {
-		KASSERT(ump->softdep_curdeps[i] == 0,
+	for (int i = 0; i <= D_LAST; i++) {
+		KASSERT(ums->sd_curdeps[i] == 0,
 		    ("Unmount %s: Dep type %s != 0 (%ld)", ump->um_fs->fs_fsmnt,
-		    TYPENAME(i), ump->softdep_curdeps[i]));
-		KASSERT(LIST_EMPTY(&ump->softdep_alldeps[i]),
-		    ("Unmount %s: Dep type %s not empty (%p)", ump->um_fs->fs_fsmnt,
-		    TYPENAME(i), LIST_FIRST(&ump->softdep_alldeps[i])));
+		    TYPENAME(i), ums->sd_curdeps[i]));
+		KASSERT(LIST_EMPTY(&ums->sd_alldeps[i]),
+		    ("Unmount %s: Dep type %s not empty (%p)",
+		    ump->um_fs->fs_fsmnt,
+		    TYPENAME(i), LIST_FIRST(&ums->sd_alldeps[i])));
 	}
 #endif
-	free(ump->um_softdep, M_MOUNTDATA);
+	free(ums, M_MOUNTDATA);
 }
 
 static struct jblocks *
