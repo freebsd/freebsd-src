@@ -1441,16 +1441,16 @@ done:
 }
 
 int
-handle_message(struct checkpoint_op *checkpoint_op, struct vmctx *ctx)
+handle_message(struct ipc_message *imsg, struct vmctx *ctx)
 {
 	int err;
 
-	switch (checkpoint_op->op) {
+	switch (imsg->code) {
 		case START_CHECKPOINT:
-			err = vm_checkpoint(ctx, checkpoint_op->snapshot_filename, false);
+			err = vm_checkpoint(ctx, imsg->data.op.snapshot_filename, false);
 			break;
 		case START_SUSPEND:
-			err = vm_checkpoint(ctx, checkpoint_op->snapshot_filename, true);
+			err = vm_checkpoint(ctx, imsg->data.op.snapshot_filename, true);
 			break;
 		default:
 			EPRINTLN("Unrecognized checkpoint operation\n");
@@ -1469,7 +1469,7 @@ handle_message(struct checkpoint_op *checkpoint_op, struct vmctx *ctx)
 void *
 checkpoint_thread(void *param)
 {
-	struct checkpoint_op op;
+	struct ipc_message imsg;
 	struct checkpoint_thread_info *thread_info;
 	ssize_t n;
 
@@ -1477,14 +1477,14 @@ checkpoint_thread(void *param)
 	thread_info = (struct checkpoint_thread_info *)param;
 
 	for (;;) {
-		n = recvfrom(thread_info->socket_fd, &op, sizeof(op), 0, NULL, 0);
+		n = recvfrom(thread_info->socket_fd, &imsg, sizeof(imsg), 0, NULL, 0);
 
 		/*
 		 * slight sanity check: see if there's enough data to at
 		 * least determine the type of message.
 		 */
-		if (n >= sizeof(op.op))
-			handle_message(&op, thread_info->ctx);
+		if (n >= sizeof(imsg.code))
+			handle_message(&imsg, thread_info->ctx);
 		else
 			EPRINTLN("Failed to receive message: %s\n",
 			    n == -1 ? strerror(errno) : "unknown error");
