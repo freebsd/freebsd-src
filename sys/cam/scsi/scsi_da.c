@@ -3649,14 +3649,14 @@ out:
 	}
 	case DA_STATE_PROBE_BDC:
 	{
-		struct scsi_vpd_block_characteristics *bdc;
+		struct scsi_vpd_block_device_characteristics *bdc;
 
 		if (!scsi_vpd_supported_page(periph, SVPD_BDC)) {
 			softc->state = DA_STATE_PROBE_ATA;
 			goto skipstate;
 		}
 
-		bdc = (struct scsi_vpd_block_characteristics *)
+		bdc = (struct scsi_vpd_block_device_characteristics *)
 			malloc(sizeof(*bdc), M_SCSIDA, M_NOWAIT|M_ZERO);
 
 		if (bdc == NULL) {
@@ -5207,8 +5207,7 @@ dadone_probebdc(struct cam_periph *periph, union ccb *done_ccb)
 		    medium_rotation_rate)) {
 			softc->disk->d_rotation_rate =
 				scsi_2btoul(bdc->medium_rotation_rate);
-			if (softc->disk->d_rotation_rate ==
-			    SVPD_BDC_RATE_NON_ROTATING) {
+			if (softc->disk->d_rotation_rate == SVPD_NON_ROTATING) {
 				cam_iosched_set_sort_queue(
 				    softc->cam_iosched, 0);
 				softc->flags &= ~DA_FLAG_ROTATING;
