@@ -297,12 +297,12 @@ kvm_close(kvm_t *kd)
 		free((void *) kd->argspc);
 	if (kd->argv != 0)
 		free((void *)kd->argv);
+	if (kd->dpcpu_initialized != 0)
+		free(kd->dpcpu_off);
 	if (kd->pt_map != NULL)
 		free(kd->pt_map);
 	if (kd->page_map != NULL)
 		free(kd->page_map);
-	if (kd->dpcpu_initialized != 0)
-		free(kd->dpcpu_off);
 	if (kd->sparse_map != MAP_FAILED)
 		munmap(kd->sparse_map, kd->pt_sparse_size);
 	free((void *)kd);
