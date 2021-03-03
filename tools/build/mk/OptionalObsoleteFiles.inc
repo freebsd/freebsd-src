@@ -9177,6 +9177,7 @@ OLD_FILES+=usr/tests/usr.bin/yacc/yacc/varsyntax_calc1.output
 OLD_FILES+=usr/tests/usr.bin/yacc/yacc/varsyntax_calc1.tab.c
 OLD_FILES+=usr/tests/usr.bin/yacc/yacc/varsyntax_calc1.tab.h
 OLD_FILES+=usr/tests/usr.bin/yacc/yacc_tests
+OLD_DIRS+=usr/tests/usr.bin/yacc/yacc
 OLD_DIRS+=usr/tests/usr.bin/yacc
 .endif
 
