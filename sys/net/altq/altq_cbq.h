@@ -205,7 +205,7 @@ struct cbq_getstats {
 #define	CBQ_TIMEOUT		10
 #define	CBQ_LS_TIMEOUT		(20 * hz / 1000)
 
-#define	CBQ_MAX_CLASSES	256
+#define	CBQ_MAX_CLASSES	2048
 
 #ifdef ALTQ3_COMPAT
 #define	CBQ_MAX_FILTERS 256
