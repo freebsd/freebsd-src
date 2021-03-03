@@ -8,24 +8,28 @@ SRCS=	bus_if.h \
 	cryptodev_if.h \
 	device_if.h \
 	ossl.c \
+	ossl_poly1305.c \
 	ossl_sha1.c \
 	ossl_sha256.c \
 	ossl_sha512.c \
 	${SRCS.${MACHINE_CPUARCH}}
 
 SRCS.aarch64= \
+	poly1305-armv8.S \
 	sha1-armv8.S \
 	sha256-armv8.S \
 	sha512-armv8.S \
 	ossl_aarch64.c
 
 SRCS.amd64= \
+	poly1305-x86_64.S \
 	sha1-x86_64.S \
 	sha256-x86_64.S \
 	sha512-x86_64.S \
 	ossl_x86.c
 
 SRCS.i386= \
+	poly1305-x86.S \
 	sha1-586.S \
 	sha256-586.S \
 	sha512-586.S \
