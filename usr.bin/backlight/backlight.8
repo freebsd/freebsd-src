@@ -22,7 +22,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 27, 2020
+.Dd March 03, 2021
 .Dt BACKLIGHT 8
 .Os
 .Sh NAME
@@ -46,6 +46,9 @@
 The
 .Nm
 utility can be used to configure brightness levels for registered backlights.
+.Pp
+If call without any option it will print the current brightness level of the first
+registered backlight.
 .Pp
 The options are as follows:
 .Bl -tag -width "-f device"
