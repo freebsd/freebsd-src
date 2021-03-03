@@ -127,6 +127,7 @@ int	ffs_breadz(struct ufsmount *, struct vnode *, daddr_t, daddr_t, int,
 #define	FFSV_FORCEINSMQ		0x0001
 #define	FFSV_REPLACE		0x0002
 #define	FFSV_REPLACE_DOOMED	0x0004
+#define	FFSV_FORCEINODEDEP	0x0008
 
 /*
  * Flags to ffs_reload
