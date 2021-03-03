@@ -21,7 +21,8 @@ ATF_TESTS_SH+=	anchor \
 		set_tos \
 		src_track \
 		synproxy \
-		table
+		table \
+		tos
 
 ${PACKAGE}FILES+=	CVE-2019-5597.py \
 			CVE-2019-5598.py \
