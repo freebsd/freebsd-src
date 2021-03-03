@@ -82,6 +82,7 @@
 ** 1.40.00.00   07/11/2017  Ching Huang     Added support ARC1884
 ** 1.40.00.01   10/30/2017  Ching Huang     Fixed release memory resource
 ** 1.50.00.00   09/30/2020  Ching Huang     Added support ARC-1886, NVMe/SAS/SATA controller
+** 1.50.00.01   02/26/2021  Ching Huang     Fixed no action of hot plugging device on type_F adapter
 ******************************************************************************************
 */
 
@@ -139,7 +140,7 @@ __FBSDID("$FreeBSD$");
 
 #define arcmsr_callout_init(a)	callout_init(a, /*mpsafe*/1);
 
-#define ARCMSR_DRIVER_VERSION	"arcmsr version 1.50.00.00 2020-09-30"
+#define ARCMSR_DRIVER_VERSION	"arcmsr version 1.50.00.01 2021-02-26"
 #include <dev/arcmsr/arcmsr.h>
 /*
 **************************************************************************
@@ -1902,7 +1903,10 @@ static void arcmsr_hbe_message_isr(struct AdapterControlBlock *acb) {
 	u_int32_t outbound_message;
 
 	CHIP_REG_WRITE32(HBE_MessageUnit, 0, host_int_status, 0);
-	outbound_message = CHIP_REG_READ32(HBE_MessageUnit, 0, msgcode_rwbuffer[0]);
+	if (acb->adapter_type == ACB_ADAPTER_TYPE_E)
+		outbound_message = CHIP_REG_READ32(HBE_MessageUnit, 0, msgcode_rwbuffer[0]);
+	else
+		outbound_message = acb->msgcode_rwbuffer[0];
 	if (outbound_message == ARCMSR_SIGNATURE_GET_CONFIG)
 		arcmsr_dr_handle( acb );
 }
