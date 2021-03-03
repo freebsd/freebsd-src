@@ -1684,7 +1684,7 @@ show_memseg(struct vmctx *ctx)
 
 #ifdef BHYVE_SNAPSHOT
 static int
-send_checkpoint_op_req(struct vmctx *ctx, struct checkpoint_op *op)
+send_message(struct vmctx *ctx, void *data, size_t len)
 {
 	struct sockaddr_un addr;
 	ssize_t len_sent;
@@ -1709,7 +1709,7 @@ send_checkpoint_op_req(struct vmctx *ctx, struct checkpoint_op *op)
 
 	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s%s", BHYVE_RUN_DIR, vmname_buf);
 
-	len_sent = sendto(socket_fd, op, sizeof(*op), 0,
+	len_sent = sendto(socket_fd, data, len, 0,
 	    (struct sockaddr *)&addr, sizeof(struct sockaddr_un));
 
 	if (len_sent < 0) {
@@ -1726,12 +1726,15 @@ done:
 static int
 snapshot_request(struct vmctx *ctx, const char *file, enum ipc_opcode code)
 {
-	struct checkpoint_op op;
+	struct ipc_message imsg;
+	size_t length;
 
-	op.op = code;
-	strlcpy(op.snapshot_filename, file, MAX_SNAPSHOT_FILENAME);
+	imsg.code = code;
+	strlcpy(imsg.data.op.snapshot_filename, file, MAX_SNAPSHOT_FILENAME);
 
-	return (send_checkpoint_op_req(ctx, &op));
+	length = offsetof(struct ipc_message, data) + sizeof(imsg.data.op);
+
+	return (send_message(ctx, (void *)&imsg, length));
 }
 #endif
 
