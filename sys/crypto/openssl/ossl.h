@@ -38,9 +38,10 @@ void ossl_cpuid(void);
 
 /* Needs to be big enough to hold any hash context. */
 struct ossl_hash_context {
-	uint32_t	dummy[54];
+	uint32_t	dummy[61];
 } __aligned(32);
 
+extern struct auth_hash ossl_hash_poly1305;
 extern struct auth_hash ossl_hash_sha1;
 extern struct auth_hash ossl_hash_sha224;
 extern struct auth_hash ossl_hash_sha256;

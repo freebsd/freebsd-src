@@ -135,6 +135,8 @@ ossl_lookup_hash(const struct crypto_session_params *csp)
 	case CRYPTO_SHA2_512:
 	case CRYPTO_SHA2_512_HMAC:
 		return (&ossl_hash_sha512);
+	case CRYPTO_POLY1305:
+		return (&ossl_hash_poly1305);
 	default:
 		return (NULL);
 	}
@@ -159,14 +161,6 @@ ossl_probesession(device_t dev, const struct crypto_session_params *csp)
 	return (CRYPTODEV_PROBE_ACCEL_SOFTWARE);
 }
 
-static void
-ossl_setkey_hmac(struct ossl_session *s, const void *key, int klen)
-{
-
-	hmac_init_ipad(s->hash.axf, key, klen, &s->hash.ictx);
-	hmac_init_opad(s->hash.axf, key, klen, &s->hash.octx);
-}
-
 static int
 ossl_newsession(device_t dev, crypto_session_t cses,
     const struct crypto_session_params *csp)
@@ -188,8 +182,16 @@ ossl_newsession(device_t dev, crypto_session_t cses,
 	} else {
 		if (csp->csp_auth_key != NULL) {
 			fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);
-			ossl_setkey_hmac(s, csp->csp_auth_key,
-			    csp->csp_auth_klen);
+			if (axf->Setkey != NULL) {
+				axf->Init(&s->hash.ictx);
+				axf->Setkey(&s->hash.ictx, csp->csp_auth_key,
+				    csp->csp_auth_klen);
+			} else {
+				hmac_init_ipad(axf, csp->csp_auth_key,
+				    csp->csp_auth_klen, &s->hash.ictx);
+				hmac_init_opad(axf, csp->csp_auth_key,
+				    csp->csp_auth_klen, &s->hash.octx);
+			}
 			fpu_kern_leave(curthread, NULL);
 		}
 	}
@@ -218,10 +220,18 @@ ossl_process(device_t dev, struct cryptop *crp, int hint)
 		fpu_entered = true;
 	}
 
-	if (crp->crp_auth_key != NULL)
-		ossl_setkey_hmac(s, crp->crp_auth_key, csp->csp_auth_klen);
-
-	ctx = s->hash.ictx;
+	if (crp->crp_auth_key == NULL) {
+		ctx = s->hash.ictx;
+	} else {
+		if (axf->Setkey != NULL) {
+			axf->Init(&ctx);
+			axf->Setkey(&ctx, crp->crp_auth_key,
+			    csp->csp_auth_klen);
+		} else {
+			hmac_init_ipad(axf, crp->crp_auth_key,
+			    csp->csp_auth_klen, &ctx);
+		}
+	}
 
 	if (crp->crp_aad != NULL)
 		error = axf->Update(&ctx, crp->crp_aad, crp->crp_aad_length);
@@ -238,8 +248,12 @@ ossl_process(device_t dev, struct cryptop *crp, int hint)
 
 	axf->Final(digest, &ctx);
 
-	if (csp->csp_auth_klen != 0) {
-		ctx = s->hash.octx;
+	if (csp->csp_auth_klen != 0 && axf->Setkey == NULL) {
+		if (crp->crp_auth_key == NULL)
+			ctx = s->hash.octx;
+		else
+			hmac_init_opad(axf, crp->crp_auth_key,
+			    csp->csp_auth_klen, &ctx);
 		axf->Update(&ctx, digest, axf->hashsize);
 		axf->Final(digest, &ctx);
 	}
