@@ -3024,7 +3024,6 @@ journal_mount(mp, fs, cred)
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_SUJ;
-	mp->mnt_flag &= ~MNT_SOFTDEP;
 	MNT_IUNLOCK(mp);
 
 	/*
