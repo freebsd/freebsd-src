@@ -908,7 +908,7 @@ single_user(void)
 				if (clear == NULL || *clear == '\0')
 					_exit(0);
 				password = crypt(clear, pp->pw_passwd);
-				bzero(clear, _PASSWORD_LEN);
+				explicit_bzero(clear, _PASSWORD_LEN);
 				if (password != NULL &&
 				    strcmp(password, pp->pw_passwd) == 0)
 					break;
