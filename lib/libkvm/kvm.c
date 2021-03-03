@@ -559,6 +559,8 @@ kvm_close(kvm_t *kd)
 		free((void *) kd->argspc);
 	if (kd->argv != 0)
 		free((void *)kd->argv);
+	if (kd->dpcpu_initialized != 0)
+		free(kd->dpcpu_off);
 	free((void *)kd);
 
 	return (error);
@@ -797,6 +799,10 @@ kvm_nlist(kvm_t *kd, struct nlist *nl)
 	if (count == 0)
 		return (0);
 	kl = calloc(count + 1, sizeof(*kl));
+	if (kl == NULL) {
+		_kvm_err(kd, kd->program, "cannot allocate memory");
+		return (-1);
+	}
 	for (i = 0; i < count; i++)
 		kl[i].n_name = nl[i].n_name;
 	nfail = kvm_nlist2(kd, kl);
@@ -806,6 +812,7 @@ kvm_nlist(kvm_t *kd, struct nlist *nl)
 		nl[i].n_desc = 0;
 		nl[i].n_value = kl[i].n_value;
 	}
+	free(kl);
 	return (nfail);
 }
 
