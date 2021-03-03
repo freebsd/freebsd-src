@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2021
+.Dd March 2, 2021
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -143,6 +143,10 @@ Additional
 .Xr make 1
 arguments to pass through, which directly affect the
 tuning of the build chroot.
+.It Va NOGIT
+Do not explicitly require the
+.Xr git 1
+port to be installed.
 .It Va GITROOT
 The
 .Xr git 1
