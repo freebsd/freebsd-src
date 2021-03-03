@@ -34,6 +34,11 @@
 /* Compatibility shims. */
 #define	OPENSSL_cleanse		explicit_bzero
 
+struct cryptop;
+struct crypto_session_params;
+
+int	ossl_chacha20(struct cryptop *crp,
+	    const struct crypto_session_params *csp);
 void ossl_cpuid(void);
 
 /* Needs to be big enough to hold any hash context. */

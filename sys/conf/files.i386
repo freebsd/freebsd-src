@@ -77,6 +77,7 @@ compat/linux/linux_vdso.c	optional compat_linux
 compat/linux/linux.c		optional compat_linux
 crypto/aesni/aeskeys_i386.S	optional aesni
 crypto/des/arch/i386/des_enc.S	optional netsmb
+crypto/openssl/i386/chacha-x86.S	optional ossl
 crypto/openssl/i386/poly1305-x86.S	optional ossl
 crypto/openssl/i386/sha1-586.S	optional ossl
 crypto/openssl/i386/sha256-586.S	optional ossl
