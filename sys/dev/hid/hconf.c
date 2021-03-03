@@ -34,6 +34,8 @@ __FBSDID("$FreeBSD$");
  * https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/windows-precision-touchpad-required-hid-top-level-collections
  */
 
+#include "opt_hid.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
