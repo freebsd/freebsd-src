@@ -53,7 +53,7 @@ Commands:
   list <commit>|<commit range>
   patch <diff1> [<diff2> ...]
   stage [-b branch] [<commit>|<commit range>]
-  update <commit>
+  update [<commit>|<commit range>]
 
 Description:
   Create or manage FreeBSD Phabricator reviews based on git commits.  There
@@ -500,24 +500,24 @@ gitarc::stage()
 
 gitarc::update()
 {
-    local commit diff
+    local commit commits diff
 
-    commit=$1
-    diff=$(commit2diff $commit)
-
-    if ! show_and_prompt $commit; then
-        return
-    fi
-
+    commits=$(build_commit_list $@)
     save_head
+    for commit in ${commits}; do
+        diff=$(commit2diff $commit)
 
-    git checkout -q $commit
+        if ! show_and_prompt $commit; then
+            break
+        fi
 
-    # The linter is stupid and applies patches to the working copy.
-    # This would be tolerable if it didn't try to correct "misspelled" variable
-    # names.
-    arc diff --allow-untracked --never-apply-patches --update $diff HEAD~
+        git checkout -q $commit
 
+        # The linter is stupid and applies patches to the working copy.
+        # This would be tolerable if it didn't try to correct "misspelled" variable
+        # names.
+        arc diff --allow-untracked --never-apply-patches --update $diff HEAD~
+    done
     restore_head
 }
 
