@@ -912,7 +912,8 @@ icl_send_thread(void *arg)
 			 * This way the icl_conn_send_pdus() can go through
 			 * all the queued PDUs without holding any locks.
 			 */
-			STAILQ_CONCAT(&queue, &ic->ic_to_send);
+			if (STAILQ_EMPTY(&queue) || ic->ic_check_send_space)
+				STAILQ_CONCAT(&queue, &ic->ic_to_send);
 
 			ic->ic_check_send_space = false;
 			ICL_CONN_UNLOCK(ic);
