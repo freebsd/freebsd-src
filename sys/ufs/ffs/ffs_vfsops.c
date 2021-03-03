@@ -645,6 +645,8 @@ ffs_mount(struct mount *mp)
 			fs->fs_clean = 0;
 			if ((error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0) {
 				fs->fs_ronly = 1;
+				if ((fs->fs_flags & FS_DOSOFTDEP) != 0)
+					softdep_unmount(mp);
 				MNT_ILOCK(mp);
 				mp->mnt_flag |= saved_mnt_flag;
 				MNT_IUNLOCK(mp);
