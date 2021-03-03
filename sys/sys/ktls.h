@@ -164,7 +164,7 @@ struct tls_session_params {
 #define	KTLS_TX		1
 #define	KTLS_RX		2
 
-#define	KTLS_API_VERSION 7
+#define	KTLS_API_VERSION 8
 
 struct iovec;
 struct ktls_session;
@@ -186,8 +186,8 @@ struct ktls_session {
 	union {
 		int	(*sw_encrypt)(struct ktls_session *tls,
 		    const struct tls_record_layer *hdr, uint8_t *trailer,
-		    struct iovec *src, struct iovec *dst, int iovcnt,
-		    uint64_t seqno, uint8_t record_type);
+		    struct iovec *src, struct iovec *dst, int srciovcnt,
+		    int dstiovcnt, uint64_t seqno, uint8_t record_type);
 		int	(*sw_decrypt)(struct ktls_session *tls,
 		    const struct tls_record_layer *hdr, struct mbuf *m,
 		    uint64_t seqno, int *trailer_len);
