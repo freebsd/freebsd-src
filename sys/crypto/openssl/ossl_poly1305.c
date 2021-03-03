@@ -46,7 +46,7 @@ void poly1305_blocks(void *ctx, const unsigned char *inp, size_t len,
 void poly1305_emit(void *ctx, unsigned char mac[16],
                    const unsigned int nonce[4]);
 
-static void Poly1305_Init(POLY1305 *ctx, const unsigned char key[32])
+void Poly1305_Init(POLY1305 *ctx, const unsigned char key[32])
 {
     ctx->nonce[0] = U8TOU32(&key[16]);
     ctx->nonce[1] = U8TOU32(&key[20]);
@@ -77,7 +77,7 @@ static void Poly1305_Init(POLY1305 *ctx, const unsigned char key[32])
 # define poly1305_emit   (*poly1305_emit_p)
 #endif
 
-static void Poly1305_Update(POLY1305 *ctx, const unsigned char *inp, size_t len)
+void Poly1305_Update(POLY1305 *ctx, const unsigned char *inp, size_t len)
 {
 #ifdef POLY1305_ASM
     /*
@@ -119,7 +119,7 @@ static void Poly1305_Update(POLY1305 *ctx, const unsigned char *inp, size_t len)
     ctx->num = rem;
 }
 
-static void Poly1305_Final(POLY1305 *ctx, unsigned char mac[16])
+void Poly1305_Final(POLY1305 *ctx, unsigned char mac[16])
 {
 #ifdef POLY1305_ASM
     poly1305_blocks_f poly1305_blocks_p = ctx->func.blocks;
@@ -152,7 +152,7 @@ ossl_poly1305_setkey(void *vctx, const uint8_t *key, u_int klen)
 	Poly1305_Init(vctx, key);
 }
 
-static int
+int
 ossl_poly1305_update(void *vctx, const void *buf, u_int len)
 {
 	Poly1305_Update(vctx, buf, len);
