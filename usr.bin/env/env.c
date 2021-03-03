@@ -144,7 +144,7 @@ main(int argc, char **argv)
 		login_class = strchr(login_name, '/');
 		if (login_class)
 			*login_class++ = '\0';
-		if (*login_name != '\0' && strcmp(login_name,"-") != 0) {
+		if (*login_name != '\0' && strcmp(login_name, "-") != 0) {
 			pw = getpwnam(login_name);
 			if (pw == NULL) {
 				char *endp = NULL;
