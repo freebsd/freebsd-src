@@ -21,5 +21,6 @@ ppsapi		Test 1 Pulse Per Second (1PPS) input for time control.
 pthread_vfork	Check that vfork and pthreads work together.
 ptrace		Verify that ptrace works with syscalls, vfork etc.
 sort		Tests for the sort command, including a full regression.
+stress2		Kernel stress tool.
 testfloat	Programs to test floating-point implementations
 upsdl		Test of mmap functionality.
