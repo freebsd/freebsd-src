@@ -98,7 +98,7 @@ main(int argc, char *argv[])
 		BACKLIGHTGETSTATUS,
 		BACKLIGHTUPDATESTATUS,
 		BACKLIGHTGETINFO};
-	long percent = 0;
+	long percent = -1;
 	const char *percent_error;
 	uint32_t i;
 	bool setname;
@@ -188,15 +188,20 @@ main(int argc, char *argv[])
 		}
 		break;
 	case BACKLIGHT_SET_BRIGHTNESS:
+		if (percent == -1)
+			usage();
 		props.brightness = percent;
 		if (ioctl(fd, BACKLIGHTUPDATESTATUS, &props) == -1)
 			errx(1, "Cannot update the backlight device");
 		break;
 	case BACKLIGHT_INCR:
 	case BACKLIGHT_DECR:
+		if (percent == 0)
+			/* Avoid any ioctl if we don't have anything to do */
+			break;
 		if (ioctl(fd, BACKLIGHTGETSTATUS, &props) == -1)
 			errx(1, "Cannot query the backlight device");
-		percent = percent == 0 ? 10 : percent;
+		percent = percent == -1 ? 10 : percent;
 		percent = action == BACKLIGHT_INCR ? percent : -percent;
 		props.brightness += percent;
 		if ((int)props.brightness < 0)
