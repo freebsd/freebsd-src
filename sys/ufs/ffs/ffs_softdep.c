@@ -1471,7 +1471,7 @@ get_parent_vp(struct vnode *vp, struct mount *mp, ino_t inum, struct buf *bp,
 	ASSERT_VOP_ELOCKED(vp, "child vnode must be locked");
 	for (bplocked = true, pvp = NULL;;) {
 		error = ffs_vgetf(mp, inum, LK_EXCLUSIVE | LK_NOWAIT, &pvp,
-		    FFSV_FORCEINSMQ);
+		    FFSV_FORCEINSMQ | FFSV_FORCEINODEDEP);
 		if (error == 0) {
 			/*
 			 * Since we could have unlocked vp, the inode
@@ -1512,7 +1512,7 @@ get_parent_vp(struct vnode *vp, struct mount *mp, ino_t inum, struct buf *bp,
 
 		VOP_UNLOCK(vp);
 		error = ffs_vgetf(mp, inum, LK_EXCLUSIVE, &pvp,
-		    FFSV_FORCEINSMQ);
+		    FFSV_FORCEINSMQ | FFSV_FORCEINODEDEP);
 		if (error != 0) {
 			MPASS(error != ERELOOKUP);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
@@ -8387,7 +8387,7 @@ handle_complete_freeblocks(freeblks, flags)
 	 */
 	if (spare && freeblks->fb_len != 0) {
 		if (ffs_vgetf(freeblks->fb_list.wk_mp, freeblks->fb_inum,
-		    flags, &vp, FFSV_FORCEINSMQ) != 0)
+		    flags, &vp, FFSV_FORCEINSMQ | FFSV_FORCEINODEDEP) != 0)
 			return (EBUSY);
 		ip = VTOI(vp);
 		if (ip->i_mode == 0) {
@@ -10177,7 +10177,8 @@ handle_workitem_remove(dirrem, flags)
 	mp = dirrem->dm_list.wk_mp;
 	ump = VFSTOUFS(mp);
 	flags |= LK_EXCLUSIVE;
-	if (ffs_vgetf(mp, oldinum, flags, &vp, FFSV_FORCEINSMQ) != 0)
+	if (ffs_vgetf(mp, oldinum, flags, &vp, FFSV_FORCEINSMQ |
+	    FFSV_FORCEINODEDEP) != 0)
 		return (EBUSY);
 	ip = VTOI(vp);
 	MPASS(ip->i_mode != 0);
@@ -14269,7 +14270,7 @@ clear_remove(mp)
 			if (error != 0)
 				goto finish_write;
 			error = ffs_vgetf(mp, ino, LK_EXCLUSIVE, &vp,
-			     FFSV_FORCEINSMQ);
+			     FFSV_FORCEINSMQ | FFSV_FORCEINODEDEP);
 			vfs_unbusy(mp);
 			if (error != 0) {
 				softdep_error("clear_remove: vget", error);
@@ -14349,7 +14350,7 @@ clear_inodedeps(mp)
 			return;
 		}
 		if ((error = ffs_vgetf(mp, ino, LK_EXCLUSIVE, &vp,
-		    FFSV_FORCEINSMQ)) != 0) {
+		    FFSV_FORCEINSMQ | FFSV_FORCEINODEDEP)) != 0) {
 			softdep_error("clear_inodedeps: vget", error);
 			vfs_unbusy(mp);
 			vn_finished_write(mp);

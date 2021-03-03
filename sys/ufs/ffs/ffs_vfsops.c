@@ -2074,7 +2074,8 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 		*vpp = NULL;
 		return (error);
 	}
-	if (DOINGSOFTDEP(vp))
+	if (DOINGSOFTDEP(vp) && (!fs->fs_ronly ||
+	    (ffs_flags & FFSV_FORCEINODEDEP) != 0))
 		softdep_load_inodeblock(ip);
 	else
 		ip->i_effnlink = ip->i_nlink;
