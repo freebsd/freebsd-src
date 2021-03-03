@@ -33,3 +33,8 @@ struct poly1305_context {
         poly1305_emit_f emit;
     } func;
 };
+
+int ossl_poly1305_update(void *vctx, const void *buf, u_int len);
+void Poly1305_Init(POLY1305 *ctx, const unsigned char key[32]);
+void Poly1305_Update(POLY1305 *ctx, const unsigned char *inp, size_t len);
+void Poly1305_Final(POLY1305 *ctx, unsigned char mac[16]);

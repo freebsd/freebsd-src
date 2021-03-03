@@ -165,6 +165,14 @@ ossl_probesession(device_t dev, const struct crypto_session_params *csp)
 			return (EINVAL);
 		}
 		break;
+	case CSP_MODE_AEAD:
+		switch (csp->csp_cipher_alg) {
+		case CRYPTO_CHACHA20_POLY1305:
+			break;
+		default:
+			return (EINVAL);
+		}
+		break;
 	default:
 		return (EINVAL);
 	}
@@ -313,6 +321,12 @@ ossl_process(device_t dev, struct cryptop *crp, int hint)
 		break;
 	case CSP_MODE_CIPHER:
 		error = ossl_chacha20(crp, csp);
+		break;
+	case CSP_MODE_AEAD:
+		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
+			error = ossl_chacha20_poly1305_encrypt(crp, csp);
+		else
+			error = ossl_chacha20_poly1305_decrypt(crp, csp);
 		break;
 	default:
 		__assert_unreachable();
