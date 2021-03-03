@@ -20,6 +20,7 @@ ATF_TESTS_SH+=	anchor \
 		set_skip \
 		pfsync \
 		table \
+		tos \
 		icmp
 
 ${PACKAGE}FILES+=	utils.subr \
