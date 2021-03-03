@@ -178,15 +178,15 @@ ktls_ocf_dispatch(struct ocf_session *os, struct cryptop *crp)
 static int
 ktls_ocf_tls_cbc_encrypt(struct ktls_session *tls,
     const struct tls_record_layer *hdr, uint8_t *trailer, struct iovec *iniov,
-    struct iovec *outiov, int iovcnt, uint64_t seqno,
+    struct iovec *outiov, int iniovcnt, int outiovcnt, uint64_t seqno,
     uint8_t record_type __unused)
 {
 	struct uio uio, out_uio;
 	struct tls_mac_data ad;
 	struct cryptop crp;
 	struct ocf_session *os;
-	struct iovec iov[iovcnt + 2];
-	struct iovec out_iov[iovcnt + 1];
+	struct iovec iov[iniovcnt + 2];
+	struct iovec out_iov[outiovcnt + 1];
 	int i, error;
 	uint16_t tls_comp_len;
 	uint8_t pad;
@@ -219,10 +219,11 @@ ktls_ocf_tls_cbc_encrypt(struct ktls_session *tls,
 	 * at least compute inplace as well while we are here.
 	 */
 	tls_comp_len = 0;
-	inplace = true;
-	for (i = 0; i < iovcnt; i++) {
+	inplace = iniovcnt == outiovcnt;
+	for (i = 0; i < iniovcnt; i++) {
 		tls_comp_len += iniov[i].iov_len;
-		if (iniov[i].iov_base != outiov[i].iov_base)
+		if (inplace &&
+		    (i >= outiovcnt || iniov[i].iov_base != outiov[i].iov_base))
 			inplace = false;
 	}
 
@@ -236,11 +237,11 @@ ktls_ocf_tls_cbc_encrypt(struct ktls_session *tls,
 	/* First, compute the MAC. */
 	iov[0].iov_base = &ad;
 	iov[0].iov_len = sizeof(ad);
-	memcpy(&iov[1], iniov, sizeof(*iniov) * iovcnt);
-	iov[iovcnt + 1].iov_base = trailer;
-	iov[iovcnt + 1].iov_len = os->mac_len;
+	memcpy(&iov[1], iniov, sizeof(*iniov) * iniovcnt);
+	iov[iniovcnt + 1].iov_base = trailer;
+	iov[iniovcnt + 1].iov_len = os->mac_len;
 	uio.uio_iov = iov;
-	uio.uio_iovcnt = iovcnt + 2;
+	uio.uio_iovcnt = iniovcnt + 2;
 	uio.uio_offset = 0;
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_td = curthread;
@@ -279,10 +280,10 @@ ktls_ocf_tls_cbc_encrypt(struct ktls_session *tls,
 	 * Don't recopy the input iovec, instead just adjust the
 	 * trailer length and skip over the AAD vector in the uio.
 	 */
-	iov[iovcnt + 1].iov_len += pad + 1;
+	iov[iniovcnt + 1].iov_len += pad + 1;
 	uio.uio_iov = iov + 1;
-	uio.uio_iovcnt = iovcnt + 1;
-	uio.uio_resid = tls_comp_len + iov[iovcnt + 1].iov_len;
+	uio.uio_iovcnt = iniovcnt + 1;
+	uio.uio_resid = tls_comp_len + iov[iniovcnt + 1].iov_len;
 	KASSERT(uio.uio_resid % AES_BLOCK_LEN == 0,
 	    ("invalid encryption size"));
 
@@ -297,10 +298,10 @@ ktls_ocf_tls_cbc_encrypt(struct ktls_session *tls,
 		memcpy(crp.crp_iv, hdr + 1, AES_BLOCK_LEN);
 	crypto_use_uio(&crp, &uio);
 	if (!inplace) {
-		memcpy(out_iov, outiov, sizeof(*iniov) * iovcnt);
-		out_iov[iovcnt] = iov[iovcnt + 1];
+		memcpy(out_iov, outiov, sizeof(*iniov) * outiovcnt);
+		out_iov[outiovcnt] = iov[outiovcnt + 1];
 		out_uio.uio_iov = out_iov;
-		out_uio.uio_iovcnt = iovcnt + 1;
+		out_uio.uio_iovcnt = outiovcnt + 1;
 		out_uio.uio_offset = 0;
 		out_uio.uio_segflg = UIO_SYSSPACE;
 		out_uio.uio_td = curthread;
@@ -338,14 +339,14 @@ ktls_ocf_tls_cbc_encrypt(struct ktls_session *tls,
 static int
 ktls_ocf_tls12_aead_encrypt(struct ktls_session *tls,
     const struct tls_record_layer *hdr, uint8_t *trailer, struct iovec *iniov,
-    struct iovec *outiov, int iovcnt, uint64_t seqno,
+    struct iovec *outiov, int iniovcnt, int outiovcnt, uint64_t seqno,
     uint8_t record_type __unused)
 {
 	struct uio uio, out_uio, *tag_uio;
 	struct tls_aead_data ad;
 	struct cryptop crp;
 	struct ocf_session *os;
-	struct iovec iov[iovcnt + 1];
+	struct iovec iov[outiovcnt + 1];
 	int i, error;
 	uint16_t tls_comp_len;
 	bool inplace;
@@ -353,13 +354,13 @@ ktls_ocf_tls12_aead_encrypt(struct ktls_session *tls,
 	os = tls->cipher;
 
 	uio.uio_iov = iniov;
-	uio.uio_iovcnt = iovcnt;
+	uio.uio_iovcnt = iniovcnt;
 	uio.uio_offset = 0;
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_td = curthread;
 
 	out_uio.uio_iov = outiov;
-	out_uio.uio_iovcnt = iovcnt;
+	out_uio.uio_iovcnt = outiovcnt;
 	out_uio.uio_offset = 0;
 	out_uio.uio_segflg = UIO_SYSSPACE;
 	out_uio.uio_td = curthread;
@@ -396,10 +397,11 @@ ktls_ocf_tls12_aead_encrypt(struct ktls_session *tls,
 	crp.crp_aad_length = sizeof(ad);
 
 	/* Compute payload length and determine if encryption is in place. */
-	inplace = true;
+	inplace = iniovcnt == outiovcnt;
 	crp.crp_payload_start = 0;
-	for (i = 0; i < iovcnt; i++) {
-		if (iniov[i].iov_base != outiov[i].iov_base)
+	for (i = 0; i < iniovcnt; i++) {
+		if (inplace &&
+		    (i >= outiovcnt || iniov[i].iov_base != outiov[i].iov_base))
 			inplace = false;
 		crp.crp_payload_length += iniov[i].iov_len;
 	}
@@ -412,9 +414,9 @@ ktls_ocf_tls12_aead_encrypt(struct ktls_session *tls,
 		tag_uio = &out_uio;
 
 	/* Duplicate iovec and append vector for tag. */
-	memcpy(iov, tag_uio->uio_iov, iovcnt * sizeof(struct iovec));
-	iov[iovcnt].iov_base = trailer;
-	iov[iovcnt].iov_len = AES_GMAC_HASH_LEN;
+	memcpy(iov, tag_uio->uio_iov, outiovcnt * sizeof(struct iovec));
+	iov[outiovcnt].iov_base = trailer;
+	iov[outiovcnt].iov_len = AES_GMAC_HASH_LEN;
 	tag_uio->uio_iov = iov;
 	tag_uio->uio_iovcnt++;
 	crp.crp_digest_start = tag_uio->uio_resid;
@@ -510,14 +512,15 @@ ktls_ocf_tls12_aead_decrypt(struct ktls_session *tls,
 static int
 ktls_ocf_tls13_aead_encrypt(struct ktls_session *tls,
     const struct tls_record_layer *hdr, uint8_t *trailer, struct iovec *iniov,
-    struct iovec *outiov, int iovcnt, uint64_t seqno, uint8_t record_type)
+    struct iovec *outiov, int iniovcnt, int outiovcnt, uint64_t seqno,
+    uint8_t record_type)
 {
 	struct uio uio, out_uio;
 	struct tls_aead_data_13 ad;
 	char nonce[12];
 	struct cryptop crp;
 	struct ocf_session *os;
-	struct iovec iov[iovcnt + 1], out_iov[iovcnt + 1];
+	struct iovec iov[iniovcnt + 1], out_iov[outiovcnt + 1];
 	int i, error;
 	bool inplace;
 
@@ -538,10 +541,11 @@ ktls_ocf_tls13_aead_encrypt(struct ktls_session *tls,
 	crp.crp_aad_length = sizeof(ad);
 
 	/* Compute payload length and determine if encryption is in place. */
-	inplace = true;
+	inplace = iniovcnt == outiovcnt;
 	crp.crp_payload_start = 0;
-	for (i = 0; i < iovcnt; i++) {
-		if (iniov[i].iov_base != outiov[i].iov_base)
+	for (i = 0; i < iniovcnt; i++) {
+		if (inplace && (i >= outiovcnt ||
+		    iniov[i].iov_base != outiov[i].iov_base))
 			inplace = false;
 		crp.crp_payload_length += iniov[i].iov_len;
 	}
@@ -556,11 +560,11 @@ ktls_ocf_tls13_aead_encrypt(struct ktls_session *tls,
 	 * include the full trailer as input to get the record_type
 	 * even if only the first byte is used.
 	 */
-	memcpy(iov, iniov, iovcnt * sizeof(*iov));
-	iov[iovcnt].iov_base = trailer;
-	iov[iovcnt].iov_len = tls->params.tls_tlen;
+	memcpy(iov, iniov, iniovcnt * sizeof(*iov));
+	iov[iniovcnt].iov_base = trailer;
+	iov[iniovcnt].iov_len = tls->params.tls_tlen;
 	uio.uio_iov = iov;
-	uio.uio_iovcnt = iovcnt + 1;
+	uio.uio_iovcnt = iniovcnt + 1;
 	uio.uio_offset = 0;
 	uio.uio_resid = crp.crp_payload_length + tls->params.tls_tlen - 1;
 	uio.uio_segflg = UIO_SYSSPACE;
@@ -569,11 +573,11 @@ ktls_ocf_tls13_aead_encrypt(struct ktls_session *tls,
 
 	if (!inplace) {
 		/* Duplicate the output iov to append the trailer. */
-		memcpy(out_iov, outiov, iovcnt * sizeof(*out_iov));
-		out_iov[iovcnt] = iov[iovcnt];
+		memcpy(out_iov, outiov, outiovcnt * sizeof(*out_iov));
+		out_iov[outiovcnt] = iov[outiovcnt];
 
 		out_uio.uio_iov = out_iov;
-		out_uio.uio_iovcnt = iovcnt + 1;
+		out_uio.uio_iovcnt = outiovcnt + 1;
 		out_uio.uio_offset = 0;
 		out_uio.uio_resid = crp.crp_payload_length +
 		    tls->params.tls_tlen - 1;
