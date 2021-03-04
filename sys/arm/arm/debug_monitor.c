@@ -327,6 +327,35 @@ kdb_cpu_clear_singlestep(void)
 }
 
 int
+kdb_cpu_set_watchpoint(vm_offset_t addr, size_t size, int access)
+{
+	enum dbg_access_t dbg_access;
+
+	switch (access) {
+	case KDB_DBG_ACCESS_R:
+		dbg_access = HW_WATCHPOINT_R;
+		break;
+	case KDB_DBG_ACCESS_W:
+		dbg_access = HW_WATCHPOINT_W;
+		break;
+	case KDB_DBG_ACCESS_RW:
+		dbg_access = HW_WATCHPOINT_RW;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (dbg_setup_watchpoint(addr, size, (enum dbg_access_t)access));
+}
+
+int
+kdb_cpu_clr_watchpoint(vm_offset_t addr, size_t size)
+{
+
+	return (dbg_remove_watchpoint(addr, size));
+}
+
+int
 dbg_setup_watchpoint(db_expr_t addr, db_expr_t size, enum dbg_access_t access)
 {
 	struct dbg_wb_conf conf;
@@ -624,7 +653,7 @@ dbg_setup_xpoint(struct dbg_wb_conf *conf)
 		if (i == ~0U) {
 			db_printf("Can not find slot for %s, max %d slots supported\n",
 			    typestr, dbg_watchpoint_num);
-			return (ENXIO);
+			return (EBUSY);
 		}
 	}
 
@@ -645,7 +674,8 @@ dbg_setup_xpoint(struct dbg_wb_conf *conf)
 		cr_size = DBG_WB_CTRL_LEN_8;
 		break;
 	default:
-		db_printf("Unsupported address size for %s\n", typestr);
+		db_printf("Unsupported address size for %s: %zu\n", typestr,
+		    conf->size);
 		return (EINVAL);
 	}
 
@@ -667,7 +697,8 @@ dbg_setup_xpoint(struct dbg_wb_conf *conf)
 			cr_access = DBG_WB_CTRL_LOAD | DBG_WB_CTRL_STORE;
 			break;
 		default:
-			db_printf("Unsupported exception level for %s\n", typestr);
+			db_printf("Unsupported access type for %s: %d\n",
+			    typestr, conf->access);
 			return (EINVAL);
 		}
 
