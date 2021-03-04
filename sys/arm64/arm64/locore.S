@@ -430,7 +430,7 @@ common:
 
 	/* Create the kernel space L2 table */
 	mov	x6, x26
-	mov	x7, #VM_MEMATTR_WRITE_BACK
+	mov	x7, #(ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK))
 	mov	x8, #(KERNBASE & L2_BLOCK_MASK)
 	mov	x9, x28
 	bl	build_l2_block_pagetable
@@ -600,7 +600,7 @@ LEND(link_l1_pagetable)
 /*
  * Builds count 2 MiB page table entry
  *  x6  = L2 table
- *  x7  = Type (0 = Device, 1 = Normal)
+ *  x7  = Block attributes
  *  x8  = VA start
  *  x9  = PA start (trashed)
  *  x10 = Entry count (trashed)
@@ -615,8 +615,7 @@ LENTRY(build_l2_block_pagetable)
 	and	x11, x11, #Ln_ADDR_MASK
 
 	/* Build the L2 block entry */
-	lsl	x12, x7, #2
-	orr	x12, x12, #L2_BLOCK
+	orr	x12, x7, #L2_BLOCK
 	orr	x12, x12, #(ATTR_DEFAULT)
 	orr	x12, x12, #(ATTR_S1_UXN)
 
