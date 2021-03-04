@@ -193,7 +193,7 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
  * Assert that a thread is in critical(9) section.
  */
 #define	CRITICAL_ASSERT(td)						\
-	KASSERT((td)->td_critnest >= 1, ("Not in critical section"));
+	KASSERT((td)->td_critnest >= 1, ("Not in critical section"))
 
 /*
  * If we have already panic'd and this is the thread that called
