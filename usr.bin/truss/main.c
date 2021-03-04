@@ -87,7 +87,6 @@ main(int ac, char **av)
 	trussinfo->strsize = 32;
 	trussinfo->curthread = NULL;
 	LIST_INIT(&trussinfo->proclist);
-	init_syscalls();
 	while ((c = getopt(ac, av, "p:o:facedDs:SH")) != -1) {
 		switch (c) {
 		case 'p':	/* specified pid */

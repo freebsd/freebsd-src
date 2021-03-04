@@ -463,8 +463,8 @@ enter_syscall(struct trussinfo *info, struct threadinfo *t,
 		fprintf(info->outfile, "-- UNKNOWN %s SYSCALL %d --\n",
 		    t->proc->abi->type, t->cs.number);
 
-	t->cs.nargs = sc->nargs;
-	assert(sc->nargs <= nitems(t->cs.s_args));
+	t->cs.nargs = sc->decode.nargs;
+	assert(sc->decode.nargs <= nitems(t->cs.s_args));
 
 	t->cs.sc = sc;
 
@@ -480,11 +480,12 @@ enter_syscall(struct trussinfo *info, struct threadinfo *t,
 #endif
 	for (i = 0; i < t->cs.nargs; i++) {
 #if DEBUG
-		fprintf(stderr, "0x%lx%s", t->cs.args[sc->args[i].offset],
+		fprintf(stderr, "0x%lx%s",
+		    t->cs.args[sc->decode.args[i].offset],
 		    i < (t->cs.nargs - 1) ? "," : "");
 #endif
-		if (!(sc->args[i].type & OUT)) {
-			t->cs.s_args[i] = print_arg(&sc->args[i],
+		if (!(sc->decode.args[i].type & OUT)) {
+			t->cs.s_args[i] = print_arg(&sc->decode.args[i],
 			    t->cs.args, NULL, info);
 		}
 	}
@@ -542,19 +543,19 @@ exit_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 	 * Here, we only look for arguments that have OUT masked in --
 	 * otherwise, they were handled in enter_syscall().
 	 */
-	for (i = 0; i < sc->nargs; i++) {
+	for (i = 0; i < sc->decode.nargs; i++) {
 		char *temp;
 
-		if (sc->args[i].type & OUT) {
+		if (sc->decode.args[i].type & OUT) {
 			/*
 			 * If an error occurred, then don't bother
 			 * getting the data; it may not be valid.
 			 */
 			if (psr.sr_error != 0) {
 				asprintf(&temp, "0x%lx",
-				    t->cs.args[sc->args[i].offset]);
+				    t->cs.args[sc->decode.args[i].offset]);
 			} else {
-				temp = print_arg(&sc->args[i],
+				temp = print_arg(&sc->decode.args[i],
 				    t->cs.args, psr.sr_retval, info);
 			}
 			t->cs.s_args[i] = temp;
