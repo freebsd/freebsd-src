@@ -226,6 +226,35 @@ kdb_cpu_clear_singlestep(void)
 	}
 }
 
+int
+kdb_cpu_set_watchpoint(vm_offset_t addr, vm_size_t size, int access)
+{
+	enum dbg_access_t dbg_access;
+
+	switch (access) {
+	case KDB_DBG_ACCESS_R:
+		dbg_access = HW_BREAKPOINT_R;
+		break;
+	case KDB_DBG_ACCESS_W:
+		dbg_access = HW_BREAKPOINT_W;
+		break;
+	case KDB_DBG_ACCESS_RW:
+		dbg_access = HW_BREAKPOINT_RW;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (dbg_setup_watchpoint(NULL, addr, size, dbg_access));
+}
+
+int
+kdb_cpu_clr_watchpoint(vm_offset_t addr, vm_size_t size)
+{
+
+	return (dbg_remove_watchpoint(NULL, addr, size));
+}
+
 static const char *
 dbg_watchtype_str(uint32_t type)
 {
@@ -362,7 +391,7 @@ dbg_setup_watchpoint(struct debug_monitor_state *monitor, vm_offset_t addr,
 	if (i == -1) {
 		printf("Can not find slot for watchpoint, max %d"
 		    " watchpoints supported\n", dbg_watchpoint_num);
-		return (i);
+		return (EBUSY);
 	}
 
 	switch(size) {
@@ -379,8 +408,8 @@ dbg_setup_watchpoint(struct debug_monitor_state *monitor, vm_offset_t addr,
 		wcr_size = DBG_WATCH_CTRL_LEN_8;
 		break;
 	default:
-		printf("Unsupported address size for watchpoint\n");
-		return (-1);
+		printf("Unsupported address size for watchpoint: %zu\n", size);
+		return (EINVAL);
 	}
 
 	if ((monitor->dbg_flags & DBGMON_KERNEL) == 0)
@@ -402,8 +431,8 @@ dbg_setup_watchpoint(struct debug_monitor_state *monitor, vm_offset_t addr,
 		wcr_access = DBG_WATCH_CTRL_LOAD | DBG_WATCH_CTRL_STORE;
 		break;
 	default:
-		printf("Unsupported exception level for watchpoint\n");
-		return (-1);
+		printf("Unsupported access type for watchpoint: %d\n", access);
+		return (EINVAL);
 	}
 
 	monitor->dbg_wvr[i] = addr;
@@ -427,7 +456,7 @@ dbg_remove_watchpoint(struct debug_monitor_state *monitor, vm_offset_t addr,
 	i = dbg_find_slot(monitor, DBG_TYPE_WATCHPOINT, addr);
 	if (i == -1) {
 		printf("Can not find watchpoint for address 0%lx\n", addr);
-		return (i);
+		return (EINVAL);
 	}
 
 	monitor->dbg_wvr[i] = 0;
