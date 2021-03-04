@@ -360,7 +360,16 @@ jail_attach_newbase_epi(struct jail_test_cb_params *cbp)
 	 */
 	ATF_REQUIRE(info->jail_cpuset != cbp->rootid);
 	ATF_REQUIRE(info->jail_cpuset != cbp->setid);
-	ATF_REQUIRE(info->jail_cpuset != info->jail_child_cpuset);
+
+	/*
+	 * The historical behavior has been that the process will simply take on
+	 * and mask the jail's cpuset.  As of FreeBSD 13.0, this behavior will
+	 * change so that an attaching process will rebase its cpuset onto the
+	 * jail's if it had one distinct from its own jail's root, thus breaking
+	 * this condition.
+	 */
+	ATF_REQUIRE(info->jail_cpuset == info->jail_child_cpuset);
+
 	ATF_REQUIRE_EQ(0, CPU_CMP(mask, &info->jail_tidmask));
 }
 
