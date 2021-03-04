@@ -1087,7 +1087,7 @@ altq_extractflow(m, af, flow, filt_bmask)
 		fin6->fi6_family = AF_INET6;
 
 		fin6->fi6_proto = ip6->ip6_nxt;
-		fin6->fi6_tclass   = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
+		fin6->fi6_tclass   = IPV6_TRAFFIC_CLASS(ip6);
 
 		fin6->fi6_flowlabel = ip6->ip6_flow & htonl(0x000fffff);
 		fin6->fi6_src = ip6->ip6_src;

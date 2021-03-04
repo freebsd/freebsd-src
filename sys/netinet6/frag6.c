@@ -554,8 +554,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		q6->ip6q_ttl	= IPV6_FRAGTTL;
 		q6->ip6q_src	= ip6->ip6_src;
 		q6->ip6q_dst	= ip6->ip6_dst;
-		q6->ip6q_ecn	=
-		    (ntohl(ip6->ip6_flow) >> 20) & IPTOS_ECN_MASK;
+		q6->ip6q_ecn	= IPV6_ECN(ip6);
 		q6->ip6q_unfrglen = -1;	/* The 1st fragment has not arrived. */
 
 		/* Add the fragemented packet to the bucket. */
@@ -688,7 +687,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	 * if CE is set, do not lose CE.
 	 * Drop if CE and not-ECT are mixed for the same packet.
 	 */
-	ecn = (ntohl(ip6->ip6_flow) >> 20) & IPTOS_ECN_MASK;
+	ecn = IPV6_ECN(ip6);
 	ecn0 = q6->ip6q_ecn;
 	if (ecn == IPTOS_ECN_CE) {
 		if (ecn0 == IPTOS_ECN_NOTECT) {
