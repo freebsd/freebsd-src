@@ -280,17 +280,21 @@ CFLAGS+=        -std=${CSTD}
 # Please keep this if in sync with bsd.sys.mk
 .if ${LD} != "ld" && (${CC:[1]:H} != ${LD:[1]:H} || ${LD:[1]:T} != "ld")
 # Add -fuse-ld=${LD} if $LD is in a different directory or not called "ld".
-# Note: Clang 12+ will prefer --ld-path= over -fuse-ld=.
 .if ${COMPILER_TYPE} == "clang"
-# Note: unlike bsd.sys.mk we can't use LDFLAGS here since that is used for the
-# flags required when linking the kernel. We don't need those flags when
-# building the vdsos. However, we do need -fuse-ld, so use ${CCLDFLAGS} instead.
-# Note: Clang does not like relative paths in -fuse-ld so we map ld.lld -> lld.
-CCLDFLAGS+=	-fuse-ld=${LD:[1]:S/^ld.//1W}
+# Note: Clang does not like relative paths for ld so we map ld.lld -> lld.
+.if ${COMPILER_VERSION} >= 120000
+LDFLAGS+=	--ld-path=${LD:[1]:S/^ld.//1W}
+.else
+LDFLAGS+=	-fuse-ld=${LD:[1]:S/^ld.//1W}
+.endif
 .else
 # GCC does not support an absolute path for -fuse-ld so we just print this
 # warning instead and let the user add the required symlinks.
+# However, we can avoid this warning if -B is set appropriately (e.g. for
+# CROSS_TOOLCHAIN=...-gcc).
+.if !(${LD:[1]:T} == "ld" && ${CC:tw:M-B${LD:[1]:H}/})
 .warning LD (${LD}) is not the default linker for ${CC} but -fuse-ld= is not supported
+.endif
 .endif
 .endif
 
