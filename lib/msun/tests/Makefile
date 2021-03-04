@@ -86,6 +86,7 @@ IGNORE_PRAGMA=
 
 SRCS.ilogb2_test=	ilogb_test.c
 
+LIBADD.fenv_test+=	util
 LIBADD+=	m
 
 WARNS?=		6
