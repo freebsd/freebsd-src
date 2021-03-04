@@ -7,8 +7,8 @@
 
 VMTARGETS=	vm-image
 VMFORMATS?=	vhd vmdk qcow2 raw
-VMSIZE?=	4096M
-SWAPSIZE?=	1G
+VMSIZE?=	4096m
+SWAPSIZE?=	1g
 VMBASE?=	vm
 
 VHD_DESC=	Azure, VirtualPC, Hyper-V, Xen disk image
