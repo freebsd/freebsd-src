@@ -103,7 +103,7 @@ vfp_discard(struct thread *td)
 static void
 vfp_store(struct vfpstate *state)
 {
-	__int128_t *vfp_state;
+	__uint128_t *vfp_state;
 	uint64_t fpcr, fpsr;
 
 	vfp_state = state->vfp_regs;
@@ -135,7 +135,7 @@ vfp_store(struct vfpstate *state)
 static void
 vfp_restore(struct vfpstate *state)
 {
-	__int128_t *vfp_state;
+	__uint128_t *vfp_state;
 	uint64_t fpcr, fpsr;
 
 	vfp_state = state->vfp_regs;
@@ -378,7 +378,7 @@ fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 }
 
 int
-fpu_kern_thread(u_int flags)
+fpu_kern_thread(u_int flags __unused)
 {
 	struct pcb *pcb = curthread->td_pcb;
 
@@ -393,7 +393,7 @@ fpu_kern_thread(u_int flags)
 }
 
 int
-is_fpu_kern_thread(u_int flags)
+is_fpu_kern_thread(u_int flags __unused)
 {
 	struct pcb *curpcb;
 
