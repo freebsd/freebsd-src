@@ -288,7 +288,7 @@ atomic_store_rel_32(volatile uint32_t *p, uint32_t val)
 #define	atomic_subtract_acq_int	atomic_subtract_acq_32
 
 #define	atomic_add_rel_int	atomic_add_rel_32
-#define	atomic_clear_rel_int	atomic_add_rel_32
+#define	atomic_clear_rel_int	atomic_clear_rel_32
 #define	atomic_cmpset_rel_int	atomic_cmpset_rel_32
 #define	atomic_fcmpset_rel_int	atomic_fcmpset_rel_32
 #define	atomic_set_rel_int	atomic_set_rel_32
@@ -490,7 +490,7 @@ atomic_store_rel_64(volatile uint64_t *p, uint64_t val)
 }
 
 #define	atomic_add_acq_long		atomic_add_acq_64
-#define	atomic_clear_acq_long		atomic_add_acq_64
+#define	atomic_clear_acq_long		atomic_clear_acq_64
 #define	atomic_cmpset_acq_long		atomic_cmpset_acq_64
 #define	atomic_fcmpset_acq_long		atomic_fcmpset_acq_64
 #define	atomic_load_acq_long		atomic_load_acq_64
@@ -498,7 +498,7 @@ atomic_store_rel_64(volatile uint64_t *p, uint64_t val)
 #define	atomic_subtract_acq_long	atomic_subtract_acq_64
 
 #define	atomic_add_acq_ptr		atomic_add_acq_64
-#define	atomic_clear_acq_ptr		atomic_add_acq_64
+#define	atomic_clear_acq_ptr		atomic_clear_acq_64
 #define	atomic_cmpset_acq_ptr		atomic_cmpset_acq_64
 #define	atomic_fcmpset_acq_ptr		atomic_fcmpset_acq_64
 #define	atomic_load_acq_ptr		atomic_load_acq_64
