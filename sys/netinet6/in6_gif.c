@@ -344,7 +344,7 @@ in6_gif_input(struct mbuf *m, int off, int proto, void *arg)
 	gifp = GIF2IFP(sc);
 	if ((gifp->if_flags & IFF_UP) != 0) {
 		ip6 = mtod(m, struct ip6_hdr *);
-		ecn = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
+		ecn = IPV6_TRAFFIC_CLASS(ip6);
 		m_adj(m, off);
 		gif_input(m, gifp, proto, ecn);
 	} else {

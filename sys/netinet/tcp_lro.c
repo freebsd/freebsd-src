@@ -1546,7 +1546,7 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 			return (error);
 		tcp_data_len = ntohs(ip6->ip6_plen);
 #ifdef TCPHPTS
-		iptos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
+		iptos = IPV6_TRAFFIC_CLASS(ip6);
 #endif
 		ip_len = sizeof(*ip6) + tcp_data_len;
 		break;

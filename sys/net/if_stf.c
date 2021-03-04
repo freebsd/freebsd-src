@@ -455,7 +455,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		}
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
-	tos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
+	tos = IPV6_TRAFFIC_CLASS(ip6);
 
 	/*
 	 * Pickup the right outer dst addr from the list of candidates.
@@ -665,7 +665,7 @@ in_stf_input(struct mbuf *m, int off, int proto, void *arg)
 		return (IPPROTO_DONE);
 	}
 
-	itos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
+	itos = IPV6_TRAFFIC_CLASS(ip6);
 	if ((ifp->if_flags & IFF_LINK1) != 0)
 		ip_ecn_egress(ECN_ALLOWED, &otos, &itos);
 	else
