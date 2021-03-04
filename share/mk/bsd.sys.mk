@@ -306,7 +306,11 @@ LDFLAGS+=	-fuse-ld=${LD:[1]:S/^ld.//1W}
 .else
 # GCC does not support an absolute path for -fuse-ld so we just print this
 # warning instead and let the user add the required symlinks.
+# However, we can avoid this warning if -B is set appropriately (e.g. for
+# CROSS_TOOLCHAIN=...-gcc).
+.if !(${LD:[1]:T} == "ld" && ${CC:tw:M-B${LD:[1]:H}/})
 .warning LD (${LD}) is not the default linker for ${CC} but -fuse-ld= is not supported
+.endif
 .endif
 .endif
 
