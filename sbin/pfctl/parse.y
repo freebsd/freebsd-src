@@ -6334,7 +6334,8 @@ map_tos(char *s, int *val)
 		{ "lowdelay",		IPTOS_LOWDELAY },
 		{ "netcontrol",		IPTOS_PREC_NETCONTROL },
 		{ "reliability",	IPTOS_RELIABILITY },
-		{ "throughput",		IPTOS_THROUGHPUT }
+		{ "throughput",		IPTOS_THROUGHPUT },
+		{ "va",			IPTOS_DSCP_VA }
 	};
 	const struct keywords	*p;
 
