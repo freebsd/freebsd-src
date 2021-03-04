@@ -39,7 +39,7 @@ azure-check-depends:
 .   endif
 	env ASSUME_ALWAYS_YES=yes pkg install -y www/npm
 .  else
-	make -C ${PORTSDIR}/www/npm BATCH=1 all install clean
+	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/www/npm BATCH=1 all install clean
 .  endif
 . endif
 	npm install -g azure-cli
