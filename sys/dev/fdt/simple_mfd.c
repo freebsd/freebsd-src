@@ -73,9 +73,9 @@ static int simple_mfd_syscon_modify_4(struct syscon *syscon, bus_size_t offset,
 #define	SYSCON_ASSERT_UNLOCKED(_sc)	mtx_assert(&(_sc)->mtx, MA_NOTOWNED);
 
 static syscon_method_t simple_mfd_syscon_methods[] = {
-	SYSCONMETHOD(syscon_read_4,	simple_mfd_syscon_read_4),
-	SYSCONMETHOD(syscon_write_4,	simple_mfd_syscon_write_4),
-	SYSCONMETHOD(syscon_modify_4,	simple_mfd_syscon_modify_4),
+	SYSCONMETHOD(syscon_unlocked_read_4,	simple_mfd_syscon_read_4),
+	SYSCONMETHOD(syscon_unlocked_write_4,	simple_mfd_syscon_write_4),
+	SYSCONMETHOD(syscon_unlocked_modify_4,	simple_mfd_syscon_modify_4),
 
 	SYSCONMETHOD_END
 };
@@ -89,10 +89,8 @@ simple_mfd_syscon_read_4(struct syscon *syscon, bus_size_t offset)
 	uint32_t val;
 
 	sc = device_get_softc(syscon->pdev);
-
-	SYSCON_LOCK(sc);
+	SYSCON_ASSERT_LOCKED(sc);;
 	val = bus_read_4(sc->mem_res, offset);
-	SYSCON_UNLOCK(sc);
 	return (val);
 }
 
@@ -103,10 +101,8 @@ simple_mfd_syscon_write_4(struct syscon *syscon, bus_size_t offset,
 	struct simple_mfd_softc *sc;
 
 	sc = device_get_softc(syscon->pdev);
-
-	SYSCON_LOCK(sc);
+	SYSCON_ASSERT_LOCKED(sc);
 	bus_write_4(sc->mem_res, offset, val);
-	SYSCON_UNLOCK(sc);
 	return (0);
 }
 
@@ -118,15 +114,14 @@ simple_mfd_syscon_modify_4(struct syscon *syscon, bus_size_t offset,
 	uint32_t val;
 
 	sc = device_get_softc(syscon->pdev);
-
-	SYSCON_LOCK(sc);
+	SYSCON_ASSERT_LOCKED(sc);
 	val = bus_read_4(sc->mem_res, offset);
 	val &= ~clear_bits;
 	val |= set_bits;
 	bus_write_4(sc->mem_res, offset, val);
-	SYSCON_UNLOCK(sc);
 	return (0);
 }
+
 static int
 simple_mfd_syscon_get_handle(device_t dev, struct syscon **syscon)
 {
@@ -137,6 +132,24 @@ simple_mfd_syscon_get_handle(device_t dev, struct syscon **syscon)
 	if (*syscon == NULL)
 		return (ENODEV);
 	return (0);
+}
+
+static void
+simple_mfd_syscon_lock(device_t dev)
+{
+	struct simple_mfd_softc *sc;
+
+	sc = device_get_softc(dev);
+	SYSCON_LOCK(sc);
+}
+
+static void
+simple_mfd_syscon_unlock(device_t dev)
+{
+	struct simple_mfd_softc *sc;
+
+	sc = device_get_softc(dev);
+	SYSCON_UNLOCK(sc);
 }
 
 static int
@@ -293,6 +306,9 @@ simple_mfd_add_device(device_t dev, phandle_t node, u_int order,
 static device_method_t simple_mfd_methods[] = {
 	/* syscon interface */
 	DEVMETHOD(syscon_get_handle,	simple_mfd_syscon_get_handle),
+	DEVMETHOD(syscon_device_lock,	simple_mfd_syscon_lock),
+	DEVMETHOD(syscon_device_unlock,	simple_mfd_syscon_unlock),
+
 	/* Device interface */
 	DEVMETHOD(device_probe,		simple_mfd_probe),
 	DEVMETHOD(device_attach,	simple_mfd_attach),
