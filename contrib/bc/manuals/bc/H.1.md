@@ -34,8 +34,7 @@ bc - arbitrary-precision decimal arithmetic language and calculator
 
 # SYNOPSIS
 
-**bc** [**-ghilPqsvVw**] [**--global-stacks**] [**--help**] [**--interactive**] [**--mathlib**] [**--no-prompt**] [**--quiet**] [**--standard**] [**--warn**] [**--version**] [**-e** *expr*] [**--expression**=*expr*...] [**-f** *file*...] [**-file**=*file*...]
-[*file*...]
+**bc** [**-ghilPqsvVw**] [**-\-global-stacks**] [**-\-help**] [**-\-interactive**] [**-\-mathlib**] [**-\-no-prompt**] [**-\-quiet**] [**-\-standard**] [**-\-warn**] [**-\-version**] [**-e** *expr*] [**-\-expression**=*expr*...] [**-f** *file*...] [**-\-file**=*file*...] [*file*...]
 
 # DESCRIPTION
 
@@ -51,7 +50,7 @@ command line and executes them before reading from **stdin**.
 
 The following are the options that bc(1) accepts.
 
-**-g**, **--global-stacks**
+**-g**, **-\-global-stacks**
 
 :   Turns the globals **ibase**, **obase**, **scale**, and **seed** into stacks.
 
@@ -119,17 +118,17 @@ The following are the options that bc(1) accepts.
 
     This is a **non-portable extension**.
 
-**-h**, **--help**
+**-h**, **-\-help**
 
 :   Prints a usage message and quits.
 
-**-i**, **--interactive**
+**-i**, **-\-interactive**
 
 :   Forces interactive mode. (See the **INTERACTIVE MODE** section.)
 
     This is a **non-portable extension**.
 
-**-l**, **--mathlib**
+**-l**, **-\-mathlib**
 
 :   Sets **scale** (see the **SYNTAX** section) to **20** and loads the included
     math library and the extended math library before running any code,
@@ -137,7 +136,7 @@ The following are the options that bc(1) accepts.
 
     To learn what is in the libraries, see the **LIBRARY** section.
 
-**-P**, **--no-prompt**
+**-P**, **-\-no-prompt**
 
 :   Disables the prompt in TTY mode. (The prompt is only enabled in TTY mode.
     See the **TTY MODE** section) This is mostly for those users that do not
@@ -147,36 +146,36 @@ The following are the options that bc(1) accepts.
 
     This is a **non-portable extension**.
 
-**-q**, **--quiet**
+**-q**, **-\-quiet**
 
 :   This option is for compatibility with the [GNU bc(1)][2]; it is a no-op.
     Without this option, GNU bc(1) prints a copyright header. This bc(1) only
     prints the copyright header if one or more of the **-v**, **-V**, or
-    **--version** options are given.
+    **-\-version** options are given.
 
     This is a **non-portable extension**.
 
-**-s**, **--standard**
+**-s**, **-\-standard**
 
 :   Process exactly the language defined by the [standard][1] and error if any
     extensions are used.
 
     This is a **non-portable extension**.
 
-**-v**, **-V**, **--version**
+**-v**, **-V**, **-\-version**
 
 :   Print the version information (copyright header) and exit.
 
     This is a **non-portable extension**.
 
-**-w**, **--warn**
+**-w**, **-\-warn**
 
-:   Like **-s** and **--standard**, except that warnings (and not errors) are
+:   Like **-s** and **-\-standard**, except that warnings (and not errors) are
     printed for non-standard extensions and execution continues normally.
 
     This is a **non-portable extension**.
 
-**-e** *expr*, **--expression**=*expr*
+**-e** *expr*, **-\-expression**=*expr*
 
 :   Evaluates *expr*. If multiple expressions are given, they are evaluated in
     order. If files are given as well (see below), the expressions and files are
@@ -186,14 +185,14 @@ The following are the options that bc(1) accepts.
     If this option is given on the command-line (i.e., not in **BC_ENV_ARGS**,
     see the **ENVIRONMENT VARIABLES** section), then after processing all
     expressions and files, bc(1) will exit, unless **-** (**stdin**) was given
-    as an argument at least once to **-f** or **--file**, whether on the
+    as an argument at least once to **-f** or **-\-file**, whether on the
     command-line or in **BC_ENV_ARGS**. However, if any other **-e**,
-    **--expression**, **-f**, or **--file** arguments are given after **-f-** or
-    equivalent is given, bc(1) will give a fatal error and exit.
+    **-\-expression**, **-f**, or **-\-file** arguments are given after **-f-**
+    or equivalent is given, bc(1) will give a fatal error and exit.
 
     This is a **non-portable extension**.
 
-**-f** *file*, **--file**=*file*
+**-f** *file*, **-\-file**=*file*
 
 :   Reads in *file* and evaluates it, line by line, as though it were read
     through **stdin**. If expressions are also given (see above), the
@@ -202,8 +201,8 @@ The following are the options that bc(1) accepts.
     If this option is given on the command-line (i.e., not in **BC_ENV_ARGS**,
     see the **ENVIRONMENT VARIABLES** section), then after processing all
     expressions and files, bc(1) will exit, unless **-** (**stdin**) was given
-    as an argument at least once to **-f** or **--file**. However, if any other
-    **-e**, **--expression**, **-f**, or **--file** arguments are given after
+    as an argument at least once to **-f** or **-\-file**. However, if any other
+    **-e**, **-\-expression**, **-f**, or **-\-file** arguments are given after
     **-f-** or equivalent is given, bc(1) will give a fatal error and exit.
 
     This is a **non-portable extension**.
@@ -258,8 +257,8 @@ Identifiers with more than one character (letter) are a
 
 **ibase** is a global variable determining how to interpret constant numbers. It
 is the "input" base, or the number base used for interpreting input numbers.
-**ibase** is initially **10**. If the **-s** (**--standard**) and **-w**
-(**--warn**) flags were not given on the command line, the max allowable value
+**ibase** is initially **10**. If the **-s** (**-\-standard**) and **-w**
+(**-\-warn**) flags were not given on the command line, the max allowable value
 for **ibase** is **36**. Otherwise, it is **16**. The min allowable value for
 **ibase** is **2**. The max allowable value for **ibase** can be queried in
 bc(1) programs with the **maxibase()** built-in function.
@@ -449,7 +448,7 @@ The following arithmetic and logical operators can be used. They are listed in
 order of decreasing precedence. Operators in the same group have the same
 precedence.
 
-**++** **--**
+**++** **-\-**
 
 :   Type: Prefix and Postfix
 
@@ -547,7 +546,7 @@ precedence.
 
 The operators will be described in more detail below.
 
-**++** **--**
+**++** **-\-**
 
 :   The prefix and postfix **increment** and **decrement** operators behave
     exactly like they would in C. They require a named expression (see the
@@ -878,7 +877,7 @@ This is a **non-portable extension**.
 
 All of the functions below, including the functions in the extended math
 library (see the *Extended Library* subsection below), are available when the
-**-l** or **--mathlib** command-line flags are given, except that the extended
+**-l** or **-\-mathlib** command-line flags are given, except that the extended
 math library is not available when the **-s** option, the **-w** option, or
 equivalents are given.
 
@@ -930,8 +929,8 @@ The [standard][1] defines the following functions for the math library:
 
 ## Extended Library
 
-The extended library is *not* loaded when the **-s**/**--standard** or
-**-w**/**--warn** options are given since they are not part of the library
+The extended library is *not* loaded when the **-s**/**-\-standard** or
+**-w**/**-\-warn** options are given since they are not part of the library
 defined by the [standard][1].
 
 The extended library is a **non-portable extension**.
@@ -1599,17 +1598,17 @@ The other statuses will only be returned when bc(1) is not in interactive mode
 (see the **INTERACTIVE MODE** section), since bc(1) resets its state (see the
 **RESET** section) and accepts more input when one of those errors occurs in
 interactive mode. This is also the case when interactive mode is forced by the
-**-i** flag or **--interactive** option.
+**-i** flag or **-\-interactive** option.
 
 These exit statuses allow bc(1) to be used in shell scripting with error
 checking, and its normal behavior can be forced by using the **-i** flag or
-**--interactive** option.
+**-\-interactive** option.
 
 # INTERACTIVE MODE
 
 Per the [standard][1], bc(1) has an interactive mode and a non-interactive mode.
 Interactive mode is turned on automatically when both **stdin** and **stdout**
-are hooked to a terminal, but the **-i** flag and **--interactive** option can
+are hooked to a terminal, but the **-i** flag and **-\-interactive** option can
 turn it on in other cases.
 
 In interactive mode, bc(1) attempts to recover from errors (see the **RESET**

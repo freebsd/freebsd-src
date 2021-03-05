@@ -34,7 +34,7 @@ dc - arbitrary-precision decimal reverse-Polish notation calculator
 
 # SYNOPSIS
 
-**dc** [**-hiPvVx**] [**--version**] [**--help**] [**--interactive**] [**--no-prompt**] [**--extended-register**] [**-e** *expr*] [**--expression**=*expr*...] [**-f** *file*...] [**-file**=*file*...] [*file*...]
+**dc** [**-hiPvVx**] [**-\-version**] [**-\-help**] [**-\-interactive**] [**-\-no-prompt**] [**-\-extended-register**] [**-e** *expr*] [**-\-expression**=*expr*...] [**-f** *file*...] [**-\-file**=*file*...] [*file*...]
 
 # DESCRIPTION
 
@@ -43,11 +43,11 @@ notation) to store numbers and results of computations. Arithmetic operations
 pop arguments off of the stack and push the results.
 
 If no files are given on the command-line as extra arguments (i.e., not as
-**-f** or **--file** arguments), then dc(1) reads from **stdin**. Otherwise,
+**-f** or **-\-file** arguments), then dc(1) reads from **stdin**. Otherwise,
 those files are processed, and dc(1) will then exit.
 
 This is different from the dc(1) on OpenBSD and possibly other dc(1)
-implementations, where **-e** (**--expression**) and **-f** (**--file**)
+implementations, where **-e** (**-\-expression**) and **-f** (**-\-file**)
 arguments cause dc(1) to execute them and exit. The reason for this is that this
 dc(1) allows users to set arguments in the environment variable **DC_ENV_ARGS**
 (see the **ENVIRONMENT VARIABLES** section). Any expressions given on the
@@ -64,34 +64,34 @@ as the last command-line argument or define the environment variable
 
 The following are the options that dc(1) accepts.
 
-**-h**, **--help**
+**-h**, **-\-help**
 
 :   Prints a usage message and quits.
 
-**-v**, **-V**, **--version**
+**-v**, **-V**, **-\-version**
 
 :   Print the version information (copyright header) and exit.
 
-**-i**, **--interactive**
+**-i**, **-\-interactive**
 
 :   Forces interactive mode. (See the **INTERACTIVE MODE** section.)
 
     This is a **non-portable extension**.
 
-**-P**, **--no-prompt**
+**-P**, **-\-no-prompt**
 
 :   This option is a no-op.
 
     This is a **non-portable extension**.
 
-**-x** **--extended-register**
+**-x** **-\-extended-register**
 
 :   Enables extended register mode. See the *Extended Register Mode* subsection
     of the **REGISTERS** section for more information.
 
     This is a **non-portable extension**.
 
-**-e** *expr*, **--expression**=*expr*
+**-e** *expr*, **-\-expression**=*expr*
 
 :   Evaluates *expr*. If multiple expressions are given, they are evaluated in
     order. If files are given as well (see below), the expressions and files are
@@ -101,14 +101,14 @@ The following are the options that dc(1) accepts.
     If this option is given on the command-line (i.e., not in **DC_ENV_ARGS**,
     see the **ENVIRONMENT VARIABLES** section), then after processing all
     expressions and files, dc(1) will exit, unless **-** (**stdin**) was given
-    as an argument at least once to **-f** or **--file**, whether on the
+    as an argument at least once to **-f** or **-\-file**, whether on the
     command-line or in **DC_ENV_ARGS**. However, if any other **-e**,
-    **--expression**, **-f**, or **--file** arguments are given after **-f-** or
-    equivalent is given, dc(1) will give a fatal error and exit.
+    **-\-expression**, **-f**, or **-\-file** arguments are given after **-f-**
+    or equivalent is given, dc(1) will give a fatal error and exit.
 
     This is a **non-portable extension**.
 
-**-f** *file*, **--file**=*file*
+**-f** *file*, **-\-file**=*file*
 
 :   Reads in *file* and evaluates it, line by line, as though it were read
     through **stdin**. If expressions are also given (see above), the
@@ -117,8 +117,8 @@ The following are the options that dc(1) accepts.
     If this option is given on the command-line (i.e., not in **DC_ENV_ARGS**,
     see the **ENVIRONMENT VARIABLES** section), then after processing all
     expressions and files, dc(1) will exit, unless **-** (**stdin**) was given
-    as an argument at least once to **-f** or **--file**. However, if any other
-    **-e**, **--expression**, **-f**, or **--file** arguments are given after
+    as an argument at least once to **-f** or **-\-file**. However, if any other
+    **-e**, **-\-expression**, **-f**, or **-\-file** arguments are given after
     **-f-** or equivalent is given, dc(1) will give a fatal error and exit.
 
     This is a **non-portable extension**.
@@ -906,7 +906,7 @@ follows any command that needs a register name. The only exception is a newline
 Unlike most other dc(1) implentations, this dc(1) provides nearly unlimited
 amounts of registers, if extended register mode is enabled.
 
-If extended register mode is enabled (**-x** or **--extended-register**
+If extended register mode is enabled (**-x** or **-\-extended-register**
 command-line arguments are given), then normal single character registers are
 used *unless* the character immediately following a command that needs a
 register name is a space (according to **isspace()**) and not a newline
@@ -1115,17 +1115,17 @@ The other statuses will only be returned when dc(1) is not in interactive mode
 (see the **INTERACTIVE MODE** section), since dc(1) resets its state (see the
 **RESET** section) and accepts more input when one of those errors occurs in
 interactive mode. This is also the case when interactive mode is forced by the
-**-i** flag or **--interactive** option.
+**-i** flag or **-\-interactive** option.
 
 These exit statuses allow dc(1) to be used in shell scripting with error
 checking, and its normal behavior can be forced by using the **-i** flag or
-**--interactive** option.
+**-\-interactive** option.
 
 # INTERACTIVE MODE
 
 Like bc(1), dc(1) has an interactive mode and a non-interactive mode.
 Interactive mode is turned on automatically when both **stdin** and **stdout**
-are hooked to a terminal, but the **-i** flag and **--interactive** option can
+are hooked to a terminal, but the **-i** flag and **-\-interactive** option can
 turn it on in other cases.
 
 In interactive mode, dc(1) attempts to recover from errors (see the **RESET**
