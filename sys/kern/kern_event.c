@@ -676,9 +676,18 @@ timer2sbintime(int64_t data, int flags)
 
 struct kq_timer_cb_data {
 	struct callout c;
+	struct knote *kn;
+	int cpuid;
 	sbintime_t next;	/* next timer event fires at */
 	sbintime_t to;		/* precalculated timer period, 0 for abs */
 };
+
+static void
+kqtimer_sched_callout(struct kq_timer_cb_data *kc)
+{
+	callout_reset_sbt_on(&kc->c, kc->next, 0, filt_timerexpire, kc->kn,
+	    kc->cpuid, C_ABSOLUTE);
+}
 
 static void
 filt_timerexpire(void *knx)
@@ -696,8 +705,7 @@ filt_timerexpire(void *knx)
 	if (kc->to == 0)
 		return;
 	kc->next += kc->to;
-	callout_reset_sbt_on(&kc->c, kc->next, 0, filt_timerexpire, kn,
-	    PCPU_GET(cpuid), C_ABSOLUTE);
+	kqtimer_sched_callout(kc);
 }
 
 /*
@@ -753,6 +761,8 @@ filt_timerattach(struct knote *kn)
 		kn->kn_flags |= EV_CLEAR;	/* automatically set */
 	kn->kn_status &= ~KN_DETACHED;		/* knlist_add clears it */
 	kn->kn_ptr.p_v = kc = malloc(sizeof(*kc), M_KQUEUE, M_WAITOK);
+	kc->kn = kn;
+	kc->cpuid = PCPU_GET(cpuid);
 	callout_init(&kc->c, 1);
 	filt_timerstart(kn, to);
 
@@ -772,8 +782,7 @@ filt_timerstart(struct knote *kn, sbintime_t to)
 		kc->next = to + sbinuptime();
 		kc->to = to;
 	}
-	callout_reset_sbt_on(&kc->c, kc->next, 0, filt_timerexpire, kn,
-	    PCPU_GET(cpuid), C_ABSOLUTE);
+	kqtimer_sched_callout(kc);
 }
 
 static void
