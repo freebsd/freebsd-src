@@ -421,7 +421,8 @@ ktls_init(void *dummy __unused)
 		}
 	}
 
-	printf("KTLS: Initialized %d threads\n", ktls_number_threads);
+	if (bootverbose)
+		printf("KTLS: Initialized %d threads\n", ktls_number_threads);
 }
 SYSINIT(ktls, SI_SUB_SMP + 1, SI_ORDER_ANY, ktls_init, NULL);
 
