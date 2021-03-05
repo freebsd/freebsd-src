@@ -532,10 +532,11 @@ main(int argc, char *argv[])
 		hints.ai_protocol = IPPROTO_UDP;
 		res = NULL;
 		error = getaddrinfo(server, NULL, &hints, &res);
-		if (error != 0)
-			err(1, "%s", gai_strerror(error));
-		if (res == NULL)
-			errx(1, "failed to resolve '%s'", server);
+		if (error != 0) {
+			if (error == EAI_SYSTEM)
+				err(EX_OSERR, "%s", gai_strerror(error));
+			errx(EX_NOHOST, "%s", gai_strerror(error));
+		}
 		server = inet_ntoa(
 		    ((struct sockaddr_in *)(void *)res->ai_addr)->sin_addr);
 		freeaddrinfo(res);
