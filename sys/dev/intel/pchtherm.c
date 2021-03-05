@@ -163,7 +163,7 @@ static int pchtherm_attach(device_t dev)
 			bus_write_1(sc->tbar, PCHTHERM_REG_TSEL,
 				    PCHTHERM_GEN_ENABLE);
 			sc->enable = bus_read_1(sc->tbar, PCHTHERM_REG_TSEL);
-			if (!(sc->enable & PCHTHERM_REG_TSEL)){
+			if (!(sc->enable & PCHTHERM_GEN_ENABLE)) {
 				device_printf(dev, "Sensor enable failed\n");
 				return 0;
 			}
@@ -178,7 +178,7 @@ static int pchtherm_attach(device_t dev)
 	if (bootverbose) {
 		FLAG_PRINT(dev, "SMBus report", val);
 	}
-	val = bus_read_1(sc->tbar, PCHTHERM_REG_TSC);
+	val = bus_read_1(sc->tbar, PCHTHERM_REG_TSMIC);
 	if (bootverbose) {
 		FLAG_PRINT(dev, "SMI on alert", val);
 	}
