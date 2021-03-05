@@ -2322,7 +2322,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				thread_unsuspend(p);
 				PROC_SUNLOCK(p);
 				sigqueue_delete(sigqueue, sig);
-				goto out;
+				goto out_cont;
 			}
 			if (action == SIG_CATCH) {
 				/*
@@ -2337,7 +2337,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			 */
 			thread_unsuspend(p);
 			PROC_SUNLOCK(p);
-			goto out;
+			goto out_cont;
 		}
 
 		if (prop & SIGPROP_STOP) {
@@ -2422,6 +2422,8 @@ runfast:
 	PROC_SLOCK(p);
 	thread_unsuspend(p);
 	PROC_SUNLOCK(p);
+out_cont:
+	itimer_proc_continue(p);
 out:
 	/* If we jump here, proc slock should not be owned. */
 	PROC_SLOCK_ASSERT(p, MA_NOTOWNED);

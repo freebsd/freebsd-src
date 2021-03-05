@@ -1094,6 +1094,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		p->p_flag &= ~(P_STOPPED_TRACE | P_STOPPED_SIG | P_WAITED);
 		thread_unsuspend(p);
 		PROC_SUNLOCK(p);
+		itimer_proc_continue(p);
 		break;
 
 	case PT_WRITE_I:
