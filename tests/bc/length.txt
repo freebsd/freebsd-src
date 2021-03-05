@@ -1,4 +1,7 @@
 length(0)
+length(0.0000)
+length(0.00000000)
+length(0.00000000000)
 length(1)
 length(12)
 length(123)
