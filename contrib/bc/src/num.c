@@ -2138,7 +2138,7 @@ size_t bc_num_len(const BcNum *restrict n) {
 
 	size_t len = n->len;
 
-	if (BC_NUM_ZERO(n)) return 0;
+	if (BC_NUM_ZERO(n)) return n->scale ? n->scale : 1;
 
 	if (BC_NUM_RDX_VAL(n) == len) {
 

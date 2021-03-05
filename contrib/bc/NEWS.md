@@ -1,5 +1,31 @@
 # News
 
+## 3.3.3
+
+This is a production release with one tweak and fixes for manuals.
+
+The tweak is that `length(0)` returns `1` instead of `0`. In `3.3.1`, I changed
+it so `length(0.x)`, where `x` could be any number of digits, returned the
+`scale`, but `length(0)` still returned `0` because I believe that `0` has `0`
+significant digits.
+
+After request of FreeBSD and considering the arguments of a mathematician,
+compatibility with other `bc`'s, and the expectations of users, I decided to
+make the change.
+
+The fixes for manuals fixed a bug where `--` was rendered as `-`.
+
+## 3.3.2
+
+This is a production release that fixes a divide-by-zero bug in `root()` in the
+[extended math library][16]. All previous versions with `root()` have the bug.
+
+## 3.3.1
+
+This is a production release that fixes a bug.
+
+The bug was in the reporting of number length when the value was 0.
+
 ## 3.3.0
 
 This is a production release that changes one behavior and fixes documentation

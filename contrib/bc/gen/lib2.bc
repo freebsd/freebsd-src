@@ -110,7 +110,7 @@ define root(x,n){
 	if(n<0)sqrt(n)
 	n=n$
 	if(n==0)x/n
-	if(n==1)return x
+	if(x==0||n==1)return x
 	if(n==2)return sqrt(x)
 	s=scale
 	scale=0
