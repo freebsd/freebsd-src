@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/endian.h>
 #include <sys/kerneldump.h>
-#include <sys/sysctl.h>
 #include <sys/wait.h>
 
 #include <ctype.h>
