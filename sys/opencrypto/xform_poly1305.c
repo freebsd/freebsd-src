@@ -4,7 +4,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <opencrypto/xform_auth.h>
-#include <opencrypto/xform_poly1305.h>
 
 #include <sodium/crypto_onetimeauth_poly1305.h>
 
@@ -16,16 +15,16 @@ CTASSERT(sizeof(union authctx) >= sizeof(struct poly1305_xform_ctx));
 CTASSERT(POLY1305_KEY_LEN == crypto_onetimeauth_poly1305_KEYBYTES);
 CTASSERT(POLY1305_HASH_LEN == crypto_onetimeauth_poly1305_BYTES);
 
-void
-Poly1305_Init(void *polyctx)
+static void
+xform_Poly1305_Init(void *polyctx)
 {
 	/* Nop */
 }
 
-void
-Poly1305_Setkey(struct poly1305_xform_ctx *polyctx,
-    const uint8_t key[__min_size(POLY1305_KEY_LEN)], size_t klen)
+static void
+xform_Poly1305_Setkey(void *ctx, const uint8_t *key, u_int klen)
 {
+	struct poly1305_xform_ctx *polyctx = ctx;
 	int rc;
 
 	if (klen != POLY1305_KEY_LEN)
@@ -36,16 +35,10 @@ Poly1305_Setkey(struct poly1305_xform_ctx *polyctx,
 		panic("%s: Invariant violated: %d", __func__, rc);
 }
 
-static void
-xform_Poly1305_Setkey(void *ctx, const uint8_t *key, u_int klen)
+static int
+xform_Poly1305_Update(void *ctx, const void *data, u_int len)
 {
-	Poly1305_Setkey(ctx, key, klen);
-}
-
-int
-Poly1305_Update(struct poly1305_xform_ctx *polyctx, const void *data,
-    size_t len)
-{
+	struct poly1305_xform_ctx *polyctx = ctx;
 	int rc;
 
 	rc = crypto_onetimeauth_poly1305_update(&polyctx->state, data, len);
@@ -54,27 +47,15 @@ Poly1305_Update(struct poly1305_xform_ctx *polyctx, const void *data,
 	return (0);
 }
 
-static int
-xform_Poly1305_Update(void *ctx, const void *data, u_int len)
+static void
+xform_Poly1305_Final(uint8_t *digest, void *ctx)
 {
-	return (Poly1305_Update(ctx, data, len));
-}
-
-void
-Poly1305_Final(uint8_t digest[__min_size(POLY1305_HASH_LEN)],
-    struct poly1305_xform_ctx *polyctx)
-{
+	struct poly1305_xform_ctx *polyctx = ctx;
 	int rc;
 
 	rc = crypto_onetimeauth_poly1305_final(&polyctx->state, digest);
 	if (rc != 0)
 		panic("%s: Invariant violated: %d", __func__, rc);
-}
-
-static void
-xform_Poly1305_Final(uint8_t *digest, void *ctx)
-{
-	Poly1305_Final(digest, ctx);
 }
 
 struct auth_hash auth_hash_poly1305 = {
@@ -84,7 +65,7 @@ struct auth_hash auth_hash_poly1305 = {
 	.hashsize = POLY1305_HASH_LEN,
 	.ctxsize = sizeof(struct poly1305_xform_ctx),
 	.blocksize = crypto_onetimeauth_poly1305_BYTES,
-	.Init = Poly1305_Init,
+	.Init = xform_Poly1305_Init,
 	.Setkey = xform_Poly1305_Setkey,
 	.Update = xform_Poly1305_Update,
 	.Final = xform_Poly1305_Final,
