@@ -1658,6 +1658,7 @@ static int
 swcr_probe(device_t dev)
 {
 	device_set_desc(dev, "software crypto");
+	device_quiet(dev);
 	return (BUS_PROBE_NOWILDCARD);
 }
 
