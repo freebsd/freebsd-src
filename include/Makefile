@@ -115,8 +115,7 @@ OPENCRYPTO=	_cryptodev.h \
 		xform.h \
 		xform_auth.h \
 		xform_comp.h \
-		xform_enc.h \
-		xform_poly1305.h
+		xform_enc.h
 OPENCRYPTODIR=	${INCLUDEDIR}/crypto
 
 .PATH: ${SRCTOP}/sys/dev/pci
