@@ -832,7 +832,6 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 	    TAILQ_EMPTY(&tp->snd_holes) &&
 	    (tp->sackhint.delivered_data > 0)) {
 		struct sackhole *hole;
-		int maxseg = tcp_maxseg(tp);
 		hole = tcp_sackhole_insert(tp, SEQ_MAX(th->th_ack, tp->snd_max - maxseg), tp->snd_max, NULL);
 	}
 	(void) tp->t_fb->tfb_tcp_output(tp);
