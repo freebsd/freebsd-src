@@ -115,7 +115,7 @@ struct sackhint {
 					 */
 	uint32_t	recover_fs;	/* Flight Size at the start of Loss recovery */
 	uint32_t	prr_delivered;	/* Total bytes delivered using PRR */
-	uint32_t	_pad[1];	/* TBD */
+	uint32_t	prr_out;	/* Bytes sent during IN_RECOVERY */
 };
 
 #define SEGQ_EMPTY(tp) TAILQ_EMPTY(&(tp)->t_segq)
