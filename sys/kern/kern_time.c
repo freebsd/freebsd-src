@@ -881,6 +881,33 @@ kern_setitimer(struct thread *td, u_int which, struct itimerval *aitv,
 	return (0);
 }
 
+static void
+realitexpire_reset_callout(struct proc *p, sbintime_t *isbtp)
+{
+	sbintime_t prec;
+
+	prec = isbtp == NULL ? tvtosbt(p->p_realtimer.it_interval) : *isbtp;
+	callout_reset_sbt(&p->p_itcallout, tvtosbt(p->p_realtimer.it_value),
+	    prec >> tc_precexp, realitexpire, p, C_ABSOLUTE);
+}
+
+void
+itimer_proc_continue(struct proc *p)
+{
+	struct timeval ctv;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if ((p->p_flag2 & P2_ITSTOPPED) != 0) {
+		p->p_flag2 &= ~P2_ITSTOPPED;
+		microuptime(&ctv);
+		if (timevalcmp(&p->p_realtimer.it_value, &ctv, >=))
+			realitexpire(p);
+		else
+			realitexpire_reset_callout(p, NULL);
+	}
+}
+
 /*
  * Real interval timer expired:
  * send process whose timer expired an alarm signal.
@@ -908,6 +935,7 @@ realitexpire(void *arg)
 			wakeup(&p->p_itcallout);
 		return;
 	}
+
 	isbt = tvtosbt(p->p_realtimer.it_interval);
 	if (isbt >= sbt_timethreshold)
 		getmicrouptime(&ctv);
@@ -917,8 +945,14 @@ realitexpire(void *arg)
 		timevaladd(&p->p_realtimer.it_value,
 		    &p->p_realtimer.it_interval);
 	} while (timevalcmp(&p->p_realtimer.it_value, &ctv, <=));
-	callout_reset_sbt(&p->p_itcallout, tvtosbt(p->p_realtimer.it_value),
-	    isbt >> tc_precexp, realitexpire, p, C_ABSOLUTE);
+
+	if (P_SHOULDSTOP(p) || P_KILLED(p)) {
+		p->p_flag2 |= P2_ITSTOPPED;
+		return;
+	}
+
+	p->p_flag2 &= ~P2_ITSTOPPED;
+	realitexpire_reset_callout(p, &isbt);
 }
 
 /*
