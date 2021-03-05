@@ -2875,7 +2875,8 @@ t4_fatal_err(struct adapter *sc, bool fw_error)
 	log(LOG_ALERT, "%s: encountered fatal error, adapter stopped.\n",
 	    device_get_nameunit(sc->dev));
 	if (fw_error) {
-		ASSERT_SYNCHRONIZED_OP(sc);
+		if (sc->flags & CHK_MBOX_ACCESS)
+			ASSERT_SYNCHRONIZED_OP(sc);
 		sc->flags |= ADAP_ERR;
 	} else {
 		ADAPTER_LOCK(sc);
