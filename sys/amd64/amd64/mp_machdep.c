@@ -851,7 +851,8 @@ invltlb_invpcid_pti_handler(pmap_t smp_tlb_pmap)
 		invpcid(&d, INVPCID_CTXGLOB);
 	} else {
 		invpcid(&d, INVPCID_CTX);
-		if (smp_tlb_pmap == PCPU_GET(curpmap))
+		if (smp_tlb_pmap == PCPU_GET(curpmap) &&
+		    smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3)
 			PCPU_SET(ucr3_load_mask, ~CR3_PCID_SAVE);
 	}
 }
