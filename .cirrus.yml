@@ -13,7 +13,7 @@ env:
 task:
   timeout_in: 120m
   install_script:
-  - pkg install -y qemu42 uefi-edk2-qemu-x86_64 llvm11
+  - pkg install -y llvm11
   setup_script:
   - uname -a
   - df -m
@@ -22,10 +22,6 @@ task:
   - chown user:user /usr/obj/$(pwd -P)
   script:
   - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=llvm11 WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
-  package_script:
-  - su user -c "make CROSS_TOOLCHAIN=llvm11 WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
-  test_script:
-  - sh tools/boot/ci-qemu-test.sh
   post_script:
   - df -m
   - du -m -s /usr/obj
