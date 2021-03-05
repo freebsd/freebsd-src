@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2021 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
 #include <sys/proc.h>
 #include <vm/uma.h>
 
+#include <linux/compat.h>
 #include <linux/types.h>
 #include <linux/gfp.h>
 #include <linux/llist.h>
@@ -48,16 +49,15 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	kvzalloc(size, flags)		kmalloc(size, (flags) | __GFP_ZERO)
 #define	kvcalloc(n, size, flags)	kvmalloc_array(n, size, (flags) | __GFP_ZERO)
 #define	kzalloc(size, flags)		kmalloc(size, (flags) | __GFP_ZERO)
-#define	kzalloc_node(size, flags, node)	kmalloc(size, (flags) | __GFP_ZERO)
+#define	kzalloc_node(size, flags, node)	kmalloc_node(size, (flags) | __GFP_ZERO, node)
 #define	kfree_const(ptr)		kfree(ptr)
 #define	vzalloc(size)			__vmalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO, 0)
 #define	vfree(arg)			kfree(arg)
 #define	kvfree(arg)			kfree(arg)
-#define	vmalloc_node(size, node)	__vmalloc(size, GFP_KERNEL, 0)
+#define	vmalloc_node(size, node)	__vmalloc_node(size, GFP_KERNEL, node)
 #define	vmalloc_user(size)		__vmalloc(size, GFP_KERNEL | __GFP_ZERO, 0)
 #define	vmalloc(size)			__vmalloc(size, GFP_KERNEL, 0)
 #define	__kmalloc(...)			kmalloc(__VA_ARGS__)
-#define	kmalloc_node(chunk, flags, n)	kmalloc(chunk, flags)
 
 /*
  * Prefix some functions with linux_ to avoid namespace conflict
@@ -127,6 +127,13 @@ kmalloc(size_t size, gfp_t flags)
 }
 
 static inline void *
+kmalloc_node(size_t size, gfp_t flags, int node)
+{
+	return (malloc_domainset(size, M_KMALLOC,
+	    linux_get_vm_domain_set(node), linux_check_m_flags(flags)));
+}
+
+static inline void *
 kcalloc(size_t n, size_t size, gfp_t flags)
 {
 	flags |= __GFP_ZERO;
@@ -134,9 +141,24 @@ kcalloc(size_t n, size_t size, gfp_t flags)
 }
 
 static inline void *
+kcalloc_node(size_t n, size_t size, gfp_t flags, int node)
+{
+	flags |= __GFP_ZERO;
+	return (mallocarray_domainset(n, size, M_KMALLOC,
+	    linux_get_vm_domain_set(node), linux_check_m_flags(flags)));
+}
+
+static inline void *
 __vmalloc(size_t size, gfp_t flags, int other)
 {
 	return (malloc(size, M_KMALLOC, linux_check_m_flags(flags)));
+}
+
+static inline void *
+__vmalloc_node(size_t size, gfp_t flags, int node)
+{
+	return (malloc_domainset(size, M_KMALLOC,
+	    linux_get_vm_domain_set(node), linux_check_m_flags(flags)));
 }
 
 static inline void *
@@ -149,6 +171,13 @@ static inline void *
 kmalloc_array(size_t n, size_t size, gfp_t flags)
 {
 	return (mallocarray(n, size, M_KMALLOC, linux_check_m_flags(flags)));
+}
+
+static inline void *
+kmalloc_array_node(size_t n, size_t size, gfp_t flags, int node)
+{
+	return (mallocarray_domainset(n, size, M_KMALLOC,
+	    linux_get_vm_domain_set(node), linux_check_m_flags(flags)));
 }
 
 static inline void *
