@@ -2693,7 +2693,6 @@ enter_recovery:
 						 */
 						tp->sackhint.prr_delivered =
 						    tp->sackhint.sacked_bytes;
-						tp->sackhint.sack_bytes_rexmit = 0;
 						tp->sackhint.recover_fs = max(1,
 						    tp->snd_nxt - tp->snd_una);
 					}
