@@ -12297,7 +12297,8 @@ again:
 	 * If sack_rxmit is true we are retransmitting from the scoreboard
 	 * in which case len is already set.
 	 */
-	if ((sack_rxmit == 0) && TCPS_HAVEESTABLISHED(tp->t_state)) {
+	if ((sack_rxmit == 0) &&
+	    (TCPS_HAVEESTABLISHED(tp->t_state) || IS_FASTOPEN(tp->t_flags))) {
 		uint32_t avail;
 
 		avail = sbavail(sb);
