@@ -119,6 +119,15 @@ def check_required_make_env_var(varname, binary_name, bindir):
     if parsed_args.debug:
         run([guess, "--version"])
 
+def check_xtool_make_env_var(varname, binary_name):
+    # Avoid calling brew --prefix on macOS if all variables are already set:
+    if os.getenv(varname):
+        return
+    global parsed_args
+    if parsed_args.cross_bindir is None:
+        parsed_args.cross_bindir = default_cross_toolchain()
+    return check_required_make_env_var(varname, binary_name,
+                                       parsed_args.cross_bindir)
 
 def default_cross_toolchain():
     # default to homebrew-installed clang on MacOS if available
@@ -170,8 +179,6 @@ if __name__ == "__main__":
     except ImportError:
         pass
     parsed_args, bmake_args = parser.parse_known_args()
-    if parsed_args.cross_bindir is None:
-        parsed_args.cross_bindir = default_cross_toolchain()
 
     MAKEOBJDIRPREFIX = os.getenv("MAKEOBJDIRPREFIX")
     if not MAKEOBJDIRPREFIX:
@@ -209,16 +216,11 @@ if __name__ == "__main__":
 
         # On non-FreeBSD we need to explicitly pass XCC/XLD/X_COMPILER_TYPE
         use_cross_gcc = parsed_args.cross_compiler_type == "gcc"
-        check_required_make_env_var("XCC", "gcc" if use_cross_gcc else "clang",
-                                    parsed_args.cross_bindir)
-        check_required_make_env_var("XCXX",
-                                    "g++" if use_cross_gcc else "clang++",
-                                    parsed_args.cross_bindir)
-        check_required_make_env_var("XCPP",
-                                    "cpp" if use_cross_gcc else "clang-cpp",
-                                    parsed_args.cross_bindir)
-        check_required_make_env_var("XLD", "ld" if use_cross_gcc else "ld.lld",
-                                    parsed_args.cross_bindir)
+        check_xtool_make_env_var("XCC", "gcc" if use_cross_gcc else "clang")
+        check_xtool_make_env_var("XCXX", "g++" if use_cross_gcc else "clang++")
+        check_xtool_make_env_var("XCPP",
+                                 "cpp" if use_cross_gcc else "clang-cpp")
+        check_xtool_make_env_var("XLD", "ld" if use_cross_gcc else "ld.lld")
 
         # We also need to set STRIPBIN if there is no working strip binary
         # in $PATH.
@@ -232,7 +234,7 @@ if __name__ == "__main__":
             else:
                 strip_binary = "strip"
             check_required_make_env_var("STRIPBIN", strip_binary,
-                                        parsed_args.cross_bindir)
+                                        parsed_args.host_bindir)
         if os.getenv("STRIPBIN") or "STRIPBIN" in new_env_vars:
             # If we are setting STRIPBIN, we have to set XSTRIPBIN to the
             # default if it is not set otherwise already.
