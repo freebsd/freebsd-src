@@ -183,6 +183,7 @@ struct kaudit_record;
 struct kcov_info;
 struct kdtrace_proc;
 struct kdtrace_thread;
+struct kq_timer_cb_data;
 struct mqueue_notifier;
 struct p_sched;
 struct proc;
@@ -727,6 +728,8 @@ struct proc {
 	 */
 	LIST_ENTRY(proc) p_orphan;	/* (e) List of orphan processes. */
 	LIST_HEAD(, proc) p_orphans;	/* (e) Pointer to list of orphans. */
+
+	TAILQ_HEAD(, kq_timer_cb_data)	p_kqtim_stop;	/* (c) */
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -1093,6 +1096,7 @@ void	fork_exit(void (*)(void *, struct trapframe *), void *,
 void	fork_return(struct thread *, struct trapframe *);
 int	inferior(struct proc *p);
 void	itimer_proc_continue(struct proc *p);
+void	kqtimer_proc_continue(struct proc *p);
 void	kern_proc_vmmap_resident(struct vm_map *map, struct vm_map_entry *entry,
 	    int *resident_count, bool *super);
 void	kern_yield(int);

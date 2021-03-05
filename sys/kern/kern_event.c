@@ -676,8 +676,10 @@ timer2sbintime(int64_t data, int flags)
 
 struct kq_timer_cb_data {
 	struct callout c;
+	struct proc *p;
 	struct knote *kn;
 	int cpuid;
+	TAILQ_ENTRY(kq_timer_cb_data) link;
 	sbintime_t next;	/* next timer event fires at */
 	sbintime_t to;		/* precalculated timer period, 0 for abs */
 };
@@ -689,22 +691,65 @@ kqtimer_sched_callout(struct kq_timer_cb_data *kc)
 	    kc->cpuid, C_ABSOLUTE);
 }
 
+void
+kqtimer_proc_continue(struct proc *p)
+{
+	struct kq_timer_cb_data *kc, *kc1;
+	struct bintime bt;
+	sbintime_t now;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	getboottimebin(&bt);
+	now = bttosbt(bt);
+
+	TAILQ_FOREACH_SAFE(kc, &p->p_kqtim_stop, link, kc1) {
+		TAILQ_REMOVE(&p->p_kqtim_stop, kc, link);
+		if (kc->next <= now)
+			filt_timerexpire(kc->kn);
+		else
+			kqtimer_sched_callout(kc);
+	}
+}
+
 static void
 filt_timerexpire(void *knx)
 {
 	struct knote *kn;
 	struct kq_timer_cb_data *kc;
+	struct proc *p;
+	sbintime_t now;
 
 	kn = knx;
-	kn->kn_data++;
+	kc = kn->kn_ptr.p_v;
+
+	if ((kn->kn_flags & EV_ONESHOT) != 0 || kc->to == 0) {
+		kn->kn_data++;
+		KNOTE_ACTIVATE(kn, 0);
+		return;
+	}
+
+	for (now = sbinuptime(); kc->next <= now; kc->next += kc->to)
+		kn->kn_data++;
 	KNOTE_ACTIVATE(kn, 0);	/* XXX - handle locking */
 
-	if ((kn->kn_flags & EV_ONESHOT) != 0)
-		return;
-	kc = kn->kn_ptr.p_v;
-	if (kc->to == 0)
-		return;
-	kc->next += kc->to;
+	/*
+	 * Initial check for stopped kc->p is racy.  It is fine to
+	 * miss the set of the stop flags, at worst we would schedule
+	 * one more callout.  On the other hand, it is not fine to not
+	 * schedule when we we missed clearing of the flags, we
+	 * recheck them under the lock and observe consistent state.
+	 */
+	p = kc->p;
+	if (P_SHOULDSTOP(p) || P_KILLED(p)) {
+		PROC_LOCK(p);
+		if (P_SHOULDSTOP(p) || P_KILLED(p)) {
+			TAILQ_INSERT_TAIL(&p->p_kqtim_stop, kc, link);
+			PROC_UNLOCK(p);
+			return;
+		}
+		PROC_UNLOCK(p);
+	}
 	kqtimer_sched_callout(kc);
 }
 
@@ -762,6 +807,7 @@ filt_timerattach(struct knote *kn)
 	kn->kn_status &= ~KN_DETACHED;		/* knlist_add clears it */
 	kn->kn_ptr.p_v = kc = malloc(sizeof(*kc), M_KQUEUE, M_WAITOK);
 	kc->kn = kn;
+	kc->p = curproc;
 	kc->cpuid = PCPU_GET(cpuid);
 	callout_init(&kc->c, 1);
 	filt_timerstart(kn, to);
