@@ -1,8 +1,5 @@
 /*-
- * Copyright (c) 2010 Isilon Systems, Inc.
- * Copyright (c) 2010 iX Systems, Inc.
- * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
+ * Copyright (c) 2021 NVIDIA Networking
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,37 +22,38 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
-#ifndef	_LINUX_COMPAT_H_
-#define	_LINUX_COMPAT_H_
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/proc.h>
-#include <sys/malloc.h>
+#include <sys/systm.h>
+#include <sys/domainset.h>
+#include <sys/bus.h>
 
-struct domainset;
-struct thread;
-struct task_struct;
+#include <linux/compat.h>
+#include <linux/device.h>
 
-extern int linux_alloc_current(struct thread *, int flags);
-extern void linux_free_current(struct task_struct *);
-extern struct domainset *linux_get_vm_domain_set(int node);
-
-static inline void
-linux_set_current(struct thread *td)
+struct domainset *
+linux_get_vm_domain_set(int node)
 {
-	if (__predict_false(td->td_lkpi_task == NULL))
-		linux_alloc_current(td, M_WAITOK);
+	KASSERT(node < MAXMEMDOM, ("Invalid VM domain %d", node));
+
+	if (node < 0)
+		return (DOMAINSET_RR());
+	else
+		return (DOMAINSET_PREF(node));
 }
 
-static inline int
-linux_set_current_flags(struct thread *td, int flags)
+int
+linux_dev_to_node(struct device *dev)
 {
-	if (__predict_false(td->td_lkpi_task == NULL))
-		return (linux_alloc_current(td, flags));
-	return (0);
-}
+	int numa_domain;
 
-#endif	/* _LINUX_COMPAT_H_ */
+	if (dev == NULL || dev->bsddev == NULL ||
+	    bus_get_domain(dev->bsddev, &numa_domain) != 0)
+		return (-1);
+	else
+		return (numa_domain);
+}
