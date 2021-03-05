@@ -1811,7 +1811,7 @@ kern_funlinkat_ex(struct thread *td, int dfd, const char *path, int fd,
     int flag, enum uio_seg pathseg, ino_t oldinum)
 {
 
-	if ((flag & ~AT_REMOVEDIR) != 0)
+	if ((flag & ~(AT_REMOVEDIR | AT_RESOLVE_BENEATH)) != 0)
 		return (EINVAL);
 
 	if ((flag & AT_REMOVEDIR) != 0)
