@@ -1236,6 +1236,14 @@ send:
 		p->rxmit += len;
 		tp->sackhint.sack_bytes_rexmit += len;
 	}
+	if (IN_RECOVERY(tp->t_flags)) {
+		/*
+		 * Account all bytes transmitted while
+		 * IN_RECOVERY, simplifying PRR and
+		 * Lost Retransmit Detection
+		 */
+		tp->sackhint.prr_out += len;
+	}
 	th->th_ack = htonl(tp->rcv_nxt);
 	if (optlen) {
 		bcopy(opt, th + 1, optlen);
