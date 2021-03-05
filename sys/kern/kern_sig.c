@@ -2424,6 +2424,7 @@ runfast:
 	PROC_SUNLOCK(p);
 out_cont:
 	itimer_proc_continue(p);
+	kqtimer_proc_continue(p);
 out:
 	/* If we jump here, proc slock should not be owned. */
 	PROC_SLOCK_ASSERT(p, MA_NOTOWNED);
