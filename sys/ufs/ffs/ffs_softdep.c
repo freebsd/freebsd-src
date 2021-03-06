@@ -2825,6 +2825,13 @@ softdep_unmount(mp)
 	FREE_GBLLOCK(&lk);
 	ump->um_softdep = NULL;
 
+	KASSERT(ums->sd_on_journal == 0,
+	    ("ump %p ums %p on_journal %d", ump, ums, ums->sd_on_journal));
+	KASSERT(ums->sd_on_worklist == 0,
+	    ("ump %p ums %p on_worklist %d", ump, ums, ums->sd_on_worklist));
+	KASSERT(ums->sd_deps == 0,
+	    ("ump %p ums %p deps %d", ump, ums, ums->sd_deps));
+
 	/*
 	 * Free up our resources.
 	 */
