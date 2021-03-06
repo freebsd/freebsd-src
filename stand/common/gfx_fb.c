@@ -978,6 +978,7 @@ gfx_fb_fill(void *arg, const teken_rect_t *r, teken_char_t c,
 static void
 gfx_fb_cursor_draw(teken_gfx_t *state, const teken_pos_t *p, bool on)
 {
+	unsigned x, y, width, height;
 	const uint8_t *glyph;
 	int idx;
 
@@ -985,10 +986,47 @@ gfx_fb_cursor_draw(teken_gfx_t *state, const teken_pos_t *p, bool on)
 	if (idx >= state->tg_tp.tp_col * state->tg_tp.tp_row)
 		return;
 
+	width = state->tg_font.vf_width;
+	height = state->tg_font.vf_height;
+	x = state->tg_origin.tp_col + p->tp_col * width;
+	y = state->tg_origin.tp_row + p->tp_row * height;
+
+	/*
+	 * Save original display content to preserve image data.
+	 */
+	if (on) {
+		if (state->tg_cursor_image == NULL ||
+		    state->tg_cursor_size != width * height * 4) {
+			free(state->tg_cursor_image);
+			state->tg_cursor_size = width * height * 4;
+			state->tg_cursor_image = malloc(state->tg_cursor_size);
+		}
+		if (state->tg_cursor_image != NULL) {
+			if (gfxfb_blt(state->tg_cursor_image,
+			    GfxFbBltVideoToBltBuffer, x, y, 0, 0,
+			    width, height, 0) != 0) {
+				free(state->tg_cursor_image);
+				state->tg_cursor_image = NULL;
+			}
+		}
+	} else {
+		/*
+		 * Restore display from tg_cursor_image.
+		 * If there is no image, restore char from screen_buffer.
+		 */
+		if (state->tg_cursor_image != NULL &&
+		    gfxfb_blt(state->tg_cursor_image, GfxFbBltBufferToVideo,
+		    0, 0, x, y, width, height, 0) == 0) {
+			state->tg_cursor = *p;
+			return;
+		}
+	}
+
 	glyph = font_lookup(&state->tg_font, screen_buffer[idx].c,
 	    &screen_buffer[idx].a);
 	gfx_bitblt_bitmap(state, glyph, &screen_buffer[idx].a, 0xff, on);
 	gfx_fb_printchar(state, p);
+
 	state->tg_cursor = *p;
 }
 
