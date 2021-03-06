@@ -4172,6 +4172,14 @@ if_deregister_com_alloc(u_char type)
 	    ("if_deregister_com_alloc: %d not registered", type));
 	KASSERT(if_com_free[type] != NULL,
 	    ("if_deregister_com_alloc: %d free not registered", type));
+
+	/*
+	 * Ensure all pending EPOCH(9) callbacks have been executed. This
+	 * fixes issues about late invocation of if_destroy(), which leads
+	 * to memory leak from if_com_alloc[type] allocated if_l2com.
+	 */
+	epoch_drain_callbacks(net_epoch_preempt);
+
 	if_com_alloc[type] = NULL;
 	if_com_free[type] = NULL;
 }
