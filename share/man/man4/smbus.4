@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 10, 1998
+.Dd March 7, 2021
 .Dt SMBUS 4
 .Os
 .Sh NAME
@@ -34,13 +34,12 @@
 .Cd "device smbus"
 .Pp
 .Cd "device iicsmb"
-.Cd "device bktr"
 .Sh DESCRIPTION
 The
 .Em smbus
 system provides a uniform, modular and architecture-independent
 system for the implementation of drivers to control various SMB devices
-and to utilize different SMB controllers (I2C, PIIX4, Brooktree848, vm86...).
+and to utilize different SMB controllers (I2C, PIIX4, vm86...).
 .Sh System Management Bus
 The
 .Em System Management Bus
@@ -61,7 +60,6 @@ The SMBus may share the same host device and physical bus as ACCESS bus
 components provided that an appropriate electrical bridge is provided
 between the internal SMB devices and external ACCESS bus devices.
 .Sh SEE ALSO
-.Xr bktr 4 ,
 .Xr iicbus 4 ,
 .Xr iicsmb 4 ,
 .Xr smb 4
