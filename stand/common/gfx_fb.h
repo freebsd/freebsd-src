@@ -210,6 +210,8 @@ typedef struct teken_gfx {
 	teken_t		tg_teken;		/* Teken core */
 	teken_pos_t	tg_cursor;		/* Where cursor was drawn */
 	bool		tg_cursor_visible;
+	uint8_t		*tg_cursor_image;	/* Memory for cursor */
+	size_t		tg_cursor_size;
 	teken_pos_t	tg_tp;			/* Terminal dimensions */
 	teken_pos_t	tg_origin;		/* Point of origin in pixels */
 	uint8_t		*tg_glyph;		/* Memory for glyph */
