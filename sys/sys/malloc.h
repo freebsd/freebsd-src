@@ -246,6 +246,9 @@ void	*malloc_domainset(size_t size, struct malloc_type *type,
 void	*mallocarray(size_t nmemb, size_t size, struct malloc_type *type,
 	    int flags) __malloc_like __result_use_check
 	    __alloc_size2(1, 2);
+void	*mallocarray_domainset(size_t nmemb, size_t size, struct malloc_type *type,
+	    struct domainset *ds, int flags) __malloc_like __result_use_check
+	    __alloc_size2(1, 2);
 void	*malloc_exec(size_t size, struct malloc_type *type, int flags) __malloc_like
 	    __result_use_check __alloc_size(1);
 void	*malloc_domainset_exec(size_t size, struct malloc_type *type,

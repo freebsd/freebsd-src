@@ -1391,6 +1391,7 @@ MLINKS+=make_dev.9 destroy_dev.9 \
 MLINKS+=malloc.9 free.9 \
 	malloc.9 malloc_domainset.9 \
 	malloc.9 mallocarray.9 \
+	malloc.9 mallocarray_domainset.9 \
 	malloc.9 MALLOC_DECLARE.9 \
 	malloc.9 MALLOC_DEFINE.9 \
 	malloc.9 realloc.9 \
