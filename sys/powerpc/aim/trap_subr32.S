@@ -316,6 +316,7 @@ cpu_reset:
 1:
 	mflr	%r1
 	addi	%r1,%r1,(124-16)@l
+	lwz	%r30,TRAP_TOCBASE(0)
 
 	bl	CNAME(cpudep_ap_early_bootstrap)
 	lis	%r3,1@l
