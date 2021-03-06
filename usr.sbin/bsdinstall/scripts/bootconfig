@@ -47,7 +47,7 @@ if [ `uname -m` == powerpc ]; then
 fi
 
 # Update the ESP (EFI System Partition) with the new bootloader if we have an ESP
-if [ -d "$BSDINSTALL_CHROOT/boot/efi" ]; then
+if [ -n "$(awk '{if ($2=="/boot/efi") printf("%s\n",$1);}' $PATH_FSTAB)" ]; then
 	case $(uname -m) in
 	    arm64)	ARCHBOOTNAME=aa64 ;;
 	    amd64)	ARCHBOOTNAME=x64 ;;
