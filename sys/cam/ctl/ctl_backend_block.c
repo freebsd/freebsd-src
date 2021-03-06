@@ -1705,7 +1705,7 @@ ctl_be_block_worker(void *context, int pending)
 			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
 				ctl_set_busy(&io->scsiio);
 				ctl_complete_beio(beio);
-				return;
+				continue;
 			}
 			be_lun->dispatch(be_lun, beio);
 			continue;
@@ -1719,7 +1719,7 @@ ctl_be_block_worker(void *context, int pending)
 			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
 				ctl_set_busy(&io->scsiio);
 				ctl_config_write_done(io);
-				return;
+				continue;
 			}
 			ctl_be_block_cw_dispatch(be_lun, io);
 			continue;
@@ -1733,7 +1733,7 @@ ctl_be_block_worker(void *context, int pending)
 			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
 				ctl_set_busy(&io->scsiio);
 				ctl_config_read_done(io);
-				return;
+				continue;
 			}
 			ctl_be_block_cr_dispatch(be_lun, io);
 			continue;
@@ -1747,7 +1747,7 @@ ctl_be_block_worker(void *context, int pending)
 			if (cbe_lun->flags & CTL_LUN_FLAG_NO_MEDIA) {
 				ctl_set_busy(&io->scsiio);
 				ctl_data_submit_done(io);
-				return;
+				continue;
 			}
 			ctl_be_block_dispatch(be_lun, io);
 			continue;
