@@ -29,7 +29,7 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2020
+.Dd March 6, 2021
 .Dt MALLOC 9
 .Os
 .Sh NAME
@@ -64,6 +64,8 @@
 .In sys/domainset.h
 .Ft void *
 .Fn malloc_domainset "size_t size" "struct malloc_type *type" "struct domainset *ds" "int flags"
+.Ft void *
+.Fn mallocarray_domainset "size_t nmemb" "size_t size" "struct malloc_type *type" "struct domainset *ds" "int flags"
 .Ft void
 .Fn free_domain "void *addr" "struct malloc_type *type"
 .Sh DESCRIPTION
@@ -91,6 +93,15 @@ array of
 .Fa nmemb
 entries whose size is specified by
 .Fa size .
+.Pp
+The
+.Fn mallocarray_domainset
+variant allocates memory from a specific
+.Xr numa 4
+domain using the specified domain selection policy.
+See
+.Xr domainset 9
+for some example policies.
 .Pp
 The
 .Fn free

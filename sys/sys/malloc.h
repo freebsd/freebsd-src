@@ -238,6 +238,9 @@ void	*malloc_domainset(size_t size, struct malloc_type *type,
 void	*mallocarray(size_t nmemb, size_t size, struct malloc_type *type,
 	    int flags) __malloc_like __result_use_check
 	    __alloc_size2(1, 2);
+void	*mallocarray_domainset(size_t nmemb, size_t size, struct malloc_type *type,
+	    struct domainset *ds, int flags) __malloc_like __result_use_check
+	    __alloc_size2(1, 2);
 void	malloc_init(void *);
 int	malloc_last_fail(void);
 void	malloc_type_allocated(struct malloc_type *type, unsigned long size);

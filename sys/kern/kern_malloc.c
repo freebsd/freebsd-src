@@ -699,6 +699,17 @@ mallocarray(size_t nmemb, size_t size, struct malloc_type *type, int flags)
 	return (malloc(size * nmemb, type, flags));
 }
 
+void *
+mallocarray_domainset(size_t nmemb, size_t size, struct malloc_type *type,
+    struct domainset *ds, int flags)
+{
+
+	if (WOULD_OVERFLOW(nmemb, size))
+		panic("mallocarray_domainset: %zu * %zu overflowed", nmemb, size);
+
+	return (malloc_domainset(size * nmemb, type, ds, flags));
+}
+
 #ifdef INVARIANTS
 static void
 free_save_type(void *addr, struct malloc_type *mtp, u_long size)
