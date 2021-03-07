@@ -133,7 +133,7 @@ vm_open(const char *name)
 
 	return (vm);
 err:
-	vm_destroy(vm);
+	free(vm);
 	return (NULL);
 }
 
