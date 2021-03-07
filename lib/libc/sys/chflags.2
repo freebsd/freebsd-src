@@ -28,7 +28,7 @@
 .\"	@(#)chflags.2	8.3 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2021
+.Dd March 30, 2021
 .Dt CHFLAGS 2
 .Os
 .Sh NAME
@@ -103,6 +103,17 @@ See the description of the
 flag in the
 .Xr open 2
 manual page.
+.It Dv AT_EMPTY_PATH
+If the
+.Fa path
+argument is an empty string, operate on the file or directory
+referenced by the descriptor
+.Fa fd .
+If
+.Fa fd
+is equal to
+.Dv AT_FDCWD ,
+operate on the current working directory.
 .El
 .Pp
 If
