@@ -129,8 +129,8 @@ rte6_get_pref(const struct rib_rtable_info *rinfo)
 		return (1);
 	else if (rinfo->num_prefixes < 1000)
 		return (rinfo->num_prefixes / 10);
-	else if (rinfo->num_prefixes < 500000)
-		return (100 + rinfo->num_prefixes / 3334);
+	else if (rinfo->num_prefixes < 100000)
+		return (100 + rinfo->num_prefixes / 667);
 	else
 		return (250);
 }

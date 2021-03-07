@@ -118,8 +118,8 @@ lradix6_get_pref(const struct rib_rtable_info *rinfo)
 
 	if (rinfo->num_prefixes < 10)
 		return (255);
-	else if (rinfo->num_prefixes < 100000)
-		return (255 - rinfo->num_prefixes / 394);
+	else if (rinfo->num_prefixes < 10000)
+		return (255 - rinfo->num_prefixes / 40);
 	else
 		return (1);
 }
