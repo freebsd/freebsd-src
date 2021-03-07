@@ -305,6 +305,9 @@ armv8_crypto_cipher_setup(struct armv8_crypto_session *ses,
 		aes_v8_set_decrypt_key(key,
 		    keylen * 8, &ses->dec_schedule);
 
+	if (csp->csp_cipher_alg == CRYPTO_AES_XTS)
+		aes_v8_set_encrypt_key(key + keylen, keylen * 8, &ses->xts_schedule);
+
 	if (csp->csp_cipher_alg == CRYPTO_AES_NIST_GCM_16) {
 		memset(H.c, 0, sizeof(H.c));
 		aes_v8_encrypt(H.c, H.c, &ses->enc_schedule);
