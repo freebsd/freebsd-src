@@ -10,6 +10,15 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+2c76eebca71b, 59f6f5e23c1a:
+	Add two daemons rpc.tlsclntd(8) and rpc.tlsservd(8) that provide
+	support for NFS-over-TLS as described in the Internet Draft titled
+	"Towards Remote Procedure Call Encryption By Default".
+	These daemons are only built when WITH_OPENSSL_KTLS is specified
+	and are only tested on amd64 at this time.
+	They use KTLS to encrypt/decrypt all NFS RPC message traffic, plus
+	optional verification of machine identity via X.509 certificates.
+
 f76393a6305b6:
 	Add AES-GCM support to armv8crypto(4) providing accelerated
 	support for KTLS, IPsec, and other crypto API consumers.
