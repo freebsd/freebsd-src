@@ -27,6 +27,9 @@
  * $FreeBSD$
  */
 
+#ifndef _NET80211_IEEE80211_RATECTL_H_
+#define _NET80211_IEEE80211_RATECTL_H_
+
 enum ieee80211_ratealgs {
 	IEEE80211_RATECTL_AMRR		= 0,
 	IEEE80211_RATECTL_RSSADAPT	= 1,
@@ -169,3 +172,5 @@ ieee80211_ratectl_node_stats(struct ieee80211_node *ni, struct sbuf *s)
 		return;
 	vap->iv_rate->ir_node_stats(ni, s);
 }
+
+#endif	/* _NET80211_IEEE80211_RATECTL_H_ */
