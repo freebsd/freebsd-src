@@ -39,6 +39,14 @@ f76393a6305b6:
 	Add AES-XTS support to armv8crypto(4) providing accelerated
 	software support for the default GELI cipher on arm64 systems.
 
+022ca2fc7fe0:
+	Add aio_writev(2) and aio_readv(2), vectored analogues of aio_write(2)
+	and aio_read(2).
+
+92bbfe1f0d1f:
+	The fusefs(5) protocol has been updated to 7.28.  Support for
+	FUSE_COPY_FILE_RANGE and FUSE_LSEEK is added.
+
 r368667:
 	GDB 6.1.1 was removed.  Users of crashinfo(8) should install the
 	gdb package or devel/gdb port.
