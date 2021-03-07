@@ -136,6 +136,7 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, alloweddeviation,
 volatile int rtc_generation = 1;
 
 static int tc_chosen;	/* Non-zero if a specific tc was chosen via sysctl. */
+static char tc_from_tunable[16];
 
 static void tc_windup(struct bintime *new_boottimebin);
 static void cpu_tick_calibrate(int);
@@ -1195,11 +1196,17 @@ tc_init(struct timecounter *tc)
 		return;
 	if (tc->tc_quality < 0)
 		return;
-	if (tc->tc_quality < timecounter->tc_quality)
-		return;
-	if (tc->tc_quality == timecounter->tc_quality &&
-	    tc->tc_frequency < timecounter->tc_frequency)
-		return;
+	if (tc_from_tunable[0] != '\0' &&
+	    strcmp(tc->tc_name, tc_from_tunable) == 0) {
+		tc_chosen = 1;
+		tc_from_tunable[0] = '\0';
+	} else {
+		if (tc->tc_quality < timecounter->tc_quality)
+			return;
+		if (tc->tc_quality == timecounter->tc_quality &&
+		    tc->tc_frequency < timecounter->tc_frequency)
+			return;
+	}
 	(void)tc->tc_get_timecount(tc);
 	timecounter = tc;
 }
@@ -1479,8 +1486,9 @@ sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 	return (EINVAL);
 }
 
-SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING | CTLFLAG_RW,
-    0, 0, sysctl_kern_timecounter_hardware, "A",
+SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware,
+    CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, 0, 0,
+    sysctl_kern_timecounter_hardware, "A",
     "Timecounter hardware selected");
 
 
@@ -1918,6 +1926,9 @@ inittimehands(void *dummy)
 	for (i = 1, thp = &ths[0]; i < timehands_count;  thp = &ths[i++])
 		thp->th_next = &ths[i];
 	thp->th_next = &ths[0];
+
+	TUNABLE_STR_FETCH("kern.timecounter.hardware", tc_from_tunable,
+	    sizeof(tc_from_tunable));
 }
 SYSINIT(timehands, SI_SUB_TUNABLES, SI_ORDER_ANY, inittimehands, NULL);
 
