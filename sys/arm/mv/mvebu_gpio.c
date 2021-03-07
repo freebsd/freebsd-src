@@ -167,10 +167,10 @@ mvebu_gpio_pin_configure(struct mvebu_gpio_softc *sc, struct gpio_pin *pin,
 	pin->gp_flags &= ~(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT);
 	if (flags & GPIO_PIN_OUTPUT) {
 		pin->gp_flags |= GPIO_PIN_OUTPUT;
-		gpio_write(sc, GPIO_CONTROL_SET, pin, 1);
+		gpio_write(sc, GPIO_CONTROL_CLR, pin, 1);
 	} else {
 		pin->gp_flags |= GPIO_PIN_INPUT;
-		gpio_write(sc, GPIO_CONTROL_CLR, pin, 1);
+		gpio_write(sc, GPIO_CONTROL_SET, pin, 1);
 	}
 }
 
@@ -785,7 +785,7 @@ mvebu_gpio_attach(device_t dev)
 		else
 			pin->gp_caps = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT;
 		pin->gp_flags =
-		    gpio_read(sc, GPIO_CONTROL, &sc->gpio_pins[i]) != 0 ?
+		    gpio_read(sc, GPIO_CONTROL, &sc->gpio_pins[i]) == 0 ?
 		    GPIO_PIN_OUTPUT : GPIO_PIN_INPUT;
 		snprintf(pin->gp_name, GPIOMAXNAME, "gpio%d", i);
 
