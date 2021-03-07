@@ -985,33 +985,50 @@ null_vput_pair(struct vop_vput_pair_args *ap)
 	vpp = ap->a_vpp;
 	vp = NULL;
 	lvp = NULL;
-	if (vpp != NULL) {
+	mp = NULL;
+	if (vpp != NULL)
 		vp = *vpp;
-		if (vp != NULL) {
+	if (vp != NULL) {
+		lvp = NULLVPTOLOWERVP(vp);
+		vref(lvp);
+		if (!ap->a_unlock_vp) {
 			vhold(vp);
+			vhold(lvp);
 			mp = vp->v_mount;
-			lvp = NULLVPTOLOWERVP(vp);
-			if (ap->a_unlock_vp)
-				vref(lvp);
+			vfs_ref(mp);
 		}
 	}
 
-	res = VOP_VPUT_PAIR(ldvp, &lvp, ap->a_unlock_vp);
+	res = VOP_VPUT_PAIR(ldvp, lvp != NULL ? &lvp : NULL, true);
+	if (vp != NULL && ap->a_unlock_vp)
+		vrele(vp);
+	vrele(dvp);
 
-	/* lvp might have been unlocked and vp reclaimed */
-	if (vp != NULL) {
-		if (!ap->a_unlock_vp && vp->v_vnlock != lvp->v_vnlock) {
+	if (vp == NULL || ap->a_unlock_vp)
+		return (res);
+
+	/* lvp has been unlocked and vp might be reclaimed */
+	VOP_LOCK(vp, LK_EXCLUSIVE | LK_RETRY);
+	if (vp->v_data == NULL && vfs_busy(mp, MBF_NOWAIT) == 0) {
+		vput(vp);
+		vget(lvp, LK_EXCLUSIVE | LK_RETRY);
+		if (VN_IS_DOOMED(lvp)) {
+			vput(lvp);
+			vget(vp, LK_EXCLUSIVE | LK_RETRY);
+		} else {
 			error = null_nodeget(mp, lvp, &vp1);
 			if (error == 0) {
-				vput(vp);
 				*vpp = vp1;
+			} else {
+				vget(vp, LK_EXCLUSIVE | LK_RETRY);
 			}
 		}
-		if (ap->a_unlock_vp)
-			vrele(vp);
-		vdrop(vp);
+		vfs_unbusy(mp);
 	}
-	vrele(dvp);
+	vdrop(lvp);
+	vdrop(vp);
+	vfs_rel(mp);
+
 	return (res);
 }
 
