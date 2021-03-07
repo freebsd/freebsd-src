@@ -401,7 +401,9 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 			}
 #endif
 		}
-		if (error == 0 && (*dpp)->v_type != VDIR)
+		if (error == 0 && (*dpp)->v_type != VDIR &&
+		    (cnp->cn_pnbuf[0] != '\0' ||
+		    (cnp->cn_flags & EMPTYPATH) == 0))
 			error = ENOTDIR;
 	}
 	if (error == 0 && (cnp->cn_flags & RBENEATH) != 0) {
@@ -458,21 +460,60 @@ namei_getpath(struct nameidata *ndp)
 		    &ndp->ni_pathlen);
 	}
 
-	if (__predict_false(error != 0)) {
-		namei_cleanup_cnp(cnp);
+	if (__predict_false(error != 0))
 		return (error);
-	}
 
 	/*
-	 * Don't allow empty pathnames.
+	 * Don't allow empty pathnames unless EMPTYPATH is specified.
+	 * Caller checks for ENOENT as an indication for the empty path.
 	 */
-	if (__predict_false(*cnp->cn_pnbuf == '\0')) {
-		namei_cleanup_cnp(cnp);
+	if (__predict_false(*cnp->cn_pnbuf == '\0'))
 		return (ENOENT);
-	}
 
 	cnp->cn_nameptr = cnp->cn_pnbuf;
 	return (0);
+}
+
+static int
+namei_emptypath(struct nameidata *ndp)
+{
+	struct componentname *cnp;
+	struct pwd *pwd;
+	struct vnode *dp;
+	int error;
+
+	cnp = &ndp->ni_cnd;
+	MPASS(*cnp->cn_pnbuf == '\0');
+	MPASS((cnp->cn_flags & EMPTYPATH) != 0);
+	MPASS((cnp->cn_flags & (LOCKPARENT | WANTPARENT)) == 0);
+
+	error = namei_setup(ndp, &dp, &pwd);
+	if (error != 0) {
+		namei_cleanup_cnp(cnp);
+		goto errout;
+	}
+
+	ndp->ni_vp = dp;
+	vref(dp);
+	namei_cleanup_cnp(cnp);
+	pwd_drop(pwd);
+	ndp->ni_resflags |= NIRES_EMPTYPATH;
+	NDVALIDATE(ndp);
+	if ((cnp->cn_flags & LOCKLEAF) != 0) {
+		VOP_LOCK(dp, (cnp->cn_flags & LOCKSHARED) != 0 ?
+		    LK_SHARED : LK_EXCLUSIVE);
+		if (VN_IS_DOOMED(dp)) {
+			vput(dp);
+			error = ENOENT;
+			goto errout;
+		}
+	}
+	SDT_PROBE4(vfs, namei, lookup, return, 0, ndp->ni_vp, false, ndp);
+	return (0);
+
+errout:
+	SDT_PROBE4(vfs, namei, lookup, return, error, NULL, false, ndp);
+	return (error);
 }
 
 /*
@@ -555,6 +596,11 @@ namei(struct nameidata *ndp)
 
 	error = namei_getpath(ndp);
 	if (__predict_false(error != 0)) {
+		if (error == ENOENT && (cnp->cn_flags & EMPTYPATH) != 0) 
+			return (namei_emptypath(ndp));
+		namei_cleanup_cnp(cnp);
+		SDT_PROBE4(vfs, namei, lookup, return, error, NULL,
+		    false, ndp);
 		return (error);
 	}
 
@@ -588,6 +634,7 @@ namei(struct nameidata *ndp)
 		ndp->ni_loopcnt = 0;
 		error = namei_getpath(ndp);
 		if (__predict_false(error != 0)) {
+			namei_cleanup_cnp(cnp);
 			return (error);
 		}
 		/* FALLTHROUGH */

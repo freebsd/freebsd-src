@@ -28,7 +28,7 @@
 .\"     @(#)link.2	8.3 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2021
+.Dd March 30, 2021
 .Dt LINK 2
 .Os
 .Sh NAME
@@ -124,6 +124,15 @@ See the description of the
 flag in the
 .Xr open 2
 manual page.
+.It Dv AT_EMPTY_PATH
+If the
+.Fa path2
+argument is an empty string, link the file referenced by the descriptor
+.Fa fd2 .
+The operation requires that the calling process has the
+.Dv PRIV_VFS_FHOPEN
+privilege, effectively being executed with effective user
+.Dv root .
 .El
 .Pp
 If
