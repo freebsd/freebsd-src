@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210305: removed Poly1305_* symbols
+OLD_FILES+=usr/include/crypto/xform_poly1305.h
+
 # 20210304: remove old bc and dc support and test files
 .if !defined(WITHOUT_GH_BC)
 OLD_FILES+=usr/share/misc/bc.library
