@@ -144,10 +144,12 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	WANTPARENT	0x0010	/* want parent vnode returned unlocked */
 #define	FAILIFEXISTS	0x0020	/* return EEXIST if found */
 #define	FOLLOW		0x0040	/* follow symbolic links */
+#define	EMPTYPATH	0x0080	/* Allow empty path for *at */
 #define	LOCKSHARED	0x0100	/* Shared lock leaf */
 #define	NOFOLLOW	0x0000	/* do not follow symbolic links (pseudo) */
 #define	RBENEATH	0x100000000ULL /* No escape, even tmp, from start dir */
 #define	MODMASK		0xf000001ffULL	/* mask of operational modifiers */
+
 /*
  * Namei parameter descriptors.
  *
@@ -198,6 +200,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  */
 #define	NIRES_ABS	0x00000001 /* Path was absolute */
 #define	NIRES_STRICTREL	0x00000002 /* Restricted lookup result */
+#define	NIRES_EMPTYPATH	0x00000004 /* EMPTYPATH used */
 
 /*
  * Flags in ni_lcf, valid for the duration of the namei call.

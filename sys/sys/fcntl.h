@@ -224,6 +224,7 @@ typedef	__pid_t		pid_t;
 /* #define AT_UNUSED1		0x1000 *//* Was AT_BENEATH */
 #define	AT_RESOLVE_BENEATH	0x2000	/* Do not allow name resolution
 					   to walk out of dirfd */
+#define	AT_EMPTY_PATH		0x4000	/* Operate on dirfd if path is empty */
 #endif	/* __BSD_VISIBLE */
 
 /*
