@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2021
+.Dd March 7, 2021
 .Dt WG 4
 .Os
 .Sh NAME
@@ -184,7 +184,7 @@ $ ifconfig wg0 | awk '/public-key/ { print $2 }'`
 .Pp
 Connect to a specific endpoint using its public-key and set the allowed IP address
 .Bd -literal -offset indent
-# ifconfig wg0 peer '7lWtsDdqaGB3EY9WNxRN3hVaHMtu1zXw71+bOjNOVUw=' endpoint 10.0.1.100 allowed-ips 192.168.2.100/32
+# ifconfig wg0 peer public-key '7lWtsDdqaGB3EY9WNxRN3hVaHMtu1zXw71+bOjNOVUw=' endpoint 10.0.1.100:54321 allowed-ips 192.168.2.100/32
 .Ed
 .Sh DIAGNOSTICS
 The
