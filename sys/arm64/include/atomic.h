@@ -54,7 +54,7 @@
 #define	rmb()	dmb(ld)	/* Full system memory barrier load */
 
 #if defined(KCSAN) && !defined(KCSAN_RUNTIME)
-#include <sys/_cscan_atomic.h>
+#include <sys/atomic_san.h>
 #else
 
 #include <sys/atomic_common.h>

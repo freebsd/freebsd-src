@@ -32,8 +32,8 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS__CSAN_ATOMIC_H_
-#define	_SYS__CSAN_ATOMIC_H_
+#ifndef _SYS_ATOMIC_SAN_H_
+#define	_SYS_ATOMIC_SAN_H_
 
 #ifndef _MACHINE_ATOMIC_H_
 #error do not include this header, use machine/atomic.h
@@ -377,4 +377,4 @@ void	kcsan_atomic_thread_fence_seq_cst(void);
 
 #endif /* !KCSAN_RUNTIME */
 
-#endif /* !_SYS__CSAN_ATOMIC_H_ */
+#endif /* !_SYS_ATOMIC_SAN_H_ */

@@ -32,8 +32,8 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS__CSAN_BUS_H_
-#define	_SYS__CSAN_BUS_H_
+#ifndef _SYS_BUS_SAN_H_
+#define	_SYS_BUS_SAN_H_
 
 #define	KCSAN_BS_MULTI(rw, width, type)					\
 	void kcsan_bus_space_##rw##_multi_##width(bus_space_tag_t, 	\
@@ -206,4 +206,4 @@ void kcsan_bus_space_barrier(bus_space_tag_t, bus_space_handle_t, bus_size_t,
 
 #endif /* !KCSAN_RUNTIME */
 
-#endif /* !_SYS__CSAN_BUS_H_ */
+#endif /* !_SYS_BUS_SAN_H_ */
