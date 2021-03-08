@@ -1603,6 +1603,13 @@ itimespecfix(struct timespec *ts)
 	return (0);
 }
 
+#define	timespectons(tsp)			\
+	((uint64_t)(tsp)->tv_sec * 1000000000 + (tsp)->tv_nsec)
+#define	timespecfromns(ns) (struct timespec){	\
+	.tv_sec = (ns) / 1000000000,		\
+	.tv_nsec = (ns) % 1000000000		\
+}
+
 /* Timeout callback for realtime timer */
 static void
 realtimer_expire(void *arg)
@@ -1610,6 +1617,7 @@ realtimer_expire(void *arg)
 	struct timespec cts, ts;
 	struct timeval tv;
 	struct itimer *it;
+	uint64_t interval, now, overruns, value;
 
 	it = (struct itimer *)arg;
 
@@ -1620,14 +1628,27 @@ realtimer_expire(void *arg)
 			timespecadd(&it->it_time.it_value,
 			    &it->it_time.it_interval,
 			    &it->it_time.it_value);
-			while (timespeccmp(&cts, &it->it_time.it_value, >=)) {
-				if (it->it_overrun < INT_MAX)
-					it->it_overrun++;
-				else
+
+			interval = timespectons(&it->it_time.it_interval);
+			value = timespectons(&it->it_time.it_value);
+			now = timespectons(&cts);
+
+			if (now >= value) {
+				/*
+				 * We missed at least one period.
+				 */
+				overruns = howmany(now - value + 1, interval);
+				if (it->it_overrun + overruns >=
+				    it->it_overrun &&
+				    it->it_overrun + overruns <= INT_MAX) {
+					it->it_overrun += (int)overruns;
+				} else {
+					it->it_overrun = INT_MAX;
 					it->it_ksi.ksi_errno = ERANGE;
-				timespecadd(&it->it_time.it_value,
-				    &it->it_time.it_interval,
-				    &it->it_time.it_value);
+				}
+				value =
+				    now + interval - (now - value) % interval;
+				it->it_time.it_value = timespecfromns(value);
 			}
 		} else {
 			/* single shot timer ? */
