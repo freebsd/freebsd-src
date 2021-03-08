@@ -233,12 +233,10 @@ static struct if_shared_ctx ixv_sctx_init = {
 	.isc_ntxd_default = {DEFAULT_TXD},
 };
 
-if_shared_ctx_t ixv_sctx = &ixv_sctx_init;
-
 static void *
 ixv_register(device_t dev)
 {
-	return (ixv_sctx);
+	return (&ixv_sctx_init);
 }
 
 /************************************************************************

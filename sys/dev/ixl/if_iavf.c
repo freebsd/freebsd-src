@@ -272,13 +272,11 @@ static struct if_shared_ctx iavf_sctx_init = {
 	.isc_ntxd_default = {IXL_DEFAULT_RING},
 };
 
-if_shared_ctx_t iavf_sctx = &iavf_sctx_init;
-
 /*** Functions ***/
 static void *
 iavf_register(device_t dev)
 {
-	return (iavf_sctx);
+	return (&iavf_sctx_init);
 }
 
 static int

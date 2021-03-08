@@ -49,7 +49,7 @@ typedef uint16_t qidx_t;
 struct iflib_ctx;
 typedef struct iflib_ctx *if_ctx_t;
 struct if_shared_ctx;
-typedef struct if_shared_ctx *if_shared_ctx_t;
+typedef const struct if_shared_ctx *if_shared_ctx_t;
 struct if_int_delay_info;
 typedef struct if_int_delay_info  *if_int_delay_info_t;
 struct if_pseudo;

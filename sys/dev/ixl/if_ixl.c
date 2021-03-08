@@ -351,13 +351,11 @@ static struct if_shared_ctx ixl_sctx_init = {
 	.isc_ntxd_default = {IXL_DEFAULT_RING},
 };
 
-if_shared_ctx_t ixl_sctx = &ixl_sctx_init;
-
 /*** Functions ***/
 static void *
 ixl_register(device_t dev)
 {
-	return (ixl_sctx);
+	return (&ixl_sctx_init);
 }
 
 static int

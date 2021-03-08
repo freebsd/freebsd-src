@@ -392,8 +392,6 @@ static struct if_shared_ctx ixgbe_sctx_init = {
 	.isc_ntxd_default = {DEFAULT_TXD},
 };
 
-if_shared_ctx_t ixgbe_sctx = &ixgbe_sctx_init;
-
 /************************************************************************
  * ixgbe_if_tx_queues_alloc
  ************************************************************************/
@@ -855,7 +853,7 @@ ixgbe_initialize_transmit_units(if_ctx_t ctx)
 static void *
 ixgbe_register(device_t dev)
 {
-	return (ixgbe_sctx);
+	return (&ixgbe_sctx_init);
 } /* ixgbe_register */
 
 /************************************************************************
