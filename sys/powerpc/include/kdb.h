@@ -54,4 +54,18 @@ kdb_cpu_trap(int vector, int _)
 {
 }
 
+static __inline int
+kdb_cpu_set_watchpoint(vm_offset_t addr, vm_size_t size, int access)
+{
+
+	return (ENXIO);
+}
+
+static __inline int
+kdb_cpu_clr_watchpoint(vm_offset_t addr, vm_size_t size)
+{
+
+	return (0);
+}
+
 #endif /* _MACHINE_KDB_H_ */
