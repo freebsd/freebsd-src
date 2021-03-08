@@ -41,6 +41,7 @@
 #include <machine/pcb.h>
 
 #include <gdb/gdb.h>
+#include <gdb/gdb_int.h>
 
 void *
 gdb_cpu_getreg(int regnum, size_t *regsz)
@@ -109,4 +110,15 @@ gdb_cpu_signal(int type, int code __unused)
 		return (SIGTRAP);
 	}
 	return (SIGEMT);
+}
+
+void
+gdb_cpu_stop_reason(int type, int code __unused)
+{
+
+	if (type == EXCP_WATCHPT_EL1) {
+		gdb_tx_str("watch:");
+		gdb_tx_varhex((uintmax_t)READ_SPECIALREG(far_el1));
+		gdb_tx_char(';');
+	}
 }

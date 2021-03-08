@@ -741,8 +741,9 @@ gdb_trap(int type, int code)
 	gdb_tx_char(':');
 	gdb_tx_reg(GDB_REG_PC);
 	gdb_tx_char(';');
+	gdb_cpu_stop_reason(type, code);
 	gdb_tx_str("thread:");
-	gdb_tx_varhex((long)kdb_thread->td_tid);
+	gdb_tx_varhex((uintmax_t)kdb_thread->td_tid);
 	gdb_tx_char(';');
 	gdb_tx_end();			/* XXX check error condition. */
 
