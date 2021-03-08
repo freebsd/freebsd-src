@@ -128,4 +128,10 @@ extern const char * volatile kdb_why;
 #define	KDB_REQ_PANIC		2	/* User requested a panic */
 #define	KDB_REQ_REBOOT		3	/* User requested a clean reboot */
 
+/* Debug breakpoint/watchpoint access types */
+#define	KDB_DBG_ACCESS_EXEC	0
+#define	KDB_DBG_ACCESS_R	1
+#define	KDB_DBG_ACCESS_W	2
+#define	KDB_DBG_ACCESS_RW	3
+
 #endif /* !_SYS_KDB_H_ */
