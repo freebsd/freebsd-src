@@ -136,7 +136,7 @@
 #define	BUS_SPACE_BARRIER_WRITE	0x02		/* force write barrier */
 
 #if defined(KCSAN) && !defined(KCSAN_RUNTIME)
-#include <sys/_cscan_bus.h>
+#include <sys/bus_san.h>
 #else
 
 /*
