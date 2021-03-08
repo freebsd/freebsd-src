@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 #
 
-# Test of open(2) with the O_BENEATH flag.
+# Test of open(2) with the O_RESOLVE_BENEATH flag.
 
 # userret: returning with the following locks held:
 # shared lockmgr ufs (ufs) r = 0 (0xfffff804ec0d2a48) locked @
@@ -46,11 +46,6 @@ cat > $top/beneath.c <<EOF
 #include <string.h>
 #include <unistd.h>
 
-#ifndef O_BENEATH
-#define	O_BENEATH	0x00400000	/* Fail if not under cwd */
-#define	AT_BENEATH		0x1000	/* Fail if not under dirfd */
-#endif
-
 int
 main(int argc, char *argv[])
 {
@@ -61,7 +56,7 @@ main(int argc, char *argv[])
 	for (i = 1; i < argc; i++) {
 		name = argv[i];
 		alarm(120);
-		fd = open(name, O_RDONLY | O_BENEATH);
+		fd = open(name, O_RDONLY | O_RESOLVE_BENEATH);
 		if (fd == -1) {
 			fprintf(stderr, "open(\"%s\") failed, error %d %s\n",
 			    name, errno, strerror(errno));
@@ -69,7 +64,7 @@ main(int argc, char *argv[])
 			fprintf(stderr, "open(\"%s\") succeeded\n", name);
 			close(fd);
 		}
-		error = fstatat(AT_FDCWD, name, &st, AT_BENEATH);
+		error = fstatat(AT_FDCWD, name, &st, AT_RESOLVE_BENEATH);
 		if (error == -1){
 			fprintf(stderr, "stat(\"%s\") failed, error %d %s\n",
 			    name, errno, strerror(errno));

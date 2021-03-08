@@ -69,7 +69,7 @@ main(int argc, char *argv[])
 	sscanf(argv[3], "%x", &flag);
 	exp = atoi(argv[4]);
 #if 0
-	if ((flag & (AT_BENEATH | AT_RESOLVE_BENEATH)) == 0) {
+	if ((flag & AT_RESOLVE_BENEATH) == 0) {
 		fprintf(stderr, "Flag must be %#x or %#x\n",
 		    AT_BENEATH, AT_RESOLVE_BENEATH);
 		return (1);
@@ -105,17 +105,17 @@ top=$dir/a
 
 cd $here
 s=0
-ls -lR $dir
-echo  AT_BENEATH
-$dir/beneath4 $top a                         0x1000  0 || s=1
-$dir/beneath4 $top b                         0x1000  2 || s=1
-$dir/beneath4 $top c                         0x1000  0 || s=1
-$dir/beneath4 $top d                         0x1000  0 || s=1
-$dir/beneath4 $top e                         0x1000  2 || s=1
-$dir/beneath4 $top fifo                      0x1000  0 || s=1
-$dir/beneath4 $top $top/../../beneath4.d/a/a 0x1000 93 || s=1
-$dir/beneath4 $top $top/..                   0x1000 93 || s=1
-$dir/beneath4 $top ../a                      0x1000  0 || s=1
+#ls -lR $dir
+#echo  AT_BENEATH
+#$dir/beneath4 $top a                         0x1000  0 || s=1
+#$dir/beneath4 $top b                         0x1000  2 || s=1
+#$dir/beneath4 $top c                         0x1000  0 || s=1
+#$dir/beneath4 $top d                         0x1000  0 || s=1
+#$dir/beneath4 $top e                         0x1000  2 || s=1
+#$dir/beneath4 $top fifo                      0x1000  0 || s=1
+#$dir/beneath4 $top $top/../../beneath4.d/a/a 0x1000 93 || s=1
+#$dir/beneath4 $top $top/..                   0x1000 93 || s=1
+#$dir/beneath4 $top ../a                      0x1000  0 || s=1
 
 printf "\nAT_RESOLVE_BENEATH\n"
 $dir/beneath4 $top a                         0x2000  0 || s=1

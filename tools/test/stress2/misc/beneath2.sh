@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 #
 
-# O_BENEATH test with a relative path, which is a symbolic link pointing
+# O_RESOLVE_BENEATH test with a relative path, which is a symbolic link pointing
 # to an absolute path.
 
 # "panic: Assertion (ndp->ni_lcf & NI_LCF_LATCH) != 0 failed at
@@ -93,7 +93,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 	file = argv[1];
-	if ((fd = open(file, O_RDONLY | O_BENEATH)) != 0 &&
+	if ((fd = open(file, O_RDONLY | O_RESOLVE_BENEATH)) != 0 &&
 	    errno != ENOTCAPABLE)
 		err(1, "open(%s)", file);
 
