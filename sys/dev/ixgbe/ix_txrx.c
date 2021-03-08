@@ -72,8 +72,6 @@ struct if_txrx ixgbe_txrx  = {
 	.ift_legacy_intr = NULL
 };
 
-extern if_shared_ctx_t ixgbe_sctx;
-
 /************************************************************************
  * ixgbe_tx_ctx_setup
  *

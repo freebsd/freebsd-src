@@ -572,8 +572,6 @@ static struct if_shared_ctx em_sctx_init = {
 	.isc_ntxd_default = {EM_DEFAULT_TXD},
 };
 
-if_shared_ctx_t em_sctx = &em_sctx_init;
-
 static struct if_shared_ctx igb_sctx_init = {
 	.isc_magic = IFLIB_MAGIC,
 	.isc_q_align = PAGE_SIZE,
@@ -600,8 +598,6 @@ static struct if_shared_ctx igb_sctx_init = {
 	.isc_nrxd_default = {EM_DEFAULT_RXD},
 	.isc_ntxd_default = {EM_DEFAULT_TXD},
 };
-
-if_shared_ctx_t igb_sctx = &igb_sctx_init;
 
 /*****************************************************************
  *
@@ -725,13 +721,13 @@ static int em_get_regs(SYSCTL_HANDLER_ARGS)
 static void *
 em_register(device_t dev)
 {
-	return (em_sctx);
+	return (&em_sctx_init);
 }
 
 static void *
 igb_register(device_t dev)
 {
-	return (igb_sctx);
+	return (&igb_sctx_init);
 }
 
 static int

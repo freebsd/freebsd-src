@@ -326,8 +326,6 @@ static struct if_shared_ctx bnxt_sctx_init = {
 	.isc_driver_version = bnxt_driver_version,
 };
 
-if_shared_ctx_t bnxt_sctx = &bnxt_sctx_init;
-
 /*
  * Device Methods
  */
@@ -335,7 +333,7 @@ if_shared_ctx_t bnxt_sctx = &bnxt_sctx_init;
 static void *
 bnxt_register(device_t dev)
 {
-	return bnxt_sctx;
+	return (&bnxt_sctx_init);
 }
 
 /*
