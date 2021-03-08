@@ -84,7 +84,7 @@ main(void)
 	char file[] = "/..";
 
 	errno = 0;
-	fd = open(file, O_CREAT | O_RDONLY | O_BENEATH);
+	fd = open(file, O_CREAT | O_RDONLY | O_RESOLVE_BENEATH);
 	if (fd != -1 || errno != ENOTCAPABLE)
 		err(1, "open(%s) returns %d", file, fd);
 
