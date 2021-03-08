@@ -503,6 +503,14 @@ test_tsc(int adj_max_count)
 
 	if ((!smp_tsc && !tsc_is_invariant))
 		return (-100);
+	/*
+	 * Misbehavior of TSC under VirtualBox has been observed.  In
+	 * particular, threads doing small (~1 second) sleeps may miss their
+	 * wakeup and hang around in sleep state, causing hangs on shutdown.
+	 */
+	if (vm_guest == VM_GUEST_VBOX)
+		return (0);
+
 	size = (mp_maxid + 1) * 3;
 	data = malloc(sizeof(*data) * size * N, M_TEMP, M_WAITOK);
 	adj = 0;
