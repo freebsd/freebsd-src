@@ -1911,7 +1911,6 @@ wg_input(struct mbuf *m0, int offset, struct inpcb *inpcb,
 	 */
 	if ((m = m_pullup(m0, m0->m_pkthdr.len)) == NULL) {
 		DPRINTF(sc, "DEFRAG fail\n");
-		m_freem(m0);
 		return;
 	}
 	data = mtod(m, void *);
