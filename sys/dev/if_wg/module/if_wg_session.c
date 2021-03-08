@@ -1907,6 +1907,7 @@ wg_input(struct mbuf *m0, int offset, struct inpcb *inpcb,
 
 	if ((m = m_defrag(m0, M_NOWAIT)) == NULL) {
 		DPRINTF(sc, "DEFRAG fail\n");
+		m_freem(m0);
 		return;
 	}
 	data = mtod(m, void *);
@@ -1937,8 +1938,10 @@ wg_input(struct mbuf *m0, int offset, struct inpcb *inpcb,
 		verify_endpoint(m);
 		if (mbufq_enqueue(&sc->sc_handshake_queue, m) == 0) {
 			GROUPTASK_ENQUEUE(&sc->sc_handshake);
-		} else
+		} else {
 			DPRINTF(sc, "Dropping handshake packet\n");
+			wg_m_freem(m);
+		}
 	} else if (pktlen >= sizeof(struct wg_pkt_data) + NOISE_MAC_SIZE
 	    && pkttype == MESSAGE_DATA) {
 
