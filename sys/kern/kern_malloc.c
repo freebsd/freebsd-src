@@ -537,7 +537,7 @@ malloc_dbg(caddr_t *vap, size_t *sizep, struct malloc_type *mtp,
 #ifdef EPOCH_TRACE
 			epoch_trace_list(curthread);
 #endif
-			KASSERT(1, 
+			KASSERT(0,
 			    ("malloc(M_WAITOK) with sleeping prohibited"));
 		}
 	}
