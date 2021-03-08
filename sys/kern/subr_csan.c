@@ -380,7 +380,7 @@ kcsan_copyout(const void *kaddr, void *uaddr, size_t len)
 /* -------------------------------------------------------------------------- */
 
 #include <machine/atomic.h>
-#include <sys/_cscan_atomic.h>
+#include <sys/atomic_san.h>
 
 #define	_CSAN_ATOMIC_FUNC_ADD(name, type)				\
 	void kcsan_atomic_add_##name(volatile type *ptr, type val)	\
@@ -688,7 +688,7 @@ CSAN_ATOMIC_FUNC_THREAD_FENCE(seq_cst)
 
 #include <sys/bus.h>
 #include <machine/bus.h>
-#include <sys/_cscan_bus.h>
+#include <sys/bus_san.h>
 
 int
 kcsan_bus_space_map(bus_space_tag_t tag, bus_addr_t hnd, bus_size_t size,
