@@ -576,7 +576,7 @@ isa_probe_children(device_t dev)
 		    strcmp(kern_ident, "GENERIC") == 0 &&
 		    device_is_attached(child))
 			device_printf(child,
-			    "non-PNP ISA device will be removed from GENERIC in FreeBSD 12.\n");
+			    "non-PNP ISA device will be removed from GENERIC in FreeBSD 14.\n");
 	}
 
 	/*
