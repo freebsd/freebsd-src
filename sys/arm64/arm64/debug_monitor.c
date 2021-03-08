@@ -28,6 +28,7 @@
  */
 
 #include "opt_ddb.h"
+#include "opt_gdb.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -181,7 +182,7 @@ dbg_wb_write_reg(int reg, int n, uint64_t val)
 	isb();
 }
 
-#ifdef DDB
+#if defined(DDB) || defined(GDB)
 void
 kdb_cpu_set_singlestep(void)
 {
@@ -254,7 +255,9 @@ kdb_cpu_clr_watchpoint(vm_offset_t addr, vm_size_t size)
 
 	return (dbg_remove_watchpoint(NULL, addr, size));
 }
+#endif /* DDB || GDB */
 
+#ifdef DDB
 static const char *
 dbg_watchtype_str(uint32_t type)
 {
