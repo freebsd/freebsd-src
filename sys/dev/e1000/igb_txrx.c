@@ -72,8 +72,6 @@ struct if_txrx igb_txrx = {
 	.ift_legacy_intr = em_intr
 };
 
-extern if_shared_ctx_t em_sctx;
-
 /**********************************************************************
  *
  *  Setup work for hardware segmentation offload (TSO) on
