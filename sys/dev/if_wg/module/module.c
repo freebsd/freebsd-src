@@ -75,6 +75,7 @@ struct wg_peer_export {
 	size_t				endpoint_sz;
 	struct wg_allowedip		*aip;
 	int				aip_count;
+	uint16_t			persistent_keepalive;
 };
 
 static int clone_count;
@@ -416,6 +417,9 @@ wg_peer_to_export(struct wg_peer *peer, struct wg_peer_export *exp)
 	memcpy(exp->public_key, peer->p_remote.r_public,
 	    sizeof(exp->public_key));
 
+	exp->persistent_keepalive =
+	    peer->p_timers.t_persistent_keepalive_interval;
+
 	exp->aip_count = 0;
 	CK_LIST_FOREACH(rt, &peer->p_routes, r_entry) {
 		exp->aip_count++;
@@ -457,6 +461,10 @@ wg_peer_export_to_nvl(struct wg_peer_export *exp)
 
 	nvlist_add_binary(nvl, "allowed-ips", exp->aip,
 	    exp->aip_count * sizeof(*exp->aip));
+
+	if (exp->persistent_keepalive != 0)
+		nvlist_add_number(nvl, "persistent-keepalive-interval",
+		    exp->persistent_keepalive);
 
 	return (nvl);
 }

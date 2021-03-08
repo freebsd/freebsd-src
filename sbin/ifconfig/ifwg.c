@@ -280,6 +280,7 @@ dump_peer(const nvlist_t *nvl_peer)
 	char addr_buf[INET6_ADDRSTRLEN];
 	size_t size;
 	int count, port;
+	uint16_t persistent_keepalive;
 
 	printf("[Peer]\n");
 	if (nvlist_exists_binary(nvl_peer, "public-key")) {
@@ -292,7 +293,11 @@ dump_peer(const nvlist_t *nvl_peer)
 		sa_ntop(endpoint, addr_buf, &port);
 		printf("Endpoint = %s:%d\n", addr_buf, ntohs(port));
 	}
-
+	if (nvlist_exists_number(nvl_peer, "persistent-keepalive-interval")) {
+		persistent_keepalive = nvlist_get_number(nvl_peer,
+		    "persistent-keepalive-interval");
+		printf("PersistentKeepalive = %d\n", persistent_keepalive);
+	}
 	if (!nvlist_exists_binary(nvl_peer, "allowed-ips"))
 		return;
 	aips = nvlist_get_binary(nvl_peer, "allowed-ips", &size);
@@ -476,6 +481,26 @@ DECL_CMD_FUNC(setwgpubkey, val, d)
 }
 
 static
+DECL_CMD_FUNC(setwgpersistentkeepalive, val, d)
+{
+	unsigned long persistent_keepalive;
+	char *endp;
+
+	if (!do_peer)
+		errx(1, "setting persistent keepalive only valid when adding peer");
+
+	errno = 0;
+	persistent_keepalive = strtoul(val, &endp, 0);
+	if (errno != 0 || *endp != '\0')
+		errx(1, "persistent-keepalive must be numeric (seconds)");
+	if (persistent_keepalive > USHRT_MAX)
+		errx(1, "persistent-keepalive '%lu' too large",
+		    persistent_keepalive);
+	nvlist_add_number(nvl_params, "persistent-keepalive-interval",
+	    persistent_keepalive);
+}
+
+static
 DECL_CMD_FUNC(setallowedips, val, d)
 {
 	char *base, *allowedip, *mask;
@@ -563,6 +588,7 @@ static struct cmd wireguard_cmds[] = {
     DEF_CMD("peer-list",  0, peerlist),
     DEF_CMD("peer",  0, peerstart),
     DEF_CMD_ARG("public-key",  setwgpubkey),
+    DEF_CMD_ARG("persistent-keepalive",  setwgpersistentkeepalive),
     DEF_CMD_ARG("allowed-ips",  setallowedips),
     DEF_CMD_ARG("endpoint",  setendpoint),
 };
