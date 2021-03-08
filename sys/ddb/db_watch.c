@@ -34,6 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
@@ -41,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+
+#include <machine/kdb.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_watch.h>
@@ -278,33 +281,57 @@ db_find_watchpoint(vm_map_t map, db_addr_t addr, db_regs_t regs)
 #endif
 
 /* Delete hardware watchpoint */
-/*ARGSUSED*/
 void
-db_deletehwatch_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
+db_deletehwatch_cmd(db_expr_t addr, bool have_addr, db_expr_t size,
    char *modif)
 {
 	int rc;
 
-	if (count < 0)
-		count = 4;
+	if (size < 0)
+		size = 4;
 
-	rc = db_md_clr_watchpoint(addr, count);
-	if (rc < 0)
-		db_printf("hardware watchpoint could not be deleted\n");
+	rc = kdb_cpu_clr_watchpoint((vm_offset_t)addr, (vm_size_t)size);
+	switch (rc) {
+	case ENXIO:
+		/* Not supported, ignored. */
+		break;
+	case EINVAL:
+		db_printf("Invalid watchpoint address or size.\n");
+		break;
+	default:
+		if (rc != 0)
+			db_printf("Hardware watchpoint could not be deleted, "
+			    "status=%d\n", rc);
+		break;
+	}
 }
 
 /* Set hardware watchpoint */
-/*ARGSUSED*/
 void
-db_hwatchpoint_cmd(db_expr_t addr, bool have_addr, db_expr_t count,
+db_hwatchpoint_cmd(db_expr_t addr, bool have_addr, db_expr_t size,
    char *modif)
 {
 	int rc;
 
-	if (count < 0)
-		count = 4;
+	if (size < 0)
+		size = 4;
 
-	rc = db_md_set_watchpoint(addr, count);
-	if (rc < 0)
-		db_printf("hardware watchpoint could not be set\n");
+	rc = kdb_cpu_set_watchpoint((vm_offset_t)addr, (vm_size_t)size,
+	    KDB_DBG_ACCESS_W);
+
+	switch (rc) {
+	case EINVAL:
+		db_printf("Invalid watchpoint size or address.\n");
+		break;
+	case EBUSY:
+		db_printf("No hardware watchpoints available.\n");
+		break;
+	case ENXIO:
+		db_printf("Hardware watchpoints are not supported on this platform.\n");
+		break;
+	default:
+		if (rc != 0)
+			db_printf("Could not set hardware watchpoint, "
+			    "status=%d\n", rc);
+	}
 }
