@@ -1155,17 +1155,19 @@ acpi_cpu_idle(sbintime_t sbt)
      * driver polling for new devices keeps this bit set all the
      * time if USB is loaded.
      */
+    cx_next = &sc->cpu_cx_states[cx_next_idx];
     if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0 &&
-	cx_next_idx > sc->cpu_non_c3) {
+	cx_next_idx > sc->cpu_non_c3 &&
+	(!cx_next->do_mwait || cx_next->mwait_bm_avoidance)) {
 	status = AcpiReadBitRegister(ACPI_BITREG_BUS_MASTER_STATUS, &bm_active);
 	if (ACPI_SUCCESS(status) && bm_active != 0) {
 	    AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_STATUS, 1);
 	    cx_next_idx = sc->cpu_non_c3;
+	    cx_next = &sc->cpu_cx_states[cx_next_idx];
 	}
     }
 
     /* Select the next state and update statistics. */
-    cx_next = &sc->cpu_cx_states[cx_next_idx];
     sc->cpu_cx_stats[cx_next_idx]++;
     KASSERT(cx_next->type != ACPI_STATE_C0, ("acpi_cpu_idle: C0 sleep"));
 
@@ -1199,7 +1201,7 @@ acpi_cpu_idle(sbintime_t sbt)
      * For C3, disable bus master arbitration and enable bus master wake
      * if BM control is available, otherwise flush the CPU cache.
      */
-    if (cx_next->type == ACPI_STATE_C3 || cx_next->mwait_bm_avoidance) {
+    if (cx_next->type == ACPI_STATE_C3) {
 	if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
 	    AcpiWriteBitRegister(ACPI_BITREG_ARB_DISABLE, 1);
 	    AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_RLD, 1);
@@ -1239,7 +1241,7 @@ acpi_cpu_idle(sbintime_t sbt)
 	end_time = ((cpu_ticks() - cputicks) << 20) / cpu_tickrate();
 
     /* Enable bus master arbitration and disable bus master wakeup. */
-    if ((cx_next->type == ACPI_STATE_C3 || cx_next->mwait_bm_avoidance) &&
+    if (cx_next->type == ACPI_STATE_C3 &&
       (cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
 	AcpiWriteBitRegister(ACPI_BITREG_ARB_DISABLE, 0);
 	AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_RLD, 0);
