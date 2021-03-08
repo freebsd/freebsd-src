@@ -466,7 +466,8 @@ struct tunable_str {
 typedef void (*ich_func_t)(void *_arg);
 
 struct intr_config_hook {
-	TAILQ_ENTRY(intr_config_hook) ich_links;
+	STAILQ_ENTRY(intr_config_hook) ich_links;
+	uintptr_t	ich_padding;
 	ich_func_t	ich_func;
 	void		*ich_arg;
 };
