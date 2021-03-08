@@ -69,6 +69,14 @@ MALLOC_DEFINE(M_WG, "WG", "wireguard");
 
 TASKQGROUP_DECLARE(if_io_tqg);
 
+struct wg_peer_export {
+	struct sockaddr_storage		endpoint;
+	uint8_t				public_key[WG_KEY_SIZE];
+	size_t				endpoint_sz;
+	struct wg_allowedip		*aip;
+	int				aip_count;
+};
+
 static int clone_count;
 uma_zone_t ratelimit_zone;
 
@@ -386,37 +394,70 @@ wg_stop(if_ctx_t ctx)
 	wg_socket_reinit(sc, NULL, NULL);
 }
 
-static nvlist_t *
-wg_peer_to_nvl(struct wg_peer *peer)
+static int
+wg_peer_to_export(struct wg_peer *peer, struct wg_peer_export *exp)
 {
-	struct wg_route *rt;
-	int i, count;
-	nvlist_t *nvl;
-	caddr_t key;
-	size_t sa_sz;
-	struct wg_allowedip *aip;
 	struct wg_endpoint *ep;
+	struct wg_route *rt;
+	int i;
+
+	/* Non-sleepable context. */
+	NET_EPOCH_ASSERT();
+
+	bzero(&exp->endpoint, sizeof(exp->endpoint));
+	ep = &peer->p_endpoint;
+	if (ep->e_remote.r_sa.sa_family != 0) {
+		exp->endpoint_sz = (ep->e_remote.r_sa.sa_family == AF_INET) ?
+		    sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
+
+		memcpy(&exp->endpoint, &ep->e_remote, exp->endpoint_sz);
+	}
+
+	memcpy(exp->public_key, peer->p_remote.r_public,
+	    sizeof(exp->public_key));
+
+	exp->aip_count = 0;
+	CK_LIST_FOREACH(rt, &peer->p_routes, r_entry) {
+		exp->aip_count++;
+	}
+
+	/* Early success; no allowed-ips to copy out. */
+	if (exp->aip_count == 0)
+		return (0);
+
+	exp->aip = malloc(exp->aip_count * sizeof(*exp->aip), M_TEMP, M_NOWAIT);
+	if (exp->aip == NULL)
+		return (ENOMEM);
+
+	i = 0;
+	CK_LIST_FOREACH(rt, &peer->p_routes, r_entry) {
+		memcpy(&exp->aip[i++], &rt->r_cidr, sizeof(*exp->aip));
+		if (i == exp->aip_count)
+			break;
+	}
+
+	/* Again, AllowedIPs might have shrank; update it. */
+	exp->aip_count = i;
+
+	return (0);
+}
+
+static nvlist_t *
+wg_peer_export_to_nvl(struct wg_peer_export *exp)
+{
+	nvlist_t *nvl;
 
 	if ((nvl = nvlist_create(0)) == NULL)
 		return (NULL);
-	key = peer->p_remote.r_public;
-	nvlist_add_binary(nvl, "public-key", key, WG_KEY_SIZE);
-	ep = &peer->p_endpoint;
-	if (ep->e_remote.r_sa.sa_family != 0) {
-		sa_sz = (ep->e_remote.r_sa.sa_family == AF_INET) ?
-			sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
-		nvlist_add_binary(nvl, "endpoint", &ep->e_remote, sa_sz);
-	}
-	i = count = 0;
-	CK_LIST_FOREACH(rt, &peer->p_routes, r_entry) {
-		count++;
-	}
-	aip = malloc(count*sizeof(*aip), M_TEMP, M_WAITOK);
-	CK_LIST_FOREACH(rt, &peer->p_routes, r_entry) {
-		memcpy(&aip[i++], &rt->r_cidr, sizeof(*aip));
-	}
-	nvlist_add_binary(nvl, "allowed-ips", aip, count*sizeof(*aip));
-	free(aip, M_TEMP);
+
+	nvlist_add_binary(nvl, "public-key", exp->public_key, WG_KEY_SIZE);
+	if (exp->endpoint_sz != 0)
+		nvlist_add_binary(nvl, "endpoint", &exp->endpoint,
+		    exp->endpoint_sz);
+
+	nvlist_add_binary(nvl, "allowed-ips", exp->aip,
+	    exp->aip_count * sizeof(*exp->aip));
+
 	return (nvl);
 }
 
@@ -427,10 +468,8 @@ wg_marshal_peers(struct wg_softc *sc, nvlist_t **nvlp, nvlist_t ***nvl_arrayp, i
 	int err, i, peer_count;
 	nvlist_t *nvl, **nvl_array;
 	struct epoch_tracker et;
-#ifdef INVARIANTS
-	void *packed;
-	size_t size;
-#endif
+	struct wg_peer_export *wpe;
+
 	nvl = NULL;
 	nvl_array = NULL;
 	if (nvl_arrayp)
@@ -447,34 +486,44 @@ wg_marshal_peers(struct wg_softc *sc, nvlist_t **nvlp, nvlist_t ***nvl_arrayp, i
 
 	if (nvlp && (nvl = nvlist_create(0)) == NULL)
 		return (ENOMEM);
+
 	err = i = 0;
 	nvl_array = malloc(peer_count*sizeof(void*), M_TEMP, M_WAITOK);
+	wpe = malloc(peer_count*sizeof(*wpe), M_TEMP, M_WAITOK | M_ZERO);
+
 	NET_EPOCH_ENTER(et);
 	CK_LIST_FOREACH(peer, &sc->sc_hashtable.h_peers_list, p_entry) {
-		nvl_array[i] = wg_peer_to_nvl(peer);
-		if (nvl_array[i] == NULL) {
-			printf("wg_peer_to_nvl failed on %d peer\n", i);
+		if ((err = wg_peer_to_export(peer, &wpe[i])) != 0) {
+			printf("wg_peer_to_export failed on %d peer, error %d\n",
+			    i, err);
 			break;
 		}
-#ifdef INVARIANTS
-		packed = nvlist_pack(nvl_array[i], &size);
-		if (packed == NULL) {
-			printf("nvlist_pack(%p, %p) => %d",
-				   nvl_array[i], &size, nvlist_error(nvl));
-		}
-		free(packed, M_NVLIST);
-#endif	
+
 		i++;
 		if (i == peer_count)
 			break;
 	}
 	NET_EPOCH_EXIT(et);
+
+	if (err != 0)
+		goto out;
+
+	/* Update the peer count, in case we found fewer entries. */
 	*peer_countp = peer_count = i;
 	if (peer_count == 0) {
 		printf("no peers found in list\n");
 		err = ENOENT;
 		goto out;
 	}
+
+	for (i = 0; i < peer_count; i++) {
+		nvl_array[i] = wg_peer_export_to_nvl(&wpe[i]);
+		if (nvl_array[i] == NULL) {
+			printf("wg_peer_export_to_nvl failed on %d peer\n", i);
+			break;
+		}
+	}
+
 	if (nvl) {
 		nvlist_add_nvlist_array(nvl, "peer-list",
 		    (const nvlist_t * const *)nvl_array, peer_count);
@@ -486,8 +535,21 @@ wg_marshal_peers(struct wg_softc *sc, nvlist_t **nvlp, nvlist_t ***nvl_arrayp, i
 		*nvlp = nvl;
 	}
 	*nvl_arrayp = nvl_array;
-	return (0);
+	err = 0;
  out:
+	if (err != 0) {
+		for (i = 0; i < peer_count; i++) {
+			nvlist_destroy(nvl_array[i]);
+		}
+
+		free(nvl_array, M_TEMP);
+		if (nvl != NULL)
+			nvlist_destroy(nvl);
+	}
+
+	for (i = 0; i < peer_count; i++)
+		free(wpe[i].aip, M_TEMP);
+	free(wpe, M_TEMP);
 	return (err);
 }
 
