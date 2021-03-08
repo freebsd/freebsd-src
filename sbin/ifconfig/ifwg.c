@@ -400,8 +400,6 @@ peerfinish(int s, void *arg)
 		errx(1, "failed to allocate nvl_array");
 	if (!nvlist_exists_binary(nvl_params, "public-key"))
 		errx(1, "must specify a public-key for adding peer");
-	if (!nvlist_exists_binary(nvl_params, "endpoint"))
-		errx(1, "must specify an endpoint for adding peer");
 	if (allowed_ips_count == 0)
 		errx(1, "must specify at least one range of allowed-ips to add a peer");
 
