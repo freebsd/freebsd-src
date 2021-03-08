@@ -30,7 +30,7 @@ atf_test_case zil_001_pos cleanup
 zil_001_pos_head()
 {
 	atf_set "descr" "Verify that basic files and directory operations work"
-	atf_set "require.progs"  zfs zpool zdb
+	atf_set "require.progs" "ksh93 zfs zpool zdb"
 }
 zil_001_pos_body()
 {
@@ -56,7 +56,7 @@ atf_test_case zil_002_pos cleanup
 zil_002_pos_head()
 {
 	atf_set "descr" "Verify that creating and deleting content works"
-	atf_set "require.progs"  zfs zpool zdb
+	atf_set "require.progs" "ksh93 zfs zpool zdb"
 }
 zil_002_pos_body()
 {

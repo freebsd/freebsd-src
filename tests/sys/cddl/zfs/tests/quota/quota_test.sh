@@ -30,7 +30,7 @@ atf_test_case quota_001_pos cleanup
 quota_001_pos_head()
 {
 	atf_set "descr" "Verify that file size is limited by the file system quota"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 quota_001_pos_body()
 {
@@ -56,7 +56,7 @@ atf_test_case quota_002_pos cleanup
 quota_002_pos_head()
 {
 	atf_set "descr" "Verify that a file write cannot exceed the file system quota"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 quota_002_pos_body()
 {
@@ -82,7 +82,7 @@ atf_test_case quota_003_pos cleanup
 quota_003_pos_head()
 {
 	atf_set "descr" "Verify that file size is limited by the file system quota(dataset version)"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 quota_003_pos_body()
 {
@@ -108,7 +108,7 @@ atf_test_case quota_004_pos cleanup
 quota_004_pos_head()
 {
 	atf_set "descr" "Verify that a file write cannot exceed the file system quota(dataset version)"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 quota_004_pos_body()
 {
@@ -134,7 +134,7 @@ atf_test_case quota_005_pos cleanup
 quota_005_pos_head()
 {
 	atf_set "descr" "Verify that quota does not inherit its value from parent."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 quota_005_pos_body()
 {
@@ -160,7 +160,7 @@ atf_test_case quota_006_neg cleanup
 quota_006_neg_head()
 {
 	atf_set "descr" "Verify cannot set quota lower than the space currently in use"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 quota_006_neg_body()
 {

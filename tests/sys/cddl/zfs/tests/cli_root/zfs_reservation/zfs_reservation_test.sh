@@ -30,7 +30,7 @@ atf_test_case zfs_reservation_001_pos cleanup
 zfs_reservation_001_pos_head()
 {
 	atf_set "descr" "Verify that a reservation > 2^64 -1 fails."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_reservation_001_pos_body()
 {
@@ -54,7 +54,7 @@ atf_test_case zfs_reservation_002_pos cleanup
 zfs_reservation_002_pos_head()
 {
 	atf_set "descr" "Ensure a reservation of 0 or 'none' is allowed."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_reservation_002_pos_body()
 {

@@ -30,7 +30,7 @@ atf_test_case enospc_001_pos cleanup
 enospc_001_pos_head()
 {
 	atf_set "descr" "ENOSPC is returned when file system is full."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 enospc_001_pos_body()
 {

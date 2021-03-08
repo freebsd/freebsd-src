@@ -30,7 +30,7 @@ atf_test_case cachefile_001_pos
 cachefile_001_pos_head()
 {
 	atf_set "descr" "Creating a pool with \cachefile\ set doesn't update zpool.cache"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 }
 cachefile_001_pos_body()
 {
@@ -47,7 +47,7 @@ atf_test_case cachefile_002_pos
 cachefile_002_pos_head()
 {
 	atf_set "descr" "Importing a pool with \cachefile\ set doesn't update zpool.cache"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 }
 cachefile_002_pos_body()
 {
@@ -64,7 +64,7 @@ atf_test_case cachefile_003_pos
 cachefile_003_pos_head()
 {
 	atf_set "descr" "Setting altroot=path and cachefile=$CPATH for zpool create succeed."
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 }
 cachefile_003_pos_body()
 {
@@ -81,7 +81,7 @@ atf_test_case cachefile_004_pos
 cachefile_004_pos_head()
 {
 	atf_set "descr" "Verify set, export and destroy when cachefile is set on pool."
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 }
 cachefile_004_pos_body()
 {

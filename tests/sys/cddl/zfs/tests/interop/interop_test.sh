@@ -30,7 +30,7 @@ atf_test_case interop_001_pos cleanup
 interop_001_pos_head()
 {
 	atf_set "descr" "Create a SVM device and add this to an existing ZFS pool"
-	atf_set "require.progs"  metadb zfs metaclear metastat metainit zpool
+	atf_set "require.progs" "ksh93 metadb zfs metaclear metastat metainit zpool"
 }
 interop_001_pos_body()
 {

@@ -30,7 +30,7 @@ atf_test_case zfs_unmount_001_pos cleanup
 zfs_unmount_001_pos_head()
 {
 	atf_set "descr" "Verify the u[n]mount [-f] sub-command."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_unmount_001_pos_body()
 {
@@ -56,7 +56,7 @@ atf_test_case zfs_unmount_002_pos cleanup
 zfs_unmount_002_pos_head()
 {
 	atf_set "descr" "Verify that '$ZFS $unmountcmd [-f] <filesystem|mountpoint>'whose name is not in 'zfs list' will fail with return code 1."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_unmount_002_pos_body()
 {
@@ -82,7 +82,7 @@ atf_test_case zfs_unmount_003_pos cleanup
 zfs_unmount_003_pos_head()
 {
 	atf_set "descr" "Verify that '$ZFS $unmountcmd [-f] <filesystem|mountpoint>'whose mountpoint property is 'legacy' or 'none'  \will fail with return code 1."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_unmount_003_pos_body()
 {
@@ -108,7 +108,7 @@ atf_test_case zfs_unmount_004_pos cleanup
 zfs_unmount_004_pos_head()
 {
 	atf_set "descr" "Verify that '$ZFS $unmountcmd [-f] <filesystem|mountpoint>'with an unmounted filesystem will fail with return code 1."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_unmount_004_pos_body()
 {
@@ -134,7 +134,7 @@ atf_test_case zfs_unmount_005_pos cleanup
 zfs_unmount_005_pos_head()
 {
 	atf_set "descr" "Verify that '$ZFS $unmountcmd <filesystem|mountpoint>'with a filesystem which mountpoint is currently in use  \will fail with return code 1, and forcefully will succeeds as root."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_unmount_005_pos_body()
 {
@@ -160,7 +160,7 @@ atf_test_case zfs_unmount_006_pos cleanup
 zfs_unmount_006_pos_head()
 {
 	atf_set "descr" "Re-creating zfs files, 'zfs unmount' still succeed."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_unmount_006_pos_body()
 {
@@ -186,7 +186,7 @@ atf_test_case zfs_unmount_007_neg cleanup
 zfs_unmount_007_neg_head()
 {
 	atf_set "descr" "Badly-formed 'zfs $unmountcmd' with inapplicable scenariosshould return an error."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_unmount_007_neg_body()
 {
@@ -212,7 +212,7 @@ atf_test_case zfs_unmount_008_neg cleanup
 zfs_unmount_008_neg_head()
 {
 	atf_set "descr" "zfs unmount fails with bad parameters or scenarios"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_unmount_008_neg_body()
 {
@@ -238,7 +238,7 @@ atf_test_case zfs_unmount_009_pos cleanup
 zfs_unmount_009_pos_head()
 {
 	atf_set "descr" "zfs fource unmount and destroy in snapshot directory will not cause error."
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 }
 zfs_unmount_009_pos_body()
 {
@@ -268,7 +268,7 @@ atf_test_case zfs_unmount_all_001_pos cleanup
 zfs_unmount_all_001_pos_head()
 {
 	atf_set "descr" "Verify that 'zfs $unmountall' succeeds as root,and all available ZFS filesystems are unmounted."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_unmount_all_001_pos_body()
 {

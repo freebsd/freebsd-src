@@ -30,7 +30,7 @@ atf_test_case zpool_001_neg cleanup
 zpool_001_neg_head()
 {
 	atf_set "descr" "Execute zpool sub-command without proper parameters."
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 }
 zpool_001_neg_body()
 {
@@ -54,7 +54,7 @@ atf_test_case zpool_002_pos cleanup
 zpool_002_pos_head()
 {
 	atf_set "descr" "With ZFS_ABORT set, all zpool commands can abort and generate a core file."
-	atf_set "require.progs"  zpool coreadm
+	atf_set "require.progs" "ksh93 zpool coreadm"
 }
 zpool_002_pos_body()
 {
@@ -78,7 +78,7 @@ atf_test_case zpool_003_pos cleanup
 zpool_003_pos_head()
 {
 	atf_set "descr" "Debugging features of zpool should succeed."
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 }
 zpool_003_pos_body()
 {

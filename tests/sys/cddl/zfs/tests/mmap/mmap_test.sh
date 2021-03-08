@@ -30,7 +30,7 @@ atf_test_case mmap_read_001_pos cleanup
 mmap_read_001_pos_head()
 {
 	atf_set "descr" "read()s from mmap()'ed file contain correct data."
-	atf_set "require.progs"  zfs zdb
+	atf_set "require.progs" "ksh93 zfs zdb"
 }
 mmap_read_001_pos_body()
 {
