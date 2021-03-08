@@ -395,20 +395,6 @@ done:
 	}
 }
 
-int
-db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
-{
-
-	return(0);
-}
-
-int
-db_md_clr_watchpoint(db_expr_t addr, db_expr_t size)
-{
-
-	return(0);
-}
-
 void
 db_md_list_watchpoints()
 {
