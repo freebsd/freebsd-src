@@ -612,20 +612,6 @@ db_trace_thread(struct thread *thr, int count)
 	    ctx->pcb_eip, ctx->pcb_esp, count));
 }
 
-int
-db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
-{
-
-	return (dbreg_set_watchpoint((vm_offset_t)addr, (vm_size_t)size));
-}
-
-int
-db_md_clr_watchpoint(db_expr_t addr, db_expr_t size)
-{
-
-	return (dbreg_clr_watchpoint((vm_offset_t)addr, (vm_size_t)size));
-}
-
 void
 db_md_list_watchpoints(void)
 {

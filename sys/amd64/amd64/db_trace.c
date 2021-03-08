@@ -385,21 +385,6 @@ db_trace_thread(struct thread *thr, int count)
 	    ctx->pcb_rip, ctx->pcb_rsp, count));
 }
 
-int
-db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
-{
-
-	return (dbreg_set_watchpoint((vm_offset_t)addr, (vm_size_t)size,
-	    DBREG_DR7_WRONLY));
-}
-
-int
-db_md_clr_watchpoint(db_expr_t addr, db_expr_t size)
-{
-
-	return (dbreg_clr_watchpoint((vm_offset_t)addr, (vm_size_t)size));
-}
-
 void
 db_md_list_watchpoints(void)
 {
