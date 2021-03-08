@@ -283,9 +283,9 @@ CFLAGS+=        -std=${CSTD}
 .if ${COMPILER_TYPE} == "clang"
 # Note: Clang does not like relative paths for ld so we map ld.lld -> lld.
 .if ${COMPILER_VERSION} >= 120000
-LDFLAGS+=	--ld-path=${LD:[1]:S/^ld.//1W}
+CCLDFLAGS+=	--ld-path=${LD:[1]:S/^ld.//1W}
 .else
-LDFLAGS+=	-fuse-ld=${LD:[1]:S/^ld.//1W}
+CCLDFLAGS+=	-fuse-ld=${LD:[1]:S/^ld.//1W}
 .endif
 .else
 # GCC does not support an absolute path for -fuse-ld so we just print this
