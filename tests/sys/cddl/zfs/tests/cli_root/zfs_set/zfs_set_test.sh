@@ -56,7 +56,7 @@ atf_test_case cache_002_neg cleanup
 cache_002_neg_head()
 {
 	atf_set "descr" "Setting invalid {primary|secondary}cache on fs and volume,It should fail."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 cache_002_neg_body()
@@ -83,7 +83,7 @@ atf_test_case canmount_001_pos cleanup
 canmount_001_pos_head()
 {
 	atf_set "descr" "Setting a valid property of canmount to file system, it must be successful."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 canmount_001_pos_body()
@@ -110,7 +110,7 @@ atf_test_case canmount_002_pos cleanup
 canmount_002_pos_head()
 {
 	atf_set "descr" "Setting canmount=noauto to file system, it must be successful."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 canmount_002_pos_body()
@@ -141,7 +141,7 @@ atf_test_case canmount_003_pos cleanup
 canmount_003_pos_head()
 {
 	atf_set "descr" "While canmount=noauto and  the dataset is mounted, zfs must not attempt to unmount it"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 canmount_003_pos_body()
@@ -172,7 +172,7 @@ atf_test_case canmount_004_pos cleanup
 canmount_004_pos_head()
 {
 	atf_set "descr" "Verify canmount=noauto work fine when setting sharenfs or sharesmb."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 canmount_004_pos_body()
@@ -251,7 +251,7 @@ atf_test_case mountpoint_001_pos cleanup
 mountpoint_001_pos_head()
 {
 	atf_set "descr" "Setting a valid mountpoint to file system, it must be successful."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 mountpoint_001_pos_body()
@@ -278,7 +278,7 @@ atf_test_case mountpoint_002_pos cleanup
 mountpoint_002_pos_head()
 {
 	atf_set "descr" "Setting a valid mountpoint for an unmounted file system,it remains unmounted."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 mountpoint_002_pos_body()
@@ -305,7 +305,7 @@ atf_test_case mountpoint_003_pos cleanup
 mountpoint_003_pos_head()
 {
 	atf_set "descr" "With legacy mount, FSType-specific option works well."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 mountpoint_003_pos_body()
@@ -333,7 +333,7 @@ atf_test_case onoffs_001_pos cleanup
 onoffs_001_pos_head()
 {
 	atf_set "descr" "Setting a valid value to atime, readonly, setuid or zoned on filesystem or volume. It should be successful."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 onoffs_001_pos_body()
@@ -360,7 +360,7 @@ atf_test_case property_alias_001_pos cleanup
 property_alias_001_pos_head()
 {
 	atf_set "descr" "Properties with aliases also work with those aliases."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 property_alias_001_pos_body()
@@ -387,7 +387,7 @@ atf_test_case readonly_001_pos cleanup
 readonly_001_pos_head()
 {
 	atf_set "descr" "Setting a valid readonly property on a dataset succeeds."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 readonly_001_pos_body()
@@ -414,7 +414,7 @@ atf_test_case reservation_001_neg cleanup
 reservation_001_neg_head()
 {
 	atf_set "descr" "Verify invalid reservation values are rejected"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 reservation_001_neg_body()
@@ -441,7 +441,7 @@ atf_test_case ro_props_001_pos cleanup
 ro_props_001_pos_head()
 {
 	atf_set "descr" "Verify that read-only properties are immutable."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 ro_props_001_pos_body()
@@ -468,7 +468,7 @@ atf_test_case share_mount_001_neg cleanup
 share_mount_001_neg_head()
 {
 	atf_set "descr" "Verify that we cannot share or mount legacy filesystems."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 share_mount_001_neg_body()
@@ -495,7 +495,7 @@ atf_test_case snapdir_001_pos cleanup
 snapdir_001_pos_head()
 {
 	atf_set "descr" "Setting a valid snapdir property on a dataset succeeds."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 snapdir_001_pos_body()
@@ -522,7 +522,7 @@ atf_test_case user_property_001_pos cleanup
 user_property_001_pos_head()
 {
 	atf_set "descr" "ZFS can set any valid user defined property to the non-readonlydataset."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 user_property_001_pos_body()
@@ -549,7 +549,7 @@ atf_test_case user_property_002_pos cleanup
 user_property_002_pos_head()
 {
 	atf_set "descr" "User defined property inherited from its parent."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 user_property_002_pos_body()
@@ -576,7 +576,7 @@ atf_test_case user_property_003_neg cleanup
 user_property_003_neg_head()
 {
 	atf_set "descr" "ZFS can handle invalid user property."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 user_property_003_neg_body()
@@ -603,7 +603,7 @@ atf_test_case user_property_004_pos cleanup
 user_property_004_pos_head()
 {
 	atf_set "descr" "User property has no effect to snapshot until 'Snapshot properties' supported."
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 	atf_set "timeout" 1200
 }
 user_property_004_pos_body()
@@ -630,7 +630,7 @@ atf_test_case version_001_neg cleanup
 version_001_neg_head()
 {
 	atf_set "descr" "Verify invalid version values are rejected"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 version_001_neg_body()
@@ -683,7 +683,7 @@ atf_test_case zfs_set_002_neg cleanup
 zfs_set_002_neg_head()
 {
 	atf_set "descr" "'zfs set' fails with invalid arguments"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 zfs_set_002_neg_body()
@@ -710,7 +710,7 @@ atf_test_case zfs_set_003_neg cleanup
 zfs_set_003_neg_head()
 {
 	atf_set "descr" "'zfs set mountpoint/sharenfs' fails with invalid scenarios"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 zfs_set_003_neg_body()

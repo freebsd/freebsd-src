@@ -30,7 +30,7 @@ atf_test_case zfs_promote_001_pos cleanup
 zfs_promote_001_pos_head()
 {
 	atf_set "descr" "'zfs promote' can promote a clone filesystem."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_promote_001_pos_body()
 {
@@ -56,7 +56,7 @@ atf_test_case zfs_promote_002_pos cleanup
 zfs_promote_002_pos_head()
 {
 	atf_set "descr" "'zfs promote' can deal with multiple snapshots in a filesystem."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_promote_002_pos_body()
 {
@@ -82,7 +82,7 @@ atf_test_case zfs_promote_003_pos cleanup
 zfs_promote_003_pos_head()
 {
 	atf_set "descr" "'zfs promote' can deal with multi-point snapshots."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_promote_003_pos_body()
 {
@@ -108,7 +108,7 @@ atf_test_case zfs_promote_004_pos cleanup
 zfs_promote_004_pos_head()
 {
 	atf_set "descr" "'zfs promote' can deal with multi-level clone."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_promote_004_pos_body()
 {
@@ -134,7 +134,7 @@ atf_test_case zfs_promote_005_pos cleanup
 zfs_promote_005_pos_head()
 {
 	atf_set "descr" "The original fs was unmounted, 'zfs promote' still should succeed."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_promote_005_pos_body()
 {
@@ -160,7 +160,7 @@ atf_test_case zfs_promote_006_neg cleanup
 zfs_promote_006_neg_head()
 {
 	atf_set "descr" "'zfs promote' will fail with invalid arguments."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_promote_006_neg_body()
 {
@@ -186,7 +186,7 @@ atf_test_case zfs_promote_007_neg cleanup
 zfs_promote_007_neg_head()
 {
 	atf_set "descr" "'zfs promote' can deal with name conflicts."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_promote_007_neg_body()
 {
@@ -212,7 +212,7 @@ atf_test_case zfs_promote_008_pos cleanup
 zfs_promote_008_pos_head()
 {
 	atf_set "descr" "'zfs promote' can promote a volume clone."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_promote_008_pos_body()
 {

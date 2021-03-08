@@ -30,7 +30,7 @@ atf_test_case zpool_get_001_pos cleanup
 zpool_get_001_pos_head()
 {
 	atf_set "descr" "Zpool get usage message is displayed when called with no arguments."
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 }
 zpool_get_001_pos_body()
 {
@@ -52,7 +52,7 @@ atf_test_case zpool_get_002_pos cleanup
 zpool_get_002_pos_head()
 {
 	atf_set "descr" "Zpool get all works as expected"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 }
 zpool_get_002_pos_body()
 {
@@ -76,7 +76,7 @@ atf_test_case zpool_get_003_pos cleanup
 zpool_get_003_pos_head()
 {
 	atf_set "descr" "Zpool get returns values for all known properties"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 }
 zpool_get_003_pos_body()
 {
@@ -100,7 +100,7 @@ atf_test_case zpool_get_004_neg cleanup
 zpool_get_004_neg_head()
 {
 	atf_set "descr" "Malformed zpool get commands are rejected"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 }
 zpool_get_004_neg_body()
 {

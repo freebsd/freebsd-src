@@ -30,7 +30,7 @@ atf_test_case zfs_create_001_pos cleanup
 zfs_create_001_pos_head()
 {
 	atf_set "descr" "'zfs create <filesystem>' can create a ZFS filesystem in the namespace."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_create_001_pos_body()
 {
@@ -58,7 +58,7 @@ atf_test_case zfs_create_002_pos cleanup
 zfs_create_002_pos_head()
 {
 	atf_set "descr" "'zfs create -s -V <size> <volume>' succeeds"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_create_002_pos_body()
 {
@@ -86,7 +86,7 @@ atf_test_case zfs_create_003_pos cleanup
 zfs_create_003_pos_head()
 {
 	atf_set "descr" "Verify creating volume with specified blocksize works."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_create_003_pos_body()
 {
@@ -114,7 +114,7 @@ atf_test_case zfs_create_004_pos cleanup
 zfs_create_004_pos_head()
 {
 	atf_set "descr" "'zfs create -o property=value filesystem' can successfully createa ZFS filesystem with correct property set."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_create_004_pos_body()
 {
@@ -142,7 +142,7 @@ atf_test_case zfs_create_005_pos cleanup
 zfs_create_005_pos_head()
 {
 	atf_set "descr" "'zfs create -o property=value filesystem' can successfully createa ZFS filesystem with multiple properties set."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_create_005_pos_body()
 {
@@ -170,7 +170,7 @@ atf_test_case zfs_create_006_pos cleanup
 zfs_create_006_pos_head()
 {
 	atf_set "descr" "'zfs create -o property=value -V size volume' can successfullycreate a ZFS volume with correct property set."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_create_006_pos_body()
 {
@@ -198,7 +198,7 @@ atf_test_case zfs_create_007_pos cleanup
 zfs_create_007_pos_head()
 {
 	atf_set "descr" "'zfs create -o property=value -V size volume' can successfullycreate a ZFS volume with correct property set."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_create_007_pos_body()
 {
@@ -226,7 +226,7 @@ atf_test_case zfs_create_008_neg cleanup
 zfs_create_008_neg_head()
 {
 	atf_set "descr" "'zfs create' should return an error with badly-formed parameters."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_create_008_neg_body()
 {
@@ -255,7 +255,7 @@ atf_test_case zfs_create_009_neg cleanup
 zfs_create_009_neg_head()
 {
 	atf_set "descr" "Verify 'zfs create <filesystem>' fails with bad <filesystem> argument."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_create_009_neg_body()
 {
@@ -283,7 +283,7 @@ atf_test_case zfs_create_010_neg cleanup
 zfs_create_010_neg_head()
 {
 	atf_set "descr" "Verify 'zfs create [-s] [-b <blocksize> ] -V <size> <volume>' fails withbadly-formed <size> or <volume> arguments."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_create_010_neg_body()
 {
@@ -311,7 +311,7 @@ atf_test_case zfs_create_011_pos cleanup
 zfs_create_011_pos_head()
 {
 	atf_set "descr" "'zfs create -p' works as expected."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_create_011_pos_body()
 {
@@ -339,7 +339,7 @@ atf_test_case zfs_create_012_pos cleanup
 zfs_create_012_pos_head()
 {
 	atf_set "descr" "'zfs create -p -o version=1' only cause the leaf filesystem to be version=1."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_create_012_pos_body()
 {
@@ -367,7 +367,7 @@ atf_test_case zfs_create_013_pos cleanup
 zfs_create_013_pos_head()
 {
 	atf_set "descr" "'zfs create -s -V <size> <volume>' succeeds"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_create_013_pos_body()
 {

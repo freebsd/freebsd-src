@@ -30,7 +30,7 @@ atf_test_case zvol_swap_001_pos cleanup
 zvol_swap_001_pos_head()
 {
 	atf_set "descr" "Verify that a zvol can be used as a swap device"
-	atf_set "require.progs"  swap swapadd
+	atf_set "require.progs" "ksh93 swap swapadd"
 }
 zvol_swap_001_pos_body()
 {
@@ -53,7 +53,7 @@ atf_test_case zvol_swap_002_pos cleanup
 zvol_swap_002_pos_head()
 {
 	atf_set "descr" "Using a zvol as swap space, fill with files until ENOSPC returned."
-	atf_set "require.progs"  swap swapadd
+	atf_set "require.progs" "ksh93 swap swapadd"
 }
 zvol_swap_002_pos_body()
 {
@@ -76,7 +76,7 @@ atf_test_case zvol_swap_003_pos cleanup
 zvol_swap_003_pos_head()
 {
 	atf_set "descr" "Verify that a zvol device can be used as a swap devicethrough /etc/vfstab configuration."
-	atf_set "require.progs"  swapadd swap
+	atf_set "require.progs" "ksh93 swapadd swap"
 }
 zvol_swap_003_pos_body()
 {
@@ -99,7 +99,7 @@ atf_test_case zvol_swap_004_pos cleanup
 zvol_swap_004_pos_head()
 {
 	atf_set "descr" "The minimum volume size should be a multiple of 2 pagesize bytes."
-	atf_set "require.progs"  zfs swap pagesize swapadd
+	atf_set "require.progs" "ksh93 zfs swap pagesize swapadd"
 }
 zvol_swap_004_pos_body()
 {
@@ -122,7 +122,7 @@ atf_test_case zvol_swap_005_pos cleanup
 zvol_swap_005_pos_head()
 {
 	atf_set "descr" "swaplow + swaplen must be less than or equal to the volume size."
-	atf_set "require.progs"  swap pagesize swapadd
+	atf_set "require.progs" "ksh93 swap pagesize swapadd"
 }
 zvol_swap_005_pos_body()
 {
@@ -145,7 +145,7 @@ atf_test_case zvol_swap_006_pos cleanup
 zvol_swap_006_pos_head()
 {
 	atf_set "descr" "Verify volume can be add as several segments, but overlappingare not allowed."
-	atf_set "require.progs"  swap pagesize swapadd
+	atf_set "require.progs" "ksh93 swap pagesize swapadd"
 }
 zvol_swap_006_pos_body()
 {

@@ -30,7 +30,7 @@ atf_test_case snapused_001_pos cleanup
 snapused_001_pos_head()
 {
 	atf_set "descr" "Verify used is correct."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapused_001_pos_body()
 {
@@ -56,7 +56,7 @@ atf_test_case snapused_002_pos cleanup
 snapused_002_pos_head()
 {
 	atf_set "descr" "Verify usedbychildren is correct."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapused_002_pos_body()
 {
@@ -82,7 +82,7 @@ atf_test_case snapused_003_pos cleanup
 snapused_003_pos_head()
 {
 	atf_set "descr" "Verify usedbydataset is correct."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapused_003_pos_body()
 {
@@ -108,7 +108,7 @@ atf_test_case snapused_004_pos cleanup
 snapused_004_pos_head()
 {
 	atf_set "descr" "Verify usedbyrefreservation is correct."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapused_004_pos_body()
 {
@@ -134,7 +134,7 @@ atf_test_case snapused_005_pos cleanup
 snapused_005_pos_head()
 {
 	atf_set "descr" "Verify usedbysnapshots is correct."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapused_005_pos_body()
 {

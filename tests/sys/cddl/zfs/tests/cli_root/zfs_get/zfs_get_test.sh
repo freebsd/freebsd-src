@@ -30,7 +30,7 @@ atf_test_case zfs_get_001_pos cleanup
 zfs_get_001_pos_head()
 {
 	atf_set "descr" "Setting the valid options and properties 'zfs get' should returnthe correct property value."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_get_001_pos_body()
 {
@@ -58,7 +58,7 @@ atf_test_case zfs_get_002_pos cleanup
 zfs_get_002_pos_head()
 {
 	atf_set "descr" "Setting the valid options and properties 'zfs get' return correctvalue. It should be successful."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_get_002_pos_body()
 {
@@ -86,7 +86,7 @@ atf_test_case zfs_get_003_pos cleanup
 zfs_get_003_pos_head()
 {
 	atf_set "descr" "'zfs get' should get consistent report with different option."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_get_003_pos_body()
 {
@@ -114,7 +114,7 @@ atf_test_case zfs_get_004_pos cleanup
 zfs_get_004_pos_head()
 {
 	atf_set "descr" "Verify the functions of 'zfs get all' work."
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 }
 zfs_get_004_pos_body()
 {
@@ -142,7 +142,7 @@ atf_test_case zfs_get_005_neg cleanup
 zfs_get_005_neg_head()
 {
 	atf_set "descr" "Setting the invalid option and properties, 'zfs get' should befailed."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_get_005_neg_body()
 {
@@ -170,7 +170,7 @@ atf_test_case zfs_get_006_neg cleanup
 zfs_get_006_neg_head()
 {
 	atf_set "descr" "Verify 'zfs get all' fails with invalid combination scenarios."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_get_006_neg_body()
 {
@@ -198,7 +198,7 @@ atf_test_case zfs_get_007_neg cleanup
 zfs_get_007_neg_head()
 {
 	atf_set "descr" "'zfs get -o' fails with invalid options or column names"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_get_007_neg_body()
 {
@@ -226,7 +226,7 @@ atf_test_case zfs_get_008_pos cleanup
 zfs_get_008_pos_head()
 {
 	atf_set "descr" "Verify '-d <n>' can work with other options"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_get_008_pos_body()
 {
@@ -254,7 +254,7 @@ atf_test_case zfs_get_009_pos cleanup
 zfs_get_009_pos_head()
 {
 	atf_set "descr" "'zfs get -d <n>' should get expected output."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 zfs_get_009_pos_body()
@@ -283,7 +283,7 @@ atf_test_case zfs_get_010_neg cleanup
 zfs_get_010_neg_head()
 {
 	atf_set "descr" "A negative depth or a non numeric depth should fail in 'zfs get -d <n>'"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_get_010_neg_body()
 {

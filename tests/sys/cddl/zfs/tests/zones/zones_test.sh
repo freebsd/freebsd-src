@@ -30,7 +30,7 @@ atf_test_case zones_001_pos cleanup
 zones_001_pos_head()
 {
 	atf_set "descr" "Local zone contains ZFS datasets as expected."
-	atf_set "require.progs"  zfs zoneadm zonecfg
+	atf_set "require.progs" "ksh93 zfs zoneadm zonecfg"
 	atf_set "timeout" 3600
 }
 zones_001_pos_body()
@@ -56,7 +56,7 @@ atf_test_case zones_002_pos cleanup
 zones_002_pos_head()
 {
 	atf_set "descr" "A ZFS fs is created when the parent dir of zonepath is a ZFS fs."
-	atf_set "require.progs"  zfs zoneadm zonecfg
+	atf_set "require.progs" "ksh93 zfs zoneadm zonecfg"
 	atf_set "timeout" 3600
 }
 zones_002_pos_body()
@@ -82,7 +82,7 @@ atf_test_case zones_003_pos cleanup
 zones_003_pos_head()
 {
 	atf_set "descr" "Zone cloning via ZFS snapshots works as expected."
-	atf_set "require.progs"  zfs zoneadm zonecfg
+	atf_set "require.progs" "ksh93 zfs zoneadm zonecfg"
 	atf_set "timeout" 3600
 }
 zones_003_pos_body()
@@ -108,7 +108,7 @@ atf_test_case zones_004_pos cleanup
 zones_004_pos_head()
 {
 	atf_set "descr" "A ZFS fs is destroyed when the zone it was created for is deleted."
-	atf_set "require.progs"  zfs zoneadm zonecfg
+	atf_set "require.progs" "ksh93 zfs zoneadm zonecfg"
 	atf_set "timeout" 3600
 }
 zones_004_pos_body()
@@ -134,7 +134,7 @@ atf_test_case zones_005_pos cleanup
 zones_005_pos_head()
 {
 	atf_set "descr" "Pool properties can be read but can't be set within a zone"
-	atf_set "require.progs"  zpool zonecfg zoneadm
+	atf_set "require.progs" "ksh93 zpool zonecfg zoneadm"
 	atf_set "timeout" 3600
 }
 zones_005_pos_body()

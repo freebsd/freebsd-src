@@ -54,7 +54,7 @@ atf_test_case rootpool_002_neg cleanup
 rootpool_002_neg_head()
 {
 	atf_set "descr" "zpool/zfs destory <rootpool> should return error"
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 }
 rootpool_002_neg_body()
 {
@@ -78,7 +78,7 @@ atf_test_case rootpool_007_neg cleanup
 rootpool_007_neg_head()
 {
 	atf_set "descr" "the zfs rootfs's compression property can not set to gzip and gzip[1-9]"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 rootpool_007_neg_body()
 {
