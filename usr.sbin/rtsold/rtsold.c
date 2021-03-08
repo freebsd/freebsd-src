@@ -333,10 +333,8 @@ init_capabilities(void)
 #ifdef WITH_CASPER
 	const char *const scripts[] =
 	    { resolvconf_script, managedconf_script, otherconf_script };
-	const char *scripts_set[nitems(scripts)];
 	cap_channel_t *capcasper;
 	nvlist_t *limits;
-	int count;
 
 	capcasper = cap_init();
 	if (capcasper == NULL)
@@ -349,12 +347,11 @@ init_capabilities(void)
 	capscript = cap_service_open(capcasper, "rtsold.script");
 	if (capscript == NULL)
 		return (-1);
-	count = 0;
+	limits = nvlist_create(0);
 	for (size_t i = 0; i < nitems(scripts); i++)
 		if (scripts[i] != NULL)
-			scripts_set[count++] = scripts[i];
-	limits = nvlist_create(0);
-	nvlist_add_string_array(limits, "scripts", scripts_set, count);
+			nvlist_append_string_array(limits, "scripts",
+			    scripts[i]);
 	if (cap_limit_set(capscript, limits) != 0)
 		return (-1);
 
