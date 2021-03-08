@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include "bhyverun.h"
 #include "acpi.h"
 #include "atkbdc.h"
+#include "debug.h"
 #include "inout.h"
 #include "fwctl.h"
 #include "ioapic.h"
@@ -116,8 +117,6 @@ static sig_t old_winch_handler;
 #define	PROG_BUF_SZ	(8192)
 
 #define	MAX_VMNAME 100
-
-#define	MAX_MSG_SIZE 1024
 
 #define	SNAPSHOT_BUFFER_SIZE (20 * MB)
 
@@ -1442,24 +1441,10 @@ done:
 }
 
 int
-get_checkpoint_msg(int conn_fd, struct vmctx *ctx)
+handle_message(struct checkpoint_op *checkpoint_op, struct vmctx *ctx)
 {
-	unsigned char buf[MAX_MSG_SIZE];
-	struct checkpoint_op *checkpoint_op;
-	int len, recv_len, total_recv = 0;
-	int err = 0;
+	int err;
 
-	len = sizeof(struct checkpoint_op); /* expected length */
-	while ((recv_len = recv(conn_fd, buf + total_recv, len - total_recv, 0)) > 0) {
-		total_recv += recv_len;
-	}
-	if (recv_len < 0) {
-		perror("Error while receiving data from bhyvectl");
-		err = -1;
-		goto done;
-	}
-
-	checkpoint_op = (struct checkpoint_op *)buf;
 	switch (checkpoint_op->op) {
 		case START_CHECKPOINT:
 			err = vm_checkpoint(ctx, checkpoint_op->snapshot_filename, false);
@@ -1468,12 +1453,13 @@ get_checkpoint_msg(int conn_fd, struct vmctx *ctx)
 			err = vm_checkpoint(ctx, checkpoint_op->snapshot_filename, true);
 			break;
 		default:
-			fprintf(stderr, "Unrecognized checkpoint operation.\n");
+			EPRINTLN("Unrecognized checkpoint operation\n");
 			err = -1;
 	}
 
-done:
-	close(conn_fd);
+	if (err != 0)
+		EPRINTLN("Unable to perform the requested operation\n");
+
 	return (err);
 }
 
@@ -1483,21 +1469,25 @@ done:
 void *
 checkpoint_thread(void *param)
 {
+	struct checkpoint_op op;
 	struct checkpoint_thread_info *thread_info;
-	int conn_fd, ret;
+	ssize_t n;
 
 	pthread_set_name_np(pthread_self(), "checkpoint thread");
 	thread_info = (struct checkpoint_thread_info *)param;
 
-	while ((conn_fd = accept(thread_info->socket_fd, NULL, NULL)) > -1) {
-		ret = get_checkpoint_msg(conn_fd, thread_info->ctx);
-		if (ret != 0) {
-			fprintf(stderr, "Failed to read message on checkpoint "
-					"socket. Retrying.\n");
-		}
-	}
-	if (conn_fd < -1) {
-		perror("Failed to accept connection");
+	for (;;) {
+		n = recvfrom(thread_info->socket_fd, &op, sizeof(op), 0, NULL, 0);
+
+		/*
+		 * slight sanity check: see if there's enough data to at
+		 * least determine the type of message.
+		 */
+		if (n >= sizeof(op.op))
+			handle_message(&op, thread_info->ctx);
+		else
+			EPRINTLN("Failed to receive message: %s\n",
+			    n == -1 ? strerror(errno) : "unknown error");
 	}
 
 	return (NULL);
@@ -1527,9 +1517,9 @@ init_checkpoint_thread(struct vmctx *ctx)
 	if (err != 0)
 		errc(1, err, "checkpoint cv init");
 
-	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
+	socket_fd = socket(PF_UNIX, SOCK_DGRAM, 0);
 	if (socket_fd < 0) {
-		perror("Socket creation failed (IPC with bhyvectl");
+		EPRINTLN("Socket creation failed: %s", strerror(errno));
 		err = -1;
 		goto fail;
 	}
@@ -1548,13 +1538,8 @@ init_checkpoint_thread(struct vmctx *ctx)
 	unlink(addr.sun_path);
 
 	if (bind(socket_fd, (struct sockaddr *)&addr, addr.sun_len) != 0) {
-		perror("Failed to bind socket (IPC with bhyvectl)");
-		err = -1;
-		goto fail;
-	}
-
-	if (listen(socket_fd, 10) < 0) {
-		perror("Failed to listen on socket (IPC with bhyvectl)");
+		EPRINTLN("Failed to bind socket \"%s\": %s\n",
+		    addr.sun_path, strerror(errno));
 		err = -1;
 		goto fail;
 	}
