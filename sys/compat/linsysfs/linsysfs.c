@@ -633,6 +633,9 @@ linsysfs_init(PFS_INIT_ARGS)
 
 	root = pi->pi_root;
 
+	/* /sys/bus/... */
+	dir = pfs_create_dir(root, "bus", NULL, NULL, NULL, 0);
+
 	/* /sys/class/... */
 	class = pfs_create_dir(root, "class", NULL, NULL, NULL, 0);
 	scsi = pfs_create_dir(class, "scsi_host", NULL, NULL, NULL, 0);
@@ -678,6 +681,9 @@ linsysfs_init(PFS_INIT_ARGS)
 	kernel = pfs_create_dir(root, "kernel", NULL, NULL, NULL, 0);
 	/* /sys/kernel/debug, mountpoint for lindebugfs. */
 	debug = pfs_create_dir(kernel, "debug", NULL, NULL, NULL, 0);
+
+	/* /sys/subsystem/... */
+	dir = pfs_create_dir(root, "subsystem", NULL, NULL, NULL, 0);
 
 	return (0);
 }
