@@ -673,7 +673,7 @@ noise_remote_decrypt(struct noise_remote *r, struct noise_data *data,
 	 *    REKEY_AFTER_TIME_RECV seconds. */
 	ret = ESTALE;
 	kp = r->r_current;
-	if (kp->kp_is_initiator &&
+	if (kp != NULL && kp->kp_valid && kp->kp_is_initiator &&
 	    noise_timer_expired(&kp->kp_birthdate, REKEY_AFTER_TIME_RECV, 0))
 		goto error;
 
