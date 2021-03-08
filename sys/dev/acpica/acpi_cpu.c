@@ -1222,18 +1222,19 @@ acpi_cpu_idle(sbintime_t sbt)
 	start_time = 0;
 	cputicks = cpu_ticks();
     }
-    if (cx_next->do_mwait)
+    if (cx_next->do_mwait) {
 	acpi_cpu_idle_mwait(cx_next->mwait_hint);
-    else
+    } else {
 	CPU_GET_REG(cx_next->p_lvlx, 1);
+	/*
+	 * Read the end time twice.  Since it may take an arbitrary time
+	 * to enter the idle state, the first read may be executed before
+	 * the processor has stopped.  Doing it again provides enough
+	 * margin that we are certain to have a correct value.
+	 */
+	AcpiGetTimer(&end_time);
+    }
 
-    /*
-     * Read the end time twice.  Since it may take an arbitrary time
-     * to enter the idle state, the first read may be executed before
-     * the processor has stopped.  Doing it again provides enough
-     * margin that we are certain to have a correct value.
-     */
-    AcpiGetTimer(&end_time);
     if (cx_next->type == ACPI_STATE_C3) {
 	AcpiGetTimer(&end_time);
 	AcpiGetTimerDuration(start_time, end_time, &end_time);
