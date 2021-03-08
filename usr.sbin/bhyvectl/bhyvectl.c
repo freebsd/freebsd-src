@@ -1687,11 +1687,11 @@ static int
 send_checkpoint_op_req(struct vmctx *ctx, struct checkpoint_op *op)
 {
 	struct sockaddr_un addr;
-	int socket_fd, len, len_sent, total_sent;
-	int err = 0;
+	ssize_t len_sent;
+	int err, socket_fd;
 	char vmname_buf[MAX_VMNAME];
 
-	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
+	socket_fd = socket(PF_UNIX, SOCK_DGRAM, 0);
 	if (socket_fd < 0) {
 		perror("Error creating bhyvectl socket");
 		err = -1;
@@ -1709,21 +1709,11 @@ send_checkpoint_op_req(struct vmctx *ctx, struct checkpoint_op *op)
 
 	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s%s", BHYVE_RUN_DIR, vmname_buf);
 
-	if (connect(socket_fd, (struct sockaddr *)&addr,
-			sizeof(struct sockaddr_un)) != 0) {
-		perror("Connect to VM socket failed");
-		err = -1;
-		goto done;
-	}
-
-	len = sizeof(*op);
-	total_sent = 0;
-	while ((len_sent = send(socket_fd, (char *)op + total_sent, len - total_sent, 0)) > 0) {
-		total_sent += len_sent;
-	}
+	len_sent = sendto(socket_fd, op, sizeof(*op), 0,
+	    (struct sockaddr *)&addr, sizeof(struct sockaddr_un));
 
 	if (len_sent < 0) {
-		perror("Failed to send checkpoint operation request");
+		perror("Failed to send message to bhyve vm");
 		err = -1;
 	}
 
