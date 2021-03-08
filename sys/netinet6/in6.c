@@ -1294,13 +1294,27 @@ in6_handle_dstaddr_rtrequest(int cmd, struct in6_ifaddr *ia)
 	return (error);
 }
 
+static bool
+ifa_is_p2p(struct in6_ifaddr *ia)
+{
+	int plen;
+
+	plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL); /* XXX */
+
+	if ((plen == 128) && (ia->ia_dstaddr.sin6_family == AF_INET6) &&
+	    !IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr, &ia->ia_dstaddr.sin6_addr))
+		return (true);
+
+	return (false);
+}
+
 void
 in6_purgeaddr(struct ifaddr *ifa)
 {
 	struct ifnet *ifp = ifa->ifa_ifp;
 	struct in6_ifaddr *ia = (struct in6_ifaddr *) ifa;
 	struct in6_multi_mship *imm;
-	int plen, error;
+	int error;
 
 	if (ifa->ifa_carp)
 		(*carp_detach_p)(ifa, false);
@@ -1328,10 +1342,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 		free(imm, M_IP6MADDR);
 	}
 	/* Check if we need to remove p2p route */
-	plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL); /* XXX */
-	if (ia->ia_dstaddr.sin6_family != AF_INET6)
-		plen = 0;
-	if ((ia->ia_flags & IFA_ROUTE) && plen == 128) {
+	if ((ia->ia_flags & IFA_ROUTE) && ifa_is_p2p(ia)) {
 		error = in6_handle_dstaddr_rtrequest(RTM_DELETE, ia);
 		if (error != 0)
 			log(LOG_INFO, "%s: err=%d, destination address delete "
@@ -1434,7 +1445,7 @@ static int
 in6_notify_ifa(struct ifnet *ifp, struct in6_ifaddr *ia,
     struct in6_aliasreq *ifra, int hostIsNew)
 {
-	int	error = 0, plen, ifacount = 0;
+	int	error = 0, ifacount = 0;
 	struct ifaddr *ifa;
 	struct sockaddr_in6 *pdst;
 	char ip6buf[INET6_ADDRSTRLEN];
@@ -1487,14 +1498,7 @@ in6_notify_ifa(struct ifnet *ifp, struct in6_ifaddr *ia,
 	 * XXX: the logic below rejects assigning multiple addresses on a p2p
 	 * interface that share the same destination.
 	 */
-	plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL); /* XXX */
-	if (!(ia->ia_flags & IFA_ROUTE) && plen == 128 &&
-	    ia->ia_dstaddr.sin6_family == AF_INET6) {
-		/*
-		 * Handle the case for ::1 .
-		 */
-		if (ifp->if_flags & IFF_LOOPBACK)
-			ia->ia_flags |= IFA_RTSELF;
+	if (!(ia->ia_flags & IFA_ROUTE) && ifa_is_p2p(ia)) {
 		error = in6_handle_dstaddr_rtrequest(RTM_ADD, ia);
 		if (error)
 			goto done;
