@@ -105,7 +105,7 @@ atf_test_case redundancy_004_neg cleanup
 redundancy_004_neg_head()
 {
 	atf_set "descr" "Verify striped pool have no data redundancy."
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	atf_set "timeout" 1800
 }
 redundancy_004_neg_body()

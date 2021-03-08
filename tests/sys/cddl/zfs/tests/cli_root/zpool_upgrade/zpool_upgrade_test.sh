@@ -30,7 +30,7 @@ atf_test_case zpool_upgrade_001_pos cleanup
 zpool_upgrade_001_pos_head()
 {
 	atf_set "descr" "Executing 'zpool upgrade -v' command succeeds."
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	atf_set "timeout" 1800
 }
 zpool_upgrade_001_pos_body()
@@ -57,7 +57,7 @@ atf_test_case zpool_upgrade_002_pos cleanup
 zpool_upgrade_002_pos_head()
 {
 	atf_set "descr" "Import pools of all versions - zpool upgrade on each pools works"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	atf_set "timeout" 1800
 }
 zpool_upgrade_002_pos_body()
@@ -84,7 +84,7 @@ atf_test_case zpool_upgrade_003_pos cleanup
 zpool_upgrade_003_pos_head()
 {
 	atf_set "descr" "Upgrading a pool that has already been upgraded succeeds."
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	atf_set "timeout" 1800
 }
 zpool_upgrade_003_pos_body()
@@ -111,7 +111,7 @@ atf_test_case zpool_upgrade_004_pos cleanup
 zpool_upgrade_004_pos_head()
 {
 	atf_set "descr" "zpool upgrade -a works"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	atf_set "timeout" 1800
 }
 zpool_upgrade_004_pos_body()
@@ -142,7 +142,7 @@ atf_test_case zpool_upgrade_005_neg cleanup
 zpool_upgrade_005_neg_head()
 {
 	atf_set "descr" "Variations of upgrade -v print usage message,return with non-zero status"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	atf_set "timeout" 1800
 }
 zpool_upgrade_005_neg_body()
@@ -169,7 +169,7 @@ atf_test_case zpool_upgrade_006_neg cleanup
 zpool_upgrade_006_neg_head()
 {
 	atf_set "descr" "Attempting to upgrade a non-existent pool will return an error"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	atf_set "timeout" 1800
 }
 zpool_upgrade_006_neg_body()
@@ -196,7 +196,7 @@ atf_test_case zpool_upgrade_007_pos cleanup
 zpool_upgrade_007_pos_head()
 {
 	atf_set "descr" "Import pools of all versions - 'zfs upgrade' on each pools works"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	# This test can take quite a while, especially on debug builds
 	atf_set "timeout" 7200
 }
@@ -224,7 +224,7 @@ atf_test_case zpool_upgrade_008_pos cleanup
 zpool_upgrade_008_pos_head()
 {
 	atf_set "descr" "Zpool upgrade should be able to upgrade pools to a given version using -V"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	atf_set "timeout" 1800
 }
 zpool_upgrade_008_pos_body()
@@ -251,7 +251,7 @@ atf_test_case zpool_upgrade_009_neg cleanup
 zpool_upgrade_009_neg_head()
 {
 	atf_set "descr" "Zpool upgrade -V shouldn't be able to upgrade a pool to an unknown version"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	atf_set "timeout" 1800
 }
 zpool_upgrade_009_neg_body()

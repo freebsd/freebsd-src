@@ -30,7 +30,7 @@ atf_test_case largest_pool_001_pos cleanup
 largest_pool_001_pos_head()
 {
 	atf_set "descr" "The largest pool can be created and a dataset in thatpool can be created and mounted."
-	atf_set "require.progs"  zfs zpool isainfo
+	atf_set "require.progs" "ksh93 zfs zpool isainfo"
 	atf_set "timeout" 1800
 }
 largest_pool_001_pos_body()

@@ -30,8 +30,8 @@ atf_test_case cifs_attr_001_pos cleanup
 cifs_attr_001_pos_head()
 {
 	atf_set "descr" "Verify set/clear DOS attributes will succeed while user haswrite_attributes permission or PRIV_FILE_OWNER privilege"
-	atf_set "require.config" zfs_acl zfs_xattr
-	atf_set "require.progs"  runwattr
+	atf_set "require.config" "zfs_acl zfs_xattr"
+	atf_set "require.progs" "ksh93 runwattr"
 }
 cifs_attr_001_pos_body()
 {
@@ -57,8 +57,8 @@ atf_test_case cifs_attr_002_pos cleanup
 cifs_attr_002_pos_head()
 {
 	atf_set "descr" "Verify set/clear BSD'ish attributes will succeed while user hasPRIV_FILE_FLAG_SET/PRIV_FILE_FLAG_CLEAR privilege"
-	atf_set "require.config" zfs_acl zfs_xattr
-	atf_set "require.progs"  runwattr
+	atf_set "require.config" "zfs_acl zfs_xattr"
+	atf_set "require.progs" "ksh93 runwattr"
 }
 cifs_attr_002_pos_body()
 {
@@ -84,8 +84,8 @@ atf_test_case cifs_attr_003_pos cleanup
 cifs_attr_003_pos_head()
 {
 	atf_set "descr" "Verify DOS & BSD'ish attributes will provide theaccess limitation as expected."
-	atf_set "require.config" zfs_acl zfs_xattr
-	atf_set "require.progs"  runat
+	atf_set "require.config" "zfs_acl zfs_xattr"
+	atf_set "require.progs" "ksh93 runat"
 }
 cifs_attr_003_pos_body()
 {

@@ -30,7 +30,7 @@ atf_test_case zpool_online_001_pos cleanup
 zpool_online_001_pos_head()
 {
 	atf_set "descr" "Executing 'zpool online' with correct options succeeds"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 }
 zpool_online_001_pos_body()
 {
@@ -54,7 +54,7 @@ atf_test_case zpool_online_002_neg cleanup
 zpool_online_002_neg_head()
 {
 	atf_set "descr" "Executing 'zpool online' with bad options fails"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 }
 zpool_online_002_neg_body()
 {

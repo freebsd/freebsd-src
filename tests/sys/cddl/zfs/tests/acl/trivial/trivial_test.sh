@@ -53,7 +53,7 @@ atf_test_case zfs_acl_compress_001_pos cleanup
 zfs_acl_compress_001_pos_head()
 {
 	atf_set "descr" "Compress will keep file attribute intact after the file iscompressed and uncompressed"
-	atf_set "require.config" zfs_acl zfs_xattr
+	atf_set "require.config" "zfs_acl zfs_xattr"
 }
 zfs_acl_compress_001_pos_body()
 {
@@ -77,7 +77,7 @@ atf_test_case zfs_acl_cp_001_pos cleanup
 zfs_acl_cp_001_pos_head()
 {
 	atf_set "descr" "Verifies that cp will include file attribute when using the -@ flag"
-	atf_set "require.config" zfs_acl zfs_xattr
+	atf_set "require.config" "zfs_acl zfs_xattr"
 }
 zfs_acl_cp_001_pos_body()
 {
@@ -101,7 +101,7 @@ atf_test_case zfs_acl_cp_002_neg cleanup
 zfs_acl_cp_002_neg_head()
 {
 	atf_set "descr" "Verifies that cp will not include file attribute when the -@ flagis not present."
-	atf_set "require.config" zfs_acl zfs_xattr
+	atf_set "require.config" "zfs_acl zfs_xattr"
 }
 zfs_acl_cp_002_neg_body()
 {
@@ -125,8 +125,8 @@ atf_test_case zfs_acl_cp_003_neg cleanup
 zfs_acl_cp_003_neg_head()
 {
 	atf_set "descr" "Verifies that cp won't be able to include file attribute whenattribute is unreadable (except root)"
-	atf_set "require.config" zfs_acl zfs_xattr
-	atf_set "require.progs"  runat
+	atf_set "require.config" "zfs_acl zfs_xattr"
+	atf_set "require.progs" "ksh93 runat"
 }
 zfs_acl_cp_003_neg_body()
 {
@@ -150,7 +150,7 @@ atf_test_case zfs_acl_find_001_pos cleanup
 zfs_acl_find_001_pos_head()
 {
 	atf_set "descr" "Verifies ability to find files with attribute with-xattr flag and using '-exec runat ls'"
-	atf_set "require.config" zfs_acl zfs_xattr
+	atf_set "require.config" "zfs_acl zfs_xattr"
 }
 zfs_acl_find_001_pos_body()
 {
@@ -174,8 +174,8 @@ atf_test_case zfs_acl_find_002_neg cleanup
 zfs_acl_find_002_neg_head()
 {
 	atf_set "descr" "verifies -xattr doesn't include files withoutattribute and using '-exec runat ls'"
-	atf_set "require.config" zfs_acl zfs_xattr
-	atf_set "require.progs"  runat
+	atf_set "require.config" "zfs_acl zfs_xattr"
+	atf_set "require.progs" "ksh93 runat"
 }
 zfs_acl_find_002_neg_body()
 {
@@ -199,7 +199,7 @@ atf_test_case zfs_acl_ls_001_pos cleanup
 zfs_acl_ls_001_pos_head()
 {
 	atf_set "descr" "Verifies that ls displays @ in the file permissions using ls -@for files with attribute."
-	atf_set "require.config" zfs_acl zfs_xattr
+	atf_set "require.config" "zfs_acl zfs_xattr"
 }
 zfs_acl_ls_001_pos_body()
 {
@@ -223,8 +223,8 @@ atf_test_case zfs_acl_ls_002_neg cleanup
 zfs_acl_ls_002_neg_head()
 {
 	atf_set "descr" "Verifies that ls doesn't display @ in the filepermissions using ls -@ for files without attribute."
-	atf_set "require.config" zfs_acl zfs_xattr
-	atf_set "require.progs"  runat
+	atf_set "require.config" "zfs_acl zfs_xattr"
+	atf_set "require.progs" "ksh93 runat"
 }
 zfs_acl_ls_002_neg_body()
 {
@@ -248,7 +248,7 @@ atf_test_case zfs_acl_mv_001_pos cleanup
 zfs_acl_mv_001_pos_head()
 {
 	atf_set "descr" "Verifies that mv will include file attribute."
-	atf_set "require.config" zfs_acl zfs_xattr
+	atf_set "require.config" "zfs_acl zfs_xattr"
 }
 zfs_acl_mv_001_pos_body()
 {
@@ -272,8 +272,8 @@ atf_test_case zfs_acl_pack_001_pos cleanup
 zfs_acl_pack_001_pos_head()
 {
 	atf_set "descr" "Verifies that pack will keep file attribute intact after the fileis packed and unpacked"
-	atf_set "require.config" zfs_acl zfs_xattr
-	atf_set "require.progs"  unpack pack
+	atf_set "require.config" "zfs_acl zfs_xattr"
+	atf_set "require.progs" "ksh93 unpack pack"
 }
 zfs_acl_pack_001_pos_body()
 {
@@ -297,8 +297,8 @@ atf_test_case zfs_acl_pax_001_pos cleanup
 zfs_acl_pax_001_pos_head()
 {
 	atf_set "descr" "Verify include attribute in pax archive and restore with paxshould succeed."
-	atf_set "require.config" zfs_acl zfs_xattr
-	atf_set "require.progs"  pax
+	atf_set "require.config" "zfs_acl zfs_xattr"
+	atf_set "require.progs" "ksh93 pax"
 }
 zfs_acl_pax_001_pos_body()
 {
@@ -322,8 +322,8 @@ atf_test_case zfs_acl_pax_002_pos cleanup
 zfs_acl_pax_002_pos_head()
 {
 	atf_set "descr" "Verify include attribute in pax archive and restore with tarshould succeed."
-	atf_set "require.config" zfs_acl zfs_xattr
-	atf_set "require.progs"  pax
+	atf_set "require.config" "zfs_acl zfs_xattr"
+	atf_set "require.progs" "ksh93 pax"
 }
 zfs_acl_pax_002_pos_body()
 {
@@ -347,8 +347,8 @@ atf_test_case zfs_acl_pax_003_pos cleanup
 zfs_acl_pax_003_pos_head()
 {
 	atf_set "descr" "Verify include attribute in pax archive and restore with cpioshould succeed."
-	atf_set "require.config" zfs_acl zfs_xattr
-	atf_set "require.progs"  pax
+	atf_set "require.config" "zfs_acl zfs_xattr"
+	atf_set "require.progs" "ksh93 pax"
 }
 zfs_acl_pax_003_pos_body()
 {
@@ -372,8 +372,8 @@ atf_test_case zfs_acl_pax_004_pos cleanup
 zfs_acl_pax_004_pos_head()
 {
 	atf_set "descr" "Verify files include attribute in pax archive and restore with paxshould succeed."
-	atf_set "require.config" zfs_acl zfs_xattr
-	atf_set "require.progs"  pax
+	atf_set "require.config" "zfs_acl zfs_xattr"
+	atf_set "require.progs" "ksh93 pax"
 }
 zfs_acl_pax_004_pos_body()
 {
@@ -397,8 +397,8 @@ atf_test_case zfs_acl_pax_005_pos cleanup
 zfs_acl_pax_005_pos_head()
 {
 	atf_set "descr" "Verify files include attribute in cpio archive and restore withcpio should succeed."
-	atf_set "require.config" zfs_acl zfs_xattr
-	atf_set "require.progs"  pax
+	atf_set "require.config" "zfs_acl zfs_xattr"
+	atf_set "require.progs" "ksh93 pax"
 }
 zfs_acl_pax_005_pos_body()
 {
@@ -422,8 +422,8 @@ atf_test_case zfs_acl_pax_006_pos cleanup
 zfs_acl_pax_006_pos_head()
 {
 	atf_set "descr" "Verify files include attribute in tar archive and restore withtar should succeed."
-	atf_set "require.config" zfs_acl zfs_xattr
-	atf_set "require.progs"  pax
+	atf_set "require.config" "zfs_acl zfs_xattr"
+	atf_set "require.progs" "ksh93 pax"
 }
 zfs_acl_pax_006_pos_body()
 {
@@ -447,7 +447,7 @@ atf_test_case zfs_acl_tar_001_pos cleanup
 zfs_acl_tar_001_pos_head()
 {
 	atf_set "descr" "Verifies that tar will include file attribute when @ flag ispresent."
-	atf_set "require.config" zfs_acl zfs_xattr
+	atf_set "require.config" "zfs_acl zfs_xattr"
 }
 zfs_acl_tar_001_pos_body()
 {
@@ -471,7 +471,7 @@ atf_test_case zfs_acl_tar_002_neg cleanup
 zfs_acl_tar_002_neg_head()
 {
 	atf_set "descr" "Verifies that tar will not include files attribute when @ flag isnot present"
-	atf_set "require.config" zfs_acl zfs_xattr
+	atf_set "require.config" "zfs_acl zfs_xattr"
 }
 zfs_acl_tar_002_neg_body()
 {

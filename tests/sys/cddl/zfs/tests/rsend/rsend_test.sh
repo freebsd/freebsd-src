@@ -30,7 +30,7 @@ atf_test_case rsend_001_pos cleanup
 rsend_001_pos_head()
 {
 	atf_set "descr" "zfs send -R send replication stream up to the named snap."
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 	atf_set "timeout" 2700
 }
 rsend_001_pos_body()
@@ -57,7 +57,7 @@ atf_test_case rsend_002_pos cleanup
 rsend_002_pos_head()
 {
 	atf_set "descr" "zfs send -I sends all incrementals from fs@init to fs@final."
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 	atf_set "timeout" 2700
 }
 rsend_002_pos_body()
@@ -84,7 +84,7 @@ atf_test_case rsend_003_pos cleanup
 rsend_003_pos_head()
 {
 	atf_set "descr" "zfs send -I send all incrementals from dataset@init to clone@snap"
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 	atf_set "timeout" 2700
 }
 rsend_003_pos_body()
@@ -111,7 +111,7 @@ atf_test_case rsend_004_pos cleanup
 rsend_004_pos_head()
 {
 	atf_set "descr" "zfs send -R -i send incremental from fs@init to fs@final."
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 	atf_set "timeout" 2700
 }
 rsend_004_pos_body()
@@ -138,7 +138,7 @@ atf_test_case rsend_005_pos cleanup
 rsend_005_pos_head()
 {
 	atf_set "descr" "zfs send -R -I send all the incremental between @init with @final"
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 	atf_set "timeout" 2700
 }
 rsend_005_pos_body()
@@ -165,7 +165,7 @@ atf_test_case rsend_006_pos cleanup
 rsend_006_pos_head()
 {
 	atf_set "descr" "Rename snapshot name will not change the dependent order."
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 	atf_set "timeout" 2700
 }
 rsend_006_pos_body()
@@ -192,7 +192,7 @@ atf_test_case rsend_007_pos cleanup
 rsend_007_pos_head()
 {
 	atf_set "descr" "Rename parent filesystem name will not change the dependent order."
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 	atf_set "timeout" 2700
 }
 rsend_007_pos_body()
@@ -219,7 +219,7 @@ atf_test_case rsend_008_pos cleanup
 rsend_008_pos_head()
 {
 	atf_set "descr" "Changes made by 'zfs promote' can be properly received."
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 	atf_set "timeout" 2700
 }
 rsend_008_pos_body()
@@ -246,7 +246,7 @@ atf_test_case rsend_009_pos cleanup
 rsend_009_pos_head()
 {
 	atf_set "descr" "Verify zfs receive can handle out of space correctly."
-	atf_set "require.progs"  zpool zfs
+	atf_set "require.progs" "ksh93 zpool zfs"
 	atf_set "timeout" 2700
 }
 rsend_009_pos_body()
@@ -273,7 +273,7 @@ atf_test_case rsend_010_pos cleanup
 rsend_010_pos_head()
 {
 	atf_set "descr" "ZFS can handle stream with multiple identical (same GUID) snapshots"
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 	atf_set "timeout" 2700
 }
 rsend_010_pos_body()
@@ -300,7 +300,7 @@ atf_test_case rsend_011_pos cleanup
 rsend_011_pos_head()
 {
 	atf_set "descr" "Verify changes made by 'zfs inherit' can be properly received."
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 	atf_set "timeout" 2700
 }
 rsend_011_pos_body()
@@ -327,7 +327,7 @@ atf_test_case rsend_012_pos cleanup
 rsend_012_pos_head()
 {
 	atf_set "descr" "Verify zfs send -R will backup all the filesystem propertiescorrectly."
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 	atf_set "timeout" 2700
 }
 rsend_012_pos_body()
@@ -354,7 +354,7 @@ atf_test_case rsend_013_pos cleanup
 rsend_013_pos_head()
 {
 	atf_set "descr" "zfs receive -dF will destroy all the dataset that not existon the sender side"
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 	atf_set "timeout" 2700
 }
 rsend_013_pos_body()

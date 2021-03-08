@@ -30,7 +30,7 @@ atf_test_case zpool_attach_001_neg cleanup
 zpool_attach_001_neg_head()
 {
 	atf_set "descr" "Executing 'zpool attach' with bad options fails"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 }
 zpool_attach_001_neg_body()
 {

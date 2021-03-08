@@ -30,7 +30,7 @@ atf_test_case zfs_diff_001_pos cleanup
 zfs_diff_001_pos_head()
 {
 	atf_set "descr" "zfs diff output for typical operations"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_diff_001_pos_body()
 {

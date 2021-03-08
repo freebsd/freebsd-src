@@ -30,7 +30,7 @@ atf_test_case zpool_history_001_neg cleanup
 zpool_history_001_neg_head()
 {
 	atf_set "descr" "Verify 'zpool history' can deal with non-existent pools andgarbage to the command."
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 }
 zpool_history_001_neg_body()
 {
@@ -54,7 +54,7 @@ atf_test_case zpool_history_002_pos cleanup
 zpool_history_002_pos_head()
 {
 	atf_set "descr" "Verify zpool history can handle options [-il] correctly."
-	atf_set "require.progs"  zfs zpool
+	atf_set "require.progs" "ksh93 zfs zpool"
 }
 zpool_history_002_pos_body()
 {

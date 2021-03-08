@@ -30,7 +30,7 @@ atf_test_case clone_001_pos cleanup
 clone_001_pos_head()
 {
 	atf_set "descr" "Verify a cloned file system is writable."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 clone_001_pos_body()
 {
@@ -55,7 +55,7 @@ atf_test_case rollback_001_pos cleanup
 rollback_001_pos_head()
 {
 	atf_set "descr" "Verify that a rollback to a previous snapshot succeeds."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 rollback_001_pos_body()
 {
@@ -79,7 +79,7 @@ atf_test_case rollback_002_pos cleanup
 rollback_002_pos_head()
 {
 	atf_set "descr" "Verify rollback is with respect to latest snapshot."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 rollback_002_pos_body()
 {
@@ -103,7 +103,7 @@ atf_test_case rollback_003_pos cleanup
 rollback_003_pos_head()
 {
 	atf_set "descr" "Verify rollback succeeds when there are nested file systems."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 rollback_003_pos_body()
 {
@@ -127,7 +127,7 @@ atf_test_case snapshot_001_pos cleanup
 snapshot_001_pos_head()
 {
 	atf_set "descr" "Verify a file system snapshot is identical to original."
-	atf_set "require.progs"  zfs sum
+	atf_set "require.progs" "ksh93 zfs sum"
 }
 snapshot_001_pos_body()
 {
@@ -151,7 +151,7 @@ atf_test_case snapshot_002_pos cleanup
 snapshot_002_pos_head()
 {
 	atf_set "descr" "Verify an archive of a file system is identical toan archive of its snapshot."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_002_pos_body()
 {
@@ -175,7 +175,7 @@ atf_test_case snapshot_003_pos cleanup
 snapshot_003_pos_head()
 {
 	atf_set "descr" "Verify many snapshots of a file system can be taken."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_003_pos_body()
 {
@@ -199,7 +199,7 @@ atf_test_case snapshot_004_pos cleanup
 snapshot_004_pos_head()
 {
 	atf_set "descr" "Verify that a snapshot of an empty file system remains empty."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_004_pos_body()
 {
@@ -223,7 +223,7 @@ atf_test_case snapshot_005_pos cleanup
 snapshot_005_pos_head()
 {
 	atf_set "descr" "Verify that a snapshot of a dataset is identical tothe original dataset."
-	atf_set "require.progs"  zfs sum
+	atf_set "require.progs" "ksh93 zfs sum"
 }
 snapshot_005_pos_body()
 {
@@ -247,7 +247,7 @@ atf_test_case snapshot_006_pos cleanup
 snapshot_006_pos_head()
 {
 	atf_set "descr" "Verify that an archive of a dataset is identical toan archive of the dataset's snapshot."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_006_pos_body()
 {
@@ -271,7 +271,7 @@ atf_test_case snapshot_007_pos cleanup
 snapshot_007_pos_head()
 {
 	atf_set "descr" "Verify that many snapshots can be made on a zfs dataset."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_007_pos_body()
 {
@@ -295,7 +295,7 @@ atf_test_case snapshot_008_pos cleanup
 snapshot_008_pos_head()
 {
 	atf_set "descr" "Verify that destroying snapshots returns space to the pool."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_008_pos_body()
 {
@@ -319,7 +319,7 @@ atf_test_case snapshot_009_pos cleanup
 snapshot_009_pos_head()
 {
 	atf_set "descr" "Verify snapshot -r can correctly create a snapshot tree."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_009_pos_body()
 {
@@ -343,7 +343,7 @@ atf_test_case snapshot_010_pos cleanup
 snapshot_010_pos_head()
 {
 	atf_set "descr" "Verify 'destroy -r' can correctly destroy a snapshot subtree at any point."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_010_pos_body()
 {
@@ -367,7 +367,7 @@ atf_test_case snapshot_011_pos cleanup
 snapshot_011_pos_head()
 {
 	atf_set "descr" "Verify that rollback to a snapshot created by snapshot -r succeeds."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_011_pos_body()
 {
@@ -391,7 +391,7 @@ atf_test_case snapshot_012_pos cleanup
 snapshot_012_pos_head()
 {
 	atf_set "descr" "Verify that 'snapshot -r' can work with 'zfs promote'."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_012_pos_body()
 {
@@ -415,7 +415,7 @@ atf_test_case snapshot_013_pos cleanup
 snapshot_013_pos_head()
 {
 	atf_set "descr" "Verify snapshots from 'snapshot -r' can be used for zfs send/recv"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_013_pos_body()
 {
@@ -439,7 +439,7 @@ atf_test_case snapshot_014_pos cleanup
 snapshot_014_pos_head()
 {
 	atf_set "descr" "Verify creating/destroying snapshots do things clean"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_014_pos_body()
 {
@@ -463,7 +463,7 @@ atf_test_case snapshot_015_pos cleanup
 snapshot_015_pos_head()
 {
 	atf_set "descr" "Verify snapshot can be created via mkdir in .zfs/snapshot."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_015_pos_body()
 {
@@ -488,7 +488,7 @@ atf_test_case snapshot_016_pos cleanup
 snapshot_016_pos_head()
 {
 	atf_set "descr" "Verify renamed snapshots via mv can be destroyed."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_016_pos_body()
 {
@@ -513,7 +513,7 @@ atf_test_case snapshot_017_pos cleanup
 snapshot_017_pos_head()
 {
 	atf_set "descr" "Directory structure of snapshots reflects filesystem structure."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_017_pos_body()
 {
@@ -537,7 +537,7 @@ atf_test_case snapshot_018_pos cleanup
 snapshot_018_pos_head()
 {
 	atf_set "descr" "Snapshot directory supports ACL operations"
-	atf_set "require.progs" zfs getfacl getconf sha1
+	atf_set "require.progs" "ksh93 zfs getfacl getconf sha1"
 }
 snapshot_018_pos_body()
 {
@@ -561,7 +561,7 @@ atf_test_case snapshot_019_pos cleanup
 snapshot_019_pos_head()
 {
 	atf_set "descr" "Accessing snapshots and unmounting them in parallel does not panic"
-	atf_set "require.progs" zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 snapshot_019_pos_body()
@@ -585,7 +585,7 @@ atf_test_case snapshot_020_pos cleanup
 snapshot_020_pos_head()
 {
 	atf_set "descr" "Verify mounted snapshots can be renamed and destroyed"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 snapshot_020_pos_body()
 {
