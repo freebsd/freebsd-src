@@ -254,15 +254,13 @@ wg_socket_reuse(struct wg_softc *sc, struct socket *so)
 	error = sosetopt(so, &sopt);
 	if (error) {
 		ifp = iflib_get_ifp(sc->wg_ctx);
-		if_printf(ifp,
-				  "cannot set REUSEPORT socket opt: %d\n", error);
+		if_printf(ifp, "cannot set REUSEPORT socket opt: %d\n", error);
 	}
 	sopt.sopt_name = SO_REUSEADDR;
 	error = sosetopt(so, &sopt);
 	if (error) {
 		ifp = iflib_get_ifp(sc->wg_ctx);
-		if_printf(ifp,
-				  "cannot set REUSEADDDR socket opt: %d\n", error);
+		if_printf(ifp, "cannot set REUSEADDDR socket opt: %d\n", error);
 	}
 	return (error);
 }
