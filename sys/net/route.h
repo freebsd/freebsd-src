@@ -429,7 +429,6 @@ struct sockaddr *rtsock_fix_netmask(const struct sockaddr *dst,
 
 void	rt_updatemtu(struct ifnet *);
 
-void	rt_flushifroutes_af(struct ifnet *, int);
 void	rt_flushifroutes(struct ifnet *ifp);
 
 /* XXX MRT NEW VERSIONS THAT USE FIBs
@@ -442,6 +441,7 @@ int	rib_lookup_info(uint32_t, const struct sockaddr *, uint32_t, uint32_t,
 void	rib_free_info(struct rt_addrinfo *info);
 
 /* New API */
+void rib_flush_routes_family(int family);
 struct nhop_object *rib_lookup(uint32_t fibnum, const struct sockaddr *dst,
 	    uint32_t flags, uint32_t flowid);
 #endif

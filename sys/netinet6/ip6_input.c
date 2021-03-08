@@ -386,10 +386,11 @@ ip6_destroy(void *unused __unused)
 		/* IF_ADDR_UNLOCK(ifp); */
 		in6_ifdetach_destroy(ifp);
 		mld_domifdetach(ifp);
-		/* Make sure any routes are gone as well. */
-		rt_flushifroutes_af(ifp, AF_INET6);
 	}
 	IFNET_RUNLOCK();
+
+	/* Make sure any routes are gone as well. */
+	rib_flush_routes_family(AF_INET6);
 
 	frag6_destroy();
 	nd6_destroy();
