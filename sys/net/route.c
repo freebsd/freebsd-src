@@ -495,21 +495,6 @@ rt_ifdelroute(const struct rtentry *rt, const struct nhop_object *nh, void *arg)
 	return (1);
 }
 
-/*
- * Delete all remaining routes using this interface
- * Unfortuneatly the only way to do this is to slog through
- * the entire routing table looking for routes which point
- * to this interface...oh well...
- */
-void
-rt_flushifroutes_af(struct ifnet *ifp, int af)
-{
-	KASSERT((af >= 1 && af <= AF_MAX), ("%s: af %d not >= 1 and <= %d",
-	    __func__, af, AF_MAX));
-
-	rib_foreach_table_walk_del(af, rt_ifdelroute, ifp);
-}
-
 void
 rt_flushifroutes(struct ifnet *ifp)
 {
