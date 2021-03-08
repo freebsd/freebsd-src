@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2021
+.Dd March 8, 2021
 .Dt KTLS 4
 .Os
 .Sh NAME
@@ -54,7 +54,7 @@ and
 .Dv TCP_RXTLS_ENABLE
 socket options.
 Both socket options accept a
-.Vt struct tls_so_enable
+.Vt struct tls_enable
 structure as their argument.
 The members of this structure describe the cipher suite used for the
 TLS session and provide the session keys used for the respective
@@ -166,7 +166,7 @@ will fail with one of the following errors:
 .It Bq Er EINVAL
 The version fields in a TLS record's header did not match the version required
 by the
-.Vt struct tls_so_enable
+.Vt struct tls_enable
 structure used to enable in-kernel TLS.
 .It Bq Er EMSGSIZE
 A TLS record's length was either too small or too large.
