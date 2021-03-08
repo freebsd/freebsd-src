@@ -128,6 +128,12 @@ gdb_end_write(void *arg __unused)
 
 }
 
+static __inline void
+gdb_cpu_stop_reason(int type __unused, int code __unused)
+{
+
+}
+
 void *gdb_cpu_getreg(int, size_t *);
 void gdb_cpu_setreg(int, void *);
 int gdb_cpu_signal(int, int);
