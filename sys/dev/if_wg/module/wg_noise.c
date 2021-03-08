@@ -454,7 +454,7 @@ noise_remote_begin_session(struct noise_remote *r)
 		    NOISE_SYMMETRIC_SIZE, NOISE_SYMMETRIC_SIZE, 0, 0,
 		    hs->hs_ck);
 	} else {
-		rw_exit_write(&r->r_keypair_lock);
+		rw_exit_write(&r->r_handshake_lock);
 		return EINVAL;
 	}
 
