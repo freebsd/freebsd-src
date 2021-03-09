@@ -104,7 +104,7 @@ fq_update_stats(struct fq_codel_flow *q, struct fq_codel_si *si, int len,
 		si->main_q.ni.drops ++;
 		q->stats.drops ++;
 		si->_si.ni.drops ++;
-		io_pkt_drop ++;
+		dn_cfg.io_pkt_drop ++;
 	} 
 
 	if (!drop || (drop && len < 0)) {

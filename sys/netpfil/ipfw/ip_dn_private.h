@@ -131,6 +131,11 @@ struct dn_parms {
 	int	fsk_count;
 	int	queue_count;
 
+	/* packet counters */
+	unsigned long	io_pkt;
+	unsigned long	io_pkt_fast;
+	unsigned long	io_pkt_drop;
+
 	/* ticks and other stuff */
 	uint64_t	curr_time;
 	/* flowsets and schedulers are in hash tables, with 'hash_size'
