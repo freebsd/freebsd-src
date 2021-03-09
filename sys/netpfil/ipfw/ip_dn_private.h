@@ -125,6 +125,14 @@ struct dn_parms {
 	struct timeval prev_t;		/* last time dummynet_tick ran */
 	struct dn_heap	evheap;		/* scheduled events */
 
+	long	tick_last;		/* Last tick duration (usec). */
+	long	tick_delta;		/* Last vs standard tick diff (usec). */
+	long	tick_delta_sum;	/* Accumulated tick difference (usec).*/
+	long	tick_adjustment;	/* Tick adjustments done. */
+	long	tick_lost;		/* Lost(coalesced) ticks number. */
+	/* Adjusted vs non-adjusted curr_time difference (ticks). */
+	long	tick_diff;
+
 	/* counters of objects -- used for reporting space */
 	int	schk_count;
 	int	si_count;
