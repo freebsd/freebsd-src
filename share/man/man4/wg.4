@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 7, 2021
+.Dd March 9, 2021
 .Dt WG 4
 .Os
 .Sh NAME
@@ -78,6 +78,8 @@ A list of allowed IP addresses.
 The IP address of the WiredGuard to connect to.
 .It Cm peer-list
 A list of peering IP addresses to connect to.
+.It Cm persistent-keepalive
+Interval, in seconds, at which to send persistent keepalive packets.
 .El
 .Pp
 The
