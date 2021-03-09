@@ -51,6 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <machine/elf.h>
+#ifdef VFP
+#include <machine/vfp.h>
+#endif
 
 #include <compat/freebsd32/freebsd32_util.h>
 
@@ -251,6 +254,10 @@ freebsd32_setregs(struct thread *td, struct image_params *imgp,
 	tf->tf_x[14] = imgp->entry_addr;
 	tf->tf_elr = imgp->entry_addr;
 	tf->tf_spsr = PSR_M_32;
+
+#ifdef VFP
+	vfp_reset_state(td, td->td_pcb);
+#endif
 }
 
 void
