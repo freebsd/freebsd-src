@@ -1904,13 +1904,12 @@ wg_input(struct mbuf *m0, int offset, struct inpcb *inpcb,
 	m_adj(m0, hlen);
 
 	/*
-	 * Ensure mbuf is contiguous over full length of the packet.  This is
-	 * done so that we can directly read the handshake values in
-	 * wg_handshake, and so we can decrypt a transport packet by passing a
-	 * a single buffer to noise_remote_decrypt() in wg_decap.
+	 * Ensure mbuf has at least enough contiguous data to peel off our
+	 * headers at the beginning.
 	 */
-	if ((m = m_pullup(m0, m0->m_pkthdr.len)) == NULL) {
+	if ((m = m_defrag(m0, M_NOWAIT)) == NULL) {
 		DPRINTF(sc, "DEFRAG fail\n");
+		m_freem(m0);
 		return;
 	}
 	data = mtod(m, void *);
