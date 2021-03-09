@@ -91,36 +91,22 @@ if ! [ -e ${firstboot_sentinel} ]; then
 	skip_firstboot="-s firstboot"
 fi
 
-# rc_parallel_start default is "NO"
-rc_parallel_start=${rc_parallel_start:-NO}
-_rc_parallel=''
-# enable rcorder -p if /etc/rc.conf rc_parallel_start is "YES"
-checkyesno rc_parallel_start && _rc_parallel='-p'
-
 # Do a first pass to get everything up to $early_late_divider so that
 # we can do a second pass that includes $local_startup directories
 #
-files=`rcorder ${skip} ${skip_firstboot} ${_rc_parallel} /etc/rc.d/* 2>/dev/null`
+files=`rcorder ${skip} ${skip_firstboot} /etc/rc.d/* 2>/dev/null`
 
 _rc_elem_done=' '
-oldifs="$IFS"
-IFS=$'\n'
-for _rc_group in ${files}; do
-	IFS="$oldifs"
-	for _rc_elem in ${_rc_group}; do
-		run_rc_script ${_rc_elem} ${_boot} &
-		_rc_elem_done="${_rc_elem_done}${_rc_elem} "
+for _rc_elem in ${files}; do
+	run_rc_script ${_rc_elem} ${_boot}
+	_rc_elem_done="${_rc_elem_done}${_rc_elem} "
 
-		case "$_rc_elem" in
-		*/${early_late_divider}) break ;;
-		esac
-	done
-	wait
-	IFS=$'\n'
+	case "$_rc_elem" in
+	*/${early_late_divider})	break ;;
+	esac
 done
 
 unset files local_rc
-IFS="$oldifs"
 
 # Now that disks are mounted, for each dir in $local_startup
 # search for init scripts that use the new rc.d semantics.
@@ -136,21 +122,14 @@ if [ -e ${firstboot_sentinel} ]; then
 	skip_firstboot=""
 fi
 
-files=`rcorder ${skip} ${skip_firstboot} /etc/rc.d/* ${local_rc} ${_rc_parallel} 2>/dev/null`
-IFS=$'\n'
-for _rc_group in ${files}; do
-	IFS="$oldifs"
-	for _rc_elem in ${_rc_group}; do
-		case "$_rc_elem_done" in
-		*" $_rc_elem "*) continue ;;
-		esac
+files=`rcorder ${skip} ${skip_firstboot} /etc/rc.d/* ${local_rc} 2>/dev/null`
+for _rc_elem in ${files}; do
+	case "$_rc_elem_done" in
+	*" $_rc_elem "*)	continue ;;
+	esac
 
-		run_rc_script ${_rc_elem} ${_boot} &
-	done
-	wait
-	IFS=$'\n'
+	run_rc_script ${_rc_elem} ${_boot}
 done
-IFS="$oldifs"
 
 # Remove the firstboot sentinel, and reboot if it was requested.
 # Be a bit paranoid about removing it to handle the common failure
