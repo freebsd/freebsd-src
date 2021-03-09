@@ -69,11 +69,19 @@ MALLOC_DEFINE(M_WG, "WG", "wireguard");
 
 TASKQGROUP_DECLARE(if_io_tqg);
 
+struct wg_timespec64 {
+	uint64_t	tv_sec;
+	uint64_t	tv_nsec;
+};
+
 struct wg_peer_export {
 	struct sockaddr_storage		endpoint;
+	struct timespec			last_handshake;
 	uint8_t				public_key[WG_KEY_SIZE];
 	size_t				endpoint_sz;
 	struct wg_allowedip		*aip;
+	uint64_t			rx_bytes;
+	uint64_t			tx_bytes;
 	int				aip_count;
 	uint16_t			persistent_keepalive;
 };
@@ -419,6 +427,9 @@ wg_peer_to_export(struct wg_peer *peer, struct wg_peer_export *exp)
 
 	exp->persistent_keepalive =
 	    peer->p_timers.t_persistent_keepalive_interval;
+	wg_timers_get_last_handshake(&peer->p_timers, &exp->last_handshake);
+	exp->rx_bytes = counter_u64_fetch(peer->p_rx_bytes);
+	exp->tx_bytes = counter_u64_fetch(peer->p_tx_bytes);
 
 	exp->aip_count = 0;
 	CK_LIST_FOREACH(rt, &peer->p_routes, r_entry) {
@@ -449,6 +460,7 @@ wg_peer_to_export(struct wg_peer *peer, struct wg_peer_export *exp)
 static nvlist_t *
 wg_peer_export_to_nvl(struct wg_peer_export *exp)
 {
+	struct wg_timespec64 ts64;
 	nvlist_t *nvl;
 
 	if ((nvl = nvlist_create(0)) == NULL)
@@ -462,9 +474,18 @@ wg_peer_export_to_nvl(struct wg_peer_export *exp)
 	nvlist_add_binary(nvl, "allowed-ips", exp->aip,
 	    exp->aip_count * sizeof(*exp->aip));
 
+	ts64.tv_sec = exp->last_handshake.tv_sec;
+	ts64.tv_nsec = exp->last_handshake.tv_nsec;
+	nvlist_add_binary(nvl, "last_handshake", &ts64, sizeof(ts64));
+
 	if (exp->persistent_keepalive != 0)
 		nvlist_add_number(nvl, "persistent-keepalive-interval",
 		    exp->persistent_keepalive);
+
+	if (exp->rx_bytes != 0)
+		nvlist_add_number(nvl, "rx_bytes", exp->rx_bytes);
+	if (exp->tx_bytes != 0)
+		nvlist_add_number(nvl, "tx_bytes", exp->tx_bytes);
 
 	return (nvl);
 }
