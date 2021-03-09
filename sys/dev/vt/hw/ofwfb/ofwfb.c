@@ -108,7 +108,7 @@ ofwfb_probe(struct vt_device *vd)
 		return (CN_DEAD);
 
 	node = -1;
-	if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) ==
+	if (OF_getencprop(chosen, "stdout", &stdout, sizeof(stdout)) ==
 	    sizeof(stdout))
 		node = OF_instance_to_package(stdout);
 	if (node == -1)
@@ -386,7 +386,7 @@ ofwfb_init(struct vt_device *vd)
 	char buf[64];
 	phandle_t chosen;
 	phandle_t node;
-	uint32_t depth, height, width, stride;
+	pcell_t depth, height, width, stride;
 	uint32_t vendor_id = 0;
 	cell_t adr[2];
 	uint64_t user_phys;
@@ -399,7 +399,7 @@ ofwfb_init(struct vt_device *vd)
 
 	node = -1;
 	chosen = OF_finddevice("/chosen");
-	if (OF_getprop(chosen, "stdout", &sc->sc_handle,
+	if (OF_getencprop(chosen, "stdout", &sc->sc_handle,
 	    sizeof(ihandle_t)) == sizeof(ihandle_t))
 		node = OF_instance_to_package(sc->sc_handle);
 	if (node == -1)
@@ -448,14 +448,14 @@ ofwfb_init(struct vt_device *vd)
 		return (CN_DEAD);
 
 	/* Only support 8 and 32-bit framebuffers */
-	OF_getprop(node, "depth", &depth, sizeof(depth));
+	OF_getencprop(node, "depth", &depth, sizeof(depth));
 	if (depth != 8 && depth != 32)
 		return (CN_DEAD);
 	sc->fb.fb_bpp = sc->fb.fb_depth = depth;
 
-	OF_getprop(node, "height", &height, sizeof(height));
-	OF_getprop(node, "width", &width, sizeof(width));
-	if (OF_getprop(node, "linebytes", &stride, sizeof(stride)) !=
+	OF_getencprop(node, "height", &height, sizeof(height));
+	OF_getencprop(node, "width", &width, sizeof(width));
+	if (OF_getencprop(node, "linebytes", &stride, sizeof(stride)) !=
 	    sizeof(stride))
 		stride = width*depth/8;
 
@@ -537,11 +537,11 @@ ofwfb_init(struct vt_device *vd)
 		 * may be the child of the PCI device: in that case, try the
 		 * parent for the assigned-addresses property.
 		 */
-		len = OF_getprop(node, "assigned-addresses", pciaddrs,
-		    sizeof(pciaddrs));
+		len = OF_getencprop(node, "assigned-addresses",
+		    (pcell_t *)pciaddrs, sizeof(pciaddrs));
 		if (len == -1) {
-			len = OF_getprop(OF_parent(node), "assigned-addresses",
-			    pciaddrs, sizeof(pciaddrs));
+			len = OF_getencprop(OF_parent(node), "assigned-addresses",
+			    (pcell_t *)pciaddrs, sizeof(pciaddrs));
 		}
 		if (len == -1)
 			len = 0;
