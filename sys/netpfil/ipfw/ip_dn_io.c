@@ -87,14 +87,6 @@ static long tick_lost;		/* Lost(coalesced) ticks number. */
 /* Adjusted vs non-adjusted curr_time difference (ticks). */
 static long tick_diff;
 
-static unsigned long	io_pkt;
-static unsigned long	io_pkt_fast;
-
-#ifdef NEW_AQM
-unsigned long	io_pkt_drop;
-#else
-static unsigned long	io_pkt_drop;
-#endif
 /*
  * We use a heap to store entities for which we have pending timer events.
  * The heap is checked at every tick and all entities with expired events
@@ -223,13 +215,13 @@ SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, fsk_count,
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, queue_count,
     CTLFLAG_RD, DC(queue_count), 0, "Number of queues");
 SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt,
-    CTLFLAG_RD, &io_pkt, 0,
+    CTLFLAG_RD, DC(io_pkt), 0,
     "Number of packets passed to dummynet.");
 SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt_fast,
-    CTLFLAG_RD, &io_pkt_fast, 0,
+    CTLFLAG_RD, DC(io_pkt_fast), 0,
     "Number of packets bypassed dummynet scheduler.");
 SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt_drop,
-    CTLFLAG_RD, &io_pkt_drop, 0,
+    CTLFLAG_RD, DC(io_pkt_drop), 0,
     "Number of packets dropped by dummynet.");
 #undef DC
 SYSEND
@@ -535,7 +527,7 @@ dn_enqueue(struct dn_queue *q, struct mbuf* m, int drop)
 	return (0);
 
 drop:
-	io_pkt_drop++;
+	dn_cfg.io_pkt_drop++;
 	q->ni.drops++;
 	ni->drops++;
 	FREE_PKT(m);
@@ -871,7 +863,7 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 	int fs_id = (fwa->rule.info & IPFW_INFO_MASK) +
 		((fwa->rule.info & IPFW_IS_PIPE) ? 2*DN_MAX_ID : 0);
 	DN_BH_WLOCK();
-	io_pkt++;
+	dn_cfg.io_pkt++;
 	/* we could actually tag outside the lock, but who cares... */
 	if (tag_mbuf(m, dir, fwa))
 		goto dropit;
@@ -907,7 +899,7 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 		m = *m0 = NULL;
 
 		/* dn_enqueue already increases io_pkt_drop */
-		io_pkt_drop--;
+		dn_cfg.io_pkt_drop--;
 
 		goto dropit;
 	}
@@ -945,7 +937,7 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 
 		tag->m_tag_cookie = MTAG_IPFW_RULE;
 		tag->m_tag_id = 0;
-		io_pkt_fast++;
+		dn_cfg.io_pkt_fast++;
 		if (m->m_nextpkt != NULL) {
 			printf("dummynet: fast io: pkt chain detected!\n");
 			m->m_nextpkt = NULL;
@@ -961,7 +953,7 @@ done:
 	return 0;
 
 dropit:
-	io_pkt_drop++;
+	dn_cfg.io_pkt_drop++;
 	DN_BH_WUNLOCK();
 	if (m)
 		FREE_PKT(m);

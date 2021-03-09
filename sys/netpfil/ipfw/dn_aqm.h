@@ -54,9 +54,6 @@ typedef int32_t aqm_stime_t;
 /* Macro for variable bounding */
 #define BOUND_VAR(x,l,h)  ((x) > (h)? (h) : ((x) > (l)? (x) : (l)))
 
-/* sysctl variable to count number of dropped packets */
-extern unsigned long io_pkt_drop; 
-
 /*
  * Structure for holding data and function pointers that together represent a
  * AQM algorithm.
@@ -138,7 +135,7 @@ update_stats(struct dn_queue *q, int len, int drop)
 	if (drop) {
 			qni->drops++;
 			sni->drops++;
-			io_pkt_drop++;
+			dn_cfg.io_pkt_drop++;
 	} else {
 		/*update queue stats */
 		qni->length += inc;
