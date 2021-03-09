@@ -1891,17 +1891,14 @@ wg_input(struct mbuf *m0, int offset, struct inpcb *inpcb,
 	struct wg_pkt_data *pkt_data;
 	struct wg_endpoint *e;
 	struct wg_softc *sc = _sc;
-	struct udphdr *uh;
 	struct mbuf *m;
-	int pktlen, pkttype, hlen;
+	int pktlen, pkttype;
 	struct noise_remote *remote;
 	struct wg_tag *t;
 	void *data;
 
-	uh = (struct udphdr *)(m0->m_data + offset);
-	hlen = offset + sizeof(struct udphdr);
-
-	m_adj(m0, hlen);
+	/* Caller provided us with srcsa, no need for this header. */
+	m_adj(m0, offset + sizeof(struct udphdr));
 
 	/*
 	 * Ensure mbuf has at least enough contiguous data to peel off our
