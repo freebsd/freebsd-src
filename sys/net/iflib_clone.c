@@ -83,7 +83,8 @@ iflib_pseudo_detach(device_t dev)
 	if_ctx_t ctx;
 
 	ctx = device_get_softc(dev);
-	if ((iflib_get_flags(ctx) & IFC_IN_DETACH) == 0)
+	if ((iflib_get_flags(ctx) & (IFC_INIT_DONE | IFC_IN_DETACH)) ==
+	    IFC_INIT_DONE)
 		return (EBUSY);
 	return (0);
 }
