@@ -945,6 +945,27 @@ uaudio_set_spdif_dummy(struct uaudio_softc *sc, int flags)
 	return (0);
 }
 
+static usb_error_t
+uaudio_force_power_save(struct uaudio_softc *sc, uint8_t iface_index)
+{
+	struct usb_interface *iface;
+	usb_error_t err;
+
+	iface = usbd_get_iface(sc->sc_udev, iface_index);
+	if (iface == NULL || iface->idesc == NULL)
+		return (USB_ERR_INVAL);
+
+	/* check if correct alternate setting is already selected */
+	if (iface->alt_index == 0) {
+		/* force power save mode by selecting default alternate setting */
+		err = usbd_req_set_alt_interface_no(sc->sc_udev, NULL, iface_index,
+		    iface->idesc->bAlternateSetting);
+	} else {
+		err = usbd_set_alt_interface_index(sc->sc_udev, iface_index, 0);
+	}
+	return (err);
+}
+
 static int
 uaudio_attach(device_t dev)
 {
@@ -1019,16 +1040,16 @@ uaudio_attach(device_t dev)
 
 		/*
 		 * Need to set a default alternate interface, else
-		 * some USB audio devices might go into an infinte
+		 * some USB audio devices might go into an infinite
 		 * re-enumeration loop:
 		 */
-		err = usbd_set_alt_interface_index(sc->sc_udev,
-		    sc->sc_play_chan[i].usb_alt[0].iface_index,
-		    sc->sc_play_chan[i].usb_alt[0].iface_alt_index);
+		err = uaudio_force_power_save(sc,
+		    sc->sc_play_chan[i].usb_alt[0].iface_index);
 		if (err) {
 			DPRINTF("setting of alternate index failed: %s!\n",
 			    usbd_errstr(err));
 		}
+
 		for (x = 0; x != sc->sc_play_chan[i].num_alt; x++) {
 			device_printf(dev, "Play[%u]: %d Hz, %d ch, %s format, "
 			    "2x%dms buffer.\n", i,
@@ -1049,16 +1070,16 @@ uaudio_attach(device_t dev)
 
 		/*
 		 * Need to set a default alternate interface, else
-		 * some USB audio devices might go into an infinte
+		 * some USB audio devices might go into an infinite
 		 * re-enumeration loop:
 		 */
-		err = usbd_set_alt_interface_index(sc->sc_udev,
-		    sc->sc_rec_chan[i].usb_alt[0].iface_index,
-		    sc->sc_rec_chan[i].usb_alt[0].iface_alt_index);
+		err = uaudio_force_power_save(sc,
+		    sc->sc_rec_chan[i].usb_alt[0].iface_index);
 		if (err) {
 			DPRINTF("setting of alternate index failed: %s!\n",
 			    usbd_errstr(err));
 		}
+
 		for (x = 0; x != sc->sc_rec_chan[i].num_alt; x++) {
 			device_printf(dev, "Record[%u]: %d Hz, %d ch, %s format, "
 			    "2x%dms buffer.\n", i,
@@ -1307,7 +1328,7 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 	uint32_t frames;
 	uint32_t buf_size;
 	uint16_t fps;
-	uint8_t set_alt;
+	uint8_t next_alt;
 	uint8_t fps_shift;
 	uint8_t operation;
 	usb_error_t err;
@@ -1319,22 +1340,51 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 
 	usb_proc_explore_lock(sc->sc_udev);
 	operation = chan->operation;
-	chan->operation = CHAN_OP_NONE;
+	switch (operation) {
+	case CHAN_OP_START:
+	case CHAN_OP_STOP:
+		chan->operation = CHAN_OP_NONE;
+		break;
+	default:
+		break;
+	}
 	usb_proc_explore_unlock(sc->sc_udev);
 
+	switch (operation) {
+	case CHAN_OP_STOP:
+		/* Unsetup prior USB transfers, if any. */
+		usbd_transfer_unsetup(chan->xfer, UAUDIO_NCHANBUFS + 1);
+
+		mtx_lock(chan->pcm_mtx);
+		chan->cur_alt = CHAN_MAX_ALT;
+		mtx_unlock(chan->pcm_mtx);
+
+		/*
+		 * The first alternate setting is typically used for
+		 * power saving mode. Set this alternate setting as
+		 * part of entering stop.
+		 */
+		err = usbd_set_alt_interface_index(sc->sc_udev, chan->iface_index, 0);
+		if (err) {
+			DPRINTF("setting of default alternate index failed: %s!\n",
+			    usbd_errstr(err));
+		}
+		return;
+
+	case CHAN_OP_START:
+		/* Unsetup prior USB transfers, if any. */
+		usbd_transfer_unsetup(chan->xfer, UAUDIO_NCHANBUFS + 1);
+		break;
+
+	default:
+		return;
+	}
+
 	mtx_lock(chan->pcm_mtx);
-	if (chan->cur_alt != chan->set_alt)
-		set_alt = chan->set_alt;
-	else
-		set_alt = CHAN_MAX_ALT;
+	next_alt = chan->set_alt;
 	mtx_unlock(chan->pcm_mtx);
 
-	if (set_alt >= chan->num_alt)
-		goto done;
-
-	chan_alt = chan->usb_alt + set_alt;
-
-	usbd_transfer_unsetup(chan->xfer, UAUDIO_NCHANBUFS + 1);
+	chan_alt = chan->usb_alt + next_alt;
 
 	err = usbd_set_alt_interface_index(sc->sc_udev,
 	    chan_alt->iface_index, chan_alt->iface_alt_index);
@@ -1438,32 +1488,16 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 		goto error;
 	}
 
-	mtx_lock(chan->pcm_mtx);
-	chan->cur_alt = set_alt;
-	mtx_unlock(chan->pcm_mtx);
-
-done:
 #if (UAUDIO_NCHANBUFS != 2)
-#error "please update code"
+#error "Please update code below!"
 #endif
-	switch (operation) {
-	case CHAN_OP_START:
-		mtx_lock(chan->pcm_mtx);
-		usbd_transfer_start(chan->xfer[0]);
-		usbd_transfer_start(chan->xfer[1]);
-		mtx_unlock(chan->pcm_mtx);
-		break;
-	case CHAN_OP_STOP:
-		mtx_lock(chan->pcm_mtx);
-		usbd_transfer_stop(chan->xfer[0]);
-		usbd_transfer_stop(chan->xfer[1]);
-		mtx_unlock(chan->pcm_mtx);
-		break;
-	default:
-		break;
-	}
-	return;
 
+	mtx_lock(chan->pcm_mtx);
+	chan->cur_alt = next_alt;
+	usbd_transfer_start(chan->xfer[0]);
+	usbd_transfer_start(chan->xfer[1]);
+	mtx_unlock(chan->pcm_mtx);
+	return;
 error:
 	usbd_transfer_unsetup(chan->xfer, UAUDIO_NCHANBUFS + 1);
 
@@ -2746,27 +2780,24 @@ uaudio_chan_set_param_format(struct uaudio_chan *ch, uint32_t format)
 }
 
 static void
-uaudio_chan_start_sub(struct uaudio_chan *ch)
+uaudio_chan_reconfigure(struct uaudio_chan *ch, uint8_t operation)
 {
 	struct uaudio_softc *sc = ch->priv_sc;
-	int do_start = 0;
 
-	if (ch->operation != CHAN_OP_DRAIN) {
-		if (ch->cur_alt == ch->set_alt &&
-		    ch->operation == CHAN_OP_NONE &&
-		    mtx_owned(ch->pcm_mtx) != 0) {
-			/* save doing the explore task */
-			do_start = 1;
-		} else {
-			ch->operation = CHAN_OP_START;
-			(void)usb_proc_explore_msignal(sc->sc_udev,
-			    &sc->sc_config_msg[0], &sc->sc_config_msg[1]);
-		}
-	}
-	if (do_start) {
-		usbd_transfer_start(ch->xfer[0]);
-		usbd_transfer_start(ch->xfer[1]);
-	}
+	/* Check for shutdown. */
+	if (ch->operation == CHAN_OP_DRAIN)
+		return;
+
+	/* Set next operation. */
+	ch->operation = operation;
+
+	/*
+	 * Because changing the alternate setting modifies the USB
+	 * configuration, this part must be executed from the USB
+	 * explore process.
+	 */
+	(void)usb_proc_explore_msignal(sc->sc_udev,
+	    &sc->sc_config_msg[0], &sc->sc_config_msg[1]);
 }
 
 static int
@@ -2819,39 +2850,15 @@ uaudio_chan_start(struct uaudio_chan *ch)
 			 * Start both endpoints because of need for
 			 * jitter information:
 			 */
-			uaudio_chan_start_sub(&sc->sc_rec_chan[i]);
-			uaudio_chan_start_sub(&sc->sc_play_chan[i]);
+			uaudio_chan_reconfigure(&sc->sc_rec_chan[i], CHAN_OP_START);
+			uaudio_chan_reconfigure(&sc->sc_play_chan[i], CHAN_OP_START);
 		} else {
-			uaudio_chan_start_sub(ch);
+			uaudio_chan_reconfigure(ch, CHAN_OP_START);
 		}
 	}
 
 	/* exit atomic operation */
 	usb_proc_explore_unlock(sc->sc_udev);
-}
-
-static void
-uaudio_chan_stop_sub(struct uaudio_chan *ch)
-{
-	struct uaudio_softc *sc = ch->priv_sc;
-	int do_stop = 0;
-
-	if (ch->operation != CHAN_OP_DRAIN) {
-		if (ch->cur_alt == ch->set_alt &&
-		    ch->operation == CHAN_OP_NONE &&
-		    mtx_owned(ch->pcm_mtx) != 0) {
-			/* save doing the explore task */
-			do_stop = 1;
-		} else {
-			ch->operation = CHAN_OP_STOP;
-			(void)usb_proc_explore_msignal(sc->sc_udev,
-			    &sc->sc_config_msg[0], &sc->sc_config_msg[1]);
-		}
-	}
-	if (do_stop) {
-		usbd_transfer_stop(ch->xfer[0]);
-		usbd_transfer_stop(ch->xfer[1]);
-	}
 }
 
 void
@@ -2882,10 +2889,10 @@ uaudio_chan_stop(struct uaudio_chan *ch)
 			 * Stop both endpoints in case the one was used for
 			 * jitter information:
 			 */
-			uaudio_chan_stop_sub(&sc->sc_rec_chan[i]);
-			uaudio_chan_stop_sub(&sc->sc_play_chan[i]);
+			uaudio_chan_reconfigure(&sc->sc_rec_chan[i], CHAN_OP_STOP);
+			uaudio_chan_reconfigure(&sc->sc_play_chan[i], CHAN_OP_STOP);
 		} else {
-			uaudio_chan_stop_sub(ch);
+			uaudio_chan_reconfigure(ch, CHAN_OP_STOP);
 		}
 	}
 
@@ -5961,9 +5968,11 @@ umidi_probe(device_t dev)
 	if (usb_test_quirk(uaa, UQ_SINGLE_CMD_MIDI))
 		chan->single_command = 1;
 
-	if (usbd_set_alt_interface_index(sc->sc_udev, chan->iface_index,
-	    chan->iface_alt_index)) {
-		DPRINTF("setting of alternate index failed!\n");
+	error = usbd_set_alt_interface_index(sc->sc_udev,
+	    chan->iface_index, chan->iface_alt_index);
+	if (error) {
+		DPRINTF("setting of alternate index failed: %s\n",
+		    usbd_errstr(error));
 		goto detach;
 	}
 	usbd_set_parent_iface(sc->sc_udev, chan->iface_index,
