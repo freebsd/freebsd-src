@@ -552,6 +552,7 @@ void
 exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 {
 	struct trapframe *tf = td->td_frame;
+	struct pcb *pcb = td->td_pcb;
 
 	memset(tf, 0, sizeof(struct trapframe));
 
@@ -559,6 +560,12 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 	tf->tf_sp = STACKALIGN(stack);
 	tf->tf_lr = imgp->entry_addr;
 	tf->tf_elr = imgp->entry_addr;
+
+#ifdef VFP
+	vfp_reset_state(td, pcb);
+#endif
+
+	/* TODO: Shouldn't we also reset pcb_dbg_regs? */
 }
 
 /* Sanity check these are the same size, they will be memcpy'd to and fro */
