@@ -80,14 +80,6 @@ __FBSDID("$FreeBSD$");
 struct dn_parms dn_cfg;
 //VNET_DEFINE(struct dn_parms, _base_dn_cfg);
 
-static long tick_last;		/* Last tick duration (usec). */
-static long tick_delta;		/* Last vs standard tick diff (usec). */
-static long tick_delta_sum;	/* Accumulated tick difference (usec).*/
-static long tick_adjustment;	/* Tick adjustments done. */
-static long tick_lost;		/* Lost(coalesced) ticks number. */
-/* Adjusted vs non-adjusted curr_time difference (ticks). */
-static long tick_diff;
-
 /*
  * We use a heap to store entities for which we have pending timer events.
  * The heap is checked at every tick and all entities with expired events
@@ -192,16 +184,16 @@ SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_max_pkt_size,
 
 /* time adjustment */
 SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_delta,
-    CTLFLAG_RD, &tick_delta, 0, "Last vs standard tick difference (usec).");
+    CTLFLAG_RD, DC(tick_delta), 0, "Last vs standard tick difference (usec).");
 SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_delta_sum,
-    CTLFLAG_RD, &tick_delta_sum, 0, "Accumulated tick difference (usec).");
+    CTLFLAG_RD, DC(tick_delta_sum), 0, "Accumulated tick difference (usec).");
 SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_adjustment,
-    CTLFLAG_RD, &tick_adjustment, 0, "Tick adjustments done.");
+    CTLFLAG_RD, DC(tick_adjustment), 0, "Tick adjustments done.");
 SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_diff,
-    CTLFLAG_RD, &tick_diff, 0,
+    CTLFLAG_RD, DC(tick_diff), 0,
     "Adjusted vs non-adjusted curr_time difference (ticks).");
 SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_lost,
-    CTLFLAG_RD, &tick_lost, 0,
+    CTLFLAG_RD, DC(tick_lost), 0,
     "Number of ticks coalesced by dummynet taskqueue.");
 
 /* Drain parameters */
@@ -665,16 +657,16 @@ dummynet_task(void *context, int pending)
 	DN_BH_WLOCK();
 
 	/* Update number of lost(coalesced) ticks. */
-	tick_lost += pending - 1;
+	dn_cfg.tick_lost += pending - 1;
 
 	getmicrouptime(&t);
 	/* Last tick duration (usec). */
-	tick_last = (t.tv_sec - dn_cfg.prev_t.tv_sec) * 1000000 +
+	dn_cfg.tick_last = (t.tv_sec - dn_cfg.prev_t.tv_sec) * 1000000 +
 	(t.tv_usec - dn_cfg.prev_t.tv_usec);
 	/* Last tick vs standard tick difference (usec). */
-	tick_delta = (tick_last * hz - 1000000) / hz;
+	dn_cfg.tick_delta = (dn_cfg.tick_last * hz - 1000000) / hz;
 	/* Accumulated tick difference (usec). */
-	tick_delta_sum += tick_delta;
+	dn_cfg.tick_delta_sum += dn_cfg.tick_delta;
 
 	dn_cfg.prev_t = t;
 
@@ -686,18 +678,18 @@ dummynet_task(void *context, int pending)
 	* adjustment.
 	*/
 	dn_cfg.curr_time++;
-	if (tick_delta_sum - tick >= 0) {
-		int diff = tick_delta_sum / tick;
+	if (dn_cfg.tick_delta_sum - tick >= 0) {
+		int diff = dn_cfg.tick_delta_sum / tick;
 
 		dn_cfg.curr_time += diff;
-		tick_diff += diff;
-		tick_delta_sum %= tick;
-		tick_adjustment++;
-	} else if (tick_delta_sum + tick <= 0) {
+		dn_cfg.tick_diff += diff;
+		dn_cfg.tick_delta_sum %= tick;
+		dn_cfg.tick_adjustment++;
+	} else if (dn_cfg.tick_delta_sum + tick <= 0) {
 		dn_cfg.curr_time--;
-		tick_diff--;
-		tick_delta_sum += tick;
-		tick_adjustment++;
+		dn_cfg.tick_diff--;
+		dn_cfg.tick_delta_sum += tick;
+		dn_cfg.tick_adjustment++;
 	}
 
 	/* serve pending events, accumulate in q */
