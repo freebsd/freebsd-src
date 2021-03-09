@@ -1888,10 +1888,11 @@ get_exportlist(int passno)
 	struct iovec *iov;
 	struct statfs *mntbufp;
 	char errmsg[255];
-	int num, i;
+	int error, i, nfs_maxvers, num;
 	int iovlen;
 	struct nfsex_args eargs;
 	FILE *debug_file;
+	size_t nfs_maxvers_size;
 
 	if ((debug_file = fopen(_PATH_MOUNTDDEBUG, "r")) != NULL) {
 		fclose(debug_file);
@@ -2013,6 +2014,21 @@ get_exportlist(int passno)
 
 		/* Read the export file(s) and process them */
 		read_exportfile(0);
+	}
+
+	if (strlen(v4root_dirpath) == 0) {
+		/* Check to see if a V4: line is needed. */
+		nfs_maxvers_size = sizeof(nfs_maxvers);
+		error = sysctlbyname("vfs.nfsd.server_max_nfsvers",
+		    &nfs_maxvers, &nfs_maxvers_size, NULL, 0);
+		if (error != 0 || nfs_maxvers < NFS_VER2 || nfs_maxvers >
+		    NFS_VER4) {
+			syslog(LOG_ERR, "sysctlbyname(vfs.nfsd."
+			    "server_max_nfsvers) failed, defaulting to NFSv3");
+			nfs_maxvers = NFS_VER3;
+		}
+		if (nfs_maxvers == NFS_VER4)
+			syslog(LOG_ERR, "NFSv4 requires at least one V4: line");
 	}
 
 	if (iov != NULL) {
