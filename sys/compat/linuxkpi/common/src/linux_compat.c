@@ -1913,9 +1913,15 @@ linux_timer_callback_wrapper(void *context)
 {
 	struct timer_list *timer;
 
-	linux_set_current(curthread);
-
 	timer = context;
+
+	if (linux_set_current_flags(curthread, M_NOWAIT)) {
+		/* try again later */
+		callout_reset(&timer->callout, 1,
+		    &linux_timer_callback_wrapper, timer);
+		return;
+	}
+
 	timer->function(timer->data);
 }
 
