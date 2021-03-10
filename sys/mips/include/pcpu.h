@@ -83,7 +83,6 @@ extern struct pcpu *pcpup;
 
 #define	PCPU_ADD(member, value)	(PCPUP->pc_ ## member += (value))
 #define	PCPU_GET(member)	(PCPUP->pc_ ## member)
-#define	PCPU_INC(member)	PCPU_ADD(member, 1)
 #define	PCPU_PTR(member)	(&PCPUP->pc_ ## member)
 #define	PCPU_SET(member,value)	(PCPUP->pc_ ## member = (value))
 #define PCPU_LAZY_INC(member)   (++PCPUP->pc_ ## member)

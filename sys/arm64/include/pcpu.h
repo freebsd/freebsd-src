@@ -73,7 +73,6 @@ get_curthread(void)
 
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
 #define	PCPU_ADD(member, value)	(pcpup->pc_ ## member += (value))
-#define	PCPU_INC(member)	PCPU_ADD(member, 1)
 #define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
 #define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))
 
