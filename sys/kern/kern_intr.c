@@ -758,8 +758,8 @@ intr_handler_barrier(struct intr_handler *handler)
  * Sleep until an ithread finishes executing an interrupt handler.
  *
  * XXX Doesn't currently handle interrupt filters or fast interrupt
- * handlers.  This is intended for compatibility with linux drivers
- * only.  Do not use in BSD code.
+ * handlers. This is intended for LinuxKPI drivers only.
+ * Do not use in BSD code.
  */
 void
 _intr_drain(int irq)
