@@ -735,6 +735,7 @@ ns8250_bus_ipend(struct uart_softc *sc)
 	} else {
 		if (iir & IIR_TXRDY) {
 			ipend |= SER_INT_TXIDLE;
+			ns8250->ier &= ~IER_ETXRDY;
 			uart_setreg(bas, REG_IER, ns8250->ier);
 			uart_barrier(bas);
 		} else
@@ -1032,7 +1033,9 @@ ns8250_bus_transmit(struct uart_softc *sc)
 		uart_setreg(bas, REG_DATA, sc->sc_txbuf[i]);
 		uart_barrier(bas);
 	}
-	uart_setreg(bas, REG_IER, ns8250->ier | IER_ETXRDY);
+	if (!broken_txfifo)
+		ns8250->ier |= IER_ETXRDY;
+	uart_setreg(bas, REG_IER, ns8250->ier);
 	uart_barrier(bas);
 	if (broken_txfifo)
 		ns8250_drain(bas, UART_DRAIN_TRANSMITTER);
