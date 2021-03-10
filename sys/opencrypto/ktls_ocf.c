@@ -574,7 +574,7 @@ ktls_ocf_tls13_aead_encrypt(struct ktls_session *tls,
 	if (!inplace) {
 		/* Duplicate the output iov to append the trailer. */
 		memcpy(out_iov, outiov, outiovcnt * sizeof(*out_iov));
-		out_iov[outiovcnt] = iov[outiovcnt];
+		out_iov[outiovcnt] = iov[iniovcnt];
 
 		out_uio.uio_iov = out_iov;
 		out_uio.uio_iovcnt = outiovcnt + 1;
