@@ -466,15 +466,8 @@ pf_free_rule(struct pf_krule *rule)
 		pfi_kkif_unref(rule->kif);
 	pf_kanchor_remove(rule);
 	pf_empty_kpool(&rule->rpool.list);
-	counter_u64_free(rule->evaluations);
-	for (int i = 0; i < 2; i++) {
-		counter_u64_free(rule->packets[i]);
-		counter_u64_free(rule->bytes[i]);
-	}
-	counter_u64_free(rule->states_cur);
-	counter_u64_free(rule->states_tot);
-	counter_u64_free(rule->src_nodes);
-	free(rule, M_PFRULE);
+
+	pf_krule_free(rule);
 }
 
 static void
@@ -1436,6 +1429,23 @@ pf_altq_get_nth_active(u_int32_t n)
 }
 #endif /* ALTQ */
 
+void
+pf_krule_free(struct pf_krule *rule)
+{
+	if (rule == NULL)
+		return;
+
+	counter_u64_free(rule->evaluations);
+	for (int i = 0; i < 2; i++) {
+		counter_u64_free(rule->packets[i]);
+		counter_u64_free(rule->bytes[i]);
+	}
+	counter_u64_free(rule->states_cur);
+	counter_u64_free(rule->states_tot);
+	counter_u64_free(rule->src_nodes);
+	free(rule, M_PFRULE);
+}
+
 static void
 pf_kpooladdr_to_pooladdr(const struct pf_kpooladdr *kpool,
     struct pf_pooladdr *pool)
@@ -2002,15 +2012,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #undef ERROUT
 DIOCADDRULE_error:
 		PF_RULES_WUNLOCK();
-		counter_u64_free(rule->evaluations);
-		for (int i = 0; i < 2; i++) {
-			counter_u64_free(rule->packets[i]);
-			counter_u64_free(rule->bytes[i]);
-		}
-		counter_u64_free(rule->states_cur);
-		counter_u64_free(rule->states_tot);
-		counter_u64_free(rule->src_nodes);
-		free(rule, M_PFRULE);
+		pf_krule_free(rule);
 		if (kif)
 			pf_kkif_free(kif);
 		break;
@@ -2310,17 +2312,7 @@ DIOCADDRULE_error:
 #undef ERROUT
 DIOCCHANGERULE_error:
 		PF_RULES_WUNLOCK();
-		if (newrule != NULL) {
-			counter_u64_free(newrule->evaluations);
-			for (int i = 0; i < 2; i++) {
-				counter_u64_free(newrule->packets[i]);
-				counter_u64_free(newrule->bytes[i]);
-			}
-			counter_u64_free(newrule->states_cur);
-			counter_u64_free(newrule->states_tot);
-			counter_u64_free(newrule->src_nodes);
-			free(newrule, M_PFRULE);
-		}
+		pf_krule_free(newrule);
 		if (kif != NULL)
 			pf_kkif_free(kif);
 		break;
