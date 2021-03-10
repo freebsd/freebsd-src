@@ -2001,8 +2001,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 DIOCADDRULE_error:
 		PF_RULES_WUNLOCK();
 		pf_krule_free(rule);
-		if (kif)
-			pf_kkif_free(kif);
+		pf_kkif_free(kif);
 		break;
 	}
 
@@ -2300,8 +2299,7 @@ DIOCADDRULE_error:
 DIOCCHANGERULE_error:
 		PF_RULES_WUNLOCK();
 		pf_krule_free(newrule);
-		if (kif != NULL)
-			pf_kkif_free(kif);
+		pf_kkif_free(kif);
 		break;
 	}
 
@@ -3144,8 +3142,7 @@ DIOCCHANGEADDR_error:
 			free(newpa, M_PFRULE);
 		}
 		PF_RULES_WUNLOCK();
-		if (kif != NULL)
-			pf_kkif_free(kif);
+		pf_kkif_free(kif);
 		break;
 	}
 
