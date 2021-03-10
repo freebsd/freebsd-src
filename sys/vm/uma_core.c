@@ -3171,6 +3171,11 @@ uma_zfree_pcpu_arg(uma_zone_t zone, void *pcpu_item, void *udata)
 #ifdef SMP
 	MPASS(zone->uz_flags & UMA_ZONE_PCPU);
 #endif
+
+        /* uma_zfree_pcu_*(..., NULL) does nothing, to match free(9). */
+        if (pcpu_item == NULL)
+                return;
+
 	item = zpcpu_offset_to_base(pcpu_item);
 	uma_zfree_arg(zone, item, udata);
 }
