@@ -106,7 +106,7 @@ local_unbound_poststart()
 	local retry=5
 
 	echo -n "Waiting for nameserver to start..."
-	until "${command}-control" status | grep -q "is running" ; do
+	until "${command}-control" -c "${local_unbound_config}" status | grep -q "is running" ; do
 		if [ $((retry -= 1)) -eq 0 ] ; then
 			echo " giving up"
 			return 1
