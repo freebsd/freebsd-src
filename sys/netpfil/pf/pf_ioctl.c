@@ -331,7 +331,7 @@ pfattach_vnet(void)
 	for (int i = 0; i < SCNT_MAX; i++)
 		V_pf_status.scounters[i] = counter_u64_alloc(M_WAITOK);
 
-	if (swi_add(NULL, "pf send", pf_intr, curvnet, SWI_NET,
+	if (swi_add(&V_pf_swi_ie, "pf send", pf_intr, curvnet, SWI_NET,
 	    INTR_MPSAFE, &V_pf_swi_cookie) != 0)
 		/* XXXGL: leaked all above. */
 		return;
@@ -4669,7 +4669,7 @@ pf_load(void)
 static void
 pf_unload_vnet(void)
 {
-	int error;
+	int error, ret;
 
 	V_pf_vnet_active = 0;
 	V_pf_status.running = 0;
@@ -4688,7 +4688,10 @@ pf_unload_vnet(void)
 	shutdown_pf();
 	PF_RULES_WUNLOCK();
 
-	swi_remove(V_pf_swi_cookie);
+	ret = swi_remove(V_pf_swi_cookie);
+	MPASS(ret == 0);
+	ret = intr_event_destroy(V_pf_swi_ie);
+	MPASS(ret == 0);
 
 	pf_unload_vnet_purge();
 
