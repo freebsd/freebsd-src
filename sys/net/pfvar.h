@@ -1388,6 +1388,8 @@ VNET_DECLARE(struct pf_srchash *, pf_srchash);
 
 VNET_DECLARE(void *, pf_swi_cookie);
 #define V_pf_swi_cookie	VNET(pf_swi_cookie)
+VNET_DECLARE(struct intr_event *, pf_swi_ie);
+#define	V_pf_swi_ie	VNET(pf_swi_ie)
 
 VNET_DECLARE(uint64_t, pf_stateid[MAXCPU]);
 #define	V_pf_stateid	VNET(pf_stateid)
