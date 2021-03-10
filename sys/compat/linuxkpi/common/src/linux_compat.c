@@ -2372,7 +2372,8 @@ linux_irq_handler(void *ent)
 {
 	struct irq_ent *irqe;
 
-	linux_set_current(curthread);
+	if (linux_set_current_flags(curthread, M_NOWAIT))
+		return;
 
 	irqe = ent;
 	irqe->handler(irqe->irq, irqe->arg);
