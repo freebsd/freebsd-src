@@ -624,10 +624,8 @@ cleanup:
 cleanup_state:	/* pf_state_insert() frees the state keys. */
 	if (st) {
 		for (int i = 0; i < 2; i++) {
-			if (st->packets[i] != NULL)
-				counter_u64_free(st->packets[i]);
-			if (st->bytes[i] != NULL)
-				counter_u64_free(st->bytes[i]);
+			counter_u64_free(st->packets[i]);
+			counter_u64_free(st->bytes[i]);
 		}
 		if (st->dst.scrub)
 			uma_zfree(V_pf_state_scrub_z, st->dst.scrub);
