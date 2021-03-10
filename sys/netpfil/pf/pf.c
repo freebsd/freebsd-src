@@ -707,10 +707,8 @@ pf_free_src_node(struct pf_ksrc_node *sn)
 {
 
 	for (int i = 0; i < 2; i++) {
-		if (sn->bytes[i])
-			counter_u64_free(sn->bytes[i]);
-		if (sn->packets[i])
-			counter_u64_free(sn->packets[i]);
+		counter_u64_free(sn->bytes[i]);
+		counter_u64_free(sn->packets[i]);
 	}
 	uma_zfree(V_pf_sources_z, sn);
 }
@@ -1737,10 +1735,8 @@ pf_free_state(struct pf_state *cur)
 	    cur->timeout));
 
 	for (int i = 0; i < 2; i++) {
-		if (cur->bytes[i] != NULL)
-			counter_u64_free(cur->bytes[i]);
-		if (cur->packets[i] != NULL)
-			counter_u64_free(cur->packets[i]);
+		counter_u64_free(cur->bytes[i]);
+		counter_u64_free(cur->packets[i]);
 	}
 
 	pf_normalize_tcp_cleanup(cur);

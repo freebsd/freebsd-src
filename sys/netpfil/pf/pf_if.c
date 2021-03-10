@@ -232,10 +232,8 @@ pf_kkif_free(struct pfi_kkif *kif)
 	for (int i = 0; i < 2; i++) {
 		for (int j = 0; j < 2; j++) {
 			for (int k = 0; k < 2; k++) {
-				if (kif->pfik_packets[i][j][k])
-					counter_u64_free(kif->pfik_packets[i][j][k]);
-				if (kif->pfik_bytes[i][j][k])
-					counter_u64_free(kif->pfik_bytes[i][j][k]);
+				counter_u64_free(kif->pfik_packets[i][j][k]);
+				counter_u64_free(kif->pfik_bytes[i][j][k]);
 			}
 		}
 	}
