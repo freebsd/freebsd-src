@@ -17,21 +17,21 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # kernel where fixing them is more trouble than it is worth, or where there is
 # a false positive.
 .if ${COMPILER_TYPE} == "clang"
-NO_WCONSTANT_CONVERSION=	-Wno-error-constant-conversion
+NO_WCONSTANT_CONVERSION=	-Wno-error=constant-conversion
 NO_WSHIFT_COUNT_NEGATIVE=	-Wno-shift-count-negative
 NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
 NO_WSELF_ASSIGN=		-Wno-self-assign
-NO_WUNNEEDED_INTERNAL_DECL=	-Wno-error-unneeded-internal-declaration
-NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
-NO_WCAST_QUAL=			-Wno-error-cast-qual
+NO_WUNNEEDED_INTERNAL_DECL=	-Wno-error=unneeded-internal-declaration
+NO_WSOMETIMES_UNINITIALIZED=	-Wno-error=sometimes-uninitialized
+NO_WCAST_QUAL=			-Wno-error=cast-qual
 NO_WTAUTOLOGICAL_POINTER_COMPARE= -Wno-tautological-pointer-compare
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
-CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
-		-Wno-error-parentheses-equality -Wno-error-unused-function \
-		-Wno-error-pointer-sign
-CWARNEXTRA+=	-Wno-error-shift-negative-value
+CWARNEXTRA?=	-Wno-error=tautological-compare -Wno-error=empty-body \
+		-Wno-error=parentheses-equality -Wno-error=unused-function \
+		-Wno-error=pointer-sign
+CWARNEXTRA+=	-Wno-error=shift-negative-value
 CWARNEXTRA+=	-Wno-address-of-packed-member
 .if ${COMPILER_VERSION} >= 100000
 NO_WMISLEADING_INDENTATION=	-Wno-misleading-indentation
