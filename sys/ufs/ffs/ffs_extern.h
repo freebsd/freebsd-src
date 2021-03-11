@@ -124,10 +124,12 @@ int	ffs_breadz(struct ufsmount *, struct vnode *, daddr_t, daddr_t, int,
 /*
  * Flags to ffs_vgetf
  */
-#define	FFSV_FORCEINSMQ		0x0001
-#define	FFSV_REPLACE		0x0002
-#define	FFSV_REPLACE_DOOMED	0x0004
-#define	FFSV_FORCEINODEDEP	0x0008
+#define	FFSV_FORCEINSMQ		0x0001	/* Force insertion into mount list */
+#define	FFSV_REPLACE		0x0002	/* Replace existing vnode */
+#define	FFSV_REPLACE_DOOMED	0x0004	/* Replace existing vnode if it is
+					   doomed */
+#define	FFSV_FORCEINODEDEP	0x0008	/* Force allocation of inodedep, ignore
+					   MNT_SOFTDEP */
 
 /*
  * Flags to ffs_reload
