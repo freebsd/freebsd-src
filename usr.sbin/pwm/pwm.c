@@ -48,6 +48,7 @@
 #define	PWM_SHOW_CONFIG	0x0004
 #define	PWM_PERIOD	0x0008
 #define	PWM_DUTY	0x0010
+#define	PWM_INVERTED	0x0020
 
 static char device_name[PATH_MAX] = "/dev/pwm/pwmc0.0";
 
@@ -66,7 +67,7 @@ usage(void)
 {
 	fprintf(stderr, "Usage:\n");
 	fprintf(stderr, "\tpwm [-f dev] -C\n");
-	fprintf(stderr, "\tpwm [-f dev] [-D | -E] [-p period] [-d duty[%%]]\n");
+	fprintf(stderr, "\tpwm [-f dev] [-D | -E] [-I] [-p period] [-d duty[%%]]\n");
 	exit(1);
 }
 
@@ -87,7 +88,7 @@ main(int argc, char *argv[])
 	fd = -1;
 	period = duty = -1;
 
-	while ((ch = getopt(argc, argv, "f:EDCp:d:")) != -1) {
+	while ((ch = getopt(argc, argv, "f:EDCIp:d:")) != -1) {
 		switch (ch) {
 		case 'E':
 			if (action & (PWM_DISABLE | PWM_SHOW_CONFIG))
@@ -103,6 +104,11 @@ main(int argc, char *argv[])
 			if (action)
 				usage();
 			action = PWM_SHOW_CONFIG;
+			break;
+		case 'I':
+			if (action & PWM_SHOW_CONFIG)
+				usage();
+			action |= PWM_INVERTED;
 			break;
 		case 'p':
 			if (action & PWM_SHOW_CONFIG)
@@ -172,10 +178,11 @@ main(int argc, char *argv[])
 	}
 
 	if (action == PWM_SHOW_CONFIG) {
-		printf("period: %u\nduty: %u\nenabled:%d\n",
+		printf("period: %u\nduty: %u\nenabled:%d\ninverted:%d\n",
 		    state.period,
 		    state.duty,
-		    state.enable);
+		    state.enable,
+		    state.flags & PWM_POLARITY_INVERTED);
 	} else {
 		if (action & PWM_ENABLE)
 			state.enable = true;
@@ -183,6 +190,10 @@ main(int argc, char *argv[])
 			state.enable = false;
 		if (action & PWM_PERIOD)
 			state.period = period;
+		if (action & PWM_INVERTED)
+			state.flags |= PWM_POLARITY_INVERTED;
+		else
+			state.flags &= ~PWM_POLARITY_INVERTED;
 		if (action & PWM_DUTY) {
 			if (*percent != '\0')
 				state.duty = (uint64_t)state.period * duty / 100;
