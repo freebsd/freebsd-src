@@ -1466,6 +1466,39 @@ pf_pooladdr_to_kpooladdr(const struct pf_pooladdr *pool,
 }
 
 static void
+pf_kpool_to_pool(const struct pf_kpool *kpool, struct pf_pool *pool)
+{
+	bzero(pool, sizeof(*pool));
+
+	bcopy(&kpool->key, &pool->key, sizeof(pool->key));
+	bcopy(&kpool->counter, &pool->counter, sizeof(pool->counter));
+
+	pool->tblidx = kpool->tblidx;
+	pool->proxy_port[0] = kpool->proxy_port[0];
+	pool->proxy_port[1] = kpool->proxy_port[1];
+	pool->opts = kpool->opts;
+}
+
+static int
+pf_pool_to_kpool(const struct pf_pool *pool, struct pf_kpool *kpool)
+{
+	_Static_assert(sizeof(pool->key) == sizeof(kpool->key), "");
+	_Static_assert(sizeof(pool->counter) == sizeof(kpool->counter), "");
+
+	bzero(kpool, sizeof(*kpool));
+
+	bcopy(&pool->key, &kpool->key, sizeof(kpool->key));
+	bcopy(&pool->counter, &kpool->counter, sizeof(kpool->counter));
+
+	kpool->tblidx = pool->tblidx;
+	kpool->proxy_port[0] = pool->proxy_port[0];
+	kpool->proxy_port[1] = pool->proxy_port[1];
+	kpool->opts = pool->opts;
+
+	return (0);
+}
+
+static void
 pf_krule_to_rule(const struct pf_krule *krule, struct pf_rule *rule)
 {
 
@@ -1491,7 +1524,7 @@ pf_krule_to_rule(const struct pf_krule *krule, struct pf_rule *rule)
 	strlcpy(rule->overload_tblname, krule->overload_tblname,
 	    sizeof(rule->overload_tblname));
 
-	bcopy(&krule->rpool, &rule->rpool, sizeof(krule->rpool));
+	pf_kpool_to_pool(&krule->rpool, &rule->rpool);
 
 	rule->evaluations = counter_u64_fetch(krule->evaluations);
 	for (int i = 0; i < 2; i++) {
@@ -1628,7 +1661,9 @@ pf_rule_to_krule(const struct pf_rule *rule, struct pf_krule *krule)
 	strlcpy(krule->overload_tblname, rule->overload_tblname,
 	    sizeof(rule->overload_tblname));
 
-	bcopy(&rule->rpool, &krule->rpool, sizeof(krule->rpool));
+	ret = pf_pool_to_kpool(&rule->rpool, &krule->rpool);
+	if (ret != 0)
+		return (ret);
 
 	/* Don't allow userspace to set evaulations, packets or bytes. */
 	/* kif, anchor, overload_tbl are not copied over. */
