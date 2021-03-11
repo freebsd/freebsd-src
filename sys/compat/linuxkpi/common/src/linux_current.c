@@ -48,15 +48,35 @@ static eventhandler_tag linuxkpi_thread_dtor_tag;
 static uma_zone_t linux_current_zone;
 static uma_zone_t linux_mm_zone;
 
+/* check if another thread already has a mm_struct */
+static struct mm_struct *
+find_other_mm(struct proc *p)
+{
+	struct thread *td;
+	struct task_struct *ts;
+	struct mm_struct *mm;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	FOREACH_THREAD_IN_PROC(p, td) {
+		ts = td->td_lkpi_task;
+		if (ts == NULL)
+			continue;
+		mm = ts->mm;
+		if (mm == NULL)
+			continue;
+		/* try to share other mm_struct */
+		if (atomic_inc_not_zero(&mm->mm_users))
+			return (mm);
+	}
+	return (NULL);
+}
+
 int
 linux_alloc_current(struct thread *td, int flags)
 {
 	struct proc *proc;
-	struct thread *td_other;
 	struct task_struct *ts;
-	struct task_struct *ts_other;
-	struct mm_struct *mm;
-	struct mm_struct *mm_other;
+	struct mm_struct *mm, *mm_other;
 
 	MPASS(td->td_lkpi_task == NULL);
 
@@ -71,14 +91,7 @@ linux_alloc_current(struct thread *td, int flags)
 			panic("linux_alloc_current: failed to allocate task");
 		return (ENOMEM);
 	}
-
-	mm = uma_zalloc(linux_mm_zone, flags | M_ZERO);
-	if (mm == NULL) {
-		if ((flags & (M_WAITOK | M_NOWAIT)) == M_WAITOK)
-			panic("linux_alloc_current: failed to allocate mm");
-		uma_zfree(linux_current_zone, mm);
-		return (ENOMEM);
-	}
+	mm = NULL;
 
 	/* setup new task structure */
 	atomic_set(&ts->kthread_flags, 0);
@@ -93,35 +106,37 @@ linux_alloc_current(struct thread *td, int flags)
 
 	proc = td->td_proc;
 
-	/* check if another thread already has a mm_struct */
 	PROC_LOCK(proc);
-	FOREACH_THREAD_IN_PROC(proc, td_other) {
-		ts_other = td_other->td_lkpi_task;
-		if (ts_other == NULL)
-			continue;
-
-		mm_other = ts_other->mm;
-		if (mm_other == NULL)
-			continue;
-
-		/* try to share other mm_struct */
-		if (atomic_inc_not_zero(&mm_other->mm_users)) {
-			/* set mm_struct pointer */
-			ts->mm = mm_other;
-			break;
-		}
-	}
+	mm_other = find_other_mm(proc);
 
 	/* use allocated mm_struct as a fallback */
-	if (ts->mm == NULL) {
-		/* setup new mm_struct */
-		init_rwsem(&mm->mmap_sem);
-		atomic_set(&mm->mm_count, 1);
-		atomic_set(&mm->mm_users, 1);
-		/* set mm_struct pointer */
-		ts->mm = mm;
-		/* clear pointer to not free memory */
-		mm = NULL;
+	if (mm_other == NULL) {
+		PROC_UNLOCK(proc);
+		mm = uma_zalloc(linux_mm_zone, flags | M_ZERO);
+		if (mm == NULL) {
+			if ((flags & (M_WAITOK | M_NOWAIT)) == M_WAITOK)
+				panic(
+			    "linux_alloc_current: failed to allocate mm");
+			uma_zfree(linux_current_zone, mm);
+			return (ENOMEM);
+		}
+
+		PROC_LOCK(proc);
+		mm_other = find_other_mm(proc);
+		if (mm_other == NULL) {
+			/* setup new mm_struct */
+			init_rwsem(&mm->mmap_sem);
+			atomic_set(&mm->mm_count, 1);
+			atomic_set(&mm->mm_users, 1);
+			/* set mm_struct pointer */
+			ts->mm = mm;
+			/* clear pointer to not free memory */
+			mm = NULL;
+		} else {
+			ts->mm = mm_other;
+		}
+	} else {
+		ts->mm = mm_other;
 	}
 
 	/* store pointer to task struct */
