@@ -1134,7 +1134,6 @@ nvme_ctrlr_start_config_hook(void *arg)
 fail:
 		nvme_ctrlr_fail(ctrlr);
 		config_intrhook_disestablish(&ctrlr->config_hook);
-		ctrlr->config_hook.ich_arg = NULL;
 		return;
 	}
 
@@ -1153,7 +1152,6 @@ fail:
 
 	nvme_sysctl_initialize_ctrlr(ctrlr);
 	config_intrhook_disestablish(&ctrlr->config_hook);
-	ctrlr->config_hook.ich_arg = NULL;
 
 	ctrlr->is_initialized = 1;
 	nvme_notify_new_controller(ctrlr);
