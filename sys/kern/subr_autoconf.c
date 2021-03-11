@@ -138,6 +138,7 @@ run_interrupt_driven_config_hooks()
 	while (next_to_notify != NULL) {
 		hook_entry = next_to_notify;
 		next_to_notify = STAILQ_NEXT(hook_entry, ich_links);
+		hook_entry->ich_state = ICHS_RUNNING;
 		mtx_unlock(&intr_config_hook_lock);
 		(*hook_entry->ich_func)(hook_entry->ich_arg);
 		mtx_lock(&intr_config_hook_lock);
@@ -199,6 +200,7 @@ config_intrhook_establish(struct intr_config_hook *hook)
 	STAILQ_INSERT_TAIL(&intr_config_hook_list, hook, ich_links);
 	if (next_to_notify == NULL)
 		next_to_notify = hook;
+	hook->ich_state = ICHS_QUEUED;
 	mtx_unlock(&intr_config_hook_lock);
 	if (cold == 0)
 		/*
@@ -226,12 +228,11 @@ config_intrhook_oneshot(ich_func_t func, void *arg)
 	config_intrhook_establish(&ohook->och_hook);
 }
 
-void
-config_intrhook_disestablish(struct intr_config_hook *hook)
+static void
+config_intrhook_disestablish_locked(struct intr_config_hook *hook)
 {
 	struct intr_config_hook *hook_entry;
 
-	mtx_lock(&intr_config_hook_lock);
 	STAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links)
 		if (hook_entry == hook)
 			break;
@@ -245,8 +246,51 @@ config_intrhook_disestablish(struct intr_config_hook *hook)
 	TSRELEASE("config hooks");
 
 	/* Wakeup anyone watching the list */
+	hook->ich_state = ICHS_DONE;
 	wakeup(&intr_config_hook_list);
+}
+
+void
+config_intrhook_disestablish(struct intr_config_hook *hook)
+{
+	mtx_lock(&intr_config_hook_lock);
+	config_intrhook_disestablish_locked(hook);
 	mtx_unlock(&intr_config_hook_lock);
+}
+
+int
+config_intrhook_drain(struct intr_config_hook *hook)
+{
+	mtx_lock(&intr_config_hook_lock);
+
+	/*
+	 * The config hook has completed, so just return.
+	 */
+	if (hook->ich_state == ICHS_DONE) {
+		mtx_unlock(&intr_config_hook_lock);
+		return (ICHS_DONE);
+	}
+
+	/*
+	 * The config hook hasn't started running, just call disestablish.
+	 */
+	if (hook->ich_state == ICHS_QUEUED) {
+		config_intrhook_disestablish_locked(hook);
+		mtx_unlock(&intr_config_hook_lock);
+		return (ICHS_QUEUED);
+	}
+
+	/*
+	 * The config hook is running, so wait for it to complete and return.
+	 */
+	while (hook->ich_state != ICHS_DONE) {
+		if (msleep(&intr_config_hook_list, &intr_config_hook_lock,
+		    0, "confhd", hz) == EWOULDBLOCK) {
+			// XXX do I whine?
+		}
+	}
+	mtx_unlock(&intr_config_hook_lock);
+	return (ICHS_RUNNING);
 }
 
 #ifdef DDB
