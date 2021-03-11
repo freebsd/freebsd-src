@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2020
+.Dd March 11, 2021
 .Dt COUNTER 9
 .Os
 .Sh NAME
@@ -98,10 +98,13 @@ or
 .Va M_WAITOK .
 If
 .Va M_NOWAIT
-is specified the operation may fail.
+is specified the operation may fail and return
+.Dv NULL .
 .It Fn counter_u64_free c
 Free the previously allocated counter
 .Fa c .
+It is safe to pass
+.Dv NULL .
 .It Fn counter_u64_add c v
 Add
 .Fa v
