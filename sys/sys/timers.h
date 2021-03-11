@@ -82,6 +82,7 @@ struct itimer {
 
 #define	ITF_DELETING	0x01
 #define	ITF_WANTED	0x02
+#define	ITF_PSTOPPED	0x04
 
 #define	ITCF_ONWORKLIST	0x01
 
