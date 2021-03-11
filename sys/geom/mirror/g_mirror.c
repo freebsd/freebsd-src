@@ -115,6 +115,7 @@ static int g_mirror_update_disk(struct g_mirror_disk *disk, u_int state);
 static void g_mirror_update_device(struct g_mirror_softc *sc, bool force);
 static void g_mirror_dumpconf(struct sbuf *sb, const char *indent,
     struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp);
+static void g_mirror_timeout_drain(struct g_mirror_softc *sc);
 static int g_mirror_refresh_device(struct g_mirror_softc *sc,
     const struct g_provider *pp, const struct g_mirror_metadata *md);
 static void g_mirror_sync_reinit(const struct g_mirror_disk *disk,
@@ -183,15 +184,14 @@ g_mirror_event_free(struct g_mirror_event *ep)
 	free(ep, M_MIRROR);
 }
 
-int
-g_mirror_event_send(void *arg, int state, int flags)
+static int
+g_mirror_event_dispatch(struct g_mirror_event *ep, void *arg, int state,
+    int flags)
 {
 	struct g_mirror_softc *sc;
 	struct g_mirror_disk *disk;
-	struct g_mirror_event *ep;
 	int error;
 
-	ep = malloc(sizeof(*ep), M_MIRROR, M_WAITOK);
 	G_MIRROR_DEBUG(4, "%s: Sending event %p.", __func__, ep);
 	if ((flags & G_MIRROR_EVENT_DEVICE) != 0) {
 		disk = NULL;
@@ -224,6 +224,15 @@ g_mirror_event_send(void *arg, int state, int flags)
 	g_mirror_event_free(ep);
 	sx_xlock(&sc->sc_lock);
 	return (error);
+}
+
+int
+g_mirror_event_send(void *arg, int state, int flags)
+{
+	struct g_mirror_event *ep;
+
+	ep = malloc(sizeof(*ep), M_MIRROR, M_WAITOK);
+	return (g_mirror_event_dispatch(ep, arg, state, flags));
 }
 
 static struct g_mirror_event *
@@ -582,7 +591,7 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 			mtx_unlock(&sc->sc_events_mtx);
 		}
 	}
-	callout_drain(&sc->sc_callout);
+	g_mirror_timeout_drain(sc);
 
 	g_topology_lock();
 	LIST_FOREACH_SAFE(cp, &sc->sc_sync.ds_geom->consumer, consumer, tmpcp) {
@@ -2291,11 +2300,24 @@ static void
 g_mirror_go(void *arg)
 {
 	struct g_mirror_softc *sc;
+	struct g_mirror_event *ep;
 
 	sc = arg;
 	G_MIRROR_DEBUG(0, "Force device %s start due to timeout.", sc->sc_name);
-	g_mirror_event_send(sc, 0,
+	ep = sc->sc_timeout_event;
+	sc->sc_timeout_event = NULL;
+	g_mirror_event_dispatch(ep, sc, 0,
 	    G_MIRROR_EVENT_DONTWAIT | G_MIRROR_EVENT_DEVICE);
+}
+
+static void
+g_mirror_timeout_drain(struct g_mirror_softc *sc)
+{
+	sx_assert(&sc->sc_lock, SX_XLOCKED);
+
+	callout_drain(&sc->sc_callout);
+	g_mirror_event_free(sc->sc_timeout_event);
+	sc->sc_timeout_event = NULL;
 }
 
 static u_int
@@ -2454,7 +2476,7 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 			 * Disks went down in starting phase, so destroy
 			 * device.
 			 */
-			callout_drain(&sc->sc_callout);
+			g_mirror_timeout_drain(sc);
 			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
 			G_MIRROR_DEBUG(1, "root_mount_rel[%u] %p", __LINE__,
 			    sc->sc_rootmount);
@@ -2491,7 +2513,7 @@ g_mirror_update_device(struct g_mirror_softc *sc, bool force)
 			}
 		} else {
 			/* Cancel timeout. */
-			callout_drain(&sc->sc_callout);
+			g_mirror_timeout_drain(sc);
 		}
 
 		/*
@@ -3153,10 +3175,13 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md,
 
 	sc->sc_rootmount = root_mount_hold("GMIRROR");
 	G_MIRROR_DEBUG(1, "root_mount_hold %p", sc->sc_rootmount);
+
 	/*
-	 * Run timeout.
+	 * Schedule startup timeout.
 	 */
 	timeout = g_mirror_timeout * hz;
+	sc->sc_timeout_event = malloc(sizeof(struct g_mirror_event), M_MIRROR,
+	    M_WAITOK);
 	callout_reset(&sc->sc_callout, timeout, g_mirror_go, sc);
 	return (sc->sc_geom);
 }
