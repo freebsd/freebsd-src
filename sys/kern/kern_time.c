@@ -895,6 +895,8 @@ void
 itimer_proc_continue(struct proc *p)
 {
 	struct timeval ctv;
+	struct itimer *it;
+	int id;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
@@ -905,6 +907,23 @@ itimer_proc_continue(struct proc *p)
 			realitexpire(p);
 		else
 			realitexpire_reset_callout(p, NULL);
+	}
+
+	if (p->p_itimers != NULL) {
+		for (id = 3; id < TIMER_MAX; id++) {
+			it = p->p_itimers->its_timers[id];
+			if (it == NULL)
+				continue;
+			if ((it->it_flags & ITF_PSTOPPED) != 0) {
+				ITIMER_LOCK(it);
+				if ((it->it_flags & ITF_PSTOPPED) != 0) {
+					it->it_flags &= ~ITF_PSTOPPED;
+					if ((it->it_flags & ITF_DELETING) == 0)
+						realtimer_expire(it);
+				}
+				ITIMER_UNLOCK(it);
+			}
+		}
 	}
 }
 
@@ -1651,6 +1670,7 @@ realtimer_expire(void *arg)
 	struct timespec cts, ts;
 	struct timeval tv;
 	struct itimer *it;
+	struct proc *p;
 	uint64_t interval, now, overruns, value;
 
 	it = (struct itimer *)arg;
@@ -1689,10 +1709,15 @@ realtimer_expire(void *arg)
 			timespecclear(&it->it_time.it_value);
 		}
 		if (timespecisset(&it->it_time.it_value)) {
-			timespecsub(&it->it_time.it_value, &cts, &ts);
-			TIMESPEC_TO_TIMEVAL(&tv, &ts);
-			callout_reset(&it->it_callout, tvtohz(&tv),
-			    realtimer_expire, it);
+			p = it->it_proc;
+			if (P_SHOULDSTOP(p) || P_KILLED(p)) {
+				it->it_flags |= ITF_PSTOPPED;
+			} else {
+				timespecsub(&it->it_time.it_value, &cts, &ts);
+				TIMESPEC_TO_TIMEVAL(&tv, &ts);
+				callout_reset(&it->it_callout, tvtohz(&tv),
+				    realtimer_expire, it);
+			}
 		}
 		itimer_enter(it);
 		ITIMER_UNLOCK(it);
@@ -1700,11 +1725,16 @@ realtimer_expire(void *arg)
 		ITIMER_LOCK(it);
 		itimer_leave(it);
 	} else if (timespecisset(&it->it_time.it_value)) {
-		ts = it->it_time.it_value;
-		timespecsub(&ts, &cts, &ts);
-		TIMESPEC_TO_TIMEVAL(&tv, &ts);
-		callout_reset(&it->it_callout, tvtohz(&tv), realtimer_expire,
-		    it);
+		p = it->it_proc;
+		if (P_SHOULDSTOP(p) || P_KILLED(p)) {
+			it->it_flags |= ITF_PSTOPPED;
+		} else {
+			ts = it->it_time.it_value;
+			timespecsub(&ts, &cts, &ts);
+			TIMESPEC_TO_TIMEVAL(&tv, &ts);
+			callout_reset(&it->it_callout, tvtohz(&tv),
+			    realtimer_expire, it);
+		}
 	}
 }
 
