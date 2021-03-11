@@ -35,6 +35,7 @@
 .Nm
 .Op Fl f Ar device
 .Op Fl D | Fl E
+.Op Fl I
 .Op Fl p Ar period
 .Op Fl d Ar duty
 .Sh DESCRIPTION
@@ -82,6 +83,8 @@ during which the signal is asserted.
 Enable the PWM channel.
 .It Fl p Ar period
 Configure the period (in nanoseconds) of the PWM channel.
+.It Fl I
+Invert PWM signal polarity
 .El
 .Sh EXAMPLES
 .Bl -bullet
