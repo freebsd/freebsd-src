@@ -187,6 +187,12 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 #define	PF_TABLE_NAME_SIZE	32
 #define	PF_QNAME_SIZE		64
 
+struct pfioc_nv {
+	void            *data;
+	size_t           len;   /* The length of the nvlist data. */
+	size_t           size;  /* The total size of the data buffer. */
+};
+
 struct pf_rule;
 
 /* keep synced with pfi_kif, used in RB_FIND */
