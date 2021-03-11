@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 20, 2020
+.Dd March 11, 2021
 .Dt UMA 9
 .Os
 .Sh NAME
@@ -385,6 +385,22 @@ specify an argument for the
 and
 .Dv dtor
 functions of the zone, respectively.
+The variants
+.Fn uma_zalloc_pcpu
+and
+.Fn uma_zfree_pcpu
+allocate and free
+.Va mp_ncpu
+shadow copies as described for
+.Dv UMA_ZONE_PCPU .
+If
+.Fa item
+is
+.Dv NULL ,
+then
+.Fn uma_zfree_pcpu
+does nothing.
+.Pp
 The
 .Fn uma_zalloc_domain
 function allows callers to specify a fixed
