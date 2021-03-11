@@ -219,10 +219,12 @@ typedef	__pid_t		pid_t;
 #define	AT_SYMLINK_NOFOLLOW	0x0200	/* Do not follow symbolic links */
 #define	AT_SYMLINK_FOLLOW	0x0400	/* Follow symbolic link */
 #define	AT_REMOVEDIR		0x0800	/* Remove directory instead of file */
+#endif	/* __POSIX_VISIBLE >= 200809 */
+#if __BSD_VISIBLE
 /* #define AT_UNUSED1		0x1000 *//* Was AT_BENEATH */
 #define	AT_RESOLVE_BENEATH	0x2000	/* Do not allow name resolution
 					   to walk out of dirfd */
-#endif
+#endif	/* __BSD_VISIBLE */
 
 /*
  * Constants used for fcntl(2)
