@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 10, 2017
+.Dd March 8, 2021
 .Dt CONFIG_INTRHOOK 9
 .Os
 .Sh NAME
@@ -40,6 +40,8 @@ but before root is mounted
 .Fn config_intrhook_establish "struct intr_config_hook *hook"
 .Ft void
 .Fn config_intrhook_disestablish "struct intr_config_hook *hook"
+.Ft int
+.Fn config_intrhook_drain "struct intr_config_hook *hook"
 .Ft void
 .Fn config_intrhook_oneshot "ich_func_t func" "void *arg"
 .Sh DESCRIPTION
@@ -53,6 +55,23 @@ the function is called immediately.
 The
 .Fn config_intrhook_disestablish
 function removes the entry from the hook queue.
+.Pp
+The
+.Fn config_intrhook_drain
+function removes the entry from the hook queue in a safe way.
+If the hook is not currently active it removes
+.Fa hook
+from the hook queue and returns
+.Vt ICHS_QUEUED .
+If the hook is active, it waits for the hook to complete before returning
+.Vt ICHS_RUNNING .
+If the hook has previously completed, it returns
+.Vt ICHS_DONE .
+Because a
+.Vt config_intrhook
+is undefined prior to
+.Fn config_intrhook_establish ,
+this function may only be called after that function has returned.
 .Pp
 The
 .Fn config_intrhook_oneshot
