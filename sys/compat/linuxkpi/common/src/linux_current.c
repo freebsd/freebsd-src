@@ -236,7 +236,8 @@ linux_current_init(void *arg __unused)
 	linuxkpi_thread_dtor_tag = EVENTHANDLER_REGISTER(thread_dtor,
 	    linuxkpi_thread_dtor, NULL, EVENTHANDLER_PRI_ANY);
 }
-SYSINIT(linux_current, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND, linux_current_init, NULL);
+SYSINIT(linux_current, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND,
+    linux_current_init, NULL);
 
 static void
 linux_current_uninit(void *arg __unused)
@@ -260,4 +261,5 @@ linux_current_uninit(void *arg __unused)
 	EVENTHANDLER_DEREGISTER(thread_dtor, linuxkpi_thread_dtor_tag);
 	lkpi_alloc_current = linux_alloc_current_noop;
 }
-SYSUNINIT(linux_current, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND, linux_current_uninit, NULL);
+SYSUNINIT(linux_current, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND,
+    linux_current_uninit, NULL);
