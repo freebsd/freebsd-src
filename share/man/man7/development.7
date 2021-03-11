@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2020
+.Dd March 11, 2021
 .Dt DEVELOPMENT 7
 .Os
 .Sh NAME
@@ -58,17 +58,25 @@ can be found at:
 .Lk https://www.FreeBSD.org/doc/en/articles/committers-guide/
 .Pp
 .Fx
-src development takes place in the CURRENT branch in Subversion,
-located at:
+src development takes place in the project-hosted
+Git repository, located at:
 .Pp
-.Lk https://svn.FreeBSD.org/base/head
+.Lk https://git.FreeBSD.org/src.git
 .Pp
-There is also a read-only GitHub mirror at:
+The push URL is:
 .Pp
-.Lk https://github.com/freebsd/freebsd
+.Lk ssh://git@gitrepo.FreeBSD.org/src.git
 .Pp
-Changes are first committed to CURRENT and then usually merged back
-to STABLE.
+There is also a public, read-only GitHub mirror at:
+.Pp
+.Lk https://github.com/freebsd/freebsd-src
+.Pp
+The
+.Ql main
+Git branch represents CURRENT;
+all changes are first committed to CURRENT and then usually cherry-picked
+back to STABLE, which refers to Git branches such as
+.Ql stable/13 .
 Every few years the CURRENT branch is renamed to STABLE, and a new
 CURRENT is branched, with an incremented major version number.
 Releases are then branched off STABLE and numbered with consecutive minor
@@ -114,7 +122,7 @@ the continuous integration system is at:
 Check out the CURRENT branch, build it, and install, overwriting the current
 system:
 .Bd -literal -offset indent
-svnlite co https://svn.FreeBSD.org/base/head src
+git clone https://git.FreeBSD.org/src.git src
 cd src
 make -sj8 buildworld buildkernel installkernel
 shutdown -r now
@@ -166,7 +174,7 @@ make buildenv TARGET_ARCH=armv6
 make -sj8 kernel KERNFAST=1 DESTDIR=/clients/arm
 .Ed
 .Sh SEE ALSO
-.Xr svnlite 1 ,
+.Xr git 1 ,
 .Xr witness 4 ,
 .Xr build 7 ,
 .Xr hier 7 ,
