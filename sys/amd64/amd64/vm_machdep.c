@@ -564,16 +564,18 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 
 	pcb2 = td->td_pcb;
 
+	/* Ensure that td0's pcb is up to date. */
+	fpuexit(td0);
+	if (td0 == curthread)
+		update_pcb_bases(td0->td_pcb);
+
 	/*
 	 * Copy the upcall pcb.  This loads kernel regs.
 	 * Those not loaded individually below get their default
 	 * values here.
 	 */
-	if (td0 == curthread)
-		update_pcb_bases(td0->td_pcb);
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-	clear_pcb_flags(pcb2, PCB_FPUINITDONE | PCB_USERFPUINITDONE |
-	    PCB_KERNFPU);
+	clear_pcb_flags(pcb2, PCB_KERNFPU);
 	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
 	bcopy(get_pcb_user_save_td(td0), pcb2->pcb_save,
 	    cpu_max_ext_state_size);
