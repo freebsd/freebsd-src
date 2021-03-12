@@ -428,14 +428,21 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	/* Point the pcb to the top of the stack. */
 	pcb2 = td->td_pcb;
 
+	/* Ensure that td0's pcb is up to date. */
+	if (td0 == curthread)
+		td0->td_pcb->pcb_gs = rgs();
+	critical_enter();
+	if (PCPU_GET(fpcurthread) == td0)
+		npxsave(td0->td_pcb->pcb_save);
+	critical_exit();
+
 	/*
 	 * Copy the upcall pcb.  This loads kernel regs.
 	 * Those not loaded individually below get their default
 	 * values here.
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-	pcb2->pcb_flags &= ~(PCB_NPXINITDONE | PCB_NPXUSERINITDONE |
-	    PCB_KERNNPX);
+	pcb2->pcb_flags &= ~PCB_KERNNPX;
 	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
 	bcopy(get_pcb_user_save_td(td0), pcb2->pcb_save,
 	    cpu_max_ext_state_size);
@@ -463,7 +470,6 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	pcb2->pcb_esp = (int)td->td_frame - sizeof(void *); /* trampoline arg */
 	pcb2->pcb_ebx = (int)td;			    /* trampoline arg */
 	pcb2->pcb_eip = (int)fork_trampoline + setidt_disp;
-	pcb2->pcb_gs = rgs();
 	/*
 	 * If we didn't copy the pcb, we'd need to do the following registers:
 	 * pcb2->pcb_cr3:	cloned above.
