@@ -198,7 +198,6 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	bcopy(&p1->p_md, mdp2, sizeof(*mdp2));
 
 	/*
-	 * Create a new fresh stack for the new process.
 	 * Copy the trap frame for the return to user mode as if from a
 	 * syscall.  This copies most of the user mode register values.
 	 */
@@ -606,7 +605,10 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 
 
 	/*
-	 * Create a new fresh stack for the new thread.
+	 * Copy user general-purpose registers.
+	 *
+	 * Some of these registers are rewritten by cpu_set_upcall()
+	 * and linux_set_upcall_kse().
 	 */
 	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
 
