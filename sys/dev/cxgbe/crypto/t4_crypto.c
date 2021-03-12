@@ -2153,7 +2153,15 @@ ccr_init_port(struct ccr_softc *sc, int port)
 	sc->ports[port].stats_completed = counter_u64_alloc(M_WAITOK);
 	_Static_assert(sizeof(sc->port_mask) * NBBY >= MAX_NPORTS - 1,
 	    "Too many ports to fit in port_mask");
-	sc->port_mask |= 1u << port;
+
+	/*
+	 * Completions for crypto requests on port 1 can sometimes
+	 * return a stale cookie value due to a firmware bug.  Disable
+	 * requests on port 1 by default on affected firmware.
+	 */
+	if (sc->adapter->params.fw_vers >= FW_VERSION32(1, 25, 4, 0) ||
+	    port == 0)
+		sc->port_mask |= 1u << port;
 }
 
 static int
