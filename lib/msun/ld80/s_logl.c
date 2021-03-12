@@ -674,14 +674,14 @@ logl(long double x)
 	RETURNSPI(&r);
 }
 
-static const double
-invln10_hi =  4.3429448190317999e-1,		/*  0x1bcb7b1526e000.0p-54 */
-invln10_lo =  7.1842412889749798e-14,		/*  0x1438ca9aadd558.0p-96 */
-invln10_lo_plus_hi = invln10_lo + invln10_hi,
-invln2_hi =  1.4426950408887933e0,		/*  0x171547652b8000.0p-52 */
-invln2_lo =  1.7010652264631490e-13,		/*  0x17f0bbbe87fed0.0p-95 */
-invln2_lo_plus_hi = invln2_lo + invln2_hi;
-
+/* Use macros since GCC < 8 rejects static const expressions in initializers. */
+#define	invln10_hi	4.3429448190317999e-1	/*  0x1bcb7b1526e000.0p-54 */
+#define	invln10_lo	7.1842412889749798e-14	/*  0x1438ca9aadd558.0p-96 */
+#define	invln2_hi	1.4426950408887933e0	/*  0x171547652b8000.0p-52 */
+#define	invln2_lo	1.7010652264631490e-13	/*  0x17f0bbbe87fed0.0p-95 */
+/* Let the compiler pre-calculate this sum to avoid FE_INEXACT at run time. */
+static const double invln10_lo_plus_hi = invln10_lo + invln10_hi;
+static const double invln2_lo_plus_hi = invln2_lo + invln2_hi;
 
 long double
 log10l(long double x)
