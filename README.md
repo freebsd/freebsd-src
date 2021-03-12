@@ -33,7 +33,7 @@ Source Roadmap:
 | share | Shared resources. |
 | stand | Boot loader sources. |
 | sys | Kernel sources. |
-| sys/<arch>/conf | Kernel configuration files. GENERIC is the configuration used in release builds. NOTES contains documentation of all possible entries. |
+| sys/`arch`/conf | Kernel configuration files. GENERIC is the configuration used in release builds. NOTES contains documentation of all possible entries. |
 | tests | Regression tests which can be run by Kyua.  See [tests/README](tests/README) for additional information. |
 | tools | Utilities for regression testing and miscellaneous tasks. |
 | usr.bin | User commands. |
