@@ -909,16 +909,6 @@ int mprsas_send_reset(struct mpr_softc *sc, struct mpr_command *tm,
 SYSCTL_DECL(_hw_mpr);
 
 /* Compatibility shims for different OS versions */
-#if __FreeBSD_version >= 800001
-#define mpr_kproc_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
-    kproc_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
-#define mpr_kproc_exit(arg)	kproc_exit(arg)
-#else
-#define mpr_kproc_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
-    kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
-#define mpr_kproc_exit(arg)	kthread_exit(arg)
-#endif
-
 #if defined(CAM_PRIORITY_XPT)
 #define MPR_PRIORITY_XPT	CAM_PRIORITY_XPT
 #else
