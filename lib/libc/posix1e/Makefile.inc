@@ -18,6 +18,7 @@ SRCS+=	acl_branding.c			\
 	acl_delete_entry.c		\
 	acl_entry.c			\
 	acl_equiv_mode_np.c		\
+	acl_extended_file_np.c		\
 	acl_flag.c			\
 	acl_free.c			\
 	acl_from_mode_np.c		\
@@ -58,6 +59,7 @@ MAN+=	acl.3				\
 	acl_delete_perm.3		\
 	acl_dup.3			\
 	acl_equiv_mode_np.3		\
+	acl_extended_file_np.3		\
 	acl_free.3			\
 	acl_from_mode_np.3		\
 	acl_from_text.3			\
@@ -98,6 +100,8 @@ MLINKS+=acl_create_entry.3 acl_create_entry_np.3\
 	acl_delete.3 acl_delete_file_np.3	\
 	acl_delete.3 acl_delete_fd_np.3		\
 	acl_delete_entry.3 acl_delete_entry_np.3\
+	acl_extended_file_np.3 acl_extended_file_nofollow_np.3 \
+	acl_extended_file_np.3 acl_extended_link_np.3 \
 	acl_get.3 acl_get_file.3		\
 	acl_get.3 acl_get_fd.3			\
 	acl_get.3 acl_get_fd_np.3		\
