@@ -27,7 +27,7 @@ CFLAGS+= -DWITH_INET
 
 YFLAGS=
 
-LIBADD=	m md
+LIBADD=	m md nv
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
