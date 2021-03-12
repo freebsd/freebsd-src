@@ -168,6 +168,9 @@ struct ccr_port {
 	int rx_channel_id;
 	int tx_channel_id;
 	u_int active_sessions;
+
+	counter_u64_t stats_queued;
+	counter_u64_t stats_completed;
 };
 
 struct ccr_session {
@@ -2128,6 +2131,11 @@ ccr_sysctls(struct ccr_softc *sc)
 		SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "active_sessions",
 		    CTLFLAG_RD, &sc->ports[i].active_sessions, 0,
 		    "Count of active sessions");
+		SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "queued",
+		    CTLFLAG_RD, &sc->ports[i].stats_queued, "Requests queued");
+		SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "completed",
+		    CTLFLAG_RD, &sc->ports[i].stats_completed,
+		    "Requests completed");
 	}
 }
 
@@ -2141,6 +2149,8 @@ ccr_init_port(struct ccr_softc *sc, int port)
 	sc->ports[port].rxq = &sc->adapter->sge.rxq[pi->vi->first_rxq];
 	sc->ports[port].rx_channel_id = pi->rx_c_chan;
 	sc->ports[port].tx_channel_id = pi->tx_chan;
+	sc->ports[port].stats_queued = counter_u64_alloc(M_WAITOK);
+	sc->ports[port].stats_completed = counter_u64_alloc(M_WAITOK);
 	_Static_assert(sizeof(sc->port_mask) * NBBY >= MAX_NPORTS - 1,
 	    "Too many ports to fit in port_mask");
 	sc->port_mask |= 1u << port;
@@ -2199,10 +2209,19 @@ ccr_attach(device_t dev)
 	return (0);
 }
 
+static void
+ccr_free_port(struct ccr_softc *sc, int port)
+{
+
+	counter_u64_free(sc->ports[port].stats_queued);
+	counter_u64_free(sc->ports[port].stats_completed);
+}
+
 static int
 ccr_detach(device_t dev)
 {
 	struct ccr_softc *sc;
+	int i;
 
 	sc = device_get_softc(dev);
 
@@ -2230,6 +2249,9 @@ ccr_detach(device_t dev)
 	counter_u64_free(sc->stats_sglist_error);
 	counter_u64_free(sc->stats_process_error);
 	counter_u64_free(sc->stats_sw_fallback);
+	for_each_port(sc->adapter, i) {
+		ccr_free_port(sc, i);
+	}
 	sglist_free(sc->sg_iv_aad);
 	free(sc->iv_aad_buf, M_CCR);
 	sc->adapter->ccr_softc = NULL;
@@ -2827,6 +2849,7 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 		s->pending++;
 #endif
 		counter_u64_add(sc->stats_inflight, 1);
+		counter_u64_add(s->port->stats_queued, 1);
 	} else
 		counter_u64_add(sc->stats_process_error, 1);
 
@@ -2871,6 +2894,7 @@ do_cpl6_fw_pld(struct sge_iq *iq, const struct rss_header *rss,
 	mtx_unlock(&s->lock);
 #endif
 	counter_u64_add(sc->stats_inflight, -1);
+	counter_u64_add(s->port->stats_completed, 1);
 
 	switch (s->mode) {
 	case HASH:
