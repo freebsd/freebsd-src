@@ -341,22 +341,26 @@ FORK_TEST_F(OpenatTest, InCapabilityMode) {
   EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "/etc/passwd", O_RDONLY);
 }
 
-#ifdef O_BENEATH
+#if !defined(O_RESOLVE_BENEATH) && defined(O_BENEATH)
+#define O_RESOLVE_BENEATH O_BENEATH
+#endif
+
+#ifdef O_RESOLVE_BENEATH
 TEST_F(OpenatTest, WithFlag) {
-  CheckPolicing(O_BENEATH);
+  CheckPolicing(O_RESOLVE_BENEATH);
 
   // Check with AT_FDCWD.
-  EXPECT_OPEN_OK(openat(AT_FDCWD, "topfile", O_RDONLY|O_BENEATH));
-  EXPECT_OPEN_OK(openat(AT_FDCWD, "subdir/bottomfile", O_RDONLY|O_BENEATH));
+  EXPECT_OPEN_OK(openat(AT_FDCWD, "topfile", O_RDONLY|O_RESOLVE_BENEATH));
+  EXPECT_OPEN_OK(openat(AT_FDCWD, "subdir/bottomfile", O_RDONLY|O_RESOLVE_BENEATH));
 
-  // Can't open paths starting with "/" with O_BENEATH specified.
-  EXPECT_OPENAT_FAIL_TRAVERSAL(AT_FDCWD, "/etc/passwd", O_RDONLY|O_BENEATH);
-  EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "/etc/passwd", O_RDONLY|O_BENEATH);
-  EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "/etc/passwd", O_RDONLY|O_BENEATH);
+  // Can't open paths starting with "/" with O_RESOLVE_BENEATH specified.
+  EXPECT_OPENAT_FAIL_TRAVERSAL(AT_FDCWD, "/etc/passwd", O_RDONLY|O_RESOLVE_BENEATH);
+  EXPECT_OPENAT_FAIL_TRAVERSAL(dir_fd_, "/etc/passwd", O_RDONLY|O_RESOLVE_BENEATH);
+  EXPECT_OPENAT_FAIL_TRAVERSAL(sub_fd_, "/etc/passwd", O_RDONLY|O_RESOLVE_BENEATH);
 }
 
 FORK_TEST_F(OpenatTest, WithFlagInCapabilityMode) {
   EXPECT_OK(cap_enter());  // Enter capability mode
-  CheckPolicing(O_BENEATH);
+  CheckPolicing(O_RESOLVE_BENEATH);
 }
 #endif
