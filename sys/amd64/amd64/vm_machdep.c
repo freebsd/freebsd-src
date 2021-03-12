@@ -164,10 +164,12 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 		return;
 	}
 
-	/* Ensure that td1's pcb is up to date. */
-	fpuexit(td1);
-	if (td1 == curthread)
+	/* Ensure that td1's pcb is up to date for user processes. */
+	if ((td2->td_pflags & TDP_KTHREAD) == 0) {
+		MPASS(td1 == curthread);
+		fpuexit(td1);
 		update_pcb_bases(td1->td_pcb);
+	}
 
 	/* Point the stack and pcb to the actual location */
 	set_top_of_stack_td(td2);
@@ -178,8 +180,18 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	/* Properly initialize pcb_save */
 	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
-	bcopy(get_pcb_user_save_td(td1), get_pcb_user_save_pcb(pcb2),
-	    cpu_max_ext_state_size);
+
+	/* Kernel processes start with clean FPU and segment bases. */
+	if ((td2->td_pflags & TDP_KTHREAD) != 0) {
+		pcb2->pcb_fsbase = 0;
+		pcb2->pcb_gsbase = 0;
+		clear_pcb_flags(pcb2, PCB_FPUINITDONE | PCB_USERFPUINITDONE |
+		    PCB_KERNFPU | PCB_KERNFPU_THR);
+	} else {
+		MPASS((pcb2->pcb_flags & (PCB_KERNFPU | PCB_KERNFPU_THR)) == 0);
+		bcopy(get_pcb_user_save_td(td1), get_pcb_user_save_pcb(pcb2),
+		    cpu_max_ext_state_size);
+	}
 
 	/* Point mdproc and then copy over td1's contents */
 	mdp2 = &p2->p_md;
@@ -564,10 +576,12 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 
 	pcb2 = td->td_pcb;
 
-	/* Ensure that td0's pcb is up to date. */
-	fpuexit(td0);
-	if (td0 == curthread)
+	/* Ensure that td0's pcb is up to date for user threads. */
+	if ((td->td_pflags & TDP_KTHREAD) == 0) {
+		MPASS(td0 == curthread);
+		fpuexit(td0);
 		update_pcb_bases(td0->td_pcb);
+	}
 
 	/*
 	 * Copy the upcall pcb.  This loads kernel regs.
@@ -575,11 +589,21 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	 * values here.
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-	clear_pcb_flags(pcb2, PCB_KERNFPU);
 	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
-	bcopy(get_pcb_user_save_td(td0), pcb2->pcb_save,
-	    cpu_max_ext_state_size);
+
+	/* Kernel threads start with clean FPU and segment bases. */
+	if ((td->td_pflags & TDP_KTHREAD) != 0) {
+		pcb2->pcb_fsbase = 0;
+		pcb2->pcb_gsbase = 0;
+		clear_pcb_flags(pcb2, PCB_FPUINITDONE | PCB_USERFPUINITDONE |
+		    PCB_KERNFPU | PCB_KERNFPU_THR);
+	} else {
+		MPASS((pcb2->pcb_flags & (PCB_KERNFPU | PCB_KERNFPU_THR)) == 0);
+		bcopy(get_pcb_user_save_td(td0), pcb2->pcb_save,
+		    cpu_max_ext_state_size);
+	}
 	set_pcb_flags_raw(pcb2, PCB_FULL_IRET);
+
 
 	/*
 	 * Create a new fresh stack for the new thread.
