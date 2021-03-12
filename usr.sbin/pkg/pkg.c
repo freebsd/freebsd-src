@@ -84,6 +84,12 @@ struct fingerprint {
 	STAILQ_ENTRY(fingerprint) next;
 };
 
+static const char *bootstrap_names []  = {
+	"pkg.bsd",
+	"pkg.txz",
+	NULL
+};
+
 STAILQ_HEAD(fingerprint_list, fingerprint);
 
 static int
@@ -836,6 +842,7 @@ bootstrap_pkg(bool force, const char *fetchOpts)
 	const char *packagesite;
 	const char *signature_type;
 	char pkgstatic[MAXPATHLEN];
+	const char *bootstrap_name;
 
 	fd_sig = -1;
 	ret = -1;
@@ -858,22 +865,29 @@ bootstrap_pkg(bool force, const char *fetchOpts)
 	if (strncmp(URL_SCHEME_PREFIX, packagesite,
 	    strlen(URL_SCHEME_PREFIX)) == 0)
 		packagesite += strlen(URL_SCHEME_PREFIX);
-	snprintf(url, MAXPATHLEN, "%s/Latest/pkg.txz", packagesite);
+	for (int j = 0; bootstrap_names[j] != NULL; j++) {
+		bootstrap_name = bootstrap_names[j];
 
-	snprintf(tmppkg, MAXPATHLEN, "%s/pkg.txz.XXXXXX",
-	    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP);
-
-	if ((fd_pkg = fetch_to_fd(url, tmppkg, fetchOpts)) == -1)
+		snprintf(url, MAXPATHLEN, "%s/Latest/%s", packagesite, bootstrap_name);
+		snprintf(tmppkg, MAXPATHLEN, "%s/%s.XXXXXX",
+		    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP,
+		    bootstrap_name);
+		if ((fd_pkg = fetch_to_fd(url, tmppkg, fetchOpts)) != -1)
+			break;
+		bootstrap_name = NULL;
+	}
+	if (bootstrap_name == NULL)
 		goto fetchfail;
 
 	if (signature_type != NULL &&
 	    strcasecmp(signature_type, "NONE") != 0) {
 		if (strcasecmp(signature_type, "FINGERPRINTS") == 0) {
 
-			snprintf(tmpsig, MAXPATHLEN, "%s/pkg.txz.sig.XXXXXX",
-			    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP);
-			snprintf(url, MAXPATHLEN, "%s/Latest/pkg.txz.sig",
-			    packagesite);
+			snprintf(tmpsig, MAXPATHLEN, "%s/%s.sig.XXXXXX",
+			    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP,
+			    bootstrap_name);
+			snprintf(url, MAXPATHLEN, "%s/Latest/%s.sig",
+			    packagesite, bootstrap_name);
 
 			if ((fd_sig = fetch_to_fd(url, tmpsig, fetchOpts)) == -1) {
 				fprintf(stderr, "Signature for pkg not "
@@ -886,10 +900,11 @@ bootstrap_pkg(bool force, const char *fetchOpts)
 		} else if (strcasecmp(signature_type, "PUBKEY") == 0) {
 
 			snprintf(tmpsig, MAXPATHLEN,
-			    "%s/pkg.txz.pubkeysig.XXXXXX",
-			    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP);
-			snprintf(url, MAXPATHLEN, "%s/Latest/pkg.txz.pubkeysig",
-			    packagesite);
+			    "%s/%s.pubkeysig.XXXXXX",
+			    getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP,
+			    bootstrap_name);
+			snprintf(url, MAXPATHLEN, "%s/Latest/%s.pubkeysig",
+			    packagesite, bootstrap_name);
 
 			if ((fd_sig = fetch_to_fd(url, tmpsig, fetchOpts)) == -1) {
 				fprintf(stderr, "Signature for pkg not "
