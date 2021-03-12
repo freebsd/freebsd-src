@@ -223,11 +223,25 @@ struct hn_txdesc {
 #define HN_TXD_FLAG_DMAMAP		0x0002
 #define HN_TXD_FLAG_ONAGG		0x0004
 
+#define	HN_NDIS_PKTINFO_SUBALLOC	0x01
+#define	HN_NDIS_PKTINFO_1ST_FRAG	0x02
+#define	HN_NDIS_PKTINFO_LAST_FRAG	0x04
+
+struct packet_info_id {
+	uint8_t				ver;
+	uint8_t				flag;
+	uint16_t			pkt_id;
+};
+
+#define NDIS_PKTINFOID_SZ		sizeof(struct packet_info_id)
+
+
 struct hn_rxinfo {
-	uint32_t			vlan_info;
-	uint32_t			csum_info;
-	uint32_t			hash_info;
-	uint32_t			hash_value;
+	const uint32_t			*vlan_info;
+	const uint32_t			*csum_info;
+	const uint32_t			*hash_info;
+	const uint32_t			*hash_value;
+	const struct packet_info_id	*pktinfo_id;
 };
 
 struct hn_rxvf_setarg {
@@ -239,15 +253,13 @@ struct hn_rxvf_setarg {
 #define HN_RXINFO_CSUM			0x0002
 #define HN_RXINFO_HASHINF		0x0004
 #define HN_RXINFO_HASHVAL		0x0008
+#define HN_RXINFO_PKTINFO_ID		0x0010
 #define HN_RXINFO_ALL			\
 	(HN_RXINFO_VLAN |		\
 	 HN_RXINFO_CSUM |		\
 	 HN_RXINFO_HASHINF |		\
-	 HN_RXINFO_HASHVAL)
-
-#define HN_NDIS_VLAN_INFO_INVALID	0xffffffff
-#define HN_NDIS_RXCSUM_INFO_INVALID	0
-#define HN_NDIS_HASH_INFO_INVALID	0
+	 HN_RXINFO_HASHVAL |		\
+	 HN_RXINFO_PKTINFO_ID)
 
 static int			hn_probe(device_t);
 static int			hn_attach(device_t);
@@ -396,8 +408,7 @@ static int			hn_rxfilter_config(struct hn_softc *);
 static int			hn_rss_reconfig(struct hn_softc *);
 static void			hn_rss_ind_fixup(struct hn_softc *);
 static void			hn_rss_mbuf_hash(struct hn_softc *, uint32_t);
-static int			hn_rxpkt(struct hn_rx_ring *, const void *,
-				    int, const struct hn_rxinfo *);
+static int			hn_rxpkt(struct hn_rx_ring *);
 static uint32_t			hn_rss_type_fromndis(uint32_t);
 static uint32_t			hn_rss_type_tondis(uint32_t);
 
@@ -3349,9 +3360,10 @@ again:
  * allocated with cluster size MJUMPAGESIZE, and filled
  * accordingly.
  *
- * Return 1 if able to complete the job; otherwise 0.
+ * Return the last mbuf in the chain or NULL if failed to
+ * allocate new mbuf.
  */
-static int
+static struct mbuf *
 hv_m_append(struct mbuf *m0, int len, c_caddr_t cp)
 {
 	struct mbuf *m, *n;
@@ -3379,7 +3391,7 @@ hv_m_append(struct mbuf *m0, int len, c_caddr_t cp)
 		 */
 		n = m_getjcl(M_NOWAIT, m->m_type, 0, MJUMPAGESIZE);
 		if (n == NULL)
-			break;
+			return NULL;
 		n->m_len = min(MJUMPAGESIZE, remainder);
 		bcopy(cp, mtod(n, caddr_t), n->m_len);
 		cp += n->m_len;
@@ -3387,10 +3399,8 @@ hv_m_append(struct mbuf *m0, int len, c_caddr_t cp)
 		m->m_next = n;
 		m = n;
 	}
-	if (m0->m_flags & M_PKTHDR)
-		m0->m_pkthdr.len += len - remainder;
 
-	return (remainder == 0);
+	return m;
 }
 
 #if defined(INET) || defined(INET6)
@@ -3408,14 +3418,14 @@ hn_lro_rx(struct lro_ctrl *lc, struct mbuf *m)
 #endif
 
 static int
-hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
-    const struct hn_rxinfo *info)
+hn_rxpkt(struct hn_rx_ring *rxr)
 {
 	struct ifnet *ifp, *hn_ifp = rxr->hn_ifp;
-	struct mbuf *m_new;
+	struct mbuf *m_new, *n;
 	int size, do_lro = 0, do_csum = 1, is_vf = 0;
 	int hash_type = M_HASHTYPE_NONE;
 	int l3proto = ETHERTYPE_MAX, l4proto = IPPROTO_DONE;
+	int i;
 
 	ifp = hn_ifp;
 	if (rxr->hn_rxvf_ifp != NULL) {
@@ -3442,20 +3452,20 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 		return (0);
 	}
 
-	if (__predict_false(dlen < ETHER_HDR_LEN)) {
+	if (__predict_false(rxr->rsc.pktlen < ETHER_HDR_LEN)) {
 		if_inc_counter(hn_ifp, IFCOUNTER_IERRORS, 1);
 		return (0);
 	}
 
-	if (dlen <= MHLEN) {
+	if (rxr->rsc.cnt == 1 && rxr->rsc.pktlen <= MHLEN) {
 		m_new = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m_new == NULL) {
 			if_inc_counter(hn_ifp, IFCOUNTER_IQDROPS, 1);
 			return (0);
 		}
-		memcpy(mtod(m_new, void *), data, dlen);
-		m_new->m_pkthdr.len = m_new->m_len = dlen;
-		rxr->hn_small_pkts++;
+		memcpy(mtod(m_new, void *), rxr->rsc.frag_data[0],
+		    rxr->rsc.frag_len[0]);
+		m_new->m_pkthdr.len = m_new->m_len = rxr->rsc.frag_len[0];
 	} else {
 		/*
 		 * Get an mbuf with a cluster.  For packets 2K or less,
@@ -3464,7 +3474,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 		 * if looped around to the Hyper-V TX channel, so avoid them.
 		 */
 		size = MCLBYTES;
-		if (dlen > MCLBYTES) {
+		if (rxr->rsc.pktlen > MCLBYTES) {
 			/* 4096 */
 			size = MJUMPAGESIZE;
 		}
@@ -3475,29 +3485,42 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 			return (0);
 		}
 
-		hv_m_append(m_new, dlen, data);
+		n = m_new;
+		for (i = 0; i < rxr->rsc.cnt; i++) {
+			n = hv_m_append(n, rxr->rsc.frag_len[i],
+			    rxr->rsc.frag_data[i]);
+			if (n == NULL) {
+				if_inc_counter(hn_ifp, IFCOUNTER_IQDROPS, 1);
+				return (0);
+			} else {
+				m_new->m_pkthdr.len += rxr->rsc.frag_len[i];
+			}
+		}
 	}
+	if (rxr->rsc.pktlen <= MHLEN)
+		rxr->hn_small_pkts++;
+
 	m_new->m_pkthdr.rcvif = ifp;
 
 	if (__predict_false((hn_ifp->if_capenable & IFCAP_RXCSUM) == 0))
 		do_csum = 0;
 
 	/* receive side checksum offload */
-	if (info->csum_info != HN_NDIS_RXCSUM_INFO_INVALID) {
+	if (rxr->rsc.csum_info != NULL) {
 		/* IP csum offload */
-		if ((info->csum_info & NDIS_RXCSUM_INFO_IPCS_OK) && do_csum) {
+		if ((*(rxr->rsc.csum_info) & NDIS_RXCSUM_INFO_IPCS_OK) && do_csum) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_IP_CHECKED | CSUM_IP_VALID);
 			rxr->hn_csum_ip++;
 		}
 
 		/* TCP/UDP csum offload */
-		if ((info->csum_info & (NDIS_RXCSUM_INFO_UDPCS_OK |
+		if ((*(rxr->rsc.csum_info) & (NDIS_RXCSUM_INFO_UDPCS_OK |
 		     NDIS_RXCSUM_INFO_TCPCS_OK)) && do_csum) {
 			m_new->m_pkthdr.csum_flags |=
 			    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 			m_new->m_pkthdr.csum_data = 0xffff;
-			if (info->csum_info & NDIS_RXCSUM_INFO_TCPCS_OK)
+			if (*(rxr->rsc.csum_info) & NDIS_RXCSUM_INFO_TCPCS_OK)
 				rxr->hn_csum_tcp++;
 			else
 				rxr->hn_csum_udp++;
@@ -3510,7 +3533,7 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 		 * the do_lro setting here is actually _not_ accurate.  We
 		 * depend on the RSS hash type check to reset do_lro.
 		 */
-		if ((info->csum_info &
+		if ((*(rxr->rsc.csum_info) &
 		     (NDIS_RXCSUM_INFO_TCPCS_OK | NDIS_RXCSUM_INFO_IPCS_OK)) ==
 		    (NDIS_RXCSUM_INFO_TCPCS_OK | NDIS_RXCSUM_INFO_IPCS_OK))
 			do_lro = 1;
@@ -3547,11 +3570,11 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 		}
 	}
 
-	if (info->vlan_info != HN_NDIS_VLAN_INFO_INVALID) {
+	if (rxr->rsc.vlan_info != NULL) {
 		m_new->m_pkthdr.ether_vtag = EVL_MAKETAG(
-		    NDIS_VLAN_INFO_ID(info->vlan_info),
-		    NDIS_VLAN_INFO_PRI(info->vlan_info),
-		    NDIS_VLAN_INFO_CFI(info->vlan_info));
+		    NDIS_VLAN_INFO_ID(*(rxr->rsc.vlan_info)),
+		    NDIS_VLAN_INFO_PRI(*(rxr->rsc.vlan_info)),
+		    NDIS_VLAN_INFO_CFI(*(rxr->rsc.vlan_info)));
 		m_new->m_flags |= M_VLANTAG;
 	}
 
@@ -3577,14 +3600,14 @@ hn_rxpkt(struct hn_rx_ring *rxr, const void *data, int dlen,
 	 * matter here), do _not_ mess with unsupported hash types or
 	 * functions.
 	 */
-	if (info->hash_info != HN_NDIS_HASH_INFO_INVALID) {
+	if (rxr->rsc.hash_info != NULL) {
 		rxr->hn_rss_pkts++;
-		m_new->m_pkthdr.flowid = info->hash_value;
+		m_new->m_pkthdr.flowid = *(rxr->rsc.hash_value);
 		if (!is_vf)
 			hash_type = M_HASHTYPE_OPAQUE_HASH;
-		if ((info->hash_info & NDIS_HASH_FUNCTION_MASK) ==
+		if ((*(rxr->rsc.hash_info) & NDIS_HASH_FUNCTION_MASK) ==
 		    NDIS_HASH_FUNCTION_TOEPLITZ) {
-			uint32_t type = (info->hash_info & NDIS_HASH_TYPE_MASK &
+			uint32_t type = (*(rxr->rsc.hash_info) & NDIS_HASH_TYPE_MASK &
 			    rxr->hn_mbuf_hash);
 
 			/*
@@ -5029,6 +5052,16 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 				    OID_AUTO, "rss_pkts", CTLFLAG_RW,
 				    &rxr->hn_rss_pkts,
 				    "# of packets w/ RSS info received");
+				SYSCTL_ADD_ULONG(ctx,
+				    SYSCTL_CHILDREN(rxr->hn_rx_sysctl_tree),
+				    OID_AUTO, "rsc_pkts", CTLFLAG_RW,
+				    &rxr->hn_rsc_pkts,
+				    "# of RSC packets received");
+				SYSCTL_ADD_ULONG(ctx,
+				    SYSCTL_CHILDREN(rxr->hn_rx_sysctl_tree),
+				    OID_AUTO, "rsc_drop", CTLFLAG_RW,
+				    &rxr->hn_rsc_drop,
+				    "# of RSC fragments dropped");
 				SYSCTL_ADD_INT(ctx,
 				    SYSCTL_CHILDREN(rxr->hn_rx_sysctl_tree),
 				    OID_AUTO, "pktbuf_len", CTLFLAG_RD,
@@ -7053,37 +7086,56 @@ hn_rndis_rxinfo(const void *info_data, int info_dlen, struct hn_rxinfo *info)
 		dlen = pi->rm_size - pi->rm_pktinfooffset;
 		data = pi->rm_data;
 
-		switch (pi->rm_type) {
-		case NDIS_PKTINFO_TYPE_VLAN:
-			if (__predict_false(dlen < NDIS_VLAN_INFO_SIZE))
-				return (EINVAL);
-			info->vlan_info = *((const uint32_t *)data);
-			mask |= HN_RXINFO_VLAN;
-			break;
+		if (pi->rm_internal == 1) {
+			switch (pi->rm_type) {
+			case NDIS_PKTINFO_IT_PKTINFO_ID:
+				if (__predict_false(dlen < NDIS_PKTINFOID_SZ))
+					return (EINVAL);
+				info->pktinfo_id =
+				    (const struct packet_info_id *)data;
+				mask |= HN_RXINFO_PKTINFO_ID;
+				break;
 
-		case NDIS_PKTINFO_TYPE_CSUM:
-			if (__predict_false(dlen < NDIS_RXCSUM_INFO_SIZE))
-				return (EINVAL);
-			info->csum_info = *((const uint32_t *)data);
-			mask |= HN_RXINFO_CSUM;
-			break;
+			default:
+				goto next;
+			}
+		} else {
+			switch (pi->rm_type) {
+			case NDIS_PKTINFO_TYPE_VLAN:
+				if (__predict_false(dlen
+				    < NDIS_VLAN_INFO_SIZE))
+					return (EINVAL);
+				info->vlan_info = (const uint32_t *)data;
+				mask |= HN_RXINFO_VLAN;
+				break;
 
-		case HN_NDIS_PKTINFO_TYPE_HASHVAL:
-			if (__predict_false(dlen < HN_NDIS_HASH_VALUE_SIZE))
-				return (EINVAL);
-			info->hash_value = *((const uint32_t *)data);
-			mask |= HN_RXINFO_HASHVAL;
-			break;
+			case NDIS_PKTINFO_TYPE_CSUM:
+				if (__predict_false(dlen
+				    < NDIS_RXCSUM_INFO_SIZE))
+					return (EINVAL);
+				info->csum_info = (const uint32_t *)data;
+				mask |= HN_RXINFO_CSUM;
+				break;
 
-		case HN_NDIS_PKTINFO_TYPE_HASHINF:
-			if (__predict_false(dlen < HN_NDIS_HASH_INFO_SIZE))
-				return (EINVAL);
-			info->hash_info = *((const uint32_t *)data);
-			mask |= HN_RXINFO_HASHINF;
-			break;
+			case HN_NDIS_PKTINFO_TYPE_HASHVAL:
+				if (__predict_false(dlen
+				    < HN_NDIS_HASH_VALUE_SIZE))
+					return (EINVAL);
+				info->hash_value = (const uint32_t *)data;
+				mask |= HN_RXINFO_HASHVAL;
+				break;
 
-		default:
-			goto next;
+			case HN_NDIS_PKTINFO_TYPE_HASHINF:
+				if (__predict_false(dlen
+				    < HN_NDIS_HASH_INFO_SIZE))
+					return (EINVAL);
+				info->hash_info = (const uint32_t *)data;
+				mask |= HN_RXINFO_HASHINF;
+				break;
+
+			default:
+				goto next;
+			}
 		}
 
 		if (mask == HN_RXINFO_ALL) {
@@ -7100,7 +7152,7 @@ next:
 	 * - If there is no hash value, invalidate the hash info.
 	 */
 	if ((mask & HN_RXINFO_HASHVAL) == 0)
-		info->hash_info = HN_NDIS_HASH_INFO_INVALID;
+		info->hash_info = NULL;
 	return (0);
 }
 
@@ -7118,12 +7170,34 @@ hn_rndis_check_overlap(int off, int len, int check_off, int check_len)
 	return (true);
 }
 
+static __inline void
+hn_rsc_add_data(struct hn_rx_ring *rxr, const void *data,
+		uint32_t len, struct hn_rxinfo *info)
+{
+	uint32_t cnt = rxr->rsc.cnt;
+
+	if (cnt) {
+		rxr->rsc.pktlen += len;
+	} else {
+		rxr->rsc.vlan_info = info->vlan_info;
+		rxr->rsc.csum_info = info->csum_info;
+		rxr->rsc.hash_info = info->hash_info;
+		rxr->rsc.hash_value = info->hash_value;
+		rxr->rsc.pktlen = len;
+	}
+
+	rxr->rsc.frag_data[cnt] = data;
+	rxr->rsc.frag_len[cnt] = len;
+	rxr->rsc.cnt++;
+}
+
 static void
 hn_rndis_rx_data(struct hn_rx_ring *rxr, const void *data, int dlen)
 {
 	const struct rndis_packet_msg *pkt;
 	struct hn_rxinfo info;
 	int data_off, pktinfo_off, data_len, pktinfo_len;
+	bool rsc_more= false;
 
 	/*
 	 * Check length.
@@ -7231,9 +7305,11 @@ hn_rndis_rx_data(struct hn_rx_ring *rxr, const void *data, int dlen)
 	/*
 	 * Check per-packet-info coverage and find useful per-packet-info.
 	 */
-	info.vlan_info = HN_NDIS_VLAN_INFO_INVALID;
-	info.csum_info = HN_NDIS_RXCSUM_INFO_INVALID;
-	info.hash_info = HN_NDIS_HASH_INFO_INVALID;
+	info.vlan_info = NULL;
+	info.csum_info = NULL;
+	info.hash_info = NULL;
+	info.pktinfo_id = NULL;
+
 	if (__predict_true(pktinfo_len != 0)) {
 		bool overlap;
 		int error;
@@ -7277,7 +7353,43 @@ hn_rndis_rx_data(struct hn_rx_ring *rxr, const void *data, int dlen)
 		    pkt->rm_len, data_off, data_len);
 		return;
 	}
-	hn_rxpkt(rxr, ((const uint8_t *)pkt) + data_off, data_len, &info);
+
+	/* Identify RSC fragments, drop invalid packets */
+	if ((info.pktinfo_id != NULL) &&
+	    (info.pktinfo_id->flag & HN_NDIS_PKTINFO_SUBALLOC)) {
+		if (info.pktinfo_id->flag & HN_NDIS_PKTINFO_1ST_FRAG) {
+			rxr->rsc.cnt = 0;
+			rxr->hn_rsc_pkts++;
+		} else if (rxr->rsc.cnt == 0)
+			goto drop;
+
+		rsc_more = true;
+
+		if (info.pktinfo_id->flag & HN_NDIS_PKTINFO_LAST_FRAG)
+			rsc_more = false;
+
+		if (rsc_more && rxr->rsc.is_last)
+			goto drop;
+	} else {
+		rxr->rsc.cnt = 0;
+	}
+
+	if (__predict_false(rxr->rsc.cnt >= HN_NVS_RSC_MAX))
+		goto drop;
+
+	/* Store data in per rx ring structure */
+	hn_rsc_add_data(rxr,((const uint8_t *)pkt) + data_off,
+	    data_len, &info);
+
+	if (rsc_more)
+		return;
+
+	hn_rxpkt(rxr);
+	rxr->rsc.cnt = 0;
+	return;
+drop:
+	rxr->hn_rsc_drop++;
+	return;
 }
 
 static __inline void
@@ -7390,6 +7502,8 @@ hn_nvs_handle_rxbuf(struct hn_rx_ring *rxr, struct vmbus_channel *chan,
 			    "ofs %d, len %d\n", i, ofs, len);
 			continue;
 		}
+
+		rxr->rsc.is_last = (i == (count - 1));
 		hn_rndis_rxpkt(rxr, rxr->hn_rxbuf + ofs, len);
 	}
 
