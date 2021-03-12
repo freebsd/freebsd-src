@@ -6,9 +6,10 @@ NO_WERROR=
 WARNS?=	2
 
 CFLAGS.h_raw+=	-fstack-protector-all -Wstack-protector
-.if ${COMPILER_TYPE} == "clang" && ${CC} == "cc"
-# Only use -fsanitize=bounds when using the in-tree compiler.  Otherwise
-# we may link to a sanitizer library targeted at a newer kernel/libc.
+.if ${COMPILER_TYPE} == "clang"
+# Only use -fsanitize=bounds when using clang. Otherwise we are not able to
+# override the sanitizer runtime libraries to be the ones installed on the
+# target system.
 CFLAGS.h_raw+=	-fsanitize=bounds
 .elif ${COMPILER_TYPE} == "gcc"
 CFLAGS.h_raw+=	--param ssp-buffer-size=1
@@ -25,24 +26,20 @@ PROGS+=		h_getcwd
 PROGS+=		h_memcpy
 PROGS+=		h_memmove
 PROGS+=		h_memset
-# This testcase doesn't run properly when not compiled with -fsantize=bounds
-# with clang, which is currently contingent on a compiler_rt update
-#
 # XXX: the h_raw/h_read testcases don't cause a SIGABRT with in-tree gcc right
 # now on amd64 when it trips the stack bounds specified in t_ssp.sh . This
 # probably needs to be fixed as it's currently hardcoded.
-#
-# sanitizer is not tested or supported for ARM right now. sbruno
-.if ${COMPILER_TYPE} == "clang" && ${CC} == "cc" && !defined(_SKIP_BUILD) && \
+.if ${COMPILER_TYPE} == "clang" && !defined(_SKIP_BUILD) && \
     (!defined(_RECURSING_PROGS) || ${PROG} == "h_raw")
-.if !defined(_CLANG_RESOURCE_DIR)
-_CLANG_RESOURCE_DIR!=	${CC:N${CCACHE_BIN}} -print-resource-dir
-.export _CLANG_RESOURCE_DIR
-.endif
-_libclang_rt_arch=	${MACHINE_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}
-_libclang_rt_ubsan=	${_CLANG_RESOURCE_DIR}/lib/freebsd/libclang_rt.ubsan_standalone-${_libclang_rt_arch}.a
+.include "${SRCTOP}/lib/libclang_rt/compiler-rt-vars.mk"
+_libclang_rt_ubsan=	${SYSROOT}${SANITIZER_LIBDIR}/libclang_rt.ubsan_standalone-${CRTARCH}.a
 .if exists(${_libclang_rt_ubsan})
 PROGS+=		h_raw
+LDADD.h_raw+=	${SANITIZER_LDFLAGS}
+.else
+.if make(all)
+.info "Could not find runtime library ${_libclang_rt_ubsan}, skipping h_raw"
+.endif
 .endif
 .endif
 PROGS+=		h_read
