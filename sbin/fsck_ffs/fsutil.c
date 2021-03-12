@@ -926,7 +926,8 @@ check_cgmagic(int cg, struct bufarea *cgbp, int request_rebuild)
 	 * Extended cylinder group checks.
 	 */
 	calchash = cgp->cg_ckhash;
-	if ((sblock.fs_metackhash & CK_CYLGRP) != 0) {
+	if ((sblock.fs_metackhash & CK_CYLGRP) != 0 &&
+	    (ckhashadd & CK_CYLGRP) == 0) {
 		cghash = cgp->cg_ckhash;
 		cgp->cg_ckhash = 0;
 		calchash = calculate_crc32c(~0L, (void *)cgp, sblock.fs_cgsize);
