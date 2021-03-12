@@ -166,7 +166,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	/* Ensure that td1's pcb is up to date. */
 	fpuexit(td1);
-	update_pcb_bases(td1->td_pcb);
+	if (td1 == curthread)
+		update_pcb_bases(td1->td_pcb);
 
 	/* Point the stack and pcb to the actual location */
 	set_top_of_stack_td(td2);
@@ -568,7 +569,8 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	 * Those not loaded individually below get their default
 	 * values here.
 	 */
-	update_pcb_bases(td0->td_pcb);
+	if (td0 == curthread)
+		update_pcb_bases(td0->td_pcb);
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
 	clear_pcb_flags(pcb2, PCB_FPUINITDONE | PCB_USERFPUINITDONE |
 	    PCB_KERNFPU);
