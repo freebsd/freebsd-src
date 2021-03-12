@@ -35,6 +35,7 @@
 #define	__fenv_static	static
 #endif
 
+/* The high 32 bits contain fpcr, low 32 contain fpsr. */
 typedef	__uint64_t	fenv_t;
 typedef	__uint64_t	fexcept_t;
 
@@ -156,13 +157,12 @@ fesetround(int __round)
 __fenv_static inline int
 fegetenv(fenv_t *__envp)
 {
-	fenv_t __r;
+	__uint64_t fpcr;
+	__uint64_t fpsr;
 
-	__mrs_fpcr(__r);
-	*__envp = __r & _ENABLE_MASK;
-
-	__mrs_fpsr(__r);
-	*__envp |= __r & (FE_ALL_EXCEPT | (_ROUND_MASK << _ROUND_SHIFT));
+	__mrs_fpcr(fpcr);
+	__mrs_fpsr(fpsr);
+	*__envp = fpsr | (fpcr << 32);
 
 	return (0);
 }
@@ -173,12 +173,12 @@ feholdexcept(fenv_t *__envp)
 	fenv_t __r;
 
 	__mrs_fpcr(__r);
-	*__envp = __r & _ENABLE_MASK;
+	*__envp = __r << 32;
 	__r &= ~(_ENABLE_MASK);
 	__msr_fpcr(__r);
 
 	__mrs_fpsr(__r);
-	*__envp |= __r & (FE_ALL_EXCEPT | (_ROUND_MASK << _ROUND_SHIFT));
+	*__envp |= (__uint32_t)__r;
 	__r &= ~(_ENABLE_MASK);
 	__msr_fpsr(__r);
 	return (0);
@@ -188,8 +188,8 @@ __fenv_static inline int
 fesetenv(const fenv_t *__envp)
 {
 
-	__msr_fpcr((*__envp) & _ENABLE_MASK);
-	__msr_fpsr((*__envp) & (FE_ALL_EXCEPT | (_ROUND_MASK << _ROUND_SHIFT)));
+	__msr_fpcr((*__envp) >> 32);
+	__msr_fpsr((fenv_t)(__uint32_t)*__envp);
 	return (0);
 }
 
