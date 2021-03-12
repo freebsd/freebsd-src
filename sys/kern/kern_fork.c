@@ -497,9 +497,12 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	} else {
 		sigacts_copy(newsigacts, p1->p_sigacts);
 		p2->p_sigacts = newsigacts;
-		if ((fr->fr_flags2 & FR2_DROPSIG_CAUGHT) != 0) {
+		if ((fr->fr_flags2 & (FR2_DROPSIG_CAUGHT | FR2_KPROC)) != 0) {
 			mtx_lock(&p2->p_sigacts->ps_mtx);
-			sig_drop_caught(p2);
+			if ((fr->fr_flags2 & FR2_DROPSIG_CAUGHT) != 0)
+				sig_drop_caught(p2);
+			if ((fr->fr_flags2 & FR2_KPROC) != 0)
+				p2->p_sigacts->ps_flag |= PS_NOCLDWAIT;
 			mtx_unlock(&p2->p_sigacts->ps_mtx);
 		}
 	}
@@ -510,6 +513,11 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	        p2->p_sigparent = SIGUSR1;
 	else
 	        p2->p_sigparent = SIGCHLD;
+
+	if ((fr->fr_flags2 & FR2_KPROC) != 0) {
+		p2->p_flag |= P_SYSTEM | P_KPROC;
+		td2->td_pflags |= TDP_KTHREAD;
+	}
 
 	p2->p_textvp = p1->p_textvp;
 	p2->p_fd = fd;
