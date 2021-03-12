@@ -10,7 +10,7 @@ For copyright information, please see [the file COPYRIGHT](COPYRIGHT) in this di
 Additional copyright information also exists for some sources in this tree - please see the specific source directories for more information.
 
 The Makefile in this directory supports a number of targets for building components (or all) of the FreeBSD source tree.
-See build(7), config(8), [FreeBSD handbook on building userland](https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html), and [Handbook for kernels](https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html) for more information, including setting make(1) variables.
+See build(7), config(8), [FreeBSD handbook on building userland](https://docs.freebsd.org/en/books/handbook/cutting-edge/#makeworld), and [Handbook for kernels](https://docs.freebsd.org/en/books/handbook/kernelconfig/) for more information, including setting make(1) variables.
 
 Source Roadmap:
 ---------------
@@ -39,4 +39,4 @@ Source Roadmap:
 | usr.bin | User commands. |
 | usr.sbin | System administration commands. |
 
-For information on synchronizing your source tree with one or more of the FreeBSD Project's development branches, please see [FreeBSD Handbook](https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html).
+For information on synchronizing your source tree with one or more of the FreeBSD Project's development branches, please see [FreeBSD Handbook](https://docs.freebsd.org/en/books/handbook/cutting-edge/#current-stable).
