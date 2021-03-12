@@ -180,6 +180,7 @@ struct cam_doneq {
 static struct cam_doneq cam_doneqs[MAXCPU];
 static u_int __read_mostly cam_num_doneqs;
 static struct proc *cam_proc;
+static struct cam_doneq cam_async;
 
 SYSCTL_INT(_kern_cam, OID_AUTO, num_doneqs, CTLFLAG_RDTUN,
            &cam_num_doneqs, 0, "Number of completion queues/threads");
@@ -271,6 +272,7 @@ static void	 xptpoll(struct cam_sim *sim);
 static void	 camisr_runqueue(void);
 static void	 xpt_done_process(struct ccb_hdr *ccb_h);
 static void	 xpt_done_td(void *);
+static void	 xpt_async_td(void *);
 static dev_match_ret	xptbusmatch(struct dev_match_pattern *patterns,
 				    u_int num_patterns, struct cam_eb *bus);
 static dev_match_ret	xptdevicematch(struct dev_match_pattern *patterns,
@@ -968,6 +970,15 @@ xpt_init(void *dummy)
 	}
 	if (cam_num_doneqs < 1) {
 		printf("xpt_init: Cannot init completion queues "
+		       "- failing attach\n");
+		return (ENOMEM);
+	}
+
+	mtx_init(&cam_async.cam_doneq_mtx, "CAM async", NULL, MTX_DEF);
+	STAILQ_INIT(&cam_async.cam_doneq);
+	if (kproc_kthread_add(xpt_async_td, &cam_async,
+		&cam_proc, NULL, 0, 0, "cam", "async") != 0) {
+		printf("xpt_init: Cannot init async thread "
 		       "- failing attach\n");
 		return (ENOMEM);
 	}
@@ -3146,8 +3157,16 @@ call_sim:
 		xpt_done(start_ccb);
 		break;
 	case XPT_ASYNC:
+		/*
+		 * Queue the async operation so it can be run from a sleepable
+		 * context.
+		 */
 		start_ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(start_ccb);
+		mtx_lock(&cam_async.cam_doneq_mtx);
+		STAILQ_INSERT_TAIL(&cam_async.cam_doneq, &start_ccb->ccb_h, sim_links.stqe);
+		start_ccb->ccb_h.pinfo.index = CAM_ASYNC_INDEX;
+		mtx_unlock(&cam_async.cam_doneq_mtx);
+		wakeup(&cam_async.cam_doneq);
 		break;
 	default:
 	case XPT_SDEV_TYPE:
@@ -5470,6 +5489,34 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 	(*ccb_h->cbfcnp)(ccb_h->path->periph, (union ccb *)ccb_h);
 	if (mtx != NULL)
 		mtx_unlock(mtx);
+}
+
+/*
+ * Parameterize instead and use xpt_done_td?
+ */
+static void
+xpt_async_td(void *arg)
+{
+	struct cam_doneq *queue = arg;
+	struct ccb_hdr *ccb_h;
+	STAILQ_HEAD(, ccb_hdr)	doneq;
+
+	STAILQ_INIT(&doneq);
+	mtx_lock(&queue->cam_doneq_mtx);
+	while (1) {
+		while (STAILQ_EMPTY(&queue->cam_doneq))
+			msleep(&queue->cam_doneq, &queue->cam_doneq_mtx,
+			    PRIBIO, "-", 0);
+		STAILQ_CONCAT(&doneq, &queue->cam_doneq);
+		mtx_unlock(&queue->cam_doneq_mtx);
+
+		while ((ccb_h = STAILQ_FIRST(&doneq)) != NULL) {
+			STAILQ_REMOVE_HEAD(&doneq, sim_links.stqe);
+			xpt_done_process(ccb_h);
+		}
+
+		mtx_lock(&queue->cam_doneq_mtx);
+	}
 }
 
 void
