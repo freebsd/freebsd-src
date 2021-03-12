@@ -15,7 +15,7 @@ See build(7), config(8), [FreeBSD handbook on building userland](https://docs.fr
 Source Roadmap:
 ---------------
 | Directory | Description |
-| --------- | ------------ | 
+| --------- | ----------- |
 | bin | System/user commands. |
 | cddl | Various commands and libraries under the Common Development and Distribution License. |
 | contrib | Packages contributed by 3rd parties. |
