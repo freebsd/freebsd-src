@@ -6,7 +6,7 @@ FreeBSD is an operating system used to power modern servers, desktops, and embed
 A large community has continually developed it for more than thirty years.
 Its advanced networking, security, and storage features have made FreeBSD the platform of choice for many of the busiest web sites and most pervasive embedded networking and storage devices.
 
-For copyright information, please see the file COPYRIGHT in this directory.
+For copyright information, please see [the file COPYRIGHT](COPYRIGHT) in this directory.
 Additional copyright information also exists for some sources in this tree - please see the specific source directories for more information.
 
 The Makefile in this directory supports a number of targets for building components (or all) of the FreeBSD source tree.
