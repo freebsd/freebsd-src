@@ -167,13 +167,15 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 		return;
 	}
 
-	/* Ensure that td1's pcb is up to date. */
-	if (td1 == curthread)
+	/* Ensure that td1's pcb is up to date for user processes. */
+	if ((td2->td_pflags & TDP_KTHREAD) == 0) {
+		MPASS(td1 == curthread);
 		td1->td_pcb->pcb_gs = rgs();
-	critical_enter();
-	if (PCPU_GET(fpcurthread) == td1)
-		npxsave(td1->td_pcb->pcb_save);
-	critical_exit();
+		critical_enter();
+		if (PCPU_GET(fpcurthread) == td1)
+			npxsave(td1->td_pcb->pcb_save);
+		critical_exit();
+	}
 
 	/* Point the pcb to the top of the stack */
 	pcb2 = get_pcb_td(td2);
@@ -184,8 +186,19 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	/* Properly initialize pcb_save */
 	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
-	bcopy(get_pcb_user_save_td(td1), get_pcb_user_save_pcb(pcb2),
-	    cpu_max_ext_state_size);
+
+	/* Kernel processes start with clean NPX and segment bases. */
+	if ((td2->td_pflags & TDP_KTHREAD) != 0) {
+		pcb2->pcb_gs = _udatasel;
+		set_fsbase(td2, 0);
+		set_gsbase(td2, 0);
+		pcb2->pcb_flags &= ~(PCB_NPXINITDONE | PCB_NPXUSERINITDONE |
+		    PCB_KERNNPX | PCB_KERNNPX_THR);
+	} else {
+		MPASS((pcb2->pcb_flags & (PCB_KERNNPX | PCB_KERNNPX_THR)) == 0);
+		bcopy(get_pcb_user_save_td(td1), get_pcb_user_save_pcb(pcb2),
+		    cpu_max_ext_state_size);
+	}
 
 	/* Point mdproc and then copy over td1's contents */
 	mdp2 = &p2->p_md;
@@ -428,13 +441,15 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	/* Point the pcb to the top of the stack. */
 	pcb2 = td->td_pcb;
 
-	/* Ensure that td0's pcb is up to date. */
-	if (td0 == curthread)
+	/* Ensure that td0's pcb is up to date for user threads. */
+	if ((td->td_pflags & TDP_KTHREAD) == 0) {
+		MPASS(td0 == curthread);
 		td0->td_pcb->pcb_gs = rgs();
-	critical_enter();
-	if (PCPU_GET(fpcurthread) == td0)
-		npxsave(td0->td_pcb->pcb_save);
-	critical_exit();
+		critical_enter();
+		if (PCPU_GET(fpcurthread) == td0)
+			npxsave(td0->td_pcb->pcb_save);
+		critical_exit();
+	}
 
 	/*
 	 * Copy the upcall pcb.  This loads kernel regs.
@@ -442,10 +457,20 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	 * values here.
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-	pcb2->pcb_flags &= ~PCB_KERNNPX;
 	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
-	bcopy(get_pcb_user_save_td(td0), pcb2->pcb_save,
-	    cpu_max_ext_state_size);
+
+	/* Kernel threads start with clean NPX and segment bases. */
+	if ((td->td_pflags & TDP_KTHREAD) != 0) {
+		pcb2->pcb_gs = _udatasel;
+		set_fsbase(td, 0);
+		set_gsbase(td, 0);
+		pcb2->pcb_flags &= ~(PCB_NPXINITDONE | PCB_NPXUSERINITDONE |
+		    PCB_KERNNPX | PCB_KERNNPX_THR);
+	} else {
+		MPASS((pcb2->pcb_flags & (PCB_KERNNPX | PCB_KERNNPX_THR)) == 0);
+		bcopy(get_pcb_user_save_td(td0), pcb2->pcb_save,
+		    cpu_max_ext_state_size);
+	}
 
 	/*
 	 * Create a new fresh stack for the new thread.
