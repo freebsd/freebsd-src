@@ -80,6 +80,8 @@ struct hn_nvs_sendctx		hn_nvs_sendctx_none =
     HN_NVS_SENDCTX_INITIALIZER(hn_nvs_sent_none, NULL);
 
 static const uint32_t		hn_nvs_version[] = {
+	HN_NVS_VERSION_61,
+	HN_NVS_VERSION_6,
 	HN_NVS_VERSION_5,
 	HN_NVS_VERSION_4,
 	HN_NVS_VERSION_2,
@@ -508,6 +510,9 @@ hn_nvs_conf_ndis(struct hn_softc *sc, int mtu)
 	conf.nvs_caps = HN_NVS_NDIS_CONF_VLAN;
 	if (sc->hn_nvs_ver >= HN_NVS_VERSION_5)
 		conf.nvs_caps |= HN_NVS_NDIS_CONF_SRIOV;
+	if (sc->hn_nvs_ver >= HN_NVS_VERSION_61)
+		conf.nvs_caps |= HN_NVS_NDIS_CONF_RSC;
+
 
 	/* NOTE: No response. */
 	error = hn_nvs_req_send(sc, &conf, sizeof(conf));
