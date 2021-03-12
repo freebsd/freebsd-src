@@ -142,7 +142,8 @@ struct rndis_packet_msg {
 /* Per-packet-info for RNDIS data message */
 struct rndis_pktinfo {
 	uint32_t rm_size;
-	uint32_t rm_type;		/* NDIS_PKTINFO_TYPE_ */
+	uint32_t rm_type:31;		/* NDIS_PKTINFO_TYPE_ */
+	uint32_t rm_internal:1;		/* Indicate if internal type */
 	uint32_t rm_pktinfooffset;
 	uint8_t rm_data[];
 };
@@ -164,6 +165,10 @@ struct rndis_pktinfo {
 #define	NDIS_PKTINFO_TYPE_ORIG_NBLIST	9
 #define	NDIS_PKTINFO_TYPE_CACHE_NBLIST	10
 #define	NDIS_PKTINFO_TYPE_PKT_PAD	11
+
+/* Per-packet-info internal type */
+#define	NDIS_PKTINFO_IT_PKTINFO_ID	1
+/* Add more internal type here */
 
 /*
  * RNDIS control messages

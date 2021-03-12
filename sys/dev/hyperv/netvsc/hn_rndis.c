@@ -723,6 +723,17 @@ hn_rndis_conf_offload(struct hn_softc *sc, int mtu)
 			params.ndis_udp6csum = NDIS_OFFLOAD_PARAM_RX;
 	}
 
+	/* RSC offload */
+	if (hwcaps.ndis_hdr.ndis_rev >= NDIS_OFFLOAD_PARAMS_REV_3) {
+		if (hwcaps.ndis_rsc.ndis_ip4 && hwcaps.ndis_rsc.ndis_ip6) {
+			params.ndis_rsc_ip4 = NDIS_OFFLOAD_RSC_ON;
+			params.ndis_rsc_ip6 = NDIS_OFFLOAD_RSC_ON;
+		} else {
+			params.ndis_rsc_ip4 = NDIS_OFFLOAD_RSC_OFF;
+			params.ndis_rsc_ip6 = NDIS_OFFLOAD_RSC_OFF;
+		}
+	}
+
 	if (bootverbose) {
 		if_printf(sc->hn_ifp, "offload csum: "
 		    "ip4 %u, tcp4 %u, udp4 %u, tcp6 %u, udp6 %u\n",
@@ -734,6 +745,10 @@ hn_rndis_conf_offload(struct hn_softc *sc, int mtu)
 		if_printf(sc->hn_ifp, "offload lsov2: ip4 %u, ip6 %u\n",
 		    params.ndis_lsov2_ip4,
 		    params.ndis_lsov2_ip6);
+		if (hwcaps.ndis_hdr.ndis_rev >= NDIS_OFFLOAD_PARAMS_REV_3)
+			if_printf(sc->hn_ifp, "offload rsc: ip4 %u, ip6 %u\n",
+			    params.ndis_rsc_ip4,
+			    params.ndis_rsc_ip6);
 	}
 
 	error = hn_rndis_set(sc, OID_TCP_OFFLOAD_PARAMETERS, &params, paramsz);
@@ -969,6 +984,11 @@ hn_rndis_query_hwcaps(struct hn_softc *sc, struct ndis_offload *caps)
 		if_printf(sc->hn_ifp, "invalid NDIS objsize %u\n",
 		    caps->ndis_hdr.ndis_size);
 		return (EINVAL);
+	} else if (caps->ndis_hdr.ndis_rev >= NDIS_OFFLOAD_REV_3 &&
+		   caps->ndis_hdr.ndis_size < NDIS_OFFLOAD_SIZE) {
+		if_printf(sc->hn_ifp, "invalid NDIS rev3 objsize %u\n",
+		    caps->ndis_hdr.ndis_size);
+		return (EINVAL);
 	}
 
 	if (bootverbose) {
@@ -1001,6 +1021,11 @@ hn_rndis_query_hwcaps(struct hn_softc *sc, struct ndis_offload *caps)
 		    caps->ndis_lsov2.ndis_ip6_minsg,
 		    caps->ndis_lsov2.ndis_ip6_encap,
 		    caps->ndis_lsov2.ndis_ip6_opts);
+		if (caps->ndis_hdr.ndis_rev >= NDIS_OFFLOAD_REV_3)
+			if_printf(sc->hn_ifp, "hwcaps rsc: "
+			    "ip4 %u ip6 %u\n",
+			    caps->ndis_rsc.ndis_ip4,
+			    caps->ndis_rsc.ndis_ip6);
 	}
 	return (0);
 }

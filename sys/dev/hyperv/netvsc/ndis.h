@@ -115,8 +115,8 @@ struct ndis_offload_params {
 	/* NDIS >= 6.30 */
 	uint8_t			ndis_rsc_ip4;	/* NDIS_OFFLOAD_RSC_ */
 	uint8_t			ndis_rsc_ip6;	/* NDIS_OFFLOAD_RSC_ */
-	uint32_t		ndis_encap;	/* NDIS_OFFLOAD_SET_ */
-	uint32_t		ndis_encap_types;/* NDIS_ENCAP_TYPE_ */
+	uint8_t			ndis_encap;	/* NDIS_OFFLOAD_SET_ */
+	uint8_t			ndis_encap_types;/* NDIS_ENCAP_TYPE_ */
 };
 
 #define	NDIS_OFFLOAD_PARAMS_SIZE	sizeof(struct ndis_offload_params)
@@ -305,17 +305,17 @@ struct ndis_lsov2_offload {
 
 struct ndis_ipsecv2_offload {
 	uint32_t			ndis_encap;	/*NDIS_OFFLOAD_ENCAP_*/
-	uint16_t			ndis_ip6;
-	uint16_t			ndis_ip4opt;
-	uint16_t			ndis_ip6ext;
-	uint16_t			ndis_ah;
-	uint16_t			ndis_esp;
-	uint16_t			ndis_ah_esp;
-	uint16_t			ndis_xport;
-	uint16_t			ndis_tun;
-	uint16_t			ndis_xport_tun;
-	uint16_t			ndis_lso;
-	uint16_t			ndis_extseq;
+	uint8_t			ndis_ip6;
+	uint8_t			ndis_ip4opt;
+	uint8_t			ndis_ip6ext;
+	uint8_t			ndis_ah;
+	uint8_t			ndis_esp;
+	uint8_t			ndis_ah_esp;
+	uint8_t			ndis_xport;
+	uint8_t			ndis_tun;
+	uint8_t			ndis_xport_tun;
+	uint8_t			ndis_lso;
+	uint8_t			ndis_extseq;
 	uint32_t			ndis_udp_esp;
 	uint32_t			ndis_auth;
 	uint32_t			ndis_crypto;
@@ -323,8 +323,8 @@ struct ndis_ipsecv2_offload {
 };
 
 struct ndis_rsc_offload {
-	uint16_t			ndis_ip4;
-	uint16_t			ndis_ip6;
+	uint8_t			ndis_ip4;
+	uint8_t			ndis_ip6;
 };
 
 struct ndis_encap_offload {
@@ -419,5 +419,4 @@ struct ndis_offload {
 
 #define	NDIS_TXCSUM_INFO_MKUDPCS(thoff)				\
 	NDIS_TXCSUM_INFO_MKL4CS((thoff), NDIS_TXCSUM_INFO_UDPCS)
-
 #endif	/* !_NET_NDIS_H_ */

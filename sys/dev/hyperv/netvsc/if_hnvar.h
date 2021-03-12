@@ -33,7 +33,7 @@
 
 #define HN_CHIM_SIZE			(15 * 1024 * 1024)
 
-#define HN_RXBUF_SIZE			(16 * 1024 * 1024)
+#define HN_RXBUF_SIZE			(31 * 1024 * 1024)
 #define HN_RXBUF_SIZE_COMPAT		(15 * 1024 * 1024)
 
 #define HN_MTU_MAX			(65535 - ETHER_ADDR_LEN)
@@ -56,6 +56,20 @@ struct buf_ring;
 #endif
 struct hn_tx_ring;
 
+#define	HN_NVS_RSC_MAX		562	/* Max RSC frags in one vmbus packet */
+
+struct hn_rx_rsc {
+	const uint32_t		*vlan_info;
+	const uint32_t		*csum_info;
+	const uint32_t		*hash_info;
+	const uint32_t		*hash_value;
+	uint32_t		cnt;		/* fragment count */
+	uint32_t		pktlen;		/* full packet length */
+	uint8_t			is_last;	/* last fragment */
+	const void		*frag_data[HN_NVS_RSC_MAX];
+	uint32_t		frag_len[HN_NVS_RSC_MAX];
+};
+
 struct hn_rx_ring {
 	struct ifnet	*hn_ifp;
 	struct ifnet	*hn_rxvf_ifp;	/* SR-IOV VF for RX */
@@ -66,6 +80,7 @@ struct hn_rx_ring {
 	uint32_t	hn_mbuf_hash;	/* NDIS_HASH_ */
 	uint8_t		*hn_rxbuf;	/* shadow sc->hn_rxbuf */
 	int		hn_rx_idx;
+	struct hn_rx_rsc rsc;
 
 	/* Trust csum verification on host side */
 	int		hn_trust_hcsum;	/* HN_TRUST_HCSUM_ */
@@ -80,6 +95,8 @@ struct hn_rx_ring {
 	u_long		hn_pkts;
 	u_long		hn_rss_pkts;
 	u_long		hn_ack_failed;
+	u_long		hn_rsc_pkts;
+	u_long		hn_rsc_drop;
 
 	/* Rarely used stuffs */
 	struct sysctl_oid *hn_rx_sysctl_tree;
