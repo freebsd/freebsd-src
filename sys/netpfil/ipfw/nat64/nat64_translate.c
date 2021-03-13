@@ -722,7 +722,7 @@ nat64_icmp6_reflect(struct mbuf *m, uint8_t type, uint8_t code, uint32_t mtu,
 	/*
 	 * Move pkthdr from original mbuf. We should have initialized some
 	 * fields, because we can reinject this mbuf to netisr and it will
-	 * go trough input path (it requires at least rcvif should be set).
+	 * go through input path (it requires at least rcvif should be set).
 	 * Also do M_ALIGN() to reduce chances of need to allocate new mbuf
 	 * in the chain, when we will do M_PREPEND() or make some type of
 	 * tunneling.
