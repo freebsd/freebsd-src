@@ -3385,7 +3385,7 @@ bbr_get_bw_delay_prod(uint64_t rtt, uint64_t bw) {
 	/*
 	 * Calculate the bytes in flight needed given the bw (in bytes per
 	 * second) and the specifyed rtt in useconds. We need to put out the
-	 * returned value per RTT to match that rate. Gain will normaly
+	 * returned value per RTT to match that rate. Gain will normally
 	 * raise it up from there.
 	 *
 	 * This should not overflow as long as the bandwidth is below 1
@@ -10667,7 +10667,7 @@ bbr_set_probebw_gains(struct tcp_bbr *bbr, uint32_t cts, uint32_t losses)
 		}
 		/**
 		 * We fall through and return always one of two things has
-		 * occured.
+		 * occurred.
 		 * 1) We are still not at target
 		 *    <or>
 		 * 2) We reached the target and set rc_bbr_state_atflight
@@ -11157,7 +11157,7 @@ static void
 bbr_state_change(struct tcp_bbr *bbr, uint32_t cts, int32_t epoch, int32_t pkt_epoch, uint32_t losses)
 {
 	/*
-	 * A tick occured in the rtt epoch do we need to do anything?
+	 * A tick occurred in the rtt epoch do we need to do anything?
 	 */
 #ifdef BBR_INVARIANTS
 	if ((bbr->rc_bbr_state != BBR_STATE_STARTUP) &&
@@ -11305,7 +11305,7 @@ bbr_state_change(struct tcp_bbr *bbr, uint32_t cts, int32_t epoch, int32_t pkt_e
 					bbr->r_ctl.rc_bbr_enters_probertt = 1;
 				if (bbr->rc_use_google == 0) {
 					/*
-					 * Restore any lowering that as occured to
+					 * Restore any lowering that as occurred to
 					 * reach here
 					 */
 					if (bbr->r_ctl.bbr_rttprobe_gain_val)

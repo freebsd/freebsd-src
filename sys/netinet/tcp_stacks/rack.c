@@ -14058,7 +14058,7 @@ enobufs:
 	} else if ((slot == 0) && (sendalot == 0) && tot_len_this_send) {
 		/*
 		 * Get our pacing rate, if an error
-		 * occured in sending (ENOBUF) we would
+		 * occurred in sending (ENOBUF) we would
 		 * hit the else if with slot preset. Other
 		 * errors return.
 		 */

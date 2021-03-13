@@ -29,7 +29,7 @@
 #define _NETINET_TCP_RACK_H_
 
 #define RACK_ACKED	    0x0001/* The remote endpoint acked this */
-#define RACK_TO_MIXED	    0x0002/* A timeout occured that mixed the send order - not used */
+#define RACK_TO_MIXED	    0x0002/* A timeout occurred that mixed the send order - not used */
 #define RACK_DEFERRED	    0x0004/* We can't use this for RTT calc - not used */
 #define RACK_OVERMAX	    0x0008/* We have more retran's then we can fit */
 #define RACK_SACK_PASSED    0x0010/* A sack was done above this block */
