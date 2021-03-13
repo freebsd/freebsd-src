@@ -165,6 +165,7 @@ static void	ath_parent(struct ieee80211com *);
 static void	ath_fatal_proc(void *, int);
 static void	ath_bmiss_vap(struct ieee80211vap *);
 static void	ath_bmiss_proc(void *, int);
+static void	ath_tsfoor_proc(void *, int);
 static void	ath_key_update_begin(struct ieee80211vap *);
 static void	ath_key_update_end(struct ieee80211vap *);
 static void	ath_update_mcast_hw(struct ath_softc *);
@@ -761,6 +762,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	TASK_INIT(&sc->sc_rxtask, 0, sc->sc_rx.recv_tasklet, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
+	TASK_INIT(&sc->sc_tsfoortask, 0, ath_tsfoor_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
 	TASK_INIT(&sc->sc_txqtask, 0, ath_txq_sched_tasklet, sc);
@@ -2333,13 +2335,18 @@ ath_intr(void *arg)
 			sc->sc_stats.ast_rxorn++;
 		}
 		if (status & HAL_INT_TSFOOR) {
-			/* out of range beacon - wake the chip up,
-			 * but don't modify self-gen frame config */
-			device_printf(sc->sc_dev, "%s: TSFOOR\n", __func__);
-			sc->sc_syncbeacon = 1;
+			/*
+			 * out of range beacon - wake the chip up,
+			 * but don't modify self-gen frame config.
+			 * Do a full reset to clear any potential stuck
+			 * PHY/MAC that generated this condition.
+			 */
+			sc->sc_stats.ast_tsfoor++;
 			ATH_LOCK(sc);
 			ath_power_setpower(sc, HAL_PM_AWAKE, 0);
 			ATH_UNLOCK(sc);
+			taskqueue_enqueue(sc->sc_tq, &sc->sc_tsfoortask);
+			device_printf(sc->sc_dev, "%s: TSFOOR\n", __func__);
 		}
 		if (status & HAL_INT_MCI) {
 			ath_btcoex_mci_intr(sc);
@@ -2483,7 +2490,7 @@ ath_bmiss_proc(void *arg, int pending)
 	ath_beacon_miss(sc);
 
 	/*
-	 * Do a reset upon any becaon miss event.
+	 * Do a reset upon any beacon miss event.
 	 *
 	 * It may be a non-recognised RX clear hang which needs a reset
 	 * to clear.
@@ -2496,6 +2503,39 @@ ath_bmiss_proc(void *arg, int pending)
 		ath_reset(sc, ATH_RESET_NOLOSS, HAL_RESET_FORCE_COLD);
 		ieee80211_beacon_miss(&sc->sc_ic);
 	}
+
+	/* Force a beacon resync, in case they've drifted */
+	sc->sc_syncbeacon = 1;
+
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+}
+
+/*
+ * Handle a TSF out of range interrupt in STA mode.
+ *
+ * This may be due to a partially deaf looking radio, so
+ * do a full reset just in case it is indeed deaf and
+ * resync the beacon.
+ */
+static void
+ath_tsfoor_proc(void *arg, int pending)
+{
+	struct ath_softc *sc = arg;
+
+	DPRINTF(sc, ATH_DEBUG_ANY, "%s: pending %u\n", __func__, pending);
+
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
+	/*
+	 * Do a full reset after any TSFOOR.  It's possible that
+	 * we've gone deaf or partially deaf (eg due to calibration
+	 * failures) and this should clean things up a bit.
+	 */
+	ath_reset(sc, ATH_RESET_NOLOSS, HAL_RESET_FORCE_COLD);
 
 	/* Force a beacon resync, in case they've drifted */
 	sc->sc_syncbeacon = 1;

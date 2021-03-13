@@ -784,6 +784,7 @@ struct ath_softc {
 						/* recent tx frames/antenna */
 	struct ath_txq		*sc_cabq;	/* tx q for cab frames */
 	struct task		sc_bmisstask;	/* bmiss int processing */
+	struct task		sc_tsfoortask;	/* TSFOOR int processing */
 	struct task		sc_bstucktask;	/* stuck beacon processing */
 	struct task		sc_resettask;	/* interface reset task */
 	struct task		sc_fataltask;	/* fatal task */

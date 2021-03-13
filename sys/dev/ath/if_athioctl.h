@@ -177,6 +177,7 @@ struct ath_stats {
 	u_int32_t	ast_tx_nodeq_overflow;	/* node sw queue overflow */
 	u_int32_t	ast_tx_ldpc;		/* TX LDPC frame */
 	u_int32_t	ast_tx_stbc;		/* TX STBC frame */
+	u_int32_t	ast_tsfoor;		/* TSFOOR interrupts */
 	u_int32_t	ast_pad[10];
 };
 
