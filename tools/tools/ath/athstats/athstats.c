@@ -297,8 +297,23 @@ static const struct fmt athstats[] = {
 	{ 4,	"txaggrfail",	"TXAF",	"A-MPDU sub-frame TX attempt failures" },
 #define	S_TX_AGGR_FAILALL	AFTER(S_TX_AGGR_FAIL)
 	{ 7,	"txaggrfailall",	"TXAFALL",	"A-MPDU TX frame failures" },
-#ifndef __linux__
-#define	S_CABQ_XMIT	AFTER(S_TX_AGGR_FAILALL)
+#define	S_TX_MCASTQ_OVERFLOW	AFTER(S_TX_AGGR_FAILALL)
+	{ 8,	"txmcastqovf",	"TXMCQOVF",		"TX multicast queue overflow" },
+#define	S_RX_KEYMISS		AFTER(S_TX_MCASTQ_OVERFLOW)
+	{ 4,	"rxkeymiss",	"RXKM",			"RX crypto key miss" },
+#define	S_TX_SWFILTERED		AFTER(S_RX_KEYMISS)
+	{ 7,	"txswfilt",	"TXSWFLT",		"TX frames filtered by hw and retried" },
+#define	S_TX_NODE_PSQ_OVERFLOW	AFTER(S_TX_SWFILTERED)
+	{ 8,	"txpsqovf",	"TXPSQOVF",		"TX frames overflowed the power save queue" },
+#define	S_TX_NODEQ_OVERFLOW	AFTER(S_TX_NODE_PSQ_OVERFLOW)
+	{ 8,	"txnqovf",	"TXNQOVF",		"TX frames overflowed the node queue" },
+#define	S_TX_LDPC		AFTER(S_TX_NODEQ_OVERFLOW)
+	{ 6,	"txldpc",	"TXLDPC",		"TX frames transmitted with LDPC" },
+#define	S_TX_STBC		AFTER(S_TX_LDPC)
+	{ 6,	"txstbc",	"TXSTBC",		"TX frames transmitted with STBC" },
+#define	S_TSFOOR		AFTER(S_TX_STBC)
+	{ 6,	"tsfoor",	"TSFOOR",		"TSF overflow interrupt/restarts" },
+#define	S_CABQ_XMIT	AFTER(S_TSFOOR)
 	{ 7,	"cabxmit",	"cabxmit",	"cabq frames transmitted" },
 #define	S_CABQ_BUSY	AFTER(S_CABQ_XMIT)
 	{ 8,	"cabqbusy",	"cabqbusy",	"cabq xmit overflowed beacon interval" },
@@ -309,9 +324,6 @@ static const struct fmt athstats[] = {
 #define	S_RX_BUSDMA	AFTER(S_TX_BUSDMA)
 	{ 8,	"rxbusdma",	"rxbusdma",	"rx setup failed for dma resrcs" },
 #define	S_FF_TXOK	AFTER(S_RX_BUSDMA)
-#else
-#define	S_FF_TXOK	AFTER(S_TX_AGGR_FAILALL)
-#endif
 	{ 5,	"fftxok",	"fftxok",	"fast frames xmit successfully" },
 #define	S_FF_TXERR	AFTER(S_FF_TXOK)
 	{ 5,	"fftxerr",	"fftxerr",	"fast frames not xmit due to error" },
@@ -770,6 +782,14 @@ ath_get_curstat(struct bsdstat *sf, int s, char b[], size_t bs)
 	case S_TX_AGGR_OK:		STAT(tx_aggr_ok);
 	case S_TX_AGGR_FAIL:		STAT(tx_aggr_fail);
 	case S_TX_AGGR_FAILALL:		STAT(tx_aggr_failall);
+	case S_TX_MCASTQ_OVERFLOW:	STAT(tx_mcastq_overflow);
+	case S_RX_KEYMISS:		STAT(rx_keymiss);
+	case S_TX_SWFILTERED:		STAT(tx_swfiltered);
+	case S_TX_NODE_PSQ_OVERFLOW:	STAT(tx_node_psq_overflow);
+	case S_TX_NODEQ_OVERFLOW:	STAT(tx_nodeq_overflow);
+	case S_TX_LDPC:			STAT(tx_ldpc);
+	case S_TX_STBC:			STAT(tx_stbc);
+	case S_TSFOOR:			STAT(tsfoor);
 	}
 	b[0] = '\0';
 	return 0;
@@ -1015,6 +1035,14 @@ ath_get_totstat(struct bsdstat *sf, int s, char b[], size_t bs)
 	case S_TX_AGGR_OK:		STAT(tx_aggr_ok);
 	case S_TX_AGGR_FAIL:		STAT(tx_aggr_fail);
 	case S_TX_AGGR_FAILALL:		STAT(tx_aggr_failall);
+	case S_TX_MCASTQ_OVERFLOW:	STAT(tx_mcastq_overflow);
+	case S_RX_KEYMISS:		STAT(rx_keymiss);
+	case S_TX_SWFILTERED:		STAT(tx_swfiltered);
+	case S_TX_NODE_PSQ_OVERFLOW:	STAT(tx_node_psq_overflow);
+	case S_TX_NODEQ_OVERFLOW:	STAT(tx_nodeq_overflow);
+	case S_TX_LDPC:			STAT(tx_ldpc);
+	case S_TX_STBC:			STAT(tx_stbc);
+	case S_TSFOOR:			STAT(tsfoor);
 	}
 	b[0] = '\0';
 	return 0;
