@@ -1,33 +1,33 @@
-/*- 
+/*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2009 The FreeBSD Foundation 
- * All rights reserved. 
- * 
+ * Copyright (c) 2009 The FreeBSD Foundation
+ * All rights reserved.
+ *
  * This software was developed by Rui Paulo under sponsorship from the
- * FreeBSD Foundation. 
- *  
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
- * 
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
- */ 
+ * FreeBSD Foundation.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 #include <sys/cdefs.h>
 #ifdef __FreeBSD__
 __FBSDID("$FreeBSD$");
@@ -276,7 +276,7 @@ hwmp_vdetach(struct ieee80211vap *vap)
 	callout_drain(&hs->hs_roottimer);
 	IEEE80211_FREE(vap->iv_hwmp, M_80211_VAP);
 	vap->iv_hwmp = NULL;
-} 
+}
 
 static int
 hwmp_newstate(struct ieee80211vap *vap, enum ieee80211_state ostate, int arg)
@@ -372,7 +372,7 @@ verify_mesh_perr_len(struct ieee80211vap *vap,
 	}
 
 	iefrm_t += IEEE80211_MESHPERR_NDEST_OFFSET + 1; /* flag is next field */
-	/* We need to check each destionation flag to know size */
+	/* We need to check each destination flag to know size */
 	for(i = 0; i<ndest; i++) {
 		if ((*iefrm_t) & IEEE80211_MESHPERR_FLAGS_AE)
 			iefrm_t += IEEE80211_MESHPERR_DEST_SZ_AE;
@@ -442,7 +442,7 @@ hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 			preq->preq_lifetime = le32dec(iefrm_t); iefrm_t += 4;
 			preq->preq_metric = le32dec(iefrm_t); iefrm_t += 4;
 			preq->preq_tcount = *iefrm_t++;
-			
+
 			for (i = 0; i < preq->preq_tcount; i++) {
 				preq->preq_targets[i].target_flags = *iefrm_t++;
 				IEEE80211_ADDR_COPY(
@@ -977,7 +977,7 @@ hwmp_recv_preq(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		return;
 	}
 	/*
-	 * Acceptance criteria: if unicast addressed 
+	 * Acceptance criteria: if unicast addressed
 	 * AND no valid forwarding for Target of PREQ, discard this PREQ.
 	 */
 	if(rttarg != NULL)
