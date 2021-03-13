@@ -55,7 +55,7 @@
 
 #define	PFSYNC_ACT_CLR		0	/* clear all states */
 #define	PFSYNC_ACT_INS		1	/* insert state */
-#define	PFSYNC_ACT_INS_ACK	2	/* ack of insterted state */
+#define	PFSYNC_ACT_INS_ACK	2	/* ack of inserted state */
 #define	PFSYNC_ACT_UPD		3	/* update state */
 #define	PFSYNC_ACT_UPD_C	4	/* "compressed" update state */
 #define	PFSYNC_ACT_UPD_REQ	5	/* request "uncompressed" state */

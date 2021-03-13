@@ -29,7 +29,7 @@
 # Variation of nullfs.sh
 
 # "panic: LK_RETRY set with incompatible flags (0x202400) or
-#     an error occured (11)" seen.
+#     an error occurred (11)" seen.
 # https://people.freebsd.org/~pho/stress/log/matt001.txt
 
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
