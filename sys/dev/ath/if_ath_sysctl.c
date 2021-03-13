@@ -1301,6 +1301,10 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    CTLFLAG_RD, &sc->sc_stats.ast_tx_ldpc, 0,
 	    "Number of LDPC frames transmitted");
 
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tsfoor",
+	    CTLFLAG_RD, &sc->sc_stats.ast_tsfoor, 0,
+	    "Number of TSF out of range interrupts/resets");
+
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
 
