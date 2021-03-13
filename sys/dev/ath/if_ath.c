@@ -4175,6 +4175,11 @@ ath_tx_update_stats(struct ath_softc *sc, struct ath_tx_status *ts,
 
 	if (ts->ts_status == 0) {
 		u_int8_t txant = ts->ts_antenna;
+		/*
+		 * Handle weird/corrupted tx antenna field
+		 */
+		if (txant >= ATH_IOCTL_STATS_NUM_TX_ANTENNA)
+			txant = 0;
 		sc->sc_stats.ast_ant_tx[txant]++;
 		sc->sc_ant_tx[txant]++;
 		if (ts->ts_finaltsi != 0)
