@@ -31,7 +31,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2021
+.Dd March 13, 2021
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -1071,10 +1071,17 @@ and
 .Xr sed 1
 options.
 .Sh HISTORY
-A
+A simple
 .Nm
 command appeared in
-.At v1 .
+.At v1
+and was removed in
+.At v3 .
+It was rewritten for
+.At v5
+and later be enhanced for the Programmer's Workbench (PWB).
+These changes were later incorporated in
+.At v7.
 .Sh BUGS
 The special characters used by
 .Nm
