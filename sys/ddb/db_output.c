@@ -260,7 +260,7 @@ db_pager(void)
 	db_printf("--More--\r");
 	done = 0;
 	while (!done) {
-		c = cngetc();
+		c = db_getc();
 		switch (c) {
 		case 'e':
 		case 'j':
