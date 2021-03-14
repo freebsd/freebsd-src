@@ -53,6 +53,10 @@ static struct termios otermiob;
 char    strPOSIX[] = "posix";
 #endif	/* _IBMR2 */
 
+#ifdef __IBMC__
+# define HAVE_DISC	/* Z/OS TIOCGETD returns no such device */
+#endif /* __IBMC__ */
+
 #if !defined(HAVE_DISC) && defined(TIOCGETD) && defined(NTTYDISC)
 static int oldisc;
 #endif /* !HAVE_DISC && TIOCGETD && NTTYDISC */

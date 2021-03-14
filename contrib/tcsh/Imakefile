@@ -492,14 +492,15 @@ SHSRCS=	sh.c sh.dir.c sh.dol.c sh.err.c sh.exec.c \
 	sh.char.c sh.exp.c sh.file.c sh.func.c \
 	sh.glob.c sh.hist.c sh.init.c sh.lex.c \
 	sh.misc.c sh.parse.c sh.print.c sh.proc.c \
-	sh.sem.c sh.set.c sh.time.c glob.c \
+	sh.sem.c sh.set.c sh.time.c dotlock.c dotlock.h glob.c \
 	sh.char.h sh.dir.h sh.proc.h sh.h \
 	sh.decls.h glob.h ${SYSSRCS}
 SHOBJS=	sh.${SUF} sh.dir.${SUF} sh.dol.${SUF} sh.err.${SUF} sh.exec.${SUF} \
 	sh.char.${SUF} sh.exp.${SUF} sh.file.${SUF} sh.func.${SUF} \
 	sh.glob.${SUF} sh.hist.${SUF} sh.init.${SUF} sh.lex.${SUF} \
 	sh.misc.${SUF} sh.parse.${SUF} sh.print.${SUF} sh.proc.${SUF} \
-	sh.sem.${SUF} sh.set.${SUF} sh.time.${SUF} glob.${SUF} ${SYSOBJS}
+	sh.sem.${SUF} sh.set.${SUF} sh.time.${SUF} dotlock.${SUF} glob.${SUF} \
+	${SYSOBJS}
 
 TWSRCS= tw.decls.h tw.h tw.help.c tw.init.c tw.parse.c tw.spell.c \
 	tw.comp.c tw.color.c
@@ -512,9 +513,10 @@ EDOBJS=	ed.chared.${SUF} ed.refresh.${SUF} ed.screen.${SUF} ed.init.${SUF} \
 	ed.inputl.${SUF} ed.defns.${SUF} ed.xmap.${SUF} ed.term.${SUF}
 
 TCSRCS= tc.alloc.c tc.bind.c tc.const.c tc.decls.h tc.disc.c \
-	tc.func.c tc.os.c tc.os.h tc.printf.c tc.prompt.c \
-	tc.sched.c tc.sig.c tc.sig.h tc.str.c sh.types.h tc.vers.c tc.wait.h \
-	tc.who.c tc.h 
+	tc.func.c tc.nls.c tc.nls.h tc.os.c tc.os.h tc.printf.c tc.prompt.c \
+	tc.disc.${SUF} tc.func.${SUF} tc.nls.${SUF} tc.os.${SUF} \
+	tc.printf.${SUF} tc.sched.c tc.sig.c tc.sig.h tc.str.c sh.types.h \
+	tc.vers.c tc.wait.h tc.who.c tc.h 
 TCOBJS=	tc.alloc.${SUF} tc.bind.${SUF} tc.const.${SUF} tc.defs.${SUF} \
 	tc.disc.${SUF} tc.func.${SUF} tc.os.${SUF} tc.printf.${SUF} \
 	tc.prompt.${SUF} tc.sched.${SUF} tc.sig.${SUF} tc.str.${SUF} \
@@ -524,7 +526,7 @@ MISCF = Makefile.std BUILDING Fixes MAKEDIFFS MAKESHAR NewThings README.md \
 	FAQ WishList config_f.h eight-bit.me glob.3 patchlevel.h pathnames.h \
 	tcsh.man Ported src.desc Imakefile imake.config complete.tcsh \
 	Makefile.vms termcap.vms snames.h host.defs gethost.c tcsh.man2html \
-	Makefile.in configure.ac Makefile.win32 aclocal.m4
+	Makefile.in configure.ac Makefile.win32 aclocal.m4 dot.login dot.tcshrc
 CONFSRCS=config/[a-z]*
 
 

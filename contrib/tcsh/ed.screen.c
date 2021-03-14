@@ -1217,7 +1217,7 @@ so_write(Char *cp, int n)
 		Char xc;
 		if ((xc = Display[CursorV][CursorH]) != '\0') {
 		    so_write(&xc, 1);
-		    while(Display[CursorV][CursorH] == CHAR_DBWIDTH)
+		    while (Display[CursorV][CursorH] == CHAR_DBWIDTH)
 			CursorH++;
 		}
 		else {

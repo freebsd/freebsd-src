@@ -831,7 +831,7 @@ dobs2cmd(Char **v, struct command *c)
         xexit(bs2cmdlist(cmd));
     }
     cleanup_until(&pvec[1]);
-    for(;;) {
+    for (;;) {
 	int old_pintr_disabled;
 
 	if (setintr)

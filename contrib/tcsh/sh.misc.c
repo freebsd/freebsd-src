@@ -288,7 +288,7 @@ closem(void)
 	  {
 	    xclose(f);
 #ifdef NISPLUS
-	    if(f < 3)
+	    if (f < 3)
 		(void) xopen(_PATH_DEVNULL, O_RDONLY|O_LARGEFILE);
 #endif /* NISPLUS */
 	  }
@@ -531,6 +531,25 @@ areadlink(const char *path)
     char *buf;
     size_t size;
     ssize_t res;
+#ifdef __IBMC__
+    /*
+     * Prevent infinite recursion. Someone should tell me how to expand
+     * these...
+     */
+    size_t i;
+    static const char *vars[] = {
+	"/$VERSION",
+	"/$SYSNAME",
+	"/$SYSSYMR",
+	"/$SYSSYMA",
+    };
+    for (i = 0; i < sizeof(vars) / sizeof(vars[0]); i++) {
+	if (strcmp(vars[i], path) == 0) {
+	    return NULL;
+	}
+    }
+#endif
+
 
     size = MAXPATHLEN + 1;
     buf = xmalloc(size);

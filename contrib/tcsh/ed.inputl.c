@@ -862,7 +862,7 @@ SpellLine(int cmdonly)
 	    /*
 	     * This hack avoids correcting drive letter changes
 	     */
-	    if((Cursor - InputBuf) != 2 || (char)InputBuf[1] != ':')
+	    if ((Cursor - InputBuf) != 2 || (char)InputBuf[1] != ':')
 #endif /* WINNT_NATIVE */
 	    {
 #ifdef HASH_SPELL_CHECK

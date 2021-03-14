@@ -634,7 +634,7 @@ filetest(Char *cp, Char ***vp, int ignore)
     struct passwd *pw;
     struct group *gr;
 
-    while(any(FILETESTS, *++ft))
+    while (any(FILETESTS, *++ft))
 	continue;
 
     if (!*ft && *(ft - 1) == 'L')
