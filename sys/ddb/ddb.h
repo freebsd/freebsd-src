@@ -197,6 +197,7 @@ db_addr_t	db_disasm(db_addr_t loc, bool altfmt);
 				/* instruction disassembler */
 void		db_error(const char *s);
 int		db_expression(db_expr_t *valuep);
+int		db_getc(void);
 int		db_get_variable(db_expr_t *valuep);
 void		db_iprintf(const char *,...) __printflike(1, 2);
 struct proc	*db_lookup_proc(db_expr_t addr);

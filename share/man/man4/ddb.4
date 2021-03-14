@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2021
+.Dd March 14, 2021
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -1571,6 +1571,19 @@ The debugger may be entered by setting the
 .Xr sysctl 8
 .Va debug.kdb.enter
 to 1.
+.Pp
+Output may be interrupted, paused, and resumed with the control
+characters CTRL-C, CTRL-S, and CTRL-Q.
+Because these control characters are received as in-band data from the
+console, there is an input buffer, and once that buffer fills
+.Nm
+must either stop responding to control characters or drop additional
+input while continuing to search for control characters.
+This behavior is controlled by the tunable
+.Xr sysctl 8
+.Va debug.ddb.prioritize_control_input ,
+which defaults to 1.
+The input buffer size is 512 bytes.
 .Sh FILES
 Header files mentioned in this manual page can be found below
 .Pa /usr/include
