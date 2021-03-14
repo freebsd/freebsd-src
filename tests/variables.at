@@ -591,7 +591,18 @@ printenv HOME
 setenv HOME /bar
 echo $home
 ]])
-AT_CHECK([export HOME=$(getent passwd $(id -nu) | awk -F: '{ print $(NF - 1) }'); tcsh -f home.csh], ,
+AT_CHECK([
+case "$(uname -s)" in
+Darwin)
+    HOME=$(dscl . read "/Users/$USER" NFSHomeDirectory | awk '{ print $NF }')
+    ;;
+*)
+    HOME=$(getent passwd $(id -un) | awk -F: '{ print $(NF - 1) }')
+    ;;
+esac;
+export HOME;
+tcsh -f home.csh
+], ,
 [1
 1
 /foo
@@ -708,7 +719,18 @@ AT_CLEANUP
 
 
 AT_SETUP([$ cdtohome])
-AT_CHECK([export HOME=$(getent passwd $(id -nu) | awk -F: '{ print $(NF - 1) }'); tcsh -f -c 'cd'], 0)
+AT_CHECK([
+case "$(uname -s)" in
+Darwin)
+    HOME=$(dscl . read "/Users/$USER" NFSHomeDirectory | awk '{ print $NF }')
+    ;;
+*)
+    HOME=$(getent passwd $(id -un) | awk -F: '{ print $(NF - 1) }')
+    ;;
+esac;
+export HOME;
+tcsh -f -c 'cd'
+], 0)
 AT_CLEANUP
 AT_SETUP([$ noimplicithome])
 AT_CHECK([tcsh -f -c 'unset cdtohome; cd'], 1, , [cd: Too few arguments.

@@ -83,9 +83,16 @@
  *
  * The more recent defaults for gcc (e.g. on Red Hat 7.0)
  * also define _POSIX_C_SOURCE, which throws our code off.
+ *
+ * _BSD_SOURCE and _SVID_SOURCE have become deprecated
+ * aliases for _DEFAULT_SOURCE. _DEFAULT_SOURCE overrides
+ * __STRICT_ANSI__ also. [gcc 8.3.0 on Debian 10]
  */
 
 #define __STRICT_ANSI__
+#ifndef _DEFAULT_SOURCE
+# define _DEFAULT_SOURCE
+#endif
 #ifndef _BSD_SOURCE
 # define _BSD_SOURCE
 #endif

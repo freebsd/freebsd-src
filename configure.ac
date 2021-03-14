@@ -8,7 +8,7 @@ dnl
 dnl Written by Kaveh Ghazi (ghazi@caip.rutgers.edu) 5/11/96.
 
 AC_PREREQ([2.59])dnl Minimum Autoconf version required.
-AC_INIT([tcsh], [6.21.00], [https://bugs.astron.com/])
+AC_INIT([tcsh], [6.22.03], [https://bugs.astron.com/])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([tc.vers.c])
 AC_CONFIG_HEADERS([config.h])
@@ -16,6 +16,8 @@ AC_CONFIG_TESTDIR([.], [.])
 
 AC_PROG_INSTALL
 AC_CANONICAL_HOST
+
+AM_ICONV
 
 AC_MSG_CHECKING([cached host tuple])
 if { test x"${ac_cv_host_system_type+set}" = x"set" &&
@@ -321,7 +323,6 @@ AC_SEARCH_LIBS([tgetent], [termlib tinfo termcap curses ncurses], [], [
 AC_SEARCH_LIBS(gethostbyname, nsl)
 AC_SEARCH_LIBS(connect, socket)
 AC_SEARCH_LIBS(catgets, catgets)
-AM_ICONV
 
 dnl Checks for header files
 AC_CHECK_HEADERS([auth.h crypt.h features.h inttypes.h paths.h] dnl

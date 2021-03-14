@@ -685,10 +685,6 @@ EXTERN int   OLDSTD IZERO;	/* Old standard input (def for cmds) */
    typedef struct { const char *f; size_t l; sigjmp_buf j; } jmp_buf_t;
 # define tcsh_setjmp() sigsetjmp(reslab.j, 1)
 # define tcsh_longjmp()   siglongjmp(reslab.j, 1)
-# define setexit()  (reslab.f = __func__, \
-		    reslab.l = __LINE__, \
-		    sigsetjmp(reslab.j, 1))
-# define _reset()   siglongjmp(reslab.j, 1)
 #else
    typedef struct { const char *f; size_t l; jmp_buf j; } jmp_buf_t;
 # define tcsh_setjmp() setjmp(reslab.j)
@@ -1159,6 +1155,8 @@ EXTERN Char    PRCHROOT;	/* Prompt symbol for root */
 #define Strend(a)		s_strend(a)
 #define Strstr(a, b)		s_strstr(a, b)
 #endif 
+
+#define TCSH_MODIFIERS	"ehlqrstuxQ"
 
 /*
  * setname is a macro to save space (see sh.err.c)

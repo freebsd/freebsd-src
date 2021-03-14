@@ -626,3 +626,110 @@ AT_CHECK([tcsh -f escape_echo.csh], 0,
 ])
 
 AT_CLEANUP
+
+AT_SETUP([:gas work as described in the man pages])
+
+AT_DATA([gas.csh],
+[[set x=(aa bb aa bb)
+echo $x:gas/a/c/:gs/b/d/
+foreach i ( "$x:gas/a/c/:q" )
+    echo $i
+end
+echo $x:gas/a/q/:gs/b/w/:s/b/e/
+echo $x:gas/a/q/:gs/b/w/:s/b/e/:gas/q/Q/
+exit 0
+]])
+
+AT_CHECK([tcsh -f gas.csh], 0,
+[cc db cc db
+cc bb cc bb
+qq we qq wb
+QQ we QQ wb
+])
+
+AT_CLEANUP
+
+AT_SETUP([avoid infinite loop in :gas])
+
+AT_DATA([replace_all.csh],
+[[set x=aa
+echo $x:gas/a/ba/
+exit 0
+]])
+
+AT_CHECK([tcsh -f replace_all.csh], 0,
+[baba
+])
+
+AT_CLEANUP
+
+AT_SETUP([/a.b/c:r doesn't remove path elements])
+
+AT_DATA([colon_r_no_extension.csh],
+[[set x='/a.b/c'
+echo $x:r
+exit 0
+]])
+
+AT_CHECK([tcsh -f colon_r_no_extension.csh], 0,
+[/a.b/c
+])
+
+AT_CLEANUP
+
+AT_SETUP([$x:q:h does not cause out of memory crash and yields the full string])
+
+AT_DATA([x_colon_q_colon_h.csh],
+[[set x='a/b c/d.e'
+echo $x:q:h
+exit 0
+]])
+
+AT_CHECK([tcsh -f x_colon_q_colon_h.csh], 0,
+[a/b c/d.e
+])
+
+AT_CLEANUP
+
+AT_SETUP([$x:q:t does not cause out of memory crash and yields the full string])
+
+AT_DATA([x_colon_q_colon_h.csh],
+[[set x='a/b c/d.e'
+echo $x:q:t
+exit 0
+]])
+
+AT_CHECK([tcsh -f x_colon_q_colon_h.csh], 0,
+[a/b c/d.e
+])
+
+AT_CLEANUP
+
+AT_SETUP([$x:q:r yields the full string])
+
+AT_DATA([x_colon_q_colon_r.csh],
+[[set x='a/b c/d.e'
+echo $x:q:r
+exit 0
+]])
+
+AT_CHECK([tcsh -f x_colon_q_colon_r.csh], 0,
+[a/b c/d.e
+])
+
+AT_CLEANUP
+
+AT_SETUP([$x:q:e yields nothing])
+
+AT_DATA([x_colon_q_colon_e.csh],
+[[set x='a/b c/d.e'
+echo $x:q:e
+exit 0
+]])
+
+AT_CHECK([tcsh -f x_colon_q_colon_e.csh], 0,
+[
+])
+
+AT_CLEANUP
+

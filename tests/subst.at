@@ -50,12 +50,34 @@ nothing*
 foo* ab{c,d} ^fo*
 ])
 
-AT_CHECK([export HOME=$(getent passwd $(id -un) | awk -F: '{ print $(NF - 1) }'); echo 'echo ~; echo "$HOME"' | tcsh -f | uniq | wc -l | tr -d ' \t'],
+AT_CHECK([
+case "$(uname -s)" in
+Darwin)
+    HOME=$(dscl . read "/Users/$USER" NFSHomeDirectory | awk '{ print $NF }')
+    ;;
+*)
+    HOME=$(getent passwd $(id -un) | awk -F: '{ print $(NF - 1) }')
+    ;;
+esac;
+export HOME;
+echo 'echo ~; echo "$HOME"' | tcsh -f | uniq | wc -l | tr -d ' \t'
+],
 , [1
 ])
 
-AT_CHECK([export HOME=$(getent passwd $(id -un) | awk -F: '{ print $(NF - 1) }'); echo "echo ~$(id -un)/foo; echo \"\$HOME/foo\"" | tcsh -f | uniq dnl
-	  | wc -l | tr -d ' \t'], , [1
+AT_CHECK([
+case "$(uname -s)" in
+Darwin)
+    HOME=$(dscl . read "/Users/$USER" NFSHomeDirectory | awk '{ print $NF }')
+    ;;
+*)
+    HOME=$(getent passwd $(id -un) | awk -F: '{ print $(NF - 1) }')
+    ;;
+esac;
+export HOME;
+echo "echo ~$(id -un)/foo; echo \"\$HOME/foo\"" | tcsh -f | uniq dnl
+    | wc -l | tr -d ' \t'
+], , [1
 ])
 
 AT_CLEANUP
