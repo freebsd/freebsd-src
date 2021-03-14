@@ -209,7 +209,6 @@ zfs_dd_lookup(znode_t *dzp, znode_t **zpp)
 #ifdef ZFS_DEBUG
 	if (zfsvfs->z_replay == B_FALSE)
 		ASSERT_VOP_LOCKED(ZTOV(dzp), __func__);
-	ASSERT(ZFS_TEARDOWN_READ_HELD(zfsvfs));
 #endif
 	if (dzp->z_unlinked)
 		return (ENOENT);
@@ -234,7 +233,6 @@ zfs_dirlook(znode_t *dzp, const char *name, znode_t **zpp)
 #ifdef ZFS_DEBUG
 	if (zfsvfs->z_replay == B_FALSE)
 		ASSERT_VOP_LOCKED(ZTOV(dzp), __func__);
-	ASSERT(ZFS_TEARDOWN_READ_HELD(zfsvfs));
 #endif
 	if (dzp->z_unlinked)
 		return (SET_ERROR(ENOENT));
