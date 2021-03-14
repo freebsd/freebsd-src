@@ -1344,8 +1344,8 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 			TAILQ_INSERT_AFTER(queue, rv, marker, partpopq);
 			vm_reserv_domain_unlock(domain);
 			vm_reserv_lock(rv);
-			if (!rv->inpartpopq ||
-			    TAILQ_NEXT(rv, partpopq) != marker) {
+			if (TAILQ_PREV(marker, vm_reserv_queue, partpopq) !=
+			    rv) {
 				vm_reserv_unlock(rv);
 				vm_reserv_domain_lock(domain);
 				rvn = TAILQ_NEXT(marker, partpopq);
@@ -1363,8 +1363,9 @@ vm_reserv_reclaim_contig(int domain, u_long npages, vm_paddr_t low,
 			vm_reserv_unlock(rv);
 			return (true);
 		}
-		vm_reserv_unlock(rv);
 		vm_reserv_domain_lock(domain);
+		rvn = TAILQ_NEXT(rv, partpopq);
+		vm_reserv_unlock(rv);
 	}
 	vm_reserv_domain_unlock(domain);
 	vm_reserv_domain_scan_unlock(domain);
