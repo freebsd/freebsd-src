@@ -27,7 +27,7 @@
 #ifndef	_SYS_FS_ZFS_VFSOPS_H
 #define	_SYS_FS_ZFS_VFSOPS_H
 
-#if __FreeBSD_version >= 1300109
+#if __FreeBSD_version >= 1300125
 #define	TEARDOWN_RMS
 #endif
 
