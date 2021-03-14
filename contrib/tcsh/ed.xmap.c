@@ -698,7 +698,7 @@ parseescape(const Char **ptr)
 #endif
     }
     else
-	c = *p;
+	c = *p & CHAR;
     *ptr = p;
     return (c);
 }

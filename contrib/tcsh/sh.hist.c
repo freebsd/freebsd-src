@@ -1219,7 +1219,7 @@ void
 rechist(Char *fname, int ref)
 {
     Char    *snum, *rs;
-    int     fp, ftmp, oldidfds;
+    int     fp, ftmp, oldidfds, ophup_disabled;
     struct varent *shist;
     char path[MAXPATHLEN];
     struct stat st;
@@ -1227,6 +1227,10 @@ rechist(Char *fname, int ref)
 
     if (fname == NULL && !ref) 
 	return;
+
+    ophup_disabled = phup_disabled;
+    phup_disabled = 1;
+
     /*
      * If $savehist is just set, we use the value of $history
      * else we use the value in $savehist
@@ -1292,7 +1296,7 @@ rechist(Char *fname, int ref)
 #endif
 	    }
 	    getexit(osetexit);
-	    if (setexit())
+	    if (setexit() == 0)
 		loadhist(fname, 1);
 	    resexit(osetexit);
 	}
@@ -1305,6 +1309,7 @@ rechist(Char *fname, int ref)
     if (fp == -1) {
 	didfds = oldidfds;
 	cleanup_until(fname);
+	phup_disabled = ophup_disabled;
 	return;
     }
     /* Try to preserve ownership and permissions of the original history file */
@@ -1329,6 +1334,7 @@ rechist(Char *fname, int ref)
     (void)ReplaceFile( short2str(fname),path,NULL,0,NULL,NULL);
 #endif
     cleanup_until(fname);
+    phup_disabled = ophup_disabled;
 }
 
 

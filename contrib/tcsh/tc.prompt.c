@@ -379,7 +379,7 @@ tprintf(int what, const Char *fmt, const char *str, time_t tim, ptr_t info)
 			Strbuf_append1(&buf, attributes | *z++);
 			do {
 			    Strbuf_append1(&buf, attributes | *z++);
-			} while(*z != '/');
+			} while (*z != '/');
 		    }
 #endif /* WINNT_NATIVE */
 		    q = z;

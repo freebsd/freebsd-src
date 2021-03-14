@@ -64,8 +64,10 @@ static Char *dolp;		/* Remaining chars from this word */
 static Char **dolnxt;		/* Further words */
 static int dolcnt;		/* Count of further words */
 static struct Strbuf dolmod; /* = Strbuf_INIT; : modifier characters */
-static int dolmcnt;		/* :gx -> INT_MAX, else 1 */
-static int dol_flag_a;		/* :ax -> 1, else 0 */
+
+static int ndolflags;		/* keep track of mod counts for each modifier */
+static int *dolmcnts;		/* :gx -> INT_MAX, else 1 */
+static int *dolaflags;		/* :ax -> 1, else 0 */
 
 static	Char	 **Dfix2	(Char *const *);
 static	int 	 Dpack		(struct Strbuf *);
@@ -378,7 +380,7 @@ Dgetdol(void)
     static Char *dolbang = NULL;
 
     cleanup_push(name, Strbuf_free);
-    dolmod.len = dolmcnt = dol_flag_a = 0;
+    dolmod.len = ndolflags = 0;
     c = sc = DgetC(0);
     if (c == DEOF) {
       stderror(ERR_SYNTAX);
@@ -718,21 +720,27 @@ fixDolMod(void)
 
     c = DgetC(0);
     if (c == ':') {
+	ndolflags = 0;
 	do {
-	    c = DgetC(0), dolmcnt = 1, dol_flag_a = 0;
+	    ++ndolflags;
+	    dolmcnts = xrealloc(dolmcnts, ndolflags * sizeof(int));
+	    dolaflags = xrealloc(dolaflags, ndolflags * sizeof(int));
+	    c = DgetC(0), dolmcnts[ndolflags - 1] = 1, dolaflags[ndolflags - 1] = 0;
 	    if (c == 'g' || c == 'a') {
-		if (c == 'g')
-		    dolmcnt = INT_MAX;
-		else
-		    dol_flag_a = 1;
+		if (c == 'g') {
+		    dolmcnts[ndolflags - 1] = INT_MAX;
+		} else {
+		    dolaflags[ndolflags - 1] = 1;
+		}
 		c = DgetC(0);
 	    }
-	    if ((c == 'g' && dolmcnt != INT_MAX) || 
-		(c == 'a' && dol_flag_a == 0)) {
-		if (c == 'g')
-		    dolmcnt = INT_MAX;
-		else
-		    dol_flag_a = 1;
+	    if ((c == 'g' && dolmcnts[ndolflags - 1] != INT_MAX) || 
+		(c == 'a' && dolaflags[ndolflags - 1] == 0)) {
+		if (c == 'g') {
+		    dolmcnts[ndolflags - 1] = INT_MAX;
+		} else {
+		    dolaflags[ndolflags - 1] = 1;
+		}
 		c = DgetC(0);
 	    }
 
@@ -749,20 +757,21 @@ fixDolMod(void)
 		}	
 		while ((c = DgetC(0)) != DEOF) {
 		    Strbuf_append1(&dolmod, (Char) c);
-		    if(c == delim) delimcnt--;
-		    if(!delimcnt) break;
+		    if (c == delim) delimcnt--;
+		    if (!delimcnt) break;
 		}
-		if(delimcnt) {
+		if (delimcnt) {
 		    seterror(ERR_BADSUBST);
 		    break;
 		}
 		continue;
 	    }
-	    if (!any("luhtrqxes", c))
+	    if (!any(TCSH_MODIFIERS, c))
 		stderror(ERR_BADMOD, (int)c);
 	    Strbuf_append1(&dolmod, (Char) c);
-	    if (c == 'q')
-		dolmcnt = INT_MAX;
+	    if (c == 'q') {
+		dolmcnts[ndolflags - 1] = INT_MAX;
+	    }
 	}
 	while ((c = DgetC(0)) == ':');
 	unDredc(c);
@@ -771,13 +780,25 @@ fixDolMod(void)
 	unDredc(c);
 }
 
+static int
+all_dolmcnts_are_0()
+{
+    int i = 0;
+    for (; i < ndolflags; ++i) {
+	if (dolmcnts[i] != 0)
+	    return 0;
+    }
+    return 1;
+}
+
 static void
 setDolp(Char *cp)
 {
     Char *dp;
     size_t i;
+    int nthMod = 0;
 
-    if (dolmod.len == 0 || dolmcnt == 0) {
+    if (dolmod.len == 0 || all_dolmcnts_are_0()) {
 	dolp = cp;
 	return;
     }
@@ -786,10 +807,12 @@ setDolp(Char *cp)
 	int didmod = 0;
 
 	/* handle s// [eichin:19910926.0510EST] */
-	if(dolmod.s[i] == 's') {
+	if (dolmod.s[i] == 's') {
 	    Char delim;
 	    Char *lhsub, *rhsub, *np;
 	    size_t lhlen = 0, rhlen = 0;
+	    /* keep track of where the last :a match hit */
+	    ptrdiff_t last_match = 0;
 
 	    delim = dolmod.s[++i];
 	    if (!delim || letter(delim)
@@ -798,47 +821,50 @@ setDolp(Char *cp)
 		break;
 	    }
 	    lhsub = &dolmod.s[++i];
-	    while(dolmod.s[i] != delim && dolmod.s[++i]) {
+	    while (dolmod.s[i] != delim && dolmod.s[++i]) {
 		lhlen++;
 	    }
 	    dolmod.s[i] = 0;
 	    rhsub = &dolmod.s[++i];
-	    while(dolmod.s[i] != delim && dolmod.s[++i]) {
+	    while (dolmod.s[i] != delim && dolmod.s[++i]) {
 		rhlen++;
 	    }
 	    dolmod.s[i] = 0;
 
 	    strip(lhsub);
 	    strip(rhsub);
-	    strip(cp);
-	    dp = cp;
-	    do {
-		dp = Strstr(dp, lhsub);
-		if (dp) {
-		    ptrdiff_t diff = dp - cp;
-		    size_t len = (Strlen(cp) + 1 - lhlen + rhlen);
-		    np = xmalloc(len * sizeof(Char));
-		    (void) Strncpy(np, cp, diff);
-		    (void) Strcpy(np + diff, rhsub);
-		    (void) Strcpy(np + diff + rhlen, dp + lhlen);
+	    if (dolmcnts[nthMod] != 0) {
+	        strip(cp);
+	        dp = cp;
+	        do {
+	            dp = Strstr(dp + last_match, lhsub);
+	            if (dp) {
+	                ptrdiff_t diff = dp - cp;
+	                size_t len = (Strlen(cp) + 1 - lhlen + rhlen);
+	                np = xmalloc(len * sizeof(Char));
+	                (void) Strncpy(np, cp, diff);
+	                (void) Strcpy(np + diff, rhsub);
+	                (void) Strcpy(np + diff + rhlen, dp + lhlen);
+			last_match = diff + rhlen;
 
-		    xfree(cp);
-		    dp = cp = np;
-		    cp[--len] = '\0';
-		    didmod = 1;
-		    if (diff >= (ssize_t)len)
-			break;
-		} else {
-		    /* should this do a seterror? */
-		    break;
-		}
-	    }
-	    while (dol_flag_a != 0);
+	                xfree(cp);
+	                dp = cp = np;
+	                cp[--len] = '\0';
+	                didmod = 1;
+	                if (diff >= (ssize_t)len)
+	            	break;
+	            } else {
+	                /* should this do a seterror? */
+	                break;
+	            }
+	        }
+	        while (dolaflags[nthMod] != 0);
+            }
 	    /*
 	     * restore dolmod for additional words
 	     */
 	    dolmod.s[i] = rhsub[-1] = (Char) delim;
-        } else {
+	} else if (dolmcnts[nthMod] != 0) {
 
 	    do {
 		if ((dp = domod(cp, dolmod.s[i])) != NULL) {
@@ -856,14 +882,16 @@ setDolp(Char *cp)
 		else
 		    break;
 	    }
-	    while (dol_flag_a != 0);
+	    while (dolaflags[nthMod] != 0);
 	}
-	if (didmod && dolmcnt != INT_MAX)
-	    dolmcnt--;
+	if (didmod && dolmcnts[nthMod] != INT_MAX)
+	    dolmcnts[nthMod]--;
 #ifdef notdef
 	else
 	    break;
 #endif
+
+	++nthMod;
     }
 
     addla(cp);
