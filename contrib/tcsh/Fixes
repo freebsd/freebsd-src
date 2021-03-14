@@ -1,3 +1,25 @@
+ 14. Don't crash with 'bindkey "^0" clear-screen' (Karl Jeacle)
+ 13. Fix $x:q:h and $x:q:t return the whole string for strings not containing /
+ 12. V6.22.03 - 20201118
+ 11. Fix $x:q:h and $x:q:t to not crash (alzwded) with strings containing /
+ 10. Block SIGHUP while writing history/directory stack (Brett Frankenberger)
+  9. Fixed reversed test that broke history merging (Brett Frankenberger)
+  8. Prevent recursive entry for writing history (Brett Frankenberger)
+  7. alxwded@github, keep track of the :g and :a modifiers per modifier they
+     affect.
+  6. alzwded@github, fix infinite loop with :gas variable modifier
+  5. PR/88: Add a Q: modifier that preserves empty arguments leaving :q
+     alone.
+  4. V6.22.02 - 20191204
+  3. Fix version in configure.ac
+  2. V6.22.01 - 20191201
+  1. undo PR/88: Preserve empty arguments in :q, since it breaks
+	$ set x=""
+	$ alias test "echo "\""$x:q"\"" is working."
+	$ alias test
+	echo "
+
+  6. V6.22.00 - 20191128
   5. PR/113: Sobomax: avoid infinite loops for -c commands when stdout is
      not a tty.
   4. Avoid infinite loops during history loads when merging, print a better
@@ -6,6 +28,7 @@
   2. PR/94: Small apple issues (SAVESIGVEC, HOSTTYPE)
   1. PR/81: Fix range matching issue where we were comparing with the
      range character instead of the start of range. [l-z]* would match foo
+
  12. V6.21.00 - 20190508
  11. Abort history loading on words and lines too long
      https://bugzilla.redhat.com/show_bug.cgi?id=1598502

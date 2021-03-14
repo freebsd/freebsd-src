@@ -1,0 +1,110 @@
+#
+# ~/.tcshrc - Setup user shell environment
+#
+# See also tcsh(1), environ(7).
+#
+
+unalias *
+
+alias	h	'history \!* 20'
+alias	j	'jobs -l'
+alias	ll	'ls -lAF'
+alias	md	mkdir
+alias	rd	rmdir
+
+#
+# The following commands are only for interactive shells.
+#
+
+if ( $?prompt ) then
+  set \
+    autocorrect \
+    autoexpand \
+    autolist=ambiguous \
+    correct=cmd \
+    ellipsis \
+    filec \
+    history=1000 \
+    killdup=erase \
+    listjobs=long \
+    listlinks \
+    listmax=100 \
+    nobeep \
+    prompt='%N@%m:%B%c02%b%# ' \
+    rmstar \
+    savehist=(1000 merge) \
+
+  unset promptchars
+
+  if ( $?tcsh ) then
+    bindkey -e
+
+    bindkey " " magic-space
+    bindkey ^W backward-delete-word
+    bindkey ^Z run-fg-editor
+    bindkey ^[^W kill-region
+
+    #
+    # Setup $hosts from ~/.hosts, ~/.rhosts, ~/.ssh/known_hosts
+    #
+
+    if ( ! $?hosts ) then
+      set hosts=()
+      foreach f ( ~/.{,r,ssh/known_}hosts )
+	if ( -r "$f" ) then
+	  set hosts=( \
+	    $hosts \
+	    `sed \
+	      -e 's/#.*//' \
+	      -e '/^|/d' \
+	      -e '/^[+-]@/d' \
+	      -e 's/^[+-]//' \
+	      -e 's/[[:space:]].*$//' \
+	      -e 's/,/\n/g' \
+	      "$f" \
+	    | sed \
+	      -e 's/:[[:digit:]]*$//' \
+	      -e 's/^\[\([^]]*\)\]$/\1/' \
+	      -e '/^[.:[:xdigit:][:space:]]*$/d' \
+	    ` \
+	  )
+	endif
+      end
+      unset f
+    endif
+
+    uncomplete *
+
+    #
+    # Copy from complete.tcsh
+    #
+    if ( -r ~/.complete ) source ~/.complete
+
+    uncomplete rcp rsh
+  endif
+
+  #
+  # Set status to ^G in order to keep using ^T for transpose-char.
+  #
+
+  switch ( "$OSTYPE" )
+  case bsd44:
+  case darwin:
+  case FreeBSD:
+  case NetBSD:
+    stty status ^G
+    if ( $?tcsh ) bindkey ^G stuff-char
+    breaksw
+  endsw
+
+  #
+  # We don't want to create a root-owned files in our home.
+  #
+
+  if ( $uid == 0 ) then
+    unset savehist
+    setenv LESSHISTFILE -
+    setenv VIMINIT ':set viminfo='
+  endif
+
+endif

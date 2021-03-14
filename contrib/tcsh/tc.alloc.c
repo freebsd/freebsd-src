@@ -655,3 +655,13 @@ showall(Char **v, struct command *c)
     USE(c);
     USE(v);
 }
+
+#ifndef SYSMALLOC
+/* jemalloc defines these */
+void _malloc_prefork(void);
+void _malloc_postfork(void);
+void _malloc_postfork_child(void);
+void _malloc_prefork(void) {}
+void _malloc_postfork(void) {}
+void _malloc_postfork_child(void) {}
+#endif

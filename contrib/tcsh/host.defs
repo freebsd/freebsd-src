@@ -851,7 +851,7 @@ machtype: defined(sparc)  				: "sparc"
 enddef	:
 
 
-newdef	: defined(APPLE) && defined(MACH)
+newdef	: defined(APPLE)
 comment : OS X
 vendor	:						: "apple"
 hosttype: defined(i386)					: "intel-mac"

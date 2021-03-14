@@ -75,8 +75,13 @@ globtilde(Char *s)
     Char *name, *u, *home, *res;
 
     u = s;
+
+    if (s[1] == '~')
+	return Strsave(s);
+
     for (s++; *s && *s != '/' && *s != ':'; s++)
 	continue;
+
     name = Strnsave(u + 1, s - (u + 1));
     cleanup_push(name, xfree);
     home = gethdir(name);
@@ -513,14 +518,16 @@ globone(Char *str, int action)
     }
  result:
     if (vl && vl[0] == NULL) {
-	xfree(vl);
+	if (vl != v)
+	    xfree(vl);
 	return (Strsave(STRNULL));
     }
     if (vl && vl[1]) 
 	return (handleone(str, vl, action));
     else {
 	str = strip(*vl);
-	xfree(vl);
+	if (vl != v)
+	    xfree(vl);
 	return (str);
     }
 }
