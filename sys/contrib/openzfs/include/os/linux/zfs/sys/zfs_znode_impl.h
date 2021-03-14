@@ -81,7 +81,7 @@ extern "C" {
 do {								\
 	ZFS_TEARDOWN_ENTER_READ(zfsvfs, FTAG);			\
 	if (unlikely((zfsvfs)->z_unmounted)) {			\
-		ZFS_EXIT_READ(zfsvfs, FTAG);			\
+		ZFS_TEARDOWN_EXIT_READ(zfsvfs, FTAG);		\
 		return (error);					\
 	}							\
 } while (0)
@@ -92,7 +92,7 @@ do {								\
 #define	ZFS_EXIT(zfsvfs)					\
 do {								\
 	zfs_exit_fs(zfsvfs);					\
-	ZFS_EXIT_READ(zfsvfs, FTAG);				\
+	ZFS_TEARDOWN_EXIT_READ(zfsvfs, FTAG);			\
 } while (0)
 
 #define	ZPL_EXIT(zfsvfs)					\
