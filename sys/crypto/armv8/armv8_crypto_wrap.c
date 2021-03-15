@@ -26,6 +26,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * This file is derived from aesni_wrap.c:
+ * Copyright (C) 2008 Damien Miller <djm@mindrot.org>
+ * Copyright (c) 2010 Konstantin Belousov <kib@FreeBSD.org>
+ * Copyright (c) 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
+ * Copyright 2012-2013 John-Mark Gurney <jmg@FreeBSD.org>
+ * Copyright (c) 2014 The FreeBSD Foundation
  */
 
 /*
