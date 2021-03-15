@@ -462,7 +462,7 @@ static void
 schedule_callout(struct fib_data *fd, int delay_ms)
 {
 
-	callout_reset_sbt(&fd->fd_callout, 0, SBT_1MS * delay_ms,
+	callout_reset_sbt(&fd->fd_callout, SBT_1MS * delay_ms, 0,
 	    rebuild_fd_callout, fd, 0);
 }
 
