@@ -86,7 +86,7 @@ EOF
 int
 main(int argc, char **argv)
 {
-	char *av[4];
+	char *av[2];
 	int fd;
 
 	if (argc == 1)
@@ -112,9 +112,8 @@ main(int argc, char **argv)
 
 	if (chdir("/") != 0)
 		err(1, "chdir");
-	av[0] = "nop";
-	av[1] = "nop";
-	av[3] = 0;
+	av[0] = "/nop";
+	av[1] = 0;
 	if (execve(av[0], av, NULL) == -1)
 		err(1, "execve");
 
