@@ -13,59 +13,6 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- *
- * ======== wg_cookie.h ========
- *
- * This file provides a thread safe interface to the WireGuard cookie
- * mechanism. It is split into three parts:
- *
- *    * cookie_maker
- *            Used to create MACs for messages.
- *    * cookie_checker
- *            Used to validate MACs for messages.
- *    * cookie_macs
- *            The MACs that authenticate the message.
- *
- * The MACs provide two properties:
- *    * mac1 - That the remote end knows a value.
- *    * mac2 - That the remote end has a specific IP address.
- *
- * void cookie_maker_init(cookie_maker, ipl, input)
- *   - Initialise cookie_maker, should only be called once and before use.
- *     input is the shared value used for mac1.
- *
- * int  cookie_checker_init(cookie_checker, ipl)
- *   - Initialise cookie_checker, should only be called once and before use. It
- *     will return ENOBUFS if it cannot allocate required memory.
- *
- * void cookie_checker_update(cookie_checker, input)
- *   - Set the input value to check mac1 against.
- *
- * void cookie_checker_deinit(cookie_checker)
- *   - Destroy all values associated with cookie_checker. cookie_checker must
- *     not be used after calling this function.
- *
- * void cookie_checker_create_payload(cookie_checker, cookie_macs, nonce,
- *         payload, sockaddr)
- *   - Create a specific payload derived from the sockaddr. The payload is an
- *     encrypted shared secret, that the cookie_maker will decrypt and used to
- *     key the mac2 value.
- *
- * int  cookie_maker_consume_payload(cookie_maker, nonce, payload)
- *   - Have cookie_maker consume the payload.
- *
- * void cookie_maker_mac(cookie_maker, cookie_macs, message, len)
- *   - Create cookie_macs for the message of length len. It will always compute
- *     mac1, however will only compute mac2 if we have recently received a
- *     payload to key it with.
- *
- * int  cookie_checker_validate_macs(cookie_checker, cookie_macs, message, len,
- *         busy, sockaddr)
- *   - Use cookie_checker to validate the cookie_macs of message with length
- *     len. If busy, then ratelimiting will be applied to the sockaddr.
- *
- * ==========================
- * $FreeBSD$
  */
 
 #ifndef __COOKIE_H__
@@ -75,15 +22,14 @@
 #include <sys/time.h>
 #include <sys/rwlock.h>
 #include <sys/queue.h>
-#include <sys/support.h>
 
 #include <netinet/in.h>
 
-#include <crypto/blake2s.h>
+#include "crypto.h"
 
 #define COOKIE_MAC_SIZE		16
 #define COOKIE_KEY_SIZE		32
-#define COOKIE_XNONCE_SIZE	24
+#define COOKIE_NONCE_SIZE	XCHACHA20POLY1305_NONCE_SIZE
 #define COOKIE_COOKIE_SIZE	16
 #define COOKIE_SECRET_SIZE	32
 #define COOKIE_INPUT_SIZE	32
@@ -95,11 +41,11 @@
 #define COOKIE_SECRET_LATENCY	5
 
 /* Constants for initiation rate limiting */
-#define RATELIMIT_SIZE		(1 << 10)
+#define RATELIMIT_SIZE		(1 << 13)
 #define RATELIMIT_SIZE_MAX	(RATELIMIT_SIZE * 8)
 #define NSEC_PER_SEC		1000000000LL
-#define INITIATIONS_PER_SECOND	50
-#define INITIATIONS_BURSTABLE	10
+#define INITIATIONS_PER_SECOND	20
+#define INITIATIONS_BURSTABLE	5
 #define INITIATION_COST		(NSEC_PER_SEC / INITIATIONS_PER_SECOND)
 #define TOKEN_MAX		(INITIATION_COST * INITIATIONS_BURSTABLE)
 #define ELEMENT_TIMEOUT		1
@@ -109,14 +55,16 @@
 struct cookie_macs {
 	uint8_t	mac1[COOKIE_MAC_SIZE];
 	uint8_t	mac2[COOKIE_MAC_SIZE];
-} __packed;
+};
 
 struct ratelimit_entry {
 	LIST_ENTRY(ratelimit_entry)	 r_entry;
 	sa_family_t			 r_af;
 	union {
 		struct in_addr		 r_in;
+#ifdef INET6
 		struct in6_addr		 r_in6;
+#endif
 	};
 	struct timespec			 r_last_time;	/* nanouptime */
 	uint64_t			 r_tokens;
@@ -124,7 +72,7 @@ struct ratelimit_entry {
 
 struct ratelimit {
 	SIPHASH_KEY			 rl_secret;
-	uma_zone_t			rl_zone;
+	uma_zone_t			 rl_zone;
 
 	struct rwlock			 rl_lock;
 	LIST_HEAD(, ratelimit_entry)	*rl_table;
@@ -145,7 +93,10 @@ struct cookie_maker {
 };
 
 struct cookie_checker {
-	struct ratelimit	cc_ratelimit;
+	struct ratelimit	cc_ratelimit_v4;
+#ifdef INET6
+	struct ratelimit	cc_ratelimit_v6;
+#endif
 
 	struct rwlock		cc_key_lock;
 	uint8_t			cc_mac1_key[COOKIE_KEY_SIZE];
@@ -159,13 +110,13 @@ struct cookie_checker {
 void	cookie_maker_init(struct cookie_maker *, const uint8_t[COOKIE_INPUT_SIZE]);
 int	cookie_checker_init(struct cookie_checker *, uma_zone_t);
 void	cookie_checker_update(struct cookie_checker *,
-	    uint8_t[COOKIE_INPUT_SIZE]);
+	    const uint8_t[COOKIE_INPUT_SIZE]);
 void	cookie_checker_deinit(struct cookie_checker *);
 void	cookie_checker_create_payload(struct cookie_checker *,
-	    struct cookie_macs *cm, uint8_t[COOKIE_XNONCE_SIZE],
+	    struct cookie_macs *cm, uint8_t[COOKIE_NONCE_SIZE],
 	    uint8_t [COOKIE_ENCRYPTED_SIZE], struct sockaddr *);
 int	cookie_maker_consume_payload(struct cookie_maker *,
-	    uint8_t[COOKIE_XNONCE_SIZE], uint8_t[COOKIE_ENCRYPTED_SIZE]);
+	    uint8_t[COOKIE_NONCE_SIZE], uint8_t[COOKIE_ENCRYPTED_SIZE]);
 void	cookie_maker_mac(struct cookie_maker *, struct cookie_macs *,
 	    void *, size_t);
 int	cookie_checker_validate_macs(struct cookie_checker *,
