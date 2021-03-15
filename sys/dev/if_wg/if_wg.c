@@ -1102,11 +1102,13 @@ wg_send(struct wg_softc *sc, struct wg_endpoint *e, struct mbuf *m)
 			control = sbcreatecontrol((caddr_t)&e->e_local.l_in,
 			    sizeof(struct in_addr), IP_SENDSRCADDR,
 			    IPPROTO_IP);
+#ifdef INET6
 	} else if (e->e_remote.r_sa.sa_family == AF_INET6) {
 		if (!IN6_IS_ADDR_UNSPECIFIED(&e->e_local.l_in6))
 			control = sbcreatecontrol((caddr_t)&e->e_local.l_pktinfo6,
 			    sizeof(struct in6_pktinfo), IPV6_PKTINFO,
 			    IPPROTO_IPV6);
+#endif
 	} else {
 		m_freem(m);
 		return (EAFNOSUPPORT);
@@ -2296,7 +2298,9 @@ wg_update_endpoint_addrs(struct wg_endpoint *e, const struct sockaddr *srcsa,
     struct ifnet *rcvif)
 {
 	const struct sockaddr_in *sa4;
+#ifdef INET6
 	const struct sockaddr_in6 *sa6;
+#endif
 	int ret = 0;
 
 	/*
@@ -2307,10 +2311,12 @@ wg_update_endpoint_addrs(struct wg_endpoint *e, const struct sockaddr *srcsa,
 		sa4 = (const struct sockaddr_in *)srcsa;
 		e->e_remote.r_sin = sa4[0];
 		e->e_local.l_in = sa4[1].sin_addr;
+#ifdef INET6
 	} else if (srcsa->sa_family == AF_INET6) {
 		sa6 = (const struct sockaddr_in6 *)srcsa;
 		e->e_remote.r_sin6 = sa6[0];
 		e->e_local.l_in6 = sa6[1].sin6_addr;
+#endif
 	} else {
 		ret = EAFNOSUPPORT;
 	}
