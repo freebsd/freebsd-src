@@ -2636,6 +2636,7 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 		case NETMAP_REQ_PORT_INFO_GET: {
 			struct nmreq_port_info_get *req =
 				(struct nmreq_port_info_get *)(uintptr_t)hdr->nr_body;
+			int nmd_ref = 0;
 
 			NMG_LOCK();
 			do {
@@ -2677,6 +2678,7 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 						error = EINVAL;
 						break;
 					}
+					nmd_ref = 1;
 				}
 
 				error = netmap_mem_get_info(nmd, &req->nr_memsize, &memflags,
@@ -2694,6 +2696,8 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 				req->nr_host_rx_rings = na->num_host_rx_rings;
 			} while (0);
 			netmap_unget_na(na, ifp);
+			if (nmd_ref)
+				netmap_mem_put(nmd);
 			NMG_UNLOCK();
 			break;
 		}
