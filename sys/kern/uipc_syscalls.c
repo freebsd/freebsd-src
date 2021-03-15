@@ -1386,9 +1386,7 @@ kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 		return (error);
 	so = fp->f_data;
 	*sa = NULL;
-	CURVNET_SET(so->so_vnet);
-	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, sa);
-	CURVNET_RESTORE();
+	error = sogetsockaddr(so, sa);
 	if (error != 0)
 		goto bad;
 	if (*sa == NULL)

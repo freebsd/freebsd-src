@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <dev/if_wg/if_wg.h>
+
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
@@ -65,40 +67,60 @@ __FBSDID("$FreeBSD$");
 
 #include "ifconfig.h"
 
-typedef enum {
-	WGC_GET = 0x5,
-	WGC_SET = 0x6,
-} wg_cmd_t;
+static void wgfinish(int s, void *arg);
 
-static nvlist_t *nvl_params;
-static bool do_peer;
+static bool wgfinish_registered;
+
 static int allowed_ips_count;
 static int allowed_ips_max;
-struct allowedip {
-	struct sockaddr_storage a_addr;
-	struct sockaddr_storage a_mask;
-};
-struct allowedip *allowed_ips;
+static nvlist_t **allowed_ips, *nvl_peer;
 
 #define	ALLOWEDIPS_START 16
-#define	WG_KEY_LEN 32
-#define	WG_KEY_LEN_BASE64 ((((WG_KEY_LEN) + 2) / 3) * 4 + 1)
-#define	WG_KEY_LEN_HEX (WG_KEY_LEN * 2 + 1)
+#define	WG_KEY_SIZE_BASE64 ((((WG_KEY_SIZE) + 2) / 3) * 4 + 1)
+#define	WG_KEY_SIZE_HEX (WG_KEY_SIZE * 2 + 1)
 #define	WG_MAX_STRLEN 64
 
-static bool
-key_from_base64(uint8_t key[static WG_KEY_LEN], const char *base64)
+struct allowedip {
+	union {
+		struct in_addr ip4;
+		struct in6_addr ip6;
+	};
+};
+
+static void
+register_wgfinish(void)
 {
 
-	if (strlen(base64) != WG_KEY_LEN_BASE64 - 1) {
-		warnx("bad key len - need %d got %zu\n", WG_KEY_LEN_BASE64 - 1, strlen(base64));
+	if (wgfinish_registered)
+		return;
+	callback_register(wgfinish, NULL);
+	wgfinish_registered = true;
+}
+
+static nvlist_t *
+nvl_device(void)
+{
+	static nvlist_t *_nvl_device;
+
+	if (_nvl_device == NULL)
+		_nvl_device = nvlist_create(0);
+	register_wgfinish();
+	return (_nvl_device);
+}
+
+static bool
+key_from_base64(uint8_t key[static WG_KEY_SIZE], const char *base64)
+{
+
+	if (strlen(base64) != WG_KEY_SIZE_BASE64 - 1) {
+		warnx("bad key len - need %d got %zu\n", WG_KEY_SIZE_BASE64 - 1, strlen(base64));
 		return false;
 	}
-	if (base64[WG_KEY_LEN_BASE64 - 2] != '=') {
-		warnx("bad key terminator, expected '=' got '%c'", base64[WG_KEY_LEN_BASE64 - 2]);
+	if (base64[WG_KEY_SIZE_BASE64 - 2] != '=') {
+		warnx("bad key terminator, expected '=' got '%c'", base64[WG_KEY_SIZE_BASE64 - 2]);
 		return false;
 	}
-	return (b64_pton(base64, key, WG_KEY_LEN));
+	return (b64_pton(base64, key, WG_KEY_SIZE));
 }
 
 static void
@@ -128,7 +150,7 @@ parse_endpoint(const char *endpoint_)
 	err = getaddrinfo(endpoint, port, &hints, &res);
 	if (err)
 		errx(1, "%s", gai_strerror(err));
-	nvlist_add_binary(nvl_params, "endpoint", res->ai_addr, res->ai_addrlen);
+	nvlist_add_binary(nvl_peer, "endpoint", res->ai_addr, res->ai_addrlen);
 	freeaddrinfo(res);
 	free(base);
 }
@@ -227,12 +249,14 @@ in6_mask2len(struct in6_addr *mask, u_char *lim0)
 }
 
 static bool
-parse_ip(struct allowedip *aip, const char *value)
+parse_ip(struct allowedip *aip, uint16_t *family, const char *value)
 {
 	struct addrinfo hints, *res;
 	int err;
+	bool ret;
 
-	bzero(&aip->a_addr, sizeof(aip->a_addr));
+	ret = true;
+	bzero(aip, sizeof(*aip));
 	bzero(&hints, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_flags = AI_NUMERICHOST;
@@ -240,10 +264,21 @@ parse_ip(struct allowedip *aip, const char *value)
 	if (err)
 		errx(1, "%s", gai_strerror(err));
 
-	memcpy(&aip->a_addr, res->ai_addr, res->ai_addrlen);
+	*family = res->ai_family;
+	if (res->ai_family == AF_INET) {
+		struct sockaddr_in *sin = (struct sockaddr_in *)res->ai_addr;
+
+		aip->ip4 = sin->sin_addr;
+	} else if (res->ai_family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)res->ai_addr;
+
+		aip->ip6 = sin6->sin6_addr;
+	} else {
+		ret = false;
+	}
 
 	freeaddrinfo(res);
-	return (true);
+	return (ret);
 }
 
 static void
@@ -271,61 +306,84 @@ sa_ntop(const struct sockaddr *sa, char *buf, int *port)
 }
 
 static void
-dump_peer(const nvlist_t *nvl_peer)
+dump_peer(const nvlist_t *nvl_peer_cfg)
 {
 	const void *key;
-	const struct allowedip *aips;
 	const struct sockaddr *endpoint;
 	char outbuf[WG_MAX_STRLEN];
 	char addr_buf[INET6_ADDRSTRLEN];
-	size_t size;
-	int count, port;
+	size_t aip_count, size;
+	int port;
 	uint16_t persistent_keepalive;
+	const nvlist_t * const *nvl_aips;
 
 	printf("[Peer]\n");
-	if (nvlist_exists_binary(nvl_peer, "public-key")) {
-		key = nvlist_get_binary(nvl_peer, "public-key", &size);
+	if (nvlist_exists_binary(nvl_peer_cfg, "public-key")) {
+		key = nvlist_get_binary(nvl_peer_cfg, "public-key", &size);
 		b64_ntop((const uint8_t *)key, size, outbuf, WG_MAX_STRLEN);
 		printf("PublicKey = %s\n", outbuf);
 	}
-	if (nvlist_exists_binary(nvl_peer, "endpoint")) {
-		endpoint = nvlist_get_binary(nvl_peer, "endpoint", &size);
+	if (nvlist_exists_binary(nvl_peer_cfg, "preshared-key")) {
+		key = nvlist_get_binary(nvl_peer_cfg, "preshared-key", &size);
+		b64_ntop((const uint8_t *)key, size, outbuf, WG_MAX_STRLEN);
+		printf("PresharedKey = %s\n", outbuf);
+	}
+	if (nvlist_exists_binary(nvl_peer_cfg, "endpoint")) {
+		endpoint = nvlist_get_binary(nvl_peer_cfg, "endpoint", &size);
 		sa_ntop(endpoint, addr_buf, &port);
 		printf("Endpoint = %s:%d\n", addr_buf, ntohs(port));
 	}
-	if (nvlist_exists_number(nvl_peer, "persistent-keepalive-interval")) {
-		persistent_keepalive = nvlist_get_number(nvl_peer,
+	if (nvlist_exists_number(nvl_peer_cfg,
+	    "persistent-keepalive-interval")) {
+		persistent_keepalive = nvlist_get_number(nvl_peer_cfg,
 		    "persistent-keepalive-interval");
 		printf("PersistentKeepalive = %d\n", persistent_keepalive);
 	}
-	if (!nvlist_exists_binary(nvl_peer, "allowed-ips"))
+	if (!nvlist_exists_nvlist_array(nvl_peer_cfg, "allowed-ips"))
 		return;
-	aips = nvlist_get_binary(nvl_peer, "allowed-ips", &size);
-	if (size == 0 || size % sizeof(struct allowedip) != 0) {
-		errx(1, "size %zu not integer multiple of allowedip", size);
-	}
-	printf("AllowedIPs = ");
-	count = size / sizeof(struct allowedip);
-	for (int i = 0; i < count; i++) {
-		int mask;
-		sa_family_t family;
-		void *bitmask;
-		struct sockaddr *sa;
 
-		sa = __DECONST(void *, &aips[i].a_addr);
-		bitmask = __DECONST(void *,
-		    ((const struct sockaddr *)&(&aips[i])->a_mask)->sa_data);
-		family = aips[i].a_addr.ss_family;
-		getnameinfo(sa, sa->sa_len, addr_buf, INET6_ADDRSTRLEN, NULL,
-		    0, NI_NUMERICHOST);
-		if (family == AF_INET)
-			mask = in_mask2len(bitmask);
-		else if (family == AF_INET6)
-			mask = in6_mask2len(bitmask, NULL);
-		else
-			errx(1, "bad family in peer %d\n", family);
-		printf("%s/%d", addr_buf, mask);
-		if (i < count -1)
+	nvl_aips = nvlist_get_nvlist_array(nvl_peer_cfg, "allowed-ips", &aip_count);
+	if (nvl_aips == NULL || aip_count == 0)
+		return;
+
+	printf("AllowedIPs = ");
+	for (size_t i = 0; i < aip_count; i++) {
+		uint8_t cidr;
+		struct sockaddr_storage ss;
+		sa_family_t family;
+
+		if (!nvlist_exists_number(nvl_aips[i], "cidr"))
+			continue;
+		cidr = nvlist_get_number(nvl_aips[i], "cidr");
+		if (nvlist_exists_binary(nvl_aips[i], "ipv4")) {
+			struct sockaddr_in *sin = (struct sockaddr_in *)&ss;
+			const struct in_addr *ip4;
+
+			ip4 = nvlist_get_binary(nvl_aips[i], "ipv4", &size);
+			if (ip4 == NULL || cidr > 32)
+				continue;
+			sin->sin_len = sizeof(*sin);
+			sin->sin_family = AF_INET;
+			sin->sin_addr = *ip4;
+		} else if (nvlist_exists_binary(nvl_aips[i], "ipv6")) {
+			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&ss;
+			const struct in6_addr *ip6;
+
+			ip6 = nvlist_get_binary(nvl_aips[i], "ipv6", &size);
+			if (ip6 == NULL || cidr > 128)
+				continue;
+			sin6->sin6_len = sizeof(*sin6);
+			sin6->sin6_family = AF_INET6;
+			sin6->sin6_addr = *ip6;
+		} else {
+			continue;
+		}
+
+		family = ss.ss_family;
+		getnameinfo((struct sockaddr *)&ss, ss.ss_len, addr_buf,
+		    INET6_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST);
+		printf("%s/%d", addr_buf, cidr);
+		if (i < aip_count - 1)
 			printf(", ");
 	}
 	printf("\n");
@@ -334,36 +392,34 @@ dump_peer(const nvlist_t *nvl_peer)
 static int
 get_nvl_out_size(int sock, u_long op, size_t *size)
 {
-	struct ifdrv ifd;
+	struct wg_data_io wgd;
 	int err;
 
-	memset(&ifd, 0, sizeof(ifd));
+	memset(&wgd, 0, sizeof(wgd));
 
-	strlcpy(ifd.ifd_name, name, sizeof(ifd.ifd_name));
-	ifd.ifd_cmd = op;
-	ifd.ifd_len = 0;
-	ifd.ifd_data = NULL;
+	strlcpy(wgd.wgd_name, name, sizeof(wgd.wgd_name));
+	wgd.wgd_size = 0;
+	wgd.wgd_data = NULL;
 
-	err = ioctl(sock, SIOCGDRVSPEC, &ifd);
+	err = ioctl(sock, op, &wgd);
 	if (err)
 		return (err);
-	*size = ifd.ifd_len;
+	*size = wgd.wgd_size;
 	return (0);
 }
 
 static int
 do_cmd(int sock, u_long op, void *arg, size_t argsize, int set)
 {
-	struct ifdrv ifd;
+	struct wg_data_io wgd;
 
-	memset(&ifd, 0, sizeof(ifd));
+	memset(&wgd, 0, sizeof(wgd));
 
-	strlcpy(ifd.ifd_name, name, sizeof(ifd.ifd_name));
-	ifd.ifd_cmd = op;
-	ifd.ifd_len = argsize;
-	ifd.ifd_data = arg;
+	strlcpy(wgd.wgd_name, name, sizeof(wgd.wgd_name));
+	wgd.wgd_size = argsize;
+	wgd.wgd_data = arg;
 
-	return (ioctl(sock, set ? SIOCSDRVSPEC : SIOCGDRVSPEC, &ifd));
+	return (ioctl(sock, op, &wgd));
 }
 
 static
@@ -371,60 +427,81 @@ DECL_CMD_FUNC(peerlist, val, d)
 {
 	size_t size, peercount;
 	void *packed;
-	const nvlist_t *nvl, *nvl_peer;
+	const nvlist_t *nvl;
 	const nvlist_t *const *nvl_peerlist;
 
-	if (get_nvl_out_size(s, WGC_GET, &size))
+	if (get_nvl_out_size(s, SIOCGWG, &size))
 		errx(1, "can't get peer list size");
 	if ((packed = malloc(size)) == NULL)
 		errx(1, "malloc failed for peer list");
-	if (do_cmd(s, WGC_GET, packed, size, 0))
+	if (do_cmd(s, SIOCGWG, packed, size, 0))
 		errx(1, "failed to obtain peer list");
 
 	nvl = nvlist_unpack(packed, size, 0);
-	if (!nvlist_exists_nvlist_array(nvl, "peer-list"))
+	if (!nvlist_exists_nvlist_array(nvl, "peers"))
 		return;
-	nvl_peerlist = nvlist_get_nvlist_array(nvl, "peer-list", &peercount);
+	nvl_peerlist = nvlist_get_nvlist_array(nvl, "peers", &peercount);
 
 	for (int i = 0; i < peercount; i++, nvl_peerlist++) {
-		nvl_peer = *nvl_peerlist;
-		dump_peer(nvl_peer);
+		dump_peer(*nvl_peerlist);
 	}
 }
 
 static void
-peerfinish(int s, void *arg)
+wgfinish(int s, void *arg)
 {
-	nvlist_t *nvl, **nvl_array;
 	void *packed;
 	size_t size;
+	static nvlist_t *nvl_dev;
 
-	if ((nvl = nvlist_create(0)) == NULL)
-		errx(1, "failed to allocate nvlist");
-	if ((nvl_array = calloc(sizeof(void *), 1)) == NULL)
-		errx(1, "failed to allocate nvl_array");
-	if (!nvlist_exists_binary(nvl_params, "public-key"))
-		errx(1, "must specify a public-key for adding peer");
-	if (allowed_ips_count == 0)
-		errx(1, "must specify at least one range of allowed-ips to add a peer");
+	nvl_dev = nvl_device();
+	if (nvl_peer != NULL) {
+		if (!nvlist_exists_binary(nvl_peer, "public-key"))
+			errx(1, "must specify a public-key for adding peer");
+		if (allowed_ips_count != 0) {
+			nvlist_add_nvlist_array(nvl_peer, "allowed-ips",
+			    (const nvlist_t * const *)allowed_ips,
+			    allowed_ips_count);
+			for (size_t i = 0; i < allowed_ips_count; i++) {
+				nvlist_destroy(allowed_ips[i]);
+			}
 
-	nvl_array[0] = nvl_params;
-	nvlist_add_nvlist_array(nvl, "peer-list", (const nvlist_t * const *)nvl_array, 1);
-	packed = nvlist_pack(nvl, &size);
+			free(allowed_ips);
+		}
 
-	if (do_cmd(s, WGC_SET, packed, size, true))
-		errx(1, "failed to install peer");
+		nvlist_add_nvlist_array(nvl_dev, "peers",
+		    (const nvlist_t * const *)&nvl_peer, 1);
+	}
+
+	packed = nvlist_pack(nvl_dev, &size);
+
+	if (do_cmd(s, SIOCSWG, packed, size, true))
+		errx(1, "failed to configure");
 }
 
 static
 DECL_CMD_FUNC(peerstart, val, d)
 {
-	do_peer = true;
-	callback_register(peerfinish, NULL);
-	allowed_ips = malloc(ALLOWEDIPS_START * sizeof(struct allowedip));
+
+	if (nvl_peer != NULL)
+		errx(1, "cannot both add and remove a peer");
+	register_wgfinish();
+	nvl_peer = nvlist_create(0);
+	allowed_ips = calloc(ALLOWEDIPS_START, sizeof(*allowed_ips));
 	allowed_ips_max = ALLOWEDIPS_START;
 	if (allowed_ips == NULL)
 		errx(1, "failed to allocate array for allowedips");
+}
+
+static
+DECL_CMD_FUNC(peerdel, val, d)
+{
+
+	if (nvl_peer != NULL)
+		errx(1, "cannot both add and remove a peer");
+	register_wgfinish();
+	nvl_peer = nvlist_create(0);
+	nvlist_add_bool(nvl_peer, "remove", true);
 }
 
 static
@@ -454,31 +531,45 @@ DECL_CMD_FUNC(setwglistenport, val, d)
 		errx(1, "unknown family");
 	}
 	ul = ntohs((u_short)ul);
-	nvlist_add_number(nvl_params, "listen-port", ul);
+	nvlist_add_number(nvl_device(), "listen-port", ul);
 }
 
 static
 DECL_CMD_FUNC(setwgprivkey, val, d)
 {
-	uint8_t key[WG_KEY_LEN];
+	uint8_t key[WG_KEY_SIZE];
 
 	if (!key_from_base64(key, val))
 		errx(1, "invalid key %s", val);
-	nvlist_add_binary(nvl_params, "private-key", key, WG_KEY_LEN);
+	nvlist_add_binary(nvl_device(), "private-key", key, WG_KEY_SIZE);
 }
 
 static
 DECL_CMD_FUNC(setwgpubkey, val, d)
 {
-	uint8_t key[WG_KEY_LEN];
+	uint8_t key[WG_KEY_SIZE];
 
-	if (!do_peer)
+	if (nvl_peer == NULL)
 		errx(1, "setting public key only valid when adding peer");
 
 	if (!key_from_base64(key, val))
 		errx(1, "invalid key %s", val);
-	nvlist_add_binary(nvl_params, "public-key", key, WG_KEY_LEN);
+	nvlist_add_binary(nvl_peer, "public-key", key, WG_KEY_SIZE);
 }
+
+static
+DECL_CMD_FUNC(setwgpresharedkey, val, d)
+{
+	uint8_t key[WG_KEY_SIZE];
+
+	if (nvl_peer == NULL)
+		errx(1, "setting preshared-key only valid when adding peer");
+
+	if (!key_from_base64(key, val))
+		errx(1, "invalid key %s", val);
+	nvlist_add_binary(nvl_peer, "preshared-key", key, WG_KEY_SIZE);
+}
+
 
 static
 DECL_CMD_FUNC(setwgpersistentkeepalive, val, d)
@@ -486,7 +577,7 @@ DECL_CMD_FUNC(setwgpersistentkeepalive, val, d)
 	unsigned long persistent_keepalive;
 	char *endp;
 
-	if (!do_peer)
+	if (nvl_peer == NULL)
 		errx(1, "setting persistent keepalive only valid when adding peer");
 
 	errno = 0;
@@ -496,7 +587,7 @@ DECL_CMD_FUNC(setwgpersistentkeepalive, val, d)
 	if (persistent_keepalive > USHRT_MAX)
 		errx(1, "persistent-keepalive '%lu' too large",
 		    persistent_keepalive);
-	nvlist_add_number(nvl_params, "persistent-keepalive-interval",
+	nvlist_add_number(nvl_peer, "persistent-keepalive-interval",
 	    persistent_keepalive);
 }
 
@@ -506,45 +597,57 @@ DECL_CMD_FUNC(setallowedips, val, d)
 	char *base, *allowedip, *mask;
 	u_long ul;
 	char *endp;
-	struct allowedip *aip;
+	struct allowedip aip;
+	nvlist_t *nvl_aip;
+	uint16_t family;
 
-	if (!do_peer)
+	if (nvl_peer == NULL)
 		errx(1, "setting allowed ip only valid when adding peer");
 	if (allowed_ips_count == allowed_ips_max) {
-		/* XXX grow array */
+		allowed_ips_max *= 2;
+		allowed_ips = reallocarray(allowed_ips, allowed_ips_max,
+		    sizeof(*allowed_ips));
+		if (allowed_ips == NULL)
+			errx(1, "failed to grow allowed ip array");
 	}
-	aip = &allowed_ips[allowed_ips_count];
+
+	allowed_ips[allowed_ips_count] = nvl_aip = nvlist_create(0);
+	if (nvl_aip == NULL)
+		errx(1, "failed to create new allowedip nvlist");
+
 	base = allowedip = strdup(val);
 	mask = index(allowedip, '/');
 	if (mask == NULL)
 		errx(1, "mask separator not found in allowedip %s", val);
 	*mask = '\0';
 	mask++;
-	parse_ip(aip, allowedip);
+
+	parse_ip(&aip, &family, allowedip);
 	ul = strtoul(mask, &endp, 0);
 	if (*endp != '\0')
 		errx(1, "invalid value for allowedip mask");
-	bzero(&aip->a_mask, sizeof(aip->a_mask));
-	if (aip->a_addr.ss_family == AF_INET)
-		in_len2mask((struct in_addr *)&((struct sockaddr *)&aip->a_mask)->sa_data, ul);
-	else if (aip->a_addr.ss_family == AF_INET6)
-		in6_prefixlen2mask((struct in6_addr *)&((struct sockaddr *)&aip->a_mask)->sa_data, ul);
-	else
-		errx(1, "invalid address family %d\n", aip->a_addr.ss_family);
-	allowed_ips_count++;
-	if (allowed_ips_count > 1)
-		nvlist_free_binary(nvl_params, "allowed-ips");
-	nvlist_add_binary(nvl_params, "allowed-ips", allowed_ips,
-					  allowed_ips_count*sizeof(*aip));
 
-	dump_peer(nvl_params);
+	nvlist_add_number(nvl_aip, "cidr", ul);
+	if (family == AF_INET) {
+		nvlist_add_binary(nvl_aip, "ipv4", &aip.ip4, sizeof(aip.ip4));
+	} else if (family == AF_INET6) {
+		nvlist_add_binary(nvl_aip, "ipv6", &aip.ip6, sizeof(aip.ip6));
+	} else {
+		/* Shouldn't happen */
+		nvlist_destroy(nvl_aip);
+		goto out;
+	}
+
+	allowed_ips_count++;
+
+out:
 	free(base);
 }
 
 static
 DECL_CMD_FUNC(setendpoint, val, d)
 {
-	if (!do_peer)
+	if (nvl_peer == NULL)
 		errx(1, "setting endpoint only valid when adding peer");
 	parse_endpoint(val);
 }
@@ -555,15 +658,15 @@ wireguard_status(int s)
 	size_t size;
 	void *packed;
 	nvlist_t *nvl;
-	char buf[WG_KEY_LEN_BASE64];
+	char buf[WG_KEY_SIZE_BASE64];
 	const void *key;
 	uint16_t listen_port;
 
-	if (get_nvl_out_size(s, WGC_GET, &size))
+	if (get_nvl_out_size(s, SIOCGWG, &size))
 		return;
 	if ((packed = malloc(size)) == NULL)
 		return;
-	if (do_cmd(s, WGC_GET, packed, size, 0))
+	if (do_cmd(s, SIOCGWG, packed, size, 0))
 		return;
 	nvl = nvlist_unpack(packed, size, 0);
 	if (nvlist_exists_number(nvl, "listen-port")) {
@@ -583,10 +686,14 @@ wireguard_status(int s)
 }
 
 static struct cmd wireguard_cmds[] = {
-    DEF_CLONE_CMD_ARG("listen-port",  setwglistenport),
-    DEF_CLONE_CMD_ARG("private-key",  setwgprivkey),
+    DEF_CMD_ARG("listen-port",  setwglistenport),
+    DEF_CMD_ARG("private-key",  setwgprivkey),
+    /* XXX peer-list is deprecated. */
     DEF_CMD("peer-list",  0, peerlist),
+    DEF_CMD("peers",  0, peerlist),
     DEF_CMD("peer",  0, peerstart),
+    DEF_CMD("-peer",  0, peerdel),
+    DEF_CMD_ARG("preshared-key",  setwgpresharedkey),
     DEF_CMD_ARG("public-key",  setwgpubkey),
     DEF_CMD_ARG("persistent-keepalive",  setwgpersistentkeepalive),
     DEF_CMD_ARG("allowed-ips",  setallowedips),
@@ -602,27 +709,10 @@ static struct afswtch af_wireguard = {
 static void
 wg_create(int s, struct ifreq *ifr)
 {
-	struct iovec iov;
-	void *packed;
-	size_t size;
 
 	setproctitle("ifconfig %s create ...\n", name);
-	if (!nvlist_exists_number(nvl_params, "listen-port"))
-		goto legacy;
-	if (!nvlist_exists_binary(nvl_params, "private-key"))
-		goto legacy;
 
-	packed = nvlist_pack(nvl_params, &size);
-	if (packed == NULL)
-		errx(1, "failed to setup create request");
-	iov.iov_len = size;
-	iov.iov_base = packed;
-	ifr->ifr_data = (caddr_t)&iov;
-	if (ioctl(s, SIOCIFCREATE2, ifr) < 0)
-		err(1, "SIOCIFCREATE2");
-	return;
-legacy:
-	ifr->ifr_data == NULL;
+	ifr->ifr_data = NULL;
 	if (ioctl(s, SIOCIFCREATE, ifr) < 0)
 		err(1, "SIOCIFCREATE");
 }
@@ -632,7 +722,6 @@ wireguard_ctor(void)
 {
 	int i;
 
-	nvl_params = nvlist_create(0);
 	for (i = 0; i < nitems(wireguard_cmds);  i++)
 		cmd_register(&wireguard_cmds[i]);
 	af_register(&af_wireguard);

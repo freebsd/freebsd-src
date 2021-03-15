@@ -44,7 +44,7 @@ LDIRS=	bsm cam geom net net80211 netgraph netinet netinet6 \
 LSUBDIRS=	cam/ata cam/mmc cam/nvme cam/scsi \
 	dev/acpica dev/agp dev/an dev/ciss dev/filemon dev/firewire \
 	dev/hwpmc dev/hyperv \
-	dev/ic dev/iicbus dev/io dev/mfi dev/mmc dev/nvme \
+	dev/ic dev/iicbus dev/if_wg dev/io dev/mfi dev/mmc dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/pwm \
 	dev/smbus dev/speaker dev/tcp_log dev/veriexec dev/vkbd \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nfs fs/nullfs \
@@ -170,6 +170,10 @@ NVPAIRDIR=	${INCLUDEDIR}/sys
 MLX5=		mlx5io.h
 MLX5DIR=	${INCLUDEDIR}/dev/mlx5
 
+.PATH: ${SRCTOP}/sys/dev/if_wg
+WG=		if_wg.h
+WGDIR=		${INCLUDEDIR}/dev/if_wg
+
 INCSGROUPS=	INCS \
 		ACPICA \
 		AGP \
@@ -182,7 +186,8 @@ INCSGROUPS=	INCS \
 		PCI \
 		RPC \
 		TEKEN \
-		VERIEXEC
+		VERIEXEC \
+		WG
 
 .if ${MK_IPFILTER} != "no"
 INCSGROUPS+=	IPFILTER
