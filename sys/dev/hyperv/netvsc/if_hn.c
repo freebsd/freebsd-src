@@ -2928,6 +2928,7 @@ hn_rndis_pktinfo_append(struct rndis_packet_msg *pkt, size_t pktsize,
 
 	pi->rm_size = pi_size;
 	pi->rm_type = pi_type;
+	pi->rm_internal = 0;
 	pi->rm_pktinfooffset = RNDIS_PKTINFO_OFFSET;
 
 	return (pi->rm_data);
