@@ -952,6 +952,7 @@ wg_socket_init(struct wg_softc *sc, in_port_t port)
 
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
+	so4 = so6 = NULL;
 	td = curthread;
 	if ((cred = sc->sc_ucred) == NULL)
 		return (EBUSY);
@@ -965,7 +966,7 @@ wg_socket_init(struct wg_softc *sc, in_port_t port)
 	 * to the network.
 	 */
 	rc = socreate(AF_INET, &so4, SOCK_DGRAM, IPPROTO_UDP, cred, td);
-	if (rc)
+	if (rc != 0)
 		goto out;
 
 	rc = udp_set_kernel_tunneling(so4, wg_input, NULL, sc);
@@ -976,11 +977,8 @@ wg_socket_init(struct wg_softc *sc, in_port_t port)
 	MPASS(rc == 0);
 
 	rc = socreate(AF_INET6, &so6, SOCK_DGRAM, IPPROTO_UDP, cred, td);
-	if (rc) {
-		SOCK_LOCK(so4);
-		sofree(so4);
+	if (rc != 0)
 		goto out;
-	}
 	rc = udp_set_kernel_tunneling(so6, wg_input, NULL, sc);
 	MPASS(rc == 0);
 
@@ -992,6 +990,12 @@ wg_socket_init(struct wg_softc *sc, in_port_t port)
 		wg_socket_set(sc, so4, so6);
 	}
 out:
+	if (rc != 0) {
+		if (so4 != NULL)
+			soclose(so4);
+		if (so6 != NULL)
+			soclose(so6);
+	}
 	return (rc);
 }
 
