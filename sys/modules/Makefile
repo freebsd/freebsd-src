@@ -163,7 +163,7 @@ SUBDIR=	\
 	if_tuntap \
 	if_vlan \
 	if_vxlan \
-	if_wg \
+	${_if_wg} \
 	iflib \
 	${_iir} \
 	imgact_binmisc \
@@ -454,6 +454,10 @@ _sctp=		sctp
 .if (${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
 _if_stf=	if_stf
+.endif
+
+.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+_if_wg=		if_wg
 .endif
 
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
