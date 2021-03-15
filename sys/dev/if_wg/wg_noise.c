@@ -784,10 +784,10 @@ noise_kdf(uint8_t *a, uint8_t *b, uint8_t *c, const uint8_t *x,
 	uint8_t sec[BLAKE2S_HASH_SIZE];
 
 #ifdef DIAGNOSTIC
-	KASSERT(a_len <= BLAKE2S_HASH_SIZE && b_len <= BLAKE2S_HASH_SIZE &&
+	MPASS(a_len <= BLAKE2S_HASH_SIZE && b_len <= BLAKE2S_HASH_SIZE &&
 			c_len <= BLAKE2S_HASH_SIZE);
-	KASSERT(!(b || b_len || c || c_len) || (a && a_len));
-	KASSERT(!(c || c_len) || (b && b_len));
+	MPASS(!(b || b_len || c || c_len) || (a && a_len));
+	MPASS(!(c || c_len) || (b && b_len));
 #endif
 
 	/* Extract entropy from "x" into sec */
