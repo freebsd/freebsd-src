@@ -1960,7 +1960,7 @@ pfsync_request_update(u_int32_t creatorid, u_int64_t id)
 		nlen += sizeof(struct pfsync_subheader);
 
 	if (b->b_len + nlen > sc->sc_ifp->if_mtu) {
-		pfsync_sendout(1, 0);
+		pfsync_sendout(0, 0);
 
 		nlen = sizeof(struct pfsync_subheader) +
 		    sizeof(struct pfsync_upd_req);
@@ -1968,6 +1968,8 @@ pfsync_request_update(u_int32_t creatorid, u_int64_t id)
 
 	TAILQ_INSERT_TAIL(&b->b_upd_req_list, item, ur_entry);
 	b->b_len += nlen;
+
+	pfsync_push(b);
 }
 
 static bool
