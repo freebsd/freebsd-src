@@ -124,8 +124,8 @@ $dir/beneath4 $top c                         0x2000  0 || s=1
 $dir/beneath4 $top d                         0x2000 93 || s=1
 $dir/beneath4 $top e                         0x2000 93 || s=1
 $dir/beneath4 $top fifo                      0x2000  0 || s=1
-$dir/beneath4 $top $top/../../beneath4.d/a/a 0x2000 22 || s=1
-$dir/beneath4 $top $top/..                   0x2000 22 || s=1
+$dir/beneath4 $top $top/../../beneath4.d/a/a 0x2000 93 || s=1
+$dir/beneath4 $top $top/..                   0x2000 93 || s=1
 $dir/beneath4 $top ../a                      0x2000 93 || s=1
 printf "\nNo flag\n"
 $dir/beneath4 $top ../a                      0x0000  0 || s=1
