@@ -953,9 +953,8 @@ wg_socket_init(struct wg_softc *sc, in_port_t port)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 	td = curthread;
-	if (sc->sc_ucred == NULL)
+	if ((cred = sc->sc_ucred) == NULL)
 		return (EBUSY);
-	cred = crhold(sc->sc_ucred);
 
 	/*
 	 * For socket creation, we use the creds of the thread that created the
@@ -993,7 +992,6 @@ wg_socket_init(struct wg_softc *sc, in_port_t port)
 		wg_socket_set(sc, so4, so6);
 	}
 out:
-	crfree(cred);
 	return (rc);
 }
 
