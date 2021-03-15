@@ -75,13 +75,13 @@ wg_basic_body()
 	    jexec wgtest1 ifconfig $wg1 peer public-key "$pub2" \
 	    endpoint ${endpoint2}:12345 allowed-ips ${tunnel2}/32
 	atf_check -s exit:0 \
-	    jexec wgtest1 ifconfig $wg1 inet $tunnel1
+	    jexec wgtest1 ifconfig $wg1 inet $tunnel1 up
 
 	atf_check -s exit:0 -o ignore \
 	    jexec wgtest2 ifconfig $wg2 peer public-key "$pub1" \
 	    endpoint ${endpoint1}:12345 allowed-ips ${tunnel1}/32
 	atf_check -s exit:0 \
-	    jexec wgtest2 ifconfig $wg2 inet $tunnel2
+	    jexec wgtest2 ifconfig $wg2 inet $tunnel2 up
 
 	# Generous timeout since the handshake takes some time.
 	atf_check -s exit:0 -o ignore jexec wgtest1 ping -o -t 5 -i 0.25 $tunnel2
