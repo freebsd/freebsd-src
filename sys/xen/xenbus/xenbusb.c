@@ -67,9 +67,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
 
-#include <machine/xen/xen-os.h>
 #include <machine/stdarg.h>
 
+#include <xen/xen-os.h>
 #include <xen/gnttab.h>
 #include <xen/xenstore/xenstorevar.h>
 #include <xen/xenbus/xenbusb.h>
