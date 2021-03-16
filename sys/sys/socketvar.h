@@ -414,7 +414,6 @@ void	soaio_enqueue(struct task *task);
 void	soaio_rcv(void *context, int pending);
 void	soaio_snd(void *context, int pending);
 int	socheckuid(struct socket *so, uid_t uid);
-int	sogetsockaddr(struct socket *so, struct sockaddr **nam);
 int	sobind(struct socket *so, struct sockaddr *nam, struct thread *td);
 int	sobindat(int fd, struct socket *so, struct sockaddr *nam,
 	    struct thread *td);

@@ -851,17 +851,6 @@ sopeeloff(struct socket *head)
 #endif	/* SCTP */
 
 int
-sogetsockaddr(struct socket *so, struct sockaddr **nam)
-{
-	int error;
-
-	CURVNET_SET(so->so_vnet);
-	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, nam);
-	CURVNET_RESTORE();
-	return (error);
-}
-
-int
 sobind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	int error;
