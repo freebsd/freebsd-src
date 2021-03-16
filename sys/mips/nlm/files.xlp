@@ -36,4 +36,3 @@ ucore_app_bin.h					optional xlpge	\
 #
 mips/nlm/dev/sec/nlmsec.c			optional nlmsec
 mips/nlm/dev/sec/nlmseclib.c			optional nlmsec
-mips/nlm/dev/sec/nlmrsa.c			optional nlmrsa
