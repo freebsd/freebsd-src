@@ -85,7 +85,7 @@ struct fingerprint {
 };
 
 static const char *bootstrap_names []  = {
-	"pkg.bsd",
+	"pkg.pkg",
 	"pkg.txz",
 	NULL
 };
