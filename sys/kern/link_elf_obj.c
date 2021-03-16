@@ -472,6 +472,7 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 #ifdef __amd64__
 		case SHT_X86_64_UNWIND:
 #endif
+		case SHT_INIT_ARRAY:
 		case SHT_FINI_ARRAY:
 			if (shdr[i].sh_addr == 0)
 				break;
