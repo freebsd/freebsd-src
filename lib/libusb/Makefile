@@ -38,8 +38,7 @@ SRCS+=		libusb10_io.c
 CFLAGS+=	-DCOMPAT_32BIT
 .endif
 
-FILES=		libusb-0.1.pc libusb-1.0.pc libusb-2.0.pc
-FILESDIR=	${LIBDATADIR}/pkgconfig
+PCFILES=	libusb-0.1.pc libusb-1.0.pc libusb-2.0.pc
 
 #
 # Cross platform support
