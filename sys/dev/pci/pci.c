@@ -2161,6 +2161,21 @@ pci_ht_map_msi(device_t dev, uint64_t addr)
 }
 
 int
+pci_get_relaxed_ordering_enabled(device_t dev)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	int cap;
+	uint16_t val;
+
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0)
+		return (0);
+	val = pci_read_config(dev, cap + PCIER_DEVICE_CTL, 2);
+	val &= PCIEM_CTL_RELAXED_ORD_ENABLE;
+	return (val != 0);
+}
+
+int
 pci_get_max_payload(device_t dev)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
