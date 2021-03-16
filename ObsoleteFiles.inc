@@ -36,6 +36,20 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210329: Remove kernel-only crypto headers from /usr/include
+OLD_FILES+=usr/include/crypto/_cryptodev.h
+OLD_FILES+=usr/include/crypto/cbc_mac.h
+OLD_FILES+=usr/include/crypto/deflate.h
+OLD_FILES+=usr/include/crypto/gfmult.h
+OLD_FILES+=usr/include/crypto/gmac.h
+OLD_FILES+=usr/include/crypto/rijndael.h
+OLD_FILES+=usr/include/crypto/rmd160.h
+OLD_FILES+=usr/include/crypto/xform.h
+OLD_FILES+=usr/include/crypto/xform_auth.h
+OLD_FILES+=usr/include/crypto/xform_comp.h
+OLD_FILES+=usr/include/crypto/xform_enc.h
+OLD_FILES+=usr/include/crypto/xform_poly1305.h
+
 # 20210204: bump shared libraries which link against ncurses
 OLD_LIBS+=lib/libedit.so.7
 OLD_LIBS+=usr/lib/libdialog.so.8
