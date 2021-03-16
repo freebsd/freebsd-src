@@ -154,8 +154,7 @@ CFLAGS+=	-DSYMBOL_VERSIONING
 
 CLEANFILES+=	liblzma.pc
 
-FILES=		liblzma.pc
-FILESDIR=	${LIBDATADIR}/pkgconfig
+PCFILES=	liblzma.pc
 
 liblzma.pc: liblzma.pc.in
 	sed -e 's,@prefix@,/usr,g ; \

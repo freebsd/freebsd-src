@@ -75,7 +75,6 @@ test: example minigzip
 	(export LD_LIBRARY_PATH=. ; \
 		echo hello world | ./minigzip | ./minigzip -d )
 
-FILES=		zlib.pc
-FILESDIR=	${LIBDATADIR}/pkgconfig
+PCFILES=	zlib.pc
 
 .include <bsd.lib.mk>
