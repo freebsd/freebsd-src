@@ -71,6 +71,11 @@ main() {
 			_descr="Debugging Symbols"
 			pkgdeps="${outname}"
 			;;
+		*_man)
+			outname="${outname%%_man}"
+			_descr="Manual Pages"
+			pkgdeps="${outname}"
+			;;
 		${origname})
 			pkgdeps="runtime"
 			;;
