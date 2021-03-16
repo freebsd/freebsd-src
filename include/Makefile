@@ -38,11 +38,10 @@ PHDRS=	sched.h _semaphore.h
 LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 	syslog.h ucontext.h
 
-LDIRS=	cam geom net net80211 netgraph netinet netinet6 \
+LDIRS=	geom net net80211 netgraph netinet netinet6 \
 	netipsec netsmb nfs nfsclient nfsserver sys vm
 
-LSUBDIRS=	cam/ata cam/mmc cam/nvme cam/scsi \
-	dev/acpica dev/agp dev/an dev/ciss dev/filemon dev/firewire \
+LSUBDIRS=	dev/acpica dev/agp dev/an dev/ciss dev/filemon dev/firewire \
 	dev/hwpmc dev/hyperv \
 	dev/ic dev/iicbus dev/if_wg dev/io dev/mfi dev/mmc dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/pwm \
@@ -93,6 +92,53 @@ SECAUDIT=	audit.h \
 		audit_private.h
 SECAUDITPACKAGE=	libbsm
 SECAUDITDIR=	${INCLUDEDIR}/security/audit
+
+.PATH:	${SRCTOP}/sys/cam
+CAM=	cam.h \
+	cam_ccb.h \
+	cam_compat.h \
+	cam_debug.h \
+	cam_iosched.h \
+	cam_periph.h \
+	cam_queue.h \
+	cam_sim.h \
+	cam_xpt.h \
+	cam_xpt_internal.h \
+	cam_xpt_periph.h \
+	cam_xpt_sim.h
+CAMDIR=	${INCLUDEDIR}/cam
+
+.PATH: ${SRCTOP}/sys/cam/ata
+CAMATA=		ata_all.h
+CAMATADIR=	${INCLUDEDIR}/cam/ata
+
+.PATH: ${SRCTOP}/sys/cam/mmc
+CAMMMC=		mmc.h \
+		mmc_bus.h \
+		mmc_all.h
+CAMMMCDIR=	${INCLUDEDIR}/cam/mmc
+
+.PATH: ${SRCTOP}/sys/cam/nvme
+CAMNVME=	nvme_all.h
+CAMNVMEDIR=	${INCLUDEDIR}/cam/nvme
+
+.PATH: ${SRCTOP}/sys/cam/scsi
+CAMSCSI=	scsi_all.h \
+		scsi_cd.h \
+		scsi_ch.h \
+		scsi_da.h \
+		scsi_enc.h \
+		scsi_enc_internal.h \
+		scsi_iu.h \
+		scsi_message.h \
+		scsi_pass.h \
+		scsi_pt.h \
+		scsi_sa.h \
+		scsi_ses.h \
+		scsi_sg.h \
+		scsi_targetio.h \
+		smp_all.h
+CAMSCSIDIR=	${INCLUDEDIR}/cam/scsi
 
 .PATH: ${SRCTOP}/sys/fs/cd9660
 FS9660=		cd9660_mount.h \
@@ -181,6 +227,11 @@ WGDIR=		${INCLUDEDIR}/dev/if_wg
 INCSGROUPS=	INCS \
 		ACPICA \
 		AGP \
+		CAM \
+		CAMATA \
+		CAMMMC \
+		CAMNVME \
+		CAMSCSI \
 		CRYPTO \
 		EVDEV \
 		FS9660 \
