@@ -449,8 +449,20 @@ _SHLINSTALLSYMLINKFLAGS:= ${SHLINSTALLSYMLINKFLAGS}
 _SHLINSTALLFLAGS:=	${_SHLINSTALLFLAGS${ie}}
 .endfor
 
+.if defined(PCFILES)
+.for pcfile in ${PCFILES}
+installpcfiles: installpcfiles-${pcfile}
+
+installpcfiles-${pcfile}: ${pcfile}
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${_INSTALLFLAGS} \
+	    ${.ALLSRC} ${DESTDIR}${LIBDATADIR}/pkgconfig
+.endfor
+.endif
+installpcfiles: .PHONY
+
 .if !defined(INTERNALLIB)
-realinstall: _libinstall
+realinstall: _libinstall installpcfiles
 .ORDER: beforeinstall _libinstall
 _libinstall:
 .if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no"
