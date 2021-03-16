@@ -1392,8 +1392,8 @@ xnb_frontend_changed(device_t dev, XenbusState frontend_state)
 
 	switch (frontend_state) {
 	case XenbusStateInitialising:
-		break;
 	case XenbusStateInitialised:
+		break;
 	case XenbusStateConnected:
 		xnb_connect(xnb);
 		break;
