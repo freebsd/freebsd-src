@@ -36,6 +36,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210316: remove obsolete NFS headers
+OLD_FILES+=usr/include/nfs/nfs_common.h
+OLD_FILES+=usr/include/nfsclient/nfsm_subs.h
+OLD_FILES+=usr/include/nfsclient/nlminfo.h
+OLD_FILES+=usr/include/nfsserver/nfs_fha_old.h
+OLD_FILES+=usr/include/nfsserver/nfsm_subs.h
+OLD_FILES+=usr/include/nfsserver/nfsrvcache.h
+
 # 20210315: Remove kernel-only crypto headers from /usr/include
 OLD_FILES+=usr/include/crypto/_cryptodev.h
 OLD_FILES+=usr/include/crypto/cbc_mac.h
