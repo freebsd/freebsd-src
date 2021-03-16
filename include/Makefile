@@ -84,10 +84,6 @@ FS9660=		cd9660_mount.h \
 		iso_rrip.h
 FS9660DIR=	${INCLUDEDIR}/isofs/cd9660
 
-.PATH: ${SRCTOP}/sys/crypto
-CRYPTO=		rijndael/rijndael.h
-CRYPTODIR=	${INCLUDEDIR}/crypto
-
 .PATH: ${SRCTOP}/sys/dev/evdev
 EVDEV=		input.h \
 		input-event-codes.h \
@@ -105,17 +101,7 @@ HYPERV=		hv_snapshot.h \
 HYPERVDIR=	${INCLUDEDIR}/dev/hyperv
 
 .PATH: ${SRCTOP}/sys/opencrypto
-OPENCRYPTO=	_cryptodev.h \
-		cbc_mac.h \
-		cryptodev.h \
-		deflate.h \
-		gfmult.h \
-		gmac.h \
-		rmd160.h \
-		xform.h \
-		xform_auth.h \
-		xform_comp.h \
-		xform_enc.h
+OPENCRYPTO=	cryptodev.h
 OPENCRYPTODIR=	${INCLUDEDIR}/crypto
 
 .PATH: ${SRCTOP}/sys/dev/pci
