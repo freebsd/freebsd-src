@@ -43,7 +43,7 @@ LDIRS=	geom net net80211 netgraph netinet netinet6 \
 
 LSUBDIRS=	dev/an dev/ciss dev/filemon dev/firewire \
 	dev/hwpmc \
-	dev/ic dev/iicbus if_wg dev/io dev/mfi dev/mmc dev/nvme \
+	dev/ic dev/iicbus dev/if_wg dev/io dev/mfi dev/mmc dev/nvme \
 	dev/ofw dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/pwm \
 	dev/smbus dev/speaker dev/tcp_log dev/vkbd \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nfs fs/nullfs \
@@ -343,29 +343,29 @@ _installincludes:
 	    -name "*.h" -print -delete || true
 .for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS}
 	cd ${SRCTOP}/sys; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
+	${INSTALL} -C -T package=runtime,dev -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${SDESTDIR}${INCLUDEDIR}/$i
 .endfor
 	cd ${SRCTOP}/sys/${MACHINE}/include; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	${INSTALL} -C -T package=runtime,dev -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${SDESTDIR}${INCLUDEDIR}/machine
 .if exists(${SRCTOP}/sys/${MACHINE}/include/pc)
 	cd ${SRCTOP}/sys/${MACHINE}/include/pc; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	${INSTALL} -C -T package=runtime,dev -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${SDESTDIR}${INCLUDEDIR}/machine/pc
 .endif
 .for _MARCH in ${_MARCHS}
 .if exists(${SRCTOP}/sys/${_MARCH}/include)
-	${INSTALL} -d ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -d -T package=runtime,dev -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	cd ${SRCTOP}/sys/${_MARCH}/include; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	${INSTALL} -C -T package=runtime,dev -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}
 .if exists(${SRCTOP}/sys/${_MARCH}/include/pc)
-	${INSTALL} -d ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -d -T package=runtime,dev -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}/pc; \
 	cd ${SRCTOP}/sys/${_MARCH}/include/pc; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	${INSTALL} -C -T package=runtime,dev -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}/pc
 .endif
 .endif
