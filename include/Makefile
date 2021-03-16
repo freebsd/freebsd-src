@@ -41,11 +41,11 @@ LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 LDIRS=	geom net net80211 netgraph netinet netinet6 \
 	netipsec netsmb nfs nfsclient nfsserver sys vm
 
-LSUBDIRS=	dev/acpica dev/agp dev/an dev/ciss dev/filemon dev/firewire \
-	dev/hwpmc dev/hyperv \
-	dev/ic dev/iicbus dev/if_wg dev/io dev/mfi dev/mmc dev/nvme \
-	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/pwm \
-	dev/smbus dev/speaker dev/tcp_log dev/veriexec dev/vkbd \
+LSUBDIRS=	dev/an dev/ciss dev/filemon dev/firewire \
+	dev/hwpmc \
+	dev/ic dev/iicbus if_wg dev/io dev/mfi dev/mmc dev/nvme \
+	dev/ofw dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/pwm \
+	dev/smbus dev/speaker dev/tcp_log dev/vkbd \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nfs fs/nullfs \
 	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
@@ -295,13 +295,6 @@ LSUBDIRS+=	dev/usb
 _dev_powermac_nvram=	dev/powermac_nvram
 .endif
 
-# Define SHARED to indicate whether you want symbolic links to the system
-# source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
-# probably only useful for developers and should be avoided if you do not
-# wish to tie your /usr/include and /usr/src together.
-#SHARED=	symlinks
-SHARED?=	copies
-
 INCS+=	osreldate.h
 
 SYSDIR=			${SRCTOP}/sys
@@ -332,25 +325,23 @@ _MARCHS=	${MACHINE_CPUARCH}
 _MARCHS+=	x86
 .endif
 
-META_TARGETS+=	compat
-stage_includes: ${SHARED}
+stage_includes: _installincludes
 SDESTDIR=	${SYSROOT:U${DESTDIR}}
 
+_installincludes:
 # Take care of stale directory-level symlinks.
 # Note: The "|| true" after find is needed in case one of the directories does
 # not exist (yet).
-compat:
 	cd ${SDESTDIR}${INCLUDEDIR}; find ${LDIRS} ${LSUBDIRS} machine ${_MARCHS} \
 	    crypto -maxdepth 0 -mindepth 0 -type l -print -delete || true
 	mtree -deU ${NO_ROOT:D-W} ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${SRCTOP}/etc/mtree/BSD.include.dist \
 	    -p ${SDESTDIR}${INCLUDEDIR} > /dev/null
 
-copies: .PHONY .META
 	cd ${SDESTDIR}${INCLUDEDIR}; find ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto \
 	    machine machine/pc ${_MARCHS} -maxdepth 1 -mindepth 1 -type l \
 	    -name "*.h" -print -delete || true
-.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS}
 	cd ${SRCTOP}/sys; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${SDESTDIR}${INCLUDEDIR}/$i
@@ -380,99 +371,9 @@ copies: .PHONY .META
 .endif
 .endfor
 
-symlinks: .PHONY .META
-	@${ECHO} "Setting up symlinks to kernel source tree..."
-.for i in ${LDIRS}
-	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../%s ' sys/$i/*.h) ${SDESTDIR}${INCLUDEDIR}/$i
-.endfor
-.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec}
-	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../../%s ' sys/$i/*.h) ${SDESTDIR}${INCLUDEDIR}/$i
-.endfor
-	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../../sys/dev/acpica/%s ' acpiio.h acpi_hpet.h) \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/acpica; \
-	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/agp/agpreg.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/agp; \
-	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../../sys/dev/evdev/%s ' input.h input-event-codes.h uinput.h) \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/evdev;
-	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../../sys/dev/hid/%s ' hid.h hidraw.h) \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/hid; \
-	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/hyperv/include/hyperv.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv; \
-	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/hyperv/utilities/hv_snapshot.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv; \
-	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/pci/pcireg.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/pci; \
-	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/veriexec/veriexec_ioctl.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/veriexec;
-.for i in ${LSUBSUBDIRS}
-	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../../../%s ' sys/$i/*.h) ${SDESTDIR}${INCLUDEDIR}/$i
-.endfor
-.if ${MK_IPFILTER} != "no"
-	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../%s ' sys/contrib/ipfilter/netinet/*.h) \
-	    ${SDESTDIR}${INCLUDEDIR}/netinet;
-.endif
-.if ${MK_PF} != "no"
-	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../../%s ' sys/netpfil/pf/*.h) \
-	    ${SDESTDIR}${INCLUDEDIR}/netpfil/pf;
-.endif
-	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/crypto/rijndael/rijndael.h \
-	    ${SDESTDIR}${INCLUDEDIR}/crypto; \
-	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../%s ' sys/opencrypto/*.h) \
-	    ${SDESTDIR}${INCLUDEDIR}/crypto; \
-	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../%s ' sys/${MACHINE}/include/*.h) \
-	    ${SDESTDIR}${INCLUDEDIR}/machine;
-.if exists(${SRCTOP}/sys/${MACHINE}/include/pc)
-	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../../%s ' sys/${MACHINE}/include/pc/*.h) \
-	    ${SDESTDIR}${INCLUDEDIR}/machine/pc;
-.endif
-.for _MARCH in ${_MARCHS}
-.if exists(${SRCTOP}/sys/${_MARCH}/include)
-	${INSTALL} -d ${TAG_ARGS:D${TAG_ARGS},dev} -o ${BINOWN} -g ${BINGRP} -m 755 \
-	    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}; \
-	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../%s ' sys/${_MARCH}/include/*.h) \
-	    ${SDESTDIR}${INCLUDEDIR}/${_MARCH};
-.if exists(${SRCTOP}/sys/${_MARCH}/include/pc)
-	${INSTALL} -d ${TAG_ARGS:D${TAG_ARGS},dev} -o ${BINOWN} -g ${BINGRP} -m 755 \
-	    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}/pc; \
-	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../../%s ' sys/${_MARCH}/include/pc/*.h) \
-	    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}/pc;
-.endif
-.endif
-.endfor
-	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../../%s ' sys/fs/cd9660/*.h) \
-	    ${SDESTDIR}${INCLUDEDIR}/isofs/cd9660; \
-	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../sys/rpc/%s ' rpcsec_tls.h types.h) \
-	    ${SDESTDIR}${INCLUDEDIR}/rpc;
-	cd ${SRCTOP}/sys/rpc;
-.if ${MK_CDDL} != "no"
-	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    ../../../sys/contrib/openzfs/include/sys/nvpair.h \
-	    ${SDESTDIR}${INCLUDEDIR}/sys
-.endif
-.if ${MK_MLX5TOOL} != "no"
-	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/mlx5/mlx5io.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/mlx5
-.endif
-
 .include <bsd.prog.mk>
 
-installincludes: ${SHARED}
-${SHARED}: compat
+installincludes: _installincludes
 
 .if ${MACHINE} == "host" && !defined(_SKIP_BUILD)
 # we're here because we are building a sysroot...
