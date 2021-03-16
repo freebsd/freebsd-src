@@ -38,7 +38,7 @@ PHDRS=	sched.h _semaphore.h
 LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 	syslog.h ucontext.h
 
-LDIRS=	bsm cam geom net net80211 netgraph netinet netinet6 \
+LDIRS=	cam geom net net80211 netgraph netinet netinet6 \
 	netipsec netsmb nfs nfsclient nfsserver sys vm
 
 LSUBDIRS=	cam/ata cam/mmc cam/nvme cam/scsi \
@@ -58,7 +58,6 @@ LSUBDIRS=	cam/ata cam/mmc cam/nvme cam/scsi \
 	netinet/cc \
 	netinet/netdump \
 	netinet/tcp_stacks \
-	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
 	security/mac_veriexec \
@@ -75,6 +74,25 @@ ACPICADIR=	${INCLUDEDIR}/dev/acpica
 .PATH: ${SRCTOP}/sys/dev/agp
 AGP=		agpreg.h
 AGPDIR=		${INCLUDEDIR}/dev/agp
+
+.PATH: ${SRCTOP}/sys/bsm
+BSM=		audit.h \
+		audit_errno.h \
+		audit_internal.h \
+		audit_record.h \
+		audit_domain.h \
+		audit_fcntl.h \
+		audit_kevents.h \
+		audit_socket_type.h
+BSMPACKAGE=	libbsm
+BSMDIR=		${INCLUDEDIR}/bsm
+
+.PATH: ${SRCTOP}/sys/security/audit
+SECAUDIT=	audit.h \
+		audit_ioctl.h \
+		audit_private.h
+SECAUDITPACKAGE=	libbsm
+SECAUDITDIR=	${INCLUDEDIR}/security/audit
 
 .PATH: ${SRCTOP}/sys/fs/cd9660
 FS9660=		cd9660_mount.h \
@@ -174,6 +192,11 @@ INCSGROUPS=	INCS \
 		TEKEN \
 		VERIEXEC \
 		WG
+
+.if ${MK_AUDIT} != "no"
+INCSGROUPS+=	BSM
+INCSGROUPS+=	SECAUDIT
+.endif
 
 .if ${MK_IPFILTER} != "no"
 INCSGROUPS+=	IPFILTER
