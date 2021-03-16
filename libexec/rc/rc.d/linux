@@ -19,10 +19,16 @@ linux_start()
 {
 	local _emul_path _tmpdir
 
-	load_kld -e 'linux(aout|elf)' linux
 	case `sysctl -n hw.machine_arch` in
-	amd64)
+	aarch64)
 		load_kld -e 'linux64elf' linux64
+		;;
+	amd64)
+		load_kld -e 'linuxelf' linux
+		load_kld -e 'linux64elf' linux64
+		;;
+	i386)
+		load_kld -e 'linuxelf' linux
 		;;
 	esac
 
