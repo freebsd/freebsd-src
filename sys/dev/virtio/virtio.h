@@ -35,6 +35,8 @@
 #include <dev/virtio/virtio_ids.h>
 #include <dev/virtio/virtio_config.h>
 
+#ifdef _KERNEL
+
 struct sbuf;
 struct vq_alloc_info;
 
@@ -186,5 +188,7 @@ virtio_simple_probe(device_t dev, const struct virtio_pnp_match *match)
 	device_set_desc(dev, match->description);
 	return (BUS_PROBE_DEFAULT);
 }
+
+#endif /* _KERNEL */
 
 #endif /* _VIRTIO_H_ */

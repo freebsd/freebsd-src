@@ -32,6 +32,9 @@
 #define _VIRTIO_ENDIAN_H_
 
 #include <sys/endian.h>
+#ifndef _KERNEL
+#include <stdbool.h>
+#endif /* _KERNEL */
 
 /*
  * VirtIO V1 (modern) uses little endian, while legacy VirtIO uses the guest's
