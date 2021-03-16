@@ -86,7 +86,6 @@ ${inc}: ${inc}.in
 	sed -e 's,X.YY,${FILEVER:S,",,g:S,.,,g},g' ${.ALLSRC} > ${.TARGET}
 .endfor
 
-FILES+=			libmagic.pc
-FILESDIR_libmagic.pc=	${LIBDATADIR}/pkgconfig
+PCFILES=	libmagic.pc
 
 .include <bsd.lib.mk>
