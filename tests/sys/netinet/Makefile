@@ -10,15 +10,7 @@ ATF_TESTS_C=	ip_reass_test \
 		socket_afinet \
 		tcp_connect_port_test
 
-ATF_TESTS_SH=	carp fibs \
-		fibs_test \
-		redirect \
-		divert \
-		forward \
-		output \
-		lpm \
-		arp \
-		if_wg_test
+ATF_TESTS_SH=	carp fibs fibs_test redirect divert forward output lpm arp
 TEST_METADATA.output+=	required_programs="python"
 
 PROGS=	udp_dontroute tcp_user_cookie
