@@ -100,7 +100,7 @@ METHOD int newsession {
  * @brief Destroy a crypto session object
  *
  * The crypto framework invokes this method when tearing down a crypto
- * session.  After this callback returns, the frame will explicitly
+ * session.  After this callback returns, the framework will explicitly
  * zero and free the drvier's per-session memory object.  If the
  * driver requires additional actions to destroy a session, it should
  * perform those in this method.  If the driver does not require
