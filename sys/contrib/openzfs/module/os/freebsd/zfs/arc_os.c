@@ -51,6 +51,9 @@
 #include <sys/vm.h>
 #include <sys/vmmeter.h>
 
+static struct sx arc_vnlru_lock;
+static struct vnode *arc_vnlru_marker;
+
 extern struct vfsops zfs_vfsops;
 
 uint_t zfs_arc_free_target = 0;
@@ -157,7 +160,9 @@ arc_prune_task(void *arg)
 
 	arc_reduce_target_size(ptob(nr_scan));
 	free(arg, M_TEMP);
-	vnlru_free(nr_scan, &zfs_vfsops);
+	sx_xlock(&arc_vnlru_lock);
+	vnlru_free_vfsops(nr_scan, &zfs_vfsops, arc_vnlru_marker);
+	sx_xunlock(&arc_vnlru_lock);
 }
 
 /*
@@ -234,7 +239,8 @@ arc_lowmem_init(void)
 {
 	arc_event_lowmem = EVENTHANDLER_REGISTER(vm_lowmem, arc_lowmem, NULL,
 	    EVENTHANDLER_PRI_FIRST);
-
+	arc_vnlru_marker = vnlru_alloc_marker();
+	sx_init(&arc_vnlru_lock, "arc vnlru lock");
 }
 
 void
@@ -242,6 +248,10 @@ arc_lowmem_fini(void)
 {
 	if (arc_event_lowmem != NULL)
 		EVENTHANDLER_DEREGISTER(vm_lowmem, arc_event_lowmem);
+	if (arc_vnlru_marker != NULL) {
+		vnlru_free_marker(arc_vnlru_marker);
+		sx_destroy(&arc_vnlru_lock);
+	}
 }
 
 void
