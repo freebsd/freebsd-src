@@ -64,6 +64,7 @@
 #include <sys/poll.h>
 #include <sys/sbuf.h>
 #include <sys/soundcard.h>
+#include <sys/sndstat.h>
 #include <sys/sysctl.h>
 #include <sys/kobj.h>
 #include <vm/vm.h>
