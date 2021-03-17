@@ -22,7 +22,7 @@ GITREV!=	${GIT_CMD} -C ${.CURDIR} rev-parse --verify --short HEAD 2>/dev/null ||
 . export GITREV
 . endif
 . if !defined(GITCOUNT) || empty(GITCOUNT)
-GITCOUNT!=	${GIT_CMD} -C ${.CURDIR} rev-list --count HEAD 2>/dev/null || true
+GITCOUNT!=	${GIT_CMD} -C ${.CURDIR} rev-list --first-parent --count HEAD 2>/dev/null || true
 . export GITCOUNT
 . endif
 .else
