@@ -1096,6 +1096,8 @@
     usr.sbin
         chown
         ..
+        daemon
+        ..
         etcupdate
         ..
         extattr
