@@ -831,8 +831,18 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 	    (tp->snd_recover == tp->snd_max) &&
 	    TAILQ_EMPTY(&tp->snd_holes) &&
 	    (tp->sackhint.delivered_data > 0)) {
-		struct sackhole *hole;
-		hole = tcp_sackhole_insert(tp, SEQ_MAX(th->th_ack, tp->snd_max - maxseg), tp->snd_max, NULL);
+		/*
+		 * Exclude FIN sequence space in
+		 * the hole for the rescue retransmission,
+		 * and also don't create a hole, if only
+		 * the ACK for a FIN is outstanding.
+		 */
+		tcp_seq highdata = tp->snd_max;
+		if (tp->t_flags & TF_SENTFIN)
+			highdata--;
+		if (th->th_ack != highdata)
+			(void)tcp_sackhole_insert(tp, SEQ_MAX(th->th_ack,
+			    highdata - maxseg), highdata, NULL);
 	}
 	(void) tp->t_fb->tfb_tcp_output(tp);
 }
