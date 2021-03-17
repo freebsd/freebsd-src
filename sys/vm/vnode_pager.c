@@ -1476,12 +1476,10 @@ void
 vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written, off_t eof,
     int lpos)
 {
-	vm_object_t obj;
 	int i, pos, pos_devb;
 
 	if (written == 0 && eof >= lpos)
 		return;
-	obj = ma[0]->object;
 	for (i = 0, pos = 0; pos < written; i++, pos += PAGE_SIZE) {
 		if (pos < trunc_page(written)) {
 			rtvals[i] = VM_PAGER_OK;
