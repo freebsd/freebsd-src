@@ -526,6 +526,7 @@ MAN=	aac.4 \
 	snd_via8233.4 \
 	snd_via82c686.4 \
 	snd_vibes.4 \
+	sndstat.4 \
 	snp.4 \
 	spigen.4 \
 	${_spkr.4} \
