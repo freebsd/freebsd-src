@@ -391,25 +391,30 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 		return (EOPNOTSUPP);
 	if (vp->v_type != VDIR && fmode & O_DIRECTORY)
 		return (ENOTDIR);
+
 	accmode = 0;
-	if (fmode & (FWRITE | O_TRUNC)) {
-		if (vp->v_type == VDIR)
-			return (EISDIR);
-		accmode |= VWRITE;
-	}
-	if (fmode & FREAD)
-		accmode |= VREAD;
-	if (fmode & FEXEC)
-		accmode |= VEXEC;
-	if ((fmode & O_APPEND) && (fmode & FWRITE))
-		accmode |= VAPPEND;
+	if ((fmode & O_PATH) == 0) {
+		if ((fmode & (FWRITE | O_TRUNC)) != 0) {
+			if (vp->v_type == VDIR)
+				return (EISDIR);
+			accmode |= VWRITE;
+		}
+		if ((fmode & FREAD) != 0)
+			accmode |= VREAD;
+		if ((fmode & O_APPEND) && (fmode & FWRITE))
+			accmode |= VAPPEND;
 #ifdef MAC
-	if (fmode & O_CREAT)
-		accmode |= VCREAT;
-	if (fmode & O_VERIFY)
+		if ((fmode & O_CREAT) != 0)
+			accmode |= VCREAT;
+#endif
+	}
+	if ((fmode & FEXEC) != 0)
+		accmode |= VEXEC;
+#ifdef MAC
+	if ((fmode & O_VERIFY) != 0)
 		accmode |= VVERIFY;
 	error = mac_vnode_check_open(cred, vp, accmode);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	accmode &= ~(VCREAT | VVERIFY);
@@ -419,6 +424,9 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 		if (error != 0)
 			return (error);
 	}
+	if ((fmode & O_PATH) != 0)
+		return (0);
+
 	if (vp->v_type == VFIFO && VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
 		vn_lock(vp, LK_UPGRADE | LK_RETRY);
 	error = VOP_OPEN(vp, fmode, cred, td, fp);

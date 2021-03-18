@@ -360,8 +360,10 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 			if (cnp->cn_flags & AUDITVNODE2)
 				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
 			/*
-			 * Effectively inlined fgetvp_rights, because we need to
-			 * inspect the file as well as grabbing the vnode.
+			 * Effectively inlined fgetvp_rights, because
+			 * we need to inspect the file as well as
+			 * grabbing the vnode.  No check for O_PATH,
+			 * files to implement its semantic.
 			 */
 			error = fget_cap(td, ndp->ni_dirfd, &rights,
 			    &dfp, &ndp->ni_filecaps);
