@@ -962,7 +962,7 @@ mesh_generateid(struct ieee80211vap *vap)
 	uint16_t r;
 
 	do {
-		get_random_bytes(&r, 2);
+		net80211_get_random_bytes(&r, 2);
 		ieee80211_iterate_nodes(&vap->iv_ic->ic_sta, mesh_checkid, &r);
 		maxiter--;
 	} while (r == 0 && maxiter > 0);

@@ -100,7 +100,7 @@ wep_attach(struct ieee80211vap *vap, struct ieee80211_key *k)
 
 	ctx->wc_vap = vap;
 	ctx->wc_ic = vap->iv_ic;
-	get_random_bytes(&ctx->wc_iv, sizeof(ctx->wc_iv));
+	net80211_get_random_bytes(&ctx->wc_iv, sizeof(ctx->wc_iv));
 	nrefs++;			/* NB: we assume caller locking */
 	return ctx;
 }
