@@ -749,7 +749,7 @@ ieee80211_vap_xmitpkt(struct ieee80211vap *vap, struct mbuf *m)
 #include <sys/libkern.h>
 
 void
-get_random_bytes(void *p, size_t n)
+net80211_get_random_bytes(void *p, size_t n)
 {
 	uint8_t *dp = p;
 

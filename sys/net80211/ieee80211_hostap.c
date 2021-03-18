@@ -1093,7 +1093,7 @@ hostap_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 			/* NB: don't return error so they rexmit */
 			return;
 		}
-		get_random_bytes(ni->ni_challenge,
+		net80211_get_random_bytes(ni->ni_challenge,
 			IEEE80211_CHALLENGE_LEN);
 		IEEE80211_NOTE(vap, IEEE80211_MSG_DEBUG | IEEE80211_MSG_AUTH,
 		    ni, "shared key %sauth request", allocbs ? "" : "re");

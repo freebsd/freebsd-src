@@ -363,7 +363,8 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 		if (vap->iv_flags & IEEE80211_F_DESBSSID)
 			IEEE80211_ADDR_COPY(ni->ni_bssid, vap->iv_des_bssid);
 		else {
-			get_random_bytes(ni->ni_bssid, IEEE80211_ADDR_LEN);
+			net80211_get_random_bytes(ni->ni_bssid,
+			    IEEE80211_ADDR_LEN);
 			/* clear group bit, add local bit */
 			ni->ni_bssid[0] = (ni->ni_bssid[0] &~ 0x01) | 0x02;
 		}
