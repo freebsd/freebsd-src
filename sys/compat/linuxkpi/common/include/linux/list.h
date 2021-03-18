@@ -53,6 +53,7 @@
 #include <sys/mbuf.h>
 
 #include <net/bpf.h>
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_types.h>
@@ -66,6 +67,10 @@
 
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
+
+#include <net80211/ieee80211.h>
+#include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_node.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
