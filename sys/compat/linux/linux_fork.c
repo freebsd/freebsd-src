@@ -205,7 +205,7 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 	 * stack. This is what normal fork() does, so we just keep tf_rsp arg
 	 * intact.
 	 */
-	linux_set_upcall_kse(td2, PTROUT(args->stack));
+	linux_set_upcall(td2, PTROUT(args->stack));
 
 	if (args->flags & LINUX_CLONE_SETTLS)
 		linux_set_cloned_tls(td2, args->tls);
@@ -304,7 +304,7 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 
 	cpu_thread_clean(newtd);
 
-	linux_set_upcall_kse(newtd, PTROUT(args->stack));
+	linux_set_upcall(newtd, PTROUT(args->stack));
 
 	PROC_LOCK(p);
 	p->p_flag |= P_HADTHREADS;

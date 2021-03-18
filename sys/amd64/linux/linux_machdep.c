@@ -118,7 +118,7 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 }
 
 int
-linux_set_upcall_kse(struct thread *td, register_t stack)
+linux_set_upcall(struct thread *td, register_t stack)
 {
 
 	if (stack)

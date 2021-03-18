@@ -461,7 +461,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	 * Copy user general-purpose registers.
 	 *
 	 * Some of these registers are rewritten by cpu_set_upcall()
-	 * and linux_set_upcall_kse().
+	 * and linux_set_upcall().
 	 */
 	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
 
