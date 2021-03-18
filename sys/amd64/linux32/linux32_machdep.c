@@ -418,7 +418,7 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 }
 
 int
-linux_set_upcall_kse(struct thread *td, register_t stack)
+linux_set_upcall(struct thread *td, register_t stack)
 {
 
 	if (stack)
