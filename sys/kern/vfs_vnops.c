@@ -102,7 +102,6 @@ static fo_truncate_t	vn_truncate;
 static fo_ioctl_t	vn_ioctl;
 static fo_poll_t	vn_poll;
 static fo_kqfilter_t	vn_kqfilter;
-static fo_stat_t	vn_statfile;
 static fo_close_t	vn_closefile;
 static fo_mmap_t	vn_mmap;
 static fo_fallocate_t	vn_fallocate;
@@ -1616,7 +1615,7 @@ vn_truncate_locked(struct vnode *vp, off_t length, bool sync,
 /*
  * File table vnode stat routine.
  */
-static int
+int
 vn_statfile(struct file *fp, struct stat *sb, struct ucred *active_cred,
     struct thread *td)
 {
