@@ -65,7 +65,7 @@
 #ifdef __FreeBSD__
 #define USE_SYSMOUSE 1
 #endif
-#define TERMINFO_DIRS "/usr/share/terminfo:/usr/local/share/site-terminfo"
+#define TERMINFO_DIRS "/usr/share/terminfo:/usr/local/share/terminfo:/usr/local/share/site-terminfo"
 #define TERMINFO "/usr/share/terminfo"
 #define HAVE_BIG_CORE 1
 #define TERMPATH "/etc/termcap:/usr/share/misc/termcap"
