@@ -76,10 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
-#define ICMPV6_HACK	/* workaround for chip issue */
-#ifdef ICMPV6_HACK
-#include <netinet/icmp6.h>
-#endif
 
 #include "syscon_if.h"
 #include "miibus_if.h"
@@ -955,6 +951,8 @@ gen_start_locked(struct gen_softc *sc)
 		if (err != 0) {
 			if (err == ENOBUFS)
 				if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
+			else if (m == NULL)
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			if (m != NULL)
 				if_sendq_prepend(ifp, m);
 			break;
@@ -995,36 +993,34 @@ gen_encap(struct gen_softc *sc, struct mbuf **mp)
 	q = &sc->tx_queue[DEF_TXQUEUE];
 
 	m = *mp;
-#ifdef ICMPV6_HACK
+
 	/*
 	 * Reflected ICMPv6 packets, e.g. echo replies, tend to get laid
 	 * out with only the Ethernet header in the first mbuf, and this
-	 * doesn't seem to work.
+	 * doesn't seem to work.  Forwarded TCP packets over IPv6 also
+	 * fail if laid out with only the Ethernet header in the first mbuf.
+	 * For now, pull up any IPv6 packet with that layout.  Maybe IPv4
+	 * needs it but we haven't run into it.  Pulling up the sizes of
+	 * ether_header + ip6_header + icmp6_hdr seems to work for both
+	 * ICMPv6 and TCP over IPv6.
 	 */
-#define ICMP6_LEN (sizeof(struct ether_header) + sizeof(struct ip6_hdr) + \
-		    sizeof(struct icmp6_hdr))
+#define IP6_PULLUP_LEN (sizeof(struct ether_header) + \
+		        sizeof(struct ip6_hdr) + 8)
 	if (m->m_len == sizeof(struct ether_header)) {
 		int ether_type = mtod(m, struct ether_header *)->ether_type;
-		if (ntohs(ether_type) == ETHERTYPE_IPV6 &&
-		    m->m_next->m_len >= sizeof(struct ip6_hdr)) {
-			struct ip6_hdr *ip6;
-
-			ip6 = mtod(m->m_next, struct ip6_hdr *);
-			if (ip6->ip6_nxt == IPPROTO_ICMPV6) {
-				m = m_pullup(m,
-				    MIN(m->m_pkthdr.len, ICMP6_LEN));
-				if (m == NULL) {
-					if (sc->ifp->if_flags & IFF_DEBUG)
-						device_printf(sc->dev,
-						    "ICMPV6 pullup fail\n");
-					*mp = NULL;
-					return (ENOMEM);
-				}
+		if (ntohs(ether_type) == ETHERTYPE_IPV6) {
+			m = m_pullup(m, MIN(m->m_pkthdr.len, IP6_PULLUP_LEN));
+			if (m == NULL) {
+				if (sc->ifp->if_flags & IFF_DEBUG)
+					device_printf(sc->dev,
+					    "IPV6 pullup fail\n");
+				*mp = NULL;
+				return (ENOMEM);
 			}
 		}
 	}
-#undef ICMP6_LEN
-#endif
+#undef IP6_PULLUP_LEN
+
 	if ((if_getcapenable(sc->ifp) & (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6)) !=
 	    0) {
 		csum_flags = m->m_pkthdr.csum_flags;
