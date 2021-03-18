@@ -539,7 +539,7 @@ Valid selections from
 .Pa /etc/rc.firewall
 are:
 .Pp
-.Bl -tag -width ".Li simple" -compact
+.Bl -tag -width ".Li workstation" -compact
 .It Li open
 unrestricted IP access
 .It Li closed
@@ -547,12 +547,18 @@ all IP services disabled, except via
 .Dq Li lo0
 .It Li client
 basic protection for a workstation
+.It Li workstation
+basic protection for a workstation using stateful firewalling
 .It Li simple
 basic protection for a LAN.
 .El
 .Pp
 If a filename is specified, the full path
 must be given.
+.Pp
+Most of the predefined rulesets define additional configuration variables.
+These are documented in
+.Pa /etc/rc.firewall .
 .It Va firewall_quiet
 .Pq Vt bool
 Set to
