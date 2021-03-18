@@ -210,6 +210,16 @@ TEST_F(FlushWithLocks, unlock_on_close)
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_SETLK &&
 				in.header.nodeid == ino &&
+				in.body.setlk.lk.type == F_RDLCK &&
+				in.body.setlk.fh == FH);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnErrno(0)));
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_SETLK &&
+				in.header.nodeid == ino &&
+				in.body.setlk.lk.type == F_UNLCK &&
 				in.body.setlk.fh == FH);
 		}, Eq(true)),
 		_)
@@ -224,7 +234,7 @@ TEST_F(FlushWithLocks, unlock_on_close)
 	fl.l_type = F_RDLCK;
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
-	ASSERT_NE(-1, fcntl(fd, F_SETLKW, &fl)) << strerror(errno);
+	ASSERT_NE(-1, fcntl(fd, F_SETLK, &fl)) << strerror(errno);
 
 	fd2 = open(FULLPATH, O_WRONLY);
 	ASSERT_LE(0, fd2) << strerror(errno);
