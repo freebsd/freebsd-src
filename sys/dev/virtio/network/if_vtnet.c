@@ -2389,7 +2389,7 @@ vtnet_txq_offload_ctx(struct vtnet_txq *txq, struct mbuf *m, int *etype,
 }
 
 static int
-vtnet_txq_offload_tso(struct vtnet_txq *txq, struct mbuf *m, int flags,
+vtnet_txq_offload_tso(struct vtnet_txq *txq, struct mbuf *m, int eth_type,
     int offset, struct virtio_net_hdr *hdr)
 {
 	static struct timeval lastecn;
@@ -2407,8 +2407,8 @@ vtnet_txq_offload_tso(struct vtnet_txq *txq, struct mbuf *m, int flags,
 
 	hdr->hdr_len = vtnet_gtoh16(sc, offset + (tcp->th_off << 2));
 	hdr->gso_size = vtnet_gtoh16(sc, m->m_pkthdr.tso_segsz);
-	hdr->gso_type = (flags & CSUM_IP_TSO) ?
-	    VIRTIO_NET_HDR_GSO_TCPV4 : VIRTIO_NET_HDR_GSO_TCPV6;
+	hdr->gso_type = eth_type == ETHERTYPE_IP ? VIRTIO_NET_HDR_GSO_TCPV4 :
+	    VIRTIO_NET_HDR_GSO_TCPV6;
 
 	if (__predict_false(tcp->th_flags & TH_CWR)) {
 		/*
@@ -2474,7 +2474,7 @@ vtnet_txq_offload(struct vtnet_txq *txq, struct mbuf *m,
 			goto drop;
 		}
 
-		error = vtnet_txq_offload_tso(txq, m, flags, csum_start, hdr);
+		error = vtnet_txq_offload_tso(txq, m, etype, csum_start, hdr);
 		if (error)
 			goto drop;
 	}
