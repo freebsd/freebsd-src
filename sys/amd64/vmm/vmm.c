@@ -798,6 +798,24 @@ vm_mmap_memseg(struct vm *vm, vm_paddr_t gpa, int segid, vm_ooffset_t first,
 }
 
 int
+vm_munmap_memseg(struct vm *vm, vm_paddr_t gpa, size_t len)
+{
+	struct mem_map *m;
+	int i;
+
+	for (i = 0; i < VM_MAX_MEMMAPS; i++) {
+		m = &vm->mem_maps[i];
+		if (m->gpa == gpa && m->len == len &&
+		    (m->flags & VM_MEMMAP_F_IOMMU) == 0) {
+			vm_free_memmap(vm, i);
+			return (0);
+		}
+	}
+
+	return (EINVAL);
+}
+
+int
 vm_mmap_getnext(struct vm *vm, vm_paddr_t *gpa, int *segid,
     vm_ooffset_t *segoff, size_t *len, int *prot, int *flags)
 {

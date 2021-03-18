@@ -461,10 +461,12 @@ pci_emul_alloc_resource(uint64_t *baseptr, uint64_t limit, uint64_t size,
 static void
 modify_bar_registration(struct pci_devinst *pi, int idx, int registration)
 {
+	struct pci_devemu *pe;
 	int error;
 	struct inout_port iop;
 	struct mem_range mr;
 
+	pe = pi->pi_d;
 	switch (pi->pi_bar[idx].type) {
 	case PCIBAR_IO:
 		bzero(&iop, sizeof(struct inout_port));
@@ -478,6 +480,9 @@ modify_bar_registration(struct pci_devinst *pi, int idx, int registration)
 			error = register_inout(&iop);
 		} else
 			error = unregister_inout(&iop);
+		if (pe->pe_baraddr != NULL)
+			(*pe->pe_baraddr)(pi->pi_vmctx, pi, idx, registration,
+					  pi->pi_bar[idx].addr);
 		break;
 	case PCIBAR_MEM32:
 	case PCIBAR_MEM64:
@@ -493,6 +498,9 @@ modify_bar_registration(struct pci_devinst *pi, int idx, int registration)
 			error = register_mem(&mr);
 		} else
 			error = unregister_mem(&mr);
+		if (pe->pe_baraddr != NULL)
+			(*pe->pe_baraddr)(pi->pi_vmctx, pi, idx, registration,
+					  pi->pi_bar[idx].addr);
 		break;
 	default:
 		error = EINVAL;

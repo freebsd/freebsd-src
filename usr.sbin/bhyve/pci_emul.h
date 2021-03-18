@@ -73,6 +73,9 @@ struct pci_devemu {
 				struct pci_devinst *pi, int baridx,
 				uint64_t offset, int size);
 
+	void	(*pe_baraddr)(struct vmctx *ctx, struct pci_devinst *pi,
+			      int baridx, int enabled, uint64_t address);
+
 	/* Save/restore device state */
 	int	(*pe_snapshot)(struct vm_snapshot_meta *meta);
 	int	(*pe_pause)(struct vmctx *ctx, struct pci_devinst *pi);
