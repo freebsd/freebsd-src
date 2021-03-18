@@ -126,8 +126,6 @@ struct xenisrc {
 	int		xi_virq;
 	void		*xi_cookie;
 	u_int		xi_close:1;	/* close on unbind? */
-	u_int		xi_activehi:1;
-	u_int		xi_edgetrigger:1;
 	u_int		xi_masked:1;
 	volatile u_int	xi_refcount;
 };
