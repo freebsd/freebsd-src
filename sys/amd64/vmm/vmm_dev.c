@@ -381,6 +381,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_rtc_time *rtctime;
 	struct vm_rtc_data *rtcdata;
 	struct vm_memmap *mm;
+	struct vm_munmap *mu;
 	struct vm_cpu_topology *topology;
 	struct vm_readwrite_kernemu_device *kernemu;
 	uint64_t *regvals;
@@ -435,6 +436,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case VM_MAP_PPTDEV_MMIO:
+	case VM_UNMAP_PPTDEV_MMIO:
 	case VM_BIND_PPTDEV:
 	case VM_UNBIND_PPTDEV:
 #ifdef COMPAT_FREEBSD12
@@ -442,6 +444,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 #endif
 	case VM_ALLOC_MEMSEG:
 	case VM_MMAP_MEMSEG:
+	case VM_MUNMAP_MEMSEG:
 	case VM_REINIT:
 		/*
 		 * ioctls that operate on the entire virtual machine must
@@ -524,6 +527,11 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = ppt_map_mmio(sc->vm, pptmmio->bus, pptmmio->slot,
 				     pptmmio->func, pptmmio->gpa, pptmmio->len,
 				     pptmmio->hpa);
+		break;
+	case VM_UNMAP_PPTDEV_MMIO:
+		pptmmio = (struct vm_pptdev_mmio *)data;
+		error = ppt_unmap_mmio(sc->vm, pptmmio->bus, pptmmio->slot,
+				       pptmmio->func, pptmmio->gpa, pptmmio->len);
 		break;
 	case VM_BIND_PPTDEV:
 		pptdev = (struct vm_pptdev *)data;
@@ -642,6 +650,10 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		mm = (struct vm_memmap *)data;
 		error = vm_mmap_memseg(sc->vm, mm->gpa, mm->segid, mm->segoff,
 		    mm->len, mm->prot, mm->flags);
+		break;
+	case VM_MUNMAP_MEMSEG:
+		mu = (struct vm_munmap *)data;
+		error = vm_munmap_memseg(sc->vm, mu->gpa, mu->len);
 		break;
 #ifdef COMPAT_FREEBSD12
 	case VM_ALLOC_MEMSEG_FBSD12:
