@@ -1881,8 +1881,8 @@ restart:
 	if (vp->v_type == VDIR && oldinum == 0) {
 		error = EPERM;		/* POSIX */
 	} else if (oldinum != 0 &&
-		  ((error = VOP_STAT(vp, &sb, td->td_ucred, NOCRED, td)) == 0) &&
-		  sb.st_ino != oldinum) {
+	    ((error = VOP_STAT(vp, &sb, td->td_ucred, NOCRED, td)) == 0) &&
+	    sb.st_ino != oldinum) {
 		error = EIDRM;	/* Identifier removed */
 	} else if (fp != NULL && fp->f_vnode != vp) {
 		if (VN_IS_DOOMED(fp->f_vnode))
@@ -3818,8 +3818,8 @@ kern_frmdirat(struct thread *td, int dfd, const char *path, int fd,
 
 	fp = NULL;
 	if (fd != FD_NONE) {
-		error = getvnode(td, fd, cap_rights_init_one(&rights, CAP_LOOKUP),
-		    &fp);
+		error = getvnode(td, fd, cap_rights_init_one(&rights,
+		    CAP_LOOKUP), &fp);
 		if (error != 0)
 			return (error);
 	}
