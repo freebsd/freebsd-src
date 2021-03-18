@@ -77,8 +77,8 @@ Git branch represents CURRENT;
 all changes are first committed to CURRENT and then usually cherry-picked
 back to STABLE, which refers to Git branches such as
 .Ql stable/13 .
-Every few years the CURRENT branch is renamed to STABLE, and a new
-CURRENT is branched, with an incremented major version number.
+Every few years a new STABLE is branched from CURRENT,
+with an incremented major version number.
 Releases are then branched off STABLE and numbered with consecutive minor
 numbers.
 .Pp
