@@ -252,6 +252,19 @@ vm_get_guestmem_from_ctx(struct vmctx *ctx, char **guest_baseaddr,
 }
 
 int
+vm_munmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, size_t len)
+{
+	struct vm_munmap munmap;
+	int error;
+
+	munmap.gpa = gpa;
+	munmap.len = len;
+
+	error = ioctl(ctx->fd, VM_MUNMAP_MEMSEG, &munmap);
+	return (error);
+}
+
+int
 vm_mmap_getnext(struct vmctx *ctx, vm_paddr_t *gpa, int *segid,
     vm_ooffset_t *segoff, size_t *len, int *prot, int *flags)
 {
@@ -981,6 +994,22 @@ vm_map_pptdev_mmio(struct vmctx *ctx, int bus, int slot, int func,
 }
 
 int
+vm_unmap_pptdev_mmio(struct vmctx *ctx, int bus, int slot, int func,
+		     vm_paddr_t gpa, size_t len)
+{
+	struct vm_pptdev_mmio pptmmio;
+
+	bzero(&pptmmio, sizeof(pptmmio));
+	pptmmio.bus = bus;
+	pptmmio.slot = slot;
+	pptmmio.func = func;
+	pptmmio.gpa = gpa;
+	pptmmio.len = len;
+
+	return (ioctl(ctx->fd, VM_UNMAP_PPTDEV_MMIO, &pptmmio));
+}
+
+int
 vm_setup_pptdev_msi(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
     uint64_t addr, uint64_t msg, int numvec)
 {
@@ -1644,7 +1673,7 @@ vm_get_ioctls(size_t *len)
 	/* keep in sync with machine/vmm_dev.h */
 	static const cap_ioctl_t vm_ioctl_cmds[] = { VM_RUN, VM_SUSPEND, VM_REINIT,
 	    VM_ALLOC_MEMSEG, VM_GET_MEMSEG, VM_MMAP_MEMSEG, VM_MMAP_MEMSEG,
-	    VM_MMAP_GETNEXT, VM_SET_REGISTER, VM_GET_REGISTER,
+	    VM_MMAP_GETNEXT, VM_MUNMAP_MEMSEG, VM_SET_REGISTER, VM_GET_REGISTER,
 	    VM_SET_SEGMENT_DESCRIPTOR, VM_GET_SEGMENT_DESCRIPTOR,
 	    VM_SET_REGISTER_SET, VM_GET_REGISTER_SET,
 	    VM_SET_KERNEMU_DEV, VM_GET_KERNEMU_DEV,
@@ -1654,7 +1683,7 @@ vm_get_ioctls(size_t *len)
 	    VM_ISA_DEASSERT_IRQ, VM_ISA_PULSE_IRQ, VM_ISA_SET_IRQ_TRIGGER,
 	    VM_SET_CAPABILITY, VM_GET_CAPABILITY, VM_BIND_PPTDEV,
 	    VM_UNBIND_PPTDEV, VM_MAP_PPTDEV_MMIO, VM_PPTDEV_MSI,
-	    VM_PPTDEV_MSIX, VM_PPTDEV_DISABLE_MSIX,
+	    VM_PPTDEV_MSIX, VM_UNMAP_PPTDEV_MMIO, VM_PPTDEV_DISABLE_MSIX,
 	    VM_INJECT_NMI, VM_STATS, VM_STAT_DESC,
 	    VM_SET_X2APIC_STATE, VM_GET_X2APIC_STATE,
 	    VM_GET_HPET_CAPABILITIES, VM_GET_GPA_PMAP, VM_GLA2GPA,

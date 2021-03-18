@@ -224,7 +224,7 @@ ppt_find(struct vm *vm, int bus, int slot, int func, struct pptdev **pptp)
 }
 
 static void
-ppt_unmap_mmio(struct vm *vm, struct pptdev *ppt)
+ppt_unmap_all_mmio(struct vm *vm, struct pptdev *ppt)
 {
 	int i;
 	struct pptseg *seg;
@@ -412,7 +412,7 @@ ppt_unassign_device(struct vm *vm, int bus, int slot, int func)
 	pci_save_state(ppt->dev);
 	ppt_pci_reset(ppt->dev);
 	pci_restore_state(ppt->dev);
-	ppt_unmap_mmio(vm, ppt);
+	ppt_unmap_all_mmio(vm, ppt);
 	ppt_teardown_msi(ppt);
 	ppt_teardown_msix(ppt);
 	iommu_remove_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
@@ -464,6 +464,32 @@ ppt_map_mmio(struct vm *vm, int bus, int slot, int func,
 		}
 	}
 	return (ENOSPC);
+}
+
+int
+ppt_unmap_mmio(struct vm *vm, int bus, int slot, int func,
+	       vm_paddr_t gpa, size_t len)
+{
+	int i, error;
+	struct pptseg *seg;
+	struct pptdev *ppt;
+
+	error = ppt_find(vm, bus, slot, func, &ppt);
+	if (error)
+		return (error);
+
+	for (i = 0; i < MAX_MMIOSEGS; i++) {
+		seg = &ppt->mmio[i];
+		if (seg->gpa == gpa && seg->len == len) {
+			error = vm_unmap_mmio(vm, seg->gpa, seg->len);
+			if (error == 0) {
+				seg->gpa = 0;
+				seg->len = 0;
+			}
+			return (error);
+		}
+	}
+	return (ENOENT);
 }
 
 static int
