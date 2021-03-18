@@ -375,7 +375,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	int error;
 
 	AUDIT_ARG_FD(fd);
-	error = getvnode(td, fd, &cap_fstatfs_rights, &fp);
+	error = getvnode_path(td, fd, &cap_fstatfs_rights, &fp);
 	if (error != 0)
 		return (error);
 	vp = fp->f_vnode;
@@ -891,7 +891,7 @@ sys_fchdir(struct thread *td, struct fchdir_args *uap)
 	int error;
 
 	AUDIT_ARG_FD(uap->fd);
-	error = getvnode(td, uap->fd, &cap_fchdir_rights,
+	error = getvnode_path(td, uap->fd, &cap_fchdir_rights,
 	    &fp);
 	if (error != 0)
 		return (error);
@@ -1023,9 +1023,10 @@ change_dir(struct vnode *vp, struct thread *td)
 static __inline void
 flags_to_rights(int flags, cap_rights_t *rightsp)
 {
-
 	if (flags & O_EXEC) {
 		cap_rights_set_one(rightsp, CAP_FEXECVE);
+		if (flags & O_PATH)
+			return;
 	} else {
 		switch ((flags & O_ACCMODE)) {
 		case O_RDONLY:
@@ -1112,11 +1113,15 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 	AUDIT_ARG_MODE(mode);
 	cap_rights_init_one(&rights, CAP_LOOKUP);
 	flags_to_rights(flags, &rights);
+
 	/*
 	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR flags
-	 * may be specified.
+	 * may be specified.  On the other hand, for O_PATH any mode
+	 * except O_EXEC is ignored.
 	 */
-	if (flags & O_EXEC) {
+	if ((flags & O_PATH) != 0) {
+		flags &= ~(O_CREAT | O_ACCMODE);
+	} else if ((flags & O_EXEC) != 0) {
 		if (flags & O_ACCMODE)
 			return (EINVAL);
 	} else if ((flags & O_ACCMODE) == O_ACCMODE) {
@@ -1145,8 +1150,10 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 		 * wonderous happened deep below and we just pass it up
 		 * pretending we know what we do.
 		 */
-		if (error == ENXIO && fp->f_ops != &badfileops)
+		if (error == ENXIO && fp->f_ops != &badfileops) {
+			MPASS((flags & O_PATH) == 0);
 			goto success;
+		}
 
 		/*
 		 * Handle special fdopen() case. bleh.
@@ -1176,14 +1183,16 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 	 * files that switched type in the cdevsw fdopen() method.
 	 */
 	fp->f_vnode = vp;
+
 	/*
 	 * If the file wasn't claimed by devfs bind it to the normal
 	 * vnode operations here.
 	 */
 	if (fp->f_ops == &badfileops) {
-		KASSERT(vp->v_type != VFIFO,
+		KASSERT(vp->v_type != VFIFO || (flags & O_PATH) != 0,
 		    ("Unexpected fifo fp %p vp %p", fp, vp));
-		finit_vnode(fp, flags, NULL, &vnops);
+		finit_vnode(fp, flags, NULL, (flags & O_PATH) != 0 ?
+		    &path_fileops : &vnops);
 	}
 
 	VOP_UNLOCK(vp);
@@ -1882,7 +1891,7 @@ kern_funlinkat(struct thread *td, int dfd, const char *path, int fd,
 
 	fp = NULL;
 	if (fd != FD_NONE) {
-		error = getvnode(td, fd, &cap_no_rights, &fp);
+		error = getvnode_path(td, fd, &cap_no_rights, &fp);
 		if (error != 0)
 			return (error);
 	}
@@ -4255,12 +4264,13 @@ out:
 }
 
 /*
- * Convert a user file descriptor to a kernel file entry and check that, if it
- * is a capability, the correct rights are present. A reference on the file
- * entry is held upon returning.
+ * This variant of getvnode() allows O_PATH files.  Caller should
+ * ensure that returned file and vnode are only used for compatible
+ * semantics.
  */
 int
-getvnode(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
+getvnode_path(struct thread *td, int fd, cap_rights_t *rightsp,
+    struct file **fpp)
 {
 	struct file *fp;
 	int error;
@@ -4285,8 +4295,33 @@ getvnode(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 		fdrop(fp, td);
 		return (EINVAL);
 	}
+
 	*fpp = fp;
 	return (0);
+}
+
+/*
+ * Convert a user file descriptor to a kernel file entry and check
+ * that, if it is a capability, the correct rights are present.
+ * A reference on the file entry is held upon returning.
+ */
+int
+getvnode(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
+{
+	int error;
+
+	error = getvnode_path(td, fd, rightsp, fpp);
+
+	/*
+	 * Filter out O_PATH file descriptors, most getvnode() callers
+	 * do not call fo_ methods.
+	 */
+	if (error == 0 && (*fpp)->f_ops == &path_fileops) {
+		fdrop(*fpp, td);
+		error = EBADF;
+	}
+
+	return (error);
 }
 
 /*

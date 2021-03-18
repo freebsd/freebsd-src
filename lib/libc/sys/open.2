@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2021
+.Dd March 18, 2021
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -168,6 +168,7 @@ O_DIRECTORY	error if file is not a directory
 O_CLOEXEC	set FD_CLOEXEC upon open
 O_VERIFY	verify the contents of the file
 O_RESOLVE_BENEATH	path resolution must not cross the fd directory
+O_PATH		record only the target path in the opened descriptor
 .Ed
 .Pp
 Opening a file with
@@ -315,6 +316,44 @@ may not be used for any read operations like
 The primary use for this descriptor will be as the lookup descriptor for the
 .Fn *at
 family of functions.
+.Pp
+.Dv O_PATH
+returns a file descriptor that can be used as a directory file descriptor for
+.Xr openat 2
+and other system calls taking a file descriptor argument, like
+.Xr fstatat 2
+and others.
+The other functionality of the returned file descriptor is limited to
+the descriptor-level operations.
+It can be used for
+.Bl -tag -width SCM_RIGHTS -offset indent -compact
+.It Xr fcntl 2
+but advisory locking is not allowed
+.It Xr dup 2
+.It Xr close 2
+.It Xr fstat 2
+.It Xr fexecve 2
+requires that
+.Dv O_EXEC
+was also specified at open time
+.It Dv SCM_RIGHTS
+can be passed over a
+.Xr unix 4
+socket using a
+.Dv SCM_RIGHTS
+message
+.El
+But operations like
+.Xr read 2 ,
+.Xr ftruncate 2 ,
+and any other that operate on file and not on file descriptor (except
+.Xr fstat 2 ),
+are not allowed.
+See also the description of
+.Dv AT_EMPTY_PATH
+flag for
+.Xr fstatat 2
+and related syscalls.
 .Pp
 If successful,
 .Fn open

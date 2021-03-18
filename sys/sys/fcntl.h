@@ -135,7 +135,7 @@ typedef	__pid_t		pid_t;
 
 #if __BSD_VISIBLE
 #define	O_VERIFY	0x00200000	/* open only after verification */
-/* #define O_UNUSED1	0x00400000   */	/* Was O_BENEATH */
+#define O_PATH		0x00400000	/* fd is only a path */
 #define	O_RESOLVE_BENEATH 0x00800000	/* Do not allow name resolution to walk
 					   out of cwd */
 #endif
@@ -156,10 +156,12 @@ typedef	__pid_t		pid_t;
 
 /* convert from open() flags to/from fflags; convert O_RD/WR to FREAD/FWRITE */
 #define	FFLAGS(oflags)	((oflags) & O_EXEC ? (oflags) : (oflags) + 1)
-#define	OFLAGS(fflags)	((fflags) & O_EXEC ? (fflags) : (fflags) - 1)
+#define	OFLAGS(fflags)	\
+    (((fflags) & (O_EXEC | O_PATH)) != 0 ? (fflags) : (fflags) - 1)
 
 /* bits to save after open */
-#define	FMASK	(FREAD|FWRITE|FAPPEND|FASYNC|FFSYNC|FDSYNC|FNONBLOCK|O_DIRECT|FEXEC)
+#define	FMASK	(FREAD|FWRITE|FAPPEND|FASYNC|FFSYNC|FDSYNC|FNONBLOCK| \
+		 O_DIRECT|FEXEC|O_PATH)
 /* bits settable by fcntl(F_SETFL, ...) */
 #define	FCNTLFLAGS	(FAPPEND|FASYNC|FFSYNC|FDSYNC|FNONBLOCK|FRDAHEAD|O_DIRECT)
 
