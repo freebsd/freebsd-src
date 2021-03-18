@@ -194,7 +194,7 @@ localcreds(int sockfd)
 
 static void
 recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen,
-    size_t cmsgsz)
+    size_t cmsgsz, int recvmsg_flags)
 {
 	struct cmsghdr *cmsghdr;
 	struct msghdr msghdr;
@@ -216,7 +216,7 @@ recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen,
 	msghdr.msg_iov = &iovec;
 	msghdr.msg_iovlen = 1;
 
-	len = recvmsg(sockfd, &msghdr, 0);
+	len = recvmsg(sockfd, &msghdr, recvmsg_flags);
 	ATF_REQUIRE_MSG(len != -1, "recvmsg failed: %s", strerror(errno));
 	ATF_REQUIRE_MSG((size_t)len == buflen,
 	    "recvmsg: %zd bytes received; expected %zd", len, buflen);
@@ -243,12 +243,12 @@ recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen,
 }
 
 static void
-recvfd(int sockfd, int *recv_fd)
+recvfd(int sockfd, int *recv_fd, int flags)
 {
 	char ch = 0;
 
 	recvfd_payload(sockfd, recv_fd, &ch, sizeof(ch),
-	    CMSG_SPACE(sizeof(int)));
+	    CMSG_SPACE(sizeof(int)), flags);
 }
 
 /*
@@ -266,9 +266,33 @@ ATF_TC_BODY(simple_send_fd, tc)
 	tempfile(&putfd);
 	dofstat(putfd, &putfd_stat);
 	sendfd(fd[0], putfd);
-	recvfd(fd[1], &getfd);
+	recvfd(fd[1], &getfd, 0);
 	dofstat(getfd, &getfd_stat);
 	samefile(&putfd_stat, &getfd_stat);
+	close(putfd);
+	close(getfd);
+	closesocketpair(fd);
+}
+
+/*
+ * Like simple_send_fd but also sets MSG_CMSG_CLOEXEC and checks that the
+ * received file descriptor has the FD_CLOEXEC flag set.
+ */
+ATF_TC_WITHOUT_HEAD(simple_send_fd_msg_cmsg_cloexec);
+ATF_TC_BODY(simple_send_fd_msg_cmsg_cloexec, tc)
+{
+	struct stat getfd_stat, putfd_stat;
+	int fd[2], getfd, putfd;
+
+	domainsocketpair(fd);
+	tempfile(&putfd);
+	dofstat(putfd, &putfd_stat);
+	sendfd(fd[0], putfd);
+	recvfd(fd[1], &getfd, MSG_CMSG_CLOEXEC);
+	dofstat(getfd, &getfd_stat);
+	samefile(&putfd_stat, &getfd_stat);
+	ATF_REQUIRE_EQ_MSG(fcntl(getfd, F_GETFD) & FD_CLOEXEC, FD_CLOEXEC,
+	    "FD_CLOEXEC not set on the received file descriptor");
 	close(putfd);
 	close(getfd);
 	closesocketpair(fd);
@@ -289,7 +313,7 @@ ATF_TC_BODY(send_and_close, tc)
 	dofstat(putfd, &putfd_stat);
 	sendfd(fd[0], putfd);
 	close(putfd);
-	recvfd(fd[1], &getfd);
+	recvfd(fd[1], &getfd, 0);
 	dofstat(getfd, &getfd_stat);
 	samefile(&putfd_stat, &getfd_stat);
 	close(getfd);
@@ -331,8 +355,8 @@ ATF_TC_BODY(two_files, tc)
 	sendfd(fd[0], putfd_2);
 	close(putfd_1);
 	close(putfd_2);
-	recvfd(fd[1], &getfd_1);
-	recvfd(fd[1], &getfd_2);
+	recvfd(fd[1], &getfd_1, 0);
+	recvfd(fd[1], &getfd_2, 0);
 	dofstat(getfd_1, &getfd_1_stat);
 	dofstat(getfd_2, &getfd_2_stat);
 	samefile(&putfd_1_stat, &getfd_1_stat);
@@ -355,7 +379,7 @@ ATF_TC_BODY(bundle, tc)
 
 	sendfd(fd[0], fd[0]);
 	close(fd[0]);
-	recvfd(fd[1], &getfd);
+	recvfd(fd[1], &getfd, 0);
 	close(getfd);
 	close(fd[1]);
 }
@@ -430,7 +454,7 @@ ATF_TC_BODY(rights_creds_payload, tc)
 	len = sendfd_payload(fd[0], putfd, buf, sendspace);
 	ATF_REQUIRE_MSG(len < sendspace, "sendmsg: %zu bytes sent", len);
 	recvfd_payload(fd[1], &getfd, buf, len,
-	    CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + CMSG_SPACE(sizeof(int)));
+	    CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) + CMSG_SPACE(sizeof(int)), 0);
 
 	close(putfd);
 	close(getfd);
@@ -695,6 +719,7 @@ ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, simple_send_fd);
+	ATF_TP_ADD_TC(tp, simple_send_fd_msg_cmsg_cloexec);
 	ATF_TP_ADD_TC(tp, send_and_close);
 	ATF_TP_ADD_TC(tp, send_and_cancel);
 	ATF_TP_ADD_TC(tp, two_files);
