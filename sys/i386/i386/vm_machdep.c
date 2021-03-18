@@ -133,6 +133,74 @@ alloc_fpusave(int flags)
 	}
 	return (res);
 }
+
+/*
+ * Common code shared between cpu_fork() and cpu_copy_thread() for
+ * initializing a thread.
+ */
+static void
+copy_thread(struct thread *td1, struct thread *td2)
+{
+	struct pcb *pcb2;
+
+	pcb2 = td2->td_pcb;
+
+	/* Ensure that td1's pcb is up to date for user threads. */
+	if ((td2->td_pflags & TDP_KTHREAD) == 0) {
+		MPASS(td1 == curthread);
+		td1->td_pcb->pcb_gs = rgs();
+		critical_enter();
+		if (PCPU_GET(fpcurthread) == td1)
+			npxsave(td1->td_pcb->pcb_save);
+		critical_exit();
+	}
+
+	/* Copy td1's pcb */
+	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
+
+	/* Properly initialize pcb_save */
+	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
+
+	/* Kernel threads start with clean NPX and segment bases. */
+	if ((td2->td_pflags & TDP_KTHREAD) != 0) {
+		pcb2->pcb_gs = _udatasel;
+		set_fsbase(td2, 0);
+		set_gsbase(td2, 0);
+		pcb2->pcb_flags &= ~(PCB_NPXINITDONE | PCB_NPXUSERINITDONE |
+		    PCB_KERNNPX | PCB_KERNNPX_THR);
+	} else {
+		MPASS((pcb2->pcb_flags & (PCB_KERNNPX | PCB_KERNNPX_THR)) == 0);
+		bcopy(get_pcb_user_save_td(td1), get_pcb_user_save_pcb(pcb2),
+		    cpu_max_ext_state_size);
+	}
+
+	/*
+	 * Set registers for trampoline to user mode.  Leave space for the
+	 * return address on stack.  These are the kernel mode register values.
+	 */
+	pcb2->pcb_edi = 0;
+	pcb2->pcb_esi = (int)fork_return;		    /* trampoline arg */
+	pcb2->pcb_ebp = 0;
+	pcb2->pcb_esp = (int)td2->td_frame - sizeof(void *); /* trampoline arg */
+	pcb2->pcb_ebx = (int)td2;			    /* trampoline arg */
+	pcb2->pcb_eip = (int)fork_trampoline + setidt_disp;
+	/*
+	 * If we didn't copy the pcb, we'd need to do the following registers:
+	 * pcb2->pcb_cr3:	cloned above.
+	 * pcb2->pcb_dr*:	cloned above.
+	 * pcb2->pcb_savefpu:	cloned above.
+	 * pcb2->pcb_flags:	cloned above.
+	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
+	 * pcb2->pcb_gs:	cloned above.
+	 * pcb2->pcb_ext:	cleared below.
+	 */
+	pcb2->pcb_ext = NULL;
+
+	/* Setup to release spin count in fork_exit(). */
+	td2->td_md.md_spinlock_count = 1;
+	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
+}
+
 /*
  * Finish a fork operation, with process p2 nearly set up.
  * Copy and update the pcb, set up the stack so that the child
@@ -167,38 +235,11 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 		return;
 	}
 
-	/* Ensure that td1's pcb is up to date for user processes. */
-	if ((td2->td_pflags & TDP_KTHREAD) == 0) {
-		MPASS(td1 == curthread);
-		td1->td_pcb->pcb_gs = rgs();
-		critical_enter();
-		if (PCPU_GET(fpcurthread) == td1)
-			npxsave(td1->td_pcb->pcb_save);
-		critical_exit();
-	}
-
 	/* Point the pcb to the top of the stack */
 	pcb2 = get_pcb_td(td2);
 	td2->td_pcb = pcb2;
 
-	/* Copy td1's pcb */
-	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
-
-	/* Properly initialize pcb_save */
-	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
-
-	/* Kernel processes start with clean NPX and segment bases. */
-	if ((td2->td_pflags & TDP_KTHREAD) != 0) {
-		pcb2->pcb_gs = _udatasel;
-		set_fsbase(td2, 0);
-		set_gsbase(td2, 0);
-		pcb2->pcb_flags &= ~(PCB_NPXINITDONE | PCB_NPXUSERINITDONE |
-		    PCB_KERNNPX | PCB_KERNNPX_THR);
-	} else {
-		MPASS((pcb2->pcb_flags & (PCB_KERNNPX | PCB_KERNNPX_THR)) == 0);
-		bcopy(get_pcb_user_save_td(td1), get_pcb_user_save_pcb(pcb2),
-		    cpu_max_ext_state_size);
-	}
+	copy_thread(td1, td2);
 
 	/* Point mdproc and then copy over td1's contents */
 	mdp2 = &p2->p_md;
@@ -225,30 +266,13 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	 */
 	td2->td_frame->tf_eflags &= ~PSL_T;
 
-	/*
-	 * Set registers for trampoline to user mode.  Leave space for the
-	 * return address on stack.  These are the kernel mode register values.
-	 */
+	/* Set cr3 for the new process. */
 	pcb2->pcb_cr3 = pmap_get_cr3(vmspace_pmap(p2->p_vmspace));
-	pcb2->pcb_edi = 0;
-	pcb2->pcb_esi = (int)fork_return;	/* fork_trampoline argument */
-	pcb2->pcb_ebp = 0;
-	pcb2->pcb_esp = (int)td2->td_frame - sizeof(void *);
-	pcb2->pcb_ebx = (int)td2;		/* fork_trampoline argument */
-	pcb2->pcb_eip = (int)fork_trampoline + setidt_disp;
-	/*-
-	 * pcb2->pcb_dr*:	cloned above.
-	 * pcb2->pcb_savefpu:	cloned above.
-	 * pcb2->pcb_flags:	cloned above.
-	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
-	 * pcb2->pcb_gs:	cloned above.
-	 * pcb2->pcb_ext:	cleared below.
-	 */
 
 	/*
 	 * XXX don't copy the i/o pages.  this should probably be fixed.
 	 */
-	pcb2->pcb_ext = 0;
+	pcb2->pcb_ext = NULL;
 
 	/* Copy the LDT, if necessary. */
 	mtx_lock_spin(&dt_lock);
@@ -263,10 +287,6 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 		}
 	}
 	mtx_unlock_spin(&dt_lock);
-
-	/* Setup to release spin count in fork_exit(). */
-	td2->td_md.md_spinlock_count = 1;
-	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
 
 	/*
 	 * Now, cpu_switch() can schedule the new process.
@@ -435,41 +455,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 void
 cpu_copy_thread(struct thread *td, struct thread *td0)
 {
-	struct pcb *pcb2;
-
-	/* Point the pcb to the top of the stack. */
-	pcb2 = td->td_pcb;
-
-	/* Ensure that td0's pcb is up to date for user threads. */
-	if ((td->td_pflags & TDP_KTHREAD) == 0) {
-		MPASS(td0 == curthread);
-		td0->td_pcb->pcb_gs = rgs();
-		critical_enter();
-		if (PCPU_GET(fpcurthread) == td0)
-			npxsave(td0->td_pcb->pcb_save);
-		critical_exit();
-	}
-
-	/*
-	 * Copy the upcall pcb.  This loads kernel regs.
-	 * Those not loaded individually below get their default
-	 * values here.
-	 */
-	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
-
-	/* Kernel threads start with clean NPX and segment bases. */
-	if ((td->td_pflags & TDP_KTHREAD) != 0) {
-		pcb2->pcb_gs = _udatasel;
-		set_fsbase(td, 0);
-		set_gsbase(td, 0);
-		pcb2->pcb_flags &= ~(PCB_NPXINITDONE | PCB_NPXUSERINITDONE |
-		    PCB_KERNNPX | PCB_KERNNPX_THR);
-	} else {
-		MPASS((pcb2->pcb_flags & (PCB_KERNNPX | PCB_KERNNPX_THR)) == 0);
-		bcopy(get_pcb_user_save_td(td0), pcb2->pcb_save,
-		    cpu_max_ext_state_size);
-	}
+	copy_thread(td0, td);
 
 	/*
 	 * Copy user general-purpose registers.
@@ -486,32 +472,6 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	 * instruction after returning to userland.
 	 */
 	td->td_frame->tf_eflags &= ~PSL_T;
-
-	/*
-	 * Set registers for trampoline to user mode.  Leave space for the
-	 * return address on stack.  These are the kernel mode register values.
-	 */
-	pcb2->pcb_edi = 0;
-	pcb2->pcb_esi = (int)fork_return;		    /* trampoline arg */
-	pcb2->pcb_ebp = 0;
-	pcb2->pcb_esp = (int)td->td_frame - sizeof(void *); /* trampoline arg */
-	pcb2->pcb_ebx = (int)td;			    /* trampoline arg */
-	pcb2->pcb_eip = (int)fork_trampoline + setidt_disp;
-	/*
-	 * If we didn't copy the pcb, we'd need to do the following registers:
-	 * pcb2->pcb_cr3:	cloned above.
-	 * pcb2->pcb_dr*:	cloned above.
-	 * pcb2->pcb_savefpu:	cloned above.
-	 * pcb2->pcb_flags:	cloned above.
-	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
-	 * pcb2->pcb_gs:	cloned above.
-	 * pcb2->pcb_ext:	cleared below.
-	 */
-	pcb2->pcb_ext = NULL;
-
-	/* Setup to release spin count in fork_exit(). */
-	td->td_md.md_spinlock_count = 1;
-	td->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
 }
 
 /*
