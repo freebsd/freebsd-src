@@ -3469,11 +3469,18 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 							    len, stateid.seqid,
 							    0, 0, NULL,
 							    recallp);
+							if (error == 0 &&
+							    stateid.seqid >
+							    lyp->nfsly_stateid.seqid)
+								lyp->nfsly_stateid.seqid =
+								    stateid.seqid;
 							recallp = NULL;
 							wakeup(clp);
 							NFSCL_DEBUG(4,
-							    "aft layrcal=%d\n",
-							    error);
+							    "aft layrcal=%d "
+							    "layseqid=%d\n",
+							    error,
+							    lyp->nfsly_stateid.seqid);
 						} else
 							error =
 							  NFSERR_NOMATCHLAYOUT;
@@ -4855,6 +4862,8 @@ nfscl_layout(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 		} else {
 			if (retonclose != 0)
 				lyp->nfsly_flags |= NFSLY_RETONCLOSE;
+			if (stateidp->seqid > lyp->nfsly_stateid.seqid)
+				lyp->nfsly_stateid.seqid = stateidp->seqid;
 			TAILQ_REMOVE(&clp->nfsc_layout, lyp, nfsly_list);
 			TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
 			lyp->nfsly_timestamp = NFSD_MONOSEC + 120;
@@ -4867,7 +4876,7 @@ nfscl_layout(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp, int fhlen,
 			return (EPERM);
 		}
 		*lypp = lyp;
-	} else
+	} else if (stateidp->seqid > lyp->nfsly_stateid.seqid)
 		lyp->nfsly_stateid.seqid = stateidp->seqid;
 
 	/* Merge the new list of File Layouts into the list. */
