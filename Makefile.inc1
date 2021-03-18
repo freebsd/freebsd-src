@@ -2479,7 +2479,6 @@ bootstrap-tools: ${_bt}-links .PHONY
     lib/libopenbsd \
     usr.bin/mandoc \
     usr.bin/rpcgen \
-    lib/ncurses/ncurses \
     ${_yacc} \
     ${_m4} \
     ${_lex} \
@@ -2494,7 +2493,6 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_nmtree} \
     ${_vtfontcvt} \
     ${_localedef} \
-    usr.bin/ncurses \
     ${LOCAL_BSTOOL_DIRS}
 ${_bt}-${_tool}: ${_bt}-links .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
@@ -2516,9 +2514,6 @@ ${_bt}-usr.bin/xinstall: ${_bt}-lib/libmd
 ${_bt}-sbin/md5: ${_bt}-lib/libmd
 .endif
 
-.if target(${_bt}-usr.bin/ncurses)
-${_bt}-usr.bin/ncurses: ${_bt}-lib/ncurses/ncurses
-.endif
 
 #
 # build-tools: Build special purpose build tools
