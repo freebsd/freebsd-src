@@ -1428,7 +1428,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	if (tp != NULL) {
 		inp = tp->t_inpcb;
 		KASSERT(inp != NULL, ("tcp control block w/o inpcb"));
-		INP_WLOCK_ASSERT(inp);
+		INP_LOCK_ASSERT(inp);
 	} else
 		inp = NULL;
 

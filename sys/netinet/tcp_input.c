@@ -626,6 +626,7 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 	int drop_hdrlen;
 	int thflags;
 	int rstreason = 0;	/* For badport_bandlim accounting purposes */
+	int lookupflag;
 	uint8_t iptos;
 	struct m_tag *fwd_tag = NULL;
 #ifdef INET6
@@ -825,6 +826,12 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 	    )
 		fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
 
+	/*
+	 * For initial SYN packets arriving on listening socket,
+	 * we don't need write lock.
+	 */
+	lookupflag = (thflags & (TH_ACK|TH_SYN)) == TH_SYN ?
+	    INPLOOKUP_RLOCKLISTEN : INPLOOKUP_WLOCKPCB;
 findpcb:
 #ifdef INET6
 	if (isipv6 && fwd_tag != NULL) {
@@ -837,7 +844,7 @@ findpcb:
 		 */
 		inp = in6_pcblookup_mbuf(&V_tcbinfo,
 		    &ip6->ip6_src, th->th_sport, &ip6->ip6_dst, th->th_dport,
-		    INPLOOKUP_WLOCKPCB, m->m_pkthdr.rcvif, m);
+		    lookupflag, m->m_pkthdr.rcvif, m);
 		if (!inp) {
 			/*
 			 * It's new.  Try to find the ambushing socket.
@@ -847,14 +854,13 @@ findpcb:
 			inp = in6_pcblookup(&V_tcbinfo, &ip6->ip6_src,
 			    th->th_sport, &next_hop6->sin6_addr,
 			    next_hop6->sin6_port ? ntohs(next_hop6->sin6_port) :
-			    th->th_dport, INPLOOKUP_WILDCARD |
-			    INPLOOKUP_WLOCKPCB, m->m_pkthdr.rcvif);
+			    th->th_dport, INPLOOKUP_WILDCARD | lookupflag,
+			    m->m_pkthdr.rcvif);
 		}
 	} else if (isipv6) {
 		inp = in6_pcblookup_mbuf(&V_tcbinfo, &ip6->ip6_src,
 		    th->th_sport, &ip6->ip6_dst, th->th_dport,
-		    INPLOOKUP_WILDCARD | INPLOOKUP_WLOCKPCB,
-		    m->m_pkthdr.rcvif, m);
+		    INPLOOKUP_WILDCARD | lookupflag, m->m_pkthdr.rcvif, m);
 	}
 #endif /* INET6 */
 #if defined(INET6) && defined(INET)
@@ -870,8 +876,7 @@ findpcb:
 		 * already got one like this?
 		 */
 		inp = in_pcblookup_mbuf(&V_tcbinfo, ip->ip_src, th->th_sport,
-		    ip->ip_dst, th->th_dport, INPLOOKUP_WLOCKPCB,
-		    m->m_pkthdr.rcvif, m);
+		    ip->ip_dst, th->th_dport, lookupflag, m->m_pkthdr.rcvif, m);
 		if (!inp) {
 			/*
 			 * It's new.  Try to find the ambushing socket.
@@ -881,14 +886,13 @@ findpcb:
 			inp = in_pcblookup(&V_tcbinfo, ip->ip_src,
 			    th->th_sport, next_hop->sin_addr,
 			    next_hop->sin_port ? ntohs(next_hop->sin_port) :
-			    th->th_dport, INPLOOKUP_WILDCARD |
-			    INPLOOKUP_WLOCKPCB, m->m_pkthdr.rcvif);
+			    th->th_dport, INPLOOKUP_WILDCARD | lookupflag,
+			    m->m_pkthdr.rcvif);
 		}
 	} else
 		inp = in_pcblookup_mbuf(&V_tcbinfo, ip->ip_src,
 		    th->th_sport, ip->ip_dst, th->th_dport,
-		    INPLOOKUP_WILDCARD | INPLOOKUP_WLOCKPCB,
-		    m->m_pkthdr.rcvif, m);
+		    INPLOOKUP_WILDCARD | lookupflag, m->m_pkthdr.rcvif, m);
 #endif /* INET */
 
 	/*
@@ -918,14 +922,14 @@ findpcb:
 		rstreason = BANDLIM_RST_CLOSEDPORT;
 		goto dropwithreset;
 	}
-	INP_WLOCK_ASSERT(inp);
+	INP_LOCK_ASSERT(inp);
 	/*
 	 * While waiting for inp lock during the lookup, another thread
 	 * can have dropped the inpcb, in which case we need to loop back
 	 * and try to find a new inpcb to deliver to.
 	 */
 	if (inp->inp_flags & INP_DROPPED) {
-		INP_WUNLOCK(inp);
+		INP_UNLOCK(inp);
 		inp = NULL;
 		goto findpcb;
 	}
@@ -1014,7 +1018,6 @@ findpcb:
 #endif
 
 #ifdef MAC
-	INP_WLOCK_ASSERT(inp);
 	if (mac_inpcb_check_deliver(inp, m))
 		goto dropunlock;
 #endif
@@ -1124,8 +1127,10 @@ tfo_socket_result:
 			 * Socket is created in state SYN_RECEIVED.
 			 * Unlock the listen socket, lock the newly
 			 * created socket and update the tp variable.
+			 * If we came here via jump to tfo_socket_result,
+			 * then listening socket is read-locked.
 			 */
-			INP_WUNLOCK(inp);	/* listen socket */
+			INP_UNLOCK(inp);	/* listen socket */
 			inp = sotoinpcb(so);
 			/*
 			 * New connection inpcb is already locked by
@@ -1213,6 +1218,7 @@ tfo_socket_result:
 		    ("%s: Listen socket: TH_RST or TH_ACK set", __func__));
 		KASSERT(thflags & (TH_SYN),
 		    ("%s: Listen socket: TH_SYN not set", __func__));
+		INP_RLOCK_ASSERT(inp);
 #ifdef INET6
 		/*
 		 * If deprecated address is forbidden,
@@ -1381,7 +1387,7 @@ dropwithreset:
 
 	if (inp != NULL) {
 		tcp_dropwithreset(m, th, tp, tlen, rstreason);
-		INP_WUNLOCK(inp);
+		INP_UNLOCK(inp);
 	} else
 		tcp_dropwithreset(m, th, NULL, tlen, rstreason);
 	m = NULL;	/* mbuf chain got consumed. */
@@ -1392,7 +1398,7 @@ dropunlock:
 		TCP_PROBE5(receive, NULL, tp, m, tp, th);
 
 	if (inp != NULL)
-		INP_WUNLOCK(inp);
+		INP_UNLOCK(inp);
 
 drop:
 	INP_INFO_WUNLOCK_ASSERT(&V_tcbinfo);
@@ -3360,7 +3366,7 @@ tcp_dropwithreset(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
 #endif
 
 	if (tp != NULL) {
-		INP_WLOCK_ASSERT(tp->t_inpcb);
+		INP_LOCK_ASSERT(tp->t_inpcb);
 	}
 
 	/* Don't bother if destination was broadcast/multicast. */

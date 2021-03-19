@@ -1397,7 +1397,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	int tfo_response_cookie_valid = 0;
 	bool locked;
 
-	INP_WLOCK_ASSERT(inp);			/* listen socket */
+	INP_RLOCK_ASSERT(inp);			/* listen socket */
 	KASSERT((th->th_flags & (TH_RST|TH_ACK|TH_SYN)) == TH_SYN,
 	    ("%s: unexpected tcp flags", __func__));
 
@@ -1469,13 +1469,13 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 
 #ifdef MAC
 	if (mac_syncache_init(&maclabel) != 0) {
-		INP_WUNLOCK(inp);
+		INP_RUNLOCK(inp);
 		goto done;
 	} else
 		mac_syncache_create(maclabel, inp);
 #endif
 	if (!tfo_cookie_valid)
-		INP_WUNLOCK(inp);
+		INP_RUNLOCK(inp);
 
 	/*
 	 * Remember the IP options, if any.
@@ -1528,7 +1528,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	}
 	if (sc != NULL) {
 		if (tfo_cookie_valid)
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 		TCPSTAT_INC(tcps_sc_dupsyn);
 		if (ipopts) {
 			/*
@@ -1735,7 +1735,7 @@ skip_alloc:
 
 	if (tfo_cookie_valid) {
 		syncache_tfo_expand(sc, lsop, m, tfo_response_cookie);
-		/* INP_WUNLOCK(inp) will be performed by the caller */
+		/* INP_RUNLOCK(inp) will be performed by the caller */
 		rv = 1;
 		goto tfo_expanded;
 	}
