@@ -1,5 +1,14 @@
 # News
 
+## 3.3.4
+
+This is a production release that fixes a small bug.
+
+The bug was that output was not flushed before a `read()` call, so prompts
+without a newline on the end were not flushed before the `read()` call.
+
+This is such a tiny bug that users only need to upgrade if they are affected.
+
 ## 3.3.3
 
 This is a production release with one tweak and fixes for manuals.
