@@ -42,8 +42,7 @@ Systems that are known to work:
 * HP-UX* (except for history)
 
 Please submit bug reports if this `bc` does not build out of the box on any
-system besides Windows. If Windows binaries are needed, they can be found at
-[xstatic][6].
+system besides Windows.
 
 ## Build
 
@@ -51,12 +50,6 @@ This `bc` should build unmodified on any POSIX-compliant system.
 
 For more complex build requirements than the ones below, see the
 [build manual][5].
-
-### Pre-built Binaries
-
-It is possible to download pre-compiled binaries for a wide list of platforms,
-including Linux- and Windows-based systems, from [xstatic][6]. This link always
-points to the latest release of `bc`.
 
 ### Default
 
@@ -329,7 +322,6 @@ Folders:
 [1]: https://www.gnu.org/software/bc/
 [4]: ./LICENSE.md
 [5]: ./manuals/build.md
-[6]: https://pkg.musl.cc/bc/
 [7]: ./manuals/algorithms.md
 [8]: https://git.busybox.net/busybox/tree/miscutils/bc.c
 [9]: https://github.com/landley/toybox/blob/master/toys/pending/bc.c

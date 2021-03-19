@@ -1928,6 +1928,10 @@ void bc_program_exec(BcProgram *p) {
 
 			case BC_INST_READ:
 			{
+				// We want to flush output before
+				// this in case there is a prompt.
+				bc_file_flush(&vm.fout);
+
 				bc_program_read(p);
 
 				ip = bc_vec_top(&p->stack);
