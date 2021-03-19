@@ -191,6 +191,11 @@ SYSCTL_UINT(_net_inet_tcp_syncache, OID_AUTO, hashsize, CTLFLAG_VNET | CTLFLAG_R
     &VNET_NAME(tcp_syncache.hashsize), 0,
     "Size of TCP syncache hashtable");
 
+SYSCTL_BOOL(_net_inet_tcp_syncache, OID_AUTO, see_other, CTLFLAG_VNET |
+    CTLFLAG_RW, &VNET_NAME(tcp_syncache.see_other), 0,
+    "All syncache(4) entries are visible, ignoring UID/GID, jail(2) "
+    "and mac(4) checks");
+
 static int
 sysctl_net_inet_tcp_syncache_rexmtlimit_check(SYSCTL_HANDLER_ARGS)
 {
@@ -1409,7 +1414,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 */
 	KASSERT(SOLISTENING(so), ("%s: %p not listening", __func__, so));
 	tp = sototcpcb(so);
-	cred = crhold(so->so_cred);
+	cred = V_tcp_syncache.see_other ? NULL : crhold(so->so_cred);
 
 #ifdef INET6
 	if (inc->inc_flags & INC_ISIPV6) {
@@ -2498,7 +2503,8 @@ syncache_pcblist(struct sysctl_req *req)
 		sch = &V_tcp_syncache.hashbase[i];
 		SCH_LOCK(sch);
 		TAILQ_FOREACH(sc, &sch->sch_bucket, sc_hash) {
-			if (cr_cansee(req->td->td_ucred, sc->sc_cred) != 0)
+			if (sc->sc_cred != NULL &&
+			    cr_cansee(req->td->td_ucred, sc->sc_cred) != 0)
 				continue;
 			if (sc->sc_inc.inc_flags & INC_ISIPV6)
 				xt.xt_inp.inp_vflag = INP_IPV6;

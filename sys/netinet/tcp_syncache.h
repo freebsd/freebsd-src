@@ -134,6 +134,7 @@ struct tcp_syncache {
 	time_t	pause_until;
 	uint8_t pause_backoff;
 	volatile bool paused;
+	bool see_other;
 };
 
 /* Internal use for the syncookie functions. */
