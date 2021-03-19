@@ -1272,7 +1272,6 @@ int alloc_ring(struct adapter *, size_t, bus_dma_tag_t *, bus_dmamap_t *,
     bus_addr_t *, void **);
 int free_ring(struct adapter *, bus_dma_tag_t, bus_dmamap_t, bus_addr_t,
     void *);
-int sysctl_uint16(SYSCTL_HANDLER_ARGS);
 int t4_setup_adapter_queues(struct adapter *);
 int t4_teardown_adapter_queues(struct adapter *);
 int t4_setup_vi_queues(struct vi_info *);

@@ -3737,15 +3737,12 @@ add_iq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
 	    "bus address of descriptor ring");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
 	    iq->qsize * IQ_ESIZE, "descriptor ring size in bytes");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "abs_id",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &iq->abs_id, 0,
-	    sysctl_uint16, "I", "absolute id of the queue");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &iq->cntxt_id, 0,
-	    sysctl_uint16, "I", "SGE context id of the queue");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &iq->cidx, 0,
-	    sysctl_uint16, "I", "consumer index");
+	SYSCTL_ADD_U16(ctx, children, OID_AUTO, "abs_id", CTLFLAG_RD,
+	    &iq->abs_id, 0, "absolute id of the queue");
+	SYSCTL_ADD_U16(ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
+	    &iq->cntxt_id, 0, "SGE context id of the queue");
+	SYSCTL_ADD_U16(ctx, children, OID_AUTO, "cidx", CTLFLAG_RD, &iq->cidx,
+	    0, "consumer index");
 }
 
 static void
@@ -3763,9 +3760,8 @@ add_fl_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "dmalen", CTLFLAG_RD, NULL,
 	    fl->sidx * EQ_ESIZE + sc->params.sge.spg_len,
 	    "desc ring size in bytes");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &fl->cntxt_id, 0,
-	    sysctl_uint16, "I", "SGE context id of the freelist");
+	SYSCTL_ADD_U16(ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
+	    &fl->cntxt_id, 0, "SGE context id of the freelist");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "padding", CTLFLAG_RD, NULL,
 	    fl_pad ? 1 : 0, "padding enabled");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "packing", CTLFLAG_RD, NULL,
@@ -4275,12 +4271,10 @@ alloc_wrq(struct adapter *sc, struct vi_info *vi, struct sge_wrq *wrq,
 	    "desc ring size in bytes");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
 	    &wrq->eq.cntxt_id, 0, "SGE context id of the queue");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &wrq->eq.cidx, 0,
-	    sysctl_uint16, "I", "consumer index");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "pidx",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &wrq->eq.pidx, 0,
-	    sysctl_uint16, "I", "producer index");
+	SYSCTL_ADD_U16(ctx, children, OID_AUTO, "cidx", CTLFLAG_RD,
+	    &wrq->eq.cidx, 0, "consumer index");
+	SYSCTL_ADD_U16(ctx, children, OID_AUTO, "pidx", CTLFLAG_RD,
+	    &wrq->eq.pidx, 0, "producer index");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "sidx", CTLFLAG_RD, NULL,
 	    wrq->eq.sidx, "status page index");
 	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, "tx_wrs_direct", CTLFLAG_RD,
@@ -4377,12 +4371,10 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	    &eq->abs_id, 0, "absolute id of the queue");
 	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
 	    &eq->cntxt_id, 0, "SGE context id of the queue");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &eq->cidx, 0,
-	    sysctl_uint16, "I", "consumer index");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "pidx",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &eq->pidx, 0,
-	    sysctl_uint16, "I", "producer index");
+	SYSCTL_ADD_U16(&vi->ctx, children, OID_AUTO, "cidx", CTLFLAG_RD,
+	    &eq->cidx, 0, "consumer index");
+	SYSCTL_ADD_U16(&vi->ctx, children, OID_AUTO, "pidx", CTLFLAG_RD,
+	    &eq->pidx, 0, "producer index");
 	SYSCTL_ADD_INT(&vi->ctx, children, OID_AUTO, "sidx", CTLFLAG_RD, NULL,
 	    eq->sidx, "status page index");
 
@@ -6031,15 +6023,6 @@ t4_handle_wrerr_rpl(struct adapter *adap, const __be64 *rpl)
 		return (EINVAL);
 	}
 	return (0);
-}
-
-int
-sysctl_uint16(SYSCTL_HANDLER_ARGS)
-{
-	uint16_t *id = arg1;
-	int i = *id;
-
-	return sysctl_handle_int(oidp, &i, 0, req);
 }
 
 static inline bool
