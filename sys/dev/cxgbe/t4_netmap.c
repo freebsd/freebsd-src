@@ -168,24 +168,20 @@ alloc_nm_rxq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int intr_idx,
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queue");
 	children = SYSCTL_CHILDREN(oid);
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "abs_id",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_rxq->iq_abs_id,
-	    0, sysctl_uint16, "I", "absolute id of the queue");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_rxq->iq_cntxt_id,
-	    0, sysctl_uint16, "I", "SGE context id of the queue");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_rxq->iq_cidx, 0,
-	    sysctl_uint16, "I", "consumer index");
+	SYSCTL_ADD_U16(ctx, children, OID_AUTO, "abs_id", CTLFLAG_RD,
+	    &nm_rxq->iq_abs_id, 0, "absolute id of the queue");
+	SYSCTL_ADD_U16(ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
+	    &nm_rxq->iq_cntxt_id, 0, "SGE context id of the queue");
+	SYSCTL_ADD_U16(ctx, children, OID_AUTO, "cidx", CTLFLAG_RD,
+	    &nm_rxq->iq_cidx, 0, "consumer index");
 
 	children = SYSCTL_CHILDREN(oid);
 	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "fl",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "freelist");
 	children = SYSCTL_CHILDREN(oid);
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_rxq->fl_cntxt_id,
-	    0, sysctl_uint16, "I", "SGE context id of the freelist");
+	SYSCTL_ADD_U16(ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
+	    &nm_rxq->fl_cntxt_id, 0, "SGE context id of the freelist");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cidx", CTLFLAG_RD,
 	    &nm_rxq->fl_cidx, 0, "consumer index");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "pidx", CTLFLAG_RD,
@@ -252,12 +248,10 @@ alloc_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq, int iqidx, int idx,
 
 	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
 	    &nm_txq->cntxt_id, 0, "SGE context id of the queue");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_txq->cidx, 0,
-	    sysctl_uint16, "I", "consumer index");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "pidx",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_txq->pidx, 0,
-	    sysctl_uint16, "I", "producer index");
+	SYSCTL_ADD_U16(&vi->ctx, children, OID_AUTO, "cidx", CTLFLAG_RD,
+	    &nm_txq->cidx, 0, "consumer index");
+	SYSCTL_ADD_U16(&vi->ctx, children, OID_AUTO, "pidx", CTLFLAG_RD,
+	    &nm_txq->pidx, 0, "producer index");
 
 	return (rc);
 }
