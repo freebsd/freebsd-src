@@ -29,6 +29,8 @@
 #
 # $FreeBSD$
 
+set -e
+
 progname="$(basename $0 .sh)"
 entries_lst="/tmp/$progname.entries.lst"
 entries2_lst="/tmp/$progname.entries2.lst"
@@ -124,7 +126,7 @@ test_not_ok () {
 	local msg="$1"
 
 	_test_next
-	_test_fails
+	_test_fail
 	echo "not ok $TSTNR - $msg"
 
 	return 1
@@ -183,9 +185,24 @@ test_ge () {
 		test_not_ok "$v1 <= $v2 $msg"
 	fi
 }
-test_rc ()      { test_eq $? $1 "$2"; }
-test_failure () { test_ne $? 0 "$1"; }
-test_success () { test_eq $? 0 "$1"; }
+test_failure () {
+	msg=$1
+	shift
+	if ! "$@"; then
+		test_ok "$msg - \"$@\" failed as expected"
+	else
+		test_not_ok "$msg - expected \"$@\" to fail but succeeded"
+	fi
+}
+test_success () {
+	msg=$1
+	shift
+	if ! "$@"; then
+		test_not_ok "$msg - \"$@\" failed unexpectedly"
+	else
+		test_ok "$msg - \"$@\" succeeded"
+	fi
+}
 
 gethooks () {
 	ngctl msg MF: 'gethooks' \
@@ -217,6 +234,13 @@ genmac () {
 test_title "Setting up system..."
 load_modules netgraph ng_socket ng_ether ng_macfilter ng_one2many
 eth=$(find_iface)
+if [ -z "$eth" ]; then
+	echo "1..1"
+	echo "not ok 1 - Could not find a valid interface"
+	echo "Available interfaces:"
+	ifconfig
+	exit 1
+fi
 test_comment "Using $eth..."
 
 
@@ -239,31 +263,23 @@ test_cnt 46
 
 ################################################################################
 test_title "Test: Duplicate default hook"
-ngctl connect MF: O2M: default many99 2>/dev/null
-test_failure "duplicate connect of default hook"
-
+test_failure "duplicate connect of default hook" ngctl connect MF: O2M: default many99
 
 ################################################################################
 test_title "Test: Add and remove hooks"
-ngctl connect MF: O2M: xxx1 many$((HOOKS + 1))
-test_success "connect MF:xxx1 to O2M:many$((HOOKS + 1))"
-ngctl connect MF: O2M: xxx2 many$((HOOKS + 2))
-test_success "connect MF:xxx2 to O2M:many$((HOOKS + 2))"
-ngctl connect MF: O2M: xxx3 many$((HOOKS + 3))
-test_success "connect MF:xxx3 to O2M:many$((HOOKS + 3))"
+test_success "connect MF:xxx1 to O2M:many$((HOOKS + 1))" ngctl connect MF: O2M: xxx1 many$((HOOKS + 1))
+test_success "connect MF:xxx2 to O2M:many$((HOOKS + 2))" ngctl connect MF: O2M: xxx2 many$((HOOKS + 2))
+test_success "connect MF:xxx3 to O2M:many$((HOOKS + 3))" ngctl connect MF: O2M: xxx3 many$((HOOKS + 3))
 hooks=$(gethooks)
 test_eq $created_hooks:xxx1:xxx2:xxx3 $hooks 'hooks after adding xxx1-3'
 
-ngctl rmhook MF: xxx1
-test_success "rmhook MF:xxx$i"
+test_success "rmhook MF:xxx$i" ngctl rmhook MF: xxx1
 hooks=$(gethooks)
 test_eq $created_hooks:xxx2:xxx3 $hooks 'hooks after removing xxx1'
-ngctl rmhook MF: xxx2
-test_success "rmhook MF:xxx$i"
+test_success "rmhook MF:xxx$i" ngctl rmhook MF: xxx2
 hooks=$(gethooks)
 test_eq $created_hooks:xxx3 $hooks 'hooks after removing xxx2'
-ngctl rmhook MF: xxx3
-test_success "rmhook MF:xxx$i"
+test_success "rmhook MF:xxx$i" ngctl rmhook MF: xxx3
 hooks=$(gethooks)
 test_eq $created_hooks $hooks 'hooks after removing xxx3'
 
@@ -418,8 +434,7 @@ done
 
 ################################################################################
 test_title "Test: Resetting macfilter..."
-ngctl msg MF: reset
-test_success "**** reset failed"
+test_success "**** reset failed" ngctl msg MF: reset
 test_eq $(countmacs) 0 'MACs in table'
 
 test_bail_on_fail
