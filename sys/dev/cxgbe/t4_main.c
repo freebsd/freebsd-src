@@ -3031,16 +3031,18 @@ setup_memwin(struct adapter *sc)
 	}
 
 	for (i = 0, mw = &sc->memwin[0]; i < NUM_MEMWIN; i++, mw_init++, mw++) {
-		rw_init(&mw->mw_lock, "memory window access");
-		mw->mw_base = mw_init->base;
-		mw->mw_aperture = mw_init->aperture;
-		mw->mw_curpos = 0;
+		if (!rw_initialized(&mw->mw_lock)) {
+			rw_init(&mw->mw_lock, "memory window access");
+			mw->mw_base = mw_init->base;
+			mw->mw_aperture = mw_init->aperture;
+			mw->mw_curpos = 0;
+		}
 		t4_write_reg(sc,
 		    PCIE_MEM_ACCESS_REG(A_PCIE_MEM_ACCESS_BASE_WIN, i),
 		    (mw->mw_base + bar0) | V_BIR(0) |
 		    V_WINDOW(ilog2(mw->mw_aperture) - 10));
 		rw_wlock(&mw->mw_lock);
-		position_memwin(sc, i, 0);
+		position_memwin(sc, i, mw->mw_curpos);
 		rw_wunlock(&mw->mw_lock);
 	}
 
