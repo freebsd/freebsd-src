@@ -132,8 +132,8 @@ retry:
 	}
 
 #define	FMTHD	"%16s %8s\n"
-#define	FMTHK	"%29s %16s %16s\n"
-	printf(FMTHD, "Intercept point", "Type");
+#define	FMTHK	"%29s %16s:%s\n"
+	printf("%16s %8s %3s %16s\n", "Intercept point", "Type", "Dir", "Hook");
 	for (i = 0, h = 0; i < plh.pio_nheads; i++) {
 		printf(FMTHD, plh.pio_heads[i].pio_name,
 		    typenames[plh.pio_heads[i].pio_type]);
@@ -170,9 +170,9 @@ retry:
 		goto retry;
 	}
 
-	printf("Available hooks:\n");
+	printf("%16s %16s %8s\n", "Hook", "", "Type");
 	for (i = 0; i < plh.pio_nhooks; i++) {
-		printf("\t%s:%s %s\n", plh.pio_hooks[i].pio_module,
+		printf("%16s:%-16s %8s\n", plh.pio_hooks[i].pio_module,
 		    plh.pio_hooks[i].pio_ruleset,
 		    typenames[plh.pio_hooks[i].pio_type]);
 	}
