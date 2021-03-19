@@ -5810,14 +5810,28 @@ t4_setup_intr_handlers(struct adapter *sc)
 	return (0);
 }
 
+static void
+write_global_rss_key(struct adapter *sc)
+{
+#ifdef RSS
+	int i;
+	uint32_t raw_rss_key[RSS_KEYSIZE / sizeof(uint32_t)];
+	uint32_t rss_key[RSS_KEYSIZE / sizeof(uint32_t)];
+
+	CTASSERT(RSS_KEYSIZE == 40);
+
+	rss_getkey((void *)&raw_rss_key[0]);
+	for (i = 0; i < nitems(rss_key); i++) {
+		rss_key[i] = htobe32(raw_rss_key[nitems(rss_key) - 1 - i]);
+	}
+	t4_write_rss_key(sc, &rss_key[0], -1, 1);
+#endif
+}
+
 int
 adapter_full_init(struct adapter *sc)
 {
 	int rc, i;
-#ifdef RSS
-	uint32_t raw_rss_key[RSS_KEYSIZE / sizeof(uint32_t)];
-	uint32_t rss_key[RSS_KEYSIZE / sizeof(uint32_t)];
-#endif
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
@@ -5843,17 +5857,11 @@ adapter_full_init(struct adapter *sc)
 		taskqueue_start_threads(&sc->tq[i], 1, PI_NET, "%s tq%d",
 		    device_get_nameunit(sc->dev), i);
 	}
-#ifdef RSS
-	MPASS(RSS_KEYSIZE == 40);
-	rss_getkey((void *)&raw_rss_key[0]);
-	for (i = 0; i < nitems(rss_key); i++) {
-		rss_key[i] = htobe32(raw_rss_key[nitems(rss_key) - 1 - i]);
-	}
-	t4_write_rss_key(sc, &rss_key[0], -1, 1);
-#endif
 
-	if (!(sc->flags & IS_VF))
+	if (!(sc->flags & IS_VF)) {
+		write_global_rss_key(sc);
 		t4_intr_enable(sc);
+	}
 #ifdef KERN_TLS
 	if (sc->flags & KERN_TLS_OK)
 		callout_reset_sbt(&sc->ktls_tick, SBT_1MS, 0, ktls_tick, sc,
