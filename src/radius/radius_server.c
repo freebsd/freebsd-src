@@ -35,11 +35,6 @@
  */
 #define RADIUS_MAX_SESSION 1000
 
-/**
- * RADIUS_MAX_MSG_LEN - Maximum message length for incoming RADIUS messages
- */
-#define RADIUS_MAX_MSG_LEN 3000
-
 static const struct eapol_callbacks radius_server_eapol_cb;
 
 struct radius_client;
@@ -161,144 +156,9 @@ struct radius_server_data {
 	 */
 	int num_sess;
 
-	/**
-	 * eap_sim_db_priv - EAP-SIM/AKA database context
-	 *
-	 * This is passed to the EAP-SIM/AKA server implementation as a
-	 * callback context.
-	 */
-	void *eap_sim_db_priv;
-
-	/**
-	 * ssl_ctx - TLS context
-	 *
-	 * This is passed to the EAP server implementation as a callback
-	 * context for TLS operations.
-	 */
-	void *ssl_ctx;
-
-	/**
-	 * pac_opaque_encr_key - PAC-Opaque encryption key for EAP-FAST
-	 *
-	 * This parameter is used to set a key for EAP-FAST to encrypt the
-	 * PAC-Opaque data. It can be set to %NULL if EAP-FAST is not used. If
-	 * set, must point to a 16-octet key.
-	 */
-	u8 *pac_opaque_encr_key;
-
-	/**
-	 * eap_fast_a_id - EAP-FAST authority identity (A-ID)
-	 *
-	 * If EAP-FAST is not used, this can be set to %NULL. In theory, this
-	 * is a variable length field, but due to some existing implementations
-	 * requiring A-ID to be 16 octets in length, it is recommended to use
-	 * that length for the field to provide interoperability with deployed
-	 * peer implementations.
-	 */
-	u8 *eap_fast_a_id;
-
-	/**
-	 * eap_fast_a_id_len - Length of eap_fast_a_id buffer in octets
-	 */
-	size_t eap_fast_a_id_len;
-
-	/**
-	 * eap_fast_a_id_info - EAP-FAST authority identifier information
-	 *
-	 * This A-ID-Info contains a user-friendly name for the A-ID. For
-	 * example, this could be the enterprise and server names in
-	 * human-readable format. This field is encoded as UTF-8. If EAP-FAST
-	 * is not used, this can be set to %NULL.
-	 */
-	char *eap_fast_a_id_info;
-
-	/**
-	 * eap_fast_prov - EAP-FAST provisioning modes
-	 *
-	 * 0 = provisioning disabled, 1 = only anonymous provisioning allowed,
-	 * 2 = only authenticated provisioning allowed, 3 = both provisioning
-	 * modes allowed.
-	 */
-	int eap_fast_prov;
-
-	/**
-	 * pac_key_lifetime - EAP-FAST PAC-Key lifetime in seconds
-	 *
-	 * This is the hard limit on how long a provisioned PAC-Key can be
-	 * used.
-	 */
-	int pac_key_lifetime;
-
-	/**
-	 * pac_key_refresh_time - EAP-FAST PAC-Key refresh time in seconds
-	 *
-	 * This is a soft limit on the PAC-Key. The server will automatically
-	 * generate a new PAC-Key when this number of seconds (or fewer) of the
-	 * lifetime remains.
-	 */
-	int pac_key_refresh_time;
-
-	int eap_teap_auth;
-	int eap_teap_pac_no_inner;
-
-	/**
-	 * eap_sim_aka_result_ind - EAP-SIM/AKA protected success indication
-	 *
-	 * This controls whether the protected success/failure indication
-	 * (AT_RESULT_IND) is used with EAP-SIM and EAP-AKA.
-	 */
-	int eap_sim_aka_result_ind;
-
-	int eap_sim_id;
-
-	/**
-	 * tnc - Trusted Network Connect (TNC)
-	 *
-	 * This controls whether TNC is enabled and will be required before the
-	 * peer is allowed to connect. Note: This is only used with EAP-TTLS
-	 * and EAP-FAST. If any other EAP method is enabled, the peer will be
-	 * allowed to connect without TNC.
-	 */
-	int tnc;
-
-	/**
-	 * pwd_group - The D-H group assigned for EAP-pwd
-	 *
-	 * If EAP-pwd is not used it can be set to zero.
-	 */
-	u16 pwd_group;
-
-	/**
-	 * server_id - Server identity
-	 */
-	const char *server_id;
-
-	/**
-	 * erp - Whether EAP Re-authentication Protocol (ERP) is enabled
-	 *
-	 * This controls whether the authentication server derives ERP key
-	 * hierarchy (rRK and rIK) from full EAP authentication and allows
-	 * these keys to be used to perform ERP to derive rMSK instead of full
-	 * EAP authentication to derive MSK.
-	 */
-	int erp;
-
 	const char *erp_domain;
 
 	struct dl_list erp_keys; /* struct eap_server_erp_key */
-
-	unsigned int tls_session_lifetime;
-
-	unsigned int tls_flags;
-
-	/**
-	 * wps - Wi-Fi Protected Setup context
-	 *
-	 * If WPS is used with an external RADIUS server (which is quite
-	 * unlikely configuration), this is used to provide a pointer to WPS
-	 * context data. Normally, this can be set to %NULL.
-	 */
-	struct wps_context *wps;
 
 	/**
 	 * ipv6 - Whether to enable IPv6 support in the RADIUS server
@@ -351,11 +211,6 @@ struct radius_server_data {
 	 */
 	size_t eap_req_id_text_len;
 
-	/*
-	 * msg_ctx - Context data for wpa_msg() calls
-	 */
-	void *msg_ctx;
-
 #ifdef CONFIG_RADIUS_TEST
 	char *dump_msk_file;
 #endif /* CONFIG_RADIUS_TEST */
@@ -369,6 +224,8 @@ struct radius_server_data {
 #ifdef CONFIG_SQLITE
 	sqlite3 *db;
 #endif /* CONFIG_SQLITE */
+
+	const struct eap_config *eap_cfg;
 };
 
 
@@ -619,7 +476,7 @@ radius_server_new_session(struct radius_server_data *data,
 #ifdef CONFIG_TESTING_OPTIONS
 static void radius_server_testing_options_tls(struct radius_session *sess,
 					      const char *tls,
-					      struct eap_config *eap_conf)
+					      struct eap_session_data *eap_conf)
 {
 	int test = atoi(tls);
 
@@ -664,7 +521,7 @@ static void radius_server_testing_options_tls(struct radius_session *sess,
 #endif /* CONFIG_TESTING_OPTIONS */
 
 static void radius_server_testing_options(struct radius_session *sess,
-					  struct eap_config *eap_conf)
+					  struct eap_session_data *eap_conf)
 {
 #ifdef CONFIG_TESTING_OPTIONS
 	const char *pos;
@@ -707,7 +564,7 @@ radius_server_get_new_session(struct radius_server_data *data,
 	size_t user_len, id_len;
 	int res;
 	struct radius_session *sess;
-	struct eap_config eap_conf;
+	struct eap_session_data eap_sess;
 	struct eap_user *tmp;
 
 	RADIUS_DEBUG("Creating a new session");
@@ -725,7 +582,7 @@ radius_server_get_new_session(struct radius_server_data *data,
 
 	res = data->get_eap_user(data->conf_ctx, user, user_len, 0, tmp);
 #ifdef CONFIG_ERP
-	if (res != 0 && data->erp) {
+	if (res != 0 && data->eap_cfg->erp) {
 		char *username;
 
 		username = os_zalloc(user_len + 1);
@@ -784,34 +641,10 @@ radius_server_get_new_session(struct radius_server_data *data,
 
 	srv_log(sess, "New session created");
 
-	os_memset(&eap_conf, 0, sizeof(eap_conf));
-	eap_conf.ssl_ctx = data->ssl_ctx;
-	eap_conf.msg_ctx = data->msg_ctx;
-	eap_conf.eap_sim_db_priv = data->eap_sim_db_priv;
-	eap_conf.backend_auth = TRUE;
-	eap_conf.eap_server = 1;
-	eap_conf.pac_opaque_encr_key = data->pac_opaque_encr_key;
-	eap_conf.eap_fast_a_id = data->eap_fast_a_id;
-	eap_conf.eap_fast_a_id_len = data->eap_fast_a_id_len;
-	eap_conf.eap_fast_a_id_info = data->eap_fast_a_id_info;
-	eap_conf.eap_fast_prov = data->eap_fast_prov;
-	eap_conf.pac_key_lifetime = data->pac_key_lifetime;
-	eap_conf.pac_key_refresh_time = data->pac_key_refresh_time;
-	eap_conf.eap_teap_auth = data->eap_teap_auth;
-	eap_conf.eap_teap_pac_no_inner = data->eap_teap_pac_no_inner;
-	eap_conf.eap_sim_aka_result_ind = data->eap_sim_aka_result_ind;
-	eap_conf.eap_sim_id = data->eap_sim_id;
-	eap_conf.tnc = data->tnc;
-	eap_conf.wps = data->wps;
-	eap_conf.pwd_group = data->pwd_group;
-	eap_conf.server_id = (const u8 *) data->server_id;
-	eap_conf.server_id_len = os_strlen(data->server_id);
-	eap_conf.erp = data->erp;
-	eap_conf.tls_session_lifetime = data->tls_session_lifetime;
-	eap_conf.tls_flags = data->tls_flags;
-	radius_server_testing_options(sess, &eap_conf);
+	os_memset(&eap_sess, 0, sizeof(eap_sess));
+	radius_server_testing_options(sess, &eap_sess);
 	sess->eap = eap_server_sm_init(sess, &radius_server_eapol_cb,
-				       &eap_conf);
+				       data->eap_cfg, &eap_sess);
 	if (sess->eap == NULL) {
 		RADIUS_DEBUG("Failed to initialize EAP state machine for the "
 			     "new session");
@@ -819,8 +652,8 @@ radius_server_get_new_session(struct radius_server_data *data,
 		return NULL;
 	}
 	sess->eap_if = eap_get_interface(sess->eap);
-	sess->eap_if->eapRestart = TRUE;
-	sess->eap_if->portEnabled = TRUE;
+	sess->eap_if->eapRestart = true;
+	sess->eap_if->portEnabled = true;
 
 	RADIUS_DEBUG("New session 0x%x initialized", sess->sess_id);
 
@@ -1071,13 +904,13 @@ radius_server_encapsulate_eap(struct radius_server_data *data,
 	u16 reason = WLAN_REASON_IEEE_802_1X_AUTH_FAILED;
 
 	if (sess->eap_if->eapFail) {
-		sess->eap_if->eapFail = FALSE;
+		sess->eap_if->eapFail = false;
 		code = RADIUS_CODE_ACCESS_REJECT;
 	} else if (sess->eap_if->eapSuccess) {
-		sess->eap_if->eapSuccess = FALSE;
+		sess->eap_if->eapSuccess = false;
 		code = RADIUS_CODE_ACCESS_ACCEPT;
 	} else {
-		sess->eap_if->eapReq = FALSE;
+		sess->eap_if->eapReq = false;
 		code = RADIUS_CODE_ACCESS_CHALLENGE;
 	}
 
@@ -1605,7 +1438,7 @@ static int radius_server_request(struct radius_server_data *data,
 
 	wpabuf_free(sess->eap_if->eapRespData);
 	sess->eap_if->eapRespData = eap;
-	sess->eap_if->eapResp = TRUE;
+	sess->eap_if->eapResp = true;
 	eap_server_sm_step(sess->eap);
 
 	if ((sess->eap_if->eapReq || sess->eap_if->eapSuccess ||
@@ -2363,76 +2196,52 @@ radius_server_init(struct radius_server_conf *conf)
 	if (data == NULL)
 		return NULL;
 
+	data->eap_cfg = conf->eap_cfg;
 	data->auth_sock = -1;
 	data->acct_sock = -1;
 	dl_list_init(&data->erp_keys);
 	os_get_reltime(&data->start_time);
 	data->conf_ctx = conf->conf_ctx;
-	data->eap_sim_db_priv = conf->eap_sim_db_priv;
-	data->ssl_ctx = conf->ssl_ctx;
-	data->msg_ctx = conf->msg_ctx;
+	conf->eap_cfg->backend_auth = true;
+	conf->eap_cfg->eap_server = 1;
 	data->ipv6 = conf->ipv6;
-	if (conf->pac_opaque_encr_key) {
-		data->pac_opaque_encr_key = os_malloc(16);
-		if (data->pac_opaque_encr_key) {
-			os_memcpy(data->pac_opaque_encr_key,
-				  conf->pac_opaque_encr_key, 16);
-		}
-	}
-	if (conf->eap_fast_a_id) {
-		data->eap_fast_a_id = os_malloc(conf->eap_fast_a_id_len);
-		if (data->eap_fast_a_id) {
-			os_memcpy(data->eap_fast_a_id, conf->eap_fast_a_id,
-				  conf->eap_fast_a_id_len);
-			data->eap_fast_a_id_len = conf->eap_fast_a_id_len;
-		}
-	}
-	if (conf->eap_fast_a_id_info)
-		data->eap_fast_a_id_info = os_strdup(conf->eap_fast_a_id_info);
-	data->eap_fast_prov = conf->eap_fast_prov;
-	data->pac_key_lifetime = conf->pac_key_lifetime;
-	data->pac_key_refresh_time = conf->pac_key_refresh_time;
-	data->eap_teap_auth = conf->eap_teap_auth;
-	data->eap_teap_pac_no_inner = conf->eap_teap_pac_no_inner;
 	data->get_eap_user = conf->get_eap_user;
-	data->eap_sim_aka_result_ind = conf->eap_sim_aka_result_ind;
-	data->eap_sim_id = conf->eap_sim_id;
-	data->tnc = conf->tnc;
-	data->wps = conf->wps;
-	data->pwd_group = conf->pwd_group;
-	data->server_id = conf->server_id;
 	if (conf->eap_req_id_text) {
 		data->eap_req_id_text = os_malloc(conf->eap_req_id_text_len);
-		if (data->eap_req_id_text) {
-			os_memcpy(data->eap_req_id_text, conf->eap_req_id_text,
-				  conf->eap_req_id_text_len);
-			data->eap_req_id_text_len = conf->eap_req_id_text_len;
-		}
+		if (!data->eap_req_id_text)
+			goto fail;
+		os_memcpy(data->eap_req_id_text, conf->eap_req_id_text,
+			  conf->eap_req_id_text_len);
+		data->eap_req_id_text_len = conf->eap_req_id_text_len;
 	}
-	data->erp = conf->erp;
 	data->erp_domain = conf->erp_domain;
-	data->tls_session_lifetime = conf->tls_session_lifetime;
-	data->tls_flags = conf->tls_flags;
 
 	if (conf->subscr_remediation_url) {
 		data->subscr_remediation_url =
 			os_strdup(conf->subscr_remediation_url);
+		if (!data->subscr_remediation_url)
+			goto fail;
 	}
 	data->subscr_remediation_method = conf->subscr_remediation_method;
-	if (conf->hs20_sim_provisioning_url)
+	if (conf->hs20_sim_provisioning_url) {
 		data->hs20_sim_provisioning_url =
 			os_strdup(conf->hs20_sim_provisioning_url);
+		if (!data->hs20_sim_provisioning_url)
+			goto fail;
+	}
 
-	if (conf->t_c_server_url)
+	if (conf->t_c_server_url) {
 		data->t_c_server_url = os_strdup(conf->t_c_server_url);
+		if (!data->t_c_server_url)
+			goto fail;
+	}
 
 #ifdef CONFIG_SQLITE
 	if (conf->sqlite_file) {
 		if (sqlite3_open(conf->sqlite_file, &data->db)) {
 			RADIUS_ERROR("Could not open SQLite file '%s'",
 				     conf->sqlite_file);
-			radius_server_deinit(data);
-			return NULL;
+			goto fail;
 		}
 	}
 #endif /* CONFIG_SQLITE */
@@ -2446,8 +2255,7 @@ radius_server_init(struct radius_server_conf *conf)
 						   conf->ipv6);
 	if (data->clients == NULL) {
 		wpa_printf(MSG_ERROR, "No RADIUS clients configured");
-		radius_server_deinit(data);
-		return NULL;
+		goto fail;
 	}
 
 #ifdef CONFIG_IPV6
@@ -2458,14 +2266,12 @@ radius_server_init(struct radius_server_conf *conf)
 	data->auth_sock = radius_server_open_socket(conf->auth_port);
 	if (data->auth_sock < 0) {
 		wpa_printf(MSG_ERROR, "Failed to open UDP socket for RADIUS authentication server");
-		radius_server_deinit(data);
-		return NULL;
+		goto fail;
 	}
 	if (eloop_register_read_sock(data->auth_sock,
 				     radius_server_receive_auth,
 				     data, NULL)) {
-		radius_server_deinit(data);
-		return NULL;
+		goto fail;
 	}
 
 	if (conf->acct_port) {
@@ -2478,20 +2284,20 @@ radius_server_init(struct radius_server_conf *conf)
 		data->acct_sock = radius_server_open_socket(conf->acct_port);
 		if (data->acct_sock < 0) {
 			wpa_printf(MSG_ERROR, "Failed to open UDP socket for RADIUS accounting server");
-			radius_server_deinit(data);
-			return NULL;
+			goto fail;
 		}
 		if (eloop_register_read_sock(data->acct_sock,
 					     radius_server_receive_acct,
-					     data, NULL)) {
-			radius_server_deinit(data);
-			return NULL;
-		}
+					     data, NULL))
+			goto fail;
 	} else {
 		data->acct_sock = -1;
 	}
 
 	return data;
+fail:
+	radius_server_deinit(data);
+	return NULL;
 }
 
 
@@ -2534,9 +2340,6 @@ void radius_server_deinit(struct radius_server_data *data)
 
 	radius_server_free_clients(data, data->clients);
 
-	os_free(data->pac_opaque_encr_key);
-	os_free(data->eap_fast_a_id);
-	os_free(data->eap_fast_a_id_info);
 	os_free(data->eap_req_id_text);
 #ifdef CONFIG_RADIUS_TEST
 	os_free(data->dump_msk_file);

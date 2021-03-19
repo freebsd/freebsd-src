@@ -63,7 +63,7 @@ static void http_req(void *ctx, struct http_request *req)
 }
 
 
-int hs20_web_browser(const char *url)
+int hs20_web_browser(const char *url, int ignore_tls)
 {
 	struct http_server *http;
 	struct in_addr addr;

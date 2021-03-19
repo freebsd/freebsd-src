@@ -1,0 +1,125 @@
+# OpenSSL configuration file for Hotspot 2.0 PKI (Root CA)
+
+HOME			= .
+RANDFILE		= $ENV::HOME/.rnd
+oid_section		= new_oids
+
+[ new_oids ]
+
+#logotypeoid=1.3.6.1.5.5.7.1.12
+
+####################################################################
+[ ca ]
+default_ca	= CA_default		# The default ca section
+
+####################################################################
+[ CA_default ]
+
+dir		= ./rootCA		# Where everything is kept
+certs		= $dir/certs		# Where the issued certs are kept
+crl_dir		= $dir/crl		# Where the issued crl are kept
+database	= $dir/index.txt	# database index file.
+#unique_subject	= no			# Set to 'no' to allow creation of
+					# several certificates with same subject
+new_certs_dir	= $dir/newcerts		# default place for new certs.
+
+certificate	= $dir/cacert.pem 	# The CA certificate
+serial		= $dir/serial 		# The current serial number
+crlnumber	= $dir/crlnumber	# the current crl number
+					# must be commented out to leave a V1 CRL
+crl		= $dir/crl.pem 		# The current CRL
+private_key	= $dir/private/cakey.pem# The private key
+RANDFILE	= $dir/private/.rand	# private random number file
+
+x509_extensions	= usr_cert		# The extentions to add to the cert
+
+name_opt 	= ca_default		# Subject Name options
+cert_opt 	= ca_default		# Certificate field options
+
+default_days	= 365			# how long to certify for
+default_crl_days= 30			# how long before next CRL
+default_md	= default		# use public key default MD
+preserve	= no			# keep passed DN ordering
+
+policy		= policy_match
+
+# For the CA policy
+[ policy_match ]
+countryName		= match
+stateOrProvinceName	= optional
+organizationName	= match
+organizationalUnitName	= optional
+commonName		= supplied
+emailAddress		= optional
+
+[ policy_anything ]
+countryName		= optional
+stateOrProvinceName	= optional
+localityName		= optional
+organizationName	= optional
+organizationalUnitName	= optional
+commonName		= supplied
+emailAddress		= optional
+
+####################################################################
+[ req ]
+default_bits		= 2048
+default_keyfile 	= privkey.pem
+distinguished_name	= req_distinguished_name
+attributes		= req_attributes
+x509_extensions	= v3_ca	# The extentions to add to the self signed cert
+
+input_password = @PASSWORD@
+output_password = @PASSWORD@
+
+string_mask = utf8only
+
+[ req_distinguished_name ]
+countryName			= Country Name (2 letter code)
+countryName_default		= US
+countryName_min			= 2
+countryName_max			= 2
+
+localityName			= Locality Name (eg, city)
+localityName_default		= Tuusula
+
+0.organizationName		= Organization Name (eg, company)
+0.organizationName_default	= WFA Hotspot 2.0
+
+##organizationalUnitName		= Organizational Unit Name (eg, section)
+#organizationalUnitName_default	=
+#@OU@
+
+commonName			= Common Name (e.g. server FQDN or YOUR name)
+#@CN@
+commonName_max			= 64
+
+emailAddress			= Email Address
+emailAddress_max		= 64
+
+[ req_attributes ]
+
+[ v3_req ]
+
+# Extensions to add to a certificate request
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName=DNS:example.com,DNS:another.example.com
+
+[ v3_ca ]
+
+# Hotspot 2.0 PKI requirements
+subjectKeyIdentifier=hash
+basicConstraints = critical,CA:true
+keyUsage = critical, cRLSign, keyCertSign
+
+[ crl_ext ]
+
+# issuerAltName=issuer:copy
+authorityKeyIdentifier=keyid:always
+
+[ v3_OCSP ]
+
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = OCSPSigning

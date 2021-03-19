@@ -1,13 +1,3 @@
-all: libp2p.a
-
-clean:
-	rm -f *~ *.o *.d *.gcno *.gcda *.gcov libp2p.a
-
-install:
-	@echo Nothing to be made.
-
-include ../lib.rules
-
 CFLAGS += -DCONFIG_WIFI_DISPLAY
 CFLAGS += -DCONFIG_WPS_NFC
 
@@ -23,7 +13,4 @@ LIB_OBJS= \
 	p2p_sd.o \
 	p2p_utils.o
 
-libp2p.a: $(LIB_OBJS)
-	$(AR) crT $@ $?
-
--include $(OBJS:%.o=%.d)
+include ../lib.rules

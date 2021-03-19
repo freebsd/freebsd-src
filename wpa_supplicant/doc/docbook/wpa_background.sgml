@@ -1,6 +1,10 @@
 <!doctype refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
 
 <refentry>
+  <refentryinfo>
+    <date>07 August 2019</date>
+  </refentryinfo>
+
   <refmeta>
     <refentrytitle>wpa_background</refentrytitle>
     <manvolnum>8</manvolnum>

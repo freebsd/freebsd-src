@@ -84,8 +84,8 @@ static void * eap_tnc_init(struct eap_sm *sm)
 		return NULL;
 	}
 
-	data->fragment_size = sm->fragment_size > 100 ?
-		sm->fragment_size - 98 : 1300;
+	data->fragment_size = sm->cfg->fragment_size > 100 ?
+		sm->cfg->fragment_size - 98 : 1300;
 
 	return data;
 }
@@ -320,8 +320,8 @@ static struct wpabuf * eap_tnc_buildReq(struct eap_sm *sm, void *priv, u8 id)
 }
 
 
-static Boolean eap_tnc_check(struct eap_sm *sm, void *priv,
-			     struct wpabuf *respData)
+static bool eap_tnc_check(struct eap_sm *sm, void *priv,
+			  struct wpabuf *respData)
 {
 	struct eap_tnc_data *data = priv;
 	const u8 *pos;
@@ -331,29 +331,29 @@ static Boolean eap_tnc_check(struct eap_sm *sm, void *priv,
 			       &len);
 	if (pos == NULL) {
 		wpa_printf(MSG_INFO, "EAP-TNC: Invalid frame");
-		return TRUE;
+		return true;
 	}
 
 	if (len == 0 && data->state != WAIT_FRAG_ACK) {
 		wpa_printf(MSG_INFO, "EAP-TNC: Invalid frame (empty)");
-		return TRUE;
+		return true;
 	}
 
 	if (len == 0)
-		return FALSE; /* Fragment ACK does not include flags */
+		return false; /* Fragment ACK does not include flags */
 
 	if ((*pos & EAP_TNC_VERSION_MASK) != EAP_TNC_VERSION) {
 		wpa_printf(MSG_DEBUG, "EAP-TNC: Unsupported version %d",
 			   *pos & EAP_TNC_VERSION_MASK);
-		return TRUE;
+		return true;
 	}
 
 	if (*pos & EAP_TNC_FLAGS_START) {
 		wpa_printf(MSG_DEBUG, "EAP-TNC: Peer used Start flag");
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -508,7 +508,7 @@ static void eap_tnc_process(struct eap_sm *sm, void *priv,
 		eap_tnc_set_state(data, FAIL);
 		return;
 	}
-		
+
 	if (flags & EAP_TNC_FLAGS_MORE_FRAGMENTS) {
 		if (eap_tnc_process_fragment(data, flags, message_length,
 					     pos, end - pos) < 0)
@@ -537,14 +537,14 @@ static void eap_tnc_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_tnc_isDone(struct eap_sm *sm, void *priv)
+static bool eap_tnc_isDone(struct eap_sm *sm, void *priv)
 {
 	struct eap_tnc_data *data = priv;
 	return data->state == DONE || data->state == FAIL;
 }
 
 
-static Boolean eap_tnc_isSuccess(struct eap_sm *sm, void *priv)
+static bool eap_tnc_isSuccess(struct eap_sm *sm, void *priv)
 {
 	struct eap_tnc_data *data = priv;
 	return data->state == DONE;

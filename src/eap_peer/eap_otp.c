@@ -36,7 +36,7 @@ static struct wpabuf * eap_otp_process(struct eap_sm *sm, void *priv,
 
 	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_OTP, reqData, &len);
 	if (pos == NULL) {
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 	wpa_hexdump_ascii(MSG_MSGDUMP, "EAP-OTP: Request message",
@@ -53,15 +53,15 @@ static struct wpabuf * eap_otp_process(struct eap_sm *sm, void *priv,
 	if (password == NULL) {
 		wpa_printf(MSG_INFO, "EAP-OTP: Password not configured");
 		eap_sm_request_otp(sm, (const char *) pos, len);
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
-	ret->ignore = FALSE;
+	ret->ignore = false;
 
 	ret->methodState = METHOD_DONE;
 	ret->decision = DECISION_COND_SUCC;
-	ret->allowNotifications = FALSE;
+	ret->allowNotifications = false;
 
 	resp = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_OTP, password_len,
 			     EAP_CODE_RESPONSE, eap_get_id(reqData));

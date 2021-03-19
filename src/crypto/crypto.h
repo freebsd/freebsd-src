@@ -485,7 +485,7 @@ int rc4_skip(const u8 *key, size_t keylen, size_t skip,
 	     u8 *data, size_t data_len);
 
 /**
- * crypto_get_random - Generate cryptographically strong pseudy-random bytes
+ * crypto_get_random - Generate cryptographically strong pseudo-random bytes
  * @buf: Buffer for data
  * @len: Number of bytes to generate
  * Returns: 0 on success, -1 on failure
@@ -517,6 +517,13 @@ struct crypto_bignum * crypto_bignum_init(void);
  * Returns: Pointer to allocated bignum or %NULL on failure
  */
 struct crypto_bignum * crypto_bignum_init_set(const u8 *buf, size_t len);
+
+/**
+ * crypto_bignum_init_set - Allocate memory for bignum and set the value (uint)
+ * @val: Value to set
+ * Returns: Pointer to allocated bignum or %NULL on failure
+ */
+struct crypto_bignum * crypto_bignum_init_uint(unsigned int val);
 
 /**
  * crypto_bignum_deinit - Free bignum
@@ -613,6 +620,19 @@ int crypto_bignum_div(const struct crypto_bignum *a,
 		      struct crypto_bignum *c);
 
 /**
+ * crypto_bignum_addmod - d = a + b (mod c)
+ * @a: Bignum
+ * @b: Bignum
+ * @c: Bignum
+ * @d: Bignum; used to store the result of (a + b) % c
+ * Returns: 0 on success, -1 on failure
+ */
+int crypto_bignum_addmod(const struct crypto_bignum *a,
+			 const struct crypto_bignum *b,
+			 const struct crypto_bignum *c,
+			 struct crypto_bignum *d);
+
+/**
  * crypto_bignum_mulmod - d = a * b (mod c)
  * @a: Bignum
  * @b: Bignum
@@ -624,6 +644,17 @@ int crypto_bignum_mulmod(const struct crypto_bignum *a,
 			 const struct crypto_bignum *b,
 			 const struct crypto_bignum *c,
 			 struct crypto_bignum *d);
+
+/**
+ * crypto_bignum_sqrmod - c = a^2 (mod b)
+ * @a: Bignum
+ * @b: Bignum
+ * @c: Bignum; used to store the result of a^2 % b
+ * Returns: 0 on success, -1 on failure
+ */
+int crypto_bignum_sqrmod(const struct crypto_bignum *a,
+			 const struct crypto_bignum *b,
+			 struct crypto_bignum *c);
 
 /**
  * crypto_bignum_rshift - r = a >> n
@@ -730,6 +761,9 @@ const struct crypto_bignum * crypto_ec_get_prime(struct crypto_ec *e);
  * Returns: Order (bignum) of the group
  */
 const struct crypto_bignum * crypto_ec_get_order(struct crypto_ec *e);
+
+const struct crypto_bignum * crypto_ec_get_a(struct crypto_ec *e);
+const struct crypto_bignum * crypto_ec_get_b(struct crypto_ec *e);
 
 /**
  * struct crypto_ec_point - Elliptic curve point
@@ -882,5 +916,18 @@ struct wpabuf * crypto_ecdh_get_pubkey(struct crypto_ecdh *ecdh, int inc_y);
 struct wpabuf * crypto_ecdh_set_peerkey(struct crypto_ecdh *ecdh, int inc_y,
 					const u8 *key, size_t len);
 void crypto_ecdh_deinit(struct crypto_ecdh *ecdh);
+size_t crypto_ecdh_prime_len(struct crypto_ecdh *ecdh);
+
+struct crypto_ec_key;
+
+struct crypto_ec_key * crypto_ec_key_parse_priv(const u8 *der, size_t der_len);
+struct crypto_ec_key * crypto_ec_key_parse_pub(const u8 *der, size_t der_len);
+void crypto_ec_key_deinit(struct crypto_ec_key *key);
+struct wpabuf * crypto_ec_key_get_subject_public_key(struct crypto_ec_key *key);
+struct wpabuf * crypto_ec_key_sign(struct crypto_ec_key *key, const u8 *data,
+				   size_t len);
+int crypto_ec_key_verify_signature(struct crypto_ec_key *key, const u8 *data,
+				   size_t len, const u8 *sig, size_t sig_len);
+int crypto_ec_key_group(struct crypto_ec_key *key);
 
 #endif /* CRYPTO_H */

@@ -32,8 +32,8 @@ static struct fst_group * get_fst_group_by_id(const char *id)
 
 
 /* notifications */
-static Boolean format_session_state_extra(const union fst_event_extra *extra,
-					  char *buffer, size_t size)
+static bool format_session_state_extra(const union fst_event_extra *extra,
+				       char *buffer, size_t size)
 {
 	int len;
 	char reject_str[32] = FST_CTRL_PVAL_NONE;
@@ -42,7 +42,7 @@ static Boolean format_session_state_extra(const union fst_event_extra *extra,
 
 	ss = &extra->session_state;
 	if (ss->new_state != FST_SESSION_STATE_INITIAL)
-		return TRUE;
+		return true;
 
 	switch (ss->extra.to_initial.reason) {
 	case REASON_REJECT:
@@ -183,10 +183,10 @@ static int session_get(const char *session_id, char *buf, size_t buflen)
 		return os_snprintf(buf, buflen, "FAIL\n");
 	}
 
-	old_peer_addr = fst_session_get_peer_addr(s, TRUE);
-	new_peer_addr = fst_session_get_peer_addr(s, FALSE);
-	new_iface = fst_session_get_iface(s, FALSE);
-	old_iface = fst_session_get_iface(s, TRUE);
+	old_peer_addr = fst_session_get_peer_addr(s, true);
+	new_peer_addr = fst_session_get_peer_addr(s, false);
+	new_iface = fst_session_get_iface(s, false);
+	old_iface = fst_session_get_iface(s, true);
 
 	return os_snprintf(buf, buflen,
 			   FST_CSG_PNAME_OLD_PEER_ADDR "=" MACSTR "\n"
@@ -227,13 +227,13 @@ static int session_set(const char *session_id, char *buf, size_t buflen)
 	p++;
 
 	if (os_strncasecmp(p, FST_CSS_PNAME_OLD_IFNAME, q - p) == 0) {
-		ret = fst_session_set_str_ifname(s, q + 1, TRUE);
+		ret = fst_session_set_str_ifname(s, q + 1, true);
 	} else if (os_strncasecmp(p, FST_CSS_PNAME_NEW_IFNAME, q - p) == 0) {
-		ret = fst_session_set_str_ifname(s, q + 1, FALSE);
+		ret = fst_session_set_str_ifname(s, q + 1, false);
 	} else if (os_strncasecmp(p, FST_CSS_PNAME_OLD_PEER_ADDR, q - p) == 0) {
-		ret = fst_session_set_str_peer_addr(s, q + 1, TRUE);
+		ret = fst_session_set_str_peer_addr(s, q + 1, true);
 	} else if (os_strncasecmp(p, FST_CSS_PNAME_NEW_PEER_ADDR, q - p) == 0) {
-		ret = fst_session_set_str_peer_addr(s, q + 1, FALSE);
+		ret = fst_session_set_str_peer_addr(s, q + 1, false);
 	} else if (os_strncasecmp(p, FST_CSS_PNAME_LLT, q - p) == 0) {
 		ret = fst_session_set_str_llt(s, q + 1);
 	} else {
@@ -539,8 +539,8 @@ static int iface_peers(const char *group_id, char *buf, size_t buflen)
 	if (!found)
 		return os_snprintf(buf, buflen, "FAIL\n");
 
-	addr = fst_iface_get_peer_first(f, &ctx, FALSE);
-	for (; addr != NULL; addr = fst_iface_get_peer_next(f, &ctx, FALSE)) {
+	addr = fst_iface_get_peer_first(f, &ctx, false);
+	for (; addr != NULL; addr = fst_iface_get_peer_next(f, &ctx, false)) {
 		int res;
 
 		res = os_snprintf(buf + ret, buflen - ret, MACSTR "\n",
@@ -692,7 +692,7 @@ static int print_band(unsigned num, struct fst_iface *iface, const u8 *addr,
 
 
 static void fst_ctrl_iface_on_iface_state_changed(struct fst_iface *i,
-						  Boolean attached)
+						  bool attached)
 {
 	union fst_event_extra extra;
 
@@ -710,14 +710,14 @@ static void fst_ctrl_iface_on_iface_state_changed(struct fst_iface *i,
 
 static int fst_ctrl_iface_on_iface_added(struct fst_iface *i)
 {
-	fst_ctrl_iface_on_iface_state_changed(i, TRUE);
+	fst_ctrl_iface_on_iface_state_changed(i, true);
 	return 0;
 }
 
 
 static void fst_ctrl_iface_on_iface_removed(struct fst_iface *i)
 {
-	fst_ctrl_iface_on_iface_state_changed(i, FALSE);
+	fst_ctrl_iface_on_iface_state_changed(i, false);
 }
 
 
@@ -749,7 +749,7 @@ int fst_ctrl_iface_mb_info(const u8 *addr, char *buf, size_t buflen)
 
 	foreach_fst_group(g) {
 		foreach_fst_group_iface(g, f) {
-			if (fst_iface_is_connected(f, addr, TRUE)) {
+			if (fst_iface_is_connected(f, addr, true)) {
 				ret += print_band(num++, f, addr,
 						  buf + ret, buflen - ret);
 			}
@@ -789,7 +789,7 @@ int fst_ctrl_iface_receive(const char *cmd, char *reply, size_t reply_size)
 	const struct fst_command *c;
 	const char *p;
 	const char *temp;
-	Boolean non_spaces_found;
+	bool non_spaces_found;
 
 	for (c = commands; c->name; c++) {
 		if (os_strncasecmp(cmd, c->name, os_strlen(c->name)) != 0)
@@ -800,10 +800,10 @@ int fst_ctrl_iface_receive(const char *cmd, char *reply, size_t reply_size)
 				return os_snprintf(reply, reply_size, "FAIL\n");
 			p++;
 			temp = p;
-			non_spaces_found = FALSE;
+			non_spaces_found = false;
 			while (*temp) {
 				if (!isspace(*temp)) {
-					non_spaces_found = TRUE;
+					non_spaces_found = true;
 					break;
 				}
 				temp++;
@@ -818,18 +818,18 @@ int fst_ctrl_iface_receive(const char *cmd, char *reply, size_t reply_size)
 }
 
 
-int fst_read_next_int_param(const char *params, Boolean *valid, char **endp)
+int fst_read_next_int_param(const char *params, bool *valid, char **endp)
 {
 	int ret = -1;
 	const char *curp;
 
-	*valid = FALSE;
+	*valid = false;
 	*endp = (char *) params;
 	curp = params;
 	if (*curp) {
 		ret = (int) strtol(curp, endp, 0);
 		if (!**endp || isspace(**endp))
-			*valid = TRUE;
+			*valid = true;
 	}
 
 	return ret;
@@ -887,7 +887,7 @@ int fst_parse_attach_command(const char *cmd, char *ifname, size_t ifname_size,
 {
 	char *pos;
 	char *endp;
-	Boolean is_valid;
+	bool is_valid;
 	int val;
 
 	if (fst_read_next_text_param(cmd, ifname, ifname_size, &endp) ||

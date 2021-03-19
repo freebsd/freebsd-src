@@ -84,7 +84,7 @@ static void l2_packet_receive(int sock, void *eloop_ctx, void *sock_ctx)
 
 	packet = pcap_next(pcap, &hdr);
 
-	if (packet == NULL || hdr.caplen < sizeof(*ethhdr))
+	if (!l2->rx_callback || !packet || hdr.caplen < sizeof(*ethhdr))
 		return;
 
 	ethhdr = (struct l2_ethhdr *) packet;

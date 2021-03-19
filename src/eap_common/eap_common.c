@@ -63,7 +63,7 @@ int eap_hdr_len_valid(const struct wpabuf *msg, size_t min_payload)
  * the payload regardless of whether the packet used the expanded EAP header or
  * not.
  */
-const u8 * eap_hdr_validate(int vendor, EapType eap_type,
+const u8 * eap_hdr_validate(int vendor, enum eap_type eap_type,
 			    const struct wpabuf *msg, size_t *plen)
 {
 	const struct eap_hdr *hdr;
@@ -125,8 +125,8 @@ const u8 * eap_hdr_validate(int vendor, EapType eap_type,
  * function to allocate the message buffers. The returned buffer has room for
  * payload_len bytes and has the EAP header and Type field already filled in.
  */
-struct wpabuf * eap_msg_alloc(int vendor, EapType type, size_t payload_len,
-			      u8 code, u8 identifier)
+struct wpabuf * eap_msg_alloc(int vendor, enum eap_type type,
+			      size_t payload_len, u8 code, u8 identifier)
 {
 	struct wpabuf *buf;
 	struct eap_hdr *hdr;
@@ -196,7 +196,7 @@ u8 eap_get_id(const struct wpabuf *msg)
  * @msg: Buffer starting with an EAP header
  * Returns: The EAP Type after the EAP header
  */
-EapType eap_get_type(const struct wpabuf *msg)
+enum eap_type eap_get_type(const struct wpabuf *msg)
 {
 	if (wpabuf_len(msg) < sizeof(struct eap_hdr) + 1)
 		return EAP_TYPE_NONE;

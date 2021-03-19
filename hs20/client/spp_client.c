@@ -547,7 +547,7 @@ static int hs20_spp_exec(struct hs20_osu_client *ctx, xml_node_t *exec,
 		}
 		wpa_printf(MSG_INFO, "Launch browser to URI '%s'", uri);
 		write_summary(ctx, "Launch browser to URI '%s'", uri);
-		res = hs20_web_browser(uri);
+		res = hs20_web_browser(uri, 1);
 		xml_node_get_text_free(ctx->xml, uri);
 		if (res > 0) {
 			wpa_printf(MSG_INFO, "User response in browser completed successfully - sessionid='%s'",

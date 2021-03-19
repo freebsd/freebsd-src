@@ -1,1 +1,15 @@
+.config
 *.service
+eapol_test
+nfc_pw_token
+preauth_test
+wpa_cli
+wpa_passphrase
+wpa_supplicant
+wpa_priv
+wpa_gui/Makefile
+wpa_gui/wpa_gui
+wpa_gui-qt4/Makefile
+wpa_gui-qt4/wpa_gui
+libwpa_test1
+libwpa_test2

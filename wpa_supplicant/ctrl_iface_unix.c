@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / UNIX domain socket -based control interface
- * Copyright (c) 2004-2014, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2020, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -131,7 +131,7 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 {
 	struct wpa_supplicant *wpa_s = eloop_ctx;
 	struct ctrl_iface_priv *priv = sock_ctx;
-	char buf[4096];
+	char *buf;
 	int res;
 	struct sockaddr_storage from;
 	socklen_t fromlen = sizeof(from);
@@ -139,11 +139,20 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 	size_t reply_len = 0;
 	int new_attached = 0;
 
-	res = recvfrom(sock, buf, sizeof(buf) - 1, 0,
+	buf = os_malloc(CTRL_IFACE_MAX_LEN + 1);
+	if (!buf)
+		return;
+	res = recvfrom(sock, buf, CTRL_IFACE_MAX_LEN + 1, 0,
 		       (struct sockaddr *) &from, &fromlen);
 	if (res < 0) {
 		wpa_printf(MSG_ERROR, "recvfrom(ctrl_iface): %s",
 			   strerror(errno));
+		os_free(buf);
+		return;
+	}
+	if ((size_t) res > CTRL_IFACE_MAX_LEN) {
+		wpa_printf(MSG_ERROR, "recvform(ctrl_iface): input truncated");
+		os_free(buf);
 		return;
 	}
 	buf[res] = '\0';
@@ -221,6 +230,7 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 		}
 	}
 	os_free(reply_buf);
+	os_free(buf);
 
 	if (new_attached)
 		eapol_sm_notify_ctrl_attached(wpa_s->eapol);
@@ -1046,18 +1056,27 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 {
 	struct wpa_global *global = eloop_ctx;
 	struct ctrl_iface_global_priv *priv = sock_ctx;
-	char buf[4096];
+	char *buf;
 	int res;
 	struct sockaddr_storage from;
 	socklen_t fromlen = sizeof(from);
 	char *reply = NULL, *reply_buf = NULL;
 	size_t reply_len;
 
-	res = recvfrom(sock, buf, sizeof(buf) - 1, 0,
+	buf = os_malloc(CTRL_IFACE_MAX_LEN + 1);
+	if (!buf)
+		return;
+	res = recvfrom(sock, buf, CTRL_IFACE_MAX_LEN + 1, 0,
 		       (struct sockaddr *) &from, &fromlen);
 	if (res < 0) {
 		wpa_printf(MSG_ERROR, "recvfrom(ctrl_iface): %s",
 			   strerror(errno));
+		os_free(buf);
+		return;
+	}
+	if ((size_t) res > CTRL_IFACE_MAX_LEN) {
+		wpa_printf(MSG_ERROR, "recvform(ctrl_iface): input truncated");
+		os_free(buf);
 		return;
 	}
 	buf[res] = '\0';
@@ -1105,6 +1124,7 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 		}
 	}
 	os_free(reply_buf);
+	os_free(buf);
 }
 
 

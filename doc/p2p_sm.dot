@@ -1,0 +1,62 @@
+digraph p2p {
+	ranksep=.75;
+	size = "8.5,7.5";
+
+	start -> IDLE;
+	start [label="Init",shape=none];
+
+	/* Discovery: Scan followed by Find(SEARCH,LISTEN) */
+	subgraph cluster_0 {
+		label="Discovery";
+		color=lightgrey;
+		node [color=blue];
+		/* SCAN and LISTEN currently not used in the implementation */
+		SCAN [style=dotted];
+		LISTEN [style=dotted];
+
+		SCAN -> LISTEN;
+		LISTEN -> SEARCH -> LISTEN [style=dotted];
+		SEARCH -> SD_DURING_FIND [label="Peer SD capab\nand no info", weight=100];
+		SD_DURING_FIND -> SEARCH [label="RX SD Resp\nor timeout", weight=100];
+		SEARCH -> PROV_DISC_DURING_FIND [label="Prov Disc cmd\nand no Resp", weight=100];
+		PROV_DISC_DURING_FIND -> SEARCH [label="RX Prov Disc Resp\nor timeout", weight=100];
+	}
+
+	/* Group Formation */
+	subgraph cluster_1 {
+		label="Group Formation";
+		color=lightgrey;
+		node [color=green];
+
+		CONNECT -> CONNECT_LISTEN [style=dotted,weight=100];
+		CONNECT_LISTEN -> CONNECT [style=dotted,weight=100];
+		CONNECT -> WAIT_PEER_IDLE [label="RX GO Neg Resp\n(info unavail)"];
+		WAIT_PEER_IDLE -> WAIT_PEER_CONNECT [style=dotted,weight=100];
+		WAIT_PEER_CONNECT -> WAIT_PEER_IDLE [style=dotted,weight=100];
+
+		CONNECT -> GO_NEG [label="RX GO Neg Resp\n(success)", weight=10];
+		CONNECT_LISTEN -> GO_NEG [label="RX GO Neg Req or\nTX GO Neg Resp"];
+		WAIT_PEER_CONNECT -> GO_NEG [label="RX GO Neg Req"];
+		GO_NEG -> PROVISIONING [label="TX/RX GO Neg Conf"];
+	}
+
+	PROVISIONING -> IDLE [label="WPS\nsuccess"];
+
+	/* External triggers */
+	IDLE -> SCAN [label="Find cmd",weight=20];
+	IDLE -> CONNECT [label="Connect cmd",weight=20];
+	IDLE -> LISTEN_ONLY [label="Listen cmd"];
+
+	/* Timeouts */
+/*
+	edge [color=red];
+	WAIT_PEER_IDLE -> IDLE [label="timeout", weight=0];
+	WAIT_PEER_CONNECT -> IDLE [label="timeout", weight=0];
+	CONNECT -> IDLE [label="timeout", weight=0];
+	CONNECT_LISTEN -> IDLE [label="timeout", weight=0];
+	GO_NEG -> IDLE [label="timeout", weight=0];
+	PROVISIONING -> IDLE [label="timeout", weight=0];
+	LISTEN_ONLY -> IDLE [label="timeout", weight=0];
+	SEARCH -> IDLE [label="timeout", weight=0];
+*/
+}

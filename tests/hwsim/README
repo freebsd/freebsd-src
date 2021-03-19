@@ -1,0 +1,220 @@
+Automated hostapd/wpa_supplicant testing with mac80211_hwsim
+------------------------------------------------------------
+
+This directory contains testing infrastructure and test cases to run
+automated tests of full hostapd and wpa_supplicant functionality. This
+testing is done with the help of mac80211_hwsim which is Linux kernel
+driver that simulates IEEE 802.11 radios without requiring any
+additional hardware. This setup most of the hostapd and wpa_supplicant
+functionality (and large parts of the Linux cfg80211 and mac80211
+functionality for that matter) to be tested.
+
+mac80211_hwsim is loaded with five simulated radios to allow different
+device combinations to be tested. wlantest is used analyze raw packets
+captured through the hwsim0 monitor interface that capture all frames
+sent on all channels. wlantest is used to store the frames for
+analysis. Three wpa_supplicant processes are used to control three
+virtual radios and one hostapd process is used to dynamically control
+the other two virtual radios. wpa_supplicant/hostapd test functionality
+is used to verify that data connection (both unicast and broadcast)
+works between two netdevs.
+
+The python scripts and tools in this directory control test case
+execution. They interact wpa_supplicant and hostapd through control
+interfaces to perform the operations. In addition, wlantest_cli is used
+to verify that operations have been performed correctly and that the
+network connection works in the expected way.
+
+These test cases are run automatically against the hostap.git commits
+for regression testing and to help in keeping the hostap.git master
+branch in stable state. Results from these tests are available here:
+http://buildbot.w1.fi/hwsim/
+
+
+Building binaries for testing
+-----------------------------
+
+You will need to build (or use already built) components to be
+tested. These are available in the hostap.git repository and can be
+built for example as follows:
+
+cd ../../wpa_supplicant
+cp ../tests/hwsim/example-wpa_supplicant.config .config
+make clean
+make
+cd ../hostapd
+cp ../tests/hwsim/example-hostapd.config .config
+make clean
+make hostapd hostapd_cli hlr_auc_gw
+cd ../wlantest
+make clean
+make
+
+Alternatively, the build.sh script here can be used to run these steps
+with conditional creation of .config files only if they do not exist.
+
+The test scripts can find the binaries in the locations where they were
+built. It is also possible to install wlantest_cli somewhere on the path
+to use pre-built tools.
+
+Please note that some of the configuration parameters used to enable
+more testing coverage may require development packages that may not be
+installed by default in many distributions. For example, following
+Debian/Ubuntu packages are likely to be needed:
+- binutils-dev
+- libsqlite3-dev
+- libpcap-dev
+
+example-setup.txt provides more complete step-by-step example on how a
+test setup can be built.
+
+
+wpaspy
+------
+
+The python scripts use wpaspy.py to interact with the wpa_supplicant
+control interface, but the run-tests.py script adds the (relative)
+path into the environment so it doesn't need to be installed.
+
+
+mac80211_hwsim
+--------------
+
+mac80211_hwsim kernel module is available from the upstream Linux
+kernel. Some Linux distributions enable it by default. If that's not the
+case, you can either enable it in the kernel configuration
+(CONFIG_MAC80211_HWSIM=m) and rebuild your kernel or use Backports with
+CPTCFG_MAC80211_HWSIM=m to replace the wireless LAN components in the
+base kernel.
+
+
+sudo
+----
+
+Some parts of the testing process requires root privileges. The test
+scripts are currently using sudo to achieve this. To be able to run the
+tests, you'll probably want to enable sudo with a timeout to not expire
+password entry very quickly. For example, use this in the sudoers file:
+
+Defaults        env_reset,timestamp_timeout=180
+
+Or on a dedicated test system, you could even disable password prompting
+with this in sudoers:
+
+%sudo   ALL=NOPASSWD: ALL
+
+
+Other network interfaces
+------------------------
+
+Some of the test scripts are still using hardcoded interface names, so
+the easiest way of making things work is to avoid using other network
+devices that may use conflicting interface names. For example, unload
+any wireless LAN driver before running the tests and make sure that
+wlan0..4 gets assigned as the interface names for the mac80211_hwsim
+radios. It may also be possible to rename the interface expectations in
+run-tests.py to allow other names to be used.
+
+Please also note that some commonly enabled tools, like NetworkManager,
+may end up trying to control new network interfaces automatically. This
+can result in conflicts with the test scripts and you may need to
+disable such network services or at least mark the mac80211_hwsim wlan#
+interfaces as umanaged. As an example, this can be done in
+/etc/NetworkManager/NetworkManager.conf with following addition:
+
+[keyfile]
+unmanaged-devices=mac:02:00:00:00:00:00;mac:02:00:00:00:01:00;mac:02:00:00:00:02:00;mac:02:00:00:00:03:00;mac:02:00:00:00:04:00
+
+
+Running tests
+-------------
+
+Simplest way to run a full set of the test cases is by running
+run-all.sh in tests/hwsim directory. This will use start.sh to load the
+mac80211_hwsim module and start wpa_supplicant, hostapd, and various
+test tools. run-tests.sh is then used to run through all the defined
+test cases and stop.sh to stop the programs and unload the kernel
+module.
+
+run-all.sh can be used to run the same test cases under different
+conditions:
+
+# run normal test cases
+./run-all.sh
+
+# run normal test cases under valgrind
+./run-all.sh valgrind
+
+# run normal test cases with Linux tracing
+./run-all.sh trace
+
+# run normal test cases with multi channel support (see details below)
+./run-all.sh channels=<num of channels>
+
+run-all.sh directs debug logs into the logs subdirectory (or $LOGDIR if
+present in the environment). Log file names include the current UNIX
+timestamp and a postfix to identify the specific log:
+- *.log0 = wpa_supplicant debug log for the first radio
+- *.log1 = wpa_supplicant debug log for the second radio
+- *.log2 = wpa_supplicant debug log for the third radio
+- *.hostapd = hostapd debug log
+- hwsim0 = wlantest debug log
+- hwsim0.pcapng = capture with all frames exchanged during the tests
+- *.log = debug prints from the test scripts
+- trace.dat = Linux tracing record (if enabled)
+- hlr_auc_gw - hlr_auc_gw (EAP-SIM/AKA/AKA' authentication) log
+- auth_serv - hostapd as RADIUS authentication server log
+
+
+For manual testing, ./start.sh can be used to initialize interfaces and
+programs and run-tests.py to execute one or more test
+cases. run-tests.py output verbosity can be controlled with -d (more
+verbose debug output) and -q (less verbose output) on the command
+line. "-f <module name>" (pointing to file test_<module name>.py) can be
+used to specify that all test cases from a single file are to be
+run. Test name as the last command line argument can be specified that a
+single test case is to be run (e.g., "./run-tests.py ap_pmf_required").
+
+Notice that some tests require the driver to support concurrent
+operation on multi channels in order to run. These tests will be skipped
+in case the driver does not support multi channels. To enable support
+for multi channel, the number of supported channel is passed as an
+argument to run-all.sh or start.sh
+
+
+Adding/modifying test cases
+---------------------------
+
+All the test cases are defined in the test_*.py files. These are python
+scripts that can use the local helper classes to interact with the test
+components. While various python constructs can be used in the scripts,
+only a minimal level of python knowledge should really be needed to
+modify and add new test cases. The easiest starting point for this is
+likely to take a look at some of the example scripts. When working on a
+new test, run-tests.py with -d and the test case name on the command
+line is a convenient way of verifying functionality.
+
+run-tests.py will automatically import all test cases from the test_*.py
+files in this directory. All functions starting with the "test_" prefix
+in these files are assumed to be test cases. Each test case is named by
+the function name following the "test_" prefix.
+
+
+Results database
+----------------
+
+run-tests.py can be requested to write results from the execution of
+each test case into an sqlite database. The "-S <path to database>" and
+"-b <build id>" command line arguments can be used to do that. The
+database must have been prepared before this, e.g., with following:
+
+cat | sqlite3 /tmp/example.db <<EOF
+CREATE TABLE results (test,result,run,time,duration,build,commitid);
+CREATE INDEX results_idx ON results (test);
+CREATE INDEX results_idx2 ON results (run);
+CREATE TABLE tests (test,description);
+CREATE UNIQUE INDEX tests_idx ON tests (test);
+CREATE TABLE logs (test,run,type,contents);
+CREATE INDEX logs_idx ON logs (test);
+CREATE INDEX logs_idx2 ON logs (run);
+EOF

@@ -257,7 +257,7 @@ DBusMessage * wpa_dbus_introspect(DBusMessage *message,
 	DBusMessage *reply;
 	struct wpabuf *xml;
 
-	xml = wpabuf_alloc(20000);
+	xml = wpabuf_alloc(30000);
 	if (xml == NULL)
 		return NULL;
 

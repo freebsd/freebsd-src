@@ -1,0 +1,191 @@
+Step-by-step guide for setting up hostapd/wpa_supplicant test framework
+-----------------------------------------------------------------------
+
+This document can be used as a quick guide for getting started with
+hostapd/wpa_supplicant test framework with mac80211_hwsim. While the
+example here uses Ubuntu 14.04.1 server to have a list of exact steps,
+there are no requirements for using that specific distribution in the
+testing setup.
+
+The steps here describe how to run a full Linux installation in a
+virtual machine with any host system (e.g., Linux, Windows, or OS X as
+the host and using kvm, VirtualBox, etc. for running the virtual guest
+system). For more advanced (and significantly faster and with more
+testing coverage) configuration on a Linux host system, parallel virtual
+machines can be used as an alternative setup. See tests/hwsim/vm/README
+for more details on that.
+
+
+Install Ubuntu Server 14.04.1 in the virtual machine
+
+- download installation image, e.g.,
+  http://releases.ubuntu.com/14.04.1/ubuntu-14.04.1-server-amd64.iso
+- use virtualization software specific steps to create a new VM and
+  install the the guest system with default settings (i.e., no need to
+  select any extra packages during initial installation)
+- if the host system has multiple CPU cores, it is likely a good idea to
+  enabled at least two CPUs in the guest; 1024 MB of RAM should be enough
+  for testing purposes
+- 8 GB of virtual hard driver should be fine for this purpose
+- boot to the installed operating system
+
+
+Install the prerequisite packages that may not have been installed by default
+
+sudo apt-get install build-essential git libpcap-dev libsqlite3-dev binutils-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev libiberty-dev libdbus-1-dev iw bridge-utils python-pyrad python-crypto tshark
+
+optional:
+sudo apt-get install python-netifaces
+
+
+Install a recent kernel wireless components (mac80211_hwsim, mac80211,
+cfg80211)
+
+For this step, the kernel version may be updated, but the simpler option
+is to install the latest version of Backports package. For example:
+
+wget http://www.kernel.org/pub/linux/kernel/projects/backports/stable/v3.19-rc1/backports-3.19-rc1-1.tar.xz
+tar xJf backports-3.19-rc1-1.tar.xz
+cd backports-3.19-rc1-1
+
+cat > defconfigs/mac80211_hwsim <<EOF
+CPTCFG_CFG80211=m
+CPTCFG_CFG80211_WEXT=y
+CPTCFG_MAC80211=m
+CPTCFG_MAC80211_LEDS=y
+CPTCFG_MAC80211_MESH=y
+CPTCFG_WLAN=y
+CPTCFG_MAC80211_HWSIM=m
+EOF
+
+make defconfig-mac80211_hwsim
+make
+sudo make install
+cd ..
+
+
+Update iw based on custom iw.git build
+
+Couple of the test cases expect iw to have support for requesting
+cfg80211 scan results to be flushed. That functionality is not included
+in the version that Ubuntu 14.04.1 includes (iw v3.4). Following steps
+can be used to replace that version with a custom build. This is
+optional, i.e., most test cases will work with the old iw version, but
+some test cases are skipped and some are more likely to fail if iw does
+not get updated.
+
+wget https://www.kernel.org/pub/software/network/iw/iw-3.17.tar.gz
+tar xf iw-3.17.tar.gz
+cd iw-3.17
+make
+sudo mv /sbin/iw{,-distro}
+sudo cp iw /sbin/iw
+cd ..
+
+
+Update wireless-regdb
+
+Number of VHT and DFS test cases are skipped if the old wireless-regdb
+version from Ubuntu 14.04 (2013.02.13) is used. Following steps can
+optionally be used to update wireless-regdb to a newer snapshot to
+enable additional test cases:
+
+wget http://kernel.org/pub/software/network/wireless-regdb/wireless-regdb-2014.10.07.tar.xz
+tar xJf wireless-regdb-2014.10.07.tar.xz
+sudo mv /lib/crda/regulatory.bin{,-distro}
+sudo cp wireless-regdb-2014.10.07/regulatory.bin /lib/crda/regulatory.bin
+
+# following command can be used to verify that the new version is trusted
+regdbdump /lib/crda/regulatory.bin
+
+
+Download a snapshot of the hostap.git repository and build the programs
+
+git clone git://w1.fi/hostap.git
+cd hostap/tests/hwsim
+./build.sh
+
+
+Setup is now ready for testing. You can run a quick test to confirm that
+things work as expected:
+
+# load mac80211_hwsim and start test software
+./start.sh
+
+# run a single test case ap_open
+sudo ./run-tests.py ap_open
+
+This should print out following style results:
+
+DEV: wlan0: 02:00:00:00:00:00
+DEV: wlan1: 02:00:00:00:01:00
+DEV: wlan2: 02:00:00:00:02:00
+APDEV: wlan3
+APDEV: wlan4
+START ap_open 1/1
+Test: AP with open mode (no security) configuration
+Starting AP wlan3
+Connect STA wlan0 to AP
+PASS ap_open 0.175895 2015-01-17 20:12:07.486006
+passed all 1 test case(s)
+
+(If that "PASS ap_open" line does not show up, something unexpected has
+happened and the setup is not in working condition.)
+
+# to stop test software and unload mac80211_hwsim
+./stop.sh
+
+
+To run all available test cases (about thousand or so), you can run following:
+
+./run-all.sh
+
+This will take about half an hour to hour to run (if that sounds long, see
+vm/README for information on how parallel VMs can be used to speed this
+up; e.g., a 4-core i7-4770K can run these in under 10 minutes with 7
+parallel VMs).
+
+The results may look something like this:
+
+START grpform_goneg_fail_with_group_iface 1/981
+PASS grpform_goneg_fail_with_group_iface 0.371424 2015-01-17 22:17:16.659803
+START grpform2 2/981
+PASS grpform2 1.476142 2015-01-17 22:17:18.136539
+...
+START ext_password_psk_not_found 981/981
+PASS ext_password_psk_not_found 1.544709 2015-01-17 22:46:56.489764
+failed tests: wext_wpa2_psk wext_wep_open_auth wext_open wext_rfkill wext_scan_hidden wext_pmksa_cache wext_wep_shared_key_auth
+
+
+In this example, about 860 test cases passed and about 100 were skipped.
+
+Most of the skipped test cases are in following categories:
+- D-Bus (requires kvm-based test run, see vm/README)
+- VHT 80 and 160 MHz channels (requires wireless-regdb update)
+- DFS (requires wireless-regdb updates)
+
+The following test failed every time (i.e., other failed cases could be
+passed on second attempt):
+
+wext_pmf wext_wpa2_psk wext_wep_open_auth wext_open wext_rfkill wext_scan_hidden wext_pmksa_cache wext_wep_shared_key_auth
+
+WEXT failures are due to the specific cfg80211/mac80211 version from
+Backports not allowing WEXT support to be enabled. A newer build
+addresses that and these WEXT test cases pass, e.g., with this snapshot
+build:
+http://buildbot.w1.fi/backports-wireless-testing/backports-wireless-testing-2015-01-18-ba3f765.tar.bz2
+
+With that version, ibss_rsn is failing due to a known cfg80211
+regression in the specific snapshot build. All other test cases passed
+at least on retry or were skipped due to missing testing capability.
+
+With systemd based distros, e.g., Ubuntu 16.04, systemd-rfkill.service might
+block the mac80211_hwsim network devices.
+The tests will fail with
+  Exception: Failed to enable hostapd interface wlan3
+In the *.hostapd log, would will read
+  nl80211: Could not yet enable interface 'wlan3' due to rfkill
+Your syslog will read
+  systemd[1]: Starting Load/Save RF Kill Switch Status...
+This can be fixed by
+  systemctl mask systemd-rfkill.service

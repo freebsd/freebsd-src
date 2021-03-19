@@ -77,7 +77,7 @@ CONFIG_DRIVER_WIRED=y
 #CONFIG_DRIVER_MACSEC_QCA=y
 
 # Driver interface for Linux MACsec drivers
-#CONFIG_DRIVER_MACSEC_LINUX=y
+CONFIG_DRIVER_MACSEC_LINUX=y
 
 # Driver interface for the Broadcom RoboSwitch family
 #CONFIG_DRIVER_ROBOSWITCH=y
@@ -183,7 +183,7 @@ CONFIG_EAP_IKEV2=y
 #CONFIG_EAP_EKE=y
 
 # MACsec
-#CONFIG_MACSEC=y
+CONFIG_MACSEC=y
 
 # PKCS#12 (PFX) support (used to read private key and certificate file from
 # a file that usually has extension .p12 or .pfx)
@@ -248,7 +248,7 @@ CONFIG_CTRL_IFACE=y
 # Simultaneous Authentication of Equals (SAE), WPA3-Personal
 CONFIG_SAE=y
 
-# Disable scan result processing (ap_mode=1) to save code size by about 1 kB.
+# Disable scan result processing (ap_scan=1) to save code size by about 1 kB.
 # This can be used if ap_scan=1 mode is never enabled.
 #CONFIG_NO_SCAN_PROCESSING=y
 
@@ -310,10 +310,6 @@ CONFIG_BACKEND=file
 # bridge interfaces (commit 'bridge: respect RFC2863 operational state')').
 #CONFIG_NO_LINUX_PACKET_SOCKET_WAR=y
 
-# IEEE 802.11w (management frame protection), also known as PMF
-# Driver support is also needed for IEEE 802.11w.
-CONFIG_IEEE80211W=y
-
 # Support Operating Channel Validation
 #CONFIG_OCV=y
 
@@ -366,7 +362,7 @@ CONFIG_IEEE80211W=y
 #PLATFORMSDKLIB="/opt/Program Files/Microsoft Platform SDK/Lib"
 
 # Add support for new DBus control interface
-# (fi.w1.hostap.wpa_supplicant1)
+# (fi.w1.wpa_supplicant1)
 CONFIG_CTRL_IFACE_DBUS_NEW=y
 
 # Add introspection support for new DBus control interface
@@ -475,11 +471,7 @@ CONFIG_DEBUG_SYSLOG=y
 # Requires glibc 2.25 to build, falls back to /dev/random if unavailable.
 #CONFIG_GETRANDOM=y
 
-# IEEE 802.11n (High Throughput) support (mainly for AP mode)
-CONFIG_IEEE80211N=y
-
 # IEEE 802.11ac (Very High Throughput) support (mainly for AP mode)
-# (depends on CONFIG_IEEE80211N)
 CONFIG_IEEE80211AC=y
 
 # Wireless Network Management (IEEE Std 802.11v-2011)
@@ -514,7 +506,7 @@ CONFIG_AP=y
 CONFIG_P2P=y
 
 # Enable TDLS support
-#CONFIG_TDLS=y
+CONFIG_TDLS=y
 
 # Wi-Fi Display
 # This can be used to enable Wi-Fi Display extensions for P2P using an external
@@ -538,6 +530,8 @@ CONFIG_WIFI_DISPLAY=y
 #
 # External password backend for testing purposes (developer use)
 #CONFIG_EXT_PASSWORD_TEST=y
+# File-based backend to read passwords from an external file.
+#CONFIG_EXT_PASSWORD_FILE=y
 
 # Enable Fast Session Transfer (FST)
 #CONFIG_FST=y
@@ -610,6 +604,27 @@ CONFIG_BGSCAN_SIMPLE=y
 #CONFIG_OWE=y
 
 # Device Provisioning Protocol (DPP)
-# This requires CONFIG_IEEE80211W=y to be enabled, too. (see
-# wpa_supplicant/README-DPP for details)
 CONFIG_DPP=y
+
+# Wired equivalent privacy (WEP)
+# WEP is an obsolete cryptographic data confidentiality algorithm that is not
+# considered secure. It should not be used for anything anymore. The
+# functionality needed to use WEP is available in the current wpa_supplicant
+# release under this optional build parameter. This functionality is subject to
+# be completely removed in a future release.
+#CONFIG_WEP=y
+
+# Remove all TKIP functionality
+# TKIP is an old cryptographic data confidentiality algorithm that is not
+# considered secure. It should not be used anymore for anything else than a
+# backwards compatibility option as a group cipher when connecting to APs that
+# use WPA+WPA2 mixed mode. For now, the default wpa_supplicant build includes
+# support for this by default, but that functionality is subject to be removed
+# in the future.
+#CONFIG_NO_TKIP=y
+
+# Pre-Association Security Negotiation (PASN)
+# Experimental implementation based on IEEE P802.11z/D2.6 and the protocol
+# design is still subject to change. As such, this should not yet be enabled in
+# production use.
+#CONFIG_PASN=y

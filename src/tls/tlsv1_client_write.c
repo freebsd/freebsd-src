@@ -48,21 +48,9 @@ u8 * tls_send_client_hello(struct tlsv1_client *conn, size_t *out_len)
 	struct os_time now;
 	size_t len, i;
 	u8 *ext_start;
-	u16 tls_version = TLS_VERSION;
+	u16 tls_version = tls_client_highest_ver(conn);
 
-	/* Pick the highest locally enabled TLS version */
-#ifdef CONFIG_TLSV12
-	if ((conn->flags & TLS_CONN_DISABLE_TLSv1_2) &&
-	    tls_version == TLS_VERSION_1_2)
-		tls_version = TLS_VERSION_1_1;
-#endif /* CONFIG_TLSV12 */
-#ifdef CONFIG_TLSV11
-	if ((conn->flags & TLS_CONN_DISABLE_TLSv1_1) &&
-	    tls_version == TLS_VERSION_1_1)
-		tls_version = TLS_VERSION_1;
-#endif /* CONFIG_TLSV11 */
-	if ((conn->flags & TLS_CONN_DISABLE_TLSv1_0) &&
-	    tls_version == TLS_VERSION_1) {
+	if (!tls_version) {
 		wpa_printf(MSG_INFO, "TLSv1: No TLS version allowed");
 		return NULL;
 	}
@@ -474,7 +462,7 @@ static int tlsv1_key_x_rsa(struct tlsv1_client *conn, u8 **pos, u8 *end)
 	size_t clen;
 	int res;
 
-	if (tls_derive_pre_master_secret(pre_master_secret) < 0 ||
+	if (tls_derive_pre_master_secret(conn, pre_master_secret) < 0 ||
 	    tls_derive_keys(conn, pre_master_secret,
 			    TLS_PRE_MASTER_SECRET_LEN)) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Failed to derive keys");

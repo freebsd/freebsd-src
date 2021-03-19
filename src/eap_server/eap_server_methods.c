@@ -22,7 +22,8 @@ static struct eap_method *eap_methods;
  * @method: EAP type number
  * Returns: Pointer to EAP method or %NULL if not found
  */
-const struct eap_method * eap_server_get_eap_method(int vendor, EapType method)
+const struct eap_method * eap_server_get_eap_method(int vendor,
+						    enum eap_type method)
 {
 	struct eap_method *m;
 	for (m = eap_methods; m; m = m->next) {
@@ -42,7 +43,7 @@ const struct eap_method * eap_server_get_eap_method(int vendor, EapType method)
  * This function maps EAP type names into EAP type numbers based on the list of
  * EAP methods included in the build.
  */
-EapType eap_server_get_type(const char *name, int *vendor)
+enum eap_type eap_server_get_type(const char *name, int *vendor)
 {
 	struct eap_method *m;
 	for (m = eap_methods; m; m = m->next) {
@@ -69,7 +70,8 @@ EapType eap_server_get_type(const char *name, int *vendor)
  * is not needed anymore.
  */
 struct eap_method * eap_server_method_alloc(int version, int vendor,
-					    EapType method, const char *name)
+					    enum eap_type method,
+					    const char *name)
 {
 	struct eap_method *eap;
 	eap = os_zalloc(sizeof(*eap));
@@ -163,7 +165,7 @@ void eap_server_unregister_methods(void)
  * This function maps EAP type numbers into EAP type names based on the list of
  * EAP methods included in the build.
  */
-const char * eap_server_get_name(int vendor, EapType type)
+const char * eap_server_get_name(int vendor, enum eap_type type)
 {
 	struct eap_method *m;
 	if (vendor == EAP_VENDOR_IETF && type == EAP_TYPE_EXPANDED)

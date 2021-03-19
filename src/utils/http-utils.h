@@ -28,11 +28,11 @@ struct http_logo {
 
 struct http_cert {
 	char **dnsname;
-	unsigned int num_dnsname;
+	size_t num_dnsname;
 	struct http_othername *othername;
-	unsigned int num_othername;
+	size_t num_othername;
 	struct http_logo *logo;
-	unsigned int num_logo;
+	size_t num_logo;
 };
 
 int soap_init_client(struct http_ctx *ctx, const char *address,

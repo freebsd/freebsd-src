@@ -280,7 +280,7 @@ static struct wpabuf * eap_gpsk_process_gpsk_1(struct eap_sm *sm,
 	struct wpabuf *resp;
 
 	if (data->state != GPSK_1) {
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
@@ -588,7 +588,7 @@ static struct wpabuf * eap_gpsk_process_gpsk_3(struct eap_sm *sm,
 	const u8 *pos, *end;
 
 	if (data->state != GPSK_3) {
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
@@ -671,7 +671,7 @@ static struct wpabuf * eap_gpsk_process(struct eap_sm *sm, void *priv,
 
 	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_GPSK, reqData, &len);
 	if (pos == NULL || len < 1) {
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
@@ -680,10 +680,10 @@ static struct wpabuf * eap_gpsk_process(struct eap_sm *sm, void *priv,
 	len--;
 	wpa_printf(MSG_DEBUG, "EAP-GPSK: Received frame: opcode %d", opcode);
 
-	ret->ignore = FALSE;
+	ret->ignore = false;
 	ret->methodState = METHOD_MAY_CONT;
 	ret->decision = DECISION_FAIL;
-	ret->allowNotifications = FALSE;
+	ret->allowNotifications = false;
 
 	switch (opcode) {
 	case EAP_GPSK_OPCODE_GPSK_1:
@@ -696,7 +696,7 @@ static struct wpabuf * eap_gpsk_process(struct eap_sm *sm, void *priv,
 		wpa_printf(MSG_DEBUG,
 			   "EAP-GPSK: Ignoring message with unknown opcode %d",
 			   opcode);
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
@@ -704,7 +704,7 @@ static struct wpabuf * eap_gpsk_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_gpsk_isKeyAvailable(struct eap_sm *sm, void *priv)
+static bool eap_gpsk_isKeyAvailable(struct eap_sm *sm, void *priv)
 {
 	struct eap_gpsk_data *data = priv;
 	return data->state == SUCCESS;

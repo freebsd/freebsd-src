@@ -242,6 +242,21 @@ int wps_build_vendor_ext(struct wps_device_data *dev, struct wpabuf *msg)
 }
 
 
+int wps_build_application_ext(struct wps_device_data *dev, struct wpabuf *msg)
+{
+	if (!dev->application_ext)
+		return 0;
+
+	wpa_hexdump_buf(MSG_DEBUG, "WPS:  * Application Extension",
+			dev->application_ext);
+	wpabuf_put_be16(msg, ATTR_APPLICATION_EXT);
+	wpabuf_put_be16(msg, wpabuf_len(dev->application_ext));
+	wpabuf_put_buf(msg, dev->application_ext);
+
+	return 0;
+}
+
+
 static int wps_process_manufacturer(struct wps_device_data *dev, const u8 *str,
 				    size_t str_len)
 {
@@ -424,4 +439,6 @@ void wps_device_data_free(struct wps_device_data *dev)
 	dev->model_number = NULL;
 	os_free(dev->serial_number);
 	dev->serial_number = NULL;
+	wpabuf_free(dev->application_ext);
+	dev->application_ext = NULL;
 }

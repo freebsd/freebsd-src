@@ -151,6 +151,12 @@ enum teap_tlv_result_status {
 	TEAP_STATUS_FAILURE = 2
 };
 
+/* Identity-Type values within Identity-Type TLV */
+enum teap_identity_types {
+	TEAP_IDENTITY_TYPE_USER = 1,
+	TEAP_IDENTITY_TYPE_MACHINE = 2,
+};
+
 #define TEAP_TLV_MANDATORY 0x8000
 #define TEAP_TLV_TYPE_MASK 0x3fff
 
@@ -188,6 +194,8 @@ struct eap_teap_tlv_parse {
 	size_t basic_auth_req_len;
 	u8 *basic_auth_resp;
 	size_t basic_auth_resp_len;
+	u32 error_code;
+	u16 identity_type;
 };
 
 void eap_teap_put_tlv_hdr(struct wpabuf *buf, u16 type, u16 len);
@@ -195,10 +203,12 @@ void eap_teap_put_tlv(struct wpabuf *buf, u16 type, const void *data, u16 len);
 void eap_teap_put_tlv_buf(struct wpabuf *buf, u16 type,
 			  const struct wpabuf *data);
 struct wpabuf * eap_teap_tlv_eap_payload(struct wpabuf *buf);
-int eap_teap_derive_eap_msk(const u8 *simck, u8 *msk);
-int eap_teap_derive_eap_emsk(const u8 *simck, u8 *emsk);
-int eap_teap_derive_cmk_basic_pw_auth(const u8 *s_imck_msk, u8 *cmk);
-int eap_teap_derive_imck(const u8 *prev_s_imck_msk, const u8 *prev_s_imck_emsk,
+int eap_teap_derive_eap_msk(u16 tls_cs, const u8 *simck, u8 *msk);
+int eap_teap_derive_eap_emsk(u16 tls_cs, const u8 *simck, u8 *emsk);
+int eap_teap_derive_cmk_basic_pw_auth(u16 tls_cs, const u8 *s_imck_msk,
+				      u8 *cmk);
+int eap_teap_derive_imck(u16 tls_cs,
+			 const u8 *prev_s_imck_msk, const u8 *prev_s_imck_emsk,
 			 const u8 *msk, size_t msk_len,
 			 const u8 *emsk, size_t emsk_len,
 			 u8 *s_imck_msk, u8 *cmk_msk,
@@ -212,7 +222,9 @@ int eap_teap_parse_tlv(struct eap_teap_tlv_parse *tlv,
 const char * eap_teap_tlv_type_str(enum teap_tlv_types type);
 struct wpabuf * eap_teap_tlv_result(int status, int intermediate);
 struct wpabuf * eap_teap_tlv_error(enum teap_error_codes error);
-int eap_teap_allowed_anon_prov_phase2_method(u8 type);
+struct wpabuf * eap_teap_tlv_identity_type(enum teap_identity_types id);
+enum eap_type;
+int eap_teap_allowed_anon_prov_phase2_method(int vendor, enum eap_type type);
 int eap_teap_allowed_anon_prov_cipher_suite(u16 cs);
 
 #endif /* EAP_TEAP_H */

@@ -11,31 +11,33 @@
 
 #include "eap_common/eap_defs.h"
 
-const struct eap_method * eap_peer_get_eap_method(int vendor, EapType method);
+const struct eap_method * eap_peer_get_eap_method(int vendor,
+						  enum eap_type method);
 const struct eap_method * eap_peer_get_methods(size_t *count);
 
 struct eap_method * eap_peer_method_alloc(int version, int vendor,
-					  EapType method, const char *name);
+					  enum eap_type method,
+					  const char *name);
 int eap_peer_method_register(struct eap_method *method);
 
 
 #ifdef IEEE8021X_EAPOL
 
-EapType eap_peer_get_type(const char *name, int *vendor);
-const char * eap_get_name(int vendor, EapType type);
+enum eap_type eap_peer_get_type(const char *name, int *vendor);
+const char * eap_get_name(int vendor, enum eap_type type);
 size_t eap_get_names(char *buf, size_t buflen);
 char ** eap_get_names_as_string_array(size_t *num);
 void eap_peer_unregister_methods(void);
 
 #else /* IEEE8021X_EAPOL */
 
-static inline EapType eap_peer_get_type(const char *name, int *vendor)
+static inline enum eap_type eap_peer_get_type(const char *name, int *vendor)
 {
 	*vendor = EAP_VENDOR_IETF;
 	return EAP_TYPE_NONE;
 }
 
-static inline const char * eap_get_name(int vendor, EapType type)
+static inline const char * eap_get_name(int vendor, enum eap_type type)
 {
 	return NULL;
 }

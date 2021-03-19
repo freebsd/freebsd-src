@@ -39,7 +39,7 @@ static struct dl_list alloc_list = DL_LIST_HEAD_INIT(alloc_list);
 
 struct os_alloc_trace {
 	unsigned int magic;
-	struct dl_list list;
+	struct dl_list list __attribute__((aligned(16)));
 	size_t len;
 	WPA_TRACE_INFO
 } __attribute__((aligned(16)));
@@ -49,10 +49,16 @@ struct os_alloc_trace {
 
 void os_sleep(os_time_t sec, os_time_t usec)
 {
+#if defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200809L)
+	const struct timespec req = { sec, usec * 1000 };
+
+	nanosleep(&req, NULL);
+#else
 	if (sec)
 		sleep(sec);
 	if (usec)
 		usleep(usec);
+#endif
 }
 
 
@@ -331,6 +337,8 @@ char * os_rel2abs_path(const char *rel_path)
 
 int os_program_init(void)
 {
+	unsigned int seed;
+
 #ifdef ANDROID
 	/*
 	 * We ignore errors here since errors are normal if we
@@ -358,6 +366,9 @@ int os_program_init(void)
 	cap.inheritable = 0;
 	capset(&header, &cap);
 #endif /* ANDROID */
+
+	if (os_get_random((unsigned char *) &seed, sizeof(seed)) == 0)
+		srandom(seed);
 
 	return 0;
 }

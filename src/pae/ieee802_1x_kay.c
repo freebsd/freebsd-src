@@ -354,7 +354,7 @@ ieee802_1x_kay_get_live_peer(struct ieee802_1x_mka_participant *participant,
 /**
  * ieee802_1x_kay_is_in_potential_peer
  */
-static Boolean
+static bool
 ieee802_1x_kay_is_in_potential_peer(
 	struct ieee802_1x_mka_participant *participant, const u8 *mi)
 {
@@ -365,7 +365,7 @@ ieee802_1x_kay_is_in_potential_peer(
 /**
  * ieee802_1x_kay_is_in_live_peer
  */
-static Boolean
+static bool
 ieee802_1x_kay_is_in_live_peer(
 	struct ieee802_1x_mka_participant *participant, const u8 *mi)
 {
@@ -426,8 +426,8 @@ u64 mka_sci_u64(struct ieee802_1x_mka_sci *sci)
 }
 
 
-static Boolean sci_equal(const struct ieee802_1x_mka_sci *a,
-			 const struct ieee802_1x_mka_sci *b)
+static bool sci_equal(const struct ieee802_1x_mka_sci *a,
+		      const struct ieee802_1x_mka_sci *b)
 {
 	return os_memcmp(a, b, sizeof(struct ieee802_1x_mka_sci)) == 0;
 }
@@ -486,7 +486,7 @@ ieee802_1x_kay_init_receive_sa(struct receive_sc *psc, u8 an, u32 lowest_pn,
 	psa->sc = psc;
 
 	os_get_time(&psa->created_time);
-	psa->in_use = FALSE;
+	psa->in_use = false;
 
 	dl_list_add(&psc->sa_list, &psa->list);
 	wpa_printf(MSG_DEBUG,
@@ -534,7 +534,7 @@ ieee802_1x_kay_init_receive_sc(const struct ieee802_1x_mka_sci *psci)
 	os_memcpy(&psc->sci, psci, sizeof(psc->sci));
 
 	os_get_time(&psc->created_time);
-	psc->receiving = FALSE;
+	psc->receiving = false;
 
 	dl_list_init(&psc->sa_list);
 	wpa_printf(MSG_DEBUG, "KaY: Create receive SC: SCI %s",
@@ -594,7 +594,7 @@ ieee802_1x_kay_create_peer(const u8 *mi, u32 mn)
 	os_memcpy(peer->mi, mi, MI_LEN);
 	peer->mn = mn;
 	peer->expire = time(NULL) + MKA_LIFE_TIME / 1000;
-	peer->sak_used = FALSE;
+	peer->sak_used = false;
 	peer->missing_sak_use_count = 0;
 
 	return peer;
@@ -706,11 +706,11 @@ ieee802_1x_kay_move_live_peer(struct ieee802_1x_mka_participant *participant,
 /**
  *  ieee802_1x_mka_basic_body_present -
  */
-static Boolean
+static bool
 ieee802_1x_mka_basic_body_present(
 	struct ieee802_1x_mka_participant *participant)
 {
-	return TRUE;
+	return true;
 }
 
 
@@ -774,14 +774,14 @@ ieee802_1x_mka_encode_basic_body(
 }
 
 
-static Boolean
+static bool
 reset_participant_mi(struct ieee802_1x_mka_participant *participant)
 {
 	if (os_get_random(participant->mi, sizeof(participant->mi)) < 0)
-		return FALSE;
+		return false;
 	participant->mn = 0;
 
-	return TRUE;
+	return true;
 }
 
 
@@ -888,13 +888,13 @@ ieee802_1x_mka_decode_basic_body(struct ieee802_1x_kay *kay, const u8 *mka_msg,
 
 		peer->macsec_desired = body->macsec_desired;
 		peer->macsec_capability = body->macsec_capability;
-		peer->is_key_server = (Boolean) body->key_server;
+		peer->is_key_server = body->key_server;
 		peer->key_server_priority = body->priority;
 	} else if (peer->mn < be_to_host32(body->actor_mn)) {
 		peer->mn = be_to_host32(body->actor_mn);
 		peer->macsec_desired = body->macsec_desired;
 		peer->macsec_capability = body->macsec_capability;
-		peer->is_key_server = (Boolean) body->key_server;
+		peer->is_key_server = body->key_server;
 		peer->key_server_priority = body->priority;
 	} else {
 		wpa_printf(MSG_WARNING,
@@ -909,7 +909,7 @@ ieee802_1x_mka_decode_basic_body(struct ieee802_1x_kay *kay, const u8 *mka_msg,
 /**
  * ieee802_1x_mka_live_peer_body_present
  */
-static Boolean
+static bool
 ieee802_1x_mka_live_peer_body_present(
 	struct ieee802_1x_mka_participant *participant)
 {
@@ -969,7 +969,7 @@ ieee802_1x_mka_encode_live_peer_body(
 /**
  * ieee802_1x_mka_potential_peer_body_present
  */
-static Boolean
+static bool
 ieee802_1x_mka_potential_peer_body_present(
 	struct ieee802_1x_mka_participant *participant)
 {
@@ -1030,7 +1030,7 @@ ieee802_1x_mka_encode_potential_peer_body(
 /**
  * ieee802_1x_mka_i_in_peerlist -
  */
-static Boolean
+static bool
 ieee802_1x_mka_i_in_peerlist(struct ieee802_1x_mka_participant *participant,
 			     const u8 *mka_msg, size_t msg_len)
 {
@@ -1055,7 +1055,7 @@ ieee802_1x_mka_i_in_peerlist(struct ieee802_1x_mka_participant *participant,
 				   left_len, MKA_HDR_LEN,
 				   MKA_ALIGN_LENGTH(body_len),
 				   DEFAULT_ICV_LEN);
-			return FALSE;
+			return false;
 		}
 
 		if (body_type != MKA_LIVE_PEER_LIST &&
@@ -1096,12 +1096,12 @@ ieee802_1x_mka_i_in_peerlist(struct ieee802_1x_mka_participant *participant,
 				if (mn == participant->mn ||
 				    (participant->mn > 1 &&
 				     mn == participant->mn - 1))
-					return TRUE;
+					return true;
 			}
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -1116,7 +1116,7 @@ static int ieee802_1x_mka_decode_live_peer_body(
 	struct ieee802_1x_kay_peer *peer;
 	size_t body_len;
 	size_t i;
-	Boolean is_included;
+	bool is_included;
 
 	is_included = ieee802_1x_kay_is_in_live_peer(
 		participant, participant->current_peer_id.mi);
@@ -1209,7 +1209,7 @@ ieee802_1x_mka_decode_potential_peer_body(
 /**
  * ieee802_1x_mka_sak_use_body_present
  */
-static Boolean
+static bool
 ieee802_1x_mka_sak_use_body_present(
 	struct ieee802_1x_mka_participant *participant)
 {
@@ -1287,7 +1287,7 @@ ieee802_1x_mka_encode_sak_use_body(
 	struct ieee802_1x_mka_sak_use_body *body;
 	struct ieee802_1x_kay *kay = participant->kay;
 	unsigned int length;
-	u32 pn = 1;
+	u32 olpn, llpn;
 
 	length = ieee802_1x_mka_get_sak_use_length(participant);
 	body = wpabuf_put(buf, length);
@@ -1296,28 +1296,41 @@ ieee802_1x_mka_encode_sak_use_body(
 	set_mka_param_body_len(body, length - MKA_HDR_LEN);
 
 	if (length == MKA_HDR_LEN) {
-		body->ptx = TRUE;
-		body->prx = TRUE;
+		body->ptx = true;
+		body->prx = true;
 		body->lan = 0;
-		body->lrx = FALSE;
-		body->ltx = FALSE;
-		body->delay_protect = FALSE;
+		body->lrx = false;
+		body->ltx = false;
+		body->delay_protect = false;
 		return 0;
 	}
 
 	/* data delay protect */
 	body->delay_protect = kay->mka_hello_time <= MKA_BOUNDED_HELLO_TIME;
-	/* lowest accept packet number */
-	pn = ieee802_1x_mka_get_lpn(participant, &participant->lki);
-	if (pn > kay->pn_exhaustion) {
-		wpa_printf(MSG_WARNING, "KaY: My LPN exhaustion");
-		if (participant->is_key_server)
-			participant->new_sak = TRUE;
+	/* lowest accept packet numbers */
+	olpn = ieee802_1x_mka_get_lpn(participant, &participant->oki);
+	body->olpn = host_to_be32(olpn);
+	llpn = ieee802_1x_mka_get_lpn(participant, &participant->lki);
+	body->llpn = host_to_be32(llpn);
+	if (participant->is_key_server) {
+		/* The CP will spend most of it's time in RETIRE where only
+		 * the old key is populated. Therefore we should be checking
+		 * the OLPN most of the time.
+		 */
+		if (participant->lrx) {
+			if (llpn > kay->pn_exhaustion) {
+				wpa_printf(MSG_WARNING,
+					   "KaY: My LLPN exhaustion");
+				participant->new_sak = true;
+			}
+		} else {
+			if (olpn > kay->pn_exhaustion) {
+				wpa_printf(MSG_WARNING,
+					   "KaY: My OLPN exhaustion");
+				participant->new_sak = true;
+			}
+		}
 	}
-
-	body->llpn = host_to_be32(pn);
-	pn = ieee802_1x_mka_get_lpn(participant, &participant->oki);
-	body->olpn = host_to_be32(pn);
 
 	/* plain tx, plain rx */
 	body->ptx = !kay->macsec_protect;
@@ -1334,23 +1347,23 @@ ieee802_1x_mka_encode_sak_use_body(
 	body->oan = participant->oan;
 	if (participant->oki.kn != participant->lki.kn &&
 	    participant->oki.kn != 0) {
-		body->otx = TRUE;
-		body->orx = TRUE;
+		body->otx = true;
+		body->orx = true;
 		os_memcpy(body->osrv_mi, participant->oki.mi,
 			  sizeof(body->osrv_mi));
 		body->okn = host_to_be32(participant->oki.kn);
 	} else {
-		body->otx = FALSE;
-		body->orx = FALSE;
+		body->otx = false;
+		body->orx = false;
 	}
 
 	/* set CP's variable */
 	if (body->ltx) {
-		kay->tx_enable = TRUE;
-		kay->port_enable = TRUE;
+		kay->tx_enable = true;
+		kay->port_enable = true;
 	}
 	if (body->lrx)
-		kay->rx_enable = TRUE;
+		kay->rx_enable = true;
 
 	ieee802_1x_mka_dump_sak_use_body(body);
 	return 0;
@@ -1368,15 +1381,12 @@ ieee802_1x_mka_decode_sak_use_body(
 	struct ieee802_1x_mka_hdr *hdr;
 	struct ieee802_1x_mka_sak_use_body *body;
 	struct ieee802_1x_kay_peer *peer;
-	struct receive_sc *rxsc;
-	struct receive_sa *rxsa;
 	struct data_key *sa_key = NULL;
 	size_t body_len;
 	struct ieee802_1x_mka_ki ki;
 	u32 lpn;
-	Boolean all_receiving;
-	Boolean found;
 	struct ieee802_1x_kay *kay = participant->kay;
+	u32 olpn, llpn;
 
 	if (!participant->principal) {
 		wpa_printf(MSG_WARNING, "KaY: Participant is not principal");
@@ -1417,46 +1427,6 @@ ieee802_1x_mka_decode_sak_use_body(
 
 	if (body->ptx)
 		wpa_printf(MSG_WARNING, "KaY: peer's plain tx are TRUE");
-
-	/* check latest key is valid */
-	if (body->ltx || body->lrx) {
-		found = FALSE;
-		os_memcpy(ki.mi, body->lsrv_mi, sizeof(ki.mi));
-		ki.kn = be_to_host32(body->lkn);
-		dl_list_for_each(sa_key, &participant->sak_list,
-				 struct data_key, list) {
-			if (is_ki_equal(&sa_key->key_identifier, &ki)) {
-				found = TRUE;
-				break;
-			}
-		}
-		if (!found) {
-			wpa_printf(MSG_INFO, "KaY: Latest key is invalid");
-			return -1;
-		}
-		if (os_memcmp(participant->lki.mi, body->lsrv_mi,
-			      sizeof(participant->lki.mi)) == 0 &&
-		    be_to_host32(body->lkn) == participant->lki.kn &&
-		    body->lan == participant->lan) {
-			peer->sak_used = TRUE;
-		}
-		if (body->ltx && peer->is_key_server) {
-			ieee802_1x_cp_set_servertransmitting(kay->cp, TRUE);
-			ieee802_1x_cp_sm_step(kay->cp);
-		}
-	}
-
-	/* check old key is valid (but only if we remember our old key) */
-	if (participant->oki.kn != 0 && (body->otx || body->orx)) {
-		if (os_memcmp(participant->oki.mi, body->osrv_mi,
-			      sizeof(participant->oki.mi)) != 0 ||
-		    be_to_host32(body->okn) != participant->oki.kn ||
-		    body->oan != participant->oan) {
-			wpa_printf(MSG_WARNING, "KaY: Old key is invalid");
-			return -1;
-		}
-	}
-
 	/* TODO: how to set the MACsec hardware when delay_protect is true */
 	if (body->delay_protect &&
 	    (!be_to_host32(body->llpn) || !be_to_host32(body->olpn))) {
@@ -1465,65 +1435,132 @@ ieee802_1x_mka_decode_sak_use_body(
 		return -1;
 	}
 
-	/* check all live peer have used the sak for receiving sa */
-	all_receiving = TRUE;
-	dl_list_for_each(peer, &participant->live_peers,
-			 struct ieee802_1x_kay_peer, list) {
-		if (!peer->sak_used) {
-			all_receiving = FALSE;
-			break;
-		}
-	}
-	if (all_receiving) {
-		participant->to_dist_sak = FALSE;
-		ieee802_1x_cp_set_allreceiving(kay->cp, TRUE);
-		ieee802_1x_cp_sm_step(kay->cp);
+	olpn = be_to_host32(body->olpn);
+	llpn = be_to_host32(body->llpn);
+
+	/* Our most recent distributed key should be the first in the list.
+	 * If it doesn't exist then we can't really do anything.
+	 * Be lenient and don't return error here as there are legitimate cases
+	 * where this can happen such as when a new participant joins the CA and
+	 * the first frame it receives can have a SAKuse but not distSAK.
+	 */
+	sa_key = dl_list_first(&participant->sak_list, struct data_key, list);
+	if (!sa_key) {
+		wpa_printf(MSG_INFO,
+			   "KaY: We don't have a latest distributed key - ignore SAK use");
+		return 0;
 	}
 
-	/* if I'm key server, and detects peer member pn exhaustion, rekey. */
-	lpn = be_to_host32(body->llpn);
-	if (lpn > kay->pn_exhaustion) {
-		if (participant->is_key_server) {
-			participant->new_sak = TRUE;
-			wpa_printf(MSG_WARNING, "KaY: Peer LPN exhaustion");
-		}
+	/* The peer's most recent key will be the "latest key" if it is present
+	 * otherwise it will be the "old key" if in the RETIRE state.
+	 */
+	if (body->lrx) {
+		os_memcpy(ki.mi, body->lsrv_mi, sizeof(ki.mi));
+		ki.kn = be_to_host32(body->lkn);
+		lpn = llpn;
+	} else {
+		os_memcpy(ki.mi, body->osrv_mi, sizeof(ki.mi));
+		ki.kn = be_to_host32(body->okn);
+		lpn = olpn;
 	}
 
-	if (sa_key)
-		sa_key->next_pn = lpn;
-	found = FALSE;
-	dl_list_for_each(rxsc, &participant->rxsc_list, struct receive_sc,
-			 list) {
-		dl_list_for_each(rxsa, &rxsc->sa_list, struct receive_sa,
-				 list) {
-			if (sa_key && rxsa->pkey == sa_key) {
-				found = TRUE;
+	/* If the most recent distributed keys don't agree then someone is out
+	 * of sync. Perhaps non key server hasn't processed the most recent
+	 * distSAK yet and the key server is processing an old packet after it
+	 * has done distSAK. Be lenient and don't return error in this
+	 * particular case; otherwise, the key server will reset its MI and
+	 * cause a traffic disruption which is really undesired for a simple
+	 * timing issue.
+	 */
+	if (!is_ki_equal(&sa_key->key_identifier, &ki)) {
+		wpa_printf(MSG_INFO,
+			   "KaY: Distributed keys don't match - ignore SAK use");
+		return 0;
+	}
+	sa_key->next_pn = lpn;
+
+	/* The key server must check that all peers are using the most recent
+	 * distributed key. Non key servers must check if the key server is
+	 * transmitting.
+	 */
+	if (participant->is_key_server) {
+		struct ieee802_1x_kay_peer *peer_iter;
+		bool all_receiving = true;
+
+		/* Distributed keys are equal from above comparison. */
+		peer->sak_used = true;
+
+		dl_list_for_each(peer_iter, &participant->live_peers,
+				 struct ieee802_1x_kay_peer, list) {
+			if (!peer_iter->sak_used) {
+				all_receiving = false;
 				break;
 			}
 		}
-		if (found)
-			break;
-	}
-	if (!found) {
-		wpa_printf(MSG_WARNING, "KaY: Can't find rxsa");
-		return -1;
+		if (all_receiving) {
+			participant->to_dist_sak = false;
+			ieee802_1x_cp_set_allreceiving(kay->cp, true);
+			ieee802_1x_cp_sm_step(kay->cp);
+		}
+	} else if (peer->is_key_server) {
+		if (body->ltx) {
+			ieee802_1x_cp_set_servertransmitting(kay->cp, true);
+			ieee802_1x_cp_sm_step(kay->cp);
+		}
 	}
 
+	/* If I'm key server, and detects peer member PN exhaustion, rekey.
+	 * We only need to check the PN of the most recent distributed key. This
+	 * could be the peer's "latest" or "old" key depending on its current
+	 * state. If both "old" and "latest" keys are present then the "old" key
+	 * has already been exhausted.
+	 */
+	if (participant->is_key_server && lpn > kay->pn_exhaustion) {
+		participant->new_sak = true;
+		wpa_printf(MSG_WARNING, "KaY: Peer LPN exhaustion");
+	}
+
+	/* Get the associated RX SAs of the keys for delay protection since both
+	 * can be in use. Delay protect window (communicated via MKA) is tighter
+	 * than SecY's current replay protect window, so tell SecY the new (and
+	 * higher) lpn.
+	 */
 	if (body->delay_protect) {
-		secy_get_receive_lowest_pn(participant->kay, rxsa);
-		if (lpn > rxsa->lowest_pn) {
-			/* Delay protect window (communicated via MKA) is
-			 * tighter than SecY's current replay protect window,
-			 * so tell SecY the new (and higher) lpn. */
-			rxsa->lowest_pn = lpn;
-			secy_set_receive_lowest_pn(participant->kay, rxsa);
-			wpa_printf(MSG_DEBUG, "KaY: update lpn =0x%x", lpn);
+		struct receive_sc *rxsc;
+		struct receive_sa *rxsa;
+		bool found = false;
+
+		dl_list_for_each(rxsc, &participant->rxsc_list,
+				 struct receive_sc, list) {
+			dl_list_for_each(rxsa, &rxsc->sa_list,
+					 struct receive_sa, list) {
+				if (sa_key && rxsa->pkey == sa_key) {
+					found = true;
+					break;
+				}
+			}
+			if (found)
+				break;
 		}
-		/* FIX: Delay protection for olpn not implemented.
-		 * Note that Old Key is only active for MKA_SAK_RETIRE_TIME
-		 * (3 seconds) and delay protection does allow PN's within
-		 * a 2 seconds window, so olpn would be a lot of work for
-		 * just 1 second's worth of protection. */
+		if (found) {
+			secy_get_receive_lowest_pn(participant->kay, rxsa);
+			if (lpn > rxsa->lowest_pn) {
+				rxsa->lowest_pn = lpn;
+				secy_set_receive_lowest_pn(participant->kay,
+							   rxsa);
+				wpa_printf(MSG_DEBUG,
+					   "KaY: update dist LPN=0x%x", lpn);
+			}
+		}
+
+		/* FIX: Delay protection for the SA being replaced is not
+		 * implemented. Note that this key will be active for at least
+		 * MKA_SAK_RETIRE_TIME (3 seconds) but could be longer depending
+		 * on how long it takes to get from RECEIVE to TRANSMITTING or
+		 * if going via ABANDON. Delay protection does allow PNs within
+		 * a 2 second window, so getting PN would be a lot of work for
+		 * just 1 second's worth of protection.
+		 */
 	}
 
 	return 0;
@@ -1533,7 +1570,7 @@ ieee802_1x_mka_decode_sak_use_body(
 /**
  * ieee802_1x_mka_dist_sak_body_present
  */
-static Boolean
+static bool
 ieee802_1x_mka_dist_sak_body_present(
 	struct ieee802_1x_mka_participant *participant)
 {
@@ -1626,8 +1663,8 @@ ieee802_1x_mka_encode_dist_sak_body(
  */
 static void ieee802_1x_kay_init_data_key(struct data_key *pkey)
 {
-	pkey->transmits = TRUE;
-	pkey->receives = TRUE;
+	pkey->transmits = true;
+	pkey->receives = true;
 	os_get_time(&pkey->created_time);
 
 	pkey->next_pn = 1;
@@ -1693,21 +1730,21 @@ ieee802_1x_mka_decode_dist_sak_body(
 	}
 
 	if (body_len == 0) {
-		kay->authenticated = TRUE;
-		kay->secured = FALSE;
-		kay->failed = FALSE;
-		participant->advised_desired = FALSE;
+		kay->authenticated = true;
+		kay->secured = false;
+		kay->failed = false;
+		participant->advised_desired = false;
 		ieee802_1x_cp_connect_authenticated(kay->cp);
 		ieee802_1x_cp_sm_step(kay->cp);
 		wpa_printf(MSG_WARNING, "KaY: The Key server advise no MACsec");
-		participant->to_use_sak = FALSE;
+		participant->to_use_sak = false;
 		return 0;
 	}
 
-	participant->advised_desired = TRUE;
-	kay->authenticated = FALSE;
-	kay->secured = TRUE;
-	kay->failed = FALSE;
+	participant->advised_desired = true;
+	kay->authenticated = false;
+	kay->secured = true;
+	kay->failed = false;
 	ieee802_1x_cp_connect_secure(kay->cp);
 	ieee802_1x_cp_sm_step(kay->cp);
 
@@ -1788,7 +1825,7 @@ ieee802_1x_mka_decode_dist_sak_body(
 	ieee802_1x_cp_sm_step(kay->cp);
 
 	kay->rcvd_keys++;
-	participant->to_use_sak = TRUE;
+	participant->to_use_sak = true;
 
 	return 0;
 }
@@ -1797,10 +1834,10 @@ ieee802_1x_mka_decode_dist_sak_body(
 /**
  * ieee802_1x_mka_icv_body_present
  */
-static Boolean
+static bool
 ieee802_1x_mka_icv_body_present(struct ieee802_1x_mka_participant *participant)
 {
-	return TRUE;
+	return true;
 }
 
 
@@ -1965,7 +2002,7 @@ struct mka_param_body_handler {
 	int (*body_rx)(struct ieee802_1x_mka_participant *participant,
 		       const u8 *mka_msg, size_t msg_len);
 	int (*body_length)(struct ieee802_1x_mka_participant *participant);
-	Boolean (*body_present)(struct ieee802_1x_mka_participant *participant);
+	bool (*body_present)(struct ieee802_1x_mka_participant *participant);
 };
 
 
@@ -2192,7 +2229,7 @@ ieee802_1x_kay_generate_new_sak(struct ieee802_1x_mka_participant *participant)
 
 	dl_list_for_each(peer, &participant->live_peers,
 			 struct ieee802_1x_kay_peer, list)
-		peer->sak_used = FALSE;
+		peer->sak_used = false;
 
 	kay->dist_kn++;
 	kay->dist_an++;
@@ -2232,13 +2269,13 @@ ieee802_1x_kay_elect_key_server(struct ieee802_1x_mka_participant *participant)
 	struct ieee802_1x_kay_peer *peer;
 	struct ieee802_1x_kay_peer *key_server = NULL;
 	struct ieee802_1x_kay *kay = participant->kay;
-	Boolean i_is_key_server;
+	bool i_is_key_server;
 	int priority_comparison;
 
 	if (participant->is_obliged_key_server) {
-		participant->new_sak = TRUE;
-		participant->to_dist_sak = FALSE;
-		ieee802_1x_cp_set_electedself(kay->cp, TRUE);
+		participant->new_sak = true;
+		participant->to_dist_sak = false;
+		ieee802_1x_cp_set_electedself(kay->cp, true);
 		return 0;
 	}
 
@@ -2258,7 +2295,7 @@ ieee802_1x_kay_elect_key_server(struct ieee802_1x_mka_participant *participant)
 	}
 
 	/* elect the key server between me and the above elected peer */
-	i_is_key_server = FALSE;
+	i_is_key_server = false;
 	if (key_server && participant->can_be_key_server) {
 		struct ieee802_1x_kay_peer tmp;
 
@@ -2266,29 +2303,29 @@ ieee802_1x_kay_elect_key_server(struct ieee802_1x_mka_participant *participant)
 		os_memcpy(&tmp.sci, &kay->actor_sci, sizeof(tmp.sci));
 		priority_comparison = compare_priorities(&tmp, key_server);
 		if (priority_comparison < 0) {
-			i_is_key_server = TRUE;
+			i_is_key_server = true;
 		} else if (priority_comparison == 0) {
 			wpa_printf(MSG_WARNING,
 				   "KaY: Cannot elect key server between me and peer, duplicate MAC detected");
 			key_server = NULL;
 		}
 	} else if (participant->can_be_key_server) {
-		i_is_key_server = TRUE;
+		i_is_key_server = true;
 	}
 
 	if (i_is_key_server) {
-		ieee802_1x_cp_set_electedself(kay->cp, TRUE);
+		ieee802_1x_cp_set_electedself(kay->cp, true);
 		if (!sci_equal(&kay->key_server_sci, &kay->actor_sci)) {
 			ieee802_1x_cp_signal_chgdserver(kay->cp);
 			ieee802_1x_cp_sm_step(kay->cp);
 		}
 
-		participant->is_key_server = TRUE;
-		participant->principal = TRUE;
-		participant->new_sak = TRUE;
+		participant->is_key_server = true;
+		participant->principal = true;
+		participant->new_sak = true;
 		wpa_printf(MSG_DEBUG, "KaY: I am elected as key server");
-		participant->to_dist_sak = FALSE;
-		participant->is_elected = TRUE;
+		participant->to_dist_sak = false;
+		participant->is_elected = true;
 
 		os_memcpy(&kay->key_server_sci, &kay->actor_sci,
 			  sizeof(kay->key_server_sci));
@@ -2297,23 +2334,23 @@ ieee802_1x_kay_elect_key_server(struct ieee802_1x_mka_participant *participant)
 		wpa_printf(MSG_DEBUG,
 			   "KaY: Peer %s was elected as the key server",
 			   mi_txt(key_server->mi));
-		ieee802_1x_cp_set_electedself(kay->cp, FALSE);
+		ieee802_1x_cp_set_electedself(kay->cp, false);
 		if (!sci_equal(&kay->key_server_sci, &key_server->sci)) {
 			ieee802_1x_cp_signal_chgdserver(kay->cp);
 			ieee802_1x_cp_sm_step(kay->cp);
 		}
 
-		participant->is_key_server = FALSE;
-		participant->principal = TRUE;
-		participant->is_elected = TRUE;
+		participant->is_key_server = false;
+		participant->principal = true;
+		participant->is_elected = true;
 
 		os_memcpy(&kay->key_server_sci, &key_server->sci,
 			  sizeof(kay->key_server_sci));
 		kay->key_server_priority = key_server->key_server_priority;
 	} else {
-		participant->principal = FALSE;
-		participant->is_key_server = FALSE;
-		participant->is_elected = FALSE;
+		participant->principal = false;
+		participant->is_key_server = false;
+		participant->is_elected = false;
 	}
 
 	return 0;
@@ -2333,24 +2370,24 @@ ieee802_1x_kay_decide_macsec_use(
 	struct ieee802_1x_kay *kay = participant->kay;
 	struct ieee802_1x_kay_peer *peer;
 	enum macsec_cap less_capability;
-	Boolean has_peer;
+	bool has_peer;
 
 	if (!participant->is_key_server)
 		return -1;
 
 	/* key server self is MACsec-desired and requesting MACsec */
 	if (!kay->macsec_desired) {
-		participant->advised_desired = FALSE;
+		participant->advised_desired = false;
 		return -1;
 	}
 	if (kay->macsec_capable == MACSEC_CAP_NOT_IMPLEMENTED) {
-		participant->advised_desired = FALSE;
+		participant->advised_desired = false;
 		return -1;
 	}
 	less_capability = kay->macsec_capable;
 
 	/* at least one of peers is MACsec-desired and requesting MACsec */
-	has_peer = FALSE;
+	has_peer = false;
 	dl_list_for_each(peer, &participant->live_peers,
 			 struct ieee802_1x_kay_peer, list) {
 		if (!peer->macsec_desired)
@@ -2361,24 +2398,24 @@ ieee802_1x_kay_decide_macsec_use(
 
 		less_capability = (less_capability < peer->macsec_capability) ?
 			less_capability : peer->macsec_capability;
-		has_peer = TRUE;
+		has_peer = true;
 	}
 
 	if (has_peer) {
-		participant->advised_desired = TRUE;
+		participant->advised_desired = true;
 		participant->advised_capability = less_capability;
-		kay->authenticated = FALSE;
-		kay->secured = TRUE;
-		kay->failed = FALSE;
+		kay->authenticated = false;
+		kay->secured = true;
+		kay->failed = false;
 		ieee802_1x_cp_connect_secure(kay->cp);
 		ieee802_1x_cp_sm_step(kay->cp);
 	} else {
-		participant->advised_desired = FALSE;
+		participant->advised_desired = false;
 		participant->advised_capability = MACSEC_CAP_NOT_IMPLEMENTED;
-		participant->to_use_sak = FALSE;
-		kay->authenticated = TRUE;
-		kay->secured = FALSE;
-		kay->failed = FALSE;
+		participant->to_use_sak = false;
+		kay->authenticated = true;
+		kay->secured = false;
+		kay->failed = false;
 		kay->ltx_kn = 0;
 		kay->ltx_an = 0;
 		kay->lrx_kn = 0;
@@ -2477,8 +2514,8 @@ ieee802_1x_participant_send_mkpdu(
 	l2_packet_send(kay->l2_mka, NULL, 0, wpabuf_head(buf), wpabuf_len(buf));
 	wpabuf_free(buf);
 
-	kay->active = TRUE;
-	participant->active = TRUE;
+	kay->active = true;
+	participant->active = true;
 
 	return 0;
 }
@@ -2504,7 +2541,7 @@ static void ieee802_1x_participant_timer(void *eloop_ctx, void *timeout_ctx)
 	struct ieee802_1x_kay *kay;
 	struct ieee802_1x_kay_peer *peer, *pre_peer;
 	time_t now = time(NULL);
-	Boolean lp_changed;
+	bool lp_changed;
 	struct receive_sc *rxsc, *pre_rxsc;
 	struct transmit_sa *txsa, *pre_txsa;
 
@@ -2528,7 +2565,7 @@ static void ieee802_1x_participant_timer(void *eloop_ctx, void *timeout_ctx)
 		}
 	}
 
-	lp_changed = FALSE;
+	lp_changed = false;
 	dl_list_for_each_safe(peer, pre_peer, &participant->live_peers,
 			      struct ieee802_1x_kay_peer, list) {
 		if (now > peer->expire) {
@@ -2546,25 +2583,25 @@ static void ieee802_1x_participant_timer(void *eloop_ctx, void *timeout_ctx)
 			}
 			dl_list_del(&peer->list);
 			os_free(peer);
-			lp_changed = TRUE;
+			lp_changed = true;
 		}
 	}
 
 	if (lp_changed) {
 		if (dl_list_empty(&participant->live_peers)) {
-			participant->advised_desired = FALSE;
+			participant->advised_desired = false;
 			participant->advised_capability =
 				MACSEC_CAP_NOT_IMPLEMENTED;
-			participant->to_use_sak = FALSE;
-			participant->ltx = FALSE;
-			participant->lrx = FALSE;
-			participant->otx = FALSE;
-			participant->orx = FALSE;
-			participant->is_key_server = FALSE;
-			participant->is_elected = FALSE;
-			kay->authenticated = FALSE;
-			kay->secured = FALSE;
-			kay->failed = FALSE;
+			participant->to_use_sak = false;
+			participant->ltx = false;
+			participant->lrx = false;
+			participant->otx = false;
+			participant->orx = false;
+			participant->is_key_server = false;
+			participant->is_elected = false;
+			kay->authenticated = false;
+			kay->secured = false;
+			kay->failed = false;
 			kay->ltx_kn = 0;
 			kay->ltx_an = 0;
 			kay->lrx_kn = 0;
@@ -2601,9 +2638,9 @@ static void ieee802_1x_participant_timer(void *eloop_ctx, void *timeout_ctx)
 
 	if (participant->new_sak && participant->is_key_server) {
 		if (!ieee802_1x_kay_generate_new_sak(participant))
-			participant->to_dist_sak = TRUE;
+			participant->to_dist_sak = true;
 
-		participant->new_sak = FALSE;
+		participant->new_sak = false;
 	}
 
 	if (participant->retry_count < MAX_RETRY_CNT ||
@@ -2619,9 +2656,9 @@ static void ieee802_1x_participant_timer(void *eloop_ctx, void *timeout_ctx)
 	return;
 
 delete_mka:
-	kay->authenticated = FALSE;
-	kay->secured = FALSE;
-	kay->failed = TRUE;
+	kay->authenticated = false;
+	kay->secured = false;
+	kay->failed = true;
 	ieee802_1x_kay_delete_mka(kay, &participant->ckn);
 }
 
@@ -2635,8 +2672,8 @@ ieee802_1x_kay_init_transmit_sa(struct transmit_sc *psc, u8 an, u32 next_PN,
 {
 	struct transmit_sa *psa;
 
-	key->tx_latest = TRUE;
-	key->rx_latest = TRUE;
+	key->tx_latest = true;
+	key->rx_latest = true;
 
 	psa = os_zalloc(sizeof(*psa));
 	if (!psa) {
@@ -2646,9 +2683,9 @@ ieee802_1x_kay_init_transmit_sa(struct transmit_sc *psc, u8 an, u32 next_PN,
 
 	if (key->confidentiality_offset >= CONFIDENTIALITY_OFFSET_0 &&
 	    key->confidentiality_offset <= CONFIDENTIALITY_OFFSET_50)
-		psa->confidentiality = TRUE;
+		psa->confidentiality = true;
 	else
-		psa->confidentiality = FALSE;
+		psa->confidentiality = false;
 
 	psa->an = an;
 	ieee802_1x_kay_use_data_key(key);
@@ -2657,7 +2694,7 @@ ieee802_1x_kay_init_transmit_sa(struct transmit_sc *psc, u8 an, u32 next_PN,
 	psa->sc = psc;
 
 	os_get_time(&psa->created_time);
-	psa->in_use = FALSE;
+	psa->in_use = false;
 
 	dl_list_add(&psc->sa_list, &psa->list);
 	wpa_printf(MSG_DEBUG,
@@ -2699,9 +2736,9 @@ ieee802_1x_kay_init_transmit_sc(const struct ieee802_1x_mka_sci *sci)
 	os_memcpy(&psc->sci, sci, sizeof(psc->sci));
 
 	os_get_time(&psc->created_time);
-	psc->transmitting = FALSE;
-	psc->encoding_sa = FALSE;
-	psc->enciphering_sa = FALSE;
+	psc->transmitting = false;
+	psc->encoding_sa = false;
+	psc->enciphering_sa = false;
 
 	dl_list_init(&psc->sa_list);
 	wpa_printf(MSG_DEBUG, "KaY: Create transmit SC - SCI: %s",
@@ -2735,7 +2772,7 @@ ieee802_1x_kay_deinit_transmit_sc(
  */
 int ieee802_1x_kay_set_latest_sa_attr(struct ieee802_1x_kay *kay,
 				      struct ieee802_1x_mka_ki *lki, u8 lan,
-				      Boolean ltx, Boolean lrx)
+				      bool ltx, bool lrx)
 {
 	struct ieee802_1x_mka_participant *principal;
 
@@ -2770,7 +2807,7 @@ int ieee802_1x_kay_set_latest_sa_attr(struct ieee802_1x_kay *kay,
  */
 int ieee802_1x_kay_set_old_sa_attr(struct ieee802_1x_kay *kay,
 				   struct ieee802_1x_mka_ki *oki,
-				   u8 oan, Boolean otx, Boolean orx)
+				   u8 oan, bool otx, bool orx)
 {
 	struct ieee802_1x_mka_participant *principal;
 
@@ -2846,13 +2883,13 @@ int ieee802_1x_kay_create_sas(struct ieee802_1x_kay *kay,
 	latest_sak = NULL;
 	dl_list_for_each(sa_key, &principal->sak_list, struct data_key, list) {
 		if (is_ki_equal(&sa_key->key_identifier, lki)) {
-			sa_key->rx_latest = TRUE;
-			sa_key->tx_latest = TRUE;
+			sa_key->rx_latest = true;
+			sa_key->tx_latest = true;
 			latest_sak = sa_key;
-			principal->to_use_sak = TRUE;
+			principal->to_use_sak = true;
 		} else {
-			sa_key->rx_latest = FALSE;
-			sa_key->tx_latest = FALSE;
+			sa_key->rx_latest = false;
+			sa_key->tx_latest = false;
 		}
 	}
 	if (!latest_sak) {
@@ -2956,10 +2993,10 @@ int ieee802_1x_kay_enable_tx_sas(struct ieee802_1x_kay *kay,
 	dl_list_for_each(txsa, &principal->txsc->sa_list, struct transmit_sa,
 			 list) {
 		if (is_ki_equal(&txsa->pkey->key_identifier, lki)) {
-			txsa->in_use = TRUE;
+			txsa->in_use = true;
 			secy_enable_transmit_sa(kay, txsa);
 			ieee802_1x_cp_set_usingtransmitas(
-				principal->kay->cp, TRUE);
+				principal->kay->cp, true);
 			ieee802_1x_cp_sm_step(principal->kay->cp);
 		}
 	}
@@ -2986,10 +3023,10 @@ int ieee802_1x_kay_enable_rx_sas(struct ieee802_1x_kay *kay,
 		dl_list_for_each(rxsa, &rxsc->sa_list, struct receive_sa, list)
 		{
 			if (is_ki_equal(&rxsa->pkey->key_identifier, lki)) {
-				rxsa->in_use = TRUE;
+				rxsa->in_use = true;
 				secy_enable_receive_sa(kay, rxsa);
 				ieee802_1x_cp_set_usingreceivesas(
-					principal->kay->cp, TRUE);
+					principal->kay->cp, true);
 				ieee802_1x_cp_sm_step(principal->kay->cp);
 			}
 		}
@@ -3171,10 +3208,10 @@ static int ieee802_1x_kay_decode_mkpdu(struct ieee802_1x_kay *kay,
 	u8 body_type;
 	int i;
 	const u8 *pos;
-	Boolean handled[256];
-	Boolean bad_sak_use = FALSE; /* Error detected while processing SAK Use
-				      * parameter set */
-	Boolean i_in_peerlist, is_in_live_peer, is_in_potential_peer;
+	bool handled[256];
+	bool bad_sak_use = false; /* Error detected while processing SAK Use
+				   * parameter set */
+	bool i_in_peerlist, is_in_live_peer, is_in_potential_peer;
 
 	wpa_printf(MSG_DEBUG, "KaY: Decode received MKPDU (ifname=%s)",
 		   kay->if_name);
@@ -3231,9 +3268,9 @@ static int ieee802_1x_kay_decode_mkpdu(struct ieee802_1x_kay *kay,
 	 * Each parameter set should be present only once.
 	 */
 	for (i = 0; i < 256; i++)
-		handled[i] = FALSE;
+		handled[i] = false;
 
-	handled[0] = TRUE;
+	handled[0] = true;
 	for (; left_len > MKA_HDR_LEN + DEFAULT_ICV_LEN;
 	     pos += body_len + MKA_HDR_LEN,
 		     left_len -= body_len + MKA_HDR_LEN) {
@@ -3259,7 +3296,7 @@ static int ieee802_1x_kay_decode_mkpdu(struct ieee802_1x_kay *kay,
 			continue;
 		}
 
-		handled[body_type] = TRUE;
+		handled[body_type] = true;
 		if (body_type < ARRAY_SIZE(mka_body_handler) &&
 		    mka_body_handler[body_type].body_rx) {
 			if (mka_body_handler[body_type].body_rx
@@ -3280,7 +3317,7 @@ static int ieee802_1x_kay_decode_mkpdu(struct ieee802_1x_kay *kay,
 				 * that it somehow processes DIST-SAK before
 				 * SAK-USE, just ignore SAK-USE failures if
 				 * DIST-SAK is also present in this MKPDU. */
-				bad_sak_use = TRUE;
+				bad_sak_use = true;
 			}
 		} else {
 			wpa_printf(MSG_ERROR,
@@ -3349,9 +3386,9 @@ static int ieee802_1x_kay_decode_mkpdu(struct ieee802_1x_kay *kay,
 		 * from 'potential_peers' to 'live_peers'. */
 	}
 
-	kay->active = TRUE;
+	kay->active = true;
 	participant->retry_count = 0;
-	participant->active = TRUE;
+	participant->active = true;
 
 	return 0;
 }
@@ -3418,7 +3455,7 @@ static void kay_l2_receive(void *ctx, const u8 *src_addr, const u8 *buf,
  */
 struct ieee802_1x_kay *
 ieee802_1x_kay_init(struct ieee802_1x_kay_ctx *ctx, enum macsec_policy policy,
-		    Boolean macsec_replay_protect, u32 macsec_replay_window,
+		    bool macsec_replay_protect, u32 macsec_replay_window,
 		    u16 port, u8 priority, const char *ifname, const u8 *addr)
 {
 	struct ieee802_1x_kay *kay;
@@ -3435,12 +3472,12 @@ ieee802_1x_kay_init(struct ieee802_1x_kay_ctx *ctx, enum macsec_policy policy,
 
 	kay->ctx = ctx;
 
-	kay->enable = TRUE;
-	kay->active = FALSE;
+	kay->enable = true;
+	kay->active = false;
 
-	kay->authenticated = FALSE;
-	kay->secured = FALSE;
-	kay->failed = FALSE;
+	kay->authenticated = false;
+	kay->secured = false;
+	kay->failed = false;
 	kay->policy = policy;
 
 	os_strlcpy(kay->if_name, ifname, IFNAMSIZ);
@@ -3472,23 +3509,23 @@ ieee802_1x_kay_init(struct ieee802_1x_kay_ctx *ctx, enum macsec_policy policy,
 	if (policy == DO_NOT_SECURE ||
 	    kay->macsec_capable == MACSEC_CAP_NOT_IMPLEMENTED) {
 		kay->macsec_capable = MACSEC_CAP_NOT_IMPLEMENTED;
-		kay->macsec_desired = FALSE;
-		kay->macsec_protect = FALSE;
-		kay->macsec_encrypt = FALSE;
+		kay->macsec_desired = false;
+		kay->macsec_protect = false;
+		kay->macsec_encrypt = false;
 		kay->macsec_validate = Disabled;
-		kay->macsec_replay_protect = FALSE;
+		kay->macsec_replay_protect = false;
 		kay->macsec_replay_window = 0;
 		kay->macsec_confidentiality = CONFIDENTIALITY_NONE;
 		kay->mka_hello_time = MKA_HELLO_TIME;
 	} else {
-		kay->macsec_desired = TRUE;
-		kay->macsec_protect = TRUE;
+		kay->macsec_desired = true;
+		kay->macsec_protect = true;
 		if (kay->macsec_capable >= MACSEC_CAP_INTEG_AND_CONF &&
 		    policy == SHOULD_ENCRYPT) {
-			kay->macsec_encrypt = TRUE;
+			kay->macsec_encrypt = true;
 			kay->macsec_confidentiality = CONFIDENTIALITY_OFFSET_0;
 		} else { /* SHOULD_SECURE */
-			kay->macsec_encrypt = FALSE;
+			kay->macsec_encrypt = false;
 			kay->macsec_confidentiality = CONFIDENTIALITY_NONE;
 		}
 		kay->macsec_validate = Strict;
@@ -3586,7 +3623,7 @@ struct ieee802_1x_mka_participant *
 ieee802_1x_kay_create_mka(struct ieee802_1x_kay *kay,
 			  const struct mka_key_name *ckn,
 			  const struct mka_key *cak, u32 life,
-			  enum mka_created_mode mode, Boolean is_authenticator)
+			  enum mka_created_mode mode, bool is_authenticator)
 {
 	struct ieee802_1x_mka_participant *participant;
 	unsigned int usecs;
@@ -3634,40 +3671,40 @@ ieee802_1x_kay_create_mka(struct ieee802_1x_kay *kay,
 	switch (mode) {
 	case EAP_EXCHANGE:
 		if (is_authenticator) {
-			participant->is_obliged_key_server = TRUE;
-			participant->can_be_key_server = TRUE;
-			participant->is_key_server = TRUE;
-			participant->principal = TRUE;
+			participant->is_obliged_key_server = true;
+			participant->can_be_key_server = true;
+			participant->is_key_server = true;
+			participant->principal = true;
 
 			os_memcpy(&kay->key_server_sci, &kay->actor_sci,
 				  sizeof(kay->key_server_sci));
 			kay->key_server_priority = kay->actor_priority;
-			participant->is_elected = TRUE;
+			participant->is_elected = true;
 		} else {
-			participant->is_obliged_key_server = FALSE;
-			participant->can_be_key_server = FALSE;
-			participant->is_key_server = FALSE;
-			participant->is_elected = TRUE;
+			participant->is_obliged_key_server = false;
+			participant->can_be_key_server = false;
+			participant->is_key_server = false;
+			participant->is_elected = true;
 		}
 		break;
 
 	default:
-		participant->is_obliged_key_server = FALSE;
-		participant->can_be_key_server = TRUE;
-		participant->is_key_server = TRUE;
-		participant->is_elected = FALSE;
+		participant->is_obliged_key_server = false;
+		participant->can_be_key_server = true;
+		participant->is_key_server = true;
+		participant->is_elected = false;
 		break;
 	}
 
-	participant->cached = FALSE;
+	participant->cached = false;
 
-	participant->active = FALSE;
-	participant->participant = FALSE;
-	participant->retain = FALSE;
+	participant->active = false;
+	participant->participant = false;
+	participant->retain = false;
 	participant->activate = DEFAULT;
 
 	if (participant->is_key_server)
-		participant->principal = TRUE;
+		participant->principal = true;
 
 	dl_list_init(&participant->live_peers);
 	dl_list_init(&participant->potential_peers);
@@ -3680,13 +3717,13 @@ ieee802_1x_kay_create_mka(struct ieee802_1x_kay *kay,
 	wpa_printf(MSG_DEBUG, "KaY: Selected random MI: %s",
 		   mi_txt(participant->mi));
 
-	participant->lrx = FALSE;
-	participant->ltx = FALSE;
-	participant->orx = FALSE;
-	participant->otx = FALSE;
-	participant->to_dist_sak = FALSE;
-	participant->to_use_sak = FALSE;
-	participant->new_sak = FALSE;
+	participant->lrx = false;
+	participant->ltx = false;
+	participant->orx = false;
+	participant->otx = false;
+	participant->to_dist_sak = false;
+	participant->to_use_sak = false;
+	participant->new_sak = false;
 	dl_list_init(&participant->sak_list);
 	participant->new_key = NULL;
 	dl_list_init(&participant->rxsc_list);
@@ -3819,8 +3856,7 @@ ieee802_1x_kay_delete_mka(struct ieee802_1x_kay *kay, struct mka_key_name *ckn)
  * ieee802_1x_kay_mka_participate -
  */
 void ieee802_1x_kay_mka_participate(struct ieee802_1x_kay *kay,
-				    struct mka_key_name *ckn,
-				    Boolean status)
+				    struct mka_key_name *ckn, bool status)
 {
 	struct ieee802_1x_mka_participant *participant;
 
@@ -3850,7 +3886,7 @@ ieee802_1x_kay_new_sak(struct ieee802_1x_kay *kay)
 	if (!participant)
 		return -1;
 
-	participant->new_sak = TRUE;
+	participant->new_sak = true;
 	wpa_printf(MSG_DEBUG, "KaY: new SAK signal");
 
 	return 0;
@@ -3879,7 +3915,7 @@ ieee802_1x_kay_change_cipher_suite(struct ieee802_1x_kay *kay,
 		return -2;
 
 	if (cs_index == 0)
-		kay->macsec_desired = FALSE;
+		kay->macsec_desired = false;
 
 	kay->macsec_csindex = cs_index;
 	kay->macsec_capable = cipher_suite_tbl[kay->macsec_csindex].capable;
@@ -3893,7 +3929,7 @@ ieee802_1x_kay_change_cipher_suite(struct ieee802_1x_kay *kay,
 	participant = ieee802_1x_kay_get_principal_participant(kay);
 	if (participant) {
 		wpa_printf(MSG_INFO, "KaY: Cipher Suite changed");
-		participant->new_sak = TRUE;
+		participant->new_sak = true;
 	}
 
 	return 0;
@@ -4007,7 +4043,7 @@ int ieee802_1x_kay_get_status(struct ieee802_1x_kay *kay, char *buf,
 }
 
 
-static const char * true_false(Boolean val)
+static const char * true_false(bool val)
 {
 	return val ? "true" : "false";
 }
@@ -4030,7 +4066,7 @@ static const char * activate_control_txt(enum activate_ctrl activate)
 }
 
 
-static char * mka_mib_peer(struct dl_list *peers, Boolean live, char *buf,
+static char * mka_mib_peer(struct dl_list *peers, bool live, char *buf,
 			   char *end)
 {
 	char *pos = buf;
@@ -4097,8 +4133,8 @@ int ieee802_1x_kay_get_mib(struct ieee802_1x_kay *kay, char *buf,
 		pos2 += res;
 		pos = pos2;
 
-		pos = mka_mib_peer(&p->live_peers, TRUE, pos, end);
-		pos = mka_mib_peer(&p->potential_peers, FALSE, pos, end);
+		pos = mka_mib_peer(&p->live_peers, true, pos, end);
+		pos = mka_mib_peer(&p->potential_peers, false, pos, end);
 	}
 
 	return pos - buf;

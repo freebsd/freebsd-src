@@ -30,7 +30,7 @@ fst_ctrl_iface_mb_info(const u8 *addr, char *buf, size_t buflen)
 
 #endif /* CONFIG_FST */
 
-int fst_read_next_int_param(const char *params, Boolean *valid, char **endp);
+int fst_read_next_int_param(const char *params, bool *valid, char **endp);
 int fst_read_next_text_param(const char *params, char *buf, size_t buflen,
 			     char **endp);
 int fst_read_peer_addr(const char *mac, u8 *peer_addr);

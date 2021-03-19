@@ -92,9 +92,9 @@ static struct wpabuf * eap_tnc_build_msg(struct eap_tnc_data *data,
 	u8 flags;
 	size_t send_len, plen;
 
-	ret->ignore = FALSE;
+	ret->ignore = false;
 	wpa_printf(MSG_DEBUG, "EAP-TNC: Generating Response");
-	ret->allowNotifications = TRUE;
+	ret->allowNotifications = true;
 
 	flags = EAP_TNC_VERSION;
 	send_len = wpabuf_len(data->out_buf) - data->out_used;
@@ -174,7 +174,7 @@ static struct wpabuf * eap_tnc_process_fragment(struct eap_tnc_data *data,
 	if (data->in_buf == NULL && !(flags & EAP_TNC_FLAGS_LENGTH_INCLUDED)) {
 		wpa_printf(MSG_DEBUG, "EAP-TNC: No Message Length field in a "
 			   "fragmented packet");
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
@@ -184,7 +184,7 @@ static struct wpabuf * eap_tnc_process_fragment(struct eap_tnc_data *data,
 		if (data->in_buf == NULL) {
 			wpa_printf(MSG_DEBUG, "EAP-TNC: No memory for "
 				   "message");
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			return NULL;
 		}
 		wpabuf_put_data(data->in_buf, buf, len);
@@ -219,7 +219,7 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 	if (pos == NULL) {
 		wpa_printf(MSG_INFO, "EAP-TNC: Invalid frame (pos=%p len=%lu)",
 			   pos, (unsigned long) len);
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
@@ -235,14 +235,14 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 	if (len > 0 && (flags & EAP_TNC_VERSION_MASK) != EAP_TNC_VERSION) {
 		wpa_printf(MSG_DEBUG, "EAP-TNC: Unsupported version %d",
 			   flags & EAP_TNC_VERSION_MASK);
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
 
 	if (flags & EAP_TNC_FLAGS_LENGTH_INCLUDED) {
 		if (end - pos < 4) {
 			wpa_printf(MSG_DEBUG, "EAP-TNC: Message underflow");
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			return NULL;
 		}
 		message_length = WPA_GET_BE32(pos);
@@ -253,7 +253,7 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 			wpa_printf(MSG_DEBUG, "EAP-TNC: Invalid Message "
 				   "Length (%d; %ld remaining in this msg)",
 				   message_length, (long) (end - pos));
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			return NULL;
 		}
 	}
@@ -265,7 +265,7 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 		if (len > 1) {
 			wpa_printf(MSG_DEBUG, "EAP-TNC: Unexpected payload in "
 				   "WAIT_FRAG_ACK state");
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			return NULL;
 		}
 		wpa_printf(MSG_DEBUG, "EAP-TNC: Fragment acknowledged");
@@ -274,10 +274,10 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 	}
 
 	if (data->in_buf && eap_tnc_process_cont(data, pos, end - pos) < 0) {
-		ret->ignore = TRUE;
+		ret->ignore = true;
 		return NULL;
 	}
-		
+
 	if (flags & EAP_TNC_FLAGS_MORE_FRAGMENTS) {
 		return eap_tnc_process_fragment(data, ret, id, flags,
 						message_length, pos,
@@ -294,7 +294,7 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 		if (!(flags & EAP_TNC_FLAGS_START)) {
 			wpa_printf(MSG_DEBUG, "EAP-TNC: Server did not use "
 				   "start flag in the first message");
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			goto fail;
 		}
 
@@ -307,7 +307,7 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 		if (flags & EAP_TNC_FLAGS_START) {
 			wpa_printf(MSG_DEBUG, "EAP-TNC: Server used start "
 				   "flag again");
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			goto fail;
 		}
 
@@ -316,7 +316,7 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 					    wpabuf_len(data->in_buf));
 		switch (res) {
 		case TNCCS_PROCESS_ERROR:
-			ret->ignore = TRUE;
+			ret->ignore = true;
 			goto fail;
 		case TNCCS_PROCESS_OK_NO_RECOMMENDATION:
 		case TNCCS_RECOMMENDATION_ERROR:
@@ -345,10 +345,10 @@ static struct wpabuf * eap_tnc_process(struct eap_sm *sm, void *priv,
 		wpabuf_free(data->in_buf);
 	data->in_buf = NULL;
 
-	ret->ignore = FALSE;
+	ret->ignore = false;
 	ret->methodState = METHOD_MAY_CONT;
 	ret->decision = DECISION_UNCOND_SUCC;
-	ret->allowNotifications = TRUE;
+	ret->allowNotifications = true;
 
 	if (tncs_done) {
 		resp = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_TNC, 1,

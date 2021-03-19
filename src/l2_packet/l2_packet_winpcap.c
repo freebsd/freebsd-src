@@ -224,6 +224,9 @@ struct l2_packet_data * l2_packet_init(
 		return NULL;
 	}
 
+	if (!rx_callback)
+		return l2;
+
 	l2->rx_avail = CreateEvent(NULL, TRUE, FALSE, NULL);
 	l2->rx_done = CreateEvent(NULL, TRUE, FALSE, NULL);
 	l2->rx_notify = CreateEvent(NULL, TRUE, FALSE, NULL);

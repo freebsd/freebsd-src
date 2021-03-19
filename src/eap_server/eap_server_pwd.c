@@ -97,7 +97,7 @@ static void * eap_pwd_init(struct eap_sm *sm)
 	if (data == NULL)
 		return NULL;
 
-	data->group_num = sm->pwd_group;
+	data->group_num = sm->cfg->pwd_group;
 	wpa_printf(MSG_DEBUG, "EAP-pwd: Selected group number %d",
 		   data->group_num);
 	data->state = PWD_ID_Req;
@@ -134,7 +134,7 @@ static void * eap_pwd_init(struct eap_sm *sm)
 	data->in_frag_pos = data->out_frag_pos = 0;
 	data->inbuf = data->outbuf = NULL;
 	/* use default MTU from RFC 5931 if not configured otherwise */
-	data->mtu = sm->fragment_size > 0 ? sm->fragment_size : 1020;
+	data->mtu = sm->cfg->fragment_size > 0 ? sm->cfg->fragment_size : 1020;
 
 	return data;
 }
@@ -530,8 +530,8 @@ eap_pwd_build_req(struct eap_sm *sm, void *priv, u8 id)
 }
 
 
-static Boolean eap_pwd_check(struct eap_sm *sm, void *priv,
-			     struct wpabuf *respData)
+static bool eap_pwd_check(struct eap_sm *sm, void *priv,
+			  struct wpabuf *respData)
 {
 	struct eap_pwd_data *data = priv;
 	const u8 *pos;
@@ -540,7 +540,7 @@ static Boolean eap_pwd_check(struct eap_sm *sm, void *priv,
 	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_PWD, respData, &len);
 	if (pos == NULL || len < 1) {
 		wpa_printf(MSG_INFO, "EAP-pwd: Invalid frame");
-		return TRUE;
+		return true;
 	}
 
 	wpa_printf(MSG_DEBUG, "EAP-pwd: Received frame: exch = %d, len = %d",
@@ -548,20 +548,20 @@ static Boolean eap_pwd_check(struct eap_sm *sm, void *priv,
 
 	if (data->state == PWD_ID_Req &&
 	    ((EAP_PWD_GET_EXCHANGE(*pos)) == EAP_PWD_OPCODE_ID_EXCH))
-		return FALSE;
+		return false;
 
 	if (data->state == PWD_Commit_Req &&
 	    ((EAP_PWD_GET_EXCHANGE(*pos)) == EAP_PWD_OPCODE_COMMIT_EXCH))
-		return FALSE;
+		return false;
 
 	if (data->state == PWD_Confirm_Req &&
 	    ((EAP_PWD_GET_EXCHANGE(*pos)) == EAP_PWD_OPCODE_CONFIRM_EXCH))
-		return FALSE;
+		return false;
 
 	wpa_printf(MSG_INFO, "EAP-pwd: Unexpected opcode=%d in state=%d",
 		   *pos, data->state);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -1003,14 +1003,14 @@ static u8 * eap_pwd_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 }
 
 
-static Boolean eap_pwd_is_success(struct eap_sm *sm, void *priv)
+static bool eap_pwd_is_success(struct eap_sm *sm, void *priv)
 {
 	struct eap_pwd_data *data = priv;
 	return data->state == SUCCESS;
 }
 
 
-static Boolean eap_pwd_is_done(struct eap_sm *sm, void *priv)
+static bool eap_pwd_is_done(struct eap_sm *sm, void *priv)
 {
 	struct eap_pwd_data *data = priv;
 	return (data->state == SUCCESS) || (data->state == FAILURE);

@@ -54,12 +54,12 @@ enum fst_initiator {
 
 union fst_event_extra {
 	struct fst_event_extra_iface_state {
-		Boolean attached;
+		bool attached;
 		char ifname[FST_MAX_INTERFACE_SIZE];
 		char group_id[FST_MAX_GROUP_ID_SIZE];
 	} iface_state; /* for EVENT_FST_IFACE_STATE_CHANGED */
 	struct fst_event_extra_peer_state {
-		Boolean connected;
+		bool connected;
 		char ifname[FST_MAX_INTERFACE_SIZE];
 		u8 addr[ETH_ALEN];
 	} peer_state; /* for EVENT_PEER_STATE_CHANGED */

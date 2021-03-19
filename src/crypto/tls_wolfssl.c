@@ -19,6 +19,7 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/openssl/x509v3.h>
 
 #if defined(EAP_FAST) || defined(EAP_FAST_DYNAMIC) || defined(EAP_SERVER_FAST)
 #define HAVE_AESGCM
@@ -468,7 +469,7 @@ static int tls_connection_client_cert(struct tls_connection *conn,
 	if (client_cert_blob) {
 		if (wolfSSL_use_certificate_chain_buffer_format(
 			    conn->ssl, client_cert_blob, blob_len,
-			    SSL_FILETYPE_ASN1) < 0) {
+			    SSL_FILETYPE_ASN1) != SSL_SUCCESS) {
 			wpa_printf(MSG_INFO,
 				   "SSL: use client cert DER blob failed");
 			return -1;
@@ -478,13 +479,13 @@ static int tls_connection_client_cert(struct tls_connection *conn,
 	}
 
 	if (client_cert) {
-		if (wolfSSL_use_certificate_chain_file(conn->ssl,
-						       client_cert) < 0) {
+		if (wolfSSL_use_certificate_chain_file(
+			    conn->ssl, client_cert) != SSL_SUCCESS) {
 			wpa_printf(MSG_INFO,
 				   "SSL: use client cert PEM file failed");
 			if (wolfSSL_use_certificate_chain_file_format(
 				    conn->ssl, client_cert,
-				    SSL_FILETYPE_ASN1) < 0) {
+				    SSL_FILETYPE_ASN1) != SSL_SUCCESS) {
 				wpa_printf(MSG_INFO,
 					   "SSL: use client cert DER file failed");
 				return -1;
@@ -533,7 +534,7 @@ static int tls_connection_private_key(void *tls_ctx,
 	if (private_key_blob) {
 		if (wolfSSL_use_PrivateKey_buffer(conn->ssl,
 						  private_key_blob, blob_len,
-						  SSL_FILETYPE_ASN1) < 0) {
+						  SSL_FILETYPE_ASN1) <= 0) {
 			wpa_printf(MSG_INFO,
 				   "SSL: use private DER blob failed");
 		} else {
@@ -544,11 +545,11 @@ static int tls_connection_private_key(void *tls_ctx,
 
 	if (!ok && private_key) {
 		if (wolfSSL_use_PrivateKey_file(conn->ssl, private_key,
-						SSL_FILETYPE_PEM) < 0) {
+						SSL_FILETYPE_PEM) <= 0) {
 			wpa_printf(MSG_INFO,
 				   "SSL: use private key PEM file failed");
 			if (wolfSSL_use_PrivateKey_file(conn->ssl, private_key,
-							SSL_FILETYPE_ASN1) < 0)
+							SSL_FILETYPE_ASN1) <= 0)
 			{
 				wpa_printf(MSG_INFO,
 					   "SSL: use private key DER file failed");
@@ -576,7 +577,7 @@ static int tls_connection_private_key(void *tls_ctx,
 static int tls_match_alt_subject_component(WOLFSSL_X509 *cert, int type,
 					   const char *value, size_t len)
 {
-	WOLFSSL_ASN1_OBJECT *gen;
+	WOLFSSL_GENERAL_NAME *gen;
 	void *ext;
 	int found = 0;
 	int i;
@@ -585,14 +586,15 @@ static int tls_match_alt_subject_component(WOLFSSL_X509 *cert, int type,
 
 	for (i = 0; ext && i < wolfSSL_sk_num(ext); i++) {
 		gen = wolfSSL_sk_value(ext, i);
-		if (gen->type != type)
+		if (!gen || gen->type != type)
 			continue;
-		if (os_strlen((char *) gen->obj) == len &&
-		    os_memcmp(value, gen->obj, len) == 0)
+		if ((size_t) wolfSSL_ASN1_STRING_length(gen->d.ia5) == len &&
+		    os_memcmp(value, wolfSSL_ASN1_STRING_data(gen->d.ia5),
+			      len) == 0)
 			found++;
 	}
 
-	wolfSSL_sk_ASN1_OBJECT_free(ext);
+	wolfSSL_sk_GENERAL_NAME_free(ext);
 
 	return found;
 }
@@ -676,7 +678,7 @@ static int domain_suffix_match(const char *val, size_t len, const char *match,
 static int tls_match_suffix_helper(WOLFSSL_X509 *cert, const char *match,
 				   size_t match_len, int full)
 {
-	WOLFSSL_ASN1_OBJECT *gen;
+	WOLFSSL_GENERAL_NAME *gen;
 	void *ext;
 	int i;
 	int j;
@@ -690,21 +692,23 @@ static int tls_match_suffix_helper(WOLFSSL_X509 *cert, const char *match,
 
 	for (j = 0; ext && j < wolfSSL_sk_num(ext); j++) {
 		gen = wolfSSL_sk_value(ext, j);
-		if (gen->type != ASN_DNS_TYPE)
+		if (!gen || gen->type != ASN_DNS_TYPE)
 			continue;
 		dns_name++;
 		wpa_hexdump_ascii(MSG_DEBUG, "TLS: Certificate dNSName",
-				  gen->obj, os_strlen((char *)gen->obj));
-		if (domain_suffix_match((const char *) gen->obj,
-					os_strlen((char *) gen->obj), match,
-					match_len, full) == 1) {
+				  wolfSSL_ASN1_STRING_data(gen->d.ia5),
+				  wolfSSL_ASN1_STRING_length(gen->d.ia5));
+		if (domain_suffix_match(
+			    (const char *) wolfSSL_ASN1_STRING_data(gen->d.ia5),
+			    wolfSSL_ASN1_STRING_length(gen->d.ia5), match,
+			    match_len, full) == 1) {
 			wpa_printf(MSG_DEBUG, "TLS: %s in dNSName found",
 				   full ? "Match" : "Suffix match");
 			wolfSSL_sk_ASN1_OBJECT_free(ext);
 			return 1;
 		}
 	}
-	wolfSSL_sk_ASN1_OBJECT_free(ext);
+	wolfSSL_sk_GENERAL_NAME_free(ext);
 
 	if (dns_name) {
 		wpa_printf(MSG_DEBUG, "TLS: None of the dNSName(s) matched");
@@ -858,7 +862,7 @@ static void wolfssl_tls_cert_event(struct tls_connection *conn,
 	struct tls_context *context = conn->context;
 	char *alt_subject[TLS_MAX_ALT_SUBJECT];
 	int alt, num_alt_subject = 0;
-	WOLFSSL_ASN1_OBJECT *gen;
+	WOLFSSL_GENERAL_NAME *gen;
 	void *ext;
 	int i;
 #ifdef CONFIG_SHA256
@@ -899,12 +903,14 @@ static void wolfssl_tls_cert_event(struct tls_connection *conn,
 		if (num_alt_subject == TLS_MAX_ALT_SUBJECT)
 			break;
 		gen = wolfSSL_sk_value((void *) ext, i);
-		if (gen->type != GEN_EMAIL &&
-		    gen->type != GEN_DNS &&
-		    gen->type != GEN_URI)
+		if (!gen ||
+		    (gen->type != GEN_EMAIL &&
+		     gen->type != GEN_DNS &&
+		     gen->type != GEN_URI))
 			continue;
 
-		pos = os_malloc(10 + os_strlen((char *) gen->obj) + 1);
+		pos = os_malloc(10 + wolfSSL_ASN1_STRING_length(gen->d.ia5) +
+				1);
 		if (!pos)
 			break;
 		alt_subject[num_alt_subject++] = pos;
@@ -924,11 +930,12 @@ static void wolfssl_tls_cert_event(struct tls_connection *conn,
 			break;
 		}
 
-		os_memcpy(pos, gen->obj, os_strlen((char *)gen->obj));
-		pos += os_strlen((char *)gen->obj);
+		os_memcpy(pos, wolfSSL_ASN1_STRING_data(gen->d.ia5),
+			  wolfSSL_ASN1_STRING_length(gen->d.ia5));
+		pos += wolfSSL_ASN1_STRING_length(gen->d.ia5);
 		*pos = '\0';
 	}
-	wolfSSL_sk_ASN1_OBJECT_free(ext);
+	wolfSSL_sk_GENERAL_NAME_free(ext);
 
 	for (alt = 0; alt < num_alt_subject; alt++)
 		ev.peer_cert.altsubject[alt] = alt_subject[alt];
@@ -1741,7 +1748,7 @@ struct wpabuf * tls_connection_encrypt(void *tls_ctx,
 	if (!conn)
 		return NULL;
 
-	wpa_printf(MSG_DEBUG, "SSL: encrypt: %ld bytes", wpabuf_len(in_data));
+	wpa_printf(MSG_DEBUG, "SSL: encrypt: %zu bytes", wpabuf_len(in_data));
 
 	wolfssl_reset_out_data(&conn->output);
 
@@ -1792,7 +1799,7 @@ struct wpabuf * tls_connection_decrypt(void *tls_ctx,
 	}
 	wpabuf_put(buf, res);
 
-	wpa_printf(MSG_DEBUG, "SSL: decrypt: %ld bytes", wpabuf_len(buf));
+	wpa_printf(MSG_DEBUG, "SSL: decrypt: %zu bytes", wpabuf_len(buf));
 
 	return buf;
 }

@@ -171,13 +171,16 @@ static void l2_packet_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		u8 hash[SHA1_MAC_LEN];
 		const u8 *addr[1];
 		size_t len[1];
+		const struct l2_ethhdr *eth = (const struct l2_ethhdr *) buf;
 
 		/*
 		 * Close the workaround socket if the kernel version seems to be
 		 * able to deliver packets through the packet socket before
 		 * authorization has been completed (in dormant state).
 		 */
-		if (l2->num_rx_br <= 1) {
+		if (l2->num_rx_br <= 1 &&
+		    (os_memcmp(eth->h_dest, l2->own_addr, ETH_ALEN) == 0 ||
+		     is_multicast_ether_addr(eth->h_dest))) {
 			wpa_printf(MSG_DEBUG,
 				   "l2_packet_receive: Main packet socket for %s seems to have working RX - close workaround bridge socket",
 				   l2->ifname);
@@ -309,7 +312,8 @@ struct l2_packet_data * l2_packet_init(
 	ll.sll_family = PF_PACKET;
 	ll.sll_ifindex = ifr.ifr_ifindex;
 	ll.sll_protocol = htons(protocol);
-	if (bind(l2->fd, (struct sockaddr *) &ll, sizeof(ll)) < 0) {
+	if (rx_callback &&
+	    bind(l2->fd, (struct sockaddr *) &ll, sizeof(ll)) < 0) {
 		wpa_printf(MSG_ERROR, "%s: bind[PF_PACKET]: %s",
 			   __func__, strerror(errno));
 		close(l2->fd);
@@ -326,7 +330,8 @@ struct l2_packet_data * l2_packet_init(
 	}
 	os_memcpy(l2->own_addr, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
 
-	eloop_register_read_sock(l2->fd, l2_packet_receive, l2, NULL);
+	if (rx_callback)
+		eloop_register_read_sock(l2->fd, l2_packet_receive, l2, NULL);
 
 	return l2;
 }

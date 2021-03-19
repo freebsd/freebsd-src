@@ -20,13 +20,13 @@ struct erp_tlvs {
 };
 
 int eap_hdr_len_valid(const struct wpabuf *msg, size_t min_payload);
-const u8 * eap_hdr_validate(int vendor, EapType eap_type,
+const u8 * eap_hdr_validate(int vendor, enum eap_type eap_type,
 			    const struct wpabuf *msg, size_t *plen);
-struct wpabuf * eap_msg_alloc(int vendor, EapType type, size_t payload_len,
-			      u8 code, u8 identifier);
+struct wpabuf * eap_msg_alloc(int vendor, enum eap_type type,
+			      size_t payload_len, u8 code, u8 identifier);
 void eap_update_len(struct wpabuf *msg);
 u8 eap_get_id(const struct wpabuf *msg);
-EapType eap_get_type(const struct wpabuf *msg);
+enum eap_type eap_get_type(const struct wpabuf *msg);
 int erp_parse_tlvs(const u8 *pos, const u8 *end, struct erp_tlvs *tlvs,
 		   int stop_at_keyname);
 

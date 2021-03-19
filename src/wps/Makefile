@@ -1,13 +1,3 @@
-all: libwps.a
-
-clean:
-	rm -f *~ *.o *.d *.gcno *.gcda *.gcov libwps.a
-
-install:
-	@echo Nothing to be made.
-
-include ../lib.rules
-
 CFLAGS += -DCONFIG_P2P
 CFLAGS += -DCONFIG_WPS_OOB
 CFLAGS += -DCONFIG_WPS_NFC
@@ -35,7 +25,4 @@ LIB_OBJS= \
 	wps_upnp_ssdp.o \
 	wps_upnp_web.o
 
-libwps.a: $(LIB_OBJS)
-	$(AR) crT $@ $?
-
--include $(OBJS:%.o=%.d)
+include ../lib.rules

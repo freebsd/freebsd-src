@@ -1,14 +1,3 @@
-all: libcrypto.a
-
-clean:
-	rm -f *~ *.o *.d *.gcno *.gcda *.gcov libcrypto.a
-
-install:
-	@echo Nothing to be made.
-
-
-include ../lib.rules
-
 CFLAGS += -DCONFIG_CRYPTO_INTERNAL
 CFLAGS += -DCONFIG_TLS_INTERNAL_CLIENT
 CFLAGS += -DCONFIG_TLS_INTERNAL_SERVER
@@ -54,6 +43,8 @@ LIB_OBJS= \
 	sha384.o \
 	sha384-prf.o \
 	sha384-internal.o \
+	sha512.o \
+	sha512-prf.o \
 	sha512-internal.o
 
 LIB_OBJS += crypto_internal.o
@@ -66,8 +57,4 @@ ifndef TEST_FUZZ
 LIB_OBJS += random.o
 endif
 
-
-libcrypto.a: $(LIB_OBJS)
-	$(AR) crT $@ $?
-
--include $(OBJS:%.o=%.d)
+include ../lib.rules

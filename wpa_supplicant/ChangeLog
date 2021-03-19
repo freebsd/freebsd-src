@@ -533,7 +533,7 @@ ChangeLog for wpa_supplicant
 	* fixed MSCHAP UTF-8 to UCS-2 conversion for three-byte encoding;
 	  this fixes password with include UTF-8 characters that use
 	  three-byte encoding EAP methods that use NtPasswordHash
-	* fixed couple of sequencies where radio work items could get stuck,
+	* fixed couple of sequences where radio work items could get stuck,
 	  e.g., when rfkill blocking happens during scanning or when
 	  scan-for-auth workaround is used
 	* P2P enhancements/fixes
@@ -627,7 +627,7 @@ ChangeLog for wpa_supplicant
 	* added 'dup_network <id_s> <id_d> <name>' command; this can be used to
 	  clone the psk field without having toextract it from wpa_supplicant
 	* fixed GSM authentication on USIM
-	* added support for usin epoll in eloop (CONFIG_ELOOP_EPOLL=y)
+	* added support for using epoll in eloop (CONFIG_ELOOP_EPOLL=y)
 	* fixed some concurrent virtual interface cases with dedicated P2P
 	  management interface to not catch events from removed interface (this
 	  could result in the management interface getting disabled)
@@ -1113,7 +1113,7 @@ ChangeLog for wpa_supplicant
 	    workarounds.
 	  - Add support for AuthorizedMACs attribute.
 	* TDLS:
-	  - Propogate TDLS related nl80211 capability flags from kernel and
+	  - Propagate TDLS related nl80211 capability flags from kernel and
 	    add them as driver capability flags. If the driver doesn't support
 	    capabilities, assume TDLS is supported internally. When TDLS is
 	    explicitly not supported, disable all user facing TDLS operations.
@@ -2221,7 +2221,7 @@ ChangeLog for wpa_supplicant
 	* added support for EAP-SIM pseudonyms and fast re-authentication
 	* added support for EAP-TLS/PEAP/TTLS fast re-authentication (TLS
 	  session resumption)
-	* added support for EAP-SIM with two challanges
+	* added support for EAP-SIM with two challenges
 	  (phase1="sim_min_num_chal=3" can be used to require three challenges)
 	* added support for configuring DH/DSA parameters for an ephemeral DH
 	  key exchange (EAP-TLS/PEAP/TTLS) using new configuration parameters
@@ -2332,7 +2332,7 @@ ChangeLog for wpa_supplicant
 	  ctrl_interface_group can be used to select which group gets access to
 	  the control interface;
 	  wpa_cli: by default, try to connect to the first interface available
-	  in /var/run/wpa_supplicant; this path can be overriden with -p option
+	  in /var/run/wpa_supplicant; this path can be overridden with -p option
 	  and an interface can be selected with -i option (i.e., in most common
 	  cases, wpa_cli does not need to get any arguments)
 	* added support for LEAP

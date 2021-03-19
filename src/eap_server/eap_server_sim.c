@@ -76,7 +76,7 @@ static void * eap_sim_init(struct eap_sm *sm)
 {
 	struct eap_sim_data *data;
 
-	if (sm->eap_sim_db_priv == NULL) {
+	if (!sm->cfg->eap_sim_db_priv) {
 		wpa_printf(MSG_WARNING, "EAP-SIM: eap_sim_db not configured");
 		return NULL;
 	}
@@ -150,24 +150,24 @@ static int eap_sim_build_encr(struct eap_sm *sm, struct eap_sim_data *data,
 			      const u8 *nonce_s)
 {
 	os_free(data->next_pseudonym);
-	if (!(sm->eap_sim_id & 0x01)) {
+	if (!(sm->cfg->eap_sim_id & 0x01)) {
 		/* Use of pseudonyms disabled in configuration */
 		data->next_pseudonym = NULL;
 	} else if (!nonce_s) {
 		data->next_pseudonym =
-			eap_sim_db_get_next_pseudonym(sm->eap_sim_db_priv,
+			eap_sim_db_get_next_pseudonym(sm->cfg->eap_sim_db_priv,
 						      EAP_SIM_DB_SIM);
 	} else {
 		/* Do not update pseudonym during re-authentication */
 		data->next_pseudonym = NULL;
 	}
 	os_free(data->next_reauth_id);
-	if (!(sm->eap_sim_id & 0x02)) {
+	if (!(sm->cfg->eap_sim_id & 0x02)) {
 		/* Use of fast reauth disabled in configuration */
 		data->next_reauth_id = NULL;
 	} else if (data->counter <= EAP_SIM_MAX_FAST_REAUTHS) {
 		data->next_reauth_id =
-			eap_sim_db_get_next_reauth_id(sm->eap_sim_db_priv,
+			eap_sim_db_get_next_reauth_id(sm->cfg->eap_sim_db_priv,
 						      EAP_SIM_DB_SIM);
 	} else {
 		wpa_printf(MSG_DEBUG, "EAP-SIM: Max fast re-authentication "
@@ -240,7 +240,7 @@ static struct wpabuf * eap_sim_build_challenge(struct eap_sm *sm,
 		return NULL;
 	}
 
-	if (sm->eap_sim_aka_result_ind) {
+	if (sm->cfg->eap_sim_aka_result_ind) {
 		wpa_printf(MSG_DEBUG, "   AT_RESULT_IND");
 		eap_sim_msg_add(msg, EAP_SIM_AT_RESULT_IND, 0, NULL, 0);
 	}
@@ -279,7 +279,7 @@ static struct wpabuf * eap_sim_build_reauth(struct eap_sm *sm,
 		return NULL;
 	}
 
-	if (sm->eap_sim_aka_result_ind) {
+	if (sm->cfg->eap_sim_aka_result_ind) {
 		wpa_printf(MSG_DEBUG, "   AT_RESULT_IND");
 		eap_sim_msg_add(msg, EAP_SIM_AT_RESULT_IND, 0, NULL, 0);
 	}
@@ -360,8 +360,8 @@ static struct wpabuf * eap_sim_buildReq(struct eap_sm *sm, void *priv, u8 id)
 }
 
 
-static Boolean eap_sim_check(struct eap_sm *sm, void *priv,
-			     struct wpabuf *respData)
+static bool eap_sim_check(struct eap_sm *sm, void *priv,
+			  struct wpabuf *respData)
 {
 	const u8 *pos;
 	size_t len;
@@ -369,55 +369,55 @@ static Boolean eap_sim_check(struct eap_sm *sm, void *priv,
 	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_SIM, respData, &len);
 	if (pos == NULL || len < 3) {
 		wpa_printf(MSG_INFO, "EAP-SIM: Invalid frame");
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 
-static Boolean eap_sim_unexpected_subtype(struct eap_sim_data *data,
-					  u8 subtype)
+static bool eap_sim_unexpected_subtype(struct eap_sim_data *data,
+				       u8 subtype)
 {
 	if (subtype == EAP_SIM_SUBTYPE_CLIENT_ERROR)
-		return FALSE;
+		return false;
 
 	switch (data->state) {
 	case START:
 		if (subtype != EAP_SIM_SUBTYPE_START) {
 			wpa_printf(MSG_INFO, "EAP-SIM: Unexpected response "
 				   "subtype %d", subtype);
-			return TRUE;
+			return true;
 		}
 		break;
 	case CHALLENGE:
 		if (subtype != EAP_SIM_SUBTYPE_CHALLENGE) {
 			wpa_printf(MSG_INFO, "EAP-SIM: Unexpected response "
 				   "subtype %d", subtype);
-			return TRUE;
+			return true;
 		}
 		break;
 	case REAUTH:
 		if (subtype != EAP_SIM_SUBTYPE_REAUTHENTICATION) {
 			wpa_printf(MSG_INFO, "EAP-SIM: Unexpected response "
 				   "subtype %d", subtype);
-			return TRUE;
+			return true;
 		}
 		break;
 	case NOTIFICATION:
 		if (subtype != EAP_SIM_SUBTYPE_NOTIFICATION) {
 			wpa_printf(MSG_INFO, "EAP-SIM: Unexpected response "
 				   "subtype %d", subtype);
-			return TRUE;
+			return true;
 		}
 		break;
 	default:
 		wpa_printf(MSG_INFO, "EAP-SIM: Unexpected state (%d) for "
 			   "processing a response", data->state);
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -475,7 +475,7 @@ static void eap_sim_process_start(struct eap_sm *sm,
 		wpa_printf(MSG_DEBUG, "EAP-SIM: Reauth username '%s'",
 			   username);
 		data->reauth = eap_sim_db_get_reauth_entry(
-			sm->eap_sim_db_priv, username);
+			sm->cfg->eap_sim_db_priv, username);
 		os_free(username);
 		if (data->reauth == NULL) {
 			wpa_printf(MSG_DEBUG, "EAP-SIM: Unknown reauth "
@@ -497,7 +497,7 @@ static void eap_sim_process_start(struct eap_sm *sm,
 		wpa_printf(MSG_DEBUG, "EAP-SIM: Pseudonym username '%s'",
 			   username);
 		permanent = eap_sim_db_get_permanent(
-			sm->eap_sim_db_priv, username);
+			sm->cfg->eap_sim_db_priv, username);
 		os_free(username);
 		if (permanent == NULL) {
 			wpa_printf(MSG_DEBUG, "EAP-SIM: Unknown pseudonym "
@@ -538,7 +538,7 @@ skip_id_update:
 	data->reauth = NULL;
 
 	data->num_chal = eap_sim_db_get_gsm_triplets(
-		sm->eap_sim_db_priv, data->permanent, EAP_SIM_MAX_CHAL,
+		sm->cfg->eap_sim_db_priv, data->permanent, EAP_SIM_MAX_CHAL,
 		(u8 *) data->rand, (u8 *) data->kc, (u8 *) data->sres, sm);
 	if (data->num_chal == EAP_SIM_DB_PENDING) {
 		wpa_printf(MSG_DEBUG, "EAP-SIM: GSM authentication triplets "
@@ -599,7 +599,7 @@ static void eap_sim_process_challenge(struct eap_sm *sm,
 
 	wpa_printf(MSG_DEBUG, "EAP-SIM: Challenge response includes the "
 		   "correct AT_MAC");
-	if (sm->eap_sim_aka_result_ind && attr->result_ind) {
+	if (sm->cfg->eap_sim_aka_result_ind && attr->result_ind) {
 		data->use_result_ind = 1;
 		data->notification = EAP_SIM_SUCCESS;
 		eap_sim_state(data, NOTIFICATION);
@@ -607,12 +607,13 @@ static void eap_sim_process_challenge(struct eap_sm *sm,
 		eap_sim_state(data, SUCCESS);
 
 	if (data->next_pseudonym) {
-		eap_sim_db_add_pseudonym(sm->eap_sim_db_priv, data->permanent,
+		eap_sim_db_add_pseudonym(sm->cfg->eap_sim_db_priv,
+					 data->permanent,
 					 data->next_pseudonym);
 		data->next_pseudonym = NULL;
 	}
 	if (data->next_reauth_id) {
-		eap_sim_db_add_reauth(sm->eap_sim_db_priv, data->permanent,
+		eap_sim_db_add_reauth(sm->cfg->eap_sim_db_priv, data->permanent,
 				      data->next_reauth_id, data->counter + 1,
 				      data->mk);
 		data->next_reauth_id = NULL;
@@ -672,7 +673,7 @@ static void eap_sim_process_reauth(struct eap_sm *sm,
 		return;
 	}
 
-	if (sm->eap_sim_aka_result_ind && attr->result_ind) {
+	if (sm->cfg->eap_sim_aka_result_ind && attr->result_ind) {
 		data->use_result_ind = 1;
 		data->notification = EAP_SIM_SUCCESS;
 		eap_sim_state(data, NOTIFICATION);
@@ -680,12 +681,13 @@ static void eap_sim_process_reauth(struct eap_sm *sm,
 		eap_sim_state(data, SUCCESS);
 
 	if (data->next_reauth_id) {
-		eap_sim_db_add_reauth(sm->eap_sim_db_priv, data->permanent,
+		eap_sim_db_add_reauth(sm->cfg->eap_sim_db_priv, data->permanent,
 				      data->next_reauth_id,
 				      data->counter + 1, data->mk);
 		data->next_reauth_id = NULL;
 	} else {
-		eap_sim_db_remove_reauth(sm->eap_sim_db_priv, data->reauth);
+		eap_sim_db_remove_reauth(sm->cfg->eap_sim_db_priv,
+					 data->reauth);
 		data->reauth = NULL;
 	}
 
@@ -694,7 +696,7 @@ static void eap_sim_process_reauth(struct eap_sm *sm,
 fail:
 	data->notification = EAP_SIM_GENERAL_FAILURE_BEFORE_AUTH;
 	eap_sim_state(data, NOTIFICATION);
-	eap_sim_db_remove_reauth(sm->eap_sim_db_priv, data->reauth);
+	eap_sim_db_remove_reauth(sm->cfg->eap_sim_db_priv, data->reauth);
 	data->reauth = NULL;
 	os_free(decrypted);
 }
@@ -792,7 +794,7 @@ static void eap_sim_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_sim_isDone(struct eap_sm *sm, void *priv)
+static bool eap_sim_isDone(struct eap_sm *sm, void *priv)
 {
 	struct eap_sim_data *data = priv;
 	return data->state == SUCCESS || data->state == FAILURE;
@@ -831,7 +833,7 @@ static u8 * eap_sim_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 }
 
 
-static Boolean eap_sim_isSuccess(struct eap_sm *sm, void *priv)
+static bool eap_sim_isSuccess(struct eap_sm *sm, void *priv)
 {
 	struct eap_sim_data *data = priv;
 	return data->state == SUCCESS;

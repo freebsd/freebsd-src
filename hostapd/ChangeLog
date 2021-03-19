@@ -362,7 +362,7 @@ ChangeLog for hostapd
 	* RADIUS server functionality
 	  - add minimal RADIUS accounting server support (hostapd-as-server);
 	    this is mainly to enable testing coverage with hwsim scripts
-	  - allow authentication log to be written into SQLite databse
+	  - allow authentication log to be written into SQLite database
 	  - added option for TLS protocol testing of an EAP peer by simulating
 	    various misbehaviors/known attacks
 	  - MAC ACL support for testing purposes
@@ -668,7 +668,7 @@ ChangeLog for hostapd
 	* fixed HT Capabilities IE with nl80211 drivers
 	* moved generic AP functionality code into src/ap
 	* WPS: handle Selected Registrar as union of info from all Registrars
-	* remove obsolte Prism54.org driver wrapper
+	* remove obsolete Prism54.org driver wrapper
 	* added internal debugging mechanism with backtrace support and memory
 	  allocation/freeing validation, etc. tests (CONFIG_WPA_TRACE=y)
 	* EAP-FAST server: piggyback Phase 2 start with the end of Phase 1

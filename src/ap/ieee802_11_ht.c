@@ -27,7 +27,7 @@ u8 * hostapd_eid_ht_capabilities(struct hostapd_data *hapd, u8 *eid)
 	u8 *pos = eid;
 
 	if (!hapd->iconf->ieee80211n || !hapd->iface->current_mode ||
-	    hapd->conf->disable_11n)
+	    hapd->conf->disable_11n || is_6ghz_op_class(hapd->iconf->op_class))
 		return eid;
 
 	*pos++ = WLAN_EID_HT_CAP;
@@ -84,7 +84,8 @@ u8 * hostapd_eid_ht_operation(struct hostapd_data *hapd, u8 *eid)
 	struct ieee80211_ht_operation *oper;
 	u8 *pos = eid;
 
-	if (!hapd->iconf->ieee80211n || hapd->conf->disable_11n)
+	if (!hapd->iconf->ieee80211n || hapd->conf->disable_11n ||
+	    is_6ghz_op_class(hapd->iconf->op_class))
 		return eid;
 
 	*pos++ = WLAN_EID_HT_OPERATION;
@@ -108,32 +109,9 @@ u8 * hostapd_eid_ht_operation(struct hostapd_data *hapd, u8 *eid)
 }
 
 
-u8 * hostapd_eid_secondary_channel(struct hostapd_data *hapd, u8 *eid)
-{
-	u8 sec_ch;
-
-	if (!hapd->cs_freq_params.channel ||
-	    !hapd->cs_freq_params.sec_channel_offset)
-		return eid;
-
-	if (hapd->cs_freq_params.sec_channel_offset == -1)
-		sec_ch = HT_INFO_HT_PARAM_SECONDARY_CHNL_BELOW;
-	else if (hapd->cs_freq_params.sec_channel_offset == 1)
-		sec_ch = HT_INFO_HT_PARAM_SECONDARY_CHNL_ABOVE;
-	else
-		return eid;
-
-	*eid++ = WLAN_EID_SECONDARY_CHANNEL_OFFSET;
-	*eid++ = 1;
-	*eid++ = sec_ch;
-
-	return eid;
-}
-
-
 /*
 op_mode
-Set to 0 (HT pure) under the followign conditions
+Set to 0 (HT pure) under the following conditions
 	- all STAs in the BSS are 20/40 MHz HT in 20/40 MHz BSS or
 	- all STAs in the BSS are 20 MHz HT in 20 MHz BSS
 Set to 1 (HT non-member protection) if there may be non-HT STAs

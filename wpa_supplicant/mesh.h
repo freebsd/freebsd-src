@@ -11,9 +11,11 @@
 
 int wpa_supplicant_join_mesh(struct wpa_supplicant *wpa_s,
 			     struct wpa_ssid *ssid);
-int wpa_supplicant_leave_mesh(struct wpa_supplicant *wpa_s);
+int wpa_supplicant_leave_mesh(struct wpa_supplicant *wpa_s,
+			      bool need_deinit);
 void wpa_supplicant_mesh_iface_deinit(struct wpa_supplicant *wpa_s,
-				      struct hostapd_iface *ifmsh);
+				      struct hostapd_iface *ifmsh,
+				      bool also_clear_hostapd);
 int wpas_mesh_scan_result_text(const u8 *ies, size_t ies_len, char *buf,
 			       char *end);
 int wpas_mesh_add_interface(struct wpa_supplicant *wpa_s, char *ifname,

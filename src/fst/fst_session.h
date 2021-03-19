@@ -24,10 +24,10 @@ fst_session_global_get_first_by_group(struct fst_group *g);
 
 struct fst_session * fst_session_create(struct fst_group *g);
 void fst_session_set_iface(struct fst_session *s, struct fst_iface *iface,
-			   Boolean is_old);
+			   bool is_old);
 void fst_session_set_llt(struct fst_session *s, u32 llt);
 void fst_session_set_peer_addr(struct fst_session *s, const u8 *addr,
-			       Boolean is_old);
+			       bool is_old);
 int fst_session_initiate_setup(struct fst_session *s);
 int fst_session_respond(struct fst_session *s, u8 status_code);
 int fst_session_initiate_switch(struct fst_session *s);
@@ -39,8 +39,8 @@ void fst_session_reset(struct fst_session *s);
 void fst_session_delete(struct fst_session *s);
 
 struct fst_group * fst_session_get_group(struct fst_session *s);
-struct fst_iface * fst_session_get_iface(struct fst_session *s, Boolean is_old);
-const u8 * fst_session_get_peer_addr(struct fst_session *s, Boolean is_old);
+struct fst_iface * fst_session_get_iface(struct fst_session *s, bool is_old);
+const u8 * fst_session_get_peer_addr(struct fst_session *s, bool is_old);
 u32 fst_session_get_id(struct fst_session *s);
 u32 fst_session_get_llt(struct fst_session *s);
 enum fst_session_state fst_session_get_state(struct fst_session *s);
@@ -57,9 +57,9 @@ void fst_session_on_action_rx(struct fst_iface *iface,
 
 
 int fst_session_set_str_ifname(struct fst_session *s, const char *ifname,
-			       Boolean is_old);
+			       bool is_old);
 int fst_session_set_str_peer_addr(struct fst_session *s, const char *mac,
-				  Boolean is_old);
+				  bool is_old);
 int fst_session_set_str_llt(struct fst_session *s, const char *llt_str);
 
 #ifdef CONFIG_FST_TEST

@@ -1,6 +1,6 @@
 /*
  * EAP peer state machines (RFC 4137)
- * Copyright (c) 2004-2014, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2019, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -32,12 +32,13 @@
 #define STATE_MACHINE_DATA struct eap_sm
 #define STATE_MACHINE_DEBUG_PREFIX "EAP"
 
-#define EAP_MAX_AUTH_ROUNDS 50
+#define EAP_MAX_AUTH_ROUNDS 100
+#define EAP_MAX_AUTH_ROUNDS_SHORT 50
 #define EAP_CLIENT_TIMEOUT_DEFAULT 60
 
 
-static Boolean eap_sm_allowMethod(struct eap_sm *sm, int vendor,
-				  EapType method);
+static bool eap_sm_allowMethod(struct eap_sm *sm, int vendor,
+			       enum eap_type method);
 static struct wpabuf * eap_sm_buildNak(struct eap_sm *sm, int id);
 static void eap_sm_processIdentity(struct eap_sm *sm,
 				   const struct wpabuf *req);
@@ -53,14 +54,14 @@ static void eap_sm_request(struct eap_sm *sm, enum wpa_ctrl_req_type field,
 
 
 
-static Boolean eapol_get_bool(struct eap_sm *sm, enum eapol_bool_var var)
+static bool eapol_get_bool(struct eap_sm *sm, enum eapol_bool_var var)
 {
 	return sm->eapol_cb->get_bool(sm->eapol_ctx, var);
 }
 
 
 static void eapol_set_bool(struct eap_sm *sm, enum eapol_bool_var var,
-			   Boolean value)
+			   bool value)
 {
 	sm->eapol_cb->set_bool(sm->eapol_ctx, var, value);
 }
@@ -209,8 +210,8 @@ static int eap_sm_append_3gpp_realm(struct eap_sm *sm, char *imsi,
 
 /*
  * This state initializes state machine variables when the machine is
- * activated (portEnabled = TRUE). This is also used when re-starting
- * authentication (eapRestart == TRUE).
+ * activated (portEnabled = true). This is also used when re-starting
+ * authentication (eapRestart == true).
  */
 SM_STATE(EAP, INITIALIZE)
 {
@@ -228,17 +229,17 @@ SM_STATE(EAP, INITIALIZE)
 	}
 	sm->selectedMethod = EAP_TYPE_NONE;
 	sm->methodState = METHOD_NONE;
-	sm->allowNotifications = TRUE;
+	sm->allowNotifications = true;
 	sm->decision = DECISION_FAIL;
 	sm->ClientTimeout = EAP_CLIENT_TIMEOUT_DEFAULT;
 	eapol_set_int(sm, EAPOL_idleWhile, sm->ClientTimeout);
-	eapol_set_bool(sm, EAPOL_eapSuccess, FALSE);
-	eapol_set_bool(sm, EAPOL_eapFail, FALSE);
+	eapol_set_bool(sm, EAPOL_eapSuccess, false);
+	eapol_set_bool(sm, EAPOL_eapFail, false);
 	eap_sm_free_key(sm);
 	os_free(sm->eapSessionId);
 	sm->eapSessionId = NULL;
-	sm->eapKeyAvailable = FALSE;
-	eapol_set_bool(sm, EAPOL_eapRestart, FALSE);
+	sm->eapKeyAvailable = false;
+	eapol_set_bool(sm, EAPOL_eapRestart, false);
 	sm->lastId = -1; /* new session - make sure this does not match with
 			  * the first EAP-Packet */
 	/*
@@ -246,36 +247,39 @@ SM_STATE(EAP, INITIALIZE)
 	 * seemed to be able to trigger cases where both were set and if EAPOL
 	 * state machine uses eapNoResp first, it may end up not sending a real
 	 * reply correctly. This occurred when the workaround in FAIL state set
-	 * eapNoResp = TRUE.. Maybe that workaround needs to be fixed to do
+	 * eapNoResp = true.. Maybe that workaround needs to be fixed to do
 	 * something else(?)
 	 */
-	eapol_set_bool(sm, EAPOL_eapResp, FALSE);
-	eapol_set_bool(sm, EAPOL_eapNoResp, FALSE);
+	eapol_set_bool(sm, EAPOL_eapResp, false);
+	eapol_set_bool(sm, EAPOL_eapNoResp, false);
 	/*
 	 * RFC 4137 does not reset ignore here, but since it is possible for
-	 * some method code paths to end up not setting ignore=FALSE, clear the
+	 * some method code paths to end up not setting ignore=false, clear the
 	 * value here to avoid issues if a previous authentication attempt
-	 * failed with ignore=TRUE being left behind in the last
+	 * failed with ignore=true being left behind in the last
 	 * m.check(eapReqData) operation.
 	 */
 	sm->ignore = 0;
 	sm->num_rounds = 0;
+	sm->num_rounds_short = 0;
 	sm->prev_failure = 0;
 	sm->expected_failure = 0;
-	sm->reauthInit = FALSE;
+	sm->reauthInit = false;
 	sm->erp_seq = (u32) -1;
+	sm->use_machine_cred = 0;
 }
 
 
 /*
  * This state is reached whenever service from the lower layer is interrupted
- * or unavailable (portEnabled == FALSE). Immediate transition to INITIALIZE
+ * or unavailable (portEnabled == false). Immediate transition to INITIALIZE
  * occurs when the port becomes enabled.
  */
 SM_STATE(EAP, DISABLED)
 {
 	SM_ENTRY(EAP, DISABLED);
 	sm->num_rounds = 0;
+	sm->num_rounds_short = 0;
 	/*
 	 * RFC 4137 does not describe clearing of idleWhile here, but doing so
 	 * allows the timer tick to be stopped more quickly when EAP is not in
@@ -297,7 +301,7 @@ SM_STATE(EAP, IDLE)
 
 
 /*
- * This state is entered when an EAP packet is received (eapReq == TRUE) to
+ * This state is entered when an EAP packet is received (eapReq == true) to
  * parse the packet header.
  */
 SM_STATE(EAP, RECEIVED)
@@ -309,6 +313,10 @@ SM_STATE(EAP, RECEIVED)
 	/* parse rxReq, rxSuccess, rxFailure, reqId, reqMethod */
 	eap_sm_parseEapReq(sm, eapReqData);
 	sm->num_rounds++;
+	if (!eapReqData || wpabuf_len(eapReqData) < 20)
+		sm->num_rounds_short++;
+	else
+		sm->num_rounds_short = 0;
 }
 
 
@@ -319,7 +327,7 @@ SM_STATE(EAP, RECEIVED)
 SM_STATE(EAP, GET_METHOD)
 {
 	int reinit;
-	EapType method;
+	enum eap_type method;
 	const struct eap_method *eap_method;
 
 	SM_ENTRY(EAP, GET_METHOD);
@@ -815,7 +823,8 @@ struct wpabuf * eap_peer_build_erp_reauth_start(struct eap_sm *sm, u8 eap_id)
 	wpa_printf(MSG_DEBUG, "EAP: Valid ERP key found %s (SEQ=%u)",
 		   erp->keyname_nai, erp->next_seq);
 
-	msg = eap_msg_alloc(EAP_VENDOR_IETF, (EapType) EAP_ERP_TYPE_REAUTH,
+	msg = eap_msg_alloc(EAP_VENDOR_IETF,
+			    (enum eap_type) EAP_ERP_TYPE_REAUTH,
 			    1 + 2 + 2 + os_strlen(erp->keyname_nai) + 1 + 16,
 			    EAP_CODE_INITIATE, eap_id);
 	if (msg == NULL)
@@ -857,7 +866,7 @@ static int eap_peer_erp_reauth_start(struct eap_sm *sm, u8 eap_id)
 	wpa_printf(MSG_DEBUG, "EAP: Sending EAP-Initiate/Re-auth");
 	wpabuf_free(sm->eapRespData);
 	sm->eapRespData = msg;
-	sm->reauthInit = TRUE;
+	sm->reauthInit = true;
 	return 0;
 }
 #endif /* CONFIG_ERP */
@@ -949,18 +958,20 @@ SM_STATE(EAP, SEND_RESPONSE)
 	SM_ENTRY(EAP, SEND_RESPONSE);
 	wpabuf_free(sm->lastRespData);
 	if (sm->eapRespData) {
+		if (wpabuf_len(sm->eapRespData) >= 20)
+			sm->num_rounds_short = 0;
 		if (sm->workaround)
 			os_memcpy(sm->last_sha1, sm->req_sha1, 20);
 		sm->lastId = sm->reqId;
 		sm->lastRespData = wpabuf_dup(sm->eapRespData);
-		eapol_set_bool(sm, EAPOL_eapResp, TRUE);
+		eapol_set_bool(sm, EAPOL_eapResp, true);
 	} else {
 		wpa_printf(MSG_DEBUG, "EAP: No eapRespData available");
 		sm->lastRespData = NULL;
 	}
-	eapol_set_bool(sm, EAPOL_eapReq, FALSE);
+	eapol_set_bool(sm, EAPOL_eapReq, false);
 	eapol_set_int(sm, EAPOL_idleWhile, sm->ClientTimeout);
-	sm->reauthInit = FALSE;
+	sm->reauthInit = false;
 }
 
 
@@ -971,8 +982,8 @@ SM_STATE(EAP, SEND_RESPONSE)
 SM_STATE(EAP, DISCARD)
 {
 	SM_ENTRY(EAP, DISCARD);
-	eapol_set_bool(sm, EAPOL_eapReq, FALSE);
-	eapol_set_bool(sm, EAPOL_eapNoResp, TRUE);
+	eapol_set_bool(sm, EAPOL_eapReq, false);
+	eapol_set_bool(sm, EAPOL_eapNoResp, true);
 }
 
 
@@ -1037,15 +1048,15 @@ SM_STATE(EAP, SUCCESS)
 
 	SM_ENTRY(EAP, SUCCESS);
 	if (sm->eapKeyData != NULL)
-		sm->eapKeyAvailable = TRUE;
-	eapol_set_bool(sm, EAPOL_eapSuccess, TRUE);
+		sm->eapKeyAvailable = true;
+	eapol_set_bool(sm, EAPOL_eapSuccess, true);
 
 	/*
 	 * RFC 4137 does not clear eapReq here, but this seems to be required
 	 * to avoid processing the same request twice when state machine is
 	 * initialized.
 	 */
-	eapol_set_bool(sm, EAPOL_eapReq, FALSE);
+	eapol_set_bool(sm, EAPOL_eapReq, false);
 
 	/*
 	 * RFC 4137 does not set eapNoResp here, but this seems to be required
@@ -1053,11 +1064,25 @@ SM_STATE(EAP, SUCCESS)
 	 * addition, either eapResp or eapNoResp is required to be set after
 	 * processing the received EAP frame.
 	 */
-	eapol_set_bool(sm, EAPOL_eapNoResp, TRUE);
+	eapol_set_bool(sm, EAPOL_eapNoResp, true);
 
 	wpa_msg(sm->msg_ctx, MSG_INFO, WPA_EVENT_EAP_SUCCESS
 		"EAP authentication completed successfully");
 
+	if (!config || !sm->m) {
+		/*
+		 * This should not happen under normal conditions, but be more
+		 * careful here since there was an earlier case where
+		 * EAP-Success could end up getting delivered to the state
+		 * machine for processing after the state had been cleaned with
+		 * a call to eap_invalidate_cached_session() (and also
+		 * eapol_sm_notify_config() having been used to clear EAP
+		 * configuration in the EAPOL state machine).
+		 */
+		wpa_printf(MSG_DEBUG,
+			   "EAP: State machine not configured - cannot initialize ERP");
+		return;
+	}
 	if (config->erp && sm->m->get_emsk && sm->eapSessionId &&
 	    sm->m->isKeyAvailable &&
 	    sm->m->isKeyAvailable(sm, sm->eap_method_priv))
@@ -1072,21 +1097,21 @@ SM_STATE(EAP, SUCCESS)
 SM_STATE(EAP, FAILURE)
 {
 	SM_ENTRY(EAP, FAILURE);
-	eapol_set_bool(sm, EAPOL_eapFail, TRUE);
+	eapol_set_bool(sm, EAPOL_eapFail, true);
 
 	/*
 	 * RFC 4137 does not clear eapReq here, but this seems to be required
 	 * to avoid processing the same request twice when state machine is
 	 * initialized.
 	 */
-	eapol_set_bool(sm, EAPOL_eapReq, FALSE);
+	eapol_set_bool(sm, EAPOL_eapReq, false);
 
 	/*
 	 * RFC 4137 does not set eapNoResp here. However, either eapResp or
 	 * eapNoResp is required to be set after processing the received EAP
 	 * frame.
 	 */
-	eapol_set_bool(sm, EAPOL_eapNoResp, TRUE);
+	eapol_set_bool(sm, EAPOL_eapNoResp, true);
 
 	wpa_msg(sm->msg_ctx, MSG_INFO, WPA_EVENT_EAP_FAILURE
 		"EAP authentication failed");
@@ -1341,6 +1366,14 @@ SM_STEP(EAP)
 			sm->num_rounds++;
 			SM_ENTER_GLOBAL(EAP, FAILURE);
 		}
+	} else if (sm->num_rounds_short > EAP_MAX_AUTH_ROUNDS_SHORT) {
+		if (sm->num_rounds_short == EAP_MAX_AUTH_ROUNDS_SHORT + 1) {
+			wpa_msg(sm->msg_ctx, MSG_INFO,
+				"EAP: more than %d authentication rounds (short) - abort",
+				EAP_MAX_AUTH_ROUNDS_SHORT);
+			sm->num_rounds_short++;
+			SM_ENTER_GLOBAL(EAP, FAILURE);
+		}
 	} else {
 		/* Local transitions */
 		eap_peer_sm_step_local(sm);
@@ -1348,19 +1381,19 @@ SM_STEP(EAP)
 }
 
 
-static Boolean eap_sm_allowMethod(struct eap_sm *sm, int vendor,
-				  EapType method)
+static bool eap_sm_allowMethod(struct eap_sm *sm, int vendor,
+			       enum eap_type method)
 {
 	if (!eap_allowed_method(sm, vendor, method)) {
 		wpa_printf(MSG_DEBUG, "EAP: configuration does not allow: "
 			   "vendor %u method %u", vendor, method);
-		return FALSE;
+		return false;
 	}
 	if (eap_peer_get_eap_method(vendor, method))
-		return TRUE;
+		return true;
 	wpa_printf(MSG_DEBUG, "EAP: not included in build: "
 		   "vendor %u method %u", vendor, method);
-	return FALSE;
+	return false;
 }
 
 
@@ -1595,13 +1628,13 @@ static int eap_sm_imsi_identity(struct eap_sm *sm,
 static int eap_sm_set_scard_pin(struct eap_sm *sm,
 				struct eap_peer_config *conf)
 {
-	if (scard_set_pin(sm->scard_ctx, conf->pin)) {
+	if (scard_set_pin(sm->scard_ctx, conf->cert.pin)) {
 		/*
 		 * Make sure the same PIN is not tried again in order to avoid
 		 * blocking SIM.
 		 */
-		os_free(conf->pin);
-		conf->pin = NULL;
+		os_free(conf->cert.pin);
+		conf->cert.pin = NULL;
 
 		wpa_printf(MSG_WARNING, "PIN validation failed");
 		eap_sm_request_pin(sm);
@@ -1656,6 +1689,11 @@ struct wpabuf * eap_sm_buildIdentity(struct eap_sm *sm, int id, int encrypted)
 		identity = config->anonymous_identity;
 		identity_len = config->anonymous_identity_len;
 		wpa_hexdump_ascii(MSG_DEBUG, "EAP: using anonymous identity",
+				  identity, identity_len);
+	} else if (sm->use_machine_cred) {
+		identity = config->machine_identity;
+		identity_len = config->machine_identity_len;
+		wpa_hexdump_ascii(MSG_DEBUG, "EAP: using machine identity",
 				  identity, identity_len);
 	} else {
 		identity = config->identity;
@@ -1778,7 +1816,7 @@ invalid:
 #endif /* CONFIG_ERP */
 	wpa_printf(MSG_DEBUG,
 		   "EAP: EAP-Initiate/Re-auth-Start - No suitable ERP keys available - try to start full EAP authentication");
-	eapol_set_bool(sm, EAPOL_eapTriggerStart, TRUE);
+	eapol_set_bool(sm, EAPOL_eapTriggerStart, true);
 }
 
 
@@ -1902,9 +1940,9 @@ no_auth_tag:
 	if (flags & 0x80 || !auth_tag_ok) {
 		wpa_printf(MSG_DEBUG,
 			   "EAP: EAP-Finish/Re-auth indicated failure");
-		eapol_set_bool(sm, EAPOL_eapFail, TRUE);
-		eapol_set_bool(sm, EAPOL_eapReq, FALSE);
-		eapol_set_bool(sm, EAPOL_eapNoResp, TRUE);
+		eapol_set_bool(sm, EAPOL_eapFail, true);
+		eapol_set_bool(sm, EAPOL_eapReq, false);
+		eapol_set_bool(sm, EAPOL_eapNoResp, true);
 		wpa_msg(sm->msg_ctx, MSG_INFO, WPA_EVENT_EAP_FAILURE
 			"EAP authentication failed");
 		sm->prev_failure = 1;
@@ -1933,10 +1971,10 @@ no_auth_tag:
 	}
 	wpa_hexdump_key(MSG_DEBUG, "EAP: ERP rMSK",
 			sm->eapKeyData, sm->eapKeyDataLen);
-	sm->eapKeyAvailable = TRUE;
-	eapol_set_bool(sm, EAPOL_eapSuccess, TRUE);
-	eapol_set_bool(sm, EAPOL_eapReq, FALSE);
-	eapol_set_bool(sm, EAPOL_eapNoResp, TRUE);
+	sm->eapKeyAvailable = true;
+	eapol_set_bool(sm, EAPOL_eapSuccess, true);
+	eapol_set_bool(sm, EAPOL_eapReq, false);
+	eapol_set_bool(sm, EAPOL_eapNoResp, true);
 	wpa_msg(sm->msg_ctx, MSG_INFO, WPA_EVENT_EAP_SUCCESS
 		"EAP re-authentication completed successfully");
 #endif /* CONFIG_ERP */
@@ -1949,7 +1987,7 @@ static void eap_sm_parseEapReq(struct eap_sm *sm, const struct wpabuf *req)
 	size_t plen;
 	const u8 *pos;
 
-	sm->rxReq = sm->rxResp = sm->rxSuccess = sm->rxFailure = FALSE;
+	sm->rxReq = sm->rxResp = sm->rxSuccess = sm->rxFailure = false;
 	sm->reqId = 0;
 	sm->reqMethod = EAP_TYPE_NONE;
 	sm->reqVendor = EAP_VENDOR_IETF;
@@ -1983,7 +2021,7 @@ static void eap_sm_parseEapReq(struct eap_sm *sm, const struct wpabuf *req)
 				   "no Type field");
 			return;
 		}
-		sm->rxReq = TRUE;
+		sm->rxReq = true;
 		pos = (const u8 *) (hdr + 1);
 		sm->reqMethod = *pos++;
 		if (sm->reqMethod == EAP_TYPE_EXPANDED) {
@@ -2014,7 +2052,7 @@ static void eap_sm_parseEapReq(struct eap_sm *sm, const struct wpabuf *req)
 					   "EAP-Response - no Type field");
 				return;
 			}
-			sm->rxResp = TRUE;
+			sm->rxResp = true;
 			pos = (const u8 *) (hdr + 1);
 			sm->reqMethod = *pos;
 			wpa_printf(MSG_DEBUG, "EAP: Received EAP-Response for "
@@ -2027,7 +2065,7 @@ static void eap_sm_parseEapReq(struct eap_sm *sm, const struct wpabuf *req)
 	case EAP_CODE_SUCCESS:
 		wpa_printf(MSG_DEBUG, "EAP: Received EAP-Success");
 		eap_notify_status(sm, "completion", "success");
-		sm->rxSuccess = TRUE;
+		sm->rxSuccess = true;
 		break;
 	case EAP_CODE_FAILURE:
 		wpa_printf(MSG_DEBUG, "EAP: Received EAP-Failure");
@@ -2041,7 +2079,7 @@ static void eap_sm_parseEapReq(struct eap_sm *sm, const struct wpabuf *req)
 			if (error_code != NO_EAP_METHOD_ERROR)
 				eap_report_error(sm, error_code);
 		}
-		sm->rxFailure = TRUE;
+		sm->rxFailure = true;
 		break;
 	case EAP_CODE_INITIATE:
 		eap_peer_initiate(sm, hdr, plen);
@@ -2209,7 +2247,7 @@ int eap_peer_sm_step(struct eap_sm *sm)
 {
 	int res = 0;
 	do {
-		sm->changed = FALSE;
+		sm->changed = false;
 		SM_STEP_RUN(EAP);
 		if (sm->changed)
 			res = 1;
@@ -2238,7 +2276,7 @@ void eap_sm_abort(struct eap_sm *sm)
 	/* This is not clearly specified in the EAP statemachines draft, but
 	 * it seems necessary to make sure that some of the EAPOL variables get
 	 * cleared for the next authentication. */
-	eapol_set_bool(sm, EAPOL_eapSuccess, FALSE);
+	eapol_set_bool(sm, EAPOL_eapSuccess, false);
 }
 
 
@@ -2600,6 +2638,8 @@ void eap_sm_notify_ctrl_attached(struct eap_sm *sm)
 
 static int eap_allowed_phase2_type(int vendor, int type)
 {
+	if (vendor == EAP_VENDOR_HOSTAP)
+		return 1;
 	if (vendor != EAP_VENDOR_IETF)
 		return 0;
 	return type != EAP_TYPE_PEAP && type != EAP_TYPE_TTLS &&
@@ -2662,7 +2702,7 @@ struct eap_method_type * eap_get_phase2_types(struct eap_peer_config *config,
 		if (eap_allowed_phase2_type(vendor, method)) {
 			if (vendor == EAP_VENDOR_IETF &&
 			    method == EAP_TYPE_TLS && config &&
-			    config->private_key2 == NULL)
+			    !config->phase2_cert.private_key)
 				continue;
 			buf[*count].vendor = vendor;
 			buf[*count].method = method;
@@ -2721,8 +2761,15 @@ struct eap_peer_config * eap_get_config(struct eap_sm *sm)
 const u8 * eap_get_config_identity(struct eap_sm *sm, size_t *len)
 {
 	struct eap_peer_config *config = eap_get_config(sm);
-	if (config == NULL)
+
+	if (!config)
 		return NULL;
+
+	if (sm->use_machine_cred) {
+		*len = config->machine_identity_len;
+		return config->machine_identity;
+	}
+
 	*len = config->identity_len;
 	return config->identity;
 }
@@ -2732,14 +2779,24 @@ static int eap_get_ext_password(struct eap_sm *sm,
 				struct eap_peer_config *config)
 {
 	char *name;
+	const u8 *password;
+	size_t password_len;
 
-	if (config->password == NULL)
+	if (sm->use_machine_cred) {
+		password = config->machine_password;
+		password_len = config->machine_password_len;
+	} else {
+		password = config->password;
+		password_len = config->password_len;
+	}
+
+	if (!password)
 		return -1;
 
-	name = os_zalloc(config->password_len + 1);
-	if (name == NULL)
+	name = os_zalloc(password_len + 1);
+	if (!name)
 		return -1;
-	os_memcpy(name, config->password, config->password_len);
+	os_memcpy(name, password, password_len);
 
 	ext_password_free(sm->ext_pw_buf);
 	sm->ext_pw_buf = ext_password_get(sm->ext_pw, name);
@@ -2758,14 +2815,23 @@ static int eap_get_ext_password(struct eap_sm *sm,
 const u8 * eap_get_config_password(struct eap_sm *sm, size_t *len)
 {
 	struct eap_peer_config *config = eap_get_config(sm);
-	if (config == NULL)
+
+	if (!config)
 		return NULL;
 
-	if (config->flags & EAP_CONFIG_FLAGS_EXT_PASSWORD) {
+	if ((sm->use_machine_cred &&
+	     (config->flags & EAP_CONFIG_FLAGS_EXT_MACHINE_PASSWORD)) ||
+	    (!sm->use_machine_cred &&
+	     (config->flags & EAP_CONFIG_FLAGS_EXT_PASSWORD))) {
 		if (eap_get_ext_password(sm, config) < 0)
 			return NULL;
 		*len = wpabuf_len(sm->ext_pw_buf);
 		return wpabuf_head(sm->ext_pw_buf);
+	}
+
+	if (sm->use_machine_cred) {
+		*len = config->machine_password_len;
+		return config->machine_password;
 	}
 
 	*len = config->password_len;
@@ -2785,16 +2851,28 @@ const u8 * eap_get_config_password(struct eap_sm *sm, size_t *len)
 const u8 * eap_get_config_password2(struct eap_sm *sm, size_t *len, int *hash)
 {
 	struct eap_peer_config *config = eap_get_config(sm);
-	if (config == NULL)
+
+	if (!config)
 		return NULL;
 
-	if (config->flags & EAP_CONFIG_FLAGS_EXT_PASSWORD) {
+	if ((sm->use_machine_cred &&
+	     (config->flags & EAP_CONFIG_FLAGS_EXT_MACHINE_PASSWORD)) ||
+	    (!sm->use_machine_cred &&
+	     (config->flags & EAP_CONFIG_FLAGS_EXT_PASSWORD))) {
 		if (eap_get_ext_password(sm, config) < 0)
 			return NULL;
 		if (hash)
 			*hash = 0;
 		*len = wpabuf_len(sm->ext_pw_buf);
 		return wpabuf_head(sm->ext_pw_buf);
+	}
+
+	if (sm->use_machine_cred) {
+		*len = config->machine_password_len;
+		if (hash)
+			*hash = !!(config->flags &
+				   EAP_CONFIG_FLAGS_MACHINE_PASSWORD_NTHASH);
+		return config->machine_password;
 	}
 
 	*len = config->password_len;
@@ -2941,8 +3019,8 @@ void eap_notify_lower_layer_success(struct eap_sm *sm)
 		return;
 
 	if (sm->eapKeyData != NULL)
-		sm->eapKeyAvailable = TRUE;
-	eapol_set_bool(sm, EAPOL_eapSuccess, TRUE);
+		sm->eapKeyAvailable = true;
+	eapol_set_bool(sm, EAPOL_eapSuccess, true);
 	wpa_msg(sm->msg_ctx, MSG_INFO, WPA_EVENT_EAP_SUCCESS
 		"EAP authentication completed successfully (based on lower "
 		"layer success)");

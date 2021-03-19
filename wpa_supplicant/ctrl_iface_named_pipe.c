@@ -45,7 +45,7 @@ ConvertStringSecurityDescriptorToSecurityDescriptorA
 
 /* Per-interface ctrl_iface */
 
-#define REQUEST_BUFSIZE 256
+#define REQUEST_BUFSIZE CTRL_IFACE_MAX_LEN
 #define REPLY_BUFSIZE 4096
 
 struct ctrl_iface_priv;

@@ -28,6 +28,7 @@ struct rsn_pmksa_cache_entry {
 	 */
 	u8 fils_cache_id[2];
 	unsigned int fils_cache_id_set:1;
+	unsigned int dpp_pfs:1;
 
 	os_time_t reauth_time;
 

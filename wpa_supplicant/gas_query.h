@@ -35,7 +35,7 @@ enum gas_query_result {
 };
 
 int gas_query_req(struct gas_query *gas, const u8 *dst, int freq,
-		  int wildcard_bssid, struct wpabuf *req,
+		  int wildcard_bssid, int maintain_addr, struct wpabuf *req,
 		  void (*cb)(void *ctx, const u8 *dst, u8 dialog_token,
 			     enum gas_query_result result,
 			     const struct wpabuf *adv_proto,

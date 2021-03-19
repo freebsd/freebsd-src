@@ -12,6 +12,8 @@
 
 #include <cstdio>
 #include <unistd.h>
+#include <chrono>
+#include <thread>
 #include <QMessageBox>
 #include <QCloseEvent>
 #include <QImageReader>
@@ -713,9 +715,22 @@ void WpaGui::updateNetworks()
 			   strstr(flags, "[DISABLED]") == NULL)
 			first_active = networkSelect->count() - 1;
 
-		if (last)
-			break;
 		start = end + 1;
+		if (*start && strchr(start, '\n'))
+			continue;
+
+		/* avoid race conditions */
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));
+		QString cmd("LIST_NETWORKS LAST_ID=");
+		cmd.append(id);
+		if (ctrlRequest(cmd.toLocal8Bit().constData(), buf, &len) < 0)
+			break;
+
+		buf[len] = '\0';
+		start = strchr(buf, '\n');
+		if (!start)
+			break;
+		start++;
 	}
 
 	if (networkSelect->count() > 1)

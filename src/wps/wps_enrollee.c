@@ -880,6 +880,17 @@ static int wps_process_ap_settings_e(struct wps_data *wps,
 		cred.auth_type |= WPS_AUTH_WPA2PSK;
 	}
 
+#ifdef CONFIG_NO_TKIP
+	if (cred.encr_type & WPS_ENCR_TKIP) {
+		wpa_printf(MSG_DEBUG, "WPS: Disable encr_type TKIP");
+		cred.encr_type &= ~WPS_ENCR_TKIP;
+	}
+	if (cred.auth_type & WPS_AUTH_WPAPSK) {
+		wpa_printf(MSG_DEBUG, "WPS: Disable auth_type WPAPSK");
+		cred.auth_type &= ~WPS_AUTH_WPAPSK;
+	}
+#endif /* CONFIG_NO_TKIP */
+
 	if (wps->wps->cred_cb) {
 		cred.cred_attr = wpabuf_head(attrs);
 		cred.cred_attr_len = wpabuf_len(attrs);

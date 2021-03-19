@@ -36,7 +36,7 @@
 /**
  * P2P_MAX_REG_CLASS_CHANNELS - Maximum number of channels per regulatory class
  */
-#define P2P_MAX_REG_CLASS_CHANNELS 20
+#define P2P_MAX_REG_CLASS_CHANNELS 60
 
 /**
  * struct p2p_channels - List of supported channels
@@ -98,6 +98,8 @@ struct p2p_go_neg_results {
 	int ht40;
 
 	int vht;
+
+	int edmg;
 
 	u8 max_oper_chwidth;
 
@@ -497,6 +499,11 @@ struct p2p_config {
 	 * pref_chan - Preferred channels for GO Negotiation
 	 */
 	struct p2p_channel *pref_chan;
+
+	/**
+	 * p2p_6ghz_disable - Disable 6GHz for P2P operations
+	 */
+	bool p2p_6ghz_disable;
 
 	/**
 	 * pri_dev_type - Primary Device Type (see WPS)
@@ -1618,6 +1625,7 @@ int p2p_scan_res_handler(struct p2p_data *p2p, const u8 *bssid, int freq,
 /**
  * p2p_scan_res_handled - Indicate end of scan results
  * @p2p: P2P module context from p2p_init()
+ * @delay: Search delay for next scan in ms
  *
  * This function is called to indicate that all P2P scan results from a scan
  * have been reported with zero or more calls to p2p_scan_res_handler(). This
@@ -1625,7 +1633,7 @@ int p2p_scan_res_handler(struct p2p_data *p2p, const u8 *bssid, int freq,
  * struct p2p_config::p2p_scan() call if none of the p2p_scan_res_handler()
  * calls stopped iteration.
  */
-void p2p_scan_res_handled(struct p2p_data *p2p);
+void p2p_scan_res_handled(struct p2p_data *p2p, unsigned int delay);
 
 enum p2p_send_action_result {
 	P2P_SEND_ACTION_SUCCESS /* Frame was send and acknowledged */,
@@ -2097,6 +2105,8 @@ unsigned int p2p_get_pref_freq(struct p2p_data *p2p,
 void p2p_update_channel_list(struct p2p_data *p2p,
 			     const struct p2p_channels *chan,
 			     const struct p2p_channels *cli_chan);
+
+bool is_p2p_6ghz_disabled(struct p2p_data *p2p);
 
 /**
  * p2p_set_best_channels - Update best channel information

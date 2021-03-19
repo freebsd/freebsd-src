@@ -39,20 +39,20 @@ struct wpa_state_machine {
 		WPA_PTK_GROUP_KEYERROR
 	} wpa_ptk_group_state;
 
-	Boolean Init;
-	Boolean DeauthenticationRequest;
-	Boolean AuthenticationRequest;
-	Boolean ReAuthenticationRequest;
-	Boolean Disconnect;
+	bool Init;
+	bool DeauthenticationRequest;
+	bool AuthenticationRequest;
+	bool ReAuthenticationRequest;
+	bool Disconnect;
 	u16 disconnect_reason; /* specific reason code to use with Disconnect */
 	u32 TimeoutCtr;
 	u32 GTimeoutCtr;
-	Boolean TimeoutEvt;
-	Boolean EAPOLKeyReceived;
-	Boolean EAPOLKeyPairwise;
-	Boolean EAPOLKeyRequest;
-	Boolean MICVerified;
-	Boolean GUpdateStationKeys;
+	bool TimeoutEvt;
+	bool EAPOLKeyReceived;
+	bool EAPOLKeyPairwise;
+	bool EAPOLKeyRequest;
+	bool MICVerified;
+	bool GUpdateStationKeys;
 	u8 ANonce[WPA_NONCE_LEN];
 	u8 SNonce[WPA_NONCE_LEN];
 	u8 alt_SNonce[WPA_NONCE_LEN];
@@ -61,20 +61,22 @@ struct wpa_state_machine {
 	unsigned int pmk_len;
 	u8 pmkid[PMKID_LEN]; /* valid if pmkid_set == 1 */
 	struct wpa_ptk PTK;
-	Boolean PTK_valid;
-	Boolean pairwise_set;
-	Boolean tk_already_set;
+	u8 keyidx_active;
+	bool use_ext_key_id;
+	bool PTK_valid;
+	bool pairwise_set;
+	bool tk_already_set;
 	int keycount;
-	Boolean Pair;
+	bool Pair;
 	struct wpa_key_replay_counter {
 		u8 counter[WPA_REPLAY_COUNTER_LEN];
-		Boolean valid;
+		bool valid;
 	} key_replay[RSNA_MAX_EAPOL_RETRIES],
 		prev_key_replay[RSNA_MAX_EAPOL_RETRIES];
-	Boolean PInitAKeys; /* WPA only, not in IEEE 802.11i */
-	Boolean PTKRequest; /* not in IEEE 802.11i state machine */
-	Boolean has_GTK;
-	Boolean PtkGroupInit; /* init request for PTK Group state machine */
+	bool PInitAKeys; /* WPA only, not in IEEE 802.11i */
+	bool PTKRequest; /* not in IEEE 802.11i state machine */
+	bool has_GTK;
+	bool PtkGroupInit; /* init request for PTK Group state machine */
 
 	u8 *last_rx_eapol_key; /* starting from IEEE 802.1X header */
 	size_t last_rx_eapol_key_len;
@@ -93,8 +95,9 @@ struct wpa_state_machine {
 #endif /* CONFIG_IEEE80211R_AP */
 	unsigned int is_wnmsleep:1;
 	unsigned int pmkid_set:1;
+
 #ifdef CONFIG_OCV
-	unsigned int ocv_enabled:1;
+	int ocv_enabled;
 #endif /* CONFIG_OCV */
 
 	u8 req_replay_counter[WPA_REPLAY_COUNTER_LEN];
@@ -102,6 +105,8 @@ struct wpa_state_machine {
 
 	u8 *wpa_ie;
 	size_t wpa_ie_len;
+	u8 *rsnxe;
+	size_t rsnxe_len;
 
 	enum {
 		WPA_VERSION_NO_WPA = 0 /* WPA not used */,
@@ -170,12 +175,12 @@ struct wpa_group {
 	struct wpa_group *next;
 	int vlan_id;
 
-	Boolean GInit;
+	bool GInit;
 	int GKeyDoneStations;
-	Boolean GTKReKey;
+	bool GTKReKey;
 	int GTK_len;
 	int GN, GM;
-	Boolean GTKAuthenticator;
+	bool GTKAuthenticator;
 	u8 Counter[WPA_NONCE_LEN];
 
 	enum {
@@ -187,13 +192,13 @@ struct wpa_group {
 	u8 GMK[WPA_GMK_LEN];
 	u8 GTK[2][WPA_GTK_MAX_LEN];
 	u8 GNonce[WPA_NONCE_LEN];
-	Boolean changed;
-	Boolean first_sta_seen;
-	Boolean reject_4way_hs_for_entropy;
-#ifdef CONFIG_IEEE80211W
+	bool changed;
+	bool first_sta_seen;
+	bool reject_4way_hs_for_entropy;
 	u8 IGTK[2][WPA_IGTK_MAX_LEN];
+	u8 BIGTK[2][WPA_IGTK_MAX_LEN];
 	int GN_igtk, GM_igtk;
-#endif /* CONFIG_IEEE80211W */
+	int GN_bigtk, GM_bigtk;
 	/* Number of references except those in struct wpa_group->next */
 	unsigned int references;
 	unsigned int num_setup_iface;
@@ -269,10 +274,12 @@ struct ft_remote_seq {
 
 int wpa_write_rsn_ie(struct wpa_auth_config *conf, u8 *buf, size_t len,
 		     const u8 *pmkid);
+int wpa_write_rsnxe(struct wpa_auth_config *conf, u8 *buf, size_t len);
 void wpa_auth_logger(struct wpa_authenticator *wpa_auth, const u8 *addr,
 		     logger_level level, const char *txt);
 void wpa_auth_vlogger(struct wpa_authenticator *wpa_auth, const u8 *addr,
-		      logger_level level, const char *fmt, ...);
+		      logger_level level, const char *fmt, ...)
+	PRINTF_FORMAT(4, 5);
 void __wpa_send_eapol(struct wpa_authenticator *wpa_auth,
 		      struct wpa_state_machine *sm, int key_info,
 		      const u8 *key_rsc, const u8 *nonce,
@@ -291,11 +298,11 @@ int wpa_write_ftie(struct wpa_auth_config *conf, int use_sha384,
 		   const u8 *r0kh_id, size_t r0kh_id_len,
 		   const u8 *anonce, const u8 *snonce,
 		   u8 *buf, size_t len, const u8 *subelem,
-		   size_t subelem_len);
+		   size_t subelem_len, int rsnxe_used);
 int wpa_auth_derive_ptk_ft(struct wpa_state_machine *sm, struct wpa_ptk *ptk);
 struct wpa_ft_pmk_cache * wpa_ft_pmk_cache_init(void);
 void wpa_ft_pmk_cache_deinit(struct wpa_ft_pmk_cache *cache);
-void wpa_ft_install_ptk(struct wpa_state_machine *sm);
+void wpa_ft_install_ptk(struct wpa_state_machine *sm, int retry);
 int wpa_ft_store_pmk_fils(struct wpa_state_machine *sm, const u8 *pmk_r0,
 			  const u8 *pmk_r0_name);
 #endif /* CONFIG_IEEE80211R_AP */

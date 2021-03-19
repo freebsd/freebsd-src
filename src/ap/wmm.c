@@ -111,8 +111,10 @@ u8 * hostapd_eid_wmm(struct hostapd_data *hapd, u8 *eid)
 	u8 *pos = eid;
 	struct wmm_parameter_element *wmm =
 		(struct wmm_parameter_element *) (pos + 2);
-	struct hostapd_wmm_ac_params wmmp[WMM_AC_NUM] = { 0 };
+	struct hostapd_wmm_ac_params wmmp[WMM_AC_NUM];
 	int e;
+
+	os_memset(wmmp, 0, sizeof(wmmp));
 
 	if (!hapd->conf->wmm_enabled)
 		return eid;
@@ -209,7 +211,7 @@ static void wmm_send_action(struct hostapd_data *hapd, const u8 *addr,
 	os_memcpy(t, tspec, sizeof(struct wmm_tspec_element));
 	len = ((u8 *) (t + 1)) - buf;
 
-	if (hostapd_drv_send_mlme(hapd, m, len, 0) < 0)
+	if (hostapd_drv_send_mlme(hapd, m, len, 0, NULL, 0, 0) < 0)
 		wpa_printf(MSG_INFO, "wmm_send_action: send failed");
 }
 
@@ -291,10 +293,11 @@ int wmm_process_tspec(struct wmm_tspec_element *tspec)
 
 static void wmm_addts_req(struct hostapd_data *hapd,
 			  const struct ieee80211_mgmt *mgmt,
-			  struct wmm_tspec_element *tspec, size_t len)
+			  const struct wmm_tspec_element *tspec, size_t len)
 {
 	const u8 *end = ((const u8 *) mgmt) + len;
 	int res;
+	struct wmm_tspec_element tspec_resp;
 
 	if ((const u8 *) (tspec + 1) > end) {
 		wpa_printf(MSG_DEBUG, "WMM: TSPEC overflow in ADDTS Request");
@@ -306,10 +309,11 @@ static void wmm_addts_req(struct hostapd_data *hapd,
 		   mgmt->u.action.u.wmm_action.dialog_token,
 		   MAC2STR(mgmt->sa));
 
-	res = wmm_process_tspec(tspec);
+	os_memcpy(&tspec_resp, tspec, sizeof(struct wmm_tspec_element));
+	res = wmm_process_tspec(&tspec_resp);
 	wpa_printf(MSG_DEBUG, "WMM: ADDTS processing result: %d", res);
 
-	wmm_send_action(hapd, mgmt->sa, tspec, WMM_ACTION_CODE_ADDTS_RESP,
+	wmm_send_action(hapd, mgmt->sa, &tspec_resp, WMM_ACTION_CODE_ADDTS_RESP,
 			mgmt->u.action.u.wmm_action.dialog_token, res);
 }
 

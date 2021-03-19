@@ -1219,6 +1219,10 @@ int eap_sim_anonymous_username(const u8 *id, size_t id_len)
 	    os_memcmp(id, anonymous_id_prefix, anonymous_id_len) == 0)
 		return 1; /* 'anonymous@realm' */
 
+	if (id_len > anonymous_id_len + 1 &&
+	    os_memcmp(id + 1, anonymous_id_prefix, anonymous_id_len) == 0)
+		return 1; /* 'Xanonymous@realm' where X is an EAP method code */
+
 	if (id_len > 1 && id[0] == '@')
 		return 1; /* '@realm' */
 

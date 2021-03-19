@@ -476,7 +476,9 @@ void Peers::add_stations()
 		add_station(info);
 
 		reply_len = sizeof(reply) - 1;
-		snprintf(cmd, sizeof(cmd), "STA-NEXT %s", reply);
+		res = snprintf(cmd, sizeof(cmd), "STA-NEXT %s", reply);
+		if (res < 0 || (size_t) res >= sizeof(cmd))
+			break;
 		res = wpagui->ctrlRequest(cmd, reply, &reply_len);
 	} while (res >= 0);
 }

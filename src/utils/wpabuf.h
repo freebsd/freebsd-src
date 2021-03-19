@@ -71,6 +71,21 @@ static inline size_t wpabuf_tailroom(const struct wpabuf *buf)
 }
 
 /**
+ * wpabuf_cmp - Check if two buffers contain the same data
+ * @a: wpabuf buffer
+ * @b: wpabuf buffer
+ * Returns: 0 if the two buffers contain the same data and non-zero otherwise
+ */
+static inline int wpabuf_cmp(const struct wpabuf *a, const struct wpabuf *b)
+{
+	if (!a && !b)
+		return 0;
+	if (a && b && wpabuf_size(a) == wpabuf_size(b))
+		return os_memcmp(a->buf, b->buf, wpabuf_size(a));
+	return -1;
+}
+
+/**
  * wpabuf_head - Get pointer to the head of the buffer data
  * @buf: wpabuf buffer
  * Returns: Pointer to the head of the buffer data
@@ -118,6 +133,12 @@ static inline void wpabuf_put_le32(struct wpabuf *buf, u32 data)
 	WPA_PUT_LE32(pos, data);
 }
 
+static inline void wpabuf_put_le64(struct wpabuf *buf, u64 data)
+{
+	u8 *pos = (u8 *) wpabuf_put(buf, 8);
+	WPA_PUT_LE64(pos, data);
+}
+
 static inline void wpabuf_put_be16(struct wpabuf *buf, u16 data)
 {
 	u8 *pos = (u8 *) wpabuf_put(buf, 2);
@@ -134,6 +155,12 @@ static inline void wpabuf_put_be32(struct wpabuf *buf, u32 data)
 {
 	u8 *pos = (u8 *) wpabuf_put(buf, 4);
 	WPA_PUT_BE32(pos, data);
+}
+
+static inline void wpabuf_put_be64(struct wpabuf *buf, u64 data)
+{
+	u8 *pos = (u8 *) wpabuf_put(buf, 8);
+	WPA_PUT_BE64(pos, data);
 }
 
 static inline void wpabuf_put_data(struct wpabuf *buf, const void *data,

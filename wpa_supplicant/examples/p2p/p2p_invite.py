@@ -25,7 +25,7 @@ def usage():
 
 # Required Signals
 def InvitationResult(invite_result):
-	print("Inviation Result signal :")
+	print("Invitation Result signal :")
 	status = invite_result['status']
 	print("status = ", status)
 	if invite_result.has_key('BSSID'):
@@ -55,7 +55,7 @@ class P2P_Invite (threading.Thread):
 	global wpas_dbus_interfaces_interface
 	global wpas_dbus_interfaces_p2pdevice
 
-	# Arguements
+	# Arguments
 	global P2PDictionary
 
 	# Constructor
@@ -127,7 +127,7 @@ class P2P_Invite (threading.Thread):
 			self.p2p_interface.Invite(self.P2PDictionary)
 
 		except:
-			print("Error:\n  Invalid Arguements")
+			print("Error:\n  Invalid Arguments")
 			usage()
 			os._exit(0)
 
@@ -154,7 +154,7 @@ if __name__ == "__main__":
 		usage()
 		quit()
 
-	# If theres a switch, override default option
+	# If there's a switch, override default option
 	for key, value in options:
 		# Help
 		if (key == "-h"):
@@ -190,7 +190,7 @@ if __name__ == "__main__":
 			P2P_Invite(interface_name,wpas_dbus_interface,
 					addr,persistent_group_object)
 	except:
-		print("Error:\n  Invalid Arguements")
+		print("Error:\n  Invalid Arguments")
 		usage()
 		os._exit(1)
 

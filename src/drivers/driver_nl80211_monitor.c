@@ -71,6 +71,9 @@ static void handle_frame(struct wpa_driver_nl80211_data *drv,
 	u16 fc;
 	union wpa_event_data event;
 
+	if (!drv->use_monitor)
+		return;
+
 	hdr = (struct ieee80211_hdr *) buf;
 	fc = le_to_host16(hdr->frame_control);
 

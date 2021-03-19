@@ -20,13 +20,13 @@ int secy_deinit_macsec(struct ieee802_1x_kay *kay);
 /****** CP -> SecY ******/
 int secy_cp_control_validate_frames(struct ieee802_1x_kay *kay,
 				    enum validate_frames vf);
-int secy_cp_control_protect_frames(struct ieee802_1x_kay *kay, Boolean flag);
-int secy_cp_control_encrypt(struct ieee802_1x_kay *kay, Boolean enabled);
-int secy_cp_control_replay(struct ieee802_1x_kay *kay, Boolean flag, u32 win);
+int secy_cp_control_protect_frames(struct ieee802_1x_kay *kay, bool flag);
+int secy_cp_control_encrypt(struct ieee802_1x_kay *kay, bool enabled);
+int secy_cp_control_replay(struct ieee802_1x_kay *kay, bool flag, u32 win);
 int secy_cp_control_current_cipher_suite(struct ieee802_1x_kay *kay, u64 cs);
 int secy_cp_control_confidentiality_offset(struct ieee802_1x_kay *kay,
 					   enum confidentiality_offset co);
-int secy_cp_control_enable_port(struct ieee802_1x_kay *kay, Boolean flag);
+int secy_cp_control_enable_port(struct ieee802_1x_kay *kay, bool flag);
 
 /****** KaY -> SecY *******/
 int secy_get_capability(struct ieee802_1x_kay *kay, enum macsec_cap *cap);

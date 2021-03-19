@@ -305,7 +305,7 @@ fst_group_get_peer_other_connection_1(struct fst_iface *iface,
 		if (other_iface == iface ||
 		    band_id != fst_iface_get_band_id(other_iface))
 			continue;
-		if (fst_iface_is_connected(other_iface, tmp_peer_addr, FALSE)) {
+		if (fst_iface_is_connected(other_iface, tmp_peer_addr, false)) {
 			os_memcpy(other_peer_addr, tmp_peer_addr, ETH_ALEN);
 			return other_iface;
 		}
@@ -347,10 +347,10 @@ fst_group_get_peer_other_connection_2(struct fst_iface *iface,
 		    band_id != fst_iface_get_band_id(other_iface))
 			continue;
 		cur_peer_addr = fst_iface_get_peer_first(other_iface, &ctx,
-							 TRUE);
+							 true);
 		for (; cur_peer_addr;
 		     cur_peer_addr = fst_iface_get_peer_next(other_iface, &ctx,
-							     TRUE)) {
+							     true)) {
 			cur_mbie = fst_iface_get_peer_mb_ie(other_iface,
 							    cur_peer_addr);
 			if (!cur_mbie)
@@ -493,9 +493,9 @@ void fst_group_delete(struct fst_group *group)
 }
 
 
-Boolean fst_group_delete_if_empty(struct fst_group *group)
+bool fst_group_delete_if_empty(struct fst_group *group)
 {
-	Boolean is_empty = !fst_group_has_ifaces(group) &&
+	bool is_empty = !fst_group_has_ifaces(group) &&
 		!fst_session_global_get_first_by_group(group);
 
 	if (is_empty)

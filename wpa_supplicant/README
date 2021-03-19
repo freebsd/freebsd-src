@@ -383,7 +383,7 @@ cp wpa_cli wpa_supplicant /usr/local/bin
 You will need to make a configuration file, e.g.,
 /etc/wpa_supplicant.conf, with network configuration for the networks
 you are going to use. Configuration file section below includes
-explanation fo the configuration file format and includes various
+explanation of the configuration file format and includes various
 examples. Once the configuration is ready, you can test whether the
 configuration work by first running wpa_supplicant with following
 command to start it on foreground with debugging enabled:
@@ -778,7 +778,7 @@ wpa_cli commands
   disconnect = disconnect and wait for reassociate command before connecting
   scan = request new BSS scan
   scan_results = get latest scan results
-  get_capability <eap/pairwise/group/key_mgmt/proto/auth_alg> = get capabilies
+  get_capability <eap/pairwise/group/key_mgmt/proto/auth_alg> = get capabilities
   terminate = terminate wpa_supplicant
   quit = exit wpa_cli
 

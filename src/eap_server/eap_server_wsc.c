@@ -103,10 +103,10 @@ static void * eap_wsc_init(struct eap_sm *sm)
 	data->registrar = registrar;
 
 	os_memset(&cfg, 0, sizeof(cfg));
-	cfg.wps = sm->wps;
+	cfg.wps = sm->cfg->wps;
 	cfg.registrar = registrar;
 	if (registrar) {
-		if (sm->wps == NULL || sm->wps->registrar == NULL) {
+		if (!sm->cfg->wps || !sm->cfg->wps->registrar) {
 			wpa_printf(MSG_INFO, "EAP-WSC: WPS Registrar not "
 				   "initialized");
 			os_free(data);
@@ -138,14 +138,14 @@ static void * eap_wsc_init(struct eap_sm *sm)
 		cfg.p2p_dev_addr = p2p_get_go_dev_addr(sm->assoc_p2p_ie);
 	}
 #endif /* CONFIG_P2P */
-	cfg.pbc_in_m1 = sm->pbc_in_m1;
+	cfg.pbc_in_m1 = sm->cfg->pbc_in_m1;
 	data->wps = wps_init(&cfg);
 	if (data->wps == NULL) {
 		os_free(data);
 		return NULL;
 	}
-	data->fragment_size = sm->fragment_size > 0 ? sm->fragment_size :
-		WSC_FRAGMENT_SIZE;
+	data->fragment_size = sm->cfg->fragment_size > 0 ?
+		sm->cfg->fragment_size : WSC_FRAGMENT_SIZE;
 
 	return data;
 }
@@ -270,8 +270,8 @@ static struct wpabuf * eap_wsc_buildReq(struct eap_sm *sm, void *priv, u8 id)
 }
 
 
-static Boolean eap_wsc_check(struct eap_sm *sm, void *priv,
-			     struct wpabuf *respData)
+static bool eap_wsc_check(struct eap_sm *sm, void *priv,
+			  struct wpabuf *respData)
 {
 	const u8 *pos;
 	size_t len;
@@ -280,10 +280,10 @@ static Boolean eap_wsc_check(struct eap_sm *sm, void *priv,
 			       respData, &len);
 	if (pos == NULL || len < 2) {
 		wpa_printf(MSG_INFO, "EAP-WSC: Invalid frame");
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -462,17 +462,17 @@ static void eap_wsc_process(struct eap_sm *sm, void *priv,
 }
 
 
-static Boolean eap_wsc_isDone(struct eap_sm *sm, void *priv)
+static bool eap_wsc_isDone(struct eap_sm *sm, void *priv)
 {
 	struct eap_wsc_data *data = priv;
 	return data->state == FAIL;
 }
 
 
-static Boolean eap_wsc_isSuccess(struct eap_sm *sm, void *priv)
+static bool eap_wsc_isSuccess(struct eap_sm *sm, void *priv)
 {
 	/* EAP-WSC will always result in EAP-Failure */
-	return FALSE;
+	return false;
 }
 
 

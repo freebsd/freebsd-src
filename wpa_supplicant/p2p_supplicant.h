@@ -37,18 +37,18 @@ int wpas_p2p_connect(struct wpa_supplicant *wpa_s, const u8 *peer_addr,
 		     int persistent_group, int auto_join, int join, int auth,
 		     int go_intent, int freq, unsigned int vht_center_freq2,
 		     int persistent_id, int pd, int ht40, int vht,
-		     unsigned int vht_chwidth, int he, const u8 *group_ssid,
-		     size_t group_ssid_len);
+		     unsigned int vht_chwidth, int he, int edmg,
+		     const u8 *group_ssid, size_t group_ssid_len);
 int wpas_p2p_handle_frequency_conflicts(struct wpa_supplicant *wpa_s,
                                           int freq, struct wpa_ssid *ssid);
 int wpas_p2p_group_add(struct wpa_supplicant *wpa_s, int persistent_group,
 		       int freq, int vht_center_freq2, int ht40, int vht,
-		       int max_oper_chwidth, int he);
+		       int max_oper_chwidth, int he, int edmg);
 int wpas_p2p_group_add_persistent(struct wpa_supplicant *wpa_s,
 				  struct wpa_ssid *ssid, int addr_allocated,
 				  int force_freq, int neg_freq,
-				  int vht_center_freq2, int ht40,
-				  int vht, int max_oper_chwidth, int he,
+				  int vht_center_freq2, int ht40, int vht,
+				  int max_oper_chwidth, int he, int edmg,
 				  const struct p2p_channels *channels,
 				  int connection_timeout, int force_scan);
 struct p2p_group * wpas_p2p_group_init(struct wpa_supplicant *wpa_s,
@@ -116,8 +116,8 @@ void wpas_sd_response(void *ctx, const u8 *sa, u16 update_indic,
 int wpas_p2p_reject(struct wpa_supplicant *wpa_s, const u8 *addr);
 int wpas_p2p_invite(struct wpa_supplicant *wpa_s, const u8 *peer_addr,
 		    struct wpa_ssid *ssid, const u8 *go_dev_addr, int freq,
-		    int vht_center_freq2, int ht40, int vht,
-		    int max_oper_chwidth, int pref_freq, int he);
+		    int vht_center_freq2, int ht40, int vht, int max_chwidth,
+		    int pref_freq, int he, int edmg);
 int wpas_p2p_invite_group(struct wpa_supplicant *wpa_s, const char *ifname,
 			  const u8 *peer_addr, const u8 *go_dev_addr);
 int wpas_p2p_presence_req(struct wpa_supplicant *wpa_s, u32 duration1,
@@ -165,6 +165,8 @@ int wpas_p2p_nfc_report_handover(struct wpa_supplicant *wpa_s, int init,
 				 const struct wpabuf *sel, int forced_freq);
 int wpas_p2p_nfc_tag_enabled(struct wpa_supplicant *wpa_s, int enabled);
 void wpas_p2p_pbc_overlap_cb(void *eloop_ctx, void *timeout_ctx);
+int wpas_p2p_try_edmg_channel(struct wpa_supplicant *wpa_s,
+			      struct p2p_go_neg_results *params);
 
 #ifdef CONFIG_P2P
 

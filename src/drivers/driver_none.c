@@ -43,13 +43,6 @@ static void none_driver_hapd_deinit(void *priv)
 }
 
 
-static int none_driver_send_ether(void *priv, const u8 *dst, const u8 *src,
-				  u16 proto, const u8 *data, size_t data_len)
-{
-	return 0;
-}
-
-
 static void * none_driver_init(void *ctx, const char *ifname)
 {
 	struct none_driver_data *drv;
@@ -79,7 +72,6 @@ const struct wpa_driver_ops wpa_driver_none_ops = {
 	.desc = "no driver (RADIUS server/WPS ER)",
 	.hapd_init = none_driver_hapd_init,
 	.hapd_deinit = none_driver_hapd_deinit,
-	.send_ether = none_driver_send_ether,
 	.init = none_driver_init,
 	.deinit = none_driver_deinit,
 };

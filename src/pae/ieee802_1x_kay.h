@@ -62,14 +62,14 @@ struct data_key {
 	struct ieee802_1x_mka_ki key_identifier;
 	enum confidentiality_offset confidentiality_offset;
 	u8 an;
-	Boolean transmits;
-	Boolean receives;
+	bool transmits;
+	bool receives;
 	struct os_time created_time;
 	u32 next_pn;
 
 	/* not defined data */
-	Boolean rx_latest;
-	Boolean tx_latest;
+	bool rx_latest;
+	bool tx_latest;
 
 	int user;
 
@@ -79,7 +79,7 @@ struct data_key {
 /* TransmitSC in IEEE Std 802.1AE-2006, Figure 10-6 */
 struct transmit_sc {
 	struct ieee802_1x_mka_sci sci; /* const SCI sci */
-	Boolean transmitting; /* bool transmitting (read only) */
+	bool transmitting; /* bool transmitting (read only) */
 
 	struct os_time created_time; /* Time createdTime */
 
@@ -93,14 +93,14 @@ struct transmit_sc {
 
 /* TransmitSA in IEEE Std 802.1AE-2006, Figure 10-6 */
 struct transmit_sa {
-	Boolean in_use; /* bool inUse (read only) */
+	bool in_use; /* bool inUse (read only) */
 	u32 next_pn; /* PN nextPN (read only) */
 	struct os_time created_time; /* Time createdTime */
 
-	Boolean enable_transmit; /* bool EnableTransmit */
+	bool enable_transmit; /* bool EnableTransmit */
 
 	u8 an;
-	Boolean confidentiality;
+	bool confidentiality;
 	struct data_key *pkey;
 
 	struct transmit_sc *sc;
@@ -110,7 +110,7 @@ struct transmit_sa {
 /* ReceiveSC in IEEE Std 802.1AE-2006, Figure 10-6 */
 struct receive_sc {
 	struct ieee802_1x_mka_sci sci; /* const SCI sci */
-	Boolean receiving; /* bool receiving (read only) */
+	bool receiving; /* bool receiving (read only) */
 
 	struct os_time created_time; /* Time createdTime */
 
@@ -120,8 +120,8 @@ struct receive_sc {
 
 /* ReceiveSA in IEEE Std 802.1AE-2006, Figure 10-6 */
 struct receive_sa {
-	Boolean enable_receive; /* bool enableReceive */
-	Boolean in_use; /* bool inUse (read only) */
+	bool enable_receive; /* bool enableReceive */
+	bool in_use; /* bool inUse (read only) */
 
 	u32 next_pn; /* PN nextPN (read only) */
 	u32 lowest_pn; /* PN lowestPN (read only) */
@@ -142,11 +142,11 @@ struct ieee802_1x_kay_ctx {
 	int (*macsec_init)(void *ctx, struct macsec_init_params *params);
 	int (*macsec_deinit)(void *ctx);
 	int (*macsec_get_capability)(void *priv, enum macsec_cap *cap);
-	int (*enable_protect_frames)(void *ctx, Boolean enabled);
-	int (*enable_encrypt)(void *ctx, Boolean enabled);
-	int (*set_replay_protect)(void *ctx, Boolean enabled, u32 window);
+	int (*enable_protect_frames)(void *ctx, bool enabled);
+	int (*enable_encrypt)(void *ctx, bool enabled);
+	int (*set_replay_protect)(void *ctx, bool enabled, u32 window);
 	int (*set_current_cipher_suite)(void *ctx, u64 cs);
-	int (*enable_controlled_port)(void *ctx, Boolean enabled);
+	int (*enable_controlled_port)(void *ctx, bool enabled);
 	int (*get_receive_lowest_pn)(void *ctx, struct receive_sa *sa);
 	int (*get_transmit_next_pn)(void *ctx, struct transmit_sa *sa);
 	int (*set_transmit_next_pn)(void *ctx, struct transmit_sa *sa);
@@ -169,12 +169,12 @@ struct ieee802_1x_kay_ctx {
 };
 
 struct ieee802_1x_kay {
-	Boolean enable;
-	Boolean active;
+	bool enable;
+	bool active;
 
-	Boolean authenticated;
-	Boolean secured;
-	Boolean failed;
+	bool authenticated;
+	bool secured;
+	bool failed;
 
 	struct ieee802_1x_mka_sci actor_sci;
 	u8 actor_priority;
@@ -182,10 +182,10 @@ struct ieee802_1x_kay {
 	u8 key_server_priority;
 
 	enum macsec_cap macsec_capable;
-	Boolean macsec_desired;
-	Boolean macsec_protect;
-	Boolean macsec_encrypt;
-	Boolean macsec_replay_protect;
+	bool macsec_desired;
+	bool macsec_protect;
+	bool macsec_encrypt;
+	bool macsec_replay_protect;
 	u32 macsec_replay_window;
 	enum validate_frames macsec_validate;
 	enum confidentiality_offset macsec_confidentiality;
@@ -203,8 +203,8 @@ struct ieee802_1x_kay {
 
 	/* not defined in IEEE802.1X */
 	struct ieee802_1x_kay_ctx *ctx;
-	Boolean is_key_server;
-	Boolean is_obliged_key_server;
+	bool is_key_server;
+	bool is_obliged_key_server;
 	char if_name[IFNAMSIZ];
 
 	unsigned int macsec_csindex;  /* MACsec cipher suite table index */
@@ -219,9 +219,9 @@ struct ieee802_1x_kay {
 	u8 algo_agility[4];
 
 	u32 pn_exhaustion;
-	Boolean port_enable;
-	Boolean rx_enable;
-	Boolean tx_enable;
+	bool port_enable;
+	bool rx_enable;
+	bool tx_enable;
 
 	struct dl_list participant_list;
 	enum macsec_policy policy;
@@ -239,7 +239,7 @@ u64 mka_sci_u64(struct ieee802_1x_mka_sci *sci);
 
 struct ieee802_1x_kay *
 ieee802_1x_kay_init(struct ieee802_1x_kay_ctx *ctx, enum macsec_policy policy,
-		    Boolean macsec_replay_protect, u32 macsec_replay_window,
+		    bool macsec_replay_protect, u32 macsec_replay_window,
 		    u16 port, u8 priority, const char *ifname, const u8 *addr);
 void ieee802_1x_kay_deinit(struct ieee802_1x_kay *kay);
 
@@ -248,22 +248,22 @@ ieee802_1x_kay_create_mka(struct ieee802_1x_kay *kay,
 			  const struct mka_key_name *ckn,
 			  const struct mka_key *cak,
 			  u32 life, enum mka_created_mode mode,
-			  Boolean is_authenticator);
+			  bool is_authenticator);
 void ieee802_1x_kay_delete_mka(struct ieee802_1x_kay *kay,
 			       struct mka_key_name *ckn);
 void ieee802_1x_kay_mka_participate(struct ieee802_1x_kay *kay,
 				    struct mka_key_name *ckn,
-				    Boolean status);
+				    bool status);
 int ieee802_1x_kay_new_sak(struct ieee802_1x_kay *kay);
 int ieee802_1x_kay_change_cipher_suite(struct ieee802_1x_kay *kay,
 				       unsigned int cs_index);
 
 int ieee802_1x_kay_set_latest_sa_attr(struct ieee802_1x_kay *kay,
 				      struct ieee802_1x_mka_ki *lki, u8 lan,
-				      Boolean ltx, Boolean lrx);
+				      bool ltx, bool lrx);
 int ieee802_1x_kay_set_old_sa_attr(struct ieee802_1x_kay *kay,
 				   struct ieee802_1x_mka_ki *oki,
-				   u8 oan, Boolean otx, Boolean orx);
+				   u8 oan, bool otx, bool orx);
 int ieee802_1x_kay_create_sas(struct ieee802_1x_kay *kay,
 			      struct ieee802_1x_mka_ki *lki);
 int ieee802_1x_kay_delete_sas(struct ieee802_1x_kay *kay,

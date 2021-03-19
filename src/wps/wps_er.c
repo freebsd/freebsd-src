@@ -897,7 +897,7 @@ static struct wpabuf * wps_er_soap_hdr(const struct wpabuf *msg,
 				       const struct sockaddr_in *dst,
 				       char **len_ptr, char **body_ptr)
 {
-	unsigned char *encoded;
+	char *encoded;
 	size_t encoded_len;
 	struct wpabuf *buf;
 
@@ -939,7 +939,7 @@ static struct wpabuf * wps_er_soap_hdr(const struct wpabuf *msg,
 	wpabuf_put_str(buf, "\">\n");
 	if (encoded) {
 		wpabuf_printf(buf, "<%s>%s</%s>\n",
-			      arg_name, (char *) encoded, arg_name);
+			      arg_name, encoded, arg_name);
 		os_free(encoded);
 	}
 
