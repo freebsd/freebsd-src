@@ -2874,6 +2874,7 @@ OLD_FILES+=usr/include/crypto/cbc_mac.h
 OLD_FILES+=usr/include/crypto/deflate.h
 OLD_FILES+=usr/include/crypto/gfmult.h
 OLD_FILES+=usr/include/crypto/gmac.h
+OLD_FILES+=usr/include/crypto/rijndael.h
 OLD_FILES+=usr/include/crypto/rmd160.h
 OLD_FILES+=usr/include/crypto/xform.h
 OLD_FILES+=usr/include/crypto/xform_auth.h
