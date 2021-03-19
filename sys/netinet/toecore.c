@@ -348,11 +348,11 @@ void
 toe_syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
     struct inpcb *inp, void *tod, void *todctx, uint8_t iptos)
 {
-	struct socket *lso = inp->inp_socket;
 
 	INP_WLOCK_ASSERT(inp);
 
-	syncache_add(inc, to, th, inp, &lso, NULL, tod, todctx, iptos);
+	(void )syncache_add(inc, to, th, inp, inp->inp_socket, NULL, tod,
+	    todctx, iptos);
 }
 
 int

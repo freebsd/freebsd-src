@@ -43,8 +43,8 @@ void	syncache_destroy(void);
 void	 syncache_unreach(struct in_conninfo *, tcp_seq);
 int	 syncache_expand(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct socket **, struct mbuf *);
-int	 syncache_add(struct in_conninfo *, struct tcpopt *,
-	     struct tcphdr *, struct inpcb *, struct socket **, struct mbuf *,
+struct socket *	 syncache_add(struct in_conninfo *, struct tcpopt *,
+	     struct tcphdr *, struct inpcb *, struct socket *, struct mbuf *,
 	     void *, void *, uint8_t);
 void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *, struct mbuf *);
 void	 syncache_badack(struct in_conninfo *);
