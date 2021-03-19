@@ -128,11 +128,6 @@ static void db_nextframe(struct amd64_frame **, db_addr_t *, struct thread *);
 static void db_print_stack_entry(const char *, db_addr_t, void *);
 static void decode_syscall(int, struct thread *);
 
-static const char * watchtype_str(int type);
-int  amd64_set_watch(int watchnum, unsigned long watchaddr, int size,
-		    int access, struct dbreg *d);
-int  amd64_clr_watch(int watchnum, struct dbreg *d);
-
 static void
 db_print_stack_entry(const char *name, db_addr_t callpc, void *frame)
 {
@@ -391,223 +386,22 @@ db_trace_thread(struct thread *thr, int count)
 }
 
 int
-amd64_set_watch(watchnum, watchaddr, size, access, d)
-	int watchnum;
-	unsigned long watchaddr;
-	int size;
-	int access;
-	struct dbreg *d;
+db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 {
-	int i, len;
 
-	if (watchnum == -1) {
-		for (i = 0; i < 4; i++)
-			if (!DBREG_DR7_ENABLED(d->dr[7], i))
-				break;
-		if (i < 4)
-			watchnum = i;
-		else
-			return (-1);
-	}
-
-	switch (access) {
-	case DBREG_DR7_EXEC:
-		size = 1; /* size must be 1 for an execution breakpoint */
-		/* fall through */
-	case DBREG_DR7_WRONLY:
-	case DBREG_DR7_RDWR:
-		break;
-	default:
-		return (-1);
-	}
-
-	/*
-	 * we can watch a 1, 2, 4, or 8 byte sized location
-	 */
-	switch (size) {
-	case 1:
-		len = DBREG_DR7_LEN_1;
-		break;
-	case 2:
-		len = DBREG_DR7_LEN_2;
-		break;
-	case 4:
-		len = DBREG_DR7_LEN_4;
-		break;
-	case 8:
-		len = DBREG_DR7_LEN_8;
-		break;
-	default:
-		return (-1);
-	}
-
-	/* clear the bits we are about to affect */
-	d->dr[7] &= ~DBREG_DR7_MASK(watchnum);
-
-	/* set drN register to the address, N=watchnum */
-	DBREG_DRX(d, watchnum) = watchaddr;
-
-	/* enable the watchpoint */
-	d->dr[7] |= DBREG_DR7_SET(watchnum, len, access,
-	    DBREG_DR7_GLOBAL_ENABLE);
-
-	return (watchnum);
+	return (dbreg_set_watchpoint((vm_offset_t)addr, (vm_size_t)size));
 }
 
 int
-amd64_clr_watch(watchnum, d)
-	int watchnum;
-	struct dbreg *d;
+db_md_clr_watchpoint(db_expr_t addr, db_expr_t size)
 {
 
-	if (watchnum < 0 || watchnum >= 4)
-		return (-1);
-
-	d->dr[7] &= ~DBREG_DR7_MASK(watchnum);
-	DBREG_DRX(d, watchnum) = 0;
-
-	return (0);
-}
-
-int
-db_md_set_watchpoint(addr, size)
-	db_expr_t addr;
-	db_expr_t size;
-{
-	struct dbreg *d;
-	struct pcpu *pc;
-	int avail, c, cpu, i, wsize;
-
-	d = (struct dbreg *)PCPU_PTR(dbreg);
-	cpu = PCPU_GET(cpuid);
-	fill_dbregs(NULL, d);
-
-	avail = 0;
-	for (i = 0; i < 4; i++) {
-		if (!DBREG_DR7_ENABLED(d->dr[7], i))
-			avail++;
-	}
-
-	if (avail * 8 < size)
-		return (-1);
-
-	for (i = 0; i < 4 && size > 0; i++) {
-		if (!DBREG_DR7_ENABLED(d->dr[7], i)) {
-			if (size >= 8 || (avail == 1 && size > 4))
-				wsize = 8;
-			else if (size > 2)
-				wsize = 4;
-			else
-				wsize = size;
-			amd64_set_watch(i, addr, wsize, DBREG_DR7_WRONLY, d);
-			addr += wsize;
-			size -= wsize;
-			avail--;
-		}
-	}
-
-	set_dbregs(NULL, d);
-	CPU_FOREACH(c) {
-		if (c == cpu)
-			continue;
-		pc = pcpu_find(c);
-		memcpy(pc->pc_dbreg, d, sizeof(*d));
-		pc->pc_dbreg_cmd = PC_DBREG_CMD_LOAD;
-	}
-
-	return (0);
-}
-
-int
-db_md_clr_watchpoint(addr, size)
-	db_expr_t addr;
-	db_expr_t size;
-{
-	struct dbreg *d;
-	struct pcpu *pc;
-	int i, c, cpu;
-
-	d = (struct dbreg *)PCPU_PTR(dbreg);
-	cpu = PCPU_GET(cpuid);
-	fill_dbregs(NULL, d);
-
-	for (i = 0; i < 4; i++) {
-		if (DBREG_DR7_ENABLED(d->dr[7], i)) {
-			if (DBREG_DRX((d), i) >= addr &&
-			    DBREG_DRX((d), i) < addr + size)
-				amd64_clr_watch(i, d);
-		}
-	}
-
-	set_dbregs(NULL, d);
-	CPU_FOREACH(c) {
-		if (c == cpu)
-			continue;
-		pc = pcpu_find(c);
-		memcpy(pc->pc_dbreg, d, sizeof(*d));
-		pc->pc_dbreg_cmd = PC_DBREG_CMD_LOAD;
-	}
-
-	return (0);
-}
-
-static const char *
-watchtype_str(type)
-	int type;
-{
-	switch (type) {
-		case DBREG_DR7_EXEC   : return "execute";    break;
-		case DBREG_DR7_RDWR   : return "read/write"; break;
-		case DBREG_DR7_WRONLY : return "write";	     break;
-		default		      : return "invalid";    break;
-	}
+	return (dbreg_clr_watchpoint((vm_offset_t)addr, (vm_size_t)size));
 }
 
 void
 db_md_list_watchpoints(void)
 {
-	struct dbreg d;
-	int i, len, type;
 
-	fill_dbregs(NULL, &d);
-
-	db_printf("\nhardware watchpoints:\n");
-	db_printf("  watch    status        type  len             address\n");
-	db_printf("  -----  --------  ----------  ---  ------------------\n");
-	for (i = 0; i < 4; i++) {
-		if (DBREG_DR7_ENABLED(d.dr[7], i)) {
-			type = DBREG_DR7_ACCESS(d.dr[7], i);
-			len = DBREG_DR7_LEN(d.dr[7], i);
-			if (len == DBREG_DR7_LEN_8)
-				len = 8;
-			else
-				len++;
-			db_printf("  %-5d  %-8s  %10s  %3d  ",
-			    i, "enabled", watchtype_str(type), len);
-			db_printsym((db_addr_t)DBREG_DRX(&d, i), DB_STGY_ANY);
-			db_printf("\n");
-		} else {
-			db_printf("  %-5d  disabled\n", i);
-		}
-	}
-
-	db_printf("\ndebug register values:\n");
-	for (i = 0; i < 8; i++)
-		if (i != 4 && i != 5)
-			db_printf("  dr%d 0x%016lx\n", i, DBREG_DRX(&d, i));
-	db_printf("\n");
-}
-
-void
-amd64_db_resume_dbreg(void)
-{
-	struct dbreg *d;
-
-	switch (PCPU_GET(dbreg_cmd)) {
-	case PC_DBREG_CMD_LOAD:
-		d = (struct dbreg *)PCPU_PTR(dbreg);
-		set_dbregs(NULL, d);
-		PCPU_SET(dbreg_cmd, PC_DBREG_CMD_NONE);
-		break;
-	}
+	dbreg_list_watchpoints();
 }
