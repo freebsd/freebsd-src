@@ -418,10 +418,7 @@ symlinks: .PHONY .META
 	    $$(printf '../../../../%s ' sys/netpfil/pf/*.h) \
 	    ${SDESTDIR}${INCLUDEDIR}/netpfil/pf;
 .endif
-	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/crypto/rijndael/rijndael.h \
-	    ${SDESTDIR}${INCLUDEDIR}/crypto; \
-	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    $$(printf '../../../%s ' sys/opencrypto/*.h) \
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/opencrypto/cryptodev.h \
 	    ${SDESTDIR}${INCLUDEDIR}/crypto; \
 	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
 	    $$(printf '../../../%s ' sys/${MACHINE}/include/*.h) \
