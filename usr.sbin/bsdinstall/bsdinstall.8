@@ -199,6 +199,10 @@ As an example, a typical invocation looks like:
 .Pp
 bsdinstall scriptedpart ada0 { 20G freebsd-ufs /, 4G freebsd-swap, 20G freebsd-ufs /var, auto freebsd-ufs /usr }
 .Pp
+Note that the list of partitions should
+.Em not
+include boot partitions (e.g. EFI system partitions), which will be created automatically on whatever disk includes /.
+.Pp
 A shorter invocation to use the default partitioning (as
 .Cm autopart
 would have used) on the same disk:
