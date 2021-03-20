@@ -646,7 +646,7 @@ nhgrp_get_addition_group(struct rib_head *rh, struct route_nhop_data *rnd_orig,
 {
 	struct nh_control *ctl = rh->nh_control;
 	struct nhgrp_priv *nhg_priv;
-	struct weightened_nhop wn[2];
+	struct weightened_nhop wn[2] = {};
 	int error;
 
 	if (rnd_orig->rnd_nhop == NULL) {
