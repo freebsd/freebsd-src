@@ -79,8 +79,8 @@ v6_body()
 	pft_set_rules alcatraz "pass" \
 		"block in tos va"
 
-	atf_check -s exit:0 -o ignore ping6 -t 1 -c 1 2001:db8:42::2
-	atf_check -s exit:2 -o ignore ping6 -t 1 -c 1 -z 176 2001:db8:42::2
+	atf_check -s exit:0 -o ignore ping6 -X 1 -c 1 2001:db8:42::2
+	atf_check -s exit:2 -o ignore ping6 -X 1 -c 1 -z 176 2001:db8:42::2
 }
 
 v6_cleanup()
