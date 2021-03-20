@@ -26,25 +26,11 @@
  * $Id: _libelf_config.h 3764 2019-06-28 21:44:46Z emaste $
  */
 
-#if defined(__APPLE__) || defined(__DragonFly__)
-
-#if	defined(__amd64__)
-#define	LIBELF_ARCH		EM_X86_64
-#define	LIBELF_BYTEORDER	ELFDATA2LSB
-#define	LIBELF_CLASS		ELFCLASS64
-#elif	defined(__i386__)
-#define	LIBELF_ARCH		EM_386
-#define	LIBELF_BYTEORDER	ELFDATA2LSB
-#define	LIBELF_CLASS		ELFCLASS32
-#endif
-
-#endif	/* __DragonFly__ */
-
-#ifdef __FreeBSD__
+#if defined(__APPLE__) || defined(__DragonFly__) || defined(__FreeBSD__)
 
 /*
  * Define LIBELF_{ARCH,BYTEORDER,CLASS} based on the machine architecture.
- * See also: <machine/elf.h>.
+ * See also: <machine/elf.h> on FreeBSD.
  */
 
 #if	defined(__amd64__)
@@ -126,9 +112,9 @@
 #define	LIBELF_CLASS		ELFCLASS64
 
 #else
-#error	Unknown FreeBSD architecture.
+#error	Unknown architecture.
 #endif
-#endif  /* __FreeBSD__ */
+#endif  /*  defined(__APPLE__) || defined(__DragonFly__) || defined(__FreeBSD__) */
 
 /*
  * Definitions for Minix3.
