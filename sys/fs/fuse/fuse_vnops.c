@@ -444,7 +444,6 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 		break;
 	case F_UNLCK:
 		op = FUSE_SETLK;
-		flags |= F_UNLCK;
 		break;
 	default:
 		return EINVAL;
