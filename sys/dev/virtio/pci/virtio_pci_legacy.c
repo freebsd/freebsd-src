@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 struct vtpci_legacy_softc {
 	device_t			 vtpci_dev;
 	struct vtpci_common		 vtpci_common;
+	int				 vtpci_res_type;
 	struct resource			*vtpci_res;
 	struct resource			*vtpci_msix_table_res;
 	struct resource			*vtpci_msix_pba_res;
@@ -231,7 +232,7 @@ vtpci_legacy_attach(device_t dev)
 
 	error = vtpci_legacy_alloc_resources(sc);
 	if (error) {
-		device_printf(dev, "cannot map I/O space\n");
+		device_printf(dev, "cannot map I/O space nor memory space\n");
 		return (error);
 	}
 
@@ -601,14 +602,25 @@ vtpci_legacy_teardown_msix(struct vtpci_legacy_softc *sc)
 static int
 vtpci_legacy_alloc_resources(struct vtpci_legacy_softc *sc)
 {
+	const int res_types[] = { SYS_RES_IOPORT, SYS_RES_MEMORY };
 	device_t dev;
-	int rid;
+	int rid, i;
 
 	dev = sc->vtpci_dev;
 	
-	rid = PCIR_BAR(0);
-	if ((sc->vtpci_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
-	    &rid, RF_ACTIVE)) == NULL)
+	/*
+	 * Most hypervisors export the common configuration structure in IO
+	 * space, but some use memory space; try both.
+	 */
+	for (i = 0; nitems(res_types); i++) {
+		rid = PCIR_BAR(0);
+		sc->vtpci_res_type = res_types[i];
+		sc->vtpci_res = bus_alloc_resource_any(dev, res_types[i], &rid,
+		    RF_ACTIVE);
+		if (sc->vtpci_res != NULL)
+			break;
+	}
+	if (sc->vtpci_res == NULL)
 		return (ENXIO);
 
 	return (0);
@@ -622,7 +634,7 @@ vtpci_legacy_free_resources(struct vtpci_legacy_softc *sc)
 	dev = sc->vtpci_dev;
 
 	if (sc->vtpci_res != NULL) {
-		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0),
+		bus_release_resource(dev, sc->vtpci_res_type, PCIR_BAR(0),
 		    sc->vtpci_res);
 		sc->vtpci_res = NULL;
 	}
