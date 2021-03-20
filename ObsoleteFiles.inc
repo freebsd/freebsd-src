@@ -2884,15 +2884,6 @@ OLD_FILES+=usr/include/crypto/xform_enc.h
 # 20210305: removed Poly1305_* symbols
 OLD_FILES+=usr/include/crypto/xform_poly1305.h
 
-# 20210304: remove old bc and dc support and test files
-.if !defined(WITHOUT_GH_BC)
-OLD_FILES+=usr/share/misc/bc.library
-OLD_FILES+=usr/tests/usr.bin/dc/Kyuafile
-OLD_FILES+=usr/tests/usr.bin/dc/bcode
-OLD_FILES+=usr/tests/usr.bin/dc/inout
-OLD_DIRS+=usr/tests/usr.bin/dc
-.endif
-
 # 20210302: fmtree removed
 OLD_FILES+=usr/sbin/fmtree
 OLD_FILES+=usr/share/man/man8/fmtree.8.gz
