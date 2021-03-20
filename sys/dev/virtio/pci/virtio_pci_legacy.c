@@ -60,7 +60,8 @@ struct vtpci_legacy_softc {
 	device_t			 vtpci_dev;
 	struct vtpci_common		 vtpci_common;
 	struct resource			*vtpci_res;
-	struct resource			*vtpci_msix_res;
+	struct resource			*vtpci_msix_table_res;
+	struct resource			*vtpci_msix_pba_res;
 };
 
 static int	vtpci_legacy_probe(device_t);
@@ -97,6 +98,8 @@ static void	vtpci_legacy_notify_vq(device_t, uint16_t, bus_size_t);
 static void	vtpci_legacy_read_dev_config(device_t, bus_size_t, void *, int);
 static void	vtpci_legacy_write_dev_config(device_t, bus_size_t, void *, int);
 
+static bool	vtpci_legacy_setup_msix(struct vtpci_legacy_softc *sc);
+static void	vtpci_legacy_teardown_msix(struct vtpci_legacy_softc *sc);
 static int	vtpci_legacy_alloc_resources(struct vtpci_legacy_softc *);
 static void	vtpci_legacy_free_resources(struct vtpci_legacy_softc *);
 
@@ -232,6 +235,13 @@ vtpci_legacy_attach(device_t dev)
 		return (error);
 	}
 
+	if (vtpci_is_msix_available(&sc->vtpci_common) &&
+	    !vtpci_legacy_setup_msix(sc)) {
+		device_printf(dev, "cannot setup MSI-x resources\n");
+		error = ENXIO;
+		goto fail;
+	}
+
 	vtpci_legacy_reset(sc);
 
 	/* Tell the host we've noticed this device. */
@@ -265,6 +275,7 @@ vtpci_legacy_detach(device_t dev)
 		return (error);
 
 	vtpci_legacy_reset(sc);
+	vtpci_legacy_teardown_msix(sc);
 	vtpci_legacy_free_resources(sc);
 
 	return (0);
@@ -539,6 +550,54 @@ vtpci_legacy_write_dev_config(device_t dev, bus_size_t offset,
 	}
 }
 
+static bool
+vtpci_legacy_setup_msix(struct vtpci_legacy_softc *sc)
+{
+	device_t dev;
+	int rid, table_rid;
+
+	dev = sc->vtpci_dev;
+
+	rid = table_rid = pci_msix_table_bar(dev);
+	if (rid != PCIR_BAR(0)) {
+		sc->vtpci_msix_table_res = bus_alloc_resource_any(
+		    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+		if (sc->vtpci_msix_table_res == NULL)
+			return (false);
+	}
+
+	rid = pci_msix_pba_bar(dev);
+	if (rid != table_rid && rid != PCIR_BAR(0)) {
+		sc->vtpci_msix_pba_res = bus_alloc_resource_any(
+		    dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+		if (sc->vtpci_msix_pba_res == NULL)
+			return (false);
+	}
+
+	return (true);
+}
+
+static void
+vtpci_legacy_teardown_msix(struct vtpci_legacy_softc *sc)
+{
+	device_t dev;
+
+	dev = sc->vtpci_dev;
+
+	if (sc->vtpci_msix_pba_res != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->vtpci_msix_pba_res),
+		    sc->vtpci_msix_pba_res);
+		sc->vtpci_msix_pba_res = NULL;
+	}
+	if (sc->vtpci_msix_table_res != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->vtpci_msix_table_res),
+		    sc->vtpci_msix_table_res);
+		sc->vtpci_msix_table_res = NULL;
+	}
+}
+
 static int
 vtpci_legacy_alloc_resources(struct vtpci_legacy_softc *sc)
 {
@@ -552,13 +611,6 @@ vtpci_legacy_alloc_resources(struct vtpci_legacy_softc *sc)
 	    &rid, RF_ACTIVE)) == NULL)
 		return (ENXIO);
 
-	if (vtpci_is_msix_available(&sc->vtpci_common)) {
-		rid = PCIR_BAR(1);
-		if ((sc->vtpci_msix_res = bus_alloc_resource_any(dev,
-		    SYS_RES_MEMORY, &rid, RF_ACTIVE)) == NULL)
-			return (ENXIO);
-	}
-
 	return (0);
 }
 
@@ -568,12 +620,6 @@ vtpci_legacy_free_resources(struct vtpci_legacy_softc *sc)
 	device_t dev;
 
 	dev = sc->vtpci_dev;
-
-	if (sc->vtpci_msix_res != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(1),
-		    sc->vtpci_msix_res);
-		sc->vtpci_msix_res = NULL;
-	}
 
 	if (sc->vtpci_res != NULL) {
 		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0),
