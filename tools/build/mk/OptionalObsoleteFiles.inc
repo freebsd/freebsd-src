@@ -2139,6 +2139,14 @@ OLD_FILES+=usr/share/man/man1/llvm-cov.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-profdata.1.gz
 .endif
 
+.if ${MK_GH_BC} == no
+OLD_FILES+=usr/share/misc/bc.library
+OLD_FILES+=usr/tests/usr.bin/dc/Kyuafile
+OLD_FILES+=usr/tests/usr.bin/dc/bcode
+OLD_FILES+=usr/tests/usr.bin/dc/inout
+OLD_DIRS+=usr/tests/usr.bin/dc
+.endif
+
 .if ${MK_GOOGLETEST} == no
 OLD_FILES+=usr/include/gmock/gmock-actions.h
 OLD_FILES+=usr/include/gmock/gmock-cardinalities.h
