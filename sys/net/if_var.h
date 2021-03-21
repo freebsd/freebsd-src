@@ -660,6 +660,7 @@ void	if_free(struct ifnet *);
 void	if_initname(struct ifnet *, const char *, int);
 void	if_link_state_change(struct ifnet *, int);
 int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);
+int	if_log(struct ifnet *, int, const char *, ...) __printflike(3, 4);
 void	if_ref(struct ifnet *);
 void	if_rele(struct ifnet *);
 bool	__result_use_check if_try_ref(struct ifnet *);
