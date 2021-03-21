@@ -488,7 +488,9 @@ get_nhgrp(struct nh_control *ctl, struct weightened_nhop *wn, int num_nhops,
 		if (link_nhgrp(ctl, key) == 0) {
 			/* Unable to allocate index? */
 			*perror = EAGAIN;
-			destroy_nhgrp(key);
+			free_nhgrp_nhops(key);
+			destroy_nhgrp_int(key);
+			return (NULL);
 		}
 		*perror = 0;
 		return (key);
