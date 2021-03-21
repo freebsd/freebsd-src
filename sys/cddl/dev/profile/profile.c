@@ -83,15 +83,6 @@
  * appears as its own stack frame.  All of this means that we need to add one
  * frame for amd64, and then take one away for both amd64 and i386.
  *
- * On SPARC, the picture is further complicated because the compiler
- * optimizes away tail-calls -- so the following frames are optimized away:
- *
- * 	profile_fire
- *	cyclic_expire
- *
- * This gives three frames.  However, on DEBUG kernels, the cyclic_expire
- * frame cannot be tail-call eliminated, yielding four frames in this case.
- *
  * All of the above constraints lead to the mess below.  Yes, the profile
  * provider should ideally figure this out on-the-fly by hiting one of its own
  * probes and then walking its own stack trace.  This is complicated, however,
@@ -103,14 +94,6 @@
 #else
 #ifdef __i386
 #define	PROF_ARTIFICIAL_FRAMES	6
-#else
-#ifdef __sparc
-#ifdef DEBUG
-#define	PROF_ARTIFICIAL_FRAMES	4
-#else
-#define	PROF_ARTIFICIAL_FRAMES	3
-#endif
-#endif
 #endif
 #endif
 
