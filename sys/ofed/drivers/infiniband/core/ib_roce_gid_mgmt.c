@@ -380,7 +380,7 @@ roce_gid_delete_all_event(struct net_device *ndev)
 static int
 inetaddr_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *ndev = ptr;
+	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
