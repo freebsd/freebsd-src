@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2021
+.Dd March 21, 2021
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -140,14 +140,6 @@ If set to
 show
 .Dq Starting foo:
 when faststart is used (e.g., at boot time).
-.It Va rc_parallel_start
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-enable parallel startup of services.
-Care should be taken to ensure that no loops occur, by using
-.Nm rcorder
-.Fl p .
 .It Va early_late_divider
 .Pq Vt str
 The name of the script that should be used as the
@@ -801,16 +793,6 @@ Set to
 .Pa /etc/ipf.rules
 by default.
 This variable contains the name of the filter rule definition file.
-The file is expected to be readable for the
-.Xr ipf 8
-command to execute.
-.\" ----- ipv6_ipfilter_rules setting ---------------------------
-.It Va ipv6_ipfilter_rules
-.Pq Vt str
-Set to
-.Pa /etc/ipf6.rules
-by default.
-This variable contains the IPv6 filter rule definition file.
 The file is expected to be readable for the
 .Xr ipf 8
 command to execute.
