@@ -88,17 +88,6 @@ netdev_priv(const struct net_device *dev)
 	return (dev->if_softc);
 }
 
-static inline struct net_device *
-netdev_notifier_info_to_dev(void *ifp)
-{
-	return (ifp);
-}
-
-int	register_netdevice_notifier(struct notifier_block *);
-int	register_inetaddr_notifier(struct notifier_block *);
-int	unregister_netdevice_notifier(struct notifier_block *);
-int	unregister_inetaddr_notifier(struct notifier_block *);
-
 #define	rtnl_lock()
 #define	rtnl_unlock()
 
@@ -139,5 +128,21 @@ dev_mc_add(struct net_device *dev, void *addr, int alen, int newonly)
 
 	return -if_addmulti(dev, (struct sockaddr *)&sdl, NULL);
 }
+
+/* According to linux::ipoib_main.c. */
+struct netdev_notifier_info {
+	struct net_device	*dev;
+};
+
+static inline struct net_device *
+netdev_notifier_info_to_dev(struct netdev_notifier_info *ni)
+{
+	return (ni->dev);
+}
+
+int	register_netdevice_notifier(struct notifier_block *);
+int	register_inetaddr_notifier(struct notifier_block *);
+int	unregister_netdevice_notifier(struct notifier_block *);
+int	unregister_inetaddr_notifier(struct notifier_block *);
 
 #endif	/* _LINUX_NETDEVICE_H_ */
