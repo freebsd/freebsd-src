@@ -2256,48 +2256,58 @@ static void
 linux_handle_ifnet_link_event(void *arg, struct ifnet *ifp, int linkstate)
 {
 	struct notifier_block *nb;
+	struct netdev_notifier_info ni;
 
 	nb = arg;
+	ni.dev = (struct net_device *)ifp;
 	if (linkstate == LINK_STATE_UP)
-		nb->notifier_call(nb, NETDEV_UP, ifp);
+		nb->notifier_call(nb, NETDEV_UP, &ni);
 	else
-		nb->notifier_call(nb, NETDEV_DOWN, ifp);
+		nb->notifier_call(nb, NETDEV_DOWN, &ni);
 }
 
 static void
 linux_handle_ifnet_arrival_event(void *arg, struct ifnet *ifp)
 {
 	struct notifier_block *nb;
+	struct netdev_notifier_info ni;
 
 	nb = arg;
-	nb->notifier_call(nb, NETDEV_REGISTER, ifp);
+	ni.dev = (struct net_device *)ifp;
+	nb->notifier_call(nb, NETDEV_REGISTER, &ni);
 }
 
 static void
 linux_handle_ifnet_departure_event(void *arg, struct ifnet *ifp)
 {
 	struct notifier_block *nb;
+	struct netdev_notifier_info ni;
 
 	nb = arg;
-	nb->notifier_call(nb, NETDEV_UNREGISTER, ifp);
+	ni.dev = (struct net_device *)ifp;
+	nb->notifier_call(nb, NETDEV_UNREGISTER, &ni);
 }
 
 static void
 linux_handle_iflladdr_event(void *arg, struct ifnet *ifp)
 {
 	struct notifier_block *nb;
+	struct netdev_notifier_info ni;
 
 	nb = arg;
-	nb->notifier_call(nb, NETDEV_CHANGEADDR, ifp);
+	ni.dev = (struct net_device *)ifp;
+	nb->notifier_call(nb, NETDEV_CHANGEADDR, &ni);
 }
 
 static void
 linux_handle_ifaddr_event(void *arg, struct ifnet *ifp)
 {
 	struct notifier_block *nb;
+	struct netdev_notifier_info ni;
 
 	nb = arg;
-	nb->notifier_call(nb, NETDEV_CHANGEIFADDR, ifp);
+	ni.dev = (struct net_device *)ifp;
+	nb->notifier_call(nb, NETDEV_CHANGEIFADDR, &ni);
 }
 
 int
