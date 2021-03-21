@@ -350,13 +350,22 @@ main(int argc, char **argv)
 			Vflag = true;
 			break;
 		case 'c':
-			certpath = checked_strdup(optarg);
+			if (certpath == NULL)
+				certpath = checked_strdup(optarg);
+			else
+				err(1, "-c can only be specified once");
 			break;
 		case 'k':
-			keypath = checked_strdup(optarg);
+			if (keypath == NULL)
+				keypath = checked_strdup(optarg);
+			else
+				err(1, "-k can only be specified once");
 			break;
 		case 'o':
-			outpath = checked_strdup(optarg);
+			if (outpath == NULL)
+				outpath = checked_strdup(optarg);
+			else
+				err(1, "-o can only be specified once");
 			break;
 		case 'v':
 			vflag = true;
@@ -402,7 +411,7 @@ main(int argc, char **argv)
 		err(1, "fork");
 
 	if (pid == 0)
-		return (child(inpath, outpath, pipefds[1], Vflag, vflag));
+		exit(child(inpath, outpath, pipefds[1], Vflag, vflag));
 
 	if (!Vflag) {
 		certfp = checked_fopen(certpath, "r");
@@ -422,5 +431,5 @@ main(int argc, char **argv)
 		sign(cert, key, pipefds[0]);
 	}
 
-	return (wait_for_child(pid));
+	exit(wait_for_child(pid));
 }
