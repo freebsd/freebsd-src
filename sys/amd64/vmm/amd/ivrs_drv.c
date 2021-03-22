@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2016, Anish Gupta (anish@freebsd.org)
+ * Copyright (c) 2021 The FreeBSD Foundation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include "io/iommu.h"
 #include "amdvi_priv.h"
@@ -628,6 +631,9 @@ ivhd_attach(device_t dev)
 	softc->dev = dev;
 	ivhd = ivhd_hdrs[unit];
 	KASSERT(ivhd, ("ivhd is NULL"));
+	softc->pci_dev = pci_find_bsf(PCI_RID2BUS(ivhd->Header.DeviceId),
+	    PCI_RID2SLOT(ivhd->Header.DeviceId),
+	    PCI_RID2FUNC(ivhd->Header.DeviceId));
 
 	softc->ivhd_type = ivhd->Header.Type;
 	softc->pci_seg = ivhd->PciSegmentGroup;
