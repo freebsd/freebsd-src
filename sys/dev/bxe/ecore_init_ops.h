@@ -737,7 +737,7 @@ static void ecore_ilt_line_init_op(struct bxe_softc *sc,
 	}
 }
 
-static void ecore_ilt_boundry_init_op(struct bxe_softc *sc,
+static void ecore_ilt_boundary_init_op(struct bxe_softc *sc,
 				      struct ilt_client_info *ilt_cli,
 				      uint32_t ilt_start, uint8_t initop)
 {
@@ -804,7 +804,7 @@ static void ecore_ilt_client_init_op_ilt(struct bxe_softc *sc,
 		ecore_ilt_line_init_op(sc, ilt, i, initop);
 
 	/* init/clear the ILT boundries */
-	ecore_ilt_boundry_init_op(sc, ilt_cli, ilt->start_line, initop);
+	ecore_ilt_boundary_init_op(sc, ilt_cli, ilt->start_line, initop);
 }
 
 static void ecore_ilt_client_init_op(struct bxe_softc *sc,

@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
  *	z[n]xalloc() works like z[n]alloc() but the allocation is made from
  *	within the specified address range.  If the segment could not be
  *	allocated, NULL is returned.  WARNING!  The address range will be
- *	aligned to an 8 or 16 byte boundry depending on the cpu so if you
+ *	aligned to an 8 or 16 byte boundary depending on the cpu so if you
  *	give an unaligned address range, unexpected results may occur.
  *
  *	If a standard allocation fails, the reclaim function will be called

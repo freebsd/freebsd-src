@@ -18551,7 +18551,7 @@ bxe_reset_func(struct bxe_softc *sc)
         ilt_cli.end = ILT_NUM_PAGE_ENTRIES - 1;
         ilt_cli.client_num = ILT_CLIENT_TM;
 
-        ecore_ilt_boundry_init_op(sc, &ilt_cli, 0, INITOP_CLEAR);
+        ecore_ilt_boundary_init_op(sc, &ilt_cli, 0, INITOP_CLEAR);
     }
 
     /* this assumes that reset_port() called before reset_func()*/
