@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <fenv.h>
 #include <limits.h>
 #include <math.h>
@@ -49,10 +48,10 @@ __FBSDID("$FreeBSD$");
  */
 #define	test(func, x, result, excepts)	do {				\
 	volatile double _d = x;						\
-	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert((func)(_d) == (result) || fetestexcept(FE_INVALID));	\
-	assert((fetestexcept(FE_ALL_EXCEPT) & ALL_STD_EXCEPT) 		\
-			== (excepts));					\
+	ATF_CHECK(feclearexcept(FE_ALL_EXCEPT) == 0);			\
+	ATF_CHECK((func)(_d) == (result) || fetestexcept(FE_INVALID));	\
+	CHECK_FP_EXCEPTIONS_MSG(excepts, FE_ALL_EXCEPT & ALL_STD_EXCEPT,\
+	    "for %s(%s)", #func, #x);					\
 } while (0)
 
 #define	testall(x, result, excepts)	do {				\
@@ -71,12 +70,11 @@ __FBSDID("$FreeBSD$");
 static void
 run_tests(void)
 {
-
-	assert(fesetround(FE_DOWNWARD) == 0);
+	ATF_REQUIRE_EQ(0, fesetround(FE_DOWNWARD));
 	testall(0.75, 0, FE_INEXACT);
 	testall(-0.5, -1, FE_INEXACT);
 
-	assert(fesetround(FE_TONEAREST) == 0);
+	ATF_REQUIRE_EQ(0, fesetround(FE_TONEAREST));
 	testall(0.0, 0, 0);
 	testall(0.25, 0, FE_INEXACT);
 	testall(0.5, 0, FE_INEXACT);
@@ -88,65 +86,64 @@ run_tests(void)
 	testall(NAN, IGNORE, FE_INVALID);
 
 #if (LONG_MAX == 0x7fffffffl)
-	assert(fesetround(FE_UPWARD) == 0);
+	ATF_REQUIRE_EQ(0, fesetround(FE_UPWARD));
 	test(lrint, 0x7fffffff.8p0, IGNORE, FE_INVALID);
-	test(lrint, -0x80000000.4p0, -0x80000000l, FE_INEXACT);
+	test(lrint, -0x80000000.4p0, (long)-0x80000000l, FE_INEXACT);
 
-	assert(fesetround(FE_DOWNWARD) == 0);
+	ATF_REQUIRE_EQ(0, fesetround(FE_DOWNWARD));
 	test(lrint, -0x80000000.8p0, IGNORE, FE_INVALID);
 	test(lrint, 0x80000000.0p0, IGNORE, FE_INVALID);
 	test(lrint, 0x7fffffff.4p0, 0x7fffffffl, FE_INEXACT);
 	test(lrintf, 0x80000000.0p0f, IGNORE, FE_INVALID);
 	test(lrintf, 0x7fffff80.0p0f, 0x7fffff80l, 0);
 
-	assert(fesetround(FE_TOWARDZERO) == 0);
+	ATF_REQUIRE_EQ(0, fesetround(FE_TOWARDZERO));
 	test(lrint, 0x7fffffff.8p0,  0x7fffffffl, FE_INEXACT);
 	test(lrint, -0x80000000.8p0, -0x80000000l, FE_INEXACT);
 	test(lrint, 0x80000000.0p0, IGNORE, FE_INVALID);
 	test(lrintf, 0x80000000.0p0f, IGNORE, FE_INVALID);
 	test(lrintf, 0x7fffff80.0p0f, 0x7fffff80l, 0);
 #elif (LONG_MAX == 0x7fffffffffffffffll)
-	assert(fesetround(FE_TONEAREST) == 0);
+	ATF_REQUIRE_EQ(0, fesetround(FE_TONEAREST));
 	test(lrint, 0x8000000000000000.0p0, IGNORE, FE_INVALID);
 	test(lrintf, 0x8000000000000000.0p0f, IGNORE, FE_INVALID);
 	test(lrint, 0x7ffffffffffffc00.0p0, 0x7ffffffffffffc00l, 0);
 	test(lrintf, 0x7fffff8000000000.0p0f, 0x7fffff8000000000l, 0);
 	test(lrint, -0x8000000000000800.0p0, IGNORE, FE_INVALID);
 	test(lrintf, -0x8000010000000000.0p0f, IGNORE, FE_INVALID);
-	test(lrint, -0x8000000000000000.0p0, -0x8000000000000000l, 0);
-	test(lrintf, -0x8000000000000000.0p0f, -0x8000000000000000l, 0);
+	test(lrint, -0x8000000000000000.0p0, (long long)-0x8000000000000000ul, 0);
+	test(lrintf, -0x8000000000000000.0p0f, (long long)-0x8000000000000000ul, 0);
 #else
 #error "Unsupported long size"
 #endif
 
 #if (LLONG_MAX == 0x7fffffffffffffffLL)
-	assert(fesetround(FE_TONEAREST) == 0);
+	ATF_REQUIRE_EQ(0, fesetround(FE_TONEAREST));
 	test(llrint, 0x8000000000000000.0p0, IGNORE, FE_INVALID);
 	test(llrintf, 0x8000000000000000.0p0f, IGNORE, FE_INVALID);
 	test(llrint, 0x7ffffffffffffc00.0p0, 0x7ffffffffffffc00ll, 0);
 	test(llrintf, 0x7fffff8000000000.0p0f, 0x7fffff8000000000ll, 0);
 	test(llrint, -0x8000000000000800.0p0, IGNORE, FE_INVALID);
 	test(llrintf, -0x8000010000000000.0p0f, IGNORE, FE_INVALID);
-	test(llrint, -0x8000000000000000.0p0, -0x8000000000000000ll, 0);
-	test(llrintf, -0x8000000000000000.0p0f, -0x8000000000000000ll, 0);
+	test(llrint, -0x8000000000000000.0p0, (long long)-0x8000000000000000ull, 0);
+	test(llrintf, -0x8000000000000000.0p0f, (long long)-0x8000000000000000ull, 0);
 #else
 #error "Unsupported long long size"
 #endif
 }
 
-int
-main(void)
+ATF_TC_WITHOUT_HEAD(lrint);
+ATF_TC_BODY(lrint, tc)
 {
-
-	printf("1..1\n");
-
 	run_tests();
 #ifdef	__i386__
 	fpsetprec(FP_PE);
 	run_tests();
 #endif
+}
 
-	printf("ok 1 - lrint\n");
-
-	return (0);
+ATF_TP_ADD_TCS(tp)
+{
+    ATF_TP_ADD_TC(tp, lrint);
+    return (atf_no_error());
 }
