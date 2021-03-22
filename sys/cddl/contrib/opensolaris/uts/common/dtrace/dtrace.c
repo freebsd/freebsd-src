@@ -475,7 +475,7 @@ static kmutex_t dtrace_errlock;
 #define	DTRACE_STORE(type, tomax, offset, what) \
 	*((type *)((uintptr_t)(tomax) + (uintptr_t)offset)) = (type)(what);
 
-#ifndef __x86
+#if !defined(__x86) && !defined(__aarch64__)
 #define	DTRACE_ALIGNCHECK(addr, size, flags)				\
 	if (addr & (size - 1)) {					\
 		*flags |= CPU_DTRACE_BADALIGN;				\
