@@ -698,7 +698,7 @@ g_journal_metadata_update(struct g_journal_softc *sc)
 
 	/*
 	 * Flush the cache, so we know all data are on disk.
-	 * We write here informations like "journal is consistent", so we need
+	 * We write here information like "journal is consistent", so we need
 	 * to be sure it is. Without BIO_FLUSH here, we can end up in situation
 	 * where metadata is stored on disk, but not all data.
 	 */
@@ -1081,7 +1081,7 @@ g_journal_optimize(struct bio *head)
  * These are functions responsible for copying one portion of data from journal
  * to the destination provider.
  * The order goes like this:
- * 1. Read the header, which contains informations about data blocks
+ * 1. Read the header, which contains information about data blocks
  *    following it.
  * 2. Read the data blocks from the journal.
  * 3. Write the data blocks on the data provider.

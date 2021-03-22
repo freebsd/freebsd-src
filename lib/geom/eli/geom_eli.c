@@ -1677,7 +1677,7 @@ eli_backup_create(struct gctl_req *req, const char *prov, const char *file)
 
 	secsize = g_get_sectorsize(prov);
 	if (secsize == 0) {
-		gctl_error(req, "Cannot get informations about %s: %s.", prov,
+		gctl_error(req, "Cannot get information about %s: %s.", prov,
 		    strerror(errno));
 		goto out;
 	}
@@ -1759,7 +1759,7 @@ eli_restore(struct gctl_req *req)
 	/* Obtain provider's mediasize. */
 	mediasize = g_get_mediasize(prov);
 	if (mediasize == 0) {
-		gctl_error(req, "Cannot get informations about %s: %s.", prov,
+		gctl_error(req, "Cannot get information about %s: %s.", prov,
 		    strerror(errno));
 		return;
 	}

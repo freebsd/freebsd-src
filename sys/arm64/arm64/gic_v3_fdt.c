@@ -279,7 +279,7 @@ gic_v3_ofw_bus_alloc_res(device_t bus, device_t child, int type, int *rid,
 
 /*
  * Bus capability support for GICv3.
- * Collects and configures device informations and finally
+ * Collects and configures device information and finally
  * adds ITS device as a child of GICv3 in Newbus hierarchy.
  */
 static int
