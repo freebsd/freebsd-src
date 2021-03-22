@@ -681,7 +681,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		goto postinsert;
 	}
 
-	/* Do duplicate, condition, and boundry checks. */
+	/* Do duplicate, condition, and boundary checks. */
 	/*
 	 * Handle ECN by comparing this segment with the first one;
 	 * if CE is set, do not lose CE.
