@@ -185,7 +185,7 @@ typedef ns_mtab *(*nss_module_register_fn)(const char *, unsigned int *,
 
 /* 
  * Many NSS interfaces follow the getXXnam, getXXid, getXXent pattern.
- * Developers are encouraged to use nss_lookup_type where approriate.
+ * Developers are encouraged to use nss_lookup_type where appropriate.
  */
 enum nss_lookup_type {
 	nss_lt_name = 1,
