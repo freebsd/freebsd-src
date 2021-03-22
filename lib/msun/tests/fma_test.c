@@ -32,7 +32,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <assert.h>
 #include <fenv.h>
 #include <float.h>
 #include <math.h>
@@ -55,9 +54,10 @@ __FBSDID("$FreeBSD$");
  */
 #define	test(func, x, y, z, result, exceptmask, excepts) do {		\
 	volatile long double _vx = (x), _vy = (y), _vz = (z);		\
-	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(fpequal((func)(_vx, _vy, _vz), (result)));		\
-	assert(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
+	ATF_CHECK(feclearexcept(FE_ALL_EXCEPT) == 0);			\
+	ATF_CHECK(fpequal((func)(_vx, _vy, _vz), (result)));		\
+	CHECK_FP_EXCEPTIONS_MSG(excepts, exceptmask, "for %s(%s)",	\
+	    #func, #x);							\
 } while (0)
 
 #define	testall(x, y, z, result, exceptmask, excepts)	do {		\
@@ -124,7 +124,6 @@ test_zeroes(void)
 static void
 test_infinities(void)
 {
-
 	testall(INFINITY, 1.0, -1.0, INFINITY, ALL_STD_EXCEPT, 0);
 	testall(-1.0, INFINITY, 0.0, -INFINITY, ALL_STD_EXCEPT, 0);
 	testall(0.0, 0.0, INFINITY, INFINITY, ALL_STD_EXCEPT, 0);
@@ -161,7 +160,6 @@ test_infinities(void)
 static void
 test_nans(void)
 {
-
 	testall(NAN, 0.0, 0.0, NAN, ALL_STD_EXCEPT, 0);
 	testall(1.0, NAN, 1.0, NAN, ALL_STD_EXCEPT, 0);
 	testall(1.0, -1.0, NAN, NAN, ALL_STD_EXCEPT, 0);
@@ -184,7 +182,6 @@ test_nans(void)
 static void
 test_small_z(void)
 {
-
 	/* x*y positive, z positive */
 	if (fegetround() == FE_UPWARD) {
 		test(fmaf, one, one, 0x1.0p-100, 1.0 + FLT_EPSILON,
@@ -244,7 +241,6 @@ test_small_z(void)
 static void
 test_big_z(void)
 {
-
 	/* z positive, x*y positive */
 	if (fegetround() == FE_UPWARD) {
 		test(fmaf, 0x1.0p-50, 0x1.0p-50, 1.0, 1.0 + FLT_EPSILON,
@@ -471,74 +467,88 @@ test_double_rounding(void)
 
 }
 
-int
-main(void)
+static const int rmodes[] = {
+	FE_TONEAREST, FE_UPWARD, FE_DOWNWARD, FE_TOWARDZERO
+};
+
+ATF_TC_WITHOUT_HEAD(zeroes);
+ATF_TC_BODY(zeroes, tc)
 {
-	int rmodes[] = { FE_TONEAREST, FE_UPWARD, FE_DOWNWARD, FE_TOWARDZERO };
-	unsigned i, j;
-
-#if defined(__i386__)
-	printf("1..0 # SKIP all testcases fail on i386\n");
-	exit(0);
-#endif
-
-	j = 1;
-
-	printf("1..19\n");
-
-	for (i = 0; i < nitems(rmodes); i++, j++) {
+	for (size_t i = 0; i < nitems(rmodes); i++) {
 		printf("rmode = %d\n", rmodes[i]);
 		fesetround(rmodes[i]);
 		test_zeroes();
-		printf("ok %d - fma zeroes\n", j);
 	}
+}
 
-	for (i = 0; i < nitems(rmodes); i++, j++) {
+ATF_TC_WITHOUT_HEAD(infinities);
+ATF_TC_BODY(infinities, tc)
+{
 #if defined(__amd64__)
-		printf("ok %d # SKIP testcase fails assertion on "
-		    "amd64\n", j);
-		continue;
-#else
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_expect_fail("https://bugs.freebsd.org/205448");
+#endif
+	for (size_t i = 0; i < nitems(rmodes); i++) {
 		printf("rmode = %d\n", rmodes[i]);
 		fesetround(rmodes[i]);
 		test_infinities();
-		printf("ok %d - fma infinities\n", j);
-#endif
 	}
+}
 
+ATF_TC_WITHOUT_HEAD(nans);
+ATF_TC_BODY(nans, tc)
+{
 	fesetround(FE_TONEAREST);
 	test_nans();
-	printf("ok %d - fma NaNs\n", j);
-	j++;
+}
 
-	for (i = 0; i < nitems(rmodes); i++, j++) {
+
+ATF_TC_WITHOUT_HEAD(small_z);
+ATF_TC_BODY(small_z, tc)
+{
+	for (size_t i = 0; i < nitems(rmodes); i++) {
 		printf("rmode = %d\n", rmodes[i]);
 		fesetround(rmodes[i]);
 		test_small_z();
-		printf("ok %d - fma small z\n", j);
 	}
+}
 
-	for (i = 0; i < nitems(rmodes); i++, j++) {
+
+ATF_TC_WITHOUT_HEAD(big_z);
+ATF_TC_BODY(big_z, tc)
+{
+	for (size_t i = 0; i < nitems(rmodes); i++) {
 		printf("rmode = %d\n", rmodes[i]);
 		fesetround(rmodes[i]);
 		test_big_z();
-		printf("ok %d - fma big z\n", j);
 	}
+}
 
+ATF_TC_WITHOUT_HEAD(accuracy);
+ATF_TC_BODY(accuracy, tc)
+{
 	fesetround(FE_TONEAREST);
 	test_accuracy();
-	printf("ok %d - fma accuracy\n", j);
-	j++;
+}
 
+ATF_TC_WITHOUT_HEAD(double_rounding);
+ATF_TC_BODY(double_rounding, tc) {
 	test_double_rounding();
-	printf("ok %d - fma double rounding\n", j);
-	j++;
+}
 
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, zeroes);
+	ATF_TP_ADD_TC(tp, infinities);
+	ATF_TP_ADD_TC(tp, nans);
+	ATF_TP_ADD_TC(tp, small_z);
+	ATF_TP_ADD_TC(tp, big_z);
+	ATF_TP_ADD_TC(tp, accuracy);
+	ATF_TP_ADD_TC(tp, double_rounding);
 	/*
 	 * TODO:
 	 * - Tests for subnormals
 	 * - Cancellation tests (e.g., z = (double)x*y, but x*y is inexact)
 	 */
-
-	return (0);
+	return (atf_no_error());
 }

@@ -31,21 +31,33 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <fenv.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
 
+#include "test-utils.h"
+
+#define	IGNORE	0x12345
+
 /*
  * XXX The volatile here is to avoid gcc's bogus constant folding and work
  *     around the lack of support for the FENV_ACCESS pragma.
  */
-#define	test(func, x, result, excepts)	do {				\
-	volatile double _d = x;						\
-	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert((func)(_d) == (result) || fetestexcept(FE_INVALID));	\
-	assert(fetestexcept(FE_ALL_EXCEPT) == (excepts));		\
+#define	test(func, x, result, excepts)	do {					\
+	volatile double _d = x;							\
+	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));			\
+	volatile double _r = (func)(_d);					\
+	CHECK_FP_EXCEPTIONS_MSG(excepts, FE_ALL_EXCEPT, "for %s(%s)",		\
+	    #func, #x);								\
+	if ((excepts & FE_INVALID) != 0) {					\
+		ATF_REQUIRE_EQ(result, IGNORE);					\
+		ATF_CHECK_EQ_MSG(FE_INVALID, fetestexcept(FE_INVALID),		\
+		    "FE_INVALID not set correctly for %s(%s)", #func, #x);	\
+	} else {								\
+		ATF_REQUIRE_MSG(result != IGNORE, "Expected can't be IGNORE!");	\
+		ATF_REQUIRE_EQ(result, (__STRING(func(_d)), _r));		\
+	}									\
 } while (0)
 
 #define	testall(x, result, excepts)	do {				\
@@ -55,16 +67,12 @@ __FBSDID("$FreeBSD$");
 	test(llroundf, x, result, excepts);				\
 } while (0)
 
-#define	IGNORE	0
-
 #pragma STDC FENV_ACCESS ON
 
-int
-main(int argc, char *argv[])
+ATF_TC_WITHOUT_HEAD(main);
+ATF_TC_BODY(main, tc)
 {
-
-	printf("1..1\n");
-
+	atf_tc_expect_fail("https://bugs.freebsd.org/205451");
 	testall(0.0, 0, 0);
 	testall(0.25, 0, FE_INEXACT);
 	testall(0.5, 1, FE_INEXACT);
@@ -90,8 +98,8 @@ main(int argc, char *argv[])
 	test(lroundf, 0x7fffff8000000000.0p0f, 0x7fffff8000000000l, 0);
 	test(lround, -0x8000000000000800.0p0, IGNORE, FE_INVALID);
 	test(lroundf, -0x8000010000000000.0p0f, IGNORE, FE_INVALID);
-	test(lround, -0x8000000000000000.0p0, -0x8000000000000000l, 0);
-	test(lroundf, -0x8000000000000000.0p0f, -0x8000000000000000l, 0);
+	test(lround, -0x8000000000000000.0p0, (long)-0x8000000000000000l, 0);
+	test(lroundf, -0x8000000000000000.0p0f, (long)-0x8000000000000000l, 0);
 #else
 #error "Unsupported long size"
 #endif
@@ -103,13 +111,16 @@ main(int argc, char *argv[])
 	test(llroundf, 0x7fffff8000000000.0p0f, 0x7fffff8000000000ll, 0);
 	test(llround, -0x8000000000000800.0p0, IGNORE, FE_INVALID);
 	test(llroundf, -0x8000010000000000.0p0f, IGNORE, FE_INVALID);
-	test(llround, -0x8000000000000000.0p0, -0x8000000000000000ll, 0);
-	test(llroundf, -0x8000000000000000.0p0f, -0x8000000000000000ll, 0);
+	test(llround, -0x8000000000000000.0p0, (long long)-0x8000000000000000ll, 0);
+	test(llroundf, -0x8000000000000000.0p0f, (long long)-0x8000000000000000ll, 0);
 #else
 #error "Unsupported long long size"
 #endif
+}
 
-	printf("ok 1 - lround\n");
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, main);
 
-	return (0);
+	return (atf_no_error());
 }

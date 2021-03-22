@@ -32,7 +32,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <assert.h>
 #include <complex.h>
 #include <fenv.h>
 #include <float.h>
@@ -61,9 +60,10 @@ __FBSDID("$FreeBSD$");
 	volatile long double complex _d = z;				\
 	debug("  testing %s(%Lg + %Lg I) == %Lg + %Lg I\n", #func,	\
 	    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
-	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(cfpequal_cs((func)(_d), (result), (checksign)));		\
-	assert(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
+	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));		\
+	ATF_CHECK(cfpequal_cs((func)(_d), (result), (checksign)));	\
+	CHECK_FP_EXCEPTIONS_MSG(excepts, exceptmask, "for %s(%s)",	\
+	    #func, #z);							\
 } while (0)
 
 /*
@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 	volatile long double complex _d = z;				\
 	debug("  testing %s(%Lg + %Lg I) ~= %Lg + %Lg I\n", #func,	\
 	    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
-	assert(cfpequal_tol((func)(_d), (result), (tol), CS_BOTH));	\
+	ATF_CHECK(cfpequal_tol((func)(_d), (result), (tol), CS_BOTH));	\
 } while (0)
 
 /* These wrappers apply the identities f(conj(z)) = conj(f(z)). */
@@ -124,8 +124,8 @@ c3pi = 9.42477796076937971538793014983850839L;
 
 
 /* Tests for 0 */
-static void
-test_zero(void)
+ATF_TC_WITHOUT_HEAD(zero);
+ATF_TC_BODY(zero, tc)
 {
 	long double complex zero = CMPLXL(0.0, 0.0);
 
@@ -144,8 +144,8 @@ test_zero(void)
 /*
  * Tests for NaN inputs.
  */
-static void
-test_nan(void)
+ATF_TC_WITHOUT_HEAD(nan);
+ATF_TC_BODY(nan, tc)
 {
 	long double complex nan_nan = CMPLXL(NAN, NAN);
 	long double complex z;
@@ -223,8 +223,8 @@ test_nan(void)
 	testall(catan, z, CMPLXL(NAN, 0.0), ALL_STD_EXCEPT, 0, 0);
 }
 
-static void
-test_inf(void)
+ATF_TC_WITHOUT_HEAD(inf);
+ATF_TC_BODY(inf, tc)
 {
 	long double complex z;
 
@@ -270,8 +270,8 @@ test_inf(void)
 }
 
 /* Tests along the real and imaginary axes. */
-static void
-test_axes(void)
+ATF_TC_WITHOUT_HEAD(axes);
+ATF_TC_BODY(axes, tc)
 {
 	static const long double nums[] = {
 		-2, -1, -0.5, 0.5, 1, 2
@@ -307,8 +307,8 @@ test_axes(void)
 	}
 }
 
-static void
-test_small(void)
+ATF_TC_WITHOUT_HEAD(small);
+ATF_TC_BODY(small, tc)
 {
 	/*
 	 * z =  0.75 + i 0.25
@@ -333,36 +333,20 @@ test_small(void)
 }
 
 /* Test inputs that might cause overflow in a sloppy implementation. */
-static void
-test_large(void)
+ATF_TC_WITHOUT_HEAD(large);
+ATF_TC_BODY(large, tc)
 {
-
 	/* TODO: Write these tests */
 }
 
-int
-main(void)
+ATF_TP_ADD_TCS(tp)
 {
+	ATF_TP_ADD_TC(tp, zero);
+	ATF_TP_ADD_TC(tp, nan);
+	ATF_TP_ADD_TC(tp, inf);
+	ATF_TP_ADD_TC(tp, axes);
+	ATF_TP_ADD_TC(tp, small);
+	ATF_TP_ADD_TC(tp, large);
 
-	printf("1..6\n");
-
-	test_zero();
-	printf("ok 1 - invctrig zero\n");
-
-	test_nan();
-	printf("ok 2 - invctrig nan\n");
-
-	test_inf();
-	printf("ok 3 - invctrig inf\n");
-
-	test_axes();
-	printf("ok 4 - invctrig axes\n");
-
-	test_small();
-	printf("ok 5 - invctrig small\n");
-
-	test_large();
-	printf("ok 6 - invctrig large\n");
-
-	return (0);
+	return (atf_no_error());
 }

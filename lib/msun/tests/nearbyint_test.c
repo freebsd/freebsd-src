@@ -36,14 +36,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <assert.h>
 #include <fenv.h>
 #include <math.h>
 #include <stdio.h>
 
 #include "test-utils.h"
-
-static int testnum;
 
 static const int rmodes[] = {
 	FE_TONEAREST, FE_DOWNWARD, FE_UPWARD, FE_TOWARDZERO,
@@ -95,25 +92,23 @@ test_nearby(int testindex)
 	unsigned i;
 
 	for (i = 0; i < sizeof(rmodes) / sizeof(rmodes[0]); i++) {
-		fesetround(rmodes[i]);
-		feclearexcept(ALL_STD_EXCEPT);
+		ATF_REQUIRE_EQ(0, fesetround(rmodes[i]));
+		ATF_REQUIRE_EQ(0, feclearexcept(ALL_STD_EXCEPT));
 
 		in = tests[testindex].in;
 		out = get_output(testindex, i, 0);
-		assert(fpequal(out, libnearbyintf(in)));
-		assert(fpequal(out, nearbyint(in)));
-		assert(fpequal(out, nearbyintl(in)));
-		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
+		ATF_CHECK(fpequal(out, libnearbyintf(in)));
+		ATF_CHECK(fpequal(out, nearbyint(in)));
+		ATF_CHECK(fpequal(out, nearbyintl(in)));
+		CHECK_FP_EXCEPTIONS(0, ALL_STD_EXCEPT);
 
 		in = -tests[testindex].in;
 		out = get_output(testindex, i, 1);
-		assert(fpequal(out, nearbyintf(in)));
-		assert(fpequal(out, nearbyint(in)));
-		assert(fpequal(out, nearbyintl(in)));
-		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
+		ATF_CHECK(fpequal(out, nearbyintf(in)));
+		ATF_CHECK(fpequal(out, nearbyint(in)));
+		ATF_CHECK(fpequal(out, nearbyintl(in)));
+		CHECK_FP_EXCEPTIONS(0, ALL_STD_EXCEPT);
 	}
-
-	printf("ok %d\t\t# nearbyint(+%g)\n", testnum++, in);
 }
 
 static void
@@ -126,8 +121,8 @@ test_modf(int testindex)
 	unsigned i;
 
 	for (i = 0; i < sizeof(rmodes) / sizeof(rmodes[0]); i++) {
-		fesetround(rmodes[i]);
-		feclearexcept(ALL_STD_EXCEPT);
+		ATF_REQUIRE_EQ(0, fesetround(rmodes[i]));
+		ATF_REQUIRE_EQ(0, feclearexcept(ALL_STD_EXCEPT));
 
 		in = tests[testindex].in;
 		ipart_expected = tests[testindex].out[1];
@@ -135,41 +130,42 @@ test_modf(int testindex)
 		    isinf(ipart_expected) ? 0.0 : in - ipart_expected, in);
 		ipartl = ipart = ipartf = 42.0;
 
-		assert(fpequal(out, modff(in, &ipartf)));
-		assert(fpequal(ipart_expected, ipartf));
-		assert(fpequal(out, modf(in, &ipart)));
-		assert(fpequal(ipart_expected, ipart));
-		assert(fpequal(out, modfl(in, &ipartl)));
-		assert(fpequal(ipart_expected, ipartl));
-		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
+		ATF_CHECK(fpequal(out, modff(in, &ipartf)));
+		ATF_CHECK(fpequal(ipart_expected, ipartf));
+		ATF_CHECK(fpequal(out, modf(in, &ipart)));
+		ATF_CHECK(fpequal(ipart_expected, ipart));
+		ATF_CHECK(fpequal(out, modfl(in, &ipartl)));
+		ATF_CHECK(fpequal(ipart_expected, ipartl));
+		CHECK_FP_EXCEPTIONS(0, ALL_STD_EXCEPT);
 
 		in = -in;
 		ipart_expected = -ipart_expected;
 		out = -out;
 		ipartl = ipart = ipartf = 42.0;
-		assert(fpequal(out, modff(in, &ipartf)));
-		assert(fpequal(ipart_expected, ipartf));
-		assert(fpequal(out, modf(in, &ipart)));
-		assert(fpequal(ipart_expected, ipart));
-		assert(fpequal(out, modfl(in, &ipartl)));
-		assert(fpequal(ipart_expected, ipartl));
-		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
+		ATF_CHECK(fpequal(out, modff(in, &ipartf)));
+		ATF_CHECK(fpequal(ipart_expected, ipartf));
+		ATF_CHECK(fpequal(out, modf(in, &ipart)));
+		ATF_CHECK(fpequal(ipart_expected, ipart));
+		ATF_CHECK(fpequal(out, modfl(in, &ipartl)));
+		ATF_CHECK(fpequal(ipart_expected, ipartl));
+		CHECK_FP_EXCEPTIONS(0, ALL_STD_EXCEPT);
 	}
-
-	printf("ok %d\t\t# modf(+%g)\n", testnum++, in);
 }
 
-int
-main(void)
+ATF_TC_WITHOUT_HEAD(nearbyint);
+ATF_TC_BODY(nearbyint, tc)
 {
 	unsigned i;
 
-	printf("1..%zu\n", (size_t)(nitems(tests) * 2));
-	testnum = 1;
 	for (i = 0; i < nitems(tests); i++) {
 		test_nearby(i);
 		test_modf(i);
 	}
+}
 
-	return (0);
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, nearbyint);
+
+	return (atf_no_error());
 }

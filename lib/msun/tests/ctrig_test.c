@@ -38,8 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 #include <stdio.h>
 
-#include <atf-c.h>
-
 #include "test-utils.h"
 
 #pragma STDC FENV_ACCESS	ON
