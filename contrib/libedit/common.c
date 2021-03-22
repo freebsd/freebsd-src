@@ -1,4 +1,4 @@
-/*	$NetBSD: common.c,v 1.48 2018/02/26 17:36:14 christos Exp $	*/
+/*	$NetBSD: common.c,v 1.49 2020/03/30 06:54:37 ryo Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)common.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: common.c,v 1.48 2018/02/26 17:36:14 christos Exp $");
+__RCSID("$NetBSD: common.c,v 1.49 2020/03/30 06:54:37 ryo Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -658,7 +658,7 @@ ed_search_prev_history(EditLine *el, wint_t c __attribute__((__unused__)))
 
 	while (hp != NULL) {
 #ifdef SDEBUG
-		(void) fprintf(el->el_errfile, "Comparing with \"%s\"\n", hp);
+		(void) fprintf(el->el_errfile, "Comparing with \"%ls\"\n", hp);
 #endif
 		if ((wcsncmp(hp, el->el_line.buffer, (size_t)
 			    (el->el_line.lastchar - el->el_line.buffer)) ||
@@ -713,7 +713,7 @@ ed_search_next_history(EditLine *el, wint_t c __attribute__((__unused__)))
 
 	for (h = 1; h < el->el_history.eventno && hp; h++) {
 #ifdef SDEBUG
-		(void) fprintf(el->el_errfile, "Comparing with \"%s\"\n", hp);
+		(void) fprintf(el->el_errfile, "Comparing with \"%ls\"\n", hp);
 #endif
 		if ((wcsncmp(hp, el->el_line.buffer, (size_t)
 			    (el->el_line.lastchar - el->el_line.buffer)) ||

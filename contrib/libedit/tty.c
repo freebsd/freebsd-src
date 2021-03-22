@@ -1,4 +1,4 @@
-/*	$NetBSD: tty.c,v 1.68 2018/12/02 16:58:13 christos Exp $	*/
+/*	$NetBSD: tty.c,v 1.69 2020/05/31 23:24:23 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: tty.c,v 1.68 2018/12/02 16:58:13 christos Exp $");
+__RCSID("$NetBSD: tty.c,v 1.69 2020/05/31 23:24:23 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -1163,8 +1163,7 @@ tty_stty(EditLine *el, int argc __attribute__((__unused__)),
 
 	if (argv == NULL)
 		return -1;
-	strncpy(name, ct_encode_string(*argv++, &el->el_scratch), sizeof(name));
-        name[sizeof(name) - 1] = '\0';
+	strlcpy(name, ct_encode_string(*argv++, &el->el_scratch), sizeof(name));
 
 	while (argv && *argv && argv[0][0] == '-' && argv[0][2] == '\0')
 		switch (argv[0][1]) {
