@@ -366,10 +366,11 @@ ivhd_identify(driver_t *driver, device_t parent)
 	for (i = ivhd_count - 1 ; i > 0 ; i--){
        		if (ivhd_is_newer(&ivhd_hdrs[i-1]->Header, 
 			&ivhd_hdrs[i]->Header)) {
-			ivhd_hdrs[i-1] = ivhd_hdrs[i];
+			memmove(&ivhd_hdrs[i-1], &ivhd_hdrs[i],
+			    sizeof(void *) * (ivhd_count - i));
 			ivhd_count--;
 		}
-       }	       
+	}
 
 	ivhd_devs = malloc(sizeof(device_t) * ivhd_count, M_DEVBUF,
 		M_WAITOK | M_ZERO);
