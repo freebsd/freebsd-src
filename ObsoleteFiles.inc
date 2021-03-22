@@ -36,6 +36,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210322: retire mn(4) sync serial driver
+OLD_FILES+=usr/share/man/man4/if_mn.4.gz
+OLD_FILES+=usr/share/man/man4/mn.4.gz
+
 # 20210318: remove the terminfo database
 OLD_FILES+=usr/share/terminfo/1/1178
 OLD_FILES+=usr/share/terminfo/1/1730-lm
