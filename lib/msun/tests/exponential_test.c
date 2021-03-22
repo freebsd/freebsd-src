@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <fenv.h>
 #include <float.h>
 #include <math.h>
@@ -60,9 +59,10 @@ __FBSDID("$FreeBSD$");
  */
 #define	test(func, x, result, exceptmask, excepts)	do {		\
 	volatile long double _d = x;					\
-	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(fpequal((func)(_d), (result)));				 \
-	assert(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
+	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));		\
+	ATF_CHECK(fpequal((func)(_d), (result)));			\
+	CHECK_FP_EXCEPTIONS_MSG(excepts, exceptmask, "for %s(%s)",	\
+	    #func, #x);							\
 } while (0)
 
 /* Test all the functions that compute b^x. */
@@ -122,48 +122,66 @@ run_generic_tests(void)
 	testall1(-50000.0, -1.0, ALL_STD_EXCEPT, FE_INEXACT);
 }
 
-static void
-run_exp2_tests(void)
-{
-	unsigned i;
 
-	/*
-	 * We should insist that exp2() return exactly the correct
-	 * result and not raise an inexact exception for integer
-	 * arguments.
-	 */
-	feclearexcept(FE_ALL_EXCEPT);
-	for (i = FLT_MIN_EXP - FLT_MANT_DIG; i < FLT_MAX_EXP; i++) {
-		assert(exp2f(i) == ldexpf(1.0, i));
-		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
-	}
-	for (i = DBL_MIN_EXP - DBL_MANT_DIG; i < DBL_MAX_EXP; i++) {
-		assert(exp2(i) == ldexp(1.0, i));
-		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
-	}
-	for (i = LDBL_MIN_EXP - LDBL_MANT_DIG; i < LDBL_MAX_EXP; i++) {
-		assert(exp2l(i) == ldexpl(1.0, i));
-		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
+/*
+ * We should insist that exp2() return exactly the correct
+ * result and not raise an inexact exception for integer
+ * arguments.
+ */
+ATF_TC_WITHOUT_HEAD(exp2f);
+ATF_TC_BODY(exp2f, tc)
+{
+	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
+	for (int i = FLT_MIN_EXP - FLT_MANT_DIG; i < FLT_MAX_EXP; i++) {
+		ATF_CHECK_EQ(exp2f(i), ldexpf(1.0, i));
+		CHECK_FP_EXCEPTIONS(0, ALL_STD_EXCEPT);
 	}
 }
 
-int
-main(void)
+ATF_TC_WITHOUT_HEAD(exp2);
+ATF_TC_BODY(exp2, tc)
 {
+	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
+	for (int i = DBL_MIN_EXP - DBL_MANT_DIG; i < DBL_MAX_EXP; i++) {
+		ATF_CHECK_EQ(exp2(i), ldexp(1.0, i));
+		CHECK_FP_EXCEPTIONS(0, ALL_STD_EXCEPT);
+	}
+}
 
-	printf("1..3\n");
+ATF_TC_WITHOUT_HEAD(exp2l);
+ATF_TC_BODY(exp2l, tc)
+{
+	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
+	for (int i = LDBL_MIN_EXP - LDBL_MANT_DIG; i < LDBL_MAX_EXP; i++) {
+		ATF_CHECK_EQ(exp2l(i), ldexpl(1.0, i));
+		CHECK_FP_EXCEPTIONS(0, ALL_STD_EXCEPT);
+	}
+}
 
+ATF_TC_WITHOUT_HEAD(generic);
+ATF_TC_BODY(generic, tc)
+{
 	run_generic_tests();
-	printf("ok 1 - exponential\n");
+}
 
 #ifdef __i386__
+ATF_TC_WITHOUT_HEAD(generic_fp_pe);
+ATF_TC_BODY(generic_fp_pe, tc)
+{
 	fpsetprec(FP_PE);
 	run_generic_tests();
+}
 #endif
-	printf("ok 2 - exponential\n");
 
-	run_exp2_tests();
-	printf("ok 3 - exponential\n");
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, generic);
+#ifdef __i386__
+	ATF_TP_ADD_TC(tp, generic_fp_pe);
+#endif
+	ATF_TP_ADD_TC(tp, exp2);
+	ATF_TP_ADD_TC(tp, exp2f);
+	ATF_TP_ADD_TC(tp, exp2l);
 
-	return (0);
+	return (atf_no_error());
 }

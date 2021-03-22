@@ -32,6 +32,8 @@
 #include <complex.h>
 #include <fenv.h>
 
+#include <atf-c.h>
+
 /*
  * Implementations are permitted to define additional exception flags
  * not specified in the standard, so it is not necessarily true that
@@ -178,5 +180,14 @@ cfpequal_tol(long double complex x, long double complex y, long double tol,
 	return (fpequal_tol(creal(x), creal(y), tol, flags)
 		&& fpequal_tol(cimag(x), cimag(y), tol, flags));
 }
+
+#define CHECK_FP_EXCEPTIONS(excepts, exceptmask)		\
+	ATF_CHECK_EQ_MSG((excepts), fetestexcept(exceptmask),	\
+	    "unexpected exception flags: %#x not %#x",		\
+	    fetestexcept(exceptmask), (excepts))
+#define CHECK_FP_EXCEPTIONS_MSG(excepts, exceptmask, fmt, ...)	\
+	ATF_CHECK_EQ_MSG((excepts), fetestexcept(exceptmask),	\
+	    "unexpected exception flags: got %#x not %#x " fmt,	\
+	    fetestexcept(exceptmask), (excepts), __VA_ARGS__)
 
 #endif /* _TEST_UTILS_H_ */

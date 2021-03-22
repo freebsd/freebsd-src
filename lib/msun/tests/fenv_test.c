@@ -63,10 +63,13 @@ static int std_except_sets[1 << NEXCEPTS];
 /*
  * Initialize std_except_sets[] to the power set of std_excepts[]
  */
-static void
-init_exceptsets(void)
+static __attribute__((constructor)) void
+do_setup(void)
 {
 	unsigned i, j, sr;
+
+	/* Avoid double output after fork() */
+	setvbuf(stdout, NULL, _IONBF, 0);
 
 	for (i = 0; i < 1 << NEXCEPTS; i++) {
 		for (sr = i, j = 0; sr != 0; sr >>= 1, j++)
@@ -154,7 +157,7 @@ static void
 trap_handler(int sig)
 {
 
-	assert(sig == SIGFPE);
+	ATF_CHECK_EQ(SIGFPE, sig);
 	_exit(0);
 }
 
@@ -163,8 +166,8 @@ trap_handler(int sig)
  * The memcmp() test below may be too much to ask for, since there
  * could be multiple machine-specific default environments.
  */
-static void
-test_dfl_env(void)
+ATF_TC_WITHOUT_HEAD(dfl_env);
+ATF_TC_BODY(dfl_env, tc)
 {
 #ifndef NO_STRICT_DFL_ENV
 	fenv_t env;
@@ -186,52 +189,51 @@ test_dfl_env(void)
 	 * 1. http://support.amd.com/TechDocs/26569_APM_v5.pdf
 	 * 2. http://www.intel.com/Assets/en_US/PDF/manual/253666.pdf
 	 */
-	assert(memcmp(&env.__mxcsr, &FE_DFL_ENV->__mxcsr,
+	ATF_CHECK(memcmp(&env.__mxcsr, &FE_DFL_ENV->__mxcsr,
 	    sizeof(env.__mxcsr)) == 0);
-	assert(memcmp(&env.__x87.__control, &FE_DFL_ENV->__x87.__control,
+	ATF_CHECK(memcmp(&env.__x87.__control, &FE_DFL_ENV->__x87.__control,
 	    sizeof(env.__x87.__control)) == 0);
-	assert(memcmp(&env.__x87.__status, &FE_DFL_ENV->__x87.__status,
+	ATF_CHECK(memcmp(&env.__x87.__status, &FE_DFL_ENV->__x87.__status,
 	    sizeof(env.__x87.__status)) == 0);
-	assert(memcmp(&env.__x87.__tag, &FE_DFL_ENV->__x87.__tag,
+	ATF_CHECK(memcmp(&env.__x87.__tag, &FE_DFL_ENV->__x87.__tag,
 	    sizeof(env.__x87.__tag)) == 0);
 #else
-	assert(memcmp(&env, FE_DFL_ENV, sizeof(env)) == 0);
+	ATF_CHECK_EQ(0, memcmp(&env, FE_DFL_ENV, sizeof(env)));
 #endif
 
 #endif
-	assert(fetestexcept(FE_ALL_EXCEPT) == 0);
+	ATF_CHECK_EQ(0, fetestexcept(FE_ALL_EXCEPT));
 }
 
 /*
  * Test fetestexcept() and feclearexcept().
  */
-static void
-test_fetestclearexcept(void)
+ATF_TC_WITHOUT_HEAD(fetestclearexcept);
+ATF_TC_BODY(fetestclearexcept, tc)
 {
 	int excepts, i;
 
 	for (i = 0; i < 1 << NEXCEPTS; i++)
-		assert(fetestexcept(std_except_sets[i]) == 0);
+		ATF_CHECK_EQ(0, fetestexcept(std_except_sets[i]));
 	for (i = 0; i < 1 << NEXCEPTS; i++) {
 		excepts = std_except_sets[i];
 
 		/* FE_ALL_EXCEPT might be special-cased, as on i386. */
 		raiseexcept(excepts);
-		assert(fetestexcept(excepts) == excepts);
-		assert(feclearexcept(FE_ALL_EXCEPT) == 0);
-		assert(fetestexcept(FE_ALL_EXCEPT) == 0);
+		ATF_CHECK_EQ(excepts, fetestexcept(excepts));
+		ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
+		ATF_CHECK_EQ(0, fetestexcept(FE_ALL_EXCEPT));
 
 		raiseexcept(excepts);
-		assert(fetestexcept(excepts) == excepts);
+		ATF_CHECK_EQ(excepts, fetestexcept(excepts));
 		if ((excepts & (FE_UNDERFLOW | FE_OVERFLOW)) != 0) {
 			excepts |= FE_INEXACT;
-			assert((fetestexcept(ALL_STD_EXCEPT) | FE_INEXACT) ==
-			    excepts);
+			ATF_CHECK_EQ(excepts, (fetestexcept(ALL_STD_EXCEPT) | FE_INEXACT));
 		} else {
-			assert(fetestexcept(ALL_STD_EXCEPT) == excepts);
+			ATF_CHECK_EQ(excepts, fetestexcept(ALL_STD_EXCEPT));
 		}
-		assert(feclearexcept(excepts) == 0);
-		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
+		ATF_CHECK_EQ(0, feclearexcept(excepts));
+		ATF_CHECK_EQ(0, fetestexcept(ALL_STD_EXCEPT));
 	}
 }
 
@@ -240,31 +242,29 @@ test_fetestclearexcept(void)
  *
  * Prerequisites: fetestexcept(), feclearexcept()
  */
-static void
-test_fegsetexceptflag(void)
+ATF_TC_WITHOUT_HEAD(fegsetexceptflag);
+ATF_TC_BODY(fegsetexceptflag, tc)
 {
 	fexcept_t flag;
 	int excepts, i;
 
-	assert(fetestexcept(FE_ALL_EXCEPT) == 0);
+	ATF_CHECK_EQ(0, fetestexcept(FE_ALL_EXCEPT));
 	for (i = 0; i < 1 << NEXCEPTS; i++) {
 		excepts = std_except_sets[i];
 
-		assert(fegetexceptflag(&flag, excepts) == 0);
+		ATF_CHECK_EQ(0, fegetexceptflag(&flag, excepts));
 		raiseexcept(ALL_STD_EXCEPT);
-		assert(fesetexceptflag(&flag, excepts) == 0);
-		assert(fetestexcept(ALL_STD_EXCEPT) ==
-		    (ALL_STD_EXCEPT ^ excepts));
+		ATF_CHECK_EQ(0, fesetexceptflag(&flag, excepts));
+		ATF_CHECK_EQ((ALL_STD_EXCEPT ^ excepts), fetestexcept(ALL_STD_EXCEPT));
 
-		assert(fegetexceptflag(&flag, FE_ALL_EXCEPT) == 0);
-		assert(feclearexcept(FE_ALL_EXCEPT) == 0);
-		assert(fesetexceptflag(&flag, excepts) == 0);
-		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
-		assert(fesetexceptflag(&flag, ALL_STD_EXCEPT ^ excepts) == 0);
-		assert(fetestexcept(ALL_STD_EXCEPT) ==
-		    (ALL_STD_EXCEPT ^ excepts));
+		ATF_CHECK_EQ(0, fegetexceptflag(&flag, FE_ALL_EXCEPT));
+		ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
+		ATF_CHECK_EQ(0, fesetexceptflag(&flag, excepts));
+		ATF_CHECK_EQ(0, fetestexcept(ALL_STD_EXCEPT));
+		ATF_CHECK_EQ(0, fesetexceptflag(&flag, ALL_STD_EXCEPT ^ excepts));
+		ATF_CHECK_EQ((ALL_STD_EXCEPT ^ excepts), fetestexcept(ALL_STD_EXCEPT));
 
-		assert(feclearexcept(FE_ALL_EXCEPT) == 0);
+		ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
 	}
 }
 
@@ -273,63 +273,62 @@ test_fegsetexceptflag(void)
  *
  * Prerequisites: fetestexcept(), feclearexcept()
  */
-static void
-test_feraiseexcept(void)
+ATF_TC_WITHOUT_HEAD(feraiseexcept);
+ATF_TC_BODY(feraiseexcept, tc)
 {
 	int excepts, i;
 
 	for (i = 0; i < 1 << NEXCEPTS; i++) {
 		excepts = std_except_sets[i];
 
-		assert(fetestexcept(FE_ALL_EXCEPT) == 0);
-		assert(feraiseexcept(excepts) == 0);
+		ATF_CHECK_EQ(0, fetestexcept(FE_ALL_EXCEPT));
+		ATF_CHECK_EQ(0, feraiseexcept(excepts));
 		if ((excepts & (FE_UNDERFLOW | FE_OVERFLOW)) != 0) {
 			excepts |= FE_INEXACT;
-			assert((fetestexcept(ALL_STD_EXCEPT) | FE_INEXACT) ==
-			    excepts);
+			ATF_CHECK_EQ(excepts, (fetestexcept(ALL_STD_EXCEPT) | FE_INEXACT));
 		} else {
-			assert(fetestexcept(ALL_STD_EXCEPT) == excepts);
+			ATF_CHECK_EQ(excepts, fetestexcept(ALL_STD_EXCEPT));
 		}
-		assert(feclearexcept(FE_ALL_EXCEPT) == 0);
+		ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
 	}
-	assert(feraiseexcept(FE_INVALID | FE_DIVBYZERO) == 0);
-	assert(fetestexcept(ALL_STD_EXCEPT) == (FE_INVALID | FE_DIVBYZERO));
-	assert(feraiseexcept(FE_OVERFLOW | FE_UNDERFLOW | FE_INEXACT) == 0);
-	assert(fetestexcept(ALL_STD_EXCEPT) == ALL_STD_EXCEPT);
-	assert(feclearexcept(FE_ALL_EXCEPT) == 0);
+	ATF_CHECK_EQ(0, feraiseexcept(FE_INVALID | FE_DIVBYZERO));
+	ATF_CHECK_EQ((FE_INVALID | FE_DIVBYZERO), fetestexcept(ALL_STD_EXCEPT));
+	ATF_CHECK_EQ(0, feraiseexcept(FE_OVERFLOW | FE_UNDERFLOW | FE_INEXACT));
+	ATF_CHECK_EQ(ALL_STD_EXCEPT, fetestexcept(ALL_STD_EXCEPT));
+	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
 }
 
 /*
  * Test fegetround() and fesetround().
  */
-static void
-test_fegsetround(void)
+ATF_TC_WITHOUT_HEAD(fegsetround);
+ATF_TC_BODY(fegsetround, tc)
 {
 
-	assert(fegetround() == FE_TONEAREST);
-	assert(getround() == FE_TONEAREST);
-	assert(FLT_ROUNDS == 1);
+	ATF_CHECK_EQ(FE_TONEAREST, fegetround());
+	ATF_CHECK_EQ(FE_TONEAREST, getround());
+	ATF_CHECK_EQ(1, FLT_ROUNDS);
 
-	assert(fesetround(FE_DOWNWARD) == 0);
-	assert(fegetround() == FE_DOWNWARD);
-	assert(getround() == FE_DOWNWARD);
-	assert(FLT_ROUNDS == 3);
+	ATF_CHECK_EQ(0, fesetround(FE_DOWNWARD));
+	ATF_CHECK_EQ(FE_DOWNWARD, fegetround());
+	ATF_CHECK_EQ(FE_DOWNWARD, getround());
+	ATF_CHECK_EQ(3, FLT_ROUNDS);
 
-	assert(fesetround(FE_UPWARD) == 0);
-	assert(getround() == FE_UPWARD);
-	assert(fegetround() == FE_UPWARD);
-	assert(FLT_ROUNDS == 2);
+	ATF_CHECK_EQ(0, fesetround(FE_UPWARD));
+	ATF_CHECK_EQ(FE_UPWARD, getround());
+	ATF_CHECK_EQ(FE_UPWARD, fegetround());
+	ATF_CHECK_EQ(2, FLT_ROUNDS);
 
-	assert(fesetround(FE_TOWARDZERO) == 0);
-	assert(getround() == FE_TOWARDZERO);
-	assert(fegetround() == FE_TOWARDZERO);
-	assert(FLT_ROUNDS == 0);
+	ATF_CHECK_EQ(0, fesetround(FE_TOWARDZERO));
+	ATF_CHECK_EQ(FE_TOWARDZERO, getround());
+	ATF_CHECK_EQ(FE_TOWARDZERO, fegetround());
+	ATF_CHECK_EQ(0, FLT_ROUNDS);
 
-	assert(fesetround(FE_TONEAREST) == 0);
-	assert(getround() == FE_TONEAREST);
-	assert(FLT_ROUNDS == 1);
+	ATF_CHECK_EQ(0, fesetround(FE_TONEAREST));
+	ATF_CHECK_EQ(FE_TONEAREST, getround());
+	ATF_CHECK_EQ(1, FLT_ROUNDS);
 
-	assert(feclearexcept(FE_ALL_EXCEPT) == 0);
+	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
 }
 
 /*
@@ -337,8 +336,8 @@ test_fegsetround(void)
  *
  * Prerequisites: fetestexcept(), feclearexcept(), fegetround(), fesetround()
  */
-static void
-test_fegsetenv(void)
+ATF_TC_WITHOUT_HEAD(fegsetenv);
+ATF_TC_BODY(fegsetenv, tc)
 {
 	fenv_t env1, env2;
 	int excepts, i;
@@ -346,9 +345,9 @@ test_fegsetenv(void)
 	for (i = 0; i < 1 << NEXCEPTS; i++) {
 		excepts = std_except_sets[i];
 
-		assert(fetestexcept(FE_ALL_EXCEPT) == 0);
-		assert(fegetround() == FE_TONEAREST);
-		assert(fegetenv(&env1) == 0);
+		ATF_CHECK_EQ(0, fetestexcept(FE_ALL_EXCEPT));
+		ATF_CHECK_EQ(FE_TONEAREST, fegetround());
+		ATF_CHECK_EQ(0, fegetenv(&env1));
 
 		/*
 		 * fe[gs]etenv() should be able to save and restore
@@ -358,26 +357,26 @@ test_fegsetenv(void)
 		raiseexcept(excepts);
 		if ((excepts & (FE_UNDERFLOW | FE_OVERFLOW)) != 0 &&
 		    (excepts & FE_INEXACT) == 0)
-			assert(feclearexcept(FE_INEXACT) == 0);
+			ATF_CHECK_EQ(0, feclearexcept(FE_INEXACT));
 
 		fesetround(FE_DOWNWARD);
-		assert(fegetenv(&env2) == 0);
-		assert(fesetenv(&env1) == 0);
-		assert(fetestexcept(FE_ALL_EXCEPT) == 0);
-		assert(fegetround() == FE_TONEAREST);
+		ATF_CHECK_EQ(0, fegetenv(&env2));
+		ATF_CHECK_EQ(0, fesetenv(&env1));
+		ATF_CHECK_EQ(0, fetestexcept(FE_ALL_EXCEPT));
+		ATF_CHECK_EQ(FE_TONEAREST, fegetround());
 
-		assert(fesetenv(&env2) == 0);
+		ATF_CHECK_EQ(0, fesetenv(&env2));
 
 		/* 
 		 * Some platforms like powerpc may set extra exception bits. Since
 		 * only standard exceptions are tested, mask against ALL_STD_EXCEPT 
 		 */
-		assert((fetestexcept(FE_ALL_EXCEPT) & ALL_STD_EXCEPT) == excepts);
+		ATF_CHECK_EQ(excepts, (fetestexcept(FE_ALL_EXCEPT) & ALL_STD_EXCEPT));
 
-		assert(fegetround() == FE_DOWNWARD);
-		assert(fesetenv(&env1) == 0);
-		assert(fetestexcept(FE_ALL_EXCEPT) == 0);
-		assert(fegetround() == FE_TONEAREST);
+		ATF_CHECK_EQ(FE_DOWNWARD, fegetround());
+		ATF_CHECK_EQ(0, fesetenv(&env1));
+		ATF_CHECK_EQ(0, fetestexcept(FE_ALL_EXCEPT));
+		ATF_CHECK_EQ(FE_TONEAREST, fegetround());
 	}
 }
 
@@ -386,23 +385,20 @@ test_fegsetenv(void)
  *
  * Prerequisites: fetestexcept(), feraiseexcept()
  */
-static void
-test_masking(void)
+ATF_TC_WITHOUT_HEAD(masking);
+ATF_TC_BODY(masking, tc)
 {
 	struct sigaction act;
 	int except, pass, raise, status;
 	unsigned i;
 
-	assert((fegetexcept() & ALL_STD_EXCEPT) == 0);
-	assert((feenableexcept(FE_INVALID|FE_OVERFLOW) & ALL_STD_EXCEPT) == 0);
-	assert((feenableexcept(FE_UNDERFLOW) & ALL_STD_EXCEPT) ==
-	    (FE_INVALID | FE_OVERFLOW));
-	assert((fedisableexcept(FE_OVERFLOW) & ALL_STD_EXCEPT) ==
-	    (FE_INVALID | FE_OVERFLOW | FE_UNDERFLOW));
-	assert((fegetexcept() & ALL_STD_EXCEPT) == (FE_INVALID | FE_UNDERFLOW));
-	assert((fedisableexcept(FE_ALL_EXCEPT) & ALL_STD_EXCEPT) ==
-	    (FE_INVALID | FE_UNDERFLOW));
-	assert((fegetexcept() & ALL_STD_EXCEPT) == 0);
+	ATF_CHECK_EQ(0, (fegetexcept() & ALL_STD_EXCEPT));
+	ATF_CHECK_EQ(0, (feenableexcept(FE_INVALID|FE_OVERFLOW) & ALL_STD_EXCEPT));
+	ATF_CHECK_EQ((FE_INVALID | FE_OVERFLOW), (feenableexcept(FE_UNDERFLOW) & ALL_STD_EXCEPT));
+	ATF_CHECK_EQ((FE_INVALID | FE_OVERFLOW | FE_UNDERFLOW), (fedisableexcept(FE_OVERFLOW) & ALL_STD_EXCEPT));
+	ATF_CHECK_EQ((FE_INVALID | FE_UNDERFLOW), (fegetexcept() & ALL_STD_EXCEPT));
+	ATF_CHECK_EQ((FE_INVALID | FE_UNDERFLOW), (fedisableexcept(FE_ALL_EXCEPT) & ALL_STD_EXCEPT));
+	ATF_CHECK_EQ(0, (fegetexcept() & ALL_STD_EXCEPT));
 
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
@@ -423,40 +419,39 @@ test_masking(void)
 			 */
 			switch(fork()) {
 			case 0:		/* child */
-				assert((fegetexcept() & ALL_STD_EXCEPT) == 0);
-				assert((feenableexcept(except)
-					   & ALL_STD_EXCEPT) == 0);
-				assert(fegetexcept() == except);
+				ATF_CHECK_EQ(0, (fegetexcept() & ALL_STD_EXCEPT));
+				ATF_REQUIRE_EQ(0, (feenableexcept(except) & ALL_STD_EXCEPT));
+				ATF_CHECK_EQ(except, fegetexcept());
 				raiseexcept(raise);
-				assert(feraiseexcept(raise) == 0);
-				assert(fetestexcept(ALL_STD_EXCEPT) == raise);
+				ATF_CHECK_EQ(0, feraiseexcept(raise));
+				ATF_CHECK_EQ(raise, fetestexcept(ALL_STD_EXCEPT));
 
-				assert(sigaction(SIGFPE, &act, NULL) == 0);
+				ATF_CHECK_EQ(0, sigaction(SIGFPE, &act, NULL));
 				switch (pass) {
 				case 0:
 					raiseexcept(except);
 				case 1:
 					feraiseexcept(except);
 				default:
-					assert(0);
+					ATF_REQUIRE(0);
 				}
-				assert(0);
+				ATF_REQUIRE(0);
 			default:	/* parent */
-				assert(wait(&status) > 0);
+				ATF_REQUIRE(wait(&status) > 0);
 				/*
 				 * Avoid assert() here so that it's possible
 				 * to examine a failed child's core dump.
 				 */
 				if (!WIFEXITED(status))
 					errx(1, "child aborted\n");
-				assert(WEXITSTATUS(status) == 0);
+				ATF_CHECK_EQ(0, WEXITSTATUS(status));
 				break;
 			case -1:	/* error */
-				assert(0);
+				ATF_REQUIRE(0);
 			}
 		}
 	}
-	assert(fetestexcept(FE_ALL_EXCEPT) == 0);
+	ATF_CHECK_EQ(0, fetestexcept(FE_ALL_EXCEPT));
 }
 
 /*
@@ -465,8 +460,8 @@ test_masking(void)
  * Prerequisites: fetestexcept(), fegetround(), fesetround(),
  *	fedisableexcept(), feenableexcept()
  */
-static void
-test_feholdupdate(void)
+ATF_TC_WITHOUT_HEAD(feholdupdate);
+ATF_TC_BODY(feholdupdate, tc)
 {
 	fenv_t env;
 
@@ -499,67 +494,50 @@ test_feholdupdate(void)
 				 * check other properties of feupdateenv().
 				 */
 				if (pass == 1)
-					assert((feenableexcept(except) &
-						   ALL_STD_EXCEPT) == 0);
+					ATF_REQUIRE_EQ(0, feenableexcept(except) & ALL_STD_EXCEPT);
 				raiseexcept(raise);
-				assert(fesetround(FE_DOWNWARD) == 0);
-				assert(feholdexcept(&env) == 0);
-				assert(fetestexcept(FE_ALL_EXCEPT) == 0);
+				ATF_CHECK_EQ(0, fesetround(FE_DOWNWARD));
+				ATF_CHECK_EQ(0, feholdexcept(&env));
+				ATF_CHECK_EQ(0, fetestexcept(FE_ALL_EXCEPT));
 				raiseexcept(except);
-				assert(fesetround(FE_UPWARD) == 0);
+				ATF_CHECK_EQ(0, fesetround(FE_UPWARD));
 
 				if (pass == 1)
-					assert(sigaction(SIGFPE, &act, NULL) ==
-					    0);
-				assert(feupdateenv(&env) == 0);
-				assert(fegetround() == FE_DOWNWARD);
-				assert(fetestexcept(ALL_STD_EXCEPT) ==
-				    (except | raise));
+					ATF_CHECK_EQ(0, sigaction(SIGFPE, &act, NULL));
+				ATF_CHECK_EQ(0, feupdateenv(&env));
+				ATF_CHECK_EQ(FE_DOWNWARD, fegetround());
+				ATF_CHECK_EQ((except | raise), fetestexcept(ALL_STD_EXCEPT));
 
-				assert(pass == 0);
+				ATF_CHECK_EQ(0, pass);
 				_exit(0);
 			default:	/* parent */
-				assert(wait(&status) > 0);
+				ATF_REQUIRE(wait(&status) > 0);
 				/*
 				 * Avoid assert() here so that it's possible
 				 * to examine a failed child's core dump.
 				 */
 				if (!WIFEXITED(status))
 					errx(1, "child aborted\n");
-				assert(WEXITSTATUS(status) == 0);
+				ATF_CHECK_EQ(0, WEXITSTATUS(status));
 				break;
 			case -1:	/* error */
-				assert(0);
+				ATF_REQUIRE(0);
 			}
 		}
 	}
-	assert(fetestexcept(FE_ALL_EXCEPT) == 0);
+	ATF_CHECK_EQ(0, fetestexcept(FE_ALL_EXCEPT));
 }
 
-int
-main(void)
+ATF_TP_ADD_TCS(tp)
 {
-	/* Avoid double output after fork() */
-	setvbuf(stdout, NULL, _IONBF, 0);
+	ATF_TP_ADD_TC(tp, dfl_env);
+	ATF_TP_ADD_TC(tp, fetestclearexcept);
+	ATF_TP_ADD_TC(tp, fegsetexceptflag);
+	ATF_TP_ADD_TC(tp, feraiseexcept);
+	ATF_TP_ADD_TC(tp, fegsetround);
+	ATF_TP_ADD_TC(tp, fegsetenv);
+	ATF_TP_ADD_TC(tp, masking);
+	ATF_TP_ADD_TC(tp, feholdupdate);
 
-	printf("1..8\n");
-	init_exceptsets();
-	test_dfl_env();
-	printf("ok 1 - fenv\n");
-	test_fetestclearexcept();
-	printf("ok 2 - fenv\n");
-	test_fegsetexceptflag();
-	printf("ok 3 - fenv\n");
-	test_feraiseexcept();
-	printf("ok 4 - fenv\n");
-	test_fegsetround();
-	printf("ok 5 - fenv\n");
-	test_fegsetenv();
-	printf("ok 6 - fenv\n");
-	test_masking();
-	printf("ok 7 - fenv\n");
-	test_feholdupdate();
-	printf("ok 8 - fenv\n");
-
-	return (0);
+	return (atf_no_error());
 }

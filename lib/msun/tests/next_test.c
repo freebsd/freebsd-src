@@ -72,14 +72,16 @@ static void _testl(const char *, int, long double, long double, int);
 static double idd(double);
 static float idf(float);
 
-int
-main(void)
-{
-	static const int ex_under = FE_UNDERFLOW | FE_INEXACT;	/* shorthand */
-	static const int ex_over = FE_OVERFLOW | FE_INEXACT;
-	long double ldbl_small, ldbl_eps, ldbl_max;
+static const int ex_under = FE_UNDERFLOW | FE_INEXACT;	/* shorthand */
+static const int ex_over = FE_OVERFLOW | FE_INEXACT;
+static const long double ldbl_eps = LDBL_EPSILON;
 
-	printf("1..5\n");
+
+
+ATF_TC_WITHOUT_HEAD(zeros);
+ATF_TC_BODY(zeros, tc)
+{
+	long double ldbl_small;
 
 #ifdef	__i386__
 	fpsetprec(FP_PE);
@@ -90,8 +92,6 @@ main(void)
 	 * double format.
 	 */
 	ldbl_small = ldexpl(1.0, LDBL_MIN_EXP - LDBL_MANT_DIG);
-	ldbl_eps = LDBL_EPSILON;
-	ldbl_max = ldexpl(1.0 - ldbl_eps / 2, LDBL_MAX_EXP);
 
 	/*
 	 * Special cases involving zeroes.
@@ -120,9 +120,11 @@ main(void)
 	stest(nexttowardf, 0x1p-149f, f);
 	stest(nexttowardl, ldbl_small, l);
 #undef	stest
+}
 
-	printf("ok 1 - next\n");
-
+ATF_TC_WITHOUT_HEAD(eq_and_nan);
+ATF_TC_BODY(eq_and_nan, tc)
+{
 	/*
 	 * `x == y' and NaN tests
 	 */
@@ -133,33 +135,37 @@ main(void)
 	testall(NAN, 42.0, NAN, 0);
 	testall(42.0, NAN, NAN, 0);
 	testall(NAN, NAN, NAN, 0);
+}
 
-	printf("ok 2 - next\n");
-
+ATF_TC_WITHOUT_HEAD(ordinary);
+ATF_TC_BODY(ordinary, tc)
+{
 	/*
 	 * Tests where x is an ordinary normalized number
 	 */
 	testboth(1.0, 2.0, 1.0 + DBL_EPSILON, 0, );
-	testboth(1.0, -INFINITY, 1.0 - DBL_EPSILON/2, 0, );
+	testboth(1.0, -INFINITY, 1.0 - DBL_EPSILON / 2, 0, );
 	testboth(1.0, 2.0, 1.0 + FLT_EPSILON, 0, f);
-	testboth(1.0, -INFINITY, 1.0 - FLT_EPSILON/2, 0, f);
+	testboth(1.0, -INFINITY, 1.0 - FLT_EPSILON / 2, 0, f);
 	testboth(1.0, 2.0, 1.0 + ldbl_eps, 0, l);
-	testboth(1.0, -INFINITY, 1.0 - ldbl_eps/2, 0, l);
+	testboth(1.0, -INFINITY, 1.0 - ldbl_eps / 2, 0, l);
 
-	testboth(-1.0, 2.0, -1.0 + DBL_EPSILON/2, 0, );
+	testboth(-1.0, 2.0, -1.0 + DBL_EPSILON / 2, 0, );
 	testboth(-1.0, -INFINITY, -1.0 - DBL_EPSILON, 0, );
-	testboth(-1.0, 2.0, -1.0 + FLT_EPSILON/2, 0, f);
+	testboth(-1.0, 2.0, -1.0 + FLT_EPSILON / 2, 0, f);
 	testboth(-1.0, -INFINITY, -1.0 - FLT_EPSILON, 0, f);
-	testboth(-1.0, 2.0, -1.0 + ldbl_eps/2, 0, l);
+	testboth(-1.0, 2.0, -1.0 + ldbl_eps / 2, 0, l);
 	testboth(-1.0, -INFINITY, -1.0 - ldbl_eps, 0, l);
 
 	/* Cases where nextafter(...) != nexttoward(...) */
 	test(nexttoward(1.0, 1.0 + ldbl_eps), 1.0 + DBL_EPSILON, 0);
 	testf(nexttowardf(1.0, 1.0 + ldbl_eps), 1.0 + FLT_EPSILON, 0);
 	testl(nexttowardl(1.0, 1.0 + ldbl_eps), 1.0 + ldbl_eps, 0);
+}
 
-	printf("ok 3 - next\n");
-
+ATF_TC_WITHOUT_HEAD(boundaries);
+ATF_TC_BODY(boundaries, tc)
+{
 	/*
 	 * Tests at word boundaries, normalization boundaries, etc.
 	 */
@@ -202,8 +208,18 @@ main(void)
 	testboth(0x1p-16382L, -INFINITY,
 	    0x0.ffffffffffffffffffffffffffffp-16382L, ex_under, l);
 #endif
+}
 
-	printf("ok 4 - next\n");
+ATF_TC_WITHOUT_HEAD(overflow);
+ATF_TC_BODY(overflow, tc)
+{
+	long double ldbl_max;
+	/*
+	 * We can't use a compile-time constant here because gcc on
+	 * FreeBSD/i386 assumes long doubles are truncated to the
+	 * double format.
+	 */
+	ldbl_max = ldexpl(1.0 - ldbl_eps / 2, LDBL_MAX_EXP);
 
 	/*
 	 * Overflow tests
@@ -222,10 +238,6 @@ main(void)
 
 	testboth(ldbl_max, INFINITY, INFINITY, ex_over, l);
 	testboth(INFINITY, 0.0, ldbl_max, 0, l);
-
-	printf("ok 5 - next\n");
-
-	return (0);
 }
 
 static void
@@ -236,14 +248,13 @@ _testl(const char *exp, int line, long double actual, long double expected,
 
 	actual_except = fetestexcept(ALL_STD_EXCEPT);
 	if (!fpequal(actual, expected)) {
-		fprintf(stderr, "%d: %s returned %La, expecting %La\n",
-		    line, exp, actual, expected);
-		abort();
+		atf_tc_fail_check(__FILE__, line,
+		    "%s returned %La, expecting %La\n", exp, actual, expected);
 	}
 	if (actual_except != except) {
-		fprintf(stderr, "%d: %s raised 0x%x, expecting 0x%x\n",
-		    line, exp, actual_except, except);
-		abort();
+		atf_tc_fail_check(__FILE__, line,
+		    "%s raised 0x%x, expecting 0x%x\n", exp, actual_except,
+		    except);
 	}
 }
 
@@ -262,4 +273,15 @@ static float
 idf(float x)
 {
 	return (x);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, zeros);
+	ATF_TP_ADD_TC(tp, ordinary);
+	ATF_TP_ADD_TC(tp, eq_and_nan);
+	ATF_TP_ADD_TC(tp, boundaries);
+	ATF_TP_ADD_TC(tp, overflow);
+
+	return (atf_no_error());
 }

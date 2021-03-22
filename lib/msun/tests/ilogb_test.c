@@ -26,58 +26,78 @@
  * $FreeBSD$
  */
 
-#include <assert.h>
 #include <float.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-int
-main(void)
+#include "test-utils.h"
+
+ATF_TC_WITHOUT_HEAD(ilogb);
+ATF_TC_BODY(ilogb, tc)
 {
 	char buf[128], *end;
 	double d;
-	float f;
-	long double ld;
 	int e, i;
 
-	printf("1..3\n");
-	assert(ilogb(0) == FP_ILOGB0);
-	assert(ilogb(NAN) == FP_ILOGBNAN);
-	assert(ilogb(INFINITY) == INT_MAX);
+	ATF_CHECK_EQ(FP_ILOGB0, ilogb(0));
+	ATF_CHECK_EQ(FP_ILOGBNAN, ilogb(NAN));
+	ATF_CHECK_EQ(INT_MAX, ilogb(INFINITY));
 	for (e = DBL_MIN_EXP - DBL_MANT_DIG; e < DBL_MAX_EXP; e++) {
 		snprintf(buf, sizeof(buf), "0x1.p%d", e);
 		d = strtod(buf, &end);
-		assert(*end == '\0');
+		ATF_CHECK_EQ('\0', *end);
 		i = ilogb(d);
-		assert(i == e);
+		ATF_CHECK_EQ_MSG(e, i, "ilogb(%g) returned %d not %d", d, i, e);
 	}
-	printf("ok 1 - ilogb\n");
+}
 
-	assert(ilogbf(0) == FP_ILOGB0);
-	assert(ilogbf(NAN) == FP_ILOGBNAN);
-	assert(ilogbf(INFINITY) == INT_MAX);
+ATF_TC_WITHOUT_HEAD(ilogbf);
+ATF_TC_BODY(ilogbf, tc)
+{
+	char buf[128], *end;
+	float f;
+	int e, i;
+
+	ATF_CHECK_EQ(FP_ILOGB0, ilogbf(0));
+	ATF_CHECK_EQ(FP_ILOGBNAN, ilogbf(NAN));
+	ATF_CHECK_EQ(INT_MAX, ilogbf(INFINITY));
 	for (e = FLT_MIN_EXP - FLT_MANT_DIG; e < FLT_MAX_EXP; e++) {
 		snprintf(buf, sizeof(buf), "0x1.p%d", e);
 		f = strtof(buf, &end);
-		assert(*end == '\0');
+		ATF_CHECK_EQ('\0', *end);
 		i = ilogbf(f);
-		assert(i == e);
+		ATF_CHECK_EQ_MSG(e, i, "ilogbf(%g) returned %d not %d", f, i,
+		    e);
 	}
-	printf("ok 2 - ilogbf\n");
+}
 
-	assert(ilogbl(0) == FP_ILOGB0);
-	assert(ilogbl(NAN) == FP_ILOGBNAN);
-	assert(ilogbl(INFINITY) == INT_MAX);
+ATF_TC_WITHOUT_HEAD(ilogbl);
+ATF_TC_BODY(ilogbl, tc)
+{
+	char buf[128], *end;
+	long double ld;
+	int e, i;
+
+	ATF_CHECK_EQ(FP_ILOGB0, ilogbl(0));
+	ATF_CHECK_EQ(FP_ILOGBNAN, ilogbl(NAN));
+	ATF_CHECK_EQ(INT_MAX, ilogbl(INFINITY));
 	for (e = LDBL_MIN_EXP - LDBL_MANT_DIG; e < LDBL_MAX_EXP; e++) {
 		snprintf(buf, sizeof(buf), "0x1.p%d", e);
 		ld = strtold(buf, &end);
-		assert(*end == '\0');
+		ATF_CHECK_EQ('\0', *end);
 		i = ilogbl(ld);
-		assert(i == e);
+		ATF_CHECK_EQ_MSG(e, i, "ilogbl(%Lg) returned %d not %d", ld, i,
+		    e);
 	}
-	printf("ok 3 - ilogbl\n");
+}
 
-	return (0);
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, ilogb);
+	ATF_TP_ADD_TC(tp, ilogbf);
+	ATF_TP_ADD_TC(tp, ilogbl);
+
+	return (atf_no_error());
 }

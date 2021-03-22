@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#include <assert.h>
 #include <complex.h>
 #include <float.h>
 #include <math.h>
@@ -72,7 +71,7 @@ static void
 assert_equal(long double complex d1, long double complex d2)
 {
 
-	assert(cfpequal(d1, d2));
+	ATF_CHECK(cfpequal(d1, d2));
 }
 
 /*
@@ -133,7 +132,7 @@ test_finite(void)
 			b = tests[i + 1] * mults[j] * mults[j];
 			x = tests[i + 2] * mults[j];
 			y = tests[i + 3] * mults[j];
-			assert(t_csqrt(CMPLXL(a, b)) == CMPLXL(x, y));
+			ATF_CHECK(t_csqrt(CMPLXL(a, b)) == CMPLXL(x, y));
 		}
 	}
 
@@ -190,11 +189,11 @@ static void
 test_nans(void)
 {
 
-	assert(creall(t_csqrt(CMPLXL(INFINITY, NAN))) == INFINITY);
-	assert(isnan(cimagl(t_csqrt(CMPLXL(INFINITY, NAN)))));
+	ATF_CHECK(creall(t_csqrt(CMPLXL(INFINITY, NAN))) == INFINITY);
+	ATF_CHECK(isnan(cimagl(t_csqrt(CMPLXL(INFINITY, NAN)))));
 
-	assert(isnan(creall(t_csqrt(CMPLXL(-INFINITY, NAN)))));
-	assert(isinf(cimagl(t_csqrt(CMPLXL(-INFINITY, NAN)))));
+	ATF_CHECK(isnan(creall(t_csqrt(CMPLXL(-INFINITY, NAN)))));
+	ATF_CHECK(isinf(cimagl(t_csqrt(CMPLXL(-INFINITY, NAN)))));
 
 	assert_equal(t_csqrt(CMPLXL(NAN, INFINITY)),
 		     CMPLXL(INFINITY, INFINITY));
@@ -224,7 +223,7 @@ test_overflow(int maxexp)
 	long double complex result;
 	int exp, i;
 
-	assert(maxexp > 0 && maxexp % 2 == 0);
+	ATF_CHECK(maxexp > 0 && maxexp % 2 == 0);
 
 	for (i = 0; i < 4; i++) {
 		exp = maxexp - 2 * i;
@@ -233,22 +232,22 @@ test_overflow(int maxexp)
 		a = ldexpl(115 * 0x1p-8, exp);
 		b = ldexpl(252 * 0x1p-8, exp);
 		result = t_csqrt(CMPLXL(a, b));
-		assert(creall(result) == ldexpl(14 * 0x1p-4, exp / 2));
-		assert(cimagl(result) == ldexpl(9 * 0x1p-4, exp / 2));
+		ATF_CHECK_EQ(creall(result), ldexpl(14 * 0x1p-4, exp / 2));
+		ATF_CHECK_EQ(cimagl(result), ldexpl(9 * 0x1p-4, exp / 2));
 
 		/* csqrt(-11 + 60*I) = 5 + 6*I */
 		a = ldexpl(-11 * 0x1p-6, exp);
 		b = ldexpl(60 * 0x1p-6, exp);
 		result = t_csqrt(CMPLXL(a, b));
-		assert(creall(result) == ldexpl(5 * 0x1p-3, exp / 2));
-		assert(cimagl(result) == ldexpl(6 * 0x1p-3, exp / 2));
+		ATF_CHECK_EQ(creall(result), ldexpl(5 * 0x1p-3, exp / 2));
+		ATF_CHECK_EQ(cimagl(result), ldexpl(6 * 0x1p-3, exp / 2));
 
 		/* csqrt(225 + 0*I) == 15 + 0*I */
 		a = ldexpl(225 * 0x1p-8, exp);
 		b = 0;
 		result = t_csqrt(CMPLXL(a, b));
-		assert(creall(result) == ldexpl(15 * 0x1p-4, exp / 2));
-		assert(cimagl(result) == 0);
+		ATF_CHECK_EQ(creall(result), ldexpl(15 * 0x1p-4, exp / 2));
+		ATF_CHECK_EQ(cimagl(result), 0);
 	}
 }
 
@@ -266,8 +265,8 @@ test_precision(int maxexp, int mantdig)
 	uint64_t mantbits, sq_mantbits;
 	int exp, i;
 
-	assert(maxexp > 0 && maxexp % 2 == 0);
-	assert(mantdig <= 64);
+	ATF_CHECK(maxexp > 0 && maxexp % 2 == 0);
+	ATF_CHECK(mantdig <= 64);
 	mantdig = rounddown(mantdig, 2);
 
 	for (exp = 0; exp <= maxexp; exp += 2) {
@@ -289,79 +288,67 @@ test_precision(int maxexp, int mantdig)
 			b = ldexpl((long double)sq_mantbits,
 			    exp - 1 - mantdig);
 			x = ldexpl(mantbits, (exp - 2 - mantdig) / 2);
-			assert(b == x * x * 2);
+			ATF_CHECK_EQ(b, x * x * 2);
 			result = t_csqrt(CMPLXL(0, b));
-			assert(creall(result) == x);
-			assert(cimagl(result) == x);
+			ATF_CHECK_EQ(x, creall(result));
+			ATF_CHECK_EQ(x, cimagl(result));
 		}
 	}
 }
 
-int
-main(void)
+ATF_TC_WITHOUT_HEAD(csqrt);
+ATF_TC_BODY(csqrt, tc)
 {
-
-	printf("1..18\n");
-
 	/* Test csqrt() */
 	t_csqrt = _csqrt;
 
 	test_finite();
-	printf("ok 1 - csqrt\n");
 
 	test_zeros();
-	printf("ok 2 - csqrt\n");
 
 	test_infinities();
-	printf("ok 3 - csqrt\n");
 
 	test_nans();
-	printf("ok 4 - csqrt\n");
 
 	test_overflow(DBL_MAX_EXP);
-	printf("ok 5 - csqrt\n");
 
 	test_precision(DBL_MAX_EXP, DBL_MANT_DIG);
-	printf("ok 6 - csqrt\n");
+}
 
+ATF_TC_WITHOUT_HEAD(csqrtf);
+ATF_TC_BODY(csqrtf, tc)
+{
 	/* Now test csqrtf() */
 	t_csqrt = _csqrtf;
 
 	test_finite();
-	printf("ok 7 - csqrt\n");
 
 	test_zeros();
-	printf("ok 8 - csqrt\n");
 
 	test_infinities();
-	printf("ok 9 - csqrt\n");
 
 	test_nans();
-	printf("ok 10 - csqrt\n");
 
 	test_overflow(FLT_MAX_EXP);
-	printf("ok 11 - csqrt\n");
 
 	test_precision(FLT_MAX_EXP, FLT_MANT_DIG);
-	printf("ok 12 - csqrt\n");
+}
 
+ATF_TC_WITHOUT_HEAD(csqrtl);
+ATF_TC_BODY(csqrtl, tc)
+{
 	/* Now test csqrtl() */
 	t_csqrt = csqrtl;
 
 	test_finite();
-	printf("ok 13 - csqrt\n");
 
 	test_zeros();
-	printf("ok 14 - csqrt\n");
 
 	test_infinities();
-	printf("ok 15 - csqrt\n");
 
 	test_nans();
-	printf("ok 16 - csqrt\n");
 
 	test_overflow(LDBL_MAX_EXP);
-	printf("ok 17 - csqrt\n");
 
 	test_precision(LDBL_MAX_EXP,
 #ifndef __i386__
@@ -370,7 +357,13 @@ main(void)
 	    DBL_MANT_DIG
 #endif
 	    );
-	printf("ok 18 - csqrt\n");
+}
 
-	return (0);
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, csqrt);
+	ATF_TP_ADD_TC(tp, csqrtf);
+	ATF_TP_ADD_TC(tp, csqrtl);
+
+	return (atf_no_error());
 }

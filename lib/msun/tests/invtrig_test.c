@@ -33,7 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <fenv.h>
 #include <float.h>
 #include <math.h>
@@ -54,9 +53,10 @@ __FBSDID("$FreeBSD$");
  */
 #define	test_tol(func, x, result, tol, excepts) do {			\
 	volatile long double _in = (x), _out = (result);		\
-	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(fpequal_tol(func(_in), _out, (tol), CS_BOTH));		\
-	assert(((void)func, fetestexcept(ALL_STD_EXCEPT) == (excepts))); \
+	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));		\
+	ATF_CHECK(fpequal_tol(func(_in), _out, (tol), CS_BOTH));	\
+	CHECK_FP_EXCEPTIONS_MSG(excepts, ALL_STD_EXCEPT, "for %s(%s)",	\
+	    #func, #x);							\
 } while (0)
 #define test(func, x, result, excepts)					\
 	test_tol(func, (x), (result), 0, (excepts))
@@ -83,9 +83,10 @@ __FBSDID("$FreeBSD$");
 
 #define	test2_tol(func, y, x, result, tol, excepts) do {		\
 	volatile long double _iny = (y), _inx = (x), _out = (result);	\
-	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(fpequal_tol(func(_iny, _inx), _out, (tol), CS_BOTH));	\
-	assert(((void)func, fetestexcept(ALL_STD_EXCEPT) == (excepts))); \
+	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));		\
+	ATF_CHECK(fpequal_tol(func(_iny, _inx), _out, (tol), CS_BOTH));	\
+	CHECK_FP_EXCEPTIONS_MSG(excepts, ALL_STD_EXCEPT, "for %s(%s)",	\
+	    #func, #x);							\
 } while (0)
 #define test2(func, y, x, result, excepts)				\
 	test2_tol(func, (y), (x), (result), 0, (excepts))
@@ -123,8 +124,8 @@ sqrt2m1 = 4.14213562373095048801688724209698081e-01L;
  * Test special case inputs in asin(), acos() and atan(): signed
  * zeroes, infinities, and NaNs.
  */
-static void
-test_special(void)
+ATF_TC_WITHOUT_HEAD(special);
+ATF_TC_BODY(special, tc)
 {
 
 	testall(asin, 0.0, 0.0, 0);
@@ -150,8 +151,8 @@ test_special(void)
  * Test special case inputs in atan2(), where the exact value of y/x is
  * zero or non-finite.
  */
-static void
-test_special_atan2(void)
+ATF_TC_WITHOUT_HEAD(special_atan2);
+ATF_TC_BODY(special_atan2, tc)
 {
 	long double z;
 	int e;
@@ -236,8 +237,8 @@ test_special_atan2(void)
  * Test various inputs to asin(), acos() and atan() and verify that the
  * results are accurate to within 1 ulp.
  */
-static void
-test_accuracy(void)
+ATF_TC_WITHOUT_HEAD(accuracy);
+ATF_TC_BODY(accuracy, tc)
 {
 
 	/* We expect correctly rounded results for these basic cases. */
@@ -274,8 +275,8 @@ test_accuracy(void)
  * Test inputs to atan2() where x is a power of 2. These are easy cases
  * because y/x is exact.
  */
-static void
-test_p2x_atan2(void)
+ATF_TC_WITHOUT_HEAD(p2x_atan2);
+ATF_TC_BODY(p2x_atan2, tc)
 {
 
 	testall2(atan2, 1.0, 1.0, pi / 4, FE_INEXACT);
@@ -297,8 +298,8 @@ test_p2x_atan2(void)
 /*
  * Test inputs very close to 0.
  */
-static void
-test_tiny(void)
+ATF_TC_WITHOUT_HEAD(tiny);
+ATF_TC_BODY(tiny, tc)
 {
 	float tiny = 0x1.23456p-120f;
 
@@ -332,8 +333,8 @@ test_tiny(void)
 /*
  * Test very large inputs to atan().
  */
-static void
-test_atan_huge(void)
+ATF_TC_WITHOUT_HEAD(atan_huge);
+ATF_TC_BODY(atan_huge, tc)
 {
 	float huge = 0x1.23456p120;
 
@@ -428,8 +429,8 @@ tanatanl(long double x)
 	return (tanl(atanl(x)));
 }
 
-static void
-test_inverse(void)
+ATF_TC_WITHOUT_HEAD(inverse);
+ATF_TC_BODY(inverse, tc)
 {
 	float i;
 
@@ -442,37 +443,15 @@ test_inverse(void)
 	}
 }
 
-int
-main(void)
+ATF_TP_ADD_TCS(tp)
 {
+	ATF_TP_ADD_TC(tp, special);
+	ATF_TP_ADD_TC(tp, special_atan2);
+	ATF_TP_ADD_TC(tp, accuracy);
+	ATF_TP_ADD_TC(tp, p2x_atan2);
+	ATF_TP_ADD_TC(tp, tiny);
+	ATF_TP_ADD_TC(tp, atan_huge);
+	ATF_TP_ADD_TC(tp, inverse);
 
-#if defined(__i386__)
-	printf("1..0 # SKIP fails all assertions on i386\n");
-	return (0);
-#endif
-
-	printf("1..7\n");
-
-	test_special();
-	printf("ok 1 - special\n");
-
-	test_special_atan2();
-	printf("ok 2 - atan2 special\n");
-
-	test_accuracy();
-	printf("ok 3 - accuracy\n");
-
-	test_p2x_atan2();
-	printf("ok 4 - atan2 p2x\n");
-
-	test_tiny();
-	printf("ok 5 - tiny inputs\n");
-
-	test_atan_huge();
-	printf("ok 6 - atan huge inputs\n");
-
-	test_inverse();
-	printf("ok 7 - inverse\n");
-
-	return (0);
+	return (atf_no_error());
 }

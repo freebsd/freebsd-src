@@ -33,7 +33,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <assert.h>
 #include <fenv.h>
 #include <float.h>
 #include <locale.h>
@@ -41,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "test-utils.h"
 
 static void
 testnan(const char *nan_format)
@@ -65,58 +66,58 @@ testnan(const char *nan_format)
 	}
 
 	af[0] = nanf(nan_format);
-	assert(isnan(af[0]));
+	ATF_REQUIRE(isnan(af[0]));
 	af[1] = strtof(nan_str, &end);
-	assert(end == nan_str + strlen(nan_str));
-	assert(sscanf(nan_str, "%e", &af[2]) == 1);
-	assert(memcmp(&af[0], &af[1], sizeof(float)) == 0);
-	assert(memcmp(&af[1], &af[2], sizeof(float)) == 0);
+	ATF_REQUIRE(end == nan_str + strlen(nan_str));
+	ATF_REQUIRE(sscanf(nan_str, "%e", &af[2]) == 1);
+	ATF_REQUIRE(memcmp(&af[0], &af[1], sizeof(float)) == 0);
+	ATF_REQUIRE(memcmp(&af[1], &af[2], sizeof(float)) == 0);
 	if (*nan_format == '\0') {
 		/* nanf("") == strtof("nan") */
 		af[3] = strtof("nan", NULL);
-		assert(memcmp(&af[2], &af[3], sizeof(float)) == 0);
+		ATF_REQUIRE(memcmp(&af[2], &af[3], sizeof(float)) == 0);
 	}
 
 	ad[0] = nan(nan_format);
-	assert(isnan(ad[0]));
+	ATF_REQUIRE(isnan(ad[0]));
 	ad[1] = strtod(nan_str, &end);
-	assert(end == nan_str + strlen(nan_str));
-	assert(sscanf(nan_str, "%le", &ad[2]) == 1);
-	assert(memcmp(&ad[0], &ad[1], sizeof(double)) == 0);
-	assert(memcmp(&ad[1], &ad[2], sizeof(double)) == 0);
+	ATF_REQUIRE(end == nan_str + strlen(nan_str));
+	ATF_REQUIRE(sscanf(nan_str, "%le", &ad[2]) == 1);
+	ATF_REQUIRE(memcmp(&ad[0], &ad[1], sizeof(double)) == 0);
+	ATF_REQUIRE(memcmp(&ad[1], &ad[2], sizeof(double)) == 0);
 	if (*nan_format == '\0') {
 		/* nan("") == strtod("nan") */
 		ad[3] = strtod("nan", NULL);
-		assert(memcmp(&ad[2], &ad[3], sizeof(double)) == 0);
+		ATF_REQUIRE(memcmp(&ad[2], &ad[3], sizeof(double)) == 0);
 	}
 
 	ald[0] = nanl(nan_format);
-	assert(isnan(ald[0]));
+	ATF_REQUIRE(isnan(ald[0]));
 	ald[1] = strtold(nan_str, &end);
-	assert(end == nan_str + strlen(nan_str));
-	assert(sscanf(nan_str, "%Le", &ald[2]) == 1);
-	assert(memcmp(&ald[0], &ald[1], sizeof(long double)) == 0);
-	assert(memcmp(&ald[1], &ald[2], sizeof(long double)) == 0);
+	ATF_REQUIRE(end == nan_str + strlen(nan_str));
+	ATF_REQUIRE(sscanf(nan_str, "%Le", &ald[2]) == 1);
+	ATF_REQUIRE(memcmp(&ald[0], &ald[1], sizeof(long double)) == 0);
+	ATF_REQUIRE(memcmp(&ald[1], &ald[2], sizeof(long double)) == 0);
 	if (*nan_format == '\0') {
 		/* nanl("") == strtold("nan") */
 		ald[3] = strtold("nan", NULL);
-		assert(memcmp(&ald[2], &ald[3], sizeof(long double)) == 0);
+		ATF_REQUIRE(memcmp(&ald[2], &ald[3], sizeof(long double)) == 0);
 	}
 }
 
-int
-main(void)
+ATF_TC_WITHOUT_HEAD(nan);
+ATF_TC_BODY(nan, tc)
 {
-
-	printf("1..1\n");
-
 	/* Die if a signalling NaN is returned */
 	feenableexcept(FE_INVALID);
 
 	testnan("0x1234");
 	testnan("");
+}
 
-	printf("ok 1 - nan\n");
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, nan);
 
-	return (0);
+	return (atf_no_error());
 }

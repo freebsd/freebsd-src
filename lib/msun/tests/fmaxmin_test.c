@@ -44,49 +44,36 @@ __FBSDID("$FreeBSD$");
  * Test whether func(x, y) has the expected result, and make sure no
  * exceptions are raised.
  */
-#define	TEST(func, type, x, y, expected) do {				      \
+#define	TEST(func, type, x, y, expected, rmode) do {			      \
 	type __x = (x);	/* convert before we clear exceptions */	      \
 	type __y = (y);							      \
-	feclearexcept(ALL_STD_EXCEPT);					      \
+	ATF_REQUIRE_EQ(0, feclearexcept(ALL_STD_EXCEPT));		      \
 	long double __result = func((__x), (__y));			      \
-	if (fetestexcept(ALL_STD_EXCEPT)) {				      \
-		fprintf(stderr, #func "(%.20Lg, %.20Lg) raised 0x%x\n",	      \
-			(x), (y), fetestexcept(FE_ALL_EXCEPT));		      \
-		ok = 0;							      \
-	}								      \
-	if (!fpequal(__result, (expected)))	{			      \
-		fprintf(stderr, #func "(%.20Lg, %.20Lg) = %.20Lg, "	      \
-			"expected %.20Lg\n", (x), (y), __result, (expected)); \
-		ok = 0;							      \
-	}								      \
+	CHECK_FP_EXCEPTIONS_MSG(0, ALL_STD_EXCEPT,			      \
+	    #func "(%.20Lg, %.20Lg) rmode%d", (x), (y), rmode);		      \
+	ATF_CHECK_MSG(fpequal(__result, (expected)),			      \
+	    #func "(%.20Lg, %.20Lg) rmode%d = %.20Lg, expected %.20Lg\n",     \
+	    (x), (y), rmode, __result, (expected));			      \
 } while (0)
 
-static int
-testall_r(long double big, long double small)
+static void
+testall_r(long double big, long double small, int rmode)
 {
-	int ok;
-
 	long double expected_max = isnan(big) ? small : big;
 	long double expected_min = isnan(small) ? big : small;
-	ok = 1;
-
-	TEST(fmaxf, float, big, small, expected_max);
-	TEST(fmaxf, float, small, big, expected_max);
-	TEST(fmax, double, big, small, expected_max);
-	TEST(fmax, double, small, big, expected_max);
-	TEST(fmaxl, long double, big, small, expected_max);
-	TEST(fmaxl, long double, small, big, expected_max);
-	TEST(fminf, float, big, small, expected_min);
-	TEST(fminf, float, small, big, expected_min);
-	TEST(fmin, double, big, small, expected_min);
-	TEST(fmin, double, small, big, expected_min);
-	TEST(fminl, long double, big, small, expected_min);
-	TEST(fminl, long double, small, big, expected_min);
-
-	return (ok);
+	TEST(fmaxf, float, big, small, expected_max, rmode);
+	TEST(fmaxf, float, small, big, expected_max, rmode);
+	TEST(fmax, double, big, small, expected_max, rmode);
+	TEST(fmax, double, small, big, expected_max, rmode);
+	TEST(fmaxl, long double, big, small, expected_max, rmode);
+	TEST(fmaxl, long double, small, big, expected_max, rmode);
+	TEST(fminf, float, big, small, expected_min, rmode);
+	TEST(fminf, float, small, big, expected_min, rmode);
+	TEST(fmin, double, big, small, expected_min, rmode);
+	TEST(fmin, double, small, big, expected_min, rmode);
+	TEST(fminl, long double, big, small, expected_min, rmode);
+	TEST(fminl, long double, small, big, expected_min, rmode);
 }
-
-static const char *comment = NULL;
 
 /*
  * Test all the functions: fmaxf, fmax, fmaxl, fminf, fmin, and fminl,
@@ -94,7 +81,7 @@ static const char *comment = NULL;
  * The input 'big' must be >= 'small'.
  */
 static void
-testall(int testnum, long double big, long double small)
+testall(long double big, long double small)
 {
 	static const int rmodes[] = {
 		FE_TONEAREST, FE_UPWARD, FE_DOWNWARD, FE_TOWARDZERO
@@ -103,15 +90,8 @@ testall(int testnum, long double big, long double small)
 
 	for (i = 0; i < 4; i++) {
 		fesetround(rmodes[i]);
-		if (!testall_r(big, small)) {
-			fprintf(stderr, "FAILURE in rounding mode %d\n",
-				rmodes[i]);
-			break;
-		}
+		testall_r(big, small, rmodes[i]);
 	}
-	printf("%sok %d - big = %.20Lg, small = %.20Lg%s\n",
-	       (i == 4) ? "" : "not ", testnum, big, small,
-	       comment == NULL ? "" : comment);
 }
 
 /* Clang 3.8.0+ fails the invariants for testcase 6, 7, 10, and 11. */
@@ -121,34 +101,104 @@ testall(int testnum, long double big, long double small)
 #define	affected_by_bug_208703
 #endif
 
-int
-main(void)
+ATF_TC_WITHOUT_HEAD(test1);
+ATF_TC_BODY(test1, tc)
 {
+	testall(1.0, 0.0);
+}
 
-	printf("1..12\n");
+ATF_TC_WITHOUT_HEAD(test2);
+ATF_TC_BODY(test2, tc)
+{
+	testall(42.0, nextafterf(42.0, -INFINITY));
+}
+ATF_TC_WITHOUT_HEAD(test3);
+ATF_TC_BODY(test3, tc)
+{
+	testall(nextafterf(42.0, INFINITY), 42.0);
+}
 
-	testall(1, 1.0, 0.0);
-	testall(2, 42.0, nextafterf(42.0, -INFINITY));
-	testall(3, nextafterf(42.0, INFINITY), 42.0);
-	testall(4, -5.0, -5.0);
-	testall(5, -3.0, -4.0);
+ATF_TC_WITHOUT_HEAD(test4);
+ATF_TC_BODY(test4, tc)
+{
+	testall(-5.0, -5.0);
+}
+
+ATF_TC_WITHOUT_HEAD(test5);
+ATF_TC_BODY(test5, tc)
+{
+	testall(-3.0, -4.0);
+}
+
+ATF_TC_WITHOUT_HEAD(test6);
+ATF_TC_BODY(test6, tc)
+{
 #ifdef affected_by_bug_208703
-	comment = "# TODO: testcase 6-7 fails invariant with clang 3.8+ (bug 208703)";
+	atf_tc_expect_fail("fails invariant with clang 3.8+ (bug 208703)");
 #endif
-	testall(6, 1.0, NAN);
-	testall(7, INFINITY, NAN);
-	comment = NULL;
-	testall(8, INFINITY, 1.0);
-	testall(9, -3.0, -INFINITY);
-	testall(10, 3.0, -INFINITY);
+	testall(1.0, NAN);
+}
+ATF_TC_WITHOUT_HEAD(test7);
+ATF_TC_BODY(test7, tc)
+{
 #ifdef affected_by_bug_208703
-	comment = "# TODO: testcase 11-12 fails invariant with clang 3.8+ (bug 208703)";
+	atf_tc_expect_fail("fails invariant with clang 3.8+ (bug 208703)");
 #endif
-	testall(11, NAN, NAN);
+	testall(INFINITY, NAN);
+}
 
+ATF_TC_WITHOUT_HEAD(test8);
+ATF_TC_BODY(test8, tc)
+{
+	testall(INFINITY, 1.0);
+}
+
+ATF_TC_WITHOUT_HEAD(test9);
+ATF_TC_BODY(test9, tc)
+{
+	testall(-3.0, -INFINITY);
+}
+
+ATF_TC_WITHOUT_HEAD(test10);
+ATF_TC_BODY(test10, tc)
+{
+#ifdef affected_by_bug_208703
+	atf_tc_expect_fail("fails invariant with clang 3.8+ (bug 208703)");
+#endif
+	testall(3.0, -INFINITY);
+}
+
+ATF_TC_WITHOUT_HEAD(test11);
+ATF_TC_BODY(test11, tc)
+{
+#ifdef affected_by_bug_208703
+	atf_tc_expect_fail("fails invariant with clang 3.8+ (bug 208703)");
+#endif
+	testall(NAN, NAN);
+}
+
+ATF_TC_WITHOUT_HEAD(test12);
+ATF_TC_BODY(test12, tc)
+{
 	/* This test isn't strictly required to work by C99. */
-	testall(12, 0.0, -0.0);
-	comment = NULL;
+	testall(0.0, -0.0);
+}
 
-	return (0);
+
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, test1);
+	ATF_TP_ADD_TC(tp, test2);
+	ATF_TP_ADD_TC(tp, test3);
+	ATF_TP_ADD_TC(tp, test4);
+	ATF_TP_ADD_TC(tp, test5);
+	ATF_TP_ADD_TC(tp, test6);
+	ATF_TP_ADD_TC(tp, test7);
+	ATF_TP_ADD_TC(tp, test8);
+	ATF_TP_ADD_TC(tp, test9);
+	ATF_TP_ADD_TC(tp, test10);
+	ATF_TP_ADD_TC(tp, test11);
+	ATF_TP_ADD_TC(tp, test12);
+
+	return (atf_no_error());
 }

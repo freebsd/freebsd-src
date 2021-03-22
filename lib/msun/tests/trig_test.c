@@ -38,13 +38,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#include <assert.h>
 #include <fenv.h>
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
-
-#include <atf-c.h>
 
 #include "test-utils.h"
 
@@ -66,8 +63,9 @@ __FBSDID("$FreeBSD$");
 #define	test(func, x, result, exceptmask, excepts)	do {		\
 	volatile long double _d = x;					\
 	ATF_CHECK(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	ATF_CHECK(fpequal((func)(_d), (result)));				\
-	ATF_CHECK(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
+	ATF_CHECK(fpequal((func)(_d), (result)));			\
+	CHECK_FP_EXCEPTIONS_MSG(excepts, exceptmask, "for %s(%s)",	\
+	    #func, #x);							\
 } while (0)
 
 #define	testall(prefix, x, result, exceptmask, excepts)	do {		\
