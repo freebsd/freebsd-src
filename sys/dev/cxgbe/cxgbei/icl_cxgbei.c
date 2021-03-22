@@ -575,18 +575,14 @@ send_iscsi_flowc_wr(struct adapter *sc, struct toepcb *toep, int maxlen)
 }
 
 static void
-set_ulp_mode_iscsi(struct adapter *sc, struct toepcb *toep, int hcrc, int dcrc)
+set_ulp_mode_iscsi(struct adapter *sc, struct toepcb *toep, u_int ulp_submode)
 {
-	uint64_t val = ULP_MODE_ISCSI;
+	uint64_t val;
 
-	if (hcrc)
-		val |= ULP_CRC_HEADER << 4;
-	if (dcrc)
-		val |= ULP_CRC_DATA << 4;
+	CTR3(KTR_CXGBE, "%s: tid %u, ULP_MODE_ISCSI, submode=%#x",
+	    __func__, toep->tid, ulp_submode);
 
-	CTR4(KTR_CXGBE, "%s: tid %u, ULP_MODE_ISCSI, CRC hdr=%d data=%d",
-	    __func__, toep->tid, hcrc, dcrc);
-
+	val = V_TCB_ULP_TYPE(ULP_MODE_ISCSI) | V_TCB_ULP_RAW(ulp_submode);
 	t4_set_tcb_field(sc, toep->ctrlq, toep, W_TCB_ULP_TYPE,
 	    V_TCB_ULP_TYPE(M_TCB_ULP_TYPE) | V_TCB_ULP_RAW(M_TCB_ULP_RAW), val,
 	    0, 0);
@@ -698,8 +694,7 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 		toep->ulpcb = icc;
 
 		send_iscsi_flowc_wr(icc->sc, toep, ci->max_tx_pdu_len);
-		set_ulp_mode_iscsi(icc->sc, toep, ic->ic_header_crc32c,
-		    ic->ic_data_crc32c);
+		set_ulp_mode_iscsi(icc->sc, toep, icc->ulp_submode);
 		error = 0;
 	}
 	INP_WUNLOCK(inp);
