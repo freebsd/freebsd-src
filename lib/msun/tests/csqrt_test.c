@@ -257,17 +257,24 @@ test_precision(int maxexp, int mantdig)
 {
 	long double b, x;
 	long double complex result;
-	uint64_t mantbits, sq_mantbits;
+#if LDBL_MANT_DIG <= 64
+	typedef uint64_t ldbl_mant_type;
+#elif LDBL_MANT_DIG <= 128
+	typedef __uint128_t ldbl_mant_type;
+#else
+#error "Unsupported long double format"
+#endif
+	ldbl_mant_type mantbits, sq_mantbits;
 	int exp, i;
 
-	ATF_CHECK(maxexp > 0 && maxexp % 2 == 0);
-	ATF_CHECK(mantdig <= 64);
+	ATF_REQUIRE(maxexp > 0 && maxexp % 2 == 0);
+	ATF_REQUIRE(mantdig <= LDBL_MANT_DIG);
 	mantdig = rounddown(mantdig, 2);
 
 	for (exp = 0; exp <= maxexp; exp += 2) {
-		mantbits = ((uint64_t)1 << (mantdig / 2 )) - 1;
-		for (i = 0;
-		     i < 100 && mantbits > ((uint64_t)1 << (mantdig / 2 - 1));
+		mantbits = ((ldbl_mant_type)1 << (mantdig / 2)) - 1;
+		for (i = 0; i < 100 &&
+		     mantbits > ((ldbl_mant_type)1 << (mantdig / 2 - 1));
 		     i++, mantbits--) {
 			sq_mantbits = mantbits * mantbits;
 			/*
@@ -283,10 +290,10 @@ test_precision(int maxexp, int mantdig)
 			b = ldexpl((long double)sq_mantbits,
 			    exp - 1 - mantdig);
 			x = ldexpl(mantbits, (exp - 2 - mantdig) / 2);
-			ATF_CHECK_EQ(b, x * x * 2);
+			CHECK_FPEQUAL(b, x * x * 2);
 			result = t_csqrt(CMPLXL(0, b));
-			ATF_CHECK_EQ(x, creall(result));
-			ATF_CHECK_EQ(x, cimagl(result));
+			CHECK_FPEQUAL(x, creall(result));
+			CHECK_FPEQUAL(x, cimagl(result));
 		}
 	}
 }
@@ -345,6 +352,7 @@ ATF_TC_BODY(csqrtl, tc)
 
 	test_overflow(LDBL_MAX_EXP);
 
+	/* i386 is configured to use 53-bit rounding precision for long double. */
 	test_precision(LDBL_MAX_EXP,
 #ifndef __i386__
 	    LDBL_MANT_DIG
