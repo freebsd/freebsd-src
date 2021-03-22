@@ -2296,6 +2296,7 @@ xnb_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		case SIOCADDMULTI:
 		case SIOCDELMULTI:
+			break;
 		case SIOCSIFMEDIA:
 		case SIOCGIFMEDIA:
 			error = ifmedia_ioctl(ifp, ifr, &xnb->sc_media, cmd);
