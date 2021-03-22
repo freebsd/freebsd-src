@@ -71,7 +71,22 @@ class LoadTest(unittest.TestCase):
         self.assertEqual(ucl.load("{/*1*/}"), {})
 
     def test_1_in(self):
-        valid = { 'key1': 'value' }
+        valid = {
+            'key1': [
+                'value',
+                'value2',
+                'value;',
+                1.0,
+                -0xdeadbeef,
+                '0xdeadbeef.1',
+                '0xreadbeef',
+                -1e-10,
+                1,
+                True,
+                False,
+                True,
+            ]
+        }
         with open("../tests/basic/1.in", "r") as in1:
             self.assertEqual(ucl.load(in1.read()), valid)
 

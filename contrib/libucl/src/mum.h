@@ -35,7 +35,7 @@
    Random and Pseudorandom Number Generators for Cryptographic
    Applications (version 2.2.1) with 1000 bitstreams each containing
    1M bits.  MUM hashing is also faster Spooky64 and City64 on small
-   strings (at least upto 512-bit) on Haswell and Power7.  The MUM bulk
+   strings (at least up to 512-bit) on Haswell and Power7.  The MUM bulk
    speed (speed on very long data) is bigger than Spooky and City on
    Power7.  On Haswell the bulk speed is bigger than Spooky one and
    close to City speed.  */
@@ -174,7 +174,7 @@ _mum_le (uint64_t v) {
 #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
   return _mum_bswap64 (v);
 #else
-#error "Unknown endianess"
+#error "Unknown endianness"
 #endif
 }
 
@@ -185,7 +185,7 @@ _mum_le32 (uint32_t v) {
 #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
   return _mum_bswap32 (v);
 #else
-#error "Unknown endianess"
+#error "Unknown endianness"
 #endif
 }
 
@@ -398,7 +398,7 @@ mum_hash64 (uint64_t key, uint64_t seed) {
 }
 
 /* Hash data KEY of length LEN and SEED.  The hash depends on the
-   target endianess and the unroll factor.  */
+   target endianness and the unroll factor.  */
 static inline uint64_t
 mum_hash (const void *key, size_t len, uint64_t seed) {
 #if defined(__x86_64__) && defined(_MUM_FRESH_GCC)
