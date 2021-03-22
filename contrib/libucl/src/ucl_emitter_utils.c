@@ -71,6 +71,13 @@ static const struct ucl_emitter_context ucl_standard_emitters[] = {
 	}
 };
 
+static inline void
+_ucl_emitter_free(void *p)
+{
+
+    free(p);
+}
+
 /**
  * Get standard emitter context for a specified emit_type
  * @param emit_type type of emitter
@@ -102,7 +109,9 @@ ucl_elt_string_write_json (const char *str, size_t size,
 	func->ucl_emitter_append_character ('"', 1, func->ud);
 
 	while (size) {
-		if (ucl_test_character (*p, UCL_CHARACTER_JSON_UNSAFE|UCL_CHARACTER_DENIED)) {
+		if (ucl_test_character (*p, (UCL_CHARACTER_JSON_UNSAFE|
+				UCL_CHARACTER_DENIED|
+				UCL_CHARACTER_WHITESPACE_UNSAFE))) {
 			if (len > 0) {
 				func->ucl_emitter_append_len (c, len, func->ud);
 			}
@@ -122,15 +131,21 @@ ucl_elt_string_write_json (const char *str, size_t size,
 			case '\f':
 				func->ucl_emitter_append_len ("\\f", 2, func->ud);
 				break;
+			case '\v':
+				func->ucl_emitter_append_len ("\\u000B", 6, func->ud);
+				break;
 			case '\\':
 				func->ucl_emitter_append_len ("\\\\", 2, func->ud);
+				break;
+			case ' ':
+				func->ucl_emitter_append_character (' ', 1, func->ud);
 				break;
 			case '"':
 				func->ucl_emitter_append_len ("\\\"", 2, func->ud);
 				break;
 			default:
 				/* Emit unicode unknown character */
-				func->ucl_emitter_append_len ("\\uFFFD", 5, func->ud);
+				func->ucl_emitter_append_len ("\\uFFFD", 6, func->ud);
 				break;
 			}
 			len = 0;
@@ -148,6 +163,40 @@ ucl_elt_string_write_json (const char *str, size_t size,
 	}
 
 	func->ucl_emitter_append_character ('"', 1, func->ud);
+}
+
+void
+ucl_elt_string_write_squoted (const char *str, size_t size,
+		struct ucl_emitter_context *ctx)
+{
+	const char *p = str, *c = str;
+	size_t len = 0;
+	const struct ucl_emitter_functions *func = ctx->func;
+
+	func->ucl_emitter_append_character ('\'', 1, func->ud);
+
+	while (size) {
+		if (*p == '\'') {
+			if (len > 0) {
+				func->ucl_emitter_append_len (c, len, func->ud);
+			}
+
+			len = 0;
+			c = ++p;
+			func->ucl_emitter_append_len ("\\\'", 2, func->ud);
+		}
+		else {
+			p ++;
+			len ++;
+		}
+		size --;
+	}
+
+	if (len > 0) {
+		func->ucl_emitter_append_len (c, len, func->ud);
+	}
+
+	func->ucl_emitter_append_character ('\'', 1, func->ud);
 }
 
 void
@@ -363,7 +412,7 @@ ucl_object_emit_memory_funcs (void **pmem)
 		f->ucl_emitter_append_double = ucl_utstring_append_double;
 		f->ucl_emitter_append_int = ucl_utstring_append_int;
 		f->ucl_emitter_append_len = ucl_utstring_append_len;
-		f->ucl_emitter_free_func = free;
+		f->ucl_emitter_free_func = _ucl_emitter_free;
 		utstring_new (s);
 		f->ud = s;
 		*pmem = s->d;
@@ -412,7 +461,7 @@ ucl_object_emit_fd_funcs (int fd)
 		f->ucl_emitter_append_double = ucl_fd_append_double;
 		f->ucl_emitter_append_int = ucl_fd_append_int;
 		f->ucl_emitter_append_len = ucl_fd_append_len;
-		f->ucl_emitter_free_func = free;
+		f->ucl_emitter_free_func = _ucl_emitter_free;
 		f->ud = ip;
 	}
 
