@@ -89,7 +89,7 @@ static VAR var[] = {
 	    "ld", 0},
 	{"egid", "", "gid", NULL, 0, NULL, 0, CHAR, NULL, 0},
 	{"egroup", "", "group", NULL, 0, NULL, 0, CHAR, NULL, 0},
-	{"emul", "EMUL", NULL, "emulation-envirnment", LJUST, emulname, 0,
+	{"emul", "EMUL", NULL, "emulation-environment", LJUST, emulname, 0,
 	    CHAR, NULL, 0},
 	{"etime", "ELAPSED", NULL, "elapsed-time", USER, elapsed, 0, CHAR,
 	    NULL, 0},
