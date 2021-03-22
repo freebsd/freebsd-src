@@ -458,8 +458,7 @@ PARTITIONS=ada0
 DISTRIBUTIONS="kernel.txz base.txz"
 
 #!/bin/sh
-gpart bootcode -b /boot/pmbr -p /boot/gptboot -i 1 ada0
-sysrc ifconfig_em0=DHCP
+sysrc ifconfig_DEFAULT=DHCP
 sysrc sshd_enable=YES
 pkg install puppet
 .Ed
@@ -472,7 +471,7 @@ export ZFSBOOT_DISKS=ada0
 export nonInteractive="YES"
 
 #!/bin/sh
-echo "ifconfig_em0=DHCP" >> /etc/rc.conf
+echo "ifconfig_DEFAULT=DHCP" >> /etc/rc.conf
 echo "sshd_enable=YES" >> /etc/rc.conf
 pkg install puppet
 .Ed
