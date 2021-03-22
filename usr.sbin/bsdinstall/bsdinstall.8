@@ -583,6 +583,20 @@ The first column if the dataset to be created on the top of the
 and the rest of the columns are the options to be set on each dataset.
 The options must be written on a coma or space separated list, or both.
 And everything behind a pound/hash character is ignored as a comment.
+.Ss BUILDING AUTOMATIC INSTALL MEDIA
+If building automatic install media, use tar to extract a release ISO:
+.Dl mkdir release-media
+.Dl tar xvf -C release-media FreeBSD-13.0-RELEASE-amd64-disc1.iso
+.Pp
+Then place a script as above in
+.Pa etc/installerconfig
+.Pp
+This directory can then be used directly as an NFS root for
+.Xr diskless 8
+installations or it can be rebuilt into an ISO image using the release scripts in
+.Pa /usr/src/release .
+For example, on amd64:
+.Dl sh /usr/src/release/amd64/mkisoimages.sh -b '13_0_RELEASE_AMD64_CD' output.iso release-media
 .Sh HISTORY
 This version of
 .Nm
