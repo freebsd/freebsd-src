@@ -94,13 +94,6 @@ testall(long double big, long double small)
 	}
 }
 
-/* Clang 3.8.0+ fails the invariants for testcase 6, 7, 10, and 11. */
-#if defined(__clang__) && \
-    ((__clang_major__ >  3)) || \
-    ((__clang_major__ == 3 && __clang_minor__ >= 8))
-#define	affected_by_bug_208703
-#endif
-
 ATF_TC_WITHOUT_HEAD(test1);
 ATF_TC_BODY(test1, tc)
 {
@@ -133,17 +126,11 @@ ATF_TC_BODY(test5, tc)
 ATF_TC_WITHOUT_HEAD(test6);
 ATF_TC_BODY(test6, tc)
 {
-#ifdef affected_by_bug_208703
-	atf_tc_expect_fail("fails invariant with clang 3.8+ (bug 208703)");
-#endif
 	testall(1.0, NAN);
 }
 ATF_TC_WITHOUT_HEAD(test7);
 ATF_TC_BODY(test7, tc)
 {
-#ifdef affected_by_bug_208703
-	atf_tc_expect_fail("fails invariant with clang 3.8+ (bug 208703)");
-#endif
 	testall(INFINITY, NAN);
 }
 
@@ -162,18 +149,12 @@ ATF_TC_BODY(test9, tc)
 ATF_TC_WITHOUT_HEAD(test10);
 ATF_TC_BODY(test10, tc)
 {
-#ifdef affected_by_bug_208703
-	atf_tc_expect_fail("fails invariant with clang 3.8+ (bug 208703)");
-#endif
 	testall(3.0, -INFINITY);
 }
 
 ATF_TC_WITHOUT_HEAD(test11);
 ATF_TC_BODY(test11, tc)
 {
-#ifdef affected_by_bug_208703
-	atf_tc_expect_fail("fails invariant with clang 3.8+ (bug 208703)");
-#endif
 	testall(NAN, NAN);
 }
 
