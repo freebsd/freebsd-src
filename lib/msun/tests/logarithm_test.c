@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #define	test(func, x, result, exceptmask, excepts)	do { \
 	volatile long double _d = x;                           \
 	ATF_CHECK_EQ(0, feclearexcept(FE_ALL_EXCEPT));			\
-	ATF_CHECK(fpequal((func)(_d), (result)));			\
+	CHECK_FPEQUAL((func)(_d), (result));			\
 	CHECK_FP_EXCEPTIONS_MSG(excepts, exceptmask, "for %s(%s)",	\
 	    #func, #x);							\
 } while (0)
@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 #define	test_tol(func, z, result, tol)			do {		\
 	volatile long double _d = z;					\
 	debug("  testing %6s(%15La) ~= % .36Le\n", #func, _d, result);	\
-	ATF_CHECK(fpequal_tol((func)(_d), (result), (tol), CS_BOTH));	\
+	CHECK_FPEQUAL_TOL((func)(_d), (result), (tol), CS_BOTH);	\
 } while (0)
 
 /* Test all the functions that compute log(x). */
@@ -207,7 +207,7 @@ ATF_TC_BODY(accuracy_tests, tc)
 		   1.29556709996247903756734359702926363e0L },
 		{  19.75 * 0x1p100,
 		   1.043037807481771029244272863419411534e2L,
-		   7.229787154734166181706169344438271459e1L,
+		   72.29787154734166181706169344438271459357255439172762452L,
 		   3.139856666636059855894123306947856631e1L },
 	};
         unsigned i;

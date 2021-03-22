@@ -67,12 +67,7 @@ _csqrt(long double complex d)
  * Compare d1 and d2 using special rules: NaN == NaN and +0 != -0.
  * Fail an assertion if they differ.
  */
-static void
-assert_equal(long double complex d1, long double complex d2)
-{
-
-	ATF_CHECK(cfpequal(d1, d2));
-}
+#define assert_equal(d1, d2) CHECK_CFPEQUAL_CS(d1, d2, CS_BOTH)
 
 /*
  * Test csqrt for some finite arguments where the answer is exact.

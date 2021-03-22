@@ -31,6 +31,7 @@
 
 #include <complex.h>
 #include <fenv.h>
+#include <float.h>
 
 #include <atf-c.h>
 
@@ -90,34 +91,21 @@ CMPLXL(long double x, long double y)
 }
 #endif
 
-static int	fpequal(long double, long double) __used;
-static int	cfpequal(long double complex, long double complex) __used;
-static int	cfpequal_cs(long double complex, long double complex,
-		    int) __used;
-static int	cfpequal_tol(long double complex, long double complex,
-		    long double, unsigned int) __used;
-
 /*
- * Compare d1 and d2 using special rules: NaN == NaN and +0 != -0.
- * Fail an assertion if they differ.
+ * The compiler-rt fp128 builtins do not update FP exceptions.
+ * See https://llvm.org/PR34126
  */
-static int
-fpequal(long double d1, long double d2)
-{
 
-	if (d1 != d2)
-		return (isnan(d1) && isnan(d2));
-	return (copysignl(1.0, d1) == copysignl(1.0, d2));
-}
+static int	cfpequal(long double complex, long double complex) __used;
 
 /*
  * Determine whether x and y are equal, with two special rules:
  *	+0.0 != -0.0
  *	 NaN == NaN
- * If checksign is 0, we compare the absolute values instead.
+ * If checksign is false, we compare the absolute values instead.
  */
-static int
-fpequal_cs(long double x, long double y, int checksign)
+static inline int
+fpequal_cs(long double x, long double y, bool checksign)
 {
 	if (isnan(x) && isnan(y))
 		return (1);
@@ -127,7 +115,7 @@ fpequal_cs(long double x, long double y, int checksign)
 		return (fabsl(x) == fabsl(y));
 }
 
-static int
+static inline int
 fpequal_tol(long double x, long double y, long double tol,
     unsigned int flags)
 {
@@ -158,32 +146,54 @@ fpequal_tol(long double x, long double y, long double tol,
 	return (ret);
 }
 
-static int
+#define CHECK_FPEQUAL(x, y) CHECK_FPEQUAL_CS(x, y, true)
+
+#define CHECK_FPEQUAL_CS(x, y, checksign) do {					\
+	long double _x = x;							\
+	long double _y = y;							\
+	ATF_CHECK_MSG(fpequal_cs(_x, _y, checksign),				\
+	    "%s (%.25Lg) ~= %s (%.25Lg)", #x, _x, #y, _y);			\
+} while (0)
+
+#define CHECK_FPEQUAL_TOL(x, y, tol, flags) do {				\
+	long double _x = x;							\
+	long double _y = y;							\
+	bool eq = fpequal_tol(_x, _y, tol, flags);				\
+	long double _diff = eq ? 0.0L : fabsl(_x - _y);				\
+	ATF_CHECK_MSG(eq, "%s (%.25Lg) ~= %s (%.25Lg), diff=%Lg, maxdiff=%Lg,",	\
+	    #x, _x, #y, _y, _diff, fabsl(_y * tol));				\
+} while (0)
+
+static inline int
 cfpequal(long double complex d1, long double complex d2)
 {
 
-	return (fpequal(creall(d1), creall(d2)) &&
-	    fpequal(cimagl(d1), cimagl(d2)));
+	return (fpequal_cs(creall(d1), creall(d2), true) &&
+	    fpequal_cs(cimagl(d1), cimagl(d2), true));
 }
 
-static int
-cfpequal_cs(long double complex x, long double complex y, int checksign)
-{
-	return (fpequal_cs(creal(x), creal(y), checksign)
-		&& fpequal_cs(cimag(x), cimag(y), checksign));
-}
+#define CHECK_CFPEQUAL_CS(x, y, checksign) do {					\
+	long double _x = x;							\
+	long double _y = y;							\
+	bool equal_cs =								\
+	    fpequal_cs(creal(_x), creal(_y), (checksign & CS_REAL) != 0) &&	\
+	    fpequal_cs(cimag(_x), cimag(_y), (checksign & CS_IMAG) != 0);	\
+	ATF_CHECK_MSG(equal_cs, "%s (%Lg + %Lg I) ~=  %s (%Lg + %Lg I)",	\
+	    #x, creall(_x), cimagl(_x), #y, creall(_y), cimagl(_y));		\
+} while (0)
 
-static int
-cfpequal_tol(long double complex x, long double complex y, long double tol,
-    unsigned int flags)
-{
-	return (fpequal_tol(creal(x), creal(y), tol, flags)
-		&& fpequal_tol(cimag(x), cimag(y), tol, flags));
-}
+#define CHECK_CFPEQUAL_TOL(x, y, tol, flags) do {				\
+	long double _x = x;							\
+	long double _y = y;							\
+	bool equal_tol = (fpequal_tol(creal(_x), creal(_y), tol, flags) &&	\
+	    fpequal_tol(cimag(_x), cimag(_y), tol, flags));			\
+	ATF_CHECK_MSG(equal_tol, "%s (%Lg + %Lg I) ~=  %s (%Lg + %Lg I)",	\
+	    #x, creall(_x), cimagl(_x), #y, creall(_y), cimagl(_y));		\
+} while (0)
 
 #define CHECK_FP_EXCEPTIONS(excepts, exceptmask)		\
 	ATF_CHECK_EQ_MSG((excepts), fetestexcept(exceptmask),	\
-	    "unexpected exception flags: %#x not %#x",		\
+	    "unexpected exception flags: got %#x not %#x",	\
 	    fetestexcept(exceptmask), (excepts))
 #define CHECK_FP_EXCEPTIONS_MSG(excepts, exceptmask, fmt, ...)	\
 	ATF_CHECK_EQ_MSG((excepts), fetestexcept(exceptmask),	\

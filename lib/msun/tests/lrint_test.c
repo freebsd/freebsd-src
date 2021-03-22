@@ -42,16 +42,14 @@ __FBSDID("$FreeBSD$");
 
 #include "test-utils.h"
 
-/*
- * XXX The volatile here is to avoid gcc's bogus constant folding and work
- *     around the lack of support for the FENV_ACCESS pragma.
- */
-#define	test(func, x, result, excepts)	do {				\
-	volatile double _d = x;						\
-	ATF_CHECK(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	ATF_CHECK((func)(_d) == (result) || fetestexcept(FE_INVALID));	\
-	CHECK_FP_EXCEPTIONS_MSG(excepts, FE_ALL_EXCEPT & ALL_STD_EXCEPT,\
-	    "for %s(%s)", #func, #x);					\
+#define	test(func, x, result, excepts)	do {					\
+	ATF_CHECK(feclearexcept(FE_ALL_EXCEPT) == 0);				\
+	long long _r = (func)(x);						\
+	ATF_CHECK_MSG(_r == (result) || fetestexcept(FE_INVALID),		\
+	    #func "(%Lg) returned %lld, expected %lld", (long double)x, _r,	\
+	    (long long)(result));						\
+	CHECK_FP_EXCEPTIONS_MSG(excepts, FE_ALL_EXCEPT & ALL_STD_EXCEPT,	\
+	    "for %s(%s)", #func, #x);						\
 } while (0)
 
 #define	testall(x, result, excepts)	do {				\
