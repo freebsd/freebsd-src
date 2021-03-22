@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 		 (tol) * ldexpf(1.0, 1 - FLT_MANT_DIG), (excepts));	\
 } while (0)
 
-#if LDBL_PREC == 53
+#ifdef __i386__
 #define	testall_tol	_testall_tol
 #else
 #define	testall_tol(prefix, x, result, tol, excepts) do {		\
@@ -98,7 +98,7 @@ __FBSDID("$FreeBSD$");
 		  (tol) * ldexpf(1.0, 1 - FLT_MANT_DIG), (excepts));	\
 } while (0)
 
-#if LDBL_PREC == 53
+#ifdef __i386__
 #define	testall2_tol	_testall2_tol
 #else
 #define	testall2_tol(prefix, y, x, result, tol, excepts) do {		\
@@ -380,12 +380,14 @@ sinasin(double x)
 	return (sinl(asin(x)));
 }
 
+#ifndef __i386__
 static long double
 sinasinl(long double x)
 {
 
 	return (sinl(asinl(x)));
 }
+#endif
 
 static long double
 cosacosf(float x)
@@ -401,12 +403,14 @@ cosacos(double x)
 	return (cosl(acos(x)));
 }
 
+#ifndef __i386__
 static long double
 cosacosl(long double x)
 {
 
 	return (cosl(acosl(x)));
 }
+#endif
 
 static long double
 tanatanf(float x)
@@ -422,12 +426,14 @@ tanatan(double x)
 	return (tanl(atan(x)));
 }
 
+#ifndef __i386__
 static long double
 tanatanl(long double x)
 {
 
 	return (tanl(atanl(x)));
 }
+#endif
 
 ATF_TC_WITHOUT_HEAD(inverse);
 ATF_TC_BODY(inverse, tc)
