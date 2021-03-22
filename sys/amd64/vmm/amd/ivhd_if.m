@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2021 The FreeBSD Fondation
+# Copyright (c) 2021 The FreeBSD Foundation
 #
 # Portions of this software were developed by Ka Ho Ng
 # under sponsorship from the FreeBSD Foundation.
