@@ -609,12 +609,7 @@ handle_ddp_indicate(struct toepcb *toep)
 	ddp_queue_toep(toep);
 }
 
-enum {
-	DDP_BUF0_INVALIDATED = 0x2,
-	DDP_BUF1_INVALIDATED
-};
-
-CTASSERT(DDP_BUF0_INVALIDATED == CPL_COOKIE_DDP0);
+CTASSERT(CPL_COOKIE_DDP0 + 1 == CPL_COOKIE_DDP1);
 
 static int
 do_ddp_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
@@ -635,12 +630,12 @@ do_ddp_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	toep = lookup_tid(sc, tid);
 	inp = toep->inp;
 	switch (cpl->cookie) {
-	case V_WORD(W_TCB_RX_DDP_FLAGS) | V_COOKIE(DDP_BUF0_INVALIDATED):
-	case V_WORD(W_TCB_RX_DDP_FLAGS) | V_COOKIE(DDP_BUF1_INVALIDATED):
+	case V_WORD(W_TCB_RX_DDP_FLAGS) | V_COOKIE(CPL_COOKIE_DDP0):
+	case V_WORD(W_TCB_RX_DDP_FLAGS) | V_COOKIE(CPL_COOKIE_DDP1):
 		/*
 		 * XXX: This duplicates a lot of code with handle_ddp_data().
 		 */
-		db_idx = G_COOKIE(cpl->cookie) - DDP_BUF0_INVALIDATED;
+		db_idx = G_COOKIE(cpl->cookie) - CPL_COOKIE_DDP0;
 		MPASS(db_idx < nitems(toep->ddp.db));
 		INP_WLOCK(inp);
 		DDP_LOCK(toep);
@@ -1845,7 +1840,7 @@ t4_aio_cancel_active(struct kaiocb *job)
 			    V_TF_DDP_BUF1_VALID(1);
 			t4_set_tcb_field(sc, toep->ctrlq, toep,
 			    W_TCB_RX_DDP_FLAGS, valid_flag, 0, 1,
-			    i + DDP_BUF0_INVALIDATED);
+			    CPL_COOKIE_DDP0 + i);
 			toep->ddp.db[i].cancel_pending = 1;
 			CTR2(KTR_CXGBE, "%s: request %p marked pending",
 			    __func__, job);
