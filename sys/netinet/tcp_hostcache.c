@@ -82,26 +82,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/in_var.h>
 #include <netinet/in_pcb.h>
-#include <netinet/ip_var.h>
-#ifdef INET6
-#include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
-#endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
-#ifdef INET6
-#include <netinet6/tcp6_var.h>
-#endif
 
 #include <vm/uma.h>
 
