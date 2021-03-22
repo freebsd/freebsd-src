@@ -205,7 +205,7 @@ struct linux_pt_regset {
 
 /*
  * Translate amd64 ptrace registers between Linux and FreeBSD formats.
- * The translation is pretty straighforward, for all registers but
+ * The translation is pretty straightforward, for all registers but
  * orig_rax on Linux side and r_trapno and r_err in FreeBSD.
  */
 static void

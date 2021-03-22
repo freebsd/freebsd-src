@@ -113,7 +113,7 @@ struct linux_pt_reg {
 
 /*
  *   Translate i386 ptrace registers between Linux and FreeBSD formats.
- *   The translation is pretty straighforward, for all registers, but
+ *   The translation is pretty straightforward, for all registers, but
  *   orig_eax on Linux side and r_trapno and r_err in FreeBSD
  */
 static void

@@ -88,7 +88,7 @@ dl_unwind_find_exidx(const void *pc, int *pcount)
  *
  * In a statically linked program, the linker populates a pair of symbols with
  * the addresses of the start and end of the exidx table, so returning the
- * address and count of elements is pretty straighforward.
+ * address and count of elements is pretty straightforward.
  */
 void *
 dl_unwind_find_exidx(const void *pc, int *pcount)
