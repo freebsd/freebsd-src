@@ -127,4 +127,8 @@ u_int cxgbei_select_worker_thread(struct icl_cxgbei_conn *);
 /* icl_cxgbei.c */
 int icl_cxgbei_mod_load(void);
 int icl_cxgbei_mod_unload(void);
+struct icl_pdu *icl_cxgbei_new_pdu(int);
+void icl_cxgbei_new_pdu_set_conn(struct icl_pdu *, struct icl_conn *);
+void icl_cxgbei_conn_pdu_free(struct icl_conn *, struct icl_pdu *);
+
 #endif
