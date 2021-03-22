@@ -375,17 +375,14 @@ enum IvrsType
 struct amdvi_softc {
 	struct amdvi_ctrl *ctrl;	/* Control area. */
 	device_t 	dev;		/* IOMMU device. */
+	device_t 	pci_dev;	/* IOMMU PCI function device. */
 	enum IvrsType   ivhd_type;	/* IOMMU IVHD type. */
 	bool		iotlb;		/* IOTLB supported by IOMMU */
 	struct amdvi_cmd *cmd;		/* Command descriptor area. */
 	int 		cmd_max;	/* Max number of commands. */
 	uint64_t	cmp_data;	/* Command completion write back. */
 	struct amdvi_event *event;	/* Event descriptor area. */
-	struct resource *event_res;	/* Event interrupt resource. */
-	void   		*event_tag;	/* Event interrupt tag. */
 	int		event_max;	/* Max number of events. */
-	int		event_irq;
-	int		event_rid;
 	/* ACPI various flags. */
 	uint32_t 	ivhd_flag;	/* ACPI IVHD flag. */
 	uint32_t 	ivhd_feature;	/* ACPI v1 Reserved or v2 attribute. */
