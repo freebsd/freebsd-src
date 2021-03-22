@@ -55,6 +55,14 @@ UCL_EXTERN int luaopen_ucl (lua_State *L);
 UCL_EXTERN ucl_object_t* ucl_object_lua_import (lua_State *L, int idx);
 
 /**
+ * Import UCL object from lua state, escaping JSON strings
+ * @param L lua state
+ * @param idx index of object at the lua stack to convert to UCL
+ * @return new UCL object or NULL, the caller should unref object after using
+ */
+UCL_EXTERN ucl_object_t* ucl_object_lua_import_escape (lua_State *L, int idx);
+
+/**
  * Push an object to lua
  * @param L lua state
  * @param obj object to push
@@ -62,8 +70,16 @@ UCL_EXTERN ucl_object_t* ucl_object_lua_import (lua_State *L, int idx);
  */
 UCL_EXTERN int ucl_object_push_lua (lua_State *L,
 		const ucl_object_t *obj, bool allow_array);
+/**
+ * Push an object to lua replacing all ucl.null with `false`
+ * @param L lua state
+ * @param obj object to push
+ * @param allow_array traverse over implicit arrays
+ */
+UCL_EXTERN int ucl_object_push_lua_filter_nil (lua_State *L,
+											   const ucl_object_t *obj,
+											   bool allow_array);
 
-UCL_EXTERN struct ucl_lua_funcdata* ucl_object_toclosure (
-		const ucl_object_t *obj);
+UCL_EXTERN struct ucl_lua_funcdata* ucl_object_toclosure (const ucl_object_t *obj);
 
 #endif /* LUA_UCL_H_ */

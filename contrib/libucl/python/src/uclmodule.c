@@ -80,7 +80,8 @@ static PyObject *
 _internal_load_ucl (char *uclstr)
 {
 	PyObject *ret;
-	struct ucl_parser *parser = ucl_parser_new (UCL_PARSER_NO_TIME);
+	struct ucl_parser *parser =
+	    ucl_parser_new (UCL_PARSER_NO_TIME|UCL_PARSER_NO_IMPLICIT_ARRAYS);
 	bool r = ucl_parser_add_string(parser, uclstr, 0);
 
 	if (r) {

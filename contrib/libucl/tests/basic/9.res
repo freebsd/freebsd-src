@@ -18,15 +18,17 @@ array [
 ]
 array1 [
     10,
-    {
-        key1 = "value";
-    }
 ]
 prefix {
     key1 = "value";
     key1 = "value";
 }
 prefix2 [
+    {
+        key1 = "value";
+    }
+]
+prefix3 [
     {
         key1 = "value";
     }

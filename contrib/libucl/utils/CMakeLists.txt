@@ -1,0 +1,12 @@
+
+PROJECT(libucl-utils C)
+
+FUNCTION(MAKE_UTIL UTIL_NAME UTIL_SRCS)
+    ADD_EXECUTABLE(${UTIL_NAME} ${UTIL_SRCS})
+    TARGET_LINK_LIBRARIES(${UTIL_NAME} ucl)
+    INSTALL(TARGETS ${UTIL_NAME} DESTINATION bin)
+ENDFUNCTION()
+
+MAKE_UTIL(ucl_chargen chargen.c)
+MAKE_UTIL(ucl_objdump objdump.c)
+MAKE_UTIL(ucl_tool ucl-tool.c)

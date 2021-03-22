@@ -612,15 +612,23 @@ Iteration\ without\ expansion:
 .PP
 UCL defines the following functions to manage safe iterators:
 .IP \[bu] 2
-\f[C]ucl_object_iterate_new\f[] \- creates new safe iterator
+\f[C]ucl_object_iterate_new\f[] \- creates new safe iterator.
 .IP \[bu] 2
-\f[C]ucl_object_iterate_reset\f[] \- resets iterator to a new object
+\f[C]ucl_object_iterate_reset\f[] \- resets iterator to a new object.
 .IP \[bu] 2
 \f[C]ucl_object_iterate_safe\f[] \- safely iterate the object inside
-iterator
+iterator.
+Note: function may allocate and free memory during its operation.
+Therefore it returns \f[C]NULL\f[] either while trying to access item
+after the last one or when exception (such as memory allocation
+failure) happens.
+.IP \[bu] 2
+\f[C]ucl_object_iter_chk_excpn\f[] \- check if the last call to
+\f[C]ucl_object_iterate_safe\f[] ended up in unrecoverable exception
+(e.g. \f[C]ENOMEM\f[]).
 .IP \[bu] 2
 \f[C]ucl_object_iterate_free\f[] \- free memory associated with the safe
-iterator
+iterator.
 .PP
 Please note that unlike unsafe iterators, safe iterators \f[I]must\f[]
 be explicitly initialized and freed.
@@ -637,12 +645,22 @@ it\ =\ ucl_object_iterate_new\ (obj);
 while\ ((cur\ =\ ucl_object_iterate_safe\ (it,\ true))\ !=\ NULL)\ {
 \ \ \ \ /*\ Do\ something\ */
 }
+/*\ Check\ error\ condition\ */
+if\ (ucl_object_iter_chk_excpn\ (it))\ {
+\ \ \ \ ucl_object_iterate_free\ (it);
+\ \ \ \ exit\ (1);
+}
 
 /*\ Switch\ to\ another\ object\ */
 it\ =\ ucl_object_iterate_reset\ (it,\ another_obj);
 
 while\ ((cur\ =\ ucl_object_iterate_safe\ (it,\ true))\ !=\ NULL)\ {
 \ \ \ \ /*\ Do\ something\ else\ */
+}
+/*\ Check\ error\ condition\ */
+if\ (ucl_object_iter_chk_excpn\ (it))\ {
+\ \ \ \ ucl_object_iterate_free\ (it);
+\ \ \ \ exit\ (1);
 }
 
 ucl_object_iterate_free\ (it);
