@@ -243,7 +243,7 @@ return ret;
 
 # Emitting functions
 
-Libucl can transform UCL objects to a number of tectual formats:
+Libucl can transform UCL objects to a number of textual formats:
 
 - configuration (`UCL_EMIT_CONFIG`) - nginx like human readable configuration file where implicit arrays are transformed to the duplicate keys
 - compact json: `UCL_EMIT_JSON_COMPACT` - single line valid json without spaces
@@ -349,7 +349,7 @@ This object should be released by caller.
 Libucl provides the functions similar to inverse conversion functions called with the specific C type:
 - `ucl_object_fromint` - converts `int64_t` to UCL object
 - `ucl_object_fromdouble` - converts `double` to UCL object
-- `ucl_object_fromboolean` - converts `bool` to UCL object
+- `ucl_object_frombool` - converts `bool` to UCL object
 - `ucl_object_fromstring` - converts `const char *` to UCL object (this string should be NULL terminated)
 - `ucl_object_fromlstring` - converts `const char *` and `size_t` len to UCL object (string does not need to be NULL terminated)
 
@@ -432,7 +432,8 @@ UCL defines the following functions to manage safe iterators:
 
 - `ucl_object_iterate_new` - creates new safe iterator
 - `ucl_object_iterate_reset` - resets iterator to a new object
-- `ucl_object_iterate_safe` - safely iterate the object inside iterator
+- `ucl_object_iterate_safe` - safely iterate the object inside iterator. Note: function may allocate and free memory during its operation. Therefore it returns `NULL` either while trying to access item after the last one or when exception (such as memory allocation failure) happens.
+- `ucl_object_iter_chk_excpn` -  check if the last call to `ucl_object_iterate_safe` ended up in unrecoverable exception (e.g. `ENOMEM`).
 - `ucl_object_iterate_free` - free memory associated with the safe iterator
 
 Please note that unlike unsafe iterators, safe iterators *must* be explicitly initialized and freed.
@@ -447,12 +448,22 @@ it = ucl_object_iterate_new (obj);
 while ((cur = ucl_object_iterate_safe (it, true)) != NULL) {
 	/* Do something */
 }
+/* Check error condition */
+if (ucl_object_iter_chk_excpn (it)) {
+    ucl_object_iterate_free (it);
+    exit (1);
+}
 
 /* Switch to another object */
 it = ucl_object_iterate_reset (it, another_obj);
 
 while ((cur = ucl_object_iterate_safe (it, true)) != NULL) {
 	/* Do something else */
+}
+/* Check error condition */
+if (ucl_object_iter_chk_excpn (it)) {
+    ucl_object_iterate_free (it);
+    exit (1);
 }
 
 ucl_object_iterate_free (it);

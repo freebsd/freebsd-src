@@ -19,7 +19,7 @@ for _tin in ${TEST_DIR}/*.in ; do
 	diff -s $_t.out $_t.res -u 2>/dev/null
 		if [ $? -ne 0 ] ; then
 			rm $_t.out
-			echo "Test: $_t output missmatch"
+			echo "Test: $_t output mismatch"
 			exit 1
 		fi
 	fi
@@ -31,7 +31,7 @@ if [ $# -gt 2 ] ; then
 	diff -s ${TEST_DIR}/generate.out ${TEST_DIR}/generate.res -u 2>/dev/null
 	if [ $? -ne 0 ] ; then
 		rm ${TEST_DIR}/generate.out
-		echo "Test: generate.res output missmatch"
+		echo "Test: generate.res output mismatch"
     	exit 1
 	fi
 	rm ${TEST_DIR}/generate.out

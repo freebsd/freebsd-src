@@ -65,3 +65,39 @@
 **Incompatible changes**:
 
 - `ucl_object_emit_full` now accepts additional argument `comments` that could be used to emit comments with UCL output
+
+### Libucl 0.8.1
+
+- Create ucl_parser_add_file_full() to be able to specify merge mode and parser type (by Allan Jude)
+- C++ wrapper improvements (by @ftilde)
+- C++ wrapper: add convenience method at() and lookup() (by Yonghee Kim)
+- C++ wrapper: add assignment operator to Ucl class (by Yonghee Kim)
+- C++ wrapper: support variables in parser (by Yonghee Kim)
+- C++ wrapper: refactoring C++ interface (by Yonghee Kim):
+    - use auto variables (if possible)
+    - remove dangling expressions
+    - use std::set::emplace instead of std::set::insert
+    - not use std::move in return statement; considering copy elision
+- C++ wrapper: fix compilation error and warnings (by Zhe Wang)
+- C++ wrapper: fix iteration over objects in which the first value is `false` (by Zhe Wang)
+- C++ wrapper: Macro helper functions (by Chris Meacham)
+- C++ wrapper: Changing the duplicate strategy in the C++ API (by Chris Meacham)
+- C++ wrapper: Added access functions for the size of a UCL_ARRAY (by Chris Meacham)
+- Fix caseless comparison
+- Fix include when EPERM is issued
+- Fix Windows build
+- Allow to reserve space in arrays and hashes
+- Fix bug with including of empty files
+- Move to mum_hash from xxhash
+- Fix msgpack on non-x86
+- python: Add support to Python 3 (by Denis Volpato Martins)
+- python: Add support for Python 2.6 tests (by Denis Volpato Martins)
+- python: Implement validation function and tests (by Denis Volpato Martins)
+- python: Added UCL_NULL handling and tests (by Denis Volpato Martins)
+- Fix schema validation for patternProperties with object data (by Denis Volpato Martins)
+- Remove the dependency on NBBY, add missing <strings.h> include (by Ed Schouten)
+- Allow to emit msgpack from Lua
+- Performance improvements in Lua API
+- Allow to pass opaque objects in Lua API for transparent C passthrough
+- Various bugs fixed
+- Couple of memory leaks plugged

@@ -55,8 +55,9 @@ void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func func);
 
 /**
  * Inserts an element in the the hashtable.
+ * @return true on success, false on failure (i.e. ENOMEM)
  */
-void ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj, const char *key,
+bool ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj, const char *key,
 		unsigned keylen);
 
 /**
@@ -81,13 +82,28 @@ const ucl_object_t* ucl_hash_search (ucl_hash_t* hashlin, const char *key,
  * Iterate over hash table
  * @param hashlin hash
  * @param iter iterator (must be NULL on first iteration)
+ * @param ep pointer record exception (such as ENOMEM), could be NULL
  * @return the next object
  */
-const void* ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter);
+const void* ucl_hash_iterate2 (ucl_hash_t *hashlin, ucl_hash_iter_t *iter, int *ep);
+
+/**
+ * Helper macro to support older code
+ */
+#define ucl_hash_iterate(hl, ip) ucl_hash_iterate2((hl), (ip), NULL)
 
 /**
  * Check whether an iterator has next element
  */
 bool ucl_hash_iter_has_next (ucl_hash_t *hashlin, ucl_hash_iter_t iter);
+
+/**
+ * Reserves space in hash
+ * @return true on sucess, false on failure (e.g. ENOMEM)
+ * @param hashlin
+ */
+bool ucl_hash_reserve (ucl_hash_t *hashlin, size_t sz);
+
+void ucl_hash_sort (ucl_hash_t *hashlin, enum ucl_object_keys_sort_flags fl);
 
 #endif

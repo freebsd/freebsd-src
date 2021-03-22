@@ -6,7 +6,7 @@ $PROG ${TEST_OUT_DIR}/streamline.out
 diff -s ${TEST_OUT_DIR}/streamline.out ${TEST_DIR}/streamline.res -u 2>/dev/null
 if [ $? -ne 0 ] ; then
 	rm ${TEST_OUT_DIR}/streamline.out
-	echo "Test: streamline.res output missmatch"
+	echo "Test: streamline.res output mismatch"
 	exit 1
 fi
 rm ${TEST_OUT_DIR}/streamline.out

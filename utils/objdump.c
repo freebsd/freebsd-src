@@ -22,8 +22,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <errno.h>
+#if defined(_MSC_VER)
+    #include <BaseTsd.h>
+
+    typedef SSIZE_T ssize_t;
+#endif
 
 #include "ucl.h"
 
@@ -101,8 +104,8 @@ main(int argc, char **argv)
 	const char *fn = NULL;
 	unsigned char *inbuf;
 	struct ucl_parser *parser;
-	int k, ret = 0, r = 0;
-	ssize_t bufsize;
+	int k, ret = 0;
+	ssize_t bufsize, r = 0;
 	ucl_object_t *obj = NULL;
 	const ucl_object_t *par;
 	FILE *in;
@@ -114,7 +117,7 @@ main(int argc, char **argv)
 	if (fn != NULL) {
 		in = fopen (fn, "r");
 		if (in == NULL) {
-			exit (-errno);
+			exit (EXIT_FAILURE);
 		}
 	}
 	else {
@@ -146,14 +149,14 @@ main(int argc, char **argv)
 	ucl_parser_add_chunk (parser, inbuf, r);
 	fclose (in);
 	if (ucl_parser_get_error(parser)) {
-		printf ("Error occured: %s\n", ucl_parser_get_error(parser));
+		printf ("Error occurred: %s\n", ucl_parser_get_error(parser));
 		ret = 1;
 		goto end;
 	}
 
 	obj = ucl_parser_get_object (parser);
 	if (ucl_parser_get_error (parser)) {
-		printf ("Error occured: %s\n", ucl_parser_get_error(parser));
+		printf ("Error occurred: %s\n", ucl_parser_get_error(parser));
 		ret = 1;
 		goto end;
 	}

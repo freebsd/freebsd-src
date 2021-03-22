@@ -6,4 +6,4 @@ key = value_orig;
 .include(priority=1) "${CURDIR}/include_dir/pri1.conf"
 .include(priority=2) "${CURDIR}/include_dir/pri2.conf"
 
-.include(try=true) "${CURDIR}/include_dir/invalid.conf"
+# No longer valid! .include(try=true) "${CURDIR}/include_dir/invalid.conf"

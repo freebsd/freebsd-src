@@ -4,5 +4,7 @@
 
 test_basic
 test_generate
+test_msgpack
 test_schema
 test_speed
+test_streamline

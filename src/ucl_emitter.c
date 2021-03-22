@@ -424,8 +424,16 @@ ucl_emitter_common_elt (struct ucl_emitter_context *ctx,
 		break;
 	case UCL_STRING:
 		ucl_emitter_print_key (print_key, ctx, obj, compact);
-		if (ctx->id == UCL_EMIT_CONFIG && ucl_maybe_long_string (obj)) {
-			ucl_elt_string_write_multiline (obj->value.sv, obj->len, ctx);
+		if (ctx->id == UCL_EMIT_CONFIG) {
+			if (ucl_maybe_long_string (obj)) {
+				ucl_elt_string_write_multiline (obj->value.sv, obj->len, ctx);
+			} else {
+				if (obj->flags & UCL_OBJECT_SQUOTED) {
+					ucl_elt_string_write_squoted (obj->value.sv, obj->len, ctx);
+				} else {
+					ucl_elt_string_write_json (obj->value.sv, obj->len, ctx);
+				}
+			}
 		}
 		else {
 			ucl_elt_string_write_json (obj->value.sv, obj->len, ctx);
