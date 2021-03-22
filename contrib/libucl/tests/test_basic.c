@@ -40,10 +40,10 @@ main (int argc, char **argv)
 	const char *fname_in = NULL, *fname_out = NULL;
 	int ret = 0, opt, json = 0, compact = 0, yaml = 0,
 			save_comments = 0, skip_macro = 0,
-			flags, fd_out, fd_in, use_fd = 0;
+			flags, fd_out, fd_in, use_fd = 0, msgpack_input = 0;
 	struct ucl_emitter_functions *func;
 
-	while ((opt = getopt(argc, argv, "fjcyCM")) != -1) {
+	while ((opt = getopt(argc, argv, "fjcyCMm")) != -1) {
 		switch (opt) {
 		case 'j':
 			json = 1;
@@ -59,6 +59,9 @@ main (int argc, char **argv)
 			break;
 		case 'M':
 			skip_macro = true;
+			break;
+		case 'm':
+			msgpack_input = 1;
 			break;
 		case 'f':
 			use_fd = true;
@@ -145,7 +148,9 @@ main (int argc, char **argv)
 			exit (EXIT_FAILURE);
 		}
 
-		ucl_parser_add_chunk (parser, (const unsigned char *)inbuf, r);
+		ucl_parser_add_chunk_full (parser, (const unsigned char *)inbuf, r,
+				0, UCL_DUPLICATE_APPEND,
+				msgpack_input ? UCL_PARSE_MSGPACK : UCL_PARSE_UCL);
 		fclose (in);
 	}
 	else {

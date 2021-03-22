@@ -63,7 +63,9 @@
 #include <sys/stat.h>
 #endif
 #ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
+# ifndef _WIN32
+# include <sys/param.h>
+# endif
 #endif
 
 #ifdef HAVE_LIMITS_H
@@ -76,7 +78,9 @@
 #include <errno.h>
 #endif
 #ifdef HAVE_UNISTD_H
-#include <unistd.h>
+# ifndef _WIN32
+# include <unistd.h>
+# endif
 #endif
 #ifdef HAVE_CTYPE_H
 #include <ctype.h>
@@ -89,6 +93,32 @@
 #endif
 #ifdef HAVE_STRINGS_H
 #include <strings.h>
+#endif
+
+#if defined(_MSC_VER)
+/* Windows hacks */
+#include <BaseTsd.h>
+#include <inttypes.h>
+typedef SSIZE_T ssize_t;
+#define strdup _strdup
+#define snprintf _snprintf
+#define vsnprintf _vsnprintf
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#if _MSC_VER >= 1900
+#include <../ucrt/stdlib.h>
+#else
+#include <../include/stdlib.h>
+#endif
+#ifndef PATH_MAX
+#define PATH_MAX _MAX_PATH
+#endif
+
+/* Dirname, basename implementations */
+
+
 #endif
 
 #include "utlist.h"
@@ -119,6 +149,7 @@ enum ucl_parser_state {
 	UCL_STATE_OBJECT,
 	UCL_STATE_ARRAY,
 	UCL_STATE_KEY,
+	UCL_STATE_KEY_OBRACE,
 	UCL_STATE_VALUE,
 	UCL_STATE_AFTER_VALUE,
 	UCL_STATE_ARRAY_VALUE,
@@ -147,7 +178,7 @@ enum ucl_character_type {
 
 struct ucl_macro {
 	char *name;
-	union {
+	union _ucl_macro {
 		ucl_macro_handler handler;
 		ucl_context_macro_handler context_handler;
 	} h;
@@ -156,22 +187,44 @@ struct ucl_macro {
 	UT_hash_handle hh;
 };
 
+enum ucl_stack_flags {
+	UCL_STACK_HAS_OBRACE = (1u << 0),
+	UCL_STACK_MAX = (1u << 1),
+};
+
 struct ucl_stack {
 	ucl_object_t *obj;
 	struct ucl_stack *next;
-	uint64_t level;
+	union {
+		struct {
+			uint16_t level;
+			uint16_t flags;
+			uint32_t line;
+		} params;
+		uint64_t len;
+	} e;
+	struct ucl_chunk *chunk;
+};
+
+struct ucl_parser_special_handler_chain {
+	unsigned char *begin;
+	size_t len;
+	struct ucl_parser_special_handler *special_handler;
+	struct ucl_parser_special_handler_chain *next;
 };
 
 struct ucl_chunk {
 	const unsigned char *begin;
 	const unsigned char *end;
 	const unsigned char *pos;
+	char *fname;
 	size_t remain;
 	unsigned int line;
 	unsigned int column;
 	unsigned priority;
 	enum ucl_duplicate_strategy strategy;
 	enum ucl_parse_type parse_type;
+	struct ucl_parser_special_handler_chain *special_handlers;
 	struct ucl_chunk *next;
 };
 
@@ -210,6 +263,9 @@ struct ucl_parser {
 	struct ucl_stack *stack;
 	struct ucl_chunk *chunks;
 	struct ucl_pubkey *keys;
+	struct ucl_parser_special_handler *special_handlers;
+	ucl_include_trace_func_t *include_trace_func;
+	void *include_trace_ud;
 	struct ucl_variable *variables;
 	ucl_variable_handler var_handler;
 	void *var_data;
@@ -229,6 +285,13 @@ struct ucl_object_userdata {
  * @param str
  */
 size_t ucl_unescape_json_string (char *str, size_t len);
+
+
+/**
+ * Unescape single quoted string inplace
+ * @param str
+ */
+size_t ucl_unescape_squoted_string (char *str, size_t len);
 
 /**
  * Handle include macro
@@ -410,12 +473,24 @@ ucl_hash_insert_object (ucl_hash_t *hashlin,
 		const ucl_object_t *obj,
 		bool ignore_case)
 {
-	if (hashlin == NULL) {
-		hashlin = ucl_hash_create (ignore_case);
-	}
-	ucl_hash_insert (hashlin, obj, obj->key, obj->keylen);
+	ucl_hash_t *nhp;
 
-	return hashlin;
+	if (hashlin == NULL) {
+		nhp = ucl_hash_create (ignore_case);
+		if (nhp == NULL) {
+			return NULL;
+		}
+	} else {
+		nhp = hashlin;
+	}
+	if (!ucl_hash_insert (nhp, obj, obj->key, obj->keylen)) {
+		if (nhp != hashlin) {
+			ucl_hash_destroy(nhp, NULL);
+		}
+		return NULL;
+	}
+
+	return nhp;
 }
 
 /**
@@ -432,6 +507,16 @@ ucl_emit_get_standard_context (enum ucl_emitter emit_type);
  * @param buf target buffer
  */
 void ucl_elt_string_write_json (const char *str, size_t size,
+		struct ucl_emitter_context *ctx);
+
+
+/**
+ * Serialize string as single quoted string
+ * @param str string to emit
+ * @param buf target buffer
+ */
+void
+ucl_elt_string_write_squoted (const char *str, size_t size,
 		struct ucl_emitter_context *ctx);
 
 /**
@@ -572,5 +657,11 @@ bool ucl_parser_process_object_element (struct ucl_parser *parser,
 bool ucl_parse_msgpack (struct ucl_parser *parser);
 
 bool ucl_parse_csexp (struct ucl_parser *parser);
+
+/**
+ * Free ucl chunk
+ * @param chunk
+ */
+void ucl_chunk_free (struct ucl_chunk *chunk);
 
 #endif /* UCL_INTERNAL_H_ */

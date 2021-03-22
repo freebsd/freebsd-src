@@ -69,8 +69,8 @@ converts `obj` to lua representation using the following conversions:
 - *scalar* values are directly presented by lua objects
 - *userdata* values are converted to lua function objects using `LUA_REGISTRYINDEX`,
 this can be used to pass functions from lua to c and vice-versa
-- *arrays* are converted to lua tables with numeric indicies suitable for `ipairs` iterations
-- *objects* are converted to lua tables with string indicies
+- *arrays* are converted to lua tables with numeric indices suitable for `ipairs` iterations
+- *objects* are converted to lua tables with string indices
 
 **Parameters:**
 

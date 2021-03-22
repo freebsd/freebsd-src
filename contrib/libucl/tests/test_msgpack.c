@@ -456,6 +456,7 @@ ucl_test_large_string (void)
 	res = ucl_object_fromstring_common (str, cur_len % 100000,
 				UCL_STRING_RAW);
 	res->flags |= UCL_OBJECT_BINARY;
+	free (str);
 
 	return res;
 }

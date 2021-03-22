@@ -16,7 +16,7 @@ for _tin in ${TEST_DIR}/basic/*.in ; do
 	diff -s $_out $_t.res -u 2>/dev/null
 		if [ $? -ne 0 ] ; then
 			rm $_out
-			echo "Test: $_t output missmatch"
+			echo "Test: $_t output mismatch"
 			exit 1
 		fi
 	fi
