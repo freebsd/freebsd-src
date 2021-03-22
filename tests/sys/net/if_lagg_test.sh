@@ -402,7 +402,7 @@ witness_head()
 }
 witness_body()
 {
-	if [ "$(atf_config_get ci false)" = "true" ] && \
+	if [ "$(atf_config_get ci false)" = "true" ]; then
 		atf_skip "https://bugs.freebsd.org/244163 and https://bugs.freebsd.org/251726"
 	fi
 	if [ `sysctl -n debug.witness.watch` -ne 1 ]; then
