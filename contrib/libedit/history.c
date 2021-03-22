@@ -1,4 +1,4 @@
-/*	$NetBSD: history.c,v 1.62 2018/09/13 09:03:40 kre Exp $	*/
+/*	$NetBSD: history.c,v 1.63 2019/10/08 19:17:57 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)history.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: history.c,v 1.62 2018/09/13 09:03:40 kre Exp $");
+__RCSID("$NetBSD: history.c,v 1.63 2019/10/08 19:17:57 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -411,21 +411,23 @@ static int
 history_def_add(void *p, TYPE(HistEvent) *ev, const Char *str)
 {
 	history_t *h = (history_t *) p;
-	size_t len;
+	size_t len, elen, slen;
 	Char *s;
 	HistEventPrivate *evp = (void *)&h->cursor->ev;
 
 	if (h->cursor == &h->list)
 		return history_def_enter(p, ev, str);
-	len = Strlen(evp->str) + Strlen(str) + 1;
+	elen = Strlen(evp->str);
+	slen = Strlen(str);
+	len = elen + slen + 1;
 	s = h_malloc(len * sizeof(*s));
 	if (s == NULL) {
 		he_seterrev(ev, _HE_MALLOC_FAILED);
 		return -1;
 	}
-	(void) Strncpy(s, h->cursor->ev.str, len);
+	memcpy(s, evp->str, elen * sizeof(*s));
+	memcpy(s + elen, str, slen * sizeof(*s)); 
         s[len - 1] = '\0';
-	(void) Strncat(s, str, len - Strlen(s) - 1);
 	h_free(evp->str);
 	evp->str = s;
 	*ev = h->cursor->ev;
