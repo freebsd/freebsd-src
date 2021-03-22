@@ -131,7 +131,7 @@ size_t	 wcstombs(char * __restrict, const wchar_t * __restrict, size_t);
  * is not supported in the compilation environment (which therefore means
  * that it can't really be ISO C99).
  *
- * (The only other extension made by C99 in thie header is _Exit().)
+ * (The only other extension made by C99 in this header is _Exit().)
  */
 #if __ISO_C_VISIBLE >= 1999 || defined(__cplusplus)
 #ifdef __LONG_LONG_SUPPORTED
