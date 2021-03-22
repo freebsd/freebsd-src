@@ -50,8 +50,8 @@ typedef struct kinfo {
 	double	 ki_pcpu;	/* calculated in main() */
 	segsz_t	 ki_memsize;	/* calculated in main() */
 	union {
-		int level;	/* used in decendant_sort() */
-		char *prefix;	/* calculated in decendant_sort() */
+		int level;	/* used in descendant_sort() */
+		char *prefix;	/* calculated in descendant_sort() */
 	} ki_d;
 	STAILQ_HEAD(, kinfo_str) ki_ks;
 } KINFO;
