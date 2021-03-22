@@ -8683,7 +8683,9 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			thflags = tcp_reass(tp, th, &temp, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
 		}
-                if ((tp->t_flags & TF_SACK_PERMIT) && (save_tlen > 0)) {
+		if ((tp->t_flags & TF_SACK_PERMIT) &&
+		    (save_tlen > 0) &&
+		    TCPS_HAVEESTABLISHED(tp->t_state)) {
                         if ((tlen == 0) && (SEQ_LT(save_start, save_rnxt))) {
                                 /*
                                  * DSACK actually handled in the fastpath
