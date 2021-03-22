@@ -24,6 +24,7 @@ gnop10.sh		Waiting for patch commit					20210105
 graid1_8.sh		Known issue							20170909
 graid1_9.sh		panic: Bad effnlink						20180212
 lockf5.sh		Spinning threads seen						20160718
+ifconfig.sh		Bug 253824							20210322
 ifconfig2.sh		https://people.freebsd.org/~pho/stress/log/log0051.txt		20210210
 maxvnodes.sh		Only supposed to work in single user mode			20190412
 maxvnodes2.sh		Only supposed to work in single user mode			20190412
@@ -76,6 +77,8 @@ syzkaller25.sh		WiP								20201116
 syzkaller28.sh		WiP								20201120
 syzkaller29.sh		May change policy for random threads to to domainset_fixed	20210104
 syzkaller30.sh		May change policy for random threads to to domainset_fixed	20210104
+syzkaller31.sh		panic: Bad tailq NEXT(0xfffffe0079608f00->tqh_last) != NULL	20210322
+syzkaller32.sh		Fatal trap 18: integer divide fault while in kernel mode	20210322
 truss3.sh		WiP								20200915
 unionfs.sh		insmntque: non-locked vp: xx is not exclusive locked...		20130909
 unionfs2.sh		insmntque: mp-safe fs and non-locked vp is not ...		20111219
