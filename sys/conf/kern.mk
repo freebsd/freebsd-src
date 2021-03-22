@@ -48,7 +48,6 @@ CWARNEXTRA?=	-Wno-error=address				\
 		-Wno-error=attributes				\
 		-Wno-error=cast-qual				\
 		-Wno-error=enum-compare				\
-		-Wno-error=inline				\
 		-Wno-error=maybe-uninitialized			\
 		-Wno-error=misleading-indentation		\
 		-Wno-error=nonnull-compare			\
