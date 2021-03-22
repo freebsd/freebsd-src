@@ -97,16 +97,16 @@ test_nearby(int testindex)
 
 		in = tests[testindex].in;
 		out = get_output(testindex, i, 0);
-		ATF_CHECK(fpequal(out, libnearbyintf(in)));
-		ATF_CHECK(fpequal(out, nearbyint(in)));
-		ATF_CHECK(fpequal(out, nearbyintl(in)));
+		CHECK_FPEQUAL(out, libnearbyintf(in));
+		CHECK_FPEQUAL(out, nearbyint(in));
+		CHECK_FPEQUAL(out, nearbyintl(in));
 		CHECK_FP_EXCEPTIONS(0, ALL_STD_EXCEPT);
 
 		in = -tests[testindex].in;
 		out = get_output(testindex, i, 1);
-		ATF_CHECK(fpequal(out, nearbyintf(in)));
-		ATF_CHECK(fpequal(out, nearbyint(in)));
-		ATF_CHECK(fpequal(out, nearbyintl(in)));
+		CHECK_FPEQUAL(out, nearbyintf(in));
+		CHECK_FPEQUAL(out, nearbyint(in));
+		CHECK_FPEQUAL(out, nearbyintl(in));
 		CHECK_FP_EXCEPTIONS(0, ALL_STD_EXCEPT);
 	}
 }
@@ -130,24 +130,24 @@ test_modf(int testindex)
 		    isinf(ipart_expected) ? 0.0 : in - ipart_expected, in);
 		ipartl = ipart = ipartf = 42.0;
 
-		ATF_CHECK(fpequal(out, modff(in, &ipartf)));
-		ATF_CHECK(fpequal(ipart_expected, ipartf));
-		ATF_CHECK(fpequal(out, modf(in, &ipart)));
-		ATF_CHECK(fpequal(ipart_expected, ipart));
-		ATF_CHECK(fpequal(out, modfl(in, &ipartl)));
-		ATF_CHECK(fpequal(ipart_expected, ipartl));
+		CHECK_FPEQUAL(out, modff(in, &ipartf));
+		CHECK_FPEQUAL(ipart_expected, ipartf);
+		CHECK_FPEQUAL(out, modf(in, &ipart));
+		CHECK_FPEQUAL(ipart_expected, ipart);
+		CHECK_FPEQUAL(out, modfl(in, &ipartl));
+		CHECK_FPEQUAL(ipart_expected, ipartl);
 		CHECK_FP_EXCEPTIONS(0, ALL_STD_EXCEPT);
 
 		in = -in;
 		ipart_expected = -ipart_expected;
 		out = -out;
 		ipartl = ipart = ipartf = 42.0;
-		ATF_CHECK(fpequal(out, modff(in, &ipartf)));
-		ATF_CHECK(fpequal(ipart_expected, ipartf));
-		ATF_CHECK(fpequal(out, modf(in, &ipart)));
-		ATF_CHECK(fpequal(ipart_expected, ipart));
-		ATF_CHECK(fpequal(out, modfl(in, &ipartl)));
-		ATF_CHECK(fpequal(ipart_expected, ipartl));
+		CHECK_FPEQUAL(out, modff(in, &ipartf));
+		CHECK_FPEQUAL(ipart_expected, ipartf);
+		CHECK_FPEQUAL(out, modf(in, &ipart));
+		CHECK_FPEQUAL(ipart_expected, ipart);
+		CHECK_FPEQUAL(out, modfl(in, &ipartl));
+		CHECK_FPEQUAL(ipart_expected, ipartl);
 		CHECK_FP_EXCEPTIONS(0, ALL_STD_EXCEPT);
 	}
 }

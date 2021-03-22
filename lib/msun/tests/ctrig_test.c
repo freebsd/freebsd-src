@@ -62,11 +62,7 @@ __FBSDID("$FreeBSD$");
 		debug("  testing %s(%Lg + %Lg I) == %Lg + %Lg I\n", #func,	\
 		    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
 		ATF_CHECK(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-		volatile long double complex _r = (func)(_d);			\
-		ATF_CHECK_MSG(cfpequal_cs(_r, (result), (checksign)),		\
-		    "%s (%Lg + %Lg I) != expected (%Lg + %Lg I)",		\
-		    __XSTRING((func)(_d)), creall(_r), cimagl(_r),		\
-		    creall(result), cimagl(result));				\
+		CHECK_CFPEQUAL_CS((func)(_d), (result), (checksign));		\
 		volatile int _e = fetestexcept(exceptmask);			\
 		ATF_CHECK_MSG(_e == (excepts),					\
 		    "%s fetestexcept(%s) (%#x) != %#x",	__XSTRING(func),	\
@@ -79,10 +75,9 @@ __FBSDID("$FreeBSD$");
  * of <format>_EPSILON.
  */
 #define	test_p_tol(func, z, result, tol)			do {	\
-	volatile long double complex _d = z;				\
 	debug("  testing %s(%Lg + %Lg I) ~= %Lg + %Lg I\n", #func,	\
-	    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
-	ATF_CHECK(cfpequal_tol((func)(_d), (result), (tol), FPE_ABS_ZERO)); \
+	    creall(z), cimagl(z), creall(result), cimagl(result));	\
+	CHECK_CFPEQUAL_TOL((func)(z), (result), (tol), FPE_ABS_ZERO); \
 } while (0)
 
 /* These wrappers apply the identities f(conj(z)) = conj(f(z)). */

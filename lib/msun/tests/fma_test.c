@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #define	test(func, x, y, z, result, exceptmask, excepts) do {		\
 	volatile long double _vx = (x), _vy = (y), _vz = (z);		\
 	ATF_CHECK(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	ATF_CHECK(fpequal((func)(_vx, _vy, _vz), (result)));		\
+	CHECK_FPEQUAL((func)(_vx, _vy, _vz), (result));		\
 	CHECK_FP_EXCEPTIONS_MSG(excepts, exceptmask, "for %s(%s)",	\
 	    #func, #x);							\
 } while (0)

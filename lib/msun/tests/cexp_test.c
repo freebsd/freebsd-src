@@ -63,7 +63,7 @@ do {									\
 	volatile long double complex _d = z;				\
 	volatile type complex _r = result;				\
 	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));		\
-	ATF_CHECK(cfpequal_cs((func)(_d), (_r), (checksign)));		\
+	CHECK_CFPEQUAL_CS((func)(_d), (_r), (checksign));		\
 	CHECK_FP_EXCEPTIONS_MSG(excepts, exceptmask, "for %s(%s)",	\
 	    #func, #z);							\
 } while (0)
@@ -75,10 +75,9 @@ do {									\
 	test_t(float, func, z, result, exceptmask, excepts, checksign)
 
 /* Test within a given tolerance. */
-#define	test_tol(func, z, result, tol)				do {	\
-	volatile long double complex _d = z;				\
-	ATF_CHECK(cfpequal_tol((func)(_d), (result), (tol),		\
-	    FPE_ABS_ZERO | CS_BOTH));					\
+#define	test_tol(func, z, result, tol)	do {			\
+	CHECK_CFPEQUAL_TOL((func)(z), (result), (tol),		\
+	    FPE_ABS_ZERO | CS_BOTH);				\
 } while (0)
 
 /* Test all the functions that compute cexp(x). */

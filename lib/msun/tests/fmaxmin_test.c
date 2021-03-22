@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 	long double __result = func((__x), (__y));			      \
 	CHECK_FP_EXCEPTIONS_MSG(0, ALL_STD_EXCEPT,			      \
 	    #func "(%.20Lg, %.20Lg) rmode%d", (x), (y), rmode);		      \
-	ATF_CHECK_MSG(fpequal(__result, (expected)),			      \
+	ATF_CHECK_MSG(fpequal_cs(__result, (expected), true),		      \
 	    #func "(%.20Lg, %.20Lg) rmode%d = %.20Lg, expected %.20Lg\n",     \
 	    (x), (y), rmode, __result, (expected));			      \
 } while (0)

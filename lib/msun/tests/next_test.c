@@ -247,7 +247,7 @@ _testl(const char *exp, int line, long double actual, long double expected,
 	int actual_except;
 
 	actual_except = fetestexcept(ALL_STD_EXCEPT);
-	if (!fpequal(actual, expected)) {
+	if (!fpequal_cs(actual, expected, true)) {
 		atf_tc_fail_check(__FILE__, line,
 		    "%s returned %La, expecting %La\n", exp, actual, expected);
 	}
