@@ -45,7 +45,7 @@ extern "C" {
 
 /*
  * The following ioctls are generic in nature and need to be
- * suported as appropriate by all disk drivers
+ * supported as appropriate by all disk drivers
  */
 #define	DKIOCGGEOM	(DKIOC|1)		/* Get geometry */
 #define	DKIOCINFO	(DKIOC|3)		/* Get info */

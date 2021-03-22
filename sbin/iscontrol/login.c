@@ -59,7 +59,7 @@ static char *status_class1[] = {
      "Too many connections",
      "Missing parameter",
      "Can't include in session",
-     "Session type not suported",
+     "Session type not supported",
      "Session does not exist",
      "Invalid during login",
 };

@@ -4126,7 +4126,7 @@ chkarg:
 		        action->arg1 = strtoul(*av, NULL, 10);
 			if (sysctlbyname("net.fibs", &numfibs, &intsize,
 			    NULL, 0) == -1)
-				errx(EX_DATAERR, "fibs not suported.\n");
+				errx(EX_DATAERR, "fibs not supported.\n");
 			if (action->arg1 >= numfibs)  /* Temporary */
 				errx(EX_DATAERR, "fib too large.\n");
 			/* Add high-order bit to fib to make room for tablearg*/
