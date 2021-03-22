@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.c,v 1.157 2019/08/21 11:11:48 christos Exp $	*/
+/*	$NetBSD: readline.c,v 1.159 2019/10/09 14:31:07 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -31,7 +31,7 @@
 
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: readline.c,v 1.157 2019/08/21 11:11:48 christos Exp $");
+__RCSID("$NetBSD: readline.c,v 1.159 2019/10/09 14:31:07 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <sys/types.h>
@@ -521,7 +521,7 @@ _rl_compat_sub(const char *str, const char *what, const char *with,
 	s = str;
 	while (*s) {
 		if (*s == *what && !strncmp(s, what, what_len)) {
-			(void)strncpy(r, with, with_len);
+			memcpy(r, with, with_len);
 			r += with_len;
 			s += what_len;
 			if (!globally) {
@@ -607,8 +607,7 @@ get_history_event(const char *cmd, int *cindex, int qchar)
 	else {
 		if ((pat = el_calloc(len + 1, sizeof(*pat))) == NULL)
 			return NULL;
-		(void)strncpy(pat, cmd + begin, len);
-		pat[len] = '\0';
+		(void)strlcpy(pat, cmd + begin, len + 1);
 	}
 
 	if (history(h, &ev, H_CURR) != 0) {
@@ -702,8 +701,7 @@ _history_expand_command(const char *command, size_t offs, size_t cmdlen,
 			if ((aptr = el_calloc(offs + 1, sizeof(*aptr)))
 			    == NULL)
 				return -1;
-			(void)strncpy(aptr, command, offs);
-			aptr[offs] = '\0';
+			(void)strlcpy(aptr, command, offs + 1);
 			idx = 1;
 		} else {
 			int	qchar;
@@ -960,9 +958,8 @@ history_expand(char *str, char **output)
 			}						\
 			result = nresult;				\
 		}							\
-		(void)strncpy(&result[idx], what, len);			\
+		(void)strlcpy(&result[idx], what, len + 1);		\
 		idx += len;						\
-		result[idx] = '\0';					\
 	}
 
 	result = NULL;
@@ -1150,8 +1147,7 @@ history_tokenize(const char *str)
 			el_free(result);
 			return NULL;
 		}
-		(void)strncpy(temp, &str[start], len);
-		temp[len] = '\0';
+		(void)strlcpy(temp, &str[start], len + 1);
 		result[idx++] = temp;
 		result[idx] = NULL;
 		if (str[i])

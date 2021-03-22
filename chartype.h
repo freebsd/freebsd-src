@@ -1,4 +1,4 @@
-/*	$NetBSD: chartype.h,v 1.35 2017/05/22 19:16:25 christos Exp $	*/
+/*	$NetBSD: chartype.h,v 1.36 2019/09/15 21:09:11 christos Exp $	*/
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -87,7 +87,7 @@ libedit_private size_t ct_enc_width(wchar_t);
 /* The terminal is thought of in terms of X columns by Y lines. In the cases
  * where a wide character takes up more than one column, the adjacent
  * occupied column entries will contain this faux character. */
-#define MB_FILL_CHAR ((wchar_t)-1)
+#define MB_FILL_CHAR ((wint_t)-1)
 
 /* Visual width of character c, taking into account ^? , \0177 and \U+nnnnn
  * style visual expansions. */
