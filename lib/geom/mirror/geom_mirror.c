@@ -235,7 +235,7 @@ mirror_label(struct gctl_req *req)
 		msize = g_get_mediasize(str);
 		ssize = g_get_sectorsize(str);
 		if (msize == 0 || ssize == 0) {
-			gctl_error(req, "Can't get informations about %s: %s.",
+			gctl_error(req, "Can't get information about %s: %s.",
 			    str, strerror(errno));
 			return;
 		}

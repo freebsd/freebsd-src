@@ -201,7 +201,7 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 		device_printf(sc->malo_dev, "unable to setup firmware\n");
 		goto bad1;
 	}
-	/* XXX gethwspecs() extracts correct informations?  not maybe!  */
+	/* XXX gethwspecs() extracts correct information?  not maybe!  */
 	error = malo_hal_gethwspecs(mh, &sc->malo_hwspecs);
 	if (error != 0) {
 		device_printf(sc->malo_dev, "unable to fetch h/w specs\n");

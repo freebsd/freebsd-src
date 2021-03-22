@@ -129,13 +129,13 @@ static u_int __read_mostly callwheelsize;
 static u_int __read_mostly callwheelmask;
 
 /*
- * The callout cpu exec entities represent informations necessary for
+ * The callout cpu exec entities represent information necessary for
  * describing the state of callouts currently running on the CPU and the ones
  * necessary for migrating callouts to the new callout cpu. In particular,
- * the first entry of the array cc_exec_entity holds informations for callout
- * running in SWI thread context, while the second one holds informations
+ * the first entry of the array cc_exec_entity holds information for callout
+ * running in SWI thread context, while the second one holds information
  * for callout running directly from hardware interrupt context.
- * The cached informations are very important for deferring migration when
+ * The cached information are very important for deferring migration when
  * the migrating callout is already running.
  */
 struct cc_exec {

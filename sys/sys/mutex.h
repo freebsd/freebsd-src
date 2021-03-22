@@ -84,7 +84,7 @@
  *	 Functions with a `_' suffix are the entrypoint for the common
  *	 KPI covering both compat shims and fast path case.  These can be
  *	 used by consumers willing to pass options, file and line
- *	 informations, in an option-independent way.
+ *	 information, in an option-independent way.
  *
  * [See below for descriptions]
  *

@@ -130,7 +130,7 @@ shsec_label(struct gctl_req *req)
 		msize = g_get_mediasize(name);
 		ssize = g_get_sectorsize(name);
 		if (msize == 0 || ssize == 0) {
-			gctl_error(req, "Can't get informations about %s: %s.",
+			gctl_error(req, "Can't get information about %s: %s.",
 			    name, strerror(errno));
 			return;
 		}

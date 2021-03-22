@@ -431,7 +431,7 @@ uath_attach(device_t dev)
 	    IEEE80211_C_BGSCAN |	/* capable of bg scanning */
 	    IEEE80211_C_TXFRAG;		/* handle tx frags */
 
-	/* put a regulatory domain to reveal informations.  */
+	/* put a regulatory domain to reveal information.  */
 	uath_regdomain = sc->sc_devcap.regDomain;
 
 	memset(bands, 0, sizeof(bands));
