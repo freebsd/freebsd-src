@@ -392,7 +392,27 @@ ATF_TC_BODY(masking, tc)
 	int except, pass, raise, status;
 	unsigned i;
 
-	ATF_CHECK_EQ(0, (fegetexcept() & ALL_STD_EXCEPT));
+	ATF_REQUIRE_EQ(0, (fegetexcept() & ALL_STD_EXCEPT));
+
+	/*
+	 * Some CPUs, e.g. AArch64 QEMU does not support trapping on FP
+	 * exceptions. In that case the trap enable bits are all RAZ/WI, so
+	 * writing to those bits will be ignored and the the next read will
+	 * return all zeroes for those bits. Skip the test if no floating
+	 * point exceptions are supported and mark it XFAIL if some are missing.
+	 */
+	ATF_REQUIRE_EQ(0, (feenableexcept(FE_ALL_EXCEPT)));
+	except = fegetexcept();
+	if (except == 0) {
+		atf_tc_skip("CPU does not support trapping on floating point "
+		    "exceptions.");
+	} else if ((except & ALL_STD_EXCEPT) != ALL_STD_EXCEPT) {
+		atf_tc_expect_fail("Not all floating point exceptions can be "
+		    "set to trap: %#x vs %#x", except, ALL_STD_EXCEPT);
+	}
+	fedisableexcept(FE_ALL_EXCEPT);
+
+
 	ATF_CHECK_EQ(0, (feenableexcept(FE_INVALID|FE_OVERFLOW) & ALL_STD_EXCEPT));
 	ATF_CHECK_EQ((FE_INVALID | FE_OVERFLOW), (feenableexcept(FE_UNDERFLOW) & ALL_STD_EXCEPT));
 	ATF_CHECK_EQ((FE_INVALID | FE_OVERFLOW | FE_UNDERFLOW), (fedisableexcept(FE_OVERFLOW) & ALL_STD_EXCEPT));
