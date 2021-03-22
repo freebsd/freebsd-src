@@ -788,7 +788,7 @@ be_clone_cb(zfs_handle_t *ds, void *data)
  * Create a boot environment with a given name from a given snapshot.
  * Snapshots can be in the format 'zroot/ROOT/default@snapshot' or
  * 'default@snapshot'. In the latter case, 'default@snapshot' will be prepended
- * with the root path that libbe was initailized with.
+ * with the root path that libbe was initialized with.
 */
 static int
 be_clone(libbe_handle_t *lbh, const char *bename, const char *snapshot, int depth)
