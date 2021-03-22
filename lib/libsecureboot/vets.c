@@ -520,7 +520,7 @@ verify_signer_xcs(br_x509_certificate *xcs,
 	br_x509_minimal_set_rsa(&mc, &br_rsa_i31_pkcs1_vrfy);
 #endif
 #if defined(UNIT_TEST) && defined(VE_DEPRECATED_RSA_SHA1_SUPPORT)
-	/* This is deprecated! do not enable unless you absoultely have to */
+	/* This is deprecated! do not enable unless you absolutely have to */
 	br_x509_minimal_set_hash(&mc, br_sha1_ID, &br_sha1_vtable);
 #endif
 	br_x509_minimal_set_hash(&mc, br_sha256_ID, &br_sha256_vtable);
