@@ -31,8 +31,7 @@ CFLAGS+=-fomit-frame-pointer \
 	-I${LDRSRC} \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
-	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline
+	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings
 
 CFLAGS.gcc+=	-Os \
 		-fno-asynchronous-unwind-tables \
