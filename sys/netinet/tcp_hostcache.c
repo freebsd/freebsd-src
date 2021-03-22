@@ -130,8 +130,10 @@ struct hc_metrics {
 	uint32_t	rmx_recvpipe;	/* inbound delay-bandwidth product */
 	/* TCP hostcache internal data */
 	int		rmx_expire;	/* lifetime for object */
+#ifdef	TCP_HC_COUNTERS
 	u_long		rmx_hits;	/* number of hits */
 	u_long		rmx_updates;	/* number of updates */
+#endif
 };
 
 struct tcp_hostcache {
@@ -513,7 +515,9 @@ tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
 		bzero(hc_metrics_lite, sizeof(*hc_metrics_lite));
 		return;
 	}
+#ifdef	TCP_HC_COUNTERS
 	hc_entry->rmx_hits++;
+#endif
 	hc_entry->rmx_expire = V_tcp_hostcache.expire; /* start over again */
 
 	hc_metrics_lite->rmx_mtu = hc_entry->rmx_mtu;
@@ -548,7 +552,9 @@ tcp_hc_getmtu(struct in_conninfo *inc)
 	if (hc_entry == NULL) {
 		return 0;
 	}
+#ifdef	TCP_HC_COUNTERS
 	hc_entry->rmx_hits++;
+#endif
 	hc_entry->rmx_expire = V_tcp_hostcache.expire; /* start over again */
 
 	mtu = hc_entry->rmx_mtu;
@@ -581,7 +587,9 @@ tcp_hc_updatemtu(struct in_conninfo *inc, uint32_t mtu)
 		if (hc_entry == NULL)
 			return;
 	}
+#ifdef	TCP_HC_COUNTERS
 	hc_entry->rmx_updates++;
+#endif
 	hc_entry->rmx_expire = V_tcp_hostcache.expire; /* start over again */
 
 	hc_entry->rmx_mtu = mtu;
@@ -616,7 +624,9 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 		if (hc_entry == NULL)
 			return;
 	}
+#ifdef	TCP_HC_COUNTERS
 	hc_entry->rmx_updates++;
+#endif
 	hc_entry->rmx_expire = V_tcp_hostcache.expire; /* start over again */
 
 	if (hcml->rmx_rtt != 0) {
@@ -712,7 +722,11 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 
 	sbuf_printf(&sb,
 		"\nIP address        MTU  SSTRESH      RTT   RTTVAR "
-		"    CWND SENDPIPE RECVPIPE HITS  UPD  EXP\n");
+		"    CWND SENDPIPE RECVPIPE "
+#ifdef	TCP_HC_COUNTERS
+		"HITS  UPD  "
+#endif
+		"EXP\n");
 	sbuf_drain(&sb);
 
 #define msec(u) (((u) + 500) / 1000)
@@ -721,8 +735,11 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 		TAILQ_FOREACH(hc_entry, &V_tcp_hostcache.hashbase[i].hch_bucket,
 			      rmx_q) {
 			sbuf_printf(&sb,
-			    "%-15s %5u %8u %6lums %6lums %8u %8u %8u %4lu "
-			    "%4lu %4i\n",
+			    "%-15s %5u %8u %6lums %6lums %8u %8u %8u "
+#ifdef	TCP_HC_COUNTERS
+			    "%4lu %4lu "
+#endif
+			    "%4i\n",
 			    hc_entry->ip4.s_addr ?
 			        inet_ntoa_r(hc_entry->ip4, ip4buf) :
 #ifdef INET6
@@ -739,8 +756,10 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 			    hc_entry->rmx_cwnd,
 			    hc_entry->rmx_sendpipe,
 			    hc_entry->rmx_recvpipe,
+#ifdef	TCP_HC_COUNTERS
 			    hc_entry->rmx_hits,
 			    hc_entry->rmx_updates,
+#endif
 			    hc_entry->rmx_expire);
 		}
 		THC_UNLOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
