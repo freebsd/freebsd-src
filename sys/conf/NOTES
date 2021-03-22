@@ -824,8 +824,6 @@ options 	NGATM_SSCFU
 options 	NGATM_UNI
 options 	NGATM_CCATM
 
-device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
-
 # Network stack virtualization.
 options	VIMAGE
 options	VNET_DEBUG	# debug for VIMAGE
