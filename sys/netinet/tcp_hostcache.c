@@ -161,7 +161,7 @@ VNET_DEFINE_STATIC(struct tcp_hostcache, tcp_hostcache);
 VNET_DEFINE_STATIC(struct callout, tcp_hc_callout);
 #define	V_tcp_hc_callout	VNET(tcp_hc_callout)
 
-static struct hc_metrics *tcp_hc_lookup(struct in_conninfo *);
+static struct hc_metrics *tcp_hc_lookup(struct in_conninfo *, bool);
 static struct hc_metrics *tcp_hc_insert(struct in_conninfo *);
 static int sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_hc_histo(SYSCTL_HANDLER_ARGS);
@@ -332,7 +332,7 @@ tcp_hc_destroy(void)
  * unlocking the bucket row after he is done reading/modifying the entry.
  */
 static struct hc_metrics *
-tcp_hc_lookup(struct in_conninfo *inc)
+tcp_hc_lookup(struct in_conninfo *inc, bool update)
 {
 	int hash;
 	struct hc_head *hc_head;
@@ -368,11 +368,11 @@ tcp_hc_lookup(struct in_conninfo *inc)
 			/* XXX: check ip6_zoneid */
 			if (memcmp(&inc->inc6_faddr, &hc_entry->ip6,
 			    sizeof(inc->inc6_faddr)) == 0)
-				return hc_entry;
+				goto found;
 		} else {
 			if (memcmp(&inc->inc_faddr, &hc_entry->ip4,
 			    sizeof(inc->inc_faddr)) == 0)
-				return hc_entry;
+				goto found;
 		}
 	}
 
@@ -380,7 +380,18 @@ tcp_hc_lookup(struct in_conninfo *inc)
 	 * We were unsuccessful and didn't find anything.
 	 */
 	THC_UNLOCK(&hc_head->hch_mtx);
-	return NULL;
+	return (NULL);
+
+found:
+#ifdef	TCP_HC_COUNTERS
+	if (update)
+		hc_entry->rmx_updates++;
+	else
+		hc_entry->rmx_hits++;
+#endif
+	hc_entry->rmx_expire = V_tcp_hostcache.expire;
+
+	return (hc_entry);
 }
 
 /*
@@ -506,7 +517,7 @@ tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
 	/*
 	 * Find the right bucket.
 	 */
-	hc_entry = tcp_hc_lookup(inc);
+	hc_entry = tcp_hc_lookup(inc, false);
 
 	/*
 	 * If we don't have an existing object.
@@ -515,10 +526,6 @@ tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
 		bzero(hc_metrics_lite, sizeof(*hc_metrics_lite));
 		return;
 	}
-#ifdef	TCP_HC_COUNTERS
-	hc_entry->rmx_hits++;
-#endif
-	hc_entry->rmx_expire = V_tcp_hostcache.expire; /* start over again */
 
 	hc_metrics_lite->rmx_mtu = hc_entry->rmx_mtu;
 	hc_metrics_lite->rmx_ssthresh = hc_entry->rmx_ssthresh;
@@ -548,14 +555,10 @@ tcp_hc_getmtu(struct in_conninfo *inc)
 	if (!V_tcp_use_hostcache)
 		return 0;
 
-	hc_entry = tcp_hc_lookup(inc);
+	hc_entry = tcp_hc_lookup(inc, false);
 	if (hc_entry == NULL) {
 		return 0;
 	}
-#ifdef	TCP_HC_COUNTERS
-	hc_entry->rmx_hits++;
-#endif
-	hc_entry->rmx_expire = V_tcp_hostcache.expire; /* start over again */
 
 	mtu = hc_entry->rmx_mtu;
 	THC_UNLOCK(&hc_entry->rmx_head->hch_mtx);
@@ -577,7 +580,7 @@ tcp_hc_updatemtu(struct in_conninfo *inc, uint32_t mtu)
 	/*
 	 * Find the right bucket.
 	 */
-	hc_entry = tcp_hc_lookup(inc);
+	hc_entry = tcp_hc_lookup(inc, true);
 
 	/*
 	 * If we don't have an existing object, try to insert a new one.
@@ -587,10 +590,6 @@ tcp_hc_updatemtu(struct in_conninfo *inc, uint32_t mtu)
 		if (hc_entry == NULL)
 			return;
 	}
-#ifdef	TCP_HC_COUNTERS
-	hc_entry->rmx_updates++;
-#endif
-	hc_entry->rmx_expire = V_tcp_hostcache.expire; /* start over again */
 
 	hc_entry->rmx_mtu = mtu;
 
@@ -618,16 +617,12 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 	if (!V_tcp_use_hostcache)
 		return;
 
-	hc_entry = tcp_hc_lookup(inc);
+	hc_entry = tcp_hc_lookup(inc, true);
 	if (hc_entry == NULL) {
 		hc_entry = tcp_hc_insert(inc);
 		if (hc_entry == NULL)
 			return;
 	}
-#ifdef	TCP_HC_COUNTERS
-	hc_entry->rmx_updates++;
-#endif
-	hc_entry->rmx_expire = V_tcp_hostcache.expire; /* start over again */
 
 	if (hcml->rmx_rtt != 0) {
 		if (hc_entry->rmx_rtt == 0)
