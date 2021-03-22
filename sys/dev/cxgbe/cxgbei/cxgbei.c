@@ -412,12 +412,14 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		SOCKBUF_UNLOCK(sb);
 		INP_WUNLOCK(inp);
 
+		CURVNET_SET(so->so_vnet);
 		NET_EPOCH_ENTER(et);
 		INP_WLOCK(inp);
 		tp = tcp_drop(tp, ECONNRESET);
 		if (tp)
 			INP_WUNLOCK(inp);
 		NET_EPOCH_EXIT(et);
+		CURVNET_RESTORE();
 
 		icl_cxgbei_conn_pdu_free(NULL, ip);
 #ifdef INVARIANTS
