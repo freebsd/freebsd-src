@@ -248,7 +248,7 @@ ATF_TC_BODY(fegsetexceptflag, tc)
 	fexcept_t flag;
 	int excepts, i;
 
-	ATF_CHECK_EQ(0, fetestexcept(FE_ALL_EXCEPT));
+	CHECK_FP_EXCEPTIONS(0, FE_ALL_EXCEPT);
 	for (i = 0; i < 1 << NEXCEPTS; i++) {
 		excepts = std_except_sets[i];
 

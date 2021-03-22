@@ -82,12 +82,12 @@ ATF_TC_BODY(main, tc)
 		__imag__ in = tests[2 * i + 1];
 		__imag__ expected = -cimag(in);
 
-		ATF_REQUIRE(fpequal(libcrealf(in), __real__ in));
-		ATF_REQUIRE(fpequal(libcreal(in), __real__ in));
-		ATF_REQUIRE(fpequal(libcreall(in), __real__ in));
-		ATF_REQUIRE(fpequal(libcimagf(in), __imag__ in));
-		ATF_REQUIRE(fpequal(libcimag(in), __imag__ in));
-		ATF_REQUIRE(fpequal(libcimagl(in), __imag__ in));
+		ATF_REQUIRE(fpequal_cs(libcrealf(in), __real__ in, true));
+		ATF_REQUIRE(fpequal_cs(libcreal(in), __real__ in, true));
+		ATF_REQUIRE(fpequal_cs(libcreall(in), __real__ in, true));
+		ATF_REQUIRE(fpequal_cs(libcimagf(in), __imag__ in, true));
+		ATF_REQUIRE(fpequal_cs(libcimag(in), __imag__ in, true));
+		ATF_REQUIRE(fpequal_cs(libcimagl(in), __imag__ in, true));
 
 		ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
 		ATF_REQUIRE_MSG(

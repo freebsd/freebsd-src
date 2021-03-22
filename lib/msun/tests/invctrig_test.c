@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 	debug("  testing %s(%Lg + %Lg I) == %Lg + %Lg I\n", #func,	\
 	    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
 	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));		\
-	ATF_CHECK(cfpequal_cs((func)(_d), (result), (checksign)));	\
+	CHECK_CFPEQUAL_CS((func)(_d), (result), (checksign));		\
 	CHECK_FP_EXCEPTIONS_MSG(excepts, exceptmask, "for %s(%s)",	\
 	    #func, #z);							\
 } while (0)
@@ -71,10 +71,9 @@ __FBSDID("$FreeBSD$");
  * in ulps.
  */
 #define	test_p_tol(func, z, result, tol)			do {	\
-	volatile long double complex _d = z;				\
 	debug("  testing %s(%Lg + %Lg I) ~= %Lg + %Lg I\n", #func,	\
-	    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
-	ATF_CHECK(cfpequal_tol((func)(_d), (result), (tol), CS_BOTH));	\
+	    creall(z), cimagl(z), creall(result), cimagl(result));	\
+	CHECK_CFPEQUAL_TOL((func)(z), (result), (tol), CS_BOTH);	\
 } while (0)
 
 /* These wrappers apply the identities f(conj(z)) = conj(f(z)). */
