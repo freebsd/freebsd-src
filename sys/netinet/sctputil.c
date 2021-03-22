@@ -2277,7 +2277,9 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		}
 		rndval = sctp_select_initial_TSN(&inp->sctp_ep);
 		jitter = rndval % to_ticks;
-		to_ticks >>= 1;
+		if (to_ticks > 1) {
+			to_ticks >>= 1;
+		}
 		if (jitter < (UINT32_MAX - to_ticks)) {
 			to_ticks += jitter;
 		} else {
