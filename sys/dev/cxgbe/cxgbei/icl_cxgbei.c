@@ -124,11 +124,7 @@ static volatile u_int icl_cxgbei_ncons;
 #define ICL_CONN_LOCK_ASSERT(X)		mtx_assert(X->ic_lock, MA_OWNED)
 #define ICL_CONN_LOCK_ASSERT_NOT(X)	mtx_assert(X->ic_lock, MA_NOTOWNED)
 
-struct icl_pdu *icl_cxgbei_new_pdu(int);
-void icl_cxgbei_new_pdu_set_conn(struct icl_pdu *, struct icl_conn *);
-
 static icl_conn_new_pdu_t	icl_cxgbei_conn_new_pdu;
-icl_conn_pdu_free_t	icl_cxgbei_conn_pdu_free;
 static icl_conn_pdu_data_segment_length_t
 				    icl_cxgbei_conn_pdu_data_segment_length;
 static icl_conn_pdu_append_data_t	icl_cxgbei_conn_pdu_append_data;

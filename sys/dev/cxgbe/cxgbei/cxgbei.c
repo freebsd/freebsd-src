@@ -96,11 +96,6 @@ static int worker_thread_count;
 static struct cxgbei_worker_thread_softc *cwt_softc;
 static struct proc *cxgbei_proc;
 
-/* XXXNP some header instead. */
-struct icl_pdu *icl_cxgbei_new_pdu(int);
-void icl_cxgbei_new_pdu_set_conn(struct icl_pdu *, struct icl_conn *);
-void icl_cxgbei_conn_pdu_free(struct icl_conn *, struct icl_pdu *);
-
 static void
 free_ci_counters(struct cxgbei_data *ci)
 {
