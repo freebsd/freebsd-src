@@ -99,12 +99,53 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
-#include <netinet/tcp_hostcache.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
 
 #include <vm/uma.h>
+
+TAILQ_HEAD(hc_qhead, hc_metrics);
+
+struct hc_head {
+	struct hc_qhead	hch_bucket;
+	u_int		hch_length;
+	struct mtx	hch_mtx;
+};
+
+struct hc_metrics {
+	/* housekeeping */
+	TAILQ_ENTRY(hc_metrics) rmx_q;
+	struct		hc_head *rmx_head; /* head of bucket tail queue */
+	struct		in_addr ip4;	/* IP address */
+	struct		in6_addr ip6;	/* IP6 address */
+	uint32_t	ip6_zoneid;	/* IPv6 scope zone id */
+	/* endpoint specific values for tcp */
+	uint32_t	rmx_mtu;	/* MTU for this path */
+	uint32_t	rmx_ssthresh;	/* outbound gateway buffer limit */
+	uint32_t	rmx_rtt;	/* estimated round trip time */
+	uint32_t	rmx_rttvar;	/* estimated rtt variance */
+	uint32_t	rmx_cwnd;	/* congestion window */
+	uint32_t	rmx_sendpipe;	/* outbound delay-bandwidth product */
+	uint32_t	rmx_recvpipe;	/* inbound delay-bandwidth product */
+	/* TCP hostcache internal data */
+	int		rmx_expire;	/* lifetime for object */
+	u_long		rmx_hits;	/* number of hits */
+	u_long		rmx_updates;	/* number of updates */
+};
+
+struct tcp_hostcache {
+	struct hc_head	*hashbase;
+	uma_zone_t	zone;
+	u_int		hashsize;
+	u_int		hashmask;
+	u_int		bucket_limit;
+	u_int		cache_count;
+	u_int		cache_limit;
+	int		expire;
+	int		prune;
+	int		purgeall;
+};
 
 /* Arbitrary values */
 #define TCP_HOSTCACHE_HASHSIZE		512

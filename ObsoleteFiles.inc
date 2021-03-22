@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210408: remove tcp_hostcache.h
+OLD_FILES+=usr/include/netinet/tcp_hostcache.h
+
 # 20210403: remove kgmon(8)
 OLD_FILES+=usr/sbin/kgmon
 OLD_FILES+=usr/share/man/man8/kgmon.8.gz
