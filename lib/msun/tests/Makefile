@@ -85,8 +85,6 @@ SRCS.ilogb2_test=	ilogb_test.c
 LIBADD.fenv_test+=	util
 LIBADD+=	m
 
-WARNS?=		6
-
 # Copied from lib/msun/Makefile
 .if ${MACHINE_CPUARCH} == "i386"
 ARCH_SUBDIR= i387
