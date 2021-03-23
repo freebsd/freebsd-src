@@ -106,11 +106,11 @@ backslash(const char *str)
 				char val;
 
 				/* Three digit octal constant? */
-				if (*str >= '0' && *str <= '3' && 
+				if (*str >= '0' && *str <= '3' &&
 				    *(str + 1) >= '0' && *(str + 1) <= '7' &&
 				    *(str + 2) >= '0' && *(str + 2) <= '7') {
 
-					val = (DIGIT(*str) << 6) + (DIGIT(*(str + 1)) << 3) + 
+					val = (DIGIT(*str) << 6) + (DIGIT(*(str + 1)) << 3) +
 					    DIGIT(*(str + 2));
 
 					/* Allow null value if user really wants to shoot

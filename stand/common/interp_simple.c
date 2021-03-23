@@ -109,7 +109,7 @@ interp_include(const char *filename)
 	 */
 	script = se = NULL;
 	line = 0;
-	
+
 	while (fgetstr(input, sizeof(input), fd) >= 0) {
 		line++;
 		flags = 0;
@@ -165,7 +165,7 @@ interp_include(const char *filename)
 	argv = NULL;
 	res = CMD_OK;
 	for (sp = script; sp != NULL; sp = sp->next) {
-	
+
 		/* print if not being quiet */
 		if (!(sp->flags & SL_QUIET)) {
 			interp_emit_prompt();

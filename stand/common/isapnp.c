@@ -209,7 +209,7 @@ isapnp_scan_resdata(struct pnpinfo *pi)
 		    free(str);
 		}
 		break;
-		
+
 	    default:
 		/* Large resource, skip it */
 		if (isapnp_get_resource_info(NULL, (ssize_t)large_len))
@@ -234,7 +234,7 @@ isapnp_isolation_protocol(void)
 
     isapnp_send_Initiation_LFSR();
     ndevs = 0;
-    
+
     isapnp_write(CONFIG_CONTROL, 0x04);	/* Reset CSN for All Cards */
 
     for (csn = 1; ; csn++) {
@@ -274,15 +274,15 @@ isapnp_isolation_protocol(void)
  * Locate ISA-PnP devices and populate the supplied list.
  */
 static void
-isapnp_enumerate(void) 
+isapnp_enumerate(void)
 {
     int		pnp_rd_port;
-    
+
     /* Check for I/O port access */
     if ((archsw.arch_isainb == NULL) || (archsw.arch_isaoutb == NULL))
 	return;
 
-    /* 
+    /*
      * Validate a possibly-suggested read port value.  If the autoscan failed
      * last time, this will return us to autoscan mode again.
      */

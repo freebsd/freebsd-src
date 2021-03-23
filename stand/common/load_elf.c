@@ -386,7 +386,7 @@ __elfN(loadfile_raw)(char *filename, uint64_t dest,
 		}
 		/* Looks OK, got ahead */
 		ef.kernel = 0;
-	
+
 	} else {
 		err = EFTYPE;
 		goto oerr;

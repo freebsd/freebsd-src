@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 int
-devopen(struct open_file *f, const char *fname, const char **file) 
+devopen(struct open_file *f, const char *fname, const char **file)
 {
 	struct devdesc *dev;
 	int result;

@@ -204,7 +204,7 @@ write_strategy(void *devdata, int rw, daddr_t blk, size_t size,
 /*
  * Handle a read request; fill in parts of the request that can
  * be satisfied by the cache, use the supplied strategy routine to do
- * device I/O and then use the I/O results to populate the cache. 
+ * device I/O and then use the I/O results to populate the cache.
  */
 static int
 read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
@@ -347,7 +347,7 @@ read_strategy(void *devdata, int rw, daddr_t blk, size_t size,
     return(result);
 }
 
-/* 
+/*
  * Requests larger than 1/2 cache size will be bypassed and go
  * directly to the disk.  XXX tune this.
  */
@@ -439,7 +439,7 @@ static void
 bcache_insert(struct bcache *bc, daddr_t blkno)
 {
     u_int	cand;
-    
+
     cand = BHASH(bc, blkno);
 
     DPRINTF("insert blk %llu -> %u # %d", blkno, cand, bcache_bcount);
@@ -454,7 +454,7 @@ static void
 bcache_invalidate(struct bcache *bc, daddr_t blkno)
 {
     u_int	i;
-    
+
     i = BHASH(bc, blkno);
     if (bc->bcache_ctl[i].bc_blkno == blkno) {
 	bc->bcache_ctl[i].bc_count = -1;

@@ -613,7 +613,7 @@ ptable_iso9660read(struct ptable *table, void *dev, diskread_t dread)
 	buf = malloc(table->sectorsize);
 	if (buf == NULL)
 		return (table);
-		
+
 	if (dread(dev, buf, 1, cdb2devb(16)) != 0) {
 		DPRINTF("read failed");
 		ptable_close(table);

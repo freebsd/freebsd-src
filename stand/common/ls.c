@@ -160,7 +160,7 @@ ls_getdir(char **pathp)
     int		fd;
     const char	*cp;
     char	*path;
-    
+
     fd = -1;
 
     /* one extra byte for a possible trailing slash required */

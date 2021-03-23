@@ -41,7 +41,7 @@ static int page_file(char *filename);
 /*
  * Help is read from a formatted text file.
  *
- * Entries in the file are formatted as 
+ * Entries in the file are formatted as
 
 # Ttopic [Ssubtopic] Ddescription
 help
@@ -412,7 +412,7 @@ command_read(int argc, char *argv[])
 	char	*name;
 	char	buf[256];		/* XXX size? */
 	int	c;
-    
+
 	timeout = -1;
 	prompt = NULL;
 	optind = 1;

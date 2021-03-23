@@ -202,7 +202,7 @@ command_load(int argc, char *argv[])
 			  "warning: KLD '%s' already loaded", argv[1]);
 			return (CMD_WARN);
 		}
-	
+
 		return (error == 0 ? CMD_OK : CMD_CRIT);
 	}
 	/*
@@ -1615,7 +1615,7 @@ static void
 file_insert_tail(struct preloaded_file *fp)
 {
 	struct preloaded_file	*cm;
-    
+
 	/* Append to list of loaded file */
 	fp->f_next = NULL;
 	if (preloaded_files == NULL) {

@@ -55,7 +55,7 @@ unargv(int argc, char *argv[])
 	if (i < (argc - 1))
 	  strcat(cp, " ");
     }
-	  
+
     return(cp);
 }
 
@@ -67,7 +67,7 @@ strlenout(vm_offset_t src)
 {
     char	c;
     size_t	len;
-    
+
     for (len = 0; ; len++) {
 	archsw.arch_copyout(src++, &c, 1);
 	if (c == 0)
@@ -83,7 +83,7 @@ char *
 strdupout(vm_offset_t str)
 {
     char	*result, *cp;
-    
+
     result = malloc(strlenout(str) + 1);
     for (cp = result; ;cp++) {
 	archsw.arch_copyout(str++, cp, 1);
