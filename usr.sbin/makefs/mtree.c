@@ -629,7 +629,13 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 				error = ENOSYS;
 			break;
 		case 't':
-			if (strcmp(keyword, "time") == 0) {
+			if (strcmp(keyword, "tags") == 0) {
+				if (value == NULL) {
+					error = ENOATTR;
+					break;
+				}
+				/* Ignore. */
+			} else if (strcmp(keyword, "time") == 0) {
 				if (value == NULL) {
 					error = ENOATTR;
 					break;
