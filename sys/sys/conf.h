@@ -362,6 +362,7 @@ struct dumperinfo {
 
 extern int dumping;		/* system is dumping */
 
+void dump_savectx(void);
 int doadump(boolean_t);
 struct diocskerneldump_arg;
 int dumper_create(const struct dumperinfo *di_template, const char *devname,
