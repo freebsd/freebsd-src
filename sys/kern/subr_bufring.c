@@ -49,12 +49,12 @@ buf_ring_alloc(int count, struct malloc_type *type, int flags, struct mtx *lock)
 		return (NULL);
 #ifdef DEBUG_BUFRING
 	br->br_lock = lock;
-#endif	
+#endif
 	br->br_prod_size = br->br_cons_size = count;
 	br->br_prod_mask = br->br_cons_mask = count-1;
 	br->br_prod_head = br->br_cons_head = 0;
 	br->br_prod_tail = br->br_cons_tail = 0;
-		
+
 	return (br);
 }
 

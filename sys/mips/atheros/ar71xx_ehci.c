@@ -140,7 +140,7 @@ ar71xx_ehci_attach(device_t self)
 
 	/*
 	 * Craft special resource for bus space ops that handle
-	 * byte-alignment of non-word addresses.  
+	 * byte-alignment of non-word addresses.
 	 */
 	sc->sc_io_tag = ar71xx_bus_space_reversed;
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);

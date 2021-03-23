@@ -331,7 +331,7 @@ bcm_bmips_pic_intr(void *arg)
 			sbintvec = (ipsflag & SIBA_IPS_INT3_MASK) >>
 			    SIBA_IPS_INT3_SHIFT;
 			break;
-		case 4: 
+		case 4:
 			sbintvec = (ipsflag & SIBA_IPS_INT4_MASK) >>
 			    SIBA_IPS_INT4_SHIFT;
 			break;

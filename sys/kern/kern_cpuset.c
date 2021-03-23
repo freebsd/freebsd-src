@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2008,  Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
- * 
+ *
  * Copyright (c) 2008 Nokia Corporation
  * All rights reserved.
  *
@@ -190,7 +190,7 @@ cpuset_refroot(struct cpuset *set)
 /*
  * Find the first non-anonymous set starting from 'set'.  Returns this set
  * referenced.  May return the passed in set with an extra ref if it is
- * not anonymous. 
+ * not anonymous.
  */
 static struct cpuset *
 cpuset_refbase(struct cpuset *set)
@@ -651,7 +651,7 @@ cpuset_testupdate(struct cpuset *set, cpuset_t *mask, int augment_mask)
 	if (CPU_EMPTY(&newmask))
 		return (EDEADLK);
 	error = 0;
-	LIST_FOREACH(nset, &set->cs_children, cs_siblings) 
+	LIST_FOREACH(nset, &set->cs_children, cs_siblings)
 		if ((error = cpuset_testupdate(nset, &newmask, 1)) != 0)
 			break;
 	return (error);
@@ -667,7 +667,7 @@ cpuset_update(struct cpuset *set, cpuset_t *mask)
 
 	mtx_assert(&cpuset_lock, MA_OWNED);
 	CPU_AND(&set->cs_mask, mask);
-	LIST_FOREACH(nset, &set->cs_children, cs_siblings) 
+	LIST_FOREACH(nset, &set->cs_children, cs_siblings)
 		cpuset_update(nset, &set->cs_mask);
 
 	return;
@@ -759,7 +759,7 @@ cpuset_testupdate_domain(struct cpuset *set, struct domainset *dset,
 		(*count)++;
 	}
 	error = 0;
-	LIST_FOREACH(nset, &set->cs_children, cs_siblings) 
+	LIST_FOREACH(nset, &set->cs_children, cs_siblings)
 		if ((error = cpuset_testupdate_domain(nset, &newset, domain,
 		    count, 1)) != 0)
 			break;
@@ -788,7 +788,7 @@ cpuset_update_domain(struct cpuset *set, struct domainset *domain,
 		set->cs_domain = domainset_shadow(domain, orig, domains);
 	} else
 		set->cs_domain = domain;
-	LIST_FOREACH(nset, &set->cs_children, cs_siblings) 
+	LIST_FOREACH(nset, &set->cs_children, cs_siblings)
 		cpuset_update_domain(nset, set->cs_domain, orig, domains);
 
 	return;
@@ -1197,7 +1197,7 @@ cpuset_setproc_newbase(struct thread *td, struct cpuset *set,
  * 4) domain is non-null.  This creates anonymous sets for every thread
  *    and replaces the domain set.
  *
- * This is overly complicated because we can't allocate while holding a 
+ * This is overly complicated because we can't allocate while holding a
  * spinlock and spinlocks must be held while changing and examining thread
  * state.
  */
@@ -1217,7 +1217,7 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask,
 
 	/*
 	 * The algorithm requires two passes due to locking considerations.
-	 * 
+	 *
 	 * 1) Lookup the process and acquire the locks in the required order.
 	 * 2) If enough cpusets have not been allocated release the locks and
 	 *    allocate them.  Loop.
@@ -1582,7 +1582,7 @@ domainset_zero(void)
 /*
  * Creates system-wide cpusets and the cpuset for thread0 including three
  * sets:
- * 
+ *
  * 0 - The root set which should represent all valid processors in the
  *     system.  This set is immutable.
  * 1 - The default set which all processes are a member of until changed.
@@ -2394,7 +2394,7 @@ ddb_display_bitset(const struct bitset *set, int size)
 			if (once == 0) {
 				db_printf("%d", bit);
 				once = 1;
-			} else  
+			} else
 				db_printf(",%d", bit);
 		}
 	}

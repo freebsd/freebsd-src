@@ -175,7 +175,7 @@ static int max_buf_aio = MAX_BUF_AIO;
 SYSCTL_INT(_vfs_aio, OID_AUTO, max_buf_aio, CTLFLAG_RW, &max_buf_aio, 0,
     "Maximum buf aio requests per process");
 
-/* 
+/*
  * Though redundant with vfs.aio.max_aio_queue_per_proc, POSIX requires
  * sysconf(3) to support AIO_LISTIO_MAX, and we implement that with
  * vfs.aio.aio_listio_max.

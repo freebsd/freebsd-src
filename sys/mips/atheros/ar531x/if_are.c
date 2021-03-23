@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2016 Hiroki Mori. All rights reserved.
- * Copyright (C) 2007 
+ * Copyright (C) 2007
  *	Oleksandr Tymoshenko <gonzo@freebsd.org>. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $Id: $
- * 
+ *
  */
 
 #include "opt_platform.h"
@@ -180,7 +180,7 @@ static device_method_t aremdio_methods[] = {
 
 	/* bus interface */
 	DEVMETHOD(bus_add_child,	device_add_child_ordered),
-        
+
 	/* MDIO access */
 	DEVMETHOD(mdio_readreg,		are_miibus_readreg),
 	DEVMETHOD(mdio_writereg,	are_miibus_writereg),
@@ -195,7 +195,7 @@ DRIVER_MODULE(aremdio, nexus, aremdio_driver, aremdio_devclass, 0, 0);
 DRIVER_MODULE(mdio, aremdio, mdio_driver, mdio_devclass, 0, 0);
 #endif
 
-static int 
+static int
 are_probe(device_t dev)
 {
 
@@ -260,7 +260,7 @@ are_attach(device_t dev)
 
 	/* Map control/status registers. */
 	sc->are_rid = 0;
-	sc->are_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->are_rid, 
+	sc->are_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->are_rid,
 	    RF_ACTIVE | RF_SHAREABLE);
 
 	if (sc->are_res == NULL) {
@@ -275,7 +275,7 @@ are_attach(device_t dev)
 #ifndef INTRNG
 	/* Allocate interrupts */
 	rid = 0;
-	sc->are_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, 
+	sc->are_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->are_irq == NULL) {
@@ -370,7 +370,7 @@ are_attach(device_t dev)
 #endif
 
 fail:
-	if (error) 
+	if (error)
 		are_detach(dev);
 
 	return (error);
@@ -405,7 +405,7 @@ are_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->are_irq);
 
 	if (sc->are_res)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->are_rid, 
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->are_rid,
 		    sc->are_res);
 
 	if (ifp)
@@ -791,7 +791,7 @@ are_encap(struct are_softc *sc, struct mbuf **m_head)
 
 	si = prod;
 
-	/* 
+	/*
 	 * Make a list of descriptors for this packet. DMA controller will
 	 * walk through it while are_link is not zero. The last one should
 	 * have COF flag set, to pickup next chain from NDPTR
@@ -813,7 +813,7 @@ are_encap(struct are_softc *sc, struct mbuf **m_head)
 		ARE_INC(prod, ARE_TX_RING_CNT);
 	}
 
-	/* 
+	/*
 	 * Set mark last fragment with LD flag
 	 */
 	if (desc) {
@@ -889,7 +889,7 @@ are_start_locked(struct ifnet *ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
-	if (enq > 0) { 
+	if (enq > 0) {
 		txstat = (CSR_READ_4(sc, CSR_STATUS) >> 20) & 7;
 		if (txstat == 0 || txstat == 6) {
 			/* Transmit Process Stat is stop or suspended */
@@ -916,7 +916,7 @@ are_stop(struct are_softc *sc)
 	CSR_WRITE_4(sc, CSR_OPMODE, 0);
 	CSR_WRITE_4(sc, CSR_RXLIST, 0);
 	CSR_WRITE_4(sc, CSR_TXLIST, 0);
-	CSR_WRITE_4(sc, CSR_MACCTL, 
+	CSR_WRITE_4(sc, CSR_MACCTL,
 	    CSR_READ_4(sc, CSR_MACCTL) & ~(MACCTL_TE | MACCTL_RE));
 
 }
@@ -937,7 +937,7 @@ are_set_filter(struct are_softc *sc)
 	if (ifp->if_flags & IFF_PROMISC)
 		macctl |= MACCTL_PR;
 
-	/* Todo: hash table set. 
+	/* Todo: hash table set.
 	 * But I don't know how to use multicast hash table at this soc.
 	 */
 
@@ -1559,7 +1559,7 @@ are_rx(struct are_softc *sc)
 		m = rxd->rx_m;
 
 		if ((cur_rx->are_stat & ADSTAT_OWN) == ADSTAT_OWN)
-		       break;	
+		       break;
 
 		prog++;
 
@@ -1599,7 +1599,7 @@ are_rx(struct are_softc *sc)
 				cur_rx->are_devcs |= ADCTL_ER;
 			cur_rx->are_addr = 0;
 			if (are_newbuf(sc, cons) != 0) {
-				device_printf(sc->are_dev, 
+				device_printf(sc->are_dev,
 				    "Failed to allocate buffer\n");
 				break;
 			}
@@ -1686,7 +1686,7 @@ aremdio_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->are_dev = dev;
 	sc->are_rid = 0;
-	sc->are_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
+	sc->are_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &sc->are_rid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->are_res == NULL) {
 		device_printf(dev, "couldn't map memory\n");
@@ -1724,7 +1724,7 @@ dump_txdesc(struct are_softc *sc, int pos)
 	    pos, desc->are_stat, desc->are_devcs, desc->are_addr, desc->are_link);
 }
 
-void 
+void
 dump_status_reg(struct are_softc *sc)
 {
 	uint32_t		status;
@@ -1733,7 +1733,7 @@ dump_status_reg(struct are_softc *sc)
 
 	device_printf(sc->are_dev, "CSR_HTBA %08x\n", CSR_READ_4(sc, CSR_HTBA));
 	status = CSR_READ_4(sc, CSR_STATUS);
-	device_printf(sc->are_dev, "CSR5 Status Register EB:%d TS:%d RS:%d NIS:%d AIS:%d ER:%d SE:%d LNF:%d TM:%d RWT:%d RPS:%d RU:%d RI:%d UNF:%d LNP/ANC:%d TJT:%d TU:%d TPS:%d TI:%d\n", 
+	device_printf(sc->are_dev, "CSR5 Status Register EB:%d TS:%d RS:%d NIS:%d AIS:%d ER:%d SE:%d LNF:%d TM:%d RWT:%d RPS:%d RU:%d RI:%d UNF:%d LNP/ANC:%d TJT:%d TU:%d TPS:%d TI:%d\n",
 	    (status >> 23 ) & 7,
 	    (status >> 20 ) & 7,
 	    (status >> 17 ) & 7,

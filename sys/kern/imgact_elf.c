@@ -114,7 +114,7 @@ SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) " brand of last resort");
 
 static int elf_legacy_coredump = 0;
-SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW, 
+SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW,
     &elf_legacy_coredump, 0,
     "include all and only RW pages in core dumps");
 
@@ -1103,7 +1103,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		uprintf("Program headers not in the first page\n");
 		return (ENOEXEC);
 	}
-	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff); 
+	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
 	if (!aligned(phdr, Elf_Addr)) {
 		uprintf("Unaligned program headers\n");
 		return (ENOEXEC);

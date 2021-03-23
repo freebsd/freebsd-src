@@ -779,7 +779,7 @@ arge_attach(device_t dev)
 	/*
 	 *  Get which PHY of 5 available we should use for this unit
 	 */
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), 
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "phymask", &sc->arge_phymask) != 0) {
 		/*
 		 * Use port 4 (WAN) for GE0. For any other port use
@@ -826,7 +826,7 @@ arge_attach(device_t dev)
 
 	/* Map control/status registers. */
 	sc->arge_rid = 0;
-	sc->arge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
+	sc->arge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &sc->arge_rid, RF_ACTIVE | RF_SHAREABLE);
 
 	if (sc->arge_res == NULL) {
@@ -1014,7 +1014,7 @@ arge_attach(device_t dev)
 	arge_attach_sysctl(sc->arge_dev);
 
 fail:
-	if (error) 
+	if (error)
 		arge_detach(dev);
 
 	return (error);
@@ -1166,7 +1166,7 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 	uint32_t addr =
 	    (phy << MAC_MII_PHY_ADDR_SHIFT) | (reg & MAC_MII_REG_MASK);
 
-	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: phy=%d, reg=%02x, value=%04x\n", __func__, 
+	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: phy=%d, reg=%02x, value=%04x\n", __func__,
 	    phy, reg, data);
 
 	mtx_lock(&miibus_mtx);
@@ -2759,7 +2759,7 @@ argemdio_attach(device_t dev)
 	sc->arge_dev = dev;
 	sc->arge_mac_unit = device_get_unit(dev);
 	sc->arge_rid = 0;
-	sc->arge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
+	sc->arge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &sc->arge_rid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->arge_res == NULL) {
 		device_printf(dev, "couldn't map memory\n");

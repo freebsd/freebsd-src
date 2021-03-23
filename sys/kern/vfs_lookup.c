@@ -992,8 +992,8 @@ dirloop:
 			     pr = pr->pr_parent)
 				if (dp == pr->pr_root)
 					break;
-			if (dp == ndp->ni_rootdir || 
-			    dp == ndp->ni_topdir || 
+			if (dp == ndp->ni_rootdir ||
+			    dp == ndp->ni_topdir ||
 			    dp == rootvnode ||
 			    pr != NULL ||
 			    ((dp->v_vflag & VV_ROOT) != 0 &&

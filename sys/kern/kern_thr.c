@@ -424,7 +424,7 @@ sys_thr_kill(struct thread *td, struct thr_kill_args *uap)
 			;
 		else if (!_SIG_VALID(uap->sig))
 			error = EINVAL;
-		else 
+		else
 			tdksignal(ttd, uap->sig, &ksi);
 		PROC_UNLOCK(ttd->td_proc);
 	}
@@ -560,7 +560,7 @@ sys_thr_wake(struct thread *td, struct thr_wake_args *uap)
 	if (uap->id == td->td_tid) {
 		td->td_pflags |= TDP_WAKEUP;
 		return (0);
-	} 
+	}
 
 	p = td->td_proc;
 	ttd = tdfind((lwpid_t)uap->id, p->p_pid);

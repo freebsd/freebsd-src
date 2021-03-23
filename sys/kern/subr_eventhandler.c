@@ -46,7 +46,7 @@ static TAILQ_HEAD(, eventhandler_list)	eventhandler_lists;
 static int				eventhandler_lists_initted = 0;
 static struct mtx			eventhandler_mutex;
 
-struct eventhandler_entry_generic 
+struct eventhandler_entry_generic
 {
     struct eventhandler_entry	ee;
     void			(* func)(void);
@@ -101,7 +101,7 @@ eventhandler_find_or_create_list(const char *name)
 	return (list);
 }
 
-/* 
+/*
  * Insertion is O(n) due to the priority scan, but optimises to O(1)
  * if all priorities are identical.
  */
@@ -110,7 +110,7 @@ eventhandler_register_internal(struct eventhandler_list *list,
     const char *name, eventhandler_tag epn)
 {
     struct eventhandler_entry		*ep;
-    
+
     KASSERT(eventhandler_lists_initted, ("eventhandler registered too early"));
     KASSERT(epn != NULL, ("%s: cannot register NULL event", __func__));
 
@@ -142,11 +142,11 @@ eventhandler_register_internal(struct eventhandler_list *list,
 }
 
 eventhandler_tag
-eventhandler_register(struct eventhandler_list *list, const char *name, 
+eventhandler_register(struct eventhandler_list *list, const char *name,
 		      void *func, void *arg, int priority)
 {
     struct eventhandler_entry_generic	*eg;
-    
+
     /* allocate an entry for this handler, populate it */
     eg = malloc(sizeof(struct eventhandler_entry_generic), M_EVENTHANDLER,
 	M_WAITOK | M_ZERO);
@@ -166,11 +166,11 @@ struct eventhandler_entry_generic_vimage
 };
 
 eventhandler_tag
-vimage_eventhandler_register(struct eventhandler_list *list, const char *name, 
+vimage_eventhandler_register(struct eventhandler_list *list, const char *name,
     void *func, void *arg, int priority, vimage_iterator_func_t iterfunc)
 {
     struct eventhandler_entry_generic_vimage	*eg;
-    
+
     /* allocate an entry for this handler, populate it */
     eg = malloc(sizeof(struct eventhandler_entry_generic_vimage),
 	M_EVENTHANDLER, M_WAITOK | M_ZERO);
@@ -266,14 +266,14 @@ eventhandler_find_list(const char *name)
 
     if (!eventhandler_lists_initted)
 	return(NULL);
-    
+
     /* scan looking for the requested list */
     mtx_lock(&eventhandler_mutex);
     list = _eventhandler_find_list(name);
     if (list != NULL)
 	EHL_LOCK(list);
     mtx_unlock(&eventhandler_mutex);
-    
+
     return(list);
 }
 

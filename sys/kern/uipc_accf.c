@@ -90,7 +90,7 @@ accept_filt_add(struct accept_filter *filt)
 				return (0);
 			}
 		}
-				
+
 	if (p == NULL)
 		SLIST_INSERT_HEAD(&accept_filtlsthd, filt, accf_next);
 	ACCEPT_FILTER_UNLOCK();

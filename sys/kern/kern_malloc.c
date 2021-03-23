@@ -1145,7 +1145,7 @@ kmeminit(void)
 	 * kmem arena can be set statically at compile-time or manually
 	 * through the kernel environment.  However, it is still limited to
 	 * twice the physical memory size, which has been sufficient to handle
-	 * the most severe cases of external fragmentation in the kmem arena. 
+	 * the most severe cases of external fragmentation in the kmem arena.
 	 */
 	if (vm_kmem_size / 2 / PAGE_SIZE > mem_size)
 		vm_kmem_size = 2 * mem_size * PAGE_SIZE;

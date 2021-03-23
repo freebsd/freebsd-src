@@ -127,7 +127,7 @@ settime(struct thread *td, struct timeval *tv)
 	timevalsub(&delta, &tv1);
 
 	/*
-	 * If the system is secure, we do not allow the time to be 
+	 * If the system is secure, we do not allow the time to be
 	 * set to a value earlier than 1 second less than the highest
 	 * time we have yet seen. The worst a miscreant can do in
 	 * this circumstance is "freeze" time. He couldn't go
@@ -1057,7 +1057,7 @@ ratecheck(struct timeval *lasttime, const struct timeval *mininterval)
  *
  * Note that we maintain the struct timeval for compatibility
  * with other bsd systems.  We reuse the storage and just monitor
- * clock ticks for minimal overhead.  
+ * clock ticks for minimal overhead.
  */
 int
 ppsratecheck(struct timeval *lasttime, int *curpps, int maxpps)

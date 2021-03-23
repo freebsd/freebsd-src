@@ -86,7 +86,7 @@ static void clock_identify(driver_t *, device_t);
 static int clock_attach(device_t);
 static unsigned counter_get_timecount(struct timecounter *tc);
 
-void 
+void
 mips_timer_early_init(uint64_t clock_hz)
 {
 	/* Initialize clock early so that we can use DELAY sooner */
@@ -236,7 +236,7 @@ clock_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		div = 0;
 	if (first != 0)
 		fdiv = (et->et_frequency * first) >> 32;
-	else 
+	else
 		fdiv = div;
 	DPCPU_SET(cycles_per_tick, div);
 	next = mips_rd_count() + fdiv;

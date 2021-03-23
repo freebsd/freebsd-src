@@ -86,7 +86,7 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/cavium/octeon_irq.h>
 
-#if defined(__mips_n64) 
+#if defined(__mips_n64)
 #define MAX_APP_DESC_ADDR     0xffffffffafffffff
 #else
 #define MAX_APP_DESC_ADDR     0xafffffff
@@ -194,7 +194,7 @@ octeon_ciu_reset(void)
 		       (1ull << (OCTEON_IRQ_MBOX1 - 8)));
 #endif
 
-	/* 
+	/*
 	 * Move the Performance Counter interrupt to OCTEON_PMC_IRQ
 	 */
 	cvmctl = mips_rd_cvmctl();
@@ -519,7 +519,7 @@ void cvmx_safe_printf(const char *format, ...)
  ****************************************************************************************
  */
 
-/* Define the struct that is initialized by the bootloader used by the 
+/* Define the struct that is initialized by the bootloader used by the
  * startup code.
  *
  * Copyright (c) 2004, 2005, 2006 Cavium Networks.
@@ -605,9 +605,9 @@ octeon_process_app_desc_ver_6(octeon_boot_descriptor_t *app_desc_ptr)
 	memcpy(cvmx_sysinfo_get()->mac_addr_base,
 	       octeon_bootinfo->mac_addr_base, 6);
 	cvmx_sysinfo_get()->mac_addr_count = octeon_bootinfo->mac_addr_count;
-	cvmx_sysinfo_get()->compact_flash_common_base_addr = 
+	cvmx_sysinfo_get()->compact_flash_common_base_addr =
 		octeon_bootinfo->compact_flash_common_base_addr;
-	cvmx_sysinfo_get()->compact_flash_attribute_base_addr = 
+	cvmx_sysinfo_get()->compact_flash_attribute_base_addr =
 		octeon_bootinfo->compact_flash_attribute_base_addr;
 	cvmx_sysinfo_get()->core_mask = octeon_bootinfo->core_mask;
 	cvmx_sysinfo_get()->led_display_base_addr =

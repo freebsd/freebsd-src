@@ -105,7 +105,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	 * our pcb also includes the td_frame being copied
 	 * too. The older mips2 code did an additional copy
 	 * of the td_frame, for us that's not needed any
-	 * longer (this copy does them both) 
+	 * longer (this copy does them both)
 	 */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
@@ -162,12 +162,12 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	if (td1->td_md.md_cop2) {
 		td2->td_md.md_cop2 = octeon_cop2_alloc_ctx();
-		memcpy(td2->td_md.md_cop2, td1->td_md.md_cop2, 
+		memcpy(td2->td_md.md_cop2, td1->td_md.md_cop2,
 			sizeof(*td1->td_md.md_cop2));
 	}
 	if (td1->td_md.md_ucop2) {
 		td2->td_md.md_ucop2 = octeon_cop2_alloc_ctx();
-		memcpy(td2->td_md.md_ucop2, td1->td_md.md_ucop2, 
+		memcpy(td2->td_md.md_ucop2, td1->td_md.md_ucop2,
 			sizeof(*td1->td_md.md_ucop2));
 	}
 	td2->td_md.md_cop2owner = td1->td_md.md_cop2owner;
@@ -430,11 +430,11 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	tf->sp = sp;
 	tf->sr = sr;
 	tf->pc = (register_t)(intptr_t)entry;
-	/* 
-	 * MIPS ABI requires T9 to be the same as PC 
+	/*
+	 * MIPS ABI requires T9 to be the same as PC
 	 * in subroutine entry point
 	 */
-	tf->t9 = (register_t)(intptr_t)entry; 
+	tf->t9 = (register_t)(intptr_t)entry;
 	tf->a0 = (register_t)(intptr_t)arg;
 
 	/*

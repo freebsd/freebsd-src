@@ -26,7 +26,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-        
+
 #include "opt_platform.h"
 
 #include <sys/param.h>
@@ -40,14 +40,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/gpio.h>
-                
+
 #include <machine/bus.h>
 #include <machine/intr.h>
 
 #include <mips/mediatek/mtk_soc.h>
-                
+
 #include <dev/gpio/gpiobusvar.h>
-                
+
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -630,7 +630,7 @@ static device_method_t mtk_gpio_methods[] = {
 	DEVMETHOD(device_probe,		mtk_gpio_probe),
 	DEVMETHOD(device_attach,	mtk_gpio_attach),
 	DEVMETHOD(device_detach,	mtk_gpio_detach),
-        
+
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus,		mtk_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		mtk_gpio_pin_max),
@@ -655,14 +655,14 @@ static device_method_t mtk_gpio_methods[] = {
 
 	DEVMETHOD_END
 };
-        
+
 static driver_t mtk_gpio_driver = {
 	"gpio",
 	mtk_gpio_methods,
 	sizeof(struct mtk_gpio_softc),
 };
-        
+
 static devclass_t mtk_gpio_devclass;
-        
+
 EARLY_DRIVER_MODULE(mtk_gpio_v2, simplebus, mtk_gpio_driver,
     mtk_gpio_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);

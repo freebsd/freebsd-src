@@ -633,7 +633,7 @@ struct ksem_open_args {
 	int		oflag;
 	mode_t		mode;
 	unsigned int	value;
-	semid_t		*idp;	
+	semid_t		*idp;
 };
 #endif
 int

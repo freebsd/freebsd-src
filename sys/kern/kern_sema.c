@@ -8,7 +8,7 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice(s), this list of conditions and the following disclaimer as
- *    the first lines of this file unmodified other than the possible 
+ *    the first lines of this file unmodified other than the possible
  *    addition of one or more copyright notices.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice(s), this list of conditions and the following disclaimer in the

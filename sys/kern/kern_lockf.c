@@ -235,7 +235,7 @@ static struct lock_owner_chain	lf_lock_owners[LOCK_OWNER_HASH_SIZE];
  * corresponding to owner of the new pending lock and the owner of the
  * lock upon which it waits. In order to prevent deadlock, we only add
  * an edge to this graph if the new edge would not create a cycle.
- * 
+ *
  * The lock owner graph is topologically sorted, i.e. if a node has
  * any outgoing edges, then it has an order strictly less than any
  * node to which it has an outgoing edge. We preserve this ordering
@@ -1334,13 +1334,13 @@ lf_cancel_lock(struct lockf *state, struct lockf_entry *lock)
 	 * active. Consider this case:
 	 *
 	 * Owner	Action		Result		Dependencies
-	 * 
-	 * A:		lock [0..0]	succeeds	
-	 * B:		lock [2..2]	succeeds	
+	 *
+	 * A:		lock [0..0]	succeeds
+	 * B:		lock [2..2]	succeeds
 	 * C:		lock [1..2]	blocked		C->B
 	 * D:		lock [0..1]	blocked		C->B,D->A,D->C
 	 * A:		unlock [0..0]			C->B,D->C
-	 * C:		cancel [1..2]	
+	 * C:		cancel [1..2]
 	 */
 
 	LIST_REMOVE(lock, lf_link);

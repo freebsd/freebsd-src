@@ -666,7 +666,7 @@ _C_LABEL(x):
 /*
  * Assume that w alaways need nops to escape CP0 hazard
  * TODO: Make hazard delays configurable. Stuck with 5 cycles on the moment
- * For more info on CP0 hazards see Chapter 7 (p.99) of "MIPS32 Architecture 
+ * For more info on CP0 hazards see Chapter 7 (p.99) of "MIPS32 Architecture
  *    For Programmers Volume III: The MIPS32 Privileged Resource Architecture"
  */
 #if defined(CPU_NLM)

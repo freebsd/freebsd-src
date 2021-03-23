@@ -376,7 +376,7 @@ cpu_fetch_syscall_args(struct thread *td)
 			sa->args[1] = locr0->a3;
 			nsaved = 2;
 			break;
-		} 
+		}
 #endif
 		/*
 		 * This is either not a quad syscall, or is a quad syscall with a
@@ -641,7 +641,7 @@ trap(struct trapframe *trapframe)
 	case T_TLB_MOD:
 		/* check for kernel address */
 		if (KERNLAND(trapframe->badvaddr)) {
-			if (pmap_emulate_modified(kernel_pmap, 
+			if (pmap_emulate_modified(kernel_pmap,
 			    trapframe->badvaddr) != 0) {
 				ftype = VM_PROT_WRITE;
 				goto kernel_fault;
@@ -945,7 +945,7 @@ dofault:
 		}
 
 		octeon_cop2_restore(td->td_md.md_cop2);
-		
+
 		/* Make userland re-request its context */
 		td->td_frame->sr &= ~MIPS_SR_COP_2_BIT;
 		td->td_md.md_flags |= MDTD_COP2USED;
@@ -1140,7 +1140,7 @@ trapDump(char *msg)
 			break;
 
 		printf("%s: ADR %jx PC %jx CR %jx SR %jx\n",
-		    trap_type[(trp->cause & MIPS_CR_EXC_CODE) >> 
+		    trap_type[(trp->cause & MIPS_CR_EXC_CODE) >>
 			MIPS_CR_EXC_CODE_SHIFT],
 		    (intmax_t)trp->vadr, (intmax_t)trp->pc,
 		    (intmax_t)trp->cause, (intmax_t)trp->status);

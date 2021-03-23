@@ -86,7 +86,7 @@ octeon_pmc_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	rid = 0;
-	sc->octeon_pmc_irq = bus_alloc_resource(dev, 
+	sc->octeon_pmc_irq = bus_alloc_resource(dev,
 	    SYS_RES_IRQ, &rid, OCTEON_PMC_IRQ,
 	    OCTEON_PMC_IRQ, 1, RF_ACTIVE);
 
@@ -95,7 +95,7 @@ octeon_pmc_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	error = bus_setup_intr(dev, sc->octeon_pmc_irq, 
+	error = bus_setup_intr(dev, sc->octeon_pmc_irq,
 	    INTR_TYPE_MISC, octeon_pmc_intr, NULL, sc, NULL);
 	if (error != 0) {
 		device_printf(dev, "bus_setup_intr failed: %d\n", error);

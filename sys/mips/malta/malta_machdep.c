@@ -282,7 +282,7 @@ malta_cpu_freq(void)
 }
 
 void
-platform_start(__register_t a0, __register_t a1,  __register_t a2, 
+platform_start(__register_t a0, __register_t a1,  __register_t a2,
     __register_t a3)
 {
 	vm_offset_t kernend;
@@ -310,7 +310,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 
 	bootverbose = 1;
 
-	/* 
+	/*
 	 * YAMON uses 32bit pointers to strings so
 	 * convert them to proper type manually
 	 */

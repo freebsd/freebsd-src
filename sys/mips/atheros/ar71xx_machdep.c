@@ -277,7 +277,7 @@ ar71xx_platform_check_mac_hints(void)
 }
 
 void
-platform_start(__register_t a0 __unused, __register_t a1 __unused, 
+platform_start(__register_t a0 __unused, __register_t a1 __unused,
     __register_t a2 __unused, __register_t a3 __unused)
 {
 	uint64_t platform_counter_freq;
@@ -285,7 +285,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	char **argv = NULL, **envp = NULL;
 	vm_offset_t kernend;
 
-	/* 
+	/*
 	 * clear the BSS and SBSS segments, this should be first call in
 	 * the function
 	 */
@@ -309,8 +309,8 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	argv = (char**)a1;
 	envp = (char**)a2;
 #endif
-	/* 
-	 * Protect ourselves from garbage in registers 
+	/*
+	 * Protect ourselves from garbage in registers
 	 */
 	if (MIPS_IS_VALID_PTR(envp)) {
 		for (i = 0; envp[i]; i += 2) {
@@ -331,7 +331,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 #endif
 
 	/*
-	 * Just wild guess. RedBoot let us down and didn't reported 
+	 * Just wild guess. RedBoot let us down and didn't reported
 	 * memory size
 	 */
 	if (realmem == 0)
@@ -361,8 +361,8 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	physmem = realmem;
 
 	/*
-	 * ns8250 uart code uses DELAY so ticker should be inititalized 
-	 * before cninit. And tick_init_params refers to hz, so * init_param1 
+	 * ns8250 uart code uses DELAY so ticker should be inititalized
+	 * before cninit. And tick_init_params refers to hz, so * init_param1
 	 * should be called first.
 	 */
 	init_param1();
@@ -412,7 +412,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 			kern_setenv(envp[i], envp[i+1]);
 		}
 	}
-	else 
+	else
 		printf ("envp is invalid\n");
 
 	/* Platform setup */
@@ -423,7 +423,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	mutex_init();
 
 	/*
-	 * Reset USB devices 
+	 * Reset USB devices
 	 */
 	ar71xx_init_usb_peripheral();
 

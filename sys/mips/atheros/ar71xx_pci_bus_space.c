@@ -46,7 +46,7 @@ static bs_w_4_s_proto(pcimem);
 
 /*
  * Bus space that handles offsets in word for 1/2 bytes read/write access.
- * Byte order of values is handled by device drivers itself. 
+ * Byte order of values is handled by device drivers itself.
  */
 static struct bus_space bus_space_pcimem = {
 	/* cookie */

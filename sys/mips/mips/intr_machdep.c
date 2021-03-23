@@ -125,7 +125,7 @@ mips_unmask_soft_irq(void *source)
 }
 
 /*
- * Perform initialization of interrupts prior to setting 
+ * Perform initialization of interrupts prior to setting
  * handlings
  */
 void
@@ -145,7 +145,7 @@ cpu_init_interrupts()
 
 	/*
 	 * Initialize all available vectors so spare IRQ
-	 * would show up in systat output 
+	 * would show up in systat output
 	 */
 	for (i = 0; i < NSOFT_IRQS; i++) {
 		snprintf(name, MAXCOMLEN + 1, "sint%d:", i);
@@ -254,8 +254,8 @@ cpu_intr(struct trapframe *tf)
 	status = mips_rd_status();
 	intr = (cause & MIPS_INT_MASK) >> 8;
 	/*
-	 * Do not handle masked interrupts. They were masked by 
-	 * pre_ithread function (mips_mask_XXX_intr) and will be 
+	 * Do not handle masked interrupts. They were masked by
+	 * pre_ithread function (mips_mask_XXX_intr) and will be
 	 * unmasked once ithread is through with handler
 	 */
 	intr &= (status & MIPS_INT_MASK) >> 8;
@@ -286,7 +286,7 @@ cpu_intr(struct trapframe *tf)
 		}
 
 		if (intr_event_handle(event, tf) != 0) {
-			printf("stray %s interrupt %d\n", 
+			printf("stray %s interrupt %d\n",
 			    hard ? "hard" : "soft", i);
 		}
 	}

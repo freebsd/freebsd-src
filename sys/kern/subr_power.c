@@ -102,10 +102,10 @@ power_profile_get_state(void)
 }
 
 void
-power_profile_set_state(int state) 
+power_profile_set_state(int state)
 {
 	int		changed;
-    
+
 	if (state != power_profile_state) {
 		power_profile_state = state;
 		changed = 1;

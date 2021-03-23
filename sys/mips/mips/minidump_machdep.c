@@ -196,7 +196,7 @@ minidumpsys(struct dumperinfo *di)
 	}
 
 	/*
-	 * Now mark pages from 0 to phys_avail[0], that's where kernel 
+	 * Now mark pages from 0 to phys_avail[0], that's where kernel
 	 * and pages allocated by pmap_steal reside
 	 */
 	for (pa = 0; pa < phys_avail[0]; pa += PAGE_SIZE) {
@@ -248,7 +248,7 @@ minidumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump msgbuf up front */
-	error = write_buffer(di, (char *)msgbufp->msg_ptr, 
+	error = write_buffer(di, (char *)msgbufp->msg_ptr,
 	    round_page(msgbufp->msg_size));
 	if (error)
 		goto fail;

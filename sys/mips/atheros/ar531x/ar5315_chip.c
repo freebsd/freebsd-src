@@ -67,7 +67,7 @@ uint32_t u_ar531x_uart_addr;
 
 uint32_t u_ar531x_gpio_di;
 uint32_t u_ar531x_gpio_do;
-uint32_t u_ar531x_gpio_cr;  
+uint32_t u_ar531x_gpio_cr;
 uint32_t u_ar531x_gpio_pins;
 
 uint32_t u_ar531x_wdog_ctl;
@@ -118,7 +118,7 @@ ar5315_chip_detect_sys_frequency(void)
 		1, 2, 4, 5
 	};
 
-	const uint32_t pllc = ATH_READ_REG(AR5315_SYSREG_BASE + 
+	const uint32_t pllc = ATH_READ_REG(AR5315_SYSREG_BASE +
 		AR5315_SYSREG_PLLC_CTL);
 
 	const uint32_t refdiv = pre_divide_table[AR5315_PLLC_REF_DIV(pllc)];
@@ -173,7 +173,7 @@ ar5315_chip_device_start(void)
 	ATH_WRITE_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_AHB_ERR0,
 		AR5315_AHB_ERROR_DET);
 	ATH_READ_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_AHB_ERR1);
-	ATH_WRITE_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_WDOG_CTL, 
+	ATH_WRITE_REG(AR5315_SYSREG_BASE+AR5315_SYSREG_WDOG_CTL,
 		AR5315_WDOG_CTL_IGNORE);
 
 	// set Ethernet AHB master arbitration control

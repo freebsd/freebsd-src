@@ -138,19 +138,19 @@ static void gt_pci_set_icus(struct gt_pci_softc *);
 static int gt_pci_intr(void *v);
 static int gt_pci_probe(device_t);
 static int gt_pci_attach(device_t);
-static int gt_pci_activate_resource(device_t, device_t, int, int, 
+static int gt_pci_activate_resource(device_t, device_t, int, int,
     struct resource *);
-static int gt_pci_setup_intr(device_t, device_t, struct resource *, 
+static int gt_pci_setup_intr(device_t, device_t, struct resource *,
     int, driver_filter_t *, driver_intr_t *, void *, void **);
 static int gt_pci_teardown_intr(device_t, device_t, struct resource *, void*);
 static int gt_pci_maxslots(device_t );
-static int gt_pci_conf_setup(struct gt_pci_softc *, int, int, int, int, 
+static int gt_pci_conf_setup(struct gt_pci_softc *, int, int, int, int,
     uint32_t *);
 static uint32_t gt_pci_read_config(device_t, u_int, u_int, u_int, u_int, int);
-static void gt_pci_write_config(device_t, u_int, u_int, u_int, u_int, 
+static void gt_pci_write_config(device_t, u_int, u_int, u_int, u_int,
     uint32_t, int);
 static int gt_pci_route_interrupt(device_t pcib, device_t dev, int pin);
-static struct resource * gt_pci_alloc_resource(device_t, device_t, int, 
+static struct resource * gt_pci_alloc_resource(device_t, device_t, int,
     int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 
 static void
@@ -264,7 +264,7 @@ static int
 gt_pci_attach(device_t dev)
 {
 
-	uint32_t busno;				       
+	uint32_t busno;
 	struct gt_pci_softc *sc = device_get_softc(dev);
 	int rid;
 
@@ -277,7 +277,7 @@ gt_pci_attach(device_t dev)
 	sc->sc_io = MALTA_PCI0_IO_BASE;
 	sc->sc_io_rman.rm_type = RMAN_ARRAY;
 	sc->sc_io_rman.rm_descr = "GT64120 PCI I/O Ports";
-	/* 
+	/*
 	 * First 256 bytes are ISA's registers: e.g. i8259's
 	 * So do not use them for general purpose PCI I/O window
 	 */
@@ -291,7 +291,7 @@ gt_pci_attach(device_t dev)
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "GT64120 PCI Memory";
 	if (rman_init(&sc->sc_mem_rman) != 0 ||
-	    rman_manage_region(&sc->sc_mem_rman, 
+	    rman_manage_region(&sc->sc_mem_rman,
 	    sc->sc_mem, sc->sc_mem + MALTA_PCIMEM1_SIZE) != 0) {
 		panic("gt_pci_attach: failed to set up memory rman");
 	}
@@ -315,7 +315,7 @@ gt_pci_attach(device_t dev)
 	sc->sc_ioh_elcr = MIPS_PHYS_TO_KSEG1(sc->sc_io + 0x4d0);
 	sc->sc_ioh_icu1 = MIPS_PHYS_TO_KSEG1(sc->sc_io + IO_ICU1);
 	sc->sc_ioh_icu2 = MIPS_PHYS_TO_KSEG1(sc->sc_io + IO_ICU2);
-#endif	
+#endif
 
 	/* All interrupts default to "masked off". */
 	sc->sc_imask = 0xffff;
@@ -331,7 +331,7 @@ gt_pci_attach(device_t dev)
 	    ICW1_RESET | ICW1_IC4);
 	/*
 	 * XXX: values from NetBSD's <dev/ic/i8259reg.h>
-	 */	 
+	 */
 	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
 	    0/*XXX*/);
 	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
@@ -400,8 +400,8 @@ gt_pci_attach(device_t dev)
 		(1U << 15);     /* IDE secondary */
 
 	/* Hook up our interrupt handler. */
-	if ((sc->sc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 
-	    MALTA_SOUTHBRIDGE_INTR, MALTA_SOUTHBRIDGE_INTR, 1, 
+	if ((sc->sc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+	    MALTA_SOUTHBRIDGE_INTR, MALTA_SOUTHBRIDGE_INTR, 1,
 	    RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		device_printf(dev, "unable to allocate IRQ resource\n");
 		return ENXIO;
@@ -409,7 +409,7 @@ gt_pci_attach(device_t dev)
 
 	if ((bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC,
 			    gt_pci_intr, NULL, sc, &sc->sc_ih))) {
-		device_printf(dev, 
+		device_printf(dev,
 		    "WARNING: unable to register interrupt handler\n");
 		return ENXIO;
 	}
@@ -449,7 +449,7 @@ gt_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	/* Clear cause register bits. */
 	GT_REGVAL(GT_INTR_CAUSE) = GT_PCI_DATA(0);
 	GT_REGVAL(GT_PCI0_CFG_ADDR) = GT_PCI_DATA((1U << 31) | addr);
-	/* 
+	/*
 	 * Galileo system controller is special
 	 */
 	if ((bus == 0) && (slot == 0))
@@ -475,7 +475,7 @@ gt_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	default:
 		shift = 0;
 		break;
-	}	
+	}
 
 	switch(bytes)
 	{
@@ -497,7 +497,7 @@ gt_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 		break;
 	}
 #if 0
-	printf("PCICONF_READ(%02x:%02x.%02x[%04x] -> %02x(%d)\n", 
+	printf("PCICONF_READ(%02x:%02x.%02x[%04x] -> %02x(%d)\n",
 	  bus, slot, func, reg, data, bytes);
 #endif
 
@@ -530,7 +530,7 @@ gt_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 			if(reg % 4 == 0)
 				data = (reg_data & ~mask) | data;
 			else
-				data = (reg_data & ~ (mask << shift)) | 
+				data = (reg_data & ~ (mask << shift)) |
 				    (data << shift);
 			break;
 		case 4:
@@ -557,7 +557,7 @@ gt_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 
 	GT_REGVAL(GT_PCI0_CFG_ADDR) = GT_PCI_DATA((1U << 31) | addr);
 
-	/* 
+	/*
 	 * Galileo system controller is special
 	 */
 	if ((bus == 0) && (slot == 0))
@@ -566,7 +566,7 @@ gt_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 		GT_REGVAL(GT_PCI0_CFG_DATA) = data;
 
 #if 0
-	printf("PCICONF_WRITE(%02x:%02x.%02x[%04x] -> %02x(%d)\n", 
+	printf("PCICONF_WRITE(%02x:%02x.%02x[%04x] -> %02x(%d)\n",
 	  bus, slot, func, reg, data, bytes);
 #endif
 
@@ -582,7 +582,7 @@ gt_pci_route_interrupt(device_t pcib, device_t dev, int pin)
 	bus = pci_get_bus(dev);
 	device = pci_get_slot(dev);
 	func = pci_get_function(dev);
-	/* 
+	/*
 	 * XXXMIPS: We need routing logic. This is just a stub .
 	 */
 	switch (device) {
@@ -594,7 +594,7 @@ gt_pci_route_interrupt(device_t pcib, device_t dev, int pin)
 		return 10;
 	default:
 		device_printf(pcib, "no IRQ mapping for %d/%d/%d/%d\n", bus, device, func, pin);
-		
+
 	}
 	return (0);
 
@@ -611,7 +611,7 @@ gt_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case PCIB_IVAR_BUS:
 		*result = sc->sc_busno;
 		return (0);
-		
+
 	}
 	return (ENOENT);
 }
@@ -633,7 +633,7 @@ static struct resource *
 gt_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
-	struct gt_pci_softc *sc = device_get_softc(bus);	
+	struct gt_pci_softc *sc = device_get_softc(bus);
 	struct resource *rv = NULL;
 	struct rman *rm;
 	bus_space_handle_t bh = 0;
@@ -668,7 +668,7 @@ gt_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 				rman_release_resource(rv);
 				return (NULL);
 			}
-		} 
+		}
 	}
 	return (rv);
 }
@@ -683,7 +683,7 @@ gt_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 	if ((type == SYS_RES_MEMORY) || (type == SYS_RES_IOPORT)) {
 		error = bus_space_map(rman_get_bustag(r),
 		    rman_get_bushandle(r), rman_get_size(r), 0, &p);
-		if (error) 
+		if (error)
 			return (error);
 		rman_set_bushandle(r, p);
 	}
@@ -691,8 +691,8 @@ gt_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 }
 
 static int
-gt_pci_setup_intr(device_t dev, device_t child, struct resource *ires, 
-		int flags, driver_filter_t *filt, driver_intr_t *handler, 
+gt_pci_setup_intr(device_t dev, device_t child, struct resource *ires,
+		int flags, driver_filter_t *filt, driver_intr_t *handler,
 		void *arg, void **cookiep)
 {
 	struct gt_pci_softc *sc = device_get_softc(dev);
@@ -707,7 +707,7 @@ gt_pci_setup_intr(device_t dev, device_t child, struct resource *ires,
 	sc->sc_intr_cookies[irq].irq = irq;
 	sc->sc_intr_cookies[irq].sc = sc;
 	if (event == NULL) {
-                error = intr_event_create(&event, 
+                error = intr_event_create(&event,
 		    (void *)&sc->sc_intr_cookies[irq], 0, irq,
 		    gt_pci_mask_irq, gt_pci_unmask_irq,
 		    NULL, NULL, "gt_pci intr%d:", irq);
@@ -716,7 +716,7 @@ gt_pci_setup_intr(device_t dev, device_t child, struct resource *ires,
 		sc->sc_eventstab[irq] = event;
 	}
 
-	intr_event_add_handler(event, device_get_nameunit(child), filt, 
+	intr_event_add_handler(event, device_get_nameunit(child), filt,
 	    handler, arg, intr_priority(flags), flags, cookiep);
 
 	gt_pci_unmask_irq((void *)&sc->sc_intr_cookies[irq]);

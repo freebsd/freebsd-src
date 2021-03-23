@@ -79,7 +79,7 @@ static driver_t uart_octeon_driver = {
 	sizeof(struct uart_softc),
 };
 
-extern 
+extern
 SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
 
 static int

@@ -115,7 +115,7 @@ ar5315_spi_attach(device_t dev)
 
 	sc->sc_dev = dev;
         rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
+	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "Could not map memory\n");
@@ -145,7 +145,7 @@ ar5315_spi_get_block(off_t offset, caddr_t data, off_t count)
 	for(i = 0; i < count / 4; ++i) {
 		*((uint32_t *)data + i) = ATH_READ_REG(AR5315_MEM1_BASE + offset + i * 4);
 	}
-//	printf("ar5315_spi_get_blockr: %x %x %x\n", 
+//	printf("ar5315_spi_get_blockr: %x %x %x\n",
 //		(int)offset, (int)count, *(uint32_t *)data);
 	return (0);
 }

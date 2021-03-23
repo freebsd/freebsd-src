@@ -137,7 +137,7 @@ kproc_create(void (*func)(void *), void *arg,
 
 	/* Delay putting it on the run queue until now. */
 	if (!(flags & RFSTOPPED))
-		sched_add(td, SRQ_BORING); 
+		sched_add(td, SRQ_BORING);
 	else
 		thread_unlock(td);
 
@@ -223,7 +223,7 @@ kproc_suspend_check(struct proc *p)
 }
 
 /*
- * Start a kernel thread.  
+ * Start a kernel thread.
  *
  * This function is used to start "internal" daemons and intended
  * to be called from SYSINIT().
@@ -248,7 +248,7 @@ kthread_start(const void *udata)
  * func is the function to start.
  * arg is the parameter to pass to function on first startup.
  * newtdp is the return value pointing to the thread's struct thread.
- *  ** XXX fix this --> flags are flags to fork1 (in unistd.h) 
+ *  ** XXX fix this --> flags are flags to fork1 (in unistd.h)
  * fmt and following will be *printf'd into (*newtd)->td_name (for ps, etc.).
  */
 int
@@ -317,7 +317,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	/* Delay putting it on the run queue until now. */
 	if (!(flags & RFSTOPPED)) {
 		thread_lock(newtd);
-		sched_add(newtd, SRQ_BORING); 
+		sched_add(newtd, SRQ_BORING);
 	}
 	if (newtdp)
 		*newtdp = newtd;
@@ -454,7 +454,7 @@ kthread_suspend_check(void)
 int
 kproc_kthread_add(void (*func)(void *), void *arg,
             struct proc **procptr, struct thread **tdptr,
-            int flags, int pages, const char *procname, const char *fmt, ...) 
+            int flags, int pages, const char *procname, const char *fmt, ...)
 {
 	int error;
 	va_list ap;
@@ -475,7 +475,7 @@ kproc_kthread_add(void (*func)(void *), void *arg,
 #ifdef KTR
 		sched_clear_tdname(td);
 #endif
-		return (0); 
+		return (0);
 	}
 	va_start(ap, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, ap);

@@ -258,7 +258,7 @@ generic_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
 	panic("%s: not implemented", __func__);
 }
 
-void    
+void
 generic_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
 {
 
@@ -728,9 +728,9 @@ generic_bs_c_8(void *t, bus_space_handle_t bsh1, bus_size_t off1,
 }
 
 void
-generic_bs_barrier(void *t __unused, 
+generic_bs_barrier(void *t __unused,
 		bus_space_handle_t bsh __unused,
-		bus_size_t offset __unused, bus_size_t len __unused, 
+		bus_size_t offset __unused, bus_size_t len __unused,
 		int flags)
 {
 #if 0

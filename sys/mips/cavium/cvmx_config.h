@@ -59,8 +59,8 @@
 #define	CVMX_DONT_INCLUDE_CONFIG
 
 /* Define to enable the use of simple executive packet output functions.
-** For packet I/O setup enable the helper functions below. 
-*/ 
+** For packet I/O setup enable the helper functions below.
+*/
 #define CVMX_ENABLE_PKO_FUNCTIONS
 
 /* Define to enable the use of simple executive helper functions. These
@@ -70,9 +70,9 @@
 #define CVMX_ENABLE_HELPER_FUNCTIONS
 
 /* CVMX_HELPER_FIRST_MBUFF_SKIP is the number of bytes to reserve before
-** the beginning of the packet. If necessary, override the default  
-** here.  See the IPD section of the hardware manual for MBUFF SKIP 
-** details.*/ 
+** the beginning of the packet. If necessary, override the default
+** here.  See the IPD section of the hardware manual for MBUFF SKIP
+** details.*/
 #define CVMX_HELPER_FIRST_MBUFF_SKIP 184
 
 /* CVMX_HELPER_NOT_FIRST_MBUFF_SKIP is the number of bytes to reserve in each
@@ -121,8 +121,8 @@
 #define CVMX_HELPER_PKO_QUEUES_PER_PORT_INTERFACE0	1
 #define CVMX_HELPER_PKO_QUEUES_PER_PORT_INTERFACE1	1
 
-/* Configure PKO to use per-core queues (PKO lockless operation). 
-** Please see the related SDK documentation for PKO that illustrates 
+/* Configure PKO to use per-core queues (PKO lockless operation).
+** Please see the related SDK documentation for PKO that illustrates
 ** how to enable and configure this option. */
 //#define CVMX_ENABLE_PKO_LOCKLESS_OPERATION 1
 //#define CVMX_HELPER_PKO_MAX_PORTS_INTERFACE0 8
@@ -149,8 +149,8 @@
 #define CVMX_LLM_CONFIG_NUM_PORTS 2
 
 /* Enable the fix for PKI-100 errata ("Size field is 8 too large in WQE and next
-** pointers"). If CVMX_ENABLE_LEN_M8_FIX is set to 0, the fix for this errata will 
-** not be enabled. 
+** pointers"). If CVMX_ENABLE_LEN_M8_FIX is set to 0, the fix for this errata will
+** not be enabled.
 ** 0: Fix is not enabled
 ** 1: Fix is enabled, if supported by hardware
 */

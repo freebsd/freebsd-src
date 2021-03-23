@@ -331,7 +331,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 		 */
 		goto error;
 	}
-		
+
 	/*
 	 * Fall back on ACL_OTHER.  ACL_MASK is not applied to ACL_OTHER.
 	 */

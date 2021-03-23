@@ -272,8 +272,8 @@ mtk_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
                 case CMD_PAGE_PROGRAM:
                         cmd->rx_cmd_sz = cmd->rx_data_sz = 0;
                         break;
-        }      
-        
+        }
+
 	mtk_spi_chip_activate(sc);
 
 	if (cmd->tx_cmd_sz + cmd->rx_cmd_sz) {

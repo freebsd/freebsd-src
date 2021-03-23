@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
  * a global write clock that is used to mark memory on free.
  *
  * The write and read sequence numbers can be thought of as a two
- * handed clock with readers always advancing towards writers.  GUS 
+ * handed clock with readers always advancing towards writers.  GUS
  * maintains the invariant that all readers can safely access memory
  * that was visible at the time they loaded their copy of the sequence
  * number.  Periodically the read sequence or hand is polled and
@@ -130,7 +130,7 @@ __FBSDID("$FreeBSD$");
  *                ^cpuA  ^cpuC
  * | -- free -- | --------- deferred frees -------- | ---- free ---- |
  *
- * 
+ *
  * In this example cpuA has the lowest sequence number and poll can
  * advance rd seq.  cpuB is not running and is considered to observe
  * wr seq.

@@ -459,7 +459,7 @@ mtk_uart_bus_probe(struct uart_softc *sc)
 	error = mtk_uart_probe(&sc->sc_bas);
 	if (error)
 		return (error);
-		
+
 	device_set_desc(sc->sc_dev, "MTK UART Controller");
 
 	return (0);

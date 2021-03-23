@@ -460,7 +460,7 @@ bt_lookupbusy(vmem_t *vm, vmem_addr_t addr)
 	bt_t *bt;
 
 	VMEM_ASSERT_LOCKED(vm);
-	list = bt_hashhead(vm, addr); 
+	list = bt_hashhead(vm, addr);
 	LIST_FOREACH(bt, list, bt_hashlist) {
 		if (bt->bt_start == addr) {
 			break;
@@ -642,7 +642,7 @@ static struct mtx_padalign __exclusive_cache_line vmem_bt_lock;
  * page of kva.  We dip into this reserve by specifying M_USE_RESERVE only
  * when allocating the page to hold new boundary tags.  In this way the
  * reserve is automatically filled by the allocation that uses the reserve.
- * 
+ *
  * We still have to guarantee that the new tags are allocated atomically since
  * many threads may try concurrently.  The bt_lock provides this guarantee.
  * We convert WAITOK allocations to NOWAIT and then handle the blocking here
@@ -965,7 +965,7 @@ vmem_fit(const bt_t *bt, vmem_size_t size, vmem_size_t align,
 	end = BT_END(bt);
 	if (end > maxaddr)
 		end = maxaddr;
-	if (start > end) 
+	if (start > end)
 		return (ENOMEM);
 
 	start = VMEM_ALIGNUP(start - phase, align) + phase;

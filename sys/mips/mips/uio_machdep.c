@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Implement uiomove(9) from physical memory using a combination
  * of the direct mapping and sf_bufs to reduce the creation and
- * destruction of ephemeral mappings.  
+ * destruction of ephemeral mappings.
  */
 int
 uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)

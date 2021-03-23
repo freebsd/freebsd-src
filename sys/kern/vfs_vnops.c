@@ -610,7 +610,7 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 		} else
 			rl_cookie = NULL;
 		mp = NULL;
-		if (rw == UIO_WRITE) { 
+		if (rw == UIO_WRITE) {
 			if (vp->v_type != VCHR &&
 			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
 			    != 0)
@@ -673,7 +673,7 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 /*
  * Package up an I/O request on a vnode into a uio and do it.  The I/O
  * request is split up into smaller chunks and we try to avoid saturating
- * the buffer cache while potentially holding a vnode locked, so we 
+ * the buffer cache while potentially holding a vnode locked, so we
  * check bwillwrite() before calling vn_rdwr().  We also call kern_yield()
  * to give other processes a chance to lock the vnode (either other processes
  * core'ing the same binary, or unrelated processes scanning the directory).
@@ -2044,7 +2044,7 @@ vfs_write_suspend(struct mount *mp, int flags)
 	mp->mnt_kern_flag |= MNTK_SUSPEND;
 	mp->mnt_susp_owner = curthread;
 	if (mp->mnt_writeopcount > 0)
-		(void) msleep(&mp->mnt_writeopcount, 
+		(void) msleep(&mp->mnt_writeopcount,
 		    MNT_MTX(mp), (PUSER - 1)|PDROP, "suspwt", 0);
 	else
 		MNT_IUNLOCK(mp);
@@ -3129,7 +3129,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 
 	/*
 	 * Set the blksize to the larger of the hole sizes for invp and outvp.
-	 * If hole sizes aren't available, set the blksize to the larger 
+	 * If hole sizes aren't available, set the blksize to the larger
 	 * f_iosize of invp and outvp.
 	 * This code expects the hole sizes and f_iosizes to be powers of 2.
 	 * This value is clipped at 4Kbytes and 1Mbyte.

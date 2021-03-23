@@ -2071,7 +2071,7 @@ proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb)
 /*
  * This sysctl allows a process to retrieve the argument list or process
  * title for another process without groping around in the address space
- * of the other process.  It also allow a process to set its own "process 
+ * of the other process.  It also allow a process to set its own "process
  * title to a string of its own choice.
  */
 static int

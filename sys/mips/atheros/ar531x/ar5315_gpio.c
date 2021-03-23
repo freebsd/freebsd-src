@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2016, Hiroki Mori
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
- * Copyright (c) 2009, Luiz Otavio O Souza. 
+ * Copyright (c) 2009, Luiz Otavio O Souza.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
  */
 
 /*
- * GPIO driver for AR5315 
+ * GPIO driver for AR5315
  */
 
 #include <sys/cdefs.h>
@@ -60,11 +60,11 @@ __FBSDID("$FreeBSD$");
 /*
  * Helpers
  */
-static void ar5315_gpio_function_enable(struct ar5315_gpio_softc *sc, 
+static void ar5315_gpio_function_enable(struct ar5315_gpio_softc *sc,
     uint32_t mask);
-static void ar5315_gpio_function_disable(struct ar5315_gpio_softc *sc, 
+static void ar5315_gpio_function_disable(struct ar5315_gpio_softc *sc,
     uint32_t mask);
-static void ar5315_gpio_pin_configure(struct ar5315_gpio_softc *sc, 
+static void ar5315_gpio_pin_configure(struct ar5315_gpio_softc *sc,
     struct gpio_pin *pin, uint32_t flags);
 
 /*
@@ -349,14 +349,14 @@ ar5315_gpio_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if ((sc->gpio_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, 
+	if ((sc->gpio_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &sc->gpio_irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		device_printf(dev, "unable to allocate IRQ resource\n");
 		ar5315_gpio_detach(dev);
 		return (ENXIO);
 	}
 
-	if ((bus_setup_intr(dev, sc->gpio_irq_res, INTR_TYPE_MISC, 
+	if ((bus_setup_intr(dev, sc->gpio_irq_res, INTR_TYPE_MISC,
 	    ar5315_gpio_filter, ar5315_gpio_intr, sc, &sc->gpio_ih))) {
 		device_printf(dev,
 		    "WARNING: unable to register interrupt handler\n");

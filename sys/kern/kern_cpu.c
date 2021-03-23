@@ -202,7 +202,7 @@ cpufreq_attach(device_t dev)
 }
 
 /* Handle any work to be done for all drivers that attached during boot. */
-static void 
+static void
 cpufreq_startup_task(void *ctx, int pending)
 {
 
@@ -262,7 +262,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	 * changing the frequency until they're online.  This is because we
 	 * can't switch to them using sched_bind() and thus we'd only be
 	 * switching the main CPU.  XXXTODO: Need to think more about how to
-	 * handle having different CPUs at different frequencies.  
+	 * handle having different CPUs at different frequencies.
 	 */
 	if (mp_ncpus > 1 && !smp_started) {
 		device_printf(dev, "rejecting change, SMP not started yet\n");

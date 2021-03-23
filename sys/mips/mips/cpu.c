@@ -117,7 +117,7 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	/* Read config register selection 0 to learn TLB type. */
 	cfg0 = mips_rd_config();
 
-	cpuinfo->tlb_type = 
+	cpuinfo->tlb_type =
 	    ((cfg0 & MIPS_CONFIG0_MT_MASK) >> MIPS_CONFIG0_MT_SHIFT);
 	cpuinfo->icache_virtual = cfg0 & MIPS_CONFIG0_VI;
 
@@ -173,7 +173,7 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	} else
 #endif
 #if !defined(CPU_NLM)
-	cpuinfo->tlb_nentries = 
+	cpuinfo->tlb_nentries =
 	    ((cfg1 & MIPS_CONFIG1_TLBSZ_MASK) >> MIPS_CONFIG1_TLBSZ_SHIFT) + 1;
 #endif
 #if defined(CPU_CNMIPS)
@@ -191,7 +191,7 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	if (tmp != 0) {
 		cpuinfo->l1.ic_linesize = 1 << (tmp + 1);
 		cpuinfo->l1.ic_nways = (((cfg1 & MIPS_CONFIG1_IA_MASK) >> MIPS_CONFIG1_IA_SHIFT)) + 1;
-		cpuinfo->l1.ic_nsets = 
+		cpuinfo->l1.ic_nsets =
 	    		1 << (((cfg1 & MIPS_CONFIG1_IS_MASK) >> MIPS_CONFIG1_IS_SHIFT) + 6);
 	}
 #endif
@@ -204,9 +204,9 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	tmp = (cfg1 & MIPS_CONFIG1_DL_MASK) >> MIPS_CONFIG1_DL_SHIFT;
 	if (tmp != 0) {
 		cpuinfo->l1.dc_linesize = 1 << (tmp + 1);
-		cpuinfo->l1.dc_nways = 
+		cpuinfo->l1.dc_nways =
 		    (((cfg1 & MIPS_CONFIG1_DA_MASK) >> MIPS_CONFIG1_DA_SHIFT)) + 1;
-		cpuinfo->l1.dc_nsets = 
+		cpuinfo->l1.dc_nsets =
 		    1 << (((cfg1 & MIPS_CONFIG1_DS_MASK) >> MIPS_CONFIG1_DS_SHIFT) + 6);
 	}
 #else
@@ -240,7 +240,7 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 
 	cpuinfo->l1.ic_size = cpuinfo->l1.ic_linesize
 	    * cpuinfo->l1.ic_nsets * cpuinfo->l1.ic_nways;
-	cpuinfo->l1.dc_size = cpuinfo->l1.dc_linesize 
+	cpuinfo->l1.dc_size = cpuinfo->l1.dc_linesize
 	    * cpuinfo->l1.dc_nsets * cpuinfo->l1.dc_nways;
 
 	/*
@@ -392,7 +392,7 @@ cpu_identify(void)
 		} else {
 			printf ("%d ways of", cpuinfo.l1.ic_nways);
 		}
-		printf(" %d sets, %d bytes per line\n", 
+		printf(" %d sets, %d bytes per line\n",
 		    cpuinfo.l1.ic_nsets, cpuinfo.l1.ic_linesize);
 	}
 
@@ -405,7 +405,7 @@ cpu_identify(void)
 		} else {
 			printf ("%d ways of", cpuinfo.l1.dc_nways);
 		}
-		printf(" %d sets, %d bytes per line\n", 
+		printf(" %d sets, %d bytes per line\n",
 		    cpuinfo.l1.dc_nsets, cpuinfo.l1.dc_linesize);
 	}
 
@@ -427,7 +427,7 @@ cpu_identify(void)
 		return;
 
 	cfg1 = mips_rd_config1();
-	printf("  Config1=0x%b\n", cfg1, 
+	printf("  Config1=0x%b\n", cfg1,
 	    "\20\7COP2\6MDMX\5PerfCount\4WatchRegs\3MIPS16\2EJTAG\1FPU");
 
 	if (cpuinfo.fpu_id != 0)
@@ -447,8 +447,8 @@ cpu_identify(void)
 	if (!(cfg1 & MIPS_CONFIG_CM))
 		return;
 	cfg2 = mips_rd_config2();
-	/* 
-	 * Config2 contains no useful information other then Config3 
+	/*
+	 * Config2 contains no useful information other then Config3
 	 * existence flag
 	 */
 	printf("  Config2=0x%08x\n", cfg2);
@@ -481,7 +481,7 @@ static struct resource *cpu_alloc_resource(device_t, device_t, int, int *,
 					   rman_res_t, rman_res_t, rman_res_t,
 					   u_int);
 static int cpu_setup_intr(device_t, device_t, struct resource *, int,
-			  driver_filter_t *f, driver_intr_t *, void *, 
+			  driver_filter_t *f, driver_intr_t *, void *,
 			  void **);
 
 static device_method_t cpu_methods[] = {
@@ -564,7 +564,7 @@ cpu_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 static int
 cpu_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
-	       driver_filter_t *filt, driver_intr_t *handler, void *arg, 
+	       driver_filter_t *filt, driver_intr_t *handler, void *arg,
 	       void **cookiep)
 {
 	int error;
@@ -578,7 +578,7 @@ cpu_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 
 	intr = rman_get_start(res);
 
-	cpu_establish_hardintr(device_get_nameunit(child), filt, handler, arg, 
+	cpu_establish_hardintr(device_get_nameunit(child), filt, handler, arg,
 	    intr, flags, cookiep);
 	device_printf(child, "established CPU interrupt %d\n", intr);
 	return (0);

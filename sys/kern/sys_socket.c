@@ -427,7 +427,7 @@ soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	strncpy(kif->kf_path, so->so_proto->pr_domain->dom_name,
 	    sizeof(kif->kf_path));
 	CURVNET_RESTORE();
-	return (0);	
+	return (0);
 }
 
 /*
@@ -678,7 +678,7 @@ retry:
 				SOCKBUF_UNLOCK(sb);
 				goto retry;
 			}
-			
+
 			if (!aio_set_cancel_function(job, soo_aio_cancel)) {
 				SOCKBUF_UNLOCK(sb);
 				if (done != 0)
@@ -692,7 +692,7 @@ retry:
 			return;
 		}
 		SOCKBUF_UNLOCK(sb);
-	}		
+	}
 	if (done != 0 && (error == ERESTART || error == EINTR ||
 	    error == EWOULDBLOCK))
 		error = 0;

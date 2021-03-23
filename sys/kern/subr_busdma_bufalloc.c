@@ -72,7 +72,7 @@ struct busdma_bufalloc {
 	struct busdma_bufzone	buf_zones[12];
 };
 
-busdma_bufalloc_t 
+busdma_bufalloc_t
 busdma_bufalloc_create(const char *name, bus_size_t minimum_alignment,
     uma_alloc alloc_func, uma_free free_func, u_int32_t zcreate_flags)
 {
@@ -81,7 +81,7 @@ busdma_bufalloc_create(const char *name, bus_size_t minimum_alignment,
 	int i;
 	bus_size_t cursize;
 
-	ba = malloc(sizeof(struct busdma_bufalloc), M_DEVBUF, 
+	ba = malloc(sizeof(struct busdma_bufalloc), M_DEVBUF,
 	    M_ZERO | M_WAITOK);
 
 	ba->min_size = MAX(MIN_ZONE_BUFSIZE, minimum_alignment);
@@ -116,7 +116,7 @@ busdma_bufalloc_create(const char *name, bus_size_t minimum_alignment,
 	return (ba);
 }
 
-void 
+void
 busdma_bufalloc_destroy(busdma_bufalloc_t ba)
 {
 	struct busdma_bufzone *bz;
@@ -132,7 +132,7 @@ busdma_bufalloc_destroy(busdma_bufalloc_t ba)
 	free(ba, M_DEVBUF);
 }
 
-struct busdma_bufzone * 
+struct busdma_bufzone *
 busdma_bufalloc_findzone(busdma_bufalloc_t ba, bus_size_t size)
 {
 	struct busdma_bufzone *bz;
@@ -165,7 +165,7 @@ busdma_bufalloc_alloc_uncacheable(uma_zone_t zone, vm_size_t size, int domain,
 #endif	/* VM_MEMATTR_UNCACHEABLE */
 }
 
-void 
+void
 busdma_bufalloc_free_uncacheable(void *item, vm_size_t size, uint8_t pflag)
 {
 

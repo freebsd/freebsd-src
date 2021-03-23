@@ -90,7 +90,7 @@
 #define	 SMBENBST_SLVRDLST	(1 << 2)
 #define	 SMBENBST_SLVDISB	(1 << 1)
 #define	 SMBENBST_SMBEN		(1 << 0)
-#define	SMBSDAHD		0xd0		
+#define	SMBSDAHD		0xd0
 #define	 SMBSDAHD_HDENB		(1 << 8)
 #define	 SMBSDAHD_SDAHD		(0xff << 0)
 

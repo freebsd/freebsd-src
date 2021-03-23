@@ -74,7 +74,7 @@ MTX_SYSINIT(devstat_mutex, &devstat_mutex, "devstat", MTX_DEF);
 static struct devstatlist device_statq = STAILQ_HEAD_INITIALIZER(device_statq);
 static struct devstat *devstat_alloc(void);
 static void devstat_free(struct devstat *);
-static void devstat_add_entry(struct devstat *ds, const void *dev_name, 
+static void devstat_add_entry(struct devstat *ds, const void *dev_name,
 		       int unit_number, uint32_t block_size,
 		       devstat_support_flags flags,
 		       devstat_type_flags device_type,
@@ -110,11 +110,11 @@ devstat_new_entry(const void *dev_name,
 }
 
 /*
- * Take a malloced and zeroed devstat structure given to us, fill it in 
- * and add it to the queue of devices.  
+ * Take a malloced and zeroed devstat structure given to us, fill it in
+ * and add it to the queue of devices.
  */
 static void
-devstat_add_entry(struct devstat *ds, const void *dev_name, 
+devstat_add_entry(struct devstat *ds, const void *dev_name,
 		  int unit_number, uint32_t block_size,
 		  devstat_support_flags flags,
 		  devstat_type_flags device_type,
@@ -132,7 +132,7 @@ devstat_add_entry(struct devstat *ds, const void *dev_name,
 	 * Priority sort.  Each driver passes in its priority when it adds
 	 * its devstat entry.  Drivers are sorted first by priority, and
 	 * then by probe order.
-	 * 
+	 *
 	 * For the first device, we just insert it, since the priority
 	 * doesn't really matter yet.  Subsequent devices are inserted into
 	 * the list using the order outlined above.
@@ -299,7 +299,7 @@ devstat_start_transaction_bio_t0(struct devstat *ds, struct bio *bp)
  * atomic instructions using appropriate memory barriers.
  */
 void
-devstat_end_transaction(struct devstat *ds, uint32_t bytes, 
+devstat_end_transaction(struct devstat *ds, uint32_t bytes,
 			devstat_tag_type tag_type, devstat_trans_flags flags,
 			const struct bintime *now, const struct bintime *then)
 {
@@ -374,7 +374,7 @@ devstat_end_transaction_bio_bt(struct devstat *ds, const struct bio *bp,
 		flg = DEVSTAT_READ;
 	else if (bp->bio_cmd == BIO_WRITE)
 		flg = DEVSTAT_WRITE;
-	else 
+	else
 		flg = DEVSTAT_NO_DATA;
 
 	devstat_end_transaction(ds, bp->bio_bcount - bp->bio_resid,
@@ -420,7 +420,7 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	mtx_lock(&devstat_mutex);
-	nds = STAILQ_FIRST(&device_statq); 
+	nds = STAILQ_FIRST(&device_statq);
 	if (mygen != devstat_generation)
 		error = EBUSY;
 	mtx_unlock(&devstat_mutex);
@@ -446,7 +446,7 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
 
 /*
  * Sysctl entries for devstat.  The first one is a node that all the rest
- * hang off of. 
+ * hang off of.
  */
 static SYSCTL_NODE(_kern, OID_AUTO, devstat, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
     "Device Statistics");
@@ -459,11 +459,11 @@ SYSCTL_PROC(_kern_devstat, OID_AUTO, all,
  * Export the number of devices in the system so that userland utilities
  * can determine how much memory to allocate to hold all the devices.
  */
-SYSCTL_INT(_kern_devstat, OID_AUTO, numdevs, CTLFLAG_RD, 
+SYSCTL_INT(_kern_devstat, OID_AUTO, numdevs, CTLFLAG_RD,
     &devstat_num_devs, 0, "Number of devices in the devstat list");
 SYSCTL_LONG(_kern_devstat, OID_AUTO, generation, CTLFLAG_RD,
     &devstat_generation, 0, "Devstat list generation");
-SYSCTL_INT(_kern_devstat, OID_AUTO, version, CTLFLAG_RD, 
+SYSCTL_INT(_kern_devstat, OID_AUTO, version, CTLFLAG_RD,
     &devstat_version, 0, "Devstat list version number");
 
 /*

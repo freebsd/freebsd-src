@@ -110,7 +110,7 @@ bcm_mips_register_isrcs(struct bcm_mips_softc *sc)
 
 /**
  * Initialize the given @p cpuirq state as unavailable.
- * 
+ *
  * @param sc		BHND MIPS driver instance state.
  * @param cpuirq	The CPU IRQ state to be initialized.
  *
@@ -140,7 +140,7 @@ bcm_mips_init_cpuirq_unavail(struct bcm_mips_softc *sc,
 
 /**
  * Allocate required resources and initialize the given @p cpuirq state.
- * 
+ *
  * @param sc		BHND MIPS driver instance state.
  * @param cpuirq	The CPU IRQ state to be initialized.
  * @param rid		The resource ID to be assigned for the CPU IRQ resource,
@@ -220,7 +220,7 @@ bcm_mips_init_cpuirq(struct bcm_mips_softc *sc, struct bcm_mips_cpuirq *cpuirq,
 
 /**
  * Free any resources associated with the given @p cpuirq state.
- * 
+ *
  * @param sc		BHND MIPS driver instance state.
  * @param cpuirq	A CPU IRQ instance previously successfully initialized
  *			via bcm_mips_init_cpuirq().
@@ -287,9 +287,9 @@ bcm_mips_attach_default(device_t dev)
 
 /**
  * BHND MIPS device attach.
- * 
+ *
  * This must be called from subclass drivers' DEVICE_ATTACH().
- * 
+ *
  * @param dev BHND MIPS device.
  * @param num_cpuirqs The number of usable MIPS HW IRQs.
  * @param timer_irq The MIPS HW IRQ assigned to the MIPS CPU timer.
@@ -495,7 +495,7 @@ bcm_mips_pic_xref(struct bcm_mips_softc *sc)
  * Walk up the device tree from @p dev until we find a bhnd-attached core,
  * returning either the core, or NULL if @p dev is not attached under a bhnd
  * bus.
- */    
+ */
 static device_t
 bcm_mips_find_bhnd_parent(device_t dev)
 {
@@ -519,7 +519,7 @@ bcm_mips_find_bhnd_parent(device_t dev)
  * Retain @p isrc and assign a MIPS CPU interrupt on behalf of @p res; if
  * the @p isrc already has a MIPS CPU interrupt assigned, the existing
  * reference will be left unmodified.
- * 
+ *
  * @param sc		BHND MIPS driver state.
  * @param isrc		The interrupt source corresponding to @p res.
  * @param res		The interrupt resource for which a MIPS CPU IRQ will be
@@ -573,7 +573,7 @@ bcm_mips_retain_cpu_intr(struct bcm_mips_softc *sc,
 
 	case BHND_DEVCLASS_PCI:
 	case BHND_DEVCLASS_PCIE:
-	case BHND_DEVCLASS_PCCARD:	
+	case BHND_DEVCLASS_PCCARD:
 	case BHND_DEVCLASS_ENET:
 	case BHND_DEVCLASS_ENET_MAC:
 	case BHND_DEVCLASS_ENET_PHY:

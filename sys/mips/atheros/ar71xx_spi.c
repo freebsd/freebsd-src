@@ -104,7 +104,7 @@ ar71xx_spi_attach(device_t dev)
 
 	sc->sc_dev = dev;
         rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
+	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "Could not map memory\n");
@@ -218,9 +218,9 @@ ar71xx_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	ar71xx_spi_chip_activate(sc, cs);
 
-	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz, 
+	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz,
 	    ("TX/RX command sizes should be equal"));
-	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz, 
+	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz,
 	    ("TX/RX data sizes should be equal"));
 
 	/*

@@ -2930,7 +2930,7 @@ issignal(struct thread *td)
 
 			td->td_si.si_signo = 0;
 
-			/* 
+			/*
 			 * Keep looking if the debugger discarded or
 			 * replaced the signal.
 			 */

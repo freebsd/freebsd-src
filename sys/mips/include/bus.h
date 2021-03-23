@@ -108,7 +108,7 @@ struct bus_space {
 			    bus_size_t, u_int32_t *, bus_size_t);
 	void		(*bs_rm_8) (void *, bus_space_handle_t,
 			    bus_size_t, u_int64_t *, bus_size_t);
-					
+
 	/* read region */
 	void		(*bs_rr_1) (void *, bus_space_handle_t,
 			    bus_size_t, u_int8_t *, bus_size_t);
@@ -118,7 +118,7 @@ struct bus_space {
 			    bus_size_t, u_int32_t *, bus_size_t);
 	void		(*bs_rr_8) (void *, bus_space_handle_t,
 			    bus_size_t, u_int64_t *, bus_size_t);
-					
+
 	/* write (single) */
 	void		(*bs_w_1) (void *, bus_space_handle_t,
 			    bus_size_t, u_int8_t);
@@ -138,7 +138,7 @@ struct bus_space {
 			    bus_size_t, const u_int32_t *, bus_size_t);
 	void		(*bs_wm_8) (void *, bus_space_handle_t,
 			    bus_size_t, const u_int64_t *, bus_size_t);
-					
+
 	/* write region */
 	void		(*bs_wr_1) (void *, bus_space_handle_t,
 			    bus_size_t, const u_int8_t *, bus_size_t);
@@ -194,7 +194,7 @@ struct bus_space {
 			    bus_size_t, u_int32_t *, bus_size_t);
 	void		(*bs_rm_8_s) (void *, bus_space_handle_t,
 			    bus_size_t, u_int64_t *, bus_size_t);
-					
+
 	/* read region stream */
 	void		(*bs_rr_1_s) (void *, bus_space_handle_t,
 			    bus_size_t, u_int8_t *, bus_size_t);
@@ -204,7 +204,7 @@ struct bus_space {
 			    bus_size_t, u_int32_t *, bus_size_t);
 	void		(*bs_rr_8_s) (void *, bus_space_handle_t,
 			    bus_size_t, u_int64_t *, bus_size_t);
-					
+
 	/* write stream (single) */
 	void		(*bs_w_1_s) (void *, bus_space_handle_t,
 			    bus_size_t, u_int8_t);
@@ -224,7 +224,7 @@ struct bus_space {
 			    bus_size_t, const u_int32_t *, bus_size_t);
 	void		(*bs_wm_8_s) (void *, bus_space_handle_t,
 			    bus_size_t, const u_int64_t *, bus_size_t);
-					
+
 	/* write region stream */
 	void		(*bs_wr_1_s) (void *, bus_space_handle_t,
 			    bus_size_t, const u_int8_t *, bus_size_t);
@@ -533,7 +533,7 @@ void	__bs_c(f,_bs_rm_2) (void *t, bus_space_handle_t bsh,	\
 
 #define	bs_rm_4_proto(f)						\
 void	__bs_c(f,_bs_rm_4) (void *t, bus_space_handle_t bsh,	\
-	    bus_size_t offset, u_int32_t *addr, bus_size_t count);		
+	    bus_size_t offset, u_int32_t *addr, bus_size_t count);
 
 #define	bs_rm_8_proto(f)						\
 void	__bs_c(f,_bs_rm_8) (void *t, bus_space_handle_t bsh,	\
@@ -735,8 +735,8 @@ BUS_POKE_FUNC(8, uint64_t)
 
 #define BUS_SPACE_UNRESTRICTED	(~0)
 
-/* 
- * declare generic bus space, it suits all needs in 
+/*
+ * declare generic bus space, it suits all needs in
  */
 DECLARE_BUS_SPACE_PROTOTYPES(generic);
 extern bus_space_tag_t mips_bus_space_generic;

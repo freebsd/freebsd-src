@@ -370,13 +370,13 @@ sysctl_kern_prof(SYSCTL_HANDLER_ARGS)
 			return (EINVAL);
 		return (0);
 	case GPROF_COUNT:
-		return (sysctl_handle_opaque(oidp, 
+		return (sysctl_handle_opaque(oidp,
 			gp->kcount, gp->kcountsize, req));
 	case GPROF_FROMS:
-		return (sysctl_handle_opaque(oidp, 
+		return (sysctl_handle_opaque(oidp,
 			gp->froms, gp->fromssize, req));
 	case GPROF_TOS:
-		return (sysctl_handle_opaque(oidp, 
+		return (sysctl_handle_opaque(oidp,
 			gp->tos, gp->tossize, req));
 	case GPROF_GMONPARAM:
 		return (sysctl_handle_opaque(oidp, gp, sizeof *gp, req));
@@ -487,7 +487,7 @@ addupc_intr(struct thread *td, uintfptr_t pc, u_int ticks)
 void
 addupc_task(struct thread *td, uintfptr_t pc, u_int ticks)
 {
-	struct proc *p = td->td_proc; 
+	struct proc *p = td->td_proc;
 	struct uprof *prof;
 	caddr_t addr;
 	u_int i;

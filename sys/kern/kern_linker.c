@@ -771,7 +771,7 @@ linker_file_add_dependency(linker_file_t file, linker_file_t dep)
 	file->deps[file->ndeps] = dep;
 	file->ndeps++;
 	KLD_DPF(FILE, ("linker_file_add_dependency:"
-	    " adding %s as dependency for %s\n", 
+	    " adding %s as dependency for %s\n",
 	    dep->filename, file->filename));
 	return (0);
 }

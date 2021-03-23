@@ -449,7 +449,7 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 
 #if (OID_AUTO >= 0)
 #error "OID_AUTO is expected to be a negative value"
-#endif	
+#endif
 	/*
 	 * Any negative OID number qualifies as OID_AUTO. Valid OID
 	 * numbers should always be positive.
@@ -573,7 +573,7 @@ sysctl_unregister_oid(struct sysctl_oid *oidp)
 		}
 	}
 
-	/* 
+	/*
 	 * This can happen when a module fails to register and is
 	 * being unloaded afterwards.  It should not be a panic()
 	 * for normal use.
@@ -939,7 +939,7 @@ SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_FIRST, sysctl_register_all, NULL);
 /*
  * "Staff-functions"
  *
- * These functions implement a presently undocumented interface 
+ * These functions implement a presently undocumented interface
  * used by the sysctl program to walk the tree, and get the type
  * so it can print the value.
  * This interface is under work and consideration, and should probably
@@ -1076,7 +1076,7 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 			namelen--;
 			name++;
 
-			if ((oid->oid_kind & CTLTYPE) != CTLTYPE_NODE) 
+			if ((oid->oid_kind & CTLTYPE) != CTLTYPE_NODE)
 				break;
 
 			if (oid->oid_handler)
@@ -1109,7 +1109,7 @@ enum sysctl_iter_action {
 /*
  * Tries to find the next node for @name and @namelen.
  *
- * Returns next action to take. 
+ * Returns next action to take.
  */
 static enum sysctl_iter_action
 sysctl_sysctl_next_node(struct sysctl_oid *oidp, int *name, unsigned int namelen,
@@ -1134,10 +1134,10 @@ sysctl_sysctl_next_node(struct sysctl_oid *oidp, int *name, unsigned int namelen
 		 */
 		if (!honor_skip)
 			return (ITER_FOUND);
-		if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE) 
+		if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE)
 			return (ITER_FOUND);
 		/* If node does not have an iterator, treat it as leaf */
-		if (oidp->oid_handler) 
+		if (oidp->oid_handler)
 			return (ITER_FOUND);
 
 		/* Report oid as a node to iterate */
@@ -1192,7 +1192,7 @@ sysctl_sysctl_next_node(struct sysctl_oid *oidp, int *name, unsigned int namelen
  * Returns true and fills in next oid data in @next and @len if oid is found.
  */
 static bool
-sysctl_sysctl_next_action(struct sysctl_oid_list *lsp, int *name, u_int namelen, 
+sysctl_sysctl_next_action(struct sysctl_oid_list *lsp, int *name, u_int namelen,
     int *next, int *len, int level, bool honor_skip)
 {
 	struct sysctl_oid *oidp;
@@ -1324,7 +1324,7 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 	struct rm_priotracker tracker;
 	char buf[32];
 
-	if (!req->newlen) 
+	if (!req->newlen)
 		return (ENOENT);
 	if (req->newlen >= MAXPATHLEN)	/* XXX arbitrary, undocumented */
 		return (ENAMETOOLONG);

@@ -842,7 +842,7 @@ acl_nfs4_sync_mode_from_acl(mode_t *_mode, const struct acl *aclp)
  * Calculate inherited ACL in a manner compatible with NFSv4 Minor Version 1,
  * draft-ietf-nfsv4-minorversion1-03.txt.
  */
-static void		
+static void
 acl_nfs4_compute_inherited_acl_draft(const struct acl *parent_aclp,
     struct acl *child_aclp, mode_t mode, int file_owner_id,
     int is_directory)
@@ -1005,7 +1005,7 @@ acl_nfs4_compute_inherited_acl_draft(const struct acl *parent_aclp,
 /*
  * Populate the ACL with entries inherited from parent_aclp.
  */
-static void		
+static void
 acl_nfs4_inherit_entries(const struct acl *parent_aclp,
     struct acl *child_aclp, mode_t mode, int file_owner_id,
     int is_directory)
@@ -1125,7 +1125,7 @@ acl_nfs4_inherit_entries(const struct acl *parent_aclp,
  * It's also being used to calculate a trivial ACL, by inheriting from
  * a NULL ACL.
  */
-static void		
+static void
 acl_nfs4_compute_inherited_acl_psarc(const struct acl *parent_aclp,
     struct acl *aclp, mode_t mode, int file_owner_id, int is_directory)
 {
@@ -1184,7 +1184,7 @@ acl_nfs4_compute_inherited_acl_psarc(const struct acl *parent_aclp,
 }
 
 #ifdef _KERNEL
-void		
+void
 acl_nfs4_compute_inherited_acl(const struct acl *parent_aclp,
     struct acl *child_aclp, mode_t mode, int file_owner_id,
     int is_directory)

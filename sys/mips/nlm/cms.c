@@ -477,7 +477,7 @@ sys_print_debug(SYSCTL_HANDLER_ARGS)
 	int error, i;
 
 	sbuf_new_for_sysctl(&sb, NULL, 64, req);
-	sbuf_printf(&sb, 
+	sbuf_printf(&sb,
 	    "\nID     vc0       vc1       vc2     vc3     loops\n");
 	for (i = 0; i < 32; i++) {
 		if ((xlp_hw_thread_mask & (1 << i)) == 0)

@@ -117,7 +117,7 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 	}
 
 	switch (regnum) {
-	/* 
+	/*
 	 * S0..S7
 	 */
 	case 16:
@@ -129,15 +129,15 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 	case 22:
 	case 23:
  		return (&kdb_thrctx->pcb_context[PCB_REG_S0 + regnum - 16]);
-	case 28: 
+	case 28:
 		return (&kdb_thrctx->pcb_context[PCB_REG_GP]);
-	case 29: 
+	case 29:
 		return (&kdb_thrctx->pcb_context[PCB_REG_SP]);
-	case 30: 
+	case 30:
 		return (&kdb_thrctx->pcb_context[PCB_REG_S8]);
-	case 31: 
+	case 31:
 		return (&kdb_thrctx->pcb_context[PCB_REG_RA]);
-	case 37: 
+	case 37:
 		return (&kdb_thrctx->pcb_context[PCB_REG_PC]);
 	}
 	return (NULL);

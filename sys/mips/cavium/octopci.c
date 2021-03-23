@@ -226,7 +226,7 @@ octopci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case PCIB_IVAR_BUS:
 		*result = sc->sc_bus;
 		return (0);
-		
+
 	}
 	return (ENOENT);
 }
@@ -598,7 +598,7 @@ octopci_init_device(device_t dev, unsigned b, unsigned s, unsigned f, unsigned s
 
 	DELAY(10000);
 
-	/* 
+	/*
 	 * Set cache line size.  On Octeon it should be 128 bytes,
 	 * but according to Linux some Intel bridges have trouble
 	 * with values over 64 bytes, so use 64 bytes.

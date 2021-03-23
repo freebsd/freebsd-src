@@ -623,7 +623,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	int flags, new_cpu;
 	sbintime_t new_prec, new_time;
 #endif
-#if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING) 
+#if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING)
 	sbintime_t sbt1, sbt2;
 	struct timespec ts2;
 	static sbintime_t maxdt = 2 * SBT_1MS;	/* 2 msec */
@@ -909,7 +909,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t prec,
 	}
 	callout_when(sbt, prec, flags, &to_sbt, &precision);
 
-	/* 
+	/*
 	 * This flag used to be added by callout_cc_add, but the
 	 * first time you call this we could end up with the
 	 * wrong direct flag if we don't do it before we add.
@@ -950,7 +950,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t prec,
 		}
 #ifdef SMP
 		if (callout_migrating(c)) {
-			/* 
+			/*
 			 * This only occurs when a second callout_reset_sbt_on
 			 * is made after a previous one moved it into
 			 * deferred migration (below). Note we do *not* change
@@ -989,7 +989,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t prec,
 	 */
 	if (c->c_cpu != cpu) {
 		if (cc_exec_curr(cc, direct) == c) {
-			/* 
+			/*
 			 * Pending will have been removed since we are
 			 * actually executing the callout on another
 			 * CPU. That callout should be waiting on the
@@ -999,7 +999,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t prec,
 			 * will then see pending is true and return.
 			 * At the return from the actual callout execution
 			 * the migration will occur in softclock_call_cc
-			 * and this new callout will be placed on the 
+			 * and this new callout will be placed on the
 			 * new CPU via a call to callout_cpu_switch() which
 			 * will get the lock on the right CPU followed
 			 * by a call callout_cc_add() which will add it there.
@@ -1198,7 +1198,7 @@ again:
 			c->c_flags &= ~CALLOUT_ACTIVE;
 		} else if (use_lock &&
 			   !cc_exec_cancel(cc, direct) && (drain == NULL)) {
-			
+
 			/*
 			 * The current callout is waiting for its
 			 * lock which we hold.  Cancel the callout
@@ -1237,11 +1237,11 @@ again:
 			 */
 			c->c_iflags &= ~CALLOUT_DFRMIGRATION;
 #ifdef SMP
-			/* 
+			/*
 			 * We can't call cc_cce_cleanup here since
 			 * if we do it will remove .ce_curr and
 			 * its still running. This will prevent a
-			 * reschedule of the callout when the 
+			 * reschedule of the callout when the
 			 * execution completes.
 			 */
 			cc_migration_cpu(cc, direct) = CPUBLOCK;

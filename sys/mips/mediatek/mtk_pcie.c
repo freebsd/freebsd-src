@@ -256,7 +256,7 @@ mtk_pci_attach(device_t dev)
 		sc->pci_intrhand[1] = sc->pci_intrhand[2] = NULL;
 	}
 
-	/* Request our interrupts */	
+	/* Request our interrupts */
 	for (i = 1; i <= sc->sc_num_irq ; i++) {
 		rid = i - 1;
 		sc->pci_res[i] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -977,7 +977,7 @@ mtk_pcie_phy_mt7621_init(device_t dev)
 	DELAY(100000);
 
 	/* Only apply below to REV-E hardware */
-	if ((mtk_sysctl_get(SYSCTL_REVID) & SYSCTL_REVID_MASK) == 
+	if ((mtk_sysctl_get(SYSCTL_REVID) & SYSCTL_REVID_MASK) ==
 	    SYSCTL_MT7621_REV_E)
 		mtk_pcie_phy_mt7621_bypass_pipe_rst(sc, 0x9000);
 

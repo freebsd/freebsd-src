@@ -372,7 +372,7 @@ mqfs_fileno_free(struct mqfs_info *mi, struct mqfs_node *mn)
 		break;
 	default:
 		KASSERT(0,
-		    ("mqfs_fileno_free() called for unknown type node: %d", 
+		    ("mqfs_fileno_free() called for unknown type node: %d",
 			mn->mn_type));
 		break;
 	}
@@ -817,7 +817,7 @@ found:
 	return (0);
 }
 
-/* 
+/*
  * Search a directory entry
  */
 static struct mqfs_node *
@@ -1758,7 +1758,7 @@ bad:
  */
 static int
 _mqueue_send(struct mqueue *mq, struct mqueue_msg *msg, int timo)
-{	
+{
 	struct mqueue_msg *msg2;
 	int error = 0;
 
@@ -1915,7 +1915,7 @@ received:
  */
 static int
 _mqueue_recv(struct mqueue *mq, struct mqueue_msg **msg, int timo)
-{	
+{
 	int error = 0;
 
 	mtx_lock(&mq->mq_mutex);
@@ -2037,7 +2037,7 @@ kern_kmq_open(struct thread *td, const char *upath, int flags, mode_t mode,
 	/*
 	 * The first character of name must be a slash  (/) character
 	 * and the remaining characters of name cannot include any slash
-	 * characters. 
+	 * characters.
 	 */
 	len = strlen(path);
 	if (len < 2 || path[0] != '/' || strchr(path + 1, '/') != NULL)

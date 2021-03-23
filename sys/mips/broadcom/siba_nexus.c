@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Supports siba(4) attachment to a MIPS nexus bus.
- * 
+ *
  * Derived from Bruce M. Simpson' original siba(4) driver.
  */
 

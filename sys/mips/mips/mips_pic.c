@@ -442,7 +442,7 @@ mips_pic_find_intr(struct resource *r)
 /**
  * Allocate a fixed IRQ mapping for the given MIPS @p irq, or return the
  * existing mapping if @p irq was previously mapped.
- * 
+ *
  * @param	irq	The MIPS IRQ to be mapped.
  * @param[out]	mapping	On success, will be populated with the interrupt
  *			mapping.
@@ -506,13 +506,13 @@ mips_pic_map_fixed_intr(u_int irq, struct mips_pic_intr **mapping)
 }
 
 /**
- * 
+ *
  * Produce fixed IRQ mappings for all MIPS IRQs.
  *
  * Non-FDT/OFW MIPS targets do not provide an equivalent to OFW_BUS_MAP_INTR();
  * it is instead necessary to reserve INTRNG IRQ# 0-7 for use by MIPS device
  * drivers that assume INTRNG IRQs 0-7 are directly mapped to MIPS IRQs 0-7.
- * 
+ *
  * XXX: There is no support in INTRNG for reserving a fixed IRQ range. However,
  * we should be called prior to any other interrupt mapping requests, and work
  * around this by iteratively allocating the required 0-7 MIP IRQ# range.
@@ -583,7 +583,7 @@ mips_pic_activate_intr(device_t child, struct resource *r)
 /**
  * If @p r references a MIPS interrupt mapped by the MIPS32 interrupt
  * controller, handle interrupt deactivation internally.
- * 
+ *
  * Otherwise, delegate directly to intr_deactivate_irq().
  */
 int
@@ -621,7 +621,7 @@ cpu_init_interrupts(void)
 
 /**
  * Provide backwards-compatible support for registering a MIPS interrupt handler
- * directly, without allocating a bus resource. 
+ * directly, without allocating a bus resource.
  */
 static void
 cpu_establish_intr(struct mips_pic_softc *sc, const char *name,

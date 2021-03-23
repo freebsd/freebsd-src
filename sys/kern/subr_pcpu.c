@@ -190,7 +190,7 @@ dpcpu_alloc(int size)
 }
 
 /*
- * Free dynamic per-cpu space at module unload time. 
+ * Free dynamic per-cpu space at module unload time.
  */
 void
 dpcpu_free(void *s, int size)

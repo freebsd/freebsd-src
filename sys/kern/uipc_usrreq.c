@@ -1176,7 +1176,7 @@ release:
 	/*
 	 * In case of PRUS_NOTREADY, uipc_ready() is responsible
 	 * for freeing memory.
-	 */   
+	 */
 	if (m != NULL && (flags & PRUS_NOTREADY) == 0)
 		m_freem(m);
 	return (error);
@@ -2636,14 +2636,14 @@ unp_gc_scan(struct unpcb *unp, void (*op)(struct filedescent **, int))
 }
 
 static int unp_recycled;
-SYSCTL_INT(_net_local, OID_AUTO, recycled, CTLFLAG_RD, &unp_recycled, 0, 
+SYSCTL_INT(_net_local, OID_AUTO, recycled, CTLFLAG_RD, &unp_recycled, 0,
     "Number of unreachable sockets claimed by the garbage collector.");
 
 static int unp_taskcount;
-SYSCTL_INT(_net_local, OID_AUTO, taskcount, CTLFLAG_RD, &unp_taskcount, 0, 
+SYSCTL_INT(_net_local, OID_AUTO, taskcount, CTLFLAG_RD, &unp_taskcount, 0,
     "Number of times the garbage collector has run.");
 
-SYSCTL_UINT(_net_local, OID_AUTO, sockcount, CTLFLAG_RD, &unp_count, 0, 
+SYSCTL_UINT(_net_local, OID_AUTO, sockcount, CTLFLAG_RD, &unp_count, 0,
     "Number of active local sockets.");
 
 static void

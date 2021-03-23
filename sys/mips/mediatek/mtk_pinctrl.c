@@ -206,7 +206,7 @@ mtk_pinctrl_configure(device_t dev, phandle_t cfgxref)
 	/*
 	 * OpenWRT dts files have single child within the pinctrl nodes, which
 	 * contains the 'ralink,group' and 'ralink,function' properties.
-	 */ 
+	 */
 	for (child = OF_child(node); child != 0 && child != -1;
 	    child = OF_peer(child)) {
 		if ((ret = mtk_pinctrl_process_node(dev, pintable, child)) != 0)

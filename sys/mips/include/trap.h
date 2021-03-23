@@ -100,7 +100,7 @@ struct trapdebug {		/* trap history buffer for debugging */
 }
 
 #define	TRAPSIZE 10		/* Trap log buffer length */
-extern struct trapdebug trapdebug[TRAPSIZE], *trp; 
+extern struct trapdebug trapdebug[TRAPSIZE], *trp;
 
 void trapDump(char *msg);
 

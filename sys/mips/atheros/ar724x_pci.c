@@ -82,13 +82,13 @@ struct ar71xx_pci_softc {
 	struct rman		sc_mem_rman;
 	struct rman		sc_irq_rman;
 
-	struct intr_event	*sc_eventstab[AR71XX_PCI_NIRQS];	
-	mips_intrcnt_t		sc_intr_counter[AR71XX_PCI_NIRQS];	
+	struct intr_event	*sc_eventstab[AR71XX_PCI_NIRQS];
+	mips_intrcnt_t		sc_intr_counter[AR71XX_PCI_NIRQS];
 	struct resource		*sc_irq;
 	void			*sc_ih;
 };
 
-static int ar724x_pci_setup_intr(device_t, device_t, struct resource *, int, 
+static int ar724x_pci_setup_intr(device_t, device_t, struct resource *, int,
 		    driver_filter_t *, driver_intr_t *, void *, void **);
 static int ar724x_pci_teardown_intr(device_t, device_t, struct resource *,
 		    void *);
@@ -113,12 +113,12 @@ ar724x_pci_write(uint32_t reg, uint32_t offset, uint32_t data, int bytes)
 	ATH_WRITE_REG(reg + (offset & ~3), val);
 	wmb();
 
-	dprintf("%s: %#x/%#x addr=%#x, data=%#x(%#x), bytes=%d\n", __func__, 
+	dprintf("%s: %#x/%#x addr=%#x, data=%#x(%#x), bytes=%d\n", __func__,
 	    reg, reg + (offset & ~3), offset, data, val, bytes);
 }
 
 static uint32_t
-ar724x_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func, 
+ar724x_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, int bytes)
 {
 	uint32_t data, shift, mask;
@@ -152,11 +152,11 @@ ar724x_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 }
 
 static void
-ar724x_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, 
+ar724x_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, uint32_t data, int bytes)
 {
 
-	dprintf("%s: tag (%x, %x, %x) reg %d(%d): %x\n", __func__, bus, slot, 
+	dprintf("%s: tag (%x, %x, %x) reg %d(%d): %x\n", __func__, bus, slot,
 	    func, reg, bytes, data);
 
 	if ((bus != 0) || (slot != 0) || (func != 0))
@@ -183,7 +183,7 @@ ar724x_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 		ar724x_pci_write(AR724X_PCI_CFG_BASE, reg, data, bytes);
 }
 
-static void 
+static void
 ar724x_pci_mask_irq(void *source)
 {
 	uint32_t reg;
@@ -204,7 +204,7 @@ ar724x_pci_mask_irq(void *source)
 	    reg | AR724X_PCI_INTR_DEV0);
 }
 
-static void 
+static void
 ar724x_pci_unmask_irq(void *source)
 {
 	uint32_t reg;
@@ -298,7 +298,7 @@ ar724x_pci_fixup(device_t dev, long flash_addr, int len)
 
 	val = ar724x_pci_read_config(dev, 0, 0, 0, PCIR_COMMAND, 2);
 	val |= (PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
-	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND, val, 2); 
+	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND, val, 2);
 
 	/* set pointer to first reg address */
 	cal_data += 3;
@@ -317,7 +317,7 @@ ar724x_pci_fixup(device_t dev, long flash_addr, int len)
 
 	val = ar724x_pci_read_config(dev, 0, 0, 0, PCIR_COMMAND, 2);
 	val &= ~(PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
-	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND, val, 2); 
+	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND, val, 2);
 
 	/* Write the saved bar(0) address */
 	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_BAR(0), bar0, 4);
@@ -381,8 +381,8 @@ ar724x_pci_attach(device_t dev)
 
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "ar724x PCI memory window";
-	if (rman_init(&sc->sc_mem_rman) != 0 || 
-	    rman_manage_region(&sc->sc_mem_rman, AR71XX_PCI_MEM_BASE, 
+	if (rman_init(&sc->sc_mem_rman) != 0 ||
+	    rman_manage_region(&sc->sc_mem_rman, AR71XX_PCI_MEM_BASE,
 		AR71XX_PCI_MEM_BASE + AR71XX_PCI_MEM_SIZE - 1) != 0) {
 		panic("ar724x_pci_attach: failed to set up I/O rman");
 	}
@@ -390,7 +390,7 @@ ar724x_pci_attach(device_t dev)
 	sc->sc_irq_rman.rm_type = RMAN_ARRAY;
 	sc->sc_irq_rman.rm_descr = "ar724x PCI IRQs";
 	if (rman_init(&sc->sc_irq_rman) != 0 ||
-	    rman_manage_region(&sc->sc_irq_rman, AR71XX_PCI_IRQ_START, 
+	    rman_manage_region(&sc->sc_irq_rman, AR71XX_PCI_IRQ_START,
 	        AR71XX_PCI_IRQ_END) != 0)
 		panic("ar724x_pci_attach: failed to set up IRQ rman");
 
@@ -407,7 +407,7 @@ ar724x_pci_attach(device_t dev)
 
 	if ((bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC,
 			    ar724x_pci_intr, NULL, sc, &sc->sc_ih))) {
-		device_printf(dev, 
+		device_printf(dev,
 		    "WARNING: unable to register interrupt handler\n");
 		return (ENXIO);
 	}
@@ -431,8 +431,8 @@ ar724x_pci_attach(device_t dev)
 #endif	/* AR71XX_ATH_EEPROM */
 
 	/* Fixup internal PCI bridge */
-	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND, 
-            PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN 
+	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND,
+            PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN
 	    | PCIM_CMD_SERRESPEN | PCIM_CMD_BACKTOBACK
 	    | PCIM_CMD_PERRESPEN | PCIM_CMD_MWRICEN, 2);
 
@@ -475,7 +475,7 @@ static struct resource *
 ar724x_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
-	struct ar71xx_pci_softc *sc = device_get_softc(bus);	
+	struct ar71xx_pci_softc *sc = device_get_softc(bus);
 	struct resource *rv;
 	struct rman *rm;
 
@@ -502,7 +502,7 @@ ar724x_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			rman_release_resource(rv);
 			return (NULL);
 		}
-	} 
+	}
 
 	return (rv);
 }
@@ -542,7 +542,7 @@ ar724x_pci_setup_intr(device_t bus, device_t child, struct resource *ires,
 
 	event = sc->sc_eventstab[irq];
 	if (event == NULL) {
-		error = intr_event_create(&event, (void *)irq, 0, irq, 
+		error = intr_event_create(&event, (void *)irq, 0, irq,
 		    ar724x_pci_mask_irq, ar724x_pci_unmask_irq, NULL, NULL,
 		    "pci intr%d:", irq);
 

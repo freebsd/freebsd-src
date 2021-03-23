@@ -8,7 +8,7 @@
  *
  * Copyright (c) 2003-2007 Cavium Networks (support@cavium.com). All rights
  * reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * 1. Redistributions of source code must retain the above copyright notice,
@@ -21,7 +21,7 @@
  * This product includes software developed by Cavium Networks
  * 4. Cavium Networks' name may not be used to endorse or promote products
  * derived from this software without specific prior written permission.
- * 
+ *
  * This Software, including technical data, may be subject to U.S. export
  * control laws, including the U.S. Export Administration Act and its
  * associated regulations, and may be subject to export or import regulations
@@ -29,7 +29,7 @@
  * respects with all such regulations and acknowledge that you have the
  * responsibility to obtain licenses to export, re-export or import the
  * Software.
- * 
+ *
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS" AND
  * WITH ALL FAULTS AND CAVIUM MAKES NO PROMISES, REPRESENTATIONS OR WARRANTIES,
  * EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO THE
@@ -305,7 +305,7 @@ octo_calc_hash(uint8_t auth, unsigned char *key, uint64_t *inner, uint64_t *oute
     key1++;
     if (auth)
        CVMX_MT_HSH_STARTSHA((*key1 ^ xor2));
-    else 
+    else
        CVMX_MT_HSH_STARTMD5((*key1 ^ xor2));
 
     CVMX_MF_HSH_IV(outer[0], 0);

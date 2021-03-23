@@ -64,9 +64,9 @@
 #include <sys/types.h>
 #include <machine/cpuregs.h>
 
-/* 
+/*
  * These functions are required by user-land atomi ops
- */ 
+ */
 
 static __inline void
 mips_barrier(void)
@@ -102,7 +102,7 @@ mips_wbflush(void)
 			"syncw\n\t"
 			".set reorder\n"
 			: : : "memory");
-#else	
+#else
 	__asm __volatile ("sync" : : : "memory");
 	mips_barrier();
 #endif

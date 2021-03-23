@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2007 
+ * Copyright (C) 2007
  *	Oleksandr Tymoshenko <gonzo@freebsd.org>. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@ struct are_desc {
 	uint32_t	are_link;
 };
 
-#define	ARE_DMASIZE(len)		((len)  & ((1 << 11)-1))		
+#define	ARE_DMASIZE(len)		((len)  & ((1 << 11)-1))
 #define	ARE_PKTSIZE(len)		((len & 0xffff0000) >> 16)
 
 #define	ARE_RX_RING_CNT		128
@@ -67,7 +67,7 @@ struct are_rxdesc {
 	bus_dmamap_t	rx_dmamap;
 	struct are_desc	*desc;
 	/* Use this values on error instead of allocating new mbuf */
-	uint32_t	saved_ctl, saved_ca; 
+	uint32_t	saved_ctl, saved_ca;
 };
 
 struct are_chain_data {

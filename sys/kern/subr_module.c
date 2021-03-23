@@ -58,7 +58,7 @@ preload_search_by_name(const char *name)
     caddr_t	curp;
     uint32_t	*hdr;
     int		next;
-    
+
     if (preload_metadata != NULL) {
 	curp = preload_metadata;
 	for (;;) {
@@ -125,7 +125,7 @@ preload_search_next_name(caddr_t base)
     caddr_t	curp;
     uint32_t	*hdr;
     int		next;
-    
+
     if (preload_metadata != NULL) {
 	/* Pick up where we left off last time */
 	if (base) {
@@ -177,8 +177,8 @@ preload_search_info(caddr_t mod, int inf)
 	/* end of module data? */
 	if (hdr[0] == 0 && hdr[1] == 0)
 	    break;
-	/* 
-	 * We give up once we've looped back to what we were looking at 
+	/*
+	 * We give up once we've looped back to what we were looking at
 	 * first - this should normally be a MODINFO_NAME field.
 	 */
 	if (type == 0) {
@@ -188,9 +188,9 @@ preload_search_info(caddr_t mod, int inf)
 		break;
 	}
 
-	/* 
+	/*
 	 * Attribute match? Return pointer to data.
-	 * Consumer may safely assume that size value precedes	
+	 * Consumer may safely assume that size value precedes
 	 * data.
 	 */
 	if (hdr[0] == inf)
@@ -217,7 +217,7 @@ preload_delete_name(const char *name)
 
     addr = 0;
     sz = 0;
-    
+
     if (preload_metadata != NULL) {
 	clearing = 0;
 	curp = preload_metadata;
@@ -284,7 +284,7 @@ preload_bootstrap_relocate(vm_offset_t offset)
     uint32_t	*hdr;
     vm_offset_t	*ptr;
     int		next;
-    
+
     if (preload_metadata != NULL) {
 	curp = preload_metadata;
 	for (;;) {

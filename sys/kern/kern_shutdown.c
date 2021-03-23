@@ -464,7 +464,7 @@ kern_reboot(int howto)
 	 */
 	EVENTHANDLER_INVOKE(shutdown_pre_sync, howto);
 
-	/* 
+	/*
 	 * Now sync filesystems
 	 */
 	if (!cold && (howto & RB_NOSYNC) == 0 && once == 0) {
@@ -482,7 +482,7 @@ kern_reboot(int howto)
 	 */
 	EVENTHANDLER_INVOKE(shutdown_post_sync, howto);
 
-	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP && !cold && !dumping) 
+	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP && !cold && !dumping)
 		doadump(TRUE);
 
 	/* Now that we're going to really halt the system... */
@@ -660,7 +660,7 @@ shutdown_reset(void *junk, int howto)
 	 * Acquiring smp_ipi_mtx here has a double effect:
 	 * - it disables interrupts avoiding CPU0 preemption
 	 *   by fast handlers (thus deadlocking  against other CPUs)
-	 * - it avoids deadlocks against smp_rendezvous() or, more 
+	 * - it avoids deadlocks against smp_rendezvous() or, more
 	 *   generally, threads busy-waiting, with this spinlock held,
 	 *   and waiting for responses by threads on other CPUs
 	 *   (ie. smp_tlb_shootdown()).

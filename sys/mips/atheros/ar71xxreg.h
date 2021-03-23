@@ -33,8 +33,8 @@
 
 /* PCI region */
 #define AR71XX_PCI_MEM_BASE		0x10000000
-/* 
- * PCI mem windows is 0x08000000 bytes long but we exclude control 
+/*
+ * PCI mem windows is 0x08000000 bytes long but we exclude control
  * region from the resource manager
  */
 #define AR71XX_PCI_MEM_SIZE		0x07000000
@@ -65,10 +65,10 @@
 
 /* APB region */
 /*
- * Size is not really true actual APB window size is 
+ * Size is not really true actual APB window size is
  * 0x01000000 but it should handle OHCI memory as well
- * because this controller's interrupt is routed through 
- * APB. 
+ * because this controller's interrupt is routed through
+ * APB.
  */
 #define AR71XX_APB_BASE         0x18000000
 #define AR71XX_APB_SIZE         0x06000000
@@ -99,7 +99,7 @@
 #define AR71XX_WB_FLUSH_PCI		0x180000A8
 
 /*
- * Values for PCI_WINDOW_X registers 
+ * Values for PCI_WINDOW_X registers
  */
 #define PCI_WINDOW0_ADDR		0x10000000
 #define PCI_WINDOW1_ADDR		0x11000000
@@ -214,8 +214,8 @@
 #define		RST_WDOG_ACTION_NOACTION	0
 
 #define AR71XX_RST_WDOG_TIMER	0x1806000C
-/* 
- * APB interrupt status and mask register and interrupt bit numbers for 
+/*
+ * APB interrupt status and mask register and interrupt bit numbers for
  */
 #define AR71XX_MISC_INTR_STATUS	0x18060010
 #define AR71XX_MISC_INTR_MASK	0x18060014
@@ -394,7 +394,7 @@ typedef enum {
 #define		AR71XX_MAC_FIFO_CFG2		0x50
 #define		AR71XX_MAC_FIFO_TX_THRESHOLD	0x54
 #define		AR71XX_MAC_FIFO_RX_FILTMATCH	0x58
-/* 
+/*
  * These flags applicable both to AR71XX_MAC_FIFO_RX_FILTMASK and
  * to AR71XX_MAC_FIFO_RX_FILTMATCH
  */
@@ -493,9 +493,9 @@ typedef enum {
 #define		AR71XX_DMA_TX_STATUS		0x188
 #define			DMA_TX_STATUS_PCOUNT_MASK	0xff
 #define			DMA_TX_STATUS_PCOUNT_SHIFT	16
-#define			DMA_TX_STATUS_BUS_ERROR		(1 << 3) 
-#define			DMA_TX_STATUS_UNDERRUN		(1 << 1) 
-#define			DMA_TX_STATUS_PKT_SENT		(1 << 0) 
+#define			DMA_TX_STATUS_BUS_ERROR		(1 << 3)
+#define			DMA_TX_STATUS_UNDERRUN		(1 << 1)
+#define			DMA_TX_STATUS_PKT_SENT		(1 << 0)
 #define		AR71XX_DMA_RX_CONTROL		0x18C
 #define			DMA_RX_CONTROL_EN		(1 << 0)
 #define		AR71XX_DMA_RX_DESC		0x190
@@ -541,14 +541,14 @@ typedef enum {
 
 static inline void
 ar71xx_ddr_flush(uint32_t reg)
-{ 
+{
 	ATH_WRITE_REG(reg, 1);
 	while ((ATH_READ_REG(reg) & 0x1))
 		;
 	ATH_WRITE_REG(reg, 1);
 	while ((ATH_READ_REG(reg) & 0x1))
 		;
-} 
+}
 
 static inline void
 ar71xx_write_pll(uint32_t cfg_reg, uint32_t pll_reg, uint32_t pll, uint32_t pll_reg_shift)

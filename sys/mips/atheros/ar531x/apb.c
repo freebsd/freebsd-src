@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef AR531X_APB_DEBUG
 #define dprintf printf
-#else 
+#else
 #define dprintf(x, arg...)
 #endif  /* AR531X_APB_DEBUG */
 
@@ -92,7 +92,7 @@ static int	apb_teardown_intr(device_t, device_t, struct resource *,
 		    void *);
 #endif
 
-static void 
+static void
 apb_mask_irq(void *source)
 {
 	unsigned int irq = (unsigned int)source;
@@ -111,7 +111,7 @@ apb_mask_irq(void *source)
 	}
 }
 
-static void 
+static void
 apb_unmask_irq(void *source)
 {
 	uint32_t reg;
@@ -191,14 +191,14 @@ apb_attach(device_t dev)
 
 	if(ar531x_soc >= AR531X_SOC_AR5315) {
 		if (rman_init(&sc->apb_mem_rman) != 0 ||
-		    rman_manage_region(&sc->apb_mem_rman, 
-			AR5315_APB_BASE, 
+		    rman_manage_region(&sc->apb_mem_rman,
+			AR5315_APB_BASE,
 			AR5315_APB_BASE + AR5315_APB_SIZE - 1) != 0)
 			panic("apb_attach: failed to set up memory rman");
 	} else {
 		if (rman_init(&sc->apb_mem_rman) != 0 ||
-		    rman_manage_region(&sc->apb_mem_rman, 
-			AR5312_APB_BASE, 
+		    rman_manage_region(&sc->apb_mem_rman,
+			AR5312_APB_BASE,
 			AR5312_APB_BASE + AR5312_APB_SIZE - 1) != 0)
 			panic("apb_attach: failed to set up memory rman");
 	}
@@ -207,18 +207,18 @@ apb_attach(device_t dev)
 	sc->apb_irq_rman.rm_descr = "APB IRQ";
 
 	if (rman_init(&sc->apb_irq_rman) != 0 ||
-	    rman_manage_region(&sc->apb_irq_rman, 
+	    rman_manage_region(&sc->apb_irq_rman,
 			APB_IRQ_BASE, APB_IRQ_END) != 0)
 		panic("apb_attach: failed to set up IRQ rman");
 
 #ifndef INTRNG
-	if ((sc->sc_misc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, 
+	if ((sc->sc_misc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		device_printf(dev, "unable to allocate IRQ resource\n");
 		return (ENXIO);
 	}
 
-	if ((bus_setup_intr(dev, sc->sc_misc_irq, INTR_TYPE_MISC, 
+	if ((bus_setup_intr(dev, sc->sc_misc_irq, INTR_TYPE_MISC,
 	    apb_filter, NULL, sc, &sc->sc_misc_ih))) {
 		device_printf(dev,
 		    "WARNING: unable to register interrupt handler\n");
@@ -426,7 +426,7 @@ apb_setup_intr(device_t bus, device_t child, struct resource *ires,
 
 	event = sc->sc_eventstab[irq];
 	if (event == NULL) {
-		error = intr_event_create(&event, (void *)irq, 0, irq, 
+		error = intr_event_create(&event, (void *)irq, 0, irq,
 		    apb_mask_irq, apb_unmask_irq,
 		    NULL, NULL,
 		    "apb intr%d:", irq);
@@ -605,7 +605,7 @@ apb_hinted_child(device_t bus, const char *dname, int dunit)
 		result = bus_set_resource(child, SYS_RES_MEMORY, 0,
 		    maddr, msize);
 		if (result != 0)
-			device_printf(bus, 
+			device_printf(bus,
 			    "warning: bus_set_resource() failed\n");
 	}
 

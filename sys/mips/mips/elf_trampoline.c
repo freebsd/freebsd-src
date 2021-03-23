@@ -139,7 +139,7 @@ load_kernel(void * kstart)
 				/*
 				 * XXX: check if .symtab is in PT_LOAD?
 				 */
-				if (shdr[i].sh_offset != 0 && 
+				if (shdr[i].sh_offset != 0 &&
 				    shdr[i].sh_size != 0) {
 					symtabindex = i;
 					symstrindex = shdr[i].sh_link;
@@ -156,7 +156,7 @@ load_kernel(void * kstart)
 
 		if (phdr[i].p_type != PT_LOAD)
 			continue;
-		
+
 		memcpy(mkptr(phdr[i].p_vaddr),
 		    (void*)(kstart + phdr[i].p_offset), phdr[i].p_filesz);
 
@@ -214,7 +214,7 @@ _startC(register_t a0, register_t a1, register_t a2, register_t a3)
 	int i;
 	void (*entry_point)(register_t, register_t, register_t, register_t);
 
-	/* 
+	/*
 	 * Relocate segment to the predefined memory location
 	 * Most likely it will be KSEG0/KSEG1 address
 	 */

@@ -125,11 +125,11 @@ static void (*volatile smp_rv_teardown_func)(void *arg);
 static void *volatile smp_rv_func_arg;
 static volatile int smp_rv_waiters[4];
 
-/* 
+/*
  * Shared mutex to restrict busywaits between smp_rendezvous() and
  * smp(_targeted)_tlb_shootdown().  A deadlock occurs if both of these
  * functions trigger at once and cause multiple CPUs to busywait with
- * interrupts disabled. 
+ * interrupts disabled.
  */
 struct mtx smp_ipi_mtx;
 
@@ -332,7 +332,7 @@ suspend_cpus(cpuset_t map)
 #endif
 
 /*
- * Called by a CPU to restart stopped CPUs. 
+ * Called by a CPU to restart stopped CPUs.
  *
  * Usually (but not necessarily) called with 'stopped_cpus' as its arg.
  *
@@ -435,7 +435,7 @@ resume_cpus(cpuset_t map)
 #undef X86
 
 /*
- * All-CPU rendezvous.  CPUs are signalled, all execute the setup function 
+ * All-CPU rendezvous.  CPUs are signalled, all execute the setup function
  * (if specified), rendezvous, execute the action function (if specified),
  * rendezvous again, execute the teardown function (if specified), and then
  * resume.
@@ -544,7 +544,7 @@ smp_rendezvous_action(void)
 
 void
 smp_rendezvous_cpus(cpuset_t map,
-	void (* setup_func)(void *), 
+	void (* setup_func)(void *),
 	void (* action_func)(void *),
 	void (* teardown_func)(void *),
 	void *arg)
@@ -620,7 +620,7 @@ smp_rendezvous_cpus(cpuset_t map,
 }
 
 void
-smp_rendezvous(void (* setup_func)(void *), 
+smp_rendezvous(void (* setup_func)(void *),
 	       void (* action_func)(void *),
 	       void (* teardown_func)(void *),
 	       void *arg)
@@ -830,7 +830,7 @@ smp_topo_find(struct cpu_group *top, int cpu)
 
 void
 smp_rendezvous_cpus(cpuset_t map,
-	void (*setup_func)(void *), 
+	void (*setup_func)(void *),
 	void (*action_func)(void *),
 	void (*teardown_func)(void *),
 	void *arg)
@@ -850,7 +850,7 @@ smp_rendezvous_cpus(cpuset_t map,
 }
 
 void
-smp_rendezvous(void (*setup_func)(void *), 
+smp_rendezvous(void (*setup_func)(void *),
 	       void (*action_func)(void *),
 	       void (*teardown_func)(void *),
 	       void *arg)

@@ -563,9 +563,9 @@ octopci_bs_c_4(void *t, bus_space_handle_t bsh1,
 }
 
 void
-octopci_bs_barrier(void *t __unused, 
+octopci_bs_barrier(void *t __unused,
 		bus_space_handle_t bsh __unused,
-		bus_size_t offset __unused, bus_size_t len __unused, 
+		bus_size_t offset __unused, bus_size_t len __unused,
 		int flags)
 {
 #if 0

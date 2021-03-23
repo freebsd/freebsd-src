@@ -106,7 +106,7 @@ configure_final(dummy)
 {
 	intr_enable();
 
-	cninit_finish(); 
+	cninit_finish();
 
 	if (bootverbose)
 		printf("Device configuration finished.\n");

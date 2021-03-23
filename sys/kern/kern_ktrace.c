@@ -656,7 +656,7 @@ ktrsysctl(int *name, u_int namelen)
 	size_t mibnamelen;
 	int error;
 
-	/* Lookup name of mib. */    
+	/* Lookup name of mib. */
 	KASSERT(namelen <= CTL_MAXNAME, ("sysctl MIB too long"));
 	mib[0] = 0;
 	mib[1] = 1;
@@ -1014,7 +1014,7 @@ sys_ktrace(struct thread *td, struct ktrace_args *uap)
 			PROC_LOCK(p);
 			if (p->p_state == PRS_NEW ||
 			    p_cansee(td, p) != 0) {
-				PROC_UNLOCK(p); 
+				PROC_UNLOCK(p);
 				continue;
 			}
 			nfound++;

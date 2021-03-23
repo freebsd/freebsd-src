@@ -47,7 +47,7 @@ reset_time_small(struct time_filter_small *tf, uint32_t time_len)
 }
 
 /*
- * A time filter can be a filter for MIN or MAX. 
+ * A time filter can be a filter for MIN or MAX.
  * You call setup_time_filter() with the pointer to
  * the filter structure, the type (FILTER_TYPE_MIN/MAX) and
  * the time length. You can optionally reset the time length
@@ -68,7 +68,7 @@ reset_time_small(struct time_filter_small *tf, uint32_t time_len)
  * One thing that used to be here is a single apply_filter(). But
  * this meant that we then had to store the type of filter in
  * the time_filter structure. In order to keep it at a cache
- * line size I split it to two functions. 
+ * line size I split it to two functions.
  *
  */
 int
@@ -77,7 +77,7 @@ setup_time_filter(struct time_filter *tf, int fil_type, uint32_t time_len)
 	uint64_t set_val;
 	int i;
 
-	/* 
+	/*
 	 * You must specify either a MIN or MAX filter,
 	 * though its up to the user to use the correct
 	 * apply.
@@ -88,7 +88,7 @@ setup_time_filter(struct time_filter *tf, int fil_type, uint32_t time_len)
 
 	if (time_len < NUM_FILTER_ENTRIES)
 		return(EINVAL);
-		       
+
 	if (fil_type == FILTER_TYPE_MIN)
 		set_val = 0xffffffffffffffff;
 	else
@@ -108,7 +108,7 @@ setup_time_filter_small(struct time_filter_small *tf, int fil_type, uint32_t tim
 	uint32_t set_val;
 	int i;
 
-	/* 
+	/*
 	 * You must specify either a MIN or MAX filter,
 	 * though its up to the user to use the correct
 	 * apply.
@@ -119,7 +119,7 @@ setup_time_filter_small(struct time_filter_small *tf, int fil_type, uint32_t tim
 
 	if (time_len < NUM_FILTER_ENTRIES)
 		return(EINVAL);
-		       
+
 	if (fil_type == FILTER_TYPE_MIN)
 		set_val = 0xffffffff;
 	else
@@ -207,7 +207,7 @@ void
 filter_reduce_by(struct time_filter *tf, uint64_t reduce_by, uint32_t now)
 {
 	int i;
-	/* 
+	/*
 	 * Reduce our filter main by reduce_by and
 	 * update its time. Then walk other's and
 	 * make them the new value too.
@@ -227,7 +227,7 @@ void
 filter_reduce_by_small(struct time_filter_small *tf, uint32_t reduce_by, uint32_t now)
 {
 	int i;
-	/* 
+	/*
 	 * Reduce our filter main by reduce_by and
 	 * update its time. Then walk other's and
 	 * make them the new value too.
@@ -247,7 +247,7 @@ void
 filter_increase_by(struct time_filter *tf, uint64_t incr_by, uint32_t now)
 {
 	int i;
-	/* 
+	/*
 	 * Increase our filter main by incr_by and
 	 * update its time. Then walk other's and
 	 * make them the new value too.
@@ -264,7 +264,7 @@ void
 filter_increase_by_small(struct time_filter_small *tf, uint32_t incr_by, uint32_t now)
 {
 	int i;
-	/* 
+	/*
 	 * Increase our filter main by incr_by and
 	 * update its time. Then walk other's and
 	 * make them the new value too.
@@ -326,7 +326,7 @@ tick_filter_clock(struct time_filter *tf, uint32_t now)
 		tim = now - tf->entries[i].time_up;
 		time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES-i))/NUM_FILTER_ENTRIES;
 		if (tim >= time_limit) {
-			/* 
+			/*
 			 * This entry is expired, pull down
 			 * the next one up.
 			 */
@@ -357,7 +357,7 @@ tick_filter_clock_small(struct time_filter_small *tf, uint32_t now)
 		tim = now - tf->entries[i].time_up;
 		time_limit = (tf->cur_time_limit * (NUM_FILTER_ENTRIES-i))/NUM_FILTER_ENTRIES;
 		if (tim >= time_limit) {
-			/* 
+			/*
 			 * This entry is expired, pull down
 			 * the next one up.
 			 */

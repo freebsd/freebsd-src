@@ -89,7 +89,7 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
  * Thread scheduler specific section.  All fields are protected
  * by the thread lock.
  */
-struct td_sched {	
+struct td_sched {
 	struct runq	*ts_runq;	/* Run-queue we're queued on. */
 	short		ts_flags;	/* TSF_* flags. */
 	int		ts_cpu;		/* CPU that we have affinity for. */
@@ -217,7 +217,7 @@ static int __read_mostly preempt_thresh = PRI_MAX_IDLE;
 #else
 static int __read_mostly preempt_thresh = PRI_MIN_KERN;
 #endif
-#else 
+#else
 static int __read_mostly preempt_thresh = 0;
 #endif
 static int __read_mostly static_boost = PRI_MIN_BATCH;
@@ -230,7 +230,7 @@ static int __read_mostly sched_idlespinthresh = -1;
  * locking in sched_pickcpu();
  */
 struct tdq {
-	/* 
+	/*
 	 * Ordered to improve efficiency of cpu_search() and switch().
 	 * tdq_lock is padded to avoid false sharing with tdq_load and
 	 * tdq_cpu_idle.
@@ -333,7 +333,7 @@ static int sched_balance_pair(struct tdq *, struct tdq *);
 static inline struct tdq *sched_setcpu(struct thread *, int, int);
 static inline void thread_unblock_switch(struct thread *, struct mtx *);
 static int sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS);
-static int sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, 
+static int sysctl_kern_sched_topology_spec_internal(struct sbuf *sb,
     struct cpu_group *cg, int indent);
 #endif
 
@@ -346,20 +346,20 @@ SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks,
 
 SDT_PROVIDER_DEFINE(sched);
 
-SDT_PROBE_DEFINE3(sched, , , change__pri, "struct thread *", 
+SDT_PROBE_DEFINE3(sched, , , change__pri, "struct thread *",
     "struct proc *", "uint8_t");
-SDT_PROBE_DEFINE3(sched, , , dequeue, "struct thread *", 
+SDT_PROBE_DEFINE3(sched, , , dequeue, "struct thread *",
     "struct proc *", "void *");
-SDT_PROBE_DEFINE4(sched, , , enqueue, "struct thread *", 
+SDT_PROBE_DEFINE4(sched, , , enqueue, "struct thread *",
     "struct proc *", "void *", "int");
-SDT_PROBE_DEFINE4(sched, , , lend__pri, "struct thread *", 
+SDT_PROBE_DEFINE4(sched, , , lend__pri, "struct thread *",
     "struct proc *", "uint8_t", "struct thread *");
 SDT_PROBE_DEFINE2(sched, , , load__change, "int", "int");
-SDT_PROBE_DEFINE2(sched, , , off__cpu, "struct thread *", 
+SDT_PROBE_DEFINE2(sched, , , off__cpu, "struct thread *",
     "struct proc *");
 SDT_PROBE_DEFINE(sched, , , on__cpu);
 SDT_PROBE_DEFINE(sched, , , remain__cpu);
-SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *", 
+SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *",
     "struct proc *");
 
 /*
@@ -502,7 +502,7 @@ tdq_runq_add(struct tdq *tdq, struct thread *td, int flags)
 	runq_add(ts->ts_runq, td, flags);
 }
 
-/* 
+/*
  * Remove a thread from a run-queue.  This typically happens when a thread
  * is selected to run.  Running threads are not on the queue and the
  * transferable count does not reflect them.
@@ -1516,7 +1516,7 @@ sched_initticks(void *dummy)
  * When a thread's sleep time is greater than its run time the
  * calculation is:
  *
- *                           scaling factor 
+ *                           scaling factor
  * interactivity score =  ---------------------
  *                        sleep time / run time
  *
@@ -1524,7 +1524,7 @@ sched_initticks(void *dummy)
  * When a thread's run time is greater than its sleep time the
  * calculation is:
  *
- *                           scaling factor 
+ *                           scaling factor
  * interactivity score =  ---------------------    + scaling factor
  *                        run time / sleep time
  */
@@ -1604,7 +1604,7 @@ sched_priority(struct thread *td)
 			    SCHED_PRI_RANGE - 1);
 		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
 		KASSERT(pri >= PRI_MIN_BATCH && pri <= PRI_MAX_BATCH,
-		    ("sched_priority: invalid priority %d: nice %d, " 
+		    ("sched_priority: invalid priority %d: nice %d, "
 		    "ticks %d ftick %d ltick %d tick pri %d",
 		    pri, td->td_proc->p_nice, td_get_sched(td)->ts_ticks,
 		    td_get_sched(td)->ts_ftick, td_get_sched(td)->ts_ltick,
@@ -1760,9 +1760,9 @@ sched_thread_priority(struct thread *td, u_char prio)
 		KTR_POINT3(KTR_SCHED, "thread", sched_tdname(curthread),
 		    "lend prio", "prio:%d", td->td_priority, "new prio:%d",
 		    prio, KTR_ATTR_LINKED, sched_tdname(td));
-		SDT_PROBE4(sched, , , lend__pri, td, td->td_proc, prio, 
+		SDT_PROBE4(sched, , , lend__pri, td, td->td_proc, prio,
 		    curthread);
-	} 
+	}
 	ts = td_get_sched(td);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority == prio)
@@ -2013,7 +2013,7 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 #ifdef SMP
 	tdq_load_rem(tdq, td);
 	/*
-	 * Do the lock dance required to avoid LOR.  We have an 
+	 * Do the lock dance required to avoid LOR.  We have an
 	 * extra spinlock nesting from sched_switch() which will
 	 * prevent preemption while we're holding neither run-queue lock.
 	 */
@@ -2582,7 +2582,7 @@ sched_add(struct thread *td, int flags)
 	    sched_tdname(curthread));
 	KTR_POINT1(KTR_SCHED, "thread", sched_tdname(curthread), "wokeup",
 	    KTR_ATTR_LINKED, sched_tdname(td));
-	SDT_PROBE4(sched, , , enqueue, td, td->td_proc, NULL, 
+	SDT_PROBE4(sched, , , enqueue, td, td->td_proc, NULL,
 	    flags & SRQ_PREEMPTED);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	/*
@@ -2836,7 +2836,7 @@ sched_idletd(void *dummy)
 #endif
 		/*
 		 * If we're switching very frequently, spin while checking
-		 * for load rather than entering a low power state that 
+		 * for load rather than entering a low power state that
 		 * may require an IPI.  However, don't do any busy
 		 * loops while on SMT machines as this simply steals
 		 * cycles from cores doing useful work.
@@ -3027,7 +3027,7 @@ sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
 	if (cg->cg_children > 0) {
 		sbuf_printf(sb, "%*s <children>\n", indent, "");
 		for (i = 0; i < cg->cg_children; i++)
-			sysctl_kern_sched_topology_spec_internal(sb, 
+			sysctl_kern_sched_topology_spec_internal(sb,
 			    &cg->cg_child[i], indent+2);
 		sbuf_printf(sb, "%*s </children>\n", indent, "");
 	}

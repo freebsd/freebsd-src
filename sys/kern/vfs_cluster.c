@@ -155,13 +155,13 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 					break;
 
 				/*
-				 * Set another read-ahead mark so we know 
+				 * Set another read-ahead mark so we know
 				 * to check again. (If we can lock the
 				 * buffer without waiting)
 				 */
 				if ((((i % racluster) == (racluster - 1)) ||
-				    (i == (maxra - 1))) 
-				    && (0 == BUF_LOCK(rbp, 
+				    (i == (maxra - 1)))
+				    && (0 == BUF_LOCK(rbp,
 					LK_EXCLUSIVE | LK_NOWAIT, NULL))) {
 					rbp->b_flags |= B_RAM;
 					BUF_UNLOCK(rbp);
@@ -362,7 +362,7 @@ cluster_rbuild(struct vnode *vp, u_quad_t filesize, daddr_t lbn,
 
 	if (fbp) {
 		tbp = fbp;
-		tbp->b_iocmd = BIO_READ; 
+		tbp->b_iocmd = BIO_READ;
 	} else {
 		tbp = getblk(vp, lbn, size, 0, 0, gbflags);
 		if (tbp->b_flags & B_CACHE)
@@ -683,7 +683,7 @@ cluster_write(struct vnode *vp, struct vn_clusterw *vnc, struct buf *bp,
 			 *
 			 * Change to algorithm: only push previous cluster if
 			 * it was sequential from the point of view of the
-			 * seqcount heuristic, otherwise leave the buffer 
+			 * seqcount heuristic, otherwise leave the buffer
 			 * intact so we can potentially optimize the I/O
 			 * later on in the buf_daemon or update daemon
 			 * flush.
@@ -725,7 +725,7 @@ cluster_write(struct vnode *vp, struct vn_clusterw *vnc, struct buf *bp,
 						brelse(*bpp);
 					free(buflist, M_SEGMENT);
 					if (seqcount > 1) {
-						cluster_wbuild_wb(vp, 
+						cluster_wbuild_wb(vp,
 						    lblocksize, vnc->v_cstart,
 						    cursize, gbflags);
 					}
@@ -853,7 +853,7 @@ cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
 		 * up if the cluster was terminated prematurely--too much
 		 * hassle.
 		 */
-		if (((tbp->b_flags & (B_CLUSTEROK | B_MALLOC | B_VMIO)) != 
+		if (((tbp->b_flags & (B_CLUSTEROK | B_MALLOC | B_VMIO)) !=
 		     (B_CLUSTEROK | B_VMIO)) ||
 		  (tbp->b_bcount != tbp->b_bufsize) ||
 		  (tbp->b_bcount != size) ||

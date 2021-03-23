@@ -362,7 +362,7 @@ dofileread(struct thread *td, int fd, struct file *fp, struct uio *auio,
 	auio->uio_offset = offset;
 	auio->uio_td = td;
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_GENIO)) 
+	if (KTRPOINT(td, KTR_GENIO))
 		ktruio = cloneuio(auio);
 #endif
 	cnt = auio->uio_resid;
@@ -1238,7 +1238,7 @@ done:
 
 	return (error);
 }
-/* 
+/*
  * Convert a select bit set to poll flags.
  *
  * The backend always returns POLLHUP/POLLERR if appropriate and we
@@ -1460,7 +1460,7 @@ kern_poll(struct thread *td, struct pollfd *ufds, u_int nfds,
 	 * least enough for the system-wide limits.  We want to be reasonably
 	 * safe, but not overly restrictive.
 	 */
-	if (nfds > maxfilesperproc && nfds > FD_SETSIZE) 
+	if (nfds > maxfilesperproc && nfds > FD_SETSIZE)
 		return (EINVAL);
 	if (nfds > nitems(stackfds))
 		kfds = mallocarray(nfds, sizeof(*kfds), M_TEMP, M_WAITOK);
@@ -1684,7 +1684,7 @@ selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
 	precision = 0;	/* stupid gcc! */
 	if (tvp != NULL) {
 		rtv = *tvp;
-		if (rtv.tv_sec < 0 || rtv.tv_usec < 0 || 
+		if (rtv.tv_sec < 0 || rtv.tv_usec < 0 ||
 		    rtv.tv_usec >= 1000000)
 			return (EINVAL);
 		if (!timevalisset(&rtv))

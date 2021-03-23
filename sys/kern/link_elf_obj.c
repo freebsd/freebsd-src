@@ -495,7 +495,7 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 			if (ef->shstrtab && shdr[i].sh_name != 0)
 				ef->progtab[pb].name =
 				    ef->shstrtab + shdr[i].sh_name;
-			if (ef->progtab[pb].name != NULL && 
+			if (ef->progtab[pb].name != NULL &&
 			    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME)) {
 				void *dpcpu;
 
@@ -1021,7 +1021,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 #endif
 			else
 				ef->progtab[pb].name = "<<NOBITS>>";
-			if (ef->progtab[pb].name != NULL && 
+			if (ef->progtab[pb].name != NULL &&
 			    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME)) {
 				ef->progtab[pb].addr =
 				    dpcpu_alloc(shdr[i].sh_size);
@@ -1754,15 +1754,15 @@ static long
 link_elf_symtab_get(linker_file_t lf, const Elf_Sym **symtab)
 {
     elf_file_t ef = (elf_file_t)lf;
-    
+
     *symtab = ef->ddbsymtab;
-    
+
     if (*symtab == NULL)
         return (0);
 
     return (ef->ddbsymcnt);
 }
-    
+
 static long
 link_elf_strtab_get(linker_file_t lf, caddr_t *strtab)
 {

@@ -702,7 +702,7 @@ getenv_array(const char *name, void *pdata, int size, int *psize,
 		/* check for invalid value */
 		if (ptr == end)
 			goto error;
-		
+
 		/* check for valid suffix */
 		switch (*end) {
 		case 't':

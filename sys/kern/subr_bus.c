@@ -715,7 +715,7 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
  * useful for other consumers of this interface.  Those should use
  * the devctl_notify() interface instead.
  *
- * Output: 
+ * Output:
  *	${type}${what} at $(location dev) $(pnp-info dev) on $(parent dev)
  */
 static void
@@ -5952,7 +5952,7 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 				break;
 			}
 		}
-		
+
 		error = device_delete_child(parent, dev);
 		break;
 	}

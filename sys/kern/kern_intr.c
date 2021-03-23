@@ -109,7 +109,7 @@ static void	intr_event_update(struct intr_event *ie);
 static int	intr_event_schedule_thread(struct intr_event *ie);
 static struct intr_thread *ithread_create(const char *name);
 static void	ithread_destroy(struct intr_thread *ithread);
-static void	ithread_execute_handlers(struct proc *p, 
+static void	ithread_execute_handlers(struct proc *p,
 		    struct intr_event *ie);
 static void	ithread_loop(void *);
 static void	ithread_update(struct intr_thread *ithd);
@@ -1160,7 +1160,7 @@ intr_event_execute_handlers(struct proc *p, struct intr_event *ie)
 
 		/* Execute this handler. */
 		CTR6(KTR_INTR, "%s: pid %d exec %p(%p) for %s flg=%x",
-		    __func__, p->p_pid, (void *)ih->ih_handler, 
+		    __func__, p->p_pid, (void *)ih->ih_handler,
 		    ih->ih_argument, ih->ih_name, ih->ih_flags);
 
 		if (!(ih->ih_flags & IH_MPSAFE))

@@ -172,7 +172,7 @@ bcm_get_bus_size(void)
 
 /**
  * Search the device enumeration table for a core matching @p descs,
- * 
+ *
  * @param	bp		Platform state containing a valid EROM parser.
  * @param	descs		The core match descriptor table.
  * @param	num_descs	The number of match descriptors in @p descs.
@@ -254,7 +254,7 @@ bcm_get_nvram(struct bcm_platform *bp, const char *name, void *buf, size_t *len,
 
 /**
  * Probe and attach a bhnd_erom parser instance for the bhnd bus.
- * 
+ *
  * @param[out]	erom_cls	The probed EROM class.
  * @param[out]	erom_ops	The storage to be used when compiling
  *				@p erom_cls.
@@ -323,7 +323,7 @@ bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls, kobj_ops_t erom_ops,
 
 	/* Valid EROM class probed? */
 	if (*erom_cls == NULL) {
-		BCM_ERR("no erom parser found for root bus at %#jx\n", 
+		BCM_ERR("no erom parser found for root bus at %#jx\n",
 		    (uintmax_t)bus_addr);
 
 		return (ENOENT);
@@ -401,7 +401,7 @@ bcm_init_platform_data(struct bcm_platform *bp)
 
 	/* Fetch chipc capability flags */
 	bp->cc_caps = BCM_SOC_READ_4(bp->cc_addr, CHIPC_CAPABILITIES);
-	bp->cc_caps_ext = 0x0;	
+	bp->cc_caps_ext = 0x0;
 
 	if (CHIPC_HWREV_HAS_CAP_EXT(bp->cc_id.hwrev))
 		bp->cc_caps_ext = BCM_CHIPC_READ_4(bp, CHIPC_CAPABILITIES_EXT);
@@ -498,7 +498,7 @@ mips_init(void)
 			 */
 			phys_avail[i] += MIPS_KSEG0_TO_PHYS(kernel_kseg0_end);
 		}
-		
+
 		BCM_TRACE("phys memory is available for: %d\n", i);
 		BCM_TRACE(" => addr =  %jx\n", addr);
 		BCM_TRACE(" => len =  %jd\n", len);

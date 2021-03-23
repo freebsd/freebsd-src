@@ -248,7 +248,7 @@ msgbuf_addstr(struct msgbuf *mbp, int pri, const char *str, int filter_cr)
 		/*
 		 * Don't copy carriage returns if the caller requested
 		 * filtering.
-		 * 
+		 *
 		 * XXX This matches the behavior of msglogchar(), but is it
 		 * necessary?  Testing has shown that we don't seem to get
 		 * carriage returns here.

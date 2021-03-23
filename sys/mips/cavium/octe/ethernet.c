@@ -352,7 +352,7 @@ int cvm_oct_init_module(device_t bus)
 		     ifnum++, port++) {
 			cvm_oct_private_t *priv;
 			struct ifnet *ifp;
-			
+
 			dev = BUS_ADD_CHILD(bus, 0, "octe", ifnum);
 			if (dev != NULL)
 				ifp = if_alloc(IFT_ETHER);

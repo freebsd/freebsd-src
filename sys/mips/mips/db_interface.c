@@ -324,7 +324,7 @@ db_inst_type(int ins)
 	case OP_SB:
 	case OP_SH:
 	case OP_SW:
-	case OP_SD:  
+	case OP_SD:
 	case OP_SWC1:
 		ityp = IT_STORE;
 		break;

@@ -142,7 +142,7 @@ physmem_print_tables(void)
 /*
  * Walk the list of hardware regions, processing it against the list of
  * exclusions that contain the given exflags, and generating an "avail list".
- * 
+ *
  * If maxphyssz is not zero it sets upper limit, in bytes, for the total
  * "avail list" size. Walk stops once the limit is reached and the last region
  * is cut short if necessary.

@@ -332,7 +332,7 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 	name[0] = CTL_KERN;
 	name[1] = KERN_OSTYPE;
 	len = sizeof (uap->name->sysname);
-	error = userland_sysctl(td, name, 2, uap->name->sysname, &len, 
+	error = userland_sysctl(td, name, 2, uap->name->sysname, &len,
 		1, 0, 0, 0, 0);
 	if (error)
 		return (error);
@@ -340,7 +340,7 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 
 	name[1] = KERN_HOSTNAME;
 	len = sizeof uap->name->nodename;
-	error = userland_sysctl(td, name, 2, uap->name->nodename, &len, 
+	error = userland_sysctl(td, name, 2, uap->name->nodename, &len,
 		1, 0, 0, 0, 0);
 	if (error)
 		return (error);
@@ -348,7 +348,7 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 
 	name[1] = KERN_OSRELEASE;
 	len = sizeof uap->name->release;
-	error = userland_sysctl(td, name, 2, uap->name->release, &len, 
+	error = userland_sysctl(td, name, 2, uap->name->release, &len,
 		1, 0, 0, 0, 0);
 	if (error)
 		return (error);
@@ -357,7 +357,7 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 /*
 	name = KERN_VERSION;
 	len = sizeof uap->name->version;
-	error = userland_sysctl(td, name, 2, uap->name->version, &len, 
+	error = userland_sysctl(td, name, 2, uap->name->version, &len,
 		1, 0, 0, 0, 0);
 	if (error)
 		return (error);
@@ -381,7 +381,7 @@ freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 	name[0] = CTL_HW;
 	name[1] = HW_MACHINE;
 	len = sizeof uap->name->machine;
-	error = userland_sysctl(td, name, 2, uap->name->machine, &len, 
+	error = userland_sysctl(td, name, 2, uap->name->machine, &len,
 		1, 0, 0, 0, 0);
 	if (error)
 		return (error);

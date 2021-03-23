@@ -105,7 +105,7 @@ mb_fixhdr(struct mbchain *mbp)
  * Check if object of size 'size' fit to the current position and
  * allocate new mbuf if not. Advance pointers and increase length of mbuf(s).
  * Return pointer to the object placeholder or NULL if any error occurred.
- * Note: size should be <= MLEN 
+ * Note: size should be <= MLEN
  */
 caddr_t
 mb_reserve(struct mbchain *mbp, int size)

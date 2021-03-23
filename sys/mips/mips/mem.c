@@ -117,7 +117,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			eva = round_page(uio->uio_offset
 			    + iov->iov_len);
 
-			/* 
+			/*
 			 * Make sure that all the pages are currently resident
 			 * so that we don't create any zero-fill pages.
 			 */

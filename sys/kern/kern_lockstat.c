@@ -74,7 +74,7 @@ SDT_PROBE_DEFINE2(lockstat, , , thread__spin, "struct mtx *", "uint64_t");
 
 volatile bool __read_frequently lockstat_enabled;
 
-uint64_t 
+uint64_t
 lockstat_nsecs(struct lock_object *lo)
 {
 	struct bintime bt;

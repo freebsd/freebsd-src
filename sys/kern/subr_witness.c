@@ -57,7 +57,7 @@
  *	  b : public affirmation by word or example of usually
  *	      religious faith or conviction <the heroic witness to divine
  *	      life -- Pilot>
- *	6 capitalized : a member of the Jehovah's Witnesses 
+ *	6 capitalized : a member of the Jehovah's Witnesses
  */
 
 /*
@@ -268,7 +268,7 @@ struct witness_lock_order_data {
 /*
  * The witness lock order data hash table. Keys are witness index tuples
  * (struct witness_lock_order_key), elements are lock order data objects
- * (struct witness_lock_order_data). 
+ * (struct witness_lock_order_data).
  */
 struct witness_lock_order_hash {
 	struct witness_lock_order_data	*wloh_array[WITNESS_LO_HASH_SIZE];
@@ -418,7 +418,7 @@ SYSCTL_INT(_debug_witness, OID_AUTO, skipspin, CTLFLAG_RDTUN, &witness_skipspin,
 int badstack_sbuf_size;
 
 int witness_count = WITNESS_COUNT;
-SYSCTL_INT(_debug_witness, OID_AUTO, witness_count, CTLFLAG_RDTUN, 
+SYSCTL_INT(_debug_witness, OID_AUTO, witness_count, CTLFLAG_RDTUN,
     &witness_count, 0, "");
 
 /*
@@ -835,7 +835,7 @@ witness_startup(void *mem)
 	w_free_cnt--;
 
 	for (i = 0; i < witness_count; i++) {
-		memset(w_rmatrix[i], 0, sizeof(*w_rmatrix[i]) * 
+		memset(w_rmatrix[i], 0, sizeof(*w_rmatrix[i]) *
 		    (witness_count + 1));
 	}
 
@@ -1257,7 +1257,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			w->w_reversed = 1;
 			mtx_unlock_spin(&w_mtx);
 			witness_output(
-			    "acquiring duplicate lock of same type: \"%s\"\n", 
+			    "acquiring duplicate lock of same type: \"%s\"\n",
 			    w->w_name);
 			witness_output(" 1st %s @ %s:%d\n", plock->li_lock->lo_name,
 			    fixup_filename(plock->li_file), plock->li_line);
@@ -1743,7 +1743,7 @@ found:
 
 	/*
 	 * In order to reduce contention on w_mtx, we want to keep always an
-	 * head object into lists so that frequent allocation from the 
+	 * head object into lists so that frequent allocation from the
 	 * free witness pool (and subsequent locking) is avoided.
 	 * In order to maintain the current code simple, when the head
 	 * object is totally unloaded it means also that we do not have
@@ -1781,7 +1781,7 @@ witness_thread_exit(struct thread *td)
 				n++;
 				witness_list_lock(&lle->ll_children[i],
 				    witness_output);
-				
+
 			}
 		kassert_panic(
 		    "Thread %p cannot exit while holding sleeplocks\n", td);
@@ -1999,18 +1999,18 @@ adopt(struct witness *parent, struct witness *child)
 		child->w_num_ancestors++;
 	}
 
-	/* 
-	 * Find each ancestor of 'pi'. Note that 'pi' itself is counted as 
+	/*
+	 * Find each ancestor of 'pi'. Note that 'pi' itself is counted as
 	 * an ancestor of 'pi' during this loop.
 	 */
 	for (i = 1; i <= w_max_used_index; i++) {
-		if ((w_rmatrix[i][pi] & WITNESS_ANCESTOR_MASK) == 0 && 
+		if ((w_rmatrix[i][pi] & WITNESS_ANCESTOR_MASK) == 0 &&
 		    (i != pi))
 			continue;
 
 		/* Find each descendant of 'i' and mark it as a descendant. */
 		for (j = 1; j <= w_max_used_index; j++) {
-			/* 
+			/*
 			 * Skip children that are already marked as
 			 * descendants of 'i'.
 			 */
@@ -2021,7 +2021,7 @@ adopt(struct witness *parent, struct witness *child)
 			 * We are only interested in descendants of 'ci'. Note
 			 * that 'ci' itself is counted as a descendant of 'ci'.
 			 */
-			if ((w_rmatrix[ci][j] & WITNESS_ANCESTOR_MASK) == 0 && 
+			if ((w_rmatrix[ci][j] & WITNESS_ANCESTOR_MASK) == 0 &&
 			    (j != ci))
 				continue;
 			w_rmatrix[i][j] |= WITNESS_ANCESTOR;
@@ -2029,16 +2029,16 @@ adopt(struct witness *parent, struct witness *child)
 			w_data[i].w_num_descendants++;
 			w_data[j].w_num_ancestors++;
 
-			/* 
+			/*
 			 * Make sure we aren't marking a node as both an
-			 * ancestor and descendant. We should have caught 
+			 * ancestor and descendant. We should have caught
 			 * this as a lock order reversal earlier.
 			 */
 			if ((w_rmatrix[i][j] & WITNESS_ANCESTOR_MASK) &&
 			    (w_rmatrix[i][j] & WITNESS_DESCENDANT_MASK)) {
 				printf("witness rmatrix paradox! [%d][%d]=%d "
 				    "both ancestor and descendant\n",
-				    i, j, w_rmatrix[i][j]); 
+				    i, j, w_rmatrix[i][j]);
 				kdb_backtrace();
 				printf("Witness disabled.\n");
 				witness_watch = -1;
@@ -2047,7 +2047,7 @@ adopt(struct witness *parent, struct witness *child)
 			    (w_rmatrix[j][i] & WITNESS_DESCENDANT_MASK)) {
 				printf("witness rmatrix paradox! [%d][%d]=%d "
 				    "both ancestor and descendant\n",
-				    j, i, w_rmatrix[j][i]); 
+				    j, i, w_rmatrix[j][i]);
 				kdb_backtrace();
 				printf("Witness disabled.\n");
 				witness_watch = -1;
@@ -2219,7 +2219,7 @@ witness_lock_list_get(void)
 	bzero(lle, sizeof(*lle));
 	return (lle);
 }
-		
+
 static void
 witness_lock_list_free(struct lock_list_entry *lle)
 {
@@ -2631,9 +2631,9 @@ sbuf_print_witness_badstacks(struct sbuf *sb, size_t *oldidx)
 	/* Allocate and init temporary storage space. */
 	tmp_w1 = malloc(sizeof(struct witness), M_TEMP, M_WAITOK | M_ZERO);
 	tmp_w2 = malloc(sizeof(struct witness), M_TEMP, M_WAITOK | M_ZERO);
-	tmp_data1 = malloc(sizeof(struct witness_lock_order_data), M_TEMP, 
+	tmp_data1 = malloc(sizeof(struct witness_lock_order_data), M_TEMP,
 	    M_WAITOK | M_ZERO);
-	tmp_data2 = malloc(sizeof(struct witness_lock_order_data), M_TEMP, 
+	tmp_data2 = malloc(sizeof(struct witness_lock_order_data), M_TEMP,
 	    M_WAITOK | M_ZERO);
 	stack_zero(&tmp_data1->wlod_stack);
 	stack_zero(&tmp_data2->wlod_stack);
@@ -2708,12 +2708,12 @@ restart:
 
 			sbuf_printf(sb,
 	    "\nLock order reversal between \"%s\"(%s) and \"%s\"(%s)!\n",
-			    tmp_w1->w_name, tmp_w1->w_class->lc_name, 
+			    tmp_w1->w_name, tmp_w1->w_class->lc_name,
 			    tmp_w2->w_name, tmp_w2->w_class->lc_name);
 			if (data1) {
 				sbuf_printf(sb,
 			"Lock order \"%s\"(%s) -> \"%s\"(%s) first seen at:\n",
-				    tmp_w1->w_name, tmp_w1->w_class->lc_name, 
+				    tmp_w1->w_name, tmp_w1->w_class->lc_name,
 				    tmp_w2->w_name, tmp_w2->w_class->lc_name);
 				stack_sbuf_print(sb, &tmp_data1->wlod_stack);
 				sbuf_printf(sb, "\n");
@@ -2721,7 +2721,7 @@ restart:
 			if (data2 && data2 != data1) {
 				sbuf_printf(sb,
 			"Lock order \"%s\"(%s) -> \"%s\"(%s) first seen at:\n",
-				    tmp_w2->w_name, tmp_w2->w_class->lc_name, 
+				    tmp_w2->w_name, tmp_w2->w_class->lc_name,
 				    tmp_w1->w_name, tmp_w1->w_class->lc_name);
 				stack_sbuf_print(sb, &tmp_data2->wlod_stack);
 				sbuf_printf(sb, "\n");

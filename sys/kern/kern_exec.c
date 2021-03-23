@@ -137,7 +137,7 @@ SYSCTL_PROC(_kern, OID_AUTO, stackprot, CTLTYPE_INT|CTLFLAG_RD|CTLFLAG_MPSAFE,
     "Stack memory permissions");
 
 u_long ps_arg_cache_limit = PAGE_SIZE / 16;
-SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
+SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW,
     &ps_arg_cache_limit, 0,
     "Process' command line characters cache limit");
 
@@ -206,9 +206,9 @@ static const struct execsw **execsw;
 
 #ifndef _SYS_SYSPROTO_H_
 struct execve_args {
-	char    *fname; 
+	char    *fname;
 	char    **argv;
-	char    **envv; 
+	char    **envv;
 };
 #endif
 

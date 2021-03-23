@@ -2104,7 +2104,7 @@ uint64_t
 cpu_tickrate(void)
 {
 
-	if (cpu_ticks == tc_cpu_ticks) 
+	if (cpu_ticks == tc_cpu_ticks)
 		return (tc_getfrequency());
 	return (cpu_tick_frequency);
 }

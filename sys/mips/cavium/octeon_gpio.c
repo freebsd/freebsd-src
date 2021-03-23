@@ -28,7 +28,7 @@
  */
 
 /*
- * GPIO driver for Cavium Octeon 
+ * GPIO driver for Cavium Octeon
  */
 
 #include <sys/cdefs.h>
@@ -77,7 +77,7 @@ static struct octeon_gpio_pin octeon_gpio_pins[] = {
 /*
  * Helpers
  */
-static void octeon_gpio_pin_configure(struct octeon_gpio_softc *sc, 
+static void octeon_gpio_pin_configure(struct octeon_gpio_softc *sc,
     struct gpio_pin *pin, uint32_t flags);
 
 /*
@@ -302,7 +302,7 @@ octeon_gpio_pin_toggle(device_t dev, uint32_t pin)
 
 	GPIO_LOCK(sc);
 	/*
-	 * XXX: Need to check if read returns actual state of output 
+	 * XXX: Need to check if read returns actual state of output
 	 * pins or we need to keep this information by ourself
 	 */
 	state = cvmx_gpio_read();
@@ -346,7 +346,7 @@ octeon_gpio_intr(void *arg)
 	long int irq = (cookie - sc->gpio_intr_cookies);
 
 	if ((irq < 0) || (irq >= OCTEON_GPIO_IRQS)) {
-		printf("%s: invalid GPIO IRQ: %ld\n", 
+		printf("%s: invalid GPIO IRQ: %ld\n",
 		    __func__, irq);
 		return;
 	}
@@ -392,9 +392,9 @@ octeon_gpio_attach(device_t dev)
 	mtx_init(&sc->gpio_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	for ( i = 0; i < OCTEON_GPIO_IRQS; i++) {
-		if ((sc->gpio_irq_res[i] = bus_alloc_resource(dev, 
-		    SYS_RES_IRQ, &sc->gpio_irq_rid[i], 
-		    OCTEON_IRQ_GPIO0 + i, OCTEON_IRQ_GPIO0 + i, 1, 
+		if ((sc->gpio_irq_res[i] = bus_alloc_resource(dev,
+		    SYS_RES_IRQ, &sc->gpio_irq_rid[i],
+		    OCTEON_IRQ_GPIO0 + i, OCTEON_IRQ_GPIO0 + i, 1,
 		    RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 			device_printf(dev, "unable to allocate IRQ resource\n");
 			octeon_gpio_detach(dev);
@@ -402,8 +402,8 @@ octeon_gpio_attach(device_t dev)
 		}
 
 		sc->gpio_intr_cookies[i] = sc;
-		if ((bus_setup_intr(dev, sc->gpio_irq_res[i], INTR_TYPE_MISC, 
-	    	    octeon_gpio_filter, octeon_gpio_intr, 
+		if ((bus_setup_intr(dev, sc->gpio_irq_res[i], INTR_TYPE_MISC,
+	    	    octeon_gpio_filter, octeon_gpio_intr,
 		    &(sc->gpio_intr_cookies[i]), &sc->gpio_ih[i]))) {
 			device_printf(dev,
 		    	"WARNING: unable to register interrupt handler\n");
@@ -443,8 +443,8 @@ octeon_gpio_attach(device_t dev)
 	if (bootverbose) {
 		for (i = 0; i < 16; i++) {
 			gpio_cfgx.u64 = cvmx_read_csr(CVMX_GPIO_BIT_CFGX(i));
-			device_printf(dev, "[pin%d] output=%d, invinput=%d, intr=%d, intr_type=%s\n", 
-			    i, gpio_cfgx.s.tx_oe, gpio_cfgx.s.rx_xor, 
+			device_printf(dev, "[pin%d] output=%d, invinput=%d, intr=%d, intr_type=%s\n",
+			    i, gpio_cfgx.s.tx_oe, gpio_cfgx.s.rx_xor,
 			    gpio_cfgx.s.int_en, gpio_cfgx.s.int_type ? "rising edge" : "level");
 		}
 	}

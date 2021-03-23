@@ -97,11 +97,11 @@ SCHED_STAT_DEFINE_VAR(sleepq,
     &DPCPU_NAME(sched_switch_stats[SWT_SLEEPQ]), "");
 SCHED_STAT_DEFINE_VAR(sleepqtimo,
     &DPCPU_NAME(sched_switch_stats[SWT_SLEEPQTIMO]), "");
-SCHED_STAT_DEFINE_VAR(relinquish, 
+SCHED_STAT_DEFINE_VAR(relinquish,
     &DPCPU_NAME(sched_switch_stats[SWT_RELINQUISH]), "");
 SCHED_STAT_DEFINE_VAR(needresched,
     &DPCPU_NAME(sched_switch_stats[SWT_NEEDRESCHED]), "");
-SCHED_STAT_DEFINE_VAR(idle, 
+SCHED_STAT_DEFINE_VAR(idle,
     &DPCPU_NAME(sched_switch_stats[SWT_IDLE]), "");
 SCHED_STAT_DEFINE_VAR(iwait,
     &DPCPU_NAME(sched_switch_stats[SWT_IWAIT]), "");

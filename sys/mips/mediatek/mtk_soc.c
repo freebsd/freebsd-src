@@ -341,7 +341,7 @@ mtk_soc_try_early_detect(void)
 	/* Now figure out the timer clock */
 	if (mtk_soc_socid == MTK_SOC_MT7621) {
 #ifdef notyet
-		/* 
+		/*
 		 * We use the GIC timer for timing source and its clock freq is
 		 * the same as the CPU's clock freq
 		 */

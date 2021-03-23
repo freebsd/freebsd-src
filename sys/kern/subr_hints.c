@@ -347,10 +347,10 @@ resource_int_value(const char *name, int unit, const char *resname, int *result)
 	    NULL, NULL, NULL, NULL, NULL, &str);
 	if (error)
 		return error;
-	if (*str == '\0') 
+	if (*str == '\0')
 		return EFTYPE;
 	val = strtoul(str, &op, 0);
-	if (*op != '\0') 
+	if (*op != '\0')
 		return EFTYPE;
 	*result = val;
 	return 0;
@@ -371,10 +371,10 @@ resource_long_value(const char *name, int unit, const char *resname,
 	    NULL, NULL, NULL, NULL, NULL, &str);
 	if (error)
 		return error;
-	if (*str == '\0') 
+	if (*str == '\0')
 		return EFTYPE;
 	val = strtoul(str, &op, 0);
-	if (*op != '\0') 
+	if (*op != '\0')
 		return EFTYPE;
 	*result = val;
 	return 0;

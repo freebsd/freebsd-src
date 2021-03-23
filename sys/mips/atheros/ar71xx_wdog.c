@@ -28,7 +28,7 @@
  */
 
 /*
- * Watchdog driver for AR71xx 
+ * Watchdog driver for AR71xx
  */
 
 #include <sys/cdefs.h>
@@ -154,7 +154,7 @@ ar71xx_wdog_attach(device_t dev)
 	sc->debug = 0;
 
 	if (ATH_READ_REG(AR71XX_RST_WDOG_CONTROL) & RST_WDOG_LAST) {
-		device_printf (dev, 
+		device_printf (dev,
 		    "Previous reset was due to watchdog timeout\n");
 		sc->reboot_from_watchdog = 1;
 	}

@@ -70,11 +70,11 @@ ar5315_wdog_watchdog_fn(void *private, u_int cmd, int *error)
 		 * Load timer with large enough value to prevent spurious
 		 * reset
 		 */
-		ATH_WRITE_REG(ar531x_wdog_timer(), 
+		ATH_WRITE_REG(ar531x_wdog_timer(),
 		    ar531x_ahb_freq() * 10);
-		ATH_WRITE_REG(ar531x_wdog_ctl(), 
+		ATH_WRITE_REG(ar531x_wdog_ctl(),
 		    AR5315_WDOG_CTL_RESET);
-		ATH_WRITE_REG(ar531x_wdog_timer(), 
+		ATH_WRITE_REG(ar531x_wdog_timer(),
 		    (timer_val & 0xffffffff));
 		sc->armed = 1;
 		*error = 0;

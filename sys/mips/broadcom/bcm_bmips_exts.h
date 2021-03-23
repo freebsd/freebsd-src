@@ -41,9 +41,9 @@
 
 /*  *********************************************************************
     *  Broadcom Common Firmware Environment (CFE)
-    *  
+    *
     *  MIPS32 CPU definitions			File: sbmips32.h
-    * 
+    *
     *  This module contains constants and macros specific to the
     *  Broadcom MIPS32 core.  In addition to generic MIPS32, it
     *  includes definitions for the MIP32-01 and MIPS3302 OCP cores

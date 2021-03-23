@@ -69,7 +69,7 @@ static void run_interrupt_driven_config_hooks(void);
  * Private data and a shim function for implementing config_interhook_oneshot().
  */
 struct oneshot_config_hook {
-	struct intr_config_hook 
+	struct intr_config_hook
 			och_hook;		/* Must be first */
 	ich_func_t	och_func;
 	void		*och_arg;
@@ -208,7 +208,7 @@ config_intrhook_establish(struct intr_config_hook *hook)
 		 *     to be re-entered at the time a hook is established.
 		 */
 		/* XXX Sufficient for modules loaded after initial config??? */
-		run_interrupt_driven_config_hooks();	
+		run_interrupt_driven_config_hooks();
 	return (0);
 }
 

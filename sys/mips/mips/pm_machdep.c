@@ -133,7 +133,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		    td->td_sigstk.ss_size - sizeof(struct sigframe))
 		    & ~(STACK_ALIGN - 1));
 	} else
-		sfp = (struct sigframe *)((vm_offset_t)(regs->sp - 
+		sfp = (struct sigframe *)((vm_offset_t)(regs->sp -
 		    sizeof(struct sigframe)) & ~(STACK_ALIGN - 1));
 
 	/* Build the argument list for the signal handler. */
@@ -291,7 +291,7 @@ out:
 	if (error == 0)
 		CTR3(KTR_PTRACE,
 		    "ptrace_single_step: tid %d, break set at %#lx: (%#08x)",
-		    td->td_tid, va, td->td_md.md_ss_instr); 
+		    td->td_tid, va, td->td_md.md_ss_instr);
 	return (error);
 }
 

@@ -128,7 +128,7 @@ module_register_init(const void *arg)
 		MOD_XUNLOCK;
 		printf("module_register_init: MOD_LOAD (%s, %p, %p) error"
 		    " %d\n", data->name, (void *)data->evhand, data->priv,
-		    error); 
+		    error);
 	} else {
 		MOD_XLOCK;
 		if (mod->file) {
@@ -412,7 +412,7 @@ sys_modstat(struct thread *td, struct modstat_args *uap)
 	 * >v1 stat includes module data.
 	 */
 	if (version == sizeof(struct module_stat))
-		if ((error = copyout(&data, &stat->data, 
+		if ((error = copyout(&data, &stat->data,
 		    sizeof(data))) != 0)
 			return (error);
 	td->td_retval[0] = 0;

@@ -148,7 +148,7 @@ db_disasm(db_addr_t loc, bool altfmt)
 	}
 
 	return (loc + sizeof(int));
-} 
+}
 
 /* ARGSUSED */
 static int

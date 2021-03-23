@@ -49,7 +49,7 @@ static void MD5Transform(u_int32_t [4], const unsigned char [64]);
 #if (BYTE_ORDER == LITTLE_ENDIAN)
 #define Encode memcpy
 #define Decode memcpy
-#else 
+#else
 
 /*
  * Encodes input (u_int32_t) into output (unsigned char). Assumes len is
@@ -81,7 +81,7 @@ Decode (u_int32_t *output, const unsigned char *input, unsigned int len)
 {
 	unsigned int i;
 
-	for (i = 0; i < len; i += 4) { 
+	for (i = 0; i < len; i += 4) {
 		*output++ = input[i] | (input[i+1] << 8) | (input[i+2] << 16) |
 		    (input[i+3] << 24);
 	}
@@ -144,7 +144,7 @@ MD5Init (context)
 	context->state[3] = 0x10325476;
 }
 
-/* 
+/*
  * MD5 block update operation. Continues an MD5 message-digest
  * operation, processing another message block, and updating the
  * context.

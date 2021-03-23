@@ -148,11 +148,11 @@ ksched_getparam(struct ksched *ksched, struct thread *td,
 	if (RTP_PRIO_IS_REALTIME(rtp.type))
 		param->sched_priority = rtpprio_to_p4prio(rtp.prio);
 	else {
-		if (PRI_MIN_TIMESHARE < rtp.prio) 
+		if (PRI_MIN_TIMESHARE < rtp.prio)
 			/*
 		 	 * The interactive score has it to min realtime
 			 * so we must show max (64 most likely).
-			 */ 
+			 */
 			param->sched_priority = PRI_MAX_TIMESHARE -
 			    PRI_MIN_TIMESHARE;
 		else

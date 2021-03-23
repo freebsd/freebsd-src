@@ -161,7 +161,7 @@ beripic_probe(device_t dev)
 
 	if (!ofw_bus_is_compatible(dev, "sri-cambridge,beri-pic"))
 		return (ENXIO);
-		
+
 	device_set_desc(dev, "BERI Programmable Interrupt Controller");
 
 	return (BUS_PROBE_DEFAULT);

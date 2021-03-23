@@ -207,7 +207,7 @@ platform_reset(void)
 }
 
 void
-platform_start(__register_t a0 __unused, __register_t a1 __unused, 
+platform_start(__register_t a0 __unused, __register_t a1 __unused,
     __register_t a2 __unused, __register_t a3 __unused)
 {
 	vm_offset_t kernend;

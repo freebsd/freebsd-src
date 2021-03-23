@@ -21,7 +21,7 @@
  * Adapted from the original sources for FreeBSD and timecounters by:
  * Poul-Henning Kamp <phk@FreeBSD.org>.
  *
- * The 32bit version of the "LP" macros seems a bit past its "sell by" 
+ * The 32bit version of the "LP" macros seems a bit past its "sell by"
  * date so I have retained only the 64bit version and included it directly
  * in this file.
  *
@@ -282,7 +282,7 @@ struct ntp_gettime_args {
 /* ARGSUSED */
 int
 sys_ntp_gettime(struct thread *td, struct ntp_gettime_args *uap)
-{	
+{
 	struct ntptimeval ntv;
 
 	memset(&ntv, 0, sizeof(ntv));
@@ -621,7 +621,7 @@ ntp_update_second(int64_t *adjustment, time_t *newsec)
 		L_ADD(time_adj, ftemp);
 	}
 	*adjustment = time_adj;
-		
+
 #ifdef PPS_SYNC
 	if (pps_valid > 0)
 		pps_valid--;
@@ -660,7 +660,7 @@ ntp_init(void)
 	pps_tf[2].tv_sec = pps_tf[2].tv_nsec = 0;
 	pps_fcount = 0;
 	L_CLR(pps_freq);
-#endif /* PPS_SYNC */	   
+#endif /* PPS_SYNC */
 }
 
 SYSINIT(ntpclocks, SI_SUB_CLOCKS, SI_ORDER_MIDDLE, ntp_init, NULL);

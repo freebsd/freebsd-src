@@ -327,7 +327,7 @@ static int cf_cmd_read (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 
 	ptr_8  = (uint8_t*)buf;
 	ptr_16 = (uint16_t*)buf;
-	lba = start_sector; 
+	lba = start_sector;
 
 	while (nr_sectors--) {
 		error = cf_send_cmd(lba, CMD_READ_SECTOR);
@@ -356,7 +356,7 @@ static int cf_cmd_read (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 					(void)cf_inb_16(TF_STATUS);
 			}
 			break;
-		}  
+		}
 
 		lba++;
 	}
@@ -407,7 +407,7 @@ static int cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 					(void)cf_inb_16(TF_STATUS);
 			}
 			break;
-		} 
+		}
 
 		lba++;
 	}
@@ -418,7 +418,7 @@ static int cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
  *                      cf_cmd_identify()                              *
  * ------------------------------------------------------------------- *
  *
- * Read parameters and other information from the drive and store 
+ * Read parameters and other information from the drive and store
  * it in the drive_param structure
  *
  */
@@ -435,7 +435,7 @@ static int cf_cmd_identify(struct cf_priv *cf_priv)
 	switch (bus_type)
 	{
 	case CF_8:
-		for (count = 0; count < SECTOR_SIZE; count++) 
+		for (count = 0; count < SECTOR_SIZE; count++)
 			cf_priv->drive_param.u.buf[count] = cf_inb_8(TF_DATA);
 		break;
 	case CF_TRUE_IDE_8:
@@ -444,7 +444,7 @@ static int cf_cmd_identify(struct cf_priv *cf_priv)
 		for (count = 0; count < SECTOR_SIZE; count += 2) {
 			uint16_t temp;
 			temp = cf_inw_16(TF_DATA);
-				
+
 			/* endianess will be swapped below */
 			cf_priv->drive_param.u.buf[count]   = (temp & 0xff);
 			cf_priv->drive_param.u.buf[count + 1] = (temp & 0xff00) >> 8;
@@ -456,7 +456,7 @@ static int cf_cmd_identify(struct cf_priv *cf_priv)
 
 	cf_priv->drive_param.sector_size =  512;   //=  SWAP_SHORT (cf_priv->drive_param.u.driveid.sector_bytes);
 	cf_priv->drive_param.heads 	=  SWAP_SHORT (cf_priv->drive_param.u.driveid.current_heads);
-	cf_priv->drive_param.tracks	=  SWAP_SHORT (cf_priv->drive_param.u.driveid.current_cylinders); 
+	cf_priv->drive_param.tracks	=  SWAP_SHORT (cf_priv->drive_param.u.driveid.current_cylinders);
 	cf_priv->drive_param.sec_track   =  SWAP_SHORT (cf_priv->drive_param.u.driveid.current_sectors);
 	cf_priv->drive_param.nr_sectors  = (uint32_t)SWAP_SHORT (cf_priv->drive_param.u.driveid.lba_size_1) |
 	    ((uint32_t)SWAP_SHORT (cf_priv->drive_param.u.driveid.lba_size_2));
@@ -510,7 +510,7 @@ static int cf_send_cmd (uint32_t lba, uint8_t cmd)
  * ------------------------------------------------------------------- *
  *
  * Wait until the drive finishes a given command and data is
- * ready to be transferred. This is done by repeatedly checking 
+ * ready to be transferred. This is done by repeatedly checking
  * the BSY bit of the status register. When the controller is ready for
  * data transfer, it clears the BSY bit and sets the DRQ bit.
  *
@@ -566,8 +566,8 @@ static int cf_wait_busy (void)
  *                      cf_swap_ascii()                                *
  * ------------------------------------------------------------------- *
  *
- * The ascii string returned by the controller specifying 
- * the model of the drive is byte-swaped. This routine 
+ * The ascii string returned by the controller specifying
+ * the model of the drive is byte-swaped. This routine
  * corrects the byte ordering.
  *
  */
@@ -601,8 +601,8 @@ static int cf_probe (device_t dev)
  *                      cf_identify()                                  *
  * ------------------------------------------------------------------- *
  *
- * Find the bootbus region for the CF to determine 
- * 16 or 8 bit and check to see if device is 
+ * Find the bootbus region for the CF to determine
+ * 16 or 8 bit and check to see if device is
  * inserted.
  *
  */
@@ -720,8 +720,8 @@ static device_method_t cf_methods[] = {
 };
 
 static driver_t cf_driver = {
-        "cf", 
-	cf_methods, 
+        "cf",
+	cf_methods,
 	sizeof(struct cf_priv)
 };
 

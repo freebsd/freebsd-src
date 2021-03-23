@@ -173,7 +173,7 @@ static void	turnstile_fini(void *mem, int size);
 
 SDT_PROVIDER_DECLARE(sched);
 SDT_PROBE_DEFINE(sched, , , sleep);
-SDT_PROBE_DEFINE2(sched, , , wakeup, "struct thread *", 
+SDT_PROBE_DEFINE2(sched, , , wakeup, "struct thread *",
     "struct proc *");
 
 static inline void
@@ -404,7 +404,7 @@ init_turnstile_profiling(void *arg)
 
 	for (i = 0; i < TC_TABLESIZE; i++) {
 		snprintf(chain_name, sizeof(chain_name), "%d", i);
-		chain_oid = SYSCTL_ADD_NODE(NULL, 
+		chain_oid = SYSCTL_ADD_NODE(NULL,
 		    SYSCTL_STATIC_CHILDREN(_debug_turnstile_chains), OID_AUTO,
 		    chain_name, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
 		    "turnstile chain stats");

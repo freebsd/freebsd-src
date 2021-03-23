@@ -63,8 +63,8 @@ int	obio_attach(device_t);
 
 /*
  * A bit tricky and hackish. Since we need OBIO to rely
- * on PCI we make it pseudo-pci device. But there should 
- * be only one such device, so we use this static flag 
+ * on PCI we make it pseudo-pci device. But there should
+ * be only one such device, so we use this static flag
  * to prevent false positives on every real PCI device probe.
  */
 static int have_one = 0;
@@ -96,7 +96,7 @@ obio_attach(device_t dev)
 	sc->oba_irq_rman.rm_type = RMAN_ARRAY;
 	sc->oba_irq_rman.rm_descr = "OBIO IRQ";
 
-	/* 
+	/*
 	 * This module is intended for UART purposes only and
 	 * it's IRQ is 4
 	 */
@@ -138,7 +138,7 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == NULL) 
+	if (rv == NULL)
 		return (NULL);
 	if (type == SYS_RES_IRQ)
 		return (rv);

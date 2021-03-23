@@ -75,7 +75,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 			    td->td_proc->p_md.md_tls_tcb_offset));
 		}
 		return (0);
-	case MIPS_GET_TLS: 
+	case MIPS_GET_TLS:
 		tlsbase = td->td_md.md_tls;
 		error = copyout(&tlsbase, uap->parms, sizeof(tlsbase));
 		return (error);

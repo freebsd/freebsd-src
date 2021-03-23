@@ -227,7 +227,7 @@ int cvm_oct_common_open(struct ifnet *ifp)
 	 */
         if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM && priv->miibus == NULL) {
              link_info = cvmx_helper_link_get(priv->port);
-             if (!link_info.s.link_up)  
+             if (!link_info.s.link_up)
 		if_link_state_change(ifp, LINK_STATE_DOWN);
 	     else
 		if_link_state_change(ifp, LINK_STATE_UP);

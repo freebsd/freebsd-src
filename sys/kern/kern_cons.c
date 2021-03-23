@@ -136,7 +136,7 @@ cninit(void)
 	 * Check if we should mute the console (for security reasons perhaps)
 	 * It can be changes dynamically using sysctl kern.consmute
 	 * once we are up and going.
-	 * 
+	 *
 	 */
         cn_mute = ((boothowto & (RB_MUTE
 			|RB_SINGLE
@@ -199,7 +199,7 @@ void
 cninit_finish()
 {
 	console_pausing = 0;
-} 
+}
 
 /* add a new physical console to back the virtual console */
 int
@@ -248,7 +248,7 @@ cnremove(struct consdev *cn)
 		cnd->cnd_cn = NULL;
 
 		/* Remove this device from available mask. */
-		for (i = 0; i < CNDEVTAB_SIZE; i++) 
+		for (i = 0; i < CNDEVTAB_SIZE; i++)
 			if (cnd == &cn_devtab[i]) {
 				cons_avail_mask &= ~(1 << i);
 				break;
@@ -294,7 +294,7 @@ cnavailable(struct consdev *cn, int available)
 	}
 	if (available) {
 		if (i < CNDEVTAB_SIZE)
-			cons_avail_mask |= (1 << i); 
+			cons_avail_mask |= (1 << i);
 		cn->cn_flags &= ~CN_FLAG_NOAVAIL;
 	} else {
 		if (i < CNDEVTAB_SIZE)

@@ -104,7 +104,7 @@ obio_attach(device_t dev)
 	sc->oba_irq_rman.rm_type = RMAN_ARRAY;
 	sc->oba_irq_rman.rm_descr = "OBIO IRQ";
 
-	/* 
+	/*
 	 * This module is intended for UART purposes only and
 	 * manages IRQs for UART0 and UART1.
 	 */

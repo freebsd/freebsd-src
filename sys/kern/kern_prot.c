@@ -1289,9 +1289,9 @@ groupmember(gid_t gid, struct ucred *cred)
 	while (l < h) {
 		m = l + ((h - l) / 2);
 		if (cred->cr_groups[m] < gid)
-			l = m + 1; 
+			l = m + 1;
 		else
-			h = m; 
+			h = m;
 	}
 	if ((l < cred->cr_ngroups) && (cred->cr_groups[l] == gid))
 		return (1);

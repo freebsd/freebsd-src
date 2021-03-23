@@ -105,7 +105,7 @@ disk_err(struct bio *bp, const char *what, int blkdone, int nl)
  * If the bioq is manipulated using only the above calls, it starts
  * with a sorted sequence of requests with bio_offset >= last_offset,
  * possibly followed by another sorted sequence of requests with
- * 0 <= bio_offset < bioq->last_offset 
+ * 0 <= bio_offset < bioq->last_offset
  *
  * NOTE: historical behaviour was to ignore bio->bio_length in the
  *	update, but its use tracks the head position in a better way.

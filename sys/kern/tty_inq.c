@@ -114,7 +114,7 @@ static uma_zone_t ttyinq_zone;
 		TTYINQ_INSERT_TAIL(ti, tib);				\
 } while (0)
 
-int 
+int
 ttyinq_setsize(struct ttyinq *ti, struct tty *tp, size_t size)
 {
 	struct ttyinq_block *tib;

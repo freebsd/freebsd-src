@@ -116,7 +116,7 @@ uart_getenv_cfe(int devtype, struct uart_devinfo *di)
 
 	/* Fetch serial configuration */
 	ret = cfe_ioctl(fd, IOCTL_SERIAL_GETSPEED, (unsigned char *)&baud,
-	    sizeof(baud), &len, 0);	
+	    sizeof(baud), &len, 0);
 	if (ret != CFE_OK)
 		baud = CHIPC_UART_BAUDRATE;
 
@@ -162,7 +162,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		/* Found */
 		if (resource_int_value("uart", i, "baud", &ivar) != 0)
 			ivar = CHIPC_UART_BAUDRATE;
-		
+
 		return (uart_cpu_init(di, i, ivar));
 	}
 

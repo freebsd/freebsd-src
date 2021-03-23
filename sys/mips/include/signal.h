@@ -76,7 +76,7 @@ struct	sigcontext {
 	f_register_t	sc_fpregs[33];	/* fp regs 0 to 31 and csr */
 	__register_t	sc_fpc_eir;	/* fp exception instruction reg */
 	void		*sc_tls;	/* pointer to TLS area */
-	int		__spare__[8];	/* XXX reserved */ 
+	int		__spare__[8];	/* XXX reserved */
 };
 
 #endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */

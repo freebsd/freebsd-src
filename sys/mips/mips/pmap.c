@@ -2447,7 +2447,7 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 #ifndef __mips_n64    /* XXX : to be converted to new style */
 		pt_entry_t *pte, npte;
 
-		pte = pmap_pte(kernel_pmap, crashdumpva); 
+		pte = pmap_pte(kernel_pmap, crashdumpva);
 
 		/* Since this is for the debugger, no locks or any other fun */
 		npte = TLBLO_PA_TO_PFN(pa) | PTE_C_CACHE | PTE_D | PTE_V |

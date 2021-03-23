@@ -38,7 +38,7 @@
 #define GPIO_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->gpio_mtx, MA_OWNED)
 
 #define	OCTEON_GPIO_IRQ_LEVEL		0
-#define	OCTEON_GPIO_IRQ_EDGE		1	
+#define	OCTEON_GPIO_IRQ_EDGE		1
 
 #define	OCTEON_GPIO_PINS	24
 #define	OCTEON_GPIO_IRQS	16

@@ -43,7 +43,7 @@
 
 typedef struct	__mcontext {
 	/*
-	 * These fields must match the corresponding fields in struct 
+	 * These fields must match the corresponding fields in struct
 	 * sigcontext which follow 'sc_mask'. That way we can support
 	 * struct sigcontext and ucontext_t at the same time.
 	 */
@@ -56,7 +56,7 @@ typedef struct	__mcontext {
 	f_register_t	mc_fpregs[33];	/* fp regs 0 to 31 and csr */
 	__register_t	mc_fpc_eir;	/* fp exception instruction reg */
 	void		*mc_tls;	/* pointer to TLS area */
-	int		__spare__[8];	/* XXX reserved */ 
+	int		__spare__[8];	/* XXX reserved */
 } mcontext_t;
 
 #if (defined(__mips_n32) || defined(__mips_n64)) && defined(COMPAT_FREEBSD32)

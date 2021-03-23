@@ -86,13 +86,13 @@ struct ar71xx_pci_softc {
 	struct rman		sc_mem_rman;
 	struct rman		sc_irq_rman;
 
-	struct intr_event	*sc_eventstab[AR71XX_PCI_NIRQS];	
-	mips_intrcnt_t		sc_intr_counter[AR71XX_PCI_NIRQS];	
+	struct intr_event	*sc_eventstab[AR71XX_PCI_NIRQS];
+	mips_intrcnt_t		sc_intr_counter[AR71XX_PCI_NIRQS];
 	struct resource		*sc_irq;
 	void			*sc_ih;
 };
 
-static int ar71xx_pci_setup_intr(device_t, device_t, struct resource *, int, 
+static int ar71xx_pci_setup_intr(device_t, device_t, struct resource *, int,
 		    driver_filter_t *, driver_intr_t *, void *, void **);
 static int ar71xx_pci_teardown_intr(device_t, device_t, struct resource *,
 		    void *);
@@ -204,7 +204,7 @@ ar71xx_pci_conf_setup(int bus, int slot, int func, int reg, int bytes,
 	ATH_WRITE_REG(AR71XX_PCI_CONF_ADDR, addr);
 	ATH_WRITE_REG(AR71XX_PCI_CONF_CMD, cmd);
 
-	dprintf("%s: tag (%x, %x, %x) %d/%d addr=%08x, cmd=%08x\n", __func__, 
+	dprintf("%s: tag (%x, %x, %x) %d/%d addr=%08x, cmd=%08x\n", __func__,
 	    bus, slot, func, reg, bytes, addr, cmd);
 
 	return ar71xx_pci_check_bus_error();
@@ -228,11 +228,11 @@ ar71xx_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 	else
 		mask = 0xffffffff;
 
-	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot, 
+	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot,
 	    func, reg, bytes);
 
 	mtx_lock_spin(&ar71xx_pci_mtx);
-	 if (ar71xx_pci_conf_setup(bus, slot, func, reg, bytes, 
+	 if (ar71xx_pci_conf_setup(bus, slot, func, reg, bytes,
 	     PCI_CONF_CMD_READ) == 0)
 		 data = ATH_READ_REG(AR71XX_PCI_CONF_READ_DATA);
 	 else
@@ -306,7 +306,7 @@ ar71xx_pci_fixup(device_t dev, u_int bus, u_int slot, u_int func,
 
 	val = ar71xx_pci_read_config(dev, bus, slot, func, PCIR_COMMAND, 2);
 	val |= (PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
-	ar71xx_pci_write_config(dev, bus, slot, func, PCIR_COMMAND, val, 2); 
+	ar71xx_pci_write_config(dev, bus, slot, func, PCIR_COMMAND, val, 2);
 
 	cal_data += 3;
 	while (*cal_data != 0xffff) {
@@ -382,8 +382,8 @@ ar71xx_pci_attach(device_t dev)
 
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "ar71xx PCI memory window";
-	if (rman_init(&sc->sc_mem_rman) != 0 || 
-	    rman_manage_region(&sc->sc_mem_rman, AR71XX_PCI_MEM_BASE, 
+	if (rman_init(&sc->sc_mem_rman) != 0 ||
+	    rman_manage_region(&sc->sc_mem_rman, AR71XX_PCI_MEM_BASE,
 		AR71XX_PCI_MEM_BASE + AR71XX_PCI_MEM_SIZE - 1) != 0) {
 		panic("ar71xx_pci_attach: failed to set up I/O rman");
 	}
@@ -391,7 +391,7 @@ ar71xx_pci_attach(device_t dev)
 	sc->sc_irq_rman.rm_type = RMAN_ARRAY;
 	sc->sc_irq_rman.rm_descr = "ar71xx PCI IRQs";
 	if (rman_init(&sc->sc_irq_rman) != 0 ||
-	    rman_manage_region(&sc->sc_irq_rman, AR71XX_PCI_IRQ_START, 
+	    rman_manage_region(&sc->sc_irq_rman, AR71XX_PCI_IRQ_START,
 	        AR71XX_PCI_IRQ_END) != 0)
 		panic("ar71xx_pci_attach: failed to set up IRQ rman");
 
@@ -568,7 +568,7 @@ ar71xx_pci_setup_intr(device_t bus, device_t child, struct resource *ires,
 
 	event = sc->sc_eventstab[irq];
 	if (event == NULL) {
-		error = intr_event_create(&event, (void *)irq, 0, irq, 
+		error = intr_event_create(&event, (void *)irq, 0, irq,
 		    ar71xx_pci_mask_irq, ar71xx_pci_unmask_irq, NULL, NULL,
 		    "pci intr%d:", irq);
 

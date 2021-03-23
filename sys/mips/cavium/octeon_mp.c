@@ -132,7 +132,7 @@ platform_start_ap(int cpuid)
 {
 	uint64_t cores_in_reset;
 
-	/* 
+	/*
 	 * Release the core if it is in reset, and let it rev up a bit.
 	 * The real synchronization happens below via octeon_ap_boot.
 	 */

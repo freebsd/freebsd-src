@@ -287,7 +287,7 @@ int
 freebsd32_setcontext(struct thread *td, struct freebsd32_setcontext_args *uap)
 {
 	ucontext32_t uc;
-	int ret;	
+	int ret;
 
 	if (uap->ucp == NULL)
 		ret = EINVAL;
@@ -399,7 +399,7 @@ freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		    td->td_sigstk.ss_size - sizeof(struct sigframe32))
 		    & ~(sizeof(__int64_t) - 1));
 	} else
-		sfp = (struct sigframe32 *)((vm_offset_t)(td->td_frame->sp - 
+		sfp = (struct sigframe32 *)((vm_offset_t)(td->td_frame->sp -
 		    sizeof(struct sigframe32)) & ~(sizeof(__int64_t) - 1));
 
 	/* Build the argument list for the signal handler. */
@@ -468,7 +468,7 @@ freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
 			    td->td_proc->p_md.md_tls_tcb_offset));
 		}
 		return (0);
-	case MIPS_GET_TLS: 
+	case MIPS_GET_TLS:
 		tlsbase = (int32_t)(intptr_t)td->td_md.md_tls;
 		error = copyout(&tlsbase, uap->parms, sizeof(tlsbase));
 		return (error);

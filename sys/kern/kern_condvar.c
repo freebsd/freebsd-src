@@ -325,7 +325,7 @@ _cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
 }
 
 /*
- * Wait on a condition variable for (at most) the value specified in sbt 
+ * Wait on a condition variable for (at most) the value specified in sbt
  * argument, allowing interruption by signals.
  * Returns 0 if the thread was resumed by cv_signal or cv_broadcast,
  * EWOULDBLOCK if the timeout expires, and EINTR or ERESTART if a signal

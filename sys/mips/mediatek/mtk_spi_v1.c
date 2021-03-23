@@ -329,7 +329,7 @@ mtk_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 				break;
 		}
 	}
-        
+
 	mtk_spi_chip_activate(sc);
 
 	if (cmd->tx_cmd_sz + cmd->rx_cmd_sz) {

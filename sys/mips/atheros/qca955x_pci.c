@@ -103,7 +103,7 @@ struct ar71xx_pci_softc {
 	void			*sc_ih;
 };
 
-static int qca955x_pci_setup_intr(device_t, device_t, struct resource *, int, 
+static int qca955x_pci_setup_intr(device_t, device_t, struct resource *, int,
 		    driver_filter_t *, driver_intr_t *, void *, void **);
 static int qca955x_pci_teardown_intr(device_t, device_t, struct resource *,
 		    void *);
@@ -126,12 +126,12 @@ qca955x_pci_write(uint32_t reg, uint32_t offset, uint32_t data, int bytes)
 	val |= ((data & mask) << shift);
 	ATH_WRITE_REG(reg + (offset & ~3), val);
 
-	dprintf("%s: %#x/%#x addr=%#x, data=%#x(%#x), bytes=%d\n", __func__, 
+	dprintf("%s: %#x/%#x addr=%#x, data=%#x(%#x), bytes=%d\n", __func__,
 	    reg, reg + (offset & ~3), offset, data, val, bytes);
 }
 
 static uint32_t
-qca955x_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func, 
+qca955x_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, int bytes)
 {
 	struct ar71xx_pci_softc *sc = device_get_softc(dev);
@@ -170,7 +170,7 @@ qca955x_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 {
 	struct ar71xx_pci_softc *sc = device_get_softc(dev);
 
-	dprintf("%s: tag (%x, %x, %x) reg %d(%d): %x\n", __func__, bus, slot, 
+	dprintf("%s: tag (%x, %x, %x) reg %d(%d): %x\n", __func__, bus, slot,
 	    func, reg, bytes, data);
 
 	if ((bus != 0) || (slot != 0) || (func != 0))
@@ -295,7 +295,7 @@ qca955x_pci_attach(device_t dev)
 
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "qca955x PCI memory window";
-	if (rman_init(&sc->sc_mem_rman) != 0 || 
+	if (rman_init(&sc->sc_mem_rman) != 0 ||
 	    rman_manage_region(&sc->sc_mem_rman,
 	    sc->sc_pci_mem_base,
 	    sc->sc_pci_mem_base + QCA955X_PCI_MEM_SIZE - 1) != 0) {
@@ -305,7 +305,7 @@ qca955x_pci_attach(device_t dev)
 	sc->sc_irq_rman.rm_type = RMAN_ARRAY;
 	sc->sc_irq_rman.rm_descr = "qca955x PCI IRQs";
 	if (rman_init(&sc->sc_irq_rman) != 0 ||
-	    rman_manage_region(&sc->sc_irq_rman, AR71XX_PCI_IRQ_START, 
+	    rman_manage_region(&sc->sc_irq_rman, AR71XX_PCI_IRQ_START,
 	        AR71XX_PCI_IRQ_END) != 0)
 		panic("qca955x_pci_attach: failed to set up IRQ rman");
 
@@ -322,7 +322,7 @@ qca955x_pci_attach(device_t dev)
 
 	if ((bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC,
 			    qca955x_pci_intr, NULL, sc, &sc->sc_ih))) {
-		device_printf(dev, 
+		device_printf(dev,
 		    "WARNING: unable to register interrupt handler\n");
 		return (ENXIO);
 	}
@@ -426,7 +426,7 @@ qca955x_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			rman_release_resource(rv);
 			return (NULL);
 		}
-	} 
+	}
 
 	return (rv);
 }

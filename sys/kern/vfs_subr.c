@@ -667,7 +667,7 @@ vntblinit(void *dummy __unused)
 	 * tolerate the insertion failure.
 	 */
 	buf_trie_zone = uma_zcreate("BUF TRIE", pctrie_node_size(),
-	    NULL, NULL, pctrie_zone_init, NULL, UMA_ALIGN_PTR, 
+	    NULL, NULL, pctrie_zone_init, NULL, UMA_ALIGN_PTR,
 	    UMA_ZONE_NOFREE | UMA_ZONE_SMR);
 	buf_trie_smr = uma_zone_get_smr(buf_trie_zone);
 	uma_prealloc(buf_trie_zone, nbuf);
@@ -2396,7 +2396,7 @@ buf_vlist_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
 	/*
 	 * Keep the list ordered.  Optimize empty list insertion.  Assume
 	 * we tend to grow at the tail so lookup_le should usually be cheaper
-	 * than _ge. 
+	 * than _ge.
 	 */
 	if (bv->bv_cnt == 0 ||
 	    bp->b_lblkno > TAILQ_LAST(&bv->bv_hd, buflists)->b_lblkno)

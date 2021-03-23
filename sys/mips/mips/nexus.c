@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #undef NEXUS_DEBUG
 #ifdef NEXUS_DEBUG
 #define dprintf printf
-#else 
+#else
 #define dprintf(x, arg...)
 #endif  /* NEXUS_DEBUG */
 
@@ -591,7 +591,7 @@ nexus_hinted_child(device_t bus, const char *dname, int dunit)
 	if ((mem_hints_count > 0) && (mem_hints_count < 2)) {
 		printf("Either maddr or msize hint is missing for %s%d\n",
 		    dname, dunit);
-	} 
+	}
 	else if (mem_hints_count) {
 		dprintf("%s: discovered hinted child %s at maddr %p(%d)\n",
 		    __func__, device_get_nameunit(child),
@@ -600,7 +600,7 @@ nexus_hinted_child(device_t bus, const char *dname, int dunit)
 		result = bus_set_resource(child, SYS_RES_MEMORY, 0,
 		    (u_long) maddr, msize);
 		if (result != 0) {
-			device_printf(bus, 
+			device_printf(bus,
 			    "warning: bus_set_resource() failed\n");
 		}
 	}

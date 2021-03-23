@@ -149,7 +149,7 @@ bcm_get_uart_clkcfg(struct bcm_platform *bp)
 		uint32_t	corectrl, uclksel;
 		bool		uintclk0;
 
-		/* Fetch UART clock support flag */ 
+		/* Fetch UART clock support flag */
 		uclksel = CHIPC_GET_BITS(bp->cc_caps, CHIPC_CAP_UCLKSEL);
 
 		/* Is UART using internal clock? */

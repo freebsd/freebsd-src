@@ -150,7 +150,7 @@ SYSCTL_STRING(_hw_device, OID_AUTO, revision, CTLFLAG_RD, hw_device_revision, 0,
 #endif
 
 void
-platform_start(__register_t a0 __unused, __register_t a1 __unused, 
+platform_start(__register_t a0 __unused, __register_t a1 __unused,
     __register_t a2 __unused, __register_t a3 __unused)
 {
 	uint64_t platform_counter_freq;
@@ -161,7 +161,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 #endif
 	vm_offset_t kernend;
 
-	/* 
+	/*
 	 * clear the BSS and SBSS segments, this should be first call in
 	 * the function
 	 */
@@ -185,8 +185,8 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	argv = (char**)a1;
 	envp = (char**)a2;
 #endif
-	/* 
-	 * Protect ourselves from garbage in registers 
+	/*
+	 * Protect ourselves from garbage in registers
 	 */
 	if (MIPS_IS_VALID_PTR(envp)) {
 		for (i = 0; envp[i]; i += 2) {
@@ -201,7 +201,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 //	ar531x_detect_mem_size();
 
 	/*
-	 * Just wild guess. RedBoot let us down and didn't reported 
+	 * Just wild guess. RedBoot let us down and didn't reported
 	 * memory size
 	 */
 	if (realmem == 0)
@@ -231,8 +231,8 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	physmem = realmem;
 
 	/*
-	 * ns8250 uart code uses DELAY so ticker should be inititalized 
-	 * before cninit. And tick_init_params refers to hz, so * init_param1 
+	 * ns8250 uart code uses DELAY so ticker should be inititalized
+	 * before cninit. And tick_init_params refers to hz, so * init_param1
 	 * should be called first.
 	 */
 	init_param1();
@@ -253,7 +253,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	printf("CPU platform: %s\n", ar5315_get_system_type());
 	printf("CPU Frequency=%d MHz\n", ar531x_cpu_freq() / 1000000);
 	printf("CPU DDR Frequency=%d MHz\n", ar531x_ddr_freq() / 1000000);
-	printf("CPU AHB Frequency=%d MHz\n", ar531x_ahb_freq() / 1000000); 
+	printf("CPU AHB Frequency=%d MHz\n", ar531x_ahb_freq() / 1000000);
 
 	printf("platform frequency: %lld\n", platform_counter_freq);
 	printf("arguments: \n");
@@ -297,7 +297,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 			}
 		}
 	}
-	else 
+	else
 		printf ("envp is invalid\n");
 #else
 	printf ("envp skiped\n");

@@ -576,7 +576,7 @@ blist_stats(blist_t bl, struct sbuf *s)
 		/*
 		 * Find max size subtree starting at i.
 		 */
-		for (radix = 1; 
+		for (radix = 1;
 		    ((i / BLIST_RADIX / radix) & BLIST_MASK) == 0;
 		    radix *= BLIST_RADIX)
 			;

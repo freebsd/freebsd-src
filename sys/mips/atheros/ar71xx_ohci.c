@@ -125,8 +125,8 @@ ar71xx_ohci_attach(device_t dev)
 	}
 	device_set_ivars(sc->sc_ohci.sc_bus.bdev, &sc->sc_ohci.sc_bus);
 
-	err = bus_setup_intr(dev, sc->sc_ohci.sc_irq_res, 
-	    INTR_TYPE_BIO | INTR_MPSAFE, NULL, 
+	err = bus_setup_intr(dev, sc->sc_ohci.sc_irq_res,
+	    INTR_TYPE_BIO | INTR_MPSAFE, NULL,
 	    ar71xx_ohci_intr, sc, &sc->sc_ohci.sc_intr_hdl);
 	if (err) {
 		err = ENXIO;

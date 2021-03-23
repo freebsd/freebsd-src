@@ -624,7 +624,7 @@ lock_profile_obtain_lock_success(struct lock_object *lo, int contested,
 	if (++l->lpo_ref > 1)
 		goto out;
 	l->lpo_contest_locking = contested;
-	l->lpo_acqtime = nanoseconds(); 
+	l->lpo_acqtime = nanoseconds();
 	if (waittime && (l->lpo_acqtime > waittime))
 		l->lpo_waittime = l->lpo_acqtime - waittime;
 	else

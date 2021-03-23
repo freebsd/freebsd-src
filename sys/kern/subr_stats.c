@@ -2131,7 +2131,7 @@ stats_v1_itercb_tostr_json(struct statsblobv1 *sb, struct voi *v, struct voistat
 				sbuf_printf(buf, "},");
 				return;
 			}
-			
+
 			if (tpl_mb == NULL)
 				fmtstr = ",\"name\":%s,\"flags\":%hu,"
 				    "\"dtype\":\"%s\",\"voistatmaxid\":%hhd,"

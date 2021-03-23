@@ -95,7 +95,7 @@ struct trapframe {
 	 * FREEBSD_DEVELOPERS_FIXME:
 	 * Include any other registers which are CPU-Specific and
 	 * need to be part of the frame here.
-	 * 
+	 *
 	 * Also, be sure this matches what is defined in regnum.h
 	 */
 	register_t	ic;	/* RM7k and RM9k specific */

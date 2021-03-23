@@ -174,5 +174,5 @@ p31b_set_standard(void *dummy)
 	p31b_setcfg(CTL_P1003_1B_PAGESIZE, PAGE_SIZE);
 }
 
-SYSINIT(p31b_set_standard, SI_SUB_P1003_1B, SI_ORDER_ANY, p31b_set_standard, 
+SYSINIT(p31b_set_standard, SI_SUB_P1003_1B, SI_ORDER_ANY, p31b_set_standard,
     NULL);

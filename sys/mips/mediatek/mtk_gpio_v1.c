@@ -26,7 +26,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-        
+
 #include "opt_platform.h"
 
 #include <sys/param.h>
@@ -40,14 +40,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/gpio.h>
-                
+
 #include <machine/bus.h>
 #include <machine/intr.h>
 
 #include <mips/mediatek/mtk_soc.h>
-                
+
 #include <dev/gpio/gpiobusvar.h>
-                
+
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -555,11 +555,11 @@ mtk_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
 	sc = device_get_softc(dev);
 	switch (data->type) {
 	case INTR_MAP_DATA_FDT:
-		error = (mtk_gpio_pic_map_fdt(sc, 
+		error = (mtk_gpio_pic_map_fdt(sc,
 		    (struct intr_map_data_fdt *)data, &irq, NULL));
 		break;
 	case INTR_MAP_DATA_GPIO:
-		error = (mtk_gpio_pic_map_gpio(sc, 
+		error = (mtk_gpio_pic_map_gpio(sc,
 		    (struct intr_map_data_gpio *)data, &irq, NULL));
 		break;
 	default:
@@ -673,11 +673,11 @@ mtk_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 
 	switch (data->type) {
 	case INTR_MAP_DATA_FDT:
-		error = mtk_gpio_pic_map_fdt(sc, 
+		error = mtk_gpio_pic_map_fdt(sc,
 		    (struct intr_map_data_fdt *)data, &irq, &mode);
 		break;
 	case INTR_MAP_DATA_GPIO:
-		error = mtk_gpio_pic_map_gpio(sc, 
+		error = mtk_gpio_pic_map_gpio(sc,
 		    (struct intr_map_data_gpio *)data, &irq, &mode);
 		break;
 	default:
@@ -718,7 +718,7 @@ mtk_gpio_intr(void *arg)
 		    curthread->td_intr_frame) != 0) {
 			device_printf(sc->dev, "spurious interrupt %d\n", i);
 		}
-	}       
+	}
 
 	return (FILTER_HANDLED);
 }
@@ -736,7 +736,7 @@ static device_method_t mtk_gpio_methods[] = {
 	DEVMETHOD(device_probe,		mtk_gpio_probe),
 	DEVMETHOD(device_attach,	mtk_gpio_attach),
 	DEVMETHOD(device_detach,	mtk_gpio_detach),
-        
+
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus,		mtk_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		mtk_gpio_pin_max),

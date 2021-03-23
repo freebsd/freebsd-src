@@ -1540,7 +1540,7 @@ static int
 pipe_close(struct file *fp, struct thread *td)
 {
 
-	if (fp->f_vnode != NULL) 
+	if (fp->f_vnode != NULL)
 		return vnops.fo_close(fp, td);
 	fp->f_ops = &badfileops;
 	pipe_dtor(fp->f_data);
@@ -1730,7 +1730,7 @@ pipe_kqfilter(struct file *fp, struct knote *kn)
 		return (EINVAL);
 	}
 
-	kn->kn_hook = cpipe; 
+	kn->kn_hook = cpipe;
 	knlist_add(&cpipe->pipe_sel.si_note, kn, 1);
 	PIPE_UNLOCK(cpipe);
 	return (0);

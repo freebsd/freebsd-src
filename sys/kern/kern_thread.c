@@ -912,7 +912,7 @@ thread_exit(void)
 			 */
 			panic ("thread_exit: Last thread exiting on its own");
 		}
-	} 
+	}
 #ifdef	HWPMC_HOOKS
 	/*
 	 * If this thread is part of a process that is being tracked by hwpmc(4),

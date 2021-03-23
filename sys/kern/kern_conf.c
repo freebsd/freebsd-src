@@ -245,7 +245,7 @@ devvn_refthread(struct vnode *vp, struct cdev **devp, int *ref)
 	return (csw);
 }
 
-void	
+void
 dev_relthread(struct cdev *dev, int ref)
 {
 
@@ -429,7 +429,7 @@ giant_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 	dev_relthread(dev, ref);
 	return (retval);
 }
-  
+
 static int
 giant_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
@@ -1030,7 +1030,7 @@ make_dev_alias_p(int flags, struct cdev **cdev, struct cdev *pdev,
 }
 
 int
-make_dev_physpath_alias(int flags, struct cdev **cdev, struct cdev *pdev, 
+make_dev_physpath_alias(int flags, struct cdev **cdev, struct cdev *pdev,
     struct cdev *old_alias, const char *physpath)
 {
 	char *devfspath;
@@ -1084,7 +1084,7 @@ make_dev_physpath_alias(int flags, struct cdev **cdev, struct cdev *pdev,
 		ret = make_dev_alias_p(flags, cdev, pdev, "%s", devfspath);
 	}
 out:
-	if (old_alias != NULL)	
+	if (old_alias != NULL)
 		destroy_dev(old_alias);
 	if (devfspath != NULL)
 		free(devfspath, M_DEVBUF);
@@ -1208,7 +1208,7 @@ delist_dev_locked(struct cdev *dev)
 	devfs_destroy(dev);
 	LIST_FOREACH(child, &dev->si_children, si_siblings)
 		delist_dev_locked(child);
-	dev_unlock();	
+	dev_unlock();
 	/* ensure the destroy event is queued in order */
 	notify_destroy(dev);
 	dev_lock();
@@ -1271,7 +1271,7 @@ dev_stdclone(char *name, char **namep, const char *stem, int *unit)
 	*unit = u;
 	if (namep)
 		*namep = &name[i];
-	if (name[i]) 
+	if (name[i])
 		return (2);
 	return (1);
 }
@@ -1281,7 +1281,7 @@ dev_stdclone(char *name, char **namep, const char *stem, int *unit)
  *
  * The objective here is to make it unnecessary for the device drivers to
  * use rman or similar to manage their unit number space.  Due to the way
- * we do "on-demand" devices, using rman or other "private" methods 
+ * we do "on-demand" devices, using rman or other "private" methods
  * will be very tricky to lock down properly once we lock down this file.
  *
  * Instead we give the drivers these routines which puts the struct cdev *'s

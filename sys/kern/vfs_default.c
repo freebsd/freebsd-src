@@ -1098,7 +1098,7 @@ vop_stdadvise(struct vop_advise_args *ap)
 
 		/*
 		 * Round to block boundaries (and later possibly further to
-		 * page boundaries).  Applications cannot reasonably be aware  
+		 * page boundaries).  Applications cannot reasonably be aware
 		 * of the boundaries, and the rounding must be to expand at
 		 * both extremities to cover enough.  It still doesn't cover
 		 * read-ahead.  For partial blocks, this gives unnecessary

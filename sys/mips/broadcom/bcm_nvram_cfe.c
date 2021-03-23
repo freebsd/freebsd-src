@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * BHND CFE NVRAM driver.
- * 
+ *
  * Provides access to device NVRAM via CFE.
  */
 
@@ -186,7 +186,7 @@ bhnd_nvram_cfe_setvar(device_t dev, const char *name, const void *buf,
 /**
  * Find, open, identify, and initialize an I/O context mapping the CFE NVRAM
  * device.
- * 
+ *
  * @param[out]	iocfe		On success, an I/O context mapping the CFE NVRAM
  *				device.
  * @param[out]	cls		On success, the identified NVRAM data format
@@ -244,7 +244,7 @@ bcm_nvram_find_cfedev(struct bcm_nvram_iocfe *iocfe,
  *
  * The caller is responsible for releasing all resources held by the returned
  * I/O context via bhnd_nvram_io_free().
- * 
+ *
  * @param[out]	io	On success, will be initialized as an I/O context for
  *			CFE device @p dname.
  * @param	dname	The name of the CFE device to be opened for reading.
@@ -318,8 +318,8 @@ bcm_nvram_iocfe_init(struct bcm_nvram_iocfe *iocfe, char *dname)
 	}
 
 	/* Fall back on flash info.
-	 * 
-	 * This is known to be required on the Asus RT-N53 (CFE 5.70.55.33, 
+	 *
+	 * This is known to be required on the Asus RT-N53 (CFE 5.70.55.33,
 	 * BBP 1.0.37, BCM5358UB0), where IOCTL_NVRAM_GETINFO returns
 	 * CFE_ERR_INV_COMMAND.
 	 */

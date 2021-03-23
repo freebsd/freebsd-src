@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- * 
+ *
  */
 
 #ifndef	__MIPS_TLS_H__

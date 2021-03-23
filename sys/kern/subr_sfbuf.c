@@ -148,7 +148,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 		sf_buf_alloc_want--;
 
 		/*
-		 * If we got a signal, don't risk going back to sleep. 
+		 * If we got a signal, don't risk going back to sleep.
 		 */
 		if (error)
 			goto done;
