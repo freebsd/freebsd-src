@@ -26,7 +26,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE. 
+ * POSSIBILITY OF SUCH DAMAGE.
  *
  * $FreeBSD$
  */
@@ -51,7 +51,7 @@
 #define	BSM_F_FREESP		11	/* Solaris-specific. */
 
 #define	BSM_F_ISSTREAM		13	/* Solaris-specific. */
-#define	BSM_F_GETLK		14	
+#define	BSM_F_GETLK		14
 #define	BSM_F_PRIV		15	/* Solaris-specific. */
 #define	BSM_F_NPRIV		16	/* Solaris-specific. */
 #define	BSM_F_QUOTACTL		17	/* Solaris-specific. */
@@ -137,6 +137,6 @@
 #define	BSM_F_FS_SPECIFIC_15	415	/* Darwin-fs-specific. */
 
 
-#define	BSM_F_UNKNOWN		0xFFFF	
+#define	BSM_F_UNKNOWN		0xFFFF
 
 #endif /* !_BSM_AUDIT_FCNTL_H_ */
