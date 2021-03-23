@@ -63,7 +63,7 @@ static tf_fill_t	vidc_text_fill;
 static tf_copy_t	vidc_text_copy;
 static tf_param_t	vidc_text_param;
 static tf_respond_t	vidc_cons_respond;
- 
+
 static teken_funcs_t tf = {
 	.tf_bell	= vidc_cons_bell,
 	.tf_cursor	= vidc_text_cursor,
@@ -162,7 +162,7 @@ vidc_text_get_cursor(teken_unit_t *row, teken_unit_t *col)
 /*
  * Not implemented.
  */
-static void 
+static void
 vidc_cons_bell(void *s __unused)
 {
 }
@@ -507,13 +507,13 @@ vidc_cons_respond(void *s __unused, const void *buf __unused,
 static void
 vidc_probe(struct console *cp)
 {
-    
+
     /* look for a keyboard */
 #if KEYBOARD_PROBE
     if (probe_keyboard())
 #endif
     {
-	
+
 	cp->c_flags |= C_PRESENTIN;
     }
 
@@ -1138,7 +1138,7 @@ vidc_ischar(void)
 #define	KBD_STATUS_PORT 	4	/* status port, read */
 #define	KBD_DATA_PORT		0	/* data port, read/write
 					 * also used as keyboard command
-					 * and mouse command port 
+					 * and mouse command port
 					 */
 #define	KBDC_ECHO		0x00ee
 #define	KBDS_ANY_BUFFER_FULL	0x0001
@@ -1200,7 +1200,7 @@ probe_keyboard(void)
 
 		/* wait until the controller can accept a command */
 		for (wait = PROBE_MAXWAIT; wait > 0; --wait) {
-			if (((i = inb(IO_KBD + KBD_STATUS_PORT)) 
+			if (((i = inb(IO_KBD + KBD_STATUS_PORT))
 			    & (KBDS_INPUT_BUFFER_FULL | KBDS_ANY_BUFFER_FULL))
 			    == 0)
 				break;

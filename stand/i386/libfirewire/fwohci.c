@@ -30,7 +30,7 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  *
  */
@@ -120,7 +120,7 @@ again:
 		}
 	}
 	if (firewire_debug || retry >= MAX_RETRY)
-		device_printf(sc->fc.dev, 
+		device_printf(sc->fc.dev,
 		    "fwphy_rddata: 0x%x loop=%d, retry=%d\n", addr, i, retry);
 #undef MAX_RETRY
 	return((fun >> PHYDEV_RDDATA )& 0xff);
@@ -136,7 +136,7 @@ fwohci_probe_phy(struct fwohci_softc *sc, device_t dev)
 /*
  * probe PHY parameters
  * 0. to prove PHY version, whether compliance of 1394a.
- * 1. to probe maximum speed supported by the PHY and 
+ * 1. to probe maximum speed supported by the PHY and
  *    number of port supported by core-logic.
  *    It is not actually available port on your PC .
  */
@@ -209,7 +209,7 @@ fwohci_reset(struct fwohci_softc *sc, device_t dev)
 	int i, max_rec, speed;
 	uint32_t reg, reg2;
 
-	/* Disable interrupts */ 
+	/* Disable interrupts */
 	OWRITE(sc, FWOHCI_INTMASKCLR, ~0);
 
 	/* FLUSH FIFO and reset Transmitter/Receiver */
@@ -368,7 +368,7 @@ fwohci_sid(struct fwohci_softc *sc)
 		/* Set ATRetries register */
 		OWRITE(sc, OHCI_ATRETRY, 1<<(13+16) | 0xfff);
 /*
-** Checking whether the node is root or not. If root, turn on 
+** Checking whether the node is root or not. If root, turn on
 ** cycle master.
 */
 		plen = OREAD(sc, OHCI_SID_CNT);
@@ -423,7 +423,7 @@ fwohci_intr_body(struct fwohci_softc *sc, uint32_t stat, int count)
 			stat & OHCI_INT_DMA_ARRQ  ? "DMA_ARRQ " :"",
 			stat & OHCI_INT_DMA_ATRS  ? "DMA_ATRS " :"",
 			stat & OHCI_INT_DMA_ATRQ  ? "DMA_ATRQ " :"",
-			stat, OREAD(sc, FWOHCI_INTMASK) 
+			stat, OREAD(sc, FWOHCI_INTMASK)
 		);
 #endif
 /* Bus reset */
@@ -434,7 +434,7 @@ fwohci_intr_body(struct fwohci_softc *sc, uint32_t stat, int count)
 		sc->state = FWOHCI_STATE_BUSRESET;
 		/* Disable bus reset interrupt until sid recv. */
 		OWRITE(sc, FWOHCI_INTMASKCLR,  OHCI_INT_PHY_BUS_R);
-	
+
 		OWRITE(sc, FWOHCI_INTMASKCLR,  OHCI_INT_CYC_LOST);
 		OWRITE(sc, OHCI_LNKCTLCLR, OHCI_CNTL_CYCSRC);
 
@@ -454,7 +454,7 @@ fwochi_check_stat(struct fwohci_softc *sc)
 
 	stat = OREAD(sc, FWOHCI_INTSTAT);
 	if (stat == 0xffffffff) {
-		device_printf(sc->fc.dev, 
+		device_printf(sc->fc.dev,
 			"device physically ejected?\n");
 		return(stat);
 	}

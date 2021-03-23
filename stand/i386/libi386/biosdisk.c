@@ -437,7 +437,7 @@ bd_get_diskinfo_cd(struct bdinfo *bd)
 	 */
 	if (bd->bd_sectors == 0)
 		bd->bd_sectors = 4173824;
- 
+
 	return (ret);
 }
 

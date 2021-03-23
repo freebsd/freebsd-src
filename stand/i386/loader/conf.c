@@ -84,7 +84,7 @@ struct fs_ops *file_system[] = {
 #if defined(LOADER_CD9660_SUPPORT)
     &cd9660_fsops,
 #endif
-#ifdef LOADER_NFS_SUPPORT 
+#ifdef LOADER_NFS_SUPPORT
     &nfs_fsops,
 #endif
 #ifdef LOADER_TFTP_SUPPORT
@@ -103,7 +103,7 @@ struct fs_ops *file_system[] = {
 };
 
 /* Exported for i386 only */
-/* 
+/*
  * Sort formats so that those that can detect based on arguments
  * rather than reading the file go first.
  */
@@ -130,8 +130,8 @@ struct file_format *file_formats[] = {
     NULL
 };
 
-/* 
- * Consoles 
+/*
+ * Consoles
  *
  * We don't prototype these in libi386.h because they require
  * data structures from bootstrap.h as well.

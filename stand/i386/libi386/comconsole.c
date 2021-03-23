@@ -270,7 +270,7 @@ comc_pcidev_handle(uint32_t locator)
 		return (CMD_ERROR);
 	}
 
-	/* 
+	/*
 	 * biospci_read_config() sets port == 0xffffffff if the pcidev
 	 * isn't found on the bus.  Check for 0xffffffff and return to not
 	 * panic in BTX.

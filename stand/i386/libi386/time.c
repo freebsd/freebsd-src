@@ -44,7 +44,7 @@ static int
 bios_seconds(void)
 {
     int			hr, minute, sec;
-    
+
     v86.ctl = 0;
     v86.addr = 0x1a;		/* int 0x1a, function 2 */
     v86.eax = 0x0200;
@@ -53,7 +53,7 @@ bios_seconds(void)
     hr = bcd2bin((v86.ecx & 0xff00) >> 8);	/* hour in %ch */
     minute = bcd2bin(v86.ecx & 0xff);		/* minute in %cl */
     sec = bcd2bin((v86.edx & 0xff00) >> 8);	/* second in %dh */
-    
+
     return (hr * 3600 + minute * 60 + sec);
 }
 
@@ -86,7 +86,7 @@ time(time_t *t)
     if (now < lasttime)
 	now += 24 * 3600;
     lasttime = now;
-    
+
     if (t != NULL)
 	*t = now;
     return(now);

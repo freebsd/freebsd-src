@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 
 static int	i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path);
 
-/* 
+/*
  * Point (dev) at an allocated device specifier for the device matching the
  * path in (devspec). If it contains an explicit device specification,
  * use that.  If not, use the default device.
@@ -46,13 +46,13 @@ i386_getdev(void **vdev, const char *devspec, const char **path)
 {
     struct i386_devdesc **dev = (struct i386_devdesc **)vdev;
     int				rv;
-    
+
     /*
      * If it looks like this is just a path and no
      * device, go with the current device.
      */
-    if ((devspec == NULL) || 
-	(devspec[0] == '/') || 
+    if ((devspec == NULL) ||
+	(devspec[0] == '/') ||
 	(strchr(devspec, ':') == NULL)) {
 
 	if (((rv = i386_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
@@ -60,7 +60,7 @@ i386_getdev(void **vdev, const char *devspec, const char **path)
 		*path = devspec;
 	return(rv);
     }
-    
+
     /*
      * Try to parse the device name off the beginning of the devspec
      */
@@ -79,7 +79,7 @@ i386_getdev(void **vdev, const char *devspec, const char **path)
  * For disk-type devices, the syntax is:
  *
  * disk<unit>[s<slice>][<partition>]:
- * 
+ *
  */
 static int
 i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
@@ -107,7 +107,7 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
     np = (devspec + strlen(dv->dv_name));
     idev = NULL;
     err = 0;
-        
+
     switch(dv->dv_type) {
     case DEVT_NONE:
 	break;

@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
  * interface.
  */
 
-struct pci_progif 
+struct pci_progif
 {
     int		pi_code;
     const char	*pi_name;
@@ -120,7 +120,7 @@ static struct pci_progif progif_firewire[] = {
     {-1,	NULL}
 };
 
-struct pci_subclass 
+struct pci_subclass
 {
     int			ps_subclass;
     const char		*ps_name;
@@ -239,7 +239,7 @@ biospci_detect(void)
     hwcap = v86.eax & 0xff;
     maxbus = v86.ecx & 0xff;
 #if 0
-    printf("PCI BIOS %d.%d%s%s maxbus %d\n", 
+    printf("PCI BIOS %d.%d%s%s maxbus %d\n",
 	   bcd2bin((version >> 8) & 0xf), bcd2bin(version & 0xf),
 	   (hwcap & 1) ? " config1" : "", (hwcap & 2) ? " config2" : "",
 	   maxbus);
@@ -286,7 +286,7 @@ biospci_enumerate(void)
 		    err = biospci_read_config(locator, 0, BIOSPCI_32BITS, &devid);
 		    if (err != 0)
 			break;
-		    
+
 		    /* We have the device ID, create a PnP object and save everything */
 		    biospci_addinfo(devid, pc, psc, ppi);
 		}
@@ -296,12 +296,12 @@ biospci_enumerate(void)
 }
 
 static void
-biospci_addinfo(int devid, struct pci_class *pc, struct pci_subclass *psc, struct pci_progif *ppi) 
+biospci_addinfo(int devid, struct pci_class *pc, struct pci_subclass *psc, struct pci_progif *ppi)
 {
     struct pnpinfo	*pi;
     char		desc[80];
-    
-    
+
+
     /* build the description */
     desc[0] = 0;
     if (ppi->pi_name != NULL) {

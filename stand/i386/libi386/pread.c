@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 
 static char     buf[BUFSIZE];
 
-int 
+int
 pread(fd, dest, size)
 	int             fd;
 	vm_offset_t         dest;

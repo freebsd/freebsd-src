@@ -241,7 +241,7 @@ gptinit(void)
 		return (-1);
 	}
 #ifdef LOADER_GELI_SUPPORT
-	gdsk.gdev = geli_taste(vdev_read, &gdsk.dsk, 
+	gdsk.gdev = geli_taste(vdev_read, &gdsk.dsk,
 	    (gpttable[curent].ent_lba_end - gpttable[curent].ent_lba_start),
 	    "disk%up%u:", gdsk.dsk.unit, curent + 1);
 	if (gdsk.gdev != NULL) {

@@ -32,9 +32,9 @@
  */
 struct i386_devdesc {
     struct devdesc	dd;		/* Must be first. */
-    union 
+    union
     {
-	struct 
+	struct
 	{
 	    int		slice;
 	    int		partition;

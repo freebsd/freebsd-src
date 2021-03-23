@@ -97,7 +97,7 @@ struct geli_boot_data
     union {
         char            gelipw[256];
         struct {
-            char                notapw;	/* 
+            char                notapw;	/*
 					 * single null byte to stop keybuf
 					 * being interpreted as a password
 					 */

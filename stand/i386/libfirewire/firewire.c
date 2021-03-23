@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * FireWire disk device handling.
- * 
+ *
  */
 
 #include <stand.h>
@@ -77,11 +77,11 @@ void		fw_enable(void);
 
 struct devsw fwohci = {
     "FW1394", 	/* 7 chars at most */
-    DEVT_NET, 
+    DEVT_NET,
     fw_init,
-    fw_strategy, 
-    fw_open, 
-    fw_close, 
+    fw_strategy,
+    fw_open,
+    fw_close,
     noioctl,
     fw_print,
     fw_cleanup
@@ -123,7 +123,7 @@ fw_probe(int index, struct fwohci_softc *sc)
 }
 
 static int
-fw_init(void) 
+fw_init(void)
 {
 	int i, avail;
 	struct fwohci_softc *sc;
@@ -175,7 +175,7 @@ fw_print(int verbose)
 	return (ret);
 }
 
-static int 
+static int
 fw_open(struct open_file *f, ...)
 {
 #if 0
@@ -198,7 +198,7 @@ fw_close(struct open_file *f)
     return (0);
 }
 
-static void 
+static void
 fw_cleanup()
 {
     struct dcons_buf *db;
@@ -210,7 +210,7 @@ fw_cleanup()
     }
 }
 
-static int 
+static int
 fw_strategy(void *devdata, int rw, daddr_t dblk, size_t size,
     char *buf, size_t *rsize)
 {

@@ -109,7 +109,7 @@ main(void)
 	bzero(&v86, sizeof(v86));
 	v86.efl = PSL_RESERVED_DEFAULT | PSL_I;
 
-	/* 
+	/*
 	 * Initialise the heap as early as possible.
 	 * Once this is done, malloc() is usable.
 	 */
@@ -258,7 +258,7 @@ main(void)
 
 	extract_currdev();		/* set $currdev and $loaddev */
 	autoload_font(true);
-    
+
 	bios_getsmap();
 
 	interact();
@@ -268,7 +268,7 @@ main(void)
 }
 
 /*
- * Set the 'current device' by (if possible) recovering the boot device as 
+ * Set the 'current device' by (if possible) recovering the boot device as
  * supplied by the initial bootstrap.
  *
  * XXX should be extended for netbooting.

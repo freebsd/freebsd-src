@@ -306,12 +306,12 @@ pxenv_call(int func, void *ptr)
 	if (pxe_debug)
 		printf("pxenv_call %x\n", func);
 #endif
-	
+
 	bzero(&v86, sizeof(v86));
 
 	__pxenvseg = pxenv_p->RMEntry.segment;
 	__pxenvoff = pxenv_p->RMEntry.offset;
-	
+
 	v86.ctl  = V86_ADDR | V86_CALLF | V86_FLAGS;
 	v86.es   = VTOPSEG(ptr);
 	v86.edi  = VTOPOFF(ptr);

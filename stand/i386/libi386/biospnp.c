@@ -64,7 +64,7 @@ struct pnp_ICstructure
     uint32_t	pnp_pmds;
 } __packed;
 
-struct pnp_devNode 
+struct pnp_devNode
 {
     uint16_t	dn_size;
     uint8_t	dn_handle;
@@ -112,7 +112,7 @@ biospnp_init(void)
     struct pnp_isaConfiguration	icfg;
     char			*sigptr;
     int				result;
-    
+
     /* Search for the $PnP signature */
     pnp_Icheck = NULL;
     for (sigptr = PTOV(0xf0000); sigptr < PTOV(0xfffff); sigptr += 16)
@@ -120,7 +120,7 @@ biospnp_init(void)
 	    pnp_Icheck = (struct pnp_ICstructure *)sigptr;
 	    break;
 	}
-	
+
     /* No signature, no BIOS */
     if (pnp_Icheck == NULL)
 	return(1);
@@ -134,7 +134,7 @@ biospnp_init(void)
     }
 
     /*
-     * Look for the PnP ISA configuration table 
+     * Look for the PnP ISA configuration table
      */
     result = biospnp_f40(vsegofs(&icfg));
     switch (result) {
@@ -207,7 +207,7 @@ biospnp_scanresdata(struct pnpinfo *pi, struct pnp_devNode *dn)
 		/* got a compatible device ID */
 		pnp_addident(pi, pnp_eisaformat(p + i));
 		break;
-		
+
 	    case END_TAG:
 		return;
 	    }
@@ -215,7 +215,7 @@ biospnp_scanresdata(struct pnpinfo *pi, struct pnp_devNode *dn)
 	    /* large resource */
 	    rlen = *(uint16_t *)(p + i);
 	    i += sizeof(uint16_t);
-	    
+
 	    switch(PNP_LRES_NUM(tag)) {
 
 	    case ID_STRING_ANSI:
@@ -238,7 +238,7 @@ biospnp_scanresdata(struct pnpinfo *pi, struct pnp_devNode *dn)
  * Make a 16-bit realmode PnP BIOS call.
  *
  * The first argument passed is the function number, the last is the
- * BIOS data segment selector.  Intermediate arguments may be 16 or 
+ * BIOS data segment selector.  Intermediate arguments may be 16 or
  * 32 bytes in length, and are described by the format string.
  *
  * Arguments to the BIOS functions must be packed on the stack, hence
@@ -268,7 +268,7 @@ biospnp_call(int func, const char *fmt, ...)
 	    *(uint16_t *)argp = i;
 	    argp += sizeof(uint16_t);
 	    break;
-	    
+
 	case 'l':
 	    i = va_arg(ap, uint32_t);
 	    *(uint32_t *)argp = i;
@@ -283,9 +283,9 @@ biospnp_call(int func, const char *fmt, ...)
     argp += sizeof(uint16_t);
 
     /* prepare for call */
-    v86.ctl = V86_ADDR | V86_CALLF; 
+    v86.ctl = V86_ADDR | V86_CALLF;
     v86.addr = ((uint32_t)pnp_Icheck->pnp_rmcs << 16) + pnp_Icheck->pnp_rmip;
-    
+
     /* call with packed stack and return */
     v86bios(args[0], args[1], args[2], args[3]);
     return(v86.eax & 0xffff);
