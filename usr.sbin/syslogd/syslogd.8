@@ -41,6 +41,7 @@
 .Op Fl b Ar bind_address
 .Op Fl f Ar config_file
 .Op Fl l Oo Ar mode Ns \&: Oc Ns Ar path
+.Op Fl M Ar fwd_length
 .Op Fl m Ar mark_interval
 .Op Fl O Ar format
 .Op Fl P Ar pid_file
@@ -243,6 +244,11 @@ Usually the
 .Dq kern
 facility is reserved for messages read directly from
 .Pa /dev/klog .
+.It Fl M Ar fwd_length
+Set the limit on the length of forwarded messages.
+The minimum is 480 octets.
+The maximum for RFC 3164 output format is 1024 octets.
+The default is 1024 octets.
 .It Fl m Ar mark_interval
 Select the number of minutes between
 .Dq mark
