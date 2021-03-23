@@ -35,8 +35,8 @@ Revision History
 INTERFACE_DECL(_SERIAL_IO_INTERFACE);
 
 typedef enum {
-    DefaultParity,      
-    NoParity,           
+    DefaultParity,
+    NoParity,
     EvenParity,
     OddParity,
     MarkParity,
@@ -44,7 +44,7 @@ typedef enum {
 } EFI_PARITY_TYPE;
 
 typedef enum {
-    DefaultStopBits,        
+    DefaultStopBits,
     OneStopBit,         // 1 stop bit
     OneFiveStopBits,    // 1.5 stop bits
     TwoStopBits         // 2 stop bits

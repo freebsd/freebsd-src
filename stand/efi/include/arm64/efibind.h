@@ -37,11 +37,11 @@ Revision History
 
 #if (__STDC_VERSION__ < 199901L )
 
-    // No ANSI C 1999/2000 stdint.h integer width declarations 
+    // No ANSI C 1999/2000 stdint.h integer width declarations
 
     #ifdef _MSC_EXTENSIONS
 
-        // Use Microsoft C compiler integer width declarations 
+        // Use Microsoft C compiler integer width declarations
 
         typedef unsigned __int64    uint64_t;
         typedef __int64             int64_t;
@@ -51,10 +51,10 @@ Revision History
         typedef __int16             int16_t;
         typedef unsigned __int8     uint8_t;
         typedef __int8              int8_t;
-    #else             
+    #else
         #ifdef UNIX_LP64
 
-            // Use LP64 programming model from C_FLAGS for integer width declarations 
+            // Use LP64 programming model from C_FLAGS for integer width declarations
 
             typedef unsigned long       uint64_t;
             typedef long                int64_t;
@@ -66,7 +66,7 @@ Revision History
             typedef char                int8_t;
         #else
 
-            // Assume P64 programming model from C_FLAGS for integer width declarations 
+            // Assume P64 programming model from C_FLAGS for integer width declarations
 
             typedef unsigned long long  uint64_t;
             typedef long long           int64_t;
@@ -108,10 +108,10 @@ typedef uint64_t   UINTN;
 //
 #define BIT63   0x8000000000000000
 
-#define PLATFORM_IOBASE_ADDRESS   (0xffffc000000 | BIT63)                                               
+#define PLATFORM_IOBASE_ADDRESS   (0xffffc000000 | BIT63)
 #define PORT_TO_MEMD(_Port) (PLATFORM_IOBASE_ADDRESS | ( ( ( (_Port) & 0xfffc) << 10 ) | ( (_Port) & 0x0fff) ) )
-                                                                           
-//                                                                  
+
+//
 // Macro's with casts make this much easier to use and read.
 //
 #define PORT_TO_MEM8D(_Port)  (*(UINT8  *)(PORT_TO_MEMD(_Port)))
@@ -122,7 +122,7 @@ typedef uint64_t   UINTN;
 
 #define EFIERR(a)           (0x8000000000000000 | a)
 #define EFI_ERROR_MASK      0x8000000000000000
-#define EFIERR_OEM(a)       (0xc000000000000000 | a)      
+#define EFIERR_OEM(a)       (0xc000000000000000 | a)
 
 #define BAD_POINTER         0xFBFBFBFBFBFBFBFB
 #define MAX_ADDRESS         0xFFFFFFFFFFFFFFFF
@@ -154,14 +154,14 @@ typedef uint64_t   UINTN;
 // BOOTSERVICE - prototype for implementation of a boot service interface
 // RUNTIMESERVICE - prototype for implementation of a runtime service interface
 // RUNTIMEFUNCTION - prototype for implementation of a runtime function that is not a service
-// RUNTIME_CODE - pragma macro for declaring runtime code    
+// RUNTIME_CODE - pragma macro for declaring runtime code
 //
 
-#ifndef EFIAPI                  // Forces EFI calling conventions reguardless of compiler options 
+#ifndef EFIAPI                  // Forces EFI calling conventions reguardless of compiler options
     #ifdef _MSC_EXTENSIONS
-        #define EFIAPI __cdecl  // Force C calling convention for Microsoft C compiler 
+        #define EFIAPI __cdecl  // Force C calling convention for Microsoft C compiler
     #else
-        #define EFIAPI          // Substitute expresion to force C calling convention 
+        #define EFIAPI          // Substitute expresion to force C calling convention
     #endif
 #endif
 
@@ -178,7 +178,7 @@ typedef uint64_t   UINTN;
 //
 // BugBug: Need to find out if this is portable across compilers.
 //
-void __mfa (void);                       
+void __mfa (void);
 #define MEMORY_FENCE()    __mfa()
 
 #ifdef EFI_NO_INTERFACE_DECL

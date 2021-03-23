@@ -16,8 +16,8 @@ Intel Corporation.
 Module Name:
 
     efipart.h
-    
-Abstract:   
+
+Abstract:
     Info about disk partitions and Master Boot Records
 
 
@@ -55,7 +55,7 @@ typedef struct {
 #define MIN_MBR_DEVICE_SIZE     0x80000
 #define MBR_ERRATA_PAD          0x40000 // 128 MB
 
-#define MAX_MBR_PARTITIONS  4   
+#define MAX_MBR_PARTITIONS  4
 typedef struct {
     UINT8                   BootStrapCode[440];
     UINT8                   UniqueMbrSignature[4];

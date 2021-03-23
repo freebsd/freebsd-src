@@ -33,12 +33,12 @@ extern UINTN     EFIDebug;
 
     #define DBGASSERT(a)        DbgAssert(__FILE__, __LINE__, #a)
     #define DEBUG(a)            DbgPrint a
-    
+
 #else
 
     #define DBGASSERT(a)
     #define DEBUG(a)
-    
+
 #endif
 
 #if EFI_DEBUG_CLEAR_MEMORY
@@ -60,7 +60,7 @@ extern UINTN     EFIDebug;
 #define D_INFO        0x00000040          // Verbose
 #define D_VARIABLE    0x00000100          // Variable
 #define D_VAR         0x00000100          // Variable
-#define D_BM          0x00000400          // Boot Manager 
+#define D_BM          0x00000400          // Boot Manager
 #define D_BLKIO       0x00001000          // BlkIo Driver
 #define D_BLKIO_ULTRA 0x00002000          // BlkIo Driver
 #define D_NET         0x00004000          // SNI Driver
@@ -91,9 +91,9 @@ extern UINTN     EFIDebug;
 
 #else
 
-    #define ASSERT(a)               
-    #define ASSERT_LOCKED(l)        
-    #define ASSERT_STRUCT(p,t)      
+    #define ASSERT(a)
+    #define ASSERT_LOCKED(l)
+    #define ASSERT_STRUCT(p,t)
 
 #endif
 

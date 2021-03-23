@@ -178,7 +178,7 @@ from_efi_time(EFI_TIME *ETime)
 	/*
 	 * UTime should now be set to 00:00:00 on Jan 1 of the file's year.
 	 *
-	 * Months  
+	 * Months
 	 */
 	UTime += (CumulativeDays[isleap(ETime->Year)][ETime->Month] *
 	    SECSPERDAY);

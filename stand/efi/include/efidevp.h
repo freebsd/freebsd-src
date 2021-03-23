@@ -151,8 +151,8 @@ typedef struct _ACPI_EXTENDED_HID_DEVICE_PATH {
 //  bits[31:16] - binary number
 //   Compressed ASCII is 5 bits per character 0b00001 = 'A' 0b11010 = 'Z'
 //
-#define PNP_EISA_ID_CONST       0x41d0    
-#define EISA_ID(_Name, _Num)    ((UINT32) ((_Name) | (_Num) << 16))   
+#define PNP_EISA_ID_CONST       0x41d0
+#define EISA_ID(_Name, _Num)    ((UINT32) ((_Name) | (_Num) << 16))
 #define EISA_PNP_ID(_PNPId)     (EISA_ID(PNP_EISA_ID_CONST, (_PNPId)))
 #define EFI_PNP_ID(_PNPId)      (EISA_ID(PNP_EISA_ID_CONST, (_PNPId)))
 
@@ -161,7 +161,7 @@ typedef struct _ACPI_EXTENDED_HID_DEVICE_PATH {
 /*
  *
  */
-#define MESSAGING_DEVICE_PATH           0x03 
+#define MESSAGING_DEVICE_PATH           0x03
 
 #define MSG_ATAPI_DP                    0x01
 typedef struct _ATAPI_DEVICE_PATH {
@@ -175,7 +175,7 @@ typedef struct _ATAPI_DEVICE_PATH {
 typedef struct _SCSI_DEVICE_PATH {
         EFI_DEVICE_PATH                 Header;
         UINT16                          Pun;
-        UINT16                          Lun; 
+        UINT16                          Lun;
 } SCSI_DEVICE_PATH;
 
 #define MSG_FIBRECHANNEL_DP             0x03
@@ -284,7 +284,7 @@ typedef struct _UART_DEVICE_PATH {
 
 #define DEVICE_PATH_MESSAGING_VT_100_PLUS \
     { 0x7baec70b, 0x57e0, 0x4c76, {0x8e, 0x87, 0x2f, 0x9e, 0x28, 0x08, 0x83, 0x43} }
-    
+
 #define DEVICE_PATH_MESSAGING_VT_UTF8 \
     { 0xad15a0d6, 0x8bec, 0x4acf, {0xa0, 0x73, 0xd0, 0x1d, 0xe7, 0x7e, 0x2d, 0x88} }
 
@@ -394,7 +394,7 @@ typedef union {
     PCCARD_DEVICE_PATH                   PcCard;
     MEMMAP_DEVICE_PATH                   MemMap;
     VENDOR_DEVICE_PATH                   Vendor;
-    UNKNOWN_DEVICE_VENDOR_DEVICE_PATH    UnknownVendor;   
+    UNKNOWN_DEVICE_VENDOR_DEVICE_PATH    UnknownVendor;
     CONTROLLER_DEVICE_PATH               Controller;
     ACPI_HID_DEVICE_PATH                 Acpi;
 
@@ -428,7 +428,7 @@ typedef union {
     PCCARD_DEVICE_PATH                   *PcCard;
     MEMMAP_DEVICE_PATH                   *MemMap;
     VENDOR_DEVICE_PATH                   *Vendor;
-    UNKNOWN_DEVICE_VENDOR_DEVICE_PATH    *UnknownVendor;   
+    UNKNOWN_DEVICE_VENDOR_DEVICE_PATH    *UnknownVendor;
     CONTROLLER_DEVICE_PATH               *Controller;
     ACPI_HID_DEVICE_PATH                 *Acpi;
     ACPI_EXTENDED_HID_DEVICE_PATH        *ExtendedAcpi;
