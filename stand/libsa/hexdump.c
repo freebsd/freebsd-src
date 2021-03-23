@@ -50,7 +50,7 @@ hexdump(caddr_t region, size_t len)
 
     for (line = region; line < (region + len); line += 16) {
 	emit("%08lx  ", (long) line);
-	
+
 	for (x = 0; x < 16; x++) {
 	    if ((line + x) < (region + len)) {
 		emit("%02x ", *(uint8_t *)(line + x));

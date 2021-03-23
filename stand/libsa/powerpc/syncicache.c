@@ -82,7 +82,7 @@ __syncicache(void *from, int len)
 #if	!defined(_KERNEL) && !defined(_STANDALONE)
 	if (!cacheline_size)
 		getcachelinesize();
-#endif	
+#endif
 
 	off = (u_int)from & (cacheline_size - 1);
 	l = len += off;

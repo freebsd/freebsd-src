@@ -46,7 +46,7 @@ geliboot_crypt(u_int algo, geli_op_t enc, u_char *data, size_t datasize,
 
 	switch (algo) {
 	case CRYPTO_AES_CBC:
-		err = rijndael_makeKey(&aeskey, !enc, keysize, 
+		err = rijndael_makeKey(&aeskey, !enc, keysize,
 		    (const char *)key);
 		if (err < 0) {
 			printf("Failed to setup crypo keys: %d\n", err);
@@ -61,11 +61,11 @@ geliboot_crypt(u_int algo, geli_op_t enc, u_char *data, size_t datasize,
 
 		switch (enc) {
 		case GELI_DECRYPT:
-			blks = rijndael_blockDecrypt(&cipher, &aeskey, data, 
+			blks = rijndael_blockDecrypt(&cipher, &aeskey, data,
 			    datasize * 8, data);
 			break;
 		case GELI_ENCRYPT:
-			blks = rijndael_blockEncrypt(&cipher, &aeskey, data, 
+			blks = rijndael_blockEncrypt(&cipher, &aeskey, data,
 			    datasize * 8, data);
 			break;
 		}

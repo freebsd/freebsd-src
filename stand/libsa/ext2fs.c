@@ -61,30 +61,30 @@ __FBSDID("$FreeBSD$");
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *  
+ *
  *
  * Copyright (c) 1990, 1991 Carnegie Mellon University
  * All Rights Reserved.
  *
  * Author: David Golub
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
@@ -207,7 +207,7 @@ struct ext2fs_disk {
 	char 		fd_fsmnt[64];	/* name last mounted on */
 	uint32_t	fd_bitmap;	/* compression bitmap */
 
-	uint8_t		fd_nblkpa;	/* # of blocks to preallocate */	
+	uint8_t		fd_nblkpa;	/* # of blocks to preallocate */
 	uint8_t		fd_ndblkpa;	/* # of dir blocks to preallocate */
 };
 
@@ -236,7 +236,7 @@ struct ext2fs {
 #define fs_firstblk	fs_fd.fd_firstblk
 #define fs_bpg		fs_fd.fd_bpg
 #define fs_ipg		fs_fd.fd_ipg
-	    
+
 #define fs_bsize	fs_fc.fc_bsize
 #define fs_bshift	fs_fc.fc_bshift
 #define fs_bmask	fs_fc.fc_bmask
@@ -506,7 +506,7 @@ ext2fs_open(const char *upath, struct open_file *f)
 				error = block_map(f, (daddr_t)0, &disk_block);
 				if (error)
 					goto out;
-				
+
 				twiddle(1);
 				error = (f->f_dev->dv_strategy)(f->f_devdata,
 				    F_READ, fsb_to_db(fs, disk_block),
@@ -589,7 +589,7 @@ read_inode(ino_t inumber, struct open_file *f)
 
 out:
 	free(buf);
-	return (error);	 
+	return (error);
 }
 
 /*

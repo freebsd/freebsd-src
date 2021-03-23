@@ -171,7 +171,7 @@ readudp(struct iodesc *d, void **pkt, void **payload, time_t tleft)
 		return (-1);
 	}
 
-	n = (n > (ntohs(uh->uh_ulen) - sizeof(*uh))) ? 
+	n = (n > (ntohs(uh->uh_ulen) - sizeof(*uh))) ?
 	    ntohs(uh->uh_ulen) - sizeof(*uh) : n;
 	*pkt = ptr;
 	*payload = (void *)((uintptr_t)uh + sizeof(*uh));

@@ -38,7 +38,7 @@ struct known_dev {
 	SLIST_ENTRY(known_dev)	entries;
 };
 
-SLIST_HEAD(known_dev_list, known_dev) known_devs_head = 
+SLIST_HEAD(known_dev_list, known_dev) known_devs_head =
     SLIST_HEAD_INITIALIZER(known_devs_head);
 
 static geli_ukey saved_keys[GELI_MAX_KEYS];

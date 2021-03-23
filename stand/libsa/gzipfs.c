@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1998 Michael Smith.
  * All rights reserved.
  *
@@ -53,8 +53,8 @@ static int	zf_stat(struct open_file *f, struct stat *sb);
 
 struct fs_ops gzipfs_fsops = {
     "zip",
-    zf_open, 
-    zf_close, 
+    zf_open,
+    zf_close,
     zf_read,
     null_write,
     zf_seek,
@@ -67,16 +67,16 @@ zf_fill(struct z_file *zf)
 {
     int		result;
     int		req;
-    
+
     req = Z_BUFSIZE - zf->zf_zstream.avail_in;
     result = 0;
-    
+
     /* If we need more */
     if (req > 0) {
 	/* move old data to bottom of buffer */
 	if (req < Z_BUFSIZE)
 	    bcopy(zf->zf_buf + req, zf->zf_buf, Z_BUFSIZE - req);
-	
+
 	/* read to fill buffer and update availibility data */
 	result = read(zf->zf_rawfd, zf->zf_buf + zf->zf_zstream.avail_in, req);
 	zf->zf_zstream.next_in = zf->zf_buf;
@@ -132,7 +132,7 @@ check_header(struct z_file *zf)
     if (method != Z_DEFLATED || (flags & RESERVED) != 0) {
 	return(1);
     }
-    
+
     /* Discard time, xflags and OS code: */
     for (len = 0; len < 6; len++) (void)get_byte(zf, &zf->zf_dataoffset);
 
@@ -154,7 +154,7 @@ check_header(struct z_file *zf)
     /* if there's data left, we're in business */
     return((c == -1) ? 1 : 0);
 }
-	
+
 static int
 zf_open(const char *fname, struct open_file *f)
 {
@@ -228,14 +228,14 @@ static int
 zf_close(struct open_file *f)
 {
     struct z_file	*zf = (struct z_file *)f->f_fsdata;
-    
+
     inflateEnd(&(zf->zf_zstream));
     close(zf->zf_rawfd);
     free(zf);
     return(0);
 }
- 
-static int 
+
+static int
 zf_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 {
     struct z_file	*zf = (struct z_file *)f->f_fsdata;
@@ -292,7 +292,7 @@ zf_seek(struct open_file *f, off_t offset, int where)
     struct z_file	*zf = (struct z_file *)f->f_fsdata;
     off_t		target;
     char		discard[16];
-    
+
     switch (where) {
     case SEEK_SET:
 	target = offset;

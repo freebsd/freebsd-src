@@ -91,7 +91,7 @@ fgetstr(char *buf, int size, int fd)
 {
     char	c;
     int		err, len;
-    
+
     size--;	/* leave space for terminator */
     len = 0;
     while (size != 0) {

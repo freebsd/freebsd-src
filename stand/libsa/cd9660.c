@@ -60,7 +60,7 @@ typedef struct {
 	u_char signature	[ISODCL (  5,    6)];
 	u_char len_skp		[ISODCL (  7,    7)]; /* 711 */
 } ISO_SUSP_PRESENT;
-	
+
 static int	buf_read_file(struct open_file *f, char **buf_p,
 		    size_t *size_p);
 static int	cd9660_open(const char *path, struct open_file *f);
@@ -100,7 +100,7 @@ struct file {
 	off_t 		f_off;		/* Current offset within file */
 	daddr_t 	f_bno;		/* Starting block number */
 	off_t 		f_size;		/* Size of file */
-	daddr_t		f_buf_blkno;	/* block number of data block */	
+	daddr_t		f_buf_blkno;	/* block number of data block */
 	char		*f_buf;		/* buffer for data block */
 	int		f_susp_skip;	/* len_skip for SUSP records */
 };
@@ -540,7 +540,7 @@ again:
 
 	if (isonum_711(ep->length) == 0) {
 		daddr_t blkno;
-		
+
 		/* skip to next block, if any */
 		blkno = fp->f_off / ISO_DEFAULT_BLOCK_SIZE;
 		fp->f_off = (blkno + 1) * ISO_DEFAULT_BLOCK_SIZE;

@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2002 Maxim Sobolev
  * All rights reserved.
  *
@@ -53,8 +53,8 @@ static int	splitfs_stat(struct open_file *f, struct stat *sb);
 
 struct fs_ops splitfs_fsops = {
     "split",
-    splitfs_open, 
-    splitfs_close, 
+    splitfs_open,
+    splitfs_close,
     splitfs_read,
     null_write,
     splitfs_seek,
@@ -188,8 +188,8 @@ splitfs_close(struct open_file *f)
     split_file_destroy(sf);
     return(close(fd));
 }
- 
-static int 
+
+static int
 splitfs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 {
     ssize_t nread;

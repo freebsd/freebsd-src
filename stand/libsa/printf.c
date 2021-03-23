@@ -189,7 +189,7 @@ int
 vsprintf(char *buf, const char *cfmt, va_list ap)
 {
 	int	retval;
-	
+
 	retval = kvprintf(cfmt, NULL, (void *)buf, 10, ap);
 	buf[retval] = '\0';
 

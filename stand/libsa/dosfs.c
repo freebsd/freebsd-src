@@ -447,7 +447,7 @@ dos_readdir(struct open_file *fd, struct dirent *d)
 
 	/* Check if directory entry is volume label */
 	if (dd.de.attr & FA_LABEL) {
-	    /* 
+	    /*
 	     * If volume label set, check if the current entry is
 	     * extended entry (FA_XDE) for long file names.
 	     */

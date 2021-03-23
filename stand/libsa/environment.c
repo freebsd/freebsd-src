@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1998 Michael Smith.
  * All rights reserved.
  *
@@ -46,7 +46,7 @@ struct env_var	*
 env_getenv(const char *name)
 {
 	struct env_var	*ev;
-    
+
 	for (ev = environ; ev != NULL; ev = ev->ev_next)
 		if (!strcmp(ev->ev_name, name))
 			break;

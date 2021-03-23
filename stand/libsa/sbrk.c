@@ -42,7 +42,7 @@ void
 setheap(void *base, void *top)
 {
     /* Align start address for the malloc code.  Sigh. */
-    heapbase = (void *)(((uintptr_t)base + MALLOCALIGN_MASK) & 
+    heapbase = (void *)(((uintptr_t)base + MALLOCALIGN_MASK) &
         ~MALLOCALIGN_MASK);
     maxheap = (char *)top - (char *)heapbase;
 }
@@ -51,7 +51,7 @@ char *
 sbrk(int incr)
 {
     char	*ret;
-    
+
     if (heapbase == 0)
 	    panic("No heap setup");
 

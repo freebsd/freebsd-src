@@ -47,7 +47,7 @@ pager_open(void)
 {
     int		nlines;
     char	*cp, *lp;
-    
+
     nlines = 24;		/* sensible default */
     if ((cp = getenv("LINES")) != NULL) {
 	nlines = strtol(cp, &lp, 0);
@@ -85,11 +85,11 @@ pager_output(const char *cp)
 
     if (cp == NULL)
 	return(0);
-    
+
     for (;;) {
 	if (*cp == 0)
 	    return(0);
-	
+
 	putchar(*cp);			/* always emit character */
 
 	if (*(cp++) == '\n') {		/* got a newline? */
@@ -134,7 +134,7 @@ pager_file(const char *fname)
     size_t	hmuch;
     int		fd;
     int		result;
-    
+
     if ((fd = open(fname, O_RDONLY)) == -1) {
 	printf("can't open '%s': %s\n", fname, strerror(errno));
 	return(-1);
