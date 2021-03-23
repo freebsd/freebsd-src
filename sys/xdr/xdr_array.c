@@ -151,5 +151,5 @@ xdr_vector(XDR *xdrs, char *basep, u_int nelem, u_int elemsize,
 		}
 		elptr += elemsize;
 	}
-	return(TRUE);	
+	return(TRUE);
 }

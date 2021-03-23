@@ -680,8 +680,8 @@ xdr_string(XDR *xdrs, char **cpp, u_int maxsize)
 	return (FALSE);
 }
 
-/* 
- * Wrapper for xdr_string that can be called directly from 
+/*
+ * Wrapper for xdr_string that can be called directly from
  * routines like clnt_call
  */
 bool_t
