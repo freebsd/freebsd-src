@@ -2550,10 +2550,12 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 	struct nfsclrecalllayout *recallp;
 	struct nfsclds *dsp;
 	bool retok;
+	struct mount *mp;
 
 	cred = newnfs_getcred();
 	NFSLOCKCLSTATE();
 	clp->nfsc_flags |= NFSCLFLAGS_HASTHREAD;
+	mp = clp->nfsc_nmp->nm_mountp;
 	NFSUNLOCKCLSTATE();
 	for(;;) {
 		newnfs_setroot(cred);
@@ -2652,14 +2654,18 @@ tryagain:
 				    }
 				    dp->nfsdl_rwlock.nfslock_lock |=
 					NFSV4LOCK_WANTED;
-				    (void) nfsmsleep(&dp->nfsdl_rwlock,
-					NFSCLSTATEMUTEXPTR, PZERO, "nfscld",
-					NULL);
+				    msleep(&dp->nfsdl_rwlock,
+					NFSCLSTATEMUTEXPTR, PVFS, "nfscld",
+					5 * hz);
+				    if (NFSCL_FORCEDISM(mp))
+					goto terminate;
 				    goto tryagain;
 				}
 				while (!igotlock) {
 				    igotlock = nfsv4_lock(&clp->nfsc_lock, 1,
-					&islept, NFSCLSTATEMUTEXPTR, NULL);
+					&islept, NFSCLSTATEMUTEXPTR, mp);
+				    if (igotlock == 0 && NFSCL_FORCEDISM(mp))
+					goto terminate;
 				    if (islept)
 					goto tryagain;
 				}
@@ -2739,9 +2745,11 @@ tryagain2:
 				     NFSV4LOCK_LOCK) != 0) {
 					lyp->nfsly_lock.nfslock_lock |=
 					    NFSV4LOCK_WANTED;
-					nfsmsleep(&lyp->nfsly_lock.nfslock_lock,
-					    NFSCLSTATEMUTEXPTR, PZERO, "nfslyp",
-					    NULL);
+					msleep(&lyp->nfsly_lock.nfslock_lock,
+					    NFSCLSTATEMUTEXPTR, PVFS, "nfslyp",
+					    5 * hz);
+					if (NFSCL_FORCEDISM(mp))
+					    goto terminate;
 					goto tryagain2;
 				}
 				/* Move the layout to the recall list. */
@@ -2850,6 +2858,7 @@ tryagain2:
 		if ((clp->nfsc_flags & NFSCLFLAGS_RECOVER) == 0)
 			(void)mtx_sleep(clp, NFSCLSTATEMUTEXPTR, PWAIT, "nfscl",
 			    hz);
+terminate:
 		if (clp->nfsc_flags & NFSCLFLAGS_UMOUNT) {
 			clp->nfsc_flags &= ~NFSCLFLAGS_HASTHREAD;
 			NFSUNLOCKCLSTATE();
