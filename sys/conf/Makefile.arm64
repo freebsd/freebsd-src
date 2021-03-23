@@ -27,6 +27,9 @@ S=	../../..
 
 INCLUDES+= -I$S/contrib/libfdt -I$S/contrib/device-tree/include
 
+LINUX_DTS_VERSION!=	awk '/freebsd,dts-version/ { sub(/;$$/,"", $$NF); print $$NF }' $S/dts/freebsd-compatible.dts
+CFLAGS += -DLINUX_DTS_VERSION=\"${LINUX_DTS_VERSION}\"
+
 # Use a custom SYSTEM_LD command to generate the elf kernel, so we can
 # set the text segment start address, and also strip the "arm mapping
 # symbols" which have names like $a.0 and $d.2; see the document
