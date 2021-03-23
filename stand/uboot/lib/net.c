@@ -156,7 +156,7 @@ get_env_net_params()
 	 */
 	serveraddr = INADDR_NONE;
 	if ((envstr = ub_env_get("serverip")) != NULL) {
-		if ((serveraddr = inet_addr(envstr)) == INADDR_NONE) 
+		if ((serveraddr = inet_addr(envstr)) == INADDR_NONE)
 			printf("Could not parse serverip '%s'\n", envstr);
 	}
 
