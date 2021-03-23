@@ -87,7 +87,7 @@ add_node_to_fdt(void *buffer, phandle_t node, int fdt_offset)
 			    child_offset, name, subname);
 			continue;
 		}
-	
+
                 add_node_to_fdt(buffer, node, child_offset);
 	}
 }
@@ -145,7 +145,7 @@ ofwfdt_fixups(void *fdtp)
 			fdt_delprop(fdtp, offset, "available");
 	}
 
-	
+
 	/*
 	 * Convert stored ihandles under /chosen to xref phandles
 	 */
@@ -212,9 +212,9 @@ fdt_platform_fixups(void)
 static int
 command_fdt(int argc, char *argv[])
 {
- 
+
 	return (command_fdt_internal(argc, argv));
 }
- 
+
 COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
 

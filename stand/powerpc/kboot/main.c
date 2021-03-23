@@ -327,7 +327,7 @@ time_t
 time(time_t *tloc)
 {
 	time_t rv;
-	
+
 	rv = getsecs();
 	if (tloc != NULL)
 		*tloc = rv;
@@ -509,6 +509,6 @@ command_fdt(int argc, char *argv[])
 
 	return (command_fdt_internal(argc, argv));
 }
-        
+
 COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
 

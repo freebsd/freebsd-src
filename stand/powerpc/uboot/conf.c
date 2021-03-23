@@ -91,7 +91,7 @@ struct netif_driver *netif_drivers[] = {
 };
 
 /* Exported for PowerPC only */
-/* 
+/*
  * Sort formats so that those that can detect based on arguments
  * rather than reading the file go first.
  */
@@ -103,8 +103,8 @@ struct file_format *file_formats[] = {
 	NULL
 };
 
-/* 
- * Consoles 
+/*
+ * Consoles
  */
 extern struct console uboot_console;
 

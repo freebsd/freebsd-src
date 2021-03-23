@@ -72,7 +72,7 @@ add_node_to_fdt(void *buffer, const char *path, int fdt_offset)
 				    child_offset, path, dent->d_name);
 				continue;
 			}
-		
+
 			add_node_to_fdt(buffer, subpath, child_offset);
 		} else {
 			propbuf = malloc(1024);
@@ -172,7 +172,7 @@ fdt_platform_load_dtb(void)
 
 	fdt_load_dtb_addr(buffer);
 	free(buffer);
-	
+
 	return (0);
 }
 

@@ -443,7 +443,7 @@ main(int ac, char **av)
 			bootpath_full[len+1] = i - 10 + '0';
 			bootpath_full[len+2] = '\0';
 		}
-			
+
 		if (domount(bootpath_full,1) >= 0)
 			break;
 
@@ -526,7 +526,7 @@ load(const char *fname)
 			continue;
 		fs_off = ph.p_offset;
 		p = (caddr_t)ph.p_vaddr;
-		ofw_claim(p,(ph.p_filesz > ph.p_memsz) ? 
+		ofw_claim(p,(ph.p_filesz > ph.p_memsz) ?
 		    ph.p_filesz : ph.p_memsz,0);
 		if (fsread(ino, p, ph.p_filesz) != ph.p_filesz) {
 			printf("Can't read content of section %d\n", i);
@@ -537,7 +537,7 @@ load(const char *fname)
 		__syncicache(p, ph.p_memsz);
 	}
 	ofw_close(bootdev);
-	(*(void (*)(void *, int, ofwfp_t, char *, int))eh.e_entry)(NULL, 0, 
+	(*(void (*)(void *, int, ofwfp_t, char *, int))eh.e_entry)(NULL, 0,
 	    ofw,NULL,0);
 }
 

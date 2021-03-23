@@ -77,7 +77,7 @@ ppc64_uboot_elf_exec(struct preloaded_file *fp)
 		return(EFTYPE);
 	}
 	e = (Elf_Ehdr *)&fmp->md_data;
-	
+
 	/* Handle function descriptor for ELFv1 kernels */
 	if ((e->e_flags & 3) == 2)
 		entry = (void (*)(void*))(intptr_t)e->e_entry;
