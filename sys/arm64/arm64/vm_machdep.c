@@ -55,8 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/vfp.h>
 #endif
 
-uint32_t initial_fpcr = VFPCR_DN;
-
 #include <dev/psci/psci.h>
 
 /*

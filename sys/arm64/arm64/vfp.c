@@ -212,7 +212,7 @@ vfp_reset_state(struct thread *td, struct pcb *pcb)
 	bzero(&pcb->pcb_fpustate.vfp_regs, sizeof(pcb->pcb_fpustate.vfp_regs));
 	KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
 	    ("pcb_fpusaved should point to pcb_fpustate."));
-	pcb->pcb_fpustate.vfp_fpcr = initial_fpcr;
+	pcb->pcb_fpustate.vfp_fpcr = VFPCR_INIT;
 	pcb->pcb_fpustate.vfp_fpsr = 0;
 	pcb->pcb_vfpcpu = UINT_MAX;
 	pcb->pcb_fpflags = 0;
@@ -262,7 +262,7 @@ vfp_init(void)
 	vfp_disable();
 
 	if (PCPU_GET(cpuid) == 0)
-		thread0.td_pcb->pcb_fpusaved->vfp_fpcr = initial_fpcr;
+		thread0.td_pcb->pcb_fpusaved->vfp_fpcr = VFPCR_INIT;
 }
 
 SYSINIT(vfp, SI_SUB_CPU, SI_ORDER_ANY, vfp_init, NULL);
