@@ -198,8 +198,8 @@ bi_load64(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 
     howto = bi_getboothowto(args);
 
-    /* 
-     * Allow the environment variable 'rootdev' to override the supplied device 
+    /*
+     * Allow the environment variable 'rootdev' to override the supplied device
      * This should perhaps go to MI code and/or have $rootdev tested/set by
      * MI code before launching the kernel.
      */

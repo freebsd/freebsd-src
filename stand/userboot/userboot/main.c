@@ -226,7 +226,7 @@ set_currdev(const char *devname)
 }
 
 /*
- * Set the 'current device' by (if possible) recovering the boot device as 
+ * Set the 'current device' by (if possible) recovering the boot device as
  * supplied by the initial bootstrap.
  */
 static void
@@ -239,11 +239,11 @@ extract_currdev(void)
 	char *buf = NULL;
 
 	if (userboot_zfs_found) {
-	
+
 		/* Leave the pool/root guid's unassigned */
 		bzero(&zdev, sizeof(zdev));
 		zdev.dd.d_dev = &zfs_dev;
-		
+
 		init_zfs_boot_options(zfs_fmtdev(&zdev));
 		dd = &zdev.dd;
 	} else

@@ -93,7 +93,7 @@ vm_offset_t
 bi_copyenv(vm_offset_t addr)
 {
     struct env_var	*ep;
-    
+
     /* traverse the environment */
     for (ep = environ; ep != NULL; ep = ep->ev_next) {
         CALLBACK(copyin, ep->ev_name, addr, strlen(ep->ev_name));

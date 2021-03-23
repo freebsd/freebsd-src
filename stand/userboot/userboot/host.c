@@ -84,7 +84,7 @@ host_seek(struct open_file *f, off_t offset, int where)
 static int
 host_stat(struct open_file *f, struct stat *sb)
 {
-	
+
 	CALLBACK(stat, f->f_fsdata, sb);
 	return (0);
 }

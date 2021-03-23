@@ -49,8 +49,8 @@ struct file_format i386_elf_obj = { elf32_obj_loadfile, elf32_obj_exec };
 #define	GUEST_GDT	0x3000		/* Address of initial GDT */
 
 /*
- * There is an ELF kernel and one or more ELF modules loaded.  
- * We wish to start executing the kernel image, so make such 
+ * There is an ELF kernel and one or more ELF modules loaded.
+ * We wish to start executing the kernel image, so make such
  * preparations as are required, and do so.
  */
 static int

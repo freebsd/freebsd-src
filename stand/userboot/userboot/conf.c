@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$NetBSD: conf.c,v 1.2 1997/03/22 09:03:29 thorpej Exp $	 
+ *	$NetBSD: conf.c,v 1.2 1997/03/22 09:03:29 thorpej Exp $
  */
 
 #include <sys/cdefs.h>
@@ -79,7 +79,7 @@ struct netif_driver *netif_drivers[] = {
 };
 
 /* Exported for i386 only */
-/* 
+/*
  * Sort formats so that those that can detect based on arguments
  * rather than reading the file go first.
  */
@@ -96,8 +96,8 @@ struct file_format *file_formats[] = {
     NULL
 };
 
-/* 
- * Consoles 
+/*
+ * Consoles
  *
  * We don't prototype these in libuserboot.h because they require
  * data structures from bootstrap.h as well.
