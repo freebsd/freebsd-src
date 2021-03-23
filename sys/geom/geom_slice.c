@@ -336,7 +336,7 @@ g_slice_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct 
 	gsp = gp->softc;
 	if (indent == NULL) {
 		sbuf_printf(sb, " i %u", pp->index);
-		sbuf_printf(sb, " o %ju", 
+		sbuf_printf(sb, " o %ju",
 		    (uintmax_t)gsp->slices[pp->index].offset);
 		return;
 	}

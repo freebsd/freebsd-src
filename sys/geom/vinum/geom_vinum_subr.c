@@ -306,7 +306,7 @@ gv_sd_to_plex(struct gv_sd *s, struct gv_plex *p)
 		/*
 		 * Don't allow a remainder below zero for running plexes, it's too
 		 * painful, and if someone were to accidentally do this, the
-		 * resulting array might be smaller than the original... not god 
+		 * resulting array might be smaller than the original... not god
 		 */
 		if (remainder < 0) {
 			if (!(p->flags & GV_PLEX_NEWBORN)) {
@@ -331,7 +331,7 @@ gv_sd_to_plex(struct gv_sd *s, struct gv_plex *p)
 
 	/* Find the correct plex offset for this subdisk, if needed. */
 	if (s->plex_offset == -1) {
-		/* 
+		/*
 		 * First set it to 0 to catch the case where we had a detached
 		 * subdisk that didn't get any good offset.
 		 */
@@ -383,7 +383,7 @@ gv_sd_to_plex(struct gv_sd *s, struct gv_plex *p)
 	} else {
 		if ((p->org == GV_PLEX_RAID5 ||
 		    p->org == GV_PLEX_STRIPED) &&
-		    !(p->flags & GV_PLEX_NEWBORN) && 
+		    !(p->flags & GV_PLEX_NEWBORN) &&
 		    p->state == GV_PLEX_UP) {
 			s->flags |= GV_SD_GROW;
 		}
@@ -1237,7 +1237,7 @@ gv_detach_plex(struct gv_plex *p, int flags)
 	}
 	v->plexcount--;
 	/* Make sure someone don't read us when gone. */
-	v->last_read_plex = NULL; 
+	v->last_read_plex = NULL;
 	LIST_REMOVE(p, in_volume);
 	p->vol_sc = NULL;
 	memset(p->volume, 0, GV_MAXVOLNAME);

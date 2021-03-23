@@ -98,7 +98,7 @@ struct g_bde_work {
  * dependent on the pass-phrase.
  */
 struct g_bde_key {
-	uint64_t		sector0;        
+	uint64_t		sector0;
 				/* Physical byte offset of 1st byte used */
 	uint64_t		sectorN;
 				/* Physical byte offset of 1st byte not used */

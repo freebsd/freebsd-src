@@ -188,7 +188,7 @@ g_eli_crypto_write_done(struct cryptop *crp)
 		return (0);
 	}
 	cbp->bio_data = bp->bio_driver2;
-	/* 
+	/*
 	 * Clear BIO_UNMAPPED, which was inherited from where we cloned the bio
 	 * in g_eli_start, because we manually set bio_data
 	 */
@@ -287,7 +287,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	if (bp->bio_cmd == BIO_WRITE) {
 		data = malloc(bp->bio_length, M_ELI, M_WAITOK);
 		bp->bio_driver2 = data;
-		/* 
+		/*
 		 * This copy could be eliminated by using crypto's output
 		 * buffer, instead of using a single overwriting buffer.
 		 */

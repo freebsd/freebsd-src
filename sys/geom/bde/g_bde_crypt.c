@@ -306,7 +306,7 @@ g_bde_map_sector(struct g_bde_work *wp)
 	wp->kso = zone * kp->zone_width + kp->zone_cont;
 	wp->kso += kp->keyoffset;
 	wp->kso %= kp->media_width;
-	wp->kso += kp->sector0; 
+	wp->kso += kp->sector0;
 
 	/* Compensate for lock sectors */
 	for (u = 0; u < G_BDE_MAXKEYS; u++) {

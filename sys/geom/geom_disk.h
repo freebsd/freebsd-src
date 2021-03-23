@@ -44,7 +44,7 @@
 #define	DISK_RR_MIN		0x0401
 #define	DISK_RR_MAX		0xfffe
 
-#ifdef _KERNEL 
+#ifdef _KERNEL
 
 #include <sys/queue.h>
 #include <sys/_lock.h>

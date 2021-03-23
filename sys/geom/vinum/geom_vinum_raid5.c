@@ -369,7 +369,7 @@ gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
 	 * be aware of it. Also this should perhaps be done on rebuild/check as
 	 * well?
 	 */
-	/* If we're over, we must use the old. */ 
+	/* If we're over, we must use the old. */
 	if (boff >= p->synced) {
 		grow = 1;
 	/* Or if over the resized offset, we use all drives. */
@@ -581,7 +581,7 @@ gv_raid5_request(struct gv_plex *p, struct gv_raid5_packet *wp,
 
 /*
  * Calculate the offsets in the various subdisks for a RAID5 request. Also take
- * care of new subdisks in an expanded RAID5 array. 
+ * care of new subdisks in an expanded RAID5 array.
  * XXX: This assumes that the new subdisks are inserted after the others (which
  * is okay as long as plex_offset is larger). If subdisks are inserted into the
  * plexlist before, we get problems.

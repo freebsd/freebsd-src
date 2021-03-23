@@ -866,7 +866,7 @@ llvm_md_decode(const u_char *data, struct g_llvm_metadata *md,
 			break;						\
 		}
 
-static size_t 
+static size_t
 llvm_grab_name(char *name, const char *tok)
 {
 	size_t len;

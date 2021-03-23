@@ -48,7 +48,7 @@ struct g_uzip_softc {
 	g_uzip_do_t uzip_do;
 
 	struct proc *procp;
-	struct bio_queue_head bio_queue; 
+	struct bio_queue_head bio_queue;
 	struct mtx queue_mtx;
 	unsigned wrkthr_flags;
 #define	GUZ_SHUTDOWN	(0x1 << 0)

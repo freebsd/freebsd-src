@@ -323,13 +323,13 @@ gv_concat(struct g_geom *gp, struct gctl_req *req)
 	dcount = 0;
 	vol = gctl_get_param(req, "name", NULL);
 	if (vol == NULL) {
-		gctl_error(req, "volume name not given");	
+		gctl_error(req, "volume name not given");
 		return;
 	}
 
 	drives = gctl_get_paraml(req, "drives", sizeof(*drives));
 
-	if (drives == NULL) { 
+	if (drives == NULL) {
 		gctl_error(req, "drive names not given");
 		return;
 	}
@@ -390,14 +390,14 @@ gv_mirror(struct g_geom *gp, struct gctl_req *req)
 	pcount = 0;
 	vol = gctl_get_param(req, "name", NULL);
 	if (vol == NULL) {
-		gctl_error(req, "volume name not given");	
+		gctl_error(req, "volume name not given");
 		return;
 	}
 
 	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
 	drives = gctl_get_paraml(req, "drives", sizeof(*drives));
 
-	if (drives == NULL) { 
+	if (drives == NULL) {
 		gctl_error(req, "drive names not given");
 		return;
 	}
@@ -481,7 +481,7 @@ gv_raid5(struct g_geom *gp, struct gctl_req *req)
 
 	vol = gctl_get_param(req, "name", NULL);
 	if (vol == NULL) {
-		gctl_error(req, "volume name not given");	
+		gctl_error(req, "volume name not given");
 		return;
 	}
 	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
@@ -559,13 +559,13 @@ gv_stripe(struct g_geom *gp, struct gctl_req *req)
 	pcount = 0;
 	vol = gctl_get_param(req, "name", NULL);
 	if (vol == NULL) {
-		gctl_error(req, "volume name not given");	
+		gctl_error(req, "volume name not given");
 		return;
 	}
 	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
 	drives = gctl_get_paraml(req, "drives", sizeof(*drives));
 
-	if (drives == NULL) { 
+	if (drives == NULL) {
 		gctl_error(req, "drive names not given");
 		return;
 	}

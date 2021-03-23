@@ -77,7 +77,7 @@ g_map_access(struct g_provider *pp, int dread, int dwrite, int dexcl)
 	if (dwrite > 0 && sc->readonly[pp->index])
 		return (EPERM);
 
-	return (sc->parent_access(pp, dread, dwrite, dexcl)); 
+	return (sc->parent_access(pp, dread, dwrite, dexcl));
 }
 
 static int
@@ -143,7 +143,7 @@ find_marker(struct g_consumer *cp, const char *line, off_t *offset)
 
 	/* Try convert to numeric first */
 	*offset = strtouq(line, &op, 0);
-	if (*op == '\0') 
+	if (*op == '\0')
 		return (0);
 
 	bzero(search_key, MAP_MAX_MARKER_LEN);
@@ -191,7 +191,7 @@ find_marker(struct g_consumer *cp, const char *line, off_t *offset)
 
 		for (c = 0; c < MAP_MAX_MARKER_LEN && key[c]; c++) {
 			if (key[c] == '.') {
-				key[c] = ((char *)(buf + 
+				key[c] = ((char *)(buf +
 				    (search_offset % sectorsize)))[c];
 			}
 		}
@@ -243,7 +243,7 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 	 * or hint.map.0.start="search:0x00010000:0x200:marker text" -
 	 * search for text "marker text", begin at 0x10000, step 0x200
 	 * until we found marker or end of media reached
-	 */ 
+	 */
 	if (resource_string_value("map", i, "start", &value) != 0) {
 		if (bootverbose)
 			printf("MAP: \"%s\" has no start value\n", name);
@@ -294,7 +294,7 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 		dsize = strtouq(value, &op, 0);
 		if (*op != '\0') {
 			if (bootverbose) {
-				printf("MAP: \"%s\" can't parse dsize\n", 
+				printf("MAP: \"%s\" can't parse dsize\n",
 				    name);
 			}
 			return (1);
@@ -328,7 +328,7 @@ g_map_parse_part(struct g_class *mp, struct g_provider *pp,
 	    dsize, cp->provider->sectorsize, "map/%s", name);
 	if (ret != 0) {
 		if (bootverbose) {
-			printf("MAP: g_slice_config returns %d for \"%s\"\n", 
+			printf("MAP: g_slice_config returns %d for \"%s\"\n",
 			    ret, name);
 		}
 		return (1);

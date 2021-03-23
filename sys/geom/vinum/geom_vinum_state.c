@@ -184,7 +184,7 @@ gv_set_sd_state(struct gv_sd *s, int newstate, int flags)
 	case GV_SD_INITIALIZING:
 		/*
 		 * Only do this if we're forced, since it usually is done
-		 * internally, and then we do use the force flag. 
+		 * internally, and then we do use the force flag.
 		 */
 		if (!(flags & GV_SETSTATE_FORCE))
 			return (GV_ERR_SETSTATE);

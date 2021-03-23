@@ -102,7 +102,7 @@ gv_move(struct g_geom *gp, struct gctl_req *req)
 
 /* Move a subdisk. */
 int
-gv_move_sd(struct gv_softc *sc, struct gv_sd *cursd, 
+gv_move_sd(struct gv_softc *sc, struct gv_sd *cursd,
     struct gv_drive *destination, int flags)
 {
 	struct gv_drive *d;

@@ -95,7 +95,7 @@ gv_plex_start(struct gv_plex *p, struct bio *bp)
 		}
 		if (len < 0)
 			return;
-			
+
 		bcount -= len;
 		addr += len;
 		boff += len;
@@ -112,7 +112,7 @@ gv_plex_start(struct gv_plex *p, struct bio *bp)
 		 * RAID5 sub-requests need to come in correct order, otherwise
 		 * we trip over the parity, as it might be overwritten by
 		 * another sub-request.  We abuse cbp->bio_caller2 to mark
-		 * potential overlap situations. 
+		 * potential overlap situations.
 		 */
 		if (cbp->bio_caller2 != NULL && gv_stripe_active(p, cbp)) {
 			/* Park the bio on the waiting queue. */
@@ -195,7 +195,7 @@ gv_plex_offset(struct gv_plex *p, off_t boff, off_t bcount, off_t *real_off,
 /*
  * Prepare a normal plex request.
  */
-static int 
+static int
 gv_plex_normal_request(struct gv_plex *p, struct bio *bp, off_t boff,
     off_t bcount,  caddr_t addr)
 {
@@ -210,7 +210,7 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp, off_t boff,
 
 	err = ENXIO;
 
-	if (p == NULL || LIST_EMPTY(&p->subdisks)) 
+	if (p == NULL || LIST_EMPTY(&p->subdisks))
 		goto bad;
 
 	err = gv_plex_offset(p, boff, bcount, &real_off,
@@ -281,7 +281,7 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp, off_t boff,
 	s->drive_sc->active++;
 
 	/* Store the sub-requests now and let others issue them. */
-	bioq_insert_tail(p->bqueue, cbp); 
+	bioq_insert_tail(p->bqueue, cbp);
 	return (real_len);
 bad:
 	G_VINUM_LOGREQ(0, bp, "plex request failed.");

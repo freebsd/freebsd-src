@@ -856,7 +856,7 @@ g_multipath_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	/*
 	 * Let's check if such a device already is present. We check against
 	 * uuid alone first because that's the true distinguishor. If that
-	 * passes, then we check for name conflicts. If there are conflicts, 
+	 * passes, then we check for name conflicts. If there are conflicts,
 	 * modify the name.
 	 *
 	 * The whole purpose of this is to solve the problem that people don't

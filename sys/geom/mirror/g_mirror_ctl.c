@@ -215,7 +215,7 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		    *priority);
 		return;
 	}
-	/* 
+	/*
 	 * Since we have a priority, we also need a provider now.
 	 * Note: be WARNS safe, by always assigning prov and only throw an
 	 * error if *priority != -1.

@@ -1509,7 +1509,7 @@ g_raid_md_ddf_supported(int level, int qual, int disks, int force)
 		} else if (qual == G_RAID_VOLUME_RLQ_R1MM) {
 			if (!force && disks != 3)
 				return (0);
-		} else 
+		} else
 			return (0);
 		break;
 	case G_RAID_VOLUME_RL_RAID3:
@@ -2315,7 +2315,7 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 				continue;
 
 			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-				if (disk->d_consumer != NULL && 
+				if (disk->d_consumer != NULL &&
 				    disk->d_consumer->provider != NULL &&
 				    strcmp(disk->d_consumer->provider->name,
 				     diskname) == 0)
@@ -2619,7 +2619,7 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 				diskname += 5;
 
 			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-				if (disk->d_consumer != NULL && 
+				if (disk->d_consumer != NULL &&
 				    disk->d_consumer->provider != NULL &&
 				    strcmp(disk->d_consumer->provider->name,
 				     diskname) == 0)

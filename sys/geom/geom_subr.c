@@ -876,7 +876,7 @@ redo_rank(struct g_geom *gp)
 			continue;
 
 		/* no rank to original geom means loop */
-		if (gp == gp1) 
+		if (gp == gp1)
 			return (ELOOP);
 
 		/* no rank, put it at the end move on */
@@ -1064,7 +1064,7 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 			g_spoil(pp, cp);
 		else if (pp->acw != 0 && pp->acw == -dcw && pp->error == 0 &&
 		    !(gp->flags & G_GEOM_WITHER))
-			g_post_event(g_new_provider_event, pp, M_WAITOK, 
+			g_post_event(g_new_provider_event, pp, M_WAITOK,
 			    pp, NULL);
 
 		pp->acr += dcr;

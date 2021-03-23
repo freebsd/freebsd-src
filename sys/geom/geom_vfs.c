@@ -61,8 +61,8 @@ struct g_vfs_softc {
 static struct buf_ops __g_vfs_bufops = {
 	.bop_name =	"GEOM_VFS",
 	.bop_write =	bufwrite,
-	.bop_strategy =	g_vfs_strategy,	
-	.bop_sync =	bufsync,	
+	.bop_strategy =	g_vfs_strategy,
+	.bop_sync =	bufsync,
 	.bop_bdflush =	bufbdflush
 };
 

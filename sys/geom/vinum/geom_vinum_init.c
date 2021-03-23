@@ -204,8 +204,8 @@ gv_sync_plex(struct gv_plex *p, struct gv_plex *up)
 	p->synced = 0;
 	p->flags |= GV_PLEX_SYNCING;
 	G_VINUM_DEBUG(1, "starting sync of plex %s", p->name);
-	error = gv_sync_request(up, p, p->synced, 
-	    MIN(GV_DFLT_SYNCSIZE, up->size - p->synced), 
+	error = gv_sync_request(up, p, p->synced,
+	    MIN(GV_DFLT_SYNCSIZE, up->size - p->synced),
 	    BIO_READ, NULL);
 	if (error) {
 		G_VINUM_DEBUG(0, "error syncing plex %s", p->name);
@@ -314,7 +314,7 @@ gv_grow_plex(struct gv_plex *p)
 	v = p->vol_sc;
 	KASSERT(v != NULL, ("gv_grow_plex: NULL v"));
 
-	if (p->flags & GV_PLEX_GROWING || 
+	if (p->flags & GV_PLEX_GROWING ||
 	    p->flags & GV_PLEX_SYNCING ||
 	    p->flags & GV_PLEX_REBUILDING)
 		return (EINPROGRESS);

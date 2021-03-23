@@ -177,21 +177,21 @@ gv_sizespec(char *spec)
 			switch (*s) {
 			case '\0':
 				return size * sign;
-			
+
 			case 'B':
 			case 'b':
 			case 'S':
 			case 's':
 				return size * sign * 512;
-			
+
 			case 'K':
 			case 'k':
 				return size * sign * 1024;
-			
+
 			case 'M':
 			case 'm':
 				return size * sign * 1024 * 1024;
-			
+
 			case 'G':
 			case 'g':
 				return size * sign * 1024 * 1024 * 1024;

@@ -324,7 +324,7 @@ g_bde_purge_sector(struct g_bde_softc *sc, int fraction)
 	g_trace(G_T_TOPOLOGY, "g_bde_purge_sector(%p)", sc);
 	if (fraction > 0)
 		n = sc->ncache / fraction + 1;
-	else 
+	else
 		n = g_bde_ncache - g_bde_malloc_last_fail();
 	if (n < 0)
 		return;
@@ -600,7 +600,7 @@ g_bde_worker(void *arg)
 			if (wp->ksp != NULL && wp->ksp->error != 0) {
 				g_bde_work_done(wp, wp->ksp->error);
 				continue;
-			} 
+			}
 			switch(wp->bp->bio_cmd) {
 			case BIO_READ:
 				if (wp->ksp == NULL) {
@@ -735,7 +735,7 @@ g_bde_start2(struct g_bde_work *wp)
 		}
 		break;
 	default:
-		KASSERT(0 == 1, 
+		KASSERT(0 == 1,
 		    ("Wrong bio_cmd %d in g_bde_start2", wp->bp->bio_cmd));
 	}
 

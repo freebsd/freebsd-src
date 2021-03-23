@@ -949,7 +949,7 @@ g_raid_md_intel_start_disk(struct g_raid_disk *disk)
 				continue;
 			/* Make sure this disk is big enough. */
 			TAILQ_FOREACH(sd, &tmpdisk->d_subdisks, sd_next) {
-				off_t disk_sectors = 
+				off_t disk_sectors =
 				    intel_get_disk_sectors(&pd->pd_disk_meta);
 
 				if (sd->sd_offset + sd->sd_size + 4096 >
@@ -1600,7 +1600,7 @@ search:
 	pd->pd_disk_pos = -1;
 	if (spare == 2) {
 		memcpy(&pd->pd_disk_meta.serial[0], serial, INTEL_SERIAL_LEN);
-		intel_set_disk_sectors(&pd->pd_disk_meta, 
+		intel_set_disk_sectors(&pd->pd_disk_meta,
 		    pp->mediasize / pp->sectorsize);
 		pd->pd_disk_meta.id = 0;
 		pd->pd_disk_meta.flags = INTEL_F_SPARE;
@@ -1973,7 +1973,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			disk = vol1->v_subdisks[i].sd_disk;
 			pd = (struct g_raid_md_intel_perdisk *)
 			    disk->d_md_data;
-			disk_sectors = 
+			disk_sectors =
 			    intel_get_disk_sectors(&pd->pd_disk_meta);
 
 			if (disk_sectors * 512 < size)
@@ -2208,7 +2208,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 				diskname += 5;
 
 			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-				if (disk->d_consumer != NULL && 
+				if (disk->d_consumer != NULL &&
 				    disk->d_consumer->provider != NULL &&
 				    strcmp(disk->d_consumer->provider->name,
 				     diskname) == 0)

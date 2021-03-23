@@ -221,7 +221,7 @@ g_eli_crypto_rerun(struct cryptop *crp)
 static void
 g_eli_getattr_done(struct bio *bp)
 {
-	if (bp->bio_error == 0 && 
+	if (bp->bio_error == 0 &&
 	    !strcmp(bp->bio_attribute, "GEOM::physpath")) {
 		strlcat(bp->bio_data, "/eli", bp->bio_length);
 	}

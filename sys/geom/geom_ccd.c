@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $ 
+ * $NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $
  */
 
 /*-
@@ -318,7 +318,7 @@ ccdinit(struct gctl_req *req, struct ccd_s *cs)
 		/*
 		 * Check to see if an even number of components
 		 * have been specified.  The interleave must also
-		 * be non-zero in order for us to be able to 
+		 * be non-zero in order for us to be able to
 		 * guarantee the topology.
 		 */
 		if (cs->sc_ndisks % 2) {
@@ -332,7 +332,7 @@ ccdinit(struct gctl_req *req, struct ccd_s *cs)
 			return(EINVAL);
 		}
 		cs->sc_size = (cs->sc_ndisks/2) * minsize;
-	} 
+	}
 
 	/*
 	 * Construct the interleave table.
@@ -408,7 +408,7 @@ ccdinterleave(struct ccd_s *cs)
 		 * Locate the smallest of the remaining components
 		 */
 		smallci = NULL;
-		for (ci = cs->sc_cinfo; ci < &cs->sc_cinfo[cs->sc_ndisks]; 
+		for (ci = cs->sc_cinfo; ci < &cs->sc_cinfo[cs->sc_ndisks];
 		    ci++) {
 			if (ci->ci_size > size &&
 			    (smallci == NULL ||
@@ -433,7 +433,7 @@ ccdinterleave(struct ccd_s *cs)
 		ii->ii_startblk = bn / cs->sc_ileave;
 
 		/*
-		 * Record starting component block using an sc_ileave 
+		 * Record starting component block using an sc_ileave
 		 * blocksize.  This value is relative to the beginning of
 		 * a component disk.
 		 */
@@ -444,7 +444,7 @@ ccdinterleave(struct ccd_s *cs)
 		 * and record their indices.
 		 */
 		ix = 0;
-		for (ci = cs->sc_cinfo; 
+		for (ci = cs->sc_cinfo;
 		    ci < &cs->sc_cinfo[cs->sc_ndisks]; ci++) {
 			if (ci->ci_size >= smallci->ci_size) {
 				ii->ii_index[ix++] = ci - cs->sc_cinfo;
@@ -586,8 +586,8 @@ ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t
 		ii--;
 
 		/*
-		 * off is the logical superblock relative to the beginning 
-		 * of this interleave block.  
+		 * off is the logical superblock relative to the beginning
+		 * of this interleave block.
 		 */
 		off = cbn - ii->ii_startblk;
 
@@ -598,7 +598,7 @@ ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t
 		 * adding 'off' and ii->ii_startoff together.  However, 'off'
 		 * must typically be divided by the number of components in
 		 * this interleave array to be properly convert it from a
-		 * CCD-relative logical superblock number to a 
+		 * CCD-relative logical superblock number to a
 		 * component-relative superblock number.
 		 */
 		if (ii->ii_ndisk == 1) {
@@ -615,7 +615,7 @@ ccdbuffer(struct bio **cb, struct ccd_s *cs, struct bio *bp, daddr_t bn, caddr_t
 				 * in a single interleave array.  We double
 				 * up on the first half of the available
 				 * components and our mirror is in the second
-				 * half.  This only works with a single 
+				 * half.  This only works with a single
 				 * interleave array because doubling up
 				 * doubles the number of sectors, so there
 				 * cannot be another interleave array because
@@ -834,7 +834,7 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 	sbuf_printf(sb, "ccd%d: %d components ", sc->sc_unit, *nprovider);
 	for (i = 0; i < *nprovider; i++) {
 		sbuf_printf(sb, "%s%s",
-		    i == 0 ? "(" : ", ", 
+		    i == 0 ? "(" : ", ",
 		    sc->sc_cinfo[i].ci_provider->name);
 	}
 	sbuf_printf(sb, "), %jd blocks ", (off_t)pp->mediasize / DEV_BSIZE);
@@ -891,7 +891,7 @@ g_ccd_list(struct gctl_req *req, struct g_class *mp)
 			continue;
 		sbuf_printf(sb, "ccd%d\t\t%d\t%d\t",
 		    cs->sc_unit, cs->sc_ileave, cs->sc_flags & CCDF_USERMASK);
-			
+
 		for (i = 0; i < cs->sc_ndisks; ++i) {
 			sbuf_printf(sb, "%s/dev/%s", i == 0 ? "" : " ",
 			    cs->sc_cinfo[i].ci_provider->name);

@@ -509,7 +509,7 @@ g_raid_get_disk_info(struct g_raid_disk *disk)
 		disk->d_kd.di.dumper = NULL;
 	if (disk->d_kd.di.dumper == NULL)
 		G_RAID_DEBUG1(2, disk->d_softc,
-		    "Dumping not supported by %s: %d.", 
+		    "Dumping not supported by %s: %d.",
 		    cp->provider->name, error);
 
 	/* Read BIO_DELETE support. */
@@ -518,7 +518,7 @@ g_raid_get_disk_info(struct g_raid_disk *disk)
 		disk->d_candelete = 0;
 	if (!disk->d_candelete)
 		G_RAID_DEBUG1(2, disk->d_softc,
-		    "BIO_DELETE not supported by %s: %d.", 
+		    "BIO_DELETE not supported by %s: %d.",
 		    cp->provider->name, error);
 }
 
@@ -1298,7 +1298,7 @@ g_raid_lock_range(struct g_raid_volume *vol, off_t off, off_t len,
 	TAILQ_FOREACH(bp, &vol->v_inflight.queue, bio_queue) {
 		if (bp != ignore && g_raid_bio_overlaps(bp, off, len))
 			lp->l_pending++;
-	}	
+	}
 
 	/*
 	 * If there are any writes that are pending, we return EBUSY.  All

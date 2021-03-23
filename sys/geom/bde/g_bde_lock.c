@@ -115,11 +115,11 @@ g_bde_hash_pass(struct g_bde_softc *sc, const void *input, u_int len)
  * average density of zero bits (from the numeric fields) is not currently
  * a concern.
  *
- * Should this later become a concern, a simple software update and 
- * pass-phrase change can remedy the situation.  One possible solution 
+ * Should this later become a concern, a simple software update and
+ * pass-phrase change can remedy the situation.  One possible solution
  * could be to XOR the numeric fields with a key-material derived PRN.
  *
- * The chosen shuffle algorithm only works as long as we have no more than 16 
+ * The chosen shuffle algorithm only works as long as we have no more than 16
  * fields in the stored part of the lock structure (hence the CTASSERT below).
  */
 

@@ -1327,7 +1327,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 				continue;
 
 			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-				if (disk->d_consumer != NULL && 
+				if (disk->d_consumer != NULL &&
 				    disk->d_consumer->provider != NULL &&
 				    strcmp(disk->d_consumer->provider->name,
 				     diskname) == 0)
@@ -1609,7 +1609,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 				diskname += 5;
 
 			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-				if (disk->d_consumer != NULL && 
+				if (disk->d_consumer != NULL &&
 				    disk->d_consumer->provider != NULL &&
 				    strcmp(disk->d_consumer->provider->name,
 				     diskname) == 0)
