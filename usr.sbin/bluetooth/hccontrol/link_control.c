@@ -812,7 +812,7 @@ again:
 
 struct hci_command	link_control_commands[] = {
 {
-"inquiry <LAP> <inquiry_length> <num_reponses>",
+"inquiry <LAP> <inquiry_length> <num_responses>",
 "\nThis command will cause the Bluetooth unit to enter Inquiry Mode.\n" \
 "Inquiry Mode is used to discover other nearby Bluetooth units. The LAP\n" \
 "input parameter contains the LAP from which the inquiry access code shall\n" \

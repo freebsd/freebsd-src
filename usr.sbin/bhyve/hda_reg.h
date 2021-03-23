@@ -801,7 +801,7 @@
     (((param) & HDA_PARAM_REVISION_ID_STEPPING_ID_MASK) >>		\
     HDA_PARAM_REVISION_ID_STEPPING_ID_SHIFT)
 
-/* Subordinate Node Cound */
+/* Subordinate Node Count */
 #define HDA_PARAM_SUB_NODE_COUNT			0x04
 
 #define HDA_PARAM_SUB_NODE_COUNT_START_MASK		0x00ff0000
