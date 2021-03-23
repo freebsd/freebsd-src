@@ -162,6 +162,8 @@ void dumpsys_pb_progress(size_t);
 
 extern int do_minidump;
 
+int livedump_start(int, int, uint8_t);
+
 #endif
 
 #endif /* _SYS_KERNELDUMP_H */

@@ -202,6 +202,50 @@ to update an existing or establish a new range, or to
 .Dv MEMRANGE_SET_REMOVE
 to remove a range.
 .El
+.Ss Live Kernel Dumps
+.Pp
+The
+.Dv MEM_KERNELDUMP
+ioctl will initiate a kernel dump against the running system, the contents of
+which will be written to a process-owned file descriptor.
+The resulting dump output will be in minidump format.
+The request is described by
+.Bd -literal
+struct mem_livedump_arg {
+	int	fd;		/* input */
+	int	flags		/* input */
+	uint8_t	compression	/* input */
+};
+.Ed
+.Pp
+The
+.Va fd
+field is used to pass the file descriptor.
+.Pp
+The
+.Va flags
+field is currently unused and must be set to zero.
+.Pp
+The
+.Va compression
+field can be used to specify the desired compression to
+be applied to the dump output.
+The supported values are defined in
+.In sys/kerneldump.h ;
+that is,
+.Dv KERNELDUMP_COMP_NONE ,
+.Dv KERNELDUMP_COMP_GZIP ,
+or
+.Dv KERNELDUMP_COMP_ZSTD .
+.Pp
+Kernel dumps taken against the running system may have inconsistent kernel data
+structures due to allocation, deallocation, or modification of memory
+concurrent to the dump procedure.
+Thus, the resulting core dump is not guaranteed to be usable.
+A system under load is more likely to produce an inconsistent result.
+Despite this, live kernel dumps can be useful for offline debugging of certain
+types of kernel bugs, such as deadlocks, or in inspecting a particular part of
+the system's state.
 .Sh RETURN VALUES
 .Ss MEM_EXTRACT_PADDR
 The
@@ -228,6 +272,24 @@ base/length supplied.
 .It Bq Er EPERM
 An attempt to remove a range failed because the range is permanently
 enabled.
+.El
+.Ss MEM_KERNELDUMP
+.Bl -tag -width Er
+.It Bq Er EOPNOTSUPP
+Kernel minidumps are not supported on this architecture.
+.It Bq Er EPERM
+An attempt to begin the kernel dump failed because the calling thread lacks the
+.It Bq Er EBADF
+The supplied file descriptor was invalid, or does not have write permission.
+.It Bq Er EBUSY
+An attempt to begin the kernel dump failed because one is already in progress.
+.It Bq Er EINVAL
+An invalid or unsupported value was specified in
+.Va flags .
+.It Bq Er EINVAL
+An invalid or unsupported compression type was specified.
+.Dv PRIV_KMEM_READ
+privilege.
 .El
 .Sh FILES
 .Bl -tag -width /dev/kmem -compact
