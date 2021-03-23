@@ -310,7 +310,7 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 		 */
 		pnp_write(PNP_IRQ_LEVEL(i), 0);
 		pnp_write(PNP_IRQ_TYPE(i), 2);
-	}		
+	}
 
 	for (i = 0; i < config->ic_ndrq; i++) {
 		int drq;
@@ -328,7 +328,7 @@ pnp_set_config(void *arg, struct isa_config *config, int enable)
 		 * indicate no DMA channel is active.
 		 */
 		pnp_write(PNP_DMA_CHANNEL(i), 4);
-	}		
+	}
 
 	pnp_write(PNP_ACTIVATE, enable ? 1 : 0);
 
@@ -443,7 +443,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 
 			continue;
 		}
-		
+
 		/* Small resource */
 		if (scanning < PNP_SRES_LEN(tag)) {
 			scanning = 0;
@@ -452,7 +452,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 		resinfo = resp;
 		resp += PNP_SRES_LEN(tag);
 		scanning -= PNP_SRES_LEN(tag);
-			
+
 		switch (PNP_SRES_NUM(tag)) {
 		case PNP_TAG_LOGICAL_DEVICE:
 			/*
@@ -466,7 +466,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 				startres = NULL;
 			}
 
-			/* 
+			/*
 			 * A new logical device. Scan for end of
 			 * resources.
 			 */
@@ -498,7 +498,7 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 			ldn++;
 			startres = resp;
 			break;
-		    
+
 		case PNP_TAG_END:
 			if (!startres) {
 				device_printf(parent, "malformed resources\n");
@@ -547,7 +547,7 @@ pnp_read_bytes(int amount, u_char **resourcesp, int *spacep, int *lenp)
 		if (!resources)
 			return (ENOMEM);
 	}
-	
+
 	if (len + amount > space) {
 		int extra = 1024;
 		while (len + amount > space + extra)

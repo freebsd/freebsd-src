@@ -185,7 +185,7 @@ int	isa_dmatc(int chan);
 	if (isa_dma_init(chan, size, M_NOWAIT)) \
 		printf("WARNING: isa_dma_init(%d, %ju) failed\n", \
 		    (int)(chan), (uintmax_t)(size)); \
-	} while (0) 
+	} while (0)
 
 void	isa_hinted_child(device_t parent, const char *name, int unit);
 void	isa_hint_device_unit(device_t bus, device_t child, const char *name,

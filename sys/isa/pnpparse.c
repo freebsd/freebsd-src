@@ -98,7 +98,7 @@ pnp_parse_desc(device_t dev, u_char tag, u_char *res, int len,
 			if (isa_get_compatid(dev) == 0)
 				isa_set_compatid(dev, compat_id);
 			break;
-	    
+
 		case PNP_TAG_IRQ_FORMAT:
 			if (config->ic_nirq == ISA_NIRQ) {
 				pnp_printf(id, "too many irqs\n");
@@ -235,7 +235,7 @@ pnp_parse_desc(device_t dev, u_char tag, u_char *res, int len,
 			buf[len] = '\0';
 			device_set_desc_copy(dev, buf);
 			break;
-			
+
 		case PNP_TAG_MEMORY_RANGE:
 			if (config->ic_nmem == ISA_NMEM) {
 				pnp_printf(id, "too many memory ranges\n");

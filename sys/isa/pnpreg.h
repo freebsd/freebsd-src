@@ -74,14 +74,14 @@
 	all logical devices.  This resets the contents of configuration
 	registers to  their default state.  All card's logical devices
 	enter their default state and the CSN is preserved.
-		      
+
 	A write to bit[1] of this register causes all cards to enter the
 	Wait for Key state but all CSNs are preserved and logical devices
 	are not affected.
-			    
+
 	A write to bit[2] of this register causes all cards to reset their
 	CSN to zero .
-			  
+
 	This register is write-only.  The values are not sticky, that is,
 	hardware will automatically clear them and there is no need for
 	software to clear the bits.
@@ -93,7 +93,7 @@
 	matches the write data[7:0] to go from the Sleep state to the either
 	the Isolation state if the write data for this command is zero or
 	the Config state if the write data is not zero.  Additionally, the
-	pointer to the byte-serial device is reset.  This register is  
+	pointer to the byte-serial device is reset.  This register is
 	writeonly.
 	***/
 
@@ -106,7 +106,7 @@
 
 #define PNP_STATUS		0x05
 	/***
-	Bit[0] when set indicates it is okay to read the next data byte  
+	Bit[0] when set indicates it is okay to read the next data byte
 	from the Resource Data register.  This register is readonly.
 	***/
 
@@ -115,7 +115,7 @@
 	A write to this port sets a card's CSN.  The CSN is a value uniquely
 	assigned to each ISA card after the serial identification process
 	so that each card may be individually selected during a Wake[CSN]
-	command. This register is read/write. 
+	command. This register is read/write.
 	***/
 
 #define PNP_SET_LDN		0x07

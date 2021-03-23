@@ -40,7 +40,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -167,7 +167,7 @@ isa_find_memory(device_t child, struct isa_config *config,
 		}
 
 		/*
-		 * If we didn't find a place for memory range i, then 
+		 * If we didn't find a place for memory range i, then
 		 * give up now.
 		 */
 		if (!res[i]) {
@@ -241,7 +241,7 @@ isa_find_port(device_t child, struct isa_config *config,
 		}
 
 		/*
-		 * If we didn't find a place for port range i, then 
+		 * If we didn't find a place for port range i, then
 		 * give up now.
 		 */
 		if (!res[i]) {
@@ -329,7 +329,7 @@ isa_find_irq(device_t child, struct isa_config *config,
 		}
 
 		/*
-		 * If we didn't find a place for irq range i, then 
+		 * If we didn't find a place for irq range i, then
 		 * give up now.
 		 */
 		if (!res[i]) {
@@ -394,7 +394,7 @@ isa_find_drq(device_t child, struct isa_config *config,
 		}
 
 		/*
-		 * If we didn't find a place for drq range i, then 
+		 * If we didn't find a place for drq range i, then
 		 * give up now.
 		 */
 		if (!res[i]) {
@@ -423,7 +423,7 @@ isa_assign_resources(device_t child)
 	struct isa_config_entry *ice;
 	struct isa_config *cfg;
 	const char *reason;
-	
+
 	reason = "Empty ISA id_configs";
 	cfg = malloc(sizeof(struct isa_config), M_TEMP, M_NOWAIT|M_ZERO);
 	if (cfg == NULL)
@@ -443,7 +443,7 @@ isa_assign_resources(device_t child)
 			continue;
 
 		/*
-		 * A working configuration was found enable the device 
+		 * A working configuration was found enable the device
 		 * with this configuration.
 		 */
 		reason = "no callback";
@@ -612,9 +612,9 @@ isa_add_child(device_t dev, u_int order, const char *name, int unit)
 	struct	isa_device *idev;
 
 	child = device_add_child_ordered(dev, order, name, unit);
-	if (child == NULL) 
+	if (child == NULL)
 		return (child);
-	
+
 	idev = malloc(sizeof(struct isa_device), M_ISADEV, M_NOWAIT | M_ZERO);
 	if (!idev)
 		return (0);
@@ -637,7 +637,7 @@ isa_print_all_resources(device_t dev)
 
 	if (STAILQ_FIRST(rl) || device_get_flags(dev))
 		retval += printf(" at");
-	
+
 	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#jx");
 	retval += resource_list_print_type(rl, "iomem", SYS_RES_MEMORY, "%#jx");
 	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
@@ -671,7 +671,7 @@ isa_probe_nomatch(device_t dev, device_t child)
 		isa_print_all_resources(child);
 		bus_print_child_footer(dev, child);
 	}
-                                      
+
 	return;
 }
 
@@ -984,7 +984,7 @@ isa_add_config(device_t dev, device_t child, int priority,
 
 	newice->ice_priority = priority;
 	newice->ice_config = *config;
-	
+
 	TAILQ_FOREACH(ice, &idev->id_configs, ice_link) {
 		if (ice->ice_priority > priority)
 			break;
