@@ -2976,9 +2976,7 @@ ipf_nat6_out(fin, nat, natadd, nflags)
 	/* ------------------------------------------------------------- */
 	if ((np != NULL) && (np->in_apr != NULL)) {
 		i = ipf_proxy_check(fin, nat);
-		if (i == 0) {
-			i = 1;
-		} else if (i == -1) {
+		if (i == -1) {
 			NBUMPSIDE6D(1, ns_ipf_proxy_fail);
 		}
 	} else {
