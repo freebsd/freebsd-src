@@ -5060,6 +5060,8 @@ ieee80211_status(int s)
 				printkey(&ik);
 			}
 		}
+		if (i > 0 && verbose)
+			LINE_BREAK();
 end:
 		;
 	}
