@@ -138,7 +138,7 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 		fmt ? "Supported" : "Not Supported");
 	printf("Firmware Activate/Download:  %s\n",
 		fw ? "Supported" : "Not Supported");
-	printf("Namespace Managment:         %s\n",
+	printf("Namespace Management:         %s\n",
 		nsmgmt ? "Supported" : "Not Supported");
 	printf("Device Self-test:            %sSupported\n",
 	    ((oacs >> NVME_CTRLR_DATA_OACS_SELFTEST_SHIFT) &

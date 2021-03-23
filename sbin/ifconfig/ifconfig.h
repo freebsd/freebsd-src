@@ -158,7 +158,7 @@ void	clone_setdefcallback_filter(clone_match_func *, clone_callback_func *);
 void	sfp_status(int s, struct ifreq *ifr, int verbose);
 
 /*
- * XXX expose this so modules that neeed to know of any pending
+ * XXX expose this so modules that need to know of any pending
  * operations on ifmedia can avoid cmd line ordering confusion.
  */
 struct ifmediareq *ifmedia_getstate(void);

@@ -290,7 +290,7 @@ handleChap(isess_t *sess, pdu_t *pp)
 
      bzero(&spp, sizeof(pdu_t));
      lp = (login_req_t *)&spp.ipdu.bhs;
-     lp->cmd = ISCSI_LOGIN_CMD | 0x40; // login request + Inmediate
+     lp->cmd = ISCSI_LOGIN_CMD | 0x40; // login request + Immediate
      memcpy(lp->isid, sess->isid, 6);
      lp->tsih = sess->tsih;    // MUST be zero the first time!
      lp->CID = htons(1);
@@ -330,7 +330,7 @@ authenticate(isess_t *sess)
 
      bzero(&spp, sizeof(pdu_t));
      lp = (login_req_t *)&spp.ipdu.bhs;
-     lp->cmd = ISCSI_LOGIN_CMD | 0x40; // login request + Inmediate
+     lp->cmd = ISCSI_LOGIN_CMD | 0x40; // login request + Immediate
      memcpy(lp->isid, sess->isid, 6);
      lp->tsih = sess->tsih;	// MUST be zero the first time!
      lp->CID = htons(1);
@@ -376,7 +376,7 @@ loginPhase(isess_t *sess)
 
      bzero(sp, sizeof(pdu_t));
      lp = (login_req_t *)&spp.ipdu.bhs;
-     lp->cmd = ISCSI_LOGIN_CMD | 0x40; // login request + Inmediate
+     lp->cmd = ISCSI_LOGIN_CMD | 0x40; // login request + Immediate
      memcpy(lp->isid, sess->isid, 6);
      lp->tsih = sess->tsih;	// MUST be zero the first time!
      lp->CID = htons(1);	// sess->cid?
