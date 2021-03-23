@@ -17,7 +17,7 @@
 ** contact me by email at the address above.
 **
 ** L I C E N S E  and  D I S C L A I M E R
-** 
+**
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
 ** are met:
@@ -108,7 +108,7 @@ void vmCheckFStack(FICL_VM *pVM, int popCells, int pushCells)
 
 /*******************************************************************
                     s t a c k C r e a t e
-** 
+**
 *******************************************************************/
 
 FICL_STACK *stackCreate(unsigned nCells)
@@ -130,7 +130,7 @@ FICL_STACK *stackCreate(unsigned nCells)
 
 /*******************************************************************
                     s t a c k D e l e t e
-** 
+**
 *******************************************************************/
 
 void stackDelete(FICL_STACK *pStack)
@@ -142,8 +142,8 @@ void stackDelete(FICL_STACK *pStack)
 
 
 /*******************************************************************
-                    s t a c k D e p t h 
-** 
+                    s t a c k D e p t h
+**
 *******************************************************************/
 
 int stackDepth(FICL_STACK *pStack)
@@ -153,7 +153,7 @@ int stackDepth(FICL_STACK *pStack)
 
 /*******************************************************************
                     s t a c k D r o p
-** 
+**
 *******************************************************************/
 
 void stackDrop(FICL_STACK *pStack, int n)
@@ -168,7 +168,7 @@ void stackDrop(FICL_STACK *pStack, int n)
 
 /*******************************************************************
                     s t a c k F e t c h
-** 
+**
 *******************************************************************/
 
 CELL stackFetch(FICL_STACK *pStack, int n)
@@ -185,7 +185,7 @@ void stackStore(FICL_STACK *pStack, int n, CELL c)
 
 /*******************************************************************
                     s t a c k G e t T o p
-** 
+**
 *******************************************************************/
 
 CELL stackGetTop(FICL_STACK *pStack)
@@ -229,7 +229,7 @@ void stackUnlink(FICL_STACK *pStack)
 
 /*******************************************************************
                     s t a c k P i c k
-** 
+**
 *******************************************************************/
 
 void stackPick(FICL_STACK *pStack, int n)
@@ -241,7 +241,7 @@ void stackPick(FICL_STACK *pStack, int n)
 
 /*******************************************************************
                     s t a c k P o p
-** 
+**
 *******************************************************************/
 
 CELL stackPop(FICL_STACK *pStack)
@@ -273,7 +273,7 @@ float stackPopFloat(FICL_STACK *pStack)
 
 /*******************************************************************
                     s t a c k P u s h
-** 
+**
 *******************************************************************/
 
 void stackPush(FICL_STACK *pStack, CELL c)
@@ -305,7 +305,7 @@ void stackPushFloat(FICL_STACK *pStack, FICL_FLOAT f)
 
 /*******************************************************************
                     s t a c k R e s e t
-** 
+**
 *******************************************************************/
 
 void stackReset(FICL_STACK *pStack)
@@ -316,8 +316,8 @@ void stackReset(FICL_STACK *pStack)
 
 
 /*******************************************************************
-                    s t a c k R o l l 
-** Roll nth stack entry to the top (counting from zero), if n is 
+                    s t a c k R o l l
+** Roll nth stack entry to the top (counting from zero), if n is
 ** >= 0. Drop other entries as needed to fill the hole.
 ** If n < 0, roll top-of-stack to nth entry, pushing others
 ** upward as needed to fill the hole.
@@ -360,7 +360,7 @@ void stackRoll(FICL_STACK *pStack, int n)
 
 /*******************************************************************
                     s t a c k S e t T o p
-** 
+**
 *******************************************************************/
 
 void stackSetTop(FICL_STACK *pStack, CELL c)

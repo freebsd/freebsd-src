@@ -17,7 +17,7 @@
 ** contact me by email at the address above.
 **
 ** L I C E N S E  and  D I S C L A I M E R
-** 
+**
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
 ** are met:
@@ -70,7 +70,7 @@
 #if 0
 /*
 ** nBREAKPOINTS sizes the breakpoint array. One breakpoint (bp 0) is reserved
-** for the STEP command. The rest are user programmable. 
+** for the STEP command. The rest are user programmable.
 */
 #define nBREAKPOINTS 32
 
@@ -143,9 +143,9 @@ static int isPrimitive(FICL_WORD *pFW)
 
 /**************************************************************************
                         f i n d E n c l o s i n g W o r d
-** Given a pointer to something, check to make sure it's an address in the 
+** Given a pointer to something, check to make sure it's an address in the
 ** dictionary. If so, search backwards until we find something that looks
-** like a dictionary header. If successful, return the address of the 
+** like a dictionary header. If successful, return the address of the
 ** FICL_WORD found. Otherwise return NULL.
 ** nSEARCH_CELLS sets the maximum neighborhood this func will search before giving up
 **************************************************************************/
@@ -172,12 +172,12 @@ static FICL_WORD *findEnclosingWord(FICL_VM *pVM, CELL *cp)
 
 
 /**************************************************************************
-                        s e e 
+                        s e e
 ** TOOLS ( "<spaces>name" -- )
 ** Display a human-readable representation of the named word's definition.
 ** The source of the representation (object-code decompilation, source
 ** block, etc.) and the particular form of the display is implementation
-** defined. 
+** defined.
 **************************************************************************/
 /*
 ** seeColon (for proctologists only)
@@ -202,7 +202,7 @@ static void seeColon(FICL_VM *pVM, CELL *pc)
 		else
 			*cp++ = ' ';
         cp += sprintf(cp, "%3d   ", (int)(pc-param0));
-        
+
         if (isAFiclWord(pd, pFW))
         {
             WORDKIND kind = ficlWordClassify(pFW);
@@ -215,7 +215,7 @@ static void seeColon(FICL_VM *pVM, CELL *pc)
                 if (isAFiclWord(pd, c.p))
                 {
                     FICL_WORD *pLit = (FICL_WORD *)c.p;
-                    sprintf(cp, "%.*s ( %#lx literal )", 
+                    sprintf(cp, "%.*s ( %#lx literal )",
                         pLit->nName, pLit->name, (unsigned long)c.u);
                 }
                 else
@@ -242,7 +242,7 @@ static void seeColon(FICL_VM *pVM, CELL *pc)
                     sprintf(cp, "if / while (branch %d)", (int)(pc+c.i-param0));
                 else
                     sprintf(cp, "until (branch %d)",      (int)(pc+c.i-param0));
-                break;                                                           
+                break;
             case BRANCH:
                 c = *++pc;
                 if (c.i == 0)
@@ -278,7 +278,7 @@ static void seeColon(FICL_VM *pVM, CELL *pc)
                 sprintf(cp, "%.*s", pFW->nName, pFW->name);
                 break;
             }
- 
+
         }
         else /* probably not a word - punt and print value */
         {
@@ -292,10 +292,10 @@ static void seeColon(FICL_VM *pVM, CELL *pc)
 }
 
 /*
-** Here's the outer part of the decompiler. It's 
+** Here's the outer part of the decompiler. It's
 ** just a big nested conditional that checks the
 ** CFA of the word to decompile for each kind of
-** known word-builder code, and tries to do 
+** known word-builder code, and tries to do
 ** something appropriate. If the CFA is not recognized,
 ** just indicate that it is a primitive.
 */
@@ -409,8 +409,8 @@ void ficlDebugXT(FICL_VM *pVM)
 
 /**************************************************************************
                         s t e p I n
-** FICL 
-** Execute the next instruction, stepping into it if it's a colon definition 
+** FICL
+** Execute the next instruction, stepping into it if it's a colon definition
 ** or a does> word. This is the easy kind of step.
 **************************************************************************/
 void stepIn(FICL_VM *pVM)
@@ -418,23 +418,23 @@ void stepIn(FICL_VM *pVM)
     /*
     ** Do one step of the inner loop
     */
-    { 
-        M_VM_STEP(pVM) 
+    {
+        M_VM_STEP(pVM)
     }
 
     /*
     ** Now set a breakpoint at the next instruction
     */
     vmSetBreak(pVM, &(pVM->pSys->bpStep));
-    
+
     return;
 }
 
 
 /**************************************************************************
                         s t e p O v e r
-** FICL 
-** Execute the next instruction atomically. This requires some insight into 
+** FICL
+** Execute the next instruction atomically. This requires some insight into
 ** the memory layout of compiled code. Set a breakpoint at the next instruction
 ** in this word, and run until we hit it
 **************************************************************************/
@@ -450,10 +450,10 @@ void stepOver(FICL_VM *pVM)
 
     switch (kind)
     {
-    case COLON: 
+    case COLON:
     case DOES:
         /*
-        ** assume that the next cell holds an instruction 
+        ** assume that the next cell holds an instruction
         ** set a breakpoint there and return to the inner interp
         */
         pVM->pSys->bpStep.address = pVM->ip + 1;
@@ -477,8 +477,8 @@ void stepOver(FICL_VM *pVM)
 ** Upon entry, bpStep contains the address and replaced instruction
 ** of the current breakpoint.
 ** Clear the breakpoint
-** Get a command from the console. 
-** i (step in) - execute the current instruction and set a new breakpoint 
+** Get a command from the console.
+** i (step in) - execute the current instruction and set a new breakpoint
 **    at the IP
 ** o (step over) - execute the current instruction to completion and set
 **    a new breakpoint at the IP
@@ -498,7 +498,7 @@ void stepBreak(FICL_VM *pVM)
         assert(pVM->pSys->bpStep.origXT);
         /*
         ** Clear the breakpoint that caused me to run
-        ** Restore the original instruction at the breakpoint, 
+        ** Restore the original instruction at the breakpoint,
         ** and restore the IP
         */
         pVM->ip = (IPTYPE)(pVM->pSys->bpStep.address);
@@ -569,10 +569,10 @@ void stepBreak(FICL_VM *pVM)
     {
         /*
         ** Take whatever's left in the TIB and feed it to a subordinate ficlExec
-        */ 
+        */
         int ret;
         char *cp = pVM->tib.cp + pVM->tib.index;
-        int count = pVM->tib.end - cp; 
+        int count = pVM->tib.end - cp;
         FICL_WORD *oldRun = pVM->runningWord;
 
         ret = ficlExecC(pVM, cp, count);
@@ -617,7 +617,7 @@ static void bye(FICL_VM *pVM)
 
 /**************************************************************************
                         d i s p l a y S t a c k
-** TOOLS 
+** TOOLS
 ** Display the parameter stack (code for ".s")
 **************************************************************************/
 static void displayPStack(FICL_VM *pVM)
@@ -690,7 +690,7 @@ static void displayRStack(FICL_VM *pVM)
 
 /**************************************************************************
                         f o r g e t - w i d
-** 
+**
 **************************************************************************/
 static void forgetWid(FICL_VM *pVM)
 {
@@ -710,11 +710,11 @@ static void forgetWid(FICL_VM *pVM)
 ** Skip leading space delimiters. Parse name delimited by a space.
 ** Find name, then delete name from the dictionary along with all
 ** words added to the dictionary after name. An ambiguous
-** condition exists if name cannot be found. 
-** 
+** condition exists if name cannot be found.
+**
 ** If the Search-Order word set is present, FORGET searches the
 ** compilation word list. An ambiguous condition exists if the
-** compilation word list is deleted. 
+** compilation word list is deleted.
 **************************************************************************/
 static void forget(FICL_VM *pVM)
 {
@@ -733,7 +733,7 @@ static void forget(FICL_VM *pVM)
 
 /**************************************************************************
                         l i s t W o r d s
-** 
+**
 **************************************************************************/
 #define nCOLWIDTH 8
 static void listWords(FICL_VM *pVM)
@@ -802,7 +802,7 @@ static void listWords(FICL_VM *pVM)
         vmTextOut(pVM, pPad, 1);
     }
 
-    sprintf(pVM->pad, "Dictionary: %d words, %ld cells used of %u total", 
+    sprintf(pVM->pad, "Dictionary: %d words, %ld cells used of %u total",
         nWords, (long) (dp->here - dp->dict), dp->size);
     vmTextOut(pVM, pVM->pad, 1);
     return;
@@ -811,7 +811,7 @@ static void listWords(FICL_VM *pVM)
 
 /**************************************************************************
                         l i s t E n v
-** Print symbols defined in the environment 
+** Print symbols defined in the environment
 **************************************************************************/
 static void listEnv(FICL_VM *pVM)
 {
@@ -829,7 +829,7 @@ static void listEnv(FICL_VM *pVM)
         }
     }
 
-    sprintf(pVM->pad, "Environment: %d words, %ld cells used of %u total", 
+    sprintf(pVM->pad, "Environment: %d words, %ld cells used of %u total",
         nWords, (long) (dp->here - dp->dict), dp->size);
     vmTextOut(pVM, pVM->pad, 1);
     return;

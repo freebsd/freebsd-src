@@ -18,7 +18,7 @@
 ** contact me by email at the address above.
 **
 ** L I C E N S E  and  D I S C L A I M E R
-** 
+**
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
 ** are met:
@@ -53,7 +53,7 @@
 ** Make the compilation word list the same as the first word list in the
 ** search order. Specifies that the names of subsequent definitions will
 ** be placed in the compilation word list. Subsequent changes in the search
-** order will not affect the compilation word list. 
+** order will not affect the compilation word list.
 **************************************************************************/
 static void definitions(FICL_VM *pVM)
 {
@@ -75,7 +75,7 @@ static void definitions(FICL_VM *pVM)
 ** SEARCH ( -- wid )
 ** Return wid, the identifier of the word list that includes all standard
 ** words provided by the implementation. This word list is initially the
-** compilation word list and is part of the initial search order. 
+** compilation word list and is part of the initial search order.
 **************************************************************************/
 static void forthWordlist(FICL_VM *pVM)
 {
@@ -88,7 +88,7 @@ static void forthWordlist(FICL_VM *pVM)
 /**************************************************************************
                         g e t - c u r r e n t
 ** SEARCH ( -- wid )
-** Return wid, the identifier of the compilation word list. 
+** Return wid, the identifier of the compilation word list.
 **************************************************************************/
 static void getCurrent(FICL_VM *pVM)
 {
@@ -131,7 +131,7 @@ static void getOrder(FICL_VM *pVM)
 ** Find the definition identified by the string c-addr u in the word list
 ** identified by wid. If the definition is not found, return zero. If the
 ** definition is found, return its execution token xt and one (1) if the
-** definition is immediate, minus-one (-1) otherwise. 
+** definition is immediate, minus-one (-1) otherwise.
 **************************************************************************/
 static void searchWordlist(FICL_VM *pVM)
 {
@@ -165,7 +165,7 @@ static void searchWordlist(FICL_VM *pVM)
 /**************************************************************************
                         s e t - c u r r e n t
 ** SEARCH ( wid -- )
-** Set the compilation word list to the word list identified by wid. 
+** Set the compilation word list to the word list identified by wid.
 **************************************************************************/
 static void setCurrent(FICL_VM *pVM)
 {
@@ -227,8 +227,8 @@ static void setOrder(FICL_VM *pVM)
 ** The new word list may be returned from a pool of preallocated word
 ** lists or may be dynamically allocated in data space. A system shall
 ** allow the creation of at least 8 new word lists in addition to any
-** provided as part of the system. 
-** Notes: 
+** provided as part of the system.
+** Notes:
 ** 1. ficl creates a new single-list hash in the dictionary and returns
 **    its address.
 ** 2. ficl-wordlist takes an arg off the stack indicating the number of
@@ -240,7 +240,7 @@ static void ficlWordlist(FICL_VM *pVM)
     FICL_DICT *dp = vmGetDict(pVM);
     FICL_HASH *pHash;
     FICL_UNS nBuckets;
-    
+
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 1);
 #endif
@@ -303,7 +303,7 @@ static void widGetName(FICL_VM *pVM)
     FICL_HASH *pHash = vmPop(pVM).p;
     char *cp = pHash->name;
     FICL_INT len = 0;
-    
+
     if (cp)
         len = strlen(cp);
 
@@ -330,7 +330,7 @@ static void widSetName(FICL_VM *pVM)
                         setParentWid
 ** FICL
 ** setparentwid   ( parent-wid wid -- )
-** Set WID's link field to the parent-wid. search-wordlist will 
+** Set WID's link field to the parent-wid. search-wordlist will
 ** iterate through all the links when finding words in the child wid.
 **************************************************************************/
 static void setParentWid(FICL_VM *pVM)
@@ -358,23 +358,23 @@ void ficlCompileSearch(FICL_SYSTEM *pSys)
     assert (dp);
 
     /*
-    ** optional SEARCH-ORDER word set 
+    ** optional SEARCH-ORDER word set
     */
     dictAppendWord(dp, ">search",   searchPush,     FW_DEFAULT);
     dictAppendWord(dp, "search>",   searchPop,      FW_DEFAULT);
     dictAppendWord(dp, "definitions",
                                     definitions,    FW_DEFAULT);
-    dictAppendWord(dp, "forth-wordlist",  
+    dictAppendWord(dp, "forth-wordlist",
                                     forthWordlist,  FW_DEFAULT);
-    dictAppendWord(dp, "get-current",  
+    dictAppendWord(dp, "get-current",
                                     getCurrent,     FW_DEFAULT);
     dictAppendWord(dp, "get-order", getOrder,       FW_DEFAULT);
-    dictAppendWord(dp, "search-wordlist",  
+    dictAppendWord(dp, "search-wordlist",
                                     searchWordlist, FW_DEFAULT);
-    dictAppendWord(dp, "set-current",  
+    dictAppendWord(dp, "set-current",
                                     setCurrent,     FW_DEFAULT);
     dictAppendWord(dp, "set-order", setOrder,       FW_DEFAULT);
-    dictAppendWord(dp, "ficl-wordlist", 
+    dictAppendWord(dp, "ficl-wordlist",
                                     ficlWordlist,   FW_DEFAULT);
 
     /*
@@ -386,7 +386,7 @@ void ficlCompileSearch(FICL_SYSTEM *pSys)
 
     dictAppendWord(dp, "wid-get-name", widGetName,  FW_DEFAULT);
     dictAppendWord(dp, "wid-set-name", widSetName,  FW_DEFAULT);
-    dictAppendWord(dp, "wid-set-super", 
+    dictAppendWord(dp, "wid-set-super",
                                     setParentWid,   FW_DEFAULT);
     return;
 }

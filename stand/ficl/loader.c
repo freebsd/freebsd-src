@@ -29,7 +29,7 @@
 /*******************************************************************
 ** l o a d e r . c
 ** Additional FICL words designed for FreeBSD's loader
-** 
+**
 *******************************************************************/
 
 #ifdef TESTMAIN
@@ -594,7 +594,7 @@ ficlUuidToString(FICL_VM *pVM)
 ** reads in text from file fd and passes it to ficlExec()
  * returns VM_OUTOFTEXT on success or the ficlExec() error code on
  * failure.
- */ 
+ */
 #define nLINEBUF 256
 int ficlExecFD(FICL_VM *pVM, int fd)
 {
@@ -623,7 +623,7 @@ int ficlExecFD(FICL_VM *pVM, int fd)
 	if(rval != VM_QUIT && rval != VM_USEREXIT && rval != VM_OUTOFTEXT)
         {
             pVM->sourceID = id;
-            return rval; 
+            return rval;
         }
     }
     /*
@@ -727,7 +727,7 @@ static void pfopen(FICL_VM *pVM)
     stackPushINT(pVM->pStack, fd);
     return;
 }
- 
+
 /*          fclose - close a file who's fd is on stack.
  *
  * fclose ( fd -- )
@@ -995,12 +995,12 @@ static void freeHeap(FICL_VM *pVM)
 
 
 /******************* Increase dictionary size on-demand ******************/
- 
+
 static void ficlDictThreshold(FICL_VM *pVM)
 {
     stackPushPtr(pVM->pStack, &dictThreshold);
 }
- 
+
 static void ficlDictIncrease(FICL_VM *pVM)
 {
     stackPushPtr(pVM->pStack, &dictIncrease);
@@ -1054,7 +1054,7 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "term-putimage", ficl_term_putimage, FW_DEFAULT);
     dictAppendWord(dp, "isvirtualized?",ficlIsvirtualizedQ, FW_DEFAULT);
 #endif
-    
+
     SET_FOREACH(fnpp, Xficl_compile_set)
 	(*fnpp)(pSys);
 

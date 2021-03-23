@@ -19,7 +19,7 @@
 ** contact me by email at the address above.
 **
 ** L I C E N S E  and  D I S C L A I M E R
-** 
+**
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
 ** are met:
@@ -63,15 +63,15 @@ DPINT m64Abs(DPINT x)
 
 /**************************************************************************
                         m 6 4 F l o o r e d D i v I
-** 
+**
 ** FROM THE FORTH ANS...
 ** Floored division is integer division in which the remainder carries
 ** the sign of the divisor or is zero, and the quotient is rounded to
 ** its arithmetic floor. Symmetric division is integer division in which
 ** the remainder carries the sign of the dividend or is zero and the
 ** quotient is the mathematical quotient rounded towards zero or
-** truncated. Examples of each are shown in tables 3.3 and 3.4. 
-** 
+** truncated. Examples of each are shown in tables 3.3 and 3.4.
+**
 ** Table 3.3 - Floored Division Example
 ** Dividend        Divisor Remainder       Quotient
 ** --------        ------- ---------       --------
@@ -79,8 +79,8 @@ DPINT m64Abs(DPINT x)
 ** -10                7       4               -2
 **  10               -7      -4               -2
 ** -10               -7      -3                1
-** 
-** 
+**
+**
 ** Table 3.4 - Symmetric Division Example
 ** Dividend        Divisor Remainder       Quotient
 ** --------        ------- ---------       --------
@@ -142,8 +142,8 @@ int m64IsNegative(DPINT x)
                         m 6 4 M a c
 ** Mixed precision multiply and accumulate primitive for number building.
 ** Multiplies DPUNS u by FICL_UNS mul and adds FICL_UNS add. Mul is typically
-** the numeric base, and add represents a digit to be appended to the 
-** growing number. 
+** the numeric base, and add represents a digit to be appended to the
+** growing number.
 ** Returns the result of the operation
 **************************************************************************/
 DPUNS m64Mac(DPUNS u, FICL_UNS mul, FICL_UNS add)
@@ -346,18 +346,18 @@ UNS16 m64UMod(DPUNS *pUD, UNS16 base)
 
 /**************************************************************************
 ** Contributed by
-** Michael A. Gauland   gaulandm@mdhost.cse.tek.com  
+** Michael A. Gauland   gaulandm@mdhost.cse.tek.com
 **************************************************************************/
 #if PORTABLE_LONGMULDIV != 0
 /**************************************************************************
                         m 6 4 A d d
-** 
+**
 **************************************************************************/
 DPUNS m64Add(DPUNS x, DPUNS y)
 {
     DPUNS result;
     int carry;
-    
+
     result.hi = x.hi + y.hi;
     result.lo = x.lo + y.lo;
 
@@ -376,16 +376,16 @@ DPUNS m64Add(DPUNS x, DPUNS y)
 
 /**************************************************************************
                         m 6 4 S u b
-** 
+**
 **************************************************************************/
 DPUNS m64Sub(DPUNS x, DPUNS y)
 {
     DPUNS result;
-    
+
     result.hi = x.hi - y.hi;
     result.lo = x.lo - y.lo;
 
-    if (x.lo < y.lo) 
+    if (x.lo < y.lo)
     {
         result.hi--;
     }
@@ -401,9 +401,9 @@ DPUNS m64Sub(DPUNS x, DPUNS y)
 DPUNS m64ASL( DPUNS x )
 {
     DPUNS result;
-    
+
     result.hi = x.hi << 1;
-    if (x.lo & CELL_HI_BIT) 
+    if (x.lo & CELL_HI_BIT)
     {
         result.hi++;
     }
@@ -421,9 +421,9 @@ DPUNS m64ASL( DPUNS x )
 DPUNS m64ASR( DPUNS x )
 {
     DPUNS result;
-    
+
     result.lo = x.lo >> 1;
-    if (x.hi & 1) 
+    if (x.hi & 1)
     {
         result.lo |= CELL_HI_BIT;
     }
@@ -440,10 +440,10 @@ DPUNS m64ASR( DPUNS x )
 DPUNS m64Or( DPUNS x, DPUNS y )
 {
     DPUNS result;
-    
+
     result.hi = x.hi | y.hi;
     result.lo = x.lo | y.lo;
-    
+
     return result;
 }
 
@@ -455,32 +455,32 @@ DPUNS m64Or( DPUNS x, DPUNS y )
 int m64Compare(DPUNS x, DPUNS y)
 {
     int result;
-    
-    if (x.hi > y.hi) 
+
+    if (x.hi > y.hi)
     {
         result = +1;
-    } 
-    else if (x.hi < y.hi) 
+    }
+    else if (x.hi < y.hi)
     {
         result = -1;
-    } 
-    else 
+    }
+    else
     {
         /* High parts are equal */
-        if (x.lo > y.lo) 
+        if (x.lo > y.lo)
         {
             result = +1;
-        } 
-        else if (x.lo < y.lo) 
+        }
+        else if (x.lo < y.lo)
         {
             result = -1;
-        } 
-        else 
+        }
+        else
         {
             result = 0;
         }
     }
-    
+
     return result;
 }
 
@@ -489,19 +489,19 @@ int m64Compare(DPUNS x, DPUNS y)
                         f i c l L o n g M u l
 ** Portable versions of ficlLongMul and ficlLongDiv in C
 ** Contributed by:
-** Michael A. Gauland   gaulandm@mdhost.cse.tek.com  
+** Michael A. Gauland   gaulandm@mdhost.cse.tek.com
 **************************************************************************/
 DPUNS ficlLongMul(FICL_UNS x, FICL_UNS y)
 {
     DPUNS result = { 0, 0 };
     DPUNS addend;
-    
+
     addend.lo = y;
     addend.hi = 0; /* No sign extension--arguments are unsigned */
-    
-    while (x != 0) 
+
+    while (x != 0)
     {
-        if ( x & 1) 
+        if ( x & 1)
         {
             result = m64Add(result, addend);
         }
@@ -516,7 +516,7 @@ DPUNS ficlLongMul(FICL_UNS x, FICL_UNS y)
                         f i c l L o n g D i v
 ** Portable versions of ficlLongMul and ficlLongDiv in C
 ** Contributed by:
-** Michael A. Gauland   gaulandm@mdhost.cse.tek.com  
+** Michael A. Gauland   gaulandm@mdhost.cse.tek.com
 **************************************************************************/
 UNSQR ficlLongDiv(DPUNS q, FICL_UNS y)
 {
@@ -527,23 +527,23 @@ UNSQR ficlLongDiv(DPUNS q, FICL_UNS y)
 
     quotient.lo = 0;
     quotient.hi = 0;
-    
+
     subtrahend.lo = y;
     subtrahend.hi = 0;
-    
+
     mask.lo = 1;
     mask.hi = 0;
-    
+
     while ((m64Compare(subtrahend, q) < 0) &&
            (subtrahend.hi & CELL_HI_BIT) == 0)
     {
         mask = m64ASL(mask);
         subtrahend = m64ASL(subtrahend);
     }
-    
-    while (mask.lo != 0 || mask.hi != 0) 
+
+    while (mask.lo != 0 || mask.hi != 0)
     {
-        if (m64Compare(subtrahend, q) <= 0) 
+        if (m64Compare(subtrahend, q) <= 0)
         {
             q = m64Sub( q, subtrahend);
             quotient = m64Or(quotient, mask);
@@ -551,7 +551,7 @@ UNSQR ficlLongDiv(DPUNS q, FICL_UNS y)
         mask = m64ASR(mask);
         subtrahend = m64ASR(subtrahend);
     }
-    
+
     result.quot = quotient.lo;
     result.rem = q.lo;
     return result;

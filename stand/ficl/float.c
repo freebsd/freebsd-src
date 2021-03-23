@@ -18,7 +18,7 @@
 ** contact me by email at the address above.
 **
 ** L I C E N S E  and  D I S C L A I M E R
-** 
+**
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
 ** are met:
@@ -777,7 +777,7 @@ static void FisGreater(FICL_VM *pVM)
 
 /*******************************************************************
 ** Move float to param stack (assumes they both fit in a single CELL)
-** f>s 
+** f>s
 *******************************************************************/
 static void FFrom(FICL_VM *pVM)
 {
@@ -848,7 +848,7 @@ int ficlParseFloatNumber( FICL_VM *pVM, STRINGINFO si )
 #endif
 
     /*
-    ** floating point numbers only allowed in base 10 
+    ** floating point numbers only allowed in base 10
     */
     if (pVM->base != 10)
         return(0);
@@ -878,7 +878,7 @@ int ficlParseFloatNumber( FICL_VM *pVM, STRINGINFO si )
             } /* Note!  Drop through to FPS_ININT */
             /*
             **Converting integer part of number.
-            ** Only allow digits, decimal and 'E'. 
+            ** Only allow digits, decimal and 'E'.
             */
             case FPS_ININT:
             {
@@ -903,7 +903,7 @@ int ficlParseFloatNumber( FICL_VM *pVM, STRINGINFO si )
             }
             /*
             ** Processing the fraction part of number.
-            ** Only allow digits and 'E' 
+            ** Only allow digits and 'E'
             */
             case FPS_INMANT:
             {
@@ -940,7 +940,7 @@ int ficlParseFloatNumber( FICL_VM *pVM, STRINGINFO si )
             }       /* Note!  Drop through to FPS_INEXP */
             /*
             ** Processing the exponent part of number.
-            ** Only allow digits. 
+            ** Only allow digits.
             */
             case FPS_INEXP:
             {
@@ -1005,13 +1005,13 @@ void ficlCompileFloat(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "f0<",       FzeroLess,      FW_DEFAULT);
     dictAppendWord(dp, "f0=",       FzeroEquals,    FW_DEFAULT);
     dictAppendWord(dp, "f<",        FisLess,        FW_DEFAULT);
- /* 
-    f>d 
+ /*
+    f>d
  */
     dictAppendWord(dp, "f@",        Ffetch,         FW_DEFAULT);
- /* 
-    falign 
-    faligned 
+ /*
+    falign
+    faligned
  */
     dictAppendWord(dp, "fconstant", Fconstant,      FW_DEFAULT);
     dictAppendWord(dp, "fdepth",    Fdepth,         FW_DEFAULT);

@@ -18,7 +18,7 @@
 ** contact me by email at the address above.
 **
 ** L I C E N S E  and  D I S C L A I M E R
-** 
+**
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
 ** are met:
@@ -61,7 +61,7 @@ static int  ficlParseWord(FICL_VM *pVM, STRINGINFO si);
 
 /*
 ** Control structure building words use these
-** strings' addresses as markers on the stack to 
+** strings' addresses as markers on the stack to
 ** check for structure completion.
 */
 static char doTag[]    = "do";
@@ -195,7 +195,7 @@ static void resolveAbsBranch(FICL_DICT *dp, FICL_VM *pVM, char *tag)
 
 /**************************************************************************
                         f i c l P a r s e N u m b e r
-** Attempts to convert the NULL terminated string in the VM's pad to 
+** Attempts to convert the NULL terminated string in the VM's pad to
 ** a number using the VM's current base. If successful, pushes the number
 ** onto the param stack and returns TRUE. Otherwise, returns FALSE.
 ** (jws 8/01) Trailing decimal point causes a zero cell to be pushed. (See
@@ -273,7 +273,7 @@ int ficlParseNumber(FICL_VM *pVM, STRINGINFO si)
 
 /**************************************************************************
                         a d d   &   f r i e n d s
-** 
+**
 **************************************************************************/
 
 static void add(FICL_VM *pVM)
@@ -341,7 +341,7 @@ static void ficlDiv(FICL_VM *pVM)
 ** quotient n4. An ambiguous condition exists if n2 is zero. If n1 and n2
 ** differ in sign, the implementation-defined result returned will be the
 ** same as that returned by either the phrase
-** >R S>D R> FM/MOD or the phrase >R S>D R> SM/REM . 
+** >R S>D R> FM/MOD or the phrase >R S>D R> SM/REM .
 ** NOTE: Ficl complies with the second phrase (symmetric division)
 */
 static void slashMod(FICL_VM *pVM)
@@ -483,11 +483,11 @@ static void colon(FICL_VM *pVM)
 ** for its implementation of member function vmExecute()). The colon
 ** code simply copies the address of the first word in the list of words
 ** to interpret into IP after saving its old value. When we return to the
-** "next" loop, the virtual machine will call the code for each word in 
+** "next" loop, the virtual machine will call the code for each word in
 ** turn.
 **
 **************************************************************************/
-       
+
 static void colonParen(FICL_VM *pVM)
 {
     IPTYPE tempIP = (IPTYPE) (pVM->runningWord->param);
@@ -499,7 +499,7 @@ static void colonParen(FICL_VM *pVM)
 
 /**************************************************************************
                         s e m i c o l o n C o I m
-** 
+**
 ** IMMEDIATE code for ";". This function sets the state to INTERPRET and
 ** terminates a word under compilation by appending code for "(;)" to
 ** the definition. TO DO: checks for leftover branch target tags on the
@@ -571,7 +571,7 @@ static void exitCoIm(FICL_VM *pVM)
 
 /**************************************************************************
                         c o n s t a n t P a r e n
-** This is the run-time code for "constant". It simply returns the 
+** This is the run-time code for "constant". It simply returns the
 ** contents of its word's first data cell.
 **
 **************************************************************************/
@@ -624,7 +624,7 @@ static void twoConstant(FICL_VM *pVM)
     FICL_DICT *dp = vmGetDict(pVM);
     STRINGINFO si = vmGetWord(pVM);
     CELL c;
-    
+
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 2, 0);
 #endif
@@ -851,7 +851,7 @@ static void ficlSprintf(FICL_VM *pVM) /*  */
 
 /**************************************************************************
                         d u p   &   f r i e n d s
-** 
+**
 **************************************************************************/
 
 static void depth(FICL_VM *pVM)
@@ -1010,7 +1010,7 @@ static void twoSwap(FICL_VM *pVM)
 
 /**************************************************************************
                         e m i t   &   f r i e n d s
-** 
+**
 **************************************************************************/
 
 static void emit(FICL_VM *pVM)
@@ -1056,7 +1056,7 @@ static void commentLine(FICL_VM *pVM)
     {
         cp++;
 
-        if ( (cp != pEnd) && (ch != *cp) 
+        if ( (cp != pEnd) && (ch != *cp)
              && ((*cp == '\r') || (*cp == '\n')) )
             cp++;
     }
@@ -1067,13 +1067,13 @@ static void commentLine(FICL_VM *pVM)
 
 
 /*
-** paren CORE 
+** paren CORE
 ** Compilation: Perform the execution semantics given below.
 ** Execution: ( "ccc<paren>" -- )
-** Parse ccc delimited by ) (right parenthesis). ( is an immediate word. 
+** Parse ccc delimited by ) (right parenthesis). ( is an immediate word.
 ** The number of characters in ccc may be zero to the number of characters
-** in the parse area. 
-** 
+** in the parse area.
+**
 */
 static void commentHang(FICL_VM *pVM)
 {
@@ -1084,7 +1084,7 @@ static void commentHang(FICL_VM *pVM)
 
 /**************************************************************************
                         F E T C H   &   S T O R E
-** 
+**
 **************************************************************************/
 
 static void fetch(FICL_VM *pVM)
@@ -1102,7 +1102,7 @@ static void fetch(FICL_VM *pVM)
 ** two-fetch    CORE ( a-addr -- x1 x2 )
 ** Fetch the cell pair x1 x2 stored at a-addr. x2 is stored at a-addr and
 ** x1 at the next consecutive cell. It is equivalent to the sequence
-** DUP CELL+ @ SWAP @ . 
+** DUP CELL+ @ SWAP @ .
 */
 static void twoFetch(FICL_VM *pVM)
 {
@@ -1119,7 +1119,7 @@ static void twoFetch(FICL_VM *pVM)
 
 /*
 ** store        CORE ( x a-addr -- )
-** Store x at a-addr. 
+** Store x at a-addr.
 */
 static void store(FICL_VM *pVM)
 {
@@ -1135,7 +1135,7 @@ static void store(FICL_VM *pVM)
 ** two-store    CORE ( x1 x2 a-addr -- )
 ** Store the cell pair x1 x2 at a-addr, with x2 at a-addr and x1 at the
 ** next consecutive cell. It is equivalent to the sequence
-** SWAP OVER ! CELL+ ! . 
+** SWAP OVER ! CELL+ ! .
 */
 static void twoStore(FICL_VM *pVM)
 {
@@ -1225,7 +1225,7 @@ static void cStore(FICL_VM *pVM)
 
 /**************************************************************************
                         b r a n c h P a r e n
-** 
+**
 ** Runtime for "(branch)" -- expects a literal offset in the next
 ** compilation address, and branches to that location.
 **************************************************************************/
@@ -1246,17 +1246,17 @@ static void branchParen(FICL_VM *pVM)
 static void branch0(FICL_VM *pVM)
 {
     FICL_UNS flag;
-    
+
 #if FICL_ROBUST > 1
     vmCheckStack(pVM, 1, 0);
 #endif
     flag = stackPopUNS(pVM->pStack);
 
-    if (flag) 
+    if (flag)
     {                           /* fall through */
         vmBranchRelative(pVM, 1);
     }
-    else 
+    else
     {                           /* take branch (to else/endif/begin) */
         vmBranchRelative(pVM, (uintptr_t)*(pVM->ip));
     }
@@ -1270,7 +1270,7 @@ static void branch0(FICL_VM *pVM)
 ** IMMEDIATE COMPILE-ONLY
 ** Compiles code for a conditional branch into the dictionary
 ** and pushes the branch patch address on the stack for later
-** patching by ELSE or THEN/ENDIF. 
+** patching by ELSE or THEN/ENDIF.
 **************************************************************************/
 
 static void ifCoIm(FICL_VM *pVM)
@@ -1288,14 +1288,14 @@ static void ifCoIm(FICL_VM *pVM)
 
 /**************************************************************************
                         e l s e C o I m
-** 
+**
 ** IMMEDIATE COMPILE-ONLY
 ** compiles an "else"...
 ** 1) Compile a branch and a patch address; the address gets patched
 **    by "endif" to point past the "else" code.
 ** 2) Pop the "if" patch address
 ** 3) Patch the "if" branch to point to the current compile address.
-** 4) Push the "else" patch address. ("endif" patches this to jump past 
+** 4) Push the "else" patch address. ("endif" patches this to jump past
 **    the "else" code.
 **************************************************************************/
 
@@ -1309,7 +1309,7 @@ static void elseCoIm(FICL_VM *pVM)
                                             /* (1) compile branch runtime */
     dictAppendCell(dp, LVALUEtoCELL(pVM->pSys->pBranchParen));
     matchControlTag(pVM, origTag);
-    patchAddr = 
+    patchAddr =
         (CELL *)stackPopPtr(pVM->pStack);   /* (2) pop "if" patch addr */
     markBranch(dp, pVM, origTag);           /* (4) push "else" patch addr */
     dictAppendUNS(dp, 1);                 /* (1) compile patch placeholder */
@@ -1428,7 +1428,7 @@ static void ofParen(FICL_VM *pVM)
 		stackDrop(pVM->pStack, 1);
         vmBranchRelative(pVM, 1);
     }
-    else 
+    else
     {                           /* take branch to next of or endswitch */
         vmBranchRelative(pVM, *(int *)(pVM->ip));
     }
@@ -1578,7 +1578,7 @@ static void hash(FICL_VM *pVM)
 
 
 /**************************************************************************
-                        i n t e r p r e t 
+                        i n t e r p r e t
 ** This is the "user interface" of a Forth. It does the following:
 **   while there are words in the VM's Text Input Buffer
 **     Copy next word into the pad (vmGetWord)
@@ -1591,9 +1591,9 @@ static void hash(FICL_VM *pVM)
 **
 ** From the standard, section 3.4
 ** Text interpretation (see 6.1.1360 EVALUATE and 6.1.2050 QUIT) shall
-** repeat the following steps until either the parse area is empty or an 
-** ambiguous condition exists: 
-** a) Skip leading spaces and parse a name (see 3.4.1); 
+** repeat the following steps until either the parse area is empty or an
+** ambiguous condition exists:
+** a) Skip leading spaces and parse a name (see 3.4.1);
 **************************************************************************/
 
 static void interpret(FICL_VM *pVM)
@@ -1628,7 +1628,7 @@ static void interpret(FICL_VM *pVM)
     for (i=0; i < FICL_MAX_PARSE_STEPS; i++)
     {
         FICL_WORD *pFW = pSys->parseList[i];
-           
+
         if (pFW == NULL)
             break;
 
@@ -1660,19 +1660,19 @@ static void interpret(FICL_VM *pVM)
                         f i c l P a r s e W o r d
 ** From the standard, section 3.4
 ** b) Search the dictionary name space (see 3.4.2). If a definition name
-** matching the string is found: 
+** matching the string is found:
 **  1.if interpreting, perform the interpretation semantics of the definition
-**  (see 3.4.3.2), and continue at a); 
+**  (see 3.4.3.2), and continue at a);
 **  2.if compiling, perform the compilation semantics of the definition
-**  (see 3.4.3.3), and continue at a). 
+**  (see 3.4.3.3), and continue at a).
 **
 ** c) If a definition name matching the string is not found, attempt to
-** convert the string to a number (see 3.4.1.3). If successful: 
-**  1.if interpreting, place the number on the data stack, and continue at a); 
+** convert the string to a number (see 3.4.1.3). If successful:
+**  1.if interpreting, place the number on the data stack, and continue at a);
 **  2.if compiling, compile code that when executed will place the number on
-**  the stack (see 6.1.1780 LITERAL), and continue at a); 
+**  the stack (see 6.1.1780 LITERAL), and continue at a);
 **
-** d) If unsuccessful, an ambiguous condition exists (see 3.4.4). 
+** d) If unsuccessful, an ambiguous condition exists (see 3.4.4).
 **
 ** (jws 4/01) Modified to be a FICL_PARSE_STEP
 **************************************************************************/
@@ -1730,7 +1730,7 @@ static int ficlParseWord(FICL_VM *pVM, STRINGINFO si)
 
 
 /*
-** Surrogate precompiled parse step for ficlParseWord (this step is hard coded in 
+** Surrogate precompiled parse step for ficlParseWord (this step is hard coded in
 ** INTERPRET)
 */
 static void lookup(FICL_VM *pVM)
@@ -1759,7 +1759,7 @@ void parseStepParen(FICL_VM *pVM)
 
     SI_SETLEN(si, stackPopINT(pVM->pStack));
     SI_SETPTR(si, stackPopPtr(pVM->pStack));
-    
+
     PUSHINT((*pStep)(pVM, si));
 
     return;
@@ -1782,7 +1782,7 @@ static void addParseStep(FICL_VM *pVM)
 
 /**************************************************************************
                         l i t e r a l P a r e n
-** 
+**
 ** This is the runtime for (literal). It assumes that it is part of a colon
 ** definition, and that the next CELL contains a value to be pushed on the
 ** parameter stack at runtime. This code is compiled by "literal".
@@ -1813,8 +1813,8 @@ static void twoLitParen(FICL_VM *pVM)
 
 /**************************************************************************
                         l i t e r a l I m
-** 
-** IMMEDIATE code for "literal". This function gets a value from the stack 
+**
+** IMMEDIATE code for "literal". This function gets a value from the stack
 ** and compiles it into the dictionary preceded by the code for "(literal)".
 ** IMMEDIATE
 **************************************************************************/
@@ -1845,7 +1845,7 @@ static void twoLiteralIm(FICL_VM *pVM)
 
 /**************************************************************************
                         l o g i c   a n d   c o m p a r i s o n s
-** 
+**
 **************************************************************************/
 
 static void zeroEquals(FICL_VM *pVM)
@@ -1993,7 +1993,7 @@ static void bitwiseNot(FICL_VM *pVM)
 /**************************************************************************
                                D o  /  L o o p
 ** do -- IMMEDIATE COMPILE ONLY
-**    Compiles code to initialize a loop: compile (do), 
+**    Compiles code to initialize a loop: compile (do),
 **    allot space to hold the "leave" address, push a branch
 **    target address for the loop.
 ** (do) -- runtime for "do"
@@ -2158,12 +2158,12 @@ static void loopParen(FICL_VM *pVM)
 
     index++;
 
-    if (index >= limit) 
+    if (index >= limit)
     {
         stackDrop(pVM->rStack, 3); /* nuke the loop indices & "leave" addr */
         vmBranchRelative(pVM, 1);  /* fall through the loop */
     }
-    else 
+    else
     {                       /* update index, branch to loop head */
         stackSetTop(pVM->rStack, LVALUEtoCELL(index));
         vmBranchRelative(pVM, (uintptr_t)*(pVM->ip));
@@ -2185,7 +2185,7 @@ static void plusLoopParen(FICL_VM *pVM)
     index = stackGetTop(pVM->rStack).i;
     limit = stackFetch(pVM->rStack, 1).i;
     increment = POP().i;
-    
+
     index += increment;
 
     if (increment < 0)
@@ -2193,12 +2193,12 @@ static void plusLoopParen(FICL_VM *pVM)
     else
         flag = (index >= limit);
 
-    if (flag) 
+    if (flag)
     {
         stackDrop(pVM->rStack, 3); /* nuke the loop indices & "leave" addr */
         vmBranchRelative(pVM, 1);  /* fall through the loop */
     }
-    else 
+    else
     {                       /* update index, branch to loop head */
         stackSetTop(pVM->rStack, LVALUEtoCELL(index));
         vmBranchRelative(pVM, (uintptr_t)*(pVM->ip));
@@ -2237,7 +2237,7 @@ static void loopKCo(FICL_VM *pVM)
 
 /**************************************************************************
                         r e t u r n   s t a c k
-** 
+**
 **************************************************************************/
 static void toRStack(FICL_VM *pVM)
 {
@@ -2301,7 +2301,7 @@ static void twoRFetch(FICL_VM *pVM)
 
 /**************************************************************************
                         v a r i a b l e
-** 
+**
 **************************************************************************/
 
 static void variableParen(FICL_VM *pVM)
@@ -2340,7 +2340,7 @@ static void twoVariable(FICL_VM *pVM)
 
 /**************************************************************************
                         b a s e   &   f r i e n d s
-** 
+**
 **************************************************************************/
 
 static void base(FICL_VM *pVM)
@@ -2372,7 +2372,7 @@ static void hex(FICL_VM *pVM)
 
 /**************************************************************************
                         a l l o t   &   f r i e n d s
-** 
+**
 **************************************************************************/
 
 static void allot(FICL_VM *pVM)
@@ -2466,7 +2466,7 @@ static void cellPlus(FICL_VM *pVM)
 ** tick         CORE ( "<spaces>name" -- xt )
 ** Skip leading space delimiters. Parse name delimited by a space. Find
 ** name and return xt, the execution token for name. An ambiguous condition
-** exists if name is not found. 
+** exists if name is not found.
 **************************************************************************/
 void ficlTick(FICL_VM *pVM)
 {
@@ -2491,14 +2491,14 @@ static void bracketTickCoIm(FICL_VM *pVM)
 {
     ficlTick(pVM);
     literalIm(pVM);
-    
+
     return;
 }
 
 
 /**************************************************************************
                         p o s t p o n e
-** Lookup the next word in the input stream and compile code to 
+** Lookup the next word in the input stream and compile code to
 ** insert it into definitions created by the resulting word
 ** (defers compilation, even of immediate words)
 **************************************************************************/
@@ -2521,7 +2521,7 @@ static void postponeCoIm(FICL_VM *pVM)
         literalIm(pVM);
         dictAppendCell(dp, LVALUEtoCELL(pComma));
     }
-    
+
     return;
 }
 
@@ -2581,7 +2581,7 @@ static void isObject(FICL_VM *pVM)
 {
     FICL_INT flag;
     FICL_WORD *pFW = (FICL_WORD *)stackPopPtr(pVM->pStack);
-    
+
     flag = ((pFW != NULL) && (pFW->flags & FW_ISOBJECT)) ? FICL_TRUE : FICL_FALSE;
     stackPushINT(pVM->pStack, flag);
     return;
@@ -2685,21 +2685,21 @@ static void dotParen(FICL_VM *pVM)
 
     vmTextOut(pVM, pVM->pad, 0);
     vmUpdateTib(pVM, pSrc);
-        
+
     return;
 }
 
 
 /**************************************************************************
                         s l i t e r a l
-** STRING 
+** STRING
 ** Interpretation: Interpretation semantics for this word are undefined.
 ** Compilation: ( c-addr1 u -- )
 ** Append the run-time semantics given below to the current definition.
 ** Run-time:       ( -- c-addr2 u )
 ** Return c-addr2 u describing a string consisting of the characters
 ** specified by c-addr1 u during compilation. A program shall not alter
-** the returned string. 
+** the returned string.
 **************************************************************************/
 static void sLiteralCoIm(FICL_VM *pVM)
 {
@@ -2747,7 +2747,7 @@ static void state(FICL_VM *pVM)
 
 /**************************************************************************
                         c r e a t e . . . d o e s >
-** Make a new word in the dictionary with the run-time effect of 
+** Make a new word in the dictionary with the run-time effect of
 ** a variable (push my address), but with extra space allotted
 ** for use by does> .
 **************************************************************************/
@@ -2830,7 +2830,7 @@ static void doesCoIm(FICL_VM *pVM)
                         t o   b o d y
 ** to-body      CORE ( xt -- a-addr )
 ** a-addr is the data-field address corresponding to xt. An ambiguous
-** condition exists if xt is not for a word defined via CREATE. 
+** condition exists if xt is not for a word defined via CREATE.
 **************************************************************************/
 static void toBody(FICL_VM *pVM)
 {
@@ -2866,7 +2866,7 @@ static void fromBody(FICL_VM *pVM)
 /*
 ** >name        ficl ( xt -- c-addr u )
 ** Push the address and length of a word's name given its address
-** xt. 
+** xt.
 */
 static void toName(FICL_VM *pVM)
 {
@@ -2894,7 +2894,7 @@ static void getLastWord(FICL_VM *pVM)
 
 /**************************************************************************
                         l b r a c k e t   e t c
-** 
+**
 **************************************************************************/
 
 static void lbracketCoIm(FICL_VM *pVM)
@@ -2915,7 +2915,7 @@ static void rbracket(FICL_VM *pVM)
                         p i c t u r e d   n u m e r i c   w o r d s
 **
 ** less-number-sign CORE ( -- )
-** Initialize the pictured numeric output conversion process. 
+** Initialize the pictured numeric output conversion process.
 ** (clear the pad)
 **************************************************************************/
 static void lessNumberSign(FICL_VM *pVM)
@@ -2931,7 +2931,7 @@ static void lessNumberSign(FICL_VM *pVM)
 ** n. (n is the least-significant digit of ud1.) Convert n to external form
 ** and add the resulting character to the beginning of the pictured numeric
 ** output  string. An ambiguous condition exists if # executes outside of a
-** <# #> delimited number conversion. 
+** <# #> delimited number conversion.
 */
 static void numberSign(FICL_VM *pVM)
 {
@@ -2954,7 +2954,7 @@ static void numberSign(FICL_VM *pVM)
 ** number-sign-greater CORE ( xd -- c-addr u )
 ** Drop xd. Make the pictured numeric output string available as a character
 ** string. c-addr and u specify the resulting character string. A program
-** may replace characters within the string. 
+** may replace characters within the string.
 */
 static void numberSignGreater(FICL_VM *pVM)
 {
@@ -2976,7 +2976,7 @@ static void numberSignGreater(FICL_VM *pVM)
 ** number-sign-s    CORE ( ud1 -- ud2 )
 ** Convert one digit of ud1 according to the rule for #. Continue conversion
 ** until the quotient is zero. ud2 is zero. An ambiguous condition exists if
-** #S executes outside of a <# #> delimited number conversion. 
+** #S executes outside of a <# #> delimited number conversion.
 ** TO DO: presently does not use ud1 hi cell - use it!
 */
 static void numberSignS(FICL_VM *pVM)
@@ -2991,7 +2991,7 @@ static void numberSignS(FICL_VM *pVM)
     sp = PTRtoSTRING pVM->pad;
     u = u64Pop(pVM->pStack);
 
-    do 
+    do
     {
         rem = m64UMod(&u, (UNS16)(pVM->base));
         sp->text[sp->count++] = digit_to_char(rem);
@@ -3025,7 +3025,7 @@ static void hold(FICL_VM *pVM)
 ** SIGN             CORE ( n -- )
 ** If n is negative, add a minus sign to the beginning of the pictured
 ** numeric output string. An ambiguous condition exists if SIGN
-** executes outside of a <# #> delimited number conversion. 
+** executes outside of a <# #> delimited number conversion.
 */
 static void sign(FICL_VM *pVM)
 {
@@ -3055,7 +3055,7 @@ static void sign(FICL_VM *pVM)
 ** character or the first character past the end of the string if the string
 ** was entirely converted. u2 is the number of unconverted characters in the
 ** string. An ambiguous condition exists if ud2 overflows during the
-** conversion. 
+** conversion.
 **************************************************************************/
 static void toNumber(FICL_VM *pVM)
 {
@@ -3083,9 +3083,9 @@ static void toNumber(FICL_VM *pVM)
 
         if (digit > 9)
             digit = tolower(ch) - 'a' + 10;
-        /* 
+        /*
         ** Note: following test also catches chars between 9 and a
-        ** because 'digit' is unsigned! 
+        ** because 'digit' is unsigned!
         */
         if (digit >= base)
             break;
@@ -3106,14 +3106,14 @@ static void toNumber(FICL_VM *pVM)
                         q u i t   &   a b o r t
 ** quit CORE   ( -- )  ( R:  i*x -- )
 ** Empty the return stack, store zero in SOURCE-ID if it is present, make
-** the user input device the input source, and enter interpretation state. 
-** Do not display a message. Repeat the following: 
+** the user input device the input source, and enter interpretation state.
+** Do not display a message. Repeat the following:
 **
 **   Accept a line from the input source into the input buffer, set >IN to
-**   zero, and interpret. 
+**   zero, and interpret.
 **   Display the implementation-defined system prompt if in
 **   interpretation state, all processing has been completed, and no
-**   ambiguous condition exists. 
+**   ambiguous condition exists.
 **************************************************************************/
 
 static void quit(FICL_VM *pVM)
@@ -3138,15 +3138,15 @@ static void ficlAbort(FICL_VM *pVM)
 ** as they are received. A program that depends on the presence or absence
 ** of non-graphic characters in the string has an environmental dependency.
 ** The editing functions, if any, that the system performs in order to
-** construct the string are implementation-defined. 
+** construct the string are implementation-defined.
 **
-** (Although the standard text doesn't say so, I assume that the intent 
+** (Although the standard text doesn't say so, I assume that the intent
 ** of 'accept' is to store the string at the address specified on
 ** the stack.)
 ** Implementation: if there's more text in the TIB, use it. Otherwise
 ** throw out for more text. Copy characters up to the max count into the
 ** address given, and return the number of actual characters copied.
-** 
+**
 ** Note (sobral) this may not be the behavior you'd expect if you're
 ** trying to get user input at load time!
 **************************************************************************/
@@ -3167,7 +3167,7 @@ static void accept(FICL_VM *pVM)
         vmThrow(pVM, VM_RESTART);
 
     /*
-    ** Now we have something in the text buffer - use it 
+    ** Now we have something in the text buffer - use it
     */
     count = stackPopINT(pVM->pStack);
     cp    = stackPopPtr(pVM->pStack);
@@ -3186,7 +3186,7 @@ static void accept(FICL_VM *pVM)
                         a l i g n
 ** 6.1.0705 ALIGN       CORE ( -- )
 ** If the data-space pointer is not aligned, reserve enough space to
-** align it. 
+** align it.
 **************************************************************************/
 static void align(FICL_VM *pVM)
 {
@@ -3199,7 +3199,7 @@ static void align(FICL_VM *pVM)
 
 /**************************************************************************
                         a l i g n e d
-** 
+**
 **************************************************************************/
 static void aligned(FICL_VM *pVM)
 {
@@ -3217,10 +3217,10 @@ static void aligned(FICL_VM *pVM)
 /**************************************************************************
                         b e g i n   &   f r i e n d s
 ** Indefinite loop control structures
-** A.6.1.0760 BEGIN 
-** Typical use: 
+** A.6.1.0760 BEGIN
+** Typical use:
 **      : X ... BEGIN ... test UNTIL ;
-** or 
+** or
 **      : X ... BEGIN ... test WHILE ... REPEAT ;
 **************************************************************************/
 static void beginCoIm(FICL_VM *pVM)
@@ -3286,15 +3286,15 @@ static void againCoIm(FICL_VM *pVM)
                         c h a r   &   f r i e n d s
 ** 6.1.0895 CHAR    CORE ( "<spaces>name" -- char )
 ** Skip leading space delimiters. Parse name delimited by a space.
-** Put the value of its first character onto the stack. 
+** Put the value of its first character onto the stack.
 **
-** bracket-char     CORE 
+** bracket-char     CORE
 ** Interpretation: Interpretation semantics for this word are undefined.
 ** Compilation: ( "<spaces>name" -- )
 ** Skip leading space delimiters. Parse name delimited by a space.
-** Append the run-time semantics given below to the current definition. 
+** Append the run-time semantics given below to the current definition.
 ** Run-time: ( -- char )
-** Place char, the value of the first character of name, on the stack. 
+** Place char, the value of the first character of name, on the stack.
 **************************************************************************/
 static void ficlChar(FICL_VM *pVM)
 {
@@ -3318,7 +3318,7 @@ static void charCoIm(FICL_VM *pVM)
 /**************************************************************************
                         c h a r P l u s
 ** char-plus        CORE ( c-addr1 -- c-addr2 )
-** Add the size in address units of a character to c-addr1, giving c-addr2. 
+** Add the size in address units of a character to c-addr1, giving c-addr2.
 **************************************************************************/
 static void charPlus(FICL_VM *pVM)
 {
@@ -3335,7 +3335,7 @@ static void charPlus(FICL_VM *pVM)
 /**************************************************************************
                         c h a r s
 ** chars        CORE ( n1 -- n2 )
-** n2 is the size in address units of n1 characters. 
+** n2 is the size in address units of n1 characters.
 ** For most processors, this function can be a no-op. To guarantee
 ** portability, we'll multiply by sizeof (char).
 **************************************************************************/
@@ -3359,7 +3359,7 @@ static void ficlChars(FICL_VM *pVM)
 #if defined (_M_IX86)
 #pragma warning(default: 4127)
 #endif
- 
+
 
 /**************************************************************************
                         c o u n t
@@ -3367,7 +3367,7 @@ static void ficlChars(FICL_VM *pVM)
 ** Return the character string specification for the counted string stored
 ** at c-addr1. c-addr2 is the address of the first character after c-addr1.
 ** u is the contents of the character at c-addr1, which is the length in
-** characters of the string at c-addr2. 
+** characters of the string at c-addr2.
 **************************************************************************/
 static void count(FICL_VM *pVM)
 {
@@ -3393,7 +3393,7 @@ static void count(FICL_VM *pVM)
 ** with an attribute of the present environment. If the system treats the
 ** attribute as unknown, the returned flag is false; otherwise, the flag
 ** is true and the i*x returned is of the type specified in the table for
-** the attribute queried. 
+** the attribute queried.
 **************************************************************************/
 static void environmentQ(FICL_VM *pVM)
 {
@@ -3429,7 +3429,7 @@ static void environmentQ(FICL_VM *pVM)
 ** SOURCE-ID if it is present. Make the string described by c-addr and u
 ** both the input source and input buffer, set >IN to zero, and interpret.
 ** When the parse area is empty, restore the prior input source
-** specification. Other stack effects are due to the words EVALUATEd. 
+** specification. Other stack effects are due to the words EVALUATEd.
 **
 **************************************************************************/
 static void evaluate(FICL_VM *pVM)
@@ -3497,19 +3497,19 @@ static void type(FICL_VM *pVM)
     char *cp    = stackPopPtr(pVM->pStack);
     char *pDest = (char *)ficlMalloc(count + 1);
 
-    /* 
+    /*
     ** Since we don't have an output primitive for a counted string
     ** (oops), make sure the string is null terminated. If not, copy
     ** and terminate it.
     */
     if (!pDest)
 	vmThrowErr(pVM, "Error: out of memory");
- 
+
     strncpy(pDest, cp, count);
     pDest[count] = '\0';
- 
+
     vmTextOut(pVM, pDest, 0);
- 
+
     ficlFree(pDest);
     return;
 }
@@ -3519,13 +3519,13 @@ static void type(FICL_VM *pVM)
 ** word CORE ( char "<chars>ccc<char>" -- c-addr )
 ** Skip leading delimiters. Parse characters ccc delimited by char. An
 ** ambiguous condition exists if the length of the parsed string is greater
-** than the implementation-defined length of a counted string. 
-** 
+** than the implementation-defined length of a counted string.
+**
 ** c-addr is the address of a transient region containing the parsed word
 ** as a counted string. If the parse area was empty or contained no
 ** characters other than the delimiter, the resulting string has a zero
 ** length. A space, not included in the length, follows the string. A
-** program may replace characters within the string. 
+** program may replace characters within the string.
 ** NOTE! Ficl also NULL-terminates the dest string.
 **************************************************************************/
 static void ficlWord(FICL_VM *pVM)
@@ -3559,7 +3559,7 @@ static void ficlWord(FICL_VM *pVM)
                         p a r s e - w o r d
 ** ficl   PARSE-WORD  ( <spaces>name -- c-addr u )
 ** Skip leading spaces and parse name delimited by a space. c-addr is the
-** address within the input buffer and u is the length of the selected 
+** address within the input buffer and u is the length of the selected
 ** string. If the parse area is empty, the resulting string has a zero length.
 **************************************************************************/
 static void parseNoCopy(FICL_VM *pVM)
@@ -3579,10 +3579,10 @@ static void parseNoCopy(FICL_VM *pVM)
 /**************************************************************************
                         p a r s e
 ** CORE EXT  ( char "ccc<char>" -- c-addr u )
-** Parse ccc delimited by the delimiter char. 
-** c-addr is the address (within the input buffer) and u is the length of 
+** Parse ccc delimited by the delimiter char.
+** c-addr is the address (within the input buffer) and u is the length of
 ** the parsed string. If the parse area was empty, the resulting string has
-** a zero length. 
+** a zero length.
 ** NOTE! PARSE differs from WORD: it does not skip leading delimiters.
 **************************************************************************/
 static void parse(FICL_VM *pVM)
@@ -3607,7 +3607,7 @@ static void parse(FICL_VM *pVM)
                         f i l l
 ** CORE ( c-addr u char -- )
 ** If u is greater than zero, store char in each of u consecutive
-** characters of memory beginning at c-addr. 
+** characters of memory beginning at c-addr.
 **************************************************************************/
 static void fill(FICL_VM *pVM)
 {
@@ -3638,7 +3638,7 @@ static void fill(FICL_VM *pVM)
 ** found, return its execution token xt. If the definition is immediate,
 ** also return one (1), otherwise also return minus-one (-1). For a given
 ** string, the values returned by FIND while compiling may differ from
-** those returned while not compiling. 
+** those returned while not compiling.
 **************************************************************************/
 static void do_find(FICL_VM *pVM, STRINGINFO si, void *returnForFailure)
 {
@@ -3668,7 +3668,7 @@ static void do_find(FICL_VM *pVM, STRINGINFO si, void *returnForFailure)
 ** found, return its execution token xt. If the definition is immediate,
 ** also return one (1), otherwise also return minus-one (-1). For a given
 ** string, the values returned by FIND while compiling may differ from
-** those returned while not compiling. 
+** those returned while not compiling.
 **************************************************************************/
 static void cFind(FICL_VM *pVM)
 {
@@ -3712,7 +3712,7 @@ static void sFind(FICL_VM *pVM)
 ** Divide d1 by n1, giving the floored quotient n3 and the remainder n2.
 ** Input and output stack arguments are signed. An ambiguous condition
 ** exists if n1 is zero or if the quotient lies outside the range of a
-** single-cell signed integer. 
+** single-cell signed integer.
 **************************************************************************/
 static void fmSlashMod(FICL_VM *pVM)
 {
@@ -3738,7 +3738,7 @@ static void fmSlashMod(FICL_VM *pVM)
 ** Divide d1 by n1, giving the symmetric quotient n3 and the remainder n2.
 ** Input and output stack arguments are signed. An ambiguous condition
 ** exists if n1 is zero or if the quotient lies outside the range of a
-** single-cell signed integer. 
+** single-cell signed integer.
 **************************************************************************/
 static void smSlashRem(FICL_VM *pVM)
 {
@@ -3782,7 +3782,7 @@ static void ficlMod(FICL_VM *pVM)
 ** Divide ud by u1, giving the quotient u3 and the remainder u2.
 ** All values and arithmetic are unsigned. An ambiguous condition
 ** exists if u1 is zero or if the quotient lies outside the range of a
-** single-cell unsigned integer. 
+** single-cell unsigned integer.
 *************************************************************************/
 static void umSlashMod(FICL_VM *pVM)
 {
@@ -3805,13 +3805,13 @@ static void umSlashMod(FICL_VM *pVM)
 ** Perform a logical left shift of u bit-places on x1, giving x2.
 ** Put zeroes into the least significant bits vacated by the shift.
 ** An ambiguous condition exists if u is greater than or equal to the
-** number of bits in a cell. 
+** number of bits in a cell.
 **
 ** r-shift CORE ( x1 u -- x2 )
 ** Perform a logical right shift of u bit-places on x1, giving x2.
 ** Put zeroes into the most significant bits vacated by the shift. An
 ** ambiguous condition exists if u is greater than or equal to the
-** number of bits in a cell. 
+** number of bits in a cell.
 **************************************************************************/
 static void lshift(FICL_VM *pVM)
 {
@@ -3847,7 +3847,7 @@ static void rshift(FICL_VM *pVM)
 /**************************************************************************
                         m S t a r
 ** m-star CORE ( n1 n2 -- d )
-** d is the signed product of n1 times n2. 
+** d is the signed product of n1 times n2.
 **************************************************************************/
 static void mStar(FICL_VM *pVM)
 {
@@ -3887,7 +3887,7 @@ static void umStar(FICL_VM *pVM)
 
 /**************************************************************************
                         m a x   &   m i n
-** 
+**
 **************************************************************************/
 static void ficlMax(FICL_VM *pVM)
 {
@@ -3926,7 +3926,7 @@ static void ficlMin(FICL_VM *pVM)
 ** If u is greater than zero, copy the contents of u consecutive address
 ** units at addr1 to the u consecutive address units at addr2. After MOVE
 ** completes, the u consecutive address units at addr2 contain exactly
-** what the u consecutive address units at addr1 contained before the move. 
+** what the u consecutive address units at addr1 contained before the move.
 ** NOTE! This implementation assumes that a char is the same size as
 **       an address unit.
 **************************************************************************/
@@ -3943,7 +3943,7 @@ static void move(FICL_VM *pVM)
     addr2 = POPPTR();
     addr1 = POPPTR();
 
-    if (u == 0) 
+    if (u == 0)
         return;
     /*
     ** Do the copy carefully, so as to be
@@ -3968,7 +3968,7 @@ static void move(FICL_VM *pVM)
 
 /**************************************************************************
                         r e c u r s e
-** 
+**
 **************************************************************************/
 static void recurseCoIm(FICL_VM *pVM)
 {
@@ -3984,7 +3984,7 @@ static void recurseCoIm(FICL_VM *pVM)
                         s t o d
 ** s-to-d CORE ( n -- d )
 ** Convert the number n to the double-cell number d with the same
-** numerical value. 
+** numerical value.
 **************************************************************************/
 static void sToD(FICL_VM *pVM)
 {
@@ -4006,7 +4006,7 @@ static void sToD(FICL_VM *pVM)
                         s o u r c e
 ** CORE ( -- c-addr u )
 ** c-addr is the address of, and u is the number of characters in, the
-** input buffer. 
+** input buffer.
 **************************************************************************/
 static void source(FICL_VM *pVM)
 {
@@ -4069,16 +4069,16 @@ static void colonNoName(FICL_VM *pVM)
 
 /**************************************************************************
                         u s e r   V a r i a b l e
-** user  ( u -- )  "<spaces>name"  
+** user  ( u -- )  "<spaces>name"
 ** Get a name from the input stream and create a user variable
 ** with the name and the index supplied. The run-time effect
 ** of a user variable is to push the address of the indexed cell
-** in the running vm's user array. 
+** in the running vm's user array.
 **
 ** User variables are vm local cells. Each vm has an array of
 ** FICL_USER_CELLS of them when FICL_WANT_USER is nonzero.
 ** Ficl's user facility is implemented with two primitives,
-** "user" and "(user)", a variable ("nUser") (in softcore.c) that 
+** "user" and "(user)", a variable ("nUser") (in softcore.c) that
 ** holds the index of the next free user cell, and a redefinition
 ** (also in softcore) of "user" that defines a user word and increments
 ** nUser.
@@ -4113,10 +4113,10 @@ static void userVariable(FICL_VM *pVM)
 
 /**************************************************************************
                         t o V a l u e
-** CORE EXT 
+** CORE EXT
 ** Interpretation: ( x "<spaces>name" -- )
-** Skip leading spaces and parse name delimited by a space. Store x in 
-** name. An ambiguous condition exists if name was not defined by VALUE. 
+** Skip leading spaces and parse name delimited by a space. Store x in
+** name. An ambiguous condition exists if name was not defined by VALUE.
 ** NOTE: In ficl, VALUE is an alias of CONSTANT
 **************************************************************************/
 static void toValue(FICL_VM *pVM)
@@ -4241,9 +4241,9 @@ static void toLocal1(FICL_VM *pVM)
 
 
 /*
-** Each local is recorded in a private locals dictionary as a 
+** Each local is recorded in a private locals dictionary as a
 ** word that does doLocalIm at runtime. DoLocalIm compiles code
-** into the client definition to fetch the value of the 
+** into the client definition to fetch the value of the
 ** corresponding local variable from the return stack.
 ** The private dictionary gets initialized at the end of each block
 ** that uses locals (in ; and does> for example).
@@ -4259,7 +4259,7 @@ static void doLocalIm(FICL_VM *pVM)
     }
     else
     {
-        
+
         if (nLocal == 0)
         {
             dictAppendCell(pDict, LVALUEtoCELL(pVM->pSys->pGetLocal0));
@@ -4280,33 +4280,33 @@ static void doLocalIm(FICL_VM *pVM)
 
 /**************************************************************************
                         l o c a l P a r e n
-** paren-local-paren LOCAL 
+** paren-local-paren LOCAL
 ** Interpretation: Interpretation semantics for this word are undefined.
 ** Execution: ( c-addr u -- )
-** When executed during compilation, (LOCAL) passes a message to the 
+** When executed during compilation, (LOCAL) passes a message to the
 ** system that has one of two meanings. If u is non-zero,
 ** the message identifies a new local whose definition name is given by
 ** the string of characters identified by c-addr u. If u is zero,
-** the message is last local and c-addr has no significance. 
+** the message is last local and c-addr has no significance.
 **
 ** The result of executing (LOCAL) during compilation of a definition is
 ** to create a set of named local identifiers, each of which is
 ** a definition name, that only have execution semantics within the scope
-** of that definition's source. 
+** of that definition's source.
 **
 ** local Execution: ( -- x )
 **
 ** Push the local's value, x, onto the stack. The local's value is
 ** initialized as described in 13.3.3 Processing locals and may be
 ** changed by preceding the local's name with TO. An ambiguous condition
-** exists when local is executed while in interpretation state. 
+** exists when local is executed while in interpretation state.
 **************************************************************************/
 static void localParen(FICL_VM *pVM)
 {
     FICL_DICT *pDict;
     STRINGINFO si;
 #if FICL_ROBUST > 1
-    vmCheckStack(pVM,2,0);  
+    vmCheckStack(pVM,2,0);
 #endif
 
     pDict = vmGetDict(pVM);
@@ -4433,7 +4433,7 @@ static void twoLocalParen(FICL_VM *pVM)
 
 #endif
 /**************************************************************************
-                        c o m p a r e 
+                        c o m p a r e
 ** STRING ( c-addr1 u1 c-addr2 u2 -- n )
 ** Compare the string specified by c-addr1 u1 to the string specified by
 ** c-addr2 u2. The strings are compared, beginning at the given addresses,
@@ -4441,10 +4441,10 @@ static void twoLocalParen(FICL_VM *pVM)
 ** difference is found. If the two strings are identical, n is zero. If the two
 ** strings are identical up to the length of the shorter string, n is minus-one
 ** (-1) if u1 is less than u2 and one (1) otherwise. If the two strings are not
-** identical up to the length of the shorter string, n is minus-one (-1) if the 
+** identical up to the length of the shorter string, n is minus-one (-1) if the
 ** first non-matching character in the string specified by c-addr1 u1 has a
 ** lesser numeric value than the corresponding character in the string specified
-** by c-addr2 u2 and one (1) otherwise. 
+** by c-addr2 u2 and one (1) otherwise.
 **************************************************************************/
 static void compareInternal(FICL_VM *pVM, int caseInsensitive)
 {
@@ -4474,7 +4474,7 @@ static void compareInternal(FICL_VM *pVM, int caseInsensitive)
     if (n == 0)
         n = (int)(u1 - u2);
 
-    if (n < 0) 
+    if (n < 0)
         n = -1;
     else if (n > 0)
         n = 1;
@@ -4530,14 +4530,14 @@ static void sourceid(FICL_VM *pVM)
                         r e f i l l
 ** CORE EXT   ( -- flag )
 ** Attempt to fill the input buffer from the input source, returning a true
-** flag if successful. 
+** flag if successful.
 ** When the input source is the user input device, attempt to receive input
 ** into the terminal input buffer. If successful, make the result the input
 ** buffer, set >IN to zero, and return true. Receipt of a line containing no
 ** characters is considered successful. If there is no input available from
-** the current input source, return false. 
+** the current input source, return false.
 ** When the input source is a string from EVALUATE, return false and
-** perform no other action. 
+** perform no other action.
 **************************************************************************/
 static void refill(FICL_VM *pVM)
 {
@@ -4582,7 +4582,7 @@ static void ficlCatch(FICL_VM *pVM)
 
     assert(pVM);
     assert(pVM->pSys->pExitInner);
-    
+
 
     /*
     ** Get xt.
@@ -4595,7 +4595,7 @@ static void ficlCatch(FICL_VM *pVM)
 #endif
     pFW = stackPopPtr(pVM->pStack);
 
-    /* 
+    /*
     ** Save vm's state -- a catch will not back out environmental
     ** changes.
     **
@@ -4634,8 +4634,8 @@ static void ficlCatch(FICL_VM *pVM)
         break;
 
         /*
-        ** Normal exit from XT - lose the poison pill, 
-        ** restore old setjmp vector and push a zero. 
+        ** Normal exit from XT - lose the poison pill,
+        ** restore old setjmp vector and push a zero.
         */
     case VM_INNEREXIT:
         vmPopIP(pVM);                   /* Gack - hurl poison pill */
@@ -4672,7 +4672,7 @@ static void ficlCatch(FICL_VM *pVM)
 static void ficlThrow(FICL_VM *pVM)
 {
     int except;
-    
+
     except = stackPopINT(pVM->pStack);
 
     if (except)
@@ -4700,7 +4700,7 @@ static void ansAllocate(FICL_VM *pVM)
 
 
 /**************************************************************************
-**                     f r e e 
+**                     f r e e
 ** MEMORY
 **************************************************************************/
 static void ansFree(FICL_VM *pVM)
@@ -4725,12 +4725,12 @@ static void ansResize(FICL_VM *pVM)
     size = stackPopINT(pVM->pStack);
     old = stackPopPtr(pVM->pStack);
     new = ficlRealloc(old, size);
-    if (new) 
+    if (new)
     {
         PUSHPTR(new);
         PUSHINT(0);
-    } 
-    else 
+    }
+    else
     {
         PUSHPTR(old);
         PUSHINT(1);
@@ -4739,7 +4739,7 @@ static void ansResize(FICL_VM *pVM)
 
 
 /**************************************************************************
-**                     e x i t - i n n e r 
+**                     e x i t - i n n e r
 ** Signals execXT that an inner loop has completed
 **************************************************************************/
 static void ficlExitInner(FICL_VM *pVM)
@@ -4751,7 +4751,7 @@ static void ficlExitInner(FICL_VM *pVM)
 /**************************************************************************
                         d n e g a t e
 ** DOUBLE   ( d1 -- d2 )
-** d2 is the negation of d1. 
+** d2 is the negation of d1.
 **************************************************************************/
 static void dnegate(FICL_VM *pVM)
 {
@@ -4765,8 +4765,8 @@ static void dnegate(FICL_VM *pVM)
 
 #if 0
 /**************************************************************************
-                        
-** 
+
+**
 **************************************************************************/
 static void funcname(FICL_VM *pVM)
 {
@@ -4784,7 +4784,7 @@ static void funcname(FICL_VM *pVM)
 **************************************************************************/
 WORDKIND ficlWordClassify(FICL_WORD *pFW)
 {
-    typedef struct 
+    typedef struct
     {
         WORDKIND kind;
         FICL_CODE code;
@@ -5000,7 +5000,7 @@ void ficlCompileCore(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "[\']",      bracketTickCoIm,FW_COMPIMMED);
     dictAppendWord(dp, "[char]",    charCoIm,       FW_COMPIMMED);
     dictAppendWord(dp, "]",         rbracket,       FW_DEFAULT);
-    /* 
+    /*
     ** CORE EXT word set...
     ** see softcore.fr for other definitions
     */
@@ -5069,9 +5069,9 @@ void ficlCompileCore(FICL_SYSTEM *pSys)
     ** see softcore.c for implementation of locals|
     */
 #if FICL_WANT_LOCALS
-    pSys->pLinkParen = 
+    pSys->pLinkParen =
     dictAppendWord(dp, "(link)",    linkParen,      FW_COMPILE);
-    pSys->pUnLinkParen = 
+    pSys->pUnLinkParen =
     dictAppendWord(dp, "(unlink)",  unlinkParen,    FW_COMPILE);
     dictAppendWord(dp, "doLocal",   doLocalIm,      FW_COMPIMMED);
     pSys->pGetLocalParen =
@@ -5106,11 +5106,11 @@ void ficlCompileCore(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "allocate",  ansAllocate,    FW_DEFAULT);
     dictAppendWord(dp, "free",      ansFree,        FW_DEFAULT);
     dictAppendWord(dp, "resize",    ansResize,      FW_DEFAULT);
-    
+
     ficlSetEnv(pSys, "memory-alloc",      FICL_TRUE);
 
     /*
-    ** optional SEARCH-ORDER word set 
+    ** optional SEARCH-ORDER word set
     */
     ficlCompileSearch(pSys);
 
@@ -5174,9 +5174,9 @@ void ficlCompileCore(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "(exit)",    exitParen,      FW_COMPILE);
     pSys->pSemiParen =
     dictAppendWord(dp, "(;)",       semiParen,      FW_COMPILE);
-    pSys->pLitParen = 
+    pSys->pLitParen =
     dictAppendWord(dp, "(literal)", literalParen,   FW_COMPILE);
-    pSys->pTwoLitParen = 
+    pSys->pTwoLitParen =
     dictAppendWord(dp, "(2literal)",twoLitParen,    FW_COMPILE);
     pSys->pStringLit =
     dictAppendWord(dp, "(.\")",     stringLit,      FW_COMPILE);
@@ -5203,7 +5203,7 @@ void ficlCompileCore(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "(of)",      ofParen,        FW_DEFAULT);
     dictAppendWord(dp, "(variable)",variableParen,  FW_COMPILE);
     dictAppendWord(dp, "(constant)",constantParen,  FW_COMPILE);
-    dictAppendWord(dp, "(parse-step)", 
+    dictAppendWord(dp, "(parse-step)",
                                     parseStepParen, FW_DEFAULT);
 	pSys->pExitInner =
     dictAppendWord(dp, "exit-inner",ficlExitInner,  FW_DEFAULT);

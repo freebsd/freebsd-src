@@ -262,7 +262,7 @@ static void ficlIncludeFile(FICL_VM *pVM) /* ( i*x fileid -- j*x ) */
             default:
                 pVM->sourceID = id;
                 keepGoing = FALSE;
-                break; 
+                break;
         }
     }
 #endif /* 0 */
@@ -328,7 +328,7 @@ static void ficlReadLine(FICL_VM *pVM) /* ( c-addr u1 fileid -- u2 flag ior ) */
     flag = (length > 0);
     if (length && ((address[length - 1] == '\r') || (address[length - 1] == '\n')))
         length--;
-    
+
     stackPushINT(pVM->pStack, length);
     stackPushINT(pVM->pStack, flag);
     stackPushINT(pVM->pStack, 0); /* ior */

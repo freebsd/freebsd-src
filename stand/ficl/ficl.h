@@ -18,7 +18,7 @@
 ** contact me by email at the address above.
 **
 ** L I C E N S E  and  D I S C L A I M E R
-** 
+**
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
 ** are met:
@@ -49,14 +49,14 @@
 ** Ficl (Forth-inspired command language) is an ANS Forth
 ** interpreter written in C. Unlike traditional Forths, this
 ** interpreter is designed to be embedded into other systems
-** as a command/macro/development prototype language. 
+** as a command/macro/development prototype language.
 **
 ** Where Forths usually view themselves as the center of the system
 ** and expect the rest of the system to be coded in Forth, Ficl
-** acts as a component of the system. It is easy to export 
+** acts as a component of the system. It is easy to export
 ** code written in C or ASM to Ficl in the style of TCL, or to invoke
 ** Ficl code from a compiled module. This allows you to do incremental
-** development in a way that combines the best features of threaded 
+** development in a way that combines the best features of threaded
 ** languages (rapid development, quick code/test/debug cycle,
 ** reasonably fast) with the best features of C (everyone knows it,
 ** easier to support large blocks of code, efficient, type checking).
@@ -69,25 +69,25 @@
 ** expects a text block as input, and returns to the caller after each
 ** text block, so the "data pump" is somewhere in external code. This
 ** is more like TCL than Forth, which usually expcets to be at the center
-** of the system, requesting input at its convenience. Each Ficl virtual 
+** of the system, requesting input at its convenience. Each Ficl virtual
 ** machine can be bound to a different I/O channel, and is independent
 ** of all others in in the same address space except that all virtual
 ** machines share a common dictionary (a sort or open symbol table that
 ** defines all of the elements of the language).
 **
-** Code is written in ANSI C for portability. 
+** Code is written in ANSI C for portability.
 **
 ** Summary of Ficl features and constraints:
-** - Standard: Implements the ANSI Forth CORE word set and part 
+** - Standard: Implements the ANSI Forth CORE word set and part
 **   of the CORE EXT word-set, SEARCH and SEARCH EXT, TOOLS and
 **   TOOLS EXT, LOCAL and LOCAL ext and various extras.
-** - Extensible: you can export code written in Forth, C, 
+** - Extensible: you can export code written in Forth, C,
 **   or asm in a straightforward way. Ficl provides open
 **   facilities for extending the language in an application
 **   specific way. You can even add new control structures!
 ** - Ficl and C can interact in two ways: Ficl can encapsulate
 **   C code, or C code can invoke Ficl code.
-** - Thread-safe, re-entrant: The shared system dictionary 
+** - Thread-safe, re-entrant: The shared system dictionary
 **   uses a locking mechanism that you can either supply
 **   or stub out to provide exclusive access. Each Ficl
 **   virtual machine has an otherwise complete state, and
@@ -96,10 +96,10 @@
 **   requires three function calls (see the example program in testmain.c).
 ** - ROMable: Ficl is designed to work in RAM-based and ROM code / RAM data
 **   environments. It does require somewhat more memory than a pure
-**   ROM implementation because it builds its system dictionary in 
+**   ROM implementation because it builds its system dictionary in
 **   RAM at startup time.
 ** - Written an ANSI C to be as simple as I can make it to understand,
-**   support, debug, and port. Compiles without complaint at /Az /W4 
+**   support, debug, and port. Compiles without complaint at /Az /W4
 **   (require ANSI C, max warnings) under Microsoft VC++ 5.
 ** - Does full 32 bit math (but you need to implement
 **   two mixed precision math primitives (see sysdep.c))
@@ -117,7 +117,7 @@
 ** int on others. Check the default CELL alignment controlled by
 ** FICL_ALIGN. If necessary, add new definitions of ficlMalloc, ficlFree,
 ** ficlLockDictionary, and ficlTextOut to work with your operating system.
-** Finally, use testmain.c as a guide to installing the Ficl system and 
+** Finally, use testmain.c as a guide to installing the Ficl system and
 ** one or more virtual machines into your code. You do not need to include
 ** testmain.c in your build.
 **
@@ -141,7 +141,7 @@
 ** Compile speed
 ** - work on interpret speed
 ** - turn off locals (FICL_WANT_LOCALS)
-** Interpret speed 
+** Interpret speed
 ** - Change inner interpreter (and everything else)
 **   so that a definition is a list of pointers to functions
 **   and inline data rather than pointers to words. This gets
@@ -155,7 +155,7 @@
 **   vm, but the parameter passing overhead can be reduced. One way
 **   requires that the host OS have a task switch callout. Create
 **   a global variable for the running VM and refer to it in words
-**   that need VM access. Alternative: use thread local storage. 
+**   that need VM access. Alternative: use thread local storage.
 **   For single threaded implementations, you can just use a global.
 **   The first two solutions create portability problems, so I
 **   haven't considered doing them. Another possibility is to
@@ -166,25 +166,25 @@
 
 /*
 ** Revision History:
-** 
+**
 ** 15 Apr 1999 (sadler) Merged FreeBSD changes for exception wordset and
-** counted strings in ficlExec. 
+** counted strings in ficlExec.
 ** 12 Jan 1999 (sobral) Corrected EVALUATE behavior. Now TIB has an
 ** "end" field, and all words respect this. ficlExec is passed a "size"
 ** of TIB, as well as vmPushTib. This size is used to calculate the "end"
 ** of the string, ie, base+size. If the size is not known, pass -1.
 **
 ** 10 Jan 1999 (sobral) EXCEPTION word set has been added, and existing
-** words has been modified to conform to EXCEPTION EXT word set. 
+** words has been modified to conform to EXCEPTION EXT word set.
 **
 ** 27 Aug 1998 (sadler) testing and corrections for LOCALS, LOCALS EXT,
-**  SEARCH / SEARCH EXT, TOOLS / TOOLS EXT. 
+**  SEARCH / SEARCH EXT, TOOLS / TOOLS EXT.
 **  Added .X to display in hex, PARSE and PARSE-WORD to supplement WORD,
 **  EMPTY to clear stack.
 **
 ** 29 jun 1998 (sadler) added variable sized hash table support
 **  and ANS Forth optional SEARCH & SEARCH EXT word set.
-** 26 May 1998 (sadler) 
+** 26 May 1998 (sadler)
 **  FICL_PROMPT macro
 ** 14 April 1998 (sadler) V1.04
 **  Ficlwin: Windows version, Skip Carter's Linux port
@@ -194,8 +194,8 @@
 ** 24 February 1998 (sadler) V1.02
 ** -Fixed bugs in <# # #>
 ** -Changed FICL_WORD so that storage for the name characters
-**  can be allocated from the dictionary as needed rather than 
-**  reserving 32 bytes in each word whether needed or not - 
+**  can be allocated from the dictionary as needed rather than
+**  reserving 32 bytes in each word whether needed or not -
 **  this saved 50% of the dictionary storage requirement.
 ** -Added words in testmain for Win32 functions system,chdir,cwd,
 **  also added a word that loads and evaluates a file.
@@ -234,7 +234,7 @@ typedef struct ficl_system FICL_SYSTEM;
 struct ficl_system_info;
 typedef struct ficl_system_info FICL_SYSTEM_INFO;
 
-/* 
+/*
 ** the Good Stuff starts here...
 */
 #define FICL_VER        "3.03"
@@ -256,8 +256,8 @@ typedef struct ficl_system_info FICL_SYSTEM_INFO;
 
 /*
 ** A CELL is the main storage type. It must be large enough
-** to contain a pointer or a scalar. In order to accommodate 
-** 32 bit and 64 bit processors, use abstract types for int, 
+** to contain a pointer or a scalar. In order to accommodate
+** 32 bit and 64 bit processors, use abstract types for int,
 ** unsigned, and float.
 */
 typedef union _cell
@@ -281,7 +281,7 @@ typedef union _cell
 
 /*
 ** PTRtoCELL is a cast through void * intended to satisfy the
-** most outrageously pedantic compiler... (I won't mention 
+** most outrageously pedantic compiler... (I won't mention
 ** its name)
 */
 #define PTRtoCELL (CELL *)(void *)
@@ -289,7 +289,7 @@ typedef union _cell
 
 /*
 ** Strings in FICL are stored in Pascal style - with a count
-** preceding the text. We'll also NULL-terminate them so that 
+** preceding the text. We'll also NULL-terminate them so that
 ** they work with the usual C lib string functions. (Belt &
 ** suspenders? You decide.)
 ** STRINGINFO hides the implementation with a couple of
@@ -304,7 +304,7 @@ typedef struct _ficl_string
     char text[1];
 } FICL_STRING;
 
-typedef struct 
+typedef struct
 {
     FICL_UNS count;
     char *cp;
@@ -314,19 +314,19 @@ typedef struct
 #define SI_PTR(si)   (si.cp)
 #define SI_SETLEN(si, len) (si.count = (FICL_UNS)(len))
 #define SI_SETPTR(si, ptr) (si.cp = (char *)(ptr))
-/* 
+/*
 ** Init a STRINGINFO from a pointer to NULL-terminated string
 */
 #define SI_PSZ(si, psz) \
             {si.cp = psz; si.count = (FICL_COUNT)strlen(psz);}
-/* 
+/*
 ** Init a STRINGINFO from a pointer to FICL_STRING
 */
 #define SI_PFS(si, pfs) \
             {si.cp = pfs->text; si.count = pfs->count;}
 
 /*
-** Ficl uses this little structure to hold the address of 
+** Ficl uses this little structure to hold the address of
 ** the block of text it's working on and an index to the next
 ** unconsumed character in the string. Traditionally, this is
 ** done by a Text Input Buffer, so I've called this struct TIB.
@@ -421,14 +421,14 @@ void        stackPushFloat(FICL_STACK *pStack, FICL_FLOAT f);
 #define ROLL(n)      stackRoll(pVM->pStack,n)
 #define ROLLF(n)     stackRoll(pVM->fStack,n)
 
-/* 
+/*
 ** The virtual machine (VM) contains the state for one interpreter.
 ** Defined operations include:
 ** Create & initialize
 ** Delete
 ** Execute a block of text
 ** Parse a word out of the input stream
-** Call return, and branch 
+** Call return, and branch
 ** Text output
 ** Throw an exception
 */
@@ -462,7 +462,7 @@ typedef void (*OUTFUNC)(FICL_VM *pVM, char *text, int fNewline);
 #define nPAD 256
 #endif
 
-/* 
+/*
 ** ANS Forth requires that a word's name contain {1..31} characters.
 */
 #if !defined nFICLNAME
@@ -513,10 +513,10 @@ typedef void (*FICL_CODE)(FICL_VM *pVm);
 #if 0
 #define VM_ASSERT(pVM) assert((*(pVM->ip - 1)) == pVM->runningWord)
 #else
-#define VM_ASSERT(pVM) 
+#define VM_ASSERT(pVM)
 #endif
 
-/* 
+/*
 ** Ficl models memory as a contiguous space divided into
 ** words in a linked list called the dictionary.
 ** A FICL_WORD starts each entry in the list.
@@ -596,13 +596,13 @@ void        vmThrowErr     (FICL_VM *pVM, char *fmt, ...);
 
 
 /*
-** The inner interpreter - coded as a macro (see note for 
+** The inner interpreter - coded as a macro (see note for
 ** INLINE_INNER_LOOP in sysdep.h for complaints about VC++ 5
 */
 #define M_VM_STEP(pVM) \
         FICL_WORD *tempFW = *(pVM)->ip++; \
         (pVM)->runningWord = tempFW; \
-        tempFW->code(pVM); 
+        tempFW->code(pVM);
 
 #define M_INNER_LOOP(pVM) \
     for (;;)  { M_VM_STEP(pVM) }
@@ -617,7 +617,7 @@ void        vmInnerLoop(FICL_VM *pVM);
 /*
 ** vmCheckStack needs a vm pointer because it might have to say
 ** something if it finds a problem. Parms popCells and pushCells
-** correspond to the number of parameters on the left and right of 
+** correspond to the number of parameters on the left and right of
 ** a word's stack effect comment.
 */
 void        vmCheckStack(FICL_VM *pVM, int popCells, int pushCells);
@@ -627,7 +627,7 @@ void        vmCheckFStack(FICL_VM *pVM, int popCells, int pushCells);
 
 /*
 ** TIB access routines...
-** ANS forth seems to require the input buffer to be represented 
+** ANS forth seems to require the input buffer to be represented
 ** as a pointer to the start of the buffer, and an index to the
 ** next character to read.
 ** PushTib points the VM to a new input string and optionally
@@ -681,7 +681,7 @@ int         strincmp(char *cp1, char *cp2, FICL_UNS count);
 #define HASHSIZE 241  /*   performance, use a prime number!   */
 #endif
 
-typedef struct ficl_hash 
+typedef struct ficl_hash
 {
     struct ficl_hash *link;  /* link to parent class wordlist for OO */
     char      *name;         /* optional pointer to \0 terminated wordlist name */
@@ -708,7 +708,7 @@ void        hashReset     (FICL_HASH *pHash);
 **      linked into the hash table. If unsuccessful, dictUnsmudge
 **      uses this pointer to restore the previous state of the dictionary.
 **      Smudge prevents unintentional recursion as a side-effect: the
-**      dictionary search algo examines only completed definitions, so a 
+**      dictionary search algo examines only completed definitions, so a
 **      word cannot invoke itself by name. See the ficl word "recurse".
 **      NOTE: smudge always points to the last word defined. IMMEDIATE
 **      makes use of this fact. Smudge is initially NULL.
@@ -720,7 +720,7 @@ void        hashReset     (FICL_HASH *pHash);
 ** pCompile -- compilation wordlist - initially equal to pForthWords
 ** pSearch  -- array of pointers to wordlists. Managed as a stack.
 **      Highest index is the first list in the search order.
-** nLists   -- number of lists in pSearch. nLists-1 is the highest 
+** nLists   -- number of lists in pSearch. nLists-1 is the highest
 **      filled slot in pSearch, and points to the first wordlist
 **      in the search order
 ** size -- number of cells in the dictionary (total)
@@ -745,13 +745,13 @@ int         dictAllot      (FICL_DICT *pDict, int n);
 int         dictAllotCells (FICL_DICT *pDict, int nCells);
 void        dictAppendCell (FICL_DICT *pDict, CELL c);
 void        dictAppendChar (FICL_DICT *pDict, char c);
-FICL_WORD  *dictAppendWord (FICL_DICT *pDict, 
-                           char *name, 
-                           FICL_CODE pCode, 
+FICL_WORD  *dictAppendWord (FICL_DICT *pDict,
+                           char *name,
+                           FICL_CODE pCode,
                            UNS8 flags);
-FICL_WORD  *dictAppendWord2(FICL_DICT *pDict, 
-                           STRINGINFO si, 
-                           FICL_CODE pCode, 
+FICL_WORD  *dictAppendWord2(FICL_DICT *pDict,
+                           STRINGINFO si,
+                           FICL_CODE pCode,
                            UNS8 flags);
 void        dictAppendUNS  (FICL_DICT *pDict, FICL_UNS u);
 int         dictCellsAvail (FICL_DICT *pDict);
@@ -778,14 +778,14 @@ void        dictUnsmudge   (FICL_DICT *pDict);
 CELL       *dictWhere      (FICL_DICT *pDict);
 
 
-/* 
+/*
 ** P A R S E   S T E P
 ** (New for 2.05)
 ** See words.c: interpWord
 ** By default, ficl goes through two attempts to parse each token from its input
 ** stream: it first attempts to match it with a word in the dictionary, and
 ** if that fails, it attempts to convert it into a number. This mechanism is now
-** extensible by additional steps. This allows extensions like floating point and 
+** extensible by additional steps. This allows extensions like floating point and
 ** double number support to be factored cleanly.
 **
 ** Each parse step is a function that receives the next input token as a STRINGINFO.
@@ -801,10 +801,10 @@ CELL       *dictWhere      (FICL_DICT *pDict);
 typedef int (*FICL_PARSE_STEP)(FICL_VM *pVM, STRINGINFO si);
 
 /*
-** Appends a parse step function to the end of the parse list (see 
+** Appends a parse step function to the end of the parse list (see
 ** FICL_PARSE_STEP notes in ficl.h for details). Returns 0 if successful,
-** nonzero if there's no more room in the list. Each parse step is a word in 
-** the dictionary. Precompiled parse steps can use (PARSE-STEP) as their 
+** nonzero if there's no more room in the list. Each parse step is a word in
+** the dictionary. Precompiled parse steps can use (PARSE-STEP) as their
 ** CFA - see parenParseStep in words.c.
 */
 int  ficlAddParseStep(FICL_SYSTEM *pSys, FICL_WORD *pFW); /* ficl.c */
@@ -813,7 +813,7 @@ void ficlListParseSteps(FICL_VM *pVM);
 
 /*
 ** FICL_BREAKPOINT record.
-** origXT - if NULL, this breakpoint is unused. Otherwise it stores the xt 
+** origXT - if NULL, this breakpoint is unused. Otherwise it stores the xt
 ** that the breakpoint overwrote. This is restored to the dictionary when the
 ** BP executes or gets cleared
 ** address - the location of the breakpoint (address of the instruction that
@@ -832,14 +832,14 @@ typedef struct FICL_BREAKPOINT
 ** F I C L _ S Y S T E M
 ** The top level data structure of the system - ficl_system ties a list of
 ** virtual machines with their corresponding dictionaries. Ficl 3.0 will
-** support multiple Ficl systems, allowing multiple concurrent sessions 
-** to separate dictionaries with some constraints. 
+** support multiple Ficl systems, allowing multiple concurrent sessions
+** to separate dictionaries with some constraints.
 ** The present model allows multiple sessions to one dictionary provided
 ** you implement ficlLockDictionary() as specified in sysdep.h
 ** Note: the pExtend pointer is there to provide context for applications. It is copied
 ** to each VM's pExtend field as that VM is created.
 */
-struct ficl_system 
+struct ficl_system
 {
     FICL_SYSTEM *link;
     void *pExtend;      /* Initializes VM's pExtend pointer (for application use) */
@@ -906,10 +906,10 @@ struct ficl_system_info
 /*
 ** External interface to FICL...
 */
-/* 
+/*
 ** f i c l I n i t S y s t e m
 ** Binds a global dictionary to the interpreter system and initializes
-** the dict to contain the ANSI CORE wordset. 
+** the dict to contain the ANSI CORE wordset.
 ** You can specify the address and size of the allocated area.
 ** Using ficlInitSystemEx you can also specify the text output function.
 ** After that, ficl manages it.
@@ -989,7 +989,7 @@ int        ficlExecFD(FICL_VM *pVM, int fd);
 FICL_VM   *ficlNewVM(FICL_SYSTEM *pSys);
 
 /*
-** Force deletion of a VM. You do not need to do this 
+** Force deletion of a VM. You do not need to do this
 ** unless you're creating and discarding a lot of VMs.
 ** For systems that use a constant pool of VMs for the life
 ** of the system, ficltermSystem takes care of VM cleanup
@@ -1023,7 +1023,7 @@ void       ficlSetEnvD(FICL_SYSTEM *pSys, char *name, FICL_UNS hi, FICL_UNS lo);
 #if FICL_WANT_LOCALS
 FICL_DICT *ficlGetLoc (FICL_SYSTEM *pSys);
 #endif
-/* 
+/*
 ** f i c l B u i l d
 ** Builds a word into the system default dictionary in a thread-safe way.
 ** Preconditions: system must be initialized, and there must
@@ -1035,13 +1035,13 @@ FICL_DICT *ficlGetLoc (FICL_SYSTEM *pSys);
 ** name  -- the name of the word to be built
 ** code  -- code to execute when the word is invoked - must take a single param
 **          pointer to a FICL_VM
-** flags -- 0 or more of FW_IMMEDIATE, FW_COMPILE, use bitwise OR! 
+** flags -- 0 or more of FW_IMMEDIATE, FW_COMPILE, use bitwise OR!
 **          Most words can use FW_DEFAULT.
 ** nAllot - number of extra cells to allocate in the parameter area (usually zero)
 */
 int        ficlBuild(FICL_SYSTEM *pSys, char *name, FICL_CODE code, char flags);
 
-/* 
+/*
 ** f i c l C o m p i l e C o r e
 ** Builds the ANS CORE wordset into the dictionary - called by
 ** ficlInitSystem - no need to waste dict space by doing it again.
@@ -1075,17 +1075,17 @@ void       parseStepParen(FICL_VM *pVM);
 */
 int        isAFiclWord(FICL_DICT *pd, FICL_WORD *pFW);
 
-/* 
+/*
 ** The following supports SEE and the debugger.
 */
-typedef enum  
+typedef enum
 {
     BRANCH,
-    COLON, 
-    CONSTANT, 
+    COLON,
+    CONSTANT,
     CREATE,
     DO,
-    DOES, 
+    DOES,
     IF,
     LITERAL,
     LOOP,
@@ -1096,9 +1096,9 @@ typedef enum
     STRINGLIT,
     CSTRINGLIT,
 #if FICL_WANT_USER
-    USER, 
+    USER,
 #endif
-    VARIABLE, 
+    VARIABLE,
 } WORDKIND;
 
 WORDKIND   ficlWordClassify(FICL_WORD *pFW);

@@ -3,7 +3,7 @@
 #ifndef TESTMAIN
 #include <machine/cpufunc.h>
 
-/* 
+/*
  * outb ( port# c -- )
  * Store a byte to I/O port number port#
  */

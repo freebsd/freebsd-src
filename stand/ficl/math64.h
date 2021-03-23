@@ -11,13 +11,13 @@
 **
 ** I am interested in hearing from anyone who uses ficl. If you have
 ** a problem, a success story, a defect, an enhancement request, or
-** if you would like to contribute to the ficl release, please 
+** if you would like to contribute to the ficl release, please
 ** contact me by email at the address above.
 **
 ** Get the latest Ficl release at http://ficl.sourceforge.net
 **
 ** L I C E N S E  and  D I S C L A I M E R
-** 
+**
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
 ** are met:
@@ -72,7 +72,7 @@ DPUNS   m64Or( DPUNS x, DPUNS y );
 DPUNS   m64Sub(DPUNS x, DPUNS y);
 #endif
 
-#define i64Extend(i64) (i64).hi = ((i64).lo < 0) ? -1L : 0 
+#define i64Extend(i64) (i64).hi = ((i64).lo < 0) ? -1L : 0
 #define m64CastIU(i64) (*(DPUNS *)(&(i64)))
 #define m64CastUI(u64) (*(DPINT *)(&(u64)))
 #define m64CastQRIU(iqr) (*(UNSQR *)(&(iqr)))

@@ -14,7 +14,7 @@
 ** contact me by email at the address above.
 **
 ** L I C E N S E  and  D I S C L A I M E R
-** 
+**
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
 ** are met:
@@ -51,7 +51,7 @@
 
 /*
 ** Ficl interface to getcwd
-** Prints the current working directory using the VM's 
+** Prints the current working directory using the VM's
 ** textOut method...
 */
 static void ficlGetCWD(FICL_VM *pVM)
@@ -150,7 +150,7 @@ static void ficlLoad(FICL_VM *pVM)
     }
 
     /*
-    ** get the file's size and make sure it exists 
+    ** get the file's size and make sure it exists
     */
     result = stat( pFilename->text, &buf );
 
@@ -187,7 +187,7 @@ static void ficlLoad(FICL_VM *pVM)
                 pVM->sourceID = id;
                 fclose(fp);
                 vmThrowErr(pVM, "Error loading file <%s> line %d", pFilename->text, nLine);
-                break; 
+                break;
         }
     }
     /*
@@ -299,7 +299,7 @@ void buildTestInterface(FICL_SYSTEM *pSys)
     ficlBuild(pSys, "pwd",      ficlGetCWD,   FW_DEFAULT);
     ficlBuild(pSys, "system",   ficlSystem,   FW_DEFAULT);
     ficlBuild(pSys, "spewhash", spewHash,     FW_DEFAULT);
-    ficlBuild(pSys, "clocks/sec", 
+    ficlBuild(pSys, "clocks/sec",
                                 clocksPerSec, FW_DEFAULT);
 
     return;

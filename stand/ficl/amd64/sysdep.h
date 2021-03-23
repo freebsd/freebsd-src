@@ -8,7 +8,7 @@
 ** Note: Ficl also depends on the use of "assert" when
 ** FICL_ROBUST is enabled. This may require some consideration
 ** in firmware systems since assert often
-** assumes stderr/stdout.  
+** assumes stderr/stdout.
 ** $Id: sysdep.h,v 1.11 2001/12/05 07:21:34 jsadler Exp $
 *******************************************************************/
 /*
@@ -23,7 +23,7 @@
 ** contact me by email at the address above.
 **
 ** L I C E N S E  and  D I S C L A I M E R
-** 
+**
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
 ** are met:
@@ -51,7 +51,7 @@
 /* $FreeBSD$ */
 
 #if !defined (__SYSDEP_H__)
-#define __SYSDEP_H__ 
+#define __SYSDEP_H__
 
 #include <sys/types.h>
 
@@ -66,7 +66,7 @@
 /*
 ** TRUE and FALSE for C boolean operations, and
 ** portable 32 bit types for CELLs
-** 
+**
 */
 #if !defined TRUE
 #define TRUE 1
@@ -101,7 +101,7 @@
 /*
 ** FICL_UNS and FICL_INT must have the same size as a void* on
 ** the target system. A CELL is a union of void*, FICL_UNS, and
-** FICL_INT. 
+** FICL_INT.
 ** (11/2000: same for FICL_FLOAT)
 */
 #if !defined FICL_INT
@@ -219,7 +219,7 @@ typedef struct
 
 /*
 ** User variables: per-instance variables bound to the VM.
-** Kinda like thread-local storage. Could be implemented in a 
+** Kinda like thread-local storage. Could be implemented in a
 ** VM private dictionary, but I've chosen the lower overhead
 ** approach of an array of CELLs instead.
 */
@@ -231,7 +231,7 @@ typedef struct
 #define FICL_USER_CELLS 16
 #endif
 
-/* 
+/*
 ** FICL_WANT_LOCALS controls the creation of the LOCALS wordset and
 ** a private dictionary for local variable compilation.
 */
@@ -282,9 +282,9 @@ typedef struct
 
 /*
 ** PORTABLE_LONGMULDIV causes ficlLongMul and ficlLongDiv to be
-** defined in C in sysdep.c. Use this if you cannot easily 
+** defined in C in sysdep.c. Use this if you cannot easily
 ** generate an inline asm definition
-*/ 
+*/
 #if !defined (PORTABLE_LONGMULDIV)
 #define PORTABLE_LONGMULDIV 0
 #endif
@@ -318,7 +318,7 @@ typedef struct
 
 /*
 ** FICL_DEFAULT_STACK Specifies the default size (in CELLs) of
-** a new virtual machine's stacks, unless overridden at 
+** a new virtual machine's stacks, unless overridden at
 ** create time.
 */
 #if !defined FICL_DEFAULT_STACK
@@ -341,7 +341,7 @@ typedef struct
 #endif
 
 /*
-** FICL_DEFAULT_VOCS specifies the maximum number of wordlists in 
+** FICL_DEFAULT_VOCS specifies the maximum number of wordlists in
 ** the dictionary search order. See Forth DPANS sec 16.3.3
 ** (file://dpans16.htm#16.3.3)
 */
@@ -375,11 +375,11 @@ typedef struct
 ** System dependent routines --
 ** edit the implementations in sysdep.c to be compatible
 ** with your runtime environment...
-** ficlTextOut sends a NULL terminated string to the 
+** ficlTextOut sends a NULL terminated string to the
 **   default output device - used for system error messages
 ** ficlMalloc and ficlFree have the same semantics as malloc and free
 **   in standard C
-** ficlLongMul multiplies two UNS32s and returns a 64 bit unsigned 
+** ficlLongMul multiplies two UNS32s and returns a 64 bit unsigned
 **   product
 ** ficlLongDiv divides an UNS64 by an UNS32 and returns UNS32 quotient
 **   and remainder
@@ -414,7 +414,7 @@ int ficlLockDictionary(short fLock);
 ** 64 bit integer math support routines: multiply two UNS32s
 ** to get a 64 bit product, & divide the product by an UNS32
 ** to get an UNS32 quotient and remainder. Much easier in asm
-** on a 32 bit CPU than in C, which usually doesn't support 
+** on a 32 bit CPU than in C, which usually doesn't support
 ** the double length result (but it should).
 */
 DPUNS ficlLongMul(FICL_UNS x, FICL_UNS y);
