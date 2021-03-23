@@ -223,7 +223,7 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
     int				i;
 
 	/*
-	 * These metadata addreses must be converted for kernel after
+	 * These metadata addresse must be converted for kernel after
 	 * relocation.
 	 */
     uint32_t			mdt[] = {
