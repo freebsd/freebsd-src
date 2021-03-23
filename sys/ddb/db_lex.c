@@ -361,7 +361,7 @@ db_lex(int flags)
 		c = db_read_char();
 		if (c == '<')
 		    return (tSHIFT_L);
-		if (c == '=') 
+		if (c == '=')
 		    return (tLESS_EQ);
 		db_unread_char(c);
 		return (tLESS);

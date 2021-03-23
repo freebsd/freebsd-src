@@ -300,7 +300,7 @@ dumpthread(volatile struct proc *p, volatile struct thread *td, int all)
 				break;
 		default:
 			snprintf(state, sizeof(state), "???");
-		}			
+		}
 		db_printf(" %-6.6s ", state);
 	}
 	wprefix = ' ';
