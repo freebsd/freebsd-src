@@ -32,7 +32,7 @@ struct ofw_devdesc {
 	struct devdesc			dd;
 	union {
 		struct {
-			ihandle_t	d_handle;	
+			ihandle_t	d_handle;
 			char		d_path[256];
 		};
 		struct {

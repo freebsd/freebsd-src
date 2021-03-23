@@ -668,7 +668,7 @@ OF_block_size(ihandle_t instance)
 	return (args.size);
 }
 
-/* 
+/*
  * Memory functions
  */
 
