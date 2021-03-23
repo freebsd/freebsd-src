@@ -39,17 +39,29 @@
 #ifndef ETH_ALEN
 #define ETH_ALEN	ETHER_ADDR_LEN
 #endif
+#define	ETH_FRAME_LEN	(ETHER_MAX_LEN - ETHER_CRC_LEN)
 #define ETH_FCS_LEN     4		/* Octets in the FCS */
 #define VLAN_HLEN       4		/* The additional bytes (on top of the Ethernet header)
 					 * that VLAN requires. */
 /*
  * defined Ethernet Protocol ID's.
  */
+#define	ETH_P_ARP	ETHERTYPE_ARP
 #define	ETH_P_IP	ETHERTYPE_IP
 #define	ETH_P_IPV6	ETHERTYPE_IPV6
 #define	ETH_P_MPLS_UC	ETHERTYPE_MPLS
 #define	ETH_P_MPLS_MC	ETHERTYPE_MPLS_MCAST
 #define	ETH_P_8021Q	ETHERTYPE_VLAN
 #define	ETH_P_8021AD	ETHERTYPE_QINQ
+#define	ETH_P_PAE	ETHERTYPE_PAE
+#define	ETH_P_802_2	ETHERTYPE_8023
+#define	ETH_P_LINK_CTL	0x886C		/* ITU-T G.989.2 */
+#define	ETH_P_TDLS	0x890D		/* 802.11z-2010, see wpa. */
+
+struct ethhdr {
+	uint8_t		h_dest[ETH_ALEN];
+	uint8_t		h_source[ETH_ALEN];
+	uint16_t	h_proto;
+} __packed;
 
 #endif	/* _LINUX_IF_ETHER_H_ */
