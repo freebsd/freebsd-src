@@ -89,7 +89,7 @@
 /* The timer interrupt is used for clock handling and drives hardclock, etc. */
 #define	APIC_TIMER_INT	(APIC_IO_INTS + APIC_NUM_IOINTS)
 
-/*  
+/*
  ********************* !!! WARNING !!! ******************************
  * Each local apic has an interrupt receive fifo that is two entries deep
  * for each interrupt priority class (higher 4 bits of interrupt vector).
@@ -97,12 +97,12 @@
  * class and sending IPIs from other CPUs will be blocked.
  * To avoid deadlocks there should be no more than two IPI interrupts
  * pending at the same time.
- * Currently this is guaranteed by dividing the IPIs in two groups that have 
+ * Currently this is guaranteed by dividing the IPIs in two groups that have
  * each at most one IPI interrupt pending. The first group is protected by the
- * smp_ipi_mtx and waits for the completion of the IPI (Only one IPI user 
+ * smp_ipi_mtx and waits for the completion of the IPI (Only one IPI user
  * at a time) The second group uses a single interrupt and a bitmap to avoid
  * redundant IPI interrupts.
- */ 
+ */
 
 /* Interrupts for local APIC LVT entries other than the timer. */
 #define	APIC_LOCAL_INTS	240
@@ -118,7 +118,7 @@
 #define	IPI_INVLRNG	(APIC_IPI_INTS + 3)
 #define	IPI_INVLCACHE	(APIC_IPI_INTS + 4)
 /* Vector to handle bitmap based IPIs */
-#define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 5) 
+#define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 5)
 
 /* IPIs handled by IPI_BITMAP_VECTOR */
 #define	IPI_AST		0 	/* Generate software trap. */

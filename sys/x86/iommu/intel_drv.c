@@ -1029,7 +1029,7 @@ dmar_inst_rmrr_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 			if (iria->dmar != unit)
 				continue;
 			dmar_get_ctx_for_devpath(iria->dmar, rid,
-			    resmem->Segment, devscope->Bus, 
+			    resmem->Segment, devscope->Bus,
 			    (const ACPI_DMAR_PCI_PATH *)(devscope + 1),
 			    dev_path_len, false, true);
 		} else {
@@ -1214,7 +1214,7 @@ DB_FUNC(dmar_domain, db_dmar_print_domain, db_show_table, CS_OWN, NULL)
 		unit = device_get_softc(dmar_devs[i]);
 		LIST_FOREACH(domain, &unit->domains, link) {
 			LIST_FOREACH(ctx, &domain->contexts, link) {
-				if (pci_domain == unit->segment && 
+				if (pci_domain == unit->segment &&
 				    bus == pci_get_bus(ctx->context.tag->owner) &&
 				    device ==
 				    pci_get_slot(ctx->context.tag->owner) &&

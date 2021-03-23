@@ -463,7 +463,7 @@ mca_log(const struct mca_record *rec)
 			printf(" memory error");
 			break;
 		}
-		
+
 		/* Cache error. */
 		if ((mca_error & 0xef00) == 0x0100) {
 			printf("%sCACHE %s %s error",
@@ -474,7 +474,7 @@ mca_log(const struct mca_record *rec)
 		}
 
 		/* Bus and/or Interconnect error. */
-		if ((mca_error & 0xe800) == 0x0800) {			
+		if ((mca_error & 0xe800) == 0x0800) {
 			printf("BUS%s ", mca_error_level(mca_error));
 			switch ((mca_error & 0x0600) >> 9) {
 			case 0:

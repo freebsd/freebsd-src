@@ -89,7 +89,7 @@ struct xen_ipi_handler
 	const char	*description;
 };
 
-static struct xen_ipi_handler xen_ipis[] = 
+static struct xen_ipi_handler xen_ipis[] =
 {
 	[IPI_TO_IDX(IPI_RENDEZVOUS)]	= { xen_smp_rendezvous_action,	"r"   },
 #ifdef __amd64__

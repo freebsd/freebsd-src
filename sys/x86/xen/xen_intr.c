@@ -463,7 +463,7 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 
 /**
  * Lookup a Xen interrupt source object given an interrupt binding handle.
- * 
+ *
  * \param handle  A handle initialized by a previous call to
  *                xen_intr_bind_isrc().
  *
@@ -490,7 +490,7 @@ xen_intr_isrc(xen_intr_handle_t handle)
 /**
  * Determine the event channel ports at the given section of the
  * event port bitmap which have pending events for the given cpu.
- * 
+ *
  * \param pcpu  The Xen interrupt pcpu data for the cpu being querried.
  * \param sh    The Xen shared info area.
  * \param idx   The index of the section of the event channel bitmap to
@@ -515,7 +515,7 @@ xen_intr_active_ports(struct xen_intr_pcpu_data *pcpu, shared_info_t *sh,
 
 /**
  * Interrupt handler for processing all Xen event channel events.
- * 
+ *
  * \param trap_frame  The trap frame context for the current interrupt.
  */
 void
@@ -1257,7 +1257,7 @@ xen_intr_alloc_and_bind_local_port(device_t dev, u_int remote_domain,
 	return (0);
 }
 
-int 
+int
 xen_intr_bind_remote_port(device_t dev, u_int remote_domain,
     u_int remote_port, driver_filter_t filter, driver_intr_t handler,
     void *arg, enum intr_type flags, xen_intr_handle_t *port_handlep)
@@ -1296,7 +1296,7 @@ xen_intr_bind_remote_port(device_t dev, u_int remote_domain,
 	return (0);
 }
 
-int 
+int
 xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
     driver_filter_t filter, driver_intr_t handler, void *arg,
     enum intr_type flags, xen_intr_handle_t *port_handlep)

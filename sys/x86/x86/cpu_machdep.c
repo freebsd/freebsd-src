@@ -583,7 +583,7 @@ cpu_idle_spin(sbintime_t sbt)
 
 	/*
 	 * The sched_runnable() call is racy but as long as there is
-	 * a loop missing it one time will have just a little impact if any 
+	 * a loop missing it one time will have just a little impact if any
 	 * (and it is much better than missing the check at all).
 	 */
 	for (i = 0; i < 1000; i++) {

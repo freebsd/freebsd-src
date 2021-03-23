@@ -75,7 +75,7 @@ extern u_long *ipi_rendezvous_counts[MAXCPU];
 
 /* IPI handlers */
 inthand_t
-	IDTVEC(ipi_intr_bitmap_handler), /* Bitmap based IPIs */ 
+	IDTVEC(ipi_intr_bitmap_handler), /* Bitmap based IPIs */
 	IDTVEC(ipi_swi),	/* Runs delayed SWI */
 	IDTVEC(cpustop),	/* CPU stops & waits to be restarted */
 	IDTVEC(cpususpend),	/* CPU suspends & waits to be resumed */

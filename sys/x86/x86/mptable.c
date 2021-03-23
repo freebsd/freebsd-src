@@ -395,7 +395,7 @@ mptable_setup_io(void)
 		busses[i].bus_type = NOBUS;
 
 	/* Second, we run through adding I/O APIC's and buses. */
-	mptable_parse_apics_and_busses();	
+	mptable_parse_apics_and_busses();
 
 	/* Third, we run through the table tweaking interrupt sources. */
 	mptable_parse_ints();

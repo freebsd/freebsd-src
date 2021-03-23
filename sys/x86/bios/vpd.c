@@ -150,7 +150,7 @@ vpd_identify (driver_t *driver, device_t parent)
 		bus_set_resource(child, SYS_RES_MEMORY, rid, addr, length);
 		device_set_desc(child, "Vital Product Data Area");
 	}
-		
+
 	return;
 }
 
@@ -228,7 +228,7 @@ vpd_attach (device_t dev)
 		sc->MachineType, sc->MachineModel, sc->BuildID);
 	device_printf(dev, "Box Serial: %.7s, Planar Serial: %.11s\n",
 		sc->BoxSerial, sc->PlanarSerial);
-		
+
 	return (0);
 bad:
 	if (sc->res)

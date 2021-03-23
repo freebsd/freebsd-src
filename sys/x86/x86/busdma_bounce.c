@@ -238,7 +238,7 @@ bounce_bus_dma_id_mapped(bus_dma_tag_t dmat, vm_paddr_t buf, bus_size_t buflen)
 /*
  * Update the domain for the tag.  We may need to reallocate the zone and
  * bounce pages.
- */ 
+ */
 static int
 bounce_bus_dma_tag_set_domain(bus_dma_tag_t dmat)
 {

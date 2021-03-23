@@ -86,7 +86,7 @@
  * no other place to remember it, so the PSL_RF bit may be corrupted by the
  * signal handler without us knowing.  Corruption of the PSL_RF bit at worst
  * causes one more or one less debugger trap, so allowing it is fairly
- * harmless.   
+ * harmless.
  */
 #define	PSL_USERCHANGE (PSL_C | PSL_PF | PSL_AF | PSL_Z | PSL_N | PSL_T \
 			| PSL_D | PSL_V | PSL_NT | PSL_RF | PSL_AC | PSL_ID)

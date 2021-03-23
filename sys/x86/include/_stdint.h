@@ -167,7 +167,7 @@
  */
 #ifdef	__LP64__
 /* Limits of ptrdiff_t. */
-#define	PTRDIFF_MIN	INT64_MIN	
+#define	PTRDIFF_MIN	INT64_MIN
 #define	PTRDIFF_MAX	INT64_MAX
 
 /* Limits of sig_atomic_t. */

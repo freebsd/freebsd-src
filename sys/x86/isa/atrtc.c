@@ -469,7 +469,7 @@ atrtc_attach(device_t dev)
 		    rtc_intr, NULL, sc, &sc->intr_handler))) {
 			device_printf(dev, "Can't setup interrupt.\n");
 			return (0);
-		} else { 
+		} else {
 			/* Bind IRQ to BSP to avoid live migration. */
 			bus_bind_intr(dev, sc->intr_res, 0);
 		}

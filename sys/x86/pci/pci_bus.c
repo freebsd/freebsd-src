@@ -569,7 +569,7 @@ legacy_pcib_write_ivar(device_t dev, device_t child, int which,
  * use for their memory window.  This is typically only used on older
  * laptops that don't have PCI buses behind a PCI bridge, so assuming
  * > 32MB is likely OK.
- *	
+ *
  * However, this can cause problems for other chipsets, so we make
  * this tunable by hw.pci.host_mem_start.
  */

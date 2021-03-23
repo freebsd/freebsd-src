@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/apm_bios.h>
 
 /*
- * APM driver emulation 
+ * APM driver emulation
  */
 
 #define	APM_UNKNOWN	0xff

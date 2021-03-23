@@ -114,7 +114,7 @@ bus_dma_run_filter(struct bus_dma_tag_common *tc, vm_paddr_t paddr)
 		    (*tc->filter)(tc->filterarg, paddr) != 0))
 			retval = 1;
 
-		tc = tc->parent;		
+		tc = tc->parent;
 	} while (retval == 0 && tc != NULL);
 	return (retval);
 }

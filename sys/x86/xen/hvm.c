@@ -399,7 +399,7 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 	 */
 	xen_hvm_init_shared_info_page();
 	xen_hvm_disable_emulated_devices();
-} 
+}
 
 void
 xen_hvm_suspend(void)

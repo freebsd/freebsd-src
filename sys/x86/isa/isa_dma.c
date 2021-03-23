@@ -185,7 +185,7 @@ isa_dma_release(int chan)
 
 	if (dma_busy & (1 << chan)) {
 		dma_busy &= ~(1 << chan);
-		/* 
+		/*
 		 * XXX We should also do "dma_bounced &= (1 << chan);"
 		 * because we are acting on behalf of isa_dmadone() which
 		 * was not called to end the last DMA operation.  This does
@@ -267,7 +267,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	if (dma_range_checked) {
 		if (dma_bouncebuf[chan] == NULL
 		    || dma_bouncebufsize[chan] < nbytes)
-			panic("isa_dmastart: bad bounce buffer"); 
+			panic("isa_dmastart: bad bounce buffer");
 		dma_bounced |= (1 << chan);
 		newaddr = dma_bouncebuf[chan];
 
@@ -282,7 +282,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 
 	if (flags & ISADMA_RAW) {
 	    dma_auto_mode |= (1 << chan);
-	} else { 
+	} else {
 	    dma_auto_mode &= ~(1 << chan);
 	}
 
@@ -359,7 +359,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 
 void
 isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
-{  
+{
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
 		panic("isa_dmadone: channel out of range");
@@ -369,7 +369,7 @@ isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
 #endif
 
 	mtx_lock(&isa_dma_lock);
-	if (((dma_busy & (1 << chan)) == 0) && 
+	if (((dma_busy & (1 << chan)) == 0) &&
 	    (dma_auto_mode & (1 << chan)) == 0 )
 		printf("isa_dmadone: channel %d not busy\n", chan);
 
@@ -444,7 +444,7 @@ isa_dmarangecheck(caddr_t va, u_int length, int chan)
  *
  * If a rollover occurs in gap1 or gap2, the low2 value will be
  * greater than the low1 value.  In this case, low2 and high2 are a
- * corresponding pair. 
+ * corresponding pair.
  *
  * In any other case, low1 and high1 can be considered to be correct.
  *
@@ -472,7 +472,7 @@ isa_dmastatus_locked(int chan)
 	    (dma_auto_mode & (1 << chan)) == 0 ) {
 	    printf("chan %d not busy\n", chan);
 	    return -2 ;
-	}	
+	}
 	if (chan < 4) {			/* low DMA controller */
 		ffport = DMA1_FFC;
 		waport = DMA1_CHN(chan) + 1;
@@ -490,9 +490,9 @@ isa_dmastatus_locked(int chan)
 	high2 = inb(waport);
 	enable_intr();			/* enable interrupts again */
 
-	/* 
+	/*
 	 * Now decide if a wrap has tried to skew our results.
-	 * Note that after TC, the count will read 0xffff, while we want 
+	 * Note that after TC, the count will read 0xffff, while we want
 	 * to return zero, so we add and then mask to compensate.
 	 */
 	if (low1 >= low2) {
@@ -535,13 +535,13 @@ isa_dmatc(int chan)
  * Stop a DMA transfer currently in progress.
  */
 int
-isa_dmastop(int chan) 
+isa_dmastop(int chan)
 {
 	int status;
 
 	mtx_lock(&isa_dma_lock);
 	if ((dma_inuse & (1 << chan)) == 0)
-		printf("isa_dmastop: channel %d not acquired\n", chan);  
+		printf("isa_dmastop: channel %d not acquired\n", chan);
 
 	if (((dma_busy & (1 << chan)) == 0) &&
 	    ((dma_auto_mode & (1 << chan)) == 0)) {
@@ -549,7 +549,7 @@ isa_dmastop(int chan)
 		mtx_unlock(&isa_dma_lock);
 		return -2 ;
 	}
-    
+
 	if ((chan & 4) == 0) {
 		outb(DMA1_SMSK, (chan & 3) | 4 /* disable mask */);
 	} else {

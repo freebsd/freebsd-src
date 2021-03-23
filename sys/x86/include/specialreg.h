@@ -344,7 +344,7 @@
 #define	CPUID_PERF_STAT			0x00000001
 #define	CPUID_PERF_BIAS			0x00000008
 
-/* 
+/*
  * CPUID instruction 0xb ebx info.
  */
 #define	CPUID_TYPE_INVAL	0

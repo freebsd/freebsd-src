@@ -37,12 +37,12 @@
 /*
  * Pentium P54C+ Built-in APIC
  * (Advanced programmable Interrupt Controller)
- * 
+ *
  * Base Address of Built-in APIC in memory location
  * is 0xfee00000.
- * 
+ *
  * Map of APIC Registers:
- * 
+ *
  * Offset (hex)    Description                     Read/Write state
  * 000             Reserved
  * 010             Reserved

@@ -767,7 +767,7 @@ ram_identify(driver_t *driver, device_t parent)
 {
 
 	if (resource_disabled("ram", 0))
-		return;	
+		return;
 	if (BUS_ADD_CHILD(parent, 0, "ram", 0) == NULL)
 		panic("ram_identify");
 }
@@ -795,7 +795,7 @@ ram_attach(device_t dev)
 	/* Retrieve the system memory map from the loader. */
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp == NULL)
-		kmdp = preload_search_by_type(ELF_KERN_STR);  
+		kmdp = preload_search_by_type(ELF_KERN_STR);
 	smapbase = (struct bios_smap *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_SMAP);
 	if (smapbase != NULL) {

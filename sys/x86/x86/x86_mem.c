@@ -173,7 +173,7 @@ mem_range_match(struct mem_range_softc *sc, struct mem_range_desc *mrd)
  * be ignored, because a large page mapping the first 1 MB of physical
  * memory is a special case that the processor handles.  Invalidate
  * any old TLB entries that might hold inconsistent memory type
- * information. 
+ * information.
  */
 static void
 x86_mr_split_dmap(struct mem_range_softc *sc __unused)

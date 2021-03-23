@@ -373,7 +373,7 @@ init_TSC(void)
 		break;
 	}
 #endif
-		
+
 	probe_tsc_freq();
 
 	/*
@@ -529,7 +529,7 @@ retry:
 	free(data, M_TEMP);
 	if (bootverbose)
 		printf("SMP: %sed TSC synchronization test%s\n",
-		    smp_tsc ? "pass" : "fail", 
+		    smp_tsc ? "pass" : "fail",
 		    adj > 0 ? " after adjustment" : "");
 	if (smp_tsc && tsc_is_invariant) {
 		switch (cpu_vendor_id) {
@@ -585,8 +585,8 @@ init_TSC_tc(void)
 
 	/*
 	 * We can not use the TSC if we support APM.  Precise timekeeping
-	 * on an APM'ed machine is at best a fools pursuit, since 
-	 * any and all of the time spent in various SMM code can't 
+	 * on an APM'ed machine is at best a fools pursuit, since
+	 * any and all of the time spent in various SMM code can't
 	 * be reliably accounted for.  Reading the RTC is your only
 	 * source of reliable time info.  The i8254 loses too, of course,
 	 * but we need to have some kind of time...

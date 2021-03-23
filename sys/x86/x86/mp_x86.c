@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>	/* cngetc() */
 #include <sys/cpuset.h>
 #include <sys/csan.h>
-#ifdef GPROF 
+#ifdef GPROF
 #include <sys/gmon.h>
 #endif
 #include <sys/interrupt.h>
@@ -1065,7 +1065,7 @@ init_secondary_tail(void)
 #ifdef __amd64__
 	/*
 	 * Enable global pages TLB extension
-	 * This also implicitly flushes the TLB 
+	 * This also implicitly flushes the TLB
 	 */
 	load_cr4(rcr4() | CR4_PGE);
 	if (pmap_pcid_enabled)
@@ -1638,7 +1638,7 @@ static void
 release_aps(void *dummy __unused)
 {
 
-	if (mp_ncpus == 1) 
+	if (mp_ncpus == 1)
 		return;
 	atomic_store_rel_int(&aps_ready, 1);
 	while (smp_started == 0)
@@ -1673,7 +1673,7 @@ mp_ipi_intrcnt(void *dummy)
 		intrcnt_add(buf, &ipi_rendezvous_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:hardclock", i);
 		intrcnt_add(buf, &ipi_hardclock_counts[i]);
-	}		
+	}
 }
 SYSINIT(mp_ipi_intrcnt, SI_SUB_INTR, SI_ORDER_MIDDLE, mp_ipi_intrcnt, NULL);
 #endif
