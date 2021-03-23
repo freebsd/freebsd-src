@@ -148,7 +148,7 @@ destroy_rtentry(struct rtentry *rt)
 	CURVNET_SET(nhop_get_vnet(nh));
 
 	/* Unreference nexthop */
-	nhop_free_any(rt->rt_nhop);
+	nhop_free_any(nh);
 
 	uma_zfree(V_rtzone, rt);
 
