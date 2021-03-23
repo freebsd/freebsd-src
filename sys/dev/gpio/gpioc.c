@@ -618,7 +618,7 @@ gpioc_detach(device_t dev)
 
 	for (int i = 0; i < sc->sc_npins; i++) {
 		mtx_destroy(&sc->sc_pin_intr[i].mtx);
-		free(&sc->sc_pin_intr[i].pin, M_GPIOC);
+		free(sc->sc_pin_intr[i].pin, M_GPIOC);
 	}
 	free(sc->sc_pin_intr, M_GPIOC);
 
