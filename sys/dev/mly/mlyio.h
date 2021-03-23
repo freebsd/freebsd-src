@@ -33,7 +33,7 @@
  * management tools.
  *
  * The member naming here is consistent with the Linux driver, with which this
- * interface is basically compatible. 
+ * interface is basically compatible.
  */
 struct mly_user_command
 {
@@ -65,7 +65,7 @@ struct mly_user_health
 #define MLYQ_COMPLETE	2
 #define MLYQ_COUNT	3
 
-struct mly_qstat 
+struct mly_qstat
 {
     u_int32_t	q_length;
     u_int32_t	q_max;

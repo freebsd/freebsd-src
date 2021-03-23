@@ -493,7 +493,7 @@ static void ffec_clear_stats(struct ffec_softc *sc)
 		WR4(sc, FEC_MIBC_REG, mibc & ~FEC_MIBC_CLEAR);
 	} else {
 		WR4(sc, FEC_MIBC_REG, mibc | FEC_MIBC_DIS);
-	
+
 		WR4(sc, FEC_IEEE_R_DROP, 0);
 		WR4(sc, FEC_IEEE_R_MACERR, 0);
 		WR4(sc, FEC_RMON_R_CRC_ALIGN, 0);
@@ -590,7 +590,7 @@ ffec_tick(void *arg)
 }
 
 inline static uint32_t
-ffec_setup_txdesc(struct ffec_softc *sc, int idx, bus_addr_t paddr, 
+ffec_setup_txdesc(struct ffec_softc *sc, int idx, bus_addr_t paddr,
     uint32_t len)
 {
 	uint32_t nidx;
@@ -636,7 +636,7 @@ ffec_setup_txbuf(struct ffec_softc *sc, int idx, struct mbuf **mp)
 	if (error != 0) {
 		return (ENOMEM);
 	}
-	bus_dmamap_sync(sc->txbuf_tag, sc->txbuf_map[idx].map, 
+	bus_dmamap_sync(sc->txbuf_tag, sc->txbuf_map[idx].map,
 	    BUS_DMASYNC_PREWRITE);
 
 	sc->txbuf_map[idx].mbuf = m;
@@ -721,7 +721,7 @@ ffec_txfinish_locked(struct ffec_softc *sc)
 			break;
 		retired_buffer = true;
 		bmap = &sc->txbuf_map[sc->tx_idx_tail];
-		bus_dmamap_sync(sc->txbuf_tag, bmap->map, 
+		bus_dmamap_sync(sc->txbuf_tag, bmap->map,
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->txbuf_tag, bmap->map);
 		m_freem(bmap->mbuf);
@@ -757,7 +757,7 @@ ffec_setup_rxdesc(struct ffec_softc *sc, int idx, bus_addr_t paddr)
 	 */
 	nidx = next_rxidx(sc, idx);
 	sc->rxdesc_ring[idx].buf_paddr = (uint32_t)paddr;
-	sc->rxdesc_ring[idx].flags_len = FEC_RXDESC_EMPTY | 
+	sc->rxdesc_ring[idx].flags_len = FEC_RXDESC_EMPTY |
 		((nidx == 0) ? FEC_RXDESC_WRAP : 0);
 
 	return (nidx);
@@ -787,12 +787,12 @@ ffec_setup_rxbuf(struct ffec_softc *sc, int idx, struct mbuf * m)
 		return (error);
 	}
 
-	bus_dmamap_sync(sc->rxbuf_tag, sc->rxbuf_map[idx].map, 
+	bus_dmamap_sync(sc->rxbuf_tag, sc->rxbuf_map[idx].map,
 	    BUS_DMASYNC_PREREAD);
 
 	sc->rxbuf_map[idx].mbuf = m;
 	ffec_setup_rxdesc(sc, idx, seg.ds_addr);
-	
+
 	return (0);
 }
 
@@ -823,7 +823,7 @@ ffec_rxfinish_onebuf(struct ffec_softc *sc, int len)
 	 */
 	if ((newmbuf = ffec_alloc_mbufcl(sc)) == NULL) {
 		if_inc_counter(sc->ifp, IFCOUNTER_IQDROPS, 1);
-		ffec_setup_rxdesc(sc, sc->rx_idx, 
+		ffec_setup_rxdesc(sc, sc->rx_idx,
 		    sc->rxdesc_ring[sc->rx_idx].buf_paddr);
 		return;
 	}
@@ -904,9 +904,9 @@ ffec_rxfinish_locked(struct ffec_softc *sc)
 			 * just really never happen when we have buffers bigger
 			 * than the maximum frame size.
 			 */
-			device_printf(sc->dev, 
+			device_printf(sc->dev,
 			    "fec_rxfinish: received frame without LAST bit set");
-			ffec_setup_rxdesc(sc, sc->rx_idx, 
+			ffec_setup_rxdesc(sc, sc->rx_idx,
 			    sc->rxdesc_ring[sc->rx_idx].buf_paddr);
 		} else if (desc->flags_len & FEC_RXDESC_ERROR_BITS) {
 			/*
@@ -916,7 +916,7 @@ ffec_rxfinish_locked(struct ffec_softc *sc)
 			 *  same mbuf, which is still dma-mapped, by resetting
 			 *  the rx descriptor.
 			 */
-			ffec_setup_rxdesc(sc, sc->rx_idx, 
+			ffec_setup_rxdesc(sc, sc->rx_idx,
 			    sc->rxdesc_ring[sc->rx_idx].buf_paddr);
 		} else {
 			/*
@@ -970,7 +970,7 @@ ffec_get_hwaddr(struct ffec_softc *sc, uint8_t *hwaddr)
 	if (bootverbose) {
 		device_printf(sc->dev,
 		    "MAC address %02x:%02x:%02x:%02x:%02x:%02x:\n",
-		    hwaddr[0], hwaddr[1], hwaddr[2], 
+		    hwaddr[0], hwaddr[1], hwaddr[2],
 		    hwaddr[3], hwaddr[4], hwaddr[5]);
 	}
 }
@@ -1049,7 +1049,7 @@ ffec_stop_locked(struct ffec_softc *sc)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->tx_watchdog_count = 0;
 
-	/* 
+	/*
 	 * Stop the hardware, mask all interrupts, and clear all current
 	 * interrupt status bits.
 	 */
@@ -1163,7 +1163,7 @@ ffec_init_locked(struct ffec_softc *sc)
 	 * ffec_miibus_statchg() based on the media type.
 	 */
 	WR4(sc, FEC_TCR_REG, 0);
-        
+
 	/*
 	 * OPD - Opcode/pause duration.
 	 *
@@ -1315,7 +1315,7 @@ ffec_intr(void *arg)
 	 */
 	if (ier & FEC_IER_EBERR) {
 		WR4(sc, FEC_IER_REG, FEC_IER_EBERR);
-		device_printf(sc->dev, 
+		device_printf(sc->dev,
 		    "Ethernet DMA error, restarting controller.\n");
 		ffec_stop_locked(sc);
 		ffec_init_locked(sc);
@@ -1383,7 +1383,7 @@ ffec_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	default:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
-	}       
+	}
 
 	return (error);
 }
@@ -1517,7 +1517,7 @@ ffec_attach(device_t dev)
 
 	/* Allocate bus resources for accessing the hardware. */
 	rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
+	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(dev, "could not allocate memory resources.\n");
@@ -1585,7 +1585,7 @@ ffec_attach(device_t dev)
 	}
 
 	for (idx = 0; idx < TX_DESC_COUNT; ++idx) {
-		error = bus_dmamap_create(sc->txbuf_tag, 0, 
+		error = bus_dmamap_create(sc->txbuf_tag, 0,
 		    &sc->txbuf_map[idx].map);
 		if (error != 0) {
 			device_printf(sc->dev,
@@ -1615,7 +1615,7 @@ ffec_attach(device_t dev)
 		goto out;
 	}
 
-	error = bus_dmamem_alloc(sc->rxdesc_tag, (void **)&sc->rxdesc_ring, 
+	error = bus_dmamem_alloc(sc->rxdesc_tag, (void **)&sc->rxdesc_ring,
 	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO, &sc->rxdesc_map);
 	if (error != 0) {
 		device_printf(sc->dev,
@@ -1649,7 +1649,7 @@ ffec_attach(device_t dev)
 	}
 
 	for (idx = 0; idx < RX_DESC_COUNT; ++idx) {
-		error = bus_dmamap_create(sc->rxbuf_tag, 0, 
+		error = bus_dmamap_create(sc->rxbuf_tag, 0,
 		    &sc->rxbuf_map[idx].map);
 		if (error != 0) {
 			device_printf(sc->dev,

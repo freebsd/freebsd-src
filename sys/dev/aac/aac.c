@@ -3377,7 +3377,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 				ctx->ctx_wrap = 1;
 			else if (current == ctx->ctx_idx && ctx->ctx_wrap)
 				ctx->ctx_idx = next;
-		}	
+		}
 	}
 	sc->aifq_idx = next;
 	/* On the off chance that someone is sleeping for an aif... */

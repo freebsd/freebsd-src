@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -434,7 +434,7 @@ osGLOBAL void ossaDiscoverSasCB(agsaRoot_t        *agRoot,
                                 agDevHandle,
                                 &agSASSubID,
                                 agTRUE,
-                                agDeviceInfo->phyIdentifier, 
+                                agDeviceInfo->phyIdentifier,
                                 TD_OPERATION_INITIATOR
                                 );
       ostiInitiatorEvent(
@@ -1076,7 +1076,7 @@ osGLOBAL void ossaHwCB(
             SA_IDFRM_IS_SSP_TARGET(IDframe) )
         {
           TI_DBG2(("ossaHwCB: NOTIFY_ENABLE_SPINUP PhyID %d \n", PhyID));
-         
+
           for (i=0;i<TD_MAX_NUM_NOTIFY_SPINUP;i++)
           {
             saLocalPhyControl(agRoot, agNULL, 0, PhyID, AGSA_PHY_NOTIFY_ENABLE_SPINUP, agNULL);
@@ -1263,7 +1263,7 @@ osGLOBAL void ossaHwCB(
             SA_IDFRM_IS_SSP_TARGET(IDframe) )
         {
           TI_DBG2(("ossaHwCB: NOTIFY_ENABLE_SPINUP PhyID %d \n", PhyID));
-          
+
           for (i=0;i<TD_MAX_NUM_NOTIFY_SPINUP;i++)
           {
             saLocalPhyControl(agRoot, agNULL, 0, PhyID, AGSA_PHY_NOTIFY_ENABLE_SPINUP, agNULL);
@@ -1592,7 +1592,7 @@ osGLOBAL void ossaHwCB(
       /* last phy belong to the portcontext */
       if (AllPhyDown == agTRUE)
       {
-#ifdef NOT_YET  
+#ifdef NOT_YET
         TI_DBG1(("ossaHwCB: calling tiPortLinkDown\n"));
         ostiPortEvent (
                        tiRoot,
@@ -2621,7 +2621,7 @@ osGLOBAL void ossaHwCB(
 
     if (onePortContext->tiPortalContext != agNULL)
     {
-#if 0 
+#if 0
       ostiInitiatorEvent(
                          tiRoot,
                          onePortContext->tiPortalContext,
@@ -5936,7 +5936,7 @@ osGLOBAL void ossaGetDeviceInfoCB(
                     void              *agInfo
                     )
 {
-  
+
 #ifdef TD_DEBUG_ENABLE
   agsaDeviceInfo_t       *agDeviceInfo;
   agsaSASDeviceInfo_t    *agSASDeviceInfo;
@@ -7443,21 +7443,21 @@ GLOBAL void ossaPCIeDiagExecuteCB(
 #ifndef BIOS
 GLOBAL void ossaSGpioCB(
                     agsaRoot_t              *agRoot,
-                    agsaContext_t           *agContext, 
+                    agsaContext_t           *agContext,
                     agsaSGpioReqResponse_t  *pSgpioResponse
                     )
 {
   tdsaRootOsData_t  *osData = (tdsaRootOsData_t *)agRoot->osData;
   tiRoot_t          *tiRoot = (tiRoot_t *)osData->tiRoot;
-	
+
   TI_DBG2(("ossaSGpioCB:  smpFrameType: 0x%02x \n", pSgpioResponse->smpFrameType));
  // printf("SS:ossaSGpioCB:  smpFrameType: 0x%02x \n", pSgpioResponse->smpFrameType);
   TI_DBG2(("ossaSGpioCB:  function: 0x%02x \n", pSgpioResponse->function));
   TI_DBG2(("ossaSGpioCB:  functionResult: 0x%02x \n", pSgpioResponse->functionResult));
   //printf("SS:ossaSGpioCB:  functionResult: 0x%02x \n", pSgpioResponse->functionResult);
-  
+
   tdhexdump("ossaSGpioCB Response", (bit8 *)pSgpioResponse, sizeof(agsaSGpioReqResponse_t));
-  ostiSgpioIoctlRsp(tiRoot, pSgpioResponse);	
+  ostiSgpioIoctlRsp(tiRoot, pSgpioResponse);
 }
 
 #endif /* BIOS */
@@ -8456,7 +8456,7 @@ GLOBAL bit32 ossaTimeStamp( agsaRoot_t     *agRoot )
     tiRoot = (tiRoot_t *)osData->tiRoot;
   }
   return(ostiTimeStamp(tiRoot));
-} 
+}
 
 GLOBAL bit64 ossaTimeStamp64( agsaRoot_t     *agRoot)
 {
@@ -8471,7 +8471,7 @@ GLOBAL bit64 ossaTimeStamp64( agsaRoot_t     *agRoot)
     tiRoot = (tiRoot_t *)osData->tiRoot;
   }
   return(ostiTimeStamp64(tiRoot));
-} 
+}
 
 #ifdef FDS_SM
 osGLOBAL void
@@ -8789,7 +8789,7 @@ tdIDStart(
 
 
   TI_DBG1(("tdIDStart: start, did %d\n",oneDeviceData->id));
- 
+
   if ( (DEVICE_IS_SATA_DEVICE(oneDeviceData)|| DEVICE_IS_STP_TARGET(oneDeviceData))
       &&
       oneDeviceData->satDevData.IDDeviceValid == agFALSE

@@ -267,8 +267,8 @@ void pqisrc_display_device_info(pqisrc_softstate_t *softs,
 
 /* validate the structure sizes */
 void check_struct_sizes()
-{   
-    
+{
+
     ASSERT(sizeof(SCSI3Addr_struct)== 2);
     ASSERT(sizeof(PhysDevAddr_struct) == 8);
     ASSERT(sizeof(LogDevAddr_struct)== 8);
@@ -306,5 +306,5 @@ void check_struct_sizes()
     ASSERT(sizeof(pqisrc_raid_map_t)== 8256);
     ASSERT(sizeof(bmic_ident_ctrl_t)== 325);
     ASSERT(sizeof(bmic_ident_physdev_t)==2048);
-  
+
 }

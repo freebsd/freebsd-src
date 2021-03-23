@@ -286,7 +286,7 @@ const struct pinmap_info bytgpio_sus_pins[] = {
 #define	BYTGPIO_PCONF0		0x0000
 #define		BYTGPIO_PCONF0_FUNC_MASK	7
 #define	BYTGPIO_PAD_VAL		0x0008
-#define		BYTGPIO_PAD_VAL_LEVEL		(1 << 0)	
+#define		BYTGPIO_PAD_VAL_LEVEL		(1 << 0)
 #define		BYTGPIO_PAD_VAL_I_OUTPUT_ENABLED	(1 << 1)
 #define		BYTGPIO_PAD_VAL_I_INPUT_ENABLED	(1 << 2)
 #define		BYTGPIO_PAD_VAL_DIR_MASK		(3 << 1)
@@ -412,13 +412,13 @@ bytgpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	else
 		allowed = 0;
 
-	/* 
+	/*
 	 * Only directtion flag allowed
 	 */
 	if (flags & ~allowed)
 		return (EINVAL);
 
-	/* 
+	/*
 	 * Not both directions simultaneously
 	 */
 	if ((flags & allowed) == allowed)

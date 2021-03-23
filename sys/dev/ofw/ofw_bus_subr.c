@@ -600,7 +600,7 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node,
 			iparent = OF_parent(node);
 			iparent = OF_xref_from_node(iparent);
 		}
-		if (OF_searchencprop(OF_node_from_xref(iparent), 
+		if (OF_searchencprop(OF_node_from_xref(iparent),
 		    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
 			device_printf(dev, "Missing #interrupt-cells "
 			    "property, assuming <1>\n");
@@ -624,7 +624,7 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node,
 	for (i = 0; i < nintr; i += icells) {
 		if (extended) {
 			iparent = intr[i++];
-			if (OF_searchencprop(OF_node_from_xref(iparent), 
+			if (OF_searchencprop(OF_node_from_xref(iparent),
 			    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
 				device_printf(dev, "Missing #interrupt-cells "
 				    "property\n");

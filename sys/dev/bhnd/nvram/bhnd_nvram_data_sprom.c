@@ -112,14 +112,14 @@ BHND_NVRAM_DATA_CLASS_DEFN(sprom, "Broadcom SPROM",
 /**
  * Read the magic value from @p io, and verify that it matches
  * the @p layout's expected magic value.
- * 
+ *
  * If @p layout does not defined a magic value, @p magic is set to 0x0
  * and success is returned.
- * 
+ *
  * @param	io	An I/O context mapping the SPROM data to be identified.
  * @param	layout	The SPROM layout against which @p io should be verified.
  * @param[out]	magic	On success, the SPROM magic value.
- * 
+ *
  * @retval 0		success
  * @retval non-zero	If checking @p io otherwise fails, a regular unix
  *			error code will be returned.
@@ -199,7 +199,7 @@ bhnd_nvram_sprom_ident(struct bhnd_nvram_io *io,
 		/*
 		 * Read image data and update CRC (errors are reported
 		 * after the signature check)
-		 * 
+		 *
 		 * Layout instances must be ordered from smallest to largest by
 		 * the nvram_map compiler, allowing us to incrementally update
 		 * our CRC.
@@ -240,7 +240,7 @@ bhnd_nvram_sprom_ident(struct bhnd_nvram_io *io,
 		 * with a revision of 0x10. */
 		if (layout->rev == 1 && srev == 0x10)
 			srev = 0x1;
-		
+
 		/* Check revision against the layout definition */
 		if (srev != layout->rev)
 			continue;
@@ -476,7 +476,7 @@ bhnd_nvram_sprom_write_var(bhnd_sprom_opcode_state *state,
 		var_ptr = bhnd_nvram_val_bytes(&bcm_val, &var_len, &var_type);
 
 		/*
-		 * Promote to a common 32-bit representation. 
+		 * Promote to a common 32-bit representation.
 		 *
 		 * We must use the raw type to interpret the input data as its
 		 * underlying integer representation -- otherwise, coercion
@@ -543,7 +543,7 @@ bhnd_nvram_sprom_write_var(bhnd_sprom_opcode_state *state,
 		binding = &state->var.bind;
 
 		/* Calculate output skip bytes for this binding.
-		 * 
+		 *
 		 * Skip directions are defined in terms of decoding, and
 		 * reversed when encoding. */
 		skip_out_bytes = binding->skip_in;
@@ -968,7 +968,7 @@ bhnd_nvram_sprom_write_offset(const struct bhnd_nvram_vardefn *var,
 /**
  * Read the value of @p type from the SPROM @p data at @p offset, apply @p mask
  * and @p shift, and OR with the existing @p value.
- * 
+ *
  * @param var The NVRAM variable definition.
  * @param data The SPROM data to be decoded.
  * @param type The type to read at @p offset
@@ -1047,7 +1047,7 @@ bhnd_nvram_sprom_read_offset(const struct bhnd_nvram_vardefn *var,
 
 /**
  * Read a SPROM variable value from @p io.
- * 
+ *
  * @param	state		The SPROM opcode state describing the layout of @p io.
  * @param	entry		The variable's SPROM opcode index entry.
  * @param	io		The input I/O context.
@@ -1267,7 +1267,7 @@ bhnd_nvram_sprom_read_var(struct bhnd_sprom_opcode_state *state,
 /**
  * Common variable decoding; fetches and decodes variable to @p val,
  * using @p storage for actual data storage.
- * 
+ *
  * The returned @p val instance will hold a borrowed reference to @p storage,
  * and must be copied via bhnd_nvram_val_copy() if it will be referenced beyond
  * the lifetime of @p storage.
@@ -1443,7 +1443,7 @@ bhnd_nvram_sprom_filter_unsetvar(struct bhnd_nvram_data *nv, const char *name)
 	BHND_NV_ASSERT(var != NULL, ("missing variable definition"));
 
 	/* Variable must be capable of representing a NULL/deleted value.
-	 * 
+	 *
 	 * Since SPROM's layout is fixed, this requires IGNALL -- if
 	 * all bits are set, an IGNALL variable is treated as unset. */
 	if (!(var->flags & BHND_NVRAM_VF_IGNALL1))
@@ -1455,7 +1455,7 @@ bhnd_nvram_sprom_filter_unsetvar(struct bhnd_nvram_data *nv, const char *name)
 /**
  * Return true if @p name represents a special immutable variable name
  * (e.g. sromrev) that cannot be updated in an SPROM existing image.
- * 
+ *
  * @param name The name to check.
  */
 static bool

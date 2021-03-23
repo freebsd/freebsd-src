@@ -31,7 +31,7 @@
 #ifndef _SND_VERSION_H_
 #define _SND_VERSION_H_
 
-/* 
+/*
  * FreeBSD sound driver internal versioning, nothing to do
  * with OSS whatsoever. Dear future maintainer, please revisit
  * this _before_ Jan 1 2148

@@ -148,11 +148,11 @@ vsc8501_setup_rgmii(struct vscphy_softc *vsc)
 	reg &= ~(VSC8501_RGMII_DELAY_MASK << VSC8501_RGMII_DELAY_RXSHIFT);
 	if (vsc->laneswap)
 		reg |= VSC8501_RGMII_LANESWAP;
-	if (vsc->contype == MII_CONTYPE_RGMII_ID || 
+	if (vsc->contype == MII_CONTYPE_RGMII_ID ||
 	    vsc->contype == MII_CONTYPE_RGMII_TXID) {
 		reg |= vsc->txdelay << VSC8501_RGMII_DELAY_TXSHIFT;
 	}
-	if (vsc->contype == MII_CONTYPE_RGMII_ID || 
+	if (vsc->contype == MII_CONTYPE_RGMII_ID ||
 	    vsc->contype == MII_CONTYPE_RGMII_RXID) {
 		reg |= vsc->rxdelay << VSC8501_RGMII_DELAY_RXSHIFT;
 	}
@@ -244,7 +244,7 @@ vscphy_attach(device_t dev)
 
 #ifdef FDT
 	vscphy_fdt_get_config(vsc);
-#endif	
+#endif
 
 	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &vscphy_funcs, 1);
 	mii_phy_setmedia(&vsc->mii_sc);

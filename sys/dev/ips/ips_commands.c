@@ -38,11 +38,11 @@ __FBSDID("$FreeBSD$");
  * interrupt context when the adapter has completed the
  * command.  This very generic callback simply stores
  * the command's return value in command->arg and wake's
- * up anyone waiting on the command. 
+ * up anyone waiting on the command.
  */
 static void ips_wakeup_callback(ips_command_t *command)
 {
-	bus_dmamap_sync(command->sc->command_dmatag, command->command_dmamap, 
+	bus_dmamap_sync(command->sc->command_dmatag, command->command_dmamap,
 			BUS_DMASYNC_POSTWRITE);
 	sema_post(&command->sc->cmd_sema);
 }
@@ -55,10 +55,10 @@ static void ips_io_request_finish(ips_command_t *command)
 
 	struct bio *iobuf = command->arg;
 	if(ips_read_request(iobuf)) {
-		bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
+		bus_dmamap_sync(command->data_dmatag, command->data_dmamap,
 				BUS_DMASYNC_POSTREAD);
 	} else {
-		bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
+		bus_dmamap_sync(command->data_dmatag, command->data_dmamap,
 				BUS_DMASYNC_POSTWRITE);
 	}
 	bus_dmamap_unload(command->data_dmatag, command->data_dmamap);
@@ -107,7 +107,7 @@ static void ips_io_request_callback(void *cmdptr, bus_dma_segment_t *segments,in
 			sg_list[i].len = segments[i].ds_len;
 			length += segments[i].ds_len;
 		}
-		command_struct->buffaddr = 
+		command_struct->buffaddr =
 	    	    (u_int32_t)command->command_phys_addr + IPS_COMMAND_LEN;
 	} else {
 		if(ips_read_request(iobuf))
@@ -121,13 +121,13 @@ static void ips_io_request_callback(void *cmdptr, bus_dma_segment_t *segments,in
 	command_struct->lba = iobuf->bio_pblkno;
 	length = (length + IPS_BLKSIZE - 1)/IPS_BLKSIZE;
 	command_struct->length = length;
-	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap, 
+	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap,
 			BUS_DMASYNC_PREWRITE);
 	if(ips_read_request(iobuf)) {
-		bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
+		bus_dmamap_sync(command->data_dmatag, command->data_dmamap,
 				BUS_DMASYNC_PREREAD);
 	} else {
-		bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
+		bus_dmamap_sync(command->data_dmatag, command->data_dmamap,
 				BUS_DMASYNC_PREWRITE);
 	}
 	PRINTF(10, "ips test: command id: %d segments: %d "
@@ -148,7 +148,7 @@ static int ips_send_io_request(ips_command_t *command, struct bio *iobuf)
 			iobuf->bio_data, iobuf->bio_bcount,
 			ips_io_request_callback, command, 0);
 	return 0;
-} 
+}
 
 void ips_start_io_request(ips_softc_t *sc)
 {
@@ -161,15 +161,15 @@ void ips_start_io_request(ips_softc_t *sc)
 
 	if (ips_get_free_cmd(sc, &command, 0))
 		return;
-	
+
 	bioq_remove(&sc->queue, iobuf);
 	ips_send_io_request(command, iobuf);
 	return;
 }
 
-/* Below are a series of functions for sending an adapter info request 
+/* Below are a series of functions for sending an adapter info request
  * to the adapter.  The flow order is: get, send, callback. It uses
- * the generic finish callback at the top of this file. 
+ * the generic finish callback at the top of this file.
  * This can be used to get configuration/status info from the card */
 static void ips_adapter_info_callback(void *cmdptr, bus_dma_segment_t *segments,int segnum, int error)
 {
@@ -187,9 +187,9 @@ static void ips_adapter_info_callback(void *cmdptr, bus_dma_segment_t *segments,
 	command_struct->id = command->id;
 	command_struct->buffaddr = segments[0].ds_addr;
 
-	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap, 
+	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap,
 			BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
+	bus_dmamap_sync(command->data_dmatag, command->data_dmamap,
 			BUS_DMASYNC_PREREAD);
 	sc->ips_issue_cmd(command);
 	if (sema_timedwait(&sc->cmd_sema, 30*hz) != 0) {
@@ -197,7 +197,7 @@ static void ips_adapter_info_callback(void *cmdptr, bus_dma_segment_t *segments,
 		return;
 	}
 
-	bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
+	bus_dmamap_sync(command->data_dmatag, command->data_dmamap,
 			BUS_DMASYNC_POSTREAD);
 	memcpy(&(sc->adapter_info), command->data_buffer, IPS_ADAPTER_INFO_LEN);
 }
@@ -227,14 +227,14 @@ static int ips_send_adapter_info_cmd(ips_command_t *command)
 		error = ENOMEM;
 		goto exit;
         }
-	if(bus_dmamem_alloc(command->data_dmatag, &command->data_buffer, 
+	if(bus_dmamem_alloc(command->data_dmatag, &command->data_buffer,
 	   BUS_DMA_NOWAIT, &command->data_dmamap)){
 		error = ENOMEM;
 		goto exit;
 	}
 	command->callback = ips_wakeup_callback;
-	error = bus_dmamap_load(command->data_dmatag, command->data_dmamap, 
-				command->data_buffer,IPS_ADAPTER_INFO_LEN, 
+	error = bus_dmamap_load(command->data_dmatag, command->data_dmamap,
+				command->data_buffer,IPS_ADAPTER_INFO_LEN,
 				ips_adapter_info_callback, command,
 				BUS_DMA_NOWAIT);
 
@@ -243,7 +243,7 @@ static int ips_send_adapter_info_cmd(ips_command_t *command)
 
 exit:
 	/* I suppose I should clean up my memory allocations */
-	bus_dmamem_free(command->data_dmatag, command->data_buffer, 
+	bus_dmamem_free(command->data_dmatag, command->data_buffer,
 			command->data_dmamap);
 	bus_dma_tag_destroy(command->data_dmatag);
 	ips_insert_free_cmd(sc, command);
@@ -266,9 +266,9 @@ int ips_get_adapter_info(ips_softc_t *sc)
 	return error;
 }
 
-/* Below are a series of functions for sending a drive info request 
+/* Below are a series of functions for sending a drive info request
  * to the adapter.  The flow order is: get, send, callback. It uses
- * the generic finish callback at the top of this file. 
+ * the generic finish callback at the top of this file.
  * This can be used to get drive status info from the card */
 static void ips_drive_info_callback(void *cmdptr, bus_dma_segment_t *segments,int segnum, int error)
 {
@@ -288,9 +288,9 @@ static void ips_drive_info_callback(void *cmdptr, bus_dma_segment_t *segments,in
 	command_struct->id = command->id;
 	command_struct->buffaddr = segments[0].ds_addr;
 
-	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap, 
+	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap,
 			BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
+	bus_dmamap_sync(command->data_dmatag, command->data_dmamap,
 			BUS_DMASYNC_PREREAD);
 	sc->ips_issue_cmd(command);
 	if (sema_timedwait(&sc->cmd_sema, 10*hz) != 0) {
@@ -298,10 +298,10 @@ static void ips_drive_info_callback(void *cmdptr, bus_dma_segment_t *segments,in
 		return;
 	}
 
-	bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
+	bus_dmamap_sync(command->data_dmatag, command->data_dmamap,
 			BUS_DMASYNC_POSTREAD);
 	driveinfo = command->data_buffer;
-	memcpy(sc->drives, driveinfo->drives, sizeof(ips_drive_t) * 8);	
+	memcpy(sc->drives, driveinfo->drives, sizeof(ips_drive_t) * 8);
 	sc->drivecount = driveinfo->drivecount;
 	device_printf(sc->dev, "logical drives: %d\n",sc->drivecount);
 }
@@ -329,14 +329,14 @@ static int ips_send_drive_info_cmd(ips_command_t *command)
 		error = ENOMEM;
 		goto exit;
         }
-	if(bus_dmamem_alloc(command->data_dmatag, &command->data_buffer, 
+	if(bus_dmamem_alloc(command->data_dmatag, &command->data_buffer,
 	   		    BUS_DMA_NOWAIT, &command->data_dmamap)){
 		error = ENOMEM;
 		goto exit;
 	}
 	command->callback = ips_wakeup_callback;
-	error = bus_dmamap_load(command->data_dmatag, command->data_dmamap, 
-				command->data_buffer,IPS_DRIVE_INFO_LEN, 
+	error = bus_dmamap_load(command->data_dmatag, command->data_dmamap,
+				command->data_buffer,IPS_DRIVE_INFO_LEN,
 				ips_drive_info_callback, command,
 				BUS_DMA_NOWAIT);
 	if (error == 0)
@@ -344,7 +344,7 @@ static int ips_send_drive_info_cmd(ips_command_t *command)
 
 exit:
 	/* I suppose I should clean up my memory allocations */
-	bus_dmamem_free(command->data_dmatag, command->data_buffer, 
+	bus_dmamem_free(command->data_dmatag, command->data_buffer,
 			command->data_dmamap);
 	bus_dma_tag_destroy(command->data_dmatag);
 	ips_insert_free_cmd(sc, command);
@@ -379,7 +379,7 @@ static int ips_send_flush_cache_cmd(ips_command_t *command)
 	command_struct = (ips_generic_cmd *)command->command_buffer;
 	command_struct->command = IPS_CACHE_FLUSH_CMD;
 	command_struct->id = command->id;
-	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap, 
+	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap,
 			BUS_DMASYNC_PREWRITE);
 	sc->ips_issue_cmd(command);
 	if (COMMAND_ERROR(command) == 0)
@@ -495,7 +495,7 @@ static void ips_write_nvram(ips_command_t *command){
 	command_struct->id = command->id;
 	command_struct->pagenum = 5;
 	command_struct->rw	= 1; /*write*/
-	bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
+	bus_dmamap_sync(command->data_dmatag, command->data_dmamap,
 				BUS_DMASYNC_POSTREAD);
 	nvram = command->data_buffer;
 	/* retrieve adapter info and save in sc */
@@ -503,8 +503,8 @@ static void ips_write_nvram(ips_command_t *command){
 
 	strncpy(nvram->driver_high, IPS_VERSION_MAJOR, 4);
 	strncpy(nvram->driver_low, IPS_VERSION_MINOR, 4);
-	nvram->operating_system = IPS_OS_FREEBSD;	
-	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap, 
+	nvram->operating_system = IPS_OS_FREEBSD;
+	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap,
 			BUS_DMASYNC_PREWRITE);
 	sc->ips_issue_cmd(command);
 }
@@ -527,16 +527,16 @@ static void ips_read_nvram_callback(void *cmdptr, bus_dma_segment_t *segments,in
 	command_struct->rw = 0;
 	command_struct->buffaddr = segments[0].ds_addr;
 
-	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap, 
+	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap,
 			BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
+	bus_dmamap_sync(command->data_dmatag, command->data_dmamap,
 			BUS_DMASYNC_PREREAD);
 	sc->ips_issue_cmd(command);
 	if (sema_timedwait(&sc->cmd_sema, 30*hz) != 0) {
 		ips_set_error(command, ETIMEDOUT);
 		return;
 	}
-	bus_dmamap_sync(command->data_dmatag, command->data_dmamap, 
+	bus_dmamap_sync(command->data_dmatag, command->data_dmamap,
 			BUS_DMASYNC_POSTWRITE);
 }
 
@@ -563,21 +563,21 @@ static int ips_read_nvram(ips_command_t *command)
 		error = ENOMEM;
 		goto exit;
         }
-	if(bus_dmamem_alloc(command->data_dmatag, &command->data_buffer, 
+	if(bus_dmamem_alloc(command->data_dmatag, &command->data_buffer,
 	   		    BUS_DMA_NOWAIT, &command->data_dmamap)){
 		error = ENOMEM;
 		goto exit;
 	}
 	command->callback = ips_write_nvram;
-	error = bus_dmamap_load(command->data_dmatag, command->data_dmamap, 
-				command->data_buffer,IPS_NVRAM_PAGE_SIZE, 
+	error = bus_dmamap_load(command->data_dmatag, command->data_dmamap,
+				command->data_buffer,IPS_NVRAM_PAGE_SIZE,
 				ips_read_nvram_callback, command,
 				BUS_DMA_NOWAIT);
 	if (error == 0)
 		bus_dmamap_unload(command->data_dmatag, command->data_dmamap);
 
 exit:
-	bus_dmamem_free(command->data_dmatag, command->data_buffer, 
+	bus_dmamem_free(command->data_dmatag, command->data_buffer,
 			command->data_dmamap);
 	bus_dma_tag_destroy(command->data_dmatag);
 	ips_insert_free_cmd(sc, command);
@@ -613,7 +613,7 @@ static int ips_send_config_sync_cmd(ips_command_t *command)
 	command_struct->command = IPS_CONFIG_SYNC_CMD;
 	command_struct->id = command->id;
 	command_struct->reserve2 = IPS_POCL;
-	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap, 
+	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap,
 			BUS_DMASYNC_PREWRITE);
 	sc->ips_issue_cmd(command);
 	if (COMMAND_ERROR(command) == 0)
@@ -633,7 +633,7 @@ static int ips_send_error_table_cmd(ips_command_t *command)
 	command_struct->command = IPS_ERROR_TABLE_CMD;
 	command_struct->id = command->id;
 	command_struct->reserve2 = IPS_CSL;
-	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap, 
+	bus_dmamap_sync(sc->command_dmatag, command->command_dmamap,
 			BUS_DMASYNC_PREWRITE);
 	sc->ips_issue_cmd(command);
 	if (COMMAND_ERROR(command) == 0)

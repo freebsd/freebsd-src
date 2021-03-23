@@ -106,7 +106,7 @@ static int
 acpi_button_probe(device_t dev)
 {
     struct acpi_button_softc *sc;
-    char *str; 
+    char *str;
     int rv;
 
     if (acpi_disabled("button"))
@@ -114,7 +114,7 @@ acpi_button_probe(device_t dev)
     rv = ACPI_ID_PROBE(device_get_parent(dev), dev, btn_ids, &str);
     if (rv > 0)
 	return (ENXIO);
-    
+
     sc = device_get_softc(dev);
     if (strcmp(str, "PNP0C0C") == 0) {
 	device_set_desc(dev, "Power Button");
@@ -165,7 +165,7 @@ acpi_button_attach(device_t dev)
         return (ENXIO);
 #endif
 
-    /* 
+    /*
      * Install the new handler.  We could remove any fixed handlers added
      * from the FADT once we have a duplicate from the AML but some systems
      * only return events on one or the other so we have to keep both.
@@ -267,7 +267,7 @@ acpi_button_notify_wakeup(void *arg)
     }
 }
 
-static void 
+static void
 acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
     struct acpi_button_softc	*sc;
@@ -281,10 +281,10 @@ acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
     switch (notify) {
     case ACPI_NOTIFY_BUTTON_PRESSED_FOR_SLEEP:
 	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_button_notify_sleep, sc);
-	break;   
+	break;
     case ACPI_NOTIFY_BUTTON_PRESSED_FOR_WAKEUP:
 	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_button_notify_wakeup, sc);
-	break;   
+	break;
     default:
 	device_printf(sc->button_dev, "unknown notify %#x\n", notify);
 	break;
@@ -299,7 +299,7 @@ acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 #endif
 }
 
-static ACPI_STATUS 
+static ACPI_STATUS
 acpi_button_fixed_handler(void *context)
 {
     struct acpi_button_softc	*sc = (struct acpi_button_softc *)context;

@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -134,7 +134,7 @@ bwi_pci_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	/* 
+	/*
 	 * Setup memory-mapping of PCI registers.
 	 */
 	sc->sc_mem_rid = BWI_PCIR_BAR;

@@ -4,11 +4,11 @@
  * Copyright 2000, 2001, 2002, 2003
  * Broadcom Corporation. All rights reserved.
  *
- * This software is furnished under license and may be used and 
- * copied only in accordance with the following terms and 
- * conditions.  Subject to these conditions, you may download, 
- * copy, install, use, modify and distribute modified or unmodified 
- * copies of this software in source and/or binary form.  No title 
+ * This software is furnished under license and may be used and
+ * copied only in accordance with the following terms and
+ * conditions.  Subject to these conditions, you may download,
+ * copy, install, use, modify and distribute modified or unmodified
+ * copies of this software in source and/or binary form.  No title
  * or ownership is transferred hereby.
  *
  * 1) Any source code used, modified or distributed must reproduce and
@@ -37,13 +37,13 @@
 
 /*  *********************************************************************
     *  Broadcom Common Firmware Environment (CFE)
-    *  
+    *
     *  IOCTL definitions			File: cfe_ioctl.h
-    *  
+    *
     *  IOCTL function numbers and I/O data structures.
-    *  
+    *
     *  Author:  Mitch Lichtenberg
-    *  
+    *
     ********************************************************************* */
 
 /*  *********************************************************************

@@ -129,7 +129,7 @@ void
 ar5416StopPcuReceive(struct ath_hal *ah)
 {
 	OS_REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT);
-    
+
 	HALDEBUG(ah, HAL_DEBUG_RX, "%s: Stop PCU Receive \n", __func__);
 	ar5212DisableMibCounters(ah);
 }

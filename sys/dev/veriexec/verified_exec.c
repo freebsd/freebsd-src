@@ -122,11 +122,11 @@ verifiedexecioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 		mtx_lock(&ve_mutex);
 		{
 			int *ip = (int *)data;
-			
+
 			mac_veriexec_debug++;
 			if (ip) {
 				if (*ip > 0)
-					mac_veriexec_debug = *ip;	
+					mac_veriexec_debug = *ip;
 				*ip = mac_veriexec_debug;
 			}
 		}

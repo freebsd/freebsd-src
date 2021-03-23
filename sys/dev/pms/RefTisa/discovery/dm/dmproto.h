@@ -1,22 +1,22 @@
 /*******************************************************************************
 *
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 *
 * $FreeBSD$
@@ -28,27 +28,27 @@
 #include <dev/pms/RefTisa/discovery/dm/dmtypes.h>
 
 /***************** util ****************************************/
-osGLOBAL void 
+osGLOBAL void
 *dm_memset(void *s, int c, bit32 n);
 
-osGLOBAL void 
+osGLOBAL void
 *dm_memcpy(void *dst, void *src, bit32 count);
 
-osGLOBAL void 
+osGLOBAL void
 dmhexdump(const char *ptitle, bit8 *pbuf, int len);
 
 
 /* timer related */
 osGLOBAL void
 dmInitTimers(
-             dmRoot_t *dmRoot 
+             dmRoot_t *dmRoot
             );
 osGLOBAL void
 dmInitTimerRequest(
-                   dmRoot_t                *dmRoot, 
+                   dmRoot_t                *dmRoot,
                    dmTimerRequest_t        *timerRequest
                    );
-		   		   
+
 osGLOBAL void
 dmSetTimerRequest(
                   dmRoot_t            *dmRoot,
@@ -59,91 +59,91 @@ dmSetTimerRequest(
                   void                *timerData2,
                   void                *timerData3
                   );
-		  
+
 osGLOBAL void
 dmAddTimer(
            dmRoot_t            *dmRoot,
-           dmList_t            *timerListHdr, 
+           dmList_t            *timerListHdr,
            dmTimerRequest_t    *timerRequest
           );
-	  
+
 osGLOBAL void
 dmKillTimer(
             dmRoot_t            *dmRoot,
             dmTimerRequest_t    *timerRequest
            );
-	   
-osGLOBAL void 
+
+osGLOBAL void
 dmProcessTimers(
                 dmRoot_t *dmRoot
                 );
-	   
-	  
+
+
 
 osGLOBAL void
 dmPortContextInit(
-                  dmRoot_t *dmRoot 
+                  dmRoot_t *dmRoot
                  );
-		    
+
 osGLOBAL void
 dmPortContextReInit(
                     dmRoot_t		  *dmRoot,
-                    dmIntPortContext_t    *onePortContext		     
+                    dmIntPortContext_t    *onePortContext
                     );
 
 osGLOBAL void
 dmDeviceDataInit(
-                 dmRoot_t *dmRoot 
+                 dmRoot_t *dmRoot
                 );
 
 osGLOBAL void
 dmDeviceDataReInit(
                    dmRoot_t		  *dmRoot,
-                   dmDeviceData_t         *oneDeviceData		     
+                   dmDeviceData_t         *oneDeviceData
                   );
-		  
+
 osGLOBAL void
 dmExpanderDeviceDataInit(
                          dmRoot_t *dmRoot,
-                         bit32    max_exp			  
+                         bit32    max_exp
                         );
-		   
+
 osGLOBAL void
 dmExpanderDeviceDataReInit(
-                           dmRoot_t 	    *dmRoot, 
+                           dmRoot_t 	    *dmRoot,
                            dmExpander_t     *oneExpander
                           );
 
 
 osGLOBAL void
 dmSMPInit(
-          dmRoot_t *dmRoot 
+          dmRoot_t *dmRoot
          );
 
 
 osGLOBAL bit32
 dmDiscoverCheck(
-                dmRoot_t 	    	*dmRoot, 
-                dmIntPortContext_t      *onePortContext	
+                dmRoot_t 	    	*dmRoot,
+                dmIntPortContext_t      *onePortContext
                 );
 osGLOBAL void
 dmDiscoverAbort(
-                dmRoot_t 	    	*dmRoot, 
-                dmIntPortContext_t      *onePortContext	
+                dmRoot_t 	    	*dmRoot,
+                dmIntPortContext_t      *onePortContext
                 );
 
 
 osGLOBAL bit32
 dmFullDiscover(
-               dmRoot_t 	    	*dmRoot, 
-               dmIntPortContext_t       *onePortContext	
+               dmRoot_t 	    	*dmRoot,
+               dmIntPortContext_t       *onePortContext
               );
 
 osGLOBAL bit32
 dmIncrementalDiscover(
-                      dmRoot_t 	    	      *dmRoot, 
+                      dmRoot_t 	    	      *dmRoot,
                       dmIntPortContext_t      *onePortContext,
-		      bit32                   flag	
+		      bit32                   flag
                      );
 
 osGLOBAL dmExpander_t *
@@ -181,7 +181,7 @@ dmExpMainListFind(
                   bit32               sasAddrHi,
                   bit32               sasAddrLo
                  );
-	 
+
 osGLOBAL dmDeviceData_t *
 dmDeviceFind(
              dmRoot_t            *dmRoot,
@@ -189,13 +189,13 @@ dmDeviceFind(
              bit32               sasAddrHi,
              bit32               sasAddrLo
             );
-	 
+
 osGLOBAL void
 dmUpStreamDiscoverStart(
                         dmRoot_t             *dmRoot,
                         dmIntPortContext_t   *onePortContext
                        );
-		      
+
 osGLOBAL void
 dmUpStreamDiscovering(
                       dmRoot_t              *dmRoot,
@@ -216,7 +216,7 @@ dmDownStreamDiscoverStart(
                           dmIntPortContext_t    *onePortContext,
                           dmDeviceData_t        *oneDeviceData
                          );
-		     
+
 osGLOBAL void
 dmCleanAllExp(
               dmRoot_t                 *dmRoot,
@@ -233,7 +233,7 @@ dmDiscoveryResetProcessed(
                           dmRoot_t                 *dmRoot,
                           dmIntPortContext_t       *onePortContext
                          );
-		   
+
 osGLOBAL void
 dmDiscoverDone(
                dmRoot_t                 *dmRoot,
@@ -327,8 +327,8 @@ dmPortSASDeviceFind(
                     dmIntPortContext_t  *onePortContext,
                     bit32               sasAddrLo,
                     bit32               sasAddrHi,
-                    dmDeviceData_t      *CurrentDeviceData		    
-                    );  
+                    dmDeviceData_t      *CurrentDeviceData
+                    );
 bit32
 dmNewEXPorNot(
               dmRoot_t              *dmRoot,
@@ -364,7 +364,7 @@ dmFindRegNValid(
                 dmRoot_t             *dmRoot,
                 dmIntPortContext_t   *onePortContext,
                 dmSASSubID_t         *dmSASSubID
-               );								
+               );
 
 osGLOBAL dmExpander_t *
 dmFindConfigurableExp(
@@ -427,7 +427,7 @@ dmDumpAllMainDevice(
                    dmRoot_t                 *dmRoot,
                    dmIntPortContext_t       *onePortContext
                    );
-		
+
 osGLOBAL void
 dmSubReportChanges(
                    dmRoot_t                  *dmRoot,
@@ -442,7 +442,7 @@ dmSubReportRemovals(
                    dmDeviceData_t            *oneDeviceData,
                    bit32                     flag
                   );
-		  
+
 osGLOBAL void
 dmReportChanges(
                 dmRoot_t                  *dmRoot,
@@ -505,7 +505,7 @@ osGLOBAL void
 dmUpdateMCN(
             dmRoot_t            *dmRoot,
             dmIntPortContext_t  *onePortContext,
-            dmDeviceData_t      *AdjacentDeviceData, /* adjacent expander */ 		    
+            dmDeviceData_t      *AdjacentDeviceData, /* adjacent expander */
             dmDeviceData_t      *oneDeviceData /* current one */
            );
 
@@ -535,7 +535,7 @@ dmDiscoveryReportMCN(
 
 GLOBAL void dmSetDeviceInfoCB(
                                 agsaRoot_t        *agRoot,
-                                agsaContext_t     *agContext, 
+                                agsaContext_t     *agContext,
                                 agsaDevHandle_t   *agDevHandle,
                                 bit32             status,
                                 bit32             option,
@@ -543,15 +543,15 @@ GLOBAL void dmSetDeviceInfoCB(
                                 );
 
 /*********************************** SMP-related *******************************************************/
-osGLOBAL void 
-dmsaSMPCompleted( 
+osGLOBAL void
+dmsaSMPCompleted(
                  agsaRoot_t            *agRoot,
                  agsaIORequest_t       *agIORequest,
                  bit32                 agIOStatus,
                  bit32                 agIOInfoLen,
                  agsaFrameHandle_t     agFrameHandle
                  );
-		 
+
 osGLOBAL bit32
 dmSMPStart(
            dmRoot_t              *dmRoot,
@@ -592,7 +592,7 @@ dmReportGeneral2RespRcvd(
 osGLOBAL void
 dmDiscoverSend(
                dmRoot_t             *dmRoot,
-               dmDeviceData_t       *oneDeviceData	       
+               dmDeviceData_t       *oneDeviceData
               );
 
 osGLOBAL void
@@ -630,7 +630,7 @@ dmDiscoverList2RespRcvd(
                         dmSMPFrameHeader_t    *frameHeader,
                         agsaFrameHandle_t     frameHandle
                        );
-#endif		     
+#endif
 
 osGLOBAL void
 dmReportPhySataSend(
@@ -663,7 +663,7 @@ osGLOBAL bit32
 dmRoutingEntryAdd(
                   dmRoot_t          *dmRoot,
                   dmExpander_t      *oneExpander,
-                  bit32             phyId,  
+                  bit32             phyId,
                   bit32             configSASAddressHi,
                   bit32             configSASAddressLo
                  );
@@ -677,7 +677,7 @@ dmConfigRoutingInfoRespRcvd(
                             dmSMPFrameHeader_t    *frameHeader,
                             agsaFrameHandle_t     frameHandle
                            );
-						
+
 osGLOBAL void
 dmConfigRoutingInfo2RespRcvd(
                             dmRoot_t              *dmRoot,
@@ -687,7 +687,7 @@ dmConfigRoutingInfo2RespRcvd(
                             dmSMPFrameHeader_t    *frameHeader,
                             agsaFrameHandle_t     frameHandle
                            );
-						
+
 osGLOBAL bit32
 dmPhyControlSend(
                  dmRoot_t             *dmRoot,
@@ -741,7 +741,7 @@ dmSMPCompleted(
                agsaIORequest_t       *agIORequest,
                bit32                 agIOStatus,
                bit32                 agIOInfoLen,
-               agsaFrameHandle_t     agFrameHandle                   
+               agsaFrameHandle_t     agFrameHandle
               );
 
 osGLOBAL void
@@ -751,8 +751,8 @@ dmSMPAbortCB(
              bit32                flag,
              bit32                status
              );
-	     
-osGLOBAL void                          
+
+osGLOBAL void
 dmBCTimer(
           dmRoot_t                 *dmRoot,
           dmIntPortContext_t       *onePortContext
@@ -760,7 +760,7 @@ dmBCTimer(
 
 osGLOBAL void
 dmBCTimerCB(
-              dmRoot_t    * dmRoot_t, 
+              dmRoot_t    * dmRoot_t,
               void        * timerData1,
               void        * timerData2,
               void        * timerData3
@@ -776,13 +776,13 @@ dmDiscoverySMPTimer(dmRoot_t                 *dmRoot,
 
 osGLOBAL void
 dmDiscoverySMPTimerCB(
-                      dmRoot_t    * dmRoot, 
+                      dmRoot_t    * dmRoot,
                       void        * timerData1,
                       void        * timerData2,
                       void        * timerData3
                      );
 
-osGLOBAL void                          
+osGLOBAL void
 dmDiscoveryConfiguringTimer(dmRoot_t                 *dmRoot,
                             dmIntPortContext_t       *onePortContext,
                             dmDeviceData_t           *oneDeviceData
@@ -791,13 +791,13 @@ dmDiscoveryConfiguringTimer(dmRoot_t                 *dmRoot,
 
 osGLOBAL void
 dmDiscoveryConfiguringTimerCB(
-                              dmRoot_t    * dmRoot, 
+                              dmRoot_t    * dmRoot,
                               void        * timerData1,
                               void        * timerData2,
                               void        * timerData3
                              );
 
-osGLOBAL void                          
+osGLOBAL void
 dmSMPBusyTimer(dmRoot_t             *dmRoot,
                dmIntPortContext_t   *onePortContext,
                dmDeviceData_t       *oneDeviceData,
@@ -806,13 +806,13 @@ dmSMPBusyTimer(dmRoot_t             *dmRoot,
 
 osGLOBAL void
 dmSMPBusyTimerCB(
-                 dmRoot_t    * dmRoot, 
+                 dmRoot_t    * dmRoot,
                  void        * timerData1,
                  void        * timerData2,
                  void        * timerData3
                 );
 
-osGLOBAL void                          
+osGLOBAL void
 dmConfigureRouteTimer(dmRoot_t                 *dmRoot,
                       dmIntPortContext_t       *onePortContext,
                       dmExpander_t             *oneExpander,
@@ -822,7 +822,7 @@ dmConfigureRouteTimer(dmRoot_t                 *dmRoot,
 
 osGLOBAL void
 dmConfigureRouteTimerCB(
-                        dmRoot_t    * dmRoot, 
+                        dmRoot_t    * dmRoot,
                         void        * timerData1,
                         void        * timerData2,
                         void        * timerData3

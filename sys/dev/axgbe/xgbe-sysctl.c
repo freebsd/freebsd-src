@@ -319,7 +319,7 @@ get_val(char *buf, char **op, char **val, int *n_op)
 		for (j = 0; buf[i] != ' '; j++) {
 			if (i >= blen)
 				break;
-			val[*n_op][j] = buf[i++]; 
+			val[*n_op][j] = buf[i++];
 		}
 		val[*n_op][j+1] = '\0';
 		if (i >= strlen(buf))
@@ -586,7 +586,7 @@ sysctl_get_link_info_handler(SYSCTL_HANDLER_ARGS)
 			rc = sb->s_error;
 			return (rc);
 		}
-		
+
 		sbuf_printf(sb, "\nLink is %s", pdata->phy.link ? "Up" : "Down");
 		rc = sbuf_finish(sb);
 		sbuf_delete(sb);
@@ -707,7 +707,7 @@ sysctl_coalesce_handler(SYSCTL_HANDLER_ARGS)
 	rc = get_ubuf(req, buf);
 	if (rc == 0) {
 		parse_generic_sysctl(pdata, buf, sysctl_coalesce,
-		    ARRAY_SIZE(sysctl_coalesce)); 
+		    ARRAY_SIZE(sysctl_coalesce));
 
 		rx_riwt = hw_if->usec_to_riwt(pdata, sys_op->rx_coalesce_usecs);
 		rx_usecs = sys_op->rx_coalesce_usecs;
@@ -888,15 +888,15 @@ sysctl_link_ksettings_handler(SYSCTL_HANDLER_ARGS)
 			strcpy(link_modes, "10Gbps/Full");
 			strcpy(speed_modes, "10000");
 			break;
-		case 3: 
+		case 3:
 			strcpy(link_modes, "2.5Gbps/Full");
 			strcpy(speed_modes, "2500");
 			break;
-		case 4: 
+		case 4:
 			strcpy(link_modes, "1Gbps/Full");
 			strcpy(speed_modes, "1000");
 			break;
-		case 5: 
+		case 5:
 			strcpy(link_modes, "100Mbps/Full");
 			strcpy(speed_modes, "100");
 			break;
@@ -905,7 +905,7 @@ sysctl_link_ksettings_handler(SYSCTL_HANDLER_ARGS)
 			strcpy(speed_modes, "10");
 			break;
 		}
-			
+
 		sbuf_printf(sb,
 		    "\nlink_modes: %s\n"
 		    "autonegotiation: %s\n"
@@ -1561,7 +1561,7 @@ sysctl_an_cdr_track_early_handler(SYSCTL_HANDLER_ARGS)
 
 		axgbe_printf(2, "READ: %s: an_cdr_track_early %d\n",  __func__,
 		    pdata->sysctl_an_cdr_track_early);
-		sbuf_printf(sb, "%d\n", pdata->sysctl_an_cdr_track_early);			
+		sbuf_printf(sb, "%d\n", pdata->sysctl_an_cdr_track_early);
 		rc = sbuf_finish(sb);
 		sbuf_delete(sb);
 		return (rc);
@@ -1591,18 +1591,18 @@ axgbe_sysctl_exit(struct xgbe_prv_data *pdata)
 		free(pdata->sys_op, M_AXGBE);
 }
 
-void 
+void
 axgbe_sysctl_init(struct xgbe_prv_data *pdata)
 {
 	struct sysctl_ctx_list *clist;
 	struct sysctl_oid_list *top;
-	struct sysctl_oid *parent; 
+	struct sysctl_oid *parent;
 	struct sysctl_op *sys_op;
 
 	sys_op = malloc(sizeof(*sys_op), M_AXGBE, M_WAITOK | M_ZERO);
 	pdata->sys_op = sys_op;
 
-	clist = device_get_sysctl_ctx(pdata->dev); 
+	clist = device_get_sysctl_ctx(pdata->dev);
 	parent = device_get_sysctl_tree(pdata->dev);
 	top = SYSCTL_CHILDREN(parent);
 

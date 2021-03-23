@@ -159,7 +159,7 @@ struct vmxnet3_softc {
  */
 #define VMXNET3_TX_MAXSEGS		32  /* 64K @ 2K segment size */
 #define VMXNET3_TX_MAXSIZE		(VMXNET3_TX_MAXSEGS * MCLBYTES)
-#define VMXNET3_TSO_MAXSIZE		(VMXNET3_TX_MAXSIZE - ETHER_VLAN_ENCAP_LEN) 
+#define VMXNET3_TSO_MAXSIZE		(VMXNET3_TX_MAXSIZE - ETHER_VLAN_ENCAP_LEN)
 
 /*
  * Maximum supported Tx segment size. The length field in the

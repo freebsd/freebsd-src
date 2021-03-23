@@ -161,9 +161,9 @@ atkbd_timeout(void *arg)
 	int s;
 
 	/*
-	 * The original text of the following comments are extracted 
+	 * The original text of the following comments are extracted
 	 * from syscons.c (1.287)
-	 * 
+	 *
 	 * With release 2.1 of the Xaccel server, the keyboard is left
 	 * hanging pretty often. Apparently an interrupt from the
 	 * keyboard is lost, and I don't know why (yet).
@@ -172,7 +172,7 @@ atkbd_timeout(void *arg)
 	 *
 	 * Try removing anything stuck in the keyboard controller; whether
 	 * it's a keyboard scan code or mouse data. The low-level
-	 * interrupt routine doesn't read the mouse data directly, 
+	 * interrupt routine doesn't read the mouse data directly,
 	 * but the keyboard controller driver will, as a side effect.
 	 */
 	/*
@@ -284,7 +284,7 @@ static keymap_t		default_keymap;
 static accentmap_t	default_accentmap;
 static fkeytab_t	default_fkeytab[NUM_FKEYS];
 
-/* 
+/*
  * The back door to the keyboard driver!
  * This function is called by the console driver, via the kbdio module,
  * to tickle keyboard drivers when the low-level console is being initialized.
@@ -438,7 +438,7 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		}
 		atkbd_clear_state(kbd);
 		state->ks_mode = K_XLATE;
-		/* 
+		/*
 		 * FIXME: set the initial value for lock keys in ks_state
 		 * according to the BIOS data?
 		 */
@@ -583,7 +583,7 @@ atkbd_test_if(keyboard_t *kbd)
 	return error;
 }
 
-/* 
+/*
  * Enable the access to the device; until this function is called,
  * the client cannot read from the keyboard.
  */
@@ -787,7 +787,7 @@ next_code:
 		}
 		break;
    	case 0xE1:	/* 0xE1 prefix */
-		/* 
+		/*
 		 * The pause/break key on the 101 keyboard produces:
 		 * E1-1D-45 E1-9D-C5
 		 * Ctrl-pause/break produces:
@@ -1164,8 +1164,8 @@ atkbd_reset(KBDC kbdc, int flags, int c)
 		test_controller(kbdc);
 		test_kbd_port(kbdc);
 		/*
-		 * We could disable the keyboard port and interrupt... but, 
-		 * the keyboard may still exist (see above). 
+		 * We could disable the keyboard port and interrupt... but,
+		 * the keyboard may still exist (see above).
 		 */
 		set_controller_command_byte(kbdc,
 		    ALLOW_DISABLE_KBD(kbdc) ? 0xff : KBD_KBD_CONTROL_BITS, c);
@@ -1241,8 +1241,8 @@ get_kbd_echo(KBDC kbdc)
 	/* enable the keyboard port and intr. */
 	if (setup_kbd_port(kbdc, TRUE, TRUE)) {
 		/*
-		 * CONTROLLER ERROR 
-		 * This is serious; the keyboard intr is left disabled! 
+		 * CONTROLLER ERROR
+		 * This is serious; the keyboard intr is left disabled!
 		 */
 		return ENXIO;
 	}
@@ -1254,7 +1254,7 @@ static int
 probe_keyboard(KBDC kbdc, int flags)
 {
 	/*
-	 * Don't try to print anything in this function.  The low-level 
+	 * Don't try to print anything in this function.  The low-level
 	 * console may not have been initialized yet...
 	 */
 	int err;
@@ -1282,11 +1282,11 @@ probe_keyboard(KBDC kbdc, int flags)
 		return ENXIO;
 	}
 
-	/* 
+	/*
 	 * The keyboard may have been screwed up by the boot block.
 	 * We may just be able to recover from error by testing the controller
 	 * and the keyboard port. The controller command byte needs to be
-	 * saved before this recovery operation, as some controllers seem 
+	 * saved before this recovery operation, as some controllers seem
 	 * to set the command byte to particular values.
 	 */
 	test_controller(kbdc);
@@ -1365,10 +1365,10 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 		return EIO;
 	}
 
-	/* 
-	 * Check if we have an XT keyboard before we attempt to reset it. 
-	 * The procedure assumes that the keyboard and the controller have 
-	 * been set up properly by BIOS and have not been messed up 
+	/*
+	 * Check if we have an XT keyboard before we attempt to reset it.
+	 * The procedure assumes that the keyboard and the controller have
+	 * been set up properly by BIOS and have not been messed up
 	 * during the boot process.
 	 */
 	codeset = -1;
@@ -1379,7 +1379,7 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 	else if ((c & KBD_TRANSLATION) == 0) {
 		/* SET_SCANCODE_SET is not always supported; ignore error */
 		if (send_kbd_command_and_data(kbdc, KBDC_SET_SCANCODE_SET, 0)
-			== KBD_ACK) 
+			== KBD_ACK)
 			codeset = read_kbd_data(kbdc);
 	}
 	if (bootverbose)
@@ -1427,9 +1427,9 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 			c &= ~KBD_TRANSLATION;
 		} else {
 			/*
-			 * KEYBOARD ERROR 
+			 * KEYBOARD ERROR
 			 * The XT kbd isn't usable unless the proper scan
-			 * code set is selected. 
+			 * code set is selected.
 			 */
 			set_controller_command_byte(kbdc, ALLOW_DISABLE_KBD(kbdc)
 			    ? 0xff : KBD_KBD_CONTROL_BITS, c);
@@ -1451,14 +1451,14 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 	    send_kbd_command(kbdc, KBDC_ENABLE_KBD);
 
 	/* enable the keyboard port and intr. */
-	if (!set_controller_command_byte(kbdc, 
+	if (!set_controller_command_byte(kbdc,
 		KBD_KBD_CONTROL_BITS | KBD_TRANSLATION | KBD_OVERRIDE_KBD_LOCK,
 		(c & (KBD_TRANSLATION | KBD_OVERRIDE_KBD_LOCK))
 		    | KBD_ENABLE_KBD_PORT | KBD_ENABLE_KBD_INT)) {
 		/*
-		 * CONTROLLER ERROR 
+		 * CONTROLLER ERROR
 		 * This is serious; we are left with the disabled
-		 * keyboard intr. 
+		 * keyboard intr.
 		 */
 		set_controller_command_byte(kbdc, ALLOW_DISABLE_KBD(kbdc)
 		    ? 0xff : (KBD_KBD_CONTROL_BITS | KBD_TRANSLATION |
@@ -1478,15 +1478,15 @@ write_kbd(KBDC kbdc, int command, int data)
 	int s;
 
 	/* prevent the timeout routine from polling the keyboard */
-	if (!kbdc_lock(kbdc, TRUE)) 
+	if (!kbdc_lock(kbdc, TRUE))
 		return EBUSY;
 
 	/* disable the keyboard and mouse interrupt */
 	s = spltty();
 #if 0
 	c = get_controller_command_byte(kbdc);
-	if ((c == -1) 
-	    || !set_controller_command_byte(kbdc, 
+	if ((c == -1)
+	    || !set_controller_command_byte(kbdc,
 		kbdc_get_device_mask(kbdc),
 		KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
 		| KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
@@ -1495,11 +1495,11 @@ write_kbd(KBDC kbdc, int command, int data)
 		splx(s);
 		return EIO;
 	}
-	/* 
-	 * Now that the keyboard controller is told not to generate 
-	 * the keyboard and mouse interrupts, call `splx()' to allow 
-	 * the other tty interrupts. The clock interrupt may also occur, 
-	 * but the timeout routine (`scrn_timer()') will be blocked 
+	/*
+	 * Now that the keyboard controller is told not to generate
+	 * the keyboard and mouse interrupts, call `splx()' to allow
+	 * the other tty interrupts. The clock interrupt may also occur,
+	 * but the timeout routine (`scrn_timer()') will be blocked
 	 * by the lock flag set via `kbdc_lock()'
 	 */
 	splx(s);
@@ -1509,7 +1509,7 @@ write_kbd(KBDC kbdc, int command, int data)
 #if 0
 	/* restore the interrupts */
 	if (!set_controller_command_byte(kbdc, kbdc_get_device_mask(kbdc),
-	    c & (KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS))) { 
+	    c & (KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS))) {
 		/* CONTROLLER ERROR */
 	}
 #else

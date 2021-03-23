@@ -88,16 +88,16 @@ static int ipsd_close(struct disk *dp)
 void ipsd_finish(struct bio *iobuf)
 {
 	ipsdisk_softc_t *dsc;
-	dsc = iobuf->bio_disk->d_drv1;	
+	dsc = iobuf->bio_disk->d_drv1;
 
 	if (iobuf->bio_flags & BIO_ERROR) {
 		ipsdisk_softc_t *dsc;
-		dsc = iobuf->bio_disk->d_drv1; 
+		dsc = iobuf->bio_disk->d_drv1;
 		device_printf(dsc->dev, "iobuf error %d\n", iobuf->bio_error);
 	} else
 		iobuf->bio_resid = 0;
 
-	biodone(iobuf);	
+	biodone(iobuf);
 	ips_start_io_request(dsc->sc);
 }
 
@@ -106,7 +106,7 @@ static void ipsd_strategy(struct bio *iobuf)
 {
 	ipsdisk_softc_t *dsc;
 
-	dsc = iobuf->bio_disk->d_drv1;	
+	dsc = iobuf->bio_disk->d_drv1;
 	DEVICE_PRINTF(8,dsc->dev,"in strategy\n");
 	iobuf->bio_driver1 = (void *)(uintptr_t)dsc->sc->drives[dsc->disk_number].drivenum;
 
@@ -298,7 +298,7 @@ ipsd_dump_map_sg(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	return;
 }
 
-static void 
+static void
 ipsd_dump_block_complete(ips_command_t *command)
 {
 

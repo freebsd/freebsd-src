@@ -152,7 +152,7 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 
 		oldsp = sp;
 
-#ifdef notyet /* XXX signal stack. */ 
+#ifdef notyet /* XXX signal stack. */
 		if (oldcontext == sp + s1 || oldcontext == sp + s2) {
 			if (p->p_model == DATAMODEL_NATIVE) {
 				ucontext_t *ucp = (ucontext_t *)oldcontext;
@@ -248,7 +248,7 @@ dtrace_getupcstack(uint64_t *pcstack, int pcstack_limit)
 		 * pushed (that happens in the function prologue).  The
 		 * best approach is to add the current pc as a missing top
 		 * of stack and back the pc up to the caller, which is stored
-		 * at the current stack pointer address since the call 
+		 * at the current stack pointer address since the call
 		 * instruction puts it there right before the branch.
 		 */
 
@@ -296,7 +296,7 @@ dtrace_getustackdepth(void)
 		 * pushed (that happens in the function prologue).  The
 		 * best approach is to add the current pc as a missing top
 		 * of stack and back the pc up to the caller, which is stored
-		 * at the current stack pointer address since the call 
+		 * at the current stack pointer address since the call
 		 * instruction puts it there right before the branch.
 		 */
 

@@ -681,7 +681,7 @@ vesa_translate_flags(u_int16_t vflags)
 	int i;
 
 	for (flags = 0, i = 0; i < nitems(ftable); ++i) {
-		flags |= (vflags & ftable[i].mask) ? 
+		flags |= (vflags & ftable[i].mask) ?
 			 ftable[i].set : ftable[i].reset;
 	}
 	return (flags);
@@ -1128,7 +1128,7 @@ vesa_configure(int flags)
 		return (0);
 
 	/*
-	 * If the VESA module has already been loaded, abort loading 
+	 * If the VESA module has already been loaded, abort loading
 	 * the module this time.
 	 */
 	for (i = 0; (adp = vid_get_adapter(i)) != NULL; ++i) {
@@ -1139,7 +1139,7 @@ vesa_configure(int flags)
 	}
 
 	/*
-	 * The VGA adapter is not found.  This is because either 
+	 * The VGA adapter is not found.  This is because either
 	 * 1) the VGA driver has not been initialized, or 2) the VGA card
 	 * is not present.  If 1) is the case, we shall defer
 	 * initialization for now and try again later.
@@ -1165,7 +1165,7 @@ vesa_configure(int flags)
 	/* remove conflicting modes if we have more than one adapter */
 	if (adapters > 1) {
 		vesa_clear_modes(vesa_vmode,
-				 (vesa_adp->va_flags & V_ADP_COLOR) ? 
+				 (vesa_adp->va_flags & V_ADP_COLOR) ?
 				     V_INFO_COLOR : 0);
 	}
 
@@ -1222,7 +1222,7 @@ vesa_get_info(video_adapter_t *adp, int mode, video_info_t *info)
 	if (adp != vesa_adp)
 		return (1);
 
-	mode = vesa_map_gen_mode_num(vesa_adp->va_type, 
+	mode = vesa_map_gen_mode_num(vesa_adp->va_type,
 				     vesa_adp->va_flags & V_ADP_COLOR, mode);
 	for (i = 0; vesa_vmode[i].vi_mode != EOT; ++i) {
 		if (vesa_vmode[i].vi_mode == NA)
@@ -1282,18 +1282,18 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	if (adp != vesa_adp)
 		return ((*prevvidsw->set_mode)(adp, mode));
 
-	mode = vesa_map_gen_mode_num(adp->va_type, 
+	mode = vesa_map_gen_mode_num(adp->va_type,
 				     adp->va_flags & V_ADP_COLOR, mode);
 #if VESA_DEBUG > 0
 	printf("VESA: set_mode(): %d(%x) -> %d(%x)\n",
 		adp->va_mode, adp->va_mode, mode, mode);
 #endif
-	/* 
+	/*
 	 * If the current mode is a VESA mode and the new mode is not,
 	 * restore the state of the adapter first by setting one of the
-	 * standard VGA mode, so that non-standard, extended SVGA registers 
-	 * are set to the state compatible with the standard VGA modes. 
-	 * Otherwise (*prevvidsw->set_mode)() may not be able to set up 
+	 * standard VGA mode, so that non-standard, extended SVGA registers
+	 * are set to the state compatible with the standard VGA modes.
+	 * Otherwise (*prevvidsw->set_mode)() may not be able to set up
 	 * the new mode correctly.
 	 */
 	if (VESA_MODE(adp->va_mode)) {
@@ -1306,8 +1306,8 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 			int10_set_mode(adp->va_initial_bios_mode);
 			if (adp->va_info.vi_flags & V_INFO_LINEAR)
 				pmap_unmapdev(adp->va_buffer, vesa_vmem_max);
-			/* 
-			 * Once (*prevvidsw->get_info)() succeeded, 
+			/*
+			 * Once (*prevvidsw->get_info)() succeeded,
 			 * (*prevvidsw->set_mode)() below won't fail...
 			 */
 		}
@@ -1357,7 +1357,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 #endif
 	vesa_adp->va_mode = mode & 0x1ff;	/* Mode number is 9-bit. */
 	vesa_adp->va_flags &= ~V_ADP_COLOR;
-	vesa_adp->va_flags |= 
+	vesa_adp->va_flags |=
 		(info.vi_flags & V_INFO_COLOR) ? V_ADP_COLOR : 0;
 	vesa_adp->va_crtc_addr =
 		(vesa_adp->va_flags & V_ADP_COLOR) ? COLOR_CRTC : MONO_CRTC;
@@ -1564,12 +1564,12 @@ vesa_set_origin(video_adapter_t *adp, off_t offset)
 	x86regs_t regs;
 
 	/*
-	 * This function should return as quickly as possible to 
+	 * This function should return as quickly as possible to
 	 * maintain good performance of the system. For this reason,
-	 * error checking is kept minimal and let the VESA BIOS to 
+	 * error checking is kept minimal and let the VESA BIOS to
 	 * detect error.
 	 */
-	if (adp != vesa_adp) 
+	if (adp != vesa_adp)
 		return ((*prevvidsw->set_win_org)(adp, offset));
 
 	/* if this is a linear frame buffer, do nothing */
@@ -1582,7 +1582,7 @@ vesa_set_origin(video_adapter_t *adp, off_t offset)
 	x86bios_init_regs(&regs);
 	regs.R_AX = 0x4f05;
 	regs.R_DX = offset / adp->va_window_gran;
-	
+
 	x86bios_intr(&regs, 0x10);
 
 	if (regs.R_AX != 0x004f)
@@ -1622,7 +1622,7 @@ vesa_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
 }
 
 static int
-vesa_blank_display(video_adapter_t *adp, int mode) 
+vesa_blank_display(video_adapter_t *adp, int mode)
 {
 
 	/* XXX: use VESA DPMS */
@@ -1635,7 +1635,7 @@ vesa_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 {
 
 #if VESA_DEBUG > 0
-	printf("vesa_mmap(): window:0x%tx, buffer:0x%tx, offset:0x%jx\n", 
+	printf("vesa_mmap(): window:0x%tx, buffer:0x%tx, offset:0x%jx\n",
 	       adp->va_info.vi_window, adp->va_info.vi_buffer, offset);
 #endif
 
@@ -1855,7 +1855,7 @@ vesa_bios_info(int level)
 	if (bootverbose) {
 		/* general adapter information */
 		printf(
-	"VESA: v%d.%d, %dk memory, flags:0x%x, mode table:%p (%x)\n", 
+	"VESA: v%d.%d, %dk memory, flags:0x%x, mode table:%p (%x)\n",
 		    (vers >> 12) * 10 + ((vers & 0x0f00) >> 8),
 		    ((vers & 0x00f0) >> 4) * 10 + (vers & 0x000f),
 		    vesa_adp_info->v_memsize * 64, vesa_adp_info->v_flags,
@@ -1886,24 +1886,24 @@ vesa_bios_info(int level)
 			continue;
 
 		/* print something for diagnostic purpose */
-		printf("VESA: mode:0x%03x, flags:0x%04x", 
+		printf("VESA: mode:0x%03x, flags:0x%04x",
 		       vesa_vmodetab[i], vmode.v_modeattr);
 		if (vmode.v_modeattr & V_MODEOPTINFO) {
 			if (vmode.v_modeattr & V_MODEGRAPHICS) {
-				printf(", G %dx%dx%d %d, ", 
+				printf(", G %dx%dx%d %d, ",
 				       vmode.v_width, vmode.v_height,
 				       vmode.v_bpp, vmode.v_planes);
 			} else {
-				printf(", T %dx%d, ", 
+				printf(", T %dx%d, ",
 				       vmode.v_width, vmode.v_height);
 			}
-			printf("font:%dx%d, ", 
+			printf("font:%dx%d, ",
 			       vmode.v_cwidth, vmode.v_cheight);
 			printf("pages:%d, mem:%d",
 			       vmode.v_ipages + 1, vmode.v_memmodel);
 		}
 		if (vmode.v_modeattr & V_MODELFB) {
-			printf("\nVESA: LFB:0x%x, off:0x%x, off_size:0x%x", 
+			printf("\nVESA: LFB:0x%x, off:0x%x, off_size:0x%x",
 			       vmode.v_lfb, vmode.v_offscreen,
 			       vmode.v_offscreensize*1024);
 		}
@@ -1957,7 +1957,7 @@ vesa_unload(void)
 	/* if the adapter is currently in a VESA mode, don't unload */
 	if (VESA_MODE(vesa_adp->va_mode))
 		return (EBUSY);
-	/* 
+	/*
 	 * FIXME: if there is at least one vty which is in a VESA mode,
 	 * we shouldn't be unloading! XXX
 	 */

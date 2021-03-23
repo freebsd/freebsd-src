@@ -466,7 +466,7 @@ fail:
 	return rc;
 }
 
-int 
+int
 bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
 {
         struct hwrm_func_qcfg_input req = {0};
@@ -611,11 +611,11 @@ bnxt_hwrm_set_link_setting(struct bnxt_softc *softc, bool set_pause,
 
 	if (!rc) {
 		if (set_pause) {
-			/* since changing of 'force pause' setting doesn't 
+			/* since changing of 'force pause' setting doesn't
 			 * trigger any link change event, the driver needs to
 			 * update the current pause result upon successfully i
 			 * return of the phy_cfg command */
-			if (!softc->link_info.flow_ctrl.autoneg) 
+			if (!softc->link_info.flow_ctrl.autoneg)
 				bnxt_report_link(softc);
 		}
 	}
@@ -1017,12 +1017,12 @@ bnxt_hwrm_vnic_tpa_cfg(struct bnxt_softc *softc)
 			HWRM_VNIC_TPA_CFG_INPUT_FLAGS_ENCAP_TPA |
 			HWRM_VNIC_TPA_CFG_INPUT_FLAGS_AGG_WITH_ECN |
 			HWRM_VNIC_TPA_CFG_INPUT_FLAGS_AGG_WITH_SAME_GRE_SEQ;
-		
+
         	if (softc->hw_lro.is_mode_gro)
 			flags |= HWRM_VNIC_TPA_CFG_INPUT_FLAGS_GRO;
 		else
 			flags |= HWRM_VNIC_TPA_CFG_INPUT_FLAGS_RSC_WND_UPDATE;
-			
+
 		req.flags = htole32(flags);
 
 		req.enables = htole32(HWRM_VNIC_TPA_CFG_INPUT_ENABLES_MAX_AGG_SEGS |
@@ -1550,14 +1550,14 @@ bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
 	link_info->auto_mode = resp->auto_mode;
 
         /*
-         * When AUTO_PAUSE_AUTONEG_PAUSE bit is set to 1, 
+         * When AUTO_PAUSE_AUTONEG_PAUSE bit is set to 1,
          * the advertisement of pause is enabled.
          * 1. When the auto_mode is not set to none and this flag is set to 1,
          *    then the auto_pause bits on this port are being advertised and
          *    autoneg pause results are being interpreted.
          * 2. When the auto_mode is not set to none and this flag is set to 0,
-         *    the pause is forced as indicated in force_pause, and also 
-	 *    advertised as auto_pause bits, but the autoneg results are not 
+         *    the pause is forced as indicated in force_pause, and also
+	 *    advertised as auto_pause bits, but the autoneg results are not
 	 *    interpreted since the pause configuration is being forced.
          * 3. When the auto_mode is set to none and this flag is set to 1,
          *    auto_pause bits should be ignored and should be set to 0.
@@ -1567,7 +1567,7 @@ bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
 	link_info->flow_ctrl.tx = false;
 	link_info->flow_ctrl.rx = false;
 
-	if ((resp->auto_mode) && 
+	if ((resp->auto_mode) &&
             (resp->auto_pause & BNXT_AUTO_PAUSE_AUTONEG_PAUSE)) {
 			link_info->flow_ctrl.autoneg = true;
 	}
@@ -1741,7 +1741,7 @@ int bnxt_hwrm_set_coal(struct bnxt_softc *softc)
                                   buf_tmr_irq << 16 | buf_tmr, flags, &req_tx);
 
         for (i = 0; i < softc->nrxqsets; i++) {
-                
+
 		req = &req_rx;
                 /*
                  * TBD:

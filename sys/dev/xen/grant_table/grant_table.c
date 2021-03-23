@@ -1,11 +1,11 @@
 /******************************************************************************
  * gnttab.c
- * 
+ *
  * Two sets of functionality:
  * 1. Granting foreign access to our memory reservation.
  * 2. Accessing others' memory reservations via grant references.
  * (i.e., mechanisms for both sender and recipient of grant references)
- * 
+ *
  * Copyright (c) 2005, Christopher Clark
  * Copyright (c) 2004, K A Fraser
  */
@@ -229,7 +229,7 @@ gnttab_end_foreign_access_references(u_int count, grant_ref_t *refs)
 			head = *refs;
 		} else {
 			/*
-			 * XXX This needs to be fixed so that the ref 
+			 * XXX This needs to be fixed so that the ref
 			 * is placed on a list to be freed up later.
 			 */
 			printf("%s: WARNING: leaking g.e. still in use!\n",
@@ -613,7 +613,7 @@ granttable_identify(driver_t *driver __unused, device_t parent)
  *
  * \return  Always returns 0 indicating success.
  */
-static int 
+static int
 granttable_probe(device_t dev)
 {
 

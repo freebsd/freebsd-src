@@ -206,7 +206,7 @@ rt_probe(device_t dev)
 	cd = ofw_bus_search_compatible(dev, rt_compat_data);
 	if (cd->ocd_data == 0)
 	        return (ENXIO);
-	        
+
 	sc->rt_chipid = (unsigned int)(cd->ocd_data);
 #else
 #if defined(MT7620)
@@ -1571,9 +1571,9 @@ rt_rt5350_intr(void *arg)
 	if (status & RT5350_TX_DLY_INT)
 	        rt_tx_delay_intr(sc);
 	if (status & RT5350_INT_RXQ1_DONE)
-		rt_rx_intr(sc, 1);	
+		rt_rx_intr(sc, 1);
 	if (status & RT5350_INT_RXQ0_DONE)
-		rt_rx_intr(sc, 0);	
+		rt_rx_intr(sc, 0);
 	if (status & RT5350_INT_TXQ3_DONE)
 		rt_tx_intr(sc, 3);
 	if (status & RT5350_INT_TXQ2_DONE)
@@ -1582,7 +1582,7 @@ rt_rt5350_intr(void *arg)
 		rt_tx_intr(sc, 1);
 	if (status & RT5350_INT_TXQ0_DONE)
 		rt_tx_intr(sc, 0);
-} 
+}
 
 static void
 rt_tx_coherent_intr(struct rt_softc *sc)
@@ -2882,7 +2882,7 @@ DRIVER_MODULE(rt, simplebus, rt_driver, rt_dev_class, 0, 0);
 MODULE_DEPEND(rt, ether, 1, 1, 1);
 MODULE_DEPEND(rt, miibus, 1, 1, 1);
 
-#ifdef RT_MDIO       
+#ifdef RT_MDIO
 MODULE_DEPEND(rt, mdio, 1, 1, 1);
 
 static int rtmdio_probe(device_t);

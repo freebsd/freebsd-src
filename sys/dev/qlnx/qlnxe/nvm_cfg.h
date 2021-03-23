@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -706,7 +706,7 @@ struct nvm_cfg1_glob
 		#define NVM_CFG1_GLOB_I2C_MUX_SEL_GPIO__GPIO30                  0x1F
 		#define NVM_CFG1_GLOB_I2C_MUX_SEL_GPIO__GPIO31                  0x20
 	/*  Interrupt signal used for SMBus/I2C management interface
-        
+
            0 = Interrupt event occurred
           1 = Normal
            */

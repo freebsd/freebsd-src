@@ -3,13 +3,13 @@
  *
  * Copyright (c) 2015-2016 Landon Fuller <landon@landonf.org>
  * Copyright (c) 1999-2015, Broadcom Corporation
- * 
- * This file is derived from the bcmdevs.h header contributed by Broadcom 
+ *
+ * This file is derived from the bcmdevs.h header contributed by Broadcom
  * to Android's bcmdhd driver module, later revisions of bcmdevs.h distributed
  * with the dd-wrt project, and the hndsoc.h header distributed with Broadcom's
  * initial brcm80211 Linux driver release as contributed to the Linux staging
  * repository.
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
@@ -30,11 +30,11 @@
 
 /*
  * JEDEC JEP-106 Core Vendor IDs
- * 
+ *
  * These are the JEDEC JEP-106 manufacturer ID representions (with ARM's
  * non-standard 4-bit continutation code), as used in ARM's PrimeCell
  * identification registers, bcma(4) EROM core descriptors, etc.
- * 
+ *
  * @note
  * Bus implementations that predate the adoption of ARM IP
  * will need to convert bus-specific vendor IDs to their BHND_MFGID
@@ -53,7 +53,7 @@
  * The 4-bit continuation code field specifies the number of JEP-106
  * continuation codes that prefix the manufacturer's ID code. In the case of
  * ARM's JEP-106 ID of `0x7F 0x7F 0x7F 0x7F 0x3B`, the four 0x7F continuations
- * are encoded as '4' in the 4-bit continuation code field (i.e. 0x43B). 
+ * are encoded as '4' in the 4-bit continuation code field (i.e. 0x43B).
  */
 #define	BHND_MFGID_ARM		0x043b		/**< arm JEP-106 vendor id */
 #define	BHND_MFGID_BCM		0x04bf		/**< broadcom JEP-106 vendor id */
@@ -62,7 +62,7 @@
 
 /*
  * OCP (Open Core Protocol) Vendor IDs.
- * 
+ *
  * OCP-IP assigned vendor codes are used by siba(4)
  */
 #define	OCP_VENDOR_BCM		0x4243		/**< Broadcom OCP vendor id */
@@ -590,7 +590,7 @@
 #define	BHND_BFL2_PCIEWAR_OVR		0x00000020	/* Board overrides ASPM and Clkreq settings */
 #define	BHND_BFL2_CAESERS_BRD		0x00000040	/* Board is Caesers brd (unused by sw) */
 #define	BHND_BFL2_BTC3WIRE		0x00000080	/* Board support legacy 3 wire or 4 wire */
-#define	BHND_BFL2_BTCLEGACY		0x00000080	/* Board support legacy 3/4 wire, to replace 
+#define	BHND_BFL2_BTCLEGACY		0x00000080	/* Board support legacy 3/4 wire, to replace
 							 * BHND_BFL2_BTC3WIRE
 							 */
 #define	BHND_BFL2_SKWRKFEM_BRD		0x00000100	/* 4321mcm93 board uses Skyworks FEM */

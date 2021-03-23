@@ -608,7 +608,7 @@ uhso_attach(device_t self)
 	 * very helpful. So we skip device_set_usb_desc and set the
 	 * device description manually.
 	 */
-	device_set_desc_copy(self, uhso_port_type[UHSO_IFACE_PORT_TYPE(sc->sc_type)]); 
+	device_set_desc_copy(self, uhso_port_type[UHSO_IFACE_PORT_TYPE(sc->sc_type)]);
 	/* Announce device */
 	device_printf(self, "<%s port> at <%s %s> on %s\n",
 	    uhso_port_type[UHSO_IFACE_PORT_TYPE(sc->sc_type)],
@@ -918,7 +918,7 @@ uhso_probe_iface(struct uhso_softc *sc, int index,
 		 * available.
 		 */
 		if (iface->idesc->bNumEndpoints < 3) {
-			sc->sc_type = UHSO_IFACE_SPEC( 
+			sc->sc_type = UHSO_IFACE_SPEC(
 			    UHSO_IFACE_USB_TYPE(type) & ~UHSO_IF_MUX,
 			    UHSO_IFACE_PORT(type) & ~UHSO_PORT_SERIAL,
 			    UHSO_IFACE_PORT_TYPE(type));
@@ -998,8 +998,8 @@ uhso_radio_sysctl(SYSCTL_HANDLER_ARGS)
 		error = uhso_radio_ctrl(sc, radio);
 		if (error != -1)
 			sc->sc_radio = radio;
-			
-	}	
+
+	}
 	return (0);
 }
 
@@ -1025,7 +1025,7 @@ uhso_alloc_tty(struct uhso_softc *sc)
 
 	sc->sc_tty[sc->sc_ttys - 1].ht_sc = sc;
 
-	UHSO_DPRINTF(1, "Allocated TTY %d\n", sc->sc_ttys - 1);	
+	UHSO_DPRINTF(1, "Allocated TTY %d\n", sc->sc_ttys - 1);
 	return (sc->sc_ttys - 1);
 }
 
@@ -1070,7 +1070,7 @@ uhso_attach_muxserial(struct uhso_softc *sc, struct usb_interface *iface,
 			if (tty < 0)
 				return (ENOMEM);
 			sc->sc_tty[tty].ht_muxport = i;
-			uerr = usbd_transfer_setup(sc->sc_udev,	
+			uerr = usbd_transfer_setup(sc->sc_udev,
 			    &sc->sc_iface_index, sc->sc_tty[tty].ht_xfer,
 			    uhso_ctrl_config, UHSO_CTRL_MAX, sc, &sc->sc_mtx);
 			if (uerr) {
@@ -1419,7 +1419,7 @@ uhso_bs_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			if (cdc.data[0] & UCDC_N_SERIAL_RI)
 				sc->sc_msr |= SER_RI;
 			if (cdc.data[0] & UCDC_N_SERIAL_DSR)
-				sc->sc_msr |= SER_DSR;	
+				sc->sc_msr |= SER_DSR;
 			if (cdc.data[0] & UCDC_N_SERIAL_DCD)
 				sc->sc_msr |= SER_DCD;
 
@@ -1614,7 +1614,7 @@ static void
 uhso_ifnet_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct uhso_softc *sc = usbd_xfer_softc(xfer);
-	struct mbuf *m;	
+	struct mbuf *m;
 	struct usb_page_cache *pc;
 	int actlen;
 

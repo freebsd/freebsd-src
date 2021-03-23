@@ -34,7 +34,7 @@
 /*-
  * Copyright (c) 2002, 2006 by Matthew Jacob
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -48,7 +48,7 @@
  * 3. Neither the names of the above listed copyright holders nor the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -72,7 +72,7 @@
  * Copyright (c) 2005, WHEEL Sp. z o.o.
  * Copyright (c) 2004, 2005 Justin T. Gibbs
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -86,7 +86,7 @@
  * 3. Neither the names of the above listed copyright holders nor the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -513,7 +513,7 @@ mpt_pci_attach(device_t dev)
 	 * Hard resets are known to screw up the BAR for diagnostic
 	 * memory accesses (Mem1).
 	 *
-	 * Using Mem1 is known to make the chip stop responding to 
+	 * Using Mem1 is known to make the chip stop responding to
 	 * configuration space transfers, so we need to save it now
 	 */
 
@@ -704,7 +704,7 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	return (0);
 }
 
-/* Deallocate memory that was allocated by mpt_dma_mem_alloc 
+/* Deallocate memory that was allocated by mpt_dma_mem_alloc
  */
 static void
 mpt_dma_mem_free(struct mpt_softc *mpt)
@@ -715,7 +715,7 @@ mpt_dma_mem_free(struct mpt_softc *mpt)
 		mpt_lprt(mpt, MPT_PRT_DEBUG, "already released dma memory\n");
 		return;
         }
-                
+
 	bus_dmamap_unload(mpt->reply_dmat, mpt->reply_dmap);
 	bus_dmamem_free(mpt->reply_dmat, mpt->reply, mpt->reply_dmap);
 	bus_dma_tag_destroy(mpt->reply_dmat);

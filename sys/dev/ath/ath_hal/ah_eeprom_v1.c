@@ -91,9 +91,9 @@ v1EepromDiag(struct ath_hal *ah, int request,
 	return AH_FALSE;
 }
 
-static uint16_t 
+static uint16_t
 v1EepromGetSpurChan(struct ath_hal *ah, int ix, HAL_BOOL is2GHz)
-{ 
+{
 	return AR_NO_SPUR;
 }
 

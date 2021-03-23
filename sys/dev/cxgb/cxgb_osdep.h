@@ -94,11 +94,11 @@ struct t3_mbuf_hdr {
 #define TX_WR_COUNT_MAX         7              /* the maximum total number of packets that can be
 						* aggregated into a single TX WR
 						*/
-#if defined(__i386__) || defined(__amd64__)  
+#if defined(__i386__) || defined(__amd64__)
 
 static __inline
-void prefetch(void *x) 
-{ 
+void prefetch(void *x)
+{
         __asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
 }
 
@@ -112,7 +112,7 @@ void prefetch(void *x)
         } \
 } while (0)
 
-#else 
+#else
 #define smp_mb()
 #define prefetch(x)
 #define L1_CACHE_BYTES 32
@@ -132,8 +132,8 @@ static const int debug_flags = DBG_RX;
 
 #include <sys/syslog.h>
 
-#define promisc_rx_mode(rm)  ((rm)->port->ifp->if_flags & IFF_PROMISC) 
-#define allmulti_rx_mode(rm) ((rm)->port->ifp->if_flags & IFF_ALLMULTI) 
+#define promisc_rx_mode(rm)  ((rm)->port->ifp->if_flags & IFF_PROMISC)
+#define allmulti_rx_mode(rm) ((rm)->port->ifp->if_flags & IFF_ALLMULTI)
 
 #define CH_ERR(adap, fmt, ...) log(LOG_ERR, fmt, ##__VA_ARGS__)
 #define CH_WARN(adap, fmt, ...)	log(LOG_WARNING, fmt, ##__VA_ARGS__)
@@ -216,7 +216,7 @@ typedef uint8_t 	u8;
 typedef uint16_t 	u16;
 typedef uint32_t 	u32;
 typedef uint64_t 	u64;
- 
+
 typedef uint8_t		__u8;
 typedef uint16_t	__u16;
 typedef uint32_t	__u32;
@@ -245,7 +245,7 @@ typedef uint64_t	__be64;
 #define SUPPORTED_Autoneg               (1 << 6)
 #define SUPPORTED_TP                    (1 << 7)
 #define SUPPORTED_AUI                   (1 << 8)
-#define SUPPORTED_MII                   (1 << 9) 
+#define SUPPORTED_MII                   (1 << 9)
 #define SUPPORTED_FIBRE                 (1 << 10)
 #define SUPPORTED_BNC                   (1 << 11)
 #define SUPPORTED_10000baseT_Full       (1 << 12)
@@ -263,7 +263,7 @@ typedef uint64_t	__be64;
 #define ADVERTISED_TP                   (1 << 7)
 #define ADVERTISED_AUI                  (1 << 8)
 #define ADVERTISED_MII                  (1 << 9)
-#define ADVERTISED_FIBRE                (1 << 10) 
+#define ADVERTISED_FIBRE                (1 << 10)
 #define ADVERTISED_BNC                  (1 << 11)
 #define ADVERTISED_10000baseT_Full      (1 << 12)
 #define ADVERTISED_Pause                (1 << 13)

@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/gpio/gpiobusvar.h>
 
-struct gpiobacklight_softc 
+struct gpiobacklight_softc
 {
 	gpio_pin_t		sc_pin;
 	struct sysctl_oid	*sc_oid;
@@ -58,7 +58,7 @@ static int gpiobacklight_probe(device_t);
 static int gpiobacklight_attach(device_t);
 static int gpiobacklight_detach(device_t);
 
-static void 
+static void
 gpiobacklight_update_brightness(struct gpiobacklight_softc *sc)
 {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -188,7 +188,7 @@ struct ecore_ptt;
 enum ecore_coalescing_fsm {
 	ECORE_COAL_RX_STATE_MACHINE,
 	ECORE_COAL_TX_STATE_MACHINE
-}; 
+};
 
 /**
  * @brief ecore_int_cau_conf_pi - configure cau for a given
@@ -226,7 +226,7 @@ void ecore_int_igu_enable_int(struct ecore_hwfn *p_hwfn,
  * @param p_ptt
  */
 void ecore_int_igu_disable_int(struct ecore_hwfn *p_hwfn,
-			       struct ecore_ptt	*p_ptt); 
+			       struct ecore_ptt	*p_ptt);
 
 /**
  * @brief ecore_int_igu_read_sisr_reg - Reads the single isr multiple dpc
@@ -236,7 +236,7 @@ void ecore_int_igu_disable_int(struct ecore_hwfn *p_hwfn,
  *
  * @return u64
  */
-u64 ecore_int_igu_read_sisr_reg(struct ecore_hwfn *p_hwfn); 
+u64 ecore_int_igu_read_sisr_reg(struct ecore_hwfn *p_hwfn);
 
 #define ECORE_SP_SB_ID 0xffff
 
@@ -301,12 +301,12 @@ enum _ecore_status_t ecore_int_sb_release(struct ecore_hwfn	*p_hwfn,
 void ecore_int_sp_dpc(osal_int_ptr_t hwfn_cookie);
 
 /**
- * @brief ecore_int_get_num_sbs - get the number of status 
+ * @brief ecore_int_get_num_sbs - get the number of status
  *        blocks configured for this funciton in the igu.
- * 
+ *
  * @param p_hwfn
  * @param p_sb_cnt_info
- * 
+ *
  * @return
  */
 void ecore_int_get_num_sbs(struct ecore_hwfn	    *p_hwfn,

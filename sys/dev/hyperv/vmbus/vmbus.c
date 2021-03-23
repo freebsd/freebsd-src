@@ -1382,7 +1382,7 @@ vmbus_fb_mmio_res(device_t dev)
 		/* We are on Gen1 VM, just return. */
 		return;
 	}
-	
+
 	if (bootverbose)
 		device_printf(dev,
 		    "fb: fb_addr: %#jx, size: %#jx, "
@@ -1587,7 +1587,7 @@ vmbus_attach(device_t dev)
 	vmbus_sc->vmbus_intrhook.ich_arg = vmbus_sc;
 	config_intrhook_establish(&vmbus_sc->vmbus_intrhook);
 #else	/* !EARLY_AP_STARTUP */
-	/* 
+	/*
 	 * If the system has already booted and thread
 	 * scheduling is possible indicated by the global
 	 * cold set to zero, we just call the driver
@@ -1646,13 +1646,13 @@ vmbus_sysinit(void *arg __unused)
 	if (vm_guest != VM_GUEST_HV || sc == NULL)
 		return;
 
-	/* 
+	/*
 	 * If the system has already booted and thread
 	 * scheduling is possible, as indicated by the
 	 * global cold set to zero, we just call the driver
 	 * initialization directly.
 	 */
-	if (!cold) 
+	if (!cold)
 		vmbus_doattach(sc);
 }
 /*

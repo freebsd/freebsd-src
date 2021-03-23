@@ -108,7 +108,7 @@ oce_hw_init(POCE_SOFTC sc)
 	rc = oce_reset_fun(sc);
 	if (rc)
 		goto error;
-		
+
 
 	rc = oce_mbox_init(sc);
 	if (rc)
@@ -198,7 +198,7 @@ void oce_get_pci_capabilities(POCE_SOFTC sc)
 	uint32_t val;
 
 	if (pci_find_cap(sc->dev, PCIY_PCIX, &val) == 0) {
-		if (val != 0) 
+		if (val != 0)
 			sc->flags |= OCE_FLAGS_PCIX;
 	}
 
@@ -249,10 +249,10 @@ oce_hw_pci_alloc(POCE_SOFTC sc)
 		pci_cfg_barnum = OCE_DEV_BE2_CFG_BAR;
 	else
 		pci_cfg_barnum = OCE_DEV_CFG_BAR;
-		
+
 	rr = PCIR_BAR(pci_cfg_barnum);
 
-	if (IS_BE(sc) || IS_SH(sc)) 
+	if (IS_BE(sc) || IS_SH(sc))
 		sc->devcfg_res = bus_alloc_resource_any(sc->dev,
 				SYS_RES_MEMORY, &rr,
 				RF_ACTIVE|RF_SHAREABLE);
@@ -301,7 +301,7 @@ oce_hw_pci_alloc(POCE_SOFTC sc)
 		sc->csr_btag = rman_get_bustag(sc->csr_res);
 		sc->csr_bhandle = rman_get_bushandle(sc->csr_res);
 		sc->csr_vhandle = rman_get_virtual(sc->csr_res);
-		
+
 		/* set up DB doorbell region */
 		rr = PCIR_BAR(OCE_PCI_DB_BAR);
 		sc->db_res = bus_alloc_resource_any(sc->dev,
@@ -315,7 +315,7 @@ oce_hw_pci_alloc(POCE_SOFTC sc)
 
 	return 0;
 
-error:	
+error:
 	oce_hw_pci_free(sc);
 	return ENXIO;
 }
@@ -467,7 +467,7 @@ oce_hw_start(POCE_SOFTC sc)
 	int rc = 0;
 
 	rc = oce_get_link_status(sc, &link);
-	if (rc) 
+	if (rc)
 		return 1;
 
 	if (link.logical_link_status == NTWK_LOGICAL_LINK_UP) {
@@ -484,7 +484,7 @@ oce_hw_start(POCE_SOFTC sc)
 	rc = oce_start_mq(sc->mq);
 
 	/* we need to get MCC aync events. So enable intrs and arm
-	   first EQ, Other EQs will be armed after interface is UP 
+	   first EQ, Other EQs will be armed after interface is UP
 	*/
 	oce_hw_intr_enable(sc);
 	oce_arm_eq(sc, sc->eq[0]->eq_id, 0, TRUE, FALSE);

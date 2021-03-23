@@ -555,7 +555,7 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	pCap->hal4kbSplitTransSupport = AH_FALSE;
 	/* Disable this so Block-ACK works correctly */
 	pCap->halHasRxSelfLinkedTail = AH_FALSE;
-	pCap->halMbssidAggrSupport = AH_TRUE;  
+	pCap->halMbssidAggrSupport = AH_TRUE;
 	pCap->hal4AddrAggrSupport = AH_TRUE;
 	pCap->halSpectralScanSupport = AH_TRUE;
 	pCap->halRxUsingLnaMixing = AH_TRUE;

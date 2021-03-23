@@ -31,7 +31,7 @@
 /*-
  * Copyright (c) 2002, 2006 by Matthew Jacob
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -45,7 +45,7 @@
  * 3. Neither the names of the above listed copyright holders nor the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -730,7 +730,7 @@ mpt_req_state(mpt_req_state_t state)
 #define	LAST_SGE	(		\
 	MPI_SGE_FLAGS_END_OF_LIST |	\
 	MPI_SGE_FLAGS_END_OF_BUFFER|	\
-	MPI_SGE_FLAGS_LAST_ELEMENT) 
+	MPI_SGE_FLAGS_LAST_ELEMENT)
 void
 mpt_dump_sgl(SGE_IO_UNION *su, int offset)
 {

@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 *
 * $FreeBSD$
@@ -62,11 +62,11 @@ careful_write(char *buf, int offset, int max, const char *fmt, ...)
         return 0;
     s[PAGE_SIZE - 1] = '\0';
 
-    va_start(args, fmt);    
+    va_start(args, fmt);
     i = vsnprintf(s, PAGE_SIZE - 1, fmt, args);
-    if((offset + i) > max) 
+    if((offset + i) > max)
         return 0;
-    memcpy(buf + offset, s, i); 
+    memcpy(buf + offset, s, i);
     va_end(args);
 
     return i;
@@ -98,7 +98,7 @@ set_dek_table_entry(struct device *dev, const char *buf, size_t len, dek_table_e
         return -EINVAL;
 
     sscanf(buf, "%d", &index);
-    if(index >= 0 && index < DEK_MAX_TABLE_ITEMS) { 
+    if(index >= 0 && index < DEK_MAX_TABLE_ITEMS) {
         pCard->dek_index[table] = index;
         return strlen(buf);
     }
@@ -230,7 +230,7 @@ show_kek_table(struct device *dev, struct device_attribute *attr, char *buf)
         return -EINVAL;
 
     for(kek_index = 0; kek_index < KEK_TABLE_MAX_ENTRY; kek_index++) {
-        i += careful_write(buf, i, PAGE_SIZE, " %4d: %08x ", kek_index, pCard->kek_table[kek_index].wrapperIndex); 
+        i += careful_write(buf, i, PAGE_SIZE, " %4d: %08x ", kek_index, pCard->kek_table[kek_index].wrapperIndex);
         p = (unsigned char *) &pCard->kek_table[kek_index].kekBlob;
         for(j = 0; j < sizeof(tiEncryptKekBlob_t); j++) {
             i += careful_write(buf, i, PAGE_SIZE, "%02x", p[j]);
@@ -270,7 +270,7 @@ show_dek_kek_map(struct device *dev, char *buf, unsigned int table)
 
     i += careful_write(buf, i, PAGE_SIZE, "Table %d\n", table);
     i += careful_write(buf, i, PAGE_SIZE, "=======\n");
-    for(dek_index = 0; dek_index < DEK_MAX_TABLE_ITEMS; dek_index++) { 
+    for(dek_index = 0; dek_index < DEK_MAX_TABLE_ITEMS; dek_index++) {
         i += careful_write(buf, i, PAGE_SIZE, " %4d: %08x\n", dek_index, pCard->dek_kek_map[table][dek_index].kekIndex);
     }
     i += sprintf(buf + i, "\n");
@@ -279,7 +279,7 @@ show_dek_kek_map(struct device *dev, char *buf, unsigned int table)
     //BUG_ON(i > PAGE_SIZE);
     if (i > PAGE_SIZE)
         i = PAGE_SIZE;
-    
+
     return i;
 }
 
@@ -367,7 +367,7 @@ Return:
 Note:
 ******************************************************************************/
 static int
-agtiapi_AddDek(ag_card_t *pCard, bit32 dek_table, bit32 dek_index, bit32 blob_format, bit32 entry_sz, tiEncryptDekBlob_t *dek_blob, U32_64 *addr) 
+agtiapi_AddDek(ag_card_t *pCard, bit32 dek_table, bit32 dek_index, bit32 blob_format, bit32 entry_sz, tiEncryptDekBlob_t *dek_blob, U32_64 *addr)
 {
     ag_resource_info_t *pRscInfo = &pCard->pCardInfo->tiRscInfo;
     tiEncryptDekBlob_t *pDekTable;
@@ -433,8 +433,8 @@ agtiapi_MapDekKek(ag_card_t *pCard, bit32 dek_table, bit32 dek_index, bit32 kek_
         printf("%s: Bad kek index.\n", __FUNCTION__);
         return -E_KEK_INDEX;
     }
-   
-    pCard->dek_kek_map[dek_table][dek_index].kekIndex = kek_index; 
+
+    pCard->dek_kek_map[dek_table][dek_index].kekIndex = kek_index;
     return 0;
 }
 
@@ -520,14 +520,14 @@ agtiapi_MapDek(ag_card_t *pCard, EncryptDeviceDekMap_t *dek_map)
     if (lba_min >= lba_max) {
         printf("%s: Bad lba min and lba max: %llx %llx.\n", __FUNCTION__, lba_min, lba_max);
         return -E_LBA_RANGE;
-    } 
+    }
 
     /* dek_table and dek_index are valid, look up kek */
     kek_index = pCard->dek_kek_map[dek_table][dek_index].kekIndex;
 
     lh = MAP_TABLE_ENTRY(pCard, chan, device, lun);
 
-    if (dek_map->dekMapEntry[0].flags & ENCRYPT_DEK_MAP_ENTRY_CLEAR) { 
+    if (dek_map->dekMapEntry[0].flags & ENCRYPT_DEK_MAP_ENTRY_CLEAR) {
         /* Delete the entry */
         found = 0;
         list_for_each_entry_safe(p, n, lh, list) {
@@ -566,7 +566,7 @@ agtiapi_MapDek(ag_card_t *pCard, EncryptDeviceDekMap_t *dek_map)
 
         /* Test to see if this new mapping overlaps an existing mapping */
         list_for_each_entry(n, lh, list) {
-            /* 
+            /*
              * Check if the start lba falls in existing range ||
              * Check if the end lba falls in existing range   ||
              * Check if the start lba of the existing range falls in the new range
@@ -586,7 +586,7 @@ agtiapi_MapDek(ag_card_t *pCard, EncryptDeviceDekMap_t *dek_map)
     } else {
         printf("%s: Bad flags %08x\n", __FUNCTION__, dek_map->dekMapEntry[0].flags);
         return -E_FLAGS;
-    } 
+    }
 
     return 0;
 }
@@ -648,15 +648,15 @@ agtiapi_SetupEncryptionPools(struct agtiapi_softc *pCard)
         printf("Unable to create uma_zcreate cache for encryption map mempool.\n");
         return -EFAULT;
     }
-    uma_zone_set_max(pCard->map_cache, ENCRYPTION_MAP_MEMPOOL_SIZE); 
-   
+    uma_zone_set_max(pCard->map_cache, ENCRYPTION_MAP_MEMPOOL_SIZE);
+
 
     /* Configure encryption IO error pool */
     INIT_LIST_HEAD(&pCard->ioerr_queue);
 /*#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,34)) // ####
     pCard->ioerr_queue_lock = SPIN_LOCK_UNLOCKED;
 #else */
-    pCard->ioerr_queue_lock = AG_SPIN_UNLOCK(pCard->ioerr_queue_lock); 
+    pCard->ioerr_queue_lock = AG_SPIN_UNLOCK(pCard->ioerr_queue_lock);
 //#endif
 
 
@@ -671,7 +671,7 @@ agtiapi_SetupEncryptionPools(struct agtiapi_softc *pCard)
          */
         printf("Unable to create kmem cache for encryption IO error mempool.\n");
         return -EFAULT;
-    } 
+    }
     uma_zone_set_max(pCard->ioerr_cache,  ENCRYPTION_IO_ERR_MEMPOOL_SIZE);
 
     /* Set cipher mode to something invalid */
@@ -728,8 +728,8 @@ agtiapi_CleanupEncryptionPools(struct agtiapi_softc *pCard)
     ag_encrypt_ioerr_t *ioerr, *tmp;
     atomic_set(&ioerr_queue_count);
 
-    /* 
-     * TODO: check "outstanding_encrypted_io_count" for non-zero 
+    /*
+     * TODO: check "outstanding_encrypted_io_count" for non-zero
      *       and free all mempool items prior to destroying pool
      */
 
@@ -777,7 +777,7 @@ Return:
 Note:
 ******************************************************************************/
 int
-agtiapi_EncryptionIoctl(struct agtiapi_softc *pCard, IoctlEncrypt_t *pIoctlPayload) 
+agtiapi_EncryptionIoctl(struct agtiapi_softc *pCard, IoctlEncrypt_t *pIoctlPayload)
 {
     int rv, rc = 0, skip_wait = 0;
     tiRoot_t *tiRoot = (tiRoot_t *) &pCard->tiRoot;
@@ -787,7 +787,7 @@ agtiapi_EncryptionIoctl(struct agtiapi_softc *pCard, IoctlEncrypt_t *pIoctlPaylo
     init_completion(&pCard->ioctl_completion);
 
     /* Check that the system is quiesced */
-    if (atomic_read(&outstanding_encrypted_io_count) != 0) 
+    if (atomic_read(&outstanding_encrypted_io_count) != 0)
         printf("%s: WARNING: Attempting encryption management update with outstanding encrypted IOs!\n", __FUNCTION__);
 
 printf("%s: Minor %d\n", __FUNCTION__, pIoctlPayload->hdr.MinorFunction);
@@ -829,14 +829,14 @@ printf("%s: Minor %d\n", __FUNCTION__, pIoctlPayload->hdr.MinorFunction);
                 pCard->cipher_mode = new_cipher_mode;
 
                 rc = tiCOMEncryptSetMode(tiRoot, reg_val);
-            } 
+            }
             break;
         case IOCTL_MN_ENCRYPTION_KEK_ADD:
             {
                 tiEncryptKekBlob_t kek_blob;
                 IoctlEncryptKekAdd_t *kek_add = (IoctlEncryptKekAdd_t *) &ioctl_data->request;
                 printf("%s: Add kek at index 0x%x wrapper 0x%x format 0x%x\n", __FUNCTION__, kek_add->kekIndex, kek_add->wrapperKekIndex, kek_add->blobFormat);
-                
+
                 /* Copy kek_blob from user pointer to local buffer */
                 if(access_ok(kek_add->EncryptKekBlob, sizeof(kek_blob))) {
                     printf("%s: Starting copy from user %p to kernel %p\n", __FUNCTION__, kek_add->EncryptKekBlob, &kek_blob);
@@ -845,14 +845,14 @@ printf("%s: Minor %d\n", __FUNCTION__, pIoctlPayload->hdr.MinorFunction);
                         return IOCTL_CALL_FAIL;
                     }
                     rc = tiCOMEncryptKekAdd(tiRoot, kek_add->kekIndex, kek_add->wrapperKekIndex, kek_add->blobFormat, &kek_blob);
-                    
+
                     /* Add kek to local kek table (in case of chip reset) */
                     if(rc == tiSuccess) {
                         if(agtiapi_AddKek(pCard, kek_add->kekIndex, kek_add->wrapperKekIndex, &kek_blob) < 0) {
                             return IOCTL_CALL_FAIL;
                         }
                     }
-                } else { 
+                } else {
                     return IOCTL_CALL_FAIL;
                 }
             }
@@ -871,7 +871,7 @@ printf("%s: Minor %d\n", __FUNCTION__, pIoctlPayload->hdr.MinorFunction);
                 memset(addr_table, 0, sizeof(addr_table));
 
                 printf("%s: Add dek at index 0x%x, table %x, kek index %x, blob format %x, entry size %x\n", __FUNCTION__, dek_index, dek_table, kek_index, blob_format, entry_sz);
-                
+
                 /* Copy dek_blob from user pointer to local buffer */
                 if(access_ok(dek_add->dekBlob, sizeof(dek_blob))) {
                     printf("%s: Starting copy from user %p to kernel %p\n", __FUNCTION__, dek_add->dekBlob, &dek_blob);
@@ -879,7 +879,7 @@ printf("%s: Minor %d\n", __FUNCTION__, pIoctlPayload->hdr.MinorFunction);
                         printf("%s: Copy error, %d left\n", __FUNCTION__, rv);
                         return IOCTL_CALL_FAIL;
                     }
-                    
+
                     /* Add DEK to local table */
                     if (agtiapi_AddDek(pCard, dek_table, dek_index, blob_format, entry_sz, &dek_blob, &addr) < 0) {
                         return IOCTL_CALL_FAIL;
@@ -890,8 +890,8 @@ printf("%s: Minor %d\n", __FUNCTION__, pIoctlPayload->hdr.MinorFunction);
                     if (agtiapi_MapDekKek(pCard, dek_table, dek_index, kek_index) < 0) {
                         return IOCTL_CALL_FAIL;
                     }
-                
-                    /* Push DEK to chip */    
+
+                    /* Push DEK to chip */
                     rc = tiCOMEncryptDekAdd(tiRoot, kek_index, dek_table, addr_table[1], addr_table[0], dek_index, 1, blob_format, entry_sz);
                 } else {
                     return IOCTL_CALL_FAIL;
@@ -915,7 +915,7 @@ printf("%s: Minor %d\n", __FUNCTION__, pIoctlPayload->hdr.MinorFunction);
         case IOCTL_MN_ENCRYPTION_DEK_ASSIGN:
             {
                 IoctlEncryptDekMapTable_t *p_dek_map = (IoctlEncryptDekMapTable_t *) &ioctl_data->request;
-                
+
                 /* Fill in host */
                 p_dek_map->dekMap[0].host = (bit32) pCard->pHost->host_no;
 
@@ -932,12 +932,12 @@ printf("%s: Minor %d\n", __FUNCTION__, pIoctlPayload->hdr.MinorFunction);
                 ioctl_data->encryptFunction = encryptSetDekMap;
                 ioctl_data->status = tiSuccess;
                 ioctl_data->subEvent = 0;
-            } 
+            }
             break;
         case IOCTL_MN_ENCRYPTION_ERROR_QUERY:
             {
                 unsigned long flags, i, query_flag;
-                ag_encrypt_ioerr_t *ioerr, *tmp; 
+                ag_encrypt_ioerr_t *ioerr, *tmp;
                 IoctlEncryptErrorQuery_t *perr = (IoctlEncryptErrorQuery_t *) &ioctl_data->request;
 
                 printf("%s: query flag %x\n", __FUNCTION__, perr->query_flag);
@@ -949,14 +949,14 @@ printf("%s: Minor %d\n", __FUNCTION__, pIoctlPayload->hdr.MinorFunction);
 error_query_restart:
                 /* Take spinlock */
               //  spin_lock_irqsave(&pCard->ioerr_queue_lock, flags);
-                AG_SPIN_LOCK_IRQ(&pCard->ioerr_queue_lock, flags);  
-                
+                AG_SPIN_LOCK_IRQ(&pCard->ioerr_queue_lock, flags);
+
                 /* Walk list */
                 i = 0;
                 list_for_each_entry_safe(ioerr, tmp, &pCard->ioerr_queue, list) {
-                    if (i >= 32) 
+                    if (i >= 32)
                         break;
-                    
+
                     perr->valid_mask |= (1 << i);
                     memcpy(&perr->error[i], &ioerr->ioerr, sizeof(IoctlEncryptIOError_t));
                     list_del_init(&ioerr->list);
@@ -1038,7 +1038,7 @@ agtiapi_SetupEncryptedIO(struct agtiapi_softc *pCard, ccb_t *pccb, unsigned long
     memset(&(pccb->tiSuperScsiRequest.Encrypt), 0, sizeof(pccb->tiSuperScsiRequest.Encrypt));
     pccb->tiSuperScsiRequest.Encrypt.keyTagCheck = FALSE;
     pccb->tiSuperScsiRequest.Encrypt.encryptMode = pCard->cipher_mode;
-    pccb->tiSuperScsiRequest.Encrypt.tweakVal_W0 = block; 
+    pccb->tiSuperScsiRequest.Encrypt.tweakVal_W0 = block;
     if(pccb->tiSuperScsiRequest.scsiCmnd.cdb[0] == READ_16 ||
 	pccb->tiSuperScsiRequest.scsiCmnd.cdb[0] == WRITE_16)
     {
@@ -1088,7 +1088,7 @@ Return:
 Note:
 ******************************************************************************/
 void
-agtiapi_HandleEncryptedIOFailure(ag_device_t *pDev, ccb_t *pccb) 
+agtiapi_HandleEncryptedIOFailure(ag_device_t *pDev, ccb_t *pccb)
 {
     unsigned long flags, qdepth;
     struct scsi_cmnd *cmd;
@@ -1117,7 +1117,7 @@ agtiapi_HandleEncryptedIOFailure(ag_device_t *pDev, ccb_t *pccb)
     }
 
     /* Get a container for the ag_encrypt_ioerr_t item from the mempool */
-//    perr = mempool_alloc(pCard->ioerr_mempool, GFP_ATOMIC);     
+//    perr = mempool_alloc(pCard->ioerr_mempool, GFP_ATOMIC);
           p = (ag_encrypt_map_t *)uma_zalloc(pCard->map_cache, M_WAITOK); //Encryption
     if (!perr) {
         printf("%s: Mempool allocation failure.\n", __FUNCTION__);
@@ -1139,7 +1139,7 @@ agtiapi_HandleEncryptedIOFailure(ag_device_t *pDev, ccb_t *pccb)
     perr->ioerr.encrypt_mode = pccb->tiSuperScsiRequest.Encrypt.encryptMode;
     perr->ioerr.keytag[0] = pccb->tiSuperScsiRequest.Encrypt.keyTag_W0;
     perr->ioerr.keytag[1] = pccb->tiSuperScsiRequest.Encrypt.keyTag_W1;
- 
+
     switch(pccb->scsiStatus) {
         case tiDetailDekKeyCacheMiss:
         case tiDetailDekIVMismatch:
@@ -1154,11 +1154,11 @@ agtiapi_HandleEncryptedIOFailure(ag_device_t *pDev, ccb_t *pccb)
     /* Link IO err into queue */
     AG_SPIN_LOCK_IRQ(&pCard->ioerr_queue_lock, flags);
     list_add_tail(&perr->list, &pCard->ioerr_queue);
-    AG_SPIN_UNLOCK_IRQ(&pCard->ioerr_queue_lock, flags);   
- 
+    AG_SPIN_UNLOCK_IRQ(&pCard->ioerr_queue_lock, flags);
+
     /* Notify any wait queue waiters that an IO error has occurred */
     atomic_inc(&ioerr_queue_count);
-    wake_up_interruptible(&ioerr_waitq);    
+    wake_up_interruptible(&ioerr_waitq);
 
 }
 #endif

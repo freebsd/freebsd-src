@@ -532,7 +532,7 @@ int ata_pci_resume(device_t dev);
 int ata_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
 int ata_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
 uint32_t ata_pci_read_config(device_t dev, device_t child, int reg, int width);
-void ata_pci_write_config(device_t dev, device_t child, int reg, 
+void ata_pci_write_config(device_t dev, device_t child, int reg,
     uint32_t val, int width);
 int ata_pci_print_child(device_t dev, device_t child);
 int ata_pci_child_location_str(device_t dev, device_t child, char *buf,

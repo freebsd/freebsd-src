@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 
 /**
  * Buffer-backed NVRAM I/O context.
- * 
+ *
  * iobuf instances are gauranteed to provide persistent references to its
  * backing contigious buffer via bhnd_nvram_io_read_ptr() and
  * bhnd_nvram_io_write_ptr().
@@ -72,7 +72,7 @@ BHND_NVRAM_IOPS_DEFN(iobuf)
  * bhnd_nvram_io_free().
  *
  * If @p capacity is less than @p size, a capacity of @p size will be used.
- * 
+ *
  * @param	size		The initial size of the I/O context.
  * @param	capacity	The total capacity of the I/O context buffer;
  *				the returned I/O context may be resized up to
@@ -133,10 +133,10 @@ bhnd_nvram_iobuf_empty(size_t size, size_t capacity)
  *
  * The caller is responsible for deallocating the returned I/O context via
  * bhnd_nvram_io_free().
- * 
+ *
  * @param	buffer	The buffer data be copied by the returned I/O context.
  * @param	size	The size of @p buffer, in bytes.
- * 
+ *
  * @retval	bhnd_nvram_io	success.
  * @retval	NULL		allocation failed.
  */
@@ -163,9 +163,9 @@ bhnd_nvram_iobuf_new(const void *buffer, size_t size)
  *
  * The caller is responsible for deallocating the returned I/O context via
  * bhnd_nvram_io_free().
- * 
+ *
  * @param	src	The I/O context to be copied.
- * 
+ *
  * @retval	bhnd_nvram_io	success.
  * @retval	NULL		allocation failed.
  * @retval	NULL		copying @p src failed.
@@ -183,11 +183,11 @@ bhnd_nvram_iobuf_copy(struct bhnd_nvram_io *src)
  *
  * The caller is responsible for deallocating the returned I/O context via
  * bhnd_nvram_io_free().
- * 
+ *
  * @param	src	The I/O context to be copied.
  * @param	offset	The offset of the bytes to be copied from @p src.
  * @param	size	The number of bytes to copy at @p offset from @p src.
- * 
+ *
  * @retval	bhnd_nvram_io	success.
  * @retval	NULL		allocation failed.
  * @retval	NULL		copying @p src failed.

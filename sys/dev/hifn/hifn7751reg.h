@@ -81,7 +81,7 @@
  * MAX_COMMAND = base command + mac command + encrypt command +
  *			mac-key + rc4-key
  * MAX_RESULT  = base result + mac result + mac + encrypt result
- *			
+ *
  *
  */
 #define	HIFN_MAX_COMMAND	(8 + 8 + 8 + 64 + 260)
@@ -439,7 +439,7 @@ typedef struct hifn_desc {
 
 
 /*********************************************************************
- * Structs for board commands 
+ * Structs for board commands
  *
  *********************************************************************/
 

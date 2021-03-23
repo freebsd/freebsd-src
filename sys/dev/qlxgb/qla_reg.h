@@ -101,7 +101,7 @@
 #define Q8_ROM_STATUS			0x1A0004
 /*
  * definitions for Q8_ROM_STATUS
- * bit definitions for Q8_UNM_ROMUSB_GLB_STATUS 
+ * bit definitions for Q8_UNM_ROMUSB_GLB_STATUS
  * 31:3 Reserved; Rest as below
  */
 #define	ROM_STATUS_RDY			0x0004
@@ -164,7 +164,7 @@
 
 #define Q8_ROM_INSTR_OPCODE		0x03310004
 /*
- * bit definitions for Q8_ROM_INSTR_OPCODE 
+ * bit definitions for Q8_ROM_INSTR_OPCODE
  * 31:8 Reserved; Rest Below
  */
 #define ROM_OPCODE_WR_STATUS_REG	0x01
@@ -181,21 +181,21 @@
 
 #define Q8_ROM_ADDRESS			0x03310008
 /*
- * bit definitions for Q8_ROM_ADDRESS 
+ * bit definitions for Q8_ROM_ADDRESS
  * 31:24 Reserved;
  * 23:0  Physical ROM Address in bytes
  */
 
 #define Q8_ROM_ADDR_BYTE_COUNT		0x03310010
 /*
- * bit definitions for Q8_ROM_ADDR_BYTE_COUNT 
+ * bit definitions for Q8_ROM_ADDR_BYTE_COUNT
  * 31:2 Reserved;
  * 1:0  max address bytes for ROM Interface
  */
 
 #define Q8_ROM_DUMMY_BYTE_COUNT		0x03310014
 /*
- * bit definitions for Q8_ROM_DUMMY_BYTE_COUNT 
+ * bit definitions for Q8_ROM_DUMMY_BYTE_COUNT
  * 31:2 Reserved;
  * 1:0 dummy bytes for ROM Instructions
  */

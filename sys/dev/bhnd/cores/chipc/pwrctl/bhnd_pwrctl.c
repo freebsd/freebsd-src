@@ -6,14 +6,14 @@
  *
  * Portions of this software were developed by Landon Fuller
  * under sponsorship from the FreeBSD Foundation.
- * 
+ *
  * Portions of this file were derived from the siutils.c source distributed with
  * the Asus RT-N16 firmware source code release.
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * ChipCommon Power Control.
- * 
+ *
  * Provides a runtime interface to device clocking and power management on
  * legacy non-PMU chipsets.
  */
@@ -308,7 +308,7 @@ bhnd_pwrctl_get_clock_freq(device_t dev, bhnd_clock clock, u_int *freq)
 
 /**
  * Find the clock reservation associated with @p owner, if any.
- * 
+ *
  * @param sc Driver instance state.
  * @param owner The owning device.
  */
@@ -331,7 +331,7 @@ bhnd_pwrctl_find_res(struct bhnd_pwrctl_softc *sc, device_t owner)
 /**
  * Enumerate all active clock requests, compute the minimum required clock,
  * and issue any required clock transition.
- * 
+ *
  * @param sc Driver instance state.
  * @param wars Work-around state.
  */

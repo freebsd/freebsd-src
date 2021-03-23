@@ -107,8 +107,8 @@ ocs_attach_port(ocs_t *ocs, int chan)
 	uint32_t	max_io = ocs_scsi_get_property(ocs, OCS_SCSI_MAX_IOS);
 	ocs_fcport *fcp = FCPORT(ocs, chan);
 
-	if (NULL == (sim = cam_sim_alloc(ocs_action, ocs_poll, 
-				device_get_name(ocs->dev), ocs, 
+	if (NULL == (sim = cam_sim_alloc(ocs_action, ocs_poll,
+				device_get_name(ocs->dev), ocs,
 				device_get_unit(ocs->dev), &ocs->sim_lock,
 				max_io, max_io, ocs->devq))) {
 		device_printf(ocs->dev, "Can't allocate SIM\n");
@@ -155,7 +155,7 @@ ocs_detach_port(ocs_t *ocs, int32_t chan)
 	path = fcp->path;
 
 	callout_drain(&fcp->ldt);
-	ocs_ldt_task(fcp, 0);	
+	ocs_ldt_task(fcp, 0);
 
 	if (fcp->sim) {
 		mtx_lock(&ocs->sim_lock);
@@ -214,7 +214,7 @@ detach_port:
 	if (mtx_initialized(&ocs->sim_lock))
 		mtx_destroy(&ocs->sim_lock);
 
-	return 1;	
+	return 1;
 }
 
 int32_t
@@ -251,7 +251,7 @@ ocs_cam_detach(ocs_t *ocs)
 int32_t
 ocs_scsi_tgt_new_device(ocs_t *ocs)
 {
-	ocs->enable_task_set_full = ocs_scsi_get_property(ocs, 
+	ocs->enable_task_set_full = ocs_scsi_get_property(ocs,
 					OCS_SCSI_ENABLE_TASK_SET_FULL);
 	ocs_log_debug(ocs, "task set full processing is %s\n",
 		ocs->enable_task_set_full ? "enabled" : "disabled");
@@ -284,14 +284,14 @@ ocs_scsi_tgt_del_device(ocs_t *ocs)
  * will use this call to prepare for new remote node notifications
  * arising from ocs_scsi_new_initiator().
  *
- * The domain context has an element <b>ocs_scsi_tgt_domain_t tgt_domain</b> 
- * which is declared by the target-server code and is used for target-server 
+ * The domain context has an element <b>ocs_scsi_tgt_domain_t tgt_domain</b>
+ * which is declared by the target-server code and is used for target-server
  * private data.
  *
- * This function will only be called if the base-driver has been enabled for 
+ * This function will only be called if the base-driver has been enabled for
  * target capability.
  *
- * Note that this call is made to target-server backends, 
+ * Note that this call is made to target-server backends,
  * the ocs_scsi_ini_new_domain() function is called to initiator-client backends.
  *
  * @param domain pointer to domain
@@ -331,11 +331,11 @@ ocs_scsi_tgt_del_domain(ocs_domain_t *domain)
  * will use this call to prepare for new remote node notifications
  * arising from ocs_scsi_new_initiator().
  *
- * The domain context has an element <b>ocs_scsi_tgt_sport_t tgt_sport</b> 
+ * The domain context has an element <b>ocs_scsi_tgt_sport_t tgt_sport</b>
  * which is declared by the target-server code and is used for
  * target-server private data.
  *
- * This function will only be called if the base-driver has been enabled for 
+ * This function will only be called if the base-driver has been enabled for
  * target capability.
  *
  * Note that this call is made to target-server backends,
@@ -410,7 +410,7 @@ ocs_scsi_new_initiator(ocs_node_t *node)
 	if (fcp == NULL) {
 		ocs_log_err(ocs, "FCP is NULL \n");
 		return 1;
-	}	
+	}
 
 	/*
 	 * Update the IO watermark by decrementing it by the
@@ -456,7 +456,7 @@ ocs_scsi_validate_initiator(ocs_node_t *node)
  * @brief Delete a SCSI initiator node
  *
  * Sent by base driver to notify a target-server that a remote initiator
- * is now gone. The base driver will have terminated all outstanding IOs 
+ * is now gone. The base driver will have terminated all outstanding IOs
  * and the target-server will receive appropriate completions.
  *
  * This function is only called if the base driver is enabled for
@@ -513,8 +513,8 @@ ocs_scsi_del_initiator(ocs_node_t *node, ocs_scsi_del_initiator_reason_e reason)
  * target-server will process the command, and issue data and/or response phase
  * requests to the base driver.
  *
- * The IO context (ocs_io_t) structure has and element of type 
- * ocs_scsi_tgt_io_t named tgt_io that is declared and used by 
+ * The IO context (ocs_io_t) structure has and element of type
+ * ocs_scsi_tgt_io_t named tgt_io that is declared and used by
  * a target-server for private information.
  *
  * @param io pointer to IO context
@@ -546,7 +546,7 @@ int32_t ocs_scsi_recv_cmd(ocs_io_t *io, uint64_t lun, uint8_t *cdb,
 	/* set target io timeout */
 	io->timeout = ocs->target_io_timer_sec;
 
-	if (ocs->enable_task_set_full && 
+	if (ocs->enable_task_set_full &&
 		(ocs->io_in_use >= ocs->io_high_watermark)) {
 		return ocs_task_set_full_or_busy(io);
 	} else {
@@ -628,8 +628,8 @@ int32_t ocs_scsi_recv_cmd(ocs_io_t *io, uint64_t lun, uint8_t *cdb,
  * @return returns 0 for success, a negative error code value for failure.
  */
 int32_t ocs_scsi_recv_cmd_first_burst(ocs_io_t *io, uint64_t lun, uint8_t *cdb,
-		 			uint32_t cdb_len, uint32_t flags, 
-					ocs_dma_t first_burst_buffers[], 
+		 			uint32_t cdb_len, uint32_t flags,
+					ocs_dma_t first_burst_buffers[],
 					uint32_t first_burst_buffer_count)
 {
 	return -1;
@@ -711,7 +711,7 @@ int32_t ocs_scsi_recv_tmf(ocs_io_t *tmfio, uint64_t lun, ocs_scsi_tmf_cmd_e cmd,
 		inot->initiator_id = node->instance_index;
 	} else {
 		inot->initiator_id = CAM_TARGET_WILDCARD;
-	} 
+	}
 
 	inot->ccb_h.status = CAM_MESSAGE_RECV;
 	inot->ccb_h.target_lun = lun;
@@ -720,13 +720,13 @@ int32_t ocs_scsi_recv_tmf(ocs_io_t *tmfio, uint64_t lun, ocs_scsi_tmf_cmd_e cmd,
 	case OCS_SCSI_TMF_ABORT_TASK:
 		inot->arg = MSG_ABORT_TASK;
 		inot->seq_id = abortio->tag;
-		device_printf(ocs->dev, "%s: ABTS IO.%#x st=%#x\n", 
+		device_printf(ocs->dev, "%s: ABTS IO.%#x st=%#x\n",
 			__func__, abortio->tag,	abortio->tgt_io.state);
 		abortio->tgt_io.flags |= OCS_CAM_IO_F_ABORT_RECV;
 		abortio->tgt_io.flags |= OCS_CAM_IO_F_ABORT_NOTIFY;
 		break;
 	case OCS_SCSI_TMF_QUERY_TASK_SET:
-		device_printf(ocs->dev, 
+		device_printf(ocs->dev,
 			"%s: OCS_SCSI_TMF_QUERY_TASK_SET not supported\n",
 				__func__);
 		STAILQ_INSERT_TAIL(&trsrc->inot, &inot->ccb_h, sim_links.stqe);
@@ -761,9 +761,9 @@ int32_t ocs_scsi_recv_tmf(ocs_io_t *tmfio, uint64_t lun, ocs_scsi_tmf_cmd_e cmd,
 	rc = 0;
 
 	xpt_print(inot->ccb_h.path, "%s: func=%#x stat=%#x id=%#x lun=%#x"
-			" flags=%#x tag=%#x seq=%#x ini=%#x arg=%#x\n", 
+			" flags=%#x tag=%#x seq=%#x ini=%#x arg=%#x\n",
 			__func__, inot->ccb_h.func_code, inot->ccb_h.status,
-			inot->ccb_h.target_id, 
+			inot->ccb_h.target_id,
 			(unsigned int)inot->ccb_h.target_lun, inot->ccb_h.flags,
 			inot->tag_id, inot->seq_id, inot->initiator_id,
 			inot->arg);
@@ -822,13 +822,13 @@ ocs_scsi_ini_del_device(ocs_t *ocs)
  * arising from ocs_scsi_new_target().
  *
  * The domain context has the element <b>ocs_scsi_ini_domain_t ini_domain</b>
- * which is declared by the initiator-client code and is used for 
+ * which is declared by the initiator-client code and is used for
  * initiator-client private data.
  *
- * This function will only be called if the base-driver has been enabled for 
+ * This function will only be called if the base-driver has been enabled for
  * initiator capability.
  *
- * Note that this call is made to initiator-client backends, 
+ * Note that this call is made to initiator-client backends,
  * the ocs_scsi_tgt_new_domain() function is called to target-server backends.
  *
  * @param domain pointer to domain
@@ -889,7 +889,7 @@ ocs_scsi_ini_new_sport(ocs_sport_t *sport)
 
 	if (!sport->is_vport) {
 		sport->tgt_data = fcp;
-		fcp->fc_id = sport->fc_id;	
+		fcp->fc_id = sport->fc_id;
 	}
 
 	return 0;
@@ -916,11 +916,11 @@ ocs_scsi_ini_del_sport(ocs_sport_t *sport)
 	ocs_fcport *fcp = FCPORT(ocs, 0);
 
 	if (!sport->is_vport) {
-		fcp->fc_id = 0;	
+		fcp->fc_id = 0;
 	}
 }
 
-void 
+void
 ocs_scsi_sport_deleted(ocs_sport_t *sport)
 {
 	ocs_t *ocs = sport->ocs;
@@ -939,7 +939,7 @@ ocs_scsi_sport_deleted(ocs_sport_t *sport)
 	if (value.value == 0) {
 		ocs_log_debug(ocs, "PORT offline,.. skipping\n");
 		return;
-	}	
+	}
 
 	if ((fcp->role != KNOB_ROLE_NONE)) {
 		if(fcp->vport->sport != NULL) {
@@ -964,7 +964,7 @@ ocs_tgt_find(ocs_fcport *fcp, ocs_node_t *node)
 
 		if (tgt->state == OCS_TGT_STATE_NONE)
 			continue;
-		
+
 		if (ocs_node_get_wwpn(node) == tgt->wwpn) {
 			return i;
 		}
@@ -1066,15 +1066,15 @@ ocs_delete_target(ocs_t *ocs, ocs_fcport *fcp, int tgt)
 {
 	struct cam_path *cpath = NULL;
 
-	if (!fcp->sim) { 
-		device_printf(ocs->dev, "%s: calling with NULL sim\n", __func__); 
+	if (!fcp->sim) {
+		device_printf(ocs->dev, "%s: calling with NULL sim\n", __func__);
 		return;
 	}
 
 	if (CAM_REQ_CMP == xpt_create_path(&cpath, NULL, cam_sim_path(fcp->sim),
 				tgt, CAM_LUN_WILDCARD)) {
 		xpt_async(AC_LOST_DEVICE, cpath, NULL);
-		
+
 		xpt_free_path(cpath);
 	}
 }
@@ -1083,7 +1083,7 @@ ocs_delete_target(ocs_t *ocs, ocs_fcport *fcp, int tgt)
  * Device Lost Timer Function- when we have decided that a device was lost,
  * we wait a specific period of time prior to telling the OS about lost device.
  *
- * This timer function gets activated when the device was lost. 
+ * This timer function gets activated when the device was lost.
  * This function fires once a second and then scans the port database
  * for devices that are marked dead but still have a virtual target assigned.
  * We decrement a counter for that port database entry, and when it hits zero,
@@ -1138,8 +1138,8 @@ ocs_ldt_task(void *arg, int pending)
  * @ingroup scsi_api_initiator
  * @brief Delete a SCSI target node
  *
- * Sent by base driver to notify a initiator-client that a remote target 
- * is now gone. The base driver will have terminated all  outstanding IOs 
+ * Sent by base driver to notify a initiator-client that a remote target
+ * is now gone. The base driver will have terminated all  outstanding IOs
  * and the initiator-client will receive appropriate completions.
  *
  * The ocs_node_t structure has and elment of type ocs_scsi_ini_node_t named
@@ -1152,7 +1152,7 @@ ocs_ldt_task(void *arg, int pending)
  * @param node pointer node being deleted
  * @param reason reason for deleting the target
  *
- * @return Returns OCS_SCSI_CALL_ASYNC if target delete is queued for async 
+ * @return Returns OCS_SCSI_CALL_ASYNC if target delete is queued for async
  * completion and OCS_SCSI_CALL_COMPLETE if call completed or error.
  *
  * @note
@@ -1332,7 +1332,7 @@ ocs_task_set_full_or_busy(ocs_io_t *io)
 	}
 
 	/* Send the response */
-	return 
+	return
 	ocs_scsi_send_resp(io, 0, &rsp, ocs_task_set_full_or_busy_cb, NULL);
 }
 
@@ -1340,14 +1340,14 @@ ocs_task_set_full_or_busy(ocs_io_t *io)
  * @ingroup cam_io
  * @brief Process target IO completions
  *
- * @param io 
+ * @param io
  * @param scsi_status did the IO complete successfully
- * @param flags 
+ * @param flags
  * @param arg application specific pointer provided in the call to ocs_target_io()
  *
  * @todo
  */
-static int32_t ocs_scsi_target_io_cb(ocs_io_t *io, 
+static int32_t ocs_scsi_target_io_cb(ocs_io_t *io,
 				ocs_scsi_io_status_e scsi_status,
 				uint32_t flags, void *arg)
 {
@@ -1355,7 +1355,7 @@ static int32_t ocs_scsi_target_io_cb(ocs_io_t *io,
 	struct ccb_scsiio *csio = &ccb->csio;
 	struct ocs_softc *ocs = csio->ccb_h.ccb_ocs_ptr;
 	uint32_t cam_dir = ccb->ccb_h.flags & CAM_DIR_MASK;
-	uint32_t io_is_done = 
+	uint32_t io_is_done =
 		(ccb->ccb_h.flags & CAM_SEND_STATUS) == CAM_SEND_STATUS;
 
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
@@ -1455,10 +1455,10 @@ ocs_io_abort_cb(ocs_io_t *io, ocs_scsi_io_status_e scsi_status, uint32_t flags, 
  * @ingroup cam_io
  * @brief Process initiator IO completions
  *
- * @param io 
+ * @param io
  * @param scsi_status did the IO complete successfully
  * @param rsp pointer to response buffer
- * @param flags 
+ * @param flags
  * @param arg application specific pointer provided in the call to ocs_target_io()
  *
  * @todo
@@ -1512,7 +1512,7 @@ static int32_t ocs_scsi_initiator_io_cb(ocs_io_t *io,
 
 			ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
 			if (rsp->sense_data_length < csio->sense_len) {
-				csio->sense_resid = 
+				csio->sense_resid =
 					csio->sense_len - rsp->sense_data_length;
 				sense_len = rsp->sense_data_length;
 			} else {
@@ -1671,7 +1671,7 @@ ocs_target_io(struct ocs_softc *ocs, union ccb *ccb)
 			ocs_set_ccb_status(ccb, CAM_REQ_CMP);
 			ocs_target_io_free(io);
 			return 1;
-		} 
+		}
 
 		ocs_set_ccb_status(ccb, CAM_REQ_ABORTED);
 
@@ -1708,7 +1708,7 @@ ocs_target_io(struct ocs_softc *ocs, union ccb *ccb)
 		int32_t sgl_count = 0;
 
 		io->tgt_io.state = OCS_CAM_IO_DATA;
-		
+
 		if (sendstatus)
 			io->tgt_io.sendresp = 1;
 
@@ -1866,14 +1866,14 @@ ocs_initiator_io(struct ocs_softc *ocs, union ccb *ccb)
 	switch (ccb->ccb_h.flags & CAM_DIR_MASK) {
 	case CAM_DIR_NONE:
 		rc = ocs_scsi_send_nodata_io(node, io, ccb_h->target_lun,
-				ccb->ccb_h.flags & CAM_CDB_POINTER ? 
+				ccb->ccb_h.flags & CAM_CDB_POINTER ?
 				csio->cdb_io.cdb_ptr: csio->cdb_io.cdb_bytes,
 				csio->cdb_len,
 				ocs_scsi_initiator_io_cb, ccb, flags);
 		break;
 	case CAM_DIR_IN:
 		rc = ocs_scsi_send_rd_io(node, io, ccb_h->target_lun,
-				ccb->ccb_h.flags & CAM_CDB_POINTER ? 
+				ccb->ccb_h.flags & CAM_CDB_POINTER ?
 				csio->cdb_io.cdb_ptr: csio->cdb_io.cdb_bytes,
 				csio->cdb_len,
 				NULL,
@@ -1882,7 +1882,7 @@ ocs_initiator_io(struct ocs_softc *ocs, union ccb *ccb)
 		break;
 	case CAM_DIR_OUT:
 		rc = ocs_scsi_send_wr_io(node, io, ccb_h->target_lun,
-				ccb->ccb_h.flags & CAM_CDB_POINTER ? 
+				ccb->ccb_h.flags & CAM_CDB_POINTER ?
 				csio->cdb_io.cdb_ptr: csio->cdb_io.cdb_bytes,
 				csio->cdb_len,
 				NULL,
@@ -1890,7 +1890,7 @@ ocs_initiator_io(struct ocs_softc *ocs, union ccb *ccb)
 				ocs_scsi_initiator_io_cb, ccb, flags);
 		break;
 	default:
-		panic("%s invalid data direction %08x\n", __func__, 
+		panic("%s invalid data direction %08x\n", __func__,
 							ccb->ccb_h.flags);
 		break;
 	}
@@ -1910,8 +1910,8 @@ ocs_fcp_change_role(struct ocs_softc *ocs, ocs_fcport *fcp, uint32_t new_role)
 		was++;
 	}
 
-	// Physical port	
-	if ((was == 0) || (vport == NULL)) { 
+	// Physical port
+	if ((was == 0) || (vport == NULL)) {
 		fcp->role = new_role;
 		if (vport == NULL) {
 			ocs->enable_ini = (new_role & KNOB_ROLE_INITIATOR)? 1:0;
@@ -1930,7 +1930,7 @@ ocs_fcp_change_role(struct ocs_softc *ocs, ocs_fcport *fcp, uint32_t new_role)
 		if (rc) {
 			ocs_log_debug(ocs, "port online failed : %d\n", rc);
 		}
-		
+
 		return 0;
 	}
 
@@ -2051,7 +2051,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
 		cpi->hba_misc |= PIM_EXTLUNS | PIM_NOSCAN;
 
-		cpi->hba_inquiry = PI_TAG_ABLE; 
+		cpi->hba_inquiry = PI_TAG_ABLE;
 		cpi->max_target = OCS_MAX_TARGETS;
 		cpi->initiator_id = ocs->max_remote_nodes + 1;
 
@@ -2068,7 +2068,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 
 		/* Calculate the max IO supported
 		 * Worst case would be an OS page per SGL entry */
-		cpi->maxio = PAGE_SIZE * 
+		cpi->maxio = PAGE_SIZE *
 			(ocs_scsi_get_property(ocs, OCS_SCSI_MAX_SGL) - 1);
 
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
@@ -2102,7 +2102,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 		}
 
 		tgt = &fcp->tgt[cts->ccb_h.target_id];
-		if (tgt->state == OCS_TGT_STATE_NONE) { 
+		if (tgt->state == OCS_TGT_STATE_NONE) {
 			ocs_set_ccb_status(ccb, CAM_DEV_NOT_THERE);
 			xpt_done(ccb);
 			break;
@@ -2156,7 +2156,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		}
-		
+
 		if (bus == 0) {
 			wwn = *((uint64_t *)ocs_scsi_get_property_ptr(ocs,
 						OCS_SCSI_WWNN));
@@ -2189,9 +2189,9 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		}
-			
+
 		if (knob->xport_specific.fc.valid & KNOB_VALID_ADDRESS) {
-			device_printf(ocs->dev, 
+			device_printf(ocs->dev,
 				"%s: XPT_SET_SIM_KNOB wwnn=%llx wwpn=%llx\n",
 					__func__,
 					(unsigned long long)knob->xport_specific.fc.wwnn,
@@ -2235,7 +2235,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 			}
 		}
 
-		
+
 
 		ocs_set_ccb_status(ccb, CAM_REQ_CMP);
 		xpt_done(ccb);
@@ -2317,7 +2317,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			ocs_set_ccb_status(ccb, CAM_REQ_CMP);
 		}
-		
+
 		if (node->fcp2device) {
 			ocs_reset_crn(node, ccb_h->target_lun);
 		}
@@ -2361,13 +2361,13 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 	 *  - when the driver receives a command, it copies the relevant
 	 *    information to the CCB and returns it to the CAM using xpt_done()
 	 *  - after the target server processes the request, it creates
-	 *    a new CCB containing information on how to continue the IO and 
+	 *    a new CCB containing information on how to continue the IO and
 	 *    passes that to the driver
 	 *  - the driver processes the "continue IO" (a.k.a CTIO) CCB
-	 *  - once the IO completes, the driver returns the CTIO to the CAM 
+	 *  - once the IO completes, the driver returns the CTIO to the CAM
 	 *    using xpt_done()
 	 */
-	case XPT_ACCEPT_TARGET_IO:	/* used to inform upper layer of 
+	case XPT_ACCEPT_TARGET_IO:	/* used to inform upper layer of
 						received CDB (a.k.a. ATIO) */
 	case XPT_IMMEDIATE_NOTIFY:	/* used to inform upper layer of other
 							 event (a.k.a. INOT) */
@@ -2392,10 +2392,10 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 			atio->init_id = 0x0badbeef;
 			atio->tag_id  = 0xdeadc0de;
 
-			STAILQ_INSERT_TAIL(&trsrc->atio, &ccb->ccb_h, 
+			STAILQ_INSERT_TAIL(&trsrc->atio, &ccb->ccb_h,
 					sim_links.stqe);
 		} else {
-			STAILQ_INSERT_TAIL(&trsrc->inot, &ccb->ccb_h, 
+			STAILQ_INSERT_TAIL(&trsrc->inot, &ccb->ccb_h,
 					sim_links.stqe);
 		}
 		ccb->ccb_h.ccb_io_ptr  = NULL;
@@ -2435,7 +2435,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 					abortio->tgt_io.flags);
 			/* TMF response was sent in abort callback */
 		} else {
-			ocs_scsi_send_tmf_resp(io, 
+			ocs_scsi_send_tmf_resp(io,
 					OCS_SCSI_TMF_FUNCTION_COMPLETE,
 					NULL, ocs_target_tmf_cb, NULL);
 		}
@@ -2446,7 +2446,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 	}
 	case XPT_CONT_TARGET_IO:	/* continue target IO, sending data/response (a.k.a. CTIO) */
 		if (ocs_target_io(ocs, ccb)) {
-			device_printf(ocs->dev, 
+			device_printf(ocs->dev,
 				"XPT_CONT_TARGET_IO failed flags=%x tag=%#x\n",
 				ccb->ccb_h.flags, ccb->csio.tag_id);
 			xpt_done(ccb);
@@ -2522,7 +2522,7 @@ ocs_initiator_tmf_cb(ocs_io_t *io, ocs_scsi_io_status_e scsi_status,
  * @return pointer to the target resource, NULL if none available (e.g. if LU
  * 	   is not enabled)
  */
-static ocs_tgt_resource_t *ocs_tgt_resource_get(ocs_fcport *fcp, 
+static ocs_tgt_resource_t *ocs_tgt_resource_get(ocs_fcport *fcp,
 				struct ccb_hdr *ccb_h, uint32_t *status)
 {
 	target_id_t	tid = ccb_h->target_id;
@@ -2541,7 +2541,7 @@ static ocs_tgt_resource_t *ocs_tgt_resource_get(ocs_fcport *fcp,
 			*status = CAM_LUN_INVALID;
 			return NULL;
 		}
-	} 
+	}
 
 }
 
@@ -2587,12 +2587,12 @@ ocs_abort_atio(struct ocs_softc *ocs, union ccb *ccb)
 	union ccb *accb = ccb->cab.abort_ccb;
 
 	int bus = cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path));
-	ocs_fcport *fcp = FCPORT(ocs, bus); 
+	ocs_fcport *fcp = FCPORT(ocs, bus);
 
 	trsrc = ocs_tgt_resource_get(fcp, &accb->ccb_h, &status);
 	if (trsrc != NULL) {
 		STAILQ_FOREACH(cur, &trsrc->atio, sim_links.stqe) {
-			if (cur != &accb->ccb_h) 
+			if (cur != &accb->ccb_h)
 				continue;
 
 			STAILQ_REMOVE(&trsrc->atio, cur, ccb_hdr,
@@ -2616,8 +2616,8 @@ ocs_abort_atio(struct ocs_softc *ocs, union ccb *ccb)
 
 	device_printf(ocs->dev,
 			"%s: XPT_ABORT ATIO state=%d tag=%#x"
-			" xid=%#x flags=%#x\n",	__func__, 
-			aio->tgt_io.state, aio->tag, 
+			" xid=%#x flags=%#x\n",	__func__,
+			aio->tgt_io.state, aio->tag,
 			aio->init_task_tag, aio->tgt_io.flags);
 	/* Expectations are:
 	 *  - abort task was received
@@ -2646,12 +2646,12 @@ ocs_abort_inot(struct ocs_softc *ocs, union ccb *ccb)
 	union ccb *accb = ccb->cab.abort_ccb;
 
 	int bus = cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path));
-	ocs_fcport *fcp = FCPORT(ocs, bus); 
+	ocs_fcport *fcp = FCPORT(ocs, bus);
 
 	trsrc = ocs_tgt_resource_get(fcp, &accb->ccb_h, &status);
 	if (trsrc) {
 		STAILQ_FOREACH(cur, &trsrc->inot, sim_links.stqe) {
-			if (cur != &accb->ccb_h) 
+			if (cur != &accb->ccb_h)
 				continue;
 
 			STAILQ_REMOVE(&trsrc->inot, cur, ccb_hdr,
@@ -2679,7 +2679,7 @@ ocs_abort_initiator_io(struct ocs_softc *ocs, union ccb *accb)
 	ocs_fcport *fcp = FCPORT(ocs, cam_sim_bus(xpt_path_sim((accb)->ccb_h.path)));
 	node = ocs_node_get_instance(ocs, fcp->tgt[accb->ccb_h.target_id].node_id);
 	if (node == NULL) {
-		device_printf(ocs->dev, "%s: no device %d\n", 
+		device_printf(ocs->dev, "%s: no device %d\n",
 				__func__, accb->ccb_h.target_id);
 		ocs_set_ccb_status(accb, CAM_DEV_NOT_THERE);
 		xpt_done(accb);
@@ -2695,7 +2695,7 @@ ocs_abort_initiator_io(struct ocs_softc *ocs, union ccb *accb)
 		return (-1);
 	}
 
-	rc = ocs_scsi_send_tmf(node, io, 
+	rc = ocs_scsi_send_tmf(node, io,
 			(ocs_io_t *)csio->ccb_h.ccb_io_ptr,
 			accb->ccb_h.target_lun,
 			OCS_SCSI_TMF_ABORT_TASK,
@@ -2816,14 +2816,14 @@ ocs_get_crn(ocs_node_t *node, uint8_t *crn, uint64_t lun)
 		if (lcrn == NULL) {
 			return (1);
 		}
-		
+
 		lcrn->lun = lun;
 		node->ini_node.lun_crn[idx] = lcrn;
 	}
 
 	if (lcrn->lun != lun) {
 		return (1);
-	}	
+	}
 
 	if (lcrn->crnseed == 0)
 		lcrn->crnseed = 1;

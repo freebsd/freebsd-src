@@ -324,8 +324,8 @@ ar5111SetRfRegs(struct ath_hal *ah, const struct ieee80211_channel *chan,
 	/* Bank 7 Write */
 	for (i = 0; i < N(ar5212Bank7_5111); i++)
 		rfReg[i] = ar5212Bank7_5111[i][modesIndex];
-	ar5212ModifyRfBuffer(rfReg, gainI, 6, 29, 0);   
-	ar5212ModifyRfBuffer(rfReg, rfPloSel, 1, 4, 0);   
+	ar5212ModifyRfBuffer(rfReg, gainI, 6, 29, 0);
+	ar5212ModifyRfBuffer(rfReg, rfPloSel, 1, 4, 0);
 
 	if (IEEE80211_IS_CHAN_QUARTER(chan) || IEEE80211_IS_CHAN_HALF(chan)) {
         	uint32_t	rfWaitI, rfWaitS, rfMaxTime;

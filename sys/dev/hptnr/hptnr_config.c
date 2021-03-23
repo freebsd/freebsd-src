@@ -40,8 +40,8 @@ extern int init_module_vdev_raw(void);
 
 int init_config(void)
 {
-	init_module_him_r750();	
-	init_module_him_dc7280();	
+	init_module_him_r750();
+	init_module_him_dc7280();
 	init_module_vdev_raw();
 	return 0;
 }

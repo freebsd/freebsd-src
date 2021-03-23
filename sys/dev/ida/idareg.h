@@ -114,7 +114,7 @@
 #define	CMD_STOP_CPM		0xa9	/* Stop controller performance monitoring */
 #define	CMD_FLUSH_CACHE		0xc2	/* Flush/disable write cache */
 #define	CMD_COLLECT_BUFFER	0xd2	/* ??? */
-#define	CMD_ACCEPT_MEDIA_EXCH	0xe0	/* Accept Media Exchange */	
+#define	CMD_ACCEPT_MEDIA_EXCH	0xe0	/* Accept Media Exchange */
 
 #define	CMD_FLASH_READ		0xf6	/* Read FLASH */
 #define	CMD_FLASH_WRITE		0xf7	/* Write FLASH */

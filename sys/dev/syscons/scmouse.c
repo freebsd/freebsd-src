@@ -110,7 +110,7 @@ sc_alloc_cut_buffer(scr_stat *scp, int wait)
 	if (p != NULL)
 	    free(p, M_DEVBUF);
 	cut_buffer_size = scp->xsize * scp->ysize + 1;
-	p = (u_char *)malloc(cut_buffer_size, 
+	p = (u_char *)malloc(cut_buffer_size,
 			     M_DEVBUF, (wait) ? M_WAITOK : M_NOWAIT);
 	if (p != NULL)
 	    p[0] = '\0';
@@ -173,7 +173,7 @@ sc_mouse_move(scr_stat *scp, int x, int y)
     if (scp->font_size <= 0 || scp->font_width <= 0)
 	scp->mouse_pos = scp->mouse_oldpos = 0;
     else
-	scp->mouse_pos = scp->mouse_oldpos = 
+	scp->mouse_pos = scp->mouse_oldpos =
 	    (y/scp->font_size - scp->yoff)*scp->xsize + x/scp->font_width -
 	    scp->xoff;
     scp->status |= MOUSE_MOVED;
@@ -205,7 +205,7 @@ set_mouse_pos(scr_stat *scp)
 	&& (scp->font_size != 0 && scp->font_width != 0)) {
 	scp->status |= MOUSE_MOVED;
     	scp->mouse_pos =
-	    (scp->mouse_ypos/scp->font_size - scp->yoff)*scp->xsize 
+	    (scp->mouse_ypos/scp->font_size - scp->yoff)*scp->xsize
 		+ scp->mouse_xpos/scp->font_width - scp->xoff;
 #ifndef SC_NO_CUTPASTE
 	if ((scp->status & MOUSE_VISIBLE) && (scp->status & MOUSE_CUTTING))
@@ -518,7 +518,7 @@ mouse_cut_start(scr_stat *scp)
 
 /* end of cut operation */
 static void
-mouse_cut_end(scr_stat *scp) 
+mouse_cut_end(scr_stat *scp)
 {
     if (scp->status & MOUSE_VISIBLE)
 	scp->status &= ~MOUSE_CUTTING;
@@ -603,7 +603,7 @@ mouse_cut_line(scr_stat *scp)
 
 /* extend the marked region to the mouse pointer position */
 static void
-mouse_cut_extend(scr_stat *scp) 
+mouse_cut_extend(scr_stat *scp)
 {
     int start;
     int end;
@@ -786,8 +786,8 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	    if (sysmouse_event(mouse) == 0)
 		return 0;
 
-	    /* 
-	     * If any buttons are down or the mouse has moved a lot, 
+	    /*
+	     * If any buttons are down or the mouse has moved a lot,
 	     * stop the screen saver.
 	     */
 	    if (((mouse->operation == MOUSE_ACTION) && mouse->u.data.buttons)

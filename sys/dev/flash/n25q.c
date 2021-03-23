@@ -328,7 +328,7 @@ n25q_attach(device_t dev)
 	kproc_create(&n25q_task, sc, &sc->sc_p, 0, 0, "task: n25q flash");
 	sc->sc_taskstate = TSTATE_RUNNING;
 
-	device_printf(sc->dev, "%s, sector %d bytes, %d sectors\n", 
+	device_printf(sc->dev, "%s, sector %d bytes, %d sectors\n",
 	    ident->name, ident->sectorsize, ident->sectorcount);
 
 	return (0);
@@ -454,11 +454,11 @@ n25q_task(void *arg)
 
 		switch (bp->bio_cmd) {
 		case BIO_READ:
-			bp->bio_error = n25q_read(dev, bp, bp->bio_offset, 
+			bp->bio_error = n25q_read(dev, bp, bp->bio_offset,
 			    bp->bio_data, bp->bio_bcount);
 			break;
 		case BIO_WRITE:
-			bp->bio_error = n25q_write(dev, bp, bp->bio_offset, 
+			bp->bio_error = n25q_write(dev, bp, bp->bio_offset,
 			    bp->bio_data, bp->bio_bcount);
 			break;
 		default:

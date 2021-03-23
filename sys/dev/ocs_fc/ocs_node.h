@@ -235,4 +235,4 @@ extern int32_t ocs_node_recv_ct_frame(ocs_node_t *node, ocs_hw_sequence_t *seq);
 extern int32_t ocs_node_recv_fcp_cmd(ocs_node_t *node, ocs_hw_sequence_t *seq);
 extern int32_t ocs_node_recv_bls_no_sit(ocs_node_t *node, ocs_hw_sequence_t *seq);
 
-#endif 
+#endif

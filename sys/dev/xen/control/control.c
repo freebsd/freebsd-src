@@ -178,7 +178,7 @@ static const struct xctrl_shutdown_reason xctrl_shutdown_reasons[] = {
 };
 
 struct xctrl_softc {
-	struct xs_watch    xctrl_watch;	
+	struct xs_watch    xctrl_watch;
 };
 
 /*------------------------------ Event Handlers ------------------------------*/
@@ -407,7 +407,7 @@ xctrl_identify(driver_t *driver __unused, device_t parent)
  *
  * \return  Always returns 0 indicating success.
  */
-static int 
+static int
 xctrl_probe(device_t dev)
 {
 	device_set_desc(dev, "Xen Control Device");
@@ -471,17 +471,17 @@ xctrl_detach(device_t dev)
 }
 
 /*-------------------- Private Device Attachment Data  -----------------------*/
-static device_method_t xctrl_methods[] = { 
-	/* Device interface */ 
+static device_method_t xctrl_methods[] = {
+	/* Device interface */
 	DEVMETHOD(device_identify,	xctrl_identify),
-	DEVMETHOD(device_probe,         xctrl_probe), 
-	DEVMETHOD(device_attach,        xctrl_attach), 
-	DEVMETHOD(device_detach,        xctrl_detach), 
+	DEVMETHOD(device_probe,         xctrl_probe),
+	DEVMETHOD(device_attach,        xctrl_attach),
+	DEVMETHOD(device_detach,        xctrl_detach),
 
 	DEVMETHOD_END
-}; 
+};
 
 DEFINE_CLASS_0(xctrl, xctrl_driver, xctrl_methods, sizeof(struct xctrl_softc));
-devclass_t xctrl_devclass; 
+devclass_t xctrl_devclass;
 
 DRIVER_MODULE(xctrl, xenstore, xctrl_driver, xctrl_devclass, NULL, NULL);

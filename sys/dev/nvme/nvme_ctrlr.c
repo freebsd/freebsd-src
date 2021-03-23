@@ -1261,7 +1261,7 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 				ret = EFAULT;
 				goto err;
 			}
-			req = nvme_allocate_request_vaddr(buf->b_data, pt->len, 
+			req = nvme_allocate_request_vaddr(buf->b_data, pt->len,
 			    nvme_pt_done, pt);
 		} else
 			req = nvme_allocate_request_vaddr(pt->buf, pt->len,

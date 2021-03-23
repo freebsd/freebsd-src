@@ -967,7 +967,7 @@ xgbe_an37_init(struct xgbe_prv_data *pdata)
 static void
 xgbe_an73_init(struct xgbe_prv_data *pdata)
 {
-	/* 
+	/*
 	 * This local_phy is needed because phy-v2 alters the
 	 * advertising flag variable. so phy-v1 an_advertising is just copying
 	 */

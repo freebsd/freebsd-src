@@ -13,8 +13,8 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote 
- *    products derived from this software without specific prior written 
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior written
  *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -264,7 +264,7 @@ atkbdc_setup(atkbdc_softc_t *sc, bus_space_tag_t tag, bus_space_handle_t h0,
 	 * emulated by BIOS using SMI interrupt. On those chipsets reading
 	 * from the status port may be thousand times slower than usually.
 	 * Sometimes this emilation is not working properly resulting in
-	 * commands timing our and since we assume that inb() operation 
+	 * commands timing our and since we assume that inb() operation
 	 * takes very little time to complete we need to adjust number of
 	 * retries to keep waiting time within a designed limits (100ms).
 	 * Measure time it takes to make read_status() call and adjust
@@ -289,7 +289,7 @@ atkbdc_setup(atkbdc_softc_t *sc, bus_space_tag_t tag, bus_space_handle_t h0,
 }
 
 /* open a keyboard controller */
-KBDC 
+KBDC
 atkbdc_open(int unit)
 {
     if (unit <= 0)
@@ -315,10 +315,10 @@ atkbdc_open(int unit)
  *    b. Timeout routines which may briefly poll the keyboard controller.
  *    c. Routines outside interrupt context (the top half of the driver).
  * They should follow the rules below:
- *    1. The interrupt handler may assume that it always has full access 
+ *    1. The interrupt handler may assume that it always has full access
  *       to the controller/keyboard/mouse.
- *    2. The other routines must issue `spltty()' if they wish to 
- *       prevent the interrupt handler from accessing 
+ *    2. The other routines must issue `spltty()' if they wish to
+ *       prevent the interrupt handler from accessing
  *       the controller/keyboard/mouse.
  *    3. The timeout routines and the top half routines of the device driver
  *       arbitrate I/O access by observing the lock flag in `kbdio'.
@@ -326,7 +326,7 @@ atkbdc_open(int unit)
  *       perform I/O, call `kbdc_lock(kbdc, TRUE)' and proceed only if
  *       the call returns with TRUE. Otherwise the caller must back off.
  *       Call `kbdc_lock(kbdc, FALSE)' when necessary I/O operaion
- *       is finished. This mechanism does not prevent the interrupt 
+ *       is finished. This mechanism does not prevent the interrupt
  *       handler from being invoked at any time and carrying out I/O.
  *       Therefore, `spltty()' must be strategically placed in the device
  *       driver code. Also note that the timeout routine may interrupt
@@ -341,7 +341,7 @@ atkbdc_open(int unit)
  */
 
 /* set/reset polling lock */
-int 
+int
 kbdc_lock(KBDC p, int lock)
 {
     int prevlock;
@@ -395,7 +395,7 @@ removeq(kqueue *q)
     return -1;
 }
 
-/* 
+/*
  * device I/O routines
  */
 static int
@@ -423,7 +423,7 @@ wait_while_controller_busy(struct atkbdc_softc *kbdc)
 }
 
 /*
- * wait for any data; whether it's from the controller, 
+ * wait for any data; whether it's from the controller,
  * the keyboard, or the aux device.
  */
 static int
@@ -468,7 +468,7 @@ wait_for_kbd_data(struct atkbdc_softc *kbdc)
     return f;
 }
 
-/* 
+/*
  * wait for an ACK(FAh), RESEND(FEh), or RESET_FAIL(FCh) from the keyboard.
  * queue anything else.
  */
@@ -487,7 +487,7 @@ wait_for_kbd_ack(struct atkbdc_softc *kbdc)
 	    DELAY(KBDD_DELAYTIME);
             b = read_data(kbdc);
 	    if ((f & KBDS_BUFFER_FULL) == KBDS_KBD_BUFFER_FULL) {
-		if ((b == KBD_ACK) || (b == KBD_RESEND) 
+		if ((b == KBD_ACK) || (b == KBD_RESEND)
 		    || (b == KBD_RESET_FAIL))
 		    return b;
 		addq(&kbdc->kbd, b);
@@ -524,7 +524,7 @@ wait_for_aux_data(struct atkbdc_softc *kbdc)
     return f;
 }
 
-/* 
+/*
  * wait for an ACK(FAh), RESEND(FEh), or RESET_FAIL(FCh) from the aux device.
  * queue anything else.
  */
@@ -543,7 +543,7 @@ wait_for_aux_ack(struct atkbdc_softc *kbdc)
 	    DELAY(KBDD_DELAYTIME);
             b = read_data(kbdc);
 	    if ((f & KBDS_BUFFER_FULL) == KBDS_AUX_BUFFER_FULL) {
-		if ((b == PSM_ACK) || (b == PSM_RESEND) 
+		if ((b == PSM_ACK) || (b == PSM_RESEND)
 		    || (b == PSM_RESET_FAIL))
 		    return b;
 		addq(&kbdc->aux, b);
@@ -629,12 +629,12 @@ send_aux_command(KBDC p, int c)
 	    continue;
 	/*
 	 * FIXME: XXX
-	 * The aux device may have already sent one or two bytes of 
-	 * status data, when a command is received. It will immediately 
-	 * stop data transmission, thus, leaving an incomplete data 
+	 * The aux device may have already sent one or two bytes of
+	 * status data, when a command is received. It will immediately
+	 * stop data transmission, thus, leaving an incomplete data
 	 * packet in our buffer. We have to discard any unprocessed
-	 * data in order to remove such packets. Well, we may remove 
-	 * unprocessed, but necessary data byte as well... 
+	 * data in order to remove such packets. Well, we may remove
+	 * unprocessed, but necessary data byte as well...
 	 */
 	emptyq(&p->aux);
         res = wait_for_aux_ack(p);
@@ -703,7 +703,7 @@ send_aux_command_and_data(KBDC p, int c, int d)
     return res;
 }
 
-/* 
+/*
  * read one byte from any source; whether from the controller,
  * the keyboard, or the aux device
  */
@@ -744,7 +744,7 @@ read_kbd_data(KBDC p)
     return read_data(p);
 }
 
-/* read one byte from the keyboard, but return immediately if 
+/* read one byte from the keyboard, but return immediately if
  * no data is waiting
  */
 int
@@ -788,7 +788,7 @@ read_aux_data(KBDC p)
     return read_data(p);
 }
 
-/* read one byte from the aux device, but return immediately if 
+/* read one byte from the aux device, but return immediately if
  * no data is waiting
  */
 int
@@ -824,7 +824,7 @@ empty_kbd_buffer(KBDC p, int wait)
 #endif
     int delta = 2;
 
-    for (t = wait; t > 0; ) { 
+    for (t = wait; t > 0; ) {
         if ((f = read_status(p)) & KBDS_ANY_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
             b = read_data(p);
@@ -863,7 +863,7 @@ empty_aux_buffer(KBDC p, int wait)
 #endif
     int delta = 2;
 
-    for (t = wait; t > 0; ) { 
+    for (t = wait; t > 0; ) {
         if ((f = read_status(p)) & KBDS_ANY_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
             b = read_data(p);
@@ -902,7 +902,7 @@ empty_both_buffers(KBDC p, int wait)
 #endif
     int delta = 2;
 
-    for (t = wait; t > 0; ) { 
+    for (t = wait; t > 0; ) {
         if ((f = read_status(p)) & KBDS_ANY_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
             (void)read_data(p);
@@ -939,7 +939,7 @@ empty_both_buffers(KBDC p, int wait)
 
 /* keyboard and mouse device control */
 
-/* NOTE: enable the keyboard port but disable the keyboard 
+/* NOTE: enable the keyboard port but disable the keyboard
  * interrupt before calling "reset_kbd()".
  */
 int

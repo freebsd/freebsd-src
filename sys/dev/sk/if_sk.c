@@ -806,9 +806,9 @@ sk_rxfilter_yukon(struct sk_if_softc *sc_if)
 	ifp = sc_if->sk_ifp;
 	mode = SK_YU_READ_2(sc_if, YUKON_RCR);
 	if (ifp->if_flags & IFF_PROMISC)
-		mode &= ~(YU_RCR_UFLEN | YU_RCR_MUFLEN); 
+		mode &= ~(YU_RCR_UFLEN | YU_RCR_MUFLEN);
 	else if (ifp->if_flags & IFF_ALLMULTI) {
-		mode |= YU_RCR_UFLEN | YU_RCR_MUFLEN; 
+		mode |= YU_RCR_UFLEN | YU_RCR_MUFLEN;
 		hashes[0] = 0xFFFFFFFF;
 		hashes[1] = 0xFFFFFFFF;
 	} else {
@@ -1164,7 +1164,7 @@ sk_ioctl(ifp, command, data)
 				ifp->if_hwassist &= ~SK_CSUM_FEATURES;
 		}
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (IFCAP_RXCSUM & ifp->if_capabilities) != 0) 
+		    (IFCAP_RXCSUM & ifp->if_capabilities) != 0)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
 		SK_IF_UNLOCK(sc_if);
 		break;

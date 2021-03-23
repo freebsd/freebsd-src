@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -85,14 +85,14 @@ __FBSDID("$FreeBSD$");
 *
 *
 *****************************************************************************/
-osGLOBAL void 
+osGLOBAL void
 tiCOMTimerTick (
                 tiRoot_t * tiRoot
                 )
 {
   tdsaRoot_t *tdsaRoot = (tdsaRoot_t *)(tiRoot->tdData);
   agsaRoot_t *agRoot = &tdsaRoot->tdsaAllShared.agRootNonInt;
-#ifdef FDS_DM  
+#ifdef FDS_DM
   dmRoot_t   *dmRoot = &tdsaRoot->tdsaAllShared.dmRoot;
 #endif
 
@@ -101,24 +101,24 @@ tiCOMTimerTick (
 #endif
   /* checking the lower layer */
   saTimerTick(agRoot);
-  
-#ifdef FDS_DM  
+
+#ifdef FDS_DM
   /* checking the DM */
   dmTimerTick(dmRoot);
 #endif
 
-#ifdef FDS_SM_NOT_YET  
+#ifdef FDS_SM_NOT_YET
   /* checking the SM */
   smTimerTick(smRoot);
 #endif
-    
+
   /*
-    timers for discovery 
-    checking tdsaRoot_t timers 
+    timers for discovery
+    checking tdsaRoot_t timers
   */
-  
+
   tdsaProcessTimers(tiRoot);
- 
+
 }
 
 /*****************************************************************************
@@ -201,7 +201,7 @@ tdsaSetTimerRequest(
 osGLOBAL void
 tdsaAddTimer(
              tiRoot_t            *tiRoot,
-             tdList_t            *timerListHdr, 
+             tdList_t            *timerListHdr,
              tdsaTimerRequest_t  *timerRequest
             )
 {
@@ -248,7 +248,7 @@ tdsaKillTimer(
 *
 *
 *****************************************************************************/
-osGLOBAL void 
+osGLOBAL void
 tdsaProcessTimers(
                   tiRoot_t *tiRoot
                   )
@@ -258,15 +258,15 @@ tdsaProcessTimers(
   tdsaTimerRequest_t *timerRequest_to_process = agNULL;
   tdList_t *timerlist_to_process, *nexttimerlist = agNULL;
 
-  
+
   timerlist_to_process = &tdsaAllShared->timerlist;
-  
+
   timerlist_to_process = timerlist_to_process->flink;
 
   while ((timerlist_to_process != agNULL) && (timerlist_to_process != &tdsaAllShared->timerlist))
   {
     nexttimerlist = timerlist_to_process->flink;
-    
+
     tdsaSingleThreadedEnter(tiRoot, TD_TIMER_LOCK);
     timerRequest_to_process = TDLIST_OBJECT_BASE(tdsaTimerRequest_t, timerLink, timerlist_to_process);
     tdsaSingleThreadedLeave(tiRoot, TD_TIMER_LOCK);
@@ -274,11 +274,11 @@ tdsaProcessTimers(
     if (timerRequest_to_process == agNULL)
     {
       TI_DBG1(("tdsaProcessTimers: timerRequest_to_process is NULL! Error!!!\n"));
-      return;      
+      return;
     }
-    
+
     timerRequest_to_process->timeout--;
-    
+
     if (timerRequest_to_process->timeout == 0)
     {
       tdsaSingleThreadedEnter(tiRoot, TD_TIMER_LOCK);
@@ -289,10 +289,10 @@ tdsaProcessTimers(
       }
       tdsaSingleThreadedLeave(tiRoot, TD_TIMER_LOCK);
       /* calling call back function */
-      (timerRequest_to_process->timerCBFunc)(tiRoot, 
-                                             timerRequest_to_process->timerData1, 
-                                             timerRequest_to_process->timerData2, 
-                                             timerRequest_to_process->timerData3 
+      (timerRequest_to_process->timerCBFunc)(tiRoot,
+                                             timerRequest_to_process->timerData1,
+                                             timerRequest_to_process->timerData2,
+                                             timerRequest_to_process->timerData3
                                              );
     }
     timerlist_to_process = nexttimerlist;

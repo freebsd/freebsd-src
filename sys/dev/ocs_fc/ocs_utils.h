@@ -333,4 +333,4 @@ __attribute__((format(printf,2,0)))
 extern int32_t ocs_ramlog_vprintf(ocs_ramlog_t *ramlog, const char *fmt, va_list ap);
 extern int32_t ocs_ddump_ramlog(ocs_textbuf_t *textbuf, ocs_ramlog_t *ramlog);
 
-#endif 
+#endif

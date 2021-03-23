@@ -336,7 +336,7 @@ gx_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (error != 0)
 			return (error);
 		return (0);
-	
+
 	default:
 		error = ether_ioctl(ifp, cmd, data);
 		if (error != 0)

@@ -162,7 +162,7 @@ static int update_xoff_threshold(struct mlx5e_priv *priv,
 		}
 
 		port_buffer->buffer[i].xoff = port_buffer->buffer[i].size - xoff;
-		port_buffer->buffer[i].xon  = 
+		port_buffer->buffer[i].xon  =
 			port_buffer->buffer[i].xoff - MLX5E_MAX_PORT_MTU;
 	}
 

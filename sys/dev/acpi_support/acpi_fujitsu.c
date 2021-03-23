@@ -704,7 +704,7 @@ acpi_fujitsu_update(struct acpi_fujitsu_softc *sc)
 
 			/* Clear the modification bit */
 			sc->gmou.value &= MOUSE_SETTING_BITS;
-			
+
 			/* Set the value in case it is not hardware controlled */
                         acpi_fujitsu_method_set(sc, METHOD_GMOU, sc->gmou.value);
 

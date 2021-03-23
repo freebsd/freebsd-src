@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ata.h>
 #include <sys/kernel.h>
 #include <sys/endian.h>
-#include <sys/malloc.h> 
+#include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
@@ -64,7 +64,7 @@ struct ata_dc_cb_args {
     int error;
 };
 
-void 
+void
 ata_dmainit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
@@ -125,7 +125,7 @@ error:
     ata_dmafini(dev);
 }
 
-void 
+void
 ata_dmafini(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);

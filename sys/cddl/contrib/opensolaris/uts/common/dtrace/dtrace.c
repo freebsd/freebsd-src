@@ -4409,8 +4409,8 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 		DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 		break;
 
-	case DIF_SUBR_RW_READ_HELD: 
-	case DIF_SUBR_SX_SHARED_HELD: 
+	case DIF_SUBR_RW_READ_HELD:
+	case DIF_SUBR_SX_SHARED_HELD:
 		if (!dtrace_canload(tupregs[0].dttk_value, sizeof (uintptr_t),
 		    mstate, vstate)) {
 			regs[rd] = 0;
@@ -7778,7 +7778,7 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 				/*
 				 * Reset to the memory address rather than
 				 * the memref array, then let the BYREF
-				 * code below do the work to store the 
+				 * code below do the work to store the
 				 * memory data in the buffer.
 				 */
 				val = memref[0];
@@ -14657,7 +14657,7 @@ dtrace_state_create(struct cdev *dev, struct ucred *cred __unused)
 		 * subsequence.
 		 */
 		dtrace_xoroshiro128_plus_jump(state->dts_rstate[cpu_it-1],
-		    state->dts_rstate[cpu_it]); 
+		    state->dts_rstate[cpu_it]);
 	}
 
 #ifdef illumos

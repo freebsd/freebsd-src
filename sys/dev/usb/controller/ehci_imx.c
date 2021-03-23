@@ -128,7 +128,7 @@ __FBSDID("$FreeBSD$");
  * known to exist:
  *   - "nop-usbphy"
  *   - "usb-nop-xceiv";
- *   - "fsl,imx23-usbphy" 
+ *   - "fsl,imx23-usbphy"
  *   - "fsl,imx28-usbphy", "fsl,imx23-usbphy";
  *   - "fsl,imx6q-usbphy", "fsl,imx23-usbphy";
  *
@@ -267,7 +267,7 @@ struct imx_ehci_softc {
 	ehci_softc_t	ehci_softc;
 	device_t	dev;
 	struct resource	*ehci_mem_res;	/* EHCI core regs. */
-	struct resource	*ehci_irq_res;	/* EHCI core IRQ. */ 
+	struct resource	*ehci_irq_res;	/* EHCI core IRQ. */
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -325,10 +325,10 @@ imx_ehci_detach(device_t dev)
 	if (esc->sc_flags & EHCI_SCFLG_DONEINIT)
 		ehci_detach(esc);
 	if (esc->sc_intr_hdl != NULL)
-		bus_teardown_intr(dev, esc->sc_irq_res, 
+		bus_teardown_intr(dev, esc->sc_irq_res,
 		    esc->sc_intr_hdl);
 	if (sc->ehci_irq_res != NULL)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, 
+		bus_release_resource(dev, SYS_RES_IRQ, 0,
 		    sc->ehci_irq_res);
 	if (sc->ehci_mem_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0,
@@ -418,7 +418,7 @@ imx_ehci_attach(device_t dev)
 	 * Set handle to USB related registers subregion used by
 	 * generic EHCI driver.
 	 */
-	err = bus_space_subregion(esc->sc_io_tag, 
+	err = bus_space_subregion(esc->sc_io_tag,
 	    rman_get_bushandle(sc->ehci_mem_res),
 	    IMX_EHCI_REG_OFF, IMX_EHCI_REG_SIZE, &esc->sc_io_hdl);
 	if (err != 0) {
@@ -463,7 +463,7 @@ imx_ehci_attach(device_t dev)
 
 	err = ehci_init(esc);
 	if (err != 0) {
-		device_printf(dev, "USB init failed, usb_err_t=%d\n", 
+		device_printf(dev, "USB init failed, usb_err_t=%d\n",
 		    err);
 		goto out;
 	}

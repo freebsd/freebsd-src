@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -406,7 +406,7 @@ void ecore_gft_disable(struct ecore_hwfn *p_hwfn,
 
 /**
  * @brief ecore_gft_config - Enable and configure HW for GFT
- *                           
+ *
  * @param p_hwfn -	  HW device data
  * @param p_ptt -   ptt window used for writing the registers.
  * @param pf_id - pf on which to enable GFT.
@@ -536,7 +536,7 @@ void ecore_memset_task_ctx(void *p_ctx_mem,
 /**
 * @brief ecore_update_eth_rss_ind_table_entry - Update RSS indirection table entry.
 * The function must run in exclusive mode to prevent wrong RSS configuration.
-*                
+*
 * @param p_hwfn    - HW device data
 * @param p_ptt  - ptt window used for writing the registers.
 * @param rss_id - RSS engine ID.

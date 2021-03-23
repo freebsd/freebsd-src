@@ -5,7 +5,7 @@
  * Copyright (c) 2016 Landon Fuller <landonf@FreeBSD.org>
  * Copyright (c) 2017 The FreeBSD Foundation
  * All rights reserved.
- * 
+ *
  * Portions of this software were developed by Landon Fuller
  * under sponsorship from the FreeBSD Foundation.
  *
@@ -3653,7 +3653,7 @@ bwn_fw_fillinfo(struct bwn_mac *mac)
 /**
  * Request that the GPIO controller tristate all pins set in @p mask, granting
  * the MAC core control over the pins.
- * 
+ *
  * @param mac	bwn MAC state.
  * @param pins	If the bit position for a pin number is set to one, tristate the
  *		pin.

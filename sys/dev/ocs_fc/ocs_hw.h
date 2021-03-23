@@ -1024,7 +1024,7 @@ struct ocs_hw_s {
 	uint16_t	fcf_indicator;
 
 	ocs_hw_io_t	**io;		/**< pointer array of IO objects */
-	uint8_t		*wqe_buffs;	/**< array of WQE buffs mapped to IO objects */	
+	uint8_t		*wqe_buffs;	/**< array of WQE buffs mapped to IO objects */
 
 	ocs_lock_t	io_lock;		/**< IO lock to synchronize list access */
 	ocs_lock_t	io_abort_lock;		/**< IO lock to synchronize IO aborting */
@@ -1393,13 +1393,13 @@ typedef struct {
 #define OCS_FILE_TYPE_GROUP            0xf7
 #define OCS_FILE_ID_GROUP              0xa2
 struct ocs_hw_grp_hdr {
-	uint32_t size;          
-	uint32_t magic_number;  
-	uint32_t word2;         
+	uint32_t size;
+	uint32_t magic_number;
+	uint32_t word2;
 	uint8_t rev_name[128];
         uint8_t date[12];
         uint8_t revision[32];
-};                              
+};
 
 ocs_hw_rtn_e
 ocs_hw_send_frame(ocs_hw_t *hw, fc_header_le_t *hdr, uint8_t sof, uint8_t eof, ocs_dma_t *payload,

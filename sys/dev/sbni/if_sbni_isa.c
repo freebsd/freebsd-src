@@ -105,7 +105,7 @@ sbni_attach_isa(device_t dev)
 	struct sbni_softc *sc;
 	struct sbni_flags flags;
 	int error;
-   
+
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
@@ -135,7 +135,7 @@ sbni_attach_isa(device_t dev)
 			device_printf(dev, "shared irq with %s\n",
 			       master->ifp->if_xname);
 		}
-	} 
+	}
 #endif	/* SBNI_DUAL_COMPOUND */
 
 	*(u_int32_t*)&flags = device_get_flags(dev);

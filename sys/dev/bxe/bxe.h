@@ -1462,7 +1462,7 @@ struct bxe_softc {
 #define BXE_STATS_UNLOCK(sc)      mtx_unlock(&sc->stats_mtx)
 #define BXE_STATS_LOCK_ASSERT(sc) mtx_assert(&sc->stats_mtx, MA_OWNED)
 
-#define BXE_MCAST_LOCK(sc)	mtx_lock(&sc->mcast_mtx); 
+#define BXE_MCAST_LOCK(sc)	mtx_lock(&sc->mcast_mtx);
 #define BXE_MCAST_UNLOCK(sc)	mtx_unlock(&sc->mcast_mtx);
 #define BXE_MCAST_LOCK_ASSERT(sc) mtx_assert(&sc->mcast_mtx, MA_OWNED)
 

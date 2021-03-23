@@ -306,7 +306,7 @@ qls_mbx_isr(qla_host_t *ha)
 			ha->mbox[0] = data;
 			for (i = 1; i < Q81_NUM_MBX_REGISTERS; i++) {
 				if (qls_mbx_rd_reg(ha, i, &data))
-					break; 
+					break;
 				ha->mbox[i] = data;
 			}
 			ha->mbx_done = 1;
@@ -316,7 +316,7 @@ qls_mbx_isr(qla_host_t *ha)
 			ha->aen[0] = data;
 			for (i = 1; i < Q81_NUM_AEN_REGISTERS; i++) {
 				if (qls_mbx_rd_reg(ha, i, &data))
-					break; 
+					break;
 				ha->aen[i] = data;
 			}
 			device_printf(dev,"%s: AEN "
@@ -344,7 +344,7 @@ qls_mbx_isr(qla_host_t *ha)
 				ha->link_hw_info = 0;
 				break;
 			}
-		} 
+		}
 	}
 	WRITE_REG32(ha, Q81_CTL_HOST_CMD_STATUS, Q81_CTL_HCS_CMD_CLR_RTH_INTR);
 

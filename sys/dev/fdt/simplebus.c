@@ -113,7 +113,7 @@ EARLY_DRIVER_MODULE(simplebus, simplebus, simplebus_driver, simplebus_devclass,
 static int
 simplebus_probe(device_t dev)
 {
- 
+
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 	/*
@@ -332,7 +332,7 @@ static const struct ofw_bus_devinfo *
 simplebus_get_devinfo(device_t bus __unused, device_t child)
 {
         struct simplebus_devinfo *ndi;
-        
+
         ndi = device_get_ivars(child);
 	if (ndi == NULL)
 		return (NULL);

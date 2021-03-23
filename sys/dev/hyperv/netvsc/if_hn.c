@@ -7022,7 +7022,7 @@ hn_resume(struct hn_softc *sc)
 		hn_polling(sc, sc->hn_pollhz);
 }
 
-static void 
+static void
 hn_rndis_rx_status(struct hn_softc *sc, const void *data, int dlen)
 {
 	const struct rndis_status_msg *msg;
@@ -7525,7 +7525,7 @@ hn_nvs_ack_rxbuf(struct hn_rx_ring *rxr, struct vmbus_channel *chan,
 {
 	struct hn_nvs_rndis_ack ack;
 	int retries, error;
-	
+
 	ack.nvs_type = HN_NVS_TYPE_RNDIS_ACK;
 	ack.nvs_status = HN_NVS_STATUS_OK;
 

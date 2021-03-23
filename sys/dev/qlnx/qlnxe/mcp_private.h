@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -403,7 +403,7 @@ struct private_port {
 	u32 nig_drain_end_ts;
 	/* time stamp of the end of NIG drain time for the TC pause drain, this timer is used togther for all TC */
 	u32 nig_drain_tc_end_ts;
-	u32 tc_drain_en_bitmap;	
+	u32 tc_drain_en_bitmap;
 	tlv_s lldp_core_tlv_desc[LLDP_MAX_LLDP_AGENTS][MAX_REGISTERED_TLVS];
 	u8 current_core_tlv_num[LLDP_MAX_LLDP_AGENTS];
 	struct mcp_mac lldp_mac;

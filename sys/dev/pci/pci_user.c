@@ -124,7 +124,7 @@ struct cdevsw pcicdev = {
 	.d_ioctl =	pci_ioctl,
 	.d_name =	"pci",
 };
-  
+
 static int
 pci_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
@@ -190,7 +190,7 @@ pci_conf_match_native(struct pci_match_conf *matches, int num_matches,
 		 && (match_buf->pc_sel.pc_func != matches[i].pc_sel.pc_func))
 			continue;
 
-		if (((matches[i].flags & PCI_GETCONF_MATCH_VENDOR) != 0) 
+		if (((matches[i].flags & PCI_GETCONF_MATCH_VENDOR) != 0)
 		 && (match_buf->pc_vendor != matches[i].pc_vendor))
 			continue;
 

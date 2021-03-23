@@ -401,7 +401,7 @@ extern int report_soft_matrix;
 
 #define CHN_F_MMAP_INVALID	(CHN_F_DEAD | CHN_F_RUNNING)
 
-					
+
 
 #define CHN_N_RATE		0x00000001
 #define CHN_N_FORMAT		0x00000002

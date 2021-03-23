@@ -215,7 +215,7 @@ amrd_attach(device_t dev)
 {
     struct amrd_softc	*sc = (struct amrd_softc *)device_get_softc(dev);
     device_t		parent;
-    
+
     debug_called(1);
 
     parent = device_get_parent(dev);
@@ -226,7 +226,7 @@ amrd_attach(device_t dev)
 
     device_printf(dev, "%uMB (%u sectors) RAID %d (%s)\n",
 		  sc->amrd_drive->al_size / ((1024 * 1024) / AMR_BLKSIZE),
-		  sc->amrd_drive->al_size, sc->amrd_drive->al_properties & AMR_DRV_RAID_MASK, 
+		  sc->amrd_drive->al_size, sc->amrd_drive->al_properties & AMR_DRV_RAID_MASK,
 		  amr_describe_code(amr_table_drvstate, AMR_DRV_CURSTATE(sc->amrd_drive->al_state)));
 
     sc->amrd_disk = disk_alloc();

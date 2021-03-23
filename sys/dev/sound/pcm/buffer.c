@@ -641,7 +641,7 @@ sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count)
  * @brief Dispose samples from channel buffer, increasing size of ready area
  *
  * This function discards samples from the supplied buffer by advancing the
- * ready area start pointer and decrementing the ready area length.  If 
+ * ready area start pointer and decrementing the ready area length.  If
  * @c to is not NULL, then the discard samples will be copied to the location
  * it points to.
  *

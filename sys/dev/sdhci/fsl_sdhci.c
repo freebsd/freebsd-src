@@ -494,7 +494,7 @@ fsl_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_
 	val32 = RD4(sc, off & ~3);
 	val32 &= ~(0xffff << (off & 3) * 8);
 	val32 |= ((val & 0xffff) << (off & 3) * 8);
-	WR4(sc, off & ~3, val32);	
+	WR4(sc, off & ~3, val32);
 }
 
 static void
@@ -566,7 +566,7 @@ fsl_sdhc_get_clock(struct fsl_sdhci_softc *sc)
 	return (val);
 }
 
-static void 
+static void
 fsl_sdhc_set_clock(struct fsl_sdhci_softc *sc, uint16_t val)
 {
 	uint32_t divisor, freq, prescale, val32;
@@ -627,12 +627,12 @@ fsl_sdhc_set_clock(struct fsl_sdhci_softc *sc, uint16_t val)
 	for (divisor = 1; freq < sc->baseclk_hz / (prescale * divisor);)
 		++divisor;
 
-#ifdef DEBUG	
+#ifdef DEBUG
 	device_printf(sc->dev,
 	    "desired SD freq: %d, actual: %d; base %d prescale %d divisor %d\n",
-	    freq, sc->baseclk_hz / (prescale * divisor), sc->baseclk_hz, 
+	    freq, sc->baseclk_hz / (prescale * divisor), sc->baseclk_hz,
 	    prescale, divisor);
-#endif	
+#endif
 
 	/*
 	 * Adjust to zero-based values, and store them to the hardware.
@@ -664,7 +664,7 @@ fsl_sdhci_r1bfix_is_wait_done(struct fsl_sdhci_softc *sc)
 	inhibit = RD4(sc, SDHC_PRES_STATE) & (SDHC_PRES_DLA | SDHC_PRES_CDIHB);
 
 	if (inhibit && getsbinuptime() < sc->r1bfix_timeout_at) {
-		callout_reset_sbt(&sc->r1bfix_callout, SBT_1MS, 0, 
+		callout_reset_sbt(&sc->r1bfix_callout, SBT_1MS, 0,
 		    fsl_sdhci_r1bfix_func, sc, 0);
 		return (false);
 	}
@@ -742,7 +742,7 @@ fsl_sdhci_intr(void *arg)
 		sc->r1bfix_timeout_at = getsbinuptime() + 250 * SBT_1MS;
 		if (!fsl_sdhci_r1bfix_is_wait_done(sc)) {
 			WR4(sc, SDHCI_INT_STATUS, intmask);
-			bus_barrier(sc->mem_res, SDHCI_INT_STATUS, 4, 
+			bus_barrier(sc->mem_res, SDHCI_INT_STATUS, 4,
 			    BUS_SPACE_BARRIER_WRITE);
 		}
 	}

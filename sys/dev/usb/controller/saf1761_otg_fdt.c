@@ -185,7 +185,7 @@ saf1761_otg_fdt_attach(device_t dev)
 	sc->sc_io_res =
 	    bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 
-	if (sc->sc_io_res == NULL) 
+	if (sc->sc_io_res == NULL)
 		goto error;
 
 	sc->sc_io_tag = rman_get_bustag(sc->sc_io_res);

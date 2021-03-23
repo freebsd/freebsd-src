@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Abstract BHND Bridge Device Driver
- * 
+ *
  * Provides generic support for bridging from a parent bus (such as PCI) to
  * a BHND-compatible bus (e.g. bcma or siba).
  */
@@ -104,7 +104,7 @@ static int			 bhndb_init_child_resource(struct resource *r,
 
 static int			 bhndb_activate_static_region(
 				     struct bhndb_softc *sc,
-				     struct bhndb_region *region, 
+				     struct bhndb_region *region,
 				     device_t child, int type, int rid,
 				     struct resource *r);
 
@@ -120,7 +120,7 @@ static inline struct bhndb_dw_alloc *bhndb_io_resource(struct bhndb_softc *sc,
 
 /**
  * Default bhndb(4) implementation of DEVICE_PROBE().
- * 
+ *
  * This function provides the default bhndb implementation of DEVICE_PROBE(),
  * and is compatible with bhndb(4) bridges attached via bhndb_attach_bridge().
  */
@@ -209,7 +209,7 @@ bhndb_hw_matches(struct bhndb_softc *sc, struct bhnd_core_info *cores,
 
 		for (u_int d = 0; d < ncores; d++) {
 			struct bhnd_core_info *core = &cores[d];
-			
+
 			if (BHNDB_IS_CORE_DISABLED(sc->dev, sc->bus_dev, core))
 				continue;
 
@@ -230,7 +230,7 @@ bhndb_hw_matches(struct bhndb_softc *sc, struct bhnd_core_info *cores,
 /**
  * Initialize the region maps and priority configuration in @p br using
  * the priority @p table and the set of cores enumerated by @p erom.
- * 
+ *
  * @param sc The bhndb device state.
  * @param br The resource state to be configured.
  * @param erom EROM parser used to enumerate @p cores.
@@ -256,7 +256,7 @@ bhndb_init_region_cfg(struct bhndb_softc *sc, bhnd_erom_t *erom,
 	prio_default = 0;
 	prio_high = 0;
 
-	/* 
+	/*
 	 * Register bridge regions covering all statically mapped ports.
 	 */
 	for (u_int i = 0; i < ncores; i++) {
@@ -311,11 +311,11 @@ bhndb_init_region_cfg(struct bhndb_softc *sc, bhnd_erom_t *erom,
 
 			/*
 			 * Always defer to the register window's size.
-			 * 
+			 *
 			 * If the port size is smaller than the window size,
 			 * this ensures that we fully utilize register windows
 			 * larger than the referenced port.
-			 * 
+			 *
 			 * If the port size is larger than the window size, this
 			 * ensures that we do not directly map the allocations
 			 * within the region to a too-small window.
@@ -335,7 +335,7 @@ bhndb_init_region_cfg(struct bhndb_softc *sc, bhnd_erom_t *erom,
 
 			/*
 			 * Add to the bus region list.
-			 * 
+			 *
 			 * The window priority for a statically mapped region is
 			 * always HIGH.
 			 */
@@ -357,10 +357,10 @@ bhndb_init_region_cfg(struct bhndb_softc *sc, bhnd_erom_t *erom,
 		core = &cores[i];
 		md = bhnd_core_get_match_desc(core);
 
-		/* 
+		/*
 		 * Skip priority accounting for cores that ...
 		 */
-		
+
 		/* ... do not require bridge resources */
 		if (BHNDB_IS_CORE_DISABLED(sc->dev, sc->bus_dev, core))
 			continue;
@@ -454,7 +454,7 @@ bhndb_init_region_cfg(struct bhndb_softc *sc, bhnd_erom_t *erom,
 
 			device_printf(sc->dev, "region 0x%llx+0x%llx priority "
 			    "%u %s/%s",
-			    (unsigned long long) region->addr, 
+			    (unsigned long long) region->addr,
 			    (unsigned long long) region->size,
 			    region->priority,
 			    direct_msg, type_msg);
@@ -471,13 +471,13 @@ bhndb_init_region_cfg(struct bhndb_softc *sc, bhnd_erom_t *erom,
 
 /**
  * Find a hardware specification for @p dev.
- * 
+ *
  * @param sc The bhndb device state.
  * @param cores All cores enumerated on the bridged bhnd bus.
  * @param ncores The length of @p cores.
  * @param[out] hw On success, the matched hardware specification.
  * with @p dev.
- * 
+ *
  * @retval 0 success
  * @retval non-zero if an error occurs fetching device info for comparison.
  */
@@ -505,12 +505,12 @@ bhndb_find_hwspec(struct bhndb_softc *sc, struct bhnd_core_info *cores,
  * Helper function that must be called by subclass bhndb(4) drivers
  * when implementing DEVICE_ATTACH() before calling any bhnd(4) or bhndb(4)
  * APIs on the bridge device.
- * 
+ *
  * This function will add a bridged bhnd(4) child device with a device order of
  * BHND_PROBE_BUS. Any subclass bhndb(4) driver may use the BHND_PROBE_*
  * priority bands to add additional devices that will be attached in
  * their preferred order relative to the bridged bhnd(4) bus.
- * 
+ *
  * @param dev		The bridge device to attach.
  * @param cid		The bridged device's chip identification.
  * @param cores		The bridged device's core table.
@@ -623,7 +623,7 @@ failed:
 
 /**
  * Default bhndb(4) implementation of DEVICE_DETACH().
- * 
+ *
  * This function detaches any child devices, and if successful, releases all
  * resources held by the bridge device.
  */
@@ -657,7 +657,7 @@ bhndb_generic_detach(device_t dev)
 
 /**
  * Default bhndb(4) implementation of DEVICE_SUSPEND().
- * 
+ *
  * This function calls bus_generic_suspend() (or implements equivalent
  * behavior).
  */
@@ -669,7 +669,7 @@ bhndb_generic_suspend(device_t dev)
 
 /**
  * Default bhndb(4) implementation of DEVICE_RESUME().
- * 
+ *
  * This function calls bus_generic_resume() (or implements equivalent
  * behavior).
  */
@@ -816,14 +816,14 @@ bhndb_get_addrspace(struct bhndb_softc *sc, device_t child)
 
 /**
  * Return the rman instance for a given resource @p type, if any.
- * 
+ *
  * @param sc The bhndb device state.
  * @param child The requesting child.
  * @param type The resource type (e.g. SYS_RES_MEMORY, SYS_RES_IRQ, ...)
  */
 static struct rman *
 bhndb_get_rman(struct bhndb_softc *sc, device_t child, int type)
-{	
+{
 	switch (bhndb_get_addrspace(sc, child)) {
 	case BHNDB_ADDRSPACE_NATIVE:
 		switch (type) {
@@ -834,7 +834,7 @@ bhndb_get_rman(struct bhndb_softc *sc, device_t child, int type)
 		default:
 			return (NULL);
 		}
-		
+
 	case BHNDB_ADDRSPACE_BRIDGED:
 		switch (type) {
 		case SYS_RES_MEMORY:
@@ -928,7 +928,7 @@ bhndb_is_core_disabled(device_t dev, device_t child,
 
 /**
  * Default bhndb(4) implementation of BHNDB_GET_HOSTB_CORE().
- * 
+ *
  * This function uses a heuristic valid on all known PCI/PCIe/PCMCIA-bridged
  * bhnd(4) devices.
  */
@@ -990,15 +990,15 @@ bhndb_alloc_resource(device_t dev, device_t child, int type,
 			    "default resource %#x type %d for child %s "
 			    "not found\n", *rid, type,
 			    device_get_nameunit(child));
-			
+
 			return (NULL);
 		}
-		
+
 		if (rle->res != NULL) {
 			device_printf(dev,
 			    "resource entry %#x type %d for child %s is busy\n",
 			    *rid, type, device_get_nameunit(child));
-			
+
 			return (NULL);
 		}
 
@@ -1148,7 +1148,7 @@ done:
  * Initialize child resource @p r with a virtual address, tag, and handle
  * copied from @p parent, adjusted to contain only the range defined by
  * @p offsize and @p size.
- * 
+ *
  * @param r The register to be initialized.
  * @param parent The parent bus resource that fully contains the subregion.
  * @param offset The subregion offset within @p parent.
@@ -1184,14 +1184,14 @@ bhndb_init_child_resource(struct resource *r,
 
 /**
  * Attempt activation of a fixed register window mapping for @p child.
- * 
+ *
  * @param sc BHNDB device state.
  * @param region The static region definition capable of mapping @p r.
  * @param child A child requesting resource activation.
  * @param type Resource type.
  * @param rid Resource identifier.
  * @param r Resource to be activated.
- * 
+ *
  * @retval 0 if @p r was activated successfully
  * @retval ENOENT if no fixed register window was found.
  * @retval non-zero if @p r could not be activated.
@@ -1239,7 +1239,7 @@ bhndb_activate_static_region(struct bhndb_softc *sc,
 /**
  * Attempt to allocate/retain a dynamic register window for @p r, returning
  * the retained window.
- * 
+ *
  * @param sc The bhndb driver state.
  * @param r The resource for which a window will be retained.
  */
@@ -1296,7 +1296,7 @@ bhndb_retain_dynamic_window(struct bhndb_softc *sc, struct resource *r)
 
 /**
  * Activate a resource using any viable static or dynamic register window.
- * 
+ *
  * @param sc The bhndb driver state.
  * @param child The child holding ownership of @p r.
  * @param type The type of the resource to be activated.
@@ -1304,7 +1304,7 @@ bhndb_retain_dynamic_window(struct bhndb_softc *sc, struct resource *r)
  * @param r The resource to be activated
  * @param[out] indirect On error and if not NULL, will be set to 'true' if
  * the caller should instead use an indirect resource mapping.
- * 
+ *
  * @retval 0 success
  * @retval non-zero activation failed.
  */
@@ -1516,7 +1516,7 @@ bhndb_get_resource_list(device_t dev, device_t child)
  *
  * For BHNDB_ADDRSPACE_NATIVE children, all resources are activated as direct
  * resources via BUS_ACTIVATE_RESOURCE().
- * 
+ *
  * For BHNDB_ADDRSPACE_BRIDGED children, the resource priority is determined,
  * and if possible, the resource is activated as a direct resource. For example,
  * depending on resource priority and bridge resource availability, this
@@ -1602,7 +1602,7 @@ bhndb_activate_bhnd_resource(device_t dev, device_t child,
 	{
 		device_printf(child, "activated 0x%llx-0x%llx as %s "
 		    "resource\n",
-		    (unsigned long long) r_start, 
+		    (unsigned long long) r_start,
 		    (unsigned long long) r_start + r_size - 1,
 		    r->direct ? "direct" : "indirect");
 	}
@@ -1637,18 +1637,18 @@ bhndb_deactivate_bhnd_resource(device_t dev, device_t child,
 /**
  * Find the best available bridge resource allocation record capable of handling
  * bus I/O requests of @p size at @p addr.
- * 
+ *
  * In order of preference, this function will either:
- * 
+ *
  * - Configure and return a free allocation record
  * - Return an existing allocation record mapping the requested space, or
  * - Steal, configure, and return an in-use allocation record.
- * 
+ *
  * Will panic if a usable record cannot be found.
- * 
+ *
  * @param sc Bridge driver state.
  * @param addr The I/O target address.
- * @param size The size of the I/O operation to be performed at @p addr. 
+ * @param size The size of the I/O operation to be performed at @p addr.
  * @param[out] borrowed Set to true if the allocation record was borrowed to
  * fulfill this request; the borrowed record maps the target address range,
  * and must not be modified.
@@ -1718,22 +1718,22 @@ bhndb_io_resource_get_window(struct bhndb_softc *sc, bus_addr_t addr,
 		return (dwa);
 	}
 
-	panic("register windows exhausted attempting to map 0x%llx-0x%llx\n", 
+	panic("register windows exhausted attempting to map 0x%llx-0x%llx\n",
 	    (unsigned long long) addr, (unsigned long long) addr+size-1);
 }
 
 /**
  * Return a borrowed reference to a bridge resource allocation record capable
  * of handling bus I/O requests of @p size at @p addr.
- * 
+ *
  * This will either return a reference to an existing allocation record mapping
  * the requested space, or will configure and return a free allocation record.
- * 
+ *
  * Will panic if a usable record cannot be found.
- * 
+ *
  * @param sc Bridge driver state.
  * @param addr The I/O target address.
- * @param size The size of the I/O operation to be performed at @p addr. 
+ * @param size The size of the I/O operation to be performed at @p addr.
  * @param[out] offset The offset within the returned resource at which
  * to perform the I/O request.
  * @param[out] stolen Set to true if the allocation record was stolen to fulfill
@@ -1765,7 +1765,7 @@ bhndb_io_resource(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
 		/* Cannot modify target of borrowed windows */
 		if (borrowed) {
 			panic("borrowed register window does not map expected "
-			    "range 0x%llx-0x%llx\n", 
+			    "range 0x%llx-0x%llx\n",
 			    (unsigned long long) addr,
 			    (unsigned long long) addr+size-1);
 		}
@@ -1774,7 +1774,7 @@ bhndb_io_resource(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
 		    size);
 		if (error) {
 		    panic("failed to set register window target mapping "
-			    "0x%llx-0x%llx\n", 
+			    "0x%llx-0x%llx\n",
 			    (unsigned long long) addr,
 			    (unsigned long long) addr+size-1);
 		}
@@ -1885,7 +1885,7 @@ BHNDB_IO_METHODS(uint32_t, 4);
 /**
  * Default bhndb(4) implementation of BHND_BUS_BARRIER().
  */
-static void 
+static void
 bhndb_bus_barrier(device_t dev, device_t child, struct bhnd_resource *r,
     bus_size_t offset, bus_size_t length, int flags)
 {
@@ -2199,7 +2199,7 @@ bhndb_get_dma_tag(device_t dev, device_t child)
 	 * Child drivers that do not use BHND_BUS_GET_DMA_TRANSLATION() are
 	 * responsible for creating their own restricted DMA tag; since we
 	 * cannot do this for them in BUS_GET_DMA_TAG(), we simply return the
-	 * bridge parent's DMA tag directly; 
+	 * bridge parent's DMA tag directly;
 	 */
 	return (bus_get_dma_tag(sc->parent_dev));
 }

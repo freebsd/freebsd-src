@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
  * Device driver for the Terasic Multitouch LCD (MTL).  Three separate
  * sub-drivers that support, respectively, access to device control registers,
  * the pixel frame buffer, and the text frame buffer.  The pixel frame buffer
- * is hooked up to vt(4), and the text frame buffer to syscons(4). 
+ * is hooked up to vt(4), and the text frame buffer to syscons(4).
  *
  * Eventually, the frame buffer control registers and touch screen input FIFO
  * will end up being separate sub-drivers as well.

@@ -756,10 +756,10 @@ cmi_initsys(struct sc_info* sc)
 	   to a device specific sysctl "dev.pcm.X.yyy" via
 	   device_get_sysctl_*() as discussed on multimedia@ in msg-id
 	   <861wujij2q.fsf@xps.des.no> */
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev), 
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev),
 		       SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
-		       OID_AUTO, "spdif_enabled", CTLFLAG_RW, 
-		       &sc->spdif_enabled, 0, 
+		       OID_AUTO, "spdif_enabled", CTLFLAG_RW,
+		       &sc->spdif_enabled, 0,
 		       "enable SPDIF output at 44.1 kHz and above");
 
 	return 0;
@@ -780,10 +780,10 @@ MIXER_DECLARE(cmi_mixer);
 
 static unsigned char
 cmi_mread(struct mpu401 *arg, void *sc, int reg)
-{	
+{
 	unsigned int d;
 
-		d = bus_space_read_1(0,0, 0x330 + reg); 
+		d = bus_space_read_1(0,0, 0x330 + reg);
 	/*	printf("cmi_mread: reg %x %x\n",reg, d);
 	*/
 	return d;
@@ -823,19 +823,19 @@ cmi_midiattach(struct sc_info *sc) {
 /*
 	const struct {
 		int port,bits;
-	} *p, ports[] = { 
-		{0x330,0}, 
-		{0x320,1}, 
-		{0x310,2}, 
-		{0x300,3}, 
+	} *p, ports[] = {
+		{0x330,0},
+		{0x320,1},
+		{0x310,2},
+		{0x300,3},
 		{0,0} } ;
 	Notes, CMPCI_REG_VMPUSEL sets the io port for the mpu.  Does
 	anyone know how to bus_space tag?
 */
 	cmi_clr4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
-	cmi_clr4(sc, CMPCI_REG_LEGACY_CTRL, 
+	cmi_clr4(sc, CMPCI_REG_LEGACY_CTRL,
 			CMPCI_REG_VMPUSEL_MASK << CMPCI_REG_VMPUSEL_SHIFT);
-	cmi_set4(sc, CMPCI_REG_LEGACY_CTRL, 
+	cmi_set4(sc, CMPCI_REG_LEGACY_CTRL,
 			0 << CMPCI_REG_VMPUSEL_SHIFT );
 	cmi_set4(sc, CMPCI_REG_FUNC_1, CMPCI_REG_UART_ENABLE);
 	sc->mpu = mpu401_init(&cmi_mpu_class, sc, cmi_intr, &sc->mpu_intr);

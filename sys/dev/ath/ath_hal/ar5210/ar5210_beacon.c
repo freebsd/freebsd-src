@@ -155,7 +155,7 @@ ar5210SetStaBeaconTimers(struct ath_hal *ah, const HAL_BEACON_STATE *bs)
 	 * also sets the tim offset once the AID is known which can
 	 * be left as such for now.
 	 */
-	OS_REG_WRITE(ah, AR_BEACON, 
+	OS_REG_WRITE(ah, AR_BEACON,
 		(OS_REG_READ(ah, AR_BEACON) &~ (AR_BEACON_PERIOD|AR_BEACON_TIM))
 		| SM(bs->bs_intval, AR_BEACON_PERIOD)
 		| SM(bs->bs_timoffset ? bs->bs_timoffset + 4 : 0, AR_BEACON_TIM)

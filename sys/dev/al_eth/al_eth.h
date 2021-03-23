@@ -115,7 +115,7 @@ struct al_eth_ring {
 	uint16_t next_to_clean;
 	/* The offset of the interrupt unmask register */
 	uint32_t *unmask_reg_offset;
-	/* 
+	/*
 	 * The value to write to the above register to
 	 * unmask the interrupt of this ring
 	 */
@@ -160,7 +160,7 @@ struct al_eth_ring {
 #define	AL_ETH_FLOW_CTRL_QUANTA			0xffff
 #define	AL_ETH_FLOW_CTRL_QUANTA_TH		0x8000
 
-#define	AL_ETH_FLOW_CTRL_AUTONEG	1 
+#define	AL_ETH_FLOW_CTRL_AUTONEG	1
 #define	AL_ETH_FLOW_CTRL_RX_PAUSE	2
 #define	AL_ETH_FLOW_CTRL_TX_PAUSE	4
 
@@ -242,7 +242,7 @@ struct al_eth_adapter {
 	void *irq_cookie;
 	struct resource *irq_res;
 
-	/* 
+	/*
 	 * Some features need tri-state capability,
 	 * thus the additional *_CAPABLE flags.
 	 */
@@ -258,7 +258,7 @@ struct al_eth_adapter {
 	struct al_hal_eth_adapter hal_adapter;
 
 	/*
-	 * Rx packets that shorter that this len will be copied to the mbuf 
+	 * Rx packets that shorter that this len will be copied to the mbuf
 	 */
 	unsigned int small_copy_len;
 

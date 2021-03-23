@@ -33,7 +33,7 @@
 #define __MX25LREG_H__
 
 /*
- * Commands 
+ * Commands
  */
 #define CMD_WRITE_ENABLE	0x06
 #define CMD_WRITE_DISABLE	0x04

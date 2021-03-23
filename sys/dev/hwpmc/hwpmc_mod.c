@@ -1439,7 +1439,7 @@ pmc_process_csw_in(struct thread *td)
 			/*
 			 * If we have a thread descriptor, use the per-thread
 			 * counter in the descriptor. If not, we will use
-			 * a per-process counter. 
+			 * a per-process counter.
 			 *
 			 * TODO: Remove the per-process "safety net" once
 			 * we have thoroughly tested that we don't hit the
@@ -1906,7 +1906,7 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		obj = entry->object.vm_object;
 		VM_OBJECT_RLOCK(obj);
 
-		/* 
+		/*
 		 * Walk the backing_object list to find the base
 		 * (non-shadowed) vm_object.
 		 */
@@ -1949,7 +1949,7 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 			continue;
 		}
 
-		/* 
+		/*
 		 * We don't want to keep the proc's vm_map or this
 		 * vm_object locked while we walk the pathname, since
 		 * vn_fullpath() can sleep.  However, if we drop the
@@ -1991,7 +1991,7 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		 * for this address range, vm_map_lookup_entry() will
 		 * return the previous one, so we always want to go to
 		 * the next entry on the next loop iteration.
-		 * 
+		 *
 		 * There is an edge condition here that can occur if
 		 * there is no entry at or before this address.  In
 		 * this situation, vm_map_lookup_entry returns
@@ -2399,7 +2399,7 @@ pmc_thread_descriptor_pool_alloc(void)
  * Add a thread descriptor to the free pool. We use this instead of free()
  * to maintain a cache of free entries. Additionally, we can safely call
  * this function when we cannot call free(), such as in a critical section.
- * 
+ *
  */
 static void
 pmc_thread_descriptor_pool_free(struct pmc_thread *pt)
@@ -4953,7 +4953,7 @@ pmc_process_samples(int cpu, ring_type_t ring)
 
 		/* If there is a pending AST wait for completion */
 		if (ps->ps_nsamples == PMC_USER_CALLCHAIN_PENDING) {
-			/* if we've been waiting more than 1 tick to 
+			/* if we've been waiting more than 1 tick to
 			 * collect a callchain for this record then
 			 * drop it and move on.
 			 */
@@ -4961,7 +4961,7 @@ pmc_process_samples(int cpu, ring_type_t ring)
 				/*
 				 * track how often we hit this as it will
 				 * preferentially lose user samples
-				 * for long running system calls 
+				 * for long running system calls
 				 */
 				counter_u64_add(pmc_stats.pm_overwrites, 1);
 				goto entrydone;

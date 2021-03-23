@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  */
 
 #ifndef __ECORE_HSI_IWARP__
-#define __ECORE_HSI_IWARP__ 
+#define __ECORE_HSI_IWARP__
 /************************************************************************/
 /* Add include to ecore hsi rdma target for both roce and iwarp ecore driver */
 /************************************************************************/
@@ -889,7 +889,7 @@ struct e5_iwarp_conn_context
 };
 
 /*
- * iWARP create QP params passed by driver to FW in CreateQP Request Ramrod 
+ * iWARP create QP params passed by driver to FW in CreateQP Request Ramrod
  */
 struct iwarp_create_qp_ramrod_data
 {
@@ -970,7 +970,7 @@ enum iwarp_eqe_sync_opcode
 };
 
 /*
- * iWARP EQE completion status 
+ * iWARP EQE completion status
  */
 enum iwarp_fw_return_code
 {
@@ -1092,7 +1092,7 @@ struct mpa_outgoing_params
 };
 
 /*
- * iWARP MPA offload params passed by driver to FW in MPA Offload Request Ramrod 
+ * iWARP MPA offload params passed by driver to FW in MPA Offload Request Ramrod
  */
 struct iwarp_mpa_offload_ramrod_data
 {
@@ -1116,7 +1116,7 @@ struct iwarp_mpa_offload_ramrod_data
 };
 
 /*
- * iWARP TCP connection offload params passed by driver to FW 
+ * iWARP TCP connection offload params passed by driver to FW
  */
 struct iwarp_offload_params
 {
@@ -1152,7 +1152,7 @@ struct iwarp_query_qp_ramrod_data
 };
 
 /*
- * iWARP Ramrod Command IDs 
+ * iWARP Ramrod Command IDs
  */
 enum iwarp_ramrod_cmd_id
 {
@@ -1177,7 +1177,7 @@ struct iwarp_rxmit_stats_drv
 };
 
 /*
- * iWARP and TCP connection offload params passed by driver to FW in iWARP offload ramrod 
+ * iWARP and TCP connection offload params passed by driver to FW in iWARP offload ramrod
  */
 struct iwarp_tcp_offload_ramrod_data
 {

@@ -678,7 +678,7 @@ csa_init(struct csa_info *csa)
 	/* Power up amplifier */
 	csa_writeio(resp, BA0_EGPIODR, csa_readio(resp, BA0_EGPIODR) |
 		EGPIODR_GPOE2);
-	csa_writeio(resp, BA0_EGPIOPTR, csa_readio(resp, BA0_EGPIOPTR) | 
+	csa_writeio(resp, BA0_EGPIOPTR, csa_readio(resp, BA0_EGPIOPTR) |
 		EGPIOPTR_GPPT2);
 
 	return 0;

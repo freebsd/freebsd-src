@@ -74,7 +74,7 @@ static int		 bhnd_nvram_val_bcm_macaddr_string_filter(
 			     size_t ilen, bhnd_nvram_type itype);
 static int		 bhnd_nvram_val_bcm_macaddr_string_encode_elem(
 			     bhnd_nvram_val *value, const void *inp,
-			     size_t ilen, void *outp, size_t *olen, 
+			     size_t ilen, void *outp, size_t *olen,
 			     bhnd_nvram_type otype);
 static const void 	*bhnd_nvram_val_bcm_macaddr_string_next(
 			     bhnd_nvram_val *value, const void *prev,
@@ -163,7 +163,7 @@ const bhnd_nvram_val_fmt bhnd_nvram_val_bcm_decimal_fmt = {
  * Extends standard integer handling, encoding the string representation of
  * unsigned and positive signed integer values as an 0x-prefixed hexadecimal
  * string.
- * 
+ *
  * For compatibility with standard Broadcom NVRAM parsing, if the integer is
  * both signed and negative, it will be string encoded as a negative decimal
  * value, not as a twos-complement hexadecimal value.
@@ -178,7 +178,7 @@ const bhnd_nvram_val_fmt bhnd_nvram_val_bcm_hex_fmt = {
 
 /**
  * Broadcom NVRAM string format.
- * 
+ *
  * Handles standard, comma-delimited, and octet-string values as used in
  * Broadcom NVRAM data.
  */
@@ -317,7 +317,7 @@ bhnd_nvram_val_bcm_hex_encode_elem(bhnd_nvram_val *value, const void *inp,
 
 	/*
 	 * Encode the value as a hex string.
-	 * 
+	 *
 	 * Most producers of Broadcom NVRAM values zero-pad hex values out to
 	 * their native width (width * two hex characters), and we do the same
 	 * for compatibility
@@ -402,9 +402,9 @@ bhnd_nvram_val_bcm_leddc_encode_elem(bhnd_nvram_val *value, const void *inp,
 	 * LED duty-cycle values represent the on/off periods as a 32-bit
 	 * integer, with the top 16 bits representing on cycles, and the
 	 * bottom 16 representing off cycles.
-	 * 
+	 *
 	 * LED duty cycle values have three different formats:
-	 * 
+	 *
 	 * - SPROM:	A 16-bit unsigned integer, with on/off cycles encoded
 	 *		as 8-bit values.
 	 * - NVRAM:	A 16-bit decimal or hexadecimal string, with on/off
@@ -414,7 +414,7 @@ bhnd_nvram_val_bcm_leddc_encode_elem(bhnd_nvram_val *value, const void *inp,
 	 *
 	 * To convert from a 16-bit representation to a 32-bit representation:
 	 *     ((value & 0xFF00) << 16) | ((value & 0x00FF) << 8)
-	 * 
+	 *
 	 * To convert from a 32-bit representation to a 16-bit representation,
 	 * perform the same operation in reverse, discarding the lower 8-bits
 	 * of each half of the 32-bit representation:
@@ -490,7 +490,7 @@ bhnd_nvram_val_bcm_leddc_encode_elem(bhnd_nvram_val *value, const void *inp,
 
 		/*
 		 * Determine whether the led16 conversion is lossy:
-		 * 
+		 *
 		 * - If the lower 8 bits of each half of the 32-bit value
 		 *   aren't set, we can safely use the 16-bit representation
 		 *   without losing data.
@@ -842,7 +842,7 @@ bhnd_nvram_val_bcm_macaddr_string_next(bhnd_nvram_val *value, const void *prev,
 /**
  * Determine whether @p inp is in octet string format, consisting of a
  * fields of two hex characters, separated with ':' or '-' delimiters.
- * 
+ *
  * This may be used to identify MAC address octet strings
  * (BHND_NVRAM_SFMT_MACADDR).
  *
@@ -855,7 +855,7 @@ bhnd_nvram_val_bcm_macaddr_string_next(bhnd_nvram_val *value, const void *prev,
  *				octet string. May be set to NULL if the field
  *				count is not desired.
  *
- * 
+ *
  * @retval true		if @p inp is a valid octet string
  * @retval false	if @p inp is not a valid octet string.
  */
@@ -954,7 +954,7 @@ bhnd_nvram_ident_octet_string(const char *inp, size_t ilen, char *delim,
  *   base 16 integer follows.
  * - An octal @p str may include a '0' prefix, denoting that an octal integer
  *   follows.
- * 
+ *
  * @param	inp	The string to be parsed.
  * @param	ilen	The length of @p inp, in bytes.
  * @param	base	The input string's base (2-36), or 0.

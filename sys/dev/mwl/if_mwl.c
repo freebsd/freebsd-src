@@ -42,9 +42,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/sysctl.h>
-#include <sys/mbuf.h>   
+#include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -452,7 +452,7 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 	 * format transmit record and optional padding between
 	 * this record and the payload.  Ask the net80211 layer
 	 * to arrange this when encapsulating packets so we can
-	 * add it efficiently. 
+	 * add it efficiently.
 	 */
 	ic->ic_headroom = sizeof(struct mwltxrec) -
 		sizeof(struct ieee80211_frame);
@@ -1953,7 +1953,7 @@ mwl_desc_setup(struct mwl_softc *sc, const char *name,
 
 	/* allocate descriptors */
 	error = bus_dmamem_alloc(dd->dd_dmat, (void**) &dd->dd_desc,
-				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT, 
+				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
 				 &dd->dd_dmamap);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "unable to alloc memory for %u %s descriptors, "
@@ -1998,7 +1998,7 @@ mwl_desc_cleanup(struct mwl_softc *sc, struct mwl_descdma *dd)
 	memset(dd, 0, sizeof(*dd));
 }
 
-/* 
+/*
  * Construct a tx q's free list.  The order of entries on
  * the list must reflect the physical layout of tx descriptors
  * because the firmware pre-fetches descriptors.
@@ -2135,7 +2135,7 @@ mwl_rxdma_setup(struct mwl_softc *sc)
 	}
 
 	error = bus_dmamem_alloc(sc->sc_rxdmat, (void**) &sc->sc_rxmem,
-				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT, 
+				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
 				 &sc->sc_rxmap);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not alloc %ju bytes of rx DMA memory\n",
@@ -2419,9 +2419,9 @@ mwl_node_getmimoinfo(const struct ieee80211_node *ni,
 	(_dst) = (_dst) > 64 ? 127 : ((_dst) << 1);			\
 } while (0)
 	static const int8_t logdbtbl[32] = {
-	       0,   0,  24,  38,  48,  56,  62,  68, 
-	      72,  76,  80,  83,  86,  89,  92,  94, 
-	      96,  98, 100, 102, 104, 106, 107, 109, 
+	       0,   0,  24,  38,  48,  56,  62,  68,
+	      72,  76,  80,  83,  86,  89,  92,  94,
+	      96,  98, 100, 102, 104, 106, 107, 109,
 	     110, 112, 113, 115, 116, 117, 118, 119
 	};
 	const struct mwl_node *mn = MWL_NODE_CONST(ni);
@@ -2637,7 +2637,7 @@ mwl_rx_proc(void *arg, int npending)
 			 * Note the firmware will not advance to the next
 			 * descriptor with a dma buffer so we must mimic
 			 * this or we'll get out of sync.
-			 */ 
+			 */
 			DPRINTF(sc, MWL_DEBUG_ANY,
 			    "%s: rx buf w/o dma memory\n", __func__);
 			(void) mwl_rxbuf_init(sc, bf);
@@ -3596,7 +3596,7 @@ mwl_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 #if MWL_MAXBA > 0
 		if (mn->mn_ba[0].bastream == NULL)
 			bas = &mn->mn_ba[0];
-		else 
+		else
 #endif
 		{
 			/* sta already has max BA streams */
@@ -3875,7 +3875,7 @@ mwl_set_channel(struct ieee80211com *ic)
 	(void) mwl_chan_set(sc, ic->ic_curchan);
 }
 
-/* 
+/*
  * Handle a channel switch request.  We inform the firmware
  * and mark the global state to suppress various actions.
  * NB: we issue only one request to the fw; we may be called
@@ -4020,7 +4020,7 @@ mkpeerinfo(MWL_HAL_PEERINFO *pi, const struct ieee80211_node *ni)
 		/* HT capabilities, etc */
 		pi->HTCapabilitiesInfo = ni->ni_htcap;
 		/* XXX pi.HTCapabilitiesInfo */
-	        pi->MacHTParamInfo = ni->ni_htparam;	
+	        pi->MacHTParamInfo = ni->ni_htparam;
 		pi->HTRateBitMap = get_htrate_bitmap(&ni->ni_htrates);
 		pi->AddHtInfo.ControlChan = ni->ni_htctlchan;
 		pi->AddHtInfo.AddChan = ni->ni_ht2ndchan;
@@ -4348,7 +4348,7 @@ mwl_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *rd,
 			    __func__, c->ic_ieee, c->ic_freq, c->ic_flags);
 			return EINVAL;
 		}
-		/* 
+		/*
 		 * Verify channel has cal data and cap tx power.
 		 */
 		hc = findhalchannel(ci, c->ic_ieee);
@@ -4494,7 +4494,7 @@ mwl_printrxbuf(const struct mwl_rxbuf *bf, u_int ix)
 	printf("R[%2u] (DS.V:%p DS.P:0x%jx) NEXT:%08x DATA:%08x RC:%02x%s\n"
 	       "      STAT:%02x LEN:%04x RSSI:%02x CHAN:%02x RATE:%02x QOS:%04x HT:%04x\n",
 	    ix, ds, (uintmax_t)bf->bf_daddr, le32toh(ds->pPhysNext),
-	    le32toh(ds->pPhysBuffData), ds->RxControl, 
+	    le32toh(ds->pPhysBuffData), ds->RxControl,
 	    ds->RxControl != EAGLE_RXD_CTRL_DRIVER_OWN ?
 	        "" : (status & EAGLE_RXD_STATUS_OK) ? " *" : " !",
 	    ds->Status, le16toh(ds->PktLen), ds->RSSI, ds->Channel,
@@ -4753,7 +4753,7 @@ mwl_ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 	case SIOCGMVRESET:
 		/* XXX check privs */
 		MWL_LOCK(sc);
-		error = mwl_ioctl_reset(sc,(struct mwl_diag *) ifr); 
+		error = mwl_ioctl_reset(sc,(struct mwl_diag *) ifr);
 		MWL_UNLOCK(sc);
 		break;
 #endif /* MWL_DIAGAPI */

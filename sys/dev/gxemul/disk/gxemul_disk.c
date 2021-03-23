@@ -323,8 +323,8 @@ static device_method_t gxemul_disk_methods[] = {
 };
 
 static driver_t gxemul_disk_driver = {
-	"gxemul_disk", 
-	gxemul_disk_methods, 
+	"gxemul_disk",
+	gxemul_disk_methods,
 	sizeof (struct gxemul_disk_softc)
 };
 

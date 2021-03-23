@@ -264,7 +264,7 @@ ocs_sport_free(ocs_sport_t *sport)
 		ocs_scsi_sport_deleted(sport);
 
 		ocs_free(domain->ocs, sport, sizeof(*sport));
-		
+
 	}
 }
 
@@ -527,7 +527,7 @@ __ocs_sport_common(const char *funcname, ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, 
 						} else {
 							ocs_log_debug(ocs,"[%s] sport shutdown vport,sending logo to node\n",
 								      node->display_name);
-						
+
 							if (ocs_send_logo(node, OCS_FC_ELS_SEND_DEFAULT_TIMEOUT,
 								  0, NULL, NULL) == NULL) {
 								/* failed to send LOGO, go ahead and cleanup node anyways */
@@ -1056,7 +1056,7 @@ ocs_sport_vport_alloc(ocs_domain_t *domain, ocs_vport_spec_t *vport)
 		return (0);
 	}
 
-	ocs_assert((vport->sport == NULL), -1);	
+	ocs_assert((vport->sport == NULL), -1);
 
 	/* Allocate a sport */
 	vport->sport = sport = ocs_sport_alloc(domain, vport->wwpn, vport->wwnn, UINT32_MAX, vport->enable_ini, vport->enable_tgt);
@@ -1511,13 +1511,13 @@ ocs_vport_update_spec(ocs_sport_t *sport)
  * @return None.
  */
 
-int8_t 
+int8_t
 ocs_vport_create_spec(ocs_t *ocs, uint64_t wwnn, uint64_t wwpn, uint32_t fc_id, uint32_t enable_ini, uint32_t enable_tgt, void *tgt_data, void *ini_data)
 {
 	ocs_xport_t *xport = ocs->xport;
 	ocs_vport_spec_t *vport;
 
-	/* walk the ocs_vport_list and return failure if a valid(vport with non zero WWPN and WWNN) vport entry 
+	/* walk the ocs_vport_list and return failure if a valid(vport with non zero WWPN and WWNN) vport entry
 	   is already created */
 	ocs_list_foreach(&xport->vport_list, vport) {
 		if ((wwpn && (vport->wwpn == wwpn)) && (wwnn && (vport->wwnn == wwnn))) {

@@ -251,7 +251,7 @@
 /*
  * MDIO control register.
  */
-#define	AE_MDIO_REG		0x1414                                                                                                                   
+#define	AE_MDIO_REG		0x1414
 #define	AE_MDIO_DATA_MASK	0xffff
 #define	AE_MDIO_DATA_SHIFT	0
 #define	AE_MDIO_REGADDR_MASK	0x1f0000
@@ -327,7 +327,7 @@
 #define	AE_VPD_CAP_ADDR_MASK	0x7fff0000
 #define	AE_VPD_CAP_ADDR_SHIFT	16
 #define	AE_VPD_CAP_DONE		0x80000000
-                                                                                                   
+
 #define	AE_VPD_DATA_REG		0x70	/* Data register. */
 
 #define	AE_VPD_NREGS		64	/* Maximum number of VPD regs. */

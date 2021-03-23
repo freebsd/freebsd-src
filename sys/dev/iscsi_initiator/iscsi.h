@@ -173,7 +173,7 @@ typedef struct nop_out {
      u_int	ttt;
      req_sn_t	sn;
      u_int	mbz[3];
-} nop_out_t; 
+} nop_out_t;
 
 typedef struct nop_in {
      // the order is network byte order!
@@ -190,7 +190,7 @@ typedef struct nop_in {
      u_int	ttt;
      rsp_sn_t	sn;
      u_int	____[2];
-     
+
 } nop_in_t;
 
 typedef struct r2t {
@@ -199,7 +199,7 @@ typedef struct r2t {
      u_char	_:1;
      u_char	__:7;
      u_char	F:1;			// Final bit
-     u_char	___[2];  
+     u_char	___[2];
 
      u_int	len;
      u_int	lun[2];
@@ -217,7 +217,7 @@ typedef struct data_out {
      u_char	_:1;
      u_char	__:7;
      u_char	F:1;			// Final bit
-     u_char	___[2];  
+     u_char	___[2];
 
      u_int	len;
      u_int	lun[2];
@@ -240,7 +240,7 @@ typedef struct data_in {
      u_char	__:3;
      u_char	A:1;
      u_char	F:1;			// Final bit
-     u_char	___[1]; 
+     u_char	___[1];
      u_char	status;
 
      u_int	len;
@@ -289,8 +289,8 @@ typedef struct async {
      u_char	param3[2];
 
      u_int	_____;
-     
-} async_t;  
+
+} async_t;
 
 typedef struct login_req {
      char	cmd;	// 0x03
@@ -343,7 +343,7 @@ typedef struct text_req {
      char	cmd;	// 0x04
 
      u_char	_1:6;
-     u_char	C:1;	// Continuation 
+     u_char	C:1;	// Continuation
      u_char	F:1;	// Final
      char	_2[2];
 

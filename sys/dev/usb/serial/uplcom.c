@@ -141,7 +141,7 @@ SYSCTL_INT(_hw_usb_uplcom, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	UPLCOM_STATUS_REG_PL2303HX	0x8080
 #define	RSAQ_STATUS_CTS			0x80
 #define	RSAQ_STATUS_OVERRUN_ERROR	0x40
-#define	RSAQ_STATUS_PARITY_ERROR	0x20 
+#define	RSAQ_STATUS_PARITY_ERROR	0x20
 #define	RSAQ_STATUS_FRAME_ERROR	0x10
 #define	RSAQ_STATUS_RING		0x08
 #define	RSAQ_STATUS_BREAK_ERROR	0x04
@@ -680,7 +680,7 @@ uplcom_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 }
 
@@ -704,7 +704,7 @@ uplcom_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 }
 
@@ -726,7 +726,7 @@ uplcom_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 }
 
@@ -925,7 +925,7 @@ uplcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, UCDC_LINE_STATE_LENGTH);
 
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, &ls, 0, 1000);
 
 	if (t->c_cflag & CRTSCTS) {
@@ -946,7 +946,7 @@ uplcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 		}
 		USETW(req.wLength, 0);
 
-		ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+		ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 		    &req, NULL, 0, 1000);
 	} else {
 		req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -961,7 +961,7 @@ uplcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 			USETW(req.wIndex, 0);
 		}
 		USETW(req.wLength, 0);
-		ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+		ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 		    &req, NULL, 0, 1000);
 	}
 }

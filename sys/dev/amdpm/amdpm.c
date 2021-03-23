@@ -160,7 +160,7 @@ amdpm_probe(device_t dev)
 	     (did == AMDPM_DEVICEID_AMD8111PM))) {
 		device_set_desc(dev, "AMD 756/766/768/8111 Power Management Controller");
 
-		/* 
+		/*
 		 * We have to do this, since the BIOS won't give us the
 		 * resource info (not mine, anyway).
 		 */
@@ -175,7 +175,7 @@ amdpm_probe(device_t dev)
 	    (did == AMDPM_DEVICEID_NF_SMB)) {
 		device_set_desc(dev, "nForce SMBus Controller");
 
-		/* 
+		/*
 		* We have to do this, since the BIOS won't give us the
 		* resource info (not mine, anyway).
 		*/
@@ -212,7 +212,7 @@ amdpm_attach(device_t dev)
 	if (amdpm_sc->res == NULL) {
 		device_printf(dev, "could not map i/o space\n");
 		return (ENXIO);
-	}	     
+	}
 
 	mtx_init(&amdpm_sc->lock, device_get_nameunit(dev), "amdpm", MTX_DEF);
 
@@ -612,7 +612,7 @@ amdpm_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	l = AMDPM_SMBINW(sc, AMDSMB_GLOBAL_ENABLE);
 	AMDPM_SMBOUTW(sc, AMDSMB_GLOBAL_ENABLE,
 	    (l & 0xfff8) | AMDSMB_GE_CYC_BLOCK | AMDSMB_GE_HOST_STC);
-		
+
 	if ((error = amdpm_wait(sc)) != SMB_ENOERR)
 		goto error;
 

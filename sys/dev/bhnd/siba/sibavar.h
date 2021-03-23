@@ -29,7 +29,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -119,7 +119,7 @@ int			 siba_wait_target_state(device_t dev,
 			     struct siba_devinfo *dinfo, bus_size_t reg,
 			     uint32_t value, uint32_t mask, u_int usec);
 
-							     
+
 /* Sonics configuration register blocks */
 #define	SIBA_CFG_NUM_2_2	1			/**< sonics <= 2.2 maps SIBA_CFG0. */
 #define	SIBA_CFG_NUM_2_3	2			/**< sonics <= 2.3 maps SIBA_CFG0 and SIBA_CFG1 */

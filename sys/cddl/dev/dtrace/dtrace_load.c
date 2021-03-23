@@ -56,7 +56,7 @@ dtrace_load(void *dummy)
 	/*
 	 * DTrace uses negative logic for the destructive mode switch, so it
 	 * is required to translate from the sysctl which uses positive logic.
-	 */ 
+	 */
 	if (dtrace_allow_destructive)
 		dtrace_destructive_disallow = 0;
 	else

@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -447,7 +447,7 @@ tiCOMMgntIOCTL(
     break;
   }
   case IOCTL_MJ_GET_DEVICE_LUN:
-		status = tdsaGetNumOfLUNIOCTL(tiRoot,agIOCTLPayload, agParam1, agParam2, agParam3);	
+		status = tdsaGetNumOfLUNIOCTL(tiRoot,agIOCTLPayload, agParam1, agParam2, agParam3);
     	if(status == IOCTL_CALL_SUCCESS)
         {
     	  status = IOCTL_CALL_PENDING;
@@ -649,7 +649,7 @@ case IOCTL_MJ_SMP_REQUEST:
 	break;
 	}
 #if 0
-case IOCTL_MJ_GPIO: 
+case IOCTL_MJ_GPIO:
   {
     bit32 sVid =0;
     TI_DBG6(("tiCOMMgntIOCTL: IOCTL_MJ_GPIO\n"));
@@ -658,22 +658,22 @@ case IOCTL_MJ_GPIO:
     sVid = ostiChipConfigReadBit32(tiRoot,0x2C);
     sVid = sVid & 0xFFFF;
 
-    /* GPIO is only intended for chip down design 
-     * therefore it's only applies to 8H/SPCv product family 
+    /* GPIO is only intended for chip down design
+     * therefore it's only applies to 8H/SPCv product family
      */
     if(sVid == 0x9005)
     return IOCTL_CALL_INVALID_DEVICE;
-    
+
     status = tdsaGpioSetup(tiRoot, agContext, agIOCTLPayload, agParam1, agParam2);
-    if(status == IOCTL_CALL_SUCCESS)  
+    if(status == IOCTL_CALL_SUCCESS)
         status = IOCTL_CALL_PENDING; /* Wait for response from the Controller */
-    else 
-      return status;  
+    else
+      return status;
 
     break;
   }
 #endif
-  
+
   case IOCTL_MJ_SGPIO:
   {
     TI_DBG6(("tiCOMMgntIOCTL: IOCTL_MJ_SGPIO\n"));
@@ -725,20 +725,20 @@ case IOCTL_MJ_GPIO:
     break;
   }
 
-#if 0 
+#if 0
   case IOCTL_MJ_SET_OR_GET_REGISTER:
   {
     TI_DBG3(("tiCOMMgntIOCTL: IOCTL_MJ_SET_OR_GET_REGISTER\n"));
     status = tdsaRegisterIoctl(tiRoot, agIOCTLPayload, agParam1, agParam2, agParam3);
     break;
   }
-  
+
 #endif
    case IOCTL_MJ_PHY_DETAILS:
    {
 	PhyDetails_t  *PhyDetails = (PhyDetails_t*)&agIOCTLPayload->FunctionSpecificArea;
         agsaRoot_t  *agRoot = &(tdsaAllShared->agRootNonInt);
-        agsaLLRoot_t  *saRoot = (agsaLLRoot_t *)(agRoot->sdkData); 	
+        agsaLLRoot_t  *saRoot = (agsaLLRoot_t *)(agRoot->sdkData);
 	bit8  *sasAddressHi;
 	bit8  *sasAddressLo;
 	bit8  sas_dev_type;
@@ -746,24 +746,24 @@ case IOCTL_MJ_GPIO:
 
 	tiIniGetDirectSataSasAddr(tiRoot, i , &sasAddressHi, &sasAddressLo);
 	for( i = 0; i < saRoot->phyCount ; i++)
-        {	
+        {
 		PhyDetails[i].attached_phy = saRoot->phys[i].sasIdentify.phyIdentifier;
 		/* deice types
- 		 * SAS	 
- 		 * 0x01 - Sas end device   
- 		 * 0x02 - Expander device 
+ 		 * SAS
+ 		 * 0x01 - Sas end device
+ 		 * 0x02 - Expander device
  		 * SATA
  		 * 0x11 - Sata
  		 * NO DEVICE 0x00
  		 */
 		sas_dev_type = (saRoot->phys[i].sasIdentify.deviceType_addressFrameType & 0x70 ) >> 4 ;
-		if ((saRoot->phys[i].status == 1) && (sas_dev_type == 0)){ //status 1 - Phy Up 
-			//Sata phy 
+		if ((saRoot->phys[i].status == 1) && (sas_dev_type == 0)){ //status 1 - Phy Up
+			//Sata phy
 			PhyDetails[i].attached_dev_type = SAS_PHY_SATA_DEVICE;//0x11 for sata end device
 			osti_memcpy(&PhyDetails[i].attached_sasAddressHi, tdsaAllShared->Ports[i].SASID.sasAddressHi, sizeof(bit32));
 			osti_memcpy(&PhyDetails[i].attached_sasAddressLo, tdsaAllShared->Ports[i].SASID.sasAddressLo, sizeof(bit32));
-			PhyDetails[i].attached_sasAddressLo[3] += i + 16; 
-		}	
+			PhyDetails[i].attached_sasAddressLo[3] += i + 16;
+		}
 		else {
 			PhyDetails[i].attached_dev_type = sas_dev_type;
 	        	osti_memcpy(&PhyDetails[i].attached_sasAddressHi, saRoot->phys[i].sasIdentify.sasAddressHi, sizeof(bit32));
@@ -775,7 +775,7 @@ case IOCTL_MJ_GPIO:
 
 //    	osti_memcpy(&agIoctlPayload->FunctionSpecificArea,&PhyInfo, sizeof(agsaSGpioReqResponse_t));
 //	printk("Ioctl success\n");
-	return IOCTL_CALL_SUCCESS;		
+	return IOCTL_CALL_SUCCESS;
    }
 
    case IOCTL_MJ_PHY_GENERAL_STATUS:
@@ -791,7 +791,7 @@ case IOCTL_MJ_GPIO:
           status = IOCTL_CALL_FAIL;
           break;
         }
- 
+
         tdsaAllShared->tdFWControlEx.param1 = agParam1;
         tdsaAllShared->tdFWControlEx.param2 = agParam2;
         tdsaAllShared->tdFWControlEx.payload = agIOCTLPayload;
@@ -802,7 +802,7 @@ case IOCTL_MJ_GPIO:
     	if(ret == AGSA_RC_FAILURE)
         {
     	  status = IOCTL_CALL_FAIL;
-		  tdsaAllShared->tdFWControlEx.payload = NULL; 
+		  tdsaAllShared->tdFWControlEx.payload = NULL;
 		  tdsaAllShared->tdFWControlEx.inProgress = 0;
 		  break;
     	}
@@ -819,7 +819,7 @@ case IOCTL_MJ_GPIO:
      }
 
    break;
-#if 1 
+#if 1
   case IOCTL_MJ_GET_PHY_PROFILE:
   {
     TI_DBG1(("tiCOMMgntIOCTL: IOCTL_MJ_GET_PHY_PROFILE %p %p %p\n",agParam1,agParam2,agParam3));
@@ -1077,14 +1077,14 @@ case IOCTL_MJ_GPIO:
 #if 0
 /*****************************************************************************
 *
-* tdsaGpioSetup 
+* tdsaGpioSetup
 *
 * Purpose:  This routine is called to set Gpio parameters to the controller.
 *
 * Parameters:
 *   tiRoot:         Pointer to driver instance
 *   agsaContext_t :
-*   tiIOCTLPayload_t :  ioctl header with payload gpio info 
+*   tiIOCTLPayload_t :  ioctl header with payload gpio info
 *   agParam1,agParam2 :  Generic parameters
 *
 * Return: status
@@ -1128,7 +1128,7 @@ tdsaGpioSetup(
 
     switch (agIOCTLPayload->MinorFunction)
     {
-     
+
      case IOCTL_MN_GPIO_PINSETUP:
      {
 	 TI_DBG3(("tdsaGpioSetup: IOCTL_MN_GPIO_PINSETUP\n"));
@@ -1136,7 +1136,7 @@ tdsaGpioSetup(
          status = saGpioPinSetup(agRoot, agContext, 0, gpioPinSetupInfo);
 
          break;
-     }	 
+     }
      case IOCTL_MN_GPIO_EVENTSETUP:
      {
 	TI_DBG3(("tdsaGpioSetup: IOCTL_MN_GPIO_EVENTSETUP\n"));
@@ -1145,14 +1145,14 @@ tdsaGpioSetup(
 
         break;
      }
-   	
+
      case IOCTL_MN_GPIO_READ:
      {
 	 TI_DBG3(("tdsaGpioSetup: IOCTL_MN_GPIO_READ\n"));
          status = saGpioRead(agRoot, agContext, 0);
 
         break;
-     }   	 	 
+     }
 
      case IOCTL_MN_GPIO_WRITE:
      {
@@ -1162,7 +1162,7 @@ tdsaGpioSetup(
 
          break;
      }
-     
+
      default :
          return status;
     }
@@ -1177,7 +1177,7 @@ tdsaGpioSetup(
       {
          tdsaSingleThreadedLeave(tiRoot, TD_TIMER_LOCK);
          tdsaKillTimer(tiRoot, osIoctlTimer);
-        
+
       }else{
          tdsaSingleThreadedLeave(tiRoot, TD_TIMER_LOCK);
       }
@@ -1216,16 +1216,16 @@ osGLOBAL void  ostiGetGpioIOCTLRsp(
      tdsaContext_t             *tdsaAllShared = (tdsaContext_t *)&tdsaRoot->tdsaAllShared;
      tiIOCTLPayload_t          *agIoctlPayload ;
      agsaGpioReadInfo_t        *gpioReadInfo;
-      
+
      tdsaTimerRequest_t        *osIoctlTimer;
-	 osIoctlTimer = (tdsaTimerRequest_t *)tdsaAllShared->tdFWControlEx.virtAddr;         
+	 osIoctlTimer = (tdsaTimerRequest_t *)tdsaAllShared->tdFWControlEx.virtAddr;
 
      TI_DBG2(("ostiGetGpioIOCTLRsp: start, status = %d \n", status));
 
-     agIoctlPayload = (tiIOCTLPayload_t *)(tdsaAllShared->tdFWControlEx.payload); 
-    
+     agIoctlPayload = (tiIOCTLPayload_t *)(tdsaAllShared->tdFWControlEx.payload);
+
      if(agIoctlPayload == agNULL){
-        return;  
+        return;
       }
 
      agIoctlPayload->Status =(bit16) status;
@@ -1237,7 +1237,7 @@ osGLOBAL void  ostiGetGpioIOCTLRsp(
         {
            tdsaSingleThreadedLeave(tiRoot, TD_TIMER_LOCK);
            tdsaKillTimer(tiRoot, osIoctlTimer);
-        
+
         }else{
            tdsaSingleThreadedLeave(tiRoot, TD_TIMER_LOCK);
         }
@@ -1246,16 +1246,16 @@ osGLOBAL void  ostiGetGpioIOCTLRsp(
          agIoctlPayload->Status = (bit16)status;
          ostiIOCTLSetSignal(tiRoot, tdsaAllShared->tdFWControlEx.param1,
                                tdsaAllShared->tdFWControlEx.param2, NULL);
-        return; 
+        return;
      }
 
-     if(status == SUCCESS) 
+     if(status == SUCCESS)
        TI_DBG3((" ostiGetGpioIOCTLRsp:Got GPIO response from OUTBuf"));
     else {
       tdsaAllShared->tdFWControlEx.inProgress = 0;
       ostiIOCTLSetSignal(tiRoot, tdsaAllShared->tdFWControlEx.param1,
                                tdsaAllShared->tdFWControlEx.param2, NULL);
-      return;     
+      return;
     }
 
     switch (agIoctlPayload->MinorFunction)
@@ -1266,7 +1266,7 @@ osGLOBAL void  ostiGetGpioIOCTLRsp(
        TI_DBG3((" ostiGetGpioIOCTLRsp:Got GPIO response for IOCTL_MN_GPIO_PINSETUP"));
 
          break;
-      }	 
+      }
      case IOCTL_MN_GPIO_EVENTSETUP:
      {
        TI_DBG3((" ostiGetGpioIOCTLRsp:Got GPIO response for IOCTL_MN_GPIO_EVENTSETUP"));
@@ -1280,7 +1280,7 @@ osGLOBAL void  ostiGetGpioIOCTLRsp(
 
          break;
      }
-   	
+
     case IOCTL_MN_GPIO_READ:
     {
          gpioReadInfo = ( agsaGpioReadInfo_t *)tdsaAllShared->tdFWControlEx.usrAddr;
@@ -1295,13 +1295,13 @@ osGLOBAL void  ostiGetGpioIOCTLRsp(
          gpioReadInfo->gpioEventFallingEdgePart2 = 0x00F00000  & gpioEventSetupInfo->gpioEventFallingEdge; /* GPIEVALL (pins 23-20 */
 
          break;
-     }   	 	 
- 
-    default : 
-         break;     
+     }
+
+    default :
+         break;
     }
 
-    if(tdsaAllShared->tdFWControlEx.inProgress) 
+    if(tdsaAllShared->tdFWControlEx.inProgress)
     {
       tdsaAllShared->tdFWControlEx.inProgress = 0;
       ostiIOCTLSetSignal(tiRoot, tdsaAllShared->tdFWControlEx.param1,
@@ -1314,14 +1314,14 @@ osGLOBAL void  ostiGetGpioIOCTLRsp(
 
 /*****************************************************************************
 *
-* tdsaSGpioIoctlSetup 
+* tdsaSGpioIoctlSetup
 *
 * Purpose:  This routine is called to send SGPIO request to the controller.
 *
 * Parameters:
 *   tiRoot:             Pointer to driver instance
 *   agsaContext_t:      Context for this request
-*   tiIOCTLPayload_t:   ioctl header with payload sgpio info 
+*   tiIOCTLPayload_t:   ioctl header with payload sgpio info
 *   agParam1,agParam2:  Generic parameters
 *
 * Return: status
@@ -1344,23 +1344,23 @@ tdsaSGpioIoctlSetup(
   agsaSGpioReqResponse_t    *pSGpioReq = (agsaSGpioReqResponse_t *)&agIOCTLPayload->FunctionSpecificArea[0];
 
   TI_DBG3(("tdsaSGpioIoctlSetup: start\n"));
-  
+
   agIOCTLPayload->Status = IOCTL_ERR_STATUS_INTERNAL_ERROR;
-  
+
   do
   {
     if (tiRoot == agNULL || agIOCTLPayload == agNULL)
     {
       break;
     }
-    
+
     /* Validate the length */
     if (agIOCTLPayload->Length < sizeof(agsaSGpioReqResponse_t))
     {
       TI_DBG3(("Invalid length\n"));
       break;
     }
-  
+
     /* Validate the SMP Frame Type, Function and Register Type fields */
     if ((pSGpioReq->smpFrameType != SMP_REQUEST) || \
         ((pSGpioReq->function != SMP_READ_GPIO_REGISTER) && (pSGpioReq->function != SMP_WRITE_GPIO_REGISTER)) || \
@@ -1369,7 +1369,7 @@ tdsaSGpioIoctlSetup(
       TI_DBG4(("Invalid Parameter\n"));
       break;
     }
-		
+
     /* Specific validation for configuration register type */
     if (AGSA_SGPIO_CONFIG_REG == pSGpioReq->registerType)
     {
@@ -1380,13 +1380,13 @@ tdsaSGpioIoctlSetup(
         break;
       }
     }
-  
+
     /* Use FW control place in shared structure to keep the necessary information */
     tdsaAllShared->tdFWControlEx.param1 = agParam1;
     tdsaAllShared->tdFWControlEx.param2 = agParam2;
     tdsaAllShared->tdFWControlEx.payload = agIOCTLPayload;
     tdsaAllShared->tdFWControlEx.inProgress = 1;
-	  
+
     status = saSgpio(agRoot, agContext, 0, pSGpioReq);
     if (status != AGSA_RC_SUCCESS)
     {
@@ -1396,7 +1396,7 @@ tdsaSGpioIoctlSetup(
     status = IOCTL_CALL_PENDING;
 
   } while (0);
-  
+
   TI_DBG3(("tdsaGpioPinSetup: End\n"));
   return status;
 }
@@ -1426,21 +1426,21 @@ osGLOBAL void ostiSgpioIoctlRsp(
 
   TI_DBG3(("ostiSgpioIoctlRsp: start\n"));
 
-  if (tdsaAllShared->tdFWControlEx.inProgress) 
+  if (tdsaAllShared->tdFWControlEx.inProgress)
   {
     agIoctlPayload = (tiIOCTLPayload_t *)(tdsaAllShared->tdFWControlEx.payload);
     if (agIoctlPayload)
     {
-      tdsaAllShared->tdFWControlEx.payload = NULL; 
+      tdsaAllShared->tdFWControlEx.payload = NULL;
       osti_memcpy(&agIoctlPayload->FunctionSpecificArea[0], pSgpioResponse, sizeof(agsaSGpioReqResponse_t));
       agIoctlPayload->Status = IOCTL_ERR_STATUS_OK;
       sgpioResponseSet = 1;
     }
 	tdsaAllShared->sgpioResponseSet = 1;    //Sunitha:Check if needed?
-    
+
     ostiIOCTLSetSignal(tiRoot, tdsaAllShared->tdFWControlEx.param1,
                   tdsaAllShared->tdFWControlEx.param2, agNULL);
-                  
+
     tdsaAllShared->tdFWControlEx.inProgress = 0;
   }
 
@@ -1654,7 +1654,7 @@ osGLOBAL void ostiGetNVMDIOCTLRsp(
 
     TI_DBG1(("ostiGetNVMDIOCTLRsp: start, status = %d\n", status));
     tdsaAllShared->NvmdResponseSet = 1;
-   
+
     if(tdsaAllShared->tdFWControlEx.param1 != agNULL)
     {
     osti_memcpy((void *)(tdsaAllShared->tdFWControlEx.usrAddr),
@@ -2517,7 +2517,7 @@ tdsaNVMDGetIoctl(
   }
   /* Copy the SAS address */
   if(agParam1 == agNULL)
- 
+
   {
      while(!tdsaAllShared->NvmdResponseSet)
      {
@@ -2865,7 +2865,7 @@ tdsaGetPhyGeneralStatusIoctl(
   	    status = IOCTL_ERR_STATUS_NOT_SUPPORTED;
 		break;
     }
-	
+
     PhyData->Reserved1 = ControllerInfo.phyCount;
     for(i=0;i<PhyData->Reserved1;i++)
     {
@@ -2906,13 +2906,13 @@ osGLOBAL void ostiGetPhyGeneralStatusRsp(
   tiIOCTLPayload_t         *agIoctlPayload = agNULL;
   agsaPhyGeneralState_t    *pSetPhyStatusRes = agNULL;
 
-                   
+
   TI_DBG1(("ostiGetPhyGeneralStatusRsp: start\n"));
 
-  if (tdsaAllShared->tdFWControlEx.inProgress) 
+  if (tdsaAllShared->tdFWControlEx.inProgress)
   {
       agIoctlPayload = (tiIOCTLPayload_t *)(tdsaAllShared->tdFWControlEx.payload);
-      if ((agIoctlPayload) && (PMC_IOCTL_SIGNATURE == agIoctlPayload->Signature)&& 
+      if ((agIoctlPayload) && (PMC_IOCTL_SIGNATURE == agIoctlPayload->Signature)&&
 	  	                 (IOCTL_MJ_PHY_GENERAL_STATUS == agIoctlPayload->MajorFunction))
       {
         pSetPhyStatusRes = (agsaPhyGeneralState_t*) &agIoctlPayload->FunctionSpecificArea[0];
@@ -2920,14 +2920,14 @@ osGLOBAL void ostiGetPhyGeneralStatusRsp(
 		pSetPhyStatusRes->Reserved2++;
         if(pSetPhyStatusRes->Reserved1 == pSetPhyStatusRes->Reserved2)
         {
-  		  tdsaAllShared->tdFWControlEx.payload = NULL; 
+  		  tdsaAllShared->tdFWControlEx.payload = NULL;
           ostiIOCTLSetSignal(tiRoot, tdsaAllShared->tdFWControlEx.param1,
                           tdsaAllShared->tdFWControlEx.param2, agNULL);
 	  tdsaAllShared->tdFWControlEx.inProgress = 0;
           agIoctlPayload->Status = IOCTL_ERR_STATUS_OK;
-		
+
         }
-  	  } 
+  	  }
   }
 
   TI_DBG1(("ostiGetPhyGeneralStatusRsp: end\n"));
@@ -3070,7 +3070,7 @@ tdsaForensicDataGetIoctl(
          ForensicData.BufferType.dataBuf.directLen = pForensicDataPayload->dataBuffer.directLen;
          ForensicData.BufferType.dataBuf.directOffset = pForensicDataPayload->dataBuffer.directOffset;
          ForensicData.BufferType.dataBuf.readLen = pForensicDataPayload->dataBuffer.readLen;
-         ForensicData.BufferType.dataBuf.directData = (void*)pForensicDataPayload->dataBuffer.directData;         
+         ForensicData.BufferType.dataBuf.directData = (void*)pForensicDataPayload->dataBuffer.directData;
 		 break;
     case FORENSIC_DATA_TYPE_GSM_SPACE:
          ForensicData.BufferType.gsmBuf.directLen = pForensicDataPayload->gsmBuffer.directLen;
@@ -3127,14 +3127,14 @@ tdsaSendSMPIoctl(
 //	bit32			RequestLength = 0;
 	bit32			ostiMemoryStatus = 0;
 	smp_pass_through_req_t *smp_pass_through_req;
-	
+
 	tiDeviceHandle_t *devHandle;
 	agsaSMPFrame_t			  agSMPFrame;
 	tdsaDeviceData_t          *oneDeviceData = agNULL;
 	bit32 i;
-	
+
 	TI_DBG2(("tdsaSendSMPIoctl: start\n"));
-	
+
  	smp_pass_through_req = (smp_pass_through_req_t*)agIOCTLPayload->FunctionSpecificArea;
 
 	for(i=0;i<8;i++)
@@ -3151,20 +3151,20 @@ tdsaSendSMPIoctl(
 		agIOCTLPayload->Status = IOCTL_ERR_STATUS_INTERNAL_ERROR;
 		return status;
 	}
-	
 
-	
+
+
 	//agIOCTLPayload->Status = IOCTL_ERR_STATUS_OK;
 	agIOCTLPayload->Status = IOCTL_ERR_STATUS_NOT_RESPONDING;
-	
+
 
 
 	if((ostiMemoryStatus != tiSuccess) && (reqBuffer == agNULL  ))
 			return IOCTL_CALL_FAIL;
-		
-   
+
+
     tdsaAllShared->tdFWControlEx.param3 = osMemHandle;
-	
+
 
 	agSMPFrame.outFrameBuf = smp_pass_through_req->smp_req_resp;
 	agSMPFrame.expectedRespLen = smp_pass_through_req->smp_resp_len;
@@ -3177,7 +3177,7 @@ tdsaSendSMPIoctl(
 	}
 	else
 	{
-	
+
 		agSMPFrame.flag = 3;  //Indirect request and Indirect response
 		ostiMemoryStatus = ostiAllocMemory( tiRoot,
 										  &osMemHandle,
@@ -3210,10 +3210,10 @@ tdsaSendSMPIoctl(
 										  agFALSE);
 	if((ostiMemoryStatus != tiSuccess) && (respBuffer == agNULL  ))
 			return IOCTL_CALL_FAIL;
-		
+
 
 	osti_memset((void *)respBuffer, 0, smp_pass_through_req->smp_resp_len);
-	
+
 		// use FW control place in shared structure to keep the neccesary information
 	tdsaAllShared->tdFWControlEx.buffer = osMemHandle;
 	tdsaAllShared->tdFWControlEx.virtAddr = respBuffer;
@@ -3262,7 +3262,7 @@ osGLOBAL void ostiSendSMPIOCTLRsp(
                    tdsaAllShared->tdFWControlEx.len);
     //if(tdsaAllShared->tdFWControlEx.param1 != agNULL)
 //	{
-      ostiIOCTLComplete(tiRoot, 
+      ostiIOCTLComplete(tiRoot,
                          tdsaAllShared->tdFWControlEx.param1,
                          tdsaAllShared->tdFWControlEx.param2,
                          NULL);
@@ -3570,7 +3570,7 @@ tdsaGetNumOfLUNIOCTL(
                void                *agParam2,
                void                *agParam3
                )
-{  
+{
   tdsaRoot_t	              *tdsaRoot			= (tdsaRoot_t *) tiRoot->tdData;
   tdsaContext_t               *tdsaAllShared 	= (tdsaContext_t *)&tdsaRoot->tdsaAllShared;
   agsaRoot_t	              *agRoot 			= &(tdsaAllShared->agRootInt);
@@ -3578,13 +3578,13 @@ tdsaGetNumOfLUNIOCTL(
   tiDeviceHandle_t            *devHandle 		= agNULL;
   void				          *tiRequestBody 	= agNULL;
   tiIORequest_t 	          *tiIORequest 		= agNULL;
-  bit32			              status 			= IOCTL_CALL_SUCCESS;	
-  
-  TI_DBG2(("tdsaGetNumOfLUNIOCTL: Start\n"));  
+  bit32			              status 			= IOCTL_CALL_SUCCESS;
+
+  TI_DBG2(("tdsaGetNumOfLUNIOCTL: Start\n"));
   do
   {
     pDeviceLUNInfo = (tdDeviceLUNInfoIOCTL_t*)agIOCTLPayload->FunctionSpecificArea;
-  
+
     if (agIOCTLPayload->Length < sizeof(tdDeviceLUNInfoIOCTL_t))
     {
   	  status = IOCTL_CALL_FAIL;
@@ -3601,15 +3601,15 @@ tdsaGetNumOfLUNIOCTL(
 
 	status = ostiNumOfLUNIOCTLreq(tiRoot,agParam1,agParam2,&tiRequestBody,&tiIORequest);
 
-	
-    if(status != AGSA_RC_SUCCESS) 	
+
+    if(status != AGSA_RC_SUCCESS)
     {
       agIOCTLPayload->Status = IOCTL_ERR_STATUS_INTERNAL_ERROR;
 	  break;
     }
     status = tiNumOfLunIOCTLreq(tiRoot,tiIORequest,devHandle,tiRequestBody,agIOCTLPayload,agParam1,agParam2);
-    
-    if(status != AGSA_RC_SUCCESS)	
+
+    if(status != AGSA_RC_SUCCESS)
     {
          agIOCTLPayload->Status = IOCTL_ERR_STATUS_INTERNAL_ERROR;
 	  break;
@@ -3647,33 +3647,33 @@ osGLOBAL void ostiNumOfLUNIOCTLRsp(
   tdDeviceLUNInfoIOCTL_t	  *pDeviceLUNInfo = NULL;
   bit32                       count = 0;
   bit32                       numOfLUN =0;
-  
+
   TI_DBG1(("ostiNumOfLUNIOCTLRsp: start, status = %d\n", status));
 
   if(tdsaAllShared->tdFWControlEx.inProgress == 1)
   {
     agIOCTLPayload = (tiIOCTLPayload_t *)(tdsaAllShared->tdFWControlEx.payload);
-	if ((agIOCTLPayload) && (PMC_IOCTL_SIGNATURE == agIOCTLPayload->Signature)&& 
+	if ((agIOCTLPayload) && (PMC_IOCTL_SIGNATURE == agIOCTLPayload->Signature)&&
 					   (IOCTL_MJ_GET_DEVICE_LUN == agIOCTLPayload->MajorFunction))
 	{
       agIOCTLPayload->Status = (bit16)status;
       pDeviceLUNInfo = (tdDeviceLUNInfoIOCTL_t*)agIOCTLPayload->FunctionSpecificArea;
       numOfLUN = ((tdsaAllShared->tdFWControlEx.virtAddr[0] << 24)|(tdsaAllShared->tdFWControlEx.virtAddr[1] << 16)|\
-                 (tdsaAllShared->tdFWControlEx.virtAddr[2] << 8)|(tdsaAllShared->tdFWControlEx.virtAddr[3])); 
+                 (tdsaAllShared->tdFWControlEx.virtAddr[2] << 8)|(tdsaAllShared->tdFWControlEx.virtAddr[3]));
       numOfLUN = numOfLUN/8;
       pDeviceLUNInfo->numOfLun = numOfLUN;
 //	  ostiFreeMemory(tiRoot,
 //                     tdsaAllShared->tdFWControlEx.virtAddr,
-//                     tdsaAllShared->tdFWControlEx.len);   
+//                     tdsaAllShared->tdFWControlEx.len);
   //    if(tdsaAllShared->tdFWControlEx.param1 != agNULL)
   //    {
-        ostiIOCTLSetSignal(tiRoot, 
+        ostiIOCTLSetSignal(tiRoot,
                            tdsaAllShared->tdFWControlEx.param1,
                            tdsaAllShared->tdFWControlEx.param2,
                            NULL);
-  	    tdsaAllShared->tdFWControlEx.payload = NULL; 	    
+  	    tdsaAllShared->tdFWControlEx.payload = NULL;
   //    }
-	  
+
 	  tdsaAllShared->tdFWControlEx.inProgress = 0;
 	}
   }

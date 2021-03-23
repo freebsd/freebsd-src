@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  */
 
 #ifndef __FCOE_COMMON__
-#define __FCOE_COMMON__ 
+#define __FCOE_COMMON__
 /*********************/
 /* FCOE FW CONSTANTS */
 /*********************/
@@ -936,7 +936,7 @@ union fcoe_additional_info_union
 };
 
 /*
- * FCoE Ramrod Command IDs 
+ * FCoE Ramrod Command IDs
  */
 enum fcoe_completion_status
 {
@@ -947,7 +947,7 @@ enum fcoe_completion_status
 };
 
 /*
- * FC address (SID/DID) network presentation 
+ * FC address (SID/DID) network presentation
  */
 struct fc_addr_nw
 {
@@ -1012,7 +1012,7 @@ struct fcoe_conn_offload_ramrod_data
 };
 
 /*
- * FCoE terminate connection request 
+ * FCoE terminate connection request
  */
 struct fcoe_conn_terminate_ramrod_data
 {
@@ -1101,7 +1101,7 @@ enum fcoe_sqe_request_type
 };
 
 /*
- * FCoe statistics request 
+ * FCoe statistics request
  */
 struct fcoe_stat_ramrod_data
 {
@@ -1141,7 +1141,7 @@ struct fcoe_tx_stat
 };
 
 /*
- * FCoE SQ/XferQ element 
+ * FCoE SQ/XferQ element
  */
 struct fcoe_wqe
 {
@@ -1165,7 +1165,7 @@ struct fcoe_wqe
 };
 
 /*
- * FCoE XFRQ element 
+ * FCoE XFRQ element
  */
 struct xfrqe_prot_flags
 {

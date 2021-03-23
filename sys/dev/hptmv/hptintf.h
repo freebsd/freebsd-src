@@ -175,7 +175,7 @@ typedef DWORD DEVICEID;
 #define HPT_CTL_CODE(x) CTL_CODE(0x370, 0x900+(x), 0, 0)
 #define HPT_CTL_CODE_WIN32_TO_I960(x) ((((x) & 0xffff)>>2)-0x900)
 
-#else 
+#else
 #define HPT_CTL_CODE(x) (x)
 #endif
 
@@ -285,7 +285,7 @@ typedef struct _DRIVER_CAPABILITIES {
 	UCHAR HighPerformanceRAID1: 1;
 	UCHAR RebuildProcessInDriver: 1;
 	UCHAR SupportDedicatedSpare: 1;
-#else 
+#else
 	UCHAR SupportDedicatedSpare: 1; /* call hpt_add_dedicated_spare() for dedicated spare. */
 	UCHAR RebuildProcessInDriver: 1; /* Windows only. used by mid layer for rebuild control. */
 	UCHAR HighPerformanceRAID1: 1; /* Support RAID1.5 */
@@ -378,7 +378,7 @@ typedef struct _LBA64 {
 #ifdef __BIG_ENDIAN_BITFIELD
 	DWORD hi32;
 	DWORD lo32;
-#else 
+#else
 	DWORD lo32;
 	DWORD hi32;
 #endif
@@ -400,7 +400,7 @@ typedef struct _HPT_ARRAY_INFO_V2 {
 
 	DWORD       RebuildingProgress;
 	LBA64       RebuiltSectors; /* rebuilding point (LBA) for single member */
-	
+
 	DWORD       reserve4[4];
 
 } HPT_ARRAY_INFO_V2, *PHPT_ARRAY_INFO_V2;
@@ -473,7 +473,7 @@ typedef struct _DEVICE_INFO {
 									/* 5-7 MW DMA0-2, 8-13 UDMA0-5             */
 	UCHAR   DeviceType;             /* device type */
 	UCHAR   UsableMode;             /* highest usable mode */
-	
+
 	UCHAR   ReadAheadSupported: 1;
 	UCHAR   ReadAheadEnabled: 1;
 	UCHAR   WriteCacheSupported: 1;
@@ -707,7 +707,7 @@ typedef struct _IDE_PASS_THROUGH_HEADER {
 	BYTE     nSectors;		/* data sze in sectors, if the command has data transfer */
 	BYTE     protocol;            /* IO_COMMAND_(READ,WRITE) or zero for non-DATA */
 	BYTE     reserve[3];
-#define IDE_PASS_THROUGH_buffer(p) ((unsigned char *)(p) + sizeof(IDE_PASS_THROUGH_HEADER))	
+#define IDE_PASS_THROUGH_buffer(p) ((unsigned char *)(p) + sizeof(IDE_PASS_THROUGH_HEADER))
 }
 IDE_PASS_THROUGH_HEADER, *PIDE_PASS_THROUGH_HEADER;
 

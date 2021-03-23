@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 *
 * $FreeBSD$
@@ -24,7 +24,7 @@
 /***************************************************************************
 
 Version Control Information:
- 
+
 $RCSfile: osenv.h,v $
 $Revision: 114125 $
 
@@ -38,7 +38,7 @@ Note:  This file defines the working environment of the system.  All
 #define __OSENV_H__
 #include <dev/pms/freebsd/driver/common/osstring.h>
 
-/* 
+/*
 ** Define the protocols to compile with.  Currently, these defines are
 ** only for this header file and are used further down to define the protocol
 ** specific environment:
@@ -47,22 +47,22 @@ Note:  This file defines the working environment of the system.  All
 **      #define AG_PROTOCOL_FC
 */
 
-/* 
+/*
 ** Define the application types:
 **
 **      #define INITIATOR_DRIVER
 **      #define TARGET_DRIVER
-*/ 
+*/
 
-/* 
+/*
 ** Define the endian-ness of the host CPU using one of the following:
 **
 **      #define AG_CPU_LITTLE_ENDIAN
 **      #define AG_CPU_BIG_ENDIAN
-*/ 
+*/
 
 /*
-** Define the host CPU word size 
+** Define the host CPU word size
 **
 **      #define AG_CPU_32_BIT
 **      #define AG_CPU_64_BIT
@@ -93,7 +93,7 @@ iSCSI environment - The following is used for compiling the iSCSI
 
 /*
 ** Define the existence of an external bus swapper using on of the
-** following: 
+** following:
 **
 **      #define AG_SWAPPING_BUS
 **      #define AG_NON_SWAPPING_BUS
@@ -101,7 +101,7 @@ iSCSI environment - The following is used for compiling the iSCSI
 */
 
 /*
-** Define the use of cache memory for message system: 
+** Define the use of cache memory for message system:
 **
 **      #define AG_CACHED_MSG_SYSTEM
 **
@@ -113,14 +113,14 @@ FC environment - The following is used for compiling the FC protocol.
 **************************************************************************/
 
 /*
-** Define if an PMC-Sierra card is being used: 
+** Define if an PMC-Sierra card is being used:
 **
 **      #define CCFLAGS_PMC_SIERRA_BOARD
 **
 */
 
 /*
-** Define if the TSDK is being used: 
+** Define if the TSDK is being used:
 **
 **      #define FCLayer_Tsdk
 **
@@ -145,7 +145,7 @@ FC environment - The following is used for compiling the FC protocol.
 #define SA_CPU_BIG_ENDIAN
 #endif
 
-/* warning: leave this next line as-is.  it is used for FC-Layer testing      */ 
-#undef   FC_CHECKMACRO 
+/* warning: leave this next line as-is.  it is used for FC-Layer testing      */
+#undef   FC_CHECKMACRO
 
 #endif /* __OSENV_H__ */

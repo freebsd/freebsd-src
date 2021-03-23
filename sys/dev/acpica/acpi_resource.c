@@ -224,7 +224,7 @@ acpi_address_range_name(UINT8 ResourceType)
     }
 }
 #endif
-	    
+
 static ACPI_STATUS
 acpi_parse_resource(ACPI_RESOURCE *res, void *context)
 {
@@ -275,7 +275,7 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
 	ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "FixedMemory32 0x%x/%d\n",
 	    res->Data.FixedMemory32.Address,
 	    res->Data.FixedMemory32.AddressLength));
-	set->set_memory(dev, arc->context, res->Data.FixedMemory32.Address, 
+	set->set_memory(dev, arc->context, res->Data.FixedMemory32.Address,
 	    res->Data.FixedMemory32.AddressLength);
 	break;
     case ACPI_RESOURCE_TYPE_MEMORY32:
@@ -314,7 +314,7 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
 	break;
     case ACPI_RESOURCE_TYPE_IRQ:
 	/*
-	 * from 1.0b 6.4.2 
+	 * from 1.0b 6.4.2
 	 * "This structure is repeated for each separate interrupt
 	 * required"
 	 */
@@ -324,7 +324,7 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
 	break;
     case ACPI_RESOURCE_TYPE_DMA:
 	/*
-	 * from 1.0b 6.4.3 
+	 * from 1.0b 6.4.3
 	 * "This structure is repeated for each separate DMA channel
 	 * required"
 	 */
@@ -432,7 +432,7 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
 		    name, (uintmax_t)min, (uintmax_t)max, (uintmax_t)length));
 		set->set_iorange(dev, arc->context, min, max, length, gran);
 	    }
-	}		    
+	}
 	break;
     case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 	if (res->Data.ExtendedIrq.ProducerConsumer != ACPI_CONSUMER) {
@@ -507,7 +507,7 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 }
 
 /*
- * Resource-set vectors used to attach _CRS-derived resources 
+ * Resource-set vectors used to attach _CRS-derived resources
  * to an ACPI device.
  */
 static void	acpi_res_set_init(device_t dev, void *arg, void **context);
@@ -515,12 +515,12 @@ static void	acpi_res_set_done(device_t dev, void *context);
 static void	acpi_res_set_ioport(device_t dev, void *context,
 				    uint64_t base, uint64_t length);
 static void	acpi_res_set_iorange(device_t dev, void *context,
-				     uint64_t low, uint64_t high, 
+				     uint64_t low, uint64_t high,
 				     uint64_t length, uint64_t align);
 static void	acpi_res_set_memory(device_t dev, void *context,
 				    uint64_t base, uint64_t length);
 static void	acpi_res_set_memoryrange(device_t dev, void *context,
-					 uint64_t low, uint64_t high, 
+					 uint64_t low, uint64_t high,
 					 uint64_t length, uint64_t align);
 static void	acpi_res_set_irq(device_t dev, void *context, uint8_t *irq,
 				 int count, int trig, int pol);
@@ -673,7 +673,7 @@ acpi_res_set_drq(device_t dev, void *context, uint8_t *drq, int count)
 
     if (cp == NULL || drq == NULL)
 	return;
-    
+
     /* This implements no resource relocation. */
     if (count != 1)
 	return;

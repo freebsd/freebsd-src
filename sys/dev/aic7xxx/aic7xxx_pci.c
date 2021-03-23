@@ -476,7 +476,7 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		"Adaptec 2915/30LP Ultra160 SCSI adapter",
 		ahc_aic7892_setup
 	},
-	/* aic7895 based controllers */	
+	/* aic7895 based controllers */
 	{
 		ID_AHA_2940U_DUAL,
 		ID_ALL_MASK,
@@ -501,7 +501,7 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		"Adaptec aic7895 Ultra SCSI adapter (ARO)",
 		ahc_aic7895_setup
 	},
-	/* aic7896/97 based controllers */	
+	/* aic7896/97 based controllers */
 	{
 		ID_AHA_3950U2B_0,
 		ID_ALL_MASK,
@@ -532,7 +532,7 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		"Adaptec aic7896/97 Ultra2 SCSI adapter (ARO)",
 		ahc_aic7896_setup
 	},
-	/* aic7899 based controllers */	
+	/* aic7899 based controllers */
 	{
 		ID_AHA_3960D,
 		ID_ALL_MASK,
@@ -633,7 +633,7 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 };
 
 const u_int ahc_num_pci_devs = NUM_ELEMENTS(ahc_pci_ident_table);
-		
+
 #define AHC_394X_SLOT_CHANNEL_A	4
 #define AHC_394X_SLOT_CHANNEL_B	5
 
@@ -1239,7 +1239,7 @@ done:
 	ahc_outb(ahc, CLRINT, CLRBRKADRINT);
 	if (bootverbose && enable) {
 		printf("%s: External SRAM, %s access%s, %dbytes/SCB\n",
-		       ahc_name(ahc), fast ? "fast" : "slow", 
+		       ahc_name(ahc), fast ? "fast" : "slow",
 		       pcheck ? ", parity checking enabled" : "",
 		       large ? 64 : 32);
 	}
@@ -1348,9 +1348,9 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 	int	have_autoterm;
 
 	sd.sd_ahc = ahc;
-	sd.sd_control_offset = SEECTL;		
-	sd.sd_status_offset = SEECTL;		
-	sd.sd_dataout_offset = SEECTL;		
+	sd.sd_control_offset = SEECTL;
+	sd.sd_status_offset = SEECTL;
+	sd.sd_dataout_offset = SEECTL;
 	sc = ahc->seep_config;
 
 	/*
@@ -1373,7 +1373,7 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 
 	have_seeprom = ahc_acquire_seeprom(ahc, &sd);
 	if (have_seeprom) {
-		if (bootverbose) 
+		if (bootverbose)
 			printf("%s: Reading SEEPROM...", ahc_name(ahc));
 
 		for (;;) {
@@ -1539,7 +1539,7 @@ ahc_parse_pci_eeprom(struct ahc_softc *ahc, struct seeprom_config *sc)
 
 			if (sc->device_flags[i] & CFSYNCH)
 				offset = MAX_OFFSET_ULTRA2;
-			else 
+			else
 				offset = 0;
 			ahc_outb(ahc, TARG_OFFSET + i, offset);
 
@@ -1617,7 +1617,7 @@ configure_termination(struct ahc_softc *ahc,
 
 	/*
 	 * Update the settings in sxfrctl1 to match the
-	 * termination settings 
+	 * termination settings
 	 */
 	*sxfrctl1 = 0;
 
@@ -1795,7 +1795,7 @@ configure_termination(struct ahc_softc *ahc,
 				       "termination Enabled\n",
 				       ahc_name(ahc));
 		}
-		
+
 		write_brdctl(ahc, brddat);
 
 	} else {
@@ -1939,7 +1939,7 @@ ahc_acquire_seeprom(struct ahc_softc *ahc, struct seeprom_descriptor *sd)
 		aic_delay(1000);  /* delay 1 msec */
 	}
 	if ((SEEPROM_STATUS_INB(sd) & sd->sd_RDY) == 0) {
-		SEEPROM_OUTB(sd, 0); 
+		SEEPROM_OUTB(sd, 0);
 		return (0);
 	}
 	return(1);
@@ -2055,7 +2055,7 @@ ahc_pci_intr(struct ahc_softc *ahc)
 
 	if ((status1 & (DPE|SSE|RMA|RTA|STA|DPR)) == 0) {
 		printf("%s: Latched PCIERR interrupt with "
-		       "no status bits set\n", ahc_name(ahc)); 
+		       "no status bits set\n", ahc_name(ahc));
 	} else {
 		ahc_outb(ahc, CLRINT, CLRPARERR);
 	}
@@ -2134,9 +2134,9 @@ ahc_pci_resume(struct ahc_softc *ahc)
 		u_int	sxfrctl1;
 
 		sd.sd_ahc = ahc;
-		sd.sd_control_offset = SEECTL;		
-		sd.sd_status_offset = SEECTL;		
-		sd.sd_dataout_offset = SEECTL;		
+		sd.sd_control_offset = SEECTL;
+		sd.sd_status_offset = SEECTL;
+		sd.sd_dataout_offset = SEECTL;
 
 		ahc_acquire_seeprom(ahc, &sd);
 		configure_termination(ahc, &sd,

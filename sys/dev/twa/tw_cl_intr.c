@@ -157,7 +157,7 @@ tw_cli_process_attn_intr(struct tw_cli_ctlr_context *ctlr)
 		 * tw_cli_param_callback or tw_cli_aen_callback will eventually
 		 * retrieve the AEN this attention interrupt is for.  So, we
 		 * don't need to print the failure.
-		 */ 
+		 */
 		if (error != TW_OSL_EBUSY)
 			tw_cl_create_event(ctlr->ctlr_handle, TW_CL_FALSE,
 				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_ERROR,
@@ -209,7 +209,7 @@ tw_cli_process_resp_intr(struct tw_cli_ctlr_context *ctlr)
 	struct tw_cli_req_context	*req;
 	TW_INT32			error;
 	TW_UINT32			status_reg;
-    
+
 	tw_cli_dbg_printf(10, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 
 	for (;;) {
@@ -270,7 +270,7 @@ tw_cli_submit_pending_queue(struct tw_cli_ctlr_context *ctlr)
 {
 	struct tw_cli_req_context	*req;
 	TW_INT32			error = TW_OSL_ESUCCESS;
-    
+
 	tw_cli_dbg_printf(3, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 
 	/*
@@ -337,7 +337,7 @@ TW_VOID
 tw_cli_process_complete_queue(struct tw_cli_ctlr_context *ctlr)
 {
 	struct tw_cli_req_context	*req;
-    
+
 	tw_cli_dbg_printf(10, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 
 	/*
@@ -462,7 +462,7 @@ tw_cli_scsi_complete(struct tw_cli_req_context *req)
 			cdb[12], cdb[13], cdb[14], cdb[15]);
 
 #if       0
-		/* 
+		/*
 		 * Print the error. Firmware doesn't yet support
 		 * the 'Mode Sense' cmd.  Don't print if the cmd
 		 * is 'Mode Sense', and the error is 'Invalid field

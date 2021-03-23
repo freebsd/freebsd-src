@@ -560,7 +560,7 @@ __ocs_ns_wait_node_attach(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 		ocs_node_transition(node, __ocs_fabric_wait_attach_evt_shutdown, NULL);
 		break;
 
-	/* if receive RSCN just ignore, 
+	/* if receive RSCN just ignore,
 	 * we haven't sent GID_PT yet (ACC sent by fabctl node) */
 	case OCS_EVT_RSCN_RCVD:
 		break;
@@ -716,7 +716,7 @@ __ocs_ns_rffid_wait_rsp(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 		}
 		break;
 	}
-	/* if receive RSCN just ignore, 
+	/* if receive RSCN just ignore,
 	 * we haven't sent GID_PT yet (ACC sent by fabctl node) */
 	case OCS_EVT_RSCN_RCVD:
 		break;
@@ -1783,7 +1783,7 @@ ocs_start_ns_node(ocs_sport_t *sport)
 	}
 	/* TODO: for found ns, should we be transitioning from here?
 	 * breaks transition only 1. from within state machine or
-	 * 2. if after alloc 
+	 * 2. if after alloc
 	 */
 	if (ns->ocs->nodedb_mask & OCS_NODEDB_PAUSE_NAMESERVER) {
 		ocs_node_pause(ns, __ocs_ns_init);

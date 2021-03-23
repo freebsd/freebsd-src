@@ -121,10 +121,10 @@ iscsi_r2t(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
 
 		    cmd->F 	= (bs < bleft)? 0: 1; // is this the last one?
 		    bs = MIN(bs, bleft);
-		    
+
 		    wpq->pdu.ds_len	= bs;
 		    wpq->pdu.ds_addr	= bp;
-		    
+
 		    error = isc_qout(sp, wpq);
 		    sdebug(6, "bs=%x bo=%x bp=%p dsn=%x error=%d", bs, bo, bp, dsn, error);
 		    if(error)
@@ -211,7 +211,7 @@ _scsi_done(isc_session_t *sp, u_int response, u_int status, union ccb *ccb, pduq
 	  case 0:	// Good, all is ok
 	       ccb_h->status = CAM_REQ_CMP;
 	       break;
-	       
+
 	  case 0x02: 	// Check Condition
 	       if((pq != NULL) && (pq->mp != NULL) && getSenseData(status, ccb, pq))
 		    ccb_h->status |= CAM_AUTOSNS_VALID;
@@ -435,7 +435,7 @@ dwl(isc_session_t *sp, int lun, u_char *lp)
      if(lun < 16384) {
 	  lp[0] = (1 << 5) | ((lun >> 8) & 0x3f);
 	  lp[1] = lun & 0xff;
-     } 
+     }
      else {
 	  xdebug("lun %d: is unsupported!", lun);
 	  return -1;
@@ -445,7 +445,7 @@ dwl(isc_session_t *sp, int lun, u_char *lp)
 }
 
 /*
- | encapsulate the scsi command and 
+ | encapsulate the scsi command and
  */
 int
 scsi_encap(struct cam_sim *sim, union ccb *ccb)
@@ -519,7 +519,7 @@ scsi_encap(struct cam_sim *sim, union ccb *ccb)
       | place it in the out queue
       */
      if(isc_qout(sp, pq) == 0)
-	  return 1; 
+	  return 1;
  invalid:
      ccb->ccb_h.status = CAM_REQ_INVALID;
      pdu_free(sp->isc, pq);
@@ -534,7 +534,7 @@ scsi_decap(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
      struct ccb_scsiio	*csio = &ccb->csio;
      pdu_t		*opp = &opq->pdu;
      bhs_t		*bhp = &opp->ipdu.bhs;
-     
+
      debug_called(8);
      sdebug(6, "pq=%p opq=%p bhp->opcode=0x%x len=%d",
 	    pq, opq, bhp->opcode, pq->pdu.ds_len);

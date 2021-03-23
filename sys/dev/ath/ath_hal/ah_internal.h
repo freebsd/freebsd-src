@@ -570,7 +570,7 @@ isBigEndian(void)
 	return (u.c[0] == 0);
 }
 
-/* unalligned little endian access */     
+/* unalligned little endian access */
 #define LE_READ_2(p)							\
 	((uint16_t)							\
 	 ((((const uint8_t *)(p))[0]    ) | (((const uint8_t *)(p))[1]<< 8)))
@@ -683,7 +683,7 @@ extern	void ath_hal_assert_failed(const char* filename,
 #define	HALASSERT(_x)
 #endif /* AH_ASSERT */
 
-/* 
+/*
  * Regulatory domain support.
  */
 

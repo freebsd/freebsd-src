@@ -52,7 +52,7 @@ struct vesa_info
     u_int8_t		v_oemdata[256];
 } __packed;
 
-struct vesa_mode 
+struct vesa_mode
 {
     /* mandatory fields */
     u_int16_t		v_modeattr;

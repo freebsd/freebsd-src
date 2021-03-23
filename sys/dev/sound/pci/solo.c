@@ -939,13 +939,13 @@ ess_probe(device_t dev)
 #define ESS_PCI_CONFIG              0x50
 #define ESS_PCI_DDMACONTROL      	0x60
 
-static int 
+static int
 ess_suspend(device_t dev)
 {
   return 0;
 }
 
-static int 
+static int
 ess_resume(device_t dev)
 {
 	uint16_t ddma;

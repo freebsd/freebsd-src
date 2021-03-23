@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  */
 
 #ifndef __ECORE_HSI_COMMON__
-#define __ECORE_HSI_COMMON__ 
+#define __ECORE_HSI_COMMON__
 /********************************/
 /* Add include to common target */
 /********************************/
@@ -222,7 +222,7 @@ union core_rx_bd_union
 };
 
 /*
- * Opaque Data for Light L2 RX CQE . 
+ * Opaque Data for Light L2 RX CQE .
  */
 struct core_rx_cqe_opaque_data
 {
@@ -242,7 +242,7 @@ enum core_rx_cqe_type
 };
 
 /*
- * Core RX CQE for Light L2 . 
+ * Core RX CQE for Light L2 .
  */
 struct core_rx_fast_path_cqe
 {
@@ -258,7 +258,7 @@ struct core_rx_fast_path_cqe
 };
 
 /*
- * Core Rx CM offload CQE . 
+ * Core Rx CM offload CQE .
  */
 struct core_rx_gsi_offload_cqe
 {
@@ -275,7 +275,7 @@ struct core_rx_gsi_offload_cqe
 };
 
 /*
- * Core RX CQE for Light L2 . 
+ * Core RX CQE for Light L2 .
  */
 struct core_rx_slow_path_cqe
 {

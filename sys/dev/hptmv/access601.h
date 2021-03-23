@@ -39,7 +39,7 @@ UCHAR HPTLIBAPI check_protect_circuit(MV_BUS_ADDR_T BaseAddr);
 #ifdef SUPPORT_FAIL_LED
 void HPTLIBAPI set_fail_led(MV_SATA_ADAPTER *pAdapter, UCHAR channel, UCHAR state);
 void HPTLIBAPI set_fail_leds(MV_SATA_ADAPTER *pAdapter, UCHAR mask);
-#else 
+#else
 #define set_fail_led(pAdapter, channel, state)
 #define set_fail_leds(pAdapter, mask)
 #endif
@@ -49,7 +49,7 @@ int HPTLIBAPI sx508x_ioctl(MV_SATA_ADAPTER *pSataAdapter, UCHAR *indata, ULONG i
 
 MV_BOOLEAN HPTLIBAPI sx508x_flash_access(MV_SATA_ADAPTER *pSataAdapter,
 			MV_U32 offset, void *value, int size, int reading);
-#else 
+#else
 
 #define BeepOn(addr)
 #define BeepOff(addr)

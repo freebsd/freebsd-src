@@ -109,7 +109,7 @@ struct sbni_softc {
 	u_int32_t	prev_rxl_rcvd;
 
 	struct	sbni_csr1 csr1;			/* current value of CSR1 */
-	struct	sbni_in_stats in_stats; 	/* internal statistics */ 
+	struct	sbni_in_stats in_stats; 	/* internal statistics */
 
 	struct	callout wch;
 	struct	mtx lock;

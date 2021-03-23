@@ -6608,7 +6608,7 @@ ath_parent(struct ieee80211com *ic)
 	}
 	ATH_UNLOCK(sc);
 
-	if (error == 0) {                        
+	if (error == 0) {
 #ifdef ATH_TX99_DIAG
 		if (sc->sc_tx99 != NULL)
 			sc->sc_tx99->start(sc->sc_tx99);

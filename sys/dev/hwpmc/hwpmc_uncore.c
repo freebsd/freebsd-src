@@ -154,7 +154,7 @@ uncore_pcpu_fini(struct pmc_mdep *md, int cpu)
 	npmc = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_UCP].pcd_num;
 	uncore_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_UCP].pcd_ri;
 
-	for (n = 0; n < npmc; n++) 
+	for (n = 0; n < npmc; n++)
 		wrmsr(SELECTSEL(uncore_cputype) + n, 0);
 
 	wrmsr(UCF_CTRL, 0);

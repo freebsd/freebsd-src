@@ -487,7 +487,7 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 	bus_dmamap_sync(softc->rx_stats.idi_tag, softc->rx_stats.idi_map,
 	    BUS_DMASYNC_PREREAD);
 
-/* 
+/*
  * Additional 512 bytes for future expansion.
  * To prevent corruption when loaded with newer firmwares with added counters.
  * This can be deleted when there will be no further additions of counters.
@@ -499,7 +499,7 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 	if (rc)
 		goto hw_port_rx_stats_alloc_fail;
 
-	bus_dmamap_sync(softc->hw_rx_port_stats.idi_tag, 
+	bus_dmamap_sync(softc->hw_rx_port_stats.idi_tag,
             softc->hw_rx_port_stats.idi_map, BUS_DMASYNC_PREREAD);
 
 	rc = iflib_dma_alloc(ctx, sizeof(struct tx_port_stats) + BNXT_PORT_STAT_PADDING,
@@ -508,7 +508,7 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 	if (rc)
 		goto hw_port_tx_stats_alloc_fail;
 
-	bus_dmamap_sync(softc->hw_tx_port_stats.idi_tag, 
+	bus_dmamap_sync(softc->hw_tx_port_stats.idi_tag,
             softc->hw_tx_port_stats.idi_map, BUS_DMASYNC_PREREAD);
 
 	softc->rx_port_stats = (void *) softc->hw_rx_port_stats.idi_vaddr;
@@ -855,7 +855,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 	/* iflib will map and release this bar */
 	scctx->isc_msix_bar = pci_msix_table_bar(softc->dev);
 
-        /* 
+        /*
          * Default settings for HW LRO (TPA):
          *  Disable HW LRO by default
          *  Can be enabled after taking care of 'packet forwarding'
@@ -1262,8 +1262,8 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 		ifmr->ifm_active |= IFM_HDX;
 
         /*
-         * Go through the list of supported media which got prepared 
-         * as part of bnxt_add_media_types() using api ifmedia_add(). 
+         * Go through the list of supported media which got prepared
+         * as part of bnxt_add_media_types() using api ifmedia_add().
          */
 	LIST_FOREACH(next, &(iflib_get_media(ctx)->ifm_list), ifm_list) {
 		if (ifmedia_baudrate(next->ifm_media) == target_baudrate) {
@@ -1273,9 +1273,9 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 	}
 	ifmr->ifm_active |= active_media;
 
-	if (link_info->flow_ctrl.rx) 
+	if (link_info->flow_ctrl.rx)
 		ifmr->ifm_active |= IFM_ETH_RXPAUSE;
-	if (link_info->flow_ctrl.tx) 
+	if (link_info->flow_ctrl.tx)
 		ifmr->ifm_active |= IFM_ETH_TXPAUSE;
 
 	bnxt_report_link(softc);
@@ -1415,12 +1415,12 @@ bnxt_update_admin_status(if_ctx_t ctx)
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 
 	/*
-	 * When SR-IOV is enabled, avoid each VF sending this HWRM 
+	 * When SR-IOV is enabled, avoid each VF sending this HWRM
          * request every sec with which firmware timeouts can happen
          */
 	if (BNXT_PF(softc)) {
 		bnxt_hwrm_port_qstats(softc);
-	}	
+	}
 
 	return;
 }
@@ -1430,7 +1430,7 @@ bnxt_if_timer(if_ctx_t ctx, uint16_t qid)
 {
 
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
-	uint64_t ticks_now = ticks; 
+	uint64_t ticks_now = ticks;
 
         /* Schedule bnxt_update_admin_status() once per sec */
         if (ticks_now - softc->admin_ticks >= hz) {

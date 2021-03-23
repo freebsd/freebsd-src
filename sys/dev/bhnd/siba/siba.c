@@ -70,7 +70,7 @@ siba_probe(device_t dev)
 
 /**
  * Default siba(4) bus driver implementation of DEVICE_ATTACH().
- * 
+ *
  * This implementation initializes internal siba(4) state and performs
  * bus enumeration, and must be called by subclassing drivers in
  * DEVICE_ATTACH() before any other bus methods.
@@ -282,7 +282,7 @@ siba_alloc_pmu(device_t dev, device_t child)
 	/*
 	 * This is either a legacy PWRCTL chipset, or the device does not
 	 * support dynamic clock control.
-	 * 
+	 *
 	 * We need to map all bhnd(4) bus PMU to PWRCTL or no-op operations.
 	 */
 	if (ccaps.pwr_ctrl) {
@@ -1278,7 +1278,7 @@ siba_child_deleted(device_t dev, device_t child)
 /**
  * Scan the core table and add all valid discovered cores to
  * the bus.
- * 
+ *
  * @param dev The siba bus device.
  */
 int
@@ -1309,7 +1309,7 @@ siba_add_children(device_t dev)
 
 	/*
 	 * Add child devices for all discovered cores.
-	 * 
+	 *
 	 * On bridged devices, we'll exhaust our available register windows if
 	 * we map config blocks on unpopulated/disabled cores. To avoid this, we
 	 * defer mapping of the per-core siba(4) config blocks until all cores

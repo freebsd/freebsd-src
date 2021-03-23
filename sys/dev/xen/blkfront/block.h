@@ -37,7 +37,7 @@
 /**
  * Given a number of blkif segments, compute the maximum I/O size supported.
  *
- * \note This calculation assumes that all but the first and last segments 
+ * \note This calculation assumes that all but the first and last segments
  *       of the I/O are fully utilized.
  *
  * \note We reserve a segement from the maximum supported by the transport to

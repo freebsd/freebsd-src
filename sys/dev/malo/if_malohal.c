@@ -140,7 +140,7 @@ malo_hal_attach(device_t dev, uint16_t devid,
 
 	/* allocate descriptors */
 	error = bus_dmamem_alloc(mh->mh_dmat, (void**) &mh->mh_cmdbuf,
-				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT, 
+				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
 				 &mh->mh_dmamap);
 	if (error != 0) {
 		device_printf(dev, "unable to allocate memory for cmd buffer, "
@@ -255,7 +255,7 @@ malo_hal_get_cal_table(struct malo_hal *mh, uint8_t annex, uint8_t index)
 	if (ret == 0 && cmd->caltbl[0] != annex && annex != 0 && annex != 255)
 		ret = EIO;
 	return ret;
-}							  
+}
 
 static int
 malo_hal_get_pwrcal_table(struct malo_hal *mh, struct malo_hal_caldata *cal)
@@ -269,7 +269,7 @@ malo_hal_get_pwrcal_table(struct malo_hal *mh, struct malo_hal_caldata *cal)
 	if (malo_hal_get_cal_table(mh, 33, 0) == 0) {
 		len = (data[2] | (data[3] << 8)) - 12;
 		/* XXX validate len */
-		memcpy(cal->pt_ratetable_20m, &data[12], len);	
+		memcpy(cal->pt_ratetable_20m, &data[12], len);
 	}
 	mh->mh_flags |= MHF_CALDATA;
 	MALO_HAL_UNLOCK(mh);
@@ -359,7 +359,7 @@ malo_hal_send_helper(struct malo_hal *mh, int bsize,
 		device_printf(mh->mh_dev,
 		    "%s: timeout waiting for CMD_FINISHED, INT_CODE 0x%x\n",
 		    __func__, malo_hal_read4(mh, MALO_REG_INT_CODE));
-		
+
 		return ETIMEDOUT;
 	}
 
@@ -464,7 +464,7 @@ malo_hal_fwload_main(struct malo_hal *mh, char *firmware)
 			goto fail;
 		DELAY(500);
 	}
-	
+
 	/*
 	 * send a command with size 0 to tell that the firmware has been
 	 * uploaded
@@ -522,7 +522,7 @@ malo_hal_fwload(struct malo_hal *mh, char *helper, char *firmware)
 
 	if (opmode != MALO_HOSTCMD_STA_MODE)
 		malo_hal_trigger_pcicmd(mh);
-	
+
 	for (i = 0; i < MALO_FW_MAX_NUM_CHECKS; i++) {
 		malo_hal_write4(mh, MALO_REG_GEN_PTR, opmode);
 		DELAY(MALO_FW_CHECK_USECS);
@@ -694,7 +694,7 @@ malo_hal_settxpower(struct malo_hal *mh, const struct malo_hal_channel *c)
 	uint8_t chan = c->channel;
 	uint16_t pow;
 	int i, idx, ret;
-	
+
 	MALO_HAL_LOCK(mh);
 
 	_CMD_SETUP(cmd, struct malo_cmd_rf_tx_power,
@@ -733,7 +733,7 @@ malo_hal_setassocid(struct malo_hal *mh,
 	cmd->cmdhdr.seqnum = 1;
 	cmd->associd = htole16(associd);
 	IEEE80211_ADDR_COPY(&cmd->macaddr[0], bssid);
-	
+
 	ret = malo_hal_execute_cmd(mh, MALO_HOSTCMD_SET_AID);
 	MALO_HAL_UNLOCK(mh);
 	return ret;
@@ -796,7 +796,7 @@ malo_hal_prescan(struct malo_hal *mh)
 
 	_CMD_SETUP(cmd, struct malo_cmd_prescan, MALO_HOSTCMD_SET_PRE_SCAN);
 	cmd->cmdhdr.seqnum = 1;
-	
+
 	ret = malo_hal_execute_cmd(mh, MALO_HOSTCMD_SET_PRE_SCAN);
 
 	MALO_HAL_UNLOCK(mh);

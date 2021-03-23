@@ -60,7 +60,7 @@ bman_portals_attach(device_t dev)
 	struct dpaa_portals_softc *sc;
 
 	sc = bp_sc = device_get_softc(dev);
-	
+
 	/* Map bman portal to physical address space */
 	if (law_enable(OCP85XX_TGTIF_BMAN, sc->sc_dp_pa, sc->sc_dp_size)) {
 		bman_portals_detach(dev);
@@ -163,7 +163,7 @@ bman_portal_setup(struct bman_softc *bsc)
 		goto err;
 
 	atomic_store_rel_ptr((uintptr_t *)&sc->sc_dp[cpu].dp_ph, (uintptr_t)portal);
-	
+
 	sched_unpin();
 
 	return (portal);

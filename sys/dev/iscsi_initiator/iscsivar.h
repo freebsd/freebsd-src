@@ -37,7 +37,7 @@
 #define ISCSI_MAX_LUNS		128	// don't touch this
 #if ISCSI_MAX_LUNS > 8
 /*
- | for this to work 
+ | for this to work
  | sysctl kern.cam.cam_srch_hi=1
  */
 #endif
@@ -160,7 +160,7 @@ typedef struct isc_session {
      queue_t		csnd;
      queue_t		isnd;
      queue_t		wsnd;
-     queue_t		hld;				
+     queue_t		hld;
 
      isc_opt_t		opt;	// negotiable values
 
@@ -194,7 +194,7 @@ typedef struct pduq {
      struct iovec	iov[5];	// XXX: careful ...
      struct mbuf	*mp;
      struct bintime	ts;
-     queue_t		*pduq;		
+     queue_t		*pduq;
 } pduq_t;
 /*
  */
@@ -465,7 +465,7 @@ i_rqueue_pdu(isc_session_t *sp, pduq_t *pq)
      mtx_lock(&sp->snd_mtx);
      KASSERT(pq->pduq != NULL, ("pq->pduq is NULL"));
      TAILQ_INSERT_TAIL(pq->pduq, pq, pq_link);
-     mtx_unlock(&sp->snd_mtx);     
+     mtx_unlock(&sp->snd_mtx);
 }
 
 /*
@@ -534,7 +534,7 @@ i_acked_hld(isc_session_t *sp, pdu_t *op)
 {
      pduq_t	*pq, *tmp;
      u_int exp = sp->sn.expCmd;
-     
+
      pq = NULL;
      mtx_lock(&sp->hld_mtx);
      TAILQ_FOREACH_SAFE(pq, &sp->hld, pq_link, tmp) {

@@ -117,7 +117,7 @@ _r2t(isc_session_t *sp, pduq_t *pq)
      opq = i_search_hld(sp, pq->pdu.ipdu.bhs.itt, 1);
      if(opq != NULL) {
 	  iscsi_r2t(sp, opq, pq);
-     } 
+     }
      else {
 	  r2t_t		*r2t = &pq->pdu.ipdu.r2t;
 
@@ -585,7 +585,7 @@ isc_dump_options(SYSCTL_HANDLER_ARGS)
      int error;
      isc_session_t *sp;
      struct sbuf sb;
-     
+
      sbuf_new_for_sysctl(&sb, NULL, 128, req);
 
      sp = (isc_session_t *)arg1;
@@ -604,14 +604,14 @@ isc_dump_stats(SYSCTL_HANDLER_ARGS)
      struct isc_softc	*sc;
      int 	error;
      struct sbuf sb;
-     
+
      sp = (isc_session_t *)arg1;
      sc = sp->isc;
 
      sbuf_new_for_sysctl(&sb, NULL, 128, req);
 
      sbuf_printf(&sb, "recv=%d sent=%d", sp->stats.nrecv, sp->stats.nsent);
-     sbuf_printf(&sb, " flags=0x%08x pdus-alloc=%d pdus-max=%d", 
+     sbuf_printf(&sb, " flags=0x%08x pdus-alloc=%d pdus-max=%d",
 		 sp->flags, sc->npdu_alloc, sc->npdu_max);
      sbuf_printf(&sb, " cws=%d cmd=%x exp=%x max=%x stat=%x itt=%x",
 		  sp->cws, sp->sn.cmd, sp->sn.expCmd, sp->sn.maxCmd, sp->sn.stat, sp->sn.itt);
@@ -690,7 +690,7 @@ ism_stop(isc_session_t *sp)
      }
      sdebug(2, "final n=%d", n);
      sp->flags &= ~ISC_FFPHASE;
-     
+
      iscsi_cleanup(sp);
 
      (void)i_pdu_flush(sp);

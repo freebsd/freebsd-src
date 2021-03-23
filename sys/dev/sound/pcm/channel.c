@@ -1089,7 +1089,7 @@ snd_str2afmt(const char *req)
 			}
 		}
 		/* found a match */
-		return (SND_FORMAT(afmt_tab[i].afmt, ch + ext, ext));	
+		return (SND_FORMAT(afmt_tab[i].afmt, ch + ext, ext));
 	}
 	/* not a valid format */
 	return (0);
@@ -2189,7 +2189,7 @@ chn_trigger(struct pcm_channel *c, int go)
  * running in 16 bit stereo mode would require 4 bytes per sample, so a
  * hwptr value ranging from 32-35 would be returned as 32.)
  *
- * @param c	PCM channel context	
+ * @param c	PCM channel context
  * @returns 	sample-aligned hardware buffer pointer index
  */
 int

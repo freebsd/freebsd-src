@@ -219,7 +219,7 @@ musbotg_channel_alloc(struct musbotg_softc *sc, struct musbotg_td *td, uint8_t i
 	return (-1);
 }
 
-static void	
+static void
 musbotg_channel_free(struct musbotg_softc *sc, struct musbotg_td *td)
 {
 
@@ -620,7 +620,7 @@ musbotg_host_ctrl_setup_tx(struct musbotg_td *td)
 
 	/* write command */
 	MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
-	    MUSB2_MASK_CSR0L_TXPKTRDY | 
+	    MUSB2_MASK_CSR0L_TXPKTRDY |
 	    MUSB2_MASK_CSR0L_SETUPPKT);
 
 	/* Just to be consistent, not used above */
@@ -1126,7 +1126,7 @@ musbotg_host_ctrl_data_tx(struct musbotg_td *td)
 	}
 
 	/*
-	 * Wait while FIFO is empty. 
+	 * Wait while FIFO is empty.
 	 * Do not flush it because it will cause transactions
 	 * with size more then packet size. It might upset
 	 * some devices
@@ -1315,7 +1315,7 @@ musbotg_host_ctrl_status_rx(struct musbotg_td *td)
 
 		/* write command */
 		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
-		    MUSB2_MASK_CSR0L_STATUSPKT | 
+		    MUSB2_MASK_CSR0L_STATUSPKT |
 		    MUSB2_MASK_CSR0L_REQPKT);
 
 		return (1); /* Just started */
@@ -1376,7 +1376,7 @@ musbotg_host_ctrl_status_tx(struct musbotg_td *td)
 	if (td->channel == -1)
 		return (1);
 
-	DPRINTFN(1, "ep_no=%d/%d [%d@%d.%d/%02x]\n", td->channel, td->transaction_started, 
+	DPRINTFN(1, "ep_no=%d/%d [%d@%d.%d/%02x]\n", td->channel, td->transaction_started,
 			td->dev_addr,td->haddr,td->hport, td->transfer_type);
 
 	/* select endpoint 0 */
@@ -1404,7 +1404,7 @@ musbotg_host_ctrl_status_tx(struct musbotg_td *td)
 	if (td->transaction_started) {
 		musbotg_channel_free(sc, td);
 		return (0); /* complete */
-	} 
+	}
 
 	MUSB2_WRITE_1(sc, MUSB2_REG_RXCSRH, MUSB2_MASK_CSR0H_PING_DIS);
 
@@ -1420,7 +1420,7 @@ musbotg_host_ctrl_status_tx(struct musbotg_td *td)
 
 	/* write command */
 	MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
-	    MUSB2_MASK_CSR0L_STATUSPKT | 
+	    MUSB2_MASK_CSR0L_STATUSPKT |
 	    MUSB2_MASK_CSR0L_TXPKTRDY);
 
 	return (1);			/* wait for interrupt */
@@ -1740,9 +1740,9 @@ repeat:
 		    td->dev_addr);
 
 		/* SPLIT transaction */
-		MUSB2_WRITE_1(sc, MUSB2_REG_RXHADDR(td->channel), 
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXHADDR(td->channel),
 		    td->haddr);
-		MUSB2_WRITE_1(sc, MUSB2_REG_RXHUBPORT(td->channel), 
+		MUSB2_WRITE_1(sc, MUSB2_REG_RXHUBPORT(td->channel),
 		    td->hport);
 
 		/* RX NAK timeout */
@@ -1960,7 +1960,7 @@ musbotg_host_data_tx(struct musbotg_td *td)
 	}
 
 	if (csr & MUSB2_MASK_CSRL_TXNAKTO) {
-		/* 
+		/*
 		 * Flush TX FIFO before clearing NAK TO
 		 */
 		if (csr & MUSB2_MASK_CSRL_TXFIFONEMPTY) {
@@ -1983,7 +1983,7 @@ musbotg_host_data_tx(struct musbotg_td *td)
 	}
 
 	/*
-	 * Wait while FIFO is empty. 
+	 * Wait while FIFO is empty.
 	 * Do not flush it because it will cause transactions
 	 * with size more then packet size. It might upset
 	 * some devices
@@ -2082,9 +2082,9 @@ musbotg_host_data_tx(struct musbotg_td *td)
 	    td->dev_addr);
 
 	/* SPLIT transaction */
-	MUSB2_WRITE_1(sc, MUSB2_REG_TXHADDR(td->channel), 
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXHADDR(td->channel),
 	    td->haddr);
-	MUSB2_WRITE_1(sc, MUSB2_REG_TXHUBPORT(td->channel), 
+	MUSB2_WRITE_1(sc, MUSB2_REG_TXHUBPORT(td->channel),
 	    td->hport);
 
 	/* TX NAK timeout */
@@ -2256,7 +2256,7 @@ repeat:
 	/* check for any bus state change interrupts */
 
 	if (usb_status & (MUSB2_MASK_IRESET |
-	    MUSB2_MASK_IRESUME | MUSB2_MASK_ISUSP | 
+	    MUSB2_MASK_IRESUME | MUSB2_MASK_ISUSP |
 	    MUSB2_MASK_ICONN | MUSB2_MASK_IDISC |
 	    MUSB2_MASK_IVBUSERR)) {
 		DPRINTFN(4, "real bus interrupt 0x%08x\n", usb_status);
@@ -2319,12 +2319,12 @@ repeat:
 				MUSB2_WRITE_1(sc, MUSB2_REG_INTUSBE, temp);
 			}
 		}
-		if (usb_status & 
+		if (usb_status &
 		    (MUSB2_MASK_ICONN | MUSB2_MASK_IDISC))
 			sc->sc_flags.change_connect = 1;
 
-		/* 
-		 * Host Mode: There is no IRESET so assume bus is 
+		/*
+		 * Host Mode: There is no IRESET so assume bus is
 		 * always in reset state once device is connected.
 		 */
 		if (sc->sc_mode == MUSB2_HOST_MODE) {

@@ -54,10 +54,10 @@ static bhnd_nvram_plist_entry	*bhnd_nvram_plist_get_entry(
 
 /**
  * Allocate and initialize a new, empty property list.
- * 
+ *
  * The caller is responsible for releasing the returned property value
  * via bhnd_nvram_plist_release().
- * 
+ *
  * @retval non-NULL	success
  * @retval NULL		if allocation fails.
  */
@@ -86,10 +86,10 @@ bhnd_nvram_plist_new(void)
 
 /**
  * Retain a reference and return @p plist to the caller.
- * 
+ *
  * The caller is responsible for releasing their reference ownership via
  * bhnd_nvram_plist_release().
- * 
+ *
  * @param	plist	The property list to be retained.
  */
 bhnd_nvram_plist *
@@ -105,7 +105,7 @@ bhnd_nvram_plist_retain(bhnd_nvram_plist *plist)
  * Release a reference to @p plist.
  *
  * If this is the last reference, all associated resources will be freed.
- * 
+ *
  * @param	plist	The property list to be released.
  */
 void
@@ -131,10 +131,10 @@ bhnd_nvram_plist_release(bhnd_nvram_plist *plist)
 
 /**
  * Return a shallow copy of @p plist.
- * 
+ *
  * The caller is responsible for releasing the returned property value
  * via bhnd_nvram_plist_release().
- * 
+ *
  * @retval non-NULL	success
  * @retval NULL		if allocation fails.
  */
@@ -179,7 +179,7 @@ bhnd_nvram_plist_count(bhnd_nvram_plist *plist)
 
 /**
  * Return true if @p plist contains a property name @p name, false otherwise.
- * 
+ *
  * @param	plist	The property list to be queried.
  * @param	name	The property name to be queried.
  */
@@ -195,13 +195,13 @@ bhnd_nvram_plist_contains(bhnd_nvram_plist *plist, const char *name)
 /**
  * Replace the current property value for a property matching the name
  * of @p prop, maintaining the property's current order in @p plist.
- * 
+ *
  * If a matching property is not found in @p plist, @p prop will instead be
  * appended.
- * 
+ *
  * @param	plist	The property list to be modified.
  * @param	prop	The replacement property.
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	if allocation fails.
  * @retval non-zero	if modifying @p plist otherwise fails, a regular unix
@@ -229,13 +229,13 @@ bhnd_nvram_plist_replace(bhnd_nvram_plist *plist, bhnd_nvram_prop *prop)
 /**
  * Replace the current property value for a property matching @p name,
  * maintaining the property's order in @p plist.
- * 
+ *
  * If @p name is not found in @p plist, a new property will be appended.
- * 
+ *
  * @param	plist	The property list to be modified.
  * @param	name	The name of the property to be replaced.
  * @param	val	The replacement value for @p name.
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	if allocation fails.
  * @retval non-zero	if modifying @p plist otherwise fails, a regular unix
@@ -261,18 +261,18 @@ bhnd_nvram_plist_replace_val(bhnd_nvram_plist *plist, const char *name,
 
 /**
  * Replace the current property value for a property matching @p name, copying
- * the new property value from the given @p inp buffer of @p itype and @p ilen. 
- * 
+ * the new property value from the given @p inp buffer of @p itype and @p ilen.
+ *
  * The current property order of @p name in @p plist will be maintained.
- * 
+ *
  * If @p name is not found in @p plist, a new property will be appended.
- * 
+ *
  * @param	plist	The property list to be modified.
  * @param	name	The name of the property to be replaced.
  * @param	inp	Input buffer.
  * @param	ilen	Input buffer length.
  * @param	itype	Input buffer type.
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	if allocation fails.
  * @retval non-zero	if modifying @p plist otherwise fails, a regular unix
@@ -297,15 +297,15 @@ bhnd_nvram_plist_replace_bytes(bhnd_nvram_plist *plist, const char *name,
 /**
  * Replace the current property value for a property matching @p name, copying
  * the new property value from @p val.
- * 
+ *
  * The current property order of @p name in @p plist will be maintained.
- * 
+ *
  * If @p name is not found in @p plist, a new property will be appended.
- * 
+ *
  * @param	plist	The property list to be modified.
  * @param	name	The name of the property to be replaced.
  * @param	val	The property's replacement string value.
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	if allocation fails.
  * @retval non-zero	if modifying @p plist otherwise fails, a regular unix
@@ -321,7 +321,7 @@ bhnd_nvram_plist_replace_string(bhnd_nvram_plist *plist, const char *name,
 
 /**
  * Remove the property entry for the property @p name, if any.
- * 
+ *
  * @param	plist	The property list to be modified.
  * @param	name	The name of the property to be removed.
  */
@@ -350,10 +350,10 @@ bhnd_nvram_plist_remove(bhnd_nvram_plist *plist, const char *name)
 
 /**
  * Fetch the property list entry for @p name, if any.
- * 
+ *
  * @param	plist	The property list to be queried.
  * @param	name	The property name to be queried.
- * 
+ *
  * @retval non-NULL	if @p name is found.
  * @retval NULL		if @p name is not found.
  */
@@ -378,10 +378,10 @@ bhnd_nvram_plist_get_entry(bhnd_nvram_plist *plist, const char *name)
 
 /**
  * Append all properties from @p tail to @p plist.
-  * 
+  *
  * @param	plist	The property list to be modified.
  * @param	tail	The property list to append.
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	if allocation fails.
  * @retval EEXIST	an existing property from @p tail was found in @p plist.
@@ -403,10 +403,10 @@ bhnd_nvram_plist_append_list(bhnd_nvram_plist *plist, bhnd_nvram_plist *tail)
 
 /**
  * Append @p prop to @p plist.
- * 
+ *
  * @param	plist	The property list to be modified.
  * @param	prop	The property to append.
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	if allocation fails.
  * @retval EEXIST	an existing property with @p name was found in @p plist.
@@ -448,11 +448,11 @@ bhnd_nvram_plist_append(bhnd_nvram_plist *plist, bhnd_nvram_prop *prop)
 
 /**
  * Append a new property to @p plist with @p name and @p val.
- * 
+ *
  * @param	plist	The property list to be modified.
  * @param	name	The name of the property to be appended.
  * @param	val	The value of the property to be appended.
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	if allocation fails.
  * @retval EEXIST	an existing property with @p name was found in @p plist.
@@ -476,13 +476,13 @@ bhnd_nvram_plist_append_val(bhnd_nvram_plist *plist, const char *name,
 /**
  * Append a new property to @p plist, copying the property value from the
  * given @p inp buffer of @p itype and @p ilen.
- * 
+ *
  * @param	plist	The property list to be modified.
  * @param	name	The name of the property to be appended.
  * @param	inp	Input buffer.
  * @param	ilen	Input buffer length.
  * @param	itype	Input buffer type.
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	if allocation fails.
  * @retval EEXIST	an existing property with @p name was found in @p plist.
@@ -506,7 +506,7 @@ bhnd_nvram_plist_append_bytes(bhnd_nvram_plist *plist, const char *name,
 /**
  * Append a new string property to @p plist, copying the property value from
  * @p val.
- * 
+ *
  * @param	plist	The property list to be modified.
  * @param	name	The name of the property to be appended.
  * @param	val	The new property's string value.
@@ -525,11 +525,11 @@ bhnd_nvram_plist_append_string(bhnd_nvram_plist *plist, const char *name,
 
 /**
  * Iterate over all properties in @p plist.
- * 
+ *
  * @param	plist	The property list to be iterated.
  * @param	prop	A property in @p plist, or NULL to return the first
  *			property in @p plist.
- * 
+ *
  * @retval non-NULL	A borrowed reference to the next property in @p plist.
  * @retval NULL		If the end of the property list is reached or @p prop
  *			is not found in @p plist.
@@ -564,7 +564,7 @@ bhnd_nvram_plist_next(bhnd_nvram_plist *plist, bhnd_nvram_prop *prop)
 /**
  * Return a borrowed reference to a named property, or NULL if @p name is
  * not found in @p plist.
- * 
+ *
  * @param	plist	The property list to be queried.
  * @param	name	The name of the property to be returned.
  *
@@ -585,7 +585,7 @@ bhnd_nvram_plist_get_prop(bhnd_nvram_plist *plist, const char *name)
 /**
  * Return a borrowed reference to the named property's value, or NULL if
  * @p name is not found in @p plist.
- * 
+ *
  * @param	plist	The property list to be queried.
  * @param	name	The name of the property to be returned.
  *
@@ -609,7 +609,7 @@ bhnd_nvram_plist_get_val(bhnd_nvram_plist *plist, const char *name)
  *
  * @param		plist	The property list to be queried.
  * @param		name	The name of the property value to be returned.
- * @param[out]		outp	On success, the value will be written to this 
+ * @param[out]		outp	On success, the value will be written to this
  *				buffer. This argment may be NULL if the value is
  *				not desired.
  * @param[in,out]	olen	The capacity of @p outp. On success, will be set
@@ -639,7 +639,7 @@ bhnd_nvram_plist_get_encoded(bhnd_nvram_plist *plist, const char *name,
 
 /**
  * Return the character representation of a named property's value.
- * 
+ *
  * @param	plist	The property list to be queried.
  * @param	name	The name of the property value to be returned.
  * @param[out]	val	On success, the character value of @p name.
@@ -660,7 +660,7 @@ bhnd_nvram_plist_get_char(bhnd_nvram_plist *plist, const char *name,
 
 /**
  * Return the uint8 representation of a named property's value.
- * 
+ *
  * @param	plist	The property list to be queried.
  * @param	name	The name of the property value to be returned.
  * @param[out]	val	On success, the uint8 value of @p name.
@@ -681,7 +681,7 @@ bhnd_nvram_plist_get_uint8(bhnd_nvram_plist *plist, const char *name,
 
 /**
  * Return the uint16 representation of a named property's value.
- * 
+ *
  * @param	plist	The property list to be queried.
  * @param	name	The name of the property value to be returned.
  * @param[out]	val	On success, the uint16 value of @p name.
@@ -702,7 +702,7 @@ bhnd_nvram_plist_get_uint16(bhnd_nvram_plist *plist, const char *name,
 
 /**
  * Return the uint32 representation of a named property's value.
- * 
+ *
  * @param	plist	The property list to be queried.
  * @param	name	The name of the property value to be returned.
  * @param[out]	val	On success, the uint32 value of @p name.
@@ -723,7 +723,7 @@ bhnd_nvram_plist_get_uint32(bhnd_nvram_plist *plist, const char *name,
 
 /**
  * Return the uint64 representation of a named property's value.
- * 
+ *
  * @param	plist	The property list to be queried.
  * @param	name	The name of the property value to be returned.
  * @param[out]	val	On success, the uint64 value of @p name.
@@ -744,7 +744,7 @@ bhnd_nvram_plist_get_uint64(bhnd_nvram_plist *plist, const char *name,
 
 /**
  * Return the boolean representation of a named property's value.
- * 
+ *
  * @param	plist	The property list to be queried.
  * @param	name	The name of the property value to be returned.
  * @param[out]	val	On success, the boolean value of @p name.
@@ -765,13 +765,13 @@ bhnd_nvram_plist_get_bool(bhnd_nvram_plist *plist, const char *name,
 
 /**
  * Allocate and initialize a new property value.
- * 
+ *
  * The caller is responsible for releasing the returned property value
  * via bhnd_nvram_prop_release().
- * 
+ *
  * @param	name	Property name.
  * @param	val	Property value.
- * 
+ *
  * @retval non-NULL	success
  * @retval NULL		if allocation fails.
  */
@@ -817,7 +817,7 @@ failed:
  * @param	inp	Input buffer.
  * @param	ilen	Input buffer length.
  * @param	itype	Input buffer type.
- * 
+ *
  * @retval non-NULL	success
  * @retval NULL		if allocation or initialization fails.
  */
@@ -851,10 +851,10 @@ bhnd_nvram_prop_bytes_new(const char *name, const void *inp, size_t ilen,
 
 /**
  * Retain a reference and return @p prop to the caller.
- * 
+ *
  * The caller is responsible for releasing their reference ownership via
  * bhnd_nvram_prop_release().
- * 
+ *
  * @param	prop	The property to be retained.
  */
 bhnd_nvram_prop *
@@ -870,7 +870,7 @@ bhnd_nvram_prop_retain(bhnd_nvram_prop *prop)
  * Release a reference to @p prop.
  *
  * If this is the last reference, all associated resources will be freed.
- * 
+ *
  * @param	prop	The property to be released.
  */
 void
@@ -890,7 +890,7 @@ bhnd_nvram_prop_release(bhnd_nvram_prop *prop)
 
 /**
  * Return a borrowed reference to the property's name.
- * 
+ *
  * @param	prop	The property to query.
  */
 const char *
@@ -901,7 +901,7 @@ bhnd_nvram_prop_name(bhnd_nvram_prop *prop)
 
 /**
  * Return a borrowed reference to the property's value.
- * 
+ *
  * @param	prop	The property to query.
  */
 bhnd_nvram_val *
@@ -912,7 +912,7 @@ bhnd_nvram_prop_val(bhnd_nvram_prop *prop)
 
 /**
  * Return the property's value type.
- * 
+ *
  * @param	prop	The property to query.
  */
 bhnd_nvram_type
@@ -924,7 +924,7 @@ bhnd_nvram_prop_type(bhnd_nvram_prop *prop)
 /**
  * Return true if @p prop has a NULL value type (BHND_NVRAM_TYPE_NULL), false
  * otherwise.
- * 
+ *
  * @param      prop    The property to query.
  */
 bool
@@ -957,7 +957,7 @@ bhnd_nvram_prop_bytes(bhnd_nvram_prop *prop, size_t *olen,
  * to @p outp.
  *
  * @param		prop	The property to be encoded.
- * @param[out]		outp	On success, the value will be written to this 
+ * @param[out]		outp	On success, the value will be written to this
  *				buffer. This argment may be NULL if the value is
  *				not desired.
  * @param[in,out]	olen	The capacity of @p outp. On success, will be set

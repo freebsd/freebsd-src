@@ -62,7 +62,7 @@ ar2133WriteRegs(struct ath_hal *ah, u_int modesIndex, u_int freqIndex,
 /*
  * Fix on 2.4 GHz band for orientation sensitivity issue by increasing
  * rf_pwd_icsyndiv.
- * 
+ *
  * Theoretical Rules:
  *   if 2 GHz band
  *      if forceBiasAuto
@@ -132,9 +132,9 @@ ar2133SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	uint32_t reg32       = 0;
 	uint16_t freq;
 	CHAN_CENTERS centers;
-    
+
 	OS_MARK(ah, AH_MARK_SETCHANNEL, chan->ic_freq);
-    
+
 	ar5416GetChannelCenters(ah, chan, &centers);
 	freq = centers.synth_center;
 
@@ -327,7 +327,7 @@ ar2133SetRfRegs(struct ath_hal *ah, const struct ieee80211_channel *chan,
  */
 
 static HAL_BOOL
-ar2133SetPowerTable(struct ath_hal *ah, int16_t *pPowerMin, int16_t *pPowerMax, 
+ar2133SetPowerTable(struct ath_hal *ah, int16_t *pPowerMin, int16_t *pPowerMax,
 	const struct ieee80211_channel *chan, uint16_t *rfXpdGain)
 {
 	return AH_TRUE;
@@ -435,7 +435,7 @@ ar2133GetChannelMaxMinPower(struct ath_hal *ah,
  * nfarray[4]:	Chain 1 ext
  * nfarray[5]:	Chain 2 ext
  */
-static void 
+static void
 ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);

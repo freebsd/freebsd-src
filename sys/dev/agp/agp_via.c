@@ -171,7 +171,7 @@ agp_via_attach(device_t dev)
 
 	/* Look at the capability register to see if we handle AGP3 */
 	capid = pci_read_config(dev, agp_find_caps(dev) + AGP_CAPID, 4);
-	if (((capid >> 20) & 0x0f) >= 3) { 
+	if (((capid >> 20) & 0x0f) >= 3) {
 		agpsel = pci_read_config(dev, AGP_VIA_AGPSEL, 1);
 		if ((agpsel & (1 << 1)) == 0)
 			sc->regs = via_v3_regs;
@@ -202,7 +202,7 @@ agp_via_attach(device_t dev)
 	if (sc->regs == via_v2_regs) {
 		/* Install the gatt. */
 		pci_write_config(dev, sc->regs[REG_ATTBASE], gatt->ag_physical | 3, 4);
-		
+
 		/* Enable the aperture. */
 		pci_write_config(dev, sc->regs[REG_GARTCTRL], 0x0f, 4);
 	} else {
@@ -210,7 +210,7 @@ agp_via_attach(device_t dev)
 
 		/* Install the gatt. */
 		pci_write_config(dev, sc->regs[REG_ATTBASE], gatt->ag_physical, 4);
-		
+
 		/* Enable the aperture. */
 		gartctrl = pci_read_config(dev, sc->regs[REG_GARTCTRL], 4);
 		pci_write_config(dev, sc->regs[REG_GARTCTRL], gartctrl | (3 << 7), 4);
@@ -343,7 +343,7 @@ agp_via_set_aperture(device_t dev, u_int32_t aperture)
 			return EINVAL;
 		}
 		val = pci_read_config(dev, sc->regs[REG_APSIZE], 2);
-		pci_write_config(dev, sc->regs[REG_APSIZE], 
+		pci_write_config(dev, sc->regs[REG_APSIZE],
 		    ((val & ~0xfff) | key), 2);
 	}
 	return 0;

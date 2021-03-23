@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -151,7 +151,7 @@ ecore_eth_rxq_start_ramrod(struct ecore_hwfn *p_hwfn,
  *
  * @param p_hwfn
  * @param p_cid
- * @param pbl_addr 
+ * @param pbl_addr
  * @param pbl_size
  * @param p_pq_params - parameters for choosing the PQ for this Tx queue
  *

@@ -253,7 +253,7 @@ struct hkbd_softc {
  * 0x68: F13
  * 0x69: F14
  * 0x6a: F15
- * 
+ *
  * USB Apple Keyboard JIS generates:
  * 0x90: Kana
  * 0x91: Eisu

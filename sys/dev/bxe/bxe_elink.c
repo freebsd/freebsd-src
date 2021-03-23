@@ -6475,7 +6475,7 @@ static elink_status_t elink_link_settings_status(struct elink_phy *phy,
 	} else {
 		ELINK_DEBUG_P1(sc, "phy status does not allow interface to be FULL_DUPLEX : %x\n",
 			gp_status);
-	}		
+	}
 
 
 	if (gp_status & MDIO_GP_STATUS_TOP_AN_STATUS1_LINK_STATUS)
@@ -7834,7 +7834,7 @@ elink_status_t elink_link_update(struct elink_params *params, struct elink_vars 
 		ELINK_DEBUG_P1(sc, "Active external phy selected: %x\n",
 			   active_external_phy);
 	}
-	
+
         ELINK_DEBUG_P3(sc, "vars : phy_flags = %x, mac_type = %x, phy_link_up = %x\n",
                        vars->phy_flags, vars->mac_type, vars->phy_link_up);
         ELINK_DEBUG_P3(sc, "vars : link_up = %x, line_speed = %x, duplex = %x\n",
@@ -7846,7 +7846,7 @@ elink_status_t elink_link_update(struct elink_params *params, struct elink_vars 
         ELINK_DEBUG_P3(sc, "vars : periodic_flags = %x, aeu_int_mask = %x, rx_tx_asic_rst = %x\n",
                        vars->periodic_flags, vars->aeu_int_mask, vars->rx_tx_asic_rst);
         ELINK_DEBUG_P2(sc, "vars : turn_to_run_wc_rt = %x, rsrv2 = %x\n",
-                       vars->turn_to_run_wc_rt, vars->rsrv2);	
+                       vars->turn_to_run_wc_rt, vars->rsrv2);
 
 	for (phy_index = ELINK_EXT_PHY1; phy_index < params->num_phys;
 	      phy_index++) {

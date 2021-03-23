@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 
@@ -78,15 +78,15 @@ LOCAL bit32 tdsaGetCardID(tiRoot_t * tiRoot);
 
 
 bit32 tdCardIDList[TD_MAX_CARD_NUM] = {
-  TD_CARD_ID_FREE , TD_CARD_ID_FREE , 
-  TD_CARD_ID_FREE , TD_CARD_ID_FREE , 
-  TD_CARD_ID_FREE , TD_CARD_ID_FREE , 
-  TD_CARD_ID_FREE , TD_CARD_ID_FREE , 
-  TD_CARD_ID_FREE , TD_CARD_ID_FREE , 
-  TD_CARD_ID_FREE , TD_CARD_ID_FREE , 
-  TD_CARD_ID_FREE , TD_CARD_ID_FREE , 
-  TD_CARD_ID_FREE , TD_CARD_ID_FREE , 
-  TD_CARD_ID_FREE , TD_CARD_ID_FREE , 
+  TD_CARD_ID_FREE , TD_CARD_ID_FREE ,
+  TD_CARD_ID_FREE , TD_CARD_ID_FREE ,
+  TD_CARD_ID_FREE , TD_CARD_ID_FREE ,
+  TD_CARD_ID_FREE , TD_CARD_ID_FREE ,
+  TD_CARD_ID_FREE , TD_CARD_ID_FREE ,
+  TD_CARD_ID_FREE , TD_CARD_ID_FREE ,
+  TD_CARD_ID_FREE , TD_CARD_ID_FREE ,
+  TD_CARD_ID_FREE , TD_CARD_ID_FREE ,
+  TD_CARD_ID_FREE , TD_CARD_ID_FREE ,
   TD_CARD_ID_FREE , TD_CARD_ID_FREE
 };
 
@@ -94,17 +94,17 @@ bit32 tdCardIDList[TD_MAX_CARD_NUM] = {
 *
 * tdsaGetCardID
 *
-*  Purpose:  
+*  Purpose:
 *
 *  Parameters:
 *
 *    tiRoot:        Pointer to driver/port instance.
 *
-*  Return: 
+*  Return:
 *   tiSuccess : CardIDString was successfully read
 *   tiError   : CardIDString reading failed
 *
-*****************************************************************************/ 
+*****************************************************************************/
 bit32 tdsaGetCardID(tiRoot_t * tiRoot)
 {
   bit32 i;
@@ -128,18 +128,18 @@ bit32 tdsaGetCardID(tiRoot_t * tiRoot)
 *
 * tdsaFreeCardID
 *
-*  Purpose:  
+*  Purpose:
 *
 *  Parameters:
 *
 *    tiRoot:        Pointer to driver/port instance.
 *
-*  Return: 
+*  Return:
 *   tiSuccess : CardIDString was successfully read
 *   tiError   : CardIDString reading failed
 *
-*****************************************************************************/ 
-osGLOBAL void 
+*****************************************************************************/
+osGLOBAL void
 tdsaFreeCardID(tiRoot_t *tiRoot, bit32 CardID)
 {
   OS_ASSERT(CardID < TD_MAX_CARD_NUM, "Invalid CardID\n");
@@ -154,17 +154,17 @@ tdsaFreeCardID(tiRoot_t *tiRoot, bit32 CardID)
 *
 * tdsaGetCardIDString
 *
-*  Purpose:  
+*  Purpose:
 *
 *  Parameters:
 *
 *    tiRoot:        Pointer to driver/port instance.
 *
-*  Return: 
+*  Return:
 *   tiSuccess : CardIDString was successfully read
 *   tiError   : CardIDString reading failed
 *
-*****************************************************************************/ 
+*****************************************************************************/
 bit32 tdsaGetCardIDString(tiRoot_t *tiRoot)
 {
   tdsaRoot_t     *tdsaRoot = (tdsaRoot_t *) tiRoot->tdData;
@@ -172,11 +172,11 @@ bit32 tdsaGetCardIDString(tiRoot_t *tiRoot)
   bit32          ret = tiError;
   bit32          thisCardID = tdsaGetCardID(tiRoot);
   char           CardNum[10];
-    
+
   TI_DBG3(("tdsaGetCardIDString: start\n"));
 
   TI_DBG3(("tdsaGetCardIDString: thisCardID 0x%x\n", thisCardID));
-  
+
 
   if (thisCardID == 0xFFFFFFFF)
   {
@@ -187,12 +187,12 @@ bit32 tdsaGetCardIDString(tiRoot_t *tiRoot)
   {
     tdsaAllShared->CardID = thisCardID;
     osti_sprintf(CardNum,"CardNum%d", thisCardID);
-    TI_DBG3(("tdsaGetCardIDString: CardNum is %s\n", CardNum));  
+    TI_DBG3(("tdsaGetCardIDString: CardNum is %s\n", CardNum));
     osti_strcpy(tdsaAllShared->CardIDString, CardNum);
-    TI_DBG3(("tdsaGetCardIDString: tdsaAllShared->CardIDString is %s\n", tdsaAllShared->CardIDString));    
+    TI_DBG3(("tdsaGetCardIDString: tdsaAllShared->CardIDString is %s\n", tdsaAllShared->CardIDString));
     ret = tiSuccess;
-  
-  }  
+
+  }
   return ret;
 }
 /*****************************************************************************
@@ -231,7 +231,7 @@ tiCOMGetResource(
 {
   TI_DBG6(("tiCOMGetResource start\n"));
   TI_DBG6(("tiCOMGetResource: loResource %p\n", loResource));
-  
+
   if(loResource != agNULL)
   {
     tdsaLoLevelGetResource(tiRoot, loResource);
@@ -240,13 +240,13 @@ tiCOMGetResource(
   {
     tdsaSharedMemCalculate(tiRoot, loResource, tdSharedMem);
   }
-  
+
 #ifdef INITIATOR_DRIVER
   /* initiator */
   if(initiatorResource != agNULL)
   {
     itdssGetResource(tiRoot, initiatorResource);
-    /* 
+    /*
      * for the time being set the initiator usecsPerTick
      * same as lolevel usecsPerTick
      */
@@ -257,7 +257,7 @@ tiCOMGetResource(
     }
   }
 #endif
-  
+
 #ifdef TARGET_DRIVER
   /* target */
   if(targetResource != agNULL)
@@ -265,7 +265,7 @@ tiCOMGetResource(
     ttdssGetResource(tiRoot, targetResource);
   }
 #endif
-  
+
   return;
 }
 
@@ -301,42 +301,42 @@ tiCOMInit(
   tdsaRoot_t         *tdsaRoot;
   tdsaPortContext_t  *tdsaPortContext;
   tdsaDeviceData_t   *tdsaDeviceData;
-  
+
 #ifdef TD_INT_COALESCE
   tdsaIntCoalesceContext_t *tdsaIntCoalCxt;
 #endif
-  
+
 #ifdef TD_DISCOVER
   tdsaExpander_t     *tdsaExpander;
 #endif
-  
+
   bit32         status = tiSuccess;
   void          *IniAddr = agNULL;
   void          *TgtAddr = agNULL;
   tdsaContext_t *tdsaAllShared;
 #if defined(TD_INT_COALESCE) || defined(TD_DISCOVER) || defined(TD_INTERNAL_DEBUG)
   bit32         MaxTargets;
-#endif  
+#endif
 #ifdef TD_INTERNAL_DEBUG  /* for debugging only */
   tdsaEsglAllInfo_t  *pEsglAllInfo;
   tdList_t           *tdlist_to_fill;
   tdsaEsglPageInfo_t *page_to_fill;
-#endif  
+#endif
   bit32          i;
 #ifdef FDS_DM
   dmSwConfig_t                   dmSwConfig;
   static dmMemoryRequirement_t   dmMemRequirement;
   bit32                          dmUsecsPerTick = 0;
   bit32                          dmMaxNumLocks = 0;
-#endif  
+#endif
  #ifdef FDS_SM
   smSwConfig_t                   smSwConfig;
   static smMemoryRequirement_t   smMemRequirement;
   bit32                          smUsecsPerTick = 0;
   bit32                          smMaxNumLocks = 0;
-#endif  
- 
-  
+#endif
+
+
   /* for memory analysis */
   TI_DBG6(("ticominit: tdsaroot\n"));
   TI_DBG6(("ticominit: tdsaRoot_t %d\n", (int)sizeof(tdsaRoot_t)));
@@ -348,12 +348,12 @@ tiCOMInit(
   TI_DBG6(("ticominit: agsaSASDeviceInfo_t  %d\n", (int)sizeof(agsaSASDeviceInfo_t)));
   TI_DBG6(("ticominit: satDeviceData_t  %d\n", (int)sizeof(satDeviceData_t)));
   TI_DBG6(("ticominit: agsaSATAIdentifyData_t  %d\n", (int)sizeof(agsaSATAIdentifyData_t)));
-  
+
   TI_DBG6(("ticominit: IO request body\n"));
   TI_DBG6(("ticominit: tdIORequestBody_t %d\n", (int)sizeof(tdIORequestBody_t)));
   TI_DBG6(("ticominit: tdssIOCompleted_t %d\n", (int)sizeof(tdssIOCompleted_t)));
   TI_DBG6(("ticominit: agsaIORequest_t %d\n", (int)sizeof(agsaIORequest_t)));
-  
+
   TI_DBG6(("ticominit: FOR SAS\n"));
   TI_DBG6(("ticominit: agsaSASRequestBody_t %d\n", (int)sizeof(agsaSASRequestBody_t)));
   TI_DBG6(("ticominit: FOR SATA\n"));
@@ -362,15 +362,15 @@ tiCOMInit(
   TI_DBG6(("ticominit: tiSenseData_t %d\n", (int)sizeof(tiSenseData_t)));
   TI_DBG6(("ticominit: satIOContext_t %d\n", (int)sizeof(satIOContext_t)));
   TI_DBG6(("ticominit: satInternalIo_t %d\n", (int)sizeof(satInternalIo_t)));
-  
-  
+
+
   /*************************************************************************
   * TD SHARED AREA
   *************************************************************************/
 
   TI_DBG6(("ticominit: start\n"));
 
-  
+
 #if defined(TD_INT_COALESCE) && defined(TD_DISCOVER)
 
   /* Let's start from the tdsaRoot */
@@ -389,12 +389,12 @@ tiCOMInit(
   tdsaExpander  =
     (tdsaExpander_t *)((bitptr)tdsaIntCoalCxt
                        + (sizeof(tdsaIntCoalesceContext_t) * TD_MAX_INT_COALESCE));
-    
+
 
 #elif defined(TD_INT_COALESCE)
 
 
-  
+
   /* Let's start from the tdsaRoot */
   tdsaRoot = tdSharedMem->tdSharedCachedMem1.virtPtr;
   tdsaPortContext = (tdsaPortContext_t *)((bitptr)tdSharedMem->tdSharedCachedMem1.virtPtr + sizeof(tdsaRoot_t));
@@ -408,10 +408,10 @@ tiCOMInit(
     (tdsaIntCoalesceContext_t *)((bitptr)tdsaDeviceData
                                  + (sizeof(tdsaDeviceData_t) * MaxTargets));
 
-  
+
 #elif defined(TD_DISCOVER)
 
-  
+
   /* Let's start from the tdsaRoot */
   tdsaRoot = tdSharedMem->tdSharedCachedMem1.virtPtr;
   tdsaPortContext = (tdsaPortContext_t *)((bitptr)tdSharedMem->tdSharedCachedMem1.virtPtr + sizeof(tdsaRoot_t));
@@ -426,7 +426,7 @@ tiCOMInit(
                       + (sizeof(tdsaDeviceData_t) * MaxTargets));
 
 
-  
+
 #else
 
   /* Let's start from the tdsaRoot */
@@ -438,11 +438,11 @@ tiCOMInit(
 
   TI_DBG6(("tiCOMInit: ******* tdsaRoot %p tdsaPortContext %p tdsaDeviceData %p\n", tdsaRoot, tdsaPortContext, tdsaDeviceData));
 
-  
+
   tiRoot->tdData    = tdsaRoot;
   tdsaAllShared = &(tdsaRoot->tdsaAllShared);
-  
-  
+
+
 #ifdef INITIATOR_DRIVER
   /**< Initialize initiator; itdssIni_t itself */
   if(initiatorResource)
@@ -453,7 +453,7 @@ tiCOMInit(
     tdsaAllShared->itdsaIni = tdsaRoot->itdsaIni;
   }
 #endif
-  
+
 #ifdef TARGET_DRIVER
   /**< Initialize target; ttdssTgt_t itself */
   if(targetResource)
@@ -464,10 +464,10 @@ tiCOMInit(
     tdsaAllShared->ttdsaTgt = tdsaRoot->ttdsaTgt;
   }
 #endif /* target driver */
-  
+
   TI_DBG5(("tiCOMInit: IniAddr %p TgtAddr %p\n", IniAddr, TgtAddr));
 
-  TI_DBG3(("tiCOMInit: tdsaRoot %p tdsaAllShared %p \n",tdsaRoot, tdsaAllShared));  
+  TI_DBG3(("tiCOMInit: tdsaRoot %p tdsaAllShared %p \n",tdsaRoot, tdsaAllShared));
 
   /**<  Initialize the OS data part of the interrupt context agRoot */
   tdsaAllShared->agRootOsDataForInt.tiRoot     = tiRoot;
@@ -477,13 +477,13 @@ tiCOMInit(
   /* for sata */
   tdsaAllShared->agRootOsDataForInt.tdstHost = agNULL;
   tdsaAllShared->agRootOsDataForInt.tdstDevice = agNULL;
-  
+
   /* tiInterruptContext is an enum value */
   tdsaAllShared->agRootOsDataForInt.IntContext = tiInterruptContext;
   /* queueId or lockid in TD layer; LL maxlock + 1 since TD uses only one lock */
-  
+
   /* agsaRoot_t */
-  tdsaAllShared->agRootInt.osData              = 
+  tdsaAllShared->agRootInt.osData              =
     (void *) &(tdsaAllShared->agRootOsDataForInt);
   tdsaAllShared->agRootInt.sdkData              = agNULL;
 
@@ -495,12 +495,12 @@ tiCOMInit(
   /* for sata */
   tdsaAllShared->agRootOsDataForNonInt.tdstHost = agNULL;
   tdsaAllShared->agRootOsDataForNonInt.tdstDevice = agNULL;
-  
+
   tdsaAllShared->agRootOsDataForNonInt.IntContext = tiNonInterruptContext;
   /* queueId or lockid in TD layer; LL maxlock + 1 since TD uses only one lock */
 
   /* agsaRoot_t */
-  tdsaAllShared->agRootNonInt.osData              = 
+  tdsaAllShared->agRootNonInt.osData              =
     (void *) &(tdsaAllShared->agRootOsDataForNonInt);
   tdsaAllShared->agRootNonInt.sdkData              = agNULL;
 
@@ -511,7 +511,7 @@ tiCOMInit(
 
   tdsaAllShared->IBQnumber = 0;
   tdsaAllShared->OBQnumber = 0;
-    
+
 #ifdef TD_INT_COALESCE
   tdsaAllShared->IntCoalesce = tdsaIntCoalCxt;
 #endif
@@ -523,52 +523,52 @@ tiCOMInit(
   tdsaAllShared->MaxNumLocks = loResource->loLevelOption.numOfQueuesPerPort;
 
   tdsaAllShared->MaxNumOSLocks = loResource->loLevelOption.maxNumOSLocks;
-  
+
 #if defined(FDS_DM) && defined(FDS_SM)
-  dmGetRequirements(agNULL, 
-                    &dmSwConfig, 
-                    &dmMemRequirement, 
-                    &dmUsecsPerTick, 
+  dmGetRequirements(agNULL,
+                    &dmSwConfig,
+                    &dmMemRequirement,
+                    &dmUsecsPerTick,
                     &dmMaxNumLocks
                     );
-  
+
   tdsaAllShared->MaxNumDMLocks = dmMaxNumLocks;
   TI_DBG2(("tiCOMInit: DM MaxNumDMLocks 0x%x\n", tdsaAllShared->MaxNumDMLocks));
-  
-  smGetRequirements(agNULL, 
-                    &smSwConfig, 
-                    &smMemRequirement, 
-                    &smUsecsPerTick, 
+
+  smGetRequirements(agNULL,
+                    &smSwConfig,
+                    &smMemRequirement,
+                    &smUsecsPerTick,
                     &smMaxNumLocks
                     );
-  
+
   tdsaAllShared->MaxNumSMLocks = smMaxNumLocks;
   TI_DBG2(("tiCOMInit: SM MaxNumSMLocks 0x%x\n", tdsaAllShared->MaxNumSMLocks));
-  
+
   tdsaAllShared->MaxNumLLLocks = tdsaAllShared->MaxNumLocks - TD_MAX_LOCKS - tdsaAllShared->MaxNumDMLocks - tdsaAllShared->MaxNumSMLocks;
   TI_DBG2(("tiCOMInit: LL MaxNumLLLocks 0x%x\n", tdsaAllShared->MaxNumLLLocks));
 
 #elif defined(FDS_DM)
-  dmGetRequirements(agNULL, 
-                    &dmSwConfig, 
-                    &dmMemRequirement, 
-                    &dmUsecsPerTick, 
+  dmGetRequirements(agNULL,
+                    &dmSwConfig,
+                    &dmMemRequirement,
+                    &dmUsecsPerTick,
                     &dmMaxNumLocks
                     );
-  
+
   tdsaAllShared->MaxNumDMLocks = dmMaxNumLocks;
   TI_DBG2(("tiCOMInit: DM MaxNumDMLocks 0x%x\n", tdsaAllShared->MaxNumDMLocks));
 
   tdsaAllShared->MaxNumLLLocks = tdsaAllShared->MaxNumLocks - TD_MAX_LOCKS - tdsaAllShared->MaxNumDMLocks;
   TI_DBG2(("tiCOMInit: LL MaxNumLLLocks 0x%x\n", tdsaAllShared->MaxNumLLLocks));
 #elif defined(FDS_SM)
-  smGetRequirements(agNULL, 
-                    &smSwConfig, 
-                    &smMemRequirement, 
-                    &smUsecsPerTick, 
+  smGetRequirements(agNULL,
+                    &smSwConfig,
+                    &smMemRequirement,
+                    &smUsecsPerTick,
                     &smMaxNumLocks
                     );
-  
+
   tdsaAllShared->MaxNumSMLocks = smMaxNumLocks;
   TI_DBG2(("tiCOMInit: SM MaxNumSMLocks 0x%x\n", tdsaAllShared->MaxNumSMLocks));
 
@@ -578,11 +578,11 @@ tiCOMInit(
   tdsaAllShared->MaxNumLLLocks = tdsaAllShared->MaxNumLocks - TD_MAX_LOCKS;
   TI_DBG2(("tiCOMInit: LL MaxNumLLLocks 0x%x\n", tdsaAllShared->MaxNumLLLocks));
 #endif
-    
+
 #ifdef TBD
   tdsaAllShared->MaxNumLLLocks = loResource->loLevelOption.numOfQueuesPerPort - TD_MAX_LOCKS;
 #endif
-  
+
   tdsaAllShared->resetCount = 0;
 
   /* used for saHwEventAck() and ossaDeregisterDeviceHandleCB() */
@@ -594,7 +594,7 @@ tiCOMInit(
     tdsaAllShared->eventSource[i].Source.event =  0;
     /* phy ID */
     tdsaAllShared->eventSource[i].Source.param =  0xFF;
-  } 
+  }
 
 
 #ifdef TD_INTERNAL_DEBUG  /* for debugging only */
@@ -607,25 +607,25 @@ tiCOMInit(
 
 #ifdef FDS_DM
   tdsaAllShared->dmRoot.tdData = tdsaRoot;
-#endif    
-	    
+#endif
+
 #ifdef FDS_SM
   tdsaAllShared->smRoot.tdData = tdsaRoot;
-#endif    
-  
+#endif
+
   /* get card ID */
   if (tdsaGetCardIDString(tiRoot) == tiError)
   {
     TI_DBG1(("tdsaGetCardIDString() failed\n"));
     return tiError;
   }
-    
+
   /**< initializes jumptable */
   tdsaJumpTableInit(tiRoot);
-  
+
   /**< initializes tdsaPortStartInfo_s including flags */
   tdssInitSASPortStartInfo(tiRoot);
-  
+
   /* resets all the relevant flags */
   tdsaResetComMemFlags(tiRoot);
 
@@ -633,24 +633,24 @@ tiCOMInit(
   tdsaInitTimers(tiRoot);
 
   TI_DBG6(("ticominit: ******* before tdsaRoot %p tdsaPortContext %p tdsaDeviceData %p\n", tdsaRoot, tdsaPortContext, tdsaDeviceData));
-  
+
 
   /**< initializes tdsaPortContext_t */
   tdsaPortContextInit(tiRoot);
 
   /**< initializes devicelist in tdsaPortContext_t */
   tdsaDeviceDataInit(tiRoot);
-  
+
 #ifdef TD_INT_COALESCE
   tdsaIntCoalCxtInit(tiRoot);
 #endif
-  
+
 #ifdef TD_DISCOVER
   tdsaExpanderInit(tiRoot);
-#endif  
+#endif
 
-  tdsaQueueConfigInit(tiRoot);  
-  
+  tdsaQueueConfigInit(tiRoot);
+
 #ifdef TD_INTERNAL_DEBUG /* for debugging only */
   TI_DBG6(("ticominit: temp 1\n"));
   TDLIST_DEQUEUE_FROM_HEAD(&tdlist_to_fill, &pEsglAllInfo->freelist);
@@ -658,7 +658,7 @@ tiCOMInit(
   page_to_fill = TDLIST_OBJECT_BASE(tdsaEsglPageInfo_t, tdlist, tdlist_to_fill);
   TI_DBG6(("ticominit: pageinfo ID %d\n", page_to_fill->id));
   /* this does not work */
-  TDLIST_ENQUEUE_AT_HEAD(tdlist_to_fill, &pEsglAllInfo->freelist); 
+  TDLIST_ENQUEUE_AT_HEAD(tdlist_to_fill, &pEsglAllInfo->freelist);
 
   TI_DBG6(("ticominit: devide\n"));
   TDLIST_DEQUEUE_FROM_HEAD(&tdlist_to_fill, &pEsglAllInfo->freelist);
@@ -667,9 +667,9 @@ tiCOMInit(
   TDINIT_PRINT("ticominit: second pageinfo ID %d\n", page_to_fill->id);
 
   TDLIST_ENQUEUE_AT_HEAD(tdlist_to_fill, &pEsglAllInfo->freelist);
-  
-#endif 
-  
+
+#endif
+
 
 #ifdef INITIATOR_DRIVER
   if(initiatorResource != agNULL)
@@ -677,7 +677,7 @@ tiCOMInit(
     tdsaAllShared->currentOperation |= TD_OPERATION_INITIATOR;
     TI_DBG5(("tiCOMInit: calling itdssInit\n"));
     status = itdssInit(tiRoot, initiatorResource, tdSharedMem);
-    
+
     if(status != tiSuccess)
     {
       TI_DBG1(("tiCOMInit: itdInit FAILED\n"));
@@ -700,15 +700,15 @@ tiCOMInit(
     }
   }
 #endif
-  
+
   return status;
 }
 
 /*****************************************************************************
 *! \brief tdsaLoLevelGetResource
 *
-*  Purpose:  This function is called to determine the Transport 
-*            Dependent Layer internal resource requirement used by the 
+*  Purpose:  This function is called to determine the Transport
+*            Dependent Layer internal resource requirement used by the
 *            lower layer TSDK.
 *
 *  \param  tiRoot:             Pointer to driver/port instance.
@@ -725,7 +725,7 @@ tiCOMInit(
 */
 osGLOBAL void
 tdsaLoLevelGetResource(
-                       tiRoot_t              * tiRoot, 
+                       tiRoot_t              * tiRoot,
                        tiLoLevelResource_t   * loResource)
 {
   agsaRoot_t          agRoot;
@@ -736,7 +736,7 @@ tdsaLoLevelGetResource(
   bit32  maxQueueSets = 0;
   bit32  maxNumOSLocks = 0;
   bit32  i;
-  
+
   char    *buffer;
   bit32   buffLen;
   bit32   lenRecv = 0;
@@ -746,18 +746,18 @@ tdsaLoLevelGetResource(
   char    SwParmsStr[]   = "SWParms";
   char    OBQueueProps[] = "OBQueueProps";
   char    IBQueueProps[] = "IBQueueProps";
-  
+
   static char   IBQueueSize[30];
   static char   OBQueueSize[30];
   static char   IBQueueEleSize[30];
   static char   OBQueueEleSize[30];
-    
-  static char    OBQueueInterruptCount[30]; 
-  static char    OBQueueInterruptDelay[30]; 
-  static char    OBQueueInterruptEnable[30]; 
+
+  static char    OBQueueInterruptCount[30];
+  static char    OBQueueInterruptDelay[30];
+  static char    OBQueueInterruptEnable[30];
   static char    IBQueuePriority[30];
 
-      
+
   static char    tmpBuffer[DEFAULT_KEY_BUFFER_SIZE];
   static bit32   InboundQueueSize[AGSA_MAX_OUTBOUND_Q];
   static bit32   OutboundQueueSize[AGSA_MAX_OUTBOUND_Q];
@@ -769,14 +769,14 @@ tdsaLoLevelGetResource(
   static bit32   OutboundQueueInterruptEnable[AGSA_MAX_OUTBOUND_Q];
   static bit32 cardID = 0;
   char    CardNum[10];
-  
+
 #ifdef FDS_DM
   dmRoot_t                     dmRoot;
   dmSwConfig_t                 dmSwConfig;
   static dmMemoryRequirement_t dmMemRequirement;
   bit32                        dmUsecsPerTick = 0;
   bit32                        dmMaxNumLocks = 0;
-#endif  
+#endif
 
 #ifdef FDS_SM
   smRoot_t                     smRoot;
@@ -784,8 +784,8 @@ tdsaLoLevelGetResource(
   static smMemoryRequirement_t smMemRequirement;
   bit32                        smUsecsPerTick = 0;
   bit32                        smMaxNumLocks = 0;
-#endif  
-    
+#endif
+
   TI_DBG1(("tdsaLoLevelGetResource: start \n"));
   TI_DBG6(("tdsaLoLevelGetResource: loResource %p\n", loResource));
 
@@ -804,7 +804,7 @@ tdsaLoLevelGetResource(
   SwConfig.maxActiveIOs = DEFAULT_MAX_ACTIVE_IOS;
   SwConfig.numDevHandles = DEFAULT_MAX_DEV;
   SwConfig.smpReqTimeout = DEFAULT_SMP_TIMEOUT; /* DEFAULT_VALUE; */
-  SwConfig.numberOfEventRegClients = DEFAULT_NUM_REG_CLIENTS; 
+  SwConfig.numberOfEventRegClients = DEFAULT_NUM_REG_CLIENTS;
   SwConfig.sizefEventLog1 = HOST_EVENT_LOG_SIZE; /* in KBytes */
   SwConfig.sizefEventLog2 = HOST_EVENT_LOG_SIZE; /* in KBytes */
   SwConfig.eventLog1Option = DEFAULT_EVENT_LOG_OPTION;
@@ -821,7 +821,7 @@ tdsaLoLevelGetResource(
   SwConfig.disableMDF = agFALSE;
 #endif /*SA_CONFIG_MDFD_REGISTRY*/
 
-#if defined(SALLSDK_DEBUG)  
+#if defined(SALLSDK_DEBUG)
   SwConfig.sallDebugLevel = 1; /* DEFAULT_VALUE; */
 #endif
 
@@ -829,16 +829,16 @@ tdsaLoLevelGetResource(
 #ifdef SA_ENABLE_PCI_TRIGGER
   SwConfig.PCI_trigger = 0; /* DEFAULT_VALUE; */
  #endif /* SA_ENABLE_PCI_TRIGGER */
- 
+
 #ifdef FDS_DM
   /* defaults */
   dmMemRequirement.count = 0;
   dmSwConfig.numDevHandles = DEFAULT_MAX_DEV;
 #ifdef DM_DEBUG
   dmSwConfig.DMDebugLevel = 1;
-#endif  
 #endif
-  
+#endif
+
 #ifdef FDS_SM
   /* defaults */
   smMemRequirement.count = 0;
@@ -846,9 +846,9 @@ tdsaLoLevelGetResource(
   smSwConfig.numDevHandles = DEFAULT_MAX_DEV;
 #ifdef SM_DEBUG
   smSwConfig.SMDebugLevel = 1;
-#endif  
 #endif
-  
+#endif
+
   buffer = tmpBuffer;
   buffLen = sizeof(tmpBuffer);
 
@@ -857,23 +857,23 @@ tdsaLoLevelGetResource(
 
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
-  
+
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,
                              iniParmsStr,
                              agNULL,
                              agNULL,
-                             agNULL, 
-                             agNULL, 
+                             agNULL,
+                             agNULL,
                              "MaxTargets",
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SwConfig.numDevHandles = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -882,9 +882,9 @@ tdsaLoLevelGetResource(
     }
    TI_DBG2(("tdsaLoLevelGetResource: MaxTargets %d\n",  SwConfig.numDevHandles));
   }
-  
-   
-  /*                                                              
+
+
+  /*
    * read the NumInboundQueue parameter
    */
   osti_memset(buffer, 0, buffLen);
@@ -893,21 +893,21 @@ tdsaLoLevelGetResource(
   QueueConfig.numInboundQueues = DEFAULT_NUM_INBOUND_QUEUE;  /* default 1 Inbound queue */
 
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "NumInboundQueues", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       QueueConfig.numInboundQueues = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -921,30 +921,30 @@ tdsaLoLevelGetResource(
     }
   }
 
-  /*                                                              
+  /*
    * read the NumOutboundQueue parameter
    */
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
-  
+
   QueueConfig.numOutboundQueues = DEFAULT_NUM_OUTBOUND_QUEUE;  /* default 1 Outbound queue */
 
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "NumOutboundQueues", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       QueueConfig.numOutboundQueues = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -957,30 +957,30 @@ tdsaLoLevelGetResource(
       QueueConfig.numOutboundQueues = AGSA_MAX_OUTBOUND_Q;
     }
   }
-       
-  /*                                                              
+
+  /*
    * read the MaxActiveIO parameter
    */
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
-  
-  
+
+
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "MaxActiveIO", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SwConfig.maxActiveIOs = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -990,29 +990,29 @@ tdsaLoLevelGetResource(
   }
 
 
-  
-  /*                                                              
+
+  /*
    * read the SMPTO parameter (SMP Timeout)
    */
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
-  
+
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "SMPTO", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SwConfig.smpReqTimeout = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -1020,29 +1020,29 @@ tdsaLoLevelGetResource(
       SwConfig.smpReqTimeout = osti_strtoul (buffer, &pLastUsedChar, 10);
     }
   }
-  
-  /*                                                              
+
+  /*
    * read the NumRegClients parameter
    */
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
-  
+
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "NumRegClients", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SwConfig.numberOfEventRegClients = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -1051,26 +1051,26 @@ tdsaLoLevelGetResource(
     }
   }
 
-#if defined(SALLSDK_DEBUG)  
+#if defined(SALLSDK_DEBUG)
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
 
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "LLDebugLevel", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SwConfig.sallDebugLevel = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -1078,29 +1078,29 @@ tdsaLoLevelGetResource(
       SwConfig.sallDebugLevel = osti_strtoul (buffer, &pLastUsedChar, 10);
     }
   }
-#endif  
+#endif
 
 
-#if defined(DM_DEBUG)  
+#if defined(DM_DEBUG)
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
 
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "DMDebugLevel", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       dmSwConfig.DMDebugLevel = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -1108,28 +1108,28 @@ tdsaLoLevelGetResource(
       dmSwConfig.DMDebugLevel = osti_strtoul (buffer, &pLastUsedChar, 10);
     }
   }
-#endif  
+#endif
 
-#if defined(SM_DEBUG)  
+#if defined(SM_DEBUG)
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
 
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "SMDebugLevel", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       smSwConfig.SMDebugLevel = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -1137,8 +1137,8 @@ tdsaLoLevelGetResource(
       smSwConfig.SMDebugLevel = osti_strtoul (buffer, &pLastUsedChar, 10);
     }
   }
-#endif  
-        
+#endif
+
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
 
@@ -1147,39 +1147,39 @@ tdsaLoLevelGetResource(
     osti_sprintf(IBQueueSize,"IBQueueNumElements%d", i);
     osti_sprintf(IBQueueEleSize,"IBQueueElementSize%d", i);
     osti_sprintf(IBQueuePriority,"IBQueuePriority%d", i);
-    
-    
-    
+
+
+
     /*
      * read the IBQueueSize
      */
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
-	
+
     InboundQueueSize[i] = DEFAULT_INBOUND_QUEUE_SIZE;  /* default 256 Inbound queue size */
-  
+
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              IBQueueProps,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              IBQueueSize, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         InboundQueueSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
       }
       else
       {
         InboundQueueSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 10);
-        TI_DBG6(("tdsaLoLevelGetResource: queue number %d IB queue size %d\n", i, InboundQueueSize[i]));        
+        TI_DBG6(("tdsaLoLevelGetResource: queue number %d IB queue size %d\n", i, InboundQueueSize[i]));
       }
     }
 
@@ -1189,73 +1189,73 @@ tdsaLoLevelGetResource(
      */
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
-	
+
     InboundQueueEleSize[i] = DEFAULT_INBOUND_QUEUE_ELE_SIZE;  /* default 128 Inbound queue element */
-  
+
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              IBQueueProps,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              IBQueueEleSize, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         InboundQueueEleSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
       }
       else
       {
         InboundQueueEleSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 10);
-        TI_DBG6(("tdsaLoLevelGetResource: queue number %d IB queue ele size %d\n", i, InboundQueueEleSize[i]));        
+        TI_DBG6(("tdsaLoLevelGetResource: queue number %d IB queue ele size %d\n", i, InboundQueueEleSize[i]));
       }
     }
-   
+
     /*
      * read the IBQueuePriority
      */
-  
+
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
 
     InboundQueuePriority[i] = DEFAULT_INBOUND_QUEUE_PRIORITY; /* default 0 Inbound queue priority */
-  
+
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              IBQueueProps,/* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              IBQueuePriority, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         InboundQueuePriority[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
       }
       else
       {
         InboundQueuePriority[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 10);
-        TI_DBG6(("tdsaLoLevelGetResource: queue number %d priority %d\n", i, InboundQueuePriority[i]));        
+        TI_DBG6(("tdsaLoLevelGetResource: queue number %d priority %d\n", i, InboundQueuePriority[i]));
       }
     }
-      
-    /**********************************************/            
+
+    /**********************************************/
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
   }/* end of loop */
-    
+
 
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
@@ -1273,31 +1273,31 @@ tdsaLoLevelGetResource(
      */
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
-	
+
     OutboundQueueSize[i] = DEFAULT_OUTBOUND_QUEUE_SIZE;  /* default 256 Outbound queue size */
-  
+
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              OBQueueProps,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              OBQueueSize, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         OutboundQueueSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
       }
       else
       {
         OutboundQueueSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 10);
-        TI_DBG6(("tdsaLoLevelGetResource: queue number %d OB queue size %d\n", i, OutboundQueueSize[i]));        
+        TI_DBG6(("tdsaLoLevelGetResource: queue number %d OB queue size %d\n", i, OutboundQueueSize[i]));
       }
     }
 
@@ -1307,31 +1307,31 @@ tdsaLoLevelGetResource(
      */
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
-	
+
     OutboundQueueEleSize[i] = DEFAULT_OUTBOUND_QUEUE_ELE_SIZE;  /* default 128 Outbound queue element */
-  
+
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              OBQueueProps,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              OBQueueEleSize, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         OutboundQueueEleSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
       }
       else
       {
         OutboundQueueEleSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 10);
-        TI_DBG6(("tdsaLoLevelGetResource: queue number %d OB queue ele size %d\n", i, OutboundQueueEleSize[i]));        
+        TI_DBG6(("tdsaLoLevelGetResource: queue number %d OB queue ele size %d\n", i, OutboundQueueEleSize[i]));
       }
     }
 
@@ -1342,91 +1342,91 @@ tdsaLoLevelGetResource(
     lenRecv = 0;
 
     OutboundQueueInterruptDelay[i] = DEFAULT_OUTBOUND_QUEUE_INTERRUPT_DELAY;  /* default 1 Outbound interrupt delay */
-  
+
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              OBQueueProps,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              OBQueueInterruptDelay, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         OutboundQueueInterruptDelay[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
       }
       else
       {
         OutboundQueueInterruptDelay[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 10);
-        TI_DBG6(("tdsaLoLevelGetResource: queue number %d interrupt delay %d\n", i, OutboundQueueInterruptDelay[i]));        
+        TI_DBG6(("tdsaLoLevelGetResource: queue number %d interrupt delay %d\n", i, OutboundQueueInterruptDelay[i]));
       }
     }
-  
+
     /*
      * read the OBQueueInterruptCount
      */
-  
+
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
 
     OutboundQueueInterruptCount[i] = DEFAULT_OUTBOUND_QUEUE_INTERRUPT_COUNT;  /* default 1 Outbound interrupt count */
-  
+
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              OBQueueProps,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              OBQueueInterruptCount, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         OutboundQueueInterruptCount[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
       }
       else
       {
         OutboundQueueInterruptCount[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 10);
-        TI_DBG6(("tdsaLoLevelGetResource: queue number %d interrupt count %d\n", i, OutboundQueueInterruptCount[i]));        
+        TI_DBG6(("tdsaLoLevelGetResource: queue number %d interrupt count %d\n", i, OutboundQueueInterruptCount[i]));
       }
     }
-    
+
     /*
      * read the OBQueueInterruptEnable
      */
-     
+
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
-    
+
     OutboundQueueInterruptEnable[i] = DEFAULT_OUTBOUND_INTERRUPT_ENABLE;  /* default 1 Outbound interrupt is enabled */
-  
+
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              OBQueueProps,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              OBQueueInterruptEnable, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         OutboundQueueInterruptEnable[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
 #ifdef SPC_POLLINGMODE
         OutboundQueueInterruptEnable[i] = 0;
@@ -1440,17 +1440,17 @@ tdsaLoLevelGetResource(
         OutboundQueueInterruptEnable[i] = 0;
 #endif /* SPC_POLLINGMODE */
       }
-    TI_DBG2(("tdsaLoLevelGetResource: queue number %d interrupt enable %d\n", i, OutboundQueueInterruptEnable[i]));        
+    TI_DBG2(("tdsaLoLevelGetResource: queue number %d interrupt enable %d\n", i, OutboundQueueInterruptEnable[i]));
     }
-    
-    /**********************************************/            
+
+    /**********************************************/
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
 
-  }/* end of loop */   
-      
-      
-      
+  }/* end of loop */
+
+
+
   /************************************************************
    * READ CARD Specific
   */
@@ -1459,7 +1459,7 @@ tdsaLoLevelGetResource(
 
   for (i=0;i<QueueConfig.numInboundQueues;i++)
   {
-    osti_sprintf(CardNum,"CardNum%d", cardID);  
+    osti_sprintf(CardNum,"CardNum%d", cardID);
     osti_sprintf(IBQueueSize,"IBQueueNumElements%d", i);
     osti_sprintf(IBQueueEleSize,"IBQueueElementSize%d", i);
     osti_sprintf(IBQueuePriority,"IBQueuePriority%d", i);
@@ -1471,27 +1471,27 @@ tdsaLoLevelGetResource(
     lenRecv = 0;
 
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              CardNum,   /* key */
                              SwParmsStr,  /* subkey1 */
                              IBQueueProps,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              IBQueueSize, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         InboundQueueSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
       }
       else
       {
         InboundQueueSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 10);
-        TI_DBG6(("tdsaLoLevelGetResource: queue number %d IB queue size %d\n", i, InboundQueueSize[i]));        
+        TI_DBG6(("tdsaLoLevelGetResource: queue number %d IB queue size %d\n", i, InboundQueueSize[i]));
       }
     }
 
@@ -1501,110 +1501,110 @@ tdsaLoLevelGetResource(
      */
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
-	
+
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              CardNum,   /* key */
                              SwParmsStr,  /* subkey1 */
                              IBQueueProps,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              IBQueueEleSize, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         InboundQueueEleSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
       }
       else
       {
         InboundQueueEleSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 10);
-        TI_DBG6(("tdsaLoLevelGetResource: queue number %d IB queue size %d\n", i, InboundQueueEleSize[i]));        
+        TI_DBG6(("tdsaLoLevelGetResource: queue number %d IB queue size %d\n", i, InboundQueueEleSize[i]));
       }
     }
 
     /*
      * read the IBQueuePriority
      */
-  
+
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              CardNum,   /* key */
                              SwParmsStr,  /* subkey1 */
                              IBQueueProps,/* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              IBQueuePriority, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         InboundQueuePriority[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
       }
       else
       {
         InboundQueuePriority[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 10);
-        TI_DBG6(("tdsaLoLevelGetResource: card number %d queue number %d priority %d\n", cardID, i, InboundQueuePriority[i]));        
+        TI_DBG6(("tdsaLoLevelGetResource: card number %d queue number %d priority %d\n", cardID, i, InboundQueuePriority[i]));
       }
     }
-      
-    /**********************************************/            
+
+    /**********************************************/
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
   }/* end of loop */
-          
 
-                              
+
+
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
 
   for (i=0;i<QueueConfig.numOutboundQueues;i++)
   {
-    osti_sprintf(CardNum,"CardNum%d", cardID);  
+    osti_sprintf(CardNum,"CardNum%d", cardID);
     osti_sprintf(OBQueueSize,"OBQueueNumElements%d", i);
     osti_sprintf(OBQueueEleSize,"OBQueueElementSize%d", i);
     osti_sprintf(OBQueueInterruptDelay,"OBQueueInterruptDelay%d", i);
     osti_sprintf(OBQueueInterruptCount,"OBQueueInterruptCount%d", i);
     osti_sprintf(OBQueueInterruptEnable,"OBQueueInterruptEnable%d", i);
-    
+
     /*
      * read the OBQueueSize
      */
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
-	
+
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              CardNum,   /* key */
                              SwParmsStr,  /* subkey1 */
                              OBQueueProps,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              OBQueueSize, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         OutboundQueueSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
       }
       else
       {
         OutboundQueueSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 10);
-        TI_DBG6(("tdsaLoLevelGetResource: queue number %d OB queue size %d\n", i, OutboundQueueSize[i]));        
+        TI_DBG6(("tdsaLoLevelGetResource: queue number %d OB queue size %d\n", i, OutboundQueueSize[i]));
       }
     }
 
@@ -1614,29 +1614,29 @@ tdsaLoLevelGetResource(
      */
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
-	
+
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              CardNum,   /* key */
                              SwParmsStr,  /* subkey1 */
                              OBQueueProps,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              OBQueueEleSize, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         OutboundQueueEleSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
       }
       else
       {
         OutboundQueueEleSize[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 10);
-        TI_DBG6(("tdsaLoLevelGetResource: queue number %d OB queue ele size %d\n", i, OutboundQueueEleSize[i]));        
+        TI_DBG6(("tdsaLoLevelGetResource: queue number %d OB queue ele size %d\n", i, OutboundQueueEleSize[i]));
       }
     }
 
@@ -1645,85 +1645,85 @@ tdsaLoLevelGetResource(
      */
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
-  
+
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              CardNum,   /* key */
                              SwParmsStr,  /* subkey1 */
                              OBQueueProps,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              OBQueueInterruptDelay, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         OutboundQueueInterruptDelay[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
       }
       else
       {
         OutboundQueueInterruptDelay[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 10);
-        TI_DBG6(("tdsaLoLevelGetResource: card number %d queue number %d interrupt delay %d\n", cardID, i, OutboundQueueInterruptDelay[i]));        
+        TI_DBG6(("tdsaLoLevelGetResource: card number %d queue number %d interrupt delay %d\n", cardID, i, OutboundQueueInterruptDelay[i]));
       }
     }
-  
+
     /*
      * read the OBQueueInterruptCount
      */
-  
+
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              CardNum,   /* key */
                              SwParmsStr,  /* subkey1 */
                              OBQueueProps,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              OBQueueInterruptCount, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         OutboundQueueInterruptCount[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
       }
       else
       {
         OutboundQueueInterruptCount[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 10);
-        TI_DBG6(("tdsaLoLevelGetResource: card number %d queue number %d interrupt count %d\n", cardID, i, OutboundQueueInterruptCount[i]));        
+        TI_DBG6(("tdsaLoLevelGetResource: card number %d queue number %d interrupt count %d\n", cardID, i, OutboundQueueInterruptCount[i]));
       }
     }
-    
+
     /*
      * read the OBQueueInterruptEnable
      */
-  
+
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
     if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              CardNum,   /* key */
                              SwParmsStr,  /* subkey1 */
                              OBQueueProps,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              OBQueueInterruptEnable, /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
     {
       if (osti_strncmp(buffer, "0x", 2) == 0)
-      { 
+      {
         OutboundQueueInterruptEnable[i] = (bit16) osti_strtoul (buffer, &pLastUsedChar, 0);
 #ifdef SPC_POLLINGMODE
         OutboundQueueInterruptEnable[i] = 0;
@@ -1737,17 +1737,17 @@ tdsaLoLevelGetResource(
         OutboundQueueInterruptEnable[i] = 0;
 #endif /* SPC_POLLINGMODE */
       }
-      TI_DBG2(("tdsaLoLevelGetResource: card number %d queue number %d interrupt count %d\n", cardID, i, OutboundQueueInterruptEnable[i]));        
+      TI_DBG2(("tdsaLoLevelGetResource: card number %d queue number %d interrupt count %d\n", cardID, i, OutboundQueueInterruptEnable[i]));
     }
-    
-    
-    /**********************************************/            
+
+
+    /**********************************************/
     osti_memset(buffer, 0, buffLen);
     lenRecv = 0;
 
-  }/* end of loop */   
-                                               
-                                                                                                                                                                                                                                                                                                 
+  }/* end of loop */
+
+
   TI_DBG6(("tdsaLoLevelGetResource: \n"));
   tdsaPrintSwConfig(&SwConfig);
 
@@ -1756,39 +1756,39 @@ tdsaLoLevelGetResource(
   {
     QueueConfig.inboundQueues[i].elementCount = InboundQueueSize[i];
     QueueConfig.inboundQueues[i].elementSize = InboundQueueEleSize[i];
-    QueueConfig.inboundQueues[i].priority = InboundQueuePriority[i];    
+    QueueConfig.inboundQueues[i].priority = InboundQueuePriority[i];
   }
   for (i=0;i<QueueConfig.numOutboundQueues;i++)
   {
     QueueConfig.outboundQueues[i].elementCount = OutboundQueueSize[i];
-    QueueConfig.outboundQueues[i].elementSize = OutboundQueueEleSize[i]; 
-    QueueConfig.outboundQueues[i].interruptDelay = OutboundQueueInterruptDelay[i]; 
-    QueueConfig.outboundQueues[i].interruptCount = OutboundQueueInterruptCount[i]; 
-    QueueConfig.outboundQueues[i].interruptEnable = OutboundQueueInterruptEnable[i]; 
+    QueueConfig.outboundQueues[i].elementSize = OutboundQueueEleSize[i];
+    QueueConfig.outboundQueues[i].interruptDelay = OutboundQueueInterruptDelay[i];
+    QueueConfig.outboundQueues[i].interruptCount = OutboundQueueInterruptCount[i];
+    QueueConfig.outboundQueues[i].interruptEnable = OutboundQueueInterruptEnable[i];
   }
-  
-  
+
+
   /* process event log related parameters */
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
-  
-  
+
+
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "EventLogSize1", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SwConfig.sizefEventLog1 = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -1799,24 +1799,24 @@ tdsaLoLevelGetResource(
 
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
-  
-  
+
+
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "EventLogOption1", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SwConfig.eventLog1Option = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -1827,24 +1827,24 @@ tdsaLoLevelGetResource(
 
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
-  
-  
+
+
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "EventLogSize2", /* valueName */ /* size in K Dwords  */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SwConfig.sizefEventLog2 = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -1855,24 +1855,24 @@ tdsaLoLevelGetResource(
 
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
-  
-  
+
+
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "EventLogOption2", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SwConfig.eventLog2Option = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -1887,24 +1887,24 @@ tdsaLoLevelGetResource(
   */
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
-  
-  
+
+
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "HDASupport", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SwConfig.hostDirectAccessSupport = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -1915,24 +1915,24 @@ tdsaLoLevelGetResource(
   /***********************************************************************/
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
-  
-  
+
+
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "HDAMode", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SwConfig.hostDirectAccessMode = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -1947,24 +1947,24 @@ tdsaLoLevelGetResource(
   /* FW configuration */
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
-  
-  
+
+
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "FWConfig", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SwConfig.FWConfig = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -1990,21 +1990,21 @@ tdsaLoLevelGetResource(
 
   SwConfig.TraceBufferSize = 0;
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "TraceBufferSize", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SwConfig.TraceBufferSize = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -2015,17 +2015,17 @@ tdsaLoLevelGetResource(
   }
 
 #endif /*# SA_ENABLE_TRACE_FUNCTIONS */
-      
+
   SwConfig.mpiContextTable = agNULL;
   SwConfig.mpiContextTablelen = 0;
-               
+
   /* default */
   for (i=0;i<8;i++)
   {
     QueueConfig.sasHwEventQueue[i] = 0;
     QueueConfig.sataNCQErrorEventQueue[i] = 0;
   }
-  
+
 #ifdef TARGET_DRIVER
   for (i=0;i<8;i++)
   {
@@ -2034,26 +2034,26 @@ tdsaLoLevelGetResource(
     QueueConfig.tgtSMPEventQueue[i] = 0;
   }
 #endif
-    
+
   QueueConfig.iqNormalPriorityProcessingDepth = 0;
   QueueConfig.iqHighPriorityProcessingDepth = 0;
   QueueConfig.generalEventQueue = 0;
-  
-  /* 
-   * can agRoot be agNULL below? Yes. 
-   * saGetRequirements(agRoot, IN, OUT, OUT, OUT); 
+
+  /*
+   * can agRoot be agNULL below? Yes.
+   * saGetRequirements(agRoot, IN, OUT, OUT, OUT);
    */
-  saGetRequirements(&agRoot, 
-                    &SwConfig, 
-                    &memRequirement, 
-                    &usecsPerTick, 
+  saGetRequirements(&agRoot,
+                    &SwConfig,
+                    &memRequirement,
+                    &usecsPerTick,
                     &maxQueueSets
                     );
 #ifdef FDS_DM
-  dmGetRequirements(&dmRoot, 
-                    &dmSwConfig, 
-                    &dmMemRequirement, 
-                    &dmUsecsPerTick, 
+  dmGetRequirements(&dmRoot,
+                    &dmSwConfig,
+                    &dmMemRequirement,
+                    &dmUsecsPerTick,
                     &dmMaxNumLocks
                     );
 
@@ -2079,7 +2079,7 @@ tdsaLoLevelGetResource(
  */
 #if defined (FDS_DM) && defined (FDS_SM)
   /* for LL */
-  TI_DBG1(("tdsaLoLevelGetResource:MAX_LL_LAYER_MEM_DESCRIPTORS %d\n", MAX_LL_LAYER_MEM_DESCRIPTORS)); 
+  TI_DBG1(("tdsaLoLevelGetResource:MAX_LL_LAYER_MEM_DESCRIPTORS %d\n", MAX_LL_LAYER_MEM_DESCRIPTORS));
   for(i=0;i<MAX_LL_LAYER_MEM_DESCRIPTORS;i++)
   {
     loResource->loLevelMem.mem[i].numElements           = 0;
@@ -2094,7 +2094,7 @@ tdsaLoLevelGetResource(
     loResource->loLevelMem.mem[i].physAddrLower         = 0;
   }
 
-  TI_DBG1(("tdsaLoLevelGetResource:memRequirement.count %d\n", memRequirement.count)); 
+  TI_DBG1(("tdsaLoLevelGetResource:memRequirement.count %d\n", memRequirement.count));
   /* using the returned value from saGetRequirements */
   for (i=0;i< memRequirement.count;i++)
   {
@@ -2108,22 +2108,22 @@ tdsaLoLevelGetResource(
     {
       loResource->loLevelMem.mem[i].type = TI_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_DMA_MEM\n", i));
-      
+
     }
     else if ( AGSA_CACHED_MEM == memRequirement.agMemory[i].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_MEM\n", i));
     }
     else if ( AGSA_CACHED_DMA_MEM == memRequirement.agMemory[i].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_DMA_MEM\n", i));
     }
   }
 
   /* for DM */
-  TI_DBG1(("tdsaLoLevelGetResource:dmMemRequirement.count %d\n", dmMemRequirement.count)); 
+  TI_DBG1(("tdsaLoLevelGetResource:dmMemRequirement.count %d\n", dmMemRequirement.count));
   /* using the returned value from dmGetRequirements */
   for (i=memRequirement.count;i< (memRequirement.count + dmMemRequirement.count);i++)
   {
@@ -2137,22 +2137,22 @@ tdsaLoLevelGetResource(
     {
       loResource->loLevelMem.mem[i].type = TI_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_DMA_MEM\n", i));
-      
+
     }
     else if ( AGSA_CACHED_MEM == dmMemRequirement.dmMemory[i-memRequirement.count].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_MEM\n", i));
     }
     else if ( AGSA_CACHED_DMA_MEM == dmMemRequirement.dmMemory[i-memRequirement.count].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_DMA_MEM\n", i));
     }
   }
 
   /* for SM */
-  TI_DBG1(("tdsaLoLevelGetResource:smMemRequirement.count %d\n", smMemRequirement.count)); 
+  TI_DBG1(("tdsaLoLevelGetResource:smMemRequirement.count %d\n", smMemRequirement.count));
   /* using the returned value from dmGetRequirements */
   for (i=(memRequirement.count + dmMemRequirement.count);i< (memRequirement.count + dmMemRequirement.count + smMemRequirement.count);i++)
   {
@@ -2166,16 +2166,16 @@ tdsaLoLevelGetResource(
     {
       loResource->loLevelMem.mem[i].type = TI_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_DMA_MEM\n", i));
-      
+
     }
     else if ( AGSA_CACHED_MEM == smMemRequirement.smMemory[i-memRequirement.count-dmMemRequirement.count].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_MEM\n", i));
     }
     else if ( AGSA_CACHED_DMA_MEM == smMemRequirement.smMemory[i-memRequirement.count-dmMemRequirement.count].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_DMA_MEM\n", i));
     }
   }
@@ -2186,7 +2186,7 @@ tdsaLoLevelGetResource(
   loResource->loLevelOption.mutexLockUsage     = tiOneMutexLockPerQueue;
   /* no more ESGL */
   loResource->loLevelMem.count = memRequirement.count + dmMemRequirement.count + smMemRequirement.count;
-  /* setting interrupt requirements */ 
+  /* setting interrupt requirements */
   loResource->loLevelOption.maxInterruptVectors = SwConfig.max_MSIX_InterruptVectors;
   loResource->loLevelOption.max_MSI_InterruptVectors = SwConfig.max_MSI_InterruptVectors;
   loResource->loLevelOption.flag = SwConfig.legacyInt_X;
@@ -2198,7 +2198,7 @@ tdsaLoLevelGetResource(
   TI_DBG6(("tdsaLoLevelGetResource: total memRequirement count %d TI_DMA_MEM\n", loResource->loLevelMem.count));
 
 #elif defined(FDS_DM)
-  TI_DBG1(("tdsaLoLevelGetResource:MAX_LL_LAYER_MEM_DESCRIPTORS %d\n", MAX_LL_LAYER_MEM_DESCRIPTORS)); 
+  TI_DBG1(("tdsaLoLevelGetResource:MAX_LL_LAYER_MEM_DESCRIPTORS %d\n", MAX_LL_LAYER_MEM_DESCRIPTORS));
   for(i=0;i<MAX_LL_LAYER_MEM_DESCRIPTORS;i++)
   {
     loResource->loLevelMem.mem[i].numElements           = 0;
@@ -2213,7 +2213,7 @@ tdsaLoLevelGetResource(
     loResource->loLevelMem.mem[i].physAddrLower         = 0;
   }
 
-  TI_DBG1(("tdsaLoLevelGetResource:memRequirement.count %d\n", memRequirement.count)); 
+  TI_DBG1(("tdsaLoLevelGetResource:memRequirement.count %d\n", memRequirement.count));
   /* using the returned value from saGetRequirements */
   for (i=0;i< memRequirement.count;i++)
   {
@@ -2227,21 +2227,21 @@ tdsaLoLevelGetResource(
     {
       loResource->loLevelMem.mem[i].type = TI_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_DMA_MEM\n", i));
-      
+
     }
     else if ( AGSA_CACHED_MEM == memRequirement.agMemory[i].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_MEM\n", i));
     }
     else if ( AGSA_CACHED_DMA_MEM == memRequirement.agMemory[i].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_DMA_MEM\n", i));
     }
   }
-  
-  TI_DBG1(("tdsaLoLevelGetResource:dmMemRequirement.count %d\n", dmMemRequirement.count)); 
+
+  TI_DBG1(("tdsaLoLevelGetResource:dmMemRequirement.count %d\n", dmMemRequirement.count));
   /* using the returned value from dmGetRequirements */
   for (i=memRequirement.count;i< (memRequirement.count + dmMemRequirement.count);i++)
   {
@@ -2255,29 +2255,29 @@ tdsaLoLevelGetResource(
     {
       loResource->loLevelMem.mem[i].type = TI_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_DMA_MEM\n", i));
-      
+
     }
     else if ( AGSA_CACHED_MEM == dmMemRequirement.dmMemory[i-memRequirement.count].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_MEM\n", i));
     }
     else if ( AGSA_CACHED_DMA_MEM == dmMemRequirement.dmMemory[i-memRequirement.count].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_DMA_MEM\n", i));
     }
   }
-  
- 
-  
+
+
+
   /* sets the low level options */
   loResource->loLevelOption.usecsPerTick       = MIN(usecsPerTick, dmUsecsPerTick);
   loResource->loLevelOption.numOfQueuesPerPort = maxQueueSets + dmMaxNumLocks + TD_MAX_LOCKS + maxNumOSLocks;
   loResource->loLevelOption.mutexLockUsage     = tiOneMutexLockPerQueue;
   /* no more ESGL */
   loResource->loLevelMem.count = memRequirement.count + dmMemRequirement.count;
-  /* setting interrupt requirements */ 
+  /* setting interrupt requirements */
   loResource->loLevelOption.maxInterruptVectors = SwConfig.max_MSIX_InterruptVectors;
   loResource->loLevelOption.max_MSI_InterruptVectors = SwConfig.max_MSI_InterruptVectors;
   loResource->loLevelOption.flag = SwConfig.legacyInt_X;
@@ -2287,9 +2287,9 @@ tdsaLoLevelGetResource(
 
 //  TI_DBG6(("tdsaLoLevelGetResource: index %d numElements %d totalLength %d singleElementLength %d alignment %d\n",memRequirement.count, loResource->loLevelMem.mem[memRequirement.count].numElements,loResource->loLevelMem.mem[memRequirement.count].totalLength, loResource->loLevelMem.mem[memRequirement.count].singleElementLength,loResource->loLevelMem.mem[memRequirement.count].alignment ));
   TI_DBG6(("tdsaLoLevelGetResource: total memRequirement count %d TI_DMA_MEM\n", loResource->loLevelMem.count));
-  
+
 #elif defined(FDS_SM)
-  TI_DBG1(("tdsaLoLevelGetResource:MAX_LL_LAYER_MEM_DESCRIPTORS %d\n", MAX_LL_LAYER_MEM_DESCRIPTORS)); 
+  TI_DBG1(("tdsaLoLevelGetResource:MAX_LL_LAYER_MEM_DESCRIPTORS %d\n", MAX_LL_LAYER_MEM_DESCRIPTORS));
   for(i=0;i<MAX_LL_LAYER_MEM_DESCRIPTORS;i++)
   {
     loResource->loLevelMem.mem[i].numElements           = 0;
@@ -2304,7 +2304,7 @@ tdsaLoLevelGetResource(
     loResource->loLevelMem.mem[i].physAddrLower         = 0;
   }
 
-  TI_DBG1(("tdsaLoLevelGetResource:memRequirement.count %d\n", memRequirement.count)); 
+  TI_DBG1(("tdsaLoLevelGetResource:memRequirement.count %d\n", memRequirement.count));
   /* using the returned value from saGetRequirements */
   for (i=0;i< memRequirement.count;i++)
   {
@@ -2318,21 +2318,21 @@ tdsaLoLevelGetResource(
     {
       loResource->loLevelMem.mem[i].type = TI_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_DMA_MEM\n", i));
-      
+
     }
     else if ( AGSA_CACHED_MEM == memRequirement.agMemory[i].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_MEM\n", i));
     }
     else if ( AGSA_CACHED_DMA_MEM == memRequirement.agMemory[i].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_DMA_MEM\n", i));
     }
   }
-  
-  TI_DBG1(("tdsaLoLevelGetResource:smMemRequirement.count %d\n", smMemRequirement.count)); 
+
+  TI_DBG1(("tdsaLoLevelGetResource:smMemRequirement.count %d\n", smMemRequirement.count));
   /* using the returned value from smGetRequirements */
   for (i=memRequirement.count;i< (memRequirement.count + smMemRequirement.count);i++)
   {
@@ -2346,29 +2346,29 @@ tdsaLoLevelGetResource(
     {
       loResource->loLevelMem.mem[i].type = TI_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_DMA_MEM\n", i));
-      
+
     }
     else if ( AGSA_CACHED_MEM == smMemRequirement.smMemory[i-memRequirement.count].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_MEM\n", i));
     }
     else if ( AGSA_CACHED_DMA_MEM == smMemRequirement.smMemory[i-memRequirement.count].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_DMA_MEM\n", i));
     }
   }
-  
- 
-  
+
+
+
   /* sets the low level options */
   loResource->loLevelOption.usecsPerTick       = MIN(usecsPerTick, smUsecsPerTick);
   loResource->loLevelOption.numOfQueuesPerPort = maxQueueSets + smMaxNumLocks + TD_MAX_LOCKS + maxNumOSLocks;
   loResource->loLevelOption.mutexLockUsage     = tiOneMutexLockPerQueue;
   /* no more ESGL */
   loResource->loLevelMem.count = memRequirement.count + smMemRequirement.count;
-  /* setting interrupt requirements */ 
+  /* setting interrupt requirements */
   loResource->loLevelOption.maxInterruptVectors = SwConfig.max_MSIX_InterruptVectors;
   loResource->loLevelOption.max_MSI_InterruptVectors = SwConfig.max_MSI_InterruptVectors;
   loResource->loLevelOption.flag = SwConfig.legacyInt_X;
@@ -2378,10 +2378,10 @@ tdsaLoLevelGetResource(
 
 //  TI_DBG6(("tdsaLoLevelGetResource: index %d numElements %d totalLength %d singleElementLength %d alignment %d\n",memRequirement.count, loResource->loLevelMem.mem[memRequirement.count].numElements,loResource->loLevelMem.mem[memRequirement.count].totalLength, loResource->loLevelMem.mem[memRequirement.count].singleElementLength,loResource->loLevelMem.mem[memRequirement.count].alignment ));
   TI_DBG6(("tdsaLoLevelGetResource: total memRequirement count %d TI_DMA_MEM\n", loResource->loLevelMem.count));
-  
+
 
 #else
-  TI_DBG6(("tdsaLoLevelGetResource:MAX_LL_LAYER_MEM_DESCRIPTORS %d\n", MAX_LL_LAYER_MEM_DESCRIPTORS)); 
+  TI_DBG6(("tdsaLoLevelGetResource:MAX_LL_LAYER_MEM_DESCRIPTORS %d\n", MAX_LL_LAYER_MEM_DESCRIPTORS));
   for(i=0;i<MAX_LL_LAYER_MEM_DESCRIPTORS;i++)
   {
     loResource->loLevelMem.mem[i].numElements           = 0;
@@ -2395,7 +2395,7 @@ tdsaLoLevelGetResource(
     loResource->loLevelMem.mem[i].physAddrUpper         = 0;
     loResource->loLevelMem.mem[i].physAddrLower         = 0;
   }
-  
+
   /* using the returned value from saGetRequirements */
   for (i=0;i< memRequirement.count;i++)
   {
@@ -2409,29 +2409,29 @@ tdsaLoLevelGetResource(
     {
       loResource->loLevelMem.mem[i].type = TI_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_DMA_MEM\n", i));
-      
+
     }
     else if ( AGSA_CACHED_MEM == memRequirement.agMemory[i].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_MEM\n", i));
     }
     else if ( AGSA_CACHED_DMA_MEM == memRequirement.agMemory[i].type )
     {
-      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;      
+      loResource->loLevelMem.mem[i].type = TI_CACHED_DMA_MEM;
       TI_DBG6(("tdsaLoLevelGetResource: index %d TI_CACHED_DMA_MEM\n", i));
     }
   }
-  
- 
-  
+
+
+
   /* sets the low level options */
   loResource->loLevelOption.usecsPerTick       = usecsPerTick;
   loResource->loLevelOption.numOfQueuesPerPort = maxQueueSets + TD_MAX_LOCKS + maxNumOSLocks;
   loResource->loLevelOption.mutexLockUsage     = tiOneMutexLockPerQueue;
   /* no more ESGL */
   loResource->loLevelMem.count = memRequirement.count;
-  /* setting interrupt requirements */ 
+  /* setting interrupt requirements */
   loResource->loLevelOption.maxInterruptVectors = SwConfig.max_MSIX_InterruptVectors;
   loResource->loLevelOption.max_MSI_InterruptVectors = SwConfig.max_MSI_InterruptVectors;
   loResource->loLevelOption.flag = SwConfig.legacyInt_X;
@@ -2441,7 +2441,7 @@ tdsaLoLevelGetResource(
 
   TI_DBG6(("tdsaLoLevelGetResource: index %d numElements %d totalLength %d singleElementLength %d alignment %d\n",memRequirement.count, loResource->loLevelMem.mem[memRequirement.count].numElements,loResource->loLevelMem.mem[memRequirement.count].totalLength, loResource->loLevelMem.mem[memRequirement.count].singleElementLength,loResource->loLevelMem.mem[memRequirement.count].alignment ));
   TI_DBG6(("tdsaLoLevelGetResource: memRequirement.count %d TI_DMA_MEM\n", memRequirement.count));
-#endif 
+#endif
 
 
 
@@ -2451,8 +2451,8 @@ tdsaLoLevelGetResource(
 /*****************************************************************************
 *! \brief tdsaSharedMemCalculate
 *
-*  Purpose:  This function is called to determine the Transport 
-*            Dependent Layer internal resource requirement 
+*  Purpose:  This function is called to determine the Transport
+*            Dependent Layer internal resource requirement
 *            for shared memory between target and initiator
 *            functionality.
 *
@@ -2476,18 +2476,18 @@ tdsaSharedMemCalculate(
                        )
 {
   bit32 MaxTargets;
-  
+
   /* the following fn fills in MaxTargets */
   tdssGetMaxTargetsParams(tiRoot, &MaxTargets);
   TI_DBG6(("tdsaSharedMemCalculate: MaxTargets %d\n", MaxTargets));
-   
+
   /*
    * Cached mem for the shared TD Layer functionality
    */
   tdSharedMem->tdSharedCachedMem1.singleElementLength =
     sizeof(tdsaRoot_t) + (sizeof(tdsaPortContext_t) * TD_MAX_PORT_CONTEXT) +
     (sizeof(tdsaDeviceData_t) * MaxTargets);
-  
+
 #ifdef TD_INT_COALESCE
   /* adding TD interrupt coalesce data structure to the shared TD layer */
   /* TD_MAX_INT_COALESCE is defined to be 512 */
@@ -2510,7 +2510,7 @@ tdsaSharedMemCalculate(
   tdSharedMem->tdSharedCachedMem1.alignment = 8;
 
   tdSharedMem->tdSharedCachedMem1.type = TI_CACHED_MEM;
-  
+
   tdSharedMem->tdSharedCachedMem1.virtPtr = agNULL;
   tdSharedMem->tdSharedCachedMem1.osHandle = agNULL;
   tdSharedMem->tdSharedCachedMem1.physAddrUpper = 0;
@@ -2545,10 +2545,10 @@ tdsaResetComMemFlags(
   TI_DBG6(("tdsaResetComMemFlag:: ******* tdsaRoot %p \n", tdsaRoot));
   TI_DBG6(("tdsaResetComMemFlag:: ******* tdsaPortContext %p \n",tdsaPortContext));
 #endif
-  
+
   tdsaAllShared->flags.sysIntsActive              = agFALSE;
   tdsaAllShared->flags.resetInProgress            = agFALSE;
-  
+
   return;
 }
 
@@ -2563,7 +2563,7 @@ tdsaResetComMemFlags(
 *
 *
 *****************************************************************************/
-osGLOBAL void 
+osGLOBAL void
 tdssInitSASPortStartInfo(
                          tiRoot_t *tiRoot
                          )
@@ -2574,11 +2574,11 @@ tdssInitSASPortStartInfo(
 #ifdef TD_DEBUG_ENABLE
   tdsaPortContext_t *tdsaPortContext = (tdsaPortContext_t *)tdsaAllShared->PortContextMem;
   TI_DBG6(("tdssInitSASPortStartInfo: start\n"));
-  
+
   TI_DBG6(("tdssInitSASPortStartInfo: ******* tdsaRoot %p \n", tdsaRoot));
   TI_DBG6(("tdssInitSASPortStartInfo: ******* tdsaPortContext %p \n",tdsaPortContext));
 #endif
-  
+
   for(i=0;i<TD_MAX_NUM_PHYS;i++)
   {
     tdsaAllShared->Ports[i].tiPortalContext = agNULL;
@@ -2593,14 +2593,14 @@ tdssInitSASPortStartInfo(
     tdsaAllShared->Ports[i].SASID.sasAddressLo[3] = 0;
     tdsaAllShared->Ports[i].SASID.phyIdentifier = (bit8) i;
     /* continue .... */
-    
-    tdsaAllShared->Ports[i].flags.portStarted = agFALSE; 
+
+    tdsaAllShared->Ports[i].flags.portStarted = agFALSE;
     tdsaAllShared->Ports[i].flags.portInitialized = agFALSE;
     tdsaAllShared->Ports[i].flags.portReadyForDiscoverySent = agFALSE;
     tdsaAllShared->Ports[i].flags.portStoppedByOSLayer = agFALSE;
     tdsaAllShared->Ports[i].flags.failPortInit = agFALSE;
   }
-  
+
   return;
 }
 
@@ -2615,25 +2615,25 @@ tdssInitSASPortStartInfo(
 *
 *  \return: None
 *
-*  \note: 
+*  \note:
 *
-*****************************************************************************/ 
+*****************************************************************************/
 
 osGLOBAL void
 tdsaInitTimers(
-               tiRoot_t *tiRoot 
+               tiRoot_t *tiRoot
                )
 {
   tdsaRoot_t               *tdsaRoot    = (tdsaRoot_t *)tiRoot->tdData;
   tdsaContext_t            *tdsaAllShared = (tdsaContext_t *)&tdsaRoot->tdsaAllShared;
 #ifdef TD_DEBUG_ENABLE
   tdsaPortContext_t *tdsaPortContext = (tdsaPortContext_t *)tdsaAllShared->PortContextMem;
-  
+
   TI_DBG6(("tdsaInitTimers: start \n"));
   TI_DBG6(("tdsaInitTimers: ******* tdsaRoot %p \n", tdsaRoot));
   TI_DBG6(("tdsaInitTimers: ******* tdsaPortContext %p \n",tdsaPortContext));
 #endif
-  
+
   /* initialize the timerlist */
   TDLIST_INIT_HDR(&(tdsaAllShared->timerlist));
 
@@ -2650,7 +2650,7 @@ tdsaInitTimers(
 *
 *  \return: None
 *
-*  \note: 
+*  \note:
 *
 *****************************************************************************/
 osGLOBAL void
@@ -2658,12 +2658,12 @@ tdsaJumpTableInit(
                   tiRoot_t *tiRoot
                   )
 {
-  
+
   tdsaRoot_t        *tdsaRoot    = (tdsaRoot_t *)tiRoot->tdData;
   tdsaContext_t     *tdsaAllShared = (tdsaContext_t *)&tdsaRoot->tdsaAllShared;
 #ifdef TD_DEBUG_ENABLE
   tdsaPortContext_t *tdsaPortContext = (tdsaPortContext_t *)tdsaAllShared->PortContextMem;
-  
+
   TI_DBG6(("tdsaJumpTableInit: start \n"));
   TI_DBG6(("tdsaJumpTableInit:: ******* tdsaRoot %p \n", tdsaRoot));
   TI_DBG6(("tdsaJumpTableInit:: ******* tdsaPortContext %p \n",tdsaPortContext));
@@ -2672,7 +2672,7 @@ tdsaJumpTableInit(
   /* tdtype.h */
   /*
     For combo,
-    pSSPIOCompleted, pSMPCompleted; use callback 
+    pSSPIOCompleted, pSMPCompleted; use callback
     pSSPReqReceive, pSMPReqReceived; use jumptable
   */
 
@@ -2684,7 +2684,7 @@ tdsaJumpTableInit(
   tdsaAllShared->tdJumpTable.pSSPIOCompleted = agNULL;
   tdsaAllShared->tdJumpTable.pSSPReqReceived = &ttdsaSSPReqReceived;
   tdsaAllShared->tdJumpTable.pSMPReqReceived = &ttdsaSMPReqReceived;
-  tdsaAllShared->tdJumpTable.pSMPCompleted =agNULL; 
+  tdsaAllShared->tdJumpTable.pSMPCompleted =agNULL;
 #endif
   tdsaAllShared->tdJumpTable.pGetSGLChunk = agNULL;
   return;
@@ -2701,12 +2701,12 @@ tdsaJumpTableInit(
 *
 *  \return: None
 *
-*  \note: 
+*  \note:
 *
 *****************************************************************************/
 osGLOBAL void
 tdsaPortContextInit(
-                    tiRoot_t *tiRoot 
+                    tiRoot_t *tiRoot
                     )
 {
   tdsaRoot_t        *tdsaRoot        = (tdsaRoot_t *) tiRoot->tdData;
@@ -2718,8 +2718,8 @@ tdsaPortContextInit(
   TI_DBG6(("tdsaPortContextInit: start\n"));
   TI_DBG6(("tdsaPortContextInit: ******* sizeof(tdsaPortContext) %d %x\n", (int)sizeof(tdsaPortContext_t), (unsigned int)sizeof(tdsaPortContext_t)));
   TI_DBG6(("tdsaPortContextInit: ******* tdsaRoot %p \n", tdsaRoot));
-  TI_DBG6(("tdsaPortContextInit: ******* tdsaPortContext %p \n",tdsaPortContext)); 
-  TI_DBG6(("tdsaPortContextInit: ******* tdsaPortContext+1 %p \n",tdsaPortContext + 1)); 
+  TI_DBG6(("tdsaPortContextInit: ******* tdsaPortContext %p \n",tdsaPortContext));
+  TI_DBG6(("tdsaPortContextInit: ******* tdsaPortContext+1 %p \n",tdsaPortContext + 1));
   TI_DBG6(("tdsaPortContextInit: ******* &tdsaPortContext[0] %p  &tdsaPortContext[1] %p\n", &(tdsaPortContext[0]), &(tdsaPortContext[1])));
 
   TDLIST_INIT_HDR(&(tdsaAllShared->MainPortContextList));
@@ -2740,26 +2740,26 @@ tdsaPortContextInit(
     tdsaInitTimerRequest(tiRoot, &(tdsaPortContext[i].discovery.SMPBusyTimer));
     tdsaInitTimerRequest(tiRoot, &(tdsaPortContext[i].discovery.BCTimer));
     tdsaInitTimerRequest(tiRoot, &(tdsaPortContext[i].discovery.DiscoverySMPTimer));
-    tdsaPortContext[i].discovery.retries = 0;  
-    tdsaPortContext[i].discovery.configureRouteRetries = 0;  
-    tdsaPortContext[i].discovery.deviceRetistrationRetries = 0;  
-    tdsaPortContext[i].discovery.pendingSMP = 0;  
-    tdsaPortContext[i].discovery.SeenBC = agFALSE;  
-    tdsaPortContext[i].discovery.forcedOK = agFALSE;  
-    tdsaPortContext[i].discovery.SMPRetries = 0;  
-//    tdsaPortContext[i].discovery.doIncremental = agFALSE;  
-    tdsaPortContext[i].discovery.ResetTriggerred = agFALSE;  
+    tdsaPortContext[i].discovery.retries = 0;
+    tdsaPortContext[i].discovery.configureRouteRetries = 0;
+    tdsaPortContext[i].discovery.deviceRetistrationRetries = 0;
+    tdsaPortContext[i].discovery.pendingSMP = 0;
+    tdsaPortContext[i].discovery.SeenBC = agFALSE;
+    tdsaPortContext[i].discovery.forcedOK = agFALSE;
+    tdsaPortContext[i].discovery.SMPRetries = 0;
+//    tdsaPortContext[i].discovery.doIncremental = agFALSE;
+    tdsaPortContext[i].discovery.ResetTriggerred = agFALSE;
 #endif
 
-    
-#ifdef INITIATOR_DRIVER  
+
+#ifdef INITIATOR_DRIVER
     tdsaPortContext[i].DiscoveryState = ITD_DSTATE_NOT_STARTED;
     tdsaPortContext[i].nativeSATAMode = agFALSE;
     tdsaPortContext[i].directAttatchedSAS = agFALSE;
     tdsaPortContext[i].DiscoveryRdyGiven = agFALSE;
     tdsaPortContext[i].SeenLinkUp = agFALSE;
-    
-#endif      
+
+#endif
     tdsaPortContext[i].id = i;
     tdsaPortContext[i].agPortContext = agNULL;
     tdsaPortContext[i].LinkRate = 0;
@@ -2777,8 +2777,8 @@ tdsaPortContextInit(
 #ifdef FDS_DM
     tdsaPortContext[i].dmPortContext.tdData = &(tdsaPortContext[i]);
     tdsaPortContext[i].DMDiscoveryState = dmDiscCompleted;
-    tdsaPortContext[i].UseDM = agFALSE;    
-    tdsaPortContext[i].UpdateMCN = agFALSE;    
+    tdsaPortContext[i].UseDM = agFALSE;
+    tdsaPortContext[i].UpdateMCN = agFALSE;
 #endif
     /* add more variables later */
     TDLIST_ENQUEUE_AT_TAIL(&(tdsaPortContext[i].FreeLink), &(tdsaAllShared->FreePortContextList));
@@ -2804,13 +2804,13 @@ tdsaPortContextInit(
 *
 *  \return: None
 *
-*  \note: 
+*  \note:
 *
 *****************************************************************************/
 osGLOBAL void
 tdsaPortContextReInit(
                       tiRoot_t             *tiRoot,
-                      tdsaPortContext_t    *onePortContext		     
+                      tdsaPortContext_t    *onePortContext
                     )
 {
   int               j=0;
@@ -2819,22 +2819,22 @@ tdsaPortContextReInit(
 #endif
 
   TI_DBG3(("tdsaPortContextReInit: start\n"));
-  
+
 #ifdef TD_DISCOVER
   discovery = &(onePortContext->discovery);
-  
+
     onePortContext->discovery.type = TDSA_DISCOVERY_OPTION_FULL_START;
-    onePortContext->discovery.retries = 0;  
-    onePortContext->discovery.configureRouteRetries = 0;  
-    onePortContext->discovery.deviceRetistrationRetries = 0;  
-    onePortContext->discovery.pendingSMP = 0;  
-    onePortContext->discovery.SeenBC = agFALSE;  
-    onePortContext->discovery.forcedOK = agFALSE;  
-    onePortContext->discovery.SMPRetries = 0;  
+    onePortContext->discovery.retries = 0;
+    onePortContext->discovery.configureRouteRetries = 0;
+    onePortContext->discovery.deviceRetistrationRetries = 0;
+    onePortContext->discovery.pendingSMP = 0;
+    onePortContext->discovery.SeenBC = agFALSE;
+    onePortContext->discovery.forcedOK = agFALSE;
+    onePortContext->discovery.SMPRetries = 0;
     onePortContext->discovery.ResetTriggerred = agFALSE;
     /* free expander lists */
     tdsaFreeAllExp(tiRoot, onePortContext);
-    /* kill the discovery-related timers if they are running */  
+    /* kill the discovery-related timers if they are running */
     if (discovery->discoveryTimer.timerRunning == agTRUE)
     {
       tdsaKillTimer(
@@ -2869,17 +2869,17 @@ tdsaPortContextReInit(
                     tiRoot,
                     &discovery->SMPBusyTimer
                    );
-    }    
+    }
     if (discovery->DiscoverySMPTimer.timerRunning == agTRUE)
     {
       tdsaKillTimer(
                     tiRoot,
                     &discovery->DiscoverySMPTimer
                    );
-    }    
+    }
 #endif
 
-#ifdef INITIATOR_DRIVER  
+#ifdef INITIATOR_DRIVER
     onePortContext->DiscoveryState = ITD_DSTATE_NOT_STARTED;
     onePortContext->nativeSATAMode = agFALSE;
     onePortContext->directAttatchedSAS = agFALSE;
@@ -2911,7 +2911,7 @@ tdsaPortContextReInit(
 #endif
   return;
 }
-		    
+
 /*****************************************************************************
 *! \brief tdsaDeviceDataInit
 *
@@ -2921,12 +2921,12 @@ tdsaPortContextReInit(
 *
 *  \return: None
 *
-*  \note: 
+*  \note:
 *
 *****************************************************************************/
 osGLOBAL void
 tdsaDeviceDataInit(
-                   tiRoot_t *tiRoot 
+                   tiRoot_t *tiRoot
                    )
 {
   tdsaRoot_t        *tdsaRoot      = (tdsaRoot_t *) tiRoot->tdData;
@@ -2942,17 +2942,17 @@ tdsaDeviceDataInit(
   satInternalIo_t   *satIntIO;
 #endif
   bit32             MaxTargets;
-  
+
   TI_DBG6(("tdsaDeviceDataInit: start\n"));
   TI_DBG6(("tdsaDeviceDataInit: ******* tdsaPortContext %p \n",tdsaPortContext));
   TI_DBG6(("tdsaDeviceDataInit: ******* tdsaDeviceData %p\n", tdsaDeviceData));
   TI_DBG6(("tdsaDeviceDataInit: ******* tdsaDeviceData+1 %p\n", tdsaDeviceData+1));
   TI_DBG6(("tdsaDeviceDataInit: ******* &tdsaDeviceData[0] %p  &tdsaDeviceData[1] %p\n", &(tdsaDeviceData[0]), &(tdsaDeviceData[1])));
-  
+
   /* the following fn fills in MaxTargets */
   tdssGetMaxTargetsParams(tiRoot, &MaxTargets);
   TI_DBG6(("tdsaDeviceDataInit: MaxTargets %d\n", MaxTargets));
-  
+
   TDLIST_INIT_HDR(&(tdsaAllShared->MainDeviceList));
   TDLIST_INIT_HDR(&(tdsaAllShared->FreeDeviceList));
 
@@ -2967,7 +2967,7 @@ tdsaDeviceDataInit(
     tdsaDeviceData[i].DeviceType = TD_DEFAULT_DEVICE;
     tdsaDeviceData[i].agRoot = agNULL;
     tdsaDeviceData[i].agDevHandle = agNULL;
-    
+
     tdsaDeviceData[i].pJumpTable = &(tdsaAllShared->tdJumpTable);
     tdsaDeviceData[i].tiDeviceHandle.osData = agNULL;
     tdsaDeviceData[i].tiDeviceHandle.tdData = &(tdsaDeviceData[i]);
@@ -2993,7 +2993,7 @@ tdsaDeviceDataInit(
     tdsaDeviceData[i].TRflag = agFALSE;
     tdsaDeviceData[i].ResetCnt = 0;
     tdsaDeviceData[i].OSAbortAll = agFALSE;
-    
+
 #ifdef FDS_DM
     tdsaDeviceData[i].devMCN = 1;
     tdsaDeviceData[i].finalMCN = 1;
@@ -3003,12 +3003,12 @@ tdsaDeviceDataInit(
     tdsaDeviceData[i].SMNumOfFCA = 0;
     tdsaDeviceData[i].SMNumOfID = 0;
 #endif
-    
+
 #ifdef  SATA_ENABLE
     TDLIST_INIT_HDR(&(tdsaDeviceData[i].satDevData.satIoLinkList));
     TDLIST_INIT_HDR(&(tdsaDeviceData[i].satDevData.satFreeIntIoLinkList));
     TDLIST_INIT_HDR(&(tdsaDeviceData[i].satDevData.satActiveIntIoLinkList));
-    
+
     /* default */
     tdsaDeviceData[i].satDevData.satDriveState = SAT_DEV_STATE_NORMAL;
     tdsaDeviceData[i].satDevData.satNCQMaxIO =SAT_NCQ_MAX;
@@ -3024,7 +3024,7 @@ tdsaDeviceDataInit(
     tdsaInitTimerRequest(tiRoot, &(tdsaDeviceData[i].SATAIDDeviceTimer));
 #ifdef FDS_SM
     tdsaInitTimerRequest(tiRoot, &(tdsaDeviceData[i].tdIDTimer));
-#endif   
+#endif
     osti_memset(tdsaDeviceData[i].satDevData.satMaxLBA, 0, sizeof(tdsaDeviceData[i].satDevData.satMaxLBA));
 
     tdsaDeviceData[i].satDevData.satSaDeviceData = &tdsaDeviceData[i];
@@ -3032,7 +3032,7 @@ tdsaDeviceDataInit(
     for (j = 0; j < SAT_MAX_INT_IO; j++)
     {
       TDLIST_INIT_ELEMENT (&satIntIO->satIntIoLink);
-      TDLIST_ENQUEUE_AT_TAIL (&satIntIO->satIntIoLink, 
+      TDLIST_ENQUEUE_AT_TAIL (&satIntIO->satIntIoLink,
                               &tdsaDeviceData[i].satDevData.satFreeIntIoLinkList);
       satIntIO->satOrgTiIORequest = agNULL;
       satIntIO->id = j;
@@ -3040,17 +3040,17 @@ tdsaDeviceDataInit(
     }
 #endif
     /* some other variables */
-    TDLIST_ENQUEUE_AT_TAIL(&(tdsaDeviceData[i].FreeLink), &(tdsaAllShared->FreeDeviceList)); 
+    TDLIST_ENQUEUE_AT_TAIL(&(tdsaDeviceData[i].FreeLink), &(tdsaAllShared->FreeDeviceList));
   }
 
 #ifdef TD_INTERNAL_DEBUG  /* for debugging only */
   for(i=0;i<MaxTargets;i++)
   {
     TI_DBG6(("tdsaDeviceDataInit: index %d  &tdsaDeviceData[] %p\n", i, &(tdsaDeviceData[i])));
-    
+
   }
   TI_DBG6(("tdsaDeviceDataInit: sizeof(tdsaDeviceData_t) %d 0x%x\n", sizeof(tdsaDeviceData_t), sizeof(tdsaDeviceData_t)));
-#endif  
+#endif
   return;
 }
 
@@ -3064,29 +3064,29 @@ tdsaDeviceDataInit(
 *
 *  \return: None
 *
-*  \note: 
+*  \note:
 *
 *****************************************************************************/
 osGLOBAL void
 tdsaDeviceDataReInit(
-                   tiRoot_t             *tiRoot, 
+                   tiRoot_t             *tiRoot,
                    tdsaDeviceData_t     *oneDeviceData
                    )
 {
   tdsaRoot_t        *tdsaRoot      = (tdsaRoot_t *) tiRoot->tdData;
   tdsaContext_t     *tdsaAllShared = (tdsaContext_t *)&tdsaRoot->tdsaAllShared;
-#ifdef  SATA_ENABLE    
+#ifdef  SATA_ENABLE
   int               j=0;
   satInternalIo_t   *satIntIO;
 #endif
-  
+
   TI_DBG3(("tdsaDeviceDataReInit: start\n"));
-  
+
     oneDeviceData->InQID = 0;
     oneDeviceData->OutQID = 0;
     oneDeviceData->DeviceType = TD_DEFAULT_DEVICE;
     oneDeviceData->agDevHandle = agNULL;
-    
+
     oneDeviceData->pJumpTable = &(tdsaAllShared->tdJumpTable);
     oneDeviceData->tiDeviceHandle.osData = agNULL;
     oneDeviceData->tiDeviceHandle.tdData = oneDeviceData;
@@ -3110,14 +3110,14 @@ tdsaDeviceDataReInit(
     oneDeviceData->agDeviceResetContext.osData = agNULL;
     oneDeviceData->agDeviceResetContext.sdkData = agNULL;
     oneDeviceData->TRflag = agFALSE;
-    oneDeviceData->ResetCnt = 0;   
-    oneDeviceData->OSAbortAll = agFALSE;   
+    oneDeviceData->ResetCnt = 0;
+    oneDeviceData->OSAbortAll = agFALSE;
 
 #ifdef FDS_DM
     oneDeviceData->devMCN = 1;
     oneDeviceData->finalMCN = 1;
 #endif
-    
+
 #ifdef FDS_SM
     oneDeviceData->SMNumOfFCA = 0;
     oneDeviceData->SMNumOfID = 0;
@@ -3130,7 +3130,7 @@ tdsaDeviceDataReInit(
     }
 #endif
 
-#ifdef  SATA_ENABLE    
+#ifdef  SATA_ENABLE
     /* default */
     oneDeviceData->satDevData.satDriveState = SAT_DEV_STATE_NORMAL;
     oneDeviceData->satDevData.satNCQMaxIO =SAT_NCQ_MAX;
@@ -3143,22 +3143,22 @@ tdsaDeviceDataReInit(
     oneDeviceData->satDevData.NumOfIDRetries = 0;
     oneDeviceData->satDevData.ID_Retries = 0;
     oneDeviceData->satDevData.IDPending = agFALSE;
-    
+
     osti_memset(oneDeviceData->satDevData.satMaxLBA, 0, sizeof(oneDeviceData->satDevData.satMaxLBA));
     osti_memset(&(oneDeviceData->satDevData.satIdentifyData), 0xFF, sizeof(agsaSATAIdentifyData_t));
 
     oneDeviceData->satDevData.satSaDeviceData = oneDeviceData;
-    
+
     satIntIO = (satInternalIo_t *)&(oneDeviceData->satDevData.satIntIo[0]);
     for (j = 0; j < SAT_MAX_INT_IO; j++)
     {
       TI_DBG3(("tdsaDeviceDataReInit: in loop of internal io free, id %d\n", satIntIO->id));
-      satFreeIntIoResource(tiRoot, &(oneDeviceData->satDevData), satIntIO);    
-      satIntIO = satIntIO + 1;    
+      satFreeIntIoResource(tiRoot, &(oneDeviceData->satDevData), satIntIO);
+      satIntIO = satIntIO + 1;
     }
 #endif
   return;
-}		   
+}
 
 #ifdef TD_INT_COALESCE
 /*****************************************************************************
@@ -3170,12 +3170,12 @@ tdsaDeviceDataReInit(
 *
 *  \return: None
 *
-*  \note: 
+*  \note:
 *
 *****************************************************************************/
 osGLOBAL void
 tdsaIntCoalCxtInit(
-                    tiRoot_t *tiRoot 
+                    tiRoot_t *tiRoot
                     )
 {
   tdsaRoot_t               *tdsaRoot        = (tdsaRoot_t *) tiRoot->tdData;
@@ -3186,7 +3186,7 @@ tdsaIntCoalCxtInit(
   int i = 0;
   int j = 0;
   bit32             MaxTargets;
-   
+
   TI_DBG2(("tdsaIntCoalCxtInit: start\n"));
   TI_DBG6(("tdsaIntCoalCxtInit: ******* sizeof(tdsaPortContext) %d 0x%x\n", sizeof(tdsaPortContext_t), sizeof(tdsaPortContext_t)));
   TI_DBG6(("tdsaIntCoalCxtInit: ******* sizeof(tdsaIntCoalCxt) %d 0x%x\n", sizeof(tdsaDeviceData_t), sizeof(tdsaDeviceData_t)));
@@ -3194,7 +3194,7 @@ tdsaIntCoalCxtInit(
   TI_DBG6(("tdsaIntCoalCxtInit: ******* tdsaRoot %p \n", tdsaRoot));
   TI_DBG6(("tdsaIntCoalCxtInit: ******* tdsaPortContext %p \n",tdsaPortContext));
   TI_DBG6(("tdsaDeviceDataInit: ******* tdsaDeviceData %p\n", tdsaDeviceData));
-  TI_DBG6(("tdsaIntCoalCxtInit: ******* tdsaIntCoalCxt+1 %p \n", tdsaIntCoalCxt + 1)); 
+  TI_DBG6(("tdsaIntCoalCxtInit: ******* tdsaIntCoalCxt+1 %p \n", tdsaIntCoalCxt + 1));
   TI_DBG6(("tdsaIntCoalCxtInit: ******* &tdsaIntCoalCxt[0] %p  &tdsaIntCoalCxt[1] %p\n", &(tdsaIntCoalCxt[0]), &(tdsaIntCoalCxt[1])));
 
   /* for debug */
@@ -3202,11 +3202,11 @@ tdsaIntCoalCxtInit(
   /* the following fn fills in MaxTargets */
   tdssGetMaxTargetsParams(tiRoot, &MaxTargets);
   TI_DBG6(("tdsaIntCoalCxtInit: MaxTargets %d\n", MaxTargets));
-  
+
   TI_DBG6(("tdsaIntCoalCxtInit: portcontext in sum 0x%x\n", sizeof(tdsaPortContext_t) * TD_MAX_PORT_CONTEXT));
   TI_DBG6(("tdsaIntCoalCxtInit: devicedata in sum 0x%x\n", sizeof(tdsaDeviceData_t) * MaxTargets));
-  
-  /* 
+
+  /*
      tdsaIntCoalCx[0] is just head, not an element
   */
   TDLIST_INIT_HDR(&(tdsaIntCoalCxt[0].MainLink));
@@ -3216,12 +3216,12 @@ tdsaIntCoalCxtInit(
   tdsaIntCoalCxt[0].tiIntCoalesceCxt = agNULL;
   tdsaIntCoalCxt[0].id = 0;
 
-  
+
   for(i=1;i<TD_MAX_INT_COALESCE;i++)
   {
     TDLIST_INIT_ELEMENT(&(tdsaIntCoalCxt[i].FreeLink));
     TDLIST_INIT_ELEMENT(&(tdsaIntCoalCxt[i].MainLink));
-    
+
     tdsaIntCoalCxt[i].tdsaAllShared = tdsaAllShared;
     tdsaIntCoalCxt[i].tiIntCoalesceCxt = agNULL;
     tdsaIntCoalCxt[i].id = i;
@@ -3236,7 +3236,7 @@ tdsaIntCoalCxtInit(
 
 osGLOBAL void
 tdsaExpanderInit(
-                 tiRoot_t *tiRoot 
+                 tiRoot_t *tiRoot
                  )
 {
   tdsaRoot_t        *tdsaRoot      = (tdsaRoot_t *) tiRoot->tdData;
@@ -3246,16 +3246,16 @@ tdsaExpanderInit(
     (tdsaExpander_t *)tdsaAllShared->ExpanderHead;
   bit32             MaxTargets;
 
-  
+
   int i;
 
   TI_DBG6(("tdsaExpanderInit: start\n"));
   tdssGetMaxTargetsParams(tiRoot, &MaxTargets);
   TI_DBG6(("tdsaExpanderInit: MaxTargets %d\n", MaxTargets));
-  
+
   //  TDLIST_INIT_HDR(&(tdsaAllShared->discoveringExpanderList));
   TDLIST_INIT_HDR(&(tdsaAllShared->freeExpanderList));
-  
+
   for(i=0;i<(int)MaxTargets;i++)
   {
     TDLIST_INIT_ELEMENT(&(tdsaExpander[i].linkNode));
@@ -3282,21 +3282,21 @@ tdsaExpanderInit(
     tdsaExpander[i].configSASAddrTableIndex = 0;
     osti_memset( &(tdsaExpander[i].configSASAddressHiTable), 0, sizeof(tdsaExpander[i].configSASAddressHiTable));
     osti_memset( &(tdsaExpander[i].configSASAddressLoTable), 0, sizeof(tdsaExpander[i].configSASAddressLoTable));
-    
-    
-    TDLIST_ENQUEUE_AT_TAIL(&(tdsaExpander[i].linkNode), &(tdsaAllShared->freeExpanderList)); 
+
+
+    TDLIST_ENQUEUE_AT_TAIL(&(tdsaExpander[i].linkNode), &(tdsaAllShared->freeExpanderList));
   }
   return;
 }
 
-osGLOBAL void 
+osGLOBAL void
 tdsaQueueConfigInit(
              tiRoot_t *tiRoot
              )
 {
   tdsaRoot_t     *tdsaRoot    = (tdsaRoot_t *)tiRoot->tdData;
   tdsaContext_t  *tdsaAllShared = (tdsaContext_t *)&tdsaRoot->tdsaAllShared;
-  
+
   /* for memory index requirement */
   agsaQueueConfig_t   *QueueConfig;
   bit32                i;
@@ -3346,8 +3346,8 @@ tdsaQueueConfigInit(
 /*****************************************************************************
 *! \brief  tdssGetMaxTargetsParams
 *
-*  Purpose: This function is called to get default parameters from the 
-*           OS Specific area. This function is called in the context of 
+*  Purpose: This function is called to get default parameters from the
+*           OS Specific area. This function is called in the context of
 *           tiCOMGetResource() and tiCOMInit().
 *
 *
@@ -3359,9 +3359,9 @@ tdsaQueueConfigInit(
 *  \note -
 *
 *****************************************************************************/
-osGLOBAL void 
+osGLOBAL void
 tdssGetMaxTargetsParams(
-                      tiRoot_t                *tiRoot, 
+                      tiRoot_t                *tiRoot,
                       bit32                   *pMaxTargets
                       )
 {
@@ -3378,10 +3378,10 @@ tdssGetMaxTargetsParams(
   bit32   MaxTargets;
 
   TI_DBG6(("tdssGetMaxTargetsParams: start\n"));
-  
+
   *pMaxTargets = DEFAULT_MAX_DEV;
- 
-  /* to remove compiler warnings */ 
+
+  /* to remove compiler warnings */
   pLastUsedChar   = pLastUsedChar;
   lenRecv         = lenRecv;
   subkey2         = subkey2;
@@ -3390,26 +3390,26 @@ tdssGetMaxTargetsParams(
   buffer          = &tmpBuffer[0];
   buffLen         = sizeof (tmpBuffer);
 
-  osti_memset(buffer, 0, buffLen); 
+  osti_memset(buffer, 0, buffLen);
 
   /* defaults are overwritten in the following */
-  /* Get MaxTargets */ 
+  /* Get MaxTargets */
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,
                              iniParmsStr,
                              agNULL,
                              agNULL,
-                             agNULL, 
-                             agNULL, 
+                             agNULL,
+                             agNULL,
                              "MaxTargets",
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       MaxTargets = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -3419,17 +3419,17 @@ tdssGetMaxTargetsParams(
     *pMaxTargets = MaxTargets;
     TI_DBG2(("tdssGetMaxTargetsParams: MaxTargets %d\n", MaxTargets ));
   }
-  
+
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
-  
+
   return;
 }
 
 /* temporary to distinguish SAS and SATA mode  */
-osGLOBAL void 
+osGLOBAL void
 tdssGetSATAOnlyModeParams(
-                      tiRoot_t                *tiRoot, 
+                      tiRoot_t                *tiRoot,
                       bit32                   *pSATAOnlyMode
                       )
 {
@@ -3446,10 +3446,10 @@ tdssGetSATAOnlyModeParams(
   bit32   SATAOnlyMode;
 
   TI_DBG6(("tdssGetSATAOnlyModeParams: start\n"));
-  
+
   *pSATAOnlyMode = agFALSE; /* default SAS and SATA */
- 
-  /* to remove compiler warnings */ 
+
+  /* to remove compiler warnings */
   pLastUsedChar   = pLastUsedChar;
   lenRecv         = lenRecv;
   subkey2         = subkey2;
@@ -3458,26 +3458,26 @@ tdssGetSATAOnlyModeParams(
   buffer          = &tmpBuffer[0];
   buffLen         = sizeof (tmpBuffer);
 
-  osti_memset(buffer, 0, buffLen); 
+  osti_memset(buffer, 0, buffLen);
 
   /* defaults are overwritten in the following */
-  /* Get SATAOnlyMode */ 
+  /* Get SATAOnlyMode */
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,
                              iniParmsStr,
                              agNULL,
                              agNULL,
-                             agNULL, 
-                             agNULL, 
+                             agNULL,
+                             agNULL,
                              "SATAOnlyMode",
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SATAOnlyMode = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -3486,10 +3486,10 @@ tdssGetSATAOnlyModeParams(
     }
     *pSATAOnlyMode = SATAOnlyMode;
   }
-  
+
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
-  
+
   return;
 }
 

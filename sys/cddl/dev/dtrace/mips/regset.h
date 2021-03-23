@@ -19,7 +19,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$ 
+ * $FreeBSD$
  */
 /*
  * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.
@@ -43,7 +43,7 @@ extern "C" {
 #endif
 
 /*
- * XXXDTRACE: define registers properly 
+ * XXXDTRACE: define registers properly
  */
 
 #if 0

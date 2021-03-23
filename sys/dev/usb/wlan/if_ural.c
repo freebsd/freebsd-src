@@ -1100,7 +1100,7 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= RAL_TX_ACK;
 
-		dur = ieee80211_ack_duration(ic->ic_rt, tp->mgmtrate, 
+		dur = ieee80211_ack_duration(ic->ic_rt, tp->mgmtrate,
 		    ic->ic_flags & IEEE80211_F_SHPREAMBLE);
 		USETW(wh->i_dur, dur);
 
@@ -1280,7 +1280,7 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		flags |= RAL_TX_ACK;
 		flags |= RAL_TX_RETRY(7);
 
-		dur = ieee80211_ack_duration(ic->ic_rt, rate, 
+		dur = ieee80211_ack_duration(ic->ic_rt, rate,
 		    ic->ic_flags & IEEE80211_F_SHPREAMBLE);
 		USETW(wh->i_dur, dur);
 	}

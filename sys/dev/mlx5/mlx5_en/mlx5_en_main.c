@@ -4269,7 +4269,7 @@ mlx5e_ratelimit_query(struct ifnet *ifp __unused, struct if_ratelimit_query_resu
 {
 	/*
 	 * This function needs updating by the driver maintainer!
-	 * For the MLX card there are currently (ConectX-4?) 13 
+	 * For the MLX card there are currently (ConectX-4?) 13
 	 * pre-set rates and others i.e. ConnectX-5, 6, 7??
 	 *
 	 * This will change based on later adapters

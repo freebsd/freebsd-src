@@ -142,7 +142,7 @@ static void	usbd_callback_ss_done_defer(struct usb_xfer *);
 static void	usbd_callback_wrapper(struct usb_xfer_queue *);
 static void	usbd_transfer_start_cb(void *);
 static uint8_t	usbd_callback_wrapper_sub(struct usb_xfer *);
-static void	usbd_get_std_packet_size(struct usb_std_packet_size *ptr, 
+static void	usbd_get_std_packet_size(struct usb_std_packet_size *ptr,
 		    uint8_t type, enum usb_dev_speed speed);
 
 /*------------------------------------------------------------------------*
@@ -413,7 +413,7 @@ usbd_get_max_frame_length(const struct usb_endpoint_descriptor *edesc,
 		if (ecomp != NULL)
 			max_packet_count += ecomp->bMaxBurst;
 
-		if ((max_packet_count == 0) || 
+		if ((max_packet_count == 0) ||
 		    (max_packet_count > 16))
 			max_packet_count = 16;
 
@@ -523,7 +523,7 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 		if (ecomp != NULL)
 			xfer->max_packet_count += ecomp->bMaxBurst;
 
-		if ((xfer->max_packet_count == 0) || 
+		if ((xfer->max_packet_count == 0) ||
 		    (xfer->max_packet_count > 16))
 			xfer->max_packet_count = 16;
 
@@ -672,7 +672,7 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 					else if (xfer->interval > 16)
 						xfer->interval = (1 << (16 - 4));
 					else
-						xfer->interval = 
+						xfer->interval =
 						    (1 << (xfer->interval - 4));
 					break;
 				}
@@ -1098,7 +1098,7 @@ usbd_transfer_setup(struct usb_device *udev,
 			info->done_m[1].hdr.pm_callback = &usb_callback_proc;
 			info->done_m[1].xroot = info;
 
-			/* 
+			/*
 			 * In device side mode control endpoint
 			 * requests need to run from a separate
 			 * context, else there is a chance of
@@ -2132,9 +2132,9 @@ usbd_transfer_drain(struct usb_xfer *xfer)
 
 	usbd_transfer_stop(xfer);
 
-	while (usbd_transfer_pending(xfer) || 
+	while (usbd_transfer_pending(xfer) ||
 	    xfer->flags_int.doing_callback) {
-		/* 
+		/*
 		 * It is allowed that the callback can drop its
 		 * transfer mutex. In that case checking only
 		 * "usbd_transfer_pending()" is not enough to tell if
@@ -2812,7 +2812,7 @@ usbd_pipe_start(struct usb_xfer_queue *pq)
 				return;
 			}
 		} else if (type == UE_ISOCHRONOUS) {
-			/* 
+			/*
 			 * Make sure any FIFO overflow or other FIFO
 			 * error conditions go away by resetting the
 			 * endpoint FIFO through the clear stall
@@ -3413,7 +3413,7 @@ usbd_transfer_poll(struct usb_xfer **ppxfer, uint16_t max)
 				mtx_unlock_spin(&bus->bus_spin_lock);
 				drop_bus_spin++;
 			}
-		
+
 			/* make sure that the BUS mutex is not locked */
 			while (mtx_owned(&bus->bus_mtx)) {
 				mtx_unlock(&bus->bus_mtx);

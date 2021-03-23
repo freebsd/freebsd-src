@@ -350,7 +350,7 @@ int
 pmc_ppc970_initialize(struct pmc_mdep *pmc_mdep)
 {
 	struct pmc_classdep *pcd;
-	
+
 	pmc_mdep->pmd_cputype = PMC_CPU_PPC_970;
 
 	pcd = &pmc_mdep->pmd_classdep[PMC_MDEP_CLASS_INDEX_POWERPC];

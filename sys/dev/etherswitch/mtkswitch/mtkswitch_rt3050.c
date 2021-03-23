@@ -476,7 +476,7 @@ mtkswitch_vlan_get_pvid(struct mtkswitch_softc *sc, int port, int *pvid)
 	*pvid = (MTKSWITCH_READ(sc, MTKSWITCH_PVID(port)) >> PVID_OFF(port)) &
 	    PVID_MASK;
 
-	return (0); 
+	return (0);
 }
 
 static int
@@ -489,7 +489,7 @@ mtkswitch_vlan_set_pvid(struct mtkswitch_softc *sc, int port, int pvid)
 	val &= ~(PVID_MASK << PVID_OFF(port));
 	val |= (pvid & PVID_MASK) << PVID_OFF(port);
 	MTKSWITCH_WRITE(sc, MTKSWITCH_PVID(port), val);
-	
+
 	return (0);
 }
 

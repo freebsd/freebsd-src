@@ -27,7 +27,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -72,7 +72,7 @@ struct bhnd_pcie2_devinfo {
 
 /*
  * Generic PCIe-G2 bridge/end-point driver state.
- * 
+ *
  * Must be first member of all subclass softc structures.
  */
 struct bhnd_pcie2_softc {

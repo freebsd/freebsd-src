@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
  ********************************************************************************/
 /*******************************************************************************/
@@ -606,10 +606,10 @@ tiTGTIOStart( tiRoot_t         *tiRoot,
         ttdsaXchg->DeviceData->IOStart++;
         TD_DEBUG_TRACE(ttdsaXchg, ttdsaXchg->DeviceData);
         saStatus = saSSPStart(
-                ttdsaXchg->agRoot, 
-                &ttdsaXchg->IORequestBody.agIORequest, 
-                tdsaRotateQnumber(tiRoot, oneDeviceData), 
-                ttdsaXchg->DeviceData->agDevHandle, 
+                ttdsaXchg->agRoot,
+                &ttdsaXchg->IORequestBody.agIORequest,
+                tdsaRotateQnumber(tiRoot, oneDeviceData),
+                ttdsaXchg->DeviceData->agDevHandle,
                 ttdsaXchg->readRspCollapsed ? AGSA_SSP_TGT_READ_GOOD_RESP : AGSA_SSP_TGT_WRITE_GOOD_RESP,
                         &ttdsaXchg->IORequestBody.transport.SAS.agSASRequestBody,
                         agNULL,
@@ -625,9 +625,9 @@ tiTGTIOStart( tiRoot_t         *tiRoot,
         TD_DEBUG_TRACE(ttdsaXchg, ttdsaXchg->DeviceData);
         saStatus = saSSPStart(
                 ttdsaXchg->agRoot, /* agRoot, */
-                &ttdsaXchg->IORequestBody.agIORequest, 
-                tdsaRotateQnumber(tiRoot, oneDeviceData), 
-                ttdsaXchg->DeviceData->agDevHandle, 
+                &ttdsaXchg->IORequestBody.agIORequest,
+                tdsaRotateQnumber(tiRoot, oneDeviceData),
+                ttdsaXchg->DeviceData->agDevHandle,
                 ttdsaXchg->XchType,
                 &ttdsaXchg->IORequestBody.transport.SAS.agSASRequestBody,
                 agNULL,
@@ -795,8 +795,8 @@ ttdsaSendResp(
     oneDeviceData = ttdsaXchg->DeviceData;
     saStatus = saSSPStart(
             ttdsaXchg->agRoot, /* agRoot,*/
-            &ttdsaXchg->IORequestBody.agIORequest, 
-            tdsaRotateQnumber(tiRoot, oneDeviceData), 
+            &ttdsaXchg->IORequestBody.agIORequest,
+            tdsaRotateQnumber(tiRoot, oneDeviceData),
             ttdsaXchg->DeviceData->agDevHandle, /* agDevHandle, */
             agRequestType,
             &ttdsaXchg->IORequestBody.transport.SAS.agSASRequestBody,
@@ -934,7 +934,7 @@ ttdsaIOCompleted(
                      */
                     TI_DBG4(("ttdsaIOCompleted: calling ostiTargetIOCompleted\n"));
                     ostiTargetIOCompleted( tiRoot,
-                            ttdsaXchg->IORequestBody.tiIORequest, 
+                            ttdsaXchg->IORequestBody.tiIORequest,
                             tiIOSuccess );
 
                     /* clean up resources */
@@ -1114,8 +1114,8 @@ ttdsaIOCompleted(
                     {
                         saStatus = saSSPStart(
                                 ttdsaXchg->agRoot, /* agRoot, */
-                                &ttdsaXchg->IORequestBody.agIORequest, 
-                                0, 
+                                &ttdsaXchg->IORequestBody.agIORequest,
+                                0,
                                 ttdsaXchg->DeviceData->agDevHandle, /* agDevHandle, */
                                 ttdsaXchg->readRspCollapsed ? AGSA_SSP_TGT_READ_GOOD_RESP : AGSA_SSP_TGT_WRITE_GOOD_RESP,
                                         &ttdsaXchg->IORequestBody.transport.SAS.agSASRequestBody,
@@ -1587,7 +1587,7 @@ ttdsaTMProcess(
 #ifdef RPM_SOC
                 saSSPAbort(agRoot, agIORequest);
 #else
-                saSSPAbort(agRoot, agIOAbortRequest,0,agDevHandle,0,agIORequest, agNULL); 
+                saSSPAbort(agRoot, agIOAbortRequest,0,agDevHandle,0,agIORequest, agNULL);
 #endif
               }
             }
@@ -1742,7 +1742,7 @@ tiTGTIOAbort (
 #ifdef RPM_SOC
         saSSPAbort(agRoot, agIORequest);
 #else
-        saSSPAbort(agRoot, agIOAbortRequest,0,agDevHandle,0,agIORequest, agNULL); 
+        saSSPAbort(agRoot, agIOAbortRequest,0,agDevHandle,0,agIORequest, agNULL);
     }
 
     return tiSuccess;
@@ -1930,7 +1930,7 @@ tiTGTSendTmResp(
         TI_DBG1(("tiTGTSendTmResp: resp.length 0x%x\n",
                 ttdsaXchg->resp.length));
         ttdsaXchg->responseSent = agTRUE;
-       
+
         ttdsaSendResp(ttdsaXchg->agRoot, ttdsaXchg);
     }
     else
@@ -2053,7 +2053,7 @@ tiTGTSetResp( tiRoot_t        *tiRoot,
 
     if (ttdsaXchg->FrameType == SAS_TM)
     {
-      
+
         TI_DBG1(("tiTGTSetResp: TM\n"));
         if (senseLength != 0)
         {
@@ -2098,7 +2098,7 @@ tiTGTSetResp( tiRoot_t        *tiRoot,
                   {
                     ttdsaXchg->wrtRspCollapsed = agTRUE;
                   }
-    
+
                 }
             }
         }

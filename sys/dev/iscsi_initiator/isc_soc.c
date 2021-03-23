@@ -92,7 +92,7 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
      int	len, error;
 
      debug_called(8);
-     /* 
+     /*
       | mbuf for the iSCSI header
       */
      MGETHDR(mh, M_WAITOK, MT_DATA);
@@ -110,7 +110,7 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
 	  debug(3, "pp->hdr_dig=%04x", htonl(pp->hdr_dig));
      }
      if(pp->ahs_len) {
-          /* 
+          /*
 	   | Add any AHS to the iSCSI hdr mbuf
 	   */
 	  if((mh->m_len + pp->ahs_len) < MHLEN) {
@@ -337,7 +337,7 @@ so_getbhs(isc_session_t *sp)
      error = soreceive(sp->soc, NULL, uio, 0, 0, &flags);
 
      if(error)
-	  debug(2, 
+	  debug(2,
 		"error=%d so_error=%d uio->uio_resid=%zd iov.iov_len=%zd",
 		error,
 		sp->soc->so_error, uio->uio_resid, iov->iov_len);
@@ -352,9 +352,9 @@ so_getbhs(isc_session_t *sp)
 }
 
 /*
- | so_recv gets called when 
+ | so_recv gets called when
  | an iSCSI header has been received.
- | Note: the designers had no intentions 
+ | Note: the designers had no intentions
  |       in making programmer's life easy.
  */
 static int
@@ -402,7 +402,7 @@ so_recv(isc_session_t *sp, pduq_t *pq)
 	  //if(error == EAGAIN)
 	  // XXX: this needs work! it hangs iscontrol
 	  if(error || uio->uio_resid) {
-	       debug(2, 
+	       debug(2,
 		     "len=%d error=%d uio->uio_resid=%zd",
 		     len, error, uio->uio_resid);
 	       goto out;
@@ -410,7 +410,7 @@ so_recv(isc_session_t *sp, pduq_t *pq)
 	  if(ISOK2DIG(sp->hdrDigest, pp)) {
 	       bhs_t	*bhs;
 	       u_int	digest;
-	       
+
 	       bhs = (bhs_t *)&pp->ipdu;
 	       digest = sp->hdrDigest(bhs, sizeof(bhs_t), 0);
 	       if(pp->ahs_len)
@@ -477,7 +477,7 @@ so_recv(isc_session_t *sp, pduq_t *pq)
 			  len - sizeof(pp->ds_dig),
 			  sizeof(pp->ds_dig),
 			  (caddr_t)&pp->ds_dig);
-	       // calculate all mbufs 
+	       // calculate all mbufs
 	       digest = 0;
 	       ds_len = len - sizeof(pp->ds_dig);
 	       for(m = pq->mp; m != NULL; m = m->m_next) {
@@ -553,7 +553,7 @@ so_input(isc_session_t *sp)
 	  /*
 	   | now read the rest.
 	   */
-	  pq = pdu_alloc(sp->isc, M_NOWAIT); 
+	  pq = pdu_alloc(sp->isc, M_NOWAIT);
 	  if(pq == NULL) { // XXX: might cause a deadlock ...
 	       debug(2, "out of pdus, wait");
 	       pq = pdu_alloc(sp->isc, M_WAITOK);  // OK to WAIT
@@ -608,7 +608,7 @@ isc_in(void *vp)
 	       break;
 	  }
 	  else if(error == EAGAIN) {
-	       if(so->so_state & SS_ISCONNECTED) 
+	       if(so->so_state & SS_ISCONNECTED)
 		    // there seems to be a problem in 6.0 ...
 		    tsleep(sp, PRIBIO, "isc_soc", 2*hz);
 	  }

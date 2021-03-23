@@ -78,4 +78,4 @@ extern int32_t ocs_p2p_setup(ocs_sport_t *sport);
 extern void ocs_fabric_set_topology(ocs_node_t *node, ocs_sport_topology_e topology);
 extern void ocs_fabric_notify_topology(ocs_node_t *node);
 
-#endif 
+#endif

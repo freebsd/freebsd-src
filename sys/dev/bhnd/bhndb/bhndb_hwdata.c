@@ -102,7 +102,7 @@ __FBSDID("$FreeBSD$");
 const struct bhndb_hw_priority bhndb_bcma_priority_table[] = {
 	/*
 	 * Ignorable device classes.
-	 * 
+	 *
 	 * Runtime access to these cores is not required, and no register
 	 * windows should be reserved for these device types.
 	 */
@@ -113,7 +113,7 @@ const struct bhndb_hw_priority bhndb_bcma_priority_table[] = {
 
 	/*
 	 * Low priority device classes.
-	 * 
+	 *
 	 * These devices do not sit in a performance-critical path and can be
 	 * treated as a low allocation priority.
 	 */
@@ -135,7 +135,7 @@ const struct bhndb_hw_priority bhndb_bcma_priority_table[] = {
 
 	/*
 	 * Default Core Behavior
-	 * 
+	 *
 	 * All other cores are assumed to require efficient runtime access to
 	 * the default device port, and if supported by the bus, an agent port.
 	 */
@@ -157,7 +157,7 @@ const struct bhndb_hw_priority bhndb_bcma_priority_table[] = {
 const struct bhndb_hw_priority bhndb_siba_priority_table[] = {
 	/*
 	 * Ignorable device classes.
-	 * 
+	 *
 	 * Runtime access to these cores is not required, and no register
 	 * windows should be reserved for these device types.
 	 */
@@ -168,14 +168,14 @@ const struct bhndb_hw_priority bhndb_siba_priority_table[] = {
 
 	/*
 	 * Low priority device classes.
-	 * 
+	 *
 	 * These devices do not sit in a performance-critical path and can be
 	 * treated as a low allocation priority.
-	 * 
+	 *
 	 * Agent ports are marked as 'NONE' on siba(4) devices, as they
 	 * will be fully mappable via register windows shared with the
 	 * device0.0 port.
-	 * 
+	 *
 	 * To support early PCI_V0 devices, we enable FULFILL_ON_OVERCOMMIT for
 	 * ChipCommon.
 	 */
@@ -192,7 +192,7 @@ const struct bhndb_hw_priority bhndb_siba_priority_table[] = {
 
 	/*
 	 * Default Core Behavior
-	 * 
+	 *
 	 * All other cores are assumed to require efficient runtime access to
 	 * the device port.
 	 */

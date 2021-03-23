@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Broadcom Common PCIe-G2 Support.
- * 
+ *
  * This base driver implementation is shared by the bhnd_pcib_g2 (root complex)
  * and bhnd_pci_hostb_g2 (host bridge) drivers.
  */
@@ -202,7 +202,7 @@ bhnd_pcie2_generic_resume(device_t dev)
 
 /**
  * Read a 32-bit PCIe TLP/DLLP/PLP protocol register.
- * 
+ *
  * @param sc The bhndb_pci driver state.
  * @param addr The protocol register offset.
  */
@@ -215,7 +215,7 @@ bhnd_pcie2_read_proto_reg(struct bhnd_pcie2_softc *sc, uint32_t addr)
 
 /**
  * Write a 32-bit PCIe TLP/DLLP/PLP protocol register value.
- * 
+ *
  * @param sc The bhndb_pci driver state.
  * @param addr The protocol register offset.
  * @param val The value to write to @p addr.
@@ -253,7 +253,7 @@ bhnd_pcie2_mdio_read_ext(struct bhnd_pcie2_softc *sc, int phy, int devaddr,
 int
 bhnd_pcie2_mdio_write_ext(struct bhnd_pcie2_softc *sc, int phy, int devaddr,
     int reg, int val)
-{	
+{
 	// TODO
 	return (ENXIO);
 }

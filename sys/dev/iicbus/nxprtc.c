@@ -464,13 +464,13 @@ pcf8523_start(struct nxprtc_softc *sc)
 	 */
 	if ((csr.cs3 & PCF8523_M_CS3_PM) == PCF8523_B_CS3_PM_NOBAT ||
 	    (csr.cs1 & PCF85xx_B_CS1_STOP) || (csr.sec & PCF85xx_B_SECOND_OS)) {
-		device_printf(sc->dev, 
+		device_printf(sc->dev,
 		    "WARNING: RTC battery failed; time is invalid\n");
 
 		/*
 		 * For 212x series...
-		 * - Turn off the POR-Override bit (used for mfg test only), 
-		 *   by writing zero to cs 1 (all other bits power on as zero). 
+		 * - Turn off the POR-Override bit (used for mfg test only),
+		 *   by writing zero to cs 1 (all other bits power on as zero).
 		 * - Turn off the timestamp option to save the power used to
 		 *   monitor that input pin.
 		 * - Trigger OTP refresh by forcing the OTPR bit to zero then
@@ -635,7 +635,7 @@ pcf8563_start(struct nxprtc_softc *sc)
 	 *  - The clock-increment STOP flag is set (this is just insane).
 	 */
 	if ((csr.cs1 & PCF85xx_B_CS1_STOP) || (csr.sec & PCF85xx_B_SECOND_OS)) {
-		device_printf(sc->dev, 
+		device_printf(sc->dev,
 		    "WARNING: RTC battery failed; time is invalid\n");
 		/*
 		 * - Turn off the POR-Override bit (used for mfg test only), by
@@ -797,7 +797,7 @@ nxprtc_gettime(device_t dev, struct timespec *ts)
 				sc->flags |= SC_F_CPOL;
 	}
 
-	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct); 
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct);
 	err = clock_bcd_to_ts(&bct, ts, sc->use_ampm);
 	ts->tv_sec += utc_offset();
 
@@ -902,7 +902,7 @@ nxprtc_get_chiptype(device_t dev)
 	 * comparing the hinted chip type to the compat strings.  The table end
 	 * marker ocd_data is TYPE_NONE.
 	 */
-	if (resource_string_value(device_get_name(dev), 
+	if (resource_string_value(device_get_name(dev),
 	    device_get_unit(dev), "compatible", &htype) == 0) {
 		for (cdata = compat_data; cdata->ocd_str != NULL; ++cdata) {
 			if (strcmp(htype, cdata->ocd_str) == 0)

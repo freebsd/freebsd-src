@@ -959,7 +959,7 @@ lio_cn23xx_pf_setup_device(struct octeon_device *oct)
 		return (1);
 	}
 
-	lio_cn23xx_pf_get_pf_num(oct); 
+	lio_cn23xx_pf_get_pf_num(oct);
 
 	if (lio_cn23xx_pf_sriov_config(oct)) {
 		lio_unmap_pci_barx(oct, 0);

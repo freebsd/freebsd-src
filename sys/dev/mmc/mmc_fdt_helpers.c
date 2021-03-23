@@ -50,8 +50,8 @@ mmc_fdt_parse_sd_speed(phandle_t node, struct mmc_host *host)
 {
 	bool no_18v = false;
 
-	/* 
-	 * Parse SD supported modes 
+	/*
+	 * Parse SD supported modes
 	 * All UHS-I modes requires 1.8V signaling.
 	 */
 	if (OF_hasprop(node, "no1-8-v"))
@@ -114,7 +114,7 @@ mmc_fdt_parse(device_t dev, phandle_t node, struct mmc_fdt_helper *helper,
 	if (bus_width >= 8)
 		host->caps |= MMC_CAP_8_BIT_DATA;
 
-	/* 
+	/*
 	 * max-frequency is optional, drivers should tweak this value
 	 * if it's not present based on the clock that the mmc controller
 	 * operates on
@@ -358,7 +358,7 @@ mmc_fdt_gpio_setup(device_t dev, phandle_t node, struct mmc_fdt_helper *helper,
 	cd_setup(helper, node);
 	wp_setup(helper, node);
 
-	/* 
+	/*
 	 * Schedule a card detection
 	 */
 	taskqueue_enqueue_timeout_sbt(taskqueue_swi_giant,

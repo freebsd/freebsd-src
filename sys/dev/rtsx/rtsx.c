@@ -3040,7 +3040,7 @@ rtsx_cam_request(struct rtsx_softc *sc, union ccb *ccb)
 	RTSX_LOCK(sc);
 	if (sc->rtsx_ccb != NULL) {
 		RTSX_UNLOCK(sc);
-		ccb->ccb_h.status = CAM_BUSY;	/* i.e. CAM_REQ_CMP | CAM_REQ_CMP_ERR */ 
+		ccb->ccb_h.status = CAM_BUSY;	/* i.e. CAM_REQ_CMP | CAM_REQ_CMP_ERR */
 		return;
 	}
 	sc->rtsx_ccb = ccb;

@@ -55,7 +55,7 @@ tpm_acpi_probe(device_t dev)
 	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, tpm_ids, NULL);
 	if (rv <= 0)
 		device_set_desc(dev, "Trusted Platform Module");
-		
+
 	return (rv);
 }
 

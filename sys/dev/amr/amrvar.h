@@ -81,19 +81,19 @@ struct amr_logdrive
     u_int32_t	al_size;
     int		al_state;
     int		al_properties;
-    
+
     /* synthetic geometry */
     int		al_cylinders;
     int		al_heads;
     int		al_sectors;
-    
+
     /* driver */
     device_t	al_disk;
 };
 
 /*
  * Due to the difficulty of using the zone allocator to create a new
- * zone from within a module, we use our own clustering to reduce 
+ * zone from within a module, we use our own clustering to reduce
  * memory wastage due to allocating lots of these small structures.
  *
  * 16k gives us a little under 200 command structures, which should
@@ -171,7 +171,7 @@ struct amr_command_cluster
 /*
  * Per-controller-instance data
  */
-struct amr_softc 
+struct amr_softc
 {
     /* bus attachments */
     device_t			amr_dev;
@@ -208,7 +208,7 @@ struct amr_softc
     int				amr_maxio;		/* maximum number of I/O transactions */
     int				amr_maxdrives;		/* max number of logical drives */
     int				amr_maxchan;		/* count of SCSI channels */
-    
+
     /* connected logical drives */
     struct amr_logdrive		amr_drive[AMR_MAXLD];
 
@@ -282,7 +282,7 @@ extern void			amr_releasecmd(struct amr_command *ac);
 /*
  * MegaRAID logical disk driver
  */
-struct amrd_softc 
+struct amrd_softc
 {
     device_t		amrd_dev;
     struct amr_softc	*amrd_controller;

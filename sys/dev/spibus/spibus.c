@@ -197,7 +197,7 @@ spibus_add_child(device_t dev, u_int order, const char *name, int unit)
 	struct spibus_ivar *devi;
 
 	child = device_add_child_ordered(dev, order, name, unit);
-	if (child == NULL) 
+	if (child == NULL)
 		return (child);
 	devi = malloc(sizeof(struct spibus_ivar), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (devi == NULL) {

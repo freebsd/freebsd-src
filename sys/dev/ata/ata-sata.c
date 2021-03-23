@@ -273,8 +273,8 @@ ata_request2fis_h2d(struct ata_request *request, u_int8_t *fis)
 	if (!(request->flags & ATA_R_48BIT))
 	    fis[7] |= (ATA_D_IBM | (request->u.ata.lba >> 24 & 0x0f));
 	fis[8] = request->u.ata.lba >> 24;
-	fis[9] = request->u.ata.lba >> 32; 
-	fis[10] = request->u.ata.lba >> 40; 
+	fis[9] = request->u.ata.lba >> 32;
+	fis[10] = request->u.ata.lba >> 40;
 	fis[11] = request->u.ata.feature >> 8;
 	fis[12] = request->u.ata.count;
 	fis[13] = request->u.ata.count >> 8;

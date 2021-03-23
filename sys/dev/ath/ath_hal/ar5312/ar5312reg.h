@@ -31,7 +31,7 @@
 
 #define REG_WRITE(_reg,_val)		*((volatile uint32_t *)(_reg)) = (_val);
 #define REG_READ(_reg)		*((volatile uint32_t *)(_reg))
-/* 
+/*
  * PCI-MAC Configuration registers (AR2315+)
  */
 #define AR5315_RSTIMER_BASE 0xb1000000  /* Address for reset/timer registers */

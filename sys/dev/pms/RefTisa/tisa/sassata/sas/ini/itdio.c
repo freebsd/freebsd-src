@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -953,7 +953,7 @@ tiINISuperIOStart(
     }
 
     tdIORequestBody->agRequestType = agRequestType;
-   
+
     TI_DBG6(("tiINISuperIOStart: device AddrHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
     TI_DBG6(("tiINISuperIOStart: device AddrLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
 
@@ -1004,7 +1004,7 @@ tiINISuperIOStart(
     TI_DBG5(("tiINISuperIOStart: onedevicedata did %d\n", oneDeviceData->id));
     TI_DBG5(("tiINISuperIOStart: SATA sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
     TI_DBG5(("tiINISuperIOStart: SATA sasAddressLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
-    
+
     tdIORequestBody = (tdIORequestBody_t *)tiRequestBody;
     /* initialize */
     /* the tdIORequestBody has been initialized by Storport in SRB Extension */
@@ -1029,7 +1029,7 @@ tiINISuperIOStart(
                               smIORequest,
                               smDeviceHandle,
                               smSuperSCSIRequest,
-                              oneDeviceData->SASAddressID.sasAddressHi,			      
+                              oneDeviceData->SASAddressID.sasAddressHi,
                               oneDeviceData->SASAddressID.sasAddressLo,
                               interruptContext);
 
@@ -1349,7 +1349,7 @@ tiINIIOStartIntCoalesce(
     agIntCoalCxt = &(tdsaIntCoalCxt->agIntCoalCxt);
 
 
-   
+
 #ifdef LL_INT_COALESCE
     saStatus = saSSPStartIntCoalesce(agRoot,
                                      agIORequest,
@@ -1566,7 +1566,7 @@ tiINIIOStartIntCoalesceDif(
 
     if (difOption->enableIOSeed)
     {
-      
+
     }
     if (difOption->difAction == DIF_INSERT)
     {
@@ -1788,7 +1788,7 @@ itdssIOPrepareSGL(
 
 osGLOBAL bit32
 tiNumOfLunIOCTLreq(
-             tiRoot_t                       *tiRoot, 
+             tiRoot_t                       *tiRoot,
              tiIORequest_t                  *tiIORequest,
              tiDeviceHandle_t               *tiDeviceHandle,
              void                           *tiRequestBody,
@@ -1805,7 +1805,7 @@ tiNumOfLunIOCTLreq(
   bit32					    ostiMemoryStatus = 0;
   tdsaDeviceData_t		    *oneDeviceData = agNULL;
   agsaSSPInitiatorRequest_t *agSSPFrame = agNULL;
-  bit32					    status = IOCTL_CALL_SUCCESS;	
+  bit32					    status = IOCTL_CALL_SUCCESS;
   bit32					    agRequestType = 0;
   agsaDevHandle_t 		    *agDevHandle = agNULL;
   agsaIORequest_t 		    *agIORequest = agNULL;
@@ -1821,15 +1821,15 @@ tiNumOfLunIOCTLreq(
     }
     tdIORequestBody = (tdIORequestBody_t *)tiRequestBody;
     tdIORequestBody->tiIORequest = tiIORequest;
-    
+
     /* save context if we need to abort later */
-    tiIORequest->tdData = tdIORequestBody; 
-    
+    tiIORequest->tdData = tdIORequestBody;
+
     agIORequest = &(tdIORequestBody->agIORequest);
     agIORequest->osData = (void *) tdIORequestBody;
     agSASRequestBody = &(tdIORequestBody->transport.SAS.agSASRequestBody);
     agSSPFrame = &(agSASRequestBody->sspInitiatorReq);
-    
+
     ostiMemoryStatus = ostiAllocMemory( tiRoot,
     									  &osMemHandle,
     									  (void **)&respBuffer,
@@ -1843,9 +1843,9 @@ tiNumOfLunIOCTLreq(
       status = IOCTL_CALL_FAIL;
       break;
     }
-    	
+
     osti_memset((void *)respBuffer, 0, REPORT_LUN_LEN);
-    
+
     	// use FW control place in shared structure to keep the neccesary information
     tdsaAllShared->tdFWControlEx.virtAddr = respBuffer;
     tdsaAllShared->tdFWControlEx.len = REPORT_LUN_LEN;
@@ -1854,14 +1854,14 @@ tiNumOfLunIOCTLreq(
     tdsaAllShared->tdFWControlEx.payload = agIOCTLPayload;
     tdsaAllShared->tdFWControlEx.inProgress = 1;
     agRequestType = AGSA_SSP_INIT_READ;
-    
+
     status = IOCTL_CALL_PENDING;
     oneDeviceData = (tdsaDeviceData_t *)(tiDeviceHandle->tdData);
     agDevHandle = oneDeviceData->agDevHandle;
-    
+
     agSSPFrame->sspCmdIU.cdb[0] = REPORT_LUN_OPCODE;
     agSSPFrame->sspCmdIU.cdb[1] = 0x0;
-    agSSPFrame->sspCmdIU.cdb[2] = 0x0; 
+    agSSPFrame->sspCmdIU.cdb[2] = 0x0;
     agSSPFrame->sspCmdIU.cdb[3] = 0x0;
     agSSPFrame->sspCmdIU.cdb[4] = 0x0;
     agSSPFrame->sspCmdIU.cdb[5] = 0x0;
@@ -1871,7 +1871,7 @@ tiNumOfLunIOCTLreq(
     agSSPFrame->sspCmdIU.cdb[9] = REPORT_LUN_LEN;
     agSSPFrame->sspCmdIU.cdb[10] = 0x0;
     agSSPFrame->sspCmdIU.cdb[11] = 0x0;
-      
+
     agSSPFrame->dataLength = REPORT_LUN_LEN;
     agSSPFrame->agSgl.len =	sizeof(agsaSSPCmdInfoUnit_t);
     agSSPFrame->agSgl.extReserved = 0;
@@ -1883,8 +1883,8 @@ tiNumOfLunIOCTLreq(
 	{
       ostiFreeMemory(tiRoot,
     				 tdsaAllShared->tdFWControlEx.virtAddr,
-    				 tdsaAllShared->tdFWControlEx.len); 
-      tdsaAllShared->tdFWControlEx.payload = NULL; 
+    				 tdsaAllShared->tdFWControlEx.len);
+      tdsaAllShared->tdFWControlEx.payload = NULL;
       tdsaAllShared->tdFWControlEx.inProgress = 0;
       status = IOCTL_CALL_FAIL;
     }

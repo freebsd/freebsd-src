@@ -779,7 +779,7 @@ smc_task_rx(void *context, int pending)
 		if (m == NULL) {
 			break;
 		}
-		
+
 		if (mhead == NULL) {
 			mhead = mtail = m;
 			m->m_next = NULL;
@@ -884,7 +884,7 @@ smc_task_intr(void *context, int pending)
 			callout_stop(&sc->smc_watchdog);
 			smc_select_bank(sc, 2);
 			smc_write_1(sc, PNR, packet);
-			smc_write_2(sc, PTR, 0 | PTR_READ | 
+			smc_write_2(sc, PTR, 0 | PTR_READ |
 			    PTR_AUTO_INCR);
 			smc_select_bank(sc, 0);
 			tcr = smc_read_2(sc, EPHSR);

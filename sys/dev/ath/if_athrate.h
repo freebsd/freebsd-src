@@ -111,7 +111,7 @@ void	ath_rate_node_init(struct ath_softc *, struct ath_node *);
  */
 void	ath_rate_node_cleanup(struct ath_softc *, struct ath_node *);
 /*
- * Update rate control state on station associate/reassociate 
+ * Update rate control state on station associate/reassociate
  * (when operating as an ap or for nodes discovered when operating
  * in ibss mode).
  */

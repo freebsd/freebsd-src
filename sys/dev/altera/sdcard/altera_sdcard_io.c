@@ -266,7 +266,7 @@ recheck:
 							corrections++;
 							device_printf(sc->as_dev,
 							    "%s: single word rewrite worked"
-							    " at offset %u\n", 
+							    " at offset %u\n",
 							    __func__, i);
 							continue;
 						}

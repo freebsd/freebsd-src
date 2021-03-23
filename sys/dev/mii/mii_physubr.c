@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
  *
  * An array of structures to map MII media types to BMCR/ANAR settings.
  */
-enum { 
+enum {
 	MII_MEDIA_NONE = 0,
 	MII_MEDIA_10_T,
 	MII_MEDIA_10_T_FDX,

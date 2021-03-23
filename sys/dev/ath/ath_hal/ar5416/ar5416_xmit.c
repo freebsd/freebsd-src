@@ -91,9 +91,9 @@ ar5416StopTxDma(struct ath_hal *ah, u_int q)
 			    "TSF: 0x%08x\n", __func__, tsfLow);
 			HALASSERT(j < 1); /* TSF shouldn't count twice or reg access is taking forever */
 		}
-		
+
 		OS_REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_CHAN_IDLE);
-		
+
 		/* Allow the quiet mechanism to do its work */
 		OS_DELAY(200);
 		OS_REG_CLR_BIT(ah, AR_TIMER_MODE, AR_TIMER_MODE_QUIET);
@@ -380,9 +380,9 @@ ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	ads->ds_ctl4 = 0;
 	ads->ds_ctl5 = 0;
 	ads->ds_ctl6 = 0;
-	ads->ds_ctl7 = SM(ahp->ah_tx_chainmask, AR_ChainSel0) 
+	ads->ds_ctl7 = SM(ahp->ah_tx_chainmask, AR_ChainSel0)
 		     | SM(ahp->ah_tx_chainmask, AR_ChainSel1)
-		     | SM(ahp->ah_tx_chainmask, AR_ChainSel2) 
+		     | SM(ahp->ah_tx_chainmask, AR_ChainSel2)
 		     | SM(ahp->ah_tx_chainmask, AR_ChainSel3)
 		     ;
 	ads->ds_ctl8 = SM(0, AR_AntCtl0);
@@ -480,7 +480,7 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		/*
 		 * Last descriptor in a multi-descriptor frame,
 		 * copy the multi-rate transmit parameters from
-		 * the first frame for processing on completion. 
+		 * the first frame for processing on completion.
 		 */
 		ads->ds_ctl1 = segLen;
 #ifdef AH_NEED_DESC_SWAP
@@ -641,9 +641,9 @@ ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	ads->ds_ctl1 |= (flags & HAL_TXDESC_NOACK ? AR_NoAck : 0);
 	ads->ds_ctl2 |= SM(txTries0, AR_XmitDataTries0);
 	ads->ds_ctl3 |= (txRate0 << AR_XmitRate0_S);
-	ads->ds_ctl7 = SM(AH5416(ah)->ah_tx_chainmask, AR_ChainSel0) 
+	ads->ds_ctl7 = SM(AH5416(ah)->ah_tx_chainmask, AR_ChainSel0)
 		| SM(AH5416(ah)->ah_tx_chainmask, AR_ChainSel1)
-		| SM(AH5416(ah)->ah_tx_chainmask, AR_ChainSel2) 
+		| SM(AH5416(ah)->ah_tx_chainmask, AR_ChainSel2)
 		| SM(AH5416(ah)->ah_tx_chainmask, AR_ChainSel3);
 
 	/* NB: no V1 WAR */
@@ -1286,7 +1286,7 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 		| SM(qi->tqi_aifs, AR_D_LCL_IFS_AIFS));
 
 	/* Set retry limit values */
-	OS_REG_WRITE(ah, AR_DRETRY_LIMIT(q), 
+	OS_REG_WRITE(ah, AR_DRETRY_LIMIT(q),
 		   SM(INIT_SSH_RETRY, AR_D_RETRY_LIMIT_STA_SH)
 		 | SM(INIT_SLG_RETRY, AR_D_RETRY_LIMIT_STA_LG)
 		 | SM(qi->tqi_lgretry, AR_D_RETRY_LIMIT_FR_LG)
@@ -1303,7 +1303,7 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 	/* Enable exponential backoff window */
 	dmisc |= AR_D_MISC_BKOFF_PERSISTENCE;
 
-	/* 
+	/*
 	 * The chip reset default is to use a DCU backoff threshold of 0x2.
 	 * Restore this when programming the DCU MISC register.
 	 */
@@ -1311,7 +1311,7 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 
 	/* multiqueue support */
 	if (qi->tqi_cbrPeriod) {
-		OS_REG_WRITE(ah, AR_QCBRCFG(q), 
+		OS_REG_WRITE(ah, AR_QCBRCFG(q),
 			  SM(qi->tqi_cbrPeriod,AR_Q_CBRCFG_CBR_INTERVAL)
 			| SM(qi->tqi_cbrOverflowLimit, AR_Q_CBRCFG_CBR_OVF_THRESH));
 		qmisc = (qmisc &~ AR_Q_MISC_FSP) | AR_Q_MISC_FSP_CBR;
@@ -1381,7 +1381,7 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 		      |  AR_D_MISC_POST_FR_BKOFF_DIS;
 		break;
 	case HAL_TX_QUEUE_CAB:			/* CAB  frames */
-		/* 
+		/*
 		 * No longer Enable AR_Q_MISC_RDYTIME_EXP_POLICY,
 		 * There is an issue with the CAB Queue
 		 * not properly refreshing the Tx descriptor if
@@ -1448,7 +1448,7 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 	OS_REG_WRITE(ah, AR_DMISC(q), dmisc);
 
 	/* Setup compression scratchpad buffer */
-	/* 
+	/*
 	 * XXX: calling this asynchronously to queue operation can
 	 *      cause unexpected behavior!!!
 	 */

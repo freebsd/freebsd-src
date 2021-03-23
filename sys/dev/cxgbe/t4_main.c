@@ -11614,7 +11614,7 @@ DB_FUNC(tcb, db_show_t4tcb, db_t4_table, CS_OWN, NULL)
 			tid = db_tok_number;
 			valid = true;
 		}
-	}	
+	}
 	db_radix = radix;
 	db_skip_to_eol();
 	if (!valid) {

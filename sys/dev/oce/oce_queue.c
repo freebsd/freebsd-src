@@ -95,16 +95,16 @@ oce_queue_init_all(POCE_SOFTC sc)
 	for_all_wq_queues(sc, wq, i) {
 		sc->wq[i] = oce_wq_init(sc, sc->tx_ring_size,
 					 NIC_WQ_TYPE_STANDARD);
-		if (!sc->wq[i]) 
+		if (!sc->wq[i])
 			goto error;
-		
+
 	}
 
 	for_all_rq_queues(sc, rq, i) {
 		sc->rq[i] = oce_rq_init(sc, sc->rx_ring_size, sc->rq_frag_size,
 					OCE_MAX_JUMBO_FRAME_SIZE,
 					(i == 0) ? 0 : is_rss_enabled(sc));
-		if (!sc->rq[i]) 
+		if (!sc->rq[i])
 			goto error;
 	}
 
@@ -122,7 +122,7 @@ oce_queue_init_all(POCE_SOFTC sc)
 		aic->enable = TRUE;
 
 		sc->eq[vector] = oce_eq_create(sc, sc->enable_hwlro ? EQ_LEN_2048 : EQ_LEN_1024,
-						EQE_SIZE_4,0, vector);	
+						EQE_SIZE_4,0, vector);
 
 		if (!sc->eq[vector])
 			goto error;
@@ -244,7 +244,7 @@ oce_wq *oce_wq_init(POCE_SOFTC sc, uint32_t q_len, uint32_t wq_type)
 
 	for (i = 0; i < OCE_WQ_PACKET_ARRAY_SIZE; i++) {
 		rc = bus_dmamap_create(wq->tag, 0, &wq->pckts[i].map);
-		if (rc) 
+		if (rc)
 			goto free_wq;
 	}
 
@@ -400,7 +400,7 @@ oce_rq *oce_rq_init(POCE_SOFTC sc,
 
 	/* allocate the rq */
 	rq = malloc(sizeof(struct oce_rq), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (!rq) 
+	if (!rq)
 		return NULL;
 
 	rq->cfg.q_len = q_len;
@@ -492,8 +492,8 @@ oce_rq_create(struct oce_rq *rq, uint32_t if_id, struct oce_eq *eq)
 
 	cq = oce_cq_create(sc, eq,
 		       	sc->enable_hwlro ? CQ_LEN_2048 : CQ_LEN_1024,
-			sizeof(struct oce_nic_rx_cqe), 0, 1, 0, 3);		
-			
+			sizeof(struct oce_nic_rx_cqe), 0, 1, 0, 3);
+
 	if (!cq)
 		return ENXIO;
 
@@ -882,7 +882,7 @@ error:
  * @param sc		software handle to the device
  * @param cq		pointer to a completion queue
  */
-static void 
+static void
 oce_cq_del(POCE_SOFTC sc, struct oce_cq *cq)
 {
 	struct oce_mbx mbx;
@@ -1033,7 +1033,7 @@ oce_drain_wq_cq(struct oce_wq *wq)
 	do {
 		cqe = RING_GET_CONSUMER_ITEM_VA(cq->ring, struct oce_nic_tx_cqe);
 		if (cqe->u0.dw[3] == 0)
-			break;			
+			break;
 		cqe->u0.dw[3] = 0;
 		bus_dmamap_sync(cq->ring->dma.tag, cq->ring->dma.map,
 				 BUS_DMASYNC_POSTWRITE);
@@ -1134,7 +1134,7 @@ oce_rx_cq_clean_hwlro(struct oce_rq *rq)
 					num_frags++;
                                 oce_discard_rx_comp(rq, num_frags);
                                 /* Check if CQE is flush completion */
-                                if(!cqe->pkt_size) 
+                                if(!cqe->pkt_size)
                                         flush_compl = 1;
                                 cqe->valid = 0;
                                 RING_GET(cq->ring, 1);
@@ -1156,7 +1156,7 @@ oce_rx_cq_clean_hwlro(struct oce_rq *rq)
 				num_frags = cqe2->coalesced_size / rq->cfg.frag_size;
 				if(cqe2->coalesced_size % rq->cfg.frag_size)
 					num_frags++;
-				
+
 				/* Flush completion will always come in singleton CQE */
                                 oce_discard_rx_comp(rq, num_frags);
 
@@ -1204,9 +1204,9 @@ oce_rx_cq_clean(struct oce_rq *rq)
 			DW_SWAP((uint32_t *) cqe, sizeof(oce_rq_cqe));
                         oce_discard_rx_comp(rq, cqe->u0.s.num_fragments);
                         /* Check if CQE is flush completion */
-                        if((cqe->u0.s.num_fragments==0)&&(cqe->u0.s.pkt_size == 0)&&(cqe->u0.s.error == 0)) 
+                        if((cqe->u0.s.num_fragments==0)&&(cqe->u0.s.pkt_size == 0)&&(cqe->u0.s.error == 0))
 				flush_compl = 1;
-                        
+
                         RQ_CQE_INVALIDATE(cqe);
                         RING_GET(cq->ring, 1);
 #if defined(INET6) || defined(INET)
@@ -1223,7 +1223,7 @@ oce_rx_cq_clean(struct oce_rq *rq)
 			}
 			oce_arm_cq(sc, cq->cq_id, 0, TRUE);
 			DELAY(1000);
-                } 
+                }
         }
 
 	/* After cleanup, leave the CQ in unarmed state */
@@ -1263,7 +1263,7 @@ oce_stop_rx(POCE_SOFTC sc)
                         rq->qstate = QDELETED;
 
                         DELAY(1000);
-			
+
 			if(!rq->islro)
 				oce_rx_cq_clean(rq);
 			else

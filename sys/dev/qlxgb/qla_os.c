@@ -486,7 +486,7 @@ qla_release(qla_host_t *ha)
 	if (ha->ifp != NULL)
 		ether_ifdetach(ha->ifp);
 
-	qla_free_dma(ha); 
+	qla_free_dma(ha);
 	qla_free_parent_dma_tag(ha);
 
 	for (i = 0; i < ha->msix_count; i++) {
@@ -722,7 +722,7 @@ qla_init_locked(qla_host_t *ha)
 
 	qla_stop(ha);
 
-	if (qla_alloc_xmt_bufs(ha) != 0) 
+	if (qla_alloc_xmt_bufs(ha) != 0)
 		return;
 
 	if (qla_alloc_rcv_bufs(ha) != 0)
@@ -995,7 +995,7 @@ qla_start(struct ifnet *ifp)
 		return;
 	}
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != 
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 		IFF_DRV_RUNNING) {
 		QL_DPRINT8((ha->pci_dev, "%s: !IFF_DRV_RUNNING\n", __func__));
 		QLA_TX_UNLOCK(ha);
@@ -1277,7 +1277,7 @@ qla_alloc_rcv_bufs(qla_host_t *ha)
 			/*
 		 	 * set the physical address in the corresponding
 			 * descriptor entry in the receive ring/queue for the
-			 * hba 
+			 * hba
 			 */
 			qla_set_hw_rcv_desc(ha, RDS_RING_INDEX_NORMAL, i,
 				rxb->handle, rxb->paddr,
@@ -1317,7 +1317,7 @@ qla_alloc_rcv_bufs(qla_host_t *ha)
 			/*
 		 	 * set the physical address in the corresponding
 			 * descriptor entry in the receive ring/queue for the
-			 * hba 
+			 * hba
 			 */
 			qla_set_hw_rcv_desc(ha, RDS_RING_INDEX_JUMBO, i,
 				rxb->handle, rxb->paddr,

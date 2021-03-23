@@ -83,7 +83,7 @@
  *
  * All requests specify the page address in 'page_address'.
  */
-struct mpr_cfg_page_req {	
+struct mpr_cfg_page_req {
 	MPI2_CONFIG_PAGE_HEADER header;
 	uint32_t page_address;
 	void	*buf;

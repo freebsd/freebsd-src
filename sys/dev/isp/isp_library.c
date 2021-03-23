@@ -432,7 +432,7 @@ isp_fc_loop_statename(int state)
 	case LOOP_SCANNING_FABRIC:      return "Scanning Fabric";
 	case LOOP_FSCAN_DONE:           return "Fabric Scan Done";
 	case LOOP_SYNCING_PDB:          return "Syncing PDB";
-	case LOOP_READY:                return "Ready"; 
+	case LOOP_READY:                return "Ready";
 	default:                        return "?????";
 	}
 }

@@ -25,7 +25,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -60,7 +60,7 @@ typedef enum {
 
 /**
  * Evaluates to true if @p _rt defines a static mapping.
- * 
+ *
  * @param _rt A bhndb_regwin_type_t value.
  */
 #define	BHNDB_REGWIN_T_IS_STATIC(_rt)		\
@@ -105,7 +105,7 @@ struct bhndb_regwin {
 
 /**
  * Bridge hardware configuration.
- * 
+ *
  * Provides the bridge's DMA address translation descriptions, register/address
  * mappings, and the resources via which those mappings may be accessed.
  */
@@ -117,9 +117,9 @@ struct bhndb_hwcfg {
 
 /**
  * Hardware specification entry.
- * 
+ *
  * Defines a set of match criteria that may be used to determine the
- * register map and resource configuration for a bhndb bridge device. 
+ * register map and resource configuration for a bhndb bridge device.
  */
 struct bhndb_hw {
 	const char			*name;		/**< configuration name */
@@ -155,7 +155,7 @@ enum bhndb_alloc_flags {
 	 * If resource overcommit prevents fulfilling a request for this
 	 * resource, an in-use resource should be be borrowed to fulfill the
 	 * request.
-	 * 
+	 *
 	 * The only known use case is to support accessing the ChipCommon core
 	 * during Wi-Fi driver operation on early PCI Wi-Fi devices
 	 * (PCI_V0, SSB) that do not provide a dedicated ChipCommon register

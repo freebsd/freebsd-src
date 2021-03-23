@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/systm.h>
 
-#if	defined(ISP_ALL) || !defined(KLD_MODULE) 
+#if	defined(ISP_ALL) || !defined(KLD_MODULE)
 #define	ISP_2400	1
 #define	ISP_2500	1
 #endif
@@ -125,7 +125,7 @@ module_handler(module_t mod, int what, void *arg)
 static moduledata_t ispfw_mod = {
 	MODULE_NAME, module_handler, NULL
 };
-#if	defined(ISP_ALL) || !defined(KLD_MODULE) 
+#if	defined(ISP_ALL) || !defined(KLD_MODULE)
 DECLARE_MODULE(ispfw, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_2400)
 DECLARE_MODULE(isp_2400, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);

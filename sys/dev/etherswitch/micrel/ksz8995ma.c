@@ -33,7 +33,7 @@
  * This is Micrel KSZ8995MA driver code. KSZ8995MA use SPI bus on control.
  * This code development on @SRCHACK's ksz8995ma board and FON2100 with
  * gpiospi.
- * etherswitchcfg command port option support addtag, ingress, striptag, 
+ * etherswitchcfg command port option support addtag, ingress, striptag,
  * dropuntagged.
  */
 
@@ -253,7 +253,7 @@ ksz8995ma_attach_phys(struct ksz8995ma_softc *sc)
 	}
 	sc->info.es_nports = port;
 	if (sc->cpuport != -1) {
-		/* cpu port is MAC5 on ksz8995ma */ 
+		/* cpu port is MAC5 on ksz8995ma */
 		sc->ifpport[sc->cpuport] = port;
 		sc->portphy[port] = sc->cpuport;
 		++sc->info.es_nports;
@@ -331,15 +331,15 @@ ksz8995ma_attach(device_t dev)
 	err = bus_generic_attach(dev);
 	if (err != 0)
 		goto failed;
-	
+
 	callout_init(&sc->callout_tick, 0);
 
 	ksz8995ma_tick(sc);
-	
+
 	/* start switch */
 	sc->vlan_mode = 0;
 	reg = ksz8995ma_readreg(dev, KSZ8995MA_GC3);
-	ksz8995ma_writereg(dev, KSZ8995MA_GC3, 
+	ksz8995ma_writereg(dev, KSZ8995MA_GC3,
 	    reg & ~KSZ8995MA_VLAN_ENABLE);
 	ksz8995ma_portvlanreset(dev);
 	ksz8995ma_writereg(dev, KSZ8995MA_CID1, KSZ8995MA_START);
@@ -492,7 +492,7 @@ ksz8995ma_getinfo(device_t dev)
 	struct ksz8995ma_softc *sc;
 
 	sc = device_get_softc(dev);
-	
+
 	return (&sc->info);
 }
 
@@ -512,20 +512,20 @@ ksz8995ma_getport(device_t dev, etherswitch_port_t *p)
 		return (ENXIO);
 
 	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
-		tag1 = ksz8995ma_readreg(dev, KSZ8995MA_PC3_BASE + 
+		tag1 = ksz8995ma_readreg(dev, KSZ8995MA_PC3_BASE +
 		    KSZ8995MA_PORT_SIZE * p->es_port);
-		tag2 = ksz8995ma_readreg(dev, KSZ8995MA_PC4_BASE + 
+		tag2 = ksz8995ma_readreg(dev, KSZ8995MA_PC4_BASE +
 		    KSZ8995MA_PORT_SIZE * p->es_port);
 		p->es_pvid = (tag1 & 0x0f) << 8 | tag2;
 
-		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC0_BASE + 
+		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC0_BASE +
 		    KSZ8995MA_PORT_SIZE * p->es_port);
 		if (portreg & KSZ8995MA_TAG_INS)
 			p->es_flags |= ETHERSWITCH_PORT_ADDTAG;
 		if (portreg & KSZ8995MA_TAG_RM)
 			p->es_flags |= ETHERSWITCH_PORT_STRIPTAG;
 
-		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC2_BASE + 
+		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC2_BASE +
 		    KSZ8995MA_PORT_SIZE * p->es_port);
 		if (portreg & KSZ8995MA_DROP_NONPVID)
 			p->es_flags |= ETHERSWITCH_PORT_DROPUNTAGGED;
@@ -575,28 +575,28 @@ ksz8995ma_setport(device_t dev, etherswitch_port_t *p)
 		return (ENXIO);
 
 	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
-		ksz8995ma_writereg(dev, KSZ8995MA_PC4_BASE + 
+		ksz8995ma_writereg(dev, KSZ8995MA_PC4_BASE +
 		    KSZ8995MA_PORT_SIZE * p->es_port, p->es_pvid & 0xff);
-		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC3_BASE + 
+		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC3_BASE +
 		    KSZ8995MA_PORT_SIZE * p->es_port);
-		ksz8995ma_writereg(dev, KSZ8995MA_PC3_BASE + 
+		ksz8995ma_writereg(dev, KSZ8995MA_PC3_BASE +
 		    KSZ8995MA_PORT_SIZE * p->es_port,
 		    (portreg & 0xf0) | ((p->es_pvid >> 8) & 0x0f));
 
-		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC0_BASE + 
+		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC0_BASE +
 		    KSZ8995MA_PORT_SIZE * p->es_port);
 		if (p->es_flags & ETHERSWITCH_PORT_ADDTAG)
 			portreg |= KSZ8995MA_TAG_INS;
 		else
 			portreg &= ~KSZ8995MA_TAG_INS;
-		if (p->es_flags & ETHERSWITCH_PORT_STRIPTAG) 
+		if (p->es_flags & ETHERSWITCH_PORT_STRIPTAG)
 			portreg |= KSZ8995MA_TAG_RM;
 		else
 			portreg &= ~KSZ8995MA_TAG_RM;
-		ksz8995ma_writereg(dev, KSZ8995MA_PC0_BASE + 
+		ksz8995ma_writereg(dev, KSZ8995MA_PC0_BASE +
 		    KSZ8995MA_PORT_SIZE * p->es_port, portreg);
 
-		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC2_BASE + 
+		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC2_BASE +
 		    KSZ8995MA_PORT_SIZE * p->es_port);
 		if (p->es_flags & ETHERSWITCH_PORT_DROPUNTAGGED)
 			portreg |= KSZ8995MA_DROP_NONPVID;
@@ -606,7 +606,7 @@ ksz8995ma_setport(device_t dev, etherswitch_port_t *p)
 			portreg |= KSZ8995MA_INGR_FILT;
 		else
 			portreg &= ~KSZ8995MA_INGR_FILT;
-		ksz8995ma_writereg(dev, KSZ8995MA_PC2_BASE + 
+		ksz8995ma_writereg(dev, KSZ8995MA_PC2_BASE +
 		    KSZ8995MA_PORT_SIZE * p->es_port, portreg);
 	}
 
@@ -661,7 +661,7 @@ ksz8995ma_getvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 			vg->es_fid = 0;
 		}
 	}
-	
+
 	return (0);
 }
 
@@ -715,7 +715,7 @@ ksz8995ma_getconf(device_t dev, etherswitch_conf_t *conf)
 	return (0);
 }
 
-static void 
+static void
 ksz8995ma_portvlanreset(device_t dev)
 {
 	int i, data;
@@ -745,18 +745,18 @@ ksz8995ma_setconf(device_t dev, etherswitch_conf_t *conf)
 	if (conf->vlan_mode == ETHERSWITCH_VLAN_PORT) {
 		sc->vlan_mode = ETHERSWITCH_VLAN_PORT;
 		reg = ksz8995ma_readreg(dev, KSZ8995MA_GC3);
-		ksz8995ma_writereg(dev, KSZ8995MA_GC3, 
+		ksz8995ma_writereg(dev, KSZ8995MA_GC3,
 		    reg & ~KSZ8995MA_VLAN_ENABLE);
 		ksz8995ma_portvlanreset(dev);
 	} else if (conf->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
 		sc->vlan_mode = ETHERSWITCH_VLAN_DOT1Q;
 		reg = ksz8995ma_readreg(dev, KSZ8995MA_GC3);
-		ksz8995ma_writereg(dev, KSZ8995MA_GC3, 
+		ksz8995ma_writereg(dev, KSZ8995MA_GC3,
 		    reg | KSZ8995MA_VLAN_ENABLE);
 	} else {
 		sc->vlan_mode = 0;
 		reg = ksz8995ma_readreg(dev, KSZ8995MA_GC3);
-		ksz8995ma_writereg(dev, KSZ8995MA_GC3, 
+		ksz8995ma_writereg(dev, KSZ8995MA_GC3,
 		    reg & ~KSZ8995MA_VLAN_ENABLE);
 		ksz8995ma_portvlanreset(dev);
 	}
@@ -809,14 +809,14 @@ ksz8995ma_readphy(device_t dev, int phy, int reg)
 {
 int portreg;
 
-	/* 
+	/*
 	 * This is no mdio/mdc connection code.
          * simulate MIIM Registers via the SPI interface
 	 */
 	if (reg == MII_BMSR) {
-		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PS0_BASE + 
+		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PS0_BASE +
 			KSZ8995MA_PORT_SIZE * phy);
-		return (KSZ8995MA_MII_STAT | 
+		return (KSZ8995MA_MII_STAT |
 		    (portreg & 0x20 ? BMSR_LINK : 0x00) |
 		    (portreg & 0x40 ? BMSR_ACOMP : 0x00));
 	} else if (reg == MII_PHYIDR1) {
@@ -824,11 +824,11 @@ int portreg;
 	} else if (reg == MII_PHYIDR2) {
 		return (KSZ8995MA_MII_PHYID_L);
 	} else if (reg == MII_ANAR) {
-		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC12_BASE + 
+		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC12_BASE +
 			KSZ8995MA_PORT_SIZE * phy);
 		return (KSZ8995MA_MII_AA | (portreg & 0x0f) << 5);
 	} else if (reg == MII_ANLPAR) {
-		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PS0_BASE + 
+		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PS0_BASE +
 			KSZ8995MA_PORT_SIZE * phy);
 		return (((portreg & 0x0f) << 5) | 0x01);
 	}
@@ -841,12 +841,12 @@ ksz8995ma_writephy(device_t dev, int phy, int reg, int data)
 {
 int portreg;
 
-	/* 
+	/*
 	 * This is no mdio/mdc connection code.
          * simulate MIIM Registers via the SPI interface
 	 */
 	if (reg == MII_BMCR) {
-		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC13_BASE + 
+		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC13_BASE +
 			KSZ8995MA_PORT_SIZE * phy);
 		if (data & BMCR_PDOWN)
 			portreg |= KSZ8995MA_PDOWN;
@@ -856,14 +856,14 @@ int portreg;
 			portreg |= KSZ8995MA_STARTNEG;
 		else
 			portreg &= ~KSZ8995MA_STARTNEG;
-		ksz8995ma_writereg(dev, KSZ8995MA_PC13_BASE + 
+		ksz8995ma_writereg(dev, KSZ8995MA_PC13_BASE +
 			KSZ8995MA_PORT_SIZE * phy, portreg);
 	} else if (reg == MII_ANAR) {
-		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC12_BASE + 
+		portreg = ksz8995ma_readreg(dev, KSZ8995MA_PC12_BASE +
 			KSZ8995MA_PORT_SIZE * phy);
 		portreg &= 0xf;
 		portreg |= ((data >> 5) & 0x0f);
-		ksz8995ma_writereg(dev, KSZ8995MA_PC12_BASE + 
+		ksz8995ma_writereg(dev, KSZ8995MA_PC12_BASE +
 			KSZ8995MA_PORT_SIZE * phy, portreg);
 	}
 	return (0);
@@ -925,10 +925,10 @@ static device_method_t ksz8995ma_methods[] = {
 	DEVMETHOD(device_probe,			ksz8995ma_probe),
 	DEVMETHOD(device_attach,		ksz8995ma_attach),
 	DEVMETHOD(device_detach,		ksz8995ma_detach),
-	
+
 	/* bus interface */
 	DEVMETHOD(bus_add_child,		device_add_child_ordered),
-	
+
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,		ksz8995ma_readphy),
 	DEVMETHOD(miibus_writereg,		ksz8995ma_writephy),

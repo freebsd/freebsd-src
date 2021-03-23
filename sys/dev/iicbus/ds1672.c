@@ -86,7 +86,7 @@ ds1672_write(device_t dev, uint8_t addr, uint8_t *data, uint8_t size)
 	struct iic_msg msgs[1] = {
 	     { DS1672_ADDR, IIC_M_WR, size + 1, buffer },
 	};
-	
+
 	if (size > MAX_IIC_DATA_SIZE)
 		return (ENOMEM);
 	/* NB: register pointer precedes actual data */
@@ -152,7 +152,7 @@ ds1672_gettime(device_t dev, struct timespec *ts)
 			   | (secs[1] <<  8) | (secs[0] <<  0);
 		ts->tv_nsec = 0;
 	}
-	clock_dbgprint_ts(dev, CLOCK_DBG_READ, ts); 
+	clock_dbgprint_ts(dev, CLOCK_DBG_READ, ts);
 	return (error);
 }
 

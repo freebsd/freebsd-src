@@ -565,7 +565,7 @@ struct bnxt_softc {
 #define BNXT_FLAG_VF		0x0001
 #define BNXT_FLAG_NPAR		0x0002
 #define BNXT_FLAG_WOL_CAP	0x0004
-#define BNXT_FLAG_SHORT_CMD	0x0008 
+#define BNXT_FLAG_SHORT_CMD	0x0008
 	uint32_t		flags;
 	uint32_t		total_msix;
 

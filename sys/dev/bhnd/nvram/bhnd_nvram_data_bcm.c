@@ -59,10 +59,10 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Broadcom NVRAM data class.
- * 
+ *
  * The Broadcom NVRAM NUL-delimited ASCII format is used by most
  * Broadcom SoCs.
- * 
+ *
  * The NVRAM data is encoded as a standard header, followed by series of
  * NUL-terminated 'key=value' strings; the end of the stream is denoted
  * by a single extra NUL character.
@@ -296,7 +296,7 @@ bhnd_nvram_bcm_getvar_direct_common(struct bhnd_nvram_io *io, const char *name,
 				pstate = BCM_PARSE_KEY_START;
 				bufpos = (p - buf) + 1 /* skip '\0' */;
 			} else {
-				/* Consumed full buffer looking for '\0'; 
+				/* Consumed full buffer looking for '\0';
 				 * force repopulation of the buffer and
 				 * retry */
 				bufpos = buflen;
@@ -553,7 +553,7 @@ bhnd_nvram_bcm_serialize(bhnd_nvram_data_class *cls, bhnd_nvram_plist *props,
 
 /**
  * Initialize @p bcm with the provided NVRAM data mapped by @p src.
- * 
+ *
  * @param bcm A newly allocated data instance.
  */
 static int
@@ -886,7 +886,7 @@ bhnd_nvram_bcm_next(struct bhnd_nvram_data *nv, void **cookiep)
 	/*
 	 * Skip entries that have an existing header variable entry that takes
 	 * precedence over the NVRAM data value.
-	 * 
+	 *
 	 * The header's value will be provided when performing header variable
 	 * iteration
 	 */
@@ -918,7 +918,7 @@ bhnd_nvram_bcm_next(struct bhnd_nvram_data *nv, void **cookiep)
 		for (size_t i = 0; i < nitems(bcm->hvars); i++) {
 			if (bcm->hvars[i].envp != NULL)
 				continue;
-			
+
 			*cookiep = &bcm->hvars[i];
 			return (bcm->hvars[i].name);
 		}
@@ -1084,7 +1084,7 @@ bhnd_nvram_bcm_gethdrvar(struct bhnd_nvram_bcm *bcm, const char *name)
 static struct bhnd_nvram_bcm_hvar *
 bhnd_nvram_bcm_to_hdrvar(struct bhnd_nvram_bcm *bcm, void *cookiep)
 {
-#ifdef BHND_NVRAM_INVARIANTS                                                                                                                                                                                                                                
+#ifdef BHND_NVRAM_INVARIANTS
 	uintptr_t base, ptr;
 #endif
 

@@ -25,7 +25,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -44,7 +44,7 @@ const void	*bhnd_nvram_val_generic_next(bhnd_nvram_val *value,
 
 /**
  * Filter input data prior to initialization.
- * 
+ *
  * This may be used to permit direct initialization from data types other than
  * the default native_type defined by @p fmt.
  *
@@ -82,7 +82,7 @@ typedef size_t (bhnd_nvram_val_op_nelem)(bhnd_nvram_val *value);
 
 /**
  * NVRAM value format.
- * 
+ *
  * Provides a set of callbacks to support defining custom parsing
  * and encoding/conversion behavior when representing values as
  * instances of bhnd_nvram_val.

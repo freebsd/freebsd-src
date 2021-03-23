@@ -573,7 +573,7 @@ struct dc_type {
 /*
  * Special ASIX-specific bits in the ASIX NETCFG register (CSR6).
  */
-#define	DC_AX_NETCFG_RX_BROAD	0x00000100 
+#define	DC_AX_NETCFG_RX_BROAD	0x00000100
 
 /*
  * RX Filter Index Register values
@@ -874,7 +874,7 @@ struct dc_softc {
 #define	DC_REVISION_82C168	0x10
 #define	DC_REVISION_82C169	0x20
 
-/* 
+/*
  * Lite-On PNIC II device ID. Note: this is actually a Macronix 98715A
  * with wake on lan/magic packet support.
  */
@@ -1152,7 +1152,7 @@ struct dc_eblock_sia {
 			uint8_t dc_sia_gpio_ctl[2];
 			uint8_t dc_sia_gpio_dat[2];
 		} dc_sia_ext;
-		struct dc_sia_noext { 
+		struct dc_sia_noext {
 			uint8_t dc_sia_gpio_ctl[2];
 			uint8_t dc_sia_gpio_dat[2];
 		} dc_sia_noext;

@@ -1585,7 +1585,7 @@ sysctl_emu_digitalswitch_control(SYSCTL_HANDLER_ARGS)
 
 	sc = arg1;
 
-	new_val = (sc->mode == MODE_DIGITAL) ? 1 : 0;	
+	new_val = (sc->mode == MODE_DIGITAL) ? 1 : 0;
 	err = sysctl_handle_int(oidp, &new_val, 0, req);
 
 	if (err || req->newptr == NULL)
@@ -1759,7 +1759,7 @@ emu_initefx(struct emu_sc_info *sc)
 		EFX_ROUTE(NULL, INP(IN_SPDIF_CD_R), M_IN1_FRONT_R, C_FRONT_R, 0);
 		EFX_ROUTE(NULL, INP(IN_SPDIF_CD_L), M_IN1_REC_L, C_REC_L, 0);
 		EFX_ROUTE(NULL, INP(IN_SPDIF_CD_R), M_IN1_REC_R, C_REC_R, 0);
-		
+
 		if (sc->dbg_level > 0) {
 			/* in2, ZoomVide (???) */
 			EFX_ROUTE("zoom_front_l", INP(IN_ZOOM_L), M_IN2_FRONT_L, C_FRONT_L, 0);

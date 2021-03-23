@@ -187,7 +187,7 @@ g_mouse_button_press_timeout_reset(struct g_mouse_softc *sc)
 
 	i = USB_MS_TO_TICKS(i);
 
-	usb_callout_reset(&sc->sc_button_press_callout, i, 
+	usb_callout_reset(&sc->sc_button_press_callout, i,
 	    &g_mouse_button_press_timeout, sc);
 }
 
@@ -210,7 +210,7 @@ g_mouse_cursor_update_timeout_reset(struct g_mouse_softc *sc)
 
 	i = USB_MS_TO_TICKS(i);
 
-	usb_callout_reset(&sc->sc_cursor_update_callout, i, 
+	usb_callout_reset(&sc->sc_cursor_update_callout, i,
 	    &g_mouse_cursor_update_timeout, sc);
 }
 

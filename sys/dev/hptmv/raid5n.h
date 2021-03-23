@@ -118,7 +118,7 @@ struct r5_global_data {
 	UINT active_stripes;
 	UINT num_flushing;
 	PCommand cache_wait_list;
-	
+
 	LBA_T __start[MAX_MEMBERS];
 	USHORT __sectors[MAX_MEMBERS];
 };

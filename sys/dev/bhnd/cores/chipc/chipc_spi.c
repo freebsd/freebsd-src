@@ -104,9 +104,9 @@ chipc_spi_attach(device_t dev)
 		goto failed;
 	}
 
-	/* 
+	/*
 	 * Add flash device
-	 * 
+	 *
 	 * XXX: This should be replaced with a DEVICE_IDENTIFY implementation
 	 * in chipc-specific subclasses of the mx25l and at45d drivers.
 	 */

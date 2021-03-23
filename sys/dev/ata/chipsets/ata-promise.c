@@ -98,7 +98,7 @@ static void ata_promise_next_hpkt(struct ata_pci_controller *ctlr);
 /*
  * Promise chipset support functions
  */
-#define ATA_PDC_APKT_OFFSET     0x00000010 
+#define ATA_PDC_APKT_OFFSET     0x00000010
 #define ATA_PDC_HPKT_OFFSET     0x00000040
 #define ATA_PDC_ASG_OFFSET      0x00000080
 #define ATA_PDC_LSG_OFFSET      0x000000c0
@@ -182,7 +182,7 @@ ata_promise_probe(device_t dev)
     if ((idx->cfg2 & PR_SX6K) && pci_get_class(GRANDPARENT(dev))==PCIC_BRIDGE &&
 	!BUS_READ_IVAR(device_get_parent(GRANDPARENT(dev)),
 		       GRANDPARENT(dev), PCI_IVAR_DEVID, &devid) &&
-	devid == ATA_I960RM) 
+	devid == ATA_I960RM)
 	return ENXIO;
 
     strcpy(buffer, "Promise ");
@@ -275,7 +275,7 @@ ata_promise_chipinit(device_t dev)
 			  " ECC enabled" : "" );
 
 	    /* adjust cache memory parameters */
-	    ATA_OUTL(ctlr->r_res2, 0x000c000c, 
+	    ATA_OUTL(ctlr->r_res2, 0x000c000c,
 		     (ATA_INL(ctlr->r_res2, 0x000c000c) & 0xffff0000));
 
 	    /* setup host packet controls */
@@ -319,7 +319,7 @@ sata150:
 	    stat_reg = 0x6c;
 	    break;
 
-	case PR_CMBO2: 
+	case PR_CMBO2:
 	    ctlr->channels = 3;
 	    goto sataii;
 	case PR_SATA2:
@@ -428,7 +428,7 @@ ata_promise_dmastop(struct ata_request *request)
     error = ATA_IDX_INB(ch, ATA_BMSTAT_PORT);
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
 		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
-    ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR); 
+    ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
     ch->dma.flags &= ~ATA_DMA_ACTIVE;
     return error;
 }
@@ -440,7 +440,7 @@ ata_promise_dmareset(device_t dev)
 
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
 		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
-    ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR); 
+    ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
     ch->flags &= ~ATA_DMA_ACTIVE;
 }
 
@@ -490,7 +490,7 @@ ata_promise_setmode(device_t dev, int target, int mode)
 	    mode = ATA_UDMA2;
 	}
 	break;
-   
+
     case PR_MIO:
 	if (ata_dma_check_80pin && mode > ATA_UDMA2 &&
 	    (ATA_INL(ctlr->r_res2,
@@ -545,7 +545,7 @@ ata_promise_mio_ch_attach(device_t dev)
 
     for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
 	ch->r_io[i].res = ctlr->r_res2;
-	ch->r_io[i].offset = offset + 0x0200 + (i << 2) + (ch->unit << 7); 
+	ch->r_io[i].offset = offset + 0x0200 + (i << 2) + (ch->unit << 7);
     }
     ch->r_io[ATA_CONTROL].res = ctlr->r_res2;
     ch->r_io[ATA_CONTROL].offset = offset + 0x0238 + (ch->unit << 7);
@@ -625,7 +625,7 @@ ata_promise_mio_status(device_t dev)
     case PR_SATA:
 	stat_reg = 0x6c;
 	break;
-    case PR_CMBO2: 
+    case PR_CMBO2:
     case PR_SATA2:
     default:
 	stat_reg = 0x60;
@@ -940,7 +940,7 @@ ata_promise_mio_softreset(device_t dev, int port)
     ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_DEV(ATA_MASTER));
     DELAY(10);
     ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_IDS | ATA_A_RESET);
-    ata_udelay(10000); 
+    ata_udelay(10000);
     ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_IDS);
     ata_udelay(150000);
     ATA_IDX_INB(ch, ATA_ERROR);
@@ -986,7 +986,7 @@ ata_promise_mio_dmainit(device_t dev)
 }
 
 #define MAXLASTSGSIZE (32 * sizeof(u_int32_t))
-static void 
+static void
 ata_promise_mio_setprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 {
     struct ata_dmasetprd_args *args = xsc;
@@ -1089,7 +1089,7 @@ ata_promise_sx4_command(struct ata_request *request)
     int i, idx, length = 0;
 
     /* XXX SOS add ATAPI commands support later */
-    switch (request->u.ata.command) {    
+    switch (request->u.ata.command) {
 
     default:
 	return -1;
@@ -1186,7 +1186,7 @@ ata_promise_sx4_command(struct ata_request *request)
 
 static int
 ata_promise_apkt(u_int8_t *bytep, struct ata_request *request)
-{ 
+{
     int i = 12;
 
     bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_REG | ATA_PDC_WAIT_NBUSY|ATA_DRIVE;
@@ -1240,7 +1240,7 @@ ata_promise_queue_hpkt(struct ata_pci_controller *ctlr, u_int32_t hpkt)
 
     mtx_lock(&hpktp->mtx);
     if (hpktp->busy) {
-	struct host_packet *hp = 
+	struct host_packet *hp =
 	    malloc(sizeof(struct host_packet), M_TEMP, M_NOWAIT | M_ZERO);
 	hp->addr = hpkt;
 	TAILQ_INSERT_TAIL(&hpktp->queue, hp, chain);

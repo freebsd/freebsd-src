@@ -91,7 +91,7 @@ struct qla_tx_buf {
 
 	/* The number of entries in the OAL is determined by QLA_MAX_SEGMENTS */
 	bus_addr_t      oal_paddr;
-	void		*oal_vaddr; 
+	void		*oal_vaddr;
 };
 typedef struct qla_tx_buf qla_tx_buf_t;
 
@@ -141,7 +141,7 @@ typedef struct qla_tx_ring qla_tx_ring_t;
 #define QLA_LGB_SIZE		(12 * 1024)
 #define QLA_NUM_LGB_ENTRIES	32
 
-#define QLA_LBQ_SIZE		(QLA_NUM_LGB_ENTRIES * sizeof(q81_bq_addr_e_t)) 
+#define QLA_LBQ_SIZE		(QLA_NUM_LGB_ENTRIES * sizeof(q81_bq_addr_e_t))
 
 #define QLA_LGBQ_AND_TABLE_SIZE	\
 	((QLA_LBQ_SIZE + PAGE_SIZE + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1))
@@ -299,7 +299,7 @@ struct qla_host {
 	/* transmit related */
 	uint32_t		num_tx_rings;
 	qla_tx_ring_t		tx_ring[MAX_TX_RINGS];
-						
+
 	bus_dma_tag_t		tx_tag;
 	struct task		tx_task;
 	struct taskqueue	*tx_tq;

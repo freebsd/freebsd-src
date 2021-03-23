@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -2844,15 +2844,15 @@ GLOBAL bit32 mpiDIFEncryptionOffloadCmd(
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, Dst_Data_Len),   agDifEncOffload->DstDL);
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, flags),          agDifEncOffload->dif.flags);
 
-      dw8 = agDifEncOffload->dif.udrtArray[1] << SHIFT24 | 
-            agDifEncOffload->dif.udrtArray[0] << SHIFT16 | 
-            agDifEncOffload->dif.udtArray[1]  << SHIFT8  | 
+      dw8 = agDifEncOffload->dif.udrtArray[1] << SHIFT24 |
+            agDifEncOffload->dif.udrtArray[0] << SHIFT16 |
+            agDifEncOffload->dif.udtArray[1]  << SHIFT8  |
             agDifEncOffload->dif.udtArray[0];
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, UDTR01UDT01), dw8);
 
       dw9 = agDifEncOffload->dif.udtArray[5]  << SHIFT24 |
             agDifEncOffload->dif.udtArray[4] << SHIFT16  |
-            agDifEncOffload->dif.udtArray[3] << SHIFT8   | 
+            agDifEncOffload->dif.udtArray[3] << SHIFT8   |
             agDifEncOffload->dif.udtArray[2];
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, UDT2345), dw9);
       dw10 = agDifEncOffload->dif.udrtArray[5] << SHIFT24 |
@@ -2862,15 +2862,15 @@ GLOBAL bit32 mpiDIFEncryptionOffloadCmd(
 
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, UDTR2345), dw10);
 
-      OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, DPLR0SecCnt_IOSeed), 
-               agDifEncOffload->dif.DIFPerLARegion0SecCount << SHIFT16 | 
+      OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, DPLR0SecCnt_IOSeed),
+               agDifEncOffload->dif.DIFPerLARegion0SecCount << SHIFT16 |
                agDifEncOffload->dif.initialIOSeed);
-      
+
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, DPL_Addr_Lo)        , agDifEncOffload->dif.DIFPerLAAddrLo);
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, DPL_Addr_Hi)        , agDifEncOffload->dif.DIFPerLAAddrHi);
 
       dw14 =  agDifEncOffload->encrypt.dekInfo.dekIndex          << SHIFT8 |
-             (agDifEncOffload->encrypt.dekInfo.dekTable & 0x3)   << SHIFT2 | 
+             (agDifEncOffload->encrypt.dekInfo.dekTable & 0x3)   << SHIFT2 |
              (agDifEncOffload->encrypt.keyTagCheck & 0x1)        << SHIFT1;
 
       if (agDifEncOffload->encrypt.cipherMode == agsaEncryptCipherModeXTS)
@@ -2883,13 +2883,13 @@ GLOBAL bit32 mpiDIFEncryptionOffloadCmd(
       }
 
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, KeyIndex_CMode_KTS_ENT_R), dw14);
-      
-      dw15 = agDifEncOffload->encrypt.EncryptionPerLRegion0SecCount << SHIFT16 | 
-                           (agDifEncOffload->encrypt.kekIndex & 0xF) << SHIFT5 | 
+
+      dw15 = agDifEncOffload->encrypt.EncryptionPerLRegion0SecCount << SHIFT16 |
+                           (agDifEncOffload->encrypt.kekIndex & 0xF) << SHIFT5 |
                            (agDifEncOffload->encrypt.sectorSizeIndex & 0x1F);
 
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, EPLR0SecCnt_KS_ENSS), dw15);
-      
+
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, keyTag_W0),   agDifEncOffload->encrypt.keyTag_W0);
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, keyTag_W1),   agDifEncOffload->encrypt.keyTag_W1);
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, tweakVal_W0), agDifEncOffload->encrypt.tweakVal_W0);
@@ -2898,7 +2898,7 @@ GLOBAL bit32 mpiDIFEncryptionOffloadCmd(
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, tweakVal_W3), agDifEncOffload->encrypt.tweakVal_W3);
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, EPL_Addr_Lo), agDifEncOffload->encrypt.EncryptionPerLAAddrLo);
       OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaDifEncOffloadCmd_t, EPL_Addr_Hi), agDifEncOffload->encrypt.EncryptionPerLAAddrHi);
-      
+
       si_memcpy((bit32 *) &(payload.SrcSgl), (bit32 *) &(agDifEncOffload->SrcSgl), sizeof(agsaSgl_t));
       si_memcpy((bit32 *) &(payload.DstSgl), (bit32 *) &(agDifEncOffload->DstSgl), sizeof(agsaSgl_t));
 

@@ -1593,7 +1593,7 @@ reset:
 	mutex_lock(&mdev->state_lock);
 	if (priv->port_up) {
 		mlx4_en_stop_port(dev);
-                //for (i = 0; i < priv->tx_ring_num; i++)         
+                //for (i = 0; i < priv->tx_ring_num; i++)
                 //        netdev_tx_reset_queue(priv->tx_ring[i]->tx_queue);
 		if (mlx4_en_start_port(dev))
 			en_err(priv, "Failed restarting port %d\n", priv->port);

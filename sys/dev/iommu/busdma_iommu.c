@@ -247,7 +247,7 @@ iommu_instantiate_ctx(struct iommu_unit *unit, device_t dev, bool rmrr)
 	 * context.
 	 */
 	disabled = iommu_bus_dma_is_dev_disabled(pci_get_domain(requester),
-	    pci_get_bus(requester), pci_get_slot(requester), 
+	    pci_get_bus(requester), pci_get_slot(requester),
 	    pci_get_function(requester));
 	ctx = iommu_get_ctx(unit, requester, rid, disabled, rmrr);
 	if (ctx == NULL)

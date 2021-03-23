@@ -678,7 +678,7 @@ mprsas_remove_complete(struct mpr_softc *sc, struct mpr_command *tm)
 		targ->devinfo = 0x0;
 		targ->flags = 0x0;
 		targ->scsi_req_desc_type = 0;
-		
+
 		while (!SLIST_EMPTY(&targ->luns)) {
 			lun = SLIST_FIRST(&targ->luns);
 			SLIST_REMOVE_HEAD(&targ->luns, lun_link);
@@ -769,7 +769,7 @@ mpr_attach_sas(struct mpr_softc *sc)
 	TASK_INIT(&sassc->ev_task, 0, mprsas_firmware_event_work, sc);
 	sassc->ev_tq = taskqueue_create("mpr_taskq", M_NOWAIT | M_ZERO,
 	    taskqueue_thread_enqueue, &sassc->ev_tq);
-	taskqueue_start_threads(&sassc->ev_tq, 1, PRIBIO, "%s taskq", 
+	taskqueue_start_threads(&sassc->ev_tq, 1, PRIBIO, "%s taskq",
 	    device_get_nameunit(sc->mpr_dev));
 
 	mpr_lock(sc);
@@ -1074,7 +1074,7 @@ mprsas_announce_reset(struct mpr_softc *sc, uint32_t ac_code,
 	mpr_dprint(sc, MPR_XINFO, "%s code %x target %d lun %jx\n", __func__,
 	    ac_code, target_id, (uintmax_t)lun_id);
 
-	if (xpt_create_path(&path, NULL, 
+	if (xpt_create_path(&path, NULL,
 		path_id, target_id, lun_id) != CAM_REQ_CMP) {
 		mpr_dprint(sc, MPR_ERROR, "unable to create path for reset "
 		    "notification\n");
@@ -1085,7 +1085,7 @@ mprsas_announce_reset(struct mpr_softc *sc, uint32_t ac_code,
 	xpt_free_path(path);
 }
 
-static void 
+static void
 mprsas_complete_all_commands(struct mpr_softc *sc)
 {
 	struct mpr_command *cm;
@@ -1122,7 +1122,7 @@ mprsas_complete_all_commands(struct mpr_softc *sc)
 			completed = 1;
 		} else if (cm->cm_flags & MPR_CM_FLAGS_WAKEUP) {
 			mprsas_log_command(cm, MPR_RECOVERY,
-			    "waking up cm %p state %x ccb %p for diag reset\n", 
+			    "waking up cm %p state %x ccb %p for diag reset\n",
 			    cm, cm->cm_state, cm->cm_ccb);
 			wakeup(cm);
 			completed = 1;
@@ -1159,7 +1159,7 @@ mprsas_handle_reinit(struct mpr_softc *sc)
 	mprsas_startup_increment(sc->sassc);
 
 	/* notify CAM of a bus reset */
-	mprsas_announce_reset(sc, AC_BUS_RESET, CAM_TARGET_WILDCARD, 
+	mprsas_announce_reset(sc, AC_BUS_RESET, CAM_TARGET_WILDCARD,
 	    CAM_LUN_WILDCARD);
 
 	/* complete and cleanup after all outstanding commands */
@@ -1170,11 +1170,11 @@ mprsas_handle_reinit(struct mpr_softc *sc)
 
 	/* zero all the target handles, since they may change after the
 	 * reset, and we have to rediscover all the targets and use the new
-	 * handles.  
+	 * handles.
 	 */
 	for (i = 0; i < sc->sassc->maxtargets; i++) {
 		if (sc->sassc->targets[i].outstanding != 0)
-			mpr_dprint(sc, MPR_INIT, "target %u outstanding %u\n", 
+			mpr_dprint(sc, MPR_INIT, "target %u outstanding %u\n",
 			    i, sc->sassc->targets[i].outstanding);
 		sc->sassc->targets[i].handle = 0x0;
 		sc->sassc->targets[i].exp_dev_handle = 0x0;
@@ -1267,7 +1267,7 @@ mprsas_logical_unit_reset_complete(struct mpr_softc *sc, struct mpr_command *tm)
 		    "Finished recovery after LUN reset for target %u\n",
 		    targ->tid);
 
-		mprsas_announce_reset(sc, AC_SENT_BDR, targ->tid, 
+		mprsas_announce_reset(sc, AC_SENT_BDR, targ->tid,
 		    tm->cm_lun);
 
 		/*
@@ -1476,7 +1476,7 @@ mprsas_abort_complete(struct mpr_softc *sc, struct mpr_command *tm)
 	 */
 	if ((tm->cm_flags & MPR_CM_FLAGS_ERROR_MASK) != 0) {
 		mpr_dprint(sc, MPR_RECOVERY|MPR_ERROR,
-		    "cm_flags = %#x for abort %p TaskMID %u!\n", 
+		    "cm_flags = %#x for abort %p TaskMID %u!\n",
 		    tm->cm_flags, tm, le16toh(req->TaskMID));
 		mprsas_free_tm(sc, tm);
 		return;
@@ -1484,7 +1484,7 @@ mprsas_abort_complete(struct mpr_softc *sc, struct mpr_command *tm)
 
 	if (reply == NULL) {
 		mpr_dprint(sc, MPR_RECOVERY,
-		    "NULL abort reply for tm %p TaskMID %u\n", 
+		    "NULL abort reply for tm %p TaskMID %u\n",
 		    tm, le16toh(req->TaskMID));
 		if ((sc->mpr_flags & MPR_FLAGS_DIAGRESET) != 0) {
 			/* this completion was due to a reset, just cleanup */
@@ -1531,7 +1531,7 @@ mprsas_abort_complete(struct mpr_softc *sc, struct mpr_command *tm)
 		    "Abort failed for target %u, sending logical unit reset\n",
 		    targ->tid);
 
-		mprsas_send_reset(sc, tm, 
+		mprsas_send_reset(sc, tm,
 		    MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET);
 	}
 }
@@ -1670,7 +1670,7 @@ mprsas_scsiio_timeout(void *data)
 		 * available.  The firmware only has a limited number of
 		 * HighPriority credits for the high priority requests used
 		 * for task management, and we ran out.
-		 * 
+		 *
 		 * Isilon: don't worry about this for now, since we have
 		 * more credits than disks in an enclosure, and limit
 		 * ourselves to one TM per target for recovery.
@@ -1680,7 +1680,7 @@ mprsas_scsiio_timeout(void *data)
 	}
 }
 
-/** 
+/**
  * mprsas_build_nvme_unmap - Build Native NVMe DSM command equivalent
  *			     to SCSI Unmap.
  * Return 0 - for success,
@@ -1845,7 +1845,7 @@ mprsas_action_scsiio(struct mprsas_softc *sassc, union ccb *ccb)
 	targ = &sassc->targets[csio->ccb_h.target_id];
 	mpr_dprint(sc, MPR_TRACE, "ccb %p target flag %x\n", ccb, targ->flags);
 	if (targ->handle == 0x0) {
-		mpr_dprint(sc, MPR_ERROR, "%s NULL handle for target %u\n", 
+		mpr_dprint(sc, MPR_ERROR, "%s NULL handle for target %u\n",
 		    __func__, csio->ccb_h.target_id);
 		mprsas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 		xpt_done(ccb);
@@ -2061,7 +2061,7 @@ mprsas_action_scsiio(struct mprsas_softc *sassc, union ccb *ccb)
 					    req->CDB.CDB32[lba_byte + i];
 					ref_tag_addr++;
 				}
-				req->CDB.EEDP32.PrimaryReferenceTag = 
+				req->CDB.EEDP32.PrimaryReferenceTag =
 				    htole32(req->
 				    CDB.EEDP32.PrimaryReferenceTag);
 				req->CDB.EEDP32.PrimaryApplicationTagMask =
@@ -2280,7 +2280,7 @@ mprsas_nvme_trans_status_code(uint16_t nvme_status,
 			break;
 		case NVME_SC_NAMESPACE_NOT_READY:
 			status = MPI2_SCSI_STATUS_CHECK_CONDITION;
-			skey = SSD_KEY_NOT_READY; 
+			skey = SSD_KEY_NOT_READY;
 			asc = SCSI_ASC_LUN_NOT_READY;
 			ascq = SCSI_ASCQ_CAUSE_NOT_REPORTABLE;
 			break;
@@ -2364,7 +2364,7 @@ mprsas_nvme_trans_status_code(uint16_t nvme_status,
 	return status;
 }
 
-/** mprsas_complete_nvme_unmap 
+/** mprsas_complete_nvme_unmap
  *
  * Complete native NVMe command issued using NVMe Encapsulated
  * Request Message.
@@ -2530,7 +2530,7 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 				mpr_dprint(sc, MPR_XINFO,
 				    "Unfreezing SIM queue\n");
 			}
-		} 
+		}
 
 		/*
 		 * There are two scenarios where the status won't be
@@ -2977,7 +2977,7 @@ mprsas_send_smpcmd(struct mprsas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 	req->PhysicalPort = 0xff;
 
 	req->RequestDataLength = htole16(ccb->smpio.smp_request_len);
-	req->SGLFlags = 
+	req->SGLFlags =
 	    MPI2_SGLFLAGS_SYSTEM_ADDRESS_SPACE | MPI2_SGLFLAGS_SGL_TYPE_MPI;
 
 	mpr_dprint(sc, MPR_XINFO, "%s: sending SMP request to SAS address "
@@ -3023,7 +3023,7 @@ mprsas_send_smpcmd(struct mprsas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 	 * Tell the mapping code that we're using a uio, and that this is
 	 * an SMP passthrough request.  There is a little special-case
 	 * logic there (in mpr_data_cb()) to handle the bidirectional
-	 * transfer.  
+	 * transfer.
 	 */
 	cm->cm_flags |= MPR_CM_FLAGS_USE_UIO | MPR_CM_FLAGS_SMP_PASS |
 			MPR_CM_FLAGS_DATAIN | MPR_CM_FLAGS_DATAOUT;
@@ -3457,7 +3457,7 @@ mprsas_send_portenable(struct mpr_softc *sc)
 	cm->cm_sge = NULL;
 
 	mpr_map_command(sc, cm);
-	mpr_dprint(sc, MPR_XINFO, 
+	mpr_dprint(sc, MPR_XINFO,
 	    "mpr_send_portenable finished cm %p req %p complete %p\n",
 	    cm, cm->cm_req, cm->cm_complete);
 	return (0);

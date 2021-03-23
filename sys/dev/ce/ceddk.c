@@ -293,7 +293,7 @@ static void TAU32_CALLBACK_TYPE ce_on_transmit
 	} else if (error & TAU32_ERROR_BUS) {
 		c->underrun++;
 		if (c->error)
-			c->error (c, CE_UNDERRUN);		
+			c->error (c, CE_UNDERRUN);
 	} else {
 		CE_DDK_DEBUG (c->board, c, ("Another transmit error: %x\n",
 				error));
@@ -331,12 +331,12 @@ int ce_send_packet (ce_chan_t *c, unsigned char *buf, int len, void *tag)
 	CE_DEQUEUE (c->tx_queue, req);
 	CE_ASSERT (req);
 	item = (ce_buf_item_t *)req;
-		
+
 	if (buf != item->buf)
 		memcpy (item->buf, buf, len);
-		
+
 	CE_ASSERT (!req->pInternal);
-		
+
 	req->Command = TAU32_Tx_Data | TAU32_Tx_FrameEnd;
 	req->Io.Tx.Channel = c->num;
 	req->pCallback = ce_on_transmit;
@@ -475,7 +475,7 @@ void ce_init_board (ce_board_t *b)
 		/* Chan0 ts=1-15,17-31, Chan1 ts=1-2 */
 		b->chan[i].type = i < b->ddk.Interfaces ? T_E1 : T_DATA;
 		b->chan[i].ts = (i == 0 ? 0xfffefffe :
-				(i != 1 ? 0 : 
+				(i != 1 ? 0 :
 				(b->ddk.Interfaces == 2 ? 0x6: 0)));
 		b->chan[i].dir = (b->ddk.Interfaces == 2) ? (i%2) : 0;
 		b->chan[i].mtu = 1504;
@@ -563,7 +563,7 @@ void ce_start_chan (ce_chan_t *c, int tx, int rx, ce_buf_t *cb,
 	while (1) {
 		ce_buf_item_t *item;
 		TAU32_UserRequest *req;
-		
+
 		CE_DEQUEUE (c->rx_queue, req);
 		if (!req)
 			break;
@@ -581,7 +581,7 @@ void ce_start_chan (ce_chan_t *c, int tx, int rx, ce_buf_t *cb,
 			CE_ASSERT (0);
 			c->rx_pending--;
 			break;
-		}	
+		}
 	}
 
 	if (tx | rx) {
@@ -644,7 +644,7 @@ void ce_stop_chan (ce_chan_t *c)
 		CE_DDK_DEBUG (b, c, ("Can't stop chan\n"));
 		b->cr.pending--;
 	}
-}	
+}
 
 void ce_register_transmit (ce_chan_t *c,
 	void (*func) (ce_chan_t*, void*, int))
@@ -1003,7 +1003,7 @@ void ce_set_lloop (ce_chan_t *c, unsigned char on)
 	if (ce_cfg_submit (b)) {
 		c->lloop = on ? 1 : 0;
 		c->config = cfg;
-	} 
+	}
 }
 
 void ce_set_rloop (ce_chan_t *c, unsigned char on)
@@ -1090,7 +1090,7 @@ static void _ce_set_ts (ce_chan_t *c, unsigned long ts)
 	/* 32 - all busy + my old busy == free */
 	if (32 - pts + ots - nts < 0)
 		return;
-		
+
 	/* Ok. We have enougth "peb" ts. Clean old. */
 	/* We start from zero, cause this is peb cells */
 	for (i = 0; i < 32; i++) {
@@ -1139,7 +1139,7 @@ static void _ce_set_ts (ce_chan_t *c, unsigned long ts)
 
 	req->Command = TAU32_Timeslots_Channel | TAU32_Configure_Commit;
 	req->Io.ChannelNumber = c->num;
-	req->Io.ChannelConfig.AssignedTsMask = mask;	
+	req->Io.ChannelConfig.AssignedTsMask = mask;
 
 	if (c->phony) {
 		b->pmask &= ~omask;
@@ -1184,7 +1184,7 @@ void ce_set_ts (ce_chan_t *c, unsigned long ts)
 
 	if (!b->chan[c->dir].use16)
 		ts &= ~(1ul << 16);
-		
+
 	for (x = b->chan; x < b->chan + NCHAN; x++) {
 		if (x == c || x->dir != c->dir)
 			continue;
@@ -1208,7 +1208,7 @@ void ce_set_unfram (ce_chan_t *c, unsigned char on)
 
 	if (on == c->unfram)
 		return;
-		
+
 	if (on) {
 		ce_set_dir (c, 0);
 		for (i = 1; i < TAU32_CHANNELS; i++) {
@@ -1380,7 +1380,7 @@ static void _ce_submit_configure_e1 (ce_chan_t *c, char *rname)
 	if (!ce_cfg_submit (b)) {
 		CE_DDK_DEBUG (b, c, ("Fail to submit %s\n", rname?rname:""));
 		/* Do some error processing */
-		return;	
+		return;
 	}
 }
 
@@ -1401,7 +1401,7 @@ void ce_set_use16 (ce_chan_t *c, unsigned char on)
 
 	if (c->use16 == on || b->chan->unfram)
 		return;
-		
+
 	use[0] = b->chan[0].use16;
 	use[1] = b->chan[1].use16;
 

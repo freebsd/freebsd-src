@@ -171,9 +171,9 @@ ar5416GpioSet(struct ath_hal *ah, uint32_t gpio, uint32_t val)
 	reg = OS_REG_READ(ah, AR_GPIO_IN_OUT);
 	if (val & 1)
 		reg |= AR_GPIO_BIT(gpio);
-	else 
+	else
 		reg &= ~AR_GPIO_BIT(gpio);
-	OS_REG_WRITE(ah, AR_GPIO_IN_OUT, reg);	
+	OS_REG_WRITE(ah, AR_GPIO_IN_OUT, reg);
 	return AH_TRUE;
 }
 

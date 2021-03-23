@@ -336,7 +336,7 @@ intelspi_set_cs(struct intelspi_softc *sc, int level)
 		reg |= SPI_CS_CTRL_CS_HIGH;
 	else
 		reg |= SPI_CS_CTRL_CS_LOW;
-		
+
 	INTELSPI_WRITE(sc, INTELSPI_SSPREG_SPI_CS_CTRL, reg);
 }
 
@@ -350,9 +350,9 @@ intelspi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	sc = device_get_softc(dev);
 	err = 0;
 
-	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz, 
+	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz,
 	    ("TX/RX command sizes should be equal"));
-	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz, 
+	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz,
 	    ("TX/RX data sizes should be equal"));
 
 	INTELSPI_LOCK(sc);
@@ -424,7 +424,7 @@ intelspi_probe(device_t dev)
 {
 	static char *gpio_ids[] = { "80860F0E", NULL };
 	int rv;
-	
+
 	if (acpi_disabled("spi") )
 		return (ENXIO);
 	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, gpio_ids, NULL);

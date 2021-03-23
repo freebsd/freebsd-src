@@ -780,7 +780,7 @@ xhci_generic_done_sub(struct usb_xfer *xfer)
 		}
 		/* Check for short transfer */
 		if (len > 0) {
-			if (xfer->flags_int.short_frames_ok || 
+			if (xfer->flags_int.short_frames_ok ||
 			    xfer->flags_int.isochronous_xfr ||
 			    xfer->flags_int.control_xfr) {
 				/* follow alt next */
@@ -803,8 +803,8 @@ xhci_generic_done_sub(struct usb_xfer *xfer)
 
 	xfer->td_transfer_cache = td;
 
-	return ((status == XHCI_TRB_ERROR_STALL) ? USB_ERR_STALLED : 
-	    (status != XHCI_TRB_ERROR_SHORT_PKT && 
+	return ((status == XHCI_TRB_ERROR_STALL) ? USB_ERR_STALLED :
+	    (status != XHCI_TRB_ERROR_SHORT_PKT &&
 	    status != XHCI_TRB_ERROR_SUCCESS) ? USB_ERR_IOERROR :
 	    USB_ERR_NORMAL_COMPLETION);
 }
@@ -1164,7 +1164,7 @@ xhci_interrupt_poll(struct xhci_softc *sc)
 }
 
 static usb_error_t
-xhci_do_command(struct xhci_softc *sc, struct xhci_trb *trb, 
+xhci_do_command(struct xhci_softc *sc, struct xhci_trb *trb,
     uint16_t timeout_ms)
 {
 	struct usb_page_search buf_res;
@@ -1341,7 +1341,7 @@ xhci_cmd_enable_slot(struct xhci_softc *sc, uint8_t *pslot)
 
 	temp = le32toh(trb.dwTrb3);
 
-	*pslot = XHCI_TRB_3_SLOT_GET(temp); 
+	*pslot = XHCI_TRB_3_SLOT_GET(temp);
 
 done:
 	return (err);
@@ -1807,7 +1807,7 @@ restart:
 
 			td->td_trb[0].qwTrb0 = 0;
 
-			usbd_copy_out(temp->pc, temp->offset + buf_offset, 
+			usbd_copy_out(temp->pc, temp->offset + buf_offset,
 			   (uint8_t *)(uintptr_t)&td->td_trb[0].qwTrb0,
 			   average);
 
@@ -1873,7 +1873,7 @@ restart:
 
 			dword =
 			  XHCI_TRB_2_BYTES_SET(buf_res.length) |
-			  XHCI_TRB_2_TDSZ_SET(npkt) | 
+			  XHCI_TRB_2_TDSZ_SET(npkt) |
 			  XHCI_TRB_2_IRQ_SET(0);
 
 			td->td_trb[x].dwTrb2 = htole32(dword);
@@ -4269,7 +4269,7 @@ xhci_device_state_change(struct usb_device *udev)
 	DPRINTF("\n");
 
 	if (usb_get_device_state(udev) == USB_STATE_CONFIGURED) {
-		err = uhub_query_info(udev, &sc->sc_hw.devs[index].nports, 
+		err = uhub_query_info(udev, &sc->sc_hw.devs[index].nports,
 		    &sc->sc_hw.devs[index].tt);
 		if (err != 0)
 			sc->sc_hw.devs[index].nports = 0;
@@ -4365,7 +4365,7 @@ xhci_set_endpoint_mode(struct usb_device *udev, struct usb_endpoint *ep,
 	case USB_EP_MODE_DEFAULT:
 		return (0);
 	case USB_EP_MODE_STREAMS:
-		if (xhcistreams == 0 || 
+		if (xhcistreams == 0 ||
 		    (ep->edesc->bmAttributes & UE_XFERTYPE) != UE_BULK ||
 		    udev->speed != USB_SPEED_SUPER)
 			return (USB_ERR_INVAL);

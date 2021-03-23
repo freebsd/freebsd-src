@@ -216,7 +216,7 @@ softdma_intr(void *arg)
 
 	reg = softdma_memc_read(sc, A_ONCHIP_FIFO_MEM_CORE_STATUS_REG_EVENT);
 
-	if (reg & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW | 
+	if (reg & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW |
 	    A_ONCHIP_FIFO_MEM_CORE_EVENT_UNDERFLOW)) {
 		/* Errors */
 		err = (((reg & A_ONCHIP_FIFO_MEM_CORE_ERROR_MASK) >> \

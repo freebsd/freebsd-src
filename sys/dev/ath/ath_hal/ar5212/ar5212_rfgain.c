@@ -186,7 +186,7 @@ ar5212IsGainAdjustNeeded(struct ath_hal *ah, const GAIN_VALUES *gv)
 /*
  * Move the rabbit ears in the correct direction.
  */
-static int32_t 
+static int32_t
 ar5212AdjustGain(struct ath_hal *ah, GAIN_VALUES *gv)
 {
 	const GAIN_OPTIMIZATION_LADDER *gl;

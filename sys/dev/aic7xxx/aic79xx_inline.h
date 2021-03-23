@@ -317,7 +317,7 @@ ahd_setup_data_scb(struct ahd_softc *ahd, struct scb *scb)
 	}
 	/*
 	 * Note where to find the SG entries in bus space.
-	 * We also set the full residual flag which the 
+	 * We also set the full residual flag which the
 	 * sequencer will clear as soon as a data transfer
 	 * occurs.
 	 */

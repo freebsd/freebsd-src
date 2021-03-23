@@ -113,7 +113,7 @@ ata_sis_probe(device_t dev)
     if (pci_get_vendor(dev) != ATA_SIS_ID)
 	return ENXIO;
 
-    if (!(idx = ata_find_chip(dev, ids, -pci_get_slot(dev)))) 
+    if (!(idx = ata_find_chip(dev, ids, -pci_get_slot(dev))))
 	return ENXIO;
 
     if (idx->cfg2) {
@@ -166,7 +166,7 @@ ata_sis_chipinit(device_t dev)
 
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
-    
+
     switch (ctlr->chip->cfg1) {
     case SIS_33:
 	break;
@@ -263,7 +263,7 @@ ata_sis_setmode(device_t dev, int target, int mode)
 
 	switch (ctlr->chip->cfg1) {
 	case SIS_133NEW: {
-	    static const uint32_t timings[] = 
+	    static const uint32_t timings[] =
 		{ 0x28269008, 0x0c266008, 0x04263008, 0x0c0a3008, 0x05093008,
 		  0x22196008, 0x0c0a3008, 0x05093008, 0x050939fc, 0x050936ac,
 		  0x0509347c, 0x0509325c, 0x0509323c, 0x0509322c, 0x0509321c};
@@ -277,7 +277,7 @@ ata_sis_setmode(device_t dev, int target, int mode)
 	    static const uint16_t timings[] =
 	     { 0x00cb, 0x0067, 0x0044, 0x0033, 0x0031, 0x0044, 0x0033, 0x0031,
 	       0x8f31, 0x8a31, 0x8731, 0x8531, 0x8331, 0x8231, 0x8131 };
-		  
+
 	    u_int16_t reg = 0x40 + (devno << 1);
 
 	    pci_write_config(parent, reg, timings[ata_mode2idx(mode)], 2);

@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -84,9 +84,9 @@ __FBSDID("$FreeBSD$");
 *                   instance of the driver.
 *
 *  \param channelNum: The zero-base channel number of the controller.
-*                     0xFFFFFFFF indicates that the OS-App Specific layer does 
-*                     not provide the channel number. The TD/LL Layer needs to 
-*                     discover of any of its own channels that are causing the 
+*                     0xFFFFFFFF indicates that the OS-App Specific layer does
+*                     not provide the channel number. The TD/LL Layer needs to
+*                     discover of any of its own channels that are causing the
 *                     interrupt.
 *
 *  \return None
@@ -96,7 +96,7 @@ __FBSDID("$FreeBSD$");
 *          of the interrupt handler is done in tiCOMDelayedInterruptHandler().
 *
 *****************************************************************************/
-FORCEINLINE bit32 
+FORCEINLINE bit32
 tiCOMInterruptHandler(
                       tiRoot_t * tiRoot,
                       bit32      channelNum)
@@ -107,9 +107,9 @@ tiCOMInterruptHandler(
   bit32           interruptPending = agFALSE;
 
   interruptPending = saInterruptHandler(agRoot, channelNum);
-  
+
   return interruptPending;
-  
+
 } /* tiCOMInterruptHandler() */
 
 
@@ -123,13 +123,13 @@ tiCOMInterruptHandler(
 *  \param tiRoot:     Pointer to initiator specific root data structure for
 *                     this instance of the driver.
 *  \param channelNum: The zero-base channel number of the controller.
-*                     0xFFFFFFFF indicates that the OS-App Specific layer does 
-*                     not provide the channel number. The TD/LL Layer needs to 
-*                     discover of any of its own channels that are causing the 
+*                     0xFFFFFFFF indicates that the OS-App Specific layer does
+*                     not provide the channel number. The TD/LL Layer needs to
+*                     discover of any of its own channels that are causing the
 *                     interrupt.
 *  \param count:      Count on how many items (such as IO completion) need to
 *                     be processed in this context.
-*  \param interruptContext: The thread/process context within which this 
+*  \param interruptContext: The thread/process context within which this
 *                           function is called.
 *
 *             tiInterruptContext:     this function is called within an
@@ -139,12 +139,12 @@ tiCOMInterruptHandler(
 *  \return None
 *
 *****************************************************************************/
-FORCEINLINE 
-bit32 
+FORCEINLINE
+bit32
 tiCOMDelayedInterruptHandler(
                              tiRoot_t  *tiRoot,
                              bit32     channelNum,
-                             bit32     count, 
+                             bit32     count,
                              bit32     context
                              )
 {
@@ -171,7 +171,7 @@ tiCOMDelayedInterruptHandler(
     TI_DBG3(("tiCOMDelayedInterruptHandler: processedMsgCount zero\n"));
   }
 
-  
+
   TDSA_OUT_LEAVE(tiRoot);
 
   return(completed);
@@ -181,7 +181,7 @@ tiCOMDelayedInterruptHandler(
 /*****************************************************************************
 *! \brief tiCOMSystemInterruptsActive
 *
-*  Purpose: This function is called to indicate whether interrupts are 
+*  Purpose: This function is called to indicate whether interrupts are
 *           active or not from this point in time.
 *
 *  \param tiRoot:        Pointer to initiator specific root data structure for
@@ -193,7 +193,7 @@ tiCOMDelayedInterruptHandler(
 *****************************************************************************/
 osGLOBAL void
 tiCOMSystemInterruptsActive(
-                            tiRoot_t * tiRoot, 
+                            tiRoot_t * tiRoot,
                             bit32 sysIntsActive
                             )
 {
@@ -214,18 +214,18 @@ tiCOMSystemInterruptsActive(
   if(agRoot->sdkData != agNULL)
   {
     saSystemInterruptsActive(
-                             agRoot, 
+                             agRoot,
                              (agBOOLEAN) tdsaAllShared->flags.sysIntsActive
                              );
   }
-  
+
   TI_DBG6(("tiCOMSystemInterruptsActive: end\n"));
 } /* tiCOMSystemInterruptsActive */
 
 
 osGLOBAL void
 tiComCountActiveIORequests(
-                            tiRoot_t * tiRoot 
+                            tiRoot_t * tiRoot
                           )
 {
   tdsaRoot_t     *tdsaRoot = (tdsaRoot_t *) tiRoot->tdData;
@@ -238,17 +238,17 @@ tiComCountActiveIORequests(
 /*****************************************************************************
 *! \brief tiCOMInterruptEnable
 *
-*  Purpose: This function is called to enable an interrupts on the specified channel 
+*  Purpose: This function is called to enable an interrupts on the specified channel
 *           active or not from this point in time.
 *
 *  \param tiRoot:        Pointer to initiator specific root data structure for
 *                        this instance of the driver.
-*  \param : channelNum   vector number for MSIX  Zero for legacy interrupt 
+*  \param : channelNum   vector number for MSIX  Zero for legacy interrupt
 *
 *  \return None
 *
 *****************************************************************************/
-osGLOBAL FORCEINLINE 
+osGLOBAL FORCEINLINE
 void
 tiCOMInterruptEnable(
                       tiRoot_t * tiRoot,

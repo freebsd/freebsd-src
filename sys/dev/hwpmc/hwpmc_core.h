@@ -140,7 +140,7 @@ struct pmc_md_iap_op_pmcallocate {
 
 /*
  * IA_GLOBAL_CTRL is laid out in the following way.
- * 
+ *
  * Bit Position    Use
  * 63-35           Reserved (do not touch)
  * 34              IAF Counter 2 Enable

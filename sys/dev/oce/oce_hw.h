@@ -208,7 +208,7 @@
 /* Max multicast filter size*/
 #define OCE_MAX_MC_FILTER_SIZE		64
 
-/* PCI SLI (Service Level Interface) capabilities register */ 
+/* PCI SLI (Service Level Interface) capabilities register */
 #define OCE_INTF_REG_OFFSET		0x58
 #define OCE_INTF_VALID_SIG		6	/* register's signature */
 #define OCE_INTF_FUNC_RESET_REQD	1
@@ -1709,12 +1709,12 @@ struct mbx_common_query_fw_config {
 enum CQFW_CONFIG_NUMBER {
 	FCN_NIC_ISCSI_Initiator = 0x0,
 	FCN_ISCSI_Target = 0x3,
-	FCN_FCoE = 0x7, 
+	FCN_FCoE = 0x7,
 	FCN_ISCSI_Initiator_Target = 0x9,
 	FCN_NIC_RDMA_TOE = 0xA,
 	FCN_NIC_RDMA_FCoE = 0xB,
 	FCN_NIC_RDMA_iSCSI = 0xC,
-	FCN_NIC_iSCSI_FCoE = 0xD 
+	FCN_NIC_iSCSI_FCoE = 0xD
 };
 
 /**
@@ -2747,7 +2747,7 @@ typedef	union oce_wq_ctx_u {
 #if 0
 			uint32_t dw4rsvd1:8;
 #else
-/* PSP: this workaround is not documented: fill 0x01 for ulp_mask */ 
+/* PSP: this workaround is not documented: fill 0x01 for ulp_mask */
 			uint32_t ulp_mask:8;
 #endif
 			uint32_t nic_wq_type:8;
@@ -3170,7 +3170,7 @@ struct oce_hw_stats_v0 {
 			struct oce_hw_stats_v##version stats; 	\
 		} rsp; 						\
 	} params; 						\
-}  
+}
 
 MBX_GET_NIC_STATS(0);
 MBX_GET_NIC_STATS(1);
@@ -3610,12 +3610,12 @@ enum OCE_PMEM_ERR_STATS {
  * @brief Statistics for a given Physical Port
  * These satisfy all the required BE2 statistics and also the
  * following MIB objects:
- * 
+ *
  * RFC 2863 - The Interfaces Group MIB
  * RFC 2819 - Remote Network Monitoring Management Information Base (RMON)
  * RFC 3635 - Managed Objects for the Ethernet-like Interface Types
  * RFC 4502 - Remote Network Monitoring Mgmt Information Base Ver-2 (RMON2)
- * 
+ *
  */
 enum OCE_PPORT_STATS {
 	PPORT_TX_PKTS = 0,
@@ -3993,7 +3993,7 @@ struct nic_hwlro_singleton_cqe {
         uint32_t rss_bank:1;
         uint32_t qnq:1;
         uint32_t rsvd2:3;
-        
+
 	/* dw 3 */
         uint32_t rss_hash_value;
 #else
@@ -4096,7 +4096,7 @@ struct nic_hwlro_cqe_part2 {
         /* dw 1 */
         uint32_t tcp_window:16;
         uint32_t coalesced_size:16;
-        
+
 	/* dw 2 */
         uint32_t valid:1;
         uint32_t cqe_type:2;
@@ -4114,7 +4114,7 @@ struct nic_hwlro_cqe_part2 {
         uint32_t ipframe:1;
         uint32_t rss_hp:1;
         uint32_t error:1;
-        
+
 	/* dw 3 */
         uint32_t tcp_ack_num;
 #else

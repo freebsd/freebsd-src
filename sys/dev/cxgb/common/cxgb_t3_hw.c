@@ -574,7 +574,7 @@ static struct adapter_info t3_adap_info[] = {
 	  { S_GPIO9 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
 	  &mi1_mdio_ext_ops, "Chelsio T310" },
 	{ 1, 0, 0,
-	  F_GPIO1_OEN | F_GPIO6_OEN | F_GPIO7_OEN | 
+	  F_GPIO1_OEN | F_GPIO6_OEN | F_GPIO7_OEN |
 	  F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL,
 	  { S_GPIO9 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
 	  &mi1_mdio_ext_ops, "Chelsio N320E-G2" },
@@ -1443,7 +1443,7 @@ static void t3_gate_rx_traffic(struct cmac *mac, u32 *rx_cfg,
 
 	/* stop broadcast, multicast, promiscuous mode traffic */
 	*rx_cfg = t3_read_reg(mac->adapter, A_XGM_RX_CFG + mac->offset);
-	t3_set_reg_field(mac->adapter, A_XGM_RX_CFG + mac->offset, 
+	t3_set_reg_field(mac->adapter, A_XGM_RX_CFG + mac->offset,
 			 F_ENHASHMCAST | F_DISBCAST | F_COPYALLFRAMES,
 			 F_DISBCAST);
 
@@ -4780,7 +4780,7 @@ int t3_get_up_ioqs(adapter_t *adapter, u32 *size, void *data)
 	}
 
 	for (i = 0; i < IOQ_ENTRIES; i++) {
-		u32 base_addr = 0x10 * (i + 1);		
+		u32 base_addr = 0x10 * (i + 1);
 
 		for (j = 0; j < 4; j++) {
 			ret = t3_cim_hac_read(adapter, base_addr + 4 * j, &v);
@@ -4790,10 +4790,10 @@ int t3_get_up_ioqs(adapter_t *adapter, u32 *size, void *data)
 			*buf++ = v;
 		}
 	}
-	
+
 	*size = IOQ_ENTRIES * sizeof(struct t3_ioq_entry);
 
 out:
 	return ret;
 }
-	
+

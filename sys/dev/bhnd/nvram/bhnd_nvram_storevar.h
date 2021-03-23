@@ -25,7 +25,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -73,7 +73,7 @@ LIST_HEAD(bhnd_nvstore_path_list,	bhnd_nvstore_path);
  */
 typedef enum {
 	BHND_NVSTORE_VAR	= 0,	/**< simple variable (var=...) */
-	BHND_NVSTORE_ALIAS_DECL	= 1,	/**< alias declaration ('devpath0=pci/1/1') */	
+	BHND_NVSTORE_ALIAS_DECL	= 1,	/**< alias declaration ('devpath0=pci/1/1') */
 } bhnd_nvstore_var_type;
 
 /**
@@ -160,10 +160,10 @@ int			 bhnd_nvstore_parse_name_info(const char *name,
 
 /**
  * NVRAM variable name descriptor.
- * 
+ *
  * For NVRAM data instances supporting BHND_NVRAM_DATA_CAP_DEVPATHS, the
  * NVRAM-vended variable name will be in one of four formats:
- * 
+ *
  * - Simple Variable:
  * 	'variable'
  * - Device Variable:
@@ -174,7 +174,7 @@ int			 bhnd_nvstore_parse_name_info(const char *name,
  * 	'devpath0=pci/1/1/variable'
  *
  * Device Paths:
- * 
+ *
  * The device path format is device class-specific; the known supported device
  * classes are:
  * 	- sb:		BCMA/SIBA SoC core device path.
@@ -185,7 +185,7 @@ int			 bhnd_nvstore_parse_name_info(const char *name,
  * The device path format is loosely defined as '[class]/[domain]/[bus]/[slot]',
  * with missing values either assumed to be zero, a value specific to the
  * device class, or irrelevant to the device class in question.
- * 
+ *
  * Examples:
  *	sb/1			BCMA/SIBA backplane 0, core 1.
  *	pc/1/1			PCMCIA bus 1, slot 1
@@ -194,13 +194,13 @@ int			 bhnd_nvstore_parse_name_info(const char *name,
  *	usb/0xbd17		USB PID 0xbd17 (VID defaults to Broadcom 0x0a5c)
  *
  * Device Path Aliases:
- * 
+ *
  * Device path aliases reduce duplication of device paths in the flash encoding
  * of NVRAM data; a single devpath[alias]=[devpath] variable entry is defined,
  * and then later variables may reference the device path via its alias:
  * 	devpath1=usb/0xbd17
  *	1:mcs5gpo0=0x1100
- * 
+ *
  * Alias values are always positive, base 10 integers.
  */
 struct bhnd_nvstore_name_info {
@@ -225,7 +225,7 @@ struct bhnd_nvstore_name_info {
 
 /**
  * NVRAM variable index.
- * 
+ *
  * Provides effecient name-based lookup by maintaining an array of cached
  * cookiep values, sorted lexicographically by relative variable name.
  */

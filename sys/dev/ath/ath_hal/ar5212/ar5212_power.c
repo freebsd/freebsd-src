@@ -50,7 +50,7 @@ ar5212SetPowerModeAwake(struct ath_hal *ah, int setChip)
 		/*
 		 * Be careful setting the AWAKE mode.  When we are called
 		 * with the chip powered down the read returns 0xffffffff
-		 * which when blindly written back with OS_REG_RMW_FIELD 
+		 * which when blindly written back with OS_REG_RMW_FIELD
 		 * enables the MIB interrupt for the sleep performance
 		 * counters.  This can result in an interrupt storm when
 		 * ANI is in operation as no one knows to turn off the MIB
@@ -81,7 +81,7 @@ ar5212SetPowerModeAwake(struct ath_hal *ah, int setChip)
 #endif
 			return AH_FALSE;
 		}
-	} 
+	}
 
 	OS_REG_CLR_BIT(ah, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
 	return AH_TRUE;

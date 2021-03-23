@@ -179,7 +179,7 @@ ar5416ResetTsf(struct ath_hal *ah)
 			break;
 		OS_DELAY(10);
 	}
-	OS_REG_WRITE(ah, AR_RESET_TSF, AR_RESET_TSF_ONCE);	
+	OS_REG_WRITE(ah, AR_RESET_TSF, AR_RESET_TSF_ONCE);
 }
 
 uint32_t
@@ -634,19 +634,19 @@ ar5416CompareDbgHang(struct ath_hal *ah, const mac_dbg_regs_t *regs,
 				found_states |= dcu_chain_state;
 		}
 	}
-	if (check->states & dcu_complete_state) { 
+	if (check->states & dcu_complete_state) {
 		if ((regs->dma_dbg_6 & 0x3) == check->dcu_complete_state)
 			found_states |= dcu_complete_state;
 	}
-	if (check->states & qcu_stitch_state) { 
+	if (check->states & qcu_stitch_state) {
 		if (((regs->dma_dbg_3 >> 18) & 0xf) == check->qcu_stitch_state)
 			found_states |= qcu_stitch_state;
 	}
-	if (check->states & qcu_fetch_state) { 
+	if (check->states & qcu_fetch_state) {
 		if (((regs->dma_dbg_3 >> 22) & 0xf) == check->qcu_fetch_state)
 			found_states |= qcu_fetch_state;
 	}
-	if (check->states & qcu_complete_state) { 
+	if (check->states & qcu_complete_state) {
 		if (((regs->dma_dbg_3 >> 26) & 0x7) == check->qcu_complete_state)
 			found_states |= qcu_complete_state;
 	}

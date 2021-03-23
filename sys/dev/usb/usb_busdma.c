@@ -133,7 +133,7 @@ usbd_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
 
 /*------------------------------------------------------------------------*
  *  usb_pc_buffer_is_aligned - verify alignment
- * 
+ *
  * This function is used to check if a page cache buffer is properly
  * aligned to reduce the use of bounce buffers in PIO mode.
  *------------------------------------------------------------------------*/

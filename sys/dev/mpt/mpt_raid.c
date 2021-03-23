@@ -6,7 +6,7 @@
  * Copyright (c) 2005, WHEEL Sp. z o.o.
  * Copyright (c) 2005 Justin T. Gibbs.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -20,7 +20,7 @@
  * 3. Neither the names of the above listed copyright holders nor the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -245,12 +245,12 @@ mpt_raid_async(void *callback_arg, u_int32_t code,
 
 		mpt_lprt(mpt, MPT_PRT_DEBUG, "Callback for %d\n",
 			 cgd->ccb_h.target_id);
-		
+
 		RAID_VOL_FOREACH(mpt, mpt_vol) {
 			if ((mpt_vol->flags & MPT_RVF_ACTIVE) == 0)
 				continue;
 
-			if (mpt_vol->config_page->VolumeID 
+			if (mpt_vol->config_page->VolumeID
 			 == cgd->ccb_h.target_id) {
 				mpt_adjust_queue_depth(mpt, mpt_vol, path);
 				break;
@@ -332,7 +332,7 @@ mpt_raid_detach(struct mpt_softc *mpt)
 	mpt_callout_drain(mpt, &mpt->raid_timer);
 
 	MPT_LOCK(mpt);
-	mpt_terminate_raid_thread(mpt); 
+	mpt_terminate_raid_thread(mpt);
 	handler.reply_handler = mpt_raid_reply_handler;
 	mpt_deregister_handler(mpt, MPT_HANDLER_REPLY, handler,
 			       raid_handler_id);
@@ -748,7 +748,7 @@ mpt_raid_quiesce_disk(struct mpt_softc *mpt, struct mpt_raid_disk *mpt_disk,
 
 		mpt_disk->flags |= MPT_RDF_QUIESCING;
 		xpt_freeze_devq(ccb->ccb_h.path, 1);
-		
+
 		rv = mpt_issue_raid_req(mpt, mpt_disk->volume, mpt_disk, req,
 					MPI_RAID_ACTION_QUIESCE_PHYS_IO,
 					/*ActionData*/0, /*addr*/0,
@@ -1021,7 +1021,7 @@ mpt_verify_resync_rate(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol)
 			mpt_vol_prt(mpt, mpt_vol, "Resync Rate Setting Failed: "
 				    "%d:%x:%x\n", rv, req->IOCStatus,
 				    ar->action_status);
-		} else 
+		} else
 			vol_pg->ResyncRate = mpt->raid_resync_rate;
 		mpt_free_request(mpt, req);
 	} else if ((prio && mpt->raid_resync_rate < 128)
@@ -1762,7 +1762,7 @@ mpt_raid_sysctl_vol_member_wce(SYSCTL_HANDLER_ARGS)
 	if (error) {
 		return (error);
 	}
-	inbuf[size] = '\0'; 
+	inbuf[size] = '\0';
 	for (i = 0; i < NUM_ELEMENTS(mpt_vol_mwce_strs); i++) {
 		if (strcmp(mpt_vol_mwce_strs[i], inbuf) == 0) {
 			return (mpt_raid_set_vol_mwce(mpt, i));

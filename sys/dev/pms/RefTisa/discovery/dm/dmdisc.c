@@ -1,22 +1,22 @@
 /*******************************************************************************
 **
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 **
 ********************************************************************************/
@@ -43,50 +43,50 @@ __FBSDID("$FreeBSD$");
 
 /*****************************************************************************/
 /*! \brief dmDiscover
- *  
  *
- *  Purpose: A discovery is started by this function 
- *  
+ *
+ *  Purpose: A discovery is started by this function
+ *
  *  \param   dmRoot:              DM context handle.
- *  \param   dmPortContext:       Pointer to this instance of port context 
- *  \param   option:              Discovery option 
- * 
- *  \return: 
+ *  \param   dmPortContext:       Pointer to this instance of port context
+ *  \param   option:              Discovery option
+ *
+ *  \return:
  *          DM_RC_SUCCESS
  *          DM_RC_FAILURE
  *
  */
 /*****************************************************************************/
-osGLOBAL bit32 	
-dmDiscover(  
+osGLOBAL bit32
+dmDiscover(
            dmRoot_t 		*dmRoot,
            dmPortContext_t	*dmPortContext,
            bit32 		option)
 {
   dmIntPortContext_t        *onePortContext = agNULL;
   bit32                     ret = DM_RC_FAILURE;
-  
+
   DM_DBG3(("dmDiscover: start\n"));
   onePortContext = (dmIntPortContext_t *)dmPortContext->dmData;
-  
+
   if (onePortContext == agNULL)
   {
     DM_DBG1(("dmDiscover: onePortContext is NULL!!!\n"));
     return DM_RC_FAILURE;
   }
-  
+
   if (onePortContext->valid == agFALSE)
   {
     DM_DBG1(("dmDiscover: invalid port!!!\n"));
     return DM_RC_FAILURE;
   }
-  
+
   if (onePortContext->RegFailed == agTRUE)
   {
     DM_DBG1(("dmDiscover: Registration failed!!!\n"));
     return DM_RC_FAILURE;
   }
-  
+
   switch ( option )
   {
   case DM_DISCOVERY_OPTION_FULL_START:
@@ -138,20 +138,20 @@ dmDiscover(
     break;
   default:
     break;
-  }  
+  }
   return ret;
-}	   				
-				
+}
+
 osGLOBAL bit32
 dmFullDiscover(
-               dmRoot_t 	    	*dmRoot, 
-               dmIntPortContext_t       *onePortContext	
+               dmRoot_t 	    	*dmRoot,
+               dmIntPortContext_t       *onePortContext
               )
 {
   dmExpander_t              *oneExpander = agNULL;
   dmSASSubID_t              dmSASSubID;
   dmDeviceData_t            *oneExpDeviceData = agNULL;
-    
+
   DM_DBG1(("dmFullDiscover: start\n"));
 
   if (onePortContext->valid == agFALSE)
@@ -159,18 +159,18 @@ dmFullDiscover(
     DM_DBG1(("dmFullDiscover: invalid port!!!\n"));
     return DM_RC_FAILURE;
   }
-  
+
   if (onePortContext->DiscoveryState == DM_DSTATE_STARTED)
   {
     DM_DBG1(("dmFullDiscover: no two instances of discovery allowed!!!\n"));
     return DM_RC_FAILURE;
   }
-  
+
   onePortContext->DiscoveryState = DM_DSTATE_STARTED;
-  
+
   dmSASSubID.sasAddressHi = onePortContext->sasRemoteAddressHi;
   dmSASSubID.sasAddressLo = onePortContext->sasRemoteAddressLo;
-  
+
   /* check OnePortContext->discovery.discoveringExpanderList */
   oneExpander = dmExpFind(dmRoot, onePortContext, dmSASSubID.sasAddressHi, dmSASSubID.sasAddressLo);
   if (oneExpander != agNULL)
@@ -186,36 +186,36 @@ dmFullDiscover(
       oneExpDeviceData = oneExpander->dmDevice;
     }
   }
-  
+
   if (oneExpDeviceData != agNULL)
   {
     dmSASSubID.initiator_ssp_stp_smp = oneExpDeviceData->initiator_ssp_stp_smp;
     dmSASSubID.target_ssp_stp_smp = oneExpDeviceData->target_ssp_stp_smp;
-    oneExpDeviceData->registered = agTRUE;    
-    dmAddSASToSharedcontext(dmRoot, onePortContext, &dmSASSubID, oneExpDeviceData, 0xFF);  
+    oneExpDeviceData->registered = agTRUE;
+    dmAddSASToSharedcontext(dmRoot, onePortContext, &dmSASSubID, oneExpDeviceData, 0xFF);
   }
   else
   {
     DM_DBG1(("dmFullDiscover:oneExpDeviceData is NULL!!!\n"));
     return DM_RC_FAILURE;
   }
-  
+
   dmUpStreamDiscoverStart(dmRoot, onePortContext);
-  
+
   return DM_RC_SUCCESS;
-}	   		      
+}
 
 osGLOBAL bit32
 dmIncrementalDiscover(
-                      dmRoot_t 	    	      *dmRoot, 
+                      dmRoot_t 	    	      *dmRoot,
                       dmIntPortContext_t      *onePortContext,
-		      bit32                   flag	
+		      bit32                   flag
                      )
 {
   dmExpander_t              *oneExpander = agNULL;
   dmSASSubID_t              dmSASSubID;
   dmDeviceData_t            *oneExpDeviceData = agNULL;
-  
+
   DM_DBG1(("dmIncrementalDiscover: start\n"));
 
   if (onePortContext->valid == agFALSE)
@@ -223,7 +223,7 @@ dmIncrementalDiscover(
     DM_DBG1(("dmIncrementalDiscover: invalid port!!!\n"));
     return DM_RC_FAILURE;
   }
-  
+
   /* TDM triggerred; let go DM triggerred */
   if (flag == agFALSE)
   {
@@ -233,13 +233,13 @@ dmIncrementalDiscover(
       return DM_RC_FAILURE;
     }
   }
-  
+
   onePortContext->DiscoveryState = DM_DSTATE_STARTED;
   onePortContext->discovery.type = DM_DISCOVERY_OPTION_INCREMENTAL_START;
-  
+
   dmSASSubID.sasAddressHi = onePortContext->sasRemoteAddressHi;
   dmSASSubID.sasAddressLo = onePortContext->sasRemoteAddressLo;
-  
+
   /* check OnePortContext->discovery.discoveringExpanderList */
   oneExpander = dmExpFind(dmRoot, onePortContext, dmSASSubID.sasAddressHi, dmSASSubID.sasAddressLo);
   if (oneExpander != agNULL)
@@ -255,36 +255,36 @@ dmIncrementalDiscover(
       oneExpDeviceData = oneExpander->dmDevice;
     }
   }
-  
+
   if (oneExpDeviceData != agNULL)
   {
     dmSASSubID.initiator_ssp_stp_smp = oneExpDeviceData->initiator_ssp_stp_smp;
     dmSASSubID.target_ssp_stp_smp = oneExpDeviceData->target_ssp_stp_smp;
-    oneExpDeviceData->registered = agTRUE;    
-    dmAddSASToSharedcontext(dmRoot, onePortContext, &dmSASSubID, oneExpDeviceData, 0xFF);  
+    oneExpDeviceData->registered = agTRUE;
+    dmAddSASToSharedcontext(dmRoot, onePortContext, &dmSASSubID, oneExpDeviceData, 0xFF);
   }
   else
   {
     DM_DBG1(("dmIncrementalDiscover:oneExpDeviceData is NULL!!!\n"));
     return DM_RC_FAILURE;
   }
-  
+
   dmUpStreamDiscoverStart(dmRoot, onePortContext);
-  
+
   return DM_RC_SUCCESS;
-}	   			     
+}
 
 osGLOBAL void
 dmUpStreamDiscoverStart(
                         dmRoot_t             *dmRoot,
-                        dmIntPortContext_t   *onePortContext		
+                        dmIntPortContext_t   *onePortContext
                        )
 {
 //  dmExpander_t              *oneExpander = agNULL;
   bit32                     sasAddressHi, sasAddressLo;
   dmDeviceData_t            *oneDeviceData;
   dmExpander_t              *oneExpander = agNULL;
-  
+
   DM_DBG3(("dmUpStreamDiscoverStart: start\n"));
   if (onePortContext->valid == agFALSE)
   {
@@ -293,7 +293,7 @@ dmUpStreamDiscoverStart(
   }
   /*
     at this point, the 1st expander should have been registered.
-    find an expander from onePortContext 
+    find an expander from onePortContext
   */
   sasAddressHi = onePortContext->sasRemoteAddressHi;
   sasAddressLo = onePortContext->sasRemoteAddressLo;
@@ -301,7 +301,7 @@ dmUpStreamDiscoverStart(
 
   oneDeviceData = dmDeviceFind(dmRoot, onePortContext, sasAddressHi, sasAddressLo);
 
-//  oneDeviceData = oneExpander->dmDevice; 
+//  oneDeviceData = oneExpander->dmDevice;
 // start here
   onePortContext->discovery.status = DISCOVERY_UP_STREAM;
   if (oneDeviceData == agNULL)
@@ -318,8 +318,8 @@ dmUpStreamDiscoverStart(
 	 DEVICE_IS_SMP_TARGET(oneDeviceData)
         )
     {
-#if 1  /* for incremental discovery */  
-      /* start here: if not on discoveringExpanderList, alloc and add 
+#if 1  /* for incremental discovery */
+      /* start here: if not on discoveringExpanderList, alloc and add
       dmNewEXPorNot()
       */
       oneExpander = dmExpFind(dmRoot, onePortContext, sasAddressHi, sasAddressLo);
@@ -329,8 +329,8 @@ dmUpStreamDiscoverStart(
         oneExpander = dmDiscoveringExpanderAlloc(dmRoot, onePortContext, oneDeviceData);
         if ( oneExpander != agNULL)
         {
-          dmDiscoveringExpanderAdd(dmRoot, onePortContext, oneExpander);      
-        }       
+          dmDiscoveringExpanderAdd(dmRoot, onePortContext, oneExpander);
+        }
         else
 	{
           DM_DBG1(("dmUpStreamDiscoverStart: failed to allocate expander or discovey aborted!!!\n"));
@@ -338,7 +338,7 @@ dmUpStreamDiscoverStart(
 	}
       }
 #endif
- 
+
       dmUpStreamDiscovering(dmRoot, onePortContext, oneDeviceData);
     }
     else
@@ -348,7 +348,7 @@ dmUpStreamDiscoverStart(
     }
   }
   return;
-}  				
+}
 
 /* sends report general */
 osGLOBAL void
@@ -360,15 +360,15 @@ dmUpStreamDiscovering(
 {
   dmList_t          *ExpanderList;
   dmExpander_t      *oneNextExpander = agNULL;
-  
+
   DM_DBG3(("dmUpStreamDiscovering: start\n"));
-  
+
   if (onePortContext->valid == agFALSE)
   {
     DM_DBG1(("dmUpStreamDiscovering: invalid port!!!\n"));
     return;
   }
-  
+
   tddmSingleThreadedEnter(dmRoot, DM_EXPANDER_LOCK);
   if (DMLIST_EMPTY(&(onePortContext->discovery.discoveringExpanderList)))
   {
@@ -393,7 +393,7 @@ dmUpStreamDiscovering(
     tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);
 
   }
-  
+
   if (oneNextExpander != agNULL)
   {
     dmReportGeneralSend(dmRoot, oneNextExpander->dmDevice);
@@ -403,9 +403,9 @@ dmUpStreamDiscovering(
     DM_DBG3(("dmUpStreamDiscovering: No more expander list\n"));
     dmDownStreamDiscoverStart(dmRoot, onePortContext, oneDeviceData);
   }
-  
+
   return;
-}				
+}
 
 osGLOBAL void
 dmDownStreamDiscoverStart(
@@ -416,44 +416,44 @@ dmDownStreamDiscoverStart(
 {
   dmExpander_t        *UpStreamExpander;
   dmExpander_t        *oneExpander;
-  
+
   DM_DBG3(("dmDownStreamDiscoverStart: start\n"));
-  
+
   if (dmDiscoverCheck(dmRoot, onePortContext) == agTRUE)
   {
-    DM_DBG1(("dmDownStreamDiscoverStart: invalid port or aborted discovery!!!\n"));  
+    DM_DBG1(("dmDownStreamDiscoverStart: invalid port or aborted discovery!!!\n"));
     return;
   }
 
   /* set discovery status */
   onePortContext->discovery.status = DISCOVERY_DOWN_STREAM;
 
-  /* If it's an expander */    
+  /* If it's an expander */
   if ( (oneDeviceData->SASSpecDeviceType == SAS_EDGE_EXPANDER_DEVICE)
        || (oneDeviceData->SASSpecDeviceType == SAS_FANOUT_EXPANDER_DEVICE)
        || DEVICE_IS_SMP_TARGET(oneDeviceData)
        )
   {
-    oneExpander = oneDeviceData->dmExpander;    
+    oneExpander = oneDeviceData->dmExpander;
     UpStreamExpander = oneExpander->dmUpStreamExpander;
-    
+
     /* If the two expanders are the root of two edge sets; sub-to-sub */
     if ( (UpStreamExpander != agNULL) && ( UpStreamExpander->dmUpStreamExpander == oneExpander ) )
     {
-      DM_DBG3(("dmDownStreamDiscoverStart: Root found pExpander=%p pUpStreamExpander=%p\n", 
+      DM_DBG3(("dmDownStreamDiscoverStart: Root found pExpander=%p pUpStreamExpander=%p\n",
                oneExpander, UpStreamExpander));
       //Saves the root expander
       onePortContext->discovery.RootExp = oneExpander;
       DM_DBG3(("dmDownStreamDiscoverStart: Root exp addrHi 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressHi));
       DM_DBG3(("dmDownStreamDiscoverStart: Root exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo));
-               
+
       /* reset up stream inform for pExpander */
-      oneExpander->dmUpStreamExpander = agNULL;      
+      oneExpander->dmUpStreamExpander = agNULL;
       /* Add the pExpander to discovering list */
       dmDiscoveringExpanderAdd(dmRoot, onePortContext, oneExpander);
 
       /* reset up stream inform for oneExpander */
-      UpStreamExpander->dmUpStreamExpander = agNULL;      
+      UpStreamExpander->dmUpStreamExpander = agNULL;
       /* Add the UpStreamExpander to discovering list */
       dmDiscoveringExpanderAdd(dmRoot, onePortContext, UpStreamExpander);
     }
@@ -466,17 +466,17 @@ dmDownStreamDiscoverStart(
       DM_DBG3(("dmDownStreamDiscoverStart: NO Root pExpander=%p\n", oneExpander));
       DM_DBG3(("dmDownStreamDiscoverStart: Root exp addrHi 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressHi));
       DM_DBG3(("dmDownStreamDiscoverStart: Root exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo));
-      
+
       /* (2.2.2.1) Add the pExpander to discovering list */
-      dmDiscoveringExpanderAdd(dmRoot, onePortContext, oneExpander);      
+      dmDiscoveringExpanderAdd(dmRoot, onePortContext, oneExpander);
     }
   }
 
   /* Continue down stream discovering */
   dmDownStreamDiscovering(dmRoot, onePortContext, oneDeviceData);
-  
+
   return;
-}			 
+}
 
 osGLOBAL void
 dmDownStreamDiscovering(
@@ -487,12 +487,12 @@ dmDownStreamDiscovering(
 {
   dmExpander_t      *NextExpander = agNULL;
   dmList_t          *ExpanderList;
-  
+
   DM_DBG3(("dmDownStreamDiscovering: start\n"));
-  
+
   if (dmDiscoverCheck(dmRoot, onePortContext) == agTRUE)
   {
-    DM_DBG1(("dmDownStreamDiscovering: invalid port or aborted discovery!!!\n"));  
+    DM_DBG1(("dmDownStreamDiscovering: invalid port or aborted discovery!!!\n"));
     return;
   }
 
@@ -515,16 +515,16 @@ dmDownStreamDiscovering(
     }
     else
     {
-     DM_DBG1(("dmDownStreamDiscovering: NextExpander is NULL!!!\n"));  
+     DM_DBG1(("dmDownStreamDiscovering: NextExpander is NULL!!!\n"));
     }
     tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);
-    
+
   }
-  
+
   /* If there is an expander for continue discoving */
   if ( NextExpander != agNULL)
   {
-    DM_DBG3(("dmDownStreamDiscovering: Found pNextExpander=%p discoveryStatus=0x%x\n", 
+    DM_DBG3(("dmDownStreamDiscovering: Found pNextExpander=%p discoveryStatus=0x%x\n",
              NextExpander, onePortContext->discovery.status));
 
     switch (onePortContext->discovery.status)
@@ -535,18 +535,18 @@ dmDownStreamDiscovering(
       DM_DBG3(("dmDownStreamDiscovering: DownStream pNextExpander=%p\n", NextExpander));
       DM_DBG3(("dmDownStreamDiscovering: oneDeviceData %p did %d\n", oneDeviceData, oneDeviceData->id));
       DM_DBG3(("dmDownStreamDiscovering: oneExpander %p did %d\n", oneDeviceData->dmExpander, oneDeviceData->dmExpander->id));
-      
+
       DM_DBG3(("dmDownStreamDiscovering: 2nd oneDeviceData %p did %d\n", NextExpander->dmDevice, NextExpander->dmDevice->id));
       DM_DBG3(("dmDownStreamDiscovering: 2nd oneExpander %p did %d\n", NextExpander, NextExpander->id));
       DM_DBG3(("dmDownStreamDiscovering: 2nd used oneExpander %p did %d\n", NextExpander->dmDevice->dmExpander, NextExpander->dmDevice->dmExpander->id));
-      
+
       if (NextExpander != NextExpander->dmDevice->dmExpander)
       {
         DM_DBG3(("dmDownStreamDiscovering: wrong!!!\n"));
       }
-      
-	          
-      dmReportGeneralSend(dmRoot, NextExpander->dmDevice);            
+
+
+      dmReportGeneralSend(dmRoot, NextExpander->dmDevice);
       break;
       /* If the discovery status is DISCOVERY_CONFIG_ROUTING */
     case DISCOVERY_CONFIG_ROUTING:
@@ -554,17 +554,17 @@ dmDownStreamDiscovering(
 
       /* set discovery status */
       onePortContext->discovery.status = DISCOVERY_DOWN_STREAM;
-      
+
       DM_DBG3(("dmDownStreamDiscovering: pPort->discovery.status=DISCOVERY_CONFIG_ROUTING, make it DOWN_STREAM\n"));
-      /* If not the last phy */    
+      /* If not the last phy */
       if ( NextExpander->discoveringPhyId < NextExpander->dmDevice->numOfPhys )
-      {      
+      {
         DM_DBG3(("dmDownStreamDiscovering: pNextExpander->discoveringPhyId=0x%x pNextExpander->numOfPhys=0x%x.  Send More Discover\n",
                  NextExpander->discoveringPhyId, NextExpander->dmDevice->numOfPhys));
         /* Send discover for the next expander */
-        dmDiscoverSend(dmRoot, NextExpander->dmDevice);                  
+        dmDiscoverSend(dmRoot, NextExpander->dmDevice);
         }
-      /* If it's the last phy */    
+      /* If it's the last phy */
       else
       {
         DM_DBG3(("dmDownStreamDiscovering: Last Phy, remove expander%p  start DownStream=%p\n",
@@ -573,7 +573,7 @@ dmDownStreamDiscovering(
         dmDownStreamDiscovering(dmRoot, onePortContext, NextExpander->dmDevice);
       }
       break;
-      
+
     default:
       DM_DBG3(("dmDownStreamDiscovering: *** Unknown pPort->discovery.status=0x%x\n", onePortContext->discovery.status));
     }
@@ -584,11 +584,11 @@ dmDownStreamDiscovering(
     DM_DBG3(("dmDownStreamDiscovering: No more expander DONE\n"));
     /* discover done */
     dmDiscoverDone(dmRoot, onePortContext, DM_RC_SUCCESS);
-  }  
-  
-  
+  }
+
+
   return;
-}		       
+}
 
 osGLOBAL void
 dmUpStreamDiscoverExpanderPhy(
@@ -607,40 +607,40 @@ dmUpStreamDiscoverExpanderPhy(
   dmDeviceData_t          *AttachedDevice = agNULL;
   dmIntRoot_t             *dmIntRoot    = (dmIntRoot_t *)dmRoot->dmData;
   dmIntContext_t          *dmAllShared  = (dmIntContext_t *)&dmIntRoot->dmAllShared;
-  
-  
+
+
   DM_DBG3(("dmUpStreamDiscoverExpanderPhy: start\n"));
-  
+
   if (dmDiscoverCheck(dmRoot, onePortContext) == agTRUE)
   {
-    DM_DBG1(("dmUpStreamDiscoverExpanderPhy: invalid port or aborted discovery!!!\n"));  
+    DM_DBG1(("dmUpStreamDiscoverExpanderPhy: invalid port or aborted discovery!!!\n"));
     return;
   }
-  
+
   if (oneExpander != oneExpander->dmDevice->dmExpander)
   {
     DM_DBG1(("dmUpStreamDiscoverExpanderPhy: wrong!!!\n"));
   }
-  
+
   dm_memset(&sasIdentify, 0, sizeof(agsaSASIdentify_t));
-    
+
   oneDeviceData = oneExpander->dmDevice;
- 
+
   DM_DBG3(("dmUpStreamDiscoverExpanderPhy: Phy #%d of SAS %08x-%08x\n",
            oneExpander->discoveringPhyId,
            oneDeviceData->SASAddressID.sasAddressHi,
            oneDeviceData->SASAddressID.sasAddressLo));
-  
+
   DM_DBG3(("   Attached device: %s\n",
-           ( DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 0 ? "No Device" : 
-             (DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 1 ? "End Device" : 
+           ( DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 0 ? "No Device" :
+             (DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 1 ? "End Device" :
               (DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 2 ? "Edge Expander" : "Fanout Expander")))));
-  
-  
+
+
   if ( DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) != SAS_NO_DEVICE)
   {
     DM_DBG3(("   SAS address    : %08x-%08x\n",
-      DISCRSP_GET_ATTACHED_SAS_ADDRESSHI(pDiscoverResp), 
+      DISCRSP_GET_ATTACHED_SAS_ADDRESSHI(pDiscoverResp),
               DISCRSP_GET_ATTACHED_SAS_ADDRESSLO(pDiscoverResp)));
     DM_DBG3(("   SSP Target     : %d\n", DISCRSP_IS_SSP_TARGET(pDiscoverResp)?1:0));
     DM_DBG3(("   STP Target     : %d\n", DISCRSP_IS_STP_TARGET(pDiscoverResp)?1:0));
@@ -650,9 +650,9 @@ dmUpStreamDiscoverExpanderPhy(
     DM_DBG3(("   STP Initiator  : %d\n", DISCRSP_IS_STP_INITIATOR(pDiscoverResp)?1:0));
     DM_DBG3(("   SMP Initiator  : %d\n", DISCRSP_IS_SMP_INITIATOR(pDiscoverResp)?1:0));
     DM_DBG3(("   Phy ID         : %d\n", pDiscoverResp->phyIdentifier));
-    DM_DBG3(("   Attached Phy ID: %d\n", pDiscoverResp->attachedPhyIdentifier)); 
+    DM_DBG3(("   Attached Phy ID: %d\n", pDiscoverResp->attachedPhyIdentifier));
   }
-  
+
   /* for debugging */
   if (oneExpander->discoveringPhyId != pDiscoverResp->phyIdentifier)
   {
@@ -662,10 +662,10 @@ dmUpStreamDiscoverExpanderPhy(
     dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
     return;
   }
-  
+
   /* saving routing attribute for non self-configuring expanders */
   oneExpander->routingAttribute[pDiscoverResp->phyIdentifier] = (bit8)DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp);
-  
+
   if ( oneDeviceData->SASSpecDeviceType == SAS_FANOUT_EXPANDER_DEVICE )
   {
     DM_DBG3(("dmUpStreamDiscoverExpanderPhy: SA_SAS_DEV_TYPE_FANOUT_EXPANDER\n"));
@@ -679,15 +679,15 @@ dmUpStreamDiscoverExpanderPhy(
       onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
         = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
       onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-      DM_DBG1(("dmUpStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+      DM_DBG1(("dmUpStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                 onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                 onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
 
       /* (2.1.3) discovery done */
       dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
-      return;        
-    }    
+      return;
+    }
   }
   else
   {
@@ -702,25 +702,25 @@ dmUpStreamDiscoverExpanderPhy(
       *(bit32*)sasIdentify.sasAddressHi = *(bit32*)pDiscoverResp->attachedSasAddressHi;
       *(bit32*)sasIdentify.sasAddressLo = *(bit32*)pDiscoverResp->attachedSasAddressLo;
 
-      /* incremental discovery */       
+      /* incremental discovery */
       dmSASSubID.sasAddressHi = SA_IDFRM_GET_SAS_ADDRESSHI(&sasIdentify);
       dmSASSubID.sasAddressLo = SA_IDFRM_GET_SAS_ADDRESSLO(&sasIdentify);
       dmSASSubID.initiator_ssp_stp_smp = sasIdentify.initiator_ssp_stp_smp;
       dmSASSubID.target_ssp_stp_smp = sasIdentify.target_ssp_stp_smp;
-       
+
       attachedSasHi = DISCRSP_GET_ATTACHED_SAS_ADDRESSHI(pDiscoverResp);
       attachedSasLo = DISCRSP_GET_ATTACHED_SAS_ADDRESSLO(pDiscoverResp);
- 
+
       /* If the phy has subtractive routing attribute */
       if ( DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp) == SAS_ROUTING_SUBTRACTIVE)
-      {       
+      {
         DM_DBG3(("dmUpStreamDiscoverExpanderPhy: SA_SAS_ROUTING_SUBTRACTIVE\n"));
         /* Setup upstream phys */
         dmExpanderUpStreamPhyAdd(dmRoot, oneExpander, (bit8) pDiscoverResp->attachedPhyIdentifier);
         /* If the expander already has an upsteam device set up */
         if (oneExpander->hasUpStreamDevice == agTRUE)
         {
-          /* just to update MCN */          
+          /* just to update MCN */
           dmPortSASDeviceFind(dmRoot, onePortContext, attachedSasLo, attachedSasHi, oneDeviceData);
           /* If the sas address doesn't match */
           if ( ((oneExpander->upStreamSASAddressHi != attachedSasHi) ||
@@ -737,8 +737,8 @@ dmUpStreamDiscoverExpanderPhy(
             onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
               = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
             onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-            DM_DBG1(("dmUpStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+            DM_DBG1(("dmUpStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                 onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                 onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
             /* discovery done */
@@ -772,7 +772,7 @@ dmUpStreamDiscoverExpanderPhy(
                         DEVINFO_GET_SAS_ADDRESSLO(&oneDeviceData->agDeviceInfo)) )
                 {
                   /* Setup upstream expander for the pExpander */
-                  oneExpander->dmUpStreamExpander = AttachedExpander;                
+                  oneExpander->dmUpStreamExpander = AttachedExpander;
                 }
                 /* If the two expanders are not the root of the two edge expander sets */
                 else
@@ -784,13 +784,13 @@ dmUpStreamDiscoverExpanderPhy(
                   onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
                     = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
                   onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-                  DM_DBG1(("dmUpStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                           onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+                  DM_DBG1(("dmUpStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                           onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                            onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
-                           onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));                  
+                           onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
 		                /* discovery done */
                   dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
-                }  
+                }
               }
               /* If attached device is not an edge expander */
               else
@@ -802,16 +802,16 @@ dmUpStreamDiscoverExpanderPhy(
             /* New device, If the device has not been discovered before */
             else /* new device */
             {
-              /* Add the device */    
+              /* Add the device */
               DM_DBG3(("dmUpStreamDiscoverExpanderPhy: New device\n"));
-              /* read minimum rate from the configuration 
+              /* read minimum rate from the configuration
                  onePortContext->LinkRate is SPC's local link rate
               */
               connectionRate = (bit8)MIN(onePortContext->LinkRate, DISCRSP_GET_LINKRATE(pDiscoverResp));
               DM_DBG3(("dmUpStreamDiscoverExpanderPhy: link rate 0x%x\n", onePortContext->LinkRate));
-              DM_DBG3(("dmUpStreamDiscoverExpanderPhy: negotiatedPhyLinkRate 0x%x\n", DISCRSP_GET_LINKRATE(pDiscoverResp))); 
+              DM_DBG3(("dmUpStreamDiscoverExpanderPhy: negotiatedPhyLinkRate 0x%x\n", DISCRSP_GET_LINKRATE(pDiscoverResp)));
               DM_DBG3(("dmUpStreamDiscoverExpanderPhy: connectionRate 0x%x\n", connectionRate));
-              if (DISCRSP_IS_STP_TARGET(pDiscoverResp) || DISCRSP_IS_SATA_DEVICE(pDiscoverResp))    
+              if (DISCRSP_IS_STP_TARGET(pDiscoverResp) || DISCRSP_IS_SATA_DEVICE(pDiscoverResp))
               {
                 /* incremental discovery */
                 if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_FULL_START)
@@ -838,7 +838,7 @@ dmUpStreamDiscoverExpanderPhy(
                                                      onePortContext,
                                                      &dmSASSubID
                                                      );
-                  /* not registered and not valid; add this*/                                   
+                  /* not registered and not valid; add this*/
                   if (AttachedDevice == agNULL)
                   {
                     AttachedDevice = dmPortSASDeviceAdd(
@@ -861,7 +861,7 @@ dmUpStreamDiscoverExpanderPhy(
               {
                 /* incremental discovery */
                 if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_FULL_START)
-                {            
+                {
                   AttachedDevice = dmPortSASDeviceAdd(
                                                     dmRoot,
                                                     onePortContext,
@@ -900,15 +900,15 @@ dmUpStreamDiscoverExpanderPhy(
                                                     oneExpander,
                                                     pDiscoverResp->phyIdentifier
                                                     );
-                  }                    
-                }                                                    
+                  }
+                }
               }
-               /* If the device is added successfully */    
+               /* If the device is added successfully */
               if ( AttachedDevice != agNULL)
               {
 
                  /* (3.1.2.3.2.3.2.1) callback about new device */
-                if ( DISCRSP_IS_SSP_TARGET(pDiscoverResp) 
+                if ( DISCRSP_IS_SSP_TARGET(pDiscoverResp)
                     || DISCRSP_IS_SSP_INITIATOR(pDiscoverResp)
                     || DISCRSP_IS_SMP_INITIATOR(pDiscoverResp)
                     || DISCRSP_IS_SMP_INITIATOR(pDiscoverResp) )
@@ -921,7 +921,7 @@ dmUpStreamDiscoverExpanderPhy(
                   DM_DBG3(("dmUpStreamDiscoverExpanderPhy: Found a SAS STP device.\n"));
                 }
                  /* If the attached device is an expander */
-                if ( (DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE) 
+                if ( (DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE)
                     || (DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_FANOUT_EXPANDER_DEVICE) )
                 {
                   /* Allocate an expander data structure */
@@ -930,11 +930,11 @@ dmUpStreamDiscoverExpanderPhy(
                                                                 onePortContext,
                                                                 AttachedDevice
 								                                                       );
-    
+
                   DM_DBG3(("dmUpStreamDiscoverExpanderPhy: Found expander=%p\n", AttachedExpander));
                   /* If allocate successfully */
                   if ( AttachedExpander != agNULL)
-                  {                  
+                  {
                     /* Add the pAttachedExpander to discovering list */
                     dmDiscoveringExpanderAdd(dmRoot, onePortContext, AttachedExpander);
                     /* Setup upstream expander for the pExpander */
@@ -961,25 +961,25 @@ dmUpStreamDiscoverExpanderPhy(
                 DM_DBG1(("dmUpStreamDiscoverExpanderPhy: Failed to add a device!!!\n"));
                 dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
               }
-   
-    
-      
+
+
+
             } /* else, new device */
           } /* onePortContext->sasLocalAddressLo != attachedSasLo */
         } /* else */
       } /* DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp) == SAS_ROUTING_SUBTRACTIVE */
     } /* DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) != SAS_NO_DEVICE */
   } /* big else */
-  
-  
-  
+
+
+
    oneExpander->discoveringPhyId ++;
    if (onePortContext->discovery.status == DISCOVERY_UP_STREAM)
      {
        if ( oneExpander->discoveringPhyId < oneDeviceData->numOfPhys )
        {
          DM_DBG3(("dmUpStreamDiscoverExpanderPhy: DISCOVERY_UP_STREAM find more ...\n"));
-         /* continue discovery for the next phy */  
+         /* continue discovery for the next phy */
          dmDiscoverSend(dmRoot, oneDeviceData);
        }
        else
@@ -987,23 +987,23 @@ dmUpStreamDiscoverExpanderPhy(
          DM_DBG3(("dmUpStreamDiscoverExpanderPhy: DISCOVERY_UP_STREAM last phy continue upstream..\n"));
 
          /* for MCN */
-         dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);         
+         dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);
          /* remove the expander from the discovering list */
          dmDiscoveringExpanderRemove(dmRoot, onePortContext, oneExpander);
-         /* continue upstream discovering */  
+         /* continue upstream discovering */
          dmUpStreamDiscovering(dmRoot, onePortContext, oneDeviceData);
        }
    }
    else
    {
-      DM_DBG3(("dmUpStreamDiscoverExpanderPhy: onePortContext->discovery.status not in DISCOVERY_UP_STREAM; status %d\n", onePortContext->discovery.status));  
-   
+      DM_DBG3(("dmUpStreamDiscoverExpanderPhy: onePortContext->discovery.status not in DISCOVERY_UP_STREAM; status %d\n", onePortContext->discovery.status));
+
    }
-   
+
   DM_DBG3(("dmUpStreamDiscoverExpanderPhy: end return phyID#%d\n", oneExpander->discoveringPhyId - 1));
-  
+
   return;
-}	   				
+}
 
 osGLOBAL void
 dmUpStreamDiscover2ExpanderPhy(
@@ -1015,46 +1015,46 @@ dmUpStreamDiscover2ExpanderPhy(
 {
   dmDeviceData_t          *oneDeviceData;
   dmDeviceData_t          *AttachedDevice = agNULL;
-  dmExpander_t            *AttachedExpander;    
+  dmExpander_t            *AttachedExpander;
   agsaSASIdentify_t       sasIdentify;
   bit8                    connectionRate;
   bit32                   attachedSasHi, attachedSasLo;
   dmSASSubID_t            dmSASSubID;
   dmIntRoot_t             *dmIntRoot    = (dmIntRoot_t *)dmRoot->dmData;
   dmIntContext_t          *dmAllShared  = (dmIntContext_t *)&dmIntRoot->dmAllShared;
-  
+
   DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: start\n"));
-  
+
   if (dmDiscoverCheck(dmRoot, onePortContext) == agTRUE)
   {
-    DM_DBG1(("dmUpStreamDiscover2ExpanderPhy: invalid port or aborted discovery!!!\n"));  
+    DM_DBG1(("dmUpStreamDiscover2ExpanderPhy: invalid port or aborted discovery!!!\n"));
     return;
   }
-  
+
   if (oneExpander != oneExpander->dmDevice->dmExpander)
   {
     DM_DBG1(("dmUpStreamDiscover2ExpanderPhy: wrong!!!\n"));
   }
-  
+
   dm_memset(&sasIdentify, 0, sizeof(agsaSASIdentify_t));
-    
+
   oneDeviceData = oneExpander->dmDevice;
-  
+
   DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: Phy #%d of SAS %08x-%08x\n",
            oneExpander->discoveringPhyId,
            oneDeviceData->SASAddressID.sasAddressHi,
            oneDeviceData->SASAddressID.sasAddressLo));
-  
+
   DM_DBG2(("   Attached device: %s\n",
-           ( SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 0 ? "No Device" : 
-             (SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 1 ? "End Device" : 
+           ( SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 0 ? "No Device" :
+             (SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 1 ? "End Device" :
               (SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 2 ? "Edge Expander" : "Fanout Expander")))));
-  
+
 
   if ( SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) != SAS_NO_DEVICE)
   {
     DM_DBG2(("   SAS address    : %08x-%08x\n",
-      SAS2_DISCRSP_GET_ATTACHED_SAS_ADDRESSHI(pDiscoverResp), 
+      SAS2_DISCRSP_GET_ATTACHED_SAS_ADDRESSHI(pDiscoverResp),
               SAS2_DISCRSP_GET_ATTACHED_SAS_ADDRESSLO(pDiscoverResp)));
     DM_DBG2(("   SSP Target     : %d\n", SAS2_DISCRSP_IS_SSP_TARGET(pDiscoverResp)?1:0));
     DM_DBG2(("   STP Target     : %d\n", SAS2_DISCRSP_IS_STP_TARGET(pDiscoverResp)?1:0));
@@ -1064,9 +1064,9 @@ dmUpStreamDiscover2ExpanderPhy(
     DM_DBG2(("   STP Initiator  : %d\n", SAS2_DISCRSP_IS_STP_INITIATOR(pDiscoverResp)?1:0));
     DM_DBG2(("   SMP Initiator  : %d\n", SAS2_DISCRSP_IS_SMP_INITIATOR(pDiscoverResp)?1:0));
     DM_DBG2(("   Phy ID         : %d\n", pDiscoverResp->phyIdentifier));
-    DM_DBG2(("   Attached Phy ID: %d\n", pDiscoverResp->attachedPhyIdentifier)); 
+    DM_DBG2(("   Attached Phy ID: %d\n", pDiscoverResp->attachedPhyIdentifier));
   }
-  
+
   if (oneExpander->discoveringPhyId != pDiscoverResp->phyIdentifier)
   {
     DM_DBG1(("dmUpStreamDiscover2ExpanderPhy: !!! Incorrect SMP response !!!\n"));
@@ -1075,10 +1075,10 @@ dmUpStreamDiscover2ExpanderPhy(
     dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
     return;
   }
- 
+
   /* saving routing attribute for non self-configuring expanders */
   oneExpander->routingAttribute[pDiscoverResp->phyIdentifier] = SAS2_DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp);
-  
+
   if ( oneDeviceData->SASSpecDeviceType == SAS_FANOUT_EXPANDER_DEVICE )
   {
     DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: SA_SAS_DEV_TYPE_FANOUT_EXPANDER\n"));
@@ -1092,20 +1092,20 @@ dmUpStreamDiscover2ExpanderPhy(
       onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
         = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
       onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-      DM_DBG1(("dmUpStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+      DM_DBG1(("dmUpStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                 onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                 onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
 
       /* (2.1.3) discovery done */
       dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
-      return;        
-    }    
+      return;
+    }
   }
   else
   {
     DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: SA_SAS_DEV_TYPE_EDGE_EXPANDER\n"));
-    
+
     if ( SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) != SAS_NO_DEVICE)
     {
       /* Setup sasIdentify for the attached device */
@@ -1116,26 +1116,26 @@ dmUpStreamDiscover2ExpanderPhy(
       *(bit32*)sasIdentify.sasAddressHi = *(bit32*)pDiscoverResp->attachedSasAddressHi;
       *(bit32*)sasIdentify.sasAddressLo = *(bit32*)pDiscoverResp->attachedSasAddressLo;
 
-      /* incremental discovery */       
+      /* incremental discovery */
       dmSASSubID.sasAddressHi = SA_IDFRM_GET_SAS_ADDRESSHI(&sasIdentify);
       dmSASSubID.sasAddressLo = SA_IDFRM_GET_SAS_ADDRESSLO(&sasIdentify);
       dmSASSubID.initiator_ssp_stp_smp = sasIdentify.initiator_ssp_stp_smp;
       dmSASSubID.target_ssp_stp_smp = sasIdentify.target_ssp_stp_smp;
-       
+
       attachedSasHi = SAS2_DISCRSP_GET_ATTACHED_SAS_ADDRESSHI(pDiscoverResp);
       attachedSasLo = SAS2_DISCRSP_GET_ATTACHED_SAS_ADDRESSLO(pDiscoverResp);
-      
+
       /* If the phy has subtractive routing attribute */
       if ( SAS2_DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp) == SAS_ROUTING_SUBTRACTIVE)
-      {       
+      {
         DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: SA_SAS_ROUTING_SUBTRACTIVE\n"));
         /* Setup upstream phys */
         dmExpanderUpStreamPhyAdd(dmRoot, oneExpander, (bit8) pDiscoverResp->attachedPhyIdentifier);
         /* If the expander already has an upsteam device set up */
         if (oneExpander->hasUpStreamDevice == agTRUE)
         {
-          /* just to update MCN */          
-          dmPortSASDeviceFind(dmRoot, onePortContext, attachedSasLo, attachedSasHi, oneDeviceData);          
+          /* just to update MCN */
+          dmPortSASDeviceFind(dmRoot, onePortContext, attachedSasLo, attachedSasHi, oneDeviceData);
           /* If the sas address doesn't match */
           if ( ((oneExpander->upStreamSASAddressHi != attachedSasHi) ||
                 (oneExpander->upStreamSASAddressLo != attachedSasLo)) &&
@@ -1151,8 +1151,8 @@ dmUpStreamDiscover2ExpanderPhy(
             onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
               = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
             onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-            DM_DBG1(("dmUpStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                      onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+            DM_DBG1(("dmUpStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                      onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                       onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                       onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
             /* discovery done */
@@ -1187,7 +1187,7 @@ dmUpStreamDiscover2ExpanderPhy(
                         DEVINFO_GET_SAS_ADDRESSLO(&oneDeviceData->agDeviceInfo)) )
                 {
                   /* Setup upstream expander for the pExpander */
-                  oneExpander->dmUpStreamExpander = AttachedExpander;                
+                  oneExpander->dmUpStreamExpander = AttachedExpander;
                 }
                 /* If the two expanders are not the root of the two edge expander sets */
                 else
@@ -1199,13 +1199,13 @@ dmUpStreamDiscover2ExpanderPhy(
                   onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
                     = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
                   onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-                  DM_DBG1(("dmUpStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                            onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+                  DM_DBG1(("dmUpStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                            onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                             onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                             onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
                   /* discovery done */
                   dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
-                }  
+                }
               }
               /* If attached device is not an edge expander */
               else
@@ -1217,17 +1217,17 @@ dmUpStreamDiscover2ExpanderPhy(
             /* If the device has not been discovered before */
             else
             {
-              /* Add the device */    
+              /* Add the device */
               DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: New device\n"));
-              /* read minimum rate from the configuration 
+              /* read minimum rate from the configuration
                  onePortContext->LinkRate is SPC's local link rate
               */
               connectionRate = MIN(onePortContext->LinkRate, SAS2_DISCRSP_GET_LOGICAL_LINKRATE(pDiscoverResp));
               DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: link rate 0x%x\n", onePortContext->LinkRate));
-              DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: negotiatedPhyLinkRate 0x%x\n", SAS2_DISCRSP_GET_LINKRATE(pDiscoverResp))); 
+              DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: negotiatedPhyLinkRate 0x%x\n", SAS2_DISCRSP_GET_LINKRATE(pDiscoverResp)));
               DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: connectionRate 0x%x\n", connectionRate));
               //hhhhhhhh
-              if (SAS2_DISCRSP_IS_STP_TARGET(pDiscoverResp) || SAS2_DISCRSP_IS_SATA_DEVICE(pDiscoverResp))    
+              if (SAS2_DISCRSP_IS_STP_TARGET(pDiscoverResp) || SAS2_DISCRSP_IS_SATA_DEVICE(pDiscoverResp))
               {
                 /* incremental discovery */
                 if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_FULL_START)
@@ -1254,7 +1254,7 @@ dmUpStreamDiscover2ExpanderPhy(
                                                      onePortContext,
                                                      &dmSASSubID
                                                      );
-                  /* not registered and not valid; add this*/                                   
+                  /* not registered and not valid; add this*/
                   if (AttachedDevice == agNULL)
                   {
                     AttachedDevice = dmPortSASDeviceAdd(
@@ -1277,7 +1277,7 @@ dmUpStreamDiscover2ExpanderPhy(
               {
                 /* incremental discovery */
                 if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_FULL_START)
-                {            
+                {
                   AttachedDevice = dmPortSASDeviceAdd(
                                                     dmRoot,
                                                     onePortContext,
@@ -1316,15 +1316,15 @@ dmUpStreamDiscover2ExpanderPhy(
                                                     oneExpander,
                                                     pDiscoverResp->phyIdentifier
                                                     );
-                  }                    
-                }                                                    
+                  }
+                }
               }
-              /* If the device is added successfully */    
+              /* If the device is added successfully */
               if ( AttachedDevice != agNULL)
               {
 
                  /* (3.1.2.3.2.3.2.1) callback about new device */
-                if ( SAS2_DISCRSP_IS_SSP_TARGET(pDiscoverResp) 
+                if ( SAS2_DISCRSP_IS_SSP_TARGET(pDiscoverResp)
                     || SAS2_DISCRSP_IS_SSP_INITIATOR(pDiscoverResp)
                     || SAS2_DISCRSP_IS_SMP_INITIATOR(pDiscoverResp)
                     || SAS2_DISCRSP_IS_SMP_INITIATOR(pDiscoverResp) )
@@ -1337,7 +1337,7 @@ dmUpStreamDiscover2ExpanderPhy(
                   DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: Found a SAS STP device.\n"));
                 }
                  /* If the attached device is an expander */
-                if ( (SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE) 
+                if ( (SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE)
                     || (SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_FANOUT_EXPANDER_DEVICE) )
                 {
                   /* Allocate an expander data structure */
@@ -1346,11 +1346,11 @@ dmUpStreamDiscover2ExpanderPhy(
                                                                 onePortContext,
                                                                 AttachedDevice
                                                                );
-    
+
                   DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: Found expander=%p\n", AttachedExpander));
                   /* If allocate successfully */
                   if ( AttachedExpander != agNULL)
-                  {                  
+                  {
                     /* Add the pAttachedExpander to discovering list */
                     dmDiscoveringExpanderAdd(dmRoot, onePortContext, AttachedExpander);
                     /* Setup upstream expander for the pExpander */
@@ -1383,14 +1383,14 @@ dmUpStreamDiscover2ExpanderPhy(
       } /* substractive routing */
     }
   }
-  
+
    oneExpander->discoveringPhyId ++;
    if (onePortContext->discovery.status == DISCOVERY_UP_STREAM)
      {
        if ( oneExpander->discoveringPhyId < oneDeviceData->numOfPhys )
        {
          DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: DISCOVERY_UP_STREAM find more ...\n"));
-         /* continue discovery for the next phy */  
+         /* continue discovery for the next phy */
          dmDiscoverSend(dmRoot, oneDeviceData);
        }
        else
@@ -1398,23 +1398,23 @@ dmUpStreamDiscover2ExpanderPhy(
          DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: DISCOVERY_UP_STREAM last phy continue upstream..\n"));
 
          /* for MCN */
-         dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);         
+         dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);
          /* remove the expander from the discovering list */
          dmDiscoveringExpanderRemove(dmRoot, onePortContext, oneExpander);
-         /* continue upstream discovering */  
+         /* continue upstream discovering */
          dmUpStreamDiscovering(dmRoot, onePortContext, oneDeviceData);
        }
    }
    else
    {
-      DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: onePortContext->discovery.status not in DISCOVERY_UP_STREAM; status %d\n", onePortContext->discovery.status));  
-   
+      DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: onePortContext->discovery.status not in DISCOVERY_UP_STREAM; status %d\n", onePortContext->discovery.status));
+
    }
-   
+
   DM_DBG2(("dmUpStreamDiscover2ExpanderPhy: end return phyID#%d\n", oneExpander->discoveringPhyId - 1));
-  
+
   return;
-}			     
+}
 
 
 osGLOBAL void
@@ -1440,48 +1440,48 @@ dmDownStreamDiscoverExpanderPhy(
   bit32                   SAS2SAS11Check = agFALSE;
   dmIntRoot_t             *dmIntRoot    = (dmIntRoot_t *)dmRoot->dmData;
   dmIntContext_t          *dmAllShared  = (dmIntContext_t *)&dmIntRoot->dmAllShared;
-  
-  
-  
+
+
+
   DM_DBG3(("dmDownStreamDiscoverExpanderPhy: start\n"));
   DM_DBG3(("dmDownStreamDiscoverExpanderPhy: exp addrHi 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressHi));
-  DM_DBG3(("dmDownStreamDiscoverExpanderPhy: exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo));	
-  
+  DM_DBG3(("dmDownStreamDiscoverExpanderPhy: exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo));
+
   DM_ASSERT(dmRoot, "(dmDownStreamDiscoverExpanderPhy) dmRoot NULL");
   DM_ASSERT(onePortContext, "(dmDownStreamDiscoverExpanderPhy) pPort NULL");
   DM_ASSERT(oneExpander, "(dmDownStreamDiscoverExpanderPhy) pExpander NULL");
   DM_ASSERT(pDiscoverResp, "(dmDownStreamDiscoverExpanderPhy) pDiscoverResp NULL");
 
   DM_DBG3(("dmDownStreamDiscoverExpanderPhy: onePortContxt=%p  oneExpander=%p\n", onePortContext, oneExpander));
-           
+
   if (dmDiscoverCheck(dmRoot, onePortContext) == agTRUE)
   {
-    DM_DBG1(("dmDownStreamDiscoverExpanderPhy: invalid port or aborted discovery!!!\n"));  
+    DM_DBG1(("dmDownStreamDiscoverExpanderPhy: invalid port or aborted discovery!!!\n"));
     return;
   }
-  
+
   if (oneExpander != oneExpander->dmDevice->dmExpander)
   {
     DM_DBG1(("dmDownStreamDiscoverExpanderPhy: wrong!!!\n"));
   }
-  
+
   /* (1) Find the device structure of the expander */
   oneDeviceData = oneExpander->dmDevice;
-  
+
   DM_ASSERT(oneDeviceData, "(dmDownStreamDiscoverExpanderPhy) pDevice NULL");
-  
+
   /* for debugging */
   DM_DBG3(("dmDownStreamDiscoverExpanderPhy: Phy #%d of SAS %08x-%08x\n",
            oneExpander->discoveringPhyId,
            oneDeviceData->SASAddressID.sasAddressHi,
            oneDeviceData->SASAddressID.sasAddressLo));
-  
+
   DM_DBG3(("   Attached device: %s\n",
-           ( DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 0 ? "No Device" : 
-             (DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 1 ? "End Device" : 
+           ( DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 0 ? "No Device" :
+             (DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 1 ? "End Device" :
               (DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 2 ? "Edge Expander" : "Fanout Expander")))));
-  
-  
+
+
   /* for debugging */
   if (oneExpander->discoveringPhyId != pDiscoverResp->phyIdentifier)
   {
@@ -1491,11 +1491,11 @@ dmDownStreamDiscoverExpanderPhy(
     dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
     return;
   }
-  
+
   if ( DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) != SAS_NO_DEVICE)
   {
     DM_DBG3(("   SAS address    : %08x-%08x\n",
-      DISCRSP_GET_ATTACHED_SAS_ADDRESSHI(pDiscoverResp), 
+      DISCRSP_GET_ATTACHED_SAS_ADDRESSHI(pDiscoverResp),
               DISCRSP_GET_ATTACHED_SAS_ADDRESSLO(pDiscoverResp)));
     DM_DBG3(("   SSP Target     : %d\n", DISCRSP_IS_SSP_TARGET(pDiscoverResp)?1:0));
     DM_DBG3(("   STP Target     : %d\n", DISCRSP_IS_STP_TARGET(pDiscoverResp)?1:0));
@@ -1506,15 +1506,15 @@ dmDownStreamDiscoverExpanderPhy(
     DM_DBG3(("   SMP Initiator  : %d\n", DISCRSP_IS_SMP_INITIATOR(pDiscoverResp)?1:0));
     DM_DBG3(("   Phy ID         : %d\n", pDiscoverResp->phyIdentifier));
     DM_DBG3(("   Attached Phy ID: %d\n", pDiscoverResp->attachedPhyIdentifier));
-    
+
   }
   /* end for debugging */
-  
+
   /* saving routing attribute for non self-configuring expanders */
   oneExpander->routingAttribute[pDiscoverResp->phyIdentifier] = DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp);
-  
+
   oneExpander->discoverSMPAllowed = agTRUE;
-  
+
   /* If a device is attached */
   if ( DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) !=  SAS_NO_DEVICE)
   {
@@ -1526,15 +1526,15 @@ dmDownStreamDiscoverExpanderPhy(
     *(bit32*)sasIdentify.sasAddressHi = *(bit32*)pDiscoverResp->attachedSasAddressHi;
     *(bit32*)sasIdentify.sasAddressLo = *(bit32*)pDiscoverResp->attachedSasAddressLo;
 
-    /* incremental discovery */       
+    /* incremental discovery */
     dmSASSubID.sasAddressHi = SA_IDFRM_GET_SAS_ADDRESSHI(&sasIdentify);
     dmSASSubID.sasAddressLo = SA_IDFRM_GET_SAS_ADDRESSLO(&sasIdentify);
     dmSASSubID.initiator_ssp_stp_smp = sasIdentify.initiator_ssp_stp_smp;
     dmSASSubID.target_ssp_stp_smp = sasIdentify.target_ssp_stp_smp;
-        
+
     attachedSasHi = DISCRSP_GET_ATTACHED_SAS_ADDRESSHI(pDiscoverResp);
     attachedSasLo = DISCRSP_GET_ATTACHED_SAS_ADDRESSLO(pDiscoverResp);
-  
+
     /* If it's a direct routing */
     if ( DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp) == SAS_ROUTING_DIRECT)
     {
@@ -1549,8 +1549,8 @@ dmDownStreamDiscoverExpanderPhy(
         onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
           = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
         onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-        DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                  onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+        DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                  onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                   onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                   onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
 
@@ -1558,10 +1558,10 @@ dmDownStreamDiscoverExpanderPhy(
         return;
       }
     }
-  
+
     /* If the expander's attached device is not myself */
     if ( (attachedSasHi != onePortContext->sasLocalAddressHi)
-         || (attachedSasLo != onePortContext->sasLocalAddressLo) ) 
+         || (attachedSasLo != onePortContext->sasLocalAddressLo) )
     {
       /* Find the attached device from discovered list */
       AttachedDevice = dmPortSASDeviceFind(dmRoot, onePortContext, attachedSasLo, attachedSasHi, oneDeviceData);
@@ -1581,8 +1581,8 @@ dmDownStreamDiscoverExpanderPhy(
           onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
             = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
           onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-          DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                  onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+          DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                  onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                   onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                   onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
 
@@ -1591,14 +1591,14 @@ dmDownStreamDiscoverExpanderPhy(
         else /* 11 */
         {
           /* Add the device */
-          /* read minimum rate from the configuration 
+          /* read minimum rate from the configuration
              onePortContext->LinkRate is SPC's local link rate
           */
-          connectionRate = MIN(onePortContext->LinkRate, DISCRSP_GET_LINKRATE(pDiscoverResp)); 
+          connectionRate = MIN(onePortContext->LinkRate, DISCRSP_GET_LINKRATE(pDiscoverResp));
           DM_DBG3(("dmDownStreamDiscoverExpanderPhy: link rate 0x%x\n", DEVINFO_GET_LINKRATE(&oneDeviceData->agDeviceInfo)));
           DM_DBG3(("dmDownStreamDiscoverExpanderPhy: negotiatedPhyLinkRate 0x%x\n", DISCRSP_GET_LINKRATE(pDiscoverResp)));
           DM_DBG3(("dmDownStreamDiscoverExpanderPhy: connectionRate 0x%x\n", connectionRate));
-          if (DISCRSP_IS_STP_TARGET(pDiscoverResp) || DISCRSP_IS_SATA_DEVICE(pDiscoverResp))    
+          if (DISCRSP_IS_STP_TARGET(pDiscoverResp) || DISCRSP_IS_SATA_DEVICE(pDiscoverResp))
           {
             if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_FULL_START)
             {
@@ -1624,7 +1624,7 @@ dmDownStreamDiscoverExpanderPhy(
                                                  onePortContext,
                                                  &dmSASSubID
                                                  );
-              /* not registered and not valid; add this*/                                   
+              /* not registered and not valid; add this*/
               if (AttachedDevice == agNULL)
               {
                 AttachedDevice = dmPortSASDeviceAdd(
@@ -1646,7 +1646,7 @@ dmDownStreamDiscoverExpanderPhy(
           else /* 22 */
           {
             if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_FULL_START)
-            {            
+            {
               AttachedDevice = dmPortSASDeviceAdd(
                                                   dmRoot,
                                                   onePortContext,
@@ -1685,27 +1685,27 @@ dmDownStreamDiscoverExpanderPhy(
                                                    oneExpander,
                                                    pDiscoverResp->phyIdentifier
                                                    );
-              }                    
-            }                                                    
+              }
+            }
 	  } /* else 22 */
           DM_DBG3(("dmDownStreamDiscoverExpanderPhy: newDevice  pDevice=%p\n", AttachedDevice));
-          /* If the device is added successfully */    
+          /* If the device is added successfully */
           if ( AttachedDevice != agNULL)
           {
-            if ( SA_IDFRM_IS_SSP_TARGET(&sasIdentify) 
+            if ( SA_IDFRM_IS_SSP_TARGET(&sasIdentify)
                  || SA_IDFRM_IS_SMP_TARGET(&sasIdentify)
                  || SA_IDFRM_IS_SSP_INITIATOR(&sasIdentify)
                  || SA_IDFRM_IS_SMP_INITIATOR(&sasIdentify) )
             {
-              DM_DBG3(("dmDownStreamDiscoverExpanderPhy: Report a new SAS device !!\n"));  
-               
+              DM_DBG3(("dmDownStreamDiscoverExpanderPhy: Report a new SAS device !!\n"));
+
             }
             else
             {
-              if ( SA_IDFRM_IS_STP_TARGET(&sasIdentify) || 
+              if ( SA_IDFRM_IS_STP_TARGET(&sasIdentify) ||
                    SA_IDFRM_IS_SATA_DEVICE(&sasIdentify) )
               {
-                
+
                 DM_DBG3(("dmDownStreamDiscoverExpanderPhy: Found an STP or SATA device.\n"));
               }
               else
@@ -1713,15 +1713,15 @@ dmDownStreamDiscoverExpanderPhy(
                 DM_DBG3(("dmDownStreamDiscoverExpanderPhy: Found Other type of device.\n"));
               }
             }
-	    
+
             /* LP2006-05-26 added upstream device to the newly found device */
             AttachedDevice->dmExpander = oneExpander;
             DM_DBG3(("dmDownStreamDiscoverExpanderPhy: AttachedDevice %p did %d\n", AttachedDevice, AttachedDevice->id));
             DM_DBG3(("dmDownStreamDiscoverExpanderPhy: Attached oneExpander %p did %d\n",  AttachedDevice->dmExpander,  AttachedDevice->dmExpander->id));
-	    
+
             DM_DBG3(("dmDownStreamDiscoverExpanderPhy: oneDeviceData %p did %d\n", oneDeviceData, oneDeviceData->id));
             DM_DBG3(("dmDownStreamDiscoverExpanderPhy: oneExpander %p did %d\n",  oneDeviceData->dmExpander,  oneDeviceData->dmExpander->id));
-            
+
 	    /* If the phy has table routing attribute */
             if ( DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp) == SAS_ROUTING_TABLE)
             {
@@ -1735,35 +1735,35 @@ dmDownStreamDiscoverExpanderPhy(
                 onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
                   = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
                 onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-                DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                          onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+                DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                          onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                           onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                           onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
                 /* discovery done */
                 dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
-              }	
-              else if ( DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE) 
+              }
+              else if ( DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE)
               {
                 /* Allocate an expander data structure */
                 AttachedExpander = dmDiscoveringExpanderAlloc(dmRoot, onePortContext, AttachedDevice);
-                 
+
                 DM_DBG3(("dmDownStreamDiscoverExpanderPhy: Found a EDGE exp device.%p\n", AttachedExpander));
                 /* If allocate successfully */
                 if ( AttachedExpander != agNULL)
                 {
-                  /* set up downstream information on configurable expander */              
-                  dmExpanderDownStreamPhyAdd(dmRoot, oneExpander, (bit8) oneExpander->discoveringPhyId); 
+                  /* set up downstream information on configurable expander */
+                  dmExpanderDownStreamPhyAdd(dmRoot, oneExpander, (bit8) oneExpander->discoveringPhyId);
                   /* Setup upstream information */
                   dmExpanderUpStreamPhyAdd(dmRoot, AttachedExpander, (bit8) oneExpander->discoveringPhyId);
                   AttachedExpander->hasUpStreamDevice = agTRUE;
-                  AttachedExpander->upStreamSASAddressHi 
+                  AttachedExpander->upStreamSASAddressHi
                     = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
                   AttachedExpander->upStreamSASAddressLo
                     = DEVINFO_GET_SAS_ADDRESSLO(&oneDeviceData->agDeviceInfo);
                   AttachedExpander->dmUpStreamExpander = oneExpander;
                   /* (2.3.2.2.2.2.2.2.2) Add the pAttachedExpander to discovering list */
                   dmDiscoveringExpanderAdd(dmRoot, onePortContext, AttachedExpander);
-                }	
+                }
                 /* If failed to allocate */
                 else
                 {
@@ -1771,60 +1771,60 @@ dmDownStreamDiscoverExpanderPhy(
                   /*  discovery done */
                   dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
                 }
-              }	
+              }
 	    } /* DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp) == SAS_ROUTING_TABLE */
-            /* If status is still DISCOVERY_DOWN_STREAM */        
+            /* If status is still DISCOVERY_DOWN_STREAM */
             if ( onePortContext->discovery.status == DISCOVERY_DOWN_STREAM)
             {
               DM_DBG3(("dmDownStreamDiscoverExpanderPhy: 1st before\n"));
-              dmDumpAllUpExp(dmRoot, onePortContext, oneExpander); 
+              dmDumpAllUpExp(dmRoot, onePortContext, oneExpander);
               UpStreamExpander = oneExpander->dmUpStreamExpander;
               ConfigurableExpander = dmFindConfigurableExp(dmRoot, onePortContext, oneExpander);
               configSASAddressHi = DEVINFO_GET_SAS_ADDRESSHI(&AttachedDevice->agDeviceInfo);
-              configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo); 
+              configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo);
               if (ConfigurableExpander)
-              { 
-                if ( (ConfigurableExpander->dmDevice->SASAddressID.sasAddressHi 
+              {
+                if ( (ConfigurableExpander->dmDevice->SASAddressID.sasAddressHi
                       == DEVINFO_GET_SAS_ADDRESSHI(&AttachedDevice->agDeviceInfo)) &&
-                     (ConfigurableExpander->dmDevice->SASAddressID.sasAddressLo 
+                     (ConfigurableExpander->dmDevice->SASAddressID.sasAddressLo
                       == DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo))
                    )
-                { /* directly attached between oneExpander and ConfigurableExpander */       
+                { /* directly attached between oneExpander and ConfigurableExpander */
                   DM_DBG3(("dmDownStreamDiscoverExpanderPhy: 1st before loc 1\n"));
                   configSASAddressHi = oneExpander->dmDevice->SASAddressID.sasAddressHi;
-                  configSASAddressLo = oneExpander->dmDevice->SASAddressID.sasAddressLo; 
+                  configSASAddressLo = oneExpander->dmDevice->SASAddressID.sasAddressLo;
                 }
                 else
                 {
                   DM_DBG3(("dmDownStreamDiscoverExpanderPhy: 1st before loc 2\n"));
                   configSASAddressHi = DEVINFO_GET_SAS_ADDRESSHI(&AttachedDevice->agDeviceInfo);
-                  configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo); 
-                }                                             
+                  configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo);
+                }
               } /* if !ConfigurableExpander */
-	  
-              dupConfigSASAddr = dmDuplicateConfigSASAddr(dmRoot, 
-                                                          ConfigurableExpander,   
+
+              dupConfigSASAddr = dmDuplicateConfigSASAddr(dmRoot,
+                                                          ConfigurableExpander,
                                                           configSASAddressHi,
                                                           configSASAddressLo
                                                           );
-	  
+
               if ( ConfigurableExpander && dupConfigSASAddr == agFALSE)
               {
                 DM_DBG3(("dmDownStreamDiscoverExpanderPhy: 1st q123\n"));
                 UpStreamExpander->dmCurrentDownStreamExpander = oneExpander;
-                ConfigurableExpander->currentDownStreamPhyIndex = 
+                ConfigurableExpander->currentDownStreamPhyIndex =
                         dmFindCurrentDownStreamPhyIndex(dmRoot, ConfigurableExpander);
                 ConfigurableExpander->dmReturnginExpander = oneExpander;
                 dmRoutingEntryAdd(dmRoot,
-                                  ConfigurableExpander, 
+                                  ConfigurableExpander,
                                   ConfigurableExpander->downStreamPhys[ConfigurableExpander->currentDownStreamPhyIndex],
                                   configSASAddressHi,
                                   configSASAddressLo
                                  );
-              }                       
+              }
             } /* onePortContext->discovery.status == DISCOVERY_DOWN_STREAM */
-          } /* AttachedDevice != agNULL */  
-          /*  If fail to add the device */    
+          } /* AttachedDevice != agNULL */
+          /*  If fail to add the device */
           else
           {
             DM_DBG1(("dmDownStreamDiscoverExpanderPhy: Failed to add a device!!!\n"));
@@ -1849,8 +1849,8 @@ dmDownStreamDiscoverExpanderPhy(
             onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
               = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
             onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-            DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                      onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+            DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                      onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                       onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                       onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
             /* discovery done */
@@ -1870,15 +1870,15 @@ dmDownStreamDiscoverExpanderPhy(
               onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
                 = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
               onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-              DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                       onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+              DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                       onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                        onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                        onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
               /* discovery done */
               dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
             }
-          } /* else 44 */	  
-        } /* DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp) == SAS_ROUTING_SUBTRACTIVE */      
+          } /* else 44 */
+        } /* DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp) == SAS_ROUTING_SUBTRACTIVE */
         /* If the phy has table routing attribute */
         else if ( DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp) == SAS_ROUTING_TABLE)
         {
@@ -1892,15 +1892,15 @@ dmDownStreamDiscoverExpanderPhy(
             onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
               = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
             onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-            DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                     onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+            DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                     onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                      onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                      onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
             /* discovery done */
             dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
           }
           /* If the attached device is an edge expander */
-          else if ( DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE) 
+          else if ( DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE)
           {
             /* Setup up stream inform */
             AttachedExpander = AttachedDevice->dmExpander;
@@ -1929,8 +1929,8 @@ dmDownStreamDiscoverExpanderPhy(
                 onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
                   = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
                 onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-                DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                         onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+                DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                         onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                          onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                          onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
                 /* discovery done */
@@ -1941,13 +1941,13 @@ dmDownStreamDiscoverExpanderPhy(
                 DM_DBG3(("dmDownStreamDiscoverExpanderPhy: Add edge expander=%p\n", AttachedExpander));
                 /* set up downstream information on configurable expander */
 
-                dmExpanderDownStreamPhyAdd(dmRoot, oneExpander, (bit8) oneExpander->discoveringPhyId); 
+                dmExpanderDownStreamPhyAdd(dmRoot, oneExpander, (bit8) oneExpander->discoveringPhyId);
                 /* haha */
                 dmExpanderUpStreamPhyAdd(dmRoot, AttachedExpander, (bit8) oneExpander->discoveringPhyId);
                 /* Add the pAttachedExpander to discovering list */
                 dmDiscoveringExpanderAdd(dmRoot, onePortContext, AttachedExpander);
               }
-            } /* AttachedExpander->hasUpStreamDevice == agTRUE */      
+            } /* AttachedExpander->hasUpStreamDevice == agTRUE */
             /* If the attached expander doesn't have up stream device */
             else
             {
@@ -1958,47 +1958,47 @@ dmDownStreamDiscoverExpanderPhy(
               onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
                 = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
               onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-              DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                       onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+              DM_DBG1(("dmDownStreamDiscoverExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                       onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                        onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                        onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
               /* discovery done */
               dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
             }
-          } /* DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE */      
-        } /* DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp) == SAS_ROUTING_TABLE */      
+          } /* DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE */
+        } /* DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp) == SAS_ROUTING_TABLE */
         /* do this regradless of sub or table */
-        /* If status is still DISCOVERY_DOWN_STREAM */            
+        /* If status is still DISCOVERY_DOWN_STREAM */
         if ( onePortContext->discovery.status == DISCOVERY_DOWN_STREAM)
         {
           DM_DBG3(("dmDownStreamDiscoverExpanderPhy: 2nd before\n"));
-          dmDumpAllUpExp(dmRoot, onePortContext, oneExpander); 
+          dmDumpAllUpExp(dmRoot, onePortContext, oneExpander);
 
           UpStreamExpander = oneExpander->dmUpStreamExpander;
           ConfigurableExpander = dmFindConfigurableExp(dmRoot, onePortContext, oneExpander);
           configSASAddressHi = DEVINFO_GET_SAS_ADDRESSHI(&AttachedDevice->agDeviceInfo);
-          configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo); 
+          configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo);
           if (ConfigurableExpander)
-          { 
-            if ( (ConfigurableExpander->dmDevice->SASAddressID.sasAddressHi 
+          {
+            if ( (ConfigurableExpander->dmDevice->SASAddressID.sasAddressHi
                  == DEVINFO_GET_SAS_ADDRESSHI(&AttachedDevice->agDeviceInfo)) &&
-                 (ConfigurableExpander->dmDevice->SASAddressID.sasAddressLo 
+                 (ConfigurableExpander->dmDevice->SASAddressID.sasAddressLo
                    == DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo))
                )
-            { /* directly attached between oneExpander and ConfigurableExpander */       
+            { /* directly attached between oneExpander and ConfigurableExpander */
               DM_DBG3(("dmDownStreamDiscoverExpanderPhy: 2nd before loc 1\n"));
               configSASAddressHi = oneExpander->dmDevice->SASAddressID.sasAddressHi;
-              configSASAddressLo = oneExpander->dmDevice->SASAddressID.sasAddressLo; 
+              configSASAddressLo = oneExpander->dmDevice->SASAddressID.sasAddressLo;
             }
             else
             {
               DM_DBG3(("dmDownStreamDiscoverExpanderPhy: 2nd before loc 2\n"));
               configSASAddressHi = DEVINFO_GET_SAS_ADDRESSHI(&AttachedDevice->agDeviceInfo);
-              configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo); 
-            }                                             
+              configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo);
+            }
           } /* if !ConfigurableExpander */
-          dupConfigSASAddr = dmDuplicateConfigSASAddr(dmRoot, 
-                                                      ConfigurableExpander,   
+          dupConfigSASAddr = dmDuplicateConfigSASAddr(dmRoot,
+                                                      ConfigurableExpander,
                                                       configSASAddressHi,
                                                       configSASAddressLo
                                                       );
@@ -2006,23 +2006,23 @@ dmDownStreamDiscoverExpanderPhy(
           {
             DM_DBG3(("dmDownStreamDiscoverExpanderPhy: 2nd q123 \n"));
             UpStreamExpander->dmCurrentDownStreamExpander = oneExpander;
-            ConfigurableExpander->currentDownStreamPhyIndex = 
+            ConfigurableExpander->currentDownStreamPhyIndex =
                         dmFindCurrentDownStreamPhyIndex(dmRoot, ConfigurableExpander);
             ConfigurableExpander->dmReturnginExpander = oneExpander;
             dmRoutingEntryAdd(dmRoot,
-                              ConfigurableExpander, 
+                              ConfigurableExpander,
                               ConfigurableExpander->downStreamPhys[ConfigurableExpander->currentDownStreamPhyIndex],
                               configSASAddressHi,
                               configSASAddressLo
                              );
-          }                                        
-        } /* onePortContext->discovery.status == DISCOVERY_DOWN_STREAM */	  
+          }
+        } /* onePortContext->discovery.status == DISCOVERY_DOWN_STREAM */
         /* incremental discovery */
         if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_INCREMENTAL_START)
         {
-          connectionRate = MIN(onePortContext->LinkRate, DISCRSP_GET_LINKRATE(pDiscoverResp)); 
+          connectionRate = MIN(onePortContext->LinkRate, DISCRSP_GET_LINKRATE(pDiscoverResp));
 
-          if (DISCRSP_IS_STP_TARGET(pDiscoverResp) || DISCRSP_IS_SATA_DEVICE(pDiscoverResp))    
+          if (DISCRSP_IS_STP_TARGET(pDiscoverResp) || DISCRSP_IS_SATA_DEVICE(pDiscoverResp))
           {
             DM_DBG3(("dmDownStreamDiscoverExpanderPhy: incremental SATA_STP\n"));
 
@@ -2058,41 +2058,41 @@ dmDownStreamDiscoverExpanderPhy(
                                oneExpander,
                                pDiscoverResp->phyIdentifier
                                );
-        
+
           }
-        } /* onePortContext->discovery.type == DM_DISCOVERY_OPTION_INCREMENTAL_START */	
-      } /* else 33 */  	    
-    } /* (attachedSasLo != onePortContext->sasLocalAddressLo) */  
-  
+        } /* onePortContext->discovery.type == DM_DISCOVERY_OPTION_INCREMENTAL_START */
+      } /* else 33 */
+    } /* (attachedSasLo != onePortContext->sasLocalAddressLo) */
+
     else /* else 44 */
     {
       DM_DBG3(("dmDownStreamDiscoverExpanderPhy: Found Self\n"));
       DM_DBG3(("dmDownStreamDiscoverExpanderPhy: 3rd before\n"));
-      dmDumpAllUpExp(dmRoot, onePortContext, oneExpander); 
+      dmDumpAllUpExp(dmRoot, onePortContext, oneExpander);
 
       UpStreamExpander = oneExpander->dmUpStreamExpander;
       ConfigurableExpander = dmFindConfigurableExp(dmRoot, onePortContext, oneExpander);
-      dupConfigSASAddr = dmDuplicateConfigSASAddr(dmRoot, 
-                                                  ConfigurableExpander,   
+      dupConfigSASAddr = dmDuplicateConfigSASAddr(dmRoot,
+                                                  ConfigurableExpander,
                                                   onePortContext->sasLocalAddressHi,
                                                   onePortContext->sasLocalAddressLo
                                                   );
-      
+
       if ( ConfigurableExpander && dupConfigSASAddr == agFALSE)
       {
         DM_DBG3(("dmDownStreamDiscoverExpanderPhy: 3rd q123 Setup routing table\n"));
         UpStreamExpander->dmCurrentDownStreamExpander = oneExpander;
-        ConfigurableExpander->currentDownStreamPhyIndex = 
+        ConfigurableExpander->currentDownStreamPhyIndex =
                         dmFindCurrentDownStreamPhyIndex(dmRoot, ConfigurableExpander);
         ConfigurableExpander->dmReturnginExpander = oneExpander;
         dmRoutingEntryAdd(dmRoot,
-                          ConfigurableExpander, 
+                          ConfigurableExpander,
                           ConfigurableExpander->downStreamPhys[ConfigurableExpander->currentDownStreamPhyIndex],
                           onePortContext->sasLocalAddressHi,
                           onePortContext->sasLocalAddressLo
                          );
-      } 
-    } /* else 44 */  
+      }
+    } /* else 44 */
   } /* DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) !=  SAS_NO_DEVICE */
   /* If no device is attached */
   else
@@ -2106,23 +2106,23 @@ dmDownStreamDiscoverExpanderPhy(
 
         DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: SPIN SATA sent reset\n"));
 		dmPhyControlSend(dmRoot,
-                            oneDeviceData, 
-                            SMP_PHY_CONTROL_HARD_RESET, 
+                            oneDeviceData,
+                            SMP_PHY_CONTROL_HARD_RESET,
                                                            pDiscoverResp->phyIdentifier
                            );
     }
-       
+
     /* do nothing */
   }
-  
-  
+
+
   /* Increment the discovering phy id */
   oneExpander->discoveringPhyId ++;
-  
+
   /* If the discovery status is DISCOVERY_DOWN_STREAM */
   if ( onePortContext->discovery.status == DISCOVERY_DOWN_STREAM )
   {
-    /* If not the last phy */  
+    /* If not the last phy */
     if ( oneExpander->discoveringPhyId < oneDeviceData->numOfPhys )
     {
       DM_DBG3(("dmDownStreamDiscoverExpanderPhy: More Phys to discover\n"));
@@ -2135,21 +2135,21 @@ dmDownStreamDiscoverExpanderPhy(
       DM_DBG3(("dmDownStreamDiscoverExpanderPhy: No More Phys\n"));
 
       /* for MCN */
-      dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);  
+      dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);
       /* remove the expander from the discovering list */
       dmDiscoveringExpanderRemove(dmRoot, onePortContext, oneExpander);
       /* continue downstream discovering */
       dmDownStreamDiscovering(dmRoot, onePortContext, oneDeviceData);
-    }  
+    }
   }
   else
   {
-    DM_DBG3(("dmDownStreamDiscoverExpanderPhy: onePortContext->discovery.status not in DISCOVERY_DOWN_STREAM; status %d\n", onePortContext->discovery.status));  
-  }  
+    DM_DBG3(("dmDownStreamDiscoverExpanderPhy: onePortContext->discovery.status not in DISCOVERY_DOWN_STREAM; status %d\n", onePortContext->discovery.status));
+  }
   DM_DBG3(("dmDownStreamDiscoverExpanderPhy: end return phyID#%d\n", oneExpander->discoveringPhyId - 1));
- 
+
   return;
-}	   				
+}
 
 
 /* works at SAS2 expander (called in dmDownStreamDiscover2ExpanderPhy())
@@ -2166,10 +2166,10 @@ dmSAS2SAS11ErrorCheck(
                      )
 {
   bit32                   result = agFALSE, i = 0;
-  bit8                    downStreamPhyID, upStreamPhyID; 
-  
+  bit8                    downStreamPhyID, upStreamPhyID;
+
   DM_DBG2(("dmSAS2SAS11ErrorCheck: start\n"));
-  
+
   if (topExpander == agNULL)
   {
     DM_DBG2(("dmSAS2SAS11ErrorCheck: topExpander is NULL\n"));
@@ -2180,20 +2180,20 @@ dmSAS2SAS11ErrorCheck(
     DM_DBG2(("dmSAS2SAS11ErrorCheck: bottomExpander is NULL\n"));
     return result;
   }
-  
+
   if (currentExpander == agNULL)
   {
     DM_DBG2(("dmSAS2SAS11ErrorCheck: currentExpander is NULL\n"));
     return result;
   }
-  
-  DM_DBG2(("dmSAS2SAS11ErrorCheck: topExpander addrHi 0x%08x addrLo 0x%08x\n", 
+
+  DM_DBG2(("dmSAS2SAS11ErrorCheck: topExpander addrHi 0x%08x addrLo 0x%08x\n",
             topExpander->dmDevice->SASAddressID.sasAddressHi, topExpander->dmDevice->SASAddressID.sasAddressLo));
-  DM_DBG2(("dmSAS2SAS11ErrorCheck: bottomExpander addrHi 0x%08x addrLo 0x%08x\n", 
+  DM_DBG2(("dmSAS2SAS11ErrorCheck: bottomExpander addrHi 0x%08x addrLo 0x%08x\n",
             bottomExpander->dmDevice->SASAddressID.sasAddressHi, bottomExpander->dmDevice->SASAddressID.sasAddressLo));
-  DM_DBG2(("dmSAS2SAS11ErrorCheck: currentExpander addrHi 0x%08x addrLo 0x%08x\n", 
+  DM_DBG2(("dmSAS2SAS11ErrorCheck: currentExpander addrHi 0x%08x addrLo 0x%08x\n",
             currentExpander->dmDevice->SASAddressID.sasAddressHi, currentExpander->dmDevice->SASAddressID.sasAddressLo));
-	    
+
   for (i=0;i<DM_MAX_EXPANDER_PHYS;i++)
   {
     downStreamPhyID = topExpander->downStreamPhys[i];
@@ -2202,7 +2202,7 @@ dmSAS2SAS11ErrorCheck(
     {
       if ( downStreamPhyID ==  upStreamPhyID &&
            topExpander->routingAttribute[downStreamPhyID] == SAS_ROUTING_TABLE &&
-           bottomExpander->routingAttribute[i] == SAS_ROUTING_SUBTRACTIVE && 
+           bottomExpander->routingAttribute[i] == SAS_ROUTING_SUBTRACTIVE &&
            topExpander->SAS2 == 0 &&
            bottomExpander->SAS2 == 1
          )
@@ -2210,7 +2210,7 @@ dmSAS2SAS11ErrorCheck(
         result = agTRUE;
         break;
       }
-    }	 
+    }
     else if (currentExpander->SAS2 == 0)
     {
       if ( downStreamPhyID ==  upStreamPhyID &&
@@ -2226,7 +2226,7 @@ dmSAS2SAS11ErrorCheck(
     }
   }
   return result;
-}		     		     
+}
 
 osGLOBAL void
 dmDownStreamDiscover2ExpanderPhy(
@@ -2252,21 +2252,21 @@ dmDownStreamDiscover2ExpanderPhy(
   dmIntRoot_t             *dmIntRoot    = (dmIntRoot_t *)dmRoot->dmData;
   dmIntContext_t          *dmAllShared  = (dmIntContext_t *)&dmIntRoot->dmAllShared;
 
-  
+
   DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: start\n"));
   DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: exp addrHi 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressHi));
-  DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo));	
-	
+  DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo));
+
   DM_ASSERT(dmRoot, "(dmDownStreamDiscover2ExpanderPhy) dmRoot NULL");
   DM_ASSERT(onePortContext, "(dmDownStreamDiscover2ExpanderPhy) pPort NULL");
   DM_ASSERT(oneExpander, "(dmDownStreamDiscover2ExpanderPhy) pExpander NULL");
   DM_ASSERT(pDiscoverResp, "(dmDownStreamDiscover2ExpanderPhy) pDiscoverResp NULL");
 
   DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: onePortContxt=%p  oneExpander=%p  oneDeviceData=%p\n", onePortContext, oneExpander, oneExpander->dmDevice));
-  
+
   if (dmDiscoverCheck(dmRoot, onePortContext) == agTRUE)
   {
-    DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: invalid port or aborted discovery!!!\n"));  
+    DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: invalid port or aborted discovery!!!\n"));
     return;
   }
 
@@ -2274,11 +2274,11 @@ dmDownStreamDiscover2ExpanderPhy(
   {
     DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: wrong!!!\n"));
   }
-      	              
-           
+
+
   /* (1) Find the device structure of the expander */
   oneDeviceData = oneExpander->dmDevice;
-  
+
   DM_ASSERT(oneDeviceData, "(dmDownStreamDiscover2ExpanderPhy) pDevice NULL");
 
   /* for debugging */
@@ -2286,13 +2286,13 @@ dmDownStreamDiscover2ExpanderPhy(
            oneExpander->discoveringPhyId,
            oneDeviceData->SASAddressID.sasAddressHi,
            oneDeviceData->SASAddressID.sasAddressLo));
-  
+
   DM_DBG2(("   Attached device: %s\n",
-           ( SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 0 ? "No Device" : 
-             (SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 1 ? "End Device" : 
+           ( SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 0 ? "No Device" :
+             (SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 1 ? "End Device" :
               (SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == 2 ? "Edge Expander" : "Fanout Expander")))));
-              
-  
+
+
   /* for debugging */
   if (oneExpander->discoveringPhyId != pDiscoverResp->phyIdentifier)
   {
@@ -2302,11 +2302,11 @@ dmDownStreamDiscover2ExpanderPhy(
     dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
     return;
   }
-  
+
   if ( SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) != SAS_NO_DEVICE)
   {
     DM_DBG2(("   SAS address    : %08x-%08x\n",
-      SAS2_DISCRSP_GET_ATTACHED_SAS_ADDRESSHI(pDiscoverResp), 
+      SAS2_DISCRSP_GET_ATTACHED_SAS_ADDRESSHI(pDiscoverResp),
               SAS2_DISCRSP_GET_ATTACHED_SAS_ADDRESSLO(pDiscoverResp)));
     DM_DBG2(("   SSP Target     : %d\n", SAS2_DISCRSP_IS_SSP_TARGET(pDiscoverResp)?1:0));
     DM_DBG2(("   STP Target     : %d\n", SAS2_DISCRSP_IS_STP_TARGET(pDiscoverResp)?1:0));
@@ -2317,15 +2317,15 @@ dmDownStreamDiscover2ExpanderPhy(
     DM_DBG2(("   SMP Initiator  : %d\n", SAS2_DISCRSP_IS_SMP_INITIATOR(pDiscoverResp)?1:0));
     DM_DBG2(("   Phy ID         : %d\n", pDiscoverResp->phyIdentifier));
     DM_DBG2(("   Attached Phy ID: %d\n", pDiscoverResp->attachedPhyIdentifier));
-    
+
   }
 
     /* saving routing attribute for non self-configuring expanders */
   oneExpander->routingAttribute[pDiscoverResp->phyIdentifier] = SAS2_DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp);
- 
-  
+
+
   oneExpander->discoverSMPAllowed = agTRUE;
-  
+
   /* If a device is attached */
   if ( SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) !=  SAS_NO_DEVICE)
   {
@@ -2337,12 +2337,12 @@ dmDownStreamDiscover2ExpanderPhy(
     *(bit32*)sasIdentify.sasAddressHi = *(bit32*)pDiscoverResp->attachedSasAddressHi;
     *(bit32*)sasIdentify.sasAddressLo = *(bit32*)pDiscoverResp->attachedSasAddressLo;
 
-    /* incremental discovery */       
+    /* incremental discovery */
     dmSASSubID.sasAddressHi = SA_IDFRM_GET_SAS_ADDRESSHI(&sasIdentify);
     dmSASSubID.sasAddressLo = SA_IDFRM_GET_SAS_ADDRESSLO(&sasIdentify);
     dmSASSubID.initiator_ssp_stp_smp = sasIdentify.initiator_ssp_stp_smp;
     dmSASSubID.target_ssp_stp_smp = sasIdentify.target_ssp_stp_smp;
-        
+
     attachedSasHi = SAS2_DISCRSP_GET_ATTACHED_SAS_ADDRESSHI(pDiscoverResp);
     attachedSasLo = SAS2_DISCRSP_GET_ATTACHED_SAS_ADDRESSLO(pDiscoverResp);
 
@@ -2361,19 +2361,19 @@ dmDownStreamDiscover2ExpanderPhy(
           = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
         onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
 
-        DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                  onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+        DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                  onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                   onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                   onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
         dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
-        
+
         return;
       }
     }
-    
+
     /* If the expander's attached device is not myself */
     if ( (attachedSasHi != onePortContext->sasLocalAddressHi)
-         || (attachedSasLo != onePortContext->sasLocalAddressLo) ) 
+         || (attachedSasLo != onePortContext->sasLocalAddressLo) )
     {
       /* Find the attached device from discovered list */
       AttachedDevice = dmPortSASDeviceFind(dmRoot, onePortContext, attachedSasLo, attachedSasHi, oneDeviceData);
@@ -2381,7 +2381,7 @@ dmDownStreamDiscover2ExpanderPhy(
       if ( AttachedDevice == agNULL) //11
       {
         //qqqqqq
-        if (0)	   
+        if (0)
         {
 	      DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: **** Topology Error subtractive routing error - inconsistent SAS address!!!\n"));
           onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo
@@ -2389,25 +2389,25 @@ dmDownStreamDiscover2ExpanderPhy(
           onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
             = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
           onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-          DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                    onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+          DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                    onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                     onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                     onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
           /* discovery done */
           dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
         }
-        else 
+        else
         {
           /* Add the device */
-          /* read minimum rate from the configuration 
+          /* read minimum rate from the configuration
              onePortContext->LinkRate is SPC's local link rate
           */
-          connectionRate = MIN(onePortContext->LinkRate, SAS2_DISCRSP_GET_LOGICAL_LINKRATE(pDiscoverResp)); 
+          connectionRate = MIN(onePortContext->LinkRate, SAS2_DISCRSP_GET_LOGICAL_LINKRATE(pDiscoverResp));
           DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: link rate 0x%x\n", DEVINFO_GET_LINKRATE(&oneDeviceData->agDeviceInfo)));
           DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: negotiatedPhyLinkRate 0x%x\n", SAS2_DISCRSP_GET_LINKRATE(pDiscoverResp)));
           DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: connectionRate 0x%x\n", connectionRate));
 
-          if (SAS2_DISCRSP_IS_STP_TARGET(pDiscoverResp) || SAS2_DISCRSP_IS_SATA_DEVICE(pDiscoverResp))    
+          if (SAS2_DISCRSP_IS_STP_TARGET(pDiscoverResp) || SAS2_DISCRSP_IS_SATA_DEVICE(pDiscoverResp))
           {
             if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_FULL_START)
             {
@@ -2433,7 +2433,7 @@ dmDownStreamDiscover2ExpanderPhy(
                                                onePortContext,
                                                &dmSASSubID
                                                );
-              /* not registered and not valid; add this*/                                   
+              /* not registered and not valid; add this*/
               if (AttachedDevice == agNULL)
               {
                 AttachedDevice = dmPortSASDeviceAdd(
@@ -2455,7 +2455,7 @@ dmDownStreamDiscover2ExpanderPhy(
           else
           {
             if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_FULL_START)
-            {            
+            {
               AttachedDevice = dmPortSASDeviceAdd(
                                                  dmRoot,
                                                  onePortContext,
@@ -2494,27 +2494,27 @@ dmDownStreamDiscover2ExpanderPhy(
                                                     oneExpander,
                                                     pDiscoverResp->phyIdentifier
                                                     );
-              }                    
-            }                                                    
+              }
+            }
           }
           DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: newDevice  pDevice=%p\n", AttachedDevice));
-          /* If the device is added successfully */    
+          /* If the device is added successfully */
           if ( AttachedDevice != agNULL)
           {
-            if ( SA_IDFRM_IS_SSP_TARGET(&sasIdentify) 
+            if ( SA_IDFRM_IS_SSP_TARGET(&sasIdentify)
                  || SA_IDFRM_IS_SMP_TARGET(&sasIdentify)
                  || SA_IDFRM_IS_SSP_INITIATOR(&sasIdentify)
                  || SA_IDFRM_IS_SMP_INITIATOR(&sasIdentify) )
             {
-              DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: Report a new SAS device !!\n"));  
-               
+              DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: Report a new SAS device !!\n"));
+
             }
             else
             {
-              if ( SA_IDFRM_IS_STP_TARGET(&sasIdentify) || 
+              if ( SA_IDFRM_IS_STP_TARGET(&sasIdentify) ||
                    SA_IDFRM_IS_SATA_DEVICE(&sasIdentify) )
               {
-                
+
                 DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: Found an STP or SATA device.\n"));
               }
               else
@@ -2522,15 +2522,15 @@ dmDownStreamDiscover2ExpanderPhy(
                 DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: Found Other type of device.\n"));
               }
             }
-            
+
             /* LP2006-05-26 added upstream device to the newly found device */
             AttachedDevice->dmExpander = oneExpander;
             DM_DBG3(("dmDownStreamDiscover2ExpanderPhy: AttachedDevice %p did %d\n", AttachedDevice, AttachedDevice->id));
             DM_DBG3(("dmDownStreamDiscover2ExpanderPhy: Attached oneExpander %p did %d\n",  AttachedDevice->dmExpander,  AttachedDevice->dmExpander->id));
-	    
+
             DM_DBG3(("dmDownStreamDiscover2ExpanderPhy: oneDeviceData %p did %d\n", oneDeviceData, oneDeviceData->id));
             DM_DBG3(("dmDownStreamDiscover2ExpanderPhy: oneExpander %p did %d\n",  oneDeviceData->dmExpander,  oneDeviceData->dmExpander->id));
-						 						 
+
             /* If the phy has table routing attribute */
             if ( SAS2_DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp) == SAS_ROUTING_TABLE)
             {
@@ -2544,38 +2544,38 @@ dmDownStreamDiscover2ExpanderPhy(
                 onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
                   = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
                 onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-                DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                          onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+                DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                          onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
 		          onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
 		          onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
                 /* discovery done */
                 dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
               }
-              else if ( SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE) 
+              else if ( SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE)
               {
                 /* Allocate an expander data structure */
                 AttachedExpander = dmDiscoveringExpanderAlloc(dmRoot, onePortContext, AttachedDevice);
-                 
+
                 DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: Found a EDGE exp device.%p\n", AttachedExpander));
                 /* If allocate successfully */
                 if ( AttachedExpander != agNULL)
                 {
                   /* set up downstream information on configurable expander */
- 
-                  dmExpanderDownStreamPhyAdd(dmRoot, oneExpander, (bit8) oneExpander->discoveringPhyId); 
-             
+
+                  dmExpanderDownStreamPhyAdd(dmRoot, oneExpander, (bit8) oneExpander->discoveringPhyId);
+
                   /* Setup upstream information */
                   dmExpanderUpStreamPhyAdd(dmRoot, AttachedExpander, (bit8) oneExpander->discoveringPhyId);
-//qqqqq		  
+//qqqqq
                   AttachedExpander->hasUpStreamDevice = agTRUE;
-                  AttachedExpander->upStreamSASAddressHi 
+                  AttachedExpander->upStreamSASAddressHi
                     = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
                   AttachedExpander->upStreamSASAddressLo
                     = DEVINFO_GET_SAS_ADDRESSLO(&oneDeviceData->agDeviceInfo);
                   AttachedExpander->dmUpStreamExpander = oneExpander;
                   /* (2.3.2.2.2.2.2.2.2) Add the pAttachedExpander to discovering list */
                   dmDiscoveringExpanderAdd(dmRoot, onePortContext, AttachedExpander);
-                }	
+                }
                 /* If failed to allocate */
                 else
                 {
@@ -2583,35 +2583,35 @@ dmDownStreamDiscover2ExpanderPhy(
                   /*  discovery done */
                   dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
                 }
-              }	
+              }
             }
 	    //qqqqq
 	    else if ( SAS2_DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp) == SAS_ROUTING_SUBTRACTIVE &&
                        (SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_FANOUT_EXPANDER_DEVICE ||
-                        SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE)		     	    
+                        SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE)
 	            )
 	    {
               /* Allocate an expander data structure */
               AttachedExpander = dmDiscoveringExpanderAlloc(dmRoot, onePortContext, AttachedDevice);
-                 
+
               DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: Found a EDGE/FANOUT exp device.%p\n", AttachedExpander));
               /* If allocate successfully */
               if ( AttachedExpander != agNULL)
               {
                 /* set up downstream information on configurable expander */
-                dmExpanderDownStreamPhyAdd(dmRoot, oneExpander, (bit8) oneExpander->discoveringPhyId); 
-                
+                dmExpanderDownStreamPhyAdd(dmRoot, oneExpander, (bit8) oneExpander->discoveringPhyId);
+
                 /* Setup upstream information */
                 dmExpanderUpStreamPhyAdd(dmRoot, AttachedExpander, (bit8) oneExpander->discoveringPhyId);
                 AttachedExpander->hasUpStreamDevice = agTRUE;
-                AttachedExpander->upStreamSASAddressHi 
+                AttachedExpander->upStreamSASAddressHi
                   = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
                 AttachedExpander->upStreamSASAddressLo
                   = DEVINFO_GET_SAS_ADDRESSLO(&oneDeviceData->agDeviceInfo);
                 AttachedExpander->dmUpStreamExpander = oneExpander;
                 /* (2.3.2.2.2.2.2.2.2) Add the pAttachedExpander to discovering list */
                 dmDiscoveringExpanderAdd(dmRoot, onePortContext, AttachedExpander);
-              }	
+              }
               /* If failed to allocate */
               else
               {
@@ -2619,62 +2619,62 @@ dmDownStreamDiscover2ExpanderPhy(
                 /*  discovery done */
                 dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
               }
-		
-		
+
+
 	    }
-            /* If status is still DISCOVERY_DOWN_STREAM */        
+            /* If status is still DISCOVERY_DOWN_STREAM */
             if ( onePortContext->discovery.status == DISCOVERY_DOWN_STREAM &&
 	         onePortContext->discovery.ConfiguresOthers == agFALSE)
             {
               DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: 1st before\n"));
-              dmDumpAllUpExp(dmRoot, onePortContext, oneExpander); 
+              dmDumpAllUpExp(dmRoot, onePortContext, oneExpander);
               UpStreamExpander = oneExpander->dmUpStreamExpander;
               ConfigurableExpander = dmFindConfigurableExp(dmRoot, onePortContext, oneExpander);
               configSASAddressHi = DEVINFO_GET_SAS_ADDRESSHI(&AttachedDevice->agDeviceInfo);
-              configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo); 
+              configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo);
               if (ConfigurableExpander)
-              { 
-                if ( (ConfigurableExpander->dmDevice->SASAddressID.sasAddressHi 
+              {
+                if ( (ConfigurableExpander->dmDevice->SASAddressID.sasAddressHi
                       == DEVINFO_GET_SAS_ADDRESSHI(&AttachedDevice->agDeviceInfo)) &&
-                     (ConfigurableExpander->dmDevice->SASAddressID.sasAddressLo 
+                     (ConfigurableExpander->dmDevice->SASAddressID.sasAddressLo
                       == DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo))
                    )
-                { /* directly attached between oneExpander and ConfigurableExpander */       
+                { /* directly attached between oneExpander and ConfigurableExpander */
                   DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: 1st before loc 1\n"));
                   configSASAddressHi = oneExpander->dmDevice->SASAddressID.sasAddressHi;
-                  configSASAddressLo = oneExpander->dmDevice->SASAddressID.sasAddressLo; 
+                  configSASAddressLo = oneExpander->dmDevice->SASAddressID.sasAddressLo;
                 }
                 else
                 {
                   DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: 1st before loc 2\n"));
                   configSASAddressHi = DEVINFO_GET_SAS_ADDRESSHI(&AttachedDevice->agDeviceInfo);
-                  configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo); 
-                }                                             
+                  configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo);
+                }
               } /* if !ConfigurableExpander */
-              dupConfigSASAddr = dmDuplicateConfigSASAddr(dmRoot, 
-                                                            ConfigurableExpander,   
+              dupConfigSASAddr = dmDuplicateConfigSASAddr(dmRoot,
+                                                            ConfigurableExpander,
                                                             configSASAddressHi,
                                                             configSASAddressLo
                                                             );
-              
-                                                        
+
+
               if ( ConfigurableExpander && dupConfigSASAddr == agFALSE)
               {
                 DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: 1st q123\n"));
                 UpStreamExpander->dmCurrentDownStreamExpander = oneExpander;
-                ConfigurableExpander->currentDownStreamPhyIndex = 
+                ConfigurableExpander->currentDownStreamPhyIndex =
                         dmFindCurrentDownStreamPhyIndex(dmRoot, ConfigurableExpander);
                 ConfigurableExpander->dmReturnginExpander = oneExpander;
                 dmRoutingEntryAdd(dmRoot,
-                                  ConfigurableExpander, 
+                                  ConfigurableExpander,
                                   ConfigurableExpander->downStreamPhys[ConfigurableExpander->currentDownStreamPhyIndex],
                                   configSASAddressHi,
                                   configSASAddressLo
                                  );
-              }                       
+              }
             }
-          } 
-          /*  If fail to add the device */    
+          }
+          /*  If fail to add the device */
           else
           {
             DM_DBG1(("dmDownStreamDiscover2ExpanderPhy, Failed to add a device!!!\n"));
@@ -2699,8 +2699,8 @@ dmDownStreamDiscover2ExpanderPhy(
             onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
               = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
             onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-            DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                      onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+            DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                      onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                       onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                       onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
             /* discovery done */
@@ -2709,7 +2709,7 @@ dmDownStreamDiscover2ExpanderPhy(
           /* If the expander has up stream device */
           else
           {
-	    
+
 //qqqqq
             /* If sas address doesn't match */
             if ( (oneExpander->upStreamSASAddressHi != attachedSasHi)
@@ -2723,7 +2723,7 @@ dmDownStreamDiscover2ExpanderPhy(
                 = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
               onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
 	      onePortContext->discovery.DeferredError = agTRUE;
-     
+
             }
           }
         }
@@ -2740,15 +2740,15 @@ dmDownStreamDiscover2ExpanderPhy(
             onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
               = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
             onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-            DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                      onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+            DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                      onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                       onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                       onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
             /* discovery done */
             dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
           }
           /* If the attached device is an edge expander */
-          else if ( SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE) 
+          else if ( SAS2_DISCRSP_GET_ATTACHED_DEVTYPE(pDiscoverResp) == SAS_EDGE_EXPANDER_DEVICE)
           {
             /* Setup up stream inform */
             AttachedExpander = AttachedDevice->dmExpander;
@@ -2766,28 +2766,28 @@ dmDownStreamDiscover2ExpanderPhy(
 	        if (AttachedExpander->TTTSupported && oneExpander->TTTSupported)
 		{
                   /*
-		     needs further error checking 
+		     needs further error checking
 		     UpstreamExpanderOfAttachedExpander = AttachedExpander->UpStreamExpander
 		     for (i=0;i<DM_MAX_EXPANDER_PHYS;i++)
 		     {
 		       if (UpstreamExpanderOfAttachedExpander->downStreamPhys[i] != 0 &&
-		     } 
+		     }
 		  */
-		  SAS2SAS11Check = dmSAS2SAS11ErrorCheck(dmRoot, onePortContext, AttachedExpander->dmUpStreamExpander, AttachedExpander, oneExpander);                  
+		  SAS2SAS11Check = dmSAS2SAS11ErrorCheck(dmRoot, onePortContext, AttachedExpander->dmUpStreamExpander, AttachedExpander, oneExpander);
 		  if (SAS2SAS11Check == agTRUE)
 		  {
-                    
-		    DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: **** Topology Error SAS2 and SAS1.1!!!\n"));                    
+
+		    DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: **** Topology Error SAS2 and SAS1.1!!!\n"));
 		    onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo
-                      = DEVINFO_GET_SAS_ADDRESSLO(&oneDeviceData->agDeviceInfo);                    
+                      = DEVINFO_GET_SAS_ADDRESSLO(&oneDeviceData->agDeviceInfo);
 		    onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
-                      = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);                    
-		    onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;                    
-		    DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                              onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+                      = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
+		    onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
+		    DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                              onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                               onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
-                              onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));                    
-		    /* discovery done */                    
+                              onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
+		    /* discovery done */
 		    dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
 		  }
 		  else
@@ -2807,8 +2807,8 @@ dmDownStreamDiscover2ExpanderPhy(
                   onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
                     = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
                   onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-                  DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                            onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+                  DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                            onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                             onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                             onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
                   /* discovery done */
@@ -2819,8 +2819,8 @@ dmDownStreamDiscover2ExpanderPhy(
               {
                 DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: Add edge expander=%p\n", AttachedExpander));
                 /* set up downstream information on configurable expander */
-       
-                dmExpanderDownStreamPhyAdd(dmRoot, oneExpander, (bit8) oneExpander->discoveringPhyId); 
+
+                dmExpanderDownStreamPhyAdd(dmRoot, oneExpander, (bit8) oneExpander->discoveringPhyId);
                 /* haha */
                 dmExpanderUpStreamPhyAdd(dmRoot, AttachedExpander, (bit8) oneExpander->discoveringPhyId);
                 /* Add the pAttachedExpander to discovering list */
@@ -2846,75 +2846,75 @@ dmDownStreamDiscover2ExpanderPhy(
                 onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi
                   = DEVINFO_GET_SAS_ADDRESSHI(&oneDeviceData->agDeviceInfo);
                 onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier = oneExpander->discoveringPhyId;
-                DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n", 
-                          onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi, 
+                DM_DBG1(("dmDownStreamDiscover2ExpanderPhy: sasAddressHi 0x%08x sasAddressLo 0x%08x phyid 0x%x\n",
+                          onePortContext->discovery.sasAddressIDDiscoverError.sasAddressHi,
                           onePortContext->discovery.sasAddressIDDiscoverError.sasAddressLo,
                           onePortContext->discovery.sasAddressIDDiscoverError.phyIdentifier));
                 /* discovery done */
                 dmDiscoverDone(dmRoot, onePortContext, DM_RC_FAILURE);
 	      }
             }
-          }  
+          }
         } /* for else if (SAS2_DISCRSP_GET_ROUTINGATTRIB(pDiscoverResp) == SAS_ROUTING_TABLE) */
-          
+
         /* do this regradless of sub or table */
-        /* If status is still DISCOVERY_DOWN_STREAM */            
+        /* If status is still DISCOVERY_DOWN_STREAM */
         if ( onePortContext->discovery.status == DISCOVERY_DOWN_STREAM &&
              onePortContext->discovery.ConfiguresOthers == agFALSE)
         {
           DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: 2nd before\n"));
-          dmDumpAllUpExp(dmRoot, onePortContext, oneExpander); 
+          dmDumpAllUpExp(dmRoot, onePortContext, oneExpander);
 
           UpStreamExpander = oneExpander->dmUpStreamExpander;
           ConfigurableExpander = dmFindConfigurableExp(dmRoot, onePortContext, oneExpander);
           configSASAddressHi = DEVINFO_GET_SAS_ADDRESSHI(&AttachedDevice->agDeviceInfo);
-          configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo); 
+          configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo);
           if (ConfigurableExpander)
-          { 
-            if ( (ConfigurableExpander->dmDevice->SASAddressID.sasAddressHi 
+          {
+            if ( (ConfigurableExpander->dmDevice->SASAddressID.sasAddressHi
                  == DEVINFO_GET_SAS_ADDRESSHI(&AttachedDevice->agDeviceInfo)) &&
-                 (ConfigurableExpander->dmDevice->SASAddressID.sasAddressLo 
+                 (ConfigurableExpander->dmDevice->SASAddressID.sasAddressLo
                    == DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo))
                )
-            { /* directly attached between oneExpander and ConfigurableExpander */       
+            { /* directly attached between oneExpander and ConfigurableExpander */
               DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: 2nd before loc 1\n"));
               configSASAddressHi = oneExpander->dmDevice->SASAddressID.sasAddressHi;
-              configSASAddressLo = oneExpander->dmDevice->SASAddressID.sasAddressLo; 
+              configSASAddressLo = oneExpander->dmDevice->SASAddressID.sasAddressLo;
             }
             else
             {
               DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: 2nd before loc 2\n"));
               configSASAddressHi = DEVINFO_GET_SAS_ADDRESSHI(&AttachedDevice->agDeviceInfo);
-              configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo); 
-            }                                             
+              configSASAddressLo = DEVINFO_GET_SAS_ADDRESSLO(&AttachedDevice->agDeviceInfo);
+            }
           } /* if !ConfigurableExpander */
-          dupConfigSASAddr = dmDuplicateConfigSASAddr(dmRoot, 
-                                                        ConfigurableExpander,   
+          dupConfigSASAddr = dmDuplicateConfigSASAddr(dmRoot,
+                                                        ConfigurableExpander,
                                                         configSASAddressHi,
                                                         configSASAddressLo
                                                         );
-            
+
           if ( ConfigurableExpander && dupConfigSASAddr == agFALSE)
           {
             DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: 2nd q123 \n"));
             UpStreamExpander->dmCurrentDownStreamExpander = oneExpander;
-            ConfigurableExpander->currentDownStreamPhyIndex = 
+            ConfigurableExpander->currentDownStreamPhyIndex =
                         dmFindCurrentDownStreamPhyIndex(dmRoot, ConfigurableExpander);
             ConfigurableExpander->dmReturnginExpander = oneExpander;
             dmRoutingEntryAdd(dmRoot,
-                              ConfigurableExpander, 
+                              ConfigurableExpander,
                               ConfigurableExpander->downStreamPhys[ConfigurableExpander->currentDownStreamPhyIndex],
                               configSASAddressHi,
                               configSASAddressLo
                              );
-          }                                        
-        } /* if (onePortContext->discovery.status == DISCOVERY_DOWN_STREAM) */          
+          }
+        } /* if (onePortContext->discovery.status == DISCOVERY_DOWN_STREAM) */
         /* incremental discovery */
         if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_INCREMENTAL_START)
         {
-          connectionRate = MIN(onePortContext->LinkRate, SAS2_DISCRSP_GET_LOGICAL_LINKRATE(pDiscoverResp)); 
+          connectionRate = MIN(onePortContext->LinkRate, SAS2_DISCRSP_GET_LOGICAL_LINKRATE(pDiscoverResp));
 
-          if (SAS2_DISCRSP_IS_STP_TARGET(pDiscoverResp) || SAS2_DISCRSP_IS_SATA_DEVICE(pDiscoverResp))    
+          if (SAS2_DISCRSP_IS_STP_TARGET(pDiscoverResp) || SAS2_DISCRSP_IS_SATA_DEVICE(pDiscoverResp))
           {
             DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: incremental SATA_STP\n"));
 
@@ -2949,11 +2949,11 @@ dmDownStreamDiscover2ExpanderPhy(
                                oneExpander,
                                pDiscoverResp->phyIdentifier
                                );
-        
+
           }
         }
-        
-        
+
+
       }/* else; existing devce */
     } /* not attached to myself */
     /* If the attached device is myself */
@@ -2961,33 +2961,33 @@ dmDownStreamDiscover2ExpanderPhy(
     {
       DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: Found Self\n"));
       DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: 3rd before\n"));
-      dmDumpAllUpExp(dmRoot, onePortContext, oneExpander); 
+      dmDumpAllUpExp(dmRoot, onePortContext, oneExpander);
 
       if (onePortContext->discovery.ConfiguresOthers == agFALSE)
-      {	  
+      {
         UpStreamExpander = oneExpander->dmUpStreamExpander;
         ConfigurableExpander = dmFindConfigurableExp(dmRoot, onePortContext, oneExpander);
-        dupConfigSASAddr = dmDuplicateConfigSASAddr(dmRoot, 
-                                                      ConfigurableExpander,   
+        dupConfigSASAddr = dmDuplicateConfigSASAddr(dmRoot,
+                                                      ConfigurableExpander,
                                                       onePortContext->sasLocalAddressHi,
                                                       onePortContext->sasLocalAddressLo
                                                       );
-      
+
         if ( ConfigurableExpander && dupConfigSASAddr == agFALSE)
         {
           DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: 3rd q123 Setup routing table\n"));
           UpStreamExpander->dmCurrentDownStreamExpander = oneExpander;
-          ConfigurableExpander->currentDownStreamPhyIndex = 
+          ConfigurableExpander->currentDownStreamPhyIndex =
                           dmFindCurrentDownStreamPhyIndex(dmRoot, ConfigurableExpander);
           ConfigurableExpander->dmReturnginExpander = oneExpander;
           dmRoutingEntryAdd(dmRoot,
-                            ConfigurableExpander, 
+                            ConfigurableExpander,
                             ConfigurableExpander->downStreamPhys[ConfigurableExpander->currentDownStreamPhyIndex],
                             onePortContext->sasLocalAddressHi,
                             onePortContext->sasLocalAddressLo
                            );
         }
-      } 
+      }
     }
   }
   /* If no device is attached */
@@ -2998,11 +2998,11 @@ dmDownStreamDiscover2ExpanderPhy(
 
   /* Increment the discovering phy id */
   oneExpander->discoveringPhyId ++;
-  
+
   /* If the discovery status is DISCOVERY_DOWN_STREAM */
   if ( onePortContext->discovery.status == DISCOVERY_DOWN_STREAM )
   {
-    /* If not the last phy */  
+    /* If not the last phy */
     if ( oneExpander->discoveringPhyId < oneDeviceData->numOfPhys )
     {
       DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: More Phys to discover\n"));
@@ -3013,32 +3013,32 @@ dmDownStreamDiscover2ExpanderPhy(
     else
     {
       DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: No More Phys\n"));
-     
+
       /* for MCN */
-      dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);  
+      dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);
       ConfigurableExpander = dmFindConfigurableExp(dmRoot, onePortContext, oneExpander);
       if (oneExpander->UndoDueToTTTSupported == agTRUE && ConfigurableExpander != agNULL)
 //      if (oneExpander->UndoDueToTTTSupported == agTRUE)
       {
         DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: Not sure!!!\n"));
-        dmDiscoveringUndoAdd(dmRoot, onePortContext, oneExpander);       
+        dmDiscoveringUndoAdd(dmRoot, onePortContext, oneExpander);
         oneExpander->UndoDueToTTTSupported = agFALSE;
       }
-      
+
       /* remove the expander from the discovering list */
       dmDiscoveringExpanderRemove(dmRoot, onePortContext, oneExpander);
       /* continue downstream discovering */
       dmDownStreamDiscovering(dmRoot, onePortContext, oneDeviceData);
-    }  
+    }
   }
   else
   {
-    DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: onePortContext->discovery.status not in DISCOVERY_DOWN_STREAM; status %d\n", onePortContext->discovery.status));  
-  }  
+    DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: onePortContext->discovery.status not in DISCOVERY_DOWN_STREAM; status %d\n", onePortContext->discovery.status));
+  }
   DM_DBG2(("dmDownStreamDiscover2ExpanderPhy: end return phyID#%d\n", oneExpander->discoveringPhyId - 1));
- 
+
   return;
-}			     
+}
 
 
 osGLOBAL void
@@ -3053,7 +3053,7 @@ dmDiscoveringUndoAdd(
   dmList_t           *ExpanderList;
   dmExpander_t       *tempExpander;
   dmIntPortContext_t *tmpOnePortContext = onePortContext;
-  
+
   DM_DBG2(("dmDiscoveringUndoAdd: start\n"));
   if (DMLIST_EMPTY(&(tmpOnePortContext->discovery.discoveringExpanderList)))
   {
@@ -3070,8 +3070,8 @@ dmDiscoveringUndoAdd(
     tempExpander = DMLIST_OBJECT_BASE(dmExpander_t, linkNode, ExpanderList);
     if ( tempExpander == agNULL)
     {
-      DM_DBG1(("dmDiscoveringUndoAdd: tempExpander is NULL!!!\n"));    
-      return;    
+      DM_DBG1(("dmDiscoveringUndoAdd: tempExpander is NULL!!!\n"));
+      return;
     }
     if (tempExpander->dmUpStreamExpander == oneExpander)
     {
@@ -3083,7 +3083,7 @@ dmDiscoveringUndoAdd(
 //      DMLIST_ENQUEUE_AT_TAIL(&(tempExpander->linkNode), &(dmAllShared->freeExpanderList));
       DMLIST_ENQUEUE_AT_TAIL(&(tempExpander->linkNode), &(dmAllShared->mainExpanderList));
       tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);
-      ExpanderList = tmpOnePortContext->discovery.discoveringExpanderList.flink;      
+      ExpanderList = tmpOnePortContext->discovery.discoveringExpanderList.flink;
     }
     if (DMLIST_EMPTY(&(tmpOnePortContext->discovery.discoveringExpanderList)))
     {
@@ -3092,11 +3092,11 @@ dmDiscoveringUndoAdd(
     }
     ExpanderList = ExpanderList->flink;
   }
-  
+
 //  DM_DBG2(("dmDiscoveringUndoAdd: after\n"));
 //  dmDumpAllExp(dmRoot, onePortContext, oneExpander);
   return;
-}			     
+}
 
 osGLOBAL void
 dmHandleZoneViolation(
@@ -3111,7 +3111,7 @@ dmHandleZoneViolation(
   dmIntPortContext_t           *onePortContext = agNULL;
   dmExpander_t                 *oneExpander = agNULL;
 
-  DM_DBG1(("dmHandleZoneViolation: start\n"));  
+  DM_DBG1(("dmHandleZoneViolation: start\n"));
   DM_DBG1(("dmHandleZoneViolation: sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
   DM_DBG1(("dmHandleZoneViolation: sasAddressLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
   onePortContext = oneDeviceData->dmPortContext;
@@ -3149,18 +3149,18 @@ dmUpStreamDiscoverExpanderPhySkip(
 {
   dmDeviceData_t          *oneDeviceData;
   DM_DBG3(("dmUpStreamDiscoverExpanderPhySkip: start\n"));
-  
+
   oneDeviceData = oneExpander->dmDevice;
   DM_DBG3(("dmUpStreamDiscoverExpanderPhySkip: sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
   DM_DBG3(("dmUpStreamDiscoverExpanderPhySkip: sasAddressLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
-  
+
   oneExpander->discoveringPhyId++;
   if (onePortContext->discovery.status == DISCOVERY_UP_STREAM)
   {
     if ( oneExpander->discoveringPhyId < oneDeviceData->numOfPhys )
     {
       DM_DBG3(("dmUpStreamDiscoverExpanderPhySkip: More Phys to discover\n"));
-      /* continue discovery for the next phy */  
+      /* continue discovery for the next phy */
       dmDiscoverSend(dmRoot, oneDeviceData);
     }
     else
@@ -3168,23 +3168,23 @@ dmUpStreamDiscoverExpanderPhySkip(
       DM_DBG3(("dmUpStreamDiscoverExpanderPhySkip: No More Phys\n"));
 
       /* for MCN */
-      dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);  
+      dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);
       /* remove the expander from the discovering list */
       dmDiscoveringExpanderRemove(dmRoot, onePortContext, oneExpander);
-      /* continue upstream discovering */  
+      /* continue upstream discovering */
       dmUpStreamDiscovering(dmRoot, onePortContext, oneDeviceData);
     }
   }
   else
   {
-    DM_DBG3(("dmUpStreamDiscoverExpanderPhySkip: onePortContext->discovery.status not in DISCOVERY_UP_STREAM; status %d\n", onePortContext->discovery.status));  
-   
+    DM_DBG3(("dmUpStreamDiscoverExpanderPhySkip: onePortContext->discovery.status not in DISCOVERY_UP_STREAM; status %d\n", onePortContext->discovery.status));
+
   }
-   
+
   DM_DBG3(("dmUpStreamDiscoverExpanderPhySkip: end return phyID#%d\n", oneExpander->discoveringPhyId - 1));
-  
+
   return;
-}	   				
+}
 
 
 osGLOBAL void
@@ -3195,17 +3195,17 @@ dmUpStreamDiscover2ExpanderPhySkip(
                                    )
 {
   dmDeviceData_t          *oneDeviceData;
-  
+
   DM_DBG2(("dmUpStreamDiscover2ExpanderPhySkip: start\n"));
   oneDeviceData = oneExpander->dmDevice;
-  
+
   oneExpander->discoveringPhyId++;
   if (onePortContext->discovery.status == DISCOVERY_UP_STREAM)
   {
     if ( oneExpander->discoveringPhyId < oneDeviceData->numOfPhys )
     {
       DM_DBG2(("dmUpStreamDiscover2ExpanderPhySkip: DISCOVERY_UP_STREAM find more ...\n"));
-      /* continue discovery for the next phy */  
+      /* continue discovery for the next phy */
       dmDiscoverSend(dmRoot, oneDeviceData);
     }
     else
@@ -3213,23 +3213,23 @@ dmUpStreamDiscover2ExpanderPhySkip(
       DM_DBG2(("dmUpStreamDiscover2ExpanderPhySkip: DISCOVERY_UP_STREAM last phy continue upstream..\n"));
 
       /* for MCN */
-      dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);  
+      dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);
       /* remove the expander from the discovering list */
       dmDiscoveringExpanderRemove(dmRoot, onePortContext, oneExpander);
-      /* continue upstream discovering */  
+      /* continue upstream discovering */
       dmUpStreamDiscovering(dmRoot, onePortContext, oneDeviceData);
     }
   }
   else
   {
-    DM_DBG2(("dmUpStreamDiscover2ExpanderPhySkip: onePortContext->discovery.status not in DISCOVERY_UP_STREAM; status %d\n", onePortContext->discovery.status));     
+    DM_DBG2(("dmUpStreamDiscover2ExpanderPhySkip: onePortContext->discovery.status not in DISCOVERY_UP_STREAM; status %d\n", onePortContext->discovery.status));
   }
-   
+
   DM_DBG2(("dmUpStreamDiscover2ExpanderPhySkip: end return phyID#%d\n", oneExpander->discoveringPhyId - 1));
-  
+
 
   return;
-}			     
+}
 
 osGLOBAL void
 dmDownStreamDiscoverExpanderPhySkip(
@@ -3240,18 +3240,18 @@ dmDownStreamDiscoverExpanderPhySkip(
 {
   dmDeviceData_t          *oneDeviceData;
   DM_DBG3(("dmDownStreamDiscoverExpanderPhySkip: start\n"));
-  
+
   oneDeviceData = oneExpander->dmDevice;
   DM_DBG3(("dmDownStreamDiscoverExpanderPhySkip: sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
   DM_DBG3(("dmDownStreamDiscoverExpanderPhySkip: sasAddressLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
 
   /* Increment the discovering phy id */
   oneExpander->discoveringPhyId ++;
-  
+
   /* If the discovery status is DISCOVERY_DOWN_STREAM */
   if ( onePortContext->discovery.status == DISCOVERY_DOWN_STREAM )
   {
-    /* If not the last phy */  
+    /* If not the last phy */
     if ( oneExpander->discoveringPhyId < oneDeviceData->numOfPhys )
     {
       DM_DBG3(("dmDownStreamDiscoverExpanderPhySkip: More Phys to discover\n"));
@@ -3264,22 +3264,22 @@ dmDownStreamDiscoverExpanderPhySkip(
       DM_DBG3(("dmDownStreamDiscoverExpanderPhySkip: No More Phys\n"));
 
       /* for MCN */
-      dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);  
+      dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);
       /* remove the expander from the discovering list */
       dmDiscoveringExpanderRemove(dmRoot, onePortContext, oneExpander);
       /* continue downstream discovering */
       dmDownStreamDiscovering(dmRoot, onePortContext, oneDeviceData);
-    }  
+    }
   }
   else
   {
-    DM_DBG3(("dmDownStreamDiscoverExpanderPhySkip: onePortContext->discovery.status not in DISCOVERY_DOWN_STREAM; status %d\n", onePortContext->discovery.status));  
-  }  
+    DM_DBG3(("dmDownStreamDiscoverExpanderPhySkip: onePortContext->discovery.status not in DISCOVERY_DOWN_STREAM; status %d\n", onePortContext->discovery.status));
+  }
   DM_DBG3(("dmDownStreamDiscoverExpanderPhySkip: end return phyID#%d\n", oneExpander->discoveringPhyId - 1));
-  
-  
+
+
   return;
-}	   				
+}
 
 osGLOBAL void
 dmDownStreamDiscover2ExpanderPhySkip(
@@ -3289,17 +3289,17 @@ dmDownStreamDiscover2ExpanderPhySkip(
                                      )
 {
   dmDeviceData_t          *oneDeviceData;
-  
+
   DM_DBG2(("dmDownStreamDiscover2ExpanderPhySkip: start\n"));
-  
+
   oneDeviceData = oneExpander->dmDevice;
   /* Increment the discovering phy id */
   oneExpander->discoveringPhyId ++;
-  
+
   /* If the discovery status is DISCOVERY_DOWN_STREAM */
   if ( onePortContext->discovery.status == DISCOVERY_DOWN_STREAM )
   {
-    /* If not the last phy */  
+    /* If not the last phy */
     if ( oneExpander->discoveringPhyId < oneDeviceData->numOfPhys )
     {
       DM_DBG2(("dmDownStreamDiscover2ExpanderPhySkip: More Phys to discover\n"));
@@ -3312,20 +3312,20 @@ dmDownStreamDiscover2ExpanderPhySkip(
       DM_DBG2(("dmDownStreamDiscover2ExpanderPhySkip: No More Phys\n"));
 
       /* for MCN */
-      dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);  
+      dmUpdateAllAdjacent(dmRoot, onePortContext, oneDeviceData);
       /* remove the expander from the discovering list */
       dmDiscoveringExpanderRemove(dmRoot, onePortContext, oneExpander);
       /* continue downstream discovering */
       dmDownStreamDiscovering(dmRoot, onePortContext, oneDeviceData);
-    }  
+    }
   }
   else
   {
-    DM_DBG2(("dmDownStreamDiscover2ExpanderPhySkip: onePortContext->discovery.status not in DISCOVERY_DOWN_STREAM; status %d\n", onePortContext->discovery.status));  
-  }  
+    DM_DBG2(("dmDownStreamDiscover2ExpanderPhySkip: onePortContext->discovery.status not in DISCOVERY_DOWN_STREAM; status %d\n", onePortContext->discovery.status));
+  }
   DM_DBG2(("dmDownStreamDiscover2ExpanderPhySkip: end return phyID#%d\n", oneExpander->discoveringPhyId - 1));
   return;
-}			     
+}
 
 osGLOBAL void
 dmExpanderUpStreamPhyAdd(
@@ -3350,10 +3350,10 @@ dmExpanderUpStreamPhyAdd(
       break;
     }
   }
-  
+
   if ( hasSet == agFALSE )
   {
-    oneExpander->upStreamPhys[oneExpander->numOfUpStreamPhys ++] = phyId;    
+    oneExpander->upStreamPhys[oneExpander->numOfUpStreamPhys ++] = phyId;
   }
 
   DM_DBG3(("dmExpanderUpStreamPhyAdd: AFTER phyid %d  numOfUpStreamPhys %d\n", phyId, oneExpander->numOfUpStreamPhys));
@@ -3364,7 +3364,7 @@ dmExpanderUpStreamPhyAdd(
     DM_DBG3(("dmExpanderUpStreamPhyAdd: index %d upstream[index] %d\n", i, oneExpander->upStreamPhys[i]));
   }
   return;
-}	   				
+}
 
 osGLOBAL void
 dmExpanderDownStreamPhyAdd(
@@ -3389,10 +3389,10 @@ dmExpanderDownStreamPhyAdd(
       break;
     }
   }
-  
+
   if ( hasSet == agFALSE )
   {
-    oneExpander->downStreamPhys[oneExpander->numOfDownStreamPhys ++] = phyId;    
+    oneExpander->downStreamPhys[oneExpander->numOfDownStreamPhys ++] = phyId;
   }
 
   DM_DBG3(("dmExpanderDownStreamPhyAdd: AFTER phyid %d  numOfDownStreamPhys %d\n", phyId, oneExpander->numOfDownStreamPhys));
@@ -3403,7 +3403,7 @@ dmExpanderDownStreamPhyAdd(
      DM_DBG3(("dmExpanderDownStreamPhyAdd: index %d downstream[index] %d\n", i, oneExpander->downStreamPhys[i]));
   }
   return;
-}	   				
+}
 
 osGLOBAL void
 dmDiscoveryReportMCN(
@@ -3417,12 +3417,12 @@ dmDiscoveryReportMCN(
   dmList_t          *DeviceListList;
   bit16             extension = 0;
   dmDeviceData_t    *oneAttachedExpDeviceData = agNULL;
-    
+
   DM_DBG2(("dmDiscoveryReportMCN: start\n"));
 
 /*
   if full disocvery, report all devices using MCN
-  if incremental discovery, 
+  if incremental discovery,
   1. compare MCN and PrevMCN
   2. report the changed ones; report MCN
   3. set PrevMCN to MCN
@@ -3437,14 +3437,14 @@ dmDiscoveryReportMCN(
     {
       DM_DBG1(("dmDiscoveryReportMCN: oneDeviceData is NULL!!!\n"));
       return;
-    }        
+    }
     DM_DBG3(("dmDiscoveryReportMCN: loop did %d\n", oneDeviceData->id));
     if (oneDeviceData->dmPortContext == onePortContext)
     {
-      DM_DBG2(("dmDiscoveryReportMCN: oneDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n", 
-      oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));         
+      DM_DBG2(("dmDiscoveryReportMCN: oneDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n",
+      oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));
       DM_DBG2(("dmDiscoveryReportMCN: MCN 0x%08x PrevMCN 0x%08x\n", oneDeviceData->MCN, oneDeviceData->PrevMCN));
-      
+
       if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_FULL_START)
       {
         DM_DBG2(("dmDiscoveryReportMCN: FULL_START\n"));
@@ -3454,7 +3454,7 @@ dmDiscoveryReportMCN(
         DM_DBG2(("dmDiscoveryReportMCN: INCREMENTAL_START\n"));
       }
       /*
-        if MCN is 0, the device is removed 
+        if MCN is 0, the device is removed
       */
       if (oneDeviceData->MCN != oneDeviceData->PrevMCN && oneDeviceData->MCN != 0)
       {
@@ -3462,7 +3462,7 @@ dmDiscoveryReportMCN(
         extension = oneDeviceData->dmDeviceInfo.ext;
         /* zero out MCN in extension */
         extension = extension & 0x7FF;
-        /* sets MCN in extension */	
+        /* sets MCN in extension */
         extension = extension | (oneDeviceData->MCN << 11);
         DEVINFO_PUT_EXT(&(oneDeviceData->dmDeviceInfo), extension);
         DM_DBG5(("dmDiscoveryReportMCN: MCN 0x%08x PrevMCN 0x%08x\n", DEVINFO_GET_EXT_MCN(&(oneDeviceData->dmDeviceInfo)), oneDeviceData->PrevMCN));
@@ -3476,24 +3476,24 @@ dmDiscoveryReportMCN(
 	{
           DM_DBG2(("dmDiscoveryReportMCN: No attached expander case\n"));
           tddmReportDevice(dmRoot, onePortContext->dmPortContext, &oneDeviceData->dmDeviceInfo, agNULL, dmDeviceMCNChange);
-	}        
-        oneDeviceData->PrevMCN = oneDeviceData->MCN;          	
+	}
+        oneDeviceData->PrevMCN = oneDeviceData->MCN;
       }
       else
       {
         DM_DBG2(("dmDiscoveryReportMCN: No change; no reporting \n"));
 	if (oneDeviceData->MCN == 0)
 	{
-          oneDeviceData->PrevMCN = oneDeviceData->MCN;          	
+          oneDeviceData->PrevMCN = oneDeviceData->MCN;
 	}
       }
-      
+
     }
-    DeviceListList = DeviceListList->flink;  
+    DeviceListList = DeviceListList->flink;
   }
-  
+
   return;
-}		   
+}
 
 osGLOBAL void
 dmDiscoveryDumpMCN(
@@ -3505,9 +3505,9 @@ dmDiscoveryDumpMCN(
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDeviceData_t    *oneDeviceData = agNULL;
   dmList_t          *DeviceListList;
-  
+
   DM_DBG3(("dmDiscoveryDumpMCN: start\n"));
-  
+
   DeviceListList = dmAllShared->MainDeviceList.flink;
   while (DeviceListList != &(dmAllShared->MainDeviceList))
   {
@@ -3515,20 +3515,20 @@ dmDiscoveryDumpMCN(
     if (oneDeviceData == agNULL)
     {
       DM_DBG1(("dmDiscoveryDumpMCN: oneDeviceData is NULL!!!\n"));
-      return;   
+      return;
     }
     DM_DBG3(("dmDiscoveryDumpMCN: loop did %d\n", oneDeviceData->id));
     if (oneDeviceData->dmPortContext == onePortContext)
     {
-      DM_DBG3(("dmDiscoveryDumpMCN: oneDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n", 
-      oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));         
+      DM_DBG3(("dmDiscoveryDumpMCN: oneDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n",
+      oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));
       DM_DBG3(("dmDiscoveryDumpMCN: MCN 0x%08x PrevMCN 0x%08x\n", oneDeviceData->MCN, oneDeviceData->PrevMCN));
     }
-    DeviceListList = DeviceListList->flink;  
+    DeviceListList = DeviceListList->flink;
   }
-  
+
   return;
-}		   
+}
 
 osGLOBAL void
 dmDiscoveryResetMCN(
@@ -3540,9 +3540,9 @@ dmDiscoveryResetMCN(
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDeviceData_t    *oneDeviceData = agNULL;
   dmList_t          *DeviceListList;
-  
+
   DM_DBG2(("dmDiscoveryResetMCN: start\n"));
-  
+
   /* reinitialize the device data belonging to this portcontext */
   DeviceListList = dmAllShared->MainDeviceList.flink;
   while (DeviceListList != &(dmAllShared->MainDeviceList))
@@ -3551,7 +3551,7 @@ dmDiscoveryResetMCN(
     if (oneDeviceData == agNULL)
     {
       DM_DBG1(("dmDiscoveryResetMCN: oneDeviceData is NULL!!!\n"));
-      return;   
+      return;
     }
     DM_DBG3(("dmDiscoveryResetMCN: loop did %d\n", oneDeviceData->id));
     if (oneDeviceData->dmPortContext == onePortContext)
@@ -3560,19 +3560,19 @@ dmDiscoveryResetMCN(
       {
         DM_DBG2(("dmDiscoveryResetMCN: resetting oneDeviceData->ExpDevice\n"));
         oneDeviceData->ExpDevice = agNULL;
-      }	
+      }
       DM_DBG3(("dmDiscoveryResetMCN: resetting MCN and MCNdone\n"));
       oneDeviceData->MCN = 0;
 
       oneDeviceData->MCNDone = agFALSE;
-      DM_DBG2(("dmDiscoveryResetMCN: oneDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n", 
-      oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));         
+      DM_DBG2(("dmDiscoveryResetMCN: oneDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n",
+      oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));
     }
-    DeviceListList = DeviceListList->flink;  
+    DeviceListList = DeviceListList->flink;
   }
-  
+
   return;
-}		   
+}
 
 
 /*
@@ -3590,20 +3590,20 @@ dmUpdateAllAdjacent(
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDeviceData_t    *tmponeDeviceData = agNULL;
   dmList_t          *DeviceListList;
-    
-  DM_DBG2(("dmUpdateAllAdjacent: start\n"));  
+
+  DM_DBG2(("dmUpdateAllAdjacent: start\n"));
   if (oneDeviceData == agNULL)
   {
     DM_DBG1(("dmUpdateAllAdjacent: oneDeviceData is NULL!!!\n"));
-    return;      
-  }    
-  
-  oneDeviceData->MCNDone = agTRUE;
-  
-  DM_DBG2(("dmUpdateAllAdjacent: oneDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n", 
-  oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));         
+    return;
+  }
 
- 
+  oneDeviceData->MCNDone = agTRUE;
+
+  DM_DBG2(("dmUpdateAllAdjacent: oneDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n",
+  oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));
+
+
   DeviceListList = dmAllShared->MainDeviceList.flink;
   while (DeviceListList != &(dmAllShared->MainDeviceList))
   {
@@ -3617,8 +3617,8 @@ dmUpdateAllAdjacent(
     if (tmponeDeviceData->dmPortContext == onePortContext && tmponeDeviceData->ExpDevice == oneDeviceData)
     {
       DM_DBG2(("dmUpdateAllAdjacent: setting MCN DONE\n"));
-      DM_DBG2(("dmUpdateAllAdjacent: tmponeDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n", 
-      tmponeDeviceData->SASAddressID.sasAddressHi, tmponeDeviceData->SASAddressID.sasAddressLo));         
+      DM_DBG2(("dmUpdateAllAdjacent: tmponeDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n",
+      tmponeDeviceData->SASAddressID.sasAddressHi, tmponeDeviceData->SASAddressID.sasAddressLo));
       tmponeDeviceData->MCNDone = agTRUE;
       if (oneDeviceData->directlyAttached == agFALSE)
       {
@@ -3626,61 +3626,61 @@ dmUpdateAllAdjacent(
         DM_DBG2(("dmUpdateAllAdjacent: oneDeviceData MCN 0x%x\n", oneDeviceData->MCN));
         tmponeDeviceData->MCN = MIN(oneDeviceData->MCN, tmponeDeviceData->MCN);
       }
-    
+
     }
-    DeviceListList = DeviceListList->flink;  
+    DeviceListList = DeviceListList->flink;
   }
-  
+
   return;
 
-}		   
+}
 
 osGLOBAL void
 dmUpdateMCN(
             dmRoot_t            *dmRoot,
             dmIntPortContext_t  *onePortContext,
-            dmDeviceData_t      *AdjacentDeviceData, /* adjacent expander */ 		    
+            dmDeviceData_t      *AdjacentDeviceData, /* adjacent expander */
             dmDeviceData_t      *oneDeviceData /* current one */
            )
 {
-  
-  DM_DBG2(("dmUpdateMCN: start\n"));  
-  
+
+  DM_DBG2(("dmUpdateMCN: start\n"));
+
   if (AdjacentDeviceData == agNULL)
   {
     DM_DBG1(("dmUpdateMCN: AdjacentDeviceData is NULL!!!\n"));
-    return;      
-  }    
-  
+    return;
+  }
+
   if (oneDeviceData == agNULL)
   {
     DM_DBG1(("dmUpdateMCN: oneDeviceData is NULL!!!\n"));
-    return;      
-  }    
-  
-  DM_DBG2(("dmUpdateMCN: Current sasAddressHi 0x%08x sasAddressLo 0x%08x\n", 
-  oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));         
-  
-  DM_DBG2(("dmUpdateMCN: AdjacentDeviceData one sasAddressHi 0x%08x sasAddressLo 0x%08x\n", 
-  AdjacentDeviceData->SASAddressID.sasAddressHi, AdjacentDeviceData->SASAddressID.sasAddressLo));         
-  
+    return;
+  }
+
+  DM_DBG2(("dmUpdateMCN: Current sasAddressHi 0x%08x sasAddressLo 0x%08x\n",
+  oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));
+
+  DM_DBG2(("dmUpdateMCN: AdjacentDeviceData one sasAddressHi 0x%08x sasAddressLo 0x%08x\n",
+  AdjacentDeviceData->SASAddressID.sasAddressHi, AdjacentDeviceData->SASAddressID.sasAddressLo));
+
   if (onePortContext->discovery.status == DISCOVERY_UP_STREAM)
-  {   
-    DM_DBG2(("dmUpdateMCN: DISCOVERY_UP_STREAM\n"));  
-  }  
-  
+  {
+    DM_DBG2(("dmUpdateMCN: DISCOVERY_UP_STREAM\n"));
+  }
+
   if (onePortContext->discovery.status == DISCOVERY_DOWN_STREAM)
-  {   
-    DM_DBG2(("dmUpdateMCN: DISCOVERY_DOWN_STREAM\n"));  
-  }  
-  
-  
+  {
+    DM_DBG2(("dmUpdateMCN: DISCOVERY_DOWN_STREAM\n"));
+  }
+
+
   /* MCN */
 
-  /* directly attached one does not have MCN 
+  /* directly attached one does not have MCN
      update only adjacent device data
   */
-  
+
   if (oneDeviceData->directlyAttached == agTRUE && AdjacentDeviceData->MCNDone == agFALSE)
   {
     AdjacentDeviceData->MCN++;
@@ -3690,12 +3690,12 @@ dmUpdateMCN(
   else if (AdjacentDeviceData->MCNDone == agFALSE)
   {
     AdjacentDeviceData->MCN++;
-    AdjacentDeviceData->MCN = MIN(oneDeviceData->MCN, AdjacentDeviceData->MCN);      
+    AdjacentDeviceData->MCN = MIN(oneDeviceData->MCN, AdjacentDeviceData->MCN);
     DM_DBG2(("dmUpdateMCN: case 2 oneDeviceData MCN 0x%x\n", oneDeviceData->MCN));
     DM_DBG2(("dmUpdateMCN: case 2 AdjacentDeviceData MCN 0x%x\n", AdjacentDeviceData->MCN));
   }
-  
- 	
+
+
   return;
 }
 /* go through expander list and device list array ??? */
@@ -3705,22 +3705,22 @@ dmPortSASDeviceFind(
                     dmIntPortContext_t  *onePortContext,
                     bit32               sasAddrLo,
                     bit32               sasAddrHi,
-                    dmDeviceData_t      *CurrentDeviceData /* current expander */ 		    
+                    dmDeviceData_t      *CurrentDeviceData /* current expander */
                     )
 {
   dmIntRoot_t               *dmIntRoot    = (dmIntRoot_t *)dmRoot->dmData;
   dmIntContext_t            *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDeviceData_t            *oneDeviceData, *RetDeviceData=agNULL;
   dmList_t                  *DeviceListList;
-      
-  DM_DBG3(("dmPortSASDeviceFind: start\n"));  
-  DM_DBG3(("dmPortSASDeviceFind: sasAddressHi 0x%08x sasAddressLo 0x%08x\n", sasAddrHi, sasAddrLo));         
- 
+
+  DM_DBG3(("dmPortSASDeviceFind: start\n"));
+  DM_DBG3(("dmPortSASDeviceFind: sasAddressHi 0x%08x sasAddressLo 0x%08x\n", sasAddrHi, sasAddrLo));
+
   DM_ASSERT((agNULL != dmRoot), "");
   DM_ASSERT((agNULL != onePortContext), "");
 
   tddmSingleThreadedEnter(dmRoot, DM_DEVICE_LOCK);
-  
+
   /* find a device's existence */
   DeviceListList = dmAllShared->MainDeviceList.flink;
   if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_FULL_START)
@@ -3731,9 +3731,9 @@ dmPortSASDeviceFind(
       oneDeviceData = DMLIST_OBJECT_BASE(dmDeviceData_t, MainLink, DeviceListList);
       if (oneDeviceData == agNULL)
       {
-        DM_DBG1(("dmPortSASDeviceFind: oneDeviceData is NULL!!!\n"));  
+        DM_DBG1(("dmPortSASDeviceFind: oneDeviceData is NULL!!!\n"));
         return agNULL;
-      }      
+      }
       if ((oneDeviceData->SASAddressID.sasAddressHi == sasAddrHi) &&
           (oneDeviceData->SASAddressID.sasAddressLo == sasAddrLo) &&
           (oneDeviceData->valid == agTRUE) &&
@@ -3741,7 +3741,7 @@ dmPortSASDeviceFind(
         )
       {
         DM_DBG3(("dmPortSASDeviceFind: Found pid %d did %d\n", onePortContext->id, oneDeviceData->id));
-        DM_DBG3(("dmPortSASDeviceFind: sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));         
+        DM_DBG3(("dmPortSASDeviceFind: sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
         DM_DBG3(("dmPortSASDeviceFind: sasAddressLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
         RetDeviceData = oneDeviceData;
         dmUpdateMCN(dmRoot, onePortContext, RetDeviceData, CurrentDeviceData);
@@ -3759,9 +3759,9 @@ dmPortSASDeviceFind(
       oneDeviceData = DMLIST_OBJECT_BASE(dmDeviceData_t, MainLink, DeviceListList);
       if (oneDeviceData == agNULL)
       {
-        DM_DBG1(("dmPortSASDeviceFind: oneDeviceData is NULL!!!\n"));  
+        DM_DBG1(("dmPortSASDeviceFind: oneDeviceData is NULL!!!\n"));
         return agNULL;
-      }      
+      }
       if ((oneDeviceData->SASAddressID.sasAddressHi == sasAddrHi) &&
           (oneDeviceData->SASAddressID.sasAddressLo == sasAddrLo) &&
           (oneDeviceData->valid2 == agTRUE) &&
@@ -3769,7 +3769,7 @@ dmPortSASDeviceFind(
           )
       {
         DM_DBG3(("dmPortSASDeviceFind: Found pid %d did %d\n", onePortContext->id, oneDeviceData->id));
-        DM_DBG3(("dmPortSASDeviceFind: sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));         
+        DM_DBG3(("dmPortSASDeviceFind: sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
         DM_DBG3(("dmPortSASDeviceFind: sasAddressLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
         RetDeviceData = oneDeviceData;
         dmUpdateMCN(dmRoot, onePortContext, RetDeviceData, CurrentDeviceData);
@@ -3778,11 +3778,11 @@ dmPortSASDeviceFind(
       DeviceListList = DeviceListList->flink;
     }
   }
-  
+
   tddmSingleThreadedLeave(dmRoot, DM_DEVICE_LOCK);
 
   return RetDeviceData;
-}		      
+}
 
 bit32
 dmNewEXPorNot(
@@ -3797,9 +3797,9 @@ dmNewEXPorNot(
   dmList_t          *ExpanderList;
   bit32             ret = agTRUE;
   dmDeviceData_t    *oneDeviceData = agNULL;
-  
+
   DM_DBG3(("dmNewEXPorNot: start\n"));
-  
+
   /* find a device's existence */
   ExpanderList = onePortContext->discovery.discoveringExpanderList.flink;
   while (ExpanderList != &(onePortContext->discovery.discoveringExpanderList))
@@ -3807,9 +3807,9 @@ dmNewEXPorNot(
     oneExpander = DMLIST_OBJECT_BASE(dmExpander_t, linkNode, ExpanderList);
     if ( oneExpander == agNULL)
     {
-      DM_DBG1(("dmNewEXPorNot: oneExpander is NULL!!!\n"));    
+      DM_DBG1(("dmNewEXPorNot: oneExpander is NULL!!!\n"));
       return agFALSE;
-    }    
+    }
     oneDeviceData = oneExpander->dmDevice;
     if ((oneDeviceData->SASAddressID.sasAddressHi == dmSASSubID->sasAddressHi) &&
         (oneDeviceData->SASAddressID.sasAddressLo == dmSASSubID->sasAddressLo) &&
@@ -3822,7 +3822,7 @@ dmNewEXPorNot(
     }
     ExpanderList = ExpanderList->flink;
   }
-    
+
   return ret;
 }
 
@@ -3839,9 +3839,9 @@ dmNewSASorNot(
   dmDeviceData_t    *oneDeviceData = agNULL;
   dmList_t          *DeviceListList;
   bit32             ret = agTRUE;
-  
+
   DM_DBG3(("dmNewSASorNot: start\n"));
-  
+
   /* find a device's existence */
   DeviceListList = dmAllShared->MainDeviceList.flink;
   while (DeviceListList != &(dmAllShared->MainDeviceList))
@@ -3851,11 +3851,11 @@ dmNewSASorNot(
     {
       DM_DBG1(("dmNewSASorNot: oneDeviceData is NULL!!!\n"));
       return agFALSE;
-    }    
+    }
     if ((oneDeviceData->SASAddressID.sasAddressHi == dmSASSubID->sasAddressHi) &&
         (oneDeviceData->SASAddressID.sasAddressLo == dmSASSubID->sasAddressLo) &&
         (oneDeviceData->dmPortContext == onePortContext) &&
-        (oneDeviceData->registered == agTRUE)	
+        (oneDeviceData->registered == agTRUE)
        )
     {
       DM_DBG3(("dmNewSASorNot: Found pid %d did %d\n", onePortContext->id, oneDeviceData->id));
@@ -3864,12 +3864,12 @@ dmNewSASorNot(
     }
     DeviceListList = DeviceListList->flink;
   }
-    
+
   return ret;
 }
-/* 
+/*
 call
-osGLOBAL bit32 
+osGLOBAL bit32
 tddmReportDevice(
                  dmRoot_t 		*dmRoot,
                  dmPortContext_t	*dmPortContext,
@@ -3900,15 +3900,15 @@ dmPortSASDeviceAdd(
   dmDeviceData_t    *oneAttachedExpDeviceData = agNULL;
   bit16             extension = 0;
   bit32             current_link_rate = 0;
-  
+
   DM_DBG3(("dmPortSASDeviceAdd: start\n"));
   DM_DBG3(("dmPortSASDeviceAdd: connectionRate %d\n", connectionRate));
-  
+
   dmSASSubID.sasAddressHi = SA_IDFRM_GET_SAS_ADDRESSHI(&sasIdentify);
   dmSASSubID.sasAddressLo = SA_IDFRM_GET_SAS_ADDRESSLO(&sasIdentify);
   dmSASSubID.initiator_ssp_stp_smp = sasIdentify.initiator_ssp_stp_smp;
   dmSASSubID.target_ssp_stp_smp = sasIdentify.target_ssp_stp_smp;
-  
+
   if (oneExpDeviceData != agNULL)
   {
     ExpanderConnectionRate =   DEVINFO_GET_LINKRATE(&oneExpDeviceData->agDeviceInfo);
@@ -3919,8 +3919,8 @@ dmPortSASDeviceAdd(
     if (oneExpDeviceData->SASAddressID.sasAddressHi == 0x0 &&
         oneExpDeviceData->SASAddressID.sasAddressLo == 0x0)
     {
-      DM_DBG1(("dmPortSASDeviceAdd: 1st Wrong expander!!!\n"));    
-    }    	    
+      DM_DBG1(("dmPortSASDeviceAdd: 1st Wrong expander!!!\n"));
+    }
   }
   /* old device and already reported to TDM */
   if ( agFALSE == dmNewSASorNot(
@@ -3931,7 +3931,7 @@ dmPortSASDeviceAdd(
        ) /* old device */
   {
     DM_DBG3(("dmPortSASDeviceAdd: OLD qqqq initiator_ssp_stp_smp %d target_ssp_stp_smp %d\n", dmSASSubID.initiator_ssp_stp_smp, dmSASSubID.target_ssp_stp_smp));
-    /* allocate a new device and set the valid bit */ 
+    /* allocate a new device and set the valid bit */
     oneDeviceData = dmAddSASToSharedcontext(
                                                dmRoot,
                                                onePortContext,
@@ -3951,49 +3951,49 @@ dmPortSASDeviceAdd(
       if (onePortContext->discovery.status == DISCOVERY_UP_STREAM)
       {
         DM_DBG3(("dmPortSASDeviceAdd: OLD, UP_STREAM\n"));
-      }    
+      }
       if (onePortContext->discovery.status == DISCOVERY_DOWN_STREAM)
-      {      
+      {
         DM_DBG3(("dmPortSASDeviceAdd: OLD, DOWN_STREAM\n"));
       }
-      
+
       if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_FULL_START)
       {
-        DM_DBG3(("dmPortSASDeviceAdd: FULL_START\n"));  
+        DM_DBG3(("dmPortSASDeviceAdd: FULL_START\n"));
         oneDeviceData->MCN++;
       }
       else
       {
         /* incremental */
-        DM_DBG3(("dmPortSASDeviceAdd: INCREMENTAL_START\n"));  
+        DM_DBG3(("dmPortSASDeviceAdd: INCREMENTAL_START\n"));
         if (oneDeviceData->MCN == 0 && oneDeviceData->directlyAttached == agFALSE)
         {
-          oneDeviceData->MCN++;	  
+          oneDeviceData->MCN++;
         }
-      }      	
-      
+      }
+
       DM_DBG3(("dmPortSASDeviceAdd: oneDeviceData MCN 0x%08x\n", oneDeviceData->MCN));
-      DM_DBG3(("dmPortSASDeviceAdd: oneDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n", 
-      oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));         
+      DM_DBG3(("dmPortSASDeviceAdd: oneDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n",
+      oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));
 
 
       DM_DBG3(("dmPortSASDeviceAdd: sasAddressHi 0x%08x\n", SA_IDFRM_GET_SAS_ADDRESSHI(&sasIdentify)));
       DM_DBG3(("dmPortSASDeviceAdd: sasAddressLo 0x%08x\n", SA_IDFRM_GET_SAS_ADDRESSLO(&sasIdentify)));
-      
+
 //      oneDeviceData->sasIdentify = sasIdentify;
       dm_memcpy(&(oneDeviceData->sasIdentify), &sasIdentify, sizeof(agsaSASIdentify_t));
-      
+
       DM_DBG3(("dmPortSASDeviceAdd: sasAddressHi 0x%08x\n", SA_IDFRM_GET_SAS_ADDRESSHI(&oneDeviceData->sasIdentify)));
       DM_DBG3(("dmPortSASDeviceAdd: sasAddressLo 0x%08x\n", SA_IDFRM_GET_SAS_ADDRESSLO(&oneDeviceData->sasIdentify)));
-      
+
       /* parse sasIDframe to fill in agDeviceInfo */
       DEVINFO_PUT_SMPTO(&oneDeviceData->agDeviceInfo, DEFAULT_SMP_TIMEOUT);
       DEVINFO_PUT_ITNEXUSTO(&oneDeviceData->agDeviceInfo, (bit16)itNexusTimeout);
       DEVINFO_PUT_FBS(&oneDeviceData->agDeviceInfo, (bit16)firstBurstSize);
       DEVINFO_PUT_FLAG(&oneDeviceData->agDeviceInfo, 1);
-      
+
       oneDeviceData->SASSpecDeviceType = SA_IDFRM_GET_DEVICETTYPE(&sasIdentify);
-      
+
       /* adjusting connectionRate */
       oneAttachedExpDeviceData = oneDeviceData->ExpDevice;
       if (oneAttachedExpDeviceData != agNULL)
@@ -4006,7 +4006,7 @@ dmPortSASDeviceAdd(
       {
        DM_DBG3(("dmPortSASDeviceAdd: 1st oneAttachedExpDeviceData is NULL\n"));
       }
-      
+
       /* Device Type, SAS or SATA, connection rate; bit7 --- bit0 */
       sasorsata = (bit8)deviceType;
       /* sTSDK spec device typ */
@@ -4026,12 +4026,12 @@ dmPortSASDeviceAdd(
         else
         {
           tddmReportDevice(dmRoot, onePortContext->dmPortContext, &oneDeviceData->dmDeviceInfo, agNULL, dmDeviceArrival);
-        }	  
+        }
       }
-      
+
       DEVINFO_PUT_DEV_S_RATE(&oneDeviceData->agDeviceInfo, dev_s_rate);
-      
-    
+
+
       DEVINFO_PUT_SAS_ADDRESSLO(
                                 &oneDeviceData->agDeviceInfo,
                                 SA_IDFRM_GET_SAS_ADDRESSLO(&oneDeviceData->sasIdentify)
@@ -4042,18 +4042,18 @@ dmPortSASDeviceAdd(
                                 );
       oneDeviceData->agContext.osData = oneDeviceData;
       oneDeviceData->agContext.sdkData = agNULL;
-   
-      
-    }	
-    return oneDeviceData;		
+
+
+    }
+    return oneDeviceData;
   }  /* old device */
-  
-  
+
+
   /* new device */
-	
+
   DM_DBG3(("dmPortSASDeviceAdd: NEW qqqq initiator_ssp_stp_smp %d target_ssp_stp_smp %d\n", dmSASSubID.initiator_ssp_stp_smp, dmSASSubID.target_ssp_stp_smp));
-  
-  /* allocate a new device and set the valid bit */ 
+
+  /* allocate a new device and set the valid bit */
   oneDeviceData = dmAddSASToSharedcontext(
                                                dmRoot,
                                                onePortContext,
@@ -4065,44 +4065,44 @@ dmPortSASDeviceAdd(
   {
     DM_DBG1(("dmPortSASDeviceAdd: no more device, oneDeviceData is null !!!\n"));
   }
-  
+
    /* If a device is allocated */
   if ( oneDeviceData != agNULL )
   {
 
 //    DM_DBG3(("dmPortSASDeviceAdd: sasAddressHi 0x%08x\n", SA_IDFRM_GET_SAS_ADDRESSHI(&sasIdentify)));
 //    DM_DBG3(("dmPortSASDeviceAdd: sasAddressLo 0x%08x\n", SA_IDFRM_GET_SAS_ADDRESSLO(&sasIdentify)));
-  
+
 //    oneDeviceData->sasIdentify = sasIdentify;
     dm_memcpy(&(oneDeviceData->sasIdentify), &sasIdentify, sizeof(agsaSASIdentify_t));
-    
+
     if (onePortContext->discovery.status == DISCOVERY_UP_STREAM)
     {
       DM_DBG3(("dmPortSASDeviceAdd: NEW, UP_STREAM\n"));
-    }    
+    }
     if (onePortContext->discovery.status == DISCOVERY_DOWN_STREAM)
-    {      
+    {
       DM_DBG3(("dmPortSASDeviceAdd: NEW, DOWN_STREAM\n"));
     }
-        
+
     if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_FULL_START)
     {
-      DM_DBG3(("dmPortSASDeviceAdd: FULL_START\n"));  
+      DM_DBG3(("dmPortSASDeviceAdd: FULL_START\n"));
       oneDeviceData->MCN++;
     }
     else
     {
       /* incremental */
-      DM_DBG3(("dmPortSASDeviceAdd: INCREMENTAL_START\n"));  
+      DM_DBG3(("dmPortSASDeviceAdd: INCREMENTAL_START\n"));
       if (oneDeviceData->MCN == 0 && oneDeviceData->directlyAttached == agFALSE)
       {
-        oneDeviceData->MCN++;	  
+        oneDeviceData->MCN++;
       }
-    }      
+    }
     DM_DBG3(("dmPortSASDeviceAdd: oneDeviceData MCN 0x%08x\n", oneDeviceData->MCN));
-    DM_DBG3(("dmPortSASDeviceAdd: oneDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n", 
-    oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));         
-    
+    DM_DBG3(("dmPortSASDeviceAdd: oneDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n",
+    oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));
+
     DM_DBG3(("dmPortSASDeviceAdd: sasAddressHi 0x%08x\n", SA_IDFRM_GET_SAS_ADDRESSHI(&oneDeviceData->sasIdentify)));
     DM_DBG3(("dmPortSASDeviceAdd: sasAddressLo 0x%08x\n", SA_IDFRM_GET_SAS_ADDRESSLO(&oneDeviceData->sasIdentify)));
 
@@ -4111,9 +4111,9 @@ dmPortSASDeviceAdd(
     DEVINFO_PUT_ITNEXUSTO(&oneDeviceData->agDeviceInfo, (bit16)itNexusTimeout);
     DEVINFO_PUT_FBS(&oneDeviceData->agDeviceInfo, (bit16)firstBurstSize);
     DEVINFO_PUT_FLAG(&oneDeviceData->agDeviceInfo, 1);
-    
+
     oneDeviceData->SASSpecDeviceType = SA_IDFRM_GET_DEVICETTYPE(&sasIdentify);
-    
+
     /* adjusting connectionRate */
     oneAttachedExpDeviceData = oneDeviceData->ExpDevice;
     if (oneAttachedExpDeviceData != agNULL)
@@ -4126,14 +4126,14 @@ dmPortSASDeviceAdd(
     {
      DM_DBG3(("dmPortSASDeviceAdd: 2nd oneAttachedExpDeviceData is NULL\n"));
     }
-    
+
     /* Device Type, SAS or SATA, connection rate; bit7 --- bit0 */
     sasorsata = (bit8)deviceType;
     dev_s_rate = dev_s_rate | (sasorsata << 4);
     dev_s_rate = dev_s_rate | MIN(connectionRate, ExpanderConnectionRate);
     DEVINFO_PUT_DEV_S_RATE(&oneDeviceData->agDeviceInfo, dev_s_rate);
 
-    
+
     DEVINFO_PUT_SAS_ADDRESSLO(
                               &oneDeviceData->agDeviceInfo,
                               SA_IDFRM_GET_SAS_ADDRESSLO(&oneDeviceData->sasIdentify)
@@ -4144,10 +4144,10 @@ dmPortSASDeviceAdd(
                               );
     oneDeviceData->agContext.osData = oneDeviceData;
     oneDeviceData->agContext.sdkData = agNULL;
-		
+
     DM_DBG3(("dmPortSASDeviceAdd: did %d\n", oneDeviceData->id));
-  
-    
+
+
     /* reporting to TDM; setting dmDeviceInfo */
     DEVINFO_PUT_SMPTO(&oneDeviceData->dmDeviceInfo, DEFAULT_SMP_TIMEOUT);
     DEVINFO_PUT_ITNEXUSTO(&oneDeviceData->dmDeviceInfo, (bit16)itNexusTimeout);
@@ -4156,7 +4156,7 @@ dmPortSASDeviceAdd(
     DEVINFO_PUT_INITIATOR_SSP_STP_SMP(&oneDeviceData->dmDeviceInfo, dmSASSubID.initiator_ssp_stp_smp);
     DEVINFO_PUT_TARGET_SSP_STP_SMP(&oneDeviceData->dmDeviceInfo, dmSASSubID.target_ssp_stp_smp);
     extension = phyID;
-      
+
     /* setting 6th bit of dev_s_rate */
     if (oneDeviceData->SASSpecDeviceType == SAS_EDGE_EXPANDER_DEVICE ||
         oneDeviceData->SASSpecDeviceType == SAS_FANOUT_EXPANDER_DEVICE )
@@ -4164,9 +4164,9 @@ dmPortSASDeviceAdd(
       extension = (bit16)(extension | (1 << 8));
     }
     DEVINFO_PUT_EXT(&oneDeviceData->dmDeviceInfo, extension);
-      
+
     DEVINFO_PUT_DEV_S_RATE(&oneDeviceData->dmDeviceInfo, dev_s_rate);
-    
+
     DEVINFO_PUT_SAS_ADDRESSLO(
                               &oneDeviceData->dmDeviceInfo,
                               SA_IDFRM_GET_SAS_ADDRESSLO(&oneDeviceData->sasIdentify)
@@ -4175,7 +4175,7 @@ dmPortSASDeviceAdd(
                               &oneDeviceData->dmDeviceInfo,
                               SA_IDFRM_GET_SAS_ADDRESSHI(&oneDeviceData->sasIdentify)
                               );
-    
+
     if (oneDeviceData->ExpDevice != agNULL)
     {
       DM_DBG3(("dmPortSASDeviceAdd: attached expander case\n"));
@@ -4191,16 +4191,16 @@ dmPortSASDeviceAdd(
                                 &oneAttachedExpDeviceData->dmDeviceInfo,
                                 oneAttachedExpDeviceData->SASAddressID.sasAddressHi
                                 );
-      DM_DBG3(("dmPortSASDeviceAdd: oneAttachedExpDeviceData addrHi 0x%08x addrLo 0x%08x PhyID 0x%x ext 0x%x\n", 
-      DM_GET_SAS_ADDRESSHI(oneAttachedExpDeviceData->dmDeviceInfo.sasAddressHi), 
+      DM_DBG3(("dmPortSASDeviceAdd: oneAttachedExpDeviceData addrHi 0x%08x addrLo 0x%08x PhyID 0x%x ext 0x%x\n",
+      DM_GET_SAS_ADDRESSHI(oneAttachedExpDeviceData->dmDeviceInfo.sasAddressHi),
       DM_GET_SAS_ADDRESSLO(oneAttachedExpDeviceData->dmDeviceInfo.sasAddressLo),
-      phyID, extension));    
-            
+      phyID, extension));
+
       if (oneAttachedExpDeviceData->SASAddressID.sasAddressHi == 0x0 &&
           oneAttachedExpDeviceData->SASAddressID.sasAddressLo == 0x0)
       {
-        DM_DBG1(("dmPortSASDeviceAdd: 2nd Wrong expander!!!\n"));    
-      }    	    
+        DM_DBG1(("dmPortSASDeviceAdd: 2nd Wrong expander!!!\n"));
+      }
       if (oneDeviceData->reported == agFALSE)
       {
         oneDeviceData->registered = agTRUE;
@@ -4209,14 +4209,14 @@ dmPortSASDeviceAdd(
         {
             /*STP device, DM need send SMP Report Phy SATA to get the SATA device type */
             oneAttachedExpDeviceData->dmExpander->dmDeviceToProcess = oneDeviceData;
-            dmReportPhySataSend(dmRoot, oneAttachedExpDeviceData, phyID);  
+            dmReportPhySataSend(dmRoot, oneAttachedExpDeviceData, phyID);
         }
         else
         {
             /* SAS or SMP device */
             tddmReportDevice(dmRoot, onePortContext->dmPortContext, &oneDeviceData->dmDeviceInfo, &oneAttachedExpDeviceData->dmDeviceInfo, dmDeviceArrival);
         }
-      }      
+      }
     }
     else
     {
@@ -4226,19 +4226,19 @@ dmPortSASDeviceAdd(
         oneDeviceData->registered = agTRUE;
         oneDeviceData->reported = agTRUE;
         tddmReportDevice(dmRoot, onePortContext->dmPortContext, &oneDeviceData->dmDeviceInfo, agNULL, dmDeviceArrival);
-      }      
-    }	
-  }  
-  
+      }
+    }
+  }
+
   return oneDeviceData;
-}		      
+}
 
 osGLOBAL dmDeviceData_t *
 dmFindRegNValid(
                 dmRoot_t             *dmRoot,
                 dmIntPortContext_t   *onePortContext,
                 dmSASSubID_t         *dmSASSubID
-               )								
+               )
 {
   dmIntRoot_t       *dmIntRoot    = (dmIntRoot_t *)dmRoot->dmData;
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
@@ -4246,7 +4246,7 @@ dmFindRegNValid(
   dmList_t          *DeviceListList;
   bit32             found = agFALSE;
   DM_DBG3(("dmFindRegNValid: start\n"));
-  
+
   /* find a device's existence */
   DeviceListList = dmAllShared->MainDeviceList.flink;
   if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_FULL_START)
@@ -4259,7 +4259,7 @@ dmFindRegNValid(
       {
         DM_DBG1(("dmFindRegNValid: oneDeviceData is NULL!!!\n"));
         return agFALSE;
-      }    
+      }
       if ((oneDeviceData->SASAddressID.sasAddressHi == dmSASSubID->sasAddressHi) &&
           (oneDeviceData->SASAddressID.sasAddressLo == dmSASSubID->sasAddressLo) &&
           (oneDeviceData->valid == agTRUE) &&
@@ -4267,7 +4267,7 @@ dmFindRegNValid(
           )
       {
         DM_DBG3(("dmFindRegNValid: Found pid %d did %d\n", onePortContext->id, oneDeviceData->id));
-        DM_DBG3(("dmFindRegNValid: sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));         
+        DM_DBG3(("dmFindRegNValid: sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
         DM_DBG3(("dmFindRegNValid: sasAddressLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
         found = agTRUE;
         break;
@@ -4286,7 +4286,7 @@ dmFindRegNValid(
       {
         DM_DBG1(("dmFindRegNValid: oneDeviceData is NULL!!!\n"));
         return agFALSE;
-      }    
+      }
       if ((oneDeviceData->SASAddressID.sasAddressHi == dmSASSubID->sasAddressHi) &&
           (oneDeviceData->SASAddressID.sasAddressLo == dmSASSubID->sasAddressLo) &&
           (oneDeviceData->valid2 == agTRUE) &&
@@ -4294,7 +4294,7 @@ dmFindRegNValid(
           )
       {
         DM_DBG3(("dmFindRegNValid: Found pid %d did %d\n", onePortContext->id, oneDeviceData->id));
-        DM_DBG3(("dmFindRegNValid: sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));         
+        DM_DBG3(("dmFindRegNValid: sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
         DM_DBG3(("dmFindRegNValid: sasAddressLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
         found = agTRUE;
         break;
@@ -4302,9 +4302,9 @@ dmFindRegNValid(
       DeviceListList = DeviceListList->flink;
     }
   }
-    
-        
-                
+
+
+
   if (found == agFALSE)
   {
     DM_DBG3(("dmFindRegNValid: end returning NULL\n"));
@@ -4315,26 +4315,26 @@ dmFindRegNValid(
     DM_DBG3(("dmFindRegNValid: end returning NOT NULL\n"));
     return oneDeviceData;
   }
-}		      
+}
 
-osGLOBAL void	
+osGLOBAL void
 dmNotifyBC(
            dmRoot_t			*dmRoot,
            dmPortContext_t		*dmPortContext,
            bit32 			type)
 {
   dmIntPortContext_t        *onePortContext = agNULL;
-  
+
   onePortContext = (dmIntPortContext_t *)dmPortContext->dmData;
-  
+
   DM_DBG3(("dmNotifyBC: start\n"));
-      
+
   if (onePortContext == agNULL)
   {
-    DM_DBG1(("dmNotifyBC: onePortContext is NULL, wrong!!!\n"));  
+    DM_DBG1(("dmNotifyBC: onePortContext is NULL, wrong!!!\n"));
     return;
   }
-  
+
   if (type == OSSA_HW_EVENT_BROADCAST_CHANGE)
   {
     if (onePortContext->DiscoveryAbortInProgress == agFALSE)
@@ -4345,46 +4345,46 @@ dmNotifyBC(
       onePortContext->DiscoveryState = DM_DSTATE_NOT_STARTED;
       onePortContext->discoveryOptions = DM_DISCOVERY_OPTION_INCREMENTAL_START;
       /* processed broadcast change */
-      onePortContext->discovery.SeenBC = agFALSE;       
+      onePortContext->discovery.SeenBC = agFALSE;
     }
     else
     {
-      DM_DBG3(("dmNotifyBC: pid %d BROADCAST_CHANGE; updating SeenBC. Do nothing.\n", onePortContext->id));      
+      DM_DBG3(("dmNotifyBC: pid %d BROADCAST_CHANGE; updating SeenBC. Do nothing.\n", onePortContext->id));
       onePortContext->discovery.SeenBC = agTRUE;
     }
-    }                 
+    }
   }
   else if (type == OSSA_HW_EVENT_BROADCAST_SES)
   {
-    DM_DBG3(("dmNotifyBC: OSSA_HW_EVENT_BROADCAST_SES\n"));      
+    DM_DBG3(("dmNotifyBC: OSSA_HW_EVENT_BROADCAST_SES\n"));
   }
   else if (type == OSSA_HW_EVENT_BROADCAST_EXP)
   {
-    DM_DBG3(("dmNotifyBC: OSSA_HW_EVENT_BROADCAST_EXP\n"));      
+    DM_DBG3(("dmNotifyBC: OSSA_HW_EVENT_BROADCAST_EXP\n"));
   }
-  else 
+  else
   {
-    DM_DBG3(("dmNotifyBC: unspecified broadcast type 0x%x\n", type));      
+    DM_DBG3(("dmNotifyBC: unspecified broadcast type 0x%x\n", type));
   }
   return;
-}	   				
+}
 
 
 #ifdef WORKED
 /* triggers incremental discovery */
-osGLOBAL void	
+osGLOBAL void
 dmNotifyBC(
            dmRoot_t			*dmRoot,
            dmPortContext_t		*dmPortContext,
            bit32 			type)
 {
   dmIntPortContext_t        *onePortContext = agNULL;
-  
+
   onePortContext = (dmIntPortContext_t *)dmPortContext->dmData;
-  
+
   DM_DBG3(("dmNotifyBC: start\n"));
-      
-  
+
+
   if (type == OSSA_HW_EVENT_BROADCAST_CHANGE)
   {
     if (onePortContext->DiscoveryState == DM_DSTATE_COMPLETED)
@@ -4393,7 +4393,7 @@ dmNotifyBC(
       onePortContext->DiscoveryState = DM_DSTATE_NOT_STARTED;
       onePortContext->discoveryOptions = DM_DISCOVERY_OPTION_INCREMENTAL_START;
       /* processed broadcast change */
-      onePortContext->discovery.SeenBC = agFALSE;       
+      onePortContext->discovery.SeenBC = agFALSE;
       if (onePortContext->discovery.ResetTriggerred == agTRUE)
       {
         DM_DBG3(("dmNotifyBC: tdsaBCTimer\n"));
@@ -4410,96 +4410,96 @@ dmNotifyBC(
     }
     else
     {
-      DM_DBG3(("dmNotifyBC: pid %d BROADCAST_CHANGE; updating SeenBC. Do nothing.\n", onePortContext->id));      
+      DM_DBG3(("dmNotifyBC: pid %d BROADCAST_CHANGE; updating SeenBC. Do nothing.\n", onePortContext->id));
       onePortContext->discovery.SeenBC = agTRUE;
-    }                 
+    }
   }
   else if (type == OSSA_HW_EVENT_BROADCAST_SES)
   {
-    DM_DBG3(("dmNotifyBC: OSSA_HW_EVENT_BROADCAST_SES\n"));      
+    DM_DBG3(("dmNotifyBC: OSSA_HW_EVENT_BROADCAST_SES\n"));
   }
   else if (type == OSSA_HW_EVENT_BROADCAST_EXP)
   {
-    DM_DBG3(("dmNotifyBC: OSSA_HW_EVENT_BROADCAST_EXP\n"));      
+    DM_DBG3(("dmNotifyBC: OSSA_HW_EVENT_BROADCAST_EXP\n"));
   }
-  else 
+  else
   {
-    DM_DBG3(("dmNotifyBC: unspecified broadcast type 0x%x\n", type));      
+    DM_DBG3(("dmNotifyBC: unspecified broadcast type 0x%x\n", type));
   }
   return;
-}	   				
-#endif				
-				
-osGLOBAL bit32 	
-dmResetFailedDiscovery(  
+}
+#endif
+
+osGLOBAL bit32
+dmResetFailedDiscovery(
                  dmRoot_t               *dmRoot,
                  dmPortContext_t        *dmPortContext)
 {
   dmIntPortContext_t        *onePortContext = agNULL;
-  
+
   DM_DBG1(("dmResetFailedDiscovery: start\n"));
-  
+
   onePortContext = (dmIntPortContext_t *)dmPortContext->dmData;
-  
+
   if (onePortContext == agNULL)
   {
-    DM_DBG1(("dmResetFailedDiscovery: onePortContext is NULL, wrong!!!\n"));  
+    DM_DBG1(("dmResetFailedDiscovery: onePortContext is NULL, wrong!!!\n"));
     return DM_RC_FAILURE;
   }
-  
+
   if (onePortContext->DiscoveryState == DM_DSTATE_COMPLETED_WITH_FAILURE)
   {
     onePortContext->DiscoveryState = DM_DSTATE_COMPLETED;
   }
   else
   {
-    DM_DBG1(("dmResetFailedDiscovery: discovery is NOT DM_DSTATE_COMPLETED_WITH_FAILURE. It is 0x%x\n", onePortContext->DiscoveryState));  
+    DM_DBG1(("dmResetFailedDiscovery: discovery is NOT DM_DSTATE_COMPLETED_WITH_FAILURE. It is 0x%x\n", onePortContext->DiscoveryState));
     return DM_RC_FAILURE;
   }
-  
-  return DM_RC_SUCCESS;
-}	   				
 
-osGLOBAL bit32 	
-dmQueryDiscovery(  
+  return DM_RC_SUCCESS;
+}
+
+osGLOBAL bit32
+dmQueryDiscovery(
                  dmRoot_t 		*dmRoot,
                  dmPortContext_t	*dmPortContext)
 {
   dmIntPortContext_t        *onePortContext = agNULL;
-  
+
   DM_DBG3(("dmQueryDiscovery: start\n"));
-  
+
   onePortContext = (dmIntPortContext_t *)dmPortContext->dmData;
-  
+
   if (onePortContext == agNULL)
   {
-    DM_DBG1(("dmQueryDiscovery: onePortContext is NULL, wrong!!!\n"));  
+    DM_DBG1(("dmQueryDiscovery: onePortContext is NULL, wrong!!!\n"));
     return DM_RC_FAILURE;
   }
-  
+
   /* call tddmQueryDiscoveryCB() */
   if (onePortContext->DiscoveryState == DM_DSTATE_COMPLETED)
   {
-    tddmQueryDiscoveryCB(dmRoot, dmPortContext,  onePortContext->discoveryOptions, dmDiscCompleted); 
+    tddmQueryDiscoveryCB(dmRoot, dmPortContext,  onePortContext->discoveryOptions, dmDiscCompleted);
   }
   else if (onePortContext->DiscoveryState == DM_DSTATE_COMPLETED_WITH_FAILURE)
   {
-    tddmQueryDiscoveryCB(dmRoot, dmPortContext,  onePortContext->discoveryOptions, dmDiscFailed); 
+    tddmQueryDiscoveryCB(dmRoot, dmPortContext,  onePortContext->discoveryOptions, dmDiscFailed);
   }
   else
   {
-    tddmQueryDiscoveryCB(dmRoot, dmPortContext,  onePortContext->discoveryOptions, dmDiscInProgress); 
-  }  
-  
-  return DM_RC_SUCCESS;
-}	   				
+    tddmQueryDiscoveryCB(dmRoot, dmPortContext,  onePortContext->discoveryOptions, dmDiscInProgress);
+  }
 
-								
-/* 
+  return DM_RC_SUCCESS;
+}
+
+
+/*
   should only for an expander
 */
-osGLOBAL bit32 	
-dmRegisterDevice(  
+osGLOBAL bit32
+dmRegisterDevice(
 		 dmRoot_t 		*dmRoot,
 		 dmPortContext_t	*dmPortContext,
 		 dmDeviceInfo_t		*dmDeviceInfo,
@@ -4512,24 +4512,24 @@ dmRegisterDevice(
   bit32                     sasAddressHi, sasAddressLo;
   dmDeviceData_t            *oneDeviceData = agNULL;
   dmSASSubID_t              dmSASSubID;
-  
+
   DM_DBG3(("dmRegisterDevice: start\n"));
-  
+
   onePortContext = (dmIntPortContext_t *)dmPortContext->dmData;
   if (onePortContext == agNULL)
   {
     DM_DBG1(("dmRegisterDevice: onePortContext is NULL!!!\n"));
     return DM_RC_FAILURE;
   }
-  
+
   if (onePortContext->valid == agFALSE)
   {
     DM_DBG1(("dmRegisterDevice: invalid port!!!\n"));
     return DM_RC_FAILURE;
   }
-  
+
   onePortContext->RegFailed = agFALSE;
-  
+
   /* tdssAddSASToSharedcontext() from ossaHwCB()
 osGLOBAL void
 tdssAddSASToSharedcontext(
@@ -4541,7 +4541,7 @@ tdssAddSASToSharedcontext(
                           bit8                 phyID,
                           bit32                flag
                           );
-from discovery  
+from discovery
 osGLOBAL tdsaDeviceData_t *
 tdssNewAddSASToSharedcontext(
                                  agsaRoot_t           *agRoot,
@@ -4550,15 +4550,15 @@ tdssNewAddSASToSharedcontext(
                                  tdsaDeviceData_t     *oneExpDeviceData,
                                  bit8                 phyID
                                  );
-  
+
   */
   /* start here */
   dmSASSubID.sasAddressHi = DM_GET_SAS_ADDRESSHI(dmDeviceInfo->sasAddressHi);
   dmSASSubID.sasAddressLo = DM_GET_SAS_ADDRESSHI(dmDeviceInfo->sasAddressLo);
   dmSASSubID.initiator_ssp_stp_smp = dmDeviceInfo->initiator_ssp_stp_smp;
   dmSASSubID.target_ssp_stp_smp = dmDeviceInfo->target_ssp_stp_smp;
- 
-  oneDeviceData = dmAddSASToSharedcontext(dmRoot, onePortContext, &dmSASSubID, agNULL, 0xFF);  
+
+  oneDeviceData = dmAddSASToSharedcontext(dmRoot, onePortContext, &dmSASSubID, agNULL, 0xFF);
   if (oneDeviceData == agNULL)
   {
     DM_DBG1(("dmRegisterDevice: oneDeviceData is NULL!!!\n"));
@@ -4585,7 +4585,7 @@ tdssNewAddSASToSharedcontext(
       oneDeviceData->SASSpecDeviceType = SAS_EDGE_EXPANDER_DEVICE;
     }
   }
-  
+
   if (DEVINFO_GET_EXT_MCN(dmDeviceInfo) == 0xF)
   {
     DM_DBG1(("dmRegisterDevice: directly attached expander\n"));
@@ -4596,8 +4596,8 @@ tdssNewAddSASToSharedcontext(
   {
     DM_DBG1(("dmRegisterDevice: NOT directly attached expander\n"));
     oneDeviceData->directlyAttached = agFALSE;
-  }      
-  
+  }
+
   if (onePortContext->DiscoveryState == DM_DSTATE_NOT_STARTED)
   {
     DM_DBG3(("dmRegisterDevice: DM_DSTATE_NOT_STARTED\n"));
@@ -4610,7 +4610,7 @@ tdssNewAddSASToSharedcontext(
       oneExpander->dmDevice->SASAddressID.sasAddressHi = DM_GET_SAS_ADDRESSHI(dmDeviceInfo->sasAddressHi);
       oneExpander->dmDevice->SASAddressID.sasAddressLo = DM_GET_SAS_ADDRESSLO(dmDeviceInfo->sasAddressLo);
       DM_DBG3(("dmRegisterDevice: AddrHi 0x%08x AddrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressHi, oneExpander->dmDevice->SASAddressID.sasAddressLo));
-      dmDiscoveringExpanderAdd(dmRoot, onePortContext, oneExpander);      
+      dmDiscoveringExpanderAdd(dmRoot, onePortContext, oneExpander);
     }
     else
     {
@@ -4644,7 +4644,7 @@ tdssNewAddSASToSharedcontext(
   }
 
   return DM_RC_SUCCESS;
-}	   			 
+}
 
 osGLOBAL dmExpander_t *
 dmDiscoveringExpanderAlloc(
@@ -4657,7 +4657,7 @@ dmDiscoveringExpanderAlloc(
   dmIntContext_t            *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmExpander_t              *oneExpander = agNULL;
   dmList_t                  *ExpanderList;
-  
+
   DM_DBG3(("dmDiscoveringExpanderAlloc: start\n"));
   DM_DBG3(("dmDiscoveringExpanderAlloc: did %d\n", oneDeviceData->id));
   DM_DBG3(("dmDiscoveringExpanderAlloc: sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
@@ -4668,14 +4668,14 @@ dmDiscoveringExpanderAlloc(
     DM_DBG1(("dmDiscoveringExpanderAlloc: invalid port!!!\n"));
     return agNULL;
   }
-  
- 
+
+
   /* check exitence in dmAllShared->mainExpanderList */
-  oneExpander = dmExpMainListFind(dmRoot, 
-                                  onePortContext, 
-				  oneDeviceData->SASAddressID.sasAddressHi, 
-				  oneDeviceData->SASAddressID.sasAddressLo); 
-  
+  oneExpander = dmExpMainListFind(dmRoot,
+                                  onePortContext,
+				  oneDeviceData->SASAddressID.sasAddressHi,
+				  oneDeviceData->SASAddressID.sasAddressLo);
+
   if (oneExpander == agNULL)
   {
     tddmSingleThreadedEnter(dmRoot, DM_EXPANDER_LOCK);
@@ -4689,14 +4689,14 @@ dmDiscoveringExpanderAlloc(
     {
       tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);
     }
-  
+
     tddmSingleThreadedEnter(dmRoot, DM_EXPANDER_LOCK);
     DMLIST_DEQUEUE_FROM_HEAD(&ExpanderList, &(dmAllShared->freeExpanderList));
     tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);
-  
+
     oneExpander = DMLIST_OBJECT_BASE(dmExpander_t, linkNode, ExpanderList);
   }
-  
+
   if (oneExpander != agNULL)
   {
     DM_DBG1(("dmDiscoveringExpanderAlloc: pid %d exp id %d \n", onePortContext->id, oneExpander->id));
@@ -4704,7 +4704,7 @@ dmDiscoveringExpanderAlloc(
     tddmSingleThreadedEnter(dmRoot, DM_EXPANDER_LOCK);
     DMLIST_DEQUEUE_THIS(&(oneExpander->linkNode));
     tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);
-     
+
     oneExpander->dmDevice = oneDeviceData;
     oneExpander->dmUpStreamExpander = agNULL;
     oneExpander->dmCurrentDownStreamExpander = agNULL;
@@ -4712,16 +4712,16 @@ dmDiscoveringExpanderAlloc(
     oneExpander->hasUpStreamDevice = agFALSE;
     oneExpander->numOfUpStreamPhys = 0;
     oneExpander->currentUpStreamPhyIndex = 0;
-    oneExpander->discoveringPhyId = 0;    
-    oneExpander->underDiscovering = agFALSE; 
+    oneExpander->discoveringPhyId = 0;
+    oneExpander->underDiscovering = agFALSE;
     dm_memset( &(oneExpander->currentIndex), 0, sizeof(oneExpander->currentIndex));
-    
+
     oneDeviceData->dmExpander = oneExpander;
     DM_DBG3(("dmDiscoveringExpanderAlloc: oneDeviceData %p did %d\n", oneDeviceData, oneDeviceData->id));
     DM_DBG3(("dmDiscoveringExpanderAlloc: oneExpander %p did %d\n",  oneDeviceData->dmExpander,  oneDeviceData->dmExpander->id));
-    
+
   }
-  
+
   return oneExpander;
 }
 
@@ -4735,8 +4735,8 @@ dmDiscoveringExpanderAdd(
   DM_DBG3(("dmDiscoveringExpanderAdd: start\n"));
   DM_DBG3(("dmDiscoveringExpanderAdd: expander id %d\n", oneExpander->id));
   DM_DBG3(("dmDiscoveringExpanderAdd: exp addrHi 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressHi));
-  DM_DBG3(("dmDiscoveringExpanderAdd: exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo));  
-  
+  DM_DBG3(("dmDiscoveringExpanderAdd: exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo));
+
   if (onePortContext->valid == agFALSE)
   {
     DM_DBG1(("dmDiscoveringExpanderAdd: invalid port!!!\n"));
@@ -4758,15 +4758,15 @@ dmDiscoveringExpanderAdd(
   if ( oneExpander->underDiscovering == agFALSE)
   {
     DM_DBG3(("dmDiscoveringExpanderAdd: ADDED \n"));
-  
+
     oneExpander->underDiscovering = agTRUE;
     tddmSingleThreadedEnter(dmRoot, DM_EXPANDER_LOCK);
     DMLIST_ENQUEUE_AT_TAIL(&(oneExpander->linkNode), &(onePortContext->discovery.discoveringExpanderList));
     tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);
   }
-  
+
   return;
-}		  
+}
 
 osGLOBAL dmExpander_t *
 dmFindConfigurableExp(
@@ -4779,16 +4779,16 @@ dmFindConfigurableExp(
   dmIntPortContext_t      *tmpOnePortContext = onePortContext;
   dmExpander_t            *ret = agNULL;
   DM_DBG3(("dmFindConfigurableExp: start\n"));
-  
+
   if (oneExpander == agNULL)
   {
     DM_DBG3(("dmFindConfigurableExp: NULL expander\n"));
     return agNULL;
   }
-  
+
   DM_DBG3(("dmFindConfigurableExp: exp addrHi 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressHi));
-  DM_DBG3(("dmFindConfigurableExp: exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo));	
-  
+  DM_DBG3(("dmFindConfigurableExp: exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo));
+
   tddmSingleThreadedEnter(dmRoot, DM_EXPANDER_LOCK);
   if (DMLIST_EMPTY(&(tmpOnePortContext->discovery.discoveringExpanderList)))
   {
@@ -4813,7 +4813,7 @@ dmFindConfigurableExp(
     }
    tempExpander = tempExpander->dmUpStreamExpander;
   }
-  
+
   return ret;
 }
 
@@ -4828,26 +4828,26 @@ dmDuplicateConfigSASAddr(
   bit32 i;
   bit32 ret = agFALSE;
   DM_DBG3(("dmDuplicateConfigSASAddr: start\n"));
-  
+
   if (oneExpander == agNULL)
   {
     DM_DBG3(("dmDuplicateConfigSASAddr: NULL expander\n"));
     return agTRUE;
-  }  
-  
+  }
+
   if (oneExpander->dmDevice->SASAddressID.sasAddressHi == configSASAddressHi &&
       oneExpander->dmDevice->SASAddressID.sasAddressLo == configSASAddressLo
      )
   {
     DM_DBG3(("dmDuplicateConfigSASAddr: unnecessary\n"));
     return agTRUE;
-  }	
+  }
 
   DM_DBG3(("dmDuplicateConfigSASAddr: exp addrHi 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressHi));
   DM_DBG3(("dmDuplicateConfigSASAddr: exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo));
   DM_DBG3(("dmDuplicateConfigSASAddr: configsasAddressHi 0x%08x\n", configSASAddressHi));
   DM_DBG3(("dmDuplicateConfigSASAddr: configsasAddressLo 0x%08x\n", configSASAddressLo));
-  DM_DBG3(("dmDuplicateConfigSASAddr: configSASAddrTableIndex %d\n", oneExpander->configSASAddrTableIndex));    	
+  DM_DBG3(("dmDuplicateConfigSASAddr: configSASAddrTableIndex %d\n", oneExpander->configSASAddrTableIndex));
   for(i=0;i<oneExpander->configSASAddrTableIndex;i++)
   {
     if (oneExpander->configSASAddressHiTable[i] == configSASAddressHi &&
@@ -4863,12 +4863,12 @@ dmDuplicateConfigSASAddr(
   if (ret == agFALSE)
   {
     DM_DBG3(("dmDuplicateConfigSASAddr: adding configSAS Addr\n"));
-    DM_DBG3(("dmDuplicateConfigSASAddr: configSASAddrTableIndex %d\n", oneExpander->configSASAddrTableIndex));   
+    DM_DBG3(("dmDuplicateConfigSASAddr: configSASAddrTableIndex %d\n", oneExpander->configSASAddrTableIndex));
     oneExpander->configSASAddressHiTable[oneExpander->configSASAddrTableIndex] = configSASAddressHi;
     oneExpander->configSASAddressLoTable[oneExpander->configSASAddrTableIndex] = configSASAddressLo;
     oneExpander->configSASAddrTableIndex++;
   }
-  
+
   return ret;
 }
 
@@ -4882,33 +4882,33 @@ dmFindCurrentDownStreamPhyIndex(
   bit16              index = 0;
   bit16              i;
   bit8               phyId = 0;
-  
+
   DM_DBG3(("dmFindCurrentDownStreamPhyIndex: start\n"));
-  
+
   if (oneExpander == agNULL)
   {
     DM_DBG1(("dmFindCurrentDownStreamPhyIndex: wrong, oneExpander is NULL!!!\n"));
     return 0;
   }
-  
+
   DownStreamExpander = oneExpander->dmCurrentDownStreamExpander;
-  
+
   if (DownStreamExpander == agNULL)
   {
     DM_DBG1(("dmFindCurrentDownStreamPhyIndex: wrong, DownStreamExpander is NULL!!!\n"));
     return 0;
   }
-  
+
   DM_DBG3(("dmFindCurrentDownStreamPhyIndex: exp addrHi 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressHi));
   DM_DBG3(("dmFindCurrentDownStreamPhyIndex: exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo));
   DM_DBG3(("dmFindCurrentDownStreamPhyIndex: downstream exp addrHi 0x%08x\n", DownStreamExpander->dmDevice->SASAddressID.sasAddressHi));
   DM_DBG3(("dmFindCurrentDownStreamPhyIndex: downstream exp addrLo 0x%08x\n", DownStreamExpander->dmDevice->SASAddressID.sasAddressLo));
   DM_DBG3(("dmFindCurrentDownStreamPhyIndex: numOfDownStreamPhys %d\n", oneExpander->numOfDownStreamPhys));
-  
+
   phyId = DownStreamExpander->upStreamPhys[0];
-  
+
   DM_DBG3(("dmFindCurrentDownStreamPhyIndex: phyId %d\n", phyId));
-  
+
   for (i=0; i<oneExpander->numOfDownStreamPhys;i++)
   {
     if (oneExpander->downStreamPhys[i] == phyId)
@@ -4932,10 +4932,10 @@ dmFindDiscoveringExpander(
   dmExpander_t            *tempExpander;
   dmIntPortContext_t      *tmpOnePortContext = onePortContext;
   bit32                   ret = agFALSE;
-  
-  
+
+
   DM_DBG3(("dmFindDiscoveringExpander: start\n"));
-  
+
   DM_DBG3(("dmFindDiscoveringExpander: exp addrHi 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressHi));
   DM_DBG3(("dmFindDiscoveringExpander: exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo));
 
@@ -4959,13 +4959,13 @@ dmFindDiscoveringExpander(
       ret = agTRUE;
       break;
     }
-    
+
     ExpanderList = ExpanderList->flink;
-  }	
-  
-  
+  }
+
+
   return ret;
-}			 
+}
 
 
 osGLOBAL void
@@ -4977,26 +4977,26 @@ dmDiscoveringExpanderRemove(
 {
   dmIntRoot_t       *dmIntRoot    = (dmIntRoot_t *)dmRoot->dmData;
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
-  
+
   DM_DBG3(("dmDiscoveringExpanderRemove: start\n"));
   DM_DBG3(("dmDiscoveringExpanderRemove: expander id %d\n", oneExpander->id));
   DM_DBG3(("dmDiscoveringExpanderRemove: exp addrHi 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressHi));
-  DM_DBG3(("dmDiscoveringExpanderRemove: exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo)); 
-  
+  DM_DBG3(("dmDiscoveringExpanderRemove: exp addrLo 0x%08x\n", oneExpander->dmDevice->SASAddressID.sasAddressLo));
+
   DM_DBG3(("dmDiscoveringExpanderRemove: BEFORE\n"));
   dmDumpAllExp(dmRoot, onePortContext, oneExpander);
   dmDumpAllUpExp(dmRoot, onePortContext, oneExpander);
   dmDumpAllFreeExp(dmRoot);
-  
+
   // if is temporary till smp problem is fixed
   if (dmFindDiscoveringExpander(dmRoot, onePortContext, oneExpander) == agTRUE)
   {
     DM_DBG3(("dmDiscoveringExpanderRemove: oneDeviceData %p did %d\n", oneExpander->dmDevice, oneExpander->dmDevice->id));
     DM_DBG3(("dmDiscoveringExpanderRemove: oneExpander %p did %d\n", oneExpander, oneExpander->id));
-    
+
     if (oneExpander != oneExpander->dmDevice->dmExpander)
     {
-      DM_DBG3(("dmDiscoveringExpanderRemove: before !!! wrong !!!\n"));  
+      DM_DBG3(("dmDiscoveringExpanderRemove: before !!! wrong !!!\n"));
     }
     oneExpander->underDiscovering = agFALSE;
     oneExpander->discoveringPhyId = 0;
@@ -5008,7 +5008,7 @@ dmDiscoveringExpanderRemove(
     {
       DM_DBG3(("dmDiscoveringExpanderRemove: DISCOVERY_UP_STREAM\n"));
       tddmSingleThreadedEnter(dmRoot, DM_EXPANDER_LOCK);
-      DMLIST_ENQUEUE_AT_TAIL(&(oneExpander->upNode), &(onePortContext->discovery.UpdiscoveringExpanderList)); 
+      DMLIST_ENQUEUE_AT_TAIL(&(oneExpander->upNode), &(onePortContext->discovery.UpdiscoveringExpanderList));
       tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);
       onePortContext->discovery.NumOfUpExp++;
     }
@@ -5023,9 +5023,9 @@ dmDiscoveringExpanderRemove(
     // error checking
     if (oneExpander != oneExpander->dmDevice->dmExpander)
     {
-      DM_DBG3(("dmDiscoveringExpanderRemove: after !!! wrong !!!\n"));  
+      DM_DBG3(("dmDiscoveringExpanderRemove: after !!! wrong !!!\n"));
     }
-      
+
   } //end temp if
   else
   {
@@ -5033,11 +5033,11 @@ dmDiscoveringExpanderRemove(
   }
 
   DM_DBG3(("dmDiscoveringExpanderRemove: AFTER\n"));
-  
+
   dmDumpAllExp(dmRoot, onePortContext, oneExpander);
   dmDumpAllUpExp(dmRoot, onePortContext, oneExpander);
   dmDumpAllFreeExp(dmRoot);
-  
+
   return;
 }
 
@@ -5058,7 +5058,7 @@ dmExpMainListFind(
   dmExpander_t       *tempExpander;
 
   DM_DBG3(("dmExpMainListFind: start\n"));
-  
+
   tddmSingleThreadedEnter(dmRoot, DM_EXPANDER_LOCK);
   if (DMLIST_EMPTY(&(dmAllShared->mainExpanderList)))
   {
@@ -5078,7 +5078,7 @@ dmExpMainListFind(
     {
       DM_DBG1(("dmExpMainListFind: tempExpander is NULL!!!\n"));
       return agNULL;
-    }    
+    }
     DM_DBG3(("dmExpMainListFind: expander id %d\n", tempExpander->id));
     DM_DBG3(("dmExpMainListFind: exp addrHi 0x%08x\n", tempExpander->dmDevice->SASAddressID.sasAddressHi));
     DM_DBG3(("dmExpMainListFind: exp addrLo 0x%08x\n", tempExpander->dmDevice->SASAddressID.sasAddressLo));
@@ -5091,7 +5091,7 @@ dmExpMainListFind(
       DM_DBG3(("dmExpMainListFind: found exp addrHi 0x%08x\n", tempExpander->dmDevice->SASAddressID.sasAddressHi));
       DM_DBG3(("dmExpMainListFind: found exp addrLo 0x%08x\n", tempExpander->dmDevice->SASAddressID.sasAddressLo));
       return tempExpander;
-    }       	
+    }
     ExpanderList = ExpanderList->flink;
   }
   return agNULL;
@@ -5144,20 +5144,20 @@ dmExpFind(
     {
       DM_DBG3(("dmExpFind: found\n"));
       return tempExpander;
-    }       	
+    }
     ExpanderList = ExpanderList->flink;
   }
   return agNULL;
 }
-			     
+
 osGLOBAL bit32
 dmDiscoverCheck(
-                dmRoot_t 	    	*dmRoot, 
-                dmIntPortContext_t      *onePortContext	
+                dmRoot_t 	    	*dmRoot,
+                dmIntPortContext_t      *onePortContext
                 )
 {
   DM_DBG3(("dmDiscoverCheck: start\n"));
-  
+
   if (onePortContext == agNULL)
   {
     DM_DBG1(("dmDiscoverCheck: onePortContext is NULL!!!\n"));
@@ -5169,7 +5169,7 @@ dmDiscoverCheck(
     return agTRUE;
   }
   if (onePortContext->DiscoveryState == DM_DSTATE_COMPLETED ||
-      onePortContext->discovery.status == DISCOVERY_SAS_DONE  
+      onePortContext->discovery.status == DISCOVERY_SAS_DONE
      )
   {
     DM_DBG1(("dmDiscoverCheck: aborted discovery!!!\n"));
@@ -5180,40 +5180,40 @@ dmDiscoverCheck(
 	          );
     return agTRUE;
   }
-  
+
   return agFALSE;
 }
 
-/* ??? needs to handle pending SMPs 
-   move from dmAllShared->discoveringExpanderList to dmAllShared->mainExpanderList  
+/* ??? needs to handle pending SMPs
+   move from dmAllShared->discoveringExpanderList to dmAllShared->mainExpanderList
 */
 osGLOBAL void
 dmDiscoverAbort(
-                dmRoot_t 	    	*dmRoot, 
-                dmIntPortContext_t      *onePortContext	
+                dmRoot_t 	    	*dmRoot,
+                dmIntPortContext_t      *onePortContext
                 )
 {
   DM_DBG1(("dmDiscoverAbort: start\n"));
-  
+
   if (onePortContext->DiscoveryState == DM_DSTATE_COMPLETED ||
       onePortContext->discovery.status == DISCOVERY_SAS_DONE)
   {
-    DM_DBG1(("dmDiscoverAbort: not allowed case!!! onePortContext->DiscoveryState 0x%x onePortContext->discovery.status 0x%x\n", 
+    DM_DBG1(("dmDiscoverAbort: not allowed case!!! onePortContext->DiscoveryState 0x%x onePortContext->discovery.status 0x%x\n",
     onePortContext->DiscoveryState, onePortContext->discovery.status));
-    return;  
-  }      
-  
+    return;
+  }
+
   onePortContext->DiscoveryState = DM_DSTATE_COMPLETED;
-  onePortContext->discovery.status = DISCOVERY_SAS_DONE;                
-  
+  onePortContext->discovery.status = DISCOVERY_SAS_DONE;
+
   /* move from dmAllShared->discoveringExpanderList to dmAllShared->mainExpanderList */
   dmCleanAllExp(dmRoot, onePortContext);
 
- 
+
   return;
 
-			  
-}						  		  	  
+
+}
 
 /* move from dmAllShared->discoveringExpanderList to dmAllShared->mainExpanderList */
 osGLOBAL void
@@ -5228,13 +5228,13 @@ dmCleanAllExp(
   dmExpander_t              *tempExpander;
   dmExpander_t              *oneExpander = agNULL;
   dmIntPortContext_t        *tmpOnePortContext = onePortContext;
-  
+
   DM_DBG3(("dmCleanAllExp: start\n"));
   DM_DBG3(("dmCleanAllExp: pid %d\n", onePortContext->id));
-  
-  DM_DBG3(("dmCleanAllExp: before all clean up\n")); 
+
+  DM_DBG3(("dmCleanAllExp: before all clean up\n"));
   dmDumpAllFreeExp(dmRoot);
-  
+
   /* clean up UpdiscoveringExpanderList*/
   DM_DBG3(("dmCleanAllExp: clean discoveringExpanderList\n"));
   if (!DMLIST_EMPTY(&(tmpOnePortContext->discovery.discoveringExpanderList)))
@@ -5247,17 +5247,17 @@ dmCleanAllExp(
       {
         DM_DBG1(("dmCleanAllExp: tempExpander is NULL!!!\n"));
         return;
-      }    
+      }
       DM_DBG3(("dmCleanAllExp: exp addrHi 0x%08x\n", tempExpander->dmDevice->SASAddressID.sasAddressHi));
       DM_DBG3(("dmCleanAllExp: exp addrLo 0x%08x\n", tempExpander->dmDevice->SASAddressID.sasAddressLo));
       DM_DBG3(("dmCleanAllExp: exp id %d\n", tempExpander->id));
-      
-      oneExpander = dmExpMainListFind(dmRoot, 
-                                      tmpOnePortContext, 
-                                      tempExpander->dmDevice->SASAddressID.sasAddressHi, 
-                                      tempExpander->dmDevice->SASAddressID.sasAddressLo);      
+
+      oneExpander = dmExpMainListFind(dmRoot,
+                                      tmpOnePortContext,
+                                      tempExpander->dmDevice->SASAddressID.sasAddressHi,
+                                      tempExpander->dmDevice->SASAddressID.sasAddressLo);
       if (oneExpander == agNULL)
-      {      
+      {
         DM_DBG3(("dmCleanAllExp: moving\n"));
         DM_DBG3(("dmCleanAllExp: moving, exp id %d\n", tempExpander->id));
         /* putting back to the free pool */
@@ -5273,24 +5273,24 @@ dmCleanAllExp(
         }
         else
         {
-          tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);   
+          tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);
         }
         ExpanderList = tmpOnePortContext->discovery.discoveringExpanderList.flink;
       }
       else
       {
-        DM_DBG3(("dmCleanAllExp: in mainExpanderList; skippig\n"));              
-        ExpanderList =  ExpanderList->flink;    
-      }                  
+        DM_DBG3(("dmCleanAllExp: in mainExpanderList; skippig\n"));
+        ExpanderList =  ExpanderList->flink;
+      }
     }
   }
   else
   {
-    DM_DBG3(("dmCleanAllExp: empty discoveringExpanderList\n")); 
+    DM_DBG3(("dmCleanAllExp: empty discoveringExpanderList\n"));
   }
-  
+
   /* reset discoveringExpanderList */
-  DMLIST_INIT_HDR(&(tmpOnePortContext->discovery.discoveringExpanderList));    
+  DMLIST_INIT_HDR(&(tmpOnePortContext->discovery.discoveringExpanderList));
 
   /* clean up UpdiscoveringExpanderList*/
   DM_DBG3(("dmCleanAllExp: clean UpdiscoveringExpanderList\n"));
@@ -5307,16 +5307,16 @@ dmCleanAllExp(
     {
       DM_DBG1(("dmCleanAllExp: tempExpander is NULL!!!\n"));
       return;
-    }    
+    }
     DM_DBG3(("dmCleanAllExp: exp addrHi 0x%08x\n", tempExpander->dmDevice->SASAddressID.sasAddressHi));
     DM_DBG3(("dmCleanAllExp: exp addrLo 0x%08x\n", tempExpander->dmDevice->SASAddressID.sasAddressLo));
     DM_DBG3(("dmCleanAllExp: exp id %d\n", tempExpander->id));
-    oneExpander = dmExpMainListFind(dmRoot, 
-                                    tmpOnePortContext, 
-                                    tempExpander->dmDevice->SASAddressID.sasAddressHi, 
-                                    tempExpander->dmDevice->SASAddressID.sasAddressLo);      
+    oneExpander = dmExpMainListFind(dmRoot,
+                                    tmpOnePortContext,
+                                    tempExpander->dmDevice->SASAddressID.sasAddressHi,
+                                    tempExpander->dmDevice->SASAddressID.sasAddressLo);
     if (oneExpander == agNULL)
-    {      
+    {
       DM_DBG3(("dmCleanAllExp: moving\n"));
       DM_DBG3(("dmCleanAllExp: moving exp id %d\n", tempExpander->id));
       tddmSingleThreadedEnter(dmRoot, DM_EXPANDER_LOCK);
@@ -5330,23 +5330,23 @@ dmCleanAllExp(
       }
       else
       {
-        tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);   
+        tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);
       }
       ExpanderList = tmpOnePortContext->discovery.UpdiscoveringExpanderList.flink;
     }
     else
     {
-      DM_DBG3(("dmCleanAllExp: in mainExpanderList; skippig\n"));              
-      ExpanderList =  ExpanderList->flink;    
-    }                
+      DM_DBG3(("dmCleanAllExp: in mainExpanderList; skippig\n"));
+      ExpanderList =  ExpanderList->flink;
+    }
   }
-  
+
   /* reset UpdiscoveringExpanderList */
-  DMLIST_INIT_HDR(&(tmpOnePortContext->discovery.UpdiscoveringExpanderList));    
-  
-  DM_DBG3(("dmCleanAllExp: after all clean up\n")); 
+  DMLIST_INIT_HDR(&(tmpOnePortContext->discovery.UpdiscoveringExpanderList));
+
+  DM_DBG3(("dmCleanAllExp: after all clean up\n"));
   dmDumpAllFreeExp(dmRoot);
-  
+
   return;
 }
 
@@ -5360,8 +5360,8 @@ dmInternalRemovals(
   dmIntContext_t            *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDeviceData_t            *oneDeviceData = agNULL;
   dmList_t                  *DeviceListList;
-  
-  
+
+
   DM_DBG3(("dmInternalRemovals: start\n"));
   tddmSingleThreadedEnter(dmRoot, DM_DEVICE_LOCK);
   if (DMLIST_EMPTY(&(dmAllShared->MainDeviceList)))
@@ -5374,7 +5374,7 @@ dmInternalRemovals(
   {
     tddmSingleThreadedLeave(dmRoot, DM_DEVICE_LOCK);
   }
-  
+
   DeviceListList = dmAllShared->MainDeviceList.flink;
   while (DeviceListList != &(dmAllShared->MainDeviceList))
   {
@@ -5383,13 +5383,13 @@ dmInternalRemovals(
     {
       DM_DBG1(("dmInternalRemovals: oneDeviceData is NULL!!!\n"));
       return;
-    }    
+    }
     DM_DBG3(("dmInternalRemovals: loop did %d\n", oneDeviceData->id));
     DM_DBG3(("dmInternalRemovals: sasAddrHi 0x%08x \n", oneDeviceData->SASAddressID.sasAddressHi));
     DM_DBG3(("dmInternalRemovals: sasAddrLo 0x%08x \n", oneDeviceData->SASAddressID.sasAddressLo));
-    DM_DBG3(("dmInternalRemovals: valid %d\n", oneDeviceData->valid));    
-    DM_DBG3(("dmInternalRemovals: valid2 %d\n", oneDeviceData->valid2));    
-    DM_DBG3(("dmInternalRemovals: directlyAttached %d\n", oneDeviceData->directlyAttached));    
+    DM_DBG3(("dmInternalRemovals: valid %d\n", oneDeviceData->valid));
+    DM_DBG3(("dmInternalRemovals: valid2 %d\n", oneDeviceData->valid2));
+    DM_DBG3(("dmInternalRemovals: directlyAttached %d\n", oneDeviceData->directlyAttached));
     if ( oneDeviceData->dmPortContext == onePortContext)
     {
       DM_DBG3(("dmInternalRemovals: right portcontext pid %d\n", onePortContext->id));
@@ -5404,7 +5404,7 @@ dmInternalRemovals(
         oneDeviceData->valid = agFALSE;
       }
       DeviceListList = DeviceListList->flink;
-    }    
+    }
     else
     {
       if (oneDeviceData->dmPortContext != agNULL)
@@ -5416,10 +5416,10 @@ dmInternalRemovals(
         DM_DBG3(("dmInternalRemovals: different portcontext; oneDeviceData->dmPortContext pid NULL oneportcontext pid %d\n", onePortContext->id));
       }
       DeviceListList = DeviceListList->flink;
-    }  
+    }
   }
-  
-  
+
+
   return;
 }
 
@@ -5433,9 +5433,9 @@ dmDiscoveryResetProcessed(
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDeviceData_t    *oneDeviceData = agNULL;
   dmList_t          *DeviceListList;
-  
+
   DM_DBG3(("dmDiscoveryResetProcessed: start\n"));
-  
+
   /* reinitialize the device data belonging to this portcontext */
   DeviceListList = dmAllShared->MainDeviceList.flink;
   while (DeviceListList != &(dmAllShared->MainDeviceList))
@@ -5445,28 +5445,28 @@ dmDiscoveryResetProcessed(
     {
       DM_DBG1(("dmDiscoveryResetProcessed: oneDeviceData is NULL!!!\n"));
       return;
-    }    
+    }
     DM_DBG3(("dmDiscoveryResetProcessed: loop did %d\n", oneDeviceData->id));
     if (oneDeviceData->dmPortContext == onePortContext)
     {
       DM_DBG3(("dmDiscoveryResetProcessed: resetting procssed flag\n"));
       oneDeviceData->processed = agFALSE;
     }
-    DeviceListList = DeviceListList->flink;  
+    DeviceListList = DeviceListList->flink;
   }
-  
+
   return;
-}			 
+}
 
 /*
   calls
-osGLOBAL void 
+osGLOBAL void
 tddmDiscoverCB(
                dmRoot_t 		*dmRoot,
                dmPortContext_t		*dmPortContext,
                bit32			eventStatus
               )
-  
+
 */
 osGLOBAL void
 dmDiscoverDone(
@@ -5475,28 +5475,28 @@ dmDiscoverDone(
                bit32                    flag
               )
 {
- 
+
   DM_DBG3(("dmDiscoverDone: start\n"));
   DM_DBG3(("dmDiscoverDone: pid %d\n", onePortContext->id));
 
   /* Set discovery status */
-  onePortContext->discovery.status = DISCOVERY_SAS_DONE;                
-  
- 
+  onePortContext->discovery.status = DISCOVERY_SAS_DONE;
+
+
   /* clean up expanders data strucures; move to free exp when device is cleaned */
   dmCleanAllExp(dmRoot, onePortContext);
-  
+
   dmDumpAllMainExp(dmRoot, onePortContext);
 
   dmDiscoveryResetProcessed(dmRoot, onePortContext);
-  
+
   dmDiscoveryDumpMCN(dmRoot, onePortContext);
-  
+
   if (onePortContext->discovery.SeenBC == agTRUE)
   {
     DM_DBG3(("dmDiscoverDone: broadcast change; discover again\n"));
     dmDiscoveryResetMCN(dmRoot, onePortContext);
-    
+
     dmInternalRemovals(dmRoot, onePortContext);
 
     /* processed broadcast change */
@@ -5509,26 +5509,26 @@ dmDiscoverDone(
     else
     {
 
-      dmIncrementalDiscover(dmRoot, onePortContext, agTRUE); 		  
+      dmIncrementalDiscover(dmRoot, onePortContext, agTRUE);
     }
   }
   else
   {
     onePortContext->DiscoveryState = DM_DSTATE_COMPLETED;
-  
+
     if (onePortContext->discovery.type == DM_DISCOVERY_OPTION_FULL_START)
-    { 
+    {
       if (flag == DM_RC_SUCCESS)
       {
 
        dmResetReported(dmRoot,
                        onePortContext
                       );
-		      
+
        dmDiscoveryReportMCN(dmRoot,
                             onePortContext
                            );
-                           		      
+
 
        /* call tddmDiscoverCB() */
        tddmDiscoverCB(
@@ -5541,11 +5541,11 @@ dmDiscoverDone(
       {
         onePortContext->DiscoveryState = DM_DSTATE_COMPLETED_WITH_FAILURE;
         DM_DBG1(("dmDiscoverDone: Error; clean up!!!\n"));
-	
+
         dmDiscoveryInvalidateDevices(dmRoot,
                                      onePortContext
                                     );
-			
+
         tddmDiscoverCB(
                        dmRoot,
                        onePortContext->dmPortContext,
@@ -5556,7 +5556,7 @@ dmDiscoverDone(
     else
     {
       if (flag == DM_RC_SUCCESS)
-      { 
+      {
         dmReportChanges(dmRoot,
                         onePortContext
                        );
@@ -5575,13 +5575,13 @@ dmDiscoverDone(
         dmDiscoveryInvalidateDevices(dmRoot,
                                      onePortContext
                                     );
-		
+
         tddmDiscoverCB(
                        dmRoot,
                        onePortContext->dmPortContext,
                        dmDiscFailed
                       );
-      }                        
+      }
     }
   }
   return;
@@ -5598,13 +5598,13 @@ dmSubReportRemovals(
 {
   dmDeviceData_t    *oneAttachedExpDeviceData = agNULL;
   DM_DBG3(("dmSubReportRemovals: start\n"));
-  
+
   DM_DBG3(("dmSubReportRemovals: flag 0x%x\n", flag));
   if (flag == dmDeviceRemoval)
   {
     oneDeviceData->registered = agFALSE;
   }
-  
+
   if (oneDeviceData->ExpDevice != agNULL)
   {
     DM_DBG3(("dmSubReportRemovals: attached expander case\n"));
@@ -5616,8 +5616,8 @@ dmSubReportRemovals(
     DM_DBG3(("dmSubReportRemovals: NO attached expander case\n"));
     tddmReportDevice(dmRoot, onePortContext->dmPortContext, &oneDeviceData->dmDeviceInfo, agNULL, flag);
   }
- 
-  
+
+
   /* this function is called at the end of discovery; reinitializes oneDeviceData->reported */
   oneDeviceData->reported = agFALSE;
   return;
@@ -5635,7 +5635,7 @@ dmSubReportChanges(
 {
   dmDeviceData_t    *oneAttachedExpDeviceData = agNULL;
   DM_DBG3(("dmSubReportChanges: start\n"));
-  
+
   DM_DBG3(("dmSubReportChanges: flag 0x%x\n", flag));
   if (flag == dmDeviceRemoval)
   {
@@ -5657,16 +5657,16 @@ dmSubReportChanges(
   }
   else
   {
-    DM_DBG3(("dmSubReportChanges: skip; been reported\n"));  
+    DM_DBG3(("dmSubReportChanges: skip; been reported\n"));
   }
- 
-  
+
+
   /* this function is called at the end of discovery; reinitializes oneDeviceData->reported */
   oneDeviceData->reported = agFALSE;
   return;
 }
 
-/* 
+/*
  should add or remove be reported per device???
 */
 osGLOBAL void
@@ -5681,9 +5681,9 @@ dmReportChanges(
   dmList_t          *DeviceListList;
   bit32             added = agFALSE, removed = agFALSE;
 //  dmDeviceData_t    *oneAttachedExpDeviceData = agNULL;
-  
+
   DM_DBG3(("dmReportChanges: start\n"));
-  
+
   tddmSingleThreadedEnter(dmRoot, DM_DEVICE_LOCK);
   if (DMLIST_EMPTY(&(dmAllShared->MainDeviceList)))
   {
@@ -5695,7 +5695,7 @@ dmReportChanges(
   {
     tddmSingleThreadedLeave(dmRoot, DM_DEVICE_LOCK);
   }
-  
+
   DeviceListList = dmAllShared->MainDeviceList.flink;
   while (DeviceListList != &(dmAllShared->MainDeviceList))
   {
@@ -5704,26 +5704,26 @@ dmReportChanges(
     {
       DM_DBG1(("dmReportChanges: oneDeviceData is NULL!!!\n"));
       return;
-    }    
+    }
     DM_DBG3(("dmReportChanges: sasAddrHi 0x%08x \n", oneDeviceData->SASAddressID.sasAddressHi));
     DM_DBG3(("dmReportChanges: sasAddrLo 0x%08x \n", oneDeviceData->SASAddressID.sasAddressLo));
     if ( oneDeviceData->dmPortContext == onePortContext)
     {
       DM_DBG3(("dmReportChanges: right portcontext\n"));
       if (oneDeviceData->SASAddressID.sasAddressHi == onePortContext->sasRemoteAddressHi &&
-          oneDeviceData->SASAddressID.sasAddressLo == onePortContext->sasRemoteAddressLo      
+          oneDeviceData->SASAddressID.sasAddressLo == onePortContext->sasRemoteAddressLo
          )
       {
         DM_DBG1(("dmReportChanges: keep, not reporting did 0x%x\n", oneDeviceData->id));
         oneDeviceData->valid = agTRUE;
         oneDeviceData->valid2 = agFALSE;
-      }      
+      }
       else if ( (oneDeviceData->valid == agTRUE) && (oneDeviceData->valid2 == agTRUE) )
       {
         DM_DBG3(("dmReportChanges: same\n"));
         /* reset valid bit */
         oneDeviceData->valid = oneDeviceData->valid2;
-        oneDeviceData->valid2 = agFALSE;      
+        oneDeviceData->valid2 = agFALSE;
         dmSubReportChanges(dmRoot, onePortContext, oneDeviceData, dmDeviceNoChange);
       }
       else if ( (oneDeviceData->valid == agTRUE) && (oneDeviceData->valid2 == agFALSE) )
@@ -5733,7 +5733,7 @@ dmReportChanges(
         /* reset valid bit */
         oneDeviceData->valid = oneDeviceData->valid2;
         oneDeviceData->valid2 = agFALSE;
-      
+
         onePortContext->RegisteredDevNums--;
         dmSubReportChanges(dmRoot, onePortContext, oneDeviceData, dmDeviceRemoval);
       }
@@ -5741,7 +5741,7 @@ dmReportChanges(
       {
         DM_DBG3(("dmReportChanges: added\n"));
         added = agTRUE;
-        /* reset valid bit */      
+        /* reset valid bit */
         oneDeviceData->valid = oneDeviceData->valid2;
         oneDeviceData->valid2 = agFALSE;
         dmSubReportChanges(dmRoot, onePortContext, oneDeviceData, dmDeviceArrival);
@@ -5754,27 +5754,27 @@ dmReportChanges(
     else
     {
       DM_DBG3(("dmReportChanges: different portcontext\n"));
-    }  
+    }
     DeviceListList = DeviceListList->flink;
   }
   /*
-  osGLOBAL void 
+  osGLOBAL void
 tddmReportDevice(
                  dmRoot_t 		*dmRoot,
                  dmPortContext_t	*dmPortContext,
                  dmDeviceInfo_t		*dmDeviceInfo,
                  dmDeviceInfo_t		*dmExpDeviceInfo,
 		 bit32                   flag
-		 
+
                  )
 
   */
-  
+
   /* arrival or removal at once */
   if (added == agTRUE)
   {
     DM_DBG3(("dmReportChanges: added at the end\n"));
-#if 0  /* TBD */  
+#if 0  /* TBD */
     ostiInitiatorEvent(
                          tiRoot,
                          onePortContext->tiPortalContext,
@@ -5783,13 +5783,13 @@ tddmReportDevice(
                          tiDeviceArrival,
                          agNULL
                          );
-#endif			 
-  
+#endif
+
   }
   if (removed == agTRUE)
   {
     DM_DBG3(("dmReportChanges: removed at the end\n"));
-#if 0  /* TBD */  
+#if 0  /* TBD */
     ostiInitiatorEvent(
                        tiRoot,
                        onePortContext->tiPortalContext,
@@ -5798,30 +5798,30 @@ tddmReportDevice(
                        tiDeviceRemoval,
                        agNULL
                        );
-#endif  
+#endif
   }
-  
+
   if (onePortContext->discovery.forcedOK == agTRUE && added == agFALSE && removed == agFALSE)
   {
     DM_DBG3(("dmReportChanges: missed chance to report. forced to report OK\n"));
     onePortContext->discovery.forcedOK = agFALSE;
-#if 0  /* TBD */  
+#if 0  /* TBD */
     ostiInitiatorEvent(
                        tiRoot,
                        onePortContext->tiPortalContext,
                        agNULL,
-                       tiIntrEventTypeDiscovery, 
-                       tiDiscOK, 
+                       tiIntrEventTypeDiscovery,
+                       tiDiscOK,
                        agNULL
                        );
-#endif		           
+#endif
   }
-  
+
   if (added == agFALSE && removed == agFALSE)
   {
     DM_DBG3(("dmReportChanges: the same\n"));
   }
-  
+
   return;
 }
 
@@ -5837,9 +5837,9 @@ dmReportRemovals(
   dmDeviceData_t    *oneDeviceData = agNULL;
   dmList_t          *DeviceListList;
   bit32             removed = agFALSE;
-  
+
   DM_DBG1(("dmReportRemovals: start\n"));
-  
+
   tddmSingleThreadedEnter(dmRoot, DM_DEVICE_LOCK);
   if (DMLIST_EMPTY(&(dmAllShared->MainDeviceList)))
   {
@@ -5851,7 +5851,7 @@ dmReportRemovals(
   {
     tddmSingleThreadedLeave(dmRoot, DM_DEVICE_LOCK);
   }
-  
+
   DeviceListList = dmAllShared->MainDeviceList.flink;
   while (DeviceListList != &(dmAllShared->MainDeviceList))
   {
@@ -5860,18 +5860,18 @@ dmReportRemovals(
     {
       DM_DBG1(("dmReportRemovals: oneDeviceData is NULL!!!\n"));
       return;
-    }    
+    }
     DM_DBG3(("dmReportRemovals: loop did %d\n", oneDeviceData->id));
     DM_DBG3(("dmReportRemovals: sasAddrHi 0x%08x \n", oneDeviceData->SASAddressID.sasAddressHi));
     DM_DBG3(("dmReportRemovals: sasAddrLo 0x%08x \n", oneDeviceData->SASAddressID.sasAddressLo));
-    DM_DBG3(("dmReportRemovals: valid %d\n", oneDeviceData->valid));    
-    DM_DBG3(("dmReportRemovals: valid2 %d\n", oneDeviceData->valid2));    
-    DM_DBG3(("dmReportRemovals: directlyAttached %d\n", oneDeviceData->directlyAttached));    
+    DM_DBG3(("dmReportRemovals: valid %d\n", oneDeviceData->valid));
+    DM_DBG3(("dmReportRemovals: valid2 %d\n", oneDeviceData->valid2));
+    DM_DBG3(("dmReportRemovals: directlyAttached %d\n", oneDeviceData->directlyAttached));
     if ( oneDeviceData->dmPortContext == onePortContext)
     {
       DM_DBG3(("dmReportRemovals: right portcontext pid %d\n", onePortContext->id));
       if (oneDeviceData->SASAddressID.sasAddressHi == onePortContext->sasRemoteAddressHi &&
-          oneDeviceData->SASAddressID.sasAddressLo == onePortContext->sasRemoteAddressLo      
+          oneDeviceData->SASAddressID.sasAddressLo == onePortContext->sasRemoteAddressLo
          )
       {
         DM_DBG1(("dmReportRemovals: keeping\n"));
@@ -5879,11 +5879,11 @@ dmReportRemovals(
         oneDeviceData->valid2 = agFALSE;
       }
       else if (oneDeviceData->valid == agTRUE)
-      {    
+      {
         DM_DBG3(("dmReportRemovals: removing\n"));
-       
+
         /* notify only reported devices to OS layer*/
-        if ( DEVICE_IS_SSP_TARGET(oneDeviceData) || 
+        if ( DEVICE_IS_SSP_TARGET(oneDeviceData) ||
              DEVICE_IS_STP_TARGET(oneDeviceData) ||
              DEVICE_IS_SATA_DEVICE(oneDeviceData)
             )
@@ -5898,12 +5898,12 @@ dmReportRemovals(
         onePortContext->RegisteredDevNums--;
         dmSubReportRemovals(dmRoot, onePortContext, oneDeviceData, dmDeviceRemoval);
 
-        
+
         /* reset valid bit */
         oneDeviceData->valid = agFALSE;
         oneDeviceData->valid2 = agFALSE;
-      
-       
+
+
       }
       /* called by port invalid case */
       if (flag == agTRUE)
@@ -5911,7 +5911,7 @@ dmReportRemovals(
         oneDeviceData->dmPortContext = agNULL;
       }
       DeviceListList = DeviceListList->flink;
-    }    
+    }
     else
     {
       if (oneDeviceData->dmPortContext != agNULL)
@@ -5923,13 +5923,13 @@ dmReportRemovals(
         DM_DBG3(("dmReportRemovals: different portcontext; oneDeviceData->dmPortContext pid NULL oneportcontext pid %d\n", onePortContext->id));
       }
       DeviceListList = DeviceListList->flink;
-    }  
+    }
   }
-  
+
   if (removed == agTRUE)
   {
     DM_DBG3(("dmReportRemovals: removed at the end\n"));
-#if 0 /* TBD */      
+#if 0 /* TBD */
       ostiInitiatorEvent(
                          tiRoot,
                          onePortContext->tiPortalContext,
@@ -5938,9 +5938,9 @@ dmReportRemovals(
                          tiDeviceRemoval,
                          agNULL
                          );
-#endif    
+#endif
   }
-  
+
   return;
 }
 
@@ -5954,7 +5954,7 @@ dmResetReported(
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDeviceData_t    *oneDeviceData = agNULL;
   dmList_t          *DeviceListList;
-  
+
   DM_DBG3(("dmResetReported: start\n"));
 
   tddmSingleThreadedEnter(dmRoot, DM_DEVICE_LOCK);
@@ -5977,19 +5977,19 @@ dmResetReported(
     {
       DM_DBG1(("dmResetReported: oneDeviceData is NULL!!!\n"));
       return;
-    }    
+    }
     DM_DBG3(("dmResetReported: loop did %d\n", oneDeviceData->id));
     DM_DBG3(("dmResetReported: sasAddrHi 0x%08x \n", oneDeviceData->SASAddressID.sasAddressHi));
     DM_DBG3(("dmResetReported: sasAddrLo 0x%08x \n", oneDeviceData->SASAddressID.sasAddressLo));
-    DM_DBG3(("dmResetReported: valid %d\n", oneDeviceData->valid));    
-    DM_DBG3(("dmResetReported: valid2 %d\n", oneDeviceData->valid2));    
-    DM_DBG3(("dmResetReported: directlyAttached %d\n", oneDeviceData->directlyAttached));    
+    DM_DBG3(("dmResetReported: valid %d\n", oneDeviceData->valid));
+    DM_DBG3(("dmResetReported: valid2 %d\n", oneDeviceData->valid2));
+    DM_DBG3(("dmResetReported: directlyAttached %d\n", oneDeviceData->directlyAttached));
     if ( oneDeviceData->dmPortContext == onePortContext)
     {
       DM_DBG3(("dmResetReported: right portcontext pid %d\n", onePortContext->id));
       oneDeviceData->reported = agFALSE;
       DeviceListList = DeviceListList->flink;
-    }    
+    }
     else
     {
       if (oneDeviceData->dmPortContext != agNULL)
@@ -6001,11 +6001,11 @@ dmResetReported(
         DM_DBG3(("dmResetReported: different portcontext; oneDeviceData->dmPortContext pid NULL oneportcontext pid %d\n", onePortContext->id));
       }
       DeviceListList = DeviceListList->flink;
-    }  
+    }
   }
-  
+
   return;
-}	       
+}
 
 /* called on discover failure */
 osGLOBAL void
@@ -6018,9 +6018,9 @@ dmDiscoveryInvalidateDevices(
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDeviceData_t    *oneDeviceData = agNULL;
   dmList_t          *DeviceListList;
-  
+
   DM_DBG1(("dmDiscoveryInvalidateDevices: start\n"));
-  
+
   tddmSingleThreadedEnter(dmRoot, DM_DEVICE_LOCK);
   if (DMLIST_EMPTY(&(dmAllShared->MainDeviceList)))
   {
@@ -6040,18 +6040,18 @@ dmDiscoveryInvalidateDevices(
     {
       DM_DBG1(("dmDiscoveryInvalidateDevices: oneDeviceData is NULL!!!\n"));
       return;
-    }    
+    }
     DM_DBG3(("dmDiscoveryInvalidateDevices: loop did %d\n", oneDeviceData->id));
     DM_DBG3(("dmDiscoveryInvalidateDevices: sasAddrHi 0x%08x \n", oneDeviceData->SASAddressID.sasAddressHi));
     DM_DBG3(("dmDiscoveryInvalidateDevices: sasAddrLo 0x%08x \n", oneDeviceData->SASAddressID.sasAddressLo));
-    DM_DBG3(("dmDiscoveryInvalidateDevices: valid %d\n", oneDeviceData->valid));    
-    DM_DBG3(("dmDiscoveryInvalidateDevices: valid2 %d\n", oneDeviceData->valid2));    
-    DM_DBG3(("dmDiscoveryInvalidateDevices: directlyAttached %d\n", oneDeviceData->directlyAttached));    
+    DM_DBG3(("dmDiscoveryInvalidateDevices: valid %d\n", oneDeviceData->valid));
+    DM_DBG3(("dmDiscoveryInvalidateDevices: valid2 %d\n", oneDeviceData->valid2));
+    DM_DBG3(("dmDiscoveryInvalidateDevices: directlyAttached %d\n", oneDeviceData->directlyAttached));
     if ( oneDeviceData->dmPortContext == onePortContext)
     {
       DM_DBG3(("dmDiscoveryInvalidateDevices: right portcontext pid %d\n", onePortContext->id));
       if (oneDeviceData->SASAddressID.sasAddressHi == onePortContext->sasRemoteAddressHi &&
-          oneDeviceData->SASAddressID.sasAddressLo == onePortContext->sasRemoteAddressLo      
+          oneDeviceData->SASAddressID.sasAddressLo == onePortContext->sasRemoteAddressLo
          )
       {
         DM_DBG1(("dmDiscoveryInvalidateDevices: keeping\n"));
@@ -6059,7 +6059,7 @@ dmDiscoveryInvalidateDevices(
         oneDeviceData->valid2 = agFALSE;
       }
       else
-      {            
+      {
         oneDeviceData->valid = agFALSE;
         oneDeviceData->valid2 = agFALSE;
         oneDeviceData->registered = agFALSE;
@@ -6071,7 +6071,7 @@ dmDiscoveryInvalidateDevices(
         onePortContext->RegisteredDevNums--;
       }
       DeviceListList = DeviceListList->flink;
-    }    
+    }
     else
     {
       if (oneDeviceData->dmPortContext != agNULL)
@@ -6083,14 +6083,14 @@ dmDiscoveryInvalidateDevices(
         DM_DBG3(("dmDiscoveryInvalidateDevices: different portcontext; oneDeviceData->dmPortContext pid NULL oneportcontext pid %d\n", onePortContext->id));
       }
       DeviceListList = DeviceListList->flink;
-    }  
+    }
   }
-  
+
   return;
 }
 
 
-/* 
+/*
  should DM report the device removal to TDM on an error case?
  or
  DM simply removes the devices
@@ -6106,9 +6106,9 @@ dmDiscoveryErrorRemovals(
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDeviceData_t    *oneDeviceData = agNULL;
   dmList_t          *DeviceListList;
-  
+
   DM_DBG1(("dmDiscoveryErrorRemovals: start\n"));
-  
+
   tddmSingleThreadedEnter(dmRoot, DM_DEVICE_LOCK);
   if (DMLIST_EMPTY(&(dmAllShared->MainDeviceList)))
   {
@@ -6128,18 +6128,18 @@ dmDiscoveryErrorRemovals(
     {
       DM_DBG1(("dmDiscoveryErrorRemovals: oneDeviceData is NULL!!!\n"));
       return;
-    }    
+    }
     DM_DBG3(("dmDiscoveryErrorRemovals: loop did %d\n", oneDeviceData->id));
     DM_DBG3(("dmDiscoveryErrorRemovals: sasAddrHi 0x%08x \n", oneDeviceData->SASAddressID.sasAddressHi));
     DM_DBG3(("dmDiscoveryErrorRemovals: sasAddrLo 0x%08x \n", oneDeviceData->SASAddressID.sasAddressLo));
-    DM_DBG3(("dmDiscoveryErrorRemovals: valid %d\n", oneDeviceData->valid));    
-    DM_DBG3(("dmDiscoveryErrorRemovals: valid2 %d\n", oneDeviceData->valid2));    
-    DM_DBG3(("dmDiscoveryErrorRemovals: directlyAttached %d\n", oneDeviceData->directlyAttached));    
+    DM_DBG3(("dmDiscoveryErrorRemovals: valid %d\n", oneDeviceData->valid));
+    DM_DBG3(("dmDiscoveryErrorRemovals: valid2 %d\n", oneDeviceData->valid2));
+    DM_DBG3(("dmDiscoveryErrorRemovals: directlyAttached %d\n", oneDeviceData->directlyAttached));
     if ( oneDeviceData->dmPortContext == onePortContext)
     {
       DM_DBG3(("dmDiscoveryErrorRemovals: right portcontext pid %d\n", onePortContext->id));
       if (oneDeviceData->SASAddressID.sasAddressHi == onePortContext->sasRemoteAddressHi &&
-          oneDeviceData->SASAddressID.sasAddressLo == onePortContext->sasRemoteAddressLo      
+          oneDeviceData->SASAddressID.sasAddressLo == onePortContext->sasRemoteAddressLo
          )
       {
         DM_DBG1(("dmDiscoveryErrorRemovals: keeping\n"));
@@ -6147,20 +6147,20 @@ dmDiscoveryErrorRemovals(
         oneDeviceData->valid2 = agFALSE;
       }
       else
-      {            
+      {
         oneDeviceData->valid = agFALSE;
         oneDeviceData->valid2 = agFALSE;
-      
+
         /* all targets other than expanders */
         DM_DBG3(("dmDiscoveryErrorRemovals: did %d\n", oneDeviceData->id));
         DM_DBG3(("dmDiscoveryErrorRemovals: sasAddrHi 0x%08x \n", oneDeviceData->SASAddressID.sasAddressHi));
         DM_DBG3(("dmDiscoveryErrorRemovals: sasAddrLo 0x%08x \n", oneDeviceData->SASAddressID.sasAddressLo));
         onePortContext->RegisteredDevNums--;
         dmSubReportRemovals(dmRoot, onePortContext, oneDeviceData, dmDeviceRemoval);
-     
+
       }
       DeviceListList = DeviceListList->flink;
-    }    
+    }
     else
     {
       if (oneDeviceData->dmPortContext != agNULL)
@@ -6172,9 +6172,9 @@ dmDiscoveryErrorRemovals(
         DM_DBG3(("dmDiscoveryErrorRemovals: different portcontext; oneDeviceData->dmPortContext pid NULL oneportcontext pid %d\n", onePortContext->id));
       }
       DeviceListList = DeviceListList->flink;
-    }  
+    }
   }
-  
+
   return;
 }
 
@@ -6190,18 +6190,18 @@ dmDiscoveryExpanderCleanUp(
   dmExpander_t      *oneExpander = agNULL;
   dmList_t          *ExpanderList = agNULL;
   dmDeviceData_t    *oneDeviceData = agNULL;
-  
+
   DM_DBG3(("dmDiscoveryExpanderCleanUp: start\n"));
   /*
     be sure to call
     osGLOBAL void
     dmExpanderDeviceDataReInit(
-                           dmRoot_t 	    *dmRoot, 
+                           dmRoot_t 	    *dmRoot,
                            dmExpander_t     *oneExpander
                           );
 
   */
-  
+
   tddmSingleThreadedEnter(dmRoot, DM_EXPANDER_LOCK);
   if (!DMLIST_EMPTY(&(dmAllShared->mainExpanderList)))
   {
@@ -6214,7 +6214,7 @@ dmDiscoveryExpanderCleanUp(
       {
         DM_DBG1(("dmDiscoveryExpanderCleanUp: oneExpander is NULL!!!\n"));
         return;
-      }    
+      }
       oneDeviceData = oneExpander->dmDevice;
       DM_DBG3(("dmDiscoveryExpanderCleanUp: sasAddrHi 0x%08x \n", oneDeviceData->SASAddressID.sasAddressHi));
       DM_DBG3(("dmDiscoveryExpanderCleanUp: sasAddrLo 0x%08x \n", oneDeviceData->SASAddressID.sasAddressLo));
@@ -6224,7 +6224,7 @@ dmDiscoveryExpanderCleanUp(
         tddmSingleThreadedEnter(dmRoot, DM_EXPANDER_LOCK);
         DMLIST_DEQUEUE_THIS(&(oneExpander->linkNode));
         DMLIST_ENQUEUE_AT_TAIL(&(oneExpander->linkNode), &(dmAllShared->freeExpanderList));
-        
+
         if (DMLIST_EMPTY(&(dmAllShared->mainExpanderList)))
         {
           tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);
@@ -6232,24 +6232,24 @@ dmDiscoveryExpanderCleanUp(
         }
         else
         {
-          tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);   
+          tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);
         }
         ExpanderList = dmAllShared->mainExpanderList.flink;
       }
       else
       {
         ExpanderList = ExpanderList->flink;
-      }   
+      }
     }
   }
   else
   {
     tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);
-    DM_DBG3(("dmDiscoveryExpanderCleanUp: empty mainExpanderList\n")); 
-  }  
+    DM_DBG3(("dmDiscoveryExpanderCleanUp: empty mainExpanderList\n"));
+  }
   return;
-  
-}			
+
+}
 
 
 /* moves all devices from dmAllShared->MainDeviceList to dmAllShared->FreeDeviceList */
@@ -6263,9 +6263,9 @@ dmDiscoveryDeviceCleanUp(
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDeviceData_t    *oneDeviceData = agNULL;
   dmList_t          *DeviceListList;
-  
+
   DM_DBG3(("dmDiscoveryDeviceCleanUp: start\n"));
-  
+
   tddmSingleThreadedEnter(dmRoot, DM_DEVICE_LOCK);
   if (!DMLIST_EMPTY(&(dmAllShared->MainDeviceList)))
   {
@@ -6278,7 +6278,7 @@ dmDiscoveryDeviceCleanUp(
       {
         DM_DBG1(("dmDiscoveryDeviceCleanUp: oneDeviceData is NULL!!!\n"));
         return;
-      }    
+      }
       DM_DBG3(("dmDiscoveryDeviceCleanUp: sasAddrHi 0x%08x \n", oneDeviceData->SASAddressID.sasAddressHi));
       DM_DBG3(("dmDiscoveryDeviceCleanUp: sasAddrLo 0x%08x \n", oneDeviceData->SASAddressID.sasAddressLo));
       if ( oneDeviceData->dmPortContext == onePortContext)
@@ -6287,7 +6287,7 @@ dmDiscoveryDeviceCleanUp(
         tddmSingleThreadedEnter(dmRoot, DM_DEVICE_LOCK);
         DMLIST_DEQUEUE_THIS(&(oneDeviceData->MainLink));
         DMLIST_ENQUEUE_AT_TAIL(&(oneDeviceData->FreeLink), &(dmAllShared->FreeDeviceList));
-        
+
         if (DMLIST_EMPTY(&(dmAllShared->MainDeviceList)))
         {
           tddmSingleThreadedLeave(dmRoot, DM_DEVICE_LOCK);
@@ -6295,7 +6295,7 @@ dmDiscoveryDeviceCleanUp(
         }
         else
         {
-          tddmSingleThreadedLeave(dmRoot, DM_DEVICE_LOCK);   
+          tddmSingleThreadedLeave(dmRoot, DM_DEVICE_LOCK);
         }
 	onePortContext->RegisteredDevNums--;
         DeviceListList = dmAllShared->MainDeviceList.flink;
@@ -6303,17 +6303,17 @@ dmDiscoveryDeviceCleanUp(
       else
       {
         DeviceListList = DeviceListList->flink;
-      }   
+      }
     }
   }
   else
   {
     tddmSingleThreadedLeave(dmRoot, DM_DEVICE_LOCK);
-    DM_DBG3(("dmDiscoveryDeviceCleanUp: empty MainDeviceList\n")); 
-  }  
+    DM_DBG3(("dmDiscoveryDeviceCleanUp: empty MainDeviceList\n"));
+  }
   return;
-}			
-			
+}
+
 
 
 osGLOBAL void
@@ -6338,7 +6338,7 @@ dmDumpAllUpExp(
   DM_DBG3(("dmDumpAllUpExp: start\n"));
   return;
 }
-		    		    
+
 osGLOBAL void
 dmDumpAllFreeExp(
                  dmRoot_t                  *dmRoot
@@ -6358,9 +6358,9 @@ dmDumpAllMainExp(
   dmIntContext_t     *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmList_t           *ExpanderList;
   dmExpander_t       *tempExpander;
-  
+
   DM_DBG3(("dmDumpAllMainExp: start\n"));
-  
+
   tddmSingleThreadedEnter(dmRoot, DM_EXPANDER_LOCK);
   if (DMLIST_EMPTY(&(dmAllShared->mainExpanderList)))
   {
@@ -6372,7 +6372,7 @@ dmDumpAllMainExp(
   {
     tddmSingleThreadedLeave(dmRoot, DM_EXPANDER_LOCK);
   }
-  
+
   ExpanderList = dmAllShared->mainExpanderList.flink;
   while (ExpanderList != &(dmAllShared->mainExpanderList))
   {
@@ -6381,7 +6381,7 @@ dmDumpAllMainExp(
     {
       DM_DBG1(("dmDumpAllMainExp: tempExpander is NULL!!!\n"));
       return;
-    }    
+    }
     DM_DBG3(("dmDumpAllMainExp: expander id %d\n", tempExpander->id));
     DM_DBG3(("dmDumpAllMainExp: exp addrHi 0x%08x\n", tempExpander->dmDevice->SASAddressID.sasAddressHi));
     DM_DBG3(("dmDumpAllMainExp: exp addrLo 0x%08x\n", tempExpander->dmDevice->SASAddressID.sasAddressLo));
@@ -6391,7 +6391,7 @@ dmDumpAllMainExp(
       DM_DBG3(("dmDumpAllMainExp: found expander id %d\n", tempExpander->id));
       DM_DBG3(("dmDumpAllMainExp: found exp addrHi 0x%08x\n", tempExpander->dmDevice->SASAddressID.sasAddressHi));
       DM_DBG3(("dmDumpAllMainExp: found exp addrLo 0x%08x\n", tempExpander->dmDevice->SASAddressID.sasAddressLo));
-    }       	
+    }
     ExpanderList = ExpanderList->flink;
   }
   return;
@@ -6409,9 +6409,9 @@ dmDumpAllMainDevice(
   dmDeviceData_t     *oneDeviceData = agNULL;
   dmList_t           *DeviceListList;
   bit32              total = 0, port_total = 0;
-  
+
   DM_DBG3(("dmDumpAllMainDevice: start\n"));
-  
+
   tddmSingleThreadedEnter(dmRoot, DM_DEVICE_LOCK);
   if (DMLIST_EMPTY(&(dmAllShared->MainDeviceList)))
   {
@@ -6423,7 +6423,7 @@ dmDumpAllMainDevice(
   {
     tddmSingleThreadedLeave(dmRoot, DM_DEVICE_LOCK);
   }
-  
+
   DeviceListList = dmAllShared->MainDeviceList.flink;
   while (DeviceListList != &(dmAllShared->MainDeviceList))
   {
@@ -6432,7 +6432,7 @@ dmDumpAllMainDevice(
     {
       DM_DBG3(("dmDumpAllMainDevice: oneDeviceData is NULL!!!\n"));
       return;
-    }    
+    }
     DM_DBG3(("dmDumpAllMainDevice: oneDeviceData id %d\n", oneDeviceData->id));
     DM_DBG3(("dmDumpAllMainDevice: addrHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
     DM_DBG3(("dmDumpAllMainDevice: addrLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
@@ -6444,11 +6444,11 @@ dmDumpAllMainDevice(
       DM_DBG3(("dmDumpAllMainDevice: found addrHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
       DM_DBG3(("dmDumpAllMainDevice: found addrLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
       port_total++;
-    }       	
+    }
     DeviceListList = DeviceListList->flink;
   }
   DM_DBG3(("dmDumpAllMainDevice: total %d port_totaol %d\n", total, port_total));
-  
+
   return;
 }
 
@@ -6468,20 +6468,20 @@ dmAddSASToSharedcontext(
   dmDeviceData_t    *oneDeviceData = agNULL;
   dmList_t          *DeviceListList;
   bit32             new_device = agTRUE;
-  
-  
+
+
   DM_DBG3(("dmAddSASToSharedcontext: start\n"));
   DM_DBG3(("dmAddSASToSharedcontext: oneportContext ID %d\n", onePortContext->id));
-  
+
   if (oneExpDeviceData != agNULL)
   {
-    DM_DBG3(("dmAddSASToSharedcontext: oneExpDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n", 
-    oneExpDeviceData->SASAddressID.sasAddressHi, oneExpDeviceData->SASAddressID.sasAddressLo));       
+    DM_DBG3(("dmAddSASToSharedcontext: oneExpDeviceData sasAddressHi 0x%08x sasAddressLo 0x%08x\n",
+    oneExpDeviceData->SASAddressID.sasAddressHi, oneExpDeviceData->SASAddressID.sasAddressLo));
   }
   else
   {
     DM_DBG3(("dmAddSASToSharedcontext: oneExpDeviceData is NULL\n"));
-  }        
+  }
   /* find a device's existence */
   DeviceListList = dmAllShared->MainDeviceList.flink;
   while (DeviceListList != &(dmAllShared->MainDeviceList))
@@ -6491,7 +6491,7 @@ dmAddSASToSharedcontext(
     {
       DM_DBG1(("dmAddSASToSharedcontext: oneDeviceData is NULL!!!\n"));
       return agNULL;
-    }    
+    }
     if ((oneDeviceData->SASAddressID.sasAddressHi == dmSASSubID->sasAddressHi) &&
         (oneDeviceData->SASAddressID.sasAddressLo == dmSASSubID->sasAddressLo) &&
         (oneDeviceData->dmPortContext == onePortContext)
@@ -6503,22 +6503,22 @@ dmAddSASToSharedcontext(
     }
     DeviceListList = DeviceListList->flink;
   }
-  
+
   /* new device */
   if (new_device == agTRUE)
   {
     DM_DBG3(("dmAddSASToSharedcontext: new device\n"));
-    DM_DBG3(("dmAddSASToSharedcontext: sasAddressHi 0x%08x sasAddressLo 0x%08x\n", 
-    dmSASSubID->sasAddressHi, dmSASSubID->sasAddressLo));         
+    DM_DBG3(("dmAddSASToSharedcontext: sasAddressHi 0x%08x sasAddressLo 0x%08x\n",
+    dmSASSubID->sasAddressHi, dmSASSubID->sasAddressLo));
     tddmSingleThreadedEnter(dmRoot, DM_DEVICE_LOCK);
     if (!DMLIST_NOT_EMPTY(&(dmAllShared->FreeDeviceList)))
     {
       tddmSingleThreadedLeave(dmRoot, DM_DEVICE_LOCK);
       DM_DBG1(("dmAddSASToSharedcontext: empty DeviceData FreeLink\n"));
-      dmDumpAllMainDevice(dmRoot, onePortContext); 
+      dmDumpAllMainDevice(dmRoot, onePortContext);
       return agNULL;
     }
-      
+
     DMLIST_DEQUEUE_FROM_HEAD(&DeviceListList, &(dmAllShared->FreeDeviceList));
     tddmSingleThreadedLeave(dmRoot, DM_DEVICE_LOCK);
     oneDeviceData = DMLIST_OBJECT_BASE(dmDeviceData_t, FreeLink, DeviceListList);
@@ -6548,15 +6548,15 @@ dmAddSASToSharedcontext(
       if (oneExpDeviceData != agNULL)
       {
         oneDeviceData->ExpDevice = oneExpDeviceData;
-      }      
-    
+      }
+
       /* set phyID only when it has initial value of 0xFF */
       if (oneDeviceData->phyID == 0xFF)
       {
         oneDeviceData->phyID = phyID;
       }
       /* incremental discovery */
-      /* add device to incremental-related link. Report using this link 
+      /* add device to incremental-related link. Report using this link
          when incremental discovery is done */
       if (onePortContext->DiscoveryState == DM_DSTATE_NOT_STARTED)
       {
@@ -6582,7 +6582,7 @@ dmAddSASToSharedcontext(
          oneDeviceData->valid = agTRUE;
         }
       }
-      /* add the devicedata to the portcontext */    
+      /* add the devicedata to the portcontext */
       tddmSingleThreadedEnter(dmRoot, DM_DEVICE_LOCK);
       DMLIST_ENQUEUE_AT_TAIL(&(oneDeviceData->MainLink), &(dmAllShared->MainDeviceList));
       tddmSingleThreadedLeave(dmRoot, DM_DEVICE_LOCK);
@@ -6594,8 +6594,8 @@ dmAddSASToSharedcontext(
   {
     DM_DBG3(("dmAddSASToSharedcontext: old device\n"));
     DM_DBG3(("dmAddSASToSharedcontext: oneDeviceData %p did %d\n", oneDeviceData, oneDeviceData->id));
-    DM_DBG3(("dmAddSASToSharedcontext: sasAddressHi 0x%08x sasAddressLo 0x%08x\n", 
-    dmSASSubID->sasAddressHi, dmSASSubID->sasAddressLo));         
+    DM_DBG3(("dmAddSASToSharedcontext: sasAddressHi 0x%08x sasAddressLo 0x%08x\n",
+    dmSASSubID->sasAddressHi, dmSASSubID->sasAddressLo));
 
     oneDeviceData->dmRoot = dmRoot;
     /* saving sas address */
@@ -6613,18 +6613,18 @@ dmAddSASToSharedcontext(
     {
       oneDeviceData->DeviceType = DM_SATA_DEVICE;
     }
-    
+
     if (oneExpDeviceData != agNULL)
     {
       oneDeviceData->ExpDevice = oneExpDeviceData;
-    }      
-    
+    }
+
     /* set phyID only when it has initial value of 0xFF */
     if (oneDeviceData->phyID == 0xFF)
     {
       oneDeviceData->phyID = phyID;
     }
-    
+
     if (onePortContext->DiscoveryState == DM_DSTATE_NOT_STARTED)
     {
       DM_DBG3(("dmAddSASToSharedcontext: DM_DSTATE_NOT_STARTED\n"));
@@ -6650,7 +6650,7 @@ dmAddSASToSharedcontext(
       }
     }
     DM_DBG3(("dmAddSASToSharedcontext: old case pid %d did %d phyID %d\n", onePortContext->id, oneDeviceData->id, oneDeviceData->phyID));
-     
+
   }
   return oneDeviceData;
 }
@@ -6669,11 +6669,11 @@ dmDeviceFind(
   dmDeviceData_t            *oneDeviceData = agNULL;
   dmList_t                  *DeviceListList;
   bit32                     found = agFALSE;
-  
+
   DM_DBG3(("dmDeviceFind: start\n"));
   /* find a device's existence */
   DeviceListList = dmAllShared->MainDeviceList.flink;
-  
+
   while (DeviceListList != &(dmAllShared->MainDeviceList))
   {
     oneDeviceData = DMLIST_OBJECT_BASE(dmDeviceData_t, MainLink, DeviceListList);
@@ -6681,7 +6681,7 @@ dmDeviceFind(
     {
       DM_DBG1(("dmDeviceFind: oneDeviceData is NULL!!!\n"));
       return agNULL;
-    }    
+    }
     if ((oneDeviceData->SASAddressID.sasAddressHi == sasAddrHi) &&
         (oneDeviceData->SASAddressID.sasAddressLo == sasAddrLo) &&
 //        (oneDeviceData->valid == agTRUE) &&
@@ -6689,14 +6689,14 @@ dmDeviceFind(
         )
     {
       DM_DBG3(("dmDeviceFind: Found pid %d did %d\n", onePortContext->id, oneDeviceData->id));
-      DM_DBG3(("dmDeviceFind: sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));         
+      DM_DBG3(("dmDeviceFind: sasAddressHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
       DM_DBG3(("dmDeviceFind: sasAddressLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
       found = agTRUE;
       break;
     }
     DeviceListList = DeviceListList->flink;
   }
-  
+
   if (found == agFALSE)
   {
     DM_DBG3(("dmDeviceFind: end returning NULL\n"));
@@ -6707,11 +6707,11 @@ dmDeviceFind(
     DM_DBG3(("dmDeviceFind: end returning NOT NULL\n"));
     return oneDeviceData;
   }
-  
-}	    
+
+}
 
 
-osGLOBAL void                          
+osGLOBAL void
 dmBCTimer(
           dmRoot_t                 *dmRoot,
           dmIntPortContext_t       *onePortContext
@@ -6720,11 +6720,11 @@ dmBCTimer(
   dmIntRoot_t       *dmIntRoot    = (dmIntRoot_t *)dmRoot->dmData;
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDiscovery_t     *discovery;
-  
+
   DM_DBG3(("dmBCTimer: start\n"));
-  
+
   discovery = &(onePortContext->discovery);
-  
+
   tddmSingleThreadedEnter(dmRoot, DM_TIMER_LOCK);
   if (discovery->BCTimer.timerRunning == agTRUE)
   {
@@ -6738,7 +6738,7 @@ dmBCTimer(
   {
     tddmSingleThreadedLeave(dmRoot, DM_TIMER_LOCK);
   }
-  
+
   if (onePortContext->valid == agTRUE)
   {
     dmSetTimerRequest(
@@ -6750,23 +6750,23 @@ dmBCTimer(
                       agNULL,
                       agNULL
                       );
-  
+
     dmAddTimer(
                dmRoot,
-               &dmAllShared->timerlist, 
+               &dmAllShared->timerlist,
                &discovery->BCTimer
               );
-  
+
   }
-  
-  
+
+
   return;
-}	 
+}
 
 
 osGLOBAL void
 dmBCTimerCB(
-              dmRoot_t    * dmRoot, 
+              dmRoot_t    * dmRoot,
               void        * timerData1,
               void        * timerData2,
               void        * timerData3
@@ -6774,9 +6774,9 @@ dmBCTimerCB(
 {
   dmIntPortContext_t        *onePortContext;
   dmDiscovery_t             *discovery;
-  
+
   DM_DBG3(("dmBCTimerCB: start\n"));
-  
+
   onePortContext = (dmIntPortContext_t *)timerData1;
   discovery = &(onePortContext->discovery);
 
@@ -6788,23 +6788,23 @@ dmBCTimerCB(
                dmRoot,
                &discovery->BCTimer
                );
-  }       
+  }
   else
   {
     tddmSingleThreadedLeave(dmRoot, DM_TIMER_LOCK);
   }
-  
+
   discovery->ResetTriggerred = agFALSE;
-  
+
   if (onePortContext->valid == agTRUE)
   {
     dmDiscover(dmRoot,
                onePortContext->dmPortContext,
                DM_DISCOVERY_OPTION_INCREMENTAL_START
                );
-  }  
+  }
   return;
-}	      
+}
 
 /* discovery related SMP timers */
 osGLOBAL void
@@ -6817,13 +6817,13 @@ dmDiscoverySMPTimer(dmRoot_t                 *dmRoot,
   dmIntRoot_t       *dmIntRoot    = (dmIntRoot_t *)dmRoot->dmData;
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDiscovery_t     *discovery;
-  
+
   DM_DBG3(("dmDiscoverySMPTimer: start\n"));
   DM_DBG3(("dmDiscoverySMPTimer: pid %d SMPFn 0x%x\n", onePortContext->id, functionCode));
-  
+
   /* start the SMP timer which works as SMP application timer */
   discovery = &(onePortContext->discovery);
-  
+
   tddmSingleThreadedEnter(dmRoot, DM_TIMER_LOCK);
   if (discovery->DiscoverySMPTimer.timerRunning == agTRUE)
   {
@@ -6837,8 +6837,8 @@ dmDiscoverySMPTimer(dmRoot_t                 *dmRoot,
   {
     tddmSingleThreadedLeave(dmRoot, DM_TIMER_LOCK);
   }
-  
-  
+
+
   dmSetTimerRequest(
                     dmRoot,
                     &discovery->DiscoverySMPTimer,
@@ -6848,20 +6848,20 @@ dmDiscoverySMPTimer(dmRoot_t                 *dmRoot,
                     dmSMPRequestBody,
                     agNULL
                    );
-  
+
   dmAddTimer (
               dmRoot,
-              &dmAllShared->timerlist, 
+              &dmAllShared->timerlist,
               &discovery->DiscoverySMPTimer
               );
-  
+
   return;
 }
 
 
 osGLOBAL void
 dmDiscoverySMPTimerCB(
-                        dmRoot_t    * dmRoot, 
+                        dmRoot_t    * dmRoot,
                         void        * timerData1,
                         void        * timerData2,
                         void        * timerData3
@@ -6869,32 +6869,32 @@ dmDiscoverySMPTimerCB(
 {
   agsaRoot_t                  *agRoot;
   dmIntPortContext_t          *onePortContext;
-  bit8                        SMPFunction;  
+  bit8                        SMPFunction;
 #ifndef DIRECT_SMP
   dmSMPFrameHeader_t          *dmSMPFrameHeader;
   bit8                        smpHeader[4];
-#endif  
+#endif
   dmSMPRequestBody_t          *dmSMPRequestBody;
   dmDiscovery_t               *discovery;
   dmDeviceData_t              *oneDeviceData;
-  agsaIORequest_t             *agAbortIORequest = agNULL;  
-  agsaIORequest_t             *agToBeAbortIORequest = agNULL;  
+  agsaIORequest_t             *agAbortIORequest = agNULL;
+  agsaIORequest_t             *agToBeAbortIORequest = agNULL;
   dmIntRoot_t                 *dmIntRoot    = (dmIntRoot_t *)dmRoot->dmData;
   dmIntContext_t              *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmExpander_t                *oneExpander = agNULL;
   dmSMPRequestBody_t          *dmAbortSMPRequestBody = agNULL;
   dmList_t                    *SMPList;
-  
+
   DM_DBG1(("dmDiscoverySMPTimerCB: start!!!\n"));
-  
+
   onePortContext = (dmIntPortContext_t *)timerData1;
   dmSMPRequestBody = (dmSMPRequestBody_t *)timerData2;
-  
+
   discovery = &(onePortContext->discovery);
   oneDeviceData = dmSMPRequestBody->dmDevice;
   agToBeAbortIORequest = &(dmSMPRequestBody->agIORequest);
   agRoot = dmAllShared->agRoot;
-  
+
 #ifdef DIRECT_SMP
   SMPFunction = dmSMPRequestBody->smpPayload[1];
 #else
@@ -6902,9 +6902,9 @@ dmDiscoverySMPTimerCB(
   dmSMPFrameHeader = (dmSMPFrameHeader_t *)smpHeader;
   SMPFunction = dmSMPFrameHeader->smpFunction;
 #endif
-  
+
   DM_DBG3(("dmDiscoverySMPTimerCB: SMP function 0x%x\n", SMPFunction));
-  
+
   tddmSingleThreadedEnter(dmRoot, DM_TIMER_LOCK);
   if (discovery->DiscoverySMPTimer.timerRunning == agTRUE)
   {
@@ -6918,10 +6918,10 @@ dmDiscoverySMPTimerCB(
   {
     tddmSingleThreadedLeave(dmRoot, DM_TIMER_LOCK);
   }
-  
+
 //for debugging
-//  saGetPendingPICI(agRoot); 		     
-  
+//  saGetPendingPICI(agRoot);
+
   switch (SMPFunction)
   {
   case SMP_REPORT_GENERAL: /* fall through */
@@ -6939,9 +6939,9 @@ dmDiscoverySMPTimerCB(
     DM_DBG1(("dmDiscoverySMPTimerCB: Error, not allowed case!!!\n"));
     break;
   }
-  
+
   if (oneDeviceData->registered == agTRUE && (oneDeviceData->valid == agTRUE || oneDeviceData->valid2 == agTRUE) )
-  {  
+  {
     /* call to saSMPAbort(one) */
     /* get an smp REQUEST from the free list */
     tddmSingleThreadedEnter(dmRoot, DM_SMP_LOCK);
@@ -6960,20 +6960,20 @@ dmDiscoverySMPTimerCB(
       {
         DM_DBG1(("dmDiscoverySMPTimerCB: dmAbortSMPRequestBody is NULL!!!\n"));
         return;
-      }    
+      }
       DM_DBG5(("dmDiscoverySMPTimerCB: SMP id %d\n", dmAbortSMPRequestBody->id));
     }
-    
+
     dmAbortSMPRequestBody->dmRoot = dmRoot;
 
     agAbortIORequest = &(dmAbortSMPRequestBody->agIORequest);
     agAbortIORequest->osData = (void *) dmAbortSMPRequestBody;
     agAbortIORequest->sdkData = agNULL; /* SALL takes care of this */
-				     
+
     oneExpander = oneDeviceData->dmExpander;
-								     				     
+
     DM_DBG1(("dmDiscoverySMPTimerCB: calling saSMPAbort!!!\n"));
-    saSMPAbort(agRoot, 
+    saSMPAbort(agRoot,
                agAbortIORequest,
                0,
                oneExpander->agDevHandle,
@@ -6981,14 +6981,14 @@ dmDiscoverySMPTimerCB(
                agToBeAbortIORequest,
                dmSMPAbortCB
               );
-  }    
+  }
   return;
 }
-		       
 
 
 
-osGLOBAL void                          
+
+osGLOBAL void
 dmSMPBusyTimer(dmRoot_t             *dmRoot,
                dmIntPortContext_t   *onePortContext,
                dmDeviceData_t       *oneDeviceData,
@@ -6998,12 +6998,12 @@ dmSMPBusyTimer(dmRoot_t             *dmRoot,
   dmIntRoot_t       *dmIntRoot    = (dmIntRoot_t *)dmRoot->dmData;
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDiscovery_t     *discovery;
-  
+
   DM_DBG3(("dmSMPBusyTimer: start\n"));
   DM_DBG3(("dmSMPBusyTimer: pid %d\n", onePortContext->id));
-  
+
   discovery = &(onePortContext->discovery);
-  
+
   tddmSingleThreadedEnter(dmRoot, DM_TIMER_LOCK);
   if (discovery->SMPBusyTimer.timerRunning == agTRUE)
   {
@@ -7017,30 +7017,30 @@ dmSMPBusyTimer(dmRoot_t             *dmRoot,
   {
     tddmSingleThreadedLeave(dmRoot, DM_TIMER_LOCK);
   }
-  
+
   dmSetTimerRequest(
                     dmRoot,
                     &discovery->SMPBusyTimer,
                     SMP_BUSY_TIMER_VALUE/dmAllShared->usecsPerTick,
                     dmSMPBusyTimerCB,
                     onePortContext,
-                    oneDeviceData, 
+                    oneDeviceData,
                     dmSMPRequestBody
                     );
-  
+
   dmAddTimer (
               dmRoot,
-              &dmAllShared->timerlist, 
+              &dmAllShared->timerlist,
               &discovery->SMPBusyTimer
               );
-  
-  
+
+
   return;
 }
 
 osGLOBAL void
 dmSMPBusyTimerCB(
-                 dmRoot_t    * dmRoot, 
+                 dmRoot_t    * dmRoot,
                  void        * timerData1,
                  void        * timerData2,
                  void        * timerData3
@@ -7058,10 +7058,10 @@ dmSMPBusyTimerCB(
   dmDiscovery_t               *discovery;
   bit32                       status = AGSA_RC_FAILURE;
   dmExpander_t                *oneExpander = agNULL;
-  
-  
+
+
   DM_DBG3(("dmSMPBusyTimerCB: start\n"));
-  
+
   onePortContext = (dmIntPortContext_t *)timerData1;
   oneDeviceData = (dmDeviceData_t *)timerData2;
   dmSMPRequestBody = (dmSMPRequestBody_t *)timerData3;
@@ -7073,13 +7073,13 @@ dmSMPBusyTimerCB(
   discovery = &(onePortContext->discovery);
 
   discovery->SMPRetries++;
-  
+
   if (discovery->SMPRetries < SMP_BUSY_RETRIES)
-  {    
+  {
     status = saSMPStart(
                          agRoot,
                          agIORequest,
-                         0,             
+                         0,
                          agDevHandle,
                          AGSA_SMP_INIT_REQ,
                          agSASRequestBody,
@@ -7098,14 +7098,14 @@ dmSMPBusyTimerCB(
                     dmRoot,
                     &discovery->SMPBusyTimer
                    );
-    }		     
+    }
     else
     {
       tddmSingleThreadedLeave(dmRoot, DM_TIMER_LOCK);
     }
-  }		       
+  }
   else if (status == AGSA_RC_FAILURE)
-  {  
+  {
     tddmSingleThreadedEnter(dmRoot, DM_TIMER_LOCK);
     if (discovery->SMPBusyTimer.timerRunning == agTRUE)
     {
@@ -7114,7 +7114,7 @@ dmSMPBusyTimerCB(
                     dmRoot,
                     &discovery->SMPBusyTimer
                    );
-    }		     
+    }
     else
     {
       tddmSingleThreadedLeave(dmRoot, DM_TIMER_LOCK);
@@ -7138,7 +7138,7 @@ dmSMPBusyTimerCB(
                       dmRoot,
                       &discovery->SMPBusyTimer
                      );
-      }		     
+      }
       else
       {
         tddmSingleThreadedLeave(dmRoot, DM_TIMER_LOCK);
@@ -7154,13 +7154,13 @@ dmSMPBusyTimerCB(
       dmSMPBusyTimer(dmRoot, onePortContext, oneDeviceData, dmSMPRequestBody);
     }
   }
-  
+
   return;
-}  
+}
 
 
 /* expander configuring timer */
-osGLOBAL void                          
+osGLOBAL void
 dmDiscoveryConfiguringTimer(dmRoot_t                 *dmRoot,
                             dmIntPortContext_t       *onePortContext,
                             dmDeviceData_t           *oneDeviceData
@@ -7169,12 +7169,12 @@ dmDiscoveryConfiguringTimer(dmRoot_t                 *dmRoot,
   dmIntRoot_t       *dmIntRoot    = (dmIntRoot_t *)dmRoot->dmData;
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDiscovery_t     *discovery;
-  
+
   DM_DBG3(("dmDiscoveryConfiguringTimer: start\n"));
   DM_DBG3(("dmDiscoveryConfiguringTimer: pid %d\n", onePortContext->id));
-  
+
   discovery = &(onePortContext->discovery);
- 
+
   tddmSingleThreadedEnter(dmRoot, DM_TIMER_LOCK);
   if (discovery->discoveryTimer.timerRunning == agTRUE)
   {
@@ -7188,34 +7188,34 @@ dmDiscoveryConfiguringTimer(dmRoot_t                 *dmRoot,
   {
     tddmSingleThreadedLeave(dmRoot, DM_TIMER_LOCK);
   }
-  
+
   DM_DBG3(("dmDiscoveryConfiguringTimer: UsecsPerTick %d\n", dmAllShared->usecsPerTick));
   DM_DBG3(("dmDiscoveryConfiguringTimer: Timervalue %d\n", DISCOVERY_CONFIGURING_TIMER_VALUE/dmAllShared->usecsPerTick));
-  
+
   dmSetTimerRequest(
                     dmRoot,
                     &discovery->discoveryTimer,
                     DISCOVERY_CONFIGURING_TIMER_VALUE/dmAllShared->usecsPerTick,
                     dmDiscoveryConfiguringTimerCB,
-                    onePortContext, 
+                    onePortContext,
                     oneDeviceData,
                     agNULL
                    );
-                   
+
   dmAddTimer (
               dmRoot,
-              &dmAllShared->timerlist, 
+              &dmAllShared->timerlist,
               &discovery->discoveryTimer
               );
-  
-  
+
+
   return;
 }
 
-		
+
 osGLOBAL void
 dmDiscoveryConfiguringTimerCB(
-                              dmRoot_t    * dmRoot, 
+                              dmRoot_t    * dmRoot,
                               void        * timerData1,
                               void        * timerData2,
                               void        * timerData3
@@ -7229,7 +7229,7 @@ dmDiscoveryConfiguringTimerCB(
   oneDeviceData  = (dmDeviceData_t *)timerData2;
   discovery = &(onePortContext->discovery);
 
-  DM_DBG3(("dmDiscoveryConfiguringTimerCB: start\n"));  
+  DM_DBG3(("dmDiscoveryConfiguringTimerCB: start\n"));
 
   tddmSingleThreadedEnter(dmRoot, DM_TIMER_LOCK);
   if (discovery->discoveryTimer.timerRunning == agTRUE)
@@ -7239,20 +7239,20 @@ dmDiscoveryConfiguringTimerCB(
                dmRoot,
                &discovery->discoveryTimer
                );
-  }       
+  }
   else
   {
     tddmSingleThreadedLeave(dmRoot, DM_TIMER_LOCK);
   }
-  
+
   if (oneDeviceData->valid == agTRUE || oneDeviceData->valid2 == agTRUE)
   {
     dmReportGeneralSend(dmRoot, oneDeviceData);
   }
   return;
 }
-						
-osGLOBAL void                          
+
+osGLOBAL void
 dmConfigureRouteTimer(dmRoot_t                 *dmRoot,
                       dmIntPortContext_t       *onePortContext,
                       dmExpander_t             *oneExpander,
@@ -7263,21 +7263,21 @@ dmConfigureRouteTimer(dmRoot_t                 *dmRoot,
   dmIntRoot_t       *dmIntRoot    = (dmIntRoot_t *)dmRoot->dmData;
   dmIntContext_t    *dmAllShared = (dmIntContext_t *)&dmIntRoot->dmAllShared;
   dmDiscovery_t     *discovery;
-  
+
   DM_DBG3(("dmConfigureRouteTimer: start\n"));
-  
+
   DM_DBG3(("dmConfigureRouteTimer: pid %d\n", onePortContext->id));
-  
+
   discovery = &(onePortContext->discovery);
- 
+
   DM_DBG3(("dmConfigureRouteTimer: onePortContext %p oneExpander %p pdmSMPDiscoverResp %p\n", onePortContext, oneExpander, pdmSMPDiscoverResp));
-  
+
   DM_DBG3(("dmConfigureRouteTimer: discovery %p \n", discovery));
-  
+
   DM_DBG3(("dmConfigureRouteTimer:  pid %d configureRouteRetries %d\n", onePortContext->id, discovery->configureRouteRetries));
-  
+
   DM_DBG3(("dmConfigureRouteTimer: discovery->status %d\n", discovery->status));
-      
+
   tddmSingleThreadedEnter(dmRoot, DM_TIMER_LOCK);
   if (discovery->configureRouteTimer.timerRunning == agTRUE)
   {
@@ -7291,10 +7291,10 @@ dmConfigureRouteTimer(dmRoot_t                 *dmRoot,
   {
     tddmSingleThreadedLeave(dmRoot, DM_TIMER_LOCK);
   }
-  
+
   DM_DBG3(("dmConfigureRouteTimer: UsecsPerTick %d\n", dmAllShared->usecsPerTick));
   DM_DBG3(("dmConfigureRouteTimer: Timervalue %d\n", CONFIGURE_ROUTE_TIMER_VALUE/dmAllShared->usecsPerTick));
-  
+
   if (oneExpander->SAS2 == 0)
   {
     /* SAS 1.1 */
@@ -7303,37 +7303,37 @@ dmConfigureRouteTimer(dmRoot_t                 *dmRoot,
                       &discovery->configureRouteTimer,
                       CONFIGURE_ROUTE_TIMER_VALUE/dmAllShared->usecsPerTick,
                       dmConfigureRouteTimerCB,
-                      (void *)onePortContext, 
+                      (void *)onePortContext,
                       (void *)oneExpander,
                       (void *)pdmSMPDiscoverResp
                      );
-  }                   
+  }
   else
-  { 
+  {
     /* SAS 2 */
     dmSetTimerRequest(
                       dmRoot,
                       &discovery->configureRouteTimer,
                       CONFIGURE_ROUTE_TIMER_VALUE/dmAllShared->usecsPerTick,
                       dmConfigureRouteTimerCB,
-                      (void *)onePortContext, 
+                      (void *)onePortContext,
                       (void *)oneExpander,
                       (void *)pdmSMPDiscover2Resp
                      );
-  }		     
+  }
   dmAddTimer (
               dmRoot,
-              &dmAllShared->timerlist, 
+              &dmAllShared->timerlist,
               &discovery->configureRouteTimer
               );
-   
+
   return;
 }
 
 
 osGLOBAL void
 dmConfigureRouteTimerCB(
-                        dmRoot_t    * dmRoot, 
+                        dmRoot_t    * dmRoot,
                         void        * timerData1,
                         void        * timerData2,
                         void        * timerData3
@@ -7346,10 +7346,10 @@ dmConfigureRouteTimerCB(
   smpRespDiscover_t   *pdmSMPDiscoverResp = agNULL;
   smpRespDiscover2_t  *pdmSMPDiscover2Resp = agNULL;
   dmDiscovery_t       *discovery;
-  
-  
+
+
   DM_DBG3(("dmConfigureRouteTimerCB: start\n"));
-  
+
   onePortContext = (dmIntPortContext_t *)timerData1;
   oneExpander = (dmExpander_t *)timerData2;
   if (oneExpander->SAS2 == 0)
@@ -7361,16 +7361,16 @@ dmConfigureRouteTimerCB(
     pdmSMPDiscover2Resp = (smpRespDiscover2_t *)timerData3;
   }
   discovery = &(onePortContext->discovery);
-  
+
   DM_DBG3(("dmConfigureRouteTimerCB: onePortContext %p oneExpander %p pdmSMPDiscoverResp %p\n", onePortContext, oneExpander, pdmSMPDiscoverResp));
-  
+
   DM_DBG3(("dmConfigureRouteTimerCB: discovery %p\n", discovery));
 
   DM_DBG3(("dmConfigureRouteTimerCB: pid %d configureRouteRetries %d\n", onePortContext->id, discovery->configureRouteRetries));
-  
+
   DM_DBG3(("dmConfigureRouteTimerCB: discovery.status %d\n", discovery->status));
-   
-  discovery->configureRouteRetries++; 
+
+  discovery->configureRouteRetries++;
   if (discovery->configureRouteRetries >= dmAllShared->MaxRetryDiscovery)
   {
     DM_DBG3(("dmConfigureRouteTimerCB: retries are over\n"));
@@ -7396,7 +7396,7 @@ dmConfigureRouteTimerCB(
     return;
   }
 
-  
+
   if (oneExpander->SAS2 == 0)
   {
     if (onePortContext->discovery.status == DISCOVERY_DOWN_STREAM)
@@ -7405,7 +7405,7 @@ dmConfigureRouteTimerCB(
       dmhexdump("dmConfigureRouteTimerCB", (bit8*)pdmSMPDiscoverResp, sizeof(smpRespDiscover_t));
       discovery->configureRouteRetries = 0;
 
-      dmDownStreamDiscoverExpanderPhy(dmRoot, onePortContext, oneExpander, pdmSMPDiscoverResp);  
+      dmDownStreamDiscoverExpanderPhy(dmRoot, onePortContext, oneExpander, pdmSMPDiscoverResp);
     }
     else
     {
@@ -7416,14 +7416,14 @@ dmConfigureRouteTimerCB(
                         &discovery->configureRouteTimer,
                         CONFIGURE_ROUTE_TIMER_VALUE/dmAllShared->usecsPerTick,
                         dmConfigureRouteTimerCB,
-                        (void *)onePortContext, 
+                        (void *)onePortContext,
                         (void *)oneExpander,
                         (void *)pdmSMPDiscoverResp
                        );
-                   
+
       dmAddTimer (
                   dmRoot,
-                  &dmAllShared->timerlist, 
+                  &dmAllShared->timerlist,
                   &discovery->configureRouteTimer
                   );
     }
@@ -7436,7 +7436,7 @@ dmConfigureRouteTimerCB(
       DM_DBG2(("dmConfigureRouteTimerCB: proceed by calling dmDownStreamDiscover2ExpanderPhy\n"));
       dmhexdump("dmConfigureRouteTimerCB", (bit8*)pdmSMPDiscover2Resp, sizeof(smpRespDiscover2_t));
 
-      dmDownStreamDiscover2ExpanderPhy(dmRoot, onePortContext, oneExpander, pdmSMPDiscover2Resp);  
+      dmDownStreamDiscover2ExpanderPhy(dmRoot, onePortContext, oneExpander, pdmSMPDiscover2Resp);
     }
     else
     {
@@ -7447,20 +7447,20 @@ dmConfigureRouteTimerCB(
                         &discovery->configureRouteTimer,
                         CONFIGURE_ROUTE_TIMER_VALUE/dmAllShared->usecsPerTick,
                         dmConfigureRouteTimerCB,
-                        (void *)onePortContext, 
+                        (void *)onePortContext,
                         (void *)oneExpander,
                         (void *)pdmSMPDiscover2Resp
                        );
-                   
+
       dmAddTimer (
                   dmRoot,
-                  &dmAllShared->timerlist, 
+                  &dmAllShared->timerlist,
                   &discovery->configureRouteTimer
                  );
     }
   }
-  
+
   return;
-}		       
+}
 #endif /* FDS_ DM */
 

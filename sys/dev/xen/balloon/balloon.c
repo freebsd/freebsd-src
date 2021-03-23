@@ -6,20 +6,20 @@
  * Copyright (c) 2003, B Dragovic
  * Copyright (c) 2003-2004, M Williamson, K Fraser
  * Copyright (c) 2005 Dan M. Smith, IBM Corporation
- * 
+ *
  * This file may be distributed separately from the Linux kernel, or
  * incorporated into other software packages, subject to the following license:
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this source file (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use, copy, modify,
  * merge, publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -106,7 +106,7 @@ static void balloon_process(void *unused);
 #define WPRINTK(fmt, args...) \
 	printk(KERN_WARNING "xen_mem: " fmt, ##args)
 
-static unsigned long 
+static unsigned long
 current_target(void)
 {
 	unsigned long target = min(bs.target_pages, bs.hard_limit);
@@ -148,7 +148,7 @@ minimum_target(void)
 	return (min(min_pages, curr_pages));
 }
 
-static int 
+static int
 increase_reservation(unsigned long nr_pages)
 {
 	unsigned long  i;
@@ -228,8 +228,8 @@ decrease_reservation(unsigned long nr_pages)
 		nr_pages = nitems(frame_list);
 
 	for (i = 0; i < nr_pages; i++) {
-		if ((page = vm_page_alloc(NULL, 0, 
-			    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | 
+		if ((page = vm_page_alloc(NULL, 0,
+			    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
 			    VM_ALLOC_ZERO)) == NULL) {
 			nr_pages = i;
 			need_sleep = 1;
@@ -269,7 +269,7 @@ decrease_reservation(unsigned long nr_pages)
  * by the balloon lock), or with changes to the Xen hard limit, but we will
  * recover from these in time.
  */
-static void 
+static void
 balloon_process(void *unused)
 {
 	int need_sleep = 0;
@@ -285,9 +285,9 @@ balloon_process(void *unused)
 				need_sleep = (increase_reservation(credit) != 0);
 			if (credit < 0)
 				need_sleep = (decrease_reservation(-credit) != 0);
-			
+
 		} while ((credit != 0) && !need_sleep);
-		
+
 		/* Schedule more work if there is some still to be done. */
 		if (current_target() != bs.current_pages)
 			sleep_time = hz;
@@ -301,7 +301,7 @@ balloon_process(void *unused)
 }
 
 /* Resets the Xen limit, sets new target, and kicks off processing. */
-static void 
+static void
 set_new_target(unsigned long target)
 {
 	/* No need for lock. Not read-modify-write updates. */
@@ -317,7 +317,7 @@ static struct xs_watch target_watch =
 };
 
 /* React to a change in the target key */
-static void 
+static void
 watch_target(struct xs_watch *watch,
 	     const char **vec, unsigned int len)
 {
@@ -329,8 +329,8 @@ watch_target(struct xs_watch *watch,
 	if (err) {
 		/* This is ok (for domain0 at least) - so just return */
 		return;
-	} 
-        
+	}
+
 	/*
 	 * The given memory/target value is in KiB, so it needs converting to
 	 * pages.  PAGE_SHIFT converts bytes to pages, hence PAGE_SHIFT - 10.
@@ -362,7 +362,7 @@ xenballoon_identify(driver_t *driver __unused, device_t parent)
  *
  * \return  Always returns 0 indicating success.
  */
-static int 
+static int
 xenballoon_probe(device_t dev)
 {
 
@@ -393,7 +393,7 @@ xenballoon_attach(device_t dev)
 	bs.hard_limit    = ~0UL;
 
 	kproc_create(balloon_process, NULL, NULL, 0, 0, "balloon");
-    
+
 	target_watch.callback = watch_target;
 
 	err = xs_register_watch(&target_watch);

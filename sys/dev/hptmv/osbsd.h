@@ -57,7 +57,7 @@
 
 
 
-typedef struct 
+typedef struct
 {
 	UCHAR		status;     		/* 0 nonbootable; 80h bootable */
 	UCHAR      	start_head;
@@ -137,7 +137,7 @@ typedef struct _MV_CHANNEL
 	MV_BOOLEAN		readAheadSupported;
 	MV_BOOLEAN		readAheadEnabled;
 	MV_U8			queueDepth;
-	
+
 } MV_CHANNEL;
 
 typedef struct _BUS_DMAMAP
@@ -148,7 +148,7 @@ typedef struct _BUS_DMAMAP
 	SCAT_GATH				psg[MAX_SG_DESCRIPTORS];
 } BUS_DMAMAP, *PBUS_DMAMAP;
 
-typedef struct IALAdapter 
+typedef struct IALAdapter
 {
 	struct cam_path 	*path;
 	struct mtx		lock;
@@ -174,7 +174,7 @@ typedef struct IALAdapter
 	dma_addr_t			responsesArrayBaseDmaAddr;
 	dma_addr_t			responsesArrayBaseDmaAlignedAddr;
 	SATA_EVENT			sataEvents[MV_SATA_CHANNELS_NUM];
-	
+
    	struct	callout event_timer_connect;
   	struct	callout event_timer_disconnect;
 
@@ -241,9 +241,9 @@ hpt_get_periph(int path_id,int target_id)
     if (status == CAM_REQ_CMP) {
 		periph = cam_periph_find(path, "da");
 		xpt_free_path(path);
-			
+
     }
-	return periph;	
+	return periph;
 }
 
 #ifdef __i386__

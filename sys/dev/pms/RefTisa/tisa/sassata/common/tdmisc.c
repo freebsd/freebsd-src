@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -83,9 +83,9 @@ __FBSDID("$FreeBSD$");
 *  \param  tiRoot:          Pointer to initiator driver/port instance.
 *  \param  taskTag:         Pointer to the associated task to be aborted
 *
-*  \return: 
+*  \return:
 *
-*          tiSuccess:     I/O request successfully initiated. 
+*          tiSuccess:     I/O request successfully initiated.
 *          tiBusy:        No resources available, try again later.
 *          tiIONoDevice:  Invalid device handle.
 *          tiError:       Other errors that prevent the I/O request to be
@@ -107,7 +107,7 @@ tiINIIOAbort(
   bit32               sasStatus = AGSA_RC_FAILURE;
   tdsaDeviceData_t    *oneDeviceData;
   bit32               status= tiError;
-  agsaIORequest_t     *agAbortIORequest;  
+  agsaIORequest_t     *agAbortIORequest;
   tdIORequestBody_t   *tdAbortIORequestBody;
   bit32               PhysUpper32;
   bit32               PhysLower32;
@@ -118,7 +118,7 @@ tiINIIOAbort(
   smRoot_t                    *smRoot;
   tdIORequestBody_t           *ToBeAbortedtdIORequestBody;
   smIORequest_t               *ToBeAborted = agNULL;
-#endif  
+#endif
   TI_DBG2(("tiINIIOAbort: start\n"));
 
   if(taskTag == agNULL)
@@ -131,17 +131,17 @@ tiINIIOAbort(
   tdIORequestBody = (tdIORequestBody_t *)taskTag->tdData;
   agIORequest     = &(tdIORequestBody->agIORequest);
   oneDeviceData   = tdIORequestBody->tiDevHandle->tdData;
-  
+
   if(oneDeviceData == agNULL)
   {
     TI_DBG1(("tiINIIOAbort: DeviceData is NULL\n"));
     return tiSuccess;
   }
-  
+
   agDevHandle = oneDeviceData->agDevHandle;
-  
+
   TI_DBG2(("tiINIIOAbort: did %d\n", oneDeviceData->id));
-  
+
   /* for hotplug */
   if (oneDeviceData->valid != agTRUE || oneDeviceData->registered != agTRUE ||
       oneDeviceData->tdPortContext == agNULL )
@@ -150,8 +150,8 @@ tiINIIOAbort(
     TI_DBG1(("tiINIIOAbort: device AddrHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
     TI_DBG1(("tiINIIOAbort: device AddrLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
     return tiError;
-  } 
-  
+  }
+
   /* allocating agIORequest for abort itself */
   memAllocStatus = ostiAllocMemory(
                                    tiRoot,
@@ -169,7 +169,7 @@ tiINIIOAbort(
     TI_DBG1(("tiINIIOAbort: ostiAllocMemory failed...\n"));
     return tiError;
   }
-      
+
   if (tdAbortIORequestBody == agNULL)
   {
     /* let os process IO */
@@ -180,27 +180,27 @@ tiINIIOAbort(
   /* setup task management structure */
   tdAbortIORequestBody->IOType.InitiatorTMIO.osMemHandle = osMemHandle;
   /* setting callback */
-  tdAbortIORequestBody->IOCompletionFunc = itdssIOAbortedHandler;  
+  tdAbortIORequestBody->IOCompletionFunc = itdssIOAbortedHandler;
   tdAbortIORequestBody->tiDevHandle = tdIORequestBody->tiDevHandle;
-  
+
   /* initialize agIORequest */
   agAbortIORequest = &(tdAbortIORequestBody->agIORequest);
   agAbortIORequest->osData = (void *) tdAbortIORequestBody;
   agAbortIORequest->sdkData = agNULL; /* LL takes care of this */
-  
+
   /* remember IO to be aborted */
-  tdAbortIORequestBody->tiIOToBeAbortedRequest = taskTag;      
- 
+  tdAbortIORequestBody->tiIOToBeAbortedRequest = taskTag;
+
   if (oneDeviceData->DeviceType == TD_SAS_DEVICE)
   {
-    sasStatus = saSSPAbort(agRoot, 
-                           agAbortIORequest, 
-                           tdsaRotateQnumber(tiRoot, oneDeviceData), 
-                           agDevHandle, 
-                           0/* flag */, 
+    sasStatus = saSSPAbort(agRoot,
+                           agAbortIORequest,
+                           tdsaRotateQnumber(tiRoot, oneDeviceData),
+                           agDevHandle,
+                           0/* flag */,
                            agIORequest,
-                           agNULL); 
-                           
+                           agNULL);
+
     if (sasStatus == AGSA_RC_SUCCESS)
     {
       return tiSuccess;
@@ -217,7 +217,7 @@ tiINIIOAbort(
 #ifdef FDS_SM
     smRoot = &(tdsaAllShared->smRoot);
     if ( taskTag != agNULL)
-    {    
+    {
       ToBeAbortedtdIORequestBody = (tdIORequestBody_t *)taskTag->tdData;
       ToBeAborted = &(ToBeAbortedtdIORequestBody->smIORequest);
       status = smIOAbort(smRoot, ToBeAborted);
@@ -227,18 +227,18 @@ tiINIIOAbort(
     {
       TI_DBG1(("tiINIIOAbort: taskTag is NULL!!!\n"));
       return tiError;
-    }      
+    }
 
 #else
 
-#ifdef SATA_ENABLE  
+#ifdef SATA_ENABLE
     status = satIOAbort(tiRoot, taskTag );
 #endif
 
     return status;
-#endif /* else FDS_SM */ 
+#endif /* else FDS_SM */
   }
-  
+
   else
   {
     return tiError;
@@ -261,15 +261,15 @@ tiINIIOAbortAll(
   smRoot_t            *smRoot = &(tdsaAllShared->smRoot);
   smDeviceHandle_t    *smDeviceHandle;
 #endif
-  
+
   TI_DBG1(("tiINIIOAbortAll: start\n"));
-  
+
   if (tiDeviceHandle == agNULL)
   {
     TI_DBG1(("tiINIIOAbortAll: tiDeviceHandle is NULL!!!\n"));
     return tiError;
-  }      
-  
+  }
+
   oneDeviceData = (tdsaDeviceData_t *)tiDeviceHandle->tdData;
 
   if (oneDeviceData == agNULL)
@@ -277,7 +277,7 @@ tiINIIOAbortAll(
     TI_DBG1(("tiINIIOAbortAll: oneDeviceData is NULL!!!\n"));
     return tiError;
   }
-  
+
   /* for hotplug */
   if (oneDeviceData->valid != agTRUE || oneDeviceData->registered != agTRUE ||
       oneDeviceData->tdPortContext == agNULL )
@@ -286,16 +286,16 @@ tiINIIOAbortAll(
     TI_DBG1(("tiINIIOAbortAll: device AddrHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
     TI_DBG1(("tiINIIOAbortAll: device AddrLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
     return tiError;
-  } 
-  
+  }
+
   agRoot = oneDeviceData->agRoot;
-  
+
   if (agRoot == agNULL)
   {
     TI_DBG1(("tiINIIOAbortAll: agRoot is NULL!!!\n"));
     return tiError;
   }
-  
+
   /* this is processed in ossaSSPAbortCB, ossaSATAAbortCB, ossaSMPAbortCB */
   if (oneDeviceData->OSAbortAll == agTRUE)
   {
@@ -305,12 +305,12 @@ tiINIIOAbortAll(
   else
   {
     oneDeviceData->OSAbortAll = agTRUE;
-  }    
-  
+  }
+
 #ifdef FDS_SM
   if ( DEVICE_IS_SSP_TARGET(oneDeviceData) || DEVICE_IS_SMP_TARGET(oneDeviceData))
   {
-    status = tdsaAbortAll(tiRoot, agRoot, oneDeviceData);  
+    status = tdsaAbortAll(tiRoot, agRoot, oneDeviceData);
   }
   else if (DEVICE_IS_SATA_DEVICE(oneDeviceData) ||
            DEVICE_IS_STP_TARGET(oneDeviceData)
@@ -326,10 +326,10 @@ tiINIIOAbortAll(
     TI_DBG1(("tiINIIOAbortAll: unknow device type!!! 0x%x\n", oneDeviceData->target_ssp_stp_smp));
     status = AGSA_RC_FAILURE;
   }
-#else  
-  status = tdsaAbortAll(tiRoot, agRoot, oneDeviceData);    
+#else
+  status = tdsaAbortAll(tiRoot, agRoot, oneDeviceData);
 #endif
-  
+
   return status;
 
 }
@@ -345,19 +345,19 @@ tiINIIOAbortAll(
 *  \param  agRoot:          Pointer to chip/driver Instance.
 *  \param  oneDeviceData:   Pointer to the device
 *
-*  \return: 
+*  \return:
 *
 *          None
 *
 *****************************************************************************/
 osGLOBAL bit32
-tdsaAbortAll( 
+tdsaAbortAll(
              tiRoot_t                   *tiRoot,
              agsaRoot_t                 *agRoot,
              tdsaDeviceData_t           *oneDeviceData
              )
 {
-  agsaIORequest_t     *agAbortIORequest = agNULL;  
+  agsaIORequest_t     *agAbortIORequest = agNULL;
   tdIORequestBody_t   *tdAbortIORequestBody = agNULL;
   bit32               PhysUpper32;
   bit32               PhysLower32;
@@ -366,7 +366,7 @@ tdsaAbortAll(
   bit32               status = AGSA_RC_FAILURE;
 
   TI_DBG1(("tdsaAbortAll: did %d\n", oneDeviceData->id));
- 
+
   /* allocating agIORequest for abort itself */
   memAllocStatus = ostiAllocMemory(
                                    tiRoot,
@@ -384,37 +384,37 @@ tdsaAbortAll(
     TI_DBG1(("tdsaAbortAll: ostiAllocMemory failed...\n"));
     return tiError;
   }
-      
+
   if (tdAbortIORequestBody == agNULL)
   {
     /* let os process IO */
     TI_DBG1(("tdsaAbortAll: ostiAllocMemory returned NULL tdAbortIORequestBody\n"));
     return tiError;
   }
-  
+
   /* setup task management structure */
   tdAbortIORequestBody->IOType.InitiatorTMIO.osMemHandle = osMemHandle;
   /* setting callback but not used later */
   tdAbortIORequestBody->IOCompletionFunc = agNULL;
   //tdAbortIORequestBody->IOCompletionFunc = itdssIOAbortedHandler;
-  
+
   tdAbortIORequestBody->tiDevHandle = (tiDeviceHandle_t *)&(oneDeviceData->tiDeviceHandle);
-  
+
   /* initialize agIORequest */
   agAbortIORequest = &(tdAbortIORequestBody->agIORequest);
   agAbortIORequest->osData = (void *) tdAbortIORequestBody;
-  agAbortIORequest->sdkData = agNULL; /* LL takes care of this */    
-  
+  agAbortIORequest->sdkData = agNULL; /* LL takes care of this */
+
   if ( DEVICE_IS_SSP_TARGET(oneDeviceData))
   {
     /* SSPAbort */
-    status = saSSPAbort(agRoot, 
+    status = saSSPAbort(agRoot,
                         agAbortIORequest,
                         tdsaRotateQnumber(tiRoot, oneDeviceData), //0,
                         oneDeviceData->agDevHandle,
                         1, /* abort all */
                         agNULL,
-                        agNULL		
+                        agNULL
                         );
   }
   else if (DEVICE_IS_SATA_DEVICE(oneDeviceData) ||
@@ -423,9 +423,9 @@ tdsaAbortAll(
   {
     /* SATAAbort*/
     if (oneDeviceData->satDevData.IDDeviceValid == agFALSE)
-    {    
+    {
       TI_DBG2(("tdsaAbortAll: saSATAAbort\n"));
-      status = saSATAAbort(agRoot, 
+      status = saSATAAbort(agRoot,
                            agAbortIORequest,
                            0,
                            oneDeviceData->agDevHandle,
@@ -437,7 +437,7 @@ tdsaAbortAll(
     else
     {
       TI_DBG2(("tdsaAbortAll: saSATAAbort IDDeviceValid\n"));
-      status = saSATAAbort(agRoot, 
+      status = saSATAAbort(agRoot,
                            agAbortIORequest,
                            tdsaRotateQnumber(tiRoot, oneDeviceData), //0,
                            oneDeviceData->agDevHandle,
@@ -445,13 +445,13 @@ tdsaAbortAll(
                            agNULL,
                            agNULL
                            );
-    }			 
+    }
   }
   else if (DEVICE_IS_SMP_TARGET(oneDeviceData))
   {
     /* SMPAbort*/
     TI_DBG2(("tdsaAbortAll: saSMPAbort \n"));
-    status = saSMPAbort(agRoot, 
+    status = saSMPAbort(agRoot,
                         agAbortIORequest,
                         tdsaRotateQnumber(tiRoot, oneDeviceData), //0,
                         oneDeviceData->agDevHandle,
@@ -465,7 +465,7 @@ tdsaAbortAll(
     TI_DBG1(("tdsaAbortAll: unknown device type!!! 0x%x\n", oneDeviceData->target_ssp_stp_smp));
     status = AGSA_RC_FAILURE;
   }
-  
+
   if (status == AGSA_RC_SUCCESS)
   {
     return tiSuccess;
@@ -475,8 +475,8 @@ tdsaAbortAll(
     TI_DBG1(("tdsaAbortAll: failed status=%d\n", status));
     //failed to send abort command, we need to free the memory
     ostiFreeMemory(
-               tiRoot, 
-               tdAbortIORequestBody->IOType.InitiatorTMIO.osMemHandle, 
+               tiRoot,
+               tdAbortIORequestBody->IOType.InitiatorTMIO.osMemHandle,
                sizeof(tdIORequestBody_t)
                );
     return tiError;
@@ -494,13 +494,13 @@ tdsaAbortAll(
 *  \param  tiRoot:          Pointer to initiator driver/port instance.
 *  \param  option:          Options
 *
-*  \return: 
+*  \return:
 *
 *          None
 *
 *****************************************************************************/
 osGLOBAL void
-tiCOMReset( 
+tiCOMReset(
            tiRoot_t    *tiRoot,
            bit32       option
            )
@@ -516,23 +516,23 @@ tiCOMReset(
   bit32 once = 1;
   bit32 status;
 #endif /* TI_GETFOR_ONRESET */
-  
+
   TI_DBG1(("tiCOMReset: start option 0x%x\n",option));
   tdsaAllShared->resetCount++;
   TI_DBG2(("tiCOMReset: reset count %d\n", tdsaAllShared->resetCount));
-  
+
   agRoot = &(tdsaAllShared->agRootNonInt);
 
   if (tdsaAllShared->flags.resetInProgress == agTRUE)
   {
     TI_DBG1(("tiCOMReset : Reset is already in progress : \n"));
-    
+
     /* don't do anything : just return */
     return;
   }
 
   tdsaAllShared->flags.resetInProgress            = agTRUE;
-  
+
 #ifdef TI_GETFOR_ONRESET
   saGetControllerStatus(agRoot, &controllerStatus);
   if(controllerStatus.fatalErrorInfo.errorInfo1)
@@ -571,10 +571,10 @@ tiCOMReset(
   else
   {
     saHwReset(agRoot, AGSA_SOFT_RESET, 0);
-#ifdef NOT_YET  
+#ifdef NOT_YET
     /* hard reset */
     saHwReset(agRoot, AGSA_CHIP_RESET, 0);
-#endif    
+#endif
   }
   return;
 }
@@ -608,15 +608,15 @@ tiINIReportErrorToEventLog(
 
 /*****************************************************************************/
 /*! \brief ossaReenableInterrupts
- *  
+ *
  *
  *  Purpose: This routine is called to enable interrupt
  *
- *  
+ *
  *  \param  agRoot:               Pointer to chip/driver Instance.
  *  \param  outboundChannelNum:   Zero-base channel number
  *
- * 
+ *
  *  \return None.
  *
  *  \note - The scope is shared target and initiator.
@@ -624,7 +624,7 @@ tiINIReportErrorToEventLog(
  */
 /*****************************************************************************/
 #ifndef ossaReenableInterrupts
-osGLOBAL void 
+osGLOBAL void
 ossaReenableInterrupts(
                        agsaRoot_t  *agRoot,
                        bit32       outboundChannelNum
@@ -638,9 +638,9 @@ ossaReenableInterrupts(
                       );
   return;
 }
-                       
-#endif                                                                
-             
+
+#endif
+
 
 
 
@@ -680,9 +680,9 @@ ossaReenableInterrupts(
 *         tiError       Other errors that prevent the TM request to be started.
 *
 *****************************************************************************/
-/* 
+/*
   warm reset->smp phy control(hard reset) or saLocalPhyControl(AGSA_PHY_HARD_RESET)
-  
+
 */
 #ifdef INITIATOR_DRIVER
 osGLOBAL bit32
@@ -727,19 +727,19 @@ tiINITaskManagement (
   bit32                       SMPhysUpper32;
   bit32                       SMPhysLower32;
   bit32                       SMmemAllocStatus;
-#endif  
-  
+#endif
+
   TI_DBG2(("tiINITaskManagement: start\n"));
 
   /* just for testing only */
-#ifdef REMOVED  
-//start temp  
+#ifdef REMOVED
+//start temp
   if(tiDeviceHandle == agNULL)
   {
     TI_DBG1(("tiINITaskManagement: tiDeviceHandle is NULL\n"));
     return tiError;
   }
-  
+
   oneDeviceData = (tdsaDeviceData_t *)tiDeviceHandle->tdData;
   if(oneDeviceData == agNULL)
   {
@@ -793,78 +793,78 @@ tiINITaskManagement (
     TI_DBG1(("tiINITaskManagement: not implemented 0x%0x !!!\n",task));
     return tiStatus;
   }
-  
+
   if(tiDeviceHandle == agNULL)
   {
     TI_DBG1(("tiINITaskManagement: tiDeviceHandle is NULL\n"));
     return tiError;
   }
-  
+
   oneDeviceData = (tdsaDeviceData_t *)tiDeviceHandle->tdData;
   if(oneDeviceData == agNULL)
   {
     TI_DBG1(("tiINITaskManagement: tiDeviceHandle=%p DeviceData is NULL\n", tiDeviceHandle));
     return tiIONoDevice;
   }
-  
+
   /* for hotplug */
   if (oneDeviceData->valid != agTRUE || oneDeviceData->registered != agTRUE ||
       oneDeviceData->tdPortContext == agNULL )
   {
     TI_DBG1(("tiINITaskManagement: NO Device did %d Addr 0x%08x:0x%08x\n", oneDeviceData->id , oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));
     return tiIONoDevice;
-  } 
-  
-  /* 1. call tiINIOAbort() 
+  }
+
+  /* 1. call tiINIOAbort()
      2. call tdssTaskXmit()
   */
-  
+
   if (oneDeviceData->DeviceType == TD_SAS_DEVICE)
   {
     agRoot = oneDeviceData->agRoot;
     agDevHandle = oneDeviceData->agDevHandle;
     TI_DBG1(("tiINITaskManagement: SAS Device\n"));
-    
-    /* 
-      WARM_RESET is experimental code. 
+
+    /*
+      WARM_RESET is experimental code.
       Needs more testing and debugging
     */
     if (task == AG_TARGET_WARM_RESET)
     {
       agsaContext_t           *agContext;
       tdsaDeviceData_t        *tdsaDeviceData;
-      
+
       tdsaDeviceData  = (tdsaDeviceData_t *)tiDeviceHandle->tdData;
       currentTaskTag->tdData = tdsaDeviceData;
       agContext = &(tdsaDeviceData->agDeviceResetContext);
-      agContext->osData = currentTaskTag;   
-            
+      agContext->osData = currentTaskTag;
+
       TI_DBG2(("tiINITaskManagement: did %d device reset for SAS\n", oneDeviceData->id));
       saSetDeviceState(agRoot, agNULL, tdsaRotateQnumber(tiRoot, oneDeviceData), agDevHandle, SA_DS_IN_RECOVERY);
-      
+
       /* warm reset by saLocalPhyControl or SMP PHY control */
       if (oneDeviceData->directlyAttached == agTRUE)
       {
         TI_DBG2(("tiINITaskManagement: device reset directly attached\n"));
-        saLocalPhyControl(agRoot, 
-                          agContext, 
+        saLocalPhyControl(agRoot,
+                          agContext,
                           tdsaRotateQnumber(tiRoot, oneDeviceData),
-                          oneDeviceData->phyID, 
-                          AGSA_PHY_HARD_RESET, 
+                          oneDeviceData->phyID,
+                          AGSA_PHY_HARD_RESET,
                           agNULL
-                          ); 
+                          );
         return tiSuccess;
       }
       else
       {
         TI_DBG2(("tiINITaskManagement: device reset expander attached\n"));
         saStatus = tdsaPhyControlSend(tiRoot,
-                                      oneDeviceData, 
-                                      SMP_PHY_CONTROL_HARD_RESET, 
+                                      oneDeviceData,
+                                      SMP_PHY_CONTROL_HARD_RESET,
                                       currentTaskTag,
-                                      tdsaRotateQnumber(tiRoot, oneDeviceData)				      
+                                      tdsaRotateQnumber(tiRoot, oneDeviceData)
                                      );
-        return saStatus;			      
+        return saStatus;
       }
     }
     else
@@ -885,19 +885,19 @@ tiINITaskManagement (
                                        sizeof(tdIORequestBody_t),
                                        agTRUE
                                        );
-    
+
       if (memAllocStatus != tiSuccess)
       {
         TI_DBG1(("tiINITaskManagement: ostiAllocMemory failed...\n"));
         return tiError;
       }
-      
+
       if (TMtdIORequestBody == agNULL)
       {
         TI_DBG1(("tiINITaskManagement: ostiAllocMemory returned NULL TMIORequestBody\n"));
         return tiError;
       }
-      
+
       /* initialize */
       osti_memset(TMtdIORequestBody, 0, sizeof(tdIORequestBody_t));
 
@@ -905,28 +905,28 @@ tiINITaskManagement (
       TMtdIORequestBody->IOType.InitiatorTMIO.osMemHandle = osMemHandle;
       TMtdIORequestBody->IOType.InitiatorTMIO.CurrentTaskTag = currentTaskTag;
       TMtdIORequestBody->IOType.InitiatorTMIO.TaskTag = taskTag;
-    
+
       /* let's initialize tdIOrequestBody */
       /* initialize jump table */
-    
+
       /* direct callback for task management */
       TMtdIORequestBody->IOCompletionFunc = itdssTaskCompleted;
       /* to be removed */
       /* TMtdIORequestBody->IOCompletionFunc = itdssIOCompleted; */
-    
+
       /* initialize tiDevhandle */
       TMtdIORequestBody->tiDevHandle = tiDeviceHandle;
-    
+
       /* initialize tiIORequest */
       TMtdIORequestBody->tiIORequest = currentTaskTag;
       /* save context if we need to abort later */
-      currentTaskTag->tdData = TMtdIORequestBody; 
+      currentTaskTag->tdData = TMtdIORequestBody;
 
       /* initialize agIORequest */
       agIORequest = &(TMtdIORequestBody->agIORequest);
       agIORequest->osData = (void *) TMtdIORequestBody;
       agIORequest->sdkData = agNULL; /* SA takes care of this */
-      
+
       /* request type */
       agRequestType = AGSA_SSP_TASK_MGNT_REQ;
       TMtdIORequestBody->agRequestType = AGSA_SSP_TASK_MGNT_REQ;
@@ -936,7 +936,7 @@ tiINITaskManagement (
       */
       agSASRequestBody = &(TMtdIORequestBody->transport.SAS.agSASRequestBody);
       agSSPTaskMgntRequest = &(agSASRequestBody->sspTaskMgntReq);
-    
+
       TI_DBG2(("tiINITaskManagement: did %d LUN reset for SAS\n", oneDeviceData->id));
       /* fill up LUN field */
       if (lun == agNULL)
@@ -944,16 +944,16 @@ tiINITaskManagement (
         osti_memset(agSSPTaskMgntRequest->lun, 0, 8);
       }
       else
-      {             
+      {
         osti_memcpy(agSSPTaskMgntRequest->lun, lun->lun, 8);
       }
-    
+
       /* default: unconditionally set device state to SA_DS_IN_RECOVERY
          bit1 (DS) bit0 (ADS)
          bit1: 1 bit0: 0
       */
       agSSPTaskMgntRequest->tmOption = 2;
-    
+
        /* sets taskMgntFunction field */
       switch(task)
       {
@@ -985,7 +985,7 @@ tiINITaskManagement (
         TI_DBG1(("tiINITaskManagement: notImplemented task\n"));
         break;
       }
-  
+
       if (task == AGSA_ABORT_TASK || task == AGSA_QUERY_TASK)
       {
         /* set agTMRequest, which is IO being task managed */
@@ -1005,7 +1005,7 @@ tiINITaskManagement (
         else
         {
         agTMRequest = &(tdIORequestBody->agIORequest);
-        }	  
+        }
       }
       else
       {
@@ -1015,10 +1015,10 @@ tiINITaskManagement (
           Therefore, set it to zero.
         */
         agSSPTaskMgntRequest->tagOfTaskToBeManaged = 0;
-        agTMRequest = agNULL; 
-      
+        agTMRequest = agNULL;
+
       }
-    
+
       TDLIST_INIT_HDR(&TMtdIORequestBody->EsglPageList);
       /* debuggging */
       if (TMtdIORequestBody->IOCompletionFunc == agNULL)
@@ -1033,8 +1033,8 @@ tiINITaskManagement (
                             agSASRequestBody, /* task management itself */
                             agTMRequest, /* io to be aborted if exits */
                             &ossaSSPCompleted);
-    
-    
+
+
       if (saStatus == AGSA_RC_SUCCESS)
       {
         Initiator->NumIOsActive++;
@@ -1045,11 +1045,11 @@ tiINITaskManagement (
         TI_DBG1(("tiINITaskManagement: saSSPStart failed 0x%x\n",saStatus));
         /* free up allocated memory */
         ostiFreeMemory(
-                       tiRoot, 
-                       TMtdIORequestBody->IOType.InitiatorTMIO.osMemHandle, 
+                       tiRoot,
+                       TMtdIORequestBody->IOType.InitiatorTMIO.osMemHandle,
                        sizeof(tdIORequestBody_t)
                       );
-        if (saStatus == AGSA_RC_FAILURE)		   
+        if (saStatus == AGSA_RC_FAILURE)
         {
           tiStatus = tiError;
         }
@@ -1061,16 +1061,16 @@ tiINITaskManagement (
       }
     }
   } /* end of sas device */
-  
+
 #ifdef FDS_SM
   else if (oneDeviceData->DeviceType == TD_SATA_DEVICE)
-  {  
+  {
     agsaContext_t           *agContext = agNULL;
-    
+
     /* save the task tag in tdsaDeviceData_t structure, for handling PORT_RESET_COMPLETE hw event */
     agContext = &(oneDeviceData->agDeviceResetContext);
     agContext->osData = currentTaskTag;
-    
+
 #ifdef REMOVED
     /* for directly attached SATA, do localphycontrol for LUN and target reset, not smTaskManagement*/
     if (oneDeviceData->directlyAttached == agTRUE &&
@@ -1078,34 +1078,34 @@ tiINITaskManagement (
     {
       agRoot = oneDeviceData->agRoot;
       agDevHandle = oneDeviceData->agDevHandle;
-      
+
       currentTaskTag->tdData = oneDeviceData;
-      
+
       if (task == AG_LOGICAL_UNIT_RESET)
       {
         if ( (lun->lun[0] | lun->lun[1] | lun->lun[2] | lun->lun[3] |
               lun->lun[4] | lun->lun[5] | lun->lun[6] | lun->lun[7] ) != 0 )
         {
-          TI_DBG1(("tiINITaskManagement: *** REJECT *** LUN not zero, tiDeviceHandle=%p\n", 
+          TI_DBG1(("tiINITaskManagement: *** REJECT *** LUN not zero, tiDeviceHandle=%p\n",
                   tiDeviceHandle));
           return tiError;
         }
      }
      saSetDeviceState(agRoot, agNULL, tdsaRotateQnumber(tiRoot, oneDeviceData), agDevHandle, SA_DS_IN_RECOVERY);
-     tiStatus = saLocalPhyControl(agRoot, agContext, tdsaRotateQnumber(tiRoot, oneDeviceData), oneDeviceData->phyID, AGSA_PHY_HARD_RESET, agNULL); 
+     tiStatus = saLocalPhyControl(agRoot, agContext, tdsaRotateQnumber(tiRoot, oneDeviceData), oneDeviceData->phyID, AGSA_PHY_HARD_RESET, agNULL);
     }
     else
-#endif    
+#endif
     {
       smRoot = &(tdsaAllShared->smRoot);
       smDeviceHandle = &(oneDeviceData->smDeviceHandle);
       TI_DBG1(("tiINITaskManagement: FDS_SM SATA Device\n"));
-    
+
       if ( taskTag != agNULL)
-      {    
+      {
         ToBeAbortedtdIORequestBody = (tdIORequestBody_t *)taskTag->tdData;
         ToBeAborted = &(ToBeAbortedtdIORequestBody->smIORequest);
-      }      
+      }
       SMmemAllocStatus = ostiAllocMemory(
                                          tiRoot,
                                          &SMosMemHandle,
@@ -1121,39 +1121,39 @@ tiINITaskManagement (
         TI_DBG1(("tiINITaskManagement: ostiAllocMemory failed... loc 2\n"));
         return tiError;
       }
-      
+
       if (SMTMtdIORequestBody == agNULL)
       {
         TI_DBG1(("tiINITaskManagement: ostiAllocMemory returned NULL TMIORequestBody loc 2\n"));
         return tiError;
       }
-  
+
       /* initialize */
       osti_memset(SMTMtdIORequestBody, 0, sizeof(tdIORequestBody_t));
-      
+
       /* setup task management structure */
       SMTMtdIORequestBody->IOType.InitiatorTMIO.osMemHandle = SMosMemHandle;
       SMTMtdIORequestBody->IOType.InitiatorTMIO.CurrentTaskTag = currentTaskTag;
       SMTMtdIORequestBody->IOType.InitiatorTMIO.TaskTag = taskTag;
-    
+
       /* initialize tiDevhandle */
       SMTMtdIORequestBody->tiDevHandle = tiDeviceHandle;
-    
+
       /* initialize tiIORequest */
       SMTMtdIORequestBody->tiIORequest = currentTaskTag;
       /* save context if we need to abort later */
-      currentTaskTag->tdData = SMTMtdIORequestBody; 
-  
+      currentTaskTag->tdData = SMTMtdIORequestBody;
+
       TaskManagement = &(SMTMtdIORequestBody->smIORequest);
-    
+
       TaskManagement->tdData = SMTMtdIORequestBody;
       TaskManagement->smData = &SMTMtdIORequestBody->smIORequestBody;
-    
-      tiStatus = smTaskManagement(smRoot, 
-      	                           smDeviceHandle, 
-      	                           task, 
-      	                           (smLUN_t*)lun, 
-      	                           ToBeAborted, 
+
+      tiStatus = smTaskManagement(smRoot,
+      	                           smDeviceHandle,
+      	                           task,
+      	                           (smLUN_t*)lun,
+      	                           ToBeAborted,
       	                           TaskManagement
       	                           );
       if (tiStatus != SM_RC_SUCCESS)
@@ -1161,14 +1161,14 @@ tiINITaskManagement (
         TI_DBG1(("tiINITaskManagement: smTaskManagement failed... loc 2\n"));
         /* free up allocated memory */
         ostiFreeMemory(
-                       tiRoot, 
-                       SMTMtdIORequestBody->IOType.InitiatorTMIO.osMemHandle, 
+                       tiRoot,
+                       SMTMtdIORequestBody->IOType.InitiatorTMIO.osMemHandle,
                        sizeof(tdIORequestBody_t)
                       );
       }
-    } /* else */      
+    } /* else */
   }
-#else   
+#else
   else if (oneDeviceData->DeviceType == TD_SATA_DEVICE)
   {
     agRoot = oneDeviceData->agRoot;
@@ -1177,73 +1177,73 @@ tiINITaskManagement (
     /*
       WARM_RESET is experimental
       Needs more testing and debugging
-      Soft reset for SATA as LUN RESET tends not to work. 
+      Soft reset for SATA as LUN RESET tends not to work.
       Let's do hard reset
     */
     if (task == AG_LOGICAL_UNIT_RESET || task == AG_TARGET_WARM_RESET)
     {
-    
+
       agsaContext_t           *agContext;
       satDeviceData_t         *satDevData;
       tdsaDeviceData_t        *tdsaDeviceData;
-      
+
       TI_DBG2(("tiINITaskManagement: did %d LUN reset or device reset for SATA\n", oneDeviceData->id));
       tdsaDeviceData  = (tdsaDeviceData_t *)tiDeviceHandle->tdData;
       satDevData      = &tdsaDeviceData->satDevData;
       currentTaskTag->tdData = tdsaDeviceData;
       agContext = &(tdsaDeviceData->agDeviceResetContext);
-      agContext->osData = currentTaskTag;   
-      
-      
+      agContext->osData = currentTaskTag;
+
+
       if (task == AG_LOGICAL_UNIT_RESET)
       {
         if ( (lun->lun[0] | lun->lun[1] | lun->lun[2] | lun->lun[3] |
               lun->lun[4] | lun->lun[5] | lun->lun[6] | lun->lun[7] ) != 0 )
         {
-          TI_DBG1(("tiINITaskManagement: *** REJECT *** LUN not zero, tiDeviceHandle=%p\n", 
+          TI_DBG1(("tiINITaskManagement: *** REJECT *** LUN not zero, tiDeviceHandle=%p\n",
                   tiDeviceHandle));
           return tiError;
         }
 
-        /* 
-         * Check if there is other TM request pending 
+        /*
+         * Check if there is other TM request pending
          */
         if (satDevData->satTmTaskTag != agNULL)
         {
-          TI_DBG1(("tiINITaskManagement: *** REJECT *** other TM pending, tiDeviceHandle=%p\n", 
+          TI_DBG1(("tiINITaskManagement: *** REJECT *** other TM pending, tiDeviceHandle=%p\n",
                    tiDeviceHandle));
           return tiError;
         }
       }
       satDevData->satDriveState = SAT_DEV_STATE_IN_RECOVERY;
       satDevData->satAbortAfterReset = agFALSE;
-      
+
       saSetDeviceState(agRoot, agNULL, tdsaRotateQnumber(tiRoot, oneDeviceData), agDevHandle, SA_DS_IN_RECOVERY);
-   
+
       /*
-        warm reset by saLocalPhyControl or SMP PHY control 
+        warm reset by saLocalPhyControl or SMP PHY control
        */
       if (oneDeviceData->directlyAttached == agTRUE)
       {
         TI_DBG1(("tiINITaskManagement: LUN reset or device reset directly attached\n"));
-        saLocalPhyControl(agRoot, agContext, tdsaRotateQnumber(tiRoot, oneDeviceData), oneDeviceData->phyID, AGSA_PHY_HARD_RESET, agNULL); 
+        saLocalPhyControl(agRoot, agContext, tdsaRotateQnumber(tiRoot, oneDeviceData), oneDeviceData->phyID, AGSA_PHY_HARD_RESET, agNULL);
         return tiSuccess;
       }
       else
       {
         TI_DBG1(("tiINITaskManagement: LUN reset or device reset expander attached\n"));
         saStatus = tdsaPhyControlSend(tiRoot,
-                                      oneDeviceData, 
-                                      SMP_PHY_CONTROL_HARD_RESET, 
+                                      oneDeviceData,
+                                      SMP_PHY_CONTROL_HARD_RESET,
                                       currentTaskTag,
                                       tdsaRotateQnumber(tiRoot, oneDeviceData)
                                      );
-        return saStatus;			      
+        return saStatus;
       }
     }
     else
     {
-      TI_DBG2(("tiINITaskManagement: calling satTM().\n")); 
+      TI_DBG2(("tiINITaskManagement: calling satTM().\n"));
       /* allocation tdIORequestBody and pass it to satTM() */
       memAllocStatus = ostiAllocMemory(
                                        tiRoot,
@@ -1255,42 +1255,42 @@ tiINITaskManagement (
                                        sizeof(tdIORequestBody_t),
                                        agTRUE
                                        );
-    
+
       if (memAllocStatus != tiSuccess)
       {
         TI_DBG1(("tiINITaskManagement: ostiAllocMemory failed... loc 2\n"));
         return tiError;
       }
-      
+
       if (TMtdIORequestBody == agNULL)
       {
         TI_DBG1(("tiINITaskManagement: ostiAllocMemory returned NULL TMIORequestBody loc 2\n"));
         return tiError;
-      
+
       }
-      
+
       /* initialize */
       osti_memset(TMtdIORequestBody, 0, sizeof(tdIORequestBody_t));
-      
+
       /* setup task management structure */
       TMtdIORequestBody->IOType.InitiatorTMIO.osMemHandle = osMemHandle;
       TMtdIORequestBody->IOType.InitiatorTMIO.CurrentTaskTag = currentTaskTag;
       TMtdIORequestBody->IOType.InitiatorTMIO.TaskTag = taskTag;
-    
+
       /* initialize tiDevhandle */
       TMtdIORequestBody->tiDevHandle = tiDeviceHandle;
-    
+
       /* initialize tiIORequest */
       TMtdIORequestBody->tiIORequest = currentTaskTag;
       /* save context if we need to abort later */
-      currentTaskTag->tdData = TMtdIORequestBody; 
+      currentTaskTag->tdData = TMtdIORequestBody;
 
       /* initialize agIORequest */
       agIORequest = &(TMtdIORequestBody->agIORequest);
       agIORequest->osData = (void *) TMtdIORequestBody;
       agIORequest->sdkData = agNULL; /* SA takes care of this */
 
-        
+
 #ifdef  SATA_ENABLE
       tiStatus = satTM( tiRoot,
                         tiDeviceHandle,
@@ -1330,33 +1330,33 @@ tiCOMPassthroughCmndStart(
   agsaDevHandle_t           *agDevHandle = agNULL;
   bit32                     agRequestType;
   agsaSASRequestBody_t      *agSASRequestBody = agNULL;
-  
+
   tdPassthroughCmndBody_t   *tdPTCmndBody;
   tdssSMPRequestBody_t      *tdssSMPRequestBody;
-  agsaSMPFrame_t            *agSMPFrame; 
+  agsaSMPFrame_t            *agSMPFrame;
   agsaSSPVSFrame_t          *agSSPVendorFrame; /* RMC */
   bit32                     SMPFn, SMPFnResult, SMPFrameLen;
   bit32                     tiStatus = tiError;
   bit32                     saStatus = AGSA_RC_FAILURE;
   tdsaPortStartInfo_t       *tdsaPortStartInfo;
   tdsaPortContext_t         *tdsaPortContext;
-    
+
   TI_DBG2(("tiCOMPassthroughCmndStart: start\n"));
 
   oneDeviceData = (tdsaDeviceData_t *)tiDeviceHandle->tdData;
-  
+
   TI_DBG6(("tiCOMPassthroughCmndStart: onedevicedata %p\n", oneDeviceData));
 
-  
+
   tdPTCmndBody = (tdPassthroughCmndBody_t *)tiPassthroughBody;
-  
+
 
   if (tiPassthroughCmnd->passthroughCmnd != tiSMPCmnd ||
       tiPassthroughCmnd->passthroughCmnd != tiRMCCmnd)
   {
     return tiNotSupported;
   }
-  
+
 
   if (oneDeviceData == agNULL && tiPassthroughCmnd->passthroughCmnd != tiSMPCmnd)
   {
@@ -1382,7 +1382,7 @@ tiCOMPassthroughCmndStart(
         agDevHandle = oneDeviceData->agDevHandle;
       }
 
-      
+
       tdssSMPRequestBody =  &(tdPTCmndBody->protocol.SMP.SMPBody);
       agSASRequestBody = &(tdssSMPRequestBody->agSASRequestBody);
       agSMPFrame = &(agSASRequestBody->smpFrame);
@@ -1399,7 +1399,7 @@ tiCOMPassthroughCmndStart(
 
       /* initialize tiDevhandle */
       tdPTCmndBody->tiDevHandle = tiDeviceHandle;
-      
+
       /* fill in SMP header */
       agSMPFrame->frameHeader.smpFrameType
         = tiPassthroughCmnd->protocol.SMP.SMPHeader.smpFrameType;
@@ -1409,7 +1409,7 @@ tiCOMPassthroughCmndStart(
         = tiPassthroughCmnd->protocol.SMP.SMPHeader.smpFunctionResult;
       agSMPFrame->frameHeader.smpReserved
         = tiPassthroughCmnd->protocol.SMP.SMPHeader.smpReserved;
-        
+
       if (tiPassthroughCmnd->protocol.SMP.IT == SMP_INITIATOR)
         {
           agRequestType = AGSA_SMP_INIT_REQ;
@@ -1438,8 +1438,8 @@ tiCOMPassthroughCmndStart(
       agIORequest->osData = (void *) tdPTCmndBody;
       agIORequest->sdkData = agNULL; /* LL takes care of this */
 
-      
-      
+
+
       /* not work yet because of high priority q */
       saStatus = saSMPStart(
                             agRoot,
@@ -1448,7 +1448,7 @@ tiCOMPassthroughCmndStart(
                             agRequestType,
                             agSASRequestBody,
                             &ossaSMPCompleted
-                            ); 
+                            );
 
       if (saStatus == AGSA_RC_SUCCESS)
       {
@@ -1466,9 +1466,9 @@ tiCOMPassthroughCmndStart(
         tiStatus = tiBusy;
       }
       return tiStatus;
-      
-      
-#ifdef TO_DO      
+
+
+#ifdef TO_DO
       /* fill in SMP header */
       if (tdPTCmndBody->protocol.SMP.IT == SMP_INITIATOR)
         {
@@ -1515,7 +1515,7 @@ tiCOMPassthroughCmndStart(
           case tiPhyVacant:
             SMPFnResult = PHY_VACANT;
             break;
-            
+
           default:
             TI_DBG1(("tiCOMPassthroughCmndStart: unknown SMP function result %d\n", tdPTCmndBody->protocol.SMP.SMPFnResult));
             return tiError;
@@ -1537,7 +1537,7 @@ tiCOMPassthroughCmndStart(
           SMPFrameLen = sizeof(smpRespReportGeneral_t);
         }
         break;
-        
+
       case tiManufacturerInfo:
         SMPFn = SMP_REPORT_MANUFACTURE_INFORMATION;
         if (tdPTCmndBody->protocol.SMP.IT == SMP_INITIATOR)
@@ -1549,7 +1549,7 @@ tiCOMPassthroughCmndStart(
           SMPFrameLen = sizeof(smpRespReportManufactureInfo_t);
         }
         break;
-        
+
       case tiDiscover:
         SMPFn = SMP_DISCOVER;
         if (tdPTCmndBody->protocol.SMP.IT == SMP_INITIATOR)
@@ -1561,7 +1561,7 @@ tiCOMPassthroughCmndStart(
           SMPFrameLen = sizeof(smpRespDiscover_t);
         }
         break;
-        
+
       case tiReportPhyErrLog:
         SMPFn = SMP_REPORT_PHY_ERROR_LOG;
         if (tdPTCmndBody->protocol.SMP.IT == SMP_INITIATOR)
@@ -1573,7 +1573,7 @@ tiCOMPassthroughCmndStart(
           SMPFrameLen = 24;
         }
         break;
-        
+
       case tiReportPhySATA:
         SMPFn = SMP_REPORT_PHY_SATA;
         if (tdPTCmndBody->protocol.SMP.IT == SMP_INITIATOR)
@@ -1585,7 +1585,7 @@ tiCOMPassthroughCmndStart(
           SMPFrameLen = sizeof(SmpRespReportPhySata_t);
         }
         break;
-        
+
       case tiReportRteInfo:
         SMPFn = SMP_REPORT_ROUTING_INFORMATION;
         if (tdPTCmndBody->protocol.SMP.IT == SMP_INITIATOR)
@@ -1597,7 +1597,7 @@ tiCOMPassthroughCmndStart(
           SMPFrameLen = sizeof(SmpRespReportRouteTable_t);
         }
         break;
-        
+
       case tiConfigureRteInfo:
         SMPFn = SMP_CONFIGURE_ROUTING_INFORMATION;
         if (tdPTCmndBody->protocol.SMP.IT == SMP_INITIATOR)
@@ -1645,15 +1645,15 @@ tiCOMPassthroughCmndStart(
           SMPFrameLen = 0;
         }
         break;
-        
-        
+
+
       default:
         TI_DBG1(("tiCOMPassthroughCmndStart: unknown SMP function %d\n", tdPTCmndBody->protocol.SMP.SMPFn));
         return tiError;
       }
       agSMPFrame->frameHeader.smpFunction = SMPFn;
 
-     
+
       /* assumption: SMP payload is in tisgl1 */
       agSMPFrame->frameAddrUpper32 = tdPTCmndBody->tiSgl.upper;
       agSMPFrame->frameAddrLower32 = tdPTCmndBody->tiSgl.lower;
@@ -1661,14 +1661,14 @@ tiCOMPassthroughCmndStart(
       /* This length excluding SMP header (4 bytes) and CRC field */
       agSMPFrame->frameLen = SMPFrameLen;
 
-      
-      
-     
+
+
+
 
 
 #endif
 
-      
+
     }
     else if (tiPassthroughCmnd->passthroughCmnd == tiRMCCmnd)
     {
@@ -1679,7 +1679,7 @@ tiCOMPassthroughCmndStart(
       TI_DBG1(("tiCOMPassthroughCmndStart: unknown protocol %d\n", tiPassthroughCmnd->passthroughCmnd));
     }
 
-    
+
   }
   else if (oneDeviceData->DeviceType == TD_SATA_DEVICE)
   {
@@ -1692,12 +1692,12 @@ tiCOMPassthroughCmndStart(
     return tiError;
 
   }
-  
+
   return tiSuccess;
 }
 
 
-osGLOBAL bit32                                
+osGLOBAL bit32
 tiCOMPassthroughCmndAbort(
                           tiRoot_t                *tiRoot,
                           tiPassthroughRequest_t    *taskTag
@@ -1710,19 +1710,19 @@ tiCOMPassthroughCmndAbort(
   tdssSMPRequestBody_t      *tdssSMPRequestBody = agNULL;
   agsaIORequest_t           *agIORequest = agNULL;
   bit32                     saStatus, tiStatus = tiError;
-  
+
   TI_DBG2(("tiCOMPassthroughCmndAbort: start\n"));
 
   agRoot          = &(tdsaAllShared->agRootNonInt);
   tdPTCmndBody    = (tdPassthroughCmndBody_t *)taskTag->tdData;
-  
+
   if (tdPTCmndBody->tiPassthroughCmndType == tiSMPCmnd)
   {
     tdssSMPRequestBody =  &(tdPTCmndBody->protocol.SMP.SMPBody);
     agIORequest = &(tdssSMPRequestBody->agIORequest);
 
     saStatus = saSMPAbort(agRoot, agIORequest);
-    
+
     if (saStatus == AGSA_RC_SUCCESS)
       {
         tiStatus = tiSuccess;
@@ -1799,10 +1799,10 @@ tiCOMShutDown( tiRoot_t    *tiRoot)
 #endif /* TI_GETFOR_ONSHUTDOWN */
 
   agsaRoot_t                *agRoot = agNULL;
-   
+
   TI_DBG1(("tiCOMShutDown: start\n"));
 
-  
+
   agRoot = &(tdsaAllShared->agRootNonInt);
   /*
     1. free up cardID
@@ -1811,7 +1811,7 @@ tiCOMShutDown( tiRoot_t    *tiRoot)
     4. tdsaResetComMemFlags(tiRoot)
     5. ostiPortEvent()
   */
-  
+
   tdsaFreeCardID(tiRoot, tdsaAllShared->CardID);
 
 #ifdef TI_GETFOR_ONSHUTDOWN
@@ -1832,12 +1832,12 @@ tiCOMShutDown( tiRoot_t    *tiRoot)
   {
     goto getmoreData;
   }
-  
+
   TI_DBG1(("tiCOMShutDown:saGetForensicData type %d read 0x%x bytes\n",    forensicData.DataType,    forensicData.dataBuf.directOffset ));
 #endif /* TI_GETFOR_ONSHUTDOWN */
 
   saHwShutdown(agRoot);
- 
+
   /* resets all the relevant flags */
   tdsaResetComMemFlags(tiRoot);
 
@@ -1845,12 +1845,12 @@ tiCOMShutDown( tiRoot_t    *tiRoot)
    * send an event to the oslayer
    */
   ostiPortEvent (
-                 tiRoot, 
-                 tiPortShutdown, 
+                 tiRoot,
+                 tiPortShutdown,
                  tiSuccess,
                  agNULL
                  );
- 
+
   return;
 }
 
@@ -1870,15 +1870,15 @@ tiINITimerTick( tiRoot_t  *tiRoot )
 
 /*****************************************************************************/
 /*! \brief ossaDisableInterrupts
- *  
+ *
  *
  *  Purpose: This routine is called to disable interrupt
  *
- *  
+ *
  *  \param  agRoot:               Pointer to chip/driver Instance.
  *  \param  outboundChannelNum:   Zero-base channel number
  *
- * 
+ *
  *  \return None.
  *
  *  \note - The scope is shared target and initiator.
@@ -1886,7 +1886,7 @@ tiINITimerTick( tiRoot_t  *tiRoot )
  */
 /*****************************************************************************/
 #ifndef ossaDisableInterrupts
-osGLOBAL void 
+osGLOBAL void
 ossaDisableInterrupts(
                       agsaRoot_t  *agRoot,
                       bit32       outboundChannelNum
@@ -1900,30 +1900,30 @@ ossaDisableInterrupts(
                        );
   return;
 }
-                            
-#endif                            
+
+#endif
 
 
 osGLOBAL void
-tiCOMFrameReadBlock( 
+tiCOMFrameReadBlock(
                     tiRoot_t          *tiRoot,
-                    void              *agFrame, 
-                    bit32             FrameOffset, 
-                    void              *FrameBuffer, 
+                    void              *agFrame,
+                    bit32             FrameOffset,
+                    void              *FrameBuffer,
                     bit32             FrameBufLen )
 {
   tdsaRoot_t                *tdsaRoot        = (tdsaRoot_t *) tiRoot->tdData;
   tdsaContext_t             *tdsaAllShared = (tdsaContext_t *)&tdsaRoot->tdsaAllShared;
   agsaRoot_t                *agRoot = agNULL;
-   
+
   TI_DBG6(("tiCOMFrameReadBlock: start\n"));
 
-  
+
   agRoot = &(tdsaAllShared->agRootNonInt);
 
-  
+
   TI_DBG6(("tiCOMFrameReadBlock: start\n"));
-  
+
   saFrameReadBlock(agRoot, agFrame, FrameOffset, FrameBuffer, FrameBufLen);
 
   return;
@@ -1956,18 +1956,18 @@ tiINITransportRecovery (
   tdsaDeviceData_t            *oneDeviceData = agNULL;
   tdsaPortContext_t           *onePortContext = agNULL;
   tiPortalContext_t           *tiPortalContext = agNULL;
-  tiIORequest_t               *currentTaskTag; 
+  tiIORequest_t               *currentTaskTag;
   agsaDevHandle_t             *agDevHandle = agNULL;
-   
+
   TI_DBG1(("tiINITransportRecovery: start\n"));
- 
+
   if (tiDeviceHandle == agNULL)
   {
     TI_DBG1(("tiINITransportRecovery: tiDeviceHandle is NULL\n"));
-  
+
     return;
   }
-  
+
   oneDeviceData = (tdsaDeviceData_t *)tiDeviceHandle->tdData;
 
   if (oneDeviceData == agNULL)
@@ -1984,30 +1984,30 @@ tiINITransportRecovery (
     TI_DBG1(("tiINITransportRecovery: device AddrHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
     TI_DBG1(("tiINITransportRecovery: device AddrLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
     return;
-  } 
-  
+  }
+
   onePortContext = oneDeviceData->tdPortContext;
-  
+
   if (onePortContext == agNULL)
   {
     TI_DBG1(("tiINITransportRecovery: onePortContext is NULL\n"));
     return;
   }
-  
+
   tiPortalContext = onePortContext->tiPortalContext;
   currentTaskTag = &(oneDeviceData->TransportRecoveryIO);
   currentTaskTag->osData = agNULL;
   agRoot = oneDeviceData->agRoot;
   agDevHandle = oneDeviceData->agDevHandle;
-  
+
   if (oneDeviceData->DeviceType == TD_SAS_DEVICE)
   {
     agsaContext_t           *agContext;
     currentTaskTag->tdData = oneDeviceData;
     agContext = &(oneDeviceData->agDeviceResetContext);
-    agContext->osData = currentTaskTag;   
+    agContext->osData = currentTaskTag;
     oneDeviceData->TRflag = agTRUE;
-    
+
     TI_DBG2(("tiINITransportRecovery: SAS device\n"));
     saSetDeviceState(agRoot, agNULL, tdsaRotateQnumber(tiRoot, oneDeviceData), agDevHandle, SA_DS_IN_RECOVERY);
 
@@ -2022,15 +2022,15 @@ tiINITransportRecovery (
                          tiRecStarted,
                          agNULL
                         );
-       
+
       return;
     }
     else
     {
       TI_DBG2(("tiINITransportRecovery: device reset expander attached\n"));
       tdsaPhyControlSend(tiRoot,
-                         oneDeviceData, 
-                         SMP_PHY_CONTROL_HARD_RESET, 
+                         oneDeviceData,
+                         SMP_PHY_CONTROL_HARD_RESET,
                          currentTaskTag,
                          tdsaRotateQnumber(tiRoot, oneDeviceData)
                         );
@@ -2049,12 +2049,12 @@ tiINITransportRecovery (
     agsaContext_t           *agContext;
     currentTaskTag->tdData = oneDeviceData;
     agContext = &(oneDeviceData->agDeviceResetContext);
-    agContext->osData = currentTaskTag;   
+    agContext->osData = currentTaskTag;
     oneDeviceData->TRflag = agTRUE;
-    
+
     TI_DBG2(("tiINITransportRecovery: SATA device\n"));
     saSetDeviceState(agRoot, agNULL, tdsaRotateQnumber(tiRoot, oneDeviceData), agDevHandle, SA_DS_IN_RECOVERY);
-    
+
     if (oneDeviceData->directlyAttached == agTRUE)
     {
       TI_DBG2(("tiINITransportRecovery: saLocalPhyControl\n"));
@@ -2066,15 +2066,15 @@ tiINITransportRecovery (
                          tiRecStarted,
                          agNULL
                         );
-       
+
       return;
     }
     else
     {
       TI_DBG2(("tiINITransportRecovery: device reset expander attached\n"));
       tdsaPhyControlSend(tiRoot,
-                         oneDeviceData, 
-                         SMP_PHY_CONTROL_LINK_RESET, 
+                         oneDeviceData,
+                         SMP_PHY_CONTROL_LINK_RESET,
                          currentTaskTag,
                          tdsaRotateQnumber(tiRoot, oneDeviceData)
                         );
@@ -2092,8 +2092,8 @@ tiINITransportRecovery (
   {
     TI_DBG1(("tiINITransportRecovery: wrong device type %d\n", oneDeviceData->DeviceType));
   }
-   
-  
+
+
   return;
 }
 #endif
@@ -2129,7 +2129,7 @@ tdsaPhyControlSend(
                    tdsaDeviceData_t     *oneDeviceData, /* taget disk */
                    bit8                 phyOp,
                    tiIORequest_t        *CurrentTaskTag,
-                   bit32                queueNumber		   
+                   bit32                queueNumber
                    )
 {
   return 0;
@@ -2167,7 +2167,7 @@ tdsaPhyControlSend(
                    tdsaDeviceData_t     *oneDeviceData, /* taget disk */
                    bit8                 phyOp,
                    tiIORequest_t        *CurrentTaskTag,
-                   bit32                queueNumber		   
+                   bit32                queueNumber
                    )
 {
   return 0;
@@ -2175,7 +2175,7 @@ tdsaPhyControlSend(
 #endif
 
 
-#ifdef INITIATOR_DRIVER                
+#ifdef INITIATOR_DRIVER
 /*****************************************************************************
 *! \brief  tdsaPhyControlSend
 *
@@ -2206,26 +2206,26 @@ tdsaPhyControlSend(
                    tdsaDeviceData_t     *oneDeviceData, /* taget disk */
                    bit8                 phyOp,
                    tiIORequest_t        *CurrentTaskTag,
-                   bit32                queueNumber		   
+                   bit32                queueNumber
                    )
 {
   agsaRoot_t            *agRoot;
-  tdsaDeviceData_t      *oneExpDeviceData; 
+  tdsaDeviceData_t      *oneExpDeviceData;
   tdsaPortContext_t     *onePortContext;
   smpReqPhyControl_t    smpPhyControlReq;
   bit8                  phyID;
   bit32                 status;
-  
+
   TI_DBG3(("tdsaPhyControlSend: start\n"));
 
   agRoot = oneDeviceData->agRoot;
   onePortContext = oneDeviceData->tdPortContext;
   oneExpDeviceData = oneDeviceData->ExpDevice;
   phyID = oneDeviceData->phyID;
-  
+
   if (oneDeviceData->directlyAttached == agTRUE)
   {
-    TI_DBG1(("tdsaPhyControlSend: Error!!! deivce is directly attached\n")); 
+    TI_DBG1(("tdsaPhyControlSend: Error!!! deivce is directly attached\n"));
     return AGSA_RC_FAILURE;
   }
   if (onePortContext == agNULL)
@@ -2239,7 +2239,7 @@ tdsaPhyControlSend(
     TI_DBG1(("tdsaPhyControlSend: Error!!! expander is NULL\n"));
     return AGSA_RC_FAILURE;
   }
-  
+
   if (phyOp == SMP_PHY_CONTROL_HARD_RESET)
   {
     TI_DBG3(("tdsaPhyControlSend: SMP_PHY_CONTROL_HARD_RESET\n"));
@@ -2258,13 +2258,13 @@ tdsaPhyControlSend(
   TI_DBG3(("tdsaPhyControlSend: expander AddrLo 0x%08x\n", oneExpDeviceData->SASAddressID.sasAddressLo));
   TI_DBG3(("tdsaPhyControlSend: did %d expander did %d phyid %d\n", oneDeviceData->id, oneExpDeviceData->id, phyID));
 
-  
+
   osti_memset(&smpPhyControlReq, 0, sizeof(smpReqPhyControl_t));
 
   /* fill in SMP payload */
   smpPhyControlReq.phyIdentifier = phyID;
   smpPhyControlReq.phyOperation = phyOp;
-  
+
   status = tdSMPStart(
                       tiRoot,
                       agRoot,
@@ -2274,12 +2274,12 @@ tdsaPhyControlSend(
                       sizeof(smpReqPhyControl_t),
                       AGSA_SMP_INIT_REQ,
                       CurrentTaskTag,
-                      queueNumber		      
+                      queueNumber
                      );
   return status;
 }
 #endif
-  
+
 /*****************************************************************************
 *! \brief  tdsaPhyControlFailureRespRcvd
 *
@@ -2310,37 +2310,37 @@ tdsaPhyControlFailureRespRcvd(
 {
 #if defined(INITIATOR_DRIVER) || defined(TD_DEBUG_ENABLE)
   tdsaDeviceData_t      *TargetDeviceData = agNULL;
-#endif   
-#ifdef TD_DEBUG_ENABLE  
+#endif
+#ifdef TD_DEBUG_ENABLE
   satDeviceData_t       *pSatDevData = agNULL;
-#endif  
+#endif
 //  agsaDevHandle_t       *agDevHandle = agNULL;
-  
+
   TI_DBG1(("tdsaPhyControlFailureRespRcvd: start\n"));
- 
+
   TI_DBG3(("tdsaPhyControlFailureRespRcvd: expander device AddrHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
   TI_DBG3(("tdsaPhyControlFailureRespRcvd: expander device AddrLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
-  
+
   if (CurrentTaskTag != agNULL )
   {
     /* This was set in tiINITaskmanagement() */
 #if defined(INITIATOR_DRIVER) || defined(TD_DEBUG_ENABLE)
     TargetDeviceData = (tdsaDeviceData_t *)CurrentTaskTag->tdData;
-#endif    
-#ifdef TD_DEBUG_ENABLE     
+#endif
+#ifdef TD_DEBUG_ENABLE
     pSatDevData = (satDeviceData_t *)&(TargetDeviceData->satDevData);
-#endif    
-//    agDevHandle = TargetDeviceData->agDevHandle; 
+#endif
+//    agDevHandle = TargetDeviceData->agDevHandle;
     TI_DBG2(("tdsaPhyControlFailureRespRcvd: target AddrHi 0x%08x\n", TargetDeviceData->SASAddressID.sasAddressHi));
     TI_DBG2(("tdsaPhyControlFailureRespRcvd: target AddrLo 0x%08x\n", TargetDeviceData->SASAddressID.sasAddressLo));
 
-#ifdef TD_DEBUG_ENABLE     
+#ifdef TD_DEBUG_ENABLE
     TI_DBG2(("tdsaPhyControlFailureRespRcvd: satPendingIO %d satNCQMaxIO %d\n", pSatDevData->satPendingIO, pSatDevData->satNCQMaxIO ));
     TI_DBG2(("tdsaPhyControlFailureRespRcvd: satPendingNCQIO %d satPendingNONNCQIO %d\n", pSatDevData->satPendingNCQIO, pSatDevData->satPendingNONNCQIO));
-#endif    
+#endif
   }
-  
-#ifdef INITIATOR_DRIVER    
+
+#ifdef INITIATOR_DRIVER
   if (CurrentTaskTag != agNULL )
   {
     TI_DBG1(("tdsaPhyControlRespRcvd: callback to OS layer with failure\n"));
@@ -2363,9 +2363,9 @@ tdsaPhyControlFailureRespRcvd(
                           tiIntrEventTypeTaskManagement,
                           tiTMFailed,
                           CurrentTaskTag );
-    }                          
-  }                          
-#endif  
+    }
+  }
+#endif
   return;
 }
 /*****************************************************************************
@@ -2398,52 +2398,52 @@ tdsaPhyControlRespRcvd(
                        )
 {
 #if defined(INITIATOR_DRIVER) || defined(TD_DEBUG_ENABLE)
-  tdsaDeviceData_t      *TargetDeviceData = agNULL; 
+  tdsaDeviceData_t      *TargetDeviceData = agNULL;
 #endif
-#ifdef INITIATOR_DRIVER                
+#ifdef INITIATOR_DRIVER
   satDeviceData_t       *pSatDevData = agNULL;
   agsaDevHandle_t       *agDevHandle = agNULL;
-#endif  
-  
+#endif
+
   TI_DBG3(("tdsaPhyControlRespRcvd: start\n"));
- 
+
   TI_DBG3(("tdsaPhyControlRespRcvd: expander device AddrHi 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi));
   TI_DBG3(("tdsaPhyControlRespRcvd: expander device AddrLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressLo));
-  
+
   if (CurrentTaskTag != agNULL )
   {
     /* This was set in tiINITaskmanagement() */
 #if defined(INITIATOR_DRIVER) || defined(TD_DEBUG_ENABLE)
     TargetDeviceData = (tdsaDeviceData_t *)CurrentTaskTag->tdData;
 #endif
-#ifdef INITIATOR_DRIVER                
+#ifdef INITIATOR_DRIVER
     pSatDevData = (satDeviceData_t *)&(TargetDeviceData->satDevData);
     agDevHandle = TargetDeviceData->agDevHandle;
-#endif     
+#endif
     TI_DBG2(("tdsaPhyControlRespRcvd: target AddrHi 0x%08x\n", TargetDeviceData->SASAddressID.sasAddressHi));
     TI_DBG2(("tdsaPhyControlRespRcvd: target AddrLo 0x%08x\n", TargetDeviceData->SASAddressID.sasAddressLo));
 
-#ifdef INITIATOR_DRIVER                
+#ifdef INITIATOR_DRIVER
     TI_DBG2(("tdsaPhyControlRespRcvd: satPendingIO %d satNCQMaxIO %d\n", pSatDevData->satPendingIO, pSatDevData->satNCQMaxIO ));
     TI_DBG2(("tdsaPhyControlRespRcvd: satPendingNCQIO %d satPendingNONNCQIO %d\n", pSatDevData->satPendingNCQIO, pSatDevData->satPendingNONNCQIO));
-#endif    
+#endif
   }
-   
-#ifdef INITIATOR_DRIVER                
+
+#ifdef INITIATOR_DRIVER
   /* no payload */
   if (frameHeader->smpFunctionResult == SMP_FUNCTION_ACCEPTED)
   {
     TI_DBG3(("tdsaPhyControlRespRcvd: SMP success\n"));
-    
-    /* warm reset or clear affiliation is done 
+
+    /* warm reset or clear affiliation is done
        call ostiInitiatorEvent()
     */
     if (CurrentTaskTag != agNULL )
     {
       TI_DBG3(("tdsaPhyControlRespRcvd: callback to OS layer with success\n"));
       pSatDevData->satDriveState = SAT_DEV_STATE_NORMAL;
-      saSetDeviceState(agRoot, agNULL, tdsaRotateQnumber(tiRoot, TargetDeviceData), agDevHandle, SA_DS_OPERATIONAL);       
-    
+      saSetDeviceState(agRoot, agNULL, tdsaRotateQnumber(tiRoot, TargetDeviceData), agDevHandle, SA_DS_OPERATIONAL);
+
       if (TargetDeviceData->TRflag == agTRUE)
       {
         TargetDeviceData->TRflag = agFALSE;
@@ -2460,7 +2460,7 @@ tdsaPhyControlRespRcvd(
         agDevHandle = TargetDeviceData->agDevHandle;
         if (agDevHandle == agNULL)
         {
-          TI_DBG1(("tdsaPhyControlRespRcvd: wrong, agDevHandle is NULL\n"));      
+          TI_DBG1(("tdsaPhyControlRespRcvd: wrong, agDevHandle is NULL\n"));
         }
         ostiInitiatorEvent( tiRoot,
                             NULL,
@@ -2468,8 +2468,8 @@ tdsaPhyControlRespRcvd(
                             tiIntrEventTypeTaskManagement,
                             tiTMOK,
                             CurrentTaskTag );
-      }                  
-    }                          
+      }
+    }
 
   }
   else
@@ -2499,9 +2499,9 @@ tdsaPhyControlRespRcvd(
                             tiIntrEventTypeTaskManagement,
                             tiTMFailed,
                             CurrentTaskTag );
-      }                          
-    }                          
-   
+      }
+    }
+
   }
 #endif
   return;
@@ -2519,7 +2519,7 @@ tdsaPhyControlRespRcvd(
 *  \param  agRoot:          Pointer to chip/driver Instance.
 *  \param  oneDeviceData:   Pointer to the device
 *
-*  \return: 
+*  \return:
 *
 *          None
 *
@@ -2530,13 +2530,13 @@ tdsaPhyControlRespRcvd(
   Currently, we allocate tdAbortIORequestBody.
 */
 osGLOBAL void
-ttdsaAbortAll( 
+ttdsaAbortAll(
              tiRoot_t                   *tiRoot,
              agsaRoot_t                 *agRoot,
              tdsaDeviceData_t           *oneDeviceData
              )
 {
-  agsaIORequest_t     *agAbortIORequest = agNULL;  
+  agsaIORequest_t     *agAbortIORequest = agNULL;
   tdIORequestBody_t   *tdAbortIORequestBody = agNULL;
   bit32               PhysUpper32;
   bit32               PhysLower32;
@@ -2544,10 +2544,10 @@ ttdsaAbortAll(
   void                *osMemHandle;
 
   TI_DBG3(("tdsaAbortAll: start\n"));
-  
+
   TI_DBG3(("tdsaAbortAll: did %d\n", oneDeviceData->id));
-  
-  
+
+
   /* allocating agIORequest for abort itself */
   memAllocStatus = ostiAllocMemory(
                                    tiRoot,
@@ -2565,42 +2565,42 @@ ttdsaAbortAll(
     TI_DBG1(("tdsaAbortAll: ostiAllocMemory failed...\n"));
     return;
   }
-      
+
   if (tdAbortIORequestBody == agNULL)
   {
     /* let os process IO */
     TI_DBG1(("tdsaAbortAll: ostiAllocMemory returned NULL tdAbortIORequestBody\n"));
     return;
   }
-  
+
   /* setup task management structure */
   tdAbortIORequestBody->IOType.InitiatorTMIO.osMemHandle = osMemHandle;
   /* setting callback */
   /* not needed; it is already set to be ossaSSPAbortCB() */
   tdAbortIORequestBody->IOCompletionFunc = ttdssIOAbortedHandler;
-  
+
   tdAbortIORequestBody->tiDevHandle = (tiDeviceHandle_t *)&(oneDeviceData->tiDeviceHandle);
-  
+
   /* initialize agIORequest */
   agAbortIORequest = &(tdAbortIORequestBody->agIORequest);
   agAbortIORequest->osData = (void *) tdAbortIORequestBody;
-  agAbortIORequest->sdkData = agNULL; /* LL takes care of this */    
-  
+  agAbortIORequest->sdkData = agNULL; /* LL takes care of this */
+
   /* SSPAbort */
-  saSSPAbort(agRoot, 
+  saSSPAbort(agRoot,
              agAbortIORequest,
              0,
              oneDeviceData->agDevHandle,
              1, /* abort all */
              agNULL,
-             agNULL 	     
+             agNULL
              );
   return;
 }
 #endif /* TARGET_DRIVER */
 
 
-osGLOBAL void 
+osGLOBAL void
 tdsaDeregisterDevicesInPort(
                 tiRoot_t             *tiRoot,
                 tdsaPortContext_t    *onePortContext
@@ -2611,7 +2611,7 @@ tdsaDeregisterDevicesInPort(
   tdsaDeviceData_t  *oneDeviceData = agNULL;
   tdList_t          *DeviceListList;
   agsaRoot_t        *agRoot = agNULL;
-  
+
   agRoot = &(tdsaAllShared->agRootNonInt);
 
   TI_DBG1(("tdsaDeregisterDevicesInPort: start\n"));
@@ -2636,16 +2636,16 @@ tdsaDeregisterDevicesInPort(
       else
       {
         TI_DBG1(("tdsaDeregisterDevicesInPort: keeping\n"));
-        oneDeviceData->registered = agTRUE;      
-      }	
+        oneDeviceData->registered = agTRUE;
+      }
      }
     DeviceListList = DeviceListList->flink;
   }
-    
+
   TI_DBG3(("tdsaDeregisterDevicesInPort: end\n"));
-  
+
   return;
-}  							
+}
 
 /******************** for debugging only ***************************/
 osGLOBAL void
@@ -2707,13 +2707,13 @@ tdssPrintSASIdentify(
     TI_DBG6(("SASID->sasAddressHi 0x%x\n", SA_IDFRM_GET_SAS_ADDRESSHI(id)));
     TI_DBG6(("SASID->sasAddressLo 0x%x\n", SA_IDFRM_GET_SAS_ADDRESSLO(id)));
     TI_DBG6(("SASID->phyIdentifier 0x%x\n", id->phyIdentifier));
-    
+
   }
-  
+
   return;
 }
 
-osGLOBAL void 
+osGLOBAL void
 tdsaInitTimerHandler(
                      tiRoot_t  *tiRoot,
                      void      *timerData
@@ -2815,7 +2815,7 @@ print_tdlist_blink(tdList_t *hdr, int flag)
   do
   {
     /* data structure type variable = (data structure type, file name, header of the tdList) */
-#ifdef REMOVED      
+#ifdef REMOVED
     if (flag == 1)
     {
       ele1 = TDLIST_OBJECT_BASE(tdsaPortContext_t, FreeLink, hdr_tmp1);
@@ -2825,8 +2825,8 @@ print_tdlist_blink(tdList_t *hdr, int flag)
       ele1 = TDLIST_OBJECT_BASE(tdsaPortContext_t, MainLink, hdr_tmp1);
     }
     TI_DBG6(("blist ele %d\n", ele1->id));
-#endif    
-    
+#endif
+
     hdr_tmp1 = hdr_tmp1->blink;
   } while (hdr_tmp1 != hdr);
 }
@@ -2867,7 +2867,7 @@ tdsaSingleThreadedEnter(tiRoot_t *ptiRoot, bit32 queueId)
   tiroot = ptiRoot->tdData;
 
   offset = tiroot->tdsaAllShared.MaxNumLLLocks + tiroot->tdsaAllShared.MaxNumOSLocks;
-  
+
   ostiSingleThreadedEnter(ptiRoot, queueId + offset);
 }
 
@@ -2876,12 +2876,12 @@ tdsaSingleThreadedLeave(tiRoot_t *ptiRoot, bit32 queueId)
 {
   tdsaRoot_t * tiroot = agNULL;
   bit32 offset = 0;
-  
+
   TD_ASSERT(ptiRoot,"ptiRoot");
   tiroot = ptiRoot->tdData;
 
   offset = tiroot->tdsaAllShared.MaxNumLLLocks + tiroot->tdsaAllShared.MaxNumOSLocks;
-  
+
   ostiSingleThreadedLeave(ptiRoot, queueId + offset);
 }
 

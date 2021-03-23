@@ -4,7 +4,7 @@
  * Author: Archie Cobbs <archie@freebsd.org>
  * Copyright (c) 2000 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -15,7 +15,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -142,7 +142,7 @@ fail:
 			SMBUS METHODS
 ********************************************************************/
 
-int 
+int
 ichsmb_callback(device_t dev, int index, void *data)
 {
 	int smb_error = 0;
@@ -379,7 +379,7 @@ ichsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 		DBG("%02x: %02x %02x %02x %02x %02x %02x %02x %02x"
 		    "  %c%c%c%c%c%c%c%c", (p - (u_char *)buf),
 		    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
-		    DISP(p[0]), DISP(p[1]), DISP(p[2]), DISP(p[3]), 
+		    DISP(p[0]), DISP(p[1]), DISP(p[2]), DISP(p[3]),
 		    DISP(p[4]), DISP(p[5]), DISP(p[6]), DISP(p[7]));
 	    }
 	}
@@ -448,7 +448,7 @@ ichsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 		DBG("%02x: %02x %02x %02x %02x %02x %02x %02x %02x"
 		    "  %c%c%c%c%c%c%c%c", (p - (u_char *)buf),
 		    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
-		    DISP(p[0]), DISP(p[1]), DISP(p[2]), DISP(p[3]), 
+		    DISP(p[0]), DISP(p[1]), DISP(p[2]), DISP(p[3]),
 		    DISP(p[4]), DISP(p[5]), DISP(p[6]), DISP(p[7]));
 	    }
 	}
@@ -686,7 +686,7 @@ ichsmb_detach(device_t dev)
 	device_delete_child(dev, sc->smb);
 	ichsmb_release_resources(sc);
 	mtx_destroy(&sc->mutex);
-	
+
 	return 0;
 }
 

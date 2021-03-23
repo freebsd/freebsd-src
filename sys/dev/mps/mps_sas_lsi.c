@@ -205,7 +205,7 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 	mps_dprint(sc, MPS_EVENT, "(%d)->(%s) Working on  Event: [%x]\n",
 			event_count++,__func__,fw_event->event);
 	switch (fw_event->event) {
-	case MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST: 
+	case MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST:
 	{
 		MPI2_EVENT_DATA_SAS_TOPOLOGY_CHANGE_LIST *data;
 		MPI2_EVENT_SAS_TOPO_PHY_ENTRY *phy;
@@ -232,7 +232,7 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 				}
 				break;
 			case MPI2_EVENT_SAS_TOPO_RC_TARG_NOT_RESPONDING:
-				mpssas_prepare_remove(sassc,le16toh( 
+				mpssas_prepare_remove(sassc,le16toh(
 					phy->AttachedDevHandle));
 				break;
 			case MPI2_EVENT_SAS_TOPO_RC_PHY_CHANGED:
@@ -321,7 +321,7 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 						    le16toh(element->VolDevHandle));
 						break;
 					}
-					
+
 					targ = &sassc->targets[id];
 					targ->handle = 0x0;
 					targ->encl_slot = 0x0;
@@ -342,9 +342,9 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 				 */
 				targ = mpssas_find_target_by_handle(sassc, 0,
 				    element->PhysDiskDevHandle);
-				if (targ == NULL) 
+				if (targ == NULL)
 					break;
-				
+
 				/*
 				 * Set raid component flags only if it is not
 				 * WD. OR WrapDrive with
@@ -352,14 +352,14 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 				 * NVRAM
 				 */
 				if((!sc->WD_available) ||
-				((sc->WD_available && 
+				((sc->WD_available &&
 				(sc->WD_hide_expose == MPS_WD_HIDE_ALWAYS)) ||
 				(sc->WD_valid_config && (sc->WD_hide_expose ==
 				MPS_WD_HIDE_IF_VOLUME)))) {
 					targ->flags |= MPS_TARGET_FLAGS_RAID_COMPONENT;
 				}
 				mpssas_rescan_target(sc, targ);
-				
+
 				break;
 			case MPI2_EVENT_IR_CHANGE_RC_PD_DELETED:
 				/*
@@ -423,7 +423,7 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 					mpssas_prepare_volume_remove(sassc, event_data->
 							VolDevHandle);
 					break;
-		 
+
 				case MPI2_RAID_VOL_STATE_ONLINE:
 				case MPI2_RAID_VOL_STATE_DEGRADED:
 				case MPI2_RAID_VOL_STATE_OPTIMAL:
@@ -493,14 +493,14 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 				case MPI2_RAID_PD_STATE_REBUILDING:
 				case MPI2_RAID_PD_STATE_OPTIMAL:
 				case MPI2_RAID_PD_STATE_HOT_SPARE:
-					targ = mpssas_find_target_by_handle(sassc, 0, 
+					targ = mpssas_find_target_by_handle(sassc, 0,
 							event_data->PhysDiskDevHandle);
 					if (targ) {
 						if(!sc->WD_available) {
 							targ->flags |= MPS_TARGET_FLAGS_RAID_COMPONENT;
 							printf("%s %d: Found Target for handle 0x%x.  \n",
 							__func__, __LINE__ , event_data->PhysDiskDevHandle);
-						} else if ((sc->WD_available && 
+						} else if ((sc->WD_available &&
 							(sc->WD_hide_expose == MPS_WD_HIDE_ALWAYS)) ||
         						(sc->WD_valid_config && (sc->WD_hide_expose ==
         						MPS_WD_HIDE_IF_VOLUME))) {
@@ -508,13 +508,13 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 							printf("%s %d: WD: Found Target for handle 0x%x.  \n",
 							__func__, __LINE__ , event_data->PhysDiskDevHandle);
 						}
- 					}  		
+ 					}
 				break;
 				case MPI2_RAID_PD_STATE_OFFLINE:
 				case MPI2_RAID_PD_STATE_NOT_CONFIGURED:
 				case MPI2_RAID_PD_STATE_NOT_COMPATIBLE:
 				default:
-					targ = mpssas_find_target_by_handle(sassc, 0, 
+					targ = mpssas_find_target_by_handle(sassc, 0,
 							event_data->PhysDiskDevHandle);
 					if (targ) {
 						targ->flags |= ~MPS_TARGET_FLAGS_RAID_COMPONENT;
@@ -701,7 +701,7 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 	 * in the topology.
 	 */
 	id = MPS_MAP_BAD_ID;
-	if (sc->use_phynum != -1) 
+	if (sc->use_phynum != -1)
 		id = mps_mapping_get_tid(sc, sas_address, handle);
 	if (id == MPS_MAP_BAD_ID) {
 		if ((sc->use_phynum == 0)
@@ -742,7 +742,7 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 
 	targ->devinfo = device_info;
 	targ->devname = le32toh(config_page.DeviceName.High);
-	targ->devname = (targ->devname << 32) | 
+	targ->devname = (targ->devname << 32) |
 	    le32toh(config_page.DeviceName.Low);
 	targ->encl_handle = le16toh(config_page.EnclosureHandle);
 	targ->encl_slot = le16toh(config_page.Slot);
@@ -860,7 +860,7 @@ mpssas_get_sas_address_for_sata_disk(struct mps_softc *sc,
 			}
 		}
 	} while (((rc && (rc != EWOULDBLOCK)) ||
-	    	 (ioc_status && 
+	    	 (ioc_status &&
 		  (ioc_status != MPI2_IOCSTATUS_SCSI_PROTOCOL_ERROR))
 	       || sas_status) && (try_count < 5));
 
@@ -973,7 +973,7 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
  		/*
  		 * If the request returns an error then we need to do a diag
  		 * reset
- 		 */ 
+ 		 */
  		mps_dprint(sc, MPS_INFO|MPS_FAULT|MPS_MAPPING,
 		    "Request for SATA PASSTHROUGH page completed with error %d\n",
 		    error);
@@ -1071,7 +1071,7 @@ out:
 }
 
 /**
- * mpssas_SSU_to_SATA_devices 
+ * mpssas_SSU_to_SATA_devices
  * @sc: per adapter object
  * @howto: mast of RB_* bits for how we're rebooting
  *
@@ -1129,7 +1129,7 @@ mpssas_SSU_to_SATA_devices(struct mps_softc *sc, int howto)
 
 			mps_dprint(sc, MPS_INFO, "Sending StopUnit: path %s "
 			    "handle %d\n", path_str, target->handle);
-			
+
 			/*
 			 * Issue a START STOP UNIT command for the target.
 			 * Increment the SSU counter to be used to count the

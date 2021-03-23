@@ -228,7 +228,7 @@ ath_keyset(struct ath_softc *sc, struct ieee80211vap *vap,
 
 	/*
 	 * XXX TODO: check this:
-	 * 
+	 *
 	 * Group keys on hardware that supports multicast frame
 	 * key search should only be done in adhoc/hostap mode,
 	 * not STA mode.

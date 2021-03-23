@@ -1,18 +1,18 @@
 /*******************************************************************************
 **
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
-*1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
-*this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution. 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
+*1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
+*this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
 *
 *THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
 *
-*INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-*ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-*SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+*INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+*ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+*SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 *OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 *WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 *THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
@@ -48,7 +48,7 @@ typedef u_int32_t atomic_t;
 #define atomic_sub(n,p)		atomic_subtract_int(p,n)
 
 #define AGSCSI_INIT_XCHG_LEN  sizeof(tiScsiInitiatorRequest_t)
-#define AGSMP_INIT_XCHG_LEN   sizeof(tiSMPFrame_t)  
+#define AGSMP_INIT_XCHG_LEN   sizeof(tiSMPFrame_t)
 #define CMND_DMA_UNMAP( pCard, cmnd )
 
 
@@ -117,7 +117,7 @@ typedef struct _CCB {
   int               scaling_done;
 #endif
 
-#ifdef SUPER_FAST_IO_TEST 
+#ifdef SUPER_FAST_IO_TEST
   agsaIORequest_t      IoContext;
   agsaSASRequestBody_t sasRequestBody;
   u32                  reqType;
@@ -128,7 +128,7 @@ typedef struct _CCB {
   bus_dmamap_t	        CCB_dmamap;
   union ccb           *ccb; /* replacement of struct scsi_cmnd */
   struct agtiapi_softc *pmcsc;
- 
+
 } ccb_t, *pccb_t;
 
 
@@ -172,14 +172,14 @@ typedef struct ag_dek_kek_map_s {
 /*
 ** There is no LUN filed for the device structure.
 ** The reason is if the device is a single lun device, it
-** will be lun 0.  If is a multi-lun device such as EMC 
+** will be lun 0.  If is a multi-lun device such as EMC
 ** or Galaxi, only one device structure is associated with
 ** the device since only one device handler is provided.
 */
 typedef struct _ag_device {
-//#ifdef HOTPLUG_SUPPORT 
+//#ifdef HOTPLUG_SUPPORT
   /* used for hot-plug, temporarily either in new or removed devices list */
-  LINK_NODE           devLink;  
+  LINK_NODE           devLink;
 //#endif
   U32                 targetId;
   U32                 flags;
@@ -202,7 +202,7 @@ typedef struct _ag_device {
 } ag_device_t;
 
 
-/*      
+/*
 ** Use an array of these structures to map from assigned
 ** device target id (which is the index into the array) to
 ** the entry in the bd_devlist.
@@ -212,7 +212,7 @@ typedef struct _ag_device {
 ** entry is the "no mapping" entry -- used for initialization
 ** and to indicate an inactive entry.
 */
-typedef struct _ag_tgt_map { 
+typedef struct _ag_tgt_map {
   U16      devListIndex;
   U16      flags;
   U08      targetName[AGTIAPI_MAX_NAME];
@@ -237,7 +237,7 @@ typedef struct _ag_slr_map {
 // Use a list of these structures to hold target-WWN
 // mapping assignments on the boot line during driver
 // loading.
-typedef struct _ag_mapping_s 
+typedef struct _ag_mapping_s
 {
   struct _ag_mapping_s *next;
   U16                   targetId;
@@ -320,8 +320,8 @@ struct agtiapi_softc {
   U32                 timeoutTicks;
   U32                 portCount;          // portal count
   U32                 SimQFrozen;         // simq frozen state
-  U32                 devq_flag;      //device busy flag 
-  U32                 dev_scan;           //device ready 
+  U32                 devq_flag;      //device busy flag
+  U32                 dev_scan;           //device ready
   pccb_t              ccbSendHead;        // CCB send list head
   pccb_t              ccbSendTail;        // CCB send list tail
   pccb_t              ccbDoneHead;        // CCB done list head

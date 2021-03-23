@@ -65,7 +65,7 @@ nf10bmac_probe_fdt(device_t dev)
 		return (ENXIO);
 
 	if (ofw_bus_is_compatible(dev, "netfpag10g,nf10bmac")) {
-		device_set_desc(dev, "NetFPGA-10G Embedded CPU Ethernet Core"); 
+		device_set_desc(dev, "NetFPGA-10G Embedded CPU Ethernet Core");
 		return (BUS_PROBE_DEFAULT);
 	}
 
@@ -99,11 +99,11 @@ nf10bmac_attach_fdt(device_t dev)
 		device_printf(dev, "failed to map memory for CTRL region\n");
 		error = ENXIO;
 		goto err;
-	} 
+	}
 	if (bootverbose)
 		device_printf(sc->nf10bmac_dev, "CTRL region at mem %p-%p\n",
 		    (void *)rman_get_start(sc->nf10bmac_ctrl_res),
-		    (void *)(rman_get_start(sc->nf10bmac_ctrl_res) + 
+		    (void *)(rman_get_start(sc->nf10bmac_ctrl_res) +
 		    rman_get_size(sc->nf10bmac_ctrl_res)));
 
 	/*
@@ -139,11 +139,11 @@ nf10bmac_attach_fdt(device_t dev)
 		device_printf(dev, "failed to map memory for RX FIFO\n");
 		error = ENXIO;
 		goto err;
-	} 
+	}
 	if (bootverbose)
 		device_printf(sc->nf10bmac_dev, "RX FIFO at mem %p-%p\n",
 		    (void *)rman_get_start(sc->nf10bmac_rx_mem_res),
-		    (void *)(rman_get_start(sc->nf10bmac_rx_mem_res) + 
+		    (void *)(rman_get_start(sc->nf10bmac_rx_mem_res) +
 		    rman_get_size(sc->nf10bmac_rx_mem_res)));
 
 	/*
@@ -158,11 +158,11 @@ nf10bmac_attach_fdt(device_t dev)
 		device_printf(dev, "failed to map memory for INTR region\n");
 		error = ENXIO;
 		goto err;
-	} 
+	}
 	if (bootverbose)
 		device_printf(sc->nf10bmac_dev, "INTR region at mem %p-%p\n",
 		    (void *)rman_get_start(sc->nf10bmac_intr_res),
-		    (void *)(rman_get_start(sc->nf10bmac_intr_res) + 
+		    (void *)(rman_get_start(sc->nf10bmac_intr_res) +
 		    rman_get_size(sc->nf10bmac_intr_res)));
 
 	/* (Optional) RX and TX IRQ. */
@@ -189,7 +189,7 @@ static device_method_t nf10bmac_methods_fdt[] = {
 	DEVMETHOD(device_attach,	nf10bmac_attach_fdt),
 	DEVMETHOD(device_detach,	nf10bmac_detach_dev),
 
-	DEVMETHOD_END   
+	DEVMETHOD_END
 };
 
 static driver_t nf10bmac_driver_fdt = {

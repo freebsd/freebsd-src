@@ -630,7 +630,7 @@ acpi_cpu_add_child(device_t dev, u_int order, const char *name, int unit)
 	return (NULL);
 
     resource_list_init(&ad->ad_rl);
-    
+
     child = device_add_child_ordered(dev, order, name, unit);
     if (child != NULL)
 	device_set_ivars(child, ad);
@@ -739,7 +739,7 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
     sc->cpu_non_c3 = sc->cpu_cx_count;
     sc->cpu_cx_count++;
 
-    /* 
+    /*
      * The spec says P_BLK must be 6 bytes long.  However, some systems
      * use it to indicate a fractional set of features present so we
      * take 5 as C2.  Some may also have a value of 7 to indicate
@@ -747,7 +747,7 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
      * "only" C1-C3 is not a hardship.
      */
     if (sc->cpu_p_blk_len < 5)
-	return; 
+	return;
 
     /* Validate and allocate resources for C2 (P_LVL2). */
     gas.SpaceId = ACPI_ADR_SPACE_SYSTEM_IO;
@@ -1051,13 +1051,13 @@ acpi_cpu_cx_list(struct acpi_cpu_softc *sc)
 	    sc->cpu_cx_states[i].trans_lat);
     sbuf_trim(&sb);
     sbuf_finish(&sb);
-}	
+}
 
 static void
 acpi_cpu_startup_cx(struct acpi_cpu_softc *sc)
 {
     acpi_cpu_cx_list(sc);
-    
+
     SYSCTL_ADD_STRING(&sc->cpu_sysctl_ctx,
 		      SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)),
 		      OID_AUTO, "cx_supported", CTLFLAG_RD,

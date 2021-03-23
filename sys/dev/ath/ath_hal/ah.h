@@ -217,7 +217,7 @@ typedef enum {
 	HAL_CAP_TXTSTAMP_PREC	= 250,	/* tx desc tstamp precision (bits) */
 } HAL_CAPABILITY_TYPE;
 
-/* 
+/*
  * "States" for setting the LED.  These correspond to
  * the possible 802.11 operational states and there may
  * be a many-to-one mapping between these states and the
@@ -851,7 +851,7 @@ typedef struct {
 
 /*
  * Like HAL_BEACON_STATE but for non-station mode setup.
- * NB: see above flag definitions for bt_intval. 
+ * NB: see above flag definitions for bt_intval.
  */
 typedef struct {
 	uint32_t	bt_intval;		/* beacon interval+flags */
@@ -1275,9 +1275,9 @@ struct ath_hal {
 				HAL_BOOL incTrigLevel);
 	int	  __ahdecl(*ah_setupTxQueue)(struct ath_hal *, HAL_TX_QUEUE,
 				const HAL_TXQ_INFO *qInfo);
-	HAL_BOOL  __ahdecl(*ah_setTxQueueProps)(struct ath_hal *, int q, 
+	HAL_BOOL  __ahdecl(*ah_setTxQueueProps)(struct ath_hal *, int q,
 				const HAL_TXQ_INFO *qInfo);
-	HAL_BOOL  __ahdecl(*ah_getTxQueueProps)(struct ath_hal *, int q, 
+	HAL_BOOL  __ahdecl(*ah_getTxQueueProps)(struct ath_hal *, int q,
 				HAL_TXQ_INFO *qInfo);
 	HAL_BOOL  __ahdecl(*ah_releaseTxQueue)(struct ath_hal *ah, u_int q);
 	HAL_BOOL  __ahdecl(*ah_resetTxQueue)(struct ath_hal *ah, u_int q);
@@ -1548,7 +1548,7 @@ struct ath_hal {
 				HAL_ANT_COMB_CONFIG *);
 };
 
-/* 
+/*
  * Check the PCI vendor ID and device ID against Atheros' values
  * and return a printable description for any Atheros hardware.
  * AH_NULL is returned if the ID's do not describe Atheros hardware.

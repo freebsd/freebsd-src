@@ -93,8 +93,8 @@ struct oce_mbx_ctx;
 typedef struct oce_rdma_info {
 	int size;
 	void (*close)(void);
-	int (*mbox_post)(struct oce_softc *sc, 
-			 struct oce_mbx *mbx, 
+	int (*mbox_post)(struct oce_softc *sc,
+			 struct oce_mbx *mbx,
 			 struct oce_mbx_ctx *mbxctx);
 	void (*common_req_hdr_init)(struct mbx_hdr *hdr,
 				    uint8_t dom,

@@ -218,7 +218,7 @@ aacraid_print_aif(struct aac_softc *sc, struct aac_aif_command *aif)
 			device_printf(sc->aac_dev, "(ContainerEvent) "
 				      "container %d event "
 				      "%d\n", aif->data.EN.data.ECE.container,
-				      aif->data.EN.data.ECE.eventType);	
+				      aif->data.EN.data.ECE.eventType);
 			break;
 		case AifEnFileSystemChange:	/* File system changed */
 			device_printf(sc->aac_dev, "(FileSystemChange)\n");
@@ -254,7 +254,7 @@ aacraid_print_aif(struct aac_softc *sc, struct aac_aif_command *aif)
 		case AifEnAddContainer:		/* A new container was
 						 * created. */
 			device_printf(sc->aac_dev, "(AddContainer)\n");
-			break;		
+			break;
 		case AifEnDeleteContainer:	/* A container was deleted. */
 			device_printf(sc->aac_dev, "(DeleteContainer)\n");
 			break;
@@ -304,7 +304,7 @@ aacraid_print_aif(struct aac_softc *sc, struct aac_aif_command *aif)
 			status = "running"; break;
 		default:
 			status = "unknown status"; break;
-		}		
+		}
 
 		device_printf(sc->aac_dev, "JobProgress (%d) - %s (%d, %d)\n",
 			      aif->seqNumber, status,
@@ -460,16 +460,16 @@ const unsigned long aacraid_debug_flags = /* Variable to setup with above flags.
 /*			HBA_FLAGS_DBG_FUNCTION_ENTRY_B |	*/
 			HBA_FLAGS_DBG_FUNCTION_EXIT_B |
 			HBA_FLAGS_DBG_ERROR_B |
-			HBA_FLAGS_DBG_INIT_B |			
+			HBA_FLAGS_DBG_INIT_B |
 /*			HBA_FLAGS_DBG_OS_COMMANDS_B |		*/
 /*			HBA_FLAGS_DBG_SCAN_B |			*/
 /*			HBA_FLAGS_DBG_COALESCE_B |		*/
 /*			HBA_FLAGS_DBG_IOCTL_COMMANDS_B |	*/
 /*			HBA_FLAGS_DBG_SYNC_COMMANDS_B |		*/
-			HBA_FLAGS_DBG_COMM_B |			
+			HBA_FLAGS_DBG_COMM_B |
 /*			HBA_FLAGS_DBG_AIF_B |			*/
 /*			HBA_FLAGS_DBG_CSMI_COMMANDS_B | 	*/
-			HBA_FLAGS_DBG_DEBUG_B | 		
+			HBA_FLAGS_DBG_DEBUG_B |
 /*			HBA_FLAGS_DBG_FLAGS_MASK | 		*/
 0;
 
@@ -488,7 +488,7 @@ int aacraid_get_fw_debug_buffer(struct aac_softc *sc)
 		MonDriverBufferPhysAddrLow = AAC_GET_MAILBOX(sc, 1);
 		MonDriverBufferPhysAddrHigh = AAC_GET_MAILBOX(sc, 2);
 		MonDriverBufferSize = AAC_GET_MAILBOX(sc, 3);
-		MonDriverHeaderSize = AAC_GET_MAILBOX(sc, 4); 
+		MonDriverHeaderSize = AAC_GET_MAILBOX(sc, 4);
 		if (MonDriverBufferSize) {
 			unsigned long Offset = MonDriverBufferPhysAddrLow
 				- rman_get_start(sc->aac_regs_res1);
@@ -497,8 +497,8 @@ int aacraid_get_fw_debug_buffer(struct aac_softc *sc)
 			 * See if the address is already mapped in and if so set it up
 			 * from the base address
 			 */
-			if ((MonDriverBufferPhysAddrHigh == 0) && 
-				(Offset + MonDriverBufferSize < 
+			if ((MonDriverBufferPhysAddrHigh == 0) &&
+				(Offset + MonDriverBufferSize <
 				rman_get_size(sc->aac_regs_res1))) {
 				sc->DebugOffset = Offset;
 				sc->DebugHeaderSize = MonDriverHeaderSize;
@@ -525,7 +525,7 @@ void aacraid_fw_printf(struct aac_softc *sc, unsigned long PrintFlags, const cha
 	char PrintBuffer_P[PRINT_BUFFER_SIZE];
 	unsigned long PrintType;
 
-	PrintType = PrintFlags & 
+	PrintType = PrintFlags &
 		~(HBA_FLAGS_DBG_KERNEL_PRINT_B|HBA_FLAGS_DBG_FW_PRINT_B);
 	if (((PrintType!=0) && (sc!=NULL) && ((sc->DebugFlags & PrintType)==0))
 		|| ((sc!=NULL) && (sc->DebugFlags

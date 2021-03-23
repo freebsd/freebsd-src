@@ -2025,7 +2025,7 @@ pnpmss_attach(device_t dev)
 	    mss->bd_flags |= BD_F_MSS_OFFSET;
 	    mss->io_rid = 2;
 	    break;
-	    
+
 #if 0
 	case 0x0000561e:			/* GRV0000 */
 	    mss->bd_flags |= BD_F_MSS_OFFSET;

@@ -770,8 +770,8 @@ gpioc_read(struct cdev *dev, struct uio *uio, int ioflag)
 	return (err);
 }
 
-static int 
-gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag, 
+static int
+gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
     struct thread *td)
 {
 	device_t bus;
@@ -854,20 +854,20 @@ gpioc_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int fflag,
 		bcopy(arg, &req, sizeof(req));
 		res = GPIO_PIN_GET(sc->sc_pdev, req.gp_pin,
 		    &req.gp_value);
-		dprintf("read pin %d -> %d\n", 
+		dprintf("read pin %d -> %d\n",
 		    req.gp_pin, req.gp_value);
 		bcopy(&req, arg, sizeof(req));
 		break;
 	case GPIOSET:
 		bcopy(arg, &req, sizeof(req));
-		res = GPIO_PIN_SET(sc->sc_pdev, req.gp_pin, 
+		res = GPIO_PIN_SET(sc->sc_pdev, req.gp_pin,
 		    req.gp_value);
-		dprintf("write pin %d -> %d\n", 
+		dprintf("write pin %d -> %d\n",
 		    req.gp_pin, req.gp_value);
 		break;
 	case GPIOTOGGLE:
 		bcopy(arg, &req, sizeof(req));
-		dprintf("toggle pin %d\n", 
+		dprintf("toggle pin %d\n",
 		    req.gp_pin);
 		res = GPIO_PIN_TOGGLE(sc->sc_pdev, req.gp_pin);
 		break;

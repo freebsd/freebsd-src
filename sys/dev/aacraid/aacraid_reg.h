@@ -136,8 +136,8 @@ typedef enum {
 	/* Container Commands */
 	ContainerCommand =		500,
 	ContainerCommand64 =		501,
-	RawIo = 			502,	
-	RawIo2 = 			503,	
+	RawIo = 			502,
+	RawIo2 = 			503,
 
 	/* Cluster Commands */
 	ClusterCommand =		550,
@@ -157,20 +157,20 @@ typedef enum {
 	IsAdapterPaused =		704,
 	SendHostTime =			705,
 	RequestSupplementAdapterInfo =	706,	/* Supp. Info for set in UCC
-						 * use only if supported 
+						 * use only if supported
 						 * (RequestAdapterInfo first) */
 	LastMiscCommand =		707,
-  
-	OnLineDiagnostic =		800,      
-	FduAdapterTest =		801, 
+
+	OnLineDiagnostic =		800,
+	FduAdapterTest =		801,
 	RequestCompatibilityId =	802,
 	AdapterEnvironmentInfo =	803,	/* temp. sensors */
 	NvsramEventLog =		900,
 	ResetNvsramEventLogPointers =	901,
 	EnableEventLog =		902,
 	DisableEventLog =		903,
-	EncryptedKeyTransportFIB=	904,    
-	KeyableFeaturesFIB=		905     
+	EncryptedKeyTransportFIB=	904,
+	KeyableFeaturesFIB=		905
 } AAC_FibCommands;
 
 /*
@@ -223,7 +223,7 @@ typedef enum {
 #define AAC_ERROR_FIB_DEALLOCATION_FAILED	0x08
 
 /*
- * Adapter Init Structure: this is passed to the adapter with the 
+ * Adapter Init Structure: this is passed to the adapter with the
  * AAC_MONKER_INITSTRUCT command to point it at our control structures.
  */
 struct aac_adapter_init {
@@ -257,7 +257,7 @@ struct aac_adapter_init {
 	u_int32_t	MaxIoSize;			/* largest I/O command */
 	u_int32_t	MaxFibSize;			/* largest FIB to adapter */
 	/* ADAPTER_INIT_STRUCT_REVISION_5 begins here */
-	u_int32_t	MaxNumAif;	        /* max number of aif */ 
+	u_int32_t	MaxNumAif;	        /* max number of aif */
 	/* ADAPTER_INIT_STRUCT_REVISION_6 begins here */
 	u_int32_t	HostRRQ_AddrLow;
 	u_int32_t	HostRRQ_AddrHigh;	/* Host RRQ (response queue) for SRC */
@@ -428,7 +428,7 @@ typedef enum {
 	CPU_MIPS,
 	CPU_XSCALE,
 	CPU__last
-} AAC_CpuType;  
+} AAC_CpuType;
 
 typedef enum {
 	CPUI960_JX = 1,
@@ -505,7 +505,7 @@ typedef enum {
  * XXX the aac-2622 with no battery present reports PLATFORM_BAT_OPT_PRESENT
  */
 typedef enum
-{ 
+{
 	PLATFORM_BAT_REQ_PRESENT = 1,	/* BATTERY REQUIRED AND PRESENT */
 	PLATFORM_BAT_REQ_NOTPRESENT,	/* BATTERY REQUIRED AND NOT PRESENT */
 	PLATFORM_BAT_OPT_PRESENT,	/* BATTERY OPTIONAL AND PRESENT */
@@ -513,9 +513,9 @@ typedef enum
 	PLATFORM_BAT_NOT_SUPPORTED	/* BATTERY NOT SUPPORTED */
 } AAC_BatteryPlatform;
 
-/* 
+/*
  * options supported by this board
- * there has to be a one to one mapping of these defines and the ones in 
+ * there has to be a one to one mapping of these defines and the ones in
  * fsaapi.h, search for FSA_SUPPORT_SNAPSHOT
  */
 #define AAC_SUPPORTED_SNAPSHOT		0x01
@@ -531,8 +531,8 @@ typedef enum
 #define AAC_SUPPORTED_SGMAP_HOST64	0x400
 #define AAC_SUPPORTED_ALARM		0x800
 #define AAC_SUPPORTED_NONDASD		0x1000
-#define AAC_SUPPORTED_SCSI_MANAGED	0x2000	
-#define AAC_SUPPORTED_RAID_SCSI_MODE	0x4000	
+#define AAC_SUPPORTED_SCSI_MANAGED	0x2000
+#define AAC_SUPPORTED_RAID_SCSI_MODE	0x4000
 #define AAC_SUPPORTED_SUPPLEMENT_ADAPTER_INFO	0x10000
 #define AAC_SUPPORTED_NEW_COMM		0x20000
 #define AAC_SUPPORTED_64BIT_ARRAYSIZE	0x40000
@@ -542,7 +542,7 @@ typedef enum
 #define AAC_SUPPORTED_NEW_COMM_TYPE3	0x40000000  /* Series 8 new comm */
 #define AAC_SUPPORTED_NEW_COMM_TYPE4	0x80000000  /* Series 9 new comm */
 
-/* 
+/*
  * Structure used to respond to a RequestAdapterInfo fib.
  */
 struct aac_adapter_info {
@@ -584,7 +584,7 @@ struct aac_adapter_info {
  */
 #define AAC_SUPPL_SUPPORTED_JBOD	0x08000000
 
-/* 
+/*
  * Structure used to respond to a RequestSupplementAdapterInfo fib.
  */
 struct vpd_info {
@@ -685,7 +685,7 @@ struct aac_supplement_adapter_info {
 #define AAC_FLASH_UPD_FAILED	0x00008000
 
 /*
- * Data types relating to control and monitoring of the NVRAM/WriteCache 
+ * Data types relating to control and monitoring of the NVRAM/WriteCache
  * subsystem.
  */
 
@@ -860,7 +860,7 @@ typedef enum {
 	AifEnGeneric = 1,		/* Generic notification */
 	AifEnTaskComplete,		/* Task has completed */
 	AifEnConfigChange,		/* Adapter config change occurred */
-	AifEnContainerChange,		/* Adapter specific container 
+	AifEnContainerChange,		/* Adapter specific container
 					 * configuration change */
 	AifEnDeviceFailure,		/* SCSI device failed */
 	AifEnMirrorFailover,		/* Mirror failover started */
@@ -978,7 +978,7 @@ struct aac_AifEventNotify {
 /*
  * Adapter Initiated FIB command structures. Start with the adapter
  * initiated FIBs that really come from the adapter, and get responded
- * to by the host. 
+ * to by the host.
  */
 #define AAC_AIF_REPORT_MAX_SIZE 64
 
@@ -1604,7 +1604,7 @@ enum {
 /*
  * The adapter can request the host print a message by setting the
  * DB_PRINTF flag in DOORBELL0.  The driver responds by collecting the
- * message from the printf buffer, clearing the DB_PRINTF flag in 
+ * message from the printf buffer, clearing the DB_PRINTF flag in
  * DOORBELL0 and setting it in DOORBELL1.
  * (ODBR and IDBR respectively for the i960Rx adapters)
  */

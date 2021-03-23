@@ -32,7 +32,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -105,7 +105,7 @@ struct bhndb_region		*bhndb_find_resource_region(
 struct bhndb_dw_alloc		*bhndb_dw_find_resource(
 				     struct bhndb_resources *dr,
 				     struct resource *r);
-				     
+
 struct bhndb_dw_alloc		*bhndb_dw_find_mapping(
 				     struct bhndb_resources *br,
 				     bhnd_addr_t addr, bhnd_size_t size);
@@ -152,7 +152,7 @@ struct bhndb_dw_rentry {
 };
 
 /**
- * A dynamic register window allocation record. 
+ * A dynamic register window allocation record.
  */
 struct bhndb_dw_alloc {
 	const struct bhndb_regwin	*win;		/**< window definition */
@@ -217,7 +217,7 @@ struct bhndb_resources {
 /**
  * Returns true if the all dynamic windows are marked free, false
  * otherwise.
- * 
+ *
  * @param br The resource state to check.
  */
 static inline bool
@@ -230,7 +230,7 @@ bhndb_dw_all_free(struct bhndb_resources *br)
 
 /**
  * Find the next free dynamic window region in @p br.
- * 
+ *
  * @param br The resource state to search.
  */
 static inline struct bhndb_dw_alloc *
@@ -253,7 +253,7 @@ bhndb_dw_next_free(struct bhndb_resources *br)
 
 /**
  * Returns true if a dynamic window allocation is marked as free.
- * 
+ *
  * @param br The resource state owning @p dwa.
  * @param dwa The dynamic window allocation record to be checked.
  */

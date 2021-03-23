@@ -449,7 +449,7 @@ struct lge_tx_desc {
 
 #define LGE_INC(x, y)		(x) = (x + 1) % y
 #define LGE_FRAGCNT_1		(1<<16)
-#define LGE_FRAGCNT_10		(10<<16)  
+#define LGE_FRAGCNT_10		(10<<16)
 #define LGE_FRAGCNT(x)		(x<<16)
 #define LGE_RXBYTES(x)		(x->lge_ctl & 0xFFFF)
 #define LGE_RXTAIL(x)		\

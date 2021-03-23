@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
  * Copyright (c) 2010 Broadcom Corporation
- * 
+ *
  * Portions of this file were derived from the bcmdevs.h header contributed by
  * Broadcom to Android's bcmdhd driver module, and the pcicfg.h header
  * distributed with Broadcom's initial brcm80211 Linux driver release.
@@ -17,7 +17,7 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -26,12 +26,12 @@
 
 /*
  * Common PCI/PCIE Bridge Configuration Registers.
- * 
+ *
  * = MAJOR CORE REVISIONS =
- * 
+ *
  * There have been four revisions to the BAR0 memory mappings used
  * in BHND PCI/PCIE bridge cores:
- * 
+ *
  * == PCI_V0 ==
  * Applies to:
  * -  PCI (cid=0x804, revision <= 12)
@@ -42,7 +42,7 @@
  * 	[0x1000+0x0800]	fixed	SPROM shadow
  * 	[0x1800+0x0E00]	fixed	pci core device registers
  *	[0x1E00+0x0200]	fixed	pci core siba config registers
- * 
+ *
  * == PCI_V1 ==
  * Applies to:
  * -  PCI (cid=0x804, revision >= 13)
@@ -83,13 +83,13 @@
  *	[0x0000+0x????]	fixed	ARM tightly-coupled memory (TCM).
  *				While fullmac chipsets provided a fixed
  *				4KB mapping, newer devices will vary.
- * 
+ *
  * = MINOR CORE REVISIONS =
- * 
+ *
  * == PCI Cores Revision >= 3 ==
  * - Mapped GPIO CSRs into the PCI config space. Refer to
  *   BHND_PCI_GPIO_*.
- * 
+ *
  * == PCI/PCIE Cores Revision >= 14 ==
  * - Mapped the clock CSR into the PCI config space. Refer to
  *   BHND_PCI_CLK_CTL_ST
@@ -118,12 +118,12 @@
 
 /**
  * Number of times to retry writing to a PCI window address register.
- * 
+ *
  * On siba(4) devices, it's possible that writing a PCI window register may
  * not succeed; it's necessary to immediately read the configuration register
  * and retry if not set to the desired value.
  */
-#define	BHNDB_PCI_BARCTRL_WRITE_RETRY	50	
+#define	BHNDB_PCI_BARCTRL_WRITE_RETRY	50
 
 /* PCI_V0  */
 #define	BHNDB_PCI_V0_BAR0_WIN0_CONTROL	0x80	/* backplane address space accessed by BAR0/WIN0 */

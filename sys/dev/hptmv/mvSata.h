@@ -66,7 +66,7 @@
 #define MV_SATA_GEN_2(x)  1 /* gen2E impiles gen2 */
 #define MV_SATA_GEN_2E(x) 1
 
-#else 
+#else
 #error "Which IC do you support?"
 #endif
 
@@ -81,7 +81,7 @@
 #if defined(RR2310) || defined(RR1740) || defined(RR2210) || defined (RR2522)
 #define MV_SATA_CHANNELS_NUM					4
 #define MV_SATA_UNITS_NUM						1
-#else 
+#else
 #define MV_SATA_CHANNELS_NUM					8
 #define MV_SATA_UNITS_NUM						2
 #endif
@@ -118,28 +118,28 @@
 
 
 /* Typedefs    */
-typedef enum mvUdmaType  
+typedef enum mvUdmaType
 {
 	MV_UDMA_TYPE_READ, MV_UDMA_TYPE_WRITE
 } MV_UDMA_TYPE;
 
-typedef enum mvFlushType 
+typedef enum mvFlushType
 {
-	MV_FLUSH_TYPE_CALLBACK, MV_FLUSH_TYPE_NONE 
+	MV_FLUSH_TYPE_CALLBACK, MV_FLUSH_TYPE_NONE
 } MV_FLUSH_TYPE;
 
-typedef enum mvCompletionType  
+typedef enum mvCompletionType
 {
 	MV_COMPLETION_TYPE_NORMAL, MV_COMPLETION_TYPE_ERROR,
-	MV_COMPLETION_TYPE_ABORT 
+	MV_COMPLETION_TYPE_ABORT
 } MV_COMPLETION_TYPE;
 
-typedef enum mvEventType 
+typedef enum mvEventType
 {
-	MV_EVENT_TYPE_ADAPTER_ERROR, MV_EVENT_TYPE_SATA_CABLE 
+	MV_EVENT_TYPE_ADAPTER_ERROR, MV_EVENT_TYPE_SATA_CABLE
 } MV_EVENT_TYPE;
 
-typedef enum mvEdmaMode 
+typedef enum mvEdmaMode
 {
 	MV_EDMA_MODE_QUEUED,
 	MV_EDMA_MODE_NOT_QUEUED,
@@ -186,13 +186,13 @@ typedef MV_BOOLEAN (* HPTLIBAPI mvSataCommandCompletionCallBack_t)(struct mvSata
 														 MV_U32,
 											    struct mvStorageDevRegisters SS_SEG*);
 
-typedef enum mvQueuedCommandType 
+typedef enum mvQueuedCommandType
 {
 	MV_QUEUED_COMMAND_TYPE_UDMA,
 	MV_QUEUED_COMMAND_TYPE_NONE_UDMA
 } MV_QUEUED_COMMAND_TYPE;
 
-typedef struct mvUdmaCommandParams 
+typedef struct mvUdmaCommandParams
 {
 	MV_UDMA_TYPE readWrite;
 	MV_BOOLEAN   isEXT;
@@ -205,7 +205,7 @@ typedef struct mvUdmaCommandParams
 	MV_VOID_PTR  commandId;
 } MV_UDMA_COMMAND_PARAMS;
 
-typedef struct mvNoneUdmaCommandParams 
+typedef struct mvNoneUdmaCommandParams
 {
   	MV_NON_UDMA_PROTOCOL protocolType;
 	MV_BOOLEAN  isEXT;
@@ -233,7 +233,7 @@ typedef struct mvQueueCommandInfo
 } MV_QUEUE_COMMAND_INFO;
 
 /* The following structure is for the Core Driver internal usage */
-typedef struct mvQueuedCommandEntry 
+typedef struct mvQueuedCommandEntry
 {
     MV_BOOLEAN   isFreeEntry;
     MV_U8        commandTag;
@@ -243,12 +243,12 @@ typedef struct mvQueuedCommandEntry
 } MV_QUEUED_COMMAND_ENTRY;
 
 /* The following structures are part of the Core Driver API */
-typedef struct mvSataChannel 
+typedef struct mvSataChannel
 {
 	/* Fields set by Intermediate Application Layer */
 	MV_U8                       channelNumber;
 	MV_BOOLEAN                  waitingForInterrupt;
-	MV_BOOLEAN                  lba48Address; 
+	MV_BOOLEAN                  lba48Address;
 	MV_BOOLEAN                  maxReadTransfer;
 	struct mvDmaRequestQueueEntry SS_SEG *requestQueue;
 	struct mvDmaResponseQueueEntry SS_SEG *responseQueue;
@@ -290,15 +290,15 @@ typedef struct mvSataAdapter
 	MV_U32            intTimeThre[MV_SATA_UNITS_NUM];
 	MV_BOOLEAN        (* HPTLIBAPI mvSataEventNotify)(struct mvSataAdapter *,
 										   MV_EVENT_TYPE,
-										   MV_U32, MV_U32); 
+										   MV_U32, MV_U32);
 	MV_SATA_CHANNEL   *sataChannel[MV_SATA_CHANNELS_NUM];
-	MV_U32            pciCommand; 
+	MV_U32            pciCommand;
 	MV_U32            pciSerrMask;
 	MV_U32            pciInterruptMask;
 
 	/* Fields set by CORE driver */
 	MV_OS_SEMAPHORE   semaphore;
-	MV_U32			  mainMask;	
+	MV_U32			  mainMask;
 	MV_OS_SEMAPHORE	  interruptsMaskSem;
     MV_BOOLEAN        implementA0Workarounds;
     MV_BOOLEAN        implement50XXB0Workarounds;
@@ -372,7 +372,7 @@ MV_BOOLEAN HPTLIBAPI mvSataGetAdapterStatus(MV_SATA_ADAPTER *pAdapter,
 
 MV_U32  HPTLIBAPI mvSataReadReg(MV_SATA_ADAPTER *pAdapter, MV_U32 regOffset);
 
-MV_VOID HPTLIBAPI mvSataWriteReg(MV_SATA_ADAPTER *pAdapter, MV_U32 regOffset,  
+MV_VOID HPTLIBAPI mvSataWriteReg(MV_SATA_ADAPTER *pAdapter, MV_U32 regOffset,
 					   MV_U32 regValue);
 
 MV_VOID HPTLIBAPI mvEnableAutoFlush(MV_VOID);
@@ -400,7 +400,7 @@ MV_BOOLEAN HPTLIBAPI mvSataEnableChannelDma(MV_SATA_ADAPTER *pAdapter,
 MV_BOOLEAN HPTLIBAPI mvSataDisableChannelDma(MV_SATA_ADAPTER *pAdapter,
 								   MV_U8 channelIndex);
 
-MV_BOOLEAN HPTLIBAPI mvSataFlushDmaQueue(MV_SATA_ADAPTER *pAdapter, MV_U8 channelIndex, 
+MV_BOOLEAN HPTLIBAPI mvSataFlushDmaQueue(MV_SATA_ADAPTER *pAdapter, MV_U8 channelIndex,
 							   MV_FLUSH_TYPE flushType);
 
 MV_U8 HPTLIBAPI mvSataNumOfDmaCommands(MV_SATA_ADAPTER *pAdapter, MV_U8 channelIndex);

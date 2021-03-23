@@ -72,7 +72,7 @@ int os_dma_mem_alloc(pqisrc_softstate_t *softs, struct dma_mem *dma_mem)
 		goto err_mem;
 	}
 
-	if((ret = bus_dmamap_load(dma_mem->dma_tag, dma_mem->dma_map, 
+	if((ret = bus_dmamap_load(dma_mem->dma_tag, dma_mem->dma_map,
 		dma_mem->virt_addr, dma_mem->size,
 		os_dma_map, &dma_mem->dma_addr, 0)) != 0) {
 		DBG_ERR("can't load DMA memory for required \
@@ -87,7 +87,7 @@ int os_dma_mem_alloc(pqisrc_softstate_t *softs, struct dma_mem *dma_mem)
 
 err_load:
 	if(dma_mem->virt_addr)
-		bus_dmamem_free(dma_mem->dma_tag, dma_mem->virt_addr, 
+		bus_dmamem_free(dma_mem->dma_tag, dma_mem->virt_addr,
 				dma_mem->dma_map);
 err_mem:
 	if(dma_mem->dma_tag)
@@ -164,6 +164,6 @@ void os_resource_free(pqisrc_softstate_t *softs)
 	if (softs->os_specific.pqi_regs_res0 != NULL)
                 bus_release_resource(softs->os_specific.pqi_dev,
 						SYS_RES_MEMORY,
-				softs->os_specific.pqi_regs_rid0, 
+				softs->os_specific.pqi_regs_rid0,
 				softs->os_specific.pqi_regs_res0);
 }

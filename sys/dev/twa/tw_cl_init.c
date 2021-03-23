@@ -389,7 +389,7 @@ start_ctlr:
 /*
  * Function name:	tw_cli_start_ctlr
  * Description:		Establishes a logical connection with the controller.
- *			Determines whether or not the driver is compatible 
+ *			Determines whether or not the driver is compatible
  *                      with the firmware on the controller, before proceeding
  *                      to work with it.
  *
@@ -518,7 +518,7 @@ tw_cli_start_ctlr(struct tw_cli_ctlr_context *ctlr)
 
 	/* Drain the AEN queue */
 	if ((error = tw_cli_drain_aen_queue(ctlr)))
-		/* 
+		/*
 		 * We will just print that we couldn't drain the AEN queue.
 		 * There's no need to bail out.
 		 */
@@ -625,7 +625,7 @@ tw_cli_init_connection(struct tw_cli_ctlr_context *ctlr,
 	struct tw_cli_req_context		*req;
 	struct tw_cl_command_init_connect	*init_connect;
 	TW_INT32				error = TW_OSL_EBUSY;
-    
+
 	tw_cli_dbg_printf(3, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 
 	/* Get a request packet. */

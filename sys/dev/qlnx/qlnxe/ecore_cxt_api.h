@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@ struct ecore_cxt_info {
 	void			*p_cxt;
 	u32			iid;
 	enum protocol_type	type;
-}; 
+};
 
 #define MAX_TID_BLOCKS			512
 struct ecore_tid_mem {
@@ -57,7 +57,7 @@ struct ecore_tid_mem {
 * @return enum _ecore_status_t
 */
 enum _ecore_status_t ecore_cxt_get_cid_info(struct ecore_hwfn *p_hwfn,
-					    struct ecore_cxt_info *p_info); 
+					    struct ecore_cxt_info *p_info);
 
 /**
 * @brief ecore_cxt_get_tid_mem_info
@@ -68,6 +68,6 @@ enum _ecore_status_t ecore_cxt_get_cid_info(struct ecore_hwfn *p_hwfn,
 * @return enum _ecore_status_t
 */
 enum _ecore_status_t ecore_cxt_get_tid_mem_info(struct ecore_hwfn *p_hwfn,
-						struct ecore_tid_mem *p_info); 
+						struct ecore_tid_mem *p_info);
 
 #endif

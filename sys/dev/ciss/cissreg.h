@@ -692,7 +692,7 @@ struct ciss_bmic_id_table {
     u_int8_t	battery_pic_rev;         /* BBWC PIC revision                   */
 /*
  * Below here I have no documentation on the rest of this data structure.  It is
- * inferred from the opensource cciss_vol_status application.  I assume that this 
+ * inferred from the opensource cciss_vol_status application.  I assume that this
  * data strucutre is 512 bytes in total size, do not exceed it.
  */
     u_int8_t	bDdffVersion[4];         /* DDFF update engine version          */

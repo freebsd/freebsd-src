@@ -74,7 +74,7 @@ MALLOC_DEFINE(M_BHND_NVRAM, "bhnd_nvram", "bhnd nvram data");
 /*
  * CRC-8 lookup table used to checksum SPROM and NVRAM data via
  * bhnd_nvram_crc8().
- * 
+ *
  * Generated with following parameters:
  * 	polynomial:	CRC-8 (x^8 + x^7 + x^6 + x^4 + x^2 + 1)
  * 	reflected bits:	false
@@ -109,7 +109,7 @@ const uint8_t bhnd_nvram_crc8_tab[] = {
 
 /**
  * Return a human readable name for @p type.
- * 
+ *
  * @param type The type to query.
  */
 const char *
@@ -172,9 +172,9 @@ bhnd_nvram_type_name(bhnd_nvram_type type)
 
 /**
  * Return true if @p type is a signed integer type, false otherwise.
- * 
+ *
  * Will return false for all array types.
- * 
+ *
  * @param type The type to query.
  */
 bool
@@ -217,7 +217,7 @@ bhnd_nvram_is_signed_type(bhnd_nvram_type type)
 
 /**
  * Return true if @p type is an unsigned integer type, false otherwise.
- * 
+ *
  * @param type The type to query.
  *
  * @return Will return false for all array types.
@@ -236,7 +236,7 @@ bhnd_nvram_is_unsigned_type(bhnd_nvram_type type)
 /**
  * Return true if bhnd_nvram_is_signed_type() or bhnd_nvram_is_unsigned_type()
  * returns true for @p type.
- * 
+ *
  * @param type The type to query.
  */
 bool
@@ -278,7 +278,7 @@ bhnd_nvram_is_int_type(bhnd_nvram_type type)
 
 /**
  * Return true if @p type is an array type, false otherwise.
- * 
+ *
  * @param type The type to query.
  */
 bool
@@ -321,7 +321,7 @@ bhnd_nvram_is_array_type(bhnd_nvram_type type)
 /**
  * If @p type is an array type, return the base element type. Otherwise,
  * returns @p type.
- * 
+ *
  * @param type The type to query.
  */
 bhnd_nvram_type
@@ -419,7 +419,7 @@ bhnd_nvram_raw_type(bhnd_nvram_type type)
 /**
  * Return the size, in bytes, of a single element of @p type, or 0
  * if @p type is a variable-width type.
- * 
+ *
  * @param type	The type to query.
  */
 size_t
@@ -471,7 +471,7 @@ bhnd_nvram_type_width(bhnd_nvram_type type)
 
 /**
  * Return the native host alignment for values of @p type.
- * 
+ *
  * @param type The type to query.
  */
 size_t
@@ -562,11 +562,11 @@ bhnd_nvram_find_vardefn_compare(const void *key, const void *rhs)
 
 /**
  * Find and return the variable definition for @p varname, if any.
- * 
+ *
  * @param varname variable name
- * 
+ *
  * @retval bhnd_nvram_vardefn If a valid definition for @p varname is found.
- * @retval NULL If no definition for @p varname is found. 
+ * @retval NULL If no definition for @p varname is found.
  */
 const struct bhnd_nvram_vardefn *
 bhnd_nvram_find_vardefn(const char *varname)
@@ -577,7 +577,7 @@ bhnd_nvram_find_vardefn(const char *varname)
 
 /**
  * Return the variable ID for a variable definition.
- * 
+ *
  * @param defn Variable definition previously returned by
  * bhnd_nvram_find_vardefn() or bhnd_nvram_get_vardefn().
  */
@@ -595,11 +595,11 @@ bhnd_nvram_get_vardefn_id(const struct bhnd_nvram_vardefn *defn)
 /**
  * Return the variable definition with the given @p id, or NULL
  * if no such variable ID is defined.
- * 
+ *
  * @param id variable ID.
  *
  * @retval bhnd_nvram_vardefn If a valid definition for @p id is found.
- * @retval NULL If no definition for @p id is found. 
+ * @retval NULL If no definition for @p id is found.
  */
 const struct bhnd_nvram_vardefn *
 bhnd_nvram_get_vardefn(size_t id)
@@ -612,13 +612,13 @@ bhnd_nvram_get_vardefn(size_t id)
 
 /**
  * Validate an NVRAM variable name.
- * 
+ *
  * Scans for special characters (path delimiters, value delimiters, path
  * alias prefixes), returning false if the given name cannot be used
  * as a relative NVRAM key.
  *
  * @param name A relative NVRAM variable name to validate.
- * 
+ *
  * @retval true If @p name is a valid relative NVRAM key.
  * @retval false If @p name should not be used as a relative NVRAM key.
  */
@@ -665,7 +665,7 @@ bhnd_nvram_validate_name(const char *name)
  * Parses the string in the optionally NUL-terminated @p str to as an integer
  * value of @p otype, accepting any integer format supported by the standard
  * strtoul().
- * 
+ *
  * - Any leading whitespace in @p str -- as defined by the equivalent of
  *   calling isspace_l() with an ASCII locale -- will be ignored.
  * - A @p str may be prefixed with a single optional '+' or '-' sign denoting
@@ -674,7 +674,7 @@ bhnd_nvram_validate_name(const char *name)
  *   base 16 integer follows.
  * - An octal @p str may include a '0' prefix, denoting that an octal integer
  *   follows.
- * 
+ *
  * If a @p base of 0 is specified, the base will be determined according
  * to the string's initial prefix, as per strtoul()'s documented behavior.
  *
@@ -955,16 +955,16 @@ bhnd_nvram_parse_int(const char *str, size_t maxlen,  u_int base,
 /**
  * Trim leading path (pci/1/1) or path alias (0:) prefix from @p name, if any,
  * returning a pointer to the start of the relative variable name.
- * 
+ *
  * @par Examples
- * 
+ *
  * - "/foo"		-> "foo"
  * - "dev/pci/foo"	-> "foo"
  * - "0:foo"		-> "foo"
  * - "foo"		-> "foo"
- * 
+ *
  * @param name The string to be trimmed.
- * 
+ *
  * @return A pointer to the start of the relative variable name in @p name.
  */
 const char *
@@ -994,7 +994,7 @@ bhnd_nvram_trim_path_name(const char *name)
 
 /**
  * Parse a 'name=value' string.
- * 
+ *
  * @param env The string to be parsed.
  * @param env_len The length of @p envp.
  * @param delim The delimiter used in @p envp. This will generally be '='.
@@ -1006,7 +1006,7 @@ bhnd_nvram_trim_path_name(const char *name)
  * may be NULL.
  * @param[out] value_len On success, the length of the value substring. This
  * argument may be NULL.
- * 
+ *
  * @retval 0 success
  * @retval EINVAL if parsing @p envp fails.
  */
@@ -1098,7 +1098,7 @@ bhnd_nvram_trim_field(const char **inp, size_t ilen, char delim)
 	while (plen > 0) {
 		if (!bhnd_nv_isspace(*(sp + plen - 1)))
 			break;
-		
+
 		plen--;
 	}
 

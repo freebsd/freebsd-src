@@ -209,4 +209,4 @@ extern int32_t ocs_xport_control(ocs_xport_t *xport, ocs_xport_ctrl_e cmd, ...);
 extern int32_t ocs_xport_status(ocs_xport_t *xport, ocs_xport_status_e cmd, ocs_xport_stats_t *result);
 extern void ocs_xport_free(ocs_xport_t *xport);
 
-#endif 
+#endif

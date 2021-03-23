@@ -213,7 +213,7 @@ qlnxr_register_device(qlnxr_dev_t *dev)
         ibdev->query_device = qlnxr_query_device;
         ibdev->query_port = qlnxr_query_port;
         ibdev->modify_port = qlnxr_modify_port;
-        
+
 	ibdev->alloc_ucontext = qlnxr_alloc_ucontext;
 	ibdev->dealloc_ucontext = qlnxr_dealloc_ucontext;
         /* mandatory to support user space verbs consumer. */
@@ -240,7 +240,7 @@ qlnxr_register_device(qlnxr_dev_t *dev)
         ibdev->get_dma_mr = qlnxr_get_dma_mr;
         ibdev->dereg_mr = qlnxr_dereg_mr;
         ibdev->reg_user_mr = qlnxr_reg_user_mr;
-        
+
 #if __FreeBSD_version >= 1102000
 	ibdev->alloc_mr = qlnxr_alloc_mr;
 	ibdev->map_mr_sg = qlnxr_map_mr_sg;
@@ -260,7 +260,7 @@ qlnxr_register_device(qlnxr_dev_t *dev)
         ibdev->dma_device = &dev->pdev->dev;
 
 	ibdev->get_link_layer = qlnxr_link_layer;
-        
+
 	if (QLNX_IS_IWARP(dev)) {
                 iwcm = kmalloc(sizeof(*iwcm), GFP_KERNEL);
 
@@ -418,7 +418,7 @@ qlnxr_setup_irqs(struct qlnxr_dev *dev)
 
 			goto qlnxr_setup_irqs_err;
 		}
-			
+
                 if (bus_setup_intr(dev->ha->pci_dev,
                                 dev->cnq_array[i].irq,
                                 (INTR_TYPE_NET | INTR_MPSAFE),
@@ -910,7 +910,7 @@ qlnxr_add_sgid(struct qlnxr_dev *dev, union ib_gid *new_sgid)
 					*new_sgid);
 			return false;
 		}
-	}	
+	}
 	if (i == QLNXR_MAX_SGID) {
 		QL_DPRINT12(dev->ha, "didn't find an empty entry in sgid_tbl\n");
 	}
@@ -1063,8 +1063,8 @@ qlnxr_register_inet(struct qlnxr_dev *dev)
 		QL_DPRINT12(dev->ha, "Failed to register inetaddr\n");
 		return ret;
 	}
-	/* TODO : add for CONFIG_IPV6) */	
-	return 0;	
+	/* TODO : add for CONFIG_IPV6) */
+	return 0;
 }
 
 static int

@@ -116,7 +116,7 @@ static void	amr_startup(void *arg);
  * Command wrappers
  */
 static int	amr_query_controller(struct amr_softc *sc);
-static void	*amr_enquiry(struct amr_softc *sc, size_t bufsize, 
+static void	*amr_enquiry(struct amr_softc *sc, size_t bufsize,
 			     u_int8_t cmd, u_int8_t cmdsub, u_int8_t cmdqual, int *status);
 static void	amr_completeio(struct amr_command *ac);
 static int	amr_support_ext_cdb(struct amr_softc *sc);
@@ -302,7 +302,7 @@ amr_startup(void *arg)
     struct amr_softc	*sc = (struct amr_softc *)arg;
     struct amr_logdrive	*dr;
     int			i, error;
-    
+
     debug_called(1);
 
     /* get up-to-date drive information */
@@ -324,17 +324,17 @@ amr_startup(void *arg)
 		dr->al_sectors = 32;
 	    }
 	    dr->al_cylinders = dr->al_size / (dr->al_heads * dr->al_sectors);
-	    
+
 	    dr->al_disk = device_add_child(sc->amr_dev, NULL, -1);
 	    if (dr->al_disk == 0)
 		device_printf(sc->amr_dev, "device_add_child failed\n");
 	    device_set_ivars(dr->al_disk, dr);
 	}
     }
-    
+
     if ((error = bus_generic_attach(sc->amr_dev)) != 0)
 	device_printf(sc->amr_dev, "bus_generic_attach returned %d\n", error);
-    
+
     /* mark controller back up */
     sc->amr_state &= ~AMR_STATE_SHUTDOWN;
 
@@ -455,9 +455,9 @@ amr_del_ld(struct amr_softc *sc, int drv_no, int status)
 static int
 amr_prepare_ld_delete(struct amr_softc *sc)
 {
-    
+
     debug_called(1);
-    if (sc->ld_del_supported == 0) 
+    if (sc->ld_del_supported == 0)
 	return(ENOIOCTL);
 
     sc->amr_state |= AMR_STATE_QUEUE_FRZN;
@@ -465,7 +465,7 @@ amr_prepare_ld_delete(struct amr_softc *sc)
 
     /* 5 minutes for the all the commands to be flushed.*/
     tsleep((void *)&sc->ld_del_supported, PCATCH | PRIBIO,"delete_logical_drv",hz * 60 * 1);
-    if ( sc->amr_busyslots )	
+    if ( sc->amr_busyslots )
 	return(ENOIOCTL);
 
     return 0;
@@ -531,7 +531,7 @@ shutdown_out:
  * card.  Linux accidentally allows this by allocating a 4KB
  * buffer for the transfer anyways, but it then throws it away
  * without copying it back to the app.
- * 
+ *
  * The amr(4) firmware relies on this feature.  In fact, it assumes
  * the buffer is always a power of 2 up to a max of 64k.  There is
  * also at least one case where it assumes a buffer less than 16k is
@@ -620,7 +620,7 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	}
 
 	if (ali.mbox[0] == AMR_CMD_PASS) {
-	    mtx_lock(&sc->amr_list_lock); 
+	    mtx_lock(&sc->amr_list_lock);
 	    while ((ac = amr_alloccmd(sc)) == NULL)
 		msleep(sc, &sc->amr_list_lock, PPAUSE, "amrioc", hz);
 	    mtx_unlock(&sc->amr_list_lock);
@@ -692,7 +692,7 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 		    break;
 	    }
 
-	    mtx_lock(&sc->amr_list_lock); 
+	    mtx_lock(&sc->amr_list_lock);
 	    while ((ac = amr_alloccmd(sc)) == NULL)
 		msleep(sc, &sc->amr_list_lock, PPAUSE, "amrioc", hz);
 
@@ -705,7 +705,7 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	    ac->ac_flags = ac_flags;
 
 	    error = amr_wait_command(ac);
-	    mtx_unlock(&sc->amr_list_lock); 
+	    mtx_unlock(&sc->amr_list_lock);
 	    if (error)
 		break;
 
@@ -860,7 +860,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 
     /* Allocate this now before the mutex gets held */
 
-    mtx_lock(&sc->amr_list_lock); 
+    mtx_lock(&sc->amr_list_lock);
     while ((ac = amr_alloccmd(sc)) == NULL)
 	msleep(sc, &sc->amr_list_lock, PPAUSE, "amrioc", hz);
 
@@ -911,7 +911,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 
     /* run the command */
     error = amr_wait_command(ac);
-    mtx_unlock(&sc->amr_list_lock); 
+    mtx_unlock(&sc->amr_list_lock);
     if (error)
 	goto out;
 
@@ -970,10 +970,10 @@ amr_query_controller(struct amr_softc *sc)
 	debug(2,"supports extended CDBs.");
     }
 
-    /* 
-     * Try to issue an ENQUIRY3 command 
+    /*
+     * Try to issue an ENQUIRY3 command
      */
-    if ((aex = amr_enquiry(sc, 2048, AMR_CMD_CONFIG, AMR_CONFIG_ENQ3, 
+    if ((aex = amr_enquiry(sc, 2048, AMR_CMD_CONFIG, AMR_CONFIG_ENQ3,
 			   AMR_CONFIG_ENQ3_SOLICITED_FULL, &status)) != NULL) {
 	/*
 	 * Fetch current state of logical drives.
@@ -1040,7 +1040,7 @@ amr_query_controller(struct amr_softc *sc)
     for (; ldrv < AMR_MAXLD; ldrv++)
 	sc->amr_drive[ldrv].al_size = 0xffffffff;
 
-    /* 
+    /*
      * Cap the maximum number of outstanding I/Os.  AMI's Linux driver doesn't trust
      * the controller's reported value, and lockups have been seen when we do.
      */
@@ -1064,7 +1064,7 @@ amr_enquiry(struct amr_softc *sc, size_t bufsize, u_int8_t cmd, u_int8_t cmdsub,
 
     error = 1;
     result = NULL;
-    
+
     /* get ourselves a command buffer */
     mtx_lock(&sc->amr_list_lock);
     ac = amr_alloccmd(sc);
@@ -1077,11 +1077,11 @@ amr_enquiry(struct amr_softc *sc, size_t bufsize, u_int8_t cmd, u_int8_t cmdsub,
     /* set command flags */
 
     ac->ac_flags |= AMR_CMD_PRIORITY | AMR_CMD_DATAIN;
-    
+
     /* point the command at our data */
     ac->ac_data = result;
     ac->ac_length = bufsize;
-    
+
     /* build the command proper */
     mbox = (u_int8_t *)&ac->ac_mailbox;		/* XXX want a real structure for this? */
     mbox[0] = cmd;
@@ -1094,7 +1094,7 @@ amr_enquiry(struct amr_softc *sc, size_t bufsize, u_int8_t cmd, u_int8_t cmdsub,
 	goto out;
     error = ac->ac_status;
     *status = ac->ac_status;
-    
+
  out:
     mtx_lock(&sc->amr_list_lock);
     if (ac != NULL)
@@ -1125,7 +1125,7 @@ amr_flush(struct amr_softc *sc)
 	goto out;
     /* set command flags */
     ac->ac_flags |= AMR_CMD_PRIORITY | AMR_CMD_DATAOUT;
-    
+
     /* build the command proper */
     ac->ac_mailbox.mb_command = AMR_CMD_FLUSH;
 
@@ -1133,7 +1133,7 @@ amr_flush(struct amr_softc *sc)
     if (sc->amr_poll_command(ac))
 	goto out;
     error = ac->ac_status;
-    
+
  out:
     mtx_lock(&sc->amr_list_lock);
     if (ac != NULL)
@@ -1325,7 +1325,7 @@ amr_bio_command(struct amr_softc *sc, struct amr_command **acp)
 	ac->ac_mailbox.mb_lba = bio->bio_pblkno;
 	if ((bio->bio_pblkno + blkcount) > sc->amr_drive[driveno].al_size) {
 	    device_printf(sc->amr_dev,
-			  "I/O beyond end of unit (%lld,%d > %lu)\n", 
+			  "I/O beyond end of unit (%lld,%d > %lu)\n",
 			  (long long)bio->bio_pblkno, blkcount,
 			  (u_long)sc->amr_drive[driveno].al_size);
 	}
@@ -1357,7 +1357,7 @@ amr_wait_command(struct amr_command *ac)
     if ((error = amr_start(ac)) != 0) {
 	return(error);
     }
-    
+
     while ((ac->ac_flags & AMR_CMD_BUSY) && (error != EWOULDBLOCK)) {
 	error = msleep(ac,&sc->amr_list_lock, PRIBIO, "amrwcmd", 0);
     }
@@ -1383,8 +1383,8 @@ amr_std_poll_command(struct amr_command *ac)
 
     count = 0;
     do {
-	/* 
-	 * Poll for completion, although the interrupt handler may beat us to it. 
+	/*
+	 * Poll for completion, although the interrupt handler may beat us to it.
 	 * Note that the timeout here is somewhat arbitrary.
 	 */
 	amr_done(sc);
@@ -1804,7 +1804,7 @@ amr_done(struct amr_softc *sc)
     struct amr_command	*ac;
     struct amr_mailbox	mbox;
     int			i, idx, result;
-    
+
     debug_called(3);
 
     /* See if there's anything for us to do */
@@ -1816,7 +1816,7 @@ amr_done(struct amr_softc *sc)
 	/* poll for a completed command's identifier and status */
 	if (sc->amr_get_work(sc, &mbox)) {
 	    result = 1;
-	    
+
 	    /* iterate over completed commands in this result */
 	    for (i = 0; i < mbox.mb_nstatus; i++) {
 		/* get pointer to busy command */
@@ -1827,7 +1827,7 @@ amr_done(struct amr_softc *sc)
 		if (ac != NULL) {
 		    /* pull the command from the busy index */
 		    amr_freeslot(ac);
-		
+
 		    /* save status for later use */
 		    ac->ac_status = mbox.mb_status;
 		    amr_enqueue_completed(ac, &head);
@@ -1867,15 +1867,15 @@ amr_complete(void *context, ac_qhead_t *head)
 	/* unmap the command's data buffer */
 	amr_unmapcmd(ac);
 
-	/* 
-	 * Is there a completion handler? 
+	/*
+	 * Is there a completion handler?
 	 */
 	if (ac->ac_complete != NULL) {
 	    /* unbusy the command */
 	    ac->ac_flags &= ~AMR_CMD_BUSY;
 	    ac->ac_complete(ac);
-	    
-	    /* 
+
+	    /*
 	     * Is someone sleeping on this one?
 	     */
 	} else {
@@ -1959,7 +1959,7 @@ amr_alloccmd_cluster(struct amr_softc *sc)
     struct amr_command		*ac;
     int				i, nextslot;
 
-    /* 
+    /*
      * If we haven't found the real limit yet, let us have a couple of
      * commands in order to be able to probe.
      */
@@ -2047,7 +2047,7 @@ amr_quartz_submit_command(struct amr_command *ac)
     static struct timeval lastfail;
     static int		curfail;
     int			i = 0;
-  
+
     mtx_lock(&sc->amr_hw_lock);
     while (sc->amr_mailbox->mb_busy && (i++ < 10)) {
         DELAY(1);
@@ -2065,7 +2065,7 @@ amr_quartz_submit_command(struct amr_command *ac)
 	return (EBUSY);
     }
 
-    /* 
+    /*
      * Save the slot number so that we can locate this command when complete.
      * Note that ident = 0 seems to be special, so we don't use it.
      */
@@ -2088,7 +2088,7 @@ amr_std_submit_command(struct amr_command *ac)
     struct amr_softc	*sc = ac->ac_sc;
     static struct timeval lastfail;
     static int		curfail;
-  
+
     mtx_lock(&sc->amr_hw_lock);
     if (AMR_SGET_MBSTAT(sc) & AMR_SMBOX_BUSYFLAG) {
 	mtx_unlock(&sc->amr_hw_lock);
@@ -2101,7 +2101,7 @@ amr_std_submit_command(struct amr_command *ac)
 	return (EBUSY);
     }
 
-    /* 
+    /*
      * Save the slot number so that we can locate this command when complete.
      * Note that ident = 0 seems to be special, so we don't use it.
      */
@@ -2345,7 +2345,7 @@ amr_describe_controller(struct amr_softc *sc)
      * the HP version does it with a leading uppercase character and two
      * binary numbers.
      */
-     
+
     if(ae->ae_adapter.aa_firmware[2] >= 'A' &&
        ae->ae_adapter.aa_firmware[2] <= 'Z' &&
        ae->ae_adapter.aa_firmware[1] <  ' ' &&
@@ -2360,7 +2360,7 @@ amr_describe_controller(struct amr_softc *sc)
     		/* the AMI 438 is a NetRaid 3si in HP-land */
     		prod = "HP NetRaid 3si";
     	}
-    	
+
 	device_printf(sc->amr_dev, "<%s> Firmware %c.%02d.%02d, BIOS %c.%02d.%02d, %dMB RAM\n",
 		      prod, ae->ae_adapter.aa_firmware[2],
 		      ae->ae_adapter.aa_firmware[1],
@@ -2368,12 +2368,12 @@ amr_describe_controller(struct amr_softc *sc)
 		      ae->ae_adapter.aa_bios[2],
 		      ae->ae_adapter.aa_bios[1],
 		      ae->ae_adapter.aa_bios[0],
-		      ae->ae_adapter.aa_memorysize);		
+		      ae->ae_adapter.aa_memorysize);
     } else {
-	device_printf(sc->amr_dev, "<%s> Firmware %.4s, BIOS %.4s, %dMB RAM\n", 
+	device_printf(sc->amr_dev, "<%s> Firmware %.4s, BIOS %.4s, %dMB RAM\n",
 		      prod, ae->ae_adapter.aa_firmware, ae->ae_adapter.aa_bios,
 		      ae->ae_adapter.aa_memorysize);
-    }    	
+    }
     free(ae, M_AMR);
 }
 
@@ -2392,11 +2392,11 @@ amr_dump_blocks(struct amr_softc *sc, int unit, u_int32_t lba, void *data, int b
 	goto out;
     /* set command flags */
     ac->ac_flags |= AMR_CMD_PRIORITY | AMR_CMD_DATAOUT;
-    
+
     /* point the command at our data */
     ac->ac_data = data;
     ac->ac_length = blks * AMR_BLKSIZE;
-    
+
     /* build the command proper */
     ac->ac_mailbox.mb_command 	= AMR_CMD_LWRITE;
     ac->ac_mailbox.mb_blkcount	= blks;
@@ -2407,7 +2407,7 @@ amr_dump_blocks(struct amr_softc *sc, int unit, u_int32_t lba, void *data, int b
     if (sc->amr_poll_command(ac))
 	goto out;
     error = ac->ac_status;
-    
+
  out:
     if (ac != NULL)
 	amr_releasecmd(ac);
@@ -2427,10 +2427,10 @@ amr_printcommand(struct amr_command *ac)
     struct amr_softc	*sc = ac->ac_sc;
     struct amr_sgentry	*sg;
     int			i;
-    
+
     device_printf(sc->amr_dev, "cmd %x  ident %d  drive %d\n",
 		  ac->ac_mailbox.mb_command, ac->ac_mailbox.mb_ident, ac->ac_mailbox.mb_drive);
-    device_printf(sc->amr_dev, "blkcount %d  lba %d\n", 
+    device_printf(sc->amr_dev, "blkcount %d  lba %d\n",
 		  ac->ac_mailbox.mb_blkcount, ac->ac_mailbox.mb_lba);
     device_printf(sc->amr_dev, "virtaddr %p  length %lu\n", ac->ac_data, (unsigned long)ac->ac_length);
     device_printf(sc->amr_dev, "sg physaddr %08x  nsg %d\n",

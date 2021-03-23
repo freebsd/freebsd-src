@@ -265,7 +265,7 @@ nf10bmac_tx_locked(struct nf10bmac_softc *sc, struct mbuf *m)
 		}
 		NF10BMAC_WRITE(sc, NF10BMAC_TX_META, md);
 		bcopy(&sc->nf10bmac_tx_buf[l*sizeof(val)], &val, cl);
-		NF10BMAC_WRITE_BE(sc, NF10BMAC_TX_DATA, val);	
+		NF10BMAC_WRITE_BE(sc, NF10BMAC_TX_DATA, val);
 	}
 
 	/* If anyone is interested give them a copy. */
@@ -413,7 +413,7 @@ nf10bmac_rx_locked(struct nf10bmac_softc *sc)
 			 * log the invlid length "hint".  For now drop the
 			 * packet on the floor and count the error.
 			 */
-			nf10bmac_eat_packet_munch_munch(sc);		
+			nf10bmac_eat_packet_munch_munch(sc);
 			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			m_freem(m);
 			return (0);
@@ -623,7 +623,7 @@ nf10bmac_intr(void *arg)
 	if (ifp->if_capenable & IFCAP_POLLING) {
 		NF10BMAC_UNLOCK(sc);
 		return;
-	} 
+	}
 #endif
 
 	/* NF10BMAC_RX_INTR_DISABLE(sc); */
@@ -697,7 +697,7 @@ nf10bmac_media_change(struct ifnet *ifp __unused)
 
 static void
 nf10bmac_media_status(struct ifnet *ifp __unused, struct ifmediareq *imr)
-{ 
+{
 
 	imr->ifm_status = IFM_AVALID | IFM_ACTIVE;
 	imr->ifm_active = IFM_ETHER | IFM_10G_T | IFM_FDX;
@@ -725,7 +725,7 @@ nf10bmac_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			else
 				nf10bmac_init_locked(sc);
 		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			nf10bmac_stop_locked(sc);  
+			nf10bmac_stop_locked(sc);
 		sc->nf10bmac_if_flags = ifp->if_flags;
 		NF10BMAC_UNLOCK(sc);
 		break;
@@ -800,7 +800,7 @@ nf10bmac_attach(device_t dev)
 
 	/* Setup interface. */
 	ifp = sc->nf10bmac_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {   
+	if (ifp == NULL) {
 		device_printf(dev, "if_alloc() failed\n");
 		error = ENOSPC;
 		goto err;
@@ -872,7 +872,7 @@ err:
 	if (error != 0)
 		nf10bmac_detach(dev);
 
-	return (error);                                                                                                                                                                      
+	return (error);
 }
 
 static int

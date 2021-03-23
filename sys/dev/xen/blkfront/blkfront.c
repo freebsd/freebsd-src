@@ -74,7 +74,7 @@ static void xbd_startio(struct xbd_softc *sc);
 #if 0
 #define DPRINTK(fmt, args...) printf("[XEN] %s:%d: " fmt ".\n", __func__, __LINE__, ##args)
 #else
-#define DPRINTK(fmt, args...) 
+#define DPRINTK(fmt, args...)
 #endif
 
 #define XBD_SECTOR_SHFT		9
@@ -133,7 +133,7 @@ xbd_cm_thaw(struct xbd_softc *sc, struct xbd_command *cm)
 	xbd_thaw(sc, XBDF_NONE);
 }
 
-static inline void 
+static inline void
 xbd_flush_requests(struct xbd_softc *sc)
 {
 	int notify;
@@ -200,7 +200,7 @@ xbd_mksegarray(bus_dma_segment_t *segs, int nsegs,
 		*sg_ref = ref;
 		*sg = (struct blkif_request_segment) {
 			.gref       = ref,
-			.first_sect = fsect, 
+			.first_sect = fsect,
 			.last_sect  = lsect
 		};
 		sg++;
@@ -282,7 +282,7 @@ xbd_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 
 	/*
 	 * If bus dma had to asynchronously call us back to dispatch
-	 * this command, we are no longer executing in the context of 
+	 * this command, we are no longer executing in the context of
 	 * xbd_startio().  Thus we cannot rely on xbd_startio()'s call to
 	 * xbd_flush_requests() to publish this command to the backend
 	 * along with any other commands that it could batch.
@@ -410,7 +410,7 @@ xbd_bio_command(struct xbd_softc *sc)
 
 /*
  * Dequeue buffers and place them in the shared communication ring.
- * Return when no more requests can be accepted or all buffers have 
+ * Return when no more requests can be accepted or all buffers have
  * been queued.
  *
  * Signal XEN once the ring has been filled out.
@@ -453,7 +453,7 @@ xbd_startio(struct xbd_softc *sc)
 		queued++;
 	}
 
-	if (queued != 0) 
+	if (queued != 0)
 		xbd_flush_requests(sc);
 }
 
@@ -520,7 +520,7 @@ xbd_int(void *xsc)
 
 		/*
 		 * Release any hold this command has on future command
-		 * dispatch. 
+		 * dispatch.
 		 */
 		xbd_cm_thaw(sc, cm);
 
@@ -747,7 +747,7 @@ xbd_strategy(struct bio *bp)
 }
 
 /*------------------------------ Ring Management -----------------------------*/
-static int 
+static int
 xbd_alloc_ring(struct xbd_softc *sc)
 {
 	blkif_sring_t *sring;
@@ -1044,14 +1044,14 @@ xbd_instance_create(struct xbd_softc *sc, blkif_sector_t sectors,
 	return error;
 }
 
-static void 
+static void
 xbd_free(struct xbd_softc *sc)
 {
 	int i;
 
 	/* Prevent new requests being issued until we fix things up. */
 	mtx_lock(&sc->xbd_io_lock);
-	sc->xbd_state = XBD_STATE_DISCONNECTED; 
+	sc->xbd_state = XBD_STATE_DISCONNECTED;
 	mtx_unlock(&sc->xbd_io_lock);
 
 	/* Free resources associated with old device channel. */
@@ -1082,12 +1082,12 @@ xbd_free(struct xbd_softc *sc)
 		sc->xbd_shadow = NULL;
 
 		bus_dma_tag_destroy(sc->xbd_io_dmat);
-		
+
 		xbd_initq_cm(sc, XBD_Q_FREE);
 		xbd_initq_cm(sc, XBD_Q_READY);
 		xbd_initq_cm(sc, XBD_Q_COMPLETE);
 	}
-		
+
 	xen_intr_unbind(&sc->xen_intr_handle);
 
 }
@@ -1214,11 +1214,11 @@ xbd_initialize(struct xbd_softc *sc)
 	xenbus_set_state(sc->xbd_dev, XenbusStateInitialised);
 }
 
-/* 
+/*
  * Invoked when the backend is finally 'ready' (and has published
- * the details about the physical device - #sectors, size, etc). 
+ * the details about the physical device - #sectors, size, etc).
  */
-static void 
+static void
 xbd_connect(struct xbd_softc *sc)
 {
 	device_t dev = sc->xbd_dev;
@@ -1399,7 +1399,7 @@ xbd_connect(struct xbd_softc *sc)
 		    sector_size, phys_sector_size);
 	}
 
-	(void)xenbus_set_state(dev, XenbusStateConnected); 
+	(void)xenbus_set_state(dev, XenbusStateConnected);
 
 	/* Kick pending requests. */
 	mtx_lock(&sc->xbd_io_lock);
@@ -1429,7 +1429,7 @@ xbd_closing(device_t dev)
 		sc->xbd_disk = NULL;
 	}
 
-	xenbus_set_state(dev, XenbusStateClosed); 
+	xenbus_set_state(dev, XenbusStateClosed);
 }
 
 /*---------------------------- NewBus Entrypoints ----------------------------*/
@@ -1622,31 +1622,31 @@ xbd_backend_changed(device_t dev, XenbusState backend_state)
 		} else {
 			xbd_closing(dev);
 		}
-		break;	
+		break;
 	}
 }
 
 /*---------------------------- NewBus Registration ---------------------------*/
-static device_method_t xbd_methods[] = { 
-	/* Device interface */ 
-	DEVMETHOD(device_probe,         xbd_probe), 
-	DEVMETHOD(device_attach,        xbd_attach), 
-	DEVMETHOD(device_detach,        xbd_detach), 
-	DEVMETHOD(device_shutdown,      bus_generic_shutdown), 
-	DEVMETHOD(device_suspend,       xbd_suspend), 
-	DEVMETHOD(device_resume,        xbd_resume), 
+static device_method_t xbd_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,         xbd_probe),
+	DEVMETHOD(device_attach,        xbd_attach),
+	DEVMETHOD(device_detach,        xbd_detach),
+	DEVMETHOD(device_shutdown,      bus_generic_shutdown),
+	DEVMETHOD(device_suspend,       xbd_suspend),
+	DEVMETHOD(device_resume,        xbd_resume),
 
 	/* Xenbus interface */
 	DEVMETHOD(xenbus_otherend_changed, xbd_backend_changed),
 
-	{ 0, 0 } 
-}; 
+	{ 0, 0 }
+};
 
-static driver_t xbd_driver = { 
-	"xbd", 
-	xbd_methods, 
-	sizeof(struct xbd_softc),                      
-}; 
-devclass_t xbd_devclass; 
+static driver_t xbd_driver = {
+	"xbd",
+	xbd_methods,
+	sizeof(struct xbd_softc),
+};
+devclass_t xbd_devclass;
 
-DRIVER_MODULE(xbd, xenbusb_front, xbd_driver, xbd_devclass, 0, 0); 
+DRIVER_MODULE(xbd, xenbusb_front, xbd_driver, xbd_devclass, 0, 0);

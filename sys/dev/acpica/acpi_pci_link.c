@@ -652,7 +652,7 @@ acpi_pci_link_add_reference(device_t dev, int index, device_t pcib, int slot,
 		device_printf(pcib, "Unable to read PCI bus number");
 		panic("PCI bridge without a bus number");
 	}
-		
+
 	/* Bump the reference count. */
 	ACPI_SERIAL_BEGIN(pci_link);
 	link = acpi_pci_link_lookup(dev, index);

@@ -31,7 +31,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -208,7 +208,7 @@ bhnd_pmu_disable_regulator(device_t dev, bhnd_pmu_regulator regulator)
  * @param	clock	The clock to be queried for transition latency.
  * @param[out]	latency	On success, the transition latency of @p clock in
  *			microseconds.
- * 
+ *
  * @retval 0 success
  * @retval ENODEV If the transition latency for @p clock is not available.
  */
@@ -224,7 +224,7 @@ bhnd_pmu_get_clock_latency(device_t dev, bhnd_clock clock, u_int *latency)
  * @param dev PMU device.
  * @param clock The clock to be queried.
  * @param[out] freq On success, the frequency of @p clock in Hz.
- * 
+ *
  * @retval 0 success
  * @retval ENODEV If the frequency for @p clock is not available.
  */

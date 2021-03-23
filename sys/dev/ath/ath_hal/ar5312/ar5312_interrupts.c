@@ -38,7 +38,7 @@
 HAL_BOOL
 ar5312IsInterruptPending(struct ath_hal *ah)
 {
-        /* 
+        /*
          * Some platforms trigger our ISR before applying power to
          * the card.  For the 5312, this is always true.
          */

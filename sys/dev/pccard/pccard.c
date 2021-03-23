@@ -126,7 +126,7 @@ static void	pccard_child_detached(device_t parent, device_t dev);
 static int      pccard_filter(void *arg);
 static void	pccard_intr(void *arg);
 static int	pccard_setup_intr(device_t dev, device_t child,
-		    struct resource *irq, int flags, driver_filter_t *filt, 
+		    struct resource *irq, int flags, driver_filter_t *filt,
 		    driver_intr_t *intr, void *arg, void **cookiep);
 static int	pccard_teardown_intr(device_t dev, device_t child,
 		    struct resource *r, void *cookie);
@@ -1259,12 +1259,12 @@ pccard_intr(void *arg)
 {
 	struct pccard_function *pf = (struct pccard_function*) arg;
 
-	pf->intr_handler(pf->intr_handler_arg);	
+	pf->intr_handler(pf->intr_handler_arg);
 }
 
 static int
 pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
-    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, 
+    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg,
     void **cookiep)
 {
 	struct pccard_softc *sc = PCCARD_SOFTC(dev);

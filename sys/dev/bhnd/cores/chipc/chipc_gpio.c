@@ -700,13 +700,13 @@ chipc_gpio_pin_update(struct chipc_gpio_softc *sc,
 /**
  * Verify that @p flags are valid for use with @p pin_num, and on success,
  * return the pin mode described by @p flags in @p mode.
- * 
+ *
  * @param	sc	GPIO driver instance state.
  * @param	pin_num	The pin number to configure.
  * @param	flags	The pin flags to be validated.
  * @param[out]	mode	On success, will be populated with the GPIO pin mode
  *			defined by @p flags.
- * 
+ *
  * @retval 0		success
  * @retval EINVAL	if @p flags are invalid.
  */
@@ -794,7 +794,7 @@ chipc_gpio_check_flags(struct chipc_gpio_softc *sc, uint32_t pin_num,
 
 /**
  * Return the current pin mode for @p pin_num.
- * 
+ *
  * @param sc		GPIO driver instance state.
  * @param pin_num	The pin number to query.
  */

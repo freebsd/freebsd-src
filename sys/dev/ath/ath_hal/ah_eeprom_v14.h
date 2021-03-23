@@ -179,7 +179,7 @@ typedef struct BaseEepHeader {
 	uint8_t		deviceType;
 	uint8_t		pwdclkind;
 	uint8_t		fastClk5g;
-	uint8_t		divChain;  
+	uint8_t		divChain;
 	uint8_t		rxGainType;
 	uint8_t		dacHiPwrMode_5G;/* use the DAC high power mode (MB91) */
 	uint8_t		openLoopPwrCntl;/* 1: use open loop power control,
@@ -226,7 +226,7 @@ typedef struct ModalEepHeader {
 	uint8_t		ht40PowerIncForPdadc;			// 1
 	uint8_t		bswAtten[AR5416_MAX_CHAINS];		// 3
 	uint8_t		bswMargin[AR5416_MAX_CHAINS];		// 3
-	uint8_t		swSettleHt40;				// 1	
+	uint8_t		swSettleHt40;				// 1
 	uint8_t		xatten2Db[AR5416_MAX_CHAINS];    	// 3 -> New for AR9280 (0xa20c/b20c 11:6)
 	uint8_t		xatten2Margin[AR5416_MAX_CHAINS];	// 3 -> New for AR9280 (0xa20c/b20c 21:17)
 	uint8_t		ob_ch1;				// 1 -> ob and db become chain specific from AR9280
@@ -245,7 +245,7 @@ typedef struct ModalEepHeader {
 	uint8_t		futureModal[6];			// 6
 
 	SPUR_CHAN spurChans[AR5416_EEPROM_MODAL_SPURS];	// 20 B
-} __packed MODAL_EEP_HEADER;				// == 100 B    
+} __packed MODAL_EEP_HEADER;				// == 100 B
 
 typedef struct calDataPerFreqOpLoop {
 	uint8_t		pwrPdg[2][5]; /* power measurement */
@@ -280,7 +280,7 @@ struct ar5416eeprom {
 	CAL_TARGET_POWER_HT	calTargetPower2GHT40[AR5416_NUM_2G_40_TARGET_POWERS];
 	uint8_t			ctlIndex[AR5416_NUM_CTLS];
 	CAL_CTL_DATA		ctlData[AR5416_NUM_CTLS];
-	uint8_t			padding;			
+	uint8_t			padding;
 } __packed;
 
 typedef struct {

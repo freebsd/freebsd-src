@@ -1230,7 +1230,7 @@ amd_ntb_attach(device_t device)
 	error = amd_ntb_map_pci_bars(ntb);
 	if (error)
 		goto out;
-		
+
 	error = amd_ntb_init(ntb);
 	if (error)
 		goto out;

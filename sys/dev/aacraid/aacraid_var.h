@@ -87,13 +87,13 @@
 #define AAC_PRINTF_BUFSIZE	256
 
 /*
- * We wait this many seconds for the adapter to come ready if it is still 
+ * We wait this many seconds for the adapter to come ready if it is still
  * booting
  */
 #define AAC_BOOT_TIMEOUT	(3 * 60)
 
 /*
- * We wait this many seconds for the adapter to come ready  
+ * We wait this many seconds for the adapter to come ready
  * after flash update
  */
 #define AAC_FWUPD_TIMEOUT	(5 * 60)
@@ -123,7 +123,7 @@ struct aac_container
 {
 	struct aac_mntobj		co_mntobj;
 	int				co_found;
-	u_int32_t		co_uid;       
+	u_int32_t		co_uid;
 	TAILQ_ENTRY(aac_container)	co_link;
 };
 
@@ -146,7 +146,7 @@ struct aac_sim
 /*
  * Per-disk structure
  */
-struct aac_disk 
+struct aac_disk
 {
 	device_t			ad_dev;
 	struct aac_softc		*ad_controller;
@@ -246,7 +246,7 @@ struct aac_common {
 /*
  * Interface operations
  */
-struct aac_interface 
+struct aac_interface
 {
 	int	(*aif_get_fwstatus)(struct aac_softc *sc);
 	void	(*aif_qnotify)(struct aac_softc *sc, int qbit);
@@ -316,14 +316,14 @@ struct aac_fib_context {
 
 /* MSIX context */
 struct aac_msix_ctx {
-	int			vector_no;	
+	int			vector_no;
 	struct aac_softc  	*sc;
 };
 
 /*
  * Per-controller structure.
  */
-struct aac_softc 
+struct aac_softc
 {
 	/* bus connections */
 	device_t		aac_dev;
@@ -373,7 +373,7 @@ struct aac_softc
 	struct aac_command	*aac_commands;
 
 	/* command management */
-	TAILQ_HEAD(,aac_command) aac_free;	/* command structures 
+	TAILQ_HEAD(,aac_command) aac_free;	/* command structures
 						 * available for reuse */
 	TAILQ_HEAD(,aac_command) aac_ready;	/* commands on hold for
 						 * controller resources */
@@ -441,7 +441,7 @@ struct aac_softc
 #define AAC_FLAGS_NEW_COMM_TYPE34 (1 << 18)	/* New comm. type3/4 */
 #define AAC_FLAGS_SYNC_MODE (1 << 18)	/* Sync. transfer mode */
 	u_int32_t		hint_flags;		/* driver parameters */
-	int	sim_freezed;				/* flag for sim_freeze/release */		
+	int	sim_freezed;				/* flag for sim_freeze/release */
 	u_int32_t		supported_options;
 	u_int32_t		scsi_method_id;
 	TAILQ_HEAD(,aac_sim)	aac_sim_tqh;
@@ -467,7 +467,7 @@ struct aac_softc
 	u_int32_t	DebugOffset;		/* Offset from DPMEM start */
 	u_int32_t	DebugHeaderSize;	/* Size of debug header */
 	u_int32_t	FwDebugFlags;		/* FW Debug Flags */
-	u_int32_t	FwDebugBufferSize;	/* FW Debug Buffer size */	
+	u_int32_t	FwDebugBufferSize;	/* FW Debug Buffer size */
 };
 
 /*
@@ -494,7 +494,7 @@ extern void		aacraid_free(struct aac_softc *sc);
 extern int		aacraid_attach(struct aac_softc *sc);
 extern int		aacraid_detach(device_t dev);
 extern int		aacraid_shutdown(device_t dev);
-extern int		aacraid_suspend(device_t dev); 
+extern int		aacraid_suspend(device_t dev);
 extern int		aacraid_resume(device_t dev);
 extern void		aacraid_new_intr_type1(void *arg);
 extern void		aacraid_submit_bio(struct bio *bp);

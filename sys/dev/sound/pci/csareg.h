@@ -1951,8 +1951,8 @@
 #define CS_AC97_POWER_CONTROL_MIXVON_ON	0x0004
 #define CS_AC97_POWER_CONTROL_MIXVOFF_ON 0x0008
 
-/*  
- * this is 3*1024 for parameter, 3.5*1024 for sample and 2*3.5*1024 
+/*
+ * this is 3*1024 for parameter, 3.5*1024 for sample and 2*3.5*1024
  * for code since each instruction is 40 bits and takes two dwords
  */
 

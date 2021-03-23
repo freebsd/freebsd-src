@@ -167,7 +167,7 @@ adb_bus_enumerate(void *xdev)
 			r3 = sc->devinfo[i].register3;
 			r3 &= 0xf000;
 			r3 |= ((uint16_t)(i) & 0x000f) << 8;
-			
+
 			adb_send_raw_packet_sync(dev,first_relocated,
 			    ADB_COMMAND_LISTEN,3,
 			    sizeof(uint16_t),(u_char *)(&r3),NULL);
@@ -212,8 +212,8 @@ adb_probe_nomatch(device_t dev, device_t child)
 }
 
 u_int
-adb_receive_raw_packet(device_t dev, u_char status, u_char command, int len, 
-    u_char *data) 
+adb_receive_raw_packet(device_t dev, u_char status, u_char command, int len,
+    u_char *data)
 {
 	struct adb_softc *sc = device_get_softc(dev);
 	u_char addr = command >> 4;
@@ -252,7 +252,7 @@ adb_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
-u_int 
+u_int
 adb_send_packet(device_t dev, u_char command, u_char reg, int len, u_char *data)
 {
 	u_char command_byte = 0;
@@ -272,7 +272,7 @@ adb_send_packet(device_t dev, u_char command, u_char reg, int len, u_char *data)
 }
 
 u_int
-adb_set_autopoll(device_t dev, u_char enable) 
+adb_set_autopoll(device_t dev, u_char enable)
 {
 	struct adb_devinfo *dinfo;
 	struct adb_softc *sc;
@@ -294,8 +294,8 @@ adb_set_autopoll(device_t dev, u_char enable)
 	return (0);
 }
 
-uint8_t 
-adb_get_device_type(device_t dev) 
+uint8_t
+adb_get_device_type(device_t dev)
 {
 	struct adb_devinfo *dinfo;
 
@@ -303,8 +303,8 @@ adb_get_device_type(device_t dev)
 	return (dinfo->default_address);
 }
 
-uint8_t 
-adb_get_device_handler(device_t dev) 
+uint8_t
+adb_get_device_handler(device_t dev)
 {
 	struct adb_devinfo *dinfo;
 
@@ -312,9 +312,9 @@ adb_get_device_handler(device_t dev)
 	return (dinfo->handler_id);
 }
 
-static int 
-adb_send_raw_packet_sync(device_t dev, uint8_t to, uint8_t command, 
-    uint8_t reg, int len, u_char *data, u_char *reply) 
+static int
+adb_send_raw_packet_sync(device_t dev, uint8_t to, uint8_t command,
+    uint8_t reg, int len, u_char *data, u_char *reply)
 {
 	u_char command_byte = 0;
 	struct adb_softc *sc;
@@ -338,11 +338,11 @@ adb_send_raw_packet_sync(device_t dev, uint8_t to, uint8_t command,
 
 	while (!atomic_fetchadd_int(&sc->packet_reply,0)) {
 		/*
-		 * Maybe the command got lost? Try resending and polling the 
+		 * Maybe the command got lost? Try resending and polling the
 		 * controller.
 		 */
 		if (i % 40 == 0)
-			ADB_HB_SEND_RAW_PACKET(sc->parent, command_byte, 
+			ADB_HB_SEND_RAW_PACKET(sc->parent, command_byte,
 			    len, data, 1);
 
 		tsleep(sc, 0, "ADB sync", hz/10);
@@ -358,16 +358,16 @@ adb_send_raw_packet_sync(device_t dev, uint8_t to, uint8_t command,
 	sc->packet_reply = 0;
 
 	/*
-	 * We can't match a value beyond 8 bits, so set sync_packet to 
+	 * We can't match a value beyond 8 bits, so set sync_packet to
 	 * 0xffff to avoid collisions.
 	 */
-	atomic_set_int(&sc->sync_packet, 0xffff); 
+	atomic_set_int(&sc->sync_packet, 0xffff);
 
 	return (result);
 }
 
-uint8_t 
-adb_set_device_handler(device_t dev, uint8_t newhandler) 
+uint8_t
+adb_set_device_handler(device_t dev, uint8_t newhandler)
 {
 	struct adb_softc *sc;
 	struct adb_devinfo *dinfo;
@@ -379,16 +379,16 @@ adb_set_device_handler(device_t dev, uint8_t newhandler)
 	newr3 = dinfo->register3 & 0xff00;
 	newr3 |= (uint16_t)(newhandler);
 
-	adb_send_raw_packet_sync(sc->sc_dev,dinfo->address, ADB_COMMAND_LISTEN, 
+	adb_send_raw_packet_sync(sc->sc_dev,dinfo->address, ADB_COMMAND_LISTEN,
 	    3, sizeof(uint16_t), (u_char *)(&newr3), NULL);
-	adb_send_raw_packet_sync(sc->sc_dev,dinfo->address, 
+	adb_send_raw_packet_sync(sc->sc_dev,dinfo->address,
 	    ADB_COMMAND_TALK, 3, 0, NULL, NULL);
 
 	return (dinfo->handler_id);
 }
 
-size_t 
-adb_read_register(device_t dev, u_char reg, void *data) 
+size_t
+adb_read_register(device_t dev, u_char reg, void *data)
 {
 	struct adb_softc *sc;
 	struct adb_devinfo *dinfo;
@@ -403,8 +403,8 @@ adb_read_register(device_t dev, u_char reg, void *data)
 	return (result);
 }
 
-size_t 
-adb_write_register(device_t dev, u_char reg, size_t len, void *data) 
+size_t
+adb_write_register(device_t dev, u_char reg, size_t len, void *data)
 {
 	struct adb_softc *sc;
 	struct adb_devinfo *dinfo;

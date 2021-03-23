@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 **
@@ -86,10 +86,10 @@ __FBSDID("$FreeBSD$");
 *
 *  \return: None
 *
-*  \note 
+*  \note
 *
 *****************************************************************************/
-osGLOBAL void 
+osGLOBAL void
 tdsaEsglInit(
              tiRoot_t *tiRoot
              )
@@ -106,7 +106,7 @@ tdsaEsglInit(
   tdsaEsglPageInfo_t *pEsglPageInfo;
   void *PageVirtAddr;
   bit32 PageSizeInBytes;
-  
+
   /* for memory index requirement */
   agsaRoot_t          agRoot;
   bit32               maxSALocks = 0;
@@ -117,7 +117,7 @@ tdsaEsglInit(
   bit32                i;
 
   TI_DBG6(("tdsaEsglInit: start\n"));
-  
+
   tdsaGetSwConfigParams(tiRoot);
   QueueConfig = &tdsaAllShared->QueueConfig;
 
@@ -136,7 +136,7 @@ tdsaEsglInit(
     QueueConfig->outboundQueues[i].interruptCount = tdsaAllShared->OutboundQueueInterruptCount[i]; /* default 1*/
     QueueConfig->outboundQueues[i].interruptVectorIndex = 0;
   }
-  
+
   /*
     hardcoded Queue numbers
   */
@@ -149,8 +149,8 @@ tdsaEsglInit(
   SwConfig.fatalErrorInterrtuptEnable = 1;
   SwConfig.fatalErrorInterruptVector = 1;
   SwConfig.reserved = 0;
-   
-  
+
+
   SwConfig.param3 = (void *)&(tdsaAllShared->QueueConfig);
   /* to find out memRequirement */
   saGetRequirements(&agRoot, &SwConfig, &memRequirement, &usecsPerTick, &maxSALocks);
@@ -167,11 +167,11 @@ tdsaEsglInit(
   TI_DBG6(("tdsaEsglInit: pEsglPagePool %p\n", pEsglPagePool));
   TI_DBG6(("tdsaEsglInit: tdsaAllShared->loResource.loLevelMem.mem[18].singleElementLength %d\n", tdsaAllShared->loResource.loLevelMem.mem[18].singleElementLength));
   TI_DBG6(("tdsaEsglInit: NumEsglPage %d EsglPageSize %d\n", pEsglAllInfo->NumEsglPages, pEsglAllInfo->EsglPageSize)); /* ?, 128 */
-  TI_DBG6(("tdsaEsglInit: NumFreeEsglPages %d\n", pEsglAllInfo->NumFreeEsglPages));  
+  TI_DBG6(("tdsaEsglInit: NumFreeEsglPages %d\n", pEsglAllInfo->NumFreeEsglPages));
   /* initialize the linked lists */
   TDLIST_INIT_HDR(&pEsglAllInfo->freelist);
 
-  
+
   PageVirtAddr      = pEsglAllInfo->virtPtr;
   PagePhysAddrUpper = pEsglAllInfo->physAddrUpper;
   PagePhysAddrLower = pEsglAllInfo->physAddrLower;
@@ -187,11 +187,11 @@ tdsaEsglInit(
     /* for debugging onlye*/
     pEsglPageInfo->id = pageno+123;
     pEsglPageInfo->agEsgl = (agsaEsgl_t *)PageVirtAddr;
-    
+
     /* for debugging only */
     TI_DBG6(("tdsaEsglInit: index %d upper 0x%8x lower 0x%8x PageVirtAddr %p\n", pageno, PagePhysAddrUpper, PagePhysAddrLower, PageVirtAddr));
-    
-    
+
+
     /* updates addresses */
     prev_PagePhysAddrLower = PagePhysAddrLower;
     PagePhysAddrLower += pEsglAllInfo->EsglPageSize;
@@ -200,7 +200,7 @@ tdsaEsglInit(
     {
       PagePhysAddrUpper++;
     }
-    
+
     if (pageno == pEsglAllInfo->NumEsglPages - 1) /* last page */
     {
       pEsglPageInfo->agEsgl->descriptor[MAX_ESGL_ENTRIES-1].len = 0;
@@ -216,7 +216,7 @@ tdsaEsglInit(
       /* set bit31 to one */
       SET_ESGL_EXTEND(pEsglPageInfo->agEsgl->descriptor[MAX_ESGL_ENTRIES-1].extReserved);
     }
-    
+
     TDLIST_INIT_ELEMENT(&pEsglPageInfo->tdlist);
     tdsaSingleThreadedEnter(tiRoot, TD_ESGL_LOCK);
     TDLIST_ENQUEUE_AT_TAIL(&pEsglPageInfo->tdlist, &pEsglAllInfo->freelist);
@@ -225,8 +225,8 @@ tdsaEsglInit(
     PageVirtAddr = (bit8 *)PageVirtAddr + PageSizeInBytes;
   } /* end for */
 
-  
-  
+
+
 #ifdef TD_INTERNAL_DEBUG /* for debugging only, for keep now */
   for (pageno = 0 ; pageno < pEsglAllInfo->NumEsglPages ; pageno++)
   {
@@ -236,7 +236,7 @@ tdsaEsglInit(
   TI_DBG6(("tdsaEsglInit:  tdsaEsglPageInfo_t size %d 0x%x\n", sizeof(tdsaEsglPageInfo_t), sizeof(tdsaEsglPageInfo_t)));
   TI_DBG6(("tdsaEsglInit: sizeof(SASG_DESCRIPTOR) %d 0x%x\n", sizeof(SASG_DESCRIPTOR), sizeof(SASG_DESCRIPTOR)));
 #endif
-  
+
   return;
 }
 
@@ -253,11 +253,11 @@ tdsaEsglInit(
 *  \param virtSgl:      virtual pointer to scatter-gather list.
 *
 *  \return None
-*  
-*  \note - 
+*
+*  \note -
 *       1. If we are out of ESGL pages, then no pages will be added to the list
-*          pointed to by EsglListHdr. The list should be empty before calling 
-*          this function, so that after returning from this function, the 
+*          pointed to by EsglListHdr. The list should be empty before calling
+*          this function, so that after returning from this function, the
 *          function can check for the emptyness of the list and find out if
 *          any pages were added or not.
 *
@@ -309,15 +309,15 @@ tdsaGetEsglPages(
     tdsaSingleThreadedEnter(tiRoot, TD_ESGL_LOCK);
     TDLIST_DEQUEUE_FROM_HEAD(&tdlist_to_fill, &pEsglAllInfo->freelist);
     tdsaSingleThreadedLeave(tiRoot, TD_ESGL_LOCK);
-  
+
     /* get the pointer to the page from list pointer */
     page_to_fill = TDLIST_OBJECT_BASE(tdsaEsglPageInfo_t, tdlist, tdlist_to_fill);
     /* for debugging */
     TI_DBG6(("tdsaGetEsglPages:page ID %d\n", page_to_fill->id));
     agEsgl = page_to_fill->agEsgl;
-    
+
     pDesc = (SASG_DESCRIPTOR *)agEsgl;
-  
+
     for (j=0; j <numEntriesPerPage; j++)
     {
       TI_DBG6(("tdsaGetEsglPages: lower %d  upper %d\n", pDesc->sgLower, pDesc->sgUpper));
@@ -325,25 +325,25 @@ tdsaGetEsglPages(
       pDesc++;
     }
     TI_DBG6(("tdsaGetEsglPages: next lower %d next upper %d\n", agEsgl->nextPageLower, agEsgl->nextPageUpper));
-    
+
   }
-#endif /* for debugging only  */  
-  
+#endif /* for debugging only  */
+
   for (i = 0 ; i < numPagesRequired; i++)
   {
     /* remove one page from freelist */
     tdsaSingleThreadedEnter(tiRoot, TD_ESGL_LOCK);
     TDLIST_DEQUEUE_FROM_HEAD(&tdlist_to_fill, &pEsglAllInfo->freelist);
     tdsaSingleThreadedLeave(tiRoot, TD_ESGL_LOCK);
-    
+
     /* get the pointer to the page from list pointer */
     page_to_fill = TDLIST_OBJECT_BASE(tdsaEsglPageInfo_t, tdlist, tdlist_to_fill);
     /* for debugging */
     TI_DBG6(("tdsaGetEsglPages:page ID %d\n", page_to_fill->id));
-    
+
     agEsgl = page_to_fill->agEsgl;
     pDesc = (agsaSgl_t *)agEsgl;
-    
+
     /*
       adjust next page's address in the followings so that
       the last entry must be (0,0,0)
@@ -359,7 +359,7 @@ tdsaGetEsglPages(
         pDesc++;
         tmp_tiSgl++;
       }
-      for (j=numSgElements; j < numEntriesPerPage; j++) 
+      for (j=numSgElements; j < numEntriesPerPage; j++)
       {
         /* left over(unused) in the page */
         pDesc->sgLower = 0x0;
@@ -369,7 +369,7 @@ tdsaGetEsglPages(
         pDesc++;
       }
     }
-    else 
+    else
     {
       /* in case of muliple pages, first and later, except one page only or last page */
       for (j=0; j <numEntriesPerPage - 1; j++) /* else */
@@ -389,7 +389,7 @@ tdsaGetEsglPages(
       /* subsequent pages (second or later pages) */
       PrevagEsgl->descriptor[MAX_ESGL_ENTRIES-1].sgLower = page_to_fill->physAddressLower;
       PrevagEsgl->descriptor[MAX_ESGL_ENTRIES-1].sgUpper = page_to_fill->physAddressUpper;
-      PrevagEsgl->descriptor[MAX_ESGL_ENTRIES-1].len = numSgElements; 
+      PrevagEsgl->descriptor[MAX_ESGL_ENTRIES-1].len = numSgElements;
       /* set bit31 to one */
       SET_ESGL_EXTEND(PrevagEsgl->descriptor[MAX_ESGL_ENTRIES-1].extReserved);
     }
@@ -398,8 +398,8 @@ tdsaGetEsglPages(
     tdsaSingleThreadedEnter(tiRoot, TD_ESGL_LOCK);
     TDLIST_ENQUEUE_AT_TAIL(tdlist_to_fill, EsglListHdr);
     tdsaSingleThreadedLeave(tiRoot, TD_ESGL_LOCK);
-    
-    
+
+
   } /* end for */
   return;
 }
@@ -416,9 +416,9 @@ tdsaGetEsglPages(
 *                        are stored.
 *
 *  \return:     None
-*  
+*
 *  \note -
-*   1. This function removes all the pages from the list until the list 
+*   1. This function removes all the pages from the list until the list
 *      empty and chains them at the end of the free list.
 *****************************************************************************/
 osGLOBAL void
@@ -438,13 +438,13 @@ tdsaFreeEsglPages(
     TI_DBG1(("tdsaFreeEsglPages: tiRoot is NULL\n"));
     return;
   }
-  
+
   if (EsglListHdr == agNULL)
   {
     TI_DBG1(("tdsaFreeEsglPages: EsglListHdr is NULL\n"));
     return;
   }
-  
+
   TI_DBG6(("tdsaFreeEsglPages: EsglListHdr %p\n", EsglListHdr));
   tdsaSingleThreadedEnter(tiRoot, TD_ESGL_LOCK);
   while (TDLIST_NOT_EMPTY(EsglListHdr))
@@ -455,7 +455,7 @@ tdsaFreeEsglPages(
   }
   tdsaSingleThreadedLeave(tiRoot, TD_ESGL_LOCK);
   TI_DBG6(("tdsaFreeEsglPages: NumFreeEsglPages  %d\n", pEsglAllInfo->NumFreeEsglPages));
-  return;  
+  return;
 }
 
 
@@ -478,7 +478,7 @@ tdsaFreeEsglPages(
 *****************************************************************************/
 osGLOBAL void
 tdsaGetEsglPagesInfo(
-                     tiRoot_t *tiRoot, 
+                     tiRoot_t *tiRoot,
                      bit32    *pPageSize,
                      bit32    *pNumPages
                      )
@@ -491,45 +491,45 @@ tdsaGetEsglPagesInfo(
   char    SwParmsStr[]   = "ESGLParms";
   char    tmpBuffer[DEFAULT_KEY_BUFFER_SIZE];
   /* default value, defined in tdsatypes.h */
-  bit32   NumEsglPages = NUM_ESGL_PAGES;  
+  bit32   NumEsglPages = NUM_ESGL_PAGES;
   TI_DBG6(("tdsaGetEsglPagesInfo: start \n"));
 
   /*
     calls ostiGetTransportParam which parses the configuration file to get
     parameters.
   */
-  
+
   buffer = tmpBuffer;
   buffLen = sizeof(tmpBuffer);
-  
+
   osti_memset(buffer, 0, buffLen);
 
-  
+
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "NumESGLPg", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
-    
+
     NumEsglPages = osti_strtoul(buffer, &pLastUsedChar, 10);
   }
-  
+
   osti_memset(buffer, 0, buffLen);
   lenRecv = 0;
 
   TI_DBG6(("tdsaGetEsglPagesInfo: esgl page number %d\n",NumEsglPages));
   *pPageSize = ESGL_PAGES_SIZE;/* sizeof(agsaEsgl_t); defined in tdsatypes.h */
-  *pNumPages = NumEsglPages; 
-  
+  *pNumPages = NumEsglPages;
+
   return;
 }
 #endif

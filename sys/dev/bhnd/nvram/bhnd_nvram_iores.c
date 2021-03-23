@@ -64,13 +64,13 @@ BHND_NVRAM_IOPS_DEFN(iores);
  *
  * The caller is responsible for deallocating the returned I/O context via
  * bhnd_nvram_io_free().
- * 
+ *
  * @param	r		The resource to be mapped by the returned I/O
  *				context.
- * @param	offset		Offset 
+ * @param	offset		Offset
  * @param	bus_width	The required I/O width (1, 2, or 4 bytes) to be
  *				used when reading from @p r.
- * 
+ *
  * @retval	bhnd_nvram_io	success.
  * @retval	NULL		if allocation fails, or an invalid argument
  *				is supplied.
@@ -178,7 +178,7 @@ bhnd_nvram_iores_write_ptr(struct bhnd_nvram_io *io, size_t offset,
 
 /**
  * Validate @p offset and @p nbytes:
- * 
+ *
  * - Verify that @p offset is mapped by the backing resource.
  * - If less than @p nbytes are available at @p offset, write the actual number
  *   of bytes available to @p nbytes.

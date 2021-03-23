@@ -169,7 +169,7 @@ uint32_t softLedCfg, softLedState;
 	int q;
 
 	uint32_t		data, synthDelay;
-	uint32_t		macStaId1;    
+	uint32_t		macStaId1;
 	uint16_t		modesIndex = 0, freqIndex = 0;
 	uint32_t		saveFrameSeqCount[AR_NUM_DCU];
 	uint32_t		saveTsfLow = 0, saveTsfHigh = 0;
@@ -228,7 +228,7 @@ uint32_t softLedCfg, softLedState;
 			for (i = 0; i < AR_NUM_DCU; i++)
 				saveFrameSeqCount[i] = OS_REG_READ(ah, AR_DSEQNUM(i));
 		}
-		if (!IEEE80211_IS_CHAN_DFS(chan)) 
+		if (!IEEE80211_IS_CHAN_DFS(chan))
 			chan->ic_state &= ~IEEE80211_CHANSTATE_CWINT;
 	}
 
@@ -1160,7 +1160,7 @@ ar5211SetAntennaSwitchInternal(struct ath_hal *ah, HAL_ANT_SETTING settings,
 
 	antSwitchA =  ee->ee_antennaControl[1][ix]
 		   | (ee->ee_antennaControl[2][ix] << 6)
-		   | (ee->ee_antennaControl[3][ix] << 12) 
+		   | (ee->ee_antennaControl[3][ix] << 12)
 		   | (ee->ee_antennaControl[4][ix] << 18)
 		   | (ee->ee_antennaControl[5][ix] << 24)
 		   ;
@@ -2020,7 +2020,7 @@ ar5211IsGainAdjustNeeded(struct ath_hal *ah, const GAIN_VALUES *gv)
 /*
  * Move the rabbit ears in the correct direction.
  */
-static int32_t 
+static int32_t
 ar5211AdjustGain(struct ath_hal *ah, GAIN_VALUES *gv)
 {
 	/* return > 0 for valid adjustments. */

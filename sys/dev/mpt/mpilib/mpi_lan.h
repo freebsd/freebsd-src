@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2000-2010, LSI Logic Corporation and its contributors.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -18,7 +18,7 @@
  * 3. Neither the name of the LSI Logic Corporation nor the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,8 +30,8 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF THE COPYRIGHT
  * OWNER OR CONTRIBUTOR IS ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
- * 
+ *
+ *
  *           Name:  mpi_lan.h
  *          Title:  MPI LAN messages and structures
  *  Creation Date:  June 30, 2000

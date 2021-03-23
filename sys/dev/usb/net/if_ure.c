@@ -972,7 +972,7 @@ static int
 ure_attach_post_sub(struct usb_ether *ue)
 {
 	struct sysctl_ctx_list *sctx;
-	struct sysctl_oid *soid;	
+	struct sysctl_oid *soid;
 	struct ure_softc *sc;
 	struct ifnet *ifp;
 	int error;

@@ -419,7 +419,7 @@ typedef struct _q80_set_max_mtu_rsp {
 } __packed q80_set_max_mtu_rsp_t;
 
 /*
- * Configure RSS 
+ * Configure RSS
  */
 typedef struct _q80_config_rss {
 	uint16_t	opcode;
@@ -1290,7 +1290,7 @@ typedef struct _q80_rsp_rcv_cntxt {
 	uint8_t			phy_port;
 	uint8_t			virt_port;
 	uint32_t		sds_cons[MAX_RCNTXT_SDS_RINGS];
-	q80_rsp_rds_ring_t	rds[MAX_RDS_RING_SETS];		
+	q80_rsp_rds_ring_t	rds[MAX_RDS_RING_SETS];
 } __packed q80_rsp_rcv_cntxt_t;
 
 typedef struct _q80_rcv_cntxt_destroy {
@@ -1324,7 +1324,7 @@ typedef struct _q80_rsp_add_rcv_rings {
 	uint8_t			nsds_rings;
 	uint16_t		cntxt_id;
 	uint32_t		sds_cons[MAX_RCNTXT_SDS_RINGS];
-	q80_rsp_rds_ring_t	rds[MAX_RDS_RING_SETS];		
+	q80_rsp_rds_ring_t	rds[MAX_RDS_RING_SETS];
 } __packed q80_rsp_add_rcv_rings_t;
 
 /*
@@ -1541,7 +1541,7 @@ typedef struct _qla_hw_tx_cntxt {
 typedef struct _qla_mcast {
 	uint16_t	rsrvd;
 	uint8_t		addr[ETHER_ADDR_LEN];
-} __packed qla_mcast_t; 
+} __packed qla_mcast_t;
 
 typedef struct _qla_rdesc {
         volatile uint32_t prod_std;
@@ -1632,9 +1632,9 @@ typedef struct _qla_hw {
 	uint16_t	intr_id[MAX_SDS_RINGS];
 	uint32_t	intr_src[MAX_SDS_RINGS];
 
-	qla_sds_t	sds[MAX_SDS_RINGS]; 
+	qla_sds_t	sds[MAX_SDS_RINGS];
 	uint32_t	mbox[Q8_NUM_MBOX];
-	qla_rdesc_t	rds[MAX_RDS_RINGS];		
+	qla_rdesc_t	rds[MAX_RDS_RINGS];
 
 	uint32_t	rds_pidx_thres;
 	uint32_t	sds_cidx_thres;
@@ -1729,7 +1729,7 @@ typedef struct _qla_hw {
 #define QL_BUFFER_ALIGN                16
 
 /*
- * Flash Configuration 
+ * Flash Configuration
  */
 #define Q8_BOARD_CONFIG_OFFSET		0x370000
 #define Q8_BOARD_CONFIG_LENGTH		0x2000

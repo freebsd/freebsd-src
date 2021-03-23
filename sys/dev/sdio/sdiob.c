@@ -241,7 +241,7 @@ sdiob_write_direct(device_t dev, uint8_t fn, uint32_t addr, uint8_t val)
  * full sized blocks (you must not round the blocks up and leave the last one
  * partial!)
  * For byte mode, the maximum of blksz is the functions cur_blksize.
- * This function should ever only be called by sdio_rw_extended_sc()! 
+ * This function should ever only be called by sdio_rw_extended_sc()!
  */
 static int
 sdiob_rw_extended_cam(struct sdiob_softc *sc, uint8_t fn, uint32_t addr,

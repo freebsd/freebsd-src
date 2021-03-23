@@ -114,7 +114,7 @@ typedef	uint64_t	paddr_t;
 typedef	uint64_t	vaddr_t;
 
 static inline vaddr_t
-mips_phys_to_uncached(paddr_t phys)            
+mips_phys_to_uncached(paddr_t phys)
 {
 
 	return (phys | MIPS_XKPHYS_UNCACHED_BASE);

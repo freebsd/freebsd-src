@@ -358,9 +358,9 @@ uath_attach(device_t dev)
 		goto fail;
 	}
 
-	sc->sc_cmd_dma_buf = 
+	sc->sc_cmd_dma_buf =
 	    usbd_xfer_get_frame_buffer(sc->sc_xfer[UATH_INTR_TX], 0);
-	sc->sc_tx_dma_buf = 
+	sc->sc_tx_dma_buf =
 	    usbd_xfer_get_frame_buffer(sc->sc_xfer[UATH_BULK_TX], 0);
 
 	/*
@@ -1667,7 +1667,7 @@ uath_txfrag_setup(struct uath_softc *sc, uath_datahead *frags,
 }
 
 static int
-uath_transmit(struct ieee80211com *ic, struct mbuf *m)   
+uath_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
 	struct uath_softc *sc = ic->ic_softc;
 	int error;
@@ -1718,7 +1718,7 @@ uath_start(struct uath_softc *sc)
 		 * so all go out or none...
 		 */
 		STAILQ_INIT(&frags);
-		if ((m->m_flags & M_FRAG) && 
+		if ((m->m_flags & M_FRAG) &&
 		    !uath_txfrag_setup(sc, &frags, m, ni)) {
 			DPRINTF(sc, UATH_DEBUG_XMIT,
 			    "%s: out of txfrag buffers\n", __func__);
@@ -2596,7 +2596,7 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 	 */
 	desc = (chunk->flags & UATH_CFLAGS_RXMSG) ?
 		(struct uath_rx_desc *)(chunk + 1) :
-		(struct uath_rx_desc *)(((uint8_t *)chunk) + 
+		(struct uath_rx_desc *)(((uint8_t *)chunk) +
 		    sizeof(struct uath_chunk) + be16toh(chunk->length) -
 		    sizeof(struct uath_rx_desc));
 	if ((uint8_t *)chunk + actlen - sizeof(struct uath_rx_desc) <

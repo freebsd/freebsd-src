@@ -24,7 +24,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -55,7 +55,7 @@ enum {
 	 * Early dual-band devices did not support accessing multiple PHYs
 	 * from a single WLAN core, and instead used separate 2GHz and 5GHz
 	 * WLAN cores.
-	 * 
+	 *
 	 * However, not all cards with two WLAN cores are fully populated;
 	 * we must whitelist the boards on which a second WLAN core is actually
 	 * usable.

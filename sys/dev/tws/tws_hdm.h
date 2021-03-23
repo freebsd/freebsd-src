@@ -197,7 +197,7 @@ enum tws_sense_severity {
 #define TWS_PARAM_TIME_TABLE            0x40A
 #define TWS_PARAM_TIME_SCHED_TIME       0x3
 
-#define TWS_PARAM_PHYS_TABLE            0x0001 
+#define TWS_PARAM_PHYS_TABLE            0x0001
 #define TWS_PARAM_CONTROLLER_PHYS_COUNT 2       /* number of phys */
 
 #define TWS_9K_PARAM_DESCRIPTOR         0x8000
@@ -297,7 +297,7 @@ union tws_command_giga {
     struct tws_cmd_generic            generic;
     u_int8_t        padding[1024 - sizeof(struct tws_command_header)];
 };
-    
+
 /* driver command pkt - 1024 byte size including header(128+24+744+128) */
 /* h/w & f/w supported command size excluding header 768 */
 struct tws_command_apache {
@@ -305,7 +305,7 @@ struct tws_command_apache {
     u_int8_t        unit;
     u_int16_t       lun_l4__req_id; /* 4:12 */
     u_int8_t        status;
-    u_int8_t        sgl_offset;     /* offset (in bytes) to sg_list, 
+    u_int8_t        sgl_offset;     /* offset (in bytes) to sg_list,
                                      from the end of sgl_entries */
     u_int16_t       lun_h4__sgl_entries;
     u_int8_t        cdb[16];
@@ -378,8 +378,8 @@ struct tws_sense {
 };
 
 struct tws_request {
-    struct tws_command_packet *cmd_pkt; /* command pkt */  
-    u_int64_t    cmd_pkt_phy;    /* cmd pkt physical address */       
+    struct tws_command_packet *cmd_pkt; /* command pkt */
+    u_int64_t    cmd_pkt_phy;    /* cmd pkt physical address */
     void         *data;          /* ptr to data being passed to fw */
     u_int32_t    length;         /* length of data being passed to fw */
 

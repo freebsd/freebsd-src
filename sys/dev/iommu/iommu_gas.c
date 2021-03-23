@@ -153,7 +153,7 @@ iommu_gas_augment_entry(struct iommu_map_entry *entry)
 		entry->first = child->first;
 	} else
 		entry->first = entry->start;
-	
+
 	if ((child = RB_RIGHT(entry, rb_entry)) != NULL) {
 		free_down = MAX(free_down, child->free_down);
 		free_down = MAX(free_down, child->first - entry->end);

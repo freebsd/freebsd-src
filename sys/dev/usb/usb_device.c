@@ -587,7 +587,7 @@ static void
 usb_wait_pending_refs(struct usb_device *udev)
 {
 #if USB_HAVE_UGEN
-	DPRINTF("Refcount = %d\n", (int)udev->refcount); 
+	DPRINTF("Refcount = %d\n", (int)udev->refcount);
 
 	mtx_lock(&usb_ref_lock);
 	udev->refcount--;
@@ -700,7 +700,7 @@ usbd_set_config_index(struct usb_device *udev, uint8_t index)
 	/* get the full config descriptor */
 	if (udev->flags.usb_mode == USB_MODE_DEVICE) {
 		/* save some memory */
-		err = usbd_req_get_descriptor_ptr(udev, &cdp, 
+		err = usbd_req_get_descriptor_ptr(udev, &cdp,
 		    (UDESC_CONFIG << 8) | index);
 	} else {
 		/* normal request */
@@ -886,7 +886,7 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 		/* check for specific interface match */
 
 		if (cmd == USB_CFG_INIT) {
-			if ((iface_index != USB_IFACE_INDEX_ANY) && 
+			if ((iface_index != USB_IFACE_INDEX_ANY) &&
 			    (iface_index != ips.iface_index)) {
 				/* wrong interface */
 				do_init = 0;
@@ -945,7 +945,7 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 				if (ecomp != NULL)
 					DPRINTFN(5, "Found endpoint companion descriptor\n");
 
-				usb_init_endpoint(udev, 
+				usb_init_endpoint(udev,
 				    ips.iface_index, ed, ecomp, ep);
 			}
 
@@ -990,7 +990,7 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 		udev->ep_curr = NULL;
 		USB_BUS_UNLOCK(udev->bus);
 	}
-#if (USB_HAVE_FIXED_IFACE == 0) || (USB_HAVE_FIXED_ENDPOINT == 0) 
+#if (USB_HAVE_FIXED_IFACE == 0) || (USB_HAVE_FIXED_ENDPOINT == 0)
 done:
 #endif
 	if (err) {
@@ -1046,7 +1046,7 @@ usbd_set_alt_interface_index(struct usb_device *udev,
 		goto done;
 	}
 	if (iface->alt_index == alt_index) {
-		/* 
+		/*
 		 * Optimise away duplicate setting of
 		 * alternate setting in USB Host Mode!
 		 */
@@ -1881,7 +1881,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 		err = (bus->methods->device_init) (udev);
 		if (err != 0) {
 			DPRINTFN(0, "device init %d failed "
-			    "(%s, ignored)\n", device_index, 
+			    "(%s, ignored)\n", device_index,
 			    usbd_errstr(err));
 			goto done;
 		}
@@ -1910,7 +1910,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 		 */
 		if (err) {
 			DPRINTFN(0, "set address %d failed "
-			    "(%s, ignored)\n", udev->address, 
+			    "(%s, ignored)\n", udev->address,
 			    usbd_errstr(err));
 		}
 	} else {
@@ -2318,7 +2318,7 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 	/* template unsetup, if any */
 	(usb_temp_unsetup_p) (udev);
 
-	/* 
+	/*
 	 * Make sure that our clear-stall messages are not queued
 	 * anywhere:
 	 */
@@ -2897,7 +2897,7 @@ usbd_enum_lock(struct usb_device *udev)
 
 	sx_xlock(&udev->enum_sx);
 	sx_xlock(&udev->sr_sx);
-	/* 
+	/*
 	 * NEWBUS LOCK NOTE: We should check if any parent SX locks
 	 * are locked before locking Giant. Else the lock can be
 	 * locked multiple times.
@@ -2943,7 +2943,7 @@ void
 usbd_sr_lock(struct usb_device *udev)
 {
 	sx_xlock(&udev->sr_sx);
-	/* 
+	/*
 	 * NEWBUS LOCK NOTE: We should check if any parent SX locks
 	 * are locked before locking Giant. Else the lock can be
 	 * locked multiple times.
@@ -3014,7 +3014,7 @@ usbd_ctrl_unlock(struct usb_device *udev)
  * returns zero on success, else a USB_ERR_XXX failure code.
  */
 
-usb_error_t 
+usb_error_t
 usbd_set_pnpinfo(struct usb_device *udev, uint8_t iface_index, const char *pnpinfo)
 {
 	struct usb_interface *iface;
@@ -3061,7 +3061,7 @@ usbd_add_dynamic_quirk(struct usb_device *udev, uint16_t quirk)
 usb_error_t
 usbd_set_endpoint_mode(struct usb_device *udev, struct usb_endpoint *ep,
     uint8_t ep_mode)
-{   
+{
 	usb_error_t error;
 	uint8_t do_unlock;
 

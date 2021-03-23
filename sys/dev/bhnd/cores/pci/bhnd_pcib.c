@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Broadcom PCI/PCIe-Gen1 Host-PCI bridge.
- * 
+ *
  * This driver handles all interactions with PCI bridge cores operating in
  * root complex mode.
  */

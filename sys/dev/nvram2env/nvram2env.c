@@ -120,19 +120,19 @@ nvram2env_probe(device_t dev)
 		sig = bus_space_read_4(sc->bst, sc->bsh, 0);
 		if ( sig == sc->sig /*FLSH*/)
 		{
-			device_printf(dev, "Found NVRAM at %#x\n", 
+			device_printf(dev, "Found NVRAM at %#x\n",
 			    (uint32_t)ivar);
 			sc->need_swap = 0;
 			goto unmap_done;
 		}
 		else if ( htole32(sig) == sc->sig /*HSLF*/)
 		{
-			device_printf(dev, "Found NVRAM at %#x\n", 
+			device_printf(dev, "Found NVRAM at %#x\n",
 			    (uint32_t)ivar);
 			sc->need_swap = 1;
 			goto unmap_done;
 		} else if (sc->flags & NVRAM_FLAGS_UBOOT) {
-			device_printf(dev, "Use NVRAM at %#x\n", 
+			device_printf(dev, "Use NVRAM at %#x\n",
 			    (uint32_t)ivar);
 			sc->crc = sig;
 			goto unmap_done;
@@ -151,9 +151,9 @@ unmap_done:
 
 }
 
-static uint32_t read_4(struct nvram2env_softc * sc, int offset) 
+static uint32_t read_4(struct nvram2env_softc * sc, int offset)
 {
-	if (sc->need_swap) 
+	if (sc->need_swap)
 		return (bswap32(bus_space_read_4(sc->bst, sc->bsh, offset)));
 	else
 		return (bus_space_read_4(sc->bst, sc->bsh, offset));
@@ -223,7 +223,7 @@ nvram2env_attach(device_t dev)
 			pair = (char*)nv+4;
 
 		/* iterate over buffer till end. tmp points to end of NVRAM */
-		for ( ; pair < (char*)tmp; 
+		for ( ; pair < (char*)tmp;
 		    pair += strlen(pair) + strlen(value) + 2 ) {
 			if (!pair || (strlen(pair) == 0))
 				break;

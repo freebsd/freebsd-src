@@ -128,7 +128,7 @@ rain_saver(video_adapter_t *adp, int blank)
 				}
 			  }
 		}
-		
+
 		/* update display */
 		rain_update(adp);
 	} else {

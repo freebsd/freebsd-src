@@ -544,7 +544,7 @@ qls_release(qla_host_t *ha)
 	if (ha->ifp != NULL)
 		ether_ifdetach(ha->ifp);
 
-	qls_free_dma(ha); 
+	qls_free_dma(ha);
 	qls_free_parent_dma_tag(ha);
 
         for (i = 0; i < ha->num_rx_rings; i++) {
@@ -1059,7 +1059,7 @@ qls_start(struct ifnet *ifp)
 		return;
 	}
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) == 
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) ==
 		IFF_DRV_RUNNING) {
 		for (i = 0; i < ha->num_tx_rings; i++) {
 			ret |= qls_hw_tx_done(ha, i);
@@ -1069,7 +1069,7 @@ qls_start(struct ifnet *ifp)
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != 
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 		IFF_DRV_RUNNING) {
 		QL_DPRINT8((ha->pci_dev, "%s: !IFF_DRV_RUNNING\n", __func__));
 		QLA_TX_UNLOCK(ha);
@@ -1300,7 +1300,7 @@ qls_alloc_rcv_mbufs(qla_host_t *ha, int r)
 			/*
 		 	 * set the physical address in the
 			 * corresponding descriptor entry in the
-			 * receive ring/queue for the hba 
+			 * receive ring/queue for the hba
 			 */
 
 			sbq_e->addr_lo = rxb->paddr & 0xFFFFFFFF;
@@ -1444,7 +1444,7 @@ qls_tx_done(void *context, int pending)
 
 	ifp = ha->ifp;
 
-	if (!ifp) 
+	if (!ifp)
 		return;
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {

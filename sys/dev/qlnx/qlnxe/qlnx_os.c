@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -288,10 +288,10 @@ SYSCTL_INT(_hw_qlnxe, OID_AUTO, queue_count, CTLFLAG_RDTUN,
 
 /*
  * Note on RDMA personality setting
- * 
+ *
  * Read the personality configured in NVRAM
- * If the personality is ETH_ONLY, ETH_IWARP or ETH_ROCE and 
- * the configured personality in sysctl is QLNX_PERSONALITY_DEFAULT 
+ * If the personality is ETH_ONLY, ETH_IWARP or ETH_ROCE and
+ * the configured personality in sysctl is QLNX_PERSONALITY_DEFAULT
  * use the personality in NVRAM.
 
  * Otherwise use t the personality configured in sysctl.
@@ -305,7 +305,7 @@ SYSCTL_INT(_hw_qlnxe, OID_AUTO, queue_count, CTLFLAG_RDTUN,
 #define QLNX_PERSONALIY_MASK		0xF
 
 /* RDMA configuration; 64bit field allows setting for 16 physical functions*/
-static uint64_t qlnxe_rdma_configuration = 0x22222222; 
+static uint64_t qlnxe_rdma_configuration = 0x22222222;
 
 #if __FreeBSD_version < 1100000
 
@@ -540,7 +540,7 @@ qlnx_create_sp_taskqueues(qlnx_host_t *ha)
 		ha->sp_taskqueue[i] = taskqueue_create(tq_name, M_NOWAIT,
 			 taskqueue_thread_enqueue, &ha->sp_taskqueue[i]);
 
-		if (ha->sp_taskqueue[i] == NULL) 
+		if (ha->sp_taskqueue[i] == NULL)
 			return (-1);
 
 		taskqueue_start_threads(&ha->sp_taskqueue[i], 1, PI_NET, "%s",
@@ -626,7 +626,7 @@ qlnx_create_fp_taskqueues(qlnx_host_t *ha)
 					taskqueue_thread_enqueue,
 					&fp->fp_taskqueue);
 
-		if (fp->fp_taskqueue == NULL) 
+		if (fp->fp_taskqueue == NULL)
 			return (-1);
 
 		taskqueue_start_threads(&fp->fp_taskqueue, 1, PI_NET, "%s",
@@ -868,11 +868,11 @@ qlnx_pci_attach(device_t dev)
 
 	if (qlnx_alloc_rx_dma_tag(ha))
                 goto qlnx_pci_attach_err;
-		
+
 
 	if (qlnx_init_hw(ha) != 0)
 		goto qlnx_pci_attach_err;
-		
+
         ha->flags.hw_init = 1;
 
 	qlnx_get_params(ha);
@@ -895,7 +895,7 @@ qlnx_pci_attach(device_t dev)
 	} else {
 		uint8_t max_rxq;
 		uint8_t max_txq;
-		
+
 		ecore_vf_get_num_rxqs(&ha->cdev.hwfns[0], &max_rxq);
 		ecore_vf_get_num_rxqs(&ha->cdev.hwfns[0], &max_txq);
 
@@ -1009,7 +1009,7 @@ qlnx_pci_attach(device_t dev)
 				i, ha->irq_vec[i].irq_rid);
                         goto qlnx_pci_attach_err;
                 }
-		
+
 		if (qlnx_alloc_tx_br(ha, &ha->fp_array[i])) {
                         device_printf(dev, "could not allocate tx_br[%d]\n", i);
                         goto qlnx_pci_attach_err;
@@ -1095,7 +1095,7 @@ qlnx_pci_attach(device_t dev)
 
 	/*
 	 * add sysctls
-	 */ 
+	 */
 	qlnx_add_sysctls(ha);
 
 qlnx_pci_attach_err0:
@@ -1272,7 +1272,7 @@ qlnx_init_hw(qlnx_host_t *ha)
 
 		if (qlnx_rdma_supported(ha) == 0)
 			qlnx_set_personality(ha);
-		
+
 #endif /* #ifdef QLNX_ENABLE_IWARP */
 	}
 	QL_DPRINT2(ha, "%s: %s\n", __func__,
@@ -2341,7 +2341,7 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 
 #if __FreeBSD_version >= 1000000
 
-        if (device_id == QLOGIC_PCI_DEVICE_ID_1634) 
+        if (device_id == QLOGIC_PCI_DEVICE_ID_1634)
 		ifp->if_baudrate = IF_Gbps(40);
         else if ((device_id == QLOGIC_PCI_DEVICE_ID_1656) ||
 			(device_id == QLOGIC_PCI_DEVICE_ID_8070))
@@ -2767,7 +2767,7 @@ qlnx_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFCAP:
-		
+
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 
 		QL_DPRINT4(ha, "SIOCSIFCAP (0x%lx)\n", cmd);
@@ -3153,9 +3153,9 @@ qlnx_qflush(struct ifnet *ifp)
 		if (fp->tx_br) {
 			mtx_lock(&fp->tx_mtx);
 
-			while ((mp = drbr_dequeue(ifp, fp->tx_br)) != NULL) { 
+			while ((mp = drbr_dequeue(ifp, fp->tx_br)) != NULL) {
 				fp->tx_pkts_freed++;
-				m_freem(mp);			
+				m_freem(mp);
 			}
 			mtx_unlock(&fp->tx_mtx);
 		}
@@ -3172,7 +3172,7 @@ qlnx_txq_doorbell_wr32(qlnx_host_t *ha, void *reg_addr, uint32_t value)
 	uint32_t		offset;
 
 	cdev = &ha->cdev;
-		
+
 	offset = (uint32_t)((uint8_t *)reg_addr - (uint8_t *)ha->pci_dbells);
 
 	bus_write_4(ha->pci_dbells, offset, value);
@@ -3437,7 +3437,7 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 		if (nsegs < QLNX_FP_MAX_SEGS)
 			fp->tx_pkts[(nsegs - 1)]++;
 		else
-			fp->tx_pkts[(QLNX_FP_MAX_SEGS - 1)]++; 
+			fp->tx_pkts[(QLNX_FP_MAX_SEGS - 1)]++;
 	}
 
 #ifdef QLNX_TRACE_PERF_DATA
@@ -3480,7 +3480,7 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
                 else if((m_head->m_pkthdr.len > 45056) &&
 				(m_head->m_pkthdr.len <= 49152))
                         fp->tx_pkts_hist[12]++;
-                else if((m_head->m_pkthdr.len > 49512) && 
+                else if((m_head->m_pkthdr.len > 49512) &&
 				m_head->m_pkthdr.len <= 53248))
                         fp->tx_pkts_hist[13]++;
                 else if((m_head->m_pkthdr.len > 53248) &&
@@ -3700,7 +3700,7 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 					third_bd = (struct eth_tx_3rd_bd *)
 								tx_data_bd;
 				}
-				
+
 				if (offset && (offset < segs->ds_len)) {
 					BD_SET_UNMAP_ADDR_LEN(tx_data_bd,\
 						segs->ds_addr, offset);
@@ -3780,7 +3780,7 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 		htole16(ecore_chain_get_prod_idx(&txq->tx_pbl));
 
 	qlnx_txq_doorbell_wr32(ha, txq->doorbell_addr, txq->tx_db.raw);
-   
+
 	QL_DPRINT8(ha, "exit[%d]\n", fp->rss_id);
 	return (0);
 }
@@ -3841,7 +3841,7 @@ qlnx_get_mac_addr(qlnx_host_t *ha)
 
 	p_hwfn = &ha->cdev.hwfns[0];
 
-	if (qlnx_vf_device(ha) != 0) 
+	if (qlnx_vf_device(ha) != 0)
 		return (p_hwfn->hw_info.hw_mac_addr);
 
 	ecore_vf_read_bulletin(p_hwfn, &p_is_forced);
@@ -4060,7 +4060,7 @@ qlnx_tpa_start(qlnx_host_t *ha,
 		QLNX_INC_IQDROPS(ifp);
 
 		/*
-		 * Load the tpa mbuf into the rx ring and save the 
+		 * Load the tpa mbuf into the rx ring and save the
 		 * posted mbuf
 		 */
 
@@ -4134,7 +4134,7 @@ qlnx_tpa_start(qlnx_host_t *ha,
 	}
 
 	/*
-	 * first process the ext_bd_len_list 
+	 * first process the ext_bd_len_list
 	 * if this fails then we simply drop the packet
 	 */
 	ecore_chain_consume(&rxq->rx_bd_ring);
@@ -4216,7 +4216,7 @@ qlnx_tpa_start(qlnx_host_t *ha,
 
 		return;
 	}
-	   
+
         rxq->tpa_info[agg_index].placement_offset = cqe->placement_offset;
 
         if (mpf != NULL) {
@@ -4334,7 +4334,7 @@ qlnx_tpa_cont(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 		if (cqe->len_list[i] == 0)
 			break;
 
-		if (rxq->tpa_info[agg_index].agg_state != 
+		if (rxq->tpa_info[agg_index].agg_state !=
 			QLNX_AGG_STATE_START) {
 			qlnx_reuse_rx_data(rxq);
 			continue;
@@ -4461,7 +4461,7 @@ qlnx_tpa_end(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 		if (cqe->len_list[i] == 0)
 			break;
 
-		if (rxq->tpa_info[agg_index].agg_state != 
+		if (rxq->tpa_info[agg_index].agg_state !=
 			QLNX_AGG_STATE_START) {
 			QL_DPRINT7(ha, "[%d]: 2\n ", fp->rss_id);
 
@@ -5757,13 +5757,13 @@ qlnx_slowpath_start(qlnx_host_t *ha)
 #ifdef QLNX_ENABLE_IWARP
 	if (qlnx_vf_device(ha) != 0) {
 		if(ha->personality == ECORE_PCI_ETH_IWARP) {
-			device_printf(ha->pci_dev, "setting parameters required by iWARP dev\n");	
+			device_printf(ha->pci_dev, "setting parameters required by iWARP dev\n");
 			pf_params.rdma_pf_params.num_qps = 1024;
 			pf_params.rdma_pf_params.num_srqs = 1024;
 			pf_params.rdma_pf_params.gl_pi = ECORE_ROCE_PROTOCOL_INDEX;
 			pf_params.rdma_pf_params.rdma_protocol = ECORE_RDMA_PROTOCOL_IWARP;
 		} else if(ha->personality == ECORE_PCI_ETH_ROCE) {
-			device_printf(ha->pci_dev, "setting parameters required by RoCE dev\n");	
+			device_printf(ha->pci_dev, "setting parameters required by RoCE dev\n");
 			pf_params.rdma_pf_params.num_qps = 8192;
 			pf_params.rdma_pf_params.num_srqs = 8192;
 			//pf_params.rdma_pf_params.min_dpis = 0;
@@ -6018,7 +6018,7 @@ qlnx_sb_init(struct ecore_dev *cdev, struct ecore_sb_info *sb_info,
         p_hwfn = &cdev->hwfns[hwfn_index];
         rel_sb_id = sb_id / cdev->num_hwfns;
 
-        QL_DPRINT2(((qlnx_host_t *)cdev), 
+        QL_DPRINT2(((qlnx_host_t *)cdev),
                 "hwfn_index = %d p_hwfn = %p sb_id = 0x%x rel_sb_id = 0x%x \
                 sb_info = %p sb_virt_addr = %p sb_phy_addr = %p\n",
                 hwfn_index, p_hwfn, sb_id, rel_sb_id, sb_info,
@@ -6366,7 +6366,7 @@ qlnx_free_mem_txq(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 
 /* This function allocates all memory needed per Tx queue */
 static int
-qlnx_alloc_mem_txq(qlnx_host_t *ha, struct qlnx_fastpath *fp, 
+qlnx_alloc_mem_txq(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 	struct qlnx_tx_queue *txq)
 {
         int			ret = ECORE_SUCCESS;
@@ -6800,7 +6800,7 @@ qlnx_start_queues(qlnx_host_t *ha)
 		qparams.stats_id = vport_id;
 		qparams.p_sb = fp->sb_info;
 		qparams.sb_idx = RX_PI;
-		
+
 
 		rc = ecore_eth_rx_queue_start(p_hwfn,
 			p_hwfn->hw_info.opaque_fid,
@@ -6828,7 +6828,7 @@ qlnx_start_queues(qlnx_host_t *ha)
 
                 for (tc = 0; tc < ha->num_tc; tc++) {
                         struct qlnx_tx_queue *txq = fp->txq[tc];
-		
+
 			bzero(&qparams,
 				sizeof(struct ecore_queue_start_common_params));
 			bzero(&tx_ret_params,
@@ -7023,7 +7023,7 @@ qlnx_stop_queues(qlnx_host_t *ha)
 			tx_queue_id = tc * ha->num_rss + i;
 			rc = ecore_eth_tx_queue_stop(p_hwfn,
 					fp->txq[tc]->handle);
-					
+
                         if (rc) {
 				QL_DPRINT1(ha, "Failed to stop TXQ #%d\n",
 					   tx_queue_id);
@@ -7089,7 +7089,7 @@ qlnx_remove_all_ucast_mac(qlnx_host_t *ha)
 	bzero(&ucast, sizeof(struct ecore_filter_ucast));
 
 	ucast.opcode = ECORE_FILTER_REPLACE;
-	ucast.type = ECORE_FILTER_MAC; 
+	ucast.type = ECORE_FILTER_MAC;
 	ucast.is_rx_filter = 1;
 
 	cdev = &ha->cdev;
@@ -7581,104 +7581,104 @@ qlnx_sample_storm_stats(qlnx_host_t *ha)
 		/* XSTORM */
 		reg = XSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_STORM_ACTIVE_CYCLES_BB_K2;
-		s_stats->xstorm_active_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->xstorm_active_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = XSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_STORM_STALL_CYCLES_BB_K2;
-		s_stats->xstorm_stall_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->xstorm_stall_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = XSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_IDLE_SLEEPING_CYCLES_BB_K2;
-		s_stats->xstorm_sleeping_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->xstorm_sleeping_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = XSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_IDLE_INACTIVE_CYCLES_BB_K2;
-		s_stats->xstorm_inactive_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->xstorm_inactive_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		/* YSTORM */
 		reg = YSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_STORM_ACTIVE_CYCLES_BB_K2;
-		s_stats->ystorm_active_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->ystorm_active_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = YSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_STORM_STALL_CYCLES_BB_K2;
-		s_stats->ystorm_stall_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->ystorm_stall_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = YSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_IDLE_SLEEPING_CYCLES_BB_K2;
-		s_stats->ystorm_sleeping_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->ystorm_sleeping_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = YSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_IDLE_INACTIVE_CYCLES_BB_K2;
-		s_stats->ystorm_inactive_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->ystorm_inactive_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		/* PSTORM */
 		reg = PSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_STORM_ACTIVE_CYCLES_BB_K2;
-		s_stats->pstorm_active_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->pstorm_active_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = PSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_STORM_STALL_CYCLES_BB_K2;
-		s_stats->pstorm_stall_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->pstorm_stall_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = PSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_IDLE_SLEEPING_CYCLES_BB_K2;
-		s_stats->pstorm_sleeping_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->pstorm_sleeping_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = PSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_IDLE_INACTIVE_CYCLES_BB_K2;
-		s_stats->pstorm_inactive_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->pstorm_inactive_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		/* TSTORM */
 		reg = TSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_STORM_ACTIVE_CYCLES_BB_K2;
-		s_stats->tstorm_active_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->tstorm_active_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = TSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_STORM_STALL_CYCLES_BB_K2;
-		s_stats->tstorm_stall_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->tstorm_stall_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = TSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_IDLE_SLEEPING_CYCLES_BB_K2;
-		s_stats->tstorm_sleeping_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->tstorm_sleeping_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = TSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_IDLE_INACTIVE_CYCLES_BB_K2;
-		s_stats->tstorm_inactive_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->tstorm_inactive_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		/* MSTORM */
 		reg = MSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_STORM_ACTIVE_CYCLES_BB_K2;
-		s_stats->mstorm_active_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->mstorm_active_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = MSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_STORM_STALL_CYCLES_BB_K2;
-		s_stats->mstorm_stall_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->mstorm_stall_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = MSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_IDLE_SLEEPING_CYCLES_BB_K2;
-		s_stats->mstorm_sleeping_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->mstorm_sleeping_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = MSEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_IDLE_INACTIVE_CYCLES_BB_K2;
-		s_stats->mstorm_inactive_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->mstorm_inactive_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		/* USTORM */
 		reg = USEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_STORM_ACTIVE_CYCLES_BB_K2;
-		s_stats->ustorm_active_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->ustorm_active_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = USEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_STORM_STALL_CYCLES_BB_K2;
-		s_stats->ustorm_stall_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->ustorm_stall_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = USEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_IDLE_SLEEPING_CYCLES_BB_K2;
-		s_stats->ustorm_sleeping_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->ustorm_sleeping_cycles = ecore_rd(hwfn, p_ptt, reg);
 
 		reg = USEM_REG_FAST_MEMORY +
 				SEM_FAST_REG_IDLE_INACTIVE_CYCLES_BB_K2;
-		s_stats->ustorm_inactive_cycles = ecore_rd(hwfn, p_ptt, reg); 
+		s_stats->ustorm_inactive_cycles = ecore_rd(hwfn, p_ptt, reg);
 
                 ecore_ptt_release(hwfn, p_ptt);
         }
@@ -7908,7 +7908,7 @@ qlnx_find_hwfn_index(struct ecore_hwfn *p_hwfn)
 
 	cdev = p_hwfn->p_dev;
 
-	for (i = 0; i < cdev->num_hwfns; i++) { 
+	for (i = 0; i < cdev->num_hwfns; i++) {
 		if (&cdev->hwfns[i] == p_hwfn)
 			break;
 	}
@@ -8036,7 +8036,7 @@ qlnx_initialize_sriov(qlnx_host_t *ha)
 		device_printf(dev, "SRIOV initialized\n");
 		ha->sriov_initialized = 1;
 	}
-			
+
 	return;
 }
 
@@ -8252,14 +8252,14 @@ qlnx_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
 		QL_DPRINT1(ha, " VF[%d] is greater than max allowed [%d]\n",
 			vfnum, (ha->num_vfs - 1));
 	}
-		
+
 	vf_attr = &ha->vf_attr[vfnum];
 
         if (nvlist_exists_binary(params, "mac-addr")) {
                 mac = nvlist_get_binary(params, "mac-addr", &size);
                 bcopy(mac, vf_attr->mac_addr, ETHER_ADDR_LEN);
 		device_printf(dev,
-			"%s: mac_addr = %02x:%02x:%02x:%02x:%02x:%02x\n", 
+			"%s: mac_addr = %02x:%02x:%02x:%02x:%02x:%02x\n",
 			__func__, vf_attr->mac_addr[0],
 			vf_attr->mac_addr[1], vf_attr->mac_addr[2],
 			vf_attr->mac_addr[3], vf_attr->mac_addr[4],
@@ -8298,7 +8298,7 @@ qlnx_handle_vf_msg(qlnx_host_t *ha, struct ecore_hwfn *p_hwfn)
                 if (!(events[i / 64] & (1ULL << (i % 64))))
                         continue;
 
-		QL_DPRINT2(ha, 
+		QL_DPRINT2(ha,
                            "Handling VF message from VF 0x%02x [Abs 0x%02x]\n",
                            i, p_hwfn->p_dev->p_iov_info->first_vf_in_pf + i);
 
@@ -8333,7 +8333,7 @@ qlnx_handle_vf_flr_update(qlnx_host_t *ha, struct ecore_hwfn *p_hwfn)
 	if (ret) {
                 QL_DPRINT1(ha, "ecore_iov_vf_flr_cleanup failed; re-scheduling\n");
 	}
-		
+
 	ecore_ptt_release(p_hwfn, ptt);
 
 	return;
@@ -8358,7 +8358,7 @@ qlnx_handle_bulletin_update(qlnx_host_t *ha, struct ecore_hwfn *p_hwfn)
 			p_hwfn, i);
 		ecore_iov_post_vf_bulletin(p_hwfn, i, ptt);
 	}
-		
+
 	ecore_ptt_release(p_hwfn, ptt);
 
 	return;
@@ -8414,7 +8414,7 @@ qlnx_create_pf_taskqueues(qlnx_host_t *ha)
 			 taskqueue_thread_enqueue,
 			&ha->sriov_task[i].pf_taskqueue);
 
-		if (ha->sriov_task[i].pf_taskqueue == NULL) 
+		if (ha->sriov_task[i].pf_taskqueue == NULL)
 			return (-1);
 
 		taskqueue_start_threads(&ha->sriov_task[i].pf_taskqueue, 1,

@@ -88,7 +88,7 @@ lowrisc_uart_getbaud(struct uart_bas *bas)
 }
 
 static void
-lowrisc_uart_init(struct uart_bas *bas, int baudrate, int databits, 
+lowrisc_uart_init(struct uart_bas *bas, int baudrate, int databits,
     int stopbits, int parity)
 {
 

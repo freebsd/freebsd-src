@@ -38,7 +38,7 @@
 
 /**
  * bhnd_pmu(4) regulators.
- */ 
+ */
 typedef enum bhnd_pmu_regulator {
 	BHND_REGULATOR_PAREF_LDO	= 0,	/**< PA reference LDO */
 } bhnd_pmu_regulator;

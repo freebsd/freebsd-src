@@ -159,7 +159,7 @@ ocs_io_pool_create(ocs_t *ocs, uint32_t num_io, uint32_t num_sgl)
 		/* Make IO backend call to initialize IO */
 		ocs_scsi_tgt_io_init(io);
 		ocs_scsi_ini_io_init(io);
-		
+
 		rc = ocs_dma_alloc(ocs, &io->els_req, OCS_ELS_REQ_LEN, OCS_MIN_DMA_ALIGNMENT);
 		if (rc) {
 			ocs_log_err(ocs, "ocs_dma_alloc els_req failed\n");

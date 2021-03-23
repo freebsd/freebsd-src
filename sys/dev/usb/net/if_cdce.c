@@ -376,7 +376,7 @@ cdce_ncm_init(struct cdce_softc *sc)
 
 	/* Verify maximum receive length */
 
-	if ((sc->sc_ncm.rx_max < 32) || 
+	if ((sc->sc_ncm.rx_max < 32) ||
 	    (sc->sc_ncm.rx_max > CDCE_NCM_RX_MAXLEN)) {
 		DPRINTFN(1, "Using default maximum receive length\n");
 		sc->sc_ncm.rx_max = CDCE_NCM_RX_MAXLEN;
@@ -390,21 +390,21 @@ cdce_ncm_init(struct cdce_softc *sc)
 		sc->sc_ncm.tx_max = CDCE_NCM_TX_MAXLEN;
 	}
 
-	/* 
+	/*
 	 * Verify that the structure alignment is:
 	 * - power of two
 	 * - not greater than the maximum transmit length
 	 * - not less than four bytes
 	 */
 	if ((sc->sc_ncm.tx_struct_align < 4) ||
-	    (sc->sc_ncm.tx_struct_align != 
+	    (sc->sc_ncm.tx_struct_align !=
 	     ((-sc->sc_ncm.tx_struct_align) & sc->sc_ncm.tx_struct_align)) ||
 	    (sc->sc_ncm.tx_struct_align >= sc->sc_ncm.tx_max)) {
 		DPRINTFN(1, "Using default other alignment: 4 bytes\n");
 		sc->sc_ncm.tx_struct_align = 4;
 	}
 
-	/* 
+	/*
 	 * Verify that the payload alignment is:
 	 * - power of two
 	 * - not greater than the maximum transmit length
@@ -430,7 +430,7 @@ cdce_ncm_init(struct cdce_softc *sc)
 	 * the tx_modulus. This is not too clear in the specification.
 	 */
 
-	sc->sc_ncm.tx_remainder = 
+	sc->sc_ncm.tx_remainder =
 	    (sc->sc_ncm.tx_remainder - ETHER_HDR_LEN) &
 	    (sc->sc_ncm.tx_modulus - 1);
 
@@ -673,7 +673,7 @@ alloc_transfers:
 	if ((ued == NULL) || (ued->bLength < sizeof(*ued))) {
 		error = USB_ERR_INVAL;
 	} else {
-		error = usbd_req_get_string_any(uaa->device, NULL, 
+		error = usbd_req_get_string_any(uaa->device, NULL,
 		    eaddr_str, sizeof(eaddr_str), ued->iMacAddress);
 	}
 
@@ -997,7 +997,7 @@ cdce_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
-		/* 
+		/*
 		 * TODO: Implement support for multi frame transfers,
 		 * when the USB hardware supports it.
 		 */
@@ -1121,7 +1121,7 @@ tr_setup:
 			usbd_copy_in(pc, 0, &req, sizeof(req));
 			usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
 			usbd_xfer_set_frames(xfer, 1);
-			usbd_transfer_submit(xfer); 
+			usbd_transfer_submit(xfer);
 
 		} else if (sc->sc_notify_state == CDCE_NOTIFY_SPEED_CHANGE) {
 			req.bmRequestType = UCDC_NOTIFICATION;
@@ -1144,7 +1144,7 @@ tr_setup:
 			usbd_copy_in(pc, 0, &req, sizeof(req));
 			usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
 			usbd_xfer_set_frames(xfer, 1);
-			usbd_transfer_submit(xfer); 
+			usbd_transfer_submit(xfer);
 		}
 		break;
 

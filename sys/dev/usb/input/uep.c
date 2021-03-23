@@ -83,7 +83,7 @@ SYSCTL_INT(_hw_usb_uep, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define UEP_PACKET_REPORT		0x80
 #define UEP_PACKET_REPORT_PRESSURE	0xc0
 #define UEP_PACKET_REPORT_PLAYER	0xa0
-#define	UEP_PACKET_LEN_MASK	
+#define	UEP_PACKET_LEN_MASK
 
 #define UEP_FIFO_BUF_SIZE	8	/* bytes */
 #define UEP_FIFO_QUEUE_MAXLEN	50	/* units */
@@ -402,7 +402,7 @@ uep_attach(device_t dev)
 
 	sc->buf_len = 0;
 
-	return (0);	
+	return (0);
 
 detach:
 	uep_detach(dev);

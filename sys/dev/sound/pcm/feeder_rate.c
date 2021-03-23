@@ -529,7 +529,7 @@ z_feed_linear_##SIGN##BIT##ENDIAN(struct z_info *info, uint8_t *dst)		\
 	z += info->z_dy;						\
 	p adv##= info->channels * PCM_##BIT##_BPS
 
-/* 
+/*
  * XXX GCC4 optimization is such a !@#$%, need manual unrolling.
  */
 #if defined(__GNUC__) && __GNUC__ >= 4

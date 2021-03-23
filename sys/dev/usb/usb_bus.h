@@ -53,7 +53,7 @@ struct usb_bus {
 /* convenience macros */
 #define	USB_BUS_TT_PROC(bus) USB_BUS_NON_GIANT_ISOC_PROC(bus)
 #define	USB_BUS_CS_PROC(bus) USB_BUS_NON_GIANT_ISOC_PROC(bus)
-  
+
 #if USB_HAVE_PER_BUS_PROCESS
 #define	USB_BUS_GIANT_PROC(bus) (&(bus)->giant_callback_proc)
 #define	USB_BUS_NON_GIANT_ISOC_PROC(bus) (&(bus)->non_giant_isoc_callback_proc)

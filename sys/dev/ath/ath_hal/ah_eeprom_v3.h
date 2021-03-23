@@ -240,7 +240,7 @@ typedef struct {
 
 typedef struct {
 	uint16_t	channelValue;
-	int16_t		maxPower_t4;                
+	int16_t		maxPower_t4;
 	EXPN_DATA_PER_XPD_5112	pDataPerXPD[NUM_XPD_PER_CHANNEL];
 } EXPN_DATA_PER_CHANNEL_5112;
 
@@ -301,7 +301,7 @@ typedef struct {
 
 typedef struct {
 	uint16_t	channelValue;
-	int16_t		maxPower_t4;    
+	int16_t		maxPower_t4;
 	uint16_t	numPdGains;	/* # Pd Gains per channel */
 	RAW_DATA_PER_PDGAIN_2413 pDataPerPDGain[MAX_NUM_PDGAINS_PER_CHANNEL];
 } RAW_DATA_PER_CHANNEL_2413;

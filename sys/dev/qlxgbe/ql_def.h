@@ -192,7 +192,7 @@ struct qla_host {
 	/* transmit and receive buffers */
 	uint32_t		txr_idx; /* index of the current tx ring */
 	qla_tx_ring_t		tx_ring[NUM_TX_RINGS];
-						
+
 	bus_dma_tag_t		tx_tag;
 	struct callout		tx_callout;
 

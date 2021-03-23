@@ -165,7 +165,7 @@ tcp_log_dev_clear_cdevpriv(void *data)
 	 * Lock the queue and drop our references. We hold references to all
 	 * the entries starting with tldi_head (or, if tldi_head == NULL, all
 	 * entries in the queue).
-	 * 
+	 *
 	 * Because we don't want anyone adding addition things to the queue
 	 * while we are doing this, we lock the queue.
 	 */

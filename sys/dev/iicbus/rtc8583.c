@@ -69,7 +69,7 @@ struct time_regs {
 struct rtc8583_softc {
 	device_t	dev;
 	device_t	busdev;
-	struct intr_config_hook 
+	struct intr_config_hook
 			init_hook;
 };
 
@@ -88,12 +88,12 @@ static int	rtc8583_detach(device_t dev);
 static int	rtc8583_gettime(device_t dev, struct timespec *ts);
 static int	rtc8583_settime(device_t dev, struct timespec *ts);
 
-static int	rtc8583_writeto(device_t slavedev, uint8_t regaddr, 
+static int	rtc8583_writeto(device_t slavedev, uint8_t regaddr,
 		    void *buffer, uint16_t buflen, int waithow);
 
 /* Implementation */
 
-static int 
+static int
 rtc8583_writeto(device_t slavedev, uint8_t regaddr, void *buffer,
     uint16_t buflen, int waithow)
 {
@@ -114,14 +114,14 @@ rtc8583_writeto(device_t slavedev, uint8_t regaddr, void *buffer,
 }
 
 static inline int
-rtc8583_read1(struct rtc8583_softc *sc, uint8_t reg, uint8_t *data) 
+rtc8583_read1(struct rtc8583_softc *sc, uint8_t reg, uint8_t *data)
 {
 
 	return (iicdev_readfrom(sc->dev, reg, data, 1, IIC_WAIT));
 }
 
 static inline int
-rtc8583_write1(struct rtc8583_softc *sc, uint8_t reg, uint8_t val) 
+rtc8583_write1(struct rtc8583_softc *sc, uint8_t reg, uint8_t val)
 {
 
 	return (rtc8583_writeto(sc->dev, reg, &val, 1, IIC_WAIT));
@@ -131,7 +131,7 @@ static void
 rtc8583_init(void *arg)
 {
 	struct rtc8583_softc	*sc;
-	
+
 	sc = (struct rtc8583_softc*)arg;
 	config_intrhook_disestablish(&sc->init_hook);
 
@@ -163,7 +163,7 @@ static int
 rtc8583_attach(device_t dev)
 {
 	struct rtc8583_softc	*sc;
-	
+
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->busdev = device_get_parent(sc->dev);
@@ -207,22 +207,22 @@ rtc8583_gettime(device_t dev, struct timespec *ts)
 	y = tregs.day >> 6;
 	/* Get year from user SRAM */
 	rtc8583_read1(sc, RTC8583_USERSRAM_REG,  &sreg);
-	
-	/* 
+
+	/*
 	 * Check if year adjustment is required.
 	 * RTC has only 2 bits for year value (i.e. maximum is 4 years), so
-	 * full year value is stored in user SRAM and updated manually or 
+	 * full year value is stored in user SRAM and updated manually or
 	 * by this code.
 	 */
 	ytmp = sreg & 0x03;
 	if (ytmp != y) {
 		/* shift according to difference */
 		sreg += y - ytmp;
-		
+
 		/* check if overflow happened */
 		if (ytmp > y)
 			sreg += 4;
-		
+
 		if ((err = iicbus_request_bus(sc->busdev, sc->dev, IIC_WAIT)) != 0)
 			return (err);
 		rtc8583_write1(sc, RTC8583_USERSRAM_REG, sreg);
@@ -241,7 +241,7 @@ rtc8583_gettime(device_t dev, struct timespec *ts)
 	bct.mon  = tregs.month & 0x1f;
 	bct.year = bin2bcd(sreg % 100);
 
-	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct); 
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct);
 	return (clock_bcd_to_ts(&bct, ts, false));
 }
 

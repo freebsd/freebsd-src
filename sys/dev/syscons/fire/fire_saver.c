@@ -30,9 +30,9 @@
 
 /*
  * brad forschinger, 19990504 <retch@flag.blackened.net>
- * 
+ *
  * written with much help from warp_saver.c
- * 
+ *
  */
 
 #include <sys/param.h>
@@ -151,7 +151,7 @@ fire_init(video_adapter_t *adp)
 		    SAVER_NAME);
 		return (ENODEV);
 	}
-    
+
 	scrw = info.vi_width;
 	scrh = info.vi_height;
 

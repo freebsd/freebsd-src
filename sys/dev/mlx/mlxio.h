@@ -45,7 +45,7 @@
 /*
  * Controller ioctls
  */
-struct mlx_pause 
+struct mlx_pause
 {
     int		mp_which;
 #define MLX_PAUSE_ALL		0xff

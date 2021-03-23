@@ -109,7 +109,7 @@ utf8_to_utf16(uint16_t *dst, size_t dst_len,
 		|| !IS_CONT(s[spos+2]) || !IS_CONT(s[spos+3])) {
 		spos++;
 		error++;
-		
+
 		continue;
 	    }
 	    cc = ((s[spos] & 0x03) << 18) | ((s[spos+1] & 0x3f) << 12)
@@ -130,7 +130,7 @@ utf8_to_utf16(uint16_t *dst, size_t dst_len,
 	    dst[dpos] = c;
 	dpos++;
     }
-    
+
     if (errp)
 	*errp = error;
 

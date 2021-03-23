@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -136,7 +136,7 @@ mwl_pci_attach(device_t dev)
 
 	pci_enable_busmaster(dev);
 
-	/* 
+	/*
 	 * Setup memory-mapping of PCI registers.
 	 */
 	rid = BS_BAR0;

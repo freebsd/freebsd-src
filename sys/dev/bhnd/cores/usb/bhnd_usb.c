@@ -61,7 +61,7 @@ static const struct bhnd_device bhnd_usb_devs[] = {
 
 static int	bhnd_usb_attach(device_t);
 static int	bhnd_usb_probe(device_t);
-static device_t	bhnd_usb_add_child(device_t dev, u_int order, const char *name, 
+static device_t	bhnd_usb_add_child(device_t dev, u_int order, const char *name,
 		    int unit);
 static int	bhnd_usb_print_all_resources(device_t dev);
 static int	bhnd_usb_print_child(device_t bus, device_t child);
@@ -120,7 +120,7 @@ bhnd_usb_attach(device_t dev)
 	sc->sc_msize = rman_get_size(sc->sc_mem);
 
 	rid = 0;
-	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, 
+	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 		RF_SHAREABLE | RF_ACTIVE);
 	if (sc->sc_irq == NULL) {
 		BHND_ERROR_DEV(dev, "unable to allocate IRQ");
@@ -140,8 +140,8 @@ bhnd_usb_attach(device_t dev)
 	}
 
 	/* TODO: macros for registers */
-	bus_write_4(sc->sc_mem, 0x200, 0x7ff); 
-	DELAY(100); 
+	bus_write_4(sc->sc_mem, 0x200, 0x7ff);
+	DELAY(100);
 
 #define	OHCI_CONTROL		0x04
 	bus_write_4(sc->sc_mem, OHCI_CONTROL, 0);
@@ -401,12 +401,12 @@ bhnd_usb_add_child(device_t dev, u_int order, const char *name, int unit)
 	resource_list_init(&sdi->sdi_rl);
 	sdi->sdi_irq_mapped = false;
 
-	if (strncmp(name, "ohci", 4) == 0) 
+	if (strncmp(name, "ohci", 4) == 0)
 	{
 		sdi->sdi_maddr = sc->sc_maddr + 0x000;
 		sdi->sdi_msize = 0x200;
 	}
-	else if (strncmp(name, "ehci", 4) == 0) 
+	else if (strncmp(name, "ehci", 4) == 0)
 	{
 		sdi->sdi_maddr = sc->sc_maddr + 0x000;
 		sdi->sdi_msize = 0x1000;

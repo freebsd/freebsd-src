@@ -304,7 +304,7 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
 }
 
 int
-sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize, 
+sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 		  int fontsize, int fontwidth)
 {
 #ifndef SC_PIXEL_MODE
@@ -689,7 +689,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	    /* restore fonts & palette ! */
 #if 0
 #ifndef SC_NO_FONT_LOADING
-	    if (ISFONTAVAIL(adp->va_flags) 
+	    if (ISFONTAVAIL(adp->va_flags)
 		&& !(scp->status & (GRAPHICS_MODE | PIXEL_MODE)))
 		/*
 		 * FONT KLUDGE
@@ -745,7 +745,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	    if (!(scp->status & (GRAPHICS_MODE | PIXEL_MODE)))
 		return EINVAL;
 	    if (scp->status & GRAPHICS_MODE)
-		return sc_set_pixel_mode(scp, tp, scp->xsize, scp->ysize, 
+		return sc_set_pixel_mode(scp, tp, scp->xsize, scp->ysize,
 					 scp->font_size, scp->font_width);
 	    s = spltty();
 	    if ((error = sc_clean_up(scp))) {
@@ -787,14 +787,14 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
     case KDRASTER:		/* set pixel (raster) display mode */
 	if (ISUNKNOWNSC(scp) || ISTEXTSC(scp))
 	    return ENODEV;
-	return sc_set_pixel_mode(scp, tp, ((int *)data)[0], ((int *)data)[1], 
+	return sc_set_pixel_mode(scp, tp, ((int *)data)[0], ((int *)data)[1],
 				 ((int *)data)[2], 8);
 #endif /* SC_PIXEL_MODE */
 
     case KDGETMODE:     	/* get current mode of this (virtual) console */
-	/* 
-	 * From the user program's point of view, KD_PIXEL is the same 
-	 * as KD_TEXT... 
+	/*
+	 * From the user program's point of view, KD_PIXEL is the same
+	 * as KD_TEXT...
 	 */
 	*data = ISGRAPHSC(scp) ? KD_GRAPHICS : KD_TEXT;
 	return 0;
@@ -816,7 +816,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
     return ENOIOCTL;
 }
 
-static LIST_HEAD(, sc_renderer) sc_rndr_list = 
+static LIST_HEAD(, sc_renderer) sc_rndr_list =
 	LIST_HEAD_INITIALIZER(sc_rndr_list);
 
 int

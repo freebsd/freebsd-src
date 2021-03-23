@@ -81,7 +81,7 @@ static struct contype_names {
 	{MII_CONTYPE_2000BX,		"2000base-x"},
 	{MII_CONTYPE_2500BX,		"2500base-x"},
 	{MII_CONTYPE_RXAUI,		"rxaui"},
-};                                                           
+};
 
 static phandle_t
 mii_fdt_get_phynode(phandle_t macnode)

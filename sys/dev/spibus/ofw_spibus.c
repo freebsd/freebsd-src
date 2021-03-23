@@ -206,7 +206,7 @@ static struct resource_list *
 ofw_spibus_get_resource_list(device_t bus __unused, device_t child)
 {
 	struct spibus_ivar *devi;
-        
+
 	devi = SPIBUS_IVAR(child);
 	return (&devi->rl);
 }

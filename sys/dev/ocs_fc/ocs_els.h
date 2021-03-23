@@ -107,4 +107,4 @@ extern int32_t ocs_els_io_list_empty(ocs_node_t *node, ocs_list_t *list);
 /* CT */
 extern int32_t ocs_send_ct_rsp(ocs_io_t *io, uint32_t ox_id, fcct_iu_header_t *ct_hdr, uint32_t cmd_rsp_code, uint32_t reason_code, uint32_t reason_code_explanation);
 
-#endif 
+#endif

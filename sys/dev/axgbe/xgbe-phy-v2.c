@@ -2725,10 +2725,10 @@ xgbe_phy_read_status(struct xgbe_prv_data *pdata)
 	if (ret) {
 		axgbe_printf(2, "Link Update return %d\n", ret);
 		return (ret);
-	}	
+	}
 
 	if (AUTONEG_ENABLE == pdata->phy.autoneg) {
-		if (pdata->phy.supported == SUPPORTED_1000baseT_Half || 
+		if (pdata->phy.supported == SUPPORTED_1000baseT_Half ||
 		    pdata->phy.supported == SUPPORTED_1000baseT_Full) {
 			lpagb = xgbe_phy_mii_read(pdata, pdata->mdio_addr,
 			    MII_100T2SR);
@@ -2749,10 +2749,10 @@ xgbe_phy_read_status(struct xgbe_prv_data *pdata)
 				return (-ENOLINK);
 			}
 
-			if (pdata->phy.supported == SUPPORTED_1000baseT_Half) 
-				XGBE_SET_ADV(&pdata->phy, 1000baseT_Half); 
-			else if (pdata->phy.supported == SUPPORTED_1000baseT_Full) 
-				XGBE_SET_ADV(&pdata->phy, 1000baseT_Full); 
+			if (pdata->phy.supported == SUPPORTED_1000baseT_Half)
+				XGBE_SET_ADV(&pdata->phy, 1000baseT_Half);
+			else if (pdata->phy.supported == SUPPORTED_1000baseT_Full)
+				XGBE_SET_ADV(&pdata->phy, 1000baseT_Full);
 
 			common_adv_gb = lpagb & adv << 2;
 		}
@@ -2761,9 +2761,9 @@ xgbe_phy_read_status(struct xgbe_prv_data *pdata)
 		if (lpa < 0)
 			return (lpa);
 
-		if (pdata->phy.supported == SUPPORTED_Autoneg) 
+		if (pdata->phy.supported == SUPPORTED_Autoneg)
 			XGBE_SET_ADV(&pdata->phy, Autoneg);
- 
+
 		adv = xgbe_phy_mii_read(pdata, pdata->mdio_addr, MII_ANAR);
 		if (adv < 0)
 			return (adv);
@@ -2820,8 +2820,8 @@ xgbe_phy_read_status(struct xgbe_prv_data *pdata)
 		axgbe_printf(2, "%s: link speed %#x duplex %#x media %#x "
 		    "autoneg %#x\n", __func__, pdata->phy.speed,
 		    pdata->phy.duplex, pdata->phy.link, pdata->phy.autoneg);
-	}	
-		
+	}
+
 	return (0);
 }
 
@@ -2855,7 +2855,7 @@ xgbe_phy_link_status(struct xgbe_prv_data *pdata, int *an_restart)
 	} else {
 		mii = device_get_softc(pdata->axgbe_miibus);
 		mii_tick(mii);
-	
+
 		ret = xgbe_phy_read_status(pdata);
 		if (ret) {
 			axgbe_printf(2, "Link: Read status returned %d\n", ret);
@@ -3506,7 +3506,7 @@ xgbe_phy_init(struct xgbe_prv_data *pdata)
 	phy_data->redrv_addr = XP_GET_BITS(pdata->pp4, XP_PROP_4, REDRV_ADDR);
 	phy_data->redrv_lane = XP_GET_BITS(pdata->pp4, XP_PROP_4, REDRV_LANE);
 	phy_data->redrv_model = XP_GET_BITS(pdata->pp4, XP_PROP_4, REDRV_MODEL);
-	
+
 	if (phy_data->redrv) {
 		DBGPR("redrv present\n");
 		DBGPR("redrv i/f=%u\n", phy_data->redrv_if);

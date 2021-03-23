@@ -23,7 +23,7 @@
 #ifndef	__AH_REGDOMAIN_DOMAINS_H__
 #define	__AH_REGDOMAIN_DOMAINS_H__
 
-/* 
+/*
  * BMLEN defines the size of the bitmask used to hold frequency
  * band specifications.  Note this must agree with the BM macro
  * definition that's used to setup initializers.  See also further

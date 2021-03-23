@@ -25,7 +25,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -67,7 +67,7 @@ enum {
 	 * On PCI (not PCIe) devices, early ChipCommon revisions
 	 * (rev <= 5) vend xtal/pll and clock config registers via the PCI
 	 * config space.
-	 * 
+	 *
 	 * Dynamic clock control is not supported on these devices.
 	 */
 	PWRCTL_QUIRK_PCICLK_CTL		= (1 << 1) | PWRCTL_QUIRK_FIXED_CLK,
@@ -126,7 +126,7 @@ struct bhnd_pwrctl_softc {
 /* quirk convenience macro */
 #define	PWRCTL_QUIRK(_sc, _name)	\
     ((_sc)->quirks & PWRCTL_QUIRK_ ## _name)
-    
+
 #define	PWRCTL_ASSERT_QUIRK(_sc, name)	\
     KASSERT(PWRCTL_QUIRK((_sc), name), ("quirk " __STRING(_name) " not set"))
 

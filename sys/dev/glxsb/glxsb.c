@@ -659,7 +659,7 @@ glxsb_crypto_encdec(struct cryptop *crp, struct glxsb_session *ses,
 		control = SB_CTL_DEC;
 
 	crypto_read_iv(crp, op_iv);
-	
+
 	offset = 0;
 	tlen = crp->crp_payload_length;
 

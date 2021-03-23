@@ -113,7 +113,7 @@ ue_queue_command(struct usb_ether *ue,
 	if (usb_proc_is_gone(&ue->ue_tq)) {
 		return;         /* nothing to do */
 	}
-	/* 
+	/*
 	 * NOTE: The task cannot get executed before we drop the
 	 * "sc_mtx" mutex. It is safe to update fields in the message
 	 * structure after that the message got queued.
@@ -172,7 +172,7 @@ uether_ifattach(struct usb_ether *ue)
 	    (ue->ue_methods == NULL))
 		return (EINVAL);
 
-	error = usb_proc_create(&ue->ue_tq, ue->ue_mtx, 
+	error = usb_proc_create(&ue->ue_tq, ue->ue_mtx,
 	    device_get_nameunit(ue->ue_dev), USB_PRI_MED);
 	if (error) {
 		device_printf(ue->ue_dev, "could not setup taskqueue\n");
@@ -366,7 +366,7 @@ ue_init(void *arg)
 
 	UE_LOCK(ue);
 	ue_queue_command(ue, ue_start_task,
-	    &ue->ue_sync_task[0].hdr, 
+	    &ue->ue_sync_task[0].hdr,
 	    &ue->ue_sync_task[1].hdr);
 	UE_UNLOCK(ue);
 }
@@ -487,7 +487,7 @@ ue_watchdog(void *arg)
 		return;
 
 	ue_queue_command(ue, ue_tick_task,
-	    &ue->ue_tick_task[0].hdr, 
+	    &ue->ue_tick_task[0].hdr,
 	    &ue->ue_tick_task[1].hdr);
 
 	usb_callout_reset(&ue->ue_watchdog, hz, ue_watchdog, ue);
@@ -521,15 +521,15 @@ uether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				ue_queue_command(ue, ue_promisc_task,
-				    &ue->ue_promisc_task[0].hdr, 
+				    &ue->ue_promisc_task[0].hdr,
 				    &ue->ue_promisc_task[1].hdr);
 			else
 				ue_queue_command(ue, ue_start_task,
-				    &ue->ue_sync_task[0].hdr, 
+				    &ue->ue_sync_task[0].hdr,
 				    &ue->ue_sync_task[1].hdr);
 		} else {
 			ue_queue_command(ue, ue_stop_task,
-			    &ue->ue_sync_task[0].hdr, 
+			    &ue->ue_sync_task[0].hdr,
 			    &ue->ue_sync_task[1].hdr);
 		}
 		UE_UNLOCK(ue);
@@ -538,7 +538,7 @@ uether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCDELMULTI:
 		UE_LOCK(ue);
 		ue_queue_command(ue, ue_setmulti_task,
-		    &ue->ue_multi_task[0].hdr, 
+		    &ue->ue_multi_task[0].hdr,
 		    &ue->ue_multi_task[1].hdr);
 		UE_UNLOCK(ue);
 		break;
@@ -593,7 +593,7 @@ uether_newbuf(void)
 }
 
 int
-uether_rxmbuf(struct usb_ether *ue, struct mbuf *m, 
+uether_rxmbuf(struct usb_ether *ue, struct mbuf *m,
     unsigned int len)
 {
 	struct ifnet *ifp = ue->ue_ifp;
@@ -611,7 +611,7 @@ uether_rxmbuf(struct usb_ether *ue, struct mbuf *m,
 }
 
 int
-uether_rxbuf(struct usb_ether *ue, struct usb_page_cache *pc, 
+uether_rxbuf(struct usb_ether *ue, struct usb_page_cache *pc,
     unsigned int offset, unsigned int len)
 {
 	struct ifnet *ifp = ue->ue_ifp;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  */
 
 #ifndef __ISCSI_COMMON__
-#define __ISCSI_COMMON__ 
+#define __ISCSI_COMMON__
 /**********************/
 /* ISCSI FW CONSTANTS */
 /**********************/
@@ -58,7 +58,7 @@
 #define ISCSI_MIN_VAL_MAX_OUTSTANDING_R2T   (1)
 #define ISCSI_MAX_VAL_MAX_OUTSTANDING_R2T   (0xff) // 0x10000 according to RFC
 
-#define ISCSI_AHS_CNTL_SIZE 4 
+#define ISCSI_AHS_CNTL_SIZE 4
 
 #define ISCSI_WQE_NUM_SGES_SLOWIO           (0xf)
 
@@ -222,7 +222,7 @@ union iscsi_seq_num
 };
 
 /*
- * iSCSI DIF flags 
+ * iSCSI DIF flags
  */
 struct iscsi_dif_flags
 {
@@ -1319,7 +1319,7 @@ struct e5_iscsi_task_context
 };
 
 /*
- * ISCSI connection offload params passed by driver to FW in ISCSI offload ramrod 
+ * ISCSI connection offload params passed by driver to FW in ISCSI offload ramrod
  */
 struct iscsi_conn_offload_params
 {
@@ -1361,7 +1361,7 @@ struct iscsi_conn_stats_params
 };
 
 /*
- * spe message header 
+ * spe message header
  */
 struct iscsi_slow_path_hdr
 {
@@ -1376,7 +1376,7 @@ struct iscsi_slow_path_hdr
 };
 
 /*
- * ISCSI connection update params passed by driver to FW in ISCSI update ramrod 
+ * ISCSI connection update params passed by driver to FW in ISCSI update ramrod
  */
 struct iscsi_conn_update_ramrod_params
 {
@@ -1465,7 +1465,7 @@ union iscsi_cqe
 };
 
 /*
- * iSCSI CQE type 
+ * iSCSI CQE type
  */
 enum iscsi_cqes_type
 {
@@ -1478,7 +1478,7 @@ enum iscsi_cqes_type
 };
 
 /*
- * iSCSI CQE type 
+ * iSCSI CQE type
  */
 enum iscsi_cqe_unsolicited_type
 {
@@ -1515,7 +1515,7 @@ struct iscsi_debug_modes
 };
 
 /*
- * iSCSI kernel completion queue IDs 
+ * iSCSI kernel completion queue IDs
  */
 enum iscsi_eqe_opcode
 {
@@ -1543,7 +1543,7 @@ enum iscsi_eqe_opcode
 };
 
 /*
- * iSCSI EQE and CQE completion status 
+ * iSCSI EQE and CQE completion status
  */
 enum iscsi_error_types
 {
@@ -1598,7 +1598,7 @@ enum iscsi_error_types
 };
 
 /*
- * iSCSI Ramrod Command IDs 
+ * iSCSI Ramrod Command IDs
  */
 enum iscsi_ramrod_cmd_id
 {
@@ -1629,7 +1629,7 @@ struct iscsi_spe_conn_mac_update
 };
 
 /*
- * ISCSI and TCP connection(Option 1) offload params passed by driver to FW in ISCSI offload ramrod 
+ * ISCSI and TCP connection(Option 1) offload params passed by driver to FW in ISCSI offload ramrod
  */
 struct iscsi_spe_conn_offload
 {
@@ -1641,7 +1641,7 @@ struct iscsi_spe_conn_offload
 };
 
 /*
- * ISCSI and TCP connection(Option 2) offload params passed by driver to FW in ISCSI offload ramrod 
+ * ISCSI and TCP connection(Option 2) offload params passed by driver to FW in ISCSI offload ramrod
  */
 struct iscsi_spe_conn_offload_option2
 {
@@ -1680,7 +1680,7 @@ struct iscsi_spe_conn_termination
 };
 
 /*
- * iSCSI firmware function destroy parameters 
+ * iSCSI firmware function destroy parameters
  */
 struct iscsi_spe_func_dstry
 {
@@ -1690,7 +1690,7 @@ struct iscsi_spe_func_dstry
 };
 
 /*
- * iSCSI firmware function init parameters 
+ * iSCSI firmware function init parameters
  */
 struct iscsi_spe_func_init
 {
@@ -1766,7 +1766,7 @@ struct iscsi_uhqe
 };
 
 /*
- * iSCSI WQ element 
+ * iSCSI WQ element
  */
 struct iscsi_wqe
 {
@@ -1787,7 +1787,7 @@ struct iscsi_wqe
 };
 
 /*
- * iSCSI wqe type 
+ * iSCSI wqe type
  */
 enum iscsi_wqe_type
 {

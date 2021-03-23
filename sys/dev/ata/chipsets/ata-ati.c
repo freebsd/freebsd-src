@@ -219,14 +219,14 @@ ata_ati_setmode(device_t dev, int target, int mode)
 	mode = min(mode, ctlr->chip->max_dma);
 	if (mode >= ATA_UDMA0) {
 	    /* Set UDMA mode, enable UDMA, set WDMA2/PIO4 */
-	    pci_write_config(parent, 0x56, 
+	    pci_write_config(parent, 0x56,
 			     (pci_read_config(parent, 0x56, 2) &
 			      ~(0xf << (devno << 2))) |
 			     ((mode & ATA_MODE_MASK) << (devno << 2)), 2);
 	    pci_write_config(parent, 0x54,
 			     pci_read_config(parent, 0x54, 1) |
 			     (0x01 << devno), 1);
-	    pci_write_config(parent, 0x44, 
+	    pci_write_config(parent, 0x44,
 			     (pci_read_config(parent, 0x44, 4) &
 			      ~(0xff << offset)) |
 			     (dmatimings[2] << offset), 4);
@@ -236,7 +236,7 @@ ata_ati_setmode(device_t dev, int target, int mode)
 	    pci_write_config(parent, 0x54,
 			     pci_read_config(parent, 0x54, 1) &
 			      ~(0x01 << devno), 1);
-	    pci_write_config(parent, 0x44, 
+	    pci_write_config(parent, 0x44,
 			     (pci_read_config(parent, 0x44, 4) &
 			      ~(0xff << offset)) |
 			     (dmatimings[mode & ATA_MODE_MASK] << offset), 4);
@@ -254,7 +254,7 @@ ata_ati_setmode(device_t dev, int target, int mode)
 			 (pci_read_config(parent, 0x4a, 2) &
 			  ~(0xf << (devno << 2))) |
 			 ((piomode - ATA_PIO0) << (devno<<2)),2);
-	pci_write_config(parent, 0x40, 
+	pci_write_config(parent, 0x40,
 			 (pci_read_config(parent, 0x40, 4) &
 			  ~(0xff << offset)) |
 			 (piotimings[ata_mode2idx(piomode)] << offset), 4);

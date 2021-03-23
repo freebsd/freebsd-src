@@ -239,12 +239,12 @@ dtrace_getupcstack(uint64_t *pcstack, int pcstack_limit)
 	sp = tf->fixreg[1];
 
 	if (DTRACE_CPUFLAG_ISSET(CPU_DTRACE_ENTRY)) {
-		/* 
+		/*
 		 * In an entry probe.  The frame pointer has not yet been
 		 * pushed (that happens in the function prologue).  The
 		 * best approach is to add the current pc as a missing top
 		 * of stack and back the pc up to the caller, which is stored
-		 * at the current stack pointer address since the call 
+		 * at the current stack pointer address since the call
 		 * instruction puts it there right before the branch.
 		 */
 
@@ -286,12 +286,12 @@ dtrace_getustackdepth(void)
 	sp = tf->fixreg[1];
 
 	if (DTRACE_CPUFLAG_ISSET(CPU_DTRACE_ENTRY)) {
-		/* 
+		/*
 		 * In an entry probe.  The frame pointer has not yet been
 		 * pushed (that happens in the function prologue).  The
 		 * best approach is to add the current pc as a missing top
 		 * of stack and back the pc up to the caller, which is stored
-		 * at the current stack pointer address since the call 
+		 * at the current stack pointer address since the call
 		 * instruction puts it there right before the branch.
 		 */
 
@@ -596,7 +596,7 @@ dtrace_copyinstr(uintptr_t uaddr, uintptr_t kaddr, size_t size,
 	if (dtrace_copycheck(uaddr, kaddr, size)) {
 		error = copyinstr((const void *)uaddr, (void *)kaddr,
 		    size, &actual);
-		
+
 		/* ENAMETOOLONG is not a fault condition. */
 		if (error && error != ENAMETOOLONG) {
 			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
@@ -606,7 +606,7 @@ dtrace_copyinstr(uintptr_t uaddr, uintptr_t kaddr, size_t size,
 }
 
 /*
- * The bulk of this function could be replaced to match dtrace_copyinstr() 
+ * The bulk of this function could be replaced to match dtrace_copyinstr()
  * if we ever implement a copyoutstr().
  */
 void

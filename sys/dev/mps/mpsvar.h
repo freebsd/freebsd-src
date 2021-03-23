@@ -508,7 +508,7 @@ mps_regwrite(struct mps_softc *sc, uint32_t offset, uint32_t val)
 	bus_space_write_4(sc->mps_btag, sc->mps_bhandle, offset, val);
 }
 
-/* free_queue must have Little Endian address 
+/* free_queue must have Little Endian address
  * TODO- cm_reply_data is unwanted. We can remove it.
  * */
 static __inline void

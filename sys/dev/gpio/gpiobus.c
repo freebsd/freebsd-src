@@ -712,7 +712,7 @@ gpiobus_add_child(device_t dev, u_int order, const char *name, int unit)
 	struct gpiobus_ivar *devi;
 
 	child = device_add_child_ordered(dev, order, name, unit);
-	if (child == NULL) 
+	if (child == NULL)
 		return (child);
 	devi = malloc(sizeof(struct gpiobus_ivar), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (devi == NULL) {
@@ -967,7 +967,7 @@ gpiobus_release_bus(device_t busdev, device_t child)
 }
 
 static int
-gpiobus_pin_setflags(device_t dev, device_t child, uint32_t pin, 
+gpiobus_pin_setflags(device_t dev, device_t child, uint32_t pin,
     uint32_t flags)
 {
 	struct gpiobus_softc *sc = GPIOBUS_SOFTC(dev);
@@ -985,7 +985,7 @@ gpiobus_pin_setflags(device_t dev, device_t child, uint32_t pin,
 }
 
 static int
-gpiobus_pin_getflags(device_t dev, device_t child, uint32_t pin, 
+gpiobus_pin_getflags(device_t dev, device_t child, uint32_t pin,
     uint32_t *flags)
 {
 	struct gpiobus_softc *sc = GPIOBUS_SOFTC(dev);
@@ -998,7 +998,7 @@ gpiobus_pin_getflags(device_t dev, device_t child, uint32_t pin,
 }
 
 static int
-gpiobus_pin_getcaps(device_t dev, device_t child, uint32_t pin, 
+gpiobus_pin_getcaps(device_t dev, device_t child, uint32_t pin,
     uint32_t *caps)
 {
 	struct gpiobus_softc *sc = GPIOBUS_SOFTC(dev);
@@ -1011,7 +1011,7 @@ gpiobus_pin_getcaps(device_t dev, device_t child, uint32_t pin,
 }
 
 static int
-gpiobus_pin_set(device_t dev, device_t child, uint32_t pin, 
+gpiobus_pin_set(device_t dev, device_t child, uint32_t pin,
     unsigned int value)
 {
 	struct gpiobus_softc *sc = GPIOBUS_SOFTC(dev);
@@ -1024,7 +1024,7 @@ gpiobus_pin_set(device_t dev, device_t child, uint32_t pin,
 }
 
 static int
-gpiobus_pin_get(device_t dev, device_t child, uint32_t pin, 
+gpiobus_pin_get(device_t dev, device_t child, uint32_t pin,
     unsigned int *value)
 {
 	struct gpiobus_softc *sc = GPIOBUS_SOFTC(dev);

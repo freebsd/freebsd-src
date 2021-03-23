@@ -945,7 +945,7 @@ ig4iic_set_config(ig4iic_softc_t *sc, bool reset)
 
 	if (sc->version == IG4_ATOM)
 		v = reg_read(sc, IG4_REG_COMP_TYPE);
-	
+
 	if (sc->version == IG4_HASWELL || sc->version == IG4_ATOM) {
 		v = reg_read(sc, IG4_REG_COMP_PARAM1);
 		v = reg_read(sc, IG4_REG_GENERAL);

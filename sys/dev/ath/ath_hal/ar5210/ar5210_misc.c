@@ -164,7 +164,7 @@ ar5210GpioCfgOutput(struct ath_hal *ah, uint32_t gpio, HAL_GPIO_MUX_TYPE type)
 {
 	HALASSERT(gpio < AR_NUM_GPIO);
 
-	OS_REG_WRITE(ah, AR_GPIOCR, 
+	OS_REG_WRITE(ah, AR_GPIOCR,
 		  (OS_REG_READ(ah, AR_GPIOCR) &~ AR_GPIOCR_ALL(gpio))
 		| AR_GPIOCR_OUT1(gpio));
 
@@ -179,7 +179,7 @@ ar5210GpioCfgInput(struct ath_hal *ah, uint32_t gpio)
 {
 	HALASSERT(gpio < AR_NUM_GPIO);
 
-	OS_REG_WRITE(ah, AR_GPIOCR, 
+	OS_REG_WRITE(ah, AR_GPIOCR,
 		  (OS_REG_READ(ah, AR_GPIOCR) &~ AR_GPIOCR_ALL(gpio))
 		| AR_GPIOCR_IN(gpio));
 

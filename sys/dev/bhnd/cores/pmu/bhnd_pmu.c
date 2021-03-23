@@ -62,11 +62,11 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Broadcom PMU driver.
- * 
+ *
  * On modern BHND chipsets, the PMU, GCI, and SRENG (Save/Restore Engine?)
  * register blocks are found within a dedicated PMU core (attached via
  * the AHB 'always on bus').
- * 
+ *
  * On earlier chipsets, these register blocks are found at the same
  * offsets within the ChipCommon core.
  */
@@ -98,7 +98,7 @@ bhnd_pmu_probe(device_t dev)
 
 /**
  * Default bhnd_pmu driver implementation of DEVICE_ATTACH().
- * 
+ *
  * @param dev PMU device.
  * @param res The PMU device registers. The driver will maintain a borrowed
  * reference to this resource for the lifetime of the device.
@@ -148,7 +148,7 @@ bhnd_pmu_attach(device_t dev, struct bhnd_resource *res)
 	    sc);
 	if (error)
 		return (error);
-	sc->io = sc->query.io; 
+	sc->io = sc->query.io;
 	sc->io_ctx = sc->query.io_ctx;
 
 	BPMU_LOCK_INIT(sc);

@@ -27,7 +27,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -48,7 +48,7 @@ typedef enum {
 	CHIPC_PFLASH_CFI	= 1,	/**< CFI-compatible parallel flash */
 	CHIPC_SFLASH_ST		= 2,	/**< ST serial flash */
 	CHIPC_SFLASH_AT		= 3,	/**< Atmel serial flash */
-	CHIPC_QSFLASH_ST	= 4,	/**< ST quad-SPI flash */ 
+	CHIPC_QSFLASH_ST	= 4,	/**< ST quad-SPI flash */
 	CHIPC_QSFLASH_AT	= 5,	/**< Atmel quad-SPI flash */
 	CHIPC_NFLASH		= 6,	/**< NAND flash */
 	CHIPC_NFLASH_4706	= 7	/**< BCM4706 NAND flash */

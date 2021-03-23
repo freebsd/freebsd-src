@@ -729,7 +729,7 @@ ulpt_watchdog(void *arg)
 
 	mtx_assert(&sc->sc_mtx, MA_OWNED);
 
-	/* 
+	/*
 	 * Only read status while the device is not opened, due to
 	 * possible hardware or firmware bug in some printers.
 	 */

@@ -408,7 +408,7 @@ nfe_attach(device_t dev)
 
 	if (nfe_can_use_msix(sc) == 0) {
 		device_printf(sc->nfe_dev,
-		    "MSI/MSI-X capability black-listed, will use INTx\n"); 
+		    "MSI/MSI-X capability black-listed, will use INTx\n");
 		msix_disable = 1;
 		msi_disable = 1;
 	}

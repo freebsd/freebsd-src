@@ -79,7 +79,7 @@ struct mx25l_flash_ident
 	unsigned int	flags;
 };
 
-struct mx25l_softc 
+struct mx25l_softc
 {
 	device_t	sc_dev;
 	device_t	sc_parent;
@@ -529,7 +529,7 @@ mx25l_attach(device_t dev)
 	kproc_create(&mx25l_task, sc, &sc->sc_p, 0, 0, "task: mx25l flash");
 	sc->sc_taskstate = TSTATE_RUNNING;
 
-	device_printf(sc->sc_dev, 
+	device_printf(sc->sc_dev,
 	    "device type %s, size %dK in %d sectors of %dK, erase size %dK\n",
 	    ident->name,
 	    ident->sectorcount * ident->sectorsize / 1024,
@@ -651,11 +651,11 @@ mx25l_task(void *arg)
 
 		switch (bp->bio_cmd) {
 		case BIO_READ:
-			bp->bio_error = mx25l_read(sc, bp->bio_offset, 
+			bp->bio_error = mx25l_read(sc, bp->bio_offset,
 			    bp->bio_data, bp->bio_bcount);
 			break;
 		case BIO_WRITE:
-			bp->bio_error = mx25l_write(sc, bp->bio_offset, 
+			bp->bio_error = mx25l_write(sc, bp->bio_offset,
 			    bp->bio_data, bp->bio_bcount);
 			break;
 		default:

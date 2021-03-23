@@ -281,11 +281,11 @@ adm6996fc_attach(device_t dev)
 	err = bus_generic_attach(dev);
 	if (err != 0)
 		goto failed;
-	
+
 	callout_init(&sc->callout_tick, 0);
 
 	adm6996fc_tick(sc);
-	
+
 	return (0);
 
 failed:
@@ -432,7 +432,7 @@ adm6996fc_getinfo(device_t dev)
 	struct adm6996fc_softc *sc;
 
 	sc = device_get_softc(dev);
-	
+
 	return (&sc->info);
 }
 
@@ -541,7 +541,7 @@ adm6996fc_setport(device_t dev, etherswitch_port_t *p)
 	} else {
 		if (sc->portphy[p->es_port] == sc->cpuport)
 			return (ENXIO);
-	} 
+	}
 
 	if (sc->portphy[p->es_port] != sc->cpuport) {
 		mii = adm6996fc_miiforport(sc, p->es_port);
@@ -586,7 +586,7 @@ adm6996fc_getvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 		    ADM6996FC_VF0L + 2 * vg->es_vlangroup);
 		datahi = ADM6996FC_READREG(parent,
 		    ADM6996FC_VF0H + 2 * vg->es_vlangroup);
-		
+
 		if (datahi & (1 << ADM6996FC_VV_SHIFT)) {
 			vg->es_vid = ETHERSWITCH_VID_VALID;
 			vg->es_vid |= datahi & 0xfff;
@@ -819,10 +819,10 @@ static device_method_t adm6996fc_methods[] = {
 	DEVMETHOD(device_probe,		adm6996fc_probe),
 	DEVMETHOD(device_attach,	adm6996fc_attach),
 	DEVMETHOD(device_detach,	adm6996fc_detach),
-	
+
 	/* bus interface */
 	DEVMETHOD(bus_add_child,	device_add_child_ordered),
-	
+
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	adm6996fc_readphy),
 	DEVMETHOD(miibus_writereg,	adm6996fc_writephy),

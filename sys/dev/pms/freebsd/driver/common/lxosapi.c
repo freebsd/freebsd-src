@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 *******************************************************************************/
@@ -28,8 +28,8 @@ MALLOC_DEFINE( M_PMC_OSTI, "osti_cacheable", "allocated from ostiAllocMemory as 
 ostiAllocMemory()
 Purpose:
   TD layer calls to get dma memory
-Parameters: 
-  tiRoot_t *ptiRoot (IN)            Pointer refers to the current root  
+Parameters:
+  tiRoot_t *ptiRoot (IN)            Pointer refers to the current root
   void **osMemHandle (IN_OUT)       Pointer To OS Mem handle to fill in
   void **agVirtAddr (IN_OUT)        Pointer to allocated memory address
   U32  *agPhysUpper32 (IN_OUT)      Pointer to Up 32 bit mem phys addr.
@@ -40,7 +40,7 @@ Parameters:
 Return:
   tiSuccess - success
   tiMemoryTooLarge - requested memory size too large
-  tiMemoryNotAvail - no dma memory available 
+  tiMemoryNotAvail - no dma memory available
 Note:
   for sata use.
   where a cacheable allocation inherently may be swapped, the values
@@ -85,13 +85,13 @@ osGLOBAL U32 ostiAllocMemory( tiRoot_t *ptiRoot,
             alignment );
     return tiMemoryNotAvail;
   }
-    
+
   pMem->dmaPhysAddr = pMem->nocache_busaddr;
   pMem->dmaVirtAddr = pMem->nocache_mem;
   pMem->memSize     = allocLength;
   *agVirtAddr  = pMem->dmaVirtAddr;
 
-  *agPhysUpper32 = HIGH_32_BITS( pMem->dmaPhysAddr );    
+  *agPhysUpper32 = HIGH_32_BITS( pMem->dmaPhysAddr );
   *agPhysLower32 = LOW_32_BITS( pMem->dmaPhysAddr );
 
   mtx_lock(&pCard->memLock);
@@ -103,16 +103,16 @@ osGLOBAL U32 ostiAllocMemory( tiRoot_t *ptiRoot,
 }
 
 /******************************************************************************
-ostiIOCTLWaitForSignal()  
+ostiIOCTLWaitForSignal()
 Purpose:
   Function to wait semaphore during ioctl
-Parameters: 
-  tiRoot_t *ptiRoot (IN)     Pointer to the current HBA  
+Parameters:
+  tiRoot_t *ptiRoot (IN)     Pointer to the current HBA
   void **agParam1 (IN_OUT)   Pointer to context to be passed
   void **agParam2 (IN_OUT)   Pointer to context to be passed
   void **agParam (IN_OUT)    Pointer to context to be passed
 Return:
-Note: 
+Note:
 ******************************************************************************/
 osGLOBAL void
 ostiIOCTLWaitForSignal(tiRoot_t *ptiRoot,
@@ -169,7 +169,7 @@ Purpose:
   Write 32-bit value to PCI configuration register
 Parameters:
   tiRoot_t *ptiRoot (IN)     Pointer to tiRoot structure
-  U32 chipConfigOffset (IN)  Offset to PCI configuration register    
+  U32 chipConfigOffset (IN)  Offset to PCI configuration register
   U32 chipConfigValue (IN)   Value to be written
 Return: none
 ******************************************************************************/
@@ -187,7 +187,7 @@ Purpose:
   Read 32-bit value from PCI address register
 Parameters:
   tiRoot_t *ptiRoot (IN)  Pointer to tiRoot structure
-  U32 chipOffset (IN)     Offset to PCI configuration register    
+  U32 chipOffset (IN)     Offset to PCI configuration register
 Return:
   32 bit data
 ******************************************************************************/
@@ -207,7 +207,7 @@ Purpose:
   Write 32-bit value to PCI address register
 Parameters:
   tiRoot_t *ptiRoot (IN)  Pointer to tiRoot structure
-  U32 chipOffset (IN)     Offset to PCI configuration register    
+  U32 chipOffset (IN)     Offset to PCI configuration register
   U32 chipValue (IN)      Value to be written
 Return: none
 ******************************************************************************/
@@ -225,7 +225,7 @@ Purpose:
 Parameters:
   tiRoot_t *ptiRoot (IN)  Pointer to tiRoot structure
   busBaseNumber            PCI BAR number
-  U32 chipOffset (IN)     Offset to PCI configuration register    
+  U32 chipOffset (IN)     Offset to PCI configuration register
 Return:
   32 bit data
 ******************************************************************************/
@@ -247,8 +247,8 @@ Purpose:
   Write 32-bit value to PCI address register
 Parameters:
   tiRoot_t *ptiRoot (IN)  Pointer to tiRoot structure
-  busBaseNumber           PCI BAR number  
-  U32 chipOffset (IN)     Offset to PCI configuration register    
+  busBaseNumber           PCI BAR number
+  U32 chipOffset (IN)     Offset to PCI configuration register
   U32 chipValue (IN)      Value to be written
 Return: none
 ******************************************************************************/
@@ -268,7 +268,7 @@ Purpose:
   Read 8-bit value from PCI address register
 Parameters:
   tiRoot_t *ptiRoot (IN)  Pointer to tiRoot structure
-  U32 chipOffset (IN)     Offset to PCI configuration register    
+  U32 chipOffset (IN)     Offset to PCI configuration register
 Return:
   8 bit data
 ******************************************************************************/
@@ -285,7 +285,7 @@ Purpose:
   Write 8-bit value to PCI address register
 Parameters:
   tiRoot_t *ptiRoot (IN)  Pointer to tiRoot structure
-  U32 chipOffset (IN)     Offset to PCI configuration register    
+  U32 chipOffset (IN)     Offset to PCI configuration register
   U8 chipValue (IN)       Value to be written
 Return: none
 ******************************************************************************/
@@ -309,8 +309,8 @@ void ostiFlashReadBlock(tiRoot_t *ptiRoot,
 ostiFreeMemory()
 Purpose:
   TD layer calls to free allocated dma memory
-Parameters: 
-  tiRoot_t *ptiRoot (IN)  Pointer refers to the current root  
+Parameters:
+  tiRoot_t *ptiRoot (IN)  Pointer refers to the current root
   void *osMemHandle (IN)  Pointer to OS mem handle to be released
   u32  allocLength (IN)   Aloocated memory length in byte
 Return:
@@ -506,41 +506,41 @@ ostiIOCTLClearSignal()
 
 Purpose:
   Function to clear or reset semaphore during ioctl
-Parameters: 
-  tiRoot_t *ptiRoot (IN)     Pointer to the current HBA  
+Parameters:
+  tiRoot_t *ptiRoot (IN)     Pointer to the current HBA
   void **agParam1 (IN_OUT)   Pointer to context to be passed
   void **agParam2 (IN_OUT)   Pointer to context to be passed
   void **agParam (IN_OUT)    Pointer to context to be passed
 Return:
-Note:    
-  TBD, need more work for card based semaphore.  Also needs to 
+Note:
+  TBD, need more work for card based semaphore.  Also needs to
   consider the calling sequence.
 ******************************************************************************/
-osGLOBAL void 
+osGLOBAL void
 ostiIOCTLClearSignal(tiRoot_t *ptiRoot,
                      void **agParam1,
-                     void **agParam2, 
+                     void **agParam2,
                      void **agParam3)
 {
 }
- 
+
 
 /******************************************************************************
 ostiIOCTLSetSignal()  ### function currently stubbed out
 Purpose:
   Function to set semaphore during ioctl
-Parameters: 
-  tiRoot_t *ptiRoot (IN)     Pointer to the current HBA  
+Parameters:
+  tiRoot_t *ptiRoot (IN)     Pointer to the current HBA
   void **agParam1 (IN_OUT)   Pointer to context to be passed
   void **agParam2 (IN_OUT)   Pointer to context to be passed
   void **agParam (IN_OUT)    Pointer to context to be passed
 Return:
-Note:    
+Note:
 ******************************************************************************/
-osGLOBAL void 
+osGLOBAL void
 ostiIOCTLSetSignal(tiRoot_t *ptiRoot,
                    void *agParam1,
-                   void *agParam2, 
+                   void *agParam2,
                    void *agParam3)
 {
   struct agtiapi_softc  *pCard;
@@ -552,10 +552,10 @@ ostiIOCTLSetSignal(tiRoot_t *ptiRoot,
   }
 }
 
-osGLOBAL void 
+osGLOBAL void
 ostiIOCTLComplete(tiRoot_t *ptiRoot,
                    void *agParam1,
-                   void *agParam2, 
+                   void *agParam2,
                    void *agParam3)
 {
   struct agtiapi_softc  *pCard;
@@ -572,7 +572,7 @@ ostiPortEvent()
 Purpose:
   Call back function to inform OS the events of port state change.
 Parameters:
-  tiRoot_t *ptiRoot(IN)          Pointer to driver root data structure 
+  tiRoot_t *ptiRoot(IN)          Pointer to driver root data structure
   tiPortEvent_t eventType (IN)   Type of port event:
                                  tiPortPanic
                                  tiPortResetComplete
@@ -585,22 +585,22 @@ Parameters:
                                  tiPortInitComplete
   void *pParm(IN)                Pointer to event specific structure
 Return:
-  None 
+  None
 ******************************************************************************/
 void
-ostiPortEvent(tiRoot_t      *ptiRoot, 
-              tiPortEvent_t eventType, 
-              U32           status, 
+ostiPortEvent(tiRoot_t      *ptiRoot,
+              tiPortEvent_t eventType,
+              U32           status,
               void          *pParm)
 {
   struct agtiapi_softc  *pCard;
   ag_portal_data_t *pPortalData;
-  
+
   AGTIAPI_PRINTK("ostiPortEvent: start eventType 0x%x\n", eventType);
 
   pCard = TIROOT_TO_CARD(ptiRoot);
 
-  switch (eventType) 
+  switch (eventType)
   {
   case tiPortStarted:
        pCard->flags |= AGTIAPI_CB_DONE;
@@ -725,12 +725,12 @@ ostiCachePreFlush()
 Purpose:
   Cache-coherency APIs
 Parameters:
-  
+
 Returns:
-  
+
 Note:
   These 3 functions are to support new cache coherency applications.
-  Currently the APIs are implemented in FC for PPC platform. The 
+  Currently the APIs are implemented in FC for PPC platform. The
   define CACHED_DMA enable for dma_cache_sync function call. However
   this define is restricted for certain version of linux, such as
   Linux 2.6.x and above, and certain platform such as PPC.
@@ -766,7 +766,7 @@ osGLOBAL void ostiCachePreFlush(
 }
 
 
-/* 
+/*
    added for SAS/SATA
    this is called by ossaInterrruptEnable
 */
@@ -775,7 +775,7 @@ GLOBAL void ostiInterruptEnable( tiRoot_t  *ptiRoot, bit32 channelNum )
   // yep, really nothing.
 }
 
-/* 
+/*
    this is called by ossaInterrruptDisable
 */
 GLOBAL void ostiInterruptDisable( tiRoot_t  *ptiRoot, bit32 channelNum )

@@ -114,7 +114,7 @@ dwmmc_rockchip_update_ios(struct dwmmc_softc *sc, struct mmc_ios *ios)
 		sc->bus_hz = clock = ios->clock;
 		/* Set the MMC clock. */
 		if (sc->ciu) {
-			/* 
+			/*
 			 * Apparently you need to set the ciu clock to
 			 * the double of bus_hz
 			 */

@@ -223,7 +223,7 @@ armv7_write_pmc(int cpu, int ri, pmc_value_t v)
 
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = ARMV7_RELOAD_COUNT_TO_PERFCTR_VALUE(v);
-	
+
 	PMCDBG3(MDP, WRI, 1, "armv7-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
 	pm->pm_pcpu_state[cpu].pps_overflowcnt = v >> 32;
@@ -509,7 +509,7 @@ pmc_armv7_initialize()
 	idcode = (reg & ARMV7_IDCODE_MASK) >> ARMV7_IDCODE_SHIFT;
 
 	PMCDBG1(MDP, INI, 1, "armv7-init npmcs=%d", armv7_npmcs);
-	
+
 	/*
 	 * Allocate space for pointers to PMC HW descriptors and for
 	 * the MDEP structure used by MI code.
@@ -556,7 +556,7 @@ pmc_armv7_initialize()
 	pmc_mdep->pmd_intr       = armv7_intr;
 	pmc_mdep->pmd_switch_in  = armv7_switch_in;
 	pmc_mdep->pmd_switch_out = armv7_switch_out;
-	
+
 	pmc_mdep->pmd_npmc   += armv7_npmcs;
 
 	return (pmc_mdep);

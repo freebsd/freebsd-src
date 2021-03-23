@@ -186,7 +186,7 @@ sc_term_up_scroll(scr_stat *scp, int n, int ch, int attr, int head, int tail)
 	if (n <= scp->ypos - head) {
 		sc_move_cursor(scp, scp->xpos, scp->ypos - n);
 	} else {
-		sc_term_ins_line(scp, head, n - (scp->ypos - head), 
+		sc_term_ins_line(scp, head, n - (scp->ypos - head),
 				 ch, attr, tail);
 		sc_move_cursor(scp, scp->xpos, head);
 	}
@@ -202,7 +202,7 @@ sc_term_down_scroll(scr_stat *scp, int n, int ch, int attr, int head, int tail)
 	if (n < tail - scp->ypos) {
 		sc_move_cursor(scp, scp->xpos, scp->ypos + n);
 	} else {
-		sc_term_del_line(scp, head, n - (tail - scp->ypos) + 1, 
+		sc_term_del_line(scp, head, n - (tail - scp->ypos) + 1,
 				 ch, attr, tail);
 		sc_move_cursor(scp, scp->xpos, tail - 1);
 	}

@@ -202,7 +202,7 @@ static const struct bhnd_device_quirk bhnd_pcmcia_clkctl_quirks[] = {
 
 /**
  * Return the name for a given JEP106 manufacturer ID.
- * 
+ *
  * @param vendor A JEP106 Manufacturer ID, including the non-standard ARM 4-bit
  * JEP106 continuation code.
  */
@@ -223,7 +223,7 @@ bhnd_vendor_name(uint16_t vendor)
 
 /**
  * Return the name of a port type.
- * 
+ *
  * @param port_type The port type to look up.
  */
 const char *
@@ -243,7 +243,7 @@ bhnd_port_type_name(bhnd_port_type port_type)
 
 /**
  * Return the name of an NVRAM source.
- * 
+ *
  * @param nvram_src The NVRAM source type to look up.
  */
 const char *
@@ -269,10 +269,10 @@ bhnd_find_core_desc(uint16_t vendor, uint16_t device)
 	for (u_int i = 0; bhnd_core_descs[i].desc != NULL; i++) {
 		if (bhnd_core_descs[i].vendor != vendor)
 			continue;
-		
+
 		if (bhnd_core_descs[i].device != device)
 			continue;
-		
+
 		return (&bhnd_core_descs[i]);
 	}
 
@@ -281,7 +281,7 @@ bhnd_find_core_desc(uint16_t vendor, uint16_t device)
 
 /**
  * Return a human-readable name for a BHND core.
- * 
+ *
  * @param vendor The core designer's JEDEC-106 Manufacturer ID.
  * @param device The core identifier.
  */
@@ -298,7 +298,7 @@ bhnd_find_core_name(uint16_t vendor, uint16_t device)
 
 /**
  * Return the device class for a BHND core.
- * 
+ *
  * @param vendor The core designer's JEDEC-106 Manufacturer ID.
  * @param device The core identifier.
  */
@@ -315,7 +315,7 @@ bhnd_find_core_class(uint16_t vendor, uint16_t device)
 
 /**
  * Return a human-readable name for a BHND core.
- * 
+ *
  * @param ci The core's info record.
  */
 const char *
@@ -326,7 +326,7 @@ bhnd_core_name(const struct bhnd_core_info *ci)
 
 /**
  * Return the device class for a BHND core.
- * 
+ *
  * @param ci The core's info record.
  */
 bhnd_devclass_t
@@ -338,15 +338,15 @@ bhnd_core_class(const struct bhnd_core_info *ci)
 /**
  * Write a human readable name representation of the given
  * BHND_CHIPID_* constant to @p buffer.
- * 
+ *
  * @param buffer Output buffer, or NULL to compute the required size.
  * @param size Capacity of @p buffer, in bytes.
  * @param chip_id Chip ID to be formatted.
- * 
+ *
  * @return The required number of bytes on success, or a negative integer on
  * failure. No more than @p size-1 characters be written, with the @p size'th
  * set to '\0'.
- * 
+ *
  * @sa BHND_CHIPID_MAX_NAMELEN
  */
 int
@@ -361,9 +361,9 @@ bhnd_format_chip_id(char *buffer, size_t size, uint16_t chip_id)
 
 /**
  * Return a core info record populated from a bhnd-attached @p dev.
- * 
+ *
  * @param dev A bhnd device.
- * 
+ *
  * @return A core info record for @p dev.
  */
 struct bhnd_core_info
@@ -379,12 +379,12 @@ bhnd_get_core_info(device_t dev) {
 
 /**
  * Find a @p class child device with @p unit on @p bus.
- * 
+ *
  * @param bus The bhnd-compatible bus to be searched.
  * @param class The device class to match on.
  * @param unit The core unit number; specify -1 to return the first match
  * regardless of unit number.
- * 
+ *
  * @retval device_t if a matching child device is found.
  * @retval NULL if no matching child device is found.
  */
@@ -404,10 +404,10 @@ bhnd_bus_find_child(device_t bus, bhnd_devclass_t class, int unit)
 
 /**
  * Find the first child device on @p bus that matches @p desc.
- * 
+ *
  * @param bus The bhnd-compatible bus to be searched.
  * @param desc A match descriptor.
- * 
+ *
  * @retval device_t if a matching child device is found.
  * @retval NULL if no matching child device is found.
  */
@@ -442,16 +442,16 @@ done:
  * Retrieve an ordered list of all device instances currently connected to
  * @p bus, returning a pointer to the array in @p devlistp and the count
  * in @p ndevs.
- * 
+ *
  * The memory allocated for the table must be freed via
  * bhnd_bus_free_children().
- * 
+ *
  * @param	bus		The bhnd-compatible bus to be queried.
  * @param[out]	devlist		The array of devices.
  * @param[out]	devcount	The number of devices in @p devlistp
  * @param	order		The order in which devices will be returned
  *				in @p devlist.
- * 
+ *
  * @retval 0		success
  * @retval non-zero	if an error occurs, a regular unix error code will
  *			be returned.
@@ -488,11 +488,11 @@ bhnd_bus_free_children(device_t *devlist)
 
 /**
  * Perform in-place sorting of an array of bhnd device instances.
- * 
+ *
  * @param devlist	An array of bhnd devices.
  * @param devcount	The number of devices in @p devs.
  * @param order		The sort order to be used.
- * 
+ *
  * @retval 0		success
  * @retval EINVAL	if the sort order is unknown.
  */
@@ -553,7 +553,7 @@ compare_descending_probe_order(const void *lhs, const void *rhs)
 /**
  * Call device_probe_and_attach() for each of the bhnd bus device's
  * children, in bhnd attach order.
- * 
+ *
  * @param bus The bhnd-compatible bus for which all children should be probed
  * and attached.
  */
@@ -584,14 +584,14 @@ bhnd_bus_probe_children(device_t bus)
 /**
  * Walk up the bhnd device hierarchy to locate the root device
  * to which the bhndb bridge is attached.
- * 
+ *
  * This can be used from within bhnd host bridge drivers to locate the
  * actual upstream host device.
- * 
+ *
  * @param dev A bhnd device.
  * @param bus_class The expected bus (e.g. "pci") to which the bridge root
  * should be attached.
- * 
+ *
  * @retval device_t if a matching parent device is found.
  * @retval NULL if @p dev is not attached via a bhndb bus.
  * @retval NULL if no parent device is attached via @p bus_class.
@@ -633,11 +633,11 @@ bhnd_find_bridge_root(device_t dev, devclass_t bus_class)
 
 /**
  * Find the first core in @p cores that matches @p desc.
- * 
+ *
  * @param cores The table to search.
  * @param num_cores The length of @p cores.
  * @param desc A match descriptor.
- * 
+ *
  * @retval bhnd_core_info if a matching core is found.
  * @retval NULL if no matching core is found.
  */
@@ -655,11 +655,11 @@ bhnd_match_core(const struct bhnd_core_info *cores, u_int num_cores,
 
 /**
  * Find the first core in @p cores with the given @p class.
- * 
+ *
  * @param cores The table to search.
  * @param num_cores The length of @p cores.
  * @param class The device class to match on.
- * 
+ *
  * @retval non-NULL if a matching core is found.
  * @retval NULL if no matching core is found.
  */
@@ -676,9 +676,9 @@ bhnd_find_core(const struct bhnd_core_info *cores, u_int num_cores,
 
 /**
  * Create an equality match descriptor for @p core.
- * 
+ *
  * @param core The core info to be matched on.
- * 
+ *
  * @return an equality match descriptor for @p core.
  */
 struct bhnd_core_match
@@ -696,10 +696,10 @@ bhnd_core_get_match_desc(const struct bhnd_core_info *core)
 
 /**
  * Return true if the @p lhs is equal to @p rhs.
- * 
+ *
  * @param lhs The first bhnd core descriptor to compare.
  * @param rhs The second bhnd core descriptor to compare.
- * 
+ *
  * @retval true if @p lhs is equal to @p rhs
  * @retval false if @p lhs is not equal to @p rhs
  */
@@ -716,10 +716,10 @@ bhnd_cores_equal(const struct bhnd_core_info *lhs,
 
 /**
  * Return true if the @p core matches @p desc.
- * 
+ *
  * @param core A bhnd core descriptor.
  * @param desc A match descriptor to compare against @p core.
- * 
+ *
  * @retval true if @p core matches @p match.
  * @retval false if @p core does not match @p match.
  */
@@ -736,7 +736,7 @@ bhnd_core_matches(const struct bhnd_core_info *core,
 	if (desc->m.match.core_unit && desc->core_unit != core->unit)
 		return (false);
 
-	if (desc->m.match.core_rev && 
+	if (desc->m.match.core_rev &&
 	    !bhnd_hwrev_matches(core->hwrev, &desc->core_rev))
 		return (false);
 
@@ -752,10 +752,10 @@ bhnd_core_matches(const struct bhnd_core_info *core,
 
 /**
  * Return true if the @p chip matches @p desc.
- * 
+ *
  * @param chip A bhnd chip identifier.
  * @param desc A match descriptor to compare against @p chip.
- * 
+ *
  * @retval true if @p chip matches @p match.
  * @retval false if @p chip does not match @p match.
  */
@@ -781,10 +781,10 @@ bhnd_chip_matches(const struct bhnd_chipid *chip,
 
 /**
  * Return true if the @p board matches @p desc.
- * 
+ *
  * @param board The bhnd board info.
  * @param desc A match descriptor to compare against @p board.
- * 
+ *
  * @retval true if @p chip matches @p match.
  * @retval false if @p chip does not match @p match.
  */
@@ -816,10 +816,10 @@ bhnd_board_matches(const struct bhnd_board_info *board,
 
 /**
  * Return true if the @p hwrev matches @p desc.
- * 
+ *
  * @param hwrev A bhnd hardware revision.
  * @param desc A match descriptor to compare against @p core.
- * 
+ *
  * @retval true if @p hwrev matches @p match.
  * @retval false if @p hwrev does not match @p match.
  */
@@ -829,7 +829,7 @@ bhnd_hwrev_matches(uint16_t hwrev, const struct bhnd_hwrev_match *desc)
 	if (desc->start != BHND_HWREV_INVALID &&
 	    desc->start > hwrev)
 		return false;
-		
+
 	if (desc->end != BHND_HWREV_INVALID &&
 	    desc->end < hwrev)
 		return false;
@@ -839,10 +839,10 @@ bhnd_hwrev_matches(uint16_t hwrev, const struct bhnd_hwrev_match *desc)
 
 /**
  * Return true if the @p dev matches @p desc.
- * 
+ *
  * @param dev A bhnd device.
  * @param desc A match descriptor to compare against @p dev.
- * 
+ *
  * @retval true if @p dev matches @p match.
  * @retval false if @p dev does not match @p match.
  */
@@ -904,11 +904,11 @@ bhnd_device_matches(device_t dev, const struct bhnd_device_match *desc)
 
 /**
  * Search @p table for an entry matching @p dev.
- * 
+ *
  * @param dev A bhnd device to match against @p table.
  * @param table The device table to search.
  * @param entry_size The @p table entry size, in bytes.
- * 
+ *
  * @retval non-NULL the first matching device, if any.
  * @retval NULL if no matching device is found in @p table.
  */
@@ -961,11 +961,11 @@ bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
 
 /**
  * Scan the device @p table for all quirk flags applicable to @p dev.
- * 
+ *
  * @param dev A bhnd device to match against @p table.
  * @param table The device table to search.
  * @param entry_size The @p table entry size, in bytes.
- * 
+ *
  * @return all matching quirk flags.
  */
 uint32_t
@@ -997,12 +997,12 @@ bhnd_device_quirks(device_t dev, const struct bhnd_device *table,
 
 /**
  * Allocate bhnd(4) resources defined in @p rs from a parent bus.
- * 
+ *
  * @param dev The device requesting ownership of the resources.
  * @param rs A standard bus resource specification. This will be updated
  * with the allocated resource's RIDs.
  * @param res On success, the allocated bhnd resources.
- * 
+ *
  * @retval 0 success
  * @retval non-zero if allocation of any non-RF_OPTIONAL resource fails,
  * 		    all allocated resources will be released and a regular
@@ -1032,7 +1032,7 @@ bhnd_alloc_resources(device_t dev, struct resource_spec *rs,
 
 /**
  * Release bhnd(4) resources defined in @p rs from a parent bus.
- * 
+ *
  * @param dev The device that owns the resources.
  * @param rs A standard bus resource specification previously initialized
  * by @p bhnd_alloc_resources.
@@ -1054,7 +1054,7 @@ bhnd_release_resources(device_t dev, const struct resource_spec *rs,
 /**
  * Allocate and return a new per-core PMU clock control/status (clkctl)
  * instance for @p dev.
- * 
+ *
  * @param dev		The bhnd(4) core device mapped by @p r.
  * @param pmu_dev	The bhnd(4) PMU device, implmenting the bhnd_pmu_if
  *			interface. The caller is responsible for ensuring that
@@ -1068,10 +1068,10 @@ bhnd_release_resources(device_t dev, const struct resource_spec *rs,
  * @param max_latency	The PMU's maximum state transition latency in
  *			microseconds; this upper bound will be used to busy-wait
  *			on PMU state transitions.
- * 
+ *
  * @retval non-NULL	success
  * @retval NULL		if allocation fails.
- * 
+ *
  */
 struct bhnd_core_clkctl *
 bhnd_alloc_core_clkctl(device_t dev, device_t pmu_dev, struct bhnd_resource *r,
@@ -1098,7 +1098,7 @@ bhnd_alloc_core_clkctl(device_t dev, device_t pmu_dev, struct bhnd_resource *r,
 
 /**
  * Free a clkctl instance previously allocated via bhnd_alloc_core_clkctl().
- * 
+ *
  * @param clkctl	The clkctl instance to be freed.
  */
 void
@@ -1112,11 +1112,11 @@ bhnd_free_core_clkctl(struct bhnd_core_clkctl *clkctl)
 /**
  * Wait for the per-core clock status to be equal to @p value after
  * applying @p mask, timing out after the maximum transition latency is reached.
- * 
+ *
  * @param clkctl	Per-core clkctl state to be queryied.
  * @param value		Value to wait for.
  * @param mask		Mask to apply prior to value comparison.
- * 
+ *
  * @retval 0		success
  * @retval ETIMEDOUT	if the PMU's maximum transition delay is reached before
  *			the clock status matches @p value and @p mask.
@@ -1141,7 +1141,7 @@ bhnd_core_clkctl_wait(struct bhnd_core_clkctl *clkctl, uint32_t value,
 		if (value & BHND_CCS_HTAVAIL)
 			fval |= BHND_CCS0_HTAVAIL;
 
-		if (mask & BHND_CCS_ALPAVAIL) 
+		if (mask & BHND_CCS_ALPAVAIL)
 			fmask |= BHND_CCS0_ALPAVAIL;
 		if (value & BHND_CCS_ALPAVAIL)
 			fval |= BHND_CCS0_ALPAVAIL;
@@ -1214,7 +1214,7 @@ bhnd_nvram_getvar_str(device_t dev, const char *name, char *buf, size_t len,
  *				to this pointer.
  * @param		width	The output integer type width (1, 2, or
  *				4 bytes).
- * 
+ *
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
  * @retval ENODEV	No valid NVRAM source could be found.
@@ -1258,7 +1258,7 @@ bhnd_nvram_getvar_uint(device_t dev, const char *name, void *value, int width)
  * @param		name	The NVRAM variable name.
  * @param[out]		value	On success, the requested value will be written
  *				to this pointer.
- * 
+ *
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
  * @retval ENODEV	No valid NVRAM source could be found.
@@ -1281,7 +1281,7 @@ bhnd_nvram_getvar_uint8(device_t dev, const char *name, uint8_t *value)
  * @param		name	The NVRAM variable name.
  * @param[out]		value	On success, the requested value will be written
  *				to this pointer.
- * 
+ *
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
  * @retval ENODEV	No valid NVRAM source could be found.
@@ -1305,7 +1305,7 @@ bhnd_nvram_getvar_uint16(device_t dev, const char *name, uint16_t *value)
  * @param		name	The NVRAM variable name.
  * @param[out]		value	On success, the requested value will be written
  *				to this pointer.
- * 
+ *
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
  * @retval ENODEV	No valid NVRAM source could be found.
@@ -1331,7 +1331,7 @@ bhnd_nvram_getvar_uint32(device_t dev, const char *name, uint32_t *value)
  *				to this pointer.
  * @param		width	The output integer type width (1, 2, or
  *				4 bytes).
- * 
+ *
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
  * @retval ENODEV	No valid NVRAM source could be found.
@@ -1375,7 +1375,7 @@ bhnd_nvram_getvar_int(device_t dev, const char *name, void *value, int width)
  * @param		name	The NVRAM variable name.
  * @param[out]		value	On success, the requested value will be written
  *				to this pointer.
- * 
+ *
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
  * @retval ENODEV	No valid NVRAM source could be found.
@@ -1398,7 +1398,7 @@ bhnd_nvram_getvar_int8(device_t dev, const char *name, int8_t *value)
  * @param		name	The NVRAM variable name.
  * @param[out]		value	On success, the requested value will be written
  *				to this pointer.
- * 
+ *
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
  * @retval ENODEV	No valid NVRAM source could be found.
@@ -1422,7 +1422,7 @@ bhnd_nvram_getvar_int16(device_t dev, const char *name, int16_t *value)
  * @param		name	The NVRAM variable name.
  * @param[out]		value	On success, the requested value will be written
  *				to this pointer.
- * 
+ *
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
  * @retval ENODEV	No valid NVRAM source could be found.
@@ -1450,7 +1450,7 @@ bhnd_nvram_getvar_int32(device_t dev, const char *name, int32_t *value)
  * @param[in,out]	size	The required number of bytes to write to
  *				@p buf.
  * @param		type	The desired array element data representation.
- * 
+ *
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
  * @retval ENODEV	No valid NVRAM source could be found.
@@ -1485,9 +1485,9 @@ bhnd_nvram_getvar_array(device_t dev, const char *name, void *buf, size_t size,
 
 /**
  * Initialize a service provider registry.
- * 
+ *
  * @param bsr		The service registry to initialize.
- * 
+ *
  * @retval 0            success
  * @retval non-zero     if an error occurs initializing the service registry,
  *                      a regular unix error code will be returned.
@@ -1504,7 +1504,7 @@ bhnd_service_registry_init(struct bhnd_service_registry *bsr)
 
 /**
  * Release all resources held by @p bsr.
- * 
+ *
  * @param bsr		A service registry instance previously successfully
  *			initialized via bhnd_service_registry_init().
  *
@@ -1590,7 +1590,7 @@ bhnd_service_registry_add(struct bhnd_service_registry *bsr, device_t provider,
 
 /**
  * Free an unreferenced registry entry.
- * 
+ *
  * @param entry	The entry to be deallocated.
  */
 static void
@@ -1698,7 +1698,7 @@ bhnd_service_registry_retain(struct bhnd_service_registry *bsr,
 /**
  * Release a reference to a service provider previously returned by
  * bhnd_service_registry_retain().
- * 
+ *
  * If this is the last reference to an inherited service provider registration
  * (see BHND_SPF_INHERITED), the registration will also be removed, and
  * true will be returned.
@@ -1713,7 +1713,7 @@ bhnd_service_registry_retain(struct bhnd_service_registry *bsr,
  *			provider.
  * @retval false	The service provider was not inherited, or active
  *			references to the provider remain.
- * 
+ *
  * @see BHND_SPF_INHERITED
  */
 bool
@@ -1759,7 +1759,7 @@ bhnd_service_registry_release(struct bhnd_service_registry *bsr,
 /**
  * Using the bhnd(4) bus-level core information and a custom core name,
  * populate @p dev's device description.
- * 
+ *
  * @param dev A bhnd-bus attached device.
  * @param dev_name The core's name (e.g. "SDIO Device Core").
  */
@@ -1784,7 +1784,7 @@ bhnd_set_custom_core_desc(device_t dev, const char *dev_name)
 /**
  * Using the bhnd(4) bus-level core information, populate @p dev's device
  * description.
- * 
+ *
  * @param dev A bhnd-bus attached device.
  */
 void
@@ -1796,7 +1796,7 @@ bhnd_set_default_core_desc(device_t dev)
 /**
  * Using the bhnd @p chip_id, populate the bhnd(4) bus @p dev's device
  * description.
- * 
+ *
  * @param dev A bhnd-bus attached device.
  * @param chip_id The chip identification.
  */
@@ -1841,10 +1841,10 @@ bhnd_set_default_bus_desc(device_t dev, const struct bhnd_chipid *chip_id)
 
 /**
  * Helper function for implementing BHND_BUS_REGISTER_PROVIDER().
- * 
+ *
  * This implementation delegates the request to the BHND_BUS_REGISTER_PROVIDER()
  * method on the parent of @p dev. If no parent exists, the implementation
- * will return an error. 
+ * will return an error.
  */
 int
 bhnd_bus_generic_register_provider(device_t dev, device_t child,
@@ -1862,7 +1862,7 @@ bhnd_bus_generic_register_provider(device_t dev, device_t child,
 
 /**
  * Helper function for implementing BHND_BUS_DEREGISTER_PROVIDER().
- * 
+ *
  * This implementation delegates the request to the
  * BHND_BUS_DEREGISTER_PROVIDER() method on the parent of @p dev. If no parent
  * exists, the implementation will panic.
@@ -1883,7 +1883,7 @@ bhnd_bus_generic_deregister_provider(device_t dev, device_t child,
 
 /**
  * Helper function for implementing BHND_BUS_RETAIN_PROVIDER().
- * 
+ *
  * This implementation delegates the request to the
  * BHND_BUS_DEREGISTER_PROVIDER() method on the parent of @p dev. If no parent
  * exists, the implementation will return NULL.
@@ -1904,7 +1904,7 @@ bhnd_bus_generic_retain_provider(device_t dev, device_t child,
 
 /**
  * Helper function for implementing BHND_BUS_RELEASE_PROVIDER().
- * 
+ *
  * This implementation delegates the request to the
  * BHND_BUS_DEREGISTER_PROVIDER() method on the parent of @p dev. If no parent
  * exists, the implementation will panic.
@@ -1925,7 +1925,7 @@ bhnd_bus_generic_release_provider(device_t dev, device_t child,
 
 /**
  * Helper function for implementing BHND_BUS_REGISTER_PROVIDER().
- * 
+ *
  * This implementation uses the bhnd_service_registry_add() function to
  * do most of the work. It calls BHND_BUS_GET_SERVICE_REGISTRY() to find
  * a suitable service registry to edit.
@@ -1945,7 +1945,7 @@ bhnd_bus_generic_sr_register_provider(device_t dev, device_t child,
 
 /**
  * Helper function for implementing BHND_BUS_DEREGISTER_PROVIDER().
- * 
+ *
  * This implementation uses the bhnd_service_registry_remove() function to
  * do most of the work. It calls BHND_BUS_GET_SERVICE_REGISTRY() to find
  * a suitable service registry to edit.
@@ -1965,11 +1965,11 @@ bhnd_bus_generic_sr_deregister_provider(device_t dev, device_t child,
 
 /**
  * Helper function for implementing BHND_BUS_RETAIN_PROVIDER().
- * 
+ *
  * This implementation uses the bhnd_service_registry_retain() function to
  * do most of the work. It calls BHND_BUS_GET_SERVICE_REGISTRY() to find
  * a suitable service registry.
- * 
+ *
  * If a local provider for the service is not available, and a parent device is
  * available, this implementation will attempt to fetch and locally register
  * a service provider reference from the parent of @p dev.
@@ -1988,7 +1988,7 @@ bhnd_bus_generic_sr_retain_provider(device_t dev, device_t child,
 	/*
 	 * Attempt to fetch a service provider reference from either the local
 	 * service registry, or if not found, from our parent.
-	 * 
+	 *
 	 * If we fetch a provider from our parent, we register the provider
 	 * with the local service registry to prevent conflicting local
 	 * registrations from being added.
@@ -2030,7 +2030,7 @@ bhnd_bus_generic_sr_retain_provider(device_t dev, device_t child,
 
 /**
  * Helper function for implementing BHND_BUS_RELEASE_PROVIDER().
- * 
+ *
  * This implementation uses the bhnd_service_registry_release() function to
  * do most of the work. It calls BHND_BUS_GET_SERVICE_REGISTRY() to find
  * a suitable service registry.
@@ -2057,10 +2057,10 @@ bhnd_bus_generic_sr_release_provider(device_t dev, device_t child,
 
 /**
  * Helper function for implementing BHND_BUS_IS_HW_DISABLED().
- * 
+ *
  * If a parent device is available, this implementation delegates the
  * request to the BHND_BUS_IS_HW_DISABLED() method on the parent of @p dev.
- * 
+ *
  * If no parent device is available (i.e. on a the bus root), the hardware
  * is assumed to be usable and false is returned.
  */
@@ -2075,7 +2075,7 @@ bhnd_bus_generic_is_hw_disabled(device_t dev, device_t child)
 
 /**
  * Helper function for implementing BHND_BUS_GET_CHIPID().
- * 
+ *
  * This implementation delegates the request to the BHND_BUS_GET_CHIPID()
  * method on the parent of @p dev. If no parent exists, the implementation
  * will panic.
@@ -2091,7 +2091,7 @@ bhnd_bus_generic_get_chipid(device_t dev, device_t child)
 
 /**
  * Helper function for implementing BHND_BUS_GET_DMA_TRANSLATION().
- * 
+ *
  * If a parent device is available, this implementation delegates the
  * request to the BHND_BUS_GET_DMA_TRANSLATION() method on the parent of @p dev.
  *
@@ -2137,11 +2137,11 @@ bhnd_bus_generic_get_dma_translation(device_t dev, device_t child, u_int width,
 
 /**
  * Helper function for implementing BHND_BUS_READ_BOARDINFO().
- * 
+ *
  * This implementation populates @p info with information from NVRAM,
  * defaulting board_vendor and board_type fields to 0 if the
  * requested variables cannot be found.
- * 
+ *
  * This behavior is correct for most SoCs, but must be overridden on
  * bridged (PCI, PCMCIA, etc) devices to produce a complete bhnd_board_info
  * result.
@@ -2172,9 +2172,9 @@ bhnd_bus_generic_read_board_info(device_t dev, device_t child,
 
 /**
  * Helper function for implementing BHND_BUS_GET_NVRAM_VAR().
- * 
+ *
  * This implementation searches @p dev for a usable NVRAM child device.
- * 
+ *
  * If no usable child device is found on @p dev, the request is delegated to
  * the BHND_BUS_GET_NVRAM_VAR() method on the parent of @p dev.
  */
@@ -2202,7 +2202,7 @@ bhnd_bus_generic_get_nvram_var(device_t dev, device_t child, const char *name,
 
 /**
  * Helper function for implementing BHND_BUS_ALLOC_RESOURCE().
- * 
+ *
  * This implementation of BHND_BUS_ALLOC_RESOURCE() delegates allocation
  * of the underlying resource to BUS_ALLOC_RESOURCE(), and activation
  * to @p dev's BHND_BUS_ACTIVATE_RESOURCE().
@@ -2252,7 +2252,7 @@ failed:
 
 /**
  * Helper function for implementing BHND_BUS_RELEASE_RESOURCE().
- * 
+ *
  * This implementation of BHND_BUS_RELEASE_RESOURCE() delegates release of
  * the backing resource to BUS_RELEASE_RESOURCE().
  */
@@ -2271,10 +2271,10 @@ bhnd_bus_generic_release_resource(device_t dev, device_t child, int type,
 
 /**
  * Helper function for implementing BHND_BUS_ACTIVATE_RESOURCE().
- * 
+ *
  * This implementation of BHND_BUS_ACTIVATE_RESOURCE() first calls the
  * BHND_BUS_ACTIVATE_RESOURCE() method of the parent of @p dev.
- * 
+ *
  * If this fails, and if @p dev is the direct parent of @p child, standard
  * resource activation is attempted via bus_activate_resource(). This enables
  * direct use of the bhnd(4) resource APIs on devices that may not be attached
@@ -2311,7 +2311,7 @@ bhnd_bus_generic_activate_resource(device_t dev, device_t child, int type,
 
 /**
  * Helper function for implementing BHND_BUS_DEACTIVATE_RESOURCE().
- * 
+ *
  * This implementation of BHND_BUS_ACTIVATE_RESOURCE() simply calls the
  * BHND_BUS_ACTIVATE_RESOURCE() method of the parent of @p dev.
  */
@@ -2328,7 +2328,7 @@ bhnd_bus_generic_deactivate_resource(device_t dev, device_t child,
 
 /**
  * Helper function for implementing BHND_BUS_GET_INTR_DOMAIN().
- * 
+ *
  * This implementation simply returns the address of nearest bhnd(4) bus,
  * which may be @p dev; this behavior may be incompatible with FDT/OFW targets.
  */

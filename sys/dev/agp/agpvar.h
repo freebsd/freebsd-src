@@ -33,7 +33,7 @@
 
 /*
  * The AGP chipset can be acquired by user or kernel code. If the
- * chipset has already been acquired, it cannot be acquired by another 
+ * chipset has already been acquired, it cannot be acquired by another
  * user until the previous user has released it.
  */
 enum agp_acquire_state {
@@ -78,7 +78,7 @@ void agp_get_info(device_t dev, struct agp_info *info);
 
 /*
  * Acquire the AGP chipset for use by the kernel. Returns EBUSY if the
- * AGP chipset is already acquired by another user. 
+ * AGP chipset is already acquired by another user.
  */
 int agp_acquire(device_t dev);
 

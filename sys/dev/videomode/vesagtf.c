@@ -30,11 +30,11 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */ 
+ */
 
 /*
  * This was derived from a userland GTF program supplied by NVIDIA.
- * NVIDIA's original boilerplate follows. 
+ * NVIDIA's original boilerplate follows.
  *
  * Note that I have heavily modified the program for use in the EDID
  * kernel code for NetBSD, including removing the use of floating
@@ -51,11 +51,11 @@
 /*
  * Copyright (c) 2001, Andy Ritger  aritger@nvidia.com
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * o Redistributions of source code must retain the above copyright
  *   notice, this list of conditions and the following disclaimer.
  * o Redistributions in binary form must reproduce the above copyright
@@ -80,7 +80,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * 
+ *
  *
  * This program is based on the Generalized Timing Formula(GTF TM)
  * Standard Version: 1.0, Revision: 1.0
@@ -99,7 +99,7 @@
  * of suitability for any purpose. The sample code contained within
  * this standard may be used without restriction.
  *
- * 
+ *
  *
  * The GTF EXCEL(TM) SPREADSHEET, a sample (and the definitive)
  * implementation of the GTF Timing Standard, is available at:
@@ -124,12 +124,12 @@
  * any experience with this, and 2) neither XFree86 modelines nor
  * fbset fb.modes provide an obvious way for margin timings to be
  * included in their mode descriptions (needs more investigation).
- * 
+ *
  * The GTF provides for computation of interlaced mode timings;
  * I've implemented the computations but not enabled them, yet.
  * I should probably enable and test this at some point.
  *
- * 
+ *
  *
  * TODO:
  *
@@ -142,7 +142,7 @@
  * o It would be nice if this were more general purpose to do things
  *   outside the scope of the GTF: like generate double scan mode
  *   timings, for example.
- *   
+ *
  * o Printing digits to the right of the decimal point when the
  *   digits are 0 annoys me.
  *
@@ -246,7 +246,7 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
 #ifdef	GTFDEBUG
     unsigned h_freq;
 #endif
-    
+
     /*  1. In order to give correct results, the number of horizontal
      *  pixels requested is first processed to ensure that it is divisible
      *  by the character size, by rounding it to the nearest character
@@ -254,26 +254,26 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
      *
      *  [H PIXELS RND] = ((ROUND([H PIXELS]/[CELL GRAN RND],0))*[CELLGRAN RND])
      */
-    
+
     h_pixels = DIVIDE(h_pixels, CELL_GRAN) * CELL_GRAN;
-    
+
     print_value(1, "[H PIXELS RND]", h_pixels);
 
-    
+
     /*  2. If interlace is requested, the number of vertical lines assumed
      *  by the calculation must be halved, as the computation calculates
      *  the number of vertical lines per field. In either case, the
      *  number of lines is rounded to the nearest integer.
-     *   
+     *
      *  [V LINES RND] = IF([INT RQD?]="y", ROUND([V LINES]/2,0),
      *                                     ROUND([V LINES],0))
      */
 
     v_lines = (flags & VESAGTF_FLAG_ILACE) ? DIVIDE(v_lines, 2) : v_lines;
-    
+
     print_value(2, "[V LINES RND]", v_lines);
-    
-    
+
+
     /*  3. Find the frame rate required:
      *
      *  [V FIELD RATE RQD] = IF([INT RQD?]="y", [I/P FREQ RQD]*2,
@@ -283,7 +283,7 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
     v_field_rqd = (flags & VESAGTF_FLAG_ILACE) ? (freq * 2) : (freq);
 
     print_value(3, "[V FIELD RATE RQD]", v_field_rqd);
-    
+
 
     /*  4. Find number of lines in Top margin:
      *  5. Find number of lines in Bottom margin:
@@ -302,9 +302,9 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
     print_value(4, "[TOP MARGIN (LINES)]", top_margin);
     print_value(5, "[BOT MARGIN (LINES)]", bottom_margin);
 
-    
+
     /*  6. If interlace is required, then set variable [INTERLACE]=0.5:
-     *   
+     *
      *  [INTERLACE]=(IF([INT RQD?]="y",0.5,0))
      *
      *  To make this integer friendly, we use some special hacks in step
@@ -314,7 +314,7 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
     interlace = (flags & VESAGTF_FLAG_ILACE) ? 1 : 0;
 
     print_value(6, "[2*INTERLACE]", interlace);
-    
+
 
     /*  7. Estimate the Horizontal period
      *
@@ -350,7 +350,7 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
 	((2 * (v_lines + (2 * top_margin) + params->min_porch)) + interlace));
 
     print_value(7, "[H PERIOD EST (ps)]", h_period_est);
-    
+
 
     /*  8. Find the number of lines in V sync + back porch:
      *
@@ -362,19 +362,19 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
     vsync_plus_bp = DIVIDE(params->min_vsbp * 1000000, h_period_est);
 
     print_value(8, "[V SYNC+BP]", vsync_plus_bp);
-    
-    
+
+
     /*  9. Find the number of lines in V back porch alone:
      *
      *  [V BACK PORCH] = [V SYNC+BP] - [V SYNC RND]
      *
      *  XXX is "[V SYNC RND]" a typo? should be [V SYNC RQD]?
      */
-    
+
     v_back_porch = vsync_plus_bp - params->vsync_rqd;
-    
+
     print_value(9, "[V BACK PORCH]", v_back_porch);
-    
+
 
     /*  10. Find the total number of lines in Vertical field period:
      *
@@ -385,9 +385,9 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
 
     total_v_lines = v_lines + top_margin + bottom_margin + vsync_plus_bp +
         interlace + params->min_porch;
-    
+
     print_value(10, "[TOTAL V LINES]", total_v_lines);
-    
+
 
     /*  11. Estimate the Vertical field frequency:
      *
@@ -405,9 +405,9 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
      */
     v_field_est = DIVIDE(DIVIDE(1000000000000000ULL, h_period_est),
 	total_v_lines);
-    
+
     print_value(11, "[V FIELD RATE EST(uHz)]", v_field_est);
-    
+
 
     /*  12. Find the actual horizontal period:
      *
@@ -415,9 +415,9 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
      */
 
     h_period = DIVIDE(h_period_est * v_field_est, v_field_rqd * 1000);
-    
+
     print_value(12, "[H PERIOD(ps)]", h_period);
-    
+
 
     /*  13. Find the actual Vertical field frequency:
      *
@@ -433,7 +433,7 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
     v_field_rate = DIVIDE(1000000000000ULL, h_period * total_v_lines);
 
     print_value(13, "[V FIELD RATE]", v_field_rate);
-    
+
 
     /*  14. Find the Vertical frame frequency:
      *
@@ -446,7 +446,7 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
 	v_field_rate / 2 : v_field_rate;
 
     print_value(14, "[V FRAME RATE]", v_frame_rate);
-    
+
 
     /*  15. Find number of pixels in left margin:
      *  16. Find number of pixels in right margin:
@@ -466,7 +466,7 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
 
     print_value(15, "[LEFT MARGIN (PIXELS)]", left_margin);
     print_value(16, "[RIGHT MARGIN (PIXELS)]", right_margin);
-    
+
 
     /*  17. Find total number of active pixels in image and left and right
      *  margins:
@@ -476,10 +476,10 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
      */
 
     total_active_pixels = h_pixels + left_margin + right_margin;
-    
+
     print_value(17, "[TOTAL ACTIVE PIXELS]", total_active_pixels);
-    
-    
+
+
     /*  18. Find the ideal blanking duty cycle from the blanking duty cycle
      *  equation:
      *
@@ -500,9 +500,9 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
     ideal_duty_cycle =
 	((C_PRIME256(params) * 1000) -
 	    (M_PRIME256(params) * h_period / 1000000));
-    
+
     print_value(18, "[IDEAL DUTY CYCLE]", ideal_duty_cycle);
-    
+
 
     /*  19. Find the number of pixels in the blanking time to the nearest
      *  double character cell:
@@ -521,7 +521,7 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
 	2 * CELL_GRAN) * (2 * CELL_GRAN);
 
     print_value(19, "[H BLANK (PIXELS)]", h_blank);
-    
+
 
     /*  20. Find total number of pixels:
      *
@@ -529,9 +529,9 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
      */
 
     total_pixels = total_active_pixels + h_blank;
-    
+
     print_value(20, "[TOTAL PIXELS]", total_pixels);
-    
+
 
     /*  21. Find pixel clock frequency:
      *
@@ -541,11 +541,11 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
      *  is usable with integer math.  Recall that the [H PERIOD] is in
      *  nsec.
      */
-    
+
     pixel_freq = DIVIDE(total_pixels * 1000000, DIVIDE(h_period, 1000));
-    
+
     print_value(21, "[PIXEL FREQ]", pixel_freq);
-    
+
 
     /*  22. Find horizontal frequency:
      *
@@ -559,17 +559,17 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
 
 #ifdef	GTFDEBUG
     h_freq = 1000000000 / h_period;
-    
+
     print_value(22, "[H FREQ]", h_freq);
 #endif
-    
+
 
     /* Stage 1 computations are now complete; I should really pass
        the results to another function and do the Stage 2
        computations, but I only need a few more values so I'll just
        append the computations here for now */
 
-    
+
 
     /*  17. Find the number of pixels in the horizontal sync period:
      *
@@ -586,7 +586,7 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
 	CELL_GRAN;
 
     print_value(17, "[H SYNC (PIXELS)]", h_sync);
-    
+
 
     /*  18. Find the number of pixels in the horizontal front porch period:
      *
@@ -599,8 +599,8 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
     h_front_porch = (h_blank / 2) - h_sync;
 
     print_value(18, "[H FRONT PORCH (PIXELS)]", h_front_porch);
-    
-    
+
+
     /*  36. Find the number of lines in the odd front porch period:
      *
      *  [V ODD FRONT PORCH(LINES)]=([MIN PORCH RND]+[INTERLACE])
@@ -609,11 +609,11 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
      *
      *  [V ODD FRONT PORCH(LINES)]=(([MIN PORCH RND] * 2) + [2*INTERLACE]) / 2
      */
-    
+
     v_odd_front_porch_lines = ((2 * params->min_porch) + interlace) / 2;
-    
+
     print_value(36, "[V ODD FRONT PORCH(LINES)]", v_odd_front_porch_lines);
-    
+
 
     /* finally, pack the results in the mode struct */
 
@@ -628,7 +628,7 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
     vmp->vdisplay = v_lines;
 
     vmp->dot_clock = pixel_freq;
-    
+
 }
 
 void
@@ -670,7 +670,7 @@ print_xf86_mode (struct videomode *vmp)
     printf("\n");
     printf("  # %dx%d @ %.2f Hz (GTF) hsync: %.2f kHz; pclk: %.2f MHz\n",
 	vmp->hdisplay, vmp->vdisplay, vf, hf, vmp->dot_clock / 1000.0);
-    
+
     printf("  Modeline \"%dx%d_%.2f\"  %.2f"
 	"  %d %d %d %d"
 	"  %d %d %d %d"
@@ -689,12 +689,12 @@ main (int argc, char *argv[])
 		printf("usage: %s x y refresh\n", argv[0]);
 		exit(1);
 	}
-    
+
 	vesagtf_mode(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]), &m);
 
         print_xf86_mode(&m);
-    
+
 	return 0;
-    
+
 }
 #endif

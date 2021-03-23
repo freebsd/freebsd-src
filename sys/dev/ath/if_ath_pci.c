@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ath.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
@@ -190,7 +190,7 @@ ath_pci_attach(device_t dev)
 	 */
 	ath_pci_setup(dev);
 
-	/* 
+	/*
 	 * Setup memory-mapping of PCI registers.
 	 */
 	rid = BS_BAR;

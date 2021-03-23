@@ -694,13 +694,13 @@ arswitch_attach(device_t dev)
 		    "%s: bus_generic_attach: err=%d\n", __func__, err);
 		return (err);
 	}
-	
+
 	callout_init_mtx(&sc->callout_tick, &sc->sc_mtx, 0);
 
 	ARSWITCH_LOCK(sc);
 	arswitch_tick(sc);
 	ARSWITCH_UNLOCK(sc);
-	
+
 	return (err);
 }
 
@@ -899,7 +899,7 @@ static etherswitch_info_t *
 arswitch_getinfo(device_t dev)
 {
 	struct arswitch_softc *sc = device_get_softc(dev);
-	
+
 	return (&sc->info);
 }
 
@@ -972,7 +972,7 @@ arswitch_getport(device_t dev, etherswitch_port_t *p)
 	} else {
 		return (ENXIO);
 	}
-	
+
 	if (!arswitch_is_cpuport(sc, p->es_port) &&
 	    AR8X16_IS_SWITCH(sc, AR8327)) {
 		int led;
@@ -982,7 +982,7 @@ arswitch_getport(device_t dev, etherswitch_port_t *p)
 		{
 			int style;
 			uint32_t val;
-			
+
 			/* Find the right style enum for our pattern */
 			val = arswitch_readreg(dev,
 			    ar8327_led_mapping[p->es_port-1][led].reg);
@@ -992,18 +992,18 @@ arswitch_getport(device_t dev, etherswitch_port_t *p)
 			{
 				if (led_pattern_table[style] == val) break;
 			}
-			
+
 			/* can't happen */
 			if (style == ETHERSWITCH_PORT_LED_MAX)
 				style = ETHERSWITCH_PORT_LED_DEFAULT;
-			
+
 			p->es_led[led] = style;
 		}
 	} else
 	{
 		p->es_nleds = 0;
 	}
-	
+
 	return (0);
 }
 
@@ -1068,11 +1068,11 @@ arswitch_setport(device_t dev, etherswitch_port_t *p)
 	/* Do not allow media or led changes on CPU port. */
 	if (arswitch_is_cpuport(sc, p->es_port))
 		return (0);
-	
+
 	if (AR8X16_IS_SWITCH(sc, AR8327))
 	{
 		for (i = 0; i < 3; i++)
-		{	
+		{
 			int err;
 			err = arswitch_setled(sc, p->es_port-1, i, p->es_led[i]);
 			if (err)
@@ -1307,10 +1307,10 @@ static device_method_t arswitch_methods[] = {
 	DEVMETHOD(device_probe,		arswitch_probe),
 	DEVMETHOD(device_attach,	arswitch_attach),
 	DEVMETHOD(device_detach,	arswitch_detach),
-	
+
 	/* bus interface */
 	DEVMETHOD(bus_add_child,	device_add_child_ordered),
-	
+
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	arswitch_readphy),
 	DEVMETHOD(miibus_writereg,	arswitch_writephy),

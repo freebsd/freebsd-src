@@ -102,7 +102,7 @@ ar5312SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode, int setChip)
 		return AH_FALSE;
 	}
 	ah->ah_powerMode = mode;
-	return status; 
+	return status;
 }
 
 /*

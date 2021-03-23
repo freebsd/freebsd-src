@@ -883,7 +883,7 @@ void mlx4_en_rx_irq(struct mlx4_cq *mcq)
 	struct mlx4_en_priv *priv = netdev_priv(cq->dev);
         int done;
 
-        // Shoot one within the irq context 
+        // Shoot one within the irq context
         // Because there is no NAPI in freeBSD
         done = mlx4_en_poll_rx_cq(cq, MLX4_EN_RX_BUDGET);
 	if (priv->port_up  && (done == MLX4_EN_RX_BUDGET) ) {

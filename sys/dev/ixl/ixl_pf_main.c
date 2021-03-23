@@ -2,30 +2,30 @@
 
   Copyright (c) 2013-2018, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -758,7 +758,7 @@ ixl_add_ifmedia(struct ifmedia *media, u64 phy_types)
 int
 ixl_switch_config(struct ixl_pf *pf)
 {
-	struct i40e_hw	*hw = &pf->hw; 
+	struct i40e_hw	*hw = &pf->hw;
 	struct ixl_vsi	*vsi = &pf->vsi;
 	device_t 	dev = iflib_get_dev(vsi->ctx);
 	struct i40e_aqc_get_switch_config_resp *sw_config;
@@ -901,7 +901,7 @@ ixl_add_sysctls_mac_stats(struct sysctl_ctx_list *ctx,
 	struct i40e_eth_stats *eth_stats = &stats->eth;
 	ixl_add_sysctls_eth_stats(ctx, stat_list, eth_stats);
 
-	struct ixl_sysctl_info ctls[] = 
+	struct ixl_sysctl_info ctls[] =
 	{
 		{&stats->crc_errors, "crc_errors", "CRC Errors"},
 		{&stats->illegal_bytes, "illegal_bytes", "Illegal Byte Errors"},

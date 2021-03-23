@@ -284,7 +284,7 @@ struct asmc_model asmc_models[] = {
 	},
 
 	/* The Mac Mini 4,1 (Mid-2010) has no SMS */
-	{ 
+	{
 	  "Macmini4,1", "Apple SMC Mac mini 4,1 (Mid-2010)",
 	  ASMC_SMS_FUNCS_DISABLED,
 	  ASMC_FAN_FUNCS,
@@ -293,7 +293,7 @@ struct asmc_model asmc_models[] = {
 	},
 
 	/* The Mac Mini 5,2 has no SMS */
-	{ 
+	{
 	  "Macmini5,2", "Apple SMC Mac Mini 5,2",
 	  NULL, NULL, NULL,
 	  ASMC_FAN_FUNCS2,

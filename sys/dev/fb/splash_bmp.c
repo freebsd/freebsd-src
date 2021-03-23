@@ -60,7 +60,7 @@ static splash_decoder_t bmp_decoder = {
 
 SPLASH_DECODER(splash_bmp, bmp_decoder);
 
-static int 
+static int
 bmp_start(video_adapter_t *adp)
 {
     /* currently only 256-color modes are supported XXX */
@@ -84,7 +84,7 @@ bmp_start(video_adapter_t *adp)
 	return ENODEV;
     }
     for (i = 0; modes[i] >= 0; ++i) {
-	if ((vidd_get_info(adp, modes[i], &info) == 0) && 
+	if ((vidd_get_info(adp, modes[i], &info) == 0) &&
 	    (bmp_Init((u_char *)bmp_decoder.data, info.vi_width,
 		      info.vi_height, info.vi_depth) == 0))
 	    break;
@@ -126,7 +126,7 @@ bmp_splash(video_adapter_t *adp, int on)
 	    splash_on = TRUE;
 	}
 	/*
-	 * This is a kludge to fade the image away.  This section of the 
+	 * This is a kludge to fade the image away.  This section of the
 	 * code takes effect only after the system is completely up.
 	 * FADE_TIMEOUT should be configurable.
 	 */
@@ -212,7 +212,7 @@ typedef struct tagBITMAPF
 #define BI_RLE8		1
 #define BI_RLE4		2
 
-/* 
+/*
 ** all we actually care about the image
 */
 typedef struct
@@ -236,7 +236,7 @@ static BMP_INFO bmp_info;
 /*
 ** bmp_SetPix
 **
-** Given (info), set the pixel at (x),(y) to (val) 
+** Given (info), set the pixel at (x),(y) to (val)
 **
 */
 static void
@@ -250,12 +250,12 @@ bmp_SetPix(BMP_INFO *info, int x, int y, u_char val)
      */
     if ((x < 0) || (x >= info->swidth) || (y < 0) || (y >= info->sheight))
 	return;
-    
-    /* 
+
+    /*
      * calculate offset into video memory;
      * because 0,0 is bottom-left for DIB, we have to convert.
      */
-    sofs = ((info->height - (y+1) + (info->sheight - info->height) / 2) 
+    sofs = ((info->height - (y+1) + (info->sheight - info->height) / 2)
 		* info->adp->va_line_width);
     x += (info->swidth - info->width) / 2;
 
@@ -288,7 +288,7 @@ bmp_SetPix(BMP_INFO *info, int x, int y, u_char val)
 	break;
     }
 }
-    
+
 /*
 ** bmp_DecodeRLE4
 **
@@ -301,10 +301,10 @@ bmp_DecodeRLE4(BMP_INFO *info, int line)
     int		count;		/* run count */
     u_char	val;
     int		x,y;		/* screen position */
-    
+
     x = 0;			/* starting position */
     y = line;
-    
+
     /* loop reading data */
     for (;;) {
 	/*
@@ -320,8 +320,8 @@ bmp_DecodeRLE4(BMP_INFO *info, int line)
 		}
 	    }
 	    info->index += 2;
-        /* 
-	 * A leading zero is an escape; it may signal the end of the 
+        /*
+	 * A leading zero is an escape; it may signal the end of the
 	 * bitmap, a cursor move, or some absolute data.
 	 */
 	} else {	/* zero tag may be absolute mode or an escape */
@@ -365,10 +365,10 @@ bmp_DecodeRLE8(BMP_INFO *info, int line)
 {
     int		count;		/* run count */
     int		x,y;		/* screen position */
-    
+
     x = 0;			/* starting position */
     y = line;
-    
+
     /* loop reading data */
     for(;;) {
 	/*
@@ -379,8 +379,8 @@ bmp_DecodeRLE8(BMP_INFO *info, int line)
 	    for (count = 0; count < *info->index; count++, x++)
 		bmp_SetPix(info, x, y, *(info->index+1));
 	    info->index += 2;
-        /* 
-	 * A leading zero is an escape; it may signal the end of the 
+        /*
+	 * A leading zero is an escape; it may signal the end of the
 	 * bitmap, a cursor move, or some absolute data.
 	 */
 	} else {	/* zero tag may be absolute mode or an escape */
@@ -520,7 +520,7 @@ bmp_Init(char *data, int swidth, int sheight, int sdepth)
 	printf("splash_bmp: unsupported compression format\n");
 	return(1);		/* unsupported compression format */
     }
-    
+
     /* palette details */
     bmp_info.ncols = (bmf->bmfi.bmiHeader.biClrUsed);
     bzero(bmp_info.palette,sizeof(bmp_info.palette));
@@ -562,7 +562,7 @@ bmp_Draw(video_adapter_t *adp)
     if (bmp_info.data == NULL) {	/* init failed, do nothing */
 	return(1);
     }
-    
+
     /* clear the screen */
     bmp_info.vidmem = (u_char *)adp->va_window;
     bmp_info.adp = adp;
@@ -572,7 +572,7 @@ bmp_Draw(video_adapter_t *adp)
 
     /* initialise the info structure for drawing */
     bmp_info.index = bmp_info.data;
-    
+
     /* set the palette for our image */
     vidd_load_palette(adp, (u_char *)&bmp_info.palette);
 

@@ -103,7 +103,7 @@ static void		gxemul_cons_timeout(void *);
  */
 
 static inline vm_offset_t
-mips_phys_to_uncached(vm_paddr_t phys)            
+mips_phys_to_uncached(vm_paddr_t phys)
 {
 
 	return (MIPS_PHYS_TO_DIRECT_UNCACHED(phys));

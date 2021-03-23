@@ -4447,7 +4447,7 @@ void ecore_iov_bulletin_set_forced_mac(struct ecore_hwfn *p_hwfn,
 
 	vf_info->bulletin.p_virt->valid_bitmap |= feature;
 	/* Forced MAC will disable MAC_ADDR */
-	vf_info->bulletin.p_virt->valid_bitmap &= 
+	vf_info->bulletin.p_virt->valid_bitmap &=
 		~(1 << VFPF_BULLETIN_MAC_ADDR);
 
 	ecore_iov_configure_vport_forced(p_hwfn, vf_info, feature);

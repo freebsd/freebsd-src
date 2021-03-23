@@ -213,7 +213,7 @@ vis_ioctl(struct cdev *sdev, u_long cmd, caddr_t data,
 	CURVNET_SET(CRED_TO_VNET(curthread->td_ucred));
 	switch(cmd) {
 	case VISIOCTLOPEN:
-		op =  *(int *)data; 
+		op =  *(int *)data;
 		if(op == 0)
 			medium_close(hal->hal_md);
 		else

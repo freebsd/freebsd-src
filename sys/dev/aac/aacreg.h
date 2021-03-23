@@ -202,7 +202,7 @@ typedef enum {
 	/* Container Commands */
 	ContainerCommand =		500,
 	ContainerCommand64 =		501,
-	RawIo = 			502,	
+	RawIo = 			502,
 
 	/* Cluster Commands */
 	ClusterCommand =		550,
@@ -574,8 +574,8 @@ typedef enum
 #define AAC_SUPPORTED_SGMAP_HOST64	0x400
 #define AAC_SUPPORTED_ALARM		0x800
 #define AAC_SUPPORTED_NONDASD		0x1000
-#define AAC_SUPPORTED_SCSI_MANAGED	0x2000	
-#define AAC_SUPPORTED_RAID_SCSI_MODE	0x4000	
+#define AAC_SUPPORTED_SCSI_MANAGED	0x2000
+#define AAC_SUPPORTED_RAID_SCSI_MODE	0x4000
 #define AAC_SUPPORTED_SUPPLEMENT_ADAPTER_INFO	0x10000
 #define AAC_SUPPORTED_NEW_COMM		0x20000
 #define AAC_SUPPORTED_64BIT_ARRAYSIZE	0x40000
@@ -1562,4 +1562,4 @@ enum {
 #define AAC_DB_INTERRUPTS	(AAC_DB_COMMAND_READY  |	\
 				 AAC_DB_RESPONSE_READY |	\
 				 AAC_DB_PRINTF)
-#define AAC_DB_INT_NEW_COMM		0x08		
+#define AAC_DB_INT_NEW_COMM		0x08

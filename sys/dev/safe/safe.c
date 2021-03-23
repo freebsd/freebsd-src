@@ -233,7 +233,7 @@ safe_attach(device_t dev)
 
 	pci_enable_busmaster(dev);
 
-	/* 
+	/*
 	 * Setup memory-mapping of PCI registers.
 	 */
 	rid = BS_BAR;
@@ -768,7 +768,7 @@ safe_op_cb(void *arg, bus_dma_segment_t *seg, int nsegs, int error)
 static int
 safe_process(device_t dev, struct cryptop *crp, int hint)
 {
-	struct safe_softc *sc = device_get_softc(dev);	
+	struct safe_softc *sc = device_get_softc(dev);
 	const struct crypto_session_params *csp;
 	int err = 0, i, nicealign, uniform;
 	int bypass, oplen;
@@ -942,7 +942,7 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 		/*
 		 * Tell the hardware to copy the header to the output.
 		 * The header is defined as the data from the end of
-		 * the bypass to the start of data to be encrypted. 
+		 * the bypass to the start of data to be encrypted.
 		 * Typically this is the inline IV.  Note that you need
 		 * to do this even if src+dst are the same; it appears
 		 * that w/o this bit the crypted data is written
@@ -1413,7 +1413,7 @@ safe_rng_init(struct safe_softc *sc)
 	 * status reg in the read in case it is initialized.  Then read
 	 * the data register until it changes from the first read.
 	 * Once it changes read the data register until it changes
-	 * again.  At this time the RNG is considered initialized. 
+	 * again.  At this time the RNG is considered initialized.
 	 * This could take between 750ms - 1000ms in time.
 	 */
 	i = 0;
@@ -1447,7 +1447,7 @@ safe_rng_disable_short_cycle(struct safe_softc *sc)
 static __inline void
 safe_rng_enable_short_cycle(struct safe_softc *sc)
 {
-	WRITE_REG(sc, SAFE_RNG_CTRL, 
+	WRITE_REG(sc, SAFE_RNG_CTRL,
 		READ_REG(sc, SAFE_RNG_CTRL) | SAFE_RNG_CTRL_SHORTEN);
 }
 

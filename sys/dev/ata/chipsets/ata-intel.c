@@ -898,7 +898,7 @@ ata_intel_31244_tf_write(struct ata_request *request)
 				      (request->u.ata.lba & 0x00ff));
 	ATA_IDX_OUTW(ch, ATA_CYL_LSB, ((request->u.ata.lba >> 24) & 0xff00) |
 				       ((request->u.ata.lba >> 8) & 0x00ff));
-	ATA_IDX_OUTW(ch, ATA_CYL_MSB, ((request->u.ata.lba >> 32) & 0xff00) | 
+	ATA_IDX_OUTW(ch, ATA_CYL_MSB, ((request->u.ata.lba >> 32) & 0xff00) |
 				       ((request->u.ata.lba >> 16) & 0x00ff));
 	ATA_IDX_OUTW(ch, ATA_DRIVE, ATA_D_LBA | ATA_DEV(request->unit));
     }

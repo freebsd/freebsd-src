@@ -73,11 +73,11 @@ static int	bhnd_sprom_opcode_step(bhnd_sprom_opcode_state *state,
 
 /**
  * Initialize SPROM opcode evaluation state.
- * 
+ *
  * @param state The opcode state to be initialized.
  * @param layout The SPROM layout to be parsed by this instance.
- * 
- * 
+ *
+ *
  * @retval 0 success
  * @retval non-zero If initialization fails, a regular unix error code will be
  * returned.
@@ -151,7 +151,7 @@ bhnd_sprom_opcode_init(bhnd_sprom_opcode_state *state,
 /**
  * Reset SPROM opcode evaluation state; future evaluation will be performed
  * starting at the first opcode.
- * 
+ *
  * @param state The opcode state to be reset.
  *
  * @retval 0 success
@@ -173,7 +173,7 @@ bhnd_sprom_opcode_reset(bhnd_sprom_opcode_state *state)
 
 /**
  * Free any resources associated with @p state.
- * 
+ *
  * @param state An opcode state previously successfully initialized with
  * bhnd_sprom_opcode_init().
  */
@@ -225,7 +225,7 @@ bhnd_nvram_opcode_idx_vid_compare(const void *key, const void *rhs)
 
 /**
  * Locate an index entry for the variable with @p name, or NULL if not found.
- * 
+ *
  * @param state The opcode state to be queried.
  * @param name	The name to search for.
  *
@@ -252,12 +252,12 @@ bhnd_sprom_opcode_index_find(bhnd_sprom_opcode_state *state, const char *name)
 
 /**
  * Iterate over all index entries in @p state.
- * 
+ *
  * @param		state	The opcode state to be iterated.
  * @param[in,out]	prev	An entry previously returned by
  *				bhnd_sprom_opcode_index_next(), or a NULL value
  *				to begin iteration.
- * 
+ *
  * @return Returns the next index entry name, or NULL if all entries have
  * been iterated.
  */
@@ -289,10 +289,10 @@ bhnd_sprom_opcode_index_next(bhnd_sprom_opcode_state *state,
 
 /**
  * Initialize @p entry with the current variable's opcode state.
- * 
+ *
  * @param	state	The opcode state to be saved.
  * @param[out]	entry	The opcode index entry to be initialized from @p state.
- * 
+ *
  * @retval 0		success
  * @retval ENXIO	if @p state cannot be serialized as an index entry.
  */
@@ -336,7 +336,7 @@ bhnd_sprom_opcode_init_entry(bhnd_sprom_opcode_state *state,
 
 /**
  * Reset SPROM opcode evaluation state and seek to the @p entry's position.
- * 
+ *
  * @param state The opcode state to be reset.
  * @param entry The indexed entry to which we'll seek the opcode state.
  */
@@ -369,7 +369,7 @@ bhnd_sprom_opcode_seek(bhnd_sprom_opcode_state *state,
 /**
  * Set the current revision range for @p state. This also resets
  * variable state.
- * 
+ *
  * @param state The opcode state to update
  * @param start The first revision in the range.
  * @param end The last revision in the range.
@@ -407,7 +407,7 @@ bhnd_sprom_opcode_set_revs(bhnd_sprom_opcode_state *state, uint8_t start,
 
 /**
  * Set the current variable's value mask for @p state.
- * 
+ *
  * @param state The opcode state to update
  * @param mask The mask to be set
  *
@@ -429,7 +429,7 @@ bhnd_sprom_opcode_set_mask(bhnd_sprom_opcode_state *state, uint32_t mask)
 
 /**
  * Set the current variable's value shift for @p state.
- * 
+ *
  * @param state The opcode state to update
  * @param shift The shift to be set
  *
@@ -451,7 +451,7 @@ bhnd_sprom_opcode_set_shift(bhnd_sprom_opcode_state *state, int8_t shift)
 
 /**
  * Register a new BIND/BINDN operation with @p state.
- * 
+ *
  * @param state The opcode state to update.
  * @param count The number of elements to be bound.
  * @param skip_in The number of input elements to skip after each bind.
@@ -459,7 +459,7 @@ bhnd_sprom_opcode_set_shift(bhnd_sprom_opcode_state *state, int8_t shift)
  * the current offset after each bind. If false, the input skip should be
  * added.
  * @param skip_out The number of output elements to skip after each bind.
- * 
+ *
  * @retval 0 success
  * @retval EINVAL if a variable definition is not open.
  * @retval EINVAL if @p skip_in and @p count would trigger an overflow or
@@ -543,9 +543,9 @@ bhnd_sprom_opcode_set_bind(bhnd_sprom_opcode_state *state, uint8_t count,
 
 /**
  * Apply and clear the current opcode bind state, if any.
- * 
+ *
  * @param state The opcode state to update.
- * 
+ *
  * @retval 0 success
  * @retval non-zero If updating @p state otherwise fails, a regular unix error
  * code will be returned.
@@ -587,7 +587,7 @@ bhnd_sprom_opcode_flush_bind(bhnd_sprom_opcode_state *state)
  *
  * @param state The opcode state to update.
  * @param type The new type.
- * 
+ *
  * @retval 0 success
  * @retval EINVAL if @p vid is not a valid variable ID.
  */
@@ -649,7 +649,7 @@ bhnd_sprom_opcode_set_type(bhnd_sprom_opcode_state *state, bhnd_nvram_type type)
 
 /**
  * Clear current variable state, if any.
- * 
+ *
  * @param state The opcode state to update.
  */
 static int
@@ -673,7 +673,7 @@ bhnd_sprom_opcode_clear_var(bhnd_sprom_opcode_state *state)
  *
  * @param state The opcode state to update.
  * @param nelem The new array length.
- * 
+ *
  * @retval 0 success
  * @retval EINVAL if no open variable definition exists.
  * @retval EINVAL if @p nelem is zero.
@@ -733,7 +733,7 @@ bhnd_sprom_opcode_set_nelem(bhnd_sprom_opcode_state *state, uint8_t nelem)
  *
  * @param state The opcode state to update.
  * @param vid The new variable ID.
- * 
+ *
  * @retval 0 success
  * @retval EINVAL if @p vid is not a valid variable ID.
  */
@@ -772,7 +772,7 @@ bhnd_sprom_opcode_set_var(bhnd_sprom_opcode_state *state, size_t vid)
 
 /**
  * Mark the currently open variable definition as complete.
- * 
+ *
  * @param state The opcode state to update.
  *
  * @retval 0 success
@@ -792,10 +792,10 @@ bhnd_sprom_opcode_end_var(bhnd_sprom_opcode_state *state)
 
 /**
  * Apply the current scale to @p value.
- * 
+ *
  * @param state The SPROM opcode state.
  * @param[in,out] value The value to scale
- * 
+ *
  * @retval 0 success
  * @retval EINVAL if no open variable definition exists.
  * @retval EINVAL if applying the current scale would overflow.
@@ -823,13 +823,13 @@ bhnd_sprom_opcode_apply_scale(bhnd_sprom_opcode_state *state, uint32_t *value)
 
 /**
  * Read a SPROM_OP_DATA_* value from @p opcodes.
- * 
+ *
  * @param state The SPROM opcode state.
  * @param type The SROM_OP_DATA_* type to be read.
  * @param opval On success, the 32bit data representation. If @p type is signed,
  * the value will be appropriately sign extended and may be directly cast to
  * int32_t.
- * 
+ *
  * @retval 0 success
  * @retval non-zero If reading the value otherwise fails, a regular unix error
  * code will be returned.
@@ -882,10 +882,10 @@ bhnd_sprom_opcode_read_opval32(bhnd_sprom_opcode_state *state, uint8_t type,
 /**
  * Return true if our layout revision is currently defined by the SPROM
  * opcode state.
- * 
+ *
  * This may be used to test whether the current opcode stream state applies
  * to the layout that we are actually parsing.
- * 
+ *
  * A given opcode stream may cover multiple layout revisions, switching
  * between them prior to defining a set of variables.
  */
@@ -898,14 +898,14 @@ bhnd_sprom_opcode_matches_layout_rev(bhnd_sprom_opcode_state *state)
 /**
  * When evaluating @p state and @p opcode, rewrite @p opcode based on the
  * current evaluation state.
- * 
+ *
  * This allows the insertion of implicit opcodes into interpretation of the
  * opcode stream.
- * 
+ *
  * If @p opcode is rewritten, it should be returned from
  * bhnd_sprom_opcode_step() instead of the opcode parsed from @p state's opcode
  * stream.
- * 
+ *
  * If @p opcode remains unmodified, then bhnd_sprom_opcode_step() should
  * proceed to standard evaluation.
  */
@@ -986,7 +986,7 @@ bhnd_sprom_opcode_rewrite_opcode(bhnd_sprom_opcode_state *state,
  *
  * @param state The opcode state to be evaluated.
  * @param[out] opcode On success, the evaluated opcode
- * 
+ *
  * @retval 0 success
  * @retval ENOENT if EOF is reached
  * @retval non-zero if evaluation otherwise fails, a regular unix error
@@ -1264,7 +1264,7 @@ bhnd_sprom_opcode_step(bhnd_sprom_opcode_state *state, uint8_t *opcode)
 /**
  * Reset SPROM opcode evaluation state, seek to the @p entry's position,
  * and perform complete evaluation of the variable's opcodes.
- * 
+ *
  * @param state The opcode state to be to be evaluated.
  * @param entry The indexed variable location.
  *
@@ -1301,9 +1301,9 @@ bhnd_sprom_opcode_eval_var(bhnd_sprom_opcode_state *state,
 
 /**
  * Evaluate @p state until the next variable definition is found.
- * 
+ *
  * @param state The opcode state to be evaluated.
- * 
+ *
  * @retval 0 success
  * @retval ENOENT if no additional variable definitions are available.
  * @retval non-zero if evaluation otherwise fails, a regular unix error
@@ -1338,9 +1338,9 @@ bhnd_sprom_opcode_next_var(bhnd_sprom_opcode_state *state)
 /**
  * Evaluate @p state until the next binding for the current variable definition
  * is found.
- * 
+ *
  * @param state The opcode state to be evaluated.
- * 
+ *
  * @retval 0 success
  * @retval ENOENT if no additional binding opcodes are found prior to reaching
  * a new variable definition, or the end of @p state's binding opcodes.
@@ -1371,7 +1371,7 @@ bhnd_sprom_opcode_next_binding(bhnd_sprom_opcode_state *state)
 			return (0);
 
 		case SPROM_OPCODE_VAR_END:
-			/* No further binding opcodes */ 
+			/* No further binding opcodes */
 			BHND_NV_ASSERT(
 			    state->var_state == SPROM_OPCODE_VAR_STATE_DONE,
 			    ("variable definition still available"));

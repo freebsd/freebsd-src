@@ -437,7 +437,7 @@ mtkswitch_is_cpuport(struct mtkswitch_softc *sc, int port)
 
 static int
 mtkswitch_getport(device_t dev, etherswitch_port_t *p)
-{       
+{
 	struct mtkswitch_softc *sc;
 	struct mii_data *mii;
 	struct ifmediareq *ifmr;
@@ -479,7 +479,7 @@ mtkswitch_getport(device_t dev, etherswitch_port_t *p)
 
 static int
 mtkswitch_setport(device_t dev, etherswitch_port_t *p)
-{       
+{
 	int err;
 	struct mtkswitch_softc *sc;
 	struct ifmedia *ifm;
@@ -489,8 +489,8 @@ mtkswitch_setport(device_t dev, etherswitch_port_t *p)
 	sc = device_get_softc(dev);
 	if (p->es_port < 0 || p->es_port > sc->info.es_nports)
 		return (ENXIO);
-        
-	/* Port flags. */ 
+
+	/* Port flags. */
 	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
 		err = sc->hal.mtkswitch_port_vlan_setup(sc, p);
 		if (err)
@@ -523,7 +523,7 @@ mtkswitch_ifmedia_upd(struct ifnet *ifp)
 {
 	struct mtkswitch_softc *sc = ifp->if_softc;
 	struct mii_data *mii = mtkswitch_miiforport(sc, ifp->if_dunit);
-        
+
 	if (mii == NULL)
 		return (ENXIO);
 	mii_mediachg(mii);
@@ -540,7 +540,7 @@ mtkswitch_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	if (mii == NULL)
 		return;
-	mii_pollstat(mii); 
+	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
 }
@@ -564,9 +564,9 @@ mtkswitch_setconf(device_t dev, etherswitch_conf_t *conf)
 {
 	struct mtkswitch_softc *sc;
 	int err;
-        
+
 	sc = device_get_softc(dev);
-        
+
 	/* Set the VLAN mode. */
 	if (conf->cmd & ETHERSWITCH_CONF_VLAN_MODE) {
 		err = mtkswitch_set_vlan_mode(sc, conf->vlan_mode);

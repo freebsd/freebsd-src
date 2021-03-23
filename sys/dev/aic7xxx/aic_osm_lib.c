@@ -64,7 +64,7 @@ aic_platform_timeout(void *arg)
 {
 	struct	scb *scb;
 
-	scb = (struct scb *)arg; 
+	scb = (struct scb *)arg;
 	aic_lock(scb->aic_softc);
 	aic_timeout(scb);
 	aic_unlock(scb->aic_softc);
@@ -95,7 +95,7 @@ aic_terminate_recovery_thread(struct aic_softc *aic)
 	aic->flags |= AIC_SHUTDOWN_RECOVERY;
 	wakeup(aic);
 	/*
-	 * Sleep on a slightly different location 
+	 * Sleep on a slightly different location
 	 * for this interlock just for added safety.
 	 */
 	msleep(aic->platform_data, &aic->platform_data->mtx, PUSER, "thtrm", 0);
@@ -109,7 +109,7 @@ aic_recovery_thread(void *arg)
 	aic = (struct aic_softc *)arg;
 	aic_lock(aic);
 	for (;;) {
-		
+
 		if (LIST_EMPTY(&aic->timedout_scbs) != 0
 		 && (aic->flags & AIC_SHUTDOWN_RECOVERY) == 0)
 			msleep(aic, &aic->platform_data->mtx, PUSER, "idle", 0);

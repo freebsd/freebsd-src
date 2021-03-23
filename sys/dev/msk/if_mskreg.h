@@ -2346,7 +2346,7 @@ struct msk_stat_desc {
  * 1 descriptor for TCP/UDP checksum offload.
  * 1 descriptor VLAN hardware tag insertion.
  * 1 descriptor for TSO(TCP Segmentation Offload)
- * 1 descriptor for each 64bits DMA transfers 
+ * 1 descriptor for each 64bits DMA transfers
  */
 #ifdef MSK_64BIT_DMA
 #define	MSK_RESERVED_TX_DESC_CNT	(MSK_MAXTXSEGS + 3)

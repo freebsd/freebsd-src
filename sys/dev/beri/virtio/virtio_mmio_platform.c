@@ -204,7 +204,7 @@ platform_note(device_t dev, size_t offset, int val)
 
 		PIO_SET(sc->pio_send, note, 1);
 
-		/* 
+		/*
 		 * Wait until host ack the request.
 		 * Usually done within few cycles.
 		 * TODO: bad

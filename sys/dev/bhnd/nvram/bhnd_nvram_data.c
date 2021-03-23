@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 /**
  * Return a human-readable description for the given NVRAM data class.
- * 
+ *
  * @param cls The NVRAM class.
  */
 const char *
@@ -78,7 +78,7 @@ bhnd_nvram_data_class_caps(bhnd_nvram_data_class *cls)
 /**
  * Serialize all NVRAM properties in @p plist using @p cls's NVRAM data
  * format, writing the result to @p outp.
- * 
+ *
  * @param		cls	The NVRAM data class to be used to perform
  *				serialization.
  * @param		props	The raw property values to be serialized to
@@ -91,7 +91,7 @@ bhnd_nvram_data_class_caps(bhnd_nvram_data_class *cls)
  *				to the actual length of the serialized data.
  *
  * @retval 0		success
- * 
+ *
  * @retval ENOMEM	If @p outp is non-NULL and a buffer of @p olen is too
  *			small to hold the serialized data.
  * @retval EINVAL	If a property value required by @p cls is not found in
@@ -135,16 +135,16 @@ bhnd_nvram_data_probe(bhnd_nvram_data_class *cls, struct bhnd_nvram_io *io)
 /**
  * Probe to see if an NVRAM data class in @p classes supports parsing
  * of the data mapped by @p io, returning the parsed data in @p data.
- * 
+ *
  * The caller is responsible for deallocating the returned instance via
  * bhnd_nvram_data_release().
- * 
+ *
  * @param[out] data On success, the parsed NVRAM data instance.
  * @param io An I/O context mapping the NVRAM data to be copied and parsed.
  * @param classes An array of NVRAM data classes to be probed, or NULL to
  * probe the default supported set.
  * @param num_classes The number of NVRAM data classes in @p classes.
- * 
+ *
  * @retval 0 success
  * @retval ENXIO if no class is found capable of parsing @p io.
  * @retval non-zero if an error otherwise occurs during allocation,
@@ -227,7 +227,7 @@ bhnd_nvram_data_probe_classes(struct bhnd_nvram_data **data,
 
 /**
  * Read a variable directly from @p io and decode as @p type.
- * 
+ *
  * This may be used to perform reading of NVRAM variables during the very
  * early boot process, prior to the availability of the kernel allocator.
  *
@@ -266,12 +266,12 @@ bhnd_nvram_data_getvar_direct(bhnd_nvram_data_class *cls,
  *
  * The caller is responsible for releasing the returned parser instance
  * reference via bhnd_nvram_data_release().
- * 
+ *
  * @param cls If non-NULL, the data class to be allocated. If NULL,
  * bhnd_nvram_data_probe_classes() will be used to determine the data format.
  * @param[out] nv On success, a pointer to the newly allocated NVRAM data instance.
  * @param io An I/O context mapping the NVRAM data to be copied and parsed.
- * 
+ *
  * @retval 0 success
  * @retval non-zero if an error occurs during allocation or initialization, a
  * regular unix error code will be returned.
@@ -308,7 +308,7 @@ bhnd_nvram_data_new(bhnd_nvram_data_class *cls, struct bhnd_nvram_data **nv,
 
 /**
  * Retain and return a reference to the given data instance.
- * 
+ *
  * @param nv The reference to be retained.
  */
 struct bhnd_nvram_data *
@@ -323,7 +323,7 @@ bhnd_nvram_data_retain(struct bhnd_nvram_data *nv)
  *
  * If this is the last reference, the data instance and its associated
  * resources will be freed.
- * 
+ *
  * @param nv The reference to be released.
  */
 void
@@ -341,7 +341,7 @@ bhnd_nvram_data_release(struct bhnd_nvram_data *nv)
 
 /**
  * Return a pointer to @p nv's data class.
- * 
+ *
  * @param nv The NVRAM data instance to be queried.
  */
 bhnd_nvram_data_class *
@@ -352,7 +352,7 @@ bhnd_nvram_data_get_class(struct bhnd_nvram_data *nv)
 
 /**
  * Return the number of variables in @p nv.
- * 
+ *
  * @param nv The NVRAM data to be queried.
  */
 size_t
@@ -364,7 +364,7 @@ bhnd_nvram_data_count(struct bhnd_nvram_data *nv)
 /**
  * Return a borrowed reference to the serialization options for @p nv,
  * suitable for use with bhnd_nvram_data_serialize(), or NULL if none.
- * 
+ *
  * @param nv The NVRAM data to be queried.
  */
 bhnd_nvram_plist *
@@ -386,12 +386,12 @@ bhnd_nvram_data_caps(struct bhnd_nvram_data *nv)
 
 /**
  * Iterate over @p nv, returning the names of subsequent variables.
- * 
+ *
  * @param		nv	The NVRAM data to be iterated.
  * @param[in,out]	cookiep	A pointer to a cookiep value previously returned
  *				by bhnd_nvram_data_next(), or a NULL value to
  *				begin iteration.
- * 
+ *
  * @return Returns the next variable name, or NULL if there are no more
  * variables defined in @p nv.
  */
@@ -465,11 +465,11 @@ bhnd_nvram_data_generic_find(struct bhnd_nvram_data *nv, const char *name)
 
 /**
  * Compare the declaration order of two NVRAM variables.
- * 
+ *
  * Variable declaration order is used to determine the current order of
  * the variables in the source data, as well as to determine the precedence
  * of variable declarations in data sources that define duplicate names.
- * 
+ *
  * The comparison order will match the order of variables returned via
  * bhnd_nvstore_path_data_next().
  *
@@ -575,7 +575,7 @@ bhnd_nvram_data_getvar_ptr_info(struct bhnd_nvram_data *nv, void *cookiep,
 
 /**
  * A generic implementation of bhnd_nvram_data_getvar().
- * 
+ *
  * This implementation will call bhnd_nvram_data_getvar_ptr() to fetch
  * a pointer to the variable data and perform data coercion on behalf
  * of the caller.
@@ -619,7 +619,7 @@ bhnd_nvram_data_generic_rp_getvar(struct bhnd_nvram_data *nv, void *cookiep,
 
 /**
  * Return a caller-owned copy of an NVRAM entry's variable data.
- * 
+ *
  * The caller is responsible for deallocating the returned value via
  * bhnd_nvram_val_release().
  *
@@ -642,7 +642,7 @@ bhnd_nvram_data_copy_val(struct bhnd_nvram_data *nv, void *cookiep,
 
 /**
  * A generic implementation of bhnd_nvram_data_copy_val().
- * 
+ *
  * This implementation will call bhnd_nvram_data_getvar_ptr() to fetch
  * a pointer to the variable data and perform data coercion on behalf
  * of the caller.
@@ -677,7 +677,7 @@ bhnd_nvram_data_generic_rp_copy_val(struct bhnd_nvram_data *nv,
 /**
  * If available and supported by the NVRAM data instance, return a reference
  * to the internal buffer containing an entry's variable data,
- * 
+ *
  * Note that string values may not be NUL terminated.
  *
  * @param		nv	The NVRAM data.
@@ -716,16 +716,16 @@ bhnd_nvram_data_getvar_name(struct bhnd_nvram_data *nv, void *cookiep)
 
 /**
  * Filter a request to set variable @p name with @p value.
- * 
+ *
  * On success, the caller owns a reference to @p result, and must release
  * any held resources via bhnd_nvram_val_release().
- * 
+ *
  * @param	nv	The NVRAM data instance.
  * @param	name	The name of the variable to be set.
  * @param	value	The proposed value to be set.
  * @param[out]	result	On success, a caller-owned reference to the filtered
  *			value to be set.
- * 
+ *
  * @retval	0	success
  * @retval	ENOENT	if @p name is unrecognized by @p nv.
  * @retval	EINVAL	if @p name is read-only.
@@ -741,10 +741,10 @@ bhnd_nvram_data_filter_setvar(struct bhnd_nvram_data *nv, const char *name,
 
 /**
  * Filter a request to delete variable @p name.
- * 
+ *
  * @param	nv	The NVRAM data instance.
  * @param	name	The name of the variable to be deleted.
- * 
+ *
  * @retval	0	success
  * @retval	ENOENT	if @p name is unrecognized by @p nv.
  * @retval	EINVAL	if @p name is read-only.

@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -2387,29 +2387,29 @@ tdsaGetSwConfigParams(
   lenRecv = 0;
 
   if ((ostiGetTransportParam(
-                             tiRoot, 
+                             tiRoot,
                              globalStr,   /* key */
                              SwParmsStr,  /* subkey1 */
                              agNULL,      /* subkey2 */
                              agNULL,
-                             agNULL, 
+                             agNULL,
                              agNULL,      /* subkey5 */
                              "PciTrigger", /* valueName */
-                             buffer, 
-                             buffLen, 
+                             buffer,
+                             buffLen,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
 
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       SwConfig->PCI_trigger = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
     {
       SwConfig->PCI_trigger = osti_strtoul (buffer, &pLastUsedChar, 10);
     }
-    TI_DBG1(("tdsaGetSwConfigParams: PciTrigger %d\n",SwConfig->PCI_trigger));        
+    TI_DBG1(("tdsaGetSwConfigParams: PciTrigger %d\n",SwConfig->PCI_trigger));
   }
 #endif /* SA_ENABLE_PCI_TRIGGER */
 
@@ -2525,7 +2525,7 @@ tdsaParseLinkRateMode(
     if (OpticalMode == 0)
     {
       TI_DBG1(("tdsaParseLinkRateMode: OpticalMode 0  phy %d phyProperties 0x%x\n",index,tdsaAllShared->Ports[index].agPhyConfig.phyProperties));
-    } 
+    }
     else if(OpticalMode == 1)
     {
       if(tIsSPCV12or6G(agRoot))
@@ -4597,12 +4597,12 @@ tiCOMPortInit(
 *  \param   regIndex: Register Index
 *  \param   regCount: Register Count
 *  \param   writeData: Part of the request
-*                  
+*
 *  \return:
 *           tiSuccess on success
 *           Other status on failure
 *
-*****************************************************************************/   
+*****************************************************************************/
 static bit32 SendSgpioRequest(
                             tiRoot_t    *tiRoot,
                             bit8        regType,
@@ -4619,11 +4619,11 @@ static bit32 SendSgpioRequest(
     agsaSGpioReqResponse_t  *pSgpioResponse = (agsaSGpioReqResponse_t *) &agIOCTLPayload->FunctionSpecificArea[0];
 
     do{
-  
+
     /* Frame the Ioctl payload */
     agIOCTLPayload->MajorFunction = IOCTL_MJ_SGPIO;
     agIOCTLPayload->Length = sizeof(agsaSGpioReqResponse_t);
-    
+
     /* Frame the SGPIO request */
     pSGpioReq->smpFrameType = SMP_REQUEST;
     pSGpioReq->function = AGSA_WRITE_SGPIO_REGISTER;
@@ -4657,9 +4657,9 @@ static bit32 SendSgpioRequest(
     }
 
     status = tiSuccess;
-    
+
   }while(0);
-    
+
     return status;
 }
 
@@ -4671,7 +4671,7 @@ static bit32 SendSgpioRequest(
 *  \param   tiRoot: Pointer to the OS Specific module allocated tiRoot_t
 *                   instance.
 *  \param   enableSgpio: Enable / Disable SGPIO
-*                  
+*
 *  \return:
 *           tiSuccess on success
 *           Other status on failure
@@ -4718,7 +4718,7 @@ bit32 tiCOMConfigureSgpio(
     status = SendSgpioRequest(tiRoot, AGSA_SGPIO_CONFIG_REG, 0, regCount, writeData);
     if((tiSuccess == status) && (enableSgpio))
     {
-	 /* Write default values to transmit registers */ 
+	 /* Write default values to transmit registers */
 	 /* RegisterCount = Number of phys present in HBA / 4 */
 	 regCount = phyCount / 4;
          for(i = 0; i < regCount; i++)
@@ -4731,7 +4731,7 @@ bit32 tiCOMConfigureSgpio(
   	}
 	status = SendSgpioRequest(tiRoot, AGSA_SGPIO_DRIVE_BY_DRIVE_TRANSMIT_REG, 0, regCount, writeData);
    }
-    
+
    return status;
 }
 
@@ -4830,7 +4830,7 @@ tiCOMPortStart(
     return tiSuccess;
   }
 
-  
+
   /*
     hardcode sasID frame. It should be read by ostigettransportparams later from configuration file
   */
@@ -5145,10 +5145,10 @@ osGLOBAL bit32 tiCOMGetPortInfo(
   tdsaPortContext_t *onePortContext = agNULL;
   bit32             found = agFALSE;
   static bit8       localname[68], remotename[68];
-  
+
   TI_DBG6(("tiCOMGetPortInfo: start\n"));
 
- 
+
   tdsaSingleThreadedEnter(tiRoot, TD_PORT_LOCK);
   if (TDLIST_EMPTY(&(tdsaAllShared->MainPortContextList)))
   {
@@ -5181,16 +5181,16 @@ osGLOBAL bit32 tiCOMGetPortInfo(
     TI_DBG1(("tiCOMGetPortInfo: First, No corresponding tdsaPortContext\n"));
     return tiError;
   }
-  
+
   if (onePortContext == agNULL)
   {
     TI_DBG1(("tiCOMGetPortInfo: Second, No corressponding tdsaPortContext\n"));
     return tiError;
   }
-  
+
   osti_memset(localname, 0, sizeof(localname));
   osti_memset(remotename, 0, sizeof(remotename));
-  
+
   /*
     Parse the type of port then fill in the information
   */
@@ -5202,7 +5202,7 @@ osGLOBAL bit32 tiCOMGetPortInfo(
     tiPortInfo->localNameLen = 8;
     /* information is from SATA ID device data. remoteName is serial number, firmware version, model number */
     osti_memcpy(remotename, onePortContext->remoteName, 68);
-    tiPortInfo->remoteNameLen = 68;    
+    tiPortInfo->remoteNameLen = 68;
   }
   else
   {
@@ -5213,12 +5213,12 @@ osGLOBAL bit32 tiCOMGetPortInfo(
     osti_memcpy(remotename, &(onePortContext->sasRemoteAddressHi), 4);
     osti_memcpy(&(remotename[4]), &(onePortContext->sasRemoteAddressLo), 4);
     tiPortInfo->remoteNameLen = 8;
-  }  
-  
-  tiPortInfo->localName = (char *)&localname;
-  tiPortInfo->remoteName = (char *)&remotename;  
+  }
 
-  
+  tiPortInfo->localName = (char *)&localname;
+  tiPortInfo->remoteName = (char *)&remotename;
+
+
   return tiSuccess;
 
 }
@@ -6613,7 +6613,7 @@ tdssAddSASToSharedcontext(
     DEVINFO_PUT_FLAG(&oneDeviceData->agDeviceInfo, 1);
 
     sasorsata = SAS_DEVICE_TYPE; /* SAS target (SAS disk or expander) */
-    connectionRate = onePortContext->LinkRate; 
+    connectionRate = onePortContext->LinkRate;
     dev_s_rate = (bit8)(dev_s_rate | (sasorsata << 4));
     dev_s_rate = (bit8)(dev_s_rate | connectionRate);
     DEVINFO_PUT_DEV_S_RATE(&oneDeviceData->agDeviceInfo, dev_s_rate);
@@ -6712,7 +6712,7 @@ tdssAddSASToSharedcontext(
       DEVINFO_PUT_FLAG(&oneDeviceData->agDeviceInfo, 1);
 
       sasorsata = SAS_DEVICE_TYPE; /* SAS target (SAS disk or expander) */
-      connectionRate = onePortContext->LinkRate; 
+      connectionRate = onePortContext->LinkRate;
       dev_s_rate = (bit8)(dev_s_rate | (sasorsata << 4));
       dev_s_rate = (bit8)(dev_s_rate | connectionRate);
       DEVINFO_PUT_DEV_S_RATE(&oneDeviceData->agDeviceInfo, dev_s_rate);
@@ -7665,7 +7665,7 @@ tdssNewAddSATAToSharedcontext(tiRoot_t             *tiRoot,
     DeviceListList = DeviceListList->flink;
   }
 #else
- 
+
 
 #endif
 

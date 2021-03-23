@@ -62,7 +62,7 @@ SIMPLEBUS_PNP_INFO(compat_data);
 	    "owc_gpiobus", MTX_DEF)
 #define OWC_GPIOBUS_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
 
-struct owc_gpiobus_softc 
+struct owc_gpiobus_softc
 {
 	device_t	sc_dev;
 	gpio_pin_t	sc_pin;

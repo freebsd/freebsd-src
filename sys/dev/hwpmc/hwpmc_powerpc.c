@@ -552,7 +552,7 @@ pmc_md_initialize()
 	struct pmc_mdep *pmc_mdep;
 	int error;
 	uint16_t vers;
-	
+
 	/*
 	 * Allocate space for pointers to PMC HW descriptors and for
 	 * the MDEP structure used by MI code.
@@ -567,7 +567,7 @@ pmc_md_initialize()
 
 	pmc_mdep->pmd_switch_in  = powerpc_switch_in;
 	pmc_mdep->pmd_switch_out = powerpc_switch_out;
-	
+
 	switch (vers) {
 	case MPC7447A:
 	case MPC7448:

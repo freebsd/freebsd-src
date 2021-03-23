@@ -1967,7 +1967,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	 * @todo Actually test SNDCTL_DSP_CURRENT_IPTR.
 	 */
 		chn = (cmd == SNDCTL_DSP_CURRENT_OPTR) ? wrch : rdch;
-		if (chn == NULL) 
+		if (chn == NULL)
 			ret = EINVAL;
 		else {
 			struct snd_dbuf *bs;
@@ -2546,7 +2546,7 @@ dsp_unit2name(char *buf, size_t len, int unit)
  *
  * @note
  * Calling threads must not hold any snddev_info or pcm_channel locks.
- * 
+ *
  * @param dev		device on which the ioctl was issued
  * @param ai		ioctl request data container
  *
@@ -2581,7 +2581,7 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 	/*
 	 * Search for the requested audio device (channel).  Start by
 	 * iterating over pcm devices.
-	 */ 
+	 */
 	for (i = 0; pcm_devclass != NULL &&
 	    i < devclass_get_maxunit(pcm_devclass); i++) {
 		d = devclass_get_softc(pcm_devclass, i);
@@ -2741,7 +2741,7 @@ dsp_oss_audioinfo(struct cdev *i_dev, oss_audioinfo *ai)
 
 			for (i = 0; i < ai->nrates; i++)
 				ai->rates[i] = rates[i];
-			
+
 			ai->next_play_engine = 0;
 			ai->next_rec_engine = 0;
 
@@ -2805,7 +2805,7 @@ dsp_oss_syncgroup(struct pcm_channel *wrch, struct pcm_channel *rdch, oss_syncgr
 	/*
 	 * - Insert channel(s) into group's member list.
 	 * - Set CHN_F_NOTRIGGER on channel(s).
-	 * - Stop channel(s).  
+	 * - Stop channel(s).
 	 */
 
 	/*
@@ -2978,7 +2978,7 @@ dsp_oss_syncstart(int sg_id)
 		 */
 		SLIST_FOREACH(sm, &sg->members, link) {
 			if (CHN_TRYLOCK(sm->ch) == 0) {
-				int timo = hz * 5/1000; 
+				int timo = hz * 5/1000;
 				if (timo < 1)
 					timo = 1;
 

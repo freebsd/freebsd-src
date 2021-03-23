@@ -54,10 +54,10 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Broadcom-RAW NVRAM data class.
- * 
+ *
  * The Broadcom NVRAM NUL-delimited ASCII format is used by most
  * Broadcom SoCs.
- * 
+ *
  * The NVRAM data is encoded as a stream of of NUL-terminated 'key=value'
  * strings; the end of the stream is denoted by a single extra NUL character.
  */
@@ -240,7 +240,7 @@ bhnd_nvram_bcmraw_serialize(bhnd_nvram_data_class *cls, bhnd_nvram_plist *props,
 
 /**
  * Initialize @p bcm with the provided NVRAM data mapped by @p src.
- * 
+ *
  * @param bcm A newly allocated data instance.
  */
 static int

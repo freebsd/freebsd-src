@@ -386,7 +386,7 @@ ubsa_cfg_request(struct ubsa_softc *sc, uint8_t index, uint16_t value)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 	if (err) {
 		DPRINTFN(0, "device request failed, err=%s "

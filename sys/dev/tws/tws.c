@@ -60,7 +60,7 @@ extern void tws_q_insert_tail(struct tws_softc *sc, struct tws_request *req,
                                 u_int8_t q_type );
 extern struct tws_request *tws_q_remove_request(struct tws_softc *sc,
                                    struct tws_request *req, u_int8_t q_type );
-extern struct tws_request *tws_q_remove_head(struct tws_softc *sc, 
+extern struct tws_request *tws_q_remove_head(struct tws_softc *sc,
                                                        u_int8_t q_type );
 extern boolean tws_get_response(struct tws_softc *sc, u_int16_t *req_id);
 extern boolean tws_ctlr_reset(struct tws_softc *sc);
@@ -114,7 +114,7 @@ tws_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
     struct tws_softc *sc = dev->si_drv1;
 
-    if ( sc ) 
+    if ( sc )
         TWS_TRACE_DEBUG(sc, "entry", dev, oflags);
     return (0);
 }
@@ -144,7 +144,7 @@ tws_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
     struct tws_softc *sc = dev->si_drv1;
 
-    if ( sc ) 
+    if ( sc )
         TWS_TRACE_DEBUG(sc, "entry", dev, ioflag);
     return (0);
 }
@@ -228,17 +228,17 @@ tws_attach(device_t dev)
     bar = bar & ~TWS_BIT2;
     TWS_TRACE_DEBUG(sc, "bar1 ", bar, 0);
 
-    /* MFA base address is BAR2 register used for 
-     * push mode. Firmware will evatualy move to 
+    /* MFA base address is BAR2 register used for
+     * push mode. Firmware will evatualy move to
      * pull mode during witch this needs to change
-     */ 
+     */
 #ifndef TWS_PULL_MODE_ENABLE
     sc->mfa_base = (u_int64_t)pci_read_config(dev, TWS_PCI_BAR2, 4);
     sc->mfa_base = sc->mfa_base & ~TWS_BIT2;
     TWS_TRACE_DEBUG(sc, "bar2 ", sc->mfa_base, 0);
 #endif
 
-    /* allocate MMIO register space */ 
+    /* allocate MMIO register space */
     sc->reg_res_id = TWS_PCI_BAR1; /* BAR1 offset */
     if ((sc->reg_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
                                 &(sc->reg_res_id), RF_ACTIVE))
@@ -250,7 +250,7 @@ tws_attach(device_t dev)
     sc->bus_handle = rman_get_bushandle(sc->reg_res);
 
 #ifndef TWS_PULL_MODE_ENABLE
-    /* Allocate bus space for inbound mfa */ 
+    /* Allocate bus space for inbound mfa */
     sc->mfa_res_id = TWS_PCI_BAR2; /* BAR2 offset */
     if ((sc->mfa_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
                           &(sc->mfa_res_id), RF_ACTIVE))
@@ -279,7 +279,7 @@ tws_attach(device_t dev)
      * "tws<unit>".
      */
     sc->tws_cdev = make_dev(&tws_cdevsw, device_get_unit(dev),
-        UID_ROOT, GID_OPERATOR, S_IRUSR | S_IWUSR, "tws%u", 
+        UID_ROOT, GID_OPERATOR, S_IRUSR | S_IWUSR, "tws%u",
         device_get_unit(dev));
     sc->tws_cdev->si_drv1 = sc;
 
@@ -299,7 +299,7 @@ tws_attach(device_t dev)
     mtx_lock(&sc->gen_lock);
     tws_send_event(sc, TWS_INIT_COMPLETE);
     mtx_unlock(&sc->gen_lock);
-        
+
     TWS_TRACE_DEBUG(sc, "attached successfully", 0, sc->device_id);
     return(0);
 
@@ -321,7 +321,7 @@ attach_fail_3:
         }
     }
 #ifndef TWS_PULL_MODE_ENABLE
-attach_fail_2: 
+attach_fail_2:
 #endif
     if ( sc->mfa_res ){
         if (bus_release_resource(sc->tws_dev,
@@ -375,7 +375,7 @@ tws_detach(device_t dev)
         if ( sc->irq_res[i] ){
             if (bus_release_resource(sc->tws_dev,
                      SYS_RES_IRQ, sc->irq_res_id[i], sc->irq_res[i]))
-                TWS_TRACE(sc, "bus release irq resource", 
+                TWS_TRACE(sc, "bus release irq resource",
                                        i, sc->irq_res_id[i]);
         }
     }
@@ -438,7 +438,7 @@ tws_setup_intr(struct tws_softc *sc, int irqs)
         if (!(sc->intr_handle[i])) {
             if ((error = bus_setup_intr(sc->tws_dev, sc->irq_res[i],
                                     INTR_TYPE_CAM | INTR_MPSAFE,
-                                    NULL, 
+                                    NULL,
                                     tws_intr, sc, &sc->intr_handle[i]))) {
                 tws_log(sc, SETUP_INTR_RES);
                 return(FAILURE);
@@ -464,7 +464,7 @@ tws_teardown_intr(struct tws_softc *sc)
     return(SUCCESS);
 }
 
-static int 
+static int
 tws_setup_irq(struct tws_softc *sc)
 {
     int messages;
@@ -491,7 +491,7 @@ tws_setup_irq(struct tws_softc *sc)
             }
             sc->irq_res[0] = bus_alloc_resource_any(sc->tws_dev, SYS_RES_IRQ,
                               &sc->irq_res_id[0], RF_SHAREABLE | RF_ACTIVE);
-              
+
             if ( !sc->irq_res[0]  )
                 return(FAILURE);
             if ( tws_setup_intr(sc, sc->irqs) == FAILURE )
@@ -518,12 +518,12 @@ tws_init(struct tws_softc *sc)
     if (tws_queue_depth < TWS_RESERVED_REQS+1)
         tws_queue_depth = TWS_RESERVED_REQS+1;
     sc->is64bit = (sizeof(bus_addr_t) == 8) ? true : false;
-    max_sg_elements = (sc->is64bit && !tws_use_32bit_sgls) ? 
-                                 TWS_MAX_64BIT_SG_ELEMENTS : 
+    max_sg_elements = (sc->is64bit && !tws_use_32bit_sgls) ?
+                                 TWS_MAX_64BIT_SG_ELEMENTS :
                                  TWS_MAX_32BIT_SG_ELEMENTS;
     dma_mem_size = (sizeof(struct tws_command_packet) * tws_queue_depth) +
                              (TWS_SECTOR_SIZE) ;
-    if ( bus_dma_tag_create(bus_get_dma_tag(sc->tws_dev), /* PCI parent */ 
+    if ( bus_dma_tag_create(bus_get_dma_tag(sc->tws_dev), /* PCI parent */
                             TWS_ALIGNMENT,           /* alignment */
                             0,                       /* boundary */
                             BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
@@ -536,15 +536,15 @@ tws_init(struct tws_softc *sc)
                             NULL, NULL,              /* lockfunc, lockfuncarg */
                             &sc->parent_tag          /* tag */
                            )) {
-        TWS_TRACE_DEBUG(sc, "DMA parent tag Create fail", max_sg_elements, 
+        TWS_TRACE_DEBUG(sc, "DMA parent tag Create fail", max_sg_elements,
                                                     sc->is64bit);
         return(ENOMEM);
     }
     /* In bound message frame requires 16byte alignment.
-     * Outbound MF's can live with 4byte alignment - for now just 
+     * Outbound MF's can live with 4byte alignment - for now just
      * use 16 for both.
      */
-    if ( bus_dma_tag_create(sc->parent_tag,       /* parent */          
+    if ( bus_dma_tag_create(sc->parent_tag,       /* parent */
                             TWS_IN_MF_ALIGNMENT,  /* alignment */
                             0,                    /* boundary */
                             BUS_SPACE_MAXADDR_32BIT, /* lowaddr */
@@ -608,15 +608,15 @@ tws_init(struct tws_softc *sc)
     if ( !tws_ctlr_ready(sc) )
         if( !tws_ctlr_reset(sc) )
             return(FAILURE);
-    
+
     bzero(&sc->stats, sizeof(struct tws_stats));
     tws_init_qs(sc);
     tws_turn_off_interrupts(sc);
 
-    /* 
+    /*
      * enable pull mode by setting bit1 .
-     * setting bit0 to 1 will enable interrupt coalesing 
-     * will revisit. 
+     * setting bit0 to 1 will enable interrupt coalesing
+     * will revisit.
      */
 
 #ifdef TWS_PULL_MODE_ENABLE
@@ -634,8 +634,8 @@ tws_init(struct tws_softc *sc)
         return(FAILURE);
 
     return(SUCCESS);
-    
-} 
+
+}
 
 static int
 tws_init_aen_q(struct tws_softc *sc)
@@ -644,7 +644,7 @@ tws_init_aen_q(struct tws_softc *sc)
     sc->aen_q.tail=0;
     sc->aen_q.depth=256;
     sc->aen_q.overflow=0;
-    sc->aen_q.q = malloc(sizeof(struct tws_event_packet)*sc->aen_q.depth, 
+    sc->aen_q.q = malloc(sizeof(struct tws_event_packet)*sc->aen_q.depth,
                               M_TWS, M_WAITOK | M_ZERO);
     return(SUCCESS);
 }
@@ -678,14 +678,14 @@ tws_init_reqs(struct tws_softc *sc, u_int32_t dma_mem_size)
             /* log a ENOMEM failure msg here */
             mtx_unlock(&sc->q_lock);
             return(FAILURE);
-        } 
+        }
         sc->reqs[i].cmd_pkt =  &cmd_buf[i];
 
         sc->sense_bufs[i].hdr = &cmd_buf[i].hdr ;
-        sc->sense_bufs[i].hdr_pkt_phy = sc->dma_mem_phys + 
+        sc->sense_bufs[i].hdr_pkt_phy = sc->dma_mem_phys +
                               (i * sizeof(struct tws_command_packet));
 
-        sc->reqs[i].cmd_pkt_phy = sc->dma_mem_phys + 
+        sc->reqs[i].cmd_pkt_phy = sc->dma_mem_phys +
                               sizeof(struct tws_command_header) +
                               (i * sizeof(struct tws_command_packet));
         sc->reqs[i].request_id = i;
@@ -731,7 +731,7 @@ tws_send_event(struct tws_softc *sc, u_int8_t event)
             break;
 
         case TWS_RESET_START:
-            /* We can transition to reset state from any state except reset*/ 
+            /* We can transition to reset state from any state except reset*/
             if (sc->tws_state != TWS_RESET) {
                 sc->tws_prev_state = sc->tws_state;
                 sc->tws_state = TWS_RESET;
@@ -768,7 +768,7 @@ tws_send_event(struct tws_softc *sc, u_int8_t event)
 uint8_t
 tws_get_state(struct tws_softc *sc)
 {
-  
+
     return((u_int8_t)sc->tws_state);
 
 }

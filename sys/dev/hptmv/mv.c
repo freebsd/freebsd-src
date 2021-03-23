@@ -49,14 +49,14 @@
 
 void HPTLIBAPI
 MV_REG_WRITE_BYTE(MV_BUS_ADDR_T base, MV_U32 offset, MV_U8 val)
-{ 
-	writeb((void *)((ULONG_PTR)base + offset), val); 
+{
+	writeb((void *)((ULONG_PTR)base + offset), val);
 }
 
 void HPTLIBAPI
 MV_REG_WRITE_WORD(MV_BUS_ADDR_T base, MV_U32 offset, MV_U16 val)
-{ 
-	writew((void *)((ULONG_PTR)base + offset), val); 
+{
+	writew((void *)((ULONG_PTR)base + offset), val);
 }
 
 void HPTLIBAPI

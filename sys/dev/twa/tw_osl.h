@@ -155,7 +155,7 @@ struct twa_softc {
 #ifdef TW_OSL_DEBUG
 	struct tw_osli_q_stats	q_stats[TW_OSLI_Q_COUNT];/* queue statistics */
 #endif /* TW_OSL_DEBUG */
-    
+
 	device_t		bus_dev;	/* bus device */
 	struct cdev		*ctrl_dev;	/* control device */
 	struct resource		*reg_res;	/* register interface window */

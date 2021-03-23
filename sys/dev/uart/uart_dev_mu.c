@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018 Diane Bruce 
+ * Copyright (c) 2018 Diane Bruce
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,24 +29,24 @@
  * All rights reserved.
  */
 /*
- * The mini Uart has the following features: 
- * - 7 or 8 bit operation. 
- * - 1 start and 1 stop bit. 
- * - No parities. 
- * - Break generation. 
- * - 8 symbols deep FIFOs for receive and transmit. 
- * - SW controlled RTS, SW readable CTS. 
- * - Auto flow control with programmable FIFO level. 
- * - 16550 like registers. 
- * - Baudrate derived from system clock. 
- * This is a mini UART and it does NOT have the following capabilities: 
- * - Break detection 
- * - Framing errors detection. 
- * - Parity bit 
- * - Receive Time-out interrupt 
- * - DCD, DSR, DTR or RI signals. 
+ * The mini Uart has the following features:
+ * - 7 or 8 bit operation.
+ * - 1 start and 1 stop bit.
+ * - No parities.
+ * - Break generation.
+ * - 8 symbols deep FIFOs for receive and transmit.
+ * - SW controlled RTS, SW readable CTS.
+ * - Auto flow control with programmable FIFO level.
+ * - 16550 like registers.
+ * - Baudrate derived from system clock.
+ * This is a mini UART and it does NOT have the following capabilities:
+ * - Break detection
+ * - Framing errors detection.
+ * - Parity bit
+ * - Receive Time-out interrupt
+ * - DCD, DSR, DTR or RI signals.
  * The implemented UART is not a 16650 compatible UART However as far
- * as possible the first 8 control and status registers are laid out 
+ * as possible the first 8 control and status registers are laid out
  * like a 16550 UART. All 16550 register bits which are not supported can
  * be written but will be ignored and read back as 0. All control bits
  * for simple UART receive/transmit operations are available.
@@ -157,9 +157,9 @@ uart_mu_probe(struct uart_bas *bas)
 	return (0);
 }
 
-/* 
+/*
  * According to the docs, the cpu clock is locked to 250Mhz when
- * the micro-uart is used 
+ * the micro-uart is used
  */
 #define CPU_CLOCK	250000000
 
@@ -194,7 +194,7 @@ uart_mu_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	/* See 2.2.1 BCM2835-ARM-Peripherals baudrate */
 	if (baudrate != 0) {
 		baud = CPU_CLOCK / (8 * baudrate);
-		/* XXX	
+		/* XXX
 		 *  baud = cpu_clock() / (8 * baudrate);
 		 */
 		__uart_setreg(bas, AUX_MU_BAUD_REG, ((uint32_t)(baud & 0xFFFF)));
@@ -482,7 +482,7 @@ uart_mu_bus_transmit(struct uart_softc *sc)
 	/* Mark busy and enable TX interrupt */
 	sc->sc_txbusy = 1;
 	__uart_setreg(bas, AUX_MU_IER_REG, psc->aux_ier);
-		
+
 	uart_unlock(sc->sc_hwmtx);
 
 	return (0);

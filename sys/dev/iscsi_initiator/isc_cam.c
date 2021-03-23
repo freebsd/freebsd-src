@@ -172,12 +172,12 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
      ccb_h->spriv_ptr0 = sp;
      sdebug(4, "func_code=0x%x flags=0x%x status=0x%x target=%d lun=%jx retry_count=%d timeout=%d",
 	   ccb_h->func_code, ccb->ccb_h.flags, ccb->ccb_h.status,
-	   ccb->ccb_h.target_id, (uintmax_t)ccb->ccb_h.target_lun, 
+	   ccb->ccb_h.target_id, (uintmax_t)ccb->ccb_h.target_lun,
 	   ccb->ccb_h.retry_count, ccb_h->timeout);
      if(sp == NULL) {
 	  xdebug("sp == NULL! cannot happen");
 	  return;
-     }	  
+     }
      switch(ccb_h->func_code) {
      case XPT_PATH_INQ:
 	  _inq(sim, ccb);
@@ -192,7 +192,7 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 	  break;
      }
 
-     case XPT_SCSI_IO: 
+     case XPT_SCSI_IO:
      {
 	  struct ccb_scsiio* csio = &ccb->csio;
 
@@ -225,13 +225,13 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 	       // print error message  ...
 	       /* XXX: what error is appropriate? */
 	       break;
-	  } 
+	  }
 	  else {
 	       int	lun, *off, boff;
 
 	       lun = ccb->ccb_h.target_lun;
 	       if(lun > ISCSI_MAX_LUNS) {
-		    // XXX: 
+		    // XXX:
 		    xdebug("lun %d > ISCSI_MAX_LUNS!\n", lun);
 		    lun %= ISCSI_MAX_LUNS;
 	       }

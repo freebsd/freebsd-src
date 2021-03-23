@@ -62,7 +62,7 @@
 /*
  * Structure describing a System Drive as attached to the controller.
  */
-struct mlx_sysdrive 
+struct mlx_sysdrive
 {
     /* from MLX_CMD_ENQSYSDRIVE */
     u_int32_t		ms_size;
@@ -81,7 +81,7 @@ struct mlx_sysdrive
 /*
  * Per-command control structure.
  */
-struct mlx_command 
+struct mlx_command
 {
     TAILQ_ENTRY(mlx_command)	mc_link;	/* list linkage */
 
@@ -110,7 +110,7 @@ struct mlx_command
 /*
  * Per-controller structure.
  */
-struct mlx_softc 
+struct mlx_softc
 {
     /* bus connections */
     device_t		mlx_dev;
@@ -128,7 +128,7 @@ struct mlx_softc
     u_int32_t		mlx_sgbusaddr;	/* s/g table base address in bus space */
     bus_dma_tag_t	mlx_sg_dmat;	/* s/g buffer DMA tag */
     bus_dmamap_t	mlx_sg_dmamap;	/* map for s/g buffers */
-    
+
     /* controller limits and features */
     struct mlx_enquiry2	*mlx_enq2;
     int			mlx_feature;	/* controller features/quirks */
@@ -200,7 +200,7 @@ extern void		mlx_startup(struct mlx_softc *sc);
 extern void		mlx_intr(void *data);
 extern int		mlx_detach(device_t dev);
 extern int		mlx_shutdown(device_t dev);
-extern int		mlx_suspend(device_t dev); 
+extern int		mlx_suspend(device_t dev);
 extern int		mlx_resume(device_t dev);
 extern d_open_t		mlx_open;
 extern d_close_t	mlx_close;
@@ -212,7 +212,7 @@ extern devclass_t	mlxd_devclass;
 /*
  * Mylex System Disk driver
  */
-struct mlxd_softc 
+struct mlxd_softc
 {
     device_t		mlxd_dev;
     struct mlx_softc	*mlxd_controller;
@@ -228,7 +228,7 @@ struct mlxd_softc
  */
 extern int	mlx_submit_buf(struct mlx_softc *sc, struct bio *bp);
 extern int	mlx_submit_ioctl(struct mlx_softc *sc,
-			struct mlx_sysdrive *drive, u_long cmd, 
+			struct mlx_sysdrive *drive, u_long cmd,
 			caddr_t addr, int32_t flag, struct thread *td);
 extern void	mlxd_intr(struct bio *bp);
 

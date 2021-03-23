@@ -365,9 +365,9 @@ struct hpt_iop_hba {
 			u_int32_t outlist_rptr;
 		} mvfrey;
 	} u;
-	
+
 	struct hpt_iop_hba    *next;
-	
+
 	u_int32_t             firmware_version;
 	u_int32_t             interface_version;
 	u_int32_t             max_devices;
@@ -385,7 +385,7 @@ struct hpt_iop_hba {
 	bus_dma_tag_t         io_dmat;
 	bus_dma_tag_t         srb_dmat;
 	bus_dma_tag_t	      ctlcfg_dmat;
-	
+
 	bus_dmamap_t          srb_dmamap;
 	bus_dmamap_t          ctlcfg_dmamap;
 
@@ -398,7 +398,7 @@ struct hpt_iop_hba {
 	bus_space_tag_t	      bar2t;
 	bus_space_handle_t    bar2h;
 	int                   bar2_rid;
-	
+
 	/* to release */
 	u_int8_t              *uncached_ptr;
 	void		      *ctlcfg_ptr;

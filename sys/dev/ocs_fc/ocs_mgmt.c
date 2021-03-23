@@ -1022,10 +1022,10 @@ get_fcid(ocs_t *ocs, char *name, ocs_textbuf_t *textbuf)
 {
 
 	if (ocs->domain && ocs->domain->attached) {
-		ocs_mgmt_emit_int(textbuf, MGMT_MODE_RD, "fc_id", "0x%06x", 
+		ocs_mgmt_emit_int(textbuf, MGMT_MODE_RD, "fc_id", "0x%06x",
 						ocs->domain->sport->fc_id);
 	} else {
-		ocs_mgmt_emit_int(textbuf, MGMT_MODE_RD, "fc_id", "UNKNOWN"); 
+		ocs_mgmt_emit_int(textbuf, MGMT_MODE_RD, "fc_id", "UNKNOWN");
 	}
 
 }

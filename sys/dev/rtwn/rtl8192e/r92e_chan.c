@@ -180,7 +180,7 @@ r92e_set_bw40(struct rtwn_softc *sc, uint8_t chan, int prichlo)
 	/* Set CCK side band. */
 	rtwn_bb_setbits(sc, R92C_CCK0_SYSTEM,
 	    R92C_CCK0_SYSTEM_CCK_SIDEBAND, (prichlo ? 0 : 1) << 4);
-		
+
 	rtwn_bb_setbits(sc, R92C_OFDM1_LSTF, 0x0c00, (prichlo ? 1 : 2) << 10);
 
 	rtwn_bb_setbits(sc, R92C_FPGA0_ANAPARAM2,

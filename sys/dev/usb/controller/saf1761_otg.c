@@ -96,7 +96,7 @@
 static int saf1761_otg_debug = 0;
 static int saf1761_otg_forcefs = 0;
 
-static 
+static
 SYSCTL_NODE(_hw_usb, OID_AUTO, saf1761_otg, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "USB SAF1761 DCI");
 
@@ -472,7 +472,7 @@ saf1761_host_setup_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 
 	temp = SOTG_PTD_DW3_ACTIVE | (td->toggle << 25) | SOTG_PTD_DW3_CERR_3;
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW3, temp);
-	    
+
 	temp = SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8;
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW2, temp);
 
@@ -1651,7 +1651,7 @@ saf1761_otg_interrupt(void *arg)
 	USB_BUS_LOCK(&sc->sc_bus);
 	USB_BUS_SPIN_LOCK(&sc->sc_bus);
 
-	status = SAF1761_READ_LE_4(sc, SOTG_DCINTERRUPT) & 
+	status = SAF1761_READ_LE_4(sc, SOTG_DCINTERRUPT) &
 	    SAF1761_DCINTERRUPT_THREAD_IRQ;
 
 	/* acknowledge all device controller interrupts */

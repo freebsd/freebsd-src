@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -32,33 +32,33 @@
 #define GTT_REG_ADDR_H
 
 /* Win 2 */
-#define GTT_BAR0_MAP_REG_IGU_CMD                                                                             0x00f000UL //Access:RW   DataWidth:0x20   // 
+#define GTT_BAR0_MAP_REG_IGU_CMD                                                                             0x00f000UL //Access:RW   DataWidth:0x20   //
 
 /* Win 3 */
-#define GTT_BAR0_MAP_REG_TSDM_RAM                                                                            0x010000UL //Access:RW   DataWidth:0x20   // 
+#define GTT_BAR0_MAP_REG_TSDM_RAM                                                                            0x010000UL //Access:RW   DataWidth:0x20   //
 
 /* Win 4 */
-#define GTT_BAR0_MAP_REG_MSDM_RAM                                                                            0x011000UL //Access:RW   DataWidth:0x20   // 
+#define GTT_BAR0_MAP_REG_MSDM_RAM                                                                            0x011000UL //Access:RW   DataWidth:0x20   //
 
 /* Win 5 */
-#define GTT_BAR0_MAP_REG_MSDM_RAM_1024                                                                       0x012000UL //Access:RW   DataWidth:0x20   // 
+#define GTT_BAR0_MAP_REG_MSDM_RAM_1024                                                                       0x012000UL //Access:RW   DataWidth:0x20   //
 
 /* Win 6 */
-#define GTT_BAR0_MAP_REG_USDM_RAM                                                                            0x013000UL //Access:RW   DataWidth:0x20   // 
+#define GTT_BAR0_MAP_REG_USDM_RAM                                                                            0x013000UL //Access:RW   DataWidth:0x20   //
 
 /* Win 7 */
-#define GTT_BAR0_MAP_REG_USDM_RAM_1024                                                                       0x014000UL //Access:RW   DataWidth:0x20   // 
+#define GTT_BAR0_MAP_REG_USDM_RAM_1024                                                                       0x014000UL //Access:RW   DataWidth:0x20   //
 
 /* Win 8 */
-#define GTT_BAR0_MAP_REG_USDM_RAM_2048                                                                       0x015000UL //Access:RW   DataWidth:0x20   // 
+#define GTT_BAR0_MAP_REG_USDM_RAM_2048                                                                       0x015000UL //Access:RW   DataWidth:0x20   //
 
 /* Win 9 */
-#define GTT_BAR0_MAP_REG_XSDM_RAM                                                                            0x016000UL //Access:RW   DataWidth:0x20   // 
+#define GTT_BAR0_MAP_REG_XSDM_RAM                                                                            0x016000UL //Access:RW   DataWidth:0x20   //
 
 /* Win 10 */
-#define GTT_BAR0_MAP_REG_YSDM_RAM                                                                            0x017000UL //Access:RW   DataWidth:0x20   // 
+#define GTT_BAR0_MAP_REG_YSDM_RAM                                                                            0x017000UL //Access:RW   DataWidth:0x20   //
 
 /* Win 11 */
-#define GTT_BAR0_MAP_REG_PSDM_RAM                                                                            0x018000UL //Access:RW   DataWidth:0x20   // 
+#define GTT_BAR0_MAP_REG_PSDM_RAM                                                                            0x018000UL //Access:RW   DataWidth:0x20   //
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@ enum QLNX_STATE {
 #define BITS_PER_BYTE	8
 #endif /* #ifndef BITS_PER_BYTE */
 
-/* 
+/*
  * RX ring buffer contains pointer to kmalloc() data only,
  */
 struct sw_rx_data {

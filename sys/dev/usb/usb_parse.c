@@ -71,7 +71,7 @@
  *   Else: Next descriptor after "desc"
  *------------------------------------------------------------------------*/
 struct usb_descriptor *
-usb_desc_foreach(struct usb_config_descriptor *cd, 
+usb_desc_foreach(struct usb_config_descriptor *cd,
     struct usb_descriptor *_desc)
 {
 	uint8_t *desc_next;

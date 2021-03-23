@@ -43,7 +43,7 @@
 /*
  * Define total number of TX queues in the shared memory.
  * This count includes the EDCA queues, Block Ack queues, and HCCA queues
- * In addition to this, there could be a management packet queue some 
+ * In addition to this, there could be a management packet queue some
  * time in the future
  */
 #define MWL_NUM_EDCA_QUEUES	4
@@ -174,7 +174,7 @@ void	mwl_hal_cmddone(struct mwl_hal *mh);
 
 typedef struct {
     uint32_t	FreqBand : 6,
-#define MWL_FREQ_BAND_2DOT4GHZ	0x1 
+#define MWL_FREQ_BAND_2DOT4GHZ	0x1
 #define MWL_FREQ_BAND_5GHZ     	0x4
 		ChnlWidth: 5,
 #define MWL_CH_10_MHz_WIDTH  	0x1
@@ -255,7 +255,7 @@ struct mwl_hal_hwstats {
 	uint32_t	Wait4TxBuf;		/* !no f/w buf avail when
 						    supplied a tx descriptor */
 	uint32_t	TxAttempts;		/* tx descriptors processed */
-	uint32_t	TxSuccesses;		/* tx attempts successful */ 
+	uint32_t	TxSuccesses;		/* tx attempts successful */
 	uint32_t	TxFragments;		/* tx with fragmentation */
 	uint32_t	TxMulticasts;		/* tx multicast frames */
 	uint32_t	RxNonCtlPkts;		/* rx non-control frames */

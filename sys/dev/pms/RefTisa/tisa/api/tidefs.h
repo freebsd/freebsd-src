@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 *
 * $FreeBSD$
@@ -28,12 +28,12 @@
 **
 *******************************************************************************/
 /********************************************************************************
-**    
-*   tidefs.h 
+**
+*   tidefs.h
 *
 *   Abstract:   This module contains enum and #define definition used
 *               by Transport Independent API (TIAPI) Layer.
-*     
+*
 ********************************************************************************/
 
 #ifndef TIDEFS_H
@@ -49,18 +49,18 @@
  *****************************************************************************/
 
 /*
- *  Option mask parameter for tiCOMPortStart() 
+ *  Option mask parameter for tiCOMPortStart()
  */
 #define PORTAL_ADD_MASK   0x00000001
 
-/* 
+/*
  * Maximum memory descriptor for Low-Level layer.
  */
 #define MAX_LL_LAYER_MEM_DESCRIPTORS  64
 
 
-/* 
- * TI API function return types 
+/*
+ * TI API function return types
  */
 typedef enum
 {
@@ -103,7 +103,7 @@ typedef enum
   tiExtHdr
 }tiSglType_t;
 
-/* 
+/*
  * Type of mutex semaphoring/synchronization
  */
 typedef enum
@@ -112,7 +112,7 @@ typedef enum
   tiOneMutexLockPerQueue
 }tiMutexType_t;
 
-/* 
+/*
  * Context (interrupt or non-interrupt)
  */
 typedef enum
@@ -160,7 +160,7 @@ typedef enum
   tiEncryptGetOperator
 } tiEncryptOp_t;
 
-/* 
+/*
  * ostiPortEvent() status values for tiCOMOperatorManagement()
  */
 typedef enum
@@ -171,8 +171,8 @@ typedef enum
   tiOMNvramOpFailure,
 } tiOperatorManagementStatus_t;
 
-/* 
- * ostiInitiatorIOCompleted() and ostiTargetIOError() status values 
+/*
+ * ostiInitiatorIOCompleted() and ostiTargetIOError() status values
  */
 typedef enum
 {
@@ -184,8 +184,8 @@ typedef enum
   tiIOEncryptError,
 } tiIOStatus_t;
 
-/* 
- * ostiInitiatorIOCompleted() and ostiTargetIOError() statusDetail values 
+/*
+ * ostiInitiatorIOCompleted() and ostiTargetIOError() statusDetail values
  */
 typedef enum
 {
@@ -215,7 +215,7 @@ typedef enum
   tiDetailOtherErrorNoRetry,
 } tiIOStatusDetail_t;
 
-/* 
+/*
  * IOCTL Status Codes
  */
 #define IOCTL_ERR_STATUS_OK                  0x00
@@ -238,7 +238,7 @@ typedef enum
 #define ADAPTER_WWN_SPC_END_OFFSET	     0x70b
 
 /*
- * IOCTL Return Codes 
+ * IOCTL Return Codes
  */
 #define IOCTL_CALL_SUCCESS                  0x00
 #define IOCTL_CALL_FAIL                     0x01
@@ -277,7 +277,7 @@ typedef enum
 #define TI_ENCRYPT_ATTRIB_CIPHER_ECB  0x00000001
 
 /*
- * Status in tiEncryptInfo_t 
+ * Status in tiEncryptInfo_t
  */
 #define TI_ENCRYPT_STATUS_NO_NVRAM        0x00000001
 #define TI_ENCRYPT_STATUS_NVRAM_ERROR     0x00000002
@@ -356,7 +356,7 @@ typedef enum
  *  INITIATOR SPECIFIC DEFINES AND ENUMS
  *****************************************************************************/
 
-/* 
+/*
  * ostiInitiatorIOCompleted() statusDetail contains SCSI status,
  * when status passed in ostiInitiatorIOCompleted() is tiIOSuccess.
  */
@@ -373,14 +373,14 @@ typedef enum
 #define SCSI_STAT_TASK_ABORTED      0x40
 
 /*
-01: soft error 
-02: not ready 
-03: medium error 
-04: hardware error 
-05: illegal request 
-06: unit attention 
-0b: abort command 
-*/ 
+01: soft error
+02: not ready
+03: medium error
+04: hardware error
+05: illegal request
+06: unit attention
+0b: abort command
+*/
 #define SCSI_SENSE_KEY_NO_SENSE         0x00
 #define SCSI_SENSE_KEY_RECOVERED_ERROR  0x01
 #define SCSI_SENSE_KEY_NOT_READY        0x02
@@ -401,8 +401,8 @@ typedef enum
 
 
 
-/* 
- * Reset option in tiCOMReset() 
+/*
+ * Reset option in tiCOMReset()
  */
 typedef enum
 {
@@ -411,27 +411,27 @@ typedef enum
   tiAutoReset
 } tiReset_t;
 
-/* 
- * Bit 0 Mask for the persistent option in tiINIDiscoverTargets() 
+/*
+ * Bit 0 Mask for the persistent option in tiINIDiscoverTargets()
  */
 #define NORMAL_ASSIGN_MASK            0x00000000
 #define FORCE_PERSISTENT_ASSIGN_MASK  0x00000001
 
-/* 
- * Bit 1 Mask for the auto login option in tiINIDiscoverTargets() 
+/*
+ * Bit 1 Mask for the auto login option in tiINIDiscoverTargets()
  */
 #define AUTO_LOGIN_MASK               0x00000000
 #define NO_AUTO_LOGIN_MASK            0x00000002
 
 
-/* 
+/*
  * Task Management task used in tiINITaskManagement()
  *
  * 1 AG_ABORT TASK - aborts the task identified by the Referenced  Task Tag field.
- * 2 AG_ABORT TASK SET - aborts all Tasks issued by this initiator on the Logical Unit 
+ * 2 AG_ABORT TASK SET - aborts all Tasks issued by this initiator on the Logical Unit
  * 3 AG_CLEAR ACA - clears the Auto Contingent Allegiance condition.
  * 4 AG_CLEAR TASK SET - Aborts all Tasks (from all initiators) for the Logical Unit.
- * 5 AG_LOGICAL UNIT RESET 
+ * 5 AG_LOGICAL UNIT RESET
  * 6 AG_TARGET WARM RESET  - iSCSI only
  * 7 AG_TARGET_COLD_RESET  - iSCSI only
  * 8 AG_TASK_REASSIGN      - iSCSI only
@@ -460,7 +460,7 @@ typedef enum
   tiIntrEventTypeTaskManagement,
   tiIntrEventTypeDeviceChange,
   tiIntrEventTypeLogin,
-  tiIntrEventTypeLocalAbort  
+  tiIntrEventTypeLocalAbort
 } tiIntrEventType_t;
 
 /*
@@ -510,11 +510,11 @@ typedef enum
 {
   tiAbortOK,
   tiAbortFailed,
-  tiAbortDelayed,  
+  tiAbortDelayed,
   tiAbortInProgress
 } tiAbortEventStatus_t;
 
-/* 
+/*
  * SCSI SAM-2 Task Attribute
  */
 #define TASK_UNTAGGED       0       /* Untagged      */
@@ -533,7 +533,7 @@ typedef enum
 }tiDataDirection_t;
 
 /*
- * NVRAM error subEvents for encryption 
+ * NVRAM error subEvents for encryption
  */
 typedef enum
 {

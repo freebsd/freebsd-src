@@ -27,7 +27,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -55,7 +55,7 @@ struct bhnd_hwrev_match {
 #define	_BHND_SET_MATCH_FIELD(_name, _value)	\
 	.m.match._name = 1, ._name = _value
 
-/** 
+/**
  * Wildcard hardware revision match descriptor.
  */
 #define	BHND_HWREV_ANY		{ BHND_HWREV_INVALID, BHND_HWREV_INVALID }
@@ -64,7 +64,7 @@ struct bhnd_hwrev_match {
 
 /**
  * Hardware revision match descriptor for an inclusive range.
- * 
+ *
  * @param _start The first applicable hardware revision.
  * @param _end The last applicable hardware revision, or BHND_HWREV_INVALID
  * to match on any revision.
@@ -73,7 +73,7 @@ struct bhnd_hwrev_match {
 
 /**
  * Hardware revision match descriptor for a single revision.
- * 
+ *
  * @param _hwrev The hardware revision to match on.
  */
 #define	BHND_HWREV_EQ(_hwrev)	BHND_HWREV_RANGE(_hwrev, _hwrev)
@@ -81,7 +81,7 @@ struct bhnd_hwrev_match {
 /**
  * Hardware revision match descriptor for any revision equal to or greater
  * than @p _start.
- * 
+ *
  * @param _start The first hardware revision to match on.
  */
 #define	BHND_HWREV_GTE(_start)	BHND_HWREV_RANGE(_start, BHND_HWREV_INVALID)
@@ -89,7 +89,7 @@ struct bhnd_hwrev_match {
 /**
  * Hardware revision match descriptor for any revision equal to or less
  * than @p _end.
- * 
+ *
  * @param _end The last hardware revision to match on.
  */
 #define	BHND_HWREV_LTE(_end)	BHND_HWREV_RANGE(0, _end)

@@ -473,7 +473,7 @@ lge_attach(dev)
 
 	sc = device_get_softc(dev);
 	sc->lge_dev = dev;
-	
+
 	mtx_init(&sc->lge_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	callout_init_mtx(&sc->lge_stat_callout, &sc->lge_mtx, 0);
@@ -831,9 +831,9 @@ lge_jalloc(sc)
 	struct lge_softc	*sc;
 {
 	struct lge_jpool_entry   *entry;
-	
+
 	entry = SLIST_FIRST(&sc->lge_jfree_listhead);
-	
+
 	if (entry == NULL) {
 #ifdef LGE_VERBOSE
 		device_printf(sc->lge_dev, "no free jumbo buffers\n");

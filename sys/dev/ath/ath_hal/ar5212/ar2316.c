@@ -312,7 +312,7 @@ ar2316FillVpdTable(uint32_t pdGainIdx, int16_t Pmin, int16_t  Pmax,
 		return AH_FALSE;
 
 	while (ii <= (uint16_t)(Pmax - Pmin)) {
-		GetLowerUpperIndex(currPwr, pwrList, numIntercepts, 
+		GetLowerUpperIndex(currPwr, pwrList, numIntercepts,
 					 &(idxL), &(idxR));
 		if (idxR < 1)
 			idxR = 1;			/* extrapolate below */
@@ -322,7 +322,7 @@ ar2316FillVpdTable(uint32_t pdGainIdx, int16_t Pmin, int16_t  Pmax,
 			kk = VpdList[idxL];
 		else
 			kk = (uint16_t)
-				(((currPwr - pwrList[idxL])*VpdList[idxR]+ 
+				(((currPwr - pwrList[idxL])*VpdList[idxR]+
 				  (pwrList[idxR] - currPwr)*VpdList[idxL])/
 				 (pwrList[idxR] - pwrList[idxL]));
 		retVpdList[pdGainIdx][ii] = kk;
@@ -355,12 +355,12 @@ interpolate_signed(uint16_t target, uint16_t srcLeft, uint16_t srcRight,
  * Uses the data points read from EEPROM to reconstruct the pdadc power table
  * Called by ar2316SetPowerTable()
  */
-static int 
+static int
 ar2316getGainBoundariesAndPdadcsForPowers(struct ath_hal *ah, uint16_t channel,
 		const RAW_DATA_STRUCT_2316 *pRawDataset,
-		uint16_t pdGainOverlap_t2, 
-		int16_t  *pMinCalPower, uint16_t pPdGainBoundaries[], 
-		uint16_t pPdGainValues[], uint16_t pPDADCValues[]) 
+		uint16_t pdGainOverlap_t2,
+		int16_t  *pMinCalPower, uint16_t pPdGainBoundaries[],
+		uint16_t pPdGainValues[], uint16_t pPDADCValues[])
 {
 	struct ar2316State *priv = AR2316(ah);
 #define	VpdTable_L	priv->vpdTable_L
@@ -370,7 +370,7 @@ ar2316getGainBoundariesAndPdadcsForPowers(struct ath_hal *ah, uint16_t channel,
 	int32_t ss;/* potentially -ve index for taking care of pdGainOverlap */
 	uint32_t idxL, idxR;
 	uint32_t numPdGainsUsed = 0;
-	/* 
+	/*
 	 * If desired to support -ve power levels in future, just
 	 * change pwr_I_0 to signed 5-bits.
 	 */
@@ -380,7 +380,7 @@ ar2316getGainBoundariesAndPdadcsForPowers(struct ath_hal *ah, uint16_t channel,
 	/* to accommodate -ve power levels later on */
 	uint16_t numVpd = 0;
 	uint16_t Vpd_step;
-	int16_t tmpVal ; 
+	int16_t tmpVal ;
 	uint32_t sizeCurrVpdTable, maxIndex, tgtIndex;
 
 	/* Get upper lower index */
@@ -401,21 +401,21 @@ ar2316getGainBoundariesAndPdadcsForPowers(struct ath_hal *ah, uint16_t channel,
 				(Pmin_t2[numPdGainsUsed] / 2);
 			Pmax_t2[numPdGainsUsed] = pRawDataset->pDataPerChannel[idxL].pDataPerPDGain[jj].pwr_t4[numVpd-1];
 			if (Pmax_t2[numPdGainsUsed] > pRawDataset->pDataPerChannel[idxR].pDataPerPDGain[jj].pwr_t4[numVpd-1])
-				Pmax_t2[numPdGainsUsed] = 
+				Pmax_t2[numPdGainsUsed] =
 					pRawDataset->pDataPerChannel[idxR].pDataPerPDGain[jj].pwr_t4[numVpd-1];
 			Pmax_t2[numPdGainsUsed] = (int16_t)(Pmax_t2[numPdGainsUsed] / 2);
 			ar2316FillVpdTable(
-					   numPdGainsUsed, Pmin_t2[numPdGainsUsed], Pmax_t2[numPdGainsUsed], 
-					   &(pRawDataset->pDataPerChannel[idxL].pDataPerPDGain[jj].pwr_t4[0]), 
+					   numPdGainsUsed, Pmin_t2[numPdGainsUsed], Pmax_t2[numPdGainsUsed],
+					   &(pRawDataset->pDataPerChannel[idxL].pDataPerPDGain[jj].pwr_t4[0]),
 					   &(pRawDataset->pDataPerChannel[idxL].pDataPerPDGain[jj].Vpd[0]), numVpd, VpdTable_L
 					   );
 			ar2316FillVpdTable(
-					   numPdGainsUsed, Pmin_t2[numPdGainsUsed], Pmax_t2[numPdGainsUsed], 
+					   numPdGainsUsed, Pmin_t2[numPdGainsUsed], Pmax_t2[numPdGainsUsed],
 					   &(pRawDataset->pDataPerChannel[idxR].pDataPerPDGain[jj].pwr_t4[0]),
 					   &(pRawDataset->pDataPerChannel[idxR].pDataPerPDGain[jj].Vpd[0]), numVpd, VpdTable_R
 					   );
 			for (kk = 0; kk < (uint16_t)(Pmax_t2[numPdGainsUsed] - Pmin_t2[numPdGainsUsed]); kk++) {
-				VpdTable_I[numPdGainsUsed][kk] = 
+				VpdTable_I[numPdGainsUsed][kk] =
 					interpolate_signed(
 							   channel, pRawDataset->pChannels[idxL], pRawDataset->pChannels[idxR],
 							   (int16_t)VpdTable_L[numPdGainsUsed][kk], (int16_t)VpdTable_R[numPdGainsUsed][kk]);
@@ -432,7 +432,7 @@ ar2316getGainBoundariesAndPdadcsForPowers(struct ath_hal *ah, uint16_t channel,
 		if (ii == (numPdGainsUsed - 1))
 			pPdGainBoundaries[ii] = Pmax_t2[ii] +
 				PD_GAIN_BOUNDARY_STRETCH_IN_HALF_DB;
-		else 
+		else
 			pPdGainBoundaries[ii] = (uint16_t)
 				((Pmax_t2[ii] + Pmin_t2[ii+1]) / 2 );
 		if (pPdGainBoundaries[ii] > 63) {
@@ -443,10 +443,10 @@ ar2316getGainBoundariesAndPdadcsForPowers(struct ath_hal *ah, uint16_t channel,
 		}
 
 		/* Find starting index for this pdGain */
-		if (ii == 0) 
+		if (ii == 0)
 			ss = 0; /* for the first pdGain, start from index 0 */
-		else 
-			ss = (pPdGainBoundaries[ii-1] - Pmin_t2[ii]) - 
+		else
+			ss = (pPdGainBoundaries[ii-1] - Pmin_t2[ii]) -
 				pdGainOverlap_t2;
 		Vpd_step = (uint16_t)(VpdTable_I[ii][1] - VpdTable_I[ii][0]);
 		Vpd_step = (uint16_t)((Vpd_step < 1) ? 1 : Vpd_step);
@@ -468,17 +468,17 @@ ar2316getGainBoundariesAndPdadcsForPowers(struct ath_hal *ah, uint16_t channel,
 
 		Vpd_step = (uint16_t)(VpdTable_I[ii][sizeCurrVpdTable-1] -
 				       VpdTable_I[ii][sizeCurrVpdTable-2]);
-		Vpd_step = (uint16_t)((Vpd_step < 1) ? 1 : Vpd_step);           
+		Vpd_step = (uint16_t)((Vpd_step < 1) ? 1 : Vpd_step);
 		/*
-		 * for last gain, pdGainBoundary == Pmax_t2, so will 
+		 * for last gain, pdGainBoundary == Pmax_t2, so will
 		 * have to extrapolate
 		 */
 		if (tgtIndex > maxIndex) {	/* need to extrapolate above */
 			while(ss < (int16_t)tgtIndex) {
 				tmpVal = (uint16_t)
-					(VpdTable_I[ii][sizeCurrVpdTable-1] + 
+					(VpdTable_I[ii][sizeCurrVpdTable-1] +
 					 (ss-maxIndex)*Vpd_step);
-				pPDADCValues[kk++] = (tmpVal > 127) ? 
+				pPDADCValues[kk++] = (tmpVal > 127) ?
 					127 : tmpVal;
 				ss++;
 			}
@@ -503,7 +503,7 @@ ar2316getGainBoundariesAndPdadcsForPowers(struct ath_hal *ah, uint16_t channel,
 static HAL_BOOL
 ar2316SetPowerTable(struct ath_hal *ah,
 	int16_t *minPower, int16_t *maxPower,
-	const struct ieee80211_channel *chan, 
+	const struct ieee80211_channel *chan,
 	uint16_t *rfXpdGain)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
@@ -533,7 +533,7 @@ ar2316SetPowerTable(struct ath_hal *ah,
 
 	pdGainOverlap_t2 = (uint16_t) SM(OS_REG_READ(ah, AR_PHY_TPCRG5),
 					  AR_PHY_TPCRG5_PD_GAIN_OVERLAP);
-    
+
 	numPdGainsUsed = ar2316getGainBoundariesAndPdadcsForPowers(ah,
 		chan->channel, pRawDataset, pdGainOverlap_t2,
 		&minCalPower2316_t2,gainBoundaries, rfXpdGain, pdadcValues);
@@ -546,7 +546,7 @@ ar2316SetPowerTable(struct ath_hal *ah,
 	 * (e.g. Zcomax) want to override this curve and not
 	 * honoring their settings results in tx power 5dBm low.
 	 */
-	OS_REG_RMW_FIELD(ah, AR_PHY_TPCRG1, AR_PHY_TPCRG1_NUM_PD_GAIN, 
+	OS_REG_RMW_FIELD(ah, AR_PHY_TPCRG1, AR_PHY_TPCRG1_NUM_PD_GAIN,
 			 (pRawDataset->pDataPerChannel[0].numPdGains - 1));
 #else
 	tpcrg1 = OS_REG_READ(ah, AR_PHY_TPCRG1);
@@ -588,16 +588,16 @@ ar2316SetPowerTable(struct ath_hal *ah,
 	/* Finally, write the power values into the baseband power table */
 	regoffset = 0x9800 + (672 <<2); /* beginning of pdadc table in griffin */
 	for (i = 0; i < 32; i++) {
-		reg32 = ((pdadcValues[4*i + 0] & 0xFF) << 0)  | 
+		reg32 = ((pdadcValues[4*i + 0] & 0xFF) << 0)  |
 			((pdadcValues[4*i + 1] & 0xFF) << 8)  |
 			((pdadcValues[4*i + 2] & 0xFF) << 16) |
-			((pdadcValues[4*i + 3] & 0xFF) << 24) ;        
+			((pdadcValues[4*i + 3] & 0xFF) << 24) ;
 		OS_REG_WRITE(ah, regoffset, reg32);
 		regoffset += 4;
 	}
 
-	OS_REG_WRITE(ah, AR_PHY_TPCRG5, 
-		     SM(pdGainOverlap_t2, AR_PHY_TPCRG5_PD_GAIN_OVERLAP) | 
+	OS_REG_WRITE(ah, AR_PHY_TPCRG5,
+		     SM(pdGainOverlap_t2, AR_PHY_TPCRG5_PD_GAIN_OVERLAP) |
 		     SM(gainBoundaries[0], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_1) |
 		     SM(gainBoundaries[1], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_2) |
 		     SM(gainBoundaries[2], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_3) |
@@ -665,7 +665,7 @@ ar2316GetChannelMaxMinPower(struct ath_hal *ah,
 	numChannels = pRawDataset->numChannels;
 	data = pRawDataset->pDataPerChannel;
 
-	/* Make sure the channel is in the range of the TP values 
+	/* Make sure the channel is in the range of the TP values
 	 *  (freq piers)
 	 */
 	if (numChannels < 1)
@@ -690,7 +690,7 @@ ar2316GetChannelMaxMinPower(struct ath_hal *ah,
 	totalD = data[i].channelValue - data[last].channelValue;
 	if (totalD > 0) {
 		totalF = ar2316GetMaxPower(ah, &data[i]) - ar2316GetMaxPower(ah, &data[last]);
-		*maxPow = (int8_t) ((totalF*(freq-data[last].channelValue) + 
+		*maxPow = (int8_t) ((totalF*(freq-data[last].channelValue) +
 				     ar2316GetMaxPower(ah, &data[last])*totalD)/totalD);
 		totalMin = ar2316GetMinPower(ah, &data[i]) - ar2316GetMinPower(ah, &data[last]);
 		*minPow = (int8_t) ((totalMin*(freq-data[last].channelValue) +

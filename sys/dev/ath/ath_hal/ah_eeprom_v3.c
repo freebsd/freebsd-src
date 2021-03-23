@@ -91,7 +91,7 @@ readEepromFreqPierInfo(struct ath_hal *ah, HAL_EEPROM *ee)
 			EEREAD(off++);
 			ee->ee_channels11a[i]   = (eeval >> 8) & FREQ_MASK_3_3;
 			ee->ee_channels11a[i+1] = eeval & FREQ_MASK_3_3;
-		} 
+		}
 	} else {
 		off = GROUPS_OFFSET3_2 + GROUP1_OFFSET;
 
@@ -370,7 +370,7 @@ readEepromRawPowerCalInfo5112(struct ath_hal *ah, HAL_EEPROM *ee)
 				((eeval & dbmmask) - ((eeval >> 7) & 0x1)*256);
 			if (ee->ee_version >= AR_EEPROM_VER4_3) {
 				eePower.pDataPerChannel[i].maxPower_t4 =
-					eePower.pDataPerChannel[i].pwr4_xg0;     
+					eePower.pDataPerChannel[i].pwr4_xg0;
 				eePower.pDataPerChannel[i].pcd1_xg0 = (uint16_t)
 					((eeval >> 8) & pcdac_mask);
 			} else {
@@ -467,7 +467,7 @@ ar2413ReadCalDataset(struct ath_hal *ah, HAL_EEPROM *ee,
             freq[numPiers++] = fbin2freq(ee, (eeval & freqmask));
         else
             freq[numPiers++] = fbin2freq_2p4(ee, (eeval & freqmask));
-                                                                                          
+
         if (((eeval >> 8) & freqmask) == 0)
             break;
         if (mode == headerInfo11A)
@@ -492,19 +492,19 @@ ar2413ReadCalDataset(struct ath_hal *ah, HAL_EEPROM *ee,
 			currCh->Vpd_I[0] = (eeval >> 5) & Vpd_I_mask;
 			currCh->pwr_delta_t2[0][0] =
 				(eeval >> 12) & dbm_delta_mask;
-			
+
 			EEREAD(idx++);
 			currCh->Vpd_delta[0][0] = eeval & Vpd_delta_mask;
 			currCh->pwr_delta_t2[1][0] =
 				(eeval >> 6) & dbm_delta_mask;
 			currCh->Vpd_delta[1][0] =
 				(eeval >> 10) & Vpd_delta_mask;
-			
+
 			EEREAD(idx++);
 			currCh->pwr_delta_t2[2][0] = eeval & dbm_delta_mask;
 			currCh->Vpd_delta[2][0] = (eeval >> 4) & Vpd_delta_mask;
 		}
-		
+
 		if (currCh->numPdGains > 1) {
 			/*
 			 * Read the first NUM_POINTS_OTHER_PDGAINS pwr
@@ -512,7 +512,7 @@ ar2413ReadCalDataset(struct ath_hal *ah, HAL_EEPROM *ee,
 			 */
 			currCh->pwr_I[1] = (eeval >> 10) & dbm_I_mask;
 			currCh->Vpd_I[1] = (eeval >> 15) & 0x1;
-			
+
 			EEREAD(idx++);
 			/* upper 6 bits */
 			currCh->Vpd_I[1] |= (eeval & 0x3F) << 1;
@@ -520,14 +520,14 @@ ar2413ReadCalDataset(struct ath_hal *ah, HAL_EEPROM *ee,
 				(eeval >> 6) & dbm_delta_mask;
 			currCh->Vpd_delta[0][1] =
 				(eeval >> 10) & Vpd_delta_mask;
-			
+
 			EEREAD(idx++);
 			currCh->pwr_delta_t2[1][1] = eeval & dbm_delta_mask;
 			currCh->Vpd_delta[1][1] = (eeval >> 4) & Vpd_delta_mask;
 			currCh->pwr_delta_t2[2][1] =
 				(eeval >> 10) & dbm_delta_mask;
 			currCh->Vpd_delta[2][1] = (eeval >> 14) & 0x3;
-			
+
 			EEREAD(idx++);
 			/* upper 4 bits */
 			currCh->Vpd_delta[2][1] |= (eeval & 0xF) << 2;
@@ -553,7 +553,7 @@ ar2413ReadCalDataset(struct ath_hal *ah, HAL_EEPROM *ee,
 			 */
 			currCh->pwr_I[2] = (eeval >> 4) & dbm_I_mask;
 			currCh->Vpd_I[2] = (eeval >> 9) & Vpd_I_mask;
-			
+
 			EEREAD(idx++);
 			currCh->pwr_delta_t2[0][2] =
 				(eeval >> 0) & dbm_delta_mask;
@@ -561,7 +561,7 @@ ar2413ReadCalDataset(struct ath_hal *ah, HAL_EEPROM *ee,
 			currCh->pwr_delta_t2[1][2] =
 				(eeval >> 10) & dbm_delta_mask;
 			currCh->Vpd_delta[1][2] = (eeval >> 14) & 0x3;
-			
+
 			EEREAD(idx++);
 			/* upper 4 bits */
 			currCh->Vpd_delta[1][2] |= (eeval & 0xF) << 2;
@@ -585,7 +585,7 @@ ar2413ReadCalDataset(struct ath_hal *ah, HAL_EEPROM *ee,
 			 * and Vpd values for pdgain_3
 			 */
 			currCh->pwr_I[3] = (eeval >> 14) & 0x3;
-			
+
 			EEREAD(idx++);
 			/* upper 3 bits */
 			currCh->pwr_I[3] |= ((eeval >> 0) & 0x7) << 2;
@@ -593,7 +593,7 @@ ar2413ReadCalDataset(struct ath_hal *ah, HAL_EEPROM *ee,
 			currCh->pwr_delta_t2[0][3] =
 				(eeval >> 10) & dbm_delta_mask;
 			currCh->Vpd_delta[0][3] = (eeval >> 14) & 0x3;
-			
+
 			EEREAD(idx++);
 			/* upper 4 bits */
 			currCh->Vpd_delta[0][3] |= (eeval & 0xF) << 2;
@@ -601,7 +601,7 @@ ar2413ReadCalDataset(struct ath_hal *ah, HAL_EEPROM *ee,
 				(eeval >> 4) & dbm_delta_mask;
 			currCh->Vpd_delta[1][3] = (eeval >> 8) & Vpd_delta_mask;
 			currCh->pwr_delta_t2[2][3] = (eeval >> 14) & 0x3;
-			
+
 			EEREAD(idx++);
 			/* upper 2 bits */
 			currCh->pwr_delta_t2[2][3] |= ((eeval >> 0) & 0x3) << 2;
@@ -609,7 +609,7 @@ ar2413ReadCalDataset(struct ath_hal *ah, HAL_EEPROM *ee,
 			currCh->pwr_delta_t2[3][3] =
 				(eeval >> 8) & dbm_delta_mask;
 			currCh->Vpd_delta[3][3] = (eeval >> 12) & 0xF;
-			
+
 			EEREAD(idx++);
 			/* upper 2 bits */
 			currCh->Vpd_delta[3][3] |= ((eeval >> 0) & 0x3) << 4;
@@ -618,7 +618,7 @@ ar2413ReadCalDataset(struct ath_hal *ah, HAL_EEPROM *ee,
 		} else if (currCh->numPdGains == 3) {
 			/* read the last pwr and Vpd values for pdgain_2 */
 			currCh->pwr_delta_t2[3][2] = (eeval >> 14) & 0x3;
-			
+
 			EEREAD(idx++);
 			/* upper 2 bits */
 			currCh->pwr_delta_t2[3][2] |= ((eeval >> 0) & 0x3) << 2;
@@ -662,7 +662,7 @@ ar2413SetupRawDataset(RAW_DATA_STRUCT_2413 *pRaw, EEPROM_DATA_STRUCT_2413 *pCal)
 				pRaw->pDataPerChannel[i].pDataPerPDGain[j].numVpd = NUM_POINTS_OTHER_PDGAINS;
 				kk++;
 				if (kk == 1) {
-					/* 
+					/*
 					 * lowest pd_gain corresponds
 					 *  to highest power and thus,
 					 *  has one more point
@@ -806,7 +806,7 @@ readEepromRawPowerCalInfo2413(struct ath_hal *ah, HAL_EEPROM *ee)
 }
 
 /*
- * Now copy EEPROM Raw Power Calibration per frequency contents 
+ * Now copy EEPROM Raw Power Calibration per frequency contents
  * into the allocated space
  */
 static HAL_BOOL
@@ -836,7 +836,7 @@ readEepromRawPowerCalInfo(struct ath_hal *ah, HAL_EEPROM *ee)
 		uint16_t *pChannels = AH_NULL;
 		DATA_PER_CHANNEL *pChannelData = AH_NULL;
 
-		off = ee->ee_version >= AR_EEPROM_VER3_3 ? 
+		off = ee->ee_version >= AR_EEPROM_VER3_3 ?
 			GROUPS_OFFSET3_3 : GROUPS_OFFSET3_2;
 		switch (mode) {
 		case headerInfo11A:
@@ -912,7 +912,7 @@ readEepromRawPowerCalInfo(struct ath_hal *ah, HAL_EEPROM *ee)
 }
 
 /*
- * Copy EEPROM Target Power Calbration per rate contents 
+ * Copy EEPROM Target Power Calbration per rate contents
  * into the allocated space
  */
 static HAL_BOOL
@@ -1008,7 +1008,7 @@ readEepromTargetPowerCalInfo(struct ath_hal *ah, HAL_EEPROM *ee)
 }
 
 /*
- * Now copy EEPROM Coformance Testing Limits contents 
+ * Now copy EEPROM Coformance Testing Limits contents
  * into the allocated space
  */
 static HAL_BOOL
@@ -1045,13 +1045,13 @@ readEepromCTLInfo(struct ath_hal *ah, HAL_EEPROM *ee)
 			}
 			for (j = 0; j < NUM_EDGES; j += 2) {
 				EEREAD(off++);
-				rep[j].twice_rdEdgePower = 
+				rep[j].twice_rdEdgePower =
 					(eeval >> 8) & POWER_MASK;
 				rep[j].flag = (eeval >> 14) & 1;
 				rep[j+1].twice_rdEdgePower = eeval & POWER_MASK;
 				rep[j+1].flag = (eeval >> 6) & 1;
 			}
-		} else { 
+		} else {
 			EEREAD(off++);
 			rep[0].rdEdge = (eeval >> 9) & FREQ_MASK;
 			rep[1].rdEdge = (eeval >> 2) & FREQ_MASK;
@@ -1133,7 +1133,7 @@ readHeaderInfo(struct ath_hal *ah, HAL_EEPROM *ee)
 	};
 
 	static const uint32_t regCapOffsetPre4_0 = 0x00CF;
-	static const uint32_t regCapOffsetPost4_0 = 0x00CA; 
+	static const uint32_t regCapOffsetPost4_0 = 0x00CA;
 
 	const uint32_t *header;
 	uint32_t off;

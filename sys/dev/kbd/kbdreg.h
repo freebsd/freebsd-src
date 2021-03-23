@@ -134,7 +134,7 @@ struct keyboard {
 	 * The upper 16 bits are common between various keyboard devices.
 	 * The lower 16 bits are device-specific.
 	 */
-	int		kb_config;	
+	int		kb_config;
 #define KB_CONF_PROBE_ONLY (1 << 16)	/* probe only, don't initialize */
 
 	/* the following fields are set up by the driver */

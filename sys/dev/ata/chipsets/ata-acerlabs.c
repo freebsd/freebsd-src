@@ -276,10 +276,10 @@ ata_ali_reset(device_t dev)
 	if (!device_get_children(GRANDPARENT(dev), &children, &nchildren)) {
 	    for (i = 0; i < nchildren; i++) {
 		if (pci_get_devid(children[i]) == ATA_ALI_1533) {
-		    pci_write_config(children[i], 0x58, 
+		    pci_write_config(children[i], 0x58,
 				     pci_read_config(children[i], 0x58, 1) &
 				     ~(0x04 << ch->unit), 1);
-		    pci_write_config(children[i], 0x58, 
+		    pci_write_config(children[i], 0x58,
 				     pci_read_config(children[i], 0x58, 1) |
 				     (0x04 << ch->unit), 1);
 		    break;

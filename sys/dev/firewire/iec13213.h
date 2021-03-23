@@ -32,7 +32,7 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  *
  */
@@ -163,7 +163,7 @@ struct csrtext {
 
 struct bus_info {
 #define	CSR_BUS_NAME_IEEE1394	0x31333934
-	uint32_t bus_name;	
+	uint32_t bus_name;
 #if BYTE_ORDER == BIG_ENDIAN
 	uint32_t irmc:1,		/* iso. resource manager capable */
 		 cmc:1,			/* cycle master capable */
@@ -234,12 +234,12 @@ struct crom_src {
 
 struct crom_chunk {
 	STAILQ_ENTRY(crom_chunk) link;
-	struct crom_chunk *ref_chunk; 
-	int ref_index; 
+	struct crom_chunk *ref_chunk;
+	int ref_index;
 	int offset;
 	struct {
 		BIT16x2(crc_len, crc);
-		uint32_t buf[CROM_MAX_CHUNK_LEN]; 
+		uint32_t buf[CROM_MAX_CHUNK_LEN];
 	} data;
 };
 

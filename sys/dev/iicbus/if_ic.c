@@ -368,10 +368,10 @@ icoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	u_char *cp;
 	u_int32_t hdr;
 
-	/* BPF writes need to be handled specially. */ 
+	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &hdr, sizeof(hdr));
-	else 
+	else
 		hdr = dst->sa_family;
 
 	mtx_lock(&sc->ic_lock);
@@ -382,7 +382,7 @@ icoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		goto error;
 	}
-		
+
 	/* insert header */
 	bcopy ((char *)&hdr, sc->ic_obuf, ICHDRLEN);
 
@@ -395,7 +395,7 @@ icoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			goto error;
 		}
-			
+
 		bcopy(mtod(mm,char *), cp, mm->m_len);
 		cp += mm->m_len;
 		len += mm->m_len;
@@ -417,7 +417,7 @@ icoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	else {
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
-	}	
+	}
 
 	mtx_lock(&sc->ic_lock);
 	sc->ic_flags &= ~(IC_SENDING | IC_OBUF_BUSY);

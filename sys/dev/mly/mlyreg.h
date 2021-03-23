@@ -1109,7 +1109,7 @@ struct mly_command_generic {
     u_int8_t			res1[11];
     union mly_command_transfer	transfer;
 } __packed;
-    
+
 
 /*
  * 19.1 MDACMD_SCSI & MDACMD_SCSIPT
@@ -1128,7 +1128,7 @@ struct mly_command_scsi_small {
     u_int8_t			cdb[MLY_CMD_SCSI_SMALL_CDB];
     union mly_command_transfer	transfer;
 } __packed;
-    
+
 /*
  * 19.2 MDACMD_SCSILC & MDACMD_SCSILCPT
  */
@@ -1146,7 +1146,7 @@ struct mly_command_scsi_large {
     u_int64_t			cdb_physaddr;
     union mly_command_transfer	transfer;
 } __packed;
-    
+
 /*
  * 20.1 IOCTL Command Format: Internal Bus
  */
@@ -1210,7 +1210,7 @@ union mly_command_packet {
  * PG6: 5.4.4 Doorbell 1
  *
  * Note that the documentation claims that these bits are set when the
- * status queue(s) are empty, whereas the Linux driver and experience 
+ * status queue(s) are empty, whereas the Linux driver and experience
  * suggest they are set when there is status available.
  */
 #define MLY_HM_STSREADY			(1<<0)
@@ -1247,7 +1247,7 @@ union mly_command_packet {
  * wrapping to 0 at this point (determined by experimentation).  This is not
  * consistent with the Linux driver's implementation.
  * Whilst it's handy to have lots of room for status returns in case we end up
- * being slow getting back to completed commands, it seems unlikely that we 
+ * being slow getting back to completed commands, it seems unlikely that we
  * would get 64 commands ahead of the controller on the submissions side, so
  * the current workaround is to simply limit the command ring to 64 entries.
  */

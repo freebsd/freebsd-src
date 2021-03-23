@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -212,8 +212,8 @@ tiINIDiscoverTargets(
   }
   else
   {
-    TI_DBG1(("tiINIDiscoverTargets: Discovery has started or incorrect initialization; state %d pid 0x%x\n", 
-                      onePortContext->DiscoveryState, 
+    TI_DBG1(("tiINIDiscoverTargets: Discovery has started or incorrect initialization; state %d pid 0x%x\n",
+                      onePortContext->DiscoveryState,
                       onePortContext->id));
     return tiError;
   }
@@ -407,7 +407,7 @@ tiINIGetDeviceHandles(
     {
       TI_DBG3(("tiINIGetDeviceHandles: device %p satPendingIO %d satNCQMaxIO %d\n",pSatDevData, pSatDevData->satPendingIO, pSatDevData->satNCQMaxIO ));
       TI_DBG3(("tiINIGetDeviceHandles: device %p satPendingNCQIO %d satPendingNONNCQIO %d\n",pSatDevData, pSatDevData->satPendingNCQIO, pSatDevData->satPendingNONNCQIO));
-    }	  
+    }
 #endif
     TI_DBG3(("tiINIGetDeviceHandles: pid %d did %d\n", onePortContext->id, oneDeviceData->id));
     TI_DBG3(("tiINIGetDeviceHandles: device AddrHi 0x%08x AddrLo 0x%08x\n", oneDeviceData->SASAddressID.sasAddressHi, oneDeviceData->SASAddressID.sasAddressLo));
@@ -896,8 +896,8 @@ tiINIGetDeviceInfo(
   else
   {
     saGetDeviceInfo(agRoot, agNULL, 0, 0,oneDeviceData->agDevHandle);
-  }    
-    
+  }
+
 
   return tiSuccess;
 }
@@ -971,7 +971,7 @@ osGLOBAL bit32
 tiINIGetExpander(
                   tiRoot_t          * tiRoot,
                   tiPortalContext_t * tiPortalContext,
-                  tiDeviceHandle_t  * tiDev, 
+                  tiDeviceHandle_t  * tiDev,
                   tiDeviceHandle_t  ** tiExp
                  )
 {
@@ -981,14 +981,14 @@ tiINIGetExpander(
   tdsaPortContext_t *onePortContext = agNULL;
   tdsaDeviceData_t  *oneDeviceData = agNULL;
   tdList_t          *DeviceListList;
-  tdsaDeviceData_t  *oneTargetDeviceData = agNULL;  
-  tdsaDeviceData_t  *oneExpanderDeviceData = agNULL;  
+  tdsaDeviceData_t  *oneTargetDeviceData = agNULL;
+  tdsaDeviceData_t  *oneExpanderDeviceData = agNULL;
   bit32             found = agFALSE;
   oneTargetDeviceData = (tdsaDeviceData_t *)tiDev->tdData;
   if (oneTargetDeviceData == agNULL)
   {
     TI_DBG1(("tiINIGetExpander: oneTargetDeviceData is NULL\n"));
-    return tiError;  
+    return tiError;
   }
   tdsaSingleThreadedEnter(tiRoot, TD_PORT_LOCK);
   if (TDLIST_EMPTY(&(tdsaAllShared->MainPortContextList)))
@@ -1039,7 +1039,7 @@ tiINIGetExpander(
   {
     oneDeviceData = TDLIST_OBJECT_BASE(tdsaDeviceData_t, MainLink, DeviceListList);
     if (oneDeviceData->tdPortContext != onePortContext)
-    { 
+    {
       TI_DBG3(("tiINIGetExpander: different port\n"));
       DeviceListList = DeviceListList->flink;
     }
@@ -1051,14 +1051,14 @@ tiINIGetExpander(
         if (oneExpanderDeviceData == agNULL)
         {
           TI_DBG1(("tiINIGetExpander: oneExpanderDeviceData is NULL\n"));
-          return tiError;  
-        } 
+          return tiError;
+        }
         *tiExp = &(oneExpanderDeviceData->tiDeviceHandle);
-        return tiSuccess;      
-      }                  
-      DeviceListList = DeviceListList->flink;    
+        return tiSuccess;
+      }
+      DeviceListList = DeviceListList->flink;
     }
-  }      
+  }
   return tiError;
 }
 
@@ -1127,15 +1127,15 @@ tiINIGetExpDeviceHandleBySasAddress(
   bit32             DeviceIndex = 0;
   bit32             found = agFALSE;
 
-  
+
   TI_DBG2(("tiINIGetExpDeviceHandleBySasAddress: start\n"));
   TI_DBG2(("tiINIGetExpDeviceHandleBySasAddress: tiPortalContext %p\n", tiPortalContext));
-  
-  
+
+
   if (maxDevs == 0)
   {
     TI_DBG1(("tiINIGetExpDeviceHandleBySasAddress: maxDevs is 0\n"));
-   
+
     return agNULL;
   }
 
@@ -1144,7 +1144,7 @@ tiINIGetExpDeviceHandleBySasAddress(
   {
     tdsaSingleThreadedLeave(tiRoot, TD_PORT_LOCK);
     TI_DBG1(("tiINIGetExpDeviceHandleBySasAddress: No available tdsaPortContext\n"));
-    TI_DBG1(("tiINIGetExpDeviceHandleBySasAddress: second, returning 0\n")); 
+    TI_DBG1(("tiINIGetExpDeviceHandleBySasAddress: second, returning 0\n"));
     return agNULL;
   }
   else
@@ -1153,23 +1153,23 @@ tiINIGetExpDeviceHandleBySasAddress(
   }
   /* find a corresponding portcontext */
   PortContextList = tdsaAllShared->MainPortContextList.flink;
-   
+
   if(PortContextList == agNULL)
   {
 	TI_DBG6(("tiINIGetExpDeviceHandleBySasAddress: PortContextList is NULL!!\n"));
 	return agNULL;
   }
-  
+
   while (PortContextList != &(tdsaAllShared->MainPortContextList))
   {
     onePortContext = TDLIST_OBJECT_BASE(tdsaPortContext_t, MainLink, PortContextList);
-	 
+
 	if(onePortContext == agNULL)
 	{
 	  TI_DBG6(("tiINIGetExpDeviceHandleBySasAddress: onePortContext is NULL!!\n"));
 	  return agNULL;
     }
-	
+
     TI_DBG3(("tiINIGetExpDeviceHandleBySasAddress: oneportContext pid %d\n", onePortContext->id));
     if (onePortContext->tiPortalContext == tiPortalContext && onePortContext->valid == agTRUE)
     {
@@ -1177,27 +1177,27 @@ tiINIGetExpDeviceHandleBySasAddress(
       found = agTRUE;
       break;
     }
-	 
+
 	if(PortContextList != agNULL)
 	{
       PortContextList = PortContextList->flink;
 	}
-	
+
   }
 
   if (found == agFALSE)
   {
     TI_DBG1(("tiINIGetExpDeviceHandleBySasAddress: First, No corresponding tdsaPortContext\n"));
     TI_DBG1(("tiINIGetExpDeviceHandleBySasAddress: third, returning 0\n"));
-    /* nullify all device handles */    
+    /* nullify all device handles */
     return agNULL;
   }
-  
+
   if (onePortContext == agNULL)
   {
     TI_DBG1(("tiINIGetExpDeviceHandleBySasAddress: Second, No corressponding tdsaPortContext\n"));
     TI_DBG1(("tiINIGetExpDeviceHandleBySasAddress: fourth, returning 0\n"));
-    /* nullify all device handles */    
+    /* nullify all device handles */
     return agNULL;
   }
 
@@ -1207,29 +1207,29 @@ tiINIGetExpDeviceHandleBySasAddress(
     TI_DBG1(("tiINIGetExpDeviceHandleBySasAddress: fifth, returning 0\n"));
     return agNULL;
   }
-  
-   
-  TI_DBG2(("tiINIGetExpDeviceHandleBySasAddress: pid %d\n", onePortContext->id));
-  
 
-  /* to do: check maxdev and length of Mainlink */ 
-  /* 
+
+  TI_DBG2(("tiINIGetExpDeviceHandleBySasAddress: pid %d\n", onePortContext->id));
+
+
+  /* to do: check maxdev and length of Mainlink */
+  /*
      From the device list, returns only valid devices
   */
   DeviceListList = tdsaAllShared->MainDeviceList.flink;
-   
+
   if(DeviceListList == agNULL)
   {
     TI_DBG1(("tiINIGetExpDeviceHandleBySasAddress: DeviceListList == agNULL\n"));
     TI_DBG1(("tiINIGetExpDeviceHandleBySasAddress: seventh, returning not found, pid %d\n", onePortContext->id));
     return agNULL;
   }
-  
+
   while ((DeviceIndex < maxDevs) &&
           DeviceListList != &(tdsaAllShared->MainDeviceList))
   {
     oneDeviceData = TDLIST_OBJECT_BASE(tdsaDeviceData_t, MainLink, DeviceListList);
-	 
+
 	if(oneDeviceData == agNULL)
 	{
 	  TI_DBG3(("tiINIGetExpDeviceHandleBySasAddress: oneDeviceData is NULL!!\n"));
@@ -1239,14 +1239,14 @@ tiINIGetExpDeviceHandleBySasAddress(
 
     TI_DBG6(("tiINIGetExpDeviceHandleBySasAddress: handle %p\n",  &(oneDeviceData->tiDeviceHandle)));
     if (oneDeviceData->tdPortContext != onePortContext)
-    { 
+    {
       TI_DBG3(("tiINIGetExpDeviceHandleBySasAddress: different port\n"));
-	   
+
 	  if(DeviceListList != agNULL)
 	  {
         DeviceListList = DeviceListList->flink;
 	  }
-	  
+
     }
     else
     {
@@ -1254,7 +1254,7 @@ tiINIGetExpDeviceHandleBySasAddress(
       if ((oneDeviceData->valid == agTRUE) &&
           (oneDeviceData->registered == agTRUE) &&
           (oneDeviceData->tdPortContext == onePortContext) &&
-          (  
+          (
           (oneDeviceData->SASSpecDeviceType == SAS_EDGE_EXPANDER_DEVICE) ||
           (oneDeviceData->SASSpecDeviceType == SAS_FANOUT_EXPANDER_DEVICE) ||
            DEVICE_IS_SMP_TARGET(oneDeviceData)
@@ -1262,7 +1262,7 @@ tiINIGetExpDeviceHandleBySasAddress(
          )
 
       {
-	   
+
 		if(oneDeviceData->SASAddressID.sasAddressLo == sas_addr_lo && oneDeviceData->SASAddressID.sasAddressHi == sas_addr_hi)
 		{
 		  //TI_DBG3(("tiINIGetExpDeviceHandleBySasAddress: valid FoundDevices %d\n", FoundDevices));
@@ -1453,7 +1453,7 @@ tdsaSASFullDiscover(
       {
         if (onePortContext->PhyIDList[i] == agTRUE)
         {
-         
+
            for (j=0;j<TD_MAX_NUM_NOTIFY_SPINUP;j++)
            {
              saLocalPhyControl(onePortContext->agRoot, agNULL, tdsaRotateQnumber(tiRoot, agNULL), i, AGSA_PHY_NOTIFY_ENABLE_SPINUP, agNULL);
@@ -6878,7 +6878,7 @@ tdsaSASIncrementalDiscover(
       {
         if (onePortContext->PhyIDList[i] == agTRUE)
         {
-       
+
           for (j=0;j<TD_MAX_NUM_NOTIFY_SPINUP;j++)
           {
             saLocalPhyControl(onePortContext->agRoot, agNULL, tdsaRotateQnumber(tiRoot, agNULL), i, AGSA_PHY_NOTIFY_ENABLE_SPINUP, agNULL);
@@ -7271,7 +7271,7 @@ tdSMPStart(
 
     osti_memcpy(tdSMPRequestBody->smpPayload, &tdSMPFrameHeader, 4);
 //    osti_memcpy((tdSMPRequestBody->smpPayload)+4, pSmpBody, smpBodySize);
-    osti_memcpy(&(tdSMPRequestBody->smpPayload[4]), pSmpBody, smpBodySize);   
+    osti_memcpy(&(tdSMPRequestBody->smpPayload[4]), pSmpBody, smpBodySize);
 
     /* direct SMP payload eg) REPORT_GENERAL, DISCOVER etc */
     agSMPFrame->outFrameBuf = tdSMPRequestBody->smpPayload;
@@ -7601,7 +7601,7 @@ tdsaConfigureRouteTimer(tiRoot_t                 *tiRoot,
                     &discovery->configureRouteTimer,
                     CONFIGURE_ROUTE_TIMER_VALUE/Initiator->OperatingOption.UsecsPerTick,
                     tdsaConfigureRouteTimerCB,
-                    (void *)onePortContext, 
+                    (void *)onePortContext,
                     (void *)oneExpander,
                     (void *)ptdSMPDiscoverResp
                    );
@@ -7699,7 +7699,7 @@ tdsaConfigureRouteTimerCB(
                         &discovery->configureRouteTimer,
                         CONFIGURE_ROUTE_TIMER_VALUE/Initiator->OperatingOption.UsecsPerTick,
                         tdsaConfigureRouteTimerCB,
-                        (void *)onePortContext, 
+                        (void *)onePortContext,
                         (void *)oneExpander,
                         (void *)ptdSMPDiscoverResp
                        );
@@ -7763,7 +7763,7 @@ tdsaDiscoveryTimer(tiRoot_t                 *tiRoot,
                     &discovery->discoveryTimer,
                     DISCOVERY_TIMER_VALUE/Initiator->OperatingOption.UsecsPerTick,
                     tdsaDiscoveryTimerCB,
-                    oneDeviceData, 
+                    oneDeviceData,
                     agNULL,
                     agNULL
                    );
@@ -7992,7 +7992,7 @@ tdsaSMPBusyTimer(tiRoot_t                 *tiRoot,
                     SMP_BUSY_TIMER_VALUE/Initiator->OperatingOption.UsecsPerTick,
                     tdsaSMPBusyTimerCB,
                     onePortContext,
-                    oneDeviceData, 
+                    oneDeviceData,
                     tdSMPRequestBody
                    );
 
@@ -8378,7 +8378,7 @@ tdsaDiscoverySMPTimerCB(
   case SMP_CONFIGURE_ROUTING_INFORMATION:  /* fall through */
     TI_DBG1(("tdsaDiscoverySMPTimerCB: failing discovery, SMP function 0x%x\n", SMPFunction));
     tdsaSASDiscoverDone(tiRoot, onePortContext, tiError);
-    return; 
+    return;
   case SMP_REPORT_PHY_SATA:
     TI_DBG1(("tdsaDiscoverySMPTimerCB: failing discovery, SMP function SMP_REPORT_PHY_SATA\n"));
     tdsaSATADiscoverDone(tiRoot, onePortContext, tiError);

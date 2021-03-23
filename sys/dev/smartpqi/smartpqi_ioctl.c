@@ -51,7 +51,7 @@ int os_copy_from_user(struct pqisrc_softstate *softs, void *dest_buf,
 }
 
 /*
- * Device open function for ioctl entry 
+ * Device open function for ioctl entry
  */
 static int smartpqi_open(struct cdev *cdev, int flags, int devtype,
 		struct thread *td)
@@ -62,7 +62,7 @@ static int smartpqi_open(struct cdev *cdev, int flags, int devtype,
 }
 
 /*
- * Device close function for ioctl entry 
+ * Device close function for ioctl entry
  */
 static int smartpqi_close(struct cdev *cdev, int flags, int devtype,
 		struct thread *td)
@@ -229,7 +229,7 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 
 	memset(&request, 0, sizeof(request));
 	memset(&error_info, 0, sizeof(error_info));
-		
+
 	DBG_FUNC("IN");
 
 	if (pqisrc_ctrl_offline(softs))
@@ -238,7 +238,7 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 	if (!arg)
 		return (PQI_STATUS_FAILURE);
 
-	if (iocommand->buf_size < 1 && 
+	if (iocommand->buf_size < 1 &&
 		iocommand->Request.Type.Direction != PQIIOCTL_NONE)
 		return PQI_STATUS_FAILURE;
 	if (iocommand->Request.CDBLen > sizeof(request.cdb))
@@ -266,14 +266,14 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 			ret = PQI_STATUS_FAILURE;
 			goto out;
 		}
-		 
+
 		DBG_INFO("ioctl_dma_buf.dma_addr  = %p\n",(void*)ioctl_dma_buf.dma_addr);
 		DBG_INFO("ioctl_dma_buf.virt_addr = %p\n",(void*)ioctl_dma_buf.virt_addr);
 
 		drv_buf = (char *)ioctl_dma_buf.virt_addr;
 		if (iocommand->Request.Type.Direction & PQIIOCTL_WRITE) {
-        		if ((ret = os_copy_from_user(softs, (void *)drv_buf, (void *)iocommand->buf, 
-						iocommand->buf_size, mode)) != 0) { 
+        		if ((ret = os_copy_from_user(softs, (void *)drv_buf, (void *)iocommand->buf,
+						iocommand->buf_size, mode)) != 0) {
 				ret = PQI_STATUS_FAILURE;
 				goto free_mem;
 			}
@@ -281,9 +281,9 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 	}
 
 	request.header.iu_type = PQI_IU_TYPE_RAID_PATH_IO_REQUEST;
-	request.header.iu_length = offsetof(pqisrc_raid_req_t, sg_descriptors[1]) - 
+	request.header.iu_length = offsetof(pqisrc_raid_req_t, sg_descriptors[1]) -
 									PQI_REQUEST_HEADER_LENGTH;
-	memcpy(request.lun_number, iocommand->LUN_info.LunAddrBytes, 
+	memcpy(request.lun_number, iocommand->LUN_info.LunAddrBytes,
 		sizeof(request.lun_number));
 	memcpy(request.cdb, iocommand->Request.CDB, iocommand->Request.CDBLen);
 	request.additional_cdb_bytes_usage = PQI_ADDITIONAL_CDB_BYTES_0;
@@ -350,7 +350,7 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 		if (!sense_data_length)
 			sense_data_length = error_info.resp_data_len;
 
-		if (sense_data_length && 
+		if (sense_data_length &&
 			(sense_data_length > sizeof(error_info.data)))
 				sense_data_length = sizeof(error_info.data);
 
@@ -364,22 +364,22 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 			iocommand->error_info.SenseLen = sense_data_length;
 		}
 
-		if (error_info.data_out_result == 
+		if (error_info.data_out_result ==
 				PQI_RAID_DATA_IN_OUT_UNDERFLOW){
 			rcb->status = REQUEST_SUCCESS;
 		}
 	}
 
-	if (rcb->status == REQUEST_SUCCESS && iocommand->buf_size > 0 && 
+	if (rcb->status == REQUEST_SUCCESS && iocommand->buf_size > 0 &&
 		(iocommand->Request.Type.Direction & PQIIOCTL_READ)) {
-		if ((ret = os_copy_to_user(softs, (void*)iocommand->buf, 
+		if ((ret = os_copy_to_user(softs, (void*)iocommand->buf,
 			(void*)drv_buf, iocommand->buf_size, mode)) != 0) {
-				DBG_ERR("Failed to copy the response\n");	
+				DBG_ERR("Failed to copy the response\n");
 				goto err_out;
 		}
 	}
 
-	os_reset_rcb(rcb); 
+	os_reset_rcb(rcb);
 	pqisrc_put_tag(&softs->taglist, request.request_id);
 	if (iocommand->buf_size > 0)
 			os_dma_mem_free(softs,&ioctl_dma_buf);
@@ -387,7 +387,7 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 	DBG_FUNC("OUT\n");
 	return ret;
 err_out:
-	os_reset_rcb(rcb); 
+	os_reset_rcb(rcb);
 	pqisrc_put_tag(&softs->taglist, request.request_id);
 
 free_mem:

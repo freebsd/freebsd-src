@@ -41,7 +41,7 @@ void busdma_map_sg_vec(bus_dma_tag_t tag, bus_dmamap_t map,
 static __inline void
 m_freem_list(struct mbuf *m)
 {
-	struct mbuf *n; 
+	struct mbuf *n;
 
 	while (m != NULL) {
 		n = m->m_nextpkt;
@@ -49,7 +49,7 @@ m_freem_list(struct mbuf *m)
 			prefetch(n);
 		m_freem(m);
 		m = n;
-	}	
+	}
 }
 
 #endif /* _MVEC_H_ */

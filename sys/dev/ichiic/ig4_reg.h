@@ -598,7 +598,7 @@
 /* Newer versions of the I2C controller allow to check whether
  * the above ASSERT/DEASSERT is necessary by querying the DEVIDLE_CONTROL
  * register.
- * 
+ *
  * the RESTORE_REQUIRED bit can be cleared by writing 1
  * the DEVICE_IDLE status can be set to put the controller in an idle state
  *

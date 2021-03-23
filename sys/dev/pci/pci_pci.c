@@ -1178,7 +1178,7 @@ pcib_pcie_intr_hotplug(void *arg)
 		    sc->pcie_slot_sta);
 
 	if (sc->pcie_slot_sta & PCIEM_SLOT_STA_ABP) {
-		if (sc->flags & PCIB_DETACH_PENDING) {	
+		if (sc->flags & PCIB_DETACH_PENDING) {
 			device_printf(dev,
 			    "Attention Button Pressed: Detach Cancelled\n");
 			sc->flags &= ~PCIB_DETACH_PENDING;

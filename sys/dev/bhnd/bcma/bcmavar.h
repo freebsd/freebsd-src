@@ -31,7 +31,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -56,7 +56,7 @@
 
 /**
  * Return the device's core index.
- * 
+ *
  * @param _dinfo The bcma_devinfo instance to query.
  */
 #define	BCMA_DINFO_COREIDX(_dinfo)	\
@@ -168,8 +168,8 @@ struct bcma_corecfg {
 	u_long		num_bridge_ports;	/**< number of bridge slave port descriptors. */
 	struct bcma_sport_list	bridge_ports;	/**< bridge port descriptors */
 
-	u_long		num_wrapper_ports;	/**< number of wrapper slave port descriptors. */	
-	struct bcma_sport_list	wrapper_ports;	/**< wrapper port descriptors */	
+	u_long		num_wrapper_ports;	/**< number of wrapper slave port descriptors. */
+	struct bcma_sport_list	wrapper_ports;	/**< wrapper port descriptors */
 };
 
 /**

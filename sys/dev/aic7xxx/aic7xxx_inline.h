@@ -380,7 +380,7 @@ ahc_get_scb(struct ahc_softc *ahc)
  */
 static __inline void
 ahc_free_scb(struct ahc_softc *ahc, struct scb *scb)
-{       
+{
 	struct hardware_scb *hscb;
 
 	hscb = scb->hscb;

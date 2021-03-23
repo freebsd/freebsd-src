@@ -4422,7 +4422,7 @@ typedef struct sli4_fcp_iwrite64_wqe_s {
 } sli4_fcp_iwrite64_wqe_t;
 
 typedef struct sli4_fcp_128byte_wqe_s {
-	uint32_t dw[32];	
+	uint32_t dw[32];
 } sli4_fcp_128byte_wqe_t;
 
 /**

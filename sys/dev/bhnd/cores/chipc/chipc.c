@@ -39,10 +39,10 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Broadcom ChipCommon driver.
- * 
+ *
  * With the exception of some very early chipsets, the ChipCommon core
- * has been included in all HND SoCs and chipsets based on the siba(4) 
- * and bcma(4) interconnects, providing a common interface to chipset 
+ * has been included in all HND SoCs and chipsets based on the siba(4)
+ * and bcma(4) interconnects, providing a common interface to chipset
  * identification, bus enumeration, UARTs, clocks, watchdog interrupts,
  * GPIO, flash, etc.
  */
@@ -138,7 +138,7 @@ static struct rman	*chipc_get_rman(struct chipc_softc *sc, int type);
 /* quirk and capability flag convenience macros */
 #define	CHIPC_QUIRK(_sc, _name)	\
     ((_sc)->quirks & CHIPC_QUIRK_ ## _name)
-    
+
 #define CHIPC_CAP(_sc, _name)	\
     ((_sc)->caps._name)
 
@@ -213,7 +213,7 @@ chipc_attach(device_t dev)
 	/*
 	 * Register ourselves with the bus; we're fully initialized and can
 	 * response to ChipCommin API requests.
-	 * 
+	 *
 	 * Since our children may need access to ChipCommon, this must be done
 	 * before attaching our children below (via bus_generic_attach).
 	 */
@@ -292,7 +292,7 @@ chipc_add_children(struct chipc_softc *sc)
 
 	/*
 	 * PMU/PWR_CTRL
-	 * 
+	 *
 	 * On AOB ("Always on Bus") devices, the PMU core (if it exists) is
 	 * attached directly to the bhnd(4) bus -- not chipc.
 	 */
@@ -397,7 +397,7 @@ chipc_add_children(struct chipc_softc *sc)
 
 /**
  * Determine the NVRAM data source for this device.
- * 
+ *
  * The SPROM, OTP, and flash capability flags must be fully populated in
  * @p caps.
  *
@@ -510,7 +510,7 @@ chipc_read_caps(struct chipc_softc *sc, struct chipc_caps *caps)
 	case CHIPC_CAP_FLASH_NONE:
 		caps->flash_type = CHIPC_FLASH_NONE;
 		break;
-			
+
 	}
 
 	/* Handle 4706_NFLASH fallback */
@@ -773,13 +773,13 @@ chipc_free_rman(struct chipc_softc *sc)
 
 /**
  * Return the rman instance for a given resource @p type, if any.
- * 
+ *
  * @param sc The chipc device state.
  * @param type The resource type (e.g. SYS_RES_MEMORY, SYS_RES_IRQ, ...)
  */
 static struct rman *
 chipc_get_rman(struct chipc_softc *sc, int type)
-{	
+{
 	switch (type) {
 	case SYS_RES_MEMORY:
 		return (&sc->mem_rman);
@@ -828,17 +828,17 @@ chipc_alloc_resource(device_t dev, device_t child, int type,
 			device_printf(dev,
 			    "default resource %#x type %d for child %s "
 			    "not found\n", *rid, type,
-			    device_get_nameunit(child));			
+			    device_get_nameunit(child));
 			return (NULL);
 		}
-		
+
 		if (rle->res != NULL) {
 			device_printf(dev,
 			    "resource entry %#x type %d for child %s is busy "
 			    "[%d]\n",
 			    *rid, type, device_get_nameunit(child),
 			    rman_get_flags(rle->res));
-			
+
 			return (NULL);
 		}
 
@@ -1148,9 +1148,9 @@ chipc_deactivate_resource(device_t dev, device_t child, int type,
 /**
  * Examine bus state and make a best effort determination of whether it's
  * likely safe to enable the muxed SPROM pins.
- * 
+ *
  * On devices that do not use SPROM pin muxing, always returns true.
- * 
+ *
  * @param sc chipc driver state.
  */
 static bool
@@ -1283,7 +1283,7 @@ chipc_disable_otp_power(struct chipc_softc *sc)
 
 /**
  * If required by this device, enable access to the SPROM.
- * 
+ *
  * @param sc chipc driver state.
  */
 static int
@@ -1331,7 +1331,7 @@ chipc_enable_sprom_pins(struct chipc_softc *sc)
 /**
  * If required by this device, revert any GPIO/pin configuration applied
  * to allow SPROM access.
- * 
+ *
  * @param sc chipc driver state.
  */
 static void

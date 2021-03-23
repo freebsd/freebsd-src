@@ -209,7 +209,7 @@ qat_adm_ring_init(struct qat_softc *sc)
 		    &qadr->qadr_master_ring_tbl[i];
 
 		for (j = 0; j < INIT_RING_TABLE_SZ; j++) {
-			struct fw_init_ring_params *firp = 
+			struct fw_init_ring_params *firp =
 			    &firt->firt_bulk_rings[j];
 
 			firp->firp_reserved = 0;
@@ -335,7 +335,7 @@ qat_adm_ring_build_init_msg(struct qat_softc *sc,
 
 	srv_mask = sc->sc_admin_rings.qadr_srv_mask[
 	    ae % sc->sc_ae_num];
-	
+
 	memset(initmsg, 0, sizeof(struct fw_init_req));
 
 	qat_msg_req_type_populate(&initmsg->comn_hdr.arch_if,

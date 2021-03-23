@@ -168,7 +168,7 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 			else
 				sc->busydev = dev;
 			device_busy(sc->busydev);
-			/* 
+			/*
 			 * Drop the lock around the call to the bus driver, it
 			 * should be allowed to sleep in the IIC_WAIT case.
 			 * Drivers might also need to grab locks that would
@@ -182,7 +182,7 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 			error = IICBUS_CALLBACK(device_get_parent(bus),
 			    IIC_REQUEST_BUS, (caddr_t)&reqdata);
 			IICBUS_LOCK(sc);
-	
+
 			if (error != 0) {
 				sc->owner = NULL;
 				sc->owncount = 0;
@@ -321,7 +321,7 @@ int
 iicbus_write(device_t bus, const char *buf, int len, int *sent, int timeout)
 {
 	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
-	
+
 	/* a slave must have been started for writing */
 	if (sc->started == 0 || (sc->strict != 0 && (sc->started & LSB) != 0))
 		return (IIC_ESTATUS);
@@ -335,11 +335,11 @@ iicbus_write(device_t bus, const char *buf, int len, int *sent, int timeout)
  * Read a block of data from the slave previously started by
  * iicbus_read() call
  */
-int 
+int
 iicbus_read(device_t bus, char *buf, int len, int *read, int last, int delay)
 {
 	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
-	
+
 	/* a slave must have been started for reading */
 	if (sc->started == 0 || (sc->strict != 0 && (sc->started & LSB) == 0))
 		return (IIC_ESTATUS);

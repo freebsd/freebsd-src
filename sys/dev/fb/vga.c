@@ -206,7 +206,7 @@ typedef struct adp_state adp_state_t;
 #define DCC_EGA40	4
 #define DCC_EGA80	5
 
-/* 
+/*
  * NOTE: `va_window' should have a virtual address, but is initialized
  * with a physical address in the following table, as verify_adapter()
  * will perform address conversion at run-time.
@@ -214,27 +214,27 @@ typedef struct adp_state adp_state_t;
 static video_adapter_t adapter_init_value[] = {
     /* DCC_MONO */
     { 0, KD_MONO, "mda", 0, 0, 0, 	    IO_MDA, IO_MDASIZE, MONO_CRTC,
-      MDA_BUF_BASE, MDA_BUF_SIZE, MDA_BUF_BASE, MDA_BUF_SIZE, MDA_BUF_SIZE, 
+      MDA_BUF_BASE, MDA_BUF_SIZE, MDA_BUF_BASE, MDA_BUF_SIZE, MDA_BUF_SIZE,
       0, 0, 0, 0, 7, 0, },
     /* DCC_CGA40 */
     { 0, KD_CGA,  "cga", 0, 0, V_ADP_COLOR, IO_CGA, IO_CGASIZE, COLOR_CRTC,
-      CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 
+      CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE,
       0, 0, 0, 0, 3, 0, },
     /* DCC_CGA80 */
     { 0, KD_CGA,  "cga", 0, 0, V_ADP_COLOR, IO_CGA, IO_CGASIZE, COLOR_CRTC,
-      CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 
+      CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE,
       0, 0, 0, 0, 3, 0, },
     /* DCC_EGAMONO */
     { 0, KD_EGA,  "ega", 0, 0, 0,	    IO_MDA, 48,	  MONO_CRTC,
-      EGA_BUF_BASE, EGA_BUF_SIZE, MDA_BUF_BASE, MDA_BUF_SIZE, MDA_BUF_SIZE, 
+      EGA_BUF_BASE, EGA_BUF_SIZE, MDA_BUF_BASE, MDA_BUF_SIZE, MDA_BUF_SIZE,
       0, 0, 0, 0, 7, 0, },
     /* DCC_EGA40 */
     { 0, KD_EGA,  "ega", 0, 0, V_ADP_COLOR, IO_MDA, 48,	  COLOR_CRTC,
-      EGA_BUF_BASE, EGA_BUF_SIZE, CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 
+      EGA_BUF_BASE, EGA_BUF_SIZE, CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE,
       0, 0, 0, 0, 3, 0, },
     /* DCC_EGA80 */
     { 0, KD_EGA,  "ega", 0, 0, V_ADP_COLOR, IO_MDA, 48,	  COLOR_CRTC,
-      EGA_BUF_BASE, EGA_BUF_SIZE, CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE, 
+      EGA_BUF_BASE, EGA_BUF_SIZE, CGA_BUF_BASE, CGA_BUF_SIZE, CGA_BUF_SIZE,
       0, 0, 0, 0, 3, 0, },
 };
 
@@ -283,7 +283,7 @@ static video_switch_t vgavidsw = {
 	vga_probe,
 	vga_init,
 	vga_get_info,
-	vga_query_mode,	
+	vga_query_mode,
 	vga_set_mode,
 	vga_save_font,
 	vga_load_font,
@@ -697,7 +697,7 @@ map_bios_mode_num(int type, int color, int bios_mode)
 	M_CG640_E,
 	M_ENHMONOAPA2,
 	M_ENH_CG640,
-	M_BG640x480, M_CG640x480, 
+	M_BG640x480, M_CG640x480,
 	M_VGA_CG320,
     };
 
@@ -739,7 +739,7 @@ map_bios_mode_num(int type, int color, int bios_mode)
 }
 
 /* look up a parameter table entry */
-static u_char 
+static u_char
 *get_mode_param(int mode)
 {
 #if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
@@ -768,7 +768,7 @@ fill_adapter_param(int code, video_adapter_t *adp)
 	{ DCC_CGA80, 			DCC_EGAMONO },
 	{ DCC_EGA40 /* CGA monitor */, 	DCC_MONO},
 	{ DCC_EGA80 /* CGA monitor */, 	DCC_MONO},
-	{ DCC_EGA80,			DCC_MONO },	
+	{ DCC_EGA80,			DCC_MONO },
 	{ DCC_EGA80, 			DCC_MONO },
 	{ DCC_EGAMONO, 			DCC_CGA40 },
 	{ DCC_EGAMONO, 			DCC_CGA80 },
@@ -853,7 +853,7 @@ static void
 update_adapter_info(video_adapter_t *adp, video_info_t *info)
 {
     adp->va_flags &= ~V_ADP_COLOR;
-    adp->va_flags |= 
+    adp->va_flags |=
 	(info->vi_flags & V_INFO_COLOR) ? V_ADP_COLOR : 0;
     adp->va_crtc_addr =
 	(adp->va_flags & V_ADP_COLOR) ? COLOR_CRTC : MONO_CRTC;
@@ -895,7 +895,7 @@ update_adapter_info(video_adapter_t *adp, video_info_t *info)
 
 #if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
 /* compare two parameter table entries */
-static int 
+static int
 comp_adpregs(u_char *buf1, u_char *buf2)
 {
     static struct {
@@ -915,8 +915,8 @@ comp_adpregs(u_char *buf1, u_char *buf2)
 	{0xff}, {0xff}, {0xff}, {0xff}, {0xff},
 	{0xff}, {0xff}, {0xff}, {0xff}, {0xf0},
 	{0xff}, {0xff}, {0xff}, {0xff}, {0xff},	/* GDC register */
-	{0xff}, {0xff}, {0xff}, {0xff}, 
-    }; 
+	{0xff}, {0xff}, {0xff}, {0xff},
+    };
     int identical = TRUE;
     int i;
 
@@ -951,26 +951,26 @@ probe_adapters(void)
 	return biosadapters;
     vga_init_done = TRUE;
 
-    /* 
-     * Locate display adapters. 
+    /*
+     * Locate display adapters.
      * The AT architecture supports up to two adapters. `syscons' allows
-     * the following combinations of adapters: 
+     * the following combinations of adapters:
      *     1) MDA + CGA
-     *     2) MDA + EGA/VGA color 
+     *     2) MDA + EGA/VGA color
      *     3) CGA + EGA/VGA mono
      * Note that `syscons' doesn't bother with MCGA as it is only
      * avaiable for low end PS/2 models which has 80286 or earlier CPUs,
      * thus, they are not running FreeBSD!
      * When there are two adapaters in the system, one becomes `primary'
-     * and the other `secondary'. The EGA adapter has a set of DIP 
-     * switches on board for this information and the EGA BIOS copies 
-     * it in the BIOS data area BIOSDATA_VIDEOSWITCH (40:88). 
-     * The VGA BIOS has more sophisticated mechanism and has this 
-     * information in BIOSDATA_DCCINDEX (40:8a), but it also maintains 
+     * and the other `secondary'. The EGA adapter has a set of DIP
+     * switches on board for this information and the EGA BIOS copies
+     * it in the BIOS data area BIOSDATA_VIDEOSWITCH (40:88).
+     * The VGA BIOS has more sophisticated mechanism and has this
+     * information in BIOSDATA_DCCINDEX (40:8a), but it also maintains
      * compatibility with the EGA BIOS by updating BIOSDATA_VIDEOSWITCH.
      */
 
-    /* 
+    /*
      * Check rtc and BIOS data area.
      * XXX: we don't use BIOSDATA_EQUIPMENT, since it is not a dead
      * copy of RTC_EQUIPMENT.  Bits 4 and 5 of ETC_EQUIPMENT are
@@ -981,13 +981,13 @@ probe_adapters(void)
 #ifndef VGA_NO_BIOS
     if (*(u_int32_t *)BIOS_PADDRTOVADDR(0x4a8)) {
 	/* EGA/VGA BIOS is present */
-	fill_adapter_param(readb(BIOS_PADDRTOVADDR(0x488)) & 0x0f, 
+	fill_adapter_param(readb(BIOS_PADDRTOVADDR(0x488)) & 0x0f,
 			   biosadapter);
     } else {
 	switch ((rtcin(RTC_EQUIPMENT) >> 4) & 3) {	/* bit 4 and 5 */
 	case 0:
 	    /* EGA/VGA: shouldn't be happening */
-	    fill_adapter_param(readb(BIOS_PADDRTOVADDR(0x488)) & 0x0f, 
+	    fill_adapter_param(readb(BIOS_PADDRTOVADDR(0x488)) & 0x0f,
 			       biosadapter);
 	    break;
 	case 1:
@@ -1018,9 +1018,9 @@ probe_adapters(void)
     if (verify_adapter(&biosadapter[V_ADP_SECONDARY]) == 0) {
 	++biosadapters;
 	biosadapter[V_ADP_SECONDARY].va_flags |= V_ADP_PROBED;
-	biosadapter[V_ADP_SECONDARY].va_mode = 
+	biosadapter[V_ADP_SECONDARY].va_mode =
 	    biosadapter[V_ADP_SECONDARY].va_initial_mode =
-	    map_bios_mode_num(biosadapter[V_ADP_SECONDARY].va_type, 
+	    map_bios_mode_num(biosadapter[V_ADP_SECONDARY].va_type,
 			      biosadapter[V_ADP_SECONDARY].va_flags
 				  & V_ADP_COLOR,
 			      biosadapter[V_ADP_SECONDARY].va_initial_bios_mode);
@@ -1031,14 +1031,14 @@ probe_adapters(void)
 	++biosadapters;
 	biosadapter[V_ADP_PRIMARY].va_flags |= V_ADP_PROBED;
 #ifndef VGA_NO_BIOS
-	biosadapter[V_ADP_PRIMARY].va_initial_bios_mode = 
+	biosadapter[V_ADP_PRIMARY].va_initial_bios_mode =
 	    readb(BIOS_PADDRTOVADDR(0x449));
 #else
 	biosadapter[V_ADP_PRIMARY].va_initial_bios_mode = 3;	/* XXX */
 #endif
-	biosadapter[V_ADP_PRIMARY].va_mode = 
+	biosadapter[V_ADP_PRIMARY].va_mode =
 	    biosadapter[V_ADP_PRIMARY].va_initial_mode =
-	    map_bios_mode_num(biosadapter[V_ADP_PRIMARY].va_type, 
+	    map_bios_mode_num(biosadapter[V_ADP_PRIMARY].va_type,
 			      biosadapter[V_ADP_PRIMARY].va_flags & V_ADP_COLOR,
 			      biosadapter[V_ADP_PRIMARY].va_initial_bios_mode);
     } else {
@@ -1115,10 +1115,10 @@ probe_adapters(void)
 		     * OK, this parameter table looks reasonably familiar
 		     * to us...
 		     */
-		    /* 
-		     * This is a kludge for Toshiba DynaBook SS433 
-		     * whose BIOS video mode table entry has the actual # 
-		     * of rows at the offset 1; BIOSes from other 
+		    /*
+		     * This is a kludge for Toshiba DynaBook SS433
+		     * whose BIOS video mode table entry has the actual #
+		     * of rows at the offset 1; BIOSes from other
 		     * manufacturers store the # of rows - 1 there. XXX
 		     */
 		    rows_offset = adpstate.regs[1] + 1 - mp[1];
@@ -1214,7 +1214,7 @@ probe_adapters(void)
 	    if (!(biosadapter[i].va_flags & V_ADP_MODECHANGE))
 		continue;
 	    clear_mode_map(&biosadapter[i], mode_map, M_VGA_CG320 + 1,
-			   (biosadapter[i].va_flags & V_ADP_COLOR) ? 
+			   (biosadapter[i].va_flags & V_ADP_COLOR) ?
 			       V_INFO_COLOR : 0);
 	    if ((biosadapter[i].va_type == KD_VGA)
 		|| (biosadapter[i].va_type == KD_EGA)) {
@@ -1265,7 +1265,7 @@ probe_adapters(void)
     /*
      * XXX: we should verify the following values for the primary adapter...
      * crtc I/O port address: *(u_int16_t *)BIOS_PADDRTOVADDR(0x463);
-     * color/mono display: (*(u_int8_t *)BIOS_PADDRTOVADDR(0x487) & 0x02) 
+     * color/mono display: (*(u_int8_t *)BIOS_PADDRTOVADDR(0x487) & 0x02)
      *                     ? 0 : V_ADP_COLOR;
      * columns: *(u_int8_t *)BIOS_PADDRTOVADDR(0x44a);
      * rows: *(u_int8_t *)BIOS_PADDRTOVADDR(0x484);
@@ -1466,7 +1466,7 @@ vga_get_info(video_adapter_t *adp, int mode, video_info_t *info)
 #ifndef VGA_NO_MODE_CHANGE
     if (adp->va_flags & V_ADP_MODECHANGE) {
 	/*
-	 * If the parameter table entry for this mode is not found, 
+	 * If the parameter table entry for this mode is not found,
 	 * the mode is not supported...
 	 */
 	if (get_mode_param(mode) == NULL)
@@ -1474,9 +1474,9 @@ vga_get_info(video_adapter_t *adp, int mode, video_info_t *info)
     } else
 #endif /* VGA_NO_MODE_CHANGE */
     {
-	/* 
+	/*
 	 * Even if we don't support video mode switching on this adapter,
-	 * the information on the initial (thus current) video mode 
+	 * the information on the initial (thus current) video mode
 	 * should be made available.
 	 */
 	if (mode != adp->va_initial_mode)
@@ -1559,7 +1559,7 @@ vga_query_mode(video_adapter_t *adp, video_info_t *info)
 static void
 set_width90(adp_state_t *params)
 {
-    /* 
+    /*
      * Based on code submitted by Kelly Yancey (kbyanc@freedomnet.com)
      * and alexv@sui.gda.itesm.mx.
      */
@@ -1585,7 +1585,7 @@ vga_set_mode(video_adapter_t *adp, int mode)
 
     prologue(adp, V_ADP_MODECHANGE, ENODEV);
 
-    mode = map_gen_mode_num(adp->va_type, 
+    mode = map_gen_mode_num(adp->va_type,
 			    adp->va_flags & V_ADP_COLOR, mode);
     if (vga_get_info(adp, mode, &info))
 	return EINVAL;
@@ -1731,9 +1731,9 @@ set_font_mode(video_adapter_t *adp, u_char *buf)
 	inb(adp->va_crtc_addr + 6);
 	outb(ATC, 0x10); buf[5] = inb(ATC + 1);
     } else /* if (adp->va_type == KD_EGA) */ {
-	/* 
-	 * EGA cannot be read; copy parameters from the mode parameter 
-	 * table. 
+	/*
+	 * EGA cannot be read; copy parameters from the mode parameter
+	 * table.
 	 */
 	mp = get_mode_param(adp->va_mode);
 	buf[0] = mp[5 + 0x02 - 1];
@@ -2031,14 +2031,14 @@ vga_save_palette(video_adapter_t *adp, u_char *palette)
 
     prologue(adp, V_ADP_PALETTE, ENODEV);
 
-    /* 
+    /*
      * We store 8 bit values in the palette buffer, while the standard
      * VGA has 6 bit DAC .
      */
     outb(PALRADR, 0x00);
     bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 0 : 2;
     for (i = 0; i < 256*3; ++i)
-	palette[i] = inb(PALDATA) << bits; 
+	palette[i] = inb(PALDATA) << bits;
     inb(adp->va_crtc_addr + 6);	/* reset flip/flop */
     return 0;
 }
@@ -2055,8 +2055,8 @@ vga_save_palette2(video_adapter_t *adp, int base, int count,
     outb(PALRADR, base);
     bits = (adp->va_flags & V_ADP_DAC8) != 0 ? 0 : 2;
     for (i = 0; i < count; ++i) {
-	r[i] = inb(PALDATA) << bits; 
-	g[i] = inb(PALDATA) << bits; 
+	r[i] = inb(PALDATA) << bits;
+	g[i] = inb(PALDATA) << bits;
 	b[i] = inb(PALDATA) << bits;
     }
     inb(adp->va_crtc_addr + 6);		/* reset flip/flop */
@@ -2122,17 +2122,17 @@ vga_set_border(video_adapter_t *adp, int color)
 
     switch (adp->va_type) {
     case KD_EGA:
-    case KD_VGA:    
+    case KD_VGA:
 	inb(adp->va_crtc_addr + 6);	/* reset flip-flop */
-	outb(ATC, 0x31); outb(ATC, color & 0xff); 
-	break;  
-    case KD_CGA:    
+	outb(ATC, 0x31); outb(ATC, color & 0xff);
+	break;
+    case KD_CGA:
 	outb(adp->va_crtc_addr + 5, color & 0x0f); /* color select register */
-	break;  
-    case KD_MONO:   
+	break;
+    case KD_MONO:
     case KD_HERCULES:
     default:
-	break;  
+	break;
     }
     return 0;
 }
@@ -2172,7 +2172,7 @@ vga_save_state(video_adapter_t *adp, void *p, size_t size)
     s = splhigh();
 
     outb(TSIDX, 0x00); outb(TSREG, 0x01);	/* stop sequencer */
-    for (i = 0, j = 5; i < 4; i++) {           
+    for (i = 0, j = 5; i < 4; i++) {
 	outb(TSIDX, i + 1);
 	buf[j++]  =  inb(TSREG);
     }
@@ -2298,8 +2298,8 @@ vga_load_state(video_adapter_t *adp, void *p)
 static int
 vga_set_origin(video_adapter_t *adp, off_t offset)
 {
-    /* 
-     * The standard video modes do not require window mapping; 
+    /*
+     * The standard video modes do not require window mapping;
      * always return error.
      */
     return ENODEV;
@@ -2338,7 +2338,7 @@ vga_read_hw_cursor(video_adapter_t *adp, int *col, int *row)
 
 /*
  * set_hw_cursor():
- * Move the hardware text cursor.  If col and row are both -1, 
+ * Move the hardware text cursor.  If col and row are both -1,
  * the cursor won't be shown.
  *
  * all adapters
@@ -2523,7 +2523,7 @@ vga_mmap_buf(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 	return -1;
 
 #if VGA_DEBUG > 0
-    printf("vga_mmap_buf(): window:0x%jx, offset:0x%jx\n", 
+    printf("vga_mmap_buf(): window:0x%jx, offset:0x%jx\n",
 	   (uintmax_t)adp->va_info.vi_window, (uintmax_t)offset);
 #endif
 
@@ -2969,7 +2969,7 @@ vga_dev_ioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 	return ENODEV;
 
     case FBIO_SETDISPSTART:	/* set display start address */
-	return (set_display_start(adp, 
+	return (set_display_start(adp,
 				  ((video_display_start_t *)arg)->x,
 			  	  ((video_display_start_t *)arg)->y)
 		? ENODEV : 0);

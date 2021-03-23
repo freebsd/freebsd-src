@@ -58,7 +58,7 @@ busdma_map_sg_collapse(bus_dma_tag_t tag, bus_dmamap_t map,
 	struct mbuf *n = *m;
 	int seg_count, defragged = 0, err = 0;
 	bus_dma_segment_t *psegs;
-	
+
 	KASSERT(n->m_pkthdr.len, ("packet has zero header len"));
 	if (n->m_pkthdr.len <= PIO_LEN)
 		return (0);
@@ -90,7 +90,7 @@ retry:
 	}
 
 	*nsegs = seg_count;
-err_out:	
+err_out:
 	return (err);
 }
 

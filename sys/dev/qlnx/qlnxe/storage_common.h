@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  */
 
 #ifndef __STORAGE_COMMON__
-#define __STORAGE_COMMON__ 
+#define __STORAGE_COMMON__
 /*********************/
 /* SCSI CONSTANTS */
 /*********************/
@@ -42,7 +42,7 @@
 #define BDQ_ID_RQ			 (0)
 #define BDQ_ID_IMM_DATA  	 (1)
 #define BDQ_ID_TQ            (2)
-#define BDQ_NUM_IDS          (3) 
+#define BDQ_NUM_IDS          (3)
 
 #define SCSI_NUM_SGES_SLOW_SGL_THR	8
 
@@ -124,7 +124,7 @@ struct scsi_drv_cmdq
 };
 
 /*
- * Common SCSI init params passed by driver to FW in function init ramrod 
+ * Common SCSI init params passed by driver to FW in function init ramrod
  */
 struct scsi_init_func_params
 {

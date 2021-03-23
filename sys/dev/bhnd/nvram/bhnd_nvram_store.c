@@ -97,7 +97,7 @@ static int			 bhnd_nvstore_export_devpath_alias(
  *
  * The caller is responsible for deallocating the instance via
  * bhnd_nvram_store_free().
- * 
+ *
  * @param[out] store On success, a pointer to the newly allocated NVRAM data
  * instance.
  * @param data The NVRAM data to be managed by the returned NVRAM data store
@@ -178,10 +178,10 @@ cleanup:
  *
  * The caller is responsible for deallocating the instance via
  * bhnd_nvram_store_free().
- * 
+ *
  * The NVRAM data mapped by @p io will be copied, and @p io may be safely
  * deallocated after bhnd_nvram_store_new() returns.
- * 
+ *
  * @param[out] store On success, a pointer to the newly allocated NVRAM data
  * instance.
  * @param io An I/O context mapping the NVRAM data to be copied and parsed.
@@ -212,7 +212,7 @@ bhnd_nvram_store_parse_new(struct bhnd_nvram_store **store,
 
 /**
  * Free an NVRAM store instance, releasing all associated resources.
- * 
+ *
  * @param sc A store instance previously allocated via
  * bhnd_nvram_store_new().
  */
@@ -247,7 +247,7 @@ bhnd_nvram_store_free(struct bhnd_nvram_store *sc)
 /**
  * Parse all variables vended by our backing NVRAM data instance,
  * generating all path entries, alias entries, and variable indexes.
- * 
+ *
  * @param	sc	The NVRAM store instance to be initialized with
  *			paths, aliases, and data parsed from its backing
  *			data.
@@ -386,7 +386,7 @@ bhnd_nvstore_parse_data(struct bhnd_nvram_store *sc)
 /**
  * Parse and register path and path alias entries for all declarations found in
  * the NVRAM data backing @p nvram.
- * 
+ *
  * @param sc		The NVRAM store instance.
  *
  * @retval 0		success
@@ -433,14 +433,14 @@ bhnd_nvstore_parse_path_entries(struct bhnd_nvram_store *sc)
 }
 
 /**
- * Merge exported per-path variables (uncommitted, committed, or both) into 
+ * Merge exported per-path variables (uncommitted, committed, or both) into
  * the empty @p merged property list.
- * 
+ *
  * @param	sc	The NVRAM store instance.
  * @param	path	The NVRAM path to be exported.
  * @param	merged	The property list to populate with the merged results.
  * @param	flags	Export flags. See BHND_NVSTORE_EXPORT_*.
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	If allocation fails.
  * @retval non-zero	If merging the variables defined in @p path otherwise
@@ -519,7 +519,7 @@ bhnd_nvstore_export_merge(struct bhnd_nvram_store *sc,
 /**
  * Find a free alias value for @p path, and append the devpathXX alias
  * declaration to @p plist.
- * 
+ *
  * @param	sc		The NVRAM store instance.
  * @param	path		The NVRAM path for which a devpath alias
  *				variable should be produced.
@@ -528,7 +528,7 @@ bhnd_nvstore_export_merge(struct bhnd_nvram_store *sc,
  *				variable will be appended.
  * @param[out]	alias_val	On success, will be set to the alias value
  *				allocated for @p path.
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	If allocation fails.
  * @retval non-zero	If merging the variables defined in @p path otherwise
@@ -602,14 +602,14 @@ bhnd_nvstore_export_devpath_alias(struct bhnd_nvram_store *sc,
 
 /**
  * Export a single @p child path's properties, appending the result to @p plist.
- * 
+ *
  * @param	sc		The NVRAM store instance.
  * @param	top		The root NVRAM path being exported.
  * @param	child		The NVRAM path to be exported.
  * @param	plist		The property list to which @p child's exported
  *				properties should be appended.
  * @param	flags		Export flags. See BHND_NVSTORE_EXPORT_*.
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	If allocation fails.
  * @retval non-zero	If merging the variables defined in @p path otherwise
@@ -757,8 +757,8 @@ bhnd_nvram_store_export_child(struct bhnd_nvram_store *sc,
 
 			/*
 			 * Write prefixed variable name to our name buffer.
-			 * 
-			 * We precalcuate the size when scanning all names 
+			 *
+			 * We precalcuate the size when scanning all names
 			 * above, so this should always succeed.
 			 */
 			len = snprintf(namebuf, namebuf_size, "%s%s", prefix,
@@ -795,7 +795,7 @@ finished:
 /**
  * Export a flat, ordered NVRAM property list representation of all NVRAM
  * properties at @p path.
- * 
+ *
  * @param	sc	The NVRAM store instance.
  * @param	path	The NVRAM path to export, or NULL to select the root
  *			path.
@@ -811,7 +811,7 @@ finished:
  *			for @p sc. The caller is responsible for releasing this
  *			value via bhnd_nvram_plist_release().
  * @param	flags	Export flags. See BHND_NVSTORE_EXPORT_*.
- * 
+ *
  * @retval 0		success
  * @retval EINVAL	If @p flags is invalid.
  * @retval ENOENT	The requested path was not found.
@@ -932,10 +932,10 @@ bhnd_nvram_store_export(struct bhnd_nvram_store *sc, const char *path,
 		goto finished;
 	}
 
-	/* 
+	/*
 	 * Re-order the flattened output to match the existing NVRAM variable
 	 * ordering.
-	 * 
+	 *
 	 * We append all new variables at the end of the input; this should
 	 * reduce the delta that needs to be written (e.g. to flash) when
 	 * committing NVRAM updates, and should result in a serialization
@@ -948,7 +948,7 @@ bhnd_nvram_store_export(struct bhnd_nvram_store *sc, const char *path,
 	}
 
 	/* Using the backing NVRAM data ordering to order all variables
-	 * currently defined in the backing store */ 
+	 * currently defined in the backing store */
 	cookiep = NULL;
 	while ((name = bhnd_nvram_data_next(sc->data, &cookiep))) {
 		prop = bhnd_nvram_plist_get_prop(unordered, name);
@@ -998,7 +998,7 @@ failed:
 /**
  * Encode all NVRAM properties at @p path, using the @p store's current NVRAM
  * data format.
- * 
+ *
  * @param	sc	The NVRAM store instance.
  * @param	path	The NVRAM path to export, or NULL to select the root
  *			path.
@@ -1155,7 +1155,7 @@ finished:
 /**
  * Common bhnd_nvram_store_set*() and bhnd_nvram_store_unsetvar()
  * implementation.
- * 
+ *
  * If @p value is NULL, the variable will be marked for deletion.
  */
 static int
@@ -1184,7 +1184,7 @@ bhnd_nvram_store_setval_common(struct bhnd_nvram_store *sc, const char *name,
 
 /**
  * Set an NVRAM variable.
- * 
+ *
  * @param	sc	The NVRAM parser state.
  * @param	name	The NVRAM variable name.
  * @param	value	The new value.
@@ -1208,7 +1208,7 @@ bhnd_nvram_store_setval(struct bhnd_nvram_store *sc, const char *name,
 
 /**
  * Set an NVRAM variable.
- * 
+ *
  * @param		sc	The NVRAM parser state.
  * @param		name	The NVRAM variable name.
  * @param[out]		inp	The new value.
@@ -1245,7 +1245,7 @@ bhnd_nvram_store_setvar(struct bhnd_nvram_store *sc, const char *name,
 
 /**
  * Unset an NVRAM variable.
- * 
+ *
  * @param		sc	The NVRAM parser state.
  * @param		name	The NVRAM variable name.
  *

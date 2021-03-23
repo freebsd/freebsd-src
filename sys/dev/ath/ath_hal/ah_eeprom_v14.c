@@ -148,7 +148,7 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 			return HAL_OK;
 		}
 		return HAL_EIO;
-		
+
         default:
 		HALASSERT(0);
 		return HAL_EINVAL;
@@ -217,7 +217,7 @@ eepromSwap(struct ar5416eeprom *ee)
 	ee->baseEepHeader.rfSilent = word;
 
 	word = __bswap16(ee->baseEepHeader.blueToothOptions);
-	ee->baseEepHeader.blueToothOptions = word; 
+	ee->baseEepHeader.blueToothOptions = word;
 
 	word = __bswap16(ee->baseEepHeader.deviceCap);
 	ee->baseEepHeader.deviceCap = word;
@@ -245,9 +245,9 @@ eepromSwap(struct ar5416eeprom *ee)
 	}
 }
 
-static uint16_t 
+static uint16_t
 v14EepromGetSpurChan(struct ath_hal *ah, int ix, HAL_BOOL is2GHz)
-{ 
+{
 	HAL_EEPROM_v14 *ee = AH_PRIVATE(ah)->ah_eeprom;
 
 	HALASSERT(0 <= ix && ix <  AR5416_EEPROM_MODAL_SPURS);
@@ -273,11 +273,11 @@ fbin2freq(uint8_t fbin, HAL_BOOL is2GHz)
 }
 
 /*
- * Copy EEPROM Conformance Testing Limits contents 
+ * Copy EEPROM Conformance Testing Limits contents
  * into the allocated space
  */
-/* USE CTLS from chain zero */ 
-#define CTL_CHAIN	0 
+/* USE CTLS from chain zero */
+#define CTL_CHAIN	0
 
 static void
 v14EepromReadCTLInfo(struct ath_hal *ah, HAL_EEPROM_v14 *ee)
@@ -404,7 +404,7 @@ ath_hal_v14EepromAttach(struct ath_hal *ah)
 	 * in the correct endian format.  Right now, it seems it would
 	 * cast the raw data to host format and do the calculation, which may
 	 * not be correct as the calculation may need to be done in the native
-	 * eeprom format 
+	 * eeprom format
 	 */
 	sum = 0;
 	for (w = 0; w < len; w++)

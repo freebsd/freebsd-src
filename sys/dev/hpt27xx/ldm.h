@@ -77,9 +77,9 @@ struct freelist {
 	struct freelist *next;
 #if DBG
 	char *tag;
-	HPT_UINT reserved_count; 
+	HPT_UINT reserved_count;
 	#define freelist_debug_tag(list, _tag) (list)->tag = _tag
-#else 
+#else
 	#define freelist_debug_tag(list, _tag)
 #endif
 };
@@ -237,7 +237,7 @@ typedef struct hpt_raw_disk
 {
 #ifdef SUPPORT_ARRAY
 	PRAW_PARTITION raw_part_list;
-	__HPT_RAW_LBA max_available_capacity; 
+	__HPT_RAW_LBA max_available_capacity;
 	__HPT_RAW_LBA total_available_capacity;
 #endif
 	__HPT_RAW_LBA real_capacity;
@@ -301,17 +301,17 @@ struct vdev_class
 	HPT_UINT dev_ext_size;
 	HPT_UINT cmd_ext_size;
 
-	
+
 	void (*get_mem_info)(PVBUS vbus, void *osext, int phydev_count);
 	void (*queue_cmd)(PCOMMAND cmd);
-	void (*member_failed)(struct _VDEV * vd); 
+	void (*member_failed)(struct _VDEV * vd);
 
-	
+
 	void (*initialize)(PVBUS vbus);
-	void (*release)(PVBUS vbus); 
-	int  (*add)(PVDEV vd); 
-	void (*remove)(PVDEV vd); 
-	void (*reset)(PVDEV vd); 
+	void (*release)(PVBUS vbus);
+	int  (*add)(PVDEV vd);
+	void (*remove)(PVDEV vd);
+	void (*reset)(PVDEV vd);
 	void (*sync_stamp)(PVDEV vd);
 	int  (*support_type)(int type);
 };
@@ -397,7 +397,7 @@ typedef struct _VDEV {
 	struct list_head cq_wait_lock;
 	struct lock_request *locks_granted;
 	struct lock_request *locks_wait;
-	HPT_U32 ioctl_id; 
+	HPT_U32 ioctl_id;
 	void * cc_ext;
 }
 VDEV;
@@ -467,7 +467,7 @@ PCOMMAND __ldm_alloc_cmd(struct freelist *list);
 
 #ifdef OS_SUPPORT_TASK
 #define CMD_SET_PRIORITY(cmd, pri) cmd->priority = (pri)
-#else 
+#else
 #define CMD_SET_PRIORITY(cmd, pri)
 #endif
 

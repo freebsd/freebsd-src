@@ -29,7 +29,7 @@
  */
 
 #ifndef __QLNXR_ROCE_H__
-#define __QLNXR_ROCE_H__ 
+#define __QLNXR_ROCE_H__
 
 /*
  * roce completion notification queue element

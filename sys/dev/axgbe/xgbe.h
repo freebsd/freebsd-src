@@ -1225,7 +1225,7 @@ struct xgbe_prv_data {
 	int mdio_mmd;
 	unsigned long link_check;
 	struct mtx mdio_mutex;
-	unsigned int mdio_addr;	
+	unsigned int mdio_addr;
 
 	unsigned int kr_redrv;
 

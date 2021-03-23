@@ -91,7 +91,7 @@ smbus_poll(struct smbus_softc *sc, int how)
 	int error;
 
 	switch (how) {
-	case SMB_WAIT | SMB_INTR:		
+	case SMB_WAIT | SMB_INTR:
 		error = msleep(sc, &sc->lock, SMBPRI|PCATCH, "smbreq", 0);
 		break;
 

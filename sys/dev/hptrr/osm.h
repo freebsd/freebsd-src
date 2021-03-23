@@ -129,8 +129,8 @@ void     os_pci_writel(void *osext, HPT_U8 offset, HPT_U32 value);
 
 
 void *os_map_pci_bar(
-	void *osext, 
-	int index,   
+	void *osext,
+	int index,
 	HPT_U32 offset,
 	HPT_U32 length
 );
@@ -197,7 +197,7 @@ void __os_dbgbreak(const char *file, int line);
 #define HPT_ASSERT(x) do { if (!(x)) os_dbgbreak(); } while (0)
 void os_check_stack(const char *location, int size);
 #define HPT_CHECK_STACK(size) os_check_stack(__FUNCTION__, (size))
-#else 
+#else
 #define KdPrint(x)
 #define HPT_ASSERT(x)
 #define HPT_CHECK_STACK(size)

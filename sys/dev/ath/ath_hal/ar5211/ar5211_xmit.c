@@ -272,7 +272,7 @@ ar5211ResetTxQueue(struct ath_hal *ah, u_int q)
 		| SM(qi->tqi_aifs, AR_D_LCL_IFS_AIFS));
 
 	/* Set retry limit values */
-	OS_REG_WRITE(ah, AR_DRETRY_LIMIT(q), 
+	OS_REG_WRITE(ah, AR_DRETRY_LIMIT(q),
 		   SM(INIT_SSH_RETRY, AR_D_RETRY_LIMIT_STA_SH)
 		 | SM(INIT_SLG_RETRY, AR_D_RETRY_LIMIT_STA_LG)
 		 | SM(qi->tqi_lgretry, AR_D_RETRY_LIMIT_FR_LG)
@@ -288,7 +288,7 @@ ar5211ResetTxQueue(struct ath_hal *ah, u_int q)
 	}
 	/* multiqueue support */
 	if (qi->tqi_cbrPeriod) {
-		OS_REG_WRITE(ah, AR_QCBRCFG(q), 
+		OS_REG_WRITE(ah, AR_QCBRCFG(q),
 			  SM(qi->tqi_cbrPeriod,AR_Q_CBRCFG_CBR_INTERVAL)
 			| SM(qi->tqi_cbrOverflowLimit, AR_Q_CBRCFG_CBR_OVF_THRESH));
 		OS_REG_WRITE(ah, AR_QMISC(q),
@@ -299,7 +299,7 @@ ar5211ResetTxQueue(struct ath_hal *ah, u_int q)
 	}
 	if (qi->tqi_readyTime) {
 		OS_REG_WRITE(ah, AR_QRDYTIMECFG(q),
-			SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_INT) | 
+			SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_INT) |
 			AR_Q_RDYTIMECFG_EN);
 	}
 	if (qi->tqi_burstTime) {
@@ -519,7 +519,7 @@ ar5211SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	u_int flags,
 	u_int rtsctsRate,
 	u_int rtsctsDuration,
-	u_int compicvLen, 
+	u_int compicvLen,
 	u_int compivLen,
 	u_int comp)
 {
@@ -599,7 +599,7 @@ ar5211FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		/*
 		 * Last descriptor in a multi-descriptor frame,
 		 * copy the transmit parameters from the first
-		 * frame for processing on completion. 
+		 * frame for processing on completion.
 		 */
 		ads->ds_ctl0 = AR5211DESC_CONST(ds0)->ds_ctl0;
 		ads->ds_ctl1 = segLen;

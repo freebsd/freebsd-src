@@ -293,7 +293,7 @@
 
 #define AR_PHY_RFBUS_GNT    0x9c20
 #define AR_PHY_RFBUS_GNT_GRANT  0x1
-                                                                                          
+
 #define	AR_PHY_PCDAC_TX_POWER_0	0xA180
 #define	AR_PHY_PCDAC_TX_POWER(_n)	(AR_PHY_PCDAC_TX_POWER_0 + ((_n)<<2))
 

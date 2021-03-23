@@ -288,7 +288,7 @@ acpi_throttle_evaluate(struct acpi_throttle_softc *sc)
 
 	/* If _PTC not present or other failure, try the P_BLK. */
 	if (sc->cpu_p_cnt == NULL) {
-		/* 
+		/*
 		 * The spec says P_BLK must be 6 bytes long.  However, some
 		 * systems use it to indicate a fractional set of features
 		 * present so we take anything >= 4.

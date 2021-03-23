@@ -47,7 +47,7 @@
 extern uint64_t __read_mostly fxrng_root_generation;
 
 /*
- * A routine for generating seed/key material 
+ * A routine for generating seed/key material
  * Bypasses random(4) for now, but conceivably could be incorporated into that.
  */
 void read_random_key(void *buf, size_t nbytes, uint64_t *seed_version_out);

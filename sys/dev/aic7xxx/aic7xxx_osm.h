@@ -104,7 +104,7 @@ extern devclass_t ahc_devclass;
  * to handle any unaligned residual.  The sequencer fetches SG elements
  * in cacheline sized chucks, so make the number per-transaction an even
  * multiple of 16 which should align us on even the largest of cacheline
- * boundaries. 
+ * boundaries.
  */
 #define AHC_MAXPHYS (128 * 1024)
 #define AHC_NSEG (roundup(btoc(AHC_MAXPHYS) + 1, 16))

@@ -84,7 +84,7 @@ star_saver(video_adapter_t *adp, int blank)
 			}
 		}
 		cell = random() % NUM_STARS;
-		sc_vtb_putc(&scp->scr, stars[cell][0], 
+		sc_vtb_putc(&scp->scr, stars[cell][0],
 			    sc->scr_map[pattern[stars[cell][1]]],
 			    color16[random()%sizeof(color16)] << 8);
 		if ((stars[cell][1]+=(random()%4)) >= sizeof(pattern)-1) {

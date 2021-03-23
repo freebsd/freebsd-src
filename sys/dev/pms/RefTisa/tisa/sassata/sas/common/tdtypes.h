@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 *
 * $FreeBSD$
@@ -69,7 +69,7 @@ typedef void (*tdssSMPReqReceived_t) (
                                       bit32,
                                       bit32
                                       );
-                                      
+
 typedef bit32 (*tdssGetSGLChunk_t) (agsaRoot_t      *agRoot,
                                     agsaIORequest_t *agIORequest,
                                     bit32           agChunkOffset,
@@ -89,7 +89,7 @@ typedef void (*tdssSMPCompleted_t) (
                                     agsaIORequest_t       *,
                                     bit32                 ,
                                     bit32                 ,
-                                    agsaFrameHandle_t     
+                                    agsaFrameHandle_t
                                     );
 
 
@@ -176,18 +176,18 @@ typedef struct tdssPortFlags_s {
 
   /**< fail portinit/start */
   agBOOLEAN             failPortInit;
-  
+
   agBOOLEAN             pseudoPortInitDone;
-  agBOOLEAN             pseudoPortStartDone;  
+  agBOOLEAN             pseudoPortStartDone;
 }  tdssPortFlags_t;
 
 /** \brief data structure for both SAS/SATA related flags
  *  Some fields are just place holders and not used yet
- * 
+ *
  */
 typedef struct tdsaComMemFlags_s {
   /**< current interrupt setting */
-  agBOOLEAN             sysIntsActive;      
+  agBOOLEAN             sysIntsActive;
 
   /**< reset in progress */
   agBOOLEAN             resetInProgress;
@@ -198,8 +198,8 @@ typedef struct tdsaComMemFlags_s {
 }  tdsaComMemFlags_t;
 
 
-/* 
- * SAT related structure 
+/*
+ * SAT related structure
  */
 typedef struct satInternalIo_s
 {
@@ -217,13 +217,13 @@ typedef struct satInternalIo_s
 
 
 /*
- * SAT specific structure per SATA drive 
+ * SAT specific structure per SATA drive
  */
 #define SAT_NONNCQ_MAX  1
 #define SAT_NCQ_MAX     32
 #define SAT_MAX_INT_IO  16
 
-typedef struct TDSASAddressID_s 
+typedef struct TDSASAddressID_s
 {
   bit32   sasAddressLo;     /**< HOST SAS address lower part */
   bit32   sasAddressHi;     /**< HOST SAS address higher part */
@@ -234,7 +234,7 @@ typedef struct TDSASAddressID_s
 struct tdsaExpander_s;
 
 
-typedef struct tdsaDiscovery_s 
+typedef struct tdsaDiscovery_s
 {
   tdList_t                   discoveringExpanderList;
   tdList_t                   UpdiscoveringExpanderList;
@@ -244,11 +244,11 @@ typedef struct tdsaDiscovery_s
   agsaSATAIdentifyData_t  *pSataIdentifyData;
   struct tdsaExpander_s   *RootExp; /* Root expander of discovery */
   bit32                   NumOfUpExp;
-  bit32                   type; /* discovery type: TDSA_DISCOVERY_OPTION_FULL_START 
+  bit32                   type; /* discovery type: TDSA_DISCOVERY_OPTION_FULL_START
                                    or TDSA_DISCOVERY_OPTION_INCREMENTAL_START*/
-  bit32                   retries;                                   
-  bit32                   configureRouteRetries; 
-  bit32                   deviceRetistrationRetries; 
+  bit32                   retries;
+  bit32                   configureRouteRetries;
+  bit32                   deviceRetistrationRetries;
   tdsaTimerRequest_t      discoveryTimer;
   tdsaTimerRequest_t      configureRouteTimer;
   tdsaTimerRequest_t      deviceRegistrationTimer;
@@ -256,7 +256,7 @@ typedef struct tdsaDiscovery_s
   smpRespDiscover_t       SMPDiscoverResp;
   bit32                   pendingSMP; /* the number of pending SMP for this discovery */
   bit32                   SeenBC; /* received Broadcast change */
-  bit32                   forcedOK; /* report DiscOK when chance is missed */ 
+  bit32                   forcedOK; /* report DiscOK when chance is missed */
   tdsaTimerRequest_t      SMPBusyTimer; /* SMP retry timer for saSMPStart busy */
   bit32                   SMPRetries; /* number of SMP retries when LL returns busy for saSMPStart*/
   bit32                   ResetTriggerred; /* Hard/Link reset triggerred by discovery */
@@ -264,7 +264,7 @@ typedef struct tdsaDiscovery_s
 } tdsaDiscovery_t;
 
 
-typedef struct 
+typedef struct
 {
   tdList_t                satIoLinkList;            /* Normal I/O from TISA         */
   tdList_t                satFreeIntIoLinkList;     /* SAT internal I/O free list   */
@@ -272,7 +272,7 @@ typedef struct
   satInternalIo_t         satIntIo[SAT_MAX_INT_IO]; /* Internal I/O resource        */
   agsaSATAIdentifyData_t  satIdentifyData;          /* Copy of SATA Id Dev data     */
   bit8                    SN_id_limit[25];          /* temporary serial number id info */
-  bit32                   satNCQ;                   /* Flag for NCQ support         */ 
+  bit32                   satNCQ;                   /* Flag for NCQ support         */
   bit32                   sat48BitSupport;          /* Flag for 48-bit addressing   */
   bit32                   satSMARTSelfTest;         /* Flag for SMART self test     */
   bit32                   satSMARTFeatureSet;       /* Flag for SMART feature set   */
@@ -305,8 +305,8 @@ typedef struct
   bit32                   IDDeviceValid;            /* ID DeviceData valid bit      */
   bit8                    satMaxLBA[8];             /* MAXLBA is from read capacity */
   bit32                   satBGPendingDiag;         /* Pending Diagnostic in backgound */
-  bit32                   NumOfFCA;                 /* number of SMP HARD RESET on this device */   
-  bit32                   NumOfIDRetries;           /* number of SMP HARD RESET after ID retries */   
+  bit32                   NumOfFCA;                 /* number of SMP HARD RESET on this device */
+  bit32                   NumOfIDRetries;           /* number of SMP HARD RESET after ID retries */
   tiIORequest_t           *satTmTaskTag;            /* TM Task Tag                  */
   void                    *satSaDeviceData;         /* Pointer back to sa dev data  */
   bit32                   ID_Retries;               /* identify device data retries */
@@ -322,7 +322,7 @@ typedef struct
 typedef struct tdsaDeviceData_s  {
   /* in tdtypes.h */
   tdsaJumpTable_t        *pJumpTable; /**< a pointer to callback function jumptable */
-  tiDeviceHandle_t       tiDeviceHandle; 
+  tiDeviceHandle_t       tiDeviceHandle;
 
   tdList_t                FreeLink; /* free dev list */
   tdList_t                MainLink; /* main(in use) dev list */
@@ -334,7 +334,7 @@ typedef struct tdsaDeviceData_s  {
   /* used in tiINIIOStart() */
   agsaRoot_t              *agRoot;
   agsaDevHandle_t         *agDevHandle;
-  
+
   /* for SAS; remote device */
   //  agsaSASDeviceInfo_t     agSASDeviceInfo;
   /* device's sas address */
@@ -359,7 +359,7 @@ typedef struct tdsaDeviceData_s  {
   /**< pointer to tdsaExpander if Device is expander */
   struct tdsaExpander_s   *tdExpander;
   struct tdsaDeviceData_s *ExpDevice; /* Expander device which this device is attached to */
-  
+
   bit8                    phyID;      /* PhyID this device is attached to SPC or expander */
   agsaSASIdentify_t     sasIdentify; /* used only in TD discovery */
   bit8                  connectionRate;
@@ -371,7 +371,7 @@ typedef struct tdsaDeviceData_s  {
   agsaContext_t         agDeviceResetContext; /* used in saLocalPhyControl() */
   tiIORequest_t         TransportRecoveryIO;
   bit32                 TRflag; /* transport recovery flag; used only for tiINITransportRecovery */
-  bit32                 ResetCnt; /* number of reset to the device */  
+  bit32                 ResetCnt; /* number of reset to the device */
   tdsaTimerRequest_t    SATAIDDeviceTimer; /* ID Device Data timer for SATA device */
   bit32                 OSAbortAll;
 #ifdef FDS_DM
@@ -383,7 +383,7 @@ typedef struct tdsaDeviceData_s  {
   bit32                 SMNumOfFCA;
   bit32                 SMNumOfID;
   tdsaTimerRequest_t    tdIDTimer; /* ID Device Data timer for SATA device */
-#endif 
+#endif
 }  tdsaDeviceData_t;
 
 /*
@@ -412,19 +412,19 @@ typedef struct tdsaPortContext_s
 {
   /**< current number of devices in this PortContext */
   bit32                         Count;
- 
-  bit32                   DiscoveryState;   
-  
+
+  bit32                   DiscoveryState;
+
   bit32                   discoveryOptions;
-  /* Discovery ready is given? */ 
-  bit32                   DiscoveryRdyGiven; 
+  /* Discovery ready is given? */
+  bit32                   DiscoveryRdyGiven;
   /* Port has received link up */
   bit32                   SeenLinkUp;
   /* statistics */
   bit32                   numAvailableTargets;
   /* flag: indicates that discovery is trigggered by tiINIDiscoverTargets */
   bit32                   osInitiatedDiscovery;
-  
+
   bit32                         id; /* for debugging only */
   tdList_t                      FreeLink; /**< free portcontext list */
   tdList_t                      MainLink; /**< in-use portcontext list */
@@ -433,7 +433,7 @@ typedef struct tdsaPortContext_s
   bit32                         sasRemoteAddressLo; /**< SAS address low part */
   /**< SAS ID frame of the remote device */
   agsaSASIdentify_t             sasIDframe;
-  
+
   /**< SAS address of the local device*/
   bit32                         sasLocalAddressHi; /**< SAS address high part */
   bit32                         sasLocalAddressLo; /**< SAS address low part */
@@ -464,8 +464,8 @@ typedef struct tdsaPortContext_s
   dmPortContext_t            dmPortContext;
   bit32                      DMDiscoveryState; /* DM discovery state returned by tddmDiscoverCB or tddmQueryDiscoveryCB */
   bit32                      UseDM; /* set only when the directly attached target is SMP target(expander) */
-  bit32                      UpdateMCN; /* flag for inidicating update MCN */    
-#endif  
+  bit32                      UpdateMCN; /* flag for inidicating update MCN */
+#endif
 }  tdsaPortContext_t;
 
 /** \brief data structure for TD port information
@@ -475,7 +475,7 @@ typedef struct tdsaPortContext_s
  *  tiPortalContext_t->tdData points to this structure.
  */
 typedef struct tdsaPortStartInfo_s {
-  tiPortalContext_t  *tiPortalContext; 
+  tiPortalContext_t  *tiPortalContext;
   tdsaPortContext_t  *portContext; /* tdsaportcontext */
   agsaSASIdentify_t  SASID;        /* SAS ID of the local */
   tdssPortFlags_t    flags;
@@ -489,11 +489,11 @@ typedef struct tdsaPortStartInfo_s {
 #define REPORT_LUN_OPCODE          0xa0
 typedef struct tdDeviceLUNInfo_s
 {
-  unsigned long 	    tiDeviceHandle; 
-  bit32                  numOfLun; 
+  unsigned long 	    tiDeviceHandle;
+  bit32                  numOfLun;
 }tdDeviceLUNInfoIOCTL_t;
 
-typedef struct tdsaExpander_s 
+typedef struct tdsaExpander_s
 {
   tdList_t                  linkNode; /**< the link node data structure of the expander */
   tdList_t                  upNode; /**< the link node data structure of the expander */
@@ -506,12 +506,12 @@ typedef struct tdsaExpander_s
   tdsaDeviceData_t          *tdDeviceToProcess;    /* on some callbacks, this is a link to the device of interest */
   bit32                     configSASAddressHi;
   bit32                     configSASAddressLo;
-  struct tdsaExpander_s     *tdCurrentDownStreamExpander; 
+  struct tdsaExpander_s     *tdCurrentDownStreamExpander;
   bit8                      upStreamPhys[TD_MAX_EXPANDER_PHYS];
   bit16                     numOfUpStreamPhys;
   bit16                     currentUpStreamPhyIndex;
-  bit32                     upStreamSASAddressHi; 
-  bit32                     upStreamSASAddressLo;  
+  bit32                     upStreamSASAddressHi;
+  bit32                     upStreamSASAddressLo;
   bit32                     underDiscovering;
   bit32                     configRouteTable: 1;
   bit32                     configuring: 1;
@@ -525,11 +525,11 @@ typedef struct tdsaExpander_s
   bit8                      routingAttribute[TD_MAX_EXPANDER_PHYS];
   bit32                     configSASAddressHiTable[DEFAULT_MAX_DEV];
   bit32                     configSASAddressLoTable[DEFAULT_MAX_DEV];
-  bit32                     configSASAddrTableIndex;  
-  
+  bit32                     configSASAddrTableIndex;
+
 } tdsaExpander_t;
 
-/* 
+/*
  * SATA SAT specific function pointer for SATA completion for SAT commands.
  */
 typedef void (*satCompleteCbPtr_t  )(
@@ -542,10 +542,10 @@ typedef void (*satCompleteCbPtr_t  )(
                           void              *satIOContext
                        );
 
-/* 
+/*
  * SATA SAT specific function for I/O context
  */
-typedef struct satIOContext_s 
+typedef struct satIOContext_s
 {
   tdList_t                    satIoContextLink;
   satDeviceData_t             *pSatDevData;
@@ -574,7 +574,7 @@ typedef struct satIOContext_s
   bit32                       ParmLen;    /* for reassign blocks; defective LBA list length */
   bit32                       NotifyOS;   /* only for task management */
   bit32                       TMF;        /* task management function */
-  struct satIOContext_s       *satToBeAbortedIOContext; 
+  struct satIOContext_s       *satToBeAbortedIOContext;
   struct satIOContext_s       *satOrgIOContext;
   bit32                       pid;        /* port id; used to protect double completion */
 } satIOContext_t;
@@ -582,26 +582,26 @@ typedef struct satIOContext_s
 
 /** \brief data structure for SAS SSP IO reuqest body
  *  This structure contains IO related fields.
- *  agsaIORequest->osData points to this 
+ *  agsaIORequest->osData points to this
  */
 typedef struct tdIORequestBody_s {
-  tdssIOCompleted_t              IOCompletionFunc; 
+  tdssIOCompleted_t              IOCompletionFunc;
   tiDeviceHandle_t               *tiDevHandle;
   tiIORequest_t                  *tiIORequest; /* for ini */
   agsaIORequest_t                agIORequest; /* for command and task and tm response and response */
   tiIORequest_t                  *tiIOToBeAbortedRequest; /* IO to be aborted */
-  agsaContext_t                  agContext;  
+  agsaContext_t                  agContext;
 #ifdef FDS_SM
   smIORequestBody_t              smIORequestBody;    /*SATA IO request body*/
   smIORequest_t                  smIORequest; /* for SATM */
   void                           *osMemHandle; /* for ID data */
   bit32                          pid;  /* port id for SATA completion */
-  bit32                          superIOFlag; /* Super IO or not */ 
+  bit32                          superIOFlag; /* Super IO or not */
   union {
     smScsiInitiatorRequest_t       smSCSIRequest;
-    smSuperScsiInitiatorRequest_t  smSuperSCSIRequest;      
+    smSuperScsiInitiatorRequest_t  smSuperSCSIRequest;
   } SM;
-#endif 
+#endif
   union {
     struct {
       agsaSASRequestBody_t           agSASRequestBody;
@@ -615,7 +615,7 @@ typedef struct tdIORequestBody_s {
       tiSenseData_t                 tiSenseData;
       satIOContext_t                satIOContext;
     } SATA;
-  } transport;  
+  } transport;
   bit32                          ioStarted;
   bit32                          ioCompleted;
   bit32                          reTries;
@@ -637,13 +637,13 @@ typedef struct tdIORequestBody_s {
 
     struct {
       tiIORequest_t   tiIORequest; /* for target */
-      
+
       union {
         struct {
           tiSgl_t         tiSgl1;
           void          * sglVirtualAddr;
         } RegIO;
-        
+
         struct {
           tiSgl_t         tiSgl1;
           void          * sglVirtualAddr;
@@ -651,33 +651,33 @@ typedef struct tdIORequestBody_s {
           void          * sglMirrorVirtualAddr;
           tdList_t        EsglMirrorPageList;
         } MirrorIO;
-        
+
       } TargetIOType;
-      
+
     } TargetIO;    /* target regular IO */
-    
-    
+
+
   } IOType;
 }  tdIORequestBody_t;
 
 /** \brief data structure for SAS SMP reuqest body
  *  This structure contains IO related fields.
  *  agsaIORequest->osData points to this
- *  
+ *
  */
 typedef struct tdssSMPRequestBody_s {
   tdIORequestBody_t              IORequestBody;    /* for combo, must be the first */
   tdssSMPCompleted_t             SMPCompletionFunc;/* must be the second */
-  
+
   tiDeviceHandle_t               *tiDevHandle;    /* not used for TD generated SMP */
   agsaIORequest_t                agIORequest;
   agsaSASRequestBody_t           agSASRequestBody;
-  agsaSATAInitiatorRequest_t     agSATARequestBody; 
+  agsaSATAInitiatorRequest_t     agSATARequestBody;
   void                           *osMemHandle;
   tdsaDeviceData_t               *tdDevice;
   tiIORequest_t                  *CurrentTaskTag; /* SMP is used for simulate target reset */
   tdsaPortContext_t              *tdPortContext; /* portcontext where SMP is sent from */
-  bit8                           smpPayload[SMP_DIRECT_PAYLOAD_LIMIT]; /* for smp retries; 
+  bit8                           smpPayload[SMP_DIRECT_PAYLOAD_LIMIT]; /* for smp retries;
                                                                           only for direct SMP */
   bit32                          retries; /* number of retries */
   bit32                          queueNumber; /* number of retries */
@@ -688,7 +688,7 @@ typedef struct tdssSMPRequestBody_s {
   void                           *IndirectSMPResposMemHandle;
   void                           *IndirectSMPResp;
   bit32                          IndirectSMPRespLen;
-  
+
 }  tdssSMPRequestBody_t;
 
 #ifdef AGTIAPI_CTL
@@ -718,12 +718,12 @@ typedef struct tdPassthroughCmndBody_s
   bit32                          tiPassthroughCmndType; /* used in local abort */
   union {
     struct {
-#ifdef TO_DO      
+#ifdef TO_DO
       tiSMPFunction_t            SMPFn;
       tiSMPFunctionResult_t      SMPFnResult;  /* for SMP target only */
       bit32                      IT; /* 0: initiator 1: target */
       tiSMPFrameHeader_t         SMPHeader;
-#endif      
+#endif
       tdssSMPRequestBody_t       SMPBody;
     } SMP;
     struct {

@@ -27,7 +27,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -64,7 +64,7 @@ uint32_t	bhnd_pmu_ilp_clock(struct bhnd_pmu_query *sc);
 
 /**
  * PMU read-only query support.
- * 
+ *
  * Provides support for querying PMU information prior to availability of
  * the bhnd(4) bus.
  */

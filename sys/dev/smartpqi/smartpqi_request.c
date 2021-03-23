@@ -59,7 +59,7 @@ uint32_t pqisrc_contiguous_free_elem(uint32_t pi, uint32_t ci, uint32_t elem_in_
 	DBG_FUNC(" IN ");
 
 	if(pi >= ci) {
-		contiguous_free_elem = (elem_in_q - pi); 
+		contiguous_free_elem = (elem_in_q - pi);
 		if(ci == 0)
 			contiguous_free_elem -= 1;
 	} else {
@@ -80,7 +80,7 @@ pqisrc_num_elem_needed(pqisrc_softstate_t *softs, uint32_t SG_Count)
 	DBG_FUNC(" IN ");
 	DBG_IO("SGL_Count :%d",SG_Count);
 	/********
-	If SG_Count greater than max sg per IU i.e 4 or 68 
+	If SG_Count greater than max sg per IU i.e 4 or 68
 	(4 is with out spanning or 68 is with spanning) chaining is required.
 	OR, If SG_Count <= MAX_EMBEDDED_SG_IN_FIRST_IU then,
 	on these two cases one element is enough.
@@ -103,7 +103,7 @@ boolean_t pqisrc_build_sgl(sgt_t *sg_array, rcb_t *rcb, iu_header_t *iu_hdr,
 {
 	uint32_t i;
 	uint32_t num_sg = OS_GET_IO_SG_COUNT(rcb);
-	sgt_t *sgt = sg_array; 
+	sgt_t *sgt = sg_array;
 	sgt_t *sg_chain = NULL;
 	boolean_t partial = false;
 
@@ -120,7 +120,7 @@ boolean_t pqisrc_build_sgl(sgt_t *sg_array, rcb_t *rcb, iu_header_t *iu_hdr,
                         sgt->len= OS_GET_IO_SG_LEN(rcb,i);
                         sgt->flags= 0;
                 }
-		
+
 		sg_array[num_sg - 1].flags = SG_FLAG_LAST;
 	} else {
 	/**
@@ -130,15 +130,15 @@ boolean_t pqisrc_build_sgl(sgt_t *sg_array, rcb_t *rcb, iu_header_t *iu_hdr,
 		sgt->addr = rcb->sg_chain_dma;
 		sgt->len = num_sg * sizeof(sgt_t);
 		sgt->flags = SG_FLAG_CHAIN;
-		
+
 		sgt = sg_chain;
 		for (i = 0; i < num_sg; i++, sgt++) {
 			sgt->addr = OS_GET_IO_SG_ADDR(rcb,i);
 			sgt->len = OS_GET_IO_SG_LEN(rcb,i);
 			sgt->flags = 0;
 		}
-		
-		sg_chain[num_sg - 1].flags = SG_FLAG_LAST; 
+
+		sg_chain[num_sg - 1].flags = SG_FLAG_LAST;
 		num_sg = 1;
 		partial = true;
 	}
@@ -150,8 +150,8 @@ out:
 }
 
 /*Subroutine used to Build the RAID request */
-static void 
-pqisrc_build_raid_io(pqisrc_softstate_t *softs, rcb_t *rcb, 
+static void
+pqisrc_build_raid_io(pqisrc_softstate_t *softs, rcb_t *rcb,
  	pqisrc_raid_req_t *raid_req, uint32_t num_elem_alloted)
 {
 	DBG_FUNC(" IN ");
@@ -164,8 +164,8 @@ pqisrc_build_raid_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 	raid_req->request_id = rcb->tag;
 	raid_req->nexus_id = 0;
 	raid_req->buffer_length = GET_SCSI_BUFFLEN(rcb);
-	memcpy(raid_req->lun_number, rcb->dvp->scsi3addr, 
- 		sizeof(raid_req->lun_number)); 
+	memcpy(raid_req->lun_number, rcb->dvp->scsi3addr,
+ 		sizeof(raid_req->lun_number));
 	raid_req->protocol_spec = 0;
 	raid_req->data_direction = rcb->data_dir;
 	raid_req->reserved1 = 0;
@@ -178,7 +178,7 @@ pqisrc_build_raid_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 	raid_req->reserved4 = 0;
 	raid_req->reserved5 = 0;
 
-	/* As cdb and additional_cdb_bytes are contiguous, 
+	/* As cdb and additional_cdb_bytes are contiguous,
 	   update them in a single statement */
 	memcpy(raid_req->cdb, rcb->cdbp, rcb->cmdlen);
 #if 0
@@ -216,9 +216,9 @@ pqisrc_build_raid_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 
 	/* Frame SGL Descriptor */
 	raid_req->partial = pqisrc_build_sgl(&raid_req->sg_descriptors[0], rcb,
-		&raid_req->header, num_elem_alloted);							
+		&raid_req->header, num_elem_alloted);
 
-	raid_req->header.iu_length += 
+	raid_req->header.iu_length +=
 			offsetof(pqisrc_raid_req_t, sg_descriptors) - sizeof(iu_header_t);
 
 #if 0
@@ -232,9 +232,9 @@ pqisrc_build_raid_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 	DBG_IO("raid_req->sg_descriptors[0].addr : %p", (void*)raid_req->sg_descriptors[0].addr);
 	DBG_IO("raid_req->sg_descriptors[0].len : 0x%x", raid_req->sg_descriptors[0].len);
 	DBG_IO("raid_req->sg_descriptors[0].flags : 0%x", raid_req->sg_descriptors[0].flags);
-#endif	
-	rcb->success_cmp_callback = pqisrc_process_io_response_success; 
-	rcb->error_cmp_callback = pqisrc_process_raid_response_error; 
+#endif
+	rcb->success_cmp_callback = pqisrc_process_io_response_success;
+	rcb->error_cmp_callback = pqisrc_process_raid_response_error;
 	rcb->resp_qid = raid_req->response_queue_id;
 
  	DBG_FUNC(" OUT ");
@@ -243,7 +243,7 @@ pqisrc_build_raid_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 
 /*Subroutine used to Build the AIO request */
 static void
-pqisrc_build_aio_io(pqisrc_softstate_t *softs, rcb_t *rcb, 
+pqisrc_build_aio_io(pqisrc_softstate_t *softs, rcb_t *rcb,
  				pqi_aio_req_t *aio_req, uint32_t num_elem_alloted)
 {
 	DBG_FUNC(" IN ");
@@ -262,7 +262,7 @@ pqisrc_build_aio_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 	aio_req->mem_type = 0;
 	aio_req->fence = 0;
 	aio_req->res2 = 0;
-	aio_req->task_attr = OS_GET_TASK_ATTR(rcb); 
+	aio_req->task_attr = OS_GET_TASK_ATTR(rcb);
 	aio_req->cmd_prio = 0;
 	aio_req->res3 = 0;
 	aio_req->err_idx = aio_req->req_id;
@@ -288,7 +288,7 @@ pqisrc_build_aio_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 		aio_req->encrypt_key_index = 0;
 		aio_req->encrypt_twk_high = 0;
 		aio_req->encrypt_twk_low = 0;
-	}	
+	}
 
 	/* Frame SGL Descriptor */
 	aio_req->partial = pqisrc_build_sgl(&aio_req->sg_desc[0], rcb,
@@ -298,7 +298,7 @@ pqisrc_build_aio_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 
 	DBG_INFO("aio_req->num_sg :%d",aio_req->num_sg);
 
-	aio_req->header.iu_length += offsetof(pqi_aio_req_t, sg_desc) - 
+	aio_req->header.iu_length += offsetof(pqi_aio_req_t, sg_desc) -
 		sizeof(iu_header_t);
 #if 0
 	DBG_IO("aio_req->header.iu_type : 0x%x \n",aio_req->header.iu_type);
@@ -315,8 +315,8 @@ pqisrc_build_aio_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 	DBG_IO("aio_req->sg_desc[0].flags : 0%x \n", aio_req->sg_desc[0].flags);
 #endif
 
-	rcb->success_cmp_callback = pqisrc_process_io_response_success; 
-	rcb->error_cmp_callback = pqisrc_process_aio_response_error; 
+	rcb->success_cmp_callback = pqisrc_process_io_response_success;
+	rcb->error_cmp_callback = pqisrc_process_aio_response_error;
 	rcb->resp_qid = aio_req->response_queue_id;
 
 	DBG_FUNC(" OUT ");
@@ -328,10 +328,10 @@ int pqisrc_build_send_io(pqisrc_softstate_t *softs,rcb_t *rcb)
 {
 	ib_queue_t *ib_q_array = softs->op_aio_ib_q;
 	ib_queue_t *ib_q = NULL;
-	char *ib_iu = NULL;	
+	char *ib_iu = NULL;
 	IO_PATH_T io_path = AIO_PATH;
-	uint32_t TraverseCount = 0; 
-	int first_qindex = OS_GET_IO_REQ_QINDEX(softs, rcb); 
+	uint32_t TraverseCount = 0;
+	int first_qindex = OS_GET_IO_REQ_QINDEX(softs, rcb);
 	int qindex = first_qindex;
 	uint32_t num_op_ib_q = softs->num_op_aio_ibq;
 	uint32_t num_elem_needed;
@@ -352,10 +352,10 @@ int pqisrc_build_send_io(pqisrc_softstate_t *softs,rcb_t *rcb)
 		/** IO for RAID Volume **/
 		if (devp->offload_enabled) {
 			/** ByPass IO ,Send in AIO PATH **/
-			ret = pqisrc_send_scsi_cmd_raidbypass(softs, 
+			ret = pqisrc_send_scsi_cmd_raidbypass(softs,
 				devp, rcb, raidbypass_cdb);
 		}
-		
+
 		if (PQI_STATUS_FAILURE == ret) {
 			/** Send in RAID PATH **/
 			io_path = RAID_PATH;
@@ -372,10 +372,10 @@ int pqisrc_build_send_io(pqisrc_softstate_t *softs,rcb_t *rcb)
 	do {
 		uint32_t num_elem_available;
 		ib_q = (ib_q_array + qindex);
-		PQI_LOCK(&ib_q->lock);	
+		PQI_LOCK(&ib_q->lock);
 		num_elem_available = pqisrc_contiguous_free_elem(ib_q->pi_local,
 					*(ib_q->ci_virt_addr), ib_q->num_elem);
-		
+
 		DBG_IO("num_elem_avialable :%d\n",num_elem_available);
 		if(num_elem_available >= num_elem_needed) {
 			num_elem_alloted = num_elem_needed;
@@ -383,7 +383,7 @@ int pqisrc_build_send_io(pqisrc_softstate_t *softs,rcb_t *rcb)
 		}
 		DBG_IO("Current queue is busy! Hop to next queue\n");
 
-		PQI_UNLOCK(&ib_q->lock);	
+		PQI_UNLOCK(&ib_q->lock);
 		qindex = (qindex + 1) % num_op_ib_q;
 		if(qindex == first_qindex) {
 			if (num_elem_needed == 1)
@@ -397,7 +397,7 @@ int pqisrc_build_send_io(pqisrc_softstate_t *softs,rcb_t *rcb)
 	if (num_elem_alloted == 0) {
 		DBG_WARN("OUT: IB Queues were full\n");
 		return PQI_STATUS_QFULL;
-	}	
+	}
 
 	/* Get IB Queue Slot address to build IU */
 	ib_iu = ib_q->array_virt_addr + (ib_q->pi_local * ib_q->elem_size);
@@ -423,7 +423,7 @@ int pqisrc_build_send_io(pqisrc_softstate_t *softs,rcb_t *rcb)
 	/* Inform the fw about the new IU */
 	PCI_MEM_PUT32(softs, ib_q->pi_register_abs, ib_q->pi_register_offset, ib_q->pi_local);
 
-	PQI_UNLOCK(&ib_q->lock);	
+	PQI_UNLOCK(&ib_q->lock);
 	DBG_FUNC(" OUT ");
 	return PQI_STATUS_SUCCESS;
 }
@@ -539,14 +539,14 @@ int pqisrc_send_scsi_cmd_raidbypass(pqisrc_softstate_t *softs,
 
 	for(i = 0; i < rcb->cmdlen ; i++)
 		DBG_IO(" CDB [ %d ] : %x\n",i,cdb[i]);
-	if(check_for_scsi_opcode(cdb, &is_write, 
+	if(check_for_scsi_opcode(cdb, &is_write,
 		&fst_blk, &blk_cnt) == PQI_STATUS_FAILURE)
 			return PQI_STATUS_FAILURE;
 	/* Check for write to non-RAID-0. */
 	if (is_write && device->raid_level != SA_RAID_0)
 		return PQI_STATUS_FAILURE;
 
-	if(blk_cnt == 0) 
+	if(blk_cnt == 0)
 		return PQI_STATUS_FAILURE;
 
 	lst_blk = fst_blk + blk_cnt - 1;
@@ -737,7 +737,7 @@ int pqisrc_send_scsi_cmd_raidbypass(pqisrc_softstate_t *softs,
 
 	rcb->cmdlen = cdb_length;
 
-		
+
 	DBG_FUNC("OUT");
 
 	return PQI_STATUS_SUCCESS;

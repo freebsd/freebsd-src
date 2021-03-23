@@ -164,7 +164,7 @@ oce_create_ring_buffer(POCE_SOFTC sc,
 	oce_ring_buffer_t *ring;
 
 	ring = malloc(sizeof(oce_ring_buffer_t), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (ring == NULL) 
+	if (ring == NULL)
 		return NULL;
 
 	ring->item_size = item_size;

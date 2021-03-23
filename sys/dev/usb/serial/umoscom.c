@@ -577,7 +577,7 @@ umoscom_cfg_read(struct umoscom_softc *sc, uint16_t reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 1);
 
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, &val, 0, 1000);
 
 	DPRINTF("reg=0x%04x, val=0x%02x\n", reg, val);

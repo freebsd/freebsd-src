@@ -154,7 +154,7 @@ enum { TXQ_ETH = 0,
        TXQ_CTRL = 2, };
 
 
-/* 
+/*
  * work request size in bytes
  */
 #define WR_LEN (WR_FLITS * 8)
@@ -262,11 +262,11 @@ struct sge_txq {
 	uint32_t	txq_dump_start;
 	uint32_t	txq_dump_count;
 	uint64_t	txq_direct_packets;
-	uint64_t	txq_direct_bytes;	
+	uint64_t	txq_direct_bytes;
 	uint64_t	txq_frees;
 	struct sg_ent  txq_sgl[TX_MAX_SEGS / 2 + 1];
 };
-     	
+
 #define SGE_PSTAT_MAX (SGE_PSTAT_VLANINS+1)
 
 #define QS_EXITING              0x1
@@ -316,7 +316,7 @@ struct adapter {
 	bus_space_tag_t		bt;
 	bus_size_t              mmio_len;
 	uint32_t                link_width;
-	
+
 	/* DMA resources */
 	bus_dma_tag_t		parent_dmat;
 	bus_dma_tag_t		rx_dmat;
@@ -344,9 +344,9 @@ struct adapter {
 
 #define tunq_fill u.fill
 #define tunq_coalesce u.coalesce
-	
+
 	struct filter_info      *filters;
-	
+
 	/* Tasks */
 	struct task		slow_intr_task;
 	struct task		tick_task;
@@ -401,7 +401,7 @@ struct adapter {
 };
 
 struct t3_rx_mode {
-	
+
 	uint32_t                idx;
 	struct port_info        *port;
 };

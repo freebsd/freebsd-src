@@ -124,7 +124,7 @@ MALLOC_DEFINE(M_MPR, "mpr", "mpr driver memory");
  */
 static char mpt2_reset_magic[] = { 0x00, 0x0f, 0x04, 0x0b, 0x02, 0x07, 0x0d };
 
-/* 
+/*
  * Added this union to smoothly convert le64toh cm->cm_desc.Words.
  * Compiler only supports uint64_t to be passed as an argument.
  * Otherwise it will throw this error:
@@ -141,7 +141,7 @@ typedef union {
 /* Rate limit chain-fail messages to 1 per minute */
 static struct timeval mpr_chainfail_interval = { 60, 0 };
 
-/* 
+/*
  * sleep_flag can be either CAN_SLEEP or NO_SLEEP.
  * If this function is called from process context, it can sleep
  * and there is no harm to sleep, in case if this fuction is called
@@ -316,7 +316,7 @@ mpr_transition_ready(struct mpr_softc *sc)
 			error = ENXIO;
 			break;
 		}
-		
+
 		state = reg & MPI2_IOC_STATE_MASK;
 		if (state == MPI2_IOC_STATE_READY) {
 			/* Ready to go! */
@@ -368,7 +368,7 @@ mpr_transition_operational(struct mpr_softc *sc)
 	if (state != MPI2_IOC_STATE_READY) {
 		mpr_dprint(sc, MPR_INIT, "IOC not ready\n");
 		if ((error = mpr_transition_ready(sc)) != 0) {
-			mpr_dprint(sc, MPR_INIT|MPR_FAULT, 
+			mpr_dprint(sc, MPR_INIT|MPR_FAULT,
 			    "failed to transition ready, exit\n");
 			return (error);
 		}
@@ -511,8 +511,8 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 
 	MPR_DPRINT_PAGE(sc, MPR_XINFO, iocfacts, sc->facts);
 
-	snprintf(sc->fw_version, sizeof(sc->fw_version), 
-	    "%02d.%02d.%02d.%02d", 
+	snprintf(sc->fw_version, sizeof(sc->fw_version),
+	    "%02d.%02d.%02d.%02d",
 	    sc->facts->FWVersion.Struct.Major,
 	    sc->facts->FWVersion.Struct.Minor,
 	    sc->facts->FWVersion.Struct.Unit,
@@ -828,7 +828,7 @@ mpr_iocfacts_free(struct mpr_softc *sc)
 	sc->queues = NULL;
 }
 
-/* 
+/*
  * The terms diag reset and hard reset are used interchangeably in the MPI
  * docs to mean resetting the controller chip.  In this code diag reset
  * cleans everything up, and the hard reset function just sends the reset
@@ -918,7 +918,7 @@ mpr_reinit(struct mpr_softc *sc)
 	mpr_reregister_events(sc);
 
 	/* the end of discovery will release the simq, so we're done. */
-	mpr_dprint(sc, MPR_INIT|MPR_XINFO, "Finished sc %p post %u free %u\n", 
+	mpr_dprint(sc, MPR_INIT|MPR_XINFO, "Finished sc %p post %u free %u\n",
 	    sc, sc->replypostindex, sc->replyfreeindex);
 	mprsas_release_simq_reinit(sassc);
 	mpr_dprint(sc, MPR_INIT, "%s exit error= %d\n", __func__, error);
@@ -926,7 +926,7 @@ mpr_reinit(struct mpr_softc *sc)
 	return 0;
 }
 
-/* Wait for the chip to ACK a word that we've put into its FIFO 
+/* Wait for the chip to ACK a word that we've put into its FIFO
  * Wait for <timeout> seconds. In single loop wait for busy loop
  * for 500 microseconds.
  * Total is [ 0.5 * (2000 * <timeout>) ] in miliseconds.
@@ -956,7 +956,7 @@ mpr_wait_db_ack(struct mpr_softc *sc, int timeout, int sleep_flag)
 			}
 		} else if (int_status == 0xFFFFFFFF)
 			goto out;
-			
+
 		/*
 		 * If it can sleep, sleep for 1 milisecond, else busy loop for
  		 * 0.5 milisecond
@@ -1416,7 +1416,7 @@ mpr_alloc_replies(struct mpr_softc *sc)
 	 */
 	num_replies = max(sc->fqdepth, sc->num_replies);
 
-	rsize = sc->replyframesz * num_replies; 
+	rsize = sc->replyframesz * num_replies;
 	bus_dma_template_init(&t, sc->mpr_parent_dmat);
 	BUS_DMA_TEMPLATE_FILL(&t, BD_ALIGNMENT(4), BD_MAXSIZE(rsize),
 	    BD_MAXSEGSIZE(rsize), BD_NSEGMENTS(1),
@@ -1597,7 +1597,7 @@ mpr_alloc_requests(struct mpr_softc *sc)
 
 /*
  * Allocate contiguous buffers for PCIe NVMe devices for building native PRPs,
- * which are scatter/gather lists for NVMe devices. 
+ * which are scatter/gather lists for NVMe devices.
  *
  * This buffer must be contiguous due to the nature of how NVMe PRPs are built
  * and translated by FW.
@@ -1616,7 +1616,7 @@ mpr_alloc_nvme_prp_pages(struct mpr_softc *sc)
 	 * Assuming a MAX_IO_SIZE of 1MB and a PAGE_SIZE of 4k, the max number
 	 * of PRPs (NVMe's Scatter/Gather Element) needed per I/O is:
 	 * MAX_IO_SIZE / PAGE_SIZE = 256
-	 * 
+	 *
 	 * 1 PRP entry in main frame for PRP list pointer still leaves 255 PRPs
 	 * required for the remainder of the 1MB I/O. 512 PRPs can fit into one
 	 * page (4096 / 8 = 512), so only one page is required for each I/O.
@@ -1635,8 +1635,8 @@ mpr_alloc_nvme_prp_pages(struct mpr_softc *sc)
 	PRPs_per_page = (PAGE_SIZE / PRP_ENTRY_SIZE) - 1;
 	pages_required = (PRPs_required / PRPs_per_page) + 1;
 
-	sc->prp_buffer_size = PAGE_SIZE * pages_required; 
-	rsize = sc->prp_buffer_size * NVME_QDEPTH; 
+	sc->prp_buffer_size = PAGE_SIZE * pages_required;
+	rsize = sc->prp_buffer_size * NVME_QDEPTH;
 	bus_dma_template_init(&t, sc->mpr_parent_dmat);
 	BUS_DMA_TEMPLATE_FILL(&t, BD_ALIGNMENT(4), BD_MAXSIZE(rsize),
 	    BD_MAXSEGSIZE(rsize), BD_NSEGMENTS(1),
@@ -1981,7 +1981,7 @@ mpr_debug_sysctl(SYSCTL_HANDLER_ARGS)
 	sz = sizeof(mpr_debug_strings) / sizeof(mpr_debug_strings[0]);
 	for (i = 0; i < sz; i++) {
 		string = &mpr_debug_strings[i];
-		if (debug & string->flag) 
+		if (debug & string->flag)
 			sbuf_printf(sbuf, ",%s", string->name);
 	}
 
@@ -2506,7 +2506,7 @@ mpr_intr_locked(void *data)
 
 	pq = sc->replypostindex;
 	mpr_dprint(sc, MPR_TRACE,
-	    "%s sc %p starting with replypostindex %u\n", 
+	    "%s sc %p starting with replypostindex %u\n",
 	    __func__, sc, sc->replypostindex);
 
 	for ( ;; ) {
@@ -2876,7 +2876,7 @@ mpr_deregister_events(struct mpr_softc *sc, struct mpr_event_handle *handle)
 * then the first PRP element will contain a non-zero offset indicating where the
 * region begins within the page. The last memory segment may end before the end
 * of the PAGE_SIZE segment, depending upon the overall size of the memory being
-* described by the PRP list. 
+* described by the PRP list.
 *
 * Since PRP entries lack any indication of size, the overall data buffer length
 * is used to determine where the end of the data memory buffer is located, and
@@ -2884,7 +2884,7 @@ mpr_deregister_events(struct mpr_softc *sc, struct mpr_event_handle *handle)
 *
 * Returns nothing.
 */
-void 
+void
 mpr_build_nvme_prp(struct mpr_softc *sc, struct mpr_command *cm,
     Mpi26NVMeEncapsulatedRequest_t *nvme_encap_request, void *data,
     uint32_t data_in_sz, uint32_t data_out_sz)
@@ -3761,7 +3761,7 @@ mpr_wait_command(struct mpr_softc *sc, struct mpr_command **cmp, int timeout,
 	struct timeval cur_time, start_time;
 	struct mpr_command *cm = *cmp;
 
-	if (sc->mpr_flags & MPR_FLAGS_DIAGRESET) 
+	if (sc->mpr_flags & MPR_FLAGS_DIAGRESET)
 		return  EBUSY;
 
 	cm->cm_complete = NULL;
@@ -3793,7 +3793,7 @@ mpr_wait_command(struct mpr_softc *sc, struct mpr_command **cmp, int timeout,
 				pause("mprwait", hz/20);
 			else
 				DELAY(50000);
-		
+
 			getmicrouptime(&cur_time);
 			timevalsub(&cur_time, &start_time);
 			if (cur_time.tv_sec > timeout) {

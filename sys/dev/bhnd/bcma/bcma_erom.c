@@ -52,14 +52,14 @@ __FBSDID("$FreeBSD$");
 
 /*
  * BCMA Enumeration ROM (EROM) Table
- * 
+ *
  * Provides auto-discovery of BCMA cores on Broadcom's HND SoC.
- * 
+ *
  * The EROM core address can be found at BCMA_CC_EROM_ADDR within the
  * ChipCommon registers. The table itself is comprised of 32-bit
  * type-tagged entries, organized into an array of variable-length
  * core descriptor records.
- * 
+ *
  * The final core descriptor is followed by a 32-bit BCMA_EROM_TABLE_EOF (0xF)
  * marker.
  */
@@ -189,7 +189,7 @@ bcma_erom_probe(bhnd_erom_class_t *cls, struct bhnd_erom_io *eio,
 
 		default:
 			return (ENXIO);
-	}	
+	}
 }
 
 static void
@@ -277,7 +277,7 @@ bcma_erom_lookup_core_addr(bhnd_erom_t *erom, const struct bhnd_core_match *desc
 
 		if ((error = bcma_erom_peek32(sc, &entry)))
 			return (error);
-		
+
 		if (!BCMA_EROM_ENTRY_IS(entry, REGION))
 			return (ENOENT);
 
@@ -330,7 +330,7 @@ bcma_erom_lookup_core_addr(bhnd_erom_t *erom, const struct bhnd_core_match *desc
 
 		if ((error = bcma_erom_peek32(sc, &entry)))
 			return (error);
-		
+
 		if (!BCMA_EROM_ENTRY_IS(entry, REGION))
 			return (ENOENT);
 
@@ -385,7 +385,7 @@ bcma_erom_get_core_table(bhnd_erom_t *erom, struct bhnd_core_info **cores,
 			break;
 		else if (error)
 			goto cleanup;
-		
+
 		/* Read past the core descriptor */
 		if ((error = bcma_erom_parse_core(sc, &core)))
 			goto cleanup;
@@ -467,7 +467,7 @@ bcma_erom_seek(struct bcma_erom *erom, bus_size_t offset)
 /**
  * Read a 32-bit entry value from the EROM table without advancing the
  * read position.
- * 
+ *
  * @param erom EROM read state.
  * @param entry Will contain the read result on success.
  * @retval 0 success
@@ -488,7 +488,7 @@ bcma_erom_peek32(struct bcma_erom *erom, uint32_t *entry)
 
 /**
  * Read a 32-bit entry value from the EROM table.
- * 
+ *
  * @param erom EROM read state.
  * @param entry Will contain the read result on success.
  * @retval 0 success
@@ -508,7 +508,7 @@ bcma_erom_read32(struct bcma_erom *erom, uint32_t *entry)
 
 /**
  * Read and discard 32-bit entry value from the EROM table.
- * 
+ *
  * @param erom EROM read state.
  * @retval 0 success
  * @retval ENOENT The end of the EROM table was reached.
@@ -524,7 +524,7 @@ bcma_erom_skip32(struct bcma_erom *erom)
 
 /**
  * Read and discard a core descriptor from the EROM table.
- * 
+ *
  * @param erom EROM read state.
  * @retval 0 success
  * @retval ENOENT The end of the EROM table was reached.
@@ -539,7 +539,7 @@ bcma_erom_skip_core(struct bcma_erom *erom)
 
 /**
  * Read and discard a master port descriptor from the EROM table.
- * 
+ *
  * @param erom EROM read state.
  * @retval 0 success
  * @retval ENOENT The end of the EROM table was reached.
@@ -554,7 +554,7 @@ bcma_erom_skip_mport(struct bcma_erom *erom)
 
 /**
  * Read and discard a port region descriptor from the EROM table.
- * 
+ *
  * @param erom EROM read state.
  * @retval 0 success
  * @retval ENOENT The end of the EROM table was reached.
@@ -569,7 +569,7 @@ bcma_erom_skip_sport_region(struct bcma_erom *erom)
 
 /**
  * Seek to the next entry matching the given EROM entry type.
- * 
+ *
  * @param erom EROM read state.
  * @param etype  One of BCMA_EROM_ENTRY_TYPE_CORE,
  * BCMA_EROM_ENTRY_TYPE_MPORT, or BCMA_EROM_ENTRY_TYPE_REGION.
@@ -610,7 +610,7 @@ bcma_erom_seek_next(struct bcma_erom *erom, uint8_t etype)
 				return (error);
 
 			break;
-		
+
 		case BCMA_EROM_ENTRY_TYPE_REGION:
 			if ((error = bcma_erom_skip_sport_region(erom)))
 				return (error);
@@ -618,7 +618,7 @@ bcma_erom_seek_next(struct bcma_erom *erom, uint8_t etype)
 
 		default:
 			/* Unknown entry type! */
-			return (EINVAL);	
+			return (EINVAL);
 		}
 	}
 
@@ -627,7 +627,7 @@ bcma_erom_seek_next(struct bcma_erom *erom, uint8_t etype)
 
 /**
  * Return the read position to the start of the EROM table.
- * 
+ *
  * @param erom EROM read state.
  */
 static void
@@ -638,7 +638,7 @@ bcma_erom_reset(struct bcma_erom *erom)
 
 /**
  * Seek to the first core entry matching @p desc.
- * 
+ *
  * @param erom EROM read state.
  * @param desc The core match descriptor.
  * @param[out] core On success, the matching core info. If the core info
@@ -695,7 +695,7 @@ bcma_erom_seek_matching_core(struct bcma_erom *sc,
 			    BCMA_EROM_ENTRY_TYPE_CORE);
 			if (error)
 				return (error);
-			
+
 			if ((error = bcma_erom_parse_core(sc, &ec)))
 				return (error);
 
@@ -726,7 +726,7 @@ bcma_erom_seek_matching_core(struct bcma_erom *sc,
 
 /**
  * Read the next core descriptor from the EROM table.
- * 
+ *
  * @param erom EROM read state.
  * @param[out] core On success, will be populated with the parsed core
  * descriptor data.
@@ -751,7 +751,7 @@ bcma_erom_parse_core(struct bcma_erom *erom, struct bcma_erom_core *core)
 	if (!BCMA_EROM_ENTRY_IS(entry, CORE)) {
 		EROM_LOG(erom, "Unexpected EROM entry 0x%x (type=%s)\n",
                    entry, bcma_erom_entry_type_name(entry));
-		
+
 		return (EINVAL);
 	}
 
@@ -777,7 +777,7 @@ bcma_erom_parse_core(struct bcma_erom *erom, struct bcma_erom_core *core)
 
 /**
  * Read the next master port descriptor from the EROM table.
- * 
+ *
  * @param erom EROM read state.
  * @param[out] mport On success, will be populated with the parsed
  * descriptor data.
@@ -805,7 +805,7 @@ bcma_erom_parse_mport(struct bcma_erom *erom, struct bcma_erom_mport *mport)
 
 /**
  * Read the next slave port region descriptor from the EROM table.
- * 
+ *
  * @param erom EROM read state.
  * @param[out] mport On success, will be populated with the parsed
  * descriptor data.
@@ -841,7 +841,7 @@ bcma_erom_parse_sport_region(struct bcma_erom *erom,
 	if (BCMA_EROM_GET_ATTR(entry, REGION_64BIT)) {
 		if ((error = bcma_erom_read32(erom, &entry)))
 			return (error);
-		
+
 		region->base_addr |= ((bhnd_addr_t) entry << 32);
 	}
 
@@ -881,7 +881,7 @@ bcma_erom_parse_sport_region(struct bcma_erom *erom,
 
 /**
  * Convert a bcma_erom_core record to its bhnd_core_info representation.
- * 
+ *
  * @param core EROM core record to convert.
  * @param core_idx The core index of @p core.
  * @param core_unit The core unit of @p core.
@@ -900,7 +900,7 @@ bcma_erom_to_core_info(const struct bcma_erom_core *core, u_int core_idx,
 
 /**
  * Map an EROM region type to its corresponding port type.
- * 
+ *
  * @param region_type Region type value.
  * @param[out] port_type On success, the corresponding port type.
  */
@@ -928,7 +928,7 @@ bcma_erom_region_to_port_type(struct bcma_erom *erom, uint8_t region_type,
 
 /**
  * Register all MMIO region descriptors for the given slave port.
- * 
+ *
  * @param erom EROM read state.
  * @param corecfg Core info to be populated with the scanned port regions.
  * @param port_num Port index for which regions will be parsed.
@@ -936,7 +936,7 @@ bcma_erom_region_to_port_type(struct bcma_erom *erom, uint8_t region_type,
  * @param[out] offset The offset at which to perform parsing. On success, this
  * will be updated to point to the next EROM table entry.
  */
-static int 
+static int
 bcma_erom_corecfg_fill_port_regions(struct bcma_erom *erom,
     struct bcma_corecfg *corecfg, bcma_pid_t port_num,
     uint8_t region_type)
@@ -997,8 +997,8 @@ bcma_erom_corecfg_fill_port_regions(struct bcma_erom *erom,
 			/* No further entries */
 			error = 0;
 			break;
-		} 
-		
+		}
+
 		/* A region or type mismatch also signals no further region
 		 * entries */
 		if (spr.region_port != port_num ||
@@ -1012,7 +1012,7 @@ bcma_erom_corecfg_fill_port_regions(struct bcma_erom *erom,
 		}
 
 		/*
-		 * Create the map entry. 
+		 * Create the map entry.
 		 */
 		map = malloc(sizeof(struct bcma_map), M_BHND, M_NOWAIT);
 		if (map == NULL) {
@@ -1045,11 +1045,11 @@ cleanup:
 /**
  * Parse the next core entry from the EROM table and produce a bcma_corecfg
  * to be owned by the caller.
- * 
+ *
  * @param erom A bcma EROM instance.
  * @param[out] result On success, the core's device info. The caller inherits
  * ownership of this allocation.
- * 
+ *
  * @return If successful, returns 0. If the end of the EROM table is hit,
  * ENOENT will be returned. On error, returns a non-zero error value.
  */
@@ -1117,11 +1117,11 @@ bcma_erom_next_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
 	    ("unsupported wport count"));
 
 	if (bootverbose) {
-		EROM_LOG(erom, 
+		EROM_LOG(erom,
 		    "core%u: %s %s (cid=%hx, rev=%hu, unit=%d)\n",
 		    core_index,
 		    bhnd_vendor_name(core.vendor),
-		    bhnd_find_core_name(core.vendor, core.device), 
+		    bhnd_find_core_name(core.vendor, core.device),
 		    core.device, core.rev, core_unit);
 	}
 
@@ -1146,7 +1146,7 @@ bcma_erom_next_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
 			error = ENOMEM;
 			goto failed;
 		}
-		
+
 		mport->mp_vid = mpd.port_vid;
 		mport->mp_num = mpd.port_num;
 
@@ -1159,7 +1159,7 @@ bcma_erom_next_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
 	 * expect the first sequence of address region descriptors to
 	 * be of EROM_REGION_TYPE_BRIDGE instead of
 	 * BCMA_EROM_REGION_TYPE_DEVICE.
-	 * 
+	 *
 	 * It's unclear whether this is the correct mechanism by which we
 	 * should detect/handle bridge devices, but this approach matches
 	 * that of (some of) Broadcom's published drivers.
@@ -1170,7 +1170,7 @@ bcma_erom_next_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
 		if ((error = bcma_erom_peek32(erom, &entry)))
 			goto failed;
 
-		if (BCMA_EROM_ENTRY_IS(entry, REGION) && 
+		if (BCMA_EROM_ENTRY_IS(entry, REGION) &&
 		    BCMA_EROM_GET_ATTR(entry, REGION_TYPE) == BCMA_EROM_REGION_TYPE_BRIDGE)
 		{
 			first_region_type = BCMA_EROM_REGION_TYPE_BRIDGE;
@@ -1201,12 +1201,12 @@ bcma_erom_next_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
 			goto failed;
 	}
 
-	/* Wrapper (aka device management) descriptors (for slave ports). */	
+	/* Wrapper (aka device management) descriptors (for slave ports). */
 	for (uint8_t i = 0; i < core.num_swrap; i++) {
 		/* Slave wrapper ports are not numbered distinctly from master
 		 * wrapper ports. */
 
-		/* 
+		/*
 		 * Broadcom DDR1/DDR2 Memory Controller
 		 * (cid=82e, rev=1, unit=0, d/mw/sw = 2/0/1 ) ->
 		 * bhnd0: erom[0xdc]: core6 agent0.0: mismatch got: 0x1 (0x2)
@@ -1235,7 +1235,7 @@ bcma_erom_next_corecfg(struct bcma_erom *erom, struct bcma_corecfg **result)
 	/*
 	 * Seek to the next core entry (if any), skipping any dangling/invalid
 	 * region entries.
-	 * 
+	 *
 	 * On the BCM4706, the EROM entry for the memory controller core
 	 * (0x4bf/0x52E) contains a dangling/unused slave wrapper port region
 	 * descriptor.

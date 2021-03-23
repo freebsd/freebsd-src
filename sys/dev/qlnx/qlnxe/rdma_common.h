@@ -29,7 +29,7 @@
  */
 
 #ifndef __RDMA_COMMON__
-#define __RDMA_COMMON__ 
+#define __RDMA_COMMON__
 /************************************************************************/
 /* Add include to common rdma target for both eCore and protocol rdma driver */
 /************************************************************************/

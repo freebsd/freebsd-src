@@ -304,7 +304,7 @@
 #define	BRGPHY_AUXCTL_MISC_RGMII_SKEW_EN 0x0200
 #define	BRGPHY_AUXCTL_MISC_WIRESPEED_EN	0x0010
 
-/* 
+/*
  * Shadow register 0x1C, bit 15 is write enable,
  * bits 14-10 select function (0x00 to 0x1F).
  */
@@ -320,7 +320,7 @@
 /* Shadow 0x1C Mode Control Register (select value 0x1F) */
 #define	BRGPHY_SHADOW_1C_MODE_CTRL	(0x1F << 10)
 /* When set, Regs 0-0x0F are 1000X, else 1000T */
-#define	BRGPHY_SHADOW_1C_ENA_1000X	0x0001	
+#define	BRGPHY_SHADOW_1C_ENA_1000X	0x0001
 
 #define	BRGPHY_MII_TEST1		0x1E
 #define	BRGPHY_TEST1_TRIM_EN		0x0010

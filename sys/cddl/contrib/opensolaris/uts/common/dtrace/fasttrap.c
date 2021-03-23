@@ -2454,7 +2454,7 @@ fasttrap_load(void)
 	    sizeof (fasttrap_bucket_t), KM_SLEEP);
 #ifndef illumos
 	for (i = 0; i < fasttrap_provs.fth_nent; i++)
-		mutex_init(&fasttrap_provs.fth_table[i].ftb_mtx, 
+		mutex_init(&fasttrap_provs.fth_table[i].ftb_mtx,
 		    "providers bucket mtx", MUTEX_DEFAULT, NULL);
 #endif
 

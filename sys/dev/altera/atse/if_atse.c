@@ -140,7 +140,7 @@ csr_read_4(struct atse_softc *sc, uint32_t reg, const char *f, const int l)
 	uint32_t val4;
 
 	val4 = le32toh(bus_read_4(sc->atse_mem_res, reg * 4));
-	DPRINTF("[%s:%d] CSR R %s 0x%08x (0x%08x) = 0x%08x\n", f, l, 
+	DPRINTF("[%s:%d] CSR R %s 0x%08x (0x%08x) = 0x%08x\n", f, l,
 	    "atse_mem_res", reg, reg * 4, val4);
 
 	return (val4);

@@ -132,7 +132,7 @@ wtap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 
 /* The function called at load/unload. */
 static int
-event_handler(module_t module, int event, void *arg) 
+event_handler(module_t module, int event, void *arg)
 {
 	struct visibility_plugin *plugin;
 	int e = 0; /* Error, 0 for normal return status */

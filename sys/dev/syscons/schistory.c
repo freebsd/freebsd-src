@@ -88,9 +88,9 @@ int
 sc_alloc_history_buffer(scr_stat *scp, int lines, int prev_ysize, int wait)
 {
 	/*
-	 * syscons unconditionally allocates buffers up to 
-	 * SC_HISTORY_SIZE lines or scp->ysize lines, whichever 
-	 * is larger. A value greater than that is allowed, 
+	 * syscons unconditionally allocates buffers up to
+	 * SC_HISTORY_SIZE lines or scp->ysize lines, whichever
+	 * is larger. A value greater than that is allowed,
 	 * subject to extra_history_size.
 	 */
 	sc_vtb_t *history;
@@ -178,8 +178,8 @@ copy_history(sc_vtb_t *from, sc_vtb_t *to)
 	for (i = 0; i < lines; ++i) {
 		sc_vtb_append(from, pos, to, cols);
 		if (cols < cols2)
-			sc_vtb_seek(to, sc_vtb_pos(to, 
-						   sc_vtb_tail(to), 
+			sc_vtb_seek(to, sc_vtb_pos(to,
+						   sc_vtb_tail(to),
 						   cols2 - cols));
 		pos = sc_vtb_pos(from, pos, cols1);
 	}
@@ -199,7 +199,7 @@ sc_free_history_buffer(scr_stat *scp, int prev_ysize)
 
 	cur_lines = sc_vtb_rows(history);
 	min_lines = imax(SC_HISTORY_SIZE, prev_ysize);
-	extra_history_size += (cur_lines > min_lines) ? 
+	extra_history_size += (cur_lines > min_lines) ?
 				  cur_lines - min_lines : 0;
 
 	sc_vtb_destroy(history);
@@ -227,7 +227,7 @@ sc_hist_restore(scr_stat *scp)
 	} else {
 		ret = 1;
 	}
-	sc_vtb_seek(scp->history, sc_vtb_pos(scp->history, 
+	sc_vtb_seek(scp->history, sc_vtb_pos(scp->history,
 					     sc_vtb_tail(scp->history),
 					     -scp->xsize*scp->ysize));
 	return ret;
@@ -307,7 +307,7 @@ sc_hist_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 			return EBUSY;
 		DPRINTF(5, ("lines:%d, ysize:%d, pool:%d\n",
 			    *(int *)data, scp->ysize, extra_history_size));
-		error = sc_alloc_history_buffer(scp, 
+		error = sc_alloc_history_buffer(scp,
 					       imax(*(int *)data, scp->ysize),
 					       scp->ysize, TRUE);
 		DPRINTF(5, ("error:%d, rows:%d, pool:%d\n", error,

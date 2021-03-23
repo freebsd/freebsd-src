@@ -62,7 +62,7 @@ ar5211SetPowerModeAwake(struct ath_hal *ah, int setChip)
 #endif
 			return AH_FALSE;
 		}
-	} 
+	}
 
 	OS_REG_CLR_BIT(ah, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
 	return AH_TRUE;

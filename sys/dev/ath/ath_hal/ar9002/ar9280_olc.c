@@ -296,14 +296,14 @@ ar9280SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
 	int8_t pwr_table_offset;
 
 	OS_MEMZERO(xpdGainValues, sizeof(xpdGainValues));
-	    
+
 	xpdMask = pEepData->modalHeader[IEEE80211_IS_CHAN_2GHZ(chan)].xpdGain;
 
 	(void) ath_hal_eepromGet(ah, AR_EEP_PWR_TABLE_OFFSET, &pwr_table_offset);
 
 	if (IS_EEP_MINOR_V2(ah)) {
 		pdGainOverlap_t2 = pEepData->modalHeader[IEEE80211_IS_CHAN_2GHZ(chan)].pdGainOverlap;
-	} else { 
+	} else {
 		pdGainOverlap_t2 = (uint16_t)(MS(OS_REG_READ(ah, AR_PHY_TPCRG5), AR_PHY_TPCRG5_PD_GAIN_OVERLAP));
 	}
 
@@ -335,7 +335,7 @@ ar9280SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
 
 	/* Calculate the value of xpdgains from the xpdGain Mask */
 	numXpdGain = ar5416GetXpdGainValues(ah, xpdMask, xpdGainValues);
-	    
+
 	/* Write the detector gain biases and their number */
 	ar5416WriteDetectorGainBiases(ah, numXpdGain, xpdGainValues);
 

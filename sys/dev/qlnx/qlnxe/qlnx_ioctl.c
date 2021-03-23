@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -128,7 +128,7 @@ qlnx_grc_dump(qlnx_host_t *ha, uint32_t *num_dumped_dwords, int hwfn_index)
 			ha->grcdump[hwfn_index],
 			(ha->grcdump_size[hwfn_index] >> 2),
 			num_dumped_dwords)) == DBG_STATUS_OK) {
-	 	rval = 0;	
+	 	rval = 0;
 		ha->grcdump_taken = 1;
 	} else
 		QL_DPRINT1(ha,"ecore_dbg_grc_dump failed [%d, 0x%x]\n",
@@ -216,7 +216,7 @@ qlnx_idle_chk(qlnx_host_t *ha, uint32_t *num_dumped_dwords, int hwfn_index)
 			ha->idle_chk[hwfn_index],
 			(ha->idle_chk_size[hwfn_index] >> 2),
 			num_dumped_dwords)) == DBG_STATUS_OK) {
-	 	rval = 0;	
+	 	rval = 0;
 		ha->idle_chk_taken = 1;
 	} else
 		QL_DPRINT1(ha,"ecore_dbg_idle_chk_dump failed [%d, 0x%x]\n",
@@ -260,7 +260,7 @@ qlnx_get_idle_chk(qlnx_host_t *ha, qlnx_idle_chk_t *idle_chk)
 
 		if (rval)
 			break;
-		
+
 		idle_chk->idle_chk_dwords[i] = dwords;
 
 		QL_DPRINT1(ha,"idle_chk_dwords[%d] = 0x%x\n", i, dwords);
@@ -356,7 +356,7 @@ qlnx_get_trace(qlnx_host_t *ha, int hwfn_index, qlnx_trace_t *trace)
 	void *buffer;
 
 	buffer = qlnx_zalloc(trace->size[hwfn_index]);
-	if (buffer == NULL) { 
+	if (buffer == NULL) {
                 QL_DPRINT1(ha,"qlnx_zalloc [%d, 0x%x]failed\n",
                            hwfn_index, trace->cmd);
                 return (ENXIO);
@@ -451,7 +451,7 @@ qlnx_reg_rd_wr(qlnx_host_t *ha, qlnx_reg_rd_wr_t *reg_rd_wr)
 		default:
 			rval = EINVAL;
 			break;
-	} 
+	}
 
 	return (rval);
 }
@@ -476,7 +476,7 @@ qlnx_rd_wr_pci_config(qlnx_host_t *ha, qlnx_pcicfg_rd_wr_t *pci_cfg_rd_wr)
 		default:
 			rval = EINVAL;
 			break;
-	} 
+	}
 
 	return (rval);
 }
@@ -548,7 +548,7 @@ qlnx_drv_info(qlnx_host_t *ha, qlnx_drvinfo_t *drv_info)
 	drv_info->eeprom_dump_len = ha->flash_size;
 
 	for (i = 0; i < ha->cdev.num_hwfns; i++) {
-		drv_info->reg_dump_len += ha->grcdump_size[i]; 
+		drv_info->reg_dump_len += ha->grcdump_size[i];
 	}
 
 	snprintf(drv_info->bus_info, sizeof(drv_info->bus_info),

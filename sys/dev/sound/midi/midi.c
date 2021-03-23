@@ -256,7 +256,7 @@ int             midi_instroff;
 SYSCTL_INT(_hw_midi, OID_AUTO, instroff, CTLFLAG_RW, &midi_instroff, 0, "");
 
 int             midistat_verbose;
-SYSCTL_INT(_hw_midi_stat, OID_AUTO, verbose, CTLFLAG_RW, 
+SYSCTL_INT(_hw_midi_stat, OID_AUTO, verbose, CTLFLAG_RW,
 	&midistat_verbose, 0, "");
 
 #define MIDI_DEBUG(l,a)	if(midi_debug>=l) a

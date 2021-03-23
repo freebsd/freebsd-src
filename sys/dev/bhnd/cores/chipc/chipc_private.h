@@ -31,7 +31,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -58,7 +58,7 @@ struct chipc_region;
 struct chipc_softc;
 
 int			 chipc_init_child_resource(struct resource *r,
-			     struct resource *parent, 
+			     struct resource *parent,
 			     bhnd_size_t offset, bhnd_size_t size);
 
 int			 chipc_set_irq_resource(struct chipc_softc *sc,

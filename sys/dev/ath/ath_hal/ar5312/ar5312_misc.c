@@ -53,7 +53,7 @@ ar5312SetLedState(struct ath_hal *ah, HAL_LED_STATE state)
 }
 
 /*
- * Detect if our wireless mac is present. 
+ * Detect if our wireless mac is present.
  */
 HAL_BOOL
 ar5312DetectCardPresent(struct ath_hal *ah)

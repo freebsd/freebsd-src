@@ -364,4 +364,4 @@ typedef struct {
 
 extern void ocs_info_get_xport_address(ocs_t *ocs, ocs_ioctl_driver_info_t *info);
 extern int32_t ocs_device_ioctl_xport(ocs_t *ocs, unsigned int cmd, unsigned long arg);
-#endif 
+#endif

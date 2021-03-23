@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * BHND SPROM driver.
- * 
+ *
  * Abstract driver for memory-mapped SPROM devices.
  */
 
@@ -82,12 +82,12 @@ bhnd_sprom_attach_meth(device_t dev)
 
 /**
  * BHND SPROM device attach.
- * 
+ *
  * This should be called from DEVICE_ATTACH() with the @p offset to the
  * SPROM data.
- * 
+ *
  * Assumes SPROM is mapped via SYS_RES_MEMORY resource with RID 0.
- * 
+ *
  * @param dev BHND SPROM device.
  * @param offset Offset to the SPROM data.
  */

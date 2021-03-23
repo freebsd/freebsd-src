@@ -27,7 +27,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -69,7 +69,7 @@ typedef enum {
 	BHND_PCI_REGFMT_PCIE	= 1,	/* PCIe-Gen1 register definitions */
 } bhnd_pci_regfmt_t;
 
-/** PCI (base driver) quirks */ 
+/** PCI (base driver) quirks */
 enum {
 	/**
 	 * The PCIe SerDes requires use of a non-standard Clause 22
@@ -87,13 +87,13 @@ struct bhnd_pci_devinfo {
 
 /*
  * Generic PCI bridge/end-point driver state.
- * 
+ *
  * Must be first member of all subclass softc structures.
  */
 struct bhnd_pci_softc {
 	device_t		 dev;		/**< pci device */
 	uint32_t		 quirks;	/**< quirk flags */
-	bhnd_pci_regfmt_t	 regfmt;	/**< register format */	
+	bhnd_pci_regfmt_t	 regfmt;	/**< register format */
 
 	struct mtx		 mtx;		/**< state mutex used to protect
 						     interdependent register
@@ -119,7 +119,7 @@ struct bhnd_pci_softc {
 
 /**
  * Extract a register value by applying _MASK and _SHIFT defines.
- * 
+ *
  * @param _regv The register value containing the desired attribute
  * @param _attr The register attribute name to which to append `_MASK`/`_SHIFT`
  * suffixes.
@@ -129,7 +129,7 @@ struct bhnd_pci_softc {
 
 /**
  * Insert a value in @p _regv by applying _MASK and _SHIFT defines.
- * 
+ *
  * @param _regv The current register value.
  * @param _attr The register attribute name to which to append `_MASK`/`_SHIFT`
  * suffixes.
@@ -141,7 +141,7 @@ struct bhnd_pci_softc {
 /**
  * Extract a value by applying _MASK and _SHIFT defines to the common
  * PCI/PCIe register definition @p _regv
- * 
+ *
  * @param _regf The PCI core register format (BHND_PCI_REGFMT_*).
  * @param _regv The register value containing the desired attribute
  * @param _attr The register attribute name to which to prepend the register
@@ -155,7 +155,7 @@ struct bhnd_pci_softc {
 /**
  * Insert a register value by applying _MASK and _SHIFT defines to the common
  * PCI/PCIe register definition @p _regv
- * 
+ *
  * @param _regf The PCI core register format (BHND_PCI_REGFMT_*).
  * @param _regv The register value containing the desired attribute
  * @param _attr The register attribute name to which to prepend the register
@@ -169,14 +169,14 @@ struct bhnd_pci_softc {
 	    _val)
 
 /**
- * Evaluates to the offset of a common PCI/PCIe register definition. 
- * 
+ * Evaluates to the offset of a common PCI/PCIe register definition.
+ *
  * This will trigger a compile-time error if the register is not defined
  * for all supported PCI/PCIe cores.
- * 
+ *
  * This should be optimized down to a constant value if the register constant
  * is the same across the register definitions.
- * 
+ *
  * @param _regf The PCI core register format (BHND_PCI_REGFMT_*).
  * @param _name The base name of the register.
  */

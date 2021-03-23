@@ -457,7 +457,7 @@ dwc_otg_uses_split(struct usb_device *udev)
 	/*
 	 * When a LOW or FULL speed device is connected directly to
 	 * the USB port we don't use split transactions:
-	 */ 
+	 */
 	return (udev->speed != USB_SPEED_HIGH &&
 	    udev->parent_hs_hub != NULL &&
 	    udev->parent_hs_hub->parent_hub != NULL);
@@ -1311,7 +1311,7 @@ dwc_otg_host_data_rx_sub(struct dwc_otg_softc *sc, struct dwc_otg_td *td,
 				} else {
 					/* invalid USB packet */
 					td->error_any = 1;
-			  
+
 					/* release FIFO */
 					dwc_otg_common_rx_ack(sc);
 					goto complete;
@@ -1498,7 +1498,7 @@ dwc_otg_host_data_rx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 		/*
 		 * NOTE: The DWC OTG hardware provides a fake ACK in
 		 * case of interrupt and isochronous transfers:
-		 */ 
+		 */
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
 			td->did_nak = 1;
 			td->tt_scheduled = 0;
@@ -1770,13 +1770,13 @@ not_complete:
 	if (td->ep_no == 0) {
 		DWC_OTG_WRITE_4(sc, DOTG_DOEPTSIZ(0),
 		    DXEPTSIZ_SET_MULTI(3) |
-		    DXEPTSIZ_SET_NPKT(1) | 
+		    DXEPTSIZ_SET_NPKT(1) |
 		    DXEPTSIZ_SET_NBYTES(td->max_packet_size));
 	} else {
 		/* allow reception of multiple packets */
 		DWC_OTG_WRITE_4(sc, DOTG_DOEPTSIZ(td->ep_no),
 		    DXEPTSIZ_SET_MULTI(1) |
-		    DXEPTSIZ_SET_NPKT(4) | 
+		    DXEPTSIZ_SET_NPKT(4) |
 		    DXEPTSIZ_SET_NBYTES(4 *
 		        ((td->max_packet_size + 3) & ~3)));
 	}
@@ -2062,7 +2062,7 @@ send_pkt:
 
 		/* store last packet index */
 		td->npkt = x;
-		
+
 		/* check for last packet */
 		if (count == rem_bytes)
 			break;
@@ -2272,7 +2272,7 @@ repeat:
 	}
 	DWC_OTG_WRITE_4(sc, DOTG_DIEPTSIZ(td->ep_no),
 	    DXEPTSIZ_SET_MULTI(1) |
-	    DXEPTSIZ_SET_NPKT(td->npkt) | 
+	    DXEPTSIZ_SET_NPKT(td->npkt) |
 	    DXEPTSIZ_SET_NBYTES(count));
 
 	/* make room for buffering */
@@ -2527,7 +2527,7 @@ dwc_otg_update_host_transfer_schedule_locked(struct dwc_otg_softc *sc)
 			slot = dwc_otg_compute_isoc_rx_tt_slot(
 			    sc->sc_tt_info + td->tt_index);
 			if (slot > 3) {
-				/* 
+				/*
 				 * Not enough time to get complete
 				 * split executed.
 				 */
@@ -2659,12 +2659,12 @@ dwc_otg_update_host_transfer_schedule_locked(struct dwc_otg_softc *sc)
 		/* update SOF IRQ mask */
 		if (sc->sc_irq_mask & GINTMSK_SOFMSK) {
 			if (sc->sc_needsof == 0) {
-				sc->sc_irq_mask &= ~GINTMSK_SOFMSK; 
+				sc->sc_irq_mask &= ~GINTMSK_SOFMSK;
 				DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 			}
 		} else {
 			if (sc->sc_needsof != 0) {
-				sc->sc_irq_mask |= GINTMSK_SOFMSK; 
+				sc->sc_irq_mask |= GINTMSK_SOFMSK;
 				DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 			}
 		}
@@ -4219,7 +4219,7 @@ dwc_otg_device_isoc_start(struct usb_xfer *xfer)
 	/*
 	 * Compute number of milliseconds worth of data traffic for
 	 * this USB transfer:
-	 */ 
+	 */
 	if (xfer->xroot->udev->speed == USB_SPEED_HIGH)
 		msframes = ((xfer->nframes << shift) + 7) / 8;
 	else

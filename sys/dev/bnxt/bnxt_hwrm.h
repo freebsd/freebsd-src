@@ -52,7 +52,7 @@ int bnxt_hwrm_func_qcaps(struct bnxt_softc *softc);
 int bnxt_hwrm_func_qcfg(struct bnxt_softc *softc);
 int bnxt_hwrm_func_reset(struct bnxt_softc *softc);
 int bnxt_hwrm_set_link_setting(struct bnxt_softc *softc, bool set_pause,
-    bool set_eee, bool set_link); 
+    bool set_eee, bool set_link);
 int bnxt_hwrm_set_pause(struct bnxt_softc *softc);
 int bnxt_hwrm_vnic_ctx_alloc(struct bnxt_softc *softc, uint16_t *ctx_id);
 int bnxt_hwrm_vnic_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic);

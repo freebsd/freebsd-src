@@ -10070,7 +10070,7 @@ struct fw_ephy_hdr {
 enum {
 	FW_EPHY_HDR_MAGIC	= 0x65706879,
 };
-	
+
 struct fw_ifconf_dhcp_info {
 	__be32		addr;
 	__be32		mask;

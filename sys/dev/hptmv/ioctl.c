@@ -130,7 +130,7 @@ ioctl_ReportEvent(UCHAR event, PVOID param)
 		case ET_REBUILD_ABORTED:
 		case ET_REBUILD_FAILED:
 		case ET_REBUILD_FINISHED:
-		
+
 		case ET_VERIFY_STARTED:
 		case ET_VERIFY_ABORTED:
 		case ET_VERIFY_FAILED:
@@ -168,7 +168,7 @@ hpt_delete_array(_VBUS_ARG DEVICEID id, DWORD options)
 		return -1;
 
 	if(!mIsArray(pArray)) return -1;
-	
+
 	if (pArray->u.array.rf_rebuilding || pArray->u.array.rf_verifying ||
 		pArray->u.array.rf_initializing)
 		return -1;
@@ -176,7 +176,7 @@ hpt_delete_array(_VBUS_ARG DEVICEID id, DWORD options)
 	for(i=0; i<pArray->u.array.bArnMember; i++) {
 		pa = pArray->u.array.pMember[i];
 		if (pa && mIsArray(pa)) {
-			if (pa->u.array.rf_rebuilding || pa->u.array.rf_verifying || 
+			if (pa->u.array.rf_rebuilding || pa->u.array.rf_verifying ||
 				pa->u.array.rf_initializing)
 				return -1;
 		}
@@ -219,7 +219,7 @@ int Kernel_DeviceIoControl(_VBUS_ARG
 		case HPT_IOCTL_DELETE_ARRAY:
 		{
 			DEVICEID idArray;
-			int iSuccess;			
+			int iSuccess;
 	        int i;
 			PVDevice pArray;
 			PVBus _vbus_p;
@@ -231,9 +231,9 @@ int Kernel_DeviceIoControl(_VBUS_ARG
 
 			pArray = ID_TO_VDEV(idArray);
 
-			if((idArray == 0) || check_VDevice_valid(pArray))	
+			if((idArray == 0) || check_VDevice_valid(pArray))
 		       	return -1;
-		
+
         	if(!mIsArray(pArray))
 				return -1;
 
@@ -247,11 +247,11 @@ int Kernel_DeviceIoControl(_VBUS_ARG
 					if (periph != NULL && periph->refcount >= 1)
 					{
 						hpt_printk(("Can not delete a mounted device.\n"));
-	                    return -1;	
+	                    return -1;
 					}
 				}
 				/* the Mounted Disk isn't delete */
-			} 
+			}
 
 			iSuccess = hpt_delete_array(_VBUS_P idArray, *(DWORD*)((DEVICEID *)lpInBuffer+1));
 
@@ -322,17 +322,17 @@ int Kernel_DeviceIoControl(_VBUS_ARG
 			case HPT_IOCTL_GET_CHANNEL_INFO:
 			case HPT_IOCTL_GET_LOGICAL_DEVICES:
 			case HPT_IOCTL_GET_DEVICE_INFO:
-			case HPT_IOCTL_GET_DEVICE_INFO_V2:				
+			case HPT_IOCTL_GET_DEVICE_INFO_V2:
 			case HPT_IOCTL_GET_EVENT:
 			case HPT_IOCTL_GET_DRIVER_CAPABILITIES:
-				if(hpt_default_ioctl(_VBUS_P dwIoControlCode, lpInBuffer, nInBufferSize, 
+				if(hpt_default_ioctl(_VBUS_P dwIoControlCode, lpInBuffer, nInBufferSize,
 					lpOutBuffer, nOutBufferSize, lpBytesReturned) == -1) return -1;
 				break;
 
 			default:
-				/* 
-				 * GUI always use /proc/scsi/hptmv/0, so the _vbus_p param will be 
-				 * wrong for second controller. 
+				/*
+				 * GUI always use /proc/scsi/hptmv/0, so the _vbus_p param will be
+				 * wrong for second controller.
 				 */
 				switch(dwIoControlCode) {
 				case HPT_IOCTL_CREATE_ARRAY:
@@ -354,17 +354,17 @@ int Kernel_DeviceIoControl(_VBUS_ARG
 				default:
 					pVDev = 0;
 				}
-				
+
 				if (pVDev && !check_VDevice_valid(pVDev)){
 					_vbus_p = pVDev->pVBus;
 
 					pAdapter = (IAL_ADAPTER_T *)_vbus_p->OsExt;
-					/* 
-					 * create_array, and other functions can't be executed while channel is 
+					/*
+					 * create_array, and other functions can't be executed while channel is
 					 * perform I/O commands. Wait until driver is idle.
 					 */
 					lock_driver_idle(pAdapter);
-					if (hpt_default_ioctl(_VBUS_P dwIoControlCode, lpInBuffer, nInBufferSize, 
+					if (hpt_default_ioctl(_VBUS_P dwIoControlCode, lpInBuffer, nInBufferSize,
 						lpOutBuffer, nOutBufferSize, lpBytesReturned) == -1) {
 						mtx_unlock(&pAdapter->lock);
 						return -1;
@@ -375,7 +375,7 @@ int Kernel_DeviceIoControl(_VBUS_ARG
 					return -1;
 				break;
 			}
-			
+
 #ifdef SUPPORT_ARRAY
 			switch(dwIoControlCode)
 			{
@@ -421,7 +421,7 @@ int Kernel_DeviceIoControl(_VBUS_ARG
 					PVDevice pArray = ID_TO_VDEV(((PHPT_ADD_DISK_TO_ARRAY)lpInBuffer)->idArray);
 					pAdapter=(IAL_ADAPTER_T *)pArray->pVBus->OsExt;
 					if(pArray->u.array.rf_rebuilding == 0)
-					{		
+					{
 						mtx_lock(&pAdapter->lock);
 						pArray->u.array.rf_auto_rebuild = 0;
 						pArray->u.array.rf_abort_rebuild = 0;
@@ -466,7 +466,7 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 	if(!pVDevice->vf_online || pVDevice->u.array.rf_broken) return -1;
 
 	pAdapter=(IAL_ADAPTER_T *)pVDevice->pVBus->OsExt;
-	
+
 	switch(state)
 	{
 		case MIRROR_REBUILD_START:
@@ -478,11 +478,11 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 				mtx_unlock(&pAdapter->lock);
 				return -1;
 			}
-			
+
 			pVDevice->u.array.rf_auto_rebuild = 0;
 			pVDevice->u.array.rf_abort_rebuild = 0;
 
-			hpt_queue_dpc((HPT_DPC)hpt_rebuild_data_block, pAdapter, pVDevice, 
+			hpt_queue_dpc((HPT_DPC)hpt_rebuild_data_block, pAdapter, pVDevice,
 				(UCHAR)((pVDevice->u.array.CriticalMembers || pVDevice->VDeviceType == VD_RAID_1)? DUPLICATE : REBUILD_PARITY));
 
 			while (!pVDevice->u.array.rf_rebuilding)
@@ -508,9 +508,9 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 				mtx_unlock(&pAdapter->lock);
 				return -1;
 			}
-			
+
 			pVDevice->u.array.rf_abort_rebuild = 1;
-			
+
 			while (pVDevice->u.array.rf_abort_rebuild)
 			{
 				if (mtx_sleep(pVDevice, &pAdapter->lock, 0,
@@ -535,7 +535,7 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 
             pVDevice->u.array.RebuildSectors = 0;
 			hpt_queue_dpc((HPT_DPC)hpt_rebuild_data_block, pAdapter, pVDevice, VERIFY);
-			
+
 			while (!pVDevice->u.array.rf_verifying)
 			{
 				if (mtx_sleep(pVDevice, &pAdapter->lock, 0,
@@ -553,9 +553,9 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 				mtx_unlock(&pAdapter->lock);
 				return -1;
 			}
-				
+
 			pVDevice->u.array.rf_abort_rebuild = 1;
-			
+
 			while (pVDevice->u.array.rf_abort_rebuild)
 			{
 				if (mtx_sleep(pVDevice, &pAdapter->lock, 0,
@@ -577,7 +577,7 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 			}
 
 			hpt_queue_dpc((HPT_DPC)hpt_rebuild_data_block, pAdapter, pVDevice, VERIFY);
-			
+
 			while (!pVDevice->u.array.rf_initializing)
 			{
 				if (mtx_sleep(pVDevice, &pAdapter->lock, 0,
@@ -595,9 +595,9 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 				mtx_unlock(&pAdapter->lock);
 				return -1;
 			}
-				
+
 			pVDevice->u.array.rf_abort_rebuild = 1;
-			
+
 			while (pVDevice->u.array.rf_abort_rebuild)
 			{
 				if (mtx_sleep(pVDevice, &pAdapter->lock, 0,
@@ -702,7 +702,7 @@ hpt_rebuild_data_block(IAL_ADAPTER_T *pAdapter, PVDevice pArray, UCHAR flags)
 		return;
 
 	mtx_lock(&pAdapter->lock);
-	
+
 	switch(flags)
 	{
 		case DUPLICATE:
@@ -733,14 +733,14 @@ hpt_rebuild_data_block(IAL_ADAPTER_T *pAdapter, PVDevice pArray, UCHAR flags)
 			}
 			break;
 	}
-	
+
 retry_cmd:
 	pCmd = AllocateCommand(_VBUS_P0);
 	HPT_ASSERT(pCmd);
 	pCmd->cf_control = 1;
 	End_Job = 0;
 
-	if (pArray->VDeviceType==VD_RAID_1) 
+	if (pArray->VDeviceType==VD_RAID_1)
 	{
 		#define MAX_REBUILD_SECTORS 0x40
 
@@ -751,7 +751,7 @@ retry_cmd:
 			hpt_printk(("can't allocate rebuild buffer\n"));
 			goto fail;
 		}
-		switch(flags) 
+		switch(flags)
 		{
 			case DUPLICATE:
 				pCmd->uCmd.R1Control.Command = CTRL_CMD_REBUILD;
@@ -764,7 +764,7 @@ retry_cmd:
 				break;
 
 			case INITIALIZE:
-				pCmd->uCmd.R1Control.Command = CTRL_CMD_REBUILD; 
+				pCmd->uCmd.R1Control.Command = CTRL_CMD_REBUILD;
 				pCmd->uCmd.R1Control.nSectors = MAX_REBUILD_SECTORS;
 				break;
 		}
@@ -855,20 +855,20 @@ retry_cmd:
 			else
 			{
 				pArray->u.array.rf_abort_rebuild = 0;
-				if (pArray->u.array.rf_rebuilding) 
+				if (pArray->u.array.rf_rebuilding)
 				{
 					hpt_printk(("Abort rebuilding.\n"));
 					pArray->u.array.rf_rebuilding = 0;
 					pArray->u.array.rf_duplicate_and_create = 0;
 					ioctl_ReportEvent(ET_REBUILD_ABORTED, pArray);
 				}
-				else if (pArray->u.array.rf_verifying) 
+				else if (pArray->u.array.rf_verifying)
 				{
 					hpt_printk(("Abort verifying.\n"));
 					pArray->u.array.rf_verifying = 0;
 					ioctl_ReportEvent(ET_VERIFY_ABORTED, pArray);
 				}
-				else if (pArray->u.array.rf_initializing) 
+				else if (pArray->u.array.rf_initializing)
 				{
 					hpt_printk(("Abort initializing.\n"));
 					pArray->u.array.rf_initializing = 0;
@@ -934,14 +934,14 @@ fail:
 			needdelete=1;
 	}
 
-	while (pAdapter->outstandingCommands) 
+	while (pAdapter->outstandingCommands)
 	{
 		KdPrintI(("currcmds is %d, wait..\n", pAdapter->outstandingCommands));
 		/* put this to have driver stop processing system commands quickly */
 		if (!mWaitingForIdle(_VBUS_P0)) CallWhenIdle(_VBUS_P nothing, 0);
 		mtx_sleep(pAdapter, &pAdapter->lock, 0, "hptidle", 0);
 	}
-		
+
 	if (needsync) SyncArrayInfo(pArray);
 	if(needdelete && (pArray->u.array.rf_duplicate_must_done || (flags == INITIALIZE)))
 		fDeleteArray(_VBUS_P pArray, TRUE);

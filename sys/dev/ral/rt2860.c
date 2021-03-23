@@ -1938,7 +1938,7 @@ rt2860_tx_raw(struct rt2860_softc *sc, struct mbuf *m,
 }
 
 static int
-rt2860_transmit(struct ieee80211com *ic, struct mbuf *m)   
+rt2860_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
 	struct rt2860_softc *sc = ic->ic_softc;
 	int error;
@@ -2886,7 +2886,7 @@ rt5390_rf_wakeup(struct rt2860_softc *sc)
 	uint8_t rf;
 
 	rf = rt3090_rf_read(sc, 1);
-	rf |= RT3070_RF_BLOCK | RT3070_PLL_PD | RT3070_RX0_PD | 
+	rf |= RT3070_RF_BLOCK | RT3070_PLL_PD | RT3070_RX0_PD |
 	    RT3070_TX0_PD;
 	if (sc->mac_ver == 0x5392)
 		rf |= RT3070_RX1_PD | RT3070_TX1_PD;
@@ -4219,7 +4219,7 @@ rt3090_set_rx_antenna(struct rt2860_softc *sc, int aux)
 
 	if (aux) {
 		if (sc->mac_ver == 0x5390) {
-			rt2860_mcu_bbp_write(sc, 152, 
+			rt2860_mcu_bbp_write(sc, 152,
 			    rt2860_mcu_bbp_read(sc, 152) & ~0x80);
 		} else {
 			tmp = RAL_READ(sc, RT2860_PCI_EECTRL);
@@ -4229,7 +4229,7 @@ rt3090_set_rx_antenna(struct rt2860_softc *sc, int aux)
 		}
 	} else {
 		if (sc->mac_ver == 0x5390) {
-			rt2860_mcu_bbp_write(sc, 152, 
+			rt2860_mcu_bbp_write(sc, 152,
 			    rt2860_mcu_bbp_read(sc, 152) | 0x80);
 		} else {
 			tmp = RAL_READ(sc, RT2860_PCI_EECTRL);

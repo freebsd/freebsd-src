@@ -57,7 +57,7 @@ struct sample_softc {
 };
 #define	ATH_SOFTC_SAMPLE(sc)	((struct sample_softc *)sc->sc_rc)
 
-struct rate_stats {	
+struct rate_stats {
 	unsigned average_tx_time;
 	int successive_failures;
 	uint64_t tries;
@@ -100,7 +100,7 @@ struct sample_node {
 	struct rate_stats stats[NUM_PACKET_SIZE_BINS][SAMPLE_MAXRATES];
 	int last_sample_rix[NUM_PACKET_SIZE_BINS];
 
-	int current_sample_rix[NUM_PACKET_SIZE_BINS];       
+	int current_sample_rix[NUM_PACKET_SIZE_BINS];
 	int packets_sent[NUM_PACKET_SIZE_BINS];
 
 	int current_rix[NUM_PACKET_SIZE_BINS];
@@ -139,8 +139,8 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 	int rts, cts;
 
 	unsigned t_slot = 20;
-	unsigned t_difs = 50; 
-	unsigned t_sifs = 10; 
+	unsigned t_difs = 50;
+	unsigned t_sifs = 10;
 	int tt = 0;
 	int x = 0;
 	int cw = WIFI_CW_MIN;
@@ -154,7 +154,7 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 		return 0;
 	}
 	cix = rt->info[rix].controlRate;
-	/* 
+	/*
 	 * XXX getting mac/phy level timings should be fixed for turbo
 	 * rates, and there is probably a way to get this from the
 	 * hal...

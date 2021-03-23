@@ -224,7 +224,7 @@ bman_portals_fdt_attach(device_t dev)
 			continue;
 		}
 		di.di_intr_rid = intr_rid;
-		
+
 		ofw_reg_to_paddr(child, 0, &portal_pa, &portal_size, NULL);
 		rle = resource_list_find(&di.di_res, SYS_RES_MEMORY, 0);
 

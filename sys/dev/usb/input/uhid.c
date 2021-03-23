@@ -207,7 +207,7 @@ uhid_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		pc = usbd_xfer_get_frame(xfer, 0);
 
-		/* 
+		/*
 		 * If the ID byte is non zero we allow descriptors
 		 * having multiple sizes:
 		 */

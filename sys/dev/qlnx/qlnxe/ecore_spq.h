@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -78,7 +78,7 @@ union ramrod_data
 
 	struct rdma_create_cq_ramrod_data		rdma_create_cq;
 	struct rdma_resize_cq_ramrod_data		rdma_resize_cq;
-	struct rdma_destroy_cq_ramrod_data		rdma_destroy_cq;	
+	struct rdma_destroy_cq_ramrod_data		rdma_destroy_cq;
 	struct rdma_srq_create_ramrod_data		rdma_create_srq;
 	struct rdma_srq_destroy_ramrod_data		rdma_destroy_srq;
 	struct rdma_srq_modify_ramrod_data		rdma_modify_srq;

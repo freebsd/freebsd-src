@@ -82,7 +82,7 @@ ata_isa_probe(device_t dev)
     }
 
     /* allocate the altport range */
-    rid = ATA_CTLADDR_RID; 
+    rid = ATA_CTLADDR_RID;
     if (!(ctlio = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
 					      ATA_CTLIOSIZE, RF_ACTIVE))) {
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
@@ -122,7 +122,7 @@ ata_isa_attach(device_t dev)
     }
 
     /* allocate the altport range */
-    rid = ATA_CTLADDR_RID; 
+    rid = ATA_CTLADDR_RID;
     if (!(ctlio = bus_alloc_resource_anywhere(dev, SYS_RES_IOPORT, &rid,
 					      ATA_CTLIOSIZE, RF_ACTIVE))) {
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);

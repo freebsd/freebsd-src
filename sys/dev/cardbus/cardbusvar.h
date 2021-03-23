@@ -67,7 +67,7 @@ struct cardbus_devinfo
 /*
  * Per cardbus soft info.  Not sure why we even keep this around...
  */
-struct cardbus_softc 
+struct cardbus_softc
 {
 	device_t	sc_dev;
 #ifdef PCI_RES_BUS

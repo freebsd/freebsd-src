@@ -70,7 +70,7 @@
 #define TWED_DRIVER_NAME	twed
 #define TWE_MALLOC_CLASS	M_TWE
 
-/* 
+/*
  * Wrappers for bus-space actions
  */
 #define TWE_CONTROL(sc, val)		bus_write_4((sc)->twe_io, 0x0, (u_int32_t)val)

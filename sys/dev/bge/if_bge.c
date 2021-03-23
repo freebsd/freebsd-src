@@ -3848,9 +3848,9 @@ bge_attach(device_t dev)
 again:
 		bge_asf_driver_up(sc);
 
-		error = mii_attach(dev, &sc->bge_miibus, ifp, 
+		error = mii_attach(dev, &sc->bge_miibus, ifp,
 		    (ifm_change_cb_t)bge_ifmedia_upd,
-		    (ifm_stat_cb_t)bge_ifmedia_sts, capmask, sc->bge_phy_addr, 
+		    (ifm_stat_cb_t)bge_ifmedia_sts, capmask, sc->bge_phy_addr,
 		    MII_OFFSET_ANY, MIIF_DOPAUSE);
 		if (error != 0) {
 			if (trys++ < 4) {
@@ -4318,7 +4318,7 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_POSTWRITE);
 	if (BGE_IS_JUMBO_CAPABLE(sc) &&
-	    if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN + 
+	    if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN +
 	    ETHER_VLAN_ENCAP_LEN > (MCLBYTES - ETHER_ALIGN))
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_POSTWRITE);
@@ -5505,7 +5505,7 @@ bge_init_locked(struct bge_softc *sc)
 
 	/* Init jumbo RX ring. */
 	if (BGE_IS_JUMBO_CAPABLE(sc) &&
-	    if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN + 
+	    if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN +
      	    ETHER_VLAN_ENCAP_LEN > (MCLBYTES - ETHER_ALIGN)) {
 		if (bge_init_rx_ring_jumbo(sc) != 0) {
 			device_printf(sc->bge_dev,

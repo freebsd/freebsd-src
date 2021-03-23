@@ -44,7 +44,7 @@ qlnxr_store_gsi_qp_cq(struct qlnxr_dev *dev,
 		struct ib_qp_init_attr *attrs)
 {
 	QL_DPRINT12(dev->ha, "enter\n");
-		
+
 	dev->gsi_qp_created = 1;
 	dev->gsi_sqcq = get_qlnxr_cq((attrs->send_cq));
 	dev->gsi_rqcq = get_qlnxr_cq((attrs->recv_cq));
@@ -586,7 +586,7 @@ qlnxr_gsi_build_header(struct qlnxr_dev *dev,
 		}
 		udh->grh.next_header = 0x1b;
 	}
-#ifdef DEFINE_IB_UD_HEADER_INIT_UDP_PRESENT 
+#ifdef DEFINE_IB_UD_HEADER_INIT_UDP_PRESENT
         /* This is for RoCEv2 */
 	else {
                 /* IPv4 header */
@@ -734,7 +734,7 @@ qlnxr_gsi_post_send(struct ib_qp *ibqp,
 
 	if (!rc) {
 		qp->wqe_wr_id[qp->sq.prod].wr_id = wr->wr_id;
-		qp->wqe_wr_id[qp->sq.prod].signaled = 
+		qp->wqe_wr_id[qp->sq.prod].signaled =
 			!!(wr->send_flags & IB_SEND_SIGNALED);
 		qp->wqe_wr_id[qp->sq.prod].opcode = IB_WC_SEND;
 		qlnxr_inc_sw_prod(&qp->sq);

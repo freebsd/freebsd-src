@@ -57,7 +57,7 @@
 
 /* EHCI capability registers */
 #define	EHCI_CAPLEN_HCIVERSION	0x00	/* RO Capability register length
-					 * (least-significant byte) and 
+					 * (least-significant byte) and
 					 * interface version number (two
 					 * most significant)
 					 */

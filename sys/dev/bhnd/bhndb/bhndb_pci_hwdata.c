@@ -31,7 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Resource specifications and register maps for Broadcom PCI/PCIe cores 
+ * Resource specifications and register maps for Broadcom PCI/PCIe cores
  * configured as PCI-BHND bridges.
  */
 
@@ -59,7 +59,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v3;
 
 /**
  * Define a bhndb_hw match entry.
- * 
+ *
  * @param _name The entry name.
  * @param _vers The configuration version associated with this entry.
  */
@@ -76,7 +76,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v3;
  * Generic PCI-SIBA bridge configuration usable with all known siba(4)-based
  * PCI devices; this configuration is adequate for enumerating a bridged
  * siba(4) bus to determine the full hardware configuration.
- * 
+ *
  * @par Compatibility
  * - Compatible with PCI_V0, PCI_V1, PCI_V2, and PCI_V3 devices.
  * - Compatible with siba(4) bus enumeration.
@@ -278,7 +278,7 @@ const struct bhndb_hw bhndb_pci_generic_hw_table[] = {
 
 /**
  * PCI_V0 hardware configuration.
- * 
+ *
  * Applies to:
  * - PCI (cid=0x804, revision <= 12)
  */
@@ -299,18 +299,18 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v0 = {
 			},
 			.res		= { SYS_RES_MEMORY, PCIR_BAR(0) }
 		},
-		
-		/* bar0+0x1000: sprom shadow */ 
+
+		/* bar0+0x1000: sprom shadow */
 		{
 			.win_type	= BHNDB_REGWIN_T_SPROM,
 			.win_offset	= BHNDB_PCI_V0_BAR0_SPROM_OFFSET,
 			.win_size	= BHNDB_PCI_V0_BAR0_SPROM_SIZE,
 			.res		= { SYS_RES_MEMORY, PCIR_BAR(0) }
 		},
-		
+
 		/*
 		 * bar0+0x1800: pci core registers.
-		 * 
+		 *
 		 * Does not include the SSB CFG registers found at the end of
 		 * the 4K core register block; these are mapped non-contigiously
 		 * by the next entry.
@@ -344,7 +344,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v0 = {
 			},
 			.res		= { SYS_RES_MEMORY, PCIR_BAR(0) }
 		},
-		
+
 		BHNDB_REGWIN_TABLE_END
 	},
 
@@ -360,7 +360,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v0 = {
 
 /**
  * PCI_V1 (PCI-only) hardware configuration (PCI version)
- * 
+ *
  * Applies to:
  * - PCI (cid=0x804, revision >= 13)
  */
@@ -381,7 +381,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v1_pci = {
 			},
 			.res		= { SYS_RES_MEMORY, PCIR_BAR(0) }
 		},
-		
+
 		/* bar0+0x1000: sprom shadow */
 		{
 			.win_type	= BHNDB_REGWIN_T_SPROM,
@@ -389,7 +389,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v1_pci = {
 			.win_size	= BHNDB_PCI_V1_BAR0_SPROM_SIZE,
 			.res		= { SYS_RES_MEMORY, PCIR_BAR(0) }
 		},
-		
+
 		/* bar0+0x2000: pci core registers */
 		{
 			.win_type	= BHNDB_REGWIN_T_CORE,
@@ -435,7 +435,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v1_pci = {
 
 /**
  * PCI_V1 hardware configuration (PCIE version).
- * 
+ *
  * Applies to:
  * - PCIE (cid=0x820) with ChipCommon (revision <= 31)
  */
@@ -456,7 +456,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v1_pcie = {
 			},
 			.res		= { SYS_RES_MEMORY, PCIR_BAR(0) }
 		},
-		
+
 		/* bar0+0x1000: sprom shadow */
 		{
 			.win_type	= BHNDB_REGWIN_T_SPROM,
@@ -464,7 +464,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v1_pcie = {
 			.win_size	= BHNDB_PCI_V1_BAR0_SPROM_SIZE,
 			.res		= { SYS_RES_MEMORY, PCIR_BAR(0) }
 		},
-		
+
 		/* bar0+0x2000: pci core registers */
 		{
 			.win_type	= BHNDB_REGWIN_T_CORE,
@@ -515,7 +515,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v1_pcie = {
 
 /**
  * PCI_V2 hardware configuration.
- * 
+ *
  * Applies to:
  * - PCIE (cid=0x820) with ChipCommon (revision >= 32)
  */
@@ -536,7 +536,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v2 = {
 			},
 			.res		= { SYS_RES_MEMORY, PCIR_BAR(0) }
 		},
-		
+
 		/* bar0+0x1000: configurable backplane window */
 		{
 			.win_type	= BHNDB_REGWIN_T_DYN,
@@ -547,7 +547,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v2 = {
 			},
 			.res		= { SYS_RES_MEMORY, PCIR_BAR(0) }
 		},
-		
+
 		/* bar0+0x2000: pcie core registers */
 		{
 			.win_type	= BHNDB_REGWIN_T_CORE,
@@ -598,7 +598,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v2 = {
 
 /**
  * PCI_V3 hardware configuration.
- * 
+ *
  * Applies to:
  * - PCIE2 (cid=0x83c)
  */
@@ -619,7 +619,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v3 = {
 			},
 			.res		= { SYS_RES_MEMORY, PCIR_BAR(0) }
 		},
-		
+
 		/* bar0+0x1000: configurable backplane window */
 		{
 			.win_type	= BHNDB_REGWIN_T_DYN,
@@ -630,7 +630,7 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v3 = {
 			},
 			.res		= { SYS_RES_MEMORY, PCIR_BAR(0) }
 		},
-		
+
 		/* bar0+0x2000: pcie core registers */
 		{
 			.win_type	= BHNDB_REGWIN_T_CORE,

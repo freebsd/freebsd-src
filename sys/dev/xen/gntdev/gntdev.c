@@ -24,9 +24,9 @@
  * SUCH DAMAGE.
  *
  * gntdev.c
- * 
+ *
  * Interface to /dev/xen/gntdev.
- * 
+ *
  */
 
 #include <sys/cdefs.h>
@@ -377,7 +377,7 @@ gntdev_alloc_gref(struct ioctl_gntdev_alloc_gref *arg)
 		}
 		if ((grefs[i].page->flags & PG_ZERO) == 0) {
 			/*
-			 * Zero the allocated page, as we don't want to 
+			 * Zero the allocated page, as we don't want to
 			 * leak our memory to other domains.
 			 */
 			pmap_zero_page(grefs[i].page);
@@ -396,7 +396,7 @@ gntdev_alloc_gref(struct ioctl_gntdev_alloc_gref *arg)
 	if (error != 0) {
 		/*
 		 * If target domain maps the gref (by guessing the gref-id),
-		 * then we can't clean it up yet and we have to leave the 
+		 * then we can't clean it up yet and we have to leave the
 		 * page in place so as to not leak our memory to that domain.
 		 * Add it to a global list to be cleaned up later.
 		 */
@@ -405,7 +405,7 @@ gntdev_alloc_gref(struct ioctl_gntdev_alloc_gref *arg)
 			STAILQ_INSERT_TAIL(&cleanup_data.to_kill_grefs,
 			    &grefs[i], gref_next.list);
 		mtx_unlock(&cleanup_data.to_kill_grefs_mtx);
-		
+
 		taskqueue_enqueue(taskqueue_thread, &cleanup_task);
 
 		return (error);

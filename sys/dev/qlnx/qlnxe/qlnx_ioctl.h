@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -219,7 +219,7 @@ struct qlnx_storm_stats {
 	uint32_t ustorm_stall_cycles;
 	uint32_t ustorm_sleeping_cycles;
 	uint32_t ustorm_inactive_cycles;
-}; 
+};
 
 typedef struct qlnx_storm_stats qlnx_storm_stats_t;
 
@@ -237,8 +237,8 @@ struct qlnx_storm_stats_dump {
 typedef struct qlnx_storm_stats_dump qlnx_storm_stats_dump_t;
 
 #define QLNX_LLDP_TYPE_END_OF_LLDPDU		0
-#define QLNX_LLDP_TYPE_CHASSIS_ID		1	
-#define QLNX_LLDP_TYPE_PORT_ID			2	
+#define QLNX_LLDP_TYPE_CHASSIS_ID		1
+#define QLNX_LLDP_TYPE_PORT_ID			2
 #define QLNX_LLDP_TYPE_TTL			3
 #define QLNX_LLDP_TYPE_PORT_DESC		4
 #define QLNX_LLDP_TYPE_SYS_NAME			5

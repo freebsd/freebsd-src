@@ -87,10 +87,10 @@
 #define ATA_PCCARD_CTLOFFSET            0x0e    /* do for PCCARD devices */
 #define         ATA_A_IDS               0x02    /* disable interrupts */
 #define         ATA_A_RESET             0x04    /* RESET controller */
-#ifdef	ATA_LEGACY_SUPPORT			
+#ifdef	ATA_LEGACY_SUPPORT
 #define         ATA_A_4BIT              0x08    /* 4 head bits: obsolete 1996 */
 #else
-#define         ATA_A_4BIT              0x00 
+#define         ATA_A_4BIT              0x00
 #endif
 #define         ATA_A_HOB               0x80    /* High Order Byte enable */
 
@@ -214,8 +214,8 @@ struct ata_composite {
     u_int32_t           wr_done;                /* done write subdisks */
     struct ata_request  *request[MAX_COMPOSITES];
     u_int32_t           residual;               /* bytes still to transfer */
-    caddr_t             data_1;     
-    caddr_t             data_2;     
+    caddr_t             data_1;
+    caddr_t             data_2;
 };
 
 /* structure used to queue an ATA/ATAPI request */
@@ -320,7 +320,7 @@ struct ata_device {
 struct ata_dma_prdentry {
     u_int32_t addr;
     u_int32_t count;
-};  
+};
 
 /* structure used by the setprd function */
 struct ata_dmasetprd_args {

@@ -361,7 +361,7 @@ nvdimm_spa_g_thread(void *arg)
 			 */
 			goto completed;
 		}
-		
+
 		if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
 			if (sc->dev->spa_kva != NULL) {
 				aiovec.iov_base = (char *)sc->dev->spa_kva +

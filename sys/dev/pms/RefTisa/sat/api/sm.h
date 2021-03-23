@@ -1,33 +1,33 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 *
 * $FreeBSD$
 *
 ********************************************************************************/
 /********************************************************************************
-**    
-*   sm.h 
+**
+*   sm.h
 *
 *   Abstract:   This module defines the contants, enum and #define definition used
 *               by SAT Moduled (SM).
-*     
+*
 ********************************************************************************/
 
 #ifndef SM_H
@@ -56,7 +56,7 @@ typedef enum
   SM_RC_RSV3,
   SM_RC_RSV4,
   SM_RC_DEVICE_BUSY, /* must be the same as tiDeviceBusy */
-  
+
 } smStatus_t;
 
 typedef enum
@@ -112,7 +112,7 @@ typedef enum
   smIntrEventTypeTaskManagement,
   smIntrEventTypeDeviceChange,
   smIntrEventTypeLogin,
-  smIntrEventTypeLocalAbort  
+  smIntrEventTypeLocalAbort
 } smIntrEventType_t;
 
 typedef enum
@@ -146,7 +146,7 @@ typedef    smContext_t    smIORequest_t;
 
 typedef    smContext_t    smRoot_t;
 
-typedef struct 
+typedef struct
 {
 	bit8  lun[8];               /* logical unit number  */
 } smLUN_t;
@@ -211,7 +211,7 @@ typedef struct smDif
   bit16       DIFPerLARegion0SecCount;
   bit16       DIFPerLANumOfRegions;
   bit8        udtArray[DIF_UDT_SIZE];
-  bit8        udrtArray[DIF_UDT_SIZE];  
+  bit8        udrtArray[DIF_UDT_SIZE];
 } smDif_t;
 
 typedef struct smEncryptDek {
@@ -220,10 +220,10 @@ typedef struct smEncryptDek {
 } smEncryptDek_t;
 
 typedef struct smEncrypt {
-  smEncryptDek_t     dekInfo;	
+  smEncryptDek_t     dekInfo;
   bit32          kekIndex;
   agBOOLEAN      keyTagCheck;
-  agBOOLEAN  	   enableEncryptionPerLA;    
+  agBOOLEAN  	   enableEncryptionPerLA;
   bit32          sectorSizeIndex;
   bit32          encryptMode;
   bit32          keyTag_W0;
@@ -248,10 +248,10 @@ typedef struct smScsiInitiatorRequest {
 typedef struct smSuperScsiInitiatorRequest
 {
   void                *sglVirtualAddr;
-  smIniScsiCmnd_t     scsiCmnd;     
+  smIniScsiCmnd_t     scsiCmnd;
   smSgl_t             smSgl1;
   smDataDirection_t   dataDirection;
-  bit32               flags; /* 
+  bit32               flags; /*
                                bit 0-1: reserved
                                bit 2: enable encryption
                                bit 3: enable dif

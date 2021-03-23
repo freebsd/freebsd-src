@@ -38,7 +38,7 @@ $FreeBSD$
    the .data section, because some fields needs to be initialized at
    compile time.
    The 32bit word at offset MX_HEADER_PTR_OFFSET in the mcp must
-   contains the location of the header. 
+   contains the location of the header.
 
    Typically a MCP will start with the following:
    .text
@@ -46,7 +46,7 @@ $FreeBSD$
      bt start     ! jump to real code
      nop
      .long _gen_mcp_header
-   
+
    The source will have a definition like:
 
    mcp_gen_header_t gen_mcp_header = {

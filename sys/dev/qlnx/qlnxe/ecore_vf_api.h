@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -144,7 +144,7 @@ bool ecore_vf_check_mac(struct ecore_hwfn *p_hwfn, u8 *mac);
  * @param dst_mac
  * @param p_is_forced - out param which indicate in case mac
  *      	        exist if it forced or not.
- *  
+ *
  * @return bool       - return true if mac exist and false if
  *                      not.
  */

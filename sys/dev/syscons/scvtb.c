@@ -64,7 +64,7 @@ sc_vtb_init(sc_vtb_t *vtb, int type, int cols, int rows, void *buf, int wait)
 		if ((buf == NULL) && (cols*rows != 0)) {
 			vtb->vtb_buffer =
 				(vm_offset_t)malloc(cols*rows*sizeof(u_int16_t),
-						    M_DEVBUF, 
+						    M_DEVBUF,
 						    (wait) ? M_WAITOK : M_NOWAIT);
 			if (vtb->vtb_buffer != 0) {
 				bzero((void *)sc_vtb_pointer(vtb, 0),
@@ -244,7 +244,7 @@ sc_vtb_move(sc_vtb_t *vtb, int from, int to, int count)
 		return;
 	if (vtb->vtb_type == VTB_FRAMEBUFFER)
 		bcopy_io(sc_vtb_pointer(vtb, from),
-			 sc_vtb_pointer(vtb, to), count*sizeof(u_int16_t)); 
+			 sc_vtb_pointer(vtb, to), count*sizeof(u_int16_t));
 	else
 		bcopy((void *)sc_vtb_pointer(vtb, from),
 		      (void *)sc_vtb_pointer(vtb, to), count*sizeof(u_int16_t));
@@ -262,11 +262,11 @@ sc_vtb_delete(sc_vtb_t *vtb, int at, int count, int c, int attr)
 		if (vtb->vtb_type == VTB_FRAMEBUFFER)
 			bcopy_io(sc_vtb_pointer(vtb, at + count),
 				 sc_vtb_pointer(vtb, at),
-				 len*sizeof(u_int16_t)); 
+				 len*sizeof(u_int16_t));
 		else
 			bcopy((void *)sc_vtb_pointer(vtb, at + count),
 			      (void *)sc_vtb_pointer(vtb, at),
-			      len*sizeof(u_int16_t)); 
+			      len*sizeof(u_int16_t));
 	}
 	if (vtb->vtb_type == VTB_FRAMEBUFFER)
 		fillw_io(attr | c, sc_vtb_pointer(vtb, at + len),
@@ -285,11 +285,11 @@ sc_vtb_ins(sc_vtb_t *vtb, int at, int count, int c, int attr)
 		if (vtb->vtb_type == VTB_FRAMEBUFFER)
 			bcopy_io(sc_vtb_pointer(vtb, at),
 				 sc_vtb_pointer(vtb, at + count),
-				 (vtb->vtb_size - at - count)*sizeof(u_int16_t)); 
+				 (vtb->vtb_size - at - count)*sizeof(u_int16_t));
 		else
 			bcopy((void *)sc_vtb_pointer(vtb, at),
 			      (void *)sc_vtb_pointer(vtb, at + count),
-			      (vtb->vtb_size - at - count)*sizeof(u_int16_t)); 
+			      (vtb->vtb_size - at - count)*sizeof(u_int16_t));
 	}
 	if (vtb->vtb_type == VTB_FRAMEBUFFER)
 		fillw_io(attr | c, sc_vtb_pointer(vtb, at), count);

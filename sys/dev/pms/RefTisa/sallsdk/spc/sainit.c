@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -1158,7 +1158,7 @@ GLOBAL bit32 saInitialize(
   saRoot->BunchStarts_Enable        = FALSE;
   saRoot->BunchStarts_Threshold     = 5;
   saRoot->BunchStarts_Pending       = 0;
-  saRoot->BunchStarts_TimeoutTicks  = 10;  // N x 100 ms 
+  saRoot->BunchStarts_TimeoutTicks  = 10;  // N x 100 ms
 #endif /* SA_FW_TEST_BUNCH_STARTS */
 
   /* clear the interrupt vector bitmap */
@@ -1353,7 +1353,7 @@ GLOBAL bit32 saInitialize(
   {
 	SA_DBG1(("saInitialize: saRoot->ChipId == VEN_DEV_SPCV\n"));
 	siChipResetV(agRoot, SPC_SOFT_RESET_SIGNATURE);
-  }	
+  }
 
   /* MPI Initialization */
   ret = mpiInitialize(agRoot, &mpiMemoryAllocated, &saRoot->mpiConfig);
@@ -1694,7 +1694,7 @@ GLOBAL bit32 siConfiguration(
 
     /* Enable SGPIO */
     swConfig->sgpioSupportEnable = 1;
-	
+
     /* set bit for normal priority or high priority path */
     /* set fatal error interrupt enable and vector */
     /* set Interrupt Reassertion enable and 64 IQ/OQ enable */
@@ -2193,7 +2193,7 @@ GLOBAL bit32 mpiInitialize(agsaRoot_t *agRoot,
     {
        SA_DBG1(("mpiInitialize:SPCV12G - END_TO_END_CRC ON rev B %d ****************************\n",smIsCfgVREV_B(agRoot) ));
        /*ossaHwRegWriteExt(agRoot, pcibar, (bit32)(MSGUCfgTblDWIdx + MAIN_IO_ABORT_DELAY),
-                     MAIN_IO_ABORT_DELAY_END_TO_END_CRC_DISABLE); 
+                     MAIN_IO_ABORT_DELAY_END_TO_END_CRC_DISABLE);
        */
     }
     else if(smIsCfgVREV_C(agRoot))
@@ -3161,7 +3161,7 @@ GLOBAL bit32 mpiWaitForConfigTable(agsaRoot_t                 *agRoot,
 
   SA_DBG1(("mpiWaitForConfigTable: Interface Revision value = 0x%08x\n", config->InterfaceRev));
   SA_DBG1(("mpiWaitForConfigTable: FW Revision value = 0x%08x\n", config->FWRevision));
-  
+
   if(smIS_SPC(agRoot))
   {
     SA_DBG1(("mpiWaitForConfigTable: sTSDK ver. 0x%08x\n", STSDK_LL_SPC_VERSION));

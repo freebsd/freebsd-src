@@ -52,7 +52,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * 	NetBSD: snapper.c,v 1.28 2008/05/16 03:49:54 macallan Exp
- *	Id: snapper.c,v 1.11 2002/10/31 17:42:13 tsubai Exp 
+ *	Id: snapper.c,v 1.11 2002/10/31 17:42:13 tsubai Exp
  */
 
 /*
@@ -215,14 +215,14 @@ i2s_attach(device_t self)
 
 	/* Map the DBDMA channel register space. */
 	rid = 1;
-	sc->aoa.sc_odma = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, 
+	sc->aoa.sc_odma = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->aoa.sc_odma == NULL)
 		return ENXIO;
 
 	/* Establish the DBDMA channel edge-triggered interrupt. */
 	rid = 1;
-	dbdma_irq = bus_alloc_resource_any(self, SYS_RES_IRQ, 
+	dbdma_irq = bus_alloc_resource_any(self, SYS_RES_IRQ,
 	    &rid, RF_SHAREABLE | RF_ACTIVE);
 	if (dbdma_irq == NULL)
 		return (ENXIO);
@@ -244,7 +244,7 @@ i2s_attach(device_t self)
 	 * Register a hook for delayed attach in order to allow
 	 * the I2C controller to attach.
 	 */
-	if ((i2s_delayed_attach = malloc(sizeof(struct intr_config_hook), 
+	if ((i2s_delayed_attach = malloc(sizeof(struct intr_config_hook),
 	    M_TEMP, M_WAITOK | M_ZERO)) == NULL)
 		return (ENOMEM);
 
@@ -275,7 +275,7 @@ enum gpio_ctrl {
 		((1 << HEADPHONE_DETECT) | \
 		 (1 << LINEOUT_DETECT))
 
-static struct aoagpio_softc *gpio_ctrls[GPIO_CTRL_NUM] = 
+static struct aoagpio_softc *gpio_ctrls[GPIO_CTRL_NUM] =
 	{NULL, NULL, NULL, NULL, NULL, NULL};
 
 static struct gpio_match {
@@ -342,7 +342,7 @@ aoagpio_probe(device_t gpio)
 			sc->detect_active = 0;
 			sc->i2s = NULL;
 
-			OF_getprop(node, "audio-gpio-active-state", 
+			OF_getprop(node, "audio-gpio-active-state",
 				&sc->detect_active, sizeof(sc->detect_active));
 
 			if ((1 << m->ctrl) & GPIO_CTRL_EXTINT_SET)
@@ -357,7 +357,7 @@ aoagpio_probe(device_t gpio)
 	return (ENXIO);
 }
 
-static int 
+static int
 aoagpio_attach(device_t gpio)
 {
 	struct aoagpio_softc	*sc;
@@ -375,8 +375,8 @@ aoagpio_attach(device_t gpio)
 		irq = rman_get_start(r);
 		DPRINTF(("interrupting at irq %d\n", irq));
 
-		if (powerpc_config_intr(irq, INTR_TRIGGER_EDGE, 
-		    INTR_POLARITY_LOW) != 0) 
+		if (powerpc_config_intr(irq, INTR_TRIGGER_EDGE,
+		    INTR_POLARITY_LOW) != 0)
 			return (ENXIO);
 
 		bus_setup_intr(gpio, r, INTR_TYPE_MISC | INTR_MPSAFE |
@@ -423,7 +423,7 @@ aoagpio_attach(device_t gpio)
 #define OUTPUT_16BIT		(0 << 0)
 #define OUTPUT_24BIT		(3 << 0)
 
-/* Master clock, needed by some codecs. We hardcode this 
+/* Master clock, needed by some codecs. We hardcode this
    to 256 * fs as this is valid for most codecs. */
 #define MCLK_FS		256
 
@@ -441,7 +441,7 @@ static const struct i2s_clksrc {
 /* Configure the I2S controller for the required settings.
    'rate' is the frame rate.
    'wordsize' is the sample size (usually 16 bits).
-   'sclk_fs' is the SCLK/framerate ratio, which needs to be equal 
+   'sclk_fs' is the SCLK/framerate ratio, which needs to be equal
    or greater to the number of bits per frame. */
 
 static int
@@ -492,7 +492,7 @@ i2s_setup(struct i2s_softc *sc, u_int rate, u_int wordsize, u_int sclk_fs)
 		break;
 	}
 	reg |= (x << 24) & MCLK_DIV_MASK;
-		
+
 	switch (sdiv) {
 	case 1:
 		x = 8;
@@ -507,7 +507,7 @@ i2s_setup(struct i2s_softc *sc, u_int rate, u_int wordsize, u_int sclk_fs)
 	reg |= (x << 20) & SCLK_DIV_MASK;
 
 	/*
-	 * 	XXX use master mode for now. This needs to be 
+	 * 	XXX use master mode for now. This needs to be
 	 * 	revisited if we want to add recording from SPDIF some day.
 	 */
 	reg |= SCLK_MASTER;
@@ -551,17 +551,17 @@ i2s_setup(struct i2s_softc *sc, u_int rate, u_int wordsize, u_int sclk_fs)
 
 #ifdef notyet
 		if (obio_fcr_isset(OBIO_FCR1, I2S0CLKEN)) {
-			
-			bus_space_write_4(sc->sc_tag, sc->sc_bsh, I2S_INT, 
+
+			bus_space_write_4(sc->sc_tag, sc->sc_bsh, I2S_INT,
 					  I2S_INT_CLKSTOPPEND);
-			
+
 			obio_fcr_clear(OBIO_FCR1, I2S0CLKEN);
 
 			for (timo = 1000; timo > 0; timo--) {
 				if (bus_space_read_4(sc->sc_tag, sc->sc_bsh,
 				    I2S_INT) & I2S_INT_CLKSTOPPEND)
 					break;
-				
+
 				DELAY(10);
 			}
 
@@ -571,7 +571,7 @@ i2s_setup(struct i2s_softc *sc, u_int rate, u_int wordsize, u_int sclk_fs)
 		}
 
 		bus_space_write_4(sc->sc_tag, sc->sc_bsh, I2S_FORMAT, reg);
-		
+
 		obio_fcr_set(OBIO_FCR1, I2S0CLKEN);
 #endif
 	}
@@ -624,16 +624,16 @@ gpio_write(enum gpio_ctrl ctrl, u_int x)
 	macgpio_write(sc->dev, reg);
 }
 
-static void 
+static void
 i2s_cint(struct i2s_softc *sc)
 {
 	u_int mask = 0;
 
-	if (gpio_ctrls[HEADPHONE_DETECT] && 
+	if (gpio_ctrls[HEADPHONE_DETECT] &&
 	    gpio_ctrls[HEADPHONE_DETECT]->level)
 		mask |= 1 << 1;
 
-	if (gpio_ctrls[LINEOUT_DETECT] && 
+	if (gpio_ctrls[LINEOUT_DETECT] &&
 	    gpio_ctrls[LINEOUT_DETECT]->level)
 		mask |= 1 << 2;
 
@@ -714,7 +714,7 @@ i2s_set_outputs(void *ptr, u_int mask)
 	if (mask & (1 << 0)) {
 		DPRINTF(("SPEAKER "));
 		i2s_mute_speaker(sc, 0);
-	} 
+	}
 	if (mask & (1 << 1)) {
 		DPRINTF(("HEADPHONE "));
 		i2s_mute_headphone(sc, 0);
@@ -749,7 +749,7 @@ i2s_postattach(void *xsc)
 	/* Read initial port status. */
 	i2s_cint(sc);
 
-	/* Enable GPIO interrupt callback. */	
+	/* Enable GPIO interrupt callback. */
 	for (i = 0; i < GPIO_CTRL_NUM; i++)
 		if (gpio_ctrls[i])
 			gpio_ctrls[i]->i2s = sc;

@@ -64,7 +64,7 @@
  */
 #include "ah_regdomain/ah_rd_regmap.h"
 
-/* 
+/*
  * The following tables are the master list for all different freqeuncy
  * bands with the complete matrix of all possible flags and settings
  * for each band if it is used in ANY reg domain.
@@ -554,7 +554,7 @@ add_chanlist_mode(struct ath_hal *ah, struct ieee80211_channel chans[],
 			continue;
 		}
 #if 0
-		if ((fband->useDfs & rd->dfsMask) && 
+		if ((fband->useDfs & rd->dfsMask) &&
 		    (cm->flags & IEEE80211_CHAN_HT40)) {
 			/* NB: DFS and HT40 don't mix */
 			HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
@@ -668,7 +668,7 @@ getchannels(struct ath_hal *ah,
 	HAL_STATUS status;
 
 	HALDEBUG(ah, HAL_DEBUG_REGDOMAIN, "%s: cc %u regDmn 0x%x mode 0x%x%s\n",
-	    __func__, cc, regDmn, modeSelect, 
+	    __func__, cc, regDmn, modeSelect,
 	    enableExtendedChannels ? " ecm" : "");
 
 	status = getregstate(ah, cc, regDmn, pcountry, &rd2GHz, &rd5GHz);

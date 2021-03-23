@@ -31,7 +31,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -97,7 +97,7 @@ struct bhnd_erom {
 /**
  * A bhnd_erom instance structure large enough to statically allocate
  * any known bhnd_erom subclass.
- * 
+ *
  * The maximum size of subclasses is verified statically in
  * BHND_EROM_DEFINE_CLASS(), and at runtime in bhnd_erom_init_static().
  */
@@ -151,14 +151,14 @@ bhnd_erom_probe(bhnd_erom_class_t *cls, struct bhnd_erom_io *eio,
 /**
  * Parse all cores descriptors in @p erom, returning the array in @p cores and
  * the count in @p num_cores.
- * 
+ *
  * The memory allocated for the table must be freed via
  * bhnd_erom_free_core_table().
- * 
+ *
  * @param	erom		The erom parser to be queried.
  * @param[out]	cores		The table of parsed core descriptors.
  * @param[out]	num_cores	The number of core records in @p cores.
- * 
+ *
  * @retval 0		success
  * @retval non-zero	if an error occurs, a regular unix error code will
  *			be returned.
@@ -174,7 +174,7 @@ bhnd_erom_get_core_table(bhnd_erom_t *erom, struct bhnd_core_info **cores,
  * Free any memory allocated in a previous call to BHND_EROM_GET_CORE_TABLE().
  *
  * @param	erom		The erom parser instance.
- * @param	cores		A core table allocated by @p erom. 
+ * @param	cores		A core table allocated by @p erom.
  */
 static inline void
 bhnd_erom_free_core_table(bhnd_erom_t *erom, struct bhnd_core_info *cores)
@@ -188,7 +188,7 @@ bhnd_erom_free_core_table(bhnd_erom_t *erom, struct bhnd_core_info *cores)
  * @param	erom	The erom parser to be queried.
  * @param	desc	A core match descriptor.
  * @param[out]	core	On success, the matching core info record.
- * 
+ *
  * @retval 0		success
  * @retval ENOENT	No core matching @p desc was found.
  * @retval non-zero	Reading or parsing failed.
@@ -216,7 +216,7 @@ bhnd_erom_lookup_core(bhnd_erom_t *erom, const struct bhnd_core_match *desc,
  *			info record on success.
  * @param[out]	addr	On success, the base address of the port region.
  * @param[out]	size	On success, the total size of the port region.
- * 
+ *
  * @retval 0		success
  * @retval ENOENT	No core matching @p desc was found.
  * @retval ENOENT	No port region matching @p type, @p port, and @p region
@@ -234,9 +234,9 @@ bhnd_erom_lookup_core_addr(bhnd_erom_t *erom, const struct bhnd_core_match *desc
 
 /**
  * Enumerate and print all entries in @p erom.
- * 
+ *
  * @param	erom	The erom parser to be enumerated.
- * 
+ *
  * @retval 0		success
  * @retval non-zero	If an error occurs parsing the EROM table, a regular
  *			unix error code will be returned.

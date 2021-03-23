@@ -31,7 +31,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -85,7 +85,7 @@ typedef enum {
 
 /**
  * bhnd(4) port types.
- * 
+ *
  * Only BHND_PORT_DEVICE is guaranteed to be supported by all bhnd(4) bus
  * implementations.
  */
@@ -117,7 +117,7 @@ typedef enum {
 
 	/**
 	 * Idle Low-Power (ILP).
-	 * 
+	 *
 	 * No register access is required, or long request latency is
 	 * acceptable.
 	 */
@@ -125,21 +125,21 @@ typedef enum {
 
 	/**
 	 * Active Low-Power (ALP).
-	 * 
+	 *
 	 * Low-latency register access and low-rate DMA.
 	 */
 	BHND_CLOCK_ALP		= (1 << 2),
 
 	/**
 	 * High Throughput (HT).
-	 * 
+	 *
 	 * High bus throughput and lowest-latency register access.
 	 */
 	BHND_CLOCK_HT		= (1 << 3)
 } bhnd_clock;
 
 /**
- * Given two clock types, return the type with the highest precedence. 
+ * Given two clock types, return the type with the highest precedence.
  */
 static inline bhnd_clock
 bhnd_clock_max(bhnd_clock a, bhnd_clock b) {
@@ -173,7 +173,7 @@ typedef enum {
 
 /**
  * BHND bus address.
- * 
+ *
  * @note While the interconnect may support 64-bit addressing, not
  * all bridges and SoC CPUs will.
  */

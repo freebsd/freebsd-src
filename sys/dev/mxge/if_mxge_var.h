@@ -246,7 +246,7 @@ struct mxge_softc {
 	struct resource **msix_irq_res;
 	struct resource *msix_table_res;
 	struct resource *msix_pba_res;
-	void *ih; 
+	void *ih;
 	void **msix_ih;
 	char *fw_name;
 	char eeprom_strings[MXGE_EEPROM_STRINGS_SIZE];
@@ -343,7 +343,7 @@ mxge_pio_copy(volatile void *to_v, void *from_v, size_t size)
 void mxge_lro_flush(struct mxge_slice_state *ss, struct lro_entry *lro);
 int mxge_lro_rx(struct mxge_slice_state *ss, struct mbuf *m_head,
 		uint32_t csum);
-		
+
 
 /*
   This file uses Myri10GE driver indentation.

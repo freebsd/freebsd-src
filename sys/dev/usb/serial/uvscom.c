@@ -733,7 +733,7 @@ uvscom_cfg_write(struct uvscom_softc *sc, uint8_t index, uint16_t value)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, 0);
 
-	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 	if (err) {
 		DPRINTFN(0, "device request failed, err=%s "
@@ -754,7 +754,7 @@ uvscom_cfg_read_status(struct uvscom_softc *sc)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, 2);
 
-	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, data, 0, 1000);
 	if (err) {
 		DPRINTFN(0, "device request failed, err=%s "

@@ -167,7 +167,7 @@ struct ads111x_softc {
 };
 
 static int
-ads111x_write_2(struct ads111x_softc *sc, int reg, int val) 
+ads111x_write_2(struct ads111x_softc *sc, int reg, int val)
 {
 	uint8_t data[3];
 	struct iic_msg msgs[1];
@@ -187,7 +187,7 @@ ads111x_write_2(struct ads111x_softc *sc, int reg, int val)
 }
 
 static int
-ads111x_read_2(struct ads111x_softc *sc, int reg, int *val) 
+ads111x_read_2(struct ads111x_softc *sc, int reg, int *val)
 {
 	int err;
 	uint8_t data[2];
@@ -200,7 +200,7 @@ ads111x_read_2(struct ads111x_softc *sc, int reg, int *val)
 }
 
 static int
-ads111x_sample_voltage(struct ads111x_softc *sc, int channum, int *voltage) 
+ads111x_sample_voltage(struct ads111x_softc *sc, int channum, int *voltage)
 {
 	struct ads111x_channel *chan;
 	int err, cfgword, convword, rate, retries, waitns;

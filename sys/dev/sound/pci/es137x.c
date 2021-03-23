@@ -1821,7 +1821,7 @@ es_pci_attach(device_t dev)
 		break;
 	case ES1370_PCI_ID:
 	  	es1370_init(es);
-		/* 
+		/*
 		 * Disable fixed rate operation if DAC2 disabled.
 		 * This is a special case for es1370 only, where the
 		 * speed of both ADC and DAC2 locked together.

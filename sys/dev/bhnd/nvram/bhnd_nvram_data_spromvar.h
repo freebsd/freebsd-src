@@ -25,7 +25,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -109,7 +109,7 @@ struct bhnd_sprom_opcode_var {
 
 /**
  * SPROM opcode variable definition states.
- * 
+ *
  * Ordered to support inequality comparisons
  * (e.g. >= SPROM_OPCODE_VAR_STATE_OPEN)
  */

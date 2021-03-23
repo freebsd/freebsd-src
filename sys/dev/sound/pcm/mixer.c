@@ -67,7 +67,7 @@ struct snd_mixer {
 	char name[MIXER_NAMELEN];
 	struct mtx *lock;
 	oss_mixer_enuminfo enuminfo;
-	/** 
+	/**
 	 * Counter is incremented when applications change any of this
 	 * mixer's controls.  A change in value indicates that persistent
 	 * mixer applications should update their displays.
@@ -422,7 +422,7 @@ mixer_get_recroute(struct snd_mixer *m, int *route)
  *
  * This function sets a recording source based on a recording device's
  * routing number.  Said number is translated to an old school recdev
- * mask and passed over mixer_setrecsrc. 
+ * mask and passed over mixer_setrecsrc.
  *
  * @param m	mixer context container thing
  *
@@ -527,7 +527,7 @@ mix_setrecdevs(struct snd_mixer *m, u_int32_t v)
 			if ((nleft <= 0) || (nvalues >= OSS_ENUM_MAXVALUE)) {
 				device_printf(m->dev,
 				    "mix_setrecdevs:  Not enough room to store device names--please file a bug report.\n");
-				device_printf(m->dev, 
+				device_printf(m->dev,
 				    "mix_setrecdevs:  Please include details about your sound hardware, OS version, etc.\n");
 				break;
 			}
@@ -1466,7 +1466,7 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 			/**
 			 * @note
 			 * @sa oss_mixerinfo::magic is a reserved field.
-			 * 
+			 *
 			 * @par
 			 * From 4Front:  "magic is usually 0. However some
 			 * devices may have dedicated setup utilities and the

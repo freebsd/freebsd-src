@@ -88,7 +88,7 @@ ocs_pci_probe(device_t dev)
 {
 	char	*desc = NULL;
 
-	if (pci_get_vendor(dev) != PCI_VENDOR_EMULEX) { 
+	if (pci_get_vendor(dev) != PCI_VENDOR_EMULEX) {
 		return ENXIO;
 	}
 
@@ -369,7 +369,7 @@ ocs_device_attach(ocs_t *ocs)
         if (ocs->attached) {
                 ocs_log_warn(ocs, "%s: Device is already attached\n", __func__);
                 return -1;
-        } 
+        }
 
 	/* Allocate transport object and bring online */
 	ocs->xport = ocs_xport_alloc(ocs);
@@ -385,7 +385,7 @@ ocs_device_attach(ocs_t *ocs)
 	}
 
 	if (ocs_init_dma_tag(ocs)) {
-		goto fail_intr_setup; 
+		goto fail_intr_setup;
 	}
 
 	for (i = 0; (io = ocs_io_get_instance(ocs, i)); i++) {
@@ -436,7 +436,7 @@ fail_xport_init:
 	ocs_xport_free(ocs->xport);
 	ocs->xport = NULL;
 fail_xport_attach:
-	if (ocs->xport)	
+	if (ocs->xport)
 		ocs_free(ocs, ocs->xport, sizeof(*(ocs->xport)));
 	ocs->xport = NULL;
 	return ENXIO;
@@ -641,7 +641,7 @@ ocs_pci_detach(device_t dev)
 	 */
 	if (ocs->config_tgt)
 		ocs_scsi_tgt_del_device(ocs);
-        
+
 	/* free strdup created buffer.*/
 	free(ocs->hw_war_version, M_OCS);
 
@@ -728,7 +728,7 @@ ocs_intr_alloc(struct ocs_softc *ocs)
 			device_printf(ocs->dev, "MSI allocation failed \n");
 			ocs->irqid = 0;
 			ocs->n_vec = 0;
-		} else 
+		} else
 			ocs->irqid = 1;
 	} else {
 		ocs->irqid = 1;

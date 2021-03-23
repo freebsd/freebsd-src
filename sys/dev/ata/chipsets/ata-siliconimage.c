@@ -156,12 +156,12 @@ ata_sii_chipinit(device_t dev)
 	else
 	    ctlr->setmode = ata_sii_setmode;
 	break;
-    
+
     default:
 	if ((pci_read_config(dev, 0x51, 1) & 0x08) != 0x08) {
 	    device_printf(dev, "HW has secondary channel disabled\n");
 	    ctlr->channels = 1;
-	}    
+	}
 
 	/* enable interrupt as BIOS might not */
 	pci_write_config(dev, 0x71, 0x01, 1);
@@ -224,15 +224,15 @@ ata_cmd_setmode(device_t dev, int target, int mode)
 	      { 0x25,  0x8a }, { 0x15,  0x4a }, { 0x05,  0x0a } };
 
 	mode = min(mode, ctlr->chip->max_dma);
-	if (mode >= ATA_UDMA0) {        
+	if (mode >= ATA_UDMA0) {
 		u_int8_t umode = pci_read_config(parent, ureg, 1);
 
 	        umode &= ~(target == 0 ? 0x35 : 0xca);
 		umode |= udmatimings[mode & ATA_MODE_MASK][target];
 		pci_write_config(parent, ureg, umode, 1);
 		piomode = ATA_PIO4;
-	} else { 
-		pci_write_config(parent, ureg, 
+	} else {
+		pci_write_config(parent, ureg,
 			     pci_read_config(parent, ureg, 1) &
 			     ~(target == 0 ? 0x35 : 0xca), 1);
 		piomode = mode;
@@ -375,7 +375,7 @@ ata_sii_setmode(device_t dev, int target, int mode)
 	if (mode >= ATA_UDMA0) {
 		pci_write_config(parent, mreg,
 			 mval | (0x03 << (target << 2)), 1);
-		pci_write_config(parent, ureg, 
+		pci_write_config(parent, ureg,
 			 (pci_read_config(parent, ureg, 1) & ~0x3f) |
 			 udmatimings[mode & ATA_MODE_MASK], 1);
 		piomode = ATA_PIO4;

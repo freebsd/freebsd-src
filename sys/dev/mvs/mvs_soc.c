@@ -387,8 +387,8 @@ mvs_release_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static int
-mvs_setup_intr(device_t dev, device_t child, struct resource *irq, 
-		   int flags, driver_filter_t *filter, driver_intr_t *function, 
+mvs_setup_intr(device_t dev, device_t child, struct resource *irq,
+		   int flags, driver_filter_t *filter, driver_intr_t *function,
 		   void *argument, void **cookiep)
 {
 	struct mvs_controller *ctlr = device_get_softc(dev);

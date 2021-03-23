@@ -2115,7 +2115,7 @@ mge_sysctl_ic(SYSCTL_HANDLER_ARGS)
 	uint32_t time;
 	int error;
 
-	time = (arg2 == MGE_IC_RX) ? sc->rx_ic_time : sc->tx_ic_time; 
+	time = (arg2 == MGE_IC_RX) ? sc->rx_ic_time : sc->tx_ic_time;
 	error = sysctl_handle_int(oidp, &time, 0, req);
 	if (error != 0)
 		return(error);

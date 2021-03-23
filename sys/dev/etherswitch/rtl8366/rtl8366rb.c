@@ -267,10 +267,10 @@ rtl8366rb_attach(device_t dev)
 	err = bus_generic_attach(dev);
 	if (err != 0)
 		return (err);
-	
+
 	callout_init_mtx(&sc->callout_tick, &sc->callout_mtx, 0);
 	rtl8366rb_tick(sc);
-	
+
 	return (err);
 }
 
@@ -355,7 +355,7 @@ rtl833rb_miipollstat(struct rtl8366rb_softc *sc)
 				continue;
 			mii_phy_update(miisc, MII_POLLSTAT);
 		}
-	}	
+	}
 }
 
 static void
@@ -588,7 +588,7 @@ smi_write(device_t dev, uint16_t addr, uint16_t data, int sleep)
 {
 	struct rtl8366rb_softc *sc;
 	int err;
-	
+
 	sc = device_get_softc(dev);
 
 	err = smi_acquire(sc, sleep);
@@ -606,7 +606,7 @@ smi_rmw(device_t dev, uint16_t addr, uint16_t mask, uint16_t data, int sleep)
 	struct rtl8366rb_softc *sc;
 	int err;
 	uint16_t oldv, newv;
-	
+
 	sc = device_get_softc(dev);
 
 	err = smi_acquire(sc, sleep);
@@ -662,7 +662,7 @@ rtl_getport(device_t dev, etherswitch_port_t *p)
 	struct ifmediareq *ifmr;
 	uint16_t v;
 	int err, vlangroup;
-	
+
 	sc = device_get_softc(dev);
 
 	ifmr = &p->es_ifmr;
@@ -677,7 +677,7 @@ rtl_getport(device_t dev, etherswitch_port_t *p)
 		    rtl_readreg(dev, RTL8366_PVCR_REG(p->es_port)));
 	}
 	p->es_pvid = sc->vid[vlangroup] & ETHERSWITCH_VID_MASK;
-	
+
 	if (p->es_port < sc->numphys) {
 		mii = device_get_softc(sc->miibus[p->es_port]);
 		ifm = &mii->mii_media;
@@ -752,12 +752,12 @@ rtl_getvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 	uint16_t vmcr[3];
 	int i;
 	int member, untagged;
-	
+
 	sc = device_get_softc(dev);
 
 	for (i=0; i<RTL8366_VMCR_MULT; i++)
 		vmcr[i] = rtl_readreg(dev, RTL8366_VMCR(i, vg->es_vlangroup));
-		
+
 	vg->es_vid = sc->vid[vg->es_vlangroup];
 	member = RTL8366_VMCR_MEMBER(vmcr);
 	untagged = RTL8366_VMCR_UNTAG(vmcr);
@@ -867,7 +867,7 @@ rtl_writephy(device_t dev, int phy, int reg, int data)
 {
 	struct rtl8366rb_softc *sc;
 	int err, i, sleep;
-	
+
 	sc = device_get_softc(dev);
 
 	if (phy < 0 || phy >= RTL8366_NUM_PHYS)
@@ -899,10 +899,10 @@ rtl8366rb_ifmedia_upd(struct ifnet *ifp)
 {
 	struct rtl8366rb_softc *sc;
 	struct mii_data *mii;
-	
+
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->miibus[ifp->if_dunit]);
-	
+
 	mii_mediachg(mii);
 	return (0);
 }
@@ -928,10 +928,10 @@ static device_method_t rtl8366rb_methods[] = {
 	DEVMETHOD(device_probe,		rtl8366rb_probe),
 	DEVMETHOD(device_attach,	rtl8366rb_attach),
 	DEVMETHOD(device_detach,	rtl8366rb_detach),
-	
+
 	/* bus interface */
 	DEVMETHOD(bus_add_child,	device_add_child_ordered),
-	
+
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	rtl_readphy),
 	DEVMETHOD(miibus_writereg,	rtl_writephy),

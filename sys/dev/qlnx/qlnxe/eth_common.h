@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  */
 
 #ifndef __ETH_COMMON__
-#define __ETH_COMMON__ 
+#define __ETH_COMMON__
 /********************/
 /* ETH FW CONSTANTS */
 /********************/
@@ -40,7 +40,7 @@
 
 #define ETH_HSI_VER_NO_PKT_LEN_TUNN         5  /* Alias for 8.7.x.x/8.8.x.x ETH FP HSI MINOR version. In this version driver is not required to set pkt_len field in eth_tx_1st_bd struct, and tunneling offload is not supported. */
 
-#define ETH_CACHE_LINE_SIZE                 64  
+#define ETH_CACHE_LINE_SIZE                 64
 #define ETH_RX_CQE_GAP                      32
 #define ETH_MAX_RAMROD_PER_CON              8
 #define ETH_TX_BD_PAGE_SIZE_BYTES           4096
@@ -68,9 +68,9 @@
 #define ETH_TX_NUM_SAME_AS_LAST_ENTRIES             320 /* Number of same-as-last resources in tx switching */
 #define ETH_TX_INACTIVE_SAME_AS_LAST                0xFFFF /* Value for a connection for which same as last feature is disabled */
 
-#define ETH_NUM_STATISTIC_COUNTERS                  MAX_NUM_VPORTS                                     /* Maximum number of statistics counters */ 
-#define ETH_NUM_STATISTIC_COUNTERS_DOUBLE_VF_ZONE   (ETH_NUM_STATISTIC_COUNTERS - MAX_NUM_VFS/2)       /* Maximum number of statistics counters when doubled VF zone used */ 
-#define ETH_NUM_STATISTIC_COUNTERS_QUAD_VF_ZONE     (ETH_NUM_STATISTIC_COUNTERS - 3*MAX_NUM_VFS/4)     /* Maximum number of statistics counters when quad VF zone used */ 
+#define ETH_NUM_STATISTIC_COUNTERS                  MAX_NUM_VPORTS                                     /* Maximum number of statistics counters */
+#define ETH_NUM_STATISTIC_COUNTERS_DOUBLE_VF_ZONE   (ETH_NUM_STATISTIC_COUNTERS - MAX_NUM_VFS/2)       /* Maximum number of statistics counters when doubled VF zone used */
+#define ETH_NUM_STATISTIC_COUNTERS_QUAD_VF_ZONE     (ETH_NUM_STATISTIC_COUNTERS - 3*MAX_NUM_VFS/4)     /* Maximum number of statistics counters when quad VF zone used */
 
 #define ETH_RX_MAX_BUFF_PER_PKT             5       /* Maximum number of buffers, used for RX packet placement */
 #define ETH_RX_BD_THRESHOLD                12       /* Minimum number of free BDs in RX ring, that guarantee receiving of at least one RX packet. */
@@ -244,7 +244,7 @@ struct eth_pmd_flow_flags
 };
 
 /*
- * Regular ETH Rx FP CQE. 
+ * Regular ETH Rx FP CQE.
  */
 struct eth_fast_path_rx_reg_cqe
 {
@@ -286,7 +286,7 @@ struct eth_fast_path_rx_tpa_cont_cqe
 };
 
 /*
- * TPA-end ETH Rx FP CQE . 
+ * TPA-end ETH Rx FP CQE .
  */
 struct eth_fast_path_rx_tpa_end_cqe
 {

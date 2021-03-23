@@ -72,7 +72,7 @@ bcma_probe(device_t dev)
 
 /**
  * Default bcma(4) bus driver implementation of DEVICE_ATTACH().
- * 
+ *
  * This implementation initializes internal bcma(4) state and performs
  * bus enumeration, and must be called by subclassing drivers in
  * DEVICE_ATTACH() before any other bus methods.
@@ -552,7 +552,7 @@ bcma_decode_port_rid(device_t dev, device_t child, int type, int rid,
 	/* Starting with the most likely device list, search all three port
 	 * lists */
 	bhnd_port_type types[] = {
-	    BHND_PORT_DEVICE, 
+	    BHND_PORT_DEVICE,
 	    BHND_PORT_AGENT,
 	    BHND_PORT_BRIDGE
 	};
@@ -654,7 +654,7 @@ bcma_get_intr_ivec(device_t dev, device_t child, u_int intr, u_int *ivec)
 /**
  * Scan the device enumeration ROM table, adding all valid discovered cores to
  * the bus.
- * 
+ *
  * @param bus The bcma bus.
  */
 int

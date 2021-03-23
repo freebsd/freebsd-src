@@ -31,9 +31,9 @@
  *      $FreeBSD$
  */
 
-/* 
+/*
  * Register names, bit definitions, structure names and members are
- * identical with those in the Linux driver where possible and sane 
+ * identical with those in the Linux driver where possible and sane
  * for simplicity's sake.  (The TW_ prefix has become TWE_)
  * Some defines that are clearly irrelevant to FreeBSD have been
  * removed.
@@ -168,7 +168,7 @@ typedef struct
 
 typedef struct {
     u_int8_t	opcode:5;		/* TWE_OP_INITCONNECTION */
-    u_int8_t	res1:3;		
+    u_int8_t	res1:3;
     u_int8_t	size;
     u_int8_t	request_id;
     u_int8_t	res2:4;
@@ -331,7 +331,7 @@ typedef union
 /* response queue entry */
 typedef union
 {
-    struct 
+    struct
     {
 	u_int32_t	undefined_1:4;
 	u_int32_t	response_id:8;

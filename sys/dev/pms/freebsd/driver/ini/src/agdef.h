@@ -1,19 +1,19 @@
 /*******************************************************************************
  **
  **
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
  *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
-*1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
-*this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution. 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
+*1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
+*this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
 *
 *THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
 *
-*INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-*ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-*SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+*INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+*ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+*SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 *OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 *WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 *THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
@@ -25,25 +25,25 @@
  /******************************************************************************
 Note:
 *******************************************************************************
-Module Name:  
+Module Name:
   agdef.h
-Abstract:  
+Abstract:
   Linux iSCSI/FC Initiator driver module constant define header file
-Authors:  
+Authors:
   EW - Yiding(Eddie) Wang
-Environment:  
-  Kernel or loadable module  
+Environment:
+  Kernel or loadable module
 
-Version Control Information:  
+Version Control Information:
   $ver. 1.0.0
-    
+
 Revision History:
   $Revision: 115514 $0.1.0
   $Date: 2012-01-06 17:12:27 -0800 (Fri, 06 Jan 2012) $09-27-2001
   $Modtime: 11/12/01 11:15a $15:56:00
 
 Notes:
-**************************** MODIFICATION HISTORY ***************************** 
+**************************** MODIFICATION HISTORY *****************************
 NAME     DATE         Rev.          DESCRIPTION
 ----     ----         ----          -----------
 EW     09-17-2004     1.0.0     Constant definitions
@@ -64,21 +64,21 @@ EW     09-17-2004     1.0.0     Constant definitions
 #define AGTIAPI_MAX_CAM_Q_DEPTH     1024
 #define AGTIAPI_NSEGS               (btoc(maxphys) + 1)
 /*
-** Adapter specific defines 
+** Adapter specific defines
 */
 #define AGTIAPI_IO_RANGE  256      /* IO mapped address range */
 
 /*
 **  Scatter/Gather DMA Segment Descriptor
 **  Note, MAX_Q_DEPTH could be set larger for iscsi "AcceptQueueSize"
-**  parameter matching.  One thing to do is to make it to be an adjustable 
-**  parameter.  Currently suggest this value set to be same as 
-**  "AcceptQueueSize" but not required.  
+**  parameter matching.  One thing to do is to make it to be an adjustable
+**  parameter.  Currently suggest this value set to be same as
+**  "AcceptQueueSize" but not required.
 */
 
-#define AGTIAPI_MAX_DMA_SEGS     128//256 
+#define AGTIAPI_MAX_DMA_SEGS     128//256
 #define AGTIAPI_DEFAULT_Q_DEPTH  4
-#define AGTIAPI_MAX_Q_DEPTH      AGSA_MAX_INBOUND_Q * 512 // *INBOUND_DEPTH_SIZE 
+#define AGTIAPI_MAX_Q_DEPTH      AGSA_MAX_INBOUND_Q * 512 // *INBOUND_DEPTH_SIZE
 
 /*
 ** CCB and device flags defines
@@ -91,7 +91,7 @@ EW     09-17-2004     1.0.0     Constant definitions
 #define AGTIAPI_RETRY    0x00000020
 #define TASK_SUCCESS     0x00000040
 /* reserved for card flag
-#define AGTIAPI_RESERVED 0x00000080  
+#define AGTIAPI_RESERVED 0x00000080
 */
 #define AGTIAPI_CNX_UP   0x00000100
 #define DEV_RESET        0x00000400    /* device reset */
@@ -105,8 +105,8 @@ EW     09-17-2004     1.0.0     Constant definitions
 #define TAG_SMP          0x40000000
 #define TASK_MANAGEMENT  0x80000000
 
-#define AGTIAPI_CCB_PER_DEVICE  64  
-#define AGTIAPI_CMD_PER_LUN     512 
+#define AGTIAPI_CCB_PER_DEVICE  64
+#define AGTIAPI_CMD_PER_LUN     512
 
 /*
 ** Max time to call agtiapi_GetDevHandle
@@ -122,9 +122,9 @@ EW     09-17-2004     1.0.0     Constant definitions
 #define AGTIAPI_VOLUME_SET   0x01
 #define AGTIAPI_LUN_ADDR     0x02
 
-/*      
+/*
 ** Device mapping method
-*/      
+*/
 #define SOFT_MAPPED        0x0001
 #define HARD_MAPPED        0x0002
 
@@ -136,13 +136,13 @@ EW     09-17-2004     1.0.0     Constant definitions
 #define SLOW_DEVICE          0x02
 #define ARRAY_DEVICE         0x04
 
-/* 
-** SCSI CDB  
+/*
+** SCSI CDB
 */
 #define SCSI_CDB_SIZE        16
 
-/* 
-** SCSI status  
+/*
+** SCSI status
 */
 #define SCSI_GOOD                   0x00
 #define SCSI_CHECK_CONDITION        0x02
@@ -183,7 +183,7 @@ EW     09-17-2004     1.0.0     Constant definitions
 #define AGTIAPI_DEV_RESET_MAX       0x10          /* Default max. reset */
 #define AGTIAPI_RETRY_MAX           10            /* Default ccb retry cnt */
 #define AGTIAPI_MAX_CHANNEL_NUM     0             /* Max channel # per card */
-#define AGTIAPI_PERIPHERAL_CHANNEL  0 
+#define AGTIAPI_PERIPHERAL_CHANNEL  0
 #define AGTIAPI_VOLUMESET_CHANNEL   1
 #define AGTIAPI_LUNADDR_CHANNEL     2
 #define AGTIAPI_EXTRA_DELAY         10000         /* extra 10 seconds delay */

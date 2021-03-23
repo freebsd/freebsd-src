@@ -78,7 +78,7 @@ ahc_create_path(struct ahc_softc *ahc, char channel, u_int target,
 
 	if (channel == 'B')
 		path_id = cam_sim_path(ahc->platform_data->sim_b);
-	else 
+	else
 		path_id = cam_sim_path(ahc->platform_data->sim);
 
 	return (xpt_create_path(path, /*periph*/NULL,
@@ -106,7 +106,7 @@ ahc_map_int(struct ahc_softc *ahc)
 
 	/* Hook up our interrupt handler */
 	error = bus_setup_intr(ahc->dev_softc, ahc->platform_data->irq,
-			       INTR_TYPE_CAM|INTR_MPSAFE, NULL, 
+			       INTR_TYPE_CAM|INTR_MPSAFE, NULL,
 			       ahc_platform_intr, ahc, &ahc->platform_data->ih);
 
 	if (error != 0)
@@ -214,7 +214,7 @@ ahc_attach(struct ahc_softc *ahc)
 		sim = NULL;
 		goto fail;
 	}
-		
+
 	xpt_setup_ccb(&csa.ccb_h, path, /*priority*/5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = AC_LOST_DEVICE;
@@ -234,7 +234,7 @@ ahc_attach(struct ahc_softc *ahc)
 			       "bus due to resource shortage");
 			goto fail;
 		}
-		
+
 		if (xpt_bus_register(sim2, ahc->dev_softc, bus_id2) !=
 		    CAM_SUCCESS) {
 			printf("ahc_attach: Unable to attach second "
@@ -299,7 +299,7 @@ ahc_platform_intr(void *arg)
 {
 	struct	ahc_softc *ahc;
 
-	ahc = (struct ahc_softc *)arg; 
+	ahc = (struct ahc_softc *)arg;
 	ahc_lock(ahc);
 	ahc_intr(ahc);
 	ahc_unlock(ahc);
@@ -493,7 +493,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
 	{
 		struct	scb *scb;
-		struct	hardware_scb *hscb;	
+		struct	hardware_scb *hscb;
 
 		if ((ahc->flags & AHC_INITIATORROLE) == 0
 		 && (ccb->ccb_h.func_code == XPT_SCSI_IO
@@ -513,9 +513,9 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			return;
 		}
-		
+
 		hscb = scb->hscb;
-		
+
 		CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE,
 			  ("start scb(%p)\n", scb));
 		scb->io_ctx = ccb;
@@ -557,7 +557,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			}
 			if (ccb->ccb_h.flags & CAM_TAG_ACTION_VALID)
 				hscb->control |= ccb->csio.tag_action;
-			
+
 			ahc_setup_data(ahc, sim, &ccb->csio, scb);
 		}
 		break;
@@ -641,20 +641,20 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		}
-		
+
 		if ((spi->valid & CTS_SPI_VALID_DISC) != 0) {
 			if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0)
 				*discenable |= devinfo.target_mask;
 			else
 				*discenable &= ~devinfo.target_mask;
 		}
-		
+
 		if ((scsi->valid & CTS_SCSI_VALID_TQ) != 0) {
 			if ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0)
 				*tagenable |= devinfo.target_mask;
 			else
 				*tagenable &= ~devinfo.target_mask;
-		}	
+		}
 
 		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0) {
 			ahc_validate_width(ahc, /*tinfo limit*/NULL,
@@ -743,7 +743,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_RESET_BUS:		/* Reset the specified SCSI bus */
 	{
 		int  found;
-		
+
 		found = ahc_reset_channel(ahc, SIM_CHANNEL(ahc, sim),
 					  /*initiate reset*/TRUE);
 		if (bootverbose) {
@@ -763,7 +763,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_PATH_INQ:		/* Path routing inquiry */
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
-		
+
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE;
 		if ((ahc->features & AHC_WIDE) != 0)
@@ -962,10 +962,10 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 			sg++;
 			dm_segs++;
 		}
-		
+
 		/*
 		 * Note where to find the SG entries in bus space.
-		 * We also set the full residual flag which the 
+		 * We also set the full residual flag which the
 		 * sequencer will clear as soon as a data transfer
 		 * occurs.
 		 */
@@ -1148,12 +1148,12 @@ ahc_setup_data(struct ahc_softc *ahc, struct cam_sim *sim,
 				return;
 			}
 			if (hscb->cdb_len > 12) {
-				memcpy(hscb->cdb32, 
+				memcpy(hscb->cdb32,
 				       csio->cdb_io.cdb_ptr,
 				       hscb->cdb_len);
 				scb->flags |= SCB_CDB32_PTR;
 			} else {
-				memcpy(hscb->shared_data.cdb, 
+				memcpy(hscb->shared_data.cdb,
 				       csio->cdb_io.cdb_ptr,
 				       hscb->cdb_len);
 			}
@@ -1169,7 +1169,7 @@ ahc_setup_data(struct ahc_softc *ahc, struct cam_sim *sim,
 			}
 		}
 	}
-		
+
 	error = bus_dmamap_load_ccb(ahc->buffer_dmat,
 				    scb->dmamap,
 				    (union ccb *)csio,
@@ -1429,7 +1429,7 @@ ahc_modevent(module_t mod, int type, void *data)
 	/* XXX Deal with unknown events */
 	return 0;
 }
-  
+
 static moduledata_t ahc_mod = {
 	"ahc",
 	ahc_modevent,

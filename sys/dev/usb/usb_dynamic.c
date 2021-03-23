@@ -171,7 +171,7 @@ usb_linux_unload(void *arg)
 	/* reset function pointers */
 
 	usb_linux_free_device_p = &usb_linux_free_device_w;
-  
+
 	/* wait for CPU to exit the loaded functions, if any */
 
 	/* XXX this is a tradeoff */

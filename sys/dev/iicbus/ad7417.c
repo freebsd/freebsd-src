@@ -365,16 +365,16 @@ ad7417_fill_sensor_prop(device_t dev)
 	*/
 	j = 0;
 	for (node = OF_child(child); node != 0; node = OF_peer(node)) {
-	    
+
 	    OF_getprop(node, "location", location, sizeof(location));
 	    strcpy(sc->sc_sensors[i].therm.name, location);
-	    j++; 
+	    j++;
 	}
 
 	/* Finish setting up sensor properties */
 	for (j = 0; j < i; j++) {
 		sc->sc_sensors[j].dev = dev;
-	
+
 		/* HACK: Apple wired a random diode to the ADC line */
 		if ((strstr(sc->sc_sensors[j].therm.name, "DIODE TEMP")
 		    != NULL)
@@ -386,14 +386,14 @@ ad7417_fill_sensor_prop(device_t dev)
 			sc->sc_sensors[j].therm.read =
 			    (int (*)(struct pmac_therm *))(ad7417_sensor_read);
 		}
-			
+
 		if (sc->sc_sensors[j].type != ADC7417_TEMP_SENSOR)
 			continue;
 
 		/* Make up some ranges */
 		sc->sc_sensors[j].therm.target_temp = 500 + ZERO_C_TO_K;
 		sc->sc_sensors[j].therm.max_temp = 900 + ZERO_C_TO_K;
-		
+
 		pmac_thermal_sensor_register(&sc->sc_sensors[j].therm);
 	}
 
@@ -555,7 +555,7 @@ ad7417_diode_read(struct ad7417_sensor *sens)
 
 	temp = (rawval*diode_slope + diode_offset) >> 2;
 	temp = (10*(temp >> 16)) + ((10*(temp & 0xffff)) >> 16);
-	
+
 	return (temp + ZERO_C_TO_K);
 }
 

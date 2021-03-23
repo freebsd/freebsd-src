@@ -85,8 +85,8 @@ void os_pci_writel (void *osext, HPT_U8 offset, HPT_U32 value)
 }
 
 void *os_map_pci_bar(
-    void *osext, 
-    int index,   
+    void *osext,
+    int index,
     HPT_U32 offset,
     HPT_U32 length
 )
@@ -94,7 +94,7 @@ void *os_map_pci_bar(
 	PHBA hba = (PHBA)osext;
 
     hba->pcibar[index].rid = 0x10 + index * 4;
-    
+
     if (pci_read_config(hba->pcidev, hba->pcibar[index].rid, 4) & 1)
     	hba->pcibar[index].type = SYS_RES_IOPORT;
     else
@@ -102,7 +102,7 @@ void *os_map_pci_bar(
 
     hba->pcibar[index].res = bus_alloc_resource_any(hba->pcidev,
 		hba->pcibar[index].type, &hba->pcibar[index].rid, RF_ACTIVE);
-	
+
 	hba->pcibar[index].base = (char *)rman_get_virtual(hba->pcibar[index].res) + offset;
 	return hba->pcibar[index].base;
 }
@@ -111,7 +111,7 @@ void os_unmap_pci_bar(void *osext, void *base)
 {
 	PHBA hba = (PHBA)osext;
 	int index;
-	
+
 	for (index=0; index<6; index++) {
 		if (hba->pcibar[index].base==base) {
 			bus_release_resource(hba->pcidev, hba->pcibar[index].type,
@@ -235,9 +235,9 @@ HPT_TIME os_query_time(void)
 void os_schedule_task(void *osext, OSM_TASK *task)
 {
 	PVBUS_EXT vbus_ext = osext;
-	
+
 	HPT_ASSERT(task->next==0);
-	
+
 	if (vbus_ext->tasks==0)
 		vbus_ext->tasks = task;
 	else {

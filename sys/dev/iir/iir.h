@@ -129,7 +129,7 @@
 #define GDT_RELEASE_ALL 17              /* release all devices */
 #define GDT_RESET_BUS   18              /* reset bus */
 #define GDT_SCAN_START  19              /* start device scan */
-#define GDT_SCAN_END    20              /* stop device scan */  
+#define GDT_SCAN_END    20              /* stop device scan */
 
 /* IOCTL command defines */
 #define GDT_SCSI_DR_INFO        0x00    /* SCSI drive info */
@@ -241,7 +241,7 @@
 
 /* Command structure */
 #define GDT_CMD_BOARDNODE       0x00    /* u_int32_t, board node (always 0) */
-#define GDT_CMD_COMMANDINDEX    0x04    /* u_int32_t, command number */ 
+#define GDT_CMD_COMMANDINDEX    0x04    /* u_int32_t, command number */
 #define GDT_CMD_OPCODE          0x08    /* u_int16_t, opcode (READ, ...) */
 #define GDT_CMD_UNION           0x0a    /* cache/screen/raw service command */
 #define GDT_CMD_UNION_SZ        GDT_RAW_SZ
@@ -547,7 +547,7 @@ typedef struct {
         } test;
     } eu;
     u_int32_t           severity;
-    u_int8_t            event_string[256];          
+    u_int8_t            event_string[256];
 } gdt_evt_data;
 
 /* dvrevt structure */
@@ -690,7 +690,7 @@ struct gdt_ccb {
     u_int8_t    gc_service;
     u_int8_t    gc_cmd_index;
     u_int8_t    gc_flags;
-#define GDT_GCF_UNUSED          0       
+#define GDT_GCF_UNUSED          0
 #define GDT_GCF_INTERNAL        1
 #define GDT_GCF_SCREEN          2
 #define GDT_GCF_SCSI            3

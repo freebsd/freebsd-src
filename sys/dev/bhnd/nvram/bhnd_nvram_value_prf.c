@@ -66,7 +66,7 @@ static char const bhnd_nv_hex2ascii[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 /**
  * Maximum size, in bytes, of a string-encoded NVRAM integer value, not
  * including any prefix (0x, 0, etc).
- * 
+ *
  * We assume the largest possible encoding is the base-2 representation
  * of a 64-bit integer.
  */
@@ -78,14 +78,14 @@ static char const bhnd_nv_hex2ascii[] = "0123456789abcdefghijklmnopqrstuvwxyz";
  *
  * @param		value	The value to be formatted.
  * @param		fmt	The format string.
- * @param[out]		outp	On success, the string will be written to this 
+ * @param[out]		outp	On success, the string will be written to this
  *				buffer. This argment may be NULL if the value is
  *				not desired.
  * @param[in,out]	olen	The capacity of @p outp. On success, will be set
  *				to the actual number of bytes required for the
  *				requested string encoding (including a trailing
  *				NUL).
- * 
+ *
  * Refer to bhnd_nvram_val_vprintf() for full format string documentation.
  *
  * @retval 0		success
@@ -118,7 +118,7 @@ bhnd_nvram_val_printf(bhnd_nvram_val *value, const char *fmt, char *outp,
  *
  * @param		value	The value to be formatted.
  * @param		fmt	The format string.
- * @param[out]		outp	On success, the string will be written to this 
+ * @param[out]		outp	On success, the string will be written to this
  *				buffer. This argment may be NULL if the value is
  *				not desired.
  * @param[in,out]	olen	The capacity of @p outp. On success, will be set
@@ -128,10 +128,10 @@ bhnd_nvram_val_printf(bhnd_nvram_val *value, const char *fmt, char *outp,
  * @param		ap	Argument list.
  *
  * @par Format Strings
- * 
+ *
  * Value format strings are similar, but not identical to, those used
  * by printf(3).
- * 
+ *
  * Format specifier format:
  *     %[repeat][flags][width][.precision][length modifier][specifier]
  *
@@ -139,12 +139,12 @@ bhnd_nvram_val_printf(bhnd_nvram_val *value, const char *fmt, char *outp,
  * individual value element; each format specifier will fetch the next element
  * from the value, encode the element as the appropriate type based on the
  * length modifiers and specifier, and then format the result as a string.
- * 
+ *
  * For example, given a string value of '0x000F', and a format specifier of
  * '%#hhx', the value will be asked to encode its first element as
  * BHND_NVRAM_TYPE_UINT8. String formatting will then be applied to the 8-bit
  * unsigned integer representation, producing a string value of "0xF".
- * 
+ *
  * Repeat:
  * - [digits]		Repeatedly apply the format specifier to the input
  *			value's elements up to `digits` times. The delimiter
@@ -157,7 +157,7 @@ bhnd_nvram_val_printf(bhnd_nvram_val *value, const char *fmt, char *outp,
  * - [*]		Repeatedly apply the format specifier to the input
  *			value's elements. The repeat count is read from the
  *			next variadic argument as a size_t value
- * 
+ *
  * Flags:
  * - '#'		use alternative form (e.g. 0x/0X prefixing of hex
  *			strings).
@@ -166,7 +166,7 @@ bhnd_nvram_val_printf(bhnd_nvram_val *value, const char *fmt, char *outp,
  * - '+'		include a sign character
  * - ' '		include a space in place of a sign character for
  *			positive numbers.
- * 
+ *
  * Width/Precision:
  * - digits		minimum field width.
  * - *			read the minimum field width from the next variadic
@@ -186,7 +186,7 @@ bhnd_nvram_val_printf(bhnd_nvram_val *value, const char *fmt, char *outp,
  *			integer.
  * - 'll', 'j', 'I64'	Convert the value to an 64-bit signed or unsigned
  *			integer.
- * 
+ *
  * Data Specifiers:
  * - 'd', 'i'		Convert and format as a signed decimal integer.
  * - 'u'		Convert and format as an unsigned decimal integer.
@@ -275,7 +275,7 @@ bhnd_nvram_val_vprintf(bhnd_nvram_val *value, const char *fmt, char *outp,
 		/* Parse repeat specifier */
 		if (*p == '[') {
 			p++;
-			
+
 			/* Determine repeat count */
 			if (*p == ']') {
 				/* Repeat consumes all input */
@@ -294,7 +294,7 @@ bhnd_nvram_val_vprintf(bhnd_nvram_val *value, const char *fmt, char *outp,
 						    "count at '%s'", p);
 					return (EINVAL);
 				}
-				
+
 				/* Advance past repeat count */
 				p = endp;
 			}
@@ -432,7 +432,7 @@ bhnd_nvram_val_vprintf(bhnd_nvram_val *value, const char *fmt, char *outp,
 		while (*p != '\0') {
 			const char	*np;
 			bool		 stop;
-			
+
 			stop = false;
 			np = p+1;
 

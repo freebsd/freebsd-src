@@ -235,7 +235,7 @@ int pqisrc_build_send_raid_request(pqisrc_softstate_t *softs,  pqisrc_raid_req_t
 		cdb[6] = cmd;
 		cdb[7] = (uint8_t)((datasize)  << 8);
 		cdb[8] = (uint8_t)((datasize)  >> 8);
-		break;	
+		break;
 	default:
 		DBG_ERR("unknown command 0x%x", cmd);
 		break;
@@ -281,7 +281,7 @@ int pqisrc_build_send_raid_request(pqisrc_softstate_t *softs,  pqisrc_raid_req_t
 	ret = rcb->status;
 	if (ret) {
 		if(error_info) {
-			memcpy(error_info, 
+			memcpy(error_info,
 			       rcb->error_info,
 			       sizeof(*error_info));
 
@@ -290,9 +290,9 @@ int pqisrc_build_send_raid_request(pqisrc_softstate_t *softs,  pqisrc_raid_req_t
 				ret = PQI_STATUS_SUCCESS;
 			}
 			else{
-				DBG_DISC("Error!! Bus=%u Target=%u, Cmd=0x%x," 
-					"Ret=%d\n", BMIC_GET_LEVEL_2_BUS(scsi3addr), 
-					BMIC_GET_LEVEL_TWO_TARGET(scsi3addr), 
+				DBG_DISC("Error!! Bus=%u Target=%u, Cmd=0x%x,"
+					"Ret=%d\n", BMIC_GET_LEVEL_2_BUS(scsi3addr),
+					BMIC_GET_LEVEL_TWO_TARGET(scsi3addr),
 					cmd, ret);
 				ret = PQI_STATUS_FAILURE;
 			}
@@ -310,8 +310,8 @@ int pqisrc_build_send_raid_request(pqisrc_softstate_t *softs,  pqisrc_raid_req_t
 	return ret;
 
 err_out:
-	DBG_ERR("Error!! Bus=%u Target=%u, Cmd=0x%x, Ret=%d\n", 
-		BMIC_GET_LEVEL_2_BUS(scsi3addr), BMIC_GET_LEVEL_TWO_TARGET(scsi3addr), 
+	DBG_ERR("Error!! Bus=%u Target=%u, Cmd=0x%x, Ret=%d\n",
+		BMIC_GET_LEVEL_2_BUS(scsi3addr), BMIC_GET_LEVEL_TWO_TARGET(scsi3addr),
 		cmd, ret);
 	os_reset_rcb(rcb);
 	pqisrc_put_tag(&softs->taglist, ((pqisrc_raid_req_t *)request)->request_id);
@@ -332,7 +332,7 @@ static int pqisrc_report_luns(pqisrc_softstate_t *softs, uint8_t cmd,
 	DBG_FUNC("IN\n");
 
 	memset(&request, 0, sizeof(request));
-	ret =  pqisrc_build_send_raid_request(softs, &request, buff, 
+	ret =  pqisrc_build_send_raid_request(softs, &request, buff,
 				buf_len, cmd, 0, (uint8_t *)RAID_CTLR_LUNID, NULL);
 
 	DBG_FUNC("OUT\n");
@@ -372,7 +372,7 @@ retry:
 		DBG_ERR("failed to allocate memory for lun_data\n");
 		return PQI_STATUS_FAILURE;
 	}
-		
+
 	if (list_len == 0) {
 		DBG_DISC("list_len is 0\n");
 		memcpy(lun_data, &report_lun_header, sizeof(report_lun_header));
@@ -410,7 +410,7 @@ error:
  */
 static int pqisrc_get_phys_log_device_list(pqisrc_softstate_t *softs,
 	reportlun_data_ext_t **physical_dev_list,
-	reportlun_data_ext_t **logical_dev_list, 
+	reportlun_data_ext_t **logical_dev_list,
 	size_t *phys_data_length,
 	size_t *log_data_length)
 {
@@ -549,7 +549,7 @@ static int pqisrc_send_scsi_inquiry(pqisrc_softstate_t *softs,
 	DBG_FUNC("IN\n");
 
 	memset(&request, 0, sizeof(request));
-	ret =  pqisrc_build_send_raid_request(softs, &request, buff, buf_len, 
+	ret =  pqisrc_build_send_raid_request(softs, &request, buff, buf_len,
 								SA_INQUIRY, vpd_page, scsi3addr, &error_info);
 
 	DBG_FUNC("OUT\n");
@@ -635,8 +635,8 @@ static uint8_t pqisrc_get_dev_vol_status(pqisrc_softstate_t *softs,
 
 	DBG_FUNC("IN\n");
 
-	memset(&request, 0, sizeof(request));	
-	ret =  pqisrc_build_send_raid_request(softs, &request, NULL, 0, 
+	memset(&request, 0, sizeof(request));
+	ret =  pqisrc_build_send_raid_request(softs, &request, NULL, 0,
 				TEST_UNIT_READY, 0, scsi3addr, &error_info);
 
 	if (ret)
@@ -776,7 +776,7 @@ static int pqisrc_get_device_raidmap(pqisrc_softstate_t *softs,
 		return PQI_STATUS_FAILURE;
 
 	memset(&request, 0, sizeof(request));
-	ret =  pqisrc_build_send_raid_request(softs, &request, raid_map, sizeof(*raid_map), 
+	ret =  pqisrc_build_send_raid_request(softs, &request, raid_map, sizeof(*raid_map),
 			 		SA_GET_RAID_MAP, 0, device->scsi3addr, NULL);
 
 	if (ret) {
@@ -832,7 +832,7 @@ static void pqisrc_get_dev_ioaccel_status(pqisrc_softstate_t *softs,
 			device->offload_enabled_pending = false;
 	}
 
-	DBG_DISC("offload_config: 0x%x offload_enabled_pending: 0x%x \n", 
+	DBG_DISC("offload_config: 0x%x offload_enabled_pending: 0x%x \n",
 			device->offload_config, device->offload_enabled_pending);
 
 err_out:
@@ -902,7 +902,7 @@ static int pqisrc_get_dev_data(pqisrc_softstate_t *softs,
 			device->raid_level = SA_RAID_UNKNOWN;
 			device->volume_status = SA_LV_OK;
 			device->volume_offline = false;
-		} 
+		}
 		else {
 			pqisrc_get_dev_raid_level(softs, device);
 			pqisrc_get_dev_ioaccel_status(softs, device);
@@ -938,8 +938,8 @@ static int pqisrc_identify_ctrl(pqisrc_softstate_t *softs,
 
 	DBG_FUNC("IN\n");
 
-	memset(&request, 0, sizeof(request));	
-	ret =  pqisrc_build_send_raid_request(softs, &request, buff, sizeof(*buff), 
+	memset(&request, 0, sizeof(request));
+	ret =  pqisrc_build_send_raid_request(softs, &request, buff, sizeof(*buff),
 				BMIC_IDENTIFY_CONTROLLER, 0, (uint8_t *)RAID_CTLR_LUNID, NULL);
 	DBG_FUNC("OUT\n");
 
@@ -965,7 +965,7 @@ int pqisrc_get_ctrl_fw_version(pqisrc_softstate_t *softs)
 	ret = pqisrc_identify_ctrl(softs, identify_ctrl);
 	if (ret)
 		goto out;
-     
+
 	softs->fw_build_number = identify_ctrl->fw_build_number;
 	memcpy(softs->fw_version, identify_ctrl->fw_version,
 		sizeof(identify_ctrl->fw_version));
@@ -993,12 +993,12 @@ static int pqisrc_identify_physical_disk(pqisrc_softstate_t *softs,
 
 	DBG_FUNC("IN\n");
 
-	memset(&request, 0, sizeof(request));	
+	memset(&request, 0, sizeof(request));
 	bmic_device_index = BMIC_GET_DRIVE_NUMBER(device->scsi3addr);
 	request.cdb[2] = (uint8_t)bmic_device_index;
 	request.cdb[9] = (uint8_t)(bmic_device_index >> 8);
 
-	ret =  pqisrc_build_send_raid_request(softs, &request, buff, buf_len, 
+	ret =  pqisrc_build_send_raid_request(softs, &request, buff, buf_len,
 				BMIC_IDENTIFY_PHYSICAL_DEVICE, 0, (uint8_t *)RAID_CTLR_LUNID, NULL);
 	DBG_FUNC("OUT\n");
 	return ret;
@@ -1118,7 +1118,7 @@ static pqi_scsi_dev_t *pqisrc_identify_device_via_ioaccel(
 {
 	pqi_scsi_dev_t *device;
 	int i,j;
-	DBG_FUNC("IN\n");	
+	DBG_FUNC("IN\n");
 	for(i = 0; i < PQI_MAX_DEVICES; i++) {
 		for(j = 0; j < PQI_MAX_MULTILUN; j++) {
 			if(softs->device_list[i][j] == NULL)
@@ -1421,7 +1421,7 @@ static void pqisrc_update_device_list(pqisrc_softstate_t *softs,
 			continue;
 		if (device->volume_offline)
 			continue;
-		
+
 		/* physical device */
 		if (!pqisrc_is_logical_device(device)) {
 			tid = pqisrc_alloc_tid(softs);
@@ -1457,7 +1457,7 @@ static void pqisrc_update_device_list(pqisrc_softstate_t *softs,
 			continue;
 		pqisrc_remove_device(softs, device);
 		pqisrc_display_device_info(softs, "removed", device);
-		
+
 	}
 
 	for(i = 0; i < PQI_MAX_DEVICES; i++) {
@@ -1508,10 +1508,10 @@ static void pqisrc_update_device_list(pqisrc_softstate_t *softs,
 free_and_out:
 	if (added)
 		os_mem_free(softs, (char *)added,
-			    sizeof(*added) * PQI_MAX_DEVICES); 
+			    sizeof(*added) * PQI_MAX_DEVICES);
 	if (removed)
 		os_mem_free(softs, (char *)removed,
-			    sizeof(*removed) * PQI_MAX_DEVICES); 
+			    sizeof(*removed) * PQI_MAX_DEVICES);
 
 	DBG_FUNC("OUT\n");
 }
@@ -1529,7 +1529,7 @@ int pqisrc_write_driver_version_to_host_wellness(pqisrc_softstate_t *softs)
 
 	DBG_FUNC("IN\n");
 
-	memset(&request, 0, sizeof(request));	
+	memset(&request, 0, sizeof(request));
 	data_length = sizeof(*host_wellness_driver_ver);
 
 	host_wellness_driver_ver = os_mem_alloc(softs, data_length);
@@ -1567,7 +1567,7 @@ int pqisrc_write_driver_version_to_host_wellness(pqisrc_softstate_t *softs)
 	return rval;
 }
 
-/* 
+/*
  * Write current RTC time from host to the adapter using
  * BMIC_WRITE_HOST_WELLNESS
  */
@@ -1580,7 +1580,7 @@ int pqisrc_write_current_time_to_host_wellness(pqisrc_softstate_t *softs)
 
 	DBG_FUNC("IN\n");
 
-	memset(&request, 0, sizeof(request));	
+	memset(&request, 0, sizeof(request));
 	data_length = sizeof(*host_wellness_time);
 
 	host_wellness_time = os_mem_alloc(softs, data_length);
@@ -1595,7 +1595,7 @@ int pqisrc_write_current_time_to_host_wellness(pqisrc_softstate_t *softs)
 	host_wellness_time->start_tag[3] = '>';
 	host_wellness_time->time_tag[0] = 'T';
 	host_wellness_time->time_tag[1] = 'D';
-	host_wellness_time->time_length = LE_16(offsetof(struct bmic_host_wellness_time, time_length) - 
+	host_wellness_time->time_length = LE_16(offsetof(struct bmic_host_wellness_time, time_length) -
 											offsetof(struct bmic_host_wellness_time, century));
 
 	os_get_time(host_wellness_time);
@@ -1645,7 +1645,7 @@ int pqisrc_scan_devices(pqisrc_softstate_t *softs)
 	if (ret)
 		goto err_out;
 
-	physical_cnt = BE_32(physical_dev_list->header.list_length) 
+	physical_cnt = BE_32(physical_dev_list->header.list_length)
 		/ sizeof(physical_dev_list->lun_entries[0]);
 
 	logical_cnt = BE_32(logical_dev_list->header.list_length)
@@ -1714,7 +1714,7 @@ int pqisrc_scan_devices(pqisrc_softstate_t *softs)
 		if (!is_physical_device)
 			device->is_external_raid_device =
 				pqisrc_is_external_raid_addr(scsi3addr);
-		
+
 
 		/* Get device type, vendor, model, device ID. */
 		ret = pqisrc_get_dev_data(softs, device);
@@ -1769,7 +1769,7 @@ int pqisrc_scan_devices(pqisrc_softstate_t *softs)
 				device->sas_address = BE_64(lun_ext_entry->wwid);
 			}
 			new_dev_cnt++;
-			break;	
+			break;
 		case TAPE_DEVICE:
 		case MEDIUM_CHANGER_DEVICE:
 			new_dev_cnt++;
@@ -1805,7 +1805,7 @@ err_out:
 			}
 		}
 		os_mem_free(softs, (char *)new_device_list,
-			    		sizeof(*new_device_list) * ndev_allocated); 
+			    		sizeof(*new_device_list) * ndev_allocated);
 	}
 	if(physical_dev_list)
 		os_mem_free(softs, (char *)physical_dev_list, phys_data_length);
@@ -1831,7 +1831,7 @@ void pqisrc_cleanup_devices(pqisrc_softstate_t *softs)
 
  	for(i = 0; i < PQI_MAX_DEVICES; i++) {
 		for(j = 0; j < PQI_MAX_MULTILUN; j++) {
-			if (softs->device_list[i][j] == NULL) 
+			if (softs->device_list[i][j] == NULL)
 				continue;
 			dvp = softs->device_list[i][j];
 			pqisrc_device_mem_free(softs, dvp);

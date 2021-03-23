@@ -193,12 +193,12 @@ dtrace_getupcstack(uint64_t *pcstack, int pcstack_limit)
 	sp = tf->tf_rsp;
 
 	if (DTRACE_CPUFLAG_ISSET(CPU_DTRACE_ENTRY)) {
-		/* 
+		/*
 		 * In an entry probe.  The frame pointer has not yet been
 		 * pushed (that happens in the function prologue).  The
 		 * best approach is to add the current pc as a missing top
 		 * of stack and back the pc up to the caller, which is stored
-		 * at the current stack pointer address since the call 
+		 * at the current stack pointer address since the call
 		 * instruction puts it there right before the branch.
 		 */
 
@@ -241,12 +241,12 @@ dtrace_getustackdepth(void)
 	sp = tf->tf_rsp;
 
 	if (DTRACE_CPUFLAG_ISSET(CPU_DTRACE_ENTRY)) {
-		/* 
+		/*
 		 * In an entry probe.  The frame pointer has not yet been
 		 * pushed (that happens in the function prologue).  The
 		 * best approach is to add the current pc as a missing top
 		 * of stack and back the pc up to the caller, which is stored
-		 * at the current stack pointer address since the call 
+		 * at the current stack pointer address since the call
 		 * instruction puts it there right before the branch.
 		 */
 

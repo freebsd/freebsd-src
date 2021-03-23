@@ -107,7 +107,7 @@ qla_sysctl_stop_pegs(SYSCTL_HANDLER_ARGS)
 	if (ret == 1) {
 		ha = (qla_host_t *)arg1;
 		if (QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT, 0) == 0) {
-			qla_stop_pegs(ha);	
+			qla_stop_pegs(ha);
 			QLA_UNLOCK(ha, __func__);
 		}
 	}
@@ -1487,7 +1487,7 @@ qla_mbx_cmd(qla_host_t *ha, uint32_t *h_mbox, uint32_t n_hmbox,
 	if (end_usecs > start_usecs) {
 		msecs_200 = (end_usecs - start_usecs)/(1000 * 200);
 
-		if (msecs_200 < 15) 
+		if (msecs_200 < 15)
 			ha->hw.mbx_comp_msecs[msecs_200]++;
 		else if (msecs_200 < 20)
 			ha->hw.mbx_comp_msecs[15]++;
@@ -1514,13 +1514,13 @@ qla_get_nic_partition(qla_host_t *ha, uint32_t *supports_9kb,
 
 	mbox = ha->hw.mbox;
 
-	mbox[0] = Q8_MBX_GET_NIC_PARTITION | (0x2 << 16) | (0x2 << 29);	
+	mbox[0] = Q8_MBX_GET_NIC_PARTITION | (0x2 << 16) | (0x2 << 29);
 
 	if (qla_mbx_cmd(ha, mbox, 2, mbox, 19, 0)) {
 		device_printf(dev, "%s: failed0\n", __func__);
 		return (-1);
 	}
-	err = mbox[0] >> 25; 
+	err = mbox[0] >> 25;
 
 	if (supports_9kb != NULL) {
 		if (mbox[16] & 0x80) /* bit 7 of mbox 16 */
@@ -1589,7 +1589,7 @@ qla_config_intr_cntxt(qla_host_t *ha, uint32_t start_idx, uint32_t num_intrs,
 
 		for (i = 0; i < c_intr_rsp->nentries; i++) {
 			device_printf(dev, "%s: [%d]:[0x%x 0x%x 0x%x]\n",
-				__func__, i, 
+				__func__, i,
 				c_intr_rsp->intr[i].status,
 				c_intr_rsp->intr[i].intr_id,
 				c_intr_rsp->intr[i].intr_src);
@@ -1805,18 +1805,18 @@ qla_config_mac_addr(qla_host_t *ha, uint8_t *mac_addr, uint32_t add_mac,
 	cmac->count_version = sizeof (q80_config_mac_addr_t) >> 2;
 	cmac->count_version |= Q8_MBX_CMD_VERSION;
 
-	if (add_mac) 
+	if (add_mac)
 		cmac->cmd = Q8_MBX_CMAC_CMD_ADD_MAC_ADDR;
 	else
 		cmac->cmd = Q8_MBX_CMAC_CMD_DEL_MAC_ADDR;
-		
+
 	cmac->cmd |= Q8_MBX_CMAC_CMD_CAM_INGRESS;
 
 	cmac->nmac_entries = num_mac;
 	cmac->cntxt_id = ha->hw.rcv_cntxt_id;
 
 	for (i = 0; i < num_mac; i++) {
-		bcopy(mac_addr, cmac->mac_addr[i].addr, Q8_ETHER_ADDR_LEN); 
+		bcopy(mac_addr, cmac->mac_addr[i].addr, Q8_ETHER_ADDR_LEN);
 		mac_addr = mac_addr + ETHER_ADDR_LEN;
 	}
 
@@ -2296,7 +2296,7 @@ qla_tx_tso(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd, uint8_t *hdr)
 			ip_hlen = ip->ip_hl << 2;
 			opcode = Q8_TX_CMD_OP_XMT_TCP_LSO;
 
-				
+
 			if ((ip->ip_p != IPPROTO_TCP) ||
 				(ip_hlen != sizeof (struct ip))){
 				/* IP Options are not supported */
@@ -2408,7 +2408,7 @@ qla_tx_chksum(qla_host_t *ha, struct mbuf *mp, uint32_t *op_code,
 		etype = ntohs(eh->evl_encap_proto);
 	}
 
-		
+
 	switch (etype) {
 		case ETHERTYPE_IP:
 			ip = (struct ip *)(mp->m_data + ehdrlen);
@@ -2534,7 +2534,7 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 
 			if (ret == 0)
 				src = (uint8_t *)eh;
-		} else 
+		} else
 			return (EINVAL);
 	} else {
 		(void)qla_tx_chksum(ha, mp, &op_code, &tcp_hdr_off);
@@ -2650,7 +2650,7 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 
 		if (!nsegs)
 			break;
-		
+
 		tx_cmd = &hw->tx_cntxt[txr_idx].tx_ring_base[txr_next];
 		bzero((void *)tx_cmd, sizeof(q80_tx_cmd_t));
 	}
@@ -2673,7 +2673,7 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 			bcopy(src, dst, (ETHER_ADDR_LEN * 2));
 			dst += (ETHER_ADDR_LEN * 2);
 			src += (ETHER_ADDR_LEN * 2);
-			
+
 			*((uint16_t *)dst) = htons(ETHERTYPE_VLAN);
 			dst += 2;
 			*((uint16_t *)dst) = htons(mp->m_pkthdr.ether_vtag);
@@ -2699,7 +2699,7 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 				(hw->tx_cntxt[txr_idx].txr_next + 1) &
 					(NUM_TX_DESCRIPTORS - 1);
 		tx_cmd_count++;
-		
+
 		while (hdr_len) {
 			tx_cmd = &hw->tx_cntxt[txr_idx].tx_ring_base[txr_next];
 			bzero((void *)tx_cmd, sizeof(q80_tx_cmd_t));
@@ -3538,7 +3538,7 @@ qla_hw_all_mcast(qla_host_t *ha, uint32_t add_mcast)
 	memset(mcast, 0, (Q8_MAX_MAC_ADDRS * ETHER_ADDR_LEN));
 
 	for (i = 0 ; ((i < Q8_MAX_NUM_MULTICAST_ADDRS) && nmcast); i++) {
-		if ((ha->hw.mcast[i].addr[0] != 0) || 
+		if ((ha->hw.mcast[i].addr[0] != 0) ||
 			(ha->hw.mcast[i].addr[1] != 0) ||
 			(ha->hw.mcast[i].addr[2] != 0) ||
 			(ha->hw.mcast[i].addr[3] != 0) ||
@@ -3554,7 +3554,7 @@ qla_hw_all_mcast(qla_host_t *ha, uint32_t add_mcast)
 				ha->hw.mcast[i].addr[1], ha->hw.mcast[i].addr[2],
 				ha->hw.mcast[i].addr[3], ha->hw.mcast[i].addr[4],
 				ha->hw.mcast[i].addr[5]);
-			
+
 			if (count == Q8_MAX_MAC_ADDRS) {
 				if (qla_config_mac_addr(ha, ha->hw.mac_addr_arr,
 					add_mcast, count)) {
@@ -3627,14 +3627,14 @@ qla_hw_add_mcast(qla_host_t *ha, uint8_t *mta, uint32_t nmcast)
 	int i;
 
 	for (i = 0; i < Q8_MAX_NUM_MULTICAST_ADDRS; i++) {
-		if ((ha->hw.mcast[i].addr[0] == 0) && 
+		if ((ha->hw.mcast[i].addr[0] == 0) &&
 			(ha->hw.mcast[i].addr[1] == 0) &&
 			(ha->hw.mcast[i].addr[2] == 0) &&
 			(ha->hw.mcast[i].addr[3] == 0) &&
 			(ha->hw.mcast[i].addr[4] == 0) &&
 			(ha->hw.mcast[i].addr[5] == 0)) {
 			bcopy(mta, ha->hw.mcast[i].addr, Q8_MAC_ADDR_LEN);
-			ha->hw.nmcast++;	
+			ha->hw.nmcast++;
 
 			mta = mta + ETHER_ADDR_LEN;
 			nmcast--;
@@ -3660,7 +3660,7 @@ qla_hw_del_mcast(qla_host_t *ha, uint8_t *mta, uint32_t nmcast)
 			ha->hw.mcast[i].addr[4] = 0;
 			ha->hw.mcast[i].addr[5] = 0;
 
-			ha->hw.nmcast--;	
+			ha->hw.nmcast--;
 
 			mta = mta + ETHER_ADDR_LEN;
 			nmcast--;
@@ -3726,7 +3726,7 @@ ql_hw_set_multi(qla_host_t *ha, uint8_t *mcast_addr, uint32_t mcnt,
 			mcast = ha->hw.mac_addr_arr;
 			memset(mcast, 0, (Q8_MAX_MAC_ADDRS * ETHER_ADDR_LEN));
 		}
-			
+
 		mta += Q8_MAC_ADDR_LEN;
 	}
 
@@ -4361,7 +4361,7 @@ ql_get_minidump_template(qla_host_t *ha)
 #endif /* #ifdef QL_LDFLASH_FW */
 
 /*
- * Minidump related functionality 
+ * Minidump related functionality
  */
 
 static int ql_parse_template(qla_host_t *ha);
@@ -4638,7 +4638,7 @@ ql_minidump(qla_host_t *ha)
 /*
  * helper routines
  */
-static void 
+static void
 ql_entry_err_chk(ql_minidump_entry_t *entry, uint32_t esize)
 {
 	if (esize != entry->hdr.entry_capture_size) {
@@ -4648,7 +4648,7 @@ ql_entry_err_chk(ql_minidump_entry_t *entry, uint32_t esize)
 	return;
 }
 
-static int 
+static int
 ql_parse_template(qla_host_t *ha)
 {
 	uint32_t num_of_entries, buff_level, e_cnt, esize;
@@ -4657,8 +4657,8 @@ ql_parse_template(qla_host_t *ha)
 	int sane_start = 0, sane_end = 0;
 	ql_minidump_template_hdr_t *template_hdr;
 	ql_minidump_entry_t *entry;
-	uint32_t capture_mask; 
-	uint32_t dump_size; 
+	uint32_t capture_mask;
+	uint32_t dump_size;
 
 	/* Setup parameters */
 	template_hdr = (ql_minidump_template_hdr_t *)ha->hw.mdump_template;
@@ -4670,7 +4670,7 @@ ql_parse_template(qla_host_t *ha)
 
 	num_of_entries = template_hdr->num_of_entries;
 
-	entry = (ql_minidump_entry_t *) ((char *)template_hdr 
+	entry = (ql_minidump_entry_t *) ((char *)template_hdr
 			+ template_hdr->first_entry_offset );
 
 	template_hdr->saved_state_array[QL_OCM0_ADDR_INDX] =
@@ -4684,7 +4684,7 @@ ql_parse_template(qla_host_t *ha)
 
 	QL_DPRINT80(ha, (ha->pci_dev,
 		"%s: sane_start = %d num_of_entries = %d "
-		"capture_mask = 0x%x dump_size = %d \n", 
+		"capture_mask = 0x%x dump_size = %d \n",
 		__func__, sane_start, num_of_entries, capture_mask, dump_size));
 
 	for (buff_level = 0, e_cnt = 0; e_cnt < num_of_entries; e_cnt++) {
@@ -4692,7 +4692,7 @@ ql_parse_template(qla_host_t *ha)
 		 * If the capture_mask of the entry does not match capture mask
 		 * skip the entry after marking the driver_flags indicator.
 		 */
-		
+
 		if (!(entry->hdr.entry_capture_mask & capture_mask)) {
 			entry->hdr.driver_flags |= QL_DBG_SKIPPED_FLAG;
 			entry = (ql_minidump_entry_t *) ((char *) entry
@@ -4884,7 +4884,7 @@ ql_rdcrb(qla_host_t *ha, ql_minidump_entry_rdcrb_t * crb_entry,
  * Handle L2 Cache.
  */
 
-static uint32_t 
+static uint32_t
 ql_L2Cache(qla_host_t *ha, ql_minidump_entry_cache_t *cacheEntry,
 	uint32_t * data_buff)
 {
@@ -4915,7 +4915,7 @@ ql_L2Cache(qla_host_t *ha, ql_minidump_entry_cache_t *cacheEntry,
 		if (ret)
 			return (0);
 
-		if (cacheEntry->write_value != 0) { 
+		if (cacheEntry->write_value != 0) {
 
 			ret = ql_rdwr_indreg32(ha, cntrl_addr,
 					&cntl_value_w, 0);
@@ -4923,7 +4923,7 @@ ql_L2Cache(qla_host_t *ha, ql_minidump_entry_cache_t *cacheEntry,
 				return (0);
 		}
 
-		if (cacheEntry->poll_mask != 0) { 
+		if (cacheEntry->poll_mask != 0) {
 
 			timeout = cacheEntry->poll_wait;
 
@@ -4948,7 +4948,7 @@ ql_L2Cache(qla_host_t *ha, ql_minidump_entry_cache_t *cacheEntry,
 				cntl_value_r = (uint8_t)data;
 			}
 			if (!timeout) {
-				/* Report timeout error. 
+				/* Report timeout error.
 				 * core dump capture failed
 				 * Skip remaining entries.
 				 * Write buffer out to file
@@ -4979,7 +4979,7 @@ ql_L2Cache(qla_host_t *ha, ql_minidump_entry_cache_t *cacheEntry,
  * Handle L1 Cache.
  */
 
-static uint32_t 
+static uint32_t
 ql_L1Cache(qla_host_t *ha,
 	ql_minidump_entry_cache_t *cacheEntry,
 	uint32_t *data_buff)
@@ -5033,7 +5033,7 @@ ql_L1Cache(qla_host_t *ha,
  * Reading OCM memory
  */
 
-static uint32_t 
+static uint32_t
 ql_rdocm(qla_host_t *ha,
 	ql_minidump_entry_rdocm_t *ocmEntry,
 	uint32_t *data_buff)
@@ -5057,7 +5057,7 @@ ql_rdocm(qla_host_t *ha,
  * Read memory
  */
 
-static uint32_t 
+static uint32_t
 ql_rdmem(qla_host_t *ha,
 	ql_minidump_entry_rdmem_t *mem_entry,
 	uint32_t *data_buff)
@@ -5092,7 +5092,7 @@ ql_rdmem(qla_host_t *ha,
  * Read Rom
  */
 
-static uint32_t 
+static uint32_t
 ql_rdrom(qla_host_t *ha,
 	ql_minidump_entry_rdrom_t *romEntry,
 	uint32_t *data_buff)
@@ -5122,7 +5122,7 @@ ql_rdrom(qla_host_t *ha,
  * Read MUX data
  */
 
-static uint32_t 
+static uint32_t
 ql_rdmux(qla_host_t *ha,
 	ql_minidump_entry_mux_t *muxEntry,
 	uint32_t *data_buff)
@@ -5225,7 +5225,7 @@ ql_rdmux2(qla_host_t *ha,
  * Handling Queue State Reads.
  */
 
-static uint32_t 
+static uint32_t
 ql_rdqueue(qla_host_t *ha,
 	ql_minidump_entry_queue_t *queueEntry,
 	uint32_t *data_buff)
@@ -5267,7 +5267,7 @@ ql_rdqueue(qla_host_t *ha,
  * Handling control entries.
  */
 
-static uint32_t 
+static uint32_t
 ql_cntrl(qla_host_t *ha,
 	ql_minidump_template_hdr_t *template_hdr,
 	ql_minidump_entry_cntrl_t *crbEntry)
@@ -5451,7 +5451,7 @@ ql_cntrl(qla_host_t *ha,
  * Handling rd poll entry.
  */
 
-static uint32_t 
+static uint32_t
 ql_pollrd(qla_host_t *ha, ql_minidump_entry_pollrd_t *entry,
 	uint32_t *data_buff)
 {
@@ -5518,7 +5518,7 @@ ql_pollrd(qla_host_t *ha, ql_minidump_entry_pollrd_t *entry,
  * Handling rd modify write poll entry.
  */
 
-static uint32_t 
+static uint32_t
 ql_pollrd_modify_write(qla_host_t *ha,
 	ql_minidump_entry_rd_modify_wr_with_poll_t *entry,
 	uint32_t *data_buff)

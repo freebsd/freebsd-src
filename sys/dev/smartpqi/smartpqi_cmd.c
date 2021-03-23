@@ -32,7 +32,7 @@
  * Function to submit the request to the adapter.
  */
 
-int pqisrc_submit_cmnd(pqisrc_softstate_t *softs, 
+int pqisrc_submit_cmnd(pqisrc_softstate_t *softs,
 				ib_queue_t *ib_q, void *req)
 {
 	char *slot = NULL;
@@ -47,7 +47,7 @@ int pqisrc_submit_cmnd(pqisrc_softstate_t *softs,
 	/* Check queue full */
 	if ((ib_q->pi_local + 1) % ib_q->num_elem == *(ib_q->ci_virt_addr)) {
 		DBG_WARN("OUT Q full\n");
-	PQI_UNLOCK(&ib_q->lock);	
+	PQI_UNLOCK(&ib_q->lock);
 		return PQI_STATUS_QFULL;
 	}
 
@@ -70,7 +70,7 @@ int pqisrc_submit_cmnd(pqisrc_softstate_t *softs,
 
 	/* Inform the fw about the new IU */
 	PCI_MEM_PUT32(softs, ib_q->pi_register_abs, ib_q->pi_register_offset, ib_q->pi_local);
-	PQI_UNLOCK(&ib_q->lock);	
+	PQI_UNLOCK(&ib_q->lock);
 	DBG_FUNC("OUT\n");
 	return PQI_STATUS_SUCCESS;
 }

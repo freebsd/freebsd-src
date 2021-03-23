@@ -325,7 +325,7 @@ struct mge_softc {
 
 #define MGE_UCAST_REG_NUMBER		4
 #define MGE_DA_FILTER_UCAST(i)		(0x1600 + ((i) << 2))
-	
+
 
 /* TX descriptor bits */
 #define MGE_TX_LLC_SNAP		(1 << 9)

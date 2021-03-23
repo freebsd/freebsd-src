@@ -114,7 +114,7 @@ struct tws_ioctl_no_data_buf {
 
 #pragma pack()
 
-#include <sys/ioccom.h> 
+#include <sys/ioccom.h>
 
 #pragma pack(1)
 

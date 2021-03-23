@@ -42,7 +42,7 @@
 #define	ARMV7_PMNC_ENABLE	(1 << 0) /* Enable all counters */
 #define	ARMV7_PMNC_P		(1 << 1) /* Reset all counters */
 #define	ARMV7_PMNC_C		(1 << 2) /* Cycle counter reset */
-#define	ARMV7_PMNC_D		(1 << 3) /* CCNT counts every 64th cpu cycle */  
+#define	ARMV7_PMNC_D		(1 << 3) /* CCNT counts every 64th cpu cycle */
 #define	ARMV7_PMNC_X		(1 << 4) /* Export to ext. monitoring (ETM) */
 #define	ARMV7_PMNC_DP		(1 << 5) /* Disable CCNT if non-invasive debug*/
 #define	ARMV7_PMNC_N_SHIFT	11       /* Number of counters implemented */

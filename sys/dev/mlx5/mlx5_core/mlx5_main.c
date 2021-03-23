@@ -2042,9 +2042,9 @@ static int __init init(void)
 	err = mlx5_ctl_init();
 	if (err)
 		goto err_ctl;
- 
+
  	return 0;
- 
+
 err_ctl:
 	pci_unregister_driver(&mlx5_core_driver);
 

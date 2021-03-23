@@ -43,10 +43,10 @@
 #define MLY_MAX_COMMANDS	256	/* max commands per controller */
 
 /*
- * The firmware interface allows for a 16-bit s/g list length.  We limit 
+ * The firmware interface allows for a 16-bit s/g list length.  We limit
  * ourselves to a reasonable maximum and ensure alignment.
  */
-#define MLY_MAX_SGENTRIES	64	/* max S/G entries, limit 65535 */		
+#define MLY_MAX_SGENTRIES	64	/* max S/G entries, limit 65535 */
 
 /*
  * The interval at which we poke the controller for status updates (in seconds).

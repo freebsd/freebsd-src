@@ -41,9 +41,9 @@
 #include <dev/tws/tws_services.h>
 #include <sys/time.h>
 
-void tws_q_insert_tail(struct tws_softc *sc, struct tws_request *req, 
+void tws_q_insert_tail(struct tws_softc *sc, struct tws_request *req,
                                 u_int8_t q_type );
-struct tws_request * tws_q_remove_request(struct tws_softc *sc, 
+struct tws_request * tws_q_remove_request(struct tws_softc *sc,
                                 struct tws_request *req, u_int8_t q_type );
 struct tws_request *tws_q_remove_head(struct tws_softc *sc, u_int8_t q_type );
 void tws_q_insert_head(struct tws_softc *sc, struct tws_request *req,
@@ -85,7 +85,7 @@ static struct error_desc array[] = {
 void
 tws_trace(const char *file, const char *fun, int linenum,
           struct tws_softc *sc, char *desc, u_int64_t val1, u_int64_t val2)
-{ 
+{
 
     struct tws_trace_rec *rec = (struct tws_trace_rec *)sc->trace_q.q;
     volatile u_int16_t head, tail;
@@ -105,14 +105,14 @@ tws_trace(const char *file, const char *fun, int linenum,
 
     tail = (tail+1) % sc->trace_q.depth;
 
-    if ( head == tail ) { 
+    if ( head == tail ) {
         sc->trace_q.overflow = 1;
         sc->trace_q.head = (head+1) % sc->trace_q.depth;
     }
     sc->trace_q.tail = tail;
 
 /*
-    tws_circular_q_insert(sc, &sc->trace_q, 
+    tws_circular_q_insert(sc, &sc->trace_q,
                               &rec, sizeof(struct tws_trace_rec));
 */
     if ( sc->is64bit )
@@ -120,8 +120,8 @@ tws_trace(const char *file, const char *fun, int linenum,
     else
         strcpy(fmt, "%05d:%s::%s :%s: 0x%016llx : 0x%016llx \n");
 
-/*  
-    printf("%05d:%s::%s :%s: 0x%016llx : 0x%016llx \n", 
+/*
+    printf("%05d:%s::%s :%s: 0x%016llx : 0x%016llx \n",
             linenum, file, fun, desc, val1, val2);
 */
     printf(fmt, linenum, file, fun, desc, val1, val2);
@@ -139,20 +139,20 @@ tws_log(struct tws_softc *sc, int index)
 
 /* ----------- swap functions ----------- */
 
-u_int16_t 
+u_int16_t
 tws_swap16(u_int16_t val)
 {
     return((val << 8) | (val >> 8));
 }
 
-u_int32_t 
+u_int32_t
 tws_swap32(u_int32_t val)
 {
-    return(((val << 24) | ((val << 8) & (0xFF0000)) | 
+    return(((val << 24) | ((val << 8) & (0xFF0000)) |
            ((val >> 8) & (0xFF00)) | (val >> 24)));
 }
 
-u_int64_t 
+u_int64_t
 tws_swap64(u_int64_t val)
 {
     return((((u_int64_t)(tws_swap32(((u_int32_t *)(&(val)))[1]))) << 32) |
@@ -162,7 +162,7 @@ tws_swap64(u_int64_t val)
 /* ----------- reg access ----------- */
 
 void
-tws_write_reg(struct tws_softc *sc, int offset, 
+tws_write_reg(struct tws_softc *sc, int offset,
                   u_int32_t value, int size)
 {
     bus_space_tag_t         bus_tag = sc->bus_tag;
@@ -170,9 +170,9 @@ tws_write_reg(struct tws_softc *sc, int offset,
 
     if (size == 4)
         bus_space_write_4(bus_tag, bus_handle, offset, value);
-    else 
+    else
         if (size == 2)
-            bus_space_write_2(bus_tag, bus_handle, offset, 
+            bus_space_write_2(bus_tag, bus_handle, offset,
                                      (u_int16_t)value);
         else
             bus_space_write_1(bus_tag, bus_handle, offset, (u_int8_t)value);
@@ -194,7 +194,7 @@ tws_read_reg(struct tws_softc *sc, int offset, int size)
 
 /* --------------------- Q service --------------------- */
 
-/* 
+/*
  * intialize q  pointers with null.
  */
 void
@@ -212,7 +212,7 @@ tws_init_qs(struct tws_softc *sc)
 
 /* called with lock held */
 static void
-tws_insert2_empty_q(struct tws_softc *sc, struct tws_request *req, 
+tws_insert2_empty_q(struct tws_softc *sc, struct tws_request *req,
                                 u_int8_t q_type )
 {
 
@@ -224,7 +224,7 @@ tws_insert2_empty_q(struct tws_softc *sc, struct tws_request *req,
 
 /* called with lock held */
 void
-tws_q_insert_head(struct tws_softc *sc, struct tws_request *req, 
+tws_q_insert_head(struct tws_softc *sc, struct tws_request *req,
                                 u_int8_t q_type )
 {
 
@@ -242,7 +242,7 @@ tws_q_insert_head(struct tws_softc *sc, struct tws_request *req,
 
 /* called with lock held */
 void
-tws_q_insert_tail(struct tws_softc *sc, struct tws_request *req, 
+tws_q_insert_tail(struct tws_softc *sc, struct tws_request *req,
                                 u_int8_t q_type )
 {
 
@@ -267,7 +267,7 @@ tws_q_remove_head(struct tws_softc *sc, u_int8_t q_type )
 
     mtx_assert(&sc->q_lock, MA_OWNED);
     r = sc->q_head[q_type];
-    if ( !r ) 
+    if ( !r )
         return(NULL);
     if ( r->next == NULL &&  r->prev == NULL ) {
         /* last element  */
@@ -290,7 +290,7 @@ tws_q_remove_tail(struct tws_softc *sc, u_int8_t q_type )
 
     mtx_assert(&sc->q_lock, MA_OWNED);
     r = sc->q_tail[q_type];
-    if ( !r ) 
+    if ( !r )
         return(NULL);
     if ( r->next == NULL &&  r->prev == NULL ) {
         /* last element  */
@@ -304,7 +304,7 @@ tws_q_remove_tail(struct tws_softc *sc, u_int8_t q_type )
     return(r);
 }
 
-/* returns removed request if successful. return NULL otherwise */ 
+/* returns removed request if successful. return NULL otherwise */
 /* called with lock held */
 struct tws_request *
 tws_q_remove_request(struct tws_softc *sc, struct tws_request *req,
@@ -340,7 +340,7 @@ tws_q_remove_request(struct tws_softc *sc, struct tws_request *req,
         if ( req == r )
             break;
         r = r->next;
-    } 
+    }
 
     if ( !r ) {
         TWS_TRACE_DEBUG(sc, "req not in q", 0, req->request_id);
@@ -382,7 +382,7 @@ tws_print_stats(void *arg)
 {
 
     struct tws_softc *sc = (struct tws_softc *)arg;
-     
+
     TWS_TRACE(sc, "reqs(in, out)", sc->stats.reqs_in, sc->stats.reqs_out);
     TWS_TRACE(sc, "reqs(err, intrs)", sc->stats.reqs_errored
                                       , sc->stats.num_intrs);

@@ -2517,8 +2517,8 @@ remove_scrn_saver(void (*this_saver)(sc_softc_t *, int))
 #if 0
     /*
      * In order to prevent `current_saver' from being called by
-     * the timeout routine `scrn_timer()' while we manipulate 
-     * the saver list, we shall set `current_saver' to `none_saver' 
+     * the timeout routine `scrn_timer()' while we manipulate
+     * the saver list, we shall set `current_saver' to `none_saver'
      * before stopping the current saver, rather than blocking by `splXX()'.
      */
     current_saver = none_saver;

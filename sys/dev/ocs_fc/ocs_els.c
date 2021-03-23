@@ -813,7 +813,7 @@ ocs_send_prli(ocs_node_t *node, uint32_t timeout_sec, uint32_t retries,
 		prli->flags = ocs_htobe16(FC_PRLI_ESTABLISH_IMAGE_PAIR);
 		prli->service_params = ocs_htobe16(FC_PRLI_READ_XRDY_DISABLED |
 			(node->sport->enable_ini ? FC_PRLI_INITIATOR_FUNCTION : 0) |
-			(node->sport->enable_tgt ? FC_PRLI_TARGET_FUNCTION : 0)); 
+			(node->sport->enable_tgt ? FC_PRLI_TARGET_FUNCTION : 0));
 
 		/* For Tape Drive support */
 		prli->service_params |= ocs_htobe16(FC_PRLI_CONFIRMED_COMPLETION | FC_PRLI_RETRY |
@@ -1471,7 +1471,7 @@ ocs_send_prli_acc(ocs_io_t *io, uint32_t ox_id, uint8_t fc_type, els_cb_t cb, vo
 
 	prli->service_params = ocs_htobe16(FC_PRLI_READ_XRDY_DISABLED |
 				(node->sport->enable_ini ? FC_PRLI_INITIATOR_FUNCTION : 0) |
-				(node->sport->enable_tgt ? FC_PRLI_TARGET_FUNCTION : 0)); 
+				(node->sport->enable_tgt ? FC_PRLI_TARGET_FUNCTION : 0));
 
 	io->hio_type = OCS_HW_ELS_RSP;
 	if ((rc = ocs_els_send_rsp(io, sizeof(*prli)))) {

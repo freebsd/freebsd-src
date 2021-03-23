@@ -658,8 +658,8 @@ struct resource *ahci_alloc_resource(device_t dev, device_t child, int type, int
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 int ahci_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r);
-int ahci_setup_intr(device_t dev, device_t child, struct resource *irq, 
-    int flags, driver_filter_t *filter, driver_intr_t *function, 
+int ahci_setup_intr(device_t dev, device_t child, struct resource *irq,
+    int flags, driver_filter_t *filter, driver_intr_t *function,
     void *argument, void **cookiep);
 int ahci_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie);

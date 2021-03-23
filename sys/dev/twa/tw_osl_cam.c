@@ -164,7 +164,7 @@ tw_osli_cam_detach(struct twa_softc *sc)
 	tw_osli_dbg_dprintf(3, sc, "entered");
 
 	mtx_lock(sc->sim_lock);
-           
+
 	if (sc->path)
 		xpt_free_path(sc->path);
 	if (sc->sim) {
@@ -370,7 +370,7 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
   		xpt_done(ccb);
   		break;
 
-	case XPT_GET_TRAN_SETTINGS: 
+	case XPT_GET_TRAN_SETTINGS:
 	{
 		struct ccb_trans_settings	*cts = &ccb->cts;
 		struct ccb_trans_settings_scsi *scsi =

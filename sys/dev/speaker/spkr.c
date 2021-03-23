@@ -59,8 +59,8 @@ static void playinit(void);
 static void playtone(int pitch, int value, int sustain);
 static void playstring(char *cp, size_t slen);
 
-/* 
- * Emit tone of frequency thz for given number of centisecs 
+/*
+ * Emit tone of frequency thz for given number of centisecs
  */
 static void
 tone(unsigned int thz, unsigned int centisecs)
@@ -95,7 +95,7 @@ tone(unsigned int thz, unsigned int centisecs)
 }
 
 /*
- * Rest for given number of centisecs 
+ * Rest for given number of centisecs
  */
 static void
 rest(int centisecs)
@@ -189,8 +189,8 @@ playinit()
     octprefix = TRUE;	/* act as though there was an initial O(n) */
 }
 
-/* 
- * Play tone of proper duration for current rhythm signature 
+/*
+ * Play tone of proper duration for current rhythm signature
  */
 static void
 playtone(int pitch, int value, int sustain)
@@ -226,7 +226,7 @@ playtone(int pitch, int value, int sustain)
 }
 
 /*
- * Interpret and play an item from a notation string 
+ * Interpret and play an item from a notation string
  */
 static void
 playstring(char *cp, size_t slen)
@@ -244,12 +244,12 @@ playstring(char *cp, size_t slen)
 #endif /* DEBUG */
 
 		switch (c) {
-		case 'A':  
-		case 'B': 
-		case 'C': 
-		case 'D': 
-		case 'E': 
-		case 'F': 
+		case 'A':
+		case 'B':
+		case 'C':
+		case 'D':
+		case 'E':
+		case 'F':
 		case 'G':
 			/* compute pitch */
 			pitch = notetab[c - 'A'] + octave * OCTAVE_NOTES;
@@ -271,13 +271,13 @@ playstring(char *cp, size_t slen)
 			 * closest to the last regardless of octave.
 			 */
 			if (octtrack && !octprefix) {
-				if (abs(pitch-lastpitch) > abs(pitch+OCTAVE_NOTES - 
+				if (abs(pitch-lastpitch) > abs(pitch+OCTAVE_NOTES -
 					lastpitch)) {
 					++octave;
 					pitch += OCTAVE_NOTES;
 				}
 
-				if (abs(pitch-lastpitch) > abs((pitch-OCTAVE_NOTES) - 
+				if (abs(pitch-lastpitch) > abs((pitch-OCTAVE_NOTES) -
 					lastpitch)) {
 					--octave;
 					pitch -= OCTAVE_NOTES;
@@ -292,7 +292,7 @@ playstring(char *cp, size_t slen)
 				timeval = value;
 
 			/* ...and/or sustain dots */
-			for (sustain = 0; cp[1] == '.'; cp++) { 
+			for (sustain = 0; cp[1] == '.'; cp++) {
 				slen--;
 				sustain++;
 			}
@@ -438,7 +438,7 @@ spkrwrite(dev, uio, ioflag)
 #endif /* DEBUG */
 
 	if (uio->uio_resid > (DEV_BSIZE - 1))     /* prevent system crashes */
-		return(E2BIG);	
+		return(E2BIG);
 	else {
 		unsigned n;
 		char *cp;
@@ -528,7 +528,7 @@ speaker_modevent(module_t mod, int type, void *data)
 	int error = 0;
 
 	switch(type) {
-	case MOD_LOAD: 
+	case MOD_LOAD:
 		speaker_dev = make_dev(&spkr_cdevsw, 0,
 		    UID_ROOT, GID_WHEEL, 0600, "speaker");
 		break;

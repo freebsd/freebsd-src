@@ -128,7 +128,7 @@ static const struct mii_phydesc bmtphys_lp[] = {
 static const struct mii_phy_funcs bmtphy_funcs = {
 	bmtphy_service,
 	bmtphy_status,
-	bmtphy_reset 
+	bmtphy_reset
 };
 
 static int

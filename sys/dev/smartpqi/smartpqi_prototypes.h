@@ -218,7 +218,7 @@ int os_copy_from_user(struct pqisrc_softstate *, void *,
 int create_char_dev(struct pqisrc_softstate *, int);
 void destroy_char_dev(struct pqisrc_softstate *);
 
-/* FreeBSD_misc.c*/ 
+/* FreeBSD_misc.c*/
 int os_init_spinlock(struct pqisrc_softstate *, struct mtx *, char *);
 void os_uninit_spinlock(struct mtx *);
 int os_create_semaphore(const char *, int,struct sema *);
@@ -238,7 +238,7 @@ void smartpqi_target_rescan(struct pqisrc_softstate *);
 
 /* FreeBSD_intr.c FreeBSD_main.c */
 void os_add_device(pqisrc_softstate_t *, pqi_scsi_dev_t *);
-void os_remove_device(pqisrc_softstate_t *, pqi_scsi_dev_t *); 
+void os_remove_device(pqisrc_softstate_t *, pqi_scsi_dev_t *);
 void os_io_response_success(rcb_t *);
 void os_aio_response_error(rcb_t *, aio_path_error_info_elem_t *);
 void smartpqi_adjust_queue_depth(struct cam_path *, uint32_t );
@@ -246,7 +246,7 @@ void os_raid_response_error(rcb_t *, raid_path_error_info_elem_t *);
 void os_reset_rcb( rcb_t *);
 int register_sim(struct pqisrc_softstate *, int);
 void deregister_sim(struct pqisrc_softstate *);
-int check_for_scsi_opcode(uint8_t *, boolean_t *, uint64_t *, 
+int check_for_scsi_opcode(uint8_t *, boolean_t *, uint64_t *,
 			uint32_t *);
 int register_legacy_intr(pqisrc_softstate_t *);
 int register_msix_intr(pqisrc_softstate_t *);

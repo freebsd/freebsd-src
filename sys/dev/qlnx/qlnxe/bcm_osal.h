@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -105,7 +105,7 @@ extern void qlnx_vf_flr_update(void *p_hwfn);
 #ifdef ECORE_PACKAGE
 
 /* Memory Types */
-#define u8 uint8_t 
+#define u8 uint8_t
 #define u16 uint16_t
 #define u32 uint32_t
 #define u64 uint64_t
@@ -434,7 +434,7 @@ qlnx_log2(uint32_t x)
 
 #define INLINE __inline
 #define OSAL_INLINE __inline
-#define OSAL_UNLIKELY 
+#define OSAL_UNLIKELY
 #define OSAL_NULL NULL
 
 #define OSAL_MAX_T(type, __max1, __max2) max_t(type, __max1, __max2)
@@ -482,12 +482,12 @@ qlnx_test_and_change_bit(long bit, volatile unsigned long *var)
 	val = *var;
 
 #if __FreeBSD_version >= 1100000
-	if (val & bit) 
+	if (val & bit)
 		return (test_and_clear_bit(bit, var));
 
 	return (test_and_set_bit(bit, var));
 #else
-	if (val & bit) 
+	if (val & bit)
 		return (test_and_clear_bit(bit, (long *)var));
 
 	return (test_and_set_bit(bit, (long *)var));
@@ -559,11 +559,11 @@ OSAL_CRC8(u8 * cdu_crc8_table, u8 * data_to_crc, int data_to_crc_len, u8 init_va
 #define OSAL_IOV_VF_ACQUIRE(p_hwfn, relative_vf_id) ECORE_SUCCESS
 #define OSAL_IOV_GET_OS_TYPE()	VFPF_ACQUIRE_OS_FREEBSD
 #define OSAL_IOV_PRE_START_VPORT(p_hwfn, relative_vf_id, params) ECORE_SUCCESS
-#define OSAL_IOV_POST_START_VPORT(p_hwfn, relative_vf_id, vport_id, opaque_fid) 
+#define OSAL_IOV_POST_START_VPORT(p_hwfn, relative_vf_id, vport_id, opaque_fid)
 #define OSAL_PF_VALIDATE_MODIFY_TUNN_CONFIG(p_hwfn, x, y, z) ECORE_SUCCESS
 #define OSAL_IOV_CHK_UCAST(p_hwfn, vfid, params) \
 			qlnx_iov_chk_ucast(p_hwfn, vfid, params);
-#define OSAL_PF_VF_MALICIOUS(p_hwfn, relative_vf_id) 
+#define OSAL_PF_VF_MALICIOUS(p_hwfn, relative_vf_id)
 #define OSAL_IOV_VF_MSG_TYPE(p_hwfn, relative_vf_id, type)
 #define OSAL_IOV_VF_VPORT_UPDATE(p_hwfn, vfid, params, tlvs) \
 		qlnx_iov_update_vport(p_hwfn, vfid, params, tlvs)

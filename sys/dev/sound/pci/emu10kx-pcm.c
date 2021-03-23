@@ -1457,7 +1457,7 @@ emu_pcm_attach(device_t dev)
 		goto bad;
 	}
 
-	/* 
+	/*
 	 * We don't register interrupt handler with snd_setup_intr
 	 * in pcm device. Mark pcm device as MPSAFE manually.
 	 */

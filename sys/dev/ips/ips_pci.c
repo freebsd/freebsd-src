@@ -103,7 +103,7 @@ static int ips_pci_attach(device_t dev)
                 PRINTF(10, "trying PORTIO\n");
                 sc->rid = PCIR_BAR(0);
                 sc->iotype = SYS_RES_IOPORT;
-                sc->iores = bus_alloc_resource_any(dev, sc->iotype, 
+                sc->iores = bus_alloc_resource_any(dev, sc->iotype,
 			&sc->rid, RF_ACTIVE);
         }
         if(sc->iores == NULL){
@@ -117,7 +117,7 @@ static int ips_pci_attach(device_t dev)
                 device_printf(dev, "irq allocation failed\n");
                 goto error;
         }
-	if(bus_setup_intr(dev, sc->irqres, INTR_TYPE_BIO|INTR_MPSAFE, NULL, 
+	if(bus_setup_intr(dev, sc->irqres, INTR_TYPE_BIO|INTR_MPSAFE, NULL,
 	    sc->ips_adapter_intr, sc, &sc->irqcookie)){
                 device_printf(dev, "irq setup failed\n");
                 goto error;

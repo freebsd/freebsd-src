@@ -80,7 +80,7 @@ nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		break;
 	case NVME_PASSTHROUGH_CMD:
 		pt = (struct nvme_pt_command *)arg;
-		return (nvme_ctrlr_passthrough_cmd(ctrlr, pt, ns->id, 
+		return (nvme_ctrlr_passthrough_cmd(ctrlr, pt, ns->id,
 		    1 /* is_user_buffer */, 0 /* is_admin_cmd */));
 	case NVME_GET_NSID:
 	{

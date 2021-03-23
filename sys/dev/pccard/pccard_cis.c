@@ -290,7 +290,7 @@ pccard_scan_cis(device_t bus, device_t dev, pccard_scan_t fct, void *arg)
 					if (cksum != (sum & 0xff)) {
 						DPRINTF((" failed sum=%#x\n",
 						    sum));
-						device_printf(dev, 
+						device_printf(dev,
 						    "CIS checksum failed\n");
 #if 0
 						/*
@@ -653,7 +653,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 	switch (tuple->code) {
 	case CISTPL_END:
 		/* if we've seen a LONGLINK_MFC, and this is the first
-		 * END after it, reset the function list.  
+		 * END after it, reset the function list.
 		 *
 		 * XXX This might also be the right place to start a
 		 * new function, but that assumes that a function
@@ -665,7 +665,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 		if (state->gotmfc == 1) {
 			struct pccard_function *pf, *pfnext;
 
-			for (pf = STAILQ_FIRST(&state->card->pf_head); 
+			for (pf = STAILQ_FIRST(&state->card->pf_head);
 			     pf != NULL; pf = pfnext) {
 				pfnext = STAILQ_NEXT(pf, pf_list);
 				free(pf, M_DEVBUF);

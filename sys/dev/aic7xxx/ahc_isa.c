@@ -73,7 +73,7 @@ ahc_isa_find_device(bus_space_tag_t tag, bus_space_handle_t bsh) {
 		id |= bus_space_read_1(tag, bsh, 0x80 + i)
 		   << ((id_size - i - 1) * CHAR_BIT);
 	}
-                           
+
 	return (aic7770_find_device(id));
 }
 
@@ -171,7 +171,7 @@ ahc_isa_probe(device_t dev)
 	intdef = bus_space_read_1(tag, bsh, INTDEF);
 	irq_num = intdef & VECTOR;
 	switch (irq_num) {
-	case 9: 
+	case 9:
 	case 10:
 	case 11:
 	case 12:
@@ -196,7 +196,7 @@ ahc_isa_probe(device_t dev)
 	if (irq != NULL) {
 		error = 0;
 		device_set_desc(dev, entry->name);
-	} else 
+	} else
 		device_printf(dev, "@0x%x: irq %d allocation failed\n",
 			      iobase, irq_num);
 

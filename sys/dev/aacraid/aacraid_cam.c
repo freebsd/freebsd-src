@@ -107,12 +107,12 @@ static void aac_cam_complete(struct aac_command *);
 static void aac_container_complete(struct aac_command *);
 static void aac_cam_rescan(struct aac_softc *sc, uint32_t channel,
 	uint32_t target_id);
-static void aac_set_scsi_error(struct aac_softc *sc, union ccb *ccb, 
+static void aac_set_scsi_error(struct aac_softc *sc, union ccb *ccb,
 	u_int8_t status, u_int8_t key, u_int8_t asc, u_int8_t ascq);
 static int aac_load_map_command_sg(struct aac_softc *, struct aac_command *);
 static u_int64_t aac_eval_blockno(u_int8_t *);
 static void aac_container_rw_command(struct cam_sim *, union ccb *, u_int8_t *);
-static void aac_container_special_command(struct cam_sim *, union ccb *, 
+static void aac_container_special_command(struct cam_sim *, union ccb *,
 	u_int8_t *);
 static void aac_passthrough_command(struct cam_sim *, union ccb *);
 
@@ -141,10 +141,10 @@ MODULE_DEPEND(aacraidp, cam, 1, 1, 1);
 MALLOC_DEFINE(M_AACRAIDCAM, "aacraidcam", "AACRAID CAM info");
 
 static void
-aac_set_scsi_error(struct aac_softc *sc, union ccb *ccb, u_int8_t status, 
+aac_set_scsi_error(struct aac_softc *sc, union ccb *ccb, u_int8_t status,
 	u_int8_t key, u_int8_t asc, u_int8_t ascq)
 {
-	struct scsi_sense_data_fixed *sense = 
+	struct scsi_sense_data_fixed *sense =
 		(struct scsi_sense_data_fixed *)&ccb->csio.sense_data;
 
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "Error %d!", status);
@@ -154,7 +154,7 @@ aac_set_scsi_error(struct aac_softc *sc, union ccb *ccb, u_int8_t status,
 	if (status == SCSI_STATUS_CHECK_COND) {
 		ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
 		bzero(&ccb->csio.sense_data, ccb->csio.sense_len);
-		ccb->csio.sense_data.error_code = 
+		ccb->csio.sense_data.error_code =
 			SSD_CURRENT_ERROR | SSD_ERRCODE_VALID;
 		sense->flags = key;
 		if (ccb->csio.sense_len >= 14) {
@@ -244,7 +244,7 @@ aac_cam_detach(device_t dev)
 	struct aac_cam *camsc;
 
 	camsc = (struct aac_cam *)device_get_softc(dev);
-	if (!camsc->inf) 
+	if (!camsc->inf)
 		return (0);
 	sc = camsc->inf->aac_sc;
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
@@ -320,34 +320,34 @@ aac_cam_attach(device_t dev)
 	return (0);
 }
 
-static u_int64_t 
-aac_eval_blockno(u_int8_t *cmdp) 
+static u_int64_t
+aac_eval_blockno(u_int8_t *cmdp)
 {
 	u_int64_t blockno;
 
 	switch (cmdp[0]) {
 	case READ_6:
 	case WRITE_6:
-		blockno = scsi_3btoul(((struct scsi_rw_6 *)cmdp)->addr);	
+		blockno = scsi_3btoul(((struct scsi_rw_6 *)cmdp)->addr);
 		break;
 	case READ_10:
 	case WRITE_10:
-		blockno = scsi_4btoul(((struct scsi_rw_10 *)cmdp)->addr);	
+		blockno = scsi_4btoul(((struct scsi_rw_10 *)cmdp)->addr);
 		break;
 	case READ_12:
 	case WRITE_12:
-		blockno = scsi_4btoul(((struct scsi_rw_12 *)cmdp)->addr);	
+		blockno = scsi_4btoul(((struct scsi_rw_12 *)cmdp)->addr);
 		break;
 	case READ_16:
 	case WRITE_16:
-		blockno = scsi_8btou64(((struct scsi_rw_16 *)cmdp)->addr);	
+		blockno = scsi_8btou64(((struct scsi_rw_16 *)cmdp)->addr);
 		break;
 	default:
 		blockno = 0;
 		break;
 	}
 	return(blockno);
-}		
+}
 
 static void
 aac_container_rw_command(struct cam_sim *sim, union ccb *ccb, u_int8_t *cmdp)
@@ -428,7 +428,7 @@ aac_container_rw_command(struct cam_sim *sim, union ccb *ccb, u_int8_t *cmdp)
 		raw->ldNum = ccb->ccb_h.target_id;
 		fib->Header.Size += sizeof(struct aac_raw_io2);
 		cm->cm_sgtable = (struct aac_sg_table *)raw->sge;
-		if (cm->cm_flags & AAC_CMD_DATAIN) 
+		if (cm->cm_flags & AAC_CMD_DATAIN)
 			raw->flags = RIO2_IO_TYPE_READ | RIO2_SG_FORMAT_IEEE1212;
 		else
 			raw->flags = RIO2_IO_TYPE_WRITE | RIO2_SG_FORMAT_IEEE1212;
@@ -444,7 +444,7 @@ aac_container_rw_command(struct cam_sim *sim, union ccb *ccb, u_int8_t *cmdp)
 		fib->Header.Size += sizeof(struct aac_raw_io);
 		cm->cm_sgtable = (struct aac_sg_table *)
 			&raw->SgMapRaw;
-		if (cm->cm_flags & AAC_CMD_DATAIN) 
+		if (cm->cm_flags & AAC_CMD_DATAIN)
 			raw->Flags = 1;
 	} else if ((sc->flags & AAC_FLAGS_SG_64BIT) == 0) {
 		fib->Header.Command = ContainerCommand;
@@ -503,7 +503,7 @@ aac_container_rw_command(struct cam_sim *sim, union ccb *ccb, u_int8_t *cmdp)
 }
 
 static void
-aac_container_special_command(struct cam_sim *sim, union ccb *ccb, 
+aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 	u_int8_t *cmdp)
 {
 	struct	aac_cam *camsc;
@@ -520,8 +520,8 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 			break;
 	}
 	if (co == NULL || ccb->ccb_h.target_lun != 0) {
-		fwprintf(sc, HBA_FLAGS_DBG_ERROR_B, 
-			"Container not present: cmd 0x%x id %d lun %d len %d", 
+		fwprintf(sc, HBA_FLAGS_DBG_ERROR_B,
+			"Container not present: cmd 0x%x id %d lun %d len %d",
 			*cmdp, ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 			ccb->csio.dxfer_len);
 		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
@@ -537,20 +537,20 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 	{
 		struct scsi_inquiry *inq = (struct scsi_inquiry *)cmdp;
 
-		fwprintf(sc, HBA_FLAGS_DBG_COMM_B, 
-		"Container INQUIRY id %d lun %d len %d VPD 0x%x Page 0x%x", 
+		fwprintf(sc, HBA_FLAGS_DBG_COMM_B,
+		"Container INQUIRY id %d lun %d len %d VPD 0x%x Page 0x%x",
 			ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 			ccb->csio.dxfer_len, inq->byte2, inq->page_code);
 		if (!(inq->byte2 & SI_EVPD)) {
-			struct scsi_inquiry_data *p = 
+			struct scsi_inquiry_data *p =
 				(struct scsi_inquiry_data *)ccb->csio.data_ptr;
 			if (inq->page_code != 0) {
 				aac_set_scsi_error(sc, ccb,
 					SCSI_STATUS_CHECK_COND,
-					SSD_KEY_ILLEGAL_REQUEST, 0x24, 0x00);	
+					SSD_KEY_ILLEGAL_REQUEST, 0x24, 0x00);
 				xpt_done(ccb);
-				return;	
-			}	
+				return;
+			}
 			p->device = T_DIRECT;
 			p->version = SCSI_REV_SPC2;
 			p->response_format = 2;
@@ -563,7 +563,7 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 				    sizeof(p->product));
 				strncpy(p->revision, "V1.0",
 				    sizeof(p->revision));
-			}	
+			}
 		} else {
 			if (inq->page_code == SVPD_SUPPORTED_PAGE_LIST) {
 				struct scsi_vpd_supported_page_list *p =
@@ -577,18 +577,18 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 			} else if (inq->page_code == SVPD_UNIT_SERIAL_NUMBER) {
 				struct scsi_vpd_unit_serial_number *p =
 					(struct scsi_vpd_unit_serial_number *)
-					ccb->csio.data_ptr;	
+					ccb->csio.data_ptr;
 				p->device = T_DIRECT;
 				p->page_code = SVPD_UNIT_SERIAL_NUMBER;
-				p->length = sprintf((char *)p->serial_num, 
-					"%08X%02X", co->co_uid, 
+				p->length = sprintf((char *)p->serial_num,
+					"%08X%02X", co->co_uid,
 					ccb->ccb_h.target_id);
 			} else {
-				aac_set_scsi_error(sc, ccb, 
+				aac_set_scsi_error(sc, ccb,
 					SCSI_STATUS_CHECK_COND,
-					SSD_KEY_ILLEGAL_REQUEST, 0x24, 0x00);	
+					SSD_KEY_ILLEGAL_REQUEST, 0x24, 0x00);
 				xpt_done(ccb);
-				return;	
+				return;
 			}
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -596,8 +596,8 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 	}
 
 	case REPORT_LUNS:
-		fwprintf(sc, HBA_FLAGS_DBG_COMM_B, 
-		"Container REPORT_LUNS id %d lun %d len %d", 
+		fwprintf(sc, HBA_FLAGS_DBG_COMM_B,
+		"Container REPORT_LUNS id %d lun %d len %d",
 		ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 		ccb->csio.dxfer_len);
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -605,10 +605,10 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 
 	case START_STOP:
 	{
-		struct scsi_start_stop_unit *ss = 
+		struct scsi_start_stop_unit *ss =
 			(struct scsi_start_stop_unit *)cmdp;
-		fwprintf(sc, HBA_FLAGS_DBG_COMM_B, 
-		"Container START_STOP id %d lun %d len %d", 
+		fwprintf(sc, HBA_FLAGS_DBG_COMM_B,
+		"Container START_STOP id %d lun %d len %d",
 		ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 		ccb->csio.dxfer_len);
 		if (sc->aac_support_opt2 & AAC_SUPPORTED_POWER_MANAGEMENT) {
@@ -640,7 +640,7 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 			cm->cm_timestamp = time_uptime;
 			cm->cm_datalen = 0;
 
-			fib->Header.Size = 
+			fib->Header.Size =
 				sizeof(struct aac_fib_header) + sizeof(struct aac_cnt_config);
 			fib->Header.XferState =
 				AAC_FIBSTATE_HOSTOWNED   |
@@ -659,7 +659,7 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 			ccfg->Command = VM_ContainerConfig;
 			ccfg->CTCommand.command = CT_PM_DRIVER_SUPPORT;
 			ccfg->CTCommand.param[0] = (ss->how & SSS_START ?
-				AAC_PM_DRIVERSUP_START_UNIT : 
+				AAC_PM_DRIVERSUP_START_UNIT :
 				AAC_PM_DRIVERSUP_STOP_UNIT);
 			ccfg->CTCommand.param[1] = co->co_mntobj.ObjectId;
 			ccfg->CTCommand.param[2] = 0;	/* 1 - immediate */
@@ -667,7 +667,7 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 
 			if (aacraid_wait_command(cm) != 0 ||
 				le32toh(*(u_int32_t *)&fib->data[0]) != 0) {
-				printf("Power Management: Error start/stop container %d\n", 
+				printf("Power Management: Error start/stop container %d\n",
 				co->co_mntobj.ObjectId);
 			}
 			aacraid_release_command(cm);
@@ -677,16 +677,16 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 	}
 
 	case TEST_UNIT_READY:
-		fwprintf(sc, HBA_FLAGS_DBG_COMM_B, 
-		"Container TEST_UNIT_READY id %d lun %d len %d", 
+		fwprintf(sc, HBA_FLAGS_DBG_COMM_B,
+		"Container TEST_UNIT_READY id %d lun %d len %d",
 		ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 		ccb->csio.dxfer_len);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 
 	case REQUEST_SENSE:
-		fwprintf(sc, HBA_FLAGS_DBG_COMM_B, 
-		"Container REQUEST_SENSE id %d lun %d len %d", 
+		fwprintf(sc, HBA_FLAGS_DBG_COMM_B,
+		"Container REQUEST_SENSE id %d lun %d len %d",
 		ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 		ccb->csio.dxfer_len);
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -694,10 +694,10 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 
 	case READ_CAPACITY:
 	{
-		struct scsi_read_capacity_data *p = 
+		struct scsi_read_capacity_data *p =
 			(struct scsi_read_capacity_data *)ccb->csio.data_ptr;
-		fwprintf(sc, HBA_FLAGS_DBG_COMM_B, 
-		"Container READ_CAPACITY id %d lun %d len %d", 
+		fwprintf(sc, HBA_FLAGS_DBG_COMM_B,
+		"Container READ_CAPACITY id %d lun %d len %d",
 		ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 		ccb->csio.dxfer_len);
 		scsi_ulto4b(co->co_mntobj.ObjExtension.BlockDevice.BlockSize, p->length);
@@ -707,32 +707,32 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 				scsi_ulto4b(0xffffffff, p->addr);
 		} else {
 			scsi_ulto4b(co->co_mntobj.Capacity-1, p->addr);
-		} 
+		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
 
 	case SERVICE_ACTION_IN:
-	{	
-		struct scsi_read_capacity_data_long *p = 
+	{
+		struct scsi_read_capacity_data_long *p =
 			(struct scsi_read_capacity_data_long *)
 			ccb->csio.data_ptr;
-		fwprintf(sc, HBA_FLAGS_DBG_COMM_B, 
-		"Container SERVICE_ACTION_IN id %d lun %d len %d", 
+		fwprintf(sc, HBA_FLAGS_DBG_COMM_B,
+		"Container SERVICE_ACTION_IN id %d lun %d len %d",
 		ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 		ccb->csio.dxfer_len);
-		if (((struct scsi_read_capacity_16 *)cmdp)->service_action != 
+		if (((struct scsi_read_capacity_16 *)cmdp)->service_action !=
 			SRC16_SERVICE_ACTION) {
 			aac_set_scsi_error(sc, ccb, SCSI_STATUS_CHECK_COND,
-				SSD_KEY_ILLEGAL_REQUEST, 0x24, 0x00);	
+				SSD_KEY_ILLEGAL_REQUEST, 0x24, 0x00);
 			xpt_done(ccb);
-			return;	
+			return;
 		}
 		scsi_ulto4b(co->co_mntobj.ObjExtension.BlockDevice.BlockSize, p->length);
 		scsi_ulto4b(co->co_mntobj.CapacityHigh, p->addr);
 		scsi_ulto4b(co->co_mntobj.Capacity-1, &p->addr[4]);
 
-		if (ccb->csio.dxfer_len >= 14) {		
+		if (ccb->csio.dxfer_len >= 14) {
 			u_int32_t mapping = co->co_mntobj.ObjExtension.BlockDevice.bdLgclPhysMap;
 			p->prot_lbppbe = 0;
 			while (mapping > 1) {
@@ -757,8 +757,8 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 		char *pagep;
 		int return_all_pages = FALSE;
 
-		fwprintf(sc, HBA_FLAGS_DBG_COMM_B, 
-		"Container MODE_SENSE id %d lun %d len %d page %d", 
+		fwprintf(sc, HBA_FLAGS_DBG_COMM_B,
+		"Container MODE_SENSE id %d lun %d len %d page %d",
 		ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 		ccb->csio.dxfer_len, msp->page);
 		p->hd.datalen = sizeof(struct scsi_mode_hdr_6) - 1;
@@ -768,8 +768,8 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 		if (msp->byte2 & SMS_DBD) {
 			p->hd.block_descr_len = 0;
 		} else {
-			p->hd.block_descr_len = 
-				sizeof(struct scsi_mode_block_descr);	
+			p->hd.block_descr_len =
+				sizeof(struct scsi_mode_block_descr);
 			p->hd.datalen += p->hd.block_descr_len;
 			scsi_ulto3b(co->co_mntobj.ObjExtension.BlockDevice.BlockSize, p->bd.block_len);
 			if (co->co_mntobj.Capacity > 0xffffff ||
@@ -786,21 +786,21 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 					(co->co_mntobj.Capacity);
 			}
 		}
-		pagep = &p->pages;	
+		pagep = &p->pages;
 		switch (msp->page & SMS_PAGE_CODE) {
 		case SMS_ALL_PAGES_PAGE:
 			return_all_pages = TRUE;
 		case SMS_CONTROL_MODE_PAGE:
 		{
-			struct scsi_control_page *cp = 
+			struct scsi_control_page *cp =
 				(struct scsi_control_page *)pagep;
 
 			if (ccb->csio.dxfer_len <= p->hd.datalen + 8) {
 				aac_set_scsi_error(sc, ccb,
 					SCSI_STATUS_CHECK_COND,
-					SSD_KEY_ILLEGAL_REQUEST, 0x24, 0x00);	
+					SSD_KEY_ILLEGAL_REQUEST, 0x24, 0x00);
 				xpt_done(ccb);
-				return;	
+				return;
 			}
 			cp->page_code = SMS_CONTROL_MODE_PAGE;
 			cp->page_length = 6;
@@ -810,28 +810,28 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 				break;
 		}
 		case SMS_VENDOR_SPECIFIC_PAGE:
-			break;	
-		default:	
+			break;
+		default:
 			aac_set_scsi_error(sc, ccb, SCSI_STATUS_CHECK_COND,
-				SSD_KEY_ILLEGAL_REQUEST, 0x24, 0x00);	
+				SSD_KEY_ILLEGAL_REQUEST, 0x24, 0x00);
 			xpt_done(ccb);
-			return;	
+			return;
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
 
 	case SYNCHRONIZE_CACHE:
-		fwprintf(sc, HBA_FLAGS_DBG_COMM_B, 
-		"Container SYNCHRONIZE_CACHE id %d lun %d len %d", 
+		fwprintf(sc, HBA_FLAGS_DBG_COMM_B,
+		"Container SYNCHRONIZE_CACHE id %d lun %d len %d",
 		ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 		ccb->csio.dxfer_len);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 
 	default:
-		fwprintf(sc, HBA_FLAGS_DBG_ERROR_B, 
-		"Container unsupp. cmd 0x%x id %d lun %d len %d", 
+		fwprintf(sc, HBA_FLAGS_DBG_ERROR_B,
+		"Container unsupp. cmd 0x%x id %d lun %d len %d",
 		*cmdp, ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 		ccb->csio.dxfer_len);
 		ccb->ccb_h.status = CAM_REQ_CMP; /*CAM_REQ_INVALID*/
@@ -890,13 +890,13 @@ aac_passthrough_command(struct cam_sim *sim, union ccb *ccb)
 
 	srb = (struct aac_srb *)&fib->data[0];
 	srb->function = AAC_SRB_FUNC_EXECUTE_SCSI;
-	if (cm->cm_flags & (AAC_CMD_DATAIN|AAC_CMD_DATAOUT)) 
+	if (cm->cm_flags & (AAC_CMD_DATAIN|AAC_CMD_DATAOUT))
 		srb->flags = AAC_SRB_FLAGS_UNSPECIFIED_DIRECTION;
-	if (cm->cm_flags & AAC_CMD_DATAIN) 
+	if (cm->cm_flags & AAC_CMD_DATAIN)
 		srb->flags = AAC_SRB_FLAGS_DATA_IN;
-	else if (cm->cm_flags & AAC_CMD_DATAOUT) 
+	else if (cm->cm_flags & AAC_CMD_DATAOUT)
 		srb->flags = AAC_SRB_FLAGS_DATA_OUT;
-	else  
+	else
 		srb->flags = AAC_SRB_FLAGS_NO_DATA_XFER;
 
 	/*
@@ -912,7 +912,7 @@ aac_passthrough_command(struct cam_sim *sim, union ccb *ccb)
 			srb->cdb_len);
 
 	/* Set command */
-	fib->Header.Command = (sc->flags & AAC_FLAGS_SG_64BIT) ? 
+	fib->Header.Command = (sc->flags & AAC_FLAGS_SG_64BIT) ?
 		ScsiPortCommandU64 : ScsiPortCommand;
 	fib->Header.Size = sizeof(struct aac_fib_header) +
 			sizeof(struct aac_srb);
@@ -1097,12 +1097,12 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 		if (ccb->ccb_h.flags & CAM_CDB_POINTER)
 			cmdp = ccb->csio.cdb_io.cdb_ptr;
-		else	
+		else
 			cmdp = &ccb->csio.cdb_io.cdb_bytes[0];
 
 		if (*cmdp==READ_6 || *cmdp==WRITE_6 || *cmdp==READ_10 ||
 			*cmdp==WRITE_10 || *cmdp==READ_12 || *cmdp==WRITE_12 ||
-			*cmdp==READ_16 || *cmdp==WRITE_16) 
+			*cmdp==READ_16 || *cmdp==WRITE_16)
 			aac_container_rw_command(sim, ccb, cmdp);
 		else
 			aac_container_special_command(sim, ccb, cmdp);
@@ -1188,7 +1188,7 @@ aac_cam_complete(struct aac_command *cm)
 
 				scsi_sense_len = sizeof(struct scsi_sense_data);
 				bzero(&ccb->csio.sense_data, scsi_sense_len);
-				sense_len = (srbr->sense_len > 
+				sense_len = (srbr->sense_len >
 				    scsi_sense_len) ? scsi_sense_len :
 				    srbr->sense_len;
 				bcopy(&srbr->sense[0], &ccb->csio.sense_data,
@@ -1211,12 +1211,12 @@ aac_cam_complete(struct aac_command *cm)
 				   * We want DASD and PROC devices to only be
 				   * visible through the pass device.
 				   */
-				  if ((device == T_DIRECT && 
+				  if ((device == T_DIRECT &&
 				    !(sc->aac_feature_bits & AAC_SUPPL_SUPPORTED_JBOD)) ||
-				    (device == T_PROCESSOR)) 
+				    (device == T_PROCESSOR))
 				    ccb->csio.data_ptr[0] =
 				  	((device & 0xe0) | T_NODEVICE);
-					
+
 				  /* handle phys. components of a log. drive */
 				  if (ccb->csio.data_ptr[0] & 0x20) {
 					if (sc->hint_flags & 8) {
@@ -1283,7 +1283,7 @@ aac_cam_reset_bus(struct cam_sim *sim, union ccb *ccb)
 	cm->cm_timestamp = time_uptime;
 	cm->cm_datalen = 0;
 
-	fib->Header.Size = 
+	fib->Header.Size =
 		sizeof(struct aac_fib_header) + sizeof(struct aac_vmioctl);
 	fib->Header.XferState =
 		AAC_FIBSTATE_HOSTOWNED   |

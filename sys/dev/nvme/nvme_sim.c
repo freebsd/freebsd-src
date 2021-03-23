@@ -152,7 +152,7 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_CALC_GEOMETRY:		/* Calculate Geometry Totally nuts ? XXX */
-		/* 
+		/*
 		 * Only meaningful for old-school SCSI disks since only the SCSI
 		 * da driver generates them. Reject all these that slip through.
 		 */

@@ -281,7 +281,7 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		    (id == info->sc_iid_w))
 			dw += hid_get_data(buf, len, &info->sc_loc_w);
 
-		if ((info->sc_flags & UMS_FLAG_X_AXIS) && 
+		if ((info->sc_flags & UMS_FLAG_X_AXIS) &&
 		    (id == info->sc_iid_x))
 			dx += hid_get_data(buf, len, &info->sc_loc_x);
 
@@ -500,7 +500,7 @@ ums_hid_parse(struct ums_softc *sc, device_t dev, const uint8_t *buf,
 			}
 		}
 	} else if (hid_locate(buf, len, HID_USAGE2(HUP_GENERIC_DESKTOP,
-	    HUG_Z), hid_input, index, &info->sc_loc_z, &flags, 
+	    HUG_Z), hid_input, index, &info->sc_loc_z, &flags,
 	    &info->sc_iid_z)) {
 		if ((flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS) {
 			info->sc_flags |= UMS_FLAG_Z_AXIS;
@@ -514,7 +514,7 @@ ums_hid_parse(struct ums_softc *sc, device_t dev, const uint8_t *buf,
 	 * TWHEEL
 	 */
 	if (hid_locate(buf, len, HID_USAGE2(HUP_GENERIC_DESKTOP,
-	    HUG_TWHEEL), hid_input, index, &info->sc_loc_t, 
+	    HUG_TWHEEL), hid_input, index, &info->sc_loc_t,
 	    &flags, &info->sc_iid_t)) {
 		info->sc_loc_t.pos += 8;
 
@@ -531,7 +531,7 @@ ums_hid_parse(struct ums_softc *sc, device_t dev, const uint8_t *buf,
 
 	for (i = 0; i < UMS_BUTTON_MAX; i++) {
 		if (!hid_locate(buf, len, HID_USAGE2(HUP_BUTTON, (i + 1)),
-		    hid_input, index, &info->sc_loc_btn[i], NULL, 
+		    hid_input, index, &info->sc_loc_btn[i], NULL,
 		    &info->sc_iid_btn[i])) {
 			break;
 		}
@@ -541,7 +541,7 @@ ums_hid_parse(struct ums_softc *sc, device_t dev, const uint8_t *buf,
 
 	for (j = 0; (i < UMS_BUTTON_MAX) && (j < 2); i++, j++) {
 		if (!hid_locate(buf, len, HID_USAGE2(HUP_MICROSOFT, (j + 1)),
-		    hid_input, index, &info->sc_loc_btn[i], NULL, 
+		    hid_input, index, &info->sc_loc_btn[i], NULL,
 		    &info->sc_iid_btn[i])) {
 			break;
 		}

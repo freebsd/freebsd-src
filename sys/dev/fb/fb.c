@@ -378,26 +378,26 @@ static struct cdevsw fb_cdevsw = {
 
 
 static int
-fb_modevent(module_t mod, int type, void *data) 
-{ 
+fb_modevent(module_t mod, int type, void *data)
+{
 
-	switch (type) { 
-	case MOD_LOAD: 
-		break; 
-	case MOD_UNLOAD: 
-		printf("fb module unload - not possible for this module type\n"); 
-		return EINVAL; 
+	switch (type) {
+	case MOD_LOAD:
+		break;
+	case MOD_UNLOAD:
+		printf("fb module unload - not possible for this module type\n");
+		return EINVAL;
 	default:
 		return EOPNOTSUPP;
-	} 
-	return 0; 
-} 
+	}
+	return 0;
+}
 
-static moduledata_t fb_mod = { 
-	"fb", 
-	fb_modevent, 
+static moduledata_t fb_mod = {
+	"fb",
+	fb_modevent,
 	NULL
-}; 
+};
 
 DECLARE_MODULE(fb, fb_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
@@ -555,19 +555,19 @@ fb_dump_adp_info(char *driver, video_adapter_t *adp, int level)
     if (level <= 0)
 	return;
 
-    printf("%s%d: %s%d, %s, type:%s (%d), flags:0x%x\n", 
+    printf("%s%d: %s%d, %s, type:%s (%d), flags:0x%x\n",
 	   FB_DRIVER_NAME, adp->va_index, driver, adp->va_unit, adp->va_name,
 	   adapter_name(adp->va_type), adp->va_type, adp->va_flags);
     printf("%s%d: port:0x%lx-0x%lx, crtc:0x%lx, mem:0x%lx 0x%x\n",
-	   FB_DRIVER_NAME, adp->va_index, (u_long)adp->va_io_base, 
+	   FB_DRIVER_NAME, adp->va_index, (u_long)adp->va_io_base,
 	   (u_long)adp->va_io_base + adp->va_io_size - 1,
-	   (u_long)adp->va_crtc_addr, (u_long)adp->va_mem_base, 
+	   (u_long)adp->va_crtc_addr, (u_long)adp->va_mem_base,
 	   adp->va_mem_size);
     printf("%s%d: init mode:%d, bios mode:%d, current mode:%d\n",
 	   FB_DRIVER_NAME, adp->va_index,
 	   adp->va_initial_mode, adp->va_initial_bios_mode, adp->va_mode);
     printf("%s%d: window:%p size:%dk gran:%dk, buf:%p size:%dk\n",
-	   FB_DRIVER_NAME, adp->va_index, 
+	   FB_DRIVER_NAME, adp->va_index,
 	   (void *)adp->va_window, (int)adp->va_window_size/1024,
 	   (int)adp->va_window_gran/1024, (void *)adp->va_buffer,
 	   (int)adp->va_buffer_size/1024);
@@ -580,17 +580,17 @@ fb_dump_mode_info(char *driver, video_adapter_t *adp, video_info_t *info,
     if (level <= 0)
 	return;
 
-    printf("%s%d: %s, mode:%d, flags:0x%x ", 
+    printf("%s%d: %s, mode:%d, flags:0x%x ",
 	   driver, adp->va_unit, adp->va_name, info->vi_mode, info->vi_flags);
     if (info->vi_flags & V_INFO_GRAPHICS)
 	printf("G %dx%dx%d, %d plane(s), font:%dx%d, ",
-	       info->vi_width, info->vi_height, 
-	       info->vi_depth, info->vi_planes, 
-	       info->vi_cwidth, info->vi_cheight); 
+	       info->vi_width, info->vi_height,
+	       info->vi_depth, info->vi_planes,
+	       info->vi_cwidth, info->vi_cheight);
     else
 	printf("T %dx%d, font:%dx%d, ",
-	       info->vi_width, info->vi_height, 
-	       info->vi_cwidth, info->vi_cheight); 
+	       info->vi_width, info->vi_height,
+	       info->vi_cwidth, info->vi_cheight);
     printf("win:0x%lx\n", (u_long)info->vi_window);
 }
 
@@ -643,7 +643,7 @@ fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 		((video_adapter_info_t *)arg)->va_type = adp->va_type;
 		bcopy(adp->va_name, ((video_adapter_info_t *)arg)->va_name,
 		      imin(strlen(adp->va_name) + 1,
-			   sizeof(((video_adapter_info_t *)arg)->va_name))); 
+			   sizeof(((video_adapter_info_t *)arg)->va_name)));
 		((video_adapter_info_t *)arg)->va_unit = adp->va_unit;
 		((video_adapter_info_t *)arg)->va_flags = adp->va_flags;
 		((video_adapter_info_t *)arg)->va_io_base = adp->va_io_base;

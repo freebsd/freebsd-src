@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 
 /**
  * Validate the alignment of a value of @p type.
- * 
+ *
  * @param	inp	The value data.
  * @param	ilen	The value length, in bytes.
  * @param	itype	The value type.
@@ -222,7 +222,7 @@ bhnd_nvram_value_nelem(const void *inp, size_t ilen, bhnd_nvram_type itype,
 
 /**
  * Return the size, in bytes, of a value of @p itype with @p nelem elements.
- * 
+ *
  * @param	inp	The actual data to be queried, or NULL if unknown. If
  *			NULL and the base type is not a fixed width type
  *			(e.g. BHND_NVRAM_TYPE_STRING), 0 will be returned.
@@ -230,7 +230,7 @@ bhnd_nvram_value_nelem(const void *inp, size_t ilen, bhnd_nvram_type itype,
  * @param	itype	The value type.
  * @param	nelem	The number of elements. If @p itype is not an array
  *			type, this value must be 1.
- * 
+ *
  * @retval 0		If @p itype has a variable width, and @p inp is NULL.
  * @retval 0		If a @p nelem value greater than 1 is provided for a
  *			non-array @p itype.
@@ -302,7 +302,7 @@ bhnd_nvram_value_size(const void *inp, size_t ilen, bhnd_nvram_type itype,
 			}
 
 			/* Would total_size + elem_size overflow?
-			 * 
+			 *
 			 * A memory range larger than SIZE_MAX shouldn't be,
 			 * possible, but include the check for completeness */
 			if (SIZE_MAX - total_size < elem_size)
@@ -515,7 +515,7 @@ bhnd_nvram_value_array_next(const void *inp, size_t ilen, bhnd_nvram_type itype,
  * @param		inp	The value to be coerced.
  * @param		ilen	The size of @p inp, in bytes.
  * @param		itype	The base data type of @p inp.
- * @param[out]		outp	On success, the value will be written to this 
+ * @param[out]		outp	On success, the value will be written to this
  *				buffer. This argment may be NULL if the value
  *				is not desired.
  * @param[in,out]	olen	The capacity of @p outp. On success, will be set

@@ -156,7 +156,7 @@ struct kbdmux_state
 #define TICKS			(hz)		/* rate */
 
 	int			 ks_flags;	/* flags */
-#define COMPOSE			(1 << 0)	/* compose char flag */ 
+#define COMPOSE			(1 << 0)	/* compose char flag */
 #define TASK			(1 << 2)	/* interrupt task queued */
 
 	int			 ks_polling;	/* poll nesting count */
@@ -467,7 +467,7 @@ kbdmux_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 			imin(fkeymap_size*sizeof(fkeymap[0]), sizeof(fkey_tab)));
 		kbd_set_maps(kbd, keymap, accmap, fkeymap, fkeymap_size);
 		kbd->kb_data = (void *)state;
-	
+
 		KBD_FOUND_DEVICE(kbd);
 		KBD_PROBE_DONE(kbd);
 
@@ -625,7 +625,7 @@ kbdmux_test_if(keyboard_t *kbd)
 	return (0);
 }
 
-/* 
+/*
  * Enable the access to the device; until this function is called,
  * the client cannot read from the keyboard.
  */
@@ -727,7 +727,7 @@ next_code:
 					if (scancode == ERRKEY)
 						continue;
 					if (!KBD_IS_BUSY(k->kbd))
-						continue; 
+						continue;
 
 					kbdmux_kbd_putc(state, scancode);
 				}
@@ -866,7 +866,7 @@ next_code:
 		}
 		break;
 	case 0xE1:	/* 0xE1 prefix */
-		/* 
+		/*
 		 * The pause/break key on the 101 keyboard produces:
 		 * E1-1D-45 E1-9D-C5
 		 * Ctrl-pause/break produces:
@@ -1408,7 +1408,7 @@ kbdmux_ev_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 
 /*****************************************************************************
  *****************************************************************************
- **                                    Module 
+ **                                    Module
  *****************************************************************************
  *****************************************************************************/
 

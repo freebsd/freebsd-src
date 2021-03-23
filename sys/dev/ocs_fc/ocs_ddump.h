@@ -57,4 +57,4 @@ extern int32_t ocs_save_ddump_all(uint32_t flags, uint32_t qentries, uint32_t al
 extern int32_t ocs_clear_saved_ddump(ocs_t *ocs);
 extern void ocs_ddump_queue_entries(ocs_textbuf_t *textbuf, void *q_addr, uint32_t size, uint32_t length, int32_t index, uint32_t qentries);
 
-#endif 
+#endif

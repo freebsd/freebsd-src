@@ -215,7 +215,7 @@ struct ispmdvec {
  *	bits 13..15 bits index usage
  *	bits 16..31 contain a rolling sequence
  *
- * 
+ *
  */
 typedef struct {
 	void *		cmd;	/* associated command context */

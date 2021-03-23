@@ -245,7 +245,7 @@ ar5210Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		    __func__);
 		FAIL(HAL_EIO);
 	}
-	if (bChannelChange && !IEEE80211_IS_CHAN_DFS(chan)) 
+	if (bChannelChange && !IEEE80211_IS_CHAN_DFS(chan))
 		chan->ic_state &= ~IEEE80211_CHANSTATE_CWINT;
 
 	/* Activate the PHY */
@@ -761,7 +761,7 @@ setupPowerSettings(struct ath_hal *ah, const struct ieee80211_channel *chan,
 #ifdef AH_DEBUG
 		ath_hal_printf(ah,
 			"%s: no calibrated regulatory domain matches the "
-			"current regularly domain (0x%0x)\n", __func__, 
+			"current regularly domain (0x%0x)\n", __func__,
 			AH_PRIVATE(ah)->ah_currentRD);
 #endif
 		return AH_FALSE;
@@ -881,7 +881,7 @@ ar5210SetTransmitPower(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
 	/* merge transmit power values into the register - quite gross */
 	pwr_regs[0] |= ((cp[1] << 5) & 0xE0) | (cp[0] & 0x1F);
-	pwr_regs[1] |= ((cp[3] << 7) & 0x80) | ((cp[2] << 2) & 0x7C) | 
+	pwr_regs[1] |= ((cp[3] << 7) & 0x80) | ((cp[2] << 2) & 0x7C) |
 			((cp[1] >> 3) & 0x03);
 	pwr_regs[2] |= ((cp[4] << 4) & 0xF0) | ((cp[3] >> 1) & 0x0F);
 	pwr_regs[3] |= ((cp[6] << 6) & 0xC0) | ((cp[5] << 1) & 0x3E) |

@@ -48,7 +48,7 @@ oce_wait_ready(POCE_SOFTC sc)
 #define SLIPORT_READY_TIMEOUT 30000
 	uint32_t sliport_status, i;
 
-	if (!IS_XE201(sc)) 
+	if (!IS_XE201(sc))
 		return (-1);
 
 	for (i = 0; i < SLIPORT_READY_TIMEOUT; i++) {
@@ -323,12 +323,12 @@ error:
 
 /**
  * @brief	Firmware will send gracious notifications during
- *		attach only after sending first mcc commnad. We  
+ *		attach only after sending first mcc commnad. We
  *		use MCC queue only for getting async and mailbox
  *		for sending cmds. So to get gracious notifications
  *		atleast send one dummy command on mcc.
  */
-int 
+int
 oce_first_mcc_cmd(POCE_SOFTC sc)
 {
 	struct oce_mbx *mbx;
@@ -487,7 +487,7 @@ error:
  * @param sc		software handle to the device
  * @returns		0 on success, EIO on failure
  */
-int 
+int
 oce_get_fw_config(POCE_SOFTC sc)
 {
 	struct oce_mbx mbx;
@@ -546,7 +546,7 @@ error:
 
 /**
  *
- * @brief function to create a device interface 
+ * @brief function to create a device interface
  * @param sc		software handle to the device
  * @param cap_flags	capability flags
  * @param en_flags	enable capability flags
@@ -796,7 +796,7 @@ oce_rss_itbl_init(POCE_SOFTC sc, struct mbx_config_nic_rss *fwcmd)
 		device_printf(sc->dev, "error: Invalid number of RSS RQ's\n");
 		rc = ENXIO;
 
-	} 
+	}
 
 	/* fill log2 value indicating the size of the CPU table */
 	if (rc == 0)
@@ -828,7 +828,7 @@ oce_config_nic_rss(POCE_SOFTC sc, uint32_t if_id, uint16_t enable_rss)
 		fwcmd->params.req.enable_rss = RSS_ENABLE_UDP_IPV4 |
 					       RSS_ENABLE_UDP_IPV6;
 	} else
-		version = OCE_MBX_VER_V0; 
+		version = OCE_MBX_VER_V0;
 
 	mbx_common_req_hdr_init(&fwcmd->hdr, 0, 0,
 				MBX_SUBSYSTEM_NIC,
@@ -842,7 +842,7 @@ oce_config_nic_rss(POCE_SOFTC sc, uint32_t if_id, uint16_t enable_rss)
 						 RSS_ENABLE_IPV6 |
 						 RSS_ENABLE_TCP_IPV6);
 
-	if(!sc->enable_hwlro) 
+	if(!sc->enable_hwlro)
 		fwcmd->params.req.flush = OCE_FLUSH;
 	else
 		fwcmd->params.req.flush = 0;
@@ -1165,8 +1165,8 @@ oce_mbox_get_vport_stats(POCE_SOFTC sc, POCE_DMA_MEM pstats_dma_mem,
 }
 
 /**
- * @brief               Function to update the muticast filter with 
- *                      values in dma_mem 
+ * @brief               Function to update the muticast filter with
+ *                      values in dma_mem
  * @param sc            software handle to the device
  * @param dma_mem       pointer to dma memory region
  * @returns             0 on success, EIO on failure
@@ -1257,7 +1257,7 @@ oce_mbox_macaddr_add(POCE_SOFTC sc, uint8_t *mac_addr,
 				MBX_TIMEOUT_SEC,
 				sizeof(struct mbx_add_common_iface_mac),
 				OCE_MBX_VER_V0);
-				
+
 	fwcmd->params.req.if_id = (uint16_t) if_id;
 	bcopy(mac_addr, fwcmd->params.req.mac_address, 6);
 
@@ -1331,7 +1331,7 @@ oce_mbox_check_native_mode(POCE_SOFTC sc)
 				sizeof(struct mbx_common_set_function_cap),
 				OCE_MBX_VER_V0);
 
-	fwcmd->params.req.valid_capability_flags = CAP_SW_TIMESTAMPS | 
+	fwcmd->params.req.valid_capability_flags = CAP_SW_TIMESTAMPS |
 							CAP_BE3_NATIVE_ERX_API;
 
 	fwcmd->params.req.capability_flags = CAP_BE3_NATIVE_ERX_API;
@@ -1709,7 +1709,7 @@ oce_mbox_create_wq(struct oce_wq *wq)
 	if (IS_XE201(sc))
 		version = OCE_MBX_VER_V1;
 	else if(IS_BE(sc))
-		IS_PROFILE_SUPER_NIC(sc) ? (version = OCE_MBX_VER_V2) 
+		IS_PROFILE_SUPER_NIC(sc) ? (version = OCE_MBX_VER_V2)
 					 : (version = OCE_MBX_VER_V0);
 	else
 		version = OCE_MBX_VER_V2;
@@ -1877,7 +1877,7 @@ error:
 
 }
 
-int 
+int
 oce_mbox_read_transrecv_data(POCE_SOFTC sc, uint32_t page_num)
 {
 	int rc = 0;
@@ -1928,14 +1928,14 @@ oce_mbox_read_transrecv_data(POCE_SOFTC sc, uint32_t page_num)
 	}
 	if(fwcmd->params.rsp.page_num == PAGE_NUM_A0)
 	{
-		bcopy((char *)fwcmd->params.rsp.page_data, 
-		      &sfp_vpd_dump_buffer[0], 
+		bcopy((char *)fwcmd->params.rsp.page_data,
+		      &sfp_vpd_dump_buffer[0],
 		      TRANSCEIVER_A0_SIZE);
 	}
 
 	if(fwcmd->params.rsp.page_num == PAGE_NUM_A2)
 	{
-		bcopy((char *)fwcmd->params.rsp.page_data, 
+		bcopy((char *)fwcmd->params.rsp.page_data,
 		      &sfp_vpd_dump_buffer[TRANSCEIVER_A0_SIZE],
 		      TRANSCEIVER_A2_SIZE);
 	}
@@ -1970,7 +1970,7 @@ oce_mbox_eqd_modify_periodic(POCE_SOFTC sc, struct oce_set_eqd *set_eqd,
 
 	fwcmd->params.req.num_eq = num;
 	for (i = 0; i < num; i++) {
-		fwcmd->params.req.delay[i].eq_id = 
+		fwcmd->params.req.delay[i].eq_id =
 					htole32(set_eqd[i].eq_id);
 		fwcmd->params.req.delay[i].phase = 0;
 		fwcmd->params.req.delay[i].dm =
@@ -2054,7 +2054,7 @@ oce_get_profile_config(POCE_SOFTC sc, uint32_t max_rss)
 	nic_desc = (struct oce_nic_resc_desc *) fwcmd->params.rsp.resources;
 	desc_count = HOST_32(fwcmd->params.rsp.desc_count);
 	for (i = 0; i < desc_count; i++) {
-		if ((nic_desc->desc_type == NIC_RESC_DESC_TYPE_V0) || 
+		if ((nic_desc->desc_type == NIC_RESC_DESC_TYPE_V0) ||
 		    (nic_desc->desc_type == NIC_RESC_DESC_TYPE_V1)) {
 			nic_desc_valid = TRUE;
 			break;
@@ -2066,7 +2066,7 @@ oce_get_profile_config(POCE_SOFTC sc, uint32_t max_rss)
 		rc = -1;
 		goto error;
 	}
-	else { 
+	else {
 		sc->max_vlans = HOST_16(nic_desc->vlan_count);
 		sc->nwqs = HOST_16(nic_desc->txq_count);
 		if (sc->nwqs)
@@ -2153,7 +2153,7 @@ oce_get_func_config(POCE_SOFTC sc)
 	nic_desc = (struct oce_nic_resc_desc *) fwcmd->params.rsp.resources;
 	desc_count = HOST_32(fwcmd->params.rsp.desc_count);
 	for (i = 0; i < desc_count; i++) {
-		if ((nic_desc->desc_type == NIC_RESC_DESC_TYPE_V0) || 
+		if ((nic_desc->desc_type == NIC_RESC_DESC_TYPE_V0) ||
 		    (nic_desc->desc_type == NIC_RESC_DESC_TYPE_V1)) {
 			nic_desc_valid = TRUE;
 			break;

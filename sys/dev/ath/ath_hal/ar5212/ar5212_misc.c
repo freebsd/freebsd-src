@@ -370,7 +370,7 @@ ar5212EnableMibCounters(struct ath_hal *ah)
 	    ~(AR_MIBC_COW | AR_MIBC_FMC | AR_MIBC_CMC | AR_MIBC_MCS) & 0x0f);
 }
 
-void 
+void
 ar5212DisableMibCounters(struct ath_hal *ah)
 {
 	OS_REG_WRITE(ah, AR_MIBC,  AR_MIBC | AR_MIBC_CMC);
@@ -409,9 +409,9 @@ ar5212GetCurRssi(struct ath_hal *ah)
 
 u_int
 ar5212GetDefAntenna(struct ath_hal *ah)
-{   
+{
 	return (OS_REG_READ(ah, AR_DEF_ANTENNA) & 0x7);
-}   
+}
 
 void
 ar5212SetDefAntenna(struct ath_hal *ah, u_int antenna)

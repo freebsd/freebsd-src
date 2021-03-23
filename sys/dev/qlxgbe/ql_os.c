@@ -175,7 +175,7 @@ qla_add_sysctls(qla_host_t *ha)
 
         SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
             SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "link_status", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 
+	    "link_status", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    (void *)ha, 0, qla_sysctl_get_link_status, "I", "Link Status");
 
 	ha->dbg_level = 0;
@@ -669,7 +669,7 @@ qla_release(qla_host_t *ha)
 
 	ql_free_drvr_state_buffer(ha);
 	ql_free_sp_log_buffer(ha);
-	ql_free_dma(ha); 
+	ql_free_dma(ha);
 	qla_free_parent_dma_tag(ha);
 
 	if (ha->mbx_handle)
@@ -684,7 +684,7 @@ qla_release(qla_host_t *ha)
 			(void)bus_teardown_intr(dev, ha->irq_vec[i].irq,
 					ha->irq_vec[i].handle);
 		}
-			
+
 		if (ha->irq_vec[i].irq) {
 			(void)bus_release_resource(dev, SYS_RES_IRQ,
 				ha->irq_vec[i].irq_rid,
@@ -796,7 +796,7 @@ ql_alloc_dmabuf_exit:
 void
 ql_free_dmabuf(qla_host_t *ha, qla_dma_t *dma_buf)
 {
-	bus_dmamap_unload(dma_buf->dma_tag, dma_buf->dma_map); 
+	bus_dmamap_unload(dma_buf->dma_tag, dma_buf->dma_map);
         bus_dmamem_free(dma_buf->dma_tag, dma_buf->dma_b, dma_buf->dma_map);
         bus_dma_tag_destroy(dma_buf->dma_tag);
 }
@@ -919,7 +919,7 @@ qla_init_locked(qla_host_t *ha)
 
 	qla_stop(ha);
 
-	if (qla_alloc_xmt_bufs(ha) != 0) 
+	if (qla_alloc_xmt_bufs(ha) != 0)
 		return;
 
 	qla_confirm_9kb_enable(ha);
@@ -1094,7 +1094,7 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				ha->std_replenish = QL_JUMBO_REPLENISH_THRES;
 			else
 				ha->std_replenish = QL_STD_REPLENISH_THRES;
-				
+
 
 			QLA_UNLOCK(ha, __func__);
 		}
@@ -1119,7 +1119,7 @@ qla_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ha->max_frame_size = ifp->if_mtu +
 					ETHER_HDR_LEN + ETHER_CRC_LEN;
 			qla_init_locked(ha);
-						
+
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				if ((ifp->if_flags ^ ha->if_flags) &
 					IFF_PROMISC) {
@@ -1352,7 +1352,7 @@ qla_send(qla_host_t *ha, struct mbuf **m_headp, uint32_t txr_idx,
 			ha->tx_ring[txr_idx].iscsi_pkt_count++;
 		ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head = m_head;
 	} else {
-		bus_dmamap_unload(ha->tx_tag, map); 
+		bus_dmamap_unload(ha->tx_tag, map);
 		if (ret == EINVAL) {
 			if (m_head)
 				m_freem(m_head);
@@ -1843,7 +1843,7 @@ qla_alloc_rcv_std(qla_host_t *ha)
 				/*
 			 	 * set the physical address in the
 				 * corresponding descriptor entry in the
-				 * receive ring/queue for the hba 
+				 * receive ring/queue for the hba
 				 */
 				qla_set_hw_rcv_desc(ha, r, i, rxb->handle,
 					rxb->paddr,
@@ -2032,7 +2032,7 @@ qla_get_peer(qla_host_t *ha)
 		if ((slot >= 0) && (slot == my_slot) &&
 			(pci_get_device(peers[i]) ==
 				pci_get_device(ha->pci_dev))) {
-			if (ha->pci_dev != peers[i]) 
+			if (ha->pci_dev != peers[i])
 				ha->peer_dev = peers[i];
 		}
 	}
@@ -2130,7 +2130,7 @@ qla_error_recovery(void *context, int pending)
 			ha->offline = 1;
 			goto qla_error_recovery_exit;
 		}
-			
+
 		if (ha->qla_interface_up) {
 			qla_free_xmt_bufs(ha);
 			qla_free_rcv_bufs(ha);

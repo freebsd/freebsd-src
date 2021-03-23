@@ -40,7 +40,7 @@ ar5416IsInterruptPending(struct ath_hal *ah)
 	if (AR_SREV_HOWL(ah))
 		return AH_TRUE;
 
-	/* 
+	/*
 	 * Some platforms trigger our ISR before applying power to
 	 * the card, so make sure the INTPEND is really 1, not 0xffffffff.
 	 */
@@ -131,7 +131,7 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 			if (isr2 & AR_ISR_S2_GTT)
 				mask2 |= HAL_INT_GTT;
 			if (isr2 & AR_ISR_S2_CST)
-				mask2 |= HAL_INT_CST;	
+				mask2 |= HAL_INT_CST;
 			if (isr2 & AR_ISR_S2_TSFOOR)
 				mask2 |= HAL_INT_TSFOOR;
 

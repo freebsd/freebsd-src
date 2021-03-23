@@ -25,8 +25,8 @@
  * Hardware-specific descriptor structures.
  */
 
-/* XXX Need to replace this with a dynamic 
- * method of determining Owl2 if possible 
+/* XXX Need to replace this with a dynamic
+ * method of determining Owl2 if possible
  */
 #define _get_index(_ah) ( IS_5416V1(_ah)  ? -4 : 0 )
 #define AR5416_DS_TXSTATUS(_ah, _ads) \

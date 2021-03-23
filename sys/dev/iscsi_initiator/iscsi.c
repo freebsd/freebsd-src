@@ -248,7 +248,7 @@ iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode, struct thread *
      case ISCSISTOP:
 	  error = i_fullfeature(dev, 0);
 	  break;
-	  
+
      case ISCSISIGNAL: {
 	  int sig = *(int *)arg;
 
@@ -360,7 +360,7 @@ iscsi_read(struct cdev *dev, struct uio *uio, int ioflag)
 	  sprintf(buf, "recv=%d sent=%d\n", sp->stats.nrecv, sp->stats.nsent);
 	  uiomove(buf, strlen(buf), uio);
 
-	  sprintf(buf, "flags=%x pdus: alloc=%d max=%d\n", 
+	  sprintf(buf, "flags=%x pdus: alloc=%d max=%d\n",
 		  sp->flags, sc->npdu_alloc, sc->npdu_max);
 	  uiomove(buf, strlen(buf), uio);
 
@@ -537,7 +537,7 @@ i_recv(struct cdev *dev, caddr_t arg, struct thread *td)
 	       bp = malloc(len, M_TMP, M_WAITOK);
 	       sdebug(4, "need mbufcopy: %d", len);
 	       i_mbufcopy(pq->mp, bp, len);
-	  } 
+	  }
 	  else
 	       bp = mtod(pq->mp, caddr_t);
 
@@ -597,7 +597,7 @@ i_fullfeature(struct cdev *dev, int flag)
 
 static int
 i_create_session(struct cdev *dev, int *ndev)
-{ 
+{
      struct isc_softc	*sc = dev->si_drv1;
      isc_session_t	*sp;
      int		error, n;
@@ -652,7 +652,7 @@ iscsi_counters(isc_session_t *sp)
 		       (long)pq->ts.sec, pq->ts.frac, pq->flags);\
 	       } while(0)
 
-     h = r = s = 0; 
+     h = r = s = 0;
      TAILQ_FOREACH(pq, &sp->hld, pq_link) {
 	  _puke(h, pq);
 	  h++;

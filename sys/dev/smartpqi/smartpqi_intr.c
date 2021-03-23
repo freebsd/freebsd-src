@@ -173,7 +173,7 @@ int register_legacy_intr(pqisrc_softstate_t *softs)
 		RF_ACTIVE | RF_SHAREABLE);
 	if (NULL == softs->os_specific.pqi_irq[0]) {
 		DBG_ERR("Failed to allocate resource for interrupt\n");
-		return PQI_STATUS_FAILURE; 
+		return PQI_STATUS_FAILURE;
 	}
 	if ((softs->os_specific.msi_ctx = os_mem_alloc(softs,sizeof(pqi_intr_ctx_t))) == NULL) {
 		DBG_ERR("Failed to allocate memory for msi_ctx\n");
@@ -185,7 +185,7 @@ int register_legacy_intr(pqisrc_softstate_t *softs)
 	error = bus_setup_intr(dev, softs->os_specific.pqi_irq[0],
 				INTR_TYPE_CAM | INTR_MPSAFE, \
 				NULL, shared_ithread_routine,
-				&softs->os_specific.msi_ctx[0], 
+				&softs->os_specific.msi_ctx[0],
 				&softs->os_specific.intrcookie[0]);
 	if (error) {
 		DBG_ERR("Failed to setup legacy interrupt err = %d\n", error);
@@ -199,7 +199,7 @@ int register_legacy_intr(pqisrc_softstate_t *softs)
 }
 
 /*
- * Registration of MSIx 
+ * Registration of MSIx
  */
 int register_msix_intr(pqisrc_softstate_t *softs)
 {
@@ -224,10 +224,10 @@ int register_msix_intr(pqisrc_softstate_t *softs)
 				event interrupt resource\n");
 			return PQI_STATUS_FAILURE;
 		}
-				
+
 		softs->os_specific.msi_ctx[i].pqi_dev = dev;
 		softs->os_specific.msi_ctx[i].oq_id = i+1;
-		
+
 		error = bus_setup_intr(dev,softs->os_specific.pqi_irq[i],
 					INTR_TYPE_CAM | INTR_MPSAFE,\
 					NULL,
@@ -236,7 +236,7 @@ int register_msix_intr(pqisrc_softstate_t *softs)
 					&softs->os_specific.intrcookie[i]);
 
 		if (error) {
-			DBG_ERR("Failed to setup interrupt for events r=%d\n", 
+			DBG_ERR("Failed to setup interrupt for events r=%d\n",
 				error);
 			return error;
 		}
@@ -254,11 +254,11 @@ int register_msix_intr(pqisrc_softstate_t *softs)
 				event interrupt resource\n");
 			return PQI_STATUS_FAILURE;
 		}
-		
-		
+
+
 		softs->os_specific.msi_ctx[i].pqi_dev = dev;
 		softs->os_specific.msi_ctx[i].oq_id = i;
-		
+
 
 		error = bus_setup_intr(dev,softs->os_specific.pqi_irq[i],
 					INTR_TYPE_CAM | INTR_MPSAFE,\
@@ -272,7 +272,7 @@ int register_msix_intr(pqisrc_softstate_t *softs)
 			return error;
 		}
 		softs->os_specific.intr_registered[i] = TRUE;
-		/* Add interrupt handlers*/	
+		/* Add interrupt handlers*/
 		for (i = 1; i < msix_count; ++i) {
 			softs->os_specific.pqi_irq_rid[i] = i+1;
 			softs->os_specific.pqi_irq[i] = \
@@ -410,7 +410,7 @@ int os_destroy_intr(pqisrc_softstate_t *softs)
 	if (softs->os_specific.msi_enabled) {
 		pci_release_msi(dev);
 		softs->os_specific.msi_enabled = FALSE;
-	} 
+	}
 
 	DBG_FUNC("OUT\n");
 

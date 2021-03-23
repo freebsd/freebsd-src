@@ -4134,7 +4134,7 @@ iwn_notif_intr(struct iwn_softc *sc)
 			IWN_LOCK(sc);
 
 			is_stopped = (sc->sc_flags & IWN_FLAG_RUNNING) == 0;
-			if (__predict_false(is_stopped))  
+			if (__predict_false(is_stopped))
 				return;
 
 			break;

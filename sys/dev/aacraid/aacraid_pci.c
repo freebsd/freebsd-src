@@ -167,7 +167,7 @@ aacraid_pci_attach(device_t dev)
 	/* assume failure is 'not configured' */
 	error = ENXIO;
 
-	/* 
+	/*
 	 * Verify that the adapter is correctly set up in PCI space.
 	 */
 	pci_enable_busmaster(dev);
@@ -177,7 +177,7 @@ aacraid_pci_attach(device_t dev)
 		goto out;
 	}
 
-	/* 
+	/*
 	 * Detect the hardware interface version, set up the bus interface
 	 * indirection.
 	 */
@@ -227,7 +227,7 @@ aacraid_pci_attach(device_t dev)
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for our PCI interface.
-	 * 
+	 *
 	 * Note that some of these controllers are 64-bit capable.
 	 */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 	/* parent */

@@ -96,12 +96,12 @@ typedef struct _HIM_CHANNEL_CONFIG
 
 typedef struct _HIM_DEVICE_FLAGS
 {
-	HPT_UINT df_atapi               :1;   
+	HPT_UINT df_atapi               :1;
 	HPT_UINT df_removable_drive     :1;
-	HPT_UINT df_on_line             :1;   
-	HPT_UINT df_reduce_mode         :1;   
-	HPT_UINT df_sata                :1;   
-	HPT_UINT df_on_pm_port          :1;   
+	HPT_UINT df_on_line             :1;
+	HPT_UINT df_reduce_mode         :1;
+	HPT_UINT df_sata                :1;
+	HPT_UINT df_on_pm_port          :1;
 	HPT_UINT df_support_read_ahead  :1;
 	HPT_UINT df_read_ahead_enabled  :1;
 	HPT_UINT df_support_write_cache :1;
@@ -181,9 +181,9 @@ typedef struct _HIM_DEVICE_CONFIG
 	HPT_U8  spin_up_mode;
 
 	HPT_U8  reserved;
-	HPT_U8  transfer_mode;        
-	HPT_U8  bMaxShowMode;         
-	HPT_U8  bDeUsable_Mode;       
+	HPT_U8  transfer_mode;
+	HPT_U8  bMaxShowMode;
+	HPT_U8  bDeUsable_Mode;
 
 	HPT_U16 max_sectors_per_cmd;
 
@@ -256,9 +256,9 @@ HIM, *PHIM;
 
 typedef struct _SG {
 	HPT_U32 size;
-	HPT_UINT eot; 
+	HPT_UINT eot;
 	union {
-		HPT_U8 FAR * _logical; 
+		HPT_U8 FAR * _logical;
 		BUS_ADDRESS bus;
 	}
 	addr;
@@ -268,8 +268,8 @@ SG, *PSG;
 
 typedef struct _AtaCommand
 {
-    HPT_U64     Lba;          
-    HPT_U16     nSectors;     
+    HPT_U64     Lba;
+    HPT_U16     nSectors;
     HPT_U16     pad;
 } AtaComm, *PAtaComm;
 
@@ -287,24 +287,24 @@ typedef struct _AtaCommand
 #define ATA_SECTOR_SIZE 512
 
 typedef struct _PassthroughCmd {
-	HPT_U16    bFeaturesReg;     
-	HPT_U16    bSectorCountReg;  
-	HPT_U16    bLbaLowReg;       
-	HPT_U16    bLbaMidReg;       
-	HPT_U16    bLbaHighReg;      
-	HPT_U8     bDriveHeadReg;    
-	HPT_U8     bCommandReg;      
-	HPT_U8     nSectors;         
-	HPT_U8    *pDataBuffer;      
+	HPT_U16    bFeaturesReg;
+	HPT_U16    bSectorCountReg;
+	HPT_U16    bLbaLowReg;
+	HPT_U16    bLbaMidReg;
+	HPT_U16    bLbaHighReg;
+	HPT_U8     bDriveHeadReg;
+	HPT_U8     bCommandReg;
+	HPT_U8     nSectors;
+	HPT_U8    *pDataBuffer;
 }
 PassthroughCmd;
 
 typedef struct _ScsiComm {
 	HPT_U8  cdbLength;
-	HPT_U8  senseLength; 
-	HPT_U8  scsiStatus; 
+	HPT_U8  senseLength;
+	HPT_U8  scsiStatus;
 	HPT_U8  reserve1;
-	HPT_U32 dataLength; 
+	HPT_U32 dataLength;
 	HPT_U8 *cdb;
 	HPT_U8 *senseBuffer;
 }
@@ -317,9 +317,9 @@ ScsiComm;
 
 
 typedef struct _R5ControlCmd {
-	HPT_U64  StripeLine;  
-	HPT_U16 Offset;       
-	HPT_U8  Command;      
+	HPT_U64  StripeLine;
+	HPT_U16 Offset;
+	HPT_U8  Command;
 	HPT_U8  reserve1;
 }
 R5ControlCmd, *PR5ControlCmd;
@@ -334,9 +334,9 @@ HPT_ADDRESS;
 
 typedef struct ctl_pages {
 	HPT_ADDRESS *pages;
-	HPT_UINT        page_size; 
+	HPT_UINT        page_size;
 	HPT_UINT        npages;
-	HPT_UINT min_sg_descriptors; 
+	HPT_UINT min_sg_descriptors;
 } CONTROL_PAGES, *PCONTROL_PAGES;
 
 typedef struct _R1ControlCmd {
@@ -344,7 +344,7 @@ typedef struct _R1ControlCmd {
 	HPT_U16 nSectors;
 	HPT_U8  Command;      /* CTRL_CMD_XXX */
 	HPT_U8  reserve1;
-	PCONTROL_PAGES ctl_pages;  
+	PCONTROL_PAGES ctl_pages;
 }
 R1ControlCmd, *PR1ControlCmd;
 
@@ -361,28 +361,28 @@ struct tq_item {
 
 typedef struct _COMMAND
 {
-	
+
 	struct _VBUS * vbus;
 
-	struct freelist *grplist; 
-	HPT_UINT grpcnt; 
+	struct freelist *grplist;
+	HPT_UINT grpcnt;
 
-	
+
 	struct list_head q_link;
 	struct tq_item done_dpc;
 
-	HPT_UINT extsize;   
+	HPT_UINT extsize;
 	void *ext;
 
-	
 
-	void *target;      
-	void *priv;        
-	HPT_UPTR priv2;    
+
+	void *target;
+	void *priv;
+	HPT_UPTR priv2;
 
 	int priority;
-	struct lock_request *owned_lock; 
-	struct lock_request *lock_req;   
+	struct lock_request *owned_lock;
+	struct lock_request *lock_req;
 	void (*dtor)(struct _COMMAND *, void *);
 	void *dtor_arg;
 
@@ -401,7 +401,7 @@ typedef struct _COMMAND
 		HPT_U8  data_in: 1;
 		HPT_U8  data_out: 1;
 		HPT_U8  transform : 1;
-		HPT_U8  hard_flush: 2; 
+		HPT_U8  hard_flush: 2;
 		HPT_U8  from_cc: 1;
 		HPT_U8  force_cc: 1;
 	} flags;
@@ -411,10 +411,10 @@ typedef struct _COMMAND
 	/* retry count */
 	HPT_U8  RetryCount;
 
-	
+
 	PSG psg;
 
-	
+
 	int  (*buildsgl)(struct _COMMAND *cmd, PSG psg, int logical);
 	void (*done)(struct _COMMAND *cmd);
 }
@@ -448,7 +448,7 @@ COMMAND, *PCOMMAND;
 #define   RETURN_DATA_ERROR          12
 #define   RETURN_BUS_RESET           13
 #define   RETURN_BAD_TRANSFER_LENGTH 14
-#define   RETURN_INSUFFICIENT_MEMORY 15 
+#define   RETURN_INSUFFICIENT_MEMORY 15
 #define   RETURN_SECTOR_ERROR        16
 
 #if defined(__cplusplus)

@@ -70,7 +70,7 @@ enum {
 	STATS_PORT  = 1 << 1,
 	STATS_QUEUE = 1 << 2,
 };
- 
+
 struct ch_reg {
 	uint32_t addr;
 	uint32_t val;

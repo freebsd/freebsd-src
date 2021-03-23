@@ -910,7 +910,7 @@ umass_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 
-        mtx_init(&sc->sc_mtx, device_get_nameunit(dev), 
+        mtx_init(&sc->sc_mtx, device_get_nameunit(dev),
 	    NULL, MTX_DEF | MTX_RECURSE);
 
 	/* get interface index */

@@ -199,7 +199,7 @@ ql_rdwr_offchip_mem(qla_host_t *ha, uint64_t addr, q80_offchip_mem_val_t *val,
 				val->data_uhi = data;
 			}
 			return 0;
-		} else 
+		} else
 			qla_mdelay(__func__, 1);
 	}
 
@@ -253,7 +253,7 @@ ql_rd_flash32(qla_host_t *ha, uint32_t addr, uint32_t *data)
 	return 0;
 }
 
-static int 
+static int
 qla_get_fdt(qla_host_t *ha)
 {
 	uint32_t data32;
@@ -263,7 +263,7 @@ qla_get_fdt(qla_host_t *ha)
 	hw = &ha->hw;
 
 	for (count = 0; count < sizeof(qla_flash_desc_table_t); count+=4) {
-		if (ql_rd_flash32(ha, QL_FDT_OFFSET + count, 
+		if (ql_rd_flash32(ha, QL_FDT_OFFSET + count,
 			(uint32_t *)&hw->fdt + (count >> 2))) {
 				device_printf(ha->pci_dev,
 					"%s: Read QL_FDT_OFFSET + %d failed\n",
@@ -272,7 +272,7 @@ qla_get_fdt(qla_host_t *ha)
 		}
 	}
 
-	if (qla_sem_lock(ha, Q8_FLASH_LOCK, Q8_FLASH_LOCK_ID, 
+	if (qla_sem_lock(ha, Q8_FLASH_LOCK, Q8_FLASH_LOCK_ID,
 		Q8_FDT_LOCK_MAGIC_ID)) {
 		device_printf(ha->pci_dev, "%s: Q8_FLASH_LOCK failed\n",
 			__func__);
@@ -353,7 +353,7 @@ qla_flash_write_enable(qla_host_t *ha, int enable)
 	uint32_t data32;
 	int count = 0;
 
-	data32 = Q8_WR_ENABLE_FL_ADDR | ha->hw.fdt.write_statusreg_cmd;	
+	data32 = Q8_WR_ENABLE_FL_ADDR | ha->hw.fdt.write_statusreg_cmd;
 	if (ql_rdwr_indreg32(ha, Q8_FLASH_ADDRESS, &data32, 0)) {
 		device_printf(ha->pci_dev,
 			"%s: Write to Q8_FLASH_ADDRESS failed\n",
@@ -401,7 +401,7 @@ qla_flash_write_enable(qla_host_t *ha, int enable)
 		data32 &= 0x6;
 
 	} while ((count < 10000) && (data32 != 0x6));
-			
+
 	if (data32 != 0x6) {
 		device_printf(ha->pci_dev,
 			"%s: Poll Q8_FLASH_STATUS failed\n",
@@ -422,7 +422,7 @@ qla_erase_flash_sector(qla_host_t *ha, uint32_t start)
 		qla_mdelay(__func__, 1);
 
 		data32 = 0;
-		if (ql_rdwr_indreg32(ha, Q8_FLASH_STATUS, &data32, 1)) { 
+		if (ql_rdwr_indreg32(ha, Q8_FLASH_STATUS, &data32, 1)) {
 			device_printf(ha->pci_dev,
 				"%s: Read Q8_FLASH_STATUS failed\n",
 				__func__);
@@ -441,7 +441,7 @@ qla_erase_flash_sector(qla_host_t *ha, uint32_t start)
 	}
 
 	data32 = (start >> 16) & 0xFF;
-	if (ql_rdwr_indreg32(ha, Q8_FLASH_WR_DATA, &data32, 0)) { 
+	if (ql_rdwr_indreg32(ha, Q8_FLASH_WR_DATA, &data32, 0)) {
 		device_printf(ha->pci_dev,
 			"%s: Write to Q8_FLASH_WR_DATA failed\n",
 			__func__);
@@ -498,8 +498,8 @@ ql_erase_flash(qla_host_t *ha, uint32_t off, uint32_t size)
 
 	if (off & (Q8_FLASH_SECTOR_SIZE -1))
 		return (-1);
-		
-	if (qla_sem_lock(ha, Q8_FLASH_LOCK, Q8_FLASH_LOCK_ID, 
+
+	if (qla_sem_lock(ha, Q8_FLASH_LOCK, Q8_FLASH_LOCK_ID,
 		Q8_ERASE_LOCK_MAGIC_ID)) {
 		device_printf(ha->pci_dev, "%s: Q8_FLASH_LOCK failed\n",
 			__func__);
@@ -511,7 +511,7 @@ ql_erase_flash(qla_host_t *ha, uint32_t off, uint32_t size)
 		goto ql_erase_flash_exit;
 	}
 
-	for (start = off; start < (off + size); start = start + 
+	for (start = off; start < (off + size); start = start +
 		Q8_FLASH_SECTOR_SIZE) {
 			if (qla_erase_flash_sector(ha, start)) {
 				rval = -1;
@@ -574,7 +574,7 @@ qla_wr_flash32(qla_host_t *ha, uint32_t off, uint32_t *data)
 
 		data32 &= 0x6;
 
-	} while ((count < 10000) && (data32 != 0x6)); 
+	} while ((count < 10000) && (data32 != 0x6));
 
 	if (data32 != 0x6) {
 		device_printf(ha->pci_dev,
@@ -594,7 +594,7 @@ qla_flash_write_data(qla_host_t *ha, uint32_t off, uint32_t size,
 	uint32_t start;
 	uint32_t *data32 = data;
 
-	if (qla_sem_lock(ha, Q8_FLASH_LOCK, Q8_FLASH_LOCK_ID, 
+	if (qla_sem_lock(ha, Q8_FLASH_LOCK, Q8_FLASH_LOCK_ID,
 		Q8_WR_FL_LOCK_MAGIC_ID)) {
 			device_printf(ha->pci_dev, "%s: Q8_FLASH_LOCK failed\n",
 				__func__);
@@ -629,7 +629,7 @@ qla_flash_write_data_exit:
 }
 
 int
-ql_wr_flash_buffer(qla_host_t *ha, uint32_t off, uint32_t size, void *buf) 
+ql_wr_flash_buffer(qla_host_t *ha, uint32_t off, uint32_t size, void *buf)
 {
 	int rval = 0;
 	void *data;
@@ -639,7 +639,7 @@ ql_wr_flash_buffer(qla_host_t *ha, uint32_t off, uint32_t size, void *buf)
 
 	size = size << 2;
 
-	if (buf == NULL) 
+	if (buf == NULL)
 		return -1;
 
 	if ((data = malloc(size, M_QLA83XXBUF, M_NOWAIT)) == NULL) {
@@ -846,10 +846,10 @@ qla_tmplt_16bit_checksum(qla_host_t *ha, uint16_t *buf, uint32_t size)
 	uint32_t sum = 0;
 	uint32_t count = size >> 1; /* size in 16 bit words */
 
-	while (count-- > 0) 
+	while (count-- > 0)
 		sum += *buf++;
 
-	while (sum >> 16) 
+	while (sum >> 16)
 		sum = (sum & 0xFFFF) + (sum >> 16);
 
 	return (~sum);
@@ -922,7 +922,7 @@ qla_poll_reg(qla_host_t *ha, uint32_t addr, uint32_t ms_to, uint32_t tmask,
 
 		if ((data & tmask) != tvalue) {
 			ms_to--;
-		} else 
+		} else
 			break;
 
 		qla_mdelay(__func__, 1);

@@ -378,7 +378,7 @@ acpi_usb_hub_port_probe_cb(ACPI_HANDLE ah, UINT32 lv, void *ctx, void **rv)
 			struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
 			struct sysctl_oid *oid;
 			struct sysctl_oid_list *tree;
-			
+
 			snprintf(buf, sizeof(buf), "port%ju",
 			    (uintmax_t)devinfo->Address);
 			oid = SYSCTL_ADD_NODE(ctx,
@@ -462,7 +462,7 @@ acpi_uhub_attach_common(device_t dev)
 
 	if (ACPI_SUCCESS(status)){
 		ret = 0;
-	} 
+	}
 
 	return (ret);
 }

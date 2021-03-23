@@ -35,7 +35,7 @@
 
 /* This code originally came from <shocking@prth.pgs.com>
  * it is basically a derivative of some sys/dhio.h file to work with the 3dfx
- * cards 
+ * cards
  */
 #ifndef TDFX_IO_H
 #define TDFX_IO_H

@@ -1,18 +1,18 @@
 /*******************************************************************************
 **
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
  *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
-*1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
-*this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution. 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
+*1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
+*this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
 *
 *THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
 *
-*INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-*ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-*SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+*INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+*ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+*SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 *OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 *WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 *THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pms/freebsd/driver/ini/src/agtiproto.h>
 #include <dev/pms/RefTisa/tisa/api/ostiapi.h>
 #include <dev/pms/RefTisa/tisa/sassata/common/tdsatypes.h>
-#include <dev/pms/freebsd/driver/common/lxencrypt.h> 
+#include <dev/pms/freebsd/driver/common/lxencrypt.h>
 
 MALLOC_DEFINE( M_PMC_MCCB, "CCB List", "CCB List for PMCS driver" );
 
@@ -114,7 +114,7 @@ atomic_t    outstanding_encrypted_io_count;
 #define CMND_TO_TARGET(  ccb )     ( ccb->ccb_h.target_id )
 #define CMND_TO_LUN(     ccb )     ( ccb->ccb_h.target_lun )
 
-STATIC U08 agtiapi_AddrModes[AGTIAPI_MAX_CHANNEL_NUM + 1] = 
+STATIC U08 agtiapi_AddrModes[AGTIAPI_MAX_CHANNEL_NUM + 1] =
       { AGTIAPI_PERIPHERAL };
 
 #ifdef LINUX_PERBI_SUPPORT
@@ -122,7 +122,7 @@ STATIC U08 agtiapi_AddrModes[AGTIAPI_MAX_CHANNEL_NUM + 1] =
 static ag_mapping_t *agMappingList = NULL;  // modified by agtiapi_Setup()
 #endif
 
-// * For Debugging Purpose 
+// * For Debugging Purpose
 #ifdef AGTIAPI_DEBUG
 #define AGTIAPI_WWN(name, len)   wwnprintk(name, len)
 #else
@@ -305,11 +305,11 @@ int agtiapi_getdevlist( struct agtiapi_softc *pCard,
   ag_portal_data_t *pPortalData;
   bit8 *pDeviceHandleList = NULL;
   AGTIAPI_PRINTK( "agtiapi_getdevlist: Enter\n" );
-  
+
   pDeviceInfoOrg = pIoctlPayload -> pDeviceInfo;
   MaxDeviceCount = pCard->devDiscover;
   if (MaxDeviceCount > pIoctlPayload->deviceLength )
-  {   
+  {
     AGTIAPI_PRINTK( "agtiapi_getdevlist: MaxDeviceCount: %d > Requested device length: %d\n", MaxDeviceCount, pIoctlPayload->deviceLength );
     MaxDeviceCount = pIoctlPayload->deviceLength;
     ret_val = IOCTL_CALL_FAIL;
@@ -318,7 +318,7 @@ int agtiapi_getdevlist( struct agtiapi_softc *pCard,
   memNeeded1 = AG_ALIGNSIZE( MaxDeviceCount * sizeof(tiDeviceHandle_t *),
                              sizeof(void *) );
   AGTIAPI_PRINTK("agtiapi_getdevlist: portCount %d\n", pCard->portCount);
-  devList = malloc(memNeeded1, TEMP2, M_WAITOK); 
+  devList = malloc(memNeeded1, TEMP2, M_WAITOK);
   if (devList == NULL)
   {
     AGTIAPI_PRINTK("agtiapi_getdevlist: failed to allocate memory\n");
@@ -353,7 +353,7 @@ int agtiapi_getdevlist( struct agtiapi_softc *pCard,
   }
   // dump device information from device handle list
   count = 0;
-  
+
   devHandleArray = devList;
   for (x = 0; x < pCard->devDiscover; x++)
   {
@@ -361,7 +361,7 @@ int agtiapi_getdevlist( struct agtiapi_softc *pCard,
     if (devList[x] != agNULL)
     {
       pDeviceData = devList [x]->tdData;
-    
+
 	pDeviceInfo = (tdDeviceInfoIOCTL_t*)(pDeviceInfoOrg + sizeof(tdDeviceInfoIOCTL_t) * count);
       if (pDeviceData != agNULL && pDeviceInfo != agNULL)
       {
@@ -439,12 +439,12 @@ agtiapi_getCardInfo()
 
 Purpose:
   This function retrives the Card information
-Parameters: 
-  
+Parameters:
+
 Return:
-  A number - error  
+  A number - error
   0        - HBA has been detected
-Note:    
+Note:
 ******************************************************************************/
 int agtiapi_getCardInfo ( struct agtiapi_softc *pCard,
                           U32_64                size,
@@ -486,7 +486,7 @@ agtiapi_async(void *callback_arg, u_int32_t code,
 {
 	struct agtiapi_softc *pmsc;
 	U32        TID;
-	ag_device_t *targ;	
+	ag_device_t *targ;
 	pmsc = (struct agtiapi_softc*)callback_arg;
 	switch (code) {
 	case AC_FOUND_DEVICE:
@@ -515,12 +515,12 @@ agtiapi_CharIoctl()
 
 Purpose:
   This function handles the ioctl from application layer
-Parameters: 
- 
+Parameters:
+
 Return:
-  A number - error  
+  A number - error
   0        - HBA has been detected
-Note:    
+Note:
 ******************************************************************************/
 static int agtiapi_CharIoctl( struct cdev   *dev,
                               u_long         cmd,
@@ -554,7 +554,7 @@ static int agtiapi_CharIoctl( struct cdev   *dev,
       return status;
     }
     sema_init(&mx,0,"sem");
-    pCard->pIoctlSem  =&mx; 
+    pCard->pIoctlSem  =&mx;
     pCard->up_count = pCard->down_count = 0;
     if ( pIoctlPayload->MajorFunction == IOCTL_MJ_GET_DEVICE_LIST )
     {
@@ -627,7 +627,7 @@ static int agtiapi_CharIoctl( struct cdev   *dev,
       pCard->flags |= AGTIAPI_SOFT_RESET;
       //trigger soft reset for the card
       retValue = agtiapi_ResetCard (pCard, &flags);
-    
+
       if(retValue == AGTIAPI_SUCCESS)
       {
         //clear port panic status
@@ -651,7 +651,7 @@ static int agtiapi_CharIoctl( struct cdev   *dev,
       if (status == IOCTL_CALL_PENDING)
       {
         ostiIOCTLWaitForSignal(&pCard->tiRoot,NULL, NULL, NULL);
-        status = IOCTL_CALL_SUCCESS;  
+        status = IOCTL_CALL_SUCCESS;
       }
     }
     pCard->pIoctlSem = NULL;
@@ -680,12 +680,12 @@ agtiapi_probe()
 Purpose:
   This function initialize and registere all detected HBAs.
   The first function being called in driver after agtiapi_probe()
-Parameters: 
+Parameters:
   device_t dev (IN)  - device pointer
 Return:
-  A number - error  
+  A number - error
   0        - HBA has been detected
-Note:    
+Note:
 ******************************************************************************/
 static int agtiapi_probe( device_t dev )
 {
@@ -694,7 +694,7 @@ static int agtiapi_probe( device_t dev )
   ag_card_info_t *thisCardInst;
 
   thisCard = device_get_unit( dev );
-  if ( thisCard >= AGTIAPI_MAX_CARDS ) 
+  if ( thisCard >= AGTIAPI_MAX_CARDS )
   {
     device_printf( dev, "Too many PMC-Sierra cards detected ERROR!\n" );
     return (ENXIO); // maybe change to different return value?
@@ -713,12 +713,12 @@ agtiapi_attach()
 Purpose:
   This function initialize and registere all detected HBAs.
   The first function being called in driver after agtiapi_probe()
-Parameters: 
+Parameters:
   device_t dev (IN)  - device pointer
 Return:
-  A number - error  
+  A number - error
   0        - HBA has been detected
-Note:    
+Note:
 ******************************************************************************/
 static int agtiapi_attach( device_t devx )
 {
@@ -753,23 +753,23 @@ static int agtiapi_attach( device_t devx )
   pmsc = device_get_softc( devx );
   pmsc->my_dev = devx;
 
-  /* Get NumberOfPortals */ 
+  /* Get NumberOfPortals */
   if ((ostiGetTransportParam(
-                             &pmsc->tiRoot, 
+                             &pmsc->tiRoot,
                              "Global",
                              "CardDefault",
                              agNULL,
                              agNULL,
-                             agNULL, 
-                             agNULL, 
+                             agNULL,
+                             agNULL,
                              "NumberOfPortals",
-                             buffer, 
-                             255, 
+                             buffer,
+                             255,
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       ag_portal_count = osti_strtoul (buffer, &pLastUsedChar, 0);
     }
     else
@@ -787,7 +787,7 @@ static int agtiapi_attach( device_t devx )
   // initialize hostdata structure
   pmsc->flags    |= AGTIAPI_INIT_TIME | AGTIAPI_SCSI_REGISTERED |
       AGTIAPI_INITIATOR;
-  pmsc->cardNo    = thisCard;  
+  pmsc->cardNo    = thisCard;
   pmsc->ccbTotal  = 0;
   pmsc->portCount = ag_portal_count;
   pmsc->pCardInfo = thisCardInst;
@@ -798,26 +798,26 @@ static int agtiapi_attach( device_t devx )
   pmsc->devq_flag  = agFALSE;
   pRscInfo = &thisCardInst->tiRscInfo;
 
-  osti_memset(buffer, 0, 256); 
+  osti_memset(buffer, 0, 256);
   lenRecv = 0;
 
-  /* Get MaxTargets */ 
+  /* Get MaxTargets */
   if ((ostiGetTransportParam(
-                             &pmsc->tiRoot, 
+                             &pmsc->tiRoot,
                              "Global",
                              "InitiatorParms",
                              agNULL,
                              agNULL,
-                             agNULL, 
-                             agNULL, 
+                             agNULL,
+                             agNULL,
                              "MaxTargets",
-                             buffer, 
-                             sizeof(buffer), 
+                             buffer,
+                             sizeof(buffer),
                              &lenRecv
                              ) == tiSuccess) && (lenRecv != 0))
   {
     if (osti_strncmp(buffer, "0x", 2) == 0)
-    { 
+    {
       maxTargets = osti_strtoul (buffer, &pLastUsedChar, 0);
       AGTIAPI_PRINTK( "agtiapi_attach:  maxTargets = osti_strtoul  0 \n" );
     }
@@ -844,11 +844,11 @@ static int agtiapi_attach( device_t devx )
     AGTIAPI_PRINTK( "agtiapi_attach: change maxTargets = AGTIAPI_HW_LIMIT_DEVICE\n" );
     maxTargets = AGTIAPI_HW_LIMIT_DEVICE;
   }
-  pmsc->devDiscover    = maxTargets ; 
+  pmsc->devDiscover    = maxTargets ;
 
  #ifdef HIALEAH_ENCRYPTION
    ag_encryption_enable   =  1;
-   if(ag_encryption_enable && pci_get_device(pmsc->pCardInfo->pPCIDev) == 
+   if(ag_encryption_enable && pci_get_device(pmsc->pCardInfo->pPCIDev) ==
                                   PCI_DEVICE_ID_HIALEAH_HBA_SPCVE)
    {
 	pmsc->encrypt = 1;
@@ -870,7 +870,7 @@ static int agtiapi_attach( device_t devx )
   mtx_init( &thisCardInst->pmIOLock, "pmc SAS I/O lock",
 	    NULL, MTX_DEF|MTX_RECURSE );
 
-  struct cam_devq *devq;  
+  struct cam_devq *devq;
 
   /* set the maximum number of pending IOs */
   devq = cam_simq_alloc( AGTIAPI_MAX_CAM_Q_DEPTH );
@@ -899,7 +899,7 @@ static int agtiapi_attach( device_t devx )
   pmsc->dev_scan = agFALSE;
   //one cam sim per scsi bus
   mtx_lock( &thisCardInst->pmIOLock );
-  if ( xpt_bus_register( lsim, devx, 0 ) != CAM_SUCCESS ) 
+  if ( xpt_bus_register( lsim, devx, 0 ) != CAM_SUCCESS )
   { // bus 0
     cam_sim_free( lsim, TRUE );
     mtx_unlock( &thisCardInst->pmIOLock );
@@ -920,8 +920,8 @@ static int agtiapi_attach( device_t devx )
     return ( EIO );
   }
   if (xpt_create_path(&ccb->ccb_h.path, agNULL, bus, tid,
-		      CAM_LUN_WILDCARD) != CAM_REQ_CMP) 
-  { 
+		      CAM_LUN_WILDCARD) != CAM_REQ_CMP)
+  {
 	mtx_unlock( &thisCardInst->pmIOLock );
 	cam_sim_free( lsim, TRUE );
     cam_simq_free( devq );
@@ -943,7 +943,7 @@ static int agtiapi_attach( device_t devx )
 
 
 
-  
+
   // get TD and lower layer memory requirements
   tiCOMGetResource( &pmsc->tiRoot,
                     &pRscInfo->tiLoLevelResource,
@@ -967,7 +967,7 @@ static int agtiapi_attach( device_t devx )
   {
     pmsc->pPortalData = NULL;
   }
-  else 
+  else
   {
     pmsc->pPortalData = (ag_portal_data_t *)
                         malloc( sizeof(ag_portal_data_t) * pmsc->portCount,
@@ -1013,7 +1013,7 @@ static int agtiapi_attach( device_t devx )
       agtiapi_IntrHandler13,
       agtiapi_IntrHandler14,
       agtiapi_IntrHandler15
-      
+
     };
 
   cnt = pci_msix_count(devx);
@@ -1051,7 +1051,7 @@ static int agtiapi_attach( device_t devx )
   pmsc->flags |= AGTIAPI_IRQ_REQUESTED;
   pmsc->pCardInfo->maxInterruptVectors = MAX_MSIX_NUM_VECTOR;
   // end: enable msix
-  
+
   int ret = 0;
   ret = agtiapi_InitCardSW(pmsc);
   if (ret == AGTIAPI_FAIL || ret == AGTIAPI_UNKNOWN)
@@ -1059,7 +1059,7 @@ static int agtiapi_attach( device_t devx )
     AGTIAPI_PRINTK( "agtiapi_attach: agtiapi_InitCardSW failure %d\n",
                     ret );
     return( EIO );
-  }    
+  }
 
   pmsc->ccbFreeList = NULL;
   pmsc->ccbChainList = NULL;
@@ -1107,15 +1107,15 @@ agtiapi_InitCardSW()
 
 Purpose:
   Host Bus Adapter Initialization
-Parameters: 
+Parameters:
   struct agtiapi_softc *pmsc (IN)  Pointer to the HBA data structure
 Return:
   AGTIAPI_SUCCESS - success
   AGTIAPI_FAIL    - fail
-Note:    
+Note:
   TBD, need chip register information
 ******************************************************************************/
-STATIC agBOOLEAN agtiapi_InitCardSW( struct agtiapi_softc *pmsc ) 
+STATIC agBOOLEAN agtiapi_InitCardSW( struct agtiapi_softc *pmsc )
 {
   ag_card_info_t *thisCardInst = pmsc->pCardInfo;
   ag_resource_info_t *pRscInfo = &thisCardInst->tiRscInfo;
@@ -1136,7 +1136,7 @@ STATIC agBOOLEAN agtiapi_InitCardSW( struct agtiapi_softc *pmsc )
   //## if (pCard->flags & AGTIAPI_INIT_TIME) {
 #ifdef HIALEAH_ENCRYPTION
     /* Enable encryption if chip supports it */
-    if (pci_get_device(pmsc->pCardInfo->pPCIDev) == 
+    if (pci_get_device(pmsc->pCardInfo->pPCIDev) ==
                      PCI_DEVICE_ID_HIALEAH_HBA_SPCVE)
         pmsc->encrypt = 1;
 
@@ -1181,7 +1181,7 @@ STATIC agBOOLEAN agtiapi_InitCardSW( struct agtiapi_softc *pmsc )
     return AGTIAPI_FAIL;
   }
   AGTIAPI_PRINTK( "agtiapi_InitCardSW: tiCOMPortInit"
-                  " root %p, dev %p, pmsc %p\n", 
+                  " root %p, dev %p, pmsc %p\n",
                   &pmsc->tiRoot, pmsc->my_dev, pmsc );
 
   pmsc->flags |= AGTIAPI_PORT_INITIALIZED;
@@ -1203,15 +1203,15 @@ agtiapi_InitCardHW()
 
 Purpose:
   Host Bus Adapter Initialization
-Parameters: 
+Parameters:
   struct agtiapi_softc *pmsc (IN)  Pointer to the HBA data structure
 Return:
   AGTIAPI_SUCCESS - success
   AGTIAPI_FAIL    - fail
-Note:    
+Note:
   TBD, need chip register information
 ******************************************************************************/
-STATIC agBOOLEAN agtiapi_InitCardHW( struct agtiapi_softc *pmsc ) 
+STATIC agBOOLEAN agtiapi_InitCardHW( struct agtiapi_softc *pmsc )
 {
   U32 numVal;
   U32 count;
@@ -1280,7 +1280,7 @@ STATIC agBOOLEAN agtiapi_InitCardHW( struct agtiapi_softc *pmsc )
     AG_SPIN_LOCK_IRQ( agtiapi_host_lock, flags );
 
     pPortalInfo = &pPortalData->portalInfo;
-    pPortalInfo->portStatus &= ~( AGTIAPI_PORT_START      | 
+    pPortalInfo->portStatus &= ~( AGTIAPI_PORT_START      |
                                   AGTIAPI_PORT_DISC_READY |
                                   AGTIAPI_DISC_DONE       |
                                   AGTIAPI_DISC_COMPLETE );
@@ -1292,8 +1292,8 @@ STATIC agBOOLEAN agtiapi_InitCardHW( struct agtiapi_softc *pmsc )
                       pPortalInfo->portID,
                       &pPortalInfo->tiPortalContext );
 
-      if( tiCOMPortStart( &pmsc->tiRoot, 
-                          pPortalInfo->portID, 
+      if( tiCOMPortStart( &pmsc->tiRoot,
+                          pPortalInfo->portID,
                           &pPortalInfo->tiPortalContext,
                           0 )
           != tiSuccess ) {
@@ -1304,7 +1304,7 @@ STATIC agBOOLEAN agtiapi_InitCardHW( struct agtiapi_softc *pmsc )
                         pPortalData );
       }
       else {
-        AGTIAPI_PRINTK( "tiCOMPortStart success no loop, portalData %p\n", 
+        AGTIAPI_PRINTK( "tiCOMPortStart success no loop, portalData %p\n",
                         pPortalData );
         break;
       }
@@ -1328,7 +1328,7 @@ STATIC agBOOLEAN agtiapi_InitCardHW( struct agtiapi_softc *pmsc )
 
 
   pmsc->flags |= AGTIAPI_INSTALLED;
-  
+
   if( pmsc->flags & AGTIAPI_INIT_TIME ) {
     agtiapi_TITimer( (void *)pmsc );
     pmsc->flags |= AGTIAPI_TIMER_ON;
@@ -1350,7 +1350,7 @@ Parameters:
 ******************************************************************************/
 void  agtiapi_IntrHandlerx_( void *arg, int index )
 {
-  
+
   struct agtiapi_softc *pCard;
   int rv;
 
@@ -1370,7 +1370,7 @@ void  agtiapi_IntrHandlerx_( void *arg, int index )
   {
     /* not our irq */
     AG_SPIN_UNLOCK(agtiapi_host_lock);
-    AG_LOCAL_UNLOCK(&(pCard->pCardInfo->pmIOLock));    
+    AG_LOCAL_UNLOCK(&(pCard->pCardInfo->pmIOLock));
     return;
   }
 
@@ -1386,7 +1386,7 @@ void  agtiapi_IntrHandlerx_( void *arg, int index )
 
 ext:
   AG_SPIN_UNLOCK(agtiapi_host_lock);
-  AG_LOCAL_UNLOCK(&(pCard->pCardInfo->pmIOLock));  
+  AG_LOCAL_UNLOCK(&(pCard->pCardInfo->pmIOLock));
   return;
 
 }
@@ -1578,8 +1578,8 @@ static void agtiapi_SglMemoryCB( void *arg,
   {
     AGTIAPI_PRINTK("agtiapi_SglMemoryCB: error %d\n", error);
     panic("agtiapi_SglMemoryCB: error %d\n", error);
-    return;  
-  } 
+    return;
+  }
   addr = arg;
   *addr = dm_segs[0].ds_addr;
   return;
@@ -1596,8 +1596,8 @@ static void agtiapi_MemoryCB( void *arg,
   {
     AGTIAPI_PRINTK("agtiapi_MemoryCB: error %d\n", error);
     panic("agtiapi_MemoryCB: error %d\n", error);
-    return;  
-  } 
+    return;
+  }
   addr = arg;
   *addr = dm_segs[0].ds_addr;
   return;
@@ -1608,16 +1608,16 @@ agtiapi_alloc_requests()
 
 Purpose:
   Allocates resources such as dma tag and timer
-Parameters: 
+Parameters:
   struct agtiapi_softc *pmsc (IN)  Pointer to the HBA data structure
 Return:
   AGTIAPI_SUCCESS - success
   AGTIAPI_FAIL    - fail
-Note:    
+Note:
 ******************************************************************************/
 int agtiapi_alloc_requests( struct agtiapi_softc *pmcsc )
 {
-  
+
   int rsize, nsegs;
   U32 next_tick;
 
@@ -1721,7 +1721,7 @@ int  agtiapi_alloc_ostimem( struct agtiapi_softc *pmcsc ) {
   nomsize = 4096;
   rsize = AGTIAPI_DYNAMIC_MAX * nomsize; // 8M
   AGTIAPI_PRINTK("agtiapi_alloc_ostimem: rsize %d \n", rsize);
- 
+
   if( bus_dma_tag_create( agNULL,                      // parent
                           32,                          // alignment
                           0,                           // boundary
@@ -1760,7 +1760,7 @@ int  agtiapi_alloc_ostimem( struct agtiapi_softc *pmcsc ) {
                    BUS_DMA_NOWAIT );
 
   // populate all the ag_dma_addr_t osti_busaddr/mem fields with addresses for
-  //  handy reference when driver is in motion 
+  //  handy reference when driver is in motion
   int idx;
   ag_card_info_t *pCardInfo = pmcsc->pCardInfo;
   ag_dma_addr_t  *pMem;
@@ -1783,11 +1783,11 @@ agtiapi_cam_action()
 
 Purpose:
   Parses CAM frames and triggers a corresponding action
-Parameters: 
+Parameters:
   struct cam_sim *sim (IN)  Pointer to SIM data structure
   union ccb * ccb (IN)      Pointer to CAM ccb data structure
 Return:
-Note:    
+Note:
 ******************************************************************************/
 static void agtiapi_cam_action( struct cam_sim *sim, union ccb * ccb )
 {
@@ -1818,7 +1818,7 @@ static void agtiapi_cam_action( struct cam_sim *sim, union ccb * ccb )
   AGTIAPI_IO( "agtiapi_cam_action: P 0x%x T 0x%x L 0x%x\n",
               pathID, targetID, lunID );
 
-  switch (ccb->ccb_h.func_code) 
+  switch (ccb->ccb_h.func_code)
   {
   case XPT_PATH_INQ:
   {
@@ -1872,7 +1872,7 @@ static void agtiapi_cam_action( struct cam_sim *sim, union ccb * ccb )
 
     sas->valid = CTS_SAS_VALID_SPEED;
 
-    /* this sets the "MB/s transfers" */ 
+    /* this sets the "MB/s transfers" */
     if (pmcsc != NULL && targetID >= 0 && targetID < maxTargets)
     {
       if (pmcsc->pWWNList != NULL)
@@ -1906,7 +1906,7 @@ static void agtiapi_cam_action( struct cam_sim *sim, union ccb * ccb )
     scsi->flags       = CTS_SCSI_FLAGS_TAG_ENB;
     ccb->ccb_h.status = CAM_REQ_CMP;
     break;
-  }  
+  }
   case XPT_RESET_BUS:
   {
     lRetVal = agtiapi_eh_HostReset( pmcsc, ccb ); // usually works first time
@@ -1942,7 +1942,7 @@ static void agtiapi_cam_action( struct cam_sim *sim, union ccb * ccb )
   {
     if(pmcsc->dev_scan == agFALSE)
     {
-       ccb->ccb_h.status = CAM_SEL_TIMEOUT;  
+       ccb->ccb_h.status = CAM_SEL_TIMEOUT;
        break;
     }
     if (pmcsc->flags & AGTIAPI_SHUT_DOWN)
@@ -1966,11 +1966,11 @@ static void agtiapi_cam_action( struct cam_sim *sim, union ccb * ccb )
 	  cam_calc_geometry(&ccb->ccg, 1);
 	  ccb->ccb_h.status = CAM_REQ_CMP;
 	  break;
-  }	  
+  }
   default:
   {
     /*
-      XPT_SET_TRAN_SETTINGS	
+      XPT_SET_TRAN_SETTINGS
     */
     AGTIAPI_IO( "agtiapi_cam_action: default function code 0x%x\n",
                 ccb->ccb_h.func_code );
@@ -2193,10 +2193,10 @@ int agtiapi_DoSoftReset (struct agtiapi_softc *pmcsc)
   AG_SPIN_LOCK_IRQ( agtiapi_host_lock, flags );
   ret = agtiapi_ResetCard( pmcsc, &flags );
   AG_SPIN_UNLOCK_IRQ( agtiapi_host_lock, flags );
-                 
+
   if( ret != AGTIAPI_SUCCESS )
     return tiError;
-                
+
   return SUCCESS;
 }
 
@@ -2204,7 +2204,7 @@ int agtiapi_DoSoftReset (struct agtiapi_softc *pmcsc)
 agtiapi_CheckIOTimeout()
 
 Purpose:
-  Timeout function for SCSI IO or TM 
+  Timeout function for SCSI IO or TM
 Parameters:
   *data (IN)               point to pCard (ag_card_t *)
 Return:
@@ -2292,10 +2292,10 @@ ext:
 agtiapi_StartTM()
 
 Purpose:
-  DDI calls for aborting outstanding IO command 
-Parameters: 
-  struct scsi_cmnd *pccb (IN) Pointer to the command to be aborted  
-  unsigned long flags (IN/out) spinlock flags used in locking from 
+  DDI calls for aborting outstanding IO command
+Parameters:
+  struct scsi_cmnd *pccb (IN) Pointer to the command to be aborted
+  unsigned long flags (IN/out) spinlock flags used in locking from
                               calling layers
 Return:
   AGTIAPI_SUCCESS  - success
@@ -2343,7 +2343,7 @@ agtiapi_StartTM(struct agtiapi_softc *pCard, ccb_t *pccb)
       {
         AGTIAPI_PRINTK( "agtiapi_StartTM: LocalAbort for Abort_TASK TM "
                         "Request sent\n" );
-        status = AGTIAPI_SUCCESS; 
+        status = AGTIAPI_SUCCESS;
       }
     }
     else
@@ -2385,31 +2385,31 @@ agtiapi_StartTM(struct agtiapi_softc *pCard, ccb_t *pccb)
                       pTMccb, pTMccb->flags, pTMccb->targetId );
       pTMccb->flags &= ~(TASK_SUCCESS | ACTIVE);
       pTMccb->flags |= TASK_MANAGEMENT;
-      TMstatus = tiINITaskManagement(&pCard->tiRoot, 
+      TMstatus = tiINITaskManagement(&pCard->tiRoot,
                               pccb->devHandle,
                               AG_ABORT_TASK,
                               &pccb->tiSuperScsiRequest.scsiCmnd.lun,
-                              &pccb->tiIORequest, 
-                              &pTMccb->tiIORequest); 
+                              &pccb->tiIORequest,
+                              &pTMccb->tiIORequest);
       if (TMstatus == tiSuccess)
       {
         AGTIAPI_PRINTK( "agtiapi_StartTM: TM_ABORT_TASK request success ccb "
-                        "%p, pTMccb %p\n", 
+                        "%p, pTMccb %p\n",
                         pccb, pTMccb );
         pTMccb->startTime = ticks;
-        status = AGTIAPI_SUCCESS; 
+        status = AGTIAPI_SUCCESS;
       }
       else if (TMstatus == tiIONoDevice)
       {
         AGTIAPI_PRINTK( "agtiapi_StartTM: TM_ABORT_TASK request tiIONoDevice ccb "
-                        "%p, pTMccb %p\n", 
+                        "%p, pTMccb %p\n",
                         pccb, pTMccb );
-        status = AGTIAPI_SUCCESS; 
+        status = AGTIAPI_SUCCESS;
       }
       else
       {
         AGTIAPI_PRINTK( "agtiapi_StartTM: TM_ABORT_TASK request failed ccb %p, "
-                        "pTMccb %p\n", 
+                        "pTMccb %p\n",
                         pccb, pTMccb );
         status = AGTIAPI_FAIL;
         agtiapi_FreeTMCCB(pCard, pTMccb);
@@ -2419,7 +2419,7 @@ agtiapi_StartTM(struct agtiapi_softc *pCard, ccb_t *pccb)
     }
   }
   ext:
-  AGTIAPI_PRINTK("agtiapi_StartTM: return %d flgs %x\n", status, 
+  AGTIAPI_PRINTK("agtiapi_StartTM: return %d flgs %x\n", status,
                  (pccb) ? pccb->flags : -1);
   return status;
 } /* agtiapi_StartTM */
@@ -2449,7 +2449,7 @@ static int agtiapi_PrepareSGList(struct agtiapi_softc *pmcsc, ccb_t *pccb)
 //  agtiapi_DumpCDB("agtiapi_PrepareSGList", pccb);
   AGTIAPI_IO( "agtiapi_PrepareSGList: dxfer_len %d\n", csio->dxfer_len );
 
-  if ((ccbh->flags & CAM_DIR_MASK) != CAM_DIR_NONE) 
+  if ((ccbh->flags & CAM_DIR_MASK) != CAM_DIR_NONE)
   {
 	switch((ccbh->flags & CAM_DATA_MASK))
     	{
@@ -2469,12 +2469,12 @@ static int agtiapi_PrepareSGList(struct agtiapi_softc *pmcsc, ccb_t *pccb)
                                  BUS_DMA_NOWAIT/* 0 */ );
             //  AG_LOCAL_UNLOCK( &(pmcsc->pCardInfo->pmIOLock) );
 
-	    if (error == EINPROGRESS) 
+	    if (error == EINPROGRESS)
 	    {
           /* So as to maintain ordering, freeze the controller queue until our mapping is returned. */
           AGTIAPI_PRINTK("agtiapi_PrepareSGList: EINPROGRESS\n");
           xpt_freeze_simq(pmcsc->sim, 1);
-          pmcsc->SimQFrozen = agTRUE;	  
+          pmcsc->SimQFrozen = agTRUE;
           ccbh->status |= CAM_RELEASE_SIMQ;
         }
 	break;
@@ -2494,7 +2494,7 @@ static int agtiapi_PrepareSGList(struct agtiapi_softc *pmcsc, ccb_t *pccb)
            return tiReject;
     }
   }
-  else 
+  else
   {
     agtiapi_PrepareSGListCB(pccb, NULL, 0, 0xAAAAAAAA);
   }
@@ -2529,7 +2529,7 @@ static int agtiapi_PrepareSGList(struct agtiapi_softc *pmcsc, ccb_t *pccb)
     if ((ccbh->flags & CAM_SCATTER_VALID) == 0)
     {
       /* We've been given a pointer to a single buffer. */
-      if ((ccbh->flags & CAM_DATA_PHYS) == 0) 
+      if ((ccbh->flags & CAM_DATA_PHYS) == 0)
       {
         /* Virtual address that needs to translated into one or more physical address ranges. */
         int error;
@@ -2544,12 +2544,12 @@ static int agtiapi_PrepareSGList(struct agtiapi_softc *pmcsc, ccb_t *pccb)
                                  BUS_DMA_NOWAIT/* 0 */ );
       //  AG_LOCAL_UNLOCK( &(pmcsc->pCardInfo->pmIOLock) );
 
-	    if (error == EINPROGRESS) 
+	    if (error == EINPROGRESS)
 	    {
           /* So as to maintain ordering, freeze the controller queue until our mapping is returned. */
           AGTIAPI_PRINTK("agtiapi_PrepareSGList: EINPROGRESS\n");
           xpt_freeze_simq(pmcsc->sim, 1);
-          pmcsc->SimQFrozen = agTRUE;	  
+          pmcsc->SimQFrozen = agTRUE;
           ccbh->status |= CAM_RELEASE_SIMQ;
         }
       }
@@ -2568,12 +2568,12 @@ static int agtiapi_PrepareSGList(struct agtiapi_softc *pmcsc, ccb_t *pccb)
     }
     else
     {
-      
+
       AGTIAPI_PRINTK("agtiapi_PrepareSGList: unexpected case\n");
       return tiReject;
     }
   }
-  else 
+  else
   {
     agtiapi_PrepareSGListCB(pccb, NULL, 0, 0xAAAAAAAA);
   }
@@ -2609,7 +2609,7 @@ static void agtiapi_PrepareSGListCB( void *arg,
   bit32 i;
   bus_dmasync_op_t op;
   U32_64     phys_addr;
-  U08        *CDB; 
+  U08        *CDB;
   int        io_is_encryptable = 0;
   unsigned long long start_lba = 0;
   ag_device_t *pDev;
@@ -2618,7 +2618,7 @@ static void agtiapi_PrepareSGListCB( void *arg,
   AGTIAPI_IO( "agtiapi_PrepareSGListCB: start, nsegs %d error 0x%x\n",
               nsegs, error );
   pmcsc = pccb->pmcsc;
- 
+
   if (error != tiSuccess)
   {
     if (error == 0xAABBCCDD || error == 0xAAAAAAAA)
@@ -2640,13 +2640,13 @@ static void agtiapi_PrepareSGListCB( void *arg,
   if (nsegs > AGTIAPI_MAX_DMA_SEGS)
   {
     AGTIAPI_PRINTK( "agtiapi_PrepareSGListCB: over the limit. nsegs %d"
-                    " AGTIAPI_MAX_DMA_SEGS %d\n", 
+                    " AGTIAPI_MAX_DMA_SEGS %d\n",
                     nsegs, AGTIAPI_MAX_DMA_SEGS );
     bus_dmamap_unload(pmcsc->buffer_dmat, pccb->CCB_dmamap);
     bus_dmamap_destroy(pmcsc->buffer_dmat, pccb->CCB_dmamap);
     agtiapi_FreeCCB(pmcsc, pccb);
     ccb->ccb_h.status = CAM_REQ_CMP;
-    xpt_done(ccb);   
+    xpt_done(ccb);
     return;
   }
 
@@ -2671,8 +2671,8 @@ static void agtiapi_PrepareSGListCB( void *arg,
     /* no data transfer */
     AGTIAPI_IO( "agtiapi_PrepareSGListCB: no data transfer\n" );
     pccb->tiSuperScsiRequest.agSgl1.len = 0;
-    pccb->dataLen = 0; 
-    pccb->numSgElements = 0;  
+    pccb->dataLen = 0;
+    pccb->numSgElements = 0;
   }
   else
   {
@@ -2681,42 +2681,42 @@ static void agtiapi_PrepareSGListCB( void *arg,
     {
       pccb->dataLen = segs[0].ds_len;
 
-      CPU_TO_LE32(pccb->tiSuperScsiRequest.agSgl1, segs[0].ds_addr);     
+      CPU_TO_LE32(pccb->tiSuperScsiRequest.agSgl1, segs[0].ds_addr);
       pccb->tiSuperScsiRequest.agSgl1.type = htole32(tiSgl);
       pccb->tiSuperScsiRequest.agSgl1.len = htole32(segs[0].ds_len);
       pccb->tiSuperScsiRequest.sglVirtualAddr = (void *)csio->data_ptr;
-      pccb->numSgElements = nsegs;	      
-			                
+      pccb->numSgElements = nsegs;
+
     }
     else
-    {    
+    {
       pccb->dataLen = 0;
       /* loop */
       for (i = 0; i < nsegs; i++)
       {
         pccb->sgList[i].len = htole32(segs[i].ds_len);
-        CPU_TO_LE32(pccb->sgList[i], segs[i].ds_addr);     
+        CPU_TO_LE32(pccb->sgList[i], segs[i].ds_addr);
         pccb->sgList[i].type = htole32(tiSgl);
         pccb->dataLen += segs[i].ds_len;
 
       } /* for */
       pccb->numSgElements = nsegs;
-      /* set up sgl buffer address */      
+      /* set up sgl buffer address */
       CPU_TO_LE32(pccb->tiSuperScsiRequest.agSgl1,  pccb->tisgl_busaddr);
       pccb->tiSuperScsiRequest.agSgl1.type = htole32(tiSglList);
       pccb->tiSuperScsiRequest.agSgl1.len = htole32(pccb->dataLen);
       pccb->tiSuperScsiRequest.sglVirtualAddr = (void *)csio->data_ptr;
-      pccb->numSgElements = nsegs;  
+      pccb->numSgElements = nsegs;
     } /* else */
   }
 
   /* set data transfer direction */
-  if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) 
+  if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
   {
     op = BUS_DMASYNC_PREWRITE;
     pccb->tiSuperScsiRequest.dataDirection = tiDirectionOut;
   }
-  else 
+  else
   {
     op = BUS_DMASYNC_PREREAD;
     pccb->tiSuperScsiRequest.dataDirection = tiDirectionIn;
@@ -2740,7 +2740,7 @@ static void agtiapi_PrepareSGListCB( void *arg,
   switch (CDB[0])
   {
   case REQUEST_SENSE:  /* requires different buffer */
-    /* This code should not be excercised because SAS support auto sense 
+    /* This code should not be excercised because SAS support auto sense
        For the completeness, vtophys() is still used here.
      */
     AGTIAPI_PRINTK("agtiapi_PrepareSGListCB: QueueCmnd - REQUEST SENSE new\n");
@@ -2830,7 +2830,7 @@ static void agtiapi_PrepareSGListCB( void *arg,
   }
   pDev = &pmcsc->pDevList[INDEX(pmcsc, pccb->targetId)];
 
-#if 1 
+#if 1
   if ((pmcsc->flags & EDC_DATA) &&
       (pDev->flags & EDC_DATA))
   {
@@ -2840,7 +2840,7 @@ static void agtiapi_PrepareSGListCB( void *arg,
      * Possible command supported -
      * READ_6, READ_10, READ_12, READ_16, READ_LONG, READ_BUFFER,
      * READ_DEFECT_DATA, etc.
-     * WRITE_6, WRITE_10, WRITE_12, WRITE_16, WRITE_LONG, WRITE_LONG2, 
+     * WRITE_6, WRITE_10, WRITE_12, WRITE_16, WRITE_LONG, WRITE_LONG2,
      * WRITE_BUFFER, WRITE_VERIFY, WRITE_VERIFY_12, etc.
      *
      * Do some data length adjustment and set chip operation instruction.
@@ -2900,7 +2900,7 @@ static void agtiapi_PrepareSGListCB( void *arg,
             cmnd->result = SCSI_HOST(DID_ERROR);
             goto err;
         }
-        pccb->tiSuperScsiRequest.Dif.enableDIFPerLA = TRUE;        
+        pccb->tiSuperScsiRequest.Dif.enableDIFPerLA = TRUE;
 #endif
 #ifdef AGTIAPI_TEST_DIF
         /* Set App Tag */
@@ -3082,8 +3082,8 @@ Note:
 STATIC void agtiapi_StartIO( struct agtiapi_softc *pmcsc )
 {
   ccb_t *pccb;
-  int TID;			
-  ag_device_t *targ;	
+  int TID;
+  ag_device_t *targ;
 
   AGTIAPI_IO( "agtiapi_StartIO: start\n" );
 
@@ -3112,7 +3112,7 @@ STATIC void agtiapi_StartIO( struct agtiapi_softc *pmcsc )
   AG_LOCAL_UNLOCK( &pmcsc->sendLock );
 
   /* send all ccbs down */
-  while (pccb) 
+  while (pccb)
   {
     pccb_t pccb_next;
     U32    status;
@@ -3141,7 +3141,7 @@ STATIC void agtiapi_StartIO( struct agtiapi_softc *pmcsc )
     if( !pccb->devHandle || !pccb->devHandle->osData || /* in rmmod case */
         !(((ag_device_t *)(pccb->devHandle->osData))->flags & ACTIVE))
     {
-      AGTIAPI_PRINTK( "agtiapi_StartIO: device %p not active! ERROR\n", 
+      AGTIAPI_PRINTK( "agtiapi_StartIO: device %p not active! ERROR\n",
                       pccb->devHandle );
       if( pccb->devHandle ) {
         AGTIAPI_PRINTK( "agtiapi_StartIO: device not active detail"
@@ -3165,9 +3165,9 @@ STATIC void agtiapi_StartIO( struct agtiapi_softc *pmcsc )
 #ifdef FAST_IO_TEST
     status = agtiapi_FastIOTest( pmcsc, pccb );
 #else
-    status = tiINISuperIOStart( &pmcsc->tiRoot, 
+    status = tiINISuperIOStart( &pmcsc->tiRoot,
                                 &pccb->tiIORequest,
-                                pccb->devHandle, 
+                                pccb->devHandle,
                                 &pccb->tiSuperScsiRequest,
                                 (void *)&pccb->tdIOReqBody,
                                 tiInterruptContext );
@@ -3185,12 +3185,12 @@ STATIC void agtiapi_StartIO( struct agtiapi_softc *pmcsc )
         }
         */
 
- 
-        break;   
+
+        break;
       case tiDeviceBusy:
         AGTIAPI_PRINTK( "agtiapi_StartIO: tiINIIOStart status tiDeviceBusy %p\n",
                         pccb->ccb );
-#ifdef LOGEVENT 
+#ifdef LOGEVENT
         agtiapi_LogEvent( pmcsc,
                           IOCTL_EVT_SEV_INFORMATIONAL,
                           0,
@@ -3199,14 +3199,14 @@ STATIC void agtiapi_StartIO( struct agtiapi_softc *pmcsc )
                           "tiINIIOStart tiDeviceBusy " );
 #endif
         pccb->ccbStatus = tiIOFailed;
-        pccb->scsiStatus = tiDeviceBusy;        
+        pccb->scsiStatus = tiDeviceBusy;
         agtiapi_Done(pmcsc, pccb);
         break;
       case tiBusy:
-        
+
         AGTIAPI_PRINTK( "agtiapi_StartIO: tiINIIOStart status tiBusy %p\n",
                         pccb->ccb );
-#ifdef LOGEVENT 
+#ifdef LOGEVENT
         agtiapi_LogEvent( pmcsc,
                           IOCTL_EVT_SEV_INFORMATIONAL,
                           0,
@@ -3216,7 +3216,7 @@ STATIC void agtiapi_StartIO( struct agtiapi_softc *pmcsc )
 #endif
 
         pccb->ccbStatus = tiIOFailed;
-        pccb->scsiStatus = tiBusy;        
+        pccb->scsiStatus = tiBusy;
         agtiapi_Done(pmcsc, pccb);
 
         break;
@@ -3240,18 +3240,18 @@ STATIC void agtiapi_StartIO( struct agtiapi_softc *pmcsc )
 #else
         /* for short cable pull, we want IO retried - 3-18-2005 */
         agtiapi_QueueCCB(pmcsc, &pmcsc->ccbSendHead, &pmcsc->ccbSendTail
-                         AG_CARD_LOCAL_LOCK(&pmcsc->sendLock), pccb); 
+                         AG_CARD_LOCAL_LOCK(&pmcsc->sendLock), pccb);
 #endif
         break;
       case tiError:
         AGTIAPI_PRINTK("agtiapi_StartIO: tiINIIOStart status tiError %p\n",
                        pccb->ccb);
 #ifdef LOGEVENT
-        agtiapi_LogEvent(pmcsc, 
-                         IOCTL_EVT_SEV_INFORMATIONAL, 
-                         0, 
-                         agNULL, 
-                         0, 
+        agtiapi_LogEvent(pmcsc,
+                         IOCTL_EVT_SEV_INFORMATIONAL,
+                         0,
+                         agNULL,
+                         0,
                          "tiINIIOStart tiError ");
 #endif
         pccb->ccbStatus  = tiIOFailed;
@@ -3262,18 +3262,18 @@ STATIC void agtiapi_StartIO( struct agtiapi_softc *pmcsc )
         AGTIAPI_PRINTK("agtiapi_StartIO: tiINIIOStart status default %x %p\n",
                        status, pccb->ccb);
 #ifdef LOGEVENT
-        agtiapi_LogEvent(pmcsc, 
-                         IOCTL_EVT_SEV_ERROR, 
-                         0, 
-                         agNULL, 
-                         0, 
+        agtiapi_LogEvent(pmcsc,
+                         IOCTL_EVT_SEV_ERROR,
+                         0,
+                         agNULL,
+                         0,
                          "tiINIIOStart unexpected status ");
 #endif
         pccb->ccbStatus  = tiIOFailed;
         pccb->scsiStatus = tiDetailOtherError;
         agtiapi_Done(pmcsc, pccb);
     }
-    
+
     pccb = pccb_next;
   }
 ext:
@@ -3339,9 +3339,9 @@ STATIC void agtiapi_StartSMP(struct agtiapi_softc *pmcsc)
     pccb->flags |= TAG_SMP; // mark as SMP for later tracking
     AGTIAPI_PRINTK( "agtiapi_StartSMP: ccb %p retry %d\n",
                     pccb, pccb->retryCount );
-    status = tiINISMPStart( &pmcsc->tiRoot, 
+    status = tiINISMPStart( &pmcsc->tiRoot,
                             &pccb->tiIORequest,
-                            pccb->devHandle, 
+                            pccb->devHandle,
                             &pccb->tiSMPFrame,
                             (void *)&pccb->tdIOReqBody,
                             tiInterruptContext);
@@ -3412,9 +3412,9 @@ static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
       return tiReject;
     case CAM_DATA_SG:
 
-    /* 
-     * Currently we do not support Multiple SG list 
-     * return error for now 
+    /*
+     * Currently we do not support Multiple SG list
+     * return error for now
      */
       if ( (csmpio->smp_request_sglist_cnt > 1)
            || (csmpio->smp_response_sglist_cnt > 1) )
@@ -3427,22 +3427,22 @@ static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
     }
     if ( csmpio->smp_request_sglist_cnt != 0 )
     {
-      /* 
+      /*
        * Virtual address that needs to translated into
        * one or more physical address ranges.
        */
       int error;
-      //AG_LOCAL_LOCK(&(pmcsc->pCardInfo->pmIOLock));  
+      //AG_LOCAL_LOCK(&(pmcsc->pCardInfo->pmIOLock));
       AGTIAPI_PRINTK("agtiapi_PrepareSGList: virtual address\n");
       error = bus_dmamap_load( pmcsc->buffer_dmat,
-                               pccb->CCB_dmamap, 
-                               csmpio->smp_request, 
+                               pccb->CCB_dmamap,
+                               csmpio->smp_request,
                                csmpio->smp_request_len,
-                               agtiapi_PrepareSMPSGListCB, 
-                               pccb, 
+                               agtiapi_PrepareSMPSGListCB,
+                               pccb,
                                BUS_DMA_NOWAIT /* 0 */ );
-      
-      //AG_LOCAL_UNLOCK(&(pmcsc->pCardInfo->pmIOLock));  
+
+      //AG_LOCAL_UNLOCK(&(pmcsc->pCardInfo->pmIOLock));
 
       if (error == EINPROGRESS)
       {
@@ -3454,7 +3454,7 @@ static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
          */
         AGTIAPI_PRINTK( "agtiapi_PrepareSGList: EINPROGRESS\n" );
         xpt_freeze_simq( pmcsc->sim, 1 );
-        pmcsc->SimQFrozen = agTRUE;	
+        pmcsc->SimQFrozen = agTRUE;
         ccbh->status |= CAM_RELEASE_SIMQ;
       }
     }
@@ -3465,16 +3465,16 @@ static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
        * one or more physical address ranges.
        */
       int error;
-      //AG_LOCAL_LOCK( &(pmcsc->pCardInfo->pmIOLock) );  
+      //AG_LOCAL_LOCK( &(pmcsc->pCardInfo->pmIOLock) );
       AGTIAPI_PRINTK( "agtiapi_PrepareSGList: virtual address\n" );
       error = bus_dmamap_load( pmcsc->buffer_dmat,
-                               pccb->CCB_dmamap, 
-                               csmpio->smp_response, 
+                               pccb->CCB_dmamap,
+                               csmpio->smp_response,
                                csmpio->smp_response_len,
-                               agtiapi_PrepareSMPSGListCB, 
-                               pccb, 
+                               agtiapi_PrepareSMPSGListCB,
+                               pccb,
                                BUS_DMA_NOWAIT /* 0 */ );
-      
+
       //AG_LOCAL_UNLOCK( &(pmcsc->pCardInfo->pmIOLock) );
 
       if ( error == EINPROGRESS )
@@ -3487,11 +3487,11 @@ static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
          */
         AGTIAPI_PRINTK( "agtiapi_PrepareSGList: EINPROGRESS\n" );
         xpt_freeze_simq( pmcsc->sim, 1 );
-        pmcsc->SimQFrozen = agTRUE;	
+        pmcsc->SimQFrozen = agTRUE;
         ccbh->status |= CAM_RELEASE_SIMQ;
       }
     }
- 
+
   else
   {
     if ( (csmpio->smp_request_sglist_cnt == 0) &&
@@ -3535,7 +3535,7 @@ static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
 
   AGTIAPI_PRINTK("agtiapi_PrepareSMPSGList: start\n");
 
-  if (ccbh->flags & (CAM_DATA_PHYS|CAM_SG_LIST_PHYS)) 
+  if (ccbh->flags & (CAM_DATA_PHYS|CAM_SG_LIST_PHYS))
   {
     AGTIAPI_PRINTK( "agtiapi_PrepareSMPSGList: Physical Address "
                     "not supported\n" );
@@ -3546,9 +3546,9 @@ static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
 
   if (ccbh->flags & CAM_SCATTER_VALID)
   {
-    /* 
-     * Currently we do not support Multiple SG list 
-     * return error for now 
+    /*
+     * Currently we do not support Multiple SG list
+     * return error for now
      */
     if ( (csmpio->smp_request_sglist_cnt > 1)
          || (csmpio->smp_response_sglist_cnt > 1) )
@@ -3561,22 +3561,22 @@ static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
     }
     if ( csmpio->smp_request_sglist_cnt != 0 )
     {
-      /* 
+      /*
        * Virtual address that needs to translated into
        * one or more physical address ranges.
        */
       int error;
-      //AG_LOCAL_LOCK(&(pmcsc->pCardInfo->pmIOLock));  
+      //AG_LOCAL_LOCK(&(pmcsc->pCardInfo->pmIOLock));
       AGTIAPI_PRINTK("agtiapi_PrepareSGList: virtual address\n");
       error = bus_dmamap_load( pmcsc->buffer_dmat,
-                               pccb->CCB_dmamap, 
-                               csmpio->smp_request, 
+                               pccb->CCB_dmamap,
+                               csmpio->smp_request,
                                csmpio->smp_request_len,
-                               agtiapi_PrepareSMPSGListCB, 
-                               pccb, 
+                               agtiapi_PrepareSMPSGListCB,
+                               pccb,
                                BUS_DMA_NOWAIT /* 0 */ );
-      
-      //AG_LOCAL_UNLOCK(&(pmcsc->pCardInfo->pmIOLock));  
+
+      //AG_LOCAL_UNLOCK(&(pmcsc->pCardInfo->pmIOLock));
 
       if (error == EINPROGRESS)
       {
@@ -3588,7 +3588,7 @@ static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
          */
         AGTIAPI_PRINTK( "agtiapi_PrepareSGList: EINPROGRESS\n" );
         xpt_freeze_simq( pmcsc->sim, 1 );
-        pmcsc->SimQFrozen = agTRUE;	
+        pmcsc->SimQFrozen = agTRUE;
         ccbh->status |= CAM_RELEASE_SIMQ;
       }
     }
@@ -3599,16 +3599,16 @@ static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
        * one or more physical address ranges.
        */
       int error;
-      //AG_LOCAL_LOCK( &(pmcsc->pCardInfo->pmIOLock) );  
+      //AG_LOCAL_LOCK( &(pmcsc->pCardInfo->pmIOLock) );
       AGTIAPI_PRINTK( "agtiapi_PrepareSGList: virtual address\n" );
       error = bus_dmamap_load( pmcsc->buffer_dmat,
-                               pccb->CCB_dmamap, 
-                               csmpio->smp_response, 
+                               pccb->CCB_dmamap,
+                               csmpio->smp_response,
                                csmpio->smp_response_len,
-                               agtiapi_PrepareSMPSGListCB, 
-                               pccb, 
+                               agtiapi_PrepareSMPSGListCB,
+                               pccb,
                                BUS_DMA_NOWAIT /* 0 */ );
-      
+
       //AG_LOCAL_UNLOCK( &(pmcsc->pCardInfo->pmIOLock) );
 
       if ( error == EINPROGRESS )
@@ -3621,7 +3621,7 @@ static int agtiapi_PrepareSMPSGList( struct agtiapi_softc *pmcsc, ccb_t *pccb )
          */
         AGTIAPI_PRINTK( "agtiapi_PrepareSGList: EINPROGRESS\n" );
         xpt_freeze_simq( pmcsc->sim, 1 );
-        pmcsc->SimQFrozen = agTRUE;	
+        pmcsc->SimQFrozen = agTRUE;
         ccbh->status |= CAM_RELEASE_SIMQ;
       }
     }
@@ -3720,7 +3720,7 @@ static void agtiapi_PrepareSMPSGListCB( void *arg,
     agtiapi_FreeCCB( pmcsc, pccb );
     ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
     xpt_done(ccb);
-    pccb->ccb        = NULL; 
+    pccb->ccb        = NULL;
     return;
   }
   TID = INDEX( pmcsc, pccb->targetId );
@@ -3732,14 +3732,14 @@ static void agtiapi_PrepareSMPSGListCB( void *arg,
                     "card %p ERROR pccb %p\n",
                     pccb->devHandle,
                     pccb->targetId,
-                    TID, 
+                    TID,
                     pmcsc->devDiscover,
                     pmcsc,
                     pccb );
     agtiapi_FreeCCB( pmcsc, pccb );
     ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
     xpt_done( ccb );
-    pccb->ccb        = NULL; 
+    pccb->ccb        = NULL;
     return;
   }
   /* TODO: add indirect handling */
@@ -3755,9 +3755,9 @@ static void agtiapi_PrepareSMPSGListCB( void *arg,
   tiExpPortalInfo = pmcsc->pDevList[TID].pPortalInfo;
   tiExpPortalContext = &tiExpPortalInfo->tiPortalContext;
   /* Look for the expander associated with the ses device */
-  status = tiINIGetExpander( &pmcsc->tiRoot, 
+  status = tiINIGetExpander( &pmcsc->tiRoot,
                              tiExpPortalContext,
-                             pccb->devHandle, 
+                             pccb->devHandle,
                              &tiExpDevHandle );
 
   if ( status != tiSuccess )
@@ -3767,10 +3767,10 @@ static void agtiapi_PrepareSMPSGListCB( void *arg,
     agtiapi_FreeCCB( pmcsc, pccb );
     ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
     xpt_done( ccb );
-    pccb->ccb        = NULL; 
+    pccb->ccb        = NULL;
     return;
   }
-	
+
   /* this is expander device */
   pccb->devHandle = tiExpDevHandle;
   /* put the request in send queue */
@@ -3882,7 +3882,7 @@ Purpose:
   Utility function for dumping in hex
 Parameters:
   const char *ptitle (IN)  A string to be printed
-  bit8 *pbuf (IN)          A pointer to a buffer to be printed. 
+  bit8 *pbuf (IN)          A pointer to a buffer to be printed.
   int len (IN)             The lengther of the buffer
 Return:
 Note:
@@ -3920,13 +3920,13 @@ agtiapi_CheckError()
 Purpose:
   Processes status pertaining to the ccb -- whether it was
   completed successfully, aborted, or error encountered.
-Parameters: 
+Parameters:
   ag_card_t *pCard (IN)  Pointer to HBA data structure
   ccb_t *pccd (IN)       A pointer to the driver's own CCB, not CAM's CCB
 Return:
   0 - the command retry is required
   1 - the command process is completed
-Note:    
+Note:
 
 ******************************************************************************/
 STATIC U32 agtiapi_CheckError(struct agtiapi_softc *pmcsc, ccb_t *pccb)
@@ -3981,9 +3981,9 @@ STATIC U32 agtiapi_CheckError(struct agtiapi_softc *pmcsc, ccb_t *pccb)
 }
   AG_LOCAL_LOCK(&pmcsc->freezeLock);
   if(pmcsc->freezeSim == agTRUE)
-  { 
+  {
     pmcsc->freezeSim = agFALSE;
-    xpt_release_simq(pmcsc->sim, 1); 
+    xpt_release_simq(pmcsc->sim, 1);
   }
   AG_LOCAL_UNLOCK(&pmcsc->freezeLock);
 
@@ -4009,7 +4009,7 @@ STATIC U32 agtiapi_CheckError(struct agtiapi_softc *pmcsc, ccb_t *pccb)
     {
       ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
     }
- 
+
     break;
 
   case tiIOOverRun:
@@ -4034,7 +4034,7 @@ STATIC U32 agtiapi_CheckError(struct agtiapi_softc *pmcsc, ccb_t *pccb)
                   pccb );
       ccb->ccb_h.status &= ~CAM_STATUS_MASK;
       ccb->ccb_h.status |= CAM_REQUEUE_REQ;
-      if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) 
+      if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0)
       {
         ccb->ccb_h.status |= CAM_DEV_QFRZN;
         xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
@@ -4115,7 +4115,7 @@ STATIC U32 agtiapi_CheckError(struct agtiapi_softc *pmcsc, ccb_t *pccb)
   case tiIOEncryptError:
     AGTIAPI_PRINTK( "agtiapi_CheckError: pccb %p tiIOFailed %d id %d ERROR\n",
                     pccb, pccb->scsiStatus, pccb->targetId );
-    if (pccb->scsiStatus == tiDetailDekKeyCacheMiss) 
+    if (pccb->scsiStatus == tiDetailDekKeyCacheMiss)
     {
       AGTIAPI_PRINTK( "agtiapi_CheckError: %s: pccb %p tiIOFailed - "
                       "tiDetailDekKeyCacheMiss ERROR\n",
@@ -4149,13 +4149,13 @@ agtiapi_SMPCheckError()
 Purpose:
   Processes status pertaining to the ccb -- whether it was
   completed successfully, aborted, or error encountered.
-Parameters: 
+Parameters:
   ag_card_t *pCard (IN)  Pointer to HBA data structure
   ccb_t *pccd (IN)       A pointer to the driver's own CCB, not CAM's CCB
 Return:
   0 - the command retry is required
   1 - the command process is completed
-Note:    
+Note:
 
 ******************************************************************************/
 STATIC U32 agtiapi_CheckSMPError( struct agtiapi_softc *pmcsc, ccb_t *pccb )
@@ -4190,7 +4190,7 @@ STATIC U32 agtiapi_CheckSMPError( struct agtiapi_softc *pmcsc, ccb_t *pccb )
   default:
 		AGTIAPI_PRINTK( "agtiapi_CheckSMPError: pccb %p tiSMPdefault %d "
                               "id %d ERROR\n",
-                              pccb, 
+                              pccb,
                               pccb->ccbStatus,
                               pccb->targetId );
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
@@ -4208,12 +4208,12 @@ agtiapi_HandleEncryptedIOFailure():
 Purpose:
 Parameters:
 Return:
-Note: 
+Note:
   Currently not used.
 ******************************************************************************/
 void agtiapi_HandleEncryptedIOFailure(ag_device_t *pDev, ccb_t *pccb)
 {
-  
+
   AGTIAPI_PRINTK("agtiapi_HandleEncryptedIOFailure: start\n");
   return;
 }
@@ -4223,12 +4223,12 @@ agtiapi_Retry()
 
 Purpose:
   Retry a ccb.
-Parameters: 
+Parameters:
   struct agtiapi_softc *pmcsc (IN)  Pointer to the HBA structure
-  ccb_t *pccb (IN)            A pointer to the driver's own CCB, not CAM's CCB 
+  ccb_t *pccb (IN)            A pointer to the driver's own CCB, not CAM's CCB
 Return:
 Note:
-  Currently not used.    
+  Currently not used.
 ******************************************************************************/
 STATIC void agtiapi_Retry(struct agtiapi_softc *pmcsc, ccb_t *pccb)
 {
@@ -4260,47 +4260,47 @@ Note:
 ******************************************************************************/
 STATIC void agtiapi_DumpCCB(ccb_t *pccb)
 {
-  AGTIAPI_PRINTK("agtiapi_DumpCCB: pccb %p, devHandle %p, tid %d, lun %d\n", 
-         pccb, 
-         pccb->devHandle, 
-         pccb->targetId, 
+  AGTIAPI_PRINTK("agtiapi_DumpCCB: pccb %p, devHandle %p, tid %d, lun %d\n",
+         pccb,
+         pccb->devHandle,
+         pccb->targetId,
          pccb->lun);
-  AGTIAPI_PRINTK("flag 0x%x, add_mode 0x%x, ccbStatus 0x%x, scsiStatus 0x%x\n", 
+  AGTIAPI_PRINTK("flag 0x%x, add_mode 0x%x, ccbStatus 0x%x, scsiStatus 0x%x\n",
          pccb->flags,
-         pccb->addrMode, 
-         pccb->ccbStatus, 
+         pccb->addrMode,
+         pccb->ccbStatus,
          pccb->scsiStatus);
-  AGTIAPI_PRINTK("scsi comand = 0x%x, numSgElements = %d\n", 
+  AGTIAPI_PRINTK("scsi comand = 0x%x, numSgElements = %d\n",
 	 pccb->tiSuperScsiRequest.scsiCmnd.cdb[0],
          pccb->numSgElements);
   AGTIAPI_PRINTK("dataLen = 0x%x, sens_len = 0x%x\n",
-         pccb->dataLen, 
+         pccb->dataLen,
          pccb->senseLen);
   AGTIAPI_PRINTK("tiSuperScsiRequest:\n");
   AGTIAPI_PRINTK("scsiCmnd: expDataLength 0x%x, taskAttribute 0x%x\n",
          pccb->tiSuperScsiRequest.scsiCmnd.expDataLength,
          pccb->tiSuperScsiRequest.scsiCmnd.taskAttribute);
   AGTIAPI_PRINTK("cdb[0] = 0x%x, cdb[1] = 0x%x, cdb[2] = 0x%x, cdb[3] = 0x%x\n",
-         pccb->tiSuperScsiRequest.scsiCmnd.cdb[0], 
-         pccb->tiSuperScsiRequest.scsiCmnd.cdb[1], 
-         pccb->tiSuperScsiRequest.scsiCmnd.cdb[2], 
-         pccb->tiSuperScsiRequest.scsiCmnd.cdb[3]); 
+         pccb->tiSuperScsiRequest.scsiCmnd.cdb[0],
+         pccb->tiSuperScsiRequest.scsiCmnd.cdb[1],
+         pccb->tiSuperScsiRequest.scsiCmnd.cdb[2],
+         pccb->tiSuperScsiRequest.scsiCmnd.cdb[3]);
   AGTIAPI_PRINTK("cdb[4] = 0x%x, cdb[5] = 0x%x, cdb[6] = 0x%x, cdb[7] = 0x%x\n",
-         pccb->tiSuperScsiRequest.scsiCmnd.cdb[4], 
-         pccb->tiSuperScsiRequest.scsiCmnd.cdb[5], 
-         pccb->tiSuperScsiRequest.scsiCmnd.cdb[6], 
+         pccb->tiSuperScsiRequest.scsiCmnd.cdb[4],
+         pccb->tiSuperScsiRequest.scsiCmnd.cdb[5],
+         pccb->tiSuperScsiRequest.scsiCmnd.cdb[6],
          pccb->tiSuperScsiRequest.scsiCmnd.cdb[7]);
   AGTIAPI_PRINTK( "cdb[8] = 0x%x, cdb[9] = 0x%x, cdb[10] = 0x%x, "
                   "cdb[11] = 0x%x\n",
-                  pccb->tiSuperScsiRequest.scsiCmnd.cdb[8], 
-                  pccb->tiSuperScsiRequest.scsiCmnd.cdb[9], 
-                  pccb->tiSuperScsiRequest.scsiCmnd.cdb[10], 
+                  pccb->tiSuperScsiRequest.scsiCmnd.cdb[8],
+                  pccb->tiSuperScsiRequest.scsiCmnd.cdb[9],
+                  pccb->tiSuperScsiRequest.scsiCmnd.cdb[10],
                   pccb->tiSuperScsiRequest.scsiCmnd.cdb[11] );
   AGTIAPI_PRINTK("agSgl1: upper 0x%x, lower 0x%x, len 0x%x, type %d\n",
-         pccb->tiSuperScsiRequest.agSgl1.upper, 
-         pccb->tiSuperScsiRequest.agSgl1.lower, 
-         pccb->tiSuperScsiRequest.agSgl1.len, 
-         pccb->tiSuperScsiRequest.agSgl1.type); 
+         pccb->tiSuperScsiRequest.agSgl1.upper,
+         pccb->tiSuperScsiRequest.agSgl1.lower,
+         pccb->tiSuperScsiRequest.agSgl1.len,
+         pccb->tiSuperScsiRequest.agSgl1.type);
 }
 
 /******************************************************************************
@@ -4355,7 +4355,7 @@ Note:
 ******************************************************************************/
 STATIC void agtiapi_QueueCCB( struct agtiapi_softc *pmcsc,
                               pccb_t *phead,
-                              pccb_t *ptail, 
+                              pccb_t *ptail,
 #ifdef AGTIAPI_LOCAL_LOCK
                               struct mtx *mutex,
 #endif
@@ -4390,13 +4390,13 @@ STATIC void agtiapi_QueueCCB( struct agtiapi_softc *pmcsc,
 agtiapi_QueueCCB()
 
 Purpose:
- 
+
 Parameters:
-  
-  
+
+
 Return:
 Note:
-  
+
 ******************************************************************************/
 static int agtiapi_QueueSMP(struct agtiapi_softc *pmcsc, union ccb * ccb)
 {
@@ -4404,7 +4404,7 @@ static int agtiapi_QueueSMP(struct agtiapi_softc *pmcsc, union ccb * ccb)
   int        status = tiSuccess;
   int        targetID = xpt_path_target_id(ccb->ccb_h.path);
 
-  AGTIAPI_PRINTK("agtiapi_QueueSMP: start\n");  
+  AGTIAPI_PRINTK("agtiapi_QueueSMP: start\n");
 
   /* get a ccb */
   if ((pccb = agtiapi_GetCCB(pmcsc)) == NULL)
@@ -4458,7 +4458,7 @@ void agtiapi_SetLunField(ccb_t *pccb)
   pchar = (U08 *)&pccb->tiSuperScsiRequest.scsiCmnd.lun;
 
 //  AGTIAPI_PRINTK("agtiapi_SetLunField: start\n");
-  
+
   switch (pccb->addrMode)
   {
   case AGTIAPI_PERIPHERAL:
@@ -4466,12 +4466,12 @@ void agtiapi_SetLunField(ccb_t *pccb)
        *pchar   = (U08)pccb->lun;
        break;
   case AGTIAPI_VOLUME_SET:
-       *pchar++ = (AGTIAPI_VOLUME_SET << AGTIAPI_ADDRMODE_SHIFT) | 
+       *pchar++ = (AGTIAPI_VOLUME_SET << AGTIAPI_ADDRMODE_SHIFT) |
                   (U08)((pccb->lun >> 8) & 0x3F);
        *pchar   = (U08)pccb->lun;
        break;
   case AGTIAPI_LUN_ADDR:
-       *pchar++ = (AGTIAPI_LUN_ADDR << AGTIAPI_ADDRMODE_SHIFT) | 
+       *pchar++ = (AGTIAPI_LUN_ADDR << AGTIAPI_ADDRMODE_SHIFT) |
                   pccb->targetId;
        *pchar   = (U08)pccb->lun;
        break;
@@ -4517,11 +4517,11 @@ STATIC void agtiapi_FreeCCB(struct agtiapi_softc *pmcsc, pccb_t pccb)
   }
 
   /* set data transfer direction */
-  if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) 
+  if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
   {
     op = BUS_DMASYNC_POSTWRITE;
   }
-  else 
+  else
   {
     op = BUS_DMASYNC_POSTREAD;
   }
@@ -4801,7 +4801,7 @@ agtiapi_CheckCB()
 
 Purpose:
   Check call back function returned event for process completion
-Parameters: 
+Parameters:
   struct agtiapi_softc *pCard  Pointer to card data structure
   U32 milisec (IN)       Waiting time for expected event
   U32 flag (IN)          Flag of the event to check
@@ -4810,7 +4810,7 @@ Return:
   AGTIAPI_SUCCESS - event comes as expected
   AGTIAPI_FAIL    - event not coming
 Note:
-  Currently, not used    
+  Currently, not used
 ******************************************************************************/
 agBOOLEAN agtiapi_CheckCB( struct agtiapi_softc *pCard,
                            U32 milisec,
@@ -4831,7 +4831,7 @@ agBOOLEAN agtiapi_CheckCB( struct agtiapi_softc *pCard,
   {
     if (*pStatus & TASK_MANAGEMENT)
     {
-      if (*pStatus & AGTIAPI_CB_DONE) 
+      if (*pStatus & AGTIAPI_CB_DONE)
       {
         if( flag == 0 || *pStatus & flag )
           return AGTIAPI_SUCCESS;
@@ -4839,7 +4839,7 @@ agBOOLEAN agtiapi_CheckCB( struct agtiapi_softc *pCard,
           return AGTIAPI_FAIL;
       }
     }
-    else if (pCard->flags & AGTIAPI_CB_DONE) 
+    else if (pCard->flags & AGTIAPI_CB_DONE)
     {
       if( flag == 0 || *pStatus & flag )
         return AGTIAPI_SUCCESS;
@@ -4893,14 +4893,14 @@ STATIC void agtiapi_DiscoverTgt(struct agtiapi_softc *pCard)
     {
       if (pCard->flags & AGTIAPI_INIT_TIME)
       {
-        if (agtiapi_CheckCB(pCard, 5000, AGTIAPI_PORT_DISC_READY, 
+        if (agtiapi_CheckCB(pCard, 5000, AGTIAPI_PORT_DISC_READY,
             &PORTAL_STATUS(pPortalData)) == AGTIAPI_FAIL)
         {
           AGTIAPI_PRINTK( "agtiapi_DiscoverTgt: Port %p / %d not ready for "
-                          "discovery\n", 
+                          "discovery\n",
                           pPortalData, count );
-          /* 
-           * There is no need to spend time on discovering device 
+          /*
+           * There is no need to spend time on discovering device
            * if port is not ready to do so.
            */
           continue;
@@ -4915,7 +4915,7 @@ STATIC void agtiapi_DiscoverTgt(struct agtiapi_softc *pCard)
     AGTIAPI_INIT_DELAY(1000);
 
     pCard->flags &= ~AGTIAPI_CB_DONE;
-    if (tiINIDiscoverTargets(&pCard->tiRoot, 
+    if (tiINIDiscoverTargets(&pCard->tiRoot,
                              &pPortalData->portalInfo.tiPortalContext,
                              FORCE_PERSISTENT_ASSIGN_MASK)
         != tiSuccess)
@@ -4923,7 +4923,7 @@ STATIC void agtiapi_DiscoverTgt(struct agtiapi_softc *pCard)
 
     /*
      * Should wait till discovery completion to start
-     * next portal. However, lower layer have issue on 
+     * next portal. However, lower layer have issue on
      * multi-portal case under Linux.
      */
   }
@@ -4953,8 +4953,8 @@ STATIC void agtiapi_DiscoverTgt(struct agtiapi_softc *pCard)
     }
   }
 
-  /* 
-   * Calling to get device handle should be done per portal based 
+  /*
+   * Calling to get device handle should be done per portal based
    * and better right after discovery is done. However, lower iscsi
    * layer may not returns discovery complete in correct sequence or we
    * ran out time. We get device handle for all portals together
@@ -4963,9 +4963,9 @@ STATIC void agtiapi_DiscoverTgt(struct agtiapi_softc *pCard)
   pPortalData = pCard->pPortalData;
   for (count = 0; count < pCard->portCount; count++, pPortalData++)
   {
-    /* 
-     * We try to get device handle no matter 
-     * if discovery is completed or not. 
+    /*
+     * We try to get device handle no matter
+     * if discovery is completed or not.
      */
     if (PORTAL_STATUS(pPortalData) & AGTIAPI_PORT_DISC_READY)
     {
@@ -4984,7 +4984,7 @@ STATIC void agtiapi_DiscoverTgt(struct agtiapi_softc *pCard)
                                         AGTIAPI_PORT_LINK_UP );
     }
   }
-  
+
   return;
 
 }
@@ -4996,14 +4996,14 @@ agtiapi_PrepCCBs()
 
 Purpose:
   Prepares CCB including DMA map.
-Parameters: 
+Parameters:
   struct agtiapi_softc *pCard (IN)  Pointer to the HBA data structure
   ccb_hdr_t *hdr (IN)               Pointer to the CCB header
   U32 size (IN)                     size
   U32 max_ccb (IN)                  count
-  
+
 Return:
-Note:    
+Note:
 ******************************************************************************/
 STATIC void agtiapi_PrepCCBs( struct agtiapi_softc *pCard,
                               ccb_hdr_t *hdr,
@@ -5109,12 +5109,12 @@ STATIC void agtiapi_PrepCCBs( struct agtiapi_softc *pCard,
     {
       AGTIAPI_PRINTK("agtiapi_PrepCCBs: can't create dma\n");
       return;
-    }      
+    }
     /* assigns tiSgl_t memory to pccb */
     pccb->sgList = (void*)((U64)pCard->tisgl_mem + ((i + offset) * sgl_sz));
     pccb->tisgl_busaddr = pCard->tisgl_busaddr + ((i + offset) * sgl_sz);
-    pccb->ccb = NULL;      
-    pccb->pccbIO = NULL;      
+    pccb->ccb = NULL;
+    pccb->pccbIO = NULL;
     pccb->startTime = 0;
   }
 
@@ -5129,12 +5129,12 @@ agtiapi_InitCCBs()
 
 Purpose:
   Create and initialize per card based CCB pool.
-Parameters: 
+Parameters:
   struct agtiapi_softc *pCard (IN)  Pointer to the HBA data structure
   int tgtCount (IN)                 Count
 Return:
   Total number of ccb allocated
-Note:    
+Note:
 ******************************************************************************/
 STATIC U32 agtiapi_InitCCBs(struct agtiapi_softc *pCard, int tgtCount, int tid)
 {
@@ -5159,8 +5159,8 @@ STATIC U32 agtiapi_InitCCBs(struct agtiapi_softc *pCard, int tgtCount, int tid)
   ccb_sz = roundup2(AGTIAPI_CCB_SIZE, cache_line_size());
   hdr_sz = roundup2(sizeof(*hdr), cache_line_size());
   size = ccb_sz * max_ccb + hdr_sz;
-  
-  for (i = 0; i < (1 << no_allocs); i++) 
+
+  for (i = 0; i < (1 << no_allocs); i++)
   {
     hdr = (ccb_hdr_t*)malloc( size, M_PMC_MCCB, M_NOWAIT );
     if( !hdr )
@@ -5316,7 +5316,7 @@ STATIC U32 agtiapi_GetDevHandle( struct agtiapi_softc *pCard,
 
   agDev = (tiDeviceHandle_t **) malloc( sizeof(tiDeviceHandle_t *) * pCard->devDiscover,
                                         M_PMC_MDEV, M_ZERO | M_NOWAIT);
-  if (agDev == NULL) 
+  if (agDev == NULL)
   {
     AGTIAPI_PRINTK( "agtiapi_GetDevHandle: failed to alloc agDev[]\n" );
     return 0;
@@ -5389,7 +5389,7 @@ STATIC U32 agtiapi_GetDevHandle( struct agtiapi_softc *pCard,
       pDevice->flags           = ACTIVE;
       pDevice->pPortalInfo     = pPortalInfo;
       pDevice->pDevHandle      = agDev[devIdx];
-      pDevice->qbusy           = agFALSE; 
+      pDevice->qbusy           = agFALSE;
 
       //AGTIAPI_PRINTK( "agtiapi_GetDevHandle: idx %d / %d : %p \n",
       //                devIdx, pCard->devDiscover, agDev[devIdx] );
@@ -5577,7 +5577,7 @@ STATIC U32 agtiapi_GetDevHandle( struct agtiapi_softc *pCard,
       pDevice->targetId = lDevIndex;
 
       pDevice->flags = ACTIVE;
-      pDevice->CCBCount = 0; 
+      pDevice->CCBCount = 0;
       pDevice->pDevHandle = agDev[devIdx];
       agDev[devIdx]->osData = (void*)pDevice;
 
@@ -5635,39 +5635,39 @@ agtiapi_scan()
 
 Purpose:
   Triggers CAM's scan
-Parameters: 
+Parameters:
   struct agtiapi_softc *pCard (IN)    Pointer to the HBA data structure
 Return:
-Note:    
+Note:
 ******************************************************************************/
 static void agtiapi_scan(struct agtiapi_softc *pmcsc)
 {
   union ccb *ccb;
   int bus, tid, lun;
- 
+
   AGTIAPI_PRINTK("agtiapi_scan: start cardNO %d \n", pmcsc->cardNo);
-    
+
   bus = cam_sim_path(pmcsc->sim);
- 
+
   tid = CAM_TARGET_WILDCARD;
   lun = CAM_LUN_WILDCARD;
 
-  mtx_lock(&(pmcsc->pCardInfo->pmIOLock)); 
+  mtx_lock(&(pmcsc->pCardInfo->pmIOLock));
   ccb = xpt_alloc_ccb_nowait();
   if (ccb == agNULL)
   {
-    mtx_unlock(&(pmcsc->pCardInfo->pmIOLock)); 
+    mtx_unlock(&(pmcsc->pCardInfo->pmIOLock));
     return;
   }
   if (xpt_create_path(&ccb->ccb_h.path, agNULL, bus, tid,
-		      CAM_LUN_WILDCARD) != CAM_REQ_CMP) 
-  { 
-    mtx_unlock(&(pmcsc->pCardInfo->pmIOLock)); 
+		      CAM_LUN_WILDCARD) != CAM_REQ_CMP)
+  {
+    mtx_unlock(&(pmcsc->pCardInfo->pmIOLock));
     xpt_free_ccb(ccb);
     return;
   }
 
-  mtx_unlock(&(pmcsc->pCardInfo->pmIOLock)); 
+  mtx_unlock(&(pmcsc->pCardInfo->pmIOLock));
   pmcsc->dev_scan = agTRUE;
   xpt_rescan(ccb);
   return;
@@ -5678,17 +5678,17 @@ agtiapi_DeQueueCCB()
 
 Purpose:
   Remove a ccb from a queue
-Parameters: 
+Parameters:
   struct agtiapi_softc *pCard (IN)  Pointer to the card structure
   pccb_t *phead (IN)     Pointer to a head of ccb queue
   ccb_t  *pccd  (IN)     Pointer to the ccb to be processed
 Return:
   AGTIAPI_SUCCESS - the ccb is removed from queue
   AGTIAPI_FAIL    - the ccb is not found from queue
-Note:    
+Note:
 ******************************************************************************/
-STATIC agBOOLEAN 
-agtiapi_DeQueueCCB(struct agtiapi_softc *pCard, pccb_t *phead, pccb_t *ptail, 
+STATIC agBOOLEAN
+agtiapi_DeQueueCCB(struct agtiapi_softc *pCard, pccb_t *phead, pccb_t *ptail,
 #ifdef AGTIAPI_LOCAL_LOCK
                    struct mtx *lock,
 #endif
@@ -5750,35 +5750,35 @@ STATIC void wwnprintk( unsigned char *name, int len )
   int i;
 
   for (i = 0; i < len; i++, name++)
-    AGTIAPI_PRINTK("%02x", *name); 
+    AGTIAPI_PRINTK("%02x", *name);
   AGTIAPI_PRINTK("\n");
 }
-/* 
- * SAS and SATA behind expander has 8 byte long unique address. 
+/*
+ * SAS and SATA behind expander has 8 byte long unique address.
  * However, direct connect SATA device use 512 byte unique device id.
  * SPC uses remoteName to indicate length of ID and remoteAddress for the
  * address of memory that holding ID.
- */ 
+ */
 STATIC int wwncpy( ag_device_t      *pDevice )
 {
   int rc = 0;
 
-  if (sizeof(pDevice->targetName) >= pDevice->devInfo.osAddress1 + 
-                                     pDevice->devInfo.osAddress2) 
+  if (sizeof(pDevice->targetName) >= pDevice->devInfo.osAddress1 +
+                                     pDevice->devInfo.osAddress2)
   {
-    memcpy(pDevice->targetName, 
-             pDevice->devInfo.remoteName, 
+    memcpy(pDevice->targetName,
+             pDevice->devInfo.remoteName,
              pDevice->devInfo.osAddress1);
-    memcpy(pDevice->targetName + pDevice->devInfo.osAddress1, 
-             pDevice->devInfo.remoteAddress, 
+    memcpy(pDevice->targetName + pDevice->devInfo.osAddress1,
+             pDevice->devInfo.remoteAddress,
              pDevice->devInfo.osAddress2);
-    pDevice->targetLen = pDevice->devInfo.osAddress1 + 
+    pDevice->targetLen = pDevice->devInfo.osAddress1 +
                          pDevice->devInfo.osAddress2;
     rc = pDevice->targetLen;
   }
-  else 
+  else
   {
-    AGTIAPI_PRINTK("WWN wrong size: %d + %d ERROR\n", 
+    AGTIAPI_PRINTK("WWN wrong size: %d + %d ERROR\n",
            pDevice->devInfo.osAddress1, pDevice->devInfo.osAddress2);
     rc = -1;
   }
@@ -5825,7 +5825,7 @@ STATIC void agtiapi_ReleaseCCBs( struct agtiapi_softc *pCard )
     if(pccb->epl_ptr && pccb->epl_dma_ptr)
         pci_pool_free(
             pCard->epl_ctx_pool,
-            pccb->epl_ptr, 
+            pccb->epl_ptr,
             pccb->epl_dma_ptr
         );
   }
@@ -6188,7 +6188,7 @@ U32 agtiapi_ResetCard( struct agtiapi_softc *pCard, unsigned long *flags )
     {
       szdv = pCard->devDiscover;
     }
-    
+
     for( lIdx = 0, loop = 0;
          lIdx < szdv  &&  loop < pPortalInfo->devTotal;
          lIdx++ )
@@ -6303,31 +6303,31 @@ U32 agtiapi_ResetCard( struct agtiapi_softc *pCard, unsigned long *flags )
 agtiapi_ReleaseHBA()
 
 Purpose:
-  Releases all resources previously acquired to support 
-  a specific Host Adapter, including the I/O Address range, 
+  Releases all resources previously acquired to support
+  a specific Host Adapter, including the I/O Address range,
   and unregisters the agtiapi Host Adapter.
-Parameters: 
+Parameters:
   device_t dev (IN)  - device pointer
 Return:
   always return 0 - success
-Note:    
+Note:
 ******************************************************************************/
 int agtiapi_ReleaseHBA( device_t dev )
 {
-  
+
   int thisCard = device_get_unit( dev ); // keeping get_unit call to once
   int i;
   ag_card_info_t *thisCardInst = &agCardInfoList[ thisCard ];
-  struct ccb_setasync csa; 
+  struct ccb_setasync csa;
   struct agtiapi_softc *pCard;
   pCard = device_get_softc( dev );
   ag_card_info_t *pCardInfo = pCard->pCardInfo;
   ag_resource_info_t *pRscInfo = &thisCardInst->tiRscInfo;
-  
+
   AG_GLOBAL_ARG(flags);
 
   AGTIAPI_PRINTK( "agtiapi_ReleaseHBA: start\n" );
-  
+
   if (thisCardInst != pCardInfo)
   {
     AGTIAPI_PRINTK( "agtiapi_ReleaseHBA: Wrong ag_card_info_t thisCardInst %p "
@@ -6378,8 +6378,8 @@ int agtiapi_ReleaseHBA( device_t dev )
     tiCOMShutDown( &pCard->tiRoot );
     AGTIAPI_PRINTK( "agtiapi_ReleaseHBA: low layers shutdown\n" );
   }
-  
-  /* 
+
+  /*
    * first release IRQ, so that we do not get any more interrupts
    * from this host
    */
@@ -6400,7 +6400,7 @@ int agtiapi_ReleaseHBA( device_t dev )
         }
       }
       pci_release_msi(dev);
-    }    
+    }
     pCard->flags &= ~AGTIAPI_IRQ_REQUESTED;
 
 
@@ -6418,13 +6418,13 @@ int agtiapi_ReleaseHBA( device_t dev )
   }
   if( pCard->osti_mem != NULL )  {
     bus_dmamem_free( pCard->osti_dmat, pCard->osti_mem, pCard->osti_mapp );
-  }    
+  }
   if( pCard->osti_dmat != NULL ) {
     bus_dma_tag_destroy( pCard->osti_dmat );
   }
 
-  /* unmap the mapped PCI memory */ 
-  /* calls bus_release_resource( ,SYS_RES_MEMORY, ..) */ 
+  /* unmap the mapped PCI memory */
+  /* calls bus_release_resource( ,SYS_RES_MEMORY, ..) */
   agtiapi_ReleasePCIMem(thisCardInst);
 
   /* release all ccbs */
@@ -6475,7 +6475,7 @@ int agtiapi_ReleaseHBA( device_t dev )
     pCard->pPortalData = NULL;
     AGTIAPI_PRINTK("agtiapi_ReleaseHBA: PortalData released\n");
   }
-  //calls contigfree() or free()  
+  //calls contigfree() or free()
   agtiapi_MemFree(pCardInfo);
   AGTIAPI_PRINTK("agtiapi_ReleaseHBA: low level resource released\n");
 
@@ -6487,9 +6487,9 @@ int agtiapi_ReleaseHBA( device_t dev )
   }
 #endif
 
-  /* 
+  /*
    * TBD, scsi_unregister may release wrong host data structure
-   * which cause NULL pointer shows up.  
+   * which cause NULL pointer shows up.
    */
   if (pCard->flags & AGTIAPI_SCSI_REGISTERED)
   {
@@ -6503,10 +6503,10 @@ int agtiapi_ReleaseHBA( device_t dev )
       int maxLocks;
       maxLocks = pRscInfo->tiLoLevelResource.loLevelOption.numOfQueuesPerPort;
 
-      for( i = 0; i < maxLocks; i++ ) 
-      { 
+      for( i = 0; i < maxLocks; i++ )
+      {
         mtx_destroy(&pCard->STLock[i]);
-      }     
+      }
       free(pCard->STLock, M_PMC_MSTL);
       pCard->STLock = NULL;
     }
@@ -6525,22 +6525,22 @@ int agtiapi_ReleaseHBA( device_t dev )
   if (pCard->tisgl_busaddr != 0)
   {
     bus_dmamap_unload(pCard->tisgl_dmat, pCard->tisgl_map);
-  }    
+  }
   if (pCard->tisgl_mem != NULL)
-  {  
+  {
     bus_dmamem_free(pCard->tisgl_dmat, pCard->tisgl_mem, pCard->tisgl_map);
-  }    
+  }
   if (pCard->tisgl_dmat != NULL)
-  {  
+  {
     bus_dma_tag_destroy(pCard->tisgl_dmat);
   }
-      
+
   if (pCard->buffer_dmat != agNULL)
   {
     bus_dma_tag_destroy(pCard->buffer_dmat);
   }
-  
-  if (pCard->sim != NULL) 
+
+  if (pCard->sim != NULL)
   {
     mtx_lock(&thisCardInst->pmIOLock);
       xpt_setup_ccb(&csa.ccb_h, pCard->path, 5);

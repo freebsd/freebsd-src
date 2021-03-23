@@ -81,7 +81,7 @@
 
 enum qat_chip_type {
 	QAT_CHIP_C2XXX = 0,	/* NanoQAT: Atom C2000 */
-	QAT_CHIP_C2XXX_IOV,	
+	QAT_CHIP_C2XXX_IOV,
 	QAT_CHIP_C3XXX,		/* Atom C3000 */
 	QAT_CHIP_C3XXX_IOV,
 	QAT_CHIP_C62X,
@@ -281,7 +281,7 @@ struct qat_uof_page {
 	u_int qup_page_num;		/* page number */
 	u_int qup_def_page;		/* default page */
 	u_int qup_page_region;		/* region of page */
-	u_int qup_beg_vaddr;		/* begin virtual address */ 
+	u_int qup_beg_vaddr;		/* begin virtual address */
 	u_int qup_beg_paddr;		/* begin physical address */
 
 	u_int qup_num_uc_var;		/* num of uC var in array */

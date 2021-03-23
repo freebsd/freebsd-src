@@ -46,7 +46,7 @@ ar5212GpioCfgOutput(struct ath_hal *ah, uint32_t gpio, HAL_GPIO_MUX_TYPE type)
 	 * NB: AR_GPIOCR_CR_A(pin) is all 1's so there's no need
 	 *     to clear the field before or'ing in the new value.
 	 */
-	OS_REG_WRITE(ah, AR_GPIOCR, 
+	OS_REG_WRITE(ah, AR_GPIOCR,
 		  OS_REG_READ(ah, AR_GPIOCR) | AR_GPIOCR_CR_A(gpio));
 
 	return AH_TRUE;
@@ -60,7 +60,7 @@ ar5212GpioCfgInput(struct ath_hal *ah, uint32_t gpio)
 {
 	HALASSERT(gpio < AR_NUM_GPIO);
 
-	OS_REG_WRITE(ah, AR_GPIOCR, 
+	OS_REG_WRITE(ah, AR_GPIOCR,
 		  (OS_REG_READ(ah, AR_GPIOCR) &~ AR_GPIOCR_CR_A(gpio))
 		| AR_GPIOCR_CR_N(gpio));
 

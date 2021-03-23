@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Broadcom Common PCI/PCIe Support.
- * 
+ *
  * This base driver implementation is shared by the bhnd_pcib (root complex)
  * and bhnd_pci_hostb (host bridge) drivers.
  */
@@ -78,7 +78,7 @@ static const struct bhnd_pci_device {
 	struct bhnd_device	device;
 	bhnd_pci_regfmt_t	regfmt;	/**< register format */
 } bhnd_pci_devs[] = {
-	BHND_PCI_DEV(PCI,	"Host-PCI bridge",		BHND_DF_HOSTB),	     
+	BHND_PCI_DEV(PCI,	"Host-PCI bridge",		BHND_DF_HOSTB),
 	BHND_PCI_DEV(PCI,	"PCI-BHND bridge",		BHND_DF_SOC),
 	BHND_PCI_DEV(PCIE,	"PCIe-G1 Host-PCI bridge",	BHND_DF_HOSTB),
 	BHND_PCI_DEV(PCIE,	"PCIe-G1 PCI-BHND bridge",	BHND_DF_SOC),
@@ -238,7 +238,7 @@ bhnd_pci_generic_resume(device_t dev)
 
 /**
  * Read a 32-bit PCIe TLP/DLLP/PLP protocol register.
- * 
+ *
  * @param sc The bhndb_pci driver state.
  * @param addr The protocol register offset.
  */
@@ -259,7 +259,7 @@ bhnd_pcie_read_proto_reg(struct bhnd_pci_softc *sc, uint32_t addr)
 
 /**
  * Write a 32-bit PCIe TLP/DLLP/PLP protocol register value.
- * 
+ *
  * @param sc The bhndb_pci driver state.
  * @param addr The protocol register offset.
  * @param val The value to write to @p addr.
@@ -372,7 +372,7 @@ bhnd_pcie_mdio_cmd_read(struct bhnd_pci_softc *sc, uint32_t cmd,
 	if ((error = bhnd_pcie_mdio_wait_idle(sc)))
 		return (error);
 
-	*data_read = (BHND_PCI_READ_4(sc, BHND_PCIE_MDIO_DATA) & 
+	*data_read = (BHND_PCI_READ_4(sc, BHND_PCIE_MDIO_DATA) &
 	    BHND_PCIE_MDIODATA_DATA_MASK);
 	return (0);
 }
@@ -439,7 +439,7 @@ bhnd_pcie_mdio_read_ext(struct bhnd_pci_softc *sc, int phy, int devaddr,
 	if (!(sc->quirks & BHND_PCI_QUIRK_SD_C22_EXTADDR) ||
 	    phy != BHND_PCIE_PHYADDR_SD)
 	{
-		return (~0U);	
+		return (~0U);
 	}
 
 	/* Enable MDIO access */
@@ -468,7 +468,7 @@ cleanup:
 int
 bhnd_pcie_mdio_write_ext(struct bhnd_pci_softc *sc, int phy, int devaddr,
     int reg, int val)
-{	
+{
 	uint32_t	cmd;
 	int		error;
 
@@ -480,7 +480,7 @@ bhnd_pcie_mdio_write_ext(struct bhnd_pci_softc *sc, int phy, int devaddr,
 	if (!(sc->quirks & BHND_PCI_QUIRK_SD_C22_EXTADDR) ||
 	    phy != BHND_PCIE_PHYADDR_SD)
 	{
-		return (~0U);	
+		return (~0U);
 	}
 
 	/* Enable MDIO access */

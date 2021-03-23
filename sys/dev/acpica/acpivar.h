@@ -144,7 +144,7 @@ struct acpi_prw_data {
  * zone polling thread.
  *
  * ACPI tables and global shared data are protected by a global lock
- * (acpi_mutex).  
+ * (acpi_mutex).
  *
  * Each ACPI device can have its own driver-specific mutex for protecting
  * shared access to local data.  The ACPI_LOCK macros handle mutexes.
@@ -357,7 +357,7 @@ ACPI_STATUS	acpi_GetInteger(ACPI_HANDLE handle, char *path,
 		    UINT32 *number);
 ACPI_STATUS	acpi_SetInteger(ACPI_HANDLE handle, char *path,
 		    UINT32 number);
-ACPI_STATUS	acpi_ForeachPackageObject(ACPI_OBJECT *obj, 
+ACPI_STATUS	acpi_ForeachPackageObject(ACPI_OBJECT *obj,
 		    void (*func)(ACPI_OBJECT *comp, void *arg), void *arg);
 ACPI_STATUS	acpi_FindIndexedResource(ACPI_BUFFER *buf, int index,
 		    ACPI_RESOURCE **resp);

@@ -126,7 +126,7 @@ pci_hostb_read_config(device_t dev, device_t child, int reg, int width)
 }
 
 static void
-pci_hostb_write_config(device_t dev, device_t child, int reg, 
+pci_hostb_write_config(device_t dev, device_t child, int reg,
     uint32_t val, int width)
 {
 

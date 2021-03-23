@@ -29,7 +29,7 @@
  */
 
 #include <dev/hpt27xx/hpt27xx_config.h>
-/* 
+/*
  * define _HIM_INTERFACE before include this file, and
  * undef it after include this file.
  */

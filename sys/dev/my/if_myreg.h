@@ -367,7 +367,7 @@ struct my_softc {
         u_int8_t                my_want_auto;
         u_int8_t                my_autoneg;
         u_int16_t               my_txthresh;
-	u_int8_t		my_stats_no_timeout;        
+	u_int8_t		my_stats_no_timeout;
         caddr_t                 my_ldata_ptr;
         struct my_list_data     *my_ldata;
         struct my_chain_data    my_cdata;

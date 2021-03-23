@@ -150,7 +150,7 @@
 
 /* Interrupt Pending (RR3). */
 #define	IP_RIA		0x20	/* Rx. Int. ch. A. */
-#define	IP_TIA		0x10	/* Tx. Int. ch. A. */ 
+#define	IP_TIA		0x10	/* Tx. Int. ch. A. */
 #define	IP_SIA		0x08	/* Ext/Status Int. ch. A. */
 #define	IP_RIB		0x04	/* Rx. Int. ch. B. */
 #define	IP_TIB		0x02	/* Tx. Int. ch. B. */

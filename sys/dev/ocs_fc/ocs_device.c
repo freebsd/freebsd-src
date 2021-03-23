@@ -637,7 +637,7 @@ __ocs_d_wait_logo_rsp(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 
 	switch(evt) {
 	case OCS_EVT_ENTER:
-		/* TODO: may want to remove this; 
+		/* TODO: may want to remove this;
 		 * if we'll want to know about PLOGI */
 		ocs_node_hold_frames(node);
 		break;
@@ -899,7 +899,7 @@ __ocs_d_init(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 	}
 
 	case OCS_EVT_FCP_CMD_RCVD: {
-		/* note: problem, we're now expecting an ELS REQ completion 
+		/* note: problem, we're now expecting an ELS REQ completion
 		 * from both the LOGO and PLOGI */
 		if (!node->sport->domain->attached) {
 			 /* most likely a frame left over from before a link down; drop and
@@ -1811,7 +1811,7 @@ __ocs_d_device_gone(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 		/* reauthenticate with PLOGI/PRLI */
 		/* ocs_node_transition(node, __ocs_d_discovered, NULL); */
 
-		/* reauthenticate with ADISC 
+		/* reauthenticate with ADISC
 		 * sm: send ADISC */
 		ocs_send_adisc(node, OCS_FC_ELS_SEND_DEFAULT_TIMEOUT, OCS_FC_ELS_DEFAULT_RETRIES, NULL, NULL);
 		ocs_node_transition(node, __ocs_d_wait_adisc_rsp, NULL);

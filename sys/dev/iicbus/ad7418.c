@@ -133,7 +133,7 @@ ad7418_attach(device_t dev)
 }
 
 static int
-ad7418_read_1(device_t dev, int reg) 
+ad7418_read_1(device_t dev, int reg)
 {
 	uint8_t addr = reg;
 	uint8_t data[1];
@@ -145,7 +145,7 @@ ad7418_read_1(device_t dev, int reg)
 }
 
 static int
-ad7418_write_1(device_t dev, int reg, int v) 
+ad7418_write_1(device_t dev, int reg, int v)
 {
 	/* NB: register pointer precedes actual data */
 	uint8_t data[2];
@@ -162,7 +162,7 @@ ad7418_set_channel(struct ad7418_softc *sc, int chan)
 {
 	if (sc->sc_curchan == chan)
 		return;
-	ad7418_write_1(sc->sc_dev, AD7418_CONF, 
+	ad7418_write_1(sc->sc_dev, AD7418_CONF,
 	    (ad7418_read_1(sc->sc_dev, AD7418_CONF) &~ AD7418_CONF_CHAN)|chan);
 	sc->sc_curchan = chan;
 #if 0
@@ -177,7 +177,7 @@ ad7418_set_channel(struct ad7418_softc *sc, int chan)
 }
 
 static int
-ad7418_read_2(device_t dev, int reg) 
+ad7418_read_2(device_t dev, int reg)
 {
 	uint8_t addr = reg;
 	uint8_t data[2];

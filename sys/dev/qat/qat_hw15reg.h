@@ -183,7 +183,7 @@ struct fw_comn_req_mid {
 
 union fw_comn_req_ftr {
 	uint64_t next_request_addr;
-	/* Overloaded field, for stateful requests, this field is the pointer to 
+	/* Overloaded field, for stateful requests, this field is the pointer to
 	   next request descriptor */
 	struct {
 		uint32_t src_length;

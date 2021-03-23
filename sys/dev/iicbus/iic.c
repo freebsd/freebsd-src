@@ -125,7 +125,7 @@ iic_probe(device_t dev)
 
 	return (0);
 }
-	
+
 static int
 iic_attach(device_t dev)
 {
@@ -169,7 +169,7 @@ iicopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	sx_init(&priv->lock, "iic");
 	priv->sc = dev->si_drv1;
 
-	error = devfs_set_cdevpriv(priv, iicdtor); 
+	error = devfs_set_cdevpriv(priv, iicdtor);
 	if (error != 0)
 		free(priv, M_IIC);
 
@@ -226,7 +226,7 @@ iicuio_move(struct iic_cdevpriv *priv, struct uio *uio, int last)
 				    num_bytes - transferred_bytes, &written_bytes, 0);
 				transferred_bytes += written_bytes;
 			}
-				
+
 		} else if (uio->uio_rw == UIO_READ) {
 			error = iicbus_read(parent, buffer,
 			    num_bytes, &transferred_bytes,
@@ -412,8 +412,8 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		 * Bus should be owned before we reset it.
 		 * We allow the bus to be already owned as the result of an in-progress
 		 * sequence; however, bus reset will always be followed by release
-		 * (a new start is presumably needed for I/O anyway). */ 
-		if (!priv->started)	
+		 * (a new start is presumably needed for I/O anyway). */
+		if (!priv->started)
 			error = iicbus_request_bus(parent, iicdev,
 			    (flags & O_NONBLOCK) ? IIC_DONTWAIT : (IIC_WAIT | IIC_INTR));
 

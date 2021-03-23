@@ -60,7 +60,7 @@ int	mrsas_cam_attach(struct mrsas_softc *sc);
 int	mrsas_find_io_type(struct cam_sim *sim, union ccb *ccb);
 int	mrsas_bus_scan(struct mrsas_softc *sc);
 int	mrsas_bus_scan_sim(struct mrsas_softc *sc, struct cam_sim *sim);
-int 
+int
 mrsas_map_request(struct mrsas_softc *sc,
     struct mrsas_mpt_cmd *cmd, union ccb *ccb);
 int
@@ -130,7 +130,7 @@ MR_BuildRaidContext(struct mrsas_softc *sc,
 extern u_int16_t
 MR_LdSpanArrayGet(u_int32_t ld, u_int32_t span,
     MR_DRV_RAID_MAP_ALL * map);
-extern u_int16_t 
+extern u_int16_t
 mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
     PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info);
 extern int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
@@ -471,7 +471,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	if (mrsas_atomic_inc_return(&sc->fw_outstanding) > sc->max_scsi_cmds) {
 		ccb_h->status |= CAM_REQUEUE_REQ;
 		xpt_done(ccb);
-		mrsas_atomic_dec(&sc->fw_outstanding); 
+		mrsas_atomic_dec(&sc->fw_outstanding);
 		return (0);
 	}
 
@@ -480,7 +480,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	if (!cmd) {
 		ccb_h->status |= CAM_REQUEUE_REQ;
 		xpt_done(ccb);
-		mrsas_atomic_dec(&sc->fw_outstanding); 
+		mrsas_atomic_dec(&sc->fw_outstanding);
 		return (0);
 	}
 
@@ -677,7 +677,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 
 done:
 	xpt_done(ccb);
-	mrsas_atomic_dec(&sc->fw_outstanding); 
+	mrsas_atomic_dec(&sc->fw_outstanding);
 	return (0);
 }
 
@@ -688,7 +688,7 @@ done:
  * This function determines if the IO is read/write or inquiry.  It returns a 1
  * if the IO is read/write and 0 if it is inquiry.
  */
-int 
+int
 mrsas_find_io_type(struct cam_sim *sim, union ccb *ccb)
 {
 	struct ccb_scsiio *csio = &(ccb->csio);
@@ -1098,12 +1098,12 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 			r1_cmd = mrsas_get_mpt_cmd(sc);
 			if (mrsas_atomic_inc_return(&sc->fw_outstanding) > sc->max_scsi_cmds) {
 				fp_possible = FALSE;
-				mrsas_atomic_dec(&sc->fw_outstanding); 
+				mrsas_atomic_dec(&sc->fw_outstanding);
 			} else {
 				r1_cmd = mrsas_get_mpt_cmd(sc);
 				if (!r1_cmd) {
 					fp_possible = FALSE;
-					mrsas_atomic_dec(&sc->fw_outstanding); 
+					mrsas_atomic_dec(&sc->fw_outstanding);
 				}
 				else {
 					cmd->peer_cmd = r1_cmd;
@@ -1460,7 +1460,7 @@ static boolean_t mrsas_is_prp_possible(struct mrsas_mpt_cmd *cmd,
  * is built in the callback.  If the  bus dmamap load is not successful,
  * cmd->error_code will contain the  error code and a 1 is returned.
  */
-int 
+int
 mrsas_map_request(struct mrsas_softc *sc,
     struct mrsas_mpt_cmd *cmd, union ccb *ccb)
 {

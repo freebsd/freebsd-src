@@ -311,7 +311,7 @@ static void cp_intr (void *arg)
 			IF_DEQUEUE (&d->queue,m);
 			if (!m)
 				continue;
-			sppp_input (d->ifp, m);	
+			sppp_input (d->ifp, m);
 		}
 	}
 #endif
@@ -392,7 +392,7 @@ static int cp_attach (device_t dev)
 
 	b = malloc (sizeof(cp_board_t), M_DEVBUF, M_WAITOK);
 	if (!b) {
-		printf ("cp%d: couldn't allocate memory\n", unit);		
+		printf ("cp%d: couldn't allocate memory\n", unit);
 		splx (s);
 		return (ENXIO);
 	}
@@ -436,7 +436,7 @@ static int cp_attach (device_t dev)
 			RF_SHAREABLE | RF_ACTIVE);
 	if (! bd->cp_irq) {
 		cp_destroy = 1;
-		printf ("cp%d: cannot map interrupt\n", unit);	
+		printf ("cp%d: cannot map interrupt\n", unit);
 		bus_release_resource (dev, SYS_RES_MEMORY,
 				PCIR_BAR(0), bd->cp_res);
 		mtx_destroy (&bd->cp_mtx);
@@ -1192,7 +1192,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 			opte3->icv[s] = c->e3icv[s];
 		}
 		return 0;
-		
+
 	case SERIAL_CLRSTAT:
 		CP_DEBUG2 (d, ("ioctl: clrstat\n"));
 		/* Only for superuser! */
@@ -1310,7 +1310,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 			return error;
 #ifndef	NETGRAPH
 		/*
-		 * The debug_shadow is always greater than zero for logic 
+		 * The debug_shadow is always greater than zero for logic
 		 * simplicity.  For switching debug off the IFF_DEBUG is
 		 * responsible.
 		 */
@@ -2184,7 +2184,7 @@ static int ng_cp_connect (hook_p hook)
 		CP_DEBUG (d, ("Connect\n"));
 		callout_reset (&d->timeout_handle, hz, cp_watchdog_timer, d);
 	}
-	
+
 	return 0;
 }
 
@@ -2230,7 +2230,7 @@ static int cp_modevent (module_t mod, int type, void *unused)
 			printf ("Removing device entry for Tau-PCI\n");
 #ifdef NETGRAPH
 			ng_rmtype (&typestruct);
-#endif			
+#endif
 		}
 		/* If we were wait it than it reasserted now, just stop it.
 		 * Actually we shouldn't get this condition. But code could be

@@ -230,7 +230,7 @@ bwn_wireless_core_phy_pll_reset(struct bwn_mac *mac)
 
 	pll_flag = 0x4;
 	bhnd_pmu_write_chipctrl(sc->sc_pmu, 0x0, 0x0, pll_flag);
-	bhnd_pmu_write_chipctrl(sc->sc_pmu, 0x0, pll_flag, pll_flag);	
+	bhnd_pmu_write_chipctrl(sc->sc_pmu, 0x0, pll_flag, pll_flag);
 	bhnd_pmu_write_chipctrl(sc->sc_pmu, 0x0, 0x0, pll_flag);
 
 	return (0);

@@ -354,7 +354,7 @@ msm_bus_attach(struct uart_softc *sc)
 }
 
 /*
- * Write the current transmit buffer to the TX FIFO. 
+ * Write the current transmit buffer to the TX FIFO.
  */
 static int
 msm_bus_transmit(struct uart_softc *sc)

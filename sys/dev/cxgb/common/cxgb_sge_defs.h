@@ -243,7 +243,7 @@ $FreeBSD$
 #define F_RSPD_SOP    V_RSPD_SOP(1U)
 #define G_RSPD_SOP(x) ((x) & F_RSPD_SOP)
 
-#define G_RSPD_SOP_EOP(x) ((G_RSPD_SOP(x) | G_RSPD_EOP(x)) >> S_RSPD_EOP)  
+#define G_RSPD_SOP_EOP(x) ((G_RSPD_SOP(x) | G_RSPD_EOP(x)) >> S_RSPD_EOP)
 
 #define S_RSPD_ASYNC_NOTIF    26
 #define V_RSPD_ASYNC_NOTIF(x) ((x) << S_RSPD_ASYNC_NOTIF)

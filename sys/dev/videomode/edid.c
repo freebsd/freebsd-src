@@ -30,7 +30,7 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */ 
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -141,7 +141,7 @@ edid_is_valid(uint8_t *d)
 		sum += d[i];
 	if ((sum & 0xff) != 0)
 		return EINVAL;
-		
+
 	return 0;
 }
 
@@ -441,7 +441,7 @@ edid_block(struct edid_info *edid, uint8_t *data)
 			if (edid->edid_preferred_mode == NULL)
 				edid->edid_preferred_mode =
 				    &edid->edid_modes[edid->edid_nmodes];
-			edid->edid_nmodes++;	
+			edid->edid_nmodes++;
 		}
 		return;
 	}
@@ -529,7 +529,7 @@ edid_parse(uint8_t *data, struct edid_info *edid)
 	edid->edid_vendor[2] = EDID_MANFID_2(manfid);
 	edid->edid_vendor[3] = 0;	/* null terminate for convenience */
 
-	edid->edid_product = data[EDID_OFFSET_PRODUCT_ID] + 
+	edid->edid_product = data[EDID_OFFSET_PRODUCT_ID] +
 	    (data[EDID_OFFSET_PRODUCT_ID + 1] << 8);
 
 	name = edid_findvendor(edid->edid_vendor);

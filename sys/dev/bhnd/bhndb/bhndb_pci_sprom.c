@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * BHNDB PCI SPROM driver.
- * 
+ *
  * Provides support for early PCI bridge cores that vend SPROM CSRs
  * via PCI configuration space.
  */

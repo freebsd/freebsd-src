@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
- 
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_media.h>
@@ -159,10 +159,10 @@ malo_pci_attach(device_t dev)
 	struct malo_softc *sc = &psc->malo_sc;
 
 	sc->malo_dev = dev;
-	
+
 	pci_enable_busmaster(dev);
 
-	/* 
+	/*
 	 * Setup memory-mapping of PCI registers.
 	 */
 	psc->malo_mem_spec = malo_res_spec_mem;

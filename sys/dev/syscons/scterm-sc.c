@@ -203,7 +203,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 	int i, n;
 
 	i = n = 0;
-	sc = scp->sc; 
+	sc = scp->sc;
 	if (tcp->esc == 1) {	/* seen ESC */
 		switch (c) {
 		case '7':	/* Save cursor position */
@@ -566,7 +566,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 		case 'B':   /* set bell pitch and duration */
 			if (tcp->num_param == 2) {
 				scp->bell_pitch = tcp->param[0];
-				scp->bell_duration = 
+				scp->bell_duration =
 				    (tcp->param[1] * hz + 99) / 100;
 			}
 			break;

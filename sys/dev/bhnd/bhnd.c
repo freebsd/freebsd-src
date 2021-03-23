@@ -38,17 +38,17 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Broadcom Home Networking Division (HND) Bus Driver.
- * 
+ *
  * The Broadcom HND family of devices consists of both SoCs and host-connected
  * networking chipsets containing a common family of Broadcom IP cores,
  * including an integrated MIPS and/or ARM cores.
- * 
- * HND devices expose a nearly identical interface whether accessible over a 
- * native SoC interconnect, or when connected via a host interface such as 
- * PCIe. As a result, the majority of hardware support code should be re-usable 
- * across host drivers for HND networking chipsets, as well as FreeBSD support 
+ *
+ * HND devices expose a nearly identical interface whether accessible over a
+ * native SoC interconnect, or when connected via a host interface such as
+ * PCIe. As a result, the majority of hardware support code should be re-usable
+ * across host drivers for HND networking chipsets, as well as FreeBSD support
  * for Broadcom MIPS/ARM HND SoCs.
- * 
+ *
  * Earlier HND models used the siba(4) on-chip interconnect, while later models
  * use bcma(4); the programming model is almost entirely independent
  * of the actual underlying interconect.
@@ -178,7 +178,7 @@ bhnd_generic_detach(device_t dev)
 
 /**
  * Default bhnd(4) bus driver implementation of DEVICE_SHUTDOWN().
- * 
+ *
  * This implementation calls device_shutdown() for each of the device's
  * children, in reverse bhnd probe order, terminating if any call to
  * device_shutdown() fails.
@@ -322,7 +322,7 @@ bhnd_generic_get_probe_order(device_t dev, device_t child)
 
 	case BHND_DEVCLASS_SOC_BRIDGE:
 		return (BHND_PROBE_BUS + BHND_PROBE_ORDER_LAST);
-		
+
 	case BHND_DEVCLASS_CPU:
 		return (BHND_PROBE_CPU + BHND_PROBE_ORDER_FIRST);
 
@@ -330,7 +330,7 @@ bhnd_generic_get_probe_order(device_t dev, device_t child)
 		/* fall through */
 	case BHND_DEVCLASS_MEMC:
 		return (BHND_PROBE_CPU + BHND_PROBE_ORDER_EARLY);
-		
+
 	case BHND_DEVCLASS_NVRAM:
 		return (BHND_PROBE_RESOURCE + BHND_PROBE_ORDER_EARLY);
 
@@ -434,7 +434,7 @@ bhnd_generic_alloc_pmu(device_t dev, device_t child)
 
 	/* Adjust PMU register offset relative to the actual start address
 	 * of the core's register block allocation.
-	 * 
+	 *
 	 * XXX: The saved offset will be invalid if bus_adjust_resource is
 	 * used to modify the resource's start address.
 	 */
@@ -774,7 +774,7 @@ bhnd_generic_release_ext_rsrc(device_t dev, device_t child, u_int rsrc)
 
 /**
  * Default bhnd(4) bus driver implementation of BHND_BUS_IS_REGION_VALID().
- * 
+ *
  * This implementation assumes that port and region numbers are 0-indexed and
  * are allocated non-sparsely, using BHND_BUS_GET_PORT_COUNT() and
  * BHND_BUS_GET_REGION_COUNT() to determine if @p port and @p region fall
@@ -795,9 +795,9 @@ bhnd_generic_is_region_valid(device_t dev, device_t child,
 
 /**
  * Default bhnd(4) bus driver implementation of BHND_BUS_GET_NVRAM_VAR().
- * 
+ *
  * This implementation searches @p dev for a registered NVRAM child device.
- * 
+ *
  * If no NVRAM device is registered with @p dev, the request is delegated to
  * the BHND_BUS_GET_NVRAM_VAR() method on the parent of @p dev.
  */
@@ -829,7 +829,7 @@ bhnd_generic_get_nvram_var(device_t dev, device_t child, const char *name,
 
 /**
  * Default bhnd(4) bus driver implementation of BUS_PRINT_CHILD().
- * 
+ *
  * This implementation requests the device's struct resource_list via
  * BUS_GET_RESOURCE_LIST.
  */
@@ -861,7 +861,7 @@ bhnd_generic_print_child(device_t dev, device_t child)
 
 /**
  * Default bhnd(4) bus driver implementation of BUS_PROBE_NOMATCH().
- * 
+ *
  * This implementation requests the device's struct resource_list via
  * BUS_GET_RESOURCE_LIST.
  */
@@ -951,7 +951,7 @@ bhnd_child_location_str(device_t dev, device_t child, char *buf,
 
 /**
  * Default bhnd(4) bus driver implementation of BUS_CHILD_DELETED().
- * 
+ *
  * This implementation manages internal bhnd(4) state, and must be called
  * by subclassing drivers.
  */
@@ -976,7 +976,7 @@ bhnd_generic_child_deleted(device_t dev, device_t child)
  * Helper function for implementing BUS_SUSPEND_CHILD().
  *
  * TODO: Power management
- * 
+ *
  * If @p child is not a direct child of @p dev, suspension is delegated to
  * the @p dev parent.
  */
@@ -993,7 +993,7 @@ bhnd_generic_suspend_child(device_t dev, device_t child)
  * Helper function for implementing BUS_RESUME_CHILD().
  *
  * TODO: Power management
- * 
+ *
  * If @p child is not a direct child of @p dev, suspension is delegated to
  * the @p dev parent.
  */
@@ -1053,7 +1053,7 @@ bhnd_ ## _op (device_t dev, device_t child,				\
 {									\
 	BHND_BUS_ ## _method(device_get_parent(dev), child, r,		\
 	    offset, datap, count);					\
-}	
+}
 
 #define	BHND_IO_METHODS(_type, _size)					\
 	BHND_IO_READ(_type, _size, _size)				\
@@ -1089,7 +1089,7 @@ BHND_IO_METHODS(uint8_t, 1);
 BHND_IO_METHODS(uint16_t, 2);
 BHND_IO_METHODS(uint32_t, 4);
 
-static void 
+static void
 bhnd_barrier(device_t dev, device_t child, struct bhnd_resource *r,
     bus_size_t offset, bus_size_t length, int flags)
 {

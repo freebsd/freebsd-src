@@ -588,7 +588,7 @@ au_pci_attach(device_t dev)
 						RF_ACTIVE);
 		if (!reg[j]) {
 			type[j] = SYS_RES_IOPORT;
-			reg[j] = bus_alloc_resource_any(dev, type[j], 
+			reg[j] = bus_alloc_resource_any(dev, type[j],
 							&regid[j], RF_ACTIVE);
 		}
 		if (reg[j]) {

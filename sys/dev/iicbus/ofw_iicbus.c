@@ -126,7 +126,7 @@ ofw_iicbus_attach(device_t dev)
 	freq = 0;
 	OF_getencprop(node, "clock-frequency", &freq, sizeof(freq));
 	iicbus_init_frequency(dev, freq);
-	
+
 	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
 
 	bus_generic_probe(dev);

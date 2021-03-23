@@ -81,7 +81,7 @@ vesa_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 		return sc_set_text_mode(scp, tp, mode, 0, 0, 0, 0);
 
 	/* graphics modes */
-	case SW_VESA_32K_320: 	case SW_VESA_64K_320: 
+	case SW_VESA_32K_320: 	case SW_VESA_64K_320:
 	case SW_VESA_FULL_320:
 
 	case SW_VESA_CG640x400:

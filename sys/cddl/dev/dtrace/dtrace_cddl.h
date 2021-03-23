@@ -91,7 +91,7 @@ typedef struct kdtrace_thread {
 
 /*
  * Definitions to reference fields in the FreeBSD DTrace structures defined
- * above using the names of fields in similar structures in Solaris. Note 
+ * above using the names of fields in similar structures in Solaris. Note
  * that the separation on FreeBSD is a licensing constraint designed to
  * keep the GENERIC kernel BSD licensed.
  */

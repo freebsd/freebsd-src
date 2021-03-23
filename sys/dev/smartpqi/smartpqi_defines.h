@@ -87,7 +87,7 @@
 #define false	0
 
 enum INTR_TYPE {
-	LOCK_INTR,		
+	LOCK_INTR,
 	LOCK_SLEEP
 };
 
@@ -172,10 +172,10 @@ typedef enum controller_state {
 #define PQI_CTRL_KERNEL_PANIC			0x100
 
 #define SIS_CTL_TO_HOST_DB_DISABLE_ALL		0xFFFFFFFF
-#define SIS_CTL_TO_HOST_DB_CLEAR		0x00001000 			
+#define SIS_CTL_TO_HOST_DB_CLEAR		0x00001000
 #define	SIS_CMD_SUBMIT				0x00000200  /* Bit 9 */
 #define SIS_CMD_COMPLETE			0x00001000  /* Bit 12 */
-#define SIS_CMD_STATUS_SUCCESS			0x1	
+#define SIS_CMD_STATUS_SUCCESS			0x1
 
 /* PQI specific */
 
@@ -192,11 +192,11 @@ typedef enum controller_state {
 #define	PQISRC_MAX_SUPPORTED_OP_IB_Q		128
 #define PQISRC_MAX_SUPPORTED_OP_RAID_IB_Q	(PQISRC_MAX_SUPPORTED_OP_IB_Q / 2)
 #define PQISRC_MAX_SUPPORTED_OP_AIO_IB_Q	(PQISRC_MAX_SUPPORTED_OP_RAID_IB_Q)
-#define	PQISRC_MAX_OP_IB_QUEUE_ELEM_NUM		(PQISRC_MAX_OUTSTANDING_REQ / PQISRC_MAX_SUPPORTED_OP_IB_Q)	
-#define	PQISRC_MAX_OP_OB_QUEUE_ELEM_NUM		PQISRC_MAX_OUTSTANDING_REQ	
+#define	PQISRC_MAX_OP_IB_QUEUE_ELEM_NUM		(PQISRC_MAX_OUTSTANDING_REQ / PQISRC_MAX_SUPPORTED_OP_IB_Q)
+#define	PQISRC_MAX_OP_OB_QUEUE_ELEM_NUM		PQISRC_MAX_OUTSTANDING_REQ
 #define	PQISRC_MIN_OP_OB_QUEUE_ELEM_NUM		2
 #define	PQISRC_MAX_SUPPORTED_OP_OB_Q		64
-#define PQISRC_OP_MAX_IBQ_ELEM_SIZE		8 /* 8 * 16  = 128 bytes */	
+#define PQISRC_OP_MAX_IBQ_ELEM_SIZE		8 /* 8 * 16  = 128 bytes */
 #define PQISRC_OP_MIN_IBQ_ELEM_SIZE		2 /* 2 * 16  = 32 bytes */
 #define PQISRC_OP_OBQ_ELEM_SIZE			1 /* 16 bytes */
 #define PQISRC_ADMIN_IBQ_ELEM_SIZE		2 /* 2 * 16  = 32 bytes */
@@ -205,7 +205,7 @@ typedef enum controller_state {
 #define PQISRC_SGL_SUPPORTED_BIT_MASK		0
 
 #define PQISRC_NUM_EVENT_Q_ELEM			32
-#define PQISRC_EVENT_Q_ELEM_SIZE		32 
+#define PQISRC_EVENT_Q_ELEM_SIZE		32
 
 /* PQI Registers state status */
 
@@ -224,19 +224,19 @@ enum pqisrc_ctrl_mode{
 };
 
 /* PQI device performing internal initialization (e.g., POST). */
-#define PQI_DEV_STATE_POWER_ON_AND_RESET	0x0  
+#define PQI_DEV_STATE_POWER_ON_AND_RESET	0x0
 /* Upon entry to this state PQI device initialization begins. */
-#define PQI_DEV_STATE_PQI_STATUS_AVAILABLE	0x1  
+#define PQI_DEV_STATE_PQI_STATUS_AVAILABLE	0x1
 /* PQI device Standard registers are available to the driver. */
-#define PQI_DEV_STATE_ALL_REGISTERS_READY	0x2  
+#define PQI_DEV_STATE_ALL_REGISTERS_READY	0x2
 /* PQI device is initialized and ready to process any PCI transactions. */
-#define PQI_DEV_STATE_ADMIN_QUEUE_PAIR_READY	0x3 
+#define PQI_DEV_STATE_ADMIN_QUEUE_PAIR_READY	0x3
 /* The PQI Device Error register indicates the error. */
-#define PQI_DEV_STATE_ERROR			0x4  
+#define PQI_DEV_STATE_ERROR			0x4
 
 #define PQI_DEV_STATE_AT_INIT			( PQI_DEV_STATE_PQI_STATUS_AVAILABLE | \
 						  PQI_DEV_STATE_ALL_REGISTERS_READY | \
-						  PQI_DEV_STATE_ADMIN_QUEUE_PAIR_READY )		
+						  PQI_DEV_STATE_ADMIN_QUEUE_PAIR_READY )
 
 #define PQISRC_PQI_DEVICE_SIGNATURE		"PQI DREG"
 #define	PQI_ADMINQ_ELEM_ARRAY_ALIGN		64
@@ -270,7 +270,7 @@ enum pqisrc_ctrl_mode{
 #define	PQI_NEW_HEARTBEAT_MECHANISM(softs)	1
 
  /* pqi-2r00a table 36 */
-#define PQI_ADMIN_QUEUE_MSIX_DISABLE		(0x80000000)   
+#define PQI_ADMIN_QUEUE_MSIX_DISABLE		(0x80000000)
 #define PQI_ADMIN_QUEUE_MSIX_ENABLE		(0 << 31)
 
 #define	PQI_ADMIN_QUEUE_CONF_FUNC_CREATE_Q_PAIR	0x01
@@ -333,15 +333,15 @@ enum pqisrc_ctrl_mode{
 #define PQI_SAVE_CTRL_MODE(softs, mode) \
 	PCI_MEM_PUT32(softs, &softs->ioa_reg->scratchpad0, LEGACY_SIS_SCR0, mode)
 
-#define PQISRC_MAX_TARGETID			1024		
-#define PQISRC_MAX_TARGETLUN			64		
+#define PQISRC_MAX_TARGETID			1024
+#define PQISRC_MAX_TARGETLUN			64
 
 /* Vendor specific IU Type for Event config Cmds */
 #define PQI_REQUEST_IU_REPORT_EVENT_CONFIG		0x72
 #define PQI_REQUEST_IU_SET_EVENT_CONFIG			0x73
 #define PQI_REQUEST_IU_ACKNOWLEDGE_VENDOR_EVENT		0xf6
 #define PQI_RESPONSE_IU_GENERAL_MANAGEMENT		0x81
-#define	PQI_MANAGEMENT_CMD_RESP_TIMEOUT			3000 
+#define	PQI_MANAGEMENT_CMD_RESP_TIMEOUT			3000
 #define	PQISRC_EVENT_ACK_RESP_TIMEOUT			1000
 
 /* Supported Event types by controller */
@@ -445,13 +445,13 @@ enum pqisrc_ctrl_mode{
 #define PQI_RAID_STATUS_CHECK_CONDITION			PQI_AIO_STATUS_CHECK_CONDITION
 #define PQI_RAID_STATUS_CONDITION_MET			PQI_AIO_STATUS_CONDITION_MET
 #define PQI_RAID_STATUS_DEVICE_BUSY			PQI_AIO_STATUS_DEVICE_BUSY
-#define PQI_RAID_STATUS_INT_GOOD			PQI_AIO_STATUS_INT_GOOD	
+#define PQI_RAID_STATUS_INT_GOOD			PQI_AIO_STATUS_INT_GOOD
 #define PQI_RAID_STATUS_INT_COND_MET			PQI_AIO_STATUS_INT_COND_MET
 #define PQI_RAID_STATUS_RESERV_CONFLICT			PQI_AIO_STATUS_RESERV_CONFLICT
 #define PQI_RAID_STATUS_CMD_TERMINATED			PQI_AIO_STATUS_CMD_TERMINATED
 #define PQI_RAID_STATUS_QUEUE_FULL			PQI_AIO_STATUS_QUEUE_FULL
 #define PQI_RAID_STATUS_TASK_ABORTED			PQI_AIO_STATUS_TASK_ABORTED
-#define PQI_RAID_STATUS_UNDERRUN			PQI_AIO_STATUS_UNDERRUN	
+#define PQI_RAID_STATUS_UNDERRUN			PQI_AIO_STATUS_UNDERRUN
 #define PQI_RAID_STATUS_OVERRUN				PQI_AIO_STATUS_OVERRUN
 
 /* VPD inquiry pages */
@@ -753,7 +753,7 @@ typedef struct PCI_ACC_HANDLE {
 #define PQI_SIGNATURE                  0x4000
 #define PQI_ADMINQ_CONFIG              0x4008
 #define PQI_ADMINQ_CAP                 0x4010
-#define PQI_LEGACY_INTR_STATUS         0x4018  
+#define PQI_LEGACY_INTR_STATUS         0x4018
 #define PQI_LEGACY_INTR_MASK_SET       0x401C
 #define PQI_LEGACY_INTR_MASK_CLR       0x4020
 #define PQI_DEV_STATUS                 0x4040
@@ -808,14 +808,14 @@ typedef struct pqi_intr_ctx {
 typedef uint8_t os_dev_info_t;
 
 typedef struct OS_SPECIFIC {
-	device_t                pqi_dev; 	
+	device_t                pqi_dev;
 	struct resource		*pqi_regs_res0; /* reg. if. window */
 	int			pqi_regs_rid0;		/* resource ID */
 	bus_dma_tag_t		pqi_parent_dmat;	/* parent DMA tag */
 	bus_dma_tag_t           pqi_buffer_dmat;
 
 	/* controller hardware interface */
-	int			pqi_hwif;	
+	int			pqi_hwif;
 	struct resource         *pqi_irq[PQI_MAX_MSIX];  /* interrupt */
 	int                     pqi_irq_rid[PQI_MAX_MSIX];
 	void                    *intrcookie[PQI_MAX_MSIX];
@@ -839,7 +839,7 @@ typedef struct OS_SPECIFIC {
 	eventhandler_tag        eh;
 } OS_SPECIFIC_T;
 
-typedef bus_addr_t dma_addr_t; 
+typedef bus_addr_t dma_addr_t;
 
 /* Atomic */
 typedef volatile uint64_t OS_ATOMIC64_T;
@@ -867,7 +867,7 @@ typedef volatile uint64_t OS_ATOMIC64_T;
 #define PCI_MEM_GET_BUF(_softs, _absaddr, _offset, buf, size) \
 	bus_space_read_region_1(_softs->pci_mem_handle.pqi_btag,\
 	_softs->pci_mem_handle.pqi_bhandle, _offset, buf, size)
-    
+
 /* Lock */
 typedef struct mtx OS_LOCK_T;
 typedef struct sema OS_SEMA_LOCK_T;

@@ -104,7 +104,7 @@ acpi_rapidstart_attach(device_t dev)
 	return (0);
 }
 
-static int 
+static int
 sysctl_acpi_rapidstart_gen_handler(SYSCTL_HANDLER_ARGS)
 {
 	device_t	dev = arg1;

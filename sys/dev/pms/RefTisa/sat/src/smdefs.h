@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 *
 * $FreeBSD$
@@ -57,14 +57,14 @@ enum sm_locks_e
 #define UNKNOWN_DEVICE                            0xFF
 
 /*
- *  FIS type 
+ *  FIS type
  */
 #define PIO_SETUP_DEV_TO_HOST_FIS   0x5F
-#define REG_DEV_TO_HOST_FIS         0x34 
+#define REG_DEV_TO_HOST_FIS         0x34
 #define SET_DEV_BITS_FIS            0xA1
 
-/* 
- * ATA Command code 
+/*
+ * ATA Command code
  */
 #define SAT_READ_FPDMA_QUEUED                 0x60
 #define SAT_READ_DMA_EXT                      0x25
@@ -97,8 +97,8 @@ enum sm_locks_e
 #define SAT_READ_BUFFER                       0xE4
 #define SAT_WRITE_BUFFER                      0xE8
 
-/* 
- * ATAPI Command code 
+/*
+ * ATAPI Command code
 */
 #define SAT_IDENTIFY_PACKET_DEVICE            0xA1
 #define SAT_PACKET                            0xA0
@@ -106,8 +106,8 @@ enum sm_locks_e
 #define SAT_EXECUTE_DEVICE_DIAGNOSTIC         0x90
 
 
-/* 
- * ATA Status Register Mask 
+/*
+ * ATA Status Register Mask
  */
 #define ERR_ATA_STATUS_MASK                   0x01    /* Error/check bit  */
 #define DRQ_ATA_STATUS_MASK                   0x08    /* Data Request bit */
@@ -115,8 +115,8 @@ enum sm_locks_e
 #define DRDY_ATA_STATUS_MASK                  0x40    /* Device Ready bit */
 #define BSY_ATA_STATUS_MASK                   0x80    /* Busy bit         */
 
-/* 
- * ATA Error Register Mask 
+/*
+ * ATA Error Register Mask
  */
 #define NM_ATA_ERROR_MASK                     0x02    /* No media present bit         */
 #define ABRT_ATA_ERROR_MASK                   0x04    /* Command aborted bit          */
@@ -193,7 +193,7 @@ typedef struct satReadLogExtSelfTest_s
 } satReadLogExtSelfTest_t;
 
 /*
- * SMART READ LOG Self-test log 
+ * SMART READ LOG Self-test log
  * ATA Table60 p296
  */
 typedef struct satSmartReadLogSelfTest_s
@@ -202,7 +202,7 @@ typedef struct satSmartReadLogSelfTest_s
 } satSmartReadLogSelfTest_t;
 
 
-/* 
+/*
  * Flag definition for satIntFlag field in smSatInternalIo_t.
  */
 
@@ -315,10 +315,10 @@ typedef struct satSmartReadLogSelfTest_s
 #define SCSI_REASSIGN_BLOCKS_LONGLBA_MASK        0x02
 
 
-#define SENSE_DATA_LENGTH                        0x12 /* 18 */    
+#define SENSE_DATA_LENGTH                        0x12 /* 18 */
 #define SELFTEST_RESULTS_LOG_PAGE_LENGTH         404
 #define INFORMATION_EXCEPTIONS_LOG_PAGE_LENGTH   11
-#define ZERO_MEDIA_SERIAL_NUMBER_LENGTH          8                  
+#define ZERO_MEDIA_SERIAL_NUMBER_LENGTH          8
 
 #define LOG_SENSE_0 0
 #define LOG_SENSE_1 1
@@ -452,7 +452,7 @@ typedef struct satSmartReadLogSelfTest_s
 #define SCSIOPC_READ_10             0x28
 #define SCSIOPC_READ_12             0xA8
 #define SCSIOPC_READ_16             0x88
-#define SCSIOPC_WRITE_6             0x0A 
+#define SCSIOPC_WRITE_6             0x0A
 #define SCSIOPC_WRITE_10            0x2A
 #define SCSIOPC_WRITE_12            0xAA
 #define SCSIOPC_WRITE_16            0x8A
@@ -513,9 +513,9 @@ typedef struct satSmartReadLogSelfTest_s
 
 /* for debugging print */
 #if defined(SM_DEBUG)
-  
+
 /*
-* for debugging purposes.  
+* for debugging purposes.
 */
 extern bit32 gSMDebugLevel;
 
@@ -543,7 +543,7 @@ extern bit32 gSMDebugLevel;
 //#define tdsmLogDebugString TIDEBUG_MSG
 
 /*
- * SAT specific structure per SATA drive 
+ * SAT specific structure per SATA drive
  */
 #define SAT_NONNCQ_MAX  1
 #define SAT_NCQ_MAX     32
@@ -578,7 +578,7 @@ extern bit32 gSMDebugLevel;
 
 #define OSSA_OFFSET_OF(STRUCT_TYPE, FEILD)              \
         (bitptr)&(((STRUCT_TYPE *)0)->FEILD)
-        
+
 
 #if defined(SA_CPU_LITTLE_ENDIAN)
 
@@ -590,14 +590,14 @@ extern bit32 gSMDebugLevel;
 
 #define OSSA_READ_LE_16(AGROOT, ADDR16, DMA_ADDR, OFFSET)       \
         (*((bit16 *)ADDR16)) = (*((bit16 *)(((bit8 *)DMA_ADDR)+(OFFSET))))
-    
+
 #define OSSA_READ_LE_32(AGROOT, ADDR32, DMA_ADDR, OFFSET)       \
         (*((bit32 *)ADDR32)) = (*((bit32 *)(((bit8 *)DMA_ADDR)+(OFFSET))))
 
 #define OSSA_WRITE_BE_16(AGROOT, DMA_ADDR, OFFSET, VALUE16)     \
         (*((bit8 *)(((bit8 *)DMA_ADDR)+(OFFSET))))   = (bit8)((((bit16)VALUE16)>>8)&0xFF);  \
         (*((bit8 *)(((bit8 *)DMA_ADDR)+(OFFSET)+1))) = (bit8)(((bit16)VALUE16)&0xFF);
-     
+
 #define OSSA_WRITE_BE_32(AGROOT, DMA_ADDR, OFFSET, VALUE32)     \
         (*((bit8 *)(((bit8 *)DMA_ADDR)+(OFFSET))))   = (bit8)((((bit32)VALUE32)>>24)&0xFF); \
         (*((bit8 *)(((bit8 *)DMA_ADDR)+(OFFSET)+1))) = (bit8)((((bit32)VALUE32)>>16)&0xFF); \
@@ -731,21 +731,21 @@ extern bit32 gSMDebugLevel;
 #define BIT32_TO_BEBIT32(_x)   (_x)
 #endif
 
-#else  
+#else
 
 #error No definition of SA_CPU_BIG_ENDIAN or SA_CPU_LITTLE_ENDIAN
 
-#endif 
+#endif
 
 
-/* 
+/*
  * Task Management task used in tiINITaskManagement()
  *
  * 1 SM_ABORT TASK - aborts the task identified by the Referenced  Task Tag field.
- * 2 SM_ABORT TASK SET - aborts all Tasks issued by this initiator on the Logical Unit 
+ * 2 SM_ABORT TASK SET - aborts all Tasks issued by this initiator on the Logical Unit
  * 3 SM_CLEAR ACA - clears the Auto Contingent Allegiance condition.
  * 4 SM_CLEAR TASK SET - Aborts all Tasks (from all initiators) for the Logical Unit.
- * 5 SM_LOGICAL UNIT RESET 
+ * 5 SM_LOGICAL UNIT RESET
  * 6 SM_TARGET WARM RESET  - iSCSI only
  * 7 SM_TARGET_COLD_RESET  - iSCSI only
  * 8 SM_TASK_REASSIGN      - iSCSI only
@@ -800,7 +800,7 @@ typedef struct smpReqPhyControl_s
 
 typedef struct smSMPFrameHeader_s
 {
-    bit8   smpFrameType;      /* The first byte of SMP frame represents the SMP FRAME TYPE */ 
+    bit8   smpFrameType;      /* The first byte of SMP frame represents the SMP FRAME TYPE */
     bit8   smpFunction;       /* The second byte of the SMP frame represents the SMP FUNCTION */
     bit8   smpFunctionResult; /* The third byte of SMP frame represents FUNCTION RESULT of the SMP response. */
     bit8   smpReserved;       /* reserved */

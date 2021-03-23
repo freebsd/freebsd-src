@@ -244,13 +244,13 @@ static struct mbuf * rsu_rx_multi_frame(struct rsu_softc *, uint8_t *, int);
 static struct mbuf *
 		rsu_rxeof(struct usb_xfer *, struct rsu_data *);
 static void	rsu_txeof(struct usb_xfer *, struct rsu_data *);
-static int	rsu_raw_xmit(struct ieee80211_node *, struct mbuf *, 
+static int	rsu_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		    const struct ieee80211_bpf_params *);
 static void	rsu_rxfilter_init(struct rsu_softc *);
 static void	rsu_rxfilter_set(struct rsu_softc *, uint32_t, uint32_t);
 static void	rsu_rxfilter_refresh(struct rsu_softc *);
 static int	rsu_init(struct rsu_softc *);
-static int	rsu_tx_start(struct rsu_softc *, struct ieee80211_node *, 
+static int	rsu_tx_start(struct rsu_softc *, struct ieee80211_node *,
 		    struct mbuf *, struct rsu_data *);
 static int	rsu_transmit(struct ieee80211com *, struct mbuf *);
 static void	rsu_start(struct rsu_softc *);
@@ -460,7 +460,7 @@ rsu_attach(device_t self)
 	mtx_init(&sc->sc_mtx, device_get_nameunit(self), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	RSU_DELKEY_BMAP_LOCK_INIT(sc);
-	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->calib_task, 0, 
+	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->calib_task, 0,
 	    rsu_calib_task, sc);
 	TASK_INIT(&sc->del_key_task, 0, rsu_delete_key_pair_cb, sc);
 	TASK_INIT(&sc->tx_task, 0, rsu_tx_task, sc);
@@ -485,7 +485,7 @@ rsu_attach(device_t self)
 	    rsu_config, RSU_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(sc->sc_dev,
-		    "could not allocate USB transfers, err=%s\n", 
+		    "could not allocate USB transfers, err=%s\n",
 		    usbd_errstr(error));
 		goto fail_usb;
 	}
@@ -604,7 +604,7 @@ rsu_attach(device_t self)
 	ic->ic_wme.wme_update = rsu_wme_update;
 
 	ieee80211_radiotap_attach(ic, &sc->sc_txtap.wt_ihdr,
-	    sizeof(sc->sc_txtap), RSU_TX_RADIOTAP_PRESENT, 
+	    sizeof(sc->sc_txtap), RSU_TX_RADIOTAP_PRESENT,
 	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
 	    RSU_RX_RADIOTAP_PRESENT);
 
@@ -791,7 +791,7 @@ rsu_set_channel(struct ieee80211com *ic)
 	/*
 	 * Only need to set the channel in Monitor mode. AP scanning and auth
 	 * are already taken care of by their respective firmware commands.
-	 */	
+	 */
 	if (ic->ic_opmode == IEEE80211_M_MONITOR) {
 		struct r92s_set_channel cmd;
 		int error;
@@ -2746,7 +2746,7 @@ rsu_bulk_tx_callback_h2c(struct usb_xfer *xfer, usb_error_t error)
  * This doesn't free the node or mbuf upon failure.
  */
 static int
-rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni, 
+rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
     struct mbuf *m0, struct rsu_data *data)
 {
 	const struct ieee80211_txparam *tp = ni->ni_txparms;
@@ -2911,7 +2911,7 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 }
 
 static int
-rsu_transmit(struct ieee80211com *ic, struct mbuf *m)   
+rsu_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
 	struct rsu_softc *sc = ic->ic_softc;
 	int error;
@@ -3363,7 +3363,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	RSU_UNLOCK(sc);
 	/* Read firmware image from the filesystem. */
 	if ((fw = firmware_get("rsu-rtl8712fw")) == NULL) {
-		device_printf(sc->sc_dev, 
+		device_printf(sc->sc_dev,
 		    "%s: failed load firmware of file rsu-rtl8712fw\n",
 		    __func__);
 		RSU_LOCK(sc);
@@ -3457,7 +3457,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	rsu_write_2(sc, R92S_SYS_FUNC_EN,
 	    rsu_read_2(sc, R92S_SYS_FUNC_EN) | R92S_FEN_CPUEN);
 	if (!(rsu_read_2(sc, R92S_SYS_FUNC_EN) & R92S_FEN_CPUEN)) {
-		device_printf(sc->sc_dev, 
+		device_printf(sc->sc_dev,
 		    "could not enable microcontroller\n");
 		error = EIO;
 		goto fail;
@@ -3517,7 +3517,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 		rsu_ms_delay(sc, 1);
 	}
 	if (ntries == 60) {
-		device_printf(sc->sc_dev, 
+		device_printf(sc->sc_dev,
 		    "timeout waiting for firmware readiness\n");
 		error = ETIMEDOUT;
 		goto fail;
@@ -3527,8 +3527,8 @@ rsu_load_firmware(struct rsu_softc *sc)
 	return (error);
 }
 
-static int	
-rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m, 
+static int
+rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
     const struct ieee80211_bpf_params *params)
 {
 	struct ieee80211com *ic = ni->ni_ic;

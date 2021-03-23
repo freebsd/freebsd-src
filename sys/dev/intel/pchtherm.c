@@ -116,13 +116,13 @@ static int pchtherm_tltemp_sysctl(SYSCTL_HANDLER_ARGS)
 	struct pchtherm_softc *sc = oidp->oid_arg1;
 	int regshift = oidp->oid_arg2;
 	int temp;
-	
+
 	temp = bus_read_4(sc->tbar, PCHTHERM_REG_TL);
 	temp >>= regshift;
 	temp = PCHTHERM_TEMP_TO_IK(temp);
-	
+
 	return sysctl_handle_int(oidp, &temp, 0, req);
-}	
+}
 static int pchtherm_temp_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct pchtherm_softc *sc = oidp->oid_arg1;
@@ -131,7 +131,7 @@ static int pchtherm_temp_sysctl(SYSCTL_HANDLER_ARGS)
 
 	temp = bus_read_2(sc->tbar, regoff);
 	temp = PCHTHERM_TEMP_TO_IK(temp);
-	
+
 	return sysctl_handle_int(oidp, &temp, 0, req);
 }
 
@@ -169,7 +169,7 @@ static int pchtherm_attach(device_t dev)
 			}
 		}
 	}
-	
+
 	sc->ctten = bus_read_1(sc->tbar, PCHTHERM_REG_TSC);
 	if (bootverbose) {
 		FLAG_PRINT(dev, "Catastrophic Power Down", sc->ctten);
@@ -211,7 +211,7 @@ static int pchtherm_attach(device_t dev)
 		device_printf(dev, "Throttling %b\n",
 			      flag, "\20\3Lock\2TT13EN\1TTEN");
 	}
-	
+
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 			OID_AUTO, "t0temp", CTLTYPE_INT |CTLFLAG_RD,
@@ -258,7 +258,7 @@ static int pchtherm_attach(device_t dev)
 			pchtherm_temp_sysctl, "IK", "Current temperature");
 	/*
 	 * If sensor enable bit is locked down, there is no way to change
-	 * alart values effectively. 
+	 * alart values effectively.
 	 */
 	if (!(sc->enable & PCHTHERM_GEN_LOCKDOWN) ||
 	    bus_read_2(sc->tbar, PCHTHERM_REG_TAHV) != 0) {
@@ -269,7 +269,7 @@ static int pchtherm_attach(device_t dev)
 				pchtherm_temp_sysctl, "IK",
 				"Alart High temperature");
 	}
-	   
+
 	if (!(sc->enable & PCHTHERM_GEN_LOCKDOWN) ||
 	    bus_read_2(sc->tbar, PCHTHERM_REG_TALV) != 0) {
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
@@ -289,7 +289,7 @@ static int pchtherm_attach(device_t dev)
 				pchtherm_temp_sysctl, "IK",
 				"Catastrophic Trip Point");
 	}
-		
+
 	return 0;
 }
 static int pchtherm_detach(device_t dev)

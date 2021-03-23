@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
  * Example:
  *
  *	iicbus
- *	 /  \ 
+ *	 /  \
  *    iicbb pcf
  *     |  \
  *   bti2c lpbb

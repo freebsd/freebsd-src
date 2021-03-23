@@ -66,37 +66,37 @@ hpt_set_asc_info(IAL_ADAPTER_T *pAdapter, char *buffer,int length)
 	struct cam_periph *periph = NULL;
 
 	mtx_lock(&pAdapter->lock);
-#ifdef SUPPORT_ARRAY	
-	if (length>=8 && strncmp(buffer, "rebuild ", 8)==0) 
+#ifdef SUPPORT_ARRAY
+	if (length>=8 && strncmp(buffer, "rebuild ", 8)==0)
 	{
 		buffer+=8;
 		length-=8;
-		if (length>=5 && strncmp(buffer, "start", 5)==0) 
+		if (length>=5 && strncmp(buffer, "start", 5)==0)
 		{
 			for(i = 0; i < MAX_ARRAY_PER_VBUS; i++)
 				if ((pArray=ArrayTables(i))->u.array.dArStamp==0)
-					continue; 
+					continue;
 				else{
 					if (pArray->u.array.rf_need_rebuild && !pArray->u.array.rf_rebuilding)
-	                    hpt_queue_dpc((HPT_DPC)hpt_rebuild_data_block, pAdapter, pArray, 
+	                    hpt_queue_dpc((HPT_DPC)hpt_rebuild_data_block, pAdapter, pArray,
 							(UCHAR)((pArray->u.array.CriticalMembers || pArray->VDeviceType == VD_RAID_1)? DUPLICATE : REBUILD_PARITY));
 				}
 			mtx_unlock(&pAdapter->lock);
 			return orig_length;
 		}
-		else if (length>=4 && strncmp(buffer, "stop", 4)==0) 
+		else if (length>=4 && strncmp(buffer, "stop", 4)==0)
 		{
 			for(i = 0; i < MAX_ARRAY_PER_VBUS; i++)
 				if ((pArray=ArrayTables(i))->u.array.dArStamp==0)
-					continue; 
+					continue;
 				else{
 					if (pArray->u.array.rf_rebuilding)
 					    pArray->u.array.rf_abort_rebuild = 1;
 				}
 			mtx_unlock(&pAdapter->lock);
 			return orig_length;
-		}	
-		else if (length>=3 && buffer[1]==','&& buffer[0]>='1'&& buffer[2]>='1')	
+		}
+		else if (length>=3 && buffer[1]==','&& buffer[0]>='1'&& buffer[2]>='1')
 		{
 			iarray = buffer[0]-'1';
 	        ichan = buffer[2]-'1';
@@ -132,11 +132,11 @@ rebuild:
 					{
 						hpt_printk(("Can not use disk used by OS!\n"));
 			    mtx_unlock(&pAdapter->lock);
-	                    return -EINVAL;	
+	                    return -EINVAL;
 					}
 					/* the Mounted Disk isn't delete */
-				} 
-			
+				}
+
 			switch(pArray->VDeviceType)
 			{
 				case VD_RAID_1:
@@ -154,7 +154,7 @@ loop:
 					break;
 				}
 				case VD_RAID_0:
-					for (i = 0; (UCHAR)i < pArray->u.array.bArnMember; i++) 
+					for (i = 0; (UCHAR)i < pArray->u.array.bArnMember; i++)
 						if(pArray->u.array.pMember[i] && mIsArray(pArray->u.array.pMember[i]) &&
 						   (pArray->u.array.pMember[i]->u.array.rf_broken == 1))
 						{
@@ -173,11 +173,11 @@ loop:
 	{
 		buffer+=7;
 		length-=7;
-        if (length>=6 && strncmp(buffer, "start ", 6)==0) 
+        if (length>=6 && strncmp(buffer, "start ", 6)==0)
 		{
             buffer+=6;
 		    length-=6;
-            if (length>=1 && *buffer>='1') 
+            if (length>=1 && *buffer>='1')
 			{
 				iarray = *buffer-'1';
 				if(iarray >= MAX_VDEVICE_PER_VBUS) {
@@ -190,7 +190,7 @@ loop:
 					mtx_unlock(&pAdapter->lock);
 					return -EINVAL;
 				}
-				
+
 				if(pArray->VDeviceType != VD_RAID_1 && pArray->VDeviceType != VD_RAID_5) {
 					mtx_unlock(&pAdapter->lock);
 					return -EINVAL;
@@ -212,7 +212,7 @@ loop:
 		{
 			buffer+=5;
 		    length-=5;
-            if (length>=1 && *buffer>='1') 
+            if (length>=1 && *buffer>='1')
 			{
 				iarray = *buffer-'1';
 				if(iarray >= MAX_VDEVICE_PER_VBUS) {
@@ -225,7 +225,7 @@ loop:
 					mtx_unlock(&pAdapter->lock);
 					return -EINVAL;
 				}
-				if(pArray->u.array.rf_verifying) 
+				if(pArray->u.array.rf_verifying)
 				{
 				    pArray->u.array.rf_abort_rebuild = 1;
 				}
@@ -271,7 +271,7 @@ loop:
 }
 
 /*
- * Since we have only one sysctl node, add adapter ID in the command 
+ * Since we have only one sysctl node, add adapter ID in the command
  * line string: e.g. "hpt 0 rebuild start"
  */
 static int
@@ -296,11 +296,11 @@ hpt_set_info(int length)
 			}
 			return -EINVAL;
 		}
-#ifdef SUPPORT_IOCTL	
+#ifdef SUPPORT_IOCTL
 		piop = (PHPT_IOCTL_PARAM)buffer;
-		if (piop->Magic == HPT_IOCTL_MAGIC || 
+		if (piop->Magic == HPT_IOCTL_MAGIC ||
 			piop->Magic == HPT_IOCTL_MAGIC32) 	{
-			KdPrintE(("ioctl=%d in=%p len=%d out=%p len=%d\n", 
+			KdPrintE(("ioctl=%d in=%p len=%d out=%p len=%d\n",
 				piop->dwIoControlCode,
         			piop->lpInBuffer,
         			piop->nInBufferSize,
@@ -316,7 +316,7 @@ hpt_set_info(int length)
         			KdPrintE(("User buffer too large\n"));
         			return -EINVAL;
         		}
-        		
+
         		ke_area = malloc(piop->nInBufferSize+piop->nOutBufferSize, M_DEVBUF, M_NOWAIT);
 				if (ke_area == NULL) {
 					KdPrintE(("Couldn't allocate kernel mem.\n"));
@@ -333,18 +333,18 @@ hpt_set_info(int length)
 
 			/*
 			  * call kernel handler.
-			  */    
+			  */
 			err = Kernel_DeviceIoControl(&gIal_Adapter->VBus,
 				piop->dwIoControlCode, ke_area, piop->nInBufferSize,
-				ke_area + piop->nInBufferSize, piop->nOutBufferSize, &dwRet);    
-			
+				ke_area + piop->nInBufferSize, piop->nOutBufferSize, &dwRet);
+
 			if (err==0) {
 				if (piop->nOutBufferSize)
 					copyout(ke_area + piop->nInBufferSize, (void*)(ULONG_PTR)piop->lpOutBuffer, piop->nOutBufferSize);
-				
+
 				if (piop->lpBytesReturned)
 					copyout(&dwRet, (void*)(ULONG_PTR)piop->lpBytesReturned, sizeof(DWORD));
-			
+
 				free(ke_area, M_DEVBUF);
 				return length;
 			}
@@ -370,23 +370,23 @@ get_disk_name(char *name, PDevice pDev)
 	int i;
 	MV_SATA_CHANNEL *pMvSataChannel = pDev->mv;
 	IDENTIFY_DATA2 *pIdentifyData = (IDENTIFY_DATA2 *)pMvSataChannel->identifyDevice;
-	
-	for (i = 0; i < 10; i++) 
+
+	for (i = 0; i < 10; i++)
 		((WORD*)name)[i] = shortswap(pIdentifyData->ModelNumber[i]);
 	name[20] = '\0';
 }
 
 static int
-hpt_copy_info(HPT_GET_INFO *pinfo, char *fmt, ...) 
+hpt_copy_info(HPT_GET_INFO *pinfo, char *fmt, ...)
 {
 	int printfretval;
 	va_list ap;
-	
+
 	if(fmt == NULL) {
 		*hptproc_buffer = 0;
 		return (SYSCTL_OUT(pinfo, hptproc_buffer, 1));
 	}
-	else 
+	else
 	{
 		va_start(ap, fmt);
 		printfretval = vsnprintf(hptproc_buffer, sizeof(hptproc_buffer), fmt, ap);
@@ -401,7 +401,7 @@ hpt_copy_disk_info(HPT_GET_INFO *pinfo, PVDevice pVDev, UINT iChan)
 	char name[32], arrayname[16], *status;
 
 	get_disk_name(name, &pVDev->u.disk);
-	
+
 	if (!pVDev->u.disk.df_on_line)
 		status = "Disabled";
 	else if (pVDev->VDeviceType==VD_SPARE)
@@ -418,9 +418,9 @@ hpt_copy_disk_info(HPT_GET_INFO *pinfo, PVDevice pVDev, UINT iChan)
 	else
 #endif
 		arrayname[0]=0;
-	
+
 	hpt_copy_info(pinfo, "Channel %d  %s  %5dMB  %s %s\n",
-		iChan+1, 
+		iChan+1,
 		name, pVDev->VDeviceCapacity>>11, status, arrayname);
 }
 
@@ -435,7 +435,7 @@ hpt_copy_array_info(HPT_GET_INFO *pinfo, int nld, PVDevice pArray)
 
 	switch (pArray->VDeviceType) {
 		case VD_RAID_0:
-			for (i = 0; (UCHAR)i < pArray->u.array.bArnMember; i++) 
+			for (i = 0; (UCHAR)i < pArray->u.array.bArnMember; i++)
 		  		if(pArray->u.array.pMember[i])	{
 			  		if(mIsArray(pArray->u.array.pMember[i]))
 				 		sType = "RAID 1/0   ";
@@ -445,41 +445,41 @@ hpt_copy_array_info(HPT_GET_INFO *pinfo, int nld, PVDevice pArray)
 			  		break;
 		  		}
 			break;
-			
+
 		case VD_RAID_1:
 			sType = "RAID 1     ";
 			break;
-			
+
 		case VD_JBOD:
 			sType = "JBOD       ";
 			break;
-			
+
 		case VD_RAID_5:
        		sType = "RAID 5     ";
 			break;
-			
+
 		default:
 			sType = "N/A        ";
 			break;
 	}
-	
+
 	if (pArray->vf_online == 0)
 		sStatus = "Disabled";
 	else if (pArray->u.array.rf_broken)
 		sStatus = "Critical";
 	for (i = 0; (UCHAR)i < pArray->u.array.bArnMember; i++)
 	{
-		if (!sStatus) 
+		if (!sStatus)
 		{
 			if(mIsArray(pArray->u.array.pMember[i]))
                 		pTmpArray = pArray->u.array.pMember[i];
 			else
 			   	pTmpArray = pArray;
-			
+
 			if (pTmpArray->u.array.rf_rebuilding) {
 #ifdef DEBUG
 				sprintf(buf, "Rebuilding %lldMB", (pTmpArray->u.array.RebuildSectors>>11));
-#else 
+#else
 				sprintf(buf, "Rebuilding %d%%", (UINT)((pTmpArray->u.array.RebuildSectors>>11)*100/((pTmpArray->VDeviceCapacity/(pTmpArray->u.array.bArnMember-1))>>11)));
 #endif
 				sStatus = buf;
@@ -492,13 +492,13 @@ hpt_copy_array_info(HPT_GET_INFO *pinfo, int nld, PVDevice pArray)
 				sStatus = "Critical";
 			else if (pTmpArray->u.array.rf_broken)
 				sStatus = "Critical";
-			
+
 			if(pTmpArray == pArray) goto out;
 		}
 		else
 			goto out;
 	}
-out:	
+out:
 	if (!sStatus) sStatus = "Normal";
 	hpt_copy_info(pinfo, "%2d  %11s  %-20s  %5lldMB  %-16s", nld, sType, pArray->u.array.ArrayName, pArray->VDeviceCapacity>>11, sStatus);
 }
@@ -522,7 +522,7 @@ hpt_get_info(IAL_ADAPTER_T *pAdapter, HPT_GET_INFO *pinfo)
 #endif
 
 	hpt_copy_info(pinfo, "Controller #%d:\n\n", pAdapter->mvSataAdapter.adapterId);
-	
+
 	hpt_copy_info(pinfo, "Physical device list\n");
 	hpt_copy_info(pinfo, "Channel    Model                Capacity  Status   Array\n");
 	hpt_copy_info(pinfo, "-------------------------------------------------------------------\n");
@@ -533,7 +533,7 @@ hpt_get_info(IAL_ADAPTER_T *pAdapter, HPT_GET_INFO *pinfo)
 		if(pVDev->u.disk.df_on_line)
 			 hpt_copy_disk_info(pinfo, pVDev, channel);
 	}
-	
+
 	hpt_copy_info(pinfo, "\nLogical device list\n");
 	hpt_copy_info(pinfo, "No. Type         Name                 Capacity  Status            OsDisk\n");
 	hpt_copy_info(pinfo, "--------------------------------------------------------------------------\n");
@@ -557,13 +557,13 @@ hpt_get_info(IAL_ADAPTER_T *pAdapter, HPT_GET_INFO *pinfo)
 #ifdef SUPPORT_ARRAY
 				if (pVDev->pParent)
 					/* in this case, pVDev can only be a RAID 1 source disk. */
-					if (pVDev->pParent->VDeviceType==VD_RAID_1 && pVDev==pVDev->pParent->u.array.pMember[0]) 
+					if (pVDev->pParent->VDeviceType==VD_RAID_1 && pVDev==pVDev->pParent->u.array.pMember[0])
 						goto is_array;
 #endif
 				get_disk_name(name, &pVDev->u.disk);
-				
+
 				hpt_copy_info(pinfo, "%2d  %s  %s  %5dMB  %-16s",
-					j, "Single disk", name, pVDev->VDeviceCapacity>>11, 
+					j, "Single disk", name, pVDev->VDeviceCapacity>>11,
 					/* gmm 2001-6-19: Check if pDev has been added to an array. */
 					((pVDev->pParent) ? "Unavailable" : "Normal"));
 			}
@@ -602,16 +602,16 @@ hpt_status(SYSCTL_HANDLER_ARGS)
 	IAL_ADAPTER_T *pAdapter;
 
 	error = hpt_proc_in(oidp, arg1, arg2, req, &length);
-	
-    if (req->newptr != NULL) 	
+
+    if (req->newptr != NULL)
 	{
-		if (error || length == 0) 	
+		if (error || length == 0)
 		{
     		KdPrint(("error!\n"));
     		retval = EINVAL;
     		goto out;
 		}
-    		
+
 		if (hpt_set_info(length) >= 0)
 			retval = 0;
 		else
@@ -626,7 +626,7 @@ hpt_status(SYSCTL_HANDLER_ARGS)
 			break;
 		}
 	}
-	
+
 	hpt_copy_info(req, NULL);
 	goto out;
 
@@ -651,5 +651,5 @@ out:
 	CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, \
 	NULL, 0, hpt_status, "A", "Get/Set " #name " state")
 #endif
-	
+
 xhptregister_node(PROC_DIR_NAME);

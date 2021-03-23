@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  */
 
 #ifndef __ECORE_HSI_FCOE__
-#define __ECORE_HSI_FCOE__ 
+#define __ECORE_HSI_FCOE__
 /****************************************/
 /* Add include to common storage target */
 /****************************************/
@@ -1284,7 +1284,7 @@ struct e5_fcoe_conn_context
 };
 
 /*
- * FCoE connection offload params passed by driver to FW in FCoE offload ramrod 
+ * FCoE connection offload params passed by driver to FW in FCoE offload ramrod
  */
 struct fcoe_conn_offload_ramrod_params
 {
@@ -1292,7 +1292,7 @@ struct fcoe_conn_offload_ramrod_params
 };
 
 /*
- * FCoE connection terminate params passed by driver to FW in FCoE terminate conn ramrod 
+ * FCoE connection terminate params passed by driver to FW in FCoE terminate conn ramrod
  */
 struct fcoe_conn_terminate_ramrod_params
 {
@@ -1314,7 +1314,7 @@ enum fcoe_event_type
 };
 
 /*
- * FCoE init params passed by driver to FW in FCoE init ramrod 
+ * FCoE init params passed by driver to FW in FCoE init ramrod
  */
 struct fcoe_init_ramrod_params
 {
@@ -1322,7 +1322,7 @@ struct fcoe_init_ramrod_params
 };
 
 /*
- * FCoE ramrod Command IDs 
+ * FCoE ramrod Command IDs
  */
 enum fcoe_ramrod_cmd_id
 {
@@ -1335,7 +1335,7 @@ enum fcoe_ramrod_cmd_id
 };
 
 /*
- * FCoE statistics params buffer passed by driver to FW in FCoE statistics ramrod 
+ * FCoE statistics params buffer passed by driver to FW in FCoE statistics ramrod
  */
 struct fcoe_stat_ramrod_params
 {

@@ -218,7 +218,7 @@ void scif_cb_controller_free_memory(SCI_CONTROLLER_HANDLE_T controller,
 	 * Put the buffer back into the controller's buffer pool, rather
 	 * than invoking configfree.  This helps reduce chance we won't
 	 * have buffers available when system is under memory pressure.
-	 */ 
+	 */
 	sci_pool_put(isci_controller->unmap_buffer_pool,
 	    mde->virtual_address);
 }
@@ -282,7 +282,7 @@ static void isci_led_fault_func(void *priv, int onoff)
 
 	/* map onoff to the fault LED */
 	phy->led_fault = onoff;
-	scic_sgpio_update_led_state(phy->handle, 1 << phy->index, 
+	scic_sgpio_update_led_state(phy->handle, 1 << phy->index,
 		phy->led_fault, phy->led_locate, 0);
 }
 
@@ -292,7 +292,7 @@ static void isci_led_locate_func(void *priv, int onoff)
 
 	/* map onoff to the locate LED */
 	phy->led_locate = onoff;
-	scic_sgpio_update_led_state(phy->handle, 1 << phy->index, 
+	scic_sgpio_update_led_state(phy->handle, 1 << phy->index,
 		phy->led_fault, phy->led_locate, 0);
 }
 
@@ -396,7 +396,7 @@ SCI_STATUS isci_controller_initialize(struct ISCI_CONTROLLER *controller)
 		sprintf(led_name, "isci.bus%d.port%d.fault", controller->index, i);
 		controller->phys[i].cdev_fault = led_create(isci_led_fault_func,
 		    &controller->phys[i], led_name);
-			
+
 		/* locate */
 		controller->phys[i].led_locate = 0;
 		sprintf(led_name, "isci.bus%d.port%d.locate", controller->index, i);

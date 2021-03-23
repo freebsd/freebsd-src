@@ -948,7 +948,7 @@ tw_osli_fw_passthru(struct twa_softc *sc, TW_INT8 *buf)
 	TW_INT32				error;
 
 	tw_osli_dbg_dprintf(5, sc, "ioctl: passthru");
-		
+
 	if ((req = tw_osli_get_request(sc)) == NULL)
 		return(EBUSY);
 
@@ -964,7 +964,7 @@ tw_osli_fw_passthru(struct twa_softc *sc, TW_INT8 *buf)
 
 	pt_req = &(req_pkt->gen_req_pkt.pt_req);
 	/*
-	 * Make sure that the data buffer sent to firmware is a 
+	 * Make sure that the data buffer sent to firmware is a
 	 * 512 byte multiple in size.
 	 */
 	data_buf_size_adjusted =
@@ -984,7 +984,7 @@ tw_osli_fw_passthru(struct twa_softc *sc, TW_INT8 *buf)
 			goto fw_passthru_err;
 		}
 		/* Copy the payload. */
-		if ((error = copyin((TW_VOID *)(user_buf->pdata), 
+		if ((error = copyin((TW_VOID *)(user_buf->pdata),
 			req->data,
 			user_buf->driver_pkt.buffer_length)) != 0) {
 			tw_osli_printf(sc, "error = %d",
@@ -1073,7 +1073,7 @@ tw_osli_fw_passthru(struct twa_softc *sc, TW_INT8 *buf)
 			 * unmapped by the callback.
 			 */
 		}
-		/* 
+		/*
 		 * Either the request got completed, or we were woken up by a
 		 * signal.  Calculate the new timeout, in case it was the latter.
 		 */
@@ -1276,7 +1276,7 @@ twa_map_load_data_callback(TW_VOID *arg, bus_dma_segment_t *segs,
 				BUS_DMASYNC_PREREAD);
 
 		if (req->flags & TW_OSLI_REQ_FLAGS_DATA_OUT) {
-			/* 
+			/*
 			 * If we're using an alignment buffer, and we're
 			 * writing data, copy the real data out.
 			 */
@@ -1299,7 +1299,7 @@ twa_map_load_data_callback(TW_VOID *arg, bus_dma_segment_t *segs,
 				BUS_DMASYNC_PREREAD);
 
 		if (req->flags & TW_OSLI_REQ_FLAGS_DATA_OUT) {
-			/* 
+			/*
 			 * If we're using an alignment buffer, and we're
 			 * writing data, copy the real data out.
 			 */
@@ -1432,7 +1432,7 @@ tw_osli_map_request(struct tw_osli_req_context *req)
 				twa_map_load_data_callback, req,
 				BUS_DMA_WAITOK);
 		}
-		
+
 		if (!error)
 			error = req->error_code;
 		else {
@@ -1515,7 +1515,7 @@ tw_osli_unmap_request(struct tw_osli_req_context *req)
 				bus_dmamap_sync(sc->ioctl_tag,
 					sc->ioctl_map, BUS_DMASYNC_POSTREAD);
 
-				/* 
+				/*
 				 * If we are using a bounce buffer, and we are
 				 * reading data, copy the real data in.
 				 */
@@ -1536,7 +1536,7 @@ tw_osli_unmap_request(struct tw_osli_req_context *req)
 				bus_dmamap_sync(sc->dma_tag,
 					req->dma_map, BUS_DMASYNC_POSTREAD);
 
-				/* 
+				/*
 				 * If we are using a bounce buffer, and we are
 				 * reading data, copy the real data in.
 				 */
@@ -1608,7 +1608,7 @@ tw_osli_print_ctlr_stats(struct twa_softc *sc)
 	twa_printf(sc, "busy      %04d     %04d\n",
 		sc->q_stats[TW_OSLI_BUSY_Q].cur_len,
 		sc->q_stats[TW_OSLI_BUSY_Q].max_len);
-}	
+}
 
 /*
  * Function name:	twa_print_req_info

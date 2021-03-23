@@ -130,7 +130,7 @@ chipc_sflash_device_name(chipc_flash type)
  * Initialize child resource @p r with a virtual address, tag, and handle
  * copied from @p parent, adjusted to contain only the range defined by
  * @p offsize and @p size.
- * 
+ *
  * @param r The register to be initialized.
  * @param parent The parent bus resource that fully contains the subregion.
  * @param offset The subregion offset within @p parent.
@@ -216,14 +216,14 @@ chipc_set_irq_resource(struct chipc_softc *sc, device_t child, int rid,
 /**
  * Add a SYS_RES_MEMORY resource with a given resource ID, relative to the
  * given port and region, to @p child's resource list.
- * 
+ *
  * The specified @p region's address and size will be fetched from the bhnd(4)
  * bus, and bus_set_resource() will be called with @p start added the region's
  * actual base address.
- * 
+ *
  * To use the default region values for @p start and @p count, specify
  * a @p start value of 0ul, and an end value of RMAN_MAX_END
- * 
+ *
  * @param sc chipc driver state.
  * @param child The device to set the resource on.
  * @param rid The resource ID.
@@ -310,7 +310,7 @@ chipc_print_caps(device_t dev, struct chipc_caps *caps)
 
 /**
  * Allocate and initialize new region record.
- * 
+ *
  * @param sc Driver instance state.
  * @param type The port type to query.
  * @param port The port number to query.
@@ -387,7 +387,7 @@ chipc_free_region(struct chipc_softc *sc, struct chipc_region *cr)
 /**
  * Locate the region mapping the given range, if any. Returns NULL if no
  * valid region is found.
- * 
+ *
  * @param sc Driver instance state.
  * @param start start of address range.
  * @param end end of address range.
@@ -415,7 +415,7 @@ chipc_find_region(struct chipc_softc *sc, rman_res_t start, rman_res_t end)
 /**
  * Locate a region mapping by its bhnd-assigned resource id (as returned by
  * bhnd_get_port_rid).
- * 
+ *
  * @param sc Driver instance state.
  * @param rid Resource ID to query for.
  */
@@ -442,7 +442,7 @@ chipc_find_region_by_rid(struct chipc_softc *sc, int rid)
 /**
  * Retain a reference to a chipc_region, allocating and activating the
  * backing resource as required.
- * 
+ *
  * @param sc chipc driver instance state
  * @param cr region to retain.
  * @param flags specify RF_ALLOCATED to retain an allocation reference,
@@ -464,7 +464,7 @@ chipc_retain_region(struct chipc_softc *sc, struct chipc_region *cr, int flags)
 			KASSERT(cr->cr_res == NULL,
 			    ("non-NULL resource has refcount"));
 
-			/* Fetch initial resource ID */			
+			/* Fetch initial resource ID */
 			if ((cr->cr_res_rid = cr->cr_rid) == -1) {
 				CHIPC_UNLOCK(sc);
 				return (EINVAL);
@@ -479,7 +479,7 @@ chipc_retain_region(struct chipc_softc *sc, struct chipc_region *cr, int flags)
 				return (ENXIO);
 			}
 		}
-		
+
 		/* Increment allocation refcount */
 		cr->cr_refs++;
 	}
@@ -514,7 +514,7 @@ chipc_retain_region(struct chipc_softc *sc, struct chipc_region *cr, int flags)
 /**
  * Release a reference to a chipc_region, deactivating and releasing the
  * backing resource if the reference count hits zero.
- * 
+ *
  * @param sc chipc driver instance state
  * @param cr region to retain.
  * @param flags specify RF_ALLOCATED to release an allocation reference,

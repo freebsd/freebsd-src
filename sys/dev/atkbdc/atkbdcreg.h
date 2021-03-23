@@ -13,8 +13,8 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote 
- *    products derived from this software without specific prior written 
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior written
  *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -43,9 +43,9 @@
 /* I/O ports */
 #define KBD_STATUS_PORT 	4	/* status port, read */
 #define KBD_COMMAND_PORT	4	/* controller command port, write */
-#define KBD_DATA_PORT		0	/* data port, read/write 
+#define KBD_DATA_PORT		0	/* data port, read/write
 					 * also used as keyboard command
-					 * and mouse command port 
+					 * and mouse command port
 					 */
 
 /* controller commands (sent to KBD_COMMAND_PORT) */
@@ -147,9 +147,9 @@
 
 #define ATKBDC_DRIVER_NAME	"atkbdc"
 
-/* 
+/*
  * driver specific options: the following options may be set by
- * `options' statements in the kernel configuration file. 
+ * `options' statements in the kernel configuration file.
  */
 
 /* retry count */
@@ -214,13 +214,13 @@ typedef struct atkbdc_softc {
 #define KBDC_QUIRK_DISABLE_MUX_PROBE	(1 << 4)
     int aux_mux_enabled;	/* active PS/2 multiplexing is enabled */
     int aux_mux_port;		/* current aux mux port */
-} atkbdc_softc_t; 
+} atkbdc_softc_t;
 
 enum kbdc_device_ivar {
 	KBDC_IVAR_VENDORID,
 	KBDC_IVAR_SERIAL,
 	KBDC_IVAR_LOGICALID,
-	KBDC_IVAR_COMPATID, 
+	KBDC_IVAR_COMPATID,
 };
 
 typedef atkbdc_softc_t *KBDC;

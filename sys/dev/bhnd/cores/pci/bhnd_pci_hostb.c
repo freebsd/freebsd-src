@@ -38,10 +38,10 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Broadcom BHND PCI/PCIe-Gen1 PCI-Host Bridge.
- * 
+ *
  * This driver handles all interactions with PCI bridge cores operating in
  * endpoint mode.
- * 
+ *
  * Host-level PCI operations are handled at the bhndb bridge level by the
  * bhndb_pci driver.
  */
@@ -153,21 +153,21 @@ static const struct bhnd_device_quirk bhnd_pcie_quirks[] = {
 	BHND_A4331_QUIRK(BCM94331X19,	BHND_PCIE_QUIRK_SERDES_TXDRV_MAX |
 					BHND_PCIE_QUIRK_DEFAULT_MRRS_512),
 
-	BHND_A4331_QUIRK(BCM94331X28,	BHND_PCIE_QUIRK_SERDES_TXDRV_MAX | 
+	BHND_A4331_QUIRK(BCM94331X28,	BHND_PCIE_QUIRK_SERDES_TXDRV_MAX |
 					BHND_PCIE_QUIRK_DEFAULT_MRRS_512),
 
 	BHND_A4331_QUIRK(BCM94331X28B,	BHND_PCIE_QUIRK_DEFAULT_MRRS_512),
 
-	BHND_A4331_QUIRK(BCM94331X29B,	BHND_PCIE_QUIRK_SERDES_TXDRV_MAX | 
+	BHND_A4331_QUIRK(BCM94331X29B,	BHND_PCIE_QUIRK_SERDES_TXDRV_MAX |
 					BHND_PCIE_QUIRK_DEFAULT_MRRS_512),
 
 	BHND_A4331_QUIRK(BCM94331X19C,	BHND_PCIE_QUIRK_SERDES_TXDRV_MAX |
 					BHND_PCIE_QUIRK_DEFAULT_MRRS_512),
-	    
+
 	BHND_A4331_QUIRK(BCM94331X29D,	BHND_PCIE_QUIRK_DEFAULT_MRRS_512),
 
 	BHND_A4331_QUIRK(BCM94331X33,	BHND_PCIE_QUIRK_DEFAULT_MRRS_512),
-			 
+
 #undef BHND_A4331_QUIRK
 
 	BHND_DEVICE_QUIRK_END
@@ -310,7 +310,7 @@ bhnd_pci_hostb_resume(device_t dev)
 /**
  * Apply any hardware work-arounds that must be executed exactly once, early in
  * the attach process.
- * 
+ *
  * This must be called after core enumeration and discovery of all applicable
  * quirks, but prior to probe/attach of any cores, parsing of
  * SPROM, etc.
@@ -323,7 +323,7 @@ bhnd_pci_wars_early_once(struct bhnd_pcihb_softc *sc)
 	/* Set PCI latency timer */
 	if (sc->quirks & BHND_PCI_QUIRK_960NS_LATTIM_OVR) {
 		pci_write_config(sc->pci_dev, PCIR_LATTIMER, 0x20 /* 960ns */,
-		    1); 
+		    1);
 	}
 
 	/* Determine whether ASPM/CLKREQ should be forced on, or forced off. */
@@ -334,7 +334,7 @@ bhnd_pci_wars_early_once(struct bhnd_pcihb_softc *sc)
 		/* Fetch board info */
 		if ((error = bhnd_read_board_info(sc->dev, &board)))
 			return (error);
-		
+
 		/* Check board flags */
 		aspm_en = true;
 		if (board.board_flags2 & BHND_BFL2_PCIEWAR_OVR)
@@ -516,7 +516,7 @@ bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc, bhnd_pci_war_state state)
 			cfg |= BHND_PCIE_SRSH_ASPM_ENB;
 		else
 			cfg &= ~BHND_PCIE_SRSH_ASPM_ENB;
-		
+
 		BHND_PCI_WRITE_2(sc, reg, cfg);
 
 		/* Set ASPM/ECPM (CLKREQ) flags in PCIe link control register */
@@ -529,12 +529,12 @@ bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc, bhnd_pci_war_state state)
 
 		cfg &= ~PCIEM_LINK_CTL_ECPM;		/* CLKREQ# */
 
-		pcie_write_config(sc->pci_dev, PCIER_LINK_CTL, cfg, 2); 
+		pcie_write_config(sc->pci_dev, PCIER_LINK_CTL, cfg, 2);
 
 		/* Set CLKREQ (ECPM) flags in SPROM shadow */
 		reg = BHND_PCIE_SPROM_SHADOW + BHND_PCIE_SRSH_CLKREQ_OFFSET_R5;
 		cfg = BHND_PCI_READ_2(sc, reg);
-		
+
 		if (sc->aspm_quirk_override.aspm_en)
 			cfg |= BHND_PCIE_SRSH_CLKREQ_ENB;
 		else
@@ -563,7 +563,7 @@ bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc, bhnd_pci_war_state state)
 	if (sc->quirks & BHND_PCIE_QUIRK_SERDES_NOPLLDOWN) {
 		device_t	bhnd, chipc;
 		bus_size_t	reg;
-		
+
 		bhnd = device_get_parent(sc->dev);
 		chipc = bhnd_bus_find_child(bhnd, BHND_DEVCLASS_CC, 0);
 		KASSERT(chipc != NULL, ("missing chipcommon device"));
@@ -598,7 +598,7 @@ bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc, bhnd_pci_war_state state)
 		if (sc->quirks & BHND_PCIE_QUIRK_SERDES_TXDRV_MAX) {
 			txdrv = BPCI_REG_SET(txdrv, PCIE_SD_TX_DRIVER_P2_COEFF,
 			    BHND_PCIE_APPLE_TX_P2_COEFF_MAX);
-			
+
 			txdrv = BPCI_REG_SET(txdrv, PCIE_SD_TX_DRIVER_IDRIVER,
 			    BHND_PCIE_APPLE_TX_IDRIVER_MAX);
 		}
@@ -648,12 +648,12 @@ static device_method_t bhnd_pci_hostb_methods[] = {
 	DEVMETHOD(device_attach,		bhnd_pci_hostb_attach),
 	DEVMETHOD(device_detach,		bhnd_pci_hostb_detach),
 	DEVMETHOD(device_suspend,		bhnd_pci_hostb_suspend),
-	DEVMETHOD(device_resume,		bhnd_pci_hostb_resume),	
+	DEVMETHOD(device_resume,		bhnd_pci_hostb_resume),
 
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(bhnd_hostb, bhnd_pci_hostb_driver, bhnd_pci_hostb_methods, 
+DEFINE_CLASS_1(bhnd_hostb, bhnd_pci_hostb_driver, bhnd_pci_hostb_methods,
     sizeof(struct bhnd_pcihb_softc), bhnd_pci_driver);
 DRIVER_MODULE(bhnd_pci_hostb, bhnd, bhnd_pci_hostb_driver, bhnd_hostb_devclass, 0, 0);
 

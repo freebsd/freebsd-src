@@ -1039,7 +1039,7 @@ usb_quirk_init(void *arg)
 {
 	char envkey[sizeof(USB_QUIRK_ENVROOT) + 2];	/* 2 digits max, 0 to 99 */
 	int i;
-  
+
 	/* initialize mutex */
 	mtx_init(&usb_quirk_mtx, "USB quirk", NULL, MTX_DEF);
 

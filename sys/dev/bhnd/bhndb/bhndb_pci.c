@@ -36,11 +36,11 @@ __FBSDID("$FreeBSD$");
 
 /*
  * PCI-specific implementation for the BHNDB bridge driver.
- * 
+ *
  * Provides support for bridging from a PCI parent bus to a BHND-compatible
  * bus (e.g. bcma or siba) via a Broadcom PCI core configured in end-point
  * mode.
- * 
+ *
  * This driver handles all initial generic host-level PCI interactions with a
  * PCI/PCIe bridge core operating in endpoint mode. Once the bridged bhnd(4)
  * bus has been enumerated, this driver works in tandem with a core-specific
@@ -255,9 +255,9 @@ bhndb_pci_get_core_quirks(struct bhnd_chipid *cid, struct bhnd_core_info *ci)
 	return (quirks);
 }
 
-/** 
+/**
  * Default bhndb_pci implementation of device_probe().
- * 
+ *
  * Verifies that the parent is a PCI/PCIe device.
  */
 static int
@@ -399,7 +399,7 @@ bhndb_pci_attach(device_t dev)
 
 	/*
 	 * Fix up our PCI base address in the SPROM shadow, if necessary.
-	 * 
+	 *
 	 * This must be done prior to accessing any static register windows
 	 * that map the PCI core.
 	 */
@@ -433,7 +433,7 @@ bhndb_pci_attach(device_t dev)
 	/*
 	 * Copy out the probe results and then free our probe state, releasing
 	 * its exclusive ownership of host bridge resources.
-	 * 
+	 *
 	 * This must be done prior to full configuration of the bridge via
 	 * bhndb_attach().
 	 */
@@ -653,7 +653,7 @@ bhndb_pci_sprom_size(struct bhndb_pci_softc *sc)
 /**
  * Return the host resource providing a static mapping of the PCI core's
  * registers.
- * 
+ *
  * @param	sc		bhndb PCI driver state.
  * @param	offset		The required readable offset within the PCI core
  *				register block.
@@ -699,7 +699,7 @@ bhndb_pci_get_core_regs(struct bhndb_pci_softc *sc, bus_size_t offset,
 
 /**
  * Write a 1, 2, or 4 byte data item to the PCI core's registers at @p offset.
- * 
+ *
  * @param sc		bhndb PCI driver state.
  * @param offset	register write offset.
  * @param value		value to be written.
@@ -737,7 +737,7 @@ bhndb_pci_write_core(struct bhndb_pci_softc *sc, bus_size_t offset,
 /**
  * Read a 1, 2, or 4 byte data item from the PCI core's registers
  * at @p offset.
- * 
+ *
  * @param sc		bhndb PCI driver state.
  * @param offset	register read offset.
  * @param width		item width (1, 2, or 4 bytes).
@@ -793,11 +793,11 @@ bhndb_pci_read_core(struct bhndb_pci_softc *sc, bus_size_t offset, u_int width)
  *	0x1E00+0x1FFF		siba config registers	0xE00-0xFFF
  *
  * This function checks -- and if necessary, corrects -- the BHND_PCI_SRSH_PI
- * value in the SPROM shadow. 
+ * value in the SPROM shadow.
  *
  * This workaround must applied prior to accessing any static register windows
  * that map the PCI core.
- * 
+ *
  * Applies to all PCI and PCIe-G1 core revisions.
  */
 static int
@@ -887,11 +887,11 @@ bhndb_pci_set_window_addr(device_t dev, const struct bhndb_regwin *rw,
 
 /**
  * A siba(4) and bcma(4)-compatible bhndb_set_window_addr implementation.
- * 
+ *
  * On siba(4) devices, it's possible that writing a PCI window register may
  * not succeed; it's necessary to immediately read the configuration register
  * and retry if not set to the desired value.
- * 
+ *
  * This is not necessary on bcma(4) devices, but other than the overhead of
  * validating the register, there's no harm in performing the verification.
  */
@@ -955,16 +955,16 @@ bhndb_pci_populate_board_info(device_t dev, device_t child,
 
 	sc = device_get_softc(dev);
 
-	/* 
+	/*
 	 * On a subset of Apple BCM4360 modules, always prefer the
 	 * PCI subdevice to the SPROM-supplied boardtype.
-	 * 
+	 *
 	 * TODO:
-	 * 
+	 *
 	 * Broadcom's own drivers implement this override, and then later use
 	 * the remapped BCM4360 board type to determine the required
 	 * board-specific workarounds.
-	 * 
+	 *
 	 * Without access to this hardware, it's unclear why this mapping
 	 * is done, and we must do the same. If we can survey the hardware
 	 * in question, it may be possible to replace this behavior with
@@ -1032,7 +1032,7 @@ bhndb_is_pcie_attached(device_t dev)
 
 /**
  * Enable externally managed clocks, if required.
- * 
+ *
  * Some PCI chipsets (BCM4306, possibly others) chips do not support
  * the idle low-power clock. Clocking must be bootstrapped at
  * attach/resume by directly adjusting GPIO registers exposed in the
@@ -1267,10 +1267,10 @@ bhndb_pci_route_interrupts(device_t dev, device_t child)
 /**
  * Using the generic PCI bridge hardware configuration, allocate, initialize
  * and return a new bhndb_pci probe state instance.
- * 
+ *
  * On success, the caller assumes ownership of the returned probe instance, and
  * is responsible for releasing this reference using bhndb_pci_probe_free().
- * 
+ *
  * @param[out]	probe		On success, the newly allocated probe instance.
  * @param	dev		The bhndb_pci bridge device.
  * @param	hostb_devclass	The expected device class of the bridge core.
@@ -1278,8 +1278,8 @@ bhndb_pci_route_interrupts(device_t dev, device_t child)
  * @retval 0		success
  * @retval non-zero	if allocating the probe state fails, a regular
  * 			unix error code will be returned.
- * 
- * @note This function requires exclusive ownership over allocating and 
+ *
+ * @note This function requires exclusive ownership over allocating and
  * configuring host bridge resources, and should only be called prior to
  * completion of device attach and full configuration of the bridge.
  */
@@ -1414,14 +1414,14 @@ bhndb_pci_probe_free(struct bhndb_pci_probe *probe)
 
 /**
  * Return a copy of probed core table from @p probe.
- * 
+ *
  * @param	probe		The probe instance.
  * @param[out]	cores		On success, a copy of the probed core table. The
  *				caller is responsible for freeing this table
  *				bhndb_pci_probe_free_core_table().
  * @param[out]	ncores		On success, the number of cores found in
  *				@p cores.
- * 
+ *
  * @retval 0		success
  * @retval non-zero	if enumerating the bridged bhnd(4) bus fails, a regular
  * 			unix error code will be returned.
@@ -1442,7 +1442,7 @@ bhndb_pci_probe_copy_core_table(struct bhndb_pci_probe *probe,
 
 /**
  * Free a core table previously returned by bhndb_pci_probe_copy_core_table().
- * 
+ *
  * @param cores The core table to be freed.
  */
 static void
@@ -1453,7 +1453,7 @@ bhndb_pci_probe_free_core_table(struct bhnd_core_info *cores)
 
 /**
  * Return true if @p addr and @p size are mapped by the dynamic register window
- * backing @p probe. 
+ * backing @p probe.
  */
 static bool
 bhndb_pci_probe_has_mapping(struct bhndb_pci_probe *probe, bhnd_addr_t addr,
@@ -1482,7 +1482,7 @@ bhndb_pci_probe_has_mapping(struct bhndb_pci_probe *probe, bhnd_addr_t addr,
 /**
  * Attempt to adjust the dynamic register window backing @p probe to permit
  * accessing @p size bytes at @p addr.
- * 
+ *
  * @param	probe		The bhndb_pci probe state to be modified.
  * @param	addr		The address at which @p size bytes will mapped.
  * @param	size		The number of bytes to be mapped.
@@ -1490,7 +1490,7 @@ bhndb_pci_probe_has_mapping(struct bhndb_pci_probe *probe, bhnd_addr_t addr,
  *				mapping @p size bytes at @p addr.
  * @param[out]	res_offset	On success, will be set to the offset of @addr
  *				within @p res.
- * 
+ *
  * @retval 0		success
  * @retval non-zero	if an error occurs adjusting the backing dynamic
  *			register window.
@@ -1573,7 +1573,7 @@ bhndb_pci_probe_map(struct bhndb_pci_probe *probe, bhnd_addr_t addr,
  * @p addr.
  *
  * A dynamic register window will be used to map @p addr.
- * 
+ *
  * @param probe		The bhndb_pci probe state to be used to perform the
  *			write.
  * @param addr		The base address.
@@ -1615,9 +1615,9 @@ bhndb_pci_probe_write(struct bhndb_pci_probe *probe, bhnd_addr_t addr,
 /**
  * Read a data item from the bridged address space at the given @p offset
  * from @p addr.
- * 
+ *
  * A dynamic register window will be used to map @p addr.
- * 
+ *
  * @param probe		The bhndb_pci probe state to be used to perform the
  *			read.
  * @param addr		The base address.
@@ -1658,7 +1658,7 @@ bhndb_pci_probe_read(struct bhndb_pci_probe *probe, bhnd_addr_t addr,
 /**
  * Initialize a new bhndb PCI bridge EROM I/O instance. All I/O will be
  * performed using @p probe.
- * 
+ *
  * @param pio		The instance to be initialized.
  * @param probe		The bhndb_pci probe state to be used to perform all
  *			I/O.
@@ -1719,7 +1719,7 @@ bhndb_pci_eio_read(struct bhnd_erom_io *eio, bhnd_size_t offset, u_int width)
 	struct bhndb_pci_eio *pio = (struct bhndb_pci_eio *)eio;
 
 	/* Must have a valid mapping */
-	if (!pio->mapped) 
+	if (!pio->mapped)
 		panic("no active mapping");
 
 	/* The requested subrange must fall within the existing mapped range */

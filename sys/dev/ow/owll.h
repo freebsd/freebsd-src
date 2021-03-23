@@ -33,7 +33,7 @@
  * are in nanoseconds, and assume that all timings are < 4s.
  * See owll_if.m for timings, and refer to AN937 for details.
  */
-struct ow_timing 
+struct ow_timing
 {
 	uint32_t	t_slot;		/* Slot time */
 	uint32_t	t_low0;		/* Time low for a 0 bit. */

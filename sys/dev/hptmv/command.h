@@ -36,7 +36,7 @@
 typedef struct _AtaCommand
 {
 	LBA_T            Lba;          /* Current Logic Disk command: LBA   */
-	USHORT           nSectors;     /* sector count. May great than 0x80 */	
+	USHORT           nSectors;     /* sector count. May great than 0x80 */
 	UCHAR            Command;      /* IDE_COMMAND_READ, _WRITE, _VERIFY */
 	UCHAR            QueueTag;
 } AtaComm, *PAtaComm;
@@ -59,11 +59,11 @@ PassthroughCmd;
 #define CTRL_CMD_VERIFY  2
 #define CTRL_CMD_INIT    3
 
-/* 
+/*
  * RAID5 rebuild/verify
  *   Rebuild/verify one stripe line.
  *   The caller needn't supply a buffer for rebuild.
- *   RebuildSectors member will be updated if its previous location is the 
+ *   RebuildSectors member will be updated if its previous location is the
  *   begin of this stripe line.
  */
 typedef struct _R5ControlCmd {
@@ -74,8 +74,8 @@ typedef struct _R5ControlCmd {
 }
 R5ControlCmd, *PR5ControlCmd;
 
-/* 
- * RAID1 rebuild/verify 
+/*
+ * RAID1 rebuild/verify
  *   Rebuild/verify specified sectors.
  *   The caller must supply a valid buffer and a physical SG table (or a
  *   pfnBuildSgl routine).
@@ -108,7 +108,7 @@ typedef struct _Command
 		R5ControlCmd R5Control;
 		R1ControlCmd R1Control;
 	} uCmd;
-	
+
 	USHORT	cf_physical_sg: 1;
 	USHORT	cf_data_in: 1;
 	USHORT	cf_data_out: 1;
@@ -123,13 +123,13 @@ typedef struct _Command
 
 	/* S/G table address, if already prepared */
 	FPSCAT_GATH pSgTable;
-	
+
 	/* called if pSgTable is invalid. */
 	int (* HPTLIBAPI pfnBuildSgl)(_VBUS_ARG PCommand pCmd, FPSCAT_GATH pSgTable, int logical);
-	
+
 	/* called when this command is finished */
 	void (* HPTLIBAPI pfnCompletion)(_VBUS_ARG PCommand pCmd);
-	
+
 	/* pointer to original command */
 	void *pOrgCommand;
 
@@ -168,7 +168,7 @@ typedef struct _Command
 			ULONG dummy[2]; /* uScratch.wait shall be moved out uScratch.
 							   now just fix it thisway */
 			struct range_lock *range_lock;
-			struct stripe *stripes[5]; 
+			struct stripe *stripes[5];
 			UCHAR nstripes;
 			UCHAR finished_stripes;
 			USHORT pad2;
@@ -196,7 +196,7 @@ typedef struct _Command
 			PCommand pNext;
 			void (* HPTLIBAPI WaitEntry)(_VBUS_ARG PCommand pCmd);
 		} wait;
-		
+
 		struct {
 			PVOID prdAddr;
 			ULONG cmd_priv;
@@ -239,7 +239,7 @@ DPC_ROUTINE;
  *
  * Maximum command blocks needed for each VBus:
  *   Each OS command requests 1+MAX_MEMBERS*2 command blocks (RAID1/0 case)
- *   This space is allocated by platform dependent part, either static or 
+ *   This space is allocated by platform dependent part, either static or
  *   dynamic, continuous or non-continous.
  *   The code only needs _vbus_(pFreeCommands) to be set.
  *

@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2000 Whistle Communications, Inc.
  * All rights reserved.
- * 
+ *
  * Subject to the following obligations and disclaimer of warranty, use and
  * redistribution of this software, in source or object code forms, with or
  * without modifications are expressly permitted by Whistle Communications;
@@ -14,7 +14,7 @@
  *    Communications, Inc. trademarks, including the mark "WHISTLE
  *    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
  *    such appears in the above copyright notice or in the software.
- * 
+ *
  * THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
  * REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -67,17 +67,17 @@ struct ichsmb_softc {
 typedef struct ichsmb_softc *sc_p;
 
 /* SMBus methods */
-extern smbus_callback_t	ichsmb_callback;	
-extern smbus_quick_t	ichsmb_quick;	
-extern smbus_sendb_t	ichsmb_sendb;	
-extern smbus_recvb_t	ichsmb_recvb;	
-extern smbus_writeb_t	ichsmb_writeb;	
-extern smbus_writew_t	ichsmb_writew;	
-extern smbus_readb_t	ichsmb_readb;	
-extern smbus_readw_t	ichsmb_readw;	
-extern smbus_pcall_t	ichsmb_pcall;	
-extern smbus_bwrite_t	ichsmb_bwrite;	
-extern smbus_bread_t	ichsmb_bread;	
+extern smbus_callback_t	ichsmb_callback;
+extern smbus_quick_t	ichsmb_quick;
+extern smbus_sendb_t	ichsmb_sendb;
+extern smbus_recvb_t	ichsmb_recvb;
+extern smbus_writeb_t	ichsmb_writeb;
+extern smbus_writew_t	ichsmb_writew;
+extern smbus_readb_t	ichsmb_readb;
+extern smbus_readw_t	ichsmb_readw;
+extern smbus_pcall_t	ichsmb_pcall;
+extern smbus_bwrite_t	ichsmb_bwrite;
+extern smbus_bread_t	ichsmb_bread;
 
 /* Other functions */
 extern void	ichsmb_device_intr(void *cookie);

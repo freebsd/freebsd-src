@@ -82,7 +82,7 @@ ar5212UpdateTxTrigLevel(struct ath_hal *ah, HAL_BOOL bIncTrigLevel)
 
 /*
  * Set the properties of the tx queue with the parameters
- * from qInfo.  
+ * from qInfo.
  */
 HAL_BOOL
 ar5212SetTxQueueProps(struct ath_hal *ah, int q, const HAL_TXQ_INFO *qInfo)
@@ -311,7 +311,7 @@ ar5212ResetTxQueue(struct ath_hal *ah, u_int q)
 		| SM(qi->tqi_aifs, AR_D_LCL_IFS_AIFS));
 
 	/* Set retry limit values */
-	OS_REG_WRITE(ah, AR_DRETRY_LIMIT(q), 
+	OS_REG_WRITE(ah, AR_DRETRY_LIMIT(q),
 		   SM(INIT_SSH_RETRY, AR_D_RETRY_LIMIT_STA_SH)
 		 | SM(INIT_SLG_RETRY, AR_D_RETRY_LIMIT_STA_LG)
 		 | SM(qi->tqi_lgretry, AR_D_RETRY_LIMIT_FR_LG)
@@ -333,7 +333,7 @@ ar5212ResetTxQueue(struct ath_hal *ah, u_int q)
 #endif
 	/* multiqueue support */
 	if (qi->tqi_cbrPeriod) {
-		OS_REG_WRITE(ah, AR_QCBRCFG(q), 
+		OS_REG_WRITE(ah, AR_QCBRCFG(q),
 			  SM(qi->tqi_cbrPeriod,AR_Q_CBRCFG_CBR_INTERVAL)
 			| SM(qi->tqi_cbrOverflowLimit, AR_Q_CBRCFG_CBR_OVF_THRESH));
 		qmisc = (qmisc &~ AR_Q_MISC_FSP) | AR_Q_MISC_FSP_CBR;
@@ -402,7 +402,7 @@ ar5212ResetTxQueue(struct ath_hal *ah, u_int q)
 		      |  AR_D_MISC_POST_FR_BKOFF_DIS;
 		break;
 	case HAL_TX_QUEUE_CAB:			/* CAB  frames */
-		/* 
+		/*
 		 * No longer Enable AR_Q_MISC_RDYTIME_EXP_POLICY,
 		 * There is an issue with the CAB Queue
 		 * not properly refreshing the Tx descriptor if
@@ -458,7 +458,7 @@ ar5212ResetTxQueue(struct ath_hal *ah, u_int q)
 	OS_REG_WRITE(ah, AR_DMISC(q), dmisc);
 
 	/* Setup compression scratchpad buffer */
-	/* 
+	/*
 	 * XXX: calling this asynchronously to queue operation can
 	 *      cause unexpected behavior!!!
 	 */
@@ -622,11 +622,11 @@ ar5212StopTxDma(struct ath_hal *ah, u_int q)
 	if (ar5212NumTxPending(ah, q) &&
 	    (IS_2413(ah) || IS_5413(ah) || IS_2425(ah) || IS_2417(ah))) {
 		uint32_t tsfLow, j;
-		
+
 		HALDEBUG(ah, HAL_DEBUG_TXQUEUE,
 		    "%s: Num of pending TX Frames %d on Q %d\n",
 		    __func__, ar5212NumTxPending(ah, q), q);
-		
+
 		/* Kill last PCU Tx Frame */
 		/* TODO - save off and restore current values of Q1/Q2? */
 		for (j = 0; j < 2; j++) {
@@ -643,16 +643,16 @@ ar5212StopTxDma(struct ath_hal *ah, u_int q)
 			    "TSF: 0x%08x\n", __func__, tsfLow);
 			HALASSERT(j < 1); /* TSF shouldn't count twice or reg access is taking forever */
 		}
-		
+
 		OS_REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_CHAN_IDLE);
-		
+
 		/* Allow the quiet mechanism to do its work */
 		OS_DELAY(200);
 		OS_REG_CLR_BIT(ah, AR_QUIET1, AR_QUIET1_QUIET_ENABLE);
-		
+
 		/* Give at least 1 millisec more to wait */
 		wait = 100;
-		
+
 		/* Verify all transmit is dead */
 		while (ar5212NumTxPending(ah, q)) {
 			if ((--wait) == 0) {
@@ -663,7 +663,7 @@ ar5212StopTxDma(struct ath_hal *ah, u_int q)
 			}
 			OS_DELAY(10);
 		}
-		
+
 		OS_REG_CLR_BIT(ah, AR_DIAG_SW, AR_DIAG_CHAN_IDLE);
 	}
 
@@ -825,7 +825,7 @@ ar5212FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		/*
 		 * Last descriptor in a multi-descriptor frame,
 		 * copy the multi-rate transmit parameters from
-		 * the first frame for processing on completion. 
+		 * the first frame for processing on completion.
 		 */
 		ads->ds_ctl1 = segLen;
 #ifdef AH_NEED_DESC_SWAP
@@ -962,7 +962,7 @@ ar5212GetTxIntrQueue(struct ath_hal *ah, uint32_t *txqs)
  */
 HAL_BOOL
 ar5212GetTxCompletionRates(struct ath_hal *ah, const struct ath_desc *ds0, int *rates, int *tries)
-{ 
+{
 	const struct ar5212_desc *ads = AR5212DESC_CONST(ds0);
 
 	rates[0] = MS(ads->ds_ctl3, AR_XmitRate0);
@@ -976,7 +976,7 @@ ar5212GetTxCompletionRates(struct ath_hal *ah, const struct ath_desc *ds0, int *
 	tries[3] = MS(ads->ds_ctl2, AR_XmitDataTries3);
 
 	return AH_TRUE;
-}  
+}
 
 void
 ar5212SetTxDescLink(struct ath_hal *ah, void *ds, uint32_t link)

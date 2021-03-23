@@ -90,7 +90,7 @@ enableAniMIBCounters(struct ath_hal *ah, const struct ar5212AniParams *params)
 	ar5212EnableMibCounters(ah);			/* enable everything */
 }
 
-static void 
+static void
 disableAniMIBCounters(struct ath_hal *ah)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
@@ -381,7 +381,7 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 	params = aniState->params;
 	/* First, raise noise immunity level, up to max */
 	if (aniState->noiseImmunityLevel+1 < params->maxNoiseImmunityLevel) {
-		if (ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL, 
+		if (ar5416AniControl(ah, HAL_ANI_NOISE_IMMUNITY_LEVEL,
 				 aniState->noiseImmunityLevel + 1))
 			return;
 	}
@@ -419,9 +419,9 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 				    HAL_ANI_SPUR_IMMUNITY_LEVEL, 0);
 				return;
 			}
-			/* 
+			/*
 			 * If weak sig detect is already off, as last resort,
-			 * raise firstep level 
+			 * raise firstep level
 			 */
 			if (aniState->firstepLevel < params->maxFirstepLevel) {
 				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
@@ -429,7 +429,7 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 					return;
 			}
 		} else if (rssi > params->rssiThrLow) {
-			/* 
+			/*
 			 * Beacon rssi in mid range, need ofdm weak signal
 			 * detect, but we can raise firststepLevel.
 			 */
@@ -442,10 +442,10 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 				     aniState->firstepLevel + 1))
 				return;
 		} else {
-			/* 
+			/*
 			 * Beacon rssi is low, if in 11b/g mode, turn off ofdm
 			 * weak signal detection and zero firstepLevel to
-			 * maximize CCK sensitivity 
+			 * maximize CCK sensitivity
 			 */
 			if (IEEE80211_IS_CHAN_CCK(chan)) {
 				if (!aniState->ofdmWeakSigDetectOff)
@@ -689,7 +689,7 @@ ar5416ProcessMibIntr(struct ath_hal *ah, const HAL_NODE_STATS *stats)
 	 * 2 bits of the counter register will be 0b11, hence
 	 * the mask check of phyCnt?.
 	 */
-	if (((phyCnt1 & AR_MIBCNT_INTRMASK) == AR_MIBCNT_INTRMASK) || 
+	if (((phyCnt1 & AR_MIBCNT_INTRMASK) == AR_MIBCNT_INTRMASK) ||
 	    ((phyCnt2 & AR_MIBCNT_INTRMASK) == AR_MIBCNT_INTRMASK)) {
 		struct ar5212AniState *aniState = ahp->ah_curani;
 		const struct ar5212AniParams *params = aniState->params;
@@ -747,7 +747,7 @@ ar5416AniLowerImmunity(struct ath_hal *ah)
 	if (ANI_ENA_RSSI(ah)) {
 		int32_t rssi = BEACON_RSSI(ahp);
 		if (rssi > params->rssiThrHigh) {
-			/* 
+			/*
 			 * Beacon signal is high, leave ofdm weak signal
 			 * detection off or it may oscillate.  Let it fall
 			 * through.
@@ -785,7 +785,7 @@ ar5416AniLowerImmunity(struct ath_hal *ah)
 				 aniState->spurImmunityLevel - 1))
 			return;
 	}
-	/* 
+	/*
 	 * if all else fails, lower noise immunity level down to a min value
 	 * zero for now
 	 */
@@ -800,7 +800,7 @@ ar5416AniLowerImmunity(struct ath_hal *ah)
 /* convert HW counter values to ms using 11g clock rate, goo9d enough
    for 11a and Turbo */
 
-/* 
+/*
  * Return an approximation of the time spent ``listening'' by
  * deducting the cycles spent tx'ing and rx'ing from the total
  * cycle count since our last call.  A return value <0 indicates
@@ -960,7 +960,7 @@ ar5416AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
 	params = aniState->params;
 	if (aniState->listenTime > 5*params->period) {
-		/* 
+		/*
 		 * Check to see if need to lower immunity if
 		 * 5 aniPeriods have passed
 		 */

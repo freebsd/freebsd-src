@@ -242,7 +242,7 @@ struct ukbd_softc {
  * 0x68: F13
  * 0x69: F14
  * 0x6a: F15
- * 
+ *
  * USB Apple Keyboard JIS generates:
  * 0x90: Kana
  * 0x91: Eisu
@@ -999,7 +999,7 @@ ukbd_parse_hid(struct ukbd_softc *sc, const uint8_t *ptr, uint32_t len)
 	    hid_input, 0, &sc->sc_loc_apple_eject, &flags,
 	    &sc->sc_id_apple_eject)) {
 		if (flags & HIO_VARIABLE)
-			sc->sc_flags |= UKBD_FLAG_APPLE_EJECT | 
+			sc->sc_flags |= UKBD_FLAG_APPLE_EJECT |
 			    UKBD_FLAG_APPLE_SWAP;
 		DPRINTFN(1, "Found Apple eject-key\n");
 	}
@@ -1167,7 +1167,7 @@ ukbd_attach(device_t dev)
 	    (err != 0) || ukbd_any_key_valid(sc) == false) {
 		DPRINTF("Forcing boot protocol\n");
 
-		err = usbd_req_set_protocol(sc->sc_udev, NULL, 
+		err = usbd_req_set_protocol(sc->sc_udev, NULL,
 			sc->sc_iface_index, 0);
 
 		if (err != 0) {

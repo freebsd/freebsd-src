@@ -57,7 +57,7 @@
 
 #define ATI_IXP_BASE_RATE	48000
 
-/* 
+/*
  * Register definitions for ATI IXP
  *
  * References: ALSA snd-atiixp.c , OpenBSD/NetBSD auixp-*.h

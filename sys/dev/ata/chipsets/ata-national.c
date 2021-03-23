@@ -73,15 +73,15 @@ ata_national_probe(device_t dev)
     }
     return ENXIO;
 }
-    
+
 static int
 ata_national_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    
+
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
-		    
+
     ctlr->ch_attach = ata_national_ch_attach;
     ctlr->setmode = ata_national_setmode;
     return 0;

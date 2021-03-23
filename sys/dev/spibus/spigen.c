@@ -162,7 +162,7 @@ spigen_attach(device_t dev)
 	return (0);
 }
 
-static int 
+static int
 spigen_open(struct cdev *cdev, int oflags, int devtype, struct thread *td)
 {
 	device_t dev;
@@ -203,11 +203,11 @@ spigen_transfer(struct cdev *cdev, struct spigen_transfer *st)
 		transfer.tx_data = transfer.rx_data = NULL;
 
 	error = copyin(st->st_command.iov_base, transfer.tx_cmd,
-	    transfer.tx_cmd_sz = transfer.rx_cmd_sz = st->st_command.iov_len);	
+	    transfer.tx_cmd_sz = transfer.rx_cmd_sz = st->st_command.iov_len);
 	if ((error == 0) && (st->st_data.iov_len > 0))
 		error = copyin(st->st_data.iov_base, transfer.tx_data,
 		    transfer.tx_data_sz = transfer.rx_data_sz =
-		                          st->st_data.iov_len);	
+		                          st->st_data.iov_len);
 	if (error == 0)
 		error = SPIBUS_TRANSFER(device_get_parent(dev), dev, &transfer);
 	if (error == 0) {
@@ -344,7 +344,7 @@ spigen_mmap_single(struct cdev *cdev, vm_ooffset_t *offset,
 	return (0);
 }
 
-static int 
+static int
 spigen_close(struct cdev *cdev, int fflag, int devtype, struct thread *td)
 {
 	device_t dev = cdev->si_drv1;

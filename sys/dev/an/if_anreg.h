@@ -87,7 +87,7 @@
 #define AN_IOSIZ		0x40
 
 /*
- * Size of aux. memory space ... probably not needed DJA 
+ * Size of aux. memory space ... probably not needed DJA
  */
 #define AN_AUX_MEM_SIZE		(256 * 1024)
 

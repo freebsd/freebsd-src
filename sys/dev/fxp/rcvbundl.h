@@ -1,22 +1,22 @@
 /*-
 SPDX-License-Identifier: BSD-3-Clause
 
-Copyright (c) 1999-2001, Intel Corporation 
+Copyright (c) 1999-2001, Intel Corporation
 
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without 
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
- 1. Redistributions of source code must retain the above copyright notice, 
+ 1. Redistributions of source code must retain the above copyright notice,
     this list of conditions and the following disclaimer.
 
  2. Redistributions in binary form must reproduce the above copyright notice,
-    this list of conditions and the following disclaimer in the documentation 
+    this list of conditions and the following disclaimer in the documentation
     and/or other materials provided with the distribution.
 
- 3. Neither the name of Intel Corporation nor the names of its contributors 
-    may be used to endorse or promote products derived from this software 
+ 3. Neither the name of Intel Corporation nor the names of its contributors
+    may be used to endorse or promote products derived from this software
     without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS''
@@ -25,10 +25,10 @@ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
 LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING 
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
-EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 /*
  * $FreeBSD$
@@ -41,7 +41,7 @@ Date:    05/30/2000
 Version: 3.28
 
 This file contains the loadable micro code arrays to implement receive bundling on the
-D101 A-step, D101 B-step, D101M (B-step only), D101S, D102 B-step, 
+D101 A-step, D101 B-step, D101M (B-step only), D101S, D102 B-step,
 D102 B-step with TCO work around, D102 C-step and D102 E-step.
 
 Each controller has its own specific micro code array.  The array for one controller
@@ -95,7 +95,7 @@ rcvbundl.h file given above).
 *
 *    The current default is 0xFF80, which masks out the lower 7 bits.
 *    This means that any frame which is x7F (127) bytes or smaller
-*    will cause an immediate interrupt.  Because this value must be a 
+*    will cause an immediate interrupt.  Because this value must be a
 *    bit mask, there are only a few valid values that can be used.  To
 *    turn this feature off, the driver can write the value xFFFF to the
 *    lower word of this instruction (in the same way that the other
@@ -653,7 +653,7 @@ rcvbundl.h file given above).
     still need to be loaded.  Before this happens, the hit addresses
     for the CPUSaver algorithm must be set to 0x1FFFF.  The hit
     addresses for CPUSaver are (starting with 0, and remember that
-    
+
 */
 
 /*  Parameter values for the D102 B-step  */
@@ -812,7 +812,7 @@ rcvbundl.h file given above).
 /*
     This version is a fix to TCO bug. This version can be loaded instead
     the CPUSaver version by modifing the registry key "LoadTcoUCodeInsteadOfCpuSaver"
-    
+
 */
 
 
@@ -970,8 +970,8 @@ rcvbundl.h file given above).
 
 
 #if 0
-// this uCode include the CPU Saver and the TCO work around 
-//for IP fregments. 
+// this uCode include the CPU Saver and the TCO work around
+//for IP fregments.
 #endif
 #define     D102_C_RCVBUNDLE_UCODE \
 { \

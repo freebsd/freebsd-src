@@ -278,7 +278,7 @@ struct snd_mixer;
 
 #define SND_DEV_DSPHW_CD	15	/* s16le/stereo 44100Hz CD */
 
-/* 
+/*
  * OSSv4 compatible device. For now, it serve no purpose and
  * the cloning itself will forward the request to ordinary /dev/dsp
  * instead.

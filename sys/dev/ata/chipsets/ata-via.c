@@ -131,11 +131,11 @@ ata_via_probe(device_t dev)
 	pci_get_devid(dev) == ATA_VIASATAIDE ||
 	pci_get_devid(dev) == ATA_VIASATAIDE2 ||
 	pci_get_devid(dev) == ATA_VIASATAIDE3) {
-	if (!(ctlr->chip = ata_find_chip(dev, ids, -99))) 
+	if (!(ctlr->chip = ata_find_chip(dev, ids, -99)))
 	    return ENXIO;
     }
     else {
-	if (!(ctlr->chip = ata_match_chip(dev, new_ids))) 
+	if (!(ctlr->chip = ata_match_chip(dev, new_ids)))
 	    return ENXIO;
     }
 
@@ -181,21 +181,21 @@ ata_via_chipinit(device_t dev)
 
     /* prepare for ATA-66 on the 82C686a and 82C596b */
     if (ctlr->chip->cfg2 & VIACLK)
-	pci_write_config(dev, 0x50, 0x030b030b, 4);       
+	pci_write_config(dev, 0x50, 0x030b030b, 4);
 
     /* the southbridge might need the data corruption fix */
     if (ctlr->chip->cfg2 & VIABUG)
 	ata_via_southbridge_fixup(dev);
 
     /* set fifo configuration half'n'half */
-    pci_write_config(dev, 0x43, 
+    pci_write_config(dev, 0x43,
 		     (pci_read_config(dev, 0x43, 1) & 0x90) | 0x2a, 1);
 
     /* set status register read retry */
     pci_write_config(dev, 0x44, pci_read_config(dev, 0x44, 1) | 0x08, 1);
 
     /* set DMA read & end-of-sector fifo flush */
-    pci_write_config(dev, 0x46, 
+    pci_write_config(dev, 0x46,
 		     (pci_read_config(dev, 0x46, 1) & 0x0c) | 0xf0, 1);
 
     /* set sector size */
@@ -216,7 +216,7 @@ ata_via_ch_attach(device_t dev)
     if (ctlr->chip->cfg2 & VIABAR) {
 	struct resource *r_io;
 	int i, rid;
-		
+
 	ata_pci_dmainit(dev);
 
 	rid = PCIR_BAR(ch->unit);
@@ -272,7 +272,7 @@ ata_via_ch_detach(device_t dev)
     /* newer SATA chips has resources in one BAR for each channel */
     if (ctlr->chip->cfg2 & VIABAR) {
 	int rid;
-		
+
 	rid = PCIR_BAR(ch->unit);
 	bus_release_resource(device_get_parent(dev),
 	    SYS_RES_IOPORT, rid, ch->r_io[ATA_CONTROL].res);

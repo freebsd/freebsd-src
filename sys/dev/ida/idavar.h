@@ -162,7 +162,7 @@ struct ida_softc {
 
 	struct		ida_hardware_qcb *hwqcbs;	/* HW QCB array */
 	struct		ida_qcb *qcbs;			/* kernel QCB array */
-	SLIST_HEAD(, ida_qcb)	free_qcbs;	
+	SLIST_HEAD(, ida_qcb)	free_qcbs;
 	STAILQ_HEAD(, ida_qcb) 	qcb_queue;
 	struct		bio_queue_head bio_queue;
 

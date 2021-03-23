@@ -66,7 +66,7 @@ static void update_sim_properties(struct cam_sim *sim, struct ccb_pathinq *cpi)
 }
 
 /*
- * Get transport settings of the smartpqi adapter 
+ * Get transport settings of the smartpqi adapter
  */
 static void get_transport_settings(struct pqisrc_softstate *softs,
 		struct ccb_trans_settings *cts)
@@ -99,7 +99,7 @@ void os_add_device(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device) {
 
 	DBG_FUNC("IN\n");
 
-	if(softs->os_specific.sim_registered) {	
+	if(softs->os_specific.sim_registered) {
 		if ((ccb = xpt_alloc_ccb_nowait()) == NULL) {
 			DBG_ERR("rescan failed (can't allocate CCB)\n");
 			return;
@@ -128,7 +128,7 @@ void os_remove_device(pqisrc_softstate_t *softs,
 	DBG_FUNC("IN\n");
 
 	if(softs->os_specific.sim_registered) {
-		if (xpt_create_path(&tmppath, NULL, 
+		if (xpt_create_path(&tmppath, NULL,
 			cam_sim_path(softs->os_specific.sim),
 			device->target, device->lun) != CAM_REQ_CMP) {
 			DBG_ERR("unable to create path for async event");
@@ -220,7 +220,7 @@ smartpqi_fix_ld_inquiry(pqisrc_softstate_t *softs, struct ccb_scsiio *csio)
 
  	cdb = (csio->ccb_h.flags & CAM_CDB_POINTER) ?
 		(uint8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes;
-	if(cdb[0] == INQUIRY && 
+	if(cdb[0] == INQUIRY &&
 		(cdb[1] & SI_EVPD) == 0 &&
 		(csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN &&
 		csio->dxfer_len >= SHORT_INQUIRY_LENGTH) {
@@ -231,14 +231,14 @@ smartpqi_fix_ld_inquiry(pqisrc_softstate_t *softs, struct ccb_scsiio *csio)
 		/* Let the disks be probed and dealt with via CAM. Only for LD
 		  let it fall through and inquiry be tweaked */
 		if( !device || 	!pqisrc_is_logical_device(device) ||
-				(device->devtype != DISK_DEVICE)  || 
+				(device->devtype != DISK_DEVICE)  ||
 				pqisrc_is_external_raid_device(device)) {
  	 		return;
 		}
 
 		strncpy(inq->vendor, "MSCC",
        			SID_VENDOR_SIZE);
-		strncpy(inq->product, 
+		strncpy(inq->product,
 			pqisrc_raidlevel_to_string(device->raid_level),
        			SID_PRODUCT_SIZE);
 		strncpy(inq->revision, device->volume_offline?"OFF":"OK",
@@ -258,12 +258,12 @@ os_io_response_success(rcb_t *rcb)
 
 	DBG_IO("IN rcb = %p\n", rcb);
 
-	if (rcb == NULL) 
+	if (rcb == NULL)
 		panic("rcb is null");
 
 	csio = (struct ccb_scsiio *)&rcb->cm_ccb->csio;
 
-	if (csio == NULL) 
+	if (csio == NULL)
 		panic("csio is null");
 
 	rcb->status = REQUEST_SUCCESS;
@@ -310,7 +310,7 @@ void os_raid_response_error(rcb_t *rcb, raid_path_error_info_elem_t *err_info)
 				/* check condition, sense data included */
 			case PQI_RAID_STATUS_CHECK_CONDITION:
 				{
-				uint16_t sense_data_len = 
+				uint16_t sense_data_len =
 					LE_16(err_info->sense_data_len);
 				uint8_t *sense_data = NULL;
 				if (sense_data_len)
@@ -480,7 +480,7 @@ pqi_request_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	{
 		rcb->cm_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 		pqi_freeze_ccb(rcb->cm_ccb);
-		DBG_ERR_BTL(rcb->dvp, "map failed err = %d or nseg(%d) > sgelem(%d)\n", 
+		DBG_ERR_BTL(rcb->dvp, "map failed err = %d or nseg(%d) > sgelem(%d)\n",
 			error, nseg, softs->pqi_cap.max_sg_elem);
 		pqi_unmap_request(rcb);
 		xpt_done((union ccb *)rcb->cm_ccb);
@@ -528,7 +528,7 @@ pqi_request_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 }
 
 /*
- * Function to dma-map the request buffer 
+ * Function to dma-map the request buffer
  */
 static int pqi_map_request( rcb_t *rcb )
 {
@@ -547,7 +547,7 @@ static int pqi_map_request( rcb_t *rcb )
 		error = bus_dmamap_load_ccb(softs->os_specific.pqi_buffer_dmat,
 			rcb->cm_datamap, ccb, pqi_request_map_helper, rcb, 0);
 		if (error != 0){
-			DBG_ERR_BTL(rcb->dvp, "bus_dmamap_load_ccb failed = %d count = %d\n", 
+			DBG_ERR_BTL(rcb->dvp, "bus_dmamap_load_ccb failed = %d count = %d\n",
 					error, rcb->bcount);
 			return error;
 		}
@@ -582,7 +582,7 @@ void os_reset_rcb( rcb_t *rcb )
 	rcb->softs = NULL;
 	rcb->cm_flags = 0;
 	rcb->cm_data = NULL;
-	rcb->bcount = 0;	
+	rcb->bcount = 0;
 	rcb->nseg = 0;
 	rcb->sgt = NULL;
 	rcb->cm_ccb = NULL;
@@ -604,12 +604,12 @@ static void smartpqi_lunrescan_cb(struct cam_periph *periph, union ccb *ccb)
 /*
  * Function to rescan the lun
  */
-static void smartpqi_lun_rescan(struct pqisrc_softstate *softs, int target, 
+static void smartpqi_lun_rescan(struct pqisrc_softstate *softs, int target,
 			int lun)
 {
 	union ccb   *ccb = NULL;
 	cam_status  status = 0;
-	struct cam_path     *path = NULL;	
+	struct cam_path     *path = NULL;
 
 	DBG_FUNC("IN\n");
 
@@ -656,7 +656,7 @@ void smartpqi_target_rescan(struct pqisrc_softstate *softs)
 /*
  * Set the mode of tagged command queueing for the current task.
  */
-uint8_t os_get_task_attr(rcb_t *rcb) 
+uint8_t os_get_task_attr(rcb_t *rcb)
 {
 	union ccb *ccb = rcb->cm_ccb;
 	uint8_t tag_action = SOP_TASK_ATTRIBUTE_SIMPLE;
@@ -1140,7 +1140,7 @@ int register_sim(struct pqisrc_softstate *softs, int card_index)
 		return PQI_STATUS_FAILURE;
 	}
 	/*
- 	 * Callback to set the queue depth per target which is 
+ 	 * Callback to set the queue depth per target which is
 	 * derived from the FW.
  	 */
 	softs->os_specific.path = ccb->ccb_h.path;
@@ -1151,7 +1151,7 @@ int register_sim(struct pqisrc_softstate *softs, int card_index)
 	csa.callback_arg = softs;
 	xpt_action((union ccb *)&csa);
 	if (csa.ccb_h.status != CAM_REQ_CMP) {
-		DBG_ERR("Unable to register smartpqi_aysnc handler: %d!\n", 
+		DBG_ERR("Unable to register smartpqi_aysnc handler: %d!\n",
 			csa.ccb_h.status);
 	}
 

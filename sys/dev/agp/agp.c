@@ -123,7 +123,7 @@ agp_find_display(void)
 					free(kids, M_TEMP);
 					return dev;
 				}
-					
+
 		}
 		free(kids, M_TEMP);
 	}
@@ -466,7 +466,7 @@ agp_generic_enable(device_t dev, u_int32_t mode)
 	    AGP_MODE_GET_MODE_3(mstatus))
 		return (agp_v3_enable(dev, mdev, mode));
 	else
-		return (agp_v2_enable(dev, mdev, mode));	    
+		return (agp_v2_enable(dev, mdev, mode));
 }
 
 struct agp_memory *
@@ -574,7 +574,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		/*
 		 * Install entries in the GATT, making sure that if
 		 * AGP_PAGE_SIZE < PAGE_SIZE and mem->am_size is not
-		 * aligned to PAGE_SIZE, we don't modify too many GATT 
+		 * aligned to PAGE_SIZE, we don't modify too many GATT
 		 * entries.
 		 */
 		for (j = 0; j < PAGE_SIZE && i + j < mem->am_size;
@@ -714,7 +714,7 @@ agp_info_user(device_t dev, agp_info *info)
 
 	bzero(info, sizeof *info);
 	info->bridge_id = pci_get_devid(dev);
-	info->agp_mode = 
+	info->agp_mode =
 	    pci_read_config(dev, agp_find_caps(dev) + AGP_STATUS, 4);
 	if (sc->as_aperture)
 		info->aper_base = rman_get_start(sc->as_aperture);
@@ -1003,7 +1003,7 @@ agp_bind_pages(device_t dev, vm_page_t *pages, vm_size_t size,
 		/*
 		 * Install entries in the GATT, making sure that if
 		 * AGP_PAGE_SIZE < PAGE_SIZE and size is not
-		 * aligned to PAGE_SIZE, we don't modify too many GATT 
+		 * aligned to PAGE_SIZE, we don't modify too many GATT
 		 * entries.
 		 */
 		for (j = 0; j < PAGE_SIZE && i + j < size; j += AGP_PAGE_SIZE) {

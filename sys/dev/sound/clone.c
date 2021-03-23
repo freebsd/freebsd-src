@@ -578,7 +578,7 @@ snd_clone_unref(struct cdev *dev)
 
 	c->refcount--;
 
-	/* 
+	/*
 	 * Run automatic garbage collector, if needed.
 	 */
 	if ((c->flags & SND_CLONE_GC_UNREF) &&

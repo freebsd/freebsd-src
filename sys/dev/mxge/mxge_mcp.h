@@ -100,7 +100,7 @@ struct mcp_cmd_response {
 };
 typedef struct mcp_cmd_response mcp_cmd_response_t;
 
-/* 
+/*
    flags used in mcp_kreq_ether_send_t:
 
    The SMALL flag is only needed in the first segment. It is raised
@@ -194,19 +194,19 @@ enum myri10ge_mcp_cmd_type {
    * data1 = MSW of the host address
    * data2 = slice number if multiple slices are used
    */
-  
+
   MXGEFW_CMD_SET_BIG_BUFFER_SIZE = 4,	/* in bytes, power of 2 */
   MXGEFW_CMD_SET_SMALL_BUFFER_SIZE = 5,	/* in bytes */
-  
 
-  /* Parameters which refer to lanai SRAM addresses where the 
+
+  /* Parameters which refer to lanai SRAM addresses where the
      driver must issue PIO writes for various things */
 
   MXGEFW_CMD_GET_SEND_OFFSET = 6,
   MXGEFW_CMD_GET_SMALL_RX_OFFSET = 7,
   MXGEFW_CMD_GET_BIG_RX_OFFSET = 8,
   /* data0 = slice number if multiple slices are used */
-  
+
   MXGEFW_CMD_GET_IRQ_ACK_OFFSET = 9,
   MXGEFW_CMD_GET_IRQ_DEASSERT_OFFSET = 10,
 
@@ -218,7 +218,7 @@ enum myri10ge_mcp_cmd_type {
 
   /* Parameters which refer to rings stored in the host,
      and whose size is controlled by the host.  Note that
-     all must be physically contiguous and must contain 
+     all must be physically contiguous and must contain
      a power of 2 number of entries.  */
 
   MXGEFW_CMD_SET_INTRQ_SIZE = 13, 	/* in bytes */
@@ -317,7 +317,7 @@ enum myri10ge_mcp_cmd_type {
 #define MXGEFW_SLICE_INTR_MODE_SHARED          0x0
 #define MXGEFW_SLICE_INTR_MODE_ONE_PER_SLICE   0x1
 #define MXGEFW_SLICE_ENABLE_MULTIPLE_TX_QUEUES 0x2
-  
+
   MXGEFW_CMD_GET_RSS_SHARED_INTERRUPT_MASK_OFFSET = 37,
   MXGEFW_CMD_SET_RSS_SHARED_INTERRUPT_DMA = 38,
   /* data0, data1 = bus address lsw, msw */
@@ -345,7 +345,7 @@ enum myri10ge_mcp_cmd_type {
 #define MXGEFW_RSS_HASH_TYPE_SRC_PORT  0x4
 #define MXGEFW_RSS_HASH_TYPE_SRC_DST_PORT 0x5
 #define MXGEFW_RSS_HASH_TYPE_MAX 0x5
-  
+
   MXGEFW_CMD_GET_MAX_TSO6_HDR_SIZE = 44,
   /* Return data = the max. size of the entire headers of a IPv6 TSO packet.
    * If the header size of a IPv6 TSO packet is larger than the specified
@@ -354,7 +354,7 @@ enum myri10ge_mcp_cmd_type {
    * For IPv4 TSO, the maximum size of the headers is fixed, and the NIC
    * always has enough header buffer to store maximum-sized headers.
    */
-  
+
   MXGEFW_CMD_SET_TSO_MODE = 45,
   /* data0 = TSO mode.
    * 0: Linux/FreeBSD style (NIC default)
@@ -416,7 +416,7 @@ enum myri10ge_mcp_cmd_type {
      with tx_boundary == 2048, max-throttle-factor == 8191 => min-speed == 500Mb/s
      with tx_boundary == 4096, max-throttle-factor == 4095 => min-speed == 1Gb/s
   */
-  
+
   MXGEFW_CMD_VPUMP_UP = 54,
   /* Allocates VPump Connection, Send Request and Zero copy buffer address tables */
   MXGEFW_CMD_GET_VPUMP_CLK = 55,

@@ -53,9 +53,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
-#include <sys/bus.h> 
+#include <sys/bus.h>
 
-#include <machine/bus.h> 
+#include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
 
@@ -188,7 +188,7 @@ iir_pci_attach(device_t dev)
     struct resource     *irq = NULL;
     int                 retries, rid, error = 0;
     void                *ih;
-    u_int8_t            protocol;  
+    u_int8_t            protocol;
 
     gdt = device_get_softc(dev);
     mtx_init(&gdt->sc_lock, "iir", NULL, MTX_DEF);
@@ -268,7 +268,7 @@ iir_pci_attach(device_t dev)
         error = ENXIO;
         goto err;
     }
-    
+
     /* special command to controller BIOS */
     bus_write_4(gdt->sc_dpmem, GDT_MPR_IC + GDT_S_INFO, htole32(0));
     bus_write_4(gdt->sc_dpmem, GDT_MPR_IC + GDT_S_INFO + sizeof (u_int32_t),
@@ -294,7 +294,7 @@ iir_pci_attach(device_t dev)
     bus_write_1(gdt->sc_dpmem, GDT_MPR_IC + GDT_S_STATUS, 0);
 
     gdt->sc_ic_all_size = GDT_MPR_SZ;
-    
+
     gdt->sc_copy_cmd = gdt_mpr_copy_cmd;
     gdt->sc_get_status = gdt_mpr_get_status;
     gdt->sc_intr = gdt_mpr_intr;
@@ -328,7 +328,7 @@ iir_pci_attach(device_t dev)
     iir_attach(gdt);
 
     /* associate interrupt handler */
-    if (bus_setup_intr(dev, irq, INTR_TYPE_CAM | INTR_MPSAFE, 
+    if (bus_setup_intr(dev, irq, INTR_TYPE_CAM | INTR_MPSAFE,
                         NULL, iir_intr, gdt, &ih )) {
         device_printf(dev, "Unable to register interrupt handler\n");
         error = ENXIO;
@@ -338,7 +338,7 @@ iir_pci_attach(device_t dev)
     gdt_pci_enable_intr(gdt);
     gone_in_dev(dev, 13, "iir(4) removed");
     return (0);
-    
+
 err:
     if (irq)
         bus_release_resource( dev, SYS_RES_IRQ, 0, irq );
@@ -382,7 +382,7 @@ gdt_mpr_copy_cmd(struct gdt_softc *gdt, struct gdt_ccb *gccb)
 
     gdt->sc_cmd_off += cp_count;
 
-    bus_write_region_4(gdt->sc_dpmem, GDT_MPR_IC + GDT_DPR_CMD + dp_offset, 
+    bus_write_region_4(gdt->sc_dpmem, GDT_MPR_IC + GDT_DPR_CMD + dp_offset,
 	(u_int32_t *)gccb->gc_cmd, cp_count >> 2);
     bus_write_2(gdt->sc_dpmem,
 	GDT_MPR_IC + GDT_COMM_QUEUE + cmd_no * GDT_COMM_Q_SZ + GDT_OFFSET,
@@ -396,7 +396,7 @@ u_int8_t
 gdt_mpr_get_status(struct gdt_softc *gdt)
 {
     GDT_DPRINTF(GDT_D_MISC, ("gdt_mpr_get_status(%p) ", gdt));
-        
+
     return bus_read_1(gdt->sc_dpmem, GDT_MPR_EDOOR);
 }
 
@@ -421,7 +421,7 @@ gdt_mpr_intr(struct gdt_softc *gdt, struct gdt_intr_ctx *ctx)
 
     /* event string */
     if (ctx->istatus == GDT_ASYNCINDEX) {
-        if (ctx->service != GDT_SCREENSERVICE && 
+        if (ctx->service != GDT_SCREENSERVICE &&
             (gdt->sc_fw_vers & 0xff) >= 0x1a) {
             gdt->sc_dvr.severity = bus_read_1(gdt->sc_dpmem, GDT_SEVERITY);
             for (i = 0; i < 256; ++i) {
@@ -439,7 +439,7 @@ void
 gdt_mpr_release_event(struct gdt_softc *gdt)
 {
     GDT_DPRINTF(GDT_D_MISC, ("gdt_mpr_release_event(%p) ", gdt));
-    
+
     bus_write_1(gdt->sc_dpmem, GDT_MPR_LDOOR, 1);
 }
 

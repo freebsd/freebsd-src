@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -43,7 +43,7 @@ void saReturnRequestToFreePool(
                             agsaRoot_t          *agRoot,
                             agsaIORequestDesc_t *pRequest
                             );
-							
+
 /******************************************************************************/
 /*! \brief Process Outbound IOMB Message
  *
@@ -571,7 +571,7 @@ mpiParseOBIomb(
       {
         SA_DBG3(("mpiParseOBIomb, OPC_INB_GET_VIST_CAP Response received IOMB=%p\n", pMsg1));
         mpiGetVisRsp(agRoot, (agsaGetVisCapRsp_t *)pMsg1);
-      }  
+      }
       else
       {
         SA_DBG1(("mpiParseOBIomb, 2104  Response received IOMB=%p\n", pMsg1));
@@ -1307,7 +1307,7 @@ GLOBAL bit32 mpiHWevent(
       saRoot->phys[phyId].linkstatus |= 2;
       saRoot->phys[phyId].sasIdentify.phyIdentifier = IDframe->phyIdentifier;
       saRoot->phys[phyId].sasIdentify.deviceType_addressFrameType = IDframe->deviceType_addressFrameType;
-    
+
       si_memcpy(&(saRoot->phys[phyId].sasIdentify.sasAddressHi),&(IDframe->sasAddressHi),4);
       si_memcpy(&(saRoot->phys[phyId].sasIdentify.sasAddressLo),&(IDframe->sasAddressLo),4);
       siEventPhyUpRcvd(agRoot, phyId, IDframe, portId, npipps, linkRate);
@@ -3226,7 +3226,7 @@ GLOBAL bit32 mpiGetDevInfoRsp(
 
   /* check SAS device then copy SAS Address */
   if ( ((ARSrateSMPTimeOutPortID & DEV_TYPE_BITS) >> SHIFT28 == 0x00) ||
-       ((ARSrateSMPTimeOutPortID & DEV_TYPE_BITS) >> SHIFT28 == 0x01)) 
+       ((ARSrateSMPTimeOutPortID & DEV_TYPE_BITS) >> SHIFT28 == 0x01))
   {
     /* copy the sasAddressHi byte-by-byte : no endianness */
     commonDevInfo.sasAddressHi[0] = pIomb->sasAddrHi[0];
@@ -3459,7 +3459,7 @@ GLOBAL bit32 mpiGetDevInfoRspSpc(
 
   /* check SAS device then copy SAS Address */
   if ( ((dTypeSrateSMPTOPortID & DEV_TYPE_BITS) >> SHIFT28 == 0x00) ||
-       ((dTypeSrateSMPTOPortID & DEV_TYPE_BITS) >> SHIFT28 == 0x01)) 
+       ((dTypeSrateSMPTOPortID & DEV_TYPE_BITS) >> SHIFT28 == 0x01))
   {
     /* copy the sasAddressHi byte-by-byte : no endianness */
     pDevice->devInfo.sasDeviceInfo.commonDevInfo.sasAddressHi[0] = pIomb->sasAddrHi[0];
@@ -4449,7 +4449,7 @@ GLOBAL bit32 mpiSSPAbortRsp(
   OSSA_READ_LE_32(AGROOT, &tag, pIomb, OSSA_OFFSET_OF(agsaSSPAbortRsp_t, tag));
   OSSA_READ_LE_32(AGROOT, &status, pIomb, OSSA_OFFSET_OF(agsaSSPAbortRsp_t, status));
   OSSA_READ_LE_32(AGROOT, &scope, pIomb, OSSA_OFFSET_OF(agsaSSPAbortRsp_t, scp));
-  scope &= 3; 
+  scope &= 3;
   /* get IORequest from IOMap */
   pRequest = (agsaIORequestDesc_t*)saRoot->IOMap[tag].IORequest;
 
@@ -5219,7 +5219,7 @@ GLOBAL bit32 mpiGeneralEventRsp(
   {
 
     case OPC_INB_KEK_MANAGEMENT:
-    {  
+    {
       bit32 flags = GenEventData.inbIOMBpayload[2];
 
       SA_DBG1(("mpiGeneralEventRsp: OPC_INB_KEK_MANAGEMENT 0x%x htag 0x%x flags 0x%x\n",OpCode, tag, flags));
@@ -6417,11 +6417,11 @@ GLOBAL bit32 mpiSGpioRsp(
 
   OSSA_READ_LE_32(AGROOT, &tag, pInIomb, OSSA_OFFSET_OF(agsaSGpioRsp_t, tag));
   OSSA_READ_LE_32(AGROOT, &resultFunctionFrameType, pInIomb, OSSA_OFFSET_OF(agsaSGpioRsp_t, resultFunctionFrameType));
-  
+
   SgpioResponse.smpFrameType = resultFunctionFrameType & 0xFF;
   SgpioResponse.function = (resultFunctionFrameType & 0xFF00) >> 8;
   SgpioResponse.functionResult = (resultFunctionFrameType & 0xFF0000) >> 16;
-  
+
   if (SA_SAS_SMP_READ_GPIO_REGISTER == SgpioResponse.function)
   {
     for (i = 0; i < OSSA_SGPIO_MAX_READ_DATA_COUNT; i++)
@@ -6448,7 +6448,7 @@ GLOBAL bit32 mpiSGpioRsp(
 
     smTraceFuncExit(hpDBG_VERY_LOUD, 'b', "3Y");
   }
-  
+
   return ret;
 }
 
@@ -6753,7 +6753,7 @@ GLOBAL bit32 mpiSetControllerConfigRsp(
 
   if(status )
   {
-    SA_DBG1(("mpiSetControllerConfigRsp: Error detected tag 0x%x pagetype 0x%x status 0x%x errorQualifier 0x%x\n", 
+    SA_DBG1(("mpiSetControllerConfigRsp: Error detected tag 0x%x pagetype 0x%x status 0x%x errorQualifier 0x%x\n",
       tag, pagetype,status, errorQualifier));
   }
   else
@@ -6773,7 +6773,7 @@ GLOBAL bit32 mpiSetControllerConfigRsp(
       /* Report the event before freeing the IOMB */
       SA_DBG1(("mpiSetControllerConfigRsp:OSSA_HW_EVENT_MODE\n"));
       ossaHwCB(agRoot,agMode.context, OSSA_HW_EVENT_MODE, errorQualifierPage, (void *) &agMode, 0);
-  
+
 
       break;
 
@@ -7737,7 +7737,7 @@ GLOBAL bit32 mpiGetVHistRsp(
   {
     (*(ossaVhistCaptureCB_t)(pRequest->completionCB))(agRoot, agContext, status, BytesXfered);
   }
-  
+
   ossaSingleThreadedEnter(agRoot, LL_IOREQ_LOCKEQ_LOCK);
   pRequest->valid = agFALSE;
   /* return the request to free pool */
@@ -7861,7 +7861,7 @@ GLOBAL bit32 mpiDifEncOffloadRsp(
   {
     (*(ossaDIFEncryptionOffloadStartCB_t)(pRequest->completionCB))(agRoot, agContext, status, agNULL);
   }
-  
+
   ossaSingleThreadedEnter(agRoot, LL_IOREQ_LOCKEQ_LOCK);
   pRequest->valid = agFALSE;
   /* return the request to free pool */

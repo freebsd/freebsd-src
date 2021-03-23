@@ -42,7 +42,7 @@ ar5416IQCalCollect(struct ath_hal *ah)
 	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
 	int i;
 
-	/* 
+	/*
 	 * Accumulate IQ cal measures for active chains
 	 */
 	for (i = 0; i < AR5416_MAX_CHAINS; i++) {
@@ -81,7 +81,7 @@ ar5416IQCalibration(struct ath_hal *ah, uint8_t numChains)
 		    "Orignal: iq_corr_meas = 0x%08x\n", iqCorrMeas);
 
 		iqCorrNeg = 0;
-		/* iqCorrMeas is always negative. */ 
+		/* iqCorrMeas is always negative. */
 		if (iqCorrMeas > 0x80000000)  {
 			iqCorrMeas = (0xffffffff - iqCorrMeas) + 1;
 			iqCorrNeg = 1;
@@ -106,7 +106,7 @@ ar5416IQCalibration(struct ath_hal *ah, uint8_t numChains)
 			    iCoff);
 			HALDEBUG(ah, HAL_DEBUG_PERCAL, " qCoff = 0x%08x\n",
 			    qCoff);
-	 
+
 			/* Negate iCoff if iqCorrNeg == 0 */
 			iCoff = iCoff & 0x3f;
 			HALDEBUG(ah, HAL_DEBUG_PERCAL,

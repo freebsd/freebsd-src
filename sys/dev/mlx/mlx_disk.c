@@ -83,7 +83,7 @@ mlxd_open(struct disk *dp)
     struct mlxd_softc	*sc = (struct mlxd_softc *)dp->d_drv1;
 
     debug_called(1);
-	
+
     if (sc == NULL)
 	return (ENXIO);
 
@@ -126,7 +126,7 @@ mlxd_ioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
     int error;
 
     debug_called(1);
-	
+
     if (sc == NULL)
 	return (ENXIO);
 
@@ -189,7 +189,7 @@ mlxd_intr(struct bio *bp)
 {
 
     debug_called(1);
-	
+
     if (bp->bio_flags & BIO_ERROR)
 	bp->bio_error = EIO;
     else
@@ -203,7 +203,7 @@ mlxd_probe(device_t dev)
 {
 
     debug_called(1);
-	
+
     device_set_desc(dev, "Mylex System Drive");
     return (0);
 }
@@ -215,7 +215,7 @@ mlxd_attach(device_t dev)
     device_t		parent;
     char		*state;
     int			s1, s2;
-    
+
     debug_called(1);
 
     parent = device_get_parent(dev);
@@ -255,7 +255,7 @@ mlxd_attach(device_t dev)
     sc->mlxd_disk->d_fwsectors = sc->mlxd_drive->ms_sectors;
     sc->mlxd_disk->d_fwheads = sc->mlxd_drive->ms_heads;
 
-    /* 
+    /*
      * Set maximum I/O size to the lesser of the recommended maximum and the practical
      * maximum except on v2 cards where the maximum is set to 8 pages.
      */

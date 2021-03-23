@@ -113,7 +113,7 @@ typedef struct ModalEepHeader4k {
 	uint8_t		ht40PowerIncForPdadc;			// 1
 	uint8_t		bswAtten[AR5416_4K_MAX_CHAINS];		// 1
 	uint8_t		bswMargin[AR5416_4K_MAX_CHAINS];	// 1
-	uint8_t		swSettleHt40;				// 1	
+	uint8_t		swSettleHt40;				// 1
 	uint8_t		xatten2Db[AR5416_4K_MAX_CHAINS];    	// 1
 	uint8_t		xatten2Margin[AR5416_4K_MAX_CHAINS];	// 1
 
@@ -170,7 +170,7 @@ struct ar5416eeprom_4k {
 	CAL_TARGET_POWER_HT	calTargetPower2GHT40[AR5416_4K_NUM_2G_40_TARGET_POWERS];
 	uint8_t			ctlIndex[AR5416_4K_NUM_CTLS];
 	CAL_CTL_DATA_4K		ctlData[AR5416_4K_NUM_CTLS];
-	uint8_t			padding;			
+	uint8_t			padding;
 } __packed;
 
 typedef struct {

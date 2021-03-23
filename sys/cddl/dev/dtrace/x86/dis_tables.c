@@ -118,7 +118,7 @@ enum {
 	SEG,
 	MR,
 	RM,
-	RM_66r,		/* RM, but with a required 0x66 prefix */ 
+	RM_66r,		/* RM, but with a required 0x66 prefix */
 	IA,
 	MA,
 	SD,

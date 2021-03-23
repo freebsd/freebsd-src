@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * CFE TLV NVRAM data class.
- * 
+ *
  * The CFE-defined TLV NVRAM format is used on the WGT634U.
  */
 
@@ -217,7 +217,7 @@ bhnd_nvram_tlv_getvar_direct(struct bhnd_nvram_io *io, const char *name,
 			}
 
 			/* Match against requested variable name */
-			if (keylen == namelen && 
+			if (keylen == namelen &&
 			    strncmp(key, name, namelen) == 0)
 			{
 				return (bhnd_nvram_value_coerce(value, vlen,
@@ -355,7 +355,7 @@ bhnd_nvram_tlv_serialize(bhnd_nvram_data_class *cls, bhnd_nvram_plist *props,
 
 /**
  * Initialize @p tlv with the provided NVRAM TLV data mapped by @p src.
- * 
+ *
  * @param tlv A newly allocated data instance.
  */
 static int
@@ -392,7 +392,7 @@ bhnd_nvram_tlv_init(struct bhnd_nvram_tlv *tlv, struct bhnd_nvram_io *src)
 		}
 
 		/* Parse the key=value string, and then replace the '='
-		 * delimiter with '\0' to allow us to provide direct 
+		 * delimiter with '\0' to allow us to provide direct
 		 * name pointers from our backing buffer */
 		error = bhnd_nvram_parse_env(env->envp, env_len, '=', NULL,
 		    &name_len, NULL, NULL);
@@ -625,7 +625,7 @@ bhnd_nvram_tlv_filter_unsetvar(struct bhnd_nvram_data *nv, const char *name)
 /**
  * Iterate over the records starting at @p next, returning the parsed
  * record's @p tag, @p size, and @p offset.
- * 
+ *
  * @param		io		The I/O context to parse.
  * @param[in,out]	next		The next offset to be parsed, or 0x0
  *					to begin parsing. Upon successful
@@ -634,7 +634,7 @@ bhnd_nvram_tlv_filter_unsetvar(struct bhnd_nvram_data *nv, const char *name)
  *					NVRAM_TLV_TYPE_END was parsed).
  * @param[out]		offset		The record's value offset.
  * @param[out]		tag		The record's tag.
- * 
+ *
  * @retval 0		success
  * @retval EINVAL	if parsing @p io as TLV fails.
  * @retval non-zero	if reading @p io otherwise fails, a regular unix error
@@ -740,7 +740,7 @@ bhnd_nvram_tlv_parse_size(struct bhnd_nvram_io *io, size_t *size)
 /**
  * Iterate over the records in @p tlv, returning a pointer to the next
  * NVRAM_TLV_TYPE_ENV record, or NULL if EOF is reached.
- * 
+ *
  * @param		tlv		The TLV instance.
  * @param[in,out]	next		The next offset to be parsed, or 0x0
  *					to begin parsing. Upon successful

@@ -275,7 +275,7 @@ beri_write_pmc(int cpu, int ri, pmc_value_t v)
 
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = (1UL << (beri_pmc_spec.ps_counter_width - 1)) - v;
-	
+
 	PMCDBG3(MDP,WRI,1,"beri-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
 	if (PMC_IS_SYSTEM_MODE(PMC_TO_MODE(pm)))
@@ -456,11 +456,11 @@ pmc_beri_initialize()
 {
 	struct pmc_mdep *pmc_mdep;
 	struct pmc_classdep *pcd;
-	
+
 	snprintf(pmc_cpuid, sizeof(pmc_cpuid), "beri");
 
 	beri_npmcs = 2;
-	
+
 	PMCDBG1(MDP,INI,1,"beri-init npmcs=%d", beri_npmcs);
 
 	/*
@@ -497,7 +497,7 @@ pmc_beri_initialize()
 	pmc_mdep->pmd_intr       = NULL;
 	pmc_mdep->pmd_switch_in  = beri_pmc_switch_in;
 	pmc_mdep->pmd_switch_out = beri_pmc_switch_out;
-	
+
 	pmc_mdep->pmd_npmc += beri_npmcs;
 
 	return (pmc_mdep);

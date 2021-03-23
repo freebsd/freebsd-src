@@ -224,7 +224,7 @@ mfi_pci_attach(device_t dev)
 	}
 	else if ((sc->mfi_flags & MFI_FLAGS_GEN2) ||
 		 (sc->mfi_flags & MFI_FLAGS_SKINNY) ||
-		(sc->mfi_flags & MFI_FLAGS_TBOLT)) { 
+		(sc->mfi_flags & MFI_FLAGS_TBOLT)) {
 		/* Gen2/Skinny: Memory mapped BAR is at offset 0x14 */
 		sc->mfi_regs_rid = PCIR_BAR(1);
 	}

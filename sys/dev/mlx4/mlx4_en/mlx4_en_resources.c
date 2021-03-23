@@ -86,7 +86,7 @@ int mlx4_en_map_buffer(struct mlx4_buf *buf)
 	struct page **pages;
 	int i;
 
-        // if nbufs == 1 - there is no need to vmap 
+        // if nbufs == 1 - there is no need to vmap
         // if buf->direct.buf is not NULL it means that vmap was already done by mlx4_alloc_buff
 	if (buf->direct.buf != NULL || buf->nbufs == 1)
 		return 0;

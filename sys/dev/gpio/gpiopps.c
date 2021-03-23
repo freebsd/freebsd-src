@@ -235,7 +235,7 @@ gpiopps_fdt_attach(device_t dev)
 		return (err);
 	}
 
-	err = bus_setup_intr(dev, sc->ires, INTR_TYPE_CLK | INTR_MPSAFE, 
+	err = bus_setup_intr(dev, sc->ires, INTR_TYPE_CLK | INTR_MPSAFE,
 	    gpiopps_ifltr, gpiopps_ithrd, sc, &sc->ihandler);
 	if (err != 0) {
 		device_printf(dev, "Unable to setup pps irq handler\n");
@@ -250,7 +250,7 @@ gpiopps_fdt_attach(device_t dev)
 	devargs.mda_gid = GID_WHEEL;
 	devargs.mda_mode = 0660;
 	devargs.mda_si_drv1 = sc;
-	err = make_dev_s(&devargs, &sc->pps_cdev, PPS_CDEV_NAME "%d", 
+	err = make_dev_s(&devargs, &sc->pps_cdev, PPS_CDEV_NAME "%d",
 	    device_get_unit(dev));
 	if (err != 0) {
 		device_printf(dev, "Unable to create pps cdev\n");

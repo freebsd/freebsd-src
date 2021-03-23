@@ -270,13 +270,13 @@ ip17x_attach(device_t dev)
 	err = bus_generic_attach(dev);
 	if (err != 0)
 		return (err);
-	
+
 	if (sc->miipoll) {
 		callout_init(&sc->callout_tick, 0);
 
 		ip17x_tick(sc);
 	}
-	
+
 	return (0);
 }
 
@@ -613,10 +613,10 @@ static device_method_t ip17x_methods[] = {
 	DEVMETHOD(device_probe,		ip17x_probe),
 	DEVMETHOD(device_attach,	ip17x_attach),
 	DEVMETHOD(device_detach,	ip17x_detach),
-	
+
 	/* bus interface */
 	DEVMETHOD(bus_add_child,	device_add_child_ordered),
-	
+
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	ip17x_readphy),
 	DEVMETHOD(miibus_writereg,	ip17x_writephy),

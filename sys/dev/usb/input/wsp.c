@@ -667,11 +667,11 @@ wsp_set_device_mode(struct wsp_softc *sc, uint8_t on)
 	 */
 	pause("WHW", hz / 4);
 
-	mode_bytes[params->um_switch_idx] = 
+	mode_bytes[params->um_switch_idx] =
 	    on ? params->um_switch_on : params->um_switch_off;
 
 	return (usbd_req_set_report(sc->sc_usb_device, NULL,
-	    mode_bytes, params->um_size, params->iface_index, 
+	    mode_bytes, params->um_size, params->iface_index,
 	    params->um_req_val, params->um_req_idx));
 }
 
@@ -919,7 +919,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				f->pressure = le16toh((uint16_t)f->pressure);
 				f->multi = le16toh((uint16_t)f->multi);
 			}
-			DPRINTFN(WSP_LLEVEL_INFO, 
+			DPRINTFN(WSP_LLEVEL_INFO,
 			    "[%d]ibt=%d, taps=%d, o=%4d, ax=%5d, ay=%5d, "
 			    "rx=%5d, ry=%5d, tlmaj=%4d, tlmin=%4d, ot=%4x, "
 			    "tchmaj=%4d, tchmin=%4d, presure=%4d, m=%4x\n",
@@ -941,7 +941,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				sc->sc_status.button |= MOUSE_BUTTON3DOWN;
 			else if ((params->caps & HAS_INTEGRATED_BUTTON) && ntouch == 3)
 				sc->sc_status.button |= MOUSE_BUTTON2DOWN;
-			else 
+			else
 				sc->sc_status.button |= MOUSE_BUTTON1DOWN;
 			sc->ibtn = 1;
 		}
@@ -1063,15 +1063,15 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				if (ntouch == 1 && sc->index[0]->tool_major > 1200)
 					dx = dy = 0;
 
-				if (sc->ibtn != 0 && ntouch == 1 && 
-				    sc->intr_count < WSP_TAP_MAX_COUNT && 
+				if (sc->ibtn != 0 && ntouch == 1 &&
+				    sc->intr_count < WSP_TAP_MAX_COUNT &&
 				    abs(sc->dx_sum) < 1 && abs(sc->dy_sum) < 1 )
 					dx = dy = 0;
 
 				if (ntouch == 2 && sc->sc_status.button != 0) {
 					dx = sc->pos_x[sc->finger] - sc->pre_pos_x;
 					dy = sc->pos_y[sc->finger] - sc->pre_pos_y;
-					
+
 					/*
 					 * Ignore movement of switch finger or
 					 * movement from ibt=0 to ibt=1
@@ -1132,7 +1132,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				dx = dy = 0;
 				if (sc->dz_count == 0)
 					dz = (sc->dz_sum / tun.z_factor) * (tun.z_invert ? -1 : 1);
-				if (sc->scr_mode == WSP_SCR_HOR || 
+				if (sc->scr_mode == WSP_SCR_HOR ||
 				    abs(sc->pos_x[0] - sc->pos_x[1]) > MAX_DISTANCE ||
 				    abs(sc->pos_y[0] - sc->pos_y[1]) > MAX_DISTANCE)
 					dz = 0;

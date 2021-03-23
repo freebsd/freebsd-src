@@ -504,15 +504,15 @@ ns8250_bus_attach(struct uart_softc *sc)
 #endif
 	if (!resource_int_value("uart", device_get_unit(sc->sc_dev), "flags",
 	    &ivar)) {
-		if (UART_FLAGS_FCR_RX_LOW(ivar)) 
+		if (UART_FLAGS_FCR_RX_LOW(ivar))
 			ns8250->fcr |= FCR_RX_LOW;
-		else if (UART_FLAGS_FCR_RX_MEDL(ivar)) 
+		else if (UART_FLAGS_FCR_RX_MEDL(ivar))
 			ns8250->fcr |= FCR_RX_MEDL;
-		else if (UART_FLAGS_FCR_RX_HIGH(ivar)) 
+		else if (UART_FLAGS_FCR_RX_HIGH(ivar))
 			ns8250->fcr |= FCR_RX_HIGH;
 		else
 			ns8250->fcr |= FCR_RX_MEDH;
-	} else 
+	} else
 		ns8250->fcr |= FCR_RX_MEDH;
 
 	/* Get IER mask */

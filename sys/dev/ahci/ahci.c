@@ -231,7 +231,7 @@ ahci_attach(device_t dev)
 
 	if (ctlr->quirks & AHCI_Q_FORCE_PI) {
 		/*
-		 * Enable ports. 
+		 * Enable ports.
 		 * The spec says that BIOS sets up bits corresponding to
 		 * available ports. On platforms where this information
 		 * is missing, the driver can define available ports on its own.
@@ -280,7 +280,7 @@ ahci_attach(device_t dev)
 	    (ctlr->caps & AHCI_CAP_64BIT) ? BUS_SPACE_MAXADDR :
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    BUS_SPACE_MAXSIZE, BUS_SPACE_UNRESTRICTED, BUS_SPACE_MAXSIZE,
-	    ctlr->dma_coherent ? BUS_DMA_COHERENT : 0, NULL, NULL, 
+	    ctlr->dma_coherent ? BUS_DMA_COHERENT : 0, NULL, NULL,
 	    &ctlr->dma_tag)) {
 		ahci_free_mem(dev);
 		rman_fini(&ctlr->sc_iomem);
@@ -654,8 +654,8 @@ ahci_release_resource(device_t dev, device_t child, int type, int rid,
 }
 
 int
-ahci_setup_intr(device_t dev, device_t child, struct resource *irq, 
-    int flags, driver_filter_t *filter, driver_intr_t *function, 
+ahci_setup_intr(device_t dev, device_t child, struct resource *irq,
+    int flags, driver_filter_t *filter, driver_intr_t *function,
     void *argument, void **cookiep)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
@@ -985,7 +985,7 @@ ahci_ch_init(device_t dev)
 	ATA_OUTL(ch->r_mem, AHCI_P_CLB, work & 0xffffffff);
 	ATA_OUTL(ch->r_mem, AHCI_P_CLBU, work >> 32);
 	work = ch->dma.rfis_bus;
-	ATA_OUTL(ch->r_mem, AHCI_P_FB, work & 0xffffffff); 
+	ATA_OUTL(ch->r_mem, AHCI_P_FB, work & 0xffffffff);
 	ATA_OUTL(ch->r_mem, AHCI_P_FBU, work >> 32);
 	/* Activate the channel and power/spin up device */
 	ATA_OUTL(ch->r_mem, AHCI_P_CMD,
@@ -1628,7 +1628,7 @@ ahci_begin_transaction(struct ahci_channel *ch, union ccb *ccb)
 /* Locked by busdma engine. */
 static void
 ahci_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
-{    
+{
 	struct ahci_slot *slot = arg;
 	struct ahci_channel *ch = slot->ch;
 	struct ahci_cmd_tab *ctp;
@@ -2352,7 +2352,7 @@ ahci_clo(struct ahci_channel *ch)
 	u_int32_t cmd;
 	int timeout;
 
-	/* Issue Command List Override if supported */ 
+	/* Issue Command List Override if supported */
 	if (ch->caps & AHCI_CAP_SCLO) {
 		cmd = ATA_INL(ch->r_mem, AHCI_P_CMD);
 		cmd |= AHCI_P_CMD_CLO;
@@ -2738,7 +2738,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		struct	ccb_trans_settings *cts = &ccb->cts;
-		struct	ahci_device *d; 
+		struct	ahci_device *d;
 
 		if (ahci_check_ids(ch, ccb))
 			return;

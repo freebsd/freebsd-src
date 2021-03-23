@@ -155,7 +155,7 @@ dtrace_getupcstack(uint64_t *pcstack, int pcstack_limit)
 	sp = (uint64_t)tf->sp;
 	ra = (uint64_t)tf->ra;
 	*pcstack++ = (uint64_t)tf->pc;
-	
+
 	/*
 	 * Unwind, and unwind, and unwind
 	 */
@@ -195,7 +195,7 @@ dtrace_getustackdepth(void)
 	sp = (uint64_t)tf->sp;
 	ra = (uint64_t)tf->ra;
 	n++;
-	
+
 	/*
 	 * Unwind, and unwind, and unwind
 	 */
@@ -480,7 +480,7 @@ dtrace_next_frame(register_t *pc, register_t *sp,
 		}
 	}
 
-	if (!MIPS_IS_VALID_KERNELADDR(ra)) 
+	if (!MIPS_IS_VALID_KERNELADDR(ra))
 		return (-1);
 
 	*pc = ra;
@@ -547,7 +547,7 @@ dtrace_next_uframe(register_t *pc, register_t *sp, register_t *ra)
 		}
 
 		if (function_start) {
-			/* 
+			/*
 			 * Stop looking further. Possible end of
 			 * function instruction: it means there is no
 			 * stack modifications, sp is unchanged
@@ -570,9 +570,9 @@ dtrace_next_uframe(register_t *pc, register_t *sp, register_t *ra)
 
 	if (registers_on_stack) {
 		offset = 0;
-		while ((offset < MAX_PROLOGUE_SIZE) 
+		while ((offset < MAX_PROLOGUE_SIZE)
 		    && ((function_start + offset) < *pc)) {
-			i.word = 
+			i.word =
 			    dtrace_fuword32((void *)(vm_offset_t)(function_start + offset));
 			switch (i.JType.op) {
 			case OP_SW:

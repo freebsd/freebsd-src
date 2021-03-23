@@ -628,7 +628,7 @@ struct mpr_user_func {
 static int
 mpr_user_setup_request(struct mpr_command *cm, struct mpr_usr_command *cmd)
 {
-	MPI2_REQUEST_HEADER *hdr = (MPI2_REQUEST_HEADER *)cm->cm_req;	
+	MPI2_REQUEST_HEADER *hdr = (MPI2_REQUEST_HEADER *)cm->cm_req;
 	struct mpr_user_func *f;
 
 	for (f = mpr_user_func_list; f->f_pre != NULL; f++) {
@@ -636,12 +636,12 @@ mpr_user_setup_request(struct mpr_command *cm, struct mpr_usr_command *cmd)
 			return (f->f_pre(cm, cmd));
 	}
 	return (EINVAL);
-}	
+}
 
 static int
 mpr_user_command(struct mpr_softc *sc, struct mpr_usr_command *cmd)
 {
-	MPI2_REQUEST_HEADER *hdr;	
+	MPI2_REQUEST_HEADER *hdr;
 	MPI2_DEFAULT_REPLY *rpl = NULL;
 	void *buf = NULL;
 	struct mpr_command *cm = NULL;
@@ -715,7 +715,7 @@ mpr_user_command(struct mpr_softc *sc, struct mpr_usr_command *cmd)
 		mpr_printf(sc, "%s: user reply buffer (%d) smaller than "
 		    "returned buffer (%d)\n", __func__, cmd->rpl_len, sz);
 		sz = cmd->rpl_len;
-	}	
+	}
 
 	mpr_unlock(sc);
 	copyout(rpl, cmd->rpl, sz);
@@ -1569,7 +1569,7 @@ mpr_diag_register(struct mpr_softc *sc, mpr_fw_diag_register_t *diag_register,
 			}
 		}
 		mpr_unlock(sc);
-	} 
+	}
 
 	if ((error != 0) || (ctx->error != 0)) {
 		device_printf(sc->mpr_dev, "Cannot bus_dmamap_load FW diag "
@@ -2418,7 +2418,7 @@ struct mpr_cfg_page_req32 {
 	MPI2_CONFIG_PAGE_HEADER header;
 	uint32_t page_address;
 	uint32_t buf;
-	int	len;	
+	int	len;
 	uint16_t ioc_status;
 };
 

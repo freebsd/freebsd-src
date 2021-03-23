@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
  * we don't know that it depends on a given resource.  We should perhaps
  * try to be smarter about this, but a more complete solution would involve
  * scanning all of the ACPI namespace to find devices we're not currently
- * aware of, and this raises questions about whether they should be left 
+ * aware of, and this raises questions about whether they should be left
  * on, turned off, etc.
  */
 
@@ -72,7 +72,7 @@ struct acpi_powerreference {
     TAILQ_ENTRY(acpi_powerreference)	ar_rlink; /* link on resource list */
     TAILQ_ENTRY(acpi_powerreference)	ar_clink; /* link on consumer */
 };
-    
+
 /* A power-managed device. */
 struct acpi_powerconsumer {
     /* Device which is powered */
@@ -133,7 +133,7 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
 
     rp = NULL;
     buf.Pointer = NULL;
-    
+
     /* Look to see if we know about this resource */
     if (acpi_pwr_find_resource(res) != NULL)
 	return_ACPI_STATUS (AE_OK);		/* already know about it */
@@ -162,7 +162,7 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
     }
     rp->ap_systemlevel = obj->PowerResource.SystemLevel;
     rp->ap_order = obj->PowerResource.ResourceOrder;
-    
+
     /* Sort the resource into the list */
     status = AE_OK;
     srp = TAILQ_FIRST(&acpi_powerresources);
@@ -203,7 +203,7 @@ acpi_pwr_deregister_resource(ACPI_HANDLE res)
     ACPI_SERIAL_ASSERT(powerres);
 
     rp = NULL;
-    
+
     /* Find the resource */
     if ((rp = acpi_pwr_find_resource(res)) == NULL)
 	return_ACPI_STATUS (AE_BAD_PARAMETER);
@@ -224,7 +224,7 @@ acpi_pwr_deregister_resource(ACPI_HANDLE res)
 #endif /* notyet */
 
 /*
- * Register a power consumer.  
+ * Register a power consumer.
  *
  * It's OK to call this if we already know about the consumer.
  */
@@ -232,14 +232,14 @@ static ACPI_STATUS
 acpi_pwr_register_consumer(ACPI_HANDLE consumer)
 {
     struct acpi_powerconsumer	*pc;
-    
+
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     ACPI_SERIAL_ASSERT(powerres);
 
     /* Check to see whether we know about this consumer already */
     if (acpi_pwr_find_consumer(consumer) != NULL)
 	return_ACPI_STATUS (AE_OK);
-    
+
     /* Allocate a new power consumer */
     if ((pc = malloc(sizeof(*pc), M_ACPIPWR, M_NOWAIT)) == NULL)
 	return_ACPI_STATUS (AE_NO_MEMORY);
@@ -252,7 +252,7 @@ acpi_pwr_register_consumer(ACPI_HANDLE consumer)
 
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "registered power consumer %s\n",
 		     acpi_name(consumer)));
-    
+
     return_ACPI_STATUS (AE_OK);
 }
 
@@ -267,14 +267,14 @@ static ACPI_STATUS
 acpi_pwr_deregister_consumer(ACPI_HANDLE consumer)
 {
     struct acpi_powerconsumer	*pc;
-    
+
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     ACPI_SERIAL_ASSERT(powerres);
 
     /* Find the consumer */
     if ((pc = acpi_pwr_find_consumer(consumer)) == NULL)
 	return_ACPI_STATUS (AE_BAD_PARAMETER);
-    
+
     /* Make sure the consumer's not referencing anything right now */
     if (TAILQ_FIRST(&pc->ac_references) != NULL)
 	return_ACPI_STATUS (AE_BAD_PARAMETER);
@@ -351,7 +351,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 
     /*
      * Verify that this state is supported, ie. one of method or
-     * reslist must be present.  We need to do this before we go 
+     * reslist must be present.  We need to do this before we go
      * dereferencing resources (since we might be trying to go to
      * a state we don't support).
      *
@@ -440,7 +440,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      * of the resources that are referenced.
      */
     if (reslist_object != NULL) {
-	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "referencing %d new resources\n", 
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "referencing %d new resources\n",
 			  reslist_object->Package.Count));
 	acpi_ForeachPackageObject(reslist_object, acpi_pwr_reference_resource,
 				  pc);
@@ -643,7 +643,7 @@ acpi_pwr_switch_power(void)
 	    status = AcpiEvaluateObject(rp->ap_resource, "_ON", NULL, NULL);
 	    if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS,
-				 "failed to switch %s on - %s\n", 
+				 "failed to switch %s on - %s\n",
 				 acpi_name(rp->ap_resource),
 				 AcpiFormatException(status)));
 	    } else {
@@ -655,7 +655,7 @@ acpi_pwr_switch_power(void)
 			     acpi_name(rp->ap_resource)));
 	}
     }
-    
+
     /* Sweep the list backwards turning things off. */
     TAILQ_FOREACH_REVERSE(rp, &acpi_powerresources, acpi_powerresource_list,
 	ap_link) {
@@ -683,7 +683,7 @@ acpi_pwr_switch_power(void)
 	    status = AcpiEvaluateObject(rp->ap_resource, "_OFF", NULL, NULL);
 	    if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS,
-				 "failed to switch %s off - %s\n", 
+				 "failed to switch %s off - %s\n",
 				 acpi_name(rp->ap_resource),
 				 AcpiFormatException(status)));
 	    } else {
@@ -706,7 +706,7 @@ static struct acpi_powerresource *
 acpi_pwr_find_resource(ACPI_HANDLE res)
 {
     struct acpi_powerresource	*rp;
-    
+
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     ACPI_SERIAL_ASSERT(powerres);
 
@@ -725,7 +725,7 @@ static struct acpi_powerconsumer *
 acpi_pwr_find_consumer(ACPI_HANDLE consumer)
 {
     struct acpi_powerconsumer	*pc;
-    
+
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     ACPI_SERIAL_ASSERT(powerres);
 

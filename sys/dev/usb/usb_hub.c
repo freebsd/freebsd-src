@@ -29,7 +29,7 @@
  */
 
 /*
- * USB spec: http://www.usb.org/developers/docs/usbspec.zip 
+ * USB spec: http://www.usb.org/developers/docs/usbspec.zip
  */
 
 #ifdef USB_GLOBAL_INCLUDE_FILE
@@ -696,7 +696,7 @@ repeat:
 
 		/* wait for maximum device power up time */
 
-		usb_pause_mtx(NULL, 
+		usb_pause_mtx(NULL,
 		    USB_MS_TO_TICKS(usb_port_powerup_delay));
 
 		/* reset port, which implies enabling it */
@@ -1964,8 +1964,8 @@ usb_hs_bandwidth_alloc(struct usb_xfer *xfer)
 		break;
 	}
 
-	DPRINTFN(11, "slot=%d, mask=0x%02x\n", 
-	    xfer->endpoint->usb_uframe, 
+	DPRINTFN(11, "slot=%d, mask=0x%02x\n",
+	    xfer->endpoint->usb_uframe,
 	    xfer->endpoint->usb_smask >> xfer->endpoint->usb_uframe);
 }
 
@@ -1997,11 +1997,11 @@ usb_hs_bandwidth_free(struct usb_xfer *xfer)
 		slot = xfer->endpoint->usb_uframe;
 		mask = xfer->endpoint->usb_smask;
 
-		/* free microframe slot(s): */ 	  
+		/* free microframe slot(s): */
 		usb_hs_bandwidth_adjust(udev,
 		    -xfer->max_frame_size, slot, mask >> slot);
 
-		DPRINTFN(11, "slot=%d, mask=0x%02x\n", 
+		DPRINTFN(11, "slot=%d, mask=0x%02x\n",
 		    slot, mask >> slot);
 
 		xfer->endpoint->usb_uframe = 0;
@@ -2892,7 +2892,7 @@ usbd_set_power_mode(struct usb_device *udev, uint8_t power_mode)
 	    (power_mode != USB_POWER_MODE_OFF))
 		power_mode = USB_POWER_MODE_SAVE;
 
-	power_mode = usbd_filter_power_mode(udev, power_mode);	
+	power_mode = usbd_filter_power_mode(udev, power_mode);
 
 	udev->power_mode = power_mode;	/* update copy of power mode */
 

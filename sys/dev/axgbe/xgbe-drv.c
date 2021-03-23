@@ -127,7 +127,7 @@ xgbe_calc_rx_buf_size(struct ifnet *netdev, unsigned int mtu)
 
 	rx_buf_size = mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 	rx_buf_size = min(max(rx_buf_size, XGBE_RX_MIN_BUF_SIZE), PAGE_SIZE);
-	rx_buf_size = (rx_buf_size + XGBE_RX_BUF_ALIGN - 1) & 
+	rx_buf_size = (rx_buf_size + XGBE_RX_BUF_ALIGN - 1) &
 	    ~(XGBE_RX_BUF_ALIGN - 1);
 
 	return (rx_buf_size);
@@ -311,7 +311,7 @@ xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 	    hw_feat->pps_out_num);
 	DBGPR("  Auxiliary snapshot inputs : %u\n",
 	    hw_feat->aux_snap_num);
-	
+
 	DBGPR("<--xgbe_get_all_hw_features\n");
 }
 

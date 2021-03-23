@@ -56,7 +56,7 @@
  *      TX_CTRL_0 <12>     Last segment of frame indicator
  *      TX_CTRL_0 <10:0>   Buffer size (?)
  *
- *      TX_CTRL_1 <14>     Perform H/W checksuming on IP packets 
+ *      TX_CTRL_1 <14>     Perform H/W checksuming on IP packets
  *      TX_CTRL_1 <13>     Disable automatic ethernet CRC generation
  *      TX_CTRL_1 <12>     Disable padding (?)
  *      TX_CTRL_1 <10:0>   Packet byte length
@@ -204,7 +204,7 @@
 #define SMSC_MAC_CSR_RXEN           (0x1UL << 2)   /* RX enable */
 
 /* Interrupt control register */
-#define SMSC_INTR_NTEP              (0x1UL << 31) 
+#define SMSC_INTR_NTEP              (0x1UL << 31)
 #define SMSC_INTR_MACRTO            (0x1UL << 19)
 #define SMSC_INTR_TX_STOP           (0x1UL << 17)
 #define SMSC_INTR_RX_STOP           (0x1UL << 16)

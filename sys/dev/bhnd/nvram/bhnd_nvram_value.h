@@ -25,7 +25,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -120,7 +120,7 @@ enum {
 	 */
 	BHND_NVRAM_VAL_DYNAMIC		= (1<<0),
 
-	/** 
+	/**
 	 * Copy the value data upon initialization. (default).
 	 */
 	BHND_NVRAM_VAL_COPY_DATA	= (0<<1),
@@ -128,7 +128,7 @@ enum {
 	/**
 	 * Do not perform an initial copy of the value data; the data must
 	 * remain valid for the lifetime of the NVRAM value.
-	 * 
+	 *
 	 * Value data will still be copied if the value itself is copied to the
 	 * heap.
 	 */
@@ -138,7 +138,7 @@ enum {
 	 * Do not copy the value data when copying the value to the heap; the
 	 * vlaue data is assumed to be statically allocated and must remain
 	 * valid for the lifetime of the process.
-	 * 
+	 *
 	 * Implies BHND_NVRAM_VAL_BORROW_DATA.
 	 */
 	BHND_NVRAM_VAL_STATIC_DATA	= (1<<2),

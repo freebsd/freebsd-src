@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -254,7 +254,7 @@ GLOBAL void saHwReset(
 	} //delray end
 
         ret = siChipResetV( agRoot, SPC_SOFT_RESET_SIGNATURE );
-	
+
 	if(agNULL !=saRoot)
 	{
            /* clear up the internal resource */
@@ -1560,20 +1560,20 @@ GLOBAL bit32 siHDAMode(
     ossaHwRegWrite(agRoot, MSGU_HOST_SCRATCH_PAD_3, regVal);
     SA_DBG1(("siHDAMode: Step2:Host Scratchpad 3 (AAP1-ISTR): 0x%x\n", regVal));
 
-    stepTime[2] = ossaTimeStamp(agRoot);  // TestBase 
-    SA_DBG1(("siHDAMode: End Step2: (step_time[2] = %d)\n", stepTime[2]));  // TestBase 
+    stepTime[2] = ossaTimeStamp(agRoot);  // TestBase
+    SA_DBG1(("siHDAMode: End Step2: (step_time[2] = %d)\n", stepTime[2]));  // TestBase
 
     /* Step 3: Write the HDA mode SoftReset signature */
     SA_DBG1(("siHDAMode: Step3:Set Signature!\n"));
     /* set signature in host scratch pad0 register to tell SPC that the host performs the HDA mode */
     ossaHwRegWrite(agRoot, MSGU_HOST_SCRATCH_PAD_0, SPC_HDASOFT_RESET_SIGNATURE);
 
-    stepTime[3] = ossaTimeStamp(agRoot);  // TestBase 
-    SA_DBG1(("siHDAMode: End Step3: (step_time[3] =  %d)\n", stepTime[3]));  // TestBase 
+    stepTime[3] = ossaTimeStamp(agRoot);  // TestBase
+    SA_DBG1(("siHDAMode: End Step3: (step_time[3] =  %d)\n", stepTime[3]));  // TestBase
 
     // Priya (Apps) requested that the FW load time measurement be started here
     startTime = ossaTimeStamp(agRoot);
-    SA_DBG1(("siHDAMode: Step4: Ready to push ILA to 0x00400000! (start_time =  %d)\n", startTime));  // TestBase 
+    SA_DBG1(("siHDAMode: Step4: Ready to push ILA to 0x00400000! (start_time =  %d)\n", startTime));  // TestBase
 
     /* Step 4: Push the ILA image to 0x00400000 */
     SA_DBG1(("siHDAMode: Step4:Push the ILA to 0x00400000!\n"));
@@ -1586,7 +1586,7 @@ GLOBAL bit32 siHDAMode(
     }
 
     stepTime[4] = ossaTimeStamp(agRoot);
-    SA_DBG1(("siHDAMode: End Step4: (step_time[4] = %d, %d ms)\n", stepTime[4], (stepTime[4] - startTime)));  // TestBase 
+    SA_DBG1(("siHDAMode: End Step4: (step_time[4] = %d, %d ms)\n", stepTime[4], (stepTime[4] - startTime)));  // TestBase
 
     /* Step 5: Tell boot ROM to authenticate ILA and execute it */
     ossaHwRegWriteExt(agRoot, PCIBAR3, HDA_CMD_OFFSET1MB, 0);
@@ -1598,7 +1598,7 @@ GLOBAL bit32 siHDAMode(
     ossaHwRegWriteExt(agRoot, PCIBAR3, HDA_CMD_OFFSET1MB+HDA_CMD_CODE_OFFSET, regVal); /* Execute Command */
 
     stepTime[5] = ossaTimeStamp(agRoot);
-    SA_DBG1(("siHDAMode: End Step5: (step_time[5] = %d, %d ms)\n", stepTime[5], (stepTime[5] - startTime)));  // TestBase 
+    SA_DBG1(("siHDAMode: End Step5: (step_time[5] = %d, %d ms)\n", stepTime[5], (stepTime[5] - startTime)));  // TestBase
 
 
     /* Step 6: Checking response status from boot ROM, HDAR_EXEC (good), HDAR_BAD_CMD and HDAR_BAD_IMG */
@@ -1633,7 +1633,7 @@ GLOBAL bit32 siHDAMode(
     }
 
     stepTime[6] = ossaTimeStamp(agRoot);
-    SA_DBG1(("siHDAMode: End Step6: (step_time[6] = %d, %d ms)\n", stepTime[6], (stepTime[6] - startTime)));  // TestBase 
+    SA_DBG1(("siHDAMode: End Step6: (step_time[6] = %d, %d ms)\n", stepTime[6], (stepTime[6] - startTime)));  // TestBase
 
     /* Step 7: Poll ILAHDA_AAP1IMGGET/Offset in MSGU Scratchpad 0 */
     /* Check MSGU Scratchpad 1 [1,0] == 00 */
@@ -1676,7 +1676,7 @@ GLOBAL bit32 siHDAMode(
     regVal = ossaHwRegRead(agRoot, MSGU_SCRATCH_PAD_0) & 0x00FFFFFF;
 
     stepTime[7] = ossaTimeStamp(agRoot);
-    SA_DBG1(("siHDAMode: End Step7: (step_time[7] = %d, %d ms)\n", stepTime[7], (stepTime[7] - startTime)));  // TestBase 
+    SA_DBG1(("siHDAMode: End Step7: (step_time[7] = %d, %d ms)\n", stepTime[7], (stepTime[7] - startTime)));  // TestBase
 
     /* Step 8: Copy AAP1 image, update the Host Scratchpad 3 */
     SA_DBG1(("siHDAMode: Step8:Push the AAP1 to 0x00400000 plus 0x%x\n", regVal));
@@ -1699,7 +1699,7 @@ GLOBAL bit32 siHDAMode(
     SA_DBG1(("siHDAMode: Step8:Host Scratchpad 3 (AAP1): 0x%x\n", regVal));
 
     stepTime[8] = ossaTimeStamp(agRoot);
-    SA_DBG1(("siHDAMode: End Step8: (step_time[8] = %d, %d ms)\n", stepTime[8], (stepTime[8] - startTime)));  // TestBase 
+    SA_DBG1(("siHDAMode: End Step8: (step_time[8] = %d, %d ms)\n", stepTime[8], (stepTime[8] - startTime)));  // TestBase
 
     /* Step 9: Poll ILAHDA_IOPIMGGET/Offset in MSGU Scratchpad 0 */
     SA_DBG1(("siHDAMode: Step9:Poll ILAHDA_IOP_IMG_GET!\n"));
@@ -1727,7 +1727,7 @@ GLOBAL bit32 siHDAMode(
     regVal = ossaHwRegRead(agRoot, MSGU_SCRATCH_PAD_0) & HDA_GSM_OFFSET_BITS;
 
     stepTime[9] = ossaTimeStamp(agRoot);
-    SA_DBG1(("siHDAMode: End Step9: (step_time[9] = %d, %d ms)\n", stepTime[9], (stepTime[9] - startTime)));  // TestBase 
+    SA_DBG1(("siHDAMode: End Step9: (step_time[9] = %d, %d ms)\n", stepTime[9], (stepTime[9] - startTime)));  // TestBase
 
     // saHdaLoadForceHalt(agRoot);  // TestBase
 
@@ -1751,7 +1751,7 @@ GLOBAL bit32 siHDAMode(
     SA_DBG1(("siHDAMode: Step10:Host Scratchpad 3 (IOP): 0x%x\n", regVal));
 
     stepTime[10] = ossaTimeStamp(agRoot);
-    SA_DBG1(("siHDAMode: End Step10: (step_time[10] = %d, %d ms)\n", stepTime[10], (stepTime[10] - startTime)));  // TestBase 
+    SA_DBG1(("siHDAMode: End Step10: (step_time[10] = %d, %d ms)\n", stepTime[10], (stepTime[10] - startTime)));  // TestBase
 
     /* Clear the signature */
     ossaHwRegWrite(agRoot, MSGU_HOST_SCRATCH_PAD_0, 0);
@@ -1759,10 +1759,10 @@ GLOBAL bit32 siHDAMode(
     /* step 11: wait for the FW and IOP to get ready - 1 sec timeout */
     /* Wait for the SPC Configuration Table to be ready */
     stepTime[11] = ossaTimeStamp(agRoot);
-    SA_DBG1(("siHDAMode: Start Step11: Wait for FW ready. (step_time[11.1] =  %d, %d ms)\n", stepTime[11], (stepTime[11] - startTime))); // TestBase 
+    SA_DBG1(("siHDAMode: Start Step11: Wait for FW ready. (step_time[11.1] =  %d, %d ms)\n", stepTime[11], (stepTime[11] - startTime))); // TestBase
 
     endTime = ossaTimeStamp(agRoot);
-    SA_DBG1(("siHDAMode: End Step11: FW ready! (end_time= %d, fw_load_time = %d ms)\n", endTime, endTime - startTime)); // TestBase 
+    SA_DBG1(("siHDAMode: End Step11: FW ready! (end_time= %d, fw_load_time = %d ms)\n", endTime, endTime - startTime)); // TestBase
 
     SA_DBG1(("siHDAMode: Step11:Poll for FW ready!\n"));
     if (mpiWaitForConfigTable(agRoot, &mainCfg) == AGSA_RC_FAILURE)
@@ -1804,7 +1804,7 @@ GLOBAL bit32 siHDAMode(
 /*******************************************************************************/
 LOCAL void siPciMemCpy(agsaRoot_t *agRoot,
                        bit32 dstoffset,
-                       void *src, 
+                       void *src,
                        bit32 DWcount,
                        bit32 busBaseNumber
                        )
@@ -2568,7 +2568,7 @@ SPCv controller boot ROM is ready to proceed to the next step of HDA initializat
 
   SA_DBG1(("siHDAMode_V: Step 8 0x%X ERROR_STATE 0x%X\n",ossaHwRegReadExt(agRoot,PCIBAR0 ,V_SoftResetRegister ),
   SCRATCH_PAD1_V_ERROR_STATE( ossaHwRegReadExt(agRoot, PCIBAR0, MSGU_SCRATCH_PAD_1) ) ));
-  if (SCRATCH_PAD1_V_ERROR_STATE( ossaHwRegReadExt(agRoot, PCIBAR0, MSGU_SCRATCH_PAD_1) )) 
+  if (SCRATCH_PAD1_V_ERROR_STATE( ossaHwRegReadExt(agRoot, PCIBAR0, MSGU_SCRATCH_PAD_1) ))
   {
       if(smIS_ENCRYPT(agRoot))
       {

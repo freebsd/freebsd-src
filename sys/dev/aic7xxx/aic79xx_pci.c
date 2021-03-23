@@ -157,7 +157,7 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 		"Adaptec 29320LP Ultra320 SCSI adapter",
 		ahd_aic7901A_setup
 	},
-	/* aic7902 based controllers */	
+	/* aic7902 based controllers */
 	{
 		ID_AHA_29320,
 		ID_ALL_MASK,
@@ -240,7 +240,7 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 };
 
 const u_int ahd_num_pci_devs = NUM_ELEMENTS(ahd_pci_ident_table);
-		
+
 #define	DEVCONFIG		0x40
 #define		PCIXINITPAT	0x0000E000ul
 #define			PCIXINIT_PCI33_66	0x0000E000ul
@@ -301,7 +301,7 @@ ahd_find_pci_device(aic_dev_softc_t pci)
 	subdevice = aic_pci_read_config(pci, PCIR_SUBDEV_0, /*bytes*/2);
 
 	if ((vendor == ADAPTECVENDORID) && (subvendor == SUBVENDOR9005)) {
-		if ((device == DEVICE8081) || (device == DEVICE8088) || 
+		if ((device == DEVICE8081) || (device == DEVICE8088) ||
 			(device == DEVICE8089)) {
 			printf("Controller device ID conflict with PMC Adaptec HBA\n");
 			return (NULL);
@@ -316,7 +316,7 @@ ahd_find_pci_device(aic_dev_softc_t pci)
 	/*
 	 * If we are configured to attach to HostRAID
 	 * controllers, mask out the IROC/HostRAID bit
-	 * in the 
+	 * in the
 	 */
 	if (ahd_attach_to_HostRAID_controllers)
 		full_id &= ID_ALL_IROC_MASK;
@@ -338,8 +338,8 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 {
 	u_int		 command;
 	uint32_t	 devconfig;
-	uint16_t	 device; 
-	uint16_t	 subvendor; 
+	uint16_t	 device;
+	uint16_t	 subvendor;
 	int		 error;
 
 	ahd->description = entry->name;
@@ -566,7 +566,7 @@ ahd_check_extport(struct ahd_softc *ahd)
 		/*
 		 * Fetch VPD for this function and parse it.
 		 */
-		if (bootverbose) 
+		if (bootverbose)
 			printf("%s: Reading VPD from SEEPROM...",
 			       ahd_name(ahd));
 
@@ -579,12 +579,12 @@ ahd_check_extport(struct ahd_softc *ahd)
 					 /*bytestream*/TRUE);
 		if (error == 0)
 			error = ahd_parse_vpddata(ahd, &vpd);
-		if (bootverbose) 
+		if (bootverbose)
 			printf("%s: VPD parsing %s\n",
 			       ahd_name(ahd),
 			       error == 0 ? "successful" : "failed");
 
-		if (bootverbose) 
+		if (bootverbose)
 			printf("%s: Reading SEEPROM...", ahd_name(ahd));
 
 		/* Address is always in units of 16bit words */
@@ -871,7 +871,7 @@ ahd_pci_intr(struct ahd_softc *ahd)
 					s = "%s: Signaled Target Abort\n";
 				printf(s, ahd_name(ahd), pci_status_source[i]);
 			}
-		}	
+		}
 	}
 	pci_status1 = aic_pci_read_config(ahd->dev_softc,
 					  PCIR_STATUS + 1, /*bytes*/1);

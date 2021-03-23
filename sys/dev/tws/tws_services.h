@@ -41,7 +41,7 @@
 void tws_trace(const char *file, const char *fun, int linenum,
          struct tws_softc *sc,  char *desc, u_int64_t val1, u_int64_t val2);
 void tws_log(struct tws_softc *sc, int index);
-u_int32_t tws_read_reg(struct tws_softc *sc, 
+u_int32_t tws_read_reg(struct tws_softc *sc,
                   int offset, int size);
 void tws_write_reg(struct tws_softc *sc, int offset,
                   u_int32_t value, int size);

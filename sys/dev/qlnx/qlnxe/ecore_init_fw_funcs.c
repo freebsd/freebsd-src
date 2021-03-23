@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,7 @@ static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES_E4] = {
 /* WFQ constants: */
 
 /* Upper bound in MB, 10 * burst size of 1ms in 50Gbps */
-#define QM_WFQ_UPPER_BOUND		62500000 
+#define QM_WFQ_UPPER_BOUND		62500000
 
 /* Bit  of VOQ in WFQ VP PQ map */
 #define QM_WFQ_VP_PQ_VOQ_SHIFT		0
@@ -82,7 +82,7 @@ static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES_E4] = {
 #define QM_WFQ_VP_PQ_PF_E5_SHIFT	6
 
 /* 0x9000 = 4*9*1024 */
-#define QM_WFQ_INC_VAL(weight)		((weight) * 0x9000) 
+#define QM_WFQ_INC_VAL(weight)		((weight) * 0x9000)
 
 /* Max WFQ increment value is 0.7 * upper bound */
 #define QM_WFQ_MAX_INC_VAL		((QM_WFQ_UPPER_BOUND * 7) / 10)
@@ -96,7 +96,7 @@ static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES_E4] = {
 #define QM_RL_PERIOD			5
 
 /* Period in 25MHz cycles */
-#define QM_RL_PERIOD_CLK_25M		(25 * QM_RL_PERIOD) 
+#define QM_RL_PERIOD_CLK_25M		(25 * QM_RL_PERIOD)
 
 /* RL increment value - rate is specified in mbps. the factor of 1.01 was
 * added after seeing only 99% factor reached in a 25Gbps port with DPDK RFC
@@ -263,8 +263,8 @@ static void ecore_cmdq_lines_voq_rt_init(struct ecore_hwfn *p_hwfn,
 										 u8 ext_voq,
 										 u16 cmdq_lines)
 {
-	u32 qm_line_crd;	
-		
+	u32 qm_line_crd;
+
 	qm_line_crd = QM_VOQ_LINE_CRD(cmdq_lines);
 
 	OVERWRITE_RT_REG(p_hwfn, PBF_CMDQ_LINES_RT_OFFSET(ext_voq), (u32)cmdq_lines);
@@ -513,7 +513,7 @@ static void ecore_other_pq_map_rt_init(struct ecore_hwfn *p_hwfn,
 	/* Map PQ group to PF */
 	STORE_RT_REG(p_hwfn, QM_REG_PQOTHER2PF_0_RT_OFFSET + pq_group, (u32)(pf_id));
 
-	/* Set PQ sizes */       
+	/* Set PQ sizes */
 	STORE_RT_REG(p_hwfn, QM_REG_MAXPQSIZE_2_RT_OFFSET, QM_PQ_SIZE_256B(pq_size));
 
 	for (i = 0, pq_id = pf_id * QM_PF_QUEUE_GROUP_SIZE; i < QM_OTHER_PQS_PER_PF; i++, pq_id++) {
@@ -946,7 +946,7 @@ bool ecore_send_qm_stop_cmd(struct ecore_hwfn *p_hwfn,
 #define NIG_RL_PERIOD			1
 
 /* Period in 25MHz cycles */
-#define NIG_RL_PERIOD_CLK_25M		(25 * NIG_RL_PERIOD) 
+#define NIG_RL_PERIOD_CLK_25M		(25 * NIG_RL_PERIOD)
 
 /* Rate in mbps */
 #define NIG_RL_INC_VAL(rate)		(((rate) * NIG_RL_PERIOD) / 8)
@@ -988,7 +988,7 @@ void ecore_init_nig_ets(struct ecore_hwfn *p_hwfn,
 
 		/* Update WFQ map */
 		wfq_tc_map |= (1 << tc);
-                                
+
 		/* Find minimal weight */
 		if (tc_req->weight < min_weight)
 			min_weight = tc_req->weight;
@@ -1138,7 +1138,7 @@ void ecore_init_prs_ets(struct ecore_hwfn *p_hwfn,
 
 		/* Update WFQ map */
 		wfq_tc_map |= (1 << tc);
-                                
+
 		/* Find minimal weight */
 		if (tc_req->weight < min_weight)
 			min_weight = tc_req->weight;
@@ -1175,7 +1175,7 @@ void ecore_init_prs_ets(struct ecore_hwfn *p_hwfn,
 /* BRB: RAM configuration constants */
 #define BRB_TOTAL_RAM_BLOCKS_BB	4800
 #define BRB_TOTAL_RAM_BLOCKS_K2	5632
-#define BRB_BLOCK_SIZE		128 
+#define BRB_BLOCK_SIZE		128
 #define BRB_MIN_BLOCKS_PER_TC	9
 #define BRB_HYST_BYTES		10240
 #define BRB_HYST_BLOCKS		(BRB_HYST_BYTES / BRB_BLOCK_SIZE)
@@ -1373,7 +1373,7 @@ void ecore_set_geneve_enable(struct ecore_hwfn *p_hwfn,
 
 	/* Update PRS register */
 	reg_val = ecore_rd(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN);
-	SET_TUNNEL_TYPE_ENABLE_BIT(reg_val, PRS_REG_ENCAPSULATION_TYPE_EN_ETH_OVER_GENEVE_ENABLE_SHIFT, eth_geneve_enable);   
+	SET_TUNNEL_TYPE_ENABLE_BIT(reg_val, PRS_REG_ENCAPSULATION_TYPE_EN_ETH_OVER_GENEVE_ENABLE_SHIFT, eth_geneve_enable);
 	SET_TUNNEL_TYPE_ENABLE_BIT(reg_val, PRS_REG_ENCAPSULATION_TYPE_EN_IP_OVER_GENEVE_ENABLE_SHIFT, ip_geneve_enable);
 	ecore_wr(p_hwfn, p_ptt, PRS_REG_ENCAPSULATION_TYPE_EN, reg_val);
     if (reg_val) /* TODO: handle E5 init */
@@ -1390,7 +1390,7 @@ void ecore_set_geneve_enable(struct ecore_hwfn *p_hwfn,
 	/* Update NIG register */
 	ecore_wr(p_hwfn, p_ptt, NIG_REG_NGE_ETH_ENABLE, eth_geneve_enable ? 1 : 0);
 	ecore_wr(p_hwfn, p_ptt, NIG_REG_NGE_IP_ENABLE, ip_geneve_enable ? 1 : 0);
-    
+
 	/* EDPM with geneve tunnel not supported in BB */
 	if (ECORE_IS_BB_B0(p_hwfn->p_dev))
 		return;
@@ -1423,7 +1423,7 @@ void ecore_set_vxlan_no_l2_enable(struct ecore_hwfn *p_hwfn,
         /* update PRS FIC  register */
         ecore_wr(p_hwfn, p_ptt, PRS_REG_OUTPUT_FORMAT_4_0_BB_K2, (u32)PRS_ETH_VXLAN_NO_L2_OUTPUT_FORMAT);
     }
-    else 
+    else
     {
         /* clear VXLAN_NO_L2_ENABLE flag */
         reg_val &= ~cfg_mask;
@@ -1440,7 +1440,7 @@ void ecore_set_vxlan_no_l2_enable(struct ecore_hwfn *p_hwfn,
 #define T_ETH_PACKET_MATCH_RFS_EVENTID 25
 #define PARSER_ETH_CONN_CM_HDR 0
 #define CAM_LINE_SIZE sizeof(u32)
-#define RAM_LINE_SIZE sizeof(u64) 
+#define RAM_LINE_SIZE sizeof(u64)
 #define REG_SIZE sizeof(u32)
 
 void ecore_gft_disable(struct ecore_hwfn *p_hwfn,
@@ -1584,12 +1584,12 @@ void ecore_gft_config(struct ecore_hwfn *p_hwfn,
 void ecore_config_vf_zone_size_mode(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt, u16 mode, bool runtime_init)
 {
 	u32 msdm_vf_size_log = MSTORM_VF_ZONE_DEFAULT_SIZE_LOG;
-	u32 msdm_vf_offset_mask; 
+	u32 msdm_vf_offset_mask;
 
 	if (mode == VF_ZONE_SIZE_MODE_DOUBLE)
-		msdm_vf_size_log += 1; 
+		msdm_vf_size_log += 1;
 	else if (mode == VF_ZONE_SIZE_MODE_QUAD)
-		msdm_vf_size_log += 2; 
+		msdm_vf_size_log += 2;
 
 	msdm_vf_offset_mask = (1 << msdm_vf_size_log) - 1;
 

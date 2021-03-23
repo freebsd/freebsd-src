@@ -76,7 +76,7 @@ SYSCTL_DECL(_hw_pci);
 
 /*
  * The maximum amount of memory we will allocate for user configuration of an
- * SR-IOV device.  1MB ought to be enough for anyone, but leave this 
+ * SR-IOV device.  1MB ought to be enough for anyone, but leave this
  * configurable just in case.
  */
 static u_long pci_iov_max_config = 1024 * 1024;
@@ -134,10 +134,10 @@ pci_iov_attach_method(device_t bus, device_t dev, nvlist_t *pf_schema,
 	if (error != 0)
 		return (error);
 
-	version = pci_read_config(dev, iov_pos, 4); 
+	version = pci_read_config(dev, iov_pos, 4);
 	if (PCI_EXTCAP_VER(version) != 1) {
 		if (bootverbose)
-			device_printf(dev, 
+			device_printf(dev,
 			    "Unsupported version of SR-IOV (%d) detected\n",
 			    PCI_EXTCAP_VER(version));
 

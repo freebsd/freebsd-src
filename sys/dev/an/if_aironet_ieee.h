@@ -144,7 +144,7 @@ struct an_sigcache {
  * tables, and also matches some info on the Intersil web site (I
  * think they make the RF front end for the cards.  However, the linux
  * driver uses the approximation dBm = RSSI/2 - 95.  I think that is
- * just wrong. 
+ * just wrong.
  */
 
 struct an_rssi_entry {
@@ -537,7 +537,7 @@ struct an_ltv_radioinfo {
 	/* ??? */
 };
 
-/* 
+/*
  * RSSI map.  If available in the card's firmware, this can be used to
  * convert the 8-bit RSSI values from the card into dBm.
  */

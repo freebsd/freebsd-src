@@ -263,7 +263,7 @@ ar5416ProcessRadarEvent(struct ath_hal *ah, struct ath_rx_status *rxs,
 	/* If hardware supports it, use combined RSSI, else use chain 0 RSSI */
 	if (doDfsCombinedRssi)
 		rssi = (uint8_t) rxs->rs_rssi;
-	else		
+	else
 		rssi = (uint8_t) rxs->rs_rssi_ctl[0];
 
 	/* Set this; but only use it if doDfsExtCh is set */
@@ -316,7 +316,7 @@ ar5416ProcessRadarEvent(struct ath_hal *ah, struct ath_rx_status *rxs,
 	 */
 	if (doDfsExtCh && pulse_bw_info == 0x0)
 		return AH_FALSE;
-		
+
 	/*
 	 * If the extended channel data is available, calculate
 	 * which to pay attention to.
@@ -349,7 +349,7 @@ ar5416ProcessRadarEvent(struct ath_hal *ah, struct ath_rx_status *rxs,
 			pri_found = 0;
 			ext_found = 1;
 		}
-		
+
 	}
 
 	/*

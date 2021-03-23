@@ -263,7 +263,7 @@ csa_attach(device_t dev)
 	scp->binfo.card = scp->card;
 	printf("csa: card is %s\n", scp->card->name);
 	resp->io_rid = PCIR_BAR(0);
-	resp->io = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
+	resp->io = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 		&resp->io_rid, RF_ACTIVE);
 	if (resp->io == NULL)
 		return (ENXIO);

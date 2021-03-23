@@ -64,7 +64,7 @@ static int adb_kbd_detach(device_t dev);
 static void akbd_repeat(void *xsc);
 static int adb_fn_keys(SYSCTL_HANDLER_ARGS);
 
-static u_int adb_kbd_receive_packet(device_t dev, u_char status, 
+static u_int adb_kbd_receive_packet(device_t dev, u_char status,
 	u_char command, u_char reg, int len, u_char *data);
 
 struct adb_kbd_softc {
@@ -126,13 +126,13 @@ DRIVER_MODULE(akbd, adb, adb_kbd_driver, adb_kbd_devclass, 0, 0);
 #define	SCAN_PREFIX		(SCAN_PREFIX_E0 | SCAN_PREFIX_E1 |	\
 				SCAN_PREFIX_CTL | SCAN_PREFIX_SHIFT)
 
-static const uint8_t adb_to_at_scancode_map[128] = { 30, 31, 32, 33, 35, 34, 
-	44, 45, 46, 47, 0, 48, 16, 17, 18, 19, 21, 20, 2, 3, 4, 5, 7, 6, 13, 
-	10, 8, 12, 9, 11, 27, 24, 22, 26, 23, 25, 28, 38, 36, 40, 37, 39, 43, 
-	51, 53, 49, 50, 52, 15, 57, 41, 14, 0, 1, 29, 0, 42, 58, 56, 97, 98, 
-	100, 95, 0, 0, 83, 0, 55, 0, 78, 0, 69, 0, 0, 0, 91, 89, 0, 74, 13, 0, 
-	0, 82, 79, 80, 81, 75, 76, 77, 71, 0, 72, 73, 0, 0, 0, 63, 64, 65, 61, 
-	66, 67, 0, 87, 0, 105, 0, 70, 0, 68, 0, 88, 0, 107, 102, 94, 96, 103, 
+static const uint8_t adb_to_at_scancode_map[128] = { 30, 31, 32, 33, 35, 34,
+	44, 45, 46, 47, 0, 48, 16, 17, 18, 19, 21, 20, 2, 3, 4, 5, 7, 6, 13,
+	10, 8, 12, 9, 11, 27, 24, 22, 26, 23, 25, 28, 38, 36, 40, 37, 39, 43,
+	51, 53, 49, 50, 52, 15, 57, 41, 14, 0, 1, 29, 0, 42, 58, 56, 97, 98,
+	100, 95, 0, 0, 83, 0, 55, 0, 78, 0, 69, 0, 0, 0, 91, 89, 0, 74, 13, 0,
+	0, 82, 79, 80, 81, 75, 76, 77, 71, 0, 72, 73, 0, 0, 0, 63, 64, 65, 61,
+	66, 67, 0, 87, 0, 105, 0, 70, 0, 68, 0, 88, 0, 107, 102, 94, 96, 103,
 	62, 99, 60, 101, 59, 54, 93, 90, 0, 0 };
 
 static int
@@ -218,8 +218,8 @@ keyboard_switch_t akbdsw = {
 
 KEYBOARD_DRIVER(akbd, akbdsw, akbd_configure);
 
-static int 
-adb_kbd_probe(device_t dev) 
+static int
+adb_kbd_probe(device_t dev)
 {
 	uint8_t type;
 
@@ -282,8 +282,8 @@ ms_to_ticks(int ms)
 	return ms/(1000/hz);
 }
 
-static int 
-adb_kbd_attach(device_t dev) 
+static int
+adb_kbd_attach(device_t dev)
 {
 	struct adb_kbd_softc *sc;
 	keyboard_switch_t *sw;
@@ -333,7 +333,7 @@ adb_kbd_attach(device_t dev)
 	}
 #endif
 
-	/* Check if we can read out the LED state from 
+	/* Check if we can read out the LED state from
 	   this keyboard by reading the key state register */
 	if (adb_read_register(dev, 2, NULL) == 2)
 		sc->have_led_control = 1;
@@ -378,8 +378,8 @@ adb_kbd_attach(device_t dev)
 	return (0);
 }
 
-static int 
-adb_kbd_detach(device_t dev) 
+static int
+adb_kbd_detach(device_t dev)
 {
 	struct adb_kbd_softc *sc;
 	keyboard_t *kbd;
@@ -410,8 +410,8 @@ adb_kbd_detach(device_t dev)
 	return (0);
 }
 
-static u_int 
-adb_kbd_receive_packet(device_t dev, u_char status, 
+static u_int
+adb_kbd_receive_packet(device_t dev, u_char status,
     u_char command, u_char reg, int len, u_char *data)
 {
 	struct adb_kbd_softc *sc;
@@ -460,7 +460,7 @@ adb_kbd_receive_packet(device_t dev, u_char status,
 
 		/* Schedule a repeat callback on keydown */
 		if (!(sc->last_press & (1 << 7))) {
-			callout_reset(&sc->sc_repeater, 
+			callout_reset(&sc->sc_repeater,
 			    ms_to_ticks(sc->sc_kbd.kb_delay1), akbd_repeat, sc);
 		}
 	mtx_unlock(&sc->sc_mutex);
@@ -491,7 +491,7 @@ akbd_repeat(void *xsc) {
 		}
 	mtx_unlock(&sc->sc_mutex);
 
-	if (notify_kbd && KBD_IS_ACTIVE(&sc->sc_kbd) 
+	if (notify_kbd && KBD_IS_ACTIVE(&sc->sc_kbd)
 	    && KBD_IS_BUSY(&sc->sc_kbd)) {
 		sc->sc_kbd.kb_callback.kc_func(&sc->sc_kbd,
 		    KBDIO_KEYINPUT, sc->sc_kbd.kb_callback.kc_arg);
@@ -502,51 +502,51 @@ akbd_repeat(void *xsc) {
 	    akbd_repeat, sc);
 }
 
-static int 
-akbd_configure(int flags) 
+static int
+akbd_configure(int flags)
 {
 	return 0;
 }
 
-static int 
-akbd_probe(int unit, void *arg, int flags) 
+static int
+akbd_probe(int unit, void *arg, int flags)
 {
 	return 0;
 }
 
-static int 
-akbd_init(int unit, keyboard_t **kbdp, void *arg, int flags) 
+static int
+akbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 {
 	return 0;
 }
 
-static int 
-akbd_term(keyboard_t *kbd) 
+static int
+akbd_term(keyboard_t *kbd)
 {
 	return 0;
 }
 
-static int 
-akbd_interrupt(keyboard_t *kbd, void *arg) 
+static int
+akbd_interrupt(keyboard_t *kbd, void *arg)
 {
 	return 0;
 }
 
-static int 
-akbd_test_if(keyboard_t *kbd) 
+static int
+akbd_test_if(keyboard_t *kbd)
 {
 	return 0;
 }
 
-static int 
-akbd_enable(keyboard_t *kbd) 
+static int
+akbd_enable(keyboard_t *kbd)
 {
 	KBD_ACTIVATE(kbd);
 	return (0);
 }
 
-static int 
-akbd_disable(keyboard_t *kbd) 
+static int
+akbd_disable(keyboard_t *kbd)
 {
 	struct adb_kbd_softc *sc;
 	sc = (struct adb_kbd_softc *)(kbd);
@@ -556,14 +556,14 @@ akbd_disable(keyboard_t *kbd)
 	return (0);
 }
 
-static int 
-akbd_read(keyboard_t *kbd, int wait) 
+static int
+akbd_read(keyboard_t *kbd, int wait)
 {
 	return (0);
 }
 
-static int 
-akbd_check(keyboard_t *kbd) 
+static int
+akbd_check(keyboard_t *kbd)
 {
 	struct adb_kbd_softc *sc;
 
@@ -582,15 +582,15 @@ akbd_check(keyboard_t *kbd)
 
 		if (sc->buffers > 0) {
 			mtx_unlock(&sc->sc_mutex);
-			return (TRUE); 
+			return (TRUE);
 		}
 	mtx_unlock(&sc->sc_mutex);
 
 	return (FALSE);
 }
 
-static u_int 
-akbd_read_char(keyboard_t *kbd, int wait) 
+static u_int
+akbd_read_char(keyboard_t *kbd, int wait)
 {
 	struct adb_kbd_softc *sc;
 	uint16_t key;
@@ -646,7 +646,7 @@ akbd_read_char(keyboard_t *kbd, int wait)
 			 * as ukbd, it might be nice to have this centralized.
 			 */
 
-			key = keycode2scancode(key, 
+			key = keycode2scancode(key,
 			    0, adb_code & 0x80);
 
 			if (key & SCAN_PREFIX) {
@@ -678,8 +678,8 @@ akbd_read_char(keyboard_t *kbd, int wait)
 	return (key);
 }
 
-static int 
-akbd_check_char(keyboard_t *kbd) 
+static int
+akbd_check_char(keyboard_t *kbd)
 {
 	if (!KBD_IS_ACTIVE(kbd))
 		return (FALSE);
@@ -697,7 +697,7 @@ set_typematic(keyboard_t *kbd, int code)
 				68,  76,  84,  92, 100, 110, 118, 126,
 				136, 152, 168, 184, 200, 220, 236, 252,
 				272, 304, 336, 368, 400, 440, 472, 504 };
-		
+
 	if (code & ~0x7f)
 		return EINVAL;
 	kbd->kb_delay1 = delays[(code >> 5) & 3];
@@ -729,7 +729,7 @@ static int akbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 			/* FALLTHROUGH */
 		case K_RAW:
 		case K_CODE:
-			if (sc->sc_mode != *(int *)data) 
+			if (sc->sc_mode != *(int *)data)
 				sc->sc_mode = *(int *)data;
 			break;
 		default:
@@ -770,7 +770,7 @@ static int akbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 
 		adb_send_packet(sc->sc_dev,ADB_COMMAND_LISTEN,2,
 			sizeof(uint16_t),(u_char *)&r2);
-		
+
 		break;
 
 	case KDGKBSTATE:
@@ -823,7 +823,7 @@ static void akbd_clear_state(keyboard_t *kbd)
 	sc->buffers = 0;
 	callout_stop(&sc->sc_repeater);
 
-#if defined(AKBD_EMULATE_ATKBD)	
+#if defined(AKBD_EMULATE_ATKBD)
 	sc->at_buffered_char[0] = 0;
 	sc->at_buffered_char[1] = 0;
 #endif
@@ -840,7 +840,7 @@ static int akbd_set_state(keyboard_t *kbd, void *buf, size_t len)
 	return (0);
 }
 
-static int akbd_poll(keyboard_t *kbd, int on) 
+static int akbd_poll(keyboard_t *kbd, int on)
 {
 	return (0);
 }

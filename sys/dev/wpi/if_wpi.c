@@ -720,7 +720,7 @@ wpi_detach(device_t dev)
 
 	if (sc->fw_dma.tag)
 		wpi_free_fwmem(sc);
-		
+
 	if (sc->mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->mem), sc->mem);
@@ -1013,7 +1013,7 @@ wpi_alloc_rx_ring(struct wpi_softc *sc)
 	}
 
 	/* Create RX buffer DMA tag. */
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0, 
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    MJUMPAGESIZE, 1, MJUMPAGESIZE, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
@@ -3539,7 +3539,7 @@ wpi_updateedca(struct ieee80211com *ic)
 		cmd.ac[aci].aifsn = ac->wmep_aifsn;
 		cmd.ac[aci].cwmin = htole16(WPI_EXP2(ac->wmep_logcwmin));
 		cmd.ac[aci].cwmax = htole16(WPI_EXP2(ac->wmep_logcwmax));
-		cmd.ac[aci].txoplimit = 
+		cmd.ac[aci].txoplimit =
 		    htole16(IEEE80211_TXOP_TO_US(ac->wmep_txopLimit));
 
 		DPRINTF(sc, WPI_DEBUG_EDCA,

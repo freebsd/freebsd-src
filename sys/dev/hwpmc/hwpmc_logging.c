@@ -901,7 +901,7 @@ pmclog_close(struct pmc_owner *po)
 	po->po_flags |= PMC_PO_SHUTDOWN;
 	/* give time for all to see */
 	DELAY(50);
-	
+
 	/*
 	 * Schedule the current buffer.
 	 */

@@ -772,7 +772,7 @@ mpt_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td
 		page_req32->ioc_status = page_req->ioc_status;
 		break;
 	case MPTIO_READ_EXT_CFG_HEADER32:
-	case MPTIO_READ_EXT_CFG_PAGE32:		
+	case MPTIO_READ_EXT_CFG_PAGE32:
 		ext_page_req32->header = ext_page_req->header;
 		ext_page_req32->page_address = ext_page_req->page_address;
 		ext_page_req32->buf = PTROUT(ext_page_req->buf);

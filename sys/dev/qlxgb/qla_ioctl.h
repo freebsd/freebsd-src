@@ -96,8 +96,8 @@ typedef struct qla_rd_pci_ids qla_rd_pci_ids_t;
 #define QLA_ERASE_FLASH			_IOWR('q', 5, qla_erase_flash_t)
 
 /*
- * Read PCI IDs 
+ * Read PCI IDs
  */
-#define QLA_RD_PCI_IDS			_IOWR('q', 6, qla_rd_pci_ids_t)			
+#define QLA_RD_PCI_IDS			_IOWR('q', 6, qla_rd_pci_ids_t)
 
 #endif /* #ifndef _QLA_IOCTL_H_ */

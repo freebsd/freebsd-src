@@ -126,9 +126,9 @@ static int ips_cmdqueue_free(ips_softc_t *sc)
 
 			if(command->command_phys_addr == 0)
 				continue;
-			bus_dmamap_unload(sc->command_dmatag, 
+			bus_dmamap_unload(sc->command_dmatag,
 					  command->command_dmamap);
-			bus_dmamem_free(sc->command_dmatag, 
+			bus_dmamem_free(sc->command_dmatag,
 					command->command_buffer,
 					command->command_dmamap);
 			if (command->data_dmamap != NULL)
@@ -164,11 +164,11 @@ static int ips_cmdqueue_init(ips_softc_t *sc)
 		if(bus_dmamem_alloc(sc->command_dmatag,&command->command_buffer,
 		    BUS_DMA_NOWAIT, &command->command_dmamap))
 			goto error;
-		bus_dmamap_load(sc->command_dmatag, command->command_dmamap, 
-				command->command_buffer,IPS_COMMAND_LEN, 
+		bus_dmamap_load(sc->command_dmatag, command->command_dmamap,
+				command->command_buffer,IPS_COMMAND_LEN,
 				ips_cmd_dmaload, command, BUS_DMA_NOWAIT);
 		if(!command->command_phys_addr){
-			bus_dmamem_free(sc->command_dmatag, 
+			bus_dmamem_free(sc->command_dmatag,
 			    command->command_buffer, command->command_dmamap);
 			goto error;
 		}
@@ -178,7 +178,7 @@ static int ips_cmdqueue_init(ips_softc_t *sc)
 			if (bus_dmamap_create(command->data_dmatag, 0,
 			    &command->data_dmamap))
 				goto error;
-			SLIST_INSERT_HEAD(&sc->free_cmd_list, command, next);	
+			SLIST_INSERT_HEAD(&sc->free_cmd_list, command, next);
 		} else
 			sc->staticcmd = command;
 	}
@@ -189,7 +189,7 @@ error:
 	return ENOMEM;
 }
 
-/* returns a free command struct if one is available. 
+/* returns a free command struct if one is available.
  * It also blanks out anything that may be a wild pointer/value.
  * Also, command buffers are not freed.  They are
  * small so they are saved and kept dmamapped and loaded.
@@ -334,7 +334,7 @@ static void ips_timeout(void *arg)
 			sc->state |= IPS_OFFLINE;
 			sc->state &= ~IPS_TIMEOUT;
 			/* Grr, I hate this solution. I run waiting commands
-			   one at a time and error them out just before they 
+			   one at a time and error them out just before they
 			   would go to the card. This sucks. */
 		} else
 			sc->state &= ~IPS_TIMEOUT;
@@ -356,10 +356,10 @@ int ips_adapter_init(ips_softc_t *sc)
 				/* highaddr  */	BUS_SPACE_MAXADDR,
 				/* filter    */	NULL,
 				/* filterarg */	NULL,
-				/* maxsize   */	IPS_COMMAND_LEN + 
+				/* maxsize   */	IPS_COMMAND_LEN +
 						    IPS_MAX_SG_LEN,
 				/* numsegs   */	1,
-				/* maxsegsize*/	IPS_COMMAND_LEN + 
+				/* maxsegsize*/	IPS_COMMAND_LEN +
 						    IPS_MAX_SG_LEN,
 				/* flags     */	0,
 				/* lockfunc  */ NULL,
@@ -468,7 +468,7 @@ int ips_morpheus_reinit(ips_softc_t *sc, int force)
 		return 1;
         }
 	for(i = 0; i < 240 && !(tmp & MORPHEUS_BIT_POST2); i++){
-		DELAY(1000000);	
+		DELAY(1000000);
 		DEVICE_PRINTF(2, sc->dev, "post2: %d\n", i);
 		tmp = ips_read_4(sc, MORPHEUS_REG_OISR);
 	}
@@ -524,7 +524,7 @@ static __inline int ips_morpheus_check_intr(ips_softc_t *sc)
 	PRINTF(9, "interrupt registers out:%x\n", oisr);
 	if(!(oisr & MORPHEUS_BIT_CMD_IRQ)){
 		DEVICE_PRINTF(2,sc->dev, "got a non-command irq\n");
-		return (0);	
+		return (0);
 	}
 	while((status.value = ips_read_4(sc, MORPHEUS_REG_OQPR)) != 0xffffffff){
 		cmdnumber = status.fields.command_id;
@@ -606,7 +606,7 @@ static int ips_copperhead_queue_init(ips_softc_t *sc)
 		error = ENOMEM;
 		return error;
         }
-	if(bus_dmamem_alloc(dmatag, (void *)&(sc->copper_queue), 
+	if(bus_dmamem_alloc(dmatag, (void *)&(sc->copper_queue),
 	   		    BUS_DMA_NOWAIT, &dmamap)){
 		error = ENOMEM;
 		goto exit;
@@ -615,21 +615,21 @@ static int ips_copperhead_queue_init(ips_softc_t *sc)
 	sc->copper_queue->dmatag = dmatag;
 	sc->copper_queue->dmamap = dmamap;
 	sc->copper_queue->nextstatus = 1;
-	bus_dmamap_load(dmatag, dmamap, 
-			&(sc->copper_queue->status[0]), IPS_MAX_CMD_NUM * 4, 
-			ips_copperhead_queue_callback, sc->copper_queue, 
+	bus_dmamap_load(dmatag, dmamap,
+			&(sc->copper_queue->status[0]), IPS_MAX_CMD_NUM * 4,
+			ips_copperhead_queue_callback, sc->copper_queue,
 			BUS_DMA_NOWAIT);
 	if(sc->copper_queue->base_phys_addr == 0){
 		error = ENOMEM;
 		goto exit;
 	}
 	ips_write_4(sc, COPPER_REG_SQSR, sc->copper_queue->base_phys_addr);
-	ips_write_4(sc, COPPER_REG_SQER, sc->copper_queue->base_phys_addr + 
+	ips_write_4(sc, COPPER_REG_SQER, sc->copper_queue->base_phys_addr +
 		    IPS_MAX_CMD_NUM * 4);
 	ips_write_4(sc, COPPER_REG_SQHR, sc->copper_queue->base_phys_addr + 4);
 	ips_write_4(sc, COPPER_REG_SQTR, sc->copper_queue->base_phys_addr);
 
-	
+
 	return 0;
 exit:
 	if (sc->copper_queue != NULL)
@@ -651,7 +651,7 @@ int ips_copperhead_reinit(ips_softc_t *sc, int force)
 		for(i = 0; i < 45; i++){
 			if(ips_read_1(sc, COPPER_REG_HISR) & COPPER_GHI_BIT){
 				postcode |= ips_read_1(sc, COPPER_REG_ISPR);
-				ips_write_1(sc, COPPER_REG_HISR, 
+				ips_write_1(sc, COPPER_REG_HISR,
 					    COPPER_GHI_BIT);
 				break;
 			} else
@@ -665,7 +665,7 @@ int ips_copperhead_reinit(ips_softc_t *sc, int force)
 		for(i = 0; i < 240; i++){
 			if(ips_read_1(sc, COPPER_REG_HISR) & COPPER_GHI_BIT){
 				configstatus |= ips_read_1(sc, COPPER_REG_ISPR);
-				ips_write_1(sc, COPPER_REG_HISR, 
+				ips_write_1(sc, COPPER_REG_HISR,
 					    COPPER_GHI_BIT);
 				break;
 			} else
@@ -705,7 +705,7 @@ static u_int32_t ips_copperhead_cmd_status(ips_softc_t *sc)
 	if(sc->copper_queue->nextstatus == IPS_MAX_CMD_NUM)
 		sc->copper_queue->nextstatus = 0;
 	value = sc->copper_queue->status[statnum];
-	ips_write_4(sc, COPPER_REG_SQTR, sc->copper_queue->base_phys_addr + 
+	ips_write_4(sc, COPPER_REG_SQTR, sc->copper_queue->base_phys_addr +
 		    4 * statnum);
 	return value;
 }

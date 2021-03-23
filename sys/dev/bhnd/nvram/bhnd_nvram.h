@@ -25,7 +25,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -42,7 +42,7 @@
 /**
  * BHND NVRAM boolean type; guaranteed to be exactly 8-bits, representing
  * true as integer constant 1, and false as integer constant 0.
- * 
+ *
  * Compatible with stdbool constants (true, false).
  */
 typedef uint8_t	bhnd_nvram_bool_t;
@@ -70,7 +70,7 @@ typedef enum {
 				  *  table, and earlier PCI(e) devices map
 				  *  SPROM statically into PCI BARs, and the
 				  *  control registers into PCI config space.
-				  
+
 				  *  This will also be returned on later
 				  *  devices that are attached via PCI(e) to
 				  *  BHND SoCs, but do not include an attached
@@ -83,9 +83,9 @@ typedef enum {
 
 /**
  * NVRAM data types.
- * 
+ *
  * @internal
- * 
+ *
  * All primitive (non-array) constants should be representable as a 4-bit
  * integer (e.g. 0-15) to support SPROM_OPCODE_TYPE_IMM encoding as used by
  * nvram_map_gen.awk.
@@ -136,6 +136,6 @@ size_t		 bhnd_nvram_type_width(bhnd_nvram_type type);
 size_t		 bhnd_nvram_type_host_align(bhnd_nvram_type type);
 
 const char	*bhnd_nvram_string_array_next(const char *inp, size_t ilen,
-		     const char *prev, size_t *olen); 
+		     const char *prev, size_t *olen);
 
 #endif /* _BHND_NVRAM_BHND_NVRAM_H_ */

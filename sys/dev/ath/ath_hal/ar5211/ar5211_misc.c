@@ -599,9 +599,9 @@ ar5211GetCurRssi(struct ath_hal *ah)
 
 u_int
 ar5211GetDefAntenna(struct ath_hal *ah)
-{   
+{
 	return (OS_REG_READ(ah, AR_DEF_ANTENNA) & 0x7);
-}   
+}
 
 void
 ar5211SetDefAntenna(struct ath_hal *ah, u_int antenna)

@@ -103,7 +103,7 @@ struct adt746x_softc {
 	struct adt746x_sensor   sc_sensors[9];
 	int			sc_nsensors;
 	int                     device_id;
-    
+
 };
 
 
@@ -633,7 +633,7 @@ adt746x_attach_sensors(device_t dev)
 		}
 		sysctl_name[j] = 0;
 		oid = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(sensroot_oid),
-		    OID_AUTO, sysctl_name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, 
+		    OID_AUTO, sysctl_name, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 		    "Sensor Information");
 		if (sc->sc_sensors[i].type == ADT746X_SENSOR_TEMP) {
 			unit = "temp";

@@ -280,7 +280,7 @@ ar5212InitState(struct ath_hal_5212 *ahp, uint16_t devid, HAL_SOFTC sc,
 }
 
 /*
- * Validate MAC version and revision. 
+ * Validate MAC version and revision.
  */
 static HAL_BOOL
 ar5212IsMacSupported(uint8_t macVersion, uint8_t macRev)
@@ -312,7 +312,7 @@ ar5212IsMacSupported(uint8_t macVersion, uint8_t macRev)
 	return AH_FALSE;
 #undef N
 }
-       
+
 /*
  * Attach for an AR5212 part.
  */
@@ -437,12 +437,12 @@ ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 				    AR_RAD2413_SREV_MAJOR | 0x1;
 				break;
 			}
-			if (IS_5413(ah)) {		/* Eagle */	
+			if (IS_5413(ah)) {		/* Eagle */
 				AH_PRIVATE(ah)->ah_analog5GhzRev =
 				    AR_RAD5413_SREV_MAJOR | 0x2;
 				break;
 			}
-			if (IS_2425(ah) || IS_2417(ah)) {/* Swan or Nala */	
+			if (IS_2425(ah) || IS_2417(ah)) {/* Swan or Nala */
 				AH_PRIVATE(ah)->ah_analog5GhzRev =
 				    AR_RAD5424_SREV_MAJOR | 0x2;
 				break;
@@ -684,13 +684,13 @@ ar5212ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore, HAL_BOOL power_off)
 	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x28000039);
 	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x53160824);
 	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0xe5980579);
-                                                                                           
+
 	/* Shut off PLL and CLKREQ active in L1 */
 	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x001defff);
 	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x1aaabe40);
 	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0xbe105554);
 	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x000e3007);
-                                                                                           
+
 	/* Load the new settings */
 	OS_REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
 }

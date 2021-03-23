@@ -191,7 +191,7 @@ ismt_intr(void *arg)
 	wakeup(sc);
 }
 
-static int 
+static int
 ismt_callback(device_t dev, int index, void *data)
 {
 	struct ismt_softc	*sc;

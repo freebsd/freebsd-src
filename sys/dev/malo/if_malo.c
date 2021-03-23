@@ -276,7 +276,7 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	 * Transmit requires space in the packet for a special format transmit
 	 * record and optional padding between this record and the payload.
 	 * Ask the net80211 layer to arrange this when encapsulating
-	 * packets so we can add it efficiently. 
+	 * packets so we can add it efficiently.
 	 */
 	ic->ic_headroom = sizeof(struct malo_txrec) -
 		sizeof(struct ieee80211_frame);
@@ -443,7 +443,7 @@ malo_desc_setup(struct malo_softc *sc, const char *name,
 	    "%s: %s DMA: %u bufs (%ju) %u desc/buf (%ju)\n",
 	    __func__, name, nbuf, (uintmax_t) bufsize,
 	    ndesc, (uintmax_t) descsize);
-	
+
 	dd->dd_name = name;
 	dd->dd_desc_len = nbuf * ndesc * descsize;
 
@@ -467,7 +467,7 @@ malo_desc_setup(struct malo_softc *sc, const char *name,
 		    dd->dd_name);
 		return error;
 	}
-	
+
 	/* allocate descriptors */
 	error = bus_dmamem_alloc(dd->dd_dmat, (void**) &dd->dd_desc,
 	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &dd->dd_dmamap);
@@ -487,7 +487,7 @@ malo_desc_setup(struct malo_softc *sc, const char *name,
 		    dd->dd_name, error);
 		goto fail2;
 	}
-	
+
 	ds = dd->dd_desc;
 	memset(ds, 0, dd->dd_desc_len);
 	DPRINTF(sc, MALO_DEBUG_RESET,
@@ -531,7 +531,7 @@ malo_rxdma_setup(struct malo_softc *sc)
 		return error;
 	}
 	sc->malo_rxdma.dd_bufptr = bf;
-	
+
 	STAILQ_INIT(&sc->malo_rxbuf);
 	ds = sc->malo_rxdma.dd_desc;
 	for (i = 0; i < malo_rxbuf; i++, bf++, ds++) {
@@ -563,7 +563,7 @@ malo_txdma_setup(struct malo_softc *sc, struct malo_txq *txq)
 	    MALO_TXDESC, sizeof(struct malo_txdesc));
 	if (error != 0)
 		return error;
-	
+
 	/* allocate and setup tx buffers */
 	bsize = malo_txbuf * sizeof(struct malo_txbuf);
 	bf = malloc(bsize, M_MALODEV, M_NOWAIT | M_ZERO);
@@ -573,7 +573,7 @@ malo_txdma_setup(struct malo_softc *sc, struct malo_txq *txq)
 		return ENOMEM;
 	}
 	txq->dma.dd_bufptr = bf;
-	
+
 	STAILQ_INIT(&txq->free);
 	txq->nfree = 0;
 	ds = txq->dma.dd_desc;
@@ -858,12 +858,12 @@ malo_printrxbuf(const struct malo_rxbuf *bf, u_int ix)
 {
 	const struct malo_rxdesc *ds = bf->bf_desc;
 	uint32_t status = le32toh(ds->status);
-	
+
 	printf("R[%2u] (DS.V:%p DS.P:0x%jx) NEXT:%08x DATA:%08x RC:%02x%s\n"
 	    "      STAT:%02x LEN:%04x SNR:%02x NF:%02x CHAN:%02x"
 	    " RATE:%02x QOS:%04x\n", ix, ds, (uintmax_t)bf->bf_daddr,
 	    le32toh(ds->physnext), le32toh(ds->physbuffdata),
-	    ds->rxcontrol, 
+	    ds->rxcontrol,
 	    ds->rxcontrol != MALO_RXD_CTRL_DRIVER_OWN ?
 	        "" : (status & MALO_RXD_STATUS_OK) ? " *" : " !",
 	    ds->status, le16toh(ds->pktlen), ds->snr, ds->nf, ds->channel,
@@ -875,7 +875,7 @@ malo_printtxbuf(const struct malo_txbuf *bf, u_int qnum, u_int ix)
 {
 	const struct malo_txdesc *ds = bf->bf_desc;
 	uint32_t status = le32toh(ds->status);
-	
+
 	printf("Q%u[%3u]", qnum, ix);
 	printf(" (DS.V:%p DS.P:0x%jx)\n", ds, (uintmax_t)bf->bf_daddr);
 	printf("    NEXT:%08x DATA:%08x LEN:%04x STAT:%08x%s\n",
@@ -978,7 +978,7 @@ malo_tx_processq(struct malo_softc *sc, struct malo_txq *txq)
 			}
 			/* XXX strip fw len in case header inspected */
 			m_adj(bf->bf_m, sizeof(uint16_t));
-			ieee80211_tx_complete(ni, bf->bf_m, 
+			ieee80211_tx_complete(ni, bf->bf_m,
 			    (status & MALO_TXD_STATUS_OK) == 0);
 		} else
 			m_freem(bf->bf_m);
@@ -1408,12 +1408,12 @@ malo_startrecv(struct malo_softc *sc)
 {
 	struct malo_rxbuf *bf, *prev;
 	struct malo_rxdesc *ds;
-	
+
 	if (sc->malo_recvsetup == 1) {
 		malo_mode_init(sc);		/* set filters, etc. */
 		return 0;
 	}
-	
+
 	prev = NULL;
 	STAILQ_FOREACH(bf, &sc->malo_rxbuf, bf_list) {
 		int error = malo_rxbuf_init(sc, bf);
@@ -1438,7 +1438,7 @@ malo_startrecv(struct malo_softc *sc)
 	sc->malo_recvsetup = 1;
 
 	malo_mode_init(sc);		/* set filters, etc. */
-	
+
 	return 0;
 }
 
@@ -1447,9 +1447,9 @@ malo_init_locked(struct malo_softc *sc)
 {
 	struct malo_hal *mh = sc->malo_mh;
 	int error;
-	
+
 	MALO_LOCK_ASSERT(sc);
-	
+
 	/*
 	 * Stop anything previously setup.  This is safe whether this is
 	 * the first time through or not.
@@ -1498,7 +1498,7 @@ malo_init(void *arg)
 {
 	struct malo_softc *sc = (struct malo_softc *) arg;
 	struct ieee80211com *ic = &sc->malo_ic;
-	
+
 	MALO_LOCK(sc);
 	malo_init_locked(sc);
 	MALO_UNLOCK(sc);
@@ -1574,7 +1574,7 @@ malo_tx_draintxq(struct malo_softc *sc, struct malo_txq *txq)
 	struct ieee80211_node *ni;
 	struct malo_txbuf *bf;
 	u_int ix;
-	
+
 	/*
 	 * NB: this assumes output has been stopped and
 	 *     we do not need to block malo_tx_tasklet
@@ -1609,7 +1609,7 @@ malo_tx_draintxq(struct malo_softc *sc, struct malo_txq *txq)
 		}
 		m_freem(bf->bf_m);
 		bf->bf_m = NULL;
-		
+
 		MALO_TXQ_LOCK(txq);
 		STAILQ_INSERT_TAIL(&txq->free, bf, bf_list);
 		txq->nfree++;
@@ -1699,7 +1699,7 @@ malo_updateslot(struct ieee80211com *ic)
 	struct malo_softc *sc = ic->ic_softc;
 	struct malo_hal *mh = sc->malo_mh;
 	int error;
-	
+
 	/* NB: can be called early; suppress needless cmds */
 	if (!sc->malo_running)
 		return;
@@ -1755,7 +1755,7 @@ malo_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		    (ic->ic_flags & IEEE80211_F_SHPREAMBLE) ?
 			MHP_SHORT_PREAMBLE : MHP_LONG_PREAMBLE);
 		malo_hal_setassocid(sc->malo_mh, ni->ni_bssid, ni->ni_associd);
-		malo_hal_set_rate(mh, mode, 
+		malo_hal_set_rate(mh, mode,
 		   tp->ucastrate == IEEE80211_FIXED_RATE_NONE ?
 		       0 : malo_fix2rate(tp->ucastrate));
 	}
@@ -1975,7 +1975,7 @@ malo_rx_proc(void *arg, int npending)
 			 * Note the firmware will not advance to the next
 			 * descriptor with a dma buffer so we must mimic
 			 * this or we'll get out of sync.
-			 */ 
+			 */
 			DPRINTF(sc, MALO_DEBUG_ANY,
 			    "%s: rx buf w/o dma memory\n", __func__);
 			(void)malo_rxbuf_init(sc, bf);
@@ -2081,7 +2081,7 @@ rx_next:
 		(void) malo_rxbuf_init(sc, bf);
 		bf = STAILQ_NEXT(bf, bf_list);
 	}
-	
+
 	malo_bar0_write4(sc, sc->malo_hwspecs.rxdesc_read, readptr);
 	sc->malo_rxnext = bf;
 

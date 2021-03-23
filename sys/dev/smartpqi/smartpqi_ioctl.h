@@ -72,14 +72,14 @@ typedef struct _PhysDevAddr_struct {
 	 DWORD			   Bus:6;
 	 DWORD			   Mode:2;
 	 SCSI3Addr_struct  Target[2]; 	/* 2 level target device addr */
-    
+
 }OS_ATTRIBUTE_PACKED PhysDevAddr_struct;
 
 typedef struct _LogDevAddr_struct {
 	 DWORD			  VolId:30;
 	 DWORD			  Mode:2;
 	 BYTE			  reserved[4];
-    
+
 }OS_ATTRIBUTE_PACKED LogDevAddr_struct;
 
 typedef union _LUNAddr_struct {
@@ -100,7 +100,7 @@ typedef struct _RequestBlock_struct {
     HWORD  Timeout;
     BYTE   CDB[16];
 
-}OS_ATTRIBUTE_PACKED RequestBlock_struct; 
+}OS_ATTRIBUTE_PACKED RequestBlock_struct;
 
 typedef union _MoreErrInfo_struct{
    struct {
@@ -130,7 +130,7 @@ typedef struct _ErrorInfo_struct {
 typedef struct pqi_ioctl_passthruCmd_struct {
 	LUNAddr_struct           LUN_info;
 	RequestBlock_struct      Request;
-	ErrorInfo_struct         error_info; 
+	ErrorInfo_struct         error_info;
    	WORD                     buf_size;  /* size in bytes of the buf */
 	passthru_buf_type_t		buf;
 

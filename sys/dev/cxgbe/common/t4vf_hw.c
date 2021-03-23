@@ -367,7 +367,7 @@ int t4vf_prep_adapter(struct adapter *adapter)
 		adapter->params.chipid -= (0xa - 0x4);
 		adapter->params.fpga = 1;
 	}
-	
+
 	/*
 	 * Default port and clock for debugging in case we can't reach
 	 * firmware.

@@ -1,29 +1,29 @@
 /******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ******************************************************************************/
 /* $FreeBSD$ */
 /******************************************************************************
-This program is part of PMC-Sierra initiator/target device driver. 
+This program is part of PMC-Sierra initiator/target device driver.
 The functions here are commonly used by different type of drivers that support
-PMC-Sierra storage network initiator hardware. 
+PMC-Sierra storage network initiator hardware.
 ******************************************************************************/
 
 
@@ -121,12 +121,12 @@ agtiapi_InitResource()
 Purpose:
   Mapping PCI memory space
   Allocate and initialize per card based resource
-Parameters: 
-  ag_card_info_t *pCardInfo (IN)  
+Parameters:
+  ag_card_info_t *pCardInfo (IN)
 Return:
   AGTIAPI_SUCCESS - success
   AGTIAPI_FAIL    - fail
-Note:    
+Note:
 ******************************************************************************/
 STATIC agBOOLEAN agtiapi_InitResource( ag_card_info_t *thisCardInst )
 {
@@ -383,17 +383,17 @@ STATIC agBOOLEAN agtiapi_InitResource( ag_card_info_t *thisCardInst )
       }
     }
   }
-  // end: tiInitiatorResource   
+  // end: tiInitiatorResource
 
   // begin: tiTdSharedMem
   if (pRscInfo->tiSharedMem.tdSharedCachedMem1.totalLength != 0) {
     // check for 64 bit alignment
-    if( pRscInfo->tiSharedMem.tdSharedCachedMem1.alignment < 
+    if( pRscInfo->tiSharedMem.tdSharedCachedMem1.alignment <
 	AGTIAPI_64BIT_ALIGN ) {
       pRscInfo->tiSharedMem.tdSharedCachedMem1.alignment = AGTIAPI_64BIT_ALIGN;
     }
-    if( (pRscInfo->tiSharedMem.tdSharedCachedMem1.type & (BIT(0) | BIT(1))) 
-	== TI_DMA_MEM )	{ 
+    if( (pRscInfo->tiSharedMem.tdSharedCachedMem1.type & (BIT(0) | BIT(1)))
+	== TI_DMA_MEM )	{
       if( thisCardInst->dmaIndex >=
 	  sizeof(thisCardInst->tiDmaMem) / sizeof(thisCardInst->tiDmaMem[0]) ) {
 	AGTIAPI_PRINTK( "Invalid dmaIndex %d ERROR\n", thisCardInst->dmaIndex);
@@ -403,27 +403,27 @@ STATIC agBOOLEAN agtiapi_InitResource( ag_card_info_t *thisCardInst )
 			    tiDmaMem[thisCardInst->dmaIndex].dmaVirtAddr,
 			    &thisCardInst->tiDmaMem[thisCardInst->dmaIndex].
 			    dmaPhysAddr,
-			    &pRscInfo->tiSharedMem.tdSharedCachedMem1.virtPtr, 
+			    &pRscInfo->tiSharedMem.tdSharedCachedMem1.virtPtr,
 			    &pRscInfo->tiSharedMem.tdSharedCachedMem1.
-			    physAddrUpper, 
+			    physAddrUpper,
 			    &pRscInfo->tiSharedMem.tdSharedCachedMem1.
-			    physAddrLower, 
+			    physAddrLower,
 			    pRscInfo->tiSharedMem.tdSharedCachedMem1.
-			    totalLength, 
+			    totalLength,
 			    TI_DMA_MEM,
 			    pRscInfo->tiSharedMem.tdSharedCachedMem1.alignment)
 	  != AGTIAPI_SUCCESS )
 	return AGTIAPI_FAIL;
 
-      thisCardInst->tiDmaMem[thisCardInst->dmaIndex].memSize = 
-        pRscInfo->tiSharedMem.tdSharedCachedMem1.totalLength + 
+      thisCardInst->tiDmaMem[thisCardInst->dmaIndex].memSize =
+        pRscInfo->tiSharedMem.tdSharedCachedMem1.totalLength +
         pRscInfo->tiSharedMem.tdSharedCachedMem1.alignment;
       //    printf( "agtiapi_InitResource: SharedMem DmaIndex=%d DMA "
-      //            "virt %p / %p, phys 0x%x, align %d\n", 
+      //            "virt %p / %p, phys 0x%x, align %d\n",
       //            thisCardInst->dmaIndex,
       //            thisCardInst->tiDmaMem[thisCardInst->dmaIndex].dmaVirtAddr,
-      //            pRscInfo->tiSharedMem.tdSharedCachedMem1.virtPtr, 
-      //            pRscInfo->tiSharedMem.tdSharedCachedMem1.physAddrLower, 
+      //            pRscInfo->tiSharedMem.tdSharedCachedMem1.virtPtr,
+      //            pRscInfo->tiSharedMem.tdSharedCachedMem1.physAddrLower,
       //            pRscInfo->tiSharedMem.tdSharedCachedMem1.alignment);
       thisCardInst->dmaIndex++;
     }
@@ -439,11 +439,11 @@ STATIC agBOOLEAN agtiapi_InitResource( ag_card_info_t *thisCardInst )
       if( agtiapi_MemAlloc( thisCardInst, (void *)&thisCardInst->
 			    tiCachedMem[thisCardInst->cacheIndex],
 			    (vm_paddr_t *)agNULL,
-			    &pRscInfo->tiSharedMem.tdSharedCachedMem1.virtPtr, 
+			    &pRscInfo->tiSharedMem.tdSharedCachedMem1.virtPtr,
 			    (U32 *)agNULL,
 			    (U32 *)agNULL,
 			    pRscInfo->
-			    tiSharedMem.tdSharedCachedMem1.totalLength, 
+			    tiSharedMem.tdSharedCachedMem1.totalLength,
 			    TI_CACHED_MEM,
 			    pRscInfo->tiSharedMem.tdSharedCachedMem1.alignment)
 	  != AGTIAPI_SUCCESS )
@@ -480,10 +480,10 @@ agtiapi_ScopeDMARes()
 Purpose:
   Determine the amount of DMA (non-cache) memory resources which will be
   required for a card ( and necessarily allocated in agtiapi_InitResource() )
-Parameters: 
-  ag_card_info_t *thisCardInst (IN)  
+Parameters:
+  ag_card_info_t *thisCardInst (IN)
 Return:
-  size of DMA memory which call to agtiapi_InitResource() will consume  
+  size of DMA memory which call to agtiapi_InitResource() will consume
 Note:
   this funcion mirrors the flow of agtiapi_InitResource()
   results are stored in agtiapi_softc fields
@@ -528,7 +528,7 @@ STATIC int agtiapi_ScopeDMARes( ag_card_info_t *thisCardInst )
 #endif
         if( lTmpType == TI_DMA_MEM ) {
           lTmpLen =
-            pRscInfo->tiLoLevelResource.loLevelMem.mem[numVal].totalLength; 
+            pRscInfo->tiLoLevelResource.loLevelMem.mem[numVal].totalLength;
           lAllMem += lTmpLen + lTmpAlign;
         }
         //printf( "agtiapi_ScopeDMARes: call 1 0x%x\n", lAllMem );
@@ -564,8 +564,8 @@ STATIC int agtiapi_ScopeDMARes( ag_card_info_t *thisCardInst )
       //pRscInfo->tiSharedMem.tdSharedCachedMem1.alignment=AGTIAPI_64BIT_ALIGN;
        lTmpAlign = AGTIAPI_64BIT_ALIGN;
     }
-    if( (pRscInfo->tiSharedMem.tdSharedCachedMem1.type & (BIT(0) | BIT(1))) 
-        == TI_DMA_MEM )	{ 
+    if( (pRscInfo->tiSharedMem.tdSharedCachedMem1.type & (BIT(0) | BIT(1)))
+        == TI_DMA_MEM )	{
       lTmpLen = pRscInfo->tiSharedMem.tdSharedCachedMem1.totalLength;
       lAllMem += lTmpLen + lTmpAlign;
       // printf( "agtiapi_ScopeDMARes: call 4D 0x%x\n", lAllMem );
@@ -587,7 +587,7 @@ STATIC int agtiapi_ScopeDMARes( ag_card_info_t *thisCardInst )
 STATIC void agtiapi_ReleasePCIMem( ag_card_info_t *pCardInfo ) {
   U32 bar = 0;
   int tmpRid = 0;
-  struct resource *tmpRsc = NULL; 
+  struct resource *tmpRsc = NULL;
   device_t dev;
   dev = pCardInfo->pPCIDev;
 
@@ -606,13 +606,13 @@ STATIC void agtiapi_ReleasePCIMem( ag_card_info_t *pCardInfo ) {
 agtiapi_MemAlloc()
 Purpose:
   Handle various memory allocation requests.
-Parameters: 
+Parameters:
   ag_card_info_t *pCardInfo (IN)  Pointer to card info structure
-  void **VirtAlloc (OUT)          Allocated memory virtual address  
-  dma_addr_t *pDmaAddr (OUT)      Allocated dma memory physical address  
-  void **VirtAddr (OUT)           Aligned memory virtual address  
-  U32 *pPhysAddrUp (OUT)          Allocated memory physical upper 32 bits  
-  U32 *pPhysAddrLow (OUT)         Allocated memory physical lower 32 bits  
+  void **VirtAlloc (OUT)          Allocated memory virtual address
+  dma_addr_t *pDmaAddr (OUT)      Allocated dma memory physical address
+  void **VirtAddr (OUT)           Aligned memory virtual address
+  U32 *pPhysAddrUp (OUT)          Allocated memory physical upper 32 bits
+  U32 *pPhysAddrLow (OUT)         Allocated memory physical lower 32 bits
   U32 MemSize (IN)                Allocated memory size
   U32 Type (IN)                   Type of memory required
   U32 Align (IN)                  Required memory alignment
@@ -679,7 +679,7 @@ agtiapi_MemFree()
 
 Purpose:
   Free agtiapi_MemAlloc() allocated memory
-Parameters: 
+Parameters:
   ag_card_info_t *pCardInfo (IN)  Pointer to card info structure
 Return: none
 ******************************************************************************/
@@ -763,10 +763,10 @@ STATIC int agtiapi_ProbeCard( device_t dev,
 
   agtiapi_vendor = pci_get_vendor( dev ); // get PCI vendor ID
   agtiapi_dev = pci_get_device( dev ); // get PCI device ID
-  for( idx = 0; idx < COUNT(ag_card_type); idx++ ) 
+  for( idx = 0; idx < COUNT(ag_card_type); idx++ )
   {
     if ( ag_card_type[idx].deviceId == agtiapi_dev &&
-	  ag_card_type[idx].vendorId == agtiapi_vendor) 
+	  ag_card_type[idx].vendorId == agtiapi_vendor)
     { // device ID match
       memset( (void *)&agCardInfoList[ thisCard ], 0,
               sizeof(ag_card_info_t) );

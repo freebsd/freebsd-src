@@ -80,7 +80,7 @@ SYSCTL_INT(_hw_usb_ustorage_fs, OID_AUTO, debug, CTLFLAG_RWTUN,
 
 /* Define some limits */
 
-#ifndef USTORAGE_FS_BULK_SIZE 
+#ifndef USTORAGE_FS_BULK_SIZE
 #define	USTORAGE_FS_BULK_SIZE	(1U << 17)	/* bytes */
 #endif
 

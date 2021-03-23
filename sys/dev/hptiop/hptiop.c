@@ -380,9 +380,9 @@ static void hptiop_request_callback_itl(struct hpt_iop_hba * hba,
 			offsetof(struct hpt_iop_request_header, context),
 			(u_int32_t *)&temp64, 2);
 		srb = (struct hpt_iop_srb *)(unsigned long)temp64;
-		dxfer = bus_space_read_4(hba->bar0t, hba->bar0h, 
+		dxfer = bus_space_read_4(hba->bar0t, hba->bar0h,
 				index + offsetof(struct hpt_iop_request_scsi_command,
-				dataxfer_length));	
+				dataxfer_length));
 srb_complete:
 		ccb = (union ccb *)srb->ccb;
 		if (ccb->ccb_h.flags & CAM_CDB_POINTER)
@@ -439,10 +439,10 @@ srb_complete:
 			if (srb->srb_flag & HPT_SRB_FLAG_HIGH_MEM_ACESS) {/*iop*/
 				bus_space_read_region_1(hba->bar0t, hba->bar0h,
 					index + offsetof(struct hpt_iop_request_scsi_command,
-					sg_list), (u_int8_t *)&ccb->csio.sense_data, 
+					sg_list), (u_int8_t *)&ccb->csio.sense_data,
 					MIN(dxfer, sizeof(ccb->csio.sense_data)));
 			} else {
-				memcpy(&ccb->csio.sense_data, &req->sg_list, 
+				memcpy(&ccb->csio.sense_data, &req->sg_list,
 					MIN(dxfer, sizeof(ccb->csio.sense_data)));
 			}
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
@@ -592,7 +592,7 @@ static void hptiop_request_callback_mv(struct hpt_iop_hba * hba,
 				    req->dataxfer_length;
 			else
 				ccb->csio.sense_resid = 0;
-			memcpy(&ccb->csio.sense_data, &req->sg_list, 
+			memcpy(&ccb->csio.sense_data, &req->sg_list,
 				MIN(req->dataxfer_length, sizeof(ccb->csio.sense_data)));
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 			ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
@@ -604,7 +604,7 @@ static void hptiop_request_callback_mv(struct hpt_iop_hba * hba,
 		}
 scsi_done:
 		ccb->csio.resid = ccb->csio.dxfer_len - req->dataxfer_length;
-		
+
 		hptiop_free_srb(hba, srb);
 		xpt_done(ccb);
 	} else if (context & MVIOP_CMD_TYPE_IOCTL) {
@@ -699,7 +699,7 @@ static void hptiop_request_callback_mvfrey(struct hpt_iop_hba * hba,
 				req->dataxfer_length;
 			else
 				ccb->csio.sense_resid = 0;
-			memcpy(&ccb->csio.sense_data, &req->sg_list, 
+			memcpy(&ccb->csio.sense_data, &req->sg_list,
 			       MIN(req->dataxfer_length, sizeof(ccb->csio.sense_data)));
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 			ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
@@ -711,7 +711,7 @@ static void hptiop_request_callback_mvfrey(struct hpt_iop_hba * hba,
 		}
 scsi_done:
 		ccb->csio.resid = ccb->csio.dxfer_len - req->dataxfer_length;
-		
+
 		hptiop_free_srb(hba, srb);
 		xpt_done(ccb);
 		break;
@@ -795,7 +795,7 @@ static int hptiop_intr_mvfrey(struct hpt_iop_hba * hba)
 				if (hba->u.mvfrey.outlist_rptr == hba->u.mvfrey.list_count) {
 					hba->u.mvfrey.outlist_rptr = 0;
 				}
-	
+
 				_tag = hba->u.mvfrey.outlist[hba->u.mvfrey.outlist_rptr].val;
 				hptiop_request_callback_mvfrey(hba, _tag);
 				ret = 2;
@@ -863,7 +863,7 @@ static int hptiop_send_sync_request_mvfrey(struct hpt_iop_hba *hba,
 	u_int64_t phy_addr;
 	struct hpt_iop_request_header *reqhdr =
 										(struct hpt_iop_request_header *)req;
-	
+
 	hba->config_done = 0;
 
 	phy_addr = hba->ctlcfgcmd_phy;
@@ -1019,8 +1019,8 @@ static int hptiop_set_config_itl(struct hpt_iop_hba *hba,
 	config->header.result = IOP_RESULT_PENDING;
 	config->header.context = 0;
 
-	bus_space_write_region_4(hba->bar0t, hba->bar0h, req32, 
-		(u_int32_t *)config, 
+	bus_space_write_region_4(hba->bar0t, hba->bar0h, req32,
+		(u_int32_t *)config,
 		sizeof(struct hpt_iop_request_set_config) >> 2);
 
 	if (hptiop_send_sync_request_itl(hba, req32, 20000)) {
@@ -1110,9 +1110,9 @@ static int hptiop_post_ioctl_command_itl(struct hpt_iop_hba *hba,
 	req.outbuf_size = pParams->nOutBufferSize;
 	req.bytes_returned = 0;
 
-	bus_space_write_region_4(hba->bar0t, hba->bar0h, req32, (u_int32_t *)&req, 
+	bus_space_write_region_4(hba->bar0t, hba->bar0h, req32, (u_int32_t *)&req,
 		offsetof(struct hpt_iop_request_ioctl_command, buf)>>2);
-	
+
 	hptiop_lock_adapter(hba);
 
 	BUS_SPACE_WRT4_ITL(inbound_queue, req32);
@@ -1175,7 +1175,7 @@ static int hptiop_do_ioctl_itl(struct hpt_iop_hba *hba,
 	if ((pParams->Magic != HPT_IOCTL_MAGIC) &&
 		(pParams->Magic != HPT_IOCTL_MAGIC32))
 		return EFAULT;
-	
+
 	req32 = BUS_SPACE_RD4_ITL(inbound_queue);
 	if (req32 == IOPMU_QUEUE_EMPTY)
 		return EFAULT;
@@ -1196,13 +1196,13 @@ static int hptiop_do_ioctl_itl(struct hpt_iop_hba *hba,
 	if (result == IOP_RESULT_SUCCESS) {
 		if (pParams->nOutBufferSize)
 			if (hptiop_bus_space_copyout(hba, req32 +
-				offsetof(struct hpt_iop_request_ioctl_command, buf) + 
+				offsetof(struct hpt_iop_request_ioctl_command, buf) +
 					((pParams->nInBufferSize + 3) & ~3),
 				(void *)pParams->lpOutBuffer, pParams->nOutBufferSize))
 				goto invalid;
 
 		if (pParams->lpBytesReturned) {
-			if (hptiop_bus_space_copyout(hba, req32 + 
+			if (hptiop_bus_space_copyout(hba, req32 +
 				offsetof(struct hpt_iop_request_ioctl_command, bytes_returned),
 				(void *)pParams->lpBytesReturned, sizeof(unsigned  long)))
 				goto invalid;
@@ -1729,7 +1729,7 @@ static int hptiop_reset_comm_mvfrey(struct hpt_iop_hba *hba)
 	*hba->u.mvfrey.outlist_cptr = (hba->u.mvfrey.list_count - 1)
 								| CL_POINTER_TOGGLE;
 	hba->u.mvfrey.outlist_rptr = hba->u.mvfrey.list_count - 1;
-	
+
 	return 0;
 }
 
@@ -1932,7 +1932,7 @@ static int hptiop_attach(device_t dev)
 			goto destroy_parent_tag;
 		}
 	}
-	
+
 	if (hba->ops->get_config(hba, &iop_config)) {
 		device_printf(dev, "get iop config failed.\n");
 		goto get_config_failed;
@@ -2211,7 +2211,7 @@ static void hptiop_enable_intr_mv(struct hpt_iop_hba *hba)
 	u_int32_t int_mask;
 
 	int_mask = BUS_SPACE_RD4_MV0(outbound_intmask);
-			
+
 	int_mask |= MVIOP_MU_OUTBOUND_INT_POSTQUEUE
 			| MVIOP_MU_OUTBOUND_INT_MSG;
     	BUS_SPACE_WRT4_MV0(outbound_intmask,int_mask);
@@ -2244,7 +2244,7 @@ static void hptiop_disable_intr_mv(struct hpt_iop_hba *hba)
 {
 	u_int32_t int_mask;
 	int_mask = BUS_SPACE_RD4_MV0(outbound_intmask);
-	
+
 	int_mask &= ~(MVIOP_MU_OUTBOUND_INT_MSG
 			| MVIOP_MU_OUTBOUND_INT_POSTQUEUE);
 	BUS_SPACE_WRT4_MV0(outbound_intmask,int_mask);
@@ -2461,7 +2461,7 @@ static void hptiop_post_req_itl(struct hpt_iop_hba *hba,
 		if (ccb->csio.dxfer_len && nsegs > 0) {
 			struct hpt_iopsg *psg = req->sg_list;
 			for (idx = 0; idx < nsegs; idx++, psg++) {
-				psg->pci_address = 
+				psg->pci_address =
 					(u_int64_t)segs[idx].ds_addr;
 				psg->size = segs[idx].ds_len;
 				psg->eot = 0;
@@ -2664,7 +2664,7 @@ static void hptiop_mv_map_ctlcfg(void *arg, bus_dma_segment_t *segs,
 				int nsegs, int error)
 {
 	struct hpt_iop_hba *hba = (struct hpt_iop_hba *)arg;
-	hba->ctlcfgcmd_phy = ((u_int64_t)segs->ds_addr + 0x1F) 
+	hba->ctlcfgcmd_phy = ((u_int64_t)segs->ds_addr + 0x1F)
 				& ~(u_int64_t)0x1F;
 	hba->ctlcfg_ptr = (u_int8_t *)(((unsigned long)hba->ctlcfg_ptr + 0x1F)
 				& ~0x1F);
@@ -2678,11 +2678,11 @@ static void hptiop_mvfrey_map_ctlcfg(void *arg, bus_dma_segment_t *segs,
 	u_int64_t phy;
 	u_int32_t list_count = hba->u.mvfrey.list_count;
 
-	phy = ((u_int64_t)segs->ds_addr + 0x1F) 
+	phy = ((u_int64_t)segs->ds_addr + 0x1F)
 				& ~(u_int64_t)0x1F;
 	p = (u_int8_t *)(((unsigned long)hba->ctlcfg_ptr + 0x1F)
 				& ~0x1F);
-	
+
 	hba->ctlcfgcmd_phy = phy;
 	hba->ctlcfg_ptr = p;
 

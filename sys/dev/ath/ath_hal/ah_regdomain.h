@@ -22,7 +22,7 @@
 #ifndef	__AH_REGDOMAIN_H__
 #define	__AH_REGDOMAIN_H__
 
-/* 
+/*
  * BMLEN defines the size of the bitmask used to hold frequency
  * band specifications.  Note this must agree with the BM macro
  * definition that's used to setup initializers.  See also further
@@ -108,7 +108,7 @@ typedef struct regDomainPair {
 }  REG_DMN_PAIR_MAPPING;
 
 typedef struct {
-	HAL_CTRY_CODE		countryCode;	   
+	HAL_CTRY_CODE		countryCode;
 	HAL_REG_DOMAIN		regDmnEnum;
 } COUNTRY_CODE_TO_ENUM_RD;
 

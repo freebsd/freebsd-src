@@ -90,7 +90,7 @@ struct ctl_port	cfumass_port;
 bool		cfumass_port_online;
 volatile u_int	cfumass_refcount;
 
-#ifndef CFUMASS_BULK_SIZE 
+#ifndef CFUMASS_BULK_SIZE
 #define	CFUMASS_BULK_SIZE	(1U << 17)	/* bytes */
 #endif
 
@@ -585,7 +585,7 @@ cfumass_quirk(struct cfumass_softc *sc, unsigned char *cdb, int cdb_len)
 
 		if ((sssu->how & SSS_LOEJ) != 0)
 			break;
-		
+
 		if (ignore_stop == 0) {
 			break;
 		} else if (ignore_stop == 1) {

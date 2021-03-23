@@ -289,7 +289,7 @@ hv_kbd_on_received(hv_kbd_sc *sc, struct vmbus_chanpkt_hdr *pkt)
 	}
 }
 
-void 
+void
 hv_kbd_read_channel(struct vmbus_channel *channel, void *context)
 {
 	uint8_t *buf;

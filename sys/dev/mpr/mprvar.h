@@ -552,7 +552,7 @@ mpr_regwrite(struct mpr_softc *sc, uint32_t offset, uint32_t val)
 	bus_space_write_4(sc->mpr_btag, sc->mpr_bhandle, offset, val);
 }
 
-/* free_queue must have Little Endian address 
+/* free_queue must have Little Endian address
  * TODO- cm_reply_data is unwanted. We can remove it.
  * */
 static __inline void
@@ -955,8 +955,8 @@ struct unmap_parm_list {
 #define SCSI_ASC_INVALID_PARAMETER                      0x26
 #define SCSI_ASC_FORMAT_COMMAND_FAILED                  0x31
 #define SCSI_ASC_INTERNAL_TARGET_FAILURE                0x44
-                
-/* SCSI ADDITIONAL SENSE Code Qualifiers */ 
+
+/* SCSI ADDITIONAL SENSE Code Qualifiers */
 #define SCSI_ASCQ_CAUSE_NOT_REPORTABLE                  0x00
 #define SCSI_ASCQ_FORMAT_COMMAND_FAILED                 0x01
 #define SCSI_ASCQ_LOG_BLOCK_GUARD_CHECK_FAILED          0x01

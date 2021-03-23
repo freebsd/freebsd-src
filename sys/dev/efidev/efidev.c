@@ -45,7 +45,7 @@ static struct cdevsw efi_cdevsw = {
 	.d_version = D_VERSION,
 	.d_ioctl = efidev_ioctl,
 };
-	
+
 static int
 efidev_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
     int flags __unused, struct thread *td __unused)

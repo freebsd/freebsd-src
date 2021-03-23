@@ -590,7 +590,7 @@ fm801_pci_attach(device_t dev)
 		if(!fm801->reg)
 		{
 			fm801->regtype = SYS_RES_IOPORT;
-			fm801->reg = bus_alloc_resource_any(dev, 
+			fm801->reg = bus_alloc_resource_any(dev,
 							    fm801->regtype,
 							    &fm801->regid,
 							    RF_ACTIVE);

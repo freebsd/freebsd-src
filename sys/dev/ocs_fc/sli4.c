@@ -1213,7 +1213,7 @@ done:
  * @return Returns the number of bytes written.
  */
 int32_t
-sli_cmd_reg_rpi(sli4_t *sli4, void *buf, size_t size, uint32_t nport_id, uint16_t rpi, 
+sli_cmd_reg_rpi(sli4_t *sli4, void *buf, size_t size, uint32_t nport_id, uint16_t rpi,
 			uint16_t vpi, ocs_dma_t *dma, uint8_t update,  uint8_t enable_t10_pi)
 {
 	sli4_cmd_reg_rpi_t *reg_rpi = buf;
@@ -1863,7 +1863,7 @@ sli_cmd_common_create_cq(sli4_t *sli4, void *buf, size_t size,
 		}
 	}
 		break;
-	}	
+	}
 
 	return (sli_config_off + cmd_size);
 }
@@ -3734,7 +3734,7 @@ sli_get_config(sli4_t *sli4)
 		sli4->config.max_sgl_pages = parms->sgl_page_cnt;	/* max # of pages */
 		sli4->config.sgl_page_sizes = parms->sgl_page_sizes;	/* bit map of available sizes */
 		/* ignore HLM here. Use value from REQUEST_FEATURES */
-		
+
 		sli4->config.sge_supported_length = parms->sge_supported_length;
 		if (sli4->config.sge_supported_length > OCS_MAX_SGE_SIZE)
 			sli4->config.sge_supported_length = OCS_MAX_SGE_SIZE;
@@ -4310,7 +4310,7 @@ __sli_queue_init(sli4_t *sli4, sli4_queue_t *q, uint32_t qtype,
 
 		ocs_memset(q->dma.virt, 0, size * n_entries);
 
-		ocs_lock_init(sli4->os, &q->lock, "%s lock[%d:%p]", 
+		ocs_lock_init(sli4->os, &q->lock, "%s lock[%d:%p]",
 			SLI_QNAME[qtype], ocs_instance(sli4->os), &q->lock);
 
 		q->type = qtype;
@@ -4655,7 +4655,7 @@ sli_cq_alloc_set(sli4_t *sli4, sli4_queue_t *qs[], uint32_t num_cqs,
 	}
 	ocs_memset(dma.virt, 0, payload_size);
 
-	if (sli_cmd_sli_config(sli4, sli4->bmbx.virt, SLI4_BMBX_SIZE, 
+	if (sli_cmd_sli_config(sli4, sli4->bmbx.virt, SLI4_BMBX_SIZE,
 			payload_size, &dma) == -1) {
 		goto error;
 	}
@@ -5001,7 +5001,7 @@ _sli_queue_write(sli4_t *sli4, sli4_queue_t *q, uint8_t *entry)
 			break;
 		}
 		case SLI_QTYPE_MQ:
-			/* Note: we don't really need to dump the whole 
+			/* Note: we don't really need to dump the whole
 			 * 256 bytes, just do 64 */
 			ocs_dump32(OCS_DEBUG_ENABLE_MQ_DUMP, sli4->os, "mqe outbound", entry, 64);
 			break;
@@ -5487,7 +5487,7 @@ int32_t sli_raise_ue(sli4_t *sli4, uint8_t dump)
 			ocs_log_test(sli4->os, "invalid asic type %d\n", sli_get_asic_type(sli4));
 			return -1;
 		}
-	} else if (SLI4_IF_TYPE_LANCER_FC_ETH == sli_get_if_type(sli4)) {	
+	} else if (SLI4_IF_TYPE_LANCER_FC_ETH == sli_get_if_type(sli4)) {
 		if (dump == FDD) {
 			sli_reg_write(sli4, SLI4_REG_SLIPORT_CONTROL, SLI4_SLIPORT_CONTROL_FDD | SLI4_SLIPORT_CONTROL_IP);
 		} else {
@@ -5541,7 +5541,7 @@ int32_t sli_dump_is_ready(sli4_t *sli4)
 		bmbx_val = sli_reg_read(sli4, SLI4_REG_BMBX);
 
 		if ((bmbx_val & SLI4_BMBX_RDY) &&
-		    SLI4_PORT_STATUS_READY(port_val)) { 
+		    SLI4_PORT_STATUS_READY(port_val)) {
 		    	if(SLI4_PORT_STATUS_DUMP_PRESENT(port_val)) {
 				rc = 1;
 			}else if( SLI4_PORT_STATUS_FDP_PRESENT(port_val)) {
@@ -5848,7 +5848,7 @@ sli_cmd_fcoe_wq_create_v1(sli4_t *sli4, void *buf, size_t size, ocs_dma_t *qmem,
 
 	n_wqe = qmem->size / sli4->config.wqe_size;
 
-	/* This heuristic to determine the page size is simplistic 
+	/* This heuristic to determine the page size is simplistic
 	 * but could be made more sophisticated
 	 */
 	switch (qmem->size) {

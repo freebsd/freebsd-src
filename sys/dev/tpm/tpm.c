@@ -254,7 +254,7 @@ tpm_attach(device_t dev)
 		return 1;
 	}
 
-	sc->sc_cdev = make_dev(&tpm_cdevsw, device_get_unit(dev), 
+	sc->sc_cdev = make_dev(&tpm_cdevsw, device_get_unit(dev),
 			    UID_ROOT, GID_WHEEL, 0600, "tpm");
 	sc->sc_cdev->si_drv1 = sc;
 
@@ -271,7 +271,7 @@ tpm_detach(device_t dev)
 	}
 
 	if(sc->mem_res){
-		bus_release_resource(dev, SYS_RES_MEMORY, 
+		bus_release_resource(dev, SYS_RES_MEMORY,
 				     sc->mem_rid, sc->mem_res);
 	}
 

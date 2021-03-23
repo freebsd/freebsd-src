@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 
  /**
  * Allocate and initialize new core config structure.
- * 
+ *
  * @param core_index Core index on the bus.
  * @param core_unit Core unit number.
  * @param vendor Core designer.
@@ -99,7 +99,7 @@ bcma_alloc_corecfg(u_int core_index, int core_unit, uint16_t vendor,
 
 /**
  * Deallocate the given core config and any associated resources.
- * 
+ *
  * @param corecfg Core info to be deallocated.
  */
 void
@@ -129,7 +129,7 @@ bcma_free_corecfg(struct bcma_corecfg *corecfg)
 
 /**
  * Return the @p cfg port list for @p type.
- * 
+ *
  * @param cfg The core configuration.
  * @param type The requested port type.
  */
@@ -154,7 +154,7 @@ bcma_corecfg_get_port_list(struct bcma_corecfg *cfg, bhnd_port_type type)
 /**
  * Populate the resource list and bcma_map RIDs using the maps defined on
  * @p ports.
- * 
+ *
  * @param bus The requesting bus device.
  * @param dinfo The device info instance to be initialized.
  * @param ports The set of ports to be enumerated
@@ -171,11 +171,11 @@ bcma_dinfo_init_port_resource_info(device_t bus, struct bcma_devinfo *dinfo,
 		STAILQ_FOREACH(map, &port->sp_maps, m_link) {
 			/*
 			 * Create the corresponding device resource list entry.
-			 * 
+			 *
 			 * We necessarily skip registration if the region's
 			 * device memory range is not representable via
 			 * rman_res_t.
-			 * 
+			 *
 			 * When rman_res_t is migrated to uintmax_t, any
 			 * range should be representable.
 			 */
@@ -200,14 +200,14 @@ bcma_dinfo_init_port_resource_info(device_t bus, struct bcma_devinfo *dinfo,
 
 /**
  * Allocate the per-core agent register block for a device info structure.
- * 
+ *
  * If an agent0.0 region is not defined on @p dinfo, the device info
  * agent resource is set to NULL and 0 is returned.
- * 
+ *
  * @param bus The requesting bus device.
  * @param child The bcma child device.
  * @param dinfo The device info associated with @p child
- * 
+ *
  * @retval 0 success
  * @retval non-zero resource allocation failed.
  */
@@ -255,10 +255,10 @@ bcma_dinfo_init_agent(device_t bus, device_t child, struct bcma_devinfo *dinfo)
 /**
  * Populate the list of interrupts for a device info structure
  * previously initialized via bcma_dinfo_alloc_agent().
- * 
+ *
  * If an agent0.0 region is not mapped on @p dinfo, the OOB interrupt bank is
  * assumed to be unavailable and 0 is returned.
- * 
+ *
  * @param bus The requesting bus device.
  * @param dinfo The device info instance to be initialized.
  */
@@ -319,9 +319,9 @@ bcma_dinfo_init_intrs(device_t bus, device_t child,
 
 /**
  * Allocate and return a new empty device info structure.
- * 
+ *
  * @param bus The requesting bus device.
- * 
+ *
  * @retval NULL if allocation failed.
  */
 struct bcma_devinfo *
@@ -349,13 +349,13 @@ bcma_alloc_dinfo(device_t bus)
  * Initialize a device info structure previously allocated via
  * bcma_alloc_dinfo, assuming ownership of the provided core
  * configuration.
- * 
+ *
  * @param bus The requesting bus device.
  * @param child The bcma child device.
  * @param dinfo The device info associated with @p child
  * @param corecfg Device core configuration; ownership of this value
  * will be assumed by @p dinfo.
- * 
+ *
  * @retval 0 success
  * @retval non-zero initialization failed.
  */
@@ -421,7 +421,7 @@ failed:
 
 /**
  * Deallocate the given device info structure and any associated resources.
- * 
+ *
  * @param bus The requesting bus device.
  * @param dinfo Device info to be deallocated.
  */
@@ -459,7 +459,7 @@ bcma_free_dinfo(device_t bus, device_t child, struct bcma_devinfo *dinfo)
 
 /**
  * Allocate and initialize a new interrupt descriptor.
- * 
+ *
  * @param bank OOB bank.
  * @param sel OOB selector.
  * @param line OOB bus line.
@@ -493,7 +493,7 @@ bcma_alloc_intr(uint8_t bank, uint8_t sel, uint8_t line)
 
 /**
  * Deallocate all resources associated with the given interrupt descriptor.
- * 
+ *
  * @param intr Interrupt descriptor to be deallocated.
  */
 void
@@ -506,7 +506,7 @@ bcma_free_intr(struct bcma_intr *intr)
 
 /**
  * Allocate and initialize new slave port descriptor.
- * 
+ *
  * @param port_num Per-core port number.
  * @param port_type Port type.
  */
@@ -529,7 +529,7 @@ bcma_alloc_sport(bcma_pid_t port_num, bhnd_port_type port_type)
 
 /**
  * Deallocate all resources associated with the given port descriptor.
- * 
+ *
  * @param sport Port descriptor to be deallocated.
  */
 void
@@ -546,10 +546,10 @@ bcma_free_sport(struct bcma_sport *sport) {
 /**
  * Given a bcma(4) child's device info, spin waiting for the device's DMP
  * resetstatus register to clear.
- * 
+ *
  * @param child The bcma(4) child device.
  * @param dinfo The @p child device info.
- * 
+ *
  * @retval 0 success
  * @retval ENODEV if @p dinfo does not map an agent register resource.
  * @retval ETIMEDOUT if timeout occurs
@@ -580,11 +580,11 @@ bcma_dmp_wait_reset(device_t child, struct bcma_devinfo *dinfo)
 /**
  * Set the bcma(4) child's DMP resetctrl register value, and then wait
  * for all backplane operations to complete.
- * 
+ *
  * @param child The bcma(4) child device.
  * @param dinfo The @p child device info.
  * @param value The new ioctrl value to set.
- * 
+ *
  * @retval 0 success
  * @retval ENODEV if @p dinfo does not map an agent register resource.
  * @retval ETIMEDOUT if timeout occurs waiting for reset completion

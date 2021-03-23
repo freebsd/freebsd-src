@@ -757,7 +757,7 @@ m3_rchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 	u_int32_t bus_addr, i;
 
 	int idx, data_bytes, adc_data;
-	int dsp_in_size, dsp_out_size, dsp_in_buf, dsp_out_buf; 
+	int dsp_in_size, dsp_out_size, dsp_in_buf, dsp_out_buf;
 
 	struct data_word {
 	u_int16_t addr, val;

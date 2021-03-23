@@ -674,7 +674,7 @@ sndstat_dsp_nvlist_is_sane(const nvlist_t *nvlist)
 		    nvlist_exists_number(nvlist, SNDSTAT_LABEL_RMAXRATE) &&
 		    nvlist_exists_number(nvlist, SNDSTAT_LABEL_RFMTS)))
 			return (false);
-	
+
 	return (true);
 
 }

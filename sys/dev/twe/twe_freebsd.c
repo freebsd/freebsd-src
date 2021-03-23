@@ -116,7 +116,7 @@ static int
 twe_ioctl_wrapper(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 {
     struct twe_softc		*sc = (struct twe_softc *)dev->si_drv1;
-    
+
     return(twe_ioctl(sc, cmd, addr));
 }
 
@@ -166,7 +166,7 @@ twe_probe(device_t dev)
     debug_called(4);
 
     if ((pci_get_vendor(dev) == TWE_VENDOR_ID) &&
-	((pci_get_device(dev) == TWE_DEVICE_ID) || 
+	((pci_get_device(dev) == TWE_DEVICE_ID) ||
 	 (pci_get_device(dev) == TWE_DEVICE_ID_ASIC))) {
 	device_set_desc_copy(dev, TWE_DEVICE_NAME ". Driver version " TWE_DRIVER_VERSION_STRING);
 	return(BUS_PROBE_DEFAULT);
@@ -220,7 +220,7 @@ twe_attach(device_t dev)
      * Allocate the PCI register window.
      */
     rid = TWE_IO_CONFIG_REG;
-    if ((sc->twe_io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, 
+    if ((sc->twe_io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
         RF_ACTIVE)) == NULL) {
 	twe_printf(sc, "can't allocate register window\n");
 	twe_free(sc);
@@ -247,7 +247,7 @@ twe_attach(device_t dev)
 	return(ENOMEM);
     }
 
-    /* 
+    /*
      * Allocate and connect our interrupt.
      */
     rid = 0;
@@ -257,7 +257,7 @@ twe_attach(device_t dev)
 	twe_free(sc);
 	return(ENXIO);
     }
-    if (bus_setup_intr(sc->twe_dev, sc->twe_irq, INTR_TYPE_BIO | INTR_ENTROPY | INTR_MPSAFE,  
+    if (bus_setup_intr(sc->twe_dev, sc->twe_irq, INTR_TYPE_BIO | INTR_ENTROPY | INTR_MPSAFE,
 		       NULL, twe_pci_intr, sc, &sc->twe_intr)) {
 	twe_printf(sc, "can't set up interrupt\n");
 	twe_free(sc);
@@ -365,7 +365,7 @@ twe_attach(device_t dev)
     /*
      * Schedule ourselves to bring the controller up once interrupts are available.
      * This isn't strictly necessary, since we disable interrupts while probing the
-     * controller, but it is more in keeping with common practice for other disk 
+     * controller, but it is more in keeping with common practice for other disk
      * devices.
      */
     sc->twe_ich.ich_func = twe_intrhook;
@@ -453,7 +453,7 @@ twe_detach(device_t dev)
     sc->twe_state |= TWE_STATE_DETACHING;
     TWE_IO_UNLOCK(sc);
 
-    /*	
+    /*
      * Shut the controller down.
      */
     if (twe_shutdown(dev)) {
@@ -482,7 +482,7 @@ twe_shutdown(device_t dev)
 
     debug_called(4);
 
-    /* 
+    /*
      * Delete all our child devices.
      */
     TWE_CONFIG_LOCK(sc);
@@ -518,7 +518,7 @@ twe_suspend(device_t dev)
 
     TWE_IO_LOCK(sc);
     sc->twe_state |= TWE_STATE_SUSPEND;
-    
+
     twe_disable_interrupts(sc);
     TWE_IO_UNLOCK(sc);
 
@@ -592,7 +592,7 @@ twe_attach_drive(struct twe_softc *sc, struct twe_drive *dr)
     }
     device_set_ivars(dr->td_disk, dr);
 
-    /* 
+    /*
      * XXX It would make sense to test the online/initialising bits, but they seem to be
      * always set...
      */
@@ -810,7 +810,7 @@ twed_attach(device_t dev)
 {
     struct twed_softc	*sc;
     device_t		parent;
-    
+
     debug_called(4);
 
     /* initialise our softc */
@@ -824,7 +824,7 @@ twed_attach(device_t dev)
     twed_printf(sc, "%uMB (%u sectors)\n",
 		sc->twed_drive->td_size / ((1024 * 1024) / TWE_BLOCK_SIZE),
 		sc->twed_drive->td_size);
-    
+
     /* attach a generic disk device to ourselves */
 
     sc->twed_drive->td_sys_unit = device_get_unit(dev);
@@ -897,7 +897,7 @@ twe_allocate_request(struct twe_softc *sc, int tag)
 	twe_free_request(tr);
 	twe_printf(sc, "unable to allocate dmamap for tag %d\n", tag);
 	return(NULL);
-    }    
+    }
     return(tr);
 }
 
@@ -905,10 +905,10 @@ twe_allocate_request(struct twe_softc *sc, int tag)
  * Permanently discard a command buffer.
  */
 void
-twe_free_request(struct twe_request *tr) 
+twe_free_request(struct twe_request *tr)
 {
     struct twe_softc	*sc = tr->tr_sc;
-    
+
     debug_called(4);
 
     bus_dmamap_destroy(sc->twe_buffer_dmat, tr->tr_dmamap);
@@ -919,7 +919,7 @@ twe_free_request(struct twe_request *tr)
  * Map/unmap (tr)'s command and data in the controller's addressable space.
  *
  * These routines ensure that the data which the controller is going to try to
- * access is actually visible to the controller, in a machine-independant 
+ * access is actually visible to the controller, in a machine-independant
  * fashion.  Due to a hardware limitation, I/O buffers must be 512-byte aligned
  * and we take care of that here as well.
  */
@@ -937,7 +937,7 @@ twe_fillin_sgl(TWE_SG_Entry *sgl, bus_dma_segment_t *segs, int nsegments, int ma
 	sgl[i].length = 0;
     }
 }
-		
+
 static void
 twe_setup_data_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 {
@@ -1065,7 +1065,7 @@ twe_map_request(struct twe_request *tr)
      * If the command involves data, map that too.
      */
     if (tr->tr_data != NULL && ((tr->tr_flags & TWE_CMD_MAPPED) == 0)) {
-	/* 
+	/*
 	 * Data must be 64-byte aligned; allocate a fixup buffer if it's not.
 	 */
 	if (((vm_offset_t)tr->tr_data % TWE_ALIGNMENT) != 0) {
@@ -1086,7 +1086,7 @@ twe_map_request(struct twe_request *tr)
 	    error = bus_dmamap_load(sc->twe_immediate_dmat, sc->twe_immediate_map, sc->twe_immediate,
 			    tr->tr_length, twe_setup_data_dmamap, tr, BUS_DMA_NOWAIT);
 	} else {
-	    error = bus_dmamap_load(sc->twe_buffer_dmat, tr->tr_dmamap, tr->tr_data, tr->tr_length, 
+	    error = bus_dmamap_load(sc->twe_buffer_dmat, tr->tr_dmamap, tr->tr_data, tr->tr_length,
 				    twe_setup_data_dmamap, tr, 0);
 	}
 	if (error == EINPROGRESS) {
@@ -1144,7 +1144,7 @@ twe_unmap_request(struct twe_request *tr)
 	if (tr->tr_flags & TWE_CMD_IMMEDIATE) {
 	    bus_dmamap_unload(sc->twe_immediate_dmat, sc->twe_immediate_map);
 	} else {
-	    bus_dmamap_unload(sc->twe_buffer_dmat, tr->tr_dmamap); 
+	    bus_dmamap_unload(sc->twe_buffer_dmat, tr->tr_dmamap);
 	}
     }
 

@@ -354,7 +354,7 @@ hifn_getpllconfig(device_t dev, u_int *pll)
 /*
  * Attach an interface that successfully probed.
  */
-static int 
+static int
 hifn_attach(device_t dev)
 {
 	struct hifn_softc *sc = device_get_softc(dev);
@@ -578,7 +578,7 @@ hifn_attach(device_t dev)
 		}
 		break;
 	}
-		
+
 	bus_dmamap_sync(sc->sc_dmat, sc->sc_dmamap,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
@@ -615,7 +615,7 @@ fail_pci:
 /*
  * Detach an interface that successfully probed.
  */
-static int 
+static int
 hifn_detach(device_t dev)
 {
 	struct hifn_softc *sc = device_get_softc(dev);
@@ -771,7 +771,7 @@ hifn_init_pubrng(struct hifn_softc *sc)
 		sc->sc_dmaier |= HIFN_DMAIER_PUBDONE;
 		WRITE_REG_1(sc, HIFN_1_DMA_IER, sc->sc_dmaier);
 #ifdef HIFN_VULCANDEV
-		sc->sc_pkdev = make_dev(&vulcanpk_cdevsw, 0, 
+		sc->sc_pkdev = make_dev(&vulcanpk_cdevsw, 0,
 					UID_ROOT, GID_WHEEL, 0666,
 					"vulcanpk");
 		sc->sc_pkdev->si_drv1 = sc;
@@ -939,7 +939,7 @@ hifn_reset_board(struct hifn_softc *sc, int full)
 		      (2 << HIFN_DMACNFG2_TGT_WRITE_BURST_SHIFT)|
 		      (2 << HIFN_DMACNFG2_TGT_READ_BURST_SHIFT));
 	}
-		      
+
 }
 
 static u_int32_t
@@ -1018,7 +1018,7 @@ static struct pci2id pci2id[] = {
  * "hifn_enable_crypto" is called to enable it.  The check is important,
  * as enabling crypto twice will lock the board.
  */
-static int 
+static int
 hifn_enable_crypto(struct hifn_softc *sc)
 {
 	u_int32_t dmacfg, ramcfg, encl, addr, i;
@@ -1119,7 +1119,7 @@ report:
  * Give initial values to the registers listed in the "Register Space"
  * section of the HIFN Software Development reference manual.
  */
-static void 
+static void
 hifn_init_pci_registers(struct hifn_softc *sc)
 {
 	/* write fixed values needed by the Initialization registers */
@@ -1504,7 +1504,7 @@ hifn_readramaddr(struct hifn_softc *sc, int addr, u_int8_t *data)
 /*
  * Initialize the descriptor rings.
  */
-static void 
+static void
 hifn_init_dma(struct hifn_softc *sc)
 {
 	struct hifn_dma *dma = sc->sc_dma;
@@ -1758,7 +1758,7 @@ hifn_dmamap_load_src(struct hifn_softc *sc, struct hifn_command *cmd)
 	sc->sc_srci = idx;
 	sc->sc_srcu += src->nsegs;
 	return (idx);
-} 
+}
 
 static void
 hifn_op_cb(void* arg, bus_dma_segment_t *seg, int nsegs, int error)
@@ -1772,7 +1772,7 @@ hifn_op_cb(void* arg, bus_dma_segment_t *seg, int nsegs, int error)
 	bcopy(seg, op->segs, nsegs * sizeof (seg[0]));
 }
 
-static int 
+static int
 hifn_crypto(
 	struct hifn_softc *sc,
 	struct hifn_command *cmd,
@@ -2113,7 +2113,7 @@ hifn_tick(void* vsc)
 	callout_reset(&sc->sc_tickto, hz, hifn_tick, sc);
 }
 
-static void 
+static void
 hifn_intr(void *arg)
 {
 	struct hifn_softc *sc = arg;
@@ -2277,7 +2277,7 @@ hifn_auth_supported(struct hifn_softc *sc,
 	default:
 		return (false);
 	}
-		
+
 	switch (csp->csp_auth_alg) {
 	case CRYPTO_SHA1:
 		break;
@@ -2289,7 +2289,7 @@ hifn_auth_supported(struct hifn_softc *sc,
 		return (false);
 	}
 
-	return (true);	
+	return (true);
 }
 
 static bool
@@ -2433,7 +2433,7 @@ hifn_process(device_t dev, struct cryptop *crp, int hint)
 		cmd->cklen = csp->csp_cipher_klen;
 		cmd->cry_masks |= HIFN_CRYPT_CMD_NEW_KEY;
 
-		/* 
+		/*
 		 * Need to specify the size for the AES key in the masks.
 		 */
 		if ((cmd->cry_masks & HIFN_CRYPT_CMD_ALG_MASK) ==

@@ -82,9 +82,9 @@ int		pci_get_vpd_readonly_method(device_t dev, device_t child,
 int		pci_set_powerstate_method(device_t dev, device_t child,
 		    int state);
 int		pci_get_powerstate_method(device_t dev, device_t child);
-uint32_t	pci_read_config_method(device_t dev, device_t child, 
+uint32_t	pci_read_config_method(device_t dev, device_t child,
 		    int reg, int width);
-void		pci_write_config_method(device_t dev, device_t child, 
+void		pci_write_config_method(device_t dev, device_t child,
 		    int reg, uint32_t val, int width);
 int		pci_enable_busmaster_method(device_t dev, device_t child);
 int		pci_disable_busmaster_method(device_t dev, device_t child);
@@ -116,7 +116,7 @@ int		pci_msi_count_method(device_t dev, device_t child);
 int		pci_msix_count_method(device_t dev, device_t child);
 int		pci_msix_pba_bar_method(device_t dev, device_t child);
 int		pci_msix_table_bar_method(device_t dev, device_t child);
-struct resource	*pci_alloc_resource(device_t dev, device_t child, 
+struct resource	*pci_alloc_resource(device_t dev, device_t child,
 		    int type, int *rid, rman_res_t start, rman_res_t end,
 		    rman_res_t count, u_int flags);
 int		pci_release_resource(device_t dev, device_t child, int type,
@@ -125,7 +125,7 @@ int		pci_activate_resource(device_t dev, device_t child, int type,
 		    int rid, struct resource *r);
 int		pci_deactivate_resource(device_t dev, device_t child, int type,
 		    int rid, struct resource *r);
-void		pci_delete_resource(device_t dev, device_t child, 
+void		pci_delete_resource(device_t dev, device_t child,
 		    int type, int rid);
 struct resource_list *pci_get_resource_list (device_t dev, device_t child);
 struct pci_devinfo *pci_read_device(device_t pcib, device_t bus, int d, int b,

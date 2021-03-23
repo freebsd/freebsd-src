@@ -106,7 +106,7 @@ typedef struct ips_command{
 	bus_dmamap_t		data_dmamap;
 	bus_dmamap_t		command_dmamap;
 	void *			command_buffer;
-	u_int32_t		command_phys_addr;/*WARNING! must be changed if 64bit addressing ever used*/	
+	u_int32_t		command_phys_addr;/*WARNING! must be changed if 64bit addressing ever used*/
 	ips_cmd_status_t	status;
 	SLIST_ENTRY(ips_command)	next;
 	void *			data_buffer;
@@ -143,7 +143,7 @@ typedef struct ips_softc{
 	ips_command_t		*commandarray;
 	ips_command_t		*staticcmd;
 	SLIST_HEAD(command_list, ips_command) free_cmd_list;
-	int			(* ips_adapter_reinit)(struct ips_softc *sc, 
+	int			(* ips_adapter_reinit)(struct ips_softc *sc,
 						       int force);
         void                    (* ips_adapter_intr)(void *sc);
 	void			(* ips_issue_cmd)(ips_command_t *command);
@@ -156,7 +156,7 @@ typedef struct ips_softc{
 }ips_softc_t;
 
 /* function defines from ips_ioctl.c */
-extern int ips_ioctl_request(ips_softc_t *sc, u_long ioctl_cmd, caddr_t addr, 
+extern int ips_ioctl_request(ips_softc_t *sc, u_long ioctl_cmd, caddr_t addr,
 				int32_t flags);
 /* function defines from ips_disk.c */
 extern void ipsd_finish(struct bio *iobuf);
@@ -167,7 +167,7 @@ extern void ips_start_io_request(ips_softc_t *sc);
 extern int ips_get_drive_info(ips_softc_t *sc);
 extern int ips_get_adapter_info(ips_softc_t *sc);
 extern int ips_ffdc_reset(ips_softc_t *sc);
-extern int ips_update_nvram(ips_softc_t *sc); 
+extern int ips_update_nvram(ips_softc_t *sc);
 extern int ips_clear_adapter(ips_softc_t *sc);
 
 /* function defines from ips.c */

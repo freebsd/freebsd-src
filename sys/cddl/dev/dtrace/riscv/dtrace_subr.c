@@ -238,7 +238,7 @@ dtrace_probe_error(dtrace_state_t *state, dtrace_epid_t epid, int which,
 }
 
 static int
-match_opcode(uint32_t insn, int match, int mask)  
+match_opcode(uint32_t insn, int match, int mask)
 {
 
 	if (((insn ^ match) & mask) == 0)

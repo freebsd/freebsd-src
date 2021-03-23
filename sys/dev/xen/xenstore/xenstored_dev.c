@@ -118,7 +118,7 @@ xsd_dev_identify(driver_t *driver __unused, device_t parent)
  *
  * \return  Always returns 0 indicating success.
  */
-static int 
+static int
 xsd_dev_probe(device_t dev)
 {
 

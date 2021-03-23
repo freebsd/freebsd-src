@@ -189,7 +189,7 @@ done:
 }
 
 static usb_error_t
-usb_check_alt_setting(struct usb_device *udev, 
+usb_check_alt_setting(struct usb_device *udev,
      struct usb_interface *iface, uint8_t alt_index)
 {
 	uint8_t do_unlock;

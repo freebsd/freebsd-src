@@ -255,7 +255,7 @@ static struct if_shared_ctx axgbe_sctx_init = {
 	.isc_driver_version = XGBE_DRV_VERSION,
 
 	.isc_ntxd_min = {XGBE_TX_DESC_CNT_MIN},
-	.isc_ntxd_default = {XGBE_TX_DESC_CNT_DEFAULT}, 
+	.isc_ntxd_default = {XGBE_TX_DESC_CNT_DEFAULT},
 	.isc_ntxd_max = {XGBE_TX_DESC_CNT_MAX},
 
 	.isc_ntxqs = 1,
@@ -453,7 +453,7 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 
 	/* Enable all interrupts in the hardware */
         XP_IOWRITE(pdata, XP_INT_EN, 0x1fffff);
-	
+
 	/* Retrieve the MAC address */
 	ma_lo = XP_IOREAD(pdata, XP_MAC_ADDR_LO);
 	ma_hi = XP_IOREAD(pdata, XP_MAC_ADDR_HI);
@@ -642,7 +642,7 @@ axgbe_init_iflib_softc_ctx(struct axgbe_if_softc *sc)
 	scctx->isc_tx_nsegments = 32;
 
 	for (i = 0; i < sctx->isc_ntxqs; i++) {
-		scctx->isc_txqsizes[i] = 
+		scctx->isc_txqsizes[i] =
 		    roundup2(scctx->isc_ntxd[i] * sizeof(struct xgbe_ring_desc),
 		    128);
 		scctx->isc_txd_size[i] = sizeof(struct xgbe_ring_desc);
@@ -670,7 +670,7 @@ axgbe_init_iflib_softc_ctx(struct axgbe_if_softc *sc)
 	    CSUM_TSO);
 	scctx->isc_capenable = (IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 |
 	    IFCAP_JUMBO_MTU |
-	    IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWFILTER | 
+	    IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWFILTER |
 	    IFCAP_VLAN_HWCSUM |
 	    IFCAP_TSO | IFCAP_VLAN_HWTSO);
 	scctx->isc_capabilities = scctx->isc_capenable;
@@ -706,7 +706,7 @@ axgbe_alloc_channels(if_ctx_t ctx)
 		channel = (struct xgbe_channel*)malloc(sizeof(struct xgbe_channel),
 		    M_AXGBE, M_NOWAIT | M_ZERO);
 
-		if (channel == NULL) {	
+		if (channel == NULL) {
 			for (j = 0; j < i; j++) {
 				free(pdata->channel[j], M_AXGBE);
 				pdata->channel[j] = NULL;
@@ -900,7 +900,7 @@ xgbe_dump_dma_registers(struct xgbe_prv_data *pdata, int ch)
         	axgbe_printf(1, "DMA_CH_TDTR_LO Reg (%08x) = %08x\n",
 		    DMA_CH_TDTR_LO, XGMAC_DMA_IOREAD(channel, DMA_CH_TDTR_LO));
         	axgbe_printf(1, "DMA_CH_RDTR_LO Reg (%08x) = %08x\n",
-		    DMA_CH_RDTR_LO, XGMAC_DMA_IOREAD(channel, DMA_CH_RDTR_LO));	
+		    DMA_CH_RDTR_LO, XGMAC_DMA_IOREAD(channel, DMA_CH_RDTR_LO));
         	axgbe_printf(1, "DMA_CH_TDRLR Reg (%08x) = %08x\n",
 		    DMA_CH_TDRLR, XGMAC_DMA_IOREAD(channel, DMA_CH_TDRLR));
         	axgbe_printf(1, "DMA_CH_RDRLR Reg (%08x) = %08x\n",
@@ -930,11 +930,11 @@ xgbe_dump_dma_registers(struct xgbe_prv_data *pdata, int ch)
         	axgbe_printf(1, "DMA_CH_MFC Reg (%08x) = %08x\n",
 		    DMA_CH_MFC, XGMAC_DMA_IOREAD(channel, DMA_CH_MFC));
         	axgbe_printf(1, "DMA_CH_TDTRO Reg (%08x) = %08x\n",
-		    DMA_CH_TDTRO, XGMAC_DMA_IOREAD(channel, DMA_CH_TDTRO));	
+		    DMA_CH_TDTRO, XGMAC_DMA_IOREAD(channel, DMA_CH_TDTRO));
         	axgbe_printf(1, "DMA_CH_RDTRO Reg (%08x) = %08x\n",
 		    DMA_CH_RDTRO, XGMAC_DMA_IOREAD(channel, DMA_CH_RDTRO));
         	axgbe_printf(1, "DMA_CH_TDWRO Reg (%08x) = %08x\n",
-		    DMA_CH_TDWRO, XGMAC_DMA_IOREAD(channel, DMA_CH_TDWRO));	
+		    DMA_CH_TDWRO, XGMAC_DMA_IOREAD(channel, DMA_CH_TDWRO));
         	axgbe_printf(1, "DMA_CH_RDWRO Reg (%08x) = %08x\n",
 		    DMA_CH_RDWRO, XGMAC_DMA_IOREAD(channel, DMA_CH_RDWRO));
 	}
@@ -1310,7 +1310,7 @@ axgbe_setup_sysctl(struct xgbe_prv_data *pdata)
 	struct sysctl_ctx_list *clist;
 	struct sysctl_oid *parent;
 	struct sysctl_oid_list *top;
-	
+
 	clist = device_get_sysctl_ctx(pdata->dev);
 	parent = device_get_sysctl_tree(pdata->dev);
 	top = SYSCTL_CHILDREN(parent);
@@ -1373,7 +1373,7 @@ axgbe_if_attach_post(if_ctx_t ctx)
 		    pdata->rx_ring_count, pdata->rx_q_count);
         }
 
-	/* Set channel count based on interrupts assigned */	
+	/* Set channel count based on interrupts assigned */
 	pdata->channel_count = max_t(unsigned int, scctx->isc_ntxqsets,
 	    scctx->isc_nrxqsets);
 	DBGPR("Channel count set to: %u\n", pdata->channel_count);
@@ -1427,7 +1427,7 @@ axgbe_if_attach_post(if_ctx_t ctx)
 		XGMAC_SET_BITS(pdata->rss_table[i], MAC_RSSDR, DMCH,
 				i % pdata->rx_ring_count);
 
-	/* 
+	/*
 	 * Mark the device down until it is initialized, which happens
 	 * when the device is accessed first (for configuring the iface,
 	 * eg: setting IP)
@@ -1469,15 +1469,15 @@ axgbe_interrupts_free(if_ctx_t ctx)
         int i;
 
 	axgbe_printf(2, "%s: mode %d\n", __func__, scctx->isc_intr);
-	
-	/* Free dev_irq */	
+
+	/* Free dev_irq */
 	iflib_irq_free(ctx, &pdata->dev_irq);
 
 	/* Free ecc_irq */
 	xgbe_free_intr(pdata, pdata->ecc_irq_res, pdata->ecc_irq_tag,
 	    pdata->ecc_rid);
 
-	/* Free i2c_irq */	
+	/* Free i2c_irq */
 	xgbe_free_intr(pdata, pdata->i2c_irq_res, pdata->i2c_irq_tag,
 	    pdata->i2c_rid);
 
@@ -1567,7 +1567,7 @@ static void
 axgbe_if_init(if_ctx_t ctx)
 {
 	struct axgbe_if_softc   *sc = iflib_get_softc(ctx);
-	struct xgbe_prv_data    *pdata = &sc->pdata;	
+	struct xgbe_prv_data    *pdata = &sc->pdata;
 
 	axgbe_pci_init(pdata);
 }
@@ -1635,7 +1635,7 @@ axgbe_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *va, uint64_t *pa, int ntxqs,
 	MPASS(ntxqs == 1);
 
 	axgbe_printf(1, "%s: txqsets %d/%d txqs %d\n", __func__,
-	    scctx->isc_ntxqsets, ntxqsets, ntxqs);	
+	    scctx->isc_ntxqsets, ntxqsets, ntxqs);
 
 	for (i = 0 ; i < ntxqsets; i++) {
 
@@ -1708,7 +1708,7 @@ axgbe_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *va, uint64_t *pa, int nrxqs,
 	}
 
 	axgbe_printf(1, "%s: rxqsets %d/%d rxqs %d\n", __func__,
-	    scctx->isc_nrxqsets, nrxqsets, nrxqs);	
+	    scctx->isc_nrxqsets, nrxqsets, nrxqs);
 
 	for (i = 0 ; i < nrxqsets; i++) {
 
@@ -1824,7 +1824,7 @@ axgbe_if_vlan_register(if_ctx_t ctx, uint16_t vtag)
 		pdata->num_active_vlans++;
 
 		axgbe_printf(1, "Total active vlans: %d\n",
-		    pdata->num_active_vlans);	
+		    pdata->num_active_vlans);
 	} else
 		axgbe_printf(0, "VLAN %d already registered\n", vtag);
 
@@ -1851,7 +1851,7 @@ axgbe_if_vlan_unregister(if_ctx_t ctx, uint16_t vtag)
 		pdata->num_active_vlans--;
 
 		axgbe_printf(1, "Total active vlans: %d\n",
-		    pdata->num_active_vlans);	
+		    pdata->num_active_vlans);
 	} else
 		axgbe_printf(0, "VLAN %d already unregistered\n", vtag);
 
@@ -1885,7 +1885,7 @@ axgbe_if_msix_intr_assign(if_ctx_t ctx, int msix)
 
 	pdata->isr_as_tasklet = 1;
 
-	if (scctx->isc_intr == IFLIB_INTR_MSI) {	
+	if (scctx->isc_intr == IFLIB_INTR_MSI) {
 		pdata->irq_count = 1;
 		pdata->channel_irq_count = 1;
 		return (0);
@@ -2174,7 +2174,7 @@ axgbe_i2c_isr(void *arg)
 {
 	struct axgbe_if_softc *sc = (struct axgbe_if_softc *)arg;
 
-	sc->pdata.i2c_if.i2c_isr(&sc->pdata);	
+	sc->pdata.i2c_if.i2c_isr(&sc->pdata);
 }
 
 static void
@@ -2244,19 +2244,19 @@ axgbe_if_update_admin_status(if_ctx_t ctx)
 	if (pdata->phy_link) {
 		if (sc->link_status == LINK_STATE_DOWN) {
 			sc->link_status = LINK_STATE_UP;
-			if (pdata->phy.speed & SPEED_10000)  
+			if (pdata->phy.speed & SPEED_10000)
 				iflib_link_state_change(ctx, LINK_STATE_UP,
 				    IF_Gbps(10));
-			else if (pdata->phy.speed & SPEED_2500)  
+			else if (pdata->phy.speed & SPEED_2500)
 				iflib_link_state_change(ctx, LINK_STATE_UP,
 				    IF_Gbps(2.5));
-			else if (pdata->phy.speed & SPEED_1000)  
+			else if (pdata->phy.speed & SPEED_1000)
 				iflib_link_state_change(ctx, LINK_STATE_UP,
 				    IF_Gbps(1));
-			else if (pdata->phy.speed & SPEED_100)  
+			else if (pdata->phy.speed & SPEED_100)
 				iflib_link_state_change(ctx, LINK_STATE_UP,
 				    IF_Mbps(100));
-			else if (pdata->phy.speed & SPEED_10)  
+			else if (pdata->phy.speed & SPEED_10)
 				iflib_link_state_change(ctx, LINK_STATE_UP,
 				    IF_Mbps(10));
 		}

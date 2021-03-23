@@ -7,7 +7,7 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice(s), this list of conditions and the following disclaimer as
- *    the first lines of this file unmodified other than the possible 
+ *    the first lines of this file unmodified other than the possible
  *    addition of one or more copyright notices.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice(s), this list of conditions and the following disclaimer in the
@@ -188,7 +188,7 @@ static void __used
 dtrace_debug_puts(const char *s)
 {
 	int cpu;
-	
+
 	cpu = curcpu;
 	dtrace_debug_lock(cpu);
 
@@ -520,7 +520,7 @@ number:
 			while (percent < fmt)
 				dtrace_debug__putc(cpu, *percent++);
 			/*
-			 * Since we ignore an formatting argument it is no 
+			 * Since we ignore an formatting argument it is no
 			 * longer safe to obey the remaining formatting
 			 * arguments as the arguments will no longer match
 			 * the format specs.

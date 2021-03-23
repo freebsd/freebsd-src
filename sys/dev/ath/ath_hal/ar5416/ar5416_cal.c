@@ -64,7 +64,7 @@ static void ar5416SanitizeNF(struct ath_hal *ah, int16_t *nf);
  */
 static OS_INLINE HAL_BOOL
 ar5416IsCalSupp(struct ath_hal *ah, const struct ieee80211_channel *chan,
-	HAL_CAL_TYPE calType) 
+	HAL_CAL_TYPE calType)
 {
 	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
 
@@ -211,7 +211,7 @@ ar5416InitCalHardware(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		/* Enable Rx Filter Cal */
 		OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
 		    AR_PHY_AGC_CONTROL_FLTR_CAL);
-	} 	
+	}
 
 	/* Calibrate the AGC */
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL);
@@ -262,7 +262,7 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	if (AH5416(ah)->ah_cal_pacal)
 		AH5416(ah)->ah_cal_pacal(ah, AH_TRUE);
 
-	/* 
+	/*
 	 * Do NF calibration after DC offset and other CALs.
 	 * Per system engineers, noise floor value can sometimes be 20 dB
 	 * higher than normal value if DC offset and noise floor cal are
@@ -406,7 +406,7 @@ ar5416DoCalibration(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *ichan,
 			    "%s: sample %d of %d finished\n",
 			    __func__, cal->calSamples,
 			    currCal->calData->calNumSamples);
-			/* 
+			/*
 			 * Collect measurements for active chains.
 			 */
 			currCal->calData->calCollect(ah);
@@ -416,7 +416,7 @@ ar5416DoCalibration(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *ichan,
 					if (rxchainmask & (1 << i))
 						numChains++;
 				}
-				/* 
+				/*
 				 * Process accumulated data
 				 */
 				currCal->calData->calPostProc(ah, numChains);
@@ -513,7 +513,7 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 			    " didn't finish; delaying CCA\n", __func__);
 		} else {
 			int ret;
-			/* 
+			/*
 			 * NF calibration result is valid.
 			 *
 			 * Load the NF from history buffer of the current channel.
@@ -627,7 +627,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		if (i > 2 && !IEEE80211_IS_CHAN_HT40(chan))
 			continue;
 
-		if (chainmask & (1 << i)) { 
+		if (chainmask & (1 << i)) {
 			int16_t nf_val;
 
 			if (h)
@@ -669,7 +669,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	/*
 	 * Restore maxCCAPower register parameter again so that we're not capped
 	 * by the median we just loaded.  This will be initial (and max) value
-	 * of next noise floor calibration the baseband does.  
+	 * of next noise floor calibration the baseband does.
 	 */
 	for (i = 0; i < AR5416_NUM_NF_READINGS; i ++) {
 		/* Don't write to EXT radio CCA registers unless in HT/40 mode */
@@ -677,7 +677,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		if (i > 2 && !IEEE80211_IS_CHAN_HT40(chan))
 			continue;
 
-		if (chainmask & (1 << i)) {	
+		if (chainmask & (1 << i)) {
 			val = OS_REG_READ(ah, ar5416_cca_regs[i]);
 			val &= 0xFFFFFE00;
 			val |= (((uint32_t)(-50) << 1) & 0x1ff);
@@ -733,7 +733,7 @@ ar5416UpdateNFHistBuff(struct ath_hal *ah, struct ar5212NfCalHist *h,
 			h[i].privNF = ar5212GetNfHistMid(h[i].nfCalBuffer);
 		}
 	}
-}   
+}
 
 static uint16_t
 ar5416GetDefaultNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
@@ -800,7 +800,7 @@ ar5416GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
 		/* Finished NF cal, check against threshold */
 		int16_t nfarray[NUM_NOISEFLOOR_READINGS] = { 0 };
 		HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
-			
+
 		/* TODO - enhance for multiple chains and ext ch */
 		ath_hal_getNoiseFloor(ah, nfarray);
 		nf = nfarray[0];

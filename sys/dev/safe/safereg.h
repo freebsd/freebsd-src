@@ -403,7 +403,7 @@ struct safe_sarec {
 #define	SAFE_SA_CMD1_AES192	0x03000000	/* 192-bit AES key */
 #define	SAFE_SA_CMD1_AES256	0x04000000	/* 256-bit AES key */
 
-/* 
+/*
  * Security Associate State Record (Rev 1).
  */
 struct safe_sastate {

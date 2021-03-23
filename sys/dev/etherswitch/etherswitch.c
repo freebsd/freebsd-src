@@ -97,7 +97,7 @@ etherswitch_probe(device_t dev)
 
 	return (0);
 }
-	
+
 static int
 etherswitch_attach(device_t dev)
 {
@@ -152,14 +152,14 @@ etherswitchioctl(struct cdev *cdev, u_long cmd, caddr_t data, int flags, struct 
 		info = ETHERSWITCH_GETINFO(etherswitch);
 		bcopy(info, data, sizeof(etherswitch_info_t));
 		break;
-		
+
 	case IOETHERSWITCHGETREG:
 		reg = (etherswitch_reg_t *)data;
 		ETHERSWITCH_LOCK(etherswitch);
 		reg->val = ETHERSWITCH_READREG(etherswitch, reg->reg);
 		ETHERSWITCH_UNLOCK(etherswitch);
 		break;
-	
+
 	case IOETHERSWITCHSETREG:
 		reg = (etherswitch_reg_t *)data;
 		ETHERSWITCH_LOCK(etherswitch);
@@ -187,7 +187,7 @@ etherswitchioctl(struct cdev *cdev, u_long cmd, caddr_t data, int flags, struct 
 		phyreg = (etherswitch_phyreg_t *)data;
 		phyreg->val = ETHERSWITCH_READPHYREG(etherswitch, phyreg->phy, phyreg->reg);
 		break;
-	
+
 	case IOETHERSWITCHSETPHYREG:
 		phyreg = (etherswitch_phyreg_t *)data;
 		error = ETHERSWITCH_WRITEPHYREG(etherswitch, phyreg->phy, phyreg->reg, phyreg->val);

@@ -199,7 +199,7 @@ xlnx_pcib_intr(void *arg)
 
 static void
 xlnx_pcib_handle_msi_intr(void *arg, int msireg)
-{ 
+{
 	struct generic_pcie_fdt_softc *fdt_sc;
 	struct generic_pcie_core_softc *sc;
 	struct xlnx_pcib_softc *xlnx_sc;

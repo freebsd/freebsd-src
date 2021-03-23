@@ -71,7 +71,7 @@ ata_pci_probe(device_t dev)
     /* is this an IDE/ATA type device ? */
     if (pci_get_subclass(dev) != PCIS_STORAGE_IDE)
 	return (ENXIO);
-    
+
     sprintf(buffer, "%s ATA controller", ata_pcivendor2str(dev));
     device_set_desc_copy(dev, buffer);
     ctlr->chipinit = ata_generic_chipinit;
@@ -171,7 +171,7 @@ ata_pci_suspend(device_t dev)
 	error = ctlr->suspend(dev);
     return error;
 }
-  
+
 int
 ata_pci_resume(device_t dev)
 {
@@ -206,7 +206,7 @@ ata_pci_read_config(device_t dev, device_t child, int reg, int width)
 }
 
 void
-ata_pci_write_config(device_t dev, device_t child, int reg, 
+ata_pci_write_config(device_t dev, device_t child, int reg,
     uint32_t val, int width)
 {
 
@@ -255,7 +255,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		if (type == SYS_RES_IRQ && *rid == ATA_IRQ_RID) {
 			if (controller->legacy) {
 			    int irq = (unit == 0 ? 14 : 15);
-	    
+
 			    res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 				SYS_RES_IRQ, rid, irq, irq, 1, flags);
 			} else
@@ -303,7 +303,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 			if (controller->legacy) {
 				return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
 				    SYS_RES_IRQ, rid, r);
-			} else  
+			} else
 				return 0;
 		}
 	} else {
@@ -320,8 +320,8 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 }
 
 int
-ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, 
-		   int flags, driver_filter_t *filter, driver_intr_t *function, 
+ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq,
+		   int flags, driver_filter_t *filter, driver_intr_t *function,
 		   void *argument, void **cookiep)
 {
 	struct ata_pci_controller *controller = device_get_softc(dev);
@@ -369,7 +369,7 @@ ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 		return 0;
 	}
 }
-    
+
 int
 ata_generic_setmode(device_t dev, int target, int mode)
 {
@@ -483,7 +483,7 @@ ata_pci_dmastart(struct ata_request *request)
 
     ATA_DEBUG_RQ(request, "dmastart");
 
-    ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) | 
+    ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) |
 		 (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
     ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, request->dma->sg_bus);
     ch->dma.flags |= ATA_DMA_ACTIVE;
@@ -502,7 +502,7 @@ ata_pci_dmastop(struct ata_request *request)
 
     ATA_DEBUG_RQ(request, "dmastop");
 
-    ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
+    ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
 		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
     ch->dma.flags &= ~ATA_DMA_ACTIVE;
     error = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
@@ -516,7 +516,7 @@ ata_pci_dmareset(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_request *request;
 
-    ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
+    ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
 		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
     ch->dma.flags &= ~ATA_DMA_ACTIVE;
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
@@ -738,7 +738,7 @@ ata_pcichannel_getrev(device_t dev, int target)
 	if (ch->flags & ATA_SATA) {
 		if (ctlr->getrev)
 			return (ctlr->getrev(dev, target));
-		else 
+		else
 			return (0xff);
 	} else
 		return (0);
@@ -843,7 +843,7 @@ ata_set_desc(device_t dev)
     char buffer[128];
 
     sprintf(buffer, "%s %s %s controller",
-            ata_pcivendor2str(dev), ctlr->chip->text, 
+            ata_pcivendor2str(dev), ctlr->chip->text,
             ata_mode2str(ctlr->chip->max_dma));
     device_set_desc_copy(dev, buffer);
 }

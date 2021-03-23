@@ -138,7 +138,7 @@ qla_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		pci_ids->subsys_dev_id = pci_get_subdevice(pci_dev);
 		pci_ids->rev_id = pci_read_config(pci_dev, PCIR_REVID, 1);
 		break;
-		
+
         default:
                 break;
         }

@@ -183,7 +183,7 @@ an_attach_pci(dev)
 
 		/* Allocate aux. memory */
 		sc->mem_aux_rid = PCIR_BAR(2);
-		error = an_alloc_aux_memory(dev, sc->mem_aux_rid, 
+		error = an_alloc_aux_memory(dev, sc->mem_aux_rid,
 		    AN_AUX_MEM_SIZE);
 		if (error) {
 			device_printf(dev, "couldn't map aux memory\n");

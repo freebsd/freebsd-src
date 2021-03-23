@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * ChipCommon attachment support for the bhnd(4) PMU driver.
- * 
+ *
  * Supports non-AOB ("Always-on Bus") devices that map the PMU register blocks
  * via the ChipCommon core, rather than vending a distinct PMU core on the
  * bhnd bus.

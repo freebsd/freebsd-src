@@ -1198,7 +1198,7 @@ do_inferred_modes(struct detailed_timing *timing, void *c)
 	closure->modes += drm_dmt_modes_for_range(closure->connector,
 						  closure->edid,
 						  timing);
-	
+
 	if (!version_greater(closure->edid, 1, 1))
 		return; /* GTF not defined yet */
 
@@ -1435,7 +1435,7 @@ do_cvt_mode(struct detailed_timing *timing, void *c)
 
 static int
 add_cvt_modes(struct drm_connector *connector, struct edid *edid)
-{	
+{
 	struct detailed_mode_closure closure = {
 		connector, edid, 0, 0, 0
 	};

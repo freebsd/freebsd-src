@@ -122,7 +122,7 @@
 #define	PCIR_BIST	0x0f
 
 /* PCI Spec rev 2.2: 0FFFFh is an invalid value for Vendor ID. */
-#define	PCIV_INVALID	0xffff 
+#define	PCIV_INVALID	0xffff
 
 /* Capability Register Offsets */
 

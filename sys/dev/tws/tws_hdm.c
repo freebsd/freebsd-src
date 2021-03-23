@@ -42,7 +42,7 @@
 
 int tws_use_32bit_sgls=0;
 extern u_int64_t mfa_base;
-extern struct tws_request *tws_get_request(struct tws_softc *sc, 
+extern struct tws_request *tws_get_request(struct tws_softc *sc,
                                            u_int16_t type);
 extern void tws_q_insert_tail(struct tws_softc *sc, struct tws_request *req,
                                 u_int8_t q_type );
@@ -52,7 +52,7 @@ extern struct tws_request * tws_q_remove_request(struct tws_softc *sc,
 extern void tws_cmd_complete(struct tws_request *req);
 extern void tws_print_stats(void *arg);
 extern int tws_send_scsi_cmd(struct tws_softc *sc, int cmd);
-extern int tws_set_param(struct tws_softc *sc, u_int32_t table_id, 
+extern int tws_set_param(struct tws_softc *sc, u_int32_t table_id,
            u_int32_t param_id, u_int32_t param_size, void *data);
 extern int tws_get_param(struct tws_softc *sc, u_int32_t table_id,
             u_int32_t param_id, u_int32_t param_size, void *data);
@@ -63,7 +63,7 @@ int tws_init_ctlr(struct tws_softc *sc);
 int tws_submit_command(struct tws_softc *sc, struct tws_request *req);
 void tws_nop_cmd(void *arg);
 u_int16_t tws_poll4_response(struct tws_softc *sc, u_int64_t *mfa);
-boolean tws_get_response(struct tws_softc *sc, u_int16_t *req_id, 
+boolean tws_get_response(struct tws_softc *sc, u_int16_t *req_id,
                                                u_int64_t *mfa);
 boolean tws_ctlr_ready(struct tws_softc *sc);
 void tws_turn_on_interrupts(struct tws_softc *sc);
@@ -79,7 +79,7 @@ void tws_aen_synctime_with_host(struct tws_softc *sc);
 void tws_init_obfl_q(struct tws_softc *sc);
 void tws_display_ctlr_info(struct tws_softc *sc);
 
-int 
+int
 tws_init_ctlr(struct tws_softc *sc)
 {
     u_int64_t reg;
@@ -91,7 +91,7 @@ tws_init_ctlr(struct tws_softc *sc)
     {
         TWS_TRACE_DEBUG(sc, "initConnect failed", 0, sc->is64bit);
         return(FAILURE);
-        
+
     }
 
     while( 1 ) {
@@ -101,7 +101,7 @@ tws_init_ctlr(struct tws_softc *sc)
         TWS_TRACE_DEBUG(sc, "host outbound cleanup",reg, regl);
         if ( regh == TWS_FIFO_EMPTY32 )
             break;
-    } 
+    }
 
     tws_init_obfl_q(sc);
     tws_display_ctlr_info(sc);
@@ -125,7 +125,7 @@ tws_init_obfl_q(struct tws_softc *sc)
         paddrl = (u_int32_t) paddr;
         tws_write_reg(sc, TWS_I2O0_HOBQPH, paddrh, 4);
         tws_write_reg(sc, TWS_I2O0_HOBQPL, paddrl, 4);
-  
+
         status = tws_read_reg(sc, TWS_I2O0_STATUS, 4);
         if ( status & TWS_BIT13 ) {
             device_printf(sc->tws_dev,  "OBFL Overrun\n");
@@ -177,7 +177,7 @@ tws_init_connect(struct tws_softc *sc, u_int16_t mcreadits )
     initc = &(req->cmd_pkt->cmd.pkt_g.init_connect);
     /* req->cmd_pkt->hdr.header_desc.size_header = 128; */
 
-    initc->res1__opcode = 
+    initc->res1__opcode =
               BUILD_RES__OPCODE(0, TWS_FW_CMD_INIT_CONNECTION);
     initc->size = 6;
     initc->request_id = req->request_id;
@@ -185,7 +185,7 @@ tws_init_connect(struct tws_softc *sc, u_int16_t mcreadits )
     initc->features |= TWS_BIT_EXTEND;
     if ( sc->is64bit && !tws_use_32bit_sgls )
         initc->features |= TWS_64BIT_SG_ADDRESSES;
-    /* assuming set features is always on */ 
+    /* assuming set features is always on */
 
     initc->size = 6;
     initc->fw_srl = sc->cinfo.working_srl = TWS_CURRENT_FW_SRL;
@@ -205,8 +205,8 @@ tws_init_connect(struct tws_softc *sc, u_int16_t mcreadits )
     else {
         /*
          * REVISIT::If init connect fails we need to reset the ctlr
-         * and try again? 
-         */ 
+         * and try again?
+         */
         TWS_TRACE(sc, "unexpected req_id ", reqid, 0);
         TWS_TRACE(sc, "INITCONNECT FAILED", reqid, 0);
         return(FAILURE);
@@ -214,7 +214,7 @@ tws_init_connect(struct tws_softc *sc, u_int16_t mcreadits )
     return(SUCCESS);
 }
 
-void 
+void
 tws_display_ctlr_info(struct tws_softc *sc)
 {
 
@@ -231,7 +231,7 @@ tws_display_ctlr_info(struct tws_softc *sc)
                              TWS_PARAM_CTLR_MODEL, 16, ctlr_model);
 
     if ( !error[0] && !error[1] && !error[2] && !error[3] ) {
-        device_printf( sc->tws_dev, 
+        device_printf( sc->tws_dev,
         "Controller details: Model %.16s, %d Phys, Firmware %.16s, BIOS %.16s\n",
          ctlr_model, num_phys, fw_ver, bios_ver);
     }
@@ -276,21 +276,21 @@ tws_submit_command(struct tws_softc *sc, struct tws_request *req)
 {
     u_int32_t regl, regh;
     u_int64_t mfa=0;
-    
-    /* 
-     * mfa register  read and write must be in order. 
-     * Get the io_lock to protect against simultinous 
-     * passthru calls 
+
+    /*
+     * mfa register  read and write must be in order.
+     * Get the io_lock to protect against simultinous
+     * passthru calls
      */
     mtx_lock(&sc->io_lock);
 
     if ( sc->obfl_q_overrun ) {
         tws_init_obfl_q(sc);
     }
-       
+
 #ifdef TWS_PULL_MODE_ENABLE
     regh = (u_int32_t)(req->cmd_pkt_phy >> 32);
-    /* regh = regh | TWS_MSG_ACC_MASK; */ 
+    /* regh = regh | TWS_MSG_ACC_MASK; */
     mfa = regh;
     mfa = mfa << 32;
     regl = (u_int32_t)req->cmd_pkt_phy;
@@ -309,18 +309,18 @@ tws_submit_command(struct tws_softc *sc, struct tws_request *req)
     if ( mfa == TWS_FIFO_EMPTY ) {
         TWS_TRACE_DEBUG(sc, "inbound fifo empty", mfa, 0);
 
-        /* 
+        /*
          * Generally we should not get here.
-         * If the fifo was empty we can't do any thing much 
-         * retry later 
+         * If the fifo was empty we can't do any thing much
+         * retry later
          */
         return(TWS_REQ_RET_PEND_NOMFA);
     }
 
 #ifndef TWS_PULL_MODE_ENABLE
-    for (int i=mfa; i<(sizeof(struct tws_command_packet)+ mfa - 
+    for (int i=mfa; i<(sizeof(struct tws_command_packet)+ mfa -
                             sizeof( struct tws_command_header)); i++) {
-        bus_space_write_1(sc->bus_mfa_tag, sc->bus_mfa_handle,i, 
+        bus_space_write_1(sc->bus_mfa_tag, sc->bus_mfa_handle,i,
                                ((u_int8_t *)&req->cmd_pkt->cmd)[i-mfa]);
     }
 #endif
@@ -331,10 +331,10 @@ tws_submit_command(struct tws_softc *sc, struct tws_request *req)
         mtx_unlock(&sc->q_lock);
     }
 
-    /* 
-     * mfa register  read and write must be in order. 
-     * Get the io_lock to protect against simultinous 
-     * passthru calls 
+    /*
+     * mfa register  read and write must be in order.
+     * Get the io_lock to protect against simultinous
+     * passthru calls
      */
     mtx_lock(&sc->io_lock);
 
@@ -343,18 +343,18 @@ tws_submit_command(struct tws_softc *sc, struct tws_request *req)
 
     sc->stats.reqs_in++;
     mtx_unlock(&sc->io_lock);
-    
+
     return(TWS_REQ_RET_SUBMIT_SUCCESS);
 
 }
 
-/* 
+/*
  * returns true if the respose was available othewise, false.
  * In the case of error the arg mfa will contain the address and
  * req_id will be TWS_INVALID_REQID
  */
 boolean
-tws_get_response(struct tws_softc *sc, u_int16_t *req_id, u_int64_t *mfa) 
+tws_get_response(struct tws_softc *sc, u_int16_t *req_id, u_int64_t *mfa)
 {
     u_int64_t out_mfa=0, val=0;
     struct tws_outbound_response out_res;
@@ -368,7 +368,7 @@ tws_get_response(struct tws_softc *sc, u_int16_t *req_id, u_int64_t *mfa)
     out_mfa = out_mfa << 32;
     val = tws_read_reg(sc, TWS_I2O0_HOBQPL, 4);
     out_mfa = out_mfa | val;
-    
+
     out_res =  *(struct tws_outbound_response *)&out_mfa;
 
     if ( !out_res.not_mfa ) {
@@ -377,7 +377,7 @@ tws_get_response(struct tws_softc *sc, u_int16_t *req_id, u_int64_t *mfa)
     } else {
         *req_id = out_res.request_id;
     }
-    
+
     return(true);
 }
 
@@ -428,7 +428,7 @@ tws_turn_off_interrupts(struct tws_softc *sc)
 {
 
     TWS_TRACE_DEBUG(sc, "entry", 0, 0);
-    
+
     tws_write_reg(sc, TWS_I2O0_HIMASK, ~0, 4);
 
 }

@@ -31,7 +31,7 @@
 
 /*
  * This code is Marvell 88E6060 ethernet switch support code on etherswitch
- * framework. 
+ * framework.
  * 88E6060 support is only port vlan support. Not support ingress/egress
  * trailer.
  * 88E6065 support is port and dot1q vlan. Also group base tag support.
@@ -130,8 +130,8 @@ struct e6060sw_softc {
 /* Switch Identifier DeviceID */
 
 #define	E6060		0x60
-#define	E6063		0x63		
-#define	E6065		0x65		
+#define	E6063		0x63
+#define	E6065		0x65
 
 #define	E6060SW_LOCK(_sc)			\
 	    mtx_lock(&(_sc)->sc_mtx)
@@ -171,14 +171,14 @@ e6060sw_probe(device_t dev)
 
 	devid = 0;
 	for (i = 0; i < 2; ++i) {
-		data = MDIO_READREG(device_get_parent(dev), 
+		data = MDIO_READREG(device_get_parent(dev),
 		    CORE_REGISTER + i * 0x10, SWITCH_ID);
 		if (bootverbose)
 			device_printf(dev,"Switch Identifier Register %x\n",
 			    data);
 
 		devid = data >> 4;
-		if (devid == E6060 || 
+		if (devid == E6060 ||
 		    devid == E6063 || devid == E6065) {
 			sc->sw_model = devid;
 			sc->smi_offset = i * 0x10;
@@ -294,7 +294,7 @@ e6060sw_attach(device_t dev)
 		sc->info.es_vlan_caps = ETHERSWITCH_VLAN_PORT;
 	} else {
 		sc->info.es_nvlangroups = 64;
-		sc->info.es_vlan_caps = ETHERSWITCH_VLAN_PORT | 
+		sc->info.es_vlan_caps = ETHERSWITCH_VLAN_PORT |
 		    ETHERSWITCH_VLAN_DOT1Q;
 	}
 
@@ -321,11 +321,11 @@ e6060sw_attach(device_t dev)
 	err = bus_generic_attach(dev);
 	if (err != 0)
 		return (err);
-	
+
 	callout_init(&sc->callout_tick, 0);
 
 	e6060sw_tick(sc);
-	
+
 	return (err);
 }
 
@@ -458,7 +458,7 @@ static etherswitch_info_t *
 e6060sw_getinfo(device_t dev)
 {
 	struct e6060sw_softc *sc;
-	
+
 	sc = device_get_softc(dev);
 
 	return (&sc->info);
@@ -480,7 +480,7 @@ e6060sw_getport(device_t dev, etherswitch_port_t *p)
 
 	p->es_pvid = 0;
 	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
-		p->es_pvid = MDIO_READREG(device_get_parent(dev), 
+		p->es_pvid = MDIO_READREG(device_get_parent(dev),
 		    CORE_REGISTER + sc->smi_offset + p->es_port,
 		    PORT_DEFVLAN) & 0xfff;
 	}
@@ -526,13 +526,13 @@ e6060sw_setport(device_t dev, etherswitch_port_t *p)
 		return (ENXIO);
 
 	if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
-		data = MDIO_READREG(device_get_parent(dev), 
+		data = MDIO_READREG(device_get_parent(dev),
 		    CORE_REGISTER + sc->smi_offset + p->es_port,
 		    PORT_DEFVLAN);
 		data &= ~0xfff;
 		data |= p->es_pvid;
 		data |= 1 << 12;
-		MDIO_WRITEREG(device_get_parent(dev), 
+		MDIO_WRITEREG(device_get_parent(dev),
 		    CORE_REGISTER + sc->smi_offset + p->es_port,
 		    PORT_DEFVLAN, data);
 	}
@@ -564,7 +564,7 @@ e6060sw_getvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 	if (sc->vlan_mode == ETHERSWITCH_VLAN_PORT) {
 		vg->es_vid = ETHERSWITCH_VID_VALID;
 		vg->es_vid |= vg->es_vlangroup;
-		data1 = MDIO_READREG(device_get_parent(dev), 
+		data1 = MDIO_READREG(device_get_parent(dev),
 		    CORE_REGISTER + sc->smi_offset + vg->es_vlangroup,
 		    PORT_VLAN_MAP);
 		vg->es_member_ports = data1 & 0x3f;
@@ -622,14 +622,14 @@ e6060sw_setvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 		data1 |= vg->es_member_ports;
 		MDIO_WRITEREG(device_get_parent(dev),
 		    CORE_REGISTER + sc->smi_offset + vg->es_vlangroup,
-		    PORT_VLAN_MAP, data1); 
+		    PORT_VLAN_MAP, data1);
 	} else if (sc->vlan_mode == ETHERSWITCH_VLAN_DOT1Q) {
 		if (vg->es_vlangroup == 0)
 			return (0);
 		data1 = 0;
 		data2 = 0;
 		for (i = 0; i < 6; ++i) {
-			if (vg->es_member_ports & 
+			if (vg->es_member_ports &
 			    vg->es_untagged_ports & (1 << i)) {
 				if (i < 4) {
 					data1 |= (0xd << i * 4);
@@ -703,7 +703,7 @@ e6060sw_setup(device_t dev)
 			    CORE_REGISTER + sc->smi_offset + i, PORT_CONTROL);
 			data |= 3 << ENGRESSFSHIFT;
 			MDIO_WRITEREG(device_get_parent(dev),
-			    CORE_REGISTER + sc->smi_offset + i, 
+			    CORE_REGISTER + sc->smi_offset + i,
 			    PORT_CONTROL, data);
 		}
 	}
@@ -726,12 +726,12 @@ e6060sw_dot1q_mode(device_t dev, int mode)
 		MDIO_WRITEREG(device_get_parent(dev),
 		    CORE_REGISTER + sc->smi_offset + i, PORT_CONTROL2, data);
 
-		data = MDIO_READREG(device_get_parent(dev), 
+		data = MDIO_READREG(device_get_parent(dev),
 		    CORE_REGISTER + sc->smi_offset + i,
 		    PORT_DEFVLAN);
 		data &= ~0xfff;
 		data |= 1;
-		MDIO_WRITEREG(device_get_parent(dev), 
+		MDIO_WRITEREG(device_get_parent(dev),
 		    CORE_REGISTER + sc->smi_offset + i,
 		    PORT_DEFVLAN, data);
 	}
@@ -741,7 +741,7 @@ static int
 e6060sw_getconf(device_t dev, etherswitch_conf_t *conf)
 {
 	struct e6060sw_softc *sc;
-	
+
 	sc = device_get_softc(dev);
 
 	/* Return the VLAN mode. */
@@ -839,7 +839,7 @@ e6060sw_read_vtu(device_t dev, int num, int *data1, int *data2)
 		    GLOBAL_REGISTER + sc->smi_offset, VTU_DATA1_REG);
 		*data2 = MDIO_READREG(device_get_parent(dev),
 		    GLOBAL_REGISTER + sc->smi_offset, VTU_DATA2_REG);
-		    
+
 		return (vid & 0xfff);
 	}
 
@@ -989,10 +989,10 @@ static device_method_t e6060sw_methods[] = {
 	DEVMETHOD(device_probe,		e6060sw_probe),
 	DEVMETHOD(device_attach,	e6060sw_attach),
 	DEVMETHOD(device_detach,	e6060sw_detach),
-	
+
 	/* bus interface */
 	DEVMETHOD(bus_add_child,	device_add_child_ordered),
-	
+
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	e6060sw_readphy),
 	DEVMETHOD(miibus_writereg,	e6060sw_writephy),

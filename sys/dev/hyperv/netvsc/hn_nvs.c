@@ -140,7 +140,7 @@ hn_nvs_req_send(struct hn_softc *sc, void *req, int reqlen)
 	    req, reqlen, &hn_nvs_sendctx_none));
 }
 
-static int 
+static int
 hn_nvs_conn_rxbuf(struct hn_softc *sc)
 {
 	struct vmbus_xact *xact = NULL;
@@ -217,7 +217,7 @@ cleanup:
 	return (error);
 }
 
-static int 
+static int
 hn_nvs_conn_chim(struct hn_softc *sc)
 {
 	struct vmbus_xact *xact = NULL;

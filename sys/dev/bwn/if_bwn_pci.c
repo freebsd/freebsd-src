@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "if_bwn_pcivar.h"
 
 /* If non-zero, enable attachment of BWN_QUIRK_UNTESTED devices */
-static int attach_untested = 0; 
+static int attach_untested = 0;
 TUNABLE_INT("hw.bwn_pci.attach_untested", &attach_untested);
 
 /* SIBA Devices */
@@ -138,10 +138,10 @@ bwn_pci_find_devcfg(device_t dev, const struct bwn_pci_devcfg **cfg,
 			{
 				if (cfg != NULL)
 					*cfg = dvc;
-				
+
 				if (device != NULL)
 					*device = dv;
-				
+
 				return (0);
 			}
 		}
@@ -254,7 +254,7 @@ bwn_pci_is_core_disabled(device_t dev, device_t child,
 	case BHND_DEVCLASS_ENET_MAC:
 	case BHND_DEVCLASS_ENET_PHY:
 		return ((sc->quirks & BWN_QUIRK_ENET_HW_UNPOPULATED) != 0);
-		
+
 	case BHND_DEVCLASS_USB_HOST:
 		return ((sc->quirks & BWN_QUIRK_USBH_UNPOPULATED) != 0);
 

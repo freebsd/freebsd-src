@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static void	aac_add_container(struct aac_softc *sc,
-				  struct aac_mntinforesp *mir, int f, 
+				  struct aac_mntinforesp *mir, int f,
 				  u_int32_t uid);
 static void	aac_get_bus_info(struct aac_softc *sc);
 static void	aac_container_bus(struct aac_softc *sc);
@@ -206,10 +206,10 @@ static int	aac_supported_features(struct aac_softc *sc, caddr_t uptr);
 static void	aac_ioctl_event(struct aac_softc *sc,
 				struct aac_event *event, void *arg);
 static int	aac_reset_adapter(struct aac_softc *sc);
-static int	aac_get_container_info(struct aac_softc *sc, 
+static int	aac_get_container_info(struct aac_softc *sc,
 				       struct aac_fib *fib, int cid,
-				       struct aac_mntinforesp *mir, 
-				       u_int32_t *uid);		
+				       struct aac_mntinforesp *mir,
+				       u_int32_t *uid);
 static u_int32_t
 	aac_check_adapter_health(struct aac_softc *sc, u_int8_t *bled);
 
@@ -321,7 +321,7 @@ aacraid_attach(struct aac_softc *sc)
 	do {
 		if ((aac_get_container_info(sc, fib, i, &mir, &uid)) != 0)
 			continue;
-		if (i == 0) 
+		if (i == 0)
 			count = mir.MntRespCount;
 		aac_add_container(sc, &mir, 0, uid);
 		i++;
@@ -333,7 +333,7 @@ aacraid_attach(struct aac_softc *sc)
 	TAILQ_INIT(&sc->aac_sim_tqh);
 	aac_container_bus(sc);
 	/* Register with CAM for the non-DASD devices */
-	if ((sc->flags & AAC_FLAGS_ENABLE_CAM) != 0) 
+	if ((sc->flags & AAC_FLAGS_ENABLE_CAM) != 0)
 		aac_get_bus_info(sc);
 
 	/* poke the bus to actually attach the child devices */
@@ -375,7 +375,7 @@ aac_daemon(void *arg)
 		cm->cm_datalen = 0;
 		cm->cm_flags |= AAC_CMD_WAIT;
 
-		fib->Header.Size = 
+		fib->Header.Size =
 			sizeof(struct aac_fib_header) + sizeof(u_int32_t);
 		fib->Header.XferState =
 			AAC_FIBSTATE_HOSTOWNED   |
@@ -441,7 +441,7 @@ aac_get_container_info(struct aac_softc *sc, struct aac_fib *sync_fib, int cid,
 	/* 4KB support?, 64-bit LBA? */
 	if (sc->aac_support_opt2 & AAC_SUPPORTED_VARIABLE_BLOCK_SIZE)
 		mi->Command = VM_NameServeAllBlk;
-	else if (sc->flags & AAC_FLAGS_LBA_64BIT) 
+	else if (sc->flags & AAC_FLAGS_LBA_64BIT)
 		mi->Command = VM_NameServe64;
 	else
 		mi->Command = VM_NameServe;
@@ -459,7 +459,7 @@ aac_get_container_info(struct aac_softc *sc, struct aac_fib *sync_fib, int cid,
 		cm->cm_timestamp = time_uptime;
 		cm->cm_datalen = 0;
 
-		fib->Header.Size = 
+		fib->Header.Size =
 			sizeof(struct aac_fib_header) + sizeof(struct aac_mntinfo);
 		fib->Header.XferState =
 			AAC_FIBSTATE_HOSTOWNED   |
@@ -482,7 +482,7 @@ aac_get_container_info(struct aac_softc *sc, struct aac_fib *sync_fib, int cid,
 
 	/* UID */
 	*uid = cid;
-	if (mir->MntTable[0].VolType != CT_NONE && 
+	if (mir->MntTable[0].VolType != CT_NONE &&
 		!(mir->MntTable[0].ContentState & AAC_FSCS_HIDDEN)) {
 		if (!(sc->aac_support_opt2 & AAC_SUPPORTED_VARIABLE_BLOCK_SIZE)) {
 			mir->MntTable[0].ObjExtension.BlockDevice.BlockSize = 0x200;
@@ -504,7 +504,7 @@ aac_get_container_info(struct aac_softc *sc, struct aac_fib *sync_fib, int cid,
 				mir->MntTable[0].VolType != CT_PASSTHRU)
 				*uid = ccfg->CTCommand.param[1];
 		} else {
-			fib->Header.Size = 
+			fib->Header.Size =
 				sizeof(struct aac_fib_header) + sizeof(struct aac_cnt_config);
 			fib->Header.XferState =
 				AAC_FIBSTATE_HOSTOWNED   |
@@ -533,12 +533,12 @@ aac_get_container_info(struct aac_softc *sc, struct aac_fib *sync_fib, int cid,
  * Create a device to represent a new container
  */
 static void
-aac_add_container(struct aac_softc *sc, struct aac_mntinforesp *mir, int f, 
+aac_add_container(struct aac_softc *sc, struct aac_mntinforesp *mir, int f,
 		  u_int32_t uid)
 {
 	struct aac_container *co;
 
-	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, ""); 
+	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	/*
 	 * Check container volume type for validity.  Note that many of
@@ -593,7 +593,7 @@ aac_alloc(struct aac_softc *sc)
 	/*
 	 * Create DMA tag for mapping FIBs into controller-addressable space..
 	 */
-	if (sc->flags & AAC_FLAGS_NEW_COMM_TYPE1) 
+	if (sc->flags & AAC_FLAGS_NEW_COMM_TYPE1)
 		maxsize = sc->aac_max_fibs_alloc * (sc->aac_max_fib_size +
 			sizeof(struct aac_fib_xporthdr) + 31);
 	else
@@ -697,12 +697,12 @@ aacraid_free(struct aac_softc *sc)
 		bus_dma_tag_destroy(sc->aac_common_dmat);
 
 	/* disconnect the interrupt handler */
-	for (i = 0; i < AAC_MAX_MSIX; ++i) {	
+	for (i = 0; i < AAC_MAX_MSIX; ++i) {
 		if (sc->aac_intr[i])
-			bus_teardown_intr(sc->aac_dev, 
+			bus_teardown_intr(sc->aac_dev,
 				sc->aac_irq[i], sc->aac_intr[i]);
 		if (sc->aac_irq[i])
-			bus_release_resource(sc->aac_dev, SYS_RES_IRQ, 
+			bus_release_resource(sc->aac_dev, SYS_RES_IRQ,
 				sc->aac_irq_rid[i], sc->aac_irq[i]);
 		else
 			break;
@@ -888,7 +888,7 @@ aacraid_new_intr_type1(void *arg)
 			else if (bellbits & 0x1000)
 				mode |= AAC_INT_MODE_SYNC;
 		}
-	} else {	
+	} else {
 		mode = AAC_INT_MODE_INTX;
 		bellbits = AAC_MEM0_GETREG4(sc, AAC_SRC_ODBR_R);
 		if (bellbits & AAC_DB_RESPONSE_SENT_NS) {
@@ -903,11 +903,11 @@ aacraid_new_intr_type1(void *arg)
 				mode |= AAC_INT_MODE_SYNC;
 		}
 		/* ODR readback, Prep #238630 */
-		AAC_MEM0_GETREG4(sc, AAC_SRC_ODBR_R);	
+		AAC_MEM0_GETREG4(sc, AAC_SRC_ODBR_R);
 	}
 
 	if (mode & AAC_INT_MODE_SYNC) {
-		if (sc->aac_sync_cm) {	
+		if (sc->aac_sync_cm) {
 			cm = sc->aac_sync_cm;
 			aac_unmap_command(cm);
 			cm->cm_flags |= AAC_CMD_COMPLETED;
@@ -933,7 +933,7 @@ aacraid_new_intr_type1(void *arg)
 		if (mode & AAC_INT_MODE_INTX) {
 			aac_request_aif(sc);
 			mode = 0;
-		} 
+		}
 	}
 
 	if (sc->flags & AAC_FLAGS_SYNC_MODE)
@@ -948,13 +948,13 @@ aacraid_new_intr_type1(void *arg)
 			handle = (le32toh(sc->aac_common->ac_host_rrq[index]) &
 			    0x7fffffff);
 			/* check fast response bit (30) */
-			if (handle & 0x40000000) 
+			if (handle & 0x40000000)
 				isFastResponse = 1;
 			/* check AIF bit (23) */
-			else if (handle & 0x00800000) 
+			else if (handle & 0x00800000)
 				isAif = TRUE;
 			handle &= 0x0000ffff;
-			if (handle == 0) 
+			if (handle == 0)
 				break;
 
 			cm = sc->aac_commands + (handle - 1);
@@ -988,11 +988,11 @@ aacraid_new_intr_type1(void *arg)
 			}
 
 			sc->aac_common->ac_host_rrq[index++] = 0;
-			if (index == (vector_no + 1) * sc->aac_vector_cap) 
+			if (index == (vector_no + 1) * sc->aac_vector_cap)
 				index = vector_no * sc->aac_vector_cap;
 			sc->aac_host_rrq_idx[vector_no] = index;
 
-			if ((isAif && !noMoreAif) || sc->aif_pending) 
+			if ((isAif && !noMoreAif) || sc->aif_pending)
 				aac_request_aif(sc);
 		}
 	}
@@ -1200,7 +1200,7 @@ aac_alloc_commands(struct aac_softc *sc)
 	}
 
 	maxsize = sc->aac_max_fib_size + 31;
-	if (sc->flags & AAC_FLAGS_NEW_COMM_TYPE1) 
+	if (sc->flags & AAC_FLAGS_NEW_COMM_TYPE1)
 		maxsize += sizeof(struct aac_fib_xporthdr);
 	/* Ignore errors since this doesn't bounce */
 	(void)bus_dmamap_load(sc->aac_fib_dmat, fm->aac_fibmap, fm->aac_fibs,
@@ -1219,7 +1219,7 @@ aac_alloc_commands(struct aac_softc *sc)
 		cm->cm_fibphys = fibphys + i * maxsize;
 		if (sc->flags & AAC_FLAGS_NEW_COMM_TYPE1) {
 			u_int64_t fibphys_aligned;
-			fibphys_aligned = 
+			fibphys_aligned =
 				(cm->cm_fibphys + sizeof(struct aac_fib_xporthdr) + 31) & ~31;
 			cm->cm_fib = (struct aac_fib *)
 				((u_int8_t *)cm->cm_fib + (fibphys_aligned - cm->cm_fibphys));
@@ -1324,7 +1324,7 @@ aacraid_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 				} else if (i == 1) {
 					raw->sgeNominalSize = cur_size;
 					min_size = cur_size;
-				} else if ((i+1) < nseg && 
+				} else if ((i+1) < nseg &&
 					cur_size != raw->sgeNominalSize) {
 					conformable = FALSE;
 					if (cur_size < min_size)
@@ -1348,9 +1348,9 @@ aacraid_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 					if (!err_found)
 						break;
 				}
-				if (i>0 && nseg_new<=sc->aac_sg_tablesize && 
+				if (i>0 && nseg_new<=sc->aac_sg_tablesize &&
 					!(sc->hint_flags & 4))
-					nseg = aac_convert_sgraw2(sc, 
+					nseg = aac_convert_sgraw2(sc,
 						raw, i, nseg, nseg_new);
 			} else {
 				raw->flags |= RIO2_SGL_CONFORMANT;
@@ -1361,7 +1361,7 @@ aacraid_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			aac_raw_io2_tole(raw);
 
 			/* update the FIB size for the s/g count */
-			fib->Header.Size += nseg * 
+			fib->Header.Size += nseg *
 				sizeof(struct aac_sge_ieee1212);
 
 		} else if (fib->Header.Command == RawIo) {
@@ -1449,7 +1449,7 @@ aacraid_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	}
 }
 
-static int 
+static int
 aac_convert_sgraw2(struct aac_softc *sc, struct aac_raw_io2 *raw,
 				   int pages, int nseg, int nseg_new)
 {
@@ -1457,7 +1457,7 @@ aac_convert_sgraw2(struct aac_softc *sc, struct aac_raw_io2 *raw,
 	int i, j, pos;
 	u_int32_t addr_low;
 
-	sge = malloc(nseg_new * sizeof(struct aac_sge_ieee1212), 
+	sge = malloc(nseg_new * sizeof(struct aac_sge_ieee1212),
 		M_AACRAIDBUF, M_NOWAIT|M_ZERO);
 	if (sge == NULL)
 		return nseg;
@@ -1551,7 +1551,7 @@ aac_check_firmware(struct aac_softc *sc)
 				return(ENXIO);
 			}
 		} while (!(code & AAC_FLASH_UPD_SUCCESS) && !(code & AAC_FLASH_UPD_FAILED));
-		/* 
+		/*
 		 * Delay 10 seconds. Because right now FW is doing a soft reset,
 		 * do not read scratch pad register at this time
 		 */
@@ -1646,11 +1646,11 @@ aac_check_firmware(struct aac_softc *sc)
 	}
 
 	if (sc->hint_flags & 2) {
-		device_printf(sc->aac_dev, 
+		device_printf(sc->aac_dev,
 			"Sync. mode enforced by driver parameter. This will cause a significant performance decrease!\n");
 		sc->flags |= AAC_FLAGS_SYNC_MODE;
 	} else if (sc->flags & AAC_FLAGS_NEW_COMM_TYPE34) {
-		device_printf(sc->aac_dev, 
+		device_printf(sc->aac_dev,
 			"Async. mode not supported by current driver, sync. mode enforced.\nPlease update driver to get full performance.\n");
 		sc->flags |= AAC_FLAGS_SYNC_MODE;
 	}
@@ -1710,7 +1710,7 @@ aac_check_firmware(struct aac_softc *sc)
 	}
 
 	maxsize = sc->aac_max_fib_size + 31;
-	if (sc->flags & AAC_FLAGS_NEW_COMM_TYPE1) 
+	if (sc->flags & AAC_FLAGS_NEW_COMM_TYPE1)
 		maxsize += sizeof(struct aac_fib_xporthdr);
 	if (maxsize > PAGE_SIZE) {
     	sc->aac_max_fib_size -= (maxsize - PAGE_SIZE);
@@ -1795,7 +1795,7 @@ aac_init(struct aac_softc *sc)
 		device_printf(sc->aac_dev, "New comm. interface type2 enabled\n");
 	}
 	ip->MaxNumAif = sc->aac_max_aif;
-	ip->HostRRQ_AddrLow = 
+	ip->HostRRQ_AddrLow =
 		sc->aac_common_busaddr + offsetof(struct aac_common, ac_host_rrq);
 	/* always 32-bit address */
 	ip->HostRRQ_AddrHigh = 0;
@@ -1831,7 +1831,7 @@ aac_init(struct aac_softc *sc)
 	}
 
 	/*
-	 * Check configuration issues 
+	 * Check configuration issues
 	 */
 	if ((error = aac_check_config(sc)) != 0)
 		goto out;
@@ -1909,8 +1909,8 @@ aac_define_int_mode(struct aac_softc *sc)
 
 	if (sc->msi_enabled) {
 		/* now read controller capability from PCI config. space */
-		cap = aac_find_pci_capability(sc, PCIY_MSIX);	
-		val = (cap != 0 ? pci_read_config(dev, cap + 2, 2) : 0);	
+		cap = aac_find_pci_capability(sc, PCIY_MSIX);
+		val = (cap != 0 ? pci_read_config(dev, cap + 2, 2) : 0);
 		if (!(val & AAC_PCI_MSI_ENABLE)) {
 			pci_release_msi(dev);
 			sc->msi_enabled = FALSE;
@@ -1989,8 +1989,8 @@ aac_setup_intr(struct aac_softc *sc)
 		}
 		sc->aac_irq_rid[i] = rid;
 		sc->aac_irq[i] = res;
-		if (aac_bus_setup_intr(sc->aac_dev, res, 
-			INTR_MPSAFE | INTR_TYPE_BIO, NULL, 
+		if (aac_bus_setup_intr(sc->aac_dev, res,
+			INTR_MPSAFE | INTR_TYPE_BIO, NULL,
 			aacraid_new_intr_type1, &sc->aac_msix[i], &tag)) {
 			device_printf(sc->aac_dev, "can't set up interrupt\n");
 			return (EINVAL);
@@ -2104,7 +2104,7 @@ aacraid_sync_command(struct aac_softc *sc, u_int32_t command,
 			*sp = status;
 
 		/* return parameter */
-		if (r1 != NULL) 
+		if (r1 != NULL)
 			*r1 = AAC_GET_MAILBOX(sc, 1);
 
 		if (status != AAC_SRB_STS_SUCCESS)
@@ -2184,7 +2184,7 @@ aac_timeout(struct aac_softc *sc)
 		}
 	}
 
-	if (timedout) 
+	if (timedout)
 		aac_reset_adapter(sc);
 	aacraid_print_queues(sc);
 }
@@ -2313,7 +2313,7 @@ aac_src_access_devreg(struct aac_softc *sc, int mode)
 
 	switch (mode) {
 	case AAC_ENABLE_INTERRUPT:
-		AAC_MEM0_SETREG4(sc, AAC_SRC_OIMR, 
+		AAC_MEM0_SETREG4(sc, AAC_SRC_OIMR,
 			(sc->msi_enabled ? AAC_INT_ENABLE_TYPE1_MSIX :
 				           AAC_INT_ENABLE_TYPE1_INTX));
 		break;
@@ -2326,13 +2326,13 @@ aac_src_access_devreg(struct aac_softc *sc, int mode)
 		/* set bit 6 */
 		val = AAC_MEM0_GETREG4(sc, AAC_SRC_IDBR);
 		val |= 0x40;
-		AAC_MEM0_SETREG4(sc, AAC_SRC_IDBR, val);		
+		AAC_MEM0_SETREG4(sc, AAC_SRC_IDBR, val);
 		AAC_MEM0_GETREG4(sc, AAC_SRC_IDBR);
 		/* unmask int. */
 		val = PMC_ALL_INTERRUPT_BITS;
 		AAC_MEM0_SETREG4(sc, AAC_SRC_IOAR, val);
 		val = AAC_MEM0_GETREG4(sc, AAC_SRC_OIMR);
-		AAC_MEM0_SETREG4(sc, AAC_SRC_OIMR, 
+		AAC_MEM0_SETREG4(sc, AAC_SRC_OIMR,
 			val & (~(PMC_GLOBAL_INT_BIT2 | PMC_GLOBAL_INT_BIT0)));
 		break;
 
@@ -2340,7 +2340,7 @@ aac_src_access_devreg(struct aac_softc *sc, int mode)
 		/* reset bit 6 */
 		val = AAC_MEM0_GETREG4(sc, AAC_SRC_IDBR);
 		val &= ~0x40;
-		AAC_MEM0_SETREG4(sc, AAC_SRC_IDBR, val);		
+		AAC_MEM0_SETREG4(sc, AAC_SRC_IDBR, val);
 		AAC_MEM0_GETREG4(sc, AAC_SRC_IDBR);
 		break;
 
@@ -2348,7 +2348,7 @@ aac_src_access_devreg(struct aac_softc *sc, int mode)
 		/* set bit 5 */
 		val = AAC_MEM0_GETREG4(sc, AAC_SRC_IDBR);
 		val |= 0x20;
-		AAC_MEM0_SETREG4(sc, AAC_SRC_IDBR, val);		
+		AAC_MEM0_SETREG4(sc, AAC_SRC_IDBR, val);
 		AAC_MEM0_GETREG4(sc, AAC_SRC_IDBR);
 		break;
 
@@ -2356,7 +2356,7 @@ aac_src_access_devreg(struct aac_softc *sc, int mode)
 		/* set bit 4 */
 		val = AAC_MEM0_GETREG4(sc, AAC_SRC_IDBR);
 		val |= 0x10;
-		AAC_MEM0_SETREG4(sc, AAC_SRC_IDBR, val);		
+		AAC_MEM0_SETREG4(sc, AAC_SRC_IDBR, val);
 		AAC_MEM0_GETREG4(sc, AAC_SRC_IDBR);
 		break;
 
@@ -2364,13 +2364,13 @@ aac_src_access_devreg(struct aac_softc *sc, int mode)
 		/* set bit 7 */
 		val = AAC_MEM0_GETREG4(sc, AAC_SRC_IDBR);
 		val |= 0x80;
-		AAC_MEM0_SETREG4(sc, AAC_SRC_IDBR, val);		
+		AAC_MEM0_SETREG4(sc, AAC_SRC_IDBR, val);
 		AAC_MEM0_GETREG4(sc, AAC_SRC_IDBR);
 		/* unmask int. */
 		val = PMC_ALL_INTERRUPT_BITS;
 		AAC_MEM0_SETREG4(sc, AAC_SRC_IOAR, val);
 		val = AAC_MEM0_GETREG4(sc, AAC_SRC_OIMR);
-		AAC_MEM0_SETREG4(sc, AAC_SRC_OIMR, 
+		AAC_MEM0_SETREG4(sc, AAC_SRC_OIMR,
 			val & (~(PMC_GLOBAL_INT_BIT2)));
 		break;
 
@@ -2392,7 +2392,7 @@ aac_src_send_command(struct aac_softc *sc, struct aac_command *cm)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "send command (new comm. type1)");
 
 	if (sc->msi_enabled && cm->cm_fib->Header.Command != AifRequest &&
-		sc->aac_max_msix > 1) { 
+		sc->aac_max_msix > 1) {
 		u_int16_t vector_no, first_choice = 0xffff;
 
 		vector_no = sc->aac_fibs_pushed_no % sc->aac_max_msix;
@@ -2400,7 +2400,7 @@ aac_src_send_command(struct aac_softc *sc, struct aac_command *cm)
 			vector_no += 1;
 			if (vector_no == sc->aac_max_msix)
 				vector_no = 1;
-			if (sc->aac_rrq_outstanding[vector_no] < 
+			if (sc->aac_rrq_outstanding[vector_no] <
 				sc->aac_vector_cap)
 				break;
 			if (0xffff == first_choice)
@@ -2414,14 +2414,14 @@ aac_src_send_command(struct aac_softc *sc, struct aac_command *cm)
 		if (sc->aac_fibs_pushed_no == 0xffffffff)
 			sc->aac_fibs_pushed_no = 0;
 		else
-			sc->aac_fibs_pushed_no++; 
-		
+			sc->aac_fibs_pushed_no++;
+
 		cm->cm_fib->Header.Handle += (vector_no << 16);
-	}		
+	}
 
 	if (sc->flags & AAC_FLAGS_NEW_COMM_TYPE2) {
 		/* Calculate the amount to the fibsize bits */
-		fibsize = (cm->cm_fib->Header.Size + 127) / 128 - 1; 
+		fibsize = (cm->cm_fib->Header.Size + 127) / 128 - 1;
 		/* Fill new FIB header */
 		address = cm->cm_fibphys;
 		high_addr = (u_int32_t)(address >> 32);
@@ -2435,9 +2435,9 @@ aac_src_send_command(struct aac_softc *sc, struct aac_command *cm)
 		cm->cm_fib->Header.SenderFibAddress = (u_int32_t)address;
 	} else {
 		/* Calculate the amount to the fibsize bits */
-		fibsize = (sizeof(struct aac_fib_xporthdr) + 
-		   cm->cm_fib->Header.Size + 127) / 128 - 1; 
-		/* Fill XPORT header */ 
+		fibsize = (sizeof(struct aac_fib_xporthdr) +
+		   cm->cm_fib->Header.Size + 127) / 128 - 1;
+		/* Fill XPORT header */
 		pFibX = (struct aac_fib_xporthdr *)
 			((unsigned char *)cm->cm_fib - sizeof(struct aac_fib_xporthdr));
 		pFibX->Handle = cm->cm_fib->Header.Handle;
@@ -2450,7 +2450,7 @@ aac_src_send_command(struct aac_softc *sc, struct aac_command *cm)
 
 	aac_fib_header_tole(&cm->cm_fib->Header);
 
-	if (fibsize > 31) 
+	if (fibsize > 31)
 		fibsize = 31;
 	aac_enqueue_busy(cm);
 	if (high_addr) {
@@ -2500,12 +2500,12 @@ aac_describe_controller(struct aac_softc *sc)
 
 	if (sc->supported_options & AAC_SUPPORTED_SUPPLEMENT_ADAPTER_INFO) {
 		fib->data[0] = 0;
-		if (aac_sync_fib(sc, RequestSupplementAdapterInfo, 0, fib, 1)) 
+		if (aac_sync_fib(sc, RequestSupplementAdapterInfo, 0, fib, 1))
 			device_printf(sc->aac_dev, "RequestSupplementAdapterInfo failed\n");
 		else {
 			struct aac_supplement_adapter_info *supp_info;
 
-			supp_info = ((struct aac_supplement_adapter_info *)&fib->data[0]); 
+			supp_info = ((struct aac_supplement_adapter_info *)&fib->data[0]);
 			adapter_type = (char *)supp_info->AdapterTypeText;
 			sc->aac_feature_bits = le32toh(supp_info->FeatureBits);
 			sc->aac_support_opt2 = le32toh(supp_info->SupportedOptions2);
@@ -2920,7 +2920,7 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 		goto out;
 	}
 	/* check fibsize */
-	if (fibsize == (sizeof(struct aac_srb) + 
+	if (fibsize == (sizeof(struct aac_srb) +
 		srbcmd->sg_map.SgCount * sizeof(struct aac_sg_entry))) {
 		struct aac_sg_entry *sgp = srbcmd->sg_map.SgEntry;
 		struct aac_sg_entry sg;
@@ -2930,10 +2930,10 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 
 		srb_sg_bytecount = sg.SgByteCount;
 		srb_sg_address = (u_int64_t)sg.SgAddress;
-	} else if (fibsize == (sizeof(struct aac_srb) + 
+	} else if (fibsize == (sizeof(struct aac_srb) +
 		srbcmd->sg_map.SgCount * sizeof(struct aac_sg_entry64))) {
 #ifdef __LP64__
-		struct aac_sg_entry64 *sgp = 
+		struct aac_sg_entry64 *sgp =
 			(struct aac_sg_entry64 *)srbcmd->sg_map.SgEntry;
 		struct aac_sg_entry64 sg;
 
@@ -2952,7 +2952,7 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 	}
 	user_reply = (char *)arg + fibsize;
 	srbcmd->data_len = srb_sg_bytecount;
-	if (srbcmd->sg_map.SgCount == 1) 
+	if (srbcmd->sg_map.SgCount == 1)
 		transfer_data = 1;
 
 	if (transfer_data) {
@@ -2982,7 +2982,7 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 		}
 		/* fill some cm variables */
 		cm->cm_datalen = srb_sg_bytecount;
-		if (srbcmd->flags & AAC_SRB_FLAGS_DATA_IN) 
+		if (srbcmd->flags & AAC_SRB_FLAGS_DATA_IN)
 			cm->cm_flags |= AAC_CMD_DATAIN;
 		if (srbcmd->flags & AAC_SRB_FLAGS_DATA_OUT)
 			cm->cm_flags |= AAC_CMD_DATAOUT;
@@ -2998,7 +2998,7 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 	}
 
 	/* build the FIB */
-	fib->Header.Size = sizeof(struct aac_fib_header) + 
+	fib->Header.Size = sizeof(struct aac_fib_header) +
 		sizeof(struct aac_srb);
 	fib->Header.XferState =
 		AAC_FIBSTATE_HOSTOWNED   |
@@ -3009,7 +3009,7 @@ aac_ioctl_send_raw_srb(struct aac_softc *sc, caddr_t arg)
 		AAC_FIBSTATE_NORM	 |
 		AAC_FIBSTATE_ASYNC;
 
-	fib->Header.Command = (sc->flags & AAC_FLAGS_SG_64BIT) ? 
+	fib->Header.Command = (sc->flags & AAC_FLAGS_SG_64BIT) ?
 		ScsiPortCommandU64 : ScsiPortCommand;
 	cm->cm_sgtable = (struct aac_sg_table *)&srbcmd->sg_map;
 
@@ -3053,9 +3053,9 @@ out:
 		bus_dmamem_free(cm->cm_passthr_dmat, cm->cm_data, cm->cm_datamap);
 		cm->cm_datamap = orig_map;
 	}
-	if (cm && cm->cm_passthr_dmat) 
+	if (cm && cm->cm_passthr_dmat)
 		bus_dma_tag_destroy(cm->cm_passthr_dmat);
-	if (cm) { 
+	if (cm) {
 		mtx_lock(&sc->aac_io_lock);
 		aacraid_release_command(cm);
 		mtx_unlock(&sc->aac_io_lock);
@@ -3079,7 +3079,7 @@ aac_request_aif(struct aac_softc *sc)
 		return;
 	}
 	sc->aif_pending = 0;
-    
+
 	/* build the FIB */
 	fib = cm->cm_fib;
 	fib->Header.Size = sizeof(struct aac_fib);
@@ -3153,7 +3153,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 				 * midway through this enumaration?
 				 * XXX This should be done async.
 				 */
-				if (aac_get_container_info(sc, sync_fib, i, 
+				if (aac_get_container_info(sc, sync_fib, i,
 					&mir, &uid) != 0)
 					continue;
 				if (i == 0)
@@ -3220,7 +3220,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 
 			/* Attach the newly created containers */
 			if (changed) {
-				if (sc->cam_rescan_cb != NULL) 
+				if (sc->cam_rescan_cb != NULL)
 					sc->cam_rescan_cb(sc, 0,
 				    	AAC_CAM_TARGET_WILDCARD);
 			}
@@ -3272,7 +3272,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 				ctx->ctx_wrap = 1;
 			else if (current == ctx->ctx_idx && ctx->ctx_wrap)
 				ctx->ctx_idx = next;
-		}	
+		}
 	}
 	sc->aifq_idx = next;
 	/* On the off chance that someone is sleeping for an aif... */

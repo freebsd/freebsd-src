@@ -208,7 +208,7 @@ mprsas_fw_work(struct mpr_softc *sc, struct mpr_fw_event_work *fw_event)
 	mpr_dprint(sc, MPR_EVENT, "(%d)->(%s) Working on  Event: [%x]\n",
 	    event_count++, __func__, fw_event->event);
 	switch (fw_event->event) {
-	case MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST: 
+	case MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST:
 	{
 		MPI2_EVENT_DATA_SAS_TOPOLOGY_CHANGE_LIST *data;
 		MPI2_EVENT_SAS_TOPO_PHY_ENTRY *phy;
@@ -304,7 +304,7 @@ mprsas_fw_work(struct mpr_softc *sc, struct mpr_fw_event_work *fw_event)
 			/*
 			 * check for element type of Phys Disk or Hot Spare
 			 */
-			if ((elementType != 
+			if ((elementType !=
 			    MPI2_EVENT_IR_CHANGE_EFLAGS_VOLPHYSDISK_ELEMENT)
 			    && (elementType !=
 			    MPI2_EVENT_IR_CHANGE_EFLAGS_HOTSPARE_ELEMENT))
@@ -403,7 +403,7 @@ skip_fp_send:
 						    VolDevHandle));
 						break;
 					}
-					
+
 					targ = &sassc->targets[id];
 					targ->handle = 0x0;
 					targ->encl_slot = 0x0;
@@ -430,7 +430,7 @@ skip_fp_send:
 				 */
 				targ = mprsas_find_target_by_handle(sassc, 0,
 				    element->PhysDiskDevHandle);
-				if (targ == NULL) 
+				if (targ == NULL)
 					break;
 				targ->flags |= MPR_TARGET_FLAGS_RAID_COMPONENT;
 				mprsas_rescan_target(sc, targ);
@@ -499,7 +499,7 @@ skip_fp_send:
 					mprsas_prepare_volume_remove(sassc,
 					    event_data->VolDevHandle);
 					break;
-		 
+
 				case MPI2_RAID_VOL_STATE_ONLINE:
 				case MPI2_RAID_VOL_STATE_DEGRADED:
 				case MPI2_RAID_VOL_STATE_OPTIMAL:
@@ -587,7 +587,7 @@ skip_fp_send:
 						targ->flags |=
 						    MPR_TARGET_FLAGS_RAID_COMPONENT;
 						printf("%s %d: Found Target "
-						    "for handle 0x%x.\n", 
+						    "for handle 0x%x.\n",
 						    __func__, __LINE__ ,
 						    event_data->
 						    PhysDiskDevHandle);
@@ -710,7 +710,7 @@ skip_fp_send:
 		discovery_error_data =
 		    (pMpi25EventDataSasDeviceDiscoveryError_t)
 		    fw_event->event_data;
-		
+
 		sas_address = discovery_error_data->SASAddress.High;
 		sas_address = (sas_address << 32) |
 		    discovery_error_data->SASAddress.Low;
@@ -737,7 +737,7 @@ skip_fp_send:
 		}
 		break;
 	}
-	case MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST: 
+	case MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST:
 	{
 		MPI26_EVENT_DATA_PCIE_TOPOLOGY_CHANGE_LIST *data;
 		MPI26_EVENT_PCIE_TOPO_PORT_ENTRY *port_entry;
@@ -905,7 +905,7 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 	 * in the topology.
 	 */
 	id = MPR_MAP_BAD_ID;
-	if (sc->use_phynum != -1) 
+	if (sc->use_phynum != -1)
 		id = mpr_mapping_get_tid(sc, sas_address, handle);
 	if (id == MPR_MAP_BAD_ID) {
 		if ((sc->use_phynum == 0) ||
@@ -946,7 +946,7 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 
 	targ->devinfo = device_info;
 	targ->devname = le32toh(config_page.DeviceName.High);
-	targ->devname = (targ->devname << 32) | 
+	targ->devname = (targ->devname << 32) |
 	    le32toh(config_page.DeviceName.Low);
 	targ->encl_handle = le16toh(config_page.EnclosureHandle);
 	targ->encl_slot = le16toh(config_page.Slot);
@@ -1348,7 +1348,7 @@ mprsas_add_pcie_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 	targ->linkrate = linkrate;
 	targ->flags = 0;
 	if ((le16toh(config_page.Flags) &
-	    MPI26_PCIEDEV0_FLAGS_ENABLED_FAST_PATH) && 
+	    MPI26_PCIEDEV0_FLAGS_ENABLED_FAST_PATH) &&
 	    (le16toh(config_page.Flags) &
 	    MPI26_PCIEDEV0_FLAGS_FAST_PATH_CAPABLE)) {
 		targ->scsi_req_desc_type =
@@ -1432,7 +1432,7 @@ out:
 }
 
 /**
- * mprsas_SSU_to_SATA_devices 
+ * mprsas_SSU_to_SATA_devices
  * @sc: per adapter object
  *
  * Looks through the target list and issues a StartStopUnit SCSI command to each
@@ -1535,7 +1535,7 @@ mprsas_SSU_to_SATA_devices(struct mpr_softc *sc, int howto)
 		pause("mprwait", hz/10);
 		if (SCHEDULER_STOPPED())
 			xpt_sim_poll(sassc->sim);
-		
+
 		if (--timeout == 0) {
 			mpr_dprint(sc, MPR_ERROR, "Time has expired waiting "
 			    "for SSU commands to complete.\n");

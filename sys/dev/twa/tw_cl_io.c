@@ -217,7 +217,7 @@ tw_cli_submit_cmd(struct tw_cli_req_context *req)
 		if ((ctlr->device_id == TW_CL_DEVICE_ID_9K_E) ||
 		    (ctlr->device_id == TW_CL_DEVICE_ID_9K_SA)) {
 			/* Now write the high 4 bytes */
-			tw_osl_write_reg(ctlr_handle, 
+			tw_osl_write_reg(ctlr_handle,
 					 TWA_COMMAND_QUEUE_OFFSET_HIGH,
 					 (TW_UINT32)(((TW_UINT64)(req->cmd_pkt_phys + sizeof(struct tw_cl_command_header)))>>32), 4);
 		} else {
@@ -226,11 +226,11 @@ tw_cli_submit_cmd(struct tw_cli_req_context *req)
 				tw_osl_write_reg(ctlr_handle,
 						 TWA_COMMAND_QUEUE_OFFSET_LOW,
 						 (TW_UINT32)(req->cmd_pkt_phys + sizeof(struct tw_cl_command_header)), 4);
-				tw_osl_write_reg(ctlr_handle, 
+				tw_osl_write_reg(ctlr_handle,
 						 TWA_COMMAND_QUEUE_OFFSET_HIGH,
 						 (TW_UINT32)(((TW_UINT64)(req->cmd_pkt_phys + sizeof(struct tw_cl_command_header)))>>32), 4);
 			} else
-				tw_osl_write_reg(ctlr_handle, 
+				tw_osl_write_reg(ctlr_handle,
 						 TWA_COMMAND_QUEUE_OFFSET,
 						 (TW_UINT32)(req->cmd_pkt_phys + sizeof(struct tw_cl_command_header)), 4);
 		}
@@ -443,7 +443,7 @@ tw_cl_ioctl(struct tw_cl_ctlr_handle *ctlr_handle, u_long cmd, TW_VOID *buf)
 			sizeof(struct tw_cl_event_packet));
 
 		ctlr->aen_queue[event_index].retrieved = TW_CL_AEN_RETRIEVED;
-		
+
 		break;
 
 	case TW_CL_IOCTL_GET_NEXT_EVENT:
@@ -672,7 +672,7 @@ tw_cl_ioctl(struct tw_cl_ctlr_handle *ctlr_handle, u_long cmd, TW_VOID *buf)
 		break;
 	}
 
-	default:	
+	default:
 		/* Unknown opcode. */
 		tw_cli_dbg_printf(3, ctlr_handle, tw_osl_cur_func(),
 			"Unknown ioctl cmd 0x%x", cmd);
@@ -1284,7 +1284,7 @@ tw_cli_send_scsi_cmd(struct tw_cli_req_context *req, TW_INT32 cmd)
 	cmdpkt = req->cmd_pkt;
 
 	cmdpkt->cmd_hdr.header_desc.size_header = 128;
-		
+
 	cmd9k = &(cmdpkt->command.cmd_pkt_9k);
 
 	cmd9k->res__opcode =

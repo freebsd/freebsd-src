@@ -87,7 +87,7 @@ qla_rx_intr(qla_host_t *ha, uint64_t data, uint32_t sds_idx,
 
 	if (ring == 0)
 		rxb = &ha->rx_buf[idx];
-	else 
+	else
 		rxb = &ha->rx_jbuf[idx];
 
 	QL_ASSERT((rxb != NULL),\
@@ -304,7 +304,7 @@ qla_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 		case Q8_STAT_DESC_OPCODE_RCV_PKT:
 		case Q8_STAT_DESC_OPCODE_SYN_OFFLOAD:
 			qla_rx_intr(ha, (sdesc->data[0]), sds_idx, lro);
-			
+
 			break;
 
 		default:
@@ -353,7 +353,7 @@ qla_isr(void *arg)
 	if (sds_idx >= ha->hw.num_sds_rings) {
 		device_printf(ha->pci_dev, "%s: bogus sds_idx 0x%x\n", __func__,
 			sds_idx);
-		
+
 		return;
 	}
 

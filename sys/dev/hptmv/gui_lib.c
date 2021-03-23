@@ -32,13 +32,13 @@
  * Copyright (c) 2002-2004 HighPoint Technologies, Inc. All rights reserved.
  *
  *  Platform independent ioctl interface implementation.
- *  The platform dependent part may reuse this function and/or use it own 
+ *  The platform dependent part may reuse this function and/or use it own
  *  implementation for each ioctl function.
  *
  *  This implementation doesn't use any synchronization; the caller must
  *  assure the proper context when calling these functions.
  */
- 
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -75,7 +75,7 @@ check_VDevice_valid(PVDevice p)
 	PVDevice pVDevice;
 	PVBus    _vbus_p;
 	IAL_ADAPTER_T *pAdapter = gIal_Adapter;
-	
+
 	while(pAdapter != NULL)
 	{
 		for (i = 0; i < MV_SATA_CHANNELS_NUM; i++)
@@ -88,7 +88,7 @@ check_VDevice_valid(PVDevice p)
 	while(pAdapter != NULL)
 	{
 		_vbus_p = &pAdapter->VBus;
-		for (i=0;i<MAX_ARRAY_PER_VBUS;i++) 
+		for (i=0;i<MAX_ARRAY_PER_VBUS;i++)
 		{
 			pVDevice=ArrayTables(i);
 			if ((pVDevice->u.array.dArStamp != 0) && (pVDevice == p))
@@ -169,18 +169,18 @@ static DWORD get_array_flag(PVDevice pVDevice)
 			continue;
 
 		/* array need synchronizing */
-		if(pMember->u.array.rf_need_rebuild && 
+		if(pMember->u.array.rf_need_rebuild &&
 		   !pMember->u.array.rf_duplicate_and_create)
 			f |= ARRAY_FLAG_NEEDBUILDING;
 
 		/* array is in rebuilding process */
 		if(pMember->u.array.rf_rebuilding)
 			f |= ARRAY_FLAG_REBUILDING;
-		
-		/* array is being verified */	
+
+		/* array is being verified */
 		if(pMember->u.array.rf_verifying)
 			f |= ARRAY_FLAG_VERIFYING;
-			
+
 		/* array is being initialized */
 		if(pMember->u.array.rf_initializing)
 			f |= ARRAY_FLAG_INITIALIZING;
@@ -214,7 +214,7 @@ static DWORD calc_rebuild_progress(PVDevice pVDevice)
 			continue;
 
 		/* for RAID1/0 case */
-		if (pMember->u.array.rf_rebuilding || 
+		if (pMember->u.array.rf_rebuilding ||
 			pMember->u.array.rf_verifying ||
 			pMember->u.array.rf_initializing)
 		{
@@ -228,7 +228,7 @@ static DWORD calc_rebuild_progress(PVDevice pVDevice)
 	if (result>10000) result = 10000;
 	return result;
 	}
-	
+
 static void get_array_info(PVDevice pVDevice, PHPT_ARRAY_INFO pArrayInfo)
 {
 	int	i;
@@ -284,7 +284,7 @@ static int get_disk_info(PVDevice pVDevice, PDEVICE_INFO pDiskInfo)
 
 	/* device location */
 	pSataChannel = pVDevice->u.disk.mv;
-	if(pSataChannel == NULL)	return -1;	
+	if(pSataChannel == NULL)	return -1;
 	pDiskInfo->TargetId = 0;
 	pSataAdapter = pSataChannel->mvSataAdapter;
 	if(pSataAdapter == NULL)	return -1;
@@ -311,7 +311,7 @@ static int get_disk_info(PVDevice pVDevice, PDEVICE_INFO pDiskInfo)
 		else
 			pDiskInfo->DeviceModeSetting = pVDevice->u.disk.bDeModeSetting;
 	}
-		
+
 	pDiskInfo->UsableMode = pVDevice->u.disk.bDeUsable_Mode;
 
 	pDiskInfo->DeviceType = PDT_HARDDISK;
@@ -369,10 +369,10 @@ int hpt_get_driver_capabilities(PDRIVER_CAPABILITIES cap)
 	cap->MinimumBlockSizeShift = MinBlockSizeShift;
 	cap->MaximumBlockSizeShift = MaxBlockSizeShift;
 	cap->SupportDiskModeSetting = 0;
-	cap->SupportSparePool = 1;		
+	cap->SupportSparePool = 1;
 	cap->MaximumArrayNameLength = MAX_ARRAY_NAME - 1;
 	cap->SupportDedicatedSpare = 0;
-	
+
 
 #ifdef SUPPORT_ARRAY
 	/* Stripe */
@@ -384,7 +384,7 @@ int hpt_get_driver_capabilities(PDRIVER_CAPABILITIES cap)
 	/* Mirror + Stripe */
 #ifdef ARRAY_V2_ONLY
 	cap->SupportedRAIDTypes[2] = (AT_RAID1<<4)|AT_RAID0; /* RAID0/1 */
-#else 
+#else
 	cap->SupportedRAIDTypes[2] = (AT_RAID0<<4)|AT_RAID1; /* RAID1/0 */
 #endif
 	cap->MaximumArrayMembers[2] = MAX_MEMBERS;
@@ -404,13 +404,13 @@ int hpt_get_controller_count(void)
 {
 	IAL_ADAPTER_T    *pAdapTemp = gIal_Adapter;
 	int iControllerCount = 0;
-	
+
 	while(pAdapTemp != NULL)
-	{		 
+	{
 		iControllerCount++;
 		pAdapTemp = pAdapTemp->next;
 	}
-	
+
 	return iControllerCount;
 }
 
@@ -432,10 +432,10 @@ int hpt_get_controller_info(int id, PCONTROLLER_INFO pInfo)
 #endif
 			strcpy(pInfo->szProductID, GUI_CONTROLLER_NAME);
 #define _set_product_id(x)
-#else 
+#else
 #define _set_product_id(x) strcpy(pInfo->szProductID, x)
 #endif
-			_set_product_id("RocketRAID 18xx SATA Controller");			
+			_set_product_id("RocketRAID 18xx SATA Controller");
 			pInfo->NumBuses = 8;
 			pInfo->ChipFlags |= CHIP_SUPPORT_ULTRA_133|CHIP_SUPPORT_ULTRA_150;
 			return 0;
@@ -452,17 +452,17 @@ int hpt_get_channel_info(int id, int bus, PCHANNEL_INFO pInfo)
 
 	while(pAdapTemp != NULL)
 	{
-		if (iControllerCount++==id) 
+		if (iControllerCount++==id)
 			goto found;
 		pAdapTemp = pAdapTemp->next;
 	}
 	return -1;
 
 found:
-	
+
 	pInfo->IoPort = 0;
 	pInfo->ControlPort = 0;
-	
+
 	for (i=0; i<2 ;i++)
 	{
 		pInfo->Devices[i] = (DEVICEID)INVALID_DEVICEID;
@@ -474,7 +474,7 @@ found:
 		pInfo->Devices[0] = (DEVICEID)INVALID_DEVICEID;
 
 	return 0;
-	
+
 
 }
 
@@ -494,11 +494,11 @@ int hpt_get_logical_devices(DEVICEID * pIds, int nMaxCount)
 		{
 			pPhysical = &pAdapTemp->VDevices[i];
 			pLogical = pPhysical;
-			
+
 			while (pLogical->pParent) pLogical = pLogical->pParent;
 			if (pLogical->VDeviceType==VD_SPARE)
 				continue;
-			
+
 			for (j=0; j<count; j++)
 				if (pIds[j]==VDEV_TO_ID(pLogical)) goto next;
 			pIds[count++] = VDEV_TO_ID(pLogical);
@@ -626,7 +626,7 @@ simple:
 				pArray->u.array.rf_need_sync = 1;
 				pArray->u.array.rf_newly_created = 1;
 
-				if ((pParam->CreateFlags & CAF_CREATE_AND_DUPLICATE) && 
+				if ((pParam->CreateFlags & CAF_CREATE_AND_DUPLICATE) &&
 					(pArray->VDeviceType == VD_RAID_1))
 				{
 					pArray->u.array.rf_newly_created = 0; /* R1 shall still be accessible */
@@ -638,7 +638,7 @@ simple:
 						if (_vbus_p->pVDevice[i] == ID_TO_VDEV(pParam->Members[0]))
 							Loca = i;
 				}
-				
+
 				pArray->u.array.RebuildSectors = pArray->u.array.rf_need_rebuild? 0 : MAX_LBA_T;
 
 				memcpy(pArray->u.array.ArrayName, pParam->ArrayName, MAX_ARRAY_NAME);
@@ -675,8 +675,8 @@ simple:
 					pChild->u.array.rf_need_sync = 1;
 					pChild->u.array.rf_newly_created = 1;
 
-					pChild->u.array.RebuildSectors = MAX_LBA_T;	
-					
+					pChild->u.array.RebuildSectors = MAX_LBA_T;
+
 					memcpy(pChild->u.array.ArrayName, pParam->ArrayName, MAX_ARRAY_NAME);
 
 					for(j = 0; j < 2; j++)
@@ -722,7 +722,7 @@ simple:
 	for(i = 0; i < pArray->u.array.bArnMember; i++)
 		pArray->u.array.pMember[i]->pfnDeviceFailed = pfnDeviceFailed[pArray->VDeviceType];
 
-	if ((pParam->CreateFlags & CAF_CREATE_AND_DUPLICATE) && 
+	if ((pParam->CreateFlags & CAF_CREATE_AND_DUPLICATE) &&
 		(pArray->VDeviceType == VD_RAID_1))
 	{
 		pArray->vf_bootmark = pArray->u.array.pMember[0]->vf_bootmark;
@@ -839,31 +839,31 @@ int old_add_disk_to_raid01(_VBUS_ARG DEVICEID idArray, DEVICEID idDisk)
 	IAL_ADAPTER_T *pAdapter = gIal_Adapter;
 
 	if (pArray1->pVBus!=_vbus_p) { HPT_ASSERT(0); return -1;}
-	
+
 	if(pDisk->u.disk.dDeRealCapacity < (pArray1->VDeviceCapacity / 2))
 		return -1;
-		
+
 	pArray2 = pArray1->u.array.pMember[1];
 	if(pArray2 == NULL)	{
-		/* create a Stripe */		
+		/* create a Stripe */
 		mArGetArrayTable(pArray2);
 		pArray2->VDeviceType = VD_RAID_0;
 		pArray2->u.array.dArStamp = GetStamp();
-		pArray2->vf_format_v2 = 1;	
-		pArray2->u.array.rf_broken = 1;	
+		pArray2->vf_format_v2 = 1;
+		pArray2->u.array.rf_broken = 1;
 		pArray2->u.array.bArBlockSizeShift = pArray1->u.array.bArBlockSizeShift;
 		pArray2->u.array.bStripeWitch = (1 << pArray2->u.array.bArBlockSizeShift);
 		pArray2->u.array.bArnMember = 2;
 		pArray2->VDeviceCapacity = pArray1->VDeviceCapacity;
 		pArray2->pfnSendCommand = pfnSendCommand[pArray2->VDeviceType];
 		pArray2->pfnDeviceFailed = pfnDeviceFailed[pArray1->VDeviceType];
-		memcpy(pArray2->u.array.ArrayName, pArray1->u.array.ArrayName, MAX_ARRAY_NAME);			
+		memcpy(pArray2->u.array.ArrayName, pArray1->u.array.ArrayName, MAX_ARRAY_NAME);
 		pArray2->pParent = pArray1;
 		pArray2->bSerialNumber = 1;
-		pArray1->u.array.pMember[1] = pArray2;			
-		pArray1->u.array.bArRealnMember++;						
+		pArray1->u.array.pMember[1] = pArray2;
+		pArray1->u.array.bArRealnMember++;
 	}
-	
+
 	for(i = 0; i < pArray2->u.array.bArnMember; i++)
 		if((pArray2->u.array.pMember[i] == NULL) || !pArray2->u.array.pMember[i]->vf_online)
 		{
@@ -873,34 +873,34 @@ int old_add_disk_to_raid01(_VBUS_ARG DEVICEID idArray, DEVICEID idDisk)
 			goto find;
 		}
 	return -1;
-	
+
 find:
 	UnregisterVDevice(pDisk);
 	pDisk->VDeviceType = VD_SINGLE_DISK;
 	pDisk->bSerialNumber = i;
 	pDisk->pParent = pArray2;
-	pDisk->vf_format_v2 = 1;	
+	pDisk->vf_format_v2 = 1;
 	pDisk->u.disk.dDeHiddenLba = i? 10 : 0;
 	pDisk->VDeviceCapacity = pDisk->u.disk.dDeRealCapacity;
 	pDisk->pfnDeviceFailed = pfnDeviceFailed[pArray2->VDeviceType];
 
 	pArray2->u.array.bArRealnMember++;
-	if(pArray2->u.array.bArnMember == pArray2->u.array.bArRealnMember){				
+	if(pArray2->u.array.bArnMember == pArray2->u.array.bArRealnMember){
 		pArray2->vf_online = 1;
 		pArray2->u.array.rf_broken = 0;
-	}	
-	
+	}
+
 	if(pArray1->u.array.pMember[0]->vf_online && pArray1->u.array.pMember[1]->vf_online){
 		pArray1->u.array.bArRealnMember = pArray1->u.array.bArnMember;
 		pArray1->u.array.rf_broken = 0;
-		pArray1->u.array.rf_need_rebuild = 1;		
+		pArray1->u.array.rf_need_rebuild = 1;
 		pArray1->u.array.rf_auto_rebuild = 1;
-		
+
 	}
 	pArray1->u.array.RebuildSectors = 0;
 	pArray1->u.array.dArStamp = GetStamp();
 	SyncArrayInfo(pArray1);
-	return 1;	
+	return 1;
 }
 #endif
 
@@ -923,13 +923,13 @@ int hpt_add_disk_to_array(_VBUS_ARG DEVICEID idArray, DEVICEID idDisk)
 
 #ifdef SUPPORT_OLD_ARRAY
 	/* RAID 0 + 1 */
-	if (pArray->vf_format_v2 && pArray->VDeviceType==VD_RAID_1 && 
+	if (pArray->vf_format_v2 && pArray->VDeviceType==VD_RAID_1 &&
 		pArray->u.array.pMember[0] &&
 		mIsArray(pArray->u.array.pMember[0]))
 	{
 		if(old_add_disk_to_raid01(_VBUS_P idArray, idDisk))
 			return 0;
-		else 
+		else
 			return -1;
 	}
 #endif
@@ -941,7 +941,7 @@ int hpt_add_disk_to_array(_VBUS_ARG DEVICEID idArray, DEVICEID idDisk)
 	}
 	else
 		if(pDisk->VDeviceCapacity < Capacity) return -1;
-	
+
 	if (pArray->pVBus!=_vbus_p) { HPT_ASSERT(0); return -1;}
 
 	for(i = 0; i < pArray->u.array.bArnMember; i++)
@@ -1060,7 +1060,7 @@ static int hpt_set_device_info(_VBUS_ARG DEVICEID idDisk, PALTERABLE_DEVICE_INFO
 	/* TODO */
 		return 0;
 	}
-	
+
 static int hpt_set_device_info_v2(_VBUS_ARG DEVICEID idDisk, PALTERABLE_DEVICE_INFO_V2 pInfo)
 {
 	PVDevice pVDevice = ID_TO_VDEV(idDisk);
@@ -1103,7 +1103,7 @@ static int hpt_set_device_info_v2(_VBUS_ARG DEVICEID idDisk, PALTERABLE_DEVICE_I
 			sync = 1;
 	}
 	}
-		
+
 	if (pInfo->ValidFields & ADIF_READ_AHEAD) {
 		if (fDeSetReadAhead(&pVDevice->u.disk, pInfo->ReadAheadEnabled)) {
 			pVDevice->u.disk.df_read_ahead_set = 1;
@@ -1152,10 +1152,10 @@ int hpt_default_ioctl(_VBUS_ARG
 		{
 			int id;
 			PCONTROLLER_INFO pInfo;
-	
+
 			if (nInBufferSize!=sizeof(DWORD)) return -1;
 			if (nOutBufferSize!=sizeof(CONTROLLER_INFO)) return -1;
-	
+
 			id = *(DWORD *)lpInBuffer;
 			pInfo = (PCONTROLLER_INFO)lpOutBuffer;
 			if (hpt_get_controller_info(id, pInfo)!=0)
@@ -1397,13 +1397,13 @@ int hpt_default_ioctl(_VBUS_ARG
 			for (pAdapTemp = gIal_Adapter; pAdapTemp; pAdapTemp = pAdapTemp->next)
 				if (iControllerCount++==id)
 					break;
-			
+
 			if (!pAdapTemp)
 				return -1;
-				
+
 			if (nOutBufferSize < 4)
 				return -1;
-				
+
 			*(DWORD*)lpOutBuffer = ((DWORD)pAdapTemp->mvSataAdapter.pciConfigDeviceId << 16) | 0x11AB;
 			return 0;
 		}
@@ -1420,10 +1420,10 @@ int hpt_default_ioctl(_VBUS_ARG
 			for (pAdapTemp = gIal_Adapter; pAdapTemp; pAdapTemp = pAdapTemp->next)
 				if (iControllerCount++==id)
 					break;
-			
+
 			if (!pAdapTemp)
 				return -1;
-				
+
 			if (nInBufferSize < sizeof(DWORD) * 4 + (direction? length : 0) ||
 				nOutBufferSize < (direction? 0 : length))
 				return -1;

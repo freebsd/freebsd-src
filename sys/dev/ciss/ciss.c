@@ -719,7 +719,7 @@ ciss_init_pci(struct ciss_softc *sc)
     default:
         /*
          * Override the capabilities of the BOARD and specify SIMPLE
-         * MODE 
+         * MODE
          */
         if (ciss_vendor_data[i].flags & CISS_BOARD_SIMPLE)
                 supported_methods = CISS_TRANSPORT_METHOD_SIMPLE;
@@ -770,7 +770,7 @@ setup:
 		"mode (0x%x, 0x%x)\n", supported_methods,
 		sc->ciss_cfg->active_method);
 	    return(ENXIO);
-	} else 
+	} else
 	    goto setup;
     }
 
@@ -1249,12 +1249,12 @@ ciss_identify_adapter(struct ciss_softc *sc)
     /*
      * Earlier controller specs do not contain these config
      * entries, so assume that a 0 means its old and assign
-     * these values to the defaults that were established 
+     * these values to the defaults that were established
      * when this driver was developed for them
      */
-    if (sc->ciss_cfg->max_logical_supported == 0) 
+    if (sc->ciss_cfg->max_logical_supported == 0)
         sc->ciss_cfg->max_logical_supported = CISS_MAX_LOGICAL;
-    if (sc->ciss_cfg->max_physical_supported == 0) 
+    if (sc->ciss_cfg->max_physical_supported == 0)
 	sc->ciss_cfg->max_physical_supported = CISS_MAX_PHYSICAL;
     /* print information */
     if (bootverbose) {
@@ -2899,7 +2899,7 @@ ciss_cam_init(struct ciss_softc *sc)
 	 * Register bus with this SIM.
 	 */
 	mtx_lock(&sc->ciss_mtx);
-	if (i == 0 || sc->ciss_controllers[i].physical.bus != 0) { 
+	if (i == 0 || sc->ciss_controllers[i].physical.bus != 0) {
 	    if (xpt_bus_register(sc->ciss_cam_sim[i], sc->ciss_dev, i) != 0) {
 		ciss_printf(sc, "can't register SCSI bus %d\n", i);
 		mtx_unlock(&sc->ciss_mtx);
@@ -2994,7 +2994,7 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 	ld = NULL;
 	if (!physical)
 	    ld = &sc->ciss_logical[bus][target];
-	    
+
 	/*
 	 * Use the cached geometry settings unless the fault tolerance
 	 * is invalid.
@@ -3045,8 +3045,8 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 	} else {
 	/* XXX Fix for ZMR cards that advertise max_sg_length == 32
 	 * Confusing bit here. max_sg_length is usually a power of 2. We always
-	 * need to subtract 1 to account for partial pages. Then we need to 
-	 * align on a valid PAGE_SIZE so we round down to the nearest power of 2. 
+	 * need to subtract 1 to account for partial pages. Then we need to
+	 * align on a valid PAGE_SIZE so we round down to the nearest power of 2.
 	 * Add 1 so we can then subtract it out in the assignment to maxio.
 	 * The reason for all these shenanigans is to create a maxio value that
 	 * creates IO operations to volumes that yield consistent operations
@@ -3252,11 +3252,11 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
 	}
     }
 
-    /* 
+    /*
      * A CISS target can only ever have one lun per target. REPORT_LUNS requires
      * at least one LUN field to be pre created for us, so snag it and fill in
      * the least significant byte indicating 1 LUN here.  Emulate the command
-     * return to shut up warning on console of a CDB error.  swb 
+     * return to shut up warning on console of a CDB error.  swb
      */
     if (opcode == REPORT_LUNS && csio->dxfer_len > 0) {
        csio->data_ptr[3] = 8;
@@ -3388,7 +3388,7 @@ ciss_cam_complete_fixup(struct ciss_softc *sc, struct ccb_scsiio *csio)
 
     cdb = (csio->ccb_h.flags & CAM_CDB_POINTER) ?
 	 (uint8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes;
-    if (cdb[0] == INQUIRY && 
+    if (cdb[0] == INQUIRY &&
 	(cdb[1] & SI_EVPD) == 0 &&
 	(csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN &&
 	csio->dxfer_len >= SHORT_INQUIRY_LENGTH) {
@@ -3398,7 +3398,7 @@ ciss_cam_complete_fixup(struct ciss_softc *sc, struct ccb_scsiio *csio)
 
 	/*
 	 * If the controller is in JBOD mode, there are no logical volumes.
-	 * Let the disks be probed and dealt with via CAM.  Else, mask off 
+	 * Let the disks be probed and dealt with via CAM.  Else, mask off
 	 * the physical disks and setup the parts of the inq structure for
 	 * the logical volume.  swb
 	 */
@@ -3572,7 +3572,7 @@ ciss_disable_adapter(struct ciss_softc *sc)
     for (;;) {
 	if ((cr = ciss_dequeue_complete(sc, &qh)) == NULL)
 	    break;
-    
+
 	/*
 	 * If the request has a callback, invoke it.
 	 */

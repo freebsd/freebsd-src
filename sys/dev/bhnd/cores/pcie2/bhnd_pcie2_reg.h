@@ -7,7 +7,7 @@
  *
  * This file is derived from the pcie_core.h and pcie2_core.h headers
  * from Broadcom's Linux driver sources as distributed by dd-wrt.
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.

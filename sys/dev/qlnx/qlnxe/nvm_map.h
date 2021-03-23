@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -246,39 +246,39 @@ union nvm_dir_union {
 	u8 page[FLASH_PAGE_SIZE];
 };
 
-/*          E4            Address                                 E5            Address  
- *  +-------------------+ 0x000000                     *  +-------------------+ 0x000000                 
- *  |    Bootstrap:     |                              *  |                   |                          
- *  | magic_number      |                              *  |                   |                          
- *  | sram_start_addr   |                              *  |                   |                          
- *  | code_len  	|                              *  |                   |                          
- *  | code_start_addr   |                              *  |                   |                          
- *  | crc               |                              *  |                   |                          
- *  +-------------------+ 0x000014                     *  |                   |                          
- *  | rsrv              |                              *  | rsrv              |                          
- *  +-------------------+ 0x000040                     *  +-------------------+ 0x001000                 
- *  | LIM               |                              *  | Master Key Chain  |                          
- *  +-------------------+ 0x002000                     *  +-------------------+ 0x002000                 
- *  | Dir1              |                              *  | Dir1              |                          
- *  +-------------------+ 0x003000                     *  +-------------------+ 0x003000                 
- *  | Dir2              |                              *  | Dir2              |                          
- *  +-------------------+ 0x004000                     *  +-------------------+ 0x004000                 
- *  | MIM1              |                              *  | MIM1              |                          
- *  +-------------------+ 0x130000                     *  +-------------------+ 0x130000                 
- *  | MIM2              |                              *  | MIM2              |                          
- *  +-------------------+ 0x25C000                     *  +-------------------+ 0x25C000                 
- *  | Rest Images:      |                              *  | Rest Images:      |                          
- *  | TIM1/2    	|                              *  | TIM1/2            |                          
- *  | MFW_TRACE1/2      |                              *  | MFW_TRACE1/2      |                          
- *  | Eagle/Falcon FW   |                              *  | Eagle/Falcon FW   |                          
- *  | PCIE/AVS FW       |                              *  | PCIE/AVS FW       |                          
- *  | MBA/CCM/L2B       |                              *  | MBA/CCM/L2B       |                          
- *  | VPD       	|                              *  | VPD               |                          
- *  | optic_modules     |                              *  +-------------------+ Flash end - 0x1000       
- *  |  ...              |                              *  | Backup Key Chain  |                          
- *  +-------------------+ 0x400000                     *  +-------------------+ Flash end                
-*/                                                                                                       
-struct nvm_image {                                                                                       
+/*          E4            Address                                 E5            Address
+ *  +-------------------+ 0x000000                     *  +-------------------+ 0x000000
+ *  |    Bootstrap:     |                              *  |                   |
+ *  | magic_number      |                              *  |                   |
+ *  | sram_start_addr   |                              *  |                   |
+ *  | code_len  	|                              *  |                   |
+ *  | code_start_addr   |                              *  |                   |
+ *  | crc               |                              *  |                   |
+ *  +-------------------+ 0x000014                     *  |                   |
+ *  | rsrv              |                              *  | rsrv              |
+ *  +-------------------+ 0x000040                     *  +-------------------+ 0x001000
+ *  | LIM               |                              *  | Master Key Chain  |
+ *  +-------------------+ 0x002000                     *  +-------------------+ 0x002000
+ *  | Dir1              |                              *  | Dir1              |
+ *  +-------------------+ 0x003000                     *  +-------------------+ 0x003000
+ *  | Dir2              |                              *  | Dir2              |
+ *  +-------------------+ 0x004000                     *  +-------------------+ 0x004000
+ *  | MIM1              |                              *  | MIM1              |
+ *  +-------------------+ 0x130000                     *  +-------------------+ 0x130000
+ *  | MIM2              |                              *  | MIM2              |
+ *  +-------------------+ 0x25C000                     *  +-------------------+ 0x25C000
+ *  | Rest Images:      |                              *  | Rest Images:      |
+ *  | TIM1/2    	|                              *  | TIM1/2            |
+ *  | MFW_TRACE1/2      |                              *  | MFW_TRACE1/2      |
+ *  | Eagle/Falcon FW   |                              *  | Eagle/Falcon FW   |
+ *  | PCIE/AVS FW       |                              *  | PCIE/AVS FW       |
+ *  | MBA/CCM/L2B       |                              *  | MBA/CCM/L2B       |
+ *  | VPD       	|                              *  | VPD               |
+ *  | optic_modules     |                              *  +-------------------+ Flash end - 0x1000
+ *  |  ...              |                              *  | Backup Key Chain  |
+ *  +-------------------+ 0x400000                     *  +-------------------+ Flash end
+*/
+struct nvm_image {
 /*********** !!!  FIXED SECTIONS  !!! DO NOT MODIFY !!! **********************/
 						/* NVM Offset  (size) */
 	struct legacy_bootstrap_region bootstrap;	/* 0x000000 (0x000014) */

@@ -32,7 +32,7 @@
  * Process internal RAID response in the case of success.
  */
 void pqisrc_process_internal_raid_response_success(pqisrc_softstate_t *softs,
-					  rcb_t *rcb) 
+					  rcb_t *rcb)
 {
 	DBG_FUNC("IN");
 
@@ -96,7 +96,7 @@ void pqisrc_process_aio_response_error(pqisrc_softstate_t *softs,
 	DBG_FUNC("IN");
 
 	err_info = (aio_path_error_info_elem_t*)
-			softs->err_buf_dma_mem.virt_addr + 
+			softs->err_buf_dma_mem.virt_addr +
 			err_idx;
 
 	if(err_info == NULL) {
@@ -120,7 +120,7 @@ void pqisrc_process_raid_response_error(pqisrc_softstate_t *softs,
 	DBG_FUNC("IN");
 
 	err_info = (raid_path_error_info_elem_t*)
-			softs->err_buf_dma_mem.virt_addr + 
+			softs->err_buf_dma_mem.virt_addr +
 			err_idx;
 
 	if(err_info == NULL) {
@@ -169,7 +169,7 @@ int pqisrc_process_task_management_response(pqisrc_softstate_t *softs,
  * Function used to process the response from the adapter
  * which is invoked by IRQ handler.
  */
-void 
+void
 pqisrc_process_response_queue(pqisrc_softstate_t *softs, int oq_id)
 {
 	ob_queue_t *ob_q;
@@ -195,11 +195,11 @@ pqisrc_process_response_queue(pqisrc_softstate_t *softs, int oq_id)
 			break;
 		/* Get the response */
 		offset = oq_ci * ob_q->elem_size;
-		response = (struct pqi_io_response *)(ob_q->array_virt_addr + 
+		response = (struct pqi_io_response *)(ob_q->array_virt_addr +
 							offset);
 		tag = response->request_id;
 		rcb = &softs->rcb[tag];
-		/* Make sure we are processing a valid response. */ 
+		/* Make sure we are processing a valid response. */
 		ASSERT(rcb->tag == tag && rcb->req_pending);
 		rcb->req_pending = false;
 
@@ -230,7 +230,7 @@ pqisrc_process_response_queue(pqisrc_softstate_t *softs, int oq_id)
 	}
 
 	ob_q->ci_local = oq_ci;
-	PCI_MEM_PUT32(softs, ob_q->ci_register_abs, 
+	PCI_MEM_PUT32(softs, ob_q->ci_register_abs,
         ob_q->ci_register_offset, ob_q->ci_local );
 	DBG_FUNC("OUT");
 }

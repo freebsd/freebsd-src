@@ -212,7 +212,7 @@ bhnd_nvram_val_default_fmt(bhnd_nvram_type type)
 /**
  * Determine whether @p fmt (or new format delegated to by @p fmt) is
  * capable of direct initialization from buffer @p inp.
- * 
+ *
  * @param[in,out]	fmt	Indirect pointer to the NVRAM value format. If
  *				the format instance cannot handle the data type
  *				directly, it may delegate to a new format
@@ -344,7 +344,7 @@ bhnd_nvram_val_init_common(bhnd_nvram_val *value,
  * @param	ilen	Input buffer length.
  * @param	itype	Input buffer type.
  * @param	flags	Value flags (see BHND_NVRAM_VAL_*).
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	If allocation fails.
  * @retval EFTYPE	If @p fmt initialization from @p itype is unsupported.
@@ -381,7 +381,7 @@ bhnd_nvram_val_init(bhnd_nvram_val *value, const bhnd_nvram_val_fmt *fmt,
  * @param	ilen	Input buffer length.
  * @param	itype	Input buffer type.
  * @param	flags	Value flags (see BHND_NVRAM_VAL_*).
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	If allocation fails.
  * @retval EFTYPE	If @p fmt initialization from @p itype is unsupported.
@@ -448,7 +448,7 @@ bhnd_nvram_val_convert_common(bhnd_nvram_val *value,
 		/* Delegate to standard initialization */
 		return (bhnd_nvram_val_init_common(value, val_storage, fmt, inp,
 		    ilen, itype, flags));
-	} 
+	}
 
 	/* Value must be initialized with the format's native type */
 	otype = fmt->native_type;
@@ -485,7 +485,7 @@ bhnd_nvram_val_convert_common(bhnd_nvram_val *value,
  * @param	fmt	The value's format.
  * @param	src	Input value to be converted.
  * @param	flags	Value flags (see BHND_NVRAM_VAL_*).
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	If allocation fails.
  * @retval EFTYPE	If @p fmt initialization from @p src is unsupported.
@@ -519,7 +519,7 @@ bhnd_nvram_val_convert_init(bhnd_nvram_val *value,
  * @param	fmt	The value's format.
  * @param	src	Input value to be converted.
  * @param	flags	Value flags (see BHND_NVRAM_VAL_*).
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	If allocation fails.
  * @retval EFTYPE	If @p fmt initialization from @p src is unsupported.
@@ -551,12 +551,12 @@ bhnd_nvram_val_convert_new(bhnd_nvram_val **value,
 
 /**
  * Copy or retain a reference to @p value.
- * 
+ *
  * On success, the caller is responsible for freeing the result via
  * bhnd_nvram_val_release().
- * 
+ *
  * @param	value	The value to be copied (or retained).
- * 
+ *
  * @retval bhnd_nvram_val	if @p value was successfully copied or retained.
  * @retval NULL			if allocation failed.
  */
@@ -625,7 +625,7 @@ bhnd_nvram_val_copy(bhnd_nvram_val *value)
  * Release a reference to @p value.
  *
  * If this is the last reference, all associated resources will be freed.
- * 
+ *
  * @param	value	The value to be released.
  */
 void
@@ -1312,7 +1312,7 @@ bhnd_nvram_val_encode_int(const void *inp, size_t ilen, bhnd_nvram_type itype,
  * Encode the given @p value as @p otype, writing the result to @p outp.
  *
  * @param		value	The value to be encoded.
- * @param[out]		outp	On success, the value will be written to this 
+ * @param[out]		outp	On success, the value will be written to this
  *				buffer. This argment may be NULL if the value is
  *				not desired.
  * @param[in,out]	olen	The capacity of @p outp. On success, will be set
@@ -1347,7 +1347,7 @@ bhnd_nvram_val_encode(bhnd_nvram_val *value, void *outp, size_t *olen,
  *				or bhnd_nvram_val_elem().
  * @param		ilen	The size of @p inp, as returned by
  *				bhnd_nvram_val_next() or bhnd_nvram_val_elem().
- * @param[out]		outp	On success, the value will be written to this 
+ * @param[out]		outp	On success, the value will be written to this
  *				buffer. This argment may be NULL if the value is
  *				not desired.
  * @param[in,out]	olen	The capacity of @p outp. On success, will be set
@@ -1379,7 +1379,7 @@ bhnd_nvram_val_encode_elem(bhnd_nvram_val *value, const void *inp,
 /**
  * Return the type, size, and a pointer to the internal representation
  * of @p value.
- * 
+ *
  * @param	value	The value to be queried.
  * @param[out]	olen	Size of the returned data, in bytes.
  * @param[out]	otype	Data type.
@@ -1529,7 +1529,7 @@ bhnd_nvram_val_generic_encode(bhnd_nvram_val *value, void *outp, size_t *olen,
 	/*
 	 * Normally, an array type is not universally representable as
 	 * non-array type.
-	 * 
+	 *
 	 * As exceptions, we support conversion directly to/from:
 	 *	- CHAR_ARRAY/STRING:
 	 *		->STRING	Interpret the character array as a
@@ -1658,7 +1658,7 @@ bhnd_nvram_val_generic_encode_elem(bhnd_nvram_val *value, const void *inp,
 	case BHND_NVRAM_TYPE_INT32:
 	case BHND_NVRAM_TYPE_INT64:
 		return (bhnd_nvram_val_encode_int(inp, ilen, itype, outp, olen,
-		    otype));	
+		    otype));
 	default:
 		BHND_NV_PANIC("missing encode_elem() implementation");
 	}
@@ -1689,7 +1689,7 @@ bhnd_nvram_val_generic_next(bhnd_nvram_val *value, const void *prev,
  * @param	ilen	The external representation length, in bytes.
  * @param	itype	The external representation's data type.
  * @param	flags	Value flags.
- * 
+ *
  * @retval 0		success.
  * @retval ENOMEM	if allocation fails
  * @retval EFTYPE	if @p itype is not an array type, and @p ilen is not
@@ -1739,7 +1739,7 @@ bhnd_nvram_val_set(bhnd_nvram_val *value, const void *inp, size_t ilen,
 /**
  * Initialize the internal inline representation of @p value with a copy of
  * the data referenced by @p inp of @p itype.
- * 
+ *
  * If @p inp is NULL, @p itype and @p ilen will be validated, but no data will
  * be copied.
  *
@@ -1749,7 +1749,7 @@ bhnd_nvram_val_set(bhnd_nvram_val *value, const void *inp, size_t ilen,
  *			inline.
  * @param	ilen	The size of the external buffer to be allocated.
  * @param	itype	The type of the external buffer to be allocated.
- * 
+ *
  * @retval 0		success
  * @retval ENOMEM	if @p ilen is too large to be represented inline.
  * @retval EFAULT	if @p ilen is not correctly aligned for elements of
@@ -1883,7 +1883,7 @@ bhnd_nvram_val_set_inline(bhnd_nvram_val *value, const void *inp, size_t ilen,
 /**
  * Initialize the internal representation of @p value with a buffer allocation
  * of @p len and @p itype, returning a pointer to the allocated buffer.
- * 
+ *
  * If a buffer of @p len and @p itype can be represented inline, no
  * external buffer will be allocated, and instead a pointer to the inline
  * data representation will be returned.
@@ -1892,7 +1892,7 @@ bhnd_nvram_val_set_inline(bhnd_nvram_val *value, const void *inp, size_t ilen,
  * @param	ilen	The size of the external buffer to be allocated.
  * @param	itype	The type of the external buffer to be allocated.
  * @param	flags	Value flags.
- * 
+ *
  * @retval non-null	The newly allocated buffer.
  * @retval NULL		If allocation failed.
  * @retval NULL		If @p value is an externally allocated instance.

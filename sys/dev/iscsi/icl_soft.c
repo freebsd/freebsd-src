@@ -1305,7 +1305,7 @@ icl_soft_conn_handoff(struct icl_conn *ic, int fd)
 		ICL_CONN_LOCK(ic);
 		if (ic->ic_socket == NULL) {
 			ICL_CONN_UNLOCK(ic);
-			ICL_WARN("proxy handoff without connect"); 
+			ICL_WARN("proxy handoff without connect");
 			return (EINVAL);
 		}
 		ICL_CONN_UNLOCK(ic);

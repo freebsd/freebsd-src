@@ -8,7 +8,7 @@
  * This file is derived from the hndsoc.h, pci_core.h, and pcie_core.h headers
  * distributed with Broadcom's initial brcm80211 Linux driver release, as
  * contributed to the Linux staging repository.
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
@@ -284,7 +284,7 @@
 /* PCIE protocol TLP diagnostic registers */
 #define	BHND_PCIE_TLP_CONFIGREG			0x000	/* Configuration */
 #define	BHND_PCIE_TLP_WORKAROUNDSREG		0x004	/* TLP Workarounds */
-#define	  BHND_PCIE_TLP_WORKAROUND_URBIT	0x8	/* If enabled, UR status bit is set 
+#define	  BHND_PCIE_TLP_WORKAROUND_URBIT	0x8	/* If enabled, UR status bit is set
 							 * on memory access of an unmatched
 							 * address */
 
@@ -351,17 +351,17 @@
 #define	  BHND_PCIE_SD_TX_DRIVER_P2_COEFF_MASK	0xF000	/* unconfirmed */
 
 /* Constants used with host bridge quirk handling */
-#define	BHND_PCIE_APPLE_TX_P2_COEFF_MAX		0x7	/* 9.6dB pre-emphassis coeff (???) */ 
+#define	BHND_PCIE_APPLE_TX_P2_COEFF_MAX		0x7	/* 9.6dB pre-emphassis coeff (???) */
 #define	BHND_PCIE_APPLE_TX_IDRIVER_MAX		0xF	/* 1400mV voltage range (???) */
 
-#define	BHND_PCIE_APPLE_TX_P2_COEFF_700MV	0x7	/* 2.3dB pre-emphassis coeff (???) */ 
+#define	BHND_PCIE_APPLE_TX_P2_COEFF_700MV	0x7	/* 2.3dB pre-emphassis coeff (???) */
 #define	BHND_PCIE_APPLE_TX_IDRIVER_700MV	0x0	/* 670mV voltage range (???) */
 
 /*
  * PCIe-G1 SerDes-R9 MDIO Registers (<= rev9)
- * 
+ *
  * These register definitions appear to match those provided in the
- * "PCI Express SerDes Registers" section of the BCM5761 Ethernet Controller 
+ * "PCI Express SerDes Registers" section of the BCM5761 Ethernet Controller
  * Programmer's Reference Guide.
  */
 #define	BHND_PCIE_PHY_SDR9_PLL       		0x1C	/* SerDes PLL PHY Address*/

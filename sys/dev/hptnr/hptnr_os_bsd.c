@@ -94,8 +94,8 @@ HPT_U32 pcicfg_read_dword(HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg)
 }/* PCI space access */
 
 void *os_map_pci_bar(
-    void *osext, 
-    int index,   
+    void *osext,
+    int index,
     HPT_U32 offset,
     HPT_U32 length
 )
@@ -125,7 +125,7 @@ void os_unmap_pci_bar(void *osext, void *base)
 {
 	PHBA hba = (PHBA)osext;
 	int index;
-	
+
 	for (index=0; index<6; index++) {
 		if (hba->pcibar[index].base==base) {
 			bus_release_resource(hba->pcidev, hba->pcibar[index].type,
@@ -249,9 +249,9 @@ HPT_TIME os_query_time(void)
 void os_schedule_task(void *osext, OSM_TASK *task)
 {
 	PVBUS_EXT vbus_ext = osext;
-	
+
 	HPT_ASSERT(task->next==0);
-	
+
 	if (vbus_ext->tasks==0)
 		vbus_ext->tasks = task;
 	else {

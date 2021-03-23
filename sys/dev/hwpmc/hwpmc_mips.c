@@ -149,7 +149,7 @@ mips_write_pmc(int cpu, int ri, pmc_value_t v)
 
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 		v = (1UL << (mips_pmc_spec.ps_counter_width - 1)) - v;
-	
+
 	PMCDBG3(MDP,WRI,1,"mips-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
 	mips_pmcn_write(ri, v);
@@ -416,13 +416,13 @@ pmc_mips_initialize()
 {
 	struct pmc_mdep *pmc_mdep;
 	struct pmc_classdep *pcd;
-	
+
 	/*
-	 * TODO: Use More bit of PerfCntlX register to detect actual 
+	 * TODO: Use More bit of PerfCntlX register to detect actual
 	 * number of counters
 	 */
 	mips_npmcs = 2;
-	
+
 	PMCDBG1(MDP,INI,1,"mips-init npmcs=%d", mips_npmcs);
 
 	/*
@@ -459,7 +459,7 @@ pmc_mips_initialize()
 	pmc_mdep->pmd_intr       = mips_pmc_intr;
 	pmc_mdep->pmd_switch_in  = mips_pmc_switch_in;
 	pmc_mdep->pmd_switch_out = mips_pmc_switch_out;
-	
+
 	pmc_mdep->pmd_npmc   += mips_npmcs;
 
 	return (pmc_mdep);
@@ -571,7 +571,7 @@ pmc_next_frame(register_t *pc, register_t *sp)
 
 		case OP_SW:
 		case OP_SD:
-			/* 
+			/*
 			 * SP is being saved using S8(FP). Most likely it indicates
 			 * that SP is modified in the function and we can't get
 			 * its value safely without emulating code backward

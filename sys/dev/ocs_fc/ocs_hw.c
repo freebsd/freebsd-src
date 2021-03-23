@@ -997,7 +997,7 @@ ocs_hw_init(ocs_hw_t *hw)
 		if((hw->watchdog_timeout < 1) || (hw->watchdog_timeout > 65534)) {
 			ocs_log_err(hw->os, "watchdog_timeout out of range: Valid range is 1 - 65534\n");
 		}else if(!ocs_hw_config_watchdog_timer(hw)) {
-			ocs_log_info(hw->os, "watchdog timer configured with timeout = %d seconds \n", hw->watchdog_timeout); 
+			ocs_log_info(hw->os, "watchdog timer configured with timeout = %d seconds \n", hw->watchdog_timeout);
 		}
 	}
 
@@ -3634,7 +3634,7 @@ hw_wq_write(hw_wq_t *wq, ocs_hw_wqe_t *wqe)
 				}
 				if (wqe->abort_wqe_submit_needed) {
 					wqe->abort_wqe_submit_needed = 0;
-					sli_abort_wqe(&wq->hw->sli, wqe->wqebuf, wq->hw->sli.config.wqe_size, SLI_ABORT_XRI, 
+					sli_abort_wqe(&wq->hw->sli, wqe->wqebuf, wq->hw->sli.config.wqe_size, SLI_ABORT_XRI,
 							wqe->send_abts, wqe->id, 0, wqe->abort_reqtag, SLI4_CQ_DEFAULT );
 					ocs_list_add_tail(&wq->pending_list, wqe);
 					OCS_STAT(wq->wq_pending_count++;)
@@ -3682,7 +3682,7 @@ hw_wq_submit_pending(hw_wq_t *wq, uint32_t update_free_count)
 
 			if (wqe->abort_wqe_submit_needed) {
 				wqe->abort_wqe_submit_needed = 0;
-				sli_abort_wqe(&wq->hw->sli, wqe->wqebuf, wq->hw->sli.config.wqe_size, SLI_ABORT_XRI, 
+				sli_abort_wqe(&wq->hw->sli, wqe->wqebuf, wq->hw->sli.config.wqe_size, SLI_ABORT_XRI,
 						wqe->send_abts, wqe->id, 0, wqe->abort_reqtag, SLI4_CQ_DEFAULT);
 				ocs_list_add_tail(&wq->pending_list, wqe);
 				OCS_STAT(wq->wq_pending_count++;)
@@ -6253,7 +6253,7 @@ ocs_hw_set_dif_mode(ocs_hw_t *hw)
 	return rc;
 }
 
-static void 
+static void
 ocs_hw_watchdog_timer_cb(void *arg)
 {
 	ocs_hw_t *hw = (ocs_hw_t *)arg;
@@ -8802,7 +8802,7 @@ ocs_hw_wq_process_io(void *arg, uint8_t *cqe, int32_t status)
 exit_ocs_hw_wq_process_io:
 	if(lock_taken) {
 		ocs_unlock(&io->axr_lock);
-	}	
+	}
 }
 
 /**
@@ -9529,8 +9529,8 @@ ocs_hw_setup_io(ocs_hw_t *hw)
 		/* initialize IO fields */
 		io->hw = hw;
 
-		/* Assign a WQE buff */	
-		io->wqe.wqebuf = &hw->wqe_buffs[i * hw->sli.config.wqe_size]; 
+		/* Assign a WQE buff */
+		io->wqe.wqebuf = &hw->wqe_buffs[i * hw->sli.config.wqe_size];
 
 		/* Allocate the request tag for this IO */
 		wqcb = ocs_hw_reqtag_alloc(hw, ocs_hw_wq_process_io, io);
@@ -11980,7 +11980,7 @@ _ocs_hw_verify(const char *cond, const char *filename, int linenum)
  *
  * @return Return 0 if successful else returns -1
  */
-int32_t 
+int32_t
 ocs_hw_reque_xri( ocs_hw_t *hw, ocs_hw_io_t *io )
 {
 	int32_t rc = 0;

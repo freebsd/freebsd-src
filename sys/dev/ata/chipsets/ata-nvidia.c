@@ -226,7 +226,7 @@ ata_nvidia_chipinit(device_t dev)
 		/* disable NCQ support */
 		ATA_OUTL(ctlr->r_res2, 0x0400,
 			 ATA_INL(ctlr->r_res2, 0x0400) & 0xfffffff9);
-	    } 
+	    }
 	    else {
 		/* clear interrupt status */
 		ATA_OUTB(ctlr->r_res2, offset, 0xff);
@@ -280,7 +280,7 @@ ata_nvidia_ch_attach_dumb(device_t dev)
     return 0;
 }
 
-static int 
+static int
 ata_nvidia_status(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));

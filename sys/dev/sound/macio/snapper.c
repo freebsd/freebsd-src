@@ -52,7 +52,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * 	NetBSD: snapper.c,v 1.28 2008/05/16 03:49:54 macallan Exp
- *	Id: snapper.c,v 1.11 2002/10/31 17:42:13 tsubai Exp 
+ *	Id: snapper.c,v 1.11 2002/10/31 17:42:13 tsubai Exp
  */
 
 /*
@@ -220,7 +220,7 @@ struct snapper_reg {
 };
 
 static const struct snapper_reg snapper_initdata = {
-	{ SNAPPER_MCR1_SC_64 | SNAPPER_MCR1_SM_I2S | 
+	{ SNAPPER_MCR1_SC_64 | SNAPPER_MCR1_SM_I2S |
 	  SNAPPER_MCR1_W_16 }, 					/* MCR1 */
 	{ 1, 0, 0, 0, 0, 0 },					/* DRC */
 	{ 0, 0, 0, 0, 0, 0 },					/* VOLUME */
@@ -292,7 +292,7 @@ static const char snapper_regsize[] = {
 };
 
 /* dB = 20 * log (x) table. */
-static u_int	snapper_volume_table[100] = {      	
+static u_int	snapper_volume_table[100] = {
 	0x00000148,   0x0000015C,   0x00000171,   0x00000186,   // -46.0,	-45.5,	-45.0,	-44.5,
 	0x0000019E,   0x000001B6,   0x000001D0,   0x000001EB,   // -44.0,	-43.5,	-43.0,	-42.5,
 	0x00000209,   0x00000227,   0x00000248,   0x0000026B,   // -42.0,	-41.5,	-41.0,	-40.5,
@@ -329,7 +329,7 @@ snapper_write(struct snapper_softc *sc, uint8_t reg, const void *data)
 	struct iic_msg msg[] = {
 		{ sc->sc_addr, IIC_M_WR, 0, buf }
 	};
-		
+
 	KASSERT(reg < sizeof(snapper_regsize), ("bad reg"));
 	size = snapper_regsize[reg];
 	msg[0].len = size + 1;
@@ -369,7 +369,7 @@ static int
 snapper_attach(device_t dev)
 {
 	struct snapper_softc *sc;
-		
+
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	sc->sc_addr = iicbus_get_addr(dev);

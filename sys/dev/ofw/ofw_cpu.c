@@ -91,8 +91,8 @@ static devclass_t ofw_cpulist_devclass;
 DRIVER_MODULE(ofw_cpulist, ofwbus, ofw_cpulist_driver, ofw_cpulist_devclass,
     0, 0);
 
-static int 
-ofw_cpulist_probe(device_t dev) 
+static int
+ofw_cpulist_probe(device_t dev)
 {
 	const char	*name;
 
@@ -106,8 +106,8 @@ ofw_cpulist_probe(device_t dev)
 	return (0);
 }
 
-static int 
-ofw_cpulist_attach(device_t dev) 
+static int
+ofw_cpulist_attach(device_t dev)
 {
 	struct ofw_cpulist_softc *sc;
 	phandle_t root, child;
@@ -143,9 +143,9 @@ ofw_cpulist_attach(device_t dev)
 }
 
 static const struct ofw_bus_devinfo *
-ofw_cpulist_get_devinfo(device_t dev, device_t child) 
+ofw_cpulist_get_devinfo(device_t dev, device_t child)
 {
-	return (device_get_ivars(child));	
+	return (device_get_ivars(child));
 }
 
 static int	ofw_cpu_probe(device_t);
@@ -246,8 +246,8 @@ ofw_cpu_attach(device_t dev)
 		struct cpuref cpuref;
 		cell_t *servers;
 		int i, nservers, rv;
-		
-		if ((nservers = OF_getencprop_alloc(node, 
+
+		if ((nservers = OF_getencprop_alloc(node,
 		    "ibm,ppc-interrupt-server#s", (void **)&servers)) < 0)
 			return (ENXIO);
 		nservers /= sizeof(cell_t);

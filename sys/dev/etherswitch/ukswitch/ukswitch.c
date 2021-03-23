@@ -222,11 +222,11 @@ ukswitch_attach(device_t dev)
 	err = bus_generic_attach(dev);
 	if (err != 0)
 		return (err);
-	
+
 	callout_init(&sc->callout_tick, 0);
 
 	ukswitch_tick(sc);
-	
+
 	return (err);
 }
 
@@ -349,7 +349,7 @@ static etherswitch_info_t *
 ukswitch_getinfo(device_t dev)
 {
 	struct ukswitch_softc *sc = device_get_softc(dev);
-	
+
 	return (&sc->info);
 }
 
@@ -542,10 +542,10 @@ static device_method_t ukswitch_methods[] = {
 	DEVMETHOD(device_probe,		ukswitch_probe),
 	DEVMETHOD(device_attach,	ukswitch_attach),
 	DEVMETHOD(device_detach,	ukswitch_detach),
-	
+
 	/* bus interface */
 	DEVMETHOD(bus_add_child,	device_add_child_ordered),
-	
+
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	ukswitch_readphy),
 	DEVMETHOD(miibus_writereg,	ukswitch_writephy),

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  */
 
 #ifndef __ECORE_HSI_ROCE__
-#define __ECORE_HSI_ROCE__ 
+#define __ECORE_HSI_ROCE__
 /************************************************************************/
 /* Add include to ecore hsi rdma target for both roce and iwarp ecore driver */
 /************************************************************************/

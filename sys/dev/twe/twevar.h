@@ -112,7 +112,7 @@ struct twe_request
 /*
  * Per-controller state.
  */
-struct twe_softc 
+struct twe_softc
 {
     /* controller queues and arrays */
     TAILQ_HEAD(, twe_request)	twe_free;			/* command structures available for reuse */

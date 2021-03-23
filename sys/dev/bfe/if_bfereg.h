@@ -482,7 +482,7 @@ struct bfe_rxheader {
 
 #define MIB_TX_GOOD_O		0
 #define MIB_TX_GOOD_P		1
-#define MIB_TX_O		2	
+#define MIB_TX_O		2
 #define MIB_TX_P		3
 #define MIB_TX_BCAST		4
 #define MIB_TX_MCAST		5

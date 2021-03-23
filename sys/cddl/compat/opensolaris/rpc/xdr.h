@@ -63,7 +63,7 @@ xdrmem_control(XDR *xdrs, int request, void *info)
 #define	XDR_CONTROL(xdrs, req, op)					\
 	(((xdrs)->x_ops->x_control == NULL) ?				\
 	    xdrmem_control((xdrs), (req), (op)) :			\
-	    (*(xdrs)->x_ops->x_control)(xdrs, req, op))   
+	    (*(xdrs)->x_ops->x_control)(xdrs, req, op))
 
 #endif	/* !_KERNEL */
 

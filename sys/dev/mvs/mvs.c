@@ -761,7 +761,7 @@ mvs_ch_intr(void *data)
 							break;
 						}
 					}
-					/* If several ports were active and EDMA still enabled - 
+					/* If several ports were active and EDMA still enabled -
 					 * other ports are probably unaffected and may continue.
 					 */
 					if (port == -2 && !selfdis) {
@@ -1267,7 +1267,7 @@ mvs_begin_transaction(device_t dev, union ccb *ccb)
 /* Locked by busdma engine. */
 static void
 mvs_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
-{    
+{
 	struct mvs_slot *slot = arg;
 	struct mvs_channel *ch = device_get_softc(slot->dev);
 	struct mvs_eprd *eprd;
@@ -1946,7 +1946,7 @@ mvs_wait(device_t dev, u_int s, u_int c, int t)
 		}
 		DELAY(1000);
 		timeout++;
-	} 
+	}
 	return (timeout);
 }
 
@@ -2295,7 +2295,7 @@ mvsaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		struct	ccb_trans_settings *cts = &ccb->cts;
-		struct	mvs_device *d; 
+		struct	mvs_device *d;
 
 		if (mvs_check_ids(dev, ccb))
 			return;

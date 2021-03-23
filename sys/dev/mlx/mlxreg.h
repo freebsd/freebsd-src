@@ -198,7 +198,7 @@
 /*
  * Scatter-gather list format, type 1, kind 00.
  */
-struct mlx_sgentry 
+struct mlx_sgentry
 {
     u_int32_t	sg_addr;
     u_int32_t	sg_count;
@@ -228,7 +228,7 @@ struct mlx_enquiry_old	/* MLX_CMD_ENQUIRY_OLD */
     u_int8_t		res5;
     u_int8_t		me_rebuild_count;
     u_int8_t		me_misc_flags;
-    struct 
+    struct
     {
 	u_int8_t	dd_targ;
 	u_int8_t	dd_chan;
@@ -259,7 +259,7 @@ struct mlx_enquiry	/* MLX_CMD_ENQUIRY */
     u_int8_t		me_rebuild_count;
     u_int8_t		me_misc_flags;
 #define MLX_ENQ_MISC_BBU	(1<<3)	/* battery backup present */
-    struct 
+    struct
     {
 	u_int8_t	dd_targ;
 	u_int8_t	dd_chan;
@@ -391,7 +391,7 @@ struct mlx_config2
     u_int8_t	cf_scsi_param_3;
     u_int8_t	cf_scsi_param_4;
     u_int8_t	cf_scsi_param_5;
-    u_int8_t	cf_scsi_initiator_id;    
+    u_int8_t	cf_scsi_initiator_id;
     u_int8_t	cf_res2;
     u_int8_t	cf_startup_mode;
     u_int8_t	cf_simultaneous_spinup_devices;
@@ -487,7 +487,7 @@ struct mlx_dcdb
     u_int8_t	res1;
 } __packed;
 
-struct mlx_bbtable_entry 
+struct mlx_bbtable_entry
 {
     u_int32_t	bbt_block_number;
     u_int8_t	bbt_extent;
@@ -503,12 +503,12 @@ struct mlx_bbtable_entry
  */
 static __inline void
 mlx_make_type1(struct mlx_command *mc,
-	       u_int8_t code, 
+	       u_int8_t code,
 	       u_int16_t f1,
 	       u_int32_t f2,
 	       u_int8_t f3,
 	       u_int32_t f4,
-	       u_int8_t f5) 
+	       u_int8_t f5)
 {
     mc->mc_mailbox[0x0] = code;
     mc->mc_mailbox[0x2] = f1 & 0xff;
@@ -526,7 +526,7 @@ mlx_make_type1(struct mlx_command *mc,
 
 static __inline void
 mlx_make_type2(struct mlx_command *mc,
-	       u_int8_t code, 
+	       u_int8_t code,
 	       u_int8_t f1,
 	       u_int8_t f2,
 	       u_int8_t f3,
@@ -552,7 +552,7 @@ mlx_make_type2(struct mlx_command *mc,
 
 static __inline void
 mlx_make_type3(struct mlx_command *mc,
-	       u_int8_t code, 
+	       u_int8_t code,
 	       u_int8_t f1,
 	       u_int8_t f2,
 	       u_int16_t f3,
@@ -577,7 +577,7 @@ mlx_make_type3(struct mlx_command *mc,
 
 static __inline void
 mlx_make_type4(struct mlx_command *mc,
-	       u_int8_t code, 
+	       u_int8_t code,
 	       u_int16_t f1,
 	       u_int32_t f2,
 	       u_int32_t f3,
@@ -599,7 +599,7 @@ mlx_make_type4(struct mlx_command *mc,
 
 static __inline void
 mlx_make_type5(struct mlx_command *mc,
-	       u_int8_t code, 
+	       u_int8_t code,
 	       u_int8_t f1,
 	       u_int8_t f2,
 	       u_int32_t f3,

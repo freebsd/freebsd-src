@@ -27,7 +27,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -48,7 +48,7 @@
 enum {
 	/**
 	 * No GPIO event support.
-	 * 
+	 *
 	 * The CHIPC_GPIOEVENT, CHIPC_GPIOEVENT_INTM, and
 	 * CHIPC_GPIOEVENT_INTPOLARITY registers are not available.
 	 */
@@ -56,7 +56,7 @@ enum {
 
 	/**
 	 * No GPIO duty-cycle timer support.
-	 * 
+	 *
 	 * The CHIPC_GPIOTIMERVAL and CHIPC_GPIOTIMEROUTMASK registers are not
 	 * available.
 	 */
@@ -71,7 +71,7 @@ enum {
 
 	/**
 	 * Do not attach a child gpioc(4) device.
-	 * 
+	 *
 	 * This is primarily intended for use on bridged Wi-Fi adapters, where
 	 * userspace modification of GPIO pin configuration could introduce
 	 * significant undesirable behavior.
@@ -112,7 +112,7 @@ struct chipc_gpio_update {
 		(_upd)->_reg.value |= (1 << (_pin));	\
 	else						\
 		(_upd)->_reg.value &= ~(1 << (_pin));	\
-} while(0)	
+} while(0)
 
 /**
  * ChipCommon GPIO driver instance state.

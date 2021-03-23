@@ -728,7 +728,7 @@ static const uint64_t ae_inst_4b[] = {
 	0x0F4400C0000ull,  /* .1 immed_w1[l0000!indx, 0] */
 	0x0F040000300ull,  /* .2 immed_w0[l0000!myvalue, 0x0] */
 	0x0F440000300ull,  /* .3 immed_w1[l0000!myvalue, 0x0] */
-	0x0FC066C0000ull,  /* .4 local_csr_wr[active_lm_addr_0, 
+	0x0FC066C0000ull,  /* .4 local_csr_wr[active_lm_addr_0,
 	                                l0000!indx]; put indx to lm_addr */
 	0x0F0000C0300ull,  /* .5 nop */
 	0x0F0000C0300ull,  /* .6 nop */
@@ -741,13 +741,13 @@ static const uint64_t ae_inst_1b[] = {
 	0x0F4400C0000ull,  /* .1 immed_w1[l0000!indx, 0] */
 	0x0F040000300ull,  /* .2 immed_w0[l0000!myvalue, 0x0] */
 	0x0F440000300ull,  /* .3 immed_w1[l0000!myvalue, 0x0] */
-	0x0FC066C0000ull,  /* .4 local_csr_wr[active_lm_addr_0, 
+	0x0FC066C0000ull,  /* .4 local_csr_wr[active_lm_addr_0,
 	                               l0000!indx]; put indx to lm_addr */
 	0x0F0000C0300ull,  /* .5 nop */
 	0x0F0000C0300ull,  /* .6 nop */
 	0x0F0000C0300ull,  /* .7 nop */
 	0x0A000180000ull,  /* .8 alu[l0000!val, --, b, *l$index0] */
-	0x09080000200ull,  /* .9 alu_shf[l0000!myvalue, --, b, 
+	0x09080000200ull,  /* .9 alu_shf[l0000!myvalue, --, b,
 	                                  l0000!myvalue,  <<24 ] */
 	0x08180280201ull,  /* .10 alu_shf[l0000!val1, --, b, l0000!val,  <<8 ] */
 	0x08080280102ull,  /* .11 alu_shf[l0000!val1, --, b, l0000!val1 , >>8 ] */
@@ -760,13 +760,13 @@ static const uint64_t ae_inst_2b[] = {
 	0x0F4400C0000ull,  /* .1 immed_w1[l0000!indx, 0] */
 	0x0F040000300ull,  /* .2 immed_w0[l0000!myvalue, 0x0] */
 	0x0F440000300ull,  /* .3 immed_w1[l0000!myvalue, 0x0] */
-	0x0FC066C0000ull,  /* .4 local_csr_wr[active_lm_addr_0, 
+	0x0FC066C0000ull,  /* .4 local_csr_wr[active_lm_addr_0,
 	                               l0000!indx]; put indx to lm_addr */
 	0x0F0000C0300ull,  /* .5 nop */
 	0x0F0000C0300ull,  /* .6 nop */
 	0x0F0000C0300ull,  /* .7 nop */
 	0x0A000180000ull,  /* .8 alu[l0000!val, --, b, *l$index0] */
-	0x09100000200ull,  /* .9 alu_shf[l0000!myvalue, --, b, 
+	0x09100000200ull,  /* .9 alu_shf[l0000!myvalue, --, b,
 	                                      l0000!myvalue,  <<16 ] */
 	0x08100280201ull,  /* .10 alu_shf[l0000!val1, --, b, l0000!val,  <<16 ] */
 	0x08100280102ull,  /* .11 alu_shf[l0000!val1, --, b, l0000!val1 , >>16 ] */
@@ -778,13 +778,13 @@ static const uint64_t ae_inst_3b[] = {
 	0x0F4400C0000ull,  /* .1 immed_w1[l0000!indx, 0] */
 	0x0F040000300ull,  /* .2 immed_w0[l0000!myvalue, 0x0] */
 	0x0F440000300ull,  /* .3 immed_w1[l0000!myvalue, 0x0] */
-	0x0FC066C0000ull,  /* .4 local_csr_wr[active_lm_addr_0, 
+	0x0FC066C0000ull,  /* .4 local_csr_wr[active_lm_addr_0,
 	                               l0000!indx]; put indx to lm_addr */
 	0x0F0000C0300ull,  /* .5 nop */
 	0x0F0000C0300ull,  /* .6 nop */
 	0x0F0000C0300ull,  /* .7 nop */
 	0x0A000180000ull,  /* .8 alu[l0000!val, --, b, *l$index0] */
-	0x09180000200ull,  /* .9 alu_shf[l0000!myvalue, --, 
+	0x09180000200ull,  /* .9 alu_shf[l0000!myvalue, --,
 	                                b, l0000!myvalue,  <<8 ] */
 	0x08080280201ull,  /* .10 alu_shf[l0000!val1, --, b, l0000!val,  <<24 ] */
 	0x08180280102ull,  /* .11 alu_shf[l0000!val1, --, b, l0000!val1 , >>24 ] */

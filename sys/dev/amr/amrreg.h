@@ -253,7 +253,7 @@ struct amr_physdrive_info
 /*
  * Enquiry response structure for AMR_CMD_ENQUIRY, AMR_CMD_EXT_ENQUIRY and
  * AMR_CMD_EXT_ENQUIRY2.
- *								ENQUIRY EXT_ENQUIRY EXT_ENQUIRY2 
+ *								ENQUIRY EXT_ENQUIRY EXT_ENQUIRY2
  */
 struct amr_enquiry
 {

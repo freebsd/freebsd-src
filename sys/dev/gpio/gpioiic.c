@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #define	GPIOIIC_SDA_DFLT	1
 #define	GPIOIIC_MIN_PINS	2
 
-struct gpioiic_softc 
+struct gpioiic_softc
 {
 	device_t	dev;
 	gpio_pin_t	sclpin;
@@ -150,7 +150,7 @@ gpioiic_setup_hinted_pins(struct gpioiic_softc *sc)
 			return (ENOENT);
 		}
 #endif
-		device_printf(sc->dev, 
+		device_printf(sc->dev,
 		    "invalid pins hint; it must contain at least %d pins\n",
 		    GPIOIIC_MIN_PINS);
 		return (EINVAL);

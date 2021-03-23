@@ -123,7 +123,7 @@ struct time_regs {
 struct isl12xx_softc {
 	device_t	dev;
 	device_t	busdev;
-	struct intr_config_hook 
+	struct intr_config_hook
 			init_hook;
 	bool		use_ampm;
 };
@@ -149,14 +149,14 @@ static struct ofw_compat_data compat_data[] = {
 #define	WAITFLAGS	(IIC_WAIT | IIC_RECURSIVE)
 
 static inline int
-isl12xx_read1(struct isl12xx_softc *sc, uint8_t reg, uint8_t *data) 
+isl12xx_read1(struct isl12xx_softc *sc, uint8_t reg, uint8_t *data)
 {
 
 	return (iicdev_readfrom(sc->dev, reg, data, 1, WAITFLAGS));
 }
 
 static inline int
-isl12xx_write1(struct isl12xx_softc *sc, uint8_t reg, uint8_t val) 
+isl12xx_write1(struct isl12xx_softc *sc, uint8_t reg, uint8_t val)
 {
 
 	return (iicdev_writeto(sc->dev, reg, &val, 1, WAITFLAGS));
@@ -274,7 +274,7 @@ isl12xx_gettime(device_t dev, struct timespec *ts)
 	bct.year = tregs.year;
 	bct.ispm = tregs.hour & ISL12XX_PM_FLAG;
 
-	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct); 
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct);
 	return (clock_bcd_to_ts(&bct, ts, sc->use_ampm));
 }
 
@@ -294,7 +294,7 @@ isl12xx_settime(device_t dev, struct timespec *ts)
 	ts->tv_sec -= utc_offset();
 	ts->tv_nsec = 0;
 	clock_ts_to_bcd(ts, &bct, sc->use_ampm);
-	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_WRITE, &bct); 
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_WRITE, &bct);
 
 	/* If the chip is in AM/PM mode, set flags as needed. */
 	if (!sc->use_ampm)

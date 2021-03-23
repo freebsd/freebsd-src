@@ -719,7 +719,7 @@ static driver_t uaudio_driver = {
 	.size = sizeof(struct uaudio_softc),
 };
 
-/* The following table is derived from Linux's quirks-table.h */ 
+/* The following table is derived from Linux's quirks-table.h */
 static const STRUCT_USB_HOST_ID uaudio_vendor_midi[] = {
 	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1000, 0) }, /* UX256 */
 	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1001, 0) }, /* MU1000 */
@@ -1403,7 +1403,7 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 		/* FALLTHROUGH */
 	} else if (sc->sc_audio_rev >= UAUDIO_VERSION_20) {
 		unsigned int x;
-	  
+
 		for (x = 0; x != 256; x++) {
 			if (dir == PCMDIR_PLAY) {
 				if (!(sc->sc_mixer_clocks.bit_output[x / 8] &
@@ -2397,7 +2397,7 @@ tr_setup:
 				/* reset receive jitter counters */
 				ch_rec->jitter_curr = 0;
 				ch_rec->jitter_rem = 0;
-		
+
 				/* compute exact number of transmit jitter samples */
 				rx_rate = ch_rec->usb_alt[rec_alt].sample_rate;
 				ch->jitter_curr += tx_jitter / rx_rate;
@@ -3463,7 +3463,7 @@ uaudio_mixer_check_selectors(struct uaudio_softc *sc)
 	uint16_t j;
 	uint16_t k;
 
-	/* remove existing selector types from the reserve */	
+	/* remove existing selector types from the reserve */
 	for (i = 0; i < MIX(sc).maxval; i++) {
 		if (MIX(sc).slctrtype[i] == SOUND_MIXER_NRDEVICES)
 			continue;
@@ -3804,7 +3804,7 @@ uaudio20_mixer_add_feature(struct uaudio_softc *sc,
 			MIX(sc).name = "mute";
 			what = MUTE_CONTROL;
 			break;
-		case (3 << 2): 
+		case (3 << 2):
 			MIX(sc).type = MIX_SIGNED_16;
 			MIX(sc).ctl = mixernumber;
 			MIX(sc).name = "vol";

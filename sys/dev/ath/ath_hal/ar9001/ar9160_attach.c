@@ -88,7 +88,7 @@ ar9160AniSetup(struct ath_hal *ah)
 	ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
 }
 
-static void 
+static void
 ar9160InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	uint32_t pll = SM(0x5, AR_RTC_SOWL_PLL_REFDIV);

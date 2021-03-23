@@ -107,7 +107,7 @@ bhnd_nvram_ioptr_new(const void *ptr, size_t size, size_t capacity,
 
 static void
 bhnd_nvram_ioptr_free(struct bhnd_nvram_io *io)
-{	
+{
 	bhnd_nv_free(io);
 }
 

@@ -80,7 +80,7 @@ glxsb_authcompute(struct glxsb_session *ses, struct cryptop *crp)
 	    crp->crp_payload_length, axf->Update, &ctx);
 	if (error != 0)
 		return (error);
-	
+
 	axf->Final(hash, &ctx);
 
 	bcopy(ses->ses_octx, &ctx, axf->ctxsize);

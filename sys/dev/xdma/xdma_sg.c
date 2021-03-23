@@ -113,7 +113,7 @@ xchan_bufs_alloc_reserved(xdma_channel_t *xchan)
 			xchan_bufs_free_reserved(xchan);
 			return (ENOMEM);
 		}
-		
+
 		xr->buf.size = size;
 		xr->buf.paddr = addr;
 		xr->buf.vaddr = kva_alloc(size);
@@ -341,10 +341,10 @@ xchan_seg_done(xdma_channel_t *xchan,
 	if (b->nsegs_left == 0) {
 		if (xchan->caps & XCHAN_CAP_BUSDMA) {
 			if (xr->direction == XDMA_MEM_TO_DEV)
-				bus_dmamap_sync(xchan->dma_tag_bufs, b->map, 
+				bus_dmamap_sync(xchan->dma_tag_bufs, b->map,
 				    BUS_DMASYNC_POSTWRITE);
 			else
-				bus_dmamap_sync(xchan->dma_tag_bufs, b->map, 
+				bus_dmamap_sync(xchan->dma_tag_bufs, b->map,
 				    BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(xchan->dma_tag_bufs, b->map);
 		} else if (xchan->caps & XCHAN_CAP_BOUNCE) {

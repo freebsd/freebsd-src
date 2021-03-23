@@ -108,7 +108,7 @@ SATI_STATUS sati_write_buffer_translate_command(
    switch(sati_get_cdb_byte(cdb, 1))
    {
       case WRITE_BUFFER_WRITE_DATA:
-         if((allocation_length == DOWNLOAD_MICROCODE_BLOCK_SIZE) && 
+         if((allocation_length == DOWNLOAD_MICROCODE_BLOCK_SIZE) &&
             (buffer_offset == 0) &&
             (sati_get_cdb_byte(cdb, 2) == 0))
          {

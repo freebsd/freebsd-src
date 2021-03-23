@@ -265,7 +265,7 @@ atphy_status(struct mii_softc *sc)
 		mii->mii_media_active |= IFM_FDX | mii_phy_flowstatus(sc);
 	else
 		mii->mii_media_active |= IFM_HDX;
-		
+
 	if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T) &&
 	    (PHY_READ(sc, MII_100T2SR) & GTSR_MS_RES) != 0)
 		mii->mii_media_active |= IFM_ETH_MASTER;

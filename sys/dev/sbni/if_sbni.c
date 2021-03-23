@@ -108,7 +108,7 @@ static int	get_rx_buf(struct sbni_softc *);
 static void	indicate_pkt(struct sbni_softc *);
 static void	change_level(struct sbni_softc *);
 static int	check_fhdr(struct sbni_softc *, u_int *, u_int *,
-			   u_int *, u_int *, u_int32_t *); 
+			   u_int *, u_int *, u_int32_t *);
 static int	append_frame_to_pkt(struct sbni_softc *, u_int, u_int32_t);
 static void	timeout_change_level(struct sbni_softc *);
 static void	send_frame_header(struct sbni_softc *, u_int32_t *);
@@ -203,11 +203,11 @@ sbni_probe(struct sbni_softc *sc)
 		csr0 &= ~EN_INT;
 		if (csr0 & BU_EMP)
 			csr0 |= EN_INT;
-      
+
 		if (VALID_DECODER & (1 << (csr0 >> 4)))
 			return (0);
 	}
-   
+
 	return (ENXIO);
 }
 
@@ -219,7 +219,7 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 {
 	struct ifnet *ifp;
 	u_char csr0;
-   
+
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL)
 		return (ENOMEM);
@@ -367,7 +367,7 @@ sbni_stop(struct sbni_softc *sc)
  * While next board driver is initialized, it scans this list. If one
  * has found softc with same irq and ioaddr different by 4 then it assumes
  * this board to be "master".
- */ 
+ */
 
 void
 sbni_intr(void *arg)
@@ -963,11 +963,11 @@ set_initial_values(struct sbni_softc *sc, struct sbni_flags flags)
 		sc->delta_rxl = DEF_RXL_DELTA;
 		sc->cur_rxl_index = DEF_RXL;
 	}
-   
+
 	sc->csr1.rate = flags.fixed_rate ? flags.rate : DEFAULT_RATE;
 	sc->csr1.rxl  = rxl_tab[sc->cur_rxl_index];
 	sc->maxframe  = DEFAULT_FRAME_LEN;
-   
+
 	/*
 	 * generate Ethernet address (0x00ff01xxxxxx)
 	 */

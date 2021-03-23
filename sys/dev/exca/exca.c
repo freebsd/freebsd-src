@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 #define DPRINTF(fmt, args...)
 #endif
 
-static const char *chip_names[] = 
+static const char *chip_names[] =
 {
 	"CardBus socket",
 	"Intel i82365SL-A/B or clone",
@@ -183,10 +183,10 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 	uint32_t offset;
 	uint32_t mem16;
 	uint32_t attrmem;
-	
+
 	map = &mem_map_index[win];
 	mem = &sc->mem[win];
-	mem16 = (mem->kind & PCCARD_MEM_16BIT) ? 
+	mem16 = (mem->kind & PCCARD_MEM_16BIT) ?
 	    EXCA_SYSMEM_ADDRX_START_MSB_DATASIZE_16BIT : 0;
 	attrmem = (mem->kind & PCCARD_MEM_ATTR) ?
 	    EXCA_CARDMEM_ADDRX_MSB_REGACTIVE_ATTR : 0;
@@ -384,7 +384,7 @@ exca_mem_unmap_res(struct exca_softc *sc, struct resource *res)
 	exca_mem_unmap(sc, win);
 	return (0);
 }
-	
+
 /*
  * Set the offset of the memory.  We use this for reading the CIS and
  * frobbing the pccard's pccard registers (CCR, etc).  Some drivers
@@ -415,7 +415,7 @@ exca_mem_set_offset(struct exca_softc *sc, struct resource *res,
 	exca_do_mem_map(sc, win);
 	return (0);
 }
-			
+
 
 /* I/O */
 
@@ -566,7 +566,7 @@ exca_io_unmap_res(struct exca_softc *sc, struct resource *res)
  * If interrupts are enabled, then we should be able to just wait for
  * an interrupt routine to wake us up.  Busy waiting shouldn't be
  * necessary.  Sadly, not all legacy ISA cards support an interrupt
- * for the busy state transitions, at least according to their datasheets, 
+ * for the busy state transitions, at least according to their datasheets,
  * so we busy wait a while here..
  */
 static void
@@ -587,7 +587,7 @@ exca_wait_ready(struct exca_softc *sc)
 /*
  * Reset the card.  Ideally, we'd do a lot of this via interrupts.
  * However, many PC Cards will deassert the ready signal.  This means
- * that they are asserting an interrupt.  This makes it hard to 
+ * that they are asserting an interrupt.  This makes it hard to
  * do anything but a busy wait here.  One could argue that these
  * such cards are broken, or that the bridge that allows this sort
  * of interrupt through isn't quite what you'd want (and may be a standards
@@ -634,7 +634,7 @@ exca_reset(struct exca_softc *sc, device_t child)
  * Initialize the exca_softc data structure for the first time.
  */
 void
-exca_init(struct exca_softc *sc, device_t dev, 
+exca_init(struct exca_softc *sc, device_t dev,
     bus_space_tag_t bst, bus_space_handle_t bsh, uint32_t offset)
 {
 	sc->dev = dev;
@@ -804,7 +804,7 @@ exca_insert(struct exca_softc *exca)
 		    "PC Card inserted, but no pccard bus.\n");
 	}
 }
-  
+
 
 void
 exca_removal(struct exca_softc *exca)

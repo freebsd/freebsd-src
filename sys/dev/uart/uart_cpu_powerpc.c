@@ -188,10 +188,10 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 
 	di->ops = uart_getops(class);
 
-	if (OF_getprop(input, "clock-frequency", &di->bas.rclk, 
+	if (OF_getprop(input, "clock-frequency", &di->bas.rclk,
 	    sizeof(di->bas.rclk)) == -1)
 		di->bas.rclk = 230400;
-	if (OF_getprop(input, "current-speed", &di->baudrate, 
+	if (OF_getprop(input, "current-speed", &di->baudrate,
 	    sizeof(di->baudrate)) == -1)
 		di->baudrate = 0;
 	OF_getprop(input, "reg-shift", &di->bas.regshft,

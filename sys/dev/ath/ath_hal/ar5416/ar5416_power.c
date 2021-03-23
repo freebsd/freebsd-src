@@ -48,10 +48,10 @@ ar5416SetPowerModeAwake(struct ath_hal *ah, int setChip)
 		 * the NetBSD driver  power-cycles the Cardbus slot
 		 * as part of the reset procedure.
 		 */
-		if ((OS_REG_READ(ah, AR_RTC_STATUS) 
+		if ((OS_REG_READ(ah, AR_RTC_STATUS)
 			& AR_RTC_PM_STATUS_M) == AR_RTC_STATUS_SHUTDOWN) {
 			if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON))
-				goto bad;			
+				goto bad;
 			AH5416(ah)->ah_initPLL(ah, AH_NULL);
 		}
 
@@ -70,7 +70,7 @@ ar5416SetPowerModeAwake(struct ath_hal *ah, int setChip)
 				break;
 			OS_DELAY(50);
 			OS_REG_SET_BIT(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_EN);
-		}		
+		}
 	bad:
 		if (i == 0) {
 #ifdef AH_DEBUG
@@ -79,7 +79,7 @@ ar5416SetPowerModeAwake(struct ath_hal *ah, int setChip)
 #endif
 			return AH_FALSE;
 		}
-	} 
+	}
 
 	OS_REG_CLR_BIT(ah, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
 	return AH_TRUE;
@@ -186,6 +186,6 @@ ar5416GetPowerMode(struct ath_hal *ah)
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: unknown power mode, RTC_STATUS 0x%x\n",
 		    __func__, mode);
-		return HAL_PM_UNDEFINED;	
+		return HAL_PM_UNDEFINED;
 	}
 }

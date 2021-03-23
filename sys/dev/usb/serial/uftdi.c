@@ -982,9 +982,9 @@ is_jtag_interface(struct usb_attach_arg *uaa, const struct usb_device_id *id)
  * silicon the difference is that the D series has CPU FIFO mode and C doesn't.
  * I haven't found any way of determining the C/D difference from info provided
  * by the chip other than trying to set CPU FIFO mode and having it work or not.
- * 
- * Due to a hardware bug, a 232B chip without an eeprom reports itself as a 
- * 232A, but if the serial number is also zero we know it's really a 232B. 
+ *
+ * Due to a hardware bug, a 232B chip without an eeprom reports itself as a
+ * 232A, but if the serial number is also zero we know it's really a 232B.
  */
 static void
 uftdi_devtype_setup(struct uftdi_softc *sc, struct usb_attach_arg *uaa)
@@ -1043,7 +1043,7 @@ uftdi_devtype_setup(struct uftdi_softc *sc, struct usb_attach_arg *uaa)
 		} else {
 			sc->sc_devtype = DEVT_232R;
 			device_printf(sc->sc_dev, "Warning: unknown FTDI "
-			    "device type, bcdDevice=0x%04x, assuming 232R\n", 
+			    "device type, bcdDevice=0x%04x, assuming 232R\n",
 			    uaa->info.bcdDevice);
 		}
 		sc->sc_ucom.sc_portno = 0;
@@ -1234,16 +1234,16 @@ uftdi_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		 */
 		pc = usbd_xfer_get_frame(xfer, 0);
 		if (sc->sc_hdrlen == 0) {
-			if (ucom_get_data(&sc->sc_ucom, pc, 0, UFTDI_OBUFSIZE, 
+			if (ucom_get_data(&sc->sc_ucom, pc, 0, UFTDI_OBUFSIZE,
 			    &buflen) == 0)
 				break;
 		} else {
 			buflen = 0;
 			while (buflen < UFTDI_OBUFSIZE - sc->sc_hdrlen - 1 &&
-			    ucom_get_data(&sc->sc_ucom, pc, buflen + 
-			    sc->sc_hdrlen, UFTDI_OPKTSIZE - sc->sc_hdrlen, 
+			    ucom_get_data(&sc->sc_ucom, pc, buflen +
+			    sc->sc_hdrlen, UFTDI_OPKTSIZE - sc->sc_hdrlen,
 			    &pktlen) != 0) {
-				buf[0] = FTDI_OUT_TAG(pktlen, 
+				buf[0] = FTDI_OUT_TAG(pktlen,
 				    sc->sc_ucom.sc_portno);
 				usbd_copy_in(pc, buflen, buf, 1);
 				buflen += pktlen + sc->sc_hdrlen;
@@ -1305,7 +1305,7 @@ uftdi_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				msr |= SER_RI;
 			pktlen = min(buflen, pktmax);
 			if (pktlen != 0) {
-				ucom_put_data(&sc->sc_ucom, pc, offset, 
+				ucom_put_data(&sc->sc_ucom, pc, offset,
 				    pktlen);
 				offset += pktlen;
 				buflen -= pktlen;
@@ -1366,7 +1366,7 @@ uftdi_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 	USETW(req.wValue, wValue);
 	USETW(req.wIndex, wIndex);
 	USETW(req.wLength, 0);
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 }
 
@@ -1387,7 +1387,7 @@ uftdi_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 	USETW(req.wValue, wValue);
 	USETW(req.wIndex, wIndex);
 	USETW(req.wLength, 0);
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 }
 
@@ -1414,7 +1414,7 @@ uftdi_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	USETW(req.wValue, wValue);
 	USETW(req.wIndex, wIndex);
 	USETW(req.wLength, 0);
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 }
 
@@ -1543,7 +1543,7 @@ uftdi_encode_baudrate(struct uftdi_softc *sc, speed_t speed,
 			frac = 0;     /* 1.5 becomes 1.0 */
 	}
 	divisor |= (encoded_fraction[frac] << 14) | fastclk_flag;
-        
+
 	cfg->baud_lobits = (uint16_t)divisor;
 	cfg->baud_hibits = (uint16_t)(divisor >> 16);
 
@@ -1651,7 +1651,7 @@ uftdi_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	USETW(req.wValue, cfg.baud_lobits);
 	USETW(req.wIndex, cfg.baud_hibits | wIndex);
 	USETW(req.wLength, 0);
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -1659,7 +1659,7 @@ uftdi_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	USETW(req.wValue, cfg.lcr);
 	USETW(req.wIndex, wIndex);
 	USETW(req.wLength, 0);
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -1667,7 +1667,7 @@ uftdi_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	USETW2(req.wValue, cfg.v_stop, cfg.v_start);
 	USETW2(req.wIndex, cfg.v_flow, wIndex);
 	USETW(req.wLength, 0);
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 }
 
@@ -1926,7 +1926,7 @@ uftdi_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
 	case UFTDIIOC_RESET_IO:
 	case UFTDIIOC_RESET_RX:
 	case UFTDIIOC_RESET_TX:
-		err = uftdi_reset(ucom, 
+		err = uftdi_reset(ucom,
 		    cmd == UFTDIIOC_RESET_IO ? FTDI_SIO_RESET_SIO :
 		    (cmd == UFTDIIOC_RESET_RX ? FTDI_SIO_RESET_PURGE_RX :
 		    FTDI_SIO_RESET_PURGE_TX));

@@ -85,7 +85,7 @@ enum {
 	phy_transtype_unknown = 0,
 	phy_transtype_sfp     = 3,
 	phy_transtype_xfp     = 6,
-};		
+};
 
 #define AEL2005_MODDET_IRQ 4
 
@@ -213,7 +213,7 @@ static int ael_laser_down(struct cphy *phy, int enable)
 		if (!v)
 			return v;
 
-		dev_addr = SFF_DEV_ADDR;	
+		dev_addr = SFF_DEV_ADDR;
 	} else if (v == phy_transtype_xfp)
 		dev_addr = MODULE_DEV_ADDR;
 	else
@@ -369,12 +369,12 @@ static int ael1006_reset(struct cphy *phy, int wait)
 	if (err)
 		return err;
 
-	t3_set_reg_field(phy->adapter, A_T3DBG_GPIO_EN, 
+	t3_set_reg_field(phy->adapter, A_T3DBG_GPIO_EN,
 			 F_GPIO6_OUT_VAL, 0);
 
 	msleep(125);
 
-	t3_set_reg_field(phy->adapter, A_T3DBG_GPIO_EN, 
+	t3_set_reg_field(phy->adapter, A_T3DBG_GPIO_EN,
 			 F_GPIO6_OUT_VAL, F_GPIO6_OUT_VAL);
 
 	msleep(125);
@@ -388,13 +388,13 @@ static int ael1006_reset(struct cphy *phy, int wait)
 	err = t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, MII_BMCR, 1, 1);
 	if (err)
 		return err;
-	
+
 	msleep(125);
 
 	err = t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, MII_BMCR, 1, 0);
 
 	return err;
-	   
+
 }
 
 #ifdef C99_NOT_SUPPORTED

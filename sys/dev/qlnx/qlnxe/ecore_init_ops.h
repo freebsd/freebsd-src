@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -47,8 +47,8 @@ void ecore_init_iro_array(struct ecore_dev *p_dev);
  *
  * @param p_hwfn
  * @param p_ptt
- * @param phase 
- * @param phase_id 
+ * @param phase
+ * @param phase_id
  * @param modes
  * @return _ecore_status_t
  */
@@ -121,11 +121,11 @@ void ecore_init_store_rt_agg(struct ecore_hwfn *p_hwfn,
 	ecore_init_store_rt_agg(hwfn, offset, (u32*)&val, sizeof(val))
 
 /**
- * @brief 
+ * @brief
  *      Initialize GTT global windows and set admin window
- *      related params of GTT/PTT to default values. 
- * 
- * @param p_hwfn 
+ *      related params of GTT/PTT to default values.
+ *
+ * @param p_hwfn
  */
 void ecore_gtt_init(struct ecore_hwfn *p_hwfn,
 		    struct ecore_ptt *p_ptt);

@@ -91,7 +91,7 @@ pst_add_raid(struct iop_softc *sc, struct i2o_lct_entry *lct)
 
     if (!child)
 	return ENOMEM;
-    if (!(psc = malloc(sizeof(struct pst_softc), 
+    if (!(psc = malloc(sizeof(struct pst_softc),
 		       M_PSTRAID, M_NOWAIT | M_ZERO))) {
 	device_delete_child(sc->dev, child);
 	return ENOMEM;
@@ -136,7 +136,7 @@ pst_attach(device_t dev)
 				      I2O_UTIL_DEVICE_IDENTITY_GROUP_NO)))
 	return ENODEV;
     ident = (struct i2o_device_identity *)reply->result;
-#ifdef PSTDEBUG	   
+#ifdef PSTDEBUG
     printf("pst: vendor=<%.16s> product=<%.16s>\n",
 	   ident->vendor, ident->product);
     printf("pst: description=<%.16s> revision=<%.8s>\n",
@@ -201,7 +201,7 @@ static void
 pststrategy(struct bio *bp)
 {
     struct pst_softc *psc = bp->bio_disk->d_drv1;
-    
+
     mtx_lock(&psc->iop->mtx);
     bioq_disksort(&psc->queue, bp);
     pst_start(psc);
@@ -351,7 +351,7 @@ bpack(int8_t *src, int8_t *dst, int len)
 	}
 	dst[j++] = src[i];
     }
-    if (j < len) 
+    if (j < len)
 	dst[j] = 0x00;
     for (ptr = buf; ptr < buf+len; ++ptr)
 	if (!*ptr)

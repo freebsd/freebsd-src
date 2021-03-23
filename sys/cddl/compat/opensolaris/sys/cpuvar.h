@@ -43,7 +43,7 @@ typedef struct {
 	uintptr_t	cpu_dtrace_caller;	/* DTrace: caller, if any */
 	hrtime_t	cpu_dtrace_chillmark;	/* DTrace: chill mark time */
 	hrtime_t	cpu_dtrace_chilled;	/* DTrace: total chill time */
-} solaris_cpu_t; 
+} solaris_cpu_t;
 
 /* Some code may choose to redefine this if pcpu_t would be more useful. */
 #define cpu_t	solaris_cpu_t

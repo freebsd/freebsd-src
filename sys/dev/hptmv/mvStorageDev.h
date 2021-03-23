@@ -69,7 +69,7 @@
 #define MV_ATA_COMMAND_SLEEP					0xe6
 #define MV_ATA_COMMAND_IDENTIFY					0xec
 #define MV_ATA_COMMAND_DEVICE_CONFIG            0xb1
-#define MV_ATA_COMMAND_SET_FEATURES				0xef	
+#define MV_ATA_COMMAND_SET_FEATURES				0xef
 #define MV_ATA_COMMAND_WRITE_DMA				0xca
 #define MV_ATA_COMMAND_WRITE_DMA_EXT			0x35
 #define MV_ATA_COMMAND_WRITE_DMA_QUEUED			0xcc
@@ -84,7 +84,7 @@
 #define MV_ATA_COMMAND_FLUSH_CACHE_EXT          0xea
 
 
-#define MV_ATA_SET_FEATURES_DISABLE_8_BIT_PIO	0x01 
+#define MV_ATA_SET_FEATURES_DISABLE_8_BIT_PIO	0x01
 #define MV_ATA_SET_FEATURES_ENABLE_WCACHE		0x02  /* Enable write cache */
 #define MV_ATA_SET_FEATURES_TRANSFER        	0x03  /* Set transfer mode	*/
 #define MV_ATA_TRANSFER_UDMA_0     		        0x40
@@ -102,31 +102,31 @@
 #define MV_ATA_TRANSFER_PIO_3              		0x0B
 #define MV_ATA_TRANSFER_PIO_4              		0x0C
 /* Enable advanced power management */
-#define MV_ATA_SET_FEATURES_ENABLE_APM			0x05 
+#define MV_ATA_SET_FEATURES_ENABLE_APM			0x05
 /* Disable media status notification*/
-#define MV_ATA_SET_FEATURES_DISABLE_MSN			0x31 
+#define MV_ATA_SET_FEATURES_DISABLE_MSN			0x31
 /* Disable read look-ahead		    */
-#define MV_ATA_SET_FEATURES_DISABLE_RLA			0x55 
+#define MV_ATA_SET_FEATURES_DISABLE_RLA			0x55
 /* Enable release interrupt		    */
-#define MV_ATA_SET_FEATURES_ENABLE_RI			0x5D 
+#define MV_ATA_SET_FEATURES_ENABLE_RI			0x5D
 /* Enable SERVICE interrupt		    */
-#define MV_ATA_SET_FEATURES_ENABLE_SI			0x5E 
+#define MV_ATA_SET_FEATURES_ENABLE_SI			0x5E
 /* Disable revert power-on defaults */
-#define MV_ATA_SET_FEATURES_DISABLE_RPOD		0x66 
+#define MV_ATA_SET_FEATURES_DISABLE_RPOD		0x66
 /* Disable write cache			    */
-#define MV_ATA_SET_FEATURES_DISABLE_WCACHE		0x82  
-/* Disable advanced power management*/  	
-#define MV_ATA_SET_FEATURES_DISABLE_APM			0x85 
+#define MV_ATA_SET_FEATURES_DISABLE_WCACHE		0x82
+/* Disable advanced power management*/
+#define MV_ATA_SET_FEATURES_DISABLE_APM			0x85
 /* Enable media status notification */
-#define MV_ATA_SET_FEATURES_ENABLE_MSN			0x95 
+#define MV_ATA_SET_FEATURES_ENABLE_MSN			0x95
 /* Enable read look-ahead		    */
-#define MV_ATA_SET_FEATURES_ENABLE_RLA			0xAA 
+#define MV_ATA_SET_FEATURES_ENABLE_RLA			0xAA
 /* Enable revert power-on defaults  */
-#define MV_ATA_SET_FEATURES_ENABLE_RPOD			0xCC 
+#define MV_ATA_SET_FEATURES_ENABLE_RPOD			0xCC
 /* Disable release interrupt	    */
 #define MV_ATA_SET_FEATURES_DISABLE_RI			0xDD
 /* Disable SERVICE interrupt	    */
-#define MV_ATA_SET_FEATURES_DISABLE_SI			0xDE 
+#define MV_ATA_SET_FEATURES_DISABLE_SI			0xDE
 
 /* Defines for parsing the IDENTIFY command results*/
 #define IDEN_SERIAL_NUM_OFFSET 					10
@@ -155,7 +155,7 @@
 /* Typedefs    */
 
 /* Structures  */
-typedef struct mvStorageDevRegisters 
+typedef struct mvStorageDevRegisters
 {
     /* Fields set by CORE driver */
     MV_U8    errorRegister;
@@ -184,7 +184,7 @@ MV_BOOLEAN HPTLIBAPI mvStorageDevATAExecuteNonUDMACommand(MV_SATA_ADAPTER *pAdap
 											MV_NON_UDMA_PROTOCOL protocolType,
 												MV_BOOLEAN  isEXT,
 												MV_U16 FAR *bufPtr, MV_U32 count,
-												MV_U16 features, 
+												MV_U16 features,
 												MV_U16 sectorCount,
 												MV_U16 lbaLow, MV_U16 lbaMid,
 												MV_U16 lbaHigh, MV_U8 device,

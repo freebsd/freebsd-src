@@ -88,7 +88,7 @@ struct usb_bus_methods {
 	 */
 #define	USB_HW_POWER_ISOC	0x08
 	/*
-	 * The following flag is set if one or more non-root-HUB devices 
+	 * The following flag is set if one or more non-root-HUB devices
 	 * are present on the given USB bus:
 	 */
 #define	USB_HW_POWER_NON_ROOT_HUB 0x10

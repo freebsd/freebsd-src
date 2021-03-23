@@ -97,7 +97,7 @@ qla_rx_intr(qla_host_t *ha, qla_sgl_rcv_t *sgc, uint32_t sds_idx)
 		}
 
 		mp = rxb->m_head;
-		if (i == 0) 
+		if (i == 0)
 			mpf = mp;
 
 		QL_ASSERT(ha, (mp != NULL),
@@ -166,7 +166,7 @@ qla_rx_intr(qla_host_t *ha, qla_sgl_rcv_t *sgc, uint32_t sds_idx)
 #if __FreeBSD_version >= 1100000
 	M_HASHTYPE_SET(mpf, M_HASHTYPE_OPAQUE_HASH);
 #else
-#if (__FreeBSD_version >= 903511 && __FreeBSD_version < 1100000) 
+#if (__FreeBSD_version >= 903511 && __FreeBSD_version < 1100000)
         M_HASHTYPE_SET(mpf, M_HASHTYPE_OPAQUE);
 #else
         M_HASHTYPE_SET(mpf, M_HASHTYPE_NONE);
@@ -254,7 +254,7 @@ qla_lro_intr(qla_host_t *ha, qla_sgl_lro_t *sgc, uint32_t sds_idx)
 		}
 
 		mp = rxb->m_head;
-		if (i == 0) 
+		if (i == 0)
 			mpf = mp;
 
 		QL_ASSERT(ha, (mp != NULL),
@@ -582,9 +582,9 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 				(void *)sdesc->data[1]));
 
 			sgc.rcv.num_handles = 1;
-			sgc.rcv.handle[0] = 
+			sgc.rcv.handle[0] =
 				Q8_STAT_DESC_HANDLE((sdesc->data[0]));
-			
+
 			if (qla_rcv_cont_sds(ha, sds_idx, comp_idx, desc_count,
 				&sgc.rcv.handle[1], &nhandles)) {
 				device_printf(dev,
@@ -594,13 +594,13 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 					(long long unsigned int)sdesc->data[0],
 					(long long unsigned int)sdesc->data[1]);
 				desc_count = 0;
-				break;	
+				break;
 			}
 
 			sgc.rcv.num_handles += nhandles;
 
 			qla_rx_intr(ha, &sgc.rcv, sds_idx);
-			
+
 			break;
 
 		case Q8_STAT_DESC_OPCODE_SGL_LRO:
@@ -625,10 +625,10 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 
 			sgc.lro.payload_length =
 			Q8_STAT_DESC_TOTAL_LENGTH_SGL_RCV((sdesc->data[0]));
-				
+
 			sgc.lro.rss_hash =
 				Q8_STAT_DESC_RSS_HASH((sdesc->data[0]));
-			
+
 			sgc.lro.num_handles = 1;
 			sgc.lro.handle[0] =
 				Q8_STAT_DESC_HANDLE((sdesc->data[0]));
@@ -655,8 +655,8 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 				__func__, sds_idx,\
 				(long long unsigned int)sdesc->data[0],\
 				(long long unsigned int)sdesc->data[1]));
-				
-			if (qla_rcv_cont_sds(ha, sds_idx, comp_idx, 
+
+			if (qla_rcv_cont_sds(ha, sds_idx, comp_idx,
 				desc_count, &sgc.lro.handle[1], &nhandles)) {
 				device_printf(dev,
 				"%s: [sds_idx, data0, data1]="\
@@ -666,7 +666,7 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 				(long long unsigned int)sdesc->data[1]);
 
 				desc_count = 0;
-				break;	
+				break;
 			}
 
 			sgc.lro.num_handles += nhandles;
@@ -692,7 +692,7 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 				(long long unsigned int)sdesc0->data[1]);
 				}
 			}
-			
+
 			break;
 
 		default:
@@ -803,7 +803,7 @@ ql_mbx_isr(void *arg)
 
 	switch (data) {
 	case 0x8001:  /* It's an AEN */
-		
+
 		ha->hw.cable_oui = READ_REG32(ha, (Q8_FW_MBOX0 + 4));
 
 		data = READ_REG32(ha, (Q8_FW_MBOX0 + 8));
@@ -833,7 +833,7 @@ ql_mbx_isr(void *arg)
 		ha->hw.module_type = ((data >> 8) & 0xFF);
 		ha->hw.fduplex = (((data & 0xFF0000) == 0) ? 0 : 1);
 		ha->hw.autoneg = (((data & 0xFF000000) == 0) ? 0 : 1);
-		
+
 		data = READ_REG32(ha, (Q8_FW_MBOX0 + 16));
 		ha->hw.loopback_mode = data & 0x03;
 

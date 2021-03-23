@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 *
 * $FreeBSD$
@@ -23,12 +23,12 @@
 *******************************************************************************/
 /******************************************************************************
 
-Module Name:  
+Module Name:
   lxcommon.h
-Abstract:  
+Abstract:
   TISA Initiator/target driver module constant define header file
-Environment:  
-  Kernel or loadable module  
+Environment:
+  Kernel or loadable module
 
 ******************************************************************************/
 
@@ -67,7 +67,7 @@ Environment:
 #define AGTIAPI_KEY_MAX         64      /* max number of keys */
 #define AGTIAPI_STRING_MAX      512     /* max length for string */
 #define AGTIAPI_PARAM_MAX       256     /* max number of parameters */
-#ifdef TARGET_DRIVER 
+#ifdef TARGET_DRIVER
 #define AGTIAPI_DMA_MEM_LIST_MAX    4096 /* max number of DMA memory list */
 #define AGTIAPI_CACHE_MEM_LIST_MAX  24  /* max number of CACHE memory list */
 #else /* INITIATOR_DRIVER */
@@ -83,7 +83,7 @@ Environment:
 #define AGTIAPI_MIN_NAME        10      // minimum space for SAS name string
 #define AGTIAPI_MAX_ID          8       // Max string id length
 
-/* 
+/*
 ** Card-port status definitions
 */
 #define AGTIAPI_INIT_TIME           0x00000001
@@ -188,13 +188,13 @@ Environment:
 #define PCI_SUB_VENDOR_ID_HP         PCI_VENDOR_ID_HP
 #define PCI_SUB_VENDOR_ID_AG         PCI_VENDOR_ID_AGILENT
 #define PCI_SUB_VENDOR_ID_MASK       0xFFFF
-#define PCI_SUB_SYSTEM_ID_AG         0x0001 
+#define PCI_SUB_SYSTEM_ID_AG         0x0001
 #define PCI_BASE_MEM_MASK            (~0x0F)
 
 #define PCI_DEVICE_ID_CYCLONE        0xB555
 #define PCI_ENABLE_VALUE             0x0157
 #ifdef PMC_SPC
-#define PCI_NUMBER_BARS              6        
+#define PCI_NUMBER_BARS              6
 #endif
 #define IOCTL_MN_GET_CARD_INFO          		0x11
 /*
@@ -266,7 +266,7 @@ ag_card_id_t ag_card_type[] = {
 #endif
 #ifdef AGTIAPI_SA
 #ifdef PMC_SPC
-  {PCI_VENDOR_ID_PMC_SIERRA, PCI_DEVICE_ID_PMC_SIERRA_SPC, 14, 
+  {PCI_VENDOR_ID_PMC_SIERRA, PCI_DEVICE_ID_PMC_SIERRA_SPC, 14,
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
   {PCI_VENDOR_ID_PMC_SIERRA, PCI_DEVICE_ID_PMC_SIERRA_SPCV, 15,
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
@@ -286,30 +286,30 @@ ag_card_id_t ag_card_type[] = {
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
   {PCI_VENDOR_ID_PMC_SIERRA, PCI_DEVICE_ID_PMC_SIERRA_SPCVE12G_16, 23,
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
-  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_HIALEAH_HBA_SPC, 24, 
+  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_HIALEAH_HBA_SPC, 24,
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
-  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_HIALEAH_RAID_SPC, 25, 
+  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_HIALEAH_RAID_SPC, 25,
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
-  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_HIALEAH_HBA_SPCV, 26, 
+  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_HIALEAH_HBA_SPCV, 26,
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
-  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_HIALEAH_RAID_SPCV, 27, 
+  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_HIALEAH_RAID_SPCV, 27,
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
-  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_HIALEAH_HBA_SPCVE, 28, 
+  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_HIALEAH_HBA_SPCVE, 28,
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
-  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_HIALEAH_RAID_SPCVE, 29, 
+  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_HIALEAH_RAID_SPCVE, 29,
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
-  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_DELRAY_HBA_8PORTS_SPCV, 30, 
+  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_DELRAY_HBA_8PORTS_SPCV, 30,
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
-  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_DELRAY_HBA_8PORTS_SPCVE, 31, 
+  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_DELRAY_HBA_8PORTS_SPCVE, 31,
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
-  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_DELRAY_HBA_16PORTS_SPCV, 32, 
+  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_DELRAY_HBA_16PORTS_SPCV, 32,
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
-  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_DELRAY_HBA_16PORTS_SPCVE, 33, 
+  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_DELRAY_HBA_16PORTS_SPCVE, 33,
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
-  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_DELRAY_HBA_16PORTS_SPCV_SATA, 34, 
+  {PCI_VENDOR_ID_HIALEAH, PCI_DEVICE_ID_DELRAY_HBA_16PORTS_SPCV_SATA, 34,
    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3, 0},
-         
-#endif  
+
+#endif
 #endif   //AGTIAPI_SA
 };
 
@@ -351,9 +351,9 @@ static char const * const ag_card_names[] = {
   "Adaptec Delray 16 Port SAS-SATA HBA Card 12Gig",
   "Adaptec Delray 16 Port SAS-SATA HBA Encryption Card 12Gig",
   "Adaptec SATA Adapter",
-       
-#endif  
-#endif  
+
+#endif
+#endif
 };
 
 
@@ -388,8 +388,8 @@ typedef struct _CardInfo
   U32_64    	      pciMemBaseSpc[PCI_NUMBER_BARS]; // PCI MEMBASE, physical
   U16	  		 	  deviceId;  // PCI device id
   U16	   			  vendorId;  // PCI Vendor id
-  U32                 busNum;                  
-  U32                 deviceNum;               
+  U32                 busNum;
+  U32                 deviceNum;
 }CardInfo_t;
 
 // Card info. for all cards and drivers
@@ -429,17 +429,17 @@ typedef struct _ag_card_info {
   ag_dma_addr_t       dynamicMem[AGTIAPI_DYNAMIC_MAX];
 
   // ptr to free mem slots
-  ag_dma_addr_t       *freeDynamicMem[AGTIAPI_DYNAMIC_MAX]; 
+  ag_dma_addr_t       *freeDynamicMem[AGTIAPI_DYNAMIC_MAX];
 
   U16                 topOfFreeDynamicMem; // idx to the first free slot ptr
 
   void               *tiCachedMem[AGTIAPI_CACHE_MEM_LIST_MAX];// cached mem list
-  ag_resource_info_t  tiRscInfo;  /* low level resource requirement */    
+  ag_resource_info_t  tiRscInfo;  /* low level resource requirement */
   U08                 WWN[AGTIAPI_MAX_NAME];  /* WWN for this card */
   U08                 WWNLen;
 
 // #define MAX_MSIX_NUM_VECTOR 64 ##
-#define MAX_MSIX_NUM_VECTOR 16 // 1 then 16 just for testing; 
+#define MAX_MSIX_NUM_VECTOR 16 // 1 then 16 just for testing;
 #define MAX_MSIX_NUM_DPC    64 // 16
 #define MAX_MSIX_NUM_ISR    64 // 16
 #ifdef SPC_MSIX_INTR
@@ -449,12 +449,12 @@ typedef struct _ag_card_info {
 #endif
   U32                 maxInterruptVectors;
 } ag_card_info_t;
- 
+
 /*
 ** Optional Adjustable Parameters Structures.
 ** Not using pointer structure for easy read and access tree structure.
 ** In the future if more layer of key tree involved, it might be a good
-** idea to change the structure and program. 
+** idea to change the structure and program.
 */
 typedef struct _ag_param_value{
   char                   valueName[AGTIAPI_MAX_NAME];
@@ -554,7 +554,7 @@ bit8 *data; //buffer
 #endif
 
 /*
- * AGTIAPI_KDB() will be used to drop into kernel debugger 
+ * AGTIAPI_KDB() will be used to drop into kernel debugger
  * from driver code if kdb is involved.
  */
 #ifdef AGTIAPI_KDB_ENABLE
@@ -613,7 +613,7 @@ bit8 *data; //buffer
 #define __cacheline_aligned __attribute__((__aligned__(CACHE_LINE_SIZE)))
 
 /*
-** link data, need to be included at the start (offset 0) 
+** link data, need to be included at the start (offset 0)
 ** of any strutures that are to be stored in the link list
 */
 typedef struct _LINK_NODE
@@ -621,7 +621,7 @@ typedef struct _LINK_NODE
   struct _LINK_NODE *pNext;
   struct _LINK_NODE *pPrev;
 
-  /* 
+  /*
   ** for assertion purpose only
   */
   struct _LINK_NODE * pHead;     // track the link list the link is a member of
@@ -646,7 +646,7 @@ typedef struct _LINK_LIST
 ********************************************************************/
 /*******************************************************************************
 **
-** MODULE NAME: comListInitialize            
+** MODULE NAME: comListInitialize
 **
 ** PURPOSE:     Initialize a link list.
 **
@@ -665,11 +665,11 @@ typedef struct _LINK_LIST
 
 /*******************************************************************************
 **
-** MODULE NAME: comLinkInitialize            
+** MODULE NAME: comLinkInitialize
 **
 ** PURPOSE:     Initialize a link.
 **              This function should be used to initialize a new link before it
-**              is used in the linked list. This will initialize the link so 
+**              is used in the linked list. This will initialize the link so
 **              the assertion will work
 **
 ** PARAMETERS:  PLINK_NODE      IN  - Link to be initialized.
@@ -687,7 +687,7 @@ typedef struct _LINK_LIST
 
 /*******************************************************************************
 **
-** MODULE NAME: comListAdd                   
+** MODULE NAME: comListAdd
 **
 ** PURPOSE:     add a link at the tail of the list
 **
@@ -712,7 +712,7 @@ typedef struct _LINK_LIST
 
 /*******************************************************************************
 **
-** MODULE NAME: comListInsert                       
+** MODULE NAME: comListInsert
 **
 ** PURPOSE:     insert a link preceding the given one
 **
@@ -739,7 +739,7 @@ typedef struct _LINK_LIST
 
 /*******************************************************************************
 **
-** MODULE NAME: comListRemove                
+** MODULE NAME: comListRemove
 **
 ** PURPOSE:     remove the link from the list.
 **
@@ -751,7 +751,7 @@ typedef struct _LINK_LIST
 **   !!! if not, this function behavior is un-predictable
 **
 **   !!! No validation is made on the list or the validity of the link
-**   !!! the caller must make sure that the link is in the list 
+**   !!! the caller must make sure that the link is in the list
 **
 **
 ** ALGORITHM:
@@ -766,7 +766,7 @@ typedef struct _LINK_LIST
 
 /*******************************************************************************
 **
-** MODULE NAME: comListGetHead         
+** MODULE NAME: comListGetHead
 **
 ** PURPOSE:     get the link following the head link.
 **
@@ -785,12 +785,12 @@ typedef struct _LINK_LIST
 
 /*******************************************************************************
 **
-** MODULE NAME: comListGetTail                     
+** MODULE NAME: comListGetTail
 **
 ** PURPOSE:     get the link preceding the tail link.
 **
 ** PARAMETERS:  PLINK_LIST  OUT - Link list definition.
-**              RETURNS - PLINK_NODE   the link preceding the head 
+**              RETURNS - PLINK_NODE   the link preceding the head
 **                                  NULL if the preceding link is the head
 **
 ** SIDE EFFECTS & CAVEATS:
@@ -802,7 +802,7 @@ typedef struct _LINK_LIST
 
 /*******************************************************************************
 **
-** MODULE NAME: comListGetCount                    
+** MODULE NAME: comListGetCount
 **
 ** PURPOSE:     get the number of links in the list excluding head and tail.
 **
@@ -822,7 +822,7 @@ typedef struct _LINK_LIST
 
 /*******************************************************************************
 **
-** MODULE NAME: comListGetNext            
+** MODULE NAME: comListGetNext
 **
 ** PURPOSE:     get the next link in the list. (one toward tail)
 **
@@ -837,19 +837,19 @@ typedef struct _LINK_LIST
 **   !!! if not, this function behavior is un-predictable
 **
 **   !!! No validation is made on the list or the validity of the link
-**   !!! the caller must make sure that the link is in the list 
+**   !!! the caller must make sure that the link is in the list
 **
 ** ALGORITHM:
 **
 *******************************************************************************/
 
 #define comListGetNext(pList, pLink) (((pLink)->pNext == (pList)->pHead) ?  \
-                                      NULL : (pLink)->pNext)                
+                                      NULL : (pLink)->pNext)
 
 
 /*******************************************************************************
 **
-** MODULE NAME: comListGetPrev            
+** MODULE NAME: comListGetPrev
 **
 ** PURPOSE:     get the previous link in the list. (one toward head)
 **
@@ -864,7 +864,7 @@ typedef struct _LINK_LIST
 **   !!! if not, this function behavior is un-predictable
 **
 **   !!! No validation is made on the list or the validity of the link
-**   !!! the caller must make sure that the link is in the list 
+**   !!! the caller must make sure that the link is in the list
 **
 ** ALGORITHM:
 **

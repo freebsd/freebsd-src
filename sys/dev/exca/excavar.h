@@ -66,7 +66,7 @@ struct exca_softc;
 typedef uint8_t (exca_getb_fn)(struct exca_softc *, int);
 typedef void (exca_putb_fn)(struct exca_softc *, int, uint8_t);
 
-struct exca_softc 
+struct exca_softc
 {
 	device_t	dev;
 	int		memalloc;
@@ -104,7 +104,7 @@ struct exca_softc
 	uint32_t	status;		/* status, hw dependent */
 };
 
-void exca_init(struct exca_softc *sc, device_t dev, 
+void exca_init(struct exca_softc *sc, device_t dev,
     bus_space_tag_t, bus_space_handle_t, uint32_t);
 void exca_insert(struct exca_softc *sc);
 int exca_io_map(struct exca_softc *sc, int width, struct resource *r);

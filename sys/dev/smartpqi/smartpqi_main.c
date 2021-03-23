@@ -182,7 +182,7 @@ smartpqi_probe(device_t dev)
 	struct pqi_ident *id;
 
 	if ((id = pqi_find_ident(dev)) != NULL) {
-		device_set_desc(dev, id->desc);	
+		device_set_desc(dev, id->desc);
 		return(BUS_PROBE_VENDOR);
 	}
 
@@ -198,7 +198,7 @@ void pqisrc_save_controller_info(struct pqisrc_softstate *softs)
 
 	softs->bus_id = (uint32_t)pci_get_bus(dev);
 	softs->device_id = (uint32_t)pci_get_device(dev);
-	softs->func_id = (uint32_t)pci_get_function(dev);	
+	softs->func_id = (uint32_t)pci_get_function(dev);
 }
 
 /*
@@ -234,7 +234,7 @@ smartpqi_attach(device_t dev)
 	/* assume failure is 'not configured' */
 	error = ENXIO;
 
-	/* 
+	/*
 	 * Verify that the adapter is correctly set up in PCI space.
 	 */
 	pci_enable_busmaster(softs->os_specific.pqi_dev);
@@ -245,7 +245,7 @@ smartpqi_attach(device_t dev)
 		goto out;
 	}
 
-	/* 
+	/*
 	 * Detect the hardware interface version, set up the bus interface
 	 * indirection.
 	 */
@@ -288,7 +288,7 @@ smartpqi_attach(device_t dev)
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for our PCI interface.
-	 * 
+	 *
 	 * Note that some of these controllers are 64-bit capable.
 	 */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 	/* parent */
@@ -348,7 +348,7 @@ smartpqi_attach(device_t dev)
 	for( i = 1;  i <= softs->pqi_cap.max_outstanding_io; i++, rcbp++ ) {
 		if ((error = bus_dmamap_create(softs->os_specific.pqi_buffer_dmat, 0, &rcbp->cm_datamap)) != 0) {
 			DBG_ERR("Cant create datamap for buf @"
-			"rcbp = %p maxio = %d error = %d\n", 
+			"rcbp = %p maxio = %d error = %d\n",
 			rcbp, softs->pqi_cap.max_outstanding_io, error);
 			goto dma_out;
 		}
@@ -358,7 +358,7 @@ smartpqi_attach(device_t dev)
 	callout_reset(&softs->os_specific.wellness_periodic, 120*hz,
 		      os_wellness_periodic, softs);
 	/* Register our shutdown handler. */
-	softs->os_specific.eh = EVENTHANDLER_REGISTER(shutdown_final, 
+	softs->os_specific.eh = EVENTHANDLER_REGISTER(shutdown_final,
 				smartpqi_shutdown, softs, SHUTDOWN_PRI_DEFAULT);
 
 	error = pqisrc_scan_devices(softs);
@@ -370,18 +370,18 @@ smartpqi_attach(device_t dev)
 
 	error = register_sim(softs, card_index);
 	if (error) {
-		DBG_ERR("Failed to register sim index = %d error = %d\n", 
+		DBG_ERR("Failed to register sim index = %d error = %d\n",
 			card_index, error);
 		goto out;
 	}
 
-	smartpqi_target_rescan(softs);		
+	smartpqi_target_rescan(softs);
 
 	TASK_INIT(&softs->os_specific.event_task, 0, pqisrc_event_worker,softs);
 
 	error = create_char_dev(softs, card_index);
 	if (error) {
-		DBG_ERR("Failed to register character device index=%d r=%d\n", 
+		DBG_ERR("Failed to register character device index=%d r=%d\n",
 			card_index, error);
 		goto out;
 	}
@@ -390,7 +390,7 @@ smartpqi_attach(device_t dev)
 dma_out:
 	if (softs->os_specific.pqi_regs_res0 != NULL)
 		bus_release_resource(softs->os_specific.pqi_dev, SYS_RES_MEMORY,
-			softs->os_specific.pqi_regs_rid0, 
+			softs->os_specific.pqi_regs_rid0,
 			softs->os_specific.pqi_regs_res0);
 out:
 	DBG_FUNC("OUT error = %d\n", error);
@@ -476,7 +476,7 @@ smartpqi_shutdown(void *arg)
 	}
 
 	DBG_FUNC("OUT\n");
-		
+
 	return rval;
 }
 

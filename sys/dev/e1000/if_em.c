@@ -2941,7 +2941,7 @@ em_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs, int nrxqs
 		rxr->rx_base = (union e1000_rx_desc_extended *)vaddrs[i*nrxqs];
 		rxr->rx_paddr = paddrs[i*nrxqs];
 	}
- 
+
 	if (bootverbose)
 		device_printf(iflib_get_dev(ctx),
 		    "allocated for %d rx_queues\n", adapter->rx_num_queues);
@@ -3330,7 +3330,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 			rxdctl |= IGB_RX_HTHRESH << 8;
 			rxdctl |= IGB_RX_WTHRESH << 16;
 			E1000_WRITE_REG(hw, E1000_RXDCTL(i), rxdctl);
-		}		
+		}
 	} else if (hw->mac.type >= e1000_pch2lan) {
 		if (if_getmtu(ifp) > ETHERMTU)
 			e1000_lv_jumbo_workaround_ich8lan(hw, TRUE);

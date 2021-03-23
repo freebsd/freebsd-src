@@ -233,7 +233,7 @@ adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 		if (sc->p0->state == STATE_RUN)
 			return (EBUSY);
 		if (sc->p0->state == STATE_RESET) {
-			
+
 			if (sc->p0->chunksize == 0)
 				sc->p0->chunksize = 4 * PAGE_SIZE;
 			if (sc->p0->ringsize == 0)
@@ -319,7 +319,7 @@ adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 	case ADLINK_STOP:
 		if (sc->p0->state == STATE_RESET)
 			break;
-		sc->p0->state = EINTR;	
+		sc->p0->state = EINTR;
 		while (*(sc->next->sample) == 0)
 			tsleep(sc, PUSER | PCATCH, "adstop", 1);
 		break;
@@ -331,7 +331,7 @@ adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 	case ADLINK_RESET:
 		if (sc->p0->state == STATE_RESET)
 			break;
-		sc->p0->state = EINTR;	
+		sc->p0->state = EINTR;
 		while (*(sc->next->samp) == 0)
 			tsleep(sc, PUSER | PCATCH, "adreset", 1);
 		/* deallocate ring buffer */

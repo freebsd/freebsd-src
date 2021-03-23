@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/kenv.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>   
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
@@ -163,11 +163,11 @@ cfi_read_qry(struct cfi_softc *sc, u_int ofs)
 {
 	uint8_t val;
 
-	cfi_write(sc, CFI_QRY_CMD_ADDR * sc->sc_width, CFI_QRY_CMD_DATA); 
+	cfi_write(sc, CFI_QRY_CMD_ADDR * sc->sc_width, CFI_QRY_CMD_DATA);
 	val = cfi_read(sc, ofs * sc->sc_width);
 	cfi_reset_default(sc);
 	return (val);
-} 
+}
 
 static void
 cfi_amd_write(struct cfi_softc *sc, u_int ofs, u_int addr, u_int data)
@@ -293,7 +293,7 @@ cfi_probe(device_t dev)
 }
 
 int
-cfi_attach(device_t dev) 
+cfi_attach(device_t dev)
 {
 	struct cfi_softc *sc;
 	u_int blksz, blocks;
@@ -666,7 +666,7 @@ cfi_write_block(struct cfi_softc *sc)
 			}
 			cfi_amd_write(sc, sc->sc_wrofs, AMD_ADDR_START,
 			    CFI_AMD_ERASE_SECTOR);
-			cfi_amd_write(sc, sc->sc_wrofs, 
+			cfi_amd_write(sc, sc->sc_wrofs,
 			    sc->sc_wrofs >> (ffs(minsz) - 1),
 			    CFI_AMD_BLOCK_ERASE);
 			for (i = 0; i < CFI_AMD_MAXCHK; ++i) {
@@ -686,7 +686,7 @@ cfi_write_block(struct cfi_softc *sc)
 			return (ENODEV);
 		}
 		intr_restore(intr);
-		error = cfi_wait_ready(sc, sc->sc_wrofs, start, 
+		error = cfi_wait_ready(sc, sc->sc_wrofs, start,
 		    CFI_TIMEOUT_ERASE);
 		if (error)
 			goto out;
@@ -805,7 +805,7 @@ cfi_write_block(struct cfi_softc *sc)
 			    sc->sc_wrofs + i, *(ptr.x32 + i / 4));
 			break;
 		}
-		
+
 		intr_restore(intr);
 
 		if (sc->sc_cmdset == CFI_VEND_AMD_ECS  ||
@@ -825,7 +825,7 @@ cfi_write_block(struct cfi_softc *sc)
 
 				if (cfi_read(sc, sc->sc_wrofs + i) == val)
 					break;
-					
+
 				DELAY(10);
 			}
 			if (j == CFI_AMD_MAXCHK) {
@@ -889,7 +889,7 @@ cfi_put16(struct cfi_softc *sc, int off, uint16_t v)
 /*
  * Read the factory-defined 64-bit segment of the PR.
  */
-int 
+int
 cfi_intel_get_factory_pr(struct cfi_softc *sc, uint64_t *id)
 {
 	if (sc->sc_cmdset != CFI_VEND_INTEL_ECS)
@@ -908,7 +908,7 @@ cfi_intel_get_factory_pr(struct cfi_softc *sc, uint64_t *id)
 /*
  * Read the User/OEM 64-bit segment of the PR.
  */
-int 
+int
 cfi_intel_get_oem_pr(struct cfi_softc *sc, uint64_t *id)
 {
 	if (sc->sc_cmdset != CFI_VEND_INTEL_ECS)
@@ -965,7 +965,7 @@ cfi_intel_set_oem_pr(struct cfi_softc *sc, uint64_t id)
 /*
  * Read the contents of the Protection Lock Register.
  */
-int 
+int
 cfi_intel_get_plr(struct cfi_softc *sc, uint32_t *plr)
 {
 	if (sc->sc_cmdset != CFI_VEND_INTEL_ECS)
@@ -983,7 +983,7 @@ cfi_intel_get_plr(struct cfi_softc *sc, uint32_t *plr)
  * user-settable segment of the Protection Register.
  * NOTE: this operation is not reversible.
  */
-int 
+int
 cfi_intel_set_plr(struct cfi_softc *sc)
 {
 #ifdef CFI_ARMEDANDDANGEROUS

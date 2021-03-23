@@ -74,7 +74,7 @@ vmbus_res_probe(device_t dev)
 {
 	char *id[] = { "VMBUS", NULL };
 	int rv;
-	
+
 	if (device_get_unit(dev) != 0 || vm_guest != VM_GUEST_HV ||
 	    (hyperv_features & CPUID_HV_MSR_SYNIC) == 0)
 		return (ENXIO);

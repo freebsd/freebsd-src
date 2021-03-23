@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
     device_get_nameunit((_sc)->sc_dev), "gpioled", MTX_DEF)
 #define	GPIOLED_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
 
-struct gpioled_softc 
+struct gpioled_softc
 {
 	device_t	sc_dev;
 	device_t	sc_busdev;
@@ -71,7 +71,7 @@ static int gpioled_probe(device_t);
 static int gpioled_attach(device_t);
 static int gpioled_detach(device_t);
 
-static void 
+static void
 gpioled_control(void *priv, int onoff)
 {
 	struct gpioled_softc *sc;
@@ -110,7 +110,7 @@ gpioled_attach(device_t dev)
 
 	state = 0;
 
-	if (resource_string_value(device_get_name(dev), 
+	if (resource_string_value(device_get_name(dev),
 	    device_get_unit(dev), "name", &name))
 		name = NULL;
 	resource_int_value(device_get_name(dev),

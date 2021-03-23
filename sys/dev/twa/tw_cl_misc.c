@@ -179,7 +179,7 @@ tw_cli_drain_pending_queue(struct tw_cli_ctlr_context *ctlr)
 {
 	struct tw_cli_req_context	*req;
 	struct tw_cl_req_packet		*req_pkt;
-    
+
 	tw_cli_dbg_printf(3, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 
 	/*
@@ -739,7 +739,7 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 				TW_CLI_PCI_CONFIG_STATUS_OFFSET,
 				TWA_PCI_CONFIG_CLEAR_PARITY_ERROR, 2);
 #endif /* TW_OSL_PCI_CONFIG_ACCESSIBLE */
-		
+
 		}
 
 		if (status_reg & TWA_STATUS_PCI_ABORT_INTERRUPT) {
@@ -777,7 +777,7 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 		}
 	}
 	return(error);
-}	
+}
 
 /*
  * Function name:	tw_cli_describe_bits
@@ -863,7 +863,7 @@ tw_cl_print_ctlr_stats(struct tw_cl_ctlr_handle *ctlr_handle)
 		ctlr->q_stats[TW_CLI_COMPLETE_Q].max_len);
 	tw_cli_dbg_printf(0, ctlr_handle, "", "AEN queue head %d  tail %d",
 			ctlr->aen_head, ctlr->aen_tail);
-}	
+}
 
 /*
  * Function name:	tw_cl_reset_stats

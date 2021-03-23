@@ -2069,7 +2069,7 @@ xnb_rxpkt2rsp(const struct xnb_pkt *pkt, const gnttab_copy_table gnttab,
 	if (error != 0) {
 		uint16_t id;
 		netif_rx_response_t *rsp;
-		
+
 		id = RING_GET_REQUEST(ring, ring->rsp_prod_pvt)->id;
 		rsp = RING_GET_RESPONSE(ring, ring->rsp_prod_pvt);
 		rsp->id = id;

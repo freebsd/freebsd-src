@@ -607,7 +607,7 @@ vtpci_legacy_alloc_resources(struct vtpci_legacy_softc *sc)
 	int rid, i;
 
 	dev = sc->vtpci_dev;
-	
+
 	/*
 	 * Most hypervisors export the common configuration structure in IO
 	 * space, but some use memory space; try both.

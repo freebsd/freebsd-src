@@ -59,12 +59,12 @@ static int
 mtkswitch_phy_read_locked(struct mtkswitch_softc *sc, int phy, int reg)
 {
 	uint32_t data;
-        
+
 	MTKSWITCH_WRITE(sc, MTKSWITCH_PIAC, PIAC_PHY_ACS_ST | PIAC_MDIO_ST |
 	    (reg << PIAC_MDIO_REG_ADDR_OFF) | (phy << PIAC_MDIO_PHY_ADDR_OFF) |
 	    PIAC_MDIO_CMD_READ);
 	while ((data = MTKSWITCH_READ(sc, MTKSWITCH_PIAC)) & PIAC_PHY_ACS_ST);
-        
+
 	return ((int)(data & PIAC_MDIO_RW_DATA_MASK));
 }
 
@@ -507,7 +507,7 @@ mtkswitch_vlan_get_pvid(struct mtkswitch_softc *sc, int port, int *pvid)
 	*pvid = sc->hal.mtkswitch_read(sc, MTKSWITCH_PPBV1(port));
 	*pvid = PPBV_VID_FROM_REG(*pvid);
 
-	return (0); 
+	return (0);
 }
 
 static int

@@ -105,7 +105,7 @@ oce_add_sysctls(POCE_SOFTC sc)
 			sizeof(oce_max_rsp_handled),
 			"Maximum receive frames handled per interupt");
 
-	if ((sc->function_mode & FNM_FLEX10_MODE) || 
+	if ((sc->function_mode & FNM_FLEX10_MODE) ||
 	    (sc->function_mode & FNM_UMC_MODE))
 		SYSCTL_ADD_UINT(ctx, child,
 				OID_AUTO, "speed",
@@ -186,7 +186,7 @@ oce_sys_aic_enable(SYSCTL_HANDLER_ARGS)
 	value = sc->aic_obj[0].enable;
 	status = sysctl_handle_int(oidp, &value, 0, req);
 	if (status || !req->newptr)
-		return status; 
+		return status;
 
 	for (vector = 0; vector < sc->intr_count; vector++) {
 		aic = &sc->aic_obj[vector];
@@ -209,12 +209,12 @@ static int
 oce_sysctl_loopback(SYSCTL_HANDLER_ARGS)
 {
 	int value = 0;
-	uint32_t status;  
+	uint32_t status;
 	struct oce_softc *sc  = (struct oce_softc *)arg1;
 
 	status = sysctl_handle_int(oidp, &value, 0, req);
 	if (status || !req->newptr)
-		return status; 
+		return status;
 
 	if (value != 1) {
 		device_printf(sc->dev,
@@ -267,7 +267,7 @@ oce_sys_fwupgrade(SYSCTL_HANDLER_ARGS)
 
 	if (IS_BE(sc)) {
 		if ((sc->flags & OCE_FLAGS_BE2)) {
-			device_printf(sc->dev, 
+			device_printf(sc->dev,
 				"Flashing not supported for BE2 yet.\n");
 			status = 1;
 			goto done;
@@ -739,11 +739,11 @@ oce_add_stats_sysctls_be3(POCE_SOFTC sc,
 
 	for (i = 0; i < sc->nrqs; i++) {
 		sprintf(prefix, "queue%d",i);
-		queue_stats_node = SYSCTL_ADD_NODE(ctx, 
+		queue_stats_node = SYSCTL_ADD_NODE(ctx,
 		    SYSCTL_CHILDREN(rx_stats_node), OID_AUTO, prefix,
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue name");
 		queue_stats_list = SYSCTL_CHILDREN(queue_stats_node);
-		
+
 		SYSCTL_ADD_QUAD(ctx, queue_stats_list, OID_AUTO, "rx_pkts",
 			CTLFLAG_RD, &sc->rq[i]->rx_stats.rx_pkts,
 			"Receive Packets");
@@ -758,7 +758,7 @@ oce_add_stats_sysctls_be3(POCE_SOFTC sc,
 				&sc->rq[i]->rx_stats.rx_mcast_pkts, 0,
 					"Received Multicast Packets");
 		SYSCTL_ADD_UINT(ctx, queue_stats_list, OID_AUTO,
-				"rx_ucast_pkts", CTLFLAG_RD, 
+				"rx_ucast_pkts", CTLFLAG_RD,
 				&sc->rq[i]->rx_stats.rx_ucast_pkts, 0,
 					"Received Unicast Packets");
 		SYSCTL_ADD_UINT(ctx, queue_stats_list, OID_AUTO, "rxcp_err",
@@ -873,7 +873,7 @@ oce_add_stats_sysctls_be3(POCE_SOFTC sc,
 
 	for (i = 0; i < sc->nwqs; i++) {
 		sprintf(prefix, "queue%d",i);
-		queue_stats_node = SYSCTL_ADD_NODE(ctx, 
+		queue_stats_node = SYSCTL_ADD_NODE(ctx,
 		    SYSCTL_CHILDREN(tx_stats_node), OID_AUTO, prefix,
 		        CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue name");
 		queue_stats_list = SYSCTL_CHILDREN(queue_stats_node);
@@ -952,11 +952,11 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 
 	for (i = 0; i < sc->nrqs; i++) {
 		sprintf(prefix, "queue%d",i);
-		queue_stats_node = SYSCTL_ADD_NODE(ctx, 
+		queue_stats_node = SYSCTL_ADD_NODE(ctx,
 		    SYSCTL_CHILDREN(rx_stats_node), OID_AUTO, prefix,
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue name");
 		queue_stats_list = SYSCTL_CHILDREN(queue_stats_node);
-		
+
 		SYSCTL_ADD_QUAD(ctx, queue_stats_list, OID_AUTO, "rx_pkts",
 			CTLFLAG_RD, &sc->rq[i]->rx_stats.rx_pkts,
 			"Receive Packets");
@@ -977,7 +977,7 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 		SYSCTL_ADD_UINT(ctx, queue_stats_list, OID_AUTO, "rxcp_err",
 			CTLFLAG_RD, &sc->rq[i]->rx_stats.rxcp_err, 0,
 			"Received Completion Errors");
-		
+
 	}
 
 	rx_stats_node = SYSCTL_ADD_NODE(ctx,
@@ -1069,7 +1069,7 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 
 	for (i = 0; i < sc->nwqs; i++) {
 		sprintf(prefix, "queue%d",i);
-		queue_stats_node = SYSCTL_ADD_NODE(ctx, 
+		queue_stats_node = SYSCTL_ADD_NODE(ctx,
 		    SYSCTL_CHILDREN(tx_stats_node), OID_AUTO, prefix,
 		        CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue name");
 		queue_stats_list = SYSCTL_CHILDREN(queue_stats_node);
@@ -1100,7 +1100,7 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 	return;
 }
 
-void 
+void
 oce_refresh_queue_stats(POCE_SOFTC sc)
 {
 	struct oce_drv_stats *adapter_stats;
@@ -1112,11 +1112,11 @@ oce_refresh_queue_stats(POCE_SOFTC sc)
 
 	bzero(&adapter_stats->rx, sizeof(struct oce_rx_stats));
 	for (i = 0; i < sc->nrqs; i++) {
-		
+
 		adapter_stats->rx.t_rx_pkts += sc->rq[i]->rx_stats.rx_pkts;
 		adapter_stats->rx.t_rx_bytes += sc->rq[i]->rx_stats.rx_bytes;
 		adapter_stats->rx.t_rx_frags += sc->rq[i]->rx_stats.rx_frags;
-		adapter_stats->rx.t_rx_mcast_pkts += 
+		adapter_stats->rx.t_rx_mcast_pkts +=
 					sc->rq[i]->rx_stats.rx_mcast_pkts;
 		adapter_stats->rx.t_rx_ucast_pkts +=
 					sc->rq[i]->rx_stats.rx_ucast_pkts;
@@ -1469,7 +1469,7 @@ copy_stats_to_sc_sh(POCE_SOFTC sc)
         adapter_stats->eth_red_drops = pmem->eth_red_drops;
 
 	/* populate erx stats */
-	for (int i = 0; i < sc->nrqs; i++) 
+	for (int i = 0; i < sc->nrqs; i++)
 		sc->rq[i]->rx_stats.rx_drops_no_frags = erx_stats->rx_drops_no_fragments[sc->rq[i]->rq_id];
 }
 
@@ -1478,11 +1478,11 @@ oce_stats_init(POCE_SOFTC sc)
 {
 	int rc = 0, sz = 0;
 
-        if( IS_BE2(sc) ) 
+        if( IS_BE2(sc) )
 		sz = sizeof(struct mbx_get_nic_stats_v0);
-        else if( IS_BE3(sc) ) 
+        else if( IS_BE3(sc) )
 		sz = sizeof(struct mbx_get_nic_stats_v1);
-        else if( IS_SH(sc)) 
+        else if( IS_SH(sc))
 		sz = sizeof(struct mbx_get_nic_stats_v2);
         else if( IS_XE201(sc) )
 		sz = sizeof(struct mbx_get_pport_stats);
@@ -1526,7 +1526,7 @@ oce_refresh_nic_stats(POCE_SOFTC sc)
 	return rc;
 }
 
-static int 
+static int
 oce_sysctl_sfp_vpd_dump(SYSCTL_HANDLER_ARGS)
 {
 	int result = 0, error;

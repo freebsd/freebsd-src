@@ -213,7 +213,7 @@ static struct pccard_function pccard_sierra_a555_func1 = {
 
 static struct pccard_config_entry pccard_sierra_a555_func1_cfe0 = {
 	0x22,			/* cfe number */
-	PCCARD_CFE_IO8 | PCCARD_CFE_IRQLEVEL, 
+	PCCARD_CFE_IO8 | PCCARD_CFE_IRQLEVEL,
 	PCCARD_IFTYPE_IO,
 	1,			/* num_iospace */
 	0,			/* iomask */
@@ -225,11 +225,11 @@ static struct pccard_config_entry pccard_sierra_a555_func1_cfe0 = {
 };
 
 static struct pccard_cis_quirk pccard_cis_quirks[] = {
-	{ PCMCIA_VENDOR_3COM, PCMCIA_PRODUCT_3COM_3CXEM556, PCMCIA_CIS_INVALID, 
+	{ PCMCIA_VENDOR_3COM, PCMCIA_PRODUCT_3COM_3CXEM556, PCMCIA_CIS_INVALID,
 	  &pccard_3cxem556_func0, &pccard_3cxem556_func0_cfe0 },
 	{ PCMCIA_VENDOR_3COM, PCMCIA_PRODUCT_3COM_3CXEM556, PCMCIA_CIS_INVALID,
 	  &pccard_3cxem556_func1, &pccard_3cxem556_func1_cfe0 },
-	{ PCMCIA_VENDOR_3COM, PCMCIA_PRODUCT_3COM_3CXEM556INT, PCMCIA_CIS_INVALID, 
+	{ PCMCIA_VENDOR_3COM, PCMCIA_PRODUCT_3COM_3CXEM556INT, PCMCIA_CIS_INVALID,
 	  &pccard_3cxem556_func0, &pccard_3cxem556_func0_cfe0 },
 	{ PCMCIA_VENDOR_3COM, PCMCIA_PRODUCT_3COM_3CXEM556INT, PCMCIA_CIS_INVALID,
 	  &pccard_3cxem556_func1, &pccard_3cxem556_func1_cfe0 },

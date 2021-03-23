@@ -5,10 +5,10 @@
  * Copyright (c) 2010 Broadcom Corporation
  * All rights reserved.
  *
- * This file is derived from the sbchipc.h header contributed by Broadcom 
+ * This file is derived from the sbchipc.h header contributed by Broadcom
  * to to the Linux staging repository, as well as later revisions of sbchipc.h
  * distributed with the Asus RT-N16 firmware source code release.
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
@@ -45,8 +45,8 @@
 #define BHND_CLK_CTL_ST			0x1e0		/**< clock control and status */
 
 /*
- * BHND_CLK_CTL_ST register 
- * 
+ * BHND_CLK_CTL_ST register
+ *
  * Clock Mode		Name	Description
  * High Throughput	(HT)	Full bandwidth, low latency. Generally supplied
  * 				from PLL.

@@ -82,7 +82,7 @@ struct ata_marvell_dma_prdentry {
     u_int32_t count;
     u_int32_t addrhi;
     u_int32_t reserved;
-};  
+};
 
 static int
 ata_marvell_probe(device_t dev)

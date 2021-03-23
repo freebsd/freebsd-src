@@ -365,7 +365,7 @@ umct_cfg_do_request(struct umct_softc *sc, uint8_t request,
 	USETW(req.wLength, len);
 	USETDW(temp, value);
 
-	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, temp, 0, 1000);
 	if (err) {
 		DPRINTFN(0, "device request failed, err=%s "

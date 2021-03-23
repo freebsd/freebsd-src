@@ -113,7 +113,7 @@ ar9280InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		/*
 		 * PLL WAR for Merlin 2.0/2.1
 		 * When doing fast clock, set PLL to 0x142c
-		 * Else, set PLL to 0x2850 to prevent reset-to-reset variation 
+		 * Else, set PLL to 0x2850 to prevent reset-to-reset variation
 		 */
 		pll = IS_5GHZ_FAST_CLOCK_EN(ah, chan) ? 0x142c : 0x2850;
 		if (IEEE80211_IS_CHAN_HALF(chan))
@@ -610,7 +610,7 @@ ar9280SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
      */
     for (i = 0; i < AR5416_EEPROM_MODAL_SPURS; i++) {
         cur_bb_spur = ath_hal_getSpurChan(ah, i, is2GHz);
-        /* Get actual spur freq in MHz from EEPROM read value */ 
+        /* Get actual spur freq in MHz from EEPROM read value */
         if (is2GHz) {
             cur_bb_spur =  (cur_bb_spur / 10) + AR_BASE_FREQ_2GHZ;
         } else {
@@ -622,7 +622,7 @@ ar9280SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
         cur_bb_spur = cur_bb_spur - freq;
 
         if (IEEE80211_IS_CHAN_HT40(chan)) {
-            if ((cur_bb_spur > -AR_SPUR_FEEQ_BOUND_HT40) && 
+            if ((cur_bb_spur > -AR_SPUR_FEEQ_BOUND_HT40) &&
                 (cur_bb_spur < AR_SPUR_FEEQ_BOUND_HT40)) {
                 bb_spur = cur_bb_spur;
                 break;
@@ -647,7 +647,7 @@ ar9280SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
 #endif
         return;
     } else {
-        /* 
+        /*
          * For Merlin, spur can break CCK MRC algorithm. Disable CCK MRC if spur
          * is found in this channel.
          */
@@ -690,7 +690,7 @@ ar9280SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
      * /80 for dyn2040.
      */
     if (IEEE80211_IS_CHAN_HT40(chan))
-        spur_delta_phase = ((bb_spur * 262144) / 10) & AR_PHY_TIMING11_SPUR_DELTA_PHASE;    
+        spur_delta_phase = ((bb_spur * 262144) / 10) & AR_PHY_TIMING11_SPUR_DELTA_PHASE;
     else
         spur_delta_phase = ((bb_spur * 524288) / 10) & AR_PHY_TIMING11_SPUR_DELTA_PHASE;
 

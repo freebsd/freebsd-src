@@ -115,10 +115,10 @@ int		uether_ifmedia_upd(struct ifnet *);
 void		uether_init(void *);
 int		uether_ioctl(struct ifnet *, u_long, caddr_t);
 struct mbuf	*uether_newbuf(void);
-int		uether_rxmbuf(struct usb_ether *, struct mbuf *, 
+int		uether_rxmbuf(struct usb_ether *, struct mbuf *,
 		    unsigned int);
 int		uether_rxbuf(struct usb_ether *,
-		    struct usb_page_cache *, 
+		    struct usb_page_cache *,
 		    unsigned int, unsigned int);
 void		uether_rxflush(struct usb_ether *);
 uint8_t		uether_is_gone(struct usb_ether *);

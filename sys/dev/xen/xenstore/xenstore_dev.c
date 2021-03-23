@@ -1,25 +1,25 @@
 /*
  * xenstore_dev.c
- * 
+ *
  * Driver giving user-space access to the kernel's connection to the
  * XenStore service.
- * 
+ *
  * Copyright (c) 2005, Christian Limpach
  * Copyright (c) 2005, Rusty Russell, IBM Corporation
- * 
+ *
  * This file may be distributed separately from the Linux kernel, or
  * incorporated into other software packages, subject to the following license:
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this source file (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use, copy, modify,
  * merge, publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -227,7 +227,7 @@ xs_dev_find_transaction(struct xs_dev_data *u, uint32_t tx_id)
 	return (NULL);
 }
 
-static int 
+static int
 xs_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int error;
@@ -255,7 +255,7 @@ xs_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 	return (0);
 }
 
-static int 
+static int
 xs_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int error;
@@ -461,7 +461,7 @@ xs_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 }
 
 static struct cdevsw xs_dev_cdevsw = {
-	.d_version = D_VERSION,	
+	.d_version = D_VERSION,
 	.d_read = xs_dev_read,
 	.d_write = xs_dev_write,
 	.d_open = xs_dev_open,
@@ -493,7 +493,7 @@ xs_dev_identify(driver_t *driver __unused, device_t parent)
  *
  * \return  Always returns 0 indicating success.
  */
-static int 
+static int
 xs_dev_probe(device_t dev)
 {
 

@@ -394,7 +394,7 @@ vga_pci_suspend(device_t dev)
 static int
 vga_pci_detach(device_t dev)
 {
-	int error; 
+	int error;
 
 	error = bus_generic_detach(dev);
 	if (error == 0)

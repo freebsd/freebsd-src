@@ -106,7 +106,7 @@ typedef  struct _VDevice
 
 #ifdef SUPPORT_ARRAY
 #define mIsArray(pVDev) (pVDev->VDeviceType>VD_SINGLE_DISK)
-#else 
+#else
 #define mIsArray(pVDev) 0
 #endif
 
@@ -129,7 +129,7 @@ typedef struct _VBus  {
 
 	void *        OsExt; /* for OS private use */
 
-	
+
 	int serial_mode;
 	int next_active;
 	int working_devs;
@@ -166,7 +166,7 @@ typedef struct _VBus  {
 #elif defined(SET_VBUS_FOR_EACH_FUNCTION)
 #define CHIP_ON_SAME_VBUS(pChip1, pChip2) \
 	((pChip1)->pci_bus==(pChip2)->pci_bus && (pChip1)->pci_dev==(pChip2)->pci_dev && (pChip1)->pci_func==(pChip2)->pci_func)
-#else 
+#else
 #error You must set one vbus setting
 #endif
 
@@ -197,7 +197,7 @@ typedef struct _VBus  {
  ***************************************************************************/
 #ifdef SUPPORT_ARRAY
 #define IdeRegisterDevice               fCheckArray
-#else 
+#else
 void HPTLIBAPI IdeRegisterDevice(PDevice pDev);
 #endif
 
@@ -241,7 +241,7 @@ void HPTLIBAPI fCompleteAllCommandsSynchronously(PVBus _vbus_p);
 
 #ifdef SUPPORT_VBUS_CONFIG
 void VBus_Config(PVBus pVBus, char *str);
-#else 
+#else
 #define VBus_Config(pVBus, str)
 #endif
 
@@ -272,7 +272,7 @@ Master_Boot_Record, *PMaster_Boot_Record;
 /* TODO: move it later */
 #ifdef __BIG_ENDIAN_BITFIELD
 typedef DWORD TIME_RECORD;
-#else 
+#else
 typedef struct _TIME_RECORD {
    UINT        seconds:6;      /* 0 - 59 */
    UINT        minutes:6;      /* 0 - 59 */

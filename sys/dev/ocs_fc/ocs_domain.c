@@ -460,7 +460,7 @@ __ocs_domain_common_shutdown(const char *funcname, ocs_sm_ctx_t *ctx, ocs_sm_eve
 		ocs_memcpy(&domain->pending_drec, arg, sizeof(domain->pending_drec));
 		domain->domain_found_pending = TRUE;
 		break;
-	case OCS_EVT_DOMAIN_LOST: 
+	case OCS_EVT_DOMAIN_LOST:
 		/* clear drec available
 		 * sm: unmark domain_found_pending */
 		domain->domain_found_pending = FALSE;

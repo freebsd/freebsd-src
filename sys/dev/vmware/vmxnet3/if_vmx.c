@@ -408,7 +408,7 @@ vmxnet3_attach_pre(if_ctx_t ctx)
 	if (error)
 		goto fail;
 
-	/* 
+	/*
 	 * The interrupt mode can be set in the hypervisor configuration via
 	 * the parameter ethernet<N>.intrMode.
 	 */
@@ -1462,7 +1462,7 @@ vmxnet3_isc_rxd_available(void *vsc, uint16_t rxqid, qidx_t idx, qidx_t budget)
 	int completed_gen;
 #ifdef INVARIANTS
 	int expect_sop = 1;
-#endif	
+#endif
 	sc = vsc;
 	rxq = &sc->vmx_rxq[rxqid];
 	rxc = &rxq->vxrxq_comp_ring;

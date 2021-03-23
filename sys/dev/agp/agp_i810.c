@@ -2110,7 +2110,7 @@ agp_i915_chipset_flush_teardown(device_t dev)
 		temp = pci_read_config(sc->bdev, AGP_I915_IFPADDR, 4);
 		temp &= ~1;
 		pci_write_config(sc->bdev, AGP_I915_IFPADDR, temp, 4);
-	}		
+	}
 	agp_i915_chipset_flush_free_page(dev);
 }
 

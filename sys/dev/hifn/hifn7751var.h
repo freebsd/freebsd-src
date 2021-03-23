@@ -152,7 +152,7 @@ struct hifn_softc {
 	struct hifn_command	*sc_hifn_commands[HIFN_D_RES_RSIZE];
 	/*
 	 *  Our current positions for insertion and removal from the desriptor
-	 *  rings. 
+	 *  rings.
 	 */
 	int			sc_cmdi, sc_srci, sc_dsti, sc_resi;
 	volatile int		sc_cmdu, sc_srcu, sc_dstu, sc_resu;
@@ -225,7 +225,7 @@ struct hifn_softc {
  *
  *  session_num
  *  -----------
- *  A number between 0 and 2048 (for DRAM models) or a number between 
+ *  A number between 0 and 2048 (for DRAM models) or a number between
  *  0 and 768 (for SRAM models).  Those who don't want to use session
  *  numbers should leave value at zero and send a new crypt key and/or
  *  new MAC key on every command.  If you use session numbers and
@@ -239,7 +239,7 @@ struct hifn_softc {
  *  ----
  *  Either fill in the mbuf pointer and npa=0 or
  *	 fill packp[] and packl[] and set npa to > 0
- * 
+ *
  *  mac_header_skip
  *  ---------------
  *  The number of bytes of the source_buf that are skipped over before
@@ -313,7 +313,7 @@ struct hifn_command {
  *  0 for success, negative values on error
  *
  *  Defines for negative error codes are:
- *  
+ *
  *    HIFN_CRYPTO_BAD_INPUT  :  The passed in command had invalid settings.
  *    HIFN_CRYPTO_RINGS_FULL :  All DMA rings were full and non-blocking
  *                              behaviour was requested.

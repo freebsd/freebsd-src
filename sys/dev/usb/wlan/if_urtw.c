@@ -835,7 +835,7 @@ urtw_attach(device_t dev)
 	}
 
 	if (sc->sc_flags & URTW_RTL8187B) {
-		sc->sc_tx_dma_buf = 
+		sc->sc_tx_dma_buf =
 		    usbd_xfer_get_frame_buffer(sc->sc_xfer[
 		    URTW_8187B_BULK_TX_BE], 0);
 	} else {
@@ -1414,7 +1414,7 @@ urtw_parent(struct ieee80211com *ic)
 }
 
 static int
-urtw_transmit(struct ieee80211com *ic, struct mbuf *m)   
+urtw_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
 	struct urtw_softc *sc = ic->ic_softc;
 	int error;
@@ -1624,7 +1624,7 @@ urtw_set_channel(struct ieee80211com *ic)
 	URTW_LOCK(sc);
 
 	/*
-	 * during changing th channel we need to temporarily be disable 
+	 * during changing th channel we need to temporarily be disable
 	 * TX.
 	 */
 	urtw_read32_m(sc, URTW_TX_CONF, &orig);

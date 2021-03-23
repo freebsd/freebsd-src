@@ -108,7 +108,7 @@ qls_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 					rval = copyout(&ql_mpi_coredump,
 							mpi_dump->dbuf,
 							mpi_dump->size);
-				} else 
+				} else
 					rval = ENXIO;
 
 				if (rval) {
@@ -118,7 +118,7 @@ qls_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 				}
 			}
 		}
-		
+
 		break;
         default:
                 break;

@@ -356,7 +356,7 @@ aic_print_reg_dump_types(FILE *ofile)
 {
 	if (ofile == NULL)
 		return;
-		
+
 	fprintf(ofile,
 "typedef int (%sreg_print_t)(u_int, u_int *, u_int);\n"
 "typedef struct %sreg_parse_entry {\n"

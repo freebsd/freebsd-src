@@ -96,7 +96,7 @@ bhnd_nvram_btxt_probe(struct bhnd_nvram_io *io)
 	char				c;
 	int				error;
 
-	/* Look at the initial header for something that looks like 
+	/* Look at the initial header for something that looks like
 	 * an ASCII board text file */
 	if ((error = bhnd_nvram_io_read(io, 0x0, &ident, sizeof(ident))))
 		return (error);
@@ -263,7 +263,7 @@ bhnd_nvram_btxt_getvar_direct(struct bhnd_nvram_io *io, const char *name,
 				pstate = BTXT_PARSE_LINE_START;
 				bufpos = (p - buf);
 			} else {
-				/* Consumed full buffer looking for newline; 
+				/* Consumed full buffer looking for newline;
 				 * force repopulation of the buffer and
 				 * retry */
 				pstate = BTXT_PARSE_NEXT_LINE;
@@ -438,7 +438,7 @@ bhnd_nvram_btxt_serialize(bhnd_nvram_data_class *cls, bhnd_nvram_plist *props,
 
 /**
  * Initialize @p btxt with the provided board text data mapped by @p src.
- * 
+ *
  * @param btxt A newly allocated data instance.
  */
 static int

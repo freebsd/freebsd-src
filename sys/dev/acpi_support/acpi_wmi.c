@@ -209,7 +209,7 @@ ACPI_PNP_INFO(wmi_ids);
 static int
 acpi_wmi_probe(device_t dev)
 {
-	int rv; 
+	int rv;
 
 	if (acpi_disabled("wmi"))
 		return (ENXIO);
@@ -288,7 +288,7 @@ acpi_wmi_attach(device_t dev)
 				SYSCTL_ADD_OPAQUE(device_get_sysctl_ctx(dev),
 				    SYSCTL_CHILDREN(
 				        device_get_sysctl_tree(dev)),
-				    OID_AUTO, "bmof", 
+				    OID_AUTO, "bmof",
 				    CTLFLAG_RD | CTLFLAG_MPSAFE,
 				    obj->Buffer.Pointer,
 				    obj->Buffer.Length,
@@ -297,7 +297,7 @@ acpi_wmi_attach(device_t dev)
 		}
 		sc->mofbuf = out.Pointer;
 	}
-		
+
 	if (ret == 0) {
 		bus_generic_probe(dev);
 		ret = bus_generic_attach(dev);
@@ -505,7 +505,7 @@ acpi_wmi_get_event_data_method(device_t dev, UINT32 event_id, ACPI_BUFFER *out)
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	sc = device_get_softc(dev);
-	status = AE_NOT_FOUND;	
+	status = AE_NOT_FOUND;
 	ACPI_SERIAL_BEGIN(acpi_wmi);
 	params[0].Type = ACPI_TYPE_INTEGER;
 	params[0].Integer.Value = event_id;

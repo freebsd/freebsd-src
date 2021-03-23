@@ -45,7 +45,7 @@ void wj_del_entry(PVBUS vbus, void *handle);
 void wj_del_vd(PVBUS vbus, PVDEV vd);
 void wj_sync_stamp(PVBUS vbus, PVDEV vd);
 
-#else 
+#else
 
 #define wj_add_entry(vbus, vd, lba, sectors) 0
 #define wj_get_entry(vbus, vd_p, lba_p, sectors_p) 0

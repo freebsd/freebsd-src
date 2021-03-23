@@ -793,7 +793,7 @@ ar5112GetChannelMaxMinPower(struct ath_hal *ah,
 	} else {
 		return (AH_TRUE);
 	}
-	/* Make sure the channel is in the range of the TP values 
+	/* Make sure the channel is in the range of the TP values
 	 *  (freq piers)
 	 */
 	if (numChannels < 1)

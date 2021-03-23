@@ -53,7 +53,7 @@ extern int	mp_ncpus;
 /* Build a firmware passthru cmd pkt, and submit it to CL. */
 extern TW_INT32	tw_osli_fw_passthru(struct twa_softc *sc, TW_INT8 *buf);
 
-/* Get an OSL internal request context packet. */ 
+/* Get an OSL internal request context packet. */
 extern struct tw_osli_req_context *tw_osli_get_request(struct twa_softc *sc);
 
 /* Map data to DMA'able memory. */

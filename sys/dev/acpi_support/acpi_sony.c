@@ -49,7 +49,7 @@ ACPI_MODULE_NAME("Sony")
  *   This is the ACPI handle for the "Sony Notebook Control" driver under
  *   Windows.
  *   It provides several methods within the ACPI namespace, including:
- *  [GS]BRT [GS]PBR [GS]CTR [GS]PCR [GS]CMI [CDPW GCDP]? GWDP PWAK PWRN 
+ *  [GS]BRT [GS]PBR [GS]CTR [GS]PCR [GS]CMI [CDPW GCDP]? GWDP PWAK PWRN
  *
  * SNY6001
  *   This is the ACPI handle for the "Sony Programmable I/O" driver under
@@ -79,7 +79,7 @@ static struct acpi_sony_name_list
 #endif
 	{ "wdp", "GWDP", NULL, "???"},
 	{ "cdp", "GCDP", "CDPW", "CD Power"},  /*shares [\GL03]&0x8 flag*/
-	{ "azp", "GAZP", "AZPW", "Audio Power"}, 
+	{ "azp", "GAZP", "AZPW", "Audio Power"},
 	{ "lnp", "GLNP", "LNPW", "LAN Power"},
 	{ NULL, NULL, NULL }
 };
@@ -152,7 +152,7 @@ acpi_sony_attach(device_t dev)
 	return (0);
 }
 
-static int 
+static int
 acpi_sony_detach(device_t dev)
 {
 	return (0);
@@ -173,7 +173,7 @@ acpi_sony_resume(device_t dev)
 }
 #endif
 
-static int 
+static int
 sysctl_acpi_sony_gen_handler(SYSCTL_HANDLER_ARGS)
 {
 	device_t	dev = arg1;

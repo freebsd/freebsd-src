@@ -34,10 +34,10 @@
 /*
  * time represented in DWORD format
  */
-#pragma pack(1)	
+#pragma pack(1)
 #ifdef __BIG_ENDIAN_BITFIELD
 typedef DWORD TIME_RECORD;
-#else 
+#else
 typedef struct _TIME_RECORD {
    UINT        seconds:6;      /* 0 - 59 */
    UINT        minutes:6;      /* 0 - 59 */
@@ -53,7 +53,7 @@ typedef struct _TIME_RECORD {
  * Description: Virtual Device Table
  ***************************************************************************/
 
-typedef struct _RaidArray 
+typedef struct _RaidArray
 {
     /*
      * basic information
@@ -69,7 +69,7 @@ typedef struct _RaidArray
 
 	USHORT	rf_broken: 1;
 	USHORT	rf_need_rebuild: 1;			/* one member's data are incorrect.
-	                                       for R5, if CriticalMembers==0, it means 
+	                                       for R5, if CriticalMembers==0, it means
 										   parity needs to be constructed */
 	USHORT	rf_need_sync: 1;			/* need write array info to disk */
 	/* ioctl flags */
@@ -103,7 +103,7 @@ typedef struct _RaidArray
 /***************************************************************************
  *            Array Description on disk
  ***************************************************************************/
-#pragma pack(1)	
+#pragma pack(1)
 typedef struct _ArrayDescript
 {
 	ULONG   Signature;      	/* This block is vaild array info block */
@@ -115,7 +115,7 @@ typedef struct _ArrayDescript
 	UCHAR   df_reservedbits: 6; /* put more flags here */
     UCHAR   df_user_mode_set: 1;/* user select device mode */
     UCHAR   df_bootmark:1;      /* user set boot mark on the disk */
-#else 
+#else
     UCHAR   df_bootmark:1;      /* user set boot mark on the disk */
     UCHAR   df_user_mode_set: 1;/* user select device mode */
 	UCHAR   df_reservedbits: 6; /* put more flags here */
@@ -129,14 +129,14 @@ typedef struct _ArrayDescript
 
 		UCHAR   VDeviceType;  		/* see above & arrayType in array.h */
 	    UCHAR   bMemberCount;		/* all disk in the array */
-	    UCHAR   bSerialNumber;  	/* Serial Number	*/	
+	    UCHAR   bSerialNumber;  	/* Serial Number	*/
 	    UCHAR   bArBlockSizeShift; 	/* the number of shift bit for a block */
 
 #ifdef __BIG_ENDIAN_BITFIELD
 		USHORT  rf_reserved: 14;
 		USHORT  rf_raid15: 1;       /* don't remove even you don't use it */
 		USHORT  rf_need_rebuild:1;  /* array is critical */
-#else 
+#else
 		USHORT  rf_need_rebuild:1;  /* array is critical */
 		USHORT  rf_raid15: 1;       /* don't remove even you don't use it */
 		USHORT  rf_reserved: 14;
@@ -154,9 +154,9 @@ typedef struct _ArrayDescript
 #define ArrayDescript_3_1_size 512
 
 	UCHAR   bCheckSum31;        /* new check sum */
-	UCHAR   PrivateFlag1;       /* private */ 
+	UCHAR   PrivateFlag1;       /* private */
 	UCHAR   alreadyBroken;      /* last stamp has been saved to failedStamps */
-	
+
 #ifdef __BIG_ENDIAN_BITFIELD
     UCHAR   df_read_ahead: 1;   /* enable read ahead */
 	UCHAR   df_read_ahead_set: 1;
@@ -166,7 +166,7 @@ typedef struct _ArrayDescript
 	UCHAR   df_ncq_set: 1;
     UCHAR   df_tcq: 1;          /* enable TCQ */
 	UCHAR   df_tcq_set: 1;
-#else 
+#else
 	UCHAR   df_tcq_set: 1;
     UCHAR   df_tcq: 1;          /* enable TCQ */
 	UCHAR   df_ncq_set: 1;
@@ -176,7 +176,7 @@ typedef struct _ArrayDescript
 	UCHAR   df_read_ahead_set: 1;
     UCHAR   df_read_ahead: 1;   /* enable read ahead */
 #endif
-    
+
     struct {
     	ULONG CapacityHi32;
     	ULONG RebuildSectorsHi32;
@@ -196,7 +196,7 @@ typedef char ArrayDescript_size_should_not_exceed_512[512-sizeof(ArrayDescript)]
 #define HPT_ARRAY_V3          0x5a7816f3
 #ifdef ARRAY_V2_ONLY
 #define SAVE_FOR_RAID_INFO    0
-#else 
+#else
 #define SAVE_FOR_RAID_INFO    10
 #endif
 
@@ -239,7 +239,7 @@ void HPTLIBAPI fFixRAID01Stripe(_VBUS_ARG PVDevice pStripe);
 
 #ifdef ARRAY_V2_ONLY
 #define _SET_ARRAY_VER_(pArray) pArray->vf_format_v2 = 1;
-#else 
+#else
 #define _SET_ARRAY_VER_(pArray)
 #endif
 
@@ -269,7 +269,7 @@ void HPTLIBAPI fJBODMemberFailed(_VBUS_ARG PVDevice pVDev);
 #if SUPPORT_RAID5
 void HPTLIBAPI fRAID5SendCommand(_VBUS_ARG PCommand pCmd);
 void HPTLIBAPI fRAID5MemberFailed(_VBUS_ARG PVDevice pVDev);
-#else 
+#else
 #define fRAID5SendCommand 0
 #define fRAID5MemberFailed 0
 #endif

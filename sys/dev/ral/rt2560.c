@@ -461,7 +461,7 @@ rt2560_alloc_tx_ring(struct rt2560_softc *sc, struct rt2560_tx_ring *ring,
 	ring->cur = ring->next = 0;
 	ring->cur_encrypt = ring->next_encrypt = 0;
 
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0, 
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    count * RT2560_TX_DESC_SIZE, 1, count * RT2560_TX_DESC_SIZE,
 	    0, NULL, NULL, &ring->desc_dmat);
@@ -493,7 +493,7 @@ rt2560_alloc_tx_ring(struct rt2560_softc *sc, struct rt2560_tx_ring *ring,
 		goto fail;
 	}
 
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0, 
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    MCLBYTES, RT2560_MAX_SCATTER, MCLBYTES, 0, NULL, NULL,
 	    &ring->data_dmat);
@@ -605,7 +605,7 @@ rt2560_alloc_rx_ring(struct rt2560_softc *sc, struct rt2560_rx_ring *ring,
 	ring->cur = ring->next = 0;
 	ring->cur_decrypt = 0;
 
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0, 
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    count * RT2560_RX_DESC_SIZE, 1, count * RT2560_RX_DESC_SIZE,
 	    0, NULL, NULL, &ring->desc_dmat);
@@ -640,7 +640,7 @@ rt2560_alloc_rx_ring(struct rt2560_softc *sc, struct rt2560_rx_ring *ring,
 	/*
 	 * Pre-allocate Rx buffers and populate Rx ring.
 	 */
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0, 
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
 	    1, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
@@ -1293,7 +1293,7 @@ rt2560_beacon_expire(struct rt2560_softc *sc)
 	if (ic->ic_opmode != IEEE80211_M_IBSS &&
 	    ic->ic_opmode != IEEE80211_M_HOSTAP &&
 	    ic->ic_opmode != IEEE80211_M_MBSS)
-		return;	
+		return;
 
 	data = &sc->bcnq.data[sc->bcnq.next];
 	/*
@@ -1862,7 +1862,7 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 }
 
 static int
-rt2560_transmit(struct ieee80211com *ic, struct mbuf *m)   
+rt2560_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
 	struct rt2560_softc *sc = ic->ic_softc;
 	int error;
@@ -2106,7 +2106,7 @@ rt2560_set_chan(struct rt2560_softc *sc, struct ieee80211_channel *c)
 		rt2560_rf_write(sc, RAL_RF3, power << 7 | 0x00040);
 		rt2560_rf_write(sc, RAL_RF4, rt2560_rf5222[i].r4);
 		break;
-	default: 
+	default:
  	        printf("unknown ral rev=%d\n", sc->rf_rev);
 	}
 
@@ -2672,7 +2672,7 @@ rt2560_stop_locked(struct rt2560_softc *sc)
 
 		/* abort Tx */
 		RAL_WRITE(sc, RT2560_TXCSR0, RT2560_ABORT_TX);
-		
+
 		/* disable Rx */
 		RAL_WRITE(sc, RT2560_RXCSR0, RT2560_DISABLE_RX);
 
@@ -2682,7 +2682,7 @@ rt2560_stop_locked(struct rt2560_softc *sc)
 
 		/* disable interrupts */
 		RAL_WRITE(sc, RT2560_CSR8, 0xffffffff);
-		
+
 		/* reset Tx and Rx rings */
 		rt2560_reset_tx_ring(sc, &sc->txq);
 		rt2560_reset_tx_ring(sc, &sc->atimq);

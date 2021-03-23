@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  */
 
 #ifndef __ECORE_HSI_ISCSI__
-#define __ECORE_HSI_ISCSI__ 
+#define __ECORE_HSI_ISCSI__
 /****************************************/
 /* Add include to common storage target */
 /****************************************/
@@ -1109,7 +1109,7 @@ struct e5_iscsi_conn_context
 };
 
 /*
- * iSCSI init params passed by driver to FW in iSCSI init ramrod 
+ * iSCSI init params passed by driver to FW in iSCSI init ramrod
  */
 struct iscsi_init_ramrod_params
 {

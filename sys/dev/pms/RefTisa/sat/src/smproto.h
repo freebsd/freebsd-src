@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 *
 * $FreeBSD$
@@ -33,21 +33,21 @@ sm_memset(void *s, int c, bit32 n);
 osGLOBAL FORCEINLINE void *
 sm_memcpy(void *dst, const void *src, bit32 count);
 
-osGLOBAL char 
+osGLOBAL char
 *sm_strncpy(char *dst, const char *src, bit32 len);
 
 
-osGLOBAL void 
+osGLOBAL void
 smhexdump(const char *ptitle, bit8 *pbuf, size_t len);
 /***************** end of util ****************************************/
 
 /***************** start of timer fns ****************************************/
-osGLOBAL void   
+osGLOBAL void
 smTimerTick(smRoot_t 		*smRoot );
 
 osGLOBAL void
 smInitTimerRequest(
-                   smRoot_t                *smRoot, 
+                   smRoot_t                *smRoot,
                    smTimerRequest_t        *timerRequest
                   );
 osGLOBAL void
@@ -64,7 +64,7 @@ smSetTimerRequest(
 osGLOBAL void
 smAddTimer(
            smRoot_t            *smRoot,
-           smList_t            *timerListHdr, 
+           smList_t            *timerListHdr,
            smTimerRequest_t    *timerRequest
           );
 
@@ -74,28 +74,28 @@ smKillTimer(
             smTimerRequest_t    *timerRequest
            );
 
-osGLOBAL void 
+osGLOBAL void
 smProcessTimers(
                 smRoot_t *smRoot
                );
-								  				  		  		  
+
 
 /***************** end of timer fns ****************************************/
 
 osGLOBAL void
 smInitTimers(
-             smRoot_t *smRoot 
+             smRoot_t *smRoot
             );
 
 osGLOBAL void
 smDeviceDataInit(
                  smRoot_t *smRoot,
-                 bit32    max_dev		  
+                 bit32    max_dev
                 );
 
 osGLOBAL void
 smIOInit(
-         smRoot_t *smRoot 
+         smRoot_t *smRoot
         );
 
 osGLOBAL FORCEINLINE void
@@ -107,23 +107,23 @@ smIOReInit(
 osGLOBAL void
 smDeviceDataReInit(
                    smRoot_t        *smRoot,
-                   smDeviceData_t  *oneDeviceData       
+                   smDeviceData_t  *oneDeviceData
                   );
 
-osGLOBAL void  
+osGLOBAL void
 smEnqueueIO(
              smRoot_t           *smRoot,
              smSatIOContext_t   *satIOContext
              );
 
-osGLOBAL FORCEINLINE void  
+osGLOBAL FORCEINLINE void
 smsatFreeIntIoResource(
              smRoot_t           *smRoot,
              smDeviceData_t     *satDevData,
              smSatInternalIo_t  *satIntIo
              );
 
-osGLOBAL smSatInternalIo_t * 
+osGLOBAL smSatInternalIo_t *
 smsatAllocIntIoResource(
                         smRoot_t              *smRoot,
                         smIORequest_t         *smIORequest,
@@ -155,7 +155,7 @@ smFindInSharedcontext(
                       agsaDevHandle_t           *agDevHandle
                       );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatLogSenseAllocate(
                       smRoot_t                  *smRoot,
                       smIORequest_t             *smIORequest,
@@ -166,7 +166,7 @@ smsatLogSenseAllocate(
                       bit32                     flag
                      );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatIDSubStart(
                  smRoot_t                 *smRoot,
                  smIORequest_t            *smIORequest,
@@ -176,7 +176,7 @@ smsatIDSubStart(
                );
 
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatIDStart(
               smRoot_t                  *smRoot,
               smIORequest_t             *smIORequest,
@@ -186,7 +186,7 @@ smsatIDStart(
              );
 
 
-osGLOBAL FORCEINLINE bit32  
+osGLOBAL FORCEINLINE bit32
 smsatIOStart(
               smRoot_t                  *smRoot,
               smIORequest_t             *smIORequest,
@@ -195,8 +195,8 @@ smsatIOStart(
               smSatIOContext_t            *satIOContext
              );
 
-osGLOBAL void 
-smsatSetSensePayload( 
+osGLOBAL void
+smsatSetSensePayload(
                      smScsiRspSense_t   *pSense,
                      bit8               SnsKey,
                      bit32              SnsInfo,
@@ -204,53 +204,53 @@ smsatSetSensePayload(
                      smSatIOContext_t     *satIOContext
 		    );
 
-osGLOBAL void 
-smsatSetDeferredSensePayload( 
+osGLOBAL void
+smsatSetDeferredSensePayload(
                              smScsiRspSense_t *pSense,
                              bit8             SnsKey,
                              bit32            SnsInfo,
                              bit16            SnsCode,
-                             smSatIOContext_t   *satIOContext                         
+                             smSatIOContext_t   *satIOContext
                             );
 
-osGLOBAL FORCEINLINE bit32 
+osGLOBAL FORCEINLINE bit32
 smsatIOPrepareSGL(
                   smRoot_t                 *smRoot,
                   smIORequestBody_t        *smIORequestBody,
                   smSgl_t                  *smSgl1,
                   void                     *sglVirtualAddr
                   );
-osGLOBAL FORCEINLINE void 
+osGLOBAL FORCEINLINE void
 smsatBitSet(smRoot_t *smRoot,bit8 *data, bit32 index);
 
-osGLOBAL FORCEINLINE void 
+osGLOBAL FORCEINLINE void
 smsatBitClear(smRoot_t *smRoot,bit8 *data, bit32 index);
 
 osGLOBAL FORCEINLINE BOOLEAN
 smsatBitTest(smRoot_t *smRoot,bit8 *data, bit32 index);
 
-osGLOBAL FORCEINLINE bit32 
+osGLOBAL FORCEINLINE bit32
 smsatTagAlloc(
                smRoot_t         *smRoot,
                smDeviceData_t   *pSatDevData,
                bit8             *pTag
              );
 
-osGLOBAL FORCEINLINE bit32 
+osGLOBAL FORCEINLINE bit32
 smsatTagRelease(
                 smRoot_t         *smRoot,
                 smDeviceData_t   *pSatDevData,
                 bit8              tag
                );
 
-osGLOBAL FORCEINLINE void 
+osGLOBAL FORCEINLINE void
 smsatDecrementPendingIO(
                         smRoot_t                *smRoot,
                         smIntContext_t          *smAllShared,
                         smSatIOContext_t        *satIOContext
                         );
 
-osGLOBAL smSatIOContext_t * 
+osGLOBAL smSatIOContext_t *
 smsatPrepareNewIO(
                   smSatInternalIo_t       *satNewIntIo,
                   smIORequest_t           *smOrgIORequest,
@@ -259,76 +259,76 @@ smsatPrepareNewIO(
                   smSatIOContext_t        *satOrgIOContext
                  );
 
-osGLOBAL void 
+osGLOBAL void
 smsatSetDevInfo(
                  smDeviceData_t            *oneDeviceData,
                  agsaSATAIdentifyData_t    *SATAIdData
                );
 
-osGLOBAL void 
+osGLOBAL void
 smsatInquiryStandard(
-                     bit8                    *pInquiry, 
+                     bit8                    *pInquiry,
                      agsaSATAIdentifyData_t  *pSATAIdData,
                      smIniScsiCmnd_t         *scsiCmnd
                     );
 
-osGLOBAL void 
+osGLOBAL void
 smsatInquiryPage0(
-                   bit8                    *pInquiry, 
+                   bit8                    *pInquiry,
                    agsaSATAIdentifyData_t  *pSATAIdData
 		 );
 
-osGLOBAL void 
+osGLOBAL void
 smsatInquiryPage83(
-                    bit8                    *pInquiry, 
+                    bit8                    *pInquiry,
                     agsaSATAIdentifyData_t  *pSATAIdData,
                     smDeviceData_t          *oneDeviceData
 		  );
 
 
-osGLOBAL void 
+osGLOBAL void
 smsatInquiryPage89(
-                    bit8                    *pInquiry, 
+                    bit8                    *pInquiry,
                     agsaSATAIdentifyData_t  *pSATAIdData,
                     smDeviceData_t          *oneDeviceData,
                     bit32                   len
 		  );
 
-osGLOBAL void 
+osGLOBAL void
 smsatInquiryPage80(
-                    bit8                    *pInquiry, 
+                    bit8                    *pInquiry,
                     agsaSATAIdentifyData_t  *pSATAIdData
 		   );
 
-osGLOBAL void 
+osGLOBAL void
 smsatInquiryPageB1(
-                    bit8                    *pInquiry, 
+                    bit8                    *pInquiry,
                     agsaSATAIdentifyData_t  *pSATAIdData
 		   );
 
-osGLOBAL void 
+osGLOBAL void
 smsatDefaultTranslation(
-                        smRoot_t                  *smRoot, 
+                        smRoot_t                  *smRoot,
                         smIORequest_t             *smIORequest,
                         smSatIOContext_t            *satIOContext,
                         smScsiRspSense_t          *pSense,
                         bit8                      ataStatus,
                         bit8                      ataError,
-                        bit32                     interruptContext 
+                        bit32                     interruptContext
                        );
-		       
+
 osGLOBAL bit32
 smPhyControlSend(
-                  smRoot_t             *smRoot, 
+                  smRoot_t             *smRoot,
                   smDeviceData_t       *oneDeviceData,
                   bit8                 phyOp,
                   smIORequest_t        *CurrentTaskTag,
-                  bit32                queueNumber 		  
+                  bit32                queueNumber
                 );
 
-osGLOBAL bit32 
+osGLOBAL bit32
 smsatTaskManagement(
-                    smRoot_t          *smRoot, 
+                    smRoot_t          *smRoot,
                     smDeviceHandle_t  *smDeviceHandle,
                     bit32             task,
                     smLUN_t           *lun,
@@ -336,33 +336,33 @@ smsatTaskManagement(
                     smIORequest_t     *currentTaskTag,
                     smIORequestBody_t *smIORequestBody
 		   );
-		       
-osGLOBAL bit32 
+
+osGLOBAL bit32
 smsatTmAbortTask(
-                  smRoot_t                  *smRoot, 
-                  smIORequest_t             *currentTaskTag, 
+                  smRoot_t                  *smRoot,
+                  smIORequest_t             *currentTaskTag,
                   smDeviceHandle_t          *smDeviceHandle,
                   smScsiInitiatorRequest_t  *tiScsiRequest,
                   smSatIOContext_t            *satIOContext,
                   smIORequest_t             *taskTag);
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatStartCheckPowerMode(
-                         smRoot_t                  *smRoot, 
-                         smIORequest_t             *currentTaskTag, 
+                         smRoot_t                  *smRoot,
+                         smIORequest_t             *currentTaskTag,
                          smDeviceHandle_t          *smDeviceHandle,
                          smScsiInitiatorRequest_t  *smScsiRequest,
                          smSatIOContext_t            *satIOContext
                         );
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatStartResetDevice(
-                       smRoot_t                  *smRoot, 
-                       smIORequest_t             *currentTaskTag, 
+                       smRoot_t                  *smRoot,
+                       smIORequest_t             *currentTaskTag,
                        smDeviceHandle_t          *smDeviceHandle,
                        smScsiInitiatorRequest_t  *smScsiRequest,
                        smSatIOContext_t            *satIOContext
                      );
-osGLOBAL void 
+osGLOBAL void
 smsatAbort(
            smRoot_t          *smRoot,
            agsaRoot_t        *agRoot,
@@ -380,30 +380,30 @@ smsatDecodeSATADeviceType(bit8 * pSignature);
 /*! \brief SAT implementation for ATAPI Packet Command.
  *
  *  SAT implementation for ATAPI Packet and send FIS request to LL layer.
- * 
+ *
  *  \param   smRoot:           Pointer to TISA initiator driver/port instance.
  *  \param   smIORequest:      Pointer to TISA I/O request context for this I/O.
  *  \param   smDeviceHandle:   Pointer to TISA device handle for this I/O.
- *  \param   smScsiRequest:    Pointer to TISA SCSI I/O request and SGL list. 
+ *  \param   smScsiRequest:    Pointer to TISA SCSI I/O request and SGL list.
  *  \param   smSatIOContext_t:   Pointer to the SAT IO Context
  *
  *  \return If command is started successfully
- *    - \e smIOSuccess: 	  I/O request successfully initiated. 
- *    - \e smIOBusy:        No resources available, try again later. 
+ *    - \e smIOSuccess: 	  I/O request successfully initiated.
+ *    - \e smIOBusy:        No resources available, try again later.
  *    - \e smIOIONoDevice:  Invalid device handle.
  *    - \e smIOError:       Other errors.
- */         
+ */
 /*****************************************************************************/
 osGLOBAL bit32
 smsatPacket(
-            smRoot_t                  *smRoot, 
+            smRoot_t                  *smRoot,
             smIORequest_t             *smIORequest,
             smDeviceHandle_t          *smDeviceHandle,
             smScsiInitiatorRequest_t  *smScsiRequest,
             smSatIOContext_t            *satIOContext
             );
 
-osGLOBAL void 
+osGLOBAL void
 smsatPacketCB(
             agsaRoot_t        *agRoot,
             agsaIORequest_t   *agIORequest,
@@ -417,31 +417,31 @@ smsatPacketCB(
 /*! \brief SAT implementation for smsatExecuteDeviceDiagnostic.
  *
  *  This function creates Execute Device Diagnostic fis and sends the request to LL layer
- * 
+ *
  *  \param   smRoot:           Pointer to TISA initiator driver/port instance.
  *  \param   smIORequest:      Pointer to TISA I/O request context for this I/O.
  *  \param   smDeviceHandle:   Pointer to TISA device handle for this I/O.
- *  \param   smScsiRequest:    Pointer to TISA SCSI I/O request and SGL list. 
+ *  \param   smScsiRequest:    Pointer to TISA SCSI I/O request and SGL list.
  *  \param   smSatIOContext_t:   Pointer to the SAT IO Context
  *
  *  \return If command is started successfully
- *    - \e smIOSuccess: 	  I/O request successfully initiated. 
- *    - \e smIOBusy:        No resources available, try again later. 
+ *    - \e smIOSuccess: 	  I/O request successfully initiated.
+ *    - \e smIOBusy:        No resources available, try again later.
  *    - \e smIOIONoDevice:  Invalid device handle.
  *    - \e smIOError:       Other errors.
 
- */         
+ */
 /*****************************************************************************/
 osGLOBAL bit32
 smsatExecuteDeviceDiagnostic(
-       smRoot_t                  *smRoot, 
+       smRoot_t                  *smRoot,
        smIORequest_t             *smIORequest,
        smDeviceHandle_t          *smDeviceHandle,
        smScsiInitiatorRequest_t  *smScsiRequest,
        smSatIOContext_t            *satIOContext
        );
 
-osGLOBAL void 
+osGLOBAL void
 smsatExecuteDeviceDiagnosticCB(
        agsaRoot_t        *agRoot,
        agsaIORequest_t   *agIORequest,
@@ -451,10 +451,10 @@ smsatExecuteDeviceDiagnosticCB(
        void              *agParam,
        void              *ioContext
        );
-/* set feature for auto activate */       
+/* set feature for auto activate */
 osGLOBAL bit32
 smsatSetFeaturesAA(
-           smRoot_t                  *smRoot, 
+           smRoot_t                  *smRoot,
            smIORequest_t             *smIORequest,
            smDeviceHandle_t          *smDeviceHandle,
            smScsiInitiatorRequest_t  *smScsiRequest,
@@ -475,23 +475,23 @@ smsatSetFeaturesAACB(
 /*! \brief SAT implementation for satSetFeatures.
  *
  *  This function creates SetFeatures fis and sends the request to LL layer
- * 
+ *
  *  \param   smRoot:           Pointer to TISA initiator driver/port instance.
  *  \param   smIORequest:      Pointer to TISA I/O request context for this I/O.
  *  \param   smDeviceHandle:   Pointer to TISA device handle for this I/O.
- *  \param   smScsiRequest:    Pointer to TISA SCSI I/O request and SGL list. 
+ *  \param   smScsiRequest:    Pointer to TISA SCSI I/O request and SGL list.
  *  \param   smSatIOContext_t:   Pointer to the SAT IO Context
  *
  *  \return If command is started successfully
- *    - \e smIOSuccess: 	  I/O request successfully initiated. 
- *    - \e smIOBusy:        No resources available, try again later. 
+ *    - \e smIOSuccess: 	  I/O request successfully initiated.
+ *    - \e smIOBusy:        No resources available, try again later.
  *    - \e smIOIONoDevice:  Invalid device handle.
  *    - \e smIOError:       Other errors.
- */         
+ */
 /*****************************************************************************/
 osGLOBAL bit32
 smsatSetFeaturesPIO(
-           smRoot_t                  *smRoot, 
+           smRoot_t                  *smRoot,
            smIORequest_t             *smIORequest,
            smDeviceHandle_t          *smDeviceHandle,
            smScsiInitiatorRequest_t  *smScsiRequest,
@@ -510,7 +510,7 @@ smsatSetFeaturesPIOCB(
 
 osGLOBAL bit32
 smsatSetFeaturesDMA(
-           smRoot_t                  *smRoot, 
+           smRoot_t                  *smRoot,
            smIORequest_t             *smIORequest,
            smDeviceHandle_t          *smDeviceHandle,
            smScsiInitiatorRequest_t  *smScsiRequest,
@@ -530,7 +530,7 @@ smsatSetFeaturesDMACB(
 
 osGLOBAL bit32
 smsatSetFeaturesReadLookAhead(
-           smRoot_t                  *smRoot, 
+           smRoot_t                  *smRoot,
            smIORequest_t             *smIORequest,
            smDeviceHandle_t          *smDeviceHandle,
            smScsiInitiatorRequest_t  *smScsiRequest,
@@ -550,7 +550,7 @@ smsatSetFeaturesReadLookAheadCB(
 
 osGLOBAL bit32
 smsatSetFeaturesVolatileWriteCache(
-           smRoot_t                  *smRoot, 
+           smRoot_t                  *smRoot,
            smIORequest_t             *smIORequest,
            smDeviceHandle_t          *smDeviceHandle,
            smScsiInitiatorRequest_t  *smScsiRequest,
@@ -579,7 +579,7 @@ smsatSMARTEnablePassCB(
                      void              *ioContext
                     );
 
-osGLOBAL void 
+osGLOBAL void
 smsatSMARTRStatusPassCB(
                 agsaRoot_t        *agRoot,
                 agsaIORequest_t   *agIORequest,
@@ -587,9 +587,9 @@ smsatSMARTRStatusPassCB(
                 agsaFisHeader_t   *agFirstDword,
                 bit32             agIOInfoLen,
                 void              *agParam,
-                void              *ioContext                   
+                void              *ioContext
                );
-osGLOBAL void 
+osGLOBAL void
 smsatSMARTReadLogCB(
                 agsaRoot_t        *agRoot,
                 agsaIORequest_t   *agIORequest,
@@ -597,7 +597,7 @@ smsatSMARTReadLogCB(
                 agsaFisHeader_t   *agFirstDword,
                 bit32             agIOInfoLen,
                 void              *agParam,
-                void              *ioContext                   
+                void              *ioContext
                );
 
 
@@ -605,30 +605,30 @@ smsatSMARTReadLogCB(
 /*! \brief SAT implementation for SCSI REQUEST SENSE to ATAPI device.
  *
  *  SAT implementation for SCSI REQUEST SENSE.
- * 
+ *
  *  \param   smRoot:           Pointer to TISA initiator driver/port instance.
  *  \param   smIORequest:      Pointer to TISA I/O request context for this I/O.
  *  \param   smDeviceHandle:   Pointer to TISA device handle for this I/O.
- *  \param   smScsiRequest:    Pointer to TISA SCSI I/O request and SGL list. 
+ *  \param   smScsiRequest:    Pointer to TISA SCSI I/O request and SGL list.
  *  \param   smSatIOContext_t:   Pointer to the SAT IO Context
  *
  *  \return If command is started successfully
- *    - \e smIOSuccess: 	  I/O request successfully initiated. 
- *    - \e smIOBusy:        No resources available, try again later. 
+ *    - \e smIOSuccess: 	  I/O request successfully initiated.
+ *    - \e smIOBusy:        No resources available, try again later.
  *    - \e smIOIONoDevice:  Invalid device handle.
  *    - \e smIOError:       Other errors.
- */         
+ */
 /*****************************************************************************/
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatRequestSenseForATAPI(
-        smRoot_t                  *smRoot, 
+        smRoot_t                  *smRoot,
         smIORequest_t             *smIORequest,
         smDeviceHandle_t          *smDeviceHandle,
         smScsiInitiatorRequest_t  *smScsiRequest,
         smSatIOContext_t            *satIOContext
         );
 
-osGLOBAL void 
+osGLOBAL void
 smsatRequestSenseForATAPICB(
         agsaRoot_t        *agRoot,
         agsaIORequest_t   *agIORequest,
@@ -643,23 +643,23 @@ smsatRequestSenseForATAPICB(
 /*! \brief SAT implementation for smsatDeviceReset.
  *
  *  This function creates DEVICE RESET fis and sends the request to LL layer
- * 
+ *
  *  \param   smRoot:           Pointer to TISA initiator driver/port instance.
  *  \param   smIORequest:      Pointer to TISA I/O request context for this I/O.
  *  \param   smDeviceHandle:   Pointer to TISA device handle for this I/O.
- *  \param   smScsiRequest:    Pointer to TISA SCSI I/O request and SGL list. 
+ *  \param   smScsiRequest:    Pointer to TISA SCSI I/O request and SGL list.
  *  \param   smSatIOContext_t:   Pointer to the SAT IO Context
  *
  *  \return If command is started successfully
- *    - \e smIOSuccess: 	  I/O request successfully initiated. 
- *    - \e smIOBusy:        No resources available, try again later. 
+ *    - \e smIOSuccess: 	  I/O request successfully initiated.
+ *    - \e smIOBusy:        No resources available, try again later.
  *    - \e smIONoDevice:  Invalid device handle.
  *    - \e smIOError:       Other errors.
- */          
+ */
 /*****************************************************************************/
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatDeviceReset(
-        smRoot_t                  *smRoot, 
+        smRoot_t                  *smRoot,
         smIORequest_t             *smIORequest,
         smDeviceHandle_t          *smDeviceHandle,
         smScsiInitiatorRequest_t  *smScsiRequest,
@@ -678,7 +678,7 @@ smsatDeviceResetCB(
          );
 
 
-osGLOBAL void 
+osGLOBAL void
 smsatTranslateATAPIErrorsToSCSIErrors(
         bit8   bCommand,
         bit8   bATAStatus,
@@ -687,7 +687,7 @@ smsatTranslateATAPIErrorsToSCSIErrors(
         bit16  *pSenseCodeInfo
         );
 
-GLOBAL void 
+GLOBAL void
 smsatTranslateATAErrorsToSCSIErrors(
     bit8   bATAStatus,
     bit8   bATAError,
@@ -697,234 +697,234 @@ smsatTranslateATAErrorsToSCSIErrors(
 
 /*****************************************************************************/
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatRead6(
-           smRoot_t                  *smRoot, 
+           smRoot_t                  *smRoot,
            smIORequest_t             *smIORequest,
            smDeviceHandle_t          *smDeviceHandle,
            smScsiInitiatorRequest_t  *smScsiRequest,
            smSatIOContext_t            *satIOContext
 	  );
 
-osGLOBAL FORCEINLINE bit32  
+osGLOBAL FORCEINLINE bit32
 smsatRead10(
-            smRoot_t                  *smRoot, 
+            smRoot_t                  *smRoot,
             smIORequest_t             *smIORequest,
             smDeviceHandle_t          *smDeviceHandle,
             smScsiInitiatorRequest_t  *smScsiRequest,
             smSatIOContext_t            *satIOContext
 	   );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatRead12(
-            smRoot_t                  *smRoot, 
+            smRoot_t                  *smRoot,
             smIORequest_t             *smIORequest,
             smDeviceHandle_t          *smDeviceHandle,
             smScsiInitiatorRequest_t  *smScsiRequest,
             smSatIOContext_t            *satIOContext
 	   );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatRead16(
-            smRoot_t                  *smRoot, 
+            smRoot_t                  *smRoot,
             smIORequest_t             *smIORequest,
             smDeviceHandle_t          *smDeviceHandle,
             smScsiInitiatorRequest_t  *smScsiRequest,
             smSatIOContext_t            *satIOContext
 	   );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatWrite6(
-            smRoot_t                  *smRoot, 
+            smRoot_t                  *smRoot,
             smIORequest_t             *smIORequest,
             smDeviceHandle_t          *smDeviceHandle,
             smScsiInitiatorRequest_t  *smScsiRequest,
             smSatIOContext_t            *satIOContext
 	   );
 
-osGLOBAL FORCEINLINE bit32  
+osGLOBAL FORCEINLINE bit32
 smsatWrite10(
-             smRoot_t                  *smRoot, 
+             smRoot_t                  *smRoot,
              smIORequest_t             *smIORequest,
              smDeviceHandle_t          *smDeviceHandle,
              smScsiInitiatorRequest_t  *smScsiRequest,
              smSatIOContext_t            *satIOContext
             );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatWrite12(
-             smRoot_t                  *smRoot, 
+             smRoot_t                  *smRoot,
              smIORequest_t             *smIORequest,
              smDeviceHandle_t          *smDeviceHandle,
              smScsiInitiatorRequest_t  *smScsiRequest,
              smSatIOContext_t            *satIOContext
             );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatWrite16(
-             smRoot_t                  *smRoot, 
+             smRoot_t                  *smRoot,
              smIORequest_t             *smIORequest,
              smDeviceHandle_t          *smDeviceHandle,
              smScsiInitiatorRequest_t  *smScsiRequest,
              smSatIOContext_t            *satIOContext
             );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatVerify10(
-              smRoot_t                  *smRoot, 
+              smRoot_t                  *smRoot,
               smIORequest_t             *smIORequest,
               smDeviceHandle_t          *smDeviceHandle,
               smScsiInitiatorRequest_t  *smScsiRequest,
               smSatIOContext_t            *satIOContext
              );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatVerify12(
-              smRoot_t                  *smRoot, 
+              smRoot_t                  *smRoot,
               smIORequest_t             *smIORequest,
               smDeviceHandle_t          *smDeviceHandle,
               smScsiInitiatorRequest_t  *smScsiRequest,
               smSatIOContext_t            *satIOContext
              );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatVerify16(
-              smRoot_t                  *smRoot, 
+              smRoot_t                  *smRoot,
               smIORequest_t             *smIORequest,
               smDeviceHandle_t          *smDeviceHandle,
               smScsiInitiatorRequest_t  *smScsiRequest,
               smSatIOContext_t            *satIOContext
              );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatTestUnitReady(
-                   smRoot_t                  *smRoot, 
+                   smRoot_t                  *smRoot,
                    smIORequest_t             *smIORequest,
                    smDeviceHandle_t          *smDeviceHandle,
                    smScsiInitiatorRequest_t  *smScsiRequest,
                    smSatIOContext_t            *satIOContext
                   );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatInquiry(
-             smRoot_t                  *smRoot, 
+             smRoot_t                  *smRoot,
              smIORequest_t             *smIORequest,
              smDeviceHandle_t          *smDeviceHandle,
              smScsiInitiatorRequest_t  *smScsiRequest,
              smSatIOContext_t            *satIOContext
             );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatRequestSense(
-                  smRoot_t                  *smRoot, 
+                  smRoot_t                  *smRoot,
                   smIORequest_t             *smIORequest,
                   smDeviceHandle_t          *smDeviceHandle,
                   smScsiInitiatorRequest_t  *smScsiRequest,
                   smSatIOContext_t            *satIOContext
                  );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatModeSense6(
-                smRoot_t                  *smRoot, 
+                smRoot_t                  *smRoot,
                 smIORequest_t             *smIORequest,
                 smDeviceHandle_t          *smDeviceHandle,
                 smScsiInitiatorRequest_t  *smScsiRequest,
                 smSatIOContext_t            *satIOContext
                );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatModeSense10(
-                  smRoot_t                  *smRoot, 
+                  smRoot_t                  *smRoot,
                   smIORequest_t             *smIORequest,
                   smDeviceHandle_t          *smDeviceHandle,
                   smScsiInitiatorRequest_t  *smScsiRequest,
                   smSatIOContext_t            *satIOContext
                  );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatReadCapacity10(
-                    smRoot_t                  *smRoot, 
+                    smRoot_t                  *smRoot,
                     smIORequest_t             *smIORequest,
                     smDeviceHandle_t          *smDeviceHandle,
                     smScsiInitiatorRequest_t  *smScsiRequest,
                     smSatIOContext_t            *satIOContext
                    );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatReadCapacity16(
-                    smRoot_t                  *smRoot, 
+                    smRoot_t                  *smRoot,
                     smIORequest_t             *smIORequest,
                     smDeviceHandle_t          *smDeviceHandle,
                     smScsiInitiatorRequest_t  *smScsiRequest,
                     smSatIOContext_t            *satIOContext
                    );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatReportLun(
-               smRoot_t                  *smRoot, 
+               smRoot_t                  *smRoot,
                smIORequest_t             *smIORequest,
                smDeviceHandle_t          *smDeviceHandle,
                smScsiInitiatorRequest_t  *smScsiRequest,
                smSatIOContext_t            *satIOContext
               );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatFormatUnit(
-                smRoot_t                  *smRoot, 
+                smRoot_t                  *smRoot,
                 smIORequest_t             *smIORequest,
                 smDeviceHandle_t          *smDeviceHandle,
                 smScsiInitiatorRequest_t  *smScsiRequest,
                 smSatIOContext_t            *satIOContext
                );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatSendDiagnostic(
-                    smRoot_t                  *smRoot, 
+                    smRoot_t                  *smRoot,
                     smIORequest_t             *smIORequest,
                     smDeviceHandle_t          *smDeviceHandle,
                     smScsiInitiatorRequest_t  *smScsiRequest,
                     smSatIOContext_t            *satIOContext
                    );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatStartStopUnit(
-                   smRoot_t                  *smRoot, 
+                   smRoot_t                  *smRoot,
                    smIORequest_t             *smIORequest,
                    smDeviceHandle_t          *smDeviceHandle,
                    smScsiInitiatorRequest_t  *smScsiRequest,
                    smSatIOContext_t            *satIOContext
                   );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatWriteSame10(
-                  smRoot_t                  *smRoot, 
+                  smRoot_t                  *smRoot,
                   smIORequest_t             *smIORequest,
                   smDeviceHandle_t          *smDeviceHandle,
                   smScsiInitiatorRequest_t  *smScsiRequest,
                   smSatIOContext_t            *satIOContext
                  );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatWriteSame16(
-                  smRoot_t                  *smRoot, 
+                  smRoot_t                  *smRoot,
                   smIORequest_t             *smIORequest,
                   smDeviceHandle_t          *smDeviceHandle,
                   smScsiInitiatorRequest_t  *smScsiRequest,
                   smSatIOContext_t            *satIOContext
                  );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatLogSense(
-              smRoot_t                  *smRoot, 
+              smRoot_t                  *smRoot,
               smIORequest_t             *smIORequest,
               smDeviceHandle_t          *smDeviceHandle,
               smScsiInitiatorRequest_t  *smScsiRequest,
               smSatIOContext_t            *satIOContext
              );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatModeSelect6(
-                 smRoot_t                  *smRoot, 
+                 smRoot_t                  *smRoot,
                  smIORequest_t             *smIORequest,
                  smDeviceHandle_t          *smDeviceHandle,
                  smScsiInitiatorRequest_t  *smScsiRequest,
@@ -932,116 +932,116 @@ smsatModeSelect6(
                 );
 
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatModeSelect10(
-                  smRoot_t                  *smRoot, 
+                  smRoot_t                  *smRoot,
                   smIORequest_t             *smIORequest,
                   smDeviceHandle_t          *smDeviceHandle,
                   smScsiInitiatorRequest_t  *smScsiRequest,
                   smSatIOContext_t            *satIOContext
                  );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatSynchronizeCache10(
-                        smRoot_t                  *smRoot, 
+                        smRoot_t                  *smRoot,
                         smIORequest_t             *smIORequest,
                         smDeviceHandle_t          *smDeviceHandle,
                         smScsiInitiatorRequest_t  *smScsiRequest,
                         smSatIOContext_t            *satIOContext
                        );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatSynchronizeCache16(
-                        smRoot_t                  *smRoot, 
+                        smRoot_t                  *smRoot,
                         smIORequest_t             *smIORequest,
                         smDeviceHandle_t          *smDeviceHandle,
                         smScsiInitiatorRequest_t  *smScsiRequest,
                         smSatIOContext_t            *satIOContext
                        );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatWriteAndVerify10(
-                      smRoot_t                  *smRoot, 
+                      smRoot_t                  *smRoot,
                       smIORequest_t             *smIORequest,
                       smDeviceHandle_t          *smDeviceHandle,
                       smScsiInitiatorRequest_t  *smScsiRequest,
                       smSatIOContext_t            *satIOContext
                      );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatWriteAndVerify12(
-                      smRoot_t                  *smRoot, 
+                      smRoot_t                  *smRoot,
                       smIORequest_t             *smIORequest,
                       smDeviceHandle_t          *smDeviceHandle,
                       smScsiInitiatorRequest_t  *smScsiRequest,
                       smSatIOContext_t            *satIOContext
                      );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatWriteAndVerify16(
-                      smRoot_t                  *smRoot, 
+                      smRoot_t                  *smRoot,
                       smIORequest_t             *smIORequest,
                       smDeviceHandle_t          *smDeviceHandle,
                       smScsiInitiatorRequest_t  *smScsiRequest,
                       smSatIOContext_t            *satIOContext
                      );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatReadMediaSerialNumber(
-                           smRoot_t                  *smRoot, 
+                           smRoot_t                  *smRoot,
                            smIORequest_t             *smIORequest,
                            smDeviceHandle_t          *smDeviceHandle,
                            smScsiInitiatorRequest_t  *smScsiRequest,
                            smSatIOContext_t            *satIOContext
                           );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatReadBuffer(
-                smRoot_t                  *smRoot, 
+                smRoot_t                  *smRoot,
                 smIORequest_t             *smIORequest,
                 smDeviceHandle_t          *smDeviceHandle,
                 smScsiInitiatorRequest_t  *smScsiRequest,
                 smSatIOContext_t            *satIOContext
                );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatWriteBuffer(
-                 smRoot_t                  *smRoot, 
+                 smRoot_t                  *smRoot,
                  smIORequest_t             *smIORequest,
                  smDeviceHandle_t          *smDeviceHandle,
                  smScsiInitiatorRequest_t  *smScsiRequest,
                  smSatIOContext_t            *satIOContext
                 );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatReassignBlocks(
-                    smRoot_t                  *smRoot, 
+                    smRoot_t                  *smRoot,
                     smIORequest_t             *smIORequest,
                     smDeviceHandle_t          *smDeviceHandle,
                     smScsiInitiatorRequest_t  *smScsiRequest,
                     smSatIOContext_t            *satIOContext
                    );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatPassthrough(
-                    smRoot_t                  *smRoot, 
+                    smRoot_t                  *smRoot,
                     smIORequest_t             *smIORequest,
                     smDeviceHandle_t          *smDeviceHandle,
                     smScsiInitiatorRequest_t  *smScsiRequest,
                     smSatIOContext_t            *satIOContext
                    );
 
-osGLOBAL FORCEINLINE bit32  
+osGLOBAL FORCEINLINE bit32
 smsataLLIOStart(
-                smRoot_t                  *smRoot, 
+                smRoot_t                  *smRoot,
                 smIORequest_t             *smIORequest,
                 smDeviceHandle_t          *smDeviceHandle,
                 smScsiInitiatorRequest_t  *smScsiRequest,
                 smSatIOContext_t            *satIOContext
                );
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatTestUnitReady_1(
-                     smRoot_t                  *smRoot, 
+                     smRoot_t                  *smRoot,
                      smIORequest_t             *smIORequest,
                      smDeviceHandle_t          *smDeviceHandle,
                      smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1049,7 +1049,7 @@ smsatTestUnitReady_1(
                     );
 osGLOBAL bit32
 smsatStartIDDev(
-                smRoot_t                  *smRoot, 
+                smRoot_t                  *smRoot,
                 smIORequest_t             *smIORequest,
                 smDeviceHandle_t          *smDeviceHandle,
                 smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1058,7 +1058,7 @@ smsatStartIDDev(
 
 osGLOBAL bit32
 smsatSendIDDev(
-                smRoot_t                  *smRoot, 
+                smRoot_t                  *smRoot,
                 smIORequest_t             *smIORequest,
                 smDeviceHandle_t          *smDeviceHandle,
                 smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1067,7 +1067,7 @@ smsatSendIDDev(
 
 osGLOBAL bit32
 smsatRequestSense_1(
-                    smRoot_t                  *smRoot, 
+                    smRoot_t                  *smRoot,
                     smIORequest_t             *smIORequest,
                     smDeviceHandle_t          *smDeviceHandle,
                     smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1076,7 +1076,7 @@ smsatRequestSense_1(
 
 osGLOBAL bit32
 smsatSMARTEnable(
-                 smRoot_t                  *smRoot, 
+                 smRoot_t                  *smRoot,
                  smIORequest_t             *smIORequest,
                  smDeviceHandle_t          *smDeviceHandle,
                  smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1085,7 +1085,7 @@ smsatSMARTEnable(
 
 osGLOBAL bit32
 smsatLogSense_2(
-                smRoot_t                  *smRoot, 
+                smRoot_t                  *smRoot,
                 smIORequest_t             *smIORequest,
                 smDeviceHandle_t          *smDeviceHandle,
                 smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1094,7 +1094,7 @@ smsatLogSense_2(
 
 osGLOBAL bit32
 smsatLogSense_3(
-                smRoot_t                  *smRoot, 
+                smRoot_t                  *smRoot,
                 smIORequest_t             *smIORequest,
                 smDeviceHandle_t          *smDeviceHandle,
                 smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1103,7 +1103,7 @@ smsatLogSense_3(
 
 osGLOBAL bit32
 smsatRead_1(
-            smRoot_t                  *smRoot, 
+            smRoot_t                  *smRoot,
             smIORequest_t             *smIORequest,
             smDeviceHandle_t          *smDeviceHandle,
             smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1112,7 +1112,7 @@ smsatRead_1(
 
 osGLOBAL bit32
 smsatWrite_1(
-             smRoot_t                  *smRoot, 
+             smRoot_t                  *smRoot,
              smIORequest_t             *smIORequest,
              smDeviceHandle_t          *smDeviceHandle,
              smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1121,7 +1121,7 @@ smsatWrite_1(
 
 osGLOBAL bit32
 smsatNonChainedWriteNVerify_Verify(
-                                   smRoot_t                  *smRoot, 
+                                   smRoot_t                  *smRoot,
                                    smIORequest_t             *smIORequest,
                                    smDeviceHandle_t          *smDeviceHandle,
                                    smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1130,7 +1130,7 @@ smsatNonChainedWriteNVerify_Verify(
 
 osGLOBAL bit32
 smsatChainedWriteNVerify_Start_Verify(
-                                      smRoot_t                  *smRoot, 
+                                      smRoot_t                  *smRoot,
                                       smIORequest_t             *smIORequest,
                                       smDeviceHandle_t          *smDeviceHandle,
                                       smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1139,33 +1139,33 @@ smsatChainedWriteNVerify_Start_Verify(
 
 osGLOBAL bit32
 smsatChainedWriteNVerify_Write(
-                               smRoot_t                  *smRoot, 
+                               smRoot_t                  *smRoot,
                                smIORequest_t             *smIORequest,
                                smDeviceHandle_t          *smDeviceHandle,
                                smScsiInitiatorRequest_t  *smScsiRequest,
                                smSatIOContext_t            *satIOContext
                               );
-		   		   
+
 osGLOBAL bit32
 smsatChainedWriteNVerify_Verify(
-                                smRoot_t                  *smRoot, 
+                                smRoot_t                  *smRoot,
                                 smIORequest_t             *smIORequest,
                                 smDeviceHandle_t          *smDeviceHandle,
                                 smScsiInitiatorRequest_t  *smScsiRequest,
                                 smSatIOContext_t            *satIOContext
                                );
-osGLOBAL bit32 
+osGLOBAL bit32
 smsatChainedVerify(
-                    smRoot_t                  *smRoot, 
+                    smRoot_t                  *smRoot,
                     smIORequest_t             *smIORequest,
                     smDeviceHandle_t          *smDeviceHandle,
                     smScsiInitiatorRequest_t  *smScsiRequest,
                     smSatIOContext_t            *satIOContext
 		   );
 
-osGLOBAL bit32 
+osGLOBAL bit32
 smsatWriteSame10_1(
-                    smRoot_t                  *smRoot, 
+                    smRoot_t                  *smRoot,
                     smIORequest_t             *smIORequest,
                     smDeviceHandle_t          *smDeviceHandle,
                     smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1173,9 +1173,9 @@ smsatWriteSame10_1(
                     bit32                     lba
                   );
 
-osGLOBAL bit32 
+osGLOBAL bit32
 smsatWriteSame10_2(
-                    smRoot_t                  *smRoot, 
+                    smRoot_t                  *smRoot,
                     smIORequest_t             *smIORequest,
                     smDeviceHandle_t          *smDeviceHandle,
                     smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1183,9 +1183,9 @@ smsatWriteSame10_2(
                     bit32                     lba
                   );
 
-osGLOBAL bit32 
+osGLOBAL bit32
 smsatWriteSame10_3(
-                    smRoot_t                  *smRoot, 
+                    smRoot_t                  *smRoot,
                     smIORequest_t             *smIORequest,
                     smDeviceHandle_t          *smDeviceHandle,
                     smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1193,54 +1193,54 @@ smsatWriteSame10_3(
                     bit32                     lba
                   );
 
-osGLOBAL bit32 
+osGLOBAL bit32
 smsatStartStopUnit_1(
-                     smRoot_t                  *smRoot, 
+                     smRoot_t                  *smRoot,
                      smIORequest_t             *smIORequest,
                      smDeviceHandle_t          *smDeviceHandle,
                      smScsiInitiatorRequest_t  *smScsiRequest,
                      smSatIOContext_t            *satIOContext
 		    );
 
-osGLOBAL bit32 
+osGLOBAL bit32
 smsatSendDiagnostic_1(
-                      smRoot_t                  *smRoot, 
+                      smRoot_t                  *smRoot,
                       smIORequest_t             *smIORequest,
                       smDeviceHandle_t          *smDeviceHandle,
                       smScsiInitiatorRequest_t  *smScsiRequest,
                       smSatIOContext_t            *satIOContext
 		     );
-		     
-osGLOBAL bit32 
+
+osGLOBAL bit32
 smsatSendDiagnostic_2(
-                      smRoot_t                  *smRoot, 
+                      smRoot_t                  *smRoot,
                       smIORequest_t             *smIORequest,
                       smDeviceHandle_t          *smDeviceHandle,
                       smScsiInitiatorRequest_t  *smScsiRequest,
                       smSatIOContext_t            *satIOContext
 		     );
 
-osGLOBAL bit32 
+osGLOBAL bit32
 smsatModeSelect6n10_1(
-                      smRoot_t                  *smRoot, 
+                      smRoot_t                  *smRoot,
                       smIORequest_t             *smIORequest,
                       smDeviceHandle_t          *smDeviceHandle,
                       smScsiInitiatorRequest_t  *smScsiRequest,
                       smSatIOContext_t            *satIOContext
 		     );
 
-osGLOBAL bit32 
+osGLOBAL bit32
 smsatLogSense_1(
-                smRoot_t                  *smRoot, 
+                smRoot_t                  *smRoot,
                 smIORequest_t             *smIORequest,
                 smDeviceHandle_t          *smDeviceHandle,
                 smScsiInitiatorRequest_t  *smScsiRequest,
                 smSatIOContext_t            *satIOContext
                );
 
-osGLOBAL bit32 
+osGLOBAL bit32
 smsatReassignBlocks_2(
-                      smRoot_t                  *smRoot, 
+                      smRoot_t                  *smRoot,
                       smIORequest_t             *smIORequest,
                       smDeviceHandle_t          *smDeviceHandle,
                       smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1248,9 +1248,9 @@ smsatReassignBlocks_2(
                       bit8                      *LBA
                      );
 
-osGLOBAL bit32 
+osGLOBAL bit32
 smsatReassignBlocks_1(
-                      smRoot_t                  *smRoot, 
+                      smRoot_t                  *smRoot,
                       smIORequest_t             *smIORequest,
                       smDeviceHandle_t          *smDeviceHandle,
                       smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1258,43 +1258,43 @@ smsatReassignBlocks_1(
                       smSatIOContext_t            *satOrgIOContext
                      );
 
-osGLOBAL bit32 
+osGLOBAL bit32
 smsatSendReadLogExt(
-                     smRoot_t                  *smRoot, 
+                     smRoot_t                  *smRoot,
                      smIORequest_t             *smIORequest,
                      smDeviceHandle_t          *smDeviceHandle,
                      smScsiInitiatorRequest_t  *smScsiRequest,
                      smSatIOContext_t            *satIOContext
 		   );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatCheckPowerMode(
-                     smRoot_t                  *smRoot, 
+                     smRoot_t                  *smRoot,
                      smIORequest_t             *smIORequest,
                      smDeviceHandle_t          *smDeviceHandle,
                      smScsiInitiatorRequest_t  *smScsiRequest,
                      smSatIOContext_t            *satIOContext
 		   );
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatResetDevice(
-                  smRoot_t                  *smRoot, 
+                  smRoot_t                  *smRoot,
                   smIORequest_t             *smIORequest,
                   smDeviceHandle_t          *smDeviceHandle,
                   smScsiInitiatorRequest_t  *smScsiRequest,
                   smSatIOContext_t            *satIOContext
                 );
-		
-osGLOBAL bit32  
+
+osGLOBAL bit32
 smsatDeResetDevice(
-                    smRoot_t                  *smRoot, 
+                    smRoot_t                  *smRoot,
                     smIORequest_t             *smIORequest,
                     smDeviceHandle_t          *smDeviceHandle,
                     smScsiInitiatorRequest_t  *smScsiRequest,
                     smSatIOContext_t            *satIOContext
                    );
 /******************************** beginning of completion ******************************************************/
-osGLOBAL FORCEINLINE void 
+osGLOBAL FORCEINLINE void
 smllSATACompleted(
                   agsaRoot_t        *agRoot,
                   agsaIORequest_t   *agIORequest,
@@ -1305,7 +1305,7 @@ smllSATACompleted(
                  );
 
 
-osGLOBAL FORCEINLINE void 
+osGLOBAL FORCEINLINE void
 smsatNonChainedDataIOCB(
                         agsaRoot_t        *agRoot,
                         agsaIORequest_t   *agIORequest,
@@ -1316,7 +1316,7 @@ smsatNonChainedDataIOCB(
                         void              *ioContext
                        );
 
-osGLOBAL FORCEINLINE void 
+osGLOBAL FORCEINLINE void
 smsatChainedDataIOCB(
                      agsaRoot_t        *agRoot,
                      agsaIORequest_t   *agIORequest,
@@ -1327,7 +1327,7 @@ smsatChainedDataIOCB(
                      void              *ioContext
                     );
 
-osGLOBAL void 
+osGLOBAL void
 smsatNonChainedVerifyCB(
                         agsaRoot_t        *agRoot,
                         agsaIORequest_t   *agIORequest,
@@ -1335,10 +1335,10 @@ smsatNonChainedVerifyCB(
                         agsaFisHeader_t   *agFirstDword,
                         bit32             agIOInfoLen,
                         agsaFrameHandle_t agFrameHandle,
-                        void              *ioContext                          
+                        void              *ioContext
                        );
 
-osGLOBAL void 
+osGLOBAL void
 smsatChainedVerifyCB(
                      agsaRoot_t        *agRoot,
                      agsaIORequest_t   *agIORequest,
@@ -1346,10 +1346,10 @@ smsatChainedVerifyCB(
                      agsaFisHeader_t   *agFirstDword,
                      bit32             agIOInfoLen,
                      agsaFrameHandle_t agFrameHandle,
-                     void              *ioContext                          
+                     void              *ioContext
                     );
-		    
-osGLOBAL void 
+
+osGLOBAL void
 smsatTestUnitReadyCB(
                      agsaRoot_t        *agRoot,
                      agsaIORequest_t   *agIORequest,
@@ -1359,7 +1359,7 @@ smsatTestUnitReadyCB(
                      agsaFrameHandle_t agFrameHandle,
                      void              *ioContext
                     );
-osGLOBAL void 
+osGLOBAL void
 smsatRequestSenseCB(
                     agsaRoot_t        *agRoot,
                     agsaIORequest_t   *agIORequest,
@@ -1368,9 +1368,9 @@ smsatRequestSenseCB(
                     bit32             agIOInfoLen,
                     void              *agParam,
                     void              *ioContext
-                   );  
+                   );
 
-osGLOBAL void 
+osGLOBAL void
 smsatSendDiagnosticCB(
                        agsaRoot_t        *agRoot,
                        agsaIORequest_t   *agIORequest,
@@ -1378,10 +1378,10 @@ smsatSendDiagnosticCB(
                        agsaFisHeader_t   *agFirstDword,
                        bit32             agIOInfoLen,
                        agsaFrameHandle_t agFrameHandle,
-                       void              *ioContext                     
+                       void              *ioContext
                      );
 
-osGLOBAL void 
+osGLOBAL void
 smsatStartStopUnitCB(
                      agsaRoot_t        *agRoot,
                      agsaIORequest_t   *agIORequest,
@@ -1393,7 +1393,7 @@ smsatStartStopUnitCB(
                     );
 
 
-osGLOBAL void 
+osGLOBAL void
 smsatWriteSame10CB(
                    agsaRoot_t        *agRoot,
                    agsaIORequest_t   *agIORequest,
@@ -1401,11 +1401,11 @@ smsatWriteSame10CB(
                    agsaFisHeader_t   *agFirstDword,
                    bit32             agIOInfoLen,
                    agsaFrameHandle_t agFrameHandle,
-                   void              *ioContext                     
+                   void              *ioContext
                   );
 
 
-osGLOBAL void 
+osGLOBAL void
 smsatLogSenseCB(
                 agsaRoot_t        *agRoot,
                 agsaIORequest_t   *agIORequest,
@@ -1413,10 +1413,10 @@ smsatLogSenseCB(
                 agsaFisHeader_t   *agFirstDword,
                 bit32             agIOInfoLen,
                 void              *agParam,
-                void              *ioCotext                   
+                void              *ioCotext
                );
 
-osGLOBAL void 
+osGLOBAL void
 smsatSMARTEnableCB(
                    agsaRoot_t        *agRoot,
                    agsaIORequest_t   *agIORequest,
@@ -1425,9 +1425,9 @@ smsatSMARTEnableCB(
                    bit32             agIOInfoLen,
                    agsaFrameHandle_t agFrameHandle,
                    void              *ioContext
-                  ); 
+                  );
 
-osGLOBAL void 
+osGLOBAL void
 smsatModeSelect6n10CB(
                       agsaRoot_t        *agRoot,
                       agsaIORequest_t   *agIORequest,
@@ -1438,7 +1438,7 @@ smsatModeSelect6n10CB(
                       void              *ioContext
                      );
 
-osGLOBAL void 
+osGLOBAL void
 smsatSynchronizeCache10n16CB(
                              agsaRoot_t        *agRoot,
                              agsaIORequest_t   *agIORequest,
@@ -1449,7 +1449,7 @@ smsatSynchronizeCache10n16CB(
                              void              *ioContext
                             );
 
-osGLOBAL void 
+osGLOBAL void
 smsatNonChainedWriteNVerifyCB(
                               agsaRoot_t        *agRoot,
                               agsaIORequest_t   *agIORequest,
@@ -1460,7 +1460,7 @@ smsatNonChainedWriteNVerifyCB(
                               void              *ioContext
                              );
 
-osGLOBAL void 
+osGLOBAL void
 smsatChainedWriteNVerifyCB(
                            agsaRoot_t        *agRoot,
                            agsaIORequest_t   *agIORequest,
@@ -1471,7 +1471,7 @@ smsatChainedWriteNVerifyCB(
                            void              *ioContext
                           );
 
-osGLOBAL void 
+osGLOBAL void
 smsatReadMediaSerialNumberCB(
                              agsaRoot_t        *agRoot,
                              agsaIORequest_t   *agIORequest,
@@ -1480,9 +1480,9 @@ smsatReadMediaSerialNumberCB(
                              bit32             agIOInfoLen,
                              agsaFrameHandle_t agFrameHandle,
                              void              *ioContext
-                            );  
+                            );
 
-osGLOBAL void 
+osGLOBAL void
 smsatReadBufferCB(
                   agsaRoot_t        *agRoot,
                   agsaIORequest_t   *agIORequest,
@@ -1491,9 +1491,9 @@ smsatReadBufferCB(
                   bit32             agIOInfoLen,
                   agsaFrameHandle_t agFrameHandle,
                   void              *ioContext
-                 );  
+                 );
 
-osGLOBAL void 
+osGLOBAL void
 smsatWriteBufferCB(
                    agsaRoot_t        *agRoot,
                    agsaIORequest_t   *agIORequest,
@@ -1502,9 +1502,9 @@ smsatWriteBufferCB(
                    bit32             agIOInfoLen,
                    agsaFrameHandle_t agFrameHandle,
                    void              *ioContext
-                  );  
+                  );
 
-osGLOBAL void 
+osGLOBAL void
 smsatReassignBlocksCB(
                       agsaRoot_t        *agRoot,
                       agsaIORequest_t   *agIORequest,
@@ -1513,9 +1513,9 @@ smsatReassignBlocksCB(
                       bit32             agIOInfoLen,
                       agsaFrameHandle_t agFrameHandle,
                       void              *ioContext
-                     );  
+                     );
 
-osGLOBAL void 
+osGLOBAL void
 smsatProcessAbnormalCompletion(
                                agsaRoot_t        *agRoot,
                                agsaIORequest_t   *agIORequest,
@@ -1526,7 +1526,7 @@ smsatProcessAbnormalCompletion(
                                smSatIOContext_t    *satIOContext
                               );
 
-osGLOBAL void 
+osGLOBAL void
 smsatDelayedProcessAbnormalCompletion(
                                       agsaRoot_t        *agRoot,
                                       agsaIORequest_t   *agIORequest,
@@ -1537,7 +1537,7 @@ smsatDelayedProcessAbnormalCompletion(
                                       smSatIOContext_t    *satIOContext
                                      );
 
-osGLOBAL void 
+osGLOBAL void
 smsatIOCompleted(
                  smRoot_t           *smRoot,
                  smIORequest_t      *smIORequest,
@@ -1548,36 +1548,36 @@ smsatIOCompleted(
                  bit32              interruptContext
 		);
 
-osGLOBAL void 
+osGLOBAL void
 smsatEncryptionHandler(
                        smRoot_t                *smRoot,
-                       agsaIORequest_t         *agIORequest, 
-                       bit32                   agIOStatus,  
+                       agsaIORequest_t         *agIORequest,
+                       bit32                   agIOStatus,
                        bit32                   agIOInfoLen,
                        void                    *agParam,
                        bit32                   agOtherInfo,
                        bit32                   interruptContext
                       );
 
-osGLOBAL void 
+osGLOBAL void
 smsatDifHandler(
                 smRoot_t                *smRoot,
-                agsaIORequest_t         *agIORequest, 
-                bit32                   agIOStatus,  
+                agsaIORequest_t         *agIORequest,
+                bit32                   agIOStatus,
                 bit32                   agIOInfoLen,
                 void                    *agParam,
                 bit32                   agOtherInfo,
                 bit32                   interruptContext
                );
-	       
-osGLOBAL void 
+
+osGLOBAL void
 smsatProcessAbort(
                   smRoot_t           *smRoot,
                   smIORequest_t      *smIORequest,
                   smSatIOContext_t     *satIOContext
                  );
 
-osGLOBAL void 
+osGLOBAL void
 smsatNonDataIOCB(
                   agsaRoot_t        *agRoot,
                   agsaIORequest_t   *agIORequest,
@@ -1588,7 +1588,7 @@ smsatNonDataIOCB(
                   void              *ioContext
                  );
 
-osGLOBAL void 
+osGLOBAL void
 smsatInquiryCB(
                agsaRoot_t        *agRoot,
                agsaIORequest_t   *agIORequest,
@@ -1600,16 +1600,16 @@ smsatInquiryCB(
               );
 
 
-osGLOBAL void 
+osGLOBAL void
 smsatInquiryIntCB(
-                   smRoot_t                  *smRoot, 
+                   smRoot_t                  *smRoot,
                    smIORequest_t             *smIORequest,
                    smDeviceHandle_t          *smDeviceHandle,
                    smScsiInitiatorRequest_t  *smScsiRequest,
                    smSatIOContext_t            *satIOContext
                   );
 
-osGLOBAL void 
+osGLOBAL void
 smsatVerify10CB(
                 agsaRoot_t        *agRoot,
                 agsaIORequest_t   *agIORequest,
@@ -1620,7 +1620,7 @@ smsatVerify10CB(
                 void              *ioContext
                );
 
-osGLOBAL void 
+osGLOBAL void
 smsatReadLogExtCB(
                    agsaRoot_t        *agRoot,
                    agsaIORequest_t   *agIORequest,
@@ -1628,11 +1628,11 @@ smsatReadLogExtCB(
                    agsaFisHeader_t   *agFirstDword,
                    bit32             agIOInfoLen,
                    void              *agParam,
-                   void              *ioContext                     
+                   void              *ioContext
                  );
 
 
-osGLOBAL void 
+osGLOBAL void
 smsatIDStartCB(
                 agsaRoot_t        *agRoot,
                 agsaIORequest_t   *agIORequest,
@@ -1649,7 +1649,7 @@ smSMPCompleted(
                 agsaIORequest_t       *agIORequest,
                 bit32                 agIOStatus,
                 bit32                 agIOInfoLen,
-                agsaFrameHandle_t     agFrameHandle                   
+                agsaFrameHandle_t     agFrameHandle
               );
 
 osGLOBAL void
@@ -1658,9 +1658,9 @@ smSMPCompletedCB(
                   agsaIORequest_t       *agIORequest,
                   bit32                 agIOStatus,
                   bit32                 agIOInfoLen,
-                  agsaFrameHandle_t     agFrameHandle                   
+                  agsaFrameHandle_t     agFrameHandle
                 );
-		
+
 osGLOBAL void
 smPhyControlRespRcvd(
                       smRoot_t              *smRoot,
@@ -1672,7 +1672,7 @@ smPhyControlRespRcvd(
                       smIORequest_t         *CurrentTaskTag
                      );
 
-osGLOBAL void 
+osGLOBAL void
 smsatCheckPowerModeCB(
                       agsaRoot_t        *agRoot,
                       agsaIORequest_t   *agIORequest,
@@ -1683,7 +1683,7 @@ smsatCheckPowerModeCB(
                       void              *ioContext
                      );
 
-osGLOBAL void 
+osGLOBAL void
 smsatCheckPowerModePassCB(
                       agsaRoot_t        *agRoot,
                       agsaIORequest_t   *agIORequest,
@@ -1694,7 +1694,7 @@ smsatCheckPowerModePassCB(
                       void              *ioContext
                      );
 
-osGLOBAL void 
+osGLOBAL void
 smsatIDDataPassCB(
                   agsaRoot_t        *agRoot,
                   agsaIORequest_t   *agIORequest,
@@ -1705,7 +1705,7 @@ smsatIDDataPassCB(
                   void              *ioContext
                  );
 
-osGLOBAL void 
+osGLOBAL void
 smsatResetDeviceCB(
                     agsaRoot_t        *agRoot,
                     agsaIORequest_t   *agIORequest,
@@ -1716,7 +1716,7 @@ smsatResetDeviceCB(
                     void              *ioContext
                   );
 
-osGLOBAL void 
+osGLOBAL void
 smsatDeResetDeviceCB(
                       agsaRoot_t        *agRoot,
                       agsaIORequest_t   *agIORequest,
@@ -1726,15 +1726,15 @@ smsatDeResetDeviceCB(
                       agsaFrameHandle_t agFrameHandle,
                       void              *ioContext
                     );
-osGLOBAL void 
+osGLOBAL void
 smaSATAAbortCB(
                 agsaRoot_t        *agRoot,
                 agsaIORequest_t   *agIORequest,
                 bit32             flag,
                 bit32             status
 	      );
-		    
-osGLOBAL void 
+
+osGLOBAL void
 smLocalPhyControlCB(
                      agsaRoot_t     *agRoot,
                      agsaContext_t  *agContext,
@@ -1755,9 +1755,9 @@ osGLOBAL bit32 smsatComputeCDB16TL(smSatIOContext_t            *satIOContext);
 osGLOBAL FORCEINLINE bit32 smsatComputeLoopNum(bit32 a, bit32 b);
 osGLOBAL FORCEINLINE bit32 smsatCheckLimit(bit8 *lba, bit8 *tl, int flag, smDeviceData_t *pSatDevData);
 
-osGLOBAL void  
+osGLOBAL void
 smsatSplitSGL(
-            smRoot_t                  *smRoot, 
+            smRoot_t                  *smRoot,
             smIORequest_t             *smIORequest,
             smDeviceHandle_t          *smDeviceHandle,
             smScsiInitiatorRequest_t  *smScsiRequest,
@@ -1767,16 +1767,16 @@ smsatSplitSGL(
             bit32                     flag
 	   );
 
-osGLOBAL void  
+osGLOBAL void
 smsatPrintSgl(
-            smRoot_t                  *smRoot, 
+            smRoot_t                  *smRoot,
             agsaEsgl_t                *agEsgl,
             bit32                     idx
             );
 /******************************** end   of utils    ***********************************************************/
 
 
-osGLOBAL void 
+osGLOBAL void
 smsatPassthroughCB(
                 agsaRoot_t        *agRoot,
                 agsaIORequest_t   *agIORequest,
@@ -1784,7 +1784,7 @@ smsatPassthroughCB(
                 agsaFisHeader_t   *agFirstDword,
                 bit32             agIOInfoLen,
                 void              *agParam,
-                void              *ioContext                   
+                void              *ioContext
                );
 
 

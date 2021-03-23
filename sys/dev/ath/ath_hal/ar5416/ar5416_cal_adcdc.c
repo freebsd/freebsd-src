@@ -103,7 +103,7 @@ ar5416AdcDcCalibration(struct ath_hal *ah, uint8_t numChains)
 		val = OS_REG_READ(ah, AR_PHY_NEW_ADC_DC_GAIN_CORR(i));
 		val &= 0xc0000fff;
 		val |= (qDcMismatch << 12) | (iDcMismatch << 21);
-		OS_REG_WRITE(ah, AR_PHY_NEW_ADC_DC_GAIN_CORR(i), val); 
+		OS_REG_WRITE(ah, AR_PHY_NEW_ADC_DC_GAIN_CORR(i), val);
 
 		HALDEBUG(ah, HAL_DEBUG_PERCAL,
 		    "ADC DC Offset Cal done for Chain %d\n", i);

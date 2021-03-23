@@ -133,7 +133,7 @@ bhnd_ehci_attach(device_t self)
 	}
 
 	rid = 0;
-	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, 
+	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (!sc->sc_io_res) {
 		BHND_ERROR_DEV(self, "Could not map memory");

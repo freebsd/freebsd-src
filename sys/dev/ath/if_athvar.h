@@ -763,7 +763,7 @@ struct ath_softc {
 	u_int			sc_txqsetup;	/* h/w queues setup */
 	u_int			sc_txintrperiod;/* tx interrupt batching */
 	struct ath_txq		sc_txq[HAL_NUM_TX_QUEUES];
-	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
+	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */
 	struct task		sc_txtask;	/* tx int processing */
 	struct task		sc_txqtask;	/* tx proc processing */
 

@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 *
 * $FreeBSD$
@@ -39,7 +39,7 @@
 #include <dev/pms/RefTisa/sat/src/smlist.h>
 
 /*
- * SAT specific structure per SATA drive 
+ * SAT specific structure per SATA drive
  */
 #define SAT_NONNCQ_MAX  1
 #define SAT_NCQ_MAX     32
@@ -93,21 +93,21 @@ typedef struct smDeviceData_s  {
   agsaDevHandle_t         *agDevHandle;
   bit32                   valid; /* valid or registered */
   smTimerRequest_t        SATAIDDeviceTimer; /* ID Device Data timer for SATA device */
-  bit32                   SMAbortAll; /* flag for abortall case */ 
+  bit32                   SMAbortAll; /* flag for abortall case */
   smDeviceHandle_t        *smDevHandle;
   bit32                   directlyAttached;
   agsaDevHandle_t         *agExpDevHandle; /* expander a device is attached to if expander attached */
   bit32                   phyID;
   agsaContext_t           agDeviceResetContext; /* used in saLocalPhyControl() */
   bit32                   SMNumOfFCA;
-    
+
   /* from satDeviceData_t */
   smList_t                satIoLinkList;            /* Normal I/O from TISA         */
   smList_t                satFreeIntIoLinkList;     /* SAT internal I/O free list   */
   smList_t                satActiveIntIoLinkList;   /* SAT internal I/O active list */
   smSatInternalIo_t       satIntIo[SAT_MAX_INT_IO]; /* Internal I/O resource        */
   agsaSATAIdentifyData_t  satIdentifyData;          /* Copy of SATA Id Dev data     */
-  bit32                   satNCQ;                   /* Flag for NCQ support         */ 
+  bit32                   satNCQ;                   /* Flag for NCQ support         */
   bit32                   sat48BitSupport;          /* Flag for 48-bit addressing   */
   bit32                   satSMARTSelfTest;         /* Flag for SMART self test     */
   bit32                   satSMARTFeatureSet;       /* Flag for SMART feature set   */
@@ -145,8 +145,8 @@ typedef struct smDeviceData_s  {
   bit32                   IDDeviceValid;            /* ID DeviceData valid bit      */
   bit8                    satMaxLBA[8];             /* MAXLBA is from read capacity */
   bit32                   satBGPendingDiag;         /* Pending Diagnostic in backgound */
-  bit32                   NumOfFCA;                 /* number of SMP HARD RESET on this device */   
-  bit32                   NumOfIDRetries;           /* number of SMP HARD RESET after ID retries */   
+  bit32                   NumOfFCA;                 /* number of SMP HARD RESET on this device */
+  bit32                   NumOfIDRetries;           /* number of SMP HARD RESET after ID retries */
   smIORequest_t           *satTmTaskTag;            /* TM Task Tag                  */
   void                    *satSaDeviceData;         /* Pointer back to sa dev data  */
   bit32                   ID_Retries;               /* identify device data retries */
@@ -169,13 +169,13 @@ typedef struct smAtaPassThroughHdr_s
   bit8 tDir : 1;
   bit8 byteBlock : 1;
   bit8 tlength : 2;
-  
+
 }smAtaPassThroughHdr_t;
 
 /*
  * SCSI Sense Data
  */
-typedef struct 
+typedef struct
 {
   bit8       snsRespCode;
   bit8       snsSegment;
@@ -190,7 +190,7 @@ typedef struct
 } smScsiRspSense_t;
 
 
-/* 
+/*
  * SATA SAT specific function pointer for SATA completion for SAT commands.
  */
 typedef void (*smSatCompleteCbPtr_t  )(
@@ -209,14 +209,14 @@ typedef void (*smSMPCompleted_t)(
                                   agsaIORequest_t       *,
                                   bit32                 ,
                                   bit32                 ,
-                                  agsaFrameHandle_t     
+                                  agsaFrameHandle_t
                                 );
 
 
-/* 
+/*
  * SATA SAT specific function for I/O context
  */
-typedef struct smSatIOContext_s 
+typedef struct smSatIOContext_s
 {
   smList_t                    satIoContextLink;
   smDeviceData_t              *pSatDevData;
@@ -245,7 +245,7 @@ typedef struct smSatIOContext_s
   bit32                       ParmLen;    /* for reassign blocks; defective LBA list length */
   bit32                       NotifyOS;   /* only for task management */
   bit32                       TMF;        /* task management function */
-  struct smSatIOContext_s     *satToBeAbortedIOContext; 
+  struct smSatIOContext_s     *satToBeAbortedIOContext;
   struct smSatIOContext_s     *satOrgIOContext;
   bit32                       UpperAddr;
   bit32                       LowerAddr;
@@ -253,14 +253,14 @@ typedef struct smSatIOContext_s
   bit32                       AdjustBytes;
   bit32                       EsglLen;
   /* For the SAT Passthrough */
-  bit8                        ck_cond;  
+  bit8                        ck_cond;
   bit8                        extend;
   bit8                        sectorCnt07;
   bit8                        LBAHigh07;
   bit8                        LBAMid07;
   bit8                        LBALow07;
   bit8                        Sector_Cnt_Upper_Nonzero;
-  bit8                        LBA_Upper_Nonzero;  
+  bit8                        LBA_Upper_Nonzero;
   bit32                       pid;        /* port id; used to protect double completion */
   bit32                       id;         /* for debugging */
 } smSatIOContext_t;
@@ -272,7 +272,7 @@ typedef struct smIORequestBody_s {
   agsaIORequest_t             agIORequest;
   smIORequest_t               *smIOToBeAbortedRequest; /* IO to be aborted; old tiIOToBeAbortedRequest */
   bit32                       id;
-  bit32                       InUse;  
+  bit32                       InUse;
   union {
     struct {
       agsaSATAInitiatorRequest_t    agSATARequestBody;
@@ -280,7 +280,7 @@ typedef struct smIORequestBody_s {
       smSenseData_t                 smSenseData; /* old tiSenseData */
       smSatIOContext_t              satIOContext;
     } SATA;
-  } transport;  
+  } transport;
   bit32                          ioStarted;
   bit32                          ioCompleted;
   bit32                          reTries;
@@ -297,12 +297,12 @@ typedef struct smIORequestBody_s {
       smIORequest_t             *TaskTag;
     } InitiatorTMIO;  /* task management */
   } IOType;
-  
+
 } smIORequestBody_t;
 
 typedef struct smSMPRequestBody_s {
   smSMPCompleted_t               SMPCompletionFunc;/* must be the second */
-  
+
   smDeviceHandle_t               *smDevHandle;    /* not used for SM generated SMP */
   agsaIORequest_t                agIORequest;
   agsaSASRequestBody_t           agSASRequestBody;
@@ -310,10 +310,10 @@ typedef struct smSMPRequestBody_s {
   smDeviceData_t                 *smDeviceData;
   smIORequest_t                  *CurrentTaskTag; /* SMP is used for simulate target reset */
 //  tdsaPortContext_t              *tdPortContext; /* portcontext where SMP is sent from */
-  bit8                           smpPayload[SMP_DIRECT_PAYLOAD_LIMIT]; /* for smp retries; 
+  bit8                           smpPayload[SMP_DIRECT_PAYLOAD_LIMIT]; /* for smp retries;
                                                                           only for direct SMP */
   bit32                          retries; /* number of retries */
- 
+
 }  smSMPRequestBody_t;
 
 
@@ -326,25 +326,25 @@ typedef struct smRootOsData_s {
 typedef struct smIntContext_s {
   /**< agsaRoot_t->osData points to this */
   struct smRootOsData_s      smRootOsData;
-  
+
   bit32               usecsPerTick;
   agsaRoot_t          *agRoot;
-  
+
   /**< software-related initialization params used in saInitialize() */
-  smSwConfig_t        SwConfig;  
-  
+  smSwConfig_t        SwConfig;
+
   /**< timers used commonly in SAS/SATA */
   smList_t                      timerlist;
-  
+
   /**< pointer to Device memory */
-  smDeviceData_t             *DeviceMem;  
+  smDeviceData_t             *DeviceMem;
   smList_t                   FreeDeviceList;
   smList_t                   MainDeviceList;
 
   /**< pointer to IO memory */
-  smIORequestBody_t         *IOMem; 
+  smIORequestBody_t         *IOMem;
   smList_t                   freeIOList;
-  smList_t                   mainIOList;  
+  smList_t                   mainIOList;
   bit32                      FCA;
 }  smIntContext_t;
 

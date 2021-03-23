@@ -246,9 +246,9 @@ s3lfb_set_mode(video_adapter_t *adp, int mode)
 
 	outb_p(0x38, S3_CRTC_ADDR); outb_p(0x48, S3_CRTC_VALUE);
 	outb_p(0x39, S3_CRTC_ADDR); outb_p(0xa5, S3_CRTC_VALUE);
-       
+
        /* check that CR47 is read/write */
-       
+
 #if 0
 	outb_p(0x47, S3_CRTC_ADDR); outb_p(0xff, S3_CRTC_VALUE);
 	tmp = inb_p(S3_CRTC_VALUE);
@@ -384,7 +384,7 @@ s3lfb_set_hw_cursor_shape(video_adapter_t *adp, int base, int height,
 }
 
 static int
-s3lfb_blank_display(video_adapter_t *adp, int mode) 
+s3lfb_blank_display(video_adapter_t *adp, int mode)
 {
 	return (*prevvidsw->blank_display)(adp, mode);
 }

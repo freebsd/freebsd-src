@@ -1095,7 +1095,7 @@ ath_tx_calc_protection(struct ath_softc *sc, struct ath_buf *bf)
 	 * enable RTS.
 	 *
 	 * XXX ic_htprotmode or ic_curhtprotmode?
-	 * XXX should it_htprotmode only matter if ic_curhtprotmode 
+	 * XXX should it_htprotmode only matter if ic_curhtprotmode
 	 * XXX indicates it's not a HT pure environment?
 	 */
 	if ((ic->ic_htprotmode == IEEE80211_PROT_RTSCTS) &&
@@ -1334,7 +1334,7 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_hal *ah = sc->sc_ah;
 
 	if (bf->bf_state.bfs_txrate0 == 0)
-		DPRINTF(sc, ATH_DEBUG_XMIT, 
+		DPRINTF(sc, ATH_DEBUG_XMIT,
 		    "%s: bf=%p, txrate0=%d\n", __func__, bf, 0);
 
 	ath_hal_setuptxdesc(ah, ds
@@ -1476,7 +1476,7 @@ ath_tx_should_swq_frame(struct ath_softc *sc, struct ath_node *an,
 		 * Other control/mgmt frame; bypass software queuing
 		 * for now!
 		 */
-		DPRINTF(sc, ATH_DEBUG_XMIT, 
+		DPRINTF(sc, ATH_DEBUG_XMIT,
 		    "%s: %6D: Node is asleep; sending mgmt "
 		    "(type=%d, subtype=%d)\n",
 		    __func__, ni->ni_macaddr, ":", type, subtype);
@@ -1738,7 +1738,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 #if 0
 	if (txq != sc->sc_ac2q[pri]) {
-		DPRINTF(sc, ATH_DEBUG_XMIT, 
+		DPRINTF(sc, ATH_DEBUG_XMIT,
 		    "%s: txq=%p (%d), pri=%d, pri txq=%p (%d)\n",
 		    __func__,
 		    txq,
@@ -2189,7 +2189,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* Map ADDBA to the correct priority */
 	if (do_override) {
 #if 1
-		DPRINTF(sc, ATH_DEBUG_XMIT, 
+		DPRINTF(sc, ATH_DEBUG_XMIT,
 		    "%s: overriding tid %d pri %d -> %d\n",
 		    __func__, o_tid, pri, TID_TO_WME_AC(o_tid));
 #endif
@@ -2428,7 +2428,7 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	ATH_PCU_LOCK(sc);
 	if (sc->sc_inreset_cnt > 0) {
-		DPRINTF(sc, ATH_DEBUG_XMIT, 
+		DPRINTF(sc, ATH_DEBUG_XMIT,
 		    "%s: sc_inreset_cnt > 0; bailing\n", __func__);
 		error = EIO;
 		ATH_PCU_UNLOCK(sc);
@@ -5445,7 +5445,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
 	if (tid->tid == IEEE80211_NONQOS_TID)
-		DPRINTF(sc, ATH_DEBUG_SW_TX, 
+		DPRINTF(sc, ATH_DEBUG_SW_TX,
 		    "%s: called for TID=NONQOS_TID?\n", __func__);
 
 	for (;;) {
@@ -5478,7 +5478,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			ATH_TID_REMOVE(tid, bf, bf_list);
 
 			if (bf->bf_state.bfs_nframes > 1)
-				DPRINTF(sc, ATH_DEBUG_SW_TX, 
+				DPRINTF(sc, ATH_DEBUG_SW_TX,
 				    "%s: aggr=%d, nframes=%d\n",
 				    __func__,
 				    bf->bf_state.bfs_aggr,

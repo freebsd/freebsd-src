@@ -47,9 +47,9 @@
 #define	AGE_MAXTXSEGS		35
 #define	AGE_RX_BUF_ALIGN	8
 #ifndef __NO_STRICT_ALIGNMENT
-#define	AGE_RX_BUF_SIZE		(MCLBYTES - AGE_RX_BUF_ALIGN)	
+#define	AGE_RX_BUF_SIZE		(MCLBYTES - AGE_RX_BUF_ALIGN)
 #else
-#define	AGE_RX_BUF_SIZE		(MCLBYTES)	
+#define	AGE_RX_BUF_SIZE		(MCLBYTES)
 #endif
 
 #define	AGE_ADDR_LO(x)		((uint64_t) (x) & 0xFFFFFFFF)

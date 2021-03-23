@@ -699,7 +699,7 @@ OF_device_register_xref(phandle_t xref, device_t dev)
 	if (xref_init_done) {
 		if ((xi = xrefinfo_find(xref, FIND_BY_XREF)) == NULL)
 			xrefinfo_add(xref, xref, dev);
-		else 
+		else
 			xi->dev = dev;
 		return (0);
 	}

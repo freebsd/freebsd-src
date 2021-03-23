@@ -606,7 +606,7 @@ struct xbb_softc {
 
 	/**
 	 * \brief Cached value of the front-end's domain id.
-	 * 
+	 *
 	 * This value is used at once for each mapped page in
 	 * a transaction.  We cache it to avoid incuring the
 	 * cost of an ivar access every time this is needed.
@@ -1061,7 +1061,7 @@ bailout:
  * Free allocated KVA.
  *
  * \param xbb	    Per-instance xbb configuration structure.
- * \param kva_ptr   Pointer to allocated KVA region.  
+ * \param kva_ptr   Pointer to allocated KVA region.
  * \param nr_pages  Number of pages in the KVA region.
  */
 static void
@@ -1175,7 +1175,7 @@ xbb_release_reqlist(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 	}
 
 	if (wakeup != 0)
-		taskqueue_enqueue(xbb->io_taskqueue, &xbb->io_task); 
+		taskqueue_enqueue(xbb->io_taskqueue, &xbb->io_task);
 }
 
 /**
@@ -1276,7 +1276,7 @@ bailout_error:
 
 /**
  * Create and queue a response to a blkif request.
- * 
+ *
  * \param xbb     Per-instance xbb configuration structure.
  * \param req     The request structure to which to respond.
  * \param status  The status code to report.  See BLKIF_RSP_*
@@ -1339,7 +1339,7 @@ xbb_queue_response(struct xbb_softc *xbb, struct xbb_xen_req *req, int status)
 
 /**
  * Send queued responses to blkif requests.
- * 
+ *
  * \param xbb            Per-instance xbb configuration structure.
  * \param run_taskqueue  Flag that is set to 1 if the taskqueue
  *			 should be run, 0 if it does not need to be run.
@@ -1452,7 +1452,7 @@ xbb_complete_reqlist(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 	mtx_unlock(&xbb->lock);
 
 	if (run_taskqueue)
-		taskqueue_enqueue(xbb->io_taskqueue, &xbb->io_task); 
+		taskqueue_enqueue(xbb->io_taskqueue, &xbb->io_task);
 
 	if (notify)
 		xen_intr_signal(xbb->xen_intr_handle);
@@ -1537,7 +1537,7 @@ xbb_bio_done(struct bio *bio)
  * \param reqlist   Allocated internal request list structure.
  *
  * \return          On success, 0.  For resource shortages, non-zero.
- *  
+ *
  * This routine performs the backend common aspects of request parsing
  * including compiling an internal request structure, parsing the S/G
  * list and any secondary ring requests in which they may reside, and
@@ -1757,7 +1757,7 @@ xbb_dispatch_io(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 			operation == BIO_READ ? "read" : "write",
 			reqlist->starting_sector_number,
 			reqlist->starting_sector_number + total_sects,
-			xbb->dev_name); 
+			xbb->dev_name);
 		reqlist->status = BLKIF_RSP_ERROR;
 		goto send_response;
 	}
@@ -1909,7 +1909,7 @@ xbb_run_queue(void *context, int pending)
 			default:
 				panic("Unexpected blkif protocol ABI.");
 				/* NOTREACHED */
-			} 
+			}
 
 			/*
 			 * Check for situations that would require closing
@@ -1956,7 +1956,7 @@ xbb_run_queue(void *context, int pending)
 			 * (for native mode).  We must update the consumer
 			 * index  before issuing back-end I/O so there is
 			 * no possibility that it will complete and a
-			 * response be generated before we make room in 
+			 * response be generated before we make room in
 			 * the queue for that response.
 			 */
 			xbb->rings.common.req_cons++;
@@ -2033,7 +2033,7 @@ xbb_filter(void *arg)
 
 	/* Defer to taskqueue thread. */
 	xbb = (struct xbb_softc *)arg;
-	taskqueue_enqueue(xbb->io_taskqueue, &xbb->io_task); 
+	taskqueue_enqueue(xbb->io_taskqueue, &xbb->io_task);
 
 	return (FILTER_HANDLED);
 }
@@ -2382,9 +2382,9 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		 * attempts to sync the file before reading.
 		 *
 		 * So, to attempt to provide some barrier semantics in the
-		 * BIO_ORDERED case, set both IO_DIRECT and IO_SYNC.  
+		 * BIO_ORDERED case, set both IO_DIRECT and IO_SYNC.
 		 */
-		error = VOP_READ(xbb->vn, &xuio, (flags & BIO_ORDERED) ? 
+		error = VOP_READ(xbb->vn, &xuio, (flags & BIO_ORDERED) ?
 				 (IO_DIRECT|IO_SYNC) : 0, file_data->cred);
 
 		VOP_UNLOCK(xbb->vn);
@@ -2439,7 +2439,7 @@ xbb_dispatch_file(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		     seg_idx < saved_uio_iovcnt; seg_idx++,
 		     xiovec++, p_vaddr++) {
 			/*
-			 * Note that we have to use the copy of the 
+			 * Note that we have to use the copy of the
 			 * io vector we made above.  uiomove() modifies
 			 * the uio and its referenced vector as uiomove
 			 * performs the copy, so we can't rely on any
@@ -2463,7 +2463,7 @@ bailout_send_response:
 /*--------------------------- Backend Configuration --------------------------*/
 /**
  * Close and cleanup any backend device/file specific state for this
- * block back instance. 
+ * block back instance.
  *
  * \param xbb  Per-instance xbb configuration structure.
  */
@@ -2714,7 +2714,7 @@ xbb_open_backend(struct xbb_softc *xbb)
 	}
 
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-		
+
 	xbb->vn = nd.ni_vp;
 
 	/* We only support disks and files. */
@@ -2788,7 +2788,7 @@ xbb_disconnect(struct xbb_softc *xbb)
 
 	mtx_unlock(&xbb->lock);
 	xen_intr_unbind(&xbb->xen_intr_handle);
-	taskqueue_drain(xbb->io_taskqueue, &xbb->io_task); 
+	taskqueue_drain(xbb->io_taskqueue, &xbb->io_task);
 	mtx_lock(&xbb->lock);
 
 	/*
@@ -3018,7 +3018,7 @@ xbb_alloc_communication_mem(struct xbb_softc *xbb)
 
 	DPRINTF("%s: kva: %#jx, gnt_base_addr: %#jx\n",
 		device_get_nameunit(xbb->dev), (uintmax_t)xbb->kva,
-		(uintmax_t)xbb->gnt_base_addr); 
+		(uintmax_t)xbb->gnt_base_addr);
 	return (0);
 }
 
@@ -3130,7 +3130,7 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 
 	error = xs_gather(XST_NIL, otherend_path,
 			  "protocol", "%63s", protocol_abi,
-			  NULL); 
+			  NULL);
 	if (error != 0
 	 || !strcmp(protocol_abi, XEN_IO_PROTO_ABI_NATIVE)) {
 		/*
@@ -3170,7 +3170,7 @@ xbb_alloc_requests(struct xbb_softc *xbb)
 	xbb->requests = malloc(xbb->max_requests * sizeof(*xbb->requests),
 			       M_XENBLOCKBACK, M_NOWAIT|M_ZERO);
 	if (xbb->requests == NULL) {
-		xenbus_dev_fatal(xbb->dev, ENOMEM, 
+		xenbus_dev_fatal(xbb->dev, ENOMEM,
 				  "Unable to allocate request structures");
 		return (ENOMEM);
 	}
@@ -3198,7 +3198,7 @@ xbb_alloc_request_lists(struct xbb_softc *xbb)
 	xbb->request_lists = malloc(xbb->max_requests *
 		sizeof(*xbb->request_lists), M_XENBLOCKBACK, M_NOWAIT|M_ZERO);
 	if (xbb->request_lists == NULL) {
-		xenbus_dev_fatal(xbb->dev, ENOMEM, 
+		xenbus_dev_fatal(xbb->dev, ENOMEM,
 				  "Unable to allocate request list structures");
 		return (ENOMEM);
 	}
@@ -3216,7 +3216,7 @@ xbb_alloc_request_lists(struct xbb_softc *xbb)
 		reqlist->bounce = malloc(xbb->max_reqlist_size,
 					 M_XENBLOCKBACK, M_NOWAIT);
 		if (reqlist->bounce == NULL) {
-			xenbus_dev_fatal(xbb->dev, ENOMEM, 
+			xenbus_dev_fatal(xbb->dev, ENOMEM,
 					 "Unable to allocate request "
 					 "bounce buffers");
 			return (ENOMEM);
@@ -3399,7 +3399,7 @@ xbb_shutdown(struct xbb_softc *xbb)
 	 * xenbus operations, it is possible for two threads
 	 * to attempt to close out shutdown processing at
 	 * the same time.  Tell the caller that hits this
-	 * race to try back later. 
+	 * race to try back later.
 	 */
 	if ((xbb->flags & XBBF_IN_SHUTDOWN) != 0)
 		return (EAGAIN);
@@ -3487,7 +3487,7 @@ xbb_attach_failed(struct xbb_softc *xbb, int err, const char *fmt, ...)
 /*---------------------------- NewBus Entrypoints ----------------------------*/
 /**
  * Inspect a XenBus device and claim it if is of the appropriate type.
- * 
+ *
  * \param dev  NewBus device object representing a candidate XenBus device.
  *
  * \return  0 for success, errno codes for failure.
@@ -3794,7 +3794,7 @@ xbb_attach(device_t dev)
  * \param dev  NewBus device object representing this Xen Block Back instance.
  *
  * \return  0 for success, errno codes for failure.
- * 
+ *
  * \note A block back device may be detached at any time in its life-cycle,
  *       including part way through the attach process.  For this reason,
  *       initialization order and the initialization state checks in this
@@ -3850,7 +3850,7 @@ xbb_detach(device_t dev)
 
 /**
  * Prepare this block back device for suspension of this VM.
- * 
+ *
  * \param dev  NewBus device object representing this Xen Block Back instance.
  *
  * \return  0 for success, errno codes for failure.
@@ -3872,7 +3872,7 @@ xbb_suspend(device_t dev)
 
 /**
  * Perform any processing required to recover from a suspended state.
- * 
+ *
  * \param dev  NewBus device object representing this Xen Block Back instance.
  *
  * \return  0 for success, errno codes for failure.

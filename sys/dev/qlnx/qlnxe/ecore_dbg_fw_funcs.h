@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -149,7 +149,7 @@ enum dbg_status ecore_dbg_bus_set_pci_output(struct ecore_hwfn *p_hwfn,
  * @param dest_addr_lo32 -	Destination MAC address (for Eth header)
  * @param dest_addr_hi16
  * @param data_limit_size_kb -  Data limit size in KB (valid only for one-shot)
- *				If set to 0, data limit won't be configured. 
+ *				If set to 0, data limit won't be configured.
  * @param send_to_other_engine -If true:
  *				1) The NW output will be sent to the DBG block
  *				   of the other engine.
@@ -380,7 +380,7 @@ enum dbg_status ecore_dbg_bus_enable_filter(struct ecore_hwfn *p_hwfn,
  *	- the version wasn't set
  *	- the trigger was already enabled
  *	- more than 4 dwords are recorded per-cycle (forbids triggers)
- *	- pre_chunks is not in the range 0-47. 
+ *	- pre_chunks is not in the range 0-47.
  * Otherwise, returns ok.
  */
 enum dbg_status ecore_dbg_bus_enable_trigger(struct ecore_hwfn *p_hwfn,
@@ -864,7 +864,7 @@ enum dbg_status ecore_dbg_read_attn(struct ecore_hwfn *p_hwfn,
 									enum dbg_attn_type attn_type,
 									bool clear_status,
 									struct dbg_attn_block_result *results);
-									
+
 /**
 * @brief ecore_dbg_print_attn - Prints attention registers values in the
 * specified results struct.

@@ -32,7 +32,7 @@
  * This is driver for Temperature & Humidity sensor which provides digital
  * output over single-wire protocol from embedded 8-bit microcontroller.
  * Note that it uses a custom single-wire protocol, it is not 1-wire(tm).
- * 
+ *
  * This driver supports the following chips:
  *   DHT11:  Temp   0c to 50c +-2.0c, Humidity 20% to  90% +-5%
  *   DHT12:  Temp -20c to 60c +-0.5c, Humidity 20% to  95% +-5%
@@ -165,7 +165,7 @@ gpioths_dht_readbytes(struct gpioths_softc *sc)
 	int			 i, negmul, offset, size, tmphi, tmplo;
 
 	gpioths_dht_initread(sc);
-	
+
 	err = gpioths_dht_timeuntil(sc, false, NULL);
 	if (err) {
 		device_printf(sc->dev, "err(START) = %d\n", err);
@@ -359,7 +359,7 @@ gpioths_attach(device_t dev)
 		return (err);
 	}
 
-	/* 
+	/*
 	 * Do an initial read so we have correct values for reporting before
 	 * registering the sysctls that can access those values.  This also
 	 * schedules the periodic polling the driver does every few seconds to

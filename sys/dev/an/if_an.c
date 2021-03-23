@@ -871,7 +871,7 @@ an_rxeof(struct an_softc *sc)
 			 */
 
 			if (!(sc->an_monitor & AN_MONITOR_INCLUDE_BEACON) &&
-			    (rx_frame.an_frame_ctl & 
+			    (rx_frame.an_frame_ctl &
 			     IEEE80211_FC0_SUBTYPE_BEACON)) {
 				return;
 			}

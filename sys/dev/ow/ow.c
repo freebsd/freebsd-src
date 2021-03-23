@@ -573,7 +573,7 @@ ow_detach(device_t ndev)
 	bus_generic_detach(ndev);
 
 	/*
-	 * We delete all the children, and free up the ivars 
+	 * We delete all the children, and free up the ivars
 	 */
 	if (device_get_children(ndev, &children, &nkid) != 0)
 		return ENOMEM;

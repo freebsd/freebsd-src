@@ -88,7 +88,7 @@ ti8250_bus_probe(struct uart_softc *sc)
 		continue;
 	uart_setreg(&sc->sc_bas, MDR1_REG, MDR1_MODE_UART);
 
-	status = ns8250_bus_probe(sc); 
+	status = ns8250_bus_probe(sc);
 	if (status == 0)
 		device_set_desc(sc->sc_dev, "TI UART (16550 compatible)");
 

@@ -176,7 +176,7 @@ qla_alloc_dma(qla_host_t *ha)
 			ha->hw.dma_buf.rds_ring[i].size =
 				(sizeof(q80_recv_desc_t)) * NUM_RX_DESCRIPTORS;
 		} else if (i == RDS_RING_INDEX_JUMBO) {
-			ha->hw.dma_buf.rds_ring[i].size = 
+			ha->hw.dma_buf.rds_ring[i].size =
 				(sizeof(q80_recv_desc_t)) *
 					NUM_RX_JUMBO_DESCRIPTORS;
 		} else
@@ -467,7 +467,7 @@ qla_issue_cmd(qla_host_t *ha, qla_cdrp_t *cdrp)
 			Q8_NX_CDRP_ARG1, cdrp->cmd_arg1,
 			Q8_NX_CDRP_ARG2, cdrp->cmd_arg2,
 			Q8_NX_CDRP_ARG3, cdrp->cmd_arg3);
-		
+
 		device_printf(dev, "%s: exit (ret = 0x%x)\n"
 			"\t\t rsp = 0x%08x\n"
 			"\t\t arg1 = 0x%08x\n"
@@ -626,7 +626,7 @@ qla_config_mac_addr(qla_host_t *ha, uint8_t *mac_addr, uint16_t cntxt_id,
 		mac_config.cmd = Q8_FWCD_ADD_MAC_ADDR;
 	else
 		mac_config.cmd = Q8_FWCD_DEL_MAC_ADDR;
-	bcopy(mac_addr, mac_config.mac_addr,6); 
+	bcopy(mac_addr, mac_config.mac_addr,6);
 
 	ret = qla_fw_cmd(ha, &mac_config, sizeof(qla_fw_cds_config_mac_addr_t));
 
@@ -783,7 +783,7 @@ qla_tx_tso(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd, uint8_t *hdr)
 
 	if ((mp->m_pkthdr.csum_flags & CSUM_TSO) == 0) {
 		/* If TCP options are preset only time stamp option is supported */
-		if ((tcp_hlen - sizeof(struct tcphdr)) != 10) 
+		if ((tcp_hlen - sizeof(struct tcphdr)) != 10)
 			return -1;
 		else {
 			if (mp->m_len < hdrlen) {
@@ -853,7 +853,7 @@ qla_tx_chksum(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd)
 		etype = ntohs(eh->evl_encap_proto);
 	}
 
-		
+
 	switch (etype) {
 		case ETHERTYPE_IP:
 			ip = (struct ip *)(mp->m_data + ehdrlen);
@@ -1003,7 +1003,7 @@ qla_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 			return (EINVAL);
 		}
 		bzero((void *)tx_cmd, sizeof(q80_tx_cmd_t));
-		if (qla_tx_chksum(ha, mp, tx_cmd) != 0) 
+		if (qla_tx_chksum(ha, mp, tx_cmd) != 0)
         		tx_cmd->flags_opcode = Q8_TX_CMD_OP_XMT_ETHER;
 	} else {
 		bcopy(&tso_cmd, tx_cmd, sizeof(q80_tx_cmd_t));
@@ -1057,7 +1057,7 @@ qla_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 
 		if (!nsegs)
 			break;
-		
+
         	tx_cmd = &hw->tx_ring_base[hw->txr_next];
 		bzero((void *)tx_cmd, sizeof(q80_tx_cmd_t));
 	}
@@ -1078,7 +1078,7 @@ qla_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 			bcopy(src, dst, (ETHER_ADDR_LEN * 2));
 			dst += (ETHER_ADDR_LEN * 2);
 			src += (ETHER_ADDR_LEN * 2);
-			
+
 			hdr_len -= (ETHER_ADDR_LEN * 2);
 
 			*((uint16_t *)dst) = htons(ETHERTYPE_VLAN);
@@ -1099,7 +1099,7 @@ qla_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 
 		hw->txr_next = (hw->txr_next + 1) & (NUM_TX_DESCRIPTORS - 1);
 		tx_cmd_count++;
-		
+
 		while (hdr_len) {
 			tx_cmd = &hw->tx_ring_base[hw->txr_next];
 			bzero((void *)tx_cmd, sizeof(q80_tx_cmd_t));
@@ -1825,7 +1825,7 @@ qla_hw_stop_rcv(qla_host_t *ha)
 		}
 		if (done)
 			break;
-		else 
+		else
 			qla_mdelay(__func__, 10);
 	}
 }

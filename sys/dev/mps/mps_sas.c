@@ -294,7 +294,7 @@ mpssas_rescan_target(struct mps_softc *sc, struct mpssas_target *targ)
 	if (targetid == CAM_TARGET_WILDCARD)
 		ccb->ccb_h.func_code = XPT_SCAN_BUS;
 	else
-		ccb->ccb_h.func_code = XPT_SCAN_TGT;     
+		ccb->ccb_h.func_code = XPT_SCAN_TGT;
 
 	mps_dprint(sc, MPS_TRACE, "%s targetid %u\n", __func__, targetid);
 	xpt_rescan(ccb);
@@ -650,7 +650,7 @@ mpssas_remove_complete(struct mps_softc *sc, struct mps_command *tm)
 	}
 
 	mps_dprint(sc, MPS_XINFO,
-	    "%s on handle 0x%04x, IOCStatus= 0x%x\n", __func__, 
+	    "%s on handle 0x%04x, IOCStatus= 0x%x\n", __func__,
 	    handle, le16toh(reply->IOCStatus));
 
 	/*
@@ -669,7 +669,7 @@ mpssas_remove_complete(struct mps_softc *sc, struct mps_command *tm)
 		targ->linkrate = 0x0;
 		targ->devinfo = 0x0;
 		targ->flags = 0x0;
-		
+
 		while(!SLIST_EMPTY(&targ->luns)) {
 			lun = SLIST_FIRST(&targ->luns);
 			SLIST_REMOVE_HEAD(&targ->luns, lun_link);
@@ -751,7 +751,7 @@ mps_attach_sas(struct mps_softc *sc)
 	TASK_INIT(&sassc->ev_task, 0, mpssas_firmware_event_work, sc);
 	sassc->ev_tq = taskqueue_create("mps_taskq", M_NOWAIT | M_ZERO,
 	    taskqueue_thread_enqueue, &sassc->ev_tq);
-	taskqueue_start_threads(&sassc->ev_tq, 1, PRIBIO, "%s taskq", 
+	taskqueue_start_threads(&sassc->ev_tq, 1, PRIBIO, "%s taskq",
 	    device_get_nameunit(sc->mps_dev));
 
 	mps_lock(sc);
@@ -1047,7 +1047,7 @@ mpssas_announce_reset(struct mps_softc *sc, uint32_t ac_code,
 	mps_dprint(sc, MPS_XINFO, "%s code %x target %d lun %jx\n", __func__,
 	    ac_code, target_id, (uintmax_t)lun_id);
 
-	if (xpt_create_path(&path, NULL, 
+	if (xpt_create_path(&path, NULL,
 		path_id, target_id, lun_id) != CAM_REQ_CMP) {
 		mps_dprint(sc, MPS_ERROR, "unable to create path for reset "
 			   "notification\n");
@@ -1058,7 +1058,7 @@ mpssas_announce_reset(struct mps_softc *sc, uint32_t ac_code,
 	xpt_free_path(path);
 }
 
-static void 
+static void
 mpssas_complete_all_commands(struct mps_softc *sc)
 {
 	struct mps_command *cm;
@@ -1096,7 +1096,7 @@ mpssas_complete_all_commands(struct mps_softc *sc)
 			completed = 1;
 		} else if (cm->cm_flags & MPS_CM_FLAGS_WAKEUP) {
 			mpssas_log_command(cm, MPS_RECOVERY,
-			    "waking up cm %p state %x ccb %p for diag reset\n", 
+			    "waking up cm %p state %x ccb %p for diag reset\n",
 			    cm, cm->cm_state, cm->cm_ccb);
 			wakeup(cm);
 			completed = 1;
@@ -1133,7 +1133,7 @@ mpssas_handle_reinit(struct mps_softc *sc)
 	mpssas_startup_increment(sc->sassc);
 
 	/* notify CAM of a bus reset */
-	mpssas_announce_reset(sc, AC_BUS_RESET, CAM_TARGET_WILDCARD, 
+	mpssas_announce_reset(sc, AC_BUS_RESET, CAM_TARGET_WILDCARD,
 	    CAM_LUN_WILDCARD);
 
 	/* complete and cleanup after all outstanding commands */
@@ -1145,11 +1145,11 @@ mpssas_handle_reinit(struct mps_softc *sc)
 
 	/* zero all the target handles, since they may change after the
 	 * reset, and we have to rediscover all the targets and use the new
-	 * handles.  
+	 * handles.
 	 */
 	for (i = 0; i < sc->sassc->maxtargets; i++) {
 		if (sc->sassc->targets[i].outstanding != 0)
-			mps_dprint(sc, MPS_INIT, "target %u outstanding %u\n", 
+			mps_dprint(sc, MPS_INIT, "target %u outstanding %u\n",
 			    i, sc->sassc->targets[i].outstanding);
 		sc->sassc->targets[i].handle = 0x0;
 		sc->sassc->targets[i].exp_dev_handle = 0x0;
@@ -1228,7 +1228,7 @@ mpssas_logical_unit_reset_complete(struct mps_softc *sc, struct mps_command *tm)
 	    "logical unit reset status 0x%x code 0x%x count %u\n",
 	    le16toh(reply->IOCStatus), le32toh(reply->ResponseCode),
 	    le32toh(reply->TerminationCount));
-		
+
 	/*
 	 * See if there are any outstanding commands for this LUN.
 	 * This could be made more efficient by using a per-LU data
@@ -1432,7 +1432,7 @@ mpssas_abort_complete(struct mps_softc *sc, struct mps_command *tm)
 	 */
 	if ((tm->cm_flags & MPS_CM_FLAGS_ERROR_MASK) != 0) {
 		mps_dprint(sc, MPS_RECOVERY,
-		    "cm_flags = %#x for abort %p TaskMID %u!\n", 
+		    "cm_flags = %#x for abort %p TaskMID %u!\n",
 		    tm->cm_flags, tm, le16toh(req->TaskMID));
 		mpssas_free_tm(sc, tm);
 		return;
@@ -1440,7 +1440,7 @@ mpssas_abort_complete(struct mps_softc *sc, struct mps_command *tm)
 
 	if (reply == NULL) {
 		mps_dprint(sc, MPS_RECOVERY,
-		    "NULL abort reply for tm %p TaskMID %u\n", 
+		    "NULL abort reply for tm %p TaskMID %u\n",
 		    tm, le16toh(req->TaskMID));
 		if ((sc->mps_flags & MPS_FLAGS_DIAGRESET) != 0) {
 			/* this completion was due to a reset, just cleanup */
@@ -1478,7 +1478,7 @@ mpssas_abort_complete(struct mps_softc *sc, struct mps_command *tm)
 		/* abort success, but we have more timedout commands to abort */
 		mps_dprint(sc, MPS_INFO|MPS_RECOVERY,
 		    "Continuing abort recovery for target %u\n", targ->tid);
-		
+
 		mpssas_send_abort(sc, tm, cm);
 	} else {
 		/* we didn't get a command completion, so the abort
@@ -1488,7 +1488,7 @@ mpssas_abort_complete(struct mps_softc *sc, struct mps_command *tm)
 		    "Abort failed for target %u, sending logical unit reset\n",
 		    targ->tid);
 
-		mpssas_send_reset(sc, tm, 
+		mpssas_send_reset(sc, tm,
 		    MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET);
 	}
 }
@@ -1616,7 +1616,7 @@ mpssas_scsiio_timeout(void *data)
 		 * available.  The firmware only has a limited number of
 		 * HighPriority credits for the high priority requests used
 		 * for task management, and we ran out.
-		 * 
+		 *
 		 * Isilon: don't worry about this for now, since we have
 		 * more credits than disks in an enclosure, and limit
 		 * ourselves to one TM per target for recovery.
@@ -1651,7 +1651,7 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	targ = &sassc->targets[csio->ccb_h.target_id];
 	mps_dprint(sc, MPS_TRACE, "ccb %p target flag %x\n", ccb, targ->flags);
 	if (targ->handle == 0x0) {
-		mps_dprint(sc, MPS_ERROR, "%s NULL handle for target %u\n", 
+		mps_dprint(sc, MPS_ERROR, "%s NULL handle for target %u\n",
 		    __func__, csio->ccb_h.target_id);
 		mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 		xpt_done(ccb);
@@ -1841,7 +1841,7 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 					    req->CDB.CDB32[lba_byte + i];
 					ref_tag_addr++;
 				}
-				req->CDB.EEDP32.PrimaryReferenceTag = 
+				req->CDB.EEDP32.PrimaryReferenceTag =
 					htole32(req->CDB.EEDP32.PrimaryReferenceTag);
 				req->CDB.EEDP32.PrimaryApplicationTagMask =
 				    0xFFFF;
@@ -2103,7 +2103,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 				mps_dprint(sc, MPS_XINFO,
 				    "Unfreezing SIM queue\n");
 			}
-		} 
+		}
 
 		/*
 		 * There are two scenarios where the status won't be
@@ -2495,7 +2495,7 @@ mpssas_direct_drive_io(struct mpssas_softc *sassc, struct mps_command *cm,
 		 * For 16-byte CDB's, verify that the upper 4 bytes of the CDB
 		 * are 0.  If not, this is accessing beyond 2TB so handle it in
 		 * the else section.  10-byte and 12-byte CDB's are OK.
-		 * FreeBSD sends very rare 12 byte READ/WRITE, but driver is 
+		 * FreeBSD sends very rare 12 byte READ/WRITE, but driver is
 		 * ready to accept 12byte CDB for Direct IOs.
 		 */
 		if ((CDB[0] == READ_10 || CDB[0] == WRITE_10) ||
@@ -2510,7 +2510,7 @@ mpssas_direct_drive_io(struct mpssas_softc *sassc, struct mps_command *cm,
 			 * Get virtual LBA.  Point to correct lower 4 bytes of
 			 * LBA in the CDB depending on command.
 			 */
-			lba_idx = ((CDB[0] == READ_12) || 
+			lba_idx = ((CDB[0] == READ_12) ||
 				(CDB[0] == WRITE_12) ||
 				(CDB[0] == READ_10) ||
 				(CDB[0] == WRITE_10))? 2 : 6;
@@ -2595,7 +2595,7 @@ mpssas_direct_drive_io(struct mpssas_softc *sassc, struct mps_command *cm,
 			    ((uint64_t)CDB[6] << 24) |
 			    ((uint64_t)CDB[7] << 16) |
 			    ((uint64_t)CDB[8] << 8) |
-			    (uint64_t)CDB[9]; 
+			    (uint64_t)CDB[9];
 
 			/*
 			 * Check that LBA range for I/O does not exceed volume's
@@ -2821,7 +2821,7 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 	req->PhysicalPort = 0xff;
 
 	req->RequestDataLength = htole16(ccb->smpio.smp_request_len);
-	req->SGLFlags = 
+	req->SGLFlags =
 	    MPI2_SGLFLAGS_SYSTEM_ADDRESS_SPACE | MPI2_SGLFLAGS_SGL_TYPE_MPI;
 
 	mps_dprint(sc, MPS_XINFO, "%s: sending SMP request to SAS "
@@ -2867,7 +2867,7 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 	 * Tell the mapping code that we're using a uio, and that this is
 	 * an SMP passthrough request.  There is a little special-case
 	 * logic there (in mps_data_cb()) to handle the bidirectional
-	 * transfer.  
+	 * transfer.
 	 */
 	cm->cm_flags |= MPS_CM_FLAGS_USE_UIO | MPS_CM_FLAGS_SMP_PASS |
 			MPS_CM_FLAGS_DATAIN | MPS_CM_FLAGS_DATAOUT;
@@ -3304,7 +3304,7 @@ mpssas_send_portenable(struct mps_softc *sc)
 	cm->cm_sge = NULL;
 
 	mps_map_command(sc, cm);
-	mps_dprint(sc, MPS_XINFO, 
+	mps_dprint(sc, MPS_XINFO,
 	    "mps_send_portenable finished cm %p req %p complete %p\n",
 	    cm, cm->cm_req, cm->cm_complete);
 	return (0);

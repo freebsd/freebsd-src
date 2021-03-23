@@ -25,7 +25,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -269,7 +269,7 @@ bool				 bhnd_nvram_validate_name(const char *name);
 /**
  * Calculate CRC-8 over @p buf using the Broadcom SPROM/NVRAM CRC-8
  * polynomial.
- * 
+ *
  * @param buf input buffer
  * @param size buffer size
  * @param crc last computed crc, or BHND_NVRAM_CRC8_INITIAL
@@ -307,7 +307,7 @@ enum {
 	 * at the expected offset, and then verifying the CRC to ensure
 	 * that the match was not a false positive.
 	 */
-	SPROM_LAYOUT_MAGIC_NONE	= (1<<0),	
+	SPROM_LAYOUT_MAGIC_NONE	= (1<<0),
 };
 
 /** NVRAM variable definition */
@@ -356,14 +356,14 @@ extern const size_t bhnd_sprom_num_layouts;
 
 /*
  * SPROM binding opcodes.
- * 
+ *
  * Most opcodes are provided with two variants:
  *
  * - Standard:	The opcode's data directly follows the opcode. The data type
  * 		(SPROM_OPCODE_DATA_*) is encoded in the opcode immediate (IMM).
  * - Immediate:	The opcode's data is encoded directly in the opcode immediate
  *		(IMM).
- */ 
+ */
 #define	SPROM_OPC_MASK			0xF0	/**< operation mask */
 #define	SPROM_IMM_MASK			0x0F	/**< immediate value mask */
 #define	SPROM_IMM_MAX			SPROM_IMM_MASK

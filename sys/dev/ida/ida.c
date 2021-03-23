@@ -297,7 +297,7 @@ ida_setup(struct ida_softc *ida)
 			return (error);
 		}
 	}
-	
+
 	ida->cmd.int_enable(ida, 1);
 	ida->flags |= IDA_ATTACHED;
 	mtx_unlock(&ida->lock);

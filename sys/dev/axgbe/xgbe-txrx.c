@@ -92,7 +92,7 @@ axgbe_ctx_desc_setup(struct xgbe_prv_data *pdata, struct xgbe_ring *ring,
 
 	if ((pi->ipi_csum_flags & CSUM_TSO) &&
 	    (pi->ipi_tso_segsz != ring->tx.cur_mss)) {
-		/* 
+		/*
 		 * Set TSO maximum segment size
 		 * Mark as context descriptor
 		 * Indicate this descriptor contains MSS
@@ -106,7 +106,7 @@ axgbe_ctx_desc_setup(struct xgbe_prv_data *pdata, struct xgbe_ring *ring,
 	}
 
 	if (pi->ipi_vtag && (pi->ipi_vtag != ring->tx.cur_vlan_ctag)) {
-		/* 
+		/*
 		 * Mark it as context descriptor
 		 * Set the VLAN tag
 		 * Indicate this descriptor contains the VLAN tag
@@ -138,7 +138,7 @@ axgbe_calculate_tx_parms(struct xgbe_prv_data *pdata, if_pkt_info_t pi,
 		axgbe_printf(1, "%s: ipi_len %x elen %d iplen %d tcplen %d\n",
 		    __func__, pi->ipi_len, pi->ipi_ehdrlen, pi->ipi_ip_hlen,
 		    pi->ipi_tcp_hlen);
-	
+
 		max_len = if_getmtu(pdata->netdev) + ETH_HLEN;
 		if (pi->ipi_vtag)
 			max_len += VLAN_HLEN;
@@ -184,7 +184,7 @@ axgbe_isc_txd_encap(void *arg, if_pkt_info_t pi)
 
 	xgbe_print_pkt_info(pdata, pi);
 
-	channel = pdata->channel[pi->ipi_qsidx];	
+	channel = pdata->channel[pi->ipi_qsidx];
 	ring = channel->tx_ring;
 	packet = &ring->packet_data;
 	cur = start = ring->cur;
@@ -195,7 +195,7 @@ axgbe_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	MPASS(pi->ipi_len != 0);
 	if (__predict_false(pi->ipi_len == 0)) {
 		axgbe_error("empty packet received from stack\n");
-		return (0);	
+		return (0);
 	}
 
 	MPASS(ring->cur == pi->ipi_pidx);
@@ -263,12 +263,12 @@ axgbe_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	/* Mark it as a NORMAL descriptor */
 	XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, CTXT, 0);
 
-	/* 
+	/*
 	 * Set the OWN bit if this is not the first descriptor. For first
 	 * descriptor, OWN bit will be set at last so that hardware will
 	 * process the descriptors only after the OWN bit for the first
 	 * descriptor is set
-	 */	
+	 */
 	if (cur != start)
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, OWN, 1);
 
@@ -288,7 +288,7 @@ axgbe_isc_txd_encap(void *arg, if_pkt_info_t pi)
 		axgbe_printf(1, "tcp_payload %d tcp_hlen %d\n", tcp_payload_len,
 		    pi->ipi_tcp_hlen/4);
 	} else {
-		/* Enable CRC and Pad Insertion */	
+		/* Enable CRC and Pad Insertion */
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, CPC, 0);
 
 		/* Enable HW CSUM*/
@@ -334,7 +334,7 @@ axgbe_isc_txd_encap(void *arg, if_pkt_info_t pi)
 			/* Enable HW CSUM*/
 			if (pi->ipi_csum_flags)
 				XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, CIC, 0x3);
-	
+
 			axgbe_printf(1, "%s: cur %d lo 0x%lx hi 0x%lx ds_len 0x%x "
 			    "ipi_len 0x%x\n", __func__, cur,
 			    lower_32_bits(pi->ipi_segs[cur_seg].ds_addr),

@@ -129,7 +129,7 @@ ar9287SetPowerPerRateTable(struct ath_hal *ah,
     struct ar9287_eeprom *pEepData,
     const struct ieee80211_channel *chan,
     int16_t *ratesArray, uint16_t cfgCtl,
-    uint16_t AntennaReduction, 
+    uint16_t AntennaReduction,
     uint16_t twiceMaxRegulatoryPower,
     uint16_t powerLimit)
 {
@@ -173,7 +173,7 @@ ar9287SetPowerPerRateTable(struct ath_hal *ah,
 	/* XXX setup for 5212 use (really used?) */
 	ath_hal_eepromSet(ah, AR_EEP_ANTGAINMAX_2, twiceLargestAntenna);
 
-	/* 
+	/*
 	 * scaledPower is the minimum of the user input power level and
 	 * the regulatory allowed power level
 	 */
@@ -246,7 +246,7 @@ ar9287SetPowerPerRateTable(struct ath_hal *ah,
 
 			/* compare test group from regulatory channel list with test mode from pCtlMode list */
 			if ((((cfgCtl & ~CTL_MODE_M) | (pCtlMode[ctlMode] & CTL_MODE_M)) == pEepData->ctlIndex[i]) ||
-				(((cfgCtl & ~CTL_MODE_M) | (pCtlMode[ctlMode] & CTL_MODE_M)) == 
+				(((cfgCtl & ~CTL_MODE_M) | (pCtlMode[ctlMode] & CTL_MODE_M)) ==
 				 ((pEepData->ctlIndex[i] & CTL_MODE_M) | SD_NO_CTL))) {
 				rep = &(pEepData->ctlData[i]);
 				twiceMinEdgePower = ar5416GetMaxEdgePower(freq,

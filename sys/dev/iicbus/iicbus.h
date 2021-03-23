@@ -64,7 +64,7 @@ enum {
 
 #define IICBUS_ACCESSOR(A, B, T)					\
 	__BUS_ACCESSOR(iicbus, A, IICBUS, B, T)
-	
+
 IICBUS_ACCESSOR(addr,		ADDR,		uint32_t)
 
 #define	IICBUS_LOCK(sc)			mtx_lock(&(sc)->lock)

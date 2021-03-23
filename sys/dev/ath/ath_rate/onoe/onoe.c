@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 
 #ifdef INET
-#include <netinet/in.h> 
+#include <netinet/in.h>
 #include <netinet/if_ether.h>
 #endif
 
@@ -329,7 +329,7 @@ ath_rate_ctl_start(struct ath_softc *sc, struct ieee80211_node *ni)
 #undef RATE
 }
 
-/* 
+/*
  * Examine and potentially adjust the transmit rate.
  */
 static void

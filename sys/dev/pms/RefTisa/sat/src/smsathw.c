@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -46,9 +46,9 @@ __FBSDID("$FreeBSD$");
  */
 
 
-FORCEINLINE bit32  
+FORCEINLINE bit32
 smsataLLIOStart(
-                smRoot_t                  *smRoot, 
+                smRoot_t                  *smRoot,
                 smIORequest_t             *smIORequest,
                 smDeviceHandle_t          *smDeviceHandle,
                 smScsiInitiatorRequest_t  *smScsiRequest,
@@ -68,9 +68,9 @@ smsataLLIOStart(
   bit32                       RLERecovery    = agFALSE;
   bit32                       status         = SM_RC_FAILURE;
   bit32                       nQNumber       = 0;
-  /* 
+  /*
    * If this is a super I/O request, check for optional settings.
-   * Be careful. Use the superRequest pointer for all references 
+   * Be careful. Use the superRequest pointer for all references
    * in this block of code.
    */
   agSATAReq->option = 0;
@@ -86,27 +86,27 @@ smsataLLIOStart(
     }
     {
       /* initialize expDataLength */
-      if (satIOContext->reqType == AGSA_SATA_PROTOCOL_NON_DATA ||  
+      if (satIOContext->reqType == AGSA_SATA_PROTOCOL_NON_DATA ||
           satIOContext->reqType == AGSA_SATA_PROTOCOL_SRST_ASSERT ||
           satIOContext->reqType == AGSA_SATA_PROTOCOL_SRST_DEASSERT )
-      { 
+      {
         smIORequestBody->IOType.InitiatorRegIO.expDataLength = 0;
       }
       else
       {
         smIORequestBody->IOType.InitiatorRegIO.expDataLength = smScsiRequest->scsiCmnd.expDataLength;
       }
-          
+
       agSATAReq->dataLength = smIORequestBody->IOType.InitiatorRegIO.expDataLength;
     }
-  } 
+  }
   else
   {
     /* initialize expDataLength */
-    if (satIOContext->reqType == AGSA_SATA_PROTOCOL_NON_DATA ||  
+    if (satIOContext->reqType == AGSA_SATA_PROTOCOL_NON_DATA ||
         satIOContext->reqType == AGSA_SATA_PROTOCOL_SRST_ASSERT ||
         satIOContext->reqType == AGSA_SATA_PROTOCOL_SRST_DEASSERT )
-    { 
+    {
       smIORequestBody->IOType.InitiatorRegIO.expDataLength = 0;
     }
     else
@@ -117,7 +117,7 @@ smsataLLIOStart(
     agSATAReq->dataLength = smIORequestBody->IOType.InitiatorRegIO.expDataLength;
   }
 
-  if ( (pSatDevData->satDriveState == SAT_DEV_STATE_IN_RECOVERY) && 
+  if ( (pSatDevData->satDriveState == SAT_DEV_STATE_IN_RECOVERY) &&
        (satIOContext->pFis->h.command == SAT_READ_LOG_EXT) )
   {
      RLERecovery = agTRUE;
@@ -125,7 +125,7 @@ smsataLLIOStart(
 
   /* check max io, be sure to free */
   if ( (pSatDevData->satDriveState != SAT_DEV_STATE_IN_RECOVERY) ||
-       (RLERecovery == agTRUE) )  
+       (RLERecovery == agTRUE) )
   {
     if (RLERecovery == agFALSE) /* RLE is not checked against pending IO's */
     {
@@ -138,7 +138,7 @@ smsataLLIOStart(
       tdsmInterlockedExchange(smRoot, &satPendingNONNCQIO, pSatDevData->satPendingNONNCQIO);
       tdsmInterlockedExchange(smRoot, &satPendingIO, pSatDevData->satPendingIO);
 #endif
-    
+
       if ( (satIOContext->reqType == AGSA_SATA_PROTOCOL_FPDMA_WRITE) ||
            (satIOContext->reqType == AGSA_SATA_PROTOCOL_FPDMA_READ) )
       {
@@ -147,12 +147,12 @@ smsataLLIOStart(
              satPendingNONNCQIO != 0)
         {
           SM_DBG1(("smsataLLIOStart: 1st busy did %d!!!\n", pSatDevData->id));
-          SM_DBG1(("smsataLLIOStart: 1st busy NCQ. NCQ Pending 0x%x NONNCQ Pending 0x%x All Pending 0x%x!!!\n", satPendingNCQIO, 
+          SM_DBG1(("smsataLLIOStart: 1st busy NCQ. NCQ Pending 0x%x NONNCQ Pending 0x%x All Pending 0x%x!!!\n", satPendingNCQIO,
                     satPendingNONNCQIO, satPendingIO));
           /* free resource */
           smsatFreeIntIoResource( smRoot,
                                   pSatDevData,
-                                  satIntIo); 
+                                  satIntIo);
           return SM_RC_DEVICE_BUSY;
         }
       #else
@@ -161,35 +161,35 @@ smsataLLIOStart(
             pSatDevData->satPendingNONNCQIO != 0)
         {
           SM_DBG1(("smsataLLIOStart: 1st busy did %d!!!\n", pSatDevData->id));
-          SM_DBG1(("smsataLLIOStart: 1st busy NCQ. NCQ Pending 0x%x NONNCQ Pending 0x%x All Pending 0x%x!!!\n", pSatDevData->satPendingNCQIO, 
+          SM_DBG1(("smsataLLIOStart: 1st busy NCQ. NCQ Pending 0x%x NONNCQ Pending 0x%x All Pending 0x%x!!!\n", pSatDevData->satPendingNCQIO,
                     pSatDevData->satPendingNONNCQIO, pSatDevData->satPendingIO));
           tdsmSingleThreadedLeave(smRoot, SM_EXTERNAL_IO_LOCK);
           /* free resource */
           smsatFreeIntIoResource( smRoot,
                                   pSatDevData,
-                                  satIntIo); 
+                                  satIntIo);
           return SM_RC_DEVICE_BUSY;
         }
         tdsmSingleThreadedLeave(smRoot, SM_EXTERNAL_IO_LOCK);
       #endif
-      
+
       }
       else if ( (satIOContext->reqType == AGSA_SATA_PROTOCOL_D2H_PKT) ||
                 (satIOContext->reqType == AGSA_SATA_PROTOCOL_H2D_PKT) ||
                 (satIOContext->reqType == AGSA_SATA_PROTOCOL_NON_PKT) )
       {
-        sm_memcpy(agSATAReq->scsiCDB, smScsiRequest->scsiCmnd.cdb, 16);    
+        sm_memcpy(agSATAReq->scsiCDB, smScsiRequest->scsiCmnd.cdb, 16);
       #ifdef CCFLAG_OPTIMIZE_SAT_LOCK
         if ( satPendingNONNCQIO >= SAT_APAPI_CMDQ_MAX ||
              satPendingNCQIO != 0)
         {
           SM_DBG1(("smsataLLIOStart: ATAPI busy did %d!!!\n", pSatDevData->id));
-          SM_DBG1(("smsataLLIOStart: ATAPI busy NON-NCQ. NCQ Pending 0x%x NON-NCQ Pending 0x%x All Pending 0x%x!!!\n", satPendingNCQIO, 
+          SM_DBG1(("smsataLLIOStart: ATAPI busy NON-NCQ. NCQ Pending 0x%x NON-NCQ Pending 0x%x All Pending 0x%x!!!\n", satPendingNCQIO,
                     satPendingNONNCQIO, satPendingIO));
           /* free resource */
           smsatFreeIntIoResource( smRoot,
                                   pSatDevData,
-                                  satIntIo); 
+                                  satIntIo);
           return SM_RC_DEVICE_BUSY;
         }
       #else
@@ -198,18 +198,18 @@ smsataLLIOStart(
              pSatDevData->satPendingNCQIO != 0)
         {
           SM_DBG1(("smsataLLIOStart: ATAPI busy did %d!!!\n", pSatDevData->id));
-          SM_DBG1(("smsataLLIOStart: ATAPI busy NON-NCQ. NCQ Pending 0x%x NON-NCQ Pending 0x%x All Pending 0x%x!!!\n", pSatDevData->satPendingNCQIO, 
+          SM_DBG1(("smsataLLIOStart: ATAPI busy NON-NCQ. NCQ Pending 0x%x NON-NCQ Pending 0x%x All Pending 0x%x!!!\n", pSatDevData->satPendingNCQIO,
                     pSatDevData->satPendingNONNCQIO, pSatDevData->satPendingIO));
           tdsmSingleThreadedLeave(smRoot, SM_EXTERNAL_IO_LOCK);
           /* free resource */
           smsatFreeIntIoResource( smRoot,
                                   pSatDevData,
-                                  satIntIo); 
+                                  satIntIo);
           return SM_RC_DEVICE_BUSY;
         }
         tdsmSingleThreadedLeave(smRoot, SM_EXTERNAL_IO_LOCK);
       #endif
-      
+
       }
       else
       {
@@ -218,12 +218,12 @@ smsataLLIOStart(
              satPendingNCQIO != 0)
         {
           SM_DBG1(("smsataLLIOStart: 2nd busy did %d!!!\n", pSatDevData->id));
-          SM_DBG1(("smsataLLIOStart: 2nd busy NCQ. NCQ Pending 0x%x NONNCQ Pending 0x%x All Pending 0x%x!!!\n", satPendingNCQIO, 
+          SM_DBG1(("smsataLLIOStart: 2nd busy NCQ. NCQ Pending 0x%x NONNCQ Pending 0x%x All Pending 0x%x!!!\n", satPendingNCQIO,
                     satPendingNONNCQIO, satPendingIO));
           /* free resource */
           smsatFreeIntIoResource( smRoot,
                                   pSatDevData,
-                                  satIntIo); 
+                                  satIntIo);
           return SM_RC_DEVICE_BUSY;
         }
 #else
@@ -232,13 +232,13 @@ smsataLLIOStart(
             pSatDevData->satPendingNCQIO != 0)
         {
           SM_DBG1(("smsataLLIOStart: 2nd busy did %d!!!\n", pSatDevData->id));
-          SM_DBG1(("smsataLLIOStart: 2nd busy NCQ. NCQ Pending 0x%x NONNCQ Pending 0x%x All Pending 0x%x!!!\n", pSatDevData->satPendingNCQIO, 
+          SM_DBG1(("smsataLLIOStart: 2nd busy NCQ. NCQ Pending 0x%x NONNCQ Pending 0x%x All Pending 0x%x!!!\n", pSatDevData->satPendingNCQIO,
                     pSatDevData->satPendingNONNCQIO, pSatDevData->satPendingIO));
           tdsmSingleThreadedLeave(smRoot, SM_EXTERNAL_IO_LOCK);
           /* free resource */
           smsatFreeIntIoResource( smRoot,
                                   pSatDevData,
-                                  satIntIo); 
+                                  satIntIo);
           return SM_RC_DEVICE_BUSY;
         }
         tdsmSingleThreadedLeave(smRoot, SM_EXTERNAL_IO_LOCK);
@@ -247,7 +247,7 @@ smsataLLIOStart(
     } /* RLE */
     /* for internal SATA command only */
     if (satIOContext->satOrgIOContext != agNULL)
-    {  
+    {
       /* Initialize tiIORequest */
       smIORequestBody->smIORequest = smIORequest;
       if (smIORequest == agNULL)
@@ -257,13 +257,13 @@ smsataLLIOStart(
     }
     /* Initialize tiDevhandle */
     smIORequestBody->smDevHandle = smDeviceHandle;
-       
+
     /* Initializes Scatter Gather and ESGL */
-    status = smsatIOPrepareSGL( smRoot, 
-                                smIORequestBody, 
-                                &smScsiRequest->smSgl1, 
+    status = smsatIOPrepareSGL( smRoot,
+                                smIORequestBody,
+                                &smScsiRequest->smSgl1,
                                 smScsiRequest->sglVirtualAddr );
-      
+
     if (status != SM_RC_SUCCESS)
     {
       SM_DBG1(("smsataLLIOStart: can't get SGL!!!\n"));
@@ -274,7 +274,7 @@ smsataLLIOStart(
       return status;
     }
 
-    /* Initialize LL Layer agIORequest */    
+    /* Initialize LL Layer agIORequest */
     agIORequest->osData = (void *) smIORequestBody;
     agIORequest->sdkData = agNULL; /* SA takes care of this */
 
@@ -299,14 +299,14 @@ smsataLLIOStart(
       satIOContext->sataTag = 0xFF;
     }
   }
-  else /* AGSA_SATA_PROTOCOL_SRST_ASSERT or AGSA_SATA_PROTOCOL_SRST_DEASSERT 
+  else /* AGSA_SATA_PROTOCOL_SRST_ASSERT or AGSA_SATA_PROTOCOL_SRST_DEASSERT
           or SAT_CHECK_POWER_MODE as ABORT */
   {
     agsaSgl_t          *agSgl;
-  
+
     /* for internal SATA command only */
     if (satIOContext->satOrgIOContext != agNULL)
-    {  
+    {
       /* Initialize tiIORequest */
       smIORequestBody->smIORequest = smIORequest;
       if (smIORequest == agNULL)
@@ -316,8 +316,8 @@ smsataLLIOStart(
     }
     /* Initialize tiDevhandle */
     smIORequestBody->smDevHandle = smDeviceHandle;
-    
-    
+
+
     smIORequestBody->IOType.InitiatorRegIO.expDataLength = 0;
     /* SGL for SATA request */
     agSgl = &(smIORequestBody->transport.SATA.agSATARequestBody.agSgl);
@@ -327,7 +327,7 @@ smsataLLIOStart(
     agSgl->sgLower = 0;
     agSgl->len = 0;
     SM_CLEAR_ESGL_EXTEND(agSgl->extReserved);
-  
+
     /* Initialize LL Layer agIORequest */
     agIORequest = &(smIORequestBody->agIORequest);
     agIORequest->osData = (void *) smIORequestBody;
@@ -335,20 +335,20 @@ smsataLLIOStart(
 
     smIORequestBody->ioStarted = agTRUE;
     smIORequestBody->ioCompleted = agFALSE;
-  
+
     /* setting the data length */
     agSATAReq->dataLength = 0;
-  
+
   }
 
 
   smIORequestBody->reTries = 0;
-  
+
 #ifdef TD_INTERNAL_DEBUG
-  smhexdump("smsataLLIOStart", (bit8 *)satIOContext->pFis, sizeof(agsaFisRegHostToDevice_t)); 
+  smhexdump("smsataLLIOStart", (bit8 *)satIOContext->pFis, sizeof(agsaFisRegHostToDevice_t));
   smhexdump("smsataLLIOStart LL", (bit8 *)&agSATAReq->fis.fisRegHostToDev,
             sizeof(agsaFisRegHostToDevice_t));
-#endif  
+#endif
 
   SM_DBG6(("smsataLLIOStart: agDevHandle %p\n", agDevHandle));
 
@@ -379,12 +379,12 @@ smsataLLIOStart(
   }
 
   SM_DBG3(("sataLLIOStart: Lock in\n"));
-  
+
 #ifdef CCFLAG_OPTIMIZE_SAT_LOCK
   if ( (satIOContext->reqType == AGSA_SATA_PROTOCOL_FPDMA_WRITE) ||
        (satIOContext->reqType == AGSA_SATA_PROTOCOL_FPDMA_READ) )
   {
-     tdsmInterlockedIncrement(smRoot,&pSatDevData->satPendingNCQIO); 
+     tdsmInterlockedIncrement(smRoot,&pSatDevData->satPendingNCQIO);
   }
   else
   {
@@ -401,7 +401,7 @@ smsataLLIOStart(
   else
   {
      pSatDevData->satPendingNONNCQIO++;
-  }    
+  }
   pSatDevData->satPendingIO++;
 
   SMLIST_INIT_ELEMENT (&satIOContext->satIoContextLink);
@@ -411,19 +411,19 @@ smsataLLIOStart(
   /* post SATA command to low level MPI */
   status = saSATAStart( agRoot,
                         agIORequest,
-                        nQNumber,                        
+                        nQNumber,
                         agDevHandle,
                         satIOContext->reqType,
                         agSATAReq,
                         satIOContext->sataTag,
                         smllSATACompleted
                         );
-    
+
   if (status != AGSA_RC_SUCCESS)
   {
     if (status == AGSA_RC_BUSY)
     {
-      SM_DBG1(("smsataLLIOStart: saSATAStart busy!!!\n")); 
+      SM_DBG1(("smsataLLIOStart: saSATAStart busy!!!\n"));
       status = SM_RC_BUSY;
     }
     else
@@ -448,7 +448,7 @@ smsataLLIOStart(
     {
       tdsmInterlockedDecrement(smRoot,&oneDeviceData->satPendingNONNCQIO);
     }
-    tdsmInterlockedDecrement(smRoot,&oneDeviceData->satPendingIO);      
+    tdsmInterlockedDecrement(smRoot,&oneDeviceData->satPendingIO);
 #else
     if ( (satIOContext->reqType == AGSA_SATA_PROTOCOL_FPDMA_WRITE) ||
          (satIOContext->reqType == AGSA_SATA_PROTOCOL_FPDMA_READ) )
@@ -465,21 +465,21 @@ smsataLLIOStart(
       oneDeviceData->satPendingNONNCQIO--;
       oneDeviceData->satPendingIO--;
       SMLIST_DEQUEUE_THIS (&satIOContext->satIoContextLink);
-      tdsmSingleThreadedLeave(smRoot, SM_EXTERNAL_IO_LOCK);     
-    }    
+      tdsmSingleThreadedLeave(smRoot, SM_EXTERNAL_IO_LOCK);
+    }
 #endif /* CCFLAG_OPTIMIZE_SAT_LOCK */
-    
+
     /* Free the ESGL pages associated with this I/O */
     smIORequestBody->ioStarted = agFALSE;
     smIORequestBody->ioCompleted = agTRUE;
     return (status);
   }
-  
+
   return SM_RC_SUCCESS;
-}	       
+}
 
 
-osGLOBAL FORCEINLINE bit32 
+osGLOBAL FORCEINLINE bit32
 smsatIOPrepareSGL(
                   smRoot_t                 *smRoot,
                   smIORequestBody_t        *smIORequestBody,
@@ -488,13 +488,13 @@ smsatIOPrepareSGL(
                   )
 {
   agsaSgl_t          *agSgl;
-  
+
   /* Uppper should be zero-out */
   SM_DBG5(("smsatIOPrepareSGL: start\n"));
-  
-  SM_DBG5(("smsatIOPrepareSGL: smSgl1->upper %d smSgl1->lower %d smSgl1->len %d\n", 
+
+  SM_DBG5(("smsatIOPrepareSGL: smSgl1->upper %d smSgl1->lower %d smSgl1->len %d\n",
     smSgl1->upper, smSgl1->lower, smSgl1->len));
-  SM_DBG5(("smsatIOPrepareSGL: smSgl1->type %d\n", smSgl1->type)); 
+  SM_DBG5(("smsatIOPrepareSGL: smSgl1->type %d\n", smSgl1->type));
 
   /* SGL for SATA request */
   agSgl = &(smIORequestBody->transport.SATA.agSATARequestBody.agSgl);
@@ -523,7 +523,7 @@ smsatIOPrepareSGL(
 
   return SM_RC_SUCCESS;
 
-}		  
+}
 
 
 

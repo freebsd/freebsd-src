@@ -31,7 +31,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -54,7 +54,7 @@ const char	*chipc_flash_name(chipc_flash type);
 const char	*chipc_flash_bus_name(chipc_flash type);
 const char	*chipc_sflash_device_name(chipc_flash type);
 
-/* 
+/*
  * ChipCommon device quirks / features
  */
 enum {
@@ -81,7 +81,7 @@ enum {
 
 	/**
 	 * Access to the SPROM uses pins shared with the 802.11a external PA.
-	 * 
+	 *
 	 * On modules using these 4331 packages, the CCTRL4331_EXTPA_EN flag
 	 * must be cleared to allow SPROM access.
 	 */
@@ -90,10 +90,10 @@ enum {
 
 	/**
 	 * Access to the SPROM uses pins shared with the 802.11a external PA.
-	 * 
+	 *
 	 * On modules using these 4331 chip packages, the external PA is
 	 * attached via GPIO 2, 5, and sprom_dout pins.
-	 * 
+	 *
 	 * When enabling and disabling EXTPA to allow SPROM access, the
 	 * CCTRL4331_EXTPA_ON_GPIO2_5 flag must also be set or cleared,
 	 * respectively.
@@ -103,7 +103,7 @@ enum {
 
 	/**
 	 * Access to the SPROM uses pins shared with two 802.11a external PAs.
-	 * 
+	 *
 	 * When enabling and disabling EXTPA, the CCTRL4331_EXTPA_EN2 must also
 	 * be cleared to allow SPROM access.
 	 */

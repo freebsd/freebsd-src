@@ -48,7 +48,7 @@
 static int	twe_get_param_1(struct twe_softc *sc, int table_id, int param_id, u_int8_t *result);
 static int	twe_get_param_2(struct twe_softc *sc, int table_id, int param_id, u_int16_t *result);
 static int	twe_get_param_4(struct twe_softc *sc, int table_id, int param_id, u_int32_t *result);
-static void	*twe_get_param(struct twe_softc *sc, int table_id, int parameter_id, size_t size, 
+static void	*twe_get_param(struct twe_softc *sc, int table_id, int parameter_id, size_t size,
 					       void (* func)(struct twe_request *tr));
 #ifdef TWE_SHUTDOWN_NOTIFICATION
 static int	twe_set_param_1(struct twe_softc *sc, int table_id, int param_id, u_int8_t value);
@@ -57,7 +57,7 @@ static int	twe_set_param_1(struct twe_softc *sc, int table_id, int param_id, u_i
 static int	twe_set_param_2(struct twe_softc *sc, int table_id, int param_id, u_int16_t value);
 static int	twe_set_param_4(struct twe_softc *sc, int table_id, int param_id, u_int32_t value);
 #endif
-static int	twe_set_param(struct twe_softc *sc, int table_id, int param_id, int param_size, 
+static int	twe_set_param(struct twe_softc *sc, int table_id, int param_id, int param_size,
 					      void *data);
 static int	twe_init_connection(struct twe_softc *sc, int mode);
 static int	twe_wait_request(struct twe_request *tr);
@@ -329,7 +329,7 @@ twe_init(struct twe_softc *sc)
     twe_set_param_1(sc, TWE_PARAM_FEATURES, TWE_PARAM_FEATURES_DriverShutdown, 1);
 #endif
 
-    /* 
+    /*
      * Mark controller up and ready to run.
      */
     sc->twe_state &= ~TWE_STATE_SHUTDOWN;
@@ -417,7 +417,7 @@ twe_startio(struct twe_softc *sc)
 
 	/* build a command from an outstanding bio */
 	if (tr == NULL) {
-	    
+
 	    /* get a command to handle the bio with */
 	    if (twe_get_request(sc, &tr))
 		break;
@@ -635,12 +635,12 @@ twe_ioctl(struct twe_softc *sc, u_long ioctlcmd, void *addr)
 	param = twe_get_param(sc, tp->tp_table_id, tp->tp_param_id, tp->tp_size, NULL);
 	TWE_IO_UNLOCK(sc);
 	if (param == NULL) {
-	    twe_printf(sc, "TWEIO_GET_PARAM failed for 0x%x/0x%x/%d\n", 
+	    twe_printf(sc, "TWEIO_GET_PARAM failed for 0x%x/0x%x/%d\n",
 		       tp->tp_table_id, tp->tp_param_id, tp->tp_size);
 	    error = EINVAL;
 	} else {
 	    if (param->parameter_size_bytes > tp->tp_size) {
-		twe_printf(sc, "TWEIO_GET_PARAM parameter too large (%d > %d)\n",	
+		twe_printf(sc, "TWEIO_GET_PARAM parameter too large (%d > %d)\n",
 			   param->parameter_size_bytes, tp->tp_size);
 		error = EFAULT;
 	    } else {
@@ -682,7 +682,7 @@ twe_ioctl(struct twe_softc *sc, u_long ioctlcmd, void *addr)
 	/* XXX implement ATA PASSTHROUGH */
 
 	/* nothing we understand */
-    default:	
+    default:
 	error = ENOTTY;
     }
 
@@ -696,7 +696,7 @@ void
 twe_enable_interrupts(struct twe_softc *sc)
 {
     sc->twe_state |= TWE_STATE_INTEN;
-    TWE_CONTROL(sc, 
+    TWE_CONTROL(sc,
 	       TWE_CONTROL_CLEAR_ATTENTION_INTERRUPT |
 	       TWE_CONTROL_UNMASK_RESPONSE_INTERRUPT |
 	       TWE_CONTROL_ENABLE_INTERRUPTS);
@@ -759,12 +759,12 @@ twe_get_param_4(struct twe_softc *sc, int table_id, int param_id, u_int32_t *res
 
 /********************************************************************************
  * Perform a TWE_OP_GET_PARAM command.  If a callback function is provided, it
- * will be called with the command when it's completed.  If no callback is 
+ * will be called with the command when it's completed.  If no callback is
  * provided, we will wait for the command to complete and then return just the data.
  * The caller is responsible for freeing the data when done with it.
  */
 static void *
-twe_get_param(struct twe_softc *sc, int table_id, int param_id, size_t param_size, 
+twe_get_param(struct twe_softc *sc, int table_id, int param_id, size_t param_size,
 	      void (* func)(struct twe_request *tr))
 {
     struct twe_request	*tr;
@@ -923,7 +923,7 @@ twe_init_connection(struct twe_softc *sc, int mode)
     struct twe_request	*tr;
     TWE_Command		*cmd;
     int			error;
-    
+
     debug_called(4);
 
     TWE_IO_ASSERT_LOCKED(sc);
@@ -967,7 +967,7 @@ twe_wait_request(struct twe_request *tr)
     twe_startio(tr->tr_sc);
     while (tr->tr_status == TWE_CMD_BUSY)
 	mtx_sleep(tr, &tr->tr_sc->twe_io_lock, PRIBIO, "twewait", 0);
-    
+
     return(tr->tr_status != TWE_CMD_COMPLETE);
 }
 
@@ -1121,8 +1121,8 @@ twe_start(struct twe_request *tr)
     tr->tr_status = TWE_CMD_BUSY;
     cmd = TWE_FIND_COMMAND(tr);
 
-    /* 
-     * Spin briefly waiting for the controller to come ready 
+    /*
+     * Spin briefly waiting for the controller to come ready
      *
      * XXX it might be more efficient to return EBUSY immediately
      *     and let the command be rescheduled.
@@ -1152,7 +1152,7 @@ twe_start(struct twe_request *tr)
 	    twe_done(sc, 0);
     }
 
-    /* 
+    /*
      * We couldn't get the controller to take the command; try submitting it again later.
      * This should only happen if something is wrong with the controller, or if we have
      * overestimated the number of commands it can accept.  (Should we actually reject
@@ -1174,7 +1174,7 @@ twe_done(struct twe_softc *sc, int startio)
     struct twe_request	*tr;
     int			found;
     u_int32_t		status_reg;
-    
+
     debug_called(5);
 
     /* loop collecting completed commands */
@@ -1191,7 +1191,7 @@ twe_done(struct twe_softc *sc, int startio)
 	    if (tr->tr_status != TWE_CMD_BUSY)
 		twe_printf(sc, "completion event for nonbusy command\n");
 	    tr->tr_status = TWE_CMD_COMPLETE;
-	    debug(3, "completed request id %d with status %d", 
+	    debug(3, "completed request id %d with status %d",
 		  cmd->generic.request_id, cmd->generic.status);
 	    /* move to completed queue */
 	    twe_remove_busy(tr);
@@ -1217,10 +1217,10 @@ twe_done(struct twe_softc *sc, int startio)
  * priority level should facilities for such a thing become available.
  */
 static void
-twe_complete(struct twe_softc *sc) 
+twe_complete(struct twe_softc *sc)
 {
     struct twe_request	*tr;
-    
+
     debug_called(5);
 
     /*
@@ -1242,7 +1242,7 @@ twe_complete(struct twe_softc *sc)
 	} else {					/* caller is polling command */
 	    debug(2, "command left for owner");
 	}
-    }   
+    }
 }
 
 /********************************************************************************
@@ -1475,7 +1475,7 @@ twe_enqueue_aen(struct twe_softc *sc, u_int16_t aen)
     /* enqueue the AEN */
     next = ((sc->twe_aen_head + 1) % TWE_Q_LENGTH);
     nextnext = ((sc->twe_aen_head + 2) % TWE_Q_LENGTH);
-    
+
     /* check to see if this is the last free slot, and subvert the AEN if it is */
     if (nextnext == sc->twe_aen_tail)
 	aen = TWE_AEN_QUEUE_FULL;
@@ -1505,7 +1505,7 @@ static u_int16_t
 twe_dequeue_aen(struct twe_softc *sc)
 {
     u_int16_t	result;
-    
+
     debug_called(4);
 
     TWE_IO_ASSERT_LOCKED(sc);
@@ -1538,7 +1538,7 @@ twe_find_aen(struct twe_softc *sc, u_int16_t aen)
 
 #if 0	/* currently unused */
 /********************************************************************************
- * Sleep waiting for at least (timeout) seconds until we see (aen) as 
+ * Sleep waiting for at least (timeout) seconds until we see (aen) as
  * requested.  Returns nonzero on timeout or failure.
  *
  * XXX: this should not be used in cases where there may be more than one sleeper
@@ -1720,7 +1720,7 @@ twe_check_bits(struct twe_softc *sc, u_int32_t status_reg)
     static time_t	lastwarn[2] = {0, 0};
 
     /*
-     * This can be a little problematic, as twe_panic may call twe_reset if 
+     * This can be a little problematic, as twe_panic may call twe_reset if
      * TWE_DEBUG is not set, which will call us again as part of the soft reset.
      */
     if ((status_reg & TWE_STATUS_PANIC_BITS) != 0) {
@@ -1732,7 +1732,7 @@ twe_check_bits(struct twe_softc *sc, u_int32_t status_reg)
     result = 0;
     if ((status_reg & TWE_STATUS_EXPECTED_BITS) != TWE_STATUS_EXPECTED_BITS) {
 	if (time_second > (lastwarn[0] + 5)) {
-	    twe_printf(sc, "missing expected status bit(s) %b\n", ~status_reg & TWE_STATUS_EXPECTED_BITS, 
+	    twe_printf(sc, "missing expected status bit(s) %b\n", ~status_reg & TWE_STATUS_EXPECTED_BITS,
 		       TWE_STATUS_BITS_DESCRIPTION);
 	    lastwarn[0] = time_second;
 	}
@@ -1741,7 +1741,7 @@ twe_check_bits(struct twe_softc *sc, u_int32_t status_reg)
 
     if ((status_reg & TWE_STATUS_UNEXPECTED_BITS) != 0) {
 	if (time_second > (lastwarn[1] + 5)) {
-	    twe_printf(sc, "unexpected status bit(s) %b\n", status_reg & TWE_STATUS_UNEXPECTED_BITS, 
+	    twe_printf(sc, "unexpected status bit(s) %b\n", status_reg & TWE_STATUS_UNEXPECTED_BITS,
 		       TWE_STATUS_BITS_DESCRIPTION);
 	    lastwarn[1] = time_second;
 	}
@@ -1757,7 +1757,7 @@ twe_check_bits(struct twe_softc *sc, u_int32_t status_reg)
     }
 
     return(result);
-}	
+}
 
 /********************************************************************************
  * Return a string describing (aen).
@@ -1871,7 +1871,7 @@ twe_report_request(struct twe_request *tr)
 		      twe_describe_code(twe_table_status, cmd->generic.status),
 		      cmd->generic.flags);
     }
-    
+
     return(result);
 }
 
@@ -1902,7 +1902,7 @@ twe_print_controller(struct twe_softc *sc)
 	sc->twe_qstat[TWEQ_BIO].q_length, sc->twe_qstat[TWEQ_BIO].q_max, sc->twe_qstat[TWEQ_BIO].q_min);
 
     twe_printf(sc, "AEN queue head %d  tail %d\n", sc->twe_aen_head, sc->twe_aen_tail);
-}	
+}
 
 static void
 twe_panic(struct twe_softc *sc, char *reason)
@@ -1926,10 +1926,10 @@ twe_print_request(struct twe_request *tr)
     TWE_Command	*cmd = TWE_FIND_COMMAND(tr);
     int		i;
 
-    twe_printf(sc, "CMD: request_id %d  opcode <%s>  size %d  unit %d  host_id %d\n", 
-	       cmd->generic.request_id, twe_describe_code(twe_table_opcode, cmd->generic.opcode), cmd->generic.size, 
+    twe_printf(sc, "CMD: request_id %d  opcode <%s>  size %d  unit %d  host_id %d\n",
+	       cmd->generic.request_id, twe_describe_code(twe_table_opcode, cmd->generic.opcode), cmd->generic.size,
 	       cmd->generic.unit, cmd->generic.host_id);
-    twe_printf(sc, " status %d  flags 0x%x  count %d  sgl_offset %d\n", 
+    twe_printf(sc, " status %d  flags 0x%x  count %d  sgl_offset %d\n",
 	       cmd->generic.status, cmd->generic.flags, cmd->generic.count, cmd->generic.sgl_offset);
 
     switch(cmd->generic.opcode) {	/* XXX add more opcodes? */
@@ -1937,28 +1937,28 @@ twe_print_request(struct twe_request *tr)
     case TWE_OP_WRITE:
 	twe_printf(sc, " lba %d\n", cmd->io.lba);
 	for (i = 0; (i < TWE_MAX_SGL_LENGTH) && (cmd->io.sgl[i].length != 0); i++)
-	    twe_printf(sc, "  %d: 0x%x/%d\n", 
+	    twe_printf(sc, "  %d: 0x%x/%d\n",
 		       i, cmd->io.sgl[i].address, cmd->io.sgl[i].length);
 	break;
 
     case TWE_OP_GET_PARAM:
     case TWE_OP_SET_PARAM:
 	for (i = 0; (i < TWE_MAX_SGL_LENGTH) && (cmd->param.sgl[i].length != 0); i++)
-	    twe_printf(sc, "  %d: 0x%x/%d\n", 
+	    twe_printf(sc, "  %d: 0x%x/%d\n",
 		       i, cmd->param.sgl[i].address, cmd->param.sgl[i].length);
 	break;
 
     case TWE_OP_INIT_CONNECTION:
-	twe_printf(sc, " response queue pointer 0x%x\n", 
+	twe_printf(sc, " response queue pointer 0x%x\n",
 		   cmd->initconnection.response_queue_pointer);
 	break;
 
     default:
 	break;
     }
-    twe_printf(sc, " tr_command %p/0x%x  tr_data %p/0x%x,%d\n", 
+    twe_printf(sc, " tr_command %p/0x%x  tr_data %p/0x%x,%d\n",
 	       tr, TWE_FIND_COMMANDPHYS(tr), tr->tr_data, tr->tr_dataphys, tr->tr_length);
-    twe_printf(sc, " tr_status %d  tr_flags 0x%x  tr_complete %p  tr_private %p\n", 
+    twe_printf(sc, " tr_status %d  tr_flags 0x%x  tr_complete %p  tr_private %p\n",
 	       tr->tr_status, tr->tr_flags, tr->tr_complete, tr->tr_private);
 }
 

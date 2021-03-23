@@ -960,7 +960,7 @@ my_attach(device_t dev)
 		device_printf(dev, "couldn't set up irq\n");
 		goto detach_if;
 	}
-	 
+
 	return (0);
 
 detach_if:

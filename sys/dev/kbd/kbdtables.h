@@ -158,7 +158,7 @@ static keymap_t key_map = { 0x6d, {
 #if defined(NO_ACCENTCHARS)
 static accentmap_t accent_map = { 0,		/* empty accent map */
   {
-    { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, 
+    { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, { 0 },
     { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, { 0 },
   }
 };
@@ -183,29 +183,29 @@ static accentmap_t accent_map = { 15,	      /* iso8859 accent map */
     {  '~', { {  'a',0xe3 }, {  'A',0xc3 }, {  'n',0xf1 }, {  'N',0xd1 },
 	      {  'o',0xf5 }, {  'O',0xd5 }, }, },
     /* dmac=4 */
-    { 0 }, 
+    { 0 },
     /* dbre=5 */
-    { 0 }, 
+    { 0 },
     /* ddot=6 */
-    { 0 }, 
+    { 0 },
     /* duml=7 */
     { 0xa8, { {  'a',0xe4 }, {  'A',0xc4 }, {  'e',0xeb }, {  'E',0xcb },
 	      {  'i',0xef }, {  'I',0xcf }, {  'o',0xf6 }, {  'O',0xd6 },
 	      {  'u',0xfc }, {  'U',0xdc }, {  'y',0xff }, }, },
     /* dsla=8 */
-    { 0 }, 
+    { 0 },
     /* drin=9 */
     { 0xb0, { {  'a',0xe5 }, {  'A',0xc5 }, }, },
     /* dced=10 */
     { 0xb8, { {  'c',0xe7 }, {  'C',0xc7 }, }, },
     /* dapo=11 */
-    { 0 }, 
+    { 0 },
     /* ddac=12 */
-    { 0 }, 
+    { 0 },
     /* dogo=13 */
-    { 0 }, 
+    { 0 },
     /* dcar=14 */
-    { 0 }, 
+    { 0 },
   }
 };
 #endif /* ISO_ACCENTCHARS */

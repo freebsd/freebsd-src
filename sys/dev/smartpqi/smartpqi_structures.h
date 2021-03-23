@@ -61,7 +61,7 @@ struct bmic_host_wellness_time {
 struct pqi_dev_adminq_cap {
 	uint8_t		max_admin_ibq_elem;
 	uint8_t		max_admin_obq_elem;
-	uint8_t		admin_ibq_elem_len;	
+	uint8_t		admin_ibq_elem_len;
 	uint8_t		admin_obq_elem_len;
 	uint16_t	max_pqi_dev_reset_tmo;
 	uint8_t		res[2];
@@ -91,7 +91,7 @@ struct pqi_registers {
 	uint64_t		admin_obq_elem_array_addr;
 	uint64_t		admin_ibq_ci_addr;
 	uint64_t		admin_obq_pi_addr;
-	uint32_t	 	admin_q_param;		
+	uint32_t	 	admin_q_param;
 	uint8_t			res3[4];
 	uint32_t		pqi_dev_err;
 	uint8_t			res4[4];
@@ -107,15 +107,15 @@ struct pqi_registers {
  */
 
 struct ioa_registers {
-	uint8_t		res1[0x18];				 	
+	uint8_t		res1[0x18];
 	uint32_t	host_to_ioa_db_mask_clr; 	/* 18h */
-	uint8_t		res2[4];				 	
+	uint8_t		res2[4];
 	uint32_t	host_to_ioa_db;			/* 20h */
 	uint8_t		res3[4];
 	uint32_t	host_to_ioa_db_clr;		/* 28h */
 	uint8_t		res4[8];
 	uint32_t	ioa_to_host_glob_int_mask;	/* 34h */
-	uint8_t		res5[0x64];	
+	uint8_t		res5[0x64];
 	uint32_t	ioa_to_host_db;			/* 9Ch */
 	uint32_t	ioa_to_host_db_clr;		/* A0h */
 	uint8_t		res6[4];
@@ -185,7 +185,7 @@ typedef union pqi_reset_reg {
 	uint32_t all_bits;
 }pqi_reset_reg_t;
 
-/* Memory descriptor for DMA memory allocation */	
+/* Memory descriptor for DMA memory allocation */
 typedef struct dma_mem {
 	void			*virt_addr;
 	dma_addr_t 		dma_addr;
@@ -253,7 +253,7 @@ typedef struct sgl_descriptor
 } sg_desc_t;
 
 /* PQI IUs */
-typedef struct iu_header 
+typedef struct iu_header
 {
 	uint8_t		iu_type;
 	uint8_t		comp_feature;
@@ -271,7 +271,7 @@ typedef struct general_admin_request /* REPORT_PQI_DEVICE_CAPABILITY, REPORT_MAN
 		struct {
 			uint8_t		res2[33];	/* !< Bytes 11-43. function specific */
 			uint32_t	buf_size;	/* !< Bytes 44-47. size in bytes of the Data-In/Out Buffer */
-			sg_desc_t	sg_desc;	/* !< Bytes 48-63. SGL */ 
+			sg_desc_t	sg_desc;	/* !< Bytes 48-63. SGL */
         } OS_ATTRIBUTE_PACKED general_func;
 
 		struct {
@@ -354,7 +354,7 @@ typedef struct pqi_event_config_request {
 	uint8_t	    	work_area[2];		/* reserved for driver use */
 	uint16_t	request_id;
 	union {
-		uint16_t  	reserved;           /* Report event config iu */ 
+		uint16_t  	reserved;           /* Report event config iu */
 		uint16_t  	global_event_oq_id; /* Set event config iu */
 	}iu_specific;
 	uint32_t	buffer_length;
@@ -372,9 +372,9 @@ typedef struct pqi_set_event_config_request {
 	sg_desc_t 	sg_desc;
 }pqi_set_event_config_request_t;
 #endif
-  
+
  /* Report/Set event config data-in/data-out buffer structure */
-  
+
 #define PQI_MAX_EVENT_DESCRIPTORS 255
 
 struct pqi_event_descriptor {
@@ -382,7 +382,7 @@ struct pqi_event_descriptor {
 	uint8_t  	reserved;
 	uint16_t	oq_id;
 };
-  
+
 typedef struct pqi_event_config {
 	uint8_t  	reserved[2];
 	uint8_t  	num_event_descriptors;
@@ -433,18 +433,18 @@ struct pqi_event {
 
 typedef struct op_q_params
 {
-	uint8_t		fn_code;	
-	uint16_t        qid;		
+	uint8_t		fn_code;
+	uint16_t        qid;
 	uint16_t	num_elem;
 	uint16_t	elem_len;
 	uint16_t	int_msg_num;
-    
+
 } OS_ATTRIBUTE_PACKED op_q_params;
 
-/* Driver will use this structure to interpret the error 
+/* Driver will use this structure to interpret the error
    info element returned from a failed requests */
 typedef struct raid_path_error_info_elem {
-	uint8_t		data_in_result;		/* !< Byte 0.  See SOP spec Table 77. */ 
+	uint8_t		data_in_result;		/* !< Byte 0.  See SOP spec Table 77. */
 	uint8_t		data_out_result;	/* !< Byte 1.  See SOP spec Table 78. */
 	uint8_t		reserved[3];		/* !< Bytes 2-4. */
 	uint8_t		status;			/* !< Byte 5. See SAM-5 specification "Status" codes Table 40. Defined in Storport.h */
@@ -458,24 +458,24 @@ typedef struct raid_path_error_info_elem {
 
 #define PQI_ERROR_BUFFER_ELEMENT_LENGTH sizeof(raid_path_error_info_elem_t)
 
-typedef enum error_data_present 
+typedef enum error_data_present
 {
-   DATA_PRESENT_NO_DATA       = 0,   /* !< No data present in Data buffer. */ 
+   DATA_PRESENT_NO_DATA       = 0,   /* !< No data present in Data buffer. */
    DATA_PRESENT_RESPONSE_DATA = 1,   /* !< Response data is present in Data buffer. */
    DATA_PRESENT_SENSE_DATA    = 2    /* !< Sense data is present in Data buffer. */
 } error_data_present_t;
 
-typedef struct aio_path_error_info_elem 
+typedef struct aio_path_error_info_elem
 {
 	uint8_t		status;			/* !< Byte 0.  See SAM-5 specification "SCSI Status" codes Table 40. Defined in Storport.h */
-	uint8_t		service_resp;		/* !< Byte 1.  SCSI Service Response.  */ 
+	uint8_t		service_resp;		/* !< Byte 1.  SCSI Service Response.  */
 	uint8_t		data_pres;		/* !< Byte 2.  Bits [7:2] reserved. Bits [1:0] - 0=No data, 1=Response data, 2=Sense data. */
-	uint8_t		reserved1;		/* !< Byte 3.  Reserved. */ 
+	uint8_t		reserved1;		/* !< Byte 3.  Reserved. */
 	uint32_t	resd_count;		/* !< Bytes 4-7.  The residual data length in bytes. Need the original transfer size and if Status is OverRun or UnderRun. */
-	uint16_t	data_len;		/* !< Bytes 8-9.  The amount of Sense data or Response data returned in Response/Sense Data buffer. */ 
+	uint16_t	data_len;		/* !< Bytes 8-9.  The amount of Sense data or Response data returned in Response/Sense Data buffer. */
 	uint16_t	reserved2;		/* !< Bytes 10.  Reserved. */
 	uint8_t		data[256];		/* !< Bytes 11-267. Response data buffer or Sense data buffer but not both. */
-	uint8_t		padding[8];		/* !< Bytes 268-275.  Padding to make AIO_PATH_ERROR_INFO_ELEMENT = RAID_PATH_ERROR_INFO_ELEMENT */ 
+	uint8_t		padding[8];		/* !< Bytes 268-275.  Padding to make AIO_PATH_ERROR_INFO_ELEMENT = RAID_PATH_ERROR_INFO_ELEMENT */
 }OS_ATTRIBUTE_PACKED aio_path_error_info_elem_t;
 
 struct init_base_struct {
@@ -485,7 +485,7 @@ struct init_base_struct {
 	uint32_t	err_buf_paddr_h;	/* upper 32 bits of physical address of error buffer */
 	uint32_t	err_buf_elem_len;	/* length of each element in error buffer (in bytes) */
 	uint32_t	err_buf_num_elem;	/* number of elements in error buffer */
-}OS_ATTRIBUTE_PACKED; 
+}OS_ATTRIBUTE_PACKED;
 
 /* Queue details */
 typedef struct ib_queue {
@@ -653,7 +653,7 @@ typedef struct pqi_tmf_resp {
 struct pqi_io_response {
 	iu_header_t	header;
 	uint16_t	queue_id;
-	uint8_t		work_area[2];	
+	uint8_t		work_area[2];
 	uint16_t	request_id;
 	uint16_t	error_index;
 	uint8_t		reserved[4];
@@ -707,7 +707,7 @@ typedef struct pqi_scsi_device {
 	struct raid_map *raid_map;	/* I/O accelerator RAID map */
 	int 		reset_in_progress;
 	os_dev_info_t	*dip;			/*os specific scsi device information*/
-	boolean_t	invalid;		
+	boolean_t	invalid;
 }pqi_scsi_dev_t;
 
 struct sense_header_scsi {		/* See SPC-3 section 4.5 */
@@ -913,11 +913,11 @@ typedef struct tid_pool {
 }tid_pool_t;
 
 typedef struct pqisrc_softstate {
-	OS_SPECIFIC_T			os_specific;  
-	struct ioa_registers		*ioa_reg; 
-	struct pqi_registers		*pqi_reg;	
+	OS_SPECIFIC_T			os_specific;
+	struct ioa_registers		*ioa_reg;
+	struct pqi_registers		*pqi_reg;
 	char				*pci_mem_base_vaddr;
-	PCI_ACC_HANDLE_T		pci_mem_handle; 
+	PCI_ACC_HANDLE_T		pci_mem_handle;
 	struct pqi_cap			pqi_cap;
 	struct pqi_pref_settings	pref_settings;
 	char				fw_version[11];
@@ -927,7 +927,7 @@ typedef struct pqisrc_softstate {
 	uint16_t			subvendid;	/* sub vendor id */
 	uint16_t			devid;		/* device id */
 	uint16_t			subsysid;	/* sub system id */
-	controller_state_t		ctlr_state;		
+	controller_state_t		ctlr_state;
 	struct dma_mem			err_buf_dma_mem;
 	struct dma_mem			admin_queue_dma_mem;
 	struct dma_mem			op_ibq_dma_mem;
@@ -955,7 +955,7 @@ typedef struct pqisrc_softstate {
 	unsigned			max_sg_per_iu;
 	uint8_t				ib_spanning_supported : 1;
 	uint8_t				ob_spanning_supported : 1;
-	pqi_event_config_t		event_config; 
+	pqi_event_config_t		event_config;
 	struct pqi_event		pending_events[PQI_NUM_SUPPORTED_EVENTS];
 	int				intr_type;
 	int				intr_count;
@@ -967,7 +967,7 @@ typedef struct pqisrc_softstate {
 #else
 	lockless_stack_t		taglist;
 #endif /* LOCKFREE_STACK */
-	boolean_t			devlist_lockcreated;    
+	boolean_t			devlist_lockcreated;
 	OS_LOCK_T			devlist_lock	OS_ATTRIBUTE_ALIGNED(8);
 	char				devlist_lock_name[LOCKNAME_SIZE];
 	pqi_scsi_dev_t			*device_list[PQI_MAX_DEVICES][PQI_MAX_MULTILUN];
@@ -987,7 +987,7 @@ typedef struct pqisrc_softstate {
 	boolean_t			ctrl_online;
 	uint8_t				pqi_reset_quiesce_allowed : 1;
 	boolean_t 			ctrl_in_pqi_mode;
-	tid_pool_t			tid_pool;	
+	tid_pool_t			tid_pool;
 }pqisrc_softstate_t;
 
 #endif

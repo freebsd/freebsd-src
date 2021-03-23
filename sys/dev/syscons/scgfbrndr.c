@@ -69,7 +69,7 @@ sc_rndr_sw_t txtrndrsw = {
 	(vr_init_t *)gfb_nop,
 	gfb_clear,
 	gfb_border,
-	gfb_draw,	
+	gfb_draw,
 	gfb_cursor_shape,
 	gfb_cursor,
 	gfb_blink,
@@ -195,7 +195,7 @@ gfb_draw(scr_stat *scp, int from, int count, int flip)
 	}
 }
 
-static void 
+static void
 gfb_cursor_shape(scr_stat *scp, int base, int height, int blink)
 {
 	if (base < 0 || base >= scp->font_size)
@@ -253,13 +253,13 @@ gfb_cursor(scr_stat *scp, int at, int blink, int on, int flip)
 	}
 }
 #else
-static void 
+static void
 gfb_cursor(scr_stat *scp, int at, int blink, int on, int flip)
 {
 	video_adapter_t *adp;
 
 	adp = scp->sc->adp;
-	if (scp->curs_attr.height <= 0) 
+	if (scp->curs_attr.height <= 0)
 		/* the text cursor is disabled */
 		return;
 
@@ -303,7 +303,7 @@ gfb_blink(scr_stat *scp, int at, int flip)
 
 #ifndef SC_NO_CUTPASTE
 
-static void 
+static void
 gfb_mouse(scr_stat *scp, int x, int y, int on)
 {
 	if (on) {

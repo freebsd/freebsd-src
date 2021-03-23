@@ -1004,7 +1004,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 		    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) &&
 		    (ccb->ataio.cmd.control & ATA_A_RESET)) {
 			struct ata_res *res = &ccb->ataio.res;
-			
+
 			bzero(res, sizeof(*res));
 			if (ch->devices & (ATA_ATA_MASTER << ccb->ccb_h.target_id)) {
 				res->lba_high = 0;
@@ -1025,7 +1025,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		struct	ccb_trans_settings *cts = &ccb->cts;
-		struct	ata_cam_device *d; 
+		struct	ata_cam_device *d;
 
 		if (ata_check_ids(dev, ccb))
 			return;

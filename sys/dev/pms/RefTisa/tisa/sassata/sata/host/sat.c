@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -324,7 +324,7 @@ GLOBAL bit32  satIOStart(
                                  satIOContext);
          break;
 
-       case SCSIOPC_MODE_SENSE_10: 
+       case SCSIOPC_MODE_SENSE_10:
          retVal = satModeSense10( tiRoot,
                                  tiIORequest,
                                  tiDeviceHandle,
@@ -357,7 +357,7 @@ GLOBAL bit32  satIOStart(
                                 satIOContext);
          break;
 
-       case SCSIOPC_FORMAT_UNIT: 
+       case SCSIOPC_FORMAT_UNIT:
          TI_DBG5(("satIOStart: SCSIOPC_FORMAT_UNIT\n"));
          retVal = satFormatUnit( tiRoot,
                                  tiIORequest,
@@ -1458,7 +1458,7 @@ GLOBAL bit32  satRead10(
       /* Check FUA bit */
       if (scsiCmnd->cdb[1] & SCSI_READ10_FUA_MASK)
       {
-       
+
         /* for now, no support for FUA */
         satSetSensePayload( pSense,
                             SCSI_SNSKEY_ILLEGAL_REQUEST,
@@ -2618,7 +2618,7 @@ GLOBAL bit32  satRead16(
       /* Check FUA bit */
       if (scsiCmnd->cdb[1] & SCSI_READ16_FUA_MASK)
       {
-      
+
         /* for now, no support for FUA */
         satSetSensePayload( pSense,
                             SCSI_SNSKEY_ILLEGAL_REQUEST,
@@ -5086,7 +5086,7 @@ GLOBAL bit32  satTestUnitReady(
   /*
    * Check if format is in progress
    */
-  
+
   if (pSatDevData->satDriveState == SAT_DEV_STATE_FORMAT_IN_PROGRESS)
   {
     TI_DBG1(("satTestUnitReady() FORMAT_IN_PROGRESS  tiDeviceHandle=%p tiIORequest=%p\n",
@@ -10238,7 +10238,7 @@ GLOBAL bit32  satRead10_2(
     externally generated ATA cmd, there is corresponding scsi cmnd
     called by satStartStopUnit() or maybe satRead10()
    */
-   
+
   bit32                     status;
   bit32                     agRequestType;
   satDeviceData_t           *pSatDevData;
@@ -10734,7 +10734,7 @@ GLOBAL bit32  satWriteSame10(
            !(scsiCmnd->cdb[1] & SCSI_WRITE_SAME_PBDATA_MASK))
   {
     TI_DBG5(("satWriteSame10: Table 62 case 3\n"));
-    
+
   }
   else /* ( (scsiCmnd->cdb[1] & SCSI_WRITE_SAME_LBDATA_MASK) &&
             (scsiCmnd->cdb[1] & SCSI_WRITE_SAME_PBDATA_MASK)) */
@@ -11080,7 +11080,7 @@ GLOBAL bit32  satWriteSame16(
 
   TI_DBG5(("satWriteSame16:start\n"));
 
- 
+
   satSetSensePayload( pSense,
                       SCSI_SNSKEY_NO_SENSE,
                       0,
@@ -12186,7 +12186,7 @@ GLOBAL bit32  satModeSelect6(
     break;
   case MODESELECT_READ_WRITE_ERROR_RECOVERY_PAGE:
     TI_DBG1(("satModeSelect6: Read-Write Error Recovery mode page\n"));
-   
+
     if ( (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT6_AWRE_MASK) ||
          (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT6_RC_MASK) ||
          (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT6_EER_MASK) ||
@@ -13005,7 +13005,7 @@ GLOBAL bit32  satModeSelect10(
     break;
   case MODESELECT_INFORMATION_EXCEPTION_CONTROL_PAGE:
     TI_DBG5(("satModeSelect10: Informational Exception Control mode page\n"));
-   
+
     if ( (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT10_PERF_MASK) ||
          (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT10_TEST_MASK)
          )

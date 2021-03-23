@@ -131,7 +131,7 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		if (!ha->hw.flags.fdt_valid) {
 			rval = EIO;
 			break;
-		}	
+		}
 
                 u.rdf = (qla_rd_flash_t *)data;
                 if ((rval = ql_rd_flash32(ha, u.rdf->off, &u.rdf->data)))
@@ -155,7 +155,7 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		if (!ha->hw.flags.fdt_valid) {
 			rval = EIO;
 			break;
-		}	
+		}
 
 		u.wrf = (qla_wr_flash_t *)data;
 		if ((rval = ql_wr_flash_buffer(ha, u.wrf->off, u.wrf->size,
@@ -182,10 +182,10 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		if (!ha->hw.flags.fdt_valid) {
 			rval = EIO;
 			break;
-		}	
-		
+		}
+
 		u.erf = (qla_erase_flash_t *)data;
-		if ((rval = ql_erase_flash(ha, u.erf->off, 
+		if ((rval = ql_erase_flash(ha, u.erf->off,
 			u.erf->size))) {
 			printf("flash erase failed[%d]\n", rval);
 			rval = ENXIO;
@@ -195,7 +195,7 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	case QLA_RDWR_MS_MEM:
 		u.mem = (qla_offchip_mem_val_t *)data;
 
-		if ((rval = ql_rdwr_offchip_mem(ha, u.mem->off, &val, 
+		if ((rval = ql_rdwr_offchip_mem(ha, u.mem->off, &val,
 			u.mem->rd)))
 			rval = ENXIO;
 		else {
@@ -213,9 +213,9 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			rval = EINVAL;
 			break;
 		}
-		
+
 		fw_dump = (qla_rd_fw_dump_t *)data;
-		fw_dump->minidump_size = ha->hw.mdump_buffer_size + 
+		fw_dump->minidump_size = ha->hw.mdump_buffer_size +
 						ha->hw.mdump_template_size;
 		fw_dump->pci_func = ha->pci_func;
 
@@ -228,7 +228,7 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			rval = EINVAL;
 			break;
 		}
-		
+
 		fw_dump = (qla_rd_fw_dump_t *)data;
 
 		if ((fw_dump->minidump == NULL) ||
@@ -298,7 +298,7 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 				break;
 			}
 			fw_dump->usec_ts = ha->hw.mdump_usec_ts;
-			
+
 			if (QLA_LOCK(ha, __func__, QLA_LOCK_MDUMP_MS_TIMEOUT, 0) == 0) {
 				ha->hw.mdump_done = 0;
 				QLA_UNLOCK(ha, __func__);
@@ -361,7 +361,7 @@ ql_drvr_state(qla_host_t *ha, qla_driver_state_t *state)
 		state->size = drvr_state_size;
 		return (0);
 	}
-		
+
 	if (state->size < drvr_state_size)
 		return (ENXIO);
 
@@ -555,7 +555,7 @@ ql_alloc_drvr_state_buffer(qla_host_t *ha)
 
 	drvr_state_size = ql_drvr_state_size(ha);
 
-	ha->hw.drvr_state =  malloc(drvr_state_size, M_QLA83XXBUF, M_NOWAIT);	
+	ha->hw.drvr_state =  malloc(drvr_state_size, M_QLA83XXBUF, M_NOWAIT);
 
 	if (ha->hw.drvr_state != NULL)
 		bzero(ha->hw.drvr_state, drvr_state_size);
@@ -615,7 +615,7 @@ ql_alloc_sp_log_buffer(qla_host_t *ha)
 
 	size = (sizeof(qla_sp_log_entry_t)) * NUM_LOG_ENTRIES;
 
-	ha->hw.sp_log =  malloc(size, M_QLA83XXBUF, M_NOWAIT);	
+	ha->hw.sp_log =  malloc(size, M_QLA83XXBUF, M_NOWAIT);
 
 	if (ha->hw.sp_log != NULL)
 		bzero(ha->hw.sp_log, size);

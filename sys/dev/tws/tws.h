@@ -67,7 +67,7 @@ MALLOC_DECLARE(M_TWS);
 extern int tws_queue_depth;
 
 #define TWS_DRIVER_VERSION_STRING "10.80.00.005"
-#define TWS_MAX_NUM_UNITS             65 
+#define TWS_MAX_NUM_UNITS             65
 #define TWS_MAX_NUM_LUNS              32
 #define TWS_MAX_IRQS                  2
 #define TWS_SCSI_INITIATOR_ID         66
@@ -82,7 +82,7 @@ extern int tws_queue_depth;
 #define TWS_PCI_BAR1                  0x14
 #define TWS_PCI_BAR2                  0x1C
 
-#define TWS_VENDOR_ID                 0x13C1 
+#define TWS_VENDOR_ID                 0x13C1
 #define TWS_DEVICE_ID                 0x1010
 
 #define TWS_INVALID_REQID             0xFFFF
@@ -151,7 +151,7 @@ struct tws_msix_info {
     int tbl_res_id;
     bus_space_tag_t tbl_tag;
     bus_space_handle_t tbl_handle;
-    struct resource *tbl_res;  
+    struct resource *tbl_res;
 };
 
 struct tws_ioctl_lock {
@@ -185,9 +185,9 @@ struct tws_stats {
     u_int64_t reqs_out;
     u_int64_t reqs_errored;
     u_int64_t spurios_intrs;
-    u_int64_t num_intrs;    
-    u_int64_t num_aens;    
-    u_int64_t ioctls;       
+    u_int64_t num_intrs;
+    u_int64_t num_aens;
+    u_int64_t ioctls;
     u_int64_t scsi_ios;
 };
 
@@ -243,7 +243,7 @@ struct tws_softc {
     struct mtx sim_lock;                  /* sim lock */
     struct mtx gen_lock;                  /* general driver  lock */
     struct mtx io_lock;                   /* IO  lock */
-    struct tws_ioctl_lock ioctl_lock;     /* ioctl lock */ 
+    struct tws_ioctl_lock ioctl_lock;     /* ioctl lock */
     u_int32_t seq_id;                     /* Sequence id */
     struct tws_circular_q aen_q;          /* aen q */
     struct tws_circular_q trace_q;        /* trace q */

@@ -27,7 +27,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -66,7 +66,7 @@ enum {
 
 	/**
 	 * PCI CLKRUN# should be disabled on attach (via CLKRUN_DSBL).
-	 * 
+	 *
 	 * The purpose of this work-around is unclear; there is some
 	 * documentation regarding earlier Broadcom drivers supporting
 	 * a "force CLKRUN#" *enable* registry key for use on mobile
@@ -82,7 +82,7 @@ enum {
 
 	/**
 	 * TLP workaround for unmatched address handling is required.
-	 * 
+	 *
 	 * This TLP workaround will enable setting of the PCIe UR status bit
 	 * on memory access to an unmatched address.
 	 */
@@ -96,11 +96,11 @@ enum {
 
 	/**
 	 * Fix L0s to L0 exit transition on SerDes <= rev9 devices.
-	 * 
+	 *
 	 * On these devices, PCIe/SerDes symbol lock can be lost if the
 	 * reference clock has not fully stabilized during the L0s to L0
 	 * exit transition, triggering an internal reset of the chip.
-	 * 
+	 *
 	 * The SerDes RX CDR phase lock timers and proportional/integral
 	 * filters must be tweaked to ensure the CDR has fully stabilized
 	 * before asserting receive sequencer completion.
@@ -122,22 +122,22 @@ enum {
 	/**
 	 * ASPM and ECPM settings must be overridden manually.
 	 * Applies to 4311B0/4321B1 chipset revisions.
-	 * 
+	 *
 	 * The override behavior is controlled by the BHND_BFL2_PCIEWAR_OVR
 	 * flag; if set, ASPM and CLKREQ should be explicitly disabled. If not
 	 * set, they should be explicitly enabled.
-	 * 
+	 *
 	 * Attach/Resume:
 	 *   - Update SRSH_ASPM_ENB flag in the SPROM ASPM register.
 	 *   - Update SRSH_CLKREQ_ENB flag in the SPROM CLKREQ_REV5
 	 *     register.
 	 *   - Update ASPM L0S/L1 flags in PCIER_LINK_CTL register.
 	 *   - Clear CLKREQ (ECPM) flag in PCIER_LINK_CTL register.
-	 * 
+	 *
 	 * Suspend:
 	 *   - Clear ASPM L1 flag in the PCIER_LINK_CTL register.
 	 *   - Set CLKREQ (ECPM) flag in the PCIER_LINK_CTL register.
-	 * 
+	 *
 	 * Detach:
 	 *   - Set CLKREQ (ECPM) flag in the PCIER_LINK_CTL register.
 	 */
@@ -175,7 +175,7 @@ enum {
 	/**
 	 * The PCIe SerDes PLL must be configured to not retry the startup
 	 * sequence upon frequency detection failure on SerDes <= rev9 devices
-	 * 
+	 *
 	 * The issue this workaround resolves is unknown.
 	 */
 	BHND_PCIE_QUIRK_SDR9_NO_FREQRETRY	= (1<<15),
@@ -183,7 +183,7 @@ enum {
 	/**
 	 * Common flag for quirks that require PCIe SerDes TX
 	 * drive strength adjustment.
-	 * 
+	 *
 	 * Only applies to PCIe >= rev10 devices.
 	 */
 	BHND_PCIE_QUIRK_SERDES_TXDRV_ADJUST	= (1<<16),
@@ -194,7 +194,7 @@ enum {
 	 *
 	 * The exact issue is unknown, but presumably this workaround
 	 * resolves signal integrity issues with these devices.
-	 * 
+	 *
 	 * Only applies to PCIe >= rev10 devices.
 	 */
 	BHND_PCIE_QUIRK_SERDES_TXDRV_700MV	= (1<<17) |
@@ -235,7 +235,7 @@ struct bhnd_pcihb_softc {
 	struct {
 		/**
 		 * ASPM/CLKREQ override setting.
-		 * 
+		 *
 		 * If true, ASPM/CLKREQ should be overridden as enabled.
 		 * If false, ASPM/CLKREQ should be overridden as disabled.
 		 */
@@ -244,7 +244,7 @@ struct bhnd_pcihb_softc {
 
 	/** BHND_PCIE_QUIRK_SDR9_POLARITY state. */
 	struct {
-		/** 
+		/**
 		 * PCIe SerDes RX polarity.
 		 *
 		 * Initialized to the PCIe link's RX polarity

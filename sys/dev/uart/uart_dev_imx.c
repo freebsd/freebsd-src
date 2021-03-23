@@ -99,7 +99,7 @@ dumpregs(struct uart_bas *bas, const char * msg)
 	printf("%s bsh 0x%08lx UCR1 0x%08x UCR2 0x%08x "
 		"UCR3 0x%08x UCR4 0x%08x USR1 0x%08x USR2 0x%08x\n",
 	    msg, bas->bsh,
-	    GETREG(bas, REG(UCR1)), GETREG(bas, REG(UCR2)), 
+	    GETREG(bas, REG(UCR1)), GETREG(bas, REG(UCR2)),
 	    GETREG(bas, REG(UCR3)), GETREG(bas, REG(UCR4)),
 	    GETREG(bas, REG(USR1)), GETREG(bas, REG(USR2)));
 }
@@ -152,7 +152,7 @@ imx_uart_getbaud(struct uart_bas *bas)
 }
 
 static void
-imx_uart_init(struct uart_bas *bas, int baudrate, int databits, 
+imx_uart_init(struct uart_bas *bas, int baudrate, int databits,
     int stopbits, int parity)
 {
 	uint32_t baseclk, reg;
@@ -525,7 +525,7 @@ imx_uart_bus_ipend(struct uart_softc *sc)
 	 * fifo and no new data has arrived for 8 character periods (aging
 	 * timer), we have input data to process.
 	 */
-	if (((usr1 & FLD(USR1, RRDY)) && (ucr1 & FLD(UCR1, RRDYEN))) || 
+	if (((usr1 & FLD(USR1, RRDY)) && (ucr1 & FLD(UCR1, RRDYEN))) ||
 	    ((usr1 & FLD(USR1, AGTIM)) && (ucr2 & FLD(UCR2, ATEN)))) {
 		DIS(bas, UCR1, RRDYEN);
 		DIS(bas, UCR2, ATEN);

@@ -46,7 +46,7 @@
 #define PCIM_LAC_SBDMA0     0x0000 /* SB DMA Channel Select: 0 */
 #define PCIM_LAC_SBDMA1     0x0040 /* SB DMA Channel Select: 1 */
 #define PCIM_LAC_SBDMA3     0x00c0 /* SB DMA Channel Select: 3 */
-#define PCIM_LAC_IOADDR10   0x0020 /* I/O Address Alias Control */ 
+#define PCIM_LAC_IOADDR10   0x0020 /* I/O Address Alias Control */
 #define PCIM_LAC_MPU401     0x0008 /* MPU-401 I/O enable */
 #define PCIM_LAC_GAME       0x0004 /* Game Port enable (200h) */
 #define PCIM_LAC_FM         0x0002 /* FM I/O enable (AdLib 388h base) */

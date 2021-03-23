@@ -151,7 +151,7 @@ axgbe_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > ETHERMTU_JUMBO)
 			error = EINVAL;
-		/* TODO - change it to iflib way */ 
+		/* TODO - change it to iflib way */
 		break;
 	case SIOCSIFFLAGS:
 		error = 0;
@@ -536,7 +536,7 @@ axgbe_attach(device_t dev)
         ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = axgbe_ioctl;
-	/* TODO - change it to iflib way */ 
+	/* TODO - change it to iflib way */
 	ifp->if_qflush = axgbe_qflush;
 	ifp->if_get_counter = axgbe_get_counter;
 

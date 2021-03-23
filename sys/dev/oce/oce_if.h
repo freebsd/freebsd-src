@@ -123,7 +123,7 @@
 /* proportion Service Level Interface queues */
 #define OCE_MAX_UNITS			2
 #define OCE_MAX_PPORT			OCE_MAX_UNITS
-#define OCE_MAX_VPORT			OCE_MAX_UNITS 
+#define OCE_MAX_VPORT			OCE_MAX_UNITS
 
 extern int mp_ncpus;			/* system's total active cpu cores */
 #define OCE_NCPUS			mp_ncpus
@@ -136,7 +136,7 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 #define OCE_MIN_RQ			1
 #define OCE_MIN_WQ			1
 
-#define OCE_MAX_RQ			OCE_MAX_RSS + 1 /* one default queue */ 
+#define OCE_MAX_RQ			OCE_MAX_RSS + 1 /* one default queue */
 #define OCE_MAX_WQ			8
 
 #define OCE_MAX_EQ			32
@@ -601,7 +601,7 @@ struct oce_eq {
 	uint32_t ref_count;
 	qstate_t qstate;
 	struct oce_cq *cq[OCE_MAX_CQ_EQ];
-	int cq_valid; 
+	int cq_valid;
 	struct eq_config eq_cfg;
 	int vector;
 	uint64_t intr;
@@ -954,7 +954,7 @@ oce_ring_buffer_t *oce_create_ring_buffer(POCE_SOFTC sc,
 /************************************************************
  * oce_hw_xxx functions
  ************************************************************/
-int oce_clear_rx_buf(struct oce_rq *rq); 
+int oce_clear_rx_buf(struct oce_rq *rq);
 int oce_hw_pci_alloc(POCE_SOFTC sc);
 int oce_hw_init(POCE_SOFTC sc);
 int oce_hw_start(POCE_SOFTC sc);

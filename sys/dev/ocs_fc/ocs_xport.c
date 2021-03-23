@@ -983,7 +983,7 @@ ocs_xport_status(ocs_xport_t *xport, ocs_xport_status_e cmd, ocs_xport_stats_t *
 		}
 		break;
 	}
-	case OCS_XPORT_LINK_STATISTICS: 
+	case OCS_XPORT_LINK_STATISTICS:
 		ocs_device_lock(ocs);
 			ocs_memcpy((void *)result, &ocs->xport->fc_xport_stats, sizeof(ocs_xport_stats_t));
 		ocs_device_unlock(ocs);

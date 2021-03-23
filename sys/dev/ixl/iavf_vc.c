@@ -2,30 +2,30 @@
 
   Copyright (c) 2013-2018, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -167,7 +167,7 @@ iavf_verify_api_ver(struct iavf_sc *sc)
 		sc->version.major = pf_vvi->major;
 		sc->version.minor = pf_vvi->minor;
 	}
-	
+
 	/* Log PF/VF api versions */
 	device_printf(dev, "PF API %d.%d / VF API %d.%d\n",
 	    pf_vvi->major, pf_vvi->minor,
@@ -706,7 +706,7 @@ iavf_request_stats(struct iavf_sc *sc)
 	    (u8 *)&vqs, sizeof(vqs));
 	if (error)
 		device_printf(sc->dev, "Error sending stats request to PF: %d\n", error);
-	
+
 	return (0);
 }
 
@@ -771,7 +771,7 @@ iavf_config_rss_key(struct iavf_sc *sc)
 
 	iavf_dbg_vc(sc, "config_rss: vsi_id %d, key_len %d\n",
 	    rss_key_msg->vsi_id, rss_key_msg->key_len);
-	
+
 	iavf_send_pf_msg(sc, VIRTCHNL_OP_CONFIG_RSS_KEY,
 			  (u8 *)rss_key_msg, msg_len);
 

@@ -403,7 +403,7 @@ ath_descdma_cleanup(struct ath_softc *sc,
 				 * XXX it should have been freed by the
 				 * owner!
 				 */
-				
+
 				if (do_warning == 0) {
 					do_warning = 1;
 					device_printf(sc->sc_dev,

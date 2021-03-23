@@ -311,7 +311,7 @@ xentimer_vcpu_stop_timer(int vcpu)
  * \param period Not used.
  *
  * \note See eventtimers(9) for more information.
- * \note 
+ * \note
  *
  * \returns 0
  */
@@ -361,11 +361,11 @@ xentimer_et_stop(struct eventtimer *et)
 
 /**
  * \brief Attach a Xen PV timer driver instance.
- * 
+ *
  * \param dev	Bus device object to attach.
  *
  * \note
- * \returns EINVAL 
+ * \returns EINVAL
  */
 static int
 xentimer_attach(device_t dev)

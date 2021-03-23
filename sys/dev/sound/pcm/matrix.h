@@ -129,7 +129,7 @@
 
 /* 2 @ Stereo 2.0 */
 #define SND_CHN_MATRIX_2_0	1
-#define SND_CHN_MATRIX_2	SND_CHN_MATRIX_2_0	
+#define SND_CHN_MATRIX_2	SND_CHN_MATRIX_2_0
 
 /* 3 @ 2.1 (lfe), 3.0 (rear center, DEFAULT) */
 #define SND_CHN_MATRIX_2_1	2

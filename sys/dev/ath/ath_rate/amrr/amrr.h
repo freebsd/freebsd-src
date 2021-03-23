@@ -57,7 +57,7 @@ struct amrr_node {
   	u_int           amn_tx_try1_cnt;
   	u_int           amn_tx_try2_cnt;
   	u_int           amn_tx_try3_cnt;
-  	u_int           amn_tx_failure_cnt; 
+  	u_int           amn_tx_failure_cnt;
         /* AMRR algorithm state for this node */
   	u_int           amn_success_threshold;
   	u_int           amn_success;

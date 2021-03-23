@@ -118,7 +118,7 @@ acpi_cmbat_probe(device_t dev)
 {
     static char *cmbat_ids[] = { "PNP0C0A", NULL };
     int rv;
-    
+
     if (acpi_disabled("cmbat"))
 	return (ENXIO);
     rv = ACPI_ID_PROBE(device_get_parent(dev), dev, cmbat_ids, NULL);

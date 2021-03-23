@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -2710,7 +2710,7 @@ static u32 ecore_bus_dump_hdr(struct ecore_hwfn *p_hwfn,
 
 	if (dev_data->bus.target != DBG_BUS_TARGET_ID_NIG) {
 		u32 recorded_dwords = 0;
-		
+
 		if (dump)
 			recorded_dwords = ecore_bus_dump_data(p_hwfn, p_ptt, OSAL_NULL, false);
 

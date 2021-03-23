@@ -114,7 +114,7 @@ isab_pci_probe(device_t dev)
 	matched = 1;
     } else {
 	/*
-	 * These are devices that we *know* are PCI:ISA bridges. 
+	 * These are devices that we *know* are PCI:ISA bridges.
 	 * Sometimes, however, they don't report themselves as
 	 * such.  Check in case one of them is pretending to be
 	 * something else.

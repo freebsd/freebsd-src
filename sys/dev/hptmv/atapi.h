@@ -374,7 +374,7 @@ typedef enum _DISK_MODE
 		OutPort(&IOPort->DriveSelect, (UCHAR)(UnitId));\
 		OutPort(&IOPort->DriveSelect, (UCHAR)(UnitId));\
 		} while (0)
-#else 
+#else
 #define mSelectUnit(IOPort,UnitId)    OutPort(&IOPort->DriveSelect, (UCHAR)(UnitId))
 #endif
 #define mGetUnitNumber(IOPort)        InPort(&IOPort->DriveSelect)
@@ -386,5 +386,5 @@ typedef enum _DISK_MODE
 #define WDC_MW1_FIX_FLAG_OFFSET        129
 #define WDC_MW1_FIX_FLAG_VALUE        0x00005555
 
-#pragma pack()	
+#pragma pack()
 #endif

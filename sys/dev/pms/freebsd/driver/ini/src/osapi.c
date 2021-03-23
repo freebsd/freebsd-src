@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 *
 * $FreeBSD$
@@ -24,26 +24,26 @@
 /******************************************************************************
 PMC-Sierra TISA Initiator Device Driver for Linux 2.x.x.
 
-Module Name:  
+Module Name:
   osapi.c
-Abstract:  
+Abstract:
   Linux iSCSI/FC Initiator driver module itsdk required OS functions
-Environment:  
-  Part of oslayer module, Kernel or loadable module  
+Environment:
+  Part of oslayer module, Kernel or loadable module
 
 *******************************************************************************
 ostiInitiatorEvent()
 
 Purpose:
-  TI layer call back to OSlayer to inform events 
-Parameters: 
-  tiRoot_t *ptiRoot (IN)               Pointer to HBA data structure  
+  TI layer call back to OSlayer to inform events
+Parameters:
+  tiRoot_t *ptiRoot (IN)               Pointer to HBA data structure
   tiDeviceHandle_t *ptiDevHandle (IN)  Pointer to device handle
   tiIntrEvenType_t evenType (IN)       Event type
   tiIntrEventStatus_t evetStatus (IN)  Event status
   void *parm (IN)                      pointer to even specific data
 Return:
-Note:    
+Note:
   TBD, further event process required.
 ******************************************************************************/
 void ostiInitiatorEvent( tiRoot_t *ptiRoot,
@@ -62,7 +62,7 @@ void ostiInitiatorEvent( tiRoot_t *ptiRoot,
 
 #ifdef  AGTIAPI_EVENT_LOG
   AGTIAPI_PRINTK("Initiator Event:\n");
-  AGTIAPI_PRINTK("DevHandle %p, eventType 0x%x, eventStatus 0x%x\n", 
+  AGTIAPI_PRINTK("DevHandle %p, eventType 0x%x, eventStatus 0x%x\n",
                  ptiDevHandle, eventType, eventStatus);
   AGTIAPI_PRINTK("Parameter: %s\n", (char *)parm);
 #endif
@@ -75,11 +75,11 @@ void ostiInitiatorEvent( tiRoot_t *ptiRoot,
        if (eventStatus == tiCnxUp)
        {
          AGTIAPI_PRINTK("tiIntrEventTypeCnxError - tiCnxUp!\n");
-       } 
+       }
        if (eventStatus == tiCnxDown)
        {
          AGTIAPI_PRINTK("tiIntrEventTypeCnxError - tiCnxDown!\n");
-       } 
+       }
        break;
   case tiIntrEventTypeDiscovery:
        pPortalData = PORTAL_CONTEXT_TO_PORTALDATA(ptiPortalContext);
@@ -96,7 +96,7 @@ void ostiInitiatorEvent( tiRoot_t *ptiRoot,
 #endif
          {
 
-           agtiapi_GetDevHandle(pCard, &pPortalData->portalInfo, 
+           agtiapi_GetDevHandle(pCard, &pPortalData->portalInfo,
                                 tiIntrEventTypeDiscovery, tiDiscOK);
            PORTAL_STATUS(pPortalData) |=
              (AGTIAPI_DISC_DONE | AGTIAPI_PORT_LINK_UP);
@@ -107,7 +107,7 @@ void ostiInitiatorEvent( tiRoot_t *ptiRoot,
        else if (eventStatus == tiDiscFailed)
        {
          AGTIAPI_PRINTK("eventStatus - tiDiscFailed\n");
-         agtiapi_GetDevHandle(pCard, &pPortalData->portalInfo, 
+         agtiapi_GetDevHandle(pCard, &pPortalData->portalInfo,
                               tiIntrEventTypeDiscovery, tiDiscFailed);
          PORTAL_STATUS(pPortalData) &= ~AGTIAPI_DISC_DONE;
        }
@@ -126,7 +126,7 @@ void ostiInitiatorEvent( tiRoot_t *ptiRoot,
        if (TRUE)
 #endif
        {
-         agtiapi_GetDevHandle(pCard, pPortalInfo, tiIntrEventTypeDeviceChange, 
+         agtiapi_GetDevHandle(pCard, pPortalInfo, tiIntrEventTypeDeviceChange,
                               eventStatus);
 //         agtiapi_StartIO(pCard);
        }
@@ -152,7 +152,7 @@ void ostiInitiatorEvent( tiRoot_t *ptiRoot,
                           pccb, pccb->flags);
 
            /* Incase of TM_DEV_RESET, issue LocalAbort to abort pending IO */
-           if (pccb->flags & DEV_RESET) 
+           if (pccb->flags & DEV_RESET)
            {
                AGTIAPI_PRINTK("tiIntrEventTypeTaskManagement: Target Reset\n");
                ccbIO = pccb->pccbIO;
@@ -160,29 +160,29 @@ void ostiInitiatorEvent( tiRoot_t *ptiRoot,
                           ccbIO, ccbIO->flags);
                if (ccbIO->startTime == 0) /* IO has been completed. No local abort */
                {
-               }			  
+               }
                else if (tiINIIOAbort(&pCard->tiRoot, &ccbIO->tiIORequest) != tiSuccess)
                {
                    AGTIAPI_PRINTK("tiIntrEventTypeTaskManagement: Local Abort failed\n");
                    /* TODO: call Soft reset here */
                }
            }
-          else if (eventStatus == tiTMFailed) 
+          else if (eventStatus == tiTMFailed)
           {
-               ccbIO = pccb->pccbIO;               
+               ccbIO = pccb->pccbIO;
                if (ccbIO->startTime == 0) /* IO has been completed. */
                {
                    AGTIAPI_PRINTK("tiIntrEventTypeTaskManagement: TM failed because IO has been completed! pTMccb %p flag %x \n",
                                    pccb, pccb->flags);
                }
                else
-               {	       	       		  
+               {
               AGTIAPI_PRINTK("tiIntrEventTypeTaskManagement: TM failed! pTMccb %p flag %x \n",
                              pccb, pccb->flags);
                /* TODO:*/
               /* if TM_ABORT_TASK, call TM_TARGET_RESET */
               /* if TM_TARGET_RESET, call Soft_Reset */
-               }	      
+               }
           }
           /* Free TM_DEV_RESET ccb */
           agtiapi_FreeTMCCB(pCard, pccb);
@@ -213,21 +213,21 @@ void ostiInitiatorEvent( tiRoot_t *ptiRoot,
                 pTMccb->pccbIO = pccb->pccbIO;
                 pTMccb->flags &= ~(TASK_SUCCESS | ACTIVE);
                 pTMccb->flags |= DEV_RESET;
-                if (tiINITaskManagement(&pCard->tiRoot, 
+                if (tiINITaskManagement(&pCard->tiRoot,
                                         pccb->devHandle,
                                         AG_TARGET_WARM_RESET,
                                         &pccb->tiSuperScsiRequest.scsiCmnd.lun,
-                                        &pccb->tiIORequest, 
-                                        &pTMccb->tiIORequest) 
+                                        &pccb->tiIORequest,
+                                        &pTMccb->tiIORequest)
                     == tiSuccess)
                 {
-                    AGTIAPI_PRINTK("tiIntrEventTypeLocalAbort: TM_TARGET_RESET request success ccb %p, pTMccb %p\n", 
+                    AGTIAPI_PRINTK("tiIntrEventTypeLocalAbort: TM_TARGET_RESET request success ccb %p, pTMccb %p\n",
                                    pccb, pTMccb);
                     pTMccb->startTime = ticks;
                 }
                 else
                 {
-                    AGTIAPI_PRINTK("tiIntrEventTypeLocalAbort: TM_TARGET_RESET request failed ccb %p, pTMccb %p\n", 
+                    AGTIAPI_PRINTK("tiIntrEventTypeLocalAbort: TM_TARGET_RESET request failed ccb %p, pTMccb %p\n",
                                    pccb, pTMccb);
                     agtiapi_FreeTMCCB(pCard, pTMccb);
                     /* TODO: SoftReset here? */
@@ -236,7 +236,7 @@ void ostiInitiatorEvent( tiRoot_t *ptiRoot,
                 agtiapi_FreeTMCCB(pCard, pccb);
             }
         }
-        else if (eventStatus == tiAbortFailed) 
+        else if (eventStatus == tiAbortFailed)
         {
             /* TODO: */
             /* If TM_ABORT_TASK fails, issue TM_DEV_RESET */
@@ -255,11 +255,11 @@ void ostiInitiatorEvent( tiRoot_t *ptiRoot,
 ostiInitiatorIOCompleted()
 
 Purpose:
-  IO request completion call back 
+  IO request completion call back
 Parameters:
   tiRoot_t *ptiRoot (IN)               Pointer to the HBA tiRoot
   tiIORequest_t *ptiIORequest (IN)     Pointer to the tiIORequest structure
-  tiIOStatus_t IOStatus (IN)           I/O complated status  
+  tiIOStatus_t IOStatus (IN)           I/O complated status
   U32 statusDetail (IN)                Additional information on status
   tiSenseData_t *pSensedata (IN)       Sense data buffer pointer
   U32 context (IN)                     Interrupt dealing context
@@ -267,7 +267,7 @@ Returns:
 Note:
 ******************************************************************************/
 void
-ostiInitiatorIOCompleted(tiRoot_t      *ptiRoot, 
+ostiInitiatorIOCompleted(tiRoot_t      *ptiRoot,
                                tiIORequest_t *ptiIORequest,
                                tiIOStatus_t  IOStatus,
                                U32           statusDetail,
@@ -291,14 +291,14 @@ ostiInitiatorIOCompleted(tiRoot_t      *ptiRoot,
   pccb->ccbStatus  = (U16)IOStatus;
   pccb->scsiStatus = statusDetail;
 
-  if ((IOStatus == tiIOSuccess) && (statusDetail == SCSI_CHECK_CONDITION)) 
+  if ((IOStatus == tiIOSuccess) && (statusDetail == SCSI_CHECK_CONDITION))
   {
-    if (pSenseData == (tiSenseData_t *)agNULL) 
+    if (pSenseData == (tiSenseData_t *)agNULL)
     {
       AGTIAPI_PRINTK( "ostiInitiatorIOCompleted: "
                       "check condition without sense data!\n" );
     }
-    else 
+    else
     {
       union ccb *ccb = pccb->ccb;
       struct ccb_scsiio *csio = &ccb->csio;
@@ -327,19 +327,19 @@ ostiInitiatorIOCompleted(tiRoot_t      *ptiRoot,
     AGTIAPI_PRINTK("ostiInitiatorIOCompleted - aborted ccb %p, flag %x\n",
                    pccb, pccb->flags);
     /* indicate aborted IO completion */
-    pccb->startTime = 0;     
+    pccb->startTime = 0;
     agtiapi_Done(pCard, pccb);
   }
   else
   {
 #ifdef AGTIAPI_SA
-    /* 
+    /*
      * SAS no data command does not trigger interrupt.
      * Command is completed in tdlayer and IO completion is called directly.
      * The completed IO therefore is not post processed.
      * Flag is raised and TDTimer will check and process IO for SAS.
      * This is a temporary solution. - Eddie, 07-17-2006
-     */ 
+     */
     pCard->flags |= AGTIAPI_FLAG_UP;
 #endif
     pccb->flags  |= REQ_DONE;
@@ -368,7 +368,7 @@ ostiGetDevHandleFromSasAddr(
 {
   int i;
   unsigned long x;
-  
+
   ag_portal_data_t           *pPortal = NULL;
   tiDeviceHandle_t *devHandle = NULL;
   struct agtiapi_softc *pCard = TIROOT_TO_CARD(root);
@@ -384,12 +384,12 @@ ostiGetDevHandleFromSasAddr(
   {
   	sas_addr_lo[i] = sas_addr[7-i];
   }
-  
+
     /* Retrieve the handles for each portal */
   for (x=0; x < pCard->portCount; x++)
   {
     pPortal = &pCard->pPortalData[x];
-    devHandle = tiINIGetExpDeviceHandleBySasAddress(&pCard->tiRoot, 
+    devHandle = tiINIGetExpDeviceHandleBySasAddress(&pCard->tiRoot,
                     &pPortal->portalInfo.tiPortalContext,
 					*(bit32*)sas_addr_hi,
 					*(bit32*)sas_addr_lo,
@@ -405,11 +405,11 @@ ostiGetDevHandleFromSasAddr(
 ostiInitiatorSMPCompleted()
 
 Purpose:
-  IO request completion call back 
+  IO request completion call back
 Parameters:
   tiRoot_t *ptiRoot (IN)               Pointer to the HBA tiRoot
   tiIORequest_t *ptiSMPRequest (IN)    Pointer to the SMP request structure
-  tiIOStatus_t IOStatus (IN)           I/O complated status  
+  tiIOStatus_t IOStatus (IN)           I/O complated status
   U32 tiSMPInfoLen (IN)                Number of bytes of response frame len
   tiFrameHandle    (IN)                Handle that referes to response frame
   U32 context (IN)                     Interrupt dealing context
@@ -417,9 +417,9 @@ Returns:
 Note:
 ******************************************************************************/
 void
-ostiInitiatorSMPCompleted(tiRoot_t      *ptiRoot, 
-                          tiIORequest_t *ptiSMPRequest, 
-                          tiSMPStatus_t  smpStatus, 
+ostiInitiatorSMPCompleted(tiRoot_t      *ptiRoot,
+                          tiIORequest_t *ptiSMPRequest,
+                          tiSMPStatus_t  smpStatus,
                           bit32          tiSMPInfoLen,
                           void           *tiFrameHandle,
                           bit32          context)
@@ -428,9 +428,9 @@ ostiInitiatorSMPCompleted(tiRoot_t      *ptiRoot,
   ccb_t      *pccb;
   pCard = TIROOT_TO_CARD(ptiRoot);
   pccb = (ccb_t *)ptiSMPRequest->osData;
-  
+
   AGTIAPI_PRINTK("ostiInitiatorSMPCompleted: start\n");
-  
+
   OSTI_OUT_ENTER(ptiRoot);
   pccb->ccbStatus  = (U16)smpStatus;
   if(smpStatus != tiSMPSuccess)
@@ -443,15 +443,15 @@ ostiInitiatorSMPCompleted(tiRoot_t      *ptiRoot,
     struct ccb_smpio *csmpio = &ccb->smpio;
     memcpy(csmpio->smp_response, tiFrameHandle, tiSMPInfoLen);
     csmpio->smp_response_len = tiSMPInfoLen;
-    agtiapi_hexdump("ostiInitiatorSMPCompleted: Response Payload in CAM", (bit8 *)csmpio->smp_response, csmpio->smp_response_len);  
+    agtiapi_hexdump("ostiInitiatorSMPCompleted: Response Payload in CAM", (bit8 *)csmpio->smp_response, csmpio->smp_response_len);
   }
   pccb->flags  |= REQ_DONE;
   agtiapi_QueueCCB(pCard, &pCard->smpDoneHead, &pCard->smpDoneTail
                      AG_CARD_LOCAL_LOCK(&pCard->doneSMPLock), pccb);
   AGTIAPI_PRINTK("ostiInitiatorSMPCompleted: Done\n");
   OSTI_OUT_LEAVE(ptiRoot);
-  
-  return;  
+
+  return;
 }
 
 #ifdef FAST_IO_TEST
@@ -539,7 +539,7 @@ ostiSingleThreadedLeave(tiRoot_t *ptiRoot, U32 queueId)
 
 
 osGLOBAL tiDeviceHandle_t*
-ostiMapToDevHandle(tiRoot_t  *root, 
+ostiMapToDevHandle(tiRoot_t  *root,
                           bit8      pathId,
                           bit8      targetId,
                           bit8      LUN
@@ -550,7 +550,7 @@ ostiMapToDevHandle(tiRoot_t  *root,
   bit32               offset;
 
   pCard = TIROOT_TO_CARD(root);
-  
+
   offset = pathId * pCard->tgtCount + targetId;
 
   if (offset > (pCard->tgtCount - 1) )
@@ -561,7 +561,7 @@ ostiMapToDevHandle(tiRoot_t  *root,
   {
     dev = pCard->pDevList[offset].pDevHandle;
   }
-  
+
   return dev;
 }
 
@@ -596,7 +596,7 @@ ostiEnter(tiRoot_t *ptiRoot, U32 layer, int io)
     {
       unsigned int prev_layer = pCard->layer[io][pCard->callLevel[io] - 1];
 
-      pCard->totalCycles[io][prev_layer] += cycles - 
+      pCard->totalCycles[io][prev_layer] += cycles -
                                              pCard->enterCycles[io][prev_layer];
     }
     pCard->enterCycles[io][layer] = cycles;
@@ -625,7 +625,7 @@ ostiLeave(tiRoot_t *ptiRoot, U32 layer, int io)
 
     pCard->totalCycles[io][layer] += cycles - pCard->enterCycles[io][layer];
     if (pCard->callLevel[io] > 0)
-      pCard->enterCycles[io][pCard->layer[io][pCard->callLevel[io] - 1]] = 
+      pCard->enterCycles[io][pCard->layer[io][pCard->callLevel[io] - 1]] =
         cycles;
     OSTI_SPIN_UNLOCK(&pCard->latLock);
   }
@@ -634,7 +634,7 @@ ostiLeave(tiRoot_t *ptiRoot, U32 layer, int io)
 
 
 
-osGLOBAL FORCEINLINE bit8 
+osGLOBAL FORCEINLINE bit8
 ostiBitScanForward(
                   tiRoot_t   *root,
                   bit32      *Index,
@@ -642,11 +642,11 @@ ostiBitScanForward(
                   )
 {
   return 1;
-  
+
 }
 
 #ifdef REMOVED
-osGLOBAL sbit32 
+osGLOBAL sbit32
 ostiAtomicIncrement(
                    tiRoot_t        *root,
                    sbit32 volatile *Addend
@@ -656,30 +656,30 @@ ostiAtomicIncrement(
 
 }
 
-osGLOBAL sbit32 
+osGLOBAL sbit32
 ostiAtomicDecrement(
                    tiRoot_t        *root,
                    sbit32 volatile *Addend
                    )
 {
- 
+
   return 1;
 
 }
 
-osGLOBAL sbit32 
+osGLOBAL sbit32
 ostiAtomicBitClear(
                  tiRoot_t         *root,
                  sbit32 volatile  *Destination,
                  sbit32            Value
                  )
 {
- 
+
   return 0;
- 
+
 }
 
-osGLOBAL sbit32 
+osGLOBAL sbit32
 ostiAtomicBitSet(
                 tiRoot_t         *root,
                 sbit32 volatile  *Destination,
@@ -694,7 +694,7 @@ ostiAtomicBitSet(
   */
 }
 
-osGLOBAL sbit32 
+osGLOBAL sbit32
 ostiAtomicExchange(
                    tiRoot_t        *root,
                    sbit32 volatile *Target,
@@ -702,11 +702,11 @@ ostiAtomicExchange(
                    )
 {
   return 0;
-  
+
 }
 #endif
 
-osGLOBAL FORCEINLINE sbit32 
+osGLOBAL FORCEINLINE sbit32
 ostiInterlockedExchange(
                        tiRoot_t        *root,
                        sbit32 volatile *Target,
@@ -716,7 +716,7 @@ ostiInterlockedExchange(
   return 0;
 }
 
-osGLOBAL FORCEINLINE sbit32 
+osGLOBAL FORCEINLINE sbit32
 ostiInterlockedIncrement(
                        tiRoot_t        *root,
                        sbit32 volatile *Addend
@@ -725,7 +725,7 @@ ostiInterlockedIncrement(
   return 0;
 }
 
-osGLOBAL FORCEINLINE sbit32 
+osGLOBAL FORCEINLINE sbit32
 ostiInterlockedDecrement(
                          tiRoot_t         *root,
                          sbit32 volatile  *Addend
@@ -734,7 +734,7 @@ ostiInterlockedDecrement(
   return 0;
 }
 
-osGLOBAL FORCEINLINE sbit32 
+osGLOBAL FORCEINLINE sbit32
 ostiInterlockedAnd(
                    tiRoot_t         *root,
                    sbit32 volatile  *Destination,
@@ -744,7 +744,7 @@ ostiInterlockedAnd(
   return 0;
 }
 
-osGLOBAL FORCEINLINE sbit32 
+osGLOBAL FORCEINLINE sbit32
 ostiInterlockedOr(
                    tiRoot_t         *root,
                    sbit32 volatile  *Destination,
@@ -789,7 +789,7 @@ ostiGetSenseKeyCount(tiRoot_t  *root,
 }
 
 osGLOBAL void
-ostiGetSCSIStatusCount(tiRoot_t  *root, 
+ostiGetSCSIStatusCount(tiRoot_t  *root,
                               bit32      fIsClear,
                               void      *ScsiStatusCount,
                               bit32      length
@@ -806,13 +806,13 @@ osGLOBAL void ostiPCI_TRIGGER( tiRoot_t *tiRoot )
 
 }
 
-osGLOBAL bit32 
+osGLOBAL bit32
 ostiNumOfLUNIOCTLreq(  tiRoot_t          *root,
                               void              *param1,
                               void              *param2,
                               void              **tiRequestBody,
                               tiIORequest_t     **tiIORequest
-                              ) 
+                              )
 {
   bit32		status = IOCTL_CALL_SUCCESS;
   pccb_t pccb;

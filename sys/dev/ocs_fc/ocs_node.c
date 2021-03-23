@@ -247,7 +247,7 @@ ocs_node_create_pool(ocs_t *ocs, uint32_t node_count)
 	xport->nodes = ocs_malloc(ocs, node_count * sizeof(ocs_node_t *), OCS_M_ZERO | OCS_M_NOWAIT);
 	if (xport->nodes == NULL) {
 		ocs_log_err(ocs, "node ptrs allocation failed");
-		return -1;	
+		return -1;
 	}
 
 	if (0 == ocs_hw_get(&ocs->hw, OCS_HW_MAX_SGE, &max_sge) &&
@@ -276,7 +276,7 @@ ocs_node_create_pool(ocs_t *ocs, uint32_t node_count)
 
 		rc = ocs_dma_alloc(ocs, &node->sparm_dma_buf, 256, 16);
 		if (rc) {
-			ocs_free(ocs, node, sizeof(ocs_node_t));		
+			ocs_free(ocs, node, sizeof(ocs_node_t));
 			ocs_log_err(ocs, "ocs_dma_alloc failed: %d\n", rc);
 			goto error;
 		}
@@ -288,7 +288,7 @@ ocs_node_create_pool(ocs_t *ocs, uint32_t node_count)
 
 error:
 	ocs_node_free_pool(ocs);
-	return -1;	
+	return -1;
 }
 
 /**

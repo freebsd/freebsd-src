@@ -9,7 +9,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -44,7 +44,7 @@ SDT_PROBE_DEFINE7(test, , , sdttest, "int", "int", "int", "int", "int",
 
 /*
  * These are variables that the DTrace test suite references in the
- * Solaris kernel. We define them here so that the tests function 
+ * Solaris kernel. We define them here so that the tests function
  * unaltered.
  */
 int	kmem_flags;

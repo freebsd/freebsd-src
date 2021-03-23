@@ -183,7 +183,7 @@ ar5210ResetTxQueue(struct ath_hal *ah, u_int q)
 		OS_REG_WRITE(ah, AR_SLOT_TIME, INIT_SLOT_TIME_TURBO);
 		OS_REG_WRITE(ah, AR_TIME_OUT, INIT_ACK_CTS_TIMEOUT_TURBO);
 		OS_REG_WRITE(ah, AR_USEC, INIT_TRANSMIT_LATENCY_TURBO);
-		OS_REG_WRITE(ah, AR_IFS0, 
+		OS_REG_WRITE(ah, AR_IFS0,
 			((INIT_SIFS_TURBO + qi->tqi_aifs * INIT_SLOT_TIME_TURBO)
 				<< AR_IFS0_DIFS_S)
 			| INIT_SIFS_TURBO);
@@ -200,7 +200,7 @@ ar5210ResetTxQueue(struct ath_hal *ah, u_int q)
 		OS_REG_WRITE(ah, AR_SLOT_TIME, INIT_SLOT_TIME);
 		OS_REG_WRITE(ah, AR_TIME_OUT, INIT_ACK_CTS_TIMEOUT);
 		OS_REG_WRITE(ah, AR_USEC, INIT_TRANSMIT_LATENCY);
-		OS_REG_WRITE(ah, AR_IFS0, 
+		OS_REG_WRITE(ah, AR_IFS0,
 			((INIT_SIFS + qi->tqi_aifs * INIT_SLOT_TIME)
 				<< AR_IFS0_DIFS_S)
 			| INIT_SIFS);
@@ -219,7 +219,7 @@ ar5210ResetTxQueue(struct ath_hal *ah, u_int q)
 		cwMin = qi->tqi_cwmin;
 
 	/* Set cwmin and retry limit values */
-	OS_REG_WRITE(ah, AR_RETRY_LMT, 
+	OS_REG_WRITE(ah, AR_RETRY_LMT,
 		  (cwMin << AR_RETRY_LMT_CW_MIN_S)
 		 | SM(INIT_SLG_RETRY, AR_RETRY_LMT_SLG_RETRY)
 		 | SM(INIT_SSH_RETRY, AR_RETRY_LMT_SSH_RETRY)
@@ -570,7 +570,7 @@ ar5210FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		/*
 		 * Last descriptor in a multi-descriptor frame,
 		 * copy the transmit parameters from the first
-		 * frame for processing on completion. 
+		 * frame for processing on completion.
 		 */
 		ads->ds_ctl0 = AR5210DESC_CONST(ds0)->ds_ctl0;
 		ads->ds_ctl1 = segLen;

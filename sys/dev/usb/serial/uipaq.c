@@ -1261,7 +1261,7 @@ uipaq_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 }
 
@@ -1285,7 +1285,7 @@ uipaq_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 }
 
@@ -1305,7 +1305,7 @@ uipaq_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 }
 

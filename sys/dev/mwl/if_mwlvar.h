@@ -69,7 +69,7 @@
 #ifndef MWL_AGGR_SIZE
 #define	MWL_AGGR_SIZE	3839		/* max tx aggregation size */
 #endif
-#define	MWL_AGEINTERVAL	1		/* poke f/w every sec to age q's */ 
+#define	MWL_AGEINTERVAL	1		/* poke f/w every sec to age q's */
 #define	MWL_MAXSTAID	64		/* max of 64 stations */
 
 /*
@@ -181,7 +181,7 @@ typedef STAILQ_HEAD(, mwl_rxbuf) mwl_rxbufhead;
  * to identify which BA stream to use (assigning the h/w q to
  * the TxPriority field of the descriptor).
  *
- * NB: Each station may have at most MWL_MAXBA streams at one time.  
+ * NB: Each station may have at most MWL_MAXBA streams at one time.
  */
 struct mwl_bastate {
 	uint16_t	qos;		/* QoS ctl for BA stream */

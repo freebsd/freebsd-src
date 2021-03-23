@@ -34,10 +34,10 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Broadcom BHND PCIe-Gen2 PCI-Host Bridge.
- * 
+ *
  * This driver handles all interactions with PCIe-G2 bridge cores operating in
  * endpoint mode.
- * 
+ *
  * Host-level PCI operations are handled at the bhndb bridge level by the
  * bhndb_pci driver.
  */
@@ -192,7 +192,7 @@ bhnd_pcie2_hostb_resume(device_t dev)
 /**
  * Apply any hardware work-arounds that must be executed exactly once, early in
  * the attach process.
- * 
+ *
  * This must be called after core enumeration and discovery of all applicable
  * quirks, but prior to probe/attach of any cores, parsing of
  * SPROM, etc.
@@ -231,7 +231,7 @@ static device_method_t bhnd_pcie2_hostb_methods[] = {
 	DEVMETHOD(device_attach,		bhnd_pcie2_hostb_attach),
 	DEVMETHOD(device_detach,		bhnd_pcie2_hostb_detach),
 	DEVMETHOD(device_suspend,		bhnd_pcie2_hostb_suspend),
-	DEVMETHOD(device_resume,		bhnd_pcie2_hostb_resume),	
+	DEVMETHOD(device_resume,		bhnd_pcie2_hostb_resume),
 
 	DEVMETHOD_END
 };

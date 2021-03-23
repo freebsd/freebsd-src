@@ -313,7 +313,7 @@
 #define AR_QUIET2_QUIET_DUR 0xffff0000
 
 #define	AR_TSF_PARM	0x8104	/* TSF parameters */
-#define AR_NOACK        0x8108  /* No ack policy in QoS Control Field */ 
+#define AR_NOACK        0x8108  /* No ack policy in QoS Control Field */
 #define	AR_PHY_ERR	0x810c	/* Phy error filter */
 
 #define	AR_QOS_CONTROL	0x8118	/* Control TKIP MIC for QoS */
@@ -788,7 +788,7 @@
 #define	AR_SREV_VERSION_GRIFFIN	7
 #define	AR_SREV_VERSION_CONDOR	9
 #define	AR_SREV_VERSION_EAGLE	10
-#define	AR_SREV_VERSION_COBRA	11	
+#define	AR_SREV_VERSION_COBRA	11
 #define	AR_SREV_2413		AR_SREV_VERSION_GRIFFIN
 #define	AR_SREV_5413	        AR_SREV_VERSION_EAGLE
 #define	AR_SREV_2415		AR_SREV_VERSION_COBRA

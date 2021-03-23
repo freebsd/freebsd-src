@@ -184,7 +184,7 @@ static uint32_t		rum_tx_crypto_flags(struct rum_softc *,
 static int		rum_tx_mgt(struct rum_softc *, struct mbuf *,
 			    struct ieee80211_node *);
 static int		rum_tx_raw(struct rum_softc *, struct mbuf *,
-			    struct ieee80211_node *, 
+			    struct ieee80211_node *,
 			    const struct ieee80211_bpf_params *);
 static int		rum_tx_data(struct rum_softc *, struct mbuf *,
 			    struct ieee80211_node *);
@@ -285,7 +285,7 @@ static const struct {
 } rum_def_mac[] = {
 	{ RT2573_TXRX_CSR0,  0x025fb032 },
 	{ RT2573_TXRX_CSR1,  0x9eaa9eaf },
-	{ RT2573_TXRX_CSR2,  0x8a8b8c8d }, 
+	{ RT2573_TXRX_CSR2,  0x8a8b8c8d },
 	{ RT2573_TXRX_CSR3,  0x00858687 },
 	{ RT2573_TXRX_CSR7,  0x2e31353b },
 	{ RT2573_TXRX_CSR8,  0x2a2a2a2c },
@@ -1454,7 +1454,7 @@ rum_sendprot(struct rum_softc *sc,
 }
 
 static uint32_t
-rum_tx_crypto_flags(struct rum_softc *sc, struct ieee80211_node *ni, 
+rum_tx_crypto_flags(struct rum_softc *sc, struct ieee80211_node *ni,
     const struct ieee80211_key *k)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
@@ -1526,7 +1526,7 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= RT2573_TX_NEED_ACK;
 
-		dur = ieee80211_ack_duration(ic->ic_rt, tp->mgmtrate, 
+		dur = ieee80211_ack_duration(ic->ic_rt, tp->mgmtrate,
 		    ic->ic_flags & IEEE80211_F_SHPREAMBLE);
 		USETW(wh->i_dur, dur);
 
@@ -2884,7 +2884,7 @@ rum_common_key_set(struct rum_softc *sc, struct ieee80211_key *k,
 
 static void
 rum_group_key_set_cb(struct rum_softc *sc, union sec_param *data,
-    uint8_t rvp_id) 
+    uint8_t rvp_id)
 {
 	struct ieee80211_key *k = &data->key;
 	uint8_t mode;

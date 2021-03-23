@@ -427,7 +427,7 @@ nmdm_modevent(module_t mod, int type, void *data)
 	static eventhandler_tag tag;
 
         switch(type) {
-        case MOD_LOAD: 
+        case MOD_LOAD:
 		tag = EVENTHANDLER_REGISTER(dev_clone, nmdm_clone, 0, 1000);
 		if (tag == NULL)
 			return (ENOMEM);

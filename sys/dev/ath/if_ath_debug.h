@@ -35,7 +35,7 @@
 
 #ifdef	ATH_DEBUG
 
-enum { 
+enum {
 	ATH_DEBUG_XMIT		= 0x000000001ULL,	/* basic xmit operation */
 	ATH_DEBUG_XMIT_DESC	= 0x000000002ULL,	/* xmit descriptors */
 	ATH_DEBUG_RECV		= 0x000000004ULL,	/* basic recv operation */

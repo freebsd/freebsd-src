@@ -87,7 +87,7 @@ gdraw(int dx, int dy, int val)
 		/* horizontal line */
 		for (; dx >= 0; --dx, ++i) {
 			set |= gpset(i, cur_y, val);
-		} 
+		}
 	}
 	else {	/* dy != 0 */
 		i = cur_y;
@@ -99,7 +99,7 @@ gdraw(int dx, int dy, int val)
 		/* vertical line */
 		for (; dy >= 0; --dy, ++i) {
 			set |= gpset(cur_x, i, val);
-		} 
+		}
 	}
 	return set;
 }
@@ -122,7 +122,7 @@ dragon_update(video_adapter_t *adp)
 
 		/* set palette of each curves */
 		for (tmp = 0; tmp < 3*CURVE; ++tmp) {
-			dragon_pal[3+tmp] = (u_char)random(); 
+			dragon_pal[3+tmp] = (u_char)random();
 		}
 		vidd_load_palette(adp, dragon_pal);
 

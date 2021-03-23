@@ -138,7 +138,7 @@ struct ocs_softc {
 	ocs_domain_t *domain;
 	ocs_list_t domain_list;
 	uint32_t domain_instance_count;
-	void (*domain_list_empty_cb)(ocs_t *ocs, void *arg);		
+	void (*domain_list_empty_cb)(ocs_t *ocs, void *arg);
 	void *domain_list_empty_cb_arg;
 
 	uint8_t enable_ini;
@@ -169,27 +169,27 @@ struct ocs_softc {
 	uint32_t max_remote_nodes;
 
 	/*
-	 * tgt_rscn_delay - delay in kicking off RSCN processing 
-	 * (nameserver queries) after receiving an RSCN on the target. 
+	 * tgt_rscn_delay - delay in kicking off RSCN processing
+	 * (nameserver queries) after receiving an RSCN on the target.
 	 * This prevents thrashing of nameserver requests due to a huge burst of
 	 * RSCNs received in a short period of time.
-	 * Note: this is only valid when target RSCN handling is enabled -- see 
+	 * Note: this is only valid when target RSCN handling is enabled -- see
 	 * ctrlmask.
 	 */
 	time_t tgt_rscn_delay_msec;	/*>> minimum target RSCN delay */
 
 	/*
-	 * tgt_rscn_period - determines maximum frequency when processing 
-	 * back-to-back RSCNs; e.g. if this value is 30, there will never be 
-	 * any more than 1 RSCN handling per 30s window. This prevents 
-	 * initiators on a faulty link generating many RSCN from causing the 
-	 * target to continually query the nameserver. 
+	 * tgt_rscn_period - determines maximum frequency when processing
+	 * back-to-back RSCNs; e.g. if this value is 30, there will never be
+	 * any more than 1 RSCN handling per 30s window. This prevents
+	 * initiators on a faulty link generating many RSCN from causing the
+	 * target to continually query the nameserver.
 	 * Note: This is only valid when target RSCN handling is enabled
 	 */
 	time_t tgt_rscn_period_msec;	/*>> minimum target RSCN period */
 
-	uint32_t		enable_task_set_full;		
-	uint32_t		io_in_use;		
+	uint32_t		enable_task_set_full;
+	uint32_t		io_in_use;
 	uint32_t		io_high_watermark; /**< used to send task set full */
 	struct mtx		sim_lock;
 	uint32_t		config_tgt:1,	/**< Configured to support target mode */

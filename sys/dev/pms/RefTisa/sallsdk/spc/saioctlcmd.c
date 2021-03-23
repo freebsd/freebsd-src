@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -2071,17 +2071,17 @@ GLOBAL bit32 saGetTimeStamp(
 }
 
 /******************************************************************************/
-/*! \brief Update IOMap Entry  
+/*! \brief Update IOMap Entry
  *
  *  This function is called to update certain fields of IOMap Entry
- * 
+ *
  *  \param pIOMap       IOMap Entry
  *  \param HTag         Host Tag
  *  \param pRequest     Request
  *  \parma agContext    Context of this API
  *
  *  \return             NA
- */         
+ */
 /*******************************************************************************/
 static void saUpdateIOMap(
                         agsaIOMap_t         *pIOMap,
@@ -2099,13 +2099,13 @@ static void saUpdateIOMap(
 /*! \brief Get a request from free pool
  *
  *  This function gets a request from free pool
- * 
+ *
  *  \param agRoot       Handles for this instance of SAS/SATA LL
  *  \param agsaContext  Context of this command
  *
  *  \return
  *          - \e Pointer to request, in case of success
- *          - \e NULL, in case of failure 
+ *          - \e NULL, in case of failure
  *
  */
 /*******************************************************************************/
@@ -2116,10 +2116,10 @@ agsaIORequestDesc_t* saGetRequestFromFreePool(
 {
   agsaLLRoot_t          *saRoot = (agsaLLRoot_t *)(agRoot->sdkData);
   agsaIORequestDesc_t   *pRequest = agNULL;
-  
+
   /* Acquire LL_IOREQ_LOCKEQ_LOCK */
   ossaSingleThreadedEnter(agRoot, LL_IOREQ_LOCKEQ_LOCK);
-  
+
   /* Get request from free IORequests */
   pRequest = (agsaIORequestDesc_t *)saLlistIOGetHead(&(saRoot->freeIORequests));
   if (pRequest != agNULL)
@@ -2139,7 +2139,7 @@ agsaIORequestDesc_t* saGetRequestFromFreePool(
     /* Release LL_IOREQ_LOCKEQ_LOCK */
     ossaSingleThreadedLeave(agRoot, LL_IOREQ_LOCKEQ_LOCK);
   }
-  
+
   return pRequest;
 }
 
@@ -2147,11 +2147,11 @@ agsaIORequestDesc_t* saGetRequestFromFreePool(
 /*! \brief Return request to free pool
  *
  *  This function returns the request to free pool
- * 
+ *
  *  \param agRoot       Handles for this instance of SAS/SATA LL
  *  \param pRequest     Request to be returned
  *
- *  \return             NA             
+ *  \return             NA
  *
  */
 /*******************************************************************************/
@@ -2167,21 +2167,21 @@ void saReturnRequestToFreePool(
   /* Remove the request from IOMap */
   saUpdateIOMap(&saRoot->IOMap[pRequest->HTag], MARK_OFF, agNULL, agNULL);
   pRequest->valid = agFALSE;
-  
+
   /* Acquire LL_IOREQ_LOCKEQ_LOCK */
   ossaSingleThreadedEnter(agRoot, LL_IOREQ_LOCKEQ_LOCK);
 
   if (saLlistIOGetCount(&(saRoot->freeReservedRequests)) < SA_RESERVED_REQUEST_COUNT)
   {
-    SA_DBG1(("saReturnRequestToFreePool: saving pRequest (%p) for later use\n", pRequest));	
+    SA_DBG1(("saReturnRequestToFreePool: saving pRequest (%p) for later use\n", pRequest));
     saLlistIOAdd(&(saRoot->freeReservedRequests), &(pRequest->linkNode));
   }
   else
   {
-    /* Return the request to free pool */      
+    /* Return the request to free pool */
     saLlistIOAdd(&(saRoot->freeIORequests), &(pRequest->linkNode));
   }
-  
+
   /* Release LL_IOREQ_LOCKEQ_LOCK */
   ossaSingleThreadedLeave(agRoot, LL_IOREQ_LOCKEQ_LOCK);
 }
@@ -2196,9 +2196,9 @@ void saReturnRequestToFreePool(
  *  \param queueNum    queue number
  *  \param pSGpioReq   Pointer to the serial GPIO fields
  *
- *  \return 
+ *  \return
  *          - SUCCESS or FAILURE
- */         
+ */
 /*******************************************************************************/
 GLOBAL bit32 saSgpio(
                 agsaRoot_t              *agRoot,
@@ -2230,16 +2230,16 @@ GLOBAL bit32 saSgpio(
   {
     /* Set payload to zeros */
     si_memset(&payload, 0, sizeof(agsaSGpioCmd_t));
-	
+
     /* set tag */
     OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaSGpioCmd_t, tag), pRequest->HTag);
     OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaSGpioCmd_t, regIndexRegTypeFunctionFrameType),
-                        (pSGpioReq->smpFrameType | 
+                        (pSGpioReq->smpFrameType |
                         ((bit32)pSGpioReq->function << 8)  |
                         ((bit32)pSGpioReq->registerType << 16) |
                         ((bit32)pSGpioReq->registerIndex << 24)));
     OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaSGpioCmd_t, regCount), pSGpioReq->registerCount);
-	
+
     if (SA_SAS_SMP_WRITE_GPIO_REGISTER == pSGpioReq->function)
     {
       for (i = 0; i < pSGpioReq->registerCount; i++)
@@ -2570,13 +2570,13 @@ LOCAL bit32 siFatalErrorBuffer(
 
     status = AGSA_RC_SUCCESS;
 
-	  SA_DBG1(("siFatalErrorBuffer:Offset 0x%x BarLoc 0x%x\n",saRoot->FatalForensicShiftOffset,saRoot->FatalBarLoc  )); 
+	  SA_DBG1(("siFatalErrorBuffer:Offset 0x%x BarLoc 0x%x\n",saRoot->FatalForensicShiftOffset,saRoot->FatalBarLoc  ));
 	  SA_DBG1(("siFatalErrorBuffer: step 0 status %d %p Offset 0x%x Len 0x%x total_len 0x%x\n",
                         status,
                         forensicData->BufferType.dataBuf.directData,
-				  forensicData->BufferType.dataBuf.directOffset, 
+				  forensicData->BufferType.dataBuf.directOffset,
                         forensicData->BufferType.dataBuf.directLen,
-				  forensicData->BufferType.dataBuf.readLen )); 
+				  forensicData->BufferType.dataBuf.readLen ));
 	  return(status);
   }
 
@@ -2666,7 +2666,7 @@ LOCAL bit32 siFatalErrorBuffer(
                         forensicData->BufferType.dataBuf.directData,
                         forensicData->BufferType.dataBuf.directOffset,
                         forensicData->BufferType.dataBuf.directLen,
-                        forensicData->BufferType.dataBuf.readLen )); 
+                        forensicData->BufferType.dataBuf.readLen ));
 
       smTraceFuncExit(hpDBG_VERY_LOUD, 'a', "2a");
   return(status);
@@ -2813,7 +2813,7 @@ LOCAL bit32 siNonFatalErrorBuffer(
     forensicData->BufferType.dataBuf.directOffset = ossaHwRegReadExt(agRoot,pcibar,ErrorTableOffset + MPI_FATAL_EDUMP_TABLE_ACCUM_LEN);
     if( ready == MPI_FATAL_EDUMP_TABLE_STAT_NF_SUCCESS_MORE_DATA )
     {
-      SA_DBG2(("siNonFatalErrorBuffer: More data available MPI_FATAL_EDUMP_TABLE_ACCUM_LEN 0x%x\n", ossaHwRegReadExt(agRoot,pcibar,ErrorTableOffset+ MPI_FATAL_EDUMP_TABLE_ACCUM_LEN) )); 
+      SA_DBG2(("siNonFatalErrorBuffer: More data available MPI_FATAL_EDUMP_TABLE_ACCUM_LEN 0x%x\n", ossaHwRegReadExt(agRoot,pcibar,ErrorTableOffset+ MPI_FATAL_EDUMP_TABLE_ACCUM_LEN) ));
       break;
     }
   } while ( ready != MPI_FATAL_EDUMP_TABLE_STAT_NF_SUCCESS_DONE && (max_wait_count -= WAIT_INCREMENT));
@@ -2904,18 +2904,18 @@ LOCAL bit32 siGetForensicData(
       return AGSA_RC_FAILURE;
     }
 
-  
+
 			//if( forensicData->BufferType.dataBuf.directOffset >= ONE_MEGABYTE )
 			//{
 			//SA_DBG1(("siGSMDump:  total length > ONE_MEGABYTE  0x%x\n",forensicData->BufferType.dataBuf.directOffset));
 			//forensicData->BufferType.dataBuf.readLen = 0xFFFFFFFF;
-			//return(AGSA_RC_SUCCESS); 
+			//return(AGSA_RC_SUCCESS);
 			//}
 			forensicData->BufferType.gsmBuf.directOffset = 0;
     }
     status = siGSMDump( agRoot,
-				forensicData->BufferType.gsmBuf.directOffset, 
-				forensicData->BufferType.gsmBuf.directLen, 
+				forensicData->BufferType.gsmBuf.directOffset,
+				forensicData->BufferType.gsmBuf.directLen,
 				forensicData->BufferType.gsmBuf.directData );
 
     if(status == AGSA_RC_SUCCESS)
@@ -2934,7 +2934,7 @@ LOCAL bit32 siGetForensicData(
 	else if(forensicData->DataType == TYPE_INBOUND_QUEUE )
   {
       mpiICQueue_t        *circularQ = NULL;
-		SA_DBG2(("siGetForensicData: TYPE_INBOUND \n")); 
+		SA_DBG2(("siGetForensicData: TYPE_INBOUND \n"));
 
       if(forensicData->BufferType.queueBuf.queueIndex >=AGSA_MAX_INBOUND_Q )
       {
@@ -2952,7 +2952,7 @@ LOCAL bit32 siGetForensicData(
 	//else if( forensicData->BufferType.queueBuf.queueType == TYPE_OUTBOUND_QUEUE )
     {
       mpiOCQueue_t        *circularQ = NULL;
-		SA_DBG2(("siGetForensicData: TYPE_OUTBOUND\n")); 
+		SA_DBG2(("siGetForensicData: TYPE_OUTBOUND\n"));
 
       if(forensicData->BufferType.queueBuf.queueIndex >= AGSA_MAX_OUTBOUND_Q )
       {
@@ -2972,7 +2972,7 @@ LOCAL bit32 siGetForensicData(
   {
 		// if(smIS_SPCV(agRoot))
 		// {
-		SA_DBG2(("siGetForensicData:TYPE_NON_FATAL \n")); 
+		SA_DBG2(("siGetForensicData:TYPE_NON_FATAL \n"));
       status = siNonFatalErrorBuffer(agRoot,forensicData);
 		// }
     smTraceFuncExit(hpDBG_VERY_LOUD, 'f', "2Z");
@@ -2982,7 +2982,7 @@ LOCAL bit32 siGetForensicData(
   {
 		// if(smIS_SPCV(agRoot))
 		//{
-		SA_DBG2(("siGetForensicData:TYPE_NON_FATAL \n")); 
+		SA_DBG2(("siGetForensicData:TYPE_NON_FATAL \n"));
       status = siFatalErrorBuffer(agRoot,forensicData );
 		// }
 		smTraceFuncExit(hpDBG_VERY_LOUD, 'g', "2Z");
@@ -3347,7 +3347,7 @@ GLOBAL bit32 saSendSMPIoctl(
   agsaRoot_t                *agRoot,
   agsaDevHandle_t           *agDevHandle,
   bit32                      queueNum,
-  agsaSMPFrame_t            *pSMPFrame,  
+  agsaSMPFrame_t            *pSMPFrame,
   ossaSMPCompletedCB_t       agCB
   )
 {
@@ -3359,8 +3359,8 @@ GLOBAL bit32 saSendSMPIoctl(
   void                      *pMessage;
   bit8                      *payload_ptr;
   agsaDeviceDesc_t          *pDevice;
-  bit8                      using_reserved = agFALSE;  
-  agsaPort_t                *pPort;  
+  bit8                      using_reserved = agFALSE;
+  agsaPort_t                *pPort;
   mpiICQueue_t              *circularQ;
   agsaLLRoot_t              *saRoot = agNULL;
 //  agsaDevHandle_t       	*agDevHandle;
@@ -3372,9 +3372,9 @@ GLOBAL bit32 saSendSMPIoctl(
   SA_ASSERT((agNULL != agRoot), "");
 
 
-  
+
   /* Get request from free IO Requests */
-  ossaSingleThreadedEnter(agRoot, LL_IOREQ_LOCKEQ_LOCK);      
+  ossaSingleThreadedEnter(agRoot, LL_IOREQ_LOCKEQ_LOCK);
   pRequest = (agsaIORequestDesc_t *)saLlistIOGetHead(&(saRoot->freeIORequests)); /**/
 
   /* If no LL IO request entry available */
@@ -3385,14 +3385,14 @@ GLOBAL bit32 saSendSMPIoctl(
     if(agNULL != pRequest)
     {
       using_reserved = agTRUE;
-      SA_DBG1(("saSMPStart, using saRoot->freeReservedRequests\n"));  
+      SA_DBG1(("saSMPStart, using saRoot->freeReservedRequests\n"));
     }
     else
     {
       ossaSingleThreadedLeave(agRoot, LL_IOREQ_LOCKEQ_LOCK);
-      SA_DBG1(("saSMPStart, No request from free list Not using saRoot->freeReservedRequests\n"));  
+      SA_DBG1(("saSMPStart, No request from free list Not using saRoot->freeReservedRequests\n"));
       smTraceFuncExit(hpDBG_VERY_LOUD, 'b', "9a");
-      return AGSA_RC_BUSY;     
+      return AGSA_RC_BUSY;
     }
   }
 
@@ -3401,7 +3401,7 @@ GLOBAL bit32 saSendSMPIoctl(
 
 
 
-  
+
   SA_ASSERT((agNULL != agDevHandle), "");
   /* Find the outgoing port for the device */
   if (agNULL == agDevHandle->sdkData)
@@ -3412,13 +3412,13 @@ GLOBAL bit32 saSendSMPIoctl(
 	smTraceFuncExit(hpDBG_VERY_LOUD, 'a', "9a");
 	return AGSA_RC_FAILURE;
   }
-	  
-  pDevice = (agsaDeviceDesc_t *) (agDevHandle->sdkData);
-	 
-  pPort = pDevice->pPort;
-	
 
-	
+  pDevice = (agsaDeviceDesc_t *) (agDevHandle->sdkData);
+
+  pPort = pDevice->pPort;
+
+
+
 	  /* If free IOMB avaliable */
 	  /* Remove the request from free list */
 	  if( using_reserved )
@@ -3429,37 +3429,37 @@ GLOBAL bit32 saSendSMPIoctl(
 	  {
 		saLlistIORemove(&(saRoot->freeIORequests), &(pRequest->linkNode));
 	  }
-	
+
 	  /* Add the request to the pendingSMPRequests list of the device */
 	  saLlistIOAdd(&(pDevice->pendingIORequests), &(pRequest->linkNode));
 	  SA_ASSERT((!pRequest->valid), "The pRequest is in use");
 	  pRequest->valid			  = agTRUE;
 	  ossaSingleThreadedLeave(agRoot, LL_IOREQ_LOCKEQ_LOCK);
-	
+
 	  /* set up pRequest */
 	  pRequest->pIORequestContext = (agsaIORequest_t *)pRequest;
 	  pRequest->pDevice 		  = pDevice;
-	  pRequest->pPort			  = pPort;		
+	  pRequest->pPort			  = pPort;
 	  pRequest->startTick		  = saRoot->timeTick;
 	  pRequest->completionCB	  = (ossaSSPCompletedCB_t)agCB;
 	  pRequest->requestType		  = AGSA_SMP_IOCTL_REQUEST;
-	
+
 	  /* Set request to the sdkData of agIORequest */
 	 // agIORequest->sdkData		  = pRequest;
-	
+
 	  /* save tag to IOMap */
 	  saRoot->IOMap[pRequest->HTag].Tag = pRequest->HTag;
 	  saRoot->IOMap[pRequest->HTag].IORequest = (void *)pRequest;
-	
+
 #ifdef SA_LL_IBQ_PROTECT
 	  ossaSingleThreadedEnter(agRoot, LL_IOREQ_IBQ0_LOCK + inq);
 #endif /* SA_LL_IBQ_PROTECT */
-	
+
 	  /* If LL IO request entry avaliable */
 	  /* Get a free inbound queue entry */
 	  circularQ = &saRoot->inboundQueue[inq];
 	  retVal	= mpiMsgFreeGet(circularQ, IOMB_SIZE64, &pMessage);
-	 
+
 	  if (AGSA_RC_FAILURE == retVal)
 	  {
 #ifdef SA_LL_IBQ_PROTECT
@@ -3471,12 +3471,12 @@ GLOBAL bit32 saSendSMPIoctl(
 		pRequest->valid = agFALSE;
 		saLlistIOAdd(&(saRoot->freeIORequests), &(pRequest->linkNode));
 		ossaSingleThreadedLeave(agRoot, LL_IOREQ_LOCKEQ_LOCK);
-	
-		SA_DBG1(("saSMPStart, error when get free IOMB\n")); 
+
+		SA_DBG1(("saSMPStart, error when get free IOMB\n"));
 		smTraceFuncExit(hpDBG_VERY_LOUD, 'c', "9a");
 		return AGSA_RC_FAILURE;
 	  }
-	 
+
 	  /* return busy if inbound queue is full */
 	  if (AGSA_RC_BUSY == retVal)
 	  {
@@ -3489,8 +3489,8 @@ GLOBAL bit32 saSendSMPIoctl(
 		pRequest->valid = agFALSE;
 		saLlistIOAdd(&(saRoot->freeIORequests), &(pRequest->linkNode));
 		ossaSingleThreadedLeave(agRoot, LL_IOREQ_LOCKEQ_LOCK);
-	
-		SA_DBG1(("saSMPStart, no more IOMB\n"));  
+
+		SA_DBG1(("saSMPStart, no more IOMB\n"));
 		smTraceFuncExit(hpDBG_VERY_LOUD, 'd', "9a");
 		return AGSA_RC_BUSY;
 	  }
@@ -3502,7 +3502,7 @@ GLOBAL bit32 saSendSMPIoctl(
 	if(smIS_SPC(agRoot))
 	{
 	 agsaSMPCmd_t payload;
-  
+
 
 		  bit32 IR_IP_OV_res_phyId_DPdLen_res = 0;
 		  /* Prepare the payload of IOMB */
@@ -3515,34 +3515,34 @@ GLOBAL bit32 saSendSMPIoctl(
 		  /*Indirect request and response*/
 		  if (smpFrameFlagIndirectResponse & pSMPFrame->flag && smpFrameFlagIndirectPayload & pSMPFrame->flag) /* */
 		  {
-  
+
 			SA_DBG2(("saSMPStart:V Indirect payload and indirect response\n"));
-  
+
 			/* Indirect Response mode */
 			pRequest->IRmode = INDIRECT_MODE;
 			IR_IP_OV_res_phyId_DPdLen_res = 3;
-  
-  
+
+
 			/* payload */
 			OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaSMPCmd_t, SMPCmd[4]), (pSMPFrame->outFrameAddrLower32));
 			OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaSMPCmd_t, SMPCmd[5]), (pSMPFrame->outFrameAddrUpper32));
 			OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaSMPCmd_t, SMPCmd[6]), (pSMPFrame->outFrameLen));
-			
+
 			OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaSMPCmd_t, SMPCmd[8]), (pSMPFrame->inFrameAddrLower32));
 			OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaSMPCmd_t, SMPCmd[9]), (pSMPFrame->inFrameAddrUpper32));
 			OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaSMPCmd_t, SMPCmd[10]), (pSMPFrame->inFrameLen));
-			
+
 		  }
-		  
+
 
 		  IR_IP_OV_res_phyId_DPdLen_res |= (pSMPFrame->flag & 3);
 		  /* fatal error if missing */
 		  OSSA_WRITE_LE_32(agRoot, &payload, OSSA_OFFSET_OF(agsaSMPCmd_t, IR_IP_OV_res_phyId_DPdLen_res), IR_IP_OV_res_phyId_DPdLen_res);
 		  /* fatal error if missing */
-  
-			  
+
+
 		/* check IR bit */
-  
+
 		/* Build IOMB command and send it to SPC */
 		payload_ptr = (bit8 *)&payload;
 #ifdef SA_LL_IBQ_PROTECT
@@ -3555,12 +3555,12 @@ GLOBAL bit32 saSendSMPIoctl(
 			  ossaSingleThreadedLeave(agRoot, LL_IOREQ_IBQ0_LOCK + inq);
 #endif /* SA_LL_IBQ_PROTECT */
 
-		
+
   }
 	else /* IOMB is different for SPCV SMP */
 	{
 	 agsaSMPCmd_V_t vpayload;
-  
+
 
 		  bit32 IR_IP_OV_res_phyId_DPdLen_res = 0;
 		  /* Prepare the payload of IOMB */
@@ -3572,49 +3572,49 @@ GLOBAL bit32 saSendSMPIoctl(
 		  /*Indirect request and response*/
 		  if (smpFrameFlagIndirectResponse & pSMPFrame->flag && smpFrameFlagIndirectPayload & pSMPFrame->flag) /* */
 		  {
-  
+
 			SA_DBG2(("saSMPStart:V Indirect payload and indirect response\n"));
-  
+
 			/* Indirect Response mode */
 			pRequest->IRmode = INDIRECT_MODE;
 			IR_IP_OV_res_phyId_DPdLen_res = 3;
-  
-  
+
+
 			/* payload */
 			OSSA_WRITE_LE_32(agRoot, &vpayload, OSSA_OFFSET_OF(agsaSMPCmd_V_t,IndirL_SMPRF15_12 ), (pSMPFrame->outFrameAddrLower32));
 			OSSA_WRITE_LE_32(agRoot, &vpayload, OSSA_OFFSET_OF(agsaSMPCmd_V_t,IndirH_or_SMPRF19_16 ), (pSMPFrame->outFrameAddrUpper32));
 			OSSA_WRITE_LE_32(agRoot, &vpayload, OSSA_OFFSET_OF(agsaSMPCmd_V_t,IndirLen_or_SMPRF23_20 ), (pSMPFrame->outFrameLen));
-			
+
 			OSSA_WRITE_LE_32(agRoot, &vpayload, OSSA_OFFSET_OF(agsaSMPCmd_V_t,ISRAL_or_SMPRF31_28), (pSMPFrame->inFrameAddrLower32));
 			OSSA_WRITE_LE_32(agRoot, &vpayload, OSSA_OFFSET_OF(agsaSMPCmd_V_t,ISRAH_or_SMPRF35_32), (pSMPFrame->inFrameAddrUpper32));
 			OSSA_WRITE_LE_32(agRoot, &vpayload, OSSA_OFFSET_OF(agsaSMPCmd_V_t,ISRL_or_SMPRF39_36), (pSMPFrame->inFrameLen));
-			
+
 		  }
-		  
+
 		  /*Direct request and indirect response*/
 		  else if (smpFrameFlagIndirectResponse & pSMPFrame->flag ) /* */
 		  {
-  
+
   			SA_DBG2(("saSMPStart:V Direct payload and indirect response\n"));
 			IR_IP_OV_res_phyId_DPdLen_res = (pSMPFrame->outFrameLen << SHIFT16) | pSMPFrame->flag;
-  
-			
-			  /* Write IR_IP_OV_res_phyId_DPdLen_res field in the payload*/  
+
+
+			  /* Write IR_IP_OV_res_phyId_DPdLen_res field in the payload*/
 			  OSSA_WRITE_LE_32(agRoot, &vpayload, OSSA_OFFSET_OF(agsaSMPCmd_V_t, IR_IP_OV_res_phyId_DPdLen_res), IR_IP_OV_res_phyId_DPdLen_res);
 			  /* setup indirect response frame address */
 			  OSSA_WRITE_LE_32(agRoot, &vpayload, OSSA_OFFSET_OF(agsaSMPCmd_V_t, ISRAL_or_SMPRF31_28 ), (pSMPFrame->inFrameAddrLower32));
 			  OSSA_WRITE_LE_32(agRoot, &vpayload, OSSA_OFFSET_OF(agsaSMPCmd_V_t, ISRAH_or_SMPRF35_32 ), (pSMPFrame->inFrameAddrUpper32));
-			  OSSA_WRITE_LE_32(agRoot, &vpayload, OSSA_OFFSET_OF(agsaSMPCmd_V_t, ISRL_or_SMPRF39_36 ), (pSMPFrame->inFrameLen));		 
-			
+			  OSSA_WRITE_LE_32(agRoot, &vpayload, OSSA_OFFSET_OF(agsaSMPCmd_V_t, ISRL_or_SMPRF39_36 ), (pSMPFrame->inFrameLen));
+
 		  }
 		  IR_IP_OV_res_phyId_DPdLen_res |= (pSMPFrame->flag & 3);
 		  /* fatal error if missing */
 		  OSSA_WRITE_LE_32(agRoot, &vpayload, OSSA_OFFSET_OF(agsaSMPCmd_V_t, IR_IP_OV_res_phyId_DPdLen_res), IR_IP_OV_res_phyId_DPdLen_res);
 		  /* fatal error if missing */
-  
-			  
+
+
 		/* check IR bit */
-  
+
 #ifdef SA_LL_IBQ_PROTECT
 				ossaSingleThreadedEnter(agRoot, LL_IOREQ_IBQ0_LOCK + inq);
 #endif /* SA_LL_IBQ_PROTECT */
@@ -3626,9 +3626,9 @@ GLOBAL bit32 saSendSMPIoctl(
 			  ossaSingleThreadedLeave(agRoot, LL_IOREQ_IBQ0_LOCK + inq);
 #endif /* SA_LL_IBQ_PROTECT */
 
-		
+
   }
-  
+
 
   return ret;
 }
@@ -3704,7 +3704,7 @@ bit32 siGSMDump(
   SA_DBG1(("siGSMDump: gsmDumpOffset 0x%x length 0x%x\n", gsmDumpOffset, length));
 
   /* check max is 64k chunks */
-  if (length > (64 * 1024))  
+  if (length > (64 * 1024))
   {
     SA_DBG1(("siGSMDump: Max length is greater than 64K  bytes 0x%x\n", length));
     return AGSA_RC_FAILURE;

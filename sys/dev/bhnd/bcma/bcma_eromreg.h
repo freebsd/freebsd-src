@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
  * Copyright (c) 2010 Broadcom Corporation
- * 
+ *
  * Portions of this file were derived from the aidmp.h header
  * distributed with Broadcom's initial brcm80211 Linux driver release, as
  * contributed to the Linux staging repository.
@@ -19,7 +19,7 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -37,7 +37,7 @@
 
 /**
  * Extract an entry attribute by applying _MASK and _SHIFT defines.
- * 
+ *
  * @param _entry The entry containing the desired attribute
  * @param _attr The BCMA EROM attribute name (e.g. ENTRY_ISVALID), to be
  * concatenated with the `BCMA_EROM_` prefix and `_MASK`/`_SHIFT` suffixes.
@@ -94,8 +94,8 @@
 #define	BCMA_EROM_COREB_REV_MASK	0xFF000000	/* broadcom-assigned core revision */
 #define	BCMA_EROM_COREB_REV_SHIFT	24
 
-/* EROM Master Port Descriptor 
- * 
+/* EROM Master Port Descriptor
+ *
  * The attribute descriptions are derived from background information
  * on the AXI bus and PL301 interconnect, but are undocumented
  * by Broadcom and may be incorrect.

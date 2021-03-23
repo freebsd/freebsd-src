@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -387,10 +387,10 @@ smSuperIOStart(
   smIOReInit(smRoot, smIORequestBody);
 
   SM_DBG3(("smSuperIOStart: io ID %d!!!\n", smIORequestBody->id ));
-  
+
   oneDeviceData->sasAddressHi = AddrHi;
   oneDeviceData->sasAddressLo = AddrLo;
-  
+
   smIORequestBody->smIORequest = smIORequest;
   smIORequestBody->smDevHandle = smDeviceHandle;
 
@@ -812,7 +812,7 @@ smsatAbort(
   return;
 }
 
-osGLOBAL bit32 
+osGLOBAL bit32
 smsatStartCheckPowerMode(
                          smRoot_t                  *smRoot,
                          smIORequest_t             *currentTaskTag,
@@ -2504,7 +2504,7 @@ smsatInquiryPage83(
    */
   if ( oneDeviceData->satWWNSupport)
   {
-#ifndef PMC_FREEBSD  
+#ifndef PMC_FREEBSD
     /* Fill in SAT Rev8 Table85 */
     /*
      * Logical unit name derived from the world wide name.
@@ -2529,7 +2529,7 @@ smsatInquiryPage83(
     pInquiry[13] = (bit8)((pSATAIdData->uniqueID_bit16_31) & 0xFF);     /* Vendor Specific ID  */
     pInquiry[14] = (bit8)((pSATAIdData->uniqueID_bit0_15) >> 8);        /* Vendor Specific ID  */
     pInquiry[15] = (bit8)((pSATAIdData->uniqueID_bit0_15) & 0xFF);      /* Vendor Specific ID  */
-    
+
 #else
 
     /* For FreeBSD */
@@ -2562,24 +2562,24 @@ smsatInquiryPage83(
     pInquiry[17]  = 0x93;                        /* Identifier type : NAA ; this is  id_type in FreeBSD; PIV set, ASSOCIATION is 01b and NAA (3h)   */
     pInquiry[18]  = 0x00;                        /* Reserved               */
     pInquiry[19]  = 0x08;                        /* Identifier length      */
-    
+
     SM_DBG5(("smsatInquiryPage83: sasAddressHi 0x%08x\n", oneDeviceData->sasAddressHi));
     SM_DBG5(("smsatInquiryPage83: sasAddressLo 0x%08x\n", oneDeviceData->sasAddressLo));
-    
+
     /* SAS address of SATA */
-    pInquiry[20]  = ((oneDeviceData->sasAddressHi) & 0xFF000000 ) >> 24; 
-    pInquiry[21]  = ((oneDeviceData->sasAddressHi) & 0xFF0000 ) >> 16;  
-    pInquiry[22]  = ((oneDeviceData->sasAddressHi) & 0xFF00 ) >> 8;     
-    pInquiry[23]  = (oneDeviceData->sasAddressHi) & 0xFF;                        
-    pInquiry[24]  = ((oneDeviceData->sasAddressLo) & 0xFF000000 ) >> 24;                        
-    pInquiry[25]  = ((oneDeviceData->sasAddressLo) & 0xFF0000 ) >> 16;                       
-    pInquiry[26]  = ((oneDeviceData->sasAddressLo) & 0xFF00 ) >> 8;                        
-    pInquiry[27]  = (oneDeviceData->sasAddressLo) & 0xFF;                        
-#endif        
+    pInquiry[20]  = ((oneDeviceData->sasAddressHi) & 0xFF000000 ) >> 24;
+    pInquiry[21]  = ((oneDeviceData->sasAddressHi) & 0xFF0000 ) >> 16;
+    pInquiry[22]  = ((oneDeviceData->sasAddressHi) & 0xFF00 ) >> 8;
+    pInquiry[23]  = (oneDeviceData->sasAddressHi) & 0xFF;
+    pInquiry[24]  = ((oneDeviceData->sasAddressLo) & 0xFF000000 ) >> 24;
+    pInquiry[25]  = ((oneDeviceData->sasAddressLo) & 0xFF0000 ) >> 16;
+    pInquiry[26]  = ((oneDeviceData->sasAddressLo) & 0xFF00 ) >> 8;
+    pInquiry[27]  = (oneDeviceData->sasAddressLo) & 0xFF;
+#endif
   }
   else
   {
-#ifndef PMC_FREEBSD  
+#ifndef PMC_FREEBSD
     /* Fill in SAT Rev8 Table86 */
     /*
      * Logical unit name derived from the model number and serial number.
@@ -2751,23 +2751,23 @@ smsatInquiryPage83(
     pInquiry[77]  = 0x93;                        /* Identifier type : NAA ; this is  id_type in FreeBSD; PIV set, ASSOCIATION is 01b and NAA (3h)   */
     pInquiry[78]  = 0x00;                        /* Reserved               */
     pInquiry[79]  = 0x08;                        /* Identifier length      */
-    
+
     SM_DBG5(("smsatInquiryPage83: NO WWN sasAddressHi 0x%08x\n", oneDeviceData->sasAddressHi));
     SM_DBG5(("smsatInquiryPage83: No WWN sasAddressLo 0x%08x\n", oneDeviceData->sasAddressLo));
-    
-    /* SAS address of SATA */
-    pInquiry[80]  = ((oneDeviceData->sasAddressHi) & 0xFF000000 ) >> 24; 
-    pInquiry[81]  = ((oneDeviceData->sasAddressHi) & 0xFF0000 ) >> 16;  
-    pInquiry[82]  = ((oneDeviceData->sasAddressHi) & 0xFF00 ) >> 8;     
-    pInquiry[83]  = (oneDeviceData->sasAddressHi) & 0xFF;                        
-    pInquiry[84]  = ((oneDeviceData->sasAddressLo) & 0xFF000000 ) >> 24;                        
-    pInquiry[85]  = ((oneDeviceData->sasAddressLo) & 0xFF0000 ) >> 16;                       
-    pInquiry[86]  = ((oneDeviceData->sasAddressLo) & 0xFF00 ) >> 8;                        
-    pInquiry[87]  = (oneDeviceData->sasAddressLo) & 0xFF;                
 
-#endif    
+    /* SAS address of SATA */
+    pInquiry[80]  = ((oneDeviceData->sasAddressHi) & 0xFF000000 ) >> 24;
+    pInquiry[81]  = ((oneDeviceData->sasAddressHi) & 0xFF0000 ) >> 16;
+    pInquiry[82]  = ((oneDeviceData->sasAddressHi) & 0xFF00 ) >> 8;
+    pInquiry[83]  = (oneDeviceData->sasAddressHi) & 0xFF;
+    pInquiry[84]  = ((oneDeviceData->sasAddressLo) & 0xFF000000 ) >> 24;
+    pInquiry[85]  = ((oneDeviceData->sasAddressLo) & 0xFF0000 ) >> 16;
+    pInquiry[86]  = ((oneDeviceData->sasAddressLo) & 0xFF00 ) >> 8;
+    pInquiry[87]  = (oneDeviceData->sasAddressLo) & 0xFF;
+
+#endif
   }
- 
+
   return;
 }
 
@@ -2776,7 +2776,7 @@ smsatInquiryPage89(
                     bit8                    *pInquiry,
                     agsaSATAIdentifyData_t  *pSATAIdData,
                     smDeviceData_t          *oneDeviceData,
-                    bit32                   len		    
+                    bit32                   len
       )
 {
   /*
@@ -3260,7 +3260,7 @@ smsatIDSubStart(
   //  satNewIOContext->interruptContext = tiInterruptContext;
   satNewIOContext->satIntIoContext  = satIntIo;
 
-  satNewIOContext->psmDeviceHandle = smDeviceHandle;   
+  satNewIOContext->psmDeviceHandle = smDeviceHandle;
   satNewIOContext->satOrgIOContext = satIOContext; /* changed */
 
   /* this is valid only for TD layer generated (not triggered by OS at all) IO */
@@ -3597,7 +3597,7 @@ smsatIOStart(
                                    satIOContext);
          break;
 
-       case SCSIOPC_MODE_SENSE_10: 
+       case SCSIOPC_MODE_SENSE_10:
          status = smsatModeSense10( smRoot,
                                     smIORequest,
                                     smDeviceHandle,
@@ -3630,7 +3630,7 @@ smsatIOStart(
                                   satIOContext);
          break;
 
-       case SCSIOPC_FORMAT_UNIT: 
+       case SCSIOPC_FORMAT_UNIT:
          SM_DBG5(("smsatIOStart: SCSIOPC_FORMAT_UNIT\n"));
          status = smsatFormatUnit( smRoot,
                                    smIORequest,
@@ -3639,7 +3639,7 @@ smsatIOStart(
                                    satIOContext);
          break;
 
-       case SCSIOPC_SEND_DIAGNOSTIC: 
+       case SCSIOPC_SEND_DIAGNOSTIC:
          SM_DBG5(("smsatIOStart: SCSIOPC_SEND_DIAGNOSTIC\n"));
          status = smsatSendDiagnostic( smRoot,
                                        smIORequest,
@@ -3657,7 +3657,7 @@ smsatIOStart(
                                       satIOContext);
          break;
 
-       case SCSIOPC_WRITE_SAME_10: 
+       case SCSIOPC_WRITE_SAME_10:
          SM_DBG5(("smsatIOStart: SCSIOPC_WRITE_SAME_10\n"));
          status = smsatWriteSame10( smRoot,
                                     smIORequest,
@@ -3675,7 +3675,7 @@ smsatIOStart(
                                     satIOContext);
          break;
 
-       case SCSIOPC_LOG_SENSE: 
+       case SCSIOPC_LOG_SENSE:
          SM_DBG5(("smsatIOStart: SCSIOPC_LOG_SENSE\n"));
          status = smsatLogSense( smRoot,
                                  smIORequest,
@@ -3684,7 +3684,7 @@ smsatIOStart(
                                  satIOContext);
          break;
 
-       case SCSIOPC_MODE_SELECT_6: 
+       case SCSIOPC_MODE_SELECT_6:
          SM_DBG5(("smsatIOStart: SCSIOPC_MODE_SELECT_6\n"));
          status = smsatModeSelect6( smRoot,
                                     smIORequest,
@@ -3693,7 +3693,7 @@ smsatIOStart(
                                     satIOContext);
          break;
 
-       case SCSIOPC_MODE_SELECT_10: 
+       case SCSIOPC_MODE_SELECT_10:
          SM_DBG5(("smsatIOStart: SCSIOPC_MODE_SELECT_10\n"));
          status = smsatModeSelect10( smRoot,
                                      smIORequest,
@@ -3790,11 +3790,11 @@ smsatIOStart(
                                        satIOContext);
 
          break;
-       
+
        case SCSIOPC_ATA_PASS_THROUGH12: /* fall through */
        case SCSIOPC_ATA_PASS_THROUGH16:
          SM_DBG5(("smsatIOStart: SCSIOPC_ATA_PASS_THROUGH\n"));
-         status = smsatPassthrough( smRoot, 
+         status = smsatPassthrough( smRoot,
                                     smIORequest,
                                     smDeviceHandle,
                                     smSCSIRequest,
@@ -3909,12 +3909,12 @@ smsatSetSensePayload(
   {
     SM_DBG1(("smsatSetSensePayload: satIOContext is NULL!!!\n"));
   }
-  
+
   /* Only for SCSI_SNSCODE_ATA_PASS_THROUGH_INFORMATION_AVAILABLE */
   if (SnsCode == SCSI_SNSCODE_ATA_PASS_THROUGH_INFORMATION_AVAILABLE)
   {
     /* filling in COMMAND-SPECIFIC INFORMATION */
-    tmp = satIOContext->extend << 7 | satIOContext->Sector_Cnt_Upper_Nonzero << 6 | satIOContext->LBA_Upper_Nonzero << 5;        
+    tmp = satIOContext->extend << 7 | satIOContext->Sector_Cnt_Upper_Nonzero << 6 | satIOContext->LBA_Upper_Nonzero << 5;
     SM_DBG3(("smsatSetSensePayload: extend 0x%x Sector_Cnt_Upper_Nonzero 0x%x LBA_Upper_Nonzero 0x%x\n",
     satIOContext->extend, satIOContext->Sector_Cnt_Upper_Nonzero, satIOContext->LBA_Upper_Nonzero));
     SM_DBG3(("smsatSetSensePayload: tmp 0x%x\n", tmp));
@@ -3924,7 +3924,7 @@ smsatSetSensePayload(
     pSense->cmdSpecific[3]      = satIOContext->LBALow07;
 //    smhexdump("smsatSetSensePayload: cmdSpecific",(bit8 *)pSense->cmdSpecific, 4);
 //    smhexdump("smsatSetSensePayload: info",(bit8 *)pSense->info, 4);
-    
+
   }
   return;
 }
@@ -4860,19 +4860,19 @@ smsatRead10(
   LBA[0] = 0;                  /* MSB */
   LBA[1] = 0;
   LBA[2] = 0;
-  LBA[3] = 0;  
-  LBA[4] = scsiCmnd->cdb[2];  
+  LBA[3] = 0;
+  LBA[4] = scsiCmnd->cdb[2];
   LBA[5] = scsiCmnd->cdb[3];
   LBA[6] = scsiCmnd->cdb[4];
   LBA[7] = scsiCmnd->cdb[5];   /* LSB */
 
   TL[0] = 0;
   TL[1] = 0;
-  TL[2] = 0;   
-  TL[3] = 0;  
+  TL[2] = 0;
+  TL[3] = 0;
   TL[4] = 0;
   TL[5] = 0;
-  TL[6] = scsiCmnd->cdb[7];   
+  TL[6] = scsiCmnd->cdb[7];
   TL[7] = scsiCmnd->cdb[8];    /* LSB */
 
 
@@ -5044,7 +5044,7 @@ smsatRead10(
       /* Check FUA bit */
       if (scsiCmnd->cdb[1] & SCSI_READ10_FUA_MASK)
       {
-        
+
         /* for now, no support for FUA */
         smsatSetSensePayload( pSense,
                               SCSI_SNSKEY_ILLEGAL_REQUEST,
@@ -5338,8 +5338,8 @@ smsatRead12(
   TL[0] = 0;                   /* MSB */
   TL[1] = 0;
   TL[2] = 0;
-  TL[3] = 0;   
-  TL[4] = scsiCmnd->cdb[6];   
+  TL[3] = 0;
+  TL[4] = scsiCmnd->cdb[6];
   TL[5] = scsiCmnd->cdb[7];
   TL[6] = scsiCmnd->cdb[8];
   TL[7] = scsiCmnd->cdb[9];   	/* LSB */
@@ -5362,8 +5362,8 @@ smsatRead12(
       pSatDevData->sat48BitSupport != agTRUE
       )
   {
-    
-    AllChk = smsatCheckLimit(LBA, TL, agFALSE, pSatDevData);    
+
+    AllChk = smsatCheckLimit(LBA, TL, agFALSE, pSatDevData);
     if (AllChk)
     {
       SM_DBG1(("smsatRead12: return LBA out of range, not EXT!!!\n"));
@@ -5387,7 +5387,7 @@ smsatRead12(
   }
   else
   {
-    AllChk = smsatCheckLimit(LBA, TL, agTRUE, pSatDevData);    
+    AllChk = smsatCheckLimit(LBA, TL, agTRUE, pSatDevData);
     if (AllChk)
     {
       SM_DBG1(("smsatRead12: return LBA out of range, EXT!!!\n"));
@@ -5518,7 +5518,7 @@ smsatRead12(
       /* Check FUA bit */
       if (scsiCmnd->cdb[1] & SCSI_READ12_FUA_MASK)
       {
-           
+
         /* for now, no support for FUA */
         smsatSetSensePayload( pSense,
                               SCSI_SNSKEY_ILLEGAL_REQUEST,
@@ -5788,7 +5788,7 @@ smsatRead16(
 
 
 
- 
+
  lba = smsatComputeCDB16LBA(satIOContext);
  tl = smsatComputeCDB16TL(satIOContext);
 
@@ -6531,8 +6531,8 @@ smsatWrite10(
   LBA[0] = 0;                  /* MSB */
   LBA[1] = 0;
   LBA[2] = 0;
-  LBA[3] = 0;  
-  LBA[4] = scsiCmnd->cdb[2];  
+  LBA[3] = 0;
+  LBA[4] = scsiCmnd->cdb[2];
   LBA[5] = scsiCmnd->cdb[3];
   LBA[6] = scsiCmnd->cdb[4];
   LBA[7] = scsiCmnd->cdb[5];   /* LSB */
@@ -6543,7 +6543,7 @@ smsatWrite10(
   TL[3] = 0;
   TL[4] = 0;
   TL[5] = 0;
-  TL[6] = scsiCmnd->cdb[7];  
+  TL[6] = scsiCmnd->cdb[7];
   TL[7] = scsiCmnd->cdb[8];  	/* LSB */
 
 
@@ -6737,7 +6737,7 @@ smsatWrite10(
     }
   }
   else /* case 1 and 2 */
-  {  
+  {
     if (pSatDevData->satDMASupport == agTRUE && pSatDevData->satDMAEnabled == agTRUE)
     {
       /* case 2 */
@@ -6798,7 +6798,7 @@ smsatWrite10(
 
       agRequestType = AGSA_SATA_PROTOCOL_PIO_WRITE;
       satIOContext->ATACmd = SAT_WRITE_SECTORS;
-    }      
+    }
   }
 
   //  smhexdump("satWrite10 final fis", (bit8 *)fis, sizeof(agsaFisRegHostToDevice_t));
@@ -6982,8 +6982,8 @@ smsatWrite12(
   LBA[0] = 0;                  /* MSB */
   LBA[1] = 0;
   LBA[2] = 0;
-  LBA[3] = 0;  
-  LBA[4] = scsiCmnd->cdb[2];	
+  LBA[3] = 0;
+  LBA[4] = scsiCmnd->cdb[2];
   LBA[5] = scsiCmnd->cdb[3];
   LBA[6] = scsiCmnd->cdb[4];
   LBA[7] = scsiCmnd->cdb[5];  	/* LSB */
@@ -6991,8 +6991,8 @@ smsatWrite12(
   TL[0] = 0;                    /* MSB */
   TL[1] = 0;
   TL[2] = 0;
-  TL[3] = 0;   
-  TL[4] = scsiCmnd->cdb[6];   
+  TL[3] = 0;
+  TL[4] = scsiCmnd->cdb[6];
   TL[5] = scsiCmnd->cdb[7];
   TL[6] = scsiCmnd->cdb[8];
   TL[7] = scsiCmnd->cdb[9];   	/* LSB */
@@ -7016,7 +7016,7 @@ smsatWrite12(
       pSatDevData->sat48BitSupport != agTRUE
       )
   {
-    AllChk = smsatCheckLimit(LBA, TL, agFALSE, pSatDevData);    
+    AllChk = smsatCheckLimit(LBA, TL, agFALSE, pSatDevData);
 
       /*smEnqueueIO(smRoot, satIOContext);*/
 
@@ -7045,7 +7045,7 @@ smsatWrite12(
   }
   else
   {
-    AllChk = smsatCheckLimit(LBA, TL, agTRUE, pSatDevData);    
+    AllChk = smsatCheckLimit(LBA, TL, agTRUE, pSatDevData);
     if (AllChk)
     {
       SM_DBG1(("smsatWrite12: return LBA out of range, EXT!!!\n"));
@@ -7833,7 +7833,7 @@ smsatVerify10(
   LBA[1] = 0;
   LBA[2] = 0;
   LBA[3] = 0;
-  LBA[4] = scsiCmnd->cdb[2];  
+  LBA[4] = scsiCmnd->cdb[2];
   LBA[5] = scsiCmnd->cdb[3];
   LBA[6] = scsiCmnd->cdb[4];
   LBA[7] = scsiCmnd->cdb[5];  	/* LSB */
@@ -7844,7 +7844,7 @@ smsatVerify10(
   TL[3] = 0;
   TL[4] = 0;
   TL[5] = 0;
-  TL[6] = scsiCmnd->cdb[7];  
+  TL[6] = scsiCmnd->cdb[7];
   TL[7] = scsiCmnd->cdb[8];  	/* LSB */
 
 
@@ -8117,7 +8117,7 @@ smsatVerify12(
   LBA[1] = 0;
   LBA[2] = 0;
   LBA[3] = 0;
-  LBA[4] = scsiCmnd->cdb[2];  
+  LBA[4] = scsiCmnd->cdb[2];
   LBA[5] = scsiCmnd->cdb[3];
   LBA[6] = scsiCmnd->cdb[4];
   LBA[7] = scsiCmnd->cdb[5];  	/* LSB */
@@ -8126,7 +8126,7 @@ smsatVerify12(
   TL[1] = 0;
   TL[2] = 0;
   TL[3] = 0;
-  TL[4] = scsiCmnd->cdb[6];   
+  TL[4] = scsiCmnd->cdb[6];
   TL[5] = scsiCmnd->cdb[7];
   TL[6] = scsiCmnd->cdb[8];
   TL[7] = scsiCmnd->cdb[9];   	/* LSB */
@@ -8139,7 +8139,7 @@ smsatVerify12(
       pSatDevData->sat48BitSupport != agTRUE
       )
   {
-    AllChk = smsatCheckLimit(LBA, TL, agFALSE, pSatDevData);    
+    AllChk = smsatCheckLimit(LBA, TL, agFALSE, pSatDevData);
     if (AllChk)
     {
       SM_DBG1(("smsatVerify12: return LBA out of range, not EXT!!!\n"));
@@ -8166,7 +8166,7 @@ smsatVerify12(
   }
   else
   {
-    AllChk = smsatCheckLimit(LBA, TL, agTRUE, pSatDevData);    
+    AllChk = smsatCheckLimit(LBA, TL, agTRUE, pSatDevData);
     if (AllChk)
     {
       SM_DBG1(("smsatVerify12: return LBA out of range, EXT!!!\n"));
@@ -9511,19 +9511,19 @@ smsatModeSense6(
   switch(page)
   {
   case MODESENSE_RETURN_ALL_PAGES:
-    lenRead = (bit8)MIN(allocationLen, MODE_SENSE6_RETURN_ALL_PAGES_LEN); 
+    lenRead = (bit8)MIN(allocationLen, MODE_SENSE6_RETURN_ALL_PAGES_LEN);
     break;
   case MODESENSE_CONTROL_PAGE: /* control */
-    lenRead = (bit8)MIN(allocationLen, MODE_SENSE6_CONTROL_PAGE_LEN); 
+    lenRead = (bit8)MIN(allocationLen, MODE_SENSE6_CONTROL_PAGE_LEN);
     break;
   case MODESENSE_READ_WRITE_ERROR_RECOVERY_PAGE: /* Read-Write Error Recovery */
-    lenRead = (bit8)MIN(allocationLen, MODE_SENSE6_READ_WRITE_ERROR_RECOVERY_PAGE_LEN); 
+    lenRead = (bit8)MIN(allocationLen, MODE_SENSE6_READ_WRITE_ERROR_RECOVERY_PAGE_LEN);
     break;
   case MODESENSE_CACHING: /* caching */
-    lenRead = (bit8)MIN(allocationLen, MODE_SENSE6_CACHING_LEN); 
+    lenRead = (bit8)MIN(allocationLen, MODE_SENSE6_CACHING_LEN);
     break;
   case MODESENSE_INFORMATION_EXCEPTION_CONTROL_PAGE: /* informational exceptions control*/
-    lenRead = (bit8)MIN(allocationLen, MODE_SENSE6_INFORMATION_EXCEPTION_CONTROL_PAGE_LEN); 
+    lenRead = (bit8)MIN(allocationLen, MODE_SENSE6_INFORMATION_EXCEPTION_CONTROL_PAGE_LEN);
     break;
   default:
     SM_DBG1(("smsatModeSense6: default error page %d!!!\n", page));
@@ -9897,7 +9897,7 @@ smsatModeSense6(
   /* there can be only underrun not overrun in error case */
   if (allocationLen > lenRead)
   {
-    SM_DBG6(("smsatModeSense6 reporting underrun lenRead=0x%x allocationLen=0x%x\n", lenRead, allocationLen));      
+    SM_DBG6(("smsatModeSense6 reporting underrun lenRead=0x%x allocationLen=0x%x\n", lenRead, allocationLen));
 
     /*smEnqueueIO(smRoot, satIOContext);*/
 
@@ -10055,7 +10055,7 @@ smsatModeSense10(
   case MODESENSE_RETURN_ALL_PAGES:
     if (LLBAA)
     {
-      lenRead = (bit8)MIN(allocationLen, MODE_SENSE10_RETURN_ALL_PAGES_LLBAA_LEN); 
+      lenRead = (bit8)MIN(allocationLen, MODE_SENSE10_RETURN_ALL_PAGES_LLBAA_LEN);
     }
     else
     {
@@ -10065,7 +10065,7 @@ smsatModeSense10(
   case MODESENSE_CONTROL_PAGE: /* control */
     if (LLBAA)
     {
-      lenRead = (bit8)MIN(allocationLen, MODE_SENSE10_CONTROL_PAGE_LLBAA_LEN); 
+      lenRead = (bit8)MIN(allocationLen, MODE_SENSE10_CONTROL_PAGE_LLBAA_LEN);
     }
     else
     {
@@ -10075,7 +10075,7 @@ smsatModeSense10(
   case MODESENSE_READ_WRITE_ERROR_RECOVERY_PAGE: /* Read-Write Error Recovery */
     if (LLBAA)
     {
-      lenRead = (bit8)MIN(allocationLen, MODE_SENSE10_READ_WRITE_ERROR_RECOVERY_PAGE_LLBAA_LEN); 
+      lenRead = (bit8)MIN(allocationLen, MODE_SENSE10_READ_WRITE_ERROR_RECOVERY_PAGE_LLBAA_LEN);
     }
     else
     {
@@ -10085,7 +10085,7 @@ smsatModeSense10(
   case MODESENSE_CACHING: /* caching */
     if (LLBAA)
     {
-      lenRead = (bit8)MIN(allocationLen, MODE_SENSE10_CACHING_LLBAA_LEN); 
+      lenRead = (bit8)MIN(allocationLen, MODE_SENSE10_CACHING_LLBAA_LEN);
     }
     else
     {
@@ -10095,7 +10095,7 @@ smsatModeSense10(
   case MODESENSE_INFORMATION_EXCEPTION_CONTROL_PAGE: /* informational exceptions control*/
     if (LLBAA)
     {
-      lenRead = (bit8)MIN(allocationLen, MODE_SENSE10_INFORMATION_EXCEPTION_CONTROL_PAGE_LLBAA_LEN); 
+      lenRead = (bit8)MIN(allocationLen, MODE_SENSE10_INFORMATION_EXCEPTION_CONTROL_PAGE_LLBAA_LEN);
     }
     else
     {
@@ -10735,7 +10735,7 @@ smsatModeSense10(
 
   if (allocationLen > lenRead)
   {
-    SM_DBG1(("smsatModeSense10: reporting underrun lenRead=0x%x allocationLen=0x%x smIORequest=%p\n", lenRead, allocationLen, smIORequest));      
+    SM_DBG1(("smsatModeSense10: reporting underrun lenRead=0x%x allocationLen=0x%x smIORequest=%p\n", lenRead, allocationLen, smIORequest));
 
     /*smEnqueueIO(smRoot, satIOContext);*/
 
@@ -10912,7 +10912,7 @@ smsatReadCapacity10(
       dataBuffer[1] = (bit8)((lastLba >> 16) & 0xFF);
       dataBuffer[2] = (bit8)((lastLba >> 8)  & 0xFF);
       dataBuffer[3] = (bit8)((lastLba )      & 0xFF);    /* LSB */
-      
+
       SM_DBG3(("smsatReadCapacity10: lastLba is 0x%x %d\n", lastLba, lastLba));
       SM_DBG3(("smsatReadCapacity10: LBA 0 is 0x%x %d\n", dataBuffer[0], dataBuffer[0]));
       SM_DBG3(("smsatReadCapacity10: LBA 1 is 0x%x %d\n", dataBuffer[1], dataBuffer[1]));
@@ -10936,7 +10936,7 @@ smsatReadCapacity10(
     dataBuffer[0] = (bit8)((lastLba >> 24) & 0xFF);    /* MSB */
     dataBuffer[1] = (bit8)((lastLba >> 16) & 0xFF);
     dataBuffer[2] = (bit8)((lastLba >> 8)  & 0xFF);
-    dataBuffer[3] = (bit8)((lastLba )      & 0xFF);    /* LSB */  
+    dataBuffer[3] = (bit8)((lastLba )      & 0xFF);    /* LSB */
   }
   /* SAT Rev 8d */
   if (((pSATAIdData->word104_107[2]) & 0x1000) == 0)
@@ -10973,14 +10973,14 @@ smsatReadCapacity10(
   pSatDevData->satMaxLBA[1] = 0;
   pSatDevData->satMaxLBA[2] = 0;
   pSatDevData->satMaxLBA[3] = 0;
-  pSatDevData->satMaxLBA[4] = dataBuffer[0]; 
+  pSatDevData->satMaxLBA[4] = dataBuffer[0];
   pSatDevData->satMaxLBA[5] = dataBuffer[1];
   pSatDevData->satMaxLBA[6] = dataBuffer[2];
   pSatDevData->satMaxLBA[7] = dataBuffer[3]; /* LSB */
-   
-  
-  SM_DBG4(("smsatReadCapacity10: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x , did %d\n", 
-        dataBuffer[0], dataBuffer[1], dataBuffer[2], dataBuffer[3], 
+
+
+  SM_DBG4(("smsatReadCapacity10: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x , did %d\n",
+        dataBuffer[0], dataBuffer[1], dataBuffer[2], dataBuffer[3],
         dataBuffer[4], dataBuffer[5], dataBuffer[6], dataBuffer[7],
         pSatDevData->id));
 
@@ -11012,7 +11012,7 @@ smsatReadCapacity16(
   smScsiRspSense_t        *pSense;
   smIniScsiCmnd_t         *scsiCmnd;
   bit8                    dataBuffer[32] = {0};
-  bit8  	              *pVirtAddr = agNULL;  
+  bit8  	              *pVirtAddr = agNULL;
   smDeviceData_t          *pSatDevData;
   agsaSATAIdentifyData_t  *pSATAIdData;
   bit32                   lastLbaLo;
@@ -11033,7 +11033,7 @@ smsatReadCapacity16(
                   (((bit32)scsiCmnd->cdb[11]) << 16) |
                   (((bit32)scsiCmnd->cdb[12]) << 8 ) |
                   (((bit32)scsiCmnd->cdb[13])      );
-  allocationLen = MIN(allocationLen, scsiCmnd->expDataLength); 
+  allocationLen = MIN(allocationLen, scsiCmnd->expDataLength);
 
 #ifdef REMOVED
   if (allocationLen < readCapacityLen)
@@ -11148,7 +11148,7 @@ smsatReadCapacity16(
     dataBuffer[0] = (bit8)(((pSATAIdData->maxLBA48_63) >> 8) & 0xff);  /* MSB */
     dataBuffer[1] = (bit8)((pSATAIdData->maxLBA48_63)        & 0xff);
     dataBuffer[2] = (bit8)(((pSATAIdData->maxLBA32_47) >> 8) & 0xff);
-    dataBuffer[3] = (bit8)((pSATAIdData->maxLBA32_47)        & 0xff); 
+    dataBuffer[3] = (bit8)((pSATAIdData->maxLBA32_47)        & 0xff);
 
     lastLbaLo = (((pSATAIdData->maxLBA16_31) << 16) ) | (pSATAIdData->maxLBA0_15);
     lastLbaLo = lastLbaLo - 1;      /* LBA starts from zero */
@@ -11178,7 +11178,7 @@ smsatReadCapacity16(
     dataBuffer[4] = (bit8)((lastLbaLo >> 24) & 0xFF);
     dataBuffer[5] = (bit8)((lastLbaLo >> 16) & 0xFF);
     dataBuffer[6] = (bit8)((lastLbaLo >> 8)  & 0xFF);
-    dataBuffer[7] = (bit8)((lastLbaLo )      & 0xFF);    /* LSB */  
+    dataBuffer[7] = (bit8)((lastLbaLo )      & 0xFF);    /* LSB */
 
   }
 
@@ -11195,14 +11195,14 @@ smsatReadCapacity16(
   pSatDevData->satMaxLBA[0] = dataBuffer[0];            /* MSB */
   pSatDevData->satMaxLBA[1] = dataBuffer[1];
   pSatDevData->satMaxLBA[2] = dataBuffer[2];
-  pSatDevData->satMaxLBA[3] = dataBuffer[3];  
-  pSatDevData->satMaxLBA[4] = dataBuffer[4]; 
+  pSatDevData->satMaxLBA[3] = dataBuffer[3];
+  pSatDevData->satMaxLBA[4] = dataBuffer[4];
   pSatDevData->satMaxLBA[5] = dataBuffer[5];
   pSatDevData->satMaxLBA[6] = dataBuffer[6];
   pSatDevData->satMaxLBA[7] = dataBuffer[7];             /* LSB */
-  
-  SM_DBG5(("smsatReadCapacity16: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x , did %d\n", 
-        dataBuffer[0], dataBuffer[1], dataBuffer[2], dataBuffer[3], 
+
+  SM_DBG5(("smsatReadCapacity16: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x , did %d\n",
+        dataBuffer[0], dataBuffer[1], dataBuffer[2], dataBuffer[3],
         dataBuffer[4], dataBuffer[5], dataBuffer[6], dataBuffer[7],
         dataBuffer[8], dataBuffer[9], dataBuffer[10], dataBuffer[11],
         pSatDevData->id));
@@ -11211,7 +11211,7 @@ smsatReadCapacity16(
   {
     for(i=12;i<=31;i++)
     {
-      dataBuffer[i] = 0x00;  
+      dataBuffer[i] = 0x00;
     }
   }
 
@@ -11281,7 +11281,7 @@ smsatReportLun(
                   (((bit32)scsiCmnd->cdb[7]) << 16) |
                   (((bit32)scsiCmnd->cdb[8]) << 8 ) |
                   (((bit32)scsiCmnd->cdb[9])      );
-  allocationLen = MIN(allocationLen, scsiCmnd->expDataLength);                  
+  allocationLen = MIN(allocationLen, scsiCmnd->expDataLength);
   reportLunLen  = 16;     /* 8 byte header and 8 bytes of LUN0 */
   if (allocationLen < reportLunLen)
   {
@@ -11956,7 +11956,7 @@ smsatSendDiagnostic(
       SM_DBG5(("smsatSendDiagnostic: return Table 28 case 2\n"));
       return (status);
     case 4:
-   
+
       if (parmLen != 0)
       {
         /* check condition */
@@ -12503,7 +12503,7 @@ smsatWriteSame10(
                   smSatIOContext_t            *satIOContext
                  )
 {
- 
+
   bit32                     status;
   bit32                     agRequestType = AGSA_SATA_PROTOCOL_DMA_WRITE;
   smDeviceData_t            *pSatDevData;
@@ -12623,7 +12623,7 @@ smsatWriteSame10(
       }
     }
 
-   
+
     if (lba + tl <= SAT_TR_LBA_LIMIT)
     {
       if (pSatDevData->satDMASupport == agTRUE && pSatDevData->satDMAEnabled == agTRUE)
@@ -12914,7 +12914,7 @@ smsatWriteSame10(
            !(scsiCmnd->cdb[1] & SCSI_WRITE_SAME_PBDATA_MASK))
   {
     SM_DBG5(("smsatWriteSame10: Table 62 case 3\n"));
-   
+
   }
   else /* ( (scsiCmnd->cdb[1] & SCSI_WRITE_SAME_LBDATA_MASK) &&
             (scsiCmnd->cdb[1] & SCSI_WRITE_SAME_PBDATA_MASK)) */
@@ -13750,9 +13750,9 @@ smsatModeSelect6(
   parameterListLen = MIN(parameterListLen, scsiCmnd->expDataLength);
   if ((0 == parameterListLen) || (agNULL == pLogPage))
   {
-    tdsmIOCompletedCB( smRoot, 
-                       smIORequest, 
-                       smIOSuccess, 
+    tdsmIOCompletedCB( smRoot,
+                       smIORequest,
+                       smIOSuccess,
                        SCSI_STAT_GOOD,
                        agNULL,
                        satIOContext->interruptContext);
@@ -13784,7 +13784,7 @@ smsatModeSelect6(
   else
   {
     SM_DBG1(("smsatModeSelect6: return mode parameter block descriptor 0x%x!!!\n", pLogPage[3]));
-   
+
     smsatSetSensePayload( pSense,
                           SCSI_SNSKEY_NO_SENSE,
                           0,
@@ -13808,7 +13808,7 @@ smsatModeSelect6(
   {
   case MODESELECT_CONTROL_PAGE:
     SM_DBG1(("smsatModeSelect6: Control mode page!!!\n"));
-   
+
     if ( pLogPage[StartingIndex+1] != 0x0A ||
          pLogPage[StartingIndex+2] != 0x02 ||
          (pSatDevData->satNCQ == agTRUE && pLogPage[StartingIndex+3] != 0x12) ||
@@ -13864,7 +13864,7 @@ smsatModeSelect6(
     break;
   case MODESELECT_READ_WRITE_ERROR_RECOVERY_PAGE:
     SM_DBG1(("smsatModeSelect6: Read-Write Error Recovery mode page!!!\n"));
-   
+
     if ( (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT6_AWRE_MASK) ||
          (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT6_RC_MASK) ||
          (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT6_EER_MASK) ||
@@ -14037,7 +14037,7 @@ smsatModeSelect6(
     break;
   case MODESELECT_INFORMATION_EXCEPTION_CONTROL_PAGE:
     SM_DBG5(("smsatModeSelect6: Informational Exception Control mode page\n"));
-  
+
     if ( (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT6_PERF_MASK) ||
          (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT6_TEST_MASK)
          )
@@ -14248,9 +14248,9 @@ smsatModeSelect10(
   parameterListLen = MIN(parameterListLen, scsiCmnd->expDataLength);
   if ((0 == parameterListLen) || (agNULL == pLogPage))
   {
-    tdsmIOCompletedCB( smRoot, 
-                       smIORequest, 
-                       smIOSuccess, 
+    tdsmIOCompletedCB( smRoot,
+                       smIORequest,
+                       smIOSuccess,
                        SCSI_STAT_GOOD,
                        agNULL,
                        satIOContext->interruptContext);
@@ -14398,7 +14398,7 @@ smsatModeSelect10(
     break;
   case MODESELECT_READ_WRITE_ERROR_RECOVERY_PAGE:
     SM_DBG5(("smsatModeSelect10: Read-Write Error Recovery mode page\n"));
-  
+
     if ( (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT10_AWRE_MASK) ||
          (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT10_RC_MASK) ||
          (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT10_EER_MASK) ||
@@ -14571,7 +14571,7 @@ smsatModeSelect10(
     break;
   case MODESELECT_INFORMATION_EXCEPTION_CONTROL_PAGE:
     SM_DBG5(("smsatModeSelect10: Informational Exception Control mode page\n"));
-   
+
     if ( (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT10_PERF_MASK) ||
          (pLogPage[StartingIndex + 2] & SCSI_MODE_SELECT10_TEST_MASK)
          )
@@ -15051,19 +15051,19 @@ smsatWriteAndVerify10(
   LBA[0] = 0;                  /* MSB */
   LBA[1] = 0;
   LBA[2] = 0;
-  LBA[3] = 0;  
-  LBA[4] = scsiCmnd->cdb[2];  
+  LBA[3] = 0;
+  LBA[4] = scsiCmnd->cdb[2];
   LBA[5] = scsiCmnd->cdb[3];
   LBA[6] = scsiCmnd->cdb[4];
   LBA[7] = scsiCmnd->cdb[5];   /* LSB */
 
   TL[0] = 0;
   TL[1] = 0;
-  TL[2] = 0;  
+  TL[2] = 0;
   TL[3] = 0;
-  TL[4] = 0;			
+  TL[4] = 0;
   TL[5] = 0;
-  TL[6] = scsiCmnd->cdb[7];  
+  TL[6] = scsiCmnd->cdb[7];
   TL[7] = scsiCmnd->cdb[8];    /* LSB */
 
 
@@ -15480,7 +15480,7 @@ smsatWriteAndVerify12(
   LBA[1] = 0;
   LBA[2] = 0;
   LBA[3] = 0;
-  LBA[4] = scsiCmnd->cdb[2];  
+  LBA[4] = scsiCmnd->cdb[2];
   LBA[5] = scsiCmnd->cdb[3];
   LBA[6] = scsiCmnd->cdb[4];
   LBA[7] = scsiCmnd->cdb[5];   /* LSB */
@@ -15488,8 +15488,8 @@ smsatWriteAndVerify12(
   TL[0] = 0;                   /* MSB */
   TL[1] = 0;
   TL[2] = 0;
-  TL[3] = 0;   
-  TL[4] = scsiCmnd->cdb[6];   
+  TL[3] = 0;
+  TL[4] = scsiCmnd->cdb[6];
   TL[5] = scsiCmnd->cdb[7];
   TL[6] = scsiCmnd->cdb[8];
   TL[7] = scsiCmnd->cdb[9];    /* LSB */
@@ -15513,7 +15513,7 @@ smsatWriteAndVerify12(
       pSatDevData->sat48BitSupport != agTRUE
       )
   {
-    AllChk = smsatCheckLimit(LBA, TL, agFALSE, pSatDevData);    
+    AllChk = smsatCheckLimit(LBA, TL, agFALSE, pSatDevData);
     if (AllChk)
     {
 
@@ -15542,7 +15542,7 @@ smsatWriteAndVerify12(
   }
   else
   {
-    AllChk = smsatCheckLimit(LBA, TL, agTRUE, pSatDevData);    
+    AllChk = smsatCheckLimit(LBA, TL, agTRUE, pSatDevData);
     if (AllChk)
   {
       SM_DBG1(("smsatWriteAndVerify12: return LBA out of range, EXT!!!\n"));
@@ -16870,7 +16870,7 @@ smsatWriteBuffer(
                           SCSI_SNSCODE_INVALID_COMMAND,
                           satIOContext);
 
-  
+
     tdsmIOCompletedCB( smRoot,
                        smIORequest,
                        smIOSuccess,
@@ -17632,9 +17632,9 @@ smsatWrite_1(
   return (status);
 }
 
-osGLOBAL bit32  
+osGLOBAL bit32
 smsatPassthrough(
-                    smRoot_t                  *smRoot, 
+                    smRoot_t                  *smRoot,
                     smIORequest_t             *smIORequest,
                     smDeviceHandle_t          *smDeviceHandle,
                     smScsiInitiatorRequest_t  *smScsiRequest,
@@ -17649,16 +17649,16 @@ smsatPassthrough(
   bit32 					agRequestType;
   smAtaPassThroughHdr_t       ataPassThroughHdr;
 
-	  
+
   pSense      = satIOContext->pSense;
-  scsiCmnd    = &smScsiRequest->scsiCmnd;  
+  scsiCmnd    = &smScsiRequest->scsiCmnd;
   pSatDevData = satIOContext->pSatDevData;
   fis           = satIOContext->pFis;
 
   SM_DBG1(("smsatPassthrough: START!!!\n"));
 
   osti_memset(&ataPassThroughHdr, 0 , sizeof(smAtaPassThroughHdr_t));
-	  
+
   ataPassThroughHdr.opc = scsiCmnd->cdb[0];
   ataPassThroughHdr.mulCount = scsiCmnd->cdb[1] >> 5;
   ataPassThroughHdr.proto = (scsiCmnd->cdb[1] >> 1) & 0x0F;
@@ -17669,7 +17669,7 @@ smsatPassthrough(
   ataPassThroughHdr.tDir = (scsiCmnd->cdb[2] >> 3) & 1;
   ataPassThroughHdr.byteBlock = (scsiCmnd->cdb[2] >> 2) & 1;
   ataPassThroughHdr.tlength = scsiCmnd->cdb[2] & 0x3;
-	  
+
   switch(ataPassThroughHdr.proto)
   {
     case 0:
@@ -17701,28 +17701,28 @@ smsatPassthrough(
             agRequestType = AGSA_SATA_PROTOCOL_NON_DATA;	//Default Non Data Mode
             break;
   }
-	  
-  
+
+
   if((ataPassThroughHdr.tlength == 0) && (agRequestType != AGSA_SATA_PROTOCOL_NON_DATA))
   {
     SM_DBG1(("smsatPassthrough SCSI_SNSCODE_INVALID_FIELD_IN_CDB\n"));
-		   
+
     smsatSetSensePayload( pSense,
                           SCSI_SNSKEY_ILLEGAL_REQUEST,
                           0,
 			  SCSI_SNSCODE_INVALID_FIELD_IN_CDB,
                           satIOContext);
-				
-    tdsmIOCompletedCB( smRoot, 
-                       smIORequest, 
-                       smIOSuccess, 
+
+    tdsmIOCompletedCB( smRoot,
+                       smIORequest,
+                       smIOSuccess,
                        SCSI_STAT_CHECK_CONDITION,
-                       satIOContext->pSmSenseData, 
+                       satIOContext->pSmSenseData,
                        satIOContext->interruptContext );
-			
-    return SM_RC_SUCCESS; 
+
+    return SM_RC_SUCCESS;
   }
-				  	
+
   if(scsiCmnd->cdb[0] == 0xA1)
   {
     SM_DBG1(("smsatPassthrough A1h: COMMAND: %x  FEATURE: %x \n",scsiCmnd->cdb[9],scsiCmnd->cdb[3]));
@@ -17734,37 +17734,37 @@ smsatPassthrough(
     fis->d.lbaLow 		  = scsiCmnd->cdb[5];		  /* Reading LBA  FIS LBA (7 :0 ) */
     fis->d.lbaMid         = scsiCmnd->cdb[6];
     fis->d.lbaHigh        = scsiCmnd->cdb[7];
-    fis->d.device         = scsiCmnd->cdb[8]; 
-    fis->h.command		  = scsiCmnd->cdb[9]; 
+    fis->d.device         = scsiCmnd->cdb[8];
+    fis->h.command		  = scsiCmnd->cdb[9];
     fis->d.featuresExp	  = 0;
-    fis->d.sectorCountExp = 0; 
-    fis->d.lbaLowExp	  = 0; 
+    fis->d.sectorCountExp = 0;
+    fis->d.lbaLowExp	  = 0;
     fis->d.lbaMidExp	  = 0;
-    fis->d.lbaHighExp 	  = 0; 
+    fis->d.lbaHighExp 	  = 0;
     fis->d.reserved4	  = 0;
     fis->d.control		  = 0;					  /* FIS HOB bit clear */
     fis->d.reserved5	  = 0;
 
     /* Initialize CB for SATA completion*/
     satIOContext->satCompleteCB = &smsatPassthroughCB;
-		
+
     /*
         * Prepare SGL and send FIS to LL layer.
     */
 
     satIOContext->reqType = agRequestType;
-    status = smsataLLIOStart( smRoot, 
+    status = smsataLLIOStart( smRoot,
                               smIORequest,
 	                      smDeviceHandle,
 			      smScsiRequest,
                               satIOContext);
     return status;
-    
+
    }
    else if(scsiCmnd->cdb[0] == 0x85)
    {
      SM_DBG1(("smsatPassthrough 85h: COMMAND: %x  FEATURE: %x \n",scsiCmnd->cdb[14],scsiCmnd->cdb[4]));
-		
+
      fis->h.fisType        = 0x27;                   /* Reg host to device */
      fis->h.c_pmPort       = 0x80;                   /* C Bit is set */
 
@@ -17776,15 +17776,15 @@ smsatPassthrough(
        fis->d.lbaHighExp     = scsiCmnd->cdb[11];
        fis->d.lbaLowExp      = scsiCmnd->cdb[7];
      }
-     fis->h.features = scsiCmnd->cdb[4]; 
-     fis->d.sectorCount = scsiCmnd->cdb[6];		 
+     fis->h.features = scsiCmnd->cdb[4];
+     fis->d.sectorCount = scsiCmnd->cdb[6];
      fis->d.lbaLow = scsiCmnd->cdb[8];
      fis->d.lbaMid = scsiCmnd->cdb[10];
      fis->d.lbaHigh = scsiCmnd->cdb[12];
-     fis->d.device  = scsiCmnd->cdb[13]; 
-     fis->h.command = scsiCmnd->cdb[14]; 
+     fis->d.device  = scsiCmnd->cdb[13];
+     fis->h.command = scsiCmnd->cdb[14];
      fis->d.reserved4 = 0;
-     fis->d.control = 0;					 
+     fis->d.control = 0;
      fis->d.reserved5	  = 0;
 
 
@@ -17792,18 +17792,18 @@ smsatPassthrough(
       */
 
      satIOContext->satCompleteCB = &smsatPassthroughCB;
-	  		
+
      /*
        * Prepare SGL and send FIS to LL layer.
       */
      satIOContext->reqType = agRequestType;
-     status = smsataLLIOStart( smRoot, 
+     status = smsataLLIOStart( smRoot,
                                smIORequest,
                                smDeviceHandle,
                                smScsiRequest,
                                satIOContext);
      return status;
-	  
+
    }
    else
    {
@@ -17813,16 +17813,16 @@ smsatPassthrough(
                           0,
                           SCSI_SNSCODE_INVALID_FIELD_IN_CDB,
                           satIOContext);
-     tdsmIOCompletedCB( smRoot, 
-                       smIORequest, 
-                       smIOSuccess, 
+     tdsmIOCompletedCB( smRoot,
+                       smIORequest,
+                       smIOSuccess,
                        SCSI_STAT_CHECK_CONDITION,
-                       satIOContext->pSmSenseData, 
+                       satIOContext->pSmSenseData,
                        satIOContext->interruptContext );
-    
+
      SM_DBG1(("smsatPassthrough : return control!!!\n"));
 
-     return SM_RC_SUCCESS; 
+     return SM_RC_SUCCESS;
    }
 }
 
@@ -19060,7 +19060,7 @@ smsatModeSelect6n10_1(
   fis           = satIOContext->pFis;
   pLogPage      = (bit8 *) smScsiRequest->sglVirtualAddr;
   SM_DBG5(("smsatModeSelect6n10_1: start\n"));
- 
+
   if (pLogPage[3] == 8)
   {
     /* mode parameter block descriptor exists */
@@ -20349,11 +20349,11 @@ smsatComputeLoopNum(bit32 a, bit32 b)
 
 /*
   Generic new function for checking
-  LBA itself, LBA+TL < SAT_TR_LBA_LIMIT or SAT_EXT_TR_LBA_LIMIT 
+  LBA itself, LBA+TL < SAT_TR_LBA_LIMIT or SAT_EXT_TR_LBA_LIMIT
   and LBA+TL < Read Capacity Limit
   flag: false - not 48BitSupport; true - 48BitSupport
   returns TRUE when over the limit
-  
+
 */
 osGLOBAL FORCEINLINE bit32
 smsatCheckLimit(bit8 *lba, bit8 *tl, int flag, smDeviceData_t *pSatDevData)
@@ -20368,11 +20368,11 @@ smsatCheckLimit(bit8 *lba, bit8 *tl, int flag, smDeviceData_t *pSatDevData)
   bit8  Bit48max[8];
   bit32 ReadCapCheck = agFALSE;
   bit32 ret;
-  
+
   bit8  final_satMaxLBA[9];
   bit8  oneTL[8];
-  bit8  temp_satMaxLBA[8];       // 0 MSB, 8 LSB  
-  /* 
+  bit8  temp_satMaxLBA[8];       // 0 MSB, 8 LSB
+  /*
     check LBA
   */
   if (flag == agFALSE)
@@ -20385,9 +20385,9 @@ smsatCheckLimit(bit8 *lba, bit8 *tl, int flag, smDeviceData_t *pSatDevData)
     limit[4] = 0xF;
     limit[5] = 0xFF;
     limit[6] = 0xFF;
-    limit[7] = 0xFF;  /* LSB */ 
+    limit[7] = 0xFF;  /* LSB */
   }
-  else 
+  else
   {
     /* limit is 0xF FF FF = 2^48 - 1 */
     limit[0] = 0x0;   /* MSB */
@@ -20419,19 +20419,19 @@ smsatCheckLimit(bit8 *lba, bit8 *tl, int flag, smDeviceData_t *pSatDevData)
       continue;
     }
   }
-  
+
   if (lbaCheck == agTRUE)
   {
     SM_DBG1(("smsatCheckLimit: return LBA check True\n"));
     return agTRUE;
   }
-  
+
   /*
-    check LBA+TL < SAT_TR_LBA_LIMIT or SAT_EXT_TR_LBA_LIMIT 
-  */      
+    check LBA+TL < SAT_TR_LBA_LIMIT or SAT_EXT_TR_LBA_LIMIT
+  */
   sm_memset(ans, 0, sizeof(ans));
   sm_memset(final_ans, 0, sizeof(final_ans));
-  
+
   // adding from LSB to MSB
   for(i=7;i>=0;i--)
   {
@@ -20452,14 +20452,14 @@ smsatCheckLimit(bit8 *lba, bit8 *tl, int flag, smDeviceData_t *pSatDevData)
     final_ans[i] = (bit8)(ans[i-1] & 0xFF);
   }
 
-  
+
   if (flag == agFALSE)
   {
     sm_memset(Bit28max, 0, sizeof(Bit28max));
     Bit28max[4] = 0x10; // max =0x1000 0000
-  
+
     //compare final_ans to max
-    if (final_ans[0] != 0 || final_ans[1] != 0 || final_ans[2] != 0 
+    if (final_ans[0] != 0 || final_ans[1] != 0 || final_ans[2] != 0
         || final_ans[3] != 0 || final_ans[4] != 0)
     {
       SM_DBG1(("smsatCheckLimit: before 28Bit addressing TRUE\n"));
@@ -20486,13 +20486,13 @@ smsatCheckLimit(bit8 *lba, bit8 *tl, int flag, smDeviceData_t *pSatDevData)
           continue;
         }
       }
-    }	  
+    }
   }
   else
   {
     sm_memset(Bit48max, 0, sizeof(Bit48max));
     Bit48max[1] = 0x1; //max = 0x1 0000 0000 0000
-    
+
     //compare final_ans to max
     if (final_ans[0] != 0 || final_ans[1] != 0)
     {
@@ -20520,25 +20520,25 @@ smsatCheckLimit(bit8 *lba, bit8 *tl, int flag, smDeviceData_t *pSatDevData)
           continue;
         }
       }
-    }  
-  }  
+    }
+  }
   if (rangeCheck == agTRUE)
   {
     SM_DBG1(("smsatCheckLimit: return rangeCheck True\n"));
     return agTRUE;
   }
-  
-  /*  
+
+  /*
     LBA+TL < Read Capacity Limit
   */
   sm_memset(temp_satMaxLBA, 0, sizeof(temp_satMaxLBA));
   sm_memset(oneTL, 0, sizeof(oneTL));
-  sm_memset(final_satMaxLBA, 0, sizeof(final_satMaxLBA));  
+  sm_memset(final_satMaxLBA, 0, sizeof(final_satMaxLBA));
   sm_memset(ans, 0, sizeof(ans));
 
   sm_memcpy(&temp_satMaxLBA, &pSatDevData->satMaxLBA, sizeof(temp_satMaxLBA));
   oneTL[7] = 1;
-    
+
   // adding temp_satMaxLBA to oneTL
   for(i=7;i>=0;i--)
   {
@@ -20557,7 +20557,7 @@ smsatCheckLimit(bit8 *lba, bit8 *tl, int flag, smDeviceData_t *pSatDevData)
   for(i=1;i<=8;i++)
   {
     final_satMaxLBA[i] = (bit8)(ans[i-1] & 0xFF);
-  }  
+  }
   if ( pSatDevData->ReadCapacity == 10)
   {
     for (i=0;i<=8;i++)
@@ -20577,7 +20577,7 @@ smsatCheckLimit(bit8 *lba, bit8 *tl, int flag, smDeviceData_t *pSatDevData)
       else
       {
         continue;
-      }  
+      }
     }
     if ( ReadCapCheck)
     {
@@ -20586,8 +20586,8 @@ smsatCheckLimit(bit8 *lba, bit8 *tl, int flag, smDeviceData_t *pSatDevData)
     else
     {
       SM_DBG5(("smsatCheckLimit: after Read Capacity 10 FALSE\n"));
-    }  
-  }    
+    }
+  }
   else if ( pSatDevData->ReadCapacity == 16)
   {
     for (i=0;i<=8;i++)
@@ -20607,7 +20607,7 @@ smsatCheckLimit(bit8 *lba, bit8 *tl, int flag, smDeviceData_t *pSatDevData)
       else
       {
         continue;
-      }  
+      }
     }
     if ( ReadCapCheck)
     {
@@ -20616,13 +20616,13 @@ smsatCheckLimit(bit8 *lba, bit8 *tl, int flag, smDeviceData_t *pSatDevData)
     else
     {
       SM_DBG5(("smsatCheckLimit: after Read Capacity 16 FALSE\n"));
-    }  
+    }
   }
   else
   {
-    SM_DBG5(("smsatCheckLimit: unknown pSatDevData->ReadCapacity %d\n", pSatDevData->ReadCapacity));  
+    SM_DBG5(("smsatCheckLimit: unknown pSatDevData->ReadCapacity %d\n", pSatDevData->ReadCapacity));
   }
-  
+
   if (ReadCapCheck == agTRUE)
   {
     SM_DBG1(("smsatCheckLimit: return ReadCapCheck True\n"));
@@ -20633,11 +20633,11 @@ smsatCheckLimit(bit8 *lba, bit8 *tl, int flag, smDeviceData_t *pSatDevData)
   ret = (lbaCheck | rangeCheck | ReadCapCheck);
   if (ret == agTRUE)
   {
-    SM_DBG1(("smsatCheckLimit: final check TRUE\n"));  
+    SM_DBG1(("smsatCheckLimit: final check TRUE\n"));
   }
   else
   {
-    SM_DBG5(("smsatCheckLimit: final check FALSE\n"));  
+    SM_DBG5(("smsatCheckLimit: final check FALSE\n"));
   }
   return   ret;
 }

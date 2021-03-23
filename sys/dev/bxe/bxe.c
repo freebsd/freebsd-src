@@ -1091,12 +1091,12 @@ bxe_release_hw_lock(struct bxe_softc *sc,
 static void bxe_acquire_phy_lock(struct bxe_softc *sc)
 {
 	BXE_PHY_LOCK(sc);
-	bxe_acquire_hw_lock(sc,HW_LOCK_RESOURCE_MDIO); 
+	bxe_acquire_hw_lock(sc,HW_LOCK_RESOURCE_MDIO);
 }
 
 static void bxe_release_phy_lock(struct bxe_softc *sc)
 {
-	bxe_release_hw_lock(sc,HW_LOCK_RESOURCE_MDIO); 
+	bxe_release_hw_lock(sc,HW_LOCK_RESOURCE_MDIO);
 	BXE_PHY_UNLOCK(sc);
 }
 /*
@@ -2796,8 +2796,8 @@ bxe_tpa_start(struct bxe_softc            *sc,
         BLOGE(sc, "fp[%02d].tpa[%02d] cons[%d] prod[%d]mbuf not allocated!\n",
               fp->index, queue, cons, prod);
         BLOGE(sc, "cqe [0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x]\n",
-            *tmp, *(tmp+1), *(tmp+2), *(tmp+3), *(tmp+4), *(tmp+5), *(tmp+6), *(tmp+7)); 
-            
+            *tmp, *(tmp+1), *(tmp+2), *(tmp+3), *(tmp+4), *(tmp+5), *(tmp+6), *(tmp+7));
+
         /* XXX Error handling? */
         return;
     }
@@ -2887,7 +2887,7 @@ bxe_fill_frag_mbuf(struct bxe_softc          *sc,
               tpa_info->len_on_bd, frag_size);
 
         BLOGE(sc, "cqe [0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x]\n",
-            *tmp, *(tmp+1), *(tmp+2), *(tmp+3), *(tmp+4), *(tmp+5), *(tmp+6), *(tmp+7)); 
+            *tmp, *(tmp+1), *(tmp+2), *(tmp+3), *(tmp+4), *(tmp+5), *(tmp+6), *(tmp+7));
 
         bxe_panic(sc, ("sge page count error\n"));
         return (EINVAL);
@@ -4537,7 +4537,7 @@ bxe_ioctl(if_t ifp,
 
         atomic_store_rel_int((volatile unsigned int *)&sc->mtu,
                              (unsigned long)ifr->ifr_mtu);
-	/* 
+	/*
         atomic_store_rel_long((volatile unsigned long *)&if_getmtu(ifp),
                               (unsigned long)ifr->ifr_mtu);
 	XXX - Not sure why it needs to be atomic
@@ -4579,7 +4579,7 @@ bxe_ioctl(if_t ifp,
             /* set the receive mode flags */
 	    BXE_CORE_LOCK(sc);
             bxe_set_rx_mode(sc);
-	    BXE_CORE_UNLOCK(sc); 
+	    BXE_CORE_UNLOCK(sc);
         }
 
         break;
@@ -4605,7 +4605,7 @@ bxe_ioctl(if_t ifp,
             BLOGD(sc, DBG_IOCTL, "Turning TXCSUM %s\n",
                   (if_getcapenable(ifp) & IFCAP_TXCSUM) ? "ON" : "OFF");
             if (if_getcapenable(ifp) & IFCAP_TXCSUM) {
-                if_sethwassistbits(ifp, (CSUM_IP      | 
+                if_sethwassistbits(ifp, (CSUM_IP      |
                                     CSUM_TCP      |
                                     CSUM_UDP      |
                                     CSUM_TSO      |
@@ -7995,7 +7995,7 @@ bxe_attn_int_deasserted3(struct bxe_softc *sc,
             BXE_SET_ERROR_BIT(sc, BXE_ERR_MC_ASSERT);
             taskqueue_enqueue_timeout(taskqueue_thread,
                 &sc->sp_err_timeout_task, hz/10);
-	
+
         } else if (attn & BXE_MCP_ASSERT) {
 
             BLOGE(sc, "MCP assert!\n");
@@ -14541,7 +14541,7 @@ bxe_get_phy_info(struct bxe_softc *sc)
                sc->link_params.lane_config,
                sc->link_params.speed_cap_mask[0],
                sc->port.link_config[0]);
-     
+
 
     bxe_link_settings_supported(sc, sc->link_params.switch_cfg);
     bxe_link_settings_requested(sc);
@@ -18937,7 +18937,7 @@ bxe_grc_dump(struct bxe_softc *sc)
 
     if (sc->grcdump_done || sc->grcdump_started)
 	return (rval);
-    
+
     sc->grcdump_started = 1;
     BLOGI(sc, "Started collecting grcdump\n");
 
@@ -19030,7 +19030,7 @@ bxe_grc_dump(struct bxe_softc *sc)
         			(uintmax_t)sc->fw_stats_req_mapping,
         			(uintmax_t)sc->fw_stats_data_mapping,
         			sc->fw_stats_req, (sc->fw_stats_req_size + sc->fw_stats_data_size));
-		}	
+		}
 		if(sc->def_sb != NULL) {
 			BLOGI(sc, "def_status_block paddr %p vaddr %p size 0x%zx\n",
         			(void *)sc->def_sb_dma.paddr, sc->def_sb,
@@ -19317,7 +19317,7 @@ bxe_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
             break;
 
         case BXE_GRC_DUMP:
-            
+
             grc_dump_size = (bxe_get_total_regs_len32(sc) * sizeof(uint32_t)) +
                                 sizeof(struct  dump_header);
             if ((!sc->trigger_grcdump) || (dump->grcdump == NULL) ||

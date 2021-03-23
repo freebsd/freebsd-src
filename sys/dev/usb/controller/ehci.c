@@ -42,7 +42,7 @@
  */
 
 /*
- * TODO: 
+ * TODO:
  * 1) command failures are not recovered correctly
  */
 
@@ -2241,7 +2241,7 @@ ehci_device_bulk_start(struct usb_xfer *xfer)
 	/* put transfer on interrupt queue */
 	ehci_transfer_intr_enqueue(xfer);
 
-	/* 
+	/*
 	 * XXX Certain nVidia chipsets choke when using the IAAD
 	 * feature too frequently.
 	 */

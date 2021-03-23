@@ -68,7 +68,7 @@ struct ath_tx_status {
 
 /* bits found in ts_flags */
 #define	HAL_TX_BA		0x01	/* Block Ack seen */
-#define	HAL_TX_AGGR		0x02	/* Aggregate */ 
+#define	HAL_TX_AGGR		0x02	/* Aggregate */
 #define	HAL_TX_DESC_CFG_ERR	0x10	/* Error in 20/40 desc config */
 #define	HAL_TX_DATA_UNDERRUN	0x20	/* Tx buffer underrun */
 #define	HAL_TX_DELIM_UNDERRUN	0x40	/* Tx delimiter underrun */

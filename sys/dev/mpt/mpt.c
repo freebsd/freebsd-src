@@ -280,7 +280,7 @@ mpt_modevent(module_t mod, int type, void *data)
 			pers_handler++;
 			def_handler++;
 		}
-		
+
 		error = (pers->load(pers));
 		if (error != 0)
 			mpt_personalities[i] = NULL;
@@ -2353,7 +2353,7 @@ mpt_core_detach(struct mpt_softc *mpt)
 	int val;
 
 	/*
-	 * XXX: FREE MEMORY 
+	 * XXX: FREE MEMORY
 	 */
 	mpt_disable_ints(mpt);
 

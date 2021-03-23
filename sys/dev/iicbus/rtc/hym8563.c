@@ -92,7 +92,7 @@ static struct ofw_compat_data compat_data[] = {
 
 static inline int
 hym8563_read_buf(struct hym8563_softc *sc, uint8_t reg, uint8_t *buf,
-    uint16_t buflen) 
+    uint16_t buflen)
 {
 
 	return (iicdev_readfrom(sc->dev, reg, buf, buflen, IIC_WAIT));
@@ -100,21 +100,21 @@ hym8563_read_buf(struct hym8563_softc *sc, uint8_t reg, uint8_t *buf,
 
 static inline int
 hym8563_write_buf(struct hym8563_softc *sc, uint8_t reg, uint8_t *buf,
-    uint16_t buflen) 
+    uint16_t buflen)
 {
 
 	return (iicdev_writeto(sc->dev, reg, buf, buflen, IIC_WAIT));
 }
 
 static inline int
-hym8563_read_1(struct hym8563_softc *sc, uint8_t reg, uint8_t *data) 
+hym8563_read_1(struct hym8563_softc *sc, uint8_t reg, uint8_t *data)
 {
 
 	return (iicdev_readfrom(sc->dev, reg, data, 1, IIC_WAIT));
 }
 
 static inline int
-hym8563_write_1(struct hym8563_softc *sc, uint8_t reg, uint8_t val) 
+hym8563_write_1(struct hym8563_softc *sc, uint8_t reg, uint8_t val)
 {
 
 	return (iicdev_writeto(sc->dev, reg, &val, 1, IIC_WAIT));
@@ -156,7 +156,7 @@ hym8563_gettime(device_t dev, struct timespec *ts)
 	if (buf[5] & HYM8563_MONTH_CENTURY)
 		bct.year += 0x100;
 
-	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct); 
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct);
 	return (clock_bcd_to_ts(&bct, ts, false));
 }
 
@@ -224,7 +224,7 @@ hym8563_init(void *arg)
 		device_printf(sc->dev, "Cannot init CTRL1 register: %d\n", rv);
 		return;
 	}
-	
+
 	/* Disable interrupts and alarms */
 	rv = hym8563_read_1(sc, HYM8563_CTRL2, &reg);
 	if (rv != 0) {
@@ -268,7 +268,7 @@ static int
 hym8563_attach(device_t dev)
 {
 	struct hym8563_softc *sc;
-	
+
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 

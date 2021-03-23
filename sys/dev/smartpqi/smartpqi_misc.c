@@ -29,7 +29,7 @@
 #include "smartpqi_includes.h"
 
 /*
- * Populate hostwell time variables in bcd format from FreeBSD format 
+ * Populate hostwell time variables in bcd format from FreeBSD format
  */
 void os_get_time(struct bmic_host_wellness_time *host_wellness_time)
 {
@@ -49,7 +49,7 @@ void os_get_time(struct bmic_host_wellness_time *host_wellness_time)
 	host_wellness_time->century = (uint8_t)bin2bcd(ct.year / 100);
 	host_wellness_time->year = (uint8_t)bin2bcd(ct.year % 100);
 
-}	
+}
 
 /*
  * Update host time to f/w every 24 hours in a periodic timer.
@@ -105,7 +105,7 @@ void os_start_heartbeat_timer(void *data)
 /*
  * Mutex initialization function
  */
-int os_init_spinlock(struct pqisrc_softstate *softs, struct mtx *lock, 
+int os_init_spinlock(struct pqisrc_softstate *softs, struct mtx *lock,
 			char *lockname)
 {
     mtx_init(lock, lockname, NULL, MTX_SPIN);

@@ -56,7 +56,7 @@ OW_ACCESSOR(romid,	ROMID, uint8_t *)
 #define MAX_ROM		10
 #define MAX_XPT		32
 #define MAX_READ	32
-struct ow_cmd 
+struct ow_cmd
 {
 	uint32_t	flags;		/* Various flags */
 #define OW_FLAG_OVERDRIVE	1	/* Send xpt stuff overdrive speed */

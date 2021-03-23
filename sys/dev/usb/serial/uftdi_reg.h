@@ -81,7 +81,7 @@
  * BmRequestType:  0100 0000B
  * bRequest:       FTDI_SIO_SET_BAUDRATE
  * wValue:         BaudRate low bits
- * wIndex:         Port and BaudRate high bits 
+ * wIndex:         Port and BaudRate high bits
  * wLength:        0
  * Data:           None
  */

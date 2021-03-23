@@ -211,7 +211,7 @@ vchan_getcaps(kobj_t obj, void *data)
 		}
 		if (c->format & AFMT_PASSTHROUGH)
 			info->caps.minspeed = c->speed;
-		else 
+		else
 			info->caps.minspeed = pspeed;
 		info->caps.maxspeed = info->caps.minspeed;
 	} else {
@@ -433,7 +433,7 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 	return (ret);
 }
 
-/* 
+/*
  * On the fly vchan rate/format settings
  */
 

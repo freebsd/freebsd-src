@@ -164,6 +164,6 @@ struct twe_code_lookup twe_table_opcode[] = {
     {"CMD_PACKET",		0x1d},
     {NULL, 0},
     {"unknown opcode",		0}
-};    
-    
+};
+
 #endif

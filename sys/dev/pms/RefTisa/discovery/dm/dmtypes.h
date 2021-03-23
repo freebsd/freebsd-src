@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 *
 * $FreeBSD$
@@ -48,7 +48,7 @@ typedef void (*dmSMPCompleted_t) (
                                     agsaIORequest_t       *,
                                     bit32                 ,
                                     bit32                 ,
-                                    agsaFrameHandle_t     
+                                    agsaFrameHandle_t
                                     );
 
 
@@ -77,7 +77,7 @@ typedef struct dmRootOsData_s {
   void      *dmIni;             /**< Pointer to SAS/SATA initiator               */
 }  dmRootOsData_t;
 
-typedef struct DMSASAddressID_s 
+typedef struct DMSASAddressID_s
 {
   bit32   sasAddressLo;     /**< HOST SAS address lower part */
   bit32   sasAddressHi;     /**< HOST SAS address higher part */
@@ -86,7 +86,7 @@ typedef struct DMSASAddressID_s
 
 struct dmExpander_s;
 
-typedef struct dmDiscovery_s 
+typedef struct dmDiscovery_s
 {
   dmList_t                   discoveringExpanderList;
   dmList_t                   UpdiscoveringExpanderList;
@@ -96,11 +96,11 @@ typedef struct dmDiscovery_s
   agsaSATAIdentifyData_t  *pSataIdentifyData;
   struct dmExpander_s     *RootExp; /* Root expander of discovery */
   bit32                   NumOfUpExp;
-  bit32                   type; /* discovery type: TDSA_DISCOVERY_OPTION_FULL_START 
+  bit32                   type; /* discovery type: TDSA_DISCOVERY_OPTION_FULL_START
                                    or TDSA_DISCOVERY_OPTION_INCREMENTAL_START*/
-  bit32                   retries;                                   
-  bit32                   configureRouteRetries; 
-  bit32                   deviceRetistrationRetries; 
+  bit32                   retries;
+  bit32                   configureRouteRetries;
+  bit32                   deviceRetistrationRetries;
   dmTimerRequest_t        discoveryTimer;
   dmTimerRequest_t        configureRouteTimer;
   dmTimerRequest_t        deviceRegistrationTimer;
@@ -109,7 +109,7 @@ typedef struct dmDiscovery_s
   smpRespDiscover2_t      SMPDiscover2Resp;
   bit32                   pendingSMP; /* the number of pending SMP for this discovery */
   bit32                   SeenBC; /* received Broadcast change */
-  bit32                   forcedOK; /* report DiscOK when chance is missed */ 
+  bit32                   forcedOK; /* report DiscOK when chance is missed */
   dmTimerRequest_t        SMPBusyTimer; /* SMP retry timer for saSMPStart busy */
   bit32                   SMPRetries; /* number of SMP retries when LL returns busy for saSMPStart*/
   bit32                   ResetTriggerred; /* Hard/Link reset triggerred by discovery */
@@ -134,21 +134,21 @@ typedef struct dmIntPortContext_s
 {
   /**< current number of devices in this PortContext */
   bit32                         Count;
-  bit32                   DiscoveryState;   
-  bit32                   DiscoveryAbortInProgress;   
+  bit32                   DiscoveryState;
+  bit32                   DiscoveryAbortInProgress;
   /* passed by tiINIDiscoverTargets()
      eg) discovery or rediscovery ....
   */
   bit32                   discoveryOptions;
-  /* Discovery ready is given? */ 
-  bit32                   DiscoveryRdyGiven; 
+  /* Discovery ready is given? */
+  bit32                   DiscoveryRdyGiven;
   /* Port has received link up */
   bit32                   SeenLinkUp;
   /* statistics */
   bit32                   numAvailableTargets;
   /* flag: indicates that discovery is trigggered by tiINIDiscoverTargets */
   bit32                   osInitiatedDiscovery;
-  
+
   bit32                         id; /* for debugging only */
   dmList_t                      FreeLink; /**< free portcontext list */
   dmList_t                      MainLink; /**< in-use portcontext list */
@@ -157,18 +157,18 @@ typedef struct dmIntPortContext_s
   bit32                         sasRemoteAddressLo; /**< SAS address low part */
   /**< SAS ID frame of the remote device */
   agsaSASIdentify_t             sasIDframe;
-  
+
   /**< SAS address of the local device*/
   bit32                         sasLocalAddressHi; /**< SAS address high part */
   bit32                         sasLocalAddressLo; /**< SAS address low part */
 #ifdef TBD
   /**< the list of PhyID belonging to this port */
   bit8                          PhyIDList[DM_MAX_NUM_PHYS];
-#endif  
+#endif
   dmPortContext_t               *dmPortContext;
   dmRoot_t                      *dmRoot;
-  
-#ifdef TBD  
+
+#ifdef TBD
   /* used in tiINIDiscoverTarget() */
   agsaRoot_t                    *agRoot;
   agsaPortContext_t             *agPortContext;
@@ -176,7 +176,7 @@ typedef struct dmIntPortContext_s
 
   bit8                  nativeSATAMode; /* boolean flag: whether the port is in Native SATA mode */
   bit8                remoteSignature[8]; /* the remote signature of the port is the port is in native SATA mode */
-#endif  
+#endif
   bit8                 directAttatchedSAS; /* boolean flag: whether the port connected directly to SAS end device*/
   /* SAS/SATA discovery information such as discoveringExpanderList */
   dmDiscovery_t              discovery;
@@ -185,8 +185,8 @@ typedef struct dmIntPortContext_s
   bit32                      RegisteredDevNums; /* registered number of devices */
   bit32                      eventPhyID; /* used for saHwEventAck() */
   bit32                      Transient; /* transient period between link up and link down/port recovery */
-  bit32                      RegFailed; /* Registration of expander belonging to this port failure */ 
-  
+  bit32                      RegFailed; /* Registration of expander belonging to this port failure */
+
 }  dmIntPortContext_t;
 
 typedef struct dmDeviceData_s  {
@@ -199,7 +199,7 @@ typedef struct dmDeviceData_s  {
   /* used in tiINIIOStart() */
   dmRoot_t                *dmRoot;
 //  agsaDevHandle_t         *agDevHandle;
-  
+
   /* for SAS; remote device */
   //  agsaSASDeviceInfo_t     agSASDeviceInfo;
   /* device's sas address */
@@ -226,7 +226,7 @@ typedef struct dmDeviceData_s  {
   /**< pointer to dmExpander if Device is expander */
   struct dmExpander_s     *dmExpander;
   struct dmDeviceData_s   *ExpDevice; /* Expander device which this device is attached to */
-  
+
   bit8                    phyID;      /* PhyID this device is attached to SPC or expander */
   agsaSASIdentify_t     sasIdentify; /* used only in TD discovery */
   bit8                  connectionRate;
@@ -237,23 +237,23 @@ typedef struct dmDeviceData_s  {
   bit32                 IOResponse;
   agsaContext_t         agDeviceResetContext; /* used in saLocalPhyControl() */
   bit32                 TRflag; /* transport recovery flag; used only for tiINITransportRecovery */
-  bit32                 ResetCnt; /* number of reset to the device */  
+  bit32                 ResetCnt; /* number of reset to the device */
   bit32                 registered; /* registered to LL */
-  bit32                 reported; /* reproted to TDM */  
-  bit32                 MCN; /* MCN; initialized to 0; current value in discovery */  
-  bit32                 MCNDone; /* done in updating MCN */  
-  bit32                 PrevMCN; /* MCN; initialized to 0; previous value in discovery */  
+  bit32                 reported; /* reproted to TDM */
+  bit32                 MCN; /* MCN; initialized to 0; current value in discovery */
+  bit32                 MCNDone; /* done in updating MCN */
+  bit32                 PrevMCN; /* MCN; initialized to 0; previous value in discovery */
 
 }  dmDeviceData_t;
 
 
-typedef struct dmExpander_s 
+typedef struct dmExpander_s
 {
   /* start of dmDeviceData */
-#ifdef TBD 
+#ifdef TBD
   dmList_t                FreeLink; /* free dev list */
   dmList_t                MainLink; /* main(in use) dev list */
-#endif  
+#endif
   bit32                   id; /* for debugging only */
   bit32                   InQID; /* Inbound queue ID */
   bit32                   OutQID; /* Outbound queue ID */
@@ -270,22 +270,22 @@ typedef struct dmExpander_s
   bit8                      discoveringPhyId;
   bit16                     routingIndex; /* maximum routing table index reported by expander */
   bit16                     currentIndex[DM_MAX_EXPANDER_PHYS]; /* routing table index in use */
-  /*ReportPhySataSend in DM */ 
+  /*ReportPhySataSend in DM */
   dmDeviceData_t            *dmDeviceToProcess;    /* on some callbacks, this is a link to the device of interest */
-  
+
   bit32                     configSASAddressHi;
   bit32                     configSASAddressLo;
-  struct dmExpander_s       *dmCurrentDownStreamExpander; 
+  struct dmExpander_s       *dmCurrentDownStreamExpander;
   bit8                      upStreamPhys[DM_MAX_EXPANDER_PHYS];
   bit16                     numOfUpStreamPhys;
   bit16                     currentUpStreamPhyIndex;
-  bit32                     upStreamSASAddressHi; 
-  bit32                     upStreamSASAddressLo;  
+  bit32                     upStreamSASAddressHi;
+  bit32                     upStreamSASAddressLo;
   bit32                     underDiscovering;
   bit32                     configRouteTable: 1;
   bit32                     configuring: 1;
   bit32                     configReserved: 30;
-#ifdef TBD  
+#ifdef TBD
   bit32                   id; /* for debugging */
 #endif
   struct dmExpander_s       *dmReturnginExpander;
@@ -296,14 +296,14 @@ typedef struct dmExpander_s
   bit8                      routingAttribute[DM_MAX_EXPANDER_PHYS];
   bit32                     configSASAddressHiTable[DM_MAX_DEV];
   bit32                     configSASAddressLoTable[DM_MAX_DEV];
-  bit32                     configSASAddrTableIndex;  
-  /* for SAS 2 */  
-  bit32                     SAS2; /* supports SAS2 spec of not. The value of LONG RESPONSE 
+  bit32                     configSASAddrTableIndex;
+  /* for SAS 2 */
+  bit32                     SAS2; /* supports SAS2 spec of not. The value of LONG RESPONSE
                                      in report general response */
   bit32                     TTTSupported; /* Table to Table is supported */
   bit32                     UndoDueToTTTSupported; /* flag that indicates undo exp, device, route
                                                       configuration due to TTT */
-  
+
 } dmExpander_t;
 
 typedef struct dmIndirectSMPRequestBody_s {
@@ -313,7 +313,7 @@ typedef struct dmIndirectSMPRequestBody_s {
 }  dmIndirectSMPRequestBody_t;
 
 /*
-  should DM allocate a pool of SMP and manages it 
+  should DM allocate a pool of SMP and manages it
   or
   depend on ostiAllocMemory()
 */
@@ -321,16 +321,16 @@ typedef struct dmSMPRequestBody_s {
   dmList_t                     Link;
   dmSMPCompleted_t             SMPCompletionFunc;/* must be the second */
 
-#ifdef TBD    
+#ifdef TBD
   tiDeviceHandle_t               *tiDevHandle;    /* not used for TD generated SMP */
-#endif  
+#endif
   agsaIORequest_t                agIORequest;
   agsaSASRequestBody_t           agSASRequestBody;
-  agsaSATAInitiatorRequest_t     agSATARequestBody; 
+  agsaSATAInitiatorRequest_t     agSATARequestBody;
   /**< SMP response */
   //agsaSMPFrame_t                 SMPRsp;
   dmDeviceData_t                 *dmDevice;
-  
+
 #ifdef TBD
   void                           *osMemHandle;
   // can this be simply dmExpander_t
@@ -340,32 +340,32 @@ typedef struct dmSMPRequestBody_s {
   dmRoot_t                       *dmRoot;
 //  dmExpander_t                   *dmExpander;
   dmIntPortContext_t             *dmPortContext; /* portcontext where SMP is sent from */
-  bit8                           smpPayload[SMP_DIRECT_PAYLOAD_LIMIT]; /* for smp retries; 
+  bit8                           smpPayload[SMP_DIRECT_PAYLOAD_LIMIT]; /* for smp retries;
                                                                           only for direct SMP */
   bit32                          retries; /* number of retries */
   /* for indirect SMP req/rsp */
   void                           *IndirectSMP;
   bit32                          IndirectSMPUpper32;
   bit32                          IndirectSMPLower32;
-  /* used only when SMP is INDIRECT SMP request. On SMP completion, 
-     this is used to free up INDIRECT SMP response 
+  /* used only when SMP is INDIRECT SMP request. On SMP completion,
+     this is used to free up INDIRECT SMP response
   */
-  void                           *IndirectSMPResponse; /* dmSMPRequestBody_t */   
+  void                           *IndirectSMPResponse; /* dmSMPRequestBody_t */
 
 
 
-#ifdef TBD  
+#ifdef TBD
   void                           *IndirectSMPReqosMemHandle;
   void                           *IndirectSMPReq;
   bit32                          IndirectSMPReqLen;
   bit32                          IndirectSMPReqUpper32;
-  bit32                          IndirectSMPReqLower32;  
+  bit32                          IndirectSMPReqLower32;
   void                           *IndirectSMPResposMemHandle;
   void                           *IndirectSMPResp;
   bit32                          IndirectSMPRespLen;
   bit32                          IndirectSMPRespUpper32;
-  bit32                          IndirectSMPRespLower32;  
-#endif  
+  bit32                          IndirectSMPRespLower32;
+#endif
   bit32                          id;
   agsaContext_t                  agContext;
 }  dmSMPRequestBody_t;
@@ -374,7 +374,7 @@ typedef struct dmSMPRequestBody_s {
 typedef struct dmIntContext_s {
   /**< agsaRoot_t->osData points to this */
   struct dmRootOsData_s      dmRootOsData;
-  
+
   bit32               usecsPerTick;
 #ifdef TBD
   dmRoot_t            dmRootInt;          /* for interrupt */
@@ -382,40 +382,40 @@ typedef struct dmIntContext_s {
 #endif
 
   agsaRoot_t          *agRoot;
-  
+
   /**< software-related initialization params used in saInitialize() */
-  dmSwConfig_t        SwConfig;  
+  dmSwConfig_t        SwConfig;
 
   /**< timers used commonly in SAS/SATA */
   dmList_t                      timerlist;
   /**< pointer to PortContext memory;  */
-  dmIntPortContext_t          *PortContextMem; 
-   
+  dmIntPortContext_t          *PortContextMem;
+
   dmList_t                   FreePortContextList;
   dmList_t                   MainPortContextList;
-  
+
   /**< pointer to Device memory */
-  dmDeviceData_t             *DeviceMem;  
+  dmDeviceData_t             *DeviceMem;
   dmList_t                   FreeDeviceList;
   dmList_t                   MainDeviceList;
-  
+
   /**< pointer to Expander memory */
-  dmExpander_t               *ExpanderMem; 
+  dmExpander_t               *ExpanderMem;
   dmList_t                   freeExpanderList;
   dmList_t                   mainExpanderList;
-  
+
   /**< pointer to SMP command memory */
-  dmSMPRequestBody_t         *SMPMem; 
+  dmSMPRequestBody_t         *SMPMem;
   dmList_t                   freeSMPList;
-  
+
   /**< pointer to Indirect SMP request/repsonse memory */
-  bit8                       *IndirectSMPMem; 
+  bit8                       *IndirectSMPMem;
   bit32                      IndirectSMPUpper32;
   bit32                      IndirectSMPLower32;
   bit32                      itNexusTimeout;
   bit32                      MaxRetryDiscovery;
   bit32                      RateAdjust;
-    
+
 }  dmIntContext_t;
 
 typedef struct dmIntRoot_s

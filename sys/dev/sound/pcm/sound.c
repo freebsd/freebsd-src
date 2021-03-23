@@ -184,7 +184,7 @@ pcm_setvchans(struct snddev_info *d, int direction, int newcnt, int num)
 			    ((c->flags & CHN_F_HAS_VCHAN) || (vcnt == 0 &&
 			    c->refcount < 1 &&
 			    !(c->flags & (CHN_F_BUSY | CHN_F_VIRTUAL))))) {
-				/* 
+				/*
 				 * Reuse hw channel with vchans already
 				 * created.
 				 */
@@ -1383,7 +1383,7 @@ sound_oss_card_info(oss_card_info *si)
 
 		PCM_UNLOCKASSERT(d);
 		PCM_LOCK(d);
-		
+
 		strlcpy(si->shortname, device_get_nameunit(d->dev),
 		    sizeof(si->shortname));
 		strlcpy(si->longname, device_get_desc(d->dev),

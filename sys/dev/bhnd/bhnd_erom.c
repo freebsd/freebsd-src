@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kobj.h>
-  
+
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
@@ -83,7 +83,7 @@ struct bhnd_erom_iores {
  * Fetch the device enumeration parser class from all bhnd(4)-compatible drivers
  * registered for @p bus_devclass, probe @p eio for supporting parser classes,
  * and return the best available supporting enumeration parser class.
- * 
+ *
  * @param	bus_devclass	The bus device class to be queried for
  *				bhnd(4)-compatible drivers.
  * @param	eio		An erom bus I/O instance, configured with a
@@ -93,7 +93,7 @@ struct bhnd_erom_iores {
  *				identification registers within the first core,
  *				this parameter should be NULL.
  * @param[out]	cid		On success, the probed chip identifier.
- * 
+ *
  * @retval non-NULL	on success, the best available EROM class.
  * @retval NULL		if no erom class returned a successful probe result for
  *			@p eio.
@@ -139,7 +139,7 @@ bhnd_erom_probe_driver_classes(devclass_t bus_devclass,
 		/* The parser did not match if an error was returned */
 		if (result > 0)
 			continue;
-		
+
 		/* Check for a new highest priority match */
 		if (erom_cls == NULL || result > prio) {
 			prio = result;
@@ -159,7 +159,7 @@ bhnd_erom_probe_driver_classes(devclass_t bus_devclass,
 
 /**
  * Allocate and return a new device enumeration table parser.
- * 
+ *
  * @param cls		The parser class for which an instance will be
  *			allocated.
  * @param eio		The bus I/O callbacks to use when reading the device
@@ -193,10 +193,10 @@ bhnd_erom_alloc(bhnd_erom_class_t *cls, const struct bhnd_chipid *cid,
 
 /**
  * Perform static initialization of a device enumeration table parser.
- * 
+ *
  * This may be used to initialize a caller-allocated erom instance state
  * during early boot, prior to malloc availability.
- * 
+ *
  * @param cls		The parser class for which an instance will be
  *			allocated.
  * @param erom		The erom parser instance to initialize.
@@ -226,13 +226,13 @@ bhnd_erom_init_static(bhnd_erom_class_t *cls, bhnd_erom_t *erom, size_t esize,
 
 	/* Perform instance initialization */
 	kobj_init_static((kobj_t)erom, kcls);
-	return (BHND_EROM_INIT(erom, cid, eio)); 
+	return (BHND_EROM_INIT(erom, cid, eio));
 }
 
 /**
  * Release any resources held by a @p erom parser previously
  * initialized via bhnd_erom_init_static().
- * 
+ *
  * @param	erom	An erom parser instance previously initialized via
  *			bhnd_erom_init_static().
  */
@@ -245,7 +245,7 @@ bhnd_erom_fini_static(bhnd_erom_t *erom)
 /**
  * Release all resources held by a @p erom parser previously
  * allocated via bhnd_erom_alloc().
- * 
+ *
  * @param	erom	An erom parser instance previously allocated via
  *			bhnd_erom_alloc().
  */
@@ -259,7 +259,7 @@ bhnd_erom_free(bhnd_erom_t *erom)
 /**
  * Read the chip identification registers mapped by @p eio, popuating @p cid
  * with the parsed result
- * 
+ *
  * @param	eio		A bus I/O instance, configured with a mapping
  *				of the ChipCommon core.
  * @param[out]	cid		On success, the parsed chip identification.
@@ -315,11 +315,11 @@ bhnd_erom_read_chipid(struct bhnd_erom_io *eio, struct bhnd_chipid *cid)
 /**
  * Attempt to map @p size bytes at @p addr, replacing any existing
  * @p eio mapping.
- * 
+ *
  * @param eio	I/O instance state.
  * @param addr	The address to be mapped.
  * @param size	The number of bytes to be mapped at @p addr.
- * 
+ *
  * @retval 0		success
  * @retval non-zero	if mapping @p addr otherwise fails, a regular
  *			unix error code should be returned.
@@ -332,11 +332,11 @@ bhnd_erom_io_map(struct bhnd_erom_io *eio, bhnd_addr_t addr, bhnd_size_t size)
 
 /**
  * Return the address range mapped by @p eio, if any.
- * 
+ *
  * @param	eio	I/O instance state.
  * @param[out]	addr	The address mapped by @p eio.
  * @param[out]	size	The number of bytes mapped at @p addr.
- * 
+ *
  * @retval	0	success
  * @retval	ENXIO	if @p eio has no mapping.
  */
@@ -350,7 +350,7 @@ bhnd_erom_io_tell(struct bhnd_erom_io *eio, bhnd_addr_t *addr,
 /**
  * Read a 1, 2, or 4 byte data item from @p eio, at the given @p offset
  * relative to @p eio's current mapping.
- * 
+ *
  * @param eio		erom I/O callbacks
  * @param offset	read offset.
  * @param width		item width (1, 2, or 4 bytes).
@@ -374,7 +374,7 @@ bhnd_erom_io_fini(struct bhnd_erom_io *eio)
 /**
  * Allocate, initialize, and return a new I/O instance that will perform
  * mapping by allocating SYS_RES_MEMORY resources from @p dev using @p rid.
- * 
+ *
  * @param dev	The device to pass to bhnd_alloc_resource() and
  *		bhnd_release_resource() functions.
  * @param rid	The resource ID to be used when allocating memory resources.
@@ -496,13 +496,13 @@ bhnd_erom_iores_fini(struct bhnd_erom_io *eio)
 /**
  * Initialize an I/O instance that will perform mapping directly from the
  * given bus space tag and handle.
- * 
+ *
  * @param iobus	The I/O instance to be initialized.
  * @param addr	The base address mapped by @p bsh.
  * @param size	The total size mapped by @p bsh.
  * @param bst	Bus space tag for @p bsh.
  * @param bsh	Bus space handle mapping the full bus enumeration space.
- * 
+ *
  * @retval 0		success
  * @retval non-zero	if initializing @p iobus otherwise fails, a regular
  *			unix error code will be returned.
@@ -580,7 +580,7 @@ bhnd_erom_iobus_read(struct bhnd_erom_io *eio, bhnd_size_t offset, u_int width)
 {
 	struct bhnd_erom_iobus *iobus = (struct bhnd_erom_iobus *)eio;
 
-	if (!iobus->mapped) 
+	if (!iobus->mapped)
 		panic("no active mapping");
 
 	if (iobus->limit < width || iobus->limit - width < offset)

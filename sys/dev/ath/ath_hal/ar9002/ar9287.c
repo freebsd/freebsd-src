@@ -59,8 +59,8 @@ ar9287WriteRegs(struct ath_hal *ah, u_int modesIndex, u_int freqIndex,
  *
  * Actual Expression,
  *
- * For 2GHz channel, 
- * Channel Frequency = (3/4) * freq_ref * (chansel[8:0] + chanfrac[16:0]/2^17) 
+ * For 2GHz channel,
+ * Channel Frequency = (3/4) * freq_ref * (chansel[8:0] + chanfrac[16:0]/2^17)
  * (freq_ref = 40MHz)
  *
  * For 5GHz channel,
@@ -93,7 +93,7 @@ ar9287SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
 		bMode = 1;
 		fracMode = 1;
-		aModeRefSel = 0;       
+		aModeRefSel = 0;
 		channelSel = (freq * 0x10000)/15;
 
 		if (AR_SREV_KIWI_11_OR_LATER(ah)) {
@@ -116,7 +116,7 @@ ar9287SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		} else {
 			OS_REG_WRITE(ah, AR_PHY_CCK_TX_CTRL,
 			    txctl &~ AR_PHY_CCK_TX_CTRL_JAPAN);
-		}     
+		}
 	} else {
 		bMode = 0;
 		fracMode = 0;
@@ -141,7 +141,7 @@ ar9287SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		}
 		if (!fracMode) {
 			ndiv = (freq * (refDivA >> aModeRefSel))/60;
-			channelSel =  ndiv & 0x1ff;         
+			channelSel =  ndiv & 0x1ff;
 			channelFrac = (ndiv & 0xfffffe00) * 2;
 			channelSel = (channelSel << 17) | channelFrac;
 		}
@@ -186,7 +186,7 @@ ar9287SetRfRegs(struct ath_hal *ah, const struct ieee80211_channel *chan,
  */
 
 static HAL_BOOL
-ar9287SetPowerTable(struct ath_hal *ah, int16_t *pPowerMin, int16_t *pPowerMax, 
+ar9287SetPowerTable(struct ath_hal *ah, int16_t *pPowerMin, int16_t *pPowerMax,
 	const struct ieee80211_channel *chan, uint16_t *rfXpdGain)
 {
 	return AH_TRUE;

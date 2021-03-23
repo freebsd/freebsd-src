@@ -682,7 +682,7 @@ cbb_pci_shutdown(device_t brdev)
 	cbb_set(sc, CBB_SOCKET_EVENT, 0xffffffff);
 	cbb_power(brdev, CARD_OFF);
 
-	/* 
+	/*
 	 * For paranoia, turn off all address decoding.  Really not needed,
 	 * it seems, but it can't hurt
 	 */

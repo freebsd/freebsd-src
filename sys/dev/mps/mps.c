@@ -139,7 +139,7 @@ typedef union {
 /* Rate limit chain-fail messages to 1 per minute */
 static struct timeval mps_chainfail_interval = { 60, 0 };
 
-/* 
+/*
  * sleep_flag can be either CAN_SLEEP or NO_SLEEP.
  * If this function is called from process context, it can sleep
  * and there is no harm to sleep, in case if this fuction is called
@@ -314,7 +314,7 @@ mps_transition_ready(struct mps_softc *sc)
 			error = ENXIO;
 			break;
 		}
-		
+
 		state = reg & MPI2_IOC_STATE_MASK;
 		if (state == MPI2_IOC_STATE_READY) {
 			/* Ready to go! */
@@ -367,7 +367,7 @@ mps_transition_operational(struct mps_softc *sc)
 	if (state != MPI2_IOC_STATE_READY) {
 		mps_dprint(sc, MPS_INIT, "IOC not ready\n");
 		if ((error = mps_transition_ready(sc)) != 0) {
-			mps_dprint(sc, MPS_INIT|MPS_FAULT, 
+			mps_dprint(sc, MPS_INIT|MPS_FAULT,
 			    "failed to transition ready, exit\n");
 			return (error);
 		}
@@ -492,8 +492,8 @@ mps_iocfacts_allocate(struct mps_softc *sc, uint8_t attaching)
 
 	MPS_DPRINT_PAGE(sc, MPS_XINFO, iocfacts, sc->facts);
 
-	snprintf(sc->fw_version, sizeof(sc->fw_version), 
-	    "%02d.%02d.%02d.%02d", 
+	snprintf(sc->fw_version, sizeof(sc->fw_version),
+	    "%02d.%02d.%02d.%02d",
 	    sc->facts->FWVersion.Struct.Major,
 	    sc->facts->FWVersion.Struct.Minor,
 	    sc->facts->FWVersion.Struct.Unit,
@@ -501,7 +501,7 @@ mps_iocfacts_allocate(struct mps_softc *sc, uint8_t attaching)
 
 	snprintf(sc->msg_version, sizeof(sc->msg_version), "%d.%d",
 	    (sc->facts->MsgVersion & MPI2_IOCFACTS_MSGVERSION_MAJOR_MASK) >>
-	    MPI2_IOCFACTS_MSGVERSION_MAJOR_SHIFT, 
+	    MPI2_IOCFACTS_MSGVERSION_MAJOR_SHIFT,
 	    (sc->facts->MsgVersion & MPI2_IOCFACTS_MSGVERSION_MINOR_MASK) >>
 	    MPI2_IOCFACTS_MSGVERSION_MINOR_SHIFT);
 
@@ -800,7 +800,7 @@ mps_iocfacts_free(struct mps_softc *sc)
 	sc->queues = NULL;
 }
 
-/* 
+/*
  * The terms diag reset and hard reset are used interchangeably in the MPI
  * docs to mean resetting the controller chip.  In this code diag reset
  * cleans everything up, and the hard reset function just sends the reset
@@ -891,7 +891,7 @@ mps_reinit(struct mps_softc *sc)
 	mps_reregister_events(sc);
 
 	/* the end of discovery will release the simq, so we're done. */
-	mps_dprint(sc, MPS_INIT|MPS_XINFO, "Finished sc %p post %u free %u\n", 
+	mps_dprint(sc, MPS_INIT|MPS_XINFO, "Finished sc %p post %u free %u\n",
 	    sc, sc->replypostindex, sc->replyfreeindex);
 
 	mpssas_release_simq_reinit(sassc);
@@ -900,7 +900,7 @@ mps_reinit(struct mps_softc *sc)
 	return 0;
 }
 
-/* Wait for the chip to ACK a word that we've put into its FIFO 
+/* Wait for the chip to ACK a word that we've put into its FIFO
  * Wait for <timeout> seconds. In single loop wait for busy loop
  * for 500 microseconds.
  * Total is [ 0.5 * (2000 * <timeout>) ] in miliseconds.
@@ -918,7 +918,7 @@ mps_wait_db_ack(struct mps_softc *sc, int timeout, int sleep_flag)
 	do {
 		int_status = mps_regread(sc, MPI2_HOST_INTERRUPT_STATUS_OFFSET);
 		if (!(int_status & MPI2_HIS_SYS2IOC_DB_STATUS)) {
-			mps_dprint(sc, MPS_TRACE, 
+			mps_dprint(sc, MPS_TRACE,
 			"%s: successful count(%d), timeout(%d)\n",
 			__func__, count, timeout);
 		return 0;
@@ -926,17 +926,17 @@ mps_wait_db_ack(struct mps_softc *sc, int timeout, int sleep_flag)
 			doorbell = mps_regread(sc, MPI2_DOORBELL_OFFSET);
 			if ((doorbell & MPI2_IOC_STATE_MASK) ==
 				MPI2_IOC_STATE_FAULT) {
-				mps_dprint(sc, MPS_FAULT, 
+				mps_dprint(sc, MPS_FAULT,
 					"fault_state(0x%04x)!\n", doorbell);
 				return (EFAULT);
 			}
 		} else if (int_status == 0xFFFFFFFF)
 			goto out;
 
-		/* If it can sleep, sleep for 1 milisecond, else busy loop for 
+		/* If it can sleep, sleep for 1 milisecond, else busy loop for
 		* 0.5 milisecond */
 		if (mtx_owned(&sc->mps_mtx) && sleep_flag == CAN_SLEEP)
-			msleep(&sc->msleep_fake_chan, &sc->mps_mtx, 0, 
+			msleep(&sc->msleep_fake_chan, &sc->mps_mtx, 0,
 			"mpsdba", hz/1000);
 		else if (sleep_flag == CAN_SLEEP)
 			pause("mpsdba", hz/1000);
@@ -1345,7 +1345,7 @@ mps_alloc_replies(struct mps_softc *sc)
 	 */
 	num_replies = max(sc->fqdepth, sc->num_replies);
 
-	rsize = sc->replyframesz * num_replies; 
+	rsize = sc->replyframesz * num_replies;
 	bus_dma_template_init(&t, sc->mps_parent_dmat);
 	BUS_DMA_TEMPLATE_FILL(&t, BD_ALIGNMENT(4), BD_MAXSIZE(rsize),
 	    BD_MAXSEGSIZE(rsize), BD_NSEGMENTS(1),
@@ -2346,7 +2346,7 @@ mps_intr_locked(void *data)
 
 	pq = sc->replypostindex;
 	mps_dprint(sc, MPS_TRACE,
-	    "%s sc %p starting with replypostindex %u\n", 
+	    "%s sc %p starting with replypostindex %u\n",
 	    __func__, sc, sc->replypostindex);
 
 	for ( ;; ) {
@@ -2483,7 +2483,7 @@ mps_intr_locked(void *data)
 			cm = NULL;
 			break;
 		}
-		
+
 
 		if (cm != NULL) {
 			// Print Error reply frame
@@ -2579,9 +2579,9 @@ mps_update_events(struct mps_softc *sc, struct mps_event_handle *handle,
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
 
 	if ((mask != NULL) && (handle != NULL))
-		bcopy(mask, &handle->mask[0], sizeof(u32) * 
+		bcopy(mask, &handle->mask[0], sizeof(u32) *
 				MPI2_EVENT_NOTIFY_EVENTMASK_WORDS);
-    
+
 	for (i = 0; i < MPI2_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
 		sc->event_mask[i] = -1;
 
@@ -2598,7 +2598,7 @@ mps_update_events(struct mps_softc *sc, struct mps_event_handle *handle,
 	{
 		u_char fullmask[16];
 		memset(fullmask, 0x00, 16);
-		bcopy(fullmask, &evtreq->EventMasks[0], sizeof(u32) * 
+		bcopy(fullmask, &evtreq->EventMasks[0], sizeof(u32) *
 				MPI2_EVENT_NOTIFY_EVENTMASK_WORDS);
 	}
 #else
@@ -2712,10 +2712,10 @@ mps_add_chain(struct mps_command *cm)
 	sgc = (MPI2_SGE_CHAIN32 *)&cm->cm_sge->MpiChain;
 	sgc->Length = htole16(space);
 	sgc->NextChainOffset = 0;
-	/* TODO Looks like bug in Setting sgc->Flags. 
+	/* TODO Looks like bug in Setting sgc->Flags.
 	 *	sgc->Flags = ( MPI2_SGE_FLAGS_CHAIN_ELEMENT | MPI2_SGE_FLAGS_64_BIT_ADDRESSING |
 	 *	            MPI2_SGE_FLAGS_SYSTEM_ADDRESS) << MPI2_SGE_FLAGS_SHIFT
-	 *	This is fine.. because we are not using simple element. In case of 
+	 *	This is fine.. because we are not using simple element. In case of
 	 *	MPI2_SGE_CHAIN32, we have separate Length and Flags feild.
  	 */
 	sgc->Flags = MPI2_SGE_FLAGS_CHAIN_ELEMENT;
@@ -3016,7 +3016,7 @@ mps_map_command(struct mps_softc *sc, struct mps_command *cm)
 		/* Add a zero-length element as needed */
 		if (cm->cm_sge != NULL)
 			mps_add_dmaseg(cm, 0, 0, 0, 1);
-		mps_enqueue_request(sc, cm);	
+		mps_enqueue_request(sc, cm);
 	}
 
 	return (error);
@@ -3035,7 +3035,7 @@ mps_wait_command(struct mps_softc *sc, struct mps_command **cmp, int timeout,
 	struct timeval cur_time, start_time;
 	struct mps_command *cm = *cmp;
 
-	if (sc->mps_flags & MPS_FLAGS_DIAGRESET) 
+	if (sc->mps_flags & MPS_FLAGS_DIAGRESET)
 		return  EBUSY;
 
 	cm->cm_complete = NULL;
@@ -3070,7 +3070,7 @@ mps_wait_command(struct mps_softc *sc, struct mps_command **cmp, int timeout,
 				pause("mpswait", hz/20);
 			else
 				DELAY(50000);
-		
+
 			getmicrouptime(&cur_time);
 			timevalsub(&cur_time, &start_time);
 			if (cur_time.tv_sec > timeout) {

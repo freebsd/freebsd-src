@@ -47,7 +47,7 @@ void		ar5212SetDeltaSlope(struct ath_hal *,
 		    const struct ieee80211_channel *);
 HAL_BOOL	ar5212SetTransmitPower(struct ath_hal *ah,
 		   const struct ieee80211_channel *chan, uint16_t *rfXpdGain);
-static HAL_BOOL ar5212SetRateTable(struct ath_hal *, 
+static HAL_BOOL ar5212SetRateTable(struct ath_hal *,
 		   const struct ieee80211_channel *, int16_t tpcScaleReduction,
 		   int16_t powerLimit,
 		   HAL_BOOL commit, int16_t *minPower, int16_t *maxPower);
@@ -241,7 +241,7 @@ ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		saveDefAntenna = 1;
 
 	/* Save hardware flag before chip reset clears the register */
-	macStaId1 = OS_REG_READ(ah, AR_STA_ID1) & 
+	macStaId1 = OS_REG_READ(ah, AR_STA_ID1) &
 		(AR_STA_ID1_BASE_RATE_11B | AR_STA_ID1_USE_DEFANT);
 
 	/* Save led state from pci config register */
@@ -468,11 +468,11 @@ ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	/* Set Tx frame start to tx data start delay */
 	if (IS_RAD5112_ANY(ah) &&
 	    (IEEE80211_IS_CHAN_HALF(chan) || IEEE80211_IS_CHAN_QUARTER(chan))) {
-		txFrm2TxDStart = 
+		txFrm2TxDStart =
 			IEEE80211_IS_CHAN_HALF(chan) ?
 					TX_FRAME_D_START_HALF_RATE:
 					TX_FRAME_D_START_QUARTER_RATE;
-		OS_REG_RMW_FIELD(ah, AR_PHY_TX_CTL, 
+		OS_REG_RMW_FIELD(ah, AR_PHY_TX_CTL,
 			AR_PHY_TX_FRAME_TO_TX_DATA_START, txFrm2TxDStart);
 	}
 
@@ -507,7 +507,7 @@ ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	/* Activate the PHY (includes baseband activate and synthesizer on) */
 	OS_REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
 
-	/* 
+	/*
 	 * There is an issue if the AP starts the calibration before
 	 * the base band timeout completes.  This could result in the
 	 * rx_clear false triggering.  As a workaround we add delay an
@@ -542,7 +542,7 @@ ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	if (!IEEE80211_IS_CHAN_B(chan) && ahp->ah_bIQCalibration != IQ_CAL_DONE) {
 		/* Start IQ calibration w/ 2^(INIT_IQCAL_LOG_COUNT_MAX+1) samples */
-		OS_REG_RMW_FIELD(ah, AR_PHY_TIMING_CTRL4, 
+		OS_REG_RMW_FIELD(ah, AR_PHY_TIMING_CTRL4,
 			AR_PHY_TIMING_CTRL4_IQCAL_LOG_COUNT_MAX,
 			INIT_IQCAL_LOG_COUNT_MAX);
 		OS_REG_SET_BIT(ah, AR_PHY_TIMING_CTRL4,
@@ -686,7 +686,7 @@ ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 #if 0
 done:
 #endif
-	if (bChannelChange && !IEEE80211_IS_CHAN_DFS(chan)) 
+	if (bChannelChange && !IEEE80211_IS_CHAN_DFS(chan))
 		chan->ic_state &= ~IEEE80211_CHANSTATE_CWINT;
 
 	HALDEBUG(ah, HAL_DEBUG_RESET, "%s: done\n", __func__);
@@ -856,7 +856,7 @@ ar5212Disable(struct ath_hal *ah)
  * Places the hardware into reset and then pulls it out of reset
  *
  * TODO: Only write the PLL if we're changing to or from CCK mode
- * 
+ *
  * WARNING: The order of the PLL and mode registers must be correct.
  */
 HAL_BOOL
@@ -1060,7 +1060,7 @@ ar5212PerCalibrationN(struct ath_hal *ah,
 				AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF, iCoff);
 			OS_REG_RMW_FIELD(ah, AR_PHY_TIMING_CTRL4,
 				AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF, qCoff);
-			OS_REG_SET_BIT(ah, AR_PHY_TIMING_CTRL4, 
+			OS_REG_SET_BIT(ah, AR_PHY_TIMING_CTRL4,
 				AR_PHY_TIMING_CTRL4_IQCORR_ENABLE);
 
 			ahp->ah_bIQCalibration = IQ_CAL_DONE;
@@ -1338,13 +1338,13 @@ getNoiseFloorThresh(struct ath_hal *ah, const struct ieee80211_channel *chan,
 /*
  * Setup the noise floor cal history buffer.
  */
-void 
+void
 ar5212InitNfCalHistBuffer(struct ath_hal *ah)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	int i;
 
-	ahp->ah_nfCalHist.first_run = 1;	
+	ahp->ah_nfCalHist.first_run = 1;
 	ahp->ah_nfCalHist.currIndex = 0;
 	ahp->ah_nfCalHist.privNF = AR5212_CCA_MAX_GOOD_VALUE;
 	ahp->ah_nfCalHist.invalidNFcount = AR512_NF_CAL_HIST_MAX;
@@ -1361,12 +1361,12 @@ updateNFHistBuff(struct ar5212NfCalHist *h, int16_t nf)
  	h->nfCalBuffer[h->currIndex] = nf;
      	if (++h->currIndex >= AR512_NF_CAL_HIST_MAX)
 		h->currIndex = 0;
-}	
+}
 
 /*
  * Return the median noise floor value in the ring buffer.
  */
-int16_t 
+int16_t
 ar5212GetNfHistMid(const int16_t calData[AR512_NF_CAL_HIST_MAX])
 {
 	int16_t sort[AR512_NF_CAL_HIST_MAX];
@@ -1544,7 +1544,7 @@ ar5212SetAntennaSwitchInternal(struct ath_hal *ah, HAL_ANT_SETTING settings,
 
 	antSwitchA =  ee->ee_antennaControl[1][ix]
 		   | (ee->ee_antennaControl[2][ix] << 6)
-		   | (ee->ee_antennaControl[3][ix] << 12) 
+		   | (ee->ee_antennaControl[3][ix] << 12)
 		   | (ee->ee_antennaControl[4][ix] << 18)
 		   | (ee->ee_antennaControl[5][ix] << 24)
 		   ;
@@ -1574,13 +1574,13 @@ ar5212SetAntennaSwitchInternal(struct ath_hal *ah, HAL_ANT_SETTING settings,
 	if (antSwitchB == antSwitchA) {
 		HALDEBUG(ah, HAL_DEBUG_RFPARAM,
 		    "%s: Setting fast diversity off.\n", __func__);
-		OS_REG_CLR_BIT(ah,AR_PHY_CCK_DETECT, 
+		OS_REG_CLR_BIT(ah,AR_PHY_CCK_DETECT,
 			       AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
 		ahp->ah_diversity = AH_FALSE;
 	} else {
 		HALDEBUG(ah, HAL_DEBUG_RFPARAM,
 		    "%s: Setting fast diversity on.\n", __func__);
-		OS_REG_SET_BIT(ah,AR_PHY_CCK_DETECT, 
+		OS_REG_SET_BIT(ah,AR_PHY_CCK_DETECT,
 			       AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
 		ahp->ah_diversity = AH_TRUE;
 	}
@@ -1675,7 +1675,7 @@ ar5212SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		rxtxMargin = ee->ee_rxtxMargin[is2GHz];
 	}
 
-	OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING, 
+	OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING,
 			 AR_PHY_SETTLING_SWITCH, switchSettling);
 	OS_REG_RMW_FIELD(ah, AR_PHY_DESIRED_SZ,
 			 AR_PHY_DESIRED_SZ_ADC, adcDesiredSize);
@@ -1896,10 +1896,10 @@ ar5212SetSpurMitigation(struct ath_hal *ah,
 		OS_REG_RMW_FIELD(ah, AR_PHY_MASK_CTL, AR_PHY_MASK_CTL_RATE, 0xFF);
 		val = OS_REG_READ(ah, AR_PHY_TIMING_CTRL4);
 		val |= (AR_PHY_TIMING_CTRL4_ENABLE_SPUR_FILTER |
-			AR_PHY_TIMING_CTRL4_ENABLE_CHAN_MASK | 
+			AR_PHY_TIMING_CTRL4_ENABLE_CHAN_MASK |
 			AR_PHY_TIMING_CTRL4_ENABLE_PILOT_MASK);
 		OS_REG_WRITE(ah, AR_PHY_TIMING_CTRL4, val);
-		OS_REG_WRITE(ah, AR_PHY_TIMING11, AR_PHY_TIMING11_USE_SPUR_IN_AGC |		
+		OS_REG_WRITE(ah, AR_PHY_TIMING11, AR_PHY_TIMING11_USE_SPUR_IN_AGC |
 			     SM(spurFreqSd, AR_PHY_TIMING11_SPUR_FREQ_SD) |
 			     SM(spurDeltaPhase, AR_PHY_TIMING11_SPUR_DELTA_PHASE));
 
@@ -1938,21 +1938,21 @@ ar5212SetDeltaSlope(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	if (IEEE80211_IS_CHAN_TURBO(chan))
 		clockMhzScaled *= 2;
 	/* half and quarter rate can divide the scaled clock by 2 or 4 respectively */
-	/* scale for selected channel bandwidth */ 
+	/* scale for selected channel bandwidth */
 	if (IEEE80211_IS_CHAN_HALF(chan)) {
 		clockMhzScaled = clockMhzScaled >> 1;
 	} else if (IEEE80211_IS_CHAN_QUARTER(chan)) {
 		clockMhzScaled = clockMhzScaled >> 2;
-	} 
+	}
 
 	/*
 	 * ALGO -> coef = 1e8/fcarrier*fclock/40;
-	 * scaled coef to provide precision for this floating calculation 
+	 * scaled coef to provide precision for this floating calculation
 	 */
 	coef_scaled = clockMhzScaled / freq;
 
 	/*
-	 * ALGO -> coef_exp = 14-floor(log2(coef)); 
+	 * ALGO -> coef_exp = 14-floor(log2(coef));
 	 * floor(log2(x)) is the highest set bit position
 	 */
 	for (coef_exp = 31; coef_exp > 0; coef_exp--)
@@ -2039,24 +2039,24 @@ ar5212SetTransmitPower(struct ath_hal *ah,
 		return AH_FALSE;
 	}
 
-	/* 
+	/*
 	 * Adjust XR power/rate up by 2 dB to account for greater peak
 	 * to avg ratio - except in newer avg power designs
 	 */
 	if (!IS_2413(ah) && !IS_5413(ah))
 		ahp->ah_ratesArray[15] += 4;
-	/* 
+	/*
 	 * txPowerIndexOffset is set by the SetPowerTable() call -
-	 *  adjust the rate table 
+	 *  adjust the rate table
 	 */
 	for (i = 0; i < N(ahp->ah_ratesArray); i++) {
 		ahp->ah_ratesArray[i] += ahp->ah_txPowerIndexOffset;
-		if (ahp->ah_ratesArray[i] > 63) 
+		if (ahp->ah_ratesArray[i] > 63)
 			ahp->ah_ratesArray[i] = 63;
 	}
 
 	if (ee->ee_eepMap < 2) {
-		/* 
+		/*
 		 * Correct gain deltas for 5212 G operation -
 		 * Removed with revised chipset
 		 */
@@ -2064,16 +2064,16 @@ ar5212SetTransmitPower(struct ath_hal *ah,
 		    IEEE80211_IS_CHAN_G(chan)) {
 			uint16_t cckOfdmPwrDelta;
 
-			if (freq == 2484) 
+			if (freq == 2484)
 				cckOfdmPwrDelta = SCALE_OC_DELTA(
-					ee->ee_cckOfdmPwrDelta - 
+					ee->ee_cckOfdmPwrDelta -
 					ee->ee_scaledCh14FilterCckDelta);
-			else 
+			else
 				cckOfdmPwrDelta = SCALE_OC_DELTA(
 					ee->ee_cckOfdmPwrDelta);
 			ar5212CorrectGainDelta(ah, cckOfdmPwrDelta);
 		}
-		/* 
+		/*
 		 * Finally, write the power values into the
 		 * baseband power table
 		 */
@@ -2086,13 +2086,13 @@ ar5212SetTransmitPower(struct ath_hal *ah,
 	}
 
 	/* Write the OFDM power per rate set */
-	OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE1, 
+	OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE1,
 		POW_OFDM(ahp->ah_ratesArray[3], 24)
 	      | POW_OFDM(ahp->ah_ratesArray[2], 16)
 	      | POW_OFDM(ahp->ah_ratesArray[1],  8)
 	      | POW_OFDM(ahp->ah_ratesArray[0],  0)
 	);
-	OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE2, 
+	OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE2,
 		POW_OFDM(ahp->ah_ratesArray[7], 24)
 	      | POW_OFDM(ahp->ah_ratesArray[6], 16)
 	      | POW_OFDM(ahp->ah_ratesArray[5],  8)
@@ -2214,7 +2214,7 @@ ar5212SetRateTable(struct ath_hal *ah, const struct ieee80211_channel *chan,
 
 	if (IEEE80211_IS_CHAN_OFDM(chan)) {
 		/* Get final OFDM target powers */
-		if (IEEE80211_IS_CHAN_2GHZ(chan)) { 
+		if (IEEE80211_IS_CHAN_2GHZ(chan)) {
 			ar5212GetTargetPowers(ah, chan, ee->ee_trgtPwr_11g,
 				ee->ee_numTargetPwr_11g, &targetPowerOfdm);
 		} else {
@@ -2470,7 +2470,7 @@ ar5212CorrectGainDelta(struct ath_hal *ah, int twiceOfdmCckDelta)
 		if (cckIndex < 0)
 			cckIndex = 0;
 
-		/* 
+		/*
 		 * Validate that the indexes for the powv are not
 		 * out of bounds.
 		 */
@@ -2513,9 +2513,9 @@ ar5212GetMaxEdgePower(uint16_t channel, const RD_EDGES_POWER *pRdEdgesPower)
 	HALASSERT(i != numEdges);
 
 	if ((clo == chi && clo == channel) || (pRdEdgesPower[i].flag)) {
-		/* 
+		/*
 		 * If there's an exact channel match or an inband flag set
-		 * on the lower channel use the given rdEdgePower 
+		 * on the lower channel use the given rdEdgePower
 		 */
 		twiceMaxEdgePower = pRdEdgesPower[i].twice_rdEdgePower;
 		HALASSERT(twiceMaxEdgePower > 0);
@@ -2561,7 +2561,7 @@ interpolate(uint16_t target, uint16_t srcLeft, uint16_t srcRight,
 }
 
 /*
- * Return the four rates of target power for the given target power table 
+ * Return the four rates of target power for the given target power table
  * channel, and number of channels
  */
 static void
@@ -2764,10 +2764,10 @@ ar5212SetRateDurationTable(struct ath_hal *ah,
 }
 
 /* Adjust various register settings based on half/quarter rate clock setting.
- * This includes: +USEC, TX/RX latency, 
+ * This includes: +USEC, TX/RX latency,
  *                + IFS params: slot, eifs, misc etc.
  */
-void 
+void
 ar5212SetIFSTiming(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	uint32_t txLat, rxLat, usec, slot, refClock, eifs, init_usec;

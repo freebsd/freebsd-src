@@ -174,7 +174,7 @@ mxge_probe(device_t dev)
 			device_set_desc(dev, "Myri10G-PCIE-8??");
 			device_printf(dev, "Unrecognized rev %d NIC\n",
 				      rev);
-			break;	
+			break;
 		}
 		return 0;
 	}
@@ -197,7 +197,7 @@ mxge_enable_wc(mxge_softc_t *sc)
 			      err);
 		sc->wc = 0;
 	}
-#endif		
+#endif
 }
 
 /* callback to get our DMA address */
@@ -387,7 +387,7 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 	   the hacky pmap_mapdev() way of accessing config space when
 	   FreeBSD grows support for extended pcie config space access
 	*/
-#if 0	
+#if 0
 	/* See if we can, by some miracle, access the extended
 	   config space */
 	val = pci_read_config(pdev, 0x178, 4);
@@ -415,7 +415,7 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 		      PCI_IVAR_VENDOR, &ivend);
 	BUS_READ_IVAR(device_get_parent(pdev), pdev,
 		      PCI_IVAR_DEVICE, &idev);
-					
+
 	off =  base
 		+ 0x00100000UL * (unsigned long)bus
 		+ 0x00001000UL * (unsigned long)(func
@@ -1014,7 +1014,7 @@ mxge_load_firmware(mxge_softc_t *sc, int adopt)
 	if (*confirm != 0xffffffff) {
 		device_printf(sc->dev,"handoff failed (%p = 0x%x)",
 			confirm, *confirm);
-		
+
 		return ENXIO;
 	}
 	return 0;
@@ -1038,7 +1038,7 @@ mxge_update_mac_address(mxge_softc_t *sc)
 
 static int
 mxge_change_pause(mxge_softc_t *sc, int pause)
-{	
+{
 	mxge_cmd_t cmd;
 	int status;
 
@@ -1059,7 +1059,7 @@ mxge_change_pause(mxge_softc_t *sc, int pause)
 
 static void
 mxge_change_promisc(mxge_softc_t *sc, int promisc)
-{	
+{
 	mxge_cmd_t cmd;
 	int status;
 
@@ -1342,7 +1342,7 @@ mxge_change_throttle(SYSCTL_HANDLER_ARGS)
 	err = mxge_send_cmd(sc, MXGEFW_CMD_SET_THROTTLE_FACTOR, &cmd);
 	if (err == 0)
 		sc->throttle = throttle;
-	mtx_unlock(&sc->driver_mtx);	
+	mtx_unlock(&sc->driver_mtx);
 	return err;
 }
 
@@ -1929,7 +1929,7 @@ mxge_encap_tso(struct mxge_slice_state *ss, struct mbuf *m,
 					MXGEFW_FLAGS_FIRST |
 					(small * MXGEFW_FLAGS_SMALL);
 			    }
-			
+
 			req->addr_high = high_swapped;
 			req->addr_low = htobe32(low);
 			req->pseudo_hdr_offset = pseudo_hdr_offset;
@@ -2341,7 +2341,7 @@ mxge_start(struct ifnet *ifp)
 	ss = &sc->ss[0];
 	mtx_lock(&ss->tx.mtx);
 	mxge_start_locked(ss);
-	mtx_unlock(&ss->tx.mtx);		
+	mtx_unlock(&ss->tx.mtx);
 }
 
 /*
@@ -2582,7 +2582,7 @@ mxge_vlan_tag_remove(struct mbuf *m, uint32_t *csum)
 	*csum = htons(*csum);
 
 	/* save the tag */
-#ifdef MXGE_NEW_VLAN_API	
+#ifdef MXGE_NEW_VLAN_API
 	m->m_pkthdr.ether_vtag = ntohs(evl->evl_tag);
 #else
 	{
@@ -2993,7 +2993,7 @@ mxge_media_probe(mxge_softc_t *sc)
 			      cage_type, err, ms);
 		return;
 	}
-		
+
 	if (cmd.data0 == mxge_media_types[0].bitmask) {
 		if (mxge_verbose)
 			device_printf(sc->dev, "%s:%s\n", cage_type,
@@ -3722,7 +3722,7 @@ mxge_close(mxge_softc_t *sc, int down)
 	mxge_cmd_t cmd;
 	int err, old_down_cnt;
 #ifdef IFNET_BUF_RING
-	struct mxge_slice_state *ss;	
+	struct mxge_slice_state *ss;
 	int slice;
 #endif
 
@@ -3943,7 +3943,7 @@ mxge_watchdog(mxge_softc_t *sc)
 	     (i < 1) && (err == 0);
 #endif
 	     i++) {
-		tx = &sc->ss[i].tx;		
+		tx = &sc->ss[i].tx;
 		if (tx->req != tx->done &&
 		    tx->watchdog_req != tx->watchdog_done &&
 		    tx->done == tx->watchdog_done) {
@@ -4029,7 +4029,7 @@ mxge_tick(void *arg)
 	}
 	if (pkts == 0) {
 		/* ensure NIC did not suffer h/w fault while idle */
-		cmd = pci_read_config(sc->dev, PCIR_COMMAND, 2);		
+		cmd = pci_read_config(sc->dev, PCIR_COMMAND, 2);
 		if ((cmd & PCIM_CMD_BUSMASTEREN) == 0) {
 			sc->dying = 2;
 			taskqueue_enqueue(sc->tq, &sc->watchdog_task);
@@ -4074,7 +4074,7 @@ mxge_change_mtu(mxge_softc_t *sc, int mtu)
 	}
 	mtx_unlock(&sc->driver_mtx);
 	return err;
-}	
+}
 
 static void
 mxge_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
@@ -4306,15 +4306,15 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 	TUNABLE_INT_FETCH("hw.mxge.flow_control_enabled",
 			  &mxge_flow_control);
 	TUNABLE_INT_FETCH("hw.mxge.intr_coal_delay",
-			  &mxge_intr_coal_delay);	
+			  &mxge_intr_coal_delay);
 	TUNABLE_INT_FETCH("hw.mxge.nvidia_ecrc_enable",
-			  &mxge_nvidia_ecrc_enable);	
+			  &mxge_nvidia_ecrc_enable);
 	TUNABLE_INT_FETCH("hw.mxge.force_firmware",
-			  &mxge_force_firmware);	
+			  &mxge_force_firmware);
 	TUNABLE_INT_FETCH("hw.mxge.deassert_wait",
-			  &mxge_deassert_wait);	
+			  &mxge_deassert_wait);
 	TUNABLE_INT_FETCH("hw.mxge.verbose",
-			  &mxge_verbose);	
+			  &mxge_verbose);
 	TUNABLE_INT_FETCH("hw.mxge.ticks", &mxge_ticks);
 	TUNABLE_INT_FETCH("hw.mxge.always_promisc", &mxge_always_promisc);
 	TUNABLE_INT_FETCH("hw.mxge.rss_hash_type", &mxge_rss_hash_type);
@@ -4401,7 +4401,7 @@ mxge_alloc_slices(mxge_softc_t *sc)
 		ss->sc = sc;
 
 		/* allocate per-slice rx interrupt queues */
-		
+
 		bytes = max_intr_slots * sizeof (*ss->rx_done.entry);
 		err = mxge_dma_alloc(sc, &ss->rx_done.dma, bytes, 4096);
 		if (err != 0)

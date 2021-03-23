@@ -31,7 +31,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -93,7 +93,7 @@ enum {
 
 /**
  * Constants defining fine grained ordering within a BHND_PROBE_* priority band.
- * 
+ *
  * Example:
  * @code
  * BHND_PROBE_BUS + BHND_PROBE_ORDER_FIRST
@@ -130,7 +130,7 @@ enum {
  */
 enum {
 	BHND_IOST_BIST_DONE	= 0x8000,	/**< Set upon BIST completion (see BHND_IOCTL_BIST), and cleared
-						     if 0 is written to BHND_IOCTL_BIST. */ 
+						     if 0 is written to BHND_IOCTL_BIST. */
 	BHND_IOST_BIST_FAIL	= 0x4000,	/**< Set upon detection of a BIST error; the value is unspecified
 						     if BIST has not completed and BHND_IOST_BIST_DONE is not set. */
 	BHND_IOST_CLK		= 0x2000,	/**< Set if the core has requested that gated clocks be enabled, or
@@ -208,7 +208,7 @@ struct bhnd_board_info {
 
 /**
  * Chip Identification
- * 
+ *
  * This is read from the ChipCommon ID register; on earlier bhnd(4) devices
  * where ChipCommon is unavailable, known values must be supplied.
  */
@@ -271,7 +271,7 @@ typedef enum {
 struct bhnd_dma_translation {
 	/**
 	 * Host-to-device physical address translation.
-	 * 
+	 *
 	 * This may be added to the host physical address to produce a device
 	 * DMA address.
 	 */
@@ -279,7 +279,7 @@ struct bhnd_dma_translation {
 
 	/**
 	 * Device-addressable address mask.
-	 * 
+	 *
 	 * This defines the device's DMA address range, excluding any bits
 	 * reserved for mapping the address to the base_addr.
 	 */
@@ -317,7 +317,7 @@ struct bhnd_dma_translation {
 enum bhnd_dma_translation_flags {
 	/**
 	 * The translation remaps the device's physical address space.
-	 * 
+	 *
 	 * This is used in conjunction with BHND_DMA_TRANSLATION_BYTESWAPPED to
 	 * define a DMA translation that provides byteswapped access to
 	 * physical memory on big-endian MIPS SoCs.
@@ -332,12 +332,12 @@ enum bhnd_dma_translation_flags {
 	 * This is primarily used to perform efficient byte swapping of DMA
 	 * data on embedded MIPS SoCs executing in big-endian mode.
 	 */
-	BHND_DMA_TRANSLATION_BYTESWAPPED	= (1<<1),	
+	BHND_DMA_TRANSLATION_BYTESWAPPED	= (1<<1),
 };
 
 /**
 * A bhnd(4) bus resource.
-* 
+*
 * This provides an abstract interface to per-core resources that may require
 * bus-level remapping of address windows prior to access.
 */
@@ -390,7 +390,7 @@ enum {
 
 /** Device probe table descriptor */
 struct bhnd_device {
-	const struct bhnd_device_match	 core;		/**< core match descriptor */ 
+	const struct bhnd_device_match	 core;		/**< core match descriptor */
 	const char			*desc;		/**< device description, or NULL. */
 	const struct bhnd_device_quirk	*quirks_table;	/**< quirks table for this device, or NULL */
 	uint32_t			 device_flags;	/**< required BHND_DF_* flags */
@@ -708,7 +708,7 @@ bhnd_deregister_provider(device_t dev, bhnd_service_t service)
  * BHND_BUS_RELEASE_PROVIDER().
  *
  * @retval device_t	success
- * @retval NULL		if no provider is registered for @p service. 
+ * @retval NULL		if no provider is registered for @p service.
  */
 static inline device_t
 bhnd_retain_provider(device_t dev, bhnd_service_t service)
@@ -780,7 +780,7 @@ bhnd_read_ioctl(device_t dev, uint16_t *ioctl)
 /**
  * Write @p value and @p mask to a bhnd(4) device's per-core I/O control
  * register.
- * 
+ *
  * @param dev The bhnd bus child device for which the IOCTL register will be
  * written.
  * @param value The value to be written (see BHND_IOCTL_*).
@@ -819,7 +819,7 @@ bhnd_read_iost(device_t dev, uint16_t *iost)
 /**
  * Return true if the given bhnd device's hardware is currently held
  * in a RESET state or otherwise not clocked (BHND_IOCTL_CLK_EN).
- * 
+ *
  * @param dev The device to query.
  *
  * @retval true If @p dev is held in RESET or not clocked (BHND_IOCTL_CLK_EN),
@@ -836,7 +836,7 @@ bhnd_is_hw_suspended(device_t dev)
  * Place the bhnd(4) device's hardware into a low-power RESET state with
  * the @p reset_ioctl I/O control flags set, and then bring the hardware out of
  * RESET with the @p ioctl I/O control flags set.
- * 
+ *
  * Any clock or resource PMU requests previously made by @p child will be
  * invalidated.
  *
@@ -945,7 +945,7 @@ bhnd_read_board_info(device_t dev, struct bhnd_board_info *info)
 
 /**
  * Return the number of interrupt lines assigned to @p dev.
- * 
+ *
  * @param dev A bhnd bus child device.
  */
 static inline u_int
@@ -956,7 +956,7 @@ bhnd_get_intr_count(device_t dev)
 
 /**
  * Get the backplane interrupt vector of the @p intr line attached to @p dev.
- * 
+ *
  * @param dev A bhnd bus child device.
  * @param intr The index of the interrupt line being queried.
  * @param[out] ivec On success, the assigned hardware interrupt vector will be
@@ -982,10 +982,10 @@ bhnd_get_intr_ivec(device_t dev, u_int intr, u_int *ivec)
 /**
  * Map the given @p intr to an IRQ number; until unmapped, this IRQ may be used
  * to allocate a resource of type SYS_RES_IRQ.
- * 
+ *
  * On success, the caller assumes ownership of the interrupt mapping, and
  * is responsible for releasing the mapping via bhnd_unmap_intr().
- * 
+ *
  * @param dev The requesting device.
  * @param intr The interrupt being mapped.
  * @param[out] irq On success, the bus interrupt value mapped for @p intr.
@@ -1002,7 +1002,7 @@ bhnd_map_intr(device_t dev, u_int intr, rman_res_t *irq)
 
 /**
  * Unmap an bus interrupt previously mapped via bhnd_map_intr().
- * 
+ *
  * @param dev The requesting device.
  * @param irq The interrupt value being unmapped.
  */
@@ -1021,7 +1021,7 @@ bhnd_unmap_intr(device_t dev, rman_res_t irq)
  * calling bhnd_release_pmu().
  *
  * @param dev The requesting bhnd device.
- * 
+ *
  * @retval 0           success
  * @retval non-zero    If allocating PMU request state otherwise fails, a
  *                     regular unix error code will be returned.
@@ -1037,7 +1037,7 @@ bhnd_alloc_pmu(device_t dev)
  * PMU requests are are discarded.
  *
  * @param dev The requesting bhnd device.
- * 
+ *
  * @retval 0           success
  * @retval non-zero    If releasing PMU request state otherwise fails, a
  *                     regular unix error code will be returned, and
@@ -1054,7 +1054,7 @@ bhnd_release_pmu(device_t dev)
  * known.
  *
  * The BHND_CLOCK_HT latency value is suitable for use as the D11 core's
- * 'fastpwrup_dly' value. 
+ * 'fastpwrup_dly' value.
  *
  * @note A driver must ask the bhnd bus to allocate PMU request state
  * via BHND_BUS_ALLOC_PMU() before querying PMU clocks.
@@ -1063,7 +1063,7 @@ bhnd_release_pmu(device_t dev)
  * @param clock	The clock to be queried for transition latency.
  * @param[out] latency On success, the transition latency of @p clock in
  * microseconds.
- * 
+ *
  * @retval 0		success
  * @retval ENODEV	If the transition latency for @p clock is not available.
  */
@@ -1083,7 +1083,7 @@ bhnd_get_clock_latency(device_t dev, bhnd_clock clock, u_int *latency)
  *
  * @note A driver must ask the bhnd bus to allocate PMU request state
  * via BHND_BUS_ALLOC_PMU() before querying PMU clocks.
- * 
+ *
  * @retval 0		success
  * @retval ENODEV	If the frequency for @p clock is not available.
  */
@@ -1094,17 +1094,17 @@ bhnd_get_clock_freq(device_t dev, bhnd_clock clock, u_int *freq)
 	    freq));
 }
 
-/** 
+/**
  * Request that @p clock (or faster) be routed to @p dev.
- * 
+ *
  * @note A driver must ask the bhnd bus to allocate clock request state
  * via bhnd_alloc_pmu() before it can request clock resources.
- * 
+ *
  * @note Any outstanding PMU clock requests will be discarded upon calling
  * BHND_BUS_RESET_HW() or BHND_BUS_SUSPEND_HW().
  *
  * @param dev The bhnd(4) device to which @p clock should be routed.
- * @param clock The requested clock source. 
+ * @param clock The requested clock source.
  *
  * @retval 0 success
  * @retval ENODEV If an unsupported clock was requested.
@@ -1122,13 +1122,13 @@ bhnd_request_clock(device_t dev, bhnd_clock clock)
  * This will power any clock sources (e.g. XTAL, PLL, etc) required for
  * @p clocks and wait until they are ready, discarding any previous
  * requests by @p dev.
- * 
+ *
  * @note A driver must ask the bhnd bus to allocate clock request state
  * via bhnd_alloc_pmu() before it can request clock resources.
- * 
+ *
  * @note Any outstanding PMU clock requests will be discarded upon calling
  * BHND_BUS_RESET_HW() or BHND_BUS_SUSPEND_HW().
- * 
+ *
  * @param dev The requesting bhnd(4) device.
  * @param clocks The clock(s) to be enabled.
  *
@@ -1144,7 +1144,7 @@ bhnd_enable_clocks(device_t dev, uint32_t clocks)
 
 /**
  * Power up an external PMU-managed resource assigned to @p dev.
- * 
+ *
  * @note A driver must ask the bhnd bus to allocate PMU request state
  * via bhnd_alloc_pmu() before it can request PMU resources.
  *
@@ -1166,7 +1166,7 @@ bhnd_request_ext_rsrc(device_t dev, u_int rsrc)
 
 /**
  * Power down an external PMU-managed resource assigned to @p dev.
- * 
+ *
  * A driver must ask the bhnd bus to allocate PMU request state
  * via bhnd_alloc_pmu() before it can request PMU resources.
  *
@@ -1198,7 +1198,7 @@ bhnd_release_ext_rsrc(device_t dev, u_int rsrc)
  *
  * @note Device drivers should only use this API for functionality
  * that is not available via another bhnd(4) function.
- * 
+ *
  * @retval 0 success
  * @retval EINVAL If @p child is not a direct child of @p dev.
  * @retval EINVAL If @p width is not one of 1, 2, or 4 bytes.
@@ -1227,7 +1227,7 @@ bhnd_read_config(device_t dev, bus_size_t offset, void *value, u_int width)
  *
  * @note Device drivers should only use this API for functionality
  * that is not available via another bhnd(4) function.
- * 
+ *
  * @retval 0 success
  * @retval EINVAL If @p child is not a direct child of @p dev.
  * @retval EINVAL If @p width is not one of 1, 2, or 4 bytes.
@@ -1257,7 +1257,7 @@ bhnd_write_config(device_t dev, bus_size_t offset, const void *value,
  *				value.
  * @param		type	The desired data representation to be written
  *				to @p buf.
- * 
+ *
  * @retval 0		success
  * @retval ENOENT	The requested variable was not found.
  * @retval ENODEV	No valid NVRAM source could be found.
@@ -1278,7 +1278,7 @@ bhnd_nvram_getvar(device_t dev, const char *name, void *buf, size_t *len,
 
 /**
  * Allocate a resource from a device's parent bhnd(4) bus.
- * 
+ *
  * @param dev The device requesting resource ownership.
  * @param type The type of resource to allocate. This may be any type supported
  * by the standard bus APIs.
@@ -1288,11 +1288,11 @@ bhnd_nvram_getvar(device_t dev, const char *name, void *buf, size_t *len,
  * @param count The size of the resource.
  * @param flags The flags for the resource to be allocated. These may be any
  * values supported by the standard bus APIs.
- * 
+ *
  * To request the resource's default addresses, pass @p start and
  * @p end values of @c 0 and @c ~0, respectively, and
  * a @p count of @c 1.
- * 
+ *
  * @retval NULL The resource could not be allocated.
  * @retval resource The allocated resource.
  */
@@ -1307,14 +1307,14 @@ bhnd_alloc_resource(device_t dev, int type, int *rid, rman_res_t start,
 /**
  * Allocate a resource from a device's parent bhnd(4) bus, using the
  * resource's default start, end, and count values.
- * 
+ *
  * @param dev The device requesting resource ownership.
  * @param type The type of resource to allocate. This may be any type supported
  * by the standard bus APIs.
  * @param rid The bus-specific handle identifying the resource being allocated.
  * @param flags The flags for the resource to be allocated. These may be any
  * values supported by the standard bus APIs.
- * 
+ *
  * @retval NULL The resource could not be allocated.
  * @retval resource The allocated resource.
  */
@@ -1328,11 +1328,11 @@ bhnd_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
  * Activate a previously allocated bhnd resource.
  *
  * @param dev The device holding ownership of the allocated resource.
- * @param type The type of the resource. 
+ * @param type The type of the resource.
  * @param rid The bus-specific handle identifying the resource.
  * @param r A pointer to the resource returned by bhnd_alloc_resource or
  * BHND_BUS_ALLOC_RESOURCE.
- * 
+ *
  * @retval 0 success
  * @retval non-zero an error occurred while activating the resource.
  */
@@ -1348,11 +1348,11 @@ bhnd_activate_resource(device_t dev, int type, int rid,
  * Deactivate a previously activated bhnd resource.
  *
  * @param dev The device holding ownership of the activated resource.
- * @param type The type of the resource. 
+ * @param type The type of the resource.
  * @param rid The bus-specific handle identifying the resource.
  * @param r A pointer to the resource returned by bhnd_alloc_resource or
  * BHND_BUS_ALLOC_RESOURCE.
- * 
+ *
  * @retval 0 success
  * @retval non-zero an error occurred while activating the resource.
  */
@@ -1368,11 +1368,11 @@ bhnd_deactivate_resource(device_t dev, int type, int rid,
  * Free a resource allocated by bhnd_alloc_resource().
  *
  * @param dev The device holding ownership of the resource.
- * @param type The type of the resource. 
+ * @param type The type of the resource.
  * @param rid The bus-specific handle identifying the resource.
  * @param r A pointer to the resource returned by bhnd_alloc_resource or
  * BHND_ALLOC_RESOURCE.
- * 
+ *
  * @retval 0 success
  * @retval non-zero an error occurred while activating the resource.
  */
@@ -1433,7 +1433,7 @@ bhnd_get_region_count(device_t dev, bhnd_port_type type, u_int port) {
  * @param type The port type.
  * @param port The port identifier.
  * @param region The identifier of the memory region on @p port.
- * 
+ *
  * @retval int The RID for the given @p port and @p region on @p device.
  * @retval -1 No such port/region found.
  */

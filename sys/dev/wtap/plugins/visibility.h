@@ -41,7 +41,7 @@
 #define ARRAY_SIZE (32) //We support a maximum of 1024 nodes for now
 
 struct vis_map {
-	uint32_t map[ARRAY_SIZE]; 
+	uint32_t map[ARRAY_SIZE];
 };
 
 struct visibility_plugin {

@@ -2378,7 +2378,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index)
 
 	mtx_unlock(&sc->sc_bus.bus_mtx);
 
-	/* 
+	/*
 	 * This delay needs to be exactly 100us, else some USB devices
 	 * fail to attach!
 	 */

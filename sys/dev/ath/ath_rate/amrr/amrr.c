@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 
 #ifdef INET
-#include <netinet/in.h> 
+#include <netinet/in.h>
 #include <netinet/if_ether.h>
 #endif
 
@@ -203,7 +203,7 @@ ath_rate_update_rx_rssi(struct ath_softc *sc, struct ath_node *an, int rssi)
 {
 }
 
-static void 
+static void
 node_reset(struct amrr_node *amn)
 {
 	amn->amn_tx_try0_cnt = 0;
@@ -234,7 +234,7 @@ ath_rate_update(struct ath_softc *sc, struct ieee80211_node *ni, int rate)
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
 
 	IEEE80211_NOTE(vap, IEEE80211_MSG_RATECTL, ni,
-	    "%s: set xmit rate to %dM", __func__, 
+	    "%s: set xmit rate to %dM", __func__,
 	    ni->ni_rates.rs_nrates > 0 ?
 		(ni->ni_rates.rs_rates[rate] & IEEE80211_RATE_VAL) / 2 : 0);
 
@@ -354,7 +354,7 @@ ath_rate_ctl_start(struct ath_softc *sc, struct ieee80211_node *ni)
 #undef RATE
 }
 
-/* 
+/*
  * Examine and potentially adjust the transmit rate.
  */
 static void
@@ -372,7 +372,7 @@ ath_rate_ctl(void *arg, struct ieee80211_node *ni)
 (amn->amn_tx_try1_cnt > (amn->amn_tx_try0_cnt/3))
 
 	rix = amn->amn_rix;
-  
+
   	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
 	    "cnt0: %d cnt1: %d cnt2: %d cnt3: %d -- threshold: %d",
 	    amn->amn_tx_try0_cnt, amn->amn_tx_try1_cnt, amn->amn_tx_try2_cnt,

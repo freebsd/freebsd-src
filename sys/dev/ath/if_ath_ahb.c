@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ath.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/kernel.h>

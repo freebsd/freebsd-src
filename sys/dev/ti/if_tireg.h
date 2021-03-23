@@ -457,7 +457,7 @@
 #define TI_END_WRITE_REGS 0xc0000180    /* can't write GPRs currently */
 #define TI_BEG_REGS2    0xc0000200      /* beg of second writeable reg area */
 /* the EEPROM is byte addressable in a pretty odd way */
-#define EEPROM_BYTE_LOC 0xff000000      
+#define EEPROM_BYTE_LOC 0xff000000
 
 /*
  * From Alteon's tg.h.
@@ -500,7 +500,7 @@ ti_hostaddr64(ti_hostaddr *x, bus_addr_t addr)
 /*
  * Ring control block structure. The rules for the max_len field
  * are as follows:
- * 
+ *
  * For the send ring, max_len indicates the number of entries in the
  * ring (128, 256 or 512).
  *

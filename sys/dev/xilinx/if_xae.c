@@ -847,7 +847,7 @@ setup_xdma(struct xae_softc *sc)
 
 	dev = sc->dev;
 
-	/* Get xDMA controller */   
+	/* Get xDMA controller */
 	error = get_xdma_std(sc);
 
 	if (error) {

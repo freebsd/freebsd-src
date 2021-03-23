@@ -146,7 +146,7 @@ qla_init_hw_rcv_descriptors(qla_host_t *ha)
 {
 	int i;
 
-	for (i = 0; i < ha->hw.num_rds_rings; i++) 
+	for (i = 0; i < ha->hw.num_rds_rings; i++)
 		bzero((void *)ha->hw.dma_buf.rds_ring[i].dma_b,
 			(sizeof(q80_recv_desc_t) * NUM_RX_DESCRIPTORS));
 }
@@ -155,7 +155,7 @@ qla_init_hw_rcv_descriptors(qla_host_t *ha)
 
 #ifndef QLA_LOCK_NO_SLEEP
 #define QLA_LOCK_NO_SLEEP		0
-#endif 
+#endif
 
 static __inline int
 qla_lock(qla_host_t *ha, const char *str, uint32_t timeout_ms,

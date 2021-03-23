@@ -112,7 +112,7 @@
  * (not supported), a NULL key string is returned.
  */
 
- 
+
 /*
  * Registry value types.
  */

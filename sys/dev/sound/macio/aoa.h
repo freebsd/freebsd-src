@@ -37,7 +37,7 @@
 #endif
 
 struct aoa_softc {
-	device_t	 sc_dev;	 
+	device_t	 sc_dev;
 	void		*sc_intrp;
 	struct resource	*sc_odma;
 };

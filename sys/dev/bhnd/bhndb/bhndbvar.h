@@ -29,7 +29,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -99,7 +99,7 @@ void				 bhndb_release_host_resources(
 				     struct bhndb_host_resources *resources);
 struct resource			*bhndb_host_resource_for_range(
 				     struct bhndb_host_resources *resources,
-				     int type, rman_res_t start, 
+				     int type, rman_res_t start,
 				     rman_res_t count);
 struct resource			*bhndb_host_resource_for_regwin(
 				     struct bhndb_host_resources *resources,
@@ -132,7 +132,7 @@ bool				 bhndb_regwin_match_core(
 				     const struct bhndb_regwin *regw,
 				     struct bhnd_core_info *core);
 
-/** 
+/**
  * bhndb child address space. Children either operate in the bridged
  * SoC address space, or within the address space mapped to the host
  * device (e.g. the PCI BAR(s)).

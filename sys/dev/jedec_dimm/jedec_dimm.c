@@ -30,7 +30,7 @@
  * $FreeBSD$
  */
 
-/* 
+/*
  * This driver is a super-set of the now-deleted jedec_ts(4), and most of the
  * code for reading and reporting the temperature is either based on that driver,
  * or copied from it verbatim.

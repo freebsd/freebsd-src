@@ -118,10 +118,10 @@ _qlnx_rdma_dev_add(struct qlnx_host *ha)
 {
 	QL_DPRINT12(ha, "enter ha = %p qlnx_rdma_if = %p\n", ha, qlnx_rdma_if);
 
-	if (qlnx_rdma_if == NULL) 
+	if (qlnx_rdma_if == NULL)
 		return;
 
-	if (ha->personality != ECORE_PCI_ETH_IWARP && 
+	if (ha->personality != ECORE_PCI_ETH_IWARP &&
 		ha->personality != ECORE_PCI_ETH_ROCE)
 		return;
 
@@ -277,7 +277,7 @@ qlnx_rdma_deregister_if(qlnx_rdma_if_t *rdma_if)
 				__func__, __LINE__, ret);
 			if (ret)
 				return (ret);
-			
+
                 	mtx_lock(&qlnx_rdma_dev_lock);
 
 			ha->qlnx_rdma = NULL;
@@ -303,7 +303,7 @@ qlnx_rdma_dev_open(struct qlnx_host *ha)
 	if (qlnx_rdma_if == NULL)
 		return;
 
-	if (ha->personality != ECORE_PCI_ETH_IWARP && 
+	if (ha->personality != ECORE_PCI_ETH_IWARP &&
 		ha->personality != ECORE_PCI_ETH_ROCE)
 		return;
 
@@ -321,7 +321,7 @@ qlnx_rdma_dev_close(struct qlnx_host *ha)
 	if (qlnx_rdma_if == NULL)
 		return;
 
-	if (ha->personality != ECORE_PCI_ETH_IWARP && 
+	if (ha->personality != ECORE_PCI_ETH_IWARP &&
 		ha->personality != ECORE_PCI_ETH_ROCE)
 		return;
 

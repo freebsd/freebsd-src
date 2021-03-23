@@ -32,7 +32,7 @@
  * Driver ioctl interface.
  *
  * Note that this interface is API-compatible with the Linux implementation
- * except as noted, and thus this header bears a striking resemblance to 
+ * except as noted, and thus this header bears a striking resemblance to
  * the Linux driver's cciss_ioctl.h.
  *
  */
@@ -46,7 +46,7 @@ typedef struct
     u_int8_t	bus;
     u_int8_t	dev_fn;
     u_int32_t	board_id;
-} cciss_pci_info_struct; 
+} cciss_pci_info_struct;
 
 typedef struct
 {
@@ -68,7 +68,7 @@ typedef u_int32_t	DriverVer_type;
 
 /* passthrough command definitions */
 #define SENSEINFOBYTES          32
-#define CISS_MAX_LUN		16	
+#define CISS_MAX_LUN		16
 #define LEVEL2LUN		1
 #define LEVEL3LUN		0
 
@@ -130,7 +130,7 @@ typedef struct {
     u_int32_t		Mode:2;
     SCSI3Addr_struct	Target[2];
 } __packed PhysDevAddr_struct;
-  
+
 typedef struct {
     u_int32_t		VolId:30;
     u_int32_t		Mode:2;

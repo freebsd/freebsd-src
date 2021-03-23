@@ -82,7 +82,7 @@
 	(ahd->platform_data->path)
 #define BUILD_SCSIID(ahd, sim, target_id, our_id) \
         ((((target_id) << TID_SHIFT) & TID) | (our_id))
-        
+
 
 #define SCB_GET_SIM(ahd, scb) \
 	((ahd)->platform_data->sim)
@@ -103,7 +103,7 @@
  * to handle any unaligned residual.  The sequencer fetches SG elements
  * in cacheline sized chucks, so make the number per-transaction an even
  * multiple of 16 which should align us on even the largest of cacheline
- * boundaries. 
+ * boundaries.
  */
 #define AHD_MAXPHYS (128 * 1024)
 #define AHD_NSEG (roundup(btoc(AHD_MAXPHYS) + 1, 16))

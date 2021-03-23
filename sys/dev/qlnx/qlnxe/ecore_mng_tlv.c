@@ -1308,7 +1308,7 @@ ecore_mfw_process_tlv_req(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt)
 				    PUBLIC_GLOBAL);
 	global_offsize = ecore_rd(p_hwfn, p_ptt, addr);
 	global_addr = SECTION_ADDR(global_offsize, 0);
-	addr = global_addr + OFFSETOF(struct public_global, data_ptr); 
+	addr = global_addr + OFFSETOF(struct public_global, data_ptr);
 	addr = ecore_rd(p_hwfn, p_ptt, addr);
 	size = ecore_rd(p_hwfn, p_ptt, global_addr +
 			OFFSETOF(struct public_global, data_size));
@@ -1337,7 +1337,7 @@ ecore_mfw_process_tlv_req(struct ecore_hwfn *p_hwfn, struct ecore_ptt *p_ptt)
 	}
 
 	/* Parse the headers to enumerate the requested TLV groups */
-	for (offset = 0; offset < size; 
+	for (offset = 0; offset < size;
 	     offset += sizeof(tlv) + sizeof(u32) * tlv.tlv_length) {
 		p_temp = &p_mfw_buf[offset];
 		tlv.tlv_type = TLV_TYPE(p_temp);

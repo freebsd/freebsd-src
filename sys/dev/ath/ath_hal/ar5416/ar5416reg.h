@@ -528,7 +528,7 @@
 #define	AR_PCU_MISC_MODE2_MGMT_CRYPTO_ENABLE		0x00000002
 #define	AR_PCU_MISC_MODE2_NO_CRYPTO_FOR_NON_DATA_PKT	0x00000004
 /*
- * This bit enables the Multicast search based on both MAC Address and Key ID. 
+ * This bit enables the Multicast search based on both MAC Address and Key ID.
  * If bit is 0, then Multicast search is based on MAC address only.
  * For Merlin and above only.
  */
@@ -626,7 +626,7 @@
 
 /*
  * AR5212 defines the MAC revision mask as 0xF, but both ath9k and
- * the Atheros HAL define it as 0x7. 
+ * the Atheros HAL define it as 0x7.
  *
  * What this means however is AR5416 silicon revisions have
  * changed. The below macros are for what is contained in the
@@ -651,7 +651,7 @@
 
 /* Misc; compatibility with Atheros HAL */
 #define	AR_SREV_5416_V20_OR_LATER(_ah)	(AR_SREV_HOWL((_ah)) || AR_SREV_OWL_20_OR_LATER(_ah))
-#define	AR_SREV_5416_V22_OR_LATER(_ah)	(AR_SREV_HOWL((_ah)) || AR_SREV_OWL_22_OR_LATER(_ah)) 
+#define	AR_SREV_5416_V22_OR_LATER(_ah)	(AR_SREV_HOWL((_ah)) || AR_SREV_OWL_22_OR_LATER(_ah))
 
 /* Expanded Mac Silicon Rev (16 bits starting with Sowl) */
 #define	AR_XSREV_ID		0xFFFFFFFF	/* Chip ID */

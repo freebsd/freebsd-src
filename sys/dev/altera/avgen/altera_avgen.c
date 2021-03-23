@@ -117,23 +117,23 @@ altera_avgen_read(struct cdev *dev, struct uio *uio, int flag)
 			v1 = bus_read_1(sc->avg_res, offset);
 			error = uiomove(&v1, sizeof(v1), uio);
 			break;
-			
+
 		case 2:
 			v2 = bus_read_2(sc->avg_res, offset);
 			error = uiomove(&v2, sizeof(v2), uio);
 			break;
-			
+
 		case 4:
 			v4 = bus_read_4(sc->avg_res, offset);
 			error = uiomove(&v4, sizeof(v4), uio);
 			break;
-			
+
 #ifdef NOTYET
 		case 8:
 			v8 = bus_read_8(sc->avg_res, offset);
 			error = uiomove(&v8, sizeof(v8), uio);
 			break;
-			
+
 #endif
 
 		default:
@@ -405,7 +405,7 @@ altera_avgen_process_options(struct altera_avgen_softc *sc,
 
 			default:
 				device_printf(dev,
-				    "invalid %s character %c\n", 
+				    "invalid %s character %c\n",
 				    ALTERA_AVALON_STR_FILEIO, *cp);
 				return (ENXIO);
 			}

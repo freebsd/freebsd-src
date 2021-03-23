@@ -1086,13 +1086,13 @@ usb_msc_read_capacity(struct usb_device *udev, uint8_t iface_index,
 	    USB_MS_HZ);
 
 	*lba_last =
-	    (sc->buffer[0] << 24) | 
+	    (sc->buffer[0] << 24) |
 	    (sc->buffer[1] << 16) |
 	    (sc->buffer[2] << 8) |
 	    (sc->buffer[3]);
 
 	*block_size =
-	    (sc->buffer[4] << 24) | 
+	    (sc->buffer[4] << 24) |
 	    (sc->buffer[5] << 16) |
 	    (sc->buffer[6] << 8) |
 	    (sc->buffer[7]);

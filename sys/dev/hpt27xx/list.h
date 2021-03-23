@@ -77,7 +77,7 @@ static HPT_INLINE void list_del(struct list_head *entry)
 static HPT_INLINE void list_del_init(struct list_head *entry)
 {
 	__list_del(entry->prev, entry->next);
-	INIT_LIST_HEAD(entry); 
+	INIT_LIST_HEAD(entry);
 }
 
 static HPT_INLINE int list_empty(struct list_head *head)

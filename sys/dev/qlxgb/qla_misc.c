@@ -57,7 +57,7 @@ typedef struct _offchip_mem_val {
 
 /*
  * The index to this table is Bits 20-27 of the indirect register address
- */ 
+ */
 static uint32_t indirect_to_base_map[] =
 	{
 		Q8_ADDR_UNDEFINED,	/* 0x00 */
@@ -246,7 +246,7 @@ qla_rdwr_indreg32(qla_host_t *ha, uint32_t addr, uint32_t *val, uint32_t rd)
 		*val = READ_OFFSET32(ha, ((addr & 0xFFFF) | 0x1E0000));
 	} else {
 		WRITE_OFFSET32(ha, ((addr & 0xFFFF) | 0x1E0000), *val);
-	} 
+	}
 
 	qla_sem_unlock(ha, Q8_SEM7_UNLOCK);
 	return 0;
@@ -290,7 +290,7 @@ qla_rdwr_offchip_mem(qla_host_t *ha, uint64_t addr, offchip_mem_val_t *val,
 						Q8_MIU_TEST_AGT_RDDATA_UHI);
 			}
 			return 0;
-		} else 
+		} else
 			qla_mdelay(__func__, 1);
 	}
 
@@ -403,7 +403,7 @@ qla_filter_pci_addr(qla_host_t *ha, uint32_t addr)
 		(addr == 0x03B0001C))
 		return (Q8_INVALID_ADDRESS);
 	else
-		return (addr); 
+		return (addr);
 }
 
 /*
@@ -689,7 +689,7 @@ qla_flash_unprotect(qla_host_t *ha)
 {
 	uint32_t val, rval;
 
-	if (qla_flash_write_enable(ha) != 0) 
+	if (qla_flash_write_enable(ha) != 0)
 		return(-1);
 
 	val = 0;
@@ -705,7 +705,7 @@ qla_flash_unprotect(qla_host_t *ha)
 		return rval;
 	}
 
-	if (qla_flash_write_enable(ha) != 0) 
+	if (qla_flash_write_enable(ha) != 0)
 		return(-1);
 
 	val = 0;
@@ -727,7 +727,7 @@ qla_flash_protect(qla_host_t *ha)
 {
 	uint32_t val, rval;
 
-	if (qla_flash_write_enable(ha) != 0) 
+	if (qla_flash_write_enable(ha) != 0)
 		return(-1);
 
 	val = 0x9C;
@@ -753,7 +753,7 @@ qla_flash_get_status(qla_host_t *ha)
 	while (count--) {
 		val = 0;
 		qla_rdwr_indreg32(ha, Q8_ROM_ADDR_BYTE_COUNT, &val, 0);
-			
+
 		val = ROM_OPCODE_RD_STATUS_REG;
 		qla_rdwr_indreg32(ha, Q8_ROM_INSTR_OPCODE, &val, 0);
 
@@ -806,7 +806,7 @@ qla_erase_flash_sector(qla_host_t *ha, uint32_t start)
 	uint32_t val;
 	int rval;
 
-	if (qla_flash_write_enable(ha) != 0) 
+	if (qla_flash_write_enable(ha) != 0)
 		return(-1);
 
         val = start;
@@ -899,7 +899,7 @@ qla_flash_wait_for_write_complete(qla_host_t *ha)
 		val = ROM_OPCODE_RD_STATUS_REG;
 		qla_rdwr_indreg32(ha, Q8_ROM_INSTR_OPCODE, &val, 0);
 
-		
+
 		rval = qla_wait_for_flash_busy(ha);
 
 		if (rval == 0) {
@@ -916,7 +916,7 @@ qla_flash_wait_for_write_complete(qla_host_t *ha)
 static int
 qla_flash_write(qla_host_t *ha, uint32_t off, uint32_t data)
 {
-	if (qla_flash_write_enable(ha) != 0) 
+	if (qla_flash_write_enable(ha) != 0)
 		return(-1);
 
 	if (qla_flash_write32(ha, off, data) != 0)
@@ -981,7 +981,7 @@ qla_flash_write_data(qla_host_t *ha, uint32_t off, uint32_t size,
 		goto qla_wr_pattern_unlock_exit;
 
 	for (start = off; start < (off + size); start = start + 4) {
-		
+
 		if (*data32 != 0xFFFFFFFF) {
 			if (qla_flash_write(ha, start, *data32)) {
 				rval = -1;

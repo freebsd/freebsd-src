@@ -1810,10 +1810,10 @@ fdc_attach(device_t dev)
 		return (error);
 	}
 	error = bus_setup_intr(dev, fdc->res_irq,
-	    INTR_TYPE_BIO | INTR_ENTROPY | 
-	    ((fdc->flags & FDC_NOFAST) ? INTR_MPSAFE : 0),		       
-            ((fdc->flags & FDC_NOFAST) ? NULL : fdc_intr_fast), 	    
-	    ((fdc->flags & FDC_NOFAST) ? fdc_intr : NULL), 
+	    INTR_TYPE_BIO | INTR_ENTROPY |
+	    ((fdc->flags & FDC_NOFAST) ? INTR_MPSAFE : 0),
+            ((fdc->flags & FDC_NOFAST) ? NULL : fdc_intr_fast),
+	    ((fdc->flags & FDC_NOFAST) ? fdc_intr : NULL),
 			       fdc, &fdc->fdc_intr);
 	if (error) {
 		device_printf(dev, "cannot setup interrupt\n");

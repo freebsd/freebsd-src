@@ -100,7 +100,7 @@ static sc_rndr_sw_t txtrndrsw = {
 	(vr_init_t *)vga_nop,
 	vga_txtclear,
 	vga_txtborder,
-	vga_txtdraw,	
+	vga_txtdraw,
 	vga_txtcursor_shape,
 	vga_txtcursor,
 	vga_txtblink,
@@ -482,7 +482,7 @@ vga_txtdraw(scr_stat *scp, int from, int count, int flip)
 	}
 }
 
-static void 
+static void
 vga_txtcursor_shape(scr_stat *scp, int base, int height, int blink)
 {
 	vga_setmdp(scp);
@@ -619,7 +619,7 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 	      &font_buf[0], scp->font_size);
 	bcopy(scp->font + sc_vtb_getc(&scp->scr, pos + 1)*scp->font_size,
 	      &font_buf[32], scp->font_size);
-	bcopy(scp->font 
+	bcopy(scp->font
 		 + sc_vtb_getc(&scp->scr, pos + scp->xsize)*scp->font_size,
 	      &font_buf[64], scp->font_size);
 	bcopy(scp->font
@@ -667,7 +667,7 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 		/* idle */ ;
 #endif
 	c = scp->sc->mouse_char;
-	vidd_load_font(scp->sc->adp, 0, 32, 8, font_buf, c, 4); 
+	vidd_load_font(scp->sc->adp, 0, 32, 8, font_buf, c, 4);
 
 	sc_vtb_putc(&scp->scr, pos, c, sc_vtb_geta(&scp->scr, pos));
 	/* FIXME: may be out of range! */
@@ -706,7 +706,7 @@ remove_txtmouse(scr_stat *scp, int x, int y)
 {
 }
 
-static void 
+static void
 vga_txtmouse(scr_stat *scp, int x, int y, int on)
 {
 	if (on)
@@ -754,7 +754,7 @@ vga_pxlclear_direct(scr_stat *scp, int c, int attr)
 
 	line_width = scp->sc->adp->va_line_width;
 	pixel_size = scp->sc->adp->va_info.vi_pixel_size;
-	lines = scp->ysize * scp->font_size; 
+	lines = scp->ysize * scp->font_size;
 	p = scp->sc->adp->va_window +
 	    line_width * scp->yoff * scp->font_size +
 	    scp->xoff * 8 * pixel_size;
@@ -780,7 +780,7 @@ vga_pxlclear_planar(scr_stat *scp, int c, int attr)
 	outw(GDCIDX, 0xff08);		/* bit mask */
 	outw(GDCIDX, ((attr & 0xf000) >> 4) | 0x00); /* set/reset */
 	line_width = scp->sc->adp->va_line_width;
-	lines = scp->ysize*scp->font_size; 
+	lines = scp->ysize*scp->font_size;
 	p = scp->sc->adp->va_window + line_width*scp->yoff*scp->font_size
 		+ scp->xoff;
 	for (i = 0; i < lines; ++i) {
@@ -983,10 +983,10 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 		f = &(scp->font[sc_vtb_getc(&scp->vtb, i)*scp->font_size]);
 		for (j = 0; j < scp->font_size; ++j, ++f) {
 			if (scp->sc->adp->va_type == KD_VGA)
-				writeb(e, *f);	
+				writeb(e, *f);
 			else {
 				outw(GDCIDX, (*f << 8) | 0x08);	/* bit mask */
-				writeb(e, 0);	
+				writeb(e, 0);
 			}
 			e += line_width;
 		}
@@ -1002,13 +1002,13 @@ vga_vgadraw_planar(scr_stat *scp, int from, int count, int flip)
 	outw(GDCIDX, 0x0001);		/* set/reset enable */
 }
 
-static void 
+static void
 vga_pxlcursor_shape(scr_stat *scp, int base, int height, int blink)
 {
 	vga_setmdp(scp);
 }
 
-static void 
+static void
 draw_pxlcursor_direct(scr_stat *scp, int at, int on, int flip)
 {
 	vm_offset_t d;
@@ -1049,7 +1049,7 @@ draw_pxlcursor_direct(scr_stat *scp, int at, int on, int flip)
 	}
 }
 
-static void 
+static void
 draw_pxlcursor_planar(scr_stat *scp, int at, int on, int flip)
 {
 	vm_offset_t d;
@@ -1098,7 +1098,7 @@ draw_pxlcursor_planar(scr_stat *scp, int at, int on, int flip)
 
 static int pxlblinkrate = 0;
 
-static void 
+static void
 vga_pxlcursor_direct(scr_stat *scp, int at, int blink, int on, int flip)
 {
 	if (scp->curs_attr.height <= 0)	/* the text cursor is disabled */
@@ -1126,7 +1126,7 @@ vga_pxlcursor_direct(scr_stat *scp, int at, int blink, int on, int flip)
 		scp->status &= ~VR_CURSOR_BLINK;
 }
 
-static void 
+static void
 vga_pxlcursor_planar(scr_stat *scp, int at, int blink, int on, int flip)
 {
 	if (scp->curs_attr.height <= 0)	/* the text cursor is disabled */
@@ -1289,7 +1289,7 @@ remove_pxlmouse_planar(scr_stat *scp, int x, int y)
 	outw(GDCIDX, 0x0001);		/* set/reset enable */
 }
 
-static void 
+static void
 vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 {
 	const struct mousedata *mdp;
@@ -1336,7 +1336,7 @@ do_on:
 				    scp->curs_attr.mouse_ba);
 }
 
-static void 
+static void
 vga_pxlmouse_planar(scr_stat *scp, int x, int y, int on)
 {
 	if (on)

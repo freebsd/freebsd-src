@@ -514,8 +514,8 @@ alloc_resource(sc_p scp)
 		}
 		if (scp->irq == NULL) {
 			scp->irq_rid = 0;
-			scp->irq = 
-				bus_alloc_resource_any(scp->dev, SYS_RES_IRQ, 
+			scp->irq =
+				bus_alloc_resource_any(scp->dev, SYS_RES_IRQ,
 						       &scp->irq_rid,
 						       RF_ACTIVE|RF_SHAREABLE);
 			if (scp->irq == NULL)
@@ -526,7 +526,7 @@ alloc_resource(sc_p scp)
 			if (scp->drq[i] == NULL) {
 				scp->drq_rid[i] = i;
 				if (base == 0 || i == 0)
-					scp->drq[i] = 
+					scp->drq[i] =
 						bus_alloc_resource_any(
 							scp->dev, SYS_RES_DRQ,
 							&scp->drq_rid[i],

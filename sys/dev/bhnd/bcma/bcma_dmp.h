@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
  * Copyright (c) 2010 Broadcom Corporation
- * 
+ *
  * Portions of this file were derived from the aidmp.h header
  * distributed with Broadcom's initial brcm80211 Linux driver release, as
  * contributed to the Linux staging repository.
@@ -19,7 +19,7 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -28,18 +28,18 @@
 
 /*
  * PL-368 Device Management Plugin (DMP) Registers & Constants
- * 
+ *
  * The "DMP" core used in Broadcom HND devices has been described
  * by Broadcom engineers (and in published header files) as being
  * ARM's PL-368 "Device Management Plugin" system IP, included with
  * the CoreLink AMBA Designer tooling.
- * 
+ *
  * Documentation for the PL-368 is not publicly available, however,
  * and the only public reference by ARM to its existence appears to be
  * in the proprietary "NIC-301 Interconnect Device Management (PL368)"
  * errata publication, available to licensees as part of ARM's
  * CoreLink Controllers and Peripherals Engineering Errata.
- * 
+ *
  * As such, the exact interpretation of these register definitions is
  * unconfirmed, and may be incorrect.
  */

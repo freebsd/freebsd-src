@@ -365,8 +365,8 @@ siis_release_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static int
-siis_setup_intr(device_t dev, device_t child, struct resource *irq, 
-		   int flags, driver_filter_t *filter, driver_intr_t *function, 
+siis_setup_intr(device_t dev, device_t child, struct resource *irq,
+		   int flags, driver_filter_t *filter, driver_intr_t *function,
 		   void *argument, void **cookiep)
 {
 	struct siis_controller *ctlr = device_get_softc(dev);
@@ -1015,7 +1015,7 @@ siis_begin_transaction(device_t dev, union ccb *ccb)
 /* Locked by busdma engine. */
 static void
 siis_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
-{    
+{
 	struct siis_slot *slot = arg;
 	struct siis_channel *ch = device_get_softc(slot->dev);
 	struct siis_cmd *ctp;
@@ -1036,7 +1036,7 @@ siis_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		/* Get a piece of the workspace for this request */
 		ctp = (struct siis_cmd *)(ch->dma.work + slot->prb_offset);
 		/* Fill S/G table */
-		if (slot->ccb->ccb_h.func_code == XPT_ATA_IO) 
+		if (slot->ccb->ccb_h.func_code == XPT_ATA_IO)
 			prd = &ctp->u.ata.prd[0];
 		else
 			prd = &ctp->u.atapi.prd[0];
@@ -1843,7 +1843,7 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		struct	ccb_trans_settings *cts = &ccb->cts;
-		struct	siis_device *d; 
+		struct	siis_device *d;
 
 		if (siis_check_ids(dev, ccb))
 			return;

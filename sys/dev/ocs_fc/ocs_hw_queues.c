@@ -148,7 +148,7 @@ ocs_hw_init_queues(ocs_hw_t *hw, ocs_hw_qtop_t *qtop)
 				default_lengths[QTOP_CQ] = len;
 				break;
 			}
-			
+
 			if (!eq || !next_qt) {
 				goto fail;
 			}
@@ -174,7 +174,7 @@ ocs_hw_init_queues(ocs_hw_t *hw, ocs_hw_qtop_t *qtop)
 				hw_queue_teardown(hw);
 				return OCS_HW_RTN_NO_MEMORY;
 			}
-			
+
 			if (cq == NULL)
 				goto fail;
 
@@ -230,7 +230,7 @@ ocs_hw_init_queues(ocs_hw_t *hw, ocs_hw_qtop_t *qtop)
 
 			if (use_mrq) {
 				mrq.rq_cfg[mrq.num_pairs].len = len;
-				mrq.rq_cfg[mrq.num_pairs].ulp = hw->ulp_start + qt->ulp; 
+				mrq.rq_cfg[mrq.num_pairs].ulp = hw->ulp_start + qt->ulp;
 				mrq.rq_cfg[mrq.num_pairs].filter_mask = qt->filter_mask;
 				mrq.rq_cfg[mrq.num_pairs].eq = eq;
 				mrq.num_pairs ++;

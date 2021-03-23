@@ -246,7 +246,7 @@ out:
 /* XXX maybe not here */
 #define	ACPI_NOTIFY_STATUS_CHANGED	0x80
 
-static void 
+static void
 acpi_lid_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
     struct acpi_lid_softc	*sc;

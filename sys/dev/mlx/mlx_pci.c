@@ -153,7 +153,7 @@ mlx_pci_attach(device_t dev)
     /*
      * Allocate the PCI register window.
      */
-    
+
     /* type 2/3 adapters have an I/O region we don't prefer at base 0 */
     switch(sc->mlx_iftype) {
     case MLX_IFTYPE_2:
@@ -212,7 +212,7 @@ mlx_pci_attach(device_t dev)
 	mlx_free(sc);
 	return(error);
     }
-    
+
     /*
      * Start the controller.
      */

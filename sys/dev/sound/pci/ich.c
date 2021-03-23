@@ -927,7 +927,7 @@ ich_pci_attach(device_t dev)
 	 * read-only.  Need to enable "legacy support", by poking into
 	 * pci config space.  The driver should use MMBAR and MBBAR,
 	 * but doing so will mess things up here.  ich4 has enough new
-	 * features it warrants it's own driver. 
+	 * features it warrants it's own driver.
 	 */
 	if (vendor == INTEL_VENDORID && (devid == INTEL_82801DB ||
 	    devid == INTEL_82801EB || devid == INTEL_6300ESB ||
@@ -942,9 +942,9 @@ ich_pci_attach(device_t dev)
 		sc->regtype = SYS_RES_IOPORT;
 	}
 
-	sc->nambar = bus_alloc_resource_any(dev, sc->regtype, 
+	sc->nambar = bus_alloc_resource_any(dev, sc->regtype,
 		&sc->nambarid, RF_ACTIVE);
-	sc->nabmbar = bus_alloc_resource_any(dev, sc->regtype, 
+	sc->nabmbar = bus_alloc_resource_any(dev, sc->regtype,
 		&sc->nabmbarid, RF_ACTIVE);
 
 	if (!sc->nambar || !sc->nabmbar) {
@@ -1149,7 +1149,7 @@ ich_pci_codec_reset(struct sc_info *sc)
 	int i;
 	uint32_t control;
 
-	control = ich_rd(sc, ICH_REG_GLOB_CNT, 4); 
+	control = ich_rd(sc, ICH_REG_GLOB_CNT, 4);
 	control &= ~(ICH_GLOB_CTL_SHUT);
 	control |= (control & ICH_GLOB_CTL_COLD) ?
 		    ICH_GLOB_CTL_WARM : ICH_GLOB_CTL_COLD;

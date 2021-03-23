@@ -118,7 +118,7 @@ atkbdc_isa_probe(device_t dev)
 	/*
 	 * Adjust I/O port resources.
 	 * The AT keyboard controller uses two ports (a command/data port
-	 * 0x60 and a status port 0x64), which may be given to us in 
+	 * 0x60 and a status port 0x64), which may be given to us in
 	 * one resource (0x60 through 0x64) or as two separate resources
 	 * (0x60 and 0x64). Some brain-damaged ACPI BIOS has reversed
 	 * command/data port and status port. Furthermore, /boot/device.hints

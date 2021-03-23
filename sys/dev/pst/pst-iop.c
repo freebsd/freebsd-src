@@ -419,7 +419,7 @@ iop_done(struct iop_softc *sc, u_int32_t mfa, struct i2o_single_reply *reply)
 {
     struct iop_request *request =
         (struct iop_request *)reply->transaction_context;
-    
+
     request->reply = reply;
     request->mfa = mfa;
     wakeup(request);

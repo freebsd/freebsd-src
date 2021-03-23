@@ -97,7 +97,7 @@
 
 /* AK4358 control registers */
 #define AK4358_LO1ATT 0x04
-#define AK4358_RO1ATT 0x05 
+#define AK4358_RO1ATT 0x05
 #define AK4358_OATT_ENABLE 0x80
 
 /* AK4381 control registers */

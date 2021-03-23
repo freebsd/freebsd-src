@@ -30,7 +30,7 @@
 /*-
  * Copyright (c) 2002, 2006 by Matthew Jacob
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -44,7 +44,7 @@
  * 3. Neither the names of the above listed copyright holders nor the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -68,7 +68,7 @@
  * Copyright (c) 2005, WHEEL Sp. z o.o.
  * Copyright (c) 2004, 2005 Justin T. Gibbs
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -82,7 +82,7 @@
  * 3. Neither the names of the above listed copyright holders nor the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -954,7 +954,7 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 		    mpt->mpt_dev_page0[i].Header.PageLength,
 		    mpt->mpt_dev_page0[i].Header.PageNumber,
 		    mpt->mpt_dev_page0[i].Header.PageType);
-		
+
 		rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_SCSI_DEVICE,
 		    1, i, &mpt->mpt_dev_page1[i].Header, FALSE, 5000);
 		if (rv) {
@@ -1178,7 +1178,7 @@ mpt_cam_detach(struct mpt_softc *mpt)
 
 	MPT_LOCK(mpt);
 	mpt->ready = 0;
-	mpt_terminate_recovery_thread(mpt); 
+	mpt_terminate_recovery_thread(mpt);
 
 	handler.reply_handler = mpt_scsi_reply_handler;
 	mpt_deregister_handler(mpt, MPT_HANDLER_REPLY, handler,
@@ -2114,7 +2114,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	} else {
 		tgt = ccb->ccb_h.target_id;
 		mpt_req->Bus = 0;	/* XXX */
-		
+
 	}
 	mpt_req->SenseBufferLength =
 		(csio->sense_len < MPT_SENSE_SIZE) ?
@@ -2328,7 +2328,7 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		/*
 		 * These replies don't return EventData like the MPI
 		 * spec says they do
-		 */	
+		 */
 		xpt_async(AC_BUS_RESET, mpt->path, NULL);
 		break;
 
@@ -2400,13 +2400,13 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 					    " AL_PA\n");
 				} else {
 					mpt_prt(mpt, "Device %02x detected loop"
-					    " failure at its receiver\n", 
+					    " failure at its receiver\n",
 					    data0 & 0xFF);
 				}
 				break;
 			default:
 				mpt_prt(mpt, "Device %02x requests that device "
-				    "%02x reset itself\n", 
+				    "%02x reset itself\n",
 				    data0 & 0xFF,
 				    (data0 >> 8) & 0xFF);
 				break;
@@ -2628,7 +2628,7 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 		mpt_lprt(mpt, MPT_PRT_DEBUG, "THAWQ\n");
 	}
 	if (scsi_req->CDB[0] == INQUIRY && (scsi_req->CDB[1] & SI_EVPD) == 0) {
-		struct scsi_inquiry_data *iq = 
+		struct scsi_inquiry_data *iq =
 		    (struct scsi_inquiry_data *)ccb->csio.data_ptr;
 		if (scsi_req->Function ==
 		    MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH) {
@@ -2697,7 +2697,7 @@ mpt_scsi_tmf_reply_handler(struct mpt_softc *mpt, request_t *req,
 #define	ABTS	0x81
 #define	BA_ACC	0x84
 
-#define	LS_RJT	0x01 
+#define	LS_RJT	0x01
 #define	LS_ACC	0x02
 #define	PLOGI	0x03
 #define	LOGO	0x05
@@ -3067,7 +3067,7 @@ mpt_scsi_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
 		uint32_t sense_returned;
 
 		ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
-		
+
 		sense_returned = le32toh(scsi_io_reply->SenseCount);
 		if (sense_returned < ccb->csio.sense_len)
 			ccb->csio.sense_resid = ccb->csio.sense_len -
@@ -3159,7 +3159,7 @@ XXXX
 		 */
 		/* FALLTHROUGH */
 	case MPI_IOCSTATUS_SCSI_EXT_TERMINATED:
-		ccb->ccb_h.status = CAM_SCSI_BUS_RESET; 
+		ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
 		break;
 	case MPI_IOCSTATUS_SCSI_TASK_TERMINATED:
 	case MPI_IOCSTATUS_SCSI_IOC_TERMINATED:
@@ -3286,7 +3286,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		break;
-		
+
 	case XPT_ABORT:
 	{
 		union ccb *accb = ccb->cab.abort_ccb;
@@ -3717,7 +3717,7 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 	 * sometimes these have been known to be bogus XXX.
 	 *
 	 * For user settings, we pick the max from port page 0
-	 * 
+	 *
 	 * For current settings we read the current settings out from
 	 * device page 0 for that target.
 	 */
@@ -3733,7 +3733,7 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 			return (rv);
 		}
 		mpt2host_config_page_scsi_device_0(&tmp);
-		
+
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
 		    "mpt_get_spi_settings[%d]: current NP %x Info %x\n", tgt,
 		    tmp.NegotiatedParameters, tmp.Information);
@@ -4427,7 +4427,7 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 #endif
 		tgt->state = TGT_STATE_SETTING_UP_FOR_DATA;
 
-		mpt_lprt(mpt, MPT_PRT_DEBUG, 
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
 		    "DATA_CCB %p tag %x %u bytes %u resid flg %x req %p:%u "
 		    "nxtstate=%d\n", csio, csio->tag_id, csio->dxfer_len,
 		    tgt->resid, ccb->ccb_h.flags, req, req->serno, tgt->state);
@@ -4589,7 +4589,7 @@ mpt_abort_target_ccb(struct mpt_softc *mpt, union ccb *ccb)
 
 /*
  * Ask the MPT to abort the current target command
- */ 
+ */
 static int
 mpt_abort_target_cmd(struct mpt_softc *mpt, request_t *cmd_req)
 {
@@ -4618,7 +4618,7 @@ mpt_abort_target_cmd(struct mpt_softc *mpt, request_t *cmd_req)
 }
 
 /*
- * WE_TRUST_AUTO_GOOD_STATUS- I've found that setting 
+ * WE_TRUST_AUTO_GOOD_STATUS- I've found that setting
  * TARGET_STATUS_SEND_FLAGS_AUTO_GOOD_STATUS leads the
  * FC929 to set bogus FC_RSP fields (nonzero residuals
  * but w/o RESID fields set). This causes QLogic initiators
@@ -4757,7 +4757,7 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 		tp->StatusDataSGE.FlagsLength = htole32(fl);
 	}
 
-	mpt_lprt(mpt, MPT_PRT_DEBUG, 
+	mpt_lprt(mpt, MPT_PRT_DEBUG,
 	    "STATUS_CCB %p (with%s sense) tag %x req %p:%u resid %u\n",
 	    ccb, sense_len > 0 ? "" : "out", tgt->tag_id,
 	    req, req->serno, tgt->resid);

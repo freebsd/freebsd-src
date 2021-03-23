@@ -550,7 +550,7 @@ _mapping_get_dpm_idx_from_id(struct mpr_softc *sc, u64 id, u32 phy_bits)
 	dpm_entry = (Mpi2DriverMap0Entry_t *)((u8 *)sc->dpm_pg0 +
 	    sizeof(MPI2_CONFIG_EXTENDED_PAGE_HEADER));
 	PhysicalIdentifier = dpm_entry->PhysicalIdentifier.High;
-	PhysicalIdentifier = (PhysicalIdentifier << 32) | 
+	PhysicalIdentifier = (PhysicalIdentifier << 32) |
 	    dpm_entry->PhysicalIdentifier.Low;
 	for (entry_num = 0; entry_num < sc->max_dpm_entries; entry_num++,
 	    dpm_entry++)
@@ -680,7 +680,7 @@ _mapping_update_ir_missing_cnt(struct mpr_softc *sc, u32 map_idx,
 	 * If persistent mapping is enabled, update the DPM with the new missing
 	 * count for the volume. If the DPM index is bad, get a free one. If
 	 * it's bad for a volume that's being deleted do nothing because that
-	 * volume doesn't have a DPM entry. 
+	 * volume doesn't have a DPM entry.
 	 */
 	if (!sc->is_dpm_enable)
 		return;
@@ -789,7 +789,7 @@ _mapping_add_to_removal_table(struct mpr_softc *sc, u16 dpm_idx)
 /**
  * _mapping_inc_missing_count
  * @sc: per adapter object
- * @map_idx: index into the mapping table for the device that is missing 
+ * @map_idx: index into the mapping table for the device that is missing
  *
  * Increment the missing count in the mapping table for a SAS, SATA, or PCIe
  * device that is not responding. If Persitent Mapping is used, increment the
@@ -949,7 +949,7 @@ _mapping_find_enc_map_space(struct mpr_softc *sc,
 	 * The skip_count is the number of entries that are reserved at the
 	 * beginning of the mapping table. But, it does not include the number
 	 * of Physical IDs that are reserved for direct attached devices. Look
-	 * through the mapping table after these reserved entries to see if 
+	 * through the mapping table after these reserved entries to see if
 	 * the devices for this enclosure are already mapped. The PHY bit check
 	 * is used to make sure that at least one PHY bit is common between the
 	 * enclosure and the device that is already mapped.
@@ -1106,7 +1106,7 @@ _mapping_find_enc_map_space(struct mpr_softc *sc,
 		 * skip_search flag needs to be cleared as well so that the
 		 * enclosure's space will be looked at the next time space is
 		 * needed.
-		 */ 
+		 */
 		enc_entry = sc->enclosure_table;
 		for (enc_idx = 0; enc_idx < sc->num_enc_table_entries;
 		    enc_idx++, enc_entry++) {
@@ -1238,10 +1238,10 @@ _mapping_get_dev_info(struct mpr_softc *sc,
 
 			/*
 			 * If the Expander Handle is 0, the devices are direct
-			 * attached. In that case, the start_index must be just 
+			 * attached. In that case, the start_index must be just
 			 * after the reserved entries. Otherwise, find space in
 			 * the mapping table for the enclosure's devices.
-			 */ 
+			 */
 			if (!topo_change->exp_handle) {
 				map_idx	= sc->num_rsvd_entries;
 				et_entry->start_index = map_idx;
@@ -1389,10 +1389,10 @@ _mapping_get_pcie_dev_info(struct mpr_softc *sc,
 
 			/*
 			 * If the Switch Handle is 0, the devices are direct
-			 * attached. In that case, the start_index must be just 
+			 * attached. In that case, the start_index must be just
 			 * after the reserved entries. Otherwise, find space in
 			 * the mapping table for the enclosure's devices.
-			 */ 
+			 */
 			if (!topo_change->switch_dev_handle) {
 				map_idx	= sc->num_rsvd_entries;
 				et_entry->start_index = map_idx;
@@ -2235,10 +2235,10 @@ _mapping_process_dpm_pg0(struct mpr_softc *sc)
 	    "mapping table.\n", __func__, sc->max_dpm_entries);
 	dpm_entry = (Mpi2DriverMap0Entry_t *) ((uint8_t *) sc->dpm_pg0 +
 	    sizeof(MPI2_CONFIG_EXTENDED_PAGE_HEADER));
-	for (entry_num = 0; entry_num < sc->max_dpm_entries; entry_num++, 
+	for (entry_num = 0; entry_num < sc->max_dpm_entries; entry_num++,
 	    dpm_entry++) {
 		physical_id = dpm_entry->PhysicalIdentifier.High;
-		physical_id = (physical_id << 32) | 
+		physical_id = (physical_id << 32) |
 		    dpm_entry->PhysicalIdentifier.Low;
 		if (!physical_id) {
 			sc->dpm_entry_used[entry_num] = 0;
@@ -2416,7 +2416,7 @@ mpr_mapping_check_devices(void *data)
 
 	/*
 	 * callout synchronization
-	 * This is used to prevent race conditions for the callout. 
+	 * This is used to prevent race conditions for the callout.
 	 */
 	mpr_dprint(sc, MPR_MAPPING, "%s: Start check for missing devices.\n",
 	    __func__);

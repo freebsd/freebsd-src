@@ -555,7 +555,7 @@ iwi_alloc_cmd_ring(struct iwi_softc *sc, struct iwi_cmd_ring *ring, int count)
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    count * IWI_CMD_DESC_SIZE, 1, count * IWI_CMD_DESC_SIZE, 0, 
+	    count * IWI_CMD_DESC_SIZE, 1, count * IWI_CMD_DESC_SIZE, 0,
 	    NULL, NULL, &ring->desc_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create desc DMA tag\n");
@@ -600,7 +600,7 @@ iwi_free_cmd_ring(struct iwi_softc *sc, struct iwi_cmd_ring *ring)
 	}
 
 	if (ring->desc_dmat != NULL)
-		bus_dma_tag_destroy(ring->desc_dmat);	
+		bus_dma_tag_destroy(ring->desc_dmat);
 }
 
 static int
@@ -617,7 +617,7 @@ iwi_alloc_tx_ring(struct iwi_softc *sc, struct iwi_tx_ring *ring, int count,
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    count * IWI_TX_DESC_SIZE, 1, count * IWI_TX_DESC_SIZE, 0, NULL, 
+	    count * IWI_TX_DESC_SIZE, 1, count * IWI_TX_DESC_SIZE, 0, NULL,
 	    NULL, &ring->desc_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create desc DMA tag\n");
@@ -894,7 +894,7 @@ iwi_node_free(struct ieee80211_node *ni)
 	sc->sc_node_free(ni);
 }
 
-/* 
+/*
  * Convert h/w rate code to IEEE rate code.
  */
 static int
@@ -2941,7 +2941,7 @@ iwi_auth_and_assoc(struct iwi_softc *sc, struct ieee80211vap *vap)
 		 * key setup.  This typically is due to a user app bug
 		 * but if we blindly grab the key the firmware will
 		 * barf so avoid it for now.
-		 */ 
+		 */
 		if (vap->iv_def_txkey != IEEE80211_KEYIX_NONE)
 			assoc->auth |= vap->iv_def_txkey << 4;
 

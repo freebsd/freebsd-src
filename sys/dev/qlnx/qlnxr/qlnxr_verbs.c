@@ -264,7 +264,7 @@ err1:
 		qlnxr_free_srq_kernel_params(srq);
 
 err0:
-	kfree(srq);	
+	kfree(srq);
 	return ERR_PTR(-EFAULT);
 }
 
@@ -321,7 +321,7 @@ qlnxr_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 			QL_DPRINT12(ha, "invalid srq_limit=0x%x"
 				" (max_srq_limit = 0x%x)\n",
 			       attr->srq_limit, srq->hw_srq.max_wr);
-			return -EINVAL;	
+			return -EINVAL;
 		}
 		memset(&in_params, 0, sizeof(in_params));
 		in_params.srq_id = srq->srq_id;
@@ -371,7 +371,7 @@ void qlnxr_inc_srq_wr_prod (struct qlnxr_srq_hwq_info *info)
 }
 
 /* Increment srq wr consumer by one */
-static 
+static
 void qlnxr_inc_srq_wr_cons(struct qlnxr_srq_hwq_info *info)
 {
         info->wr_cons_cnt++;
@@ -445,7 +445,7 @@ qlnxr_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			wr->num_sge, hw_srq->wqe_prod, wr->wr_id);
 
 		for (i = 0; i < wr->num_sge; i++) {
-			struct rdma_srq_sge *srq_sge = 
+			struct rdma_srq_sge *srq_sge =
 			    ecore_chain_produce(pbl);
 			/* Set SGE length, lkey and address */
 			SRQ_SGE_SET(srq_sge, wr->sg_list[i].addr,
@@ -469,12 +469,12 @@ qlnxr_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 		/* Flush prod after updating it */
 		wmb();
 		wr = wr->next;
-	}	
+	}
 
 	QL_DPRINT12(ha, "Elements in SRQ: %d\n",
 		ecore_chain_get_elem_left(pbl));
 
-	spin_unlock_irqrestore(&srq->lock, flags);	
+	spin_unlock_irqrestore(&srq->lock, flags);
 	QL_DPRINT12(ha, "exit\n");
 	return status;
 }
@@ -826,7 +826,7 @@ qlnxr_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
 
 	QL_DPRINT12(ha, "enter index = 0x%x\n", index);
 
-	if (index > QLNXR_ROCE_PKEY_TABLE_LEN) 
+	if (index > QLNXR_ROCE_PKEY_TABLE_LEN)
 		return -EINVAL;
 
 	*pkey = QLNXR_ROCE_PKEY_DEFAULT;
@@ -1021,7 +1021,7 @@ ib_ucontext *qlnxr_alloc_ucontext(struct ib_device *ibdev,
 	uresp.wids_enabled = offsetof(struct qlnxr_alloc_ucontext_resp, wids_enabled)
 				< udata->outlen ? 1 : 0; //TODO: figure this out
 	uresp.wid_count = offsetof(struct qlnxr_alloc_ucontext_resp, wid_count)
-				< udata->outlen ? oparams.wid_count : 0; //TODO: figure this out 
+				< udata->outlen ? oparams.wid_count : 0; //TODO: figure this out
         uresp.db_pa = ctx->dpi_phys_addr;
         uresp.db_size = ctx->dpi_size;
         uresp.max_send_wr = dev->attr.max_sqe;
@@ -1772,7 +1772,7 @@ qlnxr_init_user_queue(struct ib_ucontext *ib_ctx, struct qlnxr_dev *dev,
 
 	QL_DPRINT12(ha, "buf_addr : %llx, buf_len : %x, access : %x"
 	      " dmasync : %x\n", q->buf_addr, q->buf_len,
-		access, dmasync);	
+		access, dmasync);
 
 	q->umem = ib_umem_get(ib_ctx, q->buf_addr, q->buf_len, access, dmasync);
 
@@ -1830,7 +1830,7 @@ qlnxr_create_cq(struct ib_device *ibdev,
 	struct ib_ucontext *ib_ctx,
 	struct ib_udata *udata)
 
-#else 
+#else
 
 #if __FreeBSD_version >= 1100000
 
@@ -2168,7 +2168,7 @@ qlnxr_check_qp_attrs(struct ib_pd *ibpd,
 
 	/* QP0... attrs->qp_type == IB_QPT_GSI */
 	if (attrs->qp_type != IB_QPT_RC && attrs->qp_type != IB_QPT_GSI) {
-		QL_DPRINT12(ha, "unsupported qp type=0x%x requested\n", 
+		QL_DPRINT12(ha, "unsupported qp type=0x%x requested\n",
 			   attrs->qp_type);
 		return -EINVAL;
 	}
@@ -3039,7 +3039,7 @@ qlnxr_iwarp_create_kernel_qp(struct qlnxr_dev *dev,
 	QL_DPRINT12(ha, "ext_pbl.p_pbl_virt = %p "
 		"ext_pbl.p_pbl_phys = %p\n",
 		ext_pbl.p_pbl_virt, ext_pbl.p_pbl_phys);
-		
+
         rc = ecore_chain_alloc(
                 dev->cdev,
                 ECORE_CHAIN_USE_TO_PRODUCE,
@@ -3437,7 +3437,7 @@ qlnxr_update_qp_state(struct qlnxr_dev *dev,
 					BUS_SPACE_BARRIER_READ);
 			}
 
-			
+
 			mmiowb();
 			break;
 		case ECORE_ROCE_QP_STATE_ERR:
@@ -4821,7 +4821,7 @@ qlnxr_post_send(struct ib_qp *ibqp,
 			QL_DPRINT12(ha,
 				"ATOMIC operation = %s\n",
 				((wr->opcode == IB_WR_ATOMIC_CMP_AND_SWP) ?
-					"IB_WR_ATOMIC_CMP_AND_SWP" : 
+					"IB_WR_ATOMIC_CMP_AND_SWP" :
 					"IB_WR_ATOMIC_FETCH_AND_ADD"));
 
 			awqe1 = (struct rdma_sq_atomic_wqe *)wqe;
@@ -6307,7 +6307,7 @@ qlnxr_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ah->attr = *attr;	
+	ah->attr = *attr;
 
 	return &ah->ibah;
 }
@@ -6392,7 +6392,7 @@ qlnxr_process_mad(struct ib_device *ibdev,
 //               in_mad->mad_hdr.class_version, in_mad->mad_hdr.method,
 //               in_mad->mad_hdr.mgmt_class, in_mad->mad_hdr.status);
 
-//	return IB_MAD_RESULT_SUCCESS;	
+//	return IB_MAD_RESULT_SUCCESS;
 }
 
 #if __FreeBSD_version >= 1102000

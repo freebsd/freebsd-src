@@ -111,7 +111,7 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	if (ret) return ret;
 
 #if defined(__linux__)
-	/* don't set the block all signals on the master process for now 
+	/* don't set the block all signals on the master process for now
 	 * really probably not the correct answer but lets us debug xkb
  	 * xserver for now */
 	if (!file_priv->is_master) {

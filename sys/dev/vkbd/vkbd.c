@@ -335,7 +335,7 @@ again:
 		}
 
 		error = VKBD_SLEEP(state, ks_flags, "vkbdr", 0);
-		if (error != 0) 
+		if (error != 0)
 			goto done;
 
 		goto again;
@@ -743,7 +743,7 @@ vkbd_test_if(keyboard_t *kbd)
 	return (0);
 }
 
-/* 
+/*
  * Enable the access to the device; until this function is called,
  * the client cannot read from the keyboard.
  */
@@ -939,7 +939,7 @@ next_code:
 		}
 		break;
 	case 0xE1:	/* 0xE1 prefix */
-		/* 
+		/*
 		 * The pause/break key on the 101 keyboard produces:
 		 * E1-1D-45 E1-9D-C5
 		 * Ctrl-pause/break produces:
@@ -1341,7 +1341,7 @@ typematic(int delay, int rate)
 
 /*****************************************************************************
  *****************************************************************************
- **                                    Module 
+ **                                    Module
  *****************************************************************************
  *****************************************************************************/
 

@@ -276,7 +276,7 @@ static int t3_mac_reset(struct cmac *mac, int portspeed)
 		    F_SAFESPEEDCHANGE, 0);
 		(void) t3_read_reg(adap, A_XGM_PORT_CFG + oft);
 		t3_mac_init(mac);
-		
+
 		t3_write_reg(adap, A_XGM_INT_ENABLE + oft, intr);
 	} else {
 
@@ -742,7 +742,7 @@ int t3b2_mac_watchdog_task(struct cmac *mac)
 						      mac->offset)));
 		cfg = t3_read_reg(adap, A_MPS_CFG);
 		active = macidx(mac) ? cfg & F_PORT1ACTIVE : cfg & F_PORT0ACTIVE;
-		enforcepkt = cfg & F_ENFORCEPKT;	
+		enforcepkt = cfg & F_ENFORCEPKT;
 		if (active && enforcepkt && (tx_xcnt == 0)) {
 			t3_write_reg(adap, A_TP_PIO_ADDR,
 			     	A_TP_TX_DROP_CNT_CH0 + macidx(mac));

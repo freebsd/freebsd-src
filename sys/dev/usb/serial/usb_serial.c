@@ -103,7 +103,7 @@ static SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 static int ucom_pps_mode;
 
 SYSCTL_INT(_hw_usb_ucom, OID_AUTO, pps_mode, CTLFLAG_RWTUN,
-    &ucom_pps_mode, 0, 
+    &ucom_pps_mode, 0,
     "pulse capture mode: 0/1/2=disabled/CTS/DCD; add 0x10 to invert");
 
 static int ucom_device_mode_console = 1;
@@ -452,7 +452,7 @@ ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 	DPRINTF("ttycreate: %s\n", buf);
 
 	/* Check if this device should be a console */
-	if ((ucom_cons_softc == NULL) && 
+	if ((ucom_cons_softc == NULL) &&
 	    (ssc->sc_unit == ucom_cons_unit) &&
 	    (sc->sc_subunit == ucom_cons_subunit)) {
 		DPRINTF("unit %d subunit %d is console",
@@ -558,7 +558,7 @@ ucom_set_pnpinfo_usb(struct ucom_super_softc *ssc, device_t dev)
 	/* Store the PNP info in the first interface for the device */
 	uaa = device_get_ivars(dev);
 	iface_index = uaa->info.bIfaceIndex;
-    
+
 	if (usbd_set_pnpinfo(uaa->device, iface_index, buf) != 0)
 		device_printf(dev, "Could not set PNP info\n");
 
@@ -608,7 +608,7 @@ ucom_queue_command(struct ucom_softc *sc,
 		DPRINTF("proc is gone\n");
 		return;         /* nothing to do */
 	}
-	/* 
+	/*
 	 * NOTE: The task cannot get executed before we drop the
 	 * "sc_mtx" mutex. It is safe to update fields in the message
 	 * structure after that the message got queued.
@@ -620,7 +620,7 @@ ucom_queue_command(struct ucom_softc *sc,
 	task->hdr.pm_callback = fn;
 	task->sc = sc;
 
-	/* 
+	/*
 	 * Make a copy of the termios. This field is only present if
 	 * the "pt" field is not NULL.
 	 */
@@ -674,7 +674,7 @@ ucom_cfg_is_gone(struct ucom_softc *sc)
 static void
 ucom_cfg_start_transfers(struct usb_proc_msg *_task)
 {
-	struct ucom_cfg_task *task = 
+	struct ucom_cfg_task *task =
 	    (struct ucom_cfg_task *)_task;
 	struct ucom_softc *sc = task->sc;
 
@@ -718,7 +718,7 @@ ucom_start_transfers(struct ucom_softc *sc)
 static void
 ucom_cfg_open(struct usb_proc_msg *_task)
 {
-	struct ucom_cfg_task *task = 
+	struct ucom_cfg_task *task =
 	    (struct ucom_cfg_task *)_task;
 	struct ucom_softc *sc = task->sc;
 
@@ -790,7 +790,7 @@ ucom_open(struct tty *tp)
 
 	/* Queue transfer enable command last */
 	ucom_queue_command(sc, ucom_cfg_start_transfers, NULL,
-	    &sc->sc_start_task[0].hdr, 
+	    &sc->sc_start_task[0].hdr,
 	    &sc->sc_start_task[1].hdr);
 
 	if (sc->sc_tty == NULL || (sc->sc_tty->t_termios.c_cflag & CNO_RTSDTR) == 0)
@@ -808,7 +808,7 @@ ucom_open(struct tty *tp)
 static void
 ucom_cfg_close(struct usb_proc_msg *_task)
 {
-	struct ucom_cfg_task *task = 
+	struct ucom_cfg_task *task =
 	    (struct ucom_cfg_task *)_task;
 	struct ucom_softc *sc = task->sc;
 
@@ -862,7 +862,7 @@ ucom_inwakeup(struct tty *tp)
 
 	DPRINTF("tp=%p\n", tp);
 
-	if (ttydisc_can_bypass(tp) != 0 || 
+	if (ttydisc_can_bypass(tp) != 0 ||
 	    (sc->sc_flag & UCOM_FLAG_HL_READY) == 0 ||
 	    (sc->sc_flag & UCOM_FLAG_INWAKEUP) != 0) {
 		return;
@@ -888,7 +888,7 @@ ucom_inwakeup(struct tty *tp)
 	sc->sc_jitterbuf_out = pos;
 
 	/* clear RTS in async fashion */
-	if ((sc->sc_jitterbuf_in == pos) && 
+	if ((sc->sc_jitterbuf_in == pos) &&
 	    (sc->sc_flag & UCOM_FLAG_RTS_IFLOW))
 		ucom_rts(sc, 0);
 
@@ -997,7 +997,7 @@ ucom_modem(struct tty *tp, int sigon, int sigoff)
 static void
 ucom_cfg_line_state(struct usb_proc_msg *_task)
 {
-	struct ucom_cfg_task *task = 
+	struct ucom_cfg_task *task =
 	    (struct ucom_cfg_task *)_task;
 	struct ucom_softc *sc = task->sc;
 	uint8_t notch_bits;
@@ -1081,7 +1081,7 @@ ucom_line_state(struct ucom_softc *sc,
 
 	/* defer driver programming */
 	ucom_queue_command(sc, ucom_cfg_line_state, NULL,
-	    &sc->sc_line_state_task[0].hdr, 
+	    &sc->sc_line_state_task[0].hdr,
 	    &sc->sc_line_state_task[1].hdr);
 }
 
@@ -1132,7 +1132,7 @@ ucom_rts(struct ucom_softc *sc, uint8_t onoff)
 static void
 ucom_cfg_status_change(struct usb_proc_msg *_task)
 {
-	struct ucom_cfg_task *task = 
+	struct ucom_cfg_task *task =
 	    (struct ucom_cfg_task *)_task;
 	struct ucom_softc *sc = task->sc;
 	struct tty *tp;
@@ -1246,7 +1246,7 @@ ucom_status_change(struct ucom_softc *sc)
 static void
 ucom_cfg_param(struct usb_proc_msg *_task)
 {
-	struct ucom_param_task *task = 
+	struct ucom_param_task *task =
 	    (struct ucom_param_task *)_task;
 	struct ucom_softc *sc = task->sc;
 
@@ -1318,7 +1318,7 @@ ucom_param(struct tty *tp, struct termios *t)
 
 	/* Queue transfer enable command last */
 	ucom_queue_command(sc, ucom_cfg_start_transfers, NULL,
-	    &sc->sc_start_task[0].hdr, 
+	    &sc->sc_start_task[0].hdr,
 	    &sc->sc_start_task[1].hdr);
 
 	if (t->c_cflag & CRTS_IFLOW) {

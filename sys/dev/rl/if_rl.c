@@ -1858,7 +1858,7 @@ rl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable |= IFCAP_POLLING;
 			RL_UNLOCK(sc);
 			return (error);
-			
+
 		}
 		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
 		    ifp->if_capenable & IFCAP_POLLING) {

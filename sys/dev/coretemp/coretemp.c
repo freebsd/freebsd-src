@@ -181,7 +181,7 @@ coretemp_attach(device_t dev)
        * XXXrpaulo: I have this CPU model and when it returns from C3
        * coretemp continues to function properly.
        */
-	 
+
 	/*
 	 * Check for errata AE18.
 	 * "Processor Digital Thermal Sensor (DTS) Readout stops

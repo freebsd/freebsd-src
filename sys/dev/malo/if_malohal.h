@@ -43,7 +43,7 @@
 #define	MALO_CMDBUF_SIZE			0x4000
 
 #define MALO_FW_CHECK_USECS			(5 * 1000)	/* 5ms */
-#define MALO_FW_MAX_NUM_CHECKS			200  
+#define MALO_FW_MAX_NUM_CHECKS			200
 
 /*
  * Calibration data builtin to the firmware.  The firmware image
@@ -122,7 +122,7 @@ struct malo_hal_hwstats {
 	uint32_t	Wait4TxBuf;		/* !no f/w buf avail when
 						    supplied a tx descriptor */
 	uint32_t	TxAttempts;		/* tx descriptors processed */
-	uint32_t	TxSuccesses;		/* tx attempts successful */ 
+	uint32_t	TxSuccesses;		/* tx attempts successful */
 	uint32_t	TxFragments;		/* tx with fragmentation */
 	uint32_t	TxMulticasts;		/* tx multicast frames */
 	uint32_t	RxNonCtlPkts;		/* rx non-control frames */
@@ -158,7 +158,7 @@ enum malo_hal_preamble {
 
 struct malo_hal_channel_flags {
 	uint32_t		freqband : 6,
-#define MALO_FREQ_BAND_2DOT4GHZ	0x1 
+#define MALO_FREQ_BAND_2DOT4GHZ	0x1
 				: 26;		/* reserved */
 };
 

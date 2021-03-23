@@ -124,7 +124,7 @@ xflip_symbol(u_char symbol)
 }
 
 static void
-clear_daemon(sc_softc_t *sc, int xpos, int ypos, int dxdir, int xoff, int yoff, 
+clear_daemon(sc_softc_t *sc, int xpos, int ypos, int dxdir, int xoff, int yoff,
 	    int xlen, int ylen)
 {
 	int y;
@@ -140,7 +140,7 @@ clear_daemon(sc_softc_t *sc, int xpos, int ypos, int dxdir, int xoff, int yoff,
 }
 
 static void
-draw_daemon(sc_softc_t *sc, int xpos, int ypos, int dxdir, int xoff, int yoff, 
+draw_daemon(sc_softc_t *sc, int xpos, int ypos, int dxdir, int xoff, int yoff,
 	    int xlen, int ylen)
 {
 	int x, y;
@@ -172,9 +172,9 @@ draw_daemon(sc_softc_t *sc, int xpos, int ypos, int dxdir, int xoff, int yoff,
 			} else {		/* Moving right */
 				sc_vtb_putc(&sc->cur_scp->scr,
 					    (ypos + y)*sc->cur_scp->xsize
-						+ xpos + DAEMON_MAX_WIDTH 
+						+ xpos + DAEMON_MAX_WIDTH
 						- px - 1,
-					    sc->scr_map[xflip_symbol(daemon_pic[y][px])], 
+					    sc->scr_map[xflip_symbol(daemon_pic[y][px])],
 					    ATTR(attr));
 			}
 		}

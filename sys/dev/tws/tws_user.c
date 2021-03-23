@@ -41,7 +41,7 @@
 #include <dev/tws/tws_hdm.h>
 #include <dev/tws/tws_user.h>
 
-int tws_ioctl(struct cdev *dev, long unsigned int cmd, caddr_t buf, int flags, 
+int tws_ioctl(struct cdev *dev, long unsigned int cmd, caddr_t buf, int flags,
                                                     struct thread *td);
 void tws_passthru_complete(struct tws_request *req);
 extern void tws_circular_aenq_insert(struct tws_softc *sc,
@@ -51,7 +51,7 @@ static int tws_passthru(struct tws_softc *sc, void *buf);
 static int tws_ioctl_aen(struct tws_softc *sc, u_long cmd, void *buf);
 
 extern int tws_bus_scan(struct tws_softc *sc);
-extern struct tws_request *tws_get_request(struct tws_softc *sc, 
+extern struct tws_request *tws_get_request(struct tws_softc *sc,
                                            u_int16_t type);
 extern int32_t tws_map_request(struct tws_softc *sc, struct tws_request *req);
 extern void tws_unmap_request(struct tws_softc *sc, struct tws_request *req);
@@ -59,7 +59,7 @@ extern uint8_t tws_get_state(struct tws_softc *sc);
 extern void tws_timeout(void *arg);
 
 int
-tws_ioctl(struct cdev *dev, u_long cmd, caddr_t buf, int flags, 
+tws_ioctl(struct cdev *dev, u_long cmd, caddr_t buf, int flags,
                                                     struct thread *td)
 {
     struct tws_softc *sc = (struct tws_softc *)(dev->si_drv1);
@@ -83,7 +83,7 @@ tws_ioctl(struct cdev *dev, u_long cmd, caddr_t buf, int flags,
     return(error);
 }
 
-static int 
+static int
 tws_passthru(struct tws_softc *sc, void *buf)
 {
     struct tws_request *req;
@@ -137,11 +137,11 @@ tws_passthru(struct tws_softc *sc, void *buf)
     req->flags = TWS_DIR_IN | TWS_DIR_OUT;
     req->cb = tws_passthru_complete;
 
-    memcpy(&req->cmd_pkt->cmd, &ubuf->cmd_pkt.cmd, 
+    memcpy(&req->cmd_pkt->cmd, &ubuf->cmd_pkt.cmd,
                               sizeof(struct tws_command_apache));
 
-    if ( GET_OPCODE(req->cmd_pkt->cmd.pkt_a.res__opcode) == 
-                                               TWS_FW_CMD_EXECUTE_SCSI ) { 
+    if ( GET_OPCODE(req->cmd_pkt->cmd.pkt_a.res__opcode) ==
+                                               TWS_FW_CMD_EXECUTE_SCSI ) {
         lun4 = req->cmd_pkt->cmd.pkt_a.lun_l4__req_id & 0xF000;
         req->cmd_pkt->cmd.pkt_a.lun_l4__req_id = lun4 | req->request_id;
     } else {
@@ -194,7 +194,7 @@ out_data:
             error = copyout(req->data, ubuf->pdata, ubuf->driver_pkt.buffer_length);
     }
 
-    if ( error ) 
+    if ( error )
         TWS_TRACE_DEBUG(sc, "errored", error, 0);
 
     if ( req->error_code != TWS_REQ_RET_SUBMIT_SUCCESS )
@@ -210,7 +210,7 @@ out_data:
     return(error);
 }
 
-void 
+void
 tws_passthru_complete(struct tws_request *req)
 {
     req->state = TWS_REQ_STATE_COMPLETE;
@@ -218,8 +218,8 @@ tws_passthru_complete(struct tws_request *req)
 
 }
 
-static void 
-tws_retrive_aen(struct tws_softc *sc, u_long cmd, 
+static void
+tws_retrive_aen(struct tws_softc *sc, u_long cmd,
                             struct tws_ioctl_packet *ubuf)
 {
     u_int16_t index=0;
@@ -229,11 +229,11 @@ tws_retrive_aen(struct tws_softc *sc, u_long cmd,
         ubuf->driver_pkt.status = TWS_AEN_NO_EVENTS;
         return;
     }
-    
+
     ubuf->driver_pkt.status = 0;
 
-    /* 
-     * once this flag is set cli will not display alarms 
+    /*
+     * once this flag is set cli will not display alarms
      * needs a revisit from tools?
      */
     if ( sc->aen_q.overflow ) {
@@ -248,14 +248,14 @@ tws_retrive_aen(struct tws_softc *sc, u_long cmd,
             index = sc->aen_q.head;
             break;
         case TWS_IOCTL_GET_LAST_EVENT :
-            /* index = tail-1 */ 
+            /* index = tail-1 */
             index = (sc->aen_q.depth + sc->aen_q.tail - 1) % sc->aen_q.depth;
             break;
         case TWS_IOCTL_GET_NEXT_EVENT :
             memcpy(&eventp, ubuf->data_buf, sizeof(struct tws_event_packet));
             index = sc->aen_q.head;
             do {
-                if ( qp[index].sequence_id == 
+                if ( qp[index].sequence_id ==
                            (eventp.sequence_id + 1) )
                     break;
                 index  = (index+1) % sc->aen_q.depth;
@@ -269,7 +269,7 @@ tws_retrive_aen(struct tws_softc *sc, u_long cmd,
             memcpy(&eventp, ubuf->data_buf, sizeof(struct tws_event_packet));
             index = sc->aen_q.head;
             do {
-                if ( qp[index].sequence_id == 
+                if ( qp[index].sequence_id ==
                            (eventp.sequence_id - 1) )
                     break;
                 index  = (index+1) % sc->aen_q.depth;
@@ -285,7 +285,7 @@ tws_retrive_aen(struct tws_softc *sc, u_long cmd,
             return;
     }
 
-    memcpy(ubuf->data_buf, &qp[index], 
+    memcpy(ubuf->data_buf, &qp[index],
                            sizeof(struct tws_event_packet));
     qp[index].retrieved = TWS_AEN_RETRIEVED;
 
@@ -293,7 +293,7 @@ tws_retrive_aen(struct tws_softc *sc, u_long cmd,
 
 }
 
-static int 
+static int
 tws_ioctl_aen(struct tws_softc *sc, u_long cmd, void *buf)
 {
 
@@ -359,7 +359,7 @@ tws_ioctl_aen(struct tws_softc *sc, u_long cmd, void *buf)
 
             break;
         default :
-            TWS_TRACE_DEBUG(sc, "not valid cmd", cmd, 
+            TWS_TRACE_DEBUG(sc, "not valid cmd", cmd,
                            TWS_IOCTL_GET_COMPATIBILITY_INFO);
             break;
     }

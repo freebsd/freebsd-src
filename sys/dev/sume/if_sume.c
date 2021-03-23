@@ -498,7 +498,7 @@ sume_intr_handler(void *arg)
 
 				/* Remember, len and recv->len are words. */
 				if (ch == SUME_RIFFA_CHANNEL_DATA) {
-					m = sume_rx_build_mbuf(adapter, 
+					m = sume_rx_build_mbuf(adapter,
 					    len << 2);
 					recv->state =
 					    SUME_RIFFA_CHAN_STATE_IDLE;

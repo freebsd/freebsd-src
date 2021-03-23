@@ -112,7 +112,7 @@ siba_erom_probe(bhnd_erom_class_t *cls, struct bhnd_erom_io *eio,
 
 		/*
 		 * Verify the first core's IDHIGH/IDLOW identification.
-		 * 
+		 *
 		 * The core must be a Broadcom core, but must *not* be
 		 * a chipcommon core; those shouldn't be hinted.
 		 *
@@ -134,7 +134,7 @@ siba_erom_probe(bhnd_erom_class_t *cls, struct bhnd_erom_io *eio,
 		/* Validate bus type */
 		idreg = siba_eio_read_4(&io, 0, CHIPC_ID);
 		if (CHIPC_GET_BITS(idreg, CHIPC_ID_BUS) != BHND_CHIPTYPE_SIBA)
-			return (ENXIO);	
+			return (ENXIO);
 
 		/* Identify the chipset */
 		if ((error = siba_eio_read_chipid(&io, SIBA_ENUM_ADDR, cid)))
@@ -202,7 +202,7 @@ siba_eio_init(struct siba_erom_io *io, struct bhnd_erom_io *eio, u_int ncores)
 /**
  * Read a 32-bit value from @p offset relative to the base address of
  * the given @p core_idx.
- * 
+ *
  * @param io EROM I/O context.
  * @param core_idx Core index.
  * @param offset Core register offset.
@@ -225,13 +225,13 @@ siba_eio_read_4(struct siba_erom_io *io, u_int core_idx, bus_size_t offset)
 
 /**
  * Read and parse identification registers for the given @p core_index.
- * 
+ *
  * @param io EROM I/O context.
  * @param core_idx The core index.
  * @param unit The caller-specified unit number to be included in the return
  * value.
  * @param[out] sid On success, the parsed siba core id.
- * 
+ *
  * @retval 0		success
  * @retval non-zero     if reading or parsing the identification registers
  *			otherwise fails, a regular unix error code will be
@@ -339,11 +339,11 @@ siba_eio_read_core_id(struct siba_erom_io *io, u_int core_idx, int unit,
 /**
  * Read and parse the SSB identification registers for the given @p core_index,
  * returning the siba(4) core identification in @p sid.
- * 
+ *
  * @param sc A siba EROM instance.
  * @param core_idx The index of the core to be identified.
  * @param[out] result On success, the parsed siba core id.
- * 
+ *
  * @retval 0		success
  * @retval non-zero     if reading or parsing the identification registers
  *			otherwise fails, a regular unix error code will be
@@ -379,7 +379,7 @@ siba_erom_get_core_id(struct siba_erom *sc, u_int core_idx,
 
 /**
  * Read and parse the chip identification register from the ChipCommon core.
- * 
+ *
  * @param io EROM I/O context.
  * @param enum_addr The physical address mapped by @p io.
  * @param cid On success, the parsed chip identifier.
@@ -429,7 +429,7 @@ siba_eio_read_chipid(struct siba_erom_io *io, bus_addr_t enum_addr,
 		* the ChipCommon revision (0x5) used by BCM5365
 		* from the set of revisions supporting
 		* ID_NUMCORE, and instead supply a fixed value.
-		* 
+		*
 		* Presumably, at least some of these devices
 		* shipped with a broken ID_NUMCORE value.
 		*/
@@ -573,9 +573,9 @@ siba_erom_lookup_core_addr(bhnd_erom_t *erom, const struct bhnd_core_match *desc
 		return (0);
 	}
 
-	/* 
+	/*
 	 * Otherwise, must be a device port.
-	 * 
+	 *
 	 * Map the bhnd device port to a siba addrspace index. Unlike siba(4)
 	 * bus drivers, we do not exclude the siba(4) configuration blocks from
 	 * the first device port.
@@ -697,7 +697,7 @@ siba_erom_dump(bhnd_erom_t *erom)
 				    addrspace);
 				break;
 			}
-			
+
 			/* Read and parse the address match register */
 			am = siba_eio_read_4(&sc->io, i, am_offset);
 			if ((error = siba_parse_admatch(am, &admatch))) {

@@ -471,7 +471,7 @@ rt2661_alloc_tx_ring(struct rt2661_softc *sc, struct rt2661_tx_ring *ring,
 	ring->queued = 0;
 	ring->cur = ring->next = ring->stat = 0;
 
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0, 
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    count * RT2661_TX_DESC_SIZE, 1, count * RT2661_TX_DESC_SIZE,
 	    0, NULL, NULL, &ring->desc_dmat);
@@ -503,7 +503,7 @@ rt2661_alloc_tx_ring(struct rt2661_softc *sc, struct rt2661_tx_ring *ring,
 		goto fail;
 	}
 
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0, 
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
 	    RT2661_MAX_SCATTER, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
@@ -612,7 +612,7 @@ rt2661_alloc_rx_ring(struct rt2661_softc *sc, struct rt2661_rx_ring *ring,
 	ring->count = count;
 	ring->cur = ring->next = 0;
 
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0, 
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    count * RT2661_RX_DESC_SIZE, 1, count * RT2661_RX_DESC_SIZE,
 	    0, NULL, NULL, &ring->desc_dmat);
@@ -647,7 +647,7 @@ rt2661_alloc_rx_ring(struct rt2661_softc *sc, struct rt2661_rx_ring *ring,
 	/*
 	 * Pre-allocate Rx buffers and populate Rx ring.
 	 */
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0, 
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
 	    1, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
@@ -1555,7 +1555,7 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 }
 
 static int
-rt2661_transmit(struct ieee80211com *ic, struct mbuf *m)   
+rt2661_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
 	struct rt2661_softc *sc = ic->ic_softc;
 	int error;
@@ -2385,23 +2385,23 @@ rt2661_stop_locked(struct rt2661_softc *sc)
 
 		/* abort Tx (for all 5 Tx rings) */
 		RAL_WRITE(sc, RT2661_TX_CNTL_CSR, 0x1f << 16);
-		
+
 		/* disable Rx (value remains after reset!) */
 		tmp = RAL_READ(sc, RT2661_TXRX_CSR0);
 		RAL_WRITE(sc, RT2661_TXRX_CSR0, tmp | RT2661_DISABLE_RX);
-		
+
 		/* reset ASIC */
 		RAL_WRITE(sc, RT2661_MAC_CSR1, 3);
 		RAL_WRITE(sc, RT2661_MAC_CSR1, 0);
-		
+
 		/* disable interrupts */
 		RAL_WRITE(sc, RT2661_INT_MASK_CSR, 0xffffffff);
 		RAL_WRITE(sc, RT2661_MCU_INT_MASK_CSR, 0xffffffff);
-		
+
 		/* clear any pending interrupt */
 		RAL_WRITE(sc, RT2661_INT_SOURCE_CSR, 0xffffffff);
 		RAL_WRITE(sc, RT2661_MCU_INT_SOURCE_CSR, 0xffffffff);
-		
+
 		/* reset Tx and Rx rings */
 		rt2661_reset_tx_ring(sc, &sc->txq[0]);
 		rt2661_reset_tx_ring(sc, &sc->txq[1]);
@@ -2673,7 +2673,7 @@ rt2661_enable_tsf_sync(struct rt2661_softc *sc)
 static void
 rt2661_enable_tsf(struct rt2661_softc *sc)
 {
-	RAL_WRITE(sc, RT2661_TXRX_CSR9, 
+	RAL_WRITE(sc, RT2661_TXRX_CSR9,
 	      (RAL_READ(sc, RT2661_TXRX_CSR9) & 0xff000000)
 	    | RT2661_TSF_TICKING | RT2661_TSF_MODE(2));
 }

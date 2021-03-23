@@ -1160,7 +1160,7 @@ struct rl_softc {
 
 #define	USR_DEVICEID_997902	0x0116
 
-/* 
+/*
  * NCube vendor ID
  */
 #define	NCUBE_VENDORID		0x10FF

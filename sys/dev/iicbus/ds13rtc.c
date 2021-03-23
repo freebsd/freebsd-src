@@ -316,7 +316,7 @@ ds13rtc_start(void *arg)
 		return;
 	}
 	if (statreg & DS13xx_B_STATUS_OSF) {
-		device_printf(sc->dev, 
+		device_printf(sc->dev,
 		    "WARNING: RTC battery failed; time is invalid\n");
 	}
 
@@ -396,7 +396,7 @@ ds13rtc_gettime(device_t dev, struct timespec *ts)
 	if (sc->use_century)
 		bct.year += (tregs.month & DS13xx_B_MONTH_CENTURY) ? 0x100 : 0;
 
-	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct); 
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_READ, &bct);
 	err = clock_bcd_to_ts(&bct, ts, sc->use_ampm);
 
 	return (err);
@@ -424,7 +424,7 @@ ds13rtc_settime(device_t dev, struct timespec *ts)
 		return (write_timeword(sc, ts->tv_sec));
 
 	clock_ts_to_bcd(ts, &bct, sc->use_ampm);
-	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_WRITE, &bct); 
+	clock_dbgprint_bcd(sc->dev, CLOCK_DBG_WRITE, &bct);
 
 	/* If the chip is in AMPM mode deal with the PM flag. */
 	pmflags = 0;
@@ -480,12 +480,12 @@ ds13rtc_get_chiptype(device_t dev)
 	return (ofw_bus_search_compatible(dev, compat_data)->ocd_data);
 #else
 	ds13_compat_data *cdata;
-	const char *htype; 
+	const char *htype;
 
 	/*
 	 * We can only attach if provided a chiptype hint string.
 	 */
-	if (resource_string_value(device_get_name(dev), 
+	if (resource_string_value(device_get_name(dev),
 	    device_get_unit(dev), "compatible", &htype) != 0)
 		return (TYPE_NONE);
 
@@ -540,7 +540,7 @@ ds13rtc_attach(device_t dev)
 	}
 
 	/* The seconds register is in the same place on all except DS1388. */
-	if (sc->chiptype == TYPE_DS1388) 
+	if (sc->chiptype == TYPE_DS1388)
 		sc->secaddr = DS1388_R_SECOND;
 	else
 		sc->secaddr = DS13xx_R_SECOND;

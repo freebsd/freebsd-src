@@ -359,7 +359,7 @@ ds1307_gettime(device_t dev, struct timespec *ts)
 	bct.mon  = data[DS1307_MONTH] & DS1307_MONTH_MASK;
 	bct.year = data[DS1307_YEAR]  & DS1307_YEAR_MASK;
 
-	clock_dbgprint_bcd(sc->sc_dev, CLOCK_DBG_READ, &bct); 
+	clock_dbgprint_bcd(sc->sc_dev, CLOCK_DBG_READ, &bct);
 	return (clock_bcd_to_ts(&bct, ts, sc->sc_use_ampm));
 }
 

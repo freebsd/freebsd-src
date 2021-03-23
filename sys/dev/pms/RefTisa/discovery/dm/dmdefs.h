@@ -1,22 +1,22 @@
 /*******************************************************************************
 **
-* Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+* Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 **
 * $FreeBSD$
@@ -51,14 +51,14 @@
 #define DM_USECS_PER_TICK                       1000000                   /**< defines the heart beat of the LL layer 10ms */
 
 /*
-*  FIS type 
+*  FIS type
 */
 #define PIO_SETUP_DEV_TO_HOST_FIS   0x5F
-#define REG_DEV_TO_HOST_FIS         0x34 
+#define REG_DEV_TO_HOST_FIS         0x34
 #define SET_DEV_BITS_FIS            0xA1
 
 #define DEFAULT_KEY_BUFFER_SIZE     64
- 
+
 enum dm_locks_e
 {
   DM_PORT_LOCK = 0,
@@ -105,7 +105,7 @@ enum dm_locks_e
 #if defined(DM_DEBUG)
 
 /*
-* for debugging purposes.  
+* for debugging purposes.
 */
 extern bit32 gDMDebugLevel;
 
@@ -134,7 +134,7 @@ extern bit32 gDMDebugLevel;
 //#define tddmLogDebugString TIDEBUG_MSG
 
 /* discovery related state */
-#define DM_DSTATE_NOT_STARTED                 0 
+#define DM_DSTATE_NOT_STARTED                 0
 #define DM_DSTATE_STARTED                     1
 #define DM_DSTATE_COMPLETED                   2
 #define DM_DSTATE_COMPLETED_WITH_FAILURE      3
@@ -226,7 +226,7 @@ extern bit32 gDMDebugLevel;
 /* SMP header definition */
 typedef struct dmSMPFrameHeader_s
 {
-    bit8   smpFrameType;      /* The first byte of SMP frame represents the SMP FRAME TYPE */ 
+    bit8   smpFrameType;      /* The first byte of SMP frame represents the SMP FRAME TYPE */
     bit8   smpFunction;       /* The second byte of the SMP frame represents the SMP FUNCTION */
     bit8   smpFunctionResult; /* The third byte of SMP frame represents FUNCTION RESULT of the SMP response. */
     bit8   smpReserved;       /* reserved */
@@ -236,10 +236,10 @@ typedef struct dmSMPFrameHeader_s
  *            report general request
  ****************************************************************/
 #ifdef FOR_COMPLETENESS
-typedef struct smpReqReportGeneral_s 
+typedef struct smpReqReportGeneral_s
 {
   /* nothing. some compiler disallowed structure with no member */
-} smpReqReportGeneral_t; 
+} smpReqReportGeneral_t;
 #endif
 
 /****************************************************************
@@ -255,7 +255,7 @@ typedef struct smpRespReportGeneral_s
   bit8   expanderRouteIndexes16[2];
   bit8   reserved1; /* byte 9; has LONG Response for SAS 2 at bit 8 */
   bit8   numOfPhys;
-  bit8   configuring_configurable;  
+  bit8   configuring_configurable;
     /* B7-2 : reserved */
     /* B1   : configuring */
     /* B0   : configurable */
@@ -276,11 +276,11 @@ typedef struct smpRespReportGeneral_s
 #define REPORT_GENERAL_IS_LONG_RESPONSE(pResp) \
   (((pResp)->reserved1 & REPORT_GENERAL_LONG_RESPONSE_BIT) == \
       REPORT_GENERAL_LONG_RESPONSE_BIT)
-            
+
 /****************************************************************
  *            report manufacturer info response
  ****************************************************************/
-typedef struct smpRespReportManufactureInfo_s 
+typedef struct smpRespReportManufactureInfo_s
 {
   bit8    reserved1[8];
   bit8    vendorIdentification[8];
@@ -292,13 +292,13 @@ typedef struct smpRespReportManufactureInfo_s
 /****************************************************************
  *           discover request
  ****************************************************************/
-typedef struct smpReqDiscover_s 
+typedef struct smpReqDiscover_s
 {
   bit32   reserved1;
   bit8    reserved2;
   bit8    phyIdentifier;
-  bit8    ignored;  
-  bit8    reserved3;  
+  bit8    ignored;
+  bit8    reserved3;
 } smpReqDiscover_t;
 
 /****************************************************************
@@ -309,7 +309,7 @@ typedef struct smpRespDiscover_s
   bit8   reserved1[4];
   bit8   reserved2;
   bit8   phyIdentifier;
-  bit8   reserved3[2];  
+  bit8   reserved3[2];
   bit8   attachedDeviceType; /* byte 12 */
     /* B7   : reserved */
     /* B6-4 : attachedDeviceType */
@@ -420,7 +420,7 @@ typedef struct smpReqReportRouteTable_s
 /****************************************************************
  *            report route response
  ****************************************************************/
-typedef struct smpRespReportRouteTable_s 
+typedef struct smpRespReportRouteTable_s
 {
   bit8   reserved1[2];
   bit8   expanderRouteIndex16[2];
@@ -457,7 +457,7 @@ typedef struct smpReqConfigureRouteInformation_s
  *            configure route response
  ****************************************************************/
 #ifdef FOR_COMPLETENESS
-typedef struct smpRespConfigureRouteInformation_s 
+typedef struct smpRespConfigureRouteInformation_s
 {
   /* nothing. some compiler disallowed structure with no member */
 } smpRespConfigureRouteInformation_t;
@@ -477,7 +477,7 @@ typedef struct smpReqReportPhySata_s
 /****************************************************************
  *            report Phy Sata response
  ****************************************************************/
-typedef struct smpRespReportPhySata_s 
+typedef struct smpRespReportPhySata_s
 {
   bit8   reserved1[4];
   bit8   reserved2;
@@ -527,7 +527,7 @@ typedef struct smpReqPhyControl_s
  *            Phy Control response
  ****************************************************************/
 #ifdef FOR_COMPLETENESS
-typedef struct smpRespPhyControl_s 
+typedef struct smpRespPhyControl_s
 {
   /* nothing. some compiler disallowed structure with no member */
 } smpRespPhyControl_t;
@@ -540,7 +540,7 @@ typedef struct smpRespPhyControl_s
 /* SMP header definition */
 typedef struct tdssSMPFrameHeader2_s
 {
-    bit8   smpFrameType;      /* The first byte of SMP frame represents the SMP FRAME TYPE */ 
+    bit8   smpFrameType;      /* The first byte of SMP frame represents the SMP FRAME TYPE */
     bit8   smpFunction;       /* The second byte of the SMP frame represents the SMP FUNCTION */
     bit8   smpAllocLenFuncResult; /* The third byte of SMP frame represents ALLOCATED RESPONSE LENGTH of SMP request or FUNCTION RESULT of the SMP response. */
     bit8   smpReqResLen;       /* The third byte of SMP frame represents REQUEST LENGTH of SMP request or RESPONSE LENGTH of the SMP response. */
@@ -550,10 +550,10 @@ typedef struct tdssSMPFrameHeader2_s
  *            report general request
  ****************************************************************/
 #ifdef FOR_COMPLETENESS
-typedef struct smpReqReportGeneral2_s 
+typedef struct smpReqReportGeneral2_s
 {
   /* nothing. some compiler disallowed structure with no member */
-} smpReqReportGeneral2_t; 
+} smpReqReportGeneral2_t;
 #endif
 
 /****************************************************************
@@ -568,9 +568,9 @@ typedef struct smpRespReportGeneral2_s
   bit8   expanderRouteIndexes16[2]; /* byte 6-7 */
   bit8   LongResponse; /* byte 8 */
   /* B7: LongResponse */
-  /* B6-0: Reserved */ 
+  /* B6-0: Reserved */
   bit8   numOfPhys; /* byte 9 */
-  bit8   byte10; 
+  bit8   byte10;
     /* B7   : TABLE TO TABLE SUPPORTED */
     /* B6   : ZONE CONFIGURING */
     /* B5   : SELF CONFIGURING */
@@ -603,11 +603,11 @@ typedef struct smpRespReportGeneral2_s
     /* B0   : SAVING ZONING ENABLED SUPPORTED */
   bit8   MaxNumOfRoutedSASAddr[2]; /* byte39 */
   bit8   ActiveZoneManagerSASAddr[8]; /* byte47 */
-  bit8   ZoneLockInactivityTimeLimit[2]; /* byte49 */  
+  bit8   ZoneLockInactivityTimeLimit[2]; /* byte49 */
   bit8   reserved4[2];
   bit8   reserved5; /* byte52 */
-  bit8   FirstEnclosureConnectorElementIdx; /* byte53 */  
-  bit8   NumOfEnclosureConnectorElementIdxs; /* byte54 */  
+  bit8   FirstEnclosureConnectorElementIdx; /* byte53 */
+  bit8   NumOfEnclosureConnectorElementIdxs; /* byte54 */
   bit8   reserved6; /* byte55 */
   bit8   ReducedFunctionality;
   /* B7: ReducedFunctionality */
@@ -621,7 +621,7 @@ typedef struct smpRespReportGeneral2_s
   bit8   MaxNumbOfStoredPhyEventListDesc[2]; /* byte67 */
   bit8   STPRejectToOpenLimit[2]; /* byte69 */
   bit8   reserved7[2]; /* byte71 */
-    
+
 } smpRespReportGeneral2_t;
 
 #define SAS2_REPORT_GENERAL_GET_ROUTEINDEXES(pResp) \
@@ -647,16 +647,16 @@ typedef struct smpRespReportGeneral2_s
  *            report manufacturer info request
  ****************************************************************/
 #ifdef FOR_COMPLETENESS
-typedef struct smpReqReportManufactureInfo2_s 
+typedef struct smpReqReportManufactureInfo2_s
 {
   /* nothing. some compiler disallowed structure with no member */
-} smpReqReportManufactureInfo2_t; 
+} smpReqReportManufactureInfo2_t;
 #endif
 
 /****************************************************************
  *            report manufacturer info response
  ****************************************************************/
-typedef struct smpRespReportManufactureInfo2_s 
+typedef struct smpRespReportManufactureInfo2_s
 {
   bit16   ExpanderChangeCount; /* byte 4-5 */
   bit8    reserved1[2]; /* byte 6-7 */
@@ -677,7 +677,7 @@ typedef struct smpRespReportManufactureInfo2_s
 /****************************************************************
  *           discover request
  ****************************************************************/
-typedef struct smpReqDiscover2_s 
+typedef struct smpReqDiscover2_s
 {
   bit32   reserved1; /* byte 4 - 7 */
   bit8    IgnoreZoneGroup; /* byte 8 */
@@ -807,7 +807,7 @@ typedef struct smpRespDiscover2_s
   bit8   DeviceSlotNumber; /* byte 108 */
   bit8   GroupNumber; /* byte 109 */
   bit16  PathToEnclosure; /* byte 110 - 111 */
-   
+
 } smpRespDiscover2_t;
 
 #define SAS2_DISCRSP_SSP_BIT    0x08
@@ -865,11 +865,11 @@ typedef struct smpRespDiscover2_s
 
 #define SAS2_DISCRSP_IS_MUXING_SUPPORTED(pResp) \
   (((pResp)->NegotiatedSSCHWMuxingSupported & SAS2_MUXING_SUPPORTED) == SAS2_MUXING_SUPPORTED)
-  
+
 /****************************************************************
  *           discover list request
  ****************************************************************/
-typedef struct smpReqDiscoverList2_s 
+typedef struct smpReqDiscoverList2_s
 {
   bit32   reserved1; /* byte 4 - 7 */
   bit8    StartingPhyID; /* byte 8 */
@@ -890,7 +890,7 @@ typedef struct smpReqDiscoverList2_s
 /****************************************************************
  *           discover list response
  ****************************************************************/
-typedef struct smpRespDiscoverList2_s 
+typedef struct smpRespDiscoverList2_s
 {
   bit16   ExpanderChangeCount; /* byte 4 - 5 */
   bit16   reserved1; /* byte 6 - 7 */
@@ -937,7 +937,7 @@ typedef struct smpReqReportRouteTable2_s
 /****************************************************************
  *            report route response
  ****************************************************************/
-typedef struct smpRespReportRouteTable2_s 
+typedef struct smpRespReportRouteTable2_s
 {
   bit16  expanderChangeCount; /* byte 4 - 5 */
   bit16  expanderRouteIndex; /* byte 6 - 7 */
@@ -976,7 +976,7 @@ typedef struct smpReqConfigureRouteInformation2_s
  *            configure route response
  ****************************************************************/
 #ifdef FOR_COMPLETENESS
-typedef struct smpRespConfigureRouteInformation2_s 
+typedef struct smpRespConfigureRouteInformation2_s
 {
   /* nothing. some compiler disallowed structure with no member */
 } smpRespConfigureRouteInformation2_t;
@@ -996,7 +996,7 @@ typedef struct smpReqReportPhySata2_s
 /****************************************************************
  *            report Phy Sata response
  ****************************************************************/
-typedef struct smpRespReportPhySata2_s 
+typedef struct smpRespReportPhySata2_s
 {
   bit16  expanderChangeCount; /* byte 4-5 */
   bit8   reserved1[3]; /* byte 6-8 */
@@ -1020,7 +1020,7 @@ typedef struct smpRespReportPhySata2_s
   bit8   AffiliationContext; /* byte 65 */
   bit8   CurrentAffiliationContexts; /* byte 66 */
   bit8   MaxAffiliationContexts; /* byte 67 */
-  
+
 } smpRespReportPhySata2_t;
 
 /****************************************************************
@@ -1048,14 +1048,14 @@ typedef struct smpReqPhyControl2_s
     /* b7-4 : reserved */
     /* b3-0 : partial Pathway TO Value */
   bit8   reserved4[3]; /* byte 37-39 */
-  
+
 } smpReqPhyControl2_t;
 
 /****************************************************************
  *            Phy Control response
  ****************************************************************/
 #ifdef FOR_COMPLETENESS
-typedef struct smpRespPhyControl2_s 
+typedef struct smpRespPhyControl2_s
 {
   /* nothing. some compiler disallowed structure with no member */
 } smpRespPhyControl2_t;

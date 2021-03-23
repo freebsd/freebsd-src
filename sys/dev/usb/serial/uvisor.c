@@ -566,7 +566,7 @@ uvisor_cfg_close(struct ucom_softc *ucom)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, UVISOR_CONNECTION_INFO_SIZE);
 
-	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, buffer, 0, 1000);
 	if (err) {
 		DPRINTFN(0, "close notification failed, error=%s\n",
@@ -619,7 +619,7 @@ uvisor_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 tr_setup:
 		for (x = 0; x != UVISOROFRAMES; x++) {
-			usbd_xfer_set_frame_offset(xfer, 
+			usbd_xfer_set_frame_offset(xfer,
 			    x * UVISOROBUFSIZE, x);
 
 			pc = usbd_xfer_get_frame(xfer, x);

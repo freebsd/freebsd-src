@@ -357,7 +357,7 @@ dcons_drv_init(int stage)
 		 * DCONS_FORCE_CONSOLE == 0 or kernel module case.
 		 * if the module is loaded after boot,
 		 * bssbuf could be non-continuous.
-		 */ 
+		 */
 		dg.buf = (struct dcons_buf *) contigmalloc(dg.size,
 			M_DEVBUF, 0, 0x10000, 0xffffffff, PAGE_SIZE, 0ul);
 		if (dg.buf == NULL)

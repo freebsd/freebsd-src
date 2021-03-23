@@ -179,7 +179,7 @@ eepromSwap(HAL_EEPROM_9287 *ee)
 	ee->ee_base.baseEepHeader.rfSilent = word;
 
 	word = __bswap16(ee->ee_base.baseEepHeader.blueToothOptions);
-	ee->ee_base.baseEepHeader.blueToothOptions = word; 
+	ee->ee_base.baseEepHeader.blueToothOptions = word;
 
 	word = __bswap16(ee->ee_base.baseEepHeader.deviceCap);
 	ee->ee_base.baseEepHeader.deviceCap = word;
@@ -203,9 +203,9 @@ eepromSwap(HAL_EEPROM_9287 *ee)
 	}
 }
 
-static uint16_t 
+static uint16_t
 v9287EepromGetSpurChan(struct ath_hal *ah, int ix, HAL_BOOL is2GHz)
-{ 
+{
 	HAL_EEPROM_9287 *ee = AH_PRIVATE(ah)->ah_eeprom;
 
 	HALASSERT(is2GHz == AH_TRUE);
@@ -235,11 +235,11 @@ fbin2freq(uint8_t fbin, HAL_BOOL is2GHz)
 }
 
 /*
- * Copy EEPROM Conformance Testing Limits contents 
+ * Copy EEPROM Conformance Testing Limits contents
  * into the allocated space
  */
-/* USE CTLS from chain zero */ 
-#define CTL_CHAIN	0 
+/* USE CTLS from chain zero */
+#define CTL_CHAIN	0
 
 static void
 v9287EepromReadCTLInfo(struct ath_hal *ah, HAL_EEPROM_9287 *ee)
@@ -364,7 +364,7 @@ ath_hal_9287EepromAttach(struct ath_hal *ah)
 	 * in the correct endian format.  Right now, it seems it would
 	 * cast the raw data to host format and do the calculation, which may
 	 * not be correct as the calculation may need to be done in the native
-	 * eeprom format 
+	 * eeprom format
 	 */
 	sum = 0;
 	for (w = 0; w < len; w++)

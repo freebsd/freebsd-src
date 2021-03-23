@@ -55,7 +55,7 @@ void sis_enable_intx(pqisrc_softstate_t *softs)
 	db_reg |= SIS_ENABLE_INTX;
 	PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db,
 			LEGACY_SIS_IDBR, db_reg);
-	if (pqisrc_sis_wait_for_db_bit_to_clear(softs,SIS_ENABLE_INTX) 
+	if (pqisrc_sis_wait_for_db_bit_to_clear(softs,SIS_ENABLE_INTX)
 			!= PQI_STATUS_SUCCESS) {
 		DBG_ERR("Failed to wait for enable intx db bit to clear\n");
 	}
@@ -104,7 +104,7 @@ void pqisrc_trigger_nmi_sis(pqisrc_softstate_t *softs)
 
 	DBG_FUNC("IN\n");
 
-	PCI_MEM_PUT32(softs,  &softs->ioa_reg->host_to_ioa_db, 
+	PCI_MEM_PUT32(softs,  &softs->ioa_reg->host_to_ioa_db,
 			LEGACY_SIS_IDBR, LE_32(TRIGGER_NMI_SIS));
 	DBG_FUNC("OUT\n");
 }
@@ -117,7 +117,7 @@ int pqisrc_reenable_sis(pqisrc_softstate_t *softs)
 
 	DBG_FUNC("IN\n");
 
-	PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db, 
+	PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db,
         LEGACY_SIS_IDBR, LE_32(REENABLE_SIS));
 
 	COND_WAIT(((PCI_MEM_GET32(softs, &softs->ioa_reg->ioa_to_host_db, LEGACY_SIS_ODBR_R) &
@@ -126,7 +126,7 @@ int pqisrc_reenable_sis(pqisrc_softstate_t *softs)
 		DBG_WARN(" [ %s ] failed to re enable sis\n",__func__);
 		ret = PQI_STATUS_TIMEOUT;
 	}
-		
+
 	DBG_FUNC("OUT\n");
 	return ret;
 }
@@ -165,14 +165,14 @@ static int pqisrc_send_sis_cmd(pqisrc_softstate_t *softs,
 
 	/* Copy Command to mailbox */
 	for (i = 0; i < 6; i++)
-		PCI_MEM_PUT32(softs, &softs->ioa_reg->mb[i], 
+		PCI_MEM_PUT32(softs, &softs->ioa_reg->mb[i],
             LEGACY_SIS_SRCV_MAILBOX+i*4, LE_32(mb[i]));
-    
-	PCI_MEM_PUT32(softs, &softs->ioa_reg->ioa_to_host_db_clr, 
+
+	PCI_MEM_PUT32(softs, &softs->ioa_reg->ioa_to_host_db_clr,
 		LEGACY_SIS_ODBR_R, LE_32(0x1000));
 
 	/* Submit the command */
-	PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db, 
+	PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db,
 		LEGACY_SIS_IDBR, LE_32(SIS_CMD_SUBMIT));
 
 #ifdef SIS_POLL_WAIT

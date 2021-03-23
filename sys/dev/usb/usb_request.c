@@ -26,7 +26,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- */ 
+ */
 
 #ifdef USB_GLOBAL_INCLUDE_FILE
 #include USB_GLOBAL_INCLUDE_FILE
@@ -2100,7 +2100,7 @@ retry:
 	/* Try to reset the parent HUB port. */
 	err = usbd_req_reset_port(parent_hub, mtx, udev->port_no);
 	if (err) {
-		DPRINTFN(0, "addr=%d, port reset failed, %s\n", 
+		DPRINTFN(0, "addr=%d, port reset failed, %s\n",
 		    old_addr, usbd_errstr(err));
 		goto done;
 	}

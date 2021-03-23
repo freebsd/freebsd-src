@@ -319,7 +319,7 @@ s390rtc_gettime(device_t dev, struct timespec *ts)
 	bct.mon  = bcd[S390_RT1_MONTH];
 	bct.year = bcd[S390_RT1_YEAR];
 
-	clock_dbgprint_bcd(dev, CLOCK_DBG_READ, &bct); 
+	clock_dbgprint_bcd(dev, CLOCK_DBG_READ, &bct);
 	return (clock_bcd_to_ts(&bct, ts, false));
 }
 
@@ -330,7 +330,7 @@ s390rtc_settime(device_t dev, struct timespec *ts)
 	struct bcd_clocktime bct;
 
 	clock_ts_to_bcd(ts, &bct, false);
-	clock_dbgprint_bcd(dev, CLOCK_DBG_WRITE, &bct); 
+	clock_dbgprint_bcd(dev, CLOCK_DBG_WRITE, &bct);
 
 	/*
 	 * Convert our time representation into something the S-xx390

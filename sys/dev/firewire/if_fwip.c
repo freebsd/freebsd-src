@@ -5,7 +5,7 @@
  *	Doug Rabson
  * Copyright (c) 2002-2003
  * 	Hidetoshi Shimokawa. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -22,7 +22,7 @@
  * 4. Neither the name of the author nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -34,7 +34,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -182,7 +182,7 @@ fwip_attach(device_t dev)
 	hwaddr->sender_unicast_FIFO_hi = htons((uint16_t)(INET_FIFO >> 32));
 	hwaddr->sender_unicast_FIFO_lo = htonl((uint32_t)INET_FIFO);
 
-	/* fill the rest and attach interface */	
+	/* fill the rest and attach interface */
 	ifp->if_softc = &fwip->fw_softc;
 
 	if_initname(ifp, device_get_name(dev), unit);
@@ -219,7 +219,7 @@ fwip_stop(struct fwip_softc *fwip)
 
 		if (xferq->flag & FWXFERQ_RUNNING)
 			fc->irx_disable(fc, fwip->dma_ch);
-		xferq->flag &= 
+		xferq->flag &=
 			~(FWXFERQ_MODEMASK | FWXFERQ_OPEN | FWXFERQ_STREAM |
 			FWXFERQ_EXTBUF | FWXFERQ_HANDLER | FWXFERQ_CHTAGMASK);
 		xferq->hand =  NULL;

@@ -149,7 +149,7 @@ struct ocs_io_s {
 	uint32_t  timeout;		/**< Timeout value in seconds for this IO */
 	uint8_t   cs_ctl;		/**< CS_CTL priority for this IO */
 	uint8_t	  io_free;		/**< Is io object in freelist > */
-	uint32_t  app_id;		
+	uint32_t  app_id;
 };
 
 /**
@@ -168,7 +168,7 @@ typedef struct {
  * @brief Test if IO object is busy
  *
  * Return True if IO object is busy.   Busy is defined as the IO object not being on
- * the free list 
+ * the free list
  *
  * @param io Pointer to IO object
  *
@@ -192,4 +192,4 @@ extern void ocs_io_pool_io_free(ocs_io_pool_t *io_pool, ocs_io_t *io);
 extern ocs_io_t *ocs_io_find_tgt_io(ocs_t *ocs, ocs_node_t *node, uint16_t ox_id, uint16_t rx_id);
 extern void ocs_ddump_io(ocs_textbuf_t *textbuf, ocs_io_t *io);
 
-#endif 
+#endif

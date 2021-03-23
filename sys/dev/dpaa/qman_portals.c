@@ -65,7 +65,7 @@ qman_portals_attach(device_t dev)
 	struct dpaa_portals_softc *sc;
 
 	sc = qp_sc = device_get_softc(dev);
-	
+
 	/* Map bman portal to physical address space */
 	if (law_enable(OCP85XX_TGTIF_QMAN, sc->sc_dp_pa, sc->sc_dp_size)) {
 		qman_portals_detach(dev);

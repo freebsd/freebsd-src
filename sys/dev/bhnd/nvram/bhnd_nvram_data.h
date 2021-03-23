@@ -25,7 +25,7 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -77,7 +77,7 @@ enum {
 
 /**
  * A standard set of probe priorities returned by bhnd_nvram_data_probe().
- * 
+ *
  * Priority is defined in ascending order, with 0 being the highest priority.
  * Return values greater than zero are interpreted as regular unix error codes.
  */

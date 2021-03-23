@@ -323,7 +323,7 @@ at45d_delayed_attach(void *xsc)
 	}
 	for (i = 0; i < nitems(at45d_flash_devices); i++) {
 		ident = &at45d_flash_devices[i];
-		if (mfginfo.jedec_id == ident->jedec && 
+		if (mfginfo.jedec_id == ident->jedec &&
 		    (mfginfo.ext_id & ident->extmask) == ident->extid) {
 			break;
 		}

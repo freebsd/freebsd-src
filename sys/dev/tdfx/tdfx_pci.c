@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 
 /* 3dfx driver for FreeBSD 4.x - Finished 11 May 2000, 12:25AM ET
  *
- * Copyright (C) 2000-2001, by Coleman Kane <cokane@FreeBSD.org>, 
+ * Copyright (C) 2000-2001, by Coleman Kane <cokane@FreeBSD.org>,
  * based upon the 3dfx driver written for linux, by Daryll Straus, Jon Taylor,
  * and Jens Axboe, located at http://linux.3dfx.com.
  */
@@ -132,7 +132,7 @@ tdfx_probe(device_t dev)
 }
 
 static int
-tdfx_attach(device_t dev) { 
+tdfx_attach(device_t dev) {
 	/*
 	 * The attach routine is called after the probe routine successfully says it
 	 * supports a given card. We now proceed to initialize this card for use with
@@ -160,7 +160,7 @@ tdfx_attach(device_t dev) {
 	tdfx_info->dv = pci_get_slot(dev);
 	tdfx_info->curFile = NULL;
 
-	/* 
+	/*
 	 *	Get the Memory Location from the PCI Config, mask out lower word, since
 	 * the config space register is only one word long (this is nicer than a
 	 * bitshift).
@@ -181,7 +181,7 @@ tdfx_attach(device_t dev) {
 	else {
 		tdfx_info->memrid = rid;
 #ifdef DEBUG
-		device_printf(dev, "Mapped to: 0x%x\n", 
+		device_printf(dev, "Mapped to: 0x%x\n",
 				(unsigned int)rman_get_start(tdfx_info->memrange));
 #endif
 	}
@@ -226,7 +226,7 @@ tdfx_attach(device_t dev) {
 	  tdfx_info->piorange = NULL;
 	}
 
-	/* 
+	/*
 	 *	Set Writecombining, or at least Uncacheable for the memory region, if we
 	 * are able to
 	 */
@@ -238,11 +238,11 @@ tdfx_attach(device_t dev) {
 		return -1;
 	}
 
-	/* 
+	/*
 	 * make_dev registers the cdev to access the 3dfx card from /dev
 	 *	use hex here for the dev num, simply to provide better support if > 10
 	 * voodoo cards, for the mad. The user must set the link.
-	 * Why would we want that many voodoo cards anyhow? 
+	 * Why would we want that many voodoo cards anyhow?
 	 */
 	tdfx_info->devt = make_dev(&tdfx_cdev, device_get_unit(dev),
 		UID_ROOT, GID_WHEEL, 0600, "3dfx%x", device_get_unit(dev));
@@ -262,7 +262,7 @@ tdfx_detach(device_t dev) {
 			tdfx_info->memrange);
 
 	/* Release extended Voodoo3/Banshee resources */
-	if(pci_get_devid(dev) == PCI_DEVICE_3DFX_BANSHEE || 
+	if(pci_get_devid(dev) == PCI_DEVICE_3DFX_BANSHEE ||
 			pci_get_devid(dev) == PCI_DEVICE_3DFX_VOODOO3) {
 		if(tdfx_info->memrange2 != NULL)
 			bus_release_resource(dev, SYS_RES_MEMORY, tdfx_info->memrid2,
@@ -270,14 +270,14 @@ tdfx_detach(device_t dev) {
 	/*	if(tdfx_info->piorange != NULL)
 			bus_release_resource(dev, SYS_RES_IOPORT, tdfx_info->piorid,
 				tdfx_info->piorange);*/
-	}		
+	}
 
-	/* Though it is safe to leave the WRCOMB support since the 
+	/* Though it is safe to leave the WRCOMB support since the
 		mem driver checks for it, we should remove it in order
 		to free an MTRR for another device */
 	retval = tdfx_clrmtrr(dev);
 #ifdef DEBUG
-	if(retval != 0) 
+	if(retval != 0)
 		printf("tdfx: For some reason, I couldn't clear the mtrr\n");
 #endif
 	/* Remove device entry when it can no longer be accessed */
@@ -296,7 +296,7 @@ tdfx_shutdown(device_t dev) {
 static int
 tdfx_clrmtrr(device_t dev) {
 	/* This function removes the MTRR set by the attach call, so it can be used
-	 * in the future by other drivers. 
+	 * in the future by other drivers.
 	 */
 	int retval, act;
 	struct tdfx_softc *tdfx_info = device_get_softc(dev);
@@ -335,11 +335,11 @@ tdfx_setmtrr(device_t dev) {
 		tdfx_info->mrdesc.mr_base = tdfx_info->addr1 & 0xfffe0000;
 	}
 	else
-		 return 0;	
-	/* 
+		 return 0;
+	/*
     *	The Alliance Pro Motion AT3D was not mentioned in the linux
 	 * driver as far as MTRR support goes, so I just won't put the
-	 * code in here for it. This is where it should go, though. 
+	 * code in here for it. This is where it should go, though.
 	 */
 
 	/* Firstly, try to set write combining */
@@ -377,12 +377,12 @@ tdfx_setmtrr(device_t dev) {
 #endif
 	return 0;
 }
-		
+
 static int
 tdfx_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	/* 
-	 *	The open cdev method handles open(2) calls to /dev/3dfx[n] 
+	/*
+	 *	The open cdev method handles open(2) calls to /dev/3dfx[n]
 	 * We can pretty much allow any opening of the device.
 	 */
 	struct tdfx_softc *tdfx_info = dev->si_drv1;
@@ -395,11 +395,11 @@ tdfx_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 	return 0;
 }
 
-static int 
-tdfx_close(struct cdev *dev, int fflag, int devtype, struct thread *td) 
+static int
+tdfx_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
-	/* 
-	 *	The close cdev method handles close(2) calls to /dev/3dfx[n] 
+	/*
+	 *	The close cdev method handles close(2) calls to /dev/3dfx[n]
 	 * We'll always want to close the device when it's called.
 	 */
 	struct tdfx_softc *tdfx_info = dev->si_drv1;
@@ -415,7 +415,7 @@ static int
 tdfx_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
     int nprot, vm_memattr_t *memattr)
 {
-	/* 
+	/*
 	 * mmap(2) is called by a user process to request that an area of memory
 	 * associated with this device be mapped for the process to work with. Nprot
 	 * holds the protections requested, PROT_READ, PROT_WRITE, or both.
@@ -474,9 +474,9 @@ tdfx_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 
 static int
 tdfx_query_boards(void) {
-	/* 
+	/*
     *	This returns the number of installed tdfx cards, we have been keeping
-	 * count, look at tdfx_attach 
+	 * count, look at tdfx_attach
 	 */
 	return tdfx_count;
 }
@@ -489,7 +489,7 @@ tdfx_query_fetch(u_int cmd, struct tdfx_pio_data *piod)
 	u_int8_t  ret_byte;
 	u_int16_t ret_word;
 	u_int32_t ret_dword;
-	struct tdfx_softc* tdfx_info = NULL;	
+	struct tdfx_softc* tdfx_info = NULL;
 
 	/* This one depend on the tdfx_* structs being properly initialized */
 
@@ -552,17 +552,17 @@ tdfx_query_fetch(u_int cmd, struct tdfx_pio_data *piod)
 	/* Read the value and return */
 	switch(piod->size) {
 		case 1:
-			ret_byte = pci_read_config(tdfx_info[piod->device].dev, 
+			ret_byte = pci_read_config(tdfx_info[piod->device].dev,
 					piod->port, 1);
 			copyout(&ret_byte, piod->value, 1);
 			break;
 		case 2:
-			ret_word = pci_read_config(tdfx_info[piod->device].dev, 
+			ret_word = pci_read_config(tdfx_info[piod->device].dev,
 					piod->port, 2);
 			copyout(&ret_word, piod->value, 2);
 			break;
 		case 4:
-			ret_dword = pci_read_config(tdfx_info[piod->device].dev, 
+			ret_dword = pci_read_config(tdfx_info[piod->device].dev,
 					piod->port, 4);
 			copyout(&ret_dword, piod->value, 4);
 			break;
@@ -584,7 +584,7 @@ tdfx_query_update(u_int cmd, struct tdfx_pio_data *piod)
 	/* Port vals, mask */
 	u_int32_t retval, preval, mask;
 	struct tdfx_softc* tdfx_info = NULL;
-			
+
 
 	if((piod == NULL) || (piod->device >= (tdfx_count &
 					0xf))) {
@@ -594,10 +594,10 @@ tdfx_query_update(u_int cmd, struct tdfx_pio_data *piod)
 		return -EINVAL;
 	}
 
-	tdfx_info = (struct tdfx_softc*)devclass_get_softc(tdfx_devclass, 
+	tdfx_info = (struct tdfx_softc*)devclass_get_softc(tdfx_devclass,
 			piod->device);
 	if(tdfx_info == NULL) return -ENXIO;
-	/* Code below this line in the fuction was taken from the 
+	/* Code below this line in the fuction was taken from the
 	 * Linux driver and converted for freebsd. */
 
 	/* Check the size for all the ports, to make sure stuff doesn't get messed up
@@ -624,7 +624,7 @@ tdfx_query_update(u_int cmd, struct tdfx_pio_data *piod)
 	}
 	/* Read the current value */
 	retval = pci_read_config(tdfx_info->dev, piod->port & ~3, 4);
-			
+
 	/* These set up a mask to use, since apparently they wanted to write 4 bytes
 	 * at once to the ports */
 	switch (piod->size) {
@@ -649,7 +649,7 @@ tdfx_query_update(u_int cmd, struct tdfx_pio_data *piod)
 	/* Finally, combine the values and write it to the port */
 	retval = (retval & ~mask) | preval;
 	pci_write_config(tdfx_info->dev, piod->port & ~3, retval, 4);
-   
+
 	return 0;
 }
 
@@ -663,9 +663,9 @@ tdfx_do_pio_rd(struct tdfx_pio_data *piod)
 	/* Return val */
 	u_int8_t  ret_byte;
 	u_int 	 workport;
-	struct tdfx_softc *tdfx_info = 
+	struct tdfx_softc *tdfx_info =
 		(struct tdfx_softc*)devclass_get_softc(tdfx_devclass, piod->device);
-		
+
 	/* Restricts the access of ports other than those we use */
 	if(((piod->port != VGA_INPUT_STATUS_1C) || (piod->port != SC_INDEX) ||
 		(piod->port != SC_DATA) || (piod->port != VGA_MISC_OUTPUT_READ)) &&
@@ -685,7 +685,7 @@ tdfx_do_pio_rd(struct tdfx_pio_data *piod)
 }
 
 static int
-tdfx_do_pio_wt(struct tdfx_pio_data *piod) 
+tdfx_do_pio_wt(struct tdfx_pio_data *piod)
 {
 	/* return val */
 	u_int8_t  ret_byte;
@@ -694,7 +694,7 @@ tdfx_do_pio_wt(struct tdfx_pio_data *piod)
 			tdfx_softc*)devclass_get_softc(tdfx_devclass, piod->device);
 	/* Replace old switch w/ massive if(...) */
 	/* Restricts the access of ports other than those we use */
-	if(((piod->port != SC_INDEX) && (piod->port != SC_DATA) && 
+	if(((piod->port != SC_INDEX) && (piod->port != SC_DATA) &&
 		(piod->port != VGA_MISC_OUTPUT_READ)) /* Can't write VGA_ST_1C */ &&
 		(piod->port < tdfx_info->pio0) && (piod->port > tdfx_info->pio0max))
 		return -EPERM;
@@ -735,11 +735,11 @@ tdfx_do_query(u_int cmd, struct tdfx_pio_data *piod)
 }
 
 static int
-tdfx_do_pio(u_int cmd, struct tdfx_pio_data *piod) 
+tdfx_do_pio(u_int cmd, struct tdfx_pio_data *piod)
 {
 	/* Two types of PIO, INPUT and OUTPUT, as the name suggests */
 	switch(_IOC_DIR(cmd)) {
-		case IOCV_OUT: 
+		case IOCV_OUT:
 			return tdfx_do_pio_rd(piod);
 			break;
 		case IOCV_IN:
@@ -805,7 +805,7 @@ tdfx_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *
  * instance of the driver.
  */
 static driver_t tdfx_driver = {
-	"tdfx", 
+	"tdfx",
 	tdfx_methods,
 	sizeof(struct tdfx_softc),
 };

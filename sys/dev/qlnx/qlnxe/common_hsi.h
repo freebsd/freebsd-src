@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  */
 
 #ifndef __COMMON_HSI__
-#define __COMMON_HSI__ 
+#define __COMMON_HSI__
 /********************************/
 /* PROTOCOL COMMON FW CONSTANTS */
 /********************************/
@@ -377,7 +377,7 @@
 #define QM_PF_QUEUE_GROUP_SIZE		8
 
 /* the size of a single queue element in bytes */
-#define QM_PQ_ELEMENT_SIZE			4 
+#define QM_PQ_ELEMENT_SIZE			4
 
 /* base number of Tx PQs in the CM PQ representation.
    should be used when storing PQ IDs in CM PQ registers and context */
@@ -627,8 +627,8 @@
 /******************/
 
 /* Number of PBF command queue lines. Each line is 32B. */
-#define PBF_MAX_CMD_LINES_E4 3328 
-#define PBF_MAX_CMD_LINES_E5 5280  
+#define PBF_MAX_CMD_LINES_E4 3328
+#define PBF_MAX_CMD_LINES_E5 5280
 
 /* Number of BTB blocks. Each block is 256B. */
 #define BTB_MAX_BLOCKS 1440

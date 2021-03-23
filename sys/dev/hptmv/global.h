@@ -47,7 +47,7 @@
 #define _RAID5N_
 #define MAX_QUEUE_COMM 32
 #define MAX_SG_DESCRIPTORS 17
-#define MAX_VBUS 2    /*one vbus per adapter in mv linux driver, 
+#define MAX_VBUS 2    /*one vbus per adapter in mv linux driver,
                         MAX_VBUS is defined for share code and can not be 1*/
 
 #define SET_VBUS_FOR_EACH_CONTROLLER
@@ -82,16 +82,16 @@ typedef struct _Device {
     UCHAR df_write_cache: 1;  /* enable write cache */
 	UCHAR df_read_ahead_set: 1;
     UCHAR df_read_ahead: 1;   /* enable read ahead */
-		
+
 	UCHAR retryCount;
 	UCHAR resetCount;
 	UCHAR pad1;
-		
+
 	UCHAR df_user_mode_set;
     UCHAR bDeModeSetting;    /* Current Data Transfer mode: 0-4 PIO 0-4 */
     UCHAR bDeUsable_Mode;       /* actual maximum data transfer mode */
 	UCHAR bDeUserSelectMode;
-	
+
 	PVBus pVBus;
 	ULONG dDeRealCapacity;
 	ULONG dDeHiddenLba;
@@ -113,7 +113,7 @@ typedef struct _VDevice_Ext
 {
 	UCHAR gui_locked; /* the device is locked by GUI */
 	UCHAR reserve[3];
-} VDevice_Ext, *PVDevice_Ext;    
+} VDevice_Ext, *PVDevice_Ext;
 
 
 #define SG_FLAG_SKIP        0x4000
@@ -127,7 +127,7 @@ typedef struct _VDevice_Ext
 #define _vbus_(x) (_vbus_p->x)
 
 /*************************************************************************
- * arithmetic functions 
+ * arithmetic functions
  *************************************************************************/
 #define LongRShift(x, y) 	(x >> y)
 #define LongLShift(x, y)   	(x << y)
@@ -154,12 +154,12 @@ unsigned HPTLIBAPI os_strlen(const char *s);
 #define farMemoryCopy(a,b,c) memcpy((char *)(a), (char *)(b), (UINT)c)
 #define StrLen            	strlen
 
-/* 
+/*
  * we don't want whole hptintf.h in shared code...
  * some constants must match that in hptintf.h!
  */
 enum _driver_events_t
-{	
+{
 	ET_DEVICE=0,
     ET_DEVICE_REMOVED,
     ET_DEVICE_PLUGGED,
@@ -169,15 +169,15 @@ enum _driver_events_t
     ET_REBUILD_FINISHED,
     ET_SPARE_TOOK_OVER,
     ET_REBUILD_FAILED,
-	ET_VERIFY_STARTED,   
-	ET_VERIFY_ABORTED,   
-	ET_VERIFY_FAILED,    
-	ET_VERIFY_FINISHED,  
-	ET_INITIALIZE_STARTED,   
-	ET_INITIALIZE_ABORTED,   
-	ET_INITIALIZE_FAILED,    
-	ET_INITIALIZE_FINISHED,  
-	ET_VERIFY_DATA_ERROR,    
+	ET_VERIFY_STARTED,
+	ET_VERIFY_ABORTED,
+	ET_VERIFY_FAILED,
+	ET_VERIFY_FINISHED,
+	ET_INITIALIZE_STARTED,
+	ET_INITIALIZE_ABORTED,
+	ET_INITIALIZE_FAILED,
+	ET_INITIALIZE_FINISHED,
+	ET_VERIFY_DATA_ERROR,
 };
 
 #define StallExec(x) mvMicroSecondsDelay(x)
@@ -200,7 +200,7 @@ int HPTLIBAPI fDeSetReadAhead(PDevice pDev, int enable);
 
 #if defined(__FreeBSD__) && defined(HPTLIBAPI)
 #undef HPTLIBAPI
-#define HPTLIBAPI 
+#define HPTLIBAPI
 #endif
 
 #ifdef SUPPORT_ARRAY

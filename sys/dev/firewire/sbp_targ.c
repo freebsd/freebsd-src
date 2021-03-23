@@ -186,12 +186,12 @@ struct morb4 {
 #endif
 };
 
- 
+
 /*
- * Urestricted page table format 
+ * Urestricted page table format
  * states that the segment length
  * and high base addr are in the first
- * 32 bits and the base low is in 
+ * 32 bits and the base low is in
  * the second
  */
 struct unrestricted_page_table_fmt {
@@ -441,7 +441,7 @@ sbp_targ_en_lun(struct sbp_targ_softc *sc, union ccb *ccb)
 		} else {
 			if (debug)
 				printf("%s: malloc'd lstate %p\n",__func__, lstate);
-		}	
+		}
 		if (ccb->ccb_h.target_id == CAM_TARGET_WILDCARD) {
 			sc->black_hole = lstate;
 			if (debug)
@@ -859,7 +859,7 @@ sbp_targ_cam_done(struct fw_xfer *xfer)
 			orbi = NULL;
 		} else if (orbi->status.resp == ORBI_STATUS_NONE) {
 			if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
-				if (debug) 
+				if (debug)
 					printf("%s: CAM_SEND_STATUS set %0x\n", __func__, ccb->ccb_h.flags);
 				sbp_targ_send_status(orbi, ccb);
 			} else {
@@ -934,7 +934,7 @@ sbp_targ_abort_ccb(struct sbp_targ_softc *sc, union ccb *ccb)
 
 /*
  * directly execute a read or write to the initiator
- * address space and set hand(sbp_targ_cam_done) to 
+ * address space and set hand(sbp_targ_cam_done) to
  * process the completion from the SIM to the target.
  * set orbi->refcount to inidicate that a read/write
  * is inflight to/from the initiator.
@@ -1025,7 +1025,7 @@ sbp_targ_pt_done(struct fw_xfer *xfer)
 	}
 	orbi->refcount++;
 /*
- * Set endianness here so we don't have 
+ * Set endianness here so we don't have
  * to deal with is later
  */
 	for (i = 0, pt = orbi->page_table; i < orbi->orb4.data_size; i++, pt++) {
@@ -1056,8 +1056,8 @@ static void sbp_targ_xfer_pt(struct orb_info *orbi)
 		printf("%s: dxfer_len=%d\n", __func__, ccb->csio.dxfer_len);
 	res = ccb->csio.dxfer_len;
 	/*
-	 * If the page table required multiple CTIO's to 
-	 * complete, then cur_pte is non NULL 
+	 * If the page table required multiple CTIO's to
+	 * complete, then cur_pte is non NULL
 	 * and we need to start from the last position
 	 * If this is the first pass over a page table
 	 * then we just start at the beginning of the page
@@ -1070,12 +1070,12 @@ static void sbp_targ_xfer_pt(struct orb_info *orbi)
 		len = MIN(orbi->cur_pte->segment_len, res);
 		res -= len;
 		if (debug)
-			printf("%s:page_table: %04x:%08x segment_len(%u) res(%u) len(%u)\n", 
+			printf("%s:page_table: %04x:%08x segment_len(%u) res(%u) len(%u)\n",
 				__func__, orbi->cur_pte->segment_base_high,
 				orbi->cur_pte->segment_base_low,
 				orbi->cur_pte->segment_len,
 				res, len);
-		sbp_targ_xfer_buf(orbi, offset, 
+		sbp_targ_xfer_buf(orbi, offset,
 				orbi->cur_pte->segment_base_high,
 				orbi->cur_pte->segment_base_low,
 				len, sbp_targ_cam_done);
@@ -1102,8 +1102,8 @@ static void sbp_targ_xfer_pt(struct orb_info *orbi)
 	}
 	if (debug) {
 		printf("%s: base_low(%08x) page_table_off(%p) last_block(%u)\n",
-			__func__, orbi->cur_pte->segment_base_low, 
-			orbi->cur_pte, orbi->last_block_read);  
+			__func__, orbi->cur_pte->segment_base_low,
+			orbi->cur_pte, orbi->last_block_read);
 	}
 	if (res != 0)
 		printf("Warning - short pt encountered.  "
@@ -1137,7 +1137,7 @@ sbp_targ_fetch_pt(struct orb_info *orbi)
 		orbi->cur_pte = orbi->page_table;
 		orbi->last_pte = orbi->page_table + orbi->orb4.data_size;
 		orbi->last_block_read = orbi->orb4.data_size;
-		if (debug && orbi->page_table != NULL) 
+		if (debug && orbi->page_table != NULL)
 			printf("%s: malloc'd orbi->page_table(%p), orb4.data_size(%u)\n",
  				__func__, orbi->page_table, orbi->orb4.data_size);
 
@@ -1159,7 +1159,7 @@ sbp_targ_fetch_pt(struct orb_info *orbi)
 	}
 error:
 	orbi->ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
-	if (debug)      
+	if (debug)
 		printf("%s: free orbi->page_table %p due to xfer == NULL\n", __func__, orbi->page_table);
 	if (orbi->page_table != NULL) {
 		free(orbi->page_table, M_SBP_TARG);

@@ -134,7 +134,7 @@ agp_amd_alloc_gatt(device_t dev)
 	 */
 	gatt->ag_entries = entries;
 	if(bootverbose)
-		device_printf(dev, "allocating GATT for %d AGP page entries\n", 
+		device_printf(dev, "allocating GATT for %d AGP page entries\n",
 			gatt->ag_entries);
 
 	gatt->ag_physical = vtophys((vm_offset_t) gatt->ag_virtual);
@@ -328,7 +328,7 @@ agp_amd_set_aperture(device_t dev, u_int32_t aperture)
 
 	vas = ffs(aperture / 32*1024*1024) - 1;
 
-	/* 
+	/*
 	 * While the size register is bits 1-3 of APCTRL, bit 0 must be
 	 * set for the size value to be 'valid'
 	 */

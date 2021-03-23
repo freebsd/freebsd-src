@@ -87,7 +87,7 @@ ar5416BeaconInit(struct ath_hal *ah,
 	HAL_BEACON_TIMERS bt;
 
 	bt.bt_nexttbtt = next_beacon;
-	/* 
+	/*
 	 * TIMER1: in AP/adhoc mode this controls the DMA beacon
 	 * alert timer; otherwise it controls the next wakeup time.
 	 * TIMER2: in AP mode, it controls the SBA beacon alert
@@ -116,7 +116,7 @@ ar5416BeaconInit(struct ath_hal *ah,
 		break;
 	}
 	/*
-	 * Set the ATIM window 
+	 * Set the ATIM window
 	 * Our hardware does not support an ATIM window of 0
 	 * (beacons will not work).  If the ATIM windows is 0,
 	 * force it to 1.

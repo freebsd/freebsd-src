@@ -305,7 +305,7 @@ aac_print_aif(struct aac_softc *sc, struct aac_aif_command *aif)
 			device_printf(sc->aac_dev, "(ContainerEvent) "
 				      "container %d event "
 				      "%d\n", aif->data.EN.data.ECE.container,
-				      aif->data.EN.data.ECE.eventType);	
+				      aif->data.EN.data.ECE.eventType);
 			break;
 		case AifEnFileSystemChange:	/* File system changed */
 			device_printf(sc->aac_dev, "(FileSystemChange)\n");
@@ -341,7 +341,7 @@ aac_print_aif(struct aac_softc *sc, struct aac_aif_command *aif)
 		case AifEnAddContainer:		/* A new container was
 						 * created. */
 			device_printf(sc->aac_dev, "(AddContainer)\n");
-			break;		
+			break;
 		case AifEnDeleteContainer:	/* A container was deleted. */
 			device_printf(sc->aac_dev, "(DeleteContainer)\n");
 			break;
@@ -391,7 +391,7 @@ aac_print_aif(struct aac_softc *sc, struct aac_aif_command *aif)
 			status = "running"; break;
 		default:
 			status = "unknown status"; break;
-		}		
+		}
 
 		device_printf(sc->aac_dev, "JobProgress (%d) - %s (%d, %d)\n",
 			      aif->seqNumber, status,

@@ -2394,7 +2394,7 @@ alc_dma_free(struct alc_softc *sc)
 		if (sc->alc_rdata.alc_cmb != NULL)
 			bus_dmamem_free(sc->alc_cdata.alc_cmb_tag,
 			    sc->alc_rdata.alc_cmb,
-			    sc->alc_cdata.alc_cmb_map);		
+			    sc->alc_cdata.alc_cmb_map);
 		sc->alc_rdata.alc_cmb_paddr = 0;
 		sc->alc_rdata.alc_cmb = NULL;
 		bus_dma_tag_destroy(sc->alc_cdata.alc_cmb_tag);

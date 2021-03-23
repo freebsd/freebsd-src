@@ -79,7 +79,7 @@ static int pqisrc_report_pqi_capability(pqisrc_softstate_t *softs)
 	} else {
 		DBG_ERR("Failed to send admin req report pqi device capability\n");
 		goto err_admin_req;
-		
+
 	}
 
 	softs->pqi_dev_cap.max_iqs = capability->max_iqs;
@@ -223,7 +223,7 @@ void pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 
 	DBG_FUNC("IN\n");
 
-	DBG_INIT("softs->intr_count : %d  softs->num_cpus_online : %d", 
+	DBG_INIT("softs->intr_count : %d  softs->num_cpus_online : %d",
 		softs->intr_count, softs->num_cpus_online);
 
 	if (softs->intr_count == 1 || softs->num_cpus_online == 1) {
@@ -233,17 +233,17 @@ void pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 	}
 	else {
 		/* Note :  One OBQ (OBQ0) reserved for event queue */
-		softs->num_op_obq = MIN(softs->num_cpus_online, 
+		softs->num_op_obq = MIN(softs->num_cpus_online,
 					softs->intr_count) - 1;
 		softs->num_op_obq = softs->intr_count - 1;
 		softs->share_opq_and_eventq = false;
 	}
 
-	/* 
+	/*
 	 * softs->num_cpus_online is set as number of physical CPUs,
 	 * So we can have more queues/interrupts .
 	 */
-	if (softs->intr_count > 1)	 
+	if (softs->intr_count > 1)
 		softs->share_opq_and_eventq = false;
 
 	DBG_INIT("softs->num_op_obq : %d\n",softs->num_op_obq);
@@ -261,23 +261,23 @@ void pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 		softs->max_ib_iu_length =
 			(softs->max_ib_iu_length_per_fw / softs->ibq_elem_size) *
 			 softs->ibq_elem_size;
-					   
+
 	}
-	/* If Max. Outstanding IO came with Max. Spanning element count then, 
+	/* If Max. Outstanding IO came with Max. Spanning element count then,
 		needed elements per IO are multiplication of
 		Max.Outstanding IO and  Max.Spanning element */
-	total_iq_elements = (softs->max_outstanding_io * 
+	total_iq_elements = (softs->max_outstanding_io *
 		(softs->max_ib_iu_length / softs->ibq_elem_size));
 
 	softs->num_elem_per_op_ibq = total_iq_elements / softs->num_op_raid_ibq;
-	softs->num_elem_per_op_ibq = MIN(softs->num_elem_per_op_ibq, 
+	softs->num_elem_per_op_ibq = MIN(softs->num_elem_per_op_ibq,
 		softs->pqi_dev_cap.max_iq_elements);
 
-	softs->num_elem_per_op_obq = softs->max_outstanding_io / softs->num_op_obq; 
+	softs->num_elem_per_op_obq = softs->max_outstanding_io / softs->num_op_obq;
 	softs->num_elem_per_op_obq = MIN(softs->num_elem_per_op_obq,
 		softs->pqi_dev_cap.max_oq_elements);
 
-	softs->max_sg_per_iu = ((softs->max_ib_iu_length - 
+	softs->max_sg_per_iu = ((softs->max_ib_iu_length -
 				softs->ibq_elem_size) /
 				sizeof(sgt_t)) +
 				MAX_EMBEDDED_SG_IN_FIRST_IU;
@@ -297,7 +297,7 @@ int pqisrc_configure_op_queues(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
 
-	/* Get the PQI capability, 
+	/* Get the PQI capability,
 		REPORT PQI DEVICE CAPABILITY request */
 	ret = pqisrc_report_pqi_capability(softs);
 	if (ret) {
@@ -310,11 +310,11 @@ int pqisrc_configure_op_queues(pqisrc_softstate_t *softs)
 	softs->max_io_for_scsi_ml = softs->max_outstanding_io - PQI_RESERVED_IO_SLOTS_CNT;
 
 	/* Decide the Op queue configuration */
-	pqisrc_decide_opq_config(softs);	
+	pqisrc_decide_opq_config(softs);
 
 	DBG_FUNC("OUT\n");
 	return ret;
-		
+
 err_out:
 	DBG_FUNC("OUT failed\n");
 	return ret;
@@ -335,7 +335,7 @@ int pqisrc_check_pqimode(pqisrc_softstate_t *softs)
 	tmo = PQISRC_PQIMODE_READY_TIMEOUT;
 	do {
 		signature = LE_64(PCI_MEM_GET64(softs, &softs->pqi_reg->signature, PQI_SIGNATURE));
-        
+
 		if (memcmp(&signature, PQISRC_PQI_DEVICE_SIGNATURE,
 				sizeof(uint64_t)) == 0) {
 			ret = PQI_STATUS_SUCCESS;
@@ -429,9 +429,9 @@ int pqisrc_process_config_table(pqisrc_softstate_t *softs)
 					section_off, config_table_size);
 			break;
 		}
-		
+
 		section_hdr = (struct pqi_conf_table_section_header *)((uint8_t *)conf_table + section_off);
-		
+
 		switch (LE_16(section_hdr->section_id)) {
 		case PQI_CONF_TABLE_SECTION_GENERAL_INFO:
 		case PQI_CONF_TABLE_SECTION_FIRMWARE_FEATURES:
@@ -476,7 +476,7 @@ int pqisrc_wait_for_pqi_reset_completion(pqisrc_softstate_t *softs)
 
 	while(1) {
 		if (pqi_reset_timeout++ == max_timeout) {
-			return PQI_STATUS_TIMEOUT; 
+			return PQI_STATUS_TIMEOUT;
 		}
 		OS_SLEEP(PQI_RESET_POLL_INTERVAL);/* 100 msec */
 		reset_reg.all_bits = PCI_MEM_GET32(softs,
@@ -499,7 +499,7 @@ int pqi_reset(pqisrc_softstate_t *softs)
 
 	DBG_FUNC("IN\n");
 
-	if (true == softs->ctrl_in_pqi_mode) { 
+	if (true == softs->ctrl_in_pqi_mode) {
 
 		if (softs->pqi_reset_quiesce_allowed) {
 			val = PCI_MEM_GET32(softs, &softs->ioa_reg->host_to_ioa_db,
@@ -559,7 +559,7 @@ int pqisrc_pqi_init(pqisrc_softstate_t *softs)
 		goto err_out;
 	}
 
-	softs->intr_type = INTR_TYPE_NONE;	
+	softs->intr_type = INTR_TYPE_NONE;
 
 	/* Get the interrupt count, type, priority available from OS */
 	ret = os_get_intr_config(softs);
@@ -577,16 +577,16 @@ int pqisrc_pqi_init(pqisrc_softstate_t *softs)
 		sis_enable_intx(softs);
 	}
 
-	/* Create Admin Queue pair*/		
+	/* Create Admin Queue pair*/
 	ret = pqisrc_create_admin_queue(softs);
 	if(ret) {
                 DBG_ERR("Failed to configure admin queue\n");
                 goto err_admin_queue;
     	}
 
-	/* For creating event and IO operational queues we have to submit 
-	   admin IU requests.So Allocate resources for submitting IUs */  
-	     
+	/* For creating event and IO operational queues we have to submit
+	   admin IU requests.So Allocate resources for submitting IUs */
+
 	/* Allocate the request container block (rcb) */
 	ret = pqisrc_allocate_rcb(softs);
 	if (ret == PQI_STATUS_FAILURE) {
@@ -626,7 +626,7 @@ err_create_opq:
 err_config_opq:
 	pqisrc_destroy_taglist(softs,&softs->taglist);
 err_taglist:
-	pqisrc_free_rcb(softs, softs->max_outstanding_io + 1);		
+	pqisrc_free_rcb(softs, softs->max_outstanding_io + 1);
 err_rcb:
 	pqisrc_destroy_admin_queue(softs);
 err_admin_queue:
@@ -661,7 +661,7 @@ int pqisrc_force_sis(pqisrc_softstate_t *softs)
 	ret = pqi_reset(softs);
 	if (ret) {
 		return ret;
-	}	
+	}
 	/* Re enable SIS */
 	ret = pqisrc_reenable_sis(softs);
 	if (ret) {
@@ -670,7 +670,7 @@ int pqisrc_force_sis(pqisrc_softstate_t *softs)
 
 	PQI_SAVE_CTRL_MODE(softs, CTRL_SIS_MODE);
 
-	return ret;	
+	return ret;
 }
 
 int pqisrc_wait_for_cmnd_complete(pqisrc_softstate_t *softs)
@@ -721,18 +721,18 @@ void pqisrc_pqi_uninit(pqisrc_softstate_t *softs)
 		os_complete_outstanding_cmds_nodevice(softs);
 	}
 
-    if(softs->devlist_lockcreated==true){    
+    if(softs->devlist_lockcreated==true){
         os_uninit_spinlock(&softs->devlist_lock);
         softs->devlist_lockcreated = false;
     }
-    
+
 	for (i = 0; i <  softs->num_op_raid_ibq; i++) {
         /* OP RAID IB Q */
         if(softs->op_raid_ib_q[i].lockcreated==true){
 		OS_UNINIT_PQILOCK(&softs->op_raid_ib_q[i].lock);
 		softs->op_raid_ib_q[i].lockcreated = false;
         }
-        
+
         /* OP AIO IB Q */
         if(softs->op_aio_ib_q[i].lockcreated==true){
 		OS_UNINIT_PQILOCK(&softs->op_aio_ib_q[i].lock);
@@ -752,7 +752,7 @@ void pqisrc_pqi_uninit(pqisrc_softstate_t *softs)
 	pqisrc_destroy_taglist(softs,&softs->taglist);
 
 	if(softs->admin_ib_queue.lockcreated==true){
-		OS_UNINIT_PQILOCK(&softs->admin_ib_queue.lock);	
+		OS_UNINIT_PQILOCK(&softs->admin_ib_queue.lock);
         	softs->admin_ib_queue.lockcreated = false;
 	}
 
@@ -776,9 +776,9 @@ int pqisrc_init(pqisrc_softstate_t *softs)
 	int i = 0, j = 0;
 
 	DBG_FUNC("IN\n");
-    
+
 	check_struct_sizes();
-    
+
 	/* Init the Sync interface */
 	ret = pqisrc_sis_init(softs);
 	if (ret) {
@@ -812,7 +812,7 @@ int pqisrc_init(pqisrc_softstate_t *softs)
                 DBG_ERR(" Failed to configure Report events\n");
 		goto err_event;
 	}
-	 
+
 	/* Set event configuration*/
         ret = pqisrc_set_event_config(softs);
         if(ret){
@@ -834,7 +834,7 @@ int pqisrc_init(pqisrc_softstate_t *softs)
 		goto err_host_wellness;
 	}
 
-    
+
 	os_strlcpy(softs->devlist_lock_name, "devlist_lock", LOCKNAME_SIZE);
 	ret = os_init_spinlock(softs, &softs->devlist_lock, softs->devlist_lock_name);
 	if(ret){
@@ -870,10 +870,10 @@ int pqisrc_init(pqisrc_softstate_t *softs)
 	return ret;
 
 err_config_tab:
-	if(softs->devlist_lockcreated==true){    
+	if(softs->devlist_lockcreated==true){
 		os_uninit_spinlock(&softs->devlist_lock);
 		softs->devlist_lockcreated = false;
-	}	
+	}
 err_lock:
 err_fw_version:
 err_event:
@@ -906,7 +906,7 @@ int pqisrc_flush_cache( pqisrc_softstate_t *softs,
 	if (pqisrc_ctrl_offline(softs))
 		return PQI_STATUS_FAILURE;
 
-	flush_buff = os_mem_alloc(softs, sizeof(pqisrc_bmic_flush_cache_t)); 
+	flush_buff = os_mem_alloc(softs, sizeof(pqisrc_bmic_flush_cache_t));
 	if (!flush_buff) {
 		DBG_ERR("Failed to allocate memory for flush cache params\n");
 		rval = PQI_STATUS_FAILURE;

@@ -60,7 +60,7 @@
 #undef SC_NO_FONT_LOADING
 #endif
 
-/* 
+/*
  * If font data is not available, the `arrow'-shaped mouse cursor cannot
  * be drawn.  Use the alternative drawing method.
  */
@@ -595,8 +595,8 @@ int		sc_hist_ioctl(struct tty *tp, u_long cmd, caddr_t data,
 /* scmouse.c */
 #ifndef SC_NO_CUTPASTE
 void		sc_alloc_cut_buffer(scr_stat *scp, int wait);
-void		sc_draw_mouse_image(scr_stat *scp); 
-void		sc_remove_mouse_image(scr_stat *scp); 
+void		sc_draw_mouse_image(scr_stat *scp);
+void		sc_remove_mouse_image(scr_stat *scp);
 int		sc_inside_cutmark(scr_stat *scp, int pos);
 void		sc_remove_cutmarking(scr_stat *scp);
 void		sc_remove_all_cutmarkings(sc_softc_t *scp);
@@ -633,7 +633,7 @@ int		sc_render_remove(sc_renderer_t *rndr);
 sc_rndr_sw_t	*sc_render_match(scr_stat *scp, char *name, int mode);
 
 /* scvtb.c */
-void		sc_vtb_init(sc_vtb_t *vtb, int type, int cols, int rows, 
+void		sc_vtb_init(sc_vtb_t *vtb, int type, int cols, int rows,
 			    void *buffer, int wait);
 void		sc_vtb_destroy(sc_vtb_t *vtb);
 size_t		sc_vtb_size(int cols, int rows);

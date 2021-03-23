@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- *  Device driver optimized for the Symbios/LSI 53C896/53C895A/53C1010 
+ *  Device driver optimized for the Symbios/LSI 53C896/53C895A/53C1010
  *  PCI-SCSI controllers.
  *
  *  Copyright (C) 1999-2001  Gerard Roudier <groudier@free.fr>
@@ -10,11 +10,11 @@
  *	53C810A, 53C825A, 53C860, 53C875, 53C876, 53C885, 53C895,
  *	53C810,  53C815,  53C825 and the 53C1510D is 53C8XX mode.
  *
- *  
+ *
  *  This driver for FreeBSD-CAM is derived from the Linux sym53c8xx driver.
  *  Copyright (C) 1998-1999  Gerard Roudier
  *
- *  The sym53c8xx driver is derived from the ncr53c8xx driver that had been 
+ *  The sym53c8xx driver is derived from the ncr53c8xx driver that had been
  *  a port of the FreeBSD ncr driver to Linux-1.2.13.
  *
  *  The original ncr driver has been written for 386bsd and FreeBSD by
@@ -22,8 +22,8 @@
  *          Stefan Esser                <se@mi.Uni-Koeln.de>
  *  Copyright (C) 1994  Wolfgang Stanglmeier
  *
- *  The initialisation code, and part of the code that addresses 
- *  FreeBSD-CAM services is based on the aic7xxx driver for FreeBSD-CAM 
+ *  The initialisation code, and part of the code that addresses
+ *  FreeBSD-CAM services is based on the aic7xxx driver for FreeBSD-CAM
  *  written by Justin T. Gibbs.
  *
  *  Other major contributions:
@@ -98,7 +98,7 @@
 	SYM_GEN_B(s, snooptest)		SYM_GEN_B(s, snoopend)
 
 /*
- *  Generates structure interface that contains 
+ *  Generates structure interface that contains
  *  offsets within script A and script B.
  */
 #define	SYM_GEN_A(s, label)	s label;
@@ -113,7 +113,7 @@ struct sym_fwb_ofs {
 };
 
 /*
- *  Generates structure interface that contains 
+ *  Generates structure interface that contains
  *  bus addresses within script A and script B.
  */
 struct sym_fwa_ba {
@@ -135,7 +135,7 @@ struct sym_hcb;
 
 /*
  *  Generic structure that defines a firmware.
- */ 
+ */
 struct sym_fw {
 	const char	*name;	/* Name we want to print out	*/
 	const u32	*a_base;/* Pointer to script A template	*/
@@ -183,8 +183,8 @@ struct sym_fw {
  *  PADDR_A generates a reference to another part of script A.
  *  PADDR_B generates a reference to another part of script B.
  *
- *  SYM_GEN_PADDR_A and SYM_GEN_PADDR_B are used to define respectively 
- *  the PADDR_A and PADDR_B macros for each firmware by setting argument 
+ *  SYM_GEN_PADDR_A and SYM_GEN_PADDR_B are used to define respectively
+ *  the PADDR_A and PADDR_B macros for each firmware by setting argument
  *  `s' to the name of the corresponding structure.
  *
  *  SCR_DATA_ZERO is used to allocate a DWORD of data in scripts areas.

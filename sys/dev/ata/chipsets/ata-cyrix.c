@@ -102,7 +102,7 @@ ata_cyrix_setmode(device_t dev, int target, int mode)
 	struct ata_channel *ch = device_get_softc(dev);
 	int devno = (ch->unit << 1) + target;
 	int piomode;
-	static const uint32_t piotiming[] = 
+	static const uint32_t piotiming[] =
 	    { 0x00009172, 0x00012171, 0x00020080, 0x00032010, 0x00040010 };
 	static const uint32_t dmatiming[] =
 	    { 0x00077771, 0x00012121, 0x00002020 };

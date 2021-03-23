@@ -157,7 +157,7 @@ enum {
 
 enum {
 	UFOMA_BULK_ENDPT_WRITE,
-	UFOMA_BULK_ENDPT_READ,	
+	UFOMA_BULK_ENDPT_READ,
 	UFOMA_BULK_ENDPT_MAX,
 };
 
@@ -466,7 +466,7 @@ ufoma_attach(device_t dev)
 	CTLFLAG_RW | CTLTYPE_STRING | CTLFLAG_MPSAFE, sc, 0,
 	ufoma_sysctl_open, "A", "Mode to transit when port is opened");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "comunit",
-			CTLFLAG_RD, &(sc->sc_super_ucom.sc_unit), 0, 
+			CTLFLAG_RD, &(sc->sc_super_ucom.sc_unit), 0,
 			"Unit number as USB serial");
 
 	return (0);			/* success */
@@ -544,7 +544,7 @@ ufoma_cfg_link_state(struct ufoma_softc *sc)
 	USETW(req.wIndex, sc->sc_ctrl_iface_no);
 	USETW(req.wLength, sc->sc_modetable[0]);
 
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, sc->sc_modetable, 0, 1000);
 
 	error = cv_timedwait(&sc->sc_cv, &sc->sc_mtx, hz);
@@ -566,7 +566,7 @@ ufoma_cfg_activate_state(struct ufoma_softc *sc, uint16_t state)
 	USETW(req.wIndex, sc->sc_ctrl_iface_no);
 	USETW(req.wLength, 0);
 
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 
 	error = cv_timedwait(&sc->sc_cv, &sc->sc_mtx,
@@ -888,7 +888,7 @@ ufoma_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 }
 
@@ -918,7 +918,7 @@ ufoma_cfg_set_line_state(struct ufoma_softc *sc)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 }
 
@@ -1015,7 +1015,7 @@ ufoma_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, UCDC_LINE_STATE_LENGTH);
 
-	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, &ls, 0, 1000);
 }
 

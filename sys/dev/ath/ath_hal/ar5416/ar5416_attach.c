@@ -632,7 +632,7 @@ ar5416WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 }
 
 /*
- * Convert to baseband spur frequency given input channel frequency 
+ * Convert to baseband spur frequency given input channel frequency
  * and compute register settings below.
  */
 

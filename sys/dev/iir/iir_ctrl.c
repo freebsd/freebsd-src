@@ -158,7 +158,7 @@ static int
 iir_close(struct cdev *dev, int flags, int fmt, struct thread * p)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_close()\n"));
-                
+
     return (0);
 }
 
@@ -166,7 +166,7 @@ static int
 iir_write(struct cdev *dev, struct uio * uio, int ioflag)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_write()\n"));
-                
+
     return (0);
 }
 
@@ -174,7 +174,7 @@ static int
 iir_read(struct cdev *dev, struct uio * uio, int ioflag)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_read()\n"));
-                
+
     return (0);
 }
 
@@ -216,7 +216,7 @@ iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, struct thread
 
       case GDT_IOCTL_DRVERS:
       case GDT_IOCTL_DRVERS_OLD:
-        *(int *)cmdarg = 
+        *(int *)cmdarg =
             (IIR_DRIVER_VERSION << 8) | IIR_DRIVER_SUBVERSION;
         break;
 
@@ -224,8 +224,8 @@ iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, struct thread
       case GDT_IOCTL_CTRTYPE_OLD:
         {
             gdt_ctrt_t *p;
-            struct gdt_softc *gdt; 
-            
+            struct gdt_softc *gdt;
+
             p = (gdt_ctrt_t *)cmdarg;
             gdt = gdt_minor2softc(dev, p->io_node);
             if (gdt == NULL)
@@ -293,11 +293,11 @@ iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, struct thread
             }
             break;
         }
-        
+
       case GDT_IOCTL_STATIST:
         {
             gdt_statist_t *p;
-            
+
             p = (gdt_statist_t *)cmdarg;
             bcopy(&gdt_stat, p, sizeof(gdt_statist_t));
             break;

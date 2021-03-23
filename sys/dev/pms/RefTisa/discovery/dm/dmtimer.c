@@ -1,22 +1,22 @@
 /*******************************************************************************
 **
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 **
@@ -42,19 +42,19 @@ __FBSDID("$FreeBSD$");
 #include <dev/pms/RefTisa/discovery/dm/dmtypes.h>
 #include <dev/pms/RefTisa/discovery/dm/dmproto.h>
 
-osGLOBAL void   
+osGLOBAL void
 dmTimerTick(dmRoot_t 		*dmRoot )
 {
   DM_DBG6(("dmTimerTick: start\n"));
-  
+
   dmProcessTimers(dmRoot);
 
   return;
-}	  																
-				
+}
+
 osGLOBAL void
 dmInitTimerRequest(
-                     dmRoot_t                *dmRoot, 
+                     dmRoot_t                *dmRoot,
                      dmTimerRequest_t        *timerRequest
                      )
 {
@@ -87,7 +87,7 @@ dmSetTimerRequest(
 osGLOBAL void
 dmAddTimer(
            dmRoot_t            *dmRoot,
-           dmList_t            *timerListHdr, 
+           dmList_t            *timerListHdr,
            dmTimerRequest_t    *timerRequest
           )
 {
@@ -110,7 +110,7 @@ dmKillTimer(
 }
 
 
-osGLOBAL void 
+osGLOBAL void
 dmProcessTimers(
                 dmRoot_t *dmRoot
                 )
@@ -120,38 +120,38 @@ dmProcessTimers(
   dmTimerRequest_t          *timerRequest_to_process = agNULL;
   dmList_t                  *timerlist_to_process, *nexttimerlist = agNULL;
 
-  
+
   timerlist_to_process = &dmAllShared->timerlist;
-  
+
   timerlist_to_process = timerlist_to_process->flink;
 
   while ((timerlist_to_process != agNULL) && (timerlist_to_process != &dmAllShared->timerlist))
   {
     nexttimerlist = timerlist_to_process->flink;
-    
+
     tddmSingleThreadedEnter(dmRoot, DM_TIMER_LOCK);
     timerRequest_to_process = DMLIST_OBJECT_BASE(dmTimerRequest_t, timerLink, timerlist_to_process);
     tddmSingleThreadedLeave(dmRoot, DM_TIMER_LOCK);
-    
+
     if (timerRequest_to_process == agNULL)
     {
       DM_DBG1(("dmProcessTimers: timerRequest_to_process is NULL! Error!!!\n"));
-      return;      
+      return;
     }
-    
+
     timerRequest_to_process->timeout--;
-    
+
     if (timerRequest_to_process->timeout == 0)
-    {      
+    {
       tddmSingleThreadedEnter(dmRoot, DM_TIMER_LOCK);
       timerRequest_to_process->timerRunning = agFALSE;
       DMLIST_DEQUEUE_THIS(timerlist_to_process);
       tddmSingleThreadedLeave(dmRoot, DM_TIMER_LOCK);
       /* calling call back function */
-      (timerRequest_to_process->timerCBFunc)(dmRoot, 
-                                             timerRequest_to_process->timerData1, 
-                                             timerRequest_to_process->timerData2, 
-                                             timerRequest_to_process->timerData3 
+      (timerRequest_to_process->timerCBFunc)(dmRoot,
+                                             timerRequest_to_process->timerData1,
+                                             timerRequest_to_process->timerData2,
+                                             timerRequest_to_process->timerData3
                                              );
     }
     timerlist_to_process = nexttimerlist;

@@ -79,7 +79,7 @@ struct iscsi_session {
 
 	/*
 	 * XXX: This could be rewritten using a single variable,
-	 * 	but somehow it results in uglier code. 
+	 * 	but somehow it results in uglier code.
 	 */
 	/*
 	 * We're waiting for iscsid(8); after iscsid_timeout

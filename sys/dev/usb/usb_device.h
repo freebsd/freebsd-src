@@ -162,7 +162,7 @@ struct usb_temp_setup {
 	usb_error_t err;
 };
 
-/* 
+/*
  * The scratch area for USB devices. Access to this structure is
  * protected by the control SX lock.
  */

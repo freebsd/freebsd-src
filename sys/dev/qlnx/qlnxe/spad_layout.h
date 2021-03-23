@@ -162,7 +162,7 @@ struct static_init {
 #define MFW_SECURE_MODE *((u32*)(STRUCT_OFFSET(mfw_secure_mode)))
 	u16 pme_status_pf_bitmap;					/* 0xe20840 */
 #define PME_STATUS_PF_BITMAP *((u16*)(STRUCT_OFFSET(pme_status_pf_bitmap)))
-	u16 pme_enable_pf_bitmap;					
+	u16 pme_enable_pf_bitmap;
 #define PME_ENABLE_PF_BITMAP *((u16*)(STRUCT_OFFSET(pme_enable_pf_bitmap)))
 	u32 mim_nvm_addr;						/* 0xe20844 */
 	u32 mim_start_addr;						/* 0xe20848 */

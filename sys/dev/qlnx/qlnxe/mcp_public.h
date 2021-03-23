@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Cavium, Inc. 
+ * Copyright (c) 2017-2018 Cavium, Inc.
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -133,13 +133,13 @@ struct eth_stats {
 			u64 r4095;      /* 0x08 (Offset 0x40 ) RX 2048 to 4095 byte frame counter*/
 			u64 r9216;      /* 0x09 (Offset 0x48 ) RX 4096 to 9216 byte frame counter*/
 			u64 r16383;     /* 0x0A (Offset 0x50 ) RX 9217 to 16383 byte frame counter */
-			
+
 		} bb0;
 		struct { /* ah */
-			u64 unused1;     
+			u64 unused1;
 			u64 r1519_to_max; /* 0x07 (Offset 0x38 ) RX 1519 to max byte frame counter*/
-			u64 unused2;     
-			u64 unused3;     
+			u64 unused2;
+			u64 unused3;
 			u64 unused4;
 		} ah0;
 	} u0;
@@ -181,8 +181,8 @@ struct eth_stats {
 			u64 tncl;       /* 0x6E (Offset 0x110) Transmit Total Collision Counter */
 		} bb2;
 		struct { /* ah */
-			u64 unused9;    
-			u64 unused10;    
+			u64 unused9;
+			u64 unused10;
 		} ah2;
 	} u2;
 	u64 rbyte;      /* 0x3d (Offset 0x118) RX byte counter */
@@ -443,7 +443,7 @@ struct lldp_system_tlvs_buffer_s {
 #define LLDP_SYSTEM_TLV_MANDATORY_MASK		0x2
 #define LLDP_SYSTEM_TLV_MANDATORY_OFFSET	1
 #define LLDP_SYSTEM_TLV_LENGTH_MASK		0xffff0000
-#define LLDP_SYSTEM_TLV_LENGTH_OFFSET		16	
+#define LLDP_SYSTEM_TLV_LENGTH_OFFSET		16
 	u32 data[MAX_SYSTEM_LLDP_TLV_DATA];
 };
 
@@ -479,8 +479,8 @@ struct mcp_val64 {
 
 /* generic_idc_msg_t to be used for inter driver communication.
  * source_pf specifies the originating PF that sent messages to all target PFs
- * msg contains 64 bit value of the message - opaque to the MFW 
- */ 
+ * msg contains 64 bit value of the message - opaque to the MFW
+ */
 struct generic_idc_msg_s {
 	u32 source_pf;
 	struct mcp_val64 msg;
@@ -678,7 +678,7 @@ struct public_port {
 #define LINK_STATUS_EXT_PHY_LINK_UP			0x40000000
 
 	u32 link_status1;
-#define LP_PRESENCE_STATUS_OFFSET	0 
+#define LP_PRESENCE_STATUS_OFFSET	0
 #define LP_PRESENCE_STATUS_MASK		0x3
 #define LP_PRESENCE_UNKNOWN		0x0
 #define LP_PRESENCE_PROBING		0x1

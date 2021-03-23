@@ -1361,7 +1361,7 @@ ae_pm_init(ae_softc_t *sc)
 			    IFM_FDX) != 0)
 				val |= AE_MAC_FULL_DUPLEX;
 			AE_WRITE_4(sc, AE_MAC_REG, val);
-			    
+
 		} else {	/* No link. */
 			AE_WRITE_4(sc, AE_WOL_REG, AE_WOL_LNKCHG | \
 			    AE_WOL_LNKCHG_PME);

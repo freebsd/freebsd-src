@@ -46,12 +46,12 @@
 #define ENVY24HT_CCS_IMASK    0x01 /* Interrupt Mask Register */
 #define ENVY24HT_CCS_IMASK_PMT   0x10 /* Professional Multi-track */
 
-#define ENVY24HT_CCS_I2CDEV   0x10 /* I2C Port Device Address Register */ 
+#define ENVY24HT_CCS_I2CDEV   0x10 /* I2C Port Device Address Register */
 #define ENVY24HT_CCS_I2CDEV_ADDR 0xfe /* I2C device address */
 #define ENVY24HT_CCS_I2CDEV_ROM  0xa0 /* reserved for the external I2C E2PROM */
 #define ENVY24HT_CCS_I2CDEV_WR   0x01 /* write */
 #define ENVY24HT_CCS_I2CDEV_RD   0x00 /* read */
-  
+
 #define ENVY24HT_CCS_I2CADDR  0x11 /* I2C Port Byte Address Register */
 #define ENVY24HT_CCS_I2CDATA  0x12 /* I2C Port Read/Write Data Register */
 
@@ -92,14 +92,14 @@
 
 /* Professional Multi-Track Control Registers */
 
-#define ENVY24HT_MT_INT_STAT    0x00 /* DMA Interrupt Mask and Status Register */ 
+#define ENVY24HT_MT_INT_STAT    0x00 /* DMA Interrupt Mask and Status Register */
 #define ENVY24HT_MT_INT_RSTAT   0x02 /* Multi-track record interrupt status */
 #define ENVY24HT_MT_INT_PSTAT   0x01 /* Multi-track playback interrupt status */
 #define ENVY24HT_MT_INT_MASK	0x03
 #define ENVY24HT_MT_INT_RMASK   0x02 /* Multi-track record interrupt mask */
 #define ENVY24HT_MT_INT_PMASK   0x01 /* Multi-track playback interrupt mask */
 
-#define ENVY24HT_MT_RATE     0x01 /* Sampling Rate Select Register */ 
+#define ENVY24HT_MT_RATE     0x01 /* Sampling Rate Select Register */
 #define ENVY24HT_MT_RATE_SPDIF  0x10 /* S/PDIF input clock as the master */
 #define ENVY24HT_MT_RATE_48000  0x00
 #define ENVY24HT_MT_RATE_24000  0x01

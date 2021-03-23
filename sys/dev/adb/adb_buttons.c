@@ -56,7 +56,7 @@ struct abtn_softc {
 
 static int abtn_probe(device_t dev);
 static int abtn_attach(device_t dev);
-static u_int abtn_receive_packet(device_t dev, u_char status, 
+static u_int abtn_receive_packet(device_t dev, u_char status,
     u_char command, u_char reg, int len, u_char *data);
 
 static device_method_t abtn_methods[] = {
@@ -97,7 +97,7 @@ abtn_probe(device_t dev)
 }
 
 static int
-abtn_attach(device_t dev) 
+abtn_attach(device_t dev)
 {
 	struct abtn_softc *sc;
 
@@ -110,7 +110,7 @@ abtn_attach(device_t dev)
 }
 
 static u_int
-abtn_receive_packet(device_t dev, u_char status, 
+abtn_receive_packet(device_t dev, u_char status,
     u_char command, u_char reg, int len, u_char *data)
 {
 	u_int cmd;

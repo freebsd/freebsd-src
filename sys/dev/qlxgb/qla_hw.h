@@ -283,7 +283,7 @@ typedef struct _q80_rsp_rcv_cntxt {
  * Note:
  *	Transmit Context
  *	188 (rq) + 144 (rsp) = 332 bytes are required
- *	
+ *
  *	Receive Context
  *	1 RDS and 1 SDS rings: (16+24+176)+(8+8+152) = 384 bytes
  *
@@ -414,7 +414,7 @@ typedef struct qla_dmabuf {
  * Firmware Control Descriptor
  */
 typedef struct _qla_fw_cds_hdr {
-	uint64_t cmd; 
+	uint64_t cmd;
 #define Q8_FWCD_CNTRL_REQ	(0x13 << 23)
 	uint8_t	opcode;
 	uint8_t cookie;
@@ -705,7 +705,7 @@ typedef struct _qla_link_event {
 #define Q8_LE_MI_SUPPORTED_TWINAX		0x08
 
 	uint8_t			fduplex; /* 1 = full duplex; 0 = half duplex */
-	uint8_t			autoneg; /* 1 = autoneg enable; 0 = disabled */ 
+	uint8_t			autoneg; /* 1 = autoneg enable; 0 = disabled */
 	uint32_t		rsrvd;
 } __packed qla_link_event_t;
 
@@ -788,7 +788,7 @@ typedef struct _qla_hw {
 	q80_rcv_cntxt_rsp_t *rx_cntxt_rsp; /* Rcv Context Response */
 	bus_addr_t	rx_cntxt_rsp_paddr;
 
-	qla_sds_t	sds[MAX_SDS_RINGS]; 
+	qla_sds_t	sds[MAX_SDS_RINGS];
 
 	uint8_t		frame_hdr[QL_FRAME_HDR_SIZE];
 } qla_hw_t;

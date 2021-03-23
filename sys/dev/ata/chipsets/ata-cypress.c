@@ -102,7 +102,7 @@ ata_cypress_setmode(device_t dev, int target, int mode)
 	mode = min(mode, ATA_WDMA2);
 
 	/* XXX SOS missing WDMA0+1 + PIO modes */
-	if (mode == ATA_WDMA2) { 
+	if (mode == ATA_WDMA2) {
 		pci_write_config(parent, ch->unit ? 0x4e : 0x4c, 0x2020, 2);
 	}
 	/* we could set PIO mode timings, but we assume the BIOS did that */

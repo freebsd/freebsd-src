@@ -43,7 +43,7 @@
 #include <sys/types.h>
 #include <sys/cons.h>
 #include <sys/time.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 
 #include <sys/stat.h>
 #include <sys/malloc.h>
@@ -105,7 +105,7 @@ typedef struct _INQUIRYDATA {
 	u_char ProductRevisionLevel[4];
 	u_char VendorSpecific[20];
 	u_char Reserved3[40];
-} 
+}
 __attribute__((packed))
 INQUIRYDATA, *PINQUIRYDATA;
 
@@ -138,7 +138,7 @@ typedef struct _hba {
 	PCI_ADDRESS       pciaddr;
 	struct _vbus_ext *vbus_ext;
 	struct _hba      *next;
-	
+
 	struct {
 		struct resource *res;
 		int type;
@@ -168,21 +168,21 @@ typedef struct _vbus_ext {
 	PHBA              hba_list;
 	struct freelist  *freelist_head;
 	struct freelist  *freelist_dma_head;
-	
+
 	struct cam_sim   *sim;    /* sim for this vbus */
 	struct cam_path  *path;   /* peripheral, path, tgt, lun with this vbus */
 	struct mtx        lock; /* general purpose lock */
 	bus_dma_tag_t     io_dmat; /* I/O buffer DMA tag */
-	
+
 	POS_CMDEXT        cmdext_list;
 
 	OSM_TASK         *tasks;
 	struct task       worker;
-	
+
 	struct callout    timer;
 
 	eventhandler_tag  shutdown_eh;
-	
+
 	/* the LDM vbus instance continues */
 	unsigned long vbus[0] __attribute__((aligned(sizeof(unsigned long))));
 }

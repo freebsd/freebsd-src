@@ -381,7 +381,7 @@ ocs_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
 		}
 
 		if (req->req_create) {
-			rc = ocs_sport_vport_new(domain, req->wwpn, req->wwnn, 
+			rc = ocs_sport_vport_new(domain, req->wwpn, req->wwnn,
 						UINT32_MAX, req->enable_ini,
 					req->enable_tgt, NULL, NULL, TRUE);
 		} else {
@@ -526,7 +526,7 @@ ocs_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
 
 		if (ocs_textbuf_get_written(&textbuf)) {
 			if (ocs_copy_to_user(req->user_buffer,
-				ocs_textbuf_get_buffer(&textbuf), 
+				ocs_textbuf_get_buffer(&textbuf),
 				ocs_textbuf_get_written(&textbuf))) {
 				ocs_log_test(ocs, "Error: (%d) ocs_copy_to_user failed\n", __LINE__);
 			}
@@ -554,7 +554,7 @@ ocs_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
 		ocs_mgmt_get_all(ocs, &textbuf);
 
 		for (idx = 0; (n = ocs_textbuf_ext_get_written(&textbuf, idx)) > 0; idx++) {
-			if(ocs_copy_to_user(req->user_buffer + copied, 
+			if(ocs_copy_to_user(req->user_buffer + copied,
 					ocs_textbuf_ext_get_buffer(&textbuf, idx),
 					ocs_textbuf_ext_get_written(&textbuf, idx))) {
 					ocs_log_err(ocs, "Error: ocs_textbuf_alloc failed\n");
@@ -589,8 +589,8 @@ ocs_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
 		ocs_mgmt_get(ocs, name, &textbuf);
 
 		if (ocs_textbuf_get_written(&textbuf)) {
-			if (ocs_copy_to_user(req->value, 
-				ocs_textbuf_get_buffer(&textbuf), 
+			if (ocs_copy_to_user(req->value,
+				ocs_textbuf_get_buffer(&textbuf),
 				ocs_textbuf_get_written(&textbuf))) {
 				ocs_log_test(ocs, "Error: (%d) ocs_copy_to_user failed\n", __LINE__);
 		}
@@ -606,7 +606,7 @@ ocs_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
 		char name[OCS_MGMT_MAX_NAME];
 		char value[OCS_MGMT_MAX_VALUE];
 		ocs_ioctl_cmd_set_t* req = (ocs_ioctl_cmd_set_t*)addr;
-		
+
 		// Copy the name  in from user space
 		if (ocs_copy_from_user(name, req->name, OCS_MGMT_MAX_NAME)) {
 			ocs_log_test(ocs, "Error: copy from user failed\n");
@@ -651,7 +651,7 @@ ocs_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
 }
 
 static void
-ocs_fw_write_cb(int32_t status, uint32_t actual_write_length, 
+ocs_fw_write_cb(int32_t status, uint32_t actual_write_length,
 					uint32_t change_status, void *arg)
 {
         ocs_mgmt_fw_write_result_t *result = arg;
@@ -664,7 +664,7 @@ ocs_fw_write_cb(int32_t status, uint32_t actual_write_length,
 }
 
 int
-ocs_firmware_write(ocs_t *ocs, const uint8_t *buf, size_t buf_len, 
+ocs_firmware_write(ocs_t *ocs, const uint8_t *buf, size_t buf_len,
 						uint8_t *change_status)
 {
         int rc = 0;
@@ -698,7 +698,7 @@ ocs_firmware_write(ocs_t *ocs, const uint8_t *buf, size_t buf_len,
                         last = 1;
                 }
 
-                ocs_hw_firmware_write(&ocs->hw, &dma, xfer_size, offset, 
+                ocs_hw_firmware_write(&ocs->hw, &dma, xfer_size, offset,
 						last, ocs_fw_write_cb, &result);
 
                 if (ocs_sem_p(&(result.semaphore), OCS_SEM_FOREVER) != 0) {
@@ -757,7 +757,7 @@ ocs_sys_fwupgrade(SYSCTL_HANDLER_ARGS)
                 goto exit;
         }
 
-        if (!strncmp(ocs->fw_version, fw_image->revision, 
+        if (!strncmp(ocs->fw_version, fw_image->revision,
 					strnlen(fw_image->revision, 16))) {
                 device_printf(ocs->dev, "No update req. "
 				"Firmware is already up to date. \n");
@@ -765,7 +765,7 @@ ocs_sys_fwupgrade(SYSCTL_HANDLER_ARGS)
                 goto exit;
         }
 
-	device_printf(ocs->dev, "Upgrading Firmware from %s to %s \n", 
+	device_printf(ocs->dev, "Upgrading Firmware from %s to %s \n",
 				ocs->fw_version, fw_image->revision);
 
 	rc = ocs_firmware_write(ocs, fw->data, fw->datasize, &fw_change_status);
@@ -775,7 +775,7 @@ ocs_sys_fwupgrade(SYSCTL_HANDLER_ARGS)
                 ocs_log_info(ocs, "Firmware updated successfully\n");
                 switch (fw_change_status) {
                         case 0x00:
-                                device_printf(ocs->dev, 
+                                device_printf(ocs->dev,
 				"No reset needed, new firmware is active.\n");
                                 break;
                         case 0x01:
@@ -971,7 +971,7 @@ ocs_sysctl_fcid(SYSCTL_HANDLER_ARGS)
 
 	memset(buf, 0, sizeof(buf));
 	if (ocs->domain && ocs->domain->attached) {
-		snprintf(buf, sizeof(buf), "0x%06x", 
+		snprintf(buf, sizeof(buf), "0x%06x",
 			ocs->domain->sport->fc_id);
 	}
 
@@ -993,7 +993,7 @@ ocs_sysctl_port_state(SYSCTL_HANDLER_ARGS)
 	if (!req->newptr) {
 		snprintf(new, sizeof(new), "%s",
 			(old.value == OCS_XPORT_PORT_OFFLINE) ?
-					 "offline" : "online");	
+					 "offline" : "online");
 		return (sysctl_handle_string(oidp, new, sizeof(new), req));
         }
 
@@ -1025,7 +1025,7 @@ ocs_sysctl_port_state(SYSCTL_HANDLER_ARGS)
 		rc = 1;
 	}
 
-	return (rc);	
+	return (rc);
 
 }
 
@@ -1066,7 +1066,7 @@ ocs_sysctl_init(ocs_t *ocs)
 {
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(ocs->dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(ocs->dev);
-	struct sysctl_oid *vtree; 
+	struct sysctl_oid *vtree;
 	const char *str = NULL;
 	char name[16];
 	uint32_t rev, if_type, family, i;

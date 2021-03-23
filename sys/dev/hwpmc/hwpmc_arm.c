@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 /* XXX: Userland code compiled with gcc will need an heuristic
- * to be correctly detected. 
+ * to be correctly detected.
  */
 #ifdef __clang__
 #define PC_OFF 1

@@ -169,9 +169,9 @@ ar5312Attach(uint16_t devid, HAL_SOFTC sc,
 		ecode = HAL_ENOTSUPP;
 		goto bad;
 	}
-        
+
 	AH_PRIVATE(ah)->ah_phyRev = OS_REG_READ(ah, AR_PHY_CHIP_ID);
-        
+
 	if (!ar5212ChipTest(ah)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: hardware self-test failed\n",
 		    __func__);
@@ -184,7 +184,7 @@ ar5312Attach(uint16_t devid, HAL_SOFTC sc,
 	 * setting to access analog chips.
 	 */
 	OS_REG_WRITE(ah, AR_PHY(0), 0x00000007);
-        
+
 	/* Read Radio Chip Rev Extract */
 	AH_PRIVATE(ah)->ah_analog5GhzRev = ar5212GetRadioRev(ah);
 
@@ -288,7 +288,7 @@ bad:
 static HAL_BOOL
 ar5312GetMacAddr(struct ath_hal *ah)
 {
-	const struct ar531x_boarddata *board = AR5312_BOARDCONFIG(ah); 
+	const struct ar531x_boarddata *board = AR5312_BOARDCONFIG(ah);
         int wlanNum = AR5312_UNIT(ah);
         const uint8_t *macAddr;
 

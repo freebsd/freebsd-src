@@ -2,30 +2,30 @@
 
   Copyright (c) 2013-2018, Intel Corporation
   All rights reserved.
-  
-  Redistribution and use in source and binary forms, with or without 
+
+  Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
-  
-   1. Redistributions of source code must retain the above copyright notice, 
+
+   1. Redistributions of source code must retain the above copyright notice,
       this list of conditions and the following disclaimer.
-  
-   2. Redistributions in binary form must reproduce the above copyright 
-      notice, this list of conditions and the following disclaimer in the 
+
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
-  
-   3. Neither the name of the Intel Corporation nor the names of its 
-      contributors may be used to endorse or promote products derived from 
+
+   3. Neither the name of the Intel Corporation nor the names of its
+      contributors may be used to endorse or promote products derived from
       this software without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
@@ -295,7 +295,7 @@ iavf_allocate_pci_resources(struct iavf_sc *sc)
 		device_printf(dev, "Unable to allocate bus resource: PCI memory\n");
 		return (ENXIO);
  	}
- 
+
 	/* Save off the PCI information */
 	hw->vendor_id = pci_get_vendor(dev);
 	hw->device_id = pci_get_device(dev);
@@ -757,7 +757,7 @@ retry_send:
 				    IAVF_AQ_MAX_ERR - (i + 1));
 				ret_error = 3;
 				break;
-			} 
+			}
 			i40e_msec_pause(10);
 		}
 		if (asq_retries > IAVF_AQ_MAX_ERR)
@@ -1214,7 +1214,7 @@ iavf_if_update_admin_status(if_ctx_t ctx)
 
 	iavf_process_adminq(sc, &pending);
 	iavf_update_link_status(sc);
-	
+
 	/*
 	 * If there are still messages to process, reschedule.
 	 * Otherwise, re-enable the Admin Queue interrupt.
@@ -1626,7 +1626,7 @@ iavf_find_mac_filter(struct iavf_sc *sc, u8 *macaddr)
 			match = TRUE;
 			break;
 		}
-	}	
+	}
 
 	if (!match)
 		f = NULL;
@@ -1847,7 +1847,7 @@ iavf_update_link_status(struct iavf_sc *sc)
 	struct ixl_vsi *vsi = &sc->vsi;
 	u64 baudrate;
 
-	if (sc->link_up){ 
+	if (sc->link_up){
 		if (vsi->link_active == FALSE) {
 			vsi->link_active = TRUE;
 			baudrate = ixl_max_vc_speed_to_value(sc->link_speed);
@@ -1902,7 +1902,7 @@ iavf_config_rss_reg(struct iavf_sc *sc)
 #ifdef RSS
 	u32		rss_hash_config;
 #endif
-        
+
 	/* Don't set up RSS if using a single queue */
 	if (vsi->num_rx_queues == 1) {
 		wr32(hw, I40E_VFQF_HENA(0), 0);
@@ -1985,7 +1985,7 @@ iavf_config_rss_pf(struct iavf_sc *sc)
 }
 
 /*
-** iavf_config_rss - setup RSS 
+** iavf_config_rss - setup RSS
 **
 ** RSS keys and table are cleared on VF reset.
 */

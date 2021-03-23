@@ -54,7 +54,7 @@ pwmbus_add_child(device_t dev, u_int order, const char *name, int unit)
 	struct pwmbus_ivars *ivars;
 
 	child = device_add_child_ordered(dev, order, name, unit);
-	if (child == NULL) 
+	if (child == NULL)
 		return (child);
 
 	ivars = malloc(sizeof(struct pwmbus_ivars), M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -73,7 +73,7 @@ pwmbus_child_location_str(device_t dev, device_t child, char *buf, size_t blen)
 	struct pwmbus_ivars *ivars;
 
 	ivars = device_get_ivars(child);
-	snprintf(buf, blen, "hwdev=%s channel=%u", 
+	snprintf(buf, blen, "hwdev=%s channel=%u",
 	    device_get_nameunit(device_get_parent(dev)), ivars->pi_channel);
 
 	return (0);

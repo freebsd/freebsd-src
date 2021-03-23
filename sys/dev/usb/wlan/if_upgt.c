@@ -733,7 +733,7 @@ upgt_set_multi(void *arg)
 }
 
 static int
-upgt_transmit(struct ieee80211com *ic, struct mbuf *m)   
+upgt_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
 	struct upgt_softc *sc = ic->ic_softc;
 	int error;
@@ -1763,7 +1763,7 @@ upgt_fw_verify(struct upgt_softc *sc)
 		if (*uc != 0)
 			break;
 	}
-	if (offset == fw->datasize) { 
+	if (offset == fw->datasize) {
 		device_printf(sc->sc_dev,
 		    "firmware Boot Record Area not found\n");
 		error = EIO;

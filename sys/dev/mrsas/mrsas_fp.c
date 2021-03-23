@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
  * Function prototypes
  */
 u_int8_t MR_ValidateMapInfo(struct mrsas_softc *sc);
-u_int8_t 
+u_int8_t
 mrsas_get_best_arm_pd(struct mrsas_softc *sc,
     PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info);
 u_int8_t
@@ -69,7 +69,7 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 u_int8_t MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL *map);
 u_int32_t MR_LdBlockSizeGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map);
 u_int16_t MR_GetLDTgtId(u_int32_t ld, MR_DRV_RAID_MAP_ALL * map);
-u_int16_t 
+u_int16_t
 mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
     PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info);
 u_int32_t mega_mod64(u_int64_t dividend, u_int32_t divisor);
@@ -77,7 +77,7 @@ u_int32_t
 MR_GetSpanBlock(u_int32_t ld, u_int64_t row, u_int64_t *span_blk,
     MR_DRV_RAID_MAP_ALL * map, int *div_error);
 u_int64_t mega_div64_32(u_int64_t dividend, u_int32_t divisor);
-void 
+void
 mrsas_update_load_balance_params(struct mrsas_softc *sc,
     MR_DRV_RAID_MAP_ALL * map, PLD_LOAD_BALANCE_INFO lbInfo);
 void
@@ -1541,7 +1541,7 @@ mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request, u_int8_t cdb_len,
  * This function determines and returns the best arm by looking at the
  * parameters of the last PD access.
  */
-u_int8_t 
+u_int8_t
 mrsas_get_best_arm_pd(struct mrsas_softc *sc,
     PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info)
 {
@@ -1614,7 +1614,7 @@ mrsas_get_best_arm_pd(struct mrsas_softc *sc,
  *
  * This function determines and returns the updated dev handle.
  */
-u_int16_t 
+u_int16_t
 mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
     PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info)
 {

@@ -2551,7 +2551,7 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		else
 			sc->fast_path_io = 0;
 	}
-		
+
 	device_printf(sc->mrsas_dev, "max_fw_cmds: %u  max_scsi_cmds: %u\n",
 		sc->max_fw_cmds, sc->max_scsi_cmds);
 	return (0);
@@ -3166,7 +3166,7 @@ mrsas_ocr_thread(void *arg)
 				sc->reset_in_progress = 1;
 				mtx_unlock_spin(&sc->ioctl_lock);
 				sc->reset_count++;
-				
+
 				/*
 				 * Wait for the AEN task to be completed if it is running.
 				 */
@@ -3392,7 +3392,7 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 						    "Re-fire command DCMD opcode 0x%x index %d\n ",
 						    mfi_cmd->frame->dcmd.opcode, j);
 						if (!req_desc)
-							device_printf(sc->mrsas_dev, 
+							device_printf(sc->mrsas_dev,
 							    "Cannot build MPT cmd.\n");
 						else
 							mrsas_fire_cmd(sc, req_desc->addr.u.low,
@@ -3489,7 +3489,7 @@ mrsas_kill_hba(struct mrsas_softc *sc)
  *
  * Returns void
  */
-void 
+void
 mrsas_complete_outstanding_ioctls(struct mrsas_softc *sc)
 {
 	int i;
@@ -3699,7 +3699,7 @@ dcmd_timeout:
  * input:
  *	sc - Controller's softc
 */
-static void 
+static void
 mrsas_update_ext_vd_details(struct mrsas_softc *sc)
 {
 	u_int32_t ventura_map_sz = 0;

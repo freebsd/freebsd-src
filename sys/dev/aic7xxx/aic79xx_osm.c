@@ -266,7 +266,7 @@ ahd_attach(struct ahd_softc *ahd)
 		sim = NULL;
 		goto fail;
 	}
-		
+
 	xpt_setup_ccb(&csa.ccb_h, path, /*priority*/5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = AC_LOST_DEVICE;
@@ -298,7 +298,7 @@ ahd_platform_intr(void *arg)
 {
 	struct	ahd_softc *ahd;
 
-	ahd = (struct ahd_softc *)arg; 
+	ahd = (struct ahd_softc *)arg;
 	ahd_lock(ahd);
 	ahd_intr(ahd);
 	ahd_unlock(ahd);
@@ -510,7 +510,7 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
 	{
 		struct	scb *scb;
-		struct	hardware_scb *hscb;	
+		struct	hardware_scb *hscb;
 		struct	ahd_initiator_tinfo *tinfo;
 		struct	ahd_tmode_tstate *tstate;
 		u_int	col_idx;
@@ -543,9 +543,9 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			return;
 		}
-		
+
 		hscb = scb->hscb;
-		
+
 		CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE,
 			  ("start scb(%p)\n", scb));
 		scb->io_ctx = ccb;
@@ -591,7 +591,7 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 			hscb->task_management = 0;
 			if (ccb->ccb_h.flags & CAM_TAG_ACTION_VALID)
 				hscb->control |= ccb->csio.tag_action;
-			
+
 			ahd_setup_data(ahd, sim, &ccb->csio, scb);
 		}
 		break;
@@ -652,7 +652,7 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_RESET_BUS:		/* Reset the specified SCSI bus */
 	{
 		int  found;
-		
+
 		found = ahd_reset_channel(ahd, SIM_CHANNEL(ahd, sim),
 					  /*initiate reset*/TRUE);
 		if (bootverbose) {
@@ -672,7 +672,7 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_PATH_INQ:		/* Path routing inquiry */
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
-		
+
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE;
 		if ((ahd->features & AHD_WIDE) != 0)
@@ -771,7 +771,7 @@ ahd_set_tran_settings(struct ahd_softc *ahd, int our_id, char channel,
 			*tagenable |= devinfo.target_mask;
 		else
 			*tagenable &= ~devinfo.target_mask;
-	}	
+	}
 
 	if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0) {
 		ahd_validate_width(ahd, /*tinfo limit*/NULL,
@@ -972,7 +972,7 @@ ahd_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 					  /*last*/i == 1);
 			dm_segs++;
 		}
-		
+
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
 			op = BUS_DMASYNC_PREREAD;
 		else
@@ -1094,7 +1094,7 @@ ahd_setup_data(struct ahd_softc *ahd, struct cam_sim *sim,
 				   csio->cdb_len;
 				hscb->cdb_len |= SCB_CDB_LEN_PTR;
 			} else {
-				memcpy(hscb->shared_data.idata.cdb, 
+				memcpy(hscb->shared_data.idata.cdb,
 				       csio->cdb_io.cdb_ptr,
 				       hscb->cdb_len);
 			}
@@ -1110,7 +1110,7 @@ ahd_setup_data(struct ahd_softc *ahd, struct cam_sim *sim,
 			       csio->cdb_io.cdb_bytes, hscb->cdb_len);
 		}
 	}
-		
+
 	error = bus_dmamap_load_ccb(ahd->buffer_dmat,
 				    scb->dmamap,
 				    (union ccb *)csio,
@@ -1367,7 +1367,7 @@ ahd_modevent(module_t mod, int type, void *data)
 	/* XXX Deal with unknown events */
 	return 0;
 }
-  
+
 static moduledata_t ahd_mod = {
 	"ahd",
 	ahd_modevent,

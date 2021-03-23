@@ -138,7 +138,7 @@
 #define MALO_HOSTCMD_SET_RATE			0x0110
 #define MALO_HOSTCMD_SET_SLOT			0x0114
 /* define DFS lab commands  */
-#define MALO_HOSTCMD_SET_FIXED_RATE		0x0126 
+#define MALO_HOSTCMD_SET_FIXED_RATE		0x0126
 #define MALO_HOSTCMD_SET_REGION_POWER		0x0128
 #define MALO_HOSTCMD_GET_CALTABLE		0x1134
 
@@ -161,15 +161,15 @@ struct malo_cmd_header {
 	uint16_t		cmd;
 	uint16_t		length;
 	uint16_t		seqnum;
-	uint16_t		result; 
-} __packed;  
+	uint16_t		result;
+} __packed;
 
 struct malo_cmd_caltable {
 	struct malo_cmd_header	cmdhdr;
-	uint8_t			annex; 
+	uint8_t			annex;
 	uint8_t			index;
 	uint8_t			len;
-	uint8_t			reserverd; 
+	uint8_t			reserverd;
 #define MALO_CAL_TBL_SIZE	160
 	uint8_t			caltbl[MALO_CAL_TBL_SIZE];
 } __packed;
@@ -232,7 +232,7 @@ struct malo_cmd_rf_antenna {
 
 struct malo_cmd_radio_control {
 	struct malo_cmd_header	cmdhdr;
-	uint16_t		action;                   
+	uint16_t		action;
 	/*
 	 * bit 0 : 1 = on, 0 = off
 	 * bit 1 : 1 = long, 0 = short
@@ -379,7 +379,7 @@ struct malo_descdma {
 struct malo_txdesc {
 	uint32_t		status;
 #define	MALO_TXD_STATUS_IDLE			0x00000000
-#define	MALO_TXD_STATUS_USED			0x00000001 
+#define	MALO_TXD_STATUS_USED			0x00000001
 #define	MALO_TXD_STATUS_OK			0x00000001
 #define	MALO_TXD_STATUS_OK_RETRY		0x00000002
 #define	MALO_TXD_STATUS_OK_MORE_RETRY		0x00000004
@@ -435,7 +435,7 @@ struct malo_rxdesc {
 	uint8_t		nf;		/* noise floor */
 	uint8_t		rate;		/* received data rate */
 	uint32_t	physbuffdata;	/* physical address of payload data */
-	uint32_t	physnext;	/* physical address of next RX desc */ 
+	uint32_t	physnext;	/* physical address of next RX desc */
 	uint16_t	qosctrl;	/* received QosCtrl field variable */
 	uint16_t	htsig2;		/* like name states */
 } __packed;

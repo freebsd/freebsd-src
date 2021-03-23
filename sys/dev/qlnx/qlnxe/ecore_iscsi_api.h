@@ -205,11 +205,11 @@ struct ecore_iscsi_conn {
 #endif
 
 /**
- * @brief ecore_iscsi_acquire_connection - allocate resources, 
+ * @brief ecore_iscsi_acquire_connection - allocate resources,
  *        provides connecion handle (CID)as out parameter.
  *
  * @param p_path
- * @param p_conn  partially initialized incoming container of 
+ * @param p_conn  partially initialized incoming container of
  *                iSCSI connection data
  * @return enum _ecore_status_t
  */
@@ -240,12 +240,12 @@ void OSAL_IOMEM *ecore_iscsi_get_secondary_bdq_prod(struct ecore_hwfn *p_hwfn,
 						    u8 bdq_id);
 
 /**
- * @brief ecore_iscsi_offload_connection - offload previously 
+ * @brief ecore_iscsi_offload_connection - offload previously
  *        allocated iSCSI connection
  *
- * @param p_path 
+ * @param p_path
  * @param p_conn  container of iSCSI connection data
- *  
+ *
  * @return enum _ecore_status_t
  */
 enum _ecore_status_t
@@ -253,11 +253,11 @@ ecore_iscsi_offload_connection(struct ecore_hwfn *p_hwfn,
 			       struct ecore_iscsi_conn *p_conn);
 
 /**
- * @brief ecore_iscsi_release_connection - deletes connecton 
+ * @brief ecore_iscsi_release_connection - deletes connecton
  *        resources (incliding container of iSCSI connection
  *        data)
  *
- * @param p_path 
+ * @param p_path
  * @param p_conn  container of iSCSI connection data
  */
 void ecore_iscsi_release_connection(struct ecore_hwfn *p_hwfn,
@@ -267,9 +267,9 @@ void ecore_iscsi_release_connection(struct ecore_hwfn *p_hwfn,
  * @brief ecore_iscsi_terminate_connection - destroys previously
  *        offloaded iSCSI connection
  *
- * @param p_path 
+ * @param p_path
  * @param p_conn  container of iSCSI connection data
- *  
+ *
  * @return enum _ecore_status_t
  */
 enum _ecore_status_t
@@ -277,13 +277,13 @@ ecore_iscsi_terminate_connection(struct ecore_hwfn *p_hwfn,
 				 struct ecore_iscsi_conn *p_conn);
 
 /**
- * @brief ecore_iscsi_update_connection - updates previously 
+ * @brief ecore_iscsi_update_connection - updates previously
  *        offloaded iSCSI connection
  *
  *
- * @param p_path 
+ * @param p_path
  * @param p_conn  container of iSCSI connection data
- *  
+ *
  * @return enum _ecore_status_t
  */
 enum _ecore_status_t

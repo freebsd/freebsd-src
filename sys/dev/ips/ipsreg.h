@@ -45,7 +45,7 @@
 
 /* amounts of memory to allocate for certain commands */
 #define IPS_ADAPTER_INFO_LEN		(sizeof(ips_adapter_info_t))
-#define IPS_DRIVE_INFO_LEN		(sizeof(ips_drive_info_t)) 
+#define IPS_DRIVE_INFO_LEN		(sizeof(ips_drive_info_t))
 #define IPS_COMMAND_LEN			24
 #define IPS_MAX_SG_LEN			(sizeof(ips_sg_element_t) * IPS_MAX_SG_ELEMENTS)
 #define IPS_NVRAM_PAGE_SIZE		128
@@ -59,7 +59,7 @@
 #define IPS_STATIC_BUSY			0x08
 
 /* max number of commands set to something low for now */
-#define IPS_MAX_CMD_NUM			128	
+#define IPS_MAX_CMD_NUM			128
 #define IPS_MAX_NUM_DRIVES		8
 #define IPS_MAX_SG_ELEMENTS		32
 #define IPS_MAX_IOBUF_SIZE		(64 * 1024)

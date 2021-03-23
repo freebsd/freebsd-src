@@ -199,4 +199,4 @@ ocs_find_vpd(uint8_t *vpddata, uint32_t vpddata_length, const char *key)
 
 	return pret;
 }
-#endif 
+#endif

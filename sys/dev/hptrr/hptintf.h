@@ -217,7 +217,7 @@ typedef HPT_U32 DEVICEID;
 #define HPT_CTL_CODE(x) CTL_CODE(0x370, 0x900+(x), 0, 0)
 #define HPT_CTL_CODE_WIN32_TO_IOP(x) ((((x) & 0xffff)>>2)-0x900)
 
-#else 
+#else
 #define HPT_CTL_CODE(x) (x)
 #endif
 
@@ -358,16 +358,16 @@ typedef struct _DRIVER_CAPABILITIES {
 	HPT_U8 HighPerformanceRAID1: 1;
 	HPT_U8 RebuildProcessInDriver: 1;
 	HPT_U8 SupportDedicatedSpare: 1;
-#else 
+#else
 	HPT_U8 SupportDedicatedSpare: 1;     /* call hpt_add_dedicated_spare() for dedicated spare. */
 	HPT_U8 RebuildProcessInDriver: 1;    /* Windows only. used by mid layer for rebuild control. */
-	HPT_U8 HighPerformanceRAID1: 1;      
+	HPT_U8 HighPerformanceRAID1: 1;
 	HPT_U8 SupportHotSwap: 1;
 	HPT_U8 SupportVariableSectorSize: 1;
 	HPT_U8 reserved: 3;
 #endif
 
-	
+
 	HPT_U8 SupportedRAIDTypes[16];
 	/* maximum members in an array corresponding to SupportedRAIDTypes */
 	HPT_U8 MaximumArrayMembers[16];
@@ -415,7 +415,7 @@ typedef struct _CONTROLLER_INFO_V2 {
 	HPT_U32 ExFlags;
 } CONTROLLER_INFO_V2, *PCONTROLLER_INFO_V2;
 
- 
+
 #define CEXF_IOPModel            1
 #define CEXF_SDRAMSize           2
 #define CEXF_BatteryInstalled    4
@@ -441,14 +441,14 @@ typedef struct _CONTROLLER_INFO_V3 {
 	HPT_U32 ExFlags;
 	HPT_U8  IOPModel[32];
 	HPT_U32 SDRAMSize;
-	HPT_U8  BatteryInstalled; 
-	HPT_U8  BatteryStatus; 
-	HPT_U16 BatteryVoltage; 
-	HPT_U32 BatteryBackupTime; 
+	HPT_U8  BatteryInstalled;
+	HPT_U8  BatteryStatus;
+	HPT_U16 BatteryVoltage;
+	HPT_U32 BatteryBackupTime;
 	HPT_U32 FirmwareVersion;
 	HPT_U8  SerialNumber[32];
-	HPT_U8  BatteryMBInstalled; 
-	HPT_U8  BatteryTemperature; 
+	HPT_U8  BatteryMBInstalled;
+	HPT_U8  BatteryTemperature;
 	HPT_U8  reserve[86];
 }
 CONTROLLER_INFO_V3, *PCONTROLLER_INFO_V3;
@@ -563,7 +563,7 @@ typedef struct _HPT_ARRAY_INFO_V3 {
 	HPT_U16     Critical_Members;       /* bit mask of critical members */
 	HPT_U16     reserve2;
 	HPT_U32     reserve;
-#else 
+#else
 	HPT_U32     Critical_Members;
 	HPT_U32     reserve;
 #endif
@@ -583,7 +583,7 @@ typedef struct _HPT_ARRAY_INFO_V4 {
 	HPT_U8      SubArrayType;
 
 	HPT_U32     Flags;                  /* working flags, see ARRAY_FLAG_XXX */
-	
+
 	HPT_U32     RebuildingProgress;
 	HPT_U64     RebuiltSectors; /* rebuilding point (LBA) for single member */
 
@@ -676,7 +676,7 @@ typedef struct _DEVICE_INFO {
 	HPT_U8   ReadAheadSupported: 1;
 	HPT_U8   reserved6: 6;
 	HPT_U8   SpinUpMode: 2;
-#else 
+#else
 	HPT_U8   ReadAheadSupported: 1;
 	HPT_U8   ReadAheadEnabled: 1;
 	HPT_U8   WriteCacheSupported: 1;
@@ -722,7 +722,7 @@ typedef struct _DEVICE_INFO_V2 {
 	HPT_U8   ReadAheadSupported: 1;
 	HPT_U8   reserved6: 6;
 	HPT_U8   SpinUpMode: 2;
-#else 
+#else
 	HPT_U8   ReadAheadSupported: 1;
 	HPT_U8   ReadAheadEnabled: 1;
 	HPT_U8   WriteCacheSupported: 1;
@@ -851,7 +851,7 @@ typedef struct _LOGICAL_DEVICE_INFO_V4 {
 	HPT_U32    dwSize;
 	HPT_U8      revision;
 	HPT_U8      reserved[7];
-	
+
 	HPT_U8      Type;                   /* LDT_ARRAY or LDT_DEVICE */
 	HPT_U8      CachePolicy;            /* refer to CACHE_POLICY_xxx */
 	HPT_U8      VBusId;                 /* vbus sequence in vbus_list */
@@ -1038,7 +1038,7 @@ typedef struct _CREATE_ARRAY_PARAMS_V3 {
 #define CAF_CREATE_R5_ZERO_INIT    2
 #define CAF_CREATE_R5_BUILD_PARITY 4
 
-#else 
+#else
 /*
  * Flags used for creating
  */

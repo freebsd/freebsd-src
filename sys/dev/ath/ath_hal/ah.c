@@ -443,7 +443,7 @@ ath_hal_computetxtime(struct ath_hal *ah,
 
 	kbps = rates->info[rateix].rateKbps;
 	/*
-	 * index can be invalid during dynamic Turbo transitions. 
+	 * index can be invalid during dynamic Turbo transitions.
 	 * XXX
 	 */
 	if (kbps == 0)
@@ -945,7 +945,7 @@ ath_hal_setcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	return AH_FALSE;
 }
 
-/* 
+/*
  * Common support for getDiagState method.
  */
 
@@ -1259,7 +1259,7 @@ ath_hal_process_noisefloor(struct ath_hal *ah)
 	int16_t lowest2, lowest5;
 	int i;
 
-	/* 
+	/*
 	 * Find the lowest 2GHz and 5GHz noise floor values after adjusting
 	 * for statistically recorded NF/channel deviation.
 	 */
@@ -1277,13 +1277,13 @@ ath_hal_process_noisefloor(struct ath_hal *ah)
 		nf = c->rawNoiseFloor + NOISE_FLOOR[mode] +
 			ath_hal_getNfAdjust(ah, c);
 		if (IS_CHAN_5GHZ(c)) {
-			if (nf < lowest5) { 
+			if (nf < lowest5) {
 				lowest5 = nf;
 				correct5 = NOISE_FLOOR[mode] -
 				    (c->rawNoiseFloor + ath_hal_getNfAdjust(ah, c));
 			}
 		} else {
-			if (nf < lowest2) { 
+			if (nf < lowest2) {
 				lowest2 = nf;
 				correct2 = NOISE_FLOOR[mode] -
 				    (c->rawNoiseFloor + ath_hal_getNfAdjust(ah, c));

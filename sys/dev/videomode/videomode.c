@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	NetBSD: modelines,v 1.9 2011/03/30 18:45:04 jdc Exp 
+ *	NetBSD: modelines,v 1.9 2011/03/30 18:45:04 jdc Exp
  */
 
 #include <sys/cdefs.h>
@@ -27,7 +27,7 @@ MODULE_VERSION(videomode, 1);
 #define DS VID_DBLSCAN
 
 #define M(nm,hr,vr,clk,hs,he,ht,vs,ve,vt,f) \
-	{ clk, hr, hs, he, ht, vr, vs, ve, vt, f, nm } 
+	{ clk, hr, hs, he, ht, vr, vs, ve, vt, f, nm }
 
 const struct videomode videomode_list[] = {
 M("640x350x85",640,350,31500,672,736,832,382,385,445,HP|VN),

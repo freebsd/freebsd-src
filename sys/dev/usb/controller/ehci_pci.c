@@ -277,7 +277,7 @@ ehci_pci_via_quirk(device_t self)
 {
 	uint32_t val;
 
-	if ((pci_get_device(self) == 0x3104) && 
+	if ((pci_get_device(self) == 0x3104) &&
 	    ((pci_get_revid(self) & 0xf0) == 0x60)) {
 		/* Correct schedule sleep time to 10us */
 		val = pci_read_config(self, 0x4b, 1);

@@ -1691,7 +1691,7 @@ acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count)
 }
 
 static int
-acpi_device_id_probe(device_t bus, device_t dev, char **ids, char **match) 
+acpi_device_id_probe(device_t bus, device_t dev, char **ids, char **match)
 {
     ACPI_HANDLE h;
     ACPI_OBJECT_TYPE t;
@@ -2107,7 +2107,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_THERMAL:
 	case ACPI_TYPE_POWER:
-	    /* 
+	    /*
 	     * Create a placeholder device for this node.  Sort the
 	     * placeholder so that the probe/attach passes will run
 	     * breadth-first.  Orders less than ACPI_DEV_BASE_ORDER
@@ -2260,7 +2260,7 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 
 /*
  * Returns true if the device is actually present and should
- * be attached to.  This requires the present, enabled, UI-visible 
+ * be attached to.  This requires the present, enabled, UI-visible
  * and diagnostics-passed bits to be set.
  */
 BOOLEAN
@@ -2353,7 +2353,7 @@ acpi_has_hid(ACPI_HANDLE h)
  *         ACPI_MATCHHID_NOMATCH=0 if no match.
  */
 int
-acpi_MatchHid(ACPI_HANDLE h, const char *hid) 
+acpi_MatchHid(ACPI_HANDLE h, const char *hid)
 {
     ACPI_DEVICE_INFO	*devinfo;
     BOOLEAN		ret;
@@ -2461,7 +2461,7 @@ acpi_GetInteger(ACPI_HANDLE handle, char *path, UINT32 *number)
 	    status = AE_TYPE;
     }
 
-    /* 
+    /*
      * In some applications, a method that's expected to return an Integer
      * may instead return a Buffer (probably to simplify some internal
      * arithmetic).  We'll try to fetch whatever it is, and if it's a Buffer,
@@ -2605,14 +2605,14 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
      * Check the size of the buffer and expand if required.
      *
      * Required size is:
-     *	size of existing resources before terminator + 
+     *	size of existing resources before terminator +
      *	size of new resource and header +
      * 	size of terminator.
      *
      * Note that this loop should really only run once, unless
      * for some reason we are stuffing a *really* huge resource.
      */
-    while ((((u_int8_t *)rp - (u_int8_t *)buf->Pointer) + 
+    while ((((u_int8_t *)rp - (u_int8_t *)buf->Pointer) +
 	    res->Length + ACPI_RS_SIZE_NO_DATA +
 	    ACPI_RS_SIZE_MIN) >= buf->Length) {
 	if ((newp = AcpiOsAllocate(buf->Length * 2)) == NULL)
@@ -3587,7 +3587,7 @@ acpi_system_eventhandler_wakeup(void *arg, int state)
     return_VOID;
 }
 
-/* 
+/*
  * ACPICA Event Handlers (FixedEvent, also called from button notify handler)
  */
 static void
@@ -3776,7 +3776,7 @@ acpi_lookup(void *arg, const char *name, device_t *dev)
 /*
  * Control interface.
  *
- * We multiplex ioctls for all participating ACPI devices here.  Individual 
+ * We multiplex ioctls for all participating ACPI devices here.  Individual
  * drivers wanting to be accessible via /dev/acpi should use the
  * register/deregister interface to make their handlers visible.
  */
@@ -3997,7 +3997,7 @@ acpi_UserNotify(const char *subsystem, ACPI_HANDLE h, uint8_t notify)
  *
  * Bits may be set in the AcpiDbgLayer and AcpiDbgLevel debug registers
  * by specifying the names of the bits in the debug.acpi.layer and
- * debug.acpi.level environment variables.  Bits may be unset by 
+ * debug.acpi.level environment variables.  Bits may be unset by
  * prefixing the bit name with !.
  */
 struct debugtag
@@ -4080,7 +4080,7 @@ static struct debugtag dbg_level[] = {
     {"ACPI_LV_EVENTS",		ACPI_LV_EVENTS},
     {"ACPI_LV_VERBOSE",		ACPI_LV_VERBOSE},
     {NULL, 0}
-};    
+};
 
 static void
 acpi_parse_debug(char *cp, struct debugtag *tag, UINT32 *flag)

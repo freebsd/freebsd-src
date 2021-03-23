@@ -33,7 +33,7 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
@@ -318,7 +318,7 @@ mwl_hal_attach(device_t dev, uint16_t devid,
 
 	/* allocate descriptors */
 	error = bus_dmamem_alloc(mh->mh_dmat, (void**) &mh->mh_cmdbuf,
-				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT, 
+				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
 				 &mh->mh_dmamap);
 	if (error != 0) {
 		device_printf(dev, "unable to allocate memory for cmd buffer, "
@@ -832,7 +832,7 @@ mwl_hal_setradardetection(struct mwl_hal *mh0, MWL_HAL_RADAR action)
 	retval = mwlExecuteCmd(mh, HostCmd_CMD_802_11H_DETECT_RADAR);
 	MWL_HAL_UNLOCK(mh);
 	return retval;
-} 
+}
 
 /*
  * Convert public channel flags definition to a
@@ -982,7 +982,7 @@ mwl_hal_settxrate(struct mwl_hal_vap *vap, MWL_HAL_TXRATE_HANDLING handling,
 			n++;
 		}
 		pCmd->EntryCount = htole32(n);
-	} else 
+	} else
 		pCmd->Action = htole32(HostCmd_ACT_NOT_USE_FIXED_RATE);
 
 	retval = mwlExecuteCmd(mh, HostCmd_CMD_SET_FIXED_RATE);
@@ -1382,7 +1382,7 @@ bastream_check_available(struct mwl_hal_vap *vap, int qid,
 	_VCMD_SETUP(vap, pCmd, HostCmd_FW_BASTREAM, HostCmd_CMD_BASTREAM);
 	pCmd->ActionType = htole32(BaCheckCreateStream);
 	pCmd->BaInfo.CreateParams.BarThrs = htole32(63);
-	pCmd->BaInfo.CreateParams.WindowSize = htole32(64); 
+	pCmd->BaInfo.CreateParams.WindowSize = htole32(64);
 	pCmd->BaInfo.CreateParams.IdleThrs = htole32(0x22000);
 	IEEE80211_ADDR_COPY(&pCmd->BaInfo.CreateParams.PeerMacAddr[0], Macaddr);
 	pCmd->BaInfo.CreateParams.DialogToken = 10;
@@ -1566,7 +1566,7 @@ mwl_hal_bastream_get_seqno(struct mwl_hal *mh0,
 		*pseqno = le16toh(pCmd->SeqNo);
 	MWL_HAL_UNLOCK(mh);
 	return retval;
-}	
+}
 
 int
 mwl_hal_getwatchdogbitmap(struct mwl_hal *mh0, uint8_t bitmap[1])
@@ -1608,7 +1608,7 @@ mwl_hal_setaggampduratemode(struct mwl_hal *mh0, int mode, int threshold)
 	pCmd->Threshold = htole32(threshold);
 
 	retval = mwlExecuteCmd(mh, HostCmd_CMD_AMPDU_RETRY_RATEDROP_MODE);
-	MWL_HAL_UNLOCK(mh);   
+	MWL_HAL_UNLOCK(mh);
 	return retval;
 }
 
@@ -1625,7 +1625,7 @@ mwl_hal_getaggampduratemode(struct mwl_hal *mh0, int *mode, int *threshold)
 	pCmd->Action = htole16(0);
 
 	retval = mwlExecuteCmd(mh, HostCmd_CMD_AMPDU_RETRY_RATEDROP_MODE);
-	MWL_HAL_UNLOCK(mh);   
+	MWL_HAL_UNLOCK(mh);
 	*mode =  le32toh(pCmd->Option);
 	*threshold = le32toh(pCmd->Threshold);
 	return retval;
@@ -1647,7 +1647,7 @@ mwl_hal_setcfend(struct mwl_hal *mh0, int ena)
 	pCmd->Enable = htole32(ena);
 
 	retval = mwlExecuteCmd(mh, HostCmd_CMD_CFEND_ENABLE);
-	MWL_HAL_UNLOCK(mh); 
+	MWL_HAL_UNLOCK(mh);
 	return retval;
 }
 
@@ -1683,7 +1683,7 @@ cvtPeerInfo(PeerInfo_t *to, const MWL_HAL_PEERINFO *from)
 /* XXX station id must be in [0..63] */
 int
 mwl_hal_newstation(struct mwl_hal_vap *vap,
-	const uint8_t addr[IEEE80211_ADDR_LEN], uint16_t aid, uint16_t sid, 
+	const uint8_t addr[IEEE80211_ADDR_LEN], uint16_t aid, uint16_t sid,
 	const MWL_HAL_PEERINFO *peer, int isQosSta, int wmeInfo)
 {
 	struct mwl_hal_priv *mh = MWLVAP(vap);
@@ -2004,7 +2004,7 @@ mwlGetCalTable(struct mwl_hal_priv *mh, uint8_t annex, uint8_t index)
 	    pCmd->calTbl[0] != annex && annex != 0 && annex != 255)
 		retval = EIO;
 	return retval;
-}							  
+}
 
 /*
  * Calculate the max tx power from the channel's cal data.
@@ -2209,7 +2209,7 @@ mwl_hal_GetBeacon(struct mwl_hal *mh0, uint8_t *pBcn, uint16_t *pLen)
 	}
 	MWL_HAL_UNLOCK(mh);
 	return retval;
-}	
+}
 
 int
 mwl_hal_SetRifs(struct mwl_hal *mh0, uint8_t QNum)
@@ -2421,9 +2421,9 @@ mwlExecuteCmd(struct mwl_hal_priv *mh, unsigned short cmd)
 /*
  * Firmware download support.
  */
-#define FW_DOWNLOAD_BLOCK_SIZE	256  
+#define FW_DOWNLOAD_BLOCK_SIZE	256
 #define FW_CHECK_USECS		(5*1000)	/* 5ms */
-#define FW_MAX_NUM_CHECKS	200  
+#define FW_MAX_NUM_CHECKS	200
 
 #if 0
 /* XXX read f/w from file */

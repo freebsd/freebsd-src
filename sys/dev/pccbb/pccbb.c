@@ -251,7 +251,7 @@ cbb_disable_func_intr(struct cbb_softc *sc)
 #if 0
 	uint8_t reg;
 
-	reg = (exca_getb(&sc->exca, EXCA_INTR) & ~EXCA_INTR_IRQ_MASK) | 
+	reg = (exca_getb(&sc->exca, EXCA_INTR) & ~EXCA_INTR_IRQ_MASK) |
 	    EXCA_INTR_IRQ_RESERVED1;
 	exca_putb(&sc->exca, EXCA_INTR, reg);
 #endif
@@ -269,7 +269,7 @@ cbb_enable_func_intr(struct cbb_softc *sc)
 {
 	uint8_t reg;
 
-	reg = (exca_getb(&sc->exca, EXCA_INTR) & ~EXCA_INTR_IRQ_MASK) | 
+	reg = (exca_getb(&sc->exca, EXCA_INTR) & ~EXCA_INTR_IRQ_MASK) |
 	    EXCA_INTR_IRQ_NONE;
 	PCI_MASK_CONFIG(sc->dev, CBBR_BRIDGECTRL,
 	    & ~CBBM_BRIDGECTRL_INTR_IREQ_ISA_EN, 2);
@@ -607,7 +607,7 @@ cbb_func_filt(void *arg)
 	 * nb: don't have to check for giant or not, since that's done in the
 	 * ISR dispatch and one can't hold Giant in a filter anyway...
 	 */
-	return ((*ih->filt)(ih->arg));	
+	return ((*ih->filt)(ih->arg));
 }
 
 static void
@@ -847,7 +847,7 @@ cbb_power(device_t brdev, int volts)
 			device_printf(sc->dev, "Power not on?\n");
 	}
 	if (status & CBB_STATE_BAD_VCC_REQ) {
-		device_printf(sc->dev, "Bad Vcc requested\n");	
+		device_printf(sc->dev, "Bad Vcc requested\n");
 		/*
 		 * Turn off the power, and try again.  Retrigger other
 		 * active interrupts via force register.  From NetBSD
@@ -1243,7 +1243,7 @@ cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
 		if (end < start)
 			end = start;
 		if (count > (1 << RF_ALIGNMENT(flags)))
-			flags = (flags & ~RF_ALIGNMENT_MASK) | 
+			flags = (flags & ~RF_ALIGNMENT_MASK) |
 			    rman_make_alignment_flags(count);
 		break;
 	case SYS_RES_MEMORY:
@@ -1256,7 +1256,7 @@ cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
 		else
 			align = count;
 		if (align > (1 << RF_ALIGNMENT(flags)))
-			flags = (flags & ~RF_ALIGNMENT_MASK) | 
+			flags = (flags & ~RF_ALIGNMENT_MASK) |
 			    rman_make_alignment_flags(align);
 		break;
 	}
@@ -1401,7 +1401,7 @@ cbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 		else
 			align = count;
 		if (align > (1 << RF_ALIGNMENT(flags)))
-			flags = (flags & ~RF_ALIGNMENT_MASK) | 
+			flags = (flags & ~RF_ALIGNMENT_MASK) |
 			    rman_make_alignment_flags(align);
 		break;
 	case SYS_RES_IOPORT:

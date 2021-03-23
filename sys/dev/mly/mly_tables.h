@@ -87,7 +87,7 @@ static struct mly_code_lookup mly_table_controllertype[] = {
     {"AcceleRAID 160",	0x20},	/* Bobcat */
     {NULL,		0},
     {"unknown adapter",	0}
-};    
+};
 
 static struct mly_code_lookup mly_table_oemname[] = {
     {"Mylex",		MLY_OEM_MYLEX},

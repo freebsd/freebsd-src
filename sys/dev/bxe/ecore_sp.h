@@ -1659,7 +1659,7 @@ struct ecore_func_start_params {
 	uint8_t inner_clss_vxlan;
 
 	/* Enable RSS according to inner header */
-	uint8_t inner_rss; 
+	uint8_t inner_rss;
 
 	/** Allows accepting of packets failing MF classification, possibly
 	 * only matching a given ethertype

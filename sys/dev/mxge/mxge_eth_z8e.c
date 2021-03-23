@@ -20,7 +20,7 @@ mxge_eth_z8e_fw_modevent(module_t mod, int type, void *unused)
 	switch (type) {
 	case MOD_LOAD:
 
-		fp = firmware_register("mxge_eth_z8e", eth_z8e, 
+		fp = firmware_register("mxge_eth_z8e", eth_z8e,
 				       (size_t)eth_z8e_length,
 				       eth_z8e_uncompressed_length, NULL);
 		if (fp == NULL)

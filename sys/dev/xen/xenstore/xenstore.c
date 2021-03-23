@@ -1057,7 +1057,7 @@ xs_identify(driver_t *driver, device_t parent)
  *
  * \param dev
  */
-static int 
+static int
 xs_probe(device_t dev)
 {
 	/*
@@ -1093,7 +1093,7 @@ xs_attach_late(void *arg, int pending)
  * Attach to the XenStore.
  *
  * This routine also prepares for the probe/attach of drivers that rely
- * on the XenStore.  
+ * on the XenStore.
  */
 static int
 xs_attach(device_t dev)
@@ -1219,17 +1219,17 @@ xs_resume(device_t dev __unused)
 }
 
 /*-------------------- Private Device Attachment Data  -----------------------*/
-static device_method_t xenstore_methods[] = { 
-	/* Device interface */ 
+static device_method_t xenstore_methods[] = {
+	/* Device interface */
 	DEVMETHOD(device_identify,	xs_identify),
-	DEVMETHOD(device_probe,         xs_probe), 
-	DEVMETHOD(device_attach,        xs_attach), 
-	DEVMETHOD(device_detach,        bus_generic_detach), 
-	DEVMETHOD(device_shutdown,      bus_generic_shutdown), 
-	DEVMETHOD(device_suspend,       xs_suspend), 
-	DEVMETHOD(device_resume,        xs_resume), 
+	DEVMETHOD(device_probe,         xs_probe),
+	DEVMETHOD(device_attach,        xs_attach),
+	DEVMETHOD(device_detach,        bus_generic_detach),
+	DEVMETHOD(device_shutdown,      bus_generic_shutdown),
+	DEVMETHOD(device_suspend,       xs_suspend),
+	DEVMETHOD(device_resume,        xs_resume),
 
-	/* Bus interface */ 
+	/* Bus interface */
 	DEVMETHOD(bus_add_child,        bus_generic_add_child),
 	DEVMETHOD(bus_alloc_resource,   bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
@@ -1237,10 +1237,10 @@ static device_method_t xenstore_methods[] = {
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 
 	DEVMETHOD_END
-}; 
+};
 
 DEFINE_CLASS_0(xenstore, xenstore_driver, xenstore_methods, 0);
-static devclass_t xenstore_devclass; 
+static devclass_t xenstore_devclass;
 
 DRIVER_MODULE(xenstore, xenpv, xenstore_driver, xenstore_devclass, 0, 0);
 

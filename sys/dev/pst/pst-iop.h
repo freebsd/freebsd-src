@@ -64,7 +64,7 @@ struct i2o_registers {
     volatile u_int32_t	reserved0;
     volatile u_int32_t	apic_winreg;
     volatile u_int32_t	reserved1;
-    volatile u_int32_t	iqueue_reg0; 
+    volatile u_int32_t	iqueue_reg0;
     volatile u_int32_t	iqueue_reg1;
     volatile u_int32_t	oqueue_reg0;
     volatile u_int32_t	oqueue_reg1;
@@ -339,13 +339,13 @@ struct i2o_exec_systab_set_message {
     u_int32_t		initiator_context;
     u_int32_t		transaction_context;
     u_int32_t		iop_id:12;
-#define I2O_EXEC_SYS_TAB_IOP_ID_LOCAL_IOP		0x000	  
+#define I2O_EXEC_SYS_TAB_IOP_ID_LOCAL_IOP		0x000
 #define I2O_EXEC_SYS_TAB_IOP_ID_LOCAL_HOST		0x001
-#define I2O_EXEC_SYS_TAB_IOP_ID_UNKNOWN_IOP		0xfff  
+#define I2O_EXEC_SYS_TAB_IOP_ID_UNKNOWN_IOP		0xfff
 
     u_int32_t		reserved1:4;
     u_int32_t		host_unit_id:16;
-#define I2O_EXEC_SYS_TAB_HOST_UNIT_ID_LOCAL_UNIT	0x0000 
+#define I2O_EXEC_SYS_TAB_HOST_UNIT_ID_LOCAL_UNIT	0x0000
 #define I2O_EXEC_SYS_TAB_HOST_UNIT_ID_UNKNOWN_UNIT	0xffff
 
     u_int32_t		segment_number:12;
@@ -501,7 +501,7 @@ struct i2o_get_param_operation {
     u_int16_t		reserved;
     struct i2o_get_param_template operation[1];
 } __packed;
-    
+
 struct i2o_get_param_reply {
     u_int16_t		result_count;
     u_int16_t		reserved;
@@ -642,7 +642,7 @@ struct i2o_get_param_reply *iop_get_util_params(struct iop_softc *,int,int,int);
 u_int32_t iop_get_mfa(struct iop_softc *);
 void iop_free_mfa(struct iop_softc *, int);
 int iop_queue_wait_msg(struct iop_softc *, int, struct i2o_basic_message *);
-int iop_create_sgl(struct i2o_basic_message *, caddr_t, int, int); 
+int iop_create_sgl(struct i2o_basic_message *, caddr_t, int, int);
 
 /* global prototypes */
 int pst_add_raid(struct iop_softc *, struct i2o_lct_entry *);

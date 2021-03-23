@@ -24,7 +24,7 @@ cxgb_t3fw_modevent(module_t mod, int type, void *unused)
 	switch (type) {
 	case MOD_LOAD:
 
-		fp = firmware_register("cxgb_t3fw", t3fw, 
+		fp = firmware_register("cxgb_t3fw", t3fw,
 				       (size_t)t3fw_length,
 				       0, NULL);
 		if (fp == NULL)
@@ -57,7 +57,7 @@ cxgb_t3b_protocol_sram_modevent(module_t mod, int type, void *unused)
 	switch (type) {
 	case MOD_LOAD:
 
-		fp = firmware_register("cxgb_t3b_protocol_sram", t3b_protocol_sram, 
+		fp = firmware_register("cxgb_t3b_protocol_sram", t3b_protocol_sram,
 				       (size_t)t3b_protocol_sram_length,
 				       0, NULL);
 		if (fp == NULL)
@@ -90,7 +90,7 @@ cxgb_t3b_tp_eeprom_modevent(module_t mod, int type, void *unused)
 	switch (type) {
 	case MOD_LOAD:
 
-		fp = firmware_register("cxgb_t3b_tp_eeprom", t3b_tp_eeprom, 
+		fp = firmware_register("cxgb_t3b_tp_eeprom", t3b_tp_eeprom,
 				       (size_t)t3b_tp_eeprom_length,
 				       0, NULL);
 		if (fp == NULL)
@@ -123,7 +123,7 @@ cxgb_t3c_protocol_sram_modevent(module_t mod, int type, void *unused)
 	switch (type) {
 	case MOD_LOAD:
 
-		fp = firmware_register("cxgb_t3c_protocol_sram", t3c_protocol_sram, 
+		fp = firmware_register("cxgb_t3c_protocol_sram", t3c_protocol_sram,
 				       (size_t)t3c_protocol_sram_length,
 				       0, NULL);
 		if (fp == NULL)
@@ -156,7 +156,7 @@ cxgb_t3c_tp_eeprom_modevent(module_t mod, int type, void *unused)
 	switch (type) {
 	case MOD_LOAD:
 
-		fp = firmware_register("cxgb_t3c_tp_eeprom", t3c_tp_eeprom, 
+		fp = firmware_register("cxgb_t3c_tp_eeprom", t3c_tp_eeprom,
 				       (size_t)t3c_tp_eeprom_length,
 				       0, NULL);
 		if (fp == NULL)

@@ -414,13 +414,13 @@ int t3_vsc8211_fifo_depth(adapter_t *adap, unsigned int mtu, int port)
 	/* IEEE mode supports up to 1518 bytes */
 	/* mtu does not contain the header + FCS (18 bytes) */
 	if (mtu > 1500)
-		/* 
-		 * If using a packet size > 1500  set TX FIFO Depth bits 
-		 * 9:7 to 011 (Jumbo packet mode) 
+		/*
+		 * If using a packet size > 1500  set TX FIFO Depth bits
+		 * 9:7 to 011 (Jumbo packet mode)
 		 */
 		val = 3;
 
-	regval = V_VSC8211_TXFIFODEPTH(val) | V_VSC8211_RXFIFODEPTH(val) | 
+	regval = V_VSC8211_TXFIFODEPTH(val) | V_VSC8211_RXFIFODEPTH(val) |
 		(currentregval & ~V_VSC8211_TXFIFODEPTH(M_VSC8211_TXFIFODEPTH) &
 		~V_VSC8211_RXFIFODEPTH(M_VSC8211_RXFIFODEPTH));
 

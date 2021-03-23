@@ -1,21 +1,21 @@
 /*******************************************************************************
-*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved. 
+*Copyright (c) 2014 PMC-Sierra, Inc.  All rights reserved.
 *
-*Redistribution and use in source and binary forms, with or without modification, are permitted provided 
-*that the following conditions are met: 
+*Redistribution and use in source and binary forms, with or without modification, are permitted provided
+*that the following conditions are met:
 *1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-*following disclaimer. 
-*2. Redistributions in binary form must reproduce the above copyright notice, 
+*following disclaimer.
+*2. Redistributions in binary form must reproduce the above copyright notice,
 *this list of conditions and the following disclaimer in the documentation and/or other materials provided
-*with the distribution. 
+*with the distribution.
 *
-*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED 
+*THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED
 *WARRANTIES,INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
 *FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+*FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+*NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+*BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 *SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 
 ********************************************************************************/
@@ -985,7 +985,7 @@ smsatTranslateATAPIErrorsToSCSIErrors(
     }
 }
 
-GLOBAL void 
+GLOBAL void
 smsatTranslateATAErrorsToSCSIErrors(
     bit8   bATAStatus,
     bit8   bATAError,
@@ -1001,8 +1001,8 @@ smsatTranslateATAErrorsToSCSIErrors(
     SM_DBG1(("TranslateATAErrorsToSCSIErros: pSenseKey == agNULL || pSenseCodeInfo == agNULL\n"));
     return;
   }
-	
-  if (bATAStatus & ERR_ATA_STATUS_MASK) 
+
+  if (bATAStatus & ERR_ATA_STATUS_MASK)
   {
     if(bATAError & NM_ATA_ERROR_MASK)
     {
@@ -1049,10 +1049,10 @@ smsatTranslateATAErrorsToSCSIErrors(
   else if (bATAStatus & DF_ATA_STATUS_MASK) /* INTERNAL TARGET FAILURE */
   {
     *pSenseKey = SCSI_SNSKEY_HARDWARE_ERROR;
-    *pSenseCodeInfo = SCSI_SNSCODE_INTERNAL_TARGET_FAILURE; 
+    *pSenseCodeInfo = SCSI_SNSCODE_INTERNAL_TARGET_FAILURE;
   }
-	
-	
+
+
 }
 
 
@@ -1296,7 +1296,7 @@ smsatChainedDataIOCB(
                          satOrgIOContext->interruptContext );
       return;
     }
-    
+
     /* don't need to allocate payload memory here. Use the one allocated by OS layer */
     dataLength = 0;
 
@@ -1416,7 +1416,7 @@ smsatNonChainedVerifyCB(
                         void              *ioContext
                        )
 {
- 
+
 //  tdsaRootOsData_t        *osData = (tdsaRootOsData_t *)agRoot->osData;
 //  tiRoot_t                *tiRoot = (tiRoot_t *)osData->tiRoot;
 //  tdsaRoot_t              *tdsaRoot        = (tdsaRoot_t *) tiRoot->tdData;
@@ -1637,7 +1637,7 @@ smsatChainedVerifyCB(
                      void              *ioContext
                     )
 {
-  
+
   smRoot_t                  *smRoot = agNULL;
   smIntRoot_t               *smIntRoot = agNULL;
   smIntContext_t            *smAllShared = agNULL;
@@ -2406,7 +2406,7 @@ smsatRequestSenseCB(
   smIORequestBody->ioStarted = agFALSE;
 
   SM_DBG4(("smsatRequestSenseCB: fis command 0x%x\n", hostToDevFis->h.command));
-  
+
   allocationLen = scsiCmnd->cdb[4];
   allocationLen = MIN(allocationLen, scsiCmnd->expDataLength);
   SM_DBG1(("smsatRequestSenseCB: allocationLen in CDB %d 0x%x!!!\n", allocationLen,allocationLen));
@@ -2826,7 +2826,7 @@ smsatRequestSenseCB(
     {
       /* underrun */
       SM_DBG6(("smsatRequestSenseCB reporting underrun lenNeeded=0x%x lenReceived=0x%x smIORequest=%p\n",
-        SENSE_DATA_LENGTH, allocationLen, smOrgIORequest));      
+        SENSE_DATA_LENGTH, allocationLen, smOrgIORequest));
       tdsmIOCompletedCB( smRoot,
                          smOrgIORequest, /* == &satIntIo->satOrgSmIORequest */
                          smIOUnderRun,
@@ -4968,13 +4968,13 @@ smsatLogSenseCB(
       /* SAT rev8, 10.2.3.1 Table 72, p 73 */
       if (statDevToHostFisData.lbaMid == 0x4F || statDevToHostFisData.lbaHigh == 0xC2)
       {
-        LogPage[8] = 0;   /* Sense code */ 
-        LogPage[9] = 0;   /* Sense code qualifier */ 
+        LogPage[8] = 0;   /* Sense code */
+        LogPage[9] = 0;   /* Sense code qualifier */
       }
       else if (statDevToHostFisData.lbaMid == 0xF4 || statDevToHostFisData.lbaHigh == 0x2C)
       {
-        LogPage[8] = 0x5D;   /* Sense code */ 
-        LogPage[9] = 0x10;   /* Sense code qualifier */ 
+        LogPage[8] = 0x5D;   /* Sense code */
+        LogPage[9] = 0x10;   /* Sense code qualifier */
       }
 
       /* Assumption: No support for SCT */
@@ -6508,7 +6508,7 @@ smsatChainedWriteNVerifyCB(
        if (loopnum == 0) done
      */
     (satOrgIOContext->LoopNum)--;
-  
+
     if (satOrgIOContext->superIOFlag)
     {
         dataLength = ((tiSuperScsiInitiatorRequest_t *) satOrgIOContext->smScsiXchg)->scsiCmnd.expDataLength;
@@ -9543,7 +9543,7 @@ smsatNonDataIOCB(
   /* Process completion */
   if( (agIOStatus == OSSA_IO_SUCCESS) && (agIOInfoLen==0))
   {
-   
+
     SM_DBG1(("satNonDataIOCB: *** ERROR***  agIORequest=%p agIOStatus=0x%x agIOInfoLen %d!!!\n",
       agIORequest, agIOStatus, agIOInfoLen));
 
@@ -9921,8 +9921,8 @@ smsatInquiryCB(
   sm_memcpy(smOrgScsiRequest->sglVirtualAddr, dataBuffer, MIN(allocationLen, lenNeeded));
   if (allocationLen > lenNeeded)
   {
-    SM_DBG6(("smsatInquiryCB reporting underrun lenNeeded=0x%x allocationLen=0x%x smIORequest=%p\n", 
-        lenNeeded, allocationLen, smOrgIORequest));      
+    SM_DBG6(("smsatInquiryCB reporting underrun lenNeeded=0x%x allocationLen=0x%x smIORequest=%p\n",
+        lenNeeded, allocationLen, smOrgIORequest));
 
     tdsmIOCompletedCB( smRoot,
                        smOrgIORequest,
@@ -10100,8 +10100,8 @@ smsatInquiryIntCB(
   sm_memcpy(smScsiRequest->sglVirtualAddr, dataBuffer, MIN(allocationLen, lenNeeded));
   if (allocationLen > lenNeeded)
   {
-    SM_DBG6(("smsatInquiryIntCB reporting underrun lenNeeded=0x%x allocationLen=0x%x smIORequest=%p\n", 
-        lenNeeded, allocationLen, smIORequest));      
+    SM_DBG6(("smsatInquiryIntCB reporting underrun lenNeeded=0x%x allocationLen=0x%x smIORequest=%p\n",
+        lenNeeded, allocationLen, smIORequest));
 
     tdsmIOCompletedCB( smRoot,
                        smIORequest,
@@ -11284,7 +11284,7 @@ smsatCheckPowerModeCB(
   return;
 }
 
-osGLOBAL void 
+osGLOBAL void
 smsatCheckPowerModePassCB(
                       agsaRoot_t        *agRoot,
                       agsaIORequest_t   *agIORequest,
@@ -11296,9 +11296,9 @@ smsatCheckPowerModePassCB(
                      )
 
 {
-  
+
   smRoot_t                 *smRoot = agNULL;
-  smIntRoot_t              *smIntRoot = agNULL; 
+  smIntRoot_t              *smIntRoot = agNULL;
   smIntContext_t           *smAllShared = agNULL;
   smIORequestBody_t        *smIORequestBody;
   smSatIOContext_t         *satIOContext;
@@ -11313,7 +11313,7 @@ smsatCheckPowerModePassCB(
   bit32                     ataError;
   agsaFisPioSetupHeader_t  *satPIOSetupHeader = agNULL;
 #endif
- 
+
   smScsiRspSense_t			*pSense;
   bit8						bSenseKey = 0;
   bit16 					bSenseCodeInfo = 0;
@@ -11324,7 +11324,7 @@ smsatCheckPowerModePassCB(
   satIntIo               = satIOContext->satIntIoContext;
   oneDeviceData          = satIOContext->pSatDevData;
   smRoot                 = oneDeviceData->smRoot;
-  smIntRoot              = (smIntRoot_t *)smRoot->smData;  
+  smIntRoot              = (smIntRoot_t *)smRoot->smData;
   smAllShared            = (smIntContext_t *)&smIntRoot->smAllShared;
 
   if (satIntIo == agNULL)
@@ -11344,25 +11344,25 @@ smsatCheckPowerModePassCB(
     if (satOrgIOContext == agNULL)
     {
       SM_DBG6(("smsatCheckPowerModePassCB: satOrgIOContext is NULL, wrong\n"));
-      return;      
+      return;
     }
     else
     {
       SM_DBG6(("smsatCheckPowerModePassCB: satOrgIOContext is NOT NULL\n"));
     }
-  }  
+  }
   smIORequestBody->ioCompleted = agTRUE;
   smIORequestBody->ioStarted = agFALSE;
   if (agFirstDword == agNULL && agIOStatus != OSSA_IO_SUCCESS)
   {
     SM_DBG1(("smsatCheckPowerModePassCB: wrong. agFirstDword is NULL when error, status %d!!!\n", agIOStatus));
-  
+
     tdsmIOCompletedCB(
-                       smRoot, 
+                       smRoot,
                        smOrgIORequest,
-                       smIOFailed, 
+                       smIOFailed,
                        smDetailOtherError,
-                       agNULL, 
+                       agNULL,
                        satOrgIOContext->interruptContext
                       );
     smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
@@ -11373,7 +11373,7 @@ smsatCheckPowerModePassCB(
     return;
 
   }
-  
+
   if (agIOStatus != OSSA_IO_SUCCESS)
   {
     /* only agsaFisPioSetup_t is expected */
@@ -11383,7 +11383,7 @@ smsatCheckPowerModePassCB(
     ataError      = satPIOSetupHeader->error;    /* ATA Eror register   */
 #endif
     SM_DBG1(("smsatCheckPowerModePassCB: ataStatus 0x%x ataError 0x%x!!!\n", ataStatus, ataError));
-   
+
 
     if (agIOStatus == OSSA_IO_ABORTED)
     {
@@ -11391,12 +11391,12 @@ smsatCheckPowerModePassCB(
                         smOrgIORequest,
                         satOrgIOContext
                         );
-      
+
       smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
 
       smsatFreeIntIoResource( smRoot,
 			      oneDeviceData,
-			      satIntIo); 
+			      satIntIo);
       return;
     }
     smsatTranslateATAErrorsToSCSIErrors(
@@ -11409,13 +11409,13 @@ smsatCheckPowerModePassCB(
     tdsmIOCompletedCB(smRoot,
                       smOrgIORequest,
                       smIOSuccess,
-                      SCSI_STAT_CHECK_CONDITION, 
+                      SCSI_STAT_CHECK_CONDITION,
                       satOrgIOContext->pSmSenseData,
                       satOrgIOContext->interruptContext );
-	
-	
+
+
     smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
-	
+
     smsatFreeIntIoResource( smRoot,
                             oneDeviceData,
                             satIntIo);
@@ -11424,26 +11424,26 @@ smsatCheckPowerModePassCB(
   }
   /* success */
   SM_DBG1(("smsatCheckPowerModePassCB: success!!!\n"));
-  
+
   tdsmIOCompletedCB( smRoot,
                      smOrgIORequest,
                      smIOSuccess,
                      SCSI_STAT_GOOD,
                      agNULL,
                      satOrgIOContext->interruptContext);
-			  
+
 
   smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
- 
+
   smsatFreeIntIoResource( smRoot,
                           oneDeviceData,
                           satIntIo);
-                            
+
 
   return;
 }
 
-osGLOBAL void 
+osGLOBAL void
 smsatIDDataPassCB(
                   agsaRoot_t        *agRoot,
                   agsaIORequest_t   *agIORequest,
@@ -11455,7 +11455,7 @@ smsatIDDataPassCB(
                  )
 {
   smRoot_t                 *smRoot = agNULL;
-  smIntRoot_t              *smIntRoot = agNULL; 
+  smIntRoot_t              *smIntRoot = agNULL;
   smIntContext_t           *smAllShared = agNULL;
   smIORequestBody_t        *smIORequestBody;
   smSatIOContext_t         *satIOContext;
@@ -11470,7 +11470,7 @@ smsatIDDataPassCB(
   bit32                     ataError;
   agsaFisPioSetupHeader_t  *satPIOSetupHeader = agNULL;
 #endif
- 
+
   smScsiRspSense_t			*pSense;
   bit8						bSenseKey = 0;
   bit16 					bSenseCodeInfo = 0;
@@ -11481,7 +11481,7 @@ smsatIDDataPassCB(
   satIntIo               = satIOContext->satIntIoContext;
   oneDeviceData          = satIOContext->pSatDevData;
   smRoot                 = oneDeviceData->smRoot;
-  smIntRoot              = (smIntRoot_t *)smRoot->smData;  
+  smIntRoot              = (smIntRoot_t *)smRoot->smData;
   smAllShared            = (smIntContext_t *)&smIntRoot->smAllShared;
 
   if (satIntIo == agNULL)
@@ -11501,25 +11501,25 @@ smsatIDDataPassCB(
     if (satOrgIOContext == agNULL)
     {
       SM_DBG6(("smsatIDDataPassCB: satOrgIOContext is NULL, wrong\n"));
-      return;      
+      return;
     }
     else
     {
       SM_DBG6(("smsatIDDataPassCB: satOrgIOContext is NOT NULL\n"));
     }
-  }  
+  }
   smIORequestBody->ioCompleted = agTRUE;
   smIORequestBody->ioStarted = agFALSE;
   if (agFirstDword == agNULL && agIOStatus != OSSA_IO_SUCCESS)
   {
     SM_DBG1(("smsatIDDataPassCB: wrong. agFirstDword is NULL when error, status %d!!!\n", agIOStatus));
-  
+
     tdsmIOCompletedCB(
-                       smRoot, 
+                       smRoot,
                        smOrgIORequest,
-                       smIOFailed, 
+                       smIOFailed,
                        smDetailOtherError,
-                       agNULL, 
+                       agNULL,
                        satOrgIOContext->interruptContext
                       );
     smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
@@ -11530,7 +11530,7 @@ smsatIDDataPassCB(
     return;
 
   }
-  
+
   if (agIOStatus != OSSA_IO_SUCCESS)
   {
     /* only agsaFisPioSetup_t is expected */
@@ -11540,7 +11540,7 @@ smsatIDDataPassCB(
     ataError      = satPIOSetupHeader->error;    /* ATA Eror register   */
 #endif
     SM_DBG1(("smsatIDDataPassCB: ataStatus 0x%x ataError 0x%x!!!\n", ataStatus, ataError));
-   
+
 
     if (agIOStatus == OSSA_IO_ABORTED)
     {
@@ -11548,12 +11548,12 @@ smsatIDDataPassCB(
                         smOrgIORequest,
                         satOrgIOContext
                         );
-      
+
       smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
 
       smsatFreeIntIoResource( smRoot,
 			      oneDeviceData,
-			      satIntIo); 
+			      satIntIo);
       return;
     }
     smsatTranslateATAErrorsToSCSIErrors(
@@ -11566,13 +11566,13 @@ smsatIDDataPassCB(
     tdsmIOCompletedCB(smRoot,
                       smOrgIORequest,
                       smIOSuccess,
-                      SCSI_STAT_CHECK_CONDITION, 
+                      SCSI_STAT_CHECK_CONDITION,
                       satOrgIOContext->pSmSenseData,
                       satOrgIOContext->interruptContext );
-	
-	
+
+
     smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
-	
+
     smsatFreeIntIoResource( smRoot,
                             oneDeviceData,
                             satIntIo);
@@ -11581,14 +11581,14 @@ smsatIDDataPassCB(
   }
   /* success */
   SM_DBG3(("smsatIDDataPassCB: success!!!\n"));
-  
-  SM_DBG3(("smsatIDDataPassCB: extend 0x%x ck_cond 0x%x sectorCnt07 0x%x\n", satOrgIOContext->extend, 
+
+  SM_DBG3(("smsatIDDataPassCB: extend 0x%x ck_cond 0x%x sectorCnt07 0x%x\n", satOrgIOContext->extend,
   satIOContext->ck_cond, satOrgIOContext->sectorCnt07));
-  SM_DBG3(("smsatIDDataPassCB: LBAHigh07 0x%x LBAMid07 0x%x LBALow07 0x%x\n", satOrgIOContext->LBAHigh07, 
+  SM_DBG3(("smsatIDDataPassCB: LBAHigh07 0x%x LBAMid07 0x%x LBALow07 0x%x\n", satOrgIOContext->LBAHigh07,
   satOrgIOContext->LBAMid07, satOrgIOContext->LBALow07));
-  
-  if (satIOContext->ck_cond) 
-  {  
+
+  if (satIOContext->ck_cond)
+  {
     smsatSetSensePayload( pSense,
                           SCSI_SNSKEY_RECOVERED_ERROR,
                           satOrgIOContext->sectorCnt07,
@@ -11603,21 +11603,21 @@ smsatIDDataPassCB(
                        satOrgIOContext->interruptContext );
   }
   else
-  {  			
+  {
     tdsmIOCompletedCB( smRoot,
                        smOrgIORequest,
                        smIOSuccess,
                        SCSI_STAT_GOOD,
                        agNULL,
                        satOrgIOContext->interruptContext);
-  }			  
+  }
 
   smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
- 
+
   smsatFreeIntIoResource( smRoot,
                           oneDeviceData,
                           satIntIo);
-                            
+
 
   return;
 }
@@ -12927,7 +12927,7 @@ smsatSetFeaturesVolatileWriteCacheCB(
 }
 
 
-osGLOBAL void 
+osGLOBAL void
 smsatSMARTEnablePassCB(
                      agsaRoot_t        *agRoot,
                      agsaIORequest_t   *agIORequest,
@@ -12940,7 +12940,7 @@ smsatSMARTEnablePassCB(
   {
 
   smRoot_t                 *smRoot = agNULL;
-  smIntRoot_t              *smIntRoot = agNULL; 
+  smIntRoot_t              *smIntRoot = agNULL;
   smIntContext_t           *smAllShared = agNULL;
   smIORequestBody_t        *smIORequestBody;
   smIORequestBody_t        *smOrgIORequestBody;
@@ -12957,7 +12957,7 @@ smsatSMARTEnablePassCB(
   smScsiRspSense_t          *pSense;
   bit8						bSenseKey = 0;
   bit16 					bSenseCodeInfo = 0;
- 
+
 
   SM_DBG2(("smsatSMARTEnablePassCB: start\n"));
   SM_DBG4(("smsatSMARTEnablePassCB:agIORequest=%p agIOStatus=0x%x agIOInfoLen %d\n", agIORequest, agIOStatus, agIOInfoLen));
@@ -12968,7 +12968,7 @@ smsatSMARTEnablePassCB(
   satIntIo               = satIOContext->satIntIoContext;
   oneDeviceData          = satIOContext->pSatDevData;
   smRoot                 = oneDeviceData->smRoot;
-  smIntRoot              = (smIntRoot_t *)smRoot->smData;  
+  smIntRoot              = (smIntRoot_t *)smRoot->smData;
   smAllShared            = (smIntContext_t *)&smIntRoot->smAllShared;
   /*ttttttthe one */
   if (satIntIo == agNULL)
@@ -12976,7 +12976,7 @@ smsatSMARTEnablePassCB(
     SM_DBG4(("smsatSMARTEnablePassCB: External smSatInternalIo_t satIntIoContext\n"));
     satOrgIOContext = satIOContext;
     smOrgIORequest  = smIORequestBody->smIORequest;
-    scsiCmnd        = satOrgIOContext->pScsiCmnd;   
+    scsiCmnd        = satOrgIOContext->pScsiCmnd;
 	pSense          = satOrgIOContext->pSense;
   }
   else
@@ -12986,7 +12986,7 @@ smsatSMARTEnablePassCB(
     if (satOrgIOContext == agNULL)
     {
       SM_DBG4(("smsatSMARTEnablePassCB: satOrgIOContext is NULL, wrong\n"));
-      return;      
+      return;
     }
     else
     {
@@ -12994,7 +12994,7 @@ smsatSMARTEnablePassCB(
     }
     smOrgIORequestBody     = (smIORequestBody_t *)satOrgIOContext->smRequestBody;
     smOrgIORequest         = (smIORequest_t *)smOrgIORequestBody->smIORequest;
-    scsiCmnd               = satOrgIOContext->pScsiCmnd; 
+    scsiCmnd               = satOrgIOContext->pScsiCmnd;
 	pSense          = satOrgIOContext->pSense;
   }
   smIORequestBody->ioCompleted = agTRUE;
@@ -13004,11 +13004,11 @@ smsatSMARTEnablePassCB(
   {
     SM_DBG1(("smsatSMARTEnablePassCB: wrong. agFirstDword is NULL when error, status %d!!!\n", agIOStatus));
     tdsmIOCompletedCB(
-                      smRoot, 
+                      smRoot,
                       smOrgIORequest,
-                      smIOFailed, 
+                      smIOFailed,
                       smDetailOtherError,
-                      agNULL, 
+                      agNULL,
                       satOrgIOContext->interruptContext
                      );
     smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
@@ -13016,7 +13016,7 @@ smsatSMARTEnablePassCB(
                             oneDeviceData,
                             satIntIo);
     return;
-  } 
+  }
   /*
     checking IO status, FIS type and error status
   */
@@ -13029,14 +13029,14 @@ smsatSMARTEnablePassCB(
                         smOrgIORequest,
                         satOrgIOContext
                        );
-  
+
       smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
       smsatFreeIntIoResource( smRoot,
                               oneDeviceData,
-                              satIntIo); 
+                              satIntIo);
       return;
     }
-			
+
     smsatTranslateATAErrorsToSCSIErrors(
 				agFirstDword->D2H.status,
 				agFirstDword->D2H.error,
@@ -13047,18 +13047,18 @@ smsatSMARTEnablePassCB(
     tdsmIOCompletedCB(smRoot,
                       smOrgIORequest,
                       smIOSuccess,
-                      SCSI_STAT_CHECK_CONDITION, 
+                      SCSI_STAT_CHECK_CONDITION,
                       satOrgIOContext->pSmSenseData,
                       satOrgIOContext->interruptContext );
 
-	
+
     smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
 
     smsatFreeIntIoResource( smRoot,
                             oneDeviceData,
                             satIntIo);
 
-    return;    
+    return;
   }
   /* process success case */
   smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
@@ -13068,20 +13068,20 @@ smsatSMARTEnablePassCB(
 
  SM_DBG1(("smsatSMARTEnablePassCB:success status, status %d!!!\n", agIOStatus));
  tdsmIOCompletedCB(
-					smRoot, 
+					smRoot,
 					smOrgIORequest,
-					smIOSuccess, 
+					smIOSuccess,
 					SCSI_STAT_GOOD,
-					agNULL, 
+					agNULL,
 					satOrgIOContext->interruptContext
 				   );
 
- 
-                            
+
+
   return;
 }
 
-osGLOBAL void 
+osGLOBAL void
 smsatSMARTRStatusPassCB(
                 agsaRoot_t        *agRoot,
                 agsaIORequest_t   *agIORequest,
@@ -13089,14 +13089,14 @@ smsatSMARTRStatusPassCB(
                 agsaFisHeader_t   *agFirstDword,
                 bit32             agIOInfoLen,
                 void              *agParam,
-                void              *ioContext                   
+                void              *ioContext
                )
 
 {
 
 
   smRoot_t                  *smRoot = agNULL;
-  smIntRoot_t               *smIntRoot = agNULL; 
+  smIntRoot_t               *smIntRoot = agNULL;
   smIntContext_t            *smAllShared = agNULL;
   smIORequestBody_t         *smIORequestBody;
   smIORequestBody_t         *smOrgIORequestBody;
@@ -13118,8 +13118,8 @@ smsatSMARTRStatusPassCB(
   smIniScsiCmnd_t           *scsiCmnd;
   bit8						bSenseKey = 0;
   bit16 					bSenseCodeInfo = 0;
- 
-  
+
+
   SM_DBG2(("smsatSMARTRStatusPassCB: start\n"));
   SM_DBG5(("smsatSMARTRStatusPassCB:agIORequest=%p agIOStatus=0x%x agIOInfoLen %d\n", agIORequest, agIOStatus, agIOInfoLen));
 
@@ -13130,9 +13130,9 @@ smsatSMARTRStatusPassCB(
   oneDeviceData          = satIOContext->pSatDevData;
   hostToDevFis           = satIOContext->pFis;
   smRoot                 = oneDeviceData->smRoot;
-  smIntRoot              = (smIntRoot_t *)smRoot->smData;  
+  smIntRoot              = (smIntRoot_t *)smRoot->smData;
   smAllShared            = (smIntContext_t *)&smIntRoot->smAllShared;
-  
+
   if (satIntIo == agNULL)
   {
     SM_DBG4(("smsatSMARTRStatusPassCB: External smSatInternalIo_t satIntIoContext\n"));
@@ -13142,7 +13142,7 @@ smsatSMARTRStatusPassCB(
     smOrgScsiRequest   = satOrgIOContext->smScsiXchg;
      /* ATA command response payload */
     smScsiRequest   = satOrgIOContext->smScsiXchg;
-    scsiCmnd        = satOrgIOContext->pScsiCmnd;   
+    scsiCmnd        = satOrgIOContext->pScsiCmnd;
 	SM_DBG1((" 0x%02x, 0x%02x, 0x%02x, 0x%02x,\n", scsiCmnd->cdb[0], scsiCmnd->cdb[1],scsiCmnd->cdb[2], scsiCmnd->cdb[3]));
 	SM_DBG1((" 0x%02x, 0x%02x, 0x%02x, 0x%02x,\n", scsiCmnd->cdb[4], scsiCmnd->cdb[5],scsiCmnd->cdb[6], scsiCmnd->cdb[7]));
 	SM_DBG1((" 0x%02x, 0x%02x, 0x%02x, 0x%02x,\n", scsiCmnd->cdb[8], scsiCmnd->cdb[9],scsiCmnd->cdb[10], scsiCmnd->cdb[11]));
@@ -13156,9 +13156,9 @@ smsatSMARTRStatusPassCB(
     if (satOrgIOContext == agNULL)
     {
       SM_DBG4(("smsatSMARTRStatusPassCB: satOrgIOContext is NULL\n"));
-	  
+
 	  return;
-	  
+
     }
     else
     {
@@ -13166,14 +13166,14 @@ smsatSMARTRStatusPassCB(
     }
     smOrgIORequestBody     = (smIORequestBody_t *)satOrgIOContext->smRequestBody;
     smOrgIORequest         = (smIORequest_t *)smOrgIORequestBody->smIORequest;
-    
+
     smOrgScsiRequest   = satOrgIOContext->smScsiXchg;
     /* ATA command response payload */
     smScsiRequest   =  (smScsiInitiatorRequest_t *)&(satIntIo->satIntSmScsiXchg);
-    scsiCmnd        = satOrgIOContext->pScsiCmnd; 
+    scsiCmnd        = satOrgIOContext->pScsiCmnd;
 	pSense          = satOrgIOContext->pSense;
   }
-  
+
   smIORequestBody->ioCompleted = agTRUE;
   smIORequestBody->ioStarted = agFALSE;
 
@@ -13181,11 +13181,11 @@ smsatSMARTRStatusPassCB(
   {
     SM_DBG1(("smsatSMARTRStatusPassCB: wrong. agFirstDword is NULL when error, status %d!!!\n", agIOStatus));
     tdsmIOCompletedCB(
-                       smRoot, 
+                       smRoot,
                        smOrgIORequest,
-                       smIOFailed, 
+                       smIOFailed,
                        smDetailOtherError,
-                       agNULL, 
+                       agNULL,
                        satOrgIOContext->interruptContext
                       );
     smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
@@ -13194,16 +13194,16 @@ smsatSMARTRStatusPassCB(
                             oneDeviceData,
                             satIntIo);
     return;
-  }    
-    
+  }
+
   if( agIOStatus != OSSA_IO_SUCCESS)
   {
-  
+
     /* non-data -> device to host  fis are expected */
-	 
+
     statDevToHostFisHeader = (agsaFisRegD2HHeader_t *)&(agFirstDword->D2H);
     ataStatus     = statDevToHostFisHeader->status;   /* ATA Status register */
-	
+
     if ( (statDevToHostFisHeader->fisType != REG_DEV_TO_HOST_FIS) ||
          ((ataStatus & ERR_ATA_STATUS_MASK) || (ataStatus & DF_ATA_STATUS_MASK))
        )
@@ -13219,7 +13219,7 @@ smsatSMARTRStatusPassCB(
       }
       else if ( (ataStatus & ERR_ATA_STATUS_MASK) ||
                 (ataStatus & DF_ATA_STATUS_MASK)
-               )      
+               )
       {
         SM_DBG1(("smsatSMARTRStatusPassCB: FAILED, FAILED, error status!!!\n"));
       }
@@ -13236,10 +13236,10 @@ smsatSMARTRStatusPassCB(
 
         smsatFreeIntIoResource( smRoot,
                                 oneDeviceData,
-                                satIntIo); 
+                                satIntIo);
         return;
       }
-		
+
       smsatTranslateATAErrorsToSCSIErrors(
 				agFirstDword->D2H.status,
 				agFirstDword->D2H.error,
@@ -13250,7 +13250,7 @@ smsatSMARTRStatusPassCB(
       tdsmIOCompletedCB(smRoot,
                         smOrgIORequest,
                         smIOSuccess,
-                        SCSI_STAT_CHECK_CONDITION, 
+                        SCSI_STAT_CHECK_CONDITION,
                         satOrgIOContext->pSmSenseData,
                         satOrgIOContext->interruptContext );
 
@@ -13267,26 +13267,26 @@ smsatSMARTRStatusPassCB(
 
   /* prcessing the success case */
   SM_DBG5(("smsatSMARTRStatusPassCB: SAT_SMART_RETURN_STATUS success\n"));
-      
+
   tdsmIOCompletedCB( smRoot,
                      smOrgIORequest,
                      smIOSuccess,
                      SCSI_STAT_GOOD,
                      agNULL,
                      satOrgIOContext->interruptContext);
-                                  
+
 
   smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
- 
+
   smsatFreeIntIoResource( smRoot,
                           oneDeviceData,
                           satIntIo);
-                                
+
 
  return;
 }
 
-osGLOBAL void 
+osGLOBAL void
 smsatSMARTReadLogCB(
                 agsaRoot_t        *agRoot,
                 agsaIORequest_t   *agIORequest,
@@ -13294,12 +13294,12 @@ smsatSMARTReadLogCB(
                 agsaFisHeader_t   *agFirstDword,
                 bit32             agIOInfoLen,
                 void              *agParam,
-                void              *ioContext                   
+                void              *ioContext
                )
 {
 
   smRoot_t                      *smRoot = agNULL;
-  smIntRoot_t                   *smIntRoot = agNULL; 
+  smIntRoot_t                   *smIntRoot = agNULL;
   smIntContext_t                *smAllShared = agNULL;
   smIORequestBody_t             *smIORequestBody;
   smIORequestBody_t             *smOrgIORequestBody;
@@ -13321,14 +13321,14 @@ smsatSMARTReadLogCB(
   //bit8						*pLogPage;
 //	  bit8						 SelfTestExecutionStatus = 0;
 //	  bit32 					 i = 0;
-  
+
   agsaFisRegD2HHeader_t         *statDevToHostFisHeader = agNULL;
 //	  agsaFisRegD2HData_t		 statDevToHostFisData;
   smIniScsiCmnd_t               *scsiCmnd;
 //	  bit32 					 lenReceived = 0;
   bit8                          bSenseKey = 0;
   bit16                         bSenseCodeInfo = 0;
-	  
+
   SM_DBG2(("smsatSMARTReadLogCB: start\n"));
   SM_DBG5(("smsatSMARTReadLogCB:agIORequest=%p agIOStatus=0x%x agIOInfoLen %d\n", agIORequest, agIOStatus, agIOInfoLen));
 
@@ -13339,9 +13339,9 @@ smsatSMARTReadLogCB(
   oneDeviceData 		 = satIOContext->pSatDevData;
   hostToDevFis			 = satIOContext->pFis;
   smRoot				 = oneDeviceData->smRoot;
-  smIntRoot 			 = (smIntRoot_t *)smRoot->smData;  
+  smIntRoot 			 = (smIntRoot_t *)smRoot->smData;
   smAllShared			 = (smIntContext_t *)&smIntRoot->smAllShared;
-  
+
   if (satIntIo == agNULL)
   {
     SM_DBG4(("smsatSMARTReadLogCB: External smSatInternalIo_t satIntIoContext\n"));
@@ -13352,7 +13352,7 @@ smsatSMARTReadLogCB(
 
     /* ATA command response payload */
     smScsiRequest	= satOrgIOContext->smScsiXchg;
-    scsiCmnd		= satOrgIOContext->pScsiCmnd;	 
+    scsiCmnd		= satOrgIOContext->pScsiCmnd;
 
 
   }
@@ -13363,9 +13363,9 @@ smsatSMARTReadLogCB(
     if (satOrgIOContext == agNULL)
     {
       SM_DBG4(("smsatSMARTReadLogCB: satOrgIOContext is NULL\n"));
-	  
+
       return;
-	  
+
     }
     else
     {
@@ -13373,15 +13373,15 @@ smsatSMARTReadLogCB(
     }
     smOrgIORequestBody	   = (smIORequestBody_t *)satOrgIOContext->smRequestBody;
     smOrgIORequest		   = (smIORequest_t *)smOrgIORequestBody->smIORequest;
-	
+
     pSense		  = satOrgIOContext->pSense;
     smOrgScsiRequest   = satOrgIOContext->smScsiXchg;
 
     /* ATA command response payload */
     smScsiRequest	=  (smScsiInitiatorRequest_t *)&(satIntIo->satIntSmScsiXchg);
-    scsiCmnd		= satOrgIOContext->pScsiCmnd;  
+    scsiCmnd		= satOrgIOContext->pScsiCmnd;
   }
-	  
+
   smIORequestBody->ioCompleted = agTRUE;
   smIORequestBody->ioStarted = agFALSE;
 
@@ -13389,11 +13389,11 @@ smsatSMARTReadLogCB(
   {
     SM_DBG1(("smsatSMARTReadLogCB: wrong. agFirstDword is NULL when error, status %d!!!\n", agIOStatus));
     tdsmIOCompletedCB(
-                      smRoot, 
+                      smRoot,
                       smOrgIORequest,
-                      smIOFailed, 
+                      smIOFailed,
                       smDetailOtherError,
-                      agNULL, 
+                      agNULL,
                       satOrgIOContext->interruptContext
                      );
     smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
@@ -13402,7 +13402,7 @@ smsatSMARTReadLogCB(
                             oneDeviceData,
                             satIntIo);
     return;
-  }    
+  }
 
   //for Debuggings
   if(agFirstDword != NULL)
@@ -13411,7 +13411,7 @@ smsatSMARTReadLogCB(
     SM_DBG1(("smsatSMARTReadLogCB: statDevToHostFisHeader->status, status %d!!!\n", statDevToHostFisHeader->status));
   }
   if ((agIOStatus != OSSA_IO_SUCCESS) && (agFirstDword != NULL))
-  { 		   
+  {
     /* non-data and pio read -> device to host and pio setup fis are expected */
     /*
       first, assumed to be Reg Device to Host FIS
@@ -13420,7 +13420,7 @@ smsatSMARTReadLogCB(
     statDevToHostFisHeader = (agsaFisRegD2HHeader_t *)&(agFirstDword->D2H);
     ataStatus	  = statDevToHostFisHeader->status;   /* ATA Status register */
   }
-	
+
   if( agIOStatus != OSSA_IO_SUCCESS)
   {
     if ( ((statDevToHostFisHeader->fisType != REG_DEV_TO_HOST_FIS) &&
@@ -13443,11 +13443,11 @@ smsatSMARTReadLogCB(
       }
       else if ( (ataStatus & ERR_ATA_STATUS_MASK) ||
                 (ataStatus & DF_ATA_STATUS_MASK)
-              ) 	 
+              )
       {
         SM_DBG1(("smsatSMARTReadLogCB: FAILED, FAILED, error status!!!\n"));
       }
-		
+
       /* Process abort case */
       if (agIOStatus == OSSA_IO_ABORTED)
       {
@@ -13455,17 +13455,17 @@ smsatSMARTReadLogCB(
                           smOrgIORequest,
                           satOrgIOContext
                          );
-  
+
         smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
 
         smsatFreeIntIoResource( smRoot,
 						  oneDeviceData,
-						  satIntIo); 
+						  satIntIo);
         return;
       }
-			
+
       /* for debugging */
-  
+
       if (hostToDevFis->h.command == SAT_SMART)
       {
         if (hostToDevFis->h.features == SAT_SMART_READ_LOG)
@@ -13481,7 +13481,7 @@ smsatSMARTReadLogCB(
       {
         SM_DBG1(("smsatSMARTReadLogCB: error default case command 0x%x!!!\n", hostToDevFis->h.command));
       }
-			
+
       smsatTranslateATAErrorsToSCSIErrors(
 				agFirstDword->D2H.status,
 				agFirstDword->D2H.error,
@@ -13492,7 +13492,7 @@ smsatSMARTReadLogCB(
       tdsmIOCompletedCB(smRoot,
                         smOrgIORequest,
                         smIOSuccess,
-                        SCSI_STAT_CHECK_CONDITION, 
+                        SCSI_STAT_CHECK_CONDITION,
                         satOrgIOContext->pSmSenseData,
                         satOrgIOContext->interruptContext );
 
@@ -13506,9 +13506,9 @@ smsatSMARTReadLogCB(
 
     } /* error checking */
   }
-	
+
   /* prcessing the success case */
-	  
+
 
   tdsmIOCompletedCB( smRoot,
                      smOrgIORequest,
@@ -13516,17 +13516,17 @@ smsatSMARTReadLogCB(
                      SCSI_STAT_GOOD,
                      agNULL,
                      satOrgIOContext->interruptContext);
-							   
+
   smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
 
   smsatFreeIntIoResource( smRoot,
                           oneDeviceData,
                           satIntIo);
-			
+
   return;
 }
 
-osGLOBAL void 
+osGLOBAL void
 smsatPassthroughCB(
                 agsaRoot_t        *agRoot,
                 agsaIORequest_t   *agIORequest,
@@ -13534,11 +13534,11 @@ smsatPassthroughCB(
                 agsaFisHeader_t   *agFirstDword,
                 bit32             agIOInfoLen,
                 void              *agParam,
-                void              *ioContext                   
+                void              *ioContext
                )
 {
   smRoot_t	                *smRoot = agNULL;
-  smIntRoot_t			*smIntRoot = agNULL; 
+  smIntRoot_t			*smIntRoot = agNULL;
   smIntContext_t		*smAllShared = agNULL;
   smIORequestBody_t 		*smIORequestBody;
   smIORequestBody_t 		*smOrgIORequestBody;
@@ -13552,15 +13552,15 @@ smsatPassthroughCB(
   bit32 			 ataStatus = 0;
   smScsiInitiatorRequest_t	*smScsiRequest; /* tiScsiXchg */
   smScsiInitiatorRequest_t	*smOrgScsiRequest; /* tiScsiXchg */
-	  
+
   agsaFisRegD2HHeader_t 	*statDevToHostFisHeader = agNULL;
   smIniScsiCmnd_t		*scsiCmnd;
   bit8				 bSenseKey = 0;
   bit16 			 bSenseCodeInfo = 0;
-	  
+
   SM_DBG2(("smsatPassthroughCB: start\n"));
   SM_DBG5(("smsatPassthroughCB:agIORequest=%p agIOStatus=0x%x agIOInfoLen %d\n", agIORequest, agIOStatus, agIOInfoLen));
-	
+
   /* internally generate smIOContext */
   smIORequestBody		 = (smIORequestBody_t *)agIORequest->osData;
   satIOContext			 = (smSatIOContext_t *) ioContext;
@@ -13568,9 +13568,9 @@ smsatPassthroughCB(
   oneDeviceData 		 = satIOContext->pSatDevData;
   hostToDevFis			 = satIOContext->pFis;
   smRoot			 = oneDeviceData->smRoot;
-  smIntRoot 			 = (smIntRoot_t *)smRoot->smData;  
+  smIntRoot 			 = (smIntRoot_t *)smRoot->smData;
   smAllShared			 = (smIntContext_t *)&smIntRoot->smAllShared;
-  
+
   if (satIntIo == agNULL)
   {
     SM_DBG4(("smsatPassthroughCB: External smSatInternalIo_t satIntIoContext\n"));
@@ -13581,7 +13581,7 @@ smsatPassthroughCB(
 
     /* ATA command response payload */
     smScsiRequest	= satOrgIOContext->smScsiXchg;
-    scsiCmnd		= satOrgIOContext->pScsiCmnd;	 
+    scsiCmnd		= satOrgIOContext->pScsiCmnd;
   }
   else
   {
@@ -13598,15 +13598,15 @@ smsatPassthroughCB(
     }
     smOrgIORequestBody  = (smIORequestBody_t *)satOrgIOContext->smRequestBody;
     smOrgIORequest = (smIORequest_t *)smOrgIORequestBody->smIORequest;
-		
+
     pSense = satOrgIOContext->pSense;
     smOrgScsiRequest   = satOrgIOContext->smScsiXchg;
 
     /* ATA command response payload */
     smScsiRequest	=  (smScsiInitiatorRequest_t *)&(satIntIo->satIntSmScsiXchg);
-    scsiCmnd		= satOrgIOContext->pScsiCmnd;  
+    scsiCmnd		= satOrgIOContext->pScsiCmnd;
   }
-	  
+
   smIORequestBody->ioCompleted = agTRUE;
   smIORequestBody->ioStarted = agFALSE;
 
@@ -13629,29 +13629,29 @@ smsatPassthroughCB(
     return;
   }
 
-	
+
   if (agFirstDword == agNULL && agIOStatus != OSSA_IO_SUCCESS)
   {
     SM_DBG1(("smsatPassthroughCB: wrong. agFirstDword is NULL when error, status %d!!!\n", agIOStatus));
-    tdsmIOCompletedCB( smRoot, 
+    tdsmIOCompletedCB( smRoot,
 		       smOrgIORequest,
-		       smIOFailed, 
+		       smIOFailed,
 		       smDetailOtherError,
-		       agNULL, 
+		       agNULL,
 		       satOrgIOContext->interruptContext
 		     );
     smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
-	
+
     smsatFreeIntIoResource( smRoot,
                             oneDeviceData,
 			    satIntIo);
     return;
-  }    
+  }
 
   //for Debuggings
 
    if ((agIOStatus != OSSA_IO_SUCCESS) && (agFirstDword != NULL))
-   { 		   
+   {
      /* non-data and pio read -> device to host and pio setup fis are expected */
        /*
           first, assumed to be Reg Device to Host FIS
@@ -13682,26 +13682,26 @@ smsatPassthroughCB(
        }
        else if ( (ataStatus & ERR_ATA_STATUS_MASK) ||
                  (ataStatus & DF_ATA_STATUS_MASK)
-	       ) 	 
+	       )
        {
          SM_DBG1(("smsatPassthroughCB: FAILED, FAILED, error status!!!\n"));
        }
-		
+
        /* Process abort case */
        if (agIOStatus == OSSA_IO_ABORTED)
        {
          smsatProcessAbort( smRoot,
 			    smOrgIORequest,
 			    satOrgIOContext);
-			  
+
 	 smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
-		
+
          smsatFreeIntIoResource( smRoot,
 	                         oneDeviceData,
-				 satIntIo); 
+				 satIntIo);
          return;
        }
-			
+
        smsatTranslateATAErrorsToSCSIErrors( agFirstDword->D2H.status,
 					    agFirstDword->D2H.error,
 					    &bSenseKey,
@@ -13711,20 +13711,20 @@ smsatPassthroughCB(
        tdsmIOCompletedCB( smRoot,
                           smOrgIORequest,
 		          smIOSuccess,
-			  SCSI_STAT_CHECK_CONDITION, 
+			  SCSI_STAT_CHECK_CONDITION,
 			  satOrgIOContext->pSmSenseData,
 			  satOrgIOContext->interruptContext );
-		   
-		    
+
+
        smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
        smsatFreeIntIoResource( smRoot,
                                oneDeviceData,
                               satIntIo);
        return;
-		
+
      } /* error checking */
    }
-	
+
    /* prcessing the success case */
    if(agFirstDword != NULL)
    {
@@ -13740,7 +13740,7 @@ smsatPassthroughCB(
        tdsmIOCompletedCB( smRoot,
                           smOrgIORequest,
 			  smIOSuccess,
-			  SCSI_STAT_CHECK_CONDITION, 
+			  SCSI_STAT_CHECK_CONDITION,
 			  satOrgIOContext->pSmSenseData,
 			  satOrgIOContext->interruptContext );
        smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
@@ -13757,13 +13757,13 @@ smsatPassthroughCB(
 	             SCSI_STAT_GOOD,
 	             agNULL,
 	             satOrgIOContext->interruptContext);
-	 						   
+
   smsatDecrementPendingIO(smRoot, smAllShared, satIOContext);
-	 
+
   smsatFreeIntIoResource( smRoot,
     			  oneDeviceData,
 			  satIntIo);
-					
+
   return;
 }
 

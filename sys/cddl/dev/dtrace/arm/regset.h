@@ -19,7 +19,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$ 
+ * $FreeBSD$
  */
 /*
  * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.
@@ -48,7 +48,7 @@ extern "C" {
 #define REG_PS  R0
 #define REG_R0  R0
 #define REG_R1  R1
-#endif 
+#endif
 
 #ifdef	__cplusplus
 }

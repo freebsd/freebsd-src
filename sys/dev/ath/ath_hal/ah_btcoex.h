@@ -465,10 +465,10 @@ typedef enum mci_state_type {
 #define HAL_MCI_5G_FLAGS_SET_MASK           0x00000000
 #define HAL_MCI_5G_FLAGS                    (HAL_MCI_DEFAULT_BT_MCI_FLAGS & \
                                             ~HAL_MCI_TOGGLE_BT_MCI_FLAGS)
-    
+
 #define HAL_MCI_GPM_NOMORE  0
 #define HAL_MCI_GPM_MORE    1
-#define HAL_MCI_GPM_INVALID 0xffffffff    
+#define HAL_MCI_GPM_INVALID 0xffffffff
 
 #define ATH_AIC_MAX_BT_CHANNEL          79
 

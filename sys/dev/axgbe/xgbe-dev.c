@@ -834,7 +834,7 @@ xgbe_update_vlan_hash_table(struct xgbe_prv_data *pdata)
 
 	axgbe_printf(1, "%s: Before updating VLANHTR 0x%x\n", __func__,
 	    XGMAC_IOREAD(pdata, MAC_VLANHTR));
- 
+
 	/* Generate the VLAN Hash Table value */
 	for_each_set_bit(vid, pdata->active_vlans, VLAN_NVID) {
 
@@ -853,7 +853,7 @@ xgbe_update_vlan_hash_table(struct xgbe_prv_data *pdata)
 
 	axgbe_printf(1, "%s: After updating VLANHTR 0x%x\n", __func__,
 		XGMAC_IOREAD(pdata, MAC_VLANHTR));
- 
+
 	return (0);
 }
 
@@ -1195,7 +1195,7 @@ xgbe_write_ext_mii_regs(struct xgbe_prv_data *pdata, int addr, int reg,
 	XGMAC_SET_BITS(mdio_sccd, MAC_MDIOSCCDR, BUSY, 1);
 	XGMAC_IOWRITE(pdata, MAC_MDIOSCCDR, mdio_sccd);
 
-	if (msleep_spin(pdata, &pdata->mdio_mutex, "mdio_xfer", hz / 8) == 
+	if (msleep_spin(pdata, &pdata->mdio_mutex, "mdio_xfer", hz / 8) ==
 	    EWOULDBLOCK) {
 		axgbe_error("%s: MDIO write error\n", __func__);
 		mtx_unlock_spin(&pdata->mdio_mutex);
@@ -1333,7 +1333,7 @@ xgbe_rx_desc_init(struct xgbe_channel *channel)
 	struct xgbe_ring_data *rdata;
 	unsigned int start_index = ring->cur;
 
-	/* 
+	/*
 	 * Just set desc_count and the starting address of the desc list
 	 * here. Rest will be done as part of the txrx path.
 	 */
@@ -2081,7 +2081,7 @@ xgbe_config_vlan_support(struct xgbe_prv_data *pdata)
 		axgbe_printf(1, "Disabling rx vlan filtering\n");
 		xgbe_disable_rx_vlan_filtering(pdata);
 	}
-	
+
 	if ((if_getcapenable(pdata->netdev) & IFCAP_VLAN_HWTAGGING)) {
 		axgbe_printf(1, "Enabling rx vlan stripping\n");
 		xgbe_enable_rx_vlan_stripping(pdata);

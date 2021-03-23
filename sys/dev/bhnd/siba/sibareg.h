@@ -1,10 +1,10 @@
 /*-
  * Copyright (c) 2015 Landon Fuller <landon@landonf.org>
  * Copyright (c) 2010 Broadcom Corporation
- * 
+ *
  * This file was derived from the sbconfig.h header distributed with
  * Broadcom's initial brcm80211 Linux driver release, as
- * contributed to the Linux staging repository. 
+ * contributed to the Linux staging repository.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,7 +17,7 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -28,14 +28,14 @@
 
 /*
  * Broadcom SIBA Configuration Space Registers.
- * 
+ *
  * Backplane configuration registers common to siba(4) core register
  * blocks.
  */
 
 /**
  * Extract a config attribute by applying _MASK and _SHIFT defines.
- * 
+ *
  * @param _reg The register value containing the desired attribute
  * @param _attr The BCMA EROM attribute name (e.g. ENTRY_ISVALID), to be
  * concatenated with the `SB` prefix and `_MASK`/`_SHIFT` suffixes.
@@ -45,7 +45,7 @@
 	>> SIBA_ ## _attr ## _SHIFT)
 
 #define	SIBA_ENUM_ADDR		BHND_DEFAULT_CHIPC_ADDR	/**< enumeration space */
-#define	SIBA_ENUM_SIZE		0x00100000		/**< size of the enumeration space */ 
+#define	SIBA_ENUM_SIZE		0x00100000		/**< size of the enumeration space */
 #define	SIBA_CORE_SIZE		BHND_DEFAULT_CORE_SIZE	/**< per-core register block size */
 #define	SIBA_MAX_INTR		32			/**< maximum number of backplane interrupt vectors */
 #define	SIBA_MAX_CORES	\
@@ -61,7 +61,7 @@
  * Sonics configuration registers are mapped to each core's enumeration
  * space, at the end of the 4kb device register block, in reverse
  * order:
- * 
+ *
  * [0x0000-0x0dff]	core registers
  * [0x0e00-0x0eff]	SIBA_R1 registers	(sonics >= 2.3)
  * [0x0f00-0x0fff]	SIBA_R0 registers

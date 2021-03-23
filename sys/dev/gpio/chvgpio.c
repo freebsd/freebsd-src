@@ -344,7 +344,7 @@ static int
 chvgpio_probe(device_t dev)
 {
     int rv;
-    
+
     if (acpi_disabled("chvgpio"))
         return (ENXIO);
     rv = ACPI_ID_PROBE(device_get_parent(dev), dev, chvgpio_hids, NULL);

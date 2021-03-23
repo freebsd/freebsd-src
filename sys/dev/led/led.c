@@ -155,7 +155,7 @@ led_parse(const char *s, struct sbuf **sb, int *state)
 				i = *s - '0';
 				if (i == 0)
 					i = 10;
-				for (; i > 1; i--) 
+				for (; i > 1; i--)
 					sbuf_cat(*sb, "Aa");
 				sbuf_cat(*sb, "Aj");
 			}

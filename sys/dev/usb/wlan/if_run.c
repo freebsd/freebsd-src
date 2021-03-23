@@ -584,7 +584,7 @@ static const struct {
 	RT5592_DEF_BBP
 };
 
-/* 
+/*
  * Default values for BBP register R196 for RT5592.
  */
 static const uint8_t rt5592_bbp_r196[] = {
@@ -999,7 +999,7 @@ run_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	switch (opmode) {
 	case IEEE80211_M_STA:
 		/* enable s/w bmiss handling for sta mode */
-		flags |= IEEE80211_CLONE_NOBEACONS; 
+		flags |= IEEE80211_CLONE_NOBEACONS;
 		/* fall though */
 	case IEEE80211_M_IBSS:
 	case IEEE80211_M_MONITOR:
@@ -1248,7 +1248,7 @@ run_load_microcode(struct run_softc *sc)
 	base = fw->data;
 	if ((sc->mac_ver) != 0x2860 &&
 	    (sc->mac_ver) != 0x2872 &&
-	    (sc->mac_ver) != 0x3070) { 
+	    (sc->mac_ver) != 0x3070) {
 		base += 4096;
 	}
 
@@ -3064,7 +3064,7 @@ tr_setup:
 			 * save some data copying. This works because
 			 * there is only one cluster.
 			 */
-			usbd_xfer_set_frame_data(xfer, 0, 
+			usbd_xfer_set_frame_data(xfer, 0,
 			    mtod(sc->rx_m, caddr_t), RUN_MAX_RXSZ);
 			usbd_xfer_set_frames(xfer, 1);
 		}
@@ -3233,7 +3233,7 @@ tr_setup:
 		if (ieee80211_radiotap_active_vap(vap)) {
 			const struct ieee80211_frame *wh;
 			struct run_tx_radiotap_header *tap = &sc->sc_txtap;
-			struct rt2860_txwi *txwi = 
+			struct rt2860_txwi *txwi =
 			    (struct rt2860_txwi *)(&data->desc + sizeof(struct rt2870_txd));
 			int has_l2pad;
 
@@ -3605,7 +3605,7 @@ run_tx_mgt(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	else if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		xflags |= RT2860_TX_ACK;
 
-		dur = ieee80211_ack_duration(ic->ic_rt, rt2860_rates[ridx].rate, 
+		dur = ieee80211_ack_duration(ic->ic_rt, rt2860_rates[ridx].rate,
 		    ic->ic_flags & IEEE80211_F_SHPREAMBLE);
 		USETW(wh->i_dur, dur);
 	}
@@ -4087,7 +4087,7 @@ run_select_chan_group(struct run_softc *sc, int group)
 			    (sc->mac_ver == 0x3593) ? 0x82 : 0xf2);
 		if (sc->ext_5ghz_lna)
 			run_bbp_write(sc, 75, 0x46);
-		else 
+		else
 			run_bbp_write(sc, 75, 0x50);
 	}
 
@@ -4505,7 +4505,7 @@ run_rt3593_set_chan(struct run_softc *sc, u_int chan)
 
 	run_rt3070_rf_write(sc, 31, (chan <= 14) ? 0xa0 : 0x80);
 
-	h20mhz = (sc->rf24_20mhz & 0x20) >> 5; 
+	h20mhz = (sc->rf24_20mhz & 0x20) >> 5;
 	run_rt3070_rf_read(sc, 30, &rf);
 	rf = (rf & ~0x06) | (h20mhz << 1) | (h20mhz << 2);
 	run_rt3070_rf_write(sc, 30, rf);
@@ -4532,7 +4532,7 @@ run_rt3593_set_chan(struct run_softc *sc, u_int chan)
 	else
 		rf |= 0x40;
 	run_rt3070_rf_write(sc, 6, rf);
-		
+
 	run_rt3070_rf_read(sc, 30, &rf);
 	rf = (rf & ~0x18) | 0x10;
 	run_rt3070_rf_write(sc, 30, rf);
@@ -4777,7 +4777,7 @@ run_rt5592_set_chan(struct run_softc *sc, u_int chan)
 
 		run_rt3070_rf_write(sc, 55, 0x43);
 
-		/* 
+		/*
 		 * RF R49/R50 Tx power ALC code.
 		 * G-band bit<7:6>=1:0, bit<5:0> range from 0x0 ~ 0x27.
 		 */
@@ -4797,7 +4797,7 @@ run_rt5592_set_chan(struct run_softc *sc, u_int chan)
 			}
 		}
 
-		/* 
+		/*
 		 * RF R49/R50 Tx power ALC code.
 		 * A-band bit<7:6>=1:1, bit<5:0> range from 0x0 ~ 0x2b.
 		 */
@@ -5497,7 +5497,7 @@ run_bbp_init(struct run_softc *sc)
 		run_bbp_write(sc, 86, 0x46);
 		run_bbp_write(sc, 137, 0x0f);
 	}
-		
+
 	/* fix BBP84 for RT2860E */
 	if (sc->mac_ver == 0x2860 && sc->mac_rev != 0x0101)
 		run_bbp_write(sc, 84, 0x19);
@@ -5541,7 +5541,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 	}
 
 	if (sc->mac_ver == 0x3070 && sc->mac_rev < 0x0201) {
-		/* 
+		/*
 		 * Change voltage from 1.2V to 1.35V for RT3070.
 		 * The DAC issue (RT3070_LDO_CFG0) has been fixed
 		 * in RT3070(F).
@@ -6402,7 +6402,7 @@ run_stop(void *arg)
 static void
 run_delay(struct run_softc *sc, u_int ms)
 {
-	usb_pause_mtx(mtx_owned(&sc->sc_mtx) ? 
+	usb_pause_mtx(mtx_owned(&sc->sc_mtx) ?
 	    &sc->sc_mtx : NULL, USB_MS_TO_TICKS(ms));
 }
 

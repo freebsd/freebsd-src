@@ -5,10 +5,10 @@
  * Copyright (c) 2010-2015 Broadcom Corporation
  * All rights reserved.
  *
- * This file is derived from the sbchipc.h header contributed by Broadcom 
+ * This file is derived from the sbchipc.h header contributed by Broadcom
  * to to the Linux staging repository, as well as later revisions of sbchipc.h
  * distributed with the Asus RT-N16 firmware source code release.
- * 
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
@@ -135,7 +135,7 @@
 
 #define	CHIPC_EROMPTR			0xFC	/**< 32-bit EROM base address
 						  *  on BCMA devices */
-						  
+
 /* ExtBus control registers (rev >= 3) */
 #define	CHIPC_PCMCIA_CFG		0x100
 #define	CHIPC_PCMCIA_MEMWAIT		0x104
@@ -268,7 +268,7 @@ enum {
 #define	CHIPC_CST_SPROM_OTP_SEL_R22_MASK	0x00000003	/**< chipstatus OTP/SPROM SEL value (rev 22) */
 #define	CHIPC_CST_SPROM_OTP_SEL_R22_SHIFT	0
 #define	CHIPC_CST_SPROM_OTP_SEL_R23_MASK	0x000000c0	/**< chipstatus OTP/SPROM SEL value (revs 23-31)
-								  *  
+								  *
 								  *  it is unknown whether this is supported on
 								  *  any CC revs >= 32 that also vend CHIPC_CAP_*
 								  *  constants for OTP/SPROM/NVRAM availability.

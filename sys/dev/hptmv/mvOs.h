@@ -39,7 +39,7 @@
 
 /* Typedefs    */
 /*#define HPTLIBAPI __attribute__((regparm(0))) */
-#define HPTLIBAPI 
+#define HPTLIBAPI
 #define FAR
 #define SS_SEG
 #ifdef FASTCALL
@@ -125,8 +125,8 @@ void HPTLIBAPI mvMicroSecondsDelay(MV_U32);
 #ifdef MV_DEBUG_LOG
 int mvLogMsg(MV_U8, MV_CHAR_PTR, ...);
 #define _mvLogMsg(x) mvLogMsg x
-#else 
-#define mvLogMsg(x...) 
+#else
+#define mvLogMsg(x...)
 #define _mvLogMsg(x)
 #endif
 
@@ -143,12 +143,12 @@ extern int hpt_dbg_level;
 #define KdPrintW(_x_) do{ if (hpt_dbg_level>1) printf _x_; }while(0)
 #define KdPrintE(_x_) do{ if (hpt_dbg_level>0) printf _x_; }while(0)
 #define KdPrint(x) KdPrintI(x)
-#else 
+#else
 #define HPT_ASSERT(x)
-#define KdPrint(x) 
-#define KdPrintI(x) 
-#define KdPrintW(x) 
-#define KdPrintE(x) 
+#define KdPrint(x)
+#define KdPrintI(x)
+#define KdPrintW(x)
+#define KdPrintE(x)
 #endif
 
 #endif

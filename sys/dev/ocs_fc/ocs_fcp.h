@@ -179,10 +179,10 @@ typedef struct fc_vm_header_s {
 } fc_vm_header_t;
 
 #define FC_DFCTL_DEVICE_HDR_16_MASK	0x1
-#define FC_DFCTL_NETWORK_HDR_MASK	0x20	
-#define FC_DFCTL_ESP_HDR_MASK		0x40				
-#define FC_DFCTL_NETWORK_HDR_SIZE	16	
-#define FC_DFCTL_ESP_HDR_SIZE		0 //FIXME				
+#define FC_DFCTL_NETWORK_HDR_MASK	0x20
+#define FC_DFCTL_ESP_HDR_MASK		0x40
+#define FC_DFCTL_NETWORK_HDR_SIZE	16
+#define FC_DFCTL_ESP_HDR_SIZE		0 //FIXME
 
 #define FC_RCTL_FC4_DATA	0
 #define FC_RCTL_ELS		2

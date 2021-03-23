@@ -555,7 +555,7 @@ output_listing(char *ifilename)
 
 		if (func_values == NULL)
 			stop("Could not malloc", EX_OSERR);
-		
+
 		func_values[0] = 0; /* FALSE func */
 		func_count--;
 
@@ -563,13 +563,13 @@ output_listing(char *ifilename)
 		 * Ask the user to fill in the return values for
 		 * the rest of the functions.
 		 */
-		
-		
+
+
 		for (cur_func = SLIST_FIRST(&patch_functions);
 		     cur_func != NULL && SLIST_NEXT(cur_func, links) != NULL;
 		     cur_func = SLIST_NEXT(cur_func, links), func_count--) {
 			int input;
-			
+
 			fprintf(stdout, "\n(%s)\n", cur_func->symbol->name);
 			fprintf(stdout,
 				"Enter the return value for "
