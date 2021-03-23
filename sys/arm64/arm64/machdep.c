@@ -1356,16 +1356,18 @@ initarm(struct arm64_bootparams *abp)
 		strlcpy(kernelname, env, sizeof(kernelname));
 
 #ifdef FDT
-	root = OF_finddevice("/");
-	if (OF_getprop(root, "freebsd,dts-version", dts_version, sizeof(dts_version)) > 0) {
-		if (strcmp(LINUX_DTS_VERSION, dts_version) != 0)
-			printf("WARNING: DTB version is %s while kernel expects %s, "
-			    "please update the DTB in the ESP\n",
-			    dts_version,
-			    LINUX_DTS_VERSION);
-	} else {
-		printf("WARNING: Cannot find freebsd,dts-version property, "
-		    "cannot check DTB compliance\n");
+	if (arm64_bus_method == ARM64_BUS_FDT) {
+		root = OF_finddevice("/");
+		if (OF_getprop(root, "freebsd,dts-version", dts_version, sizeof(dts_version)) > 0) {
+			if (strcmp(LINUX_DTS_VERSION, dts_version) != 0)
+				printf("WARNING: DTB version is %s while kernel expects %s, "
+				    "please update the DTB in the ESP\n",
+				    dts_version,
+				    LINUX_DTS_VERSION);
+		} else {
+			printf("WARNING: Cannot find freebsd,dts-version property, "
+			    "cannot check DTB compliance\n");
+		}
 	}
 #endif
 
