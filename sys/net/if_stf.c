@@ -62,7 +62,7 @@
  * ICMPv6:
  * - Redirects cannot be used due to the lack of link-local address.
  *
- * stf interface does not have, and will not need, a link-local address.  
+ * stf interface does not have, and will not need, a link-local address.
  * It seems to have no real benefit and does not help the above symptoms much.
  * Even if we assign link-locals to interface, we cannot really
  * use link-local unicast/multicast on top of 6to4 cloud (since there's no

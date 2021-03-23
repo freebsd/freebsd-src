@@ -589,7 +589,7 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 
 	if ((flags & RTF_GATEWAY) && !gateway)
 		return (EINVAL);
-	if (dst && gateway && (dst->sa_family != gateway->sa_family) && 
+	if (dst && gateway && (dst->sa_family != gateway->sa_family) &&
 	    (gateway->sa_family != AF_UNSPEC) && (gateway->sa_family != AF_LINK))
 		return (EINVAL);
 

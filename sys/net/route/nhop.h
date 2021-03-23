@@ -90,7 +90,7 @@ struct nhop_priv;
  *   called. Guaranteed to be non-NULL.
  * nh_aifp: ifnet of the source address. Same as nh_ifp except IPv6 loopback
  *   routes. See the example below.
- * nh_ifa: interface address to use. Guaranteed to be non-NULL. 
+ * nh_ifa: interface address to use. Guaranteed to be non-NULL.
  * nh_pksent: counter(9) reflecting the number of packets transmitted.
  *
  * gw_: storage suitable to hold AF_INET, AF_INET6 or AF_LINK gateway. More

@@ -476,7 +476,7 @@ vnet_data_copy(void *start, int size)
 void
 vnet_register_sysinit(void *arg)
 {
-	struct vnet_sysinit *vs, *vs2;	
+	struct vnet_sysinit *vs, *vs2;
 	struct vnet *vnet;
 
 	vs = arg;

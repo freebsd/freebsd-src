@@ -1003,7 +1003,7 @@ netisr_queue_workstream(struct netisr_workstream *nwsp, u_int proto,
 		 * swi_net() keeps calling netisr_process_workstream_proto().
 		 */
 		nwsp->nws_pendingbits |= (1 << proto);
-		if (!(nwsp->nws_flags & 
+		if (!(nwsp->nws_flags &
 		    (NWS_RUNNING | NWS_DISPATCHING | NWS_SCHEDULED))) {
 			nwsp->nws_flags |= NWS_SCHEDULED;
 			*dosignalp = 1;	/* Defer until unlocked. */

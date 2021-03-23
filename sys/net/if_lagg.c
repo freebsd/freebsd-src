@@ -1074,7 +1074,7 @@ fallback:
 }
 
 /*
- * Requests counter @cnt data. 
+ * Requests counter @cnt data.
  *
  * Counter value is calculated the following way:
  * 1) for each port, sum  difference between current and "initial" measurements.
@@ -1082,7 +1082,7 @@ fallback:
  * 3) add data from detached_counters array.
  *
  * We also do the following things on ports attach/detach:
- * 1) On port attach we store all counters it has into port_counter array. 
+ * 1) On port attach we store all counters it has into port_counter array.
  * 2) On port detach we add the different between "initial" and
  *   current counters data to detached_counters array.
  */
@@ -1461,7 +1461,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			/* Invalid combination of options specified. */
 			error = EINVAL;
 			LAGG_XUNLOCK(sc);
-			break;	/* Return from SIOCSLAGGOPTS. */ 
+			break;	/* Return from SIOCSLAGGOPTS. */
 		}
 
 		/*

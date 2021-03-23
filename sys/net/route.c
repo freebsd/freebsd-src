@@ -548,7 +548,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 		 * Order of preference:
 		 * 1) IFA address
 		 * 2) gateway address
-		 *   Note: for interface routes link-level gateway address 
+		 *   Note: for interface routes link-level gateway address
 		 *     is specified to indicate the interface index without
 		 *     specifying RTF_GATEWAY. In this case, ignore gateway
 		 *   Note: gateway AF may be different from dst AF. In this case,

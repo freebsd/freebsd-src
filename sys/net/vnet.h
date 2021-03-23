@@ -223,7 +223,7 @@ void vnet_log_recursion(struct vnet *, const char *, int);
 	    ("CURVNET_SET at %s:%d %s() curvnet=%p vnet=%p",		\
 	    __FILE__, __LINE__, __func__, curvnet, (arg)));		\
 	struct vnet *saved_vnet = curvnet;				\
-	curvnet = arg;	
+	curvnet = arg;
 
 #define	CURVNET_SET_VERBOSE(arg)					\
 	CURVNET_SET_QUIET(arg)

@@ -226,7 +226,7 @@ iflib_clone_destroy(if_t ifp)
 	int rc;
 
 	/*
-	 * Detach device / free / free unit 
+	 * Detach device / free / free unit
 	 */
 	ctx = if_getsoftc(ifp);
 	dev = iflib_get_dev(ctx);

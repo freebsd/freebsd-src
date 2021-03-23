@@ -540,7 +540,7 @@ gre_input(struct mbuf *m, int off, int proto, void *arg)
 	}
 	if (flags & GRE_FLAGS_KP) {
 #ifdef notyet
-        /* 
+        /*
          * XXX: The current implementation uses the key only for outgoing
          * packets. But we can check the key value here, or even in the
          * encapcheck function.

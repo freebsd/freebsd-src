@@ -462,7 +462,7 @@ on1:
 	if (rn_debug)
 		log(LOG_DEBUG, "rn_insert: Going In:\n"), traverse(p);
 #endif
-	t = rn_newpair(v_arg, b, nodes); 
+	t = rn_newpair(v_arg, b, nodes);
 	tt = t->rn_left;
 	if ((cp[p->rn_offset] & p->rn_bmask) == 0)
 		p->rn_left = t;
@@ -1010,8 +1010,8 @@ rn_walktree_from(struct radix_head *h, void *a, void *m,
 				 */
 			}
 		}
-		
-		/* 
+
+		/*
 		 * At the top of the tree, no need to traverse the right
 		 * half, prevent the traversal of the entire tree in the
 		 * case of default route.

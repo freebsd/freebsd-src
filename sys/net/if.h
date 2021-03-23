@@ -474,7 +474,7 @@ struct ifdrv {
 	void		*ifd_data;
 };
 
-/* 
+/*
  * Structure used to retrieve aux status data from interfaces.
  * Kernel suppliers to this interface should respect the formatting
  * needed by ifconfig(8): each line starts with a TAB and ends with
@@ -547,7 +547,7 @@ struct ifi2creq {
 	uint8_t spare0;
 	uint32_t spare1;
 	uint8_t data[8];	/* read buffer */
-}; 
+};
 
 /*
  * RSS hash.

@@ -349,7 +349,7 @@ debugnet_handle_arp(struct debugnet_pcb *pcb, struct mbuf **mb)
 		}
 		memcpy(pcb->dp_gw_mac.octet, ar_sha(ah),
 		    min(ah->ar_hln, ETHER_ADDR_LEN));
-		
+
 		DNETDEBUG("got server MAC address %6D\n",
 		    pcb->dp_gw_mac.octet, ":");
 

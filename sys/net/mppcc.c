@@ -54,7 +54,7 @@ struct MPPC_comp_state {
 };
 
 /* Inserts 1 to 8 bits into the output buffer. */
-static void __inline 
+static void __inline
 putbits8(uint8_t *buf, uint32_t val, const uint32_t n, uint32_t *i, uint32_t *l)
 {
     buf += *i;
@@ -147,7 +147,7 @@ int MPPC_Compress(u_char **src, u_char **dst, u_long *srcCnt, u_long *dstCnt, ch
 {
     struct MPPC_comp_state	*state = (struct MPPC_comp_state*)history;
     uint32_t olen, off, len, idx, i, l;
-    uint8_t *hist, *sbuf, *p, *q, *r, *s;    
+    uint8_t *hist, *sbuf, *p, *q, *r, *s;
     int	rtn = MPPC_OK;
 
    /*

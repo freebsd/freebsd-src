@@ -37,14 +37,14 @@
 #define OUI_FREEBSD_BASE 0x589cfc000000
 #define OUI_FREEBSD(nic) (OUI_FREEBSD_BASE | (nic))
 
-/* 
+/*
  * OUIs are most often used to uniquely identify network interfaces
  * and occupy the first 3 bytes of both destination and source MAC
  * addresses.  The following allocations exist so that various
  * software systems associated with FreeBSD can have unique IDs in the
  * absence of hardware.  The use of OUIs for this purpose is not fully
  * fleshed out but is now in common use in virtualization technology.
- * 
+ *
  * Allocations from this range are expected to be made using COMMON
  * SENSE by developers.  Do NOT take a large range just because
  * they're currently wide open.  Take the smallest useful range for
@@ -53,7 +53,7 @@
  *
  * In the event of a conflict arbitration of allocation in this file
  * is subject to core@ approval.
- * 
+ *
  * Applications are differentiated based on the high order bit(s) of
  * the remaining three bytes.  Our first allocation has all 0s, the
  * next allocation has the highest bit set.  Allocating in this way

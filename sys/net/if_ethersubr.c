@@ -110,7 +110,7 @@ void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
 void	(*bridge_dn_p)(struct mbuf *, struct ifnet *);
 
 /* if_lagg(4) support */
-struct mbuf *(*lagg_input_ethernet_p)(struct ifnet *, struct mbuf *); 
+struct mbuf *(*lagg_input_ethernet_p)(struct ifnet *, struct mbuf *);
 
 static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
 			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -998,7 +998,7 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 	/* Announce Ethernet MAC address if non-zero. */
 	for (i = 0; i < ifp->if_addrlen; i++)
 		if (lla[i] != 0)
-			break; 
+			break;
 	if (i != ifp->if_addrlen)
 		if_printf(ifp, "Ethernet address: %6D\n", lla, ":");
 

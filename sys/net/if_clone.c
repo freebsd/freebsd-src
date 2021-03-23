@@ -734,7 +734,7 @@ ifc_simple_destroy(struct if_clone *ifc, struct ifnet *ifp)
 
 	unit = ifp->if_dunit;
 
-	if (unit < ifc->ifcs_minifs) 
+	if (unit < ifc->ifcs_minifs)
 		return (EINVAL);
 
 	ifc->ifcs_destroy(ifp);

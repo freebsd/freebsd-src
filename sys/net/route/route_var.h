@@ -170,7 +170,7 @@ struct rtentry {
 	};
 
 	int		rte_flags;	/* up/down?, host/net */
-	u_long		rt_weight;	/* absolute weight */ 
+	u_long		rt_weight;	/* absolute weight */
 	u_long		rt_expire;	/* lifetime for route, e.g. redirect */
 	struct rtentry	*rt_chain;	/* pointer to next rtentry to delete */
 	struct epoch_context	rt_epoch_ctx;	/* net epoch tracker */

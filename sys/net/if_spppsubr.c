@@ -759,7 +759,7 @@ sppp_ifstart(struct ifnet *ifp)
 		if (callout_pending(&sp->ifstart_callout))
 			return;
 		callout_reset(&sp->ifstart_callout, 1, sppp_ifstart_sched,
-		    (void *)sp); 
+		    (void *)sp);
 	} else {
 		sp->if_start(ifp);
 	}
@@ -1010,7 +1010,7 @@ sppp_attach(struct ifnet *ifp)
 	/* Initialize keepalive handler. */
  	callout_init(&sp->keepalive_callout, 1);
 	callout_reset(&sp->keepalive_callout, hz * 10, sppp_keepalive,
- 		    (void *)sp); 
+ 		    (void *)sp);
 
 	ifp->if_mtu = PP_MTU;
 	ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;

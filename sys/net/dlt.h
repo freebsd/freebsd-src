@@ -769,7 +769,7 @@
  * IPMB packet for IPMI, beginning with the I2C slave address, followed
  * by the netFn and LUN, etc..  Requested by Chanthy Toeung
  * <chanthy.toeung@ca.kontron.com>.
- * 
+ *
  * XXX - this used to be called DLT_IPMB, back when we got the
  * impression from the email thread requesting it that the packet
  * had no extra 2-byte header.  We've renamed it; if anybody used

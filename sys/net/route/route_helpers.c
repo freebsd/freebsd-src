@@ -143,7 +143,7 @@ rib_foreach_table_walk(int family, bool wlock, rib_walktree_f_t *wa_f,
 	for (uint32_t fibnum = 0; fibnum < rt_numfibs; fibnum++) {
 		/* Do we want some specific family? */
 		if (family != AF_UNSPEC) {
-			rib_walk_ext(fibnum, family, wlock, wa_f, hook_f, arg); 
+			rib_walk_ext(fibnum, family, wlock, wa_f, hook_f, arg);
 			continue;
 		}
 

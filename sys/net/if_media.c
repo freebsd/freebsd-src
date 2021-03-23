@@ -155,7 +155,7 @@ ifmedia_list_add(struct ifmedia *ifm, struct ifmedia_entry *lp, int count)
 }
 
 /*
- * Set the default active media. 
+ * Set the default active media.
  *
  * Called by device-specific code which is assumed to have already
  * selected the default media in hardware.  We do _not_ call the
@@ -229,7 +229,7 @@ ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm,
 #ifdef IFMEDIA_DEBUG
 			if (ifmedia_debug) {
 				printf(
-		    "ifmedia_ioctl: no media found for %#010x mask %#010x\n", 
+		    "ifmedia_ioctl: no media found for %#010x mask %#010x\n",
 				    newmedia, ifm->ifm_mask);
 			}
 #endif
@@ -273,8 +273,8 @@ ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm,
 	/*
 	 * Get list of available media and current media on interface.
 	 */
-	case  SIOCGIFMEDIA: 
-	case  SIOCGIFXMEDIA: 
+	case  SIOCGIFMEDIA:
+	case  SIOCGIFXMEDIA:
 	{
 		struct ifmedia_entry *ep;
 		int i;
@@ -353,7 +353,7 @@ ifmedia_match(struct ifmedia *ifm, int target, int mask)
  * Compute the interface `baudrate' from the media, for the interface
  * metrics (used by routing daemons).
  */
-static const struct ifmedia_baudrate ifmedia_baudrate_descriptions[] =   
+static const struct ifmedia_baudrate ifmedia_baudrate_descriptions[] =
     IFM_BAUDRATE_DESCRIPTIONS;
 
 uint64_t
@@ -500,7 +500,7 @@ ifmedia_printword(int ifmw)
 			if (seen_option == 0)
 				printf(" <");
 			printf("%s%s", seen_option++ ? "," : "",
-			    desc->ifmt_string); 
+			    desc->ifmt_string);
 		}
 	}
 	printf("%s\n", seen_option ? ">" : "");

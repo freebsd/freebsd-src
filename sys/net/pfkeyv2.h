@@ -271,7 +271,7 @@ struct sadb_x_nat_t_type {
 _Static_assert(sizeof(struct sadb_x_nat_t_type) == 8, "struct size mismatch");
 
 /* NAT-Traversal source or destination port. */
-struct sadb_x_nat_t_port { 
+struct sadb_x_nat_t_port {
   u_int16_t sadb_x_nat_t_port_len;
   u_int16_t sadb_x_nat_t_port_exttype;
   u_int16_t sadb_x_nat_t_port_port;

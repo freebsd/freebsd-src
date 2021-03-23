@@ -140,7 +140,7 @@ int MPPC_Decompress(u_char **src, u_char **dst, u_long *srcCnt, u_long *dstCnt, 
 	if (sig == 0x80) {		/* literal byte >= 0x80 */
 	    if (state->histptr < 2*MPPE_HIST_LEN) {
 		/* Copy uncompressed byte to the history. */
-		(state->hist)[(state->histptr)++] = 
+		(state->hist)[(state->histptr)++] =
 		    (uint8_t) (0x80|((val&0x3f)<<1)|getbits(isrc, 1 , &i ,&l));
 	    } else {
 		/* buffer overflow; drop packet */

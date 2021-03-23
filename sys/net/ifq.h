@@ -317,7 +317,7 @@ do {									\
 
 static __inline int
 drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
-{	
+{
 	int error = 0;
 
 #ifdef ALTQ
@@ -339,12 +339,12 @@ static __inline void
 drbr_putback(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m_new)
 {
 	/*
-	 * The top of the list needs to be swapped 
+	 * The top of the list needs to be swapped
 	 * for this one.
 	 */
 #ifdef ALTQ
 	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
-		/* 
+		/*
 		 * Peek in altq case dequeued it
 		 * so put it back.
 		 */
@@ -361,7 +361,7 @@ drbr_peek(struct ifnet *ifp, struct buf_ring *br)
 #ifdef ALTQ
 	struct mbuf *m;
 	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
-		/* 
+		/*
 		 * Pull it off like a dequeue
 		 * since drbr_advance() does nothing
 		 * for altq and drbr_putback() will
@@ -382,7 +382,7 @@ drbr_flush(struct ifnet *ifp, struct buf_ring *br)
 #ifdef ALTQ
 	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd))
 		IFQ_PURGE(&ifp->if_snd);
-#endif	
+#endif
 	while ((m = (struct mbuf *)buf_ring_dequeue_sc(br)) != NULL)
 		m_freem(m);
 }
@@ -401,7 +401,7 @@ drbr_dequeue(struct ifnet *ifp, struct buf_ring *br)
 #ifdef ALTQ
 	struct mbuf *m;
 
-	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {	
+	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
 		IFQ_DEQUEUE(&ifp->if_snd, m);
 		return (m);
 	}
@@ -422,7 +422,7 @@ drbr_advance(struct ifnet *ifp, struct buf_ring *br)
 
 static __inline struct mbuf *
 drbr_dequeue_cond(struct ifnet *ifp, struct buf_ring *br,
-    int (*func) (struct mbuf *, void *), void *arg) 
+    int (*func) (struct mbuf *, void *), void *arg)
 {
 	struct mbuf *m;
 #ifdef ALTQ

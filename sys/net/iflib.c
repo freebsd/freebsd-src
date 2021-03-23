@@ -487,7 +487,7 @@ pkt_info_zero(if_pkt_info_t pi)
 #ifndef __LP64__
 	pi_pad->pkt_val[6] = 0; pi_pad->pkt_val[7] = 0; pi_pad->pkt_val[8] = 0;
 	pi_pad->pkt_val[9] = 0; pi_pad->pkt_val[10] = 0;
-#endif	
+#endif
 }
 
 static device_method_t iflib_pseudo_methods[] = {
@@ -577,7 +577,7 @@ static SYSCTL_NODE(_net, OID_AUTO, iflib, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "iflib driver parameters");
 
 /*
- * XXX need to ensure that this can't accidentally cause the head to be moved backwards 
+ * XXX need to ensure that this can't accidentally cause the head to be moved backwards
  */
 static int iflib_min_tx_latency = 0;
 SYSCTL_INT(_net_iflib, OID_AUTO, min_tx_latency, CTLFLAG_RW,
@@ -2381,7 +2381,7 @@ iflib_timer(void *arg)
 		GROUPTASK_ENQUEUE(&txq->ift_task);
 
 	sctx->isc_pause_frames = 0;
-	if (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING) 
+	if (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING)
 		callout_reset_on(&txq->ift_timer, iflib_timer_default, iflib_timer,
 		    txq, txq->ift_timer.c_cpu);
 	return;
@@ -3569,7 +3569,7 @@ defrag:
 			txq->ift_gen = 1;
 		}
 		/*
-		 * drivers can need as many as 
+		 * drivers can need as many as
 		 * two sentinels
 		 */
 		MPASS(ndesc <= pi.ipi_nsegs + 2);
@@ -5757,7 +5757,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 			goto err_rx_desc;
 		}
 
-		for (j = 0, fl = rxq->ifr_fl; j < rxq->ifr_nfl; j++, fl++) 
+		for (j = 0, fl = rxq->ifr_fl; j < rxq->ifr_nfl; j++, fl++)
 			fl->ifl_rx_bitmap = bit_alloc(fl->ifl_size, M_IFLIB,
 			    M_WAITOK);
 	}
@@ -6352,7 +6352,7 @@ void
 iflib_config_gtask_deinit(struct grouptask *gtask)
 {
 
-	taskqgroup_detach(qgroup_if_config_tqg, gtask);	
+	taskqgroup_detach(qgroup_if_config_tqg, gtask);
 }
 
 void

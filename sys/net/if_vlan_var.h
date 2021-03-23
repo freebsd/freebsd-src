@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -95,7 +95,7 @@ struct	vlanreq {
  * Drivers that support hardware VLAN tag stripping fill in the
  * received VLAN tag (containing both vlan and priority information)
  * into the ether_vtag mbuf packet header field:
- * 
+ *
  *	m->m_pkthdr.ether_vtag = vtag;		// ntohs()?
  *	m->m_flags |= M_VLANTAG;
  *

@@ -318,7 +318,7 @@ enum {
  * TX Disable State Digital state of the TX Disable Input Pin. Updated
  * within 100ms of change on pin.
  */
-#define SFF_8472_STATUS_TX_DISABLE  (1 << 7) 
+#define SFF_8472_STATUS_TX_DISABLE  (1 << 7)
 
 /*
  * Select Read/write bit that allows software disable of
@@ -329,22 +329,22 @@ enum {
  * implemented, the transceiver ignores the value of this bit. Default
  * power up value is zero/low.
  */
-#define SFF_8472_STATUS_SOFT_TX_DISABLE (1 << 6) 
+#define SFF_8472_STATUS_SOFT_TX_DISABLE (1 << 6)
 
 /*
  * RS(1) State Digital state of SFP input pin AS(1) per SFF-8079 or
  * RS(1) per SFF-8431. Updated within 100ms of change on pin. See A2h
  * Byte 118, Bit 3 for Soft RS(1) Select control information.
  */
-#define SFF_8472_RS_STATE (1 << 5) 
+#define SFF_8472_RS_STATE (1 << 5)
 
 /*
  * Rate_Select State [aka. “RS(0)”] Digital state of the SFP
  * Rate_Select Input Pin. Updated within 100ms of change on pin. Note:
  * This pin is also known as AS(0) in SFF-8079 and RS(0) in SFF-8431.
- */ 
+ */
 #define SFF_8472_STATUS_SELECT_STATE (1 << 4)
-     
+
 /*
  * Read/write bit that allows software rate select control. Writing
  * ‘1’ selects full bandwidth operation. This bit is “OR’d with the
@@ -509,7 +509,7 @@ static const char *sff_8024_id[SFF_8024_ID_LAST + 1] = {
  * as the full 16 bit value (0 – 65535) with LSB equal to 100 uVolt,
  * yielding a total range of 0 to +6.55 Volts.
  */
-#define SFF_8472_VCC_FACTOR 10000.0 
+#define SFF_8472_VCC_FACTOR 10000.0
 
 /*
  * Represented as a 16 bit unsigned integer with the current defined
@@ -517,7 +517,7 @@ static const char *sff_8024_id[SFF_8024_ID_LAST + 1] = {
  * yielding a total range of 0 to 131 mA.
  */
 
-#define SFF_8472_BIAS_FACTOR 2000.0 
+#define SFF_8472_BIAS_FACTOR 2000.0
 
 /*
  * Represented as a 16 bit unsigned integer with the power defined as

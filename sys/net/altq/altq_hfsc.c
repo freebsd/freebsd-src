@@ -284,7 +284,7 @@ hfsc_getqstats(struct pf_altq *a, void *ubuf, int *nbytes, int version)
 		get_class_stats_v1(&stats.v1, cl);
 		stats_size = sizeof(struct hfsc_classstats_v1);
 		break;
-	}		
+	}
 
 	if (*nbytes < stats_size)
 		return (EINVAL);

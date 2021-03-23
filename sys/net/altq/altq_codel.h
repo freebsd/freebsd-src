@@ -99,7 +99,7 @@ struct codel_vars {
 	u_int64_t	drop_next;
 	u_int64_t	ldelay;
 };
-        
+
 struct codel {
 	int			last_pps;
 	struct codel_params	params;

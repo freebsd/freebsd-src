@@ -219,7 +219,7 @@ epair_dpcpu_init(void)
 		s = &epair_dpcpu->epair_ifp_drain_list;
 		s->stqh_first = NULL;
 		s->stqh_last = &s->stqh_first;
-	} 
+	}
 }
 
 static void
@@ -534,7 +534,7 @@ epair_transmit_locked(struct ifnet *ifp, struct mbuf *m)
 			if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
 			if (mflags & (M_BCAST|M_MCAST))
 				if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
-			
+
 			if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0)
 				epair_start_locked(ifp);
 			else
@@ -772,7 +772,7 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	/* Must not change dp so we can replace 'a' by 'b' later. */
 	*(dp+1) = '\0';
 
-	/* Check if 'a' and 'b' interfaces already exist. */ 
+	/* Check if 'a' and 'b' interfaces already exist. */
 	if (ifunit(name) != NULL)
 		return (EEXIST);
 	*dp = 'a';
@@ -849,7 +849,7 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	 * Make sure we do not create same etheraddr again.
 	 */
 	getcredhostid(curthread->td_ucred, (unsigned long *)&hostid);
-	if (hostid == 0) 
+	if (hostid == 0)
 		arc4rand(&hostid, sizeof(hostid), 0);
 
 	if (ifp->if_index > next_index)
