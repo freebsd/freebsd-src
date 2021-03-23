@@ -787,7 +787,7 @@ pci_vtnet_snapshot(void *vsc, struct vm_snapshot_meta *meta)
 
 	SNAPSHOT_VAR_OR_LEAVE(sc->vsc_features, meta, ret, done);
 
-	/* Force reapply negociated features at restore time */
+	/* Force reapply negotiated features at restore time */
 	if (meta->op == VM_SNAPSHOT_RESTORE) {
 		pci_vtnet_neg_features(sc, sc->vsc_features);
 		netbe_rx_enable(sc->vsc_be);

@@ -89,7 +89,7 @@ __FBSDID("$FreeBSD$");
  *	44		Fixed Header
  *	8 * maxcpu	Processor Local APIC entries
  *	12		I/O APIC entry
- *	2 * 10		Interrupt Source Override entires
+ *	2 * 10		Interrupt Source Override entries
  *	6		Local APIC NMI entry
  */
 #define	MADT_SIZE		(44 + VM_MAXCPU*8 + 12 + 2*10 + 6)
@@ -927,7 +927,7 @@ basl_make_templates(void)
 
 	if (!err) {
 		/*
-		 * len has been intialized (and maybe adjusted) above
+		 * len has been initialized (and maybe adjusted) above
 		 */
 		if ((len + sizeof(BHYVE_ASL_TEMPLATE) + 1 +
 		     sizeof(BHYVE_ASL_SUFFIX)) < MAXPATHLEN) {

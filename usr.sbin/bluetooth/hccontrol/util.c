@@ -616,7 +616,7 @@ hci_manufacturer2str(int m)
 		/* 0419 */ "EROAD",
 		/* 0420 */ "Mine Safety Appliances",
 		/* 0421 */ "Icon Health and Fitness",
-		/* 0422 */ "Wille Engineering (formely as Asandoo GmbH)",
+		/* 0422 */ "Wille Engineering (formerly as Asandoo GmbH)",
 		/* 0423 */ "ENERGOUS CORPORATION",
 		/* 0424 */ "Taobao",
 		/* 0425 */ "Canon Inc.",
