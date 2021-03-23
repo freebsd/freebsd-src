@@ -515,8 +515,7 @@ amdvi_dump_cmds(struct amdvi_softc *softc, int count)
 		printf("  [CMD%d, off:0x%x] opcode= 0x%x 0x%x"
 		    " 0x%x 0x%lx\n", i, off, cmd->opcode,
 		    cmd->word0, cmd->word1, cmd->addr);
-		off = (off + sizeof(struct amdvi_cmd)) %
-		    (softc->cmd_max * sizeof(struct amdvi_cmd));
+		off = MOD_INC(off, sizeof(struct amdvi_cmd), softc->cmd_max);
 	}
 }
 
