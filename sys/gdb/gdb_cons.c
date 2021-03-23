@@ -26,7 +26,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* 
+/*
  * Support for redirecting console msgs to gdb.  We register
  * a pseudo console to hook cnputc and send stuff to the gdb
  * port.  The only trickiness here is buffering output so this
@@ -163,7 +163,7 @@ gdb_cnputc(struct consdev *cp, int c)
 		/*
 		 * Flush on end of line; this is especially helpful
 		 * during boot when we don't have callouts to flush
-		 * the buffer.  Otherwise we defer flushing; a 1/4 
+		 * the buffer.  Otherwise we defer flushing; a 1/4
 		 * second is a guess.
 		 */
 		if (c == '\n')
