@@ -5004,7 +5004,12 @@ pci_child_detached(device_t dev, device_t child)
 	if (resource_list_release_active(rl, dev, child, SYS_RES_IRQ) != 0)
 		pci_printf(&dinfo->cfg, "Device leaked IRQ resources\n");
 	if (dinfo->cfg.msi.msi_alloc != 0 || dinfo->cfg.msix.msix_alloc != 0) {
-		pci_printf(&dinfo->cfg, "Device leaked MSI vectors\n");
+		if (dinfo->cfg.msi.msi_alloc != 0)
+			pci_printf(&dinfo->cfg, "Device leaked %d MSI "
+			    "vectors\n", dinfo->cfg.msi.msi_alloc);
+		else
+			pci_printf(&dinfo->cfg, "Device leaked %d MSI-X "
+			    "vectors\n", dinfo->cfg.msix.msix_alloc);
 		(void)pci_release_msi(child);
 	}
 	if (resource_list_release_active(rl, dev, child, SYS_RES_MEMORY) != 0)
