@@ -977,7 +977,7 @@ __CONCAT(PMTYPE, init)(void)
 	/*
 	 * Initialize the vm page array entries for the kernel pmap's
 	 * page table pages.
-	 */ 
+	 */
 	PMAP_LOCK(kernel_pmap);
 	for (i = 0; i < NKPT; i++) {
 		mpte = PHYS_TO_VM_PAGE(KPTphys + ptoa(i));
@@ -1222,7 +1222,7 @@ pmap_curcpu_cb_dummy(pmap_t pmap __unused, vm_offset_t addr1 __unused,
  * processor before its pm_active field is checked but due to
  * speculative loads one of the following functions stills reads the
  * pmap as inactive on the other processor.
- * 
+ *
  * The kernel page table is exempt because its pm_active field is
  * immutable.  The kernel page table is always active on every
  * processor.
@@ -1819,7 +1819,7 @@ __CONCAT(PMTYPE, map)(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end,
 	/*
 	 * Does the physical address range's size and alignment permit at
 	 * least one superpage mapping to be created?
-	 */ 
+	 */
 	superpage_offset = start & PDRMASK;
 	if ((end - start) - ((NBPDR - superpage_offset) & PDRMASK) >= NBPDR) {
 		/*
@@ -2199,7 +2199,7 @@ retry:
 	} else {
 		/*
 		 * Here if the pte page isn't mapped, or if it has
-		 * been deallocated. 
+		 * been deallocated.
 		 */
 		m = _pmap_allocpte(pmap, ptepindex, flags);
 		if (m == NULL && (flags & PMAP_ENTER_NOSLEEP) == 0)
@@ -2732,7 +2732,7 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if (pv_entry_count < pv_entry_high_water && 
+	if (pv_entry_count < pv_entry_high_water &&
 	    (pv = get_pv_entry(pmap, TRUE)) != NULL) {
 		pv->pv_va = va;
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
@@ -2771,7 +2771,7 @@ pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte)
 	pt_entry_t *pte;
 
 	for (pte = firstpte; pte < firstpte + NPTEPG; pte++) {
-		*pte = newpte;	
+		*pte = newpte;
 		newpte += PAGE_SIZE;
 	}
 }
@@ -2829,7 +2829,7 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	 * If the page mapping is in the kernel's address space, then the
 	 * KPTmap can provide access to the page table page.  Otherwise,
 	 * temporarily map the page table page (mpte) into the kernel's
-	 * address space at either PADDR1 or PADDR2. 
+	 * address space at either PADDR1 or PADDR2.
 	 */
 	if (pmap == kernel_pmap)
 		firstpte = &KPTmap[i386_btop(trunc_4mpage(va))];
@@ -2883,7 +2883,7 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	/*
 	 * If the mapping has changed attributes, update the page table
 	 * entries.
-	 */ 
+	 */
 	if ((*firstpte & PG_PTE_PROMOTE) != (newpte & PG_PTE_PROMOTE))
 		pmap_fill_ptp(firstpte, newpte);
 
@@ -2892,14 +2892,14 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	 * PG_A set.  If the old PDE has PG_RW set, it also has PG_M
 	 * set.  Thus, there is no danger of a race with another
 	 * processor changing the setting of PG_A and/or PG_M between
-	 * the read above and the store below. 
+	 * the read above and the store below.
 	 */
 	if (workaround_erratum383)
 		pmap_update_pde(pmap, va, pde, newpde);
 	else if (pmap == kernel_pmap)
 		pmap_kenter_pde(va, newpde);
 	else
-		pde_store(pde, newpde);	
+		pde_store(pde, newpde);
 	if (firstpte == PADDR2)
 		mtx_unlock(&PMAP2mutex);
 
@@ -2956,7 +2956,7 @@ pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	 */
 	if (workaround_erratum383)
 		pmap_update_pde(pmap, va, pde, newpde);
-	else 
+	else
 		pmap_kenter_pde(va, newpde);
 
 	/*
@@ -3139,7 +3139,7 @@ __CONCAT(PMTYPE, remove)(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	 * common operation and easy to short circuit some
 	 * code.
 	 */
-	if ((sva + PAGE_SIZE == eva) && 
+	if ((sva + PAGE_SIZE == eva) &&
 	    ((pmap->pm_pdir[(sva >> PDRSHIFT)] & PG_PS) == 0)) {
 		pmap_remove_page(pmap, sva, &free);
 		goto out;
@@ -3532,12 +3532,12 @@ setpde:
 		 * a TLB invalidation.
 		 */
 		if (!atomic_cmpset_int((u_int *)firstpte, newpde, newpde &
-		    ~PG_RW))  
+		    ~PG_RW))
 			goto setpde;
 		newpde &= ~PG_RW;
 	}
 
-	/* 
+	/*
 	 * Examine each of the other PTEs in the specified PTP.  Abort if this
 	 * PTE maps an unexpected 4KB physical page or does not have identical
 	 * characteristics to the first PTE.
@@ -3578,7 +3578,7 @@ setpte:
 	/*
 	 * Save the page table page in its current state until the PDE
 	 * mapping the superpage is demoted by pmap_demote_pde() or
-	 * destroyed by pmap_remove_pde(). 
+	 * destroyed by pmap_remove_pde().
 	 */
 	mpte = PHYS_TO_VM_PAGE(*pde & PG_FRAME);
 	KASSERT(mpte >= vm_page_array &&
@@ -3684,7 +3684,7 @@ __CONCAT(PMTYPE, enter)(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	PMAP_LOCK(pmap);
 	sched_pin();
 	if (psind == 1) {
-		/* Assert the required virtual and physical alignment. */ 
+		/* Assert the required virtual and physical alignment. */
 		KASSERT((va & PDRMASK) == 0, ("pmap_enter: va unaligned"));
 		KASSERT(m->psind > 0, ("pmap_enter: m->psind < psind"));
 		rv = pmap_enter_pde(pmap, va, newpte | PG_PS, flags, m);
@@ -4555,7 +4555,7 @@ __CONCAT(PMTYPE, zero_page_area)(vm_page_t m, int off, int size)
 	*cmap_pte2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M |
 	    pmap_cache_bits(kernel_pmap, m->md.pat_mode, 0);
 	invlcaddr(pc->pc_cmap_addr2);
-	if (off == 0 && size == PAGE_SIZE) 
+	if (off == 0 && size == PAGE_SIZE)
 		pagezero(pc->pc_cmap_addr2);
 	else
 		bzero(pc->pc_cmap_addr2 + off, size);
@@ -4575,7 +4575,7 @@ __CONCAT(PMTYPE, copy_page)(vm_page_t src, vm_page_t dst)
 
 	sched_pin();
 	pc = get_pcpu();
-	cmap_pte1 = pc->pc_cmap_pte1; 
+	cmap_pte1 = pc->pc_cmap_pte1;
 	cmap_pte2 = pc->pc_cmap_pte2;
 	mtx_lock(&pc->pc_cmap_lock);
 	if (*cmap_pte1)
@@ -4608,7 +4608,7 @@ __CONCAT(PMTYPE, copy_pages)(vm_page_t ma[], vm_offset_t a_offset,
 
 	sched_pin();
 	pc = get_pcpu();
-	cmap_pte1 = pc->pc_cmap_pte1; 
+	cmap_pte1 = pc->pc_cmap_pte1;
 	cmap_pte2 = pc->pc_cmap_pte2;
 	mtx_lock(&pc->pc_cmap_lock);
 	if (*cmap_pte1 != 0)
@@ -5386,7 +5386,7 @@ small_mappings:
 			/*
 			 * Regardless of whether a pte is 32 or 64 bits
 			 * in size, PG_M is among the least significant
-			 * 32 bits. 
+			 * 32 bits.
 			 */
 			atomic_clear_int((u_int *)pte, PG_M);
 			pmap_invalidate_page_int(pmap, pv->pv_va);
@@ -5556,7 +5556,7 @@ __CONCAT(PMTYPE, page_set_memattr)(vm_page_t m, vm_memattr_t ma)
 	 * First, try to find an existing mapping of the page by sf
 	 * buffer. sf_buf_invalidate_cache() modifies mapping and
 	 * flushes the cache.
-	 */    
+	 */
 	if (sf_buf_invalidate_cache(m))
 		return;
 
@@ -5582,7 +5582,7 @@ __CONCAT(PMTYPE, flush_page)(vm_page_t m)
 	if (useclflushopt || (cpu_feature & CPUID_CLFSH) != 0) {
 		sched_pin();
 		pc = get_pcpu();
-		cmap_pte2 = pc->pc_cmap_pte2; 
+		cmap_pte2 = pc->pc_cmap_pte2;
 		mtx_lock(&pc->pc_cmap_lock);
 		if (*cmap_pte2)
 			panic("pmap_flush_page: CMAP2 busy");

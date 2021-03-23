@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -124,7 +124,7 @@ int	perfmon_reset(int);
 #define	PMC6_DCU_M_LINES_OUT	0x47
 #define	PMC6_DCU_MISS_OUTSTANDING 0x48
 
-/* Instruction Fetch Unit */ 
+/* Instruction Fetch Unit */
 #define	PMC6_IFU_IFETCH		0x80
 #define	PMC6_IFU_IFETCH_MISS	0x81
 #define	PMC6_ITLB_MISS		0x85

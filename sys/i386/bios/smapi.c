@@ -90,7 +90,7 @@ static int	smapi_probe(device_t);
 static int	smapi_attach(device_t);
 static int	smapi_detach(device_t);
 static int	smapi_modevent(module_t, int, void *);
-                
+
 static int	smapi_header_cksum(struct smapi_bios_header *);
 
 extern int	smapi32(struct smapi_bios_parameter *,
@@ -106,7 +106,7 @@ smapi_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 	int error;
 
 	error = 0;
-	sc = devclass_get_softc(smapi_devclass, dev2unit(dev)); 
+	sc = devclass_get_softc(smapi_devclass, dev2unit(dev));
         if (sc == NULL) {
                 error = ENXIO;
                 goto fail;
@@ -115,7 +115,7 @@ smapi_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 	switch (cmd) {
 	case SMAPIOGHEADER:
 		bcopy((caddr_t)sc->header, data,
-				sizeof(struct smapi_bios_header)); 
+				sizeof(struct smapi_bios_header));
 		error = 0;
 		break;
 	case SMAPIOCGFUNCTION:
@@ -141,7 +141,7 @@ smapi_header_cksum (struct smapi_bios_header *header)
 	ptr = (u_int8_t *)header;
 	cksum = 0;
 	for (i = 0; i < header->length; i++) {
-		cksum += ptr[i];	
+		cksum += ptr[i];
 	}
 
 	return (cksum);

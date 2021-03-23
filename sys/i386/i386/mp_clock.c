@@ -26,7 +26,7 @@ __FBSDID("$FreeBSD$");
  * ]   timer specification is violated due to erroneous reads.  Implication:
  * ]   System hangs due to the "inaccuracy" of the timer when used by
  * ]   software for time critical events and delays.
- * ] 
+ * ]
  * ] Workaround: Read the register twice and compare.
  * ] Status: This will not be fixed in the PIIX4 or PIIX4E.
  *

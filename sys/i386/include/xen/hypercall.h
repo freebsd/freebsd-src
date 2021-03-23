@@ -1,23 +1,23 @@
 /******************************************************************************
  * hypercall.h
- * 
+ *
  * Linux-specific hypervisor handling.
- * 
+ *
  * Copyright (c) 2002-2004, K A Fraser
- * 
+ *
  * This file may be distributed separately from the Linux kernel, or
  * incorporated into other software packages, subject to the following license:
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this source file (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use, copy, modify,
  * merge, publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -115,7 +115,7 @@ extern char *hypercall_page;
                 "5" ((long)(a5))                                \
                 : "memory" );                                   \
         (type)__res;                                            \
-})								
+})
 
 static inline long
 privcmd_hypercall(long op, long a1, long a2, long a3, long a4, long a5)
@@ -187,7 +187,7 @@ HYPERVISOR_fpu_taskswitch(
 	return _hypercall1(int, fpu_taskswitch, set);
 }
 
-static inline int 
+static inline int
 HYPERVISOR_sched_op_compat(
 	int cmd, unsigned long arg)
 {
@@ -362,7 +362,7 @@ HYPERVISOR_suspend(
 	if (rc == -ENOXENSYS)
 		rc = _hypercall3(int, sched_op_compat, SCHEDOP_shutdown,
 				 SHUTDOWN_suspend, srec);
-#endif	
+#endif
 	return (rc);
 }
 

@@ -94,7 +94,7 @@ static void	pciereg_cfgwrite(int bus, unsigned slot, unsigned func,
  * apparently undocumented anywhere.  Assume these are completely bogus
  * and map them to 255, which means "none".
  */
-static __inline int 
+static __inline int
 pci_i386_map_intline(int line)
 {
 	if (line == 0 || line >= 128)
@@ -123,8 +123,8 @@ pcibios_get_version(void)
 	return (args.ebx & 0xffff);
 }
 
-/* 
- * Initialise access to PCI configuration space 
+/*
+ * Initialise access to PCI configuration space
  */
 int
 pci_cfgregopen(void)
@@ -164,7 +164,7 @@ pci_docfgregread(int bus, int slot, int func, int reg, int bytes)
 		return (pcireg_cfgread(bus, slot, func, reg, bytes));
 }
 
-/* 
+/*
  * Read configuration space register
  */
 u_int32_t
@@ -184,8 +184,8 @@ pci_cfgregread(int bus, int slot, int func, int reg, int bytes)
 	return (pci_docfgregread(bus, slot, func, reg, bytes));
 }
 
-/* 
- * Write configuration space register 
+/*
+ * Write configuration space register
  */
 void
 pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
@@ -199,7 +199,7 @@ pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
 		pcireg_cfgwrite(bus, slot, func, reg, data, bytes);
 }
 
-/* 
+/*
  * Configuration space access using direct register operations
  */
 
@@ -220,7 +220,7 @@ pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 		case CFGMECH_PCIE:
 		case CFGMECH_1:
 			outl(CONF1_ADDR_PORT, (1U << 31)
-			    | (bus << 16) | (slot << 11) 
+			    | (bus << 16) | (slot << 11)
 			    | (func << 8) | (reg & ~0x03));
 			dataport = CONF1_DATA_PORT + (reg & 0x03);
 			break;
@@ -313,11 +313,11 @@ pci_cfgcheck(int maxdev)
 	uint8_t device;
 	int port;
 
-	if (bootverbose) 
+	if (bootverbose)
 		printf("pci_cfgcheck:\tdevice ");
 
 	for (device = 0; device < maxdev; device++) {
-		if (bootverbose) 
+		if (bootverbose)
 			printf("%d ", device);
 
 		port = pci_cfgenable(0, device, 0, 0, 4);
@@ -345,7 +345,7 @@ pci_cfgcheck(int maxdev)
 		pci_cfgdisable();
 		return (1);
 	}
-	if (bootverbose) 
+	if (bootverbose)
 		printf("-- nothing found\n");
 
 	pci_cfgdisable();
@@ -379,7 +379,7 @@ pcireg_cfgopen(void)
 		    CONF1_ENABLE_CHK);
 
 	if (mode1res) {
-		if (pci_cfgcheck(32)) 
+		if (pci_cfgcheck(32))
 			return (cfgmech);
 	}
 
@@ -392,7 +392,7 @@ pcireg_cfgopen(void)
 		    CONF1_ENABLE_CHK1);
 
 	if ((mode1res & CONF1_ENABLE_MSK1) == CONF1_ENABLE_RES1) {
-		if (pci_cfgcheck(32)) 
+		if (pci_cfgcheck(32))
 			return (cfgmech);
 	}
 
@@ -413,14 +413,14 @@ pcireg_cfgopen(void)
 		outb(CONF2_ENABLE_PORT, oldval2);
 
 		if (bootverbose)
-			printf("pci_open(2a):\tmode2res=0x%02x (0x%02x)\n", 
+			printf("pci_open(2a):\tmode2res=0x%02x (0x%02x)\n",
 			    mode2res, CONF2_ENABLE_CHK);
 
 		if (mode2res == CONF2_ENABLE_RES) {
 			if (bootverbose)
 				printf("pci_open(2a):\tnow trying mechanism 2\n");
 
-			if (pci_cfgcheck(16)) 
+			if (pci_cfgcheck(16))
 				return (cfgmech);
 		}
 	}
@@ -456,7 +456,7 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 			    (uintmax_t)base);
 		return (0);
 	}
-		
+
 	if (bootverbose)
 		printf("PCIe: Memory Mapped configuration base @ 0x%jx\n",
 		    (uintmax_t)base);

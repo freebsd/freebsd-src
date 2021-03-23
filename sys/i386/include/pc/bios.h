@@ -32,10 +32,10 @@
 #ifndef _MACHINE_PC_BIOS_H_
 #define _MACHINE_PC_BIOS_H_
 
-/* 
- * Signature structure for the BIOS32 Service Directory header 
+/*
+ * Signature structure for the BIOS32 Service Directory header
  */
-struct bios32_SDheader 
+struct bios32_SDheader
 {
     u_int8_t	sig[4];
     u_int32_t	entry;
@@ -45,10 +45,10 @@ struct bios32_SDheader
     u_int8_t	pad[5];
 };
 
-/* 
+/*
  * PnP BIOS presence structure
  */
-struct PnPBIOS_table 
+struct PnPBIOS_table
 {
     u_int8_t	sig[4];			/* "$PnP */
     u_int8_t	version;		/* should be 0x10 */
@@ -161,11 +161,11 @@ struct PnPBIOS_table
  * PCI interrupt routing table.
  *
  * $PIR in the BIOS segment contains a PIR_table
- * int 1a:b106 returns PIR_table in buffer at es:(e)di 
- * int 1a:b18e returns PIR_table in buffer at es:(e)di 
+ * int 1a:b106 returns PIR_table in buffer at es:(e)di
+ * int 1a:b18e returns PIR_table in buffer at es:(e)di
  * int 1a:b406 returns es:di pointing to the BIOS PIR_table
  */
-struct PIR_header 
+struct PIR_header
 {
     int8_t	ph_signature[4];
     u_int16_t	ph_version;
@@ -180,7 +180,7 @@ struct PIR_header
     u_int8_t	ph_checksum;
 } __packed;
 
-struct PIR_intpin 
+struct PIR_intpin
 {
     u_int8_t	link;
     u_int16_t	irqs;
@@ -196,7 +196,7 @@ struct PIR_entry
     u_int8_t	pe_res3;
 } __packed;
 
-struct PIR_table 
+struct PIR_table
 {
     struct PIR_header	pt_header;
     struct PIR_entry	pt_entry[0];
@@ -287,13 +287,13 @@ struct bios_args {
 	struct	bios_segments seg;
 };
 
-/* 
+/*
  * BIOS32 Service Directory entry.  Caller supplies name, bios32_SDlookup
  * fills in the rest of the details.
  */
-struct bios32_SDentry 
+struct bios32_SDentry
 {
-    union 
+    union
     {
 	u_int8_t	name[4];	/* service identifier */
 	u_int32_t	id;		/* as a 32-bit value */
@@ -305,7 +305,7 @@ struct bios32_SDentry
 };
 
 /*
- * Exported lookup results 
+ * Exported lookup results
  */
 extern struct bios32_SDentry	PCIbios;
 

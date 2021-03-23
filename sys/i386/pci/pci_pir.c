@@ -159,7 +159,7 @@ pci_pir_open(void)
 	/* Ok, we've got a valid table. */
 	pci_route_table = pt;
 	pci_route_count = (pt->pt_header.ph_length -
-	    sizeof(struct PIR_header)) / 
+	    sizeof(struct PIR_header)) /
 	    sizeof(struct PIR_entry);
 }
 
@@ -359,7 +359,7 @@ pci_pir_initial_irqs(struct PIR_entry *entry, struct PIR_intpin *intpin,
 		    pci_link->pl_id);
 	} else if (!pci_pir_valid_irq(pci_link, pci_link->pl_irq)) {
 		printf(
-"$PIR: Preferring valid BIOS IRQ %d from %d.%d.INT%c for link %#x to IRQ %d\n", 
+"$PIR: Preferring valid BIOS IRQ %d from %d.%d.INT%c for link %#x to IRQ %d\n",
 		    irq, entry->pe_bus, entry->pe_device, pin + 'A',
 		    pci_link->pl_id, pci_link->pl_irq);
 		pci_link->pl_irq = irq;

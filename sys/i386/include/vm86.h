@@ -135,7 +135,7 @@ struct vm86_kernel {
 struct vm86_init_args {
         int     debug;                  /* debug flag */
         int     cpu_type;               /* cpu type to emulate */
-        u_char  int_map[32];            /* interrupt map */ 
+        u_char  int_map[32];            /* interrupt map */
 };
 
 struct vm86_vme_args {

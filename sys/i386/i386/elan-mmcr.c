@@ -170,7 +170,7 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 		else
 #endif
 		if (buf[i] != 'l' && buf[i] != 'L' && led_dev[i] != NULL) {
-			led_destroy(led_dev[i]);	
+			led_destroy(led_dev[i]);
 			led_dev[i] = NULL;
 			mmcrptr[(0xc2a + v) / 2] &= ~u;
 		}
@@ -318,7 +318,7 @@ sysctl_machdep_elan_freq(SYSCTL_HANDLER_ARGS)
 
 	f = elan_timecounter.tc_frequency * 4;
 	error = sysctl_handle_int(oidp, &f, 0, req);
-	if (error == 0 && req->newptr != NULL) 
+	if (error == 0 && req->newptr != NULL)
 		elan_timecounter.tc_frequency = (f + 3) / 4;
 	return (error);
 }
@@ -349,7 +349,7 @@ init_AMD_Elan_sc520(void)
 	 */
 
 	new = 1189161;
-	i = kernel_sysctlbyname(&thread0, "machdep.i8254_freq", 
+	i = kernel_sysctlbyname(&thread0, "machdep.i8254_freq",
 	    NULL, 0, &new, sizeof new, NULL, 0);
 	if (bootverbose || 1)
 		printf("sysctl machdep.i8254_freq=%d returns %d\n", new, i);
@@ -426,7 +426,7 @@ elan_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
     int nprot, vm_memattr_t *memattr)
 {
 
-	if (offset >= 0x1000) 
+	if (offset >= 0x1000)
 		return (-1);
 	*paddr = 0xfffef000;
 	return (0);
@@ -478,7 +478,7 @@ elan_drvinit(void)
 	if (mmcrptr == NULL)
 		return;
 
-	printf("Elan-mmcr driver: MMCR at %p.%s\n", 
+	printf("Elan-mmcr driver: MMCR at %p.%s\n",
 	    mmcrptr,
 #ifdef CPU_ELAN_PPS
 	    " PPS support."

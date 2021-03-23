@@ -442,9 +442,9 @@ vm86_initialize_pae(void)
 	 * Below is the memory layout that we use for the vm86 region.
 	 *
 	 * +--------+
-	 * |        | 
 	 * |        |
-	 * | page 0 |       
+	 * |        |
+	 * | page 0 |
 	 * |        | +--------+
 	 * |        | | stack  |
 	 * +--------+ +--------+ <--------- vm86paddr
@@ -460,7 +460,7 @@ vm86_initialize_pae(void)
 	 * +--------+ | bitmap |
 	 * | page 3 | |        |
 	 * |        | +--------+
-	 * +--------+ 
+	 * +--------+
 	 */
 
 	/*
@@ -668,7 +668,7 @@ vm86_prepcall(struct vm86frame *vmf)
 	vmf->vmf_eflags = PSL_VIF | PSL_VM | PSL_USER;
 
 	vm86 = &curpcb->pcb_ext->ext_vm86;
-	if (!vm86->vm86_has_vme) 
+	if (!vm86->vm86_has_vme)
 		vm86->vm86_eflags = vmf->vmf_eflags;  /* save VIF, VIP */
 }
 
@@ -721,7 +721,7 @@ vm86_intcall(int intnum, struct vm86frame *vmf)
  * struct vm86context contains the page table to use when making
  * vm86 calls.  If intnum is a valid interrupt number (0-255), then
  * the "interrupt trampoline" will be used, otherwise we use the
- * caller's cs:ip routine.  
+ * caller's cs:ip routine.
  */
 int
 vm86_datacall(int intnum, struct vm86frame *vmf, struct vm86context *vmc)

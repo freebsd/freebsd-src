@@ -84,11 +84,11 @@ bios32_init(void *junk)
     u_int8_t			ck, *cv;
     int				i;
     char			*p;
-    
+
     /*
      * BIOS32 Service Directory, PCI BIOS
      */
-    
+
     /* look for the signature */
     if ((sigaddr = bios_sigsearch(0, "_32_", 4, 16, 0)) != 0) {
 	/* get a virtual pointer to the structure */
@@ -102,7 +102,7 @@ bios32_init(void *junk)
 	    bios32_SDCI = BIOS_PADDRTOVADDR(sdh->entry);
 	    if (bootverbose) {
 		printf("bios32: Found BIOS32 Service Directory header at %p\n", sdh);
-		printf("bios32: Entry = 0x%x (%x)  Rev = %d  Len = %d\n", 
+		printf("bios32: Entry = 0x%x (%x)  Rev = %d  Len = %d\n",
 		       sdh->entry, bios32_SDCI, sdh->revision, sdh->len);
 	    }
 
@@ -137,13 +137,13 @@ bios32_init(void *junk)
 	    PnPBIOStable = pt;
 	    if (bootverbose) {
 		printf("pnpbios: Found PnP BIOS data at %p\n", pt);
-		printf("pnpbios: Entry = %x:%x  Rev = %d.%d\n", 
+		printf("pnpbios: Entry = %x:%x  Rev = %d.%d\n",
 		       pt->pmentrybase, pt->pmentryoffset, pt->version >> 4, pt->version & 0xf);
 		if ((pt->control & 0x3) == 0x01)
 		    printf("pnpbios: Event flag at %x\n", pt->evflagaddr);
 		if (pt->oemdevid != 0)
 		    printf("pnpbios: OEM ID %x\n", pt->oemdevid);
-		
+
 	    }
 	} else {
 	    printf("pnpbios: Bad PnP BIOS data checksum\n");
@@ -190,7 +190,7 @@ bios32_SDlookup(struct bios32_SDentry *ent)
  *
  * Search some or all of the BIOS region for a signature string.
  *
- * (start)	Optional offset returned from this function 
+ * (start)	Optional offset returned from this function
  *		(for searching for multiple matches), or NULL
  *		to start the search from the base of the BIOS.
  *		Note that this will be a _physical_ address in
@@ -208,7 +208,7 @@ u_int32_t
 bios_sigsearch(u_int32_t start, u_char *sig, int siglen, int paralen, int sigofs)
 {
     u_char	*sp, *end;
-    
+
     /* compute the starting address */
     if ((start >= BIOS_START) && (start <= (BIOS_START + BIOS_SIZE))) {
 	sp = (char *)BIOS_PADDRTOVADDR(start);
@@ -330,8 +330,8 @@ bios16(struct bios_args *args, char *fmt, ...)
 
     /*
      * Some BIOS entrypoints attempt to copy the largest-case
-     * argument frame (in order to generalise handling for 
-     * different entry types).  If our argument frame is 
+     * argument frame (in order to generalise handling for
+     * different entry types).  If our argument frame is
      * smaller than this, the BIOS will reach off the top of
      * our constructed stack segment.  Pad the top of the stack
      * with some garbage to avoid this.
@@ -361,7 +361,7 @@ bios16(struct bios_args *args, char *fmt, ...)
 	case 'C':			/* 16-bit selector */
 	    stack -= 2;
 	    break;
-	    
+
 	case 's':			/* 16-bit integer passed as an int */
 	    i = va_arg(ap, int);
 	    stack -= 2;
@@ -382,7 +382,7 @@ bios16(struct bios_args *args, char *fmt, ...)
     }
 
     args->seg.code32.base = pmap_pg_frame((u_int)&bios16_jmp);
-    args->seg.code32.limit = 0xffff;	
+    args->seg.code32.limit = 0xffff;
 
     bios16_pmap_handle = pmap_bios16_enter();
 
@@ -524,7 +524,7 @@ bios_oem_strings(struct bios_oem *oem, u_char *buffer, size_t maxlen)
  * BIOS and save information about them for later use.
  */
 
-struct pnp_sysdev 
+struct pnp_sysdev
 {
     u_int16_t	size;
     u_int8_t	handle;
@@ -578,14 +578,14 @@ pnpbios_identify(driver_t *driver, device_t parent)
     u_int32_t			*devid, *compid;
     int				idx, left;
     device_t			dev;
-        
+
     /* no PnP BIOS information */
     if (pt == NULL)
 	return;
 
     /* Check to see if ACPI is already active. */
     dev = devclass_get_device(devclass_find("acpi"), 0);
-    if (dev != NULL && device_is_attached(dev)) 
+    if (dev != NULL && device_is_attached(dev))
 	return;
 
     /* get count of PnP devices */
@@ -595,7 +595,7 @@ pnpbios_identify(driver_t *driver, device_t parent)
     args.seg.data.base = BIOS_PADDRTOVADDR(pt->pmdataseg);
     args.seg.data.limit = 0xffff;
     args.entry = pt->pmentryoffset;
-    
+
     if ((error = bios16(&args, PNP_COUNT_DEVNODES, &ndevs, &bigdev)) || (args.r.eax & 0xff)) {
 	printf("pnpbios: error %d/%x getting device count/size limit\n", error, args.r.eax);
 	return;
@@ -624,7 +624,7 @@ pnpbios_identify(driver_t *driver, device_t parent)
 	if ((error = (args.r.eax & 0xff))) {
 	    if (bootverbose)
 		printf("pnpbios: %s 0x%x fetching node %d\n", error & 0x80 ? "error" : "warning", error, currdev);
-	    if (error & 0x80) 
+	    if (error & 0x80)
 		break;
 	}
 	currdev = pda->next;
@@ -653,14 +653,14 @@ pnpbios_identify(driver_t *driver, device_t parent)
 	 * mark all system device nodes as "cannot be disabled", regardless
 	 * of actual settings in the device attribute byte.
 	 * XXX
-	isa_set_configattr(dev, 
+	isa_set_configattr(dev,
 	    ((pd->attrib & PNPATTR_NODISABLE) ?  0 : ISACFGATTR_CANDISABLE) |
-	    ((!(pd->attrib & PNPATTR_NOCONFIG) && 
+	    ((!(pd->attrib & PNPATTR_NOCONFIG) &&
 		PNPATTR_CONFIG(pd->attrib) != PNPATTR_CONFIG_STATIC)
 		? ISACFGATTR_DYNAMIC : 0));
 	 */
-	isa_set_configattr(dev, 
-	    (!(pd->attrib & PNPATTR_NOCONFIG) && 
+	isa_set_configattr(dev,
+	    (!(pd->attrib & PNPATTR_NOCONFIG) &&
 		PNPATTR_CONFIG(pd->attrib) != PNPATTR_CONFIG_STATIC)
 		? ISACFGATTR_DYNAMIC : 0);
 	isa_set_pnpbios_handle(dev, pd->handle);
@@ -699,7 +699,7 @@ pnpbios_identify(driver_t *driver, device_t parent)
 		idx += *(u_int16_t *)(pd->devdata + idx) + 2;
 	}
 	if (bootverbose) {
-	    printf("pnpbios: handle %d device ID %s (%08x)", 
+	    printf("pnpbios: handle %d device ID %s (%08x)",
 		   pd->handle, pnp_eisaformat(*devid), *devid);
 	    if (compid != NULL)
 		printf(" compat ID %s (%08x)",

@@ -389,7 +389,7 @@ user_trctrap_out:
 			if (pf == -2) {
 				/*
 				 * The f00f hack workaround has triggered, so
-				 * treat the fault as an illegal instruction 
+				 * treat the fault as an illegal instruction
 				 * (T_PRIVINFLT) instead of a page fault.
 				 */
 				type = frame->tf_trapno = T_PRIVINFLT;
@@ -526,11 +526,11 @@ user_trctrap_out:
 			 */
 			if (frame->tf_eip == (int)cpu_switch_load_gs) {
 				curpcb->pcb_gs = 0;
-#if 0				
+#if 0
 				PROC_LOCK(p);
 				kern_psignal(p, SIGBUS);
 				PROC_UNLOCK(p);
-#endif				
+#endif
 				return;
 			}
 
@@ -752,7 +752,7 @@ trap_pfault(struct trapframe *frame, bool usermode, vm_offset_t eva,
 		 * Due to both processor errata and lazy TLB invalidation when
 		 * access restrictions are removed from virtual pages, memory
 		 * accesses that are allowed by the physical mapping layer may
-		 * nonetheless cause one spurious page fault per virtual page. 
+		 * nonetheless cause one spurious page fault per virtual page.
 		 * When the thread is executing a "no faulting" section that
 		 * is bracketed by vm_fault_{disable,enable}_pagefaults(),
 		 * every page fault is treated as a spurious page fault,
@@ -1095,7 +1095,7 @@ cpu_fetch_syscall_args(struct thread *td)
 		td->td_retval[0] = 0;
 		td->td_retval[1] = frame->tf_edx;
 	}
-		
+
 	return (error);
 }
 

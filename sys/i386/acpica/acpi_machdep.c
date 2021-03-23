@@ -98,7 +98,7 @@ acpi_machdep_quirks(int *quirks)
 	sscanf(va + 11, "%2d", &year);
 	pmap_unmapbios((vm_offset_t)va, 16);
 
-	/* 
+	/*
 	 * Date must be >= 1/1/1999 or we don't trust ACPI.  Note that this
 	 * check must be changed by my 114th birthday.
 	 */

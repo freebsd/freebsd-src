@@ -235,7 +235,7 @@ cs5536_watchdog(void *foo __unused, u_int cmd, int *error)
 
 		*error = 0;
 	} else {
-		/* 
+		/*
 		 * MFGPT_SETUP is write-once
 		 * Check if the counter has been setup
 		 */

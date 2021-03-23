@@ -502,7 +502,7 @@ npxinitstate(void *arg __unused)
 		fpusave_fnsave(npx_initialstate);
 	if (cpu_fxsr) {
 		if (npx_initialstate->sv_xmm.sv_env.en_mxcsr_mask)
-			cpu_mxcsr_mask = 
+			cpu_mxcsr_mask =
 			    npx_initialstate->sv_xmm.sv_env.en_mxcsr_mask;
 		else
 			cpu_mxcsr_mask = 0xFFBF;
@@ -597,11 +597,11 @@ npxformat(void)
 	return (_MC_FPFMT_387);
 }
 
-/* 
+/*
  * The following mechanism is used to ensure that the FPE_... value
  * that is passed as a trapcode to the signal handler of the user
  * process does not have more than one bit set.
- * 
+ *
  * Multiple bits may be set if the user process modifies the control
  * word while a status word bit is already set.  While this is a sign
  * of bad coding, we have no choise than to narrow them down to one
@@ -635,7 +635,7 @@ npxformat(void)
  *      (FP_X_INV, FP_X_DZ)
  * 4  Denormal operand (FP_X_DNML)
  * 5  Numeric over/underflow (FP_X_OFL, FP_X_UFL)
- * 6  Inexact result (FP_X_IMP) 
+ * 6  Inexact result (FP_X_IMP)
  */
 static char fpetable[128] = {
 	0,

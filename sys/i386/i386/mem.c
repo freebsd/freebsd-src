@@ -115,22 +115,22 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 		} else {
 			/*
 			 * Extract the physical page since the mapping may
-			 * change at any time. This avoids panics on page 
+			 * change at any time. This avoids panics on page
 			 * fault in this case but will cause reading/writing
 			 * to the wrong page.
 			 * Hopefully an application will notice the wrong
 			 * data on read access and refrain from writing.
 			 * This should be replaced by a special uiomove
 			 * type function that just returns an error if there
-			 * is a page fault on a kernel page. 
+			 * is a page fault on a kernel page.
 			 */
 			addr = trunc_page(uio->uio_offset);
 			pa = pmap_extract(kernel_pmap, addr);
-			if (pa == 0) 
+			if (pa == 0)
 				return EFAULT;
 		}
-		
-		/* 
+
+		/*
 		 * XXX UPS This should just use sf_buf_alloc.
 		 * Unfortunately sf_buf_alloc needs a vm_page
 		 * and we may want to look at memory not covered
@@ -176,7 +176,7 @@ memmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
  * This is basically just an ioctl shim for mem_range_attr_get
  * and mem_range_attr_set.
  */
-int 
+int
 memioctl_md(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
     struct thread *td)
 {
@@ -206,7 +206,7 @@ memioctl_md(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
 				       M_MEMDESC, M_WAITOK);
 			error = mem_range_attr_get(md, &nd);
 			if (!error)
-				error = copyout(md, mo->mo_desc, 
+				error = copyout(md, mo->mo_desc,
 					nd * sizeof(struct mem_range_desc));
 			free(md, M_MEMDESC);
 		}
@@ -214,7 +214,7 @@ memioctl_md(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
 			nd = mem_range_softc.mr_ndesc;
 		mo->mo_arg[0] = nd;
 		break;
-		
+
 	case MEMRANGE_SET:
 		md = (struct mem_range_desc *)malloc(sizeof(struct mem_range_desc),
 						    M_MEMDESC, M_WAITOK);

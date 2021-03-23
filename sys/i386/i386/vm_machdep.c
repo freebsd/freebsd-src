@@ -354,7 +354,7 @@ cpu_thread_clean(struct thread *td)
 {
 	struct pcb *pcb;
 
-	pcb = td->td_pcb; 
+	pcb = td->td_pcb;
 	if (pcb->pcb_ext != NULL) {
 		/* if (pcb->pcb_ext->ext_refcount-- == 1) ?? */
 		/*
@@ -385,7 +385,7 @@ cpu_thread_alloc(struct thread *td)
 	td->td_pcb = pcb = get_pcb_td(td);
 	td->td_frame = (struct trapframe *)((caddr_t)pcb -
 	    VM86_STACK_SPACE) - 1;
-	pcb->pcb_ext = NULL; 
+	pcb->pcb_ext = NULL;
 	pcb->pcb_save = get_pcb_user_save_pcb(pcb);
 	if (use_xsave) {
 		xhdr = (struct xstate_hdr *)(pcb->pcb_save + 1);
@@ -483,7 +483,7 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
     stack_t *stack)
 {
 
-	/* 
+	/*
 	 * Do any extra cleaning that needs to be done.
 	 * The thread may have optional components
 	 * that are not present in a fresh thread.
@@ -496,7 +496,7 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 	 * Set the trap frame to point at the beginning of the entry
 	 * function.
 	 */
-	td->td_frame->tf_ebp = 0; 
+	td->td_frame->tf_ebp = 0;
 	td->td_frame->tf_esp =
 	    (((int)stack->ss_sp + stack->ss_size - 4) & ~0x0f) - 4;
 	td->td_frame->tf_eip = (int)entry;
@@ -641,10 +641,10 @@ sf_buf_invalidate_cache(vm_page_t m)
 
 /*
  * Software interrupt handler for queued VM system processing.
- */   
-void  
-swi_vm(void *dummy) 
-{     
+ */
+void
+swi_vm(void *dummy)
+{
 	if (busdma_swi_pending != 0)
 		busdma_swi();
 }

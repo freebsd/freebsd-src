@@ -1149,7 +1149,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 	    elf32_freebsd_sysvec.sv_psstrings)
 		setup_priv_lcall_gate(td->td_proc);
 #endif
-  
+
 	/*
 	 * Reset the fs and gs bases.  The values from the old address
 	 * space do not make sense for the new program.  In particular,
@@ -1176,7 +1176,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 
         /*
          * Reset the hardware debug registers if they were in use.
-         * They won't have any meaning for the newly exec'd process.  
+         * They won't have any meaning for the newly exec'd process.
          */
         if (pcb->pcb_flags & PCB_DBREGS) {
                 pcb->pcb_dr0 = 0;
@@ -1620,7 +1620,7 @@ DB_SHOW_COMMAND(dbregs, db_show_dbregs)
 	db_printf("dr2\t0x%08x\n", rdr2());
 	db_printf("dr3\t0x%08x\n", rdr3());
 	db_printf("dr6\t0x%08x\n", rdr6());
-	db_printf("dr7\t0x%08x\n", rdr7());	
+	db_printf("dr7\t0x%08x\n", rdr7());
 }
 
 DB_SHOW_COMMAND(frame, db_show_frame)
@@ -1965,7 +1965,7 @@ physmap_done:
 	/*
 	 * Maxmem isn't the "maximum memory", it's one larger than the
 	 * highest page of the physical address space.  It should be
-	 * called something like "Maxphyspage".  We may adjust this 
+	 * called something like "Maxphyspage".  We may adjust this
 	 * based on ``hw.physmem'' and the results of the memory test.
 	 *
 	 * This is especially confusing when it is much larger than the
@@ -2006,7 +2006,7 @@ physmap_done:
 	/*
 	 * If Maxmem has been increased beyond what the system has detected,
 	 * extend the last memory segment to the new limit.
-	 */ 
+	 */
 	if (atop(physmap[physmap_idx + 1]) < Maxmem)
 		physmap[physmap_idx + 1] = ptoa((vm_paddr_t)Maxmem);
 
@@ -3108,9 +3108,9 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 			if (DBREG_DR7_LEN(dbregs->dr[7], i) == 0x02)
 				return (EINVAL);
 		}
-		
+
 		pcb = td->td_pcb;
-		
+
 		/*
 		 * Don't let a process set a breakpoint that is not within the
 		 * process's address space.  If a process could do this, it
@@ -3130,19 +3130,19 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 			if (dbregs->dr[0] >= VM_MAXUSER_ADDRESS)
 				return (EINVAL);
 		}
-			
+
 		if (DBREG_DR7_ENABLED(dbregs->dr[7], 1)) {
 			/* dr1 is enabled */
 			if (dbregs->dr[1] >= VM_MAXUSER_ADDRESS)
 				return (EINVAL);
 		}
-			
+
 		if (DBREG_DR7_ENABLED(dbregs->dr[7], 2)) {
 			/* dr2 is enabled */
 			if (dbregs->dr[2] >= VM_MAXUSER_ADDRESS)
 				return (EINVAL);
 		}
-			
+
 		if (DBREG_DR7_ENABLED(dbregs->dr[7], 3)) {
 			/* dr3 is enabled */
 			if (dbregs->dr[3] >= VM_MAXUSER_ADDRESS)
