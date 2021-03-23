@@ -37,7 +37,7 @@
  */
 typedef enum {
 	CAM_DEBUG_NONE		= 0x00, /* no debugging */
-	CAM_DEBUG_INFO		= 0x01,	/* scsi commands, errors, data */ 
+	CAM_DEBUG_INFO		= 0x01,	/* scsi commands, errors, data */
 	CAM_DEBUG_TRACE		= 0x02,	/* routine flow tracking */
 	CAM_DEBUG_SUBTRACE	= 0x04,	/* internal to routine flows */
 	CAM_DEBUG_CDB		= 0x08, /* print out SCSI CDBs only */

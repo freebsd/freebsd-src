@@ -1687,9 +1687,9 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
 
 	if (!(bp->bio_flags & BIO_ERROR) && done_ccb != NULL) {
 		sbintime_t sim_latency;
-		
+
 		sim_latency = cam_iosched_sbintime_t(done_ccb->ccb_h.qos.periph_data);
-		
+
 		cam_iosched_io_metric_update(isc, sim_latency,
 		    bp->bio_cmd, bp->bio_bcount);
 		/*
@@ -1699,7 +1699,7 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
 		if (isc->latfcn && isc->max_lat != 0 && sim_latency > isc->max_lat)
 			isc->latfcn(isc->latarg, sim_latency, bp);
 	}
-		
+
 #endif
 	return retval;
 }

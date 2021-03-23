@@ -158,7 +158,7 @@ ctl_set_sense(struct ctl_scsiio *ctsio, int current_error, int sense_key,
 
 /*
  * Transform fixed sense data into descriptor sense data.
- * 
+ *
  * For simplicity's sake, we assume that both sense structures are
  * SSD_FULL_SIZE.  Otherwise, the logic gets more complicated.
  */
@@ -296,7 +296,7 @@ ctl_sense_to_fixed(struct scsi_sense_data_desc *sense_src,
 			cmd_ptr = cmd->command_info;
 			cmd_size = sizeof(cmd->command_info);
 
-			pos += cmd->length + 
+			pos += cmd->length +
 			    sizeof(struct scsi_sense_desc_header);
 			break;
 		}
@@ -350,7 +350,7 @@ ctl_sense_to_fixed(struct scsi_sense_data_desc *sense_src,
 			   /*asc*/ sense_src->add_sense_code,
 			   /*ascq*/ sense_src->add_sense_code_qual,
 
-			   /* Information Bytes */ 
+			   /* Information Bytes */
 			   (info_ptr != NULL) ? SSD_ELEM_INFO : SSD_ELEM_SKIP,
 			   info_size,
 			   info_ptr,

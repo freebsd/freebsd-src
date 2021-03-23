@@ -284,7 +284,7 @@ static uint64_t ctl_be_block_lun_attr(struct ctl_be_lun *cbe_lun, const char *at
 static int ctl_be_block_init(void);
 static int ctl_be_block_shutdown(void);
 
-static struct ctl_backend_driver ctl_be_block_driver = 
+static struct ctl_backend_driver ctl_be_block_driver =
 {
 	.name = "block",
 	.flags = CTL_BE_FLAG_HAS_CONFIG,
@@ -1948,7 +1948,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	/*
 	 * If the user has asked for a blocksize that is greater than the
 	 * backing device's blocksize, we can do it only if the blocksize
-	 * the user is asking for is an even multiple of the underlying 
+	 * the user is asking for is an even multiple of the underlying
 	 * device's blocksize.
 	 */
 	if ((params->blocksize_bytes != 0) &&
@@ -2306,7 +2306,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		/* Tell the user what we used for a serial number */
 		strncpy((char *)params->serial_num, tmpstr,
 			MIN(sizeof(params->serial_num), sizeof(tmpstr)));
-	} else { 
+	} else {
 		strncpy((char *)cbe_lun->serial_num, params->serial_num,
 			MIN(sizeof(cbe_lun->serial_num),
 			sizeof(params->serial_num)));

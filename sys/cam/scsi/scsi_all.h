@@ -52,9 +52,9 @@ extern int scsi_delay;
 #define	SCSI_CMD_LUN		0xA0	/* these two should not be needed */
 #define	SCSI_CMD_LUN_SHIFT	5	/* LUN in the cmd is no longer SCSI */
 
-#define	SCSI_MAX_CDBLEN		16	/* 
-					 * 16 byte commands are in the 
-					 * SCSI-3 spec 
+#define	SCSI_MAX_CDBLEN		16	/*
+					 * 16 byte commands are in the
+					 * SCSI-3 spec
 					 */
 #if defined(CAM_MAX_CDBLEN) && (CAM_MAX_CDBLEN < SCSI_MAX_CDBLEN)
 #error "CAM_MAX_CDBLEN cannot be less than SCSI_MAX_CDBLEN"
@@ -142,7 +142,7 @@ struct scsi_receive_diag {
 	uint8_t byte2;
 #define SRD_PCV		0x01
 	uint8_t page_code;
-	uint8_t length[2]; 
+	uint8_t length[2];
 	uint8_t control;
 };
 
@@ -959,7 +959,7 @@ struct scsi_sync_cache
 	u_int8_t begin_lba[4];
 	u_int8_t reserved;
 	u_int8_t lb_count[2];
-	u_int8_t control;	
+	u_int8_t control;
 };
 
 struct scsi_sync_cache_16
@@ -1109,7 +1109,7 @@ struct scsi_mam_attribute_header
 	u_int8_t id[2];
 	/*
 	 * Attributes obtained from SPC-4r36g (section 7.4.2.2) and
-	 * SSC-4r03 (section 4.2.21). 
+	 * SSC-4r03 (section 4.2.21).
 	 */
 #define	SMA_ATTR_ID_DEVICE_MIN		0x0000
 
@@ -2036,11 +2036,11 @@ struct ata_pass_16 {
 #define	AP_FLAG_TLEN_FEAT	(1 << 0)
 #define	AP_FLAG_TLEN_SECT_CNT	(2 << 0)
 #define	AP_FLAG_TLEN_STPSIU	(3 << 0)
-#define	AP_FLAG_BYT_BLOK_BYTES	(0 << 2)  
-#define	AP_FLAG_BYT_BLOK_BLOCKS	(1 << 2)  
-#define	AP_FLAG_TDIR_TO_DEV	(0 << 3)  
-#define	AP_FLAG_TDIR_FROM_DEV	(1 << 3)  
-#define	AP_FLAG_CHK_COND	(1 << 5)  
+#define	AP_FLAG_BYT_BLOK_BYTES	(0 << 2)
+#define	AP_FLAG_BYT_BLOK_BLOCKS	(1 << 2)
+#define	AP_FLAG_TDIR_TO_DEV	(0 << 3)
+#define	AP_FLAG_TDIR_FROM_DEV	(1 << 3)
+#define	AP_FLAG_CHK_COND	(1 << 5)
 	u_int8_t features_ext;
 	u_int8_t features;
 	u_int8_t sector_count_ext;
@@ -2195,9 +2195,9 @@ struct ata_pass_32 {
 #define	T_FIXED		0
 
 /*
- * This length is the initial inquiry length used by the probe code, as    
- * well as the length necessary for scsi_print_inquiry() to function 
- * correctly.  If either use requires a different length in the future, 
+ * This length is the initial inquiry length used by the probe code, as
+ * well as the length necessary for scsi_print_inquiry() to function
+ * correctly.  If either use requires a different length in the future,
  * the two values should be de-coupled.
  */
 #define	SHORT_INQUIRY_LENGTH	36
@@ -2421,7 +2421,7 @@ struct scsi_vpd_id_descriptor
 	u_int8_t	reserved;
 	u_int8_t	length;
 #define	SVPD_DEVICE_ID_DESC_HDR_LEN \
-    __offsetof(struct scsi_vpd_id_descriptor, identifier) 
+    __offsetof(struct scsi_vpd_id_descriptor, identifier)
 	u_int8_t	identifier[];
 };
 
@@ -3233,7 +3233,7 @@ struct scsi_sense_data_fixed
 #define	SSD_ERRCODE			0x7F
 #define		SSD_CURRENT_ERROR	0x70
 #define		SSD_DEFERRED_ERROR	0x71
-#define	SSD_ERRCODE_VALID	0x80	
+#define	SSD_ERRCODE_VALID	0x80
 	u_int8_t segment;
 	u_int8_t flags;
 #define	SSD_KEY				0x0F
@@ -3283,7 +3283,7 @@ struct scsi_sense_data_fixed
  * Descriptor format sense data definitions.
  * Introduced in SPC-3.
  */
-struct scsi_sense_data_desc 
+struct scsi_sense_data_desc
 {
 	uint8_t	error_code;
 #define	SSD_DESC_CURRENT_ERROR	0x72
@@ -3380,7 +3380,7 @@ struct scsi_sense_sks_field
 	uint8_t	field[2];
 };
 
-/* 
+/*
  * This is used for the Hardware Error (0x04), Medium Error (0x03) and
  * Recovered Error (0x01) sense keys.
  */
@@ -3672,7 +3672,7 @@ struct scsi_inquiry_pattern {
 	const char *vendor;
 	const char *product;
 	const char *revision;
-}; 
+};
 
 struct scsi_static_inquiry_pattern {
 	u_int8_t   type;
@@ -3853,17 +3853,17 @@ int 		scsi_vpd_supported_page(struct cam_periph *periph,
 #else /* _KERNEL */
 int		scsi_command_string(struct cam_device *device,
 				    struct ccb_scsiio *csio, struct sbuf *sb);
-int		scsi_sense_sbuf(struct cam_device *device, 
+int		scsi_sense_sbuf(struct cam_device *device,
 				struct ccb_scsiio *csio, struct sbuf *sb,
 				scsi_sense_string_flags flags);
-char *		scsi_sense_string(struct cam_device *device, 
+char *		scsi_sense_string(struct cam_device *device,
 				  struct ccb_scsiio *csio,
 				  char *str, int str_len);
-void		scsi_sense_print(struct cam_device *device, 
+void		scsi_sense_print(struct cam_device *device,
 				 struct ccb_scsiio *csio, FILE *ofile);
 #endif /* _KERNEL */
 
-const char *	scsi_op_desc(u_int16_t opcode, 
+const char *	scsi_op_desc(u_int16_t opcode,
 			     struct scsi_inquiry_data *inq_data);
 char *		scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string,
 				size_t len);
@@ -4011,13 +4011,13 @@ int scsi_attrib_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
 		     uint32_t output_flags, char *error_str, int error_str_len);
 
 void		scsi_test_unit_ready(struct ccb_scsiio *csio, u_int32_t retries,
-				     void (*cbfcnp)(struct cam_periph *, 
+				     void (*cbfcnp)(struct cam_periph *,
 						    union ccb *),
-				     u_int8_t tag_action, 
+				     u_int8_t tag_action,
 				     u_int8_t sense_len, u_int32_t timeout);
 
 void		scsi_request_sense(struct ccb_scsiio *csio, u_int32_t retries,
-				   void (*cbfcnp)(struct cam_periph *, 
+				   void (*cbfcnp)(struct cam_periph *,
 						  union ccb *),
 				   void *data_ptr, u_int8_t dxfer_len,
 				   u_int8_t tag_action, u_int8_t sense_len,
@@ -4025,7 +4025,7 @@ void		scsi_request_sense(struct ccb_scsiio *csio, u_int32_t retries,
 
 void		scsi_inquiry(struct ccb_scsiio *csio, u_int32_t retries,
 			     void (*cbfcnp)(struct cam_periph *, union ccb *),
-			     u_int8_t tag_action, u_int8_t *inq_buf, 
+			     u_int8_t tag_action, u_int8_t *inq_buf,
 			     u_int32_t inq_len, int evpd, u_int8_t page_code,
 			     u_int8_t sense_len, u_int32_t timeout);
 
@@ -4087,8 +4087,8 @@ void		scsi_prevent(struct ccb_scsiio *csio, u_int32_t retries,
 			     u_int8_t sense_len, u_int32_t timeout);
 
 void		scsi_read_capacity(struct ccb_scsiio *csio, u_int32_t retries,
-				   void (*cbfcnp)(struct cam_periph *, 
-				   union ccb *), u_int8_t tag_action, 
+				   void (*cbfcnp)(struct cam_periph *,
+				   union ccb *), u_int8_t tag_action,
 				   struct scsi_read_capacity_data *,
 				   u_int8_t sense_len, u_int32_t timeout);
 void		scsi_read_capacity_16(struct ccb_scsiio *csio, uint32_t retries,
@@ -4099,31 +4099,31 @@ void		scsi_read_capacity_16(struct ccb_scsiio *csio, uint32_t retries,
 				      uint8_t sense_len, uint32_t timeout);
 
 void		scsi_report_luns(struct ccb_scsiio *csio, u_int32_t retries,
-				 void (*cbfcnp)(struct cam_periph *, 
-				 union ccb *), u_int8_t tag_action, 
+				 void (*cbfcnp)(struct cam_periph *,
+				 union ccb *), u_int8_t tag_action,
 				 u_int8_t select_report,
 				 struct scsi_report_luns_data *rpl_buf,
 				 u_int32_t alloc_len, u_int8_t sense_len,
 				 u_int32_t timeout);
 
 void		scsi_report_target_group(struct ccb_scsiio *csio, u_int32_t retries,
-				 void (*cbfcnp)(struct cam_periph *, 
-				 union ccb *), u_int8_t tag_action, 
+				 void (*cbfcnp)(struct cam_periph *,
+				 union ccb *), u_int8_t tag_action,
 				 u_int8_t pdf,
 				 void *buf,
 				 u_int32_t alloc_len, u_int8_t sense_len,
 				 u_int32_t timeout);
 
 void		scsi_report_timestamp(struct ccb_scsiio *csio, u_int32_t retries,
-				 void (*cbfcnp)(struct cam_periph *, 
-				 union ccb *), u_int8_t tag_action, 
+				 void (*cbfcnp)(struct cam_periph *,
+				 union ccb *), u_int8_t tag_action,
 				 u_int8_t pdf,
 				 void *buf,
 				 u_int32_t alloc_len, u_int8_t sense_len,
 				 u_int32_t timeout);
 
 void		scsi_set_target_group(struct ccb_scsiio *csio, u_int32_t retries,
-				 void (*cbfcnp)(struct cam_periph *, 
+				 void (*cbfcnp)(struct cam_periph *,
 				 union ccb *), u_int8_t tag_action, void *buf,
 				 u_int32_t alloc_len, u_int8_t sense_len,
 				 u_int32_t timeout);
@@ -4132,15 +4132,15 @@ void		scsi_create_timestamp(uint8_t *timestamp_6b_buf,
 				      uint64_t timestamp);
 
 void		scsi_set_timestamp(struct ccb_scsiio *csio, u_int32_t retries,
-				   void (*cbfcnp)(struct cam_periph *, 
+				   void (*cbfcnp)(struct cam_periph *,
 				   union ccb *), u_int8_t tag_action,
 				   void *buf, u_int32_t alloc_len,
 				   u_int8_t sense_len, u_int32_t timeout);
 
-void		scsi_synchronize_cache(struct ccb_scsiio *csio, 
+void		scsi_synchronize_cache(struct ccb_scsiio *csio,
 				       u_int32_t retries,
-				       void (*cbfcnp)(struct cam_periph *, 
-				       union ccb *), u_int8_t tag_action, 
+				       void (*cbfcnp)(struct cam_periph *,
+				       union ccb *), u_int8_t tag_action,
 				       u_int32_t begin_lba, u_int16_t lb_count,
 				       u_int8_t sense_len, u_int32_t timeout);
 
@@ -4180,7 +4180,7 @@ void scsi_write_buffer(struct ccb_scsiio *csio, u_int32_t retries,
 #define	SCSI_RW_BIO	0x1000
 void scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
-		     u_int8_t tag_action, int readop, u_int8_t byte2, 
+		     u_int8_t tag_action, int readop, u_int8_t byte2,
 		     int minimum_cmd_size, u_int64_t lba,
 		     u_int32_t block_count, u_int8_t *data_ptr,
 		     u_int32_t dxfer_len, u_int8_t sense_len,
@@ -4188,7 +4188,7 @@ void scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 
 void scsi_write_same(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
-		     u_int8_t tag_action, u_int8_t byte2, 
+		     u_int8_t tag_action, u_int8_t byte2,
 		     int minimum_cmd_size, u_int64_t lba,
 		     u_int32_t block_count, u_int8_t *data_ptr,
 		     u_int32_t dxfer_len, u_int8_t sense_len,
@@ -4247,40 +4247,40 @@ void scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
 		     u_int8_t tag_action, int start, int load_eject,
 		     int immediate, u_int8_t sense_len, u_int32_t timeout);
-void scsi_read_attribute(struct ccb_scsiio *csio, u_int32_t retries, 
+void scsi_read_attribute(struct ccb_scsiio *csio, u_int32_t retries,
 			 void (*cbfcnp)(struct cam_periph *, union ccb *),
 			 u_int8_t tag_action, u_int8_t service_action,
 			 uint32_t element, u_int8_t elem_type,
 			 int logical_volume, int partition,
 			 u_int32_t first_attribute, int cache, u_int8_t *data_ptr,
 			 u_int32_t length, int sense_len, u_int32_t timeout);
-void scsi_write_attribute(struct ccb_scsiio *csio, u_int32_t retries, 
+void scsi_write_attribute(struct ccb_scsiio *csio, u_int32_t retries,
 			  void (*cbfcnp)(struct cam_periph *, union ccb *),
 			  u_int8_t tag_action, uint32_t element,
 			  int logical_volume, int partition, int wtc, u_int8_t *data_ptr,
 			  u_int32_t length, int sense_len, u_int32_t timeout);
 
-void scsi_security_protocol_in(struct ccb_scsiio *csio, uint32_t retries, 
+void scsi_security_protocol_in(struct ccb_scsiio *csio, uint32_t retries,
 			       void (*cbfcnp)(struct cam_periph *, union ccb *),
 			       uint8_t tag_action, uint32_t security_protocol,
 			       uint32_t security_protocol_specific, int byte4,
 			       uint8_t *data_ptr, uint32_t dxfer_len,
 			       int sense_len, int timeout);
 
-void scsi_security_protocol_out(struct ccb_scsiio *csio, uint32_t retries, 
+void scsi_security_protocol_out(struct ccb_scsiio *csio, uint32_t retries,
 				void (*cbfcnp)(struct cam_periph *,union ccb *),
 				uint8_t tag_action, uint32_t security_protocol,
 				uint32_t security_protocol_specific, int byte4,
 				uint8_t *data_ptr, uint32_t dxfer_len,
 				int sense_len, int timeout);
 
-void scsi_persistent_reserve_in(struct ccb_scsiio *csio, uint32_t retries, 
+void scsi_persistent_reserve_in(struct ccb_scsiio *csio, uint32_t retries,
 				void (*cbfcnp)(struct cam_periph *,union ccb *),
 				uint8_t tag_action, int service_action,
 				uint8_t *data_ptr, uint32_t dxfer_len,
 				int sense_len, int timeout);
 
-void scsi_persistent_reserve_out(struct ccb_scsiio *csio, uint32_t retries, 
+void scsi_persistent_reserve_out(struct ccb_scsiio *csio, uint32_t retries,
 				 void (*cbfcnp)(struct cam_periph *,
 				       union ccb *),
 				 uint8_t tag_action, int service_action,
@@ -4288,7 +4288,7 @@ void scsi_persistent_reserve_out(struct ccb_scsiio *csio, uint32_t retries,
 				 uint32_t dxfer_len, int sense_len,
 				 int timeout);
 
-void scsi_report_supported_opcodes(struct ccb_scsiio *csio, uint32_t retries, 
+void scsi_report_supported_opcodes(struct ccb_scsiio *csio, uint32_t retries,
 				   void (*cbfcnp)(struct cam_periph *,
 						  union ccb *),
 				   uint8_t tag_action, int options,
@@ -4378,7 +4378,7 @@ scsi_3btoul(const uint8_t *bytes)
 	return (rv);
 }
 
-static __inline int32_t 
+static __inline int32_t
 scsi_3btol(const uint8_t *bytes)
 {
 	uint32_t rc = scsi_3btoul(bytes);

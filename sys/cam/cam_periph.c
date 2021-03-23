@@ -69,8 +69,8 @@ static	u_int		camperiphnextunit(struct periph_driver *p_drv,
 					  lun_id_t lun);
 static	u_int		camperiphunit(struct periph_driver *p_drv,
 				      path_id_t pathid, target_id_t target,
-				      lun_id_t lun); 
-static	void		camperiphdone(struct cam_periph *periph, 
+				      lun_id_t lun);
+static	void		camperiphdone(struct cam_periph *periph,
 					union ccb *done_ccb);
 static  void		camperiphfree(struct cam_periph *periph);
 static int		camperiphscsistatuserror(union ccb *ccb,
@@ -329,7 +329,7 @@ failure:
 }
 
 /*
- * Find a peripheral structure with the specified path, target, lun, 
+ * Find a peripheral structure with the specified path, target, lun,
  * and (optionally) type.  If the name is NULL, this function will return
  * the first peripheral driver that matches the specified path.
  */
@@ -569,7 +569,7 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
 		/*
 		 * Don't match entries like "da 4" as a wired down
 		 * device, but do match entries like "da 4 target 5"
-		 * or even "da 4 scbus 1". 
+		 * or even "da 4 scbus 1".
 		 */
 		i = 0;
 		dname = periph_name;
@@ -1066,7 +1066,7 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		/* allow ourselves to be swapped once again */
 		PRELE(curproc);
 		return;
-		break; /* NOTREACHED */ 
+		break; /* NOTREACHED */
 	}
 
 	for (i = 0; i < numbufs; i++) {
@@ -1094,7 +1094,7 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 
 int
 cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
-		 int (*error_routine)(union ccb *ccb, 
+		 int (*error_routine)(union ccb *ccb,
 				      cam_flags camflags,
 				      u_int32_t sense_flags))
 {
@@ -1125,7 +1125,7 @@ cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 			while (ccb->cgdl.status == CAM_GDEVLIST_MORE_DEVS) {
 				/* we want the next device in the list */
 				xpt_action(ccb);
-				if (strncmp(ccb->cgdl.periph_name, 
+				if (strncmp(ccb->cgdl.periph_name,
 				    "pass", 4) == 0){
 					found = 1;
 					break;
@@ -1139,7 +1139,7 @@ cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 			}
 		}
 
-		/* copy the result back out */	
+		/* copy the result back out */
 		bcopy(ccb, addr, sizeof(union ccb));
 
 		/* and release the ccb */
@@ -1445,7 +1445,7 @@ cam_periph_async(struct cam_periph *periph, u_int32_t code,
 	switch (code) {
 	case AC_LOST_DEVICE:
 		cam_periph_invalidate(periph);
-		break; 
+		break;
 	default:
 		break;
 	}
@@ -1481,7 +1481,7 @@ cam_periph_freeze_after_event(struct cam_periph *periph,
 
 		duration_ms = duration_tv.tv_sec * 1000;
 		duration_ms += duration_tv.tv_usec / 1000;
-		cam_freeze_devq(periph->path); 
+		cam_freeze_devq(periph->path);
 		cam_release_devq(periph->path,
 				RELSIM_RELEASE_AFTER_TIMEOUT,
 				/*reduction*/0,
@@ -1758,9 +1758,9 @@ camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
 			/*
 			 * Send a Test Unit Ready to the device.
 			 * If the 'many' flag is set, we send 120
-			 * test unit ready commands, one every half 
+			 * test unit ready commands, one every half
 			 * second.  Otherwise, we just send one TUR.
-			 * We only want to do this if the retry 
+			 * We only want to do this if the retry
 			 * count has not been exhausted.
 			 */
 			int retries;
@@ -1793,14 +1793,14 @@ camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
 		default:
 			panic("Unhandled error action %x", err_action);
 		}
-		
+
 		if ((err_action & SS_MASK) >= SS_START) {
 			/*
 			 * Drop the priority, so that the recovery
 			 * CCB is the first to execute.  Freeze the queue
 			 * after this command is sent so that we can
 			 * restore the old csio and have it queued in
-			 * the proper order before we release normal 
+			 * the proper order before we release normal
 			 * transactions to the device.
 			 */
 			ccb->ccb_h.pinfo.priority--;

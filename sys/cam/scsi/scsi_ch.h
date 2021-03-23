@@ -51,7 +51,7 @@
  *
  * TRW Financial Systems, in accordance with their agreement with Carnegie
  * Mellon University, makes this software available to CMU to distribute
- * or use in any manner that they see fit as long as this message is kept with 
+ * or use in any manner that they see fit as long as this message is kept with
  * the software. For this reason TFS also grants any other persons or
  * organisations permission to use or modify this software.
  *
@@ -502,7 +502,7 @@ void scsi_initialize_element_status(struct ccb_scsiio *csio, u_int32_t retries,
 			       u_int32_t timeout);
 void scsi_send_volume_tag(struct ccb_scsiio *csio, u_int32_t retries,
 			  void (*cbfcnp)(struct cam_periph *, union ccb *),
-			  u_int8_t tag_action, 
+			  u_int8_t tag_action,
 			  u_int16_t element_address,
 			  u_int8_t send_action_code,
 			  struct scsi_send_volume_tag_parameters *parameters,

@@ -175,7 +175,7 @@ cam_strvis_sbuf(struct sbuf *sb, const u_int8_t *src, int srclen,
 			/* non-printable character */
 			switch (flags & CAM_STRVIS_FLAG_NONASCII_MASK) {
 			case CAM_STRVIS_FLAG_NONASCII_ESC:
-				sbuf_printf(sb, "\\%c%c%c", 
+				sbuf_printf(sb, "\\%c%c%c",
 				    ((*src & 0300) >> 6) + '0',
 				    ((*src & 0070) >> 3) + '0',
 				    ((*src & 0007) >> 0) + '0');
@@ -223,7 +223,7 @@ int
 cam_strmatch(const u_int8_t *str, const u_int8_t *pattern, int str_len)
 {
 
-	while (*pattern != '\0' && str_len > 0) {  
+	while (*pattern != '\0' && str_len > 0) {
 		if (*pattern == '*') {
 			pattern++;
 			if (*pattern == '\0')
@@ -444,7 +444,7 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 		const struct cam_status_entry *entry;
 
 		sbuf_cat(&sb, path_str);
-  
+
 		status = ccb->ccb_h.status & CAM_STATUS_MASK;
 
 		entry = cam_fetch_status_entry(status);
@@ -458,7 +458,7 @@ cam_error_string(struct cam_device *device, union ccb *ccb, char *str,
 	}
 
 	if (flags & CAM_ESF_PROTO_STATUS) {
-  
+
 		switch (ccb->ccb_h.func_code) {
 		case XPT_ATA_IO:
 			if ((ccb->ccb_h.status & CAM_STATUS_MASK) !=

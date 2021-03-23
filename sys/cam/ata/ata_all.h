@@ -179,13 +179,13 @@ void semb_write_buffer(struct ccb_ataio *ataio,
 	uint8_t tag_action, uint8_t *data_ptr, uint16_t param_list_length,
 	uint32_t timeout);
 
-void ata_zac_mgmt_out(struct ccb_ataio *ataio, uint32_t retries, 
+void ata_zac_mgmt_out(struct ccb_ataio *ataio, uint32_t retries,
 	void (*cbfcnp)(struct cam_periph *, union ccb *),
 	int use_ncq __unused, uint8_t zm_action, uint64_t zone_id,
 	uint8_t zone_flags, uint16_t sector_count, uint8_t *data_ptr,
 	uint32_t dxfer_len, uint32_t timeout);
 
-void ata_zac_mgmt_in(struct ccb_ataio *ataio, uint32_t retries, 
+void ata_zac_mgmt_in(struct ccb_ataio *ataio, uint32_t retries,
 	void (*cbfcnp)(struct cam_periph *, union ccb *),
 	int use_ncq __unused, uint8_t zm_action, uint64_t zone_id,
 	uint8_t zone_flags, uint8_t *data_ptr, uint32_t dxfer_len,

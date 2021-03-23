@@ -440,7 +440,7 @@ enc_ioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag,
 	case ENCIOC_GETNELM:
 		error = copyout(&cache->nelms, addr, sizeof (cache->nelms));
 		break;
-		
+
 	case ENCIOC_GETELMMAP:
 		for (uelm = addr, i = 0; i != cache->nelms; i++) {
 			encioc_element_t kelm;
@@ -907,7 +907,7 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	enc = ENC_MALLOCZ(sizeof(*enc));
 	if (enc == NULL) {
 		printf("enc_ctor: Unable to probe new device. "
-		       "Unable to allocate enc\n");				
+		       "Unable to allocate enc\n");
 		goto out;
 	}
 	enc->periph = periph;

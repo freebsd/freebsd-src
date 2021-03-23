@@ -79,7 +79,7 @@
  * performs a ENCIOC_GETELMMAP to get the map that contains the
  * elment identifiers for all elements (see encioc_element_t below).
  * This information is static.
- * 
+ *
  * The application may perform ENCIOC_GETELMSTAT operations to retrieve
  * status on an element (see the enc_elm_status_t structure below),
  * ENCIOC_SETELMSTAT operations to set status for an element.
@@ -158,7 +158,7 @@ extern const char *elm_type_names[];
 
 typedef struct encioc_element {
 	/* Element Index */
-	unsigned int	elm_idx;	
+	unsigned int	elm_idx;
 
 	/* ID of SubEnclosure containing Element*/
 	unsigned int	elm_subenc_id;
@@ -192,7 +192,7 @@ typedef struct encioc_string {
 
 /*============================================================================*/
 
-/* 
+/*
  * SES v2 r20 6.1.10 (pg 39) - Element Descriptor diagnostic page
  * Tables 21, 22, and 23
  */

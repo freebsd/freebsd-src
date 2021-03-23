@@ -442,7 +442,7 @@ ctl_scsi_read_capacity_16(union ctl_io *io, uint8_t *data_ptr,
 }
 
 void
-ctl_scsi_mode_sense(union ctl_io *io, uint8_t *data_ptr, uint32_t data_len, 
+ctl_scsi_mode_sense(union ctl_io *io, uint8_t *data_ptr, uint32_t data_len,
 		    int dbd, int llbaa, uint8_t page_code, uint8_t pc,
 		    uint8_t subpage, int minimum_cdb_size,
 		    ctl_tag_type tag_type, uint8_t control)
@@ -654,7 +654,7 @@ ctl_scsi_persistent_res_out(union ctl_io *io, uint8_t *data_ptr,
 }
 
 void
-ctl_scsi_maintenance_in(union ctl_io *io, uint8_t *data_ptr, uint32_t data_len, 
+ctl_scsi_maintenance_in(union ctl_io *io, uint8_t *data_ptr, uint32_t data_len,
 			uint8_t action, ctl_tag_type tag_type, uint8_t control)
 {
 	struct scsi_maintenance_in *cdb;

@@ -496,7 +496,7 @@ struct ctl_ha_msg_scsi {
 	struct scsi_sense_data	sense_data;  /* sense data */
 };
 
-/* 
+/*
  * Used for CTL_MSG_MANAGE_TASKS.
  */
 struct ctl_ha_msg_task {

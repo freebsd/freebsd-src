@@ -965,7 +965,7 @@ struct tde_lb_enc_key_wrap_desc {
 #define SCSI_DENSITY_QIC_24		0x05
 #define SCSI_DENSITY_HALFINCH_PE	0x06
 #define SCSI_DENSITY_QIC_120		0x0f
-#define SCSI_DENSITY_QIC_150		0x10    
+#define SCSI_DENSITY_QIC_150		0x10
 #define	SCSI_DENSITY_QIC_525_320	0x11
 #define	SCSI_DENSITY_QIC_1320		0x12
 #define	SCSI_DENSITY_QIC_2GB		0x22
@@ -995,8 +995,8 @@ void	scsi_space(struct ccb_scsiio *csio, u_int32_t retries,
 		   u_int8_t tag_action, scsi_space_code code,
 		   u_int32_t count, u_int8_t sense_len, u_int32_t timeout);
 
-void	scsi_load_unload(struct ccb_scsiio *csio, u_int32_t retries,         
-			 void (*cbfcnp)(struct cam_periph *, union ccb *),   
+void	scsi_load_unload(struct ccb_scsiio *csio, u_int32_t retries,
+			 void (*cbfcnp)(struct cam_periph *, union ccb *),
 			 u_int8_t tag_action, int immediate,   int eot,
 			 int reten, int load, u_int8_t sense_len,
 			 u_int32_t timeout);
@@ -1009,7 +1009,7 @@ void	scsi_write_filemarks(struct ccb_scsiio *csio, u_int32_t retries,
 
 void	scsi_reserve_release_unit(struct ccb_scsiio *csio, u_int32_t retries,
 				  void (*cbfcnp)(struct cam_periph *,
-				  union ccb *), u_int8_t tag_action,	
+				  union ccb *), u_int8_t tag_action,
 				  int third_party, int third_party_id,
 				  u_int8_t sense_len, u_int32_t timeout,
 				  int reserve);
@@ -1068,7 +1068,7 @@ void	scsi_set_capacity(struct ccb_scsiio *csio, u_int32_t retries,
 
 void	scsi_format_medium(struct ccb_scsiio *csio, u_int32_t retries,
 			   void (*cbfcnp)(struct cam_periph *, union ccb *),
-			   u_int8_t tag_action, int byte1, int byte2, 
+			   u_int8_t tag_action, int byte1, int byte2,
 			   u_int8_t *data_ptr, u_int32_t length,
 			   u_int32_t sense_len, u_int32_t timeout);
 

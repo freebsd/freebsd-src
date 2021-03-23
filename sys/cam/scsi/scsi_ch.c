@@ -201,7 +201,7 @@ static	int		chgetelemstatus(struct cam_periph *periph,
 				struct changer_element_status_request *csr);
 static	int		chsetvoltag(struct cam_periph *periph,
 				    struct changer_set_voltag_request *csvr);
-static	int		chielem(struct cam_periph *periph, 
+static	int		chielem(struct cam_periph *periph,
 				unsigned int timeout);
 static	int		chgetparams(struct cam_periph *periph);
 static	int		chscsiversion(struct cam_periph *periph);
@@ -382,7 +382,7 @@ chregister(struct cam_periph *periph, void *arg)
 
 	if (softc == NULL) {
 		printf("chregister: Unable to probe new device. "
-		       "Unable to allocate softc\n");				
+		       "Unable to allocate softc\n");
 		return(CAM_REQ_CMP_ERR);
 	}
 
@@ -616,7 +616,7 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 			find_mode_page_6(mode_header);
 
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP){
-			
+
 			softc->sc_firsts[CHET_MT] = scsi_2btoul(ea->mtea);
 			softc->sc_counts[CHET_MT] = scsi_2btoul(ea->nmte);
 			softc->sc_firsts[CHET_ST] = scsi_2btoul(ea->fsea);
@@ -699,7 +699,7 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 					return;
 
 				if ((done_ccb->ccb_h.status & CAM_STATUS_MASK)
-				    == CAM_SCSI_STATUS_ERROR) 
+				    == CAM_SCSI_STATUS_ERROR)
 					scsi_sense_print(&done_ccb->csio);
 				else {
 					xpt_print(periph->path,
@@ -759,7 +759,7 @@ chioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 
 	error = 0;
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, 
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
 		  ("trying to do ioctl %#lx\n", cmd));
 
 	/*
@@ -1901,7 +1901,7 @@ scsi_initialize_element_status(struct ccb_scsiio *csio, u_int32_t retries,
 void
 scsi_send_volume_tag(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
-		     u_int8_t tag_action, 
+		     u_int8_t tag_action,
 		     u_int16_t element_address,
 		     u_int8_t send_action_code,
 		     struct scsi_send_volume_tag_parameters *parameters,

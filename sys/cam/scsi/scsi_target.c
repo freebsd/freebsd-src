@@ -500,7 +500,7 @@ targdtor(struct cam_periph *periph)
 
 	softc = (struct targ_softc *)periph->softc;
 
-	/* 
+	/*
 	 * targdisable() aborts CCBs back to the user and leaves them
 	 * on user_ccb_queue and abort_queue in case the user is still
 	 * interested in them.  We free them now.
@@ -1029,7 +1029,7 @@ abort_all_pending(struct targ_softc *softc)
 		TAILQ_INSERT_TAIL(&softc->abort_queue, descr, tqe);
 	}
 
-	/* 
+	/*
 	 * Then abort all pending CCBs.
 	 * targdone() will return the aborted CCB via user_ccb_queue
 	 */

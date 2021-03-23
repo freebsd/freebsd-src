@@ -294,9 +294,9 @@ struct sa_prot_map {
 	uint32_t *value;
 } sa_prot_table[] = {
 	{ "prot_method", MT_PARAM_SET_UNSIGNED,
-	  __offsetof(struct sa_prot_state, prot_method), 
+	  __offsetof(struct sa_prot_state, prot_method),
 	  /*min_val*/ 0, /*max_val*/ 255, NULL },
-	{ "pi_length", MT_PARAM_SET_UNSIGNED, 
+	{ "pi_length", MT_PARAM_SET_UNSIGNED,
 	  __offsetof(struct sa_prot_state, pi_length),
 	  /*min_val*/ 0, /*max_val*/ SA_CTRL_DP_PI_LENGTH_MASK, NULL },
 	{ "lbp_w", MT_PARAM_SET_UNSIGNED,
@@ -596,7 +596,7 @@ static int		sawritefilemarks(struct cam_periph *periph,
 					 int nmarks, int setmarks, int immed);
 static int		sagetpos(struct cam_periph *periph);
 static int		sardpos(struct cam_periph *periph, int, u_int32_t *);
-static int		sasetpos(struct cam_periph *periph, int, 
+static int		sasetpos(struct cam_periph *periph, int,
 				 struct mtlocate *);
 static void		safilldenstypesb(struct sbuf *sb, int *indent,
 					 uint8_t *buf, int buf_len,
@@ -739,7 +739,7 @@ saclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE|CAM_DEBUG_INFO,
 	    ("saclose(%s): softc=0x%x\n", devtoname(dev), softc->flags));
 
-	softc->open_rdonly = 0; 
+	softc->open_rdonly = 0;
 	if (SA_IS_CTRL(dev)) {
 		softc->ctrl_mode = 0;
 		softc->open_count--;
@@ -750,7 +750,7 @@ saclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 
 	if (softc->open_pending_mount) {
 		softc->flags &= ~SA_FLAG_OPEN;
-		softc->open_pending_mount = 0; 
+		softc->open_pending_mount = 0;
 		softc->open_count--;
 		cam_periph_unlock(periph);
 		cam_periph_release(periph);
@@ -883,7 +883,7 @@ saclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	cam_periph_unlock(periph);
 	cam_periph_release(periph);
 
-	return (error);	
+	return (error);
 }
 
 /*
@@ -1202,7 +1202,7 @@ sasetprotents(struct cam_periph *periph, struct mtparamset *ps, int num_params)
 	/*
 	 * We can't operate with physio(9) splitting enabled, because there
 	 * is no way to insure (especially in variable block mode) that
-	 * what the user writes (with a checksum block at the end) will 
+	 * what the user writes (with a checksum block at the end) will
 	 * make it into the sa(4) driver intact.
 	 */
 	if ((softc->si_flags & SI_NOSPLIT) == 0) {
@@ -1476,7 +1476,7 @@ sagetparams_common(struct cdev *dev, struct cam_periph *periph)
 		softc->flags |= SA_FLAG_COMP_SUPP;
 		if (comp_enabled)
 			softc->flags |= SA_FLAG_COMP_ENABLED;
-	} else  
+	} else
 		softc->flags |= SA_FLAG_COMP_UNSUPP;
 
 	return (0);
@@ -1712,7 +1712,7 @@ extget_bailout:
 	{
 		struct mtsetlist list;
 		struct mtparamset *ps = (struct mtparamset *)arg;
-		
+
 		bzero(&list, sizeof(list));
 		list.num_params = 1;
 		list.param_len = sizeof(*ps);
@@ -1878,7 +1878,7 @@ extget_bailout:
 			break;
 		case MTRETENS:	/* re-tension tape */
 			PENDING_MOUNT_CHECK(softc, periph, dev);
-			error = saretension(periph);		
+			error = saretension(periph);
 			softc->flags &=
 			    ~(SA_FLAG_TAPE_WRITTEN|SA_FLAG_TAPE_FROZEN);
 			softc->flags &= ~SA_FLAG_ERR_PENDING;
@@ -1974,7 +1974,7 @@ extget_bailout:
 			PENDING_MOUNT_CHECK(softc, periph, dev);
 
 			if (count > UCHAR_MAX) {
-				error = EINVAL;	
+				error = EINVAL;
 				break;
 			} else {
 				error = sasetparams(periph, SA_PARAM_DENSITY,
@@ -2311,16 +2311,16 @@ sasysctlinit(void *context, int pending)
 		goto bailout;
 
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "allow_io_split", CTLFLAG_RDTUN | CTLFLAG_NOFETCH, 
+	    OID_AUTO, "allow_io_split", CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
 	    &softc->allow_io_split, 0, "Allow Splitting I/O");
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "maxio", CTLFLAG_RD, 
+	    OID_AUTO, "maxio", CTLFLAG_RD,
 	    &softc->maxio, 0, "Maximum I/O size");
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "cpi_maxio", CTLFLAG_RD, 
+	    OID_AUTO, "cpi_maxio", CTLFLAG_RD,
 	    &softc->cpi_maxio, 0, "Maximum Controller I/O size");
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "inject_eom", CTLFLAG_RW, 
+	    OID_AUTO, "inject_eom", CTLFLAG_RW,
 	    &softc->inject_eom, 0, "Queue EOM for the next write/read");
 
 bailout:
@@ -2351,7 +2351,7 @@ saregister(struct cam_periph *periph, void *arg)
 	    malloc(sizeof (*softc), M_SCSISA, M_NOWAIT | M_ZERO);
 	if (softc == NULL) {
 		printf("saregister: Unable to probe new device. "
-		       "Unable to allocate softc\n");				
+		       "Unable to allocate softc\n");
 		return (CAM_REQ_CMP_ERR);
 	}
 	softc->scsi_rev = SID_ANSI_REV(&cgd->inq_data);
@@ -2391,8 +2391,8 @@ saregister(struct cam_periph *periph, void *arg)
 	 * long position data, but it might.  Some drives from that era
 	 * claim to be SCSI-2, but do support long position information.
 	 * So, instead of immediately disabling long position information
-	 * for SCSI-2 devices, we'll try one pass through sagetpos(), and 
-	 * then disable long position information if we get an error.   
+	 * for SCSI-2 devices, we'll try one pass through sagetpos(), and
+	 * then disable long position information if we get an error.
 	 */
 	if (cgd->inq_data.version <= SCSI_REV_CCS)
 		softc->quirks |= SA_QUIRK_NO_LONG_POS;
@@ -2432,7 +2432,7 @@ saregister(struct cam_periph *periph, void *arg)
 	    XPORT_DEVSTAT_TYPE(cpi.transport), DEVSTAT_PRIORITY_TAPE);
 
 	/*
-	 * Load the default value that is either compiled in, or loaded 
+	 * Load the default value that is either compiled in, or loaded
 	 * in the global kern.cam.sa.allow_io_split tunable.
 	 */
 	softc->allow_io_split = sa_allow_io_split;
@@ -2440,7 +2440,7 @@ saregister(struct cam_periph *periph, void *arg)
 	/*
 	 * Load a per-instance tunable, if it exists.  NOTE that this
 	 * tunable WILL GO AWAY in FreeBSD 11.0.
-	 */ 
+	 */
 	snprintf(tmpstr, sizeof(tmpstr), "kern.cam.sa.%u.allow_io_split",
 		 periph->unit_number);
 	TUNABLE_INT_FETCH(tmpstr, &softc->allow_io_split);
@@ -2574,7 +2574,7 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 	switch (softc->state) {
 	case SA_STATE_NORMAL:
 	{
-		/* Pull a buffer from the queue and get going on it */		
+		/* Pull a buffer from the queue and get going on it */
 		struct bio *bp;
 
 		/*
@@ -2621,7 +2621,7 @@ again:
 				 * with the residual equal to the count.
 				 * i.e. tell the application that 0 bytes
 				 * were written.
-				 * 
+				 *
 				 * The alternate behavior, which is enabled
 				 * when eot_warn is set, is that in
 				 * addition to setting the residual equal
@@ -2745,7 +2745,7 @@ again:
 			softc->dsreg = (bp->bio_cmd == BIO_READ)?
 			    MTIO_DSREG_RD : MTIO_DSREG_WR;
 			scsi_sa_read_write(&start_ccb->csio, 0, sadone,
-			    MSG_SIMPLE_Q_TAG, (bp->bio_cmd == BIO_READ ? 
+			    MSG_SIMPLE_Q_TAG, (bp->bio_cmd == BIO_READ ?
 			    SCSI_RW_READ : SCSI_RW_WRITE) |
 			    ((bp->bio_flags & BIO_UNMAPPED) != 0 ?
 			    SCSI_RW_BIO : 0), softc->sili,
@@ -2758,7 +2758,7 @@ again:
 			bp = bioq_first(&softc->bio_queue);
 			xpt_action(start_ccb);
 		}
-		
+
 		if (bp != NULL) {
 			/* Have more work to do, so ensure we stay scheduled */
 			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
@@ -3189,7 +3189,7 @@ tryagain:
 			}
 		}
 
-		if ((softc->quirks & SA_QUIRK_VARIABLE) && 
+		if ((softc->quirks & SA_QUIRK_VARIABLE) &&
 		    (softc->media_blksize != 0)) {
 			softc->last_media_blksize = softc->media_blksize;
 			softc->media_blksize = 0;
@@ -3247,7 +3247,7 @@ tryagain:
 			}
 		}
 
-		if (write_protect) 
+		if (write_protect)
 			softc->flags |= SA_FLAG_TAPE_WP;
 
 		if (comp_supported) {
@@ -3834,7 +3834,7 @@ retry:
 			goto sagetparamsexit;
 		}
 
-		returned_len = min(returned_len, 
+		returned_len = min(returned_len,
 		    sizeof(mode10_hdr->data_length) +
 		    scsi_2btoul(mode10_hdr->data_length));
 
@@ -3939,7 +3939,7 @@ retry_length:
 	 * drive, find out what the drive claims the page length is, and
 	 * make sure that we match that.
 	 */
-	error = sagetparams(periph, SA_PARAM_SPEED | SA_PARAM_LBP,  
+	error = sagetparams(periph, SA_PARAM_SPEED | SA_PARAM_LBP,
 	    NULL, NULL, NULL, &buff_mode, NULL, &current_speed, NULL, NULL,
 	    NULL, NULL, dp_changeable, dp_size, /*prot_changeable*/ 1);
 	if (error != 0)
@@ -3966,7 +3966,7 @@ retry_length:
 	/*
 	 * Now grab the actual current settings in the page.
 	 */
-	error = sagetparams(periph, SA_PARAM_SPEED | SA_PARAM_LBP,  
+	error = sagetparams(periph, SA_PARAM_SPEED | SA_PARAM_LBP,
 	    NULL, NULL, NULL, &buff_mode, NULL, &current_speed, NULL, NULL,
 	    NULL, NULL, dp_page, dp_size, /*prot_changeable*/ 0);
 	if (error != 0)
@@ -4045,7 +4045,7 @@ retry_length:
 	 * the user requested, but just in case the drive ignored some of
 	 * our settings, let's ask for status again.
 	 */
-	error = sagetparams(periph, SA_PARAM_SPEED | SA_PARAM_LBP,  
+	error = sagetparams(periph, SA_PARAM_SPEED | SA_PARAM_LBP,
 	    NULL, NULL, NULL, &buff_mode, NULL, &current_speed, NULL, NULL,
 	    NULL, NULL, dp_page, dp_size, 0);
 
@@ -4286,7 +4286,7 @@ retry:
 				xpt_release_ccb(ccb);
 				return (ENODEV);
 			}
-		
+
 			/*
 			 * That wasn't the only thing the user wanted us to set.
 			 * So, decrease the stated mode buffer length by the
@@ -4489,27 +4489,27 @@ saextget(struct cdev *dev, struct cam_periph *periph, struct sbuf *sb,
 		    (ssize_t)0, "Serial Number");
 	}
 
-	SASBADDUINTDESC(sb, indent, softc->maxio, %u, maxio, 
+	SASBADDUINTDESC(sb, indent, softc->maxio, %u, maxio,
 	    "Maximum I/O size allowed by driver and controller");
 
-	SASBADDUINTDESC(sb, indent, softc->cpi_maxio, %u, cpi_maxio, 
+	SASBADDUINTDESC(sb, indent, softc->cpi_maxio, %u, cpi_maxio,
 	    "Maximum I/O size reported by controller");
 
-	SASBADDUINTDESC(sb, indent, softc->max_blk, %u, max_blk, 
+	SASBADDUINTDESC(sb, indent, softc->max_blk, %u, max_blk,
 	    "Maximum block size supported by tape drive and media");
 
-	SASBADDUINTDESC(sb, indent, softc->min_blk, %u, min_blk, 
+	SASBADDUINTDESC(sb, indent, softc->min_blk, %u, min_blk,
 	    "Minimum block size supported by tape drive and media");
 
-	SASBADDUINTDESC(sb, indent, softc->blk_gran, %u, blk_gran, 
+	SASBADDUINTDESC(sb, indent, softc->blk_gran, %u, blk_gran,
 	    "Block granularity supported by tape drive and media");
 
 	maxio_tmp = min(softc->max_blk, softc->maxio);
 
-	SASBADDUINTDESC(sb, indent, maxio_tmp, %u, max_effective_iosize, 
+	SASBADDUINTDESC(sb, indent, maxio_tmp, %u, max_effective_iosize,
 	    "Maximum possible I/O size");
 
-	SASBADDINTDESC(sb, indent, softc->flags & SA_FLAG_FIXED ? 1 : 0, %d, 
+	SASBADDINTDESC(sb, indent, softc->flags & SA_FLAG_FIXED ? 1 : 0, %d,
 	    fixed_mode, "Set to 1 for fixed block mode, 0 for variable block");
 
 	/*
@@ -4560,7 +4560,7 @@ saextget(struct cdev *dev, struct cam_periph *periph, struct sbuf *sb,
 	 * XXX KDM should we send a string with the current driver
 	 * status already decoded instead of a numeric value?
 	 */
-	SASBADDINTDESC(sb, indent, softc->dsreg, %d, dsreg, 
+	SASBADDINTDESC(sb, indent, softc->dsreg, %d, dsreg,
 	    "Current state of the driver");
 
 	safilldensitysb(softc, &indent, sb);
@@ -4579,9 +4579,9 @@ saparamget(struct sa_softc *softc, struct sbuf *sb)
 
 	indent = 0;
 	SASBADDNODE(sb, indent, mtparamget);
-	SASBADDINTDESC(sb, indent, softc->sili, %d, sili, 
+	SASBADDINTDESC(sb, indent, softc->sili, %d, sili,
 	    "Suppress an error on underlength variable reads");
-	SASBADDINTDESC(sb, indent, softc->eot_warn, %d, eot_warn, 
+	SASBADDINTDESC(sb, indent, softc->eot_warn, %d, eot_warn,
 	    "Return an error to warn that end of tape is approaching");
 	safillprot(softc, &indent, sb);
 	SASBENDNODE(sb, indent, mtparamget);
@@ -4593,9 +4593,9 @@ static void
 saprevent(struct cam_periph *periph, int action)
 {
 	struct	sa_softc *softc;
-	union	ccb *ccb;		
+	union	ccb *ccb;
 	int	error, sf;
-		
+
 	softc = (struct sa_softc *)periph->softc;
 
 	if ((action == PR_ALLOW) && (softc->flags & SA_FLAG_TAPE_LOCKED) == 0)
@@ -4634,7 +4634,7 @@ sarewind(struct cam_periph *periph)
 	union	ccb *ccb;
 	struct	sa_softc *softc;
 	int	error;
-		
+
 	softc = (struct sa_softc *)periph->softc;
 
 	ccb = cam_periph_getccb(periph, 1);
@@ -4653,7 +4653,7 @@ sarewind(struct cam_periph *periph)
 		softc->rep_fileno = softc->rep_blkno = (daddr_t) 0;
 	} else {
 		softc->fileno = softc->blkno = (daddr_t) -1;
-		softc->partition = (daddr_t) -1; 
+		softc->partition = (daddr_t) -1;
 		softc->rep_fileno = softc->rep_blkno = (daddr_t) -1;
 	}
 	return (error);
@@ -4665,7 +4665,7 @@ saspace(struct cam_periph *periph, int count, scsi_space_code code)
 	union	ccb *ccb;
 	struct	sa_softc *softc;
 	int	error;
-		
+
 	softc = (struct sa_softc *)periph->softc;
 
 	ccb = cam_periph_getccb(periph, 1);
@@ -5387,7 +5387,7 @@ safilldenstypesb(struct sbuf *sb, int *indent, uint8_t *buf, int buf_len,
 			len_to_go -= cur_field_len;
 			cur_offset += cur_field_len;
 			desc_remain -= cur_field_len;
-			
+
 			SAFILLDENSSBSTR(type_data, sb, *indent, assigning_org,
 			    desc_remain, len_to_go, cur_offset,
 			    "Assigning Organization");
@@ -5439,7 +5439,7 @@ safilldensitysb(struct sa_softc *softc, int *indent, struct sbuf *sb)
 			tmpint = 1;
 		else
 			tmpint = 0;
-		SASBADDINTDESC(sb, *indent, tmpint, %d, media_report, 
+		SASBADDINTDESC(sb, *indent, tmpint, %d, media_report,
 		    "Media report");
 
 		safilldenstypesb(sb, indent, softc->density_info[i],
@@ -5501,8 +5501,8 @@ scsi_sa_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_load_unload(struct ccb_scsiio *csio, u_int32_t retries,         
-		 void (*cbfcnp)(struct cam_periph *, union ccb *),   
+scsi_load_unload(struct ccb_scsiio *csio, u_int32_t retries,
+		 void (*cbfcnp)(struct cam_periph *, union ccb *),
 		 u_int8_t tag_action, int immediate, int eot,
 		 int reten, int load, u_int8_t sense_len,
 		 u_int32_t timeout)
@@ -5522,13 +5522,13 @@ scsi_load_unload(struct ccb_scsiio *csio, u_int32_t retries,
 		scsi_cmd->eot_reten_load |= SLU_LOAD;
 
 	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_NONE, tag_action,
-	    NULL, 0, sense_len, sizeof(*scsi_cmd), timeout);	
+	    NULL, 0, sense_len, sizeof(*scsi_cmd), timeout);
 }
 
 void
-scsi_rewind(struct ccb_scsiio *csio, u_int32_t retries,         
-	    void (*cbfcnp)(struct cam_periph *, union ccb *),   
-	    u_int8_t tag_action, int immediate, u_int8_t sense_len,     
+scsi_rewind(struct ccb_scsiio *csio, u_int32_t retries,
+	    void (*cbfcnp)(struct cam_periph *, union ccb *),
+	    u_int8_t tag_action, int immediate, u_int8_t sense_len,
 	    u_int32_t timeout)
 {
 	struct scsi_rewind *scsi_cmd;
@@ -5846,7 +5846,7 @@ scsi_set_capacity(struct ccb_scsiio *csio, u_int32_t retries,
 void
 scsi_format_medium(struct ccb_scsiio *csio, u_int32_t retries,
 		   void (*cbfcnp)(struct cam_periph *, union ccb *),
-		   u_int8_t tag_action, int byte1, int byte2, 
+		   u_int8_t tag_action, int byte1, int byte2,
 		   u_int8_t *data_ptr, u_int32_t dxfer_len,
 		   u_int32_t sense_len, u_int32_t timeout)
 {
@@ -5877,7 +5877,7 @@ scsi_format_medium(struct ccb_scsiio *csio, u_int32_t retries,
 void
 scsi_allow_overwrite(struct ccb_scsiio *csio, u_int32_t retries,
 		   void (*cbfcnp)(struct cam_periph *, union ccb *),
-		   u_int8_t tag_action, int allow_overwrite, int partition, 
+		   u_int8_t tag_action, int allow_overwrite, int partition,
 		   u_int64_t logical_id, u_int32_t sense_len, u_int32_t timeout)
 {
 	struct scsi_allow_overwrite *scsi_cmd;

@@ -487,7 +487,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 	xpt_action(&ccb);
 	status = (ccb.ccb_h.status & CAM_STATUS_MASK);
 	if (status != CAM_REQ_CMP) {
-		xpt_print(periph->path, "%s: Enable LUN failed, status 0x%x\n", 
+		xpt_print(periph->path, "%s: Enable LUN failed, status 0x%x\n",
 			  __func__, ccb.ccb_h.status);
 		return (status);
 	}
@@ -582,7 +582,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 			 * Note that we don't free the CCB here.  If the
 			 * status is not CAM_REQ_INPROG, then we're
 			 * probably talking to a SIM that says it is
-			 * target-capable but doesn't support the 
+			 * target-capable but doesn't support the
 			 * XPT_IMMEDIATE_NOTIFY CCB.  i.e. it supports the
 			 * older API.  In that case, it'll call xpt_done()
 			 * on the CCB, and we need to free it in our done
@@ -1794,7 +1794,7 @@ ctlfe_lun_enable(void *arg, int lun_id)
 
 /*
  * This will get called when the user removes a LUN to disable that LUN
- * on every bus that is attached to CTL.  
+ * on every bus that is attached to CTL.
  */
 static int
 ctlfe_lun_disable(void *arg, int lun_id)

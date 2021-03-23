@@ -500,7 +500,7 @@ typedef enum {
 } ses_elem_index_type_t;
 
 /**
- * \brief Move the provided iterator forwards or backwards to the object 
+ * \brief Move the provided iterator forwards or backwards to the object
  *        having the give index.
  *
  * \param iter           The iterator on which to perform the seek.
@@ -885,7 +885,7 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	match_pattern.type = DEV_MATCH_DEVICE;
 	device_pattern = &match_pattern.pattern.device_pattern;
 	device_pattern->flags = DEV_MATCH_DEVID;
-	device_pattern->data.devid_pat.id_len = 
+	device_pattern->data.devid_pat.id_len =
 	    offsetof(struct scsi_vpd_id_descriptor, identifier)
 	  + devid->length;
 	memcpy(device_pattern->data.devid_pat.id, devid,
@@ -1513,7 +1513,7 @@ out:
 
 /**
  * \brief Update the status page and associated structures.
- * 
+ *
  * \param enc   SES softc to update for.
  * \param buf   Buffer containing the status page.
  * \param bufsz	Amount of data in the buffer.
@@ -2011,7 +2011,7 @@ ses_sanitize_elm_desc(const char *desc, uint16_t *len)
  * \param enc       The SES softc to update.
  * \param buf       The buffer containing the descriptor list response.
  * \param xfer_len  Size of the buffer.
- * 
+ *
  * \return	0 on success, errno otherwise.
  */
 static int
@@ -2475,7 +2475,7 @@ noaddl:
  * \param bufsiz	Size of the response buffer.
  * \param eip		The EIP bit value.
  * \param nobj		Number of objects attached to the SES softc.
- * 
+ *
  * \return		0 on success, errno otherwise.
  */
 static int
@@ -2534,7 +2534,7 @@ out:
  * \param bufsiz	Size of the response buffer.
  * \param eip		The EIP bit value.
  * \param nobj		Number of objects attached to the SES softc.
- * 
+ *
  * \return		0 on success, errno otherwise.
  */
 static int
@@ -2601,7 +2601,7 @@ out:
  * \param eip		The EIP bit value.
  * \param tidx		Type index for this object.
  * \param nobj		Number of objects attached to the SES softc.
- * 
+ *
  * \return		0 on success, errno otherwise.
  */
 static int
@@ -2679,7 +2679,7 @@ out:
  * \param eip		The EIP bit value.
  * \param tidx		Type index for this object.
  * \param nobj		Number of objects attached to the SES softc.
- * 
+ *
  * \return		0 on success, errno otherwise.
  */
 static int

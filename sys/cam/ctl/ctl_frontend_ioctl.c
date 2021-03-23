@@ -189,7 +189,7 @@ cfi_ioctl_port_create(struct ctl_req *req)
 	if (pp != -1) {
 		/* Check for duplicates */
 		TAILQ_FOREACH(cfi, &isoftc->ports, link) {
-			if (pp == cfi->port.physical_port && 
+			if (pp == cfi->port.physical_port &&
 			    vp == cfi->port.virtual_port) {
 				req->status = CTL_LUN_ERROR;
 				snprintf(req->error_str, sizeof(req->error_str),

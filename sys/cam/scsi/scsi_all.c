@@ -656,7 +656,7 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 		num_ops[1] = nitems(scsi_op_codes);
 		num_tables = 2;
 	} else {
-		/*	
+		/*
 		 * If this is true, we have a vendor specific opcode that
 		 * wasn't covered in the quirk table.
 		 */
@@ -686,7 +686,7 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 
 	for (j = 0; j < num_tables; j++) {
 		for (i = 0;i < num_ops[j] && table[j][i].opcode <= opcode; i++){
-			if ((table[j][i].opcode == opcode) 
+			if ((table[j][i].opcode == opcode)
 			 && ((table[j][i].opmask & opmask) != 0))
 				return(table[j][i].desc);
 		}
@@ -713,14 +713,14 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 #if !defined(SCSI_NO_SENSE_STRINGS)
 #define SST(asc, ascq, action, desc) \
 	asc, ascq, action, desc
-#else 
+#else
 const char empty_string[] = "";
 
 #define SST(asc, ascq, action, desc) \
 	asc, ascq, action, empty_string
-#endif 
+#endif
 
-const struct sense_key_table_entry sense_key_table[] = 
+const struct sense_key_table_entry sense_key_table[] =
 {
 	{ SSD_KEY_NO_SENSE, SS_NOP, "NO SENSE" },
 	{ SSD_KEY_RECOVERED_ERROR, SS_NOP|SSQ_PRINT_SENSE, "RECOVERED ERROR" },
@@ -741,7 +741,7 @@ const struct sense_key_table_entry sense_key_table[] =
 };
 
 static struct asc_table_entry quantum_fireball_entries[] = {
-	{ SST(0x04, 0x0b, SS_START | SSQ_DECREMENT_COUNT | ENXIO, 
+	{ SST(0x04, 0x0b, SS_START | SSQ_DECREMENT_COUNT | ENXIO,
 	     "Logical unit not ready, initializing cmd. required") }
 };
 
@@ -3415,7 +3415,7 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 		 * 1. Drop through (like we had been doing), thus treating
 		 *    this as if the error were for the current command and
 		 *    return and stop the current command.
-		 * 
+		 *
 		 * 2. Issue a retry (like I made it do) thus hopefully
 		 *    recovering the current transfer, and ignoring the
 		 *    fact that we've dropped a command.
@@ -3440,7 +3440,7 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 		else if (sense_entry != NULL)
 			action = sense_entry->action;
 		else
-			action = SS_RETRY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE; 
+			action = SS_RETRY|SSQ_DECREMENT_COUNT|SSQ_PRINT_SENSE;
 
 		if (sense_key == SSD_KEY_RECOVERED_ERROR) {
 			/*
@@ -3598,7 +3598,7 @@ int
 scsi_command_string(struct ccb_scsiio *csio, struct sbuf *sb)
 #else /* !_KERNEL */
 int
-scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio, 
+scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 		    struct sbuf *sb)
 #endif /* _KERNEL/!_KERNEL */
 {
@@ -3646,7 +3646,7 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 }
 
 /*
- * Iterate over sense descriptors.  Each descriptor is passed into iter_func(). 
+ * Iterate over sense descriptors.  Each descriptor is passed into iter_func().
  * If iter_func() returns 0, list traversal continues.  If iter_func()
  * returns non-zero, list traversal is stopped.
  */
@@ -3701,7 +3701,7 @@ scsi_desc_iterate(struct scsi_sense_data_desc *sense, u_int sense_len,
 		 * header (which does not include the header itself) to
 		 * desc_len - cur_pos is correct.
 		 */
-		if (header->length > (desc_len - cur_pos)) 
+		if (header->length > (desc_len - cur_pos))
 			break;
 
 		if (iter_func(sense, sense_len, header, arg) != 0)
@@ -4145,7 +4145,7 @@ scsi_get_sense_info(struct scsi_sense_data *sense_data, u_int sense_len,
 
 			if ((SSD_FIXED_IS_PRESENT(sense, sense_len,
 			     cmd_spec_info) == 0)
-			 || (SSD_FIXED_IS_FILLED(sense, cmd_spec_info) == 0)) 
+			 || (SSD_FIXED_IS_FILLED(sense, cmd_spec_info) == 0))
 				goto bailout;
 
 			cmd_val = scsi_4btoul(sense->cmd_spec_info);
@@ -4175,7 +4175,7 @@ scsi_get_sense_info(struct scsi_sense_data *sense_data, u_int sense_len,
 		}
 		break;
 	}
-	default: 
+	default:
 		goto bailout;
 		break;
 	}
@@ -4626,7 +4626,7 @@ scsi_sense_progress_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 	 * sense key, ASC, and ASCQ in the descriptor.
 	 */
 	sbuf_cat(sb, sense_key_desc);
-	sbuf_printf(sb, " asc:%x,%x (%s): ", progress->add_sense_code, 
+	sbuf_printf(sb, " asc:%x,%x (%s): ", progress->add_sense_code,
 		    progress->add_sense_code_qual, asc_desc);
 	scsi_progress_sbuf(sb, progress_val);
 }
@@ -4922,7 +4922,7 @@ scsi_sense_only_sbuf(struct scsi_sense_data *sense, u_int sense_len,
 			sbuf_printf(sb, "\n");
 		}
 
-		/* 
+		/*
 		 * Print the FRU.
 		 */
 		if (scsi_get_sense_info(sense, sense_len, SSD_DESC_FRU,
@@ -5013,7 +5013,7 @@ scsi_sense_sbuf(struct ccb_scsiio *csio, struct sbuf *sb,
 		scsi_sense_string_flags flags)
 #else /* !_KERNEL */
 int
-scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio, 
+scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 		struct sbuf *sb, scsi_sense_string_flags flags)
 #endif /* _KERNEL/!_KERNEL */
 {
@@ -5093,7 +5093,7 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 #endif /* _KERNEL/!_KERNEL */
 			return(-1);
 		} else {
-			/* 
+			/*
 			 * bcopy the pointer to avoid unaligned access
 			 * errors on finicky architectures.  We don't
 			 * ensure that the sense data is pointer aligned.
@@ -5153,7 +5153,7 @@ scsi_sense_string(struct cam_device *device, struct ccb_scsiio *csio,
 }
 
 #ifdef _KERNEL
-void 
+void
 scsi_sense_print(struct ccb_scsiio *csio)
 {
 	struct sbuf sb;
@@ -5170,7 +5170,7 @@ scsi_sense_print(struct ccb_scsiio *csio)
 
 #else /* !_KERNEL */
 void
-scsi_sense_print(struct cam_device *device, struct ccb_scsiio *csio, 
+scsi_sense_print(struct cam_device *device, struct ccb_scsiio *csio,
 		 FILE *ofile)
 {
 	struct sbuf sb;
@@ -5796,7 +5796,7 @@ scsi_transportid_sbuf(struct sbuf *sb, struct scsi_transportid_header *hdr,
 		int nul_found = 0;
 
 		sbuf_printf(sb, "iSCSI address: ");
-		if ((hdr->format_protocol & SCSI_TRN_FORMAT_MASK) == 
+		if ((hdr->format_protocol & SCSI_TRN_FORMAT_MASK) ==
 		    SCSI_TRN_ISCSI_FORMAT_DEVICE) {
 			struct scsi_transportid_iscsi_device *dev;
 
@@ -5816,7 +5816,7 @@ scsi_transportid_sbuf(struct sbuf *sb, struct scsi_transportid_header *hdr,
 			struct scsi_transportid_iscsi_port *port;
 
 			port = (struct scsi_transportid_iscsi_port *)hdr;
-			
+
 			add_len = scsi_2btoul(port->additional_length);
 			add_len = MIN(add_len, valid_len -
 				__offsetof(struct scsi_transportid_iscsi_port,
@@ -5834,7 +5834,7 @@ scsi_transportid_sbuf(struct sbuf *sb, struct scsi_transportid_header *hdr,
 			break;
 		}
 		/*
-		 * This is supposed to be a NUL-terminated ASCII 
+		 * This is supposed to be a NUL-terminated ASCII
 		 * string, but you never know.  So we're going to
 		 * check.  We need to do this because there is no
 		 * sbuf equivalent of strncat().
@@ -6005,7 +6005,7 @@ scsi_parse_transportid_64bit(int proto_id, char *id_str,
 
 	retval = 0;
 
-	value = strtouq(id_str, &endptr, 0); 
+	value = strtouq(id_str, &endptr, 0);
 	if (*endptr != '\0') {
 		if (error_str != NULL) {
 			snprintf(error_str, error_str_len, "%s: error "
@@ -6250,7 +6250,7 @@ scsi_parse_transportid_rdma(char *id_str, struct scsi_transportid_header **hdr,
 		 */
 		if ((i % 2) == 0)
 			cur_shift = 4;
-		else 
+		else
 			cur_shift = 0;
 
 		c = tmpstr[i];
@@ -6271,7 +6271,7 @@ scsi_parse_transportid_rdma(char *id_str, struct scsi_transportid_header **hdr,
 		}
 		/*
 		 * The converted number can't be less than 0; the type is
-		 * unsigned, and the subtraction logic will not give us 
+		 * unsigned, and the subtraction logic will not give us
 		 * a negative number.  So we only need to make sure that
 		 * the value is not greater than 0xf.  (i.e. make sure the
 		 * user didn't give us a value like "0x12jklmno").
@@ -6286,7 +6286,7 @@ scsi_parse_transportid_rdma(char *id_str, struct scsi_transportid_header **hdr,
 			retval = 1;
 			goto bailout;
 		}
-		
+
 		rdma_id[j] |= c << cur_shift;
 	}
 
@@ -6365,7 +6365,7 @@ scsi_parse_transportid_iscsi(char *id_str, struct scsi_transportid_header **hdr,
 			if (id_str[i] == sep_template[sep_pos]) {
 				sep_pos++;
 				continue;
-			} 
+			}
 			if (error_str != NULL) {
 				snprintf(error_str, error_str_len, "%s: "
 					 "invalid separator in iSCSI name "
@@ -6474,7 +6474,7 @@ scsi_parse_transportid_sop(char *id_str, struct scsi_transportid_header **hdr,
 		retval = 1;
 		goto bailout;
 	}
-	if ((id_str == NULL) 
+	if ((id_str == NULL)
 	 || (*id_str == '\0')) {
 		if (error_str != NULL) {
 			snprintf(error_str, error_str_len, "%s: no PCIe "
@@ -6549,7 +6549,7 @@ scsi_parse_transportid_sop(char *id_str, struct scsi_transportid_header **hdr,
 			snprintf(error_str, error_str_len, "%s: function value "
 				 "%lu greater than maximum %u", __func__,
 				 function, (device_spec == 0) ?
-				 SCSI_TRN_SOP_FUNC_ALT_MAX : 
+				 SCSI_TRN_SOP_FUNC_ALT_MAX :
 				 SCSI_TRN_SOP_FUNC_NORM_MAX);
 		}
 		retval = 1;
@@ -7069,7 +7069,7 @@ bailout:
 
 int
 scsi_attrib_vendser_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
-			 uint32_t valid_len, uint32_t flags, 
+			 uint32_t valid_len, uint32_t flags,
 			 uint32_t output_flags, char *error_str,
 			 int error_str_len)
 {
@@ -7166,7 +7166,7 @@ scsi_attrib_int_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
 	number_size = scsi_2btoul(hdr->length);
 
 	avail_len = valid_len - sizeof(*hdr);
-	if (avail_len < number_size) { 
+	if (avail_len < number_size) {
 		if (error_str != NULL) {
 			snprintf(error_str, error_str_len, "Available "
 				 "length of attribute ID 0x%.4x %zu < field "
@@ -7293,7 +7293,7 @@ scsi_attrib_ascii_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
 
 int
 scsi_attrib_text_sbuf(struct sbuf *sb, struct scsi_mam_attribute_header *hdr,
-		      uint32_t valid_len, uint32_t flags, 
+		      uint32_t valid_len, uint32_t flags,
 		      uint32_t output_flags, char *error_str,
 		      int error_str_len)
 {
@@ -7612,7 +7612,7 @@ scsi_inquiry(struct ccb_scsiio *csio, u_int32_t retries,
 	scsi_cmd->opcode = INQUIRY;
 	if (evpd) {
 		scsi_cmd->byte2 |= SI_EVPD;
-		scsi_cmd->page_code = page_code;		
+		scsi_cmd->page_code = page_code;
 	}
 	scsi_ulto2b(inq_len, scsi_cmd->length);
 }
@@ -8157,7 +8157,7 @@ scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 	} else if ((minimum_cmd_size < 16)
 		&& ((block_count & 0xffffffff) == block_count)
 		&& ((lba & 0xffffffff) == lba)) {
-		/* 
+		/*
 		 * The block count is too big for a 10 byte CDB, use a 12
 		 * byte CDB.
 		 */
@@ -8471,7 +8471,7 @@ scsi_ata_pass(struct ccb_scsiio *csio, uint32_t retries,
 	 * If we have parameters that require a 48-bit ATA command, we have to
 	 * use the 16 byte ATA PASS-THROUGH command at least.
 	 */
-	if (((lba > ATA_MAX_28BIT_LBA) 
+	if (((lba > ATA_MAX_28BIT_LBA)
 	  || (sector_count > 255)
 	  || (features > 255)
 	  || (protocol & AP_EXTEND))
@@ -8811,7 +8811,7 @@ scsi_write_buffer(struct ccb_scsiio *csio, u_int32_t retries,
 		      timeout);
 }
 
-void 
+void
 scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 		void (*cbfcnp)(struct cam_periph *, union ccb *),
 		u_int8_t tag_action, int start, int load_eject,
@@ -8846,7 +8846,7 @@ scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_read_attribute(struct ccb_scsiio *csio, u_int32_t retries, 
+scsi_read_attribute(struct ccb_scsiio *csio, u_int32_t retries,
 		    void (*cbfcnp)(struct cam_periph *, union ccb *),
 		    u_int8_t tag_action, u_int8_t service_action,
 		    uint32_t element, u_int8_t elem_type, int logical_volume,
@@ -8883,7 +8883,7 @@ scsi_read_attribute(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_write_attribute(struct ccb_scsiio *csio, u_int32_t retries, 
+scsi_write_attribute(struct ccb_scsiio *csio, u_int32_t retries,
 		    void (*cbfcnp)(struct cam_periph *, union ccb *),
 		    u_int8_t tag_action, uint32_t element, int logical_volume,
 		    int partition, int wtc, u_int8_t *data_ptr,
@@ -8915,7 +8915,7 @@ scsi_write_attribute(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
-scsi_persistent_reserve_in(struct ccb_scsiio *csio, uint32_t retries, 
+scsi_persistent_reserve_in(struct ccb_scsiio *csio, uint32_t retries,
 			   void (*cbfcnp)(struct cam_periph *, union ccb *),
 			   uint8_t tag_action, int service_action,
 			   uint8_t *data_ptr, uint32_t dxfer_len, int sense_len,
@@ -8943,7 +8943,7 @@ scsi_persistent_reserve_in(struct ccb_scsiio *csio, uint32_t retries,
 }
 
 void
-scsi_persistent_reserve_out(struct ccb_scsiio *csio, uint32_t retries, 
+scsi_persistent_reserve_out(struct ccb_scsiio *csio, uint32_t retries,
 			    void (*cbfcnp)(struct cam_periph *, union ccb *),
 			    uint8_t tag_action, int service_action,
 			    int scope, int res_type, uint8_t *data_ptr,
@@ -8972,7 +8972,7 @@ scsi_persistent_reserve_out(struct ccb_scsiio *csio, uint32_t retries,
 }
 
 void
-scsi_security_protocol_in(struct ccb_scsiio *csio, uint32_t retries, 
+scsi_security_protocol_in(struct ccb_scsiio *csio, uint32_t retries,
 			  void (*cbfcnp)(struct cam_periph *, union ccb *),
 			  uint8_t tag_action, uint32_t security_protocol,
 			  uint32_t security_protocol_specific, int byte4,
@@ -8988,7 +8988,7 @@ scsi_security_protocol_in(struct ccb_scsiio *csio, uint32_t retries,
 
 	scsi_cmd->security_protocol = security_protocol;
 	scsi_ulto2b(security_protocol_specific,
-		    scsi_cmd->security_protocol_specific); 
+		    scsi_cmd->security_protocol_specific);
 	scsi_cmd->byte4 = byte4;
 	scsi_ulto4b(dxfer_len, scsi_cmd->length);
 
@@ -9005,7 +9005,7 @@ scsi_security_protocol_in(struct ccb_scsiio *csio, uint32_t retries,
 }
 
 void
-scsi_security_protocol_out(struct ccb_scsiio *csio, uint32_t retries, 
+scsi_security_protocol_out(struct ccb_scsiio *csio, uint32_t retries,
 			   void (*cbfcnp)(struct cam_periph *, union ccb *),
 			   uint8_t tag_action, uint32_t security_protocol,
 			   uint32_t security_protocol_specific, int byte4,
@@ -9021,7 +9021,7 @@ scsi_security_protocol_out(struct ccb_scsiio *csio, uint32_t retries,
 
 	scsi_cmd->security_protocol = security_protocol;
 	scsi_ulto2b(security_protocol_specific,
-		    scsi_cmd->security_protocol_specific); 
+		    scsi_cmd->security_protocol_specific);
 	scsi_cmd->byte4 = byte4;
 	scsi_ulto4b(dxfer_len, scsi_cmd->length);
 
@@ -9038,7 +9038,7 @@ scsi_security_protocol_out(struct ccb_scsiio *csio, uint32_t retries,
 }
 
 void
-scsi_report_supported_opcodes(struct ccb_scsiio *csio, uint32_t retries, 
+scsi_report_supported_opcodes(struct ccb_scsiio *csio, uint32_t retries,
 			      void (*cbfcnp)(struct cam_periph *, union ccb *),
 			      uint8_t tag_action, int options, int req_opcode,
 			      int req_service_action, uint8_t *data_ptr,
@@ -9069,7 +9069,7 @@ scsi_report_supported_opcodes(struct ccb_scsiio *csio, uint32_t retries,
 		      timeout);
 }
 
-/*      
+/*
  * Try make as good a match as possible with
  * available sub drivers
  */
@@ -9096,7 +9096,7 @@ scsi_inquiry_match(caddr_t inqbuffer, caddr_t table_entry)
         return (-1);
 }
 
-/*      
+/*
  * Try make as good a match as possible with
  * available sub drivers
  */

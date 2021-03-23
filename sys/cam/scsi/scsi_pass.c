@@ -99,7 +99,7 @@ typedef enum {
 	PASS_IO_USER_SEG_MALLOC	= 0x01,
 	PASS_IO_KERN_SEG_MALLOC	= 0x02,
 	PASS_IO_ABANDONED	= 0x04
-} pass_io_flags; 
+} pass_io_flags;
 
 struct pass_io_req {
 	union ccb			 ccb;
@@ -168,10 +168,10 @@ static	void		pass_shutdown_kqueue(void *context, int pending);
 static	void		pass_add_physpath(void *context, int pending);
 static	void		passasync(void *callback_arg, u_int32_t code,
 				  struct cam_path *path, void *arg);
-static	void		passdone(struct cam_periph *periph, 
+static	void		passdone(struct cam_periph *periph,
 				 union ccb *done_ccb);
 static	int		passcreatezone(struct cam_periph *periph);
-static	void		passiocleanup(struct pass_softc *softc, 
+static	void		passiocleanup(struct pass_softc *softc,
 				      struct pass_io_req *io_req);
 static	int		passcopysglist(struct cam_periph *periph,
 				       struct pass_io_req *io_req,
@@ -180,7 +180,7 @@ static	int		passmemsetup(struct cam_periph *periph,
 				     struct pass_io_req *io_req);
 static	int		passmemdone(struct cam_periph *periph,
 				    struct pass_io_req *io_req);
-static	int		passerror(union ccb *ccb, u_int32_t cam_flags, 
+static	int		passerror(union ccb *ccb, u_int32_t cam_flags,
 				  u_int32_t sense_flags);
 static 	int		passsendccb(struct cam_periph *periph, union ccb *ccb,
 				    union ccb *inccb);
@@ -599,8 +599,8 @@ passregister(struct cam_periph *periph, void *arg)
 		softc->flags |= PASS_FLAG_UNMAPPED_CAPABLE;
 
 	/*
-	 * We pass in 0 for a blocksize, since we don't 
-	 * know what the blocksize of this device is, if 
+	 * We pass in 0 for a blocksize, since we don't
+	 * know what the blocksize of this device is, if
 	 * it even has a blocksize.
 	 */
 	cam_periph_unlock(periph);
@@ -882,7 +882,7 @@ passstart(struct cam_periph *periph, union ccb *start_ccb)
 
 static void
 passdone(struct cam_periph *periph, union ccb *done_ccb)
-{ 
+{
 	struct pass_softc *softc;
 	struct ccb_scsiio *csio;
 
@@ -942,7 +942,7 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 			    done_ccb->ataio.dxfer_len - done_ccb->ataio.resid,
 			    0, /* Not used in ATA */
 			    ((done_ccb->ccb_h.flags & CAM_DIR_MASK) ==
-			    CAM_DIR_NONE) ? DEVSTAT_NO_DATA : 
+			    CAM_DIR_NONE) ? DEVSTAT_NO_DATA :
 			    (done_ccb->ccb_h.flags & CAM_DIR_OUT) ?
 			    DEVSTAT_WRITE : DEVSTAT_READ, NULL,
 			    &io_req->start_time);
@@ -950,7 +950,7 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 		case XPT_SMP_IO:
 			/*
 			 * XXX KDM this isn't quite right, but there isn't
-			 * currently an easy way to represent a bidirectional 
+			 * currently an easy way to represent a bidirectional
 			 * transfer in devstat.  The only way to do it
 			 * and have the byte counts come out right would
 			 * mean that we would have to record two
@@ -1031,9 +1031,9 @@ passcreatezone(struct cam_periph *periph)
 	softc = (struct pass_softc *)periph->softc;
 
 	cam_periph_assert(periph, MA_OWNED);
-	KASSERT(((softc->flags & PASS_FLAG_ZONE_VALID) == 0), 
+	KASSERT(((softc->flags & PASS_FLAG_ZONE_VALID) == 0),
 		("%s called when the pass(4) zone is valid!\n", __func__));
-	KASSERT((softc->pass_zone == NULL), 
+	KASSERT((softc->pass_zone == NULL),
 		("%s called when the pass(4) zone is allocated!\n", __func__));
 
 	if ((softc->flags & PASS_FLAG_ZONE_INPROG) == 0) {
@@ -1150,7 +1150,7 @@ passiocleanup(struct pass_softc *softc, struct pass_io_req *io_req)
 	default:
 		/* allow ourselves to be swapped once again */
 		return;
-		break; /* NOTREACHED */ 
+		break; /* NOTREACHED */
 	}
 
 	if (io_req->flags & PASS_IO_USER_SEG_MALLOC) {
@@ -1970,7 +1970,7 @@ passdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread 
 		 && ((fc & XPT_FC_USER_CCB) == 0)) {
 			xpt_schedule(periph, priority);
 			break;
-		} 
+		}
 
 		/*
 		 * At this point, the CCB in question is either an
@@ -2221,7 +2221,7 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 * that request.  Otherwise, it's up to the user to perform any
 	 * error recovery.
 	 */
-	cam_periph_runccb(ccb, (ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER) ? 
+	cam_periph_runccb(ccb, (ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER) ?
 	    passerror : NULL, /* cam_flags */ CAM_RETRY_SELTO,
 	    /* sense_flags */ SF_RETRY_UA | SF_NO_PRINT,
 	    softc->device_stats);

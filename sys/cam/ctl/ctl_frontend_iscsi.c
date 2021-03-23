@@ -380,7 +380,7 @@ cfiscsi_pdu_prepare(struct icl_pdu *response)
 	 * 10.19.2: "However, when the Initiator Task Tag is set to 0xffffffff,
 	 * StatSN for the connection is not advanced after this PDU is sent."
 	 */
-	if (bhssr->bhssr_opcode == ISCSI_BHS_OPCODE_NOP_IN && 
+	if (bhssr->bhssr_opcode == ISCSI_BHS_OPCODE_NOP_IN &&
 	    bhssr->bhssr_initiator_task_tag == 0xffffffff)
 		advance_statsn = false;
 
@@ -817,7 +817,7 @@ cfiscsi_handle_data_segment(struct icl_pdu *request, struct cfiscsi_data_wait *c
 		 * Just ignore the superfluous data; will ask for them with R2T
 		 * on next call to cfiscsi_datamove().
 		 *
-		 * This obviously can only happen with SCSI Command PDU. 
+		 * This obviously can only happen with SCSI Command PDU.
 		 */
 		if ((request->ip_bhs->bhs_opcode & ~ISCSI_BHS_OPCODE_IMMEDIATE) ==
 		    ISCSI_BHS_OPCODE_SCSI_COMMAND)
@@ -1007,7 +1007,7 @@ cfiscsi_callout(void *context)
 
 	cs = context;
 
-	if (cs->cs_terminating) 
+	if (cs->cs_terminating)
 		return;
 
 	callout_schedule(&cs->cs_callout, 1 * hz);

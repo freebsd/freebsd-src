@@ -1,5 +1,5 @@
 /*-
- * Data structures and definitions for dealing with the 
+ * Data structures and definitions for dealing with the
  * Common Access Method Transport (xpt) layer.
  *
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD

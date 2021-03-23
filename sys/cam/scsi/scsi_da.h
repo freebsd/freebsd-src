@@ -410,7 +410,7 @@ struct scsi_read_defect_data_hdr_10
 	u_int8_t format;
 	u_int8_t length[2];
 #define	SRDDH10_MAX_LENGTH	SRDD10_MAX_LENGTH -			     \
-				sizeof(struct scsi_read_defect_data_hdr_10) 
+				sizeof(struct scsi_read_defect_data_hdr_10)
 };
 
 struct scsi_defect_desc_block
@@ -497,7 +497,7 @@ union	disk_pages /* this is the structure copied from osf */
 		u_int8_t pg_code;	/* page code (should be 4)	      */
 #define SMS_RIGID_GEOMETRY_PAGE 0x04
 		u_int8_t pg_length;	/* page length (should be 0x16)	      */
-#define SMS_RIGID_GEOMETRY_PLEN 0x16		
+#define SMS_RIGID_GEOMETRY_PLEN 0x16
 		u_int8_t ncyl_2;	/* number of cylinders (MSB)	      */
 		u_int8_t ncyl_1;	/* number of cylinders 		      */
 		u_int8_t ncyl_0;	/* number of cylinders (LSB)	      */
@@ -537,7 +537,7 @@ union	disk_pages /* this is the structure copied from osf */
 		u_int8_t st_cyl_wp_1;	/* starting cyl., write precomp (MSB) */
 		u_int8_t st_cyl_wp_0;	/* starting cyl., write precomp (LSB) */
 		u_int8_t st_cyl_rwc_1;	/* starting cyl., red. write cur (MSB)*/
-		u_int8_t st_cyl_rwc_0;	/* starting cyl., red. write cur (LSB)*/		
+		u_int8_t st_cyl_rwc_0;	/* starting cyl., red. write cur (LSB)*/
 		u_int8_t driv_step_1;	/* drive step rate (MSB)	      */
 		u_int8_t driv_step_0;	/* drive step rate (LSB)	      */
 		u_int8_t driv_step_pw;	/* drive step pulse width	      */
@@ -553,10 +553,10 @@ union	disk_pages /* this is the structure copied from osf */
 		u_int8_t pin32_pin2;
 		u_int8_t pin4_pint1;
 		u_int8_t medium_rot_rate_1; /* medium rotation rate (RPM) (MSB) */
-		u_int8_t medium_rot_rate_0; /* medium rotation rate (RPM) (LSB) */		
+		u_int8_t medium_rot_rate_0; /* medium rotation rate (RPM) (LSB) */
 		u_int8_t reserved30;
 		u_int8_t reserved31;
-    	} flexible_disk;	
+    	} flexible_disk;
 };
 
 /*
@@ -663,7 +663,7 @@ void scsi_read_defects(struct ccb_scsiio *csio, uint32_t retries,
 		       void (*cbfcnp)(struct cam_periph *, union ccb *),
 		       uint8_t tag_action, uint8_t list_format,
 		       uint32_t addr_desc_index, uint8_t *data_ptr,
-		       uint32_t dxfer_len, int minimum_cmd_size, 
+		       uint32_t dxfer_len, int minimum_cmd_size,
 		       uint8_t sense_len, uint32_t timeout);
 
 void scsi_sanitize(struct ccb_scsiio *csio, u_int32_t retries,
@@ -674,20 +674,20 @@ void scsi_sanitize(struct ccb_scsiio *csio, u_int32_t retries,
 
 #endif /* !_KERNEL */
 
-void scsi_zbc_out(struct ccb_scsiio *csio, uint32_t retries, 
+void scsi_zbc_out(struct ccb_scsiio *csio, uint32_t retries,
 		  void (*cbfcnp)(struct cam_periph *, union ccb *),
 		  uint8_t tag_action, uint8_t service_action, uint64_t zone_id,
 		  uint8_t zone_flags, uint8_t *data_ptr, uint32_t dxfer_len,
 		  uint8_t sense_len, uint32_t timeout);
 
-void scsi_zbc_in(struct ccb_scsiio *csio, uint32_t retries, 
+void scsi_zbc_in(struct ccb_scsiio *csio, uint32_t retries,
 		 void (*cbfcnp)(struct cam_periph *, union ccb *),
 		 uint8_t tag_action, uint8_t service_action,
 		 uint64_t zone_start_lba, uint8_t zone_options,
 		 uint8_t *data_ptr, uint32_t dxfer_len, uint8_t sense_len,
 		 uint32_t timeout);
 
-int scsi_ata_zac_mgmt_out(struct ccb_scsiio *csio, uint32_t retries, 
+int scsi_ata_zac_mgmt_out(struct ccb_scsiio *csio, uint32_t retries,
 			  void (*cbfcnp)(struct cam_periph *, union ccb *),
 			  uint8_t tag_action, int use_ncq,
 			  uint8_t zm_action, uint64_t zone_id,
@@ -696,7 +696,7 @@ int scsi_ata_zac_mgmt_out(struct ccb_scsiio *csio, uint32_t retries,
 			  size_t cdb_storage_len, uint8_t sense_len,
 			  uint32_t timeout);
 
-int scsi_ata_zac_mgmt_in(struct ccb_scsiio *csio, uint32_t retries, 
+int scsi_ata_zac_mgmt_in(struct ccb_scsiio *csio, uint32_t retries,
 			 void (*cbfcnp)(struct cam_periph *, union ccb *),
 			 uint8_t tag_action, int use_ncq,
 			 uint8_t zm_action, uint64_t zone_id,

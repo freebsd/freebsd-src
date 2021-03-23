@@ -671,7 +671,7 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		scsi = &cts->proto_specific.scsi;
 		fc = &cts->xport_specific.fc;
 
-		
+
 		cts->protocol = PROTO_SCSI;
 		cts->protocol_version = SCSI_REV_SPC2;
 		cts->transport = XPORT_FC;
@@ -685,7 +685,7 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		fc->wwpn = softc->wwpn;
 		fc->port = softc->port.targ_port;
 		fc->valid |= CTS_FC_VALID_WWNN | CTS_FC_VALID_WWPN |
-			CTS_FC_VALID_PORT; 
+			CTS_FC_VALID_PORT;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}

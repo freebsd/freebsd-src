@@ -2134,7 +2134,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 					    lun_id);
 					break;
 				}
-					
+
 				scan_info->lunindex[target_id]++;
 			}
 

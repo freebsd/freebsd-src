@@ -378,7 +378,7 @@ cam_compat_translate_dev_match_0x18(union ccb *ccb)
 		dm18[i].type = dm[i].type;
 		switch (dm[i].type) {
 		case DEV_MATCH_PERIPH:
-			memcpy(&dm18[i].result.periph_result.periph_name, 
+			memcpy(&dm18[i].result.periph_result.periph_name,
 			    &dm[i].result.periph_result.periph_name,
 			    DEV_IDLEN);
 			dm18[i].result.periph_result.unit_number =
@@ -399,7 +399,7 @@ cam_compat_translate_dev_match_0x18(union ccb *ccb)
 			   dm[i].result.device_result.target_lun;
 			dm18[i].result.device_result.protocol =
 			   dm[i].result.device_result.protocol;
-			memcpy(&dm18[i].result.device_result.inq_data, 
+			memcpy(&dm18[i].result.device_result.inq_data,
 			    &dm[i].result.device_result.inq_data,
 			    sizeof(struct scsi_inquiry_data));
 			memcpy(&dm18[i].result.device_result.ident_data,
@@ -409,7 +409,7 @@ cam_compat_translate_dev_match_0x18(union ccb *ccb)
 			   dm[i].result.device_result.flags;
 			break;
 		case DEV_MATCH_BUS:
-			memcpy(&dm18[i].result.bus_result, 
+			memcpy(&dm18[i].result.bus_result,
 			    &dm[i].result.bus_result,
 			    sizeof(struct bus_match_result));
 			break;

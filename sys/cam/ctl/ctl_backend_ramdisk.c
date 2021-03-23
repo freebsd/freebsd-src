@@ -157,7 +157,7 @@ static int ctl_backend_ramdisk_modify(struct ctl_be_ramdisk_softc *softc,
 				  struct ctl_lun_req *req);
 static void ctl_backend_ramdisk_lun_shutdown(struct ctl_be_lun *cbe_lun);
 
-static struct ctl_backend_driver ctl_be_ramdisk_driver = 
+static struct ctl_backend_driver ctl_be_ramdisk_driver =
 {
 	.name = "ramdisk",
 	.flags = CTL_BE_FLAG_HAS_CONFIG,
@@ -1056,7 +1056,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 		/* Tell the user what we used for a serial number */
 		strncpy((char *)params->serial_num, tmpstr,
 			MIN(sizeof(params->serial_num), sizeof(tmpstr)));
-	} else { 
+	} else {
 		strncpy((char *)cbe_lun->serial_num, params->serial_num,
 			MIN(sizeof(cbe_lun->serial_num),
 			    sizeof(params->serial_num)));

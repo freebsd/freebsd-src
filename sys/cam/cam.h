@@ -55,7 +55,7 @@ typedef u_int64_t lun_id_t;
 	((((u_int64_t)lun) & 0x000000000000ffffL) << 48))
 
 /*
- * Maximum length for a CAM CDB.  
+ * Maximum length for a CAM CDB.
  */
 #define CAM_MAX_CDBLEN 16
 
@@ -68,7 +68,7 @@ typedef u_int64_t lun_id_t;
 struct cam_periph;
 
 /*
- * Priority information for a CAM structure. 
+ * Priority information for a CAM structure.
  */
 typedef enum {
     CAM_RL_HOST,
@@ -101,7 +101,7 @@ typedef struct {
 } cam_pinfo;
 
 /*
- * Macro to compare two generation numbers.  It is used like this:  
+ * Macro to compare two generation numbers.  It is used like this:
  *
  *	if (GENERATIONCMP(a, >=, b))
  *		...;

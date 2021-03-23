@@ -89,7 +89,7 @@ struct targbh_softc {
 	struct		ccb_queue unknown_atio_queue;
 	struct		devstat device_stats;
 	targbh_state	state;
-	targbh_flags	flags;	
+	targbh_flags	flags;
 	u_int		init_level;
 	u_int		inq_data_len;
 	struct		ccb_accept_tio *accept_tio_list;
@@ -103,7 +103,7 @@ struct targbh_cmd_desc {
 	void*	  data;		/* The data. Can be from backing_store or not */
 	void*	  backing_store;/* Backing store allocated for this descriptor*/
 	u_int	  max_size;	/* Size of backing_store */
-	u_int32_t timeout;	
+	u_int32_t timeout;
 	u_int8_t  status;	/* Status to return to initiator */
 };
 
@@ -117,7 +117,7 @@ static struct scsi_sense_data_fixed no_lun_sense_data =
 {
 	SSD_CURRENT_ERROR|SSD_ERRCODE_VALID,
 	0,
-	SSD_KEY_NOT_READY, 
+	SSD_KEY_NOT_READY,
 	{ 0, 0, 0, 0 },
 	/*extra_len*/offsetof(struct scsi_sense_data_fixed, fru)
                    - offsetof(struct scsi_sense_data_fixed, extra_len),
@@ -144,7 +144,7 @@ static  int		targbherror(union ccb *ccb, u_int32_t cam_flags,
 #endif
 static struct targbh_cmd_desc*	targbhallocdescr(void);
 static void		targbhfreedescr(struct targbh_cmd_desc *buf);
-					
+
 static struct periph_driver targbhdriver =
 {
 	targbhinit, "targbh",
@@ -354,7 +354,7 @@ targbhdislun(struct cam_periph *periph)
 
 	/* Kill off all ACCECPT and IMMEDIATE CCBs */
 	while ((atio = softc->accept_tio_list) != NULL) {
-		
+
 		softc->accept_tio_list =
 		    ((struct targbh_cmd_desc*)atio->ccb_h.ccb_descr)->atio_link;
 		xpt_setup_ccb(&ccb.cab.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
@@ -382,7 +382,7 @@ targbhdislun(struct cam_periph *periph)
 	if (ccb.cel.ccb_h.status != CAM_REQ_CMP)
 		printf("targbhdislun - Disabling lun on controller failed "
 		       "with status 0x%x\n", ccb.cel.ccb_h.status);
-	else 
+	else
 		softc->flags &= ~TARGBH_FLAG_LUN_ENABLED;
 	return (ccb.cel.ccb_h.status);
 }
@@ -452,7 +452,7 @@ targbhstart(struct cam_periph *periph, union ccb *start_ccb)
 
 	ccbh = TAILQ_FIRST(&softc->work_queue);
 	if (ccbh == NULL) {
-		xpt_release_ccb(start_ccb);	
+		xpt_release_ccb(start_ccb);
 	} else {
 		TAILQ_REMOVE(&softc->work_queue, ccbh, periph_links.tqe);
 		TAILQ_INSERT_HEAD(&softc->pending_queue, ccbh,
@@ -513,7 +513,7 @@ targbhstart(struct cam_periph *periph, union ccb *start_ccb)
 					 /*relsim_flags*/0,
 					 /*reduction*/0,
 					 /*timeout*/0,
-					 /*getcount_only*/0); 
+					 /*getcount_only*/0);
 			atio->ccb_h.status &= ~CAM_DEV_QFRZN;
 		}
 		ccbh = TAILQ_FIRST(&softc->work_queue);
@@ -676,7 +676,7 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 					 /*relsim_flags*/0,
 					 /*reduction*/0,
 					 /*timeout*/0,
-					 /*getcount_only*/0); 
+					 /*getcount_only*/0);
 			done_ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
 		}
 		desc->data_resid -= desc->data_increment;

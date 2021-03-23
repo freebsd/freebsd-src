@@ -105,7 +105,7 @@ void		cam_ccbq_fini(struct cam_ccbq *ccbq);
  */
 u_int32_t	camq_resize(struct camq *queue, int new_size);
 
-/* 
+/*
  * Initialize a camq structure.  Return 0 on success, 1 on failure.
  */
 int		camq_init(struct camq *camq, int size);

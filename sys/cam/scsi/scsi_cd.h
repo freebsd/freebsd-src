@@ -281,7 +281,7 @@ struct scsi_set_speed
 	u_int8_t control;
 };
 
-struct scsi_report_key 
+struct scsi_report_key
 {
 	u_int8_t opcode;
 	u_int8_t reserved0;

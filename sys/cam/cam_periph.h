@@ -144,7 +144,7 @@ struct cam_periph {
 	SLIST_HEAD(, ccb_hdr)	 ccb_list;	/* For "immediate" requests */
 	SLIST_ENTRY(cam_periph)  periph_links;
 	TAILQ_ENTRY(cam_periph)  unit_links;
-	ac_callback_t		*deferred_callback; 
+	ac_callback_t		*deferred_callback;
 	ac_code			 deferred_ac;
 	struct task		 periph_run_task;
 };
@@ -186,7 +186,7 @@ int		cam_periph_runccb(union ccb *ccb,
 						       u_int32_t sense_flags),
 				  cam_flags camflags, u_int32_t sense_flags,
 				  struct devstat *ds);
-int		cam_periph_ioctl(struct cam_periph *periph, u_long cmd, 
+int		cam_periph_ioctl(struct cam_periph *periph, u_long cmd,
 				 caddr_t addr,
 				 int (*error_routine)(union ccb *ccb,
 						      cam_flags camflags,

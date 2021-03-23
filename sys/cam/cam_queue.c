@@ -249,7 +249,7 @@ cam_ccbq_alloc(int openings)
 	}
 	if (cam_ccbq_init(ccbq, openings) != 0) {
 		free(ccbq, M_CAMCCBQ);
-		return (NULL);		
+		return (NULL);
 	}
 
 	return (ccbq);

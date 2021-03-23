@@ -612,7 +612,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 
 		xpt_release_ccb(ccb);
 		break;
-		
+
 	case SG_GET_RESERVED_SIZE:
 	{
 		int *size = (int *)arg;

@@ -128,7 +128,7 @@ struct ctl_wwpn_iid {
  * 			  number is hardware/driver specific.
  * virtual_port:	  This is the virtual port number of this
  * 			  particular port.  This is for things like NP-IV.
- * 
+ *
  * port_online():	  This function is called, with onoff_arg as its
  *			  argument, by the CTL layer when it wants the FETD
  *			  to start responding to selections on the specified

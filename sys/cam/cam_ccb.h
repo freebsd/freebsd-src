@@ -1025,7 +1025,7 @@ struct ccb_trans_settings_sata {
 #define	CTS_SATA_CAPS_D_APST		0x00020000
 };
 
-struct ccb_trans_settings_nvme 
+struct ccb_trans_settings_nvme
 {
 	u_int     	valid;		/* Which fields to honor */
 #define CTS_NVME_VALID_SPEC	0x01

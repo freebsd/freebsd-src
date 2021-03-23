@@ -304,7 +304,7 @@ typedef enum {
  * which is accessible via the Master shelf controller in an HA. This flag
  * being set indicates a Primary LUN. This flag being reset represents a
  * Secondary LUN controlled by the Secondary controller in an HA
- * configuration. Flag is applicable at this time to T_DIRECT types. 
+ * configuration. Flag is applicable at this time to T_DIRECT types.
  *
  * The SERIAL_NUM flag tells us that the serial_num field is filled in and
  * valid for use in SCSI INQUIRY VPD page 0x80.
@@ -355,7 +355,7 @@ typedef enum {
  *
  * blocksize_bytes:	The LUN blocksize in bytes.  For some backends this
  *			is relevant, for others it may be ignored in
- *			favor of using the properties of the backing store. 
+ *			favor of using the properties of the backing store.
  *
  *			The actual blocksize of the LUN is returned in this
  *			field.
@@ -506,7 +506,7 @@ typedef enum {
  *
  * fill_len:		The amount of data filled in the storage for entries.
  *
- * status:		The status of the request.  See above for the 
+ * status:		The status of the request.  See above for the
  *			description of the values of this field.
  *
  * error_str:		If the status indicates an error, this string will
@@ -737,7 +737,7 @@ union ctl_iscsi_data {
 /*
  * iSCSI interface
  *
- * status:		The status of the request.  See above for the 
+ * status:		The status of the request.  See above for the
  *			description of the values of this field.
  *
  * error_str:		If the status indicates an error, this string will

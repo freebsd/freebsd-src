@@ -2539,7 +2539,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		struct ctl_port_entry *entry;
 
 		entry = (struct ctl_port_entry *)addr;
-		
+
 		mtx_lock(&softc->ctl_lock);
 		STAILQ_FOREACH(port, &softc->port_list, links) {
 			int action, done;
@@ -2674,7 +2674,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			sizeof(struct ctl_ooa_entry);
 		retval = copyout(entries, ooa_hdr->entries, ooa_hdr->fill_len);
 		if (retval != 0) {
-			printf("%s: error copying out %d bytes for OOA dump\n", 
+			printf("%s: error copying out %d bytes for OOA dump\n",
 			       __func__, ooa_hdr->fill_len);
 		}
 
@@ -2810,7 +2810,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		mtx_unlock(&lun->lun_lock);
 		if (delete_done == 0) {
 			printf("%s: CTL_ERROR_INJECT_DELETE: can't find "
-			       "error serial %ju on LUN %u\n", __func__, 
+			       "error serial %ju on LUN %u\n", __func__,
 			       delete_desc->serial, delete_desc->lun_id);
 			retval = EINVAL;
 			break;
@@ -3069,7 +3069,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				break;
 
 			retval = sbuf_printf(sb, "</serial_number>\n");
-		
+
 			if (retval != 0)
 				break;
 

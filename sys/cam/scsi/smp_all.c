@@ -287,7 +287,7 @@ smp_report_general_sbuf(struct smp_report_general_response *response,
 		    response->response_len * SMP_WORD_LEN);
 	sbuf_printf(sb, "Expander Change Count: %d\n",
 		    scsi_2btoul(response->expander_change_count));
-	sbuf_printf(sb, "Expander Route Indexes: %d\n", 
+	sbuf_printf(sb, "Expander Route Indexes: %d\n",
 		    scsi_2btoul(response->expander_route_indexes));
 	sbuf_printf(sb, "Long Response: %s\n",
 		    smp_yesno(response->long_response &
@@ -296,25 +296,25 @@ smp_report_general_sbuf(struct smp_report_general_response *response,
 	sbuf_printf(sb, "Table to Table Supported: %s\n",
 		    smp_yesno(response->config_bits0 &
 		    SMP_RG_TABLE_TO_TABLE_SUP));
-	sbuf_printf(sb, "Zone Configuring: %s\n", 
+	sbuf_printf(sb, "Zone Configuring: %s\n",
 		    smp_yesno(response->config_bits0 &
 		    SMP_RG_ZONE_CONFIGURING));
-	sbuf_printf(sb, "Self Configuring: %s\n", 
+	sbuf_printf(sb, "Self Configuring: %s\n",
 		    smp_yesno(response->config_bits0 &
 		    SMP_RG_SELF_CONFIGURING));
-	sbuf_printf(sb, "STP Continue AWT: %s\n", 
+	sbuf_printf(sb, "STP Continue AWT: %s\n",
 		    smp_yesno(response->config_bits0 &
 		    SMP_RG_STP_CONTINUE_AWT));
-	sbuf_printf(sb, "Open Reject Retry Supported: %s\n", 
+	sbuf_printf(sb, "Open Reject Retry Supported: %s\n",
 		    smp_yesno(response->config_bits0 &
 		    SMP_RG_OPEN_REJECT_RETRY_SUP));
-	sbuf_printf(sb, "Configures Others: %s\n", 
+	sbuf_printf(sb, "Configures Others: %s\n",
 		    smp_yesno(response->config_bits0 &
 		    SMP_RG_CONFIGURES_OTHERS));
-	sbuf_printf(sb, "Configuring: %s\n", 
+	sbuf_printf(sb, "Configuring: %s\n",
 		    smp_yesno(response->config_bits0 &
 		    SMP_RG_CONFIGURING));
-	sbuf_printf(sb, "Externally Configurable Route Table: %s\n", 
+	sbuf_printf(sb, "Externally Configurable Route Table: %s\n",
 		    smp_yesno(response->config_bits0 &
 		    SMP_RG_CONFIGURING));
 	sbuf_printf(sb, "Enclosure Logical Identifier: 0x%016jx\n",

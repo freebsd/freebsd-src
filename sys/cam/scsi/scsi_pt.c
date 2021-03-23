@@ -81,7 +81,7 @@ struct pt_softc {
 	struct	 devstat *device_stats;
 	LIST_HEAD(, ccb_hdr) pending_ccbs;
 	pt_state state;
-	pt_flags flags;	
+	pt_flags flags;
 	union	 ccb saved_ccb;
 	int	 io_timeout;
 	struct cdev *dev;
@@ -142,7 +142,7 @@ ptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (cam_periph_acquire(periph) != 0)
-		return (ENXIO);	
+		return (ENXIO);
 
 	softc = (struct pt_softc *)periph->softc;
 
@@ -263,7 +263,7 @@ ptctor(struct cam_periph *periph, void *arg)
 
 	if (softc == NULL) {
 		printf("daregister: Unable to probe new device. "
-		       "Unable to allocate softc\n");				
+		       "Unable to allocate softc\n");
 		return(CAM_REQ_CMP_ERR);
 	}
 
@@ -462,7 +462,7 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 		bp = bioq_first(&softc->bio_queue);
 
 		xpt_action(start_ccb);
-		
+
 		if (bp != NULL) {
 			/* Have more work to do, so ensure we stay scheduled */
 			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
@@ -491,7 +491,7 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			int error;
 			int sf;
-			
+
 			if ((csio->ccb_h.ccb_state & PT_CCB_RETRY_UA) != 0)
 				sf = SF_RETRY_UA;
 			else

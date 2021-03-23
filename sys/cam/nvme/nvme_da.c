@@ -356,7 +356,7 @@ ndaclose(struct disk *dp)
 	    ("nda %d outstanding commands", softc->outstanding_cmds));
 	cam_periph_unlock(periph);
 	cam_periph_release(periph);
-	return (0);	
+	return (0);
 }
 
 static void

@@ -381,7 +381,7 @@ pmpregister(struct cam_periph *periph, void *arg)
 
 	if (softc == NULL) {
 		printf("pmpregister: Unable to probe new device. "
-		       "Unable to allocate softc\n");				
+		       "Unable to allocate softc\n");
 		return(CAM_REQ_CMP_ERR);
 	}
 	periph->softc = softc;

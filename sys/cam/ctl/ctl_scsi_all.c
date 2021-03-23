@@ -166,7 +166,7 @@ ctl_scsi_sense_string(struct ctl_scsiio *ctsio,
 }
 
 #ifdef _KERNEL
-void 
+void
 ctl_scsi_sense_print(struct ctl_scsiio *ctsio,
 		     struct scsi_inquiry_data *inq_data)
 {
