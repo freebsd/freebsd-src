@@ -556,13 +556,13 @@ fdt_setup_fdtp()
 {
 	struct preloaded_file *bfp;
 	vm_offset_t va;
-	
+
 	debugf("fdt_setup_fdtp()\n");
 
 	/* If we already loaded a file, use it. */
 	if ((bfp = file_findfile(NULL, "dtb")) != NULL) {
 		if (fdt_load_dtb(bfp->f_addr) == 0) {
-			printf("Using DTB from loaded file '%s'.\n", 
+			printf("Using DTB from loaded file '%s'.\n",
 			    bfp->f_name);
 			fdt_platform_load_overlays();
 			return (0);
@@ -591,7 +591,7 @@ fdt_setup_fdtp()
 			return (0);
 		}
 	}
-	
+
 	command_errmsg = "No device tree blob found!\n";
 	return (1);
 }
@@ -835,7 +835,7 @@ fdt_fixup_memory(struct fdt_mem_region *region, size_t num)
 			printf("Could not fixup 'memreserve' property.\n");
 
 		free(sb);
-	} 
+	}
 
 	/* Count valid memory regions entries in sysinfo. */
 	realmrno = num;
@@ -1164,7 +1164,7 @@ fdt_cmd_hdr(int argc __unused, char *argv[] __unused)
 	    fdt_off_mem_rsvmap(fdtp));
 	if (pager_output(line))
 		goto out;
-	sprintf(line, " version                 = %d\n", ver); 
+	sprintf(line, " version                 = %d\n", ver);
 	if (pager_output(line))
 		goto out;
 	sprintf(line, " last compatible version = %d\n",
@@ -1871,7 +1871,7 @@ fdt_cmd_mres(int argc, char *argv[])
 			goto out;
 		for (i = 0; i < total; i++) {
 			fdt_get_mem_rsv(fdtp, i, &start, &size);
-			sprintf(line, "reg#%d: (start: 0x%jx, size: 0x%jx)\n", 
+			sprintf(line, "reg#%d: (start: 0x%jx, size: 0x%jx)\n",
 			    i, start, size);
 			if (pager_output(line))
 				goto out;
