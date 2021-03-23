@@ -32,7 +32,7 @@
  * \brief Wrapper function to obtain a HVM parameter value.
  *
  * \param index	HVM parameter index; see <xen/interface/hvm/params.h>.
- * 
+ *
  * \returns	0 on failure; the value of the parameter otherwise.
  */
 static inline unsigned long

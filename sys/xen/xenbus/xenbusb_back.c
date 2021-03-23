@@ -6,20 +6,20 @@
  * Copyright (C) 2005 Rusty Russell, IBM Corporation
  * Copyright (C) 2005 Mike Wray, Hewlett-Packard
  * Copyright (C) 2005 XenSource Ltd
- * 
+ *
  * This file may be distributed separately from the Linux kernel, or
  * incorporated into other software packages, subject to the following license:
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this source file (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use, copy, modify,
  * merge, publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
  *
  * \return  Always returns 0 indicating success.
  */
-static int 
+static int
 xenbusb_back_probe(device_t dev)
 {
 	device_set_desc(dev, "Xen Backend Devices");
@@ -113,7 +113,7 @@ xenbusb_back_attach(device_t dev)
  *
  * \param dev   NewBus device_t for this XenBus backend bus instance.
  * \param type  String indicating the device sub-tree (e.g. "vfb", "vif")
- *              to enumerate. 
+ *              to enumerate.
  *
  * \return  On success, 0. Otherwise an errno value indicating the
  *          type of failure.
@@ -160,7 +160,7 @@ xenbusb_back_enumerate_type(device_t dev, const char *type)
 		for (dev_idx = 0; dev_idx < dev_count; dev_idx++) {
 			const char *dev_num;
 			struct sbuf *id;
-			
+
 			dev_num = devs[dev_idx];
 			id = xs_join(vm, dev_num);
 			xenbusb_add_device(dev, type, sbuf_data(id));
@@ -199,7 +199,7 @@ xenbusb_back_get_otherend_node(device_t dev, struct xenbus_device_ivars *ivars)
 		free(ivars->xd_otherend_path, M_XENBUS);
 		ivars->xd_otherend_path = NULL;
 	}
-		
+
 	error = xs_gather(XST_NIL, ivars->xd_node,
 	    "frontend-id", "%i", &ivars->xd_otherend_id,
 	    "frontend", NULL, &otherend_path,
@@ -215,7 +215,7 @@ xenbusb_back_get_otherend_node(device_t dev, struct xenbus_device_ivars *ivars)
 
 /**
  * \brief Backend XenBus method implementing responses to peer state changes.
- * 
+ *
  * \param bus       The XenBus bus parent of child.
  * \param child     The XenBus child whose peer stat has changed.
  * \param state     The current state of the peer.
@@ -244,7 +244,7 @@ xenbusb_back_otherend_changed(device_t bus, device_t child,
 /**
  * \brief Backend XenBus method implementing responses to local
  *        XenStore changes.
- * 
+ *
  * \param bus    The XenBus bus parent of child.
  * \param child  The XenBus child whose peer stat has changed.
  * \param_path   The tree relative sub-path to the modified node.  The empty
@@ -268,7 +268,7 @@ xenbusb_back_localend_changed(device_t bus, device_t child, const char *path)
 	 * Cleanup the hotplug entry in the XenStore if
 	 * present.  The control domain expects any userland
 	 * component associated with this device to destroy
-	 * this node in order to signify it is safe to 
+	 * this node in order to signify it is safe to
 	 * teardown the device.  However, not all backends
 	 * rely on userland components, and those that
 	 * do should either use a communication channel
@@ -283,20 +283,20 @@ xenbusb_back_localend_changed(device_t bus, device_t child, const char *path)
 }
 
 /*-------------------- Private Device Attachment Data  -----------------------*/
-static device_method_t xenbusb_back_methods[] = { 
-	/* Device interface */ 
+static device_method_t xenbusb_back_methods[] = {
+	/* Device interface */
 	DEVMETHOD(device_identify,	xenbusb_identify),
-	DEVMETHOD(device_probe,         xenbusb_back_probe), 
-	DEVMETHOD(device_attach,        xenbusb_back_attach), 
-	DEVMETHOD(device_detach,        bus_generic_detach), 
-	DEVMETHOD(device_shutdown,      bus_generic_shutdown), 
-	DEVMETHOD(device_suspend,       bus_generic_suspend), 
-	DEVMETHOD(device_resume,        xenbusb_resume), 
+	DEVMETHOD(device_probe,         xenbusb_back_probe),
+	DEVMETHOD(device_attach,        xenbusb_back_attach),
+	DEVMETHOD(device_detach,        bus_generic_detach),
+	DEVMETHOD(device_shutdown,      bus_generic_shutdown),
+	DEVMETHOD(device_suspend,       bus_generic_suspend),
+	DEVMETHOD(device_resume,        xenbusb_resume),
 
-	/* Bus Interface */ 
+	/* Bus Interface */
 	DEVMETHOD(bus_print_child,      xenbusb_print_child),
-	DEVMETHOD(bus_read_ivar,        xenbusb_read_ivar), 
-	DEVMETHOD(bus_write_ivar,       xenbusb_write_ivar), 
+	DEVMETHOD(bus_read_ivar,        xenbusb_read_ivar),
+	DEVMETHOD(bus_write_ivar,       xenbusb_write_ivar),
 	DEVMETHOD(bus_alloc_resource,   bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
@@ -307,12 +307,12 @@ static device_method_t xenbusb_back_methods[] = {
 	DEVMETHOD(xenbusb_get_otherend_node, xenbusb_back_get_otherend_node),
 	DEVMETHOD(xenbusb_otherend_changed, xenbusb_back_otherend_changed),
 	DEVMETHOD(xenbusb_localend_changed, xenbusb_back_localend_changed),
-	{ 0, 0 } 
-}; 
+	{ 0, 0 }
+};
 
 DEFINE_CLASS_0(xenbusb_back, xenbusb_back_driver, xenbusb_back_methods,
 	       sizeof(struct xenbusb_softc));
-devclass_t xenbusb_back_devclass; 
+devclass_t xenbusb_back_devclass;
 
 DRIVER_MODULE(xenbusb_back, xenstore, xenbusb_back_driver,
 	      xenbusb_back_devclass, 0, 0);

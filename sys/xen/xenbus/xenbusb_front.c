@@ -6,20 +6,20 @@
  * Copyright (C) 2005 Rusty Russell, IBM Corporation
  * Copyright (C) 2005 Mike Wray, Hewlett-Packard
  * Copyright (C) 2005 XenSource Ltd
- * 
+ *
  * This file may be distributed separately from the Linux kernel, or
  * incorporated into other software packages, subject to the following license:
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this source file (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use, copy, modify,
  * merge, publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
  *
  * \return  Always returns 0 indicating success.
  */
-static int 
+static int
 xenbusb_front_probe(device_t dev)
 {
 	device_set_desc(dev, "Xen Frontend Devices");
@@ -93,7 +93,7 @@ xenbusb_front_attach(device_t dev)
  *
  * \param dev   NewBus device_t for this XenBus front bus instance.
  * \param type  String indicating the device sub-tree (e.g. "vfb", "vif")
- *              to enumerate. 
+ *              to enumerate.
  *
  * \return  On success, 0. Otherwise an errno value indicating the
  *          type of failure.
@@ -147,7 +147,7 @@ xenbusb_front_get_otherend_node(device_t dev, struct xenbus_device_ivars *ivars)
 		free(ivars->xd_otherend_path, M_XENBUS);
 		ivars->xd_otherend_path = NULL;
 	}
-		
+
 	error = xs_gather(XST_NIL, ivars->xd_node,
 	    "backend-id", "%i", &ivars->xd_otherend_id,
 	    "backend", NULL, &otherend_path,
@@ -162,20 +162,20 @@ xenbusb_front_get_otherend_node(device_t dev, struct xenbus_device_ivars *ivars)
 }
 
 /*-------------------- Private Device Attachment Data  -----------------------*/
-static device_method_t xenbusb_front_methods[] = { 
-	/* Device interface */ 
+static device_method_t xenbusb_front_methods[] = {
+	/* Device interface */
 	DEVMETHOD(device_identify,	xenbusb_identify),
-	DEVMETHOD(device_probe,         xenbusb_front_probe), 
-	DEVMETHOD(device_attach,        xenbusb_front_attach), 
-	DEVMETHOD(device_detach,        bus_generic_detach), 
-	DEVMETHOD(device_shutdown,      bus_generic_shutdown), 
-	DEVMETHOD(device_suspend,       bus_generic_suspend), 
-	DEVMETHOD(device_resume,        xenbusb_resume), 
+	DEVMETHOD(device_probe,         xenbusb_front_probe),
+	DEVMETHOD(device_attach,        xenbusb_front_attach),
+	DEVMETHOD(device_detach,        bus_generic_detach),
+	DEVMETHOD(device_shutdown,      bus_generic_shutdown),
+	DEVMETHOD(device_suspend,       bus_generic_suspend),
+	DEVMETHOD(device_resume,        xenbusb_resume),
 
-	/* Bus Interface */ 
+	/* Bus Interface */
 	DEVMETHOD(bus_print_child,      xenbusb_print_child),
-	DEVMETHOD(bus_read_ivar,        xenbusb_read_ivar), 
-	DEVMETHOD(bus_write_ivar,       xenbusb_write_ivar), 
+	DEVMETHOD(bus_read_ivar,        xenbusb_read_ivar),
+	DEVMETHOD(bus_write_ivar,       xenbusb_write_ivar),
 	DEVMETHOD(bus_alloc_resource,   bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource, bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
@@ -184,12 +184,12 @@ static device_method_t xenbusb_front_methods[] = {
 	/* XenBus Bus Interface */
 	DEVMETHOD(xenbusb_enumerate_type, xenbusb_front_enumerate_type),
 	DEVMETHOD(xenbusb_get_otherend_node, xenbusb_front_get_otherend_node),
-	{ 0, 0 } 
-}; 
+	{ 0, 0 }
+};
 
 DEFINE_CLASS_0(xenbusb_front, xenbusb_front_driver, xenbusb_front_methods,
 	       sizeof(struct xenbusb_softc));
-devclass_t xenbusb_front_devclass; 
+devclass_t xenbusb_front_devclass;
 
 DRIVER_MODULE(xenbusb_front, xenstore, xenbusb_front_driver,
 	      xenbusb_front_devclass, 0, 0);

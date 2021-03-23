@@ -1,9 +1,9 @@
 /******************************************************************************
  * xen_intr.h
- * 
+ *
  * APIs for managing Xen event channel, virtual IRQ, and physical IRQ
  * notifications.
- * 
+ *
  * Copyright (c) 2004, K A Fraser
  * Copyright (c) 2012, Spectra Logic Corporation
  *
@@ -16,10 +16,10 @@
  * merge, publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -118,7 +118,7 @@ int xen_intr_bind_remote_port(device_t dev, u_int remote_domain,
  * \param dev       The device making this bind request.
  * \param virq      The Xen virtual IRQ number for the Xen interrupt
  *                  source being hooked.
- * \param cpu       The cpu on which interrupt events should be delivered. 
+ * \param cpu       The cpu on which interrupt events should be delivered.
  * \param filter    An interrupt filter handler.  Specify NULL
  *                  to always dispatch to the ithread handler.
  * \param handler   An interrupt ithread handler.  Optional (can

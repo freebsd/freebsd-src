@@ -62,7 +62,7 @@ typedef enum {
 struct xenbusb_softc {
 	/**
 	 * XenStore watch used to monitor the subtree of the
-	 * XenStore where devices for this bus attachment arrive	
+	 * XenStore where devices for this bus attachment arrive
 	 * and depart.
 	 */
 	struct xs_watch	        xbs_device_watch;
@@ -106,7 +106,7 @@ struct xenbusb_softc {
 	 * The number of path components (strings separated by the '/'
 	 * character) that make up the device ID on this bus.
 	 */
-	u_int			xbs_id_components;	
+	u_int			xbs_id_components;
 };
 
 /**
@@ -255,7 +255,7 @@ int xenbusb_write_ivar(device_t dev, device_t child, int index,
 
 /**
  * \brief Common XenBus method implementing responses to peer state changes.
- * 
+ *
  * \param bus       The XenBus bus parent of child.
  * \param child     The XenBus child whose peer stat has changed.
  * \param state     The current state of the peer.
@@ -265,7 +265,7 @@ void xenbusb_otherend_changed(device_t bus, device_t child,
 
 /**
  * \brief Common XenBus method implementing responses to local XenStore changes.
- * 
+ *
  * \param bus    The XenBus bus parent of child.
  * \param child  The XenBus child whose peer stat has changed.
  * \param path   The tree relative sub-path to the modified node.  The empty

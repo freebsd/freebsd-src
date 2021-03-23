@@ -4,20 +4,20 @@
  * Copyright (C) 2005 Rusty Russell, IBM Corporation
  * Copyright (C) 2005 Mike Wray, Hewlett-Packard
  * Copyright (C) 2005 XenSource Ltd
- * 
+ *
  * This file may be distributed separately from the Linux kernel, or
  * incorporated into other software packages, subject to the following license:
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this source file (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use, copy, modify,
  * merge, publish, distribute, sublicense, and/or sell copies of the Software,
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -199,7 +199,7 @@ xenbusb_local_watch_cb(struct xs_watch *watch, const char **vec,
  * \return  The device_t of the found device if any, or NULL.
  *
  * \note device_t is a pointer type, so it can be compared against
- *       NULL for validity. 
+ *       NULL for validity.
  */
 static device_t
 xenbusb_device_exists(device_t dev, const char *node)
@@ -302,7 +302,7 @@ xenbusb_enumerate_bus(struct xenbusb_softc *xbs)
  * Handler for all generic XenBus device systcl nodes.
  */
 static int
-xenbusb_device_sysctl_handler(SYSCTL_HANDLER_ARGS)  
+xenbusb_device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev;
         const char *value;
@@ -616,7 +616,7 @@ out:
  * Since interrupts are always functional at the time of XenBus configuration,
  * there is nothing to be done when the callback occurs.  This hook is only
  * registered to hold up boot processing while XenBus devices come online.
- * 
+ *
  * \param arg  Unused configuration hook callback argument.
  */
 static void
@@ -667,7 +667,7 @@ xenbusb_add_device(device_t dev, const char *type, const char *id)
 			error = 0;
 			goto out;
 		}
-			
+
 		state = xenbus_read_driver_state(devpath);
 		if (state != XenbusStateInitialising) {
 			/*
@@ -691,7 +691,7 @@ xenbusb_add_device(device_t dev, const char *type, const char *id)
 		error = XENBUSB_GET_OTHEREND_NODE(dev, ivars);
 		if (error) {
 			printf("xenbus_update_device: %s no otherend id\n",
-			    devpath); 
+			    devpath);
 			goto out;
 		}
 

@@ -1,8 +1,8 @@
 /******************************************************************************
  * hypervisor.h
-  * 
+  *
  * Linux-specific hypervisor handling.
- * 
+ *
  * Copyright (c) 2002, K A Fraser
  *
  * $FreeBSD$
@@ -25,10 +25,10 @@
 
 extern uint64_t get_system_time(int ticks);
 
-static inline int 
+static inline int
 HYPERVISOR_console_write(const char *str, int count)
 {
-    return HYPERVISOR_console_io(CONSOLEIO_write, count, str); 
+    return HYPERVISOR_console_io(CONSOLEIO_write, count, str);
 }
 
 static inline int
@@ -56,7 +56,7 @@ HYPERVISOR_block(
         return (rc);
 }
 
-static inline void 
+static inline void
 HYPERVISOR_shutdown(unsigned int reason)
 {
 	struct sched_shutdown sched_shutdown = {
@@ -70,11 +70,11 @@ HYPERVISOR_shutdown(unsigned int reason)
 }
 
 static inline void
-HYPERVISOR_crash(void) 
+HYPERVISOR_crash(void)
 {
-        HYPERVISOR_shutdown(SHUTDOWN_crash); 
+        HYPERVISOR_shutdown(SHUTDOWN_crash);
 	/* NEVER REACHED */
-        for (;;) ; /* eliminate noreturn error */ 
+        for (;;) ; /* eliminate noreturn error */
 }
 
 /* Transfer control to hypervisor until an event is detected on one */
@@ -94,7 +94,7 @@ HYPERVISOR_poll(
 #if CONFIG_XEN_COMPAT <= 0x030002
 	if (rc == -ENOXENSYS)
 		rc = HYPERVISOR_sched_op_compat(SCHEDOP_yield, 0);
-#endif	
+#endif
 	return (rc);
 }
 
