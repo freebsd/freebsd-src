@@ -2342,7 +2342,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		 * Get an Open structure that will be
 		 * attached to the OpenOwner, acquired already.
 		 */
-		error = nfscl_open(dvp, nfhp->nfh_fh, nfhp->nfh_len, 
+		error = nfscl_open(dvp, nfhp->nfh_fh, nfhp->nfh_len,
 		    (NFSV4OPEN_ACCESSWRITE | NFSV4OPEN_ACCESSREAD), 0,
 		    cred, p, NULL, &op, &newone, NULL, 0);
 		if (error)
@@ -5622,7 +5622,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_in *sin,
 		if (vers == NFS_VER4) {
 			firsttry = 0;
 			do {
-				error = nfsrpc_exchangeid(nmp, clp, nrp, 
+				error = nfsrpc_exchangeid(nmp, clp, nrp,
 				    minorvers, NFSV4EXCH_USEPNFSDS, &dsp,
 				    nrp->nr_cred, p);
 				NFSCL_DEBUG(3, "DS exchangeid=%d\n", error);
@@ -7326,7 +7326,7 @@ nfsrv_parselayoutget(struct nfsmount *nmp, struct nfsrv_descript *nd,
 						NFSM_DISSECT(cp, uint8_t *,
 						    NFSM_RNDUP(nfhlen));
 						if (l == 0) {
-							flp->nfsfl_ffm[j].fhcnt 
+							flp->nfsfl_ffm[j].fhcnt
 							    = fhcnt;
 							nfhp = malloc(
 							    sizeof(*nfhp) +
@@ -7923,7 +7923,7 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			 * Get an Open structure that will be
 			 * attached to the OpenOwner, acquired already.
 			 */
-			error = nfscl_open(dvp, nfhp->nfh_fh, nfhp->nfh_len, 
+			error = nfscl_open(dvp, nfhp->nfh_fh, nfhp->nfh_len,
 			    (NFSV4OPEN_ACCESSWRITE | NFSV4OPEN_ACCESSREAD), 0,
 			    cred, p, NULL, &op, &newone, NULL, 0);
 			if (error != 0)

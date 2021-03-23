@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
  * Because it is biased towards avoiding false hits, multiple entries with
  * the same xid are to be expected, especially for the case of the entry
  * in the cache being related to a seqid# sequenced Op.
- * 
+ *
  * The basic algorithm I'm about to code up:
  * - Null RPCs bypass the cache and are just done
  * For TCP
@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
  * 			- a hit (reply from cache)
  * 		else
  * 			- miss (go do RPC, using new cache entry)
- * 
+ *
  * 	During processing of NFSv4 request:
  * 		- set a flag when a non-idempotent Op is processed
  * 		- when an Op that uses a seqid# (Open,...) is processed
@@ -93,7 +93,7 @@ __FBSDID("$FreeBSD$");
  * 				- increment seqid_refcnt on new cache entry
  * 				- set pointer from Openowner/Lockowner to
  * 					new cache entry (aka reference it)
- * 
+ *
  * 	At end of RPC processing:
  * 		- if seqid_refcnt > 0 OR flagged non-idempotent on new
  * 			cache entry
@@ -105,7 +105,7 @@ __FBSDID("$FreeBSD$");
  * 		  else
  * 			- free new cache entry
  * 		- Send reply (noting info for socket activity check, below)
- * 
+ *
  * 	For cache entries saved above:
  * 		- if saved since seqid_refcnt was > 0
  * 			- free when seqid_refcnt decrements to 0
@@ -122,11 +122,11 @@ __FBSDID("$FreeBSD$");
  * 				   replied on same socket OR?)
  * 			  OR
  * 				- when very old (hours, days, weeks?)
- * 
+ *
  * For UDP (v2, 3 only), pretty much the old way:
  * - key on <xid, NFS version, RPC#, Client host ip#>
  *   (at most one entry for each key)
- * 
+ *
  * When a Request arrives:
  * - if a match with entry via key
  * 	- if RPC marked In_progress
@@ -145,7 +145,7 @@ __FBSDID("$FreeBSD$");
  * 		  else
  * 			- free cache entry
  * 		- send reply
- * 
+ *
  * Later, entries with saved replies are free'd a short time (few minutes)
  * after reply sent (timestamp).
  * Reference: Chet Juszczak, "Improving the Performance and Correctness

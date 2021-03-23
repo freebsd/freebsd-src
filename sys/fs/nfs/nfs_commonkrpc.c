@@ -213,7 +213,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 			nconf = getnetconfigent("udp6");
 		else
 			nconf = getnetconfigent("tcp6");
-			
+
 	pktscale = nfs_bufpackets;
 	if (pktscale < 2)
 		pktscale = 2;
@@ -231,7 +231,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	 */
 	so = NULL;
 	saddr = NFSSOCKADDR(nrp->nr_nam, struct sockaddr *);
-	error = socreate(saddr->sa_family, &so, nrp->nr_sotype, 
+	error = socreate(saddr->sa_family, &so, nrp->nr_sotype,
 	    nrp->nr_soproto, td->td_ucred, td);
 	if (error != 0)
 		goto out;
@@ -389,7 +389,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 		/*
 		 * For UDP, there are 2 timeouts:
 		 * - CLSET_RETRY_TIMEOUT sets the initial timeout for the timer
-		 *   that does a retransmit of an RPC request using the same 
+		 *   that does a retransmit of an RPC request using the same
 		 *   socket and xid. This is what you normally want to do,
 		 *   since NFS servers depend on "same xid" for their
 		 *   Duplicate Request Cache.
@@ -1139,9 +1139,9 @@ tryagain:
 				      j != NFSERR_STALESTATEID &&
 				      j != NFSERR_BADSTATEID &&
 				      j != NFSERR_BADSEQID &&
-				      j != NFSERR_BADXDR &&	 
+				      j != NFSERR_BADXDR &&
 				      j != NFSERR_RESOURCE &&
-				      j != NFSERR_NOFILEHANDLE)))		 
+				      j != NFSERR_NOFILEHANDLE)))
 					nd->nd_flag |= ND_INCRSEQID;
 			}
 			/*

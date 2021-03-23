@@ -70,7 +70,7 @@ MALLOC_DEFINE(M_UNIONFSPATH, "UNIONFS path", "UNIONFS path private part");
 /*
  * Initialize
  */
-int 
+int
 unionfs_init(struct vfsconf *vfsp)
 {
 	UNIONFSDEBUG("unionfs_init\n");	/* printed during system boot */
@@ -80,7 +80,7 @@ unionfs_init(struct vfsconf *vfsp)
 /*
  * Uninitialize
  */
-int 
+int
 unionfs_uninit(struct vfsconf *vfsp)
 {
 	return (0);
@@ -203,7 +203,7 @@ unionfs_rem_cached_vnode(struct unionfs_node *unp, struct vnode *dvp)
 
 /*
  * Make a new or get existing unionfs node.
- * 
+ *
  * uppervp and lowervp should be unlocked. Because if new unionfs vnode is
  * locked, uppervp or lowervp is locked too. In order to prevent dead lock,
  * you should not lock plurality simultaneously.
@@ -516,9 +516,9 @@ unionfs_create_uppervattr(struct unionfs_mount *ump,
 
 /*
  * relookup
- * 
+ *
  * dvp should be locked on entry and will be locked on return.
- * 
+ *
  * If an error is returned, *vpp will be invalid, otherwise it will hold a
  * locked, referenced vnode. If *vpp == dvp then remember that only one
  * LK_EXCLUSIVE lock is held.
@@ -700,7 +700,7 @@ unionfs_relookup_for_rename(struct vnode *dvp, struct componentname *cnp,
 
 /*
  * Update the unionfs_node.
- * 
+ *
  * uvp is new locked upper vnode. unionfs vnode's lock will be exchanged to the
  * uvp's lock and lower's lock will be unlocked.
  */
@@ -745,9 +745,9 @@ unionfs_node_update(struct unionfs_node *unp, struct vnode *uvp,
 
 /*
  * Create a new shadow dir.
- * 
+ *
  * udvp should be locked on entry and will be locked on return.
- * 
+ *
  * If no error returned, unp will be updated.
  */
 int
@@ -838,7 +838,7 @@ unionfs_mkshadowdir_abort:
 
 /*
  * Create a new whiteout.
- * 
+ *
  * dvp should be locked on entry and will be locked on return.
  */
 int
@@ -886,10 +886,10 @@ unionfs_mkwhiteout_free_out:
 
 /*
  * Create a new vnode for create a new shadow file.
- * 
+ *
  * If an error is returned, *vpp will be invalid, otherwise it will hold a
  * locked, referenced and opened vnode.
- * 
+ *
  * unp is never updated.
  */
 static int
@@ -974,7 +974,7 @@ unionfs_vn_create_on_upper_free_out2:
 
 /*
  * Copy from lvp to uvp.
- * 
+ *
  * lvp and uvp should be locked and opened on entry and will be locked and
  * opened on return.
  */
@@ -1040,10 +1040,10 @@ unionfs_copyfile_core(struct vnode *lvp, struct vnode *uvp,
 
 /*
  * Copy file from lower to upper.
- * 
+ *
  * If you need copy of the contents, set 1 to docopy. Otherwise, set 0 to
  * docopy.
- * 
+ *
  * If no error returned, unp will be updated.
  */
 int

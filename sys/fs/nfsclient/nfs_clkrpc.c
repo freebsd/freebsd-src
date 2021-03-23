@@ -261,7 +261,7 @@ nfscbd_nfsd(struct thread *td, struct nfsd_nfscbd_args *args)
 
 		nfscbd_pool->sp_minthreads = 4;
 		nfscbd_pool->sp_maxthreads = 4;
-			
+
 		svc_run(nfscbd_pool);
 
 		rpc_gss_clear_svc_name_call(NFS_CALLBCKPROG, NFSV4_CBVERS);
@@ -289,7 +289,7 @@ nfsrvd_cbinit(int terminating)
 	if (terminating) {
 		/* Wait for any xprt registrations to complete. */
 		while (nfs_numnfscbd > 0)
-			msleep(&nfs_numnfscbd, NFSDLOCKMUTEXPTR, PZERO, 
+			msleep(&nfs_numnfscbd, NFSDLOCKMUTEXPTR, PZERO,
 			    "nfscbdt", 0);
 		if (nfscbd_pool != NULL) {
 			NFSD_UNLOCK();

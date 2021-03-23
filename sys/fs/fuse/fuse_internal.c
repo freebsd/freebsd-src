@@ -101,7 +101,7 @@ __FBSDID("$FreeBSD$");
 #include "fuse_file.h"
 
 SDT_PROVIDER_DECLARE(fusefs);
-/* 
+/*
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
@@ -416,7 +416,7 @@ fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio)
 		err = fuse_internal_get_cached_vnode( mp, fnieo.parent,
 			LK_SHARED, &dvp);
 	SDT_PROBE3(fusefs, , internal, invalidate_entry, dvp, &fnieo, name);
-	/* 
+	/*
 	 * If dvp is not in the cache, then it must've been reclaimed.  And
 	 * since fuse_vnop_reclaim does a cache_purge, name's entry must've
 	 * been invalidated already.  So we can safely return if dvp == NULL
@@ -470,7 +470,7 @@ fuse_internal_invalidate_inode(struct mount *mp, struct uio *uio)
 	 * an inode that didn't need to be invalidated.
 	 */
 
-	/* 
+	/*
 	 * Flush and invalidate buffers if off >= 0.  Technically we only need
 	 * to flush and invalidate the range of offsets [off, off + len), but
 	 * for simplicity's sake we do everything.
@@ -694,7 +694,7 @@ fuse_internal_remove(struct vnode *dvp,
 	if (err)
 		return (err);
 
-	/* 
+	/*
 	 * Access the cached nlink even if the attr cached has expired.  If
 	 * it's inaccurate, the worst that will happen is:
 	 * 1) We'll recycle the vnode even though the file has another link we
@@ -705,7 +705,7 @@ fuse_internal_remove(struct vnode *dvp,
 	 */
 	nlink = VTOFUD(vp)->cached_attrs.va_nlink--;
 
-	/* 
+	/*
 	 * Purge the parent's attribute cache because the daemon
 	 * should've updated its mtime and ctime.
 	 */
@@ -799,7 +799,7 @@ fuse_internal_newentry_core(struct vnode *dvp,
 		return err;
 	}
 
-	/* 
+	/*
 	 * Purge the parent's attribute cache because the daemon should've
 	 * updated its mtime and ctime
 	 */
@@ -891,7 +891,7 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 	fdisp_init(&fdi, sizeof(*fgai));
 	fdisp_make_vp(&fdi, FUSE_GETATTR, vp, td, cred);
 	fgai = fdi.indata;
-	/* 
+	/*
 	 * We could look up a file handle and set it in fgai->fh, but that
 	 * involves extra runtime work and I'm unaware of any file systems that
 	 * care.
@@ -992,7 +992,7 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 	data->fuse_libabi_major = fiio->major;
 	data->fuse_libabi_minor = fiio->minor;
 	if (!fuse_libabi_geq(data, 7, 4)) {
-		/* 
+		/*
 		 * With a little work we could support servers as old as 7.1.
 		 * But there would be little payoff.
 		 */
@@ -1012,11 +1012,11 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 				data->dataflags |= FSESS_POSIX_LOCKS;
 			if (fiio->flags & FUSE_EXPORT_SUPPORT)
 				data->dataflags |= FSESS_EXPORT_SUPPORT;
-			/* 
+			/*
 			 * Don't bother to check FUSE_BIG_WRITES, because it's
 			 * redundant with max_write
 			 */
-			/* 
+			/*
 			 * max_background and congestion_threshold are not
 			 * implemented
 			 */
@@ -1082,7 +1082,7 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	fiii = fdi.indata;
 	fiii->major = FUSE_KERNEL_VERSION;
 	fiii->minor = FUSE_KERNEL_MINOR_VERSION;
-	/* 
+	/*
 	 * fusefs currently reads ahead no more than one cache block at a time.
 	 * See fuse_read_biobackend
 	 */
@@ -1117,7 +1117,7 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	fdisp_destroy(&fdi);
 }
 
-/* 
+/*
  * Send a FUSE_SETATTR operation with no permissions checks.  If cred is NULL,
  * send the request with root credentials
  */

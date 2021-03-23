@@ -161,7 +161,7 @@ smbfs_open(ap)
 	int error, accmode;
 
 	SMBVDEBUG("%s,%d\n", np->n_name, (np->n_flag & NOPEN) != 0);
-	if (vp->v_type != VREG && vp->v_type != VDIR) { 
+	if (vp->v_type != VREG && vp->v_type != VDIR) {
 		SMBFSERR("open eacces vtype=%d\n", vp->v_type);
 		return EACCES;
 	}
@@ -311,7 +311,7 @@ smbfs_setattr(ap)
 	/*
 	 * Disallow write attempts if the filesystem is mounted read-only.
 	 */
-  	if ((vap->va_uid != (uid_t)VNOVAL || vap->va_gid != (gid_t)VNOVAL || 
+  	if ((vap->va_uid != (uid_t)VNOVAL || vap->va_gid != (gid_t)VNOVAL ||
 	     vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL ||
 	     vap->va_mode != (mode_t)VNOVAL || vap->va_flags != VNOVAL) &&
 	     isreadonly)
@@ -518,7 +518,7 @@ smbfs_write(ap)
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
 
-	SMBVDEBUG("%d,ofs=%jd,sz=%zd\n",vp->v_type, (intmax_t)uio->uio_offset, 
+	SMBVDEBUG("%d,ofs=%jd,sz=%zd\n",vp->v_type, (intmax_t)uio->uio_offset,
 	    uio->uio_resid);
 	if (vp->v_type != VREG)
 		return (EPERM);
@@ -735,7 +735,7 @@ smbfs_symlink(ap)
 }
 
 static int
-smbfs_mknod(ap) 
+smbfs_mknod(ap)
 	struct vop_mknod_args /* {
 	} */ *ap;
 {
@@ -765,7 +765,7 @@ smbfs_mkdir(ap)
 
 	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred))) {
 		return error;
-	}	
+	}
 	if ((name[0] == '.') && ((len == 1) || ((len == 2) && (name[1] == '.'))))
 		return EEXIST;
 	scred = smbfs_malloc_scred();
@@ -866,8 +866,8 @@ smbfs_fsync(ap)
     return (0);
 }
 
-static 
-int smbfs_print (ap) 
+static
+int smbfs_print (ap)
 	struct vop_print_args /* {
 	struct vnode *a_vp;
 	} */ *ap;
@@ -921,7 +921,7 @@ smbfs_pathconf (ap)
 }
 
 static int
-smbfs_strategy (ap) 
+smbfs_strategy (ap)
 	struct vop_strategy_args /* {
 	struct buf *a_bp
 	} */ *ap;
@@ -993,7 +993,7 @@ smbfs_getextattr(struct vop_getextattr_args *ap)
 			buf[i] = (attr & 1) ? smbfs_atl[i] : '-';
 		buf[i] = 0;
 		error = uiomove(buf, i, uio);
-		
+
 	} else
 		error = EINVAL;
 	return error;
@@ -1205,7 +1205,7 @@ smbfs_lookup(ap)
 
 	error = smbfs_pathcheck(smp, cnp->cn_nameptr, cnp->cn_namelen, nameiop);
 
-	if (error) 
+	if (error)
 		return ENOENT;
 
 	error = cache_lookup(dvp, vpp, cnp, NULL, NULL);
@@ -1253,7 +1253,7 @@ smbfs_lookup(ap)
 			vrele(vp);
 		*vpp = NULLVP;
 	}
-	/* 
+	/*
 	 * entry is not in the cache or has been expired
 	 */
 	error = 0;
@@ -1349,7 +1349,7 @@ smbfs_lookup(ap)
 				error = ENOENT;
 				goto out;
 			}
-		}	
+		}
 		VOP_UNLOCK(dvp);
 		error = smbfs_nget(mp, dvp, name, nmlen, NULL, &vp);
 		vfs_unbusy(mp);

@@ -510,7 +510,7 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 	    if (!nd->nd_repstat && aclp->acl_cnt > 0 &&
 		NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_ACL)) {
 		nd->nd_repstat = nfsrv_setacl(vp, aclp, nd->nd_cred, p);
-		if (!nd->nd_repstat) 
+		if (!nd->nd_repstat)
 		    NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_ACL);
 	    }
 #endif
@@ -2500,7 +2500,7 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 	 * seqid# gets updated. nfsrv_lockctrl() will return the value
 	 * of nd_repstat, if it gets that far.
 	 */
-	nd->nd_repstat = nfsrv_lockctrl(vp, &stp, &lop, &cf, clientid, 
+	nd->nd_repstat = nfsrv_lockctrl(vp, &stp, &lop, &cf, clientid,
 		&stateid, exp, nd, p);
 	if (lop)
 		free(lop, M_NFSDLOCK);
@@ -3849,7 +3849,7 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 		case AF_INET:
 			if (clp->lc_flags & LCL_TCPCALLBACK)
 				(void) nfsm_strtom(nd, "tcp", 3);
-			else 
+			else
 				(void) nfsm_strtom(nd, "udp", 3);
 			rin = (struct sockaddr_in *)clp->lc_req.nr_nam;
 			ucp = (u_char *)&rin->sin_addr.s_addr;
@@ -3863,7 +3863,7 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 		case AF_INET6:
 			if (clp->lc_flags & LCL_TCPCALLBACK)
 				(void) nfsm_strtom(nd, "tcp6", 4);
-			else 
+			else
 				(void) nfsm_strtom(nd, "udp6", 4);
 			rin6 = (struct sockaddr_in6 *)clp->lc_req.nr_nam;
 			ucp = inet_ntop(AF_INET6, &rin6->sin6_addr, addrbuf,
@@ -5427,7 +5427,7 @@ nfsrvd_copy_file_range(struct nfsrv_descript *nd, __unused int isdgram,
 				 */
 				if (len == 0 && at.na_size > inoff) {
 					/*
-					 * If len == 0, set it based on invp's 
+					 * If len == 0, set it based on invp's
 					 * size. If offset is past EOF, just
 					 * leave len == 0.
 					 */

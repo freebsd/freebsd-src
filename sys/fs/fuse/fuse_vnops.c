@@ -117,7 +117,7 @@ __FBSDID("$FreeBSD$");
 #define FUSE_LINK_MAX                      UINT32_MAX
 
 SDT_PROVIDER_DECLARE(fusefs);
-/* 
+/*
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
@@ -295,7 +295,7 @@ fuse_flush(struct vnode *vp, struct ucred *cred, pid_t pid, int fflag)
 	fdisp_make_vp(&fdi, FUSE_FLUSH, vp, td, cred);
 	ffi = fdi.indata;
 	ffi->fh = fufh->fh_id;
-	/* 
+	/*
 	 * If the file has a POSIX lock then we're supposed to set lock_owner.
 	 * If not, then lock_owner is undefined.  So we may as well always set
 	 * it.
@@ -543,7 +543,7 @@ fuse_vnop_bmap(struct vop_bmap_args *ap)
 	 * variables, so we must guess.  Report nonzero contiguous runs so
 	 * cluster_read will combine adjacent reads.  It's worthwhile to reduce
 	 * upcalls even if we don't know the true physical layout of the file.
-	 * 
+	 *
 	 * FUSE file systems may opt out of read clustering in two ways:
 	 * * mounting with -onoclusterr
 	 * * Setting max_readahead <= maxbcachebuf during FUSE_INIT
@@ -803,7 +803,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 	if (vap->va_type == VSOCK)
 		return fuse_internal_mknod(dvp, vpp, cnp, vap);
 
-	/* 
+	/*
 	 * VOP_CREATE doesn't tell us the open(2) flags, so we guess.  Only a
 	 * writable mode makes sense, and we might as well include readability
 	 * too.
@@ -899,7 +899,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 
 	fuse_filehandle_init(*vpp, FUFH_RDWR, NULL, td, cred, foo);
 	fuse_vnode_open(*vpp, foo->open_flags, td);
-	/* 
+	/*
 	 * Purge the parent's attribute cache because the daemon should've
 	 * updated its mtime and ctime
 	 */
@@ -1145,7 +1145,7 @@ fuse_vnop_link(struct vop_link_args *ap)
 
 	err = fuse_internal_checkentry(feo, vnode_vtype(vp));
 	if (!err) {
-		/* 
+		/*
 		 * Purge the parent's attribute cache because the daemon
 		 * should've updated its mtime and ctime
 		 */
@@ -1264,7 +1264,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				cache_purge(*vpp);
 				if (dvp != *vpp)
 					vput(*vpp);
-				else 
+				else
 					vrele(*vpp);
 				*vpp = NULL;
 				break;
@@ -1422,7 +1422,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 					cred);
 				if (err != 0)
 					goto out;
-				/* 
+				/*
 				 * if the parent's sticky bit is set, check
 				 * whether we're allowed to remove the file.
 				 * Need to figure out the vnode locking to make
@@ -1671,7 +1671,7 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	startoff = uio->uio_offset;
 	err = fuse_filehandle_get_dir(vp, &fufh, cred, pid);
 	if (err == EBADF && vnode_mount(vp)->mnt_flag & MNT_EXPORTED) {
-		/* 
+		/*
 		 * nfsd will do VOP_READDIR without first doing VOP_OPEN.  We
 		 * must implicitly open the directory here
 		 */
@@ -1868,7 +1868,7 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 	 * under the source directory in the file system tree.
 	 * Linux performs this check at VFS level.
 	 */
-	/* 
+	/*
 	 * If source is a directory, and it will get a new parent, user must
 	 * have write permission to it, so ".." can be modified.
 	 */
@@ -2004,7 +2004,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 		{
 			/*
 			 * Non-root users may only chgrp to one of their own
-			 * groups 
+			 * groups
 			 */
 			err = priv_check_cred(cred, PRIV_VFS_CHOWN);
 			if (err) {
@@ -2445,7 +2445,7 @@ out:
  * <num>attr_name1<num>attr_name2
  *
  * Where "<num>" is a single byte number of characters in the attribute name.
- * 
+ *
  * Args:
  * prefix - exattr namespace prefix string
  * list, list_len - input list with namespace prefixes
@@ -2581,7 +2581,7 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 
 	err = fdisp_wait_answ(&fdi);
 	if (err == ERANGE) {
-		/* 
+		/*
 		 * Race detected.  The attribute list must've grown since the
 		 * first FUSE_LISTXATTR call.  Start over.  Go all the way back
 		 * to userland so we can process signals, if necessary, before

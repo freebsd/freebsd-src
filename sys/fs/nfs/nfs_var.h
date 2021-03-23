@@ -111,7 +111,7 @@ int nfsrv_lockctrl(vnode_t, struct nfsstate **,
     struct nfslock **, struct nfslockconflict *, nfsquad_t, nfsv4stateid_t *,
     struct nfsexstuff *, struct nfsrv_descript *, NFSPROC_T *);
 int nfsrv_openctrl(struct nfsrv_descript *, vnode_t,
-    struct nfsstate **, nfsquad_t, nfsv4stateid_t *, nfsv4stateid_t *, 
+    struct nfsstate **, nfsquad_t, nfsv4stateid_t *, nfsv4stateid_t *,
     u_int32_t *, struct nfsexstuff *, NFSPROC_T *, u_quad_t);
 int nfsrv_opencheck(nfsquad_t, nfsv4stateid_t *, struct nfsstate *,
     vnode_t, struct nfsrv_descript *, NFSPROC_T *, int);
@@ -493,7 +493,7 @@ int nfsrpc_rmdir(vnode_t, char *, int, struct ucred *, NFSPROC_T *,
     struct nfsvattr *, int *, void *);
 int nfsrpc_readdir(vnode_t, struct uio *, nfsuint64 *, struct ucred *,
     NFSPROC_T *, struct nfsvattr *, int *, int *, void *);
-int nfsrpc_readdirplus(vnode_t, struct uio *, nfsuint64 *, 
+int nfsrpc_readdirplus(vnode_t, struct uio *, nfsuint64 *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, int *, void *);
 int nfsrpc_commit(vnode_t, u_quad_t, int, struct ucred *,
     NFSPROC_T *, struct nfsvattr *, int *, void *);

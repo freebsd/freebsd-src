@@ -385,7 +385,7 @@ nullfs_fhtovp(mp, fidp, flags, vpp)
 	return (null_nodeget(mp, *vpp, vpp));
 }
 
-static int                        
+static int
 nullfs_extattrctl(mp, cmd, filename_vp, namespace, attrname)
 	struct mount *mp;
 	int cmd;

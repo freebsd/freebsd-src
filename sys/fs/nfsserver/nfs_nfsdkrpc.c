@@ -543,7 +543,7 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 
 			nfsrvd_pool->sp_minthreads = args->minthreads;
 			nfsrvd_pool->sp_maxthreads = args->maxthreads;
-				
+
 			/*
 			 * If this is a pNFS service, make Getattr do a
 			 * vn_start_write(), so it can do a vn_set_extattr().

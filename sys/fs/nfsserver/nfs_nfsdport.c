@@ -1837,7 +1837,7 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 					NFSVNO_SETEXRDONLY(&nes);
 				else
 					NFSVNO_EXINIT(&nes);
-				nd->nd_repstat = nfsvno_accchk(vp, 
+				nd->nd_repstat = nfsvno_accchk(vp,
 				    VWRITE, cred, &nes, p,
 				    NFSACCCHK_NOOVERRIDE,
 				    NFSACCCHK_VPISLOCKED, NULL);

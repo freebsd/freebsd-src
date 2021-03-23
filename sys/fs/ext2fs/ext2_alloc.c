@@ -77,7 +77,7 @@ static daddr_t	ext2_alloccg(struct inode *, int, daddr_t, int);
 static daddr_t	ext2_clusteralloc(struct inode *, int, daddr_t, int);
 static u_long	ext2_dirpref(struct inode *);
 static e4fs_daddr_t ext2_hashalloc(struct inode *, int, long, int,
-    daddr_t (*)(struct inode *, int, daddr_t, 
+    daddr_t (*)(struct inode *, int, daddr_t,
 						int));
 static daddr_t	ext2_nodealloccg(struct inode *, int, daddr_t, int);
 static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);

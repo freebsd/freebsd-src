@@ -227,7 +227,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 	vp->v_bufobj.bo_ops = &buf_ops_newnfs;
 	vp->v_data = np;
 	np->n_vnode = vp;
-	/* 
+	/*
 	 * Initialize the mutex even if the vnode is going to be a loser.
 	 * This simplifies the logic in reclaim, which can then unconditionally
 	 * destroy the mutex (in the case of the loser, or if hash_insert
@@ -237,9 +237,9 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 	lockinit(&np->n_excl, PVFS, "nfsupg", VLKTIMEOUT, LK_NOSHARE |
 	    LK_CANRECURSE);
 
-	/* 
+	/*
 	 * Are we getting the root? If so, make sure the vnode flags
-	 * are correct 
+	 * are correct
 	 */
 	if ((nfhp->nfh_len == nmp->nm_fhsize) &&
 	    !bcmp(nfhp->nfh_fh, nmp->nm_fh, nfhp->nfh_len)) {
@@ -286,7 +286,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 		uma_zfree(newnfsnode_zone, np);
 		return (error);
 	}
-	error = vfs_hash_insert(vp, hash, lkflags, 
+	error = vfs_hash_insert(vp, hash, lkflags,
 	    td, &nvp, newnfs_vncmpf, nfhp);
 	if (error)
 		return (error);
@@ -423,7 +423,7 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 
 	/*
 	 * If v_type == VNON it is a new node, so fill in the v_type,
-	 * n_mtime fields. Check to see if it represents a special 
+	 * n_mtime fields. Check to see if it represents a special
 	 * device, and if so, check for a possible alias. Once the
 	 * correct vnode has been obtained, fill in the rest of the
 	 * information.
@@ -535,14 +535,14 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	}
 	/*
 	 * The following checks are added to prevent a race between (say)
-	 * a READDIR+ and a WRITE. 
+	 * a READDIR+ and a WRITE.
 	 * READDIR+, WRITE requests sent out.
 	 * READDIR+ resp, WRITE resp received on client.
 	 * However, the WRITE resp was handled before the READDIR+ resp
 	 * causing the post op attrs from the write to be loaded first
-	 * and the attrs from the READDIR+ to be loaded later. If this 
+	 * and the attrs from the READDIR+ to be loaded later. If this
 	 * happens, we have stale attrs loaded into the attrcache.
-	 * We detect this by for the mtime moving back. We invalidate the 
+	 * We detect this by for the mtime moving back. We invalidate the
 	 * attrcache when this happens.
 	 */
 	if (timespeccmp(&mtime_save, &vap->va_mtime, >)) {
@@ -1264,7 +1264,7 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 			nfscl_enablecallb = 1;
 		}
 	} else if (uap->flag & NFSSVC_NFSCBD) {
-		if (uap->argp == NULL) 
+		if (uap->argp == NULL)
 			return (EINVAL);
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg2,
 		    sizeof(nfscbdarg2));
@@ -1314,7 +1314,7 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 					mtx_lock(&nmp->nm_mtx);
 					if ((nmp->nm_privflag &
 					    NFSMNTP_FORCEDISM) == 0) {
-						nmp->nm_privflag |= 
+						nmp->nm_privflag |=
 						   (NFSMNTP_FORCEDISM |
 						    NFSMNTP_CANCELRPCS);
 						mtx_unlock(&nmp->nm_mtx);

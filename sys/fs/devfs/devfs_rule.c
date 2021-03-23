@@ -739,7 +739,7 @@ devfs_ruleset_reap(struct devfs_ruleset *ds)
 
 	KASSERT(ds->ds_number != 0, ("reaping ruleset zero "));
 
-	if (!TAILQ_EMPTY(&ds->ds_rules) || ds->ds_refcount != 0) 
+	if (!TAILQ_EMPTY(&ds->ds_rules) || ds->ds_refcount != 0)
 		return;
 
 	TAILQ_REMOVE(&devfs_rulesets, ds, ds_list);

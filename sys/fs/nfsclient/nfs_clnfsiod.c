@@ -121,7 +121,7 @@ sysctl_iodmin(SYSCTL_HANDLER_ARGS)
 	for (i = nfs_iodmin - ncl_numasync; i > 0; i--)
 		nfs_nfsiodnew_sync();
 out:
-	NFSUNLOCKIOD();	
+	NFSUNLOCKIOD();
 	return (0);
 }
 SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmin,
@@ -274,7 +274,7 @@ nfssvc_iod(void *instance)
 		if (error) {
 			nmp = ncl_iodmount[myiod];
 			/*
-			 * Rechecking the nm_bufq closes a rare race where the 
+			 * Rechecking the nm_bufq closes a rare race where the
 			 * nfsiod is woken up at the exact time the idle timeout
 			 * fires
 			 */

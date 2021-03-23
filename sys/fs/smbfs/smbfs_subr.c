@@ -87,7 +87,7 @@ smb_time_local2NT(struct timespec *tsp, int tzoff, int64_t *nsec)
 }
 
 void
-smb_time_unix2dos(struct timespec *tsp, int tzoff, u_int16_t *ddp, 
+smb_time_unix2dos(struct timespec *tsp, int tzoff, u_int16_t *ddp,
 	u_int16_t *dtp,	u_int8_t *dhp)
 {
 	struct timespec tt;
@@ -123,7 +123,7 @@ smbfs_fullpath(struct mbchain *mbp, struct smb_vc *vcp, struct smbnode *dnp,
 	if (SMB_DIALECT(vcp) < SMB_DIALECT_LANMAN1_0)
 		caseopt |= SMB_CS_UPPER;
 	if (dnp != NULL) {
-		error = smb_put_dmem(mbp, vcp, dnp->n_rpath, dnp->n_rplen, 
+		error = smb_put_dmem(mbp, vcp, dnp->n_rpath, dnp->n_rplen,
 		    caseopt);
 		if (error)
 			return error;
@@ -152,7 +152,7 @@ smbfs_fullpath(struct mbchain *mbp, struct smb_vc *vcp, struct smbnode *dnp,
 int
 smbfs_fname_tolocal(struct smb_vc *vcp, char *name, int *nmlen, int caseopt)
 {
-	int copt = (caseopt == SMB_CS_LOWER ? KICONV_FROM_LOWER : 
+	int copt = (caseopt == SMB_CS_LOWER ? KICONV_FROM_LOWER :
 		    (caseopt == SMB_CS_UPPER ? KICONV_FROM_UPPER : 0));
 	int error = 0;
 	size_t ilen = *nmlen;

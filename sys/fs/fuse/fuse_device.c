@@ -93,7 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_errno.inc>
 
 SDT_PROVIDER_DECLARE(fusefs);
-/* 
+/*
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
@@ -390,7 +390,7 @@ fuse_ohead_audit(struct fuse_out_header *ohead, struct uio *uio)
 		return (EINVAL);
 	}
 	if (uio->uio_resid && ohead->unique != 0 && ohead->error) {
-		SDT_PROBE2(fusefs, , device, trace, 1, 
+		SDT_PROBE2(fusefs, , device, trace, 1,
 			"Format error: non zero error but message had a body");
 		return (EINVAL);
 	}
@@ -469,7 +469,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 		}
 	}
 	if (found && tick->irq_unique > 0) {
-		/* 
+		/*
 		 * Discard the FUSE_INTERRUPT ticket that tried to interrupt
 		 * this operation
 		 */
@@ -542,10 +542,10 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 		}
 	} else {
 		/* no callback at all! */
-		SDT_PROBE1(fusefs, , device, fuse_device_write_missing_ticket, 
+		SDT_PROBE1(fusefs, , device, fuse_device_write_missing_ticket,
 			ohead.unique);
 		if (ohead.error == -EAGAIN) {
-			/* 
+			/*
 			 * This was probably a response to a FUSE_INTERRUPT
 			 * operation whose original operation is already
 			 * complete.  We can't store FUSE_INTERRUPT tickets

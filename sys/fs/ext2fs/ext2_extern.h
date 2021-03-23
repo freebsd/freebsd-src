@@ -83,7 +83,7 @@ int	ext2_readdir(struct vop_readdir_args *);
 #ifdef EXT2FS_PRINT_EXTENTS
 void	ext2_print_inode(struct inode *);
 #endif
-int	ext2_direnter(struct inode *, 
+int	ext2_direnter(struct inode *,
 		struct vnode *, struct componentname *);
 int	ext2_dirremove(struct vnode *, struct componentname *);
 int	ext2_dirrewrite(struct inode *,

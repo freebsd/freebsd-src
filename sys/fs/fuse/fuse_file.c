@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_FUSE_FILEHANDLE, "fuse_filefilehandle", "FUSE file handle");
 
 SDT_PROVIDER_DECLARE(fusefs);
-/* 
+/*
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
@@ -185,7 +185,7 @@ fuse_filehandle_close(struct vnode *vp, struct fuse_filehandle *fufh,
 	fri = fdi.indata;
 	fri->fh = fufh->fh_id;
 	fri->flags = fufh_type_2_fflags(fufh->fufh_type);
-	/* 
+	/*
 	 * If the file has a POSIX lock then we're supposed to set lock_owner.
 	 * If not, then lock_owner is undefined.  So we may as well always set
 	 * it.
@@ -218,7 +218,7 @@ fuse_filehandle_validrw(struct vnode *vp, int mode,
 	struct fuse_filehandle *fufh;
 	fufh_type_t fufh_type = fflags_2_fufh_type(mode);
 
-	/* 
+	/*
 	 * Unlike fuse_filehandle_get, we want to search for a filehandle with
 	 * the exact cred, and no fallback
 	 */

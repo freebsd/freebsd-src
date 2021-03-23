@@ -381,7 +381,7 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 
 	bsize = cp->provider->sectorsize;
 
-	/* 
+	/*
 	 * Get the Anchor Volume Descriptor Pointer from sector 256.
 	 * XXX Should also check sector n - 256, n, and 512.
 	 */
@@ -429,7 +429,7 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 			udfmp->part_start = le32toh(pd->start_loc);
 		}
 
-		brelse(bp); 
+		brelse(bp);
 		bp = NULL;
 		if ((part_found) && (logvol_found))
 			break;

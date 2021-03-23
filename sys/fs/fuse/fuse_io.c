@@ -105,14 +105,14 @@ __FBSDID("$FreeBSD$");
 #include "fuse_ipc.h"
 #include "fuse_io.h"
 
-/* 
+/*
  * Set in a struct buf to indicate that the write came from the buffer cache
  * and the originating cred and pid are no longer known.
  */
 #define B_FUSEFS_WRITE_CACHE B_FS_FLAG1
 
 SDT_PROVIDER_DECLARE(fusefs);
-/* 
+/*
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
@@ -121,17 +121,17 @@ SDT_PROBE_DEFINE2(fusefs, , io, trace, "int", "char*");
 
 static int
 fuse_inval_buf_range(struct vnode *vp, off_t filesize, off_t start, off_t end);
-static int 
+static int
 fuse_read_directbackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh);
-static int 
+static int
 fuse_read_biobackend(struct vnode *vp, struct uio *uio, int ioflag,
     struct ucred *cred, struct fuse_filehandle *fufh, pid_t pid);
-static int 
+static int
 fuse_write_directbackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, off_t filesize,
     int ioflag, bool pages);
-static int 
+static int
 fuse_write_biobackend(struct vnode *vp, struct uio *uio,
     struct ucred *cred, struct fuse_filehandle *fufh, int ioflag, pid_t pid);
 
@@ -151,7 +151,7 @@ fuse_inval_buf_range(struct vnode *vp, off_t filesize, off_t start, off_t end)
 	if (left_on != 0) {
 		bp = getblk(vp, left_lbn, iosize, PCATCH, 0, 0);
 		if ((bp->b_flags & B_CACHE) != 0 && bp->b_dirtyend >= left_on) {
-			/* 
+			/*
 			 * Flush the dirty buffer, because we don't have a
 			 * byte-granular way to record which parts of the
 			 * buffer are valid.
@@ -170,7 +170,7 @@ fuse_inval_buf_range(struct vnode *vp, off_t filesize, off_t start, off_t end)
 		right_blksize = MIN(iosize, new_filesize - iosize * right_lbn);
 		bp = getblk(vp, right_lbn, right_blksize, PCATCH, 0, 0);
 		if ((bp->b_flags & B_CACHE) != 0 && bp->b_dirtyoff < right_on) {
-			/* 
+			/*
 			 * Flush the dirty buffer, because we don't have a
 			 * byte-granular way to record which parts of the
 			 * buffer are valid.
@@ -205,7 +205,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 	fflag = (uio->uio_rw == UIO_READ) ? FREAD : FWRITE;
 	err = fuse_filehandle_getrw(vp, fflag, &fufh, cred, pid);
 	if (err == EBADF && vnode_mount(vp)->mnt_flag & MNT_EXPORTED) {
-		/* 
+		/*
 		 * nfsd will do I/O without first doing VOP_OPEN.  We
 		 * must implicitly open the file here
 		 */
@@ -450,7 +450,7 @@ fuse_read_directbackend(struct vnode *vp, struct uio *uio,
 		if ((err = uiomove(fdi.answ, MIN(fri->size, fdi.iosize), uio)))
 			break;
 		if (fdi.iosize < fri->size) {
-			/* 
+			/*
 			 * Short read.  Should only happen at EOF or with
 			 * direct io.
 			 */
@@ -484,7 +484,7 @@ fuse_write_directbackend(struct vnode *vp, struct uio *uio,
 
 	data = fuse_get_mpdata(vp->v_mount);
 
-	/* 
+	/*
 	 * Don't set FUSE_WRITE_LOCKOWNER in write_flags.  It can't be set
 	 * accurately when using POSIX AIO, libfuse doesn't use it, and I'm not
 	 * aware of any file systems that do.  It was an attempt to add
@@ -550,7 +550,7 @@ retry:
 			 */
 			uio->uio_resid += fwi->size;
 			uio->uio_offset -= fwi->size;
-			/* 
+			/*
 			 * Change ERESTART into EINTR because we can't rewind
 			 * uio->uio_iov.  Basically, once uiomove(9) has been
 			 * called, it's impossible to restart a syscall.
@@ -693,7 +693,7 @@ again:
 		else
 			last_page = false;
 		if (direct_append) {
-			/* 
+			/*
 			 * Take care to preserve the buffer's B_CACHE state so
 			 * as not to cause an unnecessary read.
 			 */
@@ -711,7 +711,7 @@ again:
 			break;
 		}
 		if (extending) {
-			/* 
+			/*
 			 * Extend file _after_ locking buffer so we won't race
 			 * with other readers
 			 */
@@ -721,7 +721,7 @@ again:
 			if (err) {
 				brelse(bp);
 				break;
-			} 
+			}
 		}
 
 		SDT_PROBE6(fusefs, , io, write_biobackend_start,
@@ -759,7 +759,7 @@ again:
 				break;
 			}
 			if (bp->b_resid > 0) {
-				/* 
+				/*
 				 * Short read indicates EOF.  Update file size
 				 * from the server and try again.
 				 */
@@ -917,7 +917,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 	cred = bp->b_iocmd == BIO_READ ? bp->b_rcred : bp->b_wcred;
 	error = fuse_filehandle_getrw(vp, fflag, &fufh, cred, pid);
 	if (bp->b_iocmd == BIO_READ && error == EBADF) {
-		/* 
+		/*
 		 * This may be a read-modify-write operation on a cached file
 		 * opened O_WRONLY.  The FUSE protocol allows this.
 		 */
@@ -956,7 +956,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 
 		uiop->uio_offset = ((off_t)bp->b_lblkno) * biosize;
 		error = fuse_read_directbackend(vp, uiop, cred, fufh);
-		/* 
+		/*
 		 * Store the amount we failed to read in the buffer's private
 		 * field, so callers can truncate the file if necessary'
 		 */
@@ -977,7 +977,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 				 * We must still bzero the remaining buffer so
 				 * uninitialized data doesn't get exposed by a
 				 * future truncate that extends the file.
-				 * 
+				 *
 				 * To prevent lock order problems, we must
 				 * truncate the file upstack, not here.
 				 */
@@ -1016,7 +1016,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 		}
 
 		if ((off_t)bp->b_lblkno * biosize + bp->b_dirtyend > filesize)
-			bp->b_dirtyend = filesize - 
+			bp->b_dirtyend = filesize -
 				(off_t)bp->b_lblkno * biosize;
 
 		if (bp->b_dirtyend > bp->b_dirtyoff) {

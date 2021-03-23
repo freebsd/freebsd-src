@@ -256,7 +256,7 @@ smbfs_writevnode(struct vnode *vp, struct uio *uiop,
 		SMBERROR("vn types other than VREG unsupported !\n");
 		return EIO;
 	}
-	SMBVDEBUG("ofs=%jd,resid=%zd\n", (intmax_t)uiop->uio_offset, 
+	SMBVDEBUG("ofs=%jd,resid=%zd\n", (intmax_t)uiop->uio_offset,
 	    uiop->uio_resid);
 	if (uiop->uio_offset < 0)
 		return EINVAL;
@@ -292,7 +292,7 @@ smbfs_writevnode(struct vnode *vp, struct uio *uiop,
 	smb_makescred(scred, td, cred);
 	error = smb_write(smp->sm_share, np->n_fid, uiop, scred);
 	smbfs_free_scred(scred);
-	SMBVDEBUG("after: ofs=%jd,resid=%zd\n", (intmax_t)uiop->uio_offset, 
+	SMBVDEBUG("after: ofs=%jd,resid=%zd\n", (intmax_t)uiop->uio_offset,
 	    uiop->uio_resid);
 	if (!error) {
 		if (uiop->uio_offset > np->n_size) {
@@ -606,7 +606,7 @@ smbfs_putpages(ap)
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_rw = UIO_WRITE;
 	uio.uio_td = td;
-	SMBVDEBUG("ofs=%jd,resid=%zd\n", (intmax_t)uio.uio_offset, 
+	SMBVDEBUG("ofs=%jd,resid=%zd\n", (intmax_t)uio.uio_offset,
 	    uio.uio_resid);
 
 	scred = smbfs_malloc_scred();

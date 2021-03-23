@@ -180,7 +180,7 @@ devfs_free(struct cdev *cdev)
 	if (cdev->si_cred != NULL)
 		crfree(cdev->si_cred);
 	devfs_free_cdp_inode(cdp->cdp_inode);
-	if (cdp->cdp_maxdirent > 0) 
+	if (cdp->cdp_maxdirent > 0)
 		free(cdp->cdp_dirents, M_DEVFS2);
 	mtx_destroy(&cdp->cdp_threadlock);
 	free(cdp, M_CDEVP);
@@ -493,7 +493,7 @@ devfs_metoo(struct cdev_priv *cdp, struct devfs_mount *dm)
 		dev_unlock();
 		free(dep, M_DEVFS2);
 		return;
-	} 
+	}
 	memcpy(dep, cdp->cdp_dirents, (cdp->cdp_maxdirent + 1) * sizeof *dep);
 	olddep = cdp->cdp_maxdirent > 0 ? cdp->cdp_dirents : NULL;
 	cdp->cdp_dirents = dep;

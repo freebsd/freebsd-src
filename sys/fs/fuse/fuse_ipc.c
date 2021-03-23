@@ -91,7 +91,7 @@ __FBSDID("$FreeBSD$");
 #include "fuse_internal.h"
 
 SDT_PROVIDER_DECLARE(fusefs);
-/* 
+/*
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
@@ -105,7 +105,7 @@ static struct fuse_ticket *fticket_alloc(struct fuse_data *data);
 static void fticket_refresh(struct fuse_ticket *ftick);
 static void fticket_destroy(struct fuse_ticket *ftick);
 static int fticket_wait_answer(struct fuse_ticket *ftick);
-static inline int 
+static inline int
 fticket_aw_pull_uio(struct fuse_ticket *ftick,
     struct uio *uio);
 
@@ -131,7 +131,7 @@ SYSCTL_INT(_vfs_fusefs, OID_AUTO, iov_credit, CTLFLAG_RW,
 MALLOC_DEFINE(M_FUSEMSG, "fuse_msgbuf", "fuse message buffer");
 static uma_zone_t ticket_zone;
 
-/* 
+/*
  * TODO: figure out how to timeout INTERRUPT requests, because the daemon may
  * leagally never respond
  */
@@ -167,7 +167,7 @@ fuse_interrupt_callback(struct fuse_ticket *tick, struct uio *uio)
 		fsess_set_notimpl(data->mp, FUSE_INTERRUPT);
 		return 0;
 	} else if (tick->tk_aw_ohead.error == EAGAIN) {
-		/* 
+		/*
 		 * There are two reasons we might get this:
 		 * 1) the daemon received the INTERRUPT request before the
 		 *    original, or
@@ -198,7 +198,7 @@ fuse_interrupt_send(struct fuse_ticket *otick, int err)
 	gid_t reused_groups[1];
 
 	if (otick->irq_unique == 0) {
-		/* 
+		/*
 		 * If the daemon hasn't yet received otick, then we can answer
 		 * it ourselves and return.
 		 */
@@ -233,7 +233,7 @@ fuse_interrupt_send(struct fuse_ticket *otick, int err)
 		if (fsess_not_impl(data->mp, FUSE_INTERRUPT))
 			return;
 
-		/* 
+		/*
 		 * If the fuse daemon has already received otick, then we must
 		 * send FUSE_INTERRUPT.
 		 */
@@ -486,8 +486,8 @@ retry:
 		PROC_UNLOCK(td->td_proc);
 
 		fuse_lck_mtx_lock(ftick->tk_aw_mtx);
-		if (!interrupted && !SIGISMEMBER(tmpset, SIGKILL)) { 
-			/* 
+		if (!interrupted && !SIGISMEMBER(tmpset, SIGKILL)) {
+			/*
 			 * Block all signals while we wait for an interrupt
 			 * response.  The protocol doesn't discriminate between
 			 * different signals.
@@ -716,7 +716,7 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 	case FUSE_GETATTR:
 	case FUSE_SETATTR:
 		if (fuse_libabi_geq(ftick->tk_data, 7, 9)) {
-			err = (blen == sizeof(struct fuse_attr_out)) ? 
+			err = (blen == sizeof(struct fuse_attr_out)) ?
 			  0 : EINVAL;
 		} else {
 			err = (blen == FUSE_COMPAT_ATTR_OUT_SIZE) ? 0 : EINVAL;
@@ -756,7 +756,7 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 
 	case FUSE_STATFS:
 		if (fuse_libabi_geq(ftick->tk_data, 7, 4)) {
-			err = (blen == sizeof(struct fuse_statfs_out)) ? 
+			err = (blen == sizeof(struct fuse_statfs_out)) ?
 			  0 : EINVAL;
 		} else {
 			err = (blen == FUSE_COMPAT_STATFS_SIZE) ? 0 : EINVAL;
@@ -1025,7 +1025,7 @@ fdisp_wait_answ(struct fuse_dispatcher *fdip)
 		err = ENOTCONN;
 		goto out;
 	} else if (fdip->tick->tk_aw_errno) {
-		/* 
+		/*
 		 * There was some sort of communication error with the daemon
 		 * that the client wouldn't understand.
 		 */

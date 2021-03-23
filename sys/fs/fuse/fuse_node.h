@@ -3,11 +3,11 @@
  *
  * Copyright (c) 2007-2009 Google Inc. and Amit Singh
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  * * Redistributions of source code must retain the above copyright
  *   notice, this list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above
@@ -17,7 +17,7 @@
  * * Neither the name of Google Inc. nor the names of its
  *   contributors may be used to endorse or promote products derived from
  *   this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -29,7 +29,7 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * Copyright (C) 2005 Csaba Henk.
  * All rights reserved.
  *
@@ -37,7 +37,7 @@
  *
  * Portions of this software were developed by BFF Storage Systems, LLC under
  * sponsorship from the FreeBSD Foundation.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -46,7 +46,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -75,7 +75,7 @@
 #define	FN_REVOKED		0x00000020
 #define	FN_FLUSHINPROG		0x00000040
 #define	FN_FLUSHWANT		0x00000080
-/* 
+/*
  * Indicates that the file's size is dirty; the kernel has changed it but not
  * yet send the change to the daemon.  When this bit is set, the
  * cache_attrs.va_size field does not time out.
@@ -85,7 +85,7 @@
 /* Indicates that parent_nid is valid */
 #define	FN_PARENT_NID		0x00000400
 
-/* 
+/*
  * Indicates that the file's cached timestamps are dirty.  They will be flushed
  * during the next SETATTR or WRITE.  Until then, the cached fields will not
  * time out.
@@ -111,7 +111,7 @@ struct fuse_vnode_data {
 	/** meta **/
 	/* The monotonic time after which the attr cache is invalid */
 	struct bintime	attr_cache_timeout;
-	/* 
+	/*
 	 * Monotonic time after which the entry is invalid.  Used for lookups
 	 * by nodeid instead of pathname.
 	 */

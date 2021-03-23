@@ -193,7 +193,7 @@ null_insmntque_dtr(struct vnode *vp, void *xp)
 /*
  * Make a new or get existing nullfs node.
  * Vp is the alias vnode, lowervp is the lower vnode.
- * 
+ *
  * The lowervp assumed to be locked and having "spare" reference. This routine
  * vrele lowervp if nullfs node was taken from hash. Otherwise it "transfers"
  * the caller's "spare" reference to created nullfs vnode.
@@ -277,7 +277,7 @@ null_nodeget(mp, lowervp, vpp)
 	}
 
 	/*
-	 * Atomically insert our new node into the hash or vget existing 
+	 * Atomically insert our new node into the hash or vget existing
 	 * if someone else has beaten us to it.
 	 */
 	*vpp = null_hashins(mp, xp);

@@ -136,7 +136,7 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 	vp->v_bufobj.bo_ops = &buf_ops_newnfs;
 	vp->v_data = np;
 	np->n_vnode = vp;
-	/* 
+	/*
 	 * Initialize the mutex even if the vnode is going to be a loser.
 	 * This simplifies the logic in reclaim, which can then unconditionally
 	 * destroy the mutex (in the case of the loser, or if hash_insert
@@ -152,9 +152,9 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_NOWITNESS, NULL);
 	VN_LOCK_AREC(vp);
 	VN_LOCK_ASHARE(vp);
-	/* 
+	/*
 	 * Are we getting the root? If so, make sure the vnode flags
-	 * are correct 
+	 * are correct
 	 */
 	if ((fhsize == nmp->nm_fhsize) &&
 	    !bcmp(fhp, nmp->nm_fh, fhsize)) {
@@ -178,7 +178,7 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 		uma_zfree(newnfsnode_zone, np);
 		return (error);
 	}
-	error = vfs_hash_insert(vp, hash, lkflags, 
+	error = vfs_hash_insert(vp, hash, lkflags,
 	    td, &nvp, newnfs_vncmpf, np->n_fhp);
 	if (error)
 		return (error);

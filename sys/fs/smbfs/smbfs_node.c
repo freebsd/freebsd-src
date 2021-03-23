@@ -63,7 +63,7 @@ static MALLOC_DEFINE(M_SMBNODENAME, "smbufs_nname", "SMBFS node name");
 u_int32_t __inline
 smbfs_hash(const u_char *name, int nmlen)
 {
-	return (fnv_32_buf(name, nmlen, FNV1_32_INIT)); 
+	return (fnv_32_buf(name, nmlen, FNV1_32_INIT));
 }
 
 static char *
@@ -86,7 +86,7 @@ smbfs_name_free(u_char *name)
 }
 
 static int __inline
-smbfs_vnode_cmp(struct vnode *vp, void *_sc) 
+smbfs_vnode_cmp(struct vnode *vp, void *_sc)
 {
 	struct smbnode *np;
 	struct smbcmp *sc;
@@ -100,8 +100,8 @@ smbfs_vnode_cmp(struct vnode *vp, void *_sc)
 }
 
 static int
-smbfs_node_alloc(struct mount *mp, struct vnode *dvp, const char *dirnm, 
-	int dirlen, const char *name, int nmlen, char sep, 
+smbfs_node_alloc(struct mount *mp, struct vnode *dvp, const char *dirnm,
+	int dirlen, const char *name, int nmlen, char sep,
 	struct smbfattr *fap, struct vnode **vpp)
 {
 	struct vattr vattr;
@@ -115,7 +115,7 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp, const char *dirnm,
 
 	sc.n_parent = dvp;
 	sc.n_nmlen = nmlen;
-	sc.n_name = name;	
+	sc.n_name = name;
 	if (smp->sm_root != NULL && dvp == NULL) {
 		SMBERROR("do not allocate root vnode twice!\n");
 		return EINVAL;
@@ -151,9 +151,9 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp, const char *dirnm,
 		 * bogus vnode now and fall through to the code below
 		 * to create a new one with the right type.
 		 */
-		if (((*vpp)->v_type == VDIR && 
+		if (((*vpp)->v_type == VDIR &&
 		    (np->n_dosattr & SMB_FA_DIR) == 0) ||
-	    	    ((*vpp)->v_type == VREG && 
+	    	    ((*vpp)->v_type == VREG &&
 		    (np->n_dosattr & SMB_FA_DIR) != 0)) {
 			vgone(*vpp);
 			vput(*vpp);
@@ -219,7 +219,7 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp, const char *dirnm,
 	}
 	error = vfs_hash_insert(vp, smbfs_hash(name, nmlen), LK_EXCLUSIVE,
 	    td, &vp2, smbfs_vnode_cmp, &sc);
-	if (error) 
+	if (error)
 		return (error);
 	if (vp2 != NULL)
 		*vpp = vp2;
@@ -237,12 +237,12 @@ smbfs_nget(struct mount *mp, struct vnode *dvp, const char *name, int nmlen,
 	dnp = (dvp) ? VTOSMB(dvp) : NULL;
 	sep = 0;
 	if (dnp != NULL) {
-		sep = SMBFS_DNP_SEP(dnp); 
-		error = smbfs_node_alloc(mp, dvp, dnp->n_rpath, dnp->n_rplen, 
-		    name, nmlen, sep, fap, &vp); 
+		sep = SMBFS_DNP_SEP(dnp);
+		error = smbfs_node_alloc(mp, dvp, dnp->n_rpath, dnp->n_rplen,
+		    name, nmlen, sep, fap, &vp);
 	} else
-		error = smbfs_node_alloc(mp, NULL, "\\", 1, name, nmlen, 
-		    sep, fap, &vp); 
+		error = smbfs_node_alloc(mp, NULL, "\\", 1, name, nmlen,
+		    sep, fap, &vp);
 	if (error)
 		return error;
 	MPASS(vp != NULL);
@@ -257,7 +257,7 @@ smbfs_nget(struct mount *mp, struct vnode *dvp, const char *name, int nmlen,
  * Free smbnode, and give vnode back to system
  */
 int
-smbfs_reclaim(ap)                     
+smbfs_reclaim(ap)
         struct vop_reclaim_args /* {
 		struct vnode *a_vp;
         } */ *ap;

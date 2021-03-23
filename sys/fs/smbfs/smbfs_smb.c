@@ -996,7 +996,7 @@ smbfs_smb_search(struct smbfs_fctx *ctx)
 	}
 	smb_rq_getreply(rqp, &mdp);
 	md_get_uint8(mdp, &wc);
-	if (wc != 1) 
+	if (wc != 1)
 		return iseof ? ENOENT : EBADRPC;
 	md_get_uint16le(mdp, &ec);
 	if (ec == 0)

@@ -1501,7 +1501,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				if (error)
 				    goto nfsmout;
 			}
-			
+
 			attrsum += cnt;
 			break;
 		case NFSATTRBIT_ACLSUPPORT:

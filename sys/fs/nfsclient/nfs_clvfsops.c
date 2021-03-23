@@ -544,7 +544,7 @@ nfs_mountdiskless(char *path,
 		dirlen = 0;
 	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
 	if ((error = mountnfs(args, mp, nam, path, NULL, 0, dirpath, dirlen,
-	    NULL, 0, vpp, td->td_ucred, td, NFS_DEFAULT_NAMETIMEO, 
+	    NULL, 0, vpp, td->td_ucred, td, NFS_DEFAULT_NAMETIMEO,
 	    NFS_DEFAULT_NEGNAMETIMEO, 0, 0, NULL)) != 0) {
 		printf("nfs_mountroot: mount %s on /: %d\n", path, error);
 		return (error);
@@ -1006,7 +1006,7 @@ nfs_mount(struct mount *mp)
 		strlcpy(tlscertname, opt, len);
 	}
 	if (vfs_getopt(mp->mnt_optnew, "readdirsize", (void **)&opt, NULL) == 0) {
-		if (opt == NULL) { 
+		if (opt == NULL) {
 			vfs_mount_error(mp, "illegal readdirsize");
 			error = EINVAL;
 			goto out;
@@ -1021,7 +1021,7 @@ nfs_mount(struct mount *mp)
 		args.flags |= NFSMNT_READDIRSIZE;
 	}
 	if (vfs_getopt(mp->mnt_optnew, "readahead", (void **)&opt, NULL) == 0) {
-		if (opt == NULL) { 
+		if (opt == NULL) {
 			vfs_mount_error(mp, "illegal readahead");
 			error = EINVAL;
 			goto out;
@@ -1036,7 +1036,7 @@ nfs_mount(struct mount *mp)
 		args.flags |= NFSMNT_READAHEAD;
 	}
 	if (vfs_getopt(mp->mnt_optnew, "wsize", (void **)&opt, NULL) == 0) {
-		if (opt == NULL) { 
+		if (opt == NULL) {
 			vfs_mount_error(mp, "illegal wsize");
 			error = EINVAL;
 			goto out;
@@ -1051,7 +1051,7 @@ nfs_mount(struct mount *mp)
 		args.flags |= NFSMNT_WSIZE;
 	}
 	if (vfs_getopt(mp->mnt_optnew, "rsize", (void **)&opt, NULL) == 0) {
-		if (opt == NULL) { 
+		if (opt == NULL) {
 			vfs_mount_error(mp, "illegal rsize");
 			error = EINVAL;
 			goto out;
@@ -1066,7 +1066,7 @@ nfs_mount(struct mount *mp)
 		args.flags |= NFSMNT_RSIZE;
 	}
 	if (vfs_getopt(mp->mnt_optnew, "retrans", (void **)&opt, NULL) == 0) {
-		if (opt == NULL) { 
+		if (opt == NULL) {
 			vfs_mount_error(mp, "illegal retrans");
 			error = EINVAL;
 			goto out;
@@ -1240,7 +1240,7 @@ nfs_mount(struct mount *mp)
 
 	/*
 	 * Make the nfs_ip_paranoia sysctl serve as the default connection
-	 * or no-connection mode for those protocols that support 
+	 * or no-connection mode for those protocols that support
 	 * no-connection mode (the flag will be cleared later for protocols
 	 * that do not support no-connection mode).  This will allow a client
 	 * to receive replies from a different IP then the request was
@@ -1826,7 +1826,7 @@ nfs_root(struct mount *mp, int flags, struct vnode **vpp)
 	if (NFSHASNFSV3(nmp) && !NFSHASGOTFSINFO(nmp)) {
 		mtx_unlock(&nmp->nm_mtx);
 		ncl_fsinfo(nmp, vp, curthread->td_ucred, curthread);
-	} else 
+	} else
 		mtx_unlock(&nmp->nm_mtx);
 	if (vp->v_type == VNON)
 	    vp->v_type = VDIR;

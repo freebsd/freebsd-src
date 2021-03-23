@@ -192,7 +192,7 @@
 #include <vm/vnode_pager.h>
 
 static int null_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
-SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW, 
+SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW,
 	&null_bug_bypass, 0, "");
 
 /*

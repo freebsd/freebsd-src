@@ -1896,12 +1896,12 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 	 * explanation, courtesy of Alan Cox.
 	 * What follows is a snippet from Alan Cox's email at:
 	 * https://docs.FreeBSD.org/cgi/mid.cgi?BANLkTikR3d65zPHo9==08ZfJ2vmqZucEvw
-	 * 
+	 *
 	 * 1. Set MNTK_UNMOUNTF
 	 * 2. Acquire a standard FreeBSD mutex "m".
 	 * 3. Update some data structures.
 	 * 4. Release mutex "m".
-	 * 
+	 *
 	 * Then, other threads that acquire "m" after step 4 has occurred will
 	 * see MNTK_UNMOUNTF as set.  But, other threads that beat thread X to
 	 * step 2 may or may not see MNTK_UNMOUNTF as set.
@@ -4029,7 +4029,7 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 				nowp = malloc(
 				    sizeof (struct nfsclowner), M_NFSCLOWNER,
 				    M_WAITOK);
-				nfscl_newopen(clp, NULL, &owp, &nowp, &op, 
+				nfscl_newopen(clp, NULL, &owp, &nowp, &op,
 				    NULL, lowp->nfsow_owner, dp->nfsdl_fh,
 				    dp->nfsdl_fhlen, NULL, NULL);
 				newnfs_copycred(&dp->nfsdl_cred, cred);
@@ -5282,8 +5282,8 @@ nfscl_freeflayout(struct nfsclflayout *flp)
 		for (i = 0; i < flp->nfsfl_mirrorcnt; i++) {
 			for (j = 0; j < flp->nfsfl_ffm[i].fhcnt; j++)
 				free(flp->nfsfl_ffm[i].fh[j], M_NFSFH);
-			if (flp->nfsfl_ffm[i].devp != NULL)	
-				flp->nfsfl_ffm[i].devp->nfsdi_layoutrefs--;	
+			if (flp->nfsfl_ffm[i].devp != NULL)
+				flp->nfsfl_ffm[i].devp->nfsdi_layoutrefs--;
 		}
 	free(flp, M_NFSFLAYOUT);
 }

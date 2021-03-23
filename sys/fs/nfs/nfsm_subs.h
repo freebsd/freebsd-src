@@ -96,15 +96,15 @@ nfsm_build(struct nfsrv_descript *nd, int siz)
 static __inline void *
 nfsm_dissect(struct nfsrv_descript *nd, int siz)
 {
-	int tt1; 
+	int tt1;
 	void *retp;
 
-	tt1 = mtod(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos; 
-	if (tt1 >= siz) { 
-		retp = (void *)nd->nd_dpos; 
-		nd->nd_dpos += siz; 
-	} else { 
-		retp = nfsm_dissct(nd, siz, M_WAITOK); 
+	tt1 = mtod(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos;
+	if (tt1 >= siz) {
+		retp = (void *)nd->nd_dpos;
+		nd->nd_dpos += siz;
+	} else {
+		retp = nfsm_dissct(nd, siz, M_WAITOK);
 	}
 	return (retp);
 }
@@ -112,15 +112,15 @@ nfsm_dissect(struct nfsrv_descript *nd, int siz)
 static __inline void *
 nfsm_dissect_nonblock(struct nfsrv_descript *nd, int siz)
 {
-	int tt1; 
+	int tt1;
 	void *retp;
 
-	tt1 = mtod(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos; 
-	if (tt1 >= siz) { 
-		retp = (void *)nd->nd_dpos; 
-		nd->nd_dpos += siz; 
-	} else { 
-		retp = nfsm_dissct(nd, siz, M_NOWAIT); 
+	tt1 = mtod(nd->nd_md, caddr_t) + nd->nd_md->m_len - nd->nd_dpos;
+	if (tt1 >= siz) {
+		retp = (void *)nd->nd_dpos;
+		nd->nd_dpos += siz;
+	} else {
+		retp = nfsm_dissct(nd, siz, M_NOWAIT);
 	}
 	return (retp);
 }

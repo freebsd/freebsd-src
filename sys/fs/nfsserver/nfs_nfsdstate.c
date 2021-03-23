@@ -145,7 +145,7 @@ static void nfsrv_freeallnfslocks(struct nfsstate *stp, vnode_t vp,
 static void nfsrv_freenfslock(struct nfslock *lop);
 static void nfsrv_freenfslockfile(struct nfslockfile *lfp);
 static void nfsrv_freedeleg(struct nfsstate *);
-static int nfsrv_getstate(struct nfsclient *clp, nfsv4stateid_t *stateidp, 
+static int nfsrv_getstate(struct nfsclient *clp, nfsv4stateid_t *stateidp,
     u_int32_t flags, struct nfsstate **stpp);
 static void nfsrv_getowner(struct nfsstatehead *hp, struct nfsstate *new_stp,
     struct nfsstate **stpp);
@@ -172,7 +172,7 @@ static u_int32_t nfsrv_nextstateindex(struct nfsclient *clp);
 static void nfsrv_markstable(struct nfsclient *clp);
 static void nfsrv_markreclaim(struct nfsclient *clp);
 static int nfsrv_checkstable(struct nfsclient *clp);
-static int nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, struct 
+static int nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, struct
     vnode *vp, NFSPROC_T *p);
 static int nfsrv_delegconflict(struct nfsstate *stp, int *haslockp,
     NFSPROC_T *p, vnode_t vp);
@@ -1831,7 +1831,7 @@ tryagain:
                          (NFSLCK_SETATTR | NFSLCK_CHECK)) != NFSLCK_SETATTR)
 			     error = NFSERR_BADSTATEID;
 	      }
-	      
+
 		if (error == 0 &&
 		  (stp->ls_flags & (NFSLCK_DELEGREAD | NFSLCK_DELEGWRITE)) &&
 		  getlckret == 0 && stp->ls_lfp != lfp)

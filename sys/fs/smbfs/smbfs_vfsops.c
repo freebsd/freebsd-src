@@ -244,7 +244,7 @@ smbfs_mount(struct mount *mp)
 bad:
 	if (ssp)
 		smb_share_put(ssp, scred);
-	smbfs_free_scred(scred);	
+	smbfs_free_scred(scred);
 	SMB_LOCK();
 	if (error && smp->sm_dev == dev) {
 		smp->sm_dev = NULL;
@@ -271,7 +271,7 @@ smbfs_unmount(struct mount *mp, int mntflags)
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
 	/*
-	 * Keep trying to flush the vnode list for the mount while 
+	 * Keep trying to flush the vnode list for the mount while
 	 * some are still busy and we are making progress towards
 	 * making them not busy. This is needed because smbfs vnodes
 	 * reference their parent directory but may appear after their
@@ -307,7 +307,7 @@ out:
 	return error;
 }
 
-/* 
+/*
  * Return locked root vnode of a filesystem
  */
 static int

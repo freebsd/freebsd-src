@@ -119,7 +119,7 @@ ncl_uninit(struct vfsconf *vfsp)
 }
 
 /* Returns with NFSLOCKNODE() held. */
-void 
+void
 ncl_dircookie_lock(struct nfsnode *np)
 {
 	NFSLOCKNODE(np);
@@ -128,7 +128,7 @@ ncl_dircookie_lock(struct nfsnode *np)
 	np->n_flag |= NDIRCOOKIELK;
 }
 
-void 
+void
 ncl_dircookie_unlock(struct nfsnode *np)
 {
 	NFSLOCKNODE(np);

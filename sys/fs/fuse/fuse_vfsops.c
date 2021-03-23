@@ -94,7 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 SDT_PROVIDER_DECLARE(fusefs);
-/* 
+/*
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
@@ -221,7 +221,7 @@ fuse_vfs_remount(struct mount *mp, struct thread *td, uint64_t mntopts,
 	int err = 0;
 	struct fuse_data *data = fuse_get_mpdata(mp);
 	/* Don't allow these options to be changed */
-	const static unsigned long long cant_update_opts = 
+	const static unsigned long long cant_update_opts =
 		MNT_USER;	/* Mount owner must be the user running the daemon */
 
 	FUSE_LOCK();
@@ -421,13 +421,13 @@ fuse_vfsop_mount(struct mount *mp)
 	vfs_getnewfsid(mp);
 	MNT_ILOCK(mp);
 	mp->mnt_data = data;
-	/* 
+	/*
 	 * FUSE file systems can be either local or remote, but the kernel
 	 * can't tell the difference.
 	 */
 	mp->mnt_flag &= ~MNT_LOCAL;
 	mp->mnt_kern_flag |= MNTK_USES_BCACHE;
-	/* 
+	/*
 	 * Disable nullfs cacheing because it can consume too many resources in
 	 * the FUSE server.
 	 */

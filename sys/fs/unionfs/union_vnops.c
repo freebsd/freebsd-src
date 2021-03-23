@@ -1355,7 +1355,7 @@ unionfs_mkdir(struct vop_mkdir_args *ap)
 			error = VOP_GETATTR(udvp, &va, cnp->cn_cred);
 			if (error != 0)
 				return (error);
-			if (va.va_flags & OPAQUE) 
+			if (va.va_flags & OPAQUE)
 				cnp->cn_flags |= ISWHITEOUT;
 		}
 
@@ -1810,7 +1810,7 @@ unionfs_get_llt_revlock(struct vnode *vp, int flags)
 
 /*
  * The state of an acquired lock is adjusted similarly to
- * the time of error generating. 
+ * the time of error generating.
  * flags: LK_RELEASE or LK_UPGRADE
  */
 static void

@@ -96,7 +96,7 @@ __FBSDID("$FreeBSD$");
 #include "fuse_ipc.h"
 
 SDT_PROVIDER_DECLARE(fusefs);
-/* 
+/*
  * Fuse trace probe:
  * arg0: verbosity.  Higher numbers give more verbose messages
  * arg1: Textual message
@@ -287,7 +287,7 @@ fuse_vnode_get(struct mount *mp,
     enum vtype vtyp)
 {
 	struct thread *td = (cnp != NULL ? cnp->cn_thread : curthread);
-	/* 
+	/*
 	 * feo should only be NULL for the root directory, which (when libfuse
 	 * is used) always has generation 0
 	 */
@@ -418,7 +418,7 @@ fuse_vnode_setsize(struct vnode *vp, off_t newsize)
 			goto out;
 		if (newsize % iosize == 0)
 			goto out;
-		/* 
+		/*
 		 * Zero the contents of the last partial block.
 		 * Sure seems like vtruncbuf should do this for us.
 		 */
@@ -452,7 +452,7 @@ fuse_vnode_size(struct vnode *vp, off_t *filesize, struct ucred *cred,
 
 	if (!(fvdat->flag & FN_SIZECHANGE) &&
 		(!fuse_vnode_attr_cache_valid(vp) ||
-		  fvdat->cached_attrs.va_size == VNOVAL)) 
+		  fvdat->cached_attrs.va_size == VNOVAL))
 		error = fuse_internal_do_getattr(vp, NULL, cred, td);
 
 	if (!error)

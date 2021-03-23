@@ -404,7 +404,7 @@ dtnfsclient_provide(void *arg, dtrace_probedesc_t *desc)
 		    dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_nfs2_str,
 		    dtnfsclient_rpcs[i].nr_v2_name, dtnfsclient_done_str) ==
 		    0) {
-			dtnfsclient_rpcs[i].nr_v2_id_done = 
+			dtnfsclient_rpcs[i].nr_v2_id_done =
 			    dtrace_probe_create(dtnfsclient_id,
 			    dtnfsclient_nfs2_str,
 			    dtnfsclient_rpcs[i].nr_v2_name,
@@ -433,7 +433,7 @@ dtnfsclient_provide(void *arg, dtrace_probedesc_t *desc)
 		    dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_nfs3_str,
 		    dtnfsclient_rpcs[i].nr_v3_name, dtnfsclient_done_str) ==
 		    0) {
-			dtnfsclient_rpcs[i].nr_v3_id_done = 
+			dtnfsclient_rpcs[i].nr_v3_id_done =
 			    dtrace_probe_create(dtnfsclient_id,
 			    dtnfsclient_nfs3_str,
 			    dtnfsclient_rpcs[i].nr_v3_name,
@@ -459,7 +459,7 @@ dtnfsclient_provide(void *arg, dtrace_probedesc_t *desc)
 		if (dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_nfs4_str,
 		    dtnfsclient_rpcs[i].nr_v4_name, dtnfsclient_done_str) ==
 		    0) {
-			dtnfsclient_rpcs[i].nr_v4_id_done = 
+			dtnfsclient_rpcs[i].nr_v4_id_done =
 			    dtrace_probe_create(dtnfsclient_id,
 			    dtnfsclient_nfs4_str,
 			    dtnfsclient_rpcs[i].nr_v4_name,

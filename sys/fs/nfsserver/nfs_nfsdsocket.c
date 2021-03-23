@@ -476,7 +476,7 @@ nfsrvd_statstart(int op, struct bintime *now)
 			nfsstatsv1.busyfrom = *now;
 		else
 			binuptime(&nfsstatsv1.busyfrom);
-		
+
 	}
 	nfsstatsv1.srvrpccnt[op]++;
 	nfsstatsv1.srvstartcnt++;

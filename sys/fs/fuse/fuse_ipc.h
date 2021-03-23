@@ -3,11 +3,11 @@
  *
  * Copyright (c) 2007-2009 Google Inc. and Amit Singh
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  * * Redistributions of source code must retain the above copyright
  *   notice, this list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above
@@ -17,7 +17,7 @@
  * * Neither the name of Google Inc. nor the names of its
  *   contributors may be used to endorse or promote products derived from
  *   this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -29,7 +29,7 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * Copyright (C) 2005 Csaba Henk.
  * All rights reserved.
  *
@@ -37,7 +37,7 @@
  *
  * Portions of this software were developed by BFF Storage Systems, LLC under
  * sponsorship from the FreeBSD Foundation.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -46,7 +46,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -114,7 +114,7 @@ struct fuse_ticket {
 	struct fuse_data		*tk_data;
 	int				tk_flag;
 	u_int				tk_refcount;
-	/* 
+	/*
 	 * If this ticket's operation has been interrupted, this will hold the
 	 * unique value of the FUSE_INTERRUPT operation.  Otherwise, it will be
 	 * 0.
@@ -189,7 +189,7 @@ struct fuse_data {
 	struct mtx			aw_mtx;
 	TAILQ_HEAD(, fuse_ticket)	aw_head;
 
-	/* 
+	/*
 	 * Holds the next value of the FUSE operation unique value.
 	 * Also, serves as a wakeup channel to prevent any operations from
 	 * being created before INIT completes.
