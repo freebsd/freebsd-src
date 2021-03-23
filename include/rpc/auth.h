@@ -105,7 +105,7 @@ struct des_clnt_data32 {
 typedef struct krb4_svc_data {
 	int		window;		/* window option value */
 } krb4_svcdata_t;
- 
+
 typedef struct krb4_svc_data	des_svcdata_t;
 #endif /* KERBEROS */
 

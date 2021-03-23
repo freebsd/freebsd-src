@@ -104,7 +104,7 @@ int	sigwaitinfo(const sigset_t * __restrict, siginfo_t * __restrict);
 
 #if __XSI_VISIBLE
 int	killpg(__pid_t, int);
-int	sigaltstack(const stack_t * __restrict, stack_t * __restrict); 
+int	sigaltstack(const stack_t * __restrict, stack_t * __restrict);
 int	sighold(int);
 int	sigignore(int);
 int	sigpause(int);

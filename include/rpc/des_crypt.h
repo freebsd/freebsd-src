@@ -55,7 +55,7 @@
 
 
 #define DES_DEVMASK (1 << 1)
-#define	DES_HW (0*DES_DEVMASK)	/* Use hardware device */ 
+#define	DES_HW (0*DES_DEVMASK)	/* Use hardware device */
 #define DES_SW (1*DES_DEVMASK)	/* Use software device */
 
 
@@ -96,7 +96,7 @@ __BEGIN_DECLS
 int ecb_crypt( char *, char *, unsigned int, unsigned int );
 __END_DECLS
 
-/* 
+/*
  * Set des parity for a key.
  * DES parity is odd and in the low bit of each byte
  */

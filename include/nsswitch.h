@@ -103,7 +103,7 @@
 
 /*
  * ns_dtab `method' function signature.
- */ 
+ */
 typedef int (*nss_method)(void *_retval, void *_mdata, va_list _ap);
 
 /*
@@ -130,7 +130,7 @@ typedef struct _ns_dtab {
 #define NS_FILES_CB(F,C)	{ NSSRC_FILES,	F,	C },
 #define NS_COMPAT_CB(F,C)	{ NSSRC_COMPAT,	F,	C },
 #define NS_FALLBACK_CB(F)	{ NSSRC_FALLBACK, F,	NULL },
- 
+
 #ifdef HESIOD
 #   define NS_DNS_CB(F,C)	{ NSSRC_DNS,	F,	C },
 #else
@@ -183,7 +183,7 @@ typedef void	 (*nss_module_unregister_fn)(ns_mtab *, unsigned int);
 typedef ns_mtab *(*nss_module_register_fn)(const char *, unsigned int *,
 		       nss_module_unregister_fn *);
 
-/* 
+/*
  * Many NSS interfaces follow the getXXnam, getXXid, getXXent pattern.
  * Developers are encouraged to use nss_lookup_type where appropriate.
  */

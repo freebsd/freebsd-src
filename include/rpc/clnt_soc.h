@@ -50,7 +50,7 @@
 
 #include <sys/cdefs.h>
 
-#define UDPMSGSIZE      8800    /* rpc imposed limit on udp msg size */  
+#define UDPMSGSIZE      8800    /* rpc imposed limit on udp msg size */
 
 /*
  * TCP based rpc
@@ -98,7 +98,7 @@ __END_DECLS
  *	u_int recvsz;
  */
 __BEGIN_DECLS
-extern CLIENT *clntudp_create(struct sockaddr_in *, u_long, u_long, 
+extern CLIENT *clntudp_create(struct sockaddr_in *, u_long, u_long,
 			      struct timeval, int *);
 extern CLIENT *clntudp_bufcreate(struct sockaddr_in *, u_long, u_long,
 				 struct timeval, int *, u_int, u_int);

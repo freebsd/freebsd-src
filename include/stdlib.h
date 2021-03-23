@@ -262,7 +262,7 @@ void	 abort2(const char *, int, void **) __dead2;
 __uint32_t
 	 arc4random(void);
 void	 arc4random_buf(void *, size_t);
-__uint32_t 
+__uint32_t
 	 arc4random_uniform(__uint32_t);
 
 #ifdef __BLOCKS__

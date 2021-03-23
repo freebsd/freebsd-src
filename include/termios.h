@@ -50,7 +50,7 @@ typedef	__pid_t		pid_t;
 #if __BSD_VISIBLE
 #define	OXTABS		TAB3
 #define	MDMBUF		CCAR_OFLOW
-#endif 
+#endif
 
 #if __BSD_VISIBLE
 #define	CCEQ(val, c)	((c) == (val) && (val) != _POSIX_VDISABLE)

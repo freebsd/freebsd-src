@@ -128,17 +128,17 @@ struct rpc_timers {
 	u_long		rt_rtxcur;	/* current (backed-off) rto */
 };
 
-/*      
+/*
  * Feedback values used for possible congestion and rate control
  */
 #define FEEDBACK_REXMIT1	1	/* first retransmit */
-#define FEEDBACK_OK		2	/* no retransmits */    
+#define FEEDBACK_OK		2	/* no retransmits */
 
 /* Used to set version of portmapper used in broadcast */
-  
+
 #define CLCR_SET_LOWVERS	3
 #define CLCR_GET_LOWVERS	4
- 
+
 #define RPCSMALLMSGSIZE 400	/* a more reasonable packet size */
 
 /*

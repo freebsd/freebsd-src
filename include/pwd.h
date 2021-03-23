@@ -140,7 +140,7 @@ struct passwd {
 
 /* XXX These flags are bogus.  With nsswitch, there are many
  * possible sources and they cannot be represented in a small integer.
- */                           
+ */
 #define _PWF_SOURCE	0x3000
 #define _PWF_FILES	0x1000
 #define _PWF_NIS	0x2000

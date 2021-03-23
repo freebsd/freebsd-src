@@ -63,7 +63,7 @@
  *	u_long prog;
  *	u_long vers;
  *	void (*dispatch)();
- *	int protocol;    like TCP or UDP, zero means do not register 
+ *	int protocol;    like TCP or UDP, zero means do not register
  */
 __BEGIN_DECLS
 extern bool_t	svc_register(SVCXPRT *, u_long, u_long,

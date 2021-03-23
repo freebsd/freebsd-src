@@ -28,7 +28,7 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  *	from: @(#)auth_des.h 2.2 88/07/29 4.0 RPCSRC
  *	from: @(#)auth_des.h 1.14    94/04/25 SMI
  */
@@ -48,12 +48,12 @@
  * There are two kinds of "names": fullnames and nicknames
  */
 enum authdes_namekind {
-	ADN_FULLNAME, 
+	ADN_FULLNAME,
 	ADN_NICKNAME
 };
 
 /*
- * A fullname contains the network name of the client, 
+ * A fullname contains the network name of the client,
  * a conversation key and the window
  */
 struct authdes_fullname {
@@ -64,7 +64,7 @@ struct authdes_fullname {
 
 
 /*
- * A credential 
+ * A credential
  */
 struct authdes_cred {
 	enum authdes_namekind adc_namekind;
@@ -75,7 +75,7 @@ struct authdes_cred {
 
 
 /*
- * A des authentication verifier 
+ * A des authentication verifier
  */
 struct authdes_verf {
 	union {

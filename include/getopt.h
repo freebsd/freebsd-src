@@ -76,5 +76,5 @@ extern int optind, opterr, optopt;
 extern int optreset;			/* getopt(3) external variable */
 #endif
 __END_DECLS
- 
+
 #endif /* !_GETOPT_H_ */
