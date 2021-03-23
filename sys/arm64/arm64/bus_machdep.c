@@ -25,7 +25,9 @@
  *
  */
 
-#define	KCSAN_RUNTIME
+#if defined(KASAN) || defined(KCSAN)
+#define	SAN_RUNTIME
+#endif
 
 #include "opt_platform.h"
 

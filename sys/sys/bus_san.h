@@ -2,11 +2,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2019 Andrew Turner
+ * Copyright (c) 2021 The FreeBSD Foundation
  *
  * This software was developed by SRI International and the University of
  * Cambridge Computer Laboratory (Department of Computer Science and
  * Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
  * DARPA SSITH research programme.
+ *
+ * Portions of this software were written by Mark Johnston under sponsorship by
+ * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,174 +39,190 @@
 #ifndef _SYS_BUS_SAN_H_
 #define	_SYS_BUS_SAN_H_
 
-#define	KCSAN_BS_MULTI(rw, width, type)					\
-	void kcsan_bus_space_##rw##_multi_##width(bus_space_tag_t, 	\
+#ifndef _MACHINE_BUS_H_
+#error do not include this header, use machine/bus.h
+#endif
+
+#ifndef BUS_SAN_PREFIX
+#error No sanitizer prefix defined
+#endif
+
+#define	BUS_SAN_MULTI(sp, rw, width, type)				\
+	void sp##_bus_space_##rw##_multi_##width(bus_space_tag_t, 	\
 	    bus_space_handle_t, bus_size_t, type *, bus_size_t);	\
-	void kcsan_bus_space_##rw##_multi_stream_##width(bus_space_tag_t, \
+	void sp##_bus_space_##rw##_multi_stream_##width(bus_space_tag_t, \
 	    bus_space_handle_t, bus_size_t, type *, bus_size_t);	\
-	void kcsan_bus_space_##rw##_region_##width(bus_space_tag_t,	\
+	void sp##_bus_space_##rw##_region_##width(bus_space_tag_t,	\
 	    bus_space_handle_t, bus_size_t, type *, bus_size_t);	\
-	void kcsan_bus_space_##rw##_region_stream_##width(bus_space_tag_t, \
+	void sp##_bus_space_##rw##_region_stream_##width(bus_space_tag_t, \
 	    bus_space_handle_t, bus_size_t, type *, bus_size_t)
 
-#define	KCSAN_BS_READ(width, type)					\
-	type kcsan_bus_space_read_##width(bus_space_tag_t, 		\
+#define	BUS_SAN_READ(sp, width, type)					\
+	type sp##_bus_space_read_##width(bus_space_tag_t, 		\
 	    bus_space_handle_t, bus_size_t);				\
-	type kcsan_bus_space_read_stream_##width(bus_space_tag_t,	\
+	type sp##_bus_space_read_stream_##width(bus_space_tag_t,	\
 	    bus_space_handle_t, bus_size_t);				\
-	KCSAN_BS_MULTI(read, width, type)
+	BUS_SAN_MULTI(sp, read, width, type)
 
-#define	KCSAN_BS_WRITE(width, type)					\
-	void kcsan_bus_space_write_##width(bus_space_tag_t, 		\
+#define	BUS_SAN_WRITE(sp, width, type)					\
+	void sp##_bus_space_write_##width(bus_space_tag_t, 		\
 	    bus_space_handle_t, bus_size_t, type);			\
-	void kcsan_bus_space_write_stream_##width(bus_space_tag_t,	\
+	void sp##_bus_space_write_stream_##width(bus_space_tag_t,	\
 	    bus_space_handle_t, bus_size_t, type);			\
-	KCSAN_BS_MULTI(write, width, const type)
+	BUS_SAN_MULTI(sp, write, width, const type)
 
-#define	KCSAN_BS_SET(width, type)					\
-	void kcsan_bus_space_set_multi_##width(bus_space_tag_t, 	\
+#define	BUS_SAN_SET(sp, width, type)					\
+	void sp##_bus_space_set_multi_##width(bus_space_tag_t,		\
 	    bus_space_handle_t, bus_size_t, type, bus_size_t);		\
-	void kcsan_bus_space_set_multi_stream_##width(bus_space_tag_t, \
+	void sp##_bus_space_set_multi_stream_##width(bus_space_tag_t,	\
 	    bus_space_handle_t, bus_size_t, type, bus_size_t);		\
-	void kcsan_bus_space_set_region_##width(bus_space_tag_t,	\
+	void sp##_bus_space_set_region_##width(bus_space_tag_t,		\
 	    bus_space_handle_t, bus_size_t, type, bus_size_t);		\
-	void kcsan_bus_space_set_region_stream_##width(bus_space_tag_t, \
+	void sp##_bus_space_set_region_stream_##width(bus_space_tag_t,	\
 	    bus_space_handle_t, bus_size_t, type, bus_size_t)
 
-#define	KCSAN_BS_COPY(width, type)					\
-	void kcsan_bus_space_copy_region_##width(bus_space_tag_t,	\
+#define	BUS_SAN_COPY(sp, width, type)					\
+	void sp##_bus_space_copy_region_##width(bus_space_tag_t,	\
 	    bus_space_handle_t,	bus_size_t, bus_space_handle_t,		\
 	    bus_size_t, bus_size_t);					\
-	void kcsan_bus_space_copy_region_stream_##width(bus_space_tag_t, \
+	void sp##_bus_space_copy_region_stream_##width(bus_space_tag_t, \
 	    bus_space_handle_t,	bus_size_t, bus_space_handle_t,		\
 	    bus_size_t, bus_size_t);
 
-#define	KCSAN_BS_PEEK(width, type)					\
-	int kcsan_bus_space_peek_##width(bus_space_tag_t, 		\
+#define	BUS_SAN_PEEK(sp, width, type)					\
+	int sp##_bus_space_peek_##width(bus_space_tag_t, 		\
 	    bus_space_handle_t, bus_size_t, type *);
 
-#define	KCSAN_BS_POKE(width, type)					\
-	int kcsan_bus_space_poke_##width(bus_space_tag_t, 		\
+#define	BUS_SAN_POKE(sp, width, type)					\
+	int sp##_bus_space_poke_##width(bus_space_tag_t, 		\
 	    bus_space_handle_t, bus_size_t, type);
 
-#define	KCSAN_BS(width, type)						\
-	KCSAN_BS_READ(width, type);					\
-	KCSAN_BS_WRITE(width, type);					\
-	KCSAN_BS_SET(width, type);					\
-	KCSAN_BS_COPY(width, type)					\
-	KCSAN_BS_PEEK(width, type);					\
-	KCSAN_BS_POKE(width, type);
+#define	BUS_SAN_MISC(sp)						\
+	int sp##_bus_space_map(bus_space_tag_t, bus_addr_t, bus_size_t,	\
+	    int, bus_space_handle_t *);					\
+	void sp##_bus_space_unmap(bus_space_tag_t, bus_space_handle_t,	\
+	    bus_size_t);						\
+	int sp##_bus_space_subregion(bus_space_tag_t, bus_space_handle_t,\
+	    bus_size_t, bus_size_t, bus_space_handle_t *);		\
+	int sp##_bus_space_alloc(bus_space_tag_t, bus_addr_t, bus_addr_t,\
+	    bus_size_t, bus_size_t, bus_size_t, int, bus_addr_t *,	\
+	    bus_space_handle_t *);					\
+	void sp##_bus_space_free(bus_space_tag_t, bus_space_handle_t,	\
+	    bus_size_t);						\
+	void sp##_bus_space_barrier(bus_space_tag_t, bus_space_handle_t,\
+	    bus_size_t, bus_size_t, int);
 
-KCSAN_BS(1, uint8_t);
-KCSAN_BS(2, uint16_t);
-KCSAN_BS(4, uint32_t);
-KCSAN_BS(8, uint64_t);
+#define	_BUS_SAN_FUNCS(sp, width, type)					\
+	BUS_SAN_READ(sp, width, type);					\
+	BUS_SAN_WRITE(sp, width, type);					\
+	BUS_SAN_SET(sp, width, type);					\
+	BUS_SAN_COPY(sp, width, type)					\
+	BUS_SAN_PEEK(sp, width, type);					\
+	BUS_SAN_POKE(sp, width, type);					\
+	BUS_SAN_MISC(sp);
 
-int kcsan_bus_space_map(bus_space_tag_t, bus_addr_t, bus_size_t, int,
-    bus_space_handle_t *);
-void kcsan_bus_space_unmap(bus_space_tag_t, bus_space_handle_t, bus_size_t);
-int kcsan_bus_space_subregion(bus_space_tag_t, bus_space_handle_t, bus_size_t,
-    bus_size_t, bus_space_handle_t *);
-int kcsan_bus_space_alloc(bus_space_tag_t, bus_addr_t, bus_addr_t,
-    bus_size_t, bus_size_t, bus_size_t, int, bus_addr_t *,
-    bus_space_handle_t *);
-void kcsan_bus_space_free(bus_space_tag_t, bus_space_handle_t, bus_size_t);
-void kcsan_bus_space_barrier(bus_space_tag_t, bus_space_handle_t, bus_size_t,
-    bus_size_t, int);
+#define	BUS_SAN_FUNCS(width, type)					\
+	_BUS_SAN_FUNCS(BUS_SAN_PREFIX, width, type)
 
-#ifndef KCSAN_RUNTIME
+BUS_SAN_FUNCS(1, uint8_t);
+BUS_SAN_FUNCS(2, uint16_t);
+BUS_SAN_FUNCS(4, uint32_t);
+BUS_SAN_FUNCS(8, uint64_t);
 
-#define	bus_space_map			kcsan_bus_space_map
-#define	bus_space_unmap			kcsan_bus_space_unmap
-#define	bus_space_subregion		kcsan_bus_space_subregion
-#define	bus_space_alloc			kcsan_bus_space_alloc
-#define	bus_space_free			kcsan_bus_space_free
-#define	bus_space_barrier		kcsan_bus_space_barrier
+#ifndef SAN_RUNTIME
 
-#define	bus_space_read_1		kcsan_bus_space_read_1
-#define	bus_space_read_stream_1		kcsan_bus_space_read_stream_1
-#define	bus_space_read_multi_1		kcsan_bus_space_read_multi_1
-#define	bus_space_read_multi_stream_1	kcsan_bus_space_read_multi_stream_1
-#define	bus_space_read_region_1		kcsan_bus_space_read_region_1
-#define	bus_space_read_region_stream_1	kcsan_bus_space_read_region_stream_1
-#define	bus_space_write_1		kcsan_bus_space_write_1
-#define	bus_space_write_stream_1	kcsan_bus_space_write_stream_1
-#define	bus_space_write_multi_1		kcsan_bus_space_write_multi_1
-#define	bus_space_write_multi_stream_1	kcsan_bus_space_write_multi_stream_1
-#define	bus_space_write_region_1	kcsan_bus_space_write_region_1
-#define	bus_space_write_region_stream_1	kcsan_bus_space_write_region_stream_1
-#define	bus_space_set_multi_1		kcsan_bus_space_set_multi_1
-#define	bus_space_set_multi_stream_1	kcsan_bus_space_set_multi_stream_1
-#define	bus_space_set_region_1		kcsan_bus_space_set_region_1
-#define	bus_space_set_region_stream_1	kcsan_bus_space_set_region_stream_1
-#define	bus_space_copy_multi_1		kcsan_bus_space_copy_multi_1
-#define	bus_space_copy_multi_stream_1	kcsan_bus_space_copy_multi_stream_1
-#define	bus_space_poke_1		kcsan_bus_space_poke_1
-#define	bus_space_peek_1		kcsan_bus_space_peek_1
+#define	BUS_SAN(func)	__CONCAT(BUS_SAN_PREFIX, __CONCAT(_bus_space_, func))
 
-#define	bus_space_read_2		kcsan_bus_space_read_2
-#define	bus_space_read_stream_2		kcsan_bus_space_read_stream_2
-#define	bus_space_read_multi_2		kcsan_bus_space_read_multi_2
-#define	bus_space_read_multi_stream_2	kcsan_bus_space_read_multi_stream_2
-#define	bus_space_read_region_2		kcsan_bus_space_read_region_2
-#define	bus_space_read_region_stream_2	kcsan_bus_space_read_region_stream_2
-#define	bus_space_write_2		kcsan_bus_space_write_2
-#define	bus_space_write_stream_2	kcsan_bus_space_write_stream_2
-#define	bus_space_write_multi_2		kcsan_bus_space_write_multi_2
-#define	bus_space_write_multi_stream_2	kcsan_bus_space_write_multi_stream_2
-#define	bus_space_write_region_2	kcsan_bus_space_write_region_2
-#define	bus_space_write_region_stream_2	kcsan_bus_space_write_region_stream_2
-#define	bus_space_set_multi_2		kcsan_bus_space_set_multi_2
-#define	bus_space_set_multi_stream_2	kcsan_bus_space_set_multi_stream_2
-#define	bus_space_set_region_2		kcsan_bus_space_set_region_2
-#define	bus_space_set_region_stream_2	kcsan_bus_space_set_region_stream_2
-#define	bus_space_copy_multi_2		kcsan_bus_space_copy_multi_2
-#define	bus_space_copy_multi_stream_2	kcsan_bus_space_copy_multi_stream_2
-#define	bus_space_poke_2		kcsan_bus_space_poke_2
-#define	bus_space_peek_2		kcsan_bus_space_peek_2
+#define	bus_space_map			BUS_SAN(map)
+#define	bus_space_unmap			BUS_SAN(unmap)
+#define	bus_space_subregion		BUS_SAN(subregion)
+#define	bus_space_alloc			BUS_SAN(alloc)
+#define	bus_space_free			BUS_SAN(free)
+#define	bus_space_barrier		BUS_SAN(barrier)
 
-#define	bus_space_read_4		kcsan_bus_space_read_4
-#define	bus_space_read_stream_4		kcsan_bus_space_read_stream_4
-#define	bus_space_read_multi_4		kcsan_bus_space_read_multi_4
-#define	bus_space_read_multi_stream_4	kcsan_bus_space_read_multi_stream_4
-#define	bus_space_read_region_4		kcsan_bus_space_read_region_4
-#define	bus_space_read_region_stream_4	kcsan_bus_space_read_region_stream_4
-#define	bus_space_write_4		kcsan_bus_space_write_4
-#define	bus_space_write_stream_4	kcsan_bus_space_write_stream_4
-#define	bus_space_write_multi_4		kcsan_bus_space_write_multi_4
-#define	bus_space_write_multi_stream_4	kcsan_bus_space_write_multi_stream_4
-#define	bus_space_write_region_4	kcsan_bus_space_write_region_4
-#define	bus_space_write_region_stream_4	kcsan_bus_space_write_region_stream_4
-#define	bus_space_set_multi_4		kcsan_bus_space_set_multi_4
-#define	bus_space_set_multi_stream_4	kcsan_bus_space_set_multi_stream_4
-#define	bus_space_set_region_4		kcsan_bus_space_set_region_4
-#define	bus_space_set_region_stream_4	kcsan_bus_space_set_region_stream_4
-#define	bus_space_copy_multi_4		kcsan_bus_space_copy_multi_4
-#define	bus_space_copy_multi_stream_4	kcsan_bus_space_copy_multi_stream_4
-#define	bus_space_poke_4		kcsan_bus_space_poke_4
-#define	bus_space_peek_4		kcsan_bus_space_peek_4
+#define	bus_space_read_1		BUS_SAN(read_1)
+#define	bus_space_read_stream_1		BUS_SAN(read_stream_1)
+#define	bus_space_read_multi_1		BUS_SAN(read_multi_1)
+#define	bus_space_read_multi_stream_1	BUS_SAN(read_multi_stream_1)
+#define	bus_space_read_region_1		BUS_SAN(read_region_1)
+#define	bus_space_read_region_stream_1	BUS_SAN(read_region_stream_1)
+#define	bus_space_write_1		BUS_SAN(write_1)
+#define	bus_space_write_stream_1	BUS_SAN(write_stream_1)
+#define	bus_space_write_multi_1		BUS_SAN(write_multi_1)
+#define	bus_space_write_multi_stream_1	BUS_SAN(write_multi_stream_1)
+#define	bus_space_write_region_1	BUS_SAN(write_region_1)
+#define	bus_space_write_region_stream_1	BUS_SAN(write_region_stream_1)
+#define	bus_space_set_multi_1		BUS_SAN(set_multi_1)
+#define	bus_space_set_multi_stream_1	BUS_SAN(set_multi_stream_1)
+#define	bus_space_set_region_1		BUS_SAN(set_region_1)
+#define	bus_space_set_region_stream_1	BUS_SAN(set_region_stream_1)
+#define	bus_space_copy_multi_1		BUS_SAN(copy_multi_1)
+#define	bus_space_copy_multi_stream_1	BUS_SAN(copy_multi_stream_1)
+#define	bus_space_poke_1		BUS_SAN(poke_1)
+#define	bus_space_peek_1		BUS_SAN(peek_1)
 
-#define	bus_space_read_8		kcsan_bus_space_read_8
-#define	bus_space_read_stream_8		kcsan_bus_space_read_stream_8
-#define	bus_space_read_multi_8		kcsan_bus_space_read_multi_8
-#define	bus_space_read_multi_stream_8	kcsan_bus_space_read_multi_stream_8
-#define	bus_space_read_region_8		kcsan_bus_space_read_region_8
-#define	bus_space_read_region_stream_8	kcsan_bus_space_read_region_stream_8
-#define	bus_space_write_8		kcsan_bus_space_write_8
-#define	bus_space_write_stream_8	kcsan_bus_space_write_stream_8
-#define	bus_space_write_multi_8		kcsan_bus_space_write_multi_8
-#define	bus_space_write_multi_stream_8	kcsan_bus_space_write_multi_stream_8
-#define	bus_space_write_region_8	kcsan_bus_space_write_region_8
-#define	bus_space_write_region_stream_8	kcsan_bus_space_write_region_stream_8
-#define	bus_space_set_multi_8		kcsan_bus_space_set_multi_8
-#define	bus_space_set_multi_stream_8	kcsan_bus_space_set_multi_stream_8
-#define	bus_space_set_region_8		kcsan_bus_space_set_region_8
-#define	bus_space_set_region_stream_8	kcsan_bus_space_set_region_stream_8
-#define	bus_space_copy_multi_8		kcsan_bus_space_copy_multi_8
-#define	bus_space_copy_multi_stream_8	kcsan_bus_space_copy_multi_stream_8
-#define	bus_space_poke_8		kcsan_bus_space_poke_8
-#define	bus_space_peek_8		kcsan_bus_space_peek_8
+#define	bus_space_read_2		BUS_SAN(read_2)
+#define	bus_space_read_stream_2		BUS_SAN(read_stream_2)
+#define	bus_space_read_multi_2		BUS_SAN(read_multi_2)
+#define	bus_space_read_multi_stream_2	BUS_SAN(read_multi_stream_2)
+#define	bus_space_read_region_2		BUS_SAN(read_region_2)
+#define	bus_space_read_region_stream_2	BUS_SAN(read_region_stream_2)
+#define	bus_space_write_2		BUS_SAN(write_2)
+#define	bus_space_write_stream_2	BUS_SAN(write_stream_2)
+#define	bus_space_write_multi_2		BUS_SAN(write_multi_2)
+#define	bus_space_write_multi_stream_2	BUS_SAN(write_multi_stream_2)
+#define	bus_space_write_region_2	BUS_SAN(write_region_2)
+#define	bus_space_write_region_stream_2	BUS_SAN(write_region_stream_2)
+#define	bus_space_set_multi_2		BUS_SAN(set_multi_2)
+#define	bus_space_set_multi_stream_2	BUS_SAN(set_multi_stream_2)
+#define	bus_space_set_region_2		BUS_SAN(set_region_2)
+#define	bus_space_set_region_stream_2	BUS_SAN(set_region_stream_2)
+#define	bus_space_copy_multi_2		BUS_SAN(copy_multi_2)
+#define	bus_space_copy_multi_stream_2	BUS_SAN(copy_multi_stream_2)
+#define	bus_space_poke_2		BUS_SAN(poke_2)
+#define	bus_space_peek_2		BUS_SAN(peek_2)
 
+#define	bus_space_read_4		BUS_SAN(read_4)
+#define	bus_space_read_stream_4		BUS_SAN(read_stream_4)
+#define	bus_space_read_multi_4		BUS_SAN(read_multi_4)
+#define	bus_space_read_multi_stream_4	BUS_SAN(read_multi_stream_4)
+#define	bus_space_read_region_4		BUS_SAN(read_region_4)
+#define	bus_space_read_region_stream_4	BUS_SAN(read_region_stream_4)
+#define	bus_space_write_4		BUS_SAN(write_4)
+#define	bus_space_write_stream_4	BUS_SAN(write_stream_4)
+#define	bus_space_write_multi_4		BUS_SAN(write_multi_4)
+#define	bus_space_write_multi_stream_4	BUS_SAN(write_multi_stream_4)
+#define	bus_space_write_region_4	BUS_SAN(write_region_4)
+#define	bus_space_write_region_stream_4	BUS_SAN(write_region_stream_4)
+#define	bus_space_set_multi_4		BUS_SAN(set_multi_4)
+#define	bus_space_set_multi_stream_4	BUS_SAN(set_multi_stream_4)
+#define	bus_space_set_region_4		BUS_SAN(set_region_4)
+#define	bus_space_set_region_stream_4	BUS_SAN(set_region_stream_4)
+#define	bus_space_copy_multi_4		BUS_SAN(copy_multi_4)
+#define	bus_space_copy_multi_stream_4	BUS_SAN(copy_multi_stream_4)
+#define	bus_space_poke_4		BUS_SAN(poke_4)
+#define	bus_space_peek_4		BUS_SAN(peek_4)
+
+#define	bus_space_read_8		BUS_SAN(read_8)
+#define	bus_space_read_stream_8		BUS_SAN(read_stream_8)
+#define	bus_space_read_multi_8		BUS_SAN(read_multi_8)
+#define	bus_space_read_multi_stream_8	BUS_SAN(read_multi_stream_8)
+#define	bus_space_read_region_8		BUS_SAN(read_region_8)
+#define	bus_space_read_region_stream_8	BUS_SAN(read_region_stream_8)
+#define	bus_space_write_8		BUS_SAN(write_8)
+#define	bus_space_write_stream_8	BUS_SAN(write_stream_8)
+#define	bus_space_write_multi_8		BUS_SAN(write_multi_8)
+#define	bus_space_write_multi_stream_8	BUS_SAN(write_multi_stream_8)
+#define	bus_space_write_region_8	BUS_SAN(write_region_8)
+#define	bus_space_write_region_stream_8	BUS_SAN(write_region_stream_8)
+#define	bus_space_set_multi_8		BUS_SAN(set_multi_8)
+#define	bus_space_set_multi_stream_8	BUS_SAN(set_multi_stream_8)
+#define	bus_space_set_region_8		BUS_SAN(set_region_8)
+#define	bus_space_set_region_stream_8	BUS_SAN(set_region_stream_8)
+#define	bus_space_copy_multi_8		BUS_SAN(copy_multi_8)
+#define	bus_space_copy_multi_stream_8	BUS_SAN(copy_multi_stream_8)
+#define	bus_space_poke_8		BUS_SAN(poke_8)
+#define	bus_space_peek_8		BUS_SAN(peek_8)
 
 #endif /* !KCSAN_RUNTIME */
 
