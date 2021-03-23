@@ -97,8 +97,7 @@ __FBSDID("$FreeBSD$");
  * Priority comparison code by Harlan Stenn.
  */
 
-/* Maximum number of characters in time of last occurrence */
-#define	MAXLINE		2048		/* maximum line length */
+#define	MAXLINE		8192		/* maximum line length */
 #define	MAXSVLINE	MAXLINE		/* maximum saved line length */
 #define	DEFUPRI		(LOG_USER|LOG_NOTICE)
 #define	DEFSPRI		(LOG_KERN|LOG_CRIT)
@@ -383,6 +382,7 @@ static int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 static int	MarkSeq;	/* mark sequence number */
 static int	NoBind;		/* don't bind() as suggested by RFC 3164 */
 static int	SecureMode;	/* when true, receive only unix domain socks */
+static int	MaxForwardLen = 1024;	/* max length of forwared message */
 #ifdef INET6
 static int	family = PF_UNSPEC; /* protocol family (IPv4, IPv6 or both) */
 #else
@@ -394,7 +394,7 @@ static int	use_bootfile;	/* log entire bootfile for every kern msg */
 static int	no_compress;	/* don't compress messages (1=pipes, 2=all) */
 static int	logflags = O_WRONLY|O_APPEND; /* flags used to open log files */
 
-static char	bootfile[MAXLINE+1]; /* booted kernel file */
+static char	bootfile[MAXPATHLEN]; /* booted kernel file */
 
 static int	RemoteAddDate;	/* Always set the date on remote messages */
 static int	RemoteHostname;	/* Log remote hostname from the message */
@@ -553,7 +553,7 @@ main(int argc, char *argv[])
 	if (madvise(NULL, 0, MADV_PROTECT) != 0)
 		dprintf("madvise() failed: %s\n", strerror(errno));
 
-	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:FHkl:m:nNoO:p:P:sS:Tuv"))
+	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:FHkl:M:m:nNoO:p:P:sS:Tuv"))
 	    != -1)
 		switch (ch) {
 #ifdef INET
@@ -666,6 +666,12 @@ main(int argc, char *argv[])
 			});
 			break;
 		   }
+		case 'M':		/* max length of forwarded message */
+			MaxForwardLen = atoi(optarg);
+			if (MaxForwardLen < 480)
+				errx(1, "minimum length limit of forwarded "
+				        "messages is 480 bytes");
+			break;
 		case 'm':		/* mark interval */
 			MarkInterval = atoi(optarg) * 60;
 			break;
@@ -709,6 +715,9 @@ main(int argc, char *argv[])
 		}
 	if ((argc -= optind) != 0)
 		usage();
+
+	if (RFC3164OutputFormat && MaxForwardLen > 1024)
+		errx(1, "RFC 3164 messages may not exceed 1024 bytes");
 
 	/* Pipe to catch a signal during select(). */
 	s = pipe2(sigpipe, O_CLOEXEC);
@@ -948,9 +957,9 @@ usage(void)
 	fprintf(stderr,
 		"usage: syslogd [-468ACcdFHknosTuv] [-a allowed_peer]\n"
 		"               [-b bind_address] [-f config_file]\n"
-		"               [-l [mode:]path] [-m mark_interval]\n"
-		"               [-O format] [-P pid_file] [-p log_socket]\n"
-		"               [-S logpriv_socket]\n");
+		"               [-l [mode:]path] [-M fwd_length]\n"
+		"               [-m mark_interval] [-O format] [-P pid_file]\n"
+		"               [-p log_socket] [-S logpriv_socket]\n");
 	exit(1);
 }
 
@@ -1840,26 +1849,26 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 
 	switch (f->f_type) {
 	case F_FORW:
-		/* Truncate messages to RFC 5426 recommended size. */
 		dprintf(" %s", f->fu_forw_hname);
 		switch (f->fu_forw_addr->ai_family) {
 #ifdef INET
 		case AF_INET:
 			dprintf(":%d\n",
 			    ntohs(satosin(f->fu_forw_addr->ai_addr)->sin_port));
-			iovlist_truncate(il, 480);
 			break;
 #endif
 #ifdef INET6
 		case AF_INET6:
 			dprintf(":%d\n",
 			    ntohs(satosin6(f->fu_forw_addr->ai_addr)->sin6_port));
-			iovlist_truncate(il, 1180);
 			break;
 #endif
 		default:
 			dprintf("\n");
 		}
+
+		/* Truncate messages to maximum forward length. */
+		iovlist_truncate(il, MaxForwardLen);
 
 		lsent = 0;
 		for (r = f->fu_forw_addr; r; r = r->ai_next) {
@@ -2553,7 +2562,7 @@ init(int signo)
 	char *p;
 	char oldLocalHostName[MAXHOSTNAMELEN];
 	char hostMsg[2*MAXHOSTNAMELEN+40];
-	char bootfileMsg[LINE_MAX];
+	char bootfileMsg[MAXLINE + 1];
 
 	dprintf("init\n");
 	WantInitialize = 0;
@@ -2900,7 +2909,7 @@ cfline(const char *line, const char *prog, const char *host,
 	int error, i, pri, syncfile;
 	const char *p, *q;
 	char *bp, *pfilter_dup;
-	char buf[MAXLINE], ebuf[100];
+	char buf[LINE_MAX], ebuf[100];
 
 	dprintf("cfline(\"%s\", f, \"%s\", \"%s\", \"%s\")\n", line, prog,
 	    host, pfilter);
