@@ -130,13 +130,22 @@ vnet_rtzone_destroy()
 static void
 destroy_rtentry(struct rtentry *rt)
 {
+	struct nhop_object *nh = rt->rt_nhop;
 
 	/*
 	 * At this moment rnh, nh_control may be already freed.
 	 * nhop interface may have been migrated to a different vnet.
 	 * Use vnet stored in the nexthop to delete the entry.
 	 */
-	CURVNET_SET(nhop_get_vnet(rt->rt_nhop));
+#ifdef ROUTE_MPATH
+	if (NH_IS_NHGRP(nh)) {
+		struct weightened_nhop *wn;
+		uint32_t num_nhops;
+		wn = nhgrp_get_nhops((struct nhgrp_object *)nh, &num_nhops);
+		nh = wn[0].nh;
+	}
+#endif
+	CURVNET_SET(nhop_get_vnet(nh));
 
 	/* Unreference nexthop */
 	nhop_free_any(rt->rt_nhop);
