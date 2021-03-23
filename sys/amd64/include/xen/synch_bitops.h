@@ -12,7 +12,7 @@
 
 static __inline__ void synch_set_bit(int nr, volatile void * addr)
 {
-    __asm__ __volatile__ ( 
+    __asm__ __volatile__ (
         "lock btsl %1,%0"
         : "=m" (ADDR) : "Ir" (nr) : "memory" );
 }
@@ -108,7 +108,7 @@ static inline unsigned long __synch_cmpxchg(volatile void *ptr,
 
 static __inline__ int synch_const_test_bit(int nr, const volatile void * addr)
 {
-    return ((1UL << (nr & 31)) & 
+    return ((1UL << (nr & 31)) &
             (((const volatile unsigned int *) addr)[nr >> 5])) != 0;
 }
 

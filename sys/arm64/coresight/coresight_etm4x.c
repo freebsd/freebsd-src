@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #define	ETM_DEBUG
 #undef ETM_DEBUG
-   
+
 #ifdef ETM_DEBUG
 #define	dprintf(fmt, ...)	printf(fmt, ##__VA_ARGS__)
 #else

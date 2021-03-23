@@ -186,7 +186,7 @@ in_pseudo(u_int32_t a, u_int32_t b, u_int32_t c)
 	u_int64_t sum;
 	union q_util q_util;
 	union l_util l_util;
-		    
+
 	sum = (u_int64_t) a + b + c;
 	REDUCE16;
 	return (sum);

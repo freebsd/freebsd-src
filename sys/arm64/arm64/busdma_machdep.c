@@ -106,7 +106,7 @@ bus_dma_run_filter(struct bus_dma_tag_common *tc, bus_addr_t paddr)
 		    (*tc->filter)(tc->filterarg, paddr) != 0))
 			return (1);
 
-		tc = tc->parent;		
+		tc = tc->parent;
 	}
 
 	return (0);

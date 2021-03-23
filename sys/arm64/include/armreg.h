@@ -220,10 +220,10 @@
 #define	 EXCP_HVC		0x16	/* HVC trap */
 #define	 EXCP_MSR		0x18	/* MSR/MRS trap */
 #define	 EXCP_INSN_ABORT_L	0x20	/* Instruction abort, from lower EL */
-#define	 EXCP_INSN_ABORT	0x21	/* Instruction abort, from same EL */ 
+#define	 EXCP_INSN_ABORT	0x21	/* Instruction abort, from same EL */
 #define	 EXCP_PC_ALIGN		0x22	/* PC alignment fault */
 #define	 EXCP_DATA_ABORT_L	0x24	/* Data abort, from lower EL */
-#define	 EXCP_DATA_ABORT	0x25	/* Data abort, from same EL */ 
+#define	 EXCP_DATA_ABORT	0x25	/* Data abort, from same EL */
 #define	 EXCP_SP_ALIGN		0x26	/* SP slignment fault */
 #define	 EXCP_TRAP_FP		0x2c	/* Trapped FP exception */
 #define	 EXCP_SERROR		0x2f	/* SError interrupt */

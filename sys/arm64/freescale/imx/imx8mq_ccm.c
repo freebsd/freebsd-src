@@ -480,5 +480,5 @@ static driver_t ccm_driver = {
 
 static devclass_t ccm_devclass;
 
-EARLY_DRIVER_MODULE(ccm, simplebus, ccm_driver, ccm_devclass, 0, 0, 
+EARLY_DRIVER_MODULE(ccm, simplebus, ccm_driver, ccm_devclass, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);

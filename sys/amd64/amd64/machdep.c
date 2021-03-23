@@ -241,7 +241,7 @@ cpu_startup(dummy)
 	 * namely: incorrect CPU frequency detection and failure to
 	 * start the APs.
 	 * We do this by disabling a bit in the SMI_EN (SMI Control and
-	 * Enable register) of the Intel ICH LPC Interface Bridge. 
+	 * Enable register) of the Intel ICH LPC Interface Bridge.
 	 */
 	sysenv = kern_getenv("smbios.system.product");
 	if (sysenv != NULL) {
@@ -905,7 +905,7 @@ DB_SHOW_COMMAND(dbregs, db_show_dbregs)
 	db_printf("dr2\t0x%016lx\n", rdr2());
 	db_printf("dr3\t0x%016lx\n", rdr3());
 	db_printf("dr6\t0x%016lx\n", rdr6());
-	db_printf("dr7\t0x%016lx\n", rdr7());	
+	db_printf("dr7\t0x%016lx\n", rdr7());
 }
 #endif
 

@@ -296,7 +296,7 @@ vcpu_cleanup(struct vm *vm, int i, bool destroy)
 
 	vmmops_vlapic_cleanup(vm->cookie, vcpu->vlapic);
 	if (destroy) {
-		vmm_stat_free(vcpu->stats);	
+		vmm_stat_free(vcpu->stats);
 		fpu_save_area_free(vcpu->guestfpu);
 	}
 }
@@ -308,7 +308,7 @@ vcpu_init(struct vm *vm, int vcpu_id, bool create)
 
 	KASSERT(vcpu_id >= 0 && vcpu_id < vm->maxcpus,
 	    ("vcpu_init: invalid vcpu %d", vcpu_id));
-	  
+
 	vcpu = &vm->vcpu[vcpu_id];
 
 	if (create) {
@@ -2320,7 +2320,7 @@ vmm_is_pptdev(int bus, int slot, int func)
 				found = true;
 				break;
 			}
-		
+
 			if (cp2 != NULL)
 				*cp2++ = ' ';
 
@@ -2760,7 +2760,7 @@ vm_get_rescnt(struct vm *vm, int vcpu, struct vmm_stat_type *stat)
 	if (vcpu == 0) {
 		vmm_stat_set(vm, vcpu, VMM_MEM_RESIDENT,
 	       	    PAGE_SIZE * vmspace_resident_count(vm->vmspace));
-	}	
+	}
 }
 
 static void
@@ -2770,7 +2770,7 @@ vm_get_wiredcnt(struct vm *vm, int vcpu, struct vmm_stat_type *stat)
 	if (vcpu == 0) {
 		vmm_stat_set(vm, vcpu, VMM_MEM_WIRED,
 	      	    PAGE_SIZE * pmap_wired_count(vmspace_pmap(vm->vmspace)));
-	}	
+	}
 }
 
 VMM_STAT_FUNC(VMM_MEM_RESIDENT, "Resident memory", vm_get_rescnt);

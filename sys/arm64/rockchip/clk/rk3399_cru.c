@@ -1212,7 +1212,7 @@ static struct rk_clk rk3399_clks[] = {
 	FRACT(DCLK_VOP1_FRAC, "dclk_vop1_frac", "dclk_vop1_div", 0,
 	    107),
 
-	/* 
+	/*
 	 * This clock is controlled in the secure world
 	 */
 	FFACT(PCLK_WDT, "pclk_wdt", "pclk_alive", 1, 1),

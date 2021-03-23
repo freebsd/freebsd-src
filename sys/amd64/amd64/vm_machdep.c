@@ -615,7 +615,7 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
     stack_t *stack)
 {
 
-	/* 
+	/*
 	 * Do any extra cleaning that needs to be done.
 	 * The thread may have optional components
 	 * that are not present in a fresh thread.
@@ -690,10 +690,10 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 
 /*
  * Software interrupt handler for queued VM system processing.
- */   
-void  
-swi_vm(void *dummy) 
-{     
+ */
+void
+swi_vm(void *dummy)
+{
 	if (busdma_swi_pending != 0)
 		busdma_swi();
 }

@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cpuset.h>
 #include <sys/domainset.h>
-#ifdef GPROF 
+#ifdef GPROF
 #include <sys/gmon.h>
 #endif
 #include <sys/kdb.h>
@@ -861,7 +861,7 @@ static void
 invltlb_pcid_handler(pmap_t smp_tlb_pmap)
 {
 	uint32_t pcid;
-  
+
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_gbl[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */

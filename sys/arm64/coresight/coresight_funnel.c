@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #define	FUNNEL_DEBUG
 #undef FUNNEL_DEBUG
-        
+
 #ifdef FUNNEL_DEBUG
 #define	dprintf(fmt, ...)	printf(fmt, ##__VA_ARGS__)
 #else

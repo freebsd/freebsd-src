@@ -123,7 +123,7 @@ SYSCTL_UINT(_hw_vmm_svm, OID_AUTO, num_asids, CTLFLAG_RDTUN, &nasid, 0,
 /* Current ASID generation for each host cpu */
 static struct asid asid[MAXCPU];
 
-/* 
+/*
  * SVM host state saved area of size 4KB for each core.
  */
 static uint8_t hsave[MAXCPU][PAGE_SIZE] __aligned(PAGE_SIZE);
@@ -279,7 +279,7 @@ svm_modresume(void)
 {
 
 	svm_enable(NULL);
-}		
+}
 
 #ifdef BHYVE_SNAPSHOT
 int
@@ -301,14 +301,14 @@ svm_set_tsc_offset(struct svm_softc *sc, int vcpu, uint64_t offset)
 #endif
 
 /* Pentium compatible MSRs */
-#define MSR_PENTIUM_START 	0	
+#define MSR_PENTIUM_START 	0
 #define MSR_PENTIUM_END 	0x1FFF
 /* AMD 6th generation and Intel compatible MSRs */
-#define MSR_AMD6TH_START 	0xC0000000UL	
-#define MSR_AMD6TH_END 		0xC0001FFFUL	
+#define MSR_AMD6TH_START 	0xC0000000UL
+#define MSR_AMD6TH_END 		0xC0001FFFUL
 /* AMD 7th and 8th generation compatible MSRs */
-#define MSR_AMD7TH_START 	0xC0010000UL	
-#define MSR_AMD7TH_END 		0xC0011FFFUL	
+#define MSR_AMD7TH_START 	0xC0010000UL
+#define MSR_AMD7TH_END 		0xC0011FFFUL
 
 /*
  * Get the index and bit position for a MSR in permission bitmap.
@@ -328,12 +328,12 @@ svm_msr_index(uint64_t msr, int *index, int *bit)
 		return (0);
 	}
 
-	base += (MSR_PENTIUM_END - MSR_PENTIUM_START + 1); 
+	base += (MSR_PENTIUM_END - MSR_PENTIUM_START + 1);
 	if (msr >= MSR_AMD6TH_START && msr <= MSR_AMD6TH_END) {
-		off = (msr - MSR_AMD6TH_START); 
+		off = (msr - MSR_AMD6TH_START);
 		*index = (off + base) / 4;
 		return (0);
-	} 
+	}
 
 	base += (MSR_AMD6TH_END - MSR_AMD6TH_START + 1);
 	if (msr >= MSR_AMD7TH_START && msr <= MSR_AMD7TH_END) {
@@ -848,7 +848,7 @@ svm_npf_emul_fault(uint64_t exitinfo1)
 		return (false);
 	}
 
-	return (true);	
+	return (true);
 }
 
 static void
@@ -889,7 +889,7 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 	default:
 		vmexit->u.inst_emul.cs_base = 0;
 		vmexit->u.inst_emul.cs_d = 0;
-		break;	
+		break;
 	}
 
 	/*
@@ -992,7 +992,7 @@ svm_save_intinfo(struct svm_softc *svm_sc, int vcpu)
 	uint64_t intinfo;
 
 	ctrl  = svm_get_vmcb_ctrl(svm_sc, vcpu);
-	intinfo = ctrl->exitintinfo;	
+	intinfo = ctrl->exitintinfo;
 	if (!VMCB_EXITINTINFO_VALID(intinfo))
 		return;
 
@@ -1461,7 +1461,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		eax = state->rax;
 		ecx = ctx->sctx_rcx;
 		edx = ctx->sctx_rdx;
-		retu = false;	
+		retu = false;
 
 		if (info1) {
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_WRMSR, 1);
@@ -1555,7 +1555,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	default:
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_UNKNOWN, 1);
 		break;
-	}	
+	}
 
 	VCPU_CTR4(svm_sc->vm, vcpu, "%s %s vmexit at %#lx/%d",
 	    handled ? "handled" : "unhandled", exit_reason_to_str(code),
@@ -2122,7 +2122,7 @@ svm_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		/* Restore host LDTR. */
 		lldt(ldt_sel);
 
-		/* #VMEXIT disables interrupts so re-enable them here. */ 
+		/* #VMEXIT disables interrupts so re-enable them here. */
 		enable_gintr();
 
 		/* Update 'nextrip' */

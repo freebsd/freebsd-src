@@ -2989,7 +2989,7 @@ pmap_remove_l3_range(pmap_t pmap, pd_entry_t l2e, vm_offset_t sva,
 					 * released.  Otherwise, a concurrent
 					 * pmap_remove_all() on a physical page
 					 * could return while a stale TLB entry
-					 * still provides access to that page. 
+					 * still provides access to that page.
 					 */
 					if (va != eva) {
 						pmap_invalidate_range(pmap, va,
@@ -4823,7 +4823,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				pmap_abort_ptp(dst_pmap, addr, dstmpte);
 				goto out;
 			}
-			/* Have we copied all of the valid mappings? */ 
+			/* Have we copied all of the valid mappings? */
 			if (dstmpte->ref_count >= srcmpte->ref_count)
 				break;
 		}
@@ -5123,7 +5123,7 @@ pmap_remove_pages(pmap_t pmap)
 				switch(lvl) {
 				case 1:
 					pte = pmap_l1_to_l2(pde, pv->pv_va);
-					tpte = pmap_load(pte); 
+					tpte = pmap_load(pte);
 					KASSERT((tpte & ATTR_DESCR_MASK) ==
 					    L2_BLOCK,
 					    ("Attempting to remove an invalid "

@@ -292,7 +292,7 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
 {
 
 	/*
-	 * On arm64 (due to INTRNG), ACPI interrupt configuration is 
+	 * On arm64 (due to INTRNG), ACPI interrupt configuration is
 	 * done in nexus_acpi_map_intr().
 	 */
 	return (0);

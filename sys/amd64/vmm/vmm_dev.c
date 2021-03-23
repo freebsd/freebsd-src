@@ -512,7 +512,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_PPTDEV_MSIX:
 		pptmsix = (struct vm_pptdev_msix *)data;
 		error = ppt_setup_msix(sc->vm, pptmsix->vcpu,
-				       pptmsix->bus, pptmsix->slot, 
+				       pptmsix->bus, pptmsix->slot,
 				       pptmsix->func, pptmsix->idx,
 				       pptmsix->addr, pptmsix->msg,
 				       pptmsix->vector_control);
@@ -1024,7 +1024,7 @@ sysctl_vmm_destroy(SYSCTL_HANDLER_ARGS)
 	 * is scheduled for destruction.
 	 */
 	cdev = sc->cdev;
-	sc->cdev = NULL;		
+	sc->cdev = NULL;
 	mtx_unlock(&vmmdev_mtx);
 
 	/*

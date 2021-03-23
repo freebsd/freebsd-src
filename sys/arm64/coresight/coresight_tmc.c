@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #define	TMC_DEBUG
 #undef TMC_DEBUG
-        
+
 #ifdef TMC_DEBUG
 #define	dprintf(fmt, ...)	printf(fmt, ##__VA_ARGS__)
 #else

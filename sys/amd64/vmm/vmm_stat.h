@@ -120,7 +120,7 @@ vmm_stat_array_set(struct vm *vm, int vcpu, struct vmm_stat_type *vst,
 		stats[vst->index + statidx] = val;
 #endif
 }
-		   
+
 static void __inline
 vmm_stat_incr(struct vm *vm, int vcpu, struct vmm_stat_type *vst, uint64_t x)
 {

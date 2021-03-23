@@ -384,7 +384,7 @@ rk805_regnode_init(struct regnode *regnode)
 
 	if (uvolt >= param->min_uvolt && uvolt <= param->max_uvolt)
 		return(0);
-	/* 
+	/*
 	 * Set the regulator at the correct voltage if it is not enabled.
 	 * Do not enable it, this is will be done either by a
 	 * consumer or by regnode_set_constraint if boot_on is true

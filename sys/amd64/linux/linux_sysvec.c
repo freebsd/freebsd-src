@@ -226,7 +226,7 @@ linux_set_syscall_retval(struct thread *td, int error)
 		frame->tf_rip -= frame->tf_err;
 		frame->tf_r10 = frame->tf_rcx;
 		break;
- 
+
 	case EJUSTRETURN:
 		break;
 

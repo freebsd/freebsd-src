@@ -1725,7 +1725,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 	 * then the residual physical memory is mapped with 2MB pages.  Later,
 	 * if pmap_mapdev{_attr}() uses the direct map for non-write-back
 	 * memory, pmap_change_attr() will demote any 2MB or 1GB page mappings
-	 * that are partially used. 
+	 * that are partially used.
 	 */
 	pd_p = (pd_entry_t *)DMPDphys;
 	for (i = NPDEPG * ndm1g, j = 0; i < NPDEPG * ndmpdp; i++, j++) {
@@ -2144,7 +2144,7 @@ pmap_bootstrap_la57(void *arg __unused)
 	vm_page_free(m_pd);
 	vm_page_free(m_pt);
 
-	/* 
+	/*
 	 * Recursively map PML5 to itself in order to get PTmap and
 	 * PDmap.
 	 */
@@ -2361,7 +2361,7 @@ pmap_init(void)
 	/*
 	 * Initialize the vm page array entries for the kernel pmap's
 	 * page table pages.
-	 */ 
+	 */
 	PMAP_LOCK(kernel_pmap);
 	for (i = 0; i < nkpt; i++) {
 		mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
@@ -3302,12 +3302,12 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 	cpuid = PCPU_GET(cpuid);
 	other_cpus = all_cpus;
 	CPU_CLR(cpuid, &other_cpus);
-	if (pmap == kernel_pmap || pmap_type_guest(pmap)) 
+	if (pmap == kernel_pmap || pmap_type_guest(pmap))
 		active = all_cpus;
 	else {
 		active = pmap->pm_active;
 	}
-	if (CPU_OVERLAP(&active, &other_cpus)) { 
+	if (CPU_OVERLAP(&active, &other_cpus)) {
 		act.store = cpuid;
 		act.invalidate = active;
 		act.va = va;
@@ -3679,7 +3679,7 @@ pmap_flush_cache_phys_range(vm_paddr_t spa, vm_paddr_t epa, vm_memattr_t mattr)
  *		Extract the physical page address associated
  *		with the given map/virtual_address pair.
  */
-vm_paddr_t 
+vm_paddr_t
 pmap_extract(pmap_t pmap, vm_offset_t va)
 {
 	pdp_entry_t *pdpe;
@@ -3804,7 +3804,7 @@ pmap_kextract(vm_offset_t va)
  * Add a wired page to the kva.
  * Note: not SMP coherent.
  */
-PMAP_INLINE void 
+PMAP_INLINE void
 pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 {
 	pt_entry_t *pte;
@@ -4034,7 +4034,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 
 	pmap_pt_page_count_adj(pmap, -1);
 
-	/* 
+	/*
 	 * Put page on a list so that it is released after
 	 * *ALL* TLB shootdown is done
 	 */
@@ -4160,7 +4160,7 @@ pmap_pinit_pml5(vm_page_t pml5pg)
 	    X86_PG_RW | X86_PG_A | X86_PG_M | pg_g |
 	    pmap_cache_bits(kernel_pmap, VM_MEMATTR_DEFAULT, FALSE);
 
-	/* 
+	/*
 	 * Install self-referential address mapping entry.
 	 */
 	pm_pml5[PML5PML5I] = VM_PAGE_TO_PHYS(pml5pg) |
@@ -4849,7 +4849,7 @@ pmap_growkernel(vm_offset_t addr)
 			kernel_vm_end = (kernel_vm_end + NBPDR) & ~PDRMASK;
 			if (kernel_vm_end - 1 >= vm_map_max(kernel_map)) {
 				kernel_vm_end = vm_map_max(kernel_map);
-				break;                       
+				break;
 			}
 			continue;
 		}
@@ -4866,7 +4866,7 @@ pmap_growkernel(vm_offset_t addr)
 		kernel_vm_end = (kernel_vm_end + NBPDR) & ~PDRMASK;
 		if (kernel_vm_end - 1 >= vm_map_max(kernel_map)) {
 			kernel_vm_end = vm_map_max(kernel_map);
-			break;                       
+			break;
 		}
 	}
 }
@@ -5831,7 +5831,7 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	 * PG_A set.  If the old PDE has PG_RW set, it also has PG_M
 	 * set.  Thus, there is no danger of a race with another
 	 * processor changing the setting of PG_A and/or PG_M between
-	 * the read above and the store below. 
+	 * the read above and the store below.
 	 */
 	if (workaround_erratum383)
 		pmap_update_pde(pmap, va, pde, newpde);
@@ -5961,7 +5961,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
  * pmap_remove_pte: do the things to unmap a page in a process
  */
 static int
-pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, 
+pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
     pd_entry_t ptepde, struct spglist *free, struct rwlock **lockp)
 {
 	struct md_page *pvh;
@@ -6539,7 +6539,7 @@ pmap_pde_ept_executable(pmap_t pmap, pd_entry_t pde)
  * single page table page (PTP) to a single 2MB page mapping.  For promotion
  * to occur, two conditions must be met: (1) the 4KB page mappings must map
  * aligned, contiguous physical memory and (2) the 4KB page mappings must have
- * identical characteristics. 
+ * identical characteristics.
  */
 static void
 pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
@@ -6564,7 +6564,7 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	/*
 	 * Examine the first PTE in the specified PTP.  Abort if this PTE is
 	 * either invalid, unused, or does not map the first 4KB physical page
-	 * within a 2MB page. 
+	 * within a 2MB page.
 	 */
 	firstpte = (pt_entry_t *)PHYS_TO_DMAP(*pde & PG_FRAME);
 setpde:
@@ -6626,7 +6626,7 @@ setpte:
 	/*
 	 * Save the page table page in its current state until the PDE
 	 * mapping the superpage is demoted by pmap_demote_pde() or
-	 * destroyed by pmap_remove_pde(). 
+	 * destroyed by pmap_remove_pde().
 	 */
 	mpte = PHYS_TO_VM_PAGE(*pde & PG_FRAME);
 	KASSERT(mpte >= vm_page_array &&
@@ -6847,7 +6847,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		goto out;
 	}
 	if (psind == 1) {
-		/* Assert the required virtual and physical alignment. */ 
+		/* Assert the required virtual and physical alignment. */
 		KASSERT((va & PDRMASK) == 0, ("pmap_enter: va unaligned"));
 		KASSERT(m->psind > 0, ("pmap_enter: m->psind < psind"));
 		rv = pmap_enter_pde(pmap, va, newpte | PG_PS, flags, m, &lock);
@@ -7479,7 +7479,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 		 * Map using 2MB pages.  Since "ptepa" is 2M aligned and
 		 * "size" is a multiple of 2M, adding the PAT setting to "pa"
 		 * will not affect the termination of this loop.
-		 */ 
+		 */
 		PMAP_LOCK(pmap);
 		for (pa = ptepa | pmap_cache_bits(pmap, pat_mode, 1);
 		    pa < ptepa + size; pa += NBPDR) {
@@ -7714,7 +7714,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		srcptepaddr = *pde;
 		if (srcptepaddr == 0)
 			continue;
-			
+
 		if (srcptepaddr & PG_PS) {
 			if ((addr & PDRMASK) != 0 || addr + NBPDR > end_addr)
 				continue;
@@ -7777,7 +7777,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				pmap_abort_ptp(dst_pmap, addr, dstmpte);
 				goto out;
 			}
-			/* Have we copied all of the valid mappings? */ 
+			/* Have we copied all of the valid mappings? */
 			if (dstmpte->ref_count >= srcmpte->ref_count)
 				break;
 		}

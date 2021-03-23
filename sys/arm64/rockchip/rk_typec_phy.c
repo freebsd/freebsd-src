@@ -352,7 +352,7 @@ rk_typec_phy_attach(device_t dev)
 	sc->dev = dev;
 	node = ofw_bus_get_node(dev);
 
-	/* 
+	/*
 	 * Find out which phy we are.
 	 * There is not property for this so we need to know the
 	 * address to use the correct GRF registers.
@@ -406,8 +406,8 @@ rk_typec_phy_attach(device_t dev)
 		goto fail;
 	}
 
-	/* 
-	 * Make sure that the module is asserted 
+	/*
+	 * Make sure that the module is asserted
 	 * We need to deassert in a certain order when we enable the phy
 	 */
 	hwreset_assert(sc->rst_uphy);
@@ -427,7 +427,7 @@ rk_typec_phy_attach(device_t dev)
 		goto fail;
 	}
 	/* If the child isn't enable attach the driver
-	 *  but do not register the PHY. 
+	 *  but do not register the PHY.
 	 */
 	if (!ofw_bus_node_status_okay(usb3))
 		return (0);

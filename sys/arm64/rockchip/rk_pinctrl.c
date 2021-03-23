@@ -981,7 +981,7 @@ rk_pinctrl_configure_pin(struct rk_pinctrl_softc *sc, uint32_t *pindata)
 	/*
 	 * NOTE: not all syscon registers uses hi-word write mask, thus
 	 * register modify method should be used.
-	 * XXXX We should not pass write mask to syscon register 
+	 * XXXX We should not pass write mask to syscon register
 	 * without hi-word write mask.
 	 */
 	SYSCON_MODIFY_4(syscon, reg, mask, function << bit | (mask << 16));

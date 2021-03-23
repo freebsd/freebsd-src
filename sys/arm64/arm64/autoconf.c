@@ -83,7 +83,7 @@ configure_final(void *dummy)
 
 	/* Enable interrupt reception on this CPU */
 	intr_enable();
-	cninit_finish(); 
+	cninit_finish();
 
 	if (bootverbose)
 		printf("Device configuration finished.\n");
