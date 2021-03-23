@@ -403,7 +403,7 @@ freebsd32_exec_copyin_args(struct image_args *args, const char *fname,
 		if (error != 0)
 			goto err_exit;
 	}
-			
+
 	/*
 	 * extract environment strings
 	 */
@@ -539,7 +539,7 @@ freebsd6_freebsd32_mmap(struct thread *td,
 int
 freebsd32_setitimer(struct thread *td, struct freebsd32_setitimer_args *uap)
 {
-	struct itimerval itv, oitv, *itvp;	
+	struct itimerval itv, oitv, *itvp;
 	struct itimerval32 i32;
 	int error;
 
@@ -3198,7 +3198,7 @@ freebsd32_sigwaitinfo(struct thread *td, struct freebsd32_sigwaitinfo_args *uap)
 	if (uap->info) {
 		siginfo_to_siginfo32(&ksi.ksi_info, &si32);
 		error = copyout(&si32, uap->info, sizeof(struct siginfo32));
-	}	
+	}
 	if (error == 0)
 		td->td_retval[0] = ksi.ksi_signo;
 	return (error);

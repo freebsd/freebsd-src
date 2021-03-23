@@ -100,7 +100,7 @@ linux_dmi_get_system_info(int field)
 	return (NULL);
 }
 
-/* 
+/*
  * Match a system against the structs list
  * If a match is found return the corresponding structure.
  */

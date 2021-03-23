@@ -723,7 +723,7 @@ linux_copyout_sockaddr(const struct sockaddr *sa, void *uaddr, size_t len)
 	error = bsd_to_linux_sockaddr(sa, &lsa, len);
 	if (error != 0)
 		return (error);
-	
+
 	error = copyout(lsa, uaddr, len);
 	free(lsa, M_SONAME);
 

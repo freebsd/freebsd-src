@@ -9,7 +9,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -108,7 +108,7 @@ struct ia32_mcontext4 {
 	u_int32_t	mc_eip;
 	u_int32_t	mc_cs;
 	u_int32_t	mc_eflags;
-	u_int32_t	mc_esp;	
+	u_int32_t	mc_esp;
 	u_int32_t	mc_ss;
 	u_int32_t	mc_fpregs[28];
 	u_int32_t	__spare__[17];
@@ -127,7 +127,7 @@ struct ia32_ucontext4 {
 struct ia32_sigcontext3 {
 	u_int32_t	sc_onstack;
 	u_int32_t	sc_mask;
-	u_int32_t	sc_esp;	
+	u_int32_t	sc_esp;
 	u_int32_t	sc_ebp;
 	u_int32_t	sc_isp;
 	u_int32_t	sc_eip;
