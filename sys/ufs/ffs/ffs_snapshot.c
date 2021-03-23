@@ -320,7 +320,7 @@ restart:
 	devvp = ITODEVVP(ip);
 	/*
 	 * Calculate the size of the filesystem then allocate the block
-	 * immediately following the last block of the filesystem that 
+	 * immediately following the last block of the filesystem that
 	 * will contain the snapshot list. This operation allows us to
 	 * set the size of the snapshot.
 	 */
@@ -654,7 +654,7 @@ loop:
 	 * Acquire a lock on the snapdata structure, creating it if necessary.
 	 */
 	sn = ffs_snapdata_acquire(devvp);
-	/* 
+	/*
 	 * Change vnode to use shared snapshot lock instead of the original
 	 * private lock.
 	 */
@@ -1117,7 +1117,7 @@ expunge_ufs1(snapvp, cancelip, fs, acctfunc, expungetype, clearmode)
 /*
  * Descend an indirect block chain for vnode cancelvp accounting for all
  * its indirect blocks in snapvp.
- */ 
+ */
 static int
 indiracct_ufs1(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
 	    blksperindir, fs, acctfunc, expungetype)
@@ -1403,7 +1403,7 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype, clearmode)
 /*
  * Descend an indirect block chain for vnode cancelvp accounting for all
  * its indirect blocks in snapvp.
- */ 
+ */
 static int
 indiracct_ufs2(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
 	    blksperindir, fs, acctfunc, expungetype)
@@ -1671,7 +1671,7 @@ ffs_snapremove(vp)
 		for (i = 0; i < sn->sn_lock.lk_recurse; i++)
 			lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
 		KASSERT(vp->v_vnlock == &sn->sn_lock,
-			("ffs_snapremove: lost lock mutation")); 
+			("ffs_snapremove: lost lock mutation"));
 		vp->v_vnlock = &vp->v_lock;
 		VI_LOCK(devvp);
 		while (sn->sn_lock.lk_recurse > 0)
@@ -2062,7 +2062,7 @@ ffs_snapshot_mount(mp)
 		 * necessary.
 		 */
 		sn = ffs_snapdata_acquire(devvp);
-		/* 
+		/*
 		 * Change vnode to use shared snapshot lock instead of the
 		 * original private lock.
 		 */
@@ -2161,7 +2161,7 @@ ffs_snapshot_unmount(mp)
 			lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
 		}
 		KASSERT(vp->v_vnlock == &sn->sn_lock,
-		("ffs_snapshot_unmount: lost lock mutation")); 
+		("ffs_snapshot_unmount: lost lock mutation"));
 		vp->v_vnlock = &vp->v_lock;
 		lockmgr(&vp->v_lock, LK_RELEASE, NULL);
 		lockmgr(&sn->sn_lock, LK_RELEASE, NULL);

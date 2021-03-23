@@ -905,7 +905,7 @@ ufs_chown(vp, uid, gid, cred, td)
 	 * group of which we are not a member, the caller must have
 	 * privilege.
 	 */
-	if (((uid != ip->i_uid && uid != cred->cr_uid) || 
+	if (((uid != ip->i_uid && uid != cred->cr_uid) ||
 	    (gid != ip->i_gid && !groupmember(gid, cred))) &&
 	    (error = priv_check_cred(cred, PRIV_VFS_CHOWN)))
 		return (error);
@@ -1270,7 +1270,7 @@ ufs_rename(ap)
 		goto releout;
 	}
 relock:
-	/* 
+	/*
 	 * We need to acquire 2 to 4 locks depending on whether tvp is NULL
 	 * and fdvp and tdvp are the same directory.  Subsequently we need
 	 * to double-check all paths and in the directory rename case we
@@ -2121,7 +2121,7 @@ ufs_mkdir(ap)
 	 * Directory set up, now install its entry in the parent directory.
 	 *
 	 * If we are not doing soft dependencies, then we must write out the
-	 * buffer containing the new directory body before entering the new 
+	 * buffer containing the new directory body before entering the new
 	 * name in the parent. If we are doing soft dependencies, then the
 	 * buffer containing the new directory body will be passed to and
 	 * released in the soft dependency code after the code has attached
@@ -2560,7 +2560,7 @@ ufsfifo_close(ap)
 /*
  * Kqfilter wrapper for fifos.
  *
- * Fall through to ufs kqfilter routines if needed 
+ * Fall through to ufs kqfilter routines if needed
  */
 static int
 ufsfifo_kqfilter(ap)

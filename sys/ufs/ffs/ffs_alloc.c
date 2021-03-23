@@ -1296,7 +1296,7 @@ ffs_dirpref(pip)
 		maxcontigdirs = 1;
 
 	/*
-	 * Limit number of dirs in one cg and reserve space for 
+	 * Limit number of dirs in one cg and reserve space for
 	 * regular files, but only if we have no deficit in
 	 * inodes or space.
 	 *
@@ -1356,7 +1356,7 @@ ffs_dirpref(pip)
  * direct block and the data blocks for the first indirect immediately
  * follow it.
  *
- * If no blocks have been allocated in any other section, the indirect 
+ * If no blocks have been allocated in any other section, the indirect
  * block(s) are allocated in the same cylinder group as its inode in an
  * area reserved immediately following the inode blocks. The policy for
  * the data blocks is to place them in a cylinder group with a greater than
@@ -3348,7 +3348,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 				    (intmax_t)cmd.value);
 			else
 				printf("%s: free blocks %jd-%jd\n",
-				    mp->mnt_stat.f_mntonname, 
+				    mp->mnt_stat.f_mntonname,
 				    (intmax_t)cmd.value,
 				    (intmax_t)cmd.value + cmd.size - 1);
 		}
@@ -3361,7 +3361,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			if (blkcnt < blksize)
 				blksize = blkcnt;
 			ffs_blkfree(ump, fs, ump->um_devvp, blkno,
-			    blksize * fs->fs_fsize, UFS_ROOTINO, 
+			    blksize * fs->fs_fsize, UFS_ROOTINO,
 			    VDIR, NULL, key);
 			blkno += blksize;
 			blkcnt -= blksize;

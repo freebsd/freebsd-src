@@ -526,7 +526,7 @@ fail:
 	} else if (unwindidx >= 0) {
 		int r;
 
-		r = bread(vp, indirs[unwindidx].in_lbn, 
+		r = bread(vp, indirs[unwindidx].in_lbn,
 		    (int)fs->fs_bsize, NOCRED, &bp);
 		if (r) {
 			panic("Could not unwind indirect block, error %d", r);
@@ -1136,7 +1136,7 @@ fail:
 	} else if (unwindidx >= 0) {
 		int r;
 
-		r = bread(vp, indirs[unwindidx].in_lbn, 
+		r = bread(vp, indirs[unwindidx].in_lbn,
 		    (int)fs->fs_bsize, NOCRED, &bp);
 		if (r) {
 			panic("Could not unwind indirect block, error %d", r);

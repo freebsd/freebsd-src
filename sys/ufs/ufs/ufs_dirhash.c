@@ -85,7 +85,7 @@ static int ufs_dirhashcheck = 0;
 SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_docheck, CTLFLAG_RW, &ufs_dirhashcheck,
     0, "enable extra sanity tests");
 static int ufs_dirhashlowmemcount = 0;
-SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_lowmemcount, CTLFLAG_RD, 
+SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_lowmemcount, CTLFLAG_RD,
     &ufs_dirhashlowmemcount, 0, "number of times low memory hook called");
 static int ufs_dirhashreclaimpercent = 10;
 static int ufsdirhash_set_reclaimpercent(SYSCTL_HANDLER_ARGS);
@@ -616,7 +616,7 @@ restart:
 			 * We found an entry with the expected offset. This
 			 * is probably the entry we want, but if not, the
 			 * code below will retry.
-			 */ 
+			 */
 			slot = i;
 		} else
 			seqoff = -1;
@@ -1174,8 +1174,8 @@ ufsdirhash_getprev(struct direct *dirp, doff_t offset)
 }
 
 /*
- * Delete the given dirhash and reclaim its memory. Assumes that 
- * ufsdirhash_list is locked, and leaves it locked. Also assumes 
+ * Delete the given dirhash and reclaim its memory. Assumes that
+ * ufsdirhash_list is locked, and leaves it locked. Also assumes
  * that dh is locked. Returns the amount of memory freed.
  */
 static int
@@ -1312,7 +1312,7 @@ ufsdirhash_init()
 	TAILQ_INIT(&ufsdirhash_list);
 
 	/* Register a callback function to handle low memory signals */
-	EVENTHANDLER_REGISTER(vm_lowmem, ufsdirhash_lowmem, NULL, 
+	EVENTHANDLER_REGISTER(vm_lowmem, ufsdirhash_lowmem, NULL,
 	    EVENTHANDLER_PRI_FIRST);
 }
 

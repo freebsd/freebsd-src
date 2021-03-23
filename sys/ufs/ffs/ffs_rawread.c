@@ -112,7 +112,7 @@ ffs_rawread_sync(struct vnode *vp)
 	     vm_object_mightbedirty(obj))) {
 		VI_UNLOCK(vp);
 		BO_UNLOCK(bo);
-		
+
 		if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
 			if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
 				upgraded = 1;
@@ -127,8 +127,8 @@ ffs_rawread_sync(struct vnode *vp)
 			VOP_LOCK(vp, LK_UPGRADE);
 		} else
 			upgraded = 0;
-			
-		
+
+
 		VI_LOCK(vp);
 		/* Check if vnode was reclaimed while unlocked. */
 		if (VN_IS_DOOMED(vp)) {
@@ -138,7 +138,7 @@ ffs_rawread_sync(struct vnode *vp)
 			vn_finished_write(mp);
 			return (EIO);
 		}
-		/* Attempt to msync mmap() regions to clean dirty mmap */ 
+		/* Attempt to msync mmap() regions to clean dirty mmap */
 		if ((obj = vp->v_object) != NULL &&
 		    vm_object_mightbedirty(obj)) {
 			VI_UNLOCK(vp);
@@ -229,13 +229,13 @@ ffs_rawread_readahead(struct vnode *vp,
 		return error;
 	if (blkno == -1) {
 		/* Fill holes with NULs to preserve semantics */
-		
+
 		if (bp->b_bcount + blockoff * DEV_BSIZE > bsize)
 			bp->b_bcount = bsize - blockoff * DEV_BSIZE;
-		
+
 		if (vmapbuf(bp, udata, bp->b_bcount, 1) < 0)
 			return EFAULT;
-		
+
 		maybe_yield();
 		bzero(bp->b_data, bp->b_bufsize);
 
@@ -287,7 +287,7 @@ ffs_rawread_main(struct vnode *vp,
 	nbp = NULL;
 
 	while (resid > 0) {
-		
+
 		if (bp == NULL) { /* Setup first read */
 			bp = uma_zalloc(ffsraw_pbuf_zone, M_WAITOK);
 			pbgetvp(vp, bp);
@@ -295,17 +295,17 @@ ffs_rawread_main(struct vnode *vp,
 						     resid, td, bp);
 			if (error != 0)
 				break;
-			
+
 			if (resid > bp->b_bufsize) { /* Setup fist readahead */
-				if (rawreadahead != 0) 
+				if (rawreadahead != 0)
 					nbp = uma_zalloc(ffsraw_pbuf_zone,
 					    M_NOWAIT);
 				else
 					nbp = NULL;
 				if (nbp != NULL) {
 					pbgetvp(vp, nbp);
-					
-					nerror = ffs_rawread_readahead(vp, 
+
+					nerror = ffs_rawread_readahead(vp,
 								       udata +
 								       bp->b_bufsize,
 								       offset +
@@ -323,16 +323,16 @@ ffs_rawread_main(struct vnode *vp,
 				}
 			}
 		}
-		
+
 		bwait(bp, PRIBIO, "rawrd");
 		vunmapbuf(bp);
-		
+
 		iolen = bp->b_bcount - bp->b_resid;
 		if (iolen == 0 && (bp->b_ioflags & BIO_ERROR) == 0) {
 			nerror = 0;	/* Ignore possible beyond EOF error */
 			break; /* EOF */
 		}
-		
+
 		if ((bp->b_ioflags & BIO_ERROR) != 0) {
 			error = bp->b_error;
 			break;
@@ -351,11 +351,11 @@ ffs_rawread_main(struct vnode *vp,
 			if (error != 0)
 				break;
 		} else if (nbp != NULL) { /* Complete read with readahead */
-			
+
 			tbp = bp;
 			bp = nbp;
 			nbp = tbp;
-			
+
 			if (resid <= bp->b_bufsize) { /* No more readaheads */
 				pbrelvp(nbp);
 				uma_zfree(ffsraw_pbuf_zone, nbp);
@@ -377,7 +377,7 @@ ffs_rawread_main(struct vnode *vp,
 				}
 			}
 		} else if (nerror != 0) {/* Deferred Readahead error */
-			break;		
+			break;
 		}  else if (resid > 0) { /* More to read, no readahead */
 			error = ffs_rawread_readahead(vp, udata, offset,
 						      resid, td, bp);
@@ -412,7 +412,7 @@ ffs_rawread(struct vnode *vp,
 	    int *workdone)
 {
 	if (allowrawread != 0 &&
-	    uio->uio_iovcnt == 1 && 
+	    uio->uio_iovcnt == 1 &&
 	    uio->uio_segflg == UIO_USERSPACE &&
 	    uio->uio_resid == uio->uio_iov->iov_len &&
 	    (((uio->uio_td != NULL) ? uio->uio_td : curthread)->td_pflags &
@@ -424,19 +424,19 @@ ffs_rawread(struct vnode *vp,
 		int skipbytes;		/* Bytes not to read in ffs_rawread */
 		struct inode *ip;
 		int error;
-		
+
 
 		/* Only handle sector aligned reads */
 		ip = VTOI(vp);
 		secsize = ITODEVVP(ip)->v_bufobj.bo_bsize;
 		if ((uio->uio_offset & (secsize - 1)) == 0 &&
 		    (uio->uio_resid & (secsize - 1)) == 0) {
-			
+
 			/* Sync dirty pages and buffers if needed */
 			error = ffs_rawread_sync(vp);
 			if (error != 0)
 				return error;
-			
+
 			/* Check for end of file */
 			if (ip->i_size > uio->uio_offset) {
 				filebytes = ip->i_size - uio->uio_offset;
@@ -446,7 +446,7 @@ ffs_rawread(struct vnode *vp,
 					*workdone = 1;
 					return ffs_rawread_main(vp, uio);
 				}
-				
+
 				partialbytes = ((unsigned int) ip->i_size) %
 				    ITOFS(ip)->fs_bsize;
 				blockbytes = (int) filebytes - partialbytes;

@@ -60,7 +60,7 @@
  * the ``cgbase(fs, cg)'' macro.
  *
  * Depending on the architecture and the media, the superblock may
- * reside in any one of four places. For tiny media where every block 
+ * reside in any one of four places. For tiny media where every block
  * counts, it is placed at the very front of the partition. Historically,
  * UFS1 placed it 8K from the front to leave room for the disk label and
  * a small bootstrap. For UFS2 it got moved to 64K from the front to leave
@@ -394,7 +394,7 @@ struct fs {
 	u_int32_t fs_ckhash;		/* if CK_SUPERBLOCK, its check-hash */
 	u_int32_t fs_metackhash;	/* metadata check-hash, see CK_ below */
 	int32_t  fs_flags;		/* see FS_ flags below */
-	int32_t	 fs_contigsumsize;	/* size of cluster summary array */ 
+	int32_t	 fs_contigsumsize;	/* size of cluster summary array */
 	int32_t	 fs_maxsymlinklen;	/* max length of an internal symlink */
 	int32_t	 fs_old_inodefmt;	/* format of on-disk inodes */
 	u_int64_t fs_maxfilesize;	/* maximum representable file size */

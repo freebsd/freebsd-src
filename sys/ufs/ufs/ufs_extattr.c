@@ -753,7 +753,7 @@ ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
 		error = ufs_extattr_start(mp, td);
 
 		return (error);
-		
+
 	case UFS_EXTATTR_CMD_STOP:
 		if (filename_vp != NULL) {
 			VOP_UNLOCK(filename_vp);
@@ -995,7 +995,7 @@ vop_deleteextattr {
 */
 {
 	struct mount *mp = ap->a_vp->v_mount;
-	struct ufsmount *ump = VFSTOUFS(mp); 
+	struct ufsmount *ump = VFSTOUFS(mp);
 	int error;
 
 	ufs_extattr_uepm_lock(ump);
@@ -1025,7 +1025,7 @@ vop_setextattr {
 */
 {
 	struct mount *mp = ap->a_vp->v_mount;
-	struct ufsmount *ump = VFSTOUFS(mp); 
+	struct ufsmount *ump = VFSTOUFS(mp);
 	int error;
 
 	/*
@@ -1170,7 +1170,7 @@ ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
 	off_t base_offset;
 	int error = 0, ioflag;
 
-	if (vp->v_mount->mnt_flag & MNT_RDONLY)  
+	if (vp->v_mount->mnt_flag & MNT_RDONLY)
 		return (EROFS);
 	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED))
 		return (EOPNOTSUPP);

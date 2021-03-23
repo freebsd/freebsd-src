@@ -1351,7 +1351,7 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td)
 			easize = (const u_char *)eap - eae;
 			break;
 		}
-			
+
 		eapnext = EXTATTR_NEXT(eap);
 		/* Bogusly long entry. */
 		if (eapnext > eaend) {

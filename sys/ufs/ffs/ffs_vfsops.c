@@ -528,7 +528,7 @@ ffs_mount(struct mount *mp)
 			if (fs->fs_pendingblocks != 0 ||
 			    fs->fs_pendinginodes != 0) {
 				printf("WARNING: %s Update error: blocks %jd "
-				    "files %d\n", fs->fs_fsmnt, 
+				    "files %d\n", fs->fs_fsmnt,
 				    (intmax_t)fs->fs_pendingblocks,
 				    fs->fs_pendinginodes);
 				fs->fs_pendingblocks = 0;
@@ -812,7 +812,7 @@ ffs_mount(struct mount *mp)
 			if (error) {
 				printf("WARNING: %s: Checker activation "
 				    "failed\n", fs->fs_fsmnt);
-			} else { 
+			} else {
 				ump->um_fsckpid = fsckpid;
 				if (fs->fs_snapinum[0] != 0)
 					ffs_snapshot_mount(mp);
@@ -2585,7 +2585,7 @@ ffs_bufwrite(struct buf *bp)
 
 		/*
 		 * Initiate write on the copy, release the original.  The
-		 * BKGRDINPROG flag prevents it from going away until 
+		 * BKGRDINPROG flag prevents it from going away until
 		 * the background write completes. We have to recalculate
 		 * its check hash in case the buffer gets freed and then
 		 * reconstituted from the buffer cache during a later read.

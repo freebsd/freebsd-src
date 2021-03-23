@@ -47,10 +47,10 @@
  * Allocation dependencies are handled with undo/redo on the in-memory
  * copy of the data. A particular data dependency is eliminated when
  * it is ALLCOMPLETE: that is ATTACHED, DEPCOMPLETE, and COMPLETE.
- * 
+ *
  * The ATTACHED flag means that the data is not currently being written
  * to disk.
- * 
+ *
  * The UNDONE flag means that the data has been rolled back to a safe
  * state for writing to the disk. When the I/O completes, the data is
  * restored to its current form and the state reverts to ATTACHED.
@@ -61,14 +61,14 @@
  * The COMPLETE flag indicates that the item has been written. For example,
  * a dependency that requires that an inode be written will be marked
  * COMPLETE after the inode has been written to disk.
- * 
+ *
  * The DEPCOMPLETE flag indicates the completion of any other
  * dependencies such as the writing of a cylinder group map has been
  * completed. A dependency structure may be freed only when both it
  * and its dependencies have completed and any rollbacks that are in
  * progress have finished as indicated by the set of ALLCOMPLETE flags
  * all being set.
- * 
+ *
  * The two MKDIR flags indicate additional dependencies that must be done
  * when creating a new directory. MKDIR_BODY is cleared when the directory
  * data block containing the "." and ".." entries has been written.
@@ -88,7 +88,7 @@
  * the update is complete the dirrem associated with the inode for
  * the old name must be added to the worklist to do the necessary
  * reference count decrement.
- * 
+ *
  * The GOINGAWAY flag indicates that the data structure is frozen from
  * further change until its dependencies have been completed and its
  * resources freed after which it will be discarded.
@@ -189,7 +189,7 @@
 
 /*
  * The workitem queue.
- * 
+ *
  * It is sometimes useful and/or necessary to clean up certain dependencies
  * in the background rather than during execution of an application process
  * or interrupt service routine. To realize this, we append dependency
@@ -307,7 +307,7 @@ struct pagedep {
  * The "inodedep" structure tracks the set of dependencies associated
  * with an inode. One task that it must manage is delayed operations
  * (i.e., work requests that must be held until the inodedep's associated
- * inode has been written to disk). Getting an inode from its incore 
+ * inode has been written to disk). Getting an inode from its incore
  * state to the disk requires two steps to be taken by the filesystem
  * in this order: first the inode must be copied to its disk buffer by
  * the VOP_UPDATE operation; second the inode's buffer must be written
@@ -422,7 +422,7 @@ struct bmsafemap {
  * appropriate setup function. It will initially be linked onto a bmsafemap
  * list. Once converted it can be linked onto the lists described for
  * allocdirect or allocindir as described below.
- */ 
+ */
 struct newblk {
 	struct	worklist nb_list;	/* See comment above. */
 #	define	nb_state nb_list.wk_state
@@ -521,7 +521,7 @@ struct indirdep {
  * to disk, ai_state has the DEPCOMPLETE flag set. When the block itself
  * is written, the COMPLETE flag is set. Once both the cylinder group map
  * and the data itself have been written, it is safe to write the entry in
- * the indirect block that claims the block; the "allocindir" dependency 
+ * the indirect block that claims the block; the "allocindir" dependency
  * can then be freed as it is no longer applicable.
  */
 struct allocindir {
@@ -771,7 +771,7 @@ struct dirrem {
  * deleted from their pagedep->id_pendinghd and inodedep->id_pendinghd
  * lists. Note that we could track directory blocks allocated to indirect
  * blocks using a similar scheme with the allocindir structures. Rather
- * than adding this level of complexity, we simply write those newly 
+ * than adding this level of complexity, we simply write those newly
  * allocated indirect blocks synchronously as such allocations are rare.
  * In the case of a new directory the . and .. links are tracked with
  * a mkdir rather than a pagedep.  In this case we track the mkdir
@@ -836,7 +836,7 @@ struct jaddref {
  * A "jremref" structure tracks a removed reference (unlink) on an
  * inode and prevents the directory remove from proceeding until the
  * journal entry is written.  Once the journal has been written the remove
- * may proceed as normal. 
+ * may proceed as normal.
  */
 struct jremref {
 	struct	inoref	jr_ref;		/* see inoref above. */
