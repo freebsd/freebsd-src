@@ -423,7 +423,7 @@ copy(char *argv[], enum op type, int fts_options)
 			    curr->fts_level == 0)) {
 				if (copy_file(curr, dne))
 					badcp = rval = 1;
-			} else {	
+			} else {
 				if (copy_link(curr, !dne))
 					badcp = rval = 1;
 			}

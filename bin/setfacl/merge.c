@@ -152,7 +152,7 @@ merge_acl(acl_t acl, acl_t *prev_acl, const char *filename)
 				if (entry_type != entry_type_new)
 					continue;
 			}
-		
+
 			switch(tag) {
 			case ACL_USER:
 			case ACL_GROUP:
@@ -206,7 +206,7 @@ merge_acl(acl_t acl, acl_t *prev_acl, const char *filename)
 			 */
 			if (acl_brand == ACL_BRAND_NFS4) {
 				if (acl_create_entry_np(&acl_new, &entry_new, entry_number) == -1) {
-					warn("%s: acl_create_entry_np() failed", filename); 
+					warn("%s: acl_create_entry_np() failed", filename);
 					acl_free(acl_new);
 					return (-1);
 				}
@@ -219,7 +219,7 @@ merge_acl(acl_t acl, acl_t *prev_acl, const char *filename)
 				entry_number++;
 			} else {
 				if (acl_create_entry(&acl_new, &entry_new) == -1) {
-					warn("%s: acl_create_entry() failed", filename); 
+					warn("%s: acl_create_entry() failed", filename);
 					acl_free(acl_new);
 					return (-1);
 				}
@@ -268,7 +268,7 @@ add_acl(acl_t acl, uint entry_number, acl_t *prev_acl, const char *filename)
 		entry_id = ACL_NEXT_ENTRY;
 
 		if (acl_create_entry_np(&acl_new, &entry_new, entry_number) == -1) {
-			warn("%s: acl_create_entry_np() failed", filename); 
+			warn("%s: acl_create_entry_np() failed", filename);
 			acl_free(acl_new);
 			return (-1);
 		}

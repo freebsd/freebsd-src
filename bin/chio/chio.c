@@ -46,7 +46,7 @@ static const char copyright[] =
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/chio.h> 
+#include <sys/chio.h>
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -616,7 +616,7 @@ do_status(const char *cname, int argc, char **argv)
 	for (chet = schet; chet <= echet; ++chet) {
 		switch (chet) {
 		case CHET_MT:
-			if (count == 0) 
+			if (count == 0)
 				count = cp.cp_npickers;
 			else if (count > cp.cp_npickers)
 				errx(1, "not that many pickers in device");
@@ -624,7 +624,7 @@ do_status(const char *cname, int argc, char **argv)
 			break;
 
 		case CHET_ST:
-			if (count == 0) 
+			if (count == 0)
 				count = cp.cp_nslots;
 			else if (count > cp.cp_nslots)
 				errx(1, "not that many slots in device");
@@ -632,7 +632,7 @@ do_status(const char *cname, int argc, char **argv)
 			break;
 
 		case CHET_IE:
-			if (count == 0) 
+			if (count == 0)
 				count = cp.cp_nportals;
 			else if (count > cp.cp_nportals)
 				errx(1, "not that many portals in device");
@@ -640,13 +640,13 @@ do_status(const char *cname, int argc, char **argv)
 			break;
 
 		case CHET_DT:
-			if (count == 0) 
+			if (count == 0)
 				count = cp.cp_ndrives;
 			else if (count > cp.cp_ndrives)
 				errx(1, "not that many drives in device");
 			description = "drive";
 			break;
- 
+
  		default:
  			/* To appease gcc -Wuninitialized. */
  			count = 0;
@@ -669,9 +669,9 @@ do_status(const char *cname, int argc, char **argv)
 		cesr.cesr_element_count = count;
 		/* Allocate storage for the status structures. */
 		cesr.cesr_element_status =
-		  (struct changer_element_status *) 
+		  (struct changer_element_status *)
 		  calloc((size_t)count, sizeof(struct changer_element_status));
-		
+
 		if (!cesr.cesr_element_status)
 			errx(1, "can't allocate status storage");
 
@@ -692,19 +692,19 @@ do_status(const char *cname, int argc, char **argv)
 					   CESTATUS_BITS));
 			if (sense)
 				printf(" sense: <0x%02x/0x%02x>",
-				       ces->ces_sensecode, 
+				       ces->ces_sensecode,
 				       ces->ces_sensequal);
 			if (pvoltag)
-				printf(" voltag: <%s:%d>", 
+				printf(" voltag: <%s:%d>",
 				       ces->ces_pvoltag.cv_volid,
 				       ces->ces_pvoltag.cv_serial);
 			if (avoltag)
-				printf(" avoltag: <%s:%d>", 
+				printf(" avoltag: <%s:%d>",
 				       ces->ces_avoltag.cv_volid,
 				       ces->ces_avoltag.cv_serial);
 			if (source) {
 				if (ces->ces_flags & CES_SOURCE_VALID)
-					printf(" source: <%s %d>", 
+					printf(" source: <%s %d>",
 					       element_type_name(
 						       ces->ces_source_type),
 					       ces->ces_source_addr);
@@ -847,7 +847,7 @@ do_voltag(const char *cname, int argc, char **argv)
 
 	return 0;
  usage:
-	(void) fprintf(stderr, 
+	(void) fprintf(stderr,
 		       "usage: %s %s [-fca] <element> [<voltag> [<vsn>] ]\n",
 		       getprogname(), cname);
 	return 1;
@@ -943,7 +943,7 @@ bits_to_string(ces_status_flags v, const char *cp)
 }
 /*
  * do_return()
- * 
+ *
  * Given an element reference, ask the changer/picker to move that
  * element back to its source slot.
  */
@@ -966,7 +966,7 @@ do_return(const char *cname, int argc, char **argv)
 
 	type = parse_element_type(*argv);
 	++argv; --argc;
-	
+
 	/* Handle voltag virtual Changer Element Type */
 	if (CHET_VT == type) {
 		find_element(*argv, &type, &element);
@@ -1016,7 +1016,7 @@ get_element_status(unsigned int type, unsigned int element, int use_voltags)
 {
 	struct changer_element_status_request cesr;
 	struct changer_element_status *ces;
-	
+
 	ces = (struct changer_element_status *)
 	    calloc((size_t)1, sizeof(struct changer_element_status));
 
@@ -1044,7 +1044,7 @@ get_element_status(unsigned int type, unsigned int element, int use_voltags)
 
 /*
  * find_element()
- * 
+ *
  * Given a <voltag> find the chager element and unit, or exit
  * with an error if it isn't found.  We grab the changer status
  * and iterate until we find a match, or crap out.
@@ -1068,7 +1068,7 @@ find_element(char *voltag, uint16_t *et, uint16_t *eu)
 	/* Allocate some memory for the results */
 	total_elem = (cp.cp_nslots + cp.cp_ndrives
 	    + cp.cp_npickers + cp.cp_nportals);
-	
+
 	ch_ces = (struct changer_element_status *)
 	    calloc(total_elem, sizeof(struct changer_element_status));
 
@@ -1091,7 +1091,7 @@ find_element(char *voltag, uint16_t *et, uint16_t *eu)
 			err(1, "%s: CHIOGSTATUS", changer_name);
 		}
 		ces += cp.cp_nslots;
-	}	
+	}
 
 	/* Read in the drive information */
 	if (cp.cp_ndrives > 0 ) {
@@ -1143,7 +1143,7 @@ find_element(char *voltag, uint16_t *et, uint16_t *eu)
 
 	/*
 	 * Now search the list the specified <voltag>
-	 */	
+	 */
 	for (elem = 0; elem < total_elem; ++elem) {
 
 		ces = &ch_ces[elem];

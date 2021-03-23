@@ -182,7 +182,7 @@ ls_tty(ARCHD *arcn)
 /*
  * l_strncpy()
  *	copy src to dest up to len chars (stopping at first '\0').
- *	when src is shorter than len, pads to len with '\0'. 
+ *	when src is shorter than len, pads to len with '\0'.
  * Return:
  *	number of chars copied. (Note this is a real performance win over
  *	doing a strncpy(), a strlen(), and then a possible memset())

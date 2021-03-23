@@ -293,7 +293,7 @@ appnd_start(off_t skcnt)
 	paxwarn(1, "Unable to rewrite archive trailer, cannot append.");
 	return(-1);
 }
-	
+
 /*
  * rd_sync()
  *	A read error occurred on this archive volume. Resync the buffer and

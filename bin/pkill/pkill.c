@@ -641,7 +641,7 @@ killact(const struct kinfo_proc *kp)
 			return (1);
 	}
 	if (kill(kp->ki_pid, signum) == -1) {
-		/* 
+		/*
 		 * Check for ESRCH, which indicates that the process
 		 * disappeared between us matching it and us
 		 * signalling it; don't issue a warning about it.

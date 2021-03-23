@@ -22,14 +22,14 @@
 #define POSIXJOBS
 
 /*
- * VFORK	This machine has a vfork().  
+ * VFORK	This machine has a vfork().
  *		It used to be that for job control to work, this define
  *		was mandatory. This is not the case any more.
- *		If you think you still need it, but you don't have vfork, 
- *		define this anyway and then do #define vfork fork.  
+ *		If you think you still need it, but you don't have vfork,
+ *		define this anyway and then do #define vfork fork.
  *		I do this anyway on a Sun because of yellow pages brain damage,
  *		[should not be needed under 4.1]
- *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+ *		and on the iris4d cause	SGI's fork is sufficiently "virtual"
  *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
  *		Note that some machines eg. rs6000 have a vfork, but not
  *		with the berkeley semantics, so we cannot use it there either.

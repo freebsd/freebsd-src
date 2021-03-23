@@ -901,7 +901,7 @@ tar_options(int argc, char **argv)
 			 * global chdir (if any) after opening input.
 			 */
 			if (sawpat > 0)
-				chdname = NULL;	
+				chdname = NULL;
 		}
 		break;
 	case ARCHIVE:
@@ -1512,7 +1512,7 @@ get_line(FILE *f)
 	temp[len-1] = 0;
 	return(temp);
 }
-			
+
 /*
  * no_op()
  *	for those option functions where the archive format has nothing to do.

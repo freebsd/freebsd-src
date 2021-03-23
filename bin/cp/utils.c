@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #define	cp_pct(x, y)	((y == 0) ? 0 : (int)(100.0 * (x) / (y)))
 
 /*
- * Memory strategy threshold, in pages: if physmem is larger then this, use a 
+ * Memory strategy threshold, in pages: if physmem is larger then this, use a
  * large buffer.
  */
 #define PHYSPAGES_THRESHOLD (32*1024)
@@ -134,7 +134,7 @@ copy_file(const FTSENT *entp, int dne)
 			rval = 1;
 			goto done;
 		} else if (iflag) {
-			(void)fprintf(stderr, "overwrite %s? %s", 
+			(void)fprintf(stderr, "overwrite %s? %s",
 			    to.p_path, YESNO);
 			checkch = ch = getchar();
 			while (ch != '\n' && ch != EOF)
@@ -220,9 +220,9 @@ copy_file(const FTSENT *entp, int dne)
 				/*
 				 * Note that buf and bufsize are static. If
 				 * malloc() fails, it will fail at the start
-				 * and not copy only some files. 
-				 */ 
-				if (sysconf(_SC_PHYS_PAGES) > 
+				 * and not copy only some files.
+				 */
+				if (sysconf(_SC_PHYS_PAGES) >
 				    PHYSPAGES_THRESHOLD)
 					bufsize = MIN(BUFSIZE_MAX, MAXPHYS * 8);
 				else

@@ -350,7 +350,7 @@ f_status(char *arg)
 	else
 		errx(1, "unknown status %s", arg);
 }
- 
+
 static const struct conv {
 	const char *name;
 	uint64_t set, noset;

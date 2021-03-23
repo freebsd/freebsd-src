@@ -276,7 +276,7 @@ parsefmt(const char *p, int user)
 		/*
 		 * If an item contains an equals sign, it specifies a column
 		 * header, may contain embedded separator characters and
-		 * is always the last item.	
+		 * is always the last item.
 		 */
 		if (tempstr[strcspn(tempstr, "="FMTSEP)] != '=')
 			while ((cp = strsep(&tempstr, FMTSEP)) != NULL &&

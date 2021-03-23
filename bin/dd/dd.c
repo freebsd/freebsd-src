@@ -134,7 +134,7 @@ parity(u_char c)
 {
 	int i;
 
-	i = c ^ (c >> 1) ^ (c >> 2) ^ (c >> 3) ^ 
+	i = c ^ (c >> 1) ^ (c >> 2) ^ (c >> 3) ^
 	    (c >> 4) ^ (c >> 5) ^ (c >> 6) ^ (c >> 7);
 	return (i & 1);
 }
@@ -322,7 +322,7 @@ getfdtype(IO *io)
 		err(1, "%s", io->name);
 	if (S_ISREG(sb.st_mode))
 		io->flags |= ISTRUNC;
-	if (S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode)) { 
+	if (S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode)) {
 		if (ioctl(io->fd, FIODTYPE, &type) == -1) {
 			err(1, "%s", io->name);
 		} else {

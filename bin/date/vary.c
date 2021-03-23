@@ -451,7 +451,7 @@ vary_apply(const struct vary *v, struct tm *t)
     } else {
       val = atoi(arg);
       which = arg[len-1];
-      
+
       switch (which) {
         case 'S':
           if (!adjsec(t, type, val, 1))
