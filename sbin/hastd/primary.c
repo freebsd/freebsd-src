@@ -101,7 +101,7 @@ struct hio {
 	 */
 	refcnt_t		 hio_writecount;
 	/*
-	 * Memsync request was acknowleged by remote.
+	 * Memsync request was acknowledged by remote.
 	 */
 	bool			 hio_memsyncacked;
 	/*

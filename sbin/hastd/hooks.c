@@ -312,7 +312,7 @@ hook_check(void)
 		}
 
 		/*
-		 * Skip proccesses younger than 1 minute.
+		 * Skip processes younger than 1 minute.
 		 */
 		if (now - hp->hp_lastreport < REPORT_INTERVAL)
 			continue;
