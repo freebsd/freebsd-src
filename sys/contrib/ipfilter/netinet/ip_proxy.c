@@ -1048,9 +1048,8 @@ ipf_proxy_check(fin, nat)
 		}
 		aps->aps_bytes += fin->fin_plen;
 		aps->aps_pkts++;
-		return 1;
 	}
-	return 0;
+	return 1;
 }
 
 
