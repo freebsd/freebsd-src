@@ -143,7 +143,7 @@ perftest(const struct cmd *f, int argc, char *argv[])
 	memset(&io_test, 0, sizeof(io_test));
 	if (arg_parse(argc, argv, f))
 		return;
-	
+
 	if (opt.op == NULL)
 		arg_help(argc, argv, f);
 	if (opt.flags != NULL && strcmp(opt.flags, "refthread") == 0)

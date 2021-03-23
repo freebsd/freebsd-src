@@ -82,7 +82,7 @@ chapMD5(char id, char *cp, char *chapSecret, unsigned char *digest)
      free(tmp);
 
      MD5Final(digest, &ctx);
-     
+
 
      return 0;
 }
@@ -97,7 +97,7 @@ chapSHA1(char id, char *cp, char *chapSecret, unsigned char *digest)
      debug_called(3);
 
      SHA1_Init(&ctx);
-     
+
      SHA1_Update(&ctx, &id, 1);
 
      if((len = str2bin(chapSecret, &tmp)) == 0) {
@@ -117,13 +117,13 @@ chapSHA1(char id, char *cp, char *chapSecret, unsigned char *digest)
      SHA1_Final(digest, &ctx);
 
      return 0;
-    
+
 }
 /*
  | the input text format can be anything that the rfc3270 defines
  | (see section 5.1 and str2bin)
  | digest length for md5 is 128bits, and for sha1 is 160bits.
- | digest is an ASCII string which represents the bits in 
+ | digest is an ASCII string which represents the bits in
  | hexadecimal or base64 according to the challenge(cp) format
  */
 char *
@@ -194,7 +194,7 @@ main(int cc, char **vv)
      ip = "238";
      cp = "0xbd456029";
 
-     
+
      if((digest = chapDigest(ap, ip, cp, chapSecret)) != NULL) {
 	  len = str2bin(digest, &cp);
 	  puke(digest, cp, len);

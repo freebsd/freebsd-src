@@ -86,7 +86,7 @@ getmib(void)
 	/* have we already fetched it? */
 	if (miblen != 0)
 		return;
-	
+
 	miblen = nitems(mib);
 	if (sysctlnametomib(pathctl, mib, &miblen) != 0)
 		err(1, "sysctlnametomib(%s)", pathctl);
@@ -169,7 +169,7 @@ addpath(struct pathhead *pathq, char *path, int force, int insert)
 			return;
 		errx(1, "already in the module search path: %s", pathbuf);
 	}
-	
+
 	/* OK, allocate and add it. */
 	if (((pe = malloc(sizeof(*pe))) == NULL) ||
 	    ((pe->path = strdup(pathbuf)) == NULL)) {
@@ -242,7 +242,7 @@ parsepath(struct pathhead *pathq, char *path, int uniq)
 {
 	char *p;
 	struct pathentry *pe;
-	
+
 	while ((p = strsep(&path, ";")) != NULL)
 		if (!uniq) {
 			if (((pe = malloc(sizeof(*pe))) == NULL) ||
@@ -262,7 +262,7 @@ qstring(struct pathhead *pathq)
 {
 	char *s, *p;
 	struct pathentry *pe;
-	
+
 	s = strdup("");
 	TAILQ_FOREACH(pe, pathq, next) {
 		asprintf(&p, "%s%s%s",

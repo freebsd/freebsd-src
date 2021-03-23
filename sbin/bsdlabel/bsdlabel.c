@@ -146,7 +146,7 @@ main(int argc, char *argv[])
 	FILE *t;
 	int ch, error, fd;
 	const char *name;
-	
+
 	error = 0;
 	name = NULL;
 

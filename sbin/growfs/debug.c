@@ -4,10 +4,10 @@
  * Copyright (c) 2000 Christoph Herrmann, Thomas-Henning von Kamptz
  * Copyright (c) 1980, 1989, 1993 The Regents of the University of California.
  * All rights reserved.
- * 
+ *
  * This code is derived from software contributed to Berkeley by
  * Christoph Herrmann and Thomas-Henning von Kamptz, Munich and Frankfurt.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,7 +24,7 @@
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -390,7 +390,7 @@ dbg_dump_cg(const char *comment, struct cg *cgr)
 	fprintf(dbg_log, "niblk         int32_t    0x%08x\n", cgr->cg_niblk);
 	fprintf(dbg_log, "initediblk    int32_t    0x%08x\n", cgr->cg_initediblk);
 	fprintf(dbg_log, "unrefs        int32_t    0x%08x\n", cgr->cg_unrefs);
-	fprintf(dbg_log, "time          ufs_time_t %10u\n", 
+	fprintf(dbg_log, "time          ufs_time_t %10u\n",
 		(unsigned int)cgr->cg_initediblk);
 
 	indent--;
@@ -438,19 +438,19 @@ dbg_dump_csum_total(const char *comment, struct csum_total *cs)
 	fprintf(dbg_log, "# %d@%lx: %s\n", indent, (unsigned long)cs, comment);
 	indent++;
 
-	fprintf(dbg_log, "ndir        int64_t 0x%08x%08x\n", 
+	fprintf(dbg_log, "ndir        int64_t 0x%08x%08x\n",
 		((unsigned int *)&(cs->cs_ndir))[1],
 		((unsigned int *)&(cs->cs_ndir))[0]);
-	fprintf(dbg_log, "nbfree      int64_t 0x%08x%08x\n", 
+	fprintf(dbg_log, "nbfree      int64_t 0x%08x%08x\n",
 		((unsigned int *)&(cs->cs_nbfree))[1],
 		((unsigned int *)&(cs->cs_nbfree))[0]);
-	fprintf(dbg_log, "nifree      int64_t 0x%08x%08x\n", 
+	fprintf(dbg_log, "nifree      int64_t 0x%08x%08x\n",
 		((unsigned int *)&(cs->cs_nifree))[1],
 		((unsigned int *)&(cs->cs_nifree))[0]);
-	fprintf(dbg_log, "nffree      int64_t 0x%08x%08x\n", 
+	fprintf(dbg_log, "nffree      int64_t 0x%08x%08x\n",
 		((unsigned int *)&(cs->cs_nffree))[1],
 		((unsigned int *)&(cs->cs_nffree))[0]);
-	fprintf(dbg_log, "numclusters int64_t 0x%08x%08x\n", 
+	fprintf(dbg_log, "numclusters int64_t 0x%08x%08x\n",
 		((unsigned int *)&(cs->cs_numclusters))[1],
 		((unsigned int *)&(cs->cs_numclusters))[0]);
 
@@ -482,7 +482,7 @@ dbg_dump_inmap(struct fs *sb, const char *comment, struct cg *cgr)
 		for (k = 0; k < 32; k += 8) {
 			if (j + k + 8 < e) {
 				fprintf(dbg_log,
-				    "%02x%02x%02x%02x%02x%02x%02x%02x ", 
+				    "%02x%02x%02x%02x%02x%02x%02x%02x ",
 				    cp[0], cp[1], cp[2], cp[3],
 				    cp[4], cp[5], cp[6], cp[7]);
 			} else {
@@ -529,7 +529,7 @@ dbg_dump_frmap(struct fs *sb, const char *comment, struct cg *cgr)
 		for (k = 0; k < 32; k += 8) {
 			if (j + k + 8 <e) {
 				fprintf(dbg_log,
-				    "%02x%02x%02x%02x%02x%02x%02x%02x ", 
+				    "%02x%02x%02x%02x%02x%02x%02x%02x ",
 				    cp[0], cp[1], cp[2], cp[3],
 				    cp[4], cp[5], cp[6], cp[7]);
 			} else {
@@ -574,7 +574,7 @@ dbg_dump_clmap(struct fs *sb, const char *comment, struct cg *cgr)
 		for (k = 0; k < 32; k += 8) {
 			if (j + k + 8 < e) {
 				fprintf(dbg_log,
-				    "%02x%02x%02x%02x%02x%02x%02x%02x ", 
+				    "%02x%02x%02x%02x%02x%02x%02x%02x ",
 				    cp[0], cp[1], cp[2], cp[3],
 				    cp[4], cp[5], cp[6], cp[7]);
 			} else {
@@ -671,7 +671,7 @@ dbg_dump_ufs1_ino(struct fs *sb, const char *comment, struct ufs1_dinode *ino)
 {
 	int ictr;
 	int remaining_blocks;
-	
+
 	if (!dbg_log)
 		return;
 
@@ -681,7 +681,7 @@ dbg_dump_ufs1_ino(struct fs *sb, const char *comment, struct ufs1_dinode *ino)
 
 	fprintf(dbg_log, "mode       u_int16_t      0%o\n", ino->di_mode);
 	fprintf(dbg_log, "nlink      int16_t        0x%04x\n", ino->di_nlink);
-	fprintf(dbg_log, "size       u_int64_t      0x%08x%08x\n", 
+	fprintf(dbg_log, "size       u_int64_t      0x%08x%08x\n",
 	    ((unsigned int *)&(ino->di_size))[1],
 	    ((unsigned int *)&(ino->di_size))[0]);
 	fprintf(dbg_log, "atime      int32_t        0x%08x\n", ino->di_atime);
@@ -738,7 +738,7 @@ dbg_dump_ufs2_ino(struct fs *sb, const char *comment, struct ufs2_dinode *ino)
 {
 	int ictr;
 	int remaining_blocks;
-	
+
 	if (!dbg_log)
 		return;
 
@@ -751,10 +751,10 @@ dbg_dump_ufs2_ino(struct fs *sb, const char *comment, struct ufs2_dinode *ino)
 	fprintf(dbg_log, "uid        u_int32_t      0x%08x\n", ino->di_uid);
 	fprintf(dbg_log, "gid        u_int32_t      0x%08x\n", ino->di_gid);
 	fprintf(dbg_log, "blksize    u_int32_t      0x%08x\n", ino->di_blksize);
-	fprintf(dbg_log, "size       u_int64_t      0x%08x%08x\n", 
+	fprintf(dbg_log, "size       u_int64_t      0x%08x%08x\n",
 	    ((unsigned int *)&(ino->di_size))[1],
 	    ((unsigned int *)&(ino->di_size))[0]);
-	fprintf(dbg_log, "blocks     u_int64_t      0x%08x%08x\n", 
+	fprintf(dbg_log, "blocks     u_int64_t      0x%08x%08x\n",
 	    ((unsigned int *)&(ino->di_blocks))[1],
 	    ((unsigned int *)&(ino->di_blocks))[0]);
 	fprintf(dbg_log, "atime      ufs_time_t     %10jd\n", ino->di_atime);

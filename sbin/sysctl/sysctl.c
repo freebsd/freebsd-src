@@ -250,7 +250,7 @@ parse_numeric(const char *newvalstr, const char *fmt, u_int kind,
 	uint64_t u64val;
 	size_t valsize;
 	char *endptr = NULL;
-	
+
 	errno = 0;
 
 	switch (kind & CTLTYPE) {
@@ -321,7 +321,7 @@ parse_numeric(const char *newvalstr, const char *fmt, u_int kind,
 		/* NOTREACHED */
 		abort();
 	}
-	
+
 	if (errno != 0 || endptr == newvalstr ||
 	    (endptr != NULL && *endptr != '\0'))
 		return (false);
@@ -332,7 +332,7 @@ parse_numeric(const char *newvalstr, const char *fmt, u_int kind,
 	memcpy((char *)newbuf + *newsizep, newval, valsize);
 	*newbufp = newbuf;
 	*newsizep += valsize;
-	
+
 	return (true);
 }
 

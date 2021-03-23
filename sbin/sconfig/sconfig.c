@@ -326,7 +326,7 @@ print_stats (int fd, int need_header)
 				"Intrs   Bytes   Packets Errors  Intrs\n");
 		}
 	}
-	
+
 	sarr [0] = st.rintr;
 	sarr [1] = st.ibytes;
 	sarr [2] = st.ipkts;
@@ -524,7 +524,7 @@ static char *
 format_e3_cv (unsigned long cv, unsigned long baud, unsigned long atime)
 {
 	static char buf[80];
-	
+
 	if (!cv || !baud || !atime)
 		sprintf (buf, "         -         ");
 	else
@@ -545,7 +545,7 @@ print_e3_stats (int fd, int need_header)
 	if (ioctl (fd, SERIAL_GETE3STAT, &st) < 0 ||
 	    ioctl (fd, SERIAL_GETBAUD, &baud) < 0)
 		return;
-		
+
 	if (!st.cursec)
 		st.cursec = 1;
 

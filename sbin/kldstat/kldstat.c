@@ -55,7 +55,7 @@ printmod(int modid)
 	warn("can't stat module id %d", modid);
     else
 	if (showdata) {
-	    printf("\t\t%3d %s (%d, %u, 0x%lx)\n", stat.id, stat.name, 
+	    printf("\t\t%3d %s (%d, %u, 0x%lx)\n", stat.id, stat.name,
 	        stat.data.intval, stat.data.uintval, stat.data.ulongval);
 	} else {
 		printf("\t\t%3d %s\n", stat.id, stat.name);
@@ -170,7 +170,7 @@ main(int argc, char** argv)
 	else {
 		if (showdata) {
 		    printf("Id  Refs Name data..(int, uint, ulong)\n");
-		    printf("%3d %4d %s (%d, %u, 0x%lx)\n", stat.id, stat.refs, stat.name, 
+		    printf("%3d %4d %s (%d, %u, 0x%lx)\n", stat.id, stat.refs, stat.name,
 		        stat.data.intval, stat.data.uintval, stat.data.ulongval);
 		} else {
 		    printf("Id  Refs Name\n");

@@ -400,7 +400,7 @@ extern union dinode zino;
 
 int flushentry(void);
 /*
- * Wrapper for malloc() that flushes the cylinder group cache to try 
+ * Wrapper for malloc() that flushes the cylinder group cache to try
  * to get space.
  */
 static inline void*
@@ -415,7 +415,7 @@ Malloc(size_t size)
 }
 
 /*
- * Wrapper for calloc() that flushes the cylinder group cache to try 
+ * Wrapper for calloc() that flushes the cylinder group cache to try
  * to get space.
  */
 static inline void*

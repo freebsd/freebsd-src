@@ -273,7 +273,7 @@ main(int argc, char *argv[])
 			else if (strcmp(optarg, "time") == 0)
 				opt = FS_OPTTIME;
 			else
-				errx(1, 
+				errx(1,
 		"%s: unknown optimization preference: use `space' or `time'",
 				    optarg);
 			break;

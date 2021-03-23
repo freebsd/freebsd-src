@@ -125,7 +125,7 @@ static int
 read_register(struct cfg *cfg, int r)
 {
 	struct etherswitch_reg er;
-	
+
 	er.reg = r;
 	if (ioctl(cfg->fd, IOETHERSWITCHGETREG, &er) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHGETREG)");
@@ -136,7 +136,7 @@ static void
 write_register(struct cfg *cfg, int r, int v)
 {
 	struct etherswitch_reg er;
-	
+
 	er.reg = r;
 	er.val = v;
 	if (ioctl(cfg->fd, IOETHERSWITCHSETREG, &er) != 0)
@@ -147,7 +147,7 @@ static int
 read_phyregister(struct cfg *cfg, int phy, int reg)
 {
 	struct etherswitch_phyreg er;
-	
+
 	er.phy = phy;
 	er.reg = reg;
 	if (ioctl(cfg->fd, IOETHERSWITCHGETPHYREG, &er) != 0)
@@ -159,7 +159,7 @@ static void
 write_phyregister(struct cfg *cfg, int phy, int reg, int val)
 {
 	struct etherswitch_phyreg er;
-	
+
 	er.phy = phy;
 	er.reg = reg;
 	er.val = val;
@@ -319,7 +319,7 @@ set_port_led(struct cfg *cfg, int argc, char *argv[])
 			p.es_led[led] = i;
 			break;
 		}
-	} 
+	}
 	if (ledstyles[i] == NULL)
 		errx(EX_USAGE, "invalid led style \"%s\"", argv[2]);
 
@@ -399,7 +399,7 @@ set_register(struct cfg *cfg, char *arg)
 {
 	int a, v;
 	char *c;
-	
+
 	a = strtol(arg, &c, 0);
 	if (c==arg)
 		return (1);
@@ -416,7 +416,7 @@ set_phyregister(struct cfg *cfg, char *arg)
 {
 	int phy, reg, val;
 	char *c, *d;
-	
+
 	phy = strtol(arg, &c, 0);
 	if (c==arg)
 		return (1);
@@ -619,7 +619,7 @@ print_vlangroup(struct cfg *cfg, int vlangroup)
 {
 	etherswitch_vlangroup_t vg;
 	int i, comma;
-	
+
 	vg.es_vlangroup = vlangroup;
 	if (ioctl(cfg->fd, IOETHERSWITCHGETVLANGROUP, &vg) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHGETVLANGROUP)");
@@ -654,7 +654,7 @@ print_info(struct cfg *cfg)
 {
 	const char *c;
 	int i;
-	
+
 	c = strrchr(cfg->controlfile, '/');
 	if (c != NULL)
 		c = c + 1;
@@ -736,7 +736,7 @@ main(int argc, char *argv[])
 	int ch;
 	struct cfg cfg;
 	int i;
-	
+
 	bzero(&cfg, sizeof(cfg));
 	cfg.controlfile = "/dev/etherswitch0";
 	while ((ch = getopt(argc, argv, "f:mv?")) != -1)

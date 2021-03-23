@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 #if 0
 struct scsi_attr_desc {
 	int attr_id;
-	
+
 	STAILQ_ENTRY(scsi_attr_desc) links;
 };
 #endif
@@ -150,7 +150,7 @@ scsiattrib(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	 * versions that have iconv built in and can convert codesets.
 	 */
 	output_format = SCSI_ATTR_OUTPUT_NONASCII_TRIM |
-			SCSI_ATTR_OUTPUT_FIELD_ALL | 
+			SCSI_ATTR_OUTPUT_FIELD_ALL |
 			SCSI_ATTR_OUTPUT_TEXT_RAW;
 
 	data_buf = malloc(dxfer_len);
@@ -191,7 +191,7 @@ scsiattrib(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			char *tmpstr;
 
 			if (isdigit(optarg[0])) {
-				output_format = strtoul(optarg, &endptr, 0); 
+				output_format = strtoul(optarg, &endptr, 0);
 				if (*endptr != '\0') {
 					warnx("%s: invalid numeric output "
 					    "format argument %s", __func__,
@@ -303,7 +303,7 @@ scsiattrib(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	}
 
 	/*
-	 * Default to reading attributes 
+	 * Default to reading attributes
 	 */
 	if (((read_attr == 0) && (write_attr == 0))
 	 || ((read_attr != 0) && (write_attr != 0))) {

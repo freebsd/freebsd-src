@@ -348,7 +348,7 @@ MDTimeTrial(const Algorithm_t *alg)
 	printf(" done\n");
 	printf("Digest = %s", p);
 	printf("\nTime = %f seconds\n", seconds);
-	printf("Speed = %f MiB/second\n", (float) TEST_BLOCK_LEN * 
+	printf("Speed = %f MiB/second\n", (float) TEST_BLOCK_LEN *
 		(float) TEST_BLOCK_COUNT / seconds / (1 << 20));
 }
 /*

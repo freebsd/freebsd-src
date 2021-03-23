@@ -328,7 +328,7 @@ epc_getmode(struct cam_device *device, camcontrol_devtype devtype,
 	    /*command*/ ATA_READ_LOG_DMA_EXT,
 	    /*auxiliary*/ 0,
 	    /*data_ptr*/ (uint8_t *)&sup_cap,
-	    /*dxfer_len*/ sizeof(sup_cap), 
+	    /*dxfer_len*/ sizeof(sup_cap),
 	    /*cdb_storage*/ NULL,
 	    /*cdb_storage_len*/ 0,
 	    /*sense_len*/ SSD_FULL_SIZE,
@@ -386,7 +386,7 @@ epc_getmode(struct cam_device *device, camcontrol_devtype devtype,
 	    (caps & ATA_SC_LP_STANDBY_SUP) ? "" : "NOT ");
 	printf("Set EPC Power Source %sSupported\n",
 	    (caps & ATA_SC_SET_EPC_PS_SUP) ? "" : "NOT ");
-	
+
 
 check_power_mode:
 
@@ -405,7 +405,7 @@ check_power_mode:
 	    /*command*/ ATA_CHECK_POWER_MODE,
 	    /*auxiliary*/ 0,
 	    /*data_ptr*/ NULL,
-	    /*dxfer_len*/ 0, 
+	    /*dxfer_len*/ 0,
 	    /*cdb_storage*/ NULL,
 	    /*cdb_storage_len*/ 0,
 	    /*sense_len*/ SSD_FULL_SIZE,
@@ -450,7 +450,7 @@ check_power_mode:
 		 && (ascq == 0x1d)) {
 			res_available = 1;
 		}
-		
+
 	}
 	if (((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 	 && (res_available == 0)) {
@@ -574,7 +574,7 @@ epc_set_features(struct cam_device *device, camcontrol_devtype devtype,
 	    /*command*/ ATA_SETFEATURES,
 	    /*auxiliary*/ 0,
 	    /*data_ptr*/ NULL,
-	    /*dxfer_len*/ 0, 
+	    /*dxfer_len*/ 0,
 	    /*cdb_storage*/ NULL,
 	    /*cdb_storage_len*/ 0,
 	    /*sense_len*/ SSD_FULL_SIZE,
@@ -715,7 +715,7 @@ epc(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		case 'S': {
 			scsi_nv_status status;
 			int entry_num;
-			
+
 			status = scsi_get_nv(epc_ps_map,
 			    (sizeof(epc_ps_map) / sizeof(epc_ps_map[0])),
 			    optarg, &entry_num, SCSI_NV_FLAG_IG_CASE);
@@ -757,7 +757,7 @@ epc(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		error = 1;
 		goto bailout;
 	}
-	
+
 	error = get_device_type(device, retry_count, timeout,
 	    /*printerrors*/ 1, &devtype);
 	if (error != 0)

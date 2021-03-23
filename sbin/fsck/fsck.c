@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  * From: @(#)mount.c	8.19 (Berkeley) 4/19/94
- * From: $NetBSD: mount.c,v 1.24 1995/11/18 03:34:29 cgd Exp 
+ * From: $NetBSD: mount.c,v 1.24 1995/11/18 03:34:29 cgd Exp
  * $NetBSD: fsck.c,v 1.30 2003/08/07 10:04:15 agc Exp $
  */
 
@@ -353,7 +353,7 @@ checkfs(const char *pvfstype, const char *spec, const char *mntpt,
 	argv[argc] = NULL;
 
 	if (flags & (CHECK_DEBUG|CHECK_VERBOSE)) {
-		(void)printf("start %s %swait", mntpt, 
+		(void)printf("start %s %swait", mntpt,
 			pidp ? "no" : "");
 		for (i = 0; i < argc; i++)
 			(void)printf(" %s", argv[i]);

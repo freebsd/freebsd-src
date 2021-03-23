@@ -79,12 +79,12 @@ static int nrun = 0, ndisks = 0;
 
 static struct diskentry *finddisk(const char *);
 static void addpart(const char *, const char *, const char *);
-static int startdisk(struct diskentry *, 
+static int startdisk(struct diskentry *,
     int (*)(const char *, const char *, const char *, const char *, pid_t *));
 static void printpart(void);
 
 int
-checkfstab(int flags, int (*docheck)(struct fstab *), 
+checkfstab(int flags, int (*docheck)(struct fstab *),
     int (*checkit)(const char *, const char *, const char *, const char *, pid_t *))
 {
 	struct fstab *fs;
@@ -102,7 +102,7 @@ checkfstab(int flags, int (*docheck)(struct fstab *),
 	for (passno = 1; nextpass != INT_MAX; passno = nextpass) {
 		if (flags & CHECK_DEBUG)
 			printf("pass %d\n", passno);
-		
+
 		nextpass = INT_MAX;
 		if (setfsent() == 0) {
 			warnx("Can't open checklist file: %s\n", _PATH_FSTAB);
@@ -136,7 +136,7 @@ checkfstab(int flags, int (*docheck)(struct fstab *),
 				if (sumstatus)
 					return (sumstatus);
 				continue;
-			} 
+			}
 			if (name == NULL) {
 				(void) fprintf(stderr,
 				    "BAD DISK NAME %s\n", fs->fs_spec);
@@ -154,16 +154,16 @@ checkfstab(int flags, int (*docheck)(struct fstab *),
 			printf("Parallel start\n");
 			printpart();
 		}
-		
+
 		TAILQ_FOREACH(nextdisk, &diskh, d_entries) {
 			if ((ret = startdisk(nextdisk, checkit)) != 0)
 				return ret;
 		}
 
-		if (flags & CHECK_DEBUG) 
+		if (flags & CHECK_DEBUG)
 			printf("Parallel wait\n");
 		while ((pid = wait(&status)) != -1) {
-			TAILQ_FOREACH(d, &diskh, d_entries) 
+			TAILQ_FOREACH(d, &diskh, d_entries)
 				if (d->d_pid == pid)
 					break;
 
@@ -264,7 +264,7 @@ finddisk(const char *name)
 	if (len == 0)
 		len = strlen(name);
 
-	TAILQ_FOREACH(d, &diskh, d_entries) 
+	TAILQ_FOREACH(d, &diskh, d_entries)
 		if (strncmp(d->d_name, name, len) == 0 && d->d_name[len] == 0)
 			return d;
 

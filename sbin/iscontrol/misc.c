@@ -92,7 +92,7 @@ str2bin(char *str, char **rsp)
      if(strncasecmp("0x", src, 2) == 0) {
 	  src += 2;
 	  len = strlen(src);
-	  
+
 	  if((tmp = malloc((len+1)/2)) == NULL) {
 	       // XXX: print some error?
 	       return 0;
@@ -116,7 +116,7 @@ str2bin(char *str, char **rsp)
 	       // XXX: print some error?
 	       return 0;
 	  }
-	  dst = tmp; 
+	  dst = tmp;
 	  i = 0;
 	  while(*src && ((b6 = c64tobin(*src++)) != 64)) {
 	       switch(i % 4) {

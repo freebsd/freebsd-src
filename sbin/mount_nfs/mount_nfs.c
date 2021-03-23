@@ -262,7 +262,7 @@ main(int argc, char *argv[])
 					pass_flag_to_nmount=0;
 					opflags |= OF_NOINET6;
 				} else if (strcmp(opt, "noconn") == 0) {
-					noconn = 1; 
+					noconn = 1;
 				} else if (strcmp(opt, "nfsv2") == 0) {
 					pass_flag_to_nmount=0;
 					mountmode = V2;
@@ -592,7 +592,7 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 	 * that some mountd implementations fail to remove the mount
 	 * entries from their mountlist while unmounting.
 	 */
-	for (speclen = strlen(spec); 
+	for (speclen = strlen(spec);
 		speclen > 1 && spec[speclen - 1] == '/';
 		speclen--)
 		spec[speclen - 1] = '\0';
@@ -660,7 +660,7 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 			if ((ai->ai_family == AF_INET6) &&
 			    (opflags & OF_NOINET6))
 				continue;
-			if ((ai->ai_family == AF_INET) && 
+			if ((ai->ai_family == AF_INET) &&
 			    (opflags & OF_NOINET4))
 				continue;
 			ret = nfs_tryproto(ai, hostp, spec, &errstr, iov,
@@ -894,7 +894,7 @@ tryagain:
 	clp->cl_auth = authsys_create_default();
 	nfhret.auth = secflavor;
 	nfhret.vers = mntvers;
-	clntstat = clnt_call(clp, MOUNTPROC_MNT, (xdrproc_t)xdr_dir, spec, 
+	clntstat = clnt_call(clp, MOUNTPROC_MNT, (xdrproc_t)xdr_dir, spec,
 			 (xdrproc_t)xdr_fh, &nfhret,
 	    try);
 	auth_destroy(clp->cl_auth);

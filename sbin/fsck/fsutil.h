@@ -48,5 +48,5 @@ char *estrdup(const char *);
 #define	CHECK_CLEAN	0x0020
 
 struct fstab;
-int checkfstab(int, int (*)(struct fstab *), 
+int checkfstab(int, int (*)(struct fstab *),
     int (*) (const char *, const char *, const char *, const char *, pid_t *));

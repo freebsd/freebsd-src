@@ -324,7 +324,7 @@ main(int argc, char **argv)
 	if (strcmp(unitstr, "tmpfs") == 0) {
 		if (size_arg != NULL && mdsize != 0)
 			argappend(&mount_arg, "-o size=%jd", mdsize);
-		do_mount_tmpfs(mount_arg, mtpoint); 
+		do_mount_tmpfs(mount_arg, mtpoint);
 	} else {
 		if (size_arg != NULL)
 			argappend(&mdconfig_arg, "-s %jdB", mdsize);
@@ -343,14 +343,14 @@ main(int argc, char **argv)
 			unit = ul;
 			mdsuffix = p;	/* can be empty */
 		}
-	
+
 		if (!have_mdtype)
 			mdtype = MD_SWAP;
 		if (softdep)
 			argappend(&newfs_arg, "-U");
 		if (mdtype != MD_VNODE && !newfs)
 			errx(1, "-P requires a vnode-backed disk");
-	
+
 		/* Do the work. */
 		if (detach && !autounit)
 			do_mdconfig_detach();

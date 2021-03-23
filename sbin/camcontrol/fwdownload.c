@@ -13,16 +13,16 @@
  *    without modification, immediately at the beginning of the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution. 
- *    
+ *    documentation and/or other materials provided with the distribution.
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
  * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
  * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT  
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
@@ -508,7 +508,7 @@ fw_validate_ibm(struct cam_device *dev, int retry_count, int timeout, int fd,
 		warn("unable to read %zu bytes from %s", sizeof(*header),
 		     fw_img_path);
 		goto bailout;
-	} 
+	}
 
 	/* Rewind the file back to 0 for the full file read. */
 	if (lseek(fd, 0, SEEK_SET) == -1) {
@@ -745,7 +745,7 @@ fw_check_device_ready(struct cam_device *dev, camcontrol_devtype devtype,
 			    CAM_EPF_ALL, stderr);
 		retval = 1;
 		goto bailout;
-	} else if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) 
+	} else if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
 		&& (vp->tur_status == FW_TUR_NOT_READY)) {
 		warnx("Device cannot have media loaded when firmware is "
 		    "downloaded");
@@ -759,14 +759,14 @@ bailout:
 	return (retval);
 }
 
-/* 
+/*
  * Download firmware stored in buf to cam_dev. If simulation mode
- * is enabled, only show what packet sizes would be sent to the 
+ * is enabled, only show what packet sizes would be sent to the
  * device but do not sent any actual packets
  */
 static int
 fw_download_img(struct cam_device *cam_dev, struct fw_vendor *vp,
-    char *buf, int img_size, int sim_mode, int printerrors, int quiet, 
+    char *buf, int img_size, int sim_mode, int printerrors, int quiet,
     int retry_count, int timeout, const char *imgname,
     camcontrol_devtype devtype)
 {

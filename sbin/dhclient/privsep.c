@@ -239,8 +239,8 @@ dispatch_imsg(struct interface_info *ifix, int fd)
 		break;
 	case IMSG_SET_INTERFACE_MTU:
 		if (hdr.len < sizeof(hdr) + sizeof(u_int16_t))
-			error("corrupted message received");	
-	
+			error("corrupted message received");
+
 		buf_read(fd, &mtu, sizeof(u_int16_t));
 		interface_set_mtu_priv(ifix->name, mtu);
 		break;

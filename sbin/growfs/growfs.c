@@ -229,7 +229,7 @@ growfs(int fsi, int fso, unsigned int Nflag)
 
 	/*
 	 * Clean up the dynamic fields in our superblock.
-	 * 
+	 *
 	 * XXX
 	 * The following fields are currently distributed from the superblock
 	 * to the copies:
@@ -1262,7 +1262,7 @@ is_dev(const char *name)
 
 /*
  * Return mountpoint on which the device is currently mounted.
- */ 
+ */
 static const struct statfs *
 dev_to_statfs(const char *dev)
 {

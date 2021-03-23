@@ -190,7 +190,7 @@ do_single(int argc, char **argv, int action)
 			sprintf(buf1, "ccd%d", ccd);
 			gctl_ro_param(grq, "geom", -1, buf1);
 			errstr = gctl_issue(grq);
-			if (errstr == NULL) {		
+			if (errstr == NULL) {
 				if (verbose)
 					printf("%s unconfigured\n", cp);
 				gctl_free(grq);
@@ -265,7 +265,7 @@ do_single(int argc, char **argv, int action)
 	}
 	gctl_rw_param(grq, "output", sizeof(buf1), buf1);
 	errstr = gctl_issue(grq);
-	if (errstr == NULL) {		
+	if (errstr == NULL) {
 		if (verbose) {
 			printf("%s", buf1);
 		}

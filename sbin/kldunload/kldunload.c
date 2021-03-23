@@ -70,7 +70,7 @@ main(int argc, char** argv)
 			opt |= OPT_ID;
 			break;
 		case 'n':
-			/* 
+			/*
 			 * XXX: For backward compatibility. Currently does
 			 * nothing
 			 */

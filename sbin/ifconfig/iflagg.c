@@ -108,7 +108,7 @@ setlaggflowidshift(const char *val, int d, int s, const struct afswtch *afp)
 	ro.ro_flowid_shift = (int)strtol(val, NULL, 10);
 	if (ro.ro_flowid_shift & ~LAGG_OPT_FLOWIDSHIFT_MASK)
 		errx(1, "Invalid flowid_shift option: %s", val);
-	
+
 	if (ioctl(s, SIOCSLAGGOPTS, &ro) != 0)
 		err(1, "SIOCSLAGGOPTS");
 }
@@ -117,7 +117,7 @@ static void
 setlaggrr_limit(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct lagg_reqopts ro;
-	
+
 	bzero(&ro, sizeof(ro));
 	strlcpy(ro.ro_ifname, name, sizeof(ro.ro_ifname));
 	ro.ro_opts = LAGG_OPT_RR_LIMIT;
@@ -154,7 +154,7 @@ setlaggsetopt(const char *val, int d, int s, const struct afswtch *afp)
 		err(1, "Invalid lagg option");
 	}
 	strlcpy(ro.ro_ifname, name, sizeof(ro.ro_ifname));
-	
+
 	if (ioctl(s, SIOCSLAGGOPTS, &ro) != 0)
 		err(1, "SIOCSLAGGOPTS");
 }

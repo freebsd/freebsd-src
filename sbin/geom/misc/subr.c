@@ -273,7 +273,7 @@ out:
 	return (error);
 }
 
-/* 
+/*
  * Actually write the GEOM label to the provider
  *
  * @param name	GEOM provider's name (ie "ada0")

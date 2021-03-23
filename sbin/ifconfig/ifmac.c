@@ -67,7 +67,7 @@ maclabel_status(int s)
 	if (ioctl(s, SIOCGIFMAC, &ifr) == -1)
 		goto mac_free;
 
-	
+
 	if (mac_to_text(label, &label_text) == -1)
 		goto mac_free;
 

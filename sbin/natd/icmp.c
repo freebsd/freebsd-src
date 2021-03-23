@@ -1,10 +1,10 @@
 /*
  * natd - Network Address Translation Daemon for FreeBSD.
  *
- * This software is provided free of charge, with no 
+ * This software is provided free of charge, with no
  * warranty of any kind, either expressed or implied.
  * Use at your own risk.
- * 
+ *
  * You may copy, modify and distribute this software (icmp.c) freely.
  *
  * Ari Suutari <suutari@iki.fi>
@@ -111,13 +111,13 @@ int SendNeedFragIcmp (int sock, struct ip* failedDgram, int mtu)
 /*
  * Put packet into processing queue.
  */
-	wrote = sendto (sock, 
+	wrote = sendto (sock,
 		        icmp,
 	    		icmpLen,
 	    		0,
 	    		(struct sockaddr*) &addr,
 	    		sizeof addr);
-	
+
 	if (wrote != icmpLen)
 		Warn ("Cannot send ICMP message.");
 

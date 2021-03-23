@@ -1,10 +1,10 @@
 /*
  * natd - Network Address Translation Daemon for FreeBSD.
  *
- * This software is provided free of charge, with no 
+ * This software is provided free of charge, with no
  * warranty of any kind, either expressed or implied.
  * Use at your own risk.
- * 
+ *
  * You may copy, modify and distribute this software (natd.c) freely.
  *
  * Ari Suutari <suutari@iki.fi>
@@ -74,7 +74,7 @@ struct libalias *mla;
 static struct instance *mip;
 static int ninstance = 1;
 
-/* 
+/*
  * Default values for input and output
  * divert socket ports.
  */
@@ -157,7 +157,7 @@ int main (int argc, char** argv)
 	fd_set			readMask;
 	int			fdMax;
 	int			rval;
-/* 
+/*
  * Initialize packet aliasing software.
  * Done already here to be able to alter option bits
  * during command line and configuration file processing.
@@ -381,13 +381,13 @@ int main (int argc, char** argv)
 
 		if (mip->divertInOut != -1 && !mip->ifName && ninstance == 1) {
 /*
- * When using only one socket, just call 
+ * When using only one socket, just call
  * DoAliasing repeatedly to process packets.
  */
 			DoAliasing (mip->divertInOut, DONT_KNOW);
 			continue;
 		}
-/* 
+/*
  * Build read mask from socket descriptors to select.
  */
 		FD_ZERO (&readMask);
@@ -438,7 +438,7 @@ int main (int argc, char** argv)
 				if (FD_ISSET (mip->divertOut, &readMask))
 					DoAliasing (mip->divertOut, OUTPUT);
 
-			if (mip->divertInOut != -1) 
+			if (mip->divertInOut != -1)
 				if (FD_ISSET (mip->divertInOut, &readMask))
 					DoAliasing (mip->divertInOut, DONT_KNOW);
 
@@ -596,7 +596,7 @@ static void DoGlobal (int fd)
 		mip->aliasOverhead = bytes - origBytes;
 
 	if (verbose) {
-		
+
 /*
  * Print addresses after aliasing.
  */
@@ -609,13 +609,13 @@ static void DoGlobal (int fd)
 /*
  * Put packet back for processing.
  */
-	wrote = sendto (fd, 
+	wrote = sendto (fd,
 		        buf,
 	    		bytes,
 	    		0,
 	    		(struct sockaddr*) &addr,
 	    		sizeof addr);
-	
+
 	if (wrote != bytes) {
 
 		if (errno == EMSGSIZE && mip != NULL) {
@@ -729,7 +729,7 @@ static void DoAliasing (int fd, int direction)
 
 /*
  * Do aliasing.
- */	
+ */
 		status = LibAliasIn (mla, buf, IP_MAXPACKET);
 		if (status == PKT_ALIAS_IGNORED &&
 		    mip->dropIgnoredIncoming) {
@@ -755,7 +755,7 @@ static void DoAliasing (int fd, int direction)
 		mip->aliasOverhead = bytes - origBytes;
 
 	if (verbose) {
-		
+
 /*
  * Print addresses after aliasing.
  */
@@ -768,13 +768,13 @@ static void DoAliasing (int fd, int direction)
 /*
  * Put packet back for processing.
  */
-	wrote = sendto (fd, 
+	wrote = sendto (fd,
 		        buf,
 	    		bytes,
 	    		0,
 	    		(struct sockaddr*) &addr,
 	    		sizeof addr);
-	
+
 	if (wrote != bytes) {
 
 		if (errno == EMSGSIZE) {
@@ -1023,7 +1023,7 @@ static void Shutdown (int sig __unused)
 	running = 0;
 }
 
-/* 
+/*
  * Different options recognized by this program.
  */
 
@@ -1055,7 +1055,7 @@ enum Option {
 };
 
 enum Param {
-	
+
 	YesNo,
 	Numeric,
 	String,
@@ -1069,13 +1069,13 @@ enum Param {
  */
 
 struct OptionInfo {
-	
+
 	enum Option		type;
 	int			packetAliasOpt;
 	enum Param		parm;
 	const char*		parmDescription;
 	const char*		description;
-	const char*		name; 
+	const char*		name;
 	const char*		shortName;
 };
 
@@ -1148,7 +1148,7 @@ static struct OptionInfo optionTable[] = {
 		"verbose mode, dump packet information",
 		"verbose",
 		"v" },
-	
+
 	{ DynamicMode,
 		0,
 		YesNo,
@@ -1156,7 +1156,7 @@ static struct OptionInfo optionTable[] = {
 		"dynamic mode, automatically detect interface address changes",
 		"dynamic",
 		NULL },
-	
+
 	{ InPort,
 		0,
 		Service,
@@ -1164,7 +1164,7 @@ static struct OptionInfo optionTable[] = {
 		"set port for incoming packets",
 		"in_port",
 		"i" },
-	
+
 	{ OutPort,
 		0,
 		Service,
@@ -1172,7 +1172,7 @@ static struct OptionInfo optionTable[] = {
 		"set port for outgoing packets",
 		"out_port",
 		"o" },
-	
+
 	{ Port,
 		0,
 		Service,
@@ -1180,7 +1180,7 @@ static struct OptionInfo optionTable[] = {
 		"set port (defaults to natd/divert)",
 		"port",
 		"p" },
-	
+
 	{ GlobalPort,
 		0,
 		Service,
@@ -1188,7 +1188,7 @@ static struct OptionInfo optionTable[] = {
 		"set globalport",
 		"globalport",
 		NULL },
-	
+
 	{ AliasAddress,
 		0,
 		Address,
@@ -1196,7 +1196,7 @@ static struct OptionInfo optionTable[] = {
 		"address to use for aliasing",
 		"alias_address",
 		"a" },
-	
+
 	{ TargetAddress,
 		0,
 		Address,
@@ -1204,7 +1204,7 @@ static struct OptionInfo optionTable[] = {
 		"address to use for incoming sessions",
 		"target_address",
 		"t" },
-	
+
 	{ InterfaceName,
 		0,
 		String,
@@ -1317,7 +1317,7 @@ static struct OptionInfo optionTable[] = {
 		"exit_delay",
 		NULL },
 };
-	
+
 static void ParseOption (const char* option, const char* parms)
 {
 	int			i;
@@ -1412,7 +1412,7 @@ static void ParseOption (const char* option, const char* parms)
 
 	switch (info->type) {
 	case LibAliasOption:
-	
+
 		aliasValue = yesNoValue ? info->packetAliasOpt : 0;
 		LibAliasSetMode (mla, aliasValue, info->packetAliasOpt);
 		break;
@@ -1496,7 +1496,7 @@ static void ParseOption (const char* option, const char* parms)
 		}
 
 		if(fac_record->c_name == NULL)
-			errx(1, "Unknown log facility name: %s", strValue);	
+			errx(1, "Unknown log facility name: %s", strValue);
 
 		break;
 
@@ -1520,7 +1520,7 @@ static void ParseOption (const char* option, const char* parms)
 		break;
 	case ExitDelay:
 		if (numValue < 0 || numValue > MAX_EXIT_DELAY)
-			errx(1, "Incorrect exit delay: %d", numValue);	
+			errx(1, "Incorrect exit delay: %d", numValue);
 		exitDelay = numValue;
 		break;
 	}
@@ -1746,7 +1746,7 @@ void SetupPortRedirect (const char* parms)
 			ptr = strtok(NULL, ",");
 		}
 	}
-	
+
 	free (buf);
 }
 
@@ -1901,7 +1901,7 @@ int StrToPortRange (const char* str, const char* proto, port_range *portRange)
 	char*		end;
 	u_short         loPort;
 	u_short         hiPort;
-	
+
 	/* First see if this is a service, return corresponding port if so. */
 	sp = getservbyname (str,proto);
 	if (sp) {
@@ -1909,7 +1909,7 @@ int StrToPortRange (const char* str, const char* proto, port_range *portRange)
 		SETNUMPORTS(*portRange, 1);
 		return 0;
 	}
-	        
+
 	/* Not a service, see if it's a single port or port range. */
 	sep = strchr (str, '-');
 	if (sep == NULL) {

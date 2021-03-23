@@ -84,7 +84,7 @@ typedef struct isess {
      char	isid[6+1];
      int	csg;		// current stage
      int	nsg;		// next stage
-     // Phases/Stages	
+     // Phases/Stages
 #define	SN_PHASE	0	// Security Negotiation
 #define LON_PHASE	1	// Login Operational Negotiation
 #define FF_PHASE	3	// FuLL-Feature

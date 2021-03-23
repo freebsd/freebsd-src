@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/fs.h>
 #include <string.h>
 #include "fsck.h"
- 
+
 long readcnt[BT_NUMBUFTYPES];
 long totalreadcnt[BT_NUMBUFTYPES];
 struct timespec readtime[BT_NUMBUFTYPES];
@@ -148,7 +148,7 @@ fsckinit(void)
 	cdevname = NULL;
 	dev_bsize = 0;
 	secsize = 0;
-	real_dev_bsize = 0;	
+	real_dev_bsize = 0;
 	bkgrdsumadj = 0;
 	usedsoftdep = 0;
 	rerun = 0;

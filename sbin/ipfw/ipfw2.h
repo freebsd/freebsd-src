@@ -185,13 +185,13 @@ enum tokens {
 #ifdef NEW_AQM
 	/* AQM tokens*/
 	TOK_NO_ECN,
-	TOK_CODEL, 
+	TOK_CODEL,
 	TOK_FQ_CODEL,
 	TOK_TARGET,
 	TOK_INTERVAL,
 	TOK_FLOWS,
 	TOK_QUANTUM,
-	
+
 	TOK_PIE,
 	TOK_FQ_PIE,
 	TOK_TUPDATE,

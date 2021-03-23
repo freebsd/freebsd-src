@@ -418,7 +418,7 @@ static void
 parse_require(filenode *node, char *buffer)
 {
 	char *s;
-	
+
 	while ((s = strsep(&buffer, " \t\n")) != NULL)
 		if (*s != '\0')
 			add_require(node, s);
@@ -432,7 +432,7 @@ static void
 parse_provide(filenode *node, char *buffer)
 {
 	char *s;
-	
+
 	while ((s = strsep(&buffer, " \t\n")) != NULL)
 		if (*s != '\0')
 			add_provide(node, s);
@@ -446,7 +446,7 @@ static void
 parse_before(filenode *node, char *buffer)
 {
 	char *s;
-	
+
 	while ((s = strsep(&buffer, " \t\n")) != NULL)
 		if (*s != '\0')
 			add_before(node, s);
@@ -460,7 +460,7 @@ static void
 parse_keywords(filenode *node, char *buffer)
 {
 	char *s;
-	
+
 	while ((s = strsep(&buffer, " \t\n")) != NULL)
 		if (*s != '\0')
 			add_keyword(node, s);
@@ -597,7 +597,7 @@ insert_before(void)
 	f_reqnode *rnode;
 	strnodelist *bl;
 	int new;
-	
+
 	while (bl_list != NULL) {
 		bl = bl_list->next;
 
@@ -636,7 +636,7 @@ static void
 crunch_all_files(void)
 {
 	int i;
-	
+
 	for (i = 0; i < file_count; i++)
 		crunch_file(file_list[i]);
 	insert_before();
@@ -809,7 +809,7 @@ satisfy_req(f_reqnode *rnode, filenode *fnode, strnodelist *stack_ptr)
 	if (head->next == NULL)
 		return;
 
-	/* 
+	/*
 	 * if list is marked as in progress,
 	 *	print that there is a circular dependency on it and abort
 	 */
@@ -832,7 +832,7 @@ satisfy_req(f_reqnode *rnode, filenode *fnode, strnodelist *stack_ptr)
 	}
 
 	head->in_progress = SET;
-	
+
 	stack_item.next = stack_ptr;
 	stack_item.node = fnode;
 
@@ -889,7 +889,7 @@ do_file(filenode *fnode, strnodelist *stack_ptr)
 	f_reqnode *r;
 	f_provnode *p, *p_tmp;
 	provnode *pnode, *head;
-	int was_set;	
+	int was_set;
 	char *dep_name;
 
 	DPRINTF((stderr, "do_file on %s.\n", fnode->filename));
@@ -974,7 +974,7 @@ do_file(filenode *fnode, strnodelist *stack_ptr)
 		*fn_seqlist = fnode;
 		fn_seqlist++;
 	}
-	
+
 	if (fnode->next != NULL) {
 		fnode->next->last = fnode->last;
 	}

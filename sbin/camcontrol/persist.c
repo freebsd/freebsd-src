@@ -254,7 +254,7 @@ persist_print_cap(struct scsi_per_res_cap *cap, uint32_t valid_len)
 	}
 	if (length >= __offsetof(struct scsi_per_res_cap, reserved))
 		check_type_mask = 1;
-	
+
 	fprintf(stdout, "Replace Lost Reservation Capable (RLR_C): %d\n",
 		(cap->flags1 & SPRI_RLR_C) ? 1 : 0);
 	fprintf(stdout, "Compatible Reservation Handling (CRH): %d\n",
@@ -366,7 +366,7 @@ persist_print_cap(struct scsi_per_res_cap *cap, uint32_t valid_len)
 			"valid\n");
 	}
 
-	
+
 }
 
 static void
@@ -404,7 +404,7 @@ persist_print_full(struct scsi_per_res_in_header *hdr, uint32_t valid_len)
 			(desc->flags & SPRI_FULL_ALL_TG_PT) ? 1 : 0);
 		fprintf(stdout, "Reservation Holder (R_HOLDER): %d\n",
 			(desc->flags & SPRI_FULL_R_HOLDER) ? 1 : 0);
-		
+
 		if (desc->flags & SPRI_FULL_R_HOLDER)
 			persist_print_scopetype(desc->scopetype);
 
@@ -496,7 +496,7 @@ scsipersist(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			id_len += id->alloc_len;
 			break;
 		}
-		case 'k': 
+		case 'k':
 		case 'K': {
 			char *endptr;
 			uint64_t tmpval;

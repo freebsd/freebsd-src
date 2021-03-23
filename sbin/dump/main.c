@@ -614,8 +614,8 @@ main(int argc, char *argv[])
 		msg("finished in less than a second\n");
 	else
 		msg("finished in %jd seconds, throughput %jd KBytes/sec\n",
-		    (intmax_t)tend_writing - tstart_writing, 
-		    (intmax_t)(spcl.c_tapea / 
+		    (intmax_t)tend_writing - tstart_writing,
+		    (intmax_t)(spcl.c_tapea /
 		    (tend_writing - tstart_writing)));
 
 	putdumptime();

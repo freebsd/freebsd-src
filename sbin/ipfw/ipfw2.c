@@ -480,7 +480,7 @@ bprintf(struct buf_pr *b, const char *format, ...)
 	} else {
 		b->ptr += i;
 		b->avail -= i;
-	} 
+	}
 
 	b->needed += i;
 
@@ -794,7 +794,7 @@ print_flags_buffer(char *buf, size_t sz, struct _s_x *list, uint32_t set)
 	for (i = 0; list[i].x != 0; i++) {
 		if ((set & list[i].x) == 0)
 			continue;
-		
+
 		set &= ~list[i].x;
 		l = snprintf(buf, sz, "%s%s", comma, list[i].s);
 		if (l < 0 || (size_t)l >= sz)

@@ -861,7 +861,7 @@ trace_dump(void)
 	lastlog();
 
 	(void)fputs("current daemon state:\n", ftrace);
-	LIST_FOREACH(ifp, &ifnet, int_list) 
+	LIST_FOREACH(ifp, &ifnet, int_list)
 		trace_if("", ifp);
 	(void)rn_walktree(rhead, walk_trace, 0);
 }

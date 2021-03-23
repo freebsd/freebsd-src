@@ -66,7 +66,7 @@ static const char rcsid[] =
 
 #include "mntopts.h"
 
-static int 
+static int
 subdir(const char *p, const char *dir)
 {
 	int		l;
@@ -81,7 +81,7 @@ subdir(const char *p, const char *dir)
 	return (0);
 }
 
-static void 
+static void
 usage(void)
 {
 	(void)fprintf(stderr,
@@ -127,7 +127,7 @@ parse_uid(const char *s, char *buf, size_t bufsize)
 	}
 }
 
-int 
+int
 main(int argc, char *argv[])
 {
 	struct iovec	*iov;

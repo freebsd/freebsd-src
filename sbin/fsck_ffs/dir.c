@@ -143,7 +143,7 @@ dirscan(struct inodesc *idesc)
 /*
  * Get and verify the next entry in a directory.
  * We also verify that if there is another entry in the block that it is
- * valid, so if it is not valid it can be subsumed into the current entry. 
+ * valid, so if it is not valid it can be subsumed into the current entry.
  */
 static struct direct *
 fsck_readdir(struct inodesc *idesc)
@@ -310,7 +310,7 @@ dircheck(struct inodesc *idesc, struct bufarea *bp, struct direct *dp)
 				modified = 1;
 			}
 		}
-		
+
 		if (modified)
 			dirty(bp);
 	}

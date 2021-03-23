@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2005 Jean-Sebastien Pedron
- * Copyright (c) 2005 Csaba Henk 
+ * Copyright (c) 2005 Csaba Henk
  * All rights reserved.
  *
  * Copyright (c) 2019 The FreeBSD Foundation
@@ -231,7 +231,7 @@ main(int argc, char *argv[])
 				errx(1, "mount path specified inconsistently");
 			diro = optarg;
 			break;
-		case 'v': 
+		case 'v':
 			verbose = 1;
 			break;
 		case 'h':
@@ -258,7 +258,7 @@ main(int argc, char *argv[])
 			errx(1, "special specified inconsistently");
 		dev = devo;
 	} else if (diro)
-		errx(1, "if mountpoint is given via an option, special should also be given via an option"); 
+		errx(1, "if mountpoint is given via an option, special should also be given via an option");
 
 	if (diro) {
 		if (dir)
@@ -378,7 +378,7 @@ main(int argc, char *argv[])
 
 		if (fd < 0 && (fd = open(dev, O_RDWR)) < 0)
 			err(1, "failed to open fuse device");
-	
+
 		if (asprintf(&fds, "%d", fd) == -1)
 			err(1, "failed to allocate memory");
 		setenv("FUSE_DEV_FD", fds, 1);
@@ -482,7 +482,7 @@ helpmsg(void)
 	        "    -o max_read=N          set maximum size of read requests\n"
 	        "    -o noprivate           allow secondary mounting of the filesystem\n"
 	        "    -o neglect_shares      don't report EBUSY when unmount attempted\n"
-	        "                           in presence of secondary mounts\n" 
+	        "                           in presence of secondary mounts\n"
 	        "    -o push_symlinks_in    prefix absolute symlinks with mountpoint\n"
 	        );
 	exit(EX_USAGE);

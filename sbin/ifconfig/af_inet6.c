@@ -98,7 +98,7 @@ setip6flags(const char *dummyaddr __unused, int flag, int dummysoc __unused,
 }
 
 static void
-setip6lifetime(const char *cmd, const char *val, int s, 
+setip6lifetime(const char *cmd, const char *val, int s,
     const struct afswtch *afp)
 {
 	struct timespec now;
@@ -121,14 +121,14 @@ setip6lifetime(const char *cmd, const char *val, int s,
 }
 
 static void
-setip6pltime(const char *seconds, int dummy __unused, int s, 
+setip6pltime(const char *seconds, int dummy __unused, int s,
     const struct afswtch *afp)
 {
 	setip6lifetime("pltime", seconds, s, afp);
 }
 
 static void
-setip6vltime(const char *seconds, int dummy __unused, int s, 
+setip6vltime(const char *seconds, int dummy __unused, int s,
     const struct afswtch *afp)
 {
 	setip6lifetime("vltime", seconds, s, afp);
@@ -161,7 +161,7 @@ setip6eui64(const char *cmd, int dummy __unused, int s,
 		}
 	}
 	if (!lladdr)
-		errx(EXIT_FAILURE, "could not determine link local address"); 
+		errx(EXIT_FAILURE, "could not determine link local address");
 
  	memcpy(&in6->s6_addr[8], &lladdr->s6_addr[8], 8);
 
@@ -463,7 +463,7 @@ in6_status_tunnel(int s)
 static void
 in6_set_tunnel(int s, struct addrinfo *srcres, struct addrinfo *dstres)
 {
-	struct in6_aliasreq in6_addreq; 
+	struct in6_aliasreq in6_addreq;
 
 	memset(&in6_addreq, 0, sizeof(in6_addreq));
 	strlcpy(in6_addreq.ifra_name, name, sizeof(in6_addreq.ifra_name));

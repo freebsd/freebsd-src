@@ -2,10 +2,10 @@
  * Codel/FQ_Codel and PIE/FQ_PIE Code:
  * Copyright (C) 2016 Centre for Advanced Internet Architectures,
  *  Swinburne University of Technology, Melbourne, Australia.
- * Portions of this code were made possible in part by a gift from 
+ * Portions of this code were made possible in part by a gift from
  *  The Comcast Innovation Fund.
  * Implemented by Rasool Al-Saadi <ralsaadi@swin.edu.au>
- * 
+ *
  * Copyright (c) 2002-2003,2010 Luigi Rizzo
  *
  * Redistribution and use in source forms, with and without modification,
@@ -175,7 +175,7 @@ us_to_time(int t, char *strt)
 		sprintf(strt,"%d", t);
 	else if (t< 1000)
 		sprintf(strt,"%dus", t);
-	else if (t < 1000000) 
+	else if (t < 1000000)
 		sprintf(strt,"%gms", (float) t / 1000);
 	else
 		sprintf(strt,"%gfs", (float) t / 1000000);
@@ -190,7 +190,7 @@ time_to_us(const char *s)
 	int i, dots = 0;
 	int len = strlen(s);
 	char strt[16]="", stru[16]="";
-	
+
 	if (len>15)
 		return -1;
 	for (i = 0; i<len && (isdigit(s[i]) || s[i]=='.') ; i++)
@@ -208,7 +208,7 @@ time_to_us(const char *s)
 		strcpy(stru, s+i);
 	else
 		strcpy(stru, "ms");
-	
+
 	if (!strcasecmp(stru, "us"))
 		return atol(strt);
 	if (!strcasecmp(stru, "ms"))
@@ -219,11 +219,11 @@ time_to_us(const char *s)
 	return -1;
 }
 
- 
+
 /* Get AQM or scheduler extra parameters  */
 static void
 get_extra_parms(uint32_t nr, char *out, int subtype)
-{ 
+{
 	struct dn_extra_parms *ep;
 	int ret;
 	char strt1[15], strt2[15], strt3[15];
@@ -270,7 +270,7 @@ get_extra_parms(uint32_t nr, char *out, int subtype)
 					strt3,
 					ep->par[3] / (float) PIE_SCALE
 				);
-				
+
 			if (ep->par[6] & PIE_ECN_ENABLED)
 				l += sprintf(out + l, " ECN");
 			else
@@ -325,7 +325,7 @@ get_extra_parms(uint32_t nr, char *out, int subtype)
 				(intmax_t) ep->par[8],
 				(intmax_t) ep->par[9]
 			);
-			
+
 			if (ep->par[6] & PIE_ECN_ENABLED)
 				l += sprintf(out + l, " ECN");
 			else
@@ -1014,16 +1014,16 @@ load_extra_delays(const char *filename, struct dn_profile *p,
 #ifdef NEW_AQM
 
 /* Parse AQM/extra scheduler parameters */
-static int 
+static int
 process_extra_parms(int *ac, char **av, struct dn_extra_parms *ep,
 	uint16_t type)
 {
 	int i;
-	
+
 	/* use kernel defaults */
 	for (i=0; i<DN_MAX_EXTRA_PARM; i++)
 		ep->par[i] = -1;
-		
+
 	switch(type) {
 	case TOK_CODEL:
 	case TOK_FQ_CODEL:
@@ -1124,31 +1124,31 @@ process_extra_parms(int *ac, char **av, struct dn_extra_parms *ep,
 			case TOK_TARGET:
 				if (*ac <= 0 || time_to_us(av[0]) < 0)
 					errx(EX_DATAERR, "target needs time\n");
-					
+
 				ep->par[0] = time_to_us(av[0]);
 				(*ac)--; av++;
 				break;
-				
+
 			case TOK_TUPDATE:
 				if (*ac <= 0 || time_to_us(av[0]) < 0)
 					errx(EX_DATAERR, "tupdate needs time\n");
-					
+
 				ep->par[1] = time_to_us(av[0]);
 				(*ac)--; av++;
 				break;
-				
+
 			case TOK_MAX_BURST:
 				if (*ac <= 0 || time_to_us(av[0]) < 0)
 					errx(EX_DATAERR, "max_burst needs time\n");
-					
+
 				ep->par[2] = time_to_us(av[0]);
 				(*ac)--; av++;
 				break;
-				
+
 			case TOK_MAX_ECNTH:
 				if (*ac <= 0 || !is_valid_number(av[0]))
 					errx(EX_DATAERR, "max_ecnth needs number\n");
-					
+
 				ep->par[3] = atof(av[0]) * PIE_SCALE;
 				(*ac)--; av++;
 				break;
@@ -1156,7 +1156,7 @@ process_extra_parms(int *ac, char **av, struct dn_extra_parms *ep,
 			case TOK_ALPHA:
 				if (*ac <= 0 || !is_valid_number(av[0]))
 					errx(EX_DATAERR, "alpha needs number\n");
-					
+
 				ep->par[4] = atof(av[0]) * PIE_SCALE;
 				(*ac)--; av++;
 				break;
@@ -1164,7 +1164,7 @@ process_extra_parms(int *ac, char **av, struct dn_extra_parms *ep,
 			case TOK_BETA:
 				if (*ac <= 0 || !is_valid_number(av[0]))
 					errx(EX_DATAERR, "beta needs number\n");
-					
+
 				ep->par[5] = atof(av[0]) * PIE_SCALE;
 				(*ac)--; av++;
 				break;
@@ -1186,7 +1186,7 @@ process_extra_parms(int *ac, char **av, struct dn_extra_parms *ep,
 			case TOK_ONOFF:
 				ep->par[6] |= PIE_ON_OFF_MODE_ENABLED;
 				break;
-				
+
 			case TOK_DRE:
 				ep->par[6] |= PIE_DEPRATEEST_ENABLED;
 				break;
@@ -1283,7 +1283,7 @@ ipfw_config_pipe(int ac, char **av)
 	struct dn_extra_parms *sch_extra = NULL;
 	int lmax_extra;
 #endif
-	
+
 	int lmax;
 	uint32_t _foo = 0, *flags = &_foo , *buckets = &_foo;
 
@@ -1299,9 +1299,9 @@ ipfw_config_pipe(int ac, char **av)
 	/* Extra Params */
 	lmax_extra = sizeof(struct dn_extra_parms);
 	/* two lmax_extra because one for AQM params and another
-	 * sch params 
+	 * sch params
 	 */
-	lmax += lmax_extra*2; 
+	lmax += lmax_extra*2;
 #endif
 
 	av++; ac--;
@@ -1358,7 +1358,7 @@ ipfw_config_pipe(int ac, char **av)
 	case 2: /* "queue N config ... " */
 #ifdef NEW_AQM
 		aqm_extra = o_next(&buf, lmax_extra, DN_TEXT);
-		aqm_extra ->oid.subtype = 0; 
+		aqm_extra ->oid.subtype = 0;
 #endif
 		fs = o_next(&buf, sizeof(*fs), DN_FS);
 		fs->fs_nr = i;
@@ -1370,7 +1370,7 @@ ipfw_config_pipe(int ac, char **av)
 	case 3: /* "sched N config ..." */
 #ifdef NEW_AQM
 		sch_extra = o_next(&buf, lmax_extra, DN_TEXT);
-		sch_extra ->oid.subtype = 0; 
+		sch_extra ->oid.subtype = 0;
 #endif
 		sch = o_next(&buf, sizeof(*sch), DN_SCH);
 #ifdef NEW_AQM
@@ -1765,7 +1765,7 @@ end_mask:
 	    }
 
 #ifdef NEW_AQM
-		if ((fs->flags & DN_IS_ECN) && !((fs->flags & DN_IS_RED)|| 
+		if ((fs->flags & DN_IS_ECN) && !((fs->flags & DN_IS_RED)||
 			(fs->flags & DN_IS_AQM)))
 			errx(EX_USAGE, "ECN can be used with red/gred/"
 				"codel/fq_codel only!");

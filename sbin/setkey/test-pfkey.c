@@ -500,7 +500,7 @@ key_setsadbaddr(ext, af, str)
 		/* XXX bark */
 		exit(1);
 	}
-	
+
 	len = sizeof(struct sadb_address) + PFKEY_ALIGN8(res->ai_addrlen);
 	m_addr.sadb_address_len = PFKEY_UNIT64(len);
 	m_addr.sadb_address_exttype = ext;

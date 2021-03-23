@@ -130,7 +130,7 @@ pfaltq_store(struct pf_altq *a)
 	ENTRY 			 item;
 	ENTRY			*ret_item;
 	size_t			 key_size;
-	
+
 	if ((altq = malloc(sizeof(*altq))) == NULL)
 		err(1, "queue malloc");
 	memcpy(&altq->pa, a, sizeof(struct pf_altq));
@@ -192,7 +192,7 @@ qname_to_qid(char *qname)
 	ENTRY	 item;
 	ENTRY	*ret_item;
 	uint32_t qid;
-	
+
 	/*
 	 * We guarantee that same named queues on different interfaces
 	 * have the same qid.
@@ -461,7 +461,7 @@ eval_pfqueue(struct pfctl *pf, struct pf_altq *pa, struct node_queue_bw *bw,
 
 	if (parent != NULL)
 		parent->meta.children++;
-	
+
 	switch (pa->scheduler) {
 	case ALTQT_CBQ:
 		error = eval_pfqueue_cbq(pf, pa, if_ppa);
@@ -522,7 +522,7 @@ eval_pfqueue_cbq(struct pfctl *pf, struct pf_altq *pa, struct pfctl_altq *if_ppa
 		if_ppa->meta.root_classes++;
 	if (pa->pq_u.cbq_opts.flags & CBQCLF_DEFCLASS)
 		if_ppa->meta.default_classes++;
-	
+
 	cbq_compute_idletime(pf, pa);
 	return (0);
 }
@@ -770,7 +770,7 @@ eval_pfqueue_hfsc(struct pfctl *pf, struct pf_altq *pa, struct pfctl_altq *if_pp
 
 	if (pa->pq_u.hfsc_opts.flags & HFCF_DEFAULTCLASS)
 		if_ppa->meta.default_classes++;
-	
+
 	/* if link_share is not specified, use bandwidth */
 	if (opts->lssc_m2 == 0)
 		opts->lssc_m2 = pa->bandwidth;
@@ -800,7 +800,7 @@ eval_pfqueue_hfsc(struct pfctl *pf, struct pf_altq *pa, struct pfctl_altq *if_pp
 	 * be smaller than the interface bandwidth, and the upper-limit should
 	 * be larger than the real-time service curve when both are defined.
 	 */
-	
+
 	/* check the real-time service curve.  reserve 20% of interface bw */
 	if (opts->rtsc_m2 != 0) {
 		/* add this queue to the sum */

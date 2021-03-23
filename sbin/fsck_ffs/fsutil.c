@@ -328,7 +328,7 @@ getdatablk(ufs2_daddr_t blkno, long size, int type)
 			goto foundit;
 		}
 	/*
-	 * Move long-term busy buffer back to the front of the LRU so we 
+	 * Move long-term busy buffer back to the front of the LRU so we
 	 * do not endless inspect them for recycling.
 	 */
 	bp = TAILQ_LAST(&bufqueuehd, bufqueue);
@@ -347,7 +347,7 @@ getdatablk(ufs2_daddr_t blkno, long size, int type)
 		bp = allocbuf("cannot create minimal buffer pool");
 	} else if (sujrecovery) {
 		/*
-		 * SUJ recovery does not want anything written until it 
+		 * SUJ recovery does not want anything written until it
 		 * has successfully completed (so it can fail back to
 		 * full fsck). Thus, we can only recycle clean buffers.
 		 */
@@ -1211,7 +1211,7 @@ dofix(struct inodesc *idesc, const char *msg)
 static void
 prtbuf(const char *msg, struct bufarea *bp)
 {
-	
+
 	printf("%s: bp %p, type %s, bno %jd, size %d, refcnt %d, flags %s, "
 	    "index %jd\n", msg, bp, BT_BUFTYPE(bp->b_type), (intmax_t) bp->b_bno,
 	    bp->b_size, bp->b_refcnt, bp->b_flags & B_DIRTY ? "dirty" : "clean",

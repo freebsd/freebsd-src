@@ -225,7 +225,7 @@ get_ssector(const char *dev)
 		return -1;
 	}
 	close(fd);
-	
+
 	for (i = ntocentries - 1; i >= 0; i--)
 		if ((toc_buffer[i].control & 4) != 0)
 			/* found a data track */
@@ -264,7 +264,7 @@ set_charset(struct iovec **iov, int *iovlen, const char *localcs)
 	error = kiconv_add_xlat16_cspairs(cs_disk, cs_local);
 	if (error)
 		return (-1);
-	
+
 	build_iovec(iov, iovlen, "cs_disk", cs_disk, (size_t)-1);
 	build_iovec(iov, iovlen, "cs_local", cs_local, (size_t)-1);
 

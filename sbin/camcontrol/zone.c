@@ -268,7 +268,7 @@ zone_rz_print(uint8_t *data_ptr, uint32_t valid_len, int ata_format,
 			snprintf(tmpstr, sizeof(tmpstr), "Empty");
 			break;
 		case SRZ_ZONE_COND_IMP_OPEN:
-			snprintf(tmpstr, sizeof(tmpstr), "Implicit%cOpen", 
+			snprintf(tmpstr, sizeof(tmpstr), "Implicit%cOpen",
 			    word_sep);
 			break;
 		case SRZ_ZONE_COND_EXP_OPEN:
@@ -311,7 +311,7 @@ zone_rz_print(uint8_t *data_ptr, uint32_t valid_len, int ata_format,
 			    word_sep, word_sep);
 
 		printf("%*s\n", field_widths[ZONE_FW_RESET], tmpstr);
-		
+
 		next_lba = start_lba + length;
 	}
 bailout:
@@ -447,7 +447,7 @@ zone(struct cam_device *device, int argc, char **argv, char *combinedopt,
 
 restart_report:
 		bzero(data_ptr, alloc_len);
-		
+
 		switch (devtype) {
 		case CC_DT_SCSI:
 			scsi_zbc_in(&ccb->csio,
@@ -477,7 +477,7 @@ restart_report:
 				command = ATA_ZAC_MANAGEMENT_IN;
 				features = action;
 				if (rep_option != -1)
-					features |= (rep_option << 8);	
+					features |= (rep_option << 8);
 				sector_count = ZAC_ATA_SECTOR_COUNT(alloc_len);
 				protocol = AP_PROTO_DMA;
 			} else {

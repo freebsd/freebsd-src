@@ -383,7 +383,7 @@ searchdir(
 	ino_t ino,
 	ufs2_daddr_t blkno,
 	long size,
-	long filesize, 
+	long filesize,
 	long *tapesize,
 	int nodump,
 	ino_t maxino)

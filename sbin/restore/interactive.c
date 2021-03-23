@@ -456,7 +456,7 @@ canon(char *rawname, char *canonname, size_t len)
 		fprintf(stderr, "canonname: not enough buffer space\n");
 		done(1);
 	}
-		
+
 	(void) strcat(canonname, rawname);
 	/*
 	 * Eliminate multiple and trailing '/'s

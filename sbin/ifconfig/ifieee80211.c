@@ -635,7 +635,7 @@ set80211meshid(const char *val, int d, int s, const struct afswtch *rafp)
 		exit(1);
 
 	set80211(s, IEEE80211_IOC_MESH_ID, 0, len, data);
-}	
+}
 
 static void
 set80211stationname(const char *val, int d, int s, const struct afswtch *rafp)
@@ -661,7 +661,7 @@ set80211stationname(const char *val, int d, int s, const struct afswtch *rafp)
  *
  * The result is not validated here; it's assumed to be
  * checked against the channel table fetched from the kernel.
- */ 
+ */
 static int
 getchannelflags(const char *val, int freq)
 {
@@ -751,7 +751,7 @@ getchannelflags(const char *val, int freq)
 
 	/*
 	 * Cleanup specifications.
-	 */ 
+	 */
 	if ((flags & _CHAN_HT) == 0) {
 		/*
 		 * If user specified freq/20 or freq/40 quietly remove
@@ -1812,7 +1812,7 @@ static void
 set80211ldpc(const char *val, int d, int s, const struct afswtch *rafp)
 {
         int ldpc;
- 
+
         if (get80211val(s, IEEE80211_IOC_LDPC, &ldpc) < 0)
                 errx(-1, "cannot set LDPC setting");
         if (d < 0) {
@@ -2039,7 +2039,7 @@ static
 DECL_CMD_FUNC(set80211meshmetric, val, d)
 {
 	char v[12];
-	
+
 	memcpy(v, val, sizeof(v));
 	set80211(s, IEEE80211_IOC_MESH_PR_METRIC, 0, 0, v);
 }
@@ -2048,7 +2048,7 @@ static
 DECL_CMD_FUNC(set80211meshpath, val, d)
 {
 	char v[12];
-	
+
 	memcpy(v, val, sizeof(v));
 	set80211(s, IEEE80211_IOC_MESH_PR_PATH, 0, 0, v);
 }
@@ -2284,7 +2284,7 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 			    prev != NULL && (freq - prev->ic_freq) < channelSep) {
 				if (verbose)
 					printf("%u: skip, only %u channel "
-					    "separation, need %d\n", freq, 
+					    "separation, need %d\n", freq,
 					    freq - prev->ic_freq, channelSep);
 				continue;
 			}
@@ -3447,7 +3447,7 @@ printtdmaie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 static int
 copy_essid(char buf[], size_t bufsize, const u_int8_t *essid, size_t essid_len)
 {
-	const u_int8_t *p; 
+	const u_int8_t *p;
 	size_t maxlen;
 	u_int i;
 
@@ -4705,7 +4705,7 @@ printcipher(int s, struct ieee80211req *ireq, int keylenop)
 	case IEEE80211_CIPHER_WEP:
 		ireq->i_type = keylenop;
 		if (ioctl(s, SIOCG80211, ireq) != -1)
-			printf("WEP-%s", 
+			printf("WEP-%s",
 			    ireq->i_len <= 5 ? "40" :
 			    ireq->i_len <= 13 ? "104" : "128");
 		else

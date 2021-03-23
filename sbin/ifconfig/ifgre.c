@@ -71,7 +71,7 @@ gre_status(int s)
 }
 
 static void
-setifgrekey(const char *val, int dummy __unused, int s, 
+setifgrekey(const char *val, int dummy __unused, int s,
     const struct afswtch *afp)
 {
 	uint32_t grekey = strtol(val, NULL, 0);

@@ -98,7 +98,7 @@ main(int argc, char **argv)
 	else if (strstr(ptr, "swapoff") != NULL)
 		which_prog = SWAPOFF;
 	orig_prog = which_prog;
-	
+
 	doall = 0;
 	etc_fstab = NULL;
 	while ((ch = getopt(argc, argv, "AadEghklLmqsUF:")) != -1) {
@@ -222,7 +222,7 @@ main(int argc, char **argv)
 	} else {
 		if (lflag || sflag)
 			swaplist(lflag, sflag, hflag);
-		else 
+		else
 			usage();
 	}
 	exit(ret);
@@ -855,7 +855,7 @@ swaplist(int lflag, int sflag, int hflag)
 	long long tmp_total;
 	long long tmp_used;
 	char buf[32];
-	
+
 	pagesize = getpagesize();
 	switch(hflag) {
 	case 'G':
@@ -883,18 +883,18 @@ swaplist(int lflag, int sflag, int hflag)
 		snprintf(buf, sizeof(buf), "%ld-blocks", blocksize);
 		break;
 	}
-	
+
 	mibsize = nitems(mib);
 	if (sysctlnametomib("vm.swap_info", mib, &mibsize) == -1)
 		err(1, "sysctlnametomib()");
-	
+
 	if (lflag) {
 		printf("%-13s %*s %*s\n",
-		    "Device:", 
+		    "Device:",
 		    hlen, buf,
 		    hlen, "Used:");
 	}
-	
+
 	for (n = 0; ; ++n) {
 		mib[mibsize] = n;
 		size = sizeof xsw;
@@ -902,7 +902,7 @@ swaplist(int lflag, int sflag, int hflag)
 			break;
 		if (xsw.xsw_version != XSWDEV_VERSION)
 			errx(1, "xswdev version mismatch");
-		
+
 		tmp_total = (long long)xsw.xsw_nblks * pagesize;
 		tmp_used  = (long long)xsw.xsw_used * pagesize;
 		total += tmp_total;
@@ -919,7 +919,7 @@ swaplist(int lflag, int sflag, int hflag)
 	}
 	if (errno != ENOENT)
 		err(1, "sysctl()");
-	
+
 	if (sflag) {
 		sizetobuf(buf, sizeof(buf), hflag, total, hlen, blocksize);
 		printf("Total:        %s ", buf);

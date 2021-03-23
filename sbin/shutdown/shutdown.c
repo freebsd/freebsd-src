@@ -390,7 +390,7 @@ die_you_gravy_sucking_pig_dog(void)
 			      SIGTERM);			/* single-user */
 	} else {
 		if (doreboot) {
-			execle(_PATH_REBOOT, "reboot", "-l", nosync, 
+			execle(_PATH_REBOOT, "reboot", "-l", nosync,
 				(char *)NULL, empty_environ);
 			syslog(LOG_ERR, "shutdown: can't exec %s: %m.",
 				_PATH_REBOOT);

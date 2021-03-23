@@ -1,10 +1,10 @@
 /*
  * natd - Network Address Translation Daemon for FreeBSD.
  *
- * This software is provided free of charge, with no 
+ * This software is provided free of charge, with no
  * warranty of any kind, either expressed or implied.
  * Use at your own risk.
- * 
+ *
  * You may copy, modify and distribute this software (natd.h) freely.
  *
  * Ari Suutari <suutari@iki.fi>

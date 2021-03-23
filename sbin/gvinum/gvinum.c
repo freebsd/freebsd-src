@@ -200,13 +200,13 @@ gvinum_create(int argc, char * const *argv)
 				warn("can't open '%s' for reading", argv[i]);
 				return;
 			}
-		}	
+		}
 	}
 
 	/* We didn't get a file. */
 	if (tmp == NULL) {
 		snprintf(tmpfile, sizeof(tmpfile), "/tmp/gvinum.XXXXXX");
-		
+
 		if ((fd = mkstemp(tmpfile)) == -1) {
 			warn("temporary file not accessible");
 			return;
@@ -217,11 +217,11 @@ gvinum_create(int argc, char * const *argv)
 		}
 		printconfig(tmp, "# ");
 		fclose(tmp);
-		
+
 		ed = getenv("EDITOR");
 		if (ed == NULL)
 			ed = _PATH_VI;
-		
+
 		snprintf(commandline, sizeof(commandline), "%s %s", ed,
 		    tmpfile);
 		status = system(commandline);
@@ -229,7 +229,7 @@ gvinum_create(int argc, char * const *argv)
 			warn("couldn't exec %s; status: %d", ed, status);
 			return;
 		}
-		
+
 		if ((tmp = fopen(tmpfile, "r")) == NULL) {
 			warn("can't open '%s' for reading", tmpfile);
 			return;
@@ -1418,7 +1418,7 @@ printconfig(FILE *of, const char *comment)
 	const char *errstr;
 	time_t now;
 	char buf[GV_CFG_LEN + 1];
-	
+
 	uname(&uname_s);
 	time(&now);
 
@@ -1437,7 +1437,7 @@ printconfig(FILE *of, const char *comment)
 	fprintf(of, "# Vinum configuration of %s, saved at %s",
 	    uname_s.nodename,
 	    ctime(&now));
-	
+
 	if (*comment != '\0')
 	    fprintf(of, "# Current configuration:\n");
 

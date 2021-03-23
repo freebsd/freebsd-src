@@ -86,7 +86,7 @@ selectFrom(char *str, token_t *list)
 	       n = sep - sp;
 	  else
 	       n = strlen(sp);
-	  
+
 	  for(lp = list; lp->name != NULL; lp++) {
 	       if(strncasecmp(lp->name, sp, n) == 0)
 		    return strdup(lp->name);
@@ -124,7 +124,7 @@ handleTgtResp(isess_t *sess, pdu_t *pp)
      isc_opt_t	*op = sess->op;
      char	*np, *rp, *d1, *d2;
      int	res, l1, l2;
-     
+
      res = -1;
      if(((np = getkeyval("CHAP_N=", pp)) == NULL) ||
 	((rp = getkeyval("CHAP_R=", pp)) == NULL))
@@ -237,7 +237,7 @@ handleLoginResp(isess_t *sess, pdu_t *pp)
 	  switch(st_class) {
 	  case 1: // Redirect
 	       switch(st_detail) {
-		    // the ITN (iSCSI target Name) requests a: 
+		    // the ITN (iSCSI target Name) requests a:
 	       case 1: // temporary address change
 	       case 2: // permanent address change
 		    status = 0;
@@ -255,7 +255,7 @@ handleLoginResp(isess_t *sess, pdu_t *pp)
 	       break;
 	  }
      }
-	  
+
      if(status == 0) {
 	  processParams(sess, pp);
 	  setOptions(sess, 0); // XXX: just in case ...
@@ -297,7 +297,7 @@ handleChap(isess_t *sess, pdu_t *pp)
      lp->CSG = SN_PHASE;       // Security Negotiation
      lp->NSG = LON_PHASE;
      lp->T = 1;
-    
+
      if(((ap = getkeyval("CHAP_A=", pp)) == NULL) ||
 	((ip = getkeyval("CHAP_I=", pp)) == NULL) ||
 	((cp = getkeyval("CHAP_C=", pp)) == NULL))
@@ -400,7 +400,7 @@ loginPhase(isess_t *sess)
      case SN_PHASE:	// Security Negotiation
 	  addText(sp, "AuthMethod=%s", op->authMethod);
 	  break;
-	       
+
      case LON_PHASE:	// Login Operational Negotiation
 	  if((sess->flags & SESS_NEGODONE) == 0) {
 	       sess->flags |= SESS_NEGODONE;

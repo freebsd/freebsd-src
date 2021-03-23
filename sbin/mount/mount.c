@@ -479,7 +479,7 @@ ismounted(struct fstab *fs, struct statfs *mntbuf, int mntsize)
 		strlcpy(realfsfile, fs->fs_file, sizeof(realfsfile));
 	}
 
-	/* 
+	/*
 	 * Consider the filesystem to be mounted if:
 	 * It has the same mountpoint as a mounted filesystem, and
 	 * It has the same type as that same mounted filesystem, and
@@ -488,7 +488,7 @@ ismounted(struct fstab *fs, struct statfs *mntbuf, int mntsize)
 	 */
 	for (i = mntsize - 1; i >= 0; --i)
 		if (strcmp(realfsfile, mntbuf[i].f_mntonname) == 0 &&
-		    strcmp(fs->fs_vfstype, mntbuf[i].f_fstypename) == 0 && 
+		    strcmp(fs->fs_vfstype, mntbuf[i].f_fstypename) == 0 &&
 		    (!isremountable(fs->fs_vfstype) ||
 		     (strcmp(fs->fs_spec, mntbuf[i].f_mntfromname) == 0)))
 			return (1);

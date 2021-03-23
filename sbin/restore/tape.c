@@ -958,7 +958,7 @@ loop:
 						    "spcl.c_count = %jd\n",
 						    (intmax_t)spcl.c_count);
 						break;
-					} else 
+					} else
 						panic("spcl.c_count = %jd\n",
 						    (intmax_t)spcl.c_count);
 				}
@@ -1349,7 +1349,7 @@ gethead(struct s_spcl *buf)
 		buf->c_size = buf->c_count * TP_BSIZE;
 		if (buf->c_count > TP_NINDIR)
 			readmapflag = 1;
-		else 
+		else
 			for (i = 0; i < buf->c_count; i++)
 				buf->c_addr[i]++;
 		/* FALL THROUGH */
@@ -1495,7 +1495,7 @@ findinode(struct s_spcl *header)
 					if (byteslide < TP_BSIZE) {
 						blkcnt--;
 						blksread--;
-					} else 
+					} else
 						byteslide = 0;
 				}
 			}
@@ -1556,7 +1556,7 @@ findinode(struct s_spcl *header)
 					if (byteslide < TP_BSIZE) {
 						blkcnt--;
 						blksread--;
-					} else 
+					} else
 						byteslide = 0;
 				}
 			}

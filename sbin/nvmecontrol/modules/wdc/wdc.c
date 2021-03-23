@@ -59,7 +59,7 @@ static struct cmd wdc_cmd = {
 
 CMD_COMMAND(wdc_cmd);
 
-static struct options 
+static struct options
 {
 	const char *template;
 	const char *dev;
@@ -796,7 +796,7 @@ print_hgst_info_log(const struct nvme_controller_data *cdata __unused, void *buf
 	len = le16dec(walker);
 	walker += 2;
 	end = walker + len;		/* Length is exclusive of this header */
-	
+
 	while (walker < end) {
 		subpage = walker + 4;
 		subtype = *walker++ & 0x3f;	/* subtype */

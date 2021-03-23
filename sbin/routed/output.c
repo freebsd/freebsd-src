@@ -753,7 +753,7 @@ supply(struct sockaddr_in *dst,
 	 * a better, real default route.
 	 */
 	if (supplier && ifp && (def_metric = ifp->int_d_metric) != 0) {
-		if ((rt = rtget(RIP_DEFAULT, 0)) == NULL 
+		if ((rt = rtget(RIP_DEFAULT, 0)) == NULL
 		    || rt->rt_metric+ws.metric >= def_metric) {
 			ws.state |= WS_ST_DEFAULT;
 			ag_check(0, 0, 0, 0, def_metric, def_metric,

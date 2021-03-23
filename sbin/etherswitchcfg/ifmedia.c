@@ -219,7 +219,7 @@ ifmedia_getstate(int s)
 		mwords = (int *)malloc(ifmr->ifm_count * sizeof(int));
 		if (mwords == NULL)
 			err(1, "malloc");
-  
+
 		ifmr->ifm_ulist = mwords;
 		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)ifmr) < 0)
 			err(1, "SIOCGIFMEDIA");
@@ -597,7 +597,7 @@ static struct ifmedia_type_to_subtype *get_toptype_ttos(int ifmw)
 	return ttos;
 }
 
-static struct ifmedia_description *get_subtype_desc(int ifmw, 
+static struct ifmedia_description *get_subtype_desc(int ifmw,
     struct ifmedia_type_to_subtype *ttos)
 {
 	int i;
@@ -616,7 +616,7 @@ static struct ifmedia_description *get_subtype_desc(int ifmw,
 	return NULL;
 }
 
-static struct ifmedia_description *get_mode_desc(int ifmw, 
+static struct ifmedia_description *get_mode_desc(int ifmw,
     struct ifmedia_type_to_subtype *ttos)
 {
 	int i;

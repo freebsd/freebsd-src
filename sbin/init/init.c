@@ -1910,7 +1910,7 @@ runshutdown(void)
 		argv[1] = _path_rundown;
 		argv[2] = Reboot ? _reboot : _single;
 		argv[3] = NULL;
-		
+
 		execute_script(argv);
 		_exit(1);	/* force single user mode */
 	}

@@ -83,7 +83,7 @@ tcpConnect(isess_t *sess)
      if(sess->flags & (SESS_RECONNECT|SESS_REDIRECT)) {
 	  syslog(LOG_INFO, "%s", (sess->flags & SESS_RECONNECT)
 		 ? "Reconnect": "Redirected");
-	  
+
 	  debug(1, "%s", (sess->flags & SESS_RECONNECT) ? "Reconnect": "Redirected");
 	  shutdown(sess->soc, SHUT_RDWR);
 	  //close(sess->soc);
@@ -168,7 +168,7 @@ tcpConnect(isess_t *sess)
 	  if(setsockopt(sess->soc, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)) < 0)
 	       fprintf(stderr, "Cannot set socket NO delay option err=%d %s\n",
 		       errno, strerror(errno));
-	  
+
 	  timeout.tv_sec = 10;
 	  timeout.tv_usec = 0;
 	  if((setsockopt(sess->soc, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0)
@@ -178,7 +178,7 @@ tcpConnect(isess_t *sess)
 	  }
 #endif
 #ifdef CURIOUS
-	  { 
+	  {
 	       int len = sizeof(val);
 	       if(getsockopt(sess->soc, SOL_SOCKET, SO_SNDBUF, &val, &len) == 0)
 		    fprintf(stderr, "was: SO_SNDBUF=%dK\n", val/1024);
@@ -190,7 +190,7 @@ tcpConnect(isess_t *sess)
 		  || (setsockopt(sess->soc, SOL_SOCKET, SO_RCVBUF, &val, sizeof(val)) < 0)) {
 		    fprintf(stderr, "Cannot set socket sndbuf & rcvbuf to %d err=%d %s\n",
 			    val, errno, strerror(errno));
-		    return 0; 
+		    return 0;
 	       }
 	  }
 	  sess->flags |= SESS_CONNECTED;
@@ -236,7 +236,7 @@ setOptions(isess_t *sess, int flag)
 	  oop.targetAddress	= sess->op->targetAddress;
 	  if(sess->op->targetName != 0)
 	       oop.targetName = sess->op->targetName;
-	  
+
 	  oop.maxRecvDataSegmentLength = sess->op->maxRecvDataSegmentLength;
 	  oop.maxXmitDataSegmentLength = sess->op->maxXmitDataSegmentLength; // XXX:
 	  oop.maxBurstLength = sess->op->maxBurstLength;
@@ -270,7 +270,7 @@ setOptions(isess_t *sess, int flag)
 static trans_t
 startSession(isess_t *sess)
 {
-     
+
      int	n, fd, nfd;
      char	*dev;
 
@@ -336,7 +336,7 @@ trap(int sig)
 	  currsess->flags |= SESS_RECONNECT;
 	  break;
 
-     case SIGINT: 
+     case SIGINT:
      case SIGTERM:
      default:
 	  return; // ignore
@@ -422,7 +422,7 @@ supervise(isess_t *sess)
 	       FILE *pidf;
 
 	       pidf = fopen(sess->op->pidfile, "w");
-	       if(pidf != NULL) { 
+	       if(pidf != NULL) {
  		    fprintf(pidf, "%d\n", getpid());
 		    fclose(pidf);
 	       }
@@ -448,7 +448,7 @@ supervise(isess_t *sess)
 	       return -1;
 	  }
      }
-	  
+
      signal(SIGINT, trap);
      signal(SIGHUP, trap);
      signal(SIGTERM, trap);
@@ -484,7 +484,7 @@ supervise(isess_t *sess)
      if(sess->flags & SESS_DISCONNECT) {
 	  sess->flags &= ~SESS_FULLFEATURE;
 	  return T9;
-     } 
+     }
      else {
 	  val = 0;
 	  if(ioctl(sess->fd, ISCSISTOP, &val)) {
@@ -739,8 +739,8 @@ fsm(isc_opt_t *op)
 	       default: state = S8; break;
 	       }
 	       break;
-	  
-	  case S7: 
+
+	  case S7:
 	       switch(inLogout(sess)) {
 	       case T18: state = S1; break;
 	       case T10: state = S6; break;

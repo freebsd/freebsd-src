@@ -411,7 +411,7 @@ timestamp(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	if (single_arg > 1) {
 		warnx("Select only one: %s",
 		    (action == TIMESTAMP_REPORT) ?
-		    "-f format or -m for the -r flag" : 
+		    "-f format or -m for the -r flag" :
 		    "-f format -T time or -U for the -s flag");
 		error = 1;
 		goto bailout;

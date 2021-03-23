@@ -147,9 +147,9 @@ textkey_t keyMap[] = {
      _E(U_LO, S_SW, maxOutstandingR2T),
      _E(U_LO, S_SW, dataPDUInOrder),
      _E(U_LO, S_SW, dataSequenceInOrder),
-     
+
      _E(U_LO, S_SW, errorRecoveryLevel),
-     
+
      _E(U_LO, S_SW, sessionType),
 
      _E(0, 0, end)
@@ -274,11 +274,11 @@ getConfig(FILE *fd, char *key, char **Ar, int *nargs)
 	  case 2:
 	       if(*lp == '}')
 		    goto done;
-	       
+
 	       break;
 	  }
 
-	  
+
 	  for(p = &lp[strlen(lp)-1]; isspace((unsigned char)*p); p--)
 	       *p = 0;
 	  if((*nargs)-- > 0)

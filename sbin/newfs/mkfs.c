@@ -523,7 +523,7 @@ restart:
 #	undef B2MBFACTOR
 
 	if (Eflag && !Nflag) {
-		printf("Erasing sectors [%jd...%jd]\n", 
+		printf("Erasing sectors [%jd...%jd]\n",
 		    sblock.fs_sblockloc / disk.d_bsize,
 		    fsbtodb(&sblock, sblock.fs_size) - 1);
 		berase(&disk, sblock.fs_sblockloc / disk.d_bsize,
@@ -948,7 +948,7 @@ fsinit(time_t utime)
 				    alloc(sblock.fs_fsize, node.dp2.di_mode);
 			node.dp2.di_blocks =
 			    btodb(fragroundup(&sblock, node.dp2.di_size));
-				wtfs(fsbtodb(&sblock, node.dp2.di_db[0]), 
+				wtfs(fsbtodb(&sblock, node.dp2.di_db[0]),
 				    sblock.fs_fsize, iobuf);
 			iput(&node, UFS_ROOTINO + 1);
 		}

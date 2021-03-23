@@ -321,7 +321,7 @@ int main (int argc, char **argv)
     Finish(5);
   }
 
-  if (source) { 
+  if (source) {
 	if (Set_address(source, (struct sockaddr_in *)&wherefrom))
 	  Finish(9);
     if (bind(net, &wherefrom, sizeof(wherefrom)) < 0) {

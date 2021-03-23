@@ -170,7 +170,7 @@ usage(void)
 	    "[-G sweepmaxsize]\n"
 	    "	    [-g sweepminsize] [-h sweepincrsize] [-i wait] "
 	    "[-l preload]\n"
-	    "	    [-M mask | time] [-m ttl]" 
+	    "	    [-M mask | time] [-m ttl]"
 #ifdef IPSEC
 	    "[-P policy] "
 #endif

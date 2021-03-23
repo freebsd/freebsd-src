@@ -900,7 +900,7 @@ indir_fill(ufs2_daddr_t blk, int level, int *resid)
 			if (ncnt <= 0)
 				return (-1);
 			cnt += ncnt;
-		} else 
+		} else
 			(*resid)--;
 	}
 	if (bwrite(&disk, fsbtodb(&sblock, blk), indirbuf,
@@ -1111,13 +1111,13 @@ printfs(void)
 		(sblock.fs_flags & FS_NFS4ACLS)? "enabled" : "disabled");
 	warnx("MAC multilabel: (-l)                               %s",
 		(sblock.fs_flags & FS_MULTILABEL)? "enabled" : "disabled");
-	warnx("soft updates: (-n)                                 %s", 
+	warnx("soft updates: (-n)                                 %s",
 		(sblock.fs_flags & FS_DOSOFTDEP)? "enabled" : "disabled");
-	warnx("soft update journaling: (-j)                       %s", 
+	warnx("soft update journaling: (-j)                       %s",
 		(sblock.fs_flags & FS_SUJ)? "enabled" : "disabled");
 	warnx("gjournal: (-J)                                     %s",
 		(sblock.fs_flags & FS_GJOURNAL)? "enabled" : "disabled");
-	warnx("trim: (-t)                                         %s", 
+	warnx("trim: (-t)                                         %s",
 		(sblock.fs_flags & FS_TRIM)? "enabled" : "disabled");
 	warnx("maximum blocks per file in a cylinder group: (-e)  %d",
 	      sblock.fs_maxbpg);

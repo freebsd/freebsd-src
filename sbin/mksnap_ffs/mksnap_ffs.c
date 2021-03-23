@@ -111,7 +111,7 @@ main(int argc, char **argv)
 	/*
 	 * Check that the user running this program has permission
 	 * to create and remove a snapshot file from the directory
-	 * in which they have requested to have it made. If the 
+	 * in which they have requested to have it made. If the
 	 * directory is sticky and not owned by the user, then they
 	 * will not be able to remove the snapshot when they are
 	 * done with it.

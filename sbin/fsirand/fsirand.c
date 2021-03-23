@@ -202,7 +202,7 @@ fsirand(char *device)
 				    sblock->fs_magic == FS_UFS1_MAGIC ?
 				    dp1->di_gen : dp2->di_gen);
 			} else if (sblock->fs_magic == FS_UFS1_MAGIC) {
-				dp1->di_gen = arc4random(); 
+				dp1->di_gen = arc4random();
 				dp1++;
 			} else {
 				dp2->di_gen = arc4random();
@@ -234,7 +234,7 @@ fsirand(char *device)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, 
+	(void)fprintf(stderr,
 		"usage: fsirand [-b] [-f] [-p] special [special ...]\n");
 	exit(1);
 }

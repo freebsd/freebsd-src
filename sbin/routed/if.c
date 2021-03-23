@@ -420,7 +420,7 @@ check_remote(struct interface *ifp)
 	    return 1;
 
 	rt = rtfind(ifp->int_addr);
-	if (rt != NULL 
+	if (rt != NULL
 	    && rt->rt_ifp != 0
 	    &&on_net(ifp->int_addr,
 		     rt->rt_ifp->int_net, rt->rt_ifp->int_mask))

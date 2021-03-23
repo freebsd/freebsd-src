@@ -98,7 +98,7 @@ discover_interfaces(struct interface_info *iface)
 		if (ifa->ifa_addr->sa_family == AF_LINK) {
 			struct sockaddr_dl *foo;
 
-			/* 
+			/*
 			 * The implementation of getifaddrs should guarantee
 			 * this alignment
 			 */
@@ -540,7 +540,7 @@ interface_set_mtu_unpriv(int privfd, u_int16_t mtu)
 	errs += buf_add(buf, &mtu, sizeof(mtu));
 	if (errs)
 		error("buf_add: %m");
-	
+
 	if (buf_close(privfd, buf) == -1)
 		error("buf_close: %m");
 }
