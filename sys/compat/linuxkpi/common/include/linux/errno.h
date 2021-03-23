@@ -45,6 +45,10 @@
 #define	ENOTSUPP	EOPNOTSUPP
 #define	ENONET		EHOSTDOWN
 
+/*
+ * The error numbers below are arbitrary and do not resemble the numbers
+ * used in Linux.  They should not be returned to user space.
+ */
 #define	ERESTARTNOINTR	513
 #define	ERESTARTNOHAND	514
 #define	ERESTART_RESTARTBLOCK 516
@@ -58,5 +62,7 @@
 #define	EBADTYPE	527
 #define	EJUKEBOX	528
 #define	EIOCBQUEUED	529
+#define	ERFKILL		530
+#define	EBADE		531
 
 #endif					/* _LINUX_ERRNO_H_ */
