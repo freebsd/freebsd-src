@@ -123,7 +123,7 @@ tzic_intr(void *arg)
 			tzic_irq_eoi(sc);
 			arm_irq_memory_barrier(irq);
 			if (bootverbose) {
-				device_printf(sc->dev, 
+				device_printf(sc->dev,
 				    "Stray irq %u disabled\n", irq);
 			}
 		}

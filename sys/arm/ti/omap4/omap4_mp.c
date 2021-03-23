@@ -56,7 +56,7 @@ omap4_mp_setmaxid(platform_t plat)
 	mp_ncpus = 2;
 }
 
-void    
+void
 omap4_mp_start_ap(platform_t plat)
 {
 	bus_addr_t scu_addr;

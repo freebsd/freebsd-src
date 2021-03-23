@@ -357,7 +357,7 @@ bcm_gpio_pin_configure(struct bcm_gpio_softc *sc, struct gpio_pin *pin,
 			pin->gp_flags |= GPIO_PIN_PULLDOWN;
 			bcm_gpio_set_pud(sc, pin->gp_pin, BCM_GPIO_PULLDOWN);
 		}
-	} else 
+	} else
 		bcm_gpio_set_pud(sc, pin->gp_pin, BCM_GPIO_NONE);
 
 	BCM_GPIO_UNLOCK(sc);

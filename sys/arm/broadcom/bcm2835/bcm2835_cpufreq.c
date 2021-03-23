@@ -1123,7 +1123,7 @@ bcm2835_cpufreq_init(void *arg)
 		    "current Core %dmV, SDRAM_C %dmV, SDRAM_I %dmV, "
 		    "SDRAM_P %dmV\n",
 		    OFFSET2MVOLT(voltage_core), OFFSET2MVOLT(voltage_sdram_c),
-		    OFFSET2MVOLT(voltage_sdram_i), 
+		    OFFSET2MVOLT(voltage_sdram_i),
 		    OFFSET2MVOLT(voltage_sdram_p));
 
 		device_printf(sc->dev,

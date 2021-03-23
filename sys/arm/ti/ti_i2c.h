@@ -116,7 +116,7 @@
 #define	I2C_REG_SBLOCK		0xd4
 
 /*
- * OMAP4 I2C Registers, Summary 2 
+ * OMAP4 I2C Registers, Summary 2
  */
 #define	I2C_REG_REVNB_LO	0x00
 #define	I2C_REG_REVNB_HI	0x04

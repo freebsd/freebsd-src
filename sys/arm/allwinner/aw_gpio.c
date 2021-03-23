@@ -804,7 +804,7 @@ aw_gpio_pin_access_32(device_t dev, uint32_t first_pin, uint32_t clear_pins,
 
 	AW_GPIO_LOCK(sc);
 	data = AW_GPIO_READ(sc, AW_GPIO_GP_DAT(bank));
-	if ((clear_pins | change_pins) != 0) 
+	if ((clear_pins | change_pins) != 0)
 		AW_GPIO_WRITE(sc, AW_GPIO_GP_DAT(bank),
 		    (data & ~clear_pins) ^ change_pins);
 	AW_GPIO_UNLOCK(sc);
@@ -1356,7 +1356,7 @@ aw_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	    sc->gpio_pic_irqsrc[irq].intfunc);
 
 	/* Write interrupt mode */
-	reg = AW_GPIO_READ(sc, 
+	reg = AW_GPIO_READ(sc,
 	    AW_GPIO_GP_INT_CFG(sc->gpio_pic_irqsrc[irq].bank,
 	    sc->gpio_pic_irqsrc[irq].intnum));
 	reg &= ~(0xF << pinidx);

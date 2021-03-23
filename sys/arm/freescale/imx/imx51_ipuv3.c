@@ -263,7 +263,7 @@ ipu3_fb_probe(device_t dev)
 
 	device_set_desc(dev, "i.MX5x Image Processing Unit v3 (FB)");
 
-	error = sc_probe_unit(device_get_unit(dev), 
+	error = sc_probe_unit(device_get_unit(dev),
 	    device_get_flags(dev) | SC_AUTODETECT_KBD);
 
 	if (error != 0)
@@ -386,7 +386,7 @@ ipu3_fb_attach(device_t dev)
 #endif
 
 	/*
-	 * We have to wait until interrupts are enabled. 
+	 * We have to wait until interrupts are enabled.
 	 * Mailbox relies on it to get data from VideoCore
 	 */
 	ipu3_fb_init(sc);
@@ -863,7 +863,7 @@ ipu3fb_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len)
 {
 	int i;
 
-	for (i = 0; i < len; i++) 
+	for (i = 0; i < len; i++)
 		ipu3fb_putc(adp, off + i, s[i] & 0xff, (s[i] & 0xff00) >> 8);
 
 	return (0);

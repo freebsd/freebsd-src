@@ -502,7 +502,7 @@ am335x_ehrpwm_channel_config(device_t dev, u_int channel, u_int period, u_int du
 }
 
 static int
-am335x_ehrpwm_channel_get_config(device_t dev, u_int channel, 
+am335x_ehrpwm_channel_get_config(device_t dev, u_int channel,
     u_int *period, u_int *duty)
 {
 	struct am335x_ehrpwm_softc *sc;

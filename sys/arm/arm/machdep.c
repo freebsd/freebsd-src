@@ -813,7 +813,7 @@ initarm(struct arm_boot_params *abp)
 	 * cp15_prrr_set() and this code remaps the VA.
 	 */
 #if defined(EARLY_PRINTF) && defined(SOCDEV_PA) && defined(SOCDEV_VA) && SOCDEV_VA < KERNBASE
-	pmap_preboot_map_attr(SOCDEV_PA, SOCDEV_VA, 1024 * 1024, 
+	pmap_preboot_map_attr(SOCDEV_PA, SOCDEV_VA, 1024 * 1024,
 	    VM_PROT_READ | VM_PROT_WRITE, VM_MEMATTR_DEVICE);
 #endif
 

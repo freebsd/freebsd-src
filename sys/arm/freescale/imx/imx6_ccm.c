@@ -295,23 +295,23 @@ imx_ccm_usbphy_enable(device_t _phydev)
 		regoff = 0x10;
 		break;
 	default:
-		device_printf(ccm_sc->dev, "Bad PHY number %u,\n", 
+		device_printf(ccm_sc->dev, "Bad PHY number %u,\n",
 		    phy_num);
 		return;
 	}
 
-	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_USB1 + regoff, 
-	    IMX6_ANALOG_CCM_PLL_USB_ENABLE | 
+	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_USB1 + regoff,
+	    IMX6_ANALOG_CCM_PLL_USB_ENABLE |
 	    IMX6_ANALOG_CCM_PLL_USB_POWER |
 	    IMX6_ANALOG_CCM_PLL_USB_EN_USB_CLKS);
 #else
 	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_USB1 + 0,
-	    IMX6_ANALOG_CCM_PLL_USB_ENABLE | 
+	    IMX6_ANALOG_CCM_PLL_USB_ENABLE |
 	    IMX6_ANALOG_CCM_PLL_USB_POWER |
 	    IMX6_ANALOG_CCM_PLL_USB_EN_USB_CLKS);
 
-	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_USB1 + 0x10, 
-	    IMX6_ANALOG_CCM_PLL_USB_ENABLE | 
+	imx6_anatop_write_4(IMX6_ANALOG_CCM_PLL_USB1 + 0x10,
+	    IMX6_ANALOG_CCM_PLL_USB_ENABLE |
 	    IMX6_ANALOG_CCM_PLL_USB_POWER |
 	    IMX6_ANALOG_CCM_PLL_USB_EN_USB_CLKS);
 #endif
@@ -516,5 +516,5 @@ static driver_t ccm_driver = {
 
 static devclass_t ccm_devclass;
 
-EARLY_DRIVER_MODULE(ccm, simplebus, ccm_driver, ccm_devclass, 0, 0, 
+EARLY_DRIVER_MODULE(ccm, simplebus, ccm_driver, ccm_devclass, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);

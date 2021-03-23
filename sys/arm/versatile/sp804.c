@@ -140,7 +140,7 @@ sp804_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		sp804_timer_tc_write_4(SP804_TIMER2_CONTROL, reg);
 
 		return (0);
-	} 
+	}
 
 	if (period != 0) {
 		panic("period");
@@ -263,7 +263,7 @@ sp804_timer_attach(device_t dev)
 	sp804_timer_tc_write_4(SP804_TIMER1_CONTROL, reg);
 	tc_init(&sc->tc);
 
-	/* 
+	/*
 	 * Timer 2, event timer
 	 */
 	sc->et_enabled = 0;
@@ -280,7 +280,7 @@ sp804_timer_attach(device_t dev)
 
 	id = 0;
 	for (i = 3; i >= 0; i--) {
-		id = (id << 8) | 
+		id = (id << 8) |
 		     (sp804_timer_tc_read_4(SP804_PERIPH_ID0 + i*4) & 0xff);
 	}
 
@@ -288,7 +288,7 @@ sp804_timer_attach(device_t dev)
 
 	id = 0;
 	for (i = 3; i >= 0; i--) {
-		id = (id << 8) | 
+		id = (id << 8) |
 		     (sp804_timer_tc_read_4(SP804_PRIMECELL_ID0 + i*4) & 0xff);
 	}
 

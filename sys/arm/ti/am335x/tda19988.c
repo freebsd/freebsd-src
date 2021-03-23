@@ -27,7 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 /*
-* NXP TDA19988 HDMI encoder 
+* NXP TDA19988 HDMI encoder
 */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -219,7 +219,7 @@ __FBSDID("$FreeBSD$");
 #define		CEC_FRO_IM_CLK_CTRL_GHOST_DIS	(1 << 7)
 #define		CEC_FRO_IM_CLK_CTRL_IMCLK_SEL	(1 << 1)
 
-/* EDID reading */ 
+/* EDID reading */
 #define EDID_LENGTH		0x80
 #define	MAX_READ_ATTEMPTS	100
 
@@ -232,8 +232,8 @@ __FBSDID("$FreeBSD$");
 #define	EDID_FREQ(v)		(((v) & 0x3f) + 60)
 #define	EDID_RATIO(v)		(((v) >> 6) & 0x3)
 #define	EDID_RATIO_10x16	0
-#define	EDID_RATIO_3x4		1	
-#define	EDID_RATIO_4x5		2	
+#define	EDID_RATIO_3x4		1
+#define	EDID_RATIO_4x5		2
 #define	EDID_RATIO_9x16		3
 
 #define	TDA19988		0x0301
@@ -623,7 +623,7 @@ tda19988_read_edid(struct tda19988_softc *sc)
 
 	blocks = sc->sc_edid[0x7e];
 	if (blocks > 0) {
-		sc->sc_edid = realloc(sc->sc_edid, 
+		sc->sc_edid = realloc(sc->sc_edid,
 		    EDID_LENGTH*(blocks+1), M_DEVBUF, M_WAITOK);
 		sc->sc_edid_len = EDID_LENGTH*(blocks+1);
 		for (i = 0; i < blocks; i++) {

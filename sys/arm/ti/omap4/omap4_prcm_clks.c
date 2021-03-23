@@ -76,9 +76,9 @@ __FBSDID("$FreeBSD$");
  *
  *	- The other thing that is worth noting is that when the omap_prcm device
  *	is registered you typically pass in some memory ranges which are the
- *	SYS_MEMORY resources.  These resources are in turn allocated using 
+ *	SYS_MEMORY resources.  These resources are in turn allocated using
  *	bus_allocate_resources(...) and the resource handles are passed to all
- *	individual clock callback handlers. 
+ *	individual clock callback handlers.
  *
  *
  *
@@ -317,7 +317,7 @@ struct ti_clock_dev ti_omap4_clk_devmap[] = {
 	OMAP4_GENERIC_CLOCK_DEV(GPIO6_CLK),
 
 	/* sDMA */
-	OMAP4_GENERIC_CLOCK_DEV(SDMA_CLK),	
+	OMAP4_GENERIC_CLOCK_DEV(SDMA_CLK),
 
 	/* I2C */
 	OMAP4_GENERIC_CLOCK_DEV(I2C1_CLK),
@@ -414,7 +414,7 @@ static struct omap4_clk_details g_omap4_clk_details[] = {
 		(L4PER_CM2_OFFSET + 0x078), CLKCTRL_MODULEMODE_AUTO),
 	OMAP4_GENERIC_CLOCK_DETAILS(GPIO6_CLK, -1, CM2_INSTANCE,
 		(L4PER_CM2_OFFSET + 0x080), CLKCTRL_MODULEMODE_AUTO),
-		
+
 	/* sDMA block */
 	OMAP4_GENERIC_CLOCK_DETAILS(SDMA_CLK, -1, CM2_INSTANCE,
 		(CORE_CM2_OFFSET + 0x300), CLKCTRL_MODULEMODE_AUTO),
@@ -494,8 +494,8 @@ omap4_prcm_get_instance_softc(int module_instance)
  *	@module: identifier for the module to check, see omap3_prcm.h for a list
  *	         of possible modules.
  *	         Example: OMAP3_MODULE_MMC1
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -544,7 +544,7 @@ omap4_clk_generic_activate(struct ti_clock_dev *clkdev)
 			break;
 		DELAY(10);
 	}
-		
+
 	/* Check the enabled state */
 	if ((clksel & CLKCTRL_IDLEST_MASK) != CLKCTRL_IDLEST_ENABLED) {
 		printf("Error: failed to enable module with clock %d\n", clkdev->id);
@@ -560,8 +560,8 @@ omap4_clk_generic_activate(struct ti_clock_dev *clkdev)
  *	@module: identifier for the module to check, see omap3_prcm.h for a list
  *	         of possible modules.
  *	         Example: OMAP3_MODULE_MMC1
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -607,8 +607,8 @@ omap4_clk_generic_deactivate(struct ti_clock_dev *clkdev)
  *	@module: identifier for the module to check, see omap3_prcm.h for a list
  *	         of possible modules.
  *	         Example: OMAP3_MODULE_MMC1
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -629,8 +629,8 @@ omap4_clk_generic_set_source(struct ti_clock_dev *clkdev,
  *	@module: identifier for the module to check, see omap3_prcm.h for a list
  *	         of possible modules.
  *	         Example: OMAP3_MODULE_MMC1
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -661,7 +661,7 @@ omap4_clk_generic_accessible(struct ti_clock_dev *clkdev)
 		return (EINVAL);
 
 	clksel = bus_read_4(clk_mem_res, clk_details->clksel_reg);
-		
+
 	/* Check the enabled state */
 	if ((clksel & CLKCTRL_IDLEST_MASK) != CLKCTRL_IDLEST_ENABLED)
 		return (0);
@@ -674,8 +674,8 @@ omap4_clk_generic_accessible(struct ti_clock_dev *clkdev)
  *	@module: identifier for the module to check, see omap3_prcm.h for a list
  *	         of possible modules.
  *	         Example: OMAP3_MODULE_MMC1
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -705,8 +705,8 @@ omap4_clk_generic_get_source_freq(struct ti_clock_dev *clkdev,
  *	@module: identifier for the module to check, see omap3_prcm.h for a list
  *	         of possible modules.
  *	         Example: OMAP3_MODULE_MMC1
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -746,8 +746,8 @@ omap4_clk_gptimer_set_source(struct ti_clock_dev *clkdev,
  *	@module: identifier for the module to check, see omap3_prcm.h for a list
  *	         of possible modules.
  *	         Example: OMAP3_MODULE_MMC1
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -797,7 +797,7 @@ omap4_clk_gptimer_get_source_freq(struct ti_clock_dev *clkdev,
 /**
  *	omap4_clk_hsmmc_set_source - sets the source clock (freq)
  *	@clkdev: pointer to the clockdev structure (id field will contain clock id)
- *	
+ *
  *	The MMC 1 and 2 clocks can be source from either a 64MHz or 96MHz clock.
  *
  *	LOCKING:
@@ -828,7 +828,7 @@ omap4_clk_hsmmc_set_source(struct ti_clock_dev *clkdev,
 
 	if (clk_mem_res == NULL)
 		return (EINVAL);
-		
+
 	/* For MMC modules 3, 4 & 5 you can't change the freq, it's always 48MHz */
 	if ((clkdev->id == MMC3_CLK) || (clkdev->id == MMC4_CLK) ||
 	    (clkdev->id == MMC5_CLK)) {
@@ -846,7 +846,7 @@ omap4_clk_hsmmc_set_source(struct ti_clock_dev *clkdev,
 		clksel |= (0x1UL << 24);
 	else
 		return (EINVAL);
-		
+
 	bus_write_4(clk_mem_res, clk_details->clksel_reg, clksel);
 
 	return (0);
@@ -855,8 +855,8 @@ omap4_clk_hsmmc_set_source(struct ti_clock_dev *clkdev,
 /**
  *	omap4_clk_hsmmc_get_source_freq - checks if a module is accessible
  *	@clkdev: pointer to the clockdev structure (id field will contain clock id)
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -907,7 +907,7 @@ omap4_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev,
 	default:
 		return (EINVAL);
 	}
-		
+
 	/* Return the frequency */
 	if (freq)
 		*freq = src_freq;
@@ -967,7 +967,7 @@ omap4_clk_get_sysclk_freq(struct ti_clock_dev *clkdev,
 	/* Return the value */
 	if (freq)
 		*freq = sysclk;
-		
+
 	return (0);
 }
 
@@ -1013,7 +1013,7 @@ omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev,
 	/* Return the value */
 	if (freq)
 		*freq = mpuclk;
-		
+
 	return (0);
 }
 
@@ -1021,7 +1021,7 @@ omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev,
  *	omap4_clk_hsusbhost_activate - activates the USB clocks for the given module
  *	@clkdev: pointer to the clock device structure.
  *	@mem_res: array of memory resources allocated by the top level PRCM driver.
- *	
+ *
  *	The USB clocking setup seems to be a bit more tricky than the other modules,
  *	to start with the clocking diagram for the HS host module shows 13 different
  *	clocks.  So to try and make it easier to follow the clocking activation
@@ -1096,7 +1096,7 @@ omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 		clksel = bus_read_4(clk_mem_res, clksel_reg_off);
 		clksel &= ~CLKCTRL_MODULEMODE_MASK;
 		clksel |=  CLKCTRL_MODULEMODE_ENABLE;
-		
+
 		clksel |= (0x1 << 8); /* USB-HOST optional clock: USB_CH0_CLK */
 		clksel |= (0x1 << 9); /* USB-HOST optional clock: USB_CH1_CLK */
 		break;
@@ -1124,7 +1124,7 @@ omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 		/* We need the CM_L3INIT_HSUSBHOST_CLKCTRL register in CM2 register set */
 		clk_mem_res = sc->sc_res;
 		clksel_reg_off = L3INIT_CM2_OFFSET + 0x58;
-		clksel = bus_read_4(clk_mem_res, clksel_reg_off);	
+		clksel = bus_read_4(clk_mem_res, clksel_reg_off);
 		/* Enable the module and also enable the optional func clocks */
 		if (clkdev->id == USBHSHOST_CLK) {
 			clksel &= ~CLKCTRL_MODULEMODE_MASK;
@@ -1132,7 +1132,7 @@ omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 
 			clksel |= (0x1 << 15); /* USB-HOST clock control: FUNC48MCLK */
 		}
-		
+
 		else if (clkdev->id == USBP1_UTMI_CLK)
 			clksel |= (0x1 << 8);  /* UTMI_P1_CLK */
 		else if (clkdev->id == USBP2_UTMI_CLK)
@@ -1142,7 +1142,7 @@ omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 			clksel |= (0x5 << 11);  /* HSIC60M_P1_CLK + HSIC480M_P1_CLK */
 		else if (clkdev->id == USBP2_HSIC_CLK)
 			clksel |= (0x5 << 12);  /* HSIC60M_P2_CLK + HSIC480M_P2_CLK */
-		
+
 		break;
 
 	default:
@@ -1157,7 +1157,7 @@ omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 		if ((clksel & CLKCTRL_IDLEST_MASK) == CLKCTRL_IDLEST_ENABLED)
 			break;
 	}
-		
+
 	/* Check the enabled state */
 	if ((clksel & CLKCTRL_IDLEST_MASK) != CLKCTRL_IDLEST_ENABLED) {
 		printf("Error: HERE failed to enable module with clock %d\n", clkdev->id);
@@ -1172,8 +1172,8 @@ omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
  *	omap4_clk_generic_deactivate - checks if a module is accessible
  *	@clkdev: pointer to the clock device structure.
  *	@mem_res: array of memory resources allocated by the top level PRCM driver.
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -1236,7 +1236,7 @@ omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev)
 
 			clksel &= ~(0x1 << 15); /* USB-HOST clock control: FUNC48MCLK */
 		}
-		
+
 		else if (clkdev->id == USBP1_UTMI_CLK)
 			clksel &= ~(0x1 << 8);  /* UTMI_P1_CLK */
 		else if (clkdev->id == USBP2_UTMI_CLK)
@@ -1246,7 +1246,7 @@ omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev)
 			clksel &= ~(0x5 << 11);  /* HSIC60M_P1_CLK + HSIC480M_P1_CLK */
 		else if (clkdev->id == USBP2_HSIC_CLK)
 			clksel &= ~(0x5 << 12);  /* HSIC60M_P2_CLK + HSIC480M_P2_CLK */
-		
+
 		break;
 
 	default:
@@ -1262,8 +1262,8 @@ omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev)
  *	omap4_clk_hsusbhost_accessible - checks if a module is accessible
  *	@clkdev: pointer to the clock device structure.
  *	@mem_res: array of memory resources allocated by the top level PRCM driver.
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -1299,7 +1299,7 @@ omap4_clk_hsusbhost_accessible(struct ti_clock_dev *clkdev)
 	}
 
 	clksel = bus_read_4(clk_mem_res, clksel_reg_off);
-		
+
 	/* Check the enabled state */
 	if ((clksel & CLKCTRL_IDLEST_MASK) != CLKCTRL_IDLEST_ENABLED)
 		return (0);
@@ -1312,8 +1312,8 @@ omap4_clk_hsusbhost_accessible(struct ti_clock_dev *clkdev)
  *	@clkdev: pointer to the clock device structure.
  *	@clksrc: the clock source ID for the given clock.
  *	@mem_res: array of memory resources allocated by the top level PRCM driver.
- *	
- *	
+ *
+ *
  *
  *	LOCKING:
  *	Inherits the locks from the omap_prcm driver, no internal locking.
@@ -1469,7 +1469,7 @@ omap4_prcm_new_pass(device_t dev)
 	sc->attach_done = 1;
 
 	/*
-	 * In order to determine ARM frequency we need both RPM and CM1 
+	 * In order to determine ARM frequency we need both RPM and CM1
 	 * instances up and running. So wait until all CRM devices are
 	 * initialized. Should be replaced with proper clock framework
 	 */

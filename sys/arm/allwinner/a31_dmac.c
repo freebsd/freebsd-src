@@ -83,7 +83,7 @@ __FBSDID("$FreeBSD$");
 #define	 DMA_SRC_ADDR_MODE		(0x1 << 5)
 #define	 DMA_SRC_ADDR_MODE_SHIFT	5
 #define	 DMA_SRC_DRQ_TYPE		(0x1f << 0)
-#define	 DMA_SRC_DRQ_TYPE_SHIFT		0	
+#define	 DMA_SRC_DRQ_TYPE_SHIFT		0
 #define	 DMA_DATA_WIDTH_8BIT		0
 #define	 DMA_DATA_WIDTH_16BIT		1
 #define	 DMA_DATA_WIDTH_32BIT		2
@@ -261,7 +261,7 @@ a31dmac_attach(device_t dev)
 			device_printf(dev, "cannot allocate dma mem\n");
 			goto fail;
 		}
-		error = bus_dmamap_load(sc->dmat, sc->chans[index].dmamap, 
+		error = bus_dmamap_load(sc->dmat, sc->chans[index].dmamap,
 		    sc->chans[index].desc, sizeof(*sc->chans[index].desc),
 		    a31dmac_dmamap_cb, &sc->chans[index], BUS_DMA_WAITOK);
 		if (error != 0) {

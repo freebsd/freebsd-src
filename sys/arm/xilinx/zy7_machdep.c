@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/machdep.h>
-#include <machine/platform.h> 
+#include <machine/platform.h>
 #include <machine/platformvar.h>
 
 #include <arm/xilinx/zy7_machdep.h>

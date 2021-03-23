@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/machdep.h>
-#include <machine/platformvar.h> 
+#include <machine/platformvar.h>
 
 #include <arm/freescale/imx/imx_machdep.h>
 

@@ -193,12 +193,12 @@ omap4_get_revision(void)
 	}
 	if (chip_revision != OMAP_UNKNOWN_DEV) {
 		printf("Texas Instruments OMAP%04x Processor, Revision ES%u.%u\n",
-		    OMAP_REV_DEVICE(chip_revision), OMAP_REV_MAJOR(chip_revision), 
+		    OMAP_REV_DEVICE(chip_revision), OMAP_REV_MAJOR(chip_revision),
 		    OMAP_REV_MINOR(chip_revision));
 	}
 	else {
 		printf("Texas Instruments unknown OMAP chip: %04x, rev %d\n",
-		    hawkeye, revision); 
+		    hawkeye, revision);
 	}
 }
 

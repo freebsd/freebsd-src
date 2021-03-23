@@ -4,7 +4,7 @@
  * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * All rights reserved.
  *
- * Based on dev/usb/input/ukbd.c  
+ * Based on dev/usb/input/ukbd.c
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -684,7 +684,7 @@ pl050_kmi_attach(device_t dev)
 
 	pl050_kmi_write_4(sc, KMICR, KMICR_EN | KMICR_RXINTREN);
 
-	kbd_init_struct(kbd, KMI_DRIVER_NAME, KB_OTHER, 
+	kbd_init_struct(kbd, KMI_DRIVER_NAME, KB_OTHER,
 			device_get_unit(dev), 0, 0, 0);
 	kbd->kb_data = (void *)sc;
 

@@ -117,19 +117,19 @@ struct clkdiv {
 	u_int regcode;
 };
 static struct clkdiv clkdiv_table[] = {
-        {    0, 0x20 }, {   22, 0x20 }, {   24, 0x21 }, {   26, 0x22 }, 
-        {   28, 0x23 }, {   30, 0x00 }, {   32, 0x24 }, {   36, 0x25 }, 
-        {   40, 0x26 }, {   42, 0x03 }, {   44, 0x27 }, {   48, 0x28 }, 
-        {   52, 0x05 }, {   56, 0x29 }, {   60, 0x06 }, {   64, 0x2a }, 
-        {   72, 0x2b }, {   80, 0x2c }, {   88, 0x09 }, {   96, 0x2d }, 
-        {  104, 0x0a }, {  112, 0x2e }, {  128, 0x2f }, {  144, 0x0c }, 
-        {  160, 0x30 }, {  192, 0x31 }, {  224, 0x32 }, {  240, 0x0f }, 
-        {  256, 0x33 }, {  288, 0x10 }, {  320, 0x34 }, {  384, 0x35 }, 
-        {  448, 0x36 }, {  480, 0x13 }, {  512, 0x37 }, {  576, 0x14 }, 
-        {  640, 0x38 }, {  768, 0x39 }, {  896, 0x3a }, {  960, 0x17 }, 
-        { 1024, 0x3b }, { 1152, 0x18 }, { 1280, 0x3c }, { 1536, 0x3d }, 
-        { 1792, 0x3e }, { 1920, 0x1b }, { 2048, 0x3f }, { 2304, 0x1c }, 
-        { 2560, 0x1d }, { 3072, 0x1e }, { 3840, 0x1f }, {UINT_MAX, 0x1f} 
+        {    0, 0x20 }, {   22, 0x20 }, {   24, 0x21 }, {   26, 0x22 },
+        {   28, 0x23 }, {   30, 0x00 }, {   32, 0x24 }, {   36, 0x25 },
+        {   40, 0x26 }, {   42, 0x03 }, {   44, 0x27 }, {   48, 0x28 },
+        {   52, 0x05 }, {   56, 0x29 }, {   60, 0x06 }, {   64, 0x2a },
+        {   72, 0x2b }, {   80, 0x2c }, {   88, 0x09 }, {   96, 0x2d },
+        {  104, 0x0a }, {  112, 0x2e }, {  128, 0x2f }, {  144, 0x0c },
+        {  160, 0x30 }, {  192, 0x31 }, {  224, 0x32 }, {  240, 0x0f },
+        {  256, 0x33 }, {  288, 0x10 }, {  320, 0x34 }, {  384, 0x35 },
+        {  448, 0x36 }, {  480, 0x13 }, {  512, 0x37 }, {  576, 0x14 },
+        {  640, 0x38 }, {  768, 0x39 }, {  896, 0x3a }, {  960, 0x17 },
+        { 1024, 0x3b }, { 1152, 0x18 }, { 1280, 0x3c }, { 1536, 0x3d },
+        { 1792, 0x3e }, { 1920, 0x1b }, { 2048, 0x3f }, { 2304, 0x1c },
+        { 2560, 0x1d }, { 3072, 0x1e }, { 3840, 0x1f }, {UINT_MAX, 0x1f}
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -276,7 +276,7 @@ wait_for_xfer(struct i2c_softc *sc, int checkack)
 	while (retry --) {
 		sr = i2c_read_reg(sc, I2C_STATUS_REG);
 		if (sr & I2CSR_MIF) {
-                        if (sr & I2CSR_MAL) 
+                        if (sr & I2CSR_MAL)
 				return (IIC_EBUSERR);
 			else if (checkack && (sr & I2CSR_RXAK))
 				return (IIC_ENOACK);
@@ -424,7 +424,7 @@ i2c_attach(device_t dev)
 	}
 
 	/* Set up debug-enable sysctl. */
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev), 
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
 	    OID_AUTO, "debug", CTLFLAG_RWTUN, &sc->debug, 0,
 	    "Enable debug; 1=reads/writes, 2=add starts/stops");

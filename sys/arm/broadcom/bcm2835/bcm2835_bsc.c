@@ -49,17 +49,17 @@ __FBSDID("$FreeBSD$");
  * -----------------------------------------------------------------------------
  * - See i2c.v: The I2C peripheral samples the values for rw_bit and xfer_count
  * - in the IDLE state if start is set.
- * - 
+ * -
  * - We want to generate a ReSTART not a STOP at the end of the TX phase. In
  * - order to do that we must ensure the state machine goes RACK1 -> RACK2 ->
  * - SRSTRT1 (not RACK1 -> RACK2 -> SSTOP1).
- * - 
+ * -
  * - So, in the RACK2 state when (TX) xfer_count==0 we must therefore have
  * - already set, ready to be sampled:
  * -  READ ; rw_bit     <= I2CC bit 0 -- must be "read"
  * -  ST;    start      <= I2CC bit 7 -- must be "Go" in order to not issue STOP
  * -  DLEN;  xfer_count <= I2CDLEN    -- must be equal to our read amount
- * - 
+ * -
  * - The plan to do this is:
  * -  1. Start the sub-address write, but don't let it finish
  * -     (keep xfer_count > 0)
@@ -129,7 +129,7 @@ bcm_bsc_modifyreg(struct bcm_bsc_softc *sc, uint32_t off, uint32_t mask,
 {
 	uint32_t reg;
 
-	mtx_assert(&sc->sc_mtx, MA_OWNED);        
+	mtx_assert(&sc->sc_mtx, MA_OWNED);
 	reg = BCM_BSC_READ(sc, off);
 	reg &= ~mask;
 	reg |= value;
@@ -390,7 +390,7 @@ bcm_bsc_empty_rx_fifo(struct bcm_bsc_softc *sc)
 		}
 		do {
 			*sc->sc_data = BCM_BSC_READ(sc, BCM_BSC_DATA);
-			DEBUGF(sc, 1, "0x%02x ", *sc->sc_data); 
+			DEBUGF(sc, 1, "0x%02x ", *sc->sc_data);
 			++sc->sc_data;
 			--sc->sc_resid;
 			--sc->sc_totlen;
@@ -414,7 +414,7 @@ bcm_bsc_fill_tx_fifo(struct bcm_bsc_softc *sc)
 		}
 		do {
 			BCM_BSC_WRITE(sc, BCM_BSC_DATA, *sc->sc_data);
-			DEBUGF(sc, 1, "0x%02x ", *sc->sc_data); 
+			DEBUGF(sc, 1, "0x%02x ", *sc->sc_data);
 			++sc->sc_data;
 			--sc->sc_resid;
 			--sc->sc_totlen;
@@ -583,7 +583,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		 * the read length and direction vars for the second piece.
 		 */
 		if (sc->sc_replen == 0) {
-			DEVICE_DEBUGF(sc, 1, "%-6s 0x%02x len %d: ", 
+			DEVICE_DEBUGF(sc, 1, "%-6s 0x%02x len %d: ",
 			    (curisread) ? "read" : "write", curslave,
 			    sc->sc_totlen);
 			curlen = sc->sc_totlen;
@@ -595,7 +595,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 				sc->sc_flags &= ~BCM_I2C_READ;
 			}
 		} else {
-			DEVICE_DEBUGF(sc, 1, "%-6s 0x%02x len %d: ", 
+			DEVICE_DEBUGF(sc, 1, "%-6s 0x%02x len %d: ",
 			    (curisread) ? "read" : "write", curslave,
 			    sc->sc_replen);
 

@@ -175,7 +175,7 @@ ti_mbox_attach(device_t dev)
 	DPRINTF("initial sysconfig %d\n", sysconfig);
 	sysconfig |= TI_MBOX_SYSCONFIG_SOFTRST;
 	delay = 100;
-	while (ti_mbox_reg_read(sc, TI_MBOX_SYSCONFIG) & 
+	while (ti_mbox_reg_read(sc, TI_MBOX_SYSCONFIG) &
 	    TI_MBOX_SYSCONFIG_SOFTRST) {
 		delay--;
 		DELAY(10);
@@ -253,7 +253,7 @@ ti_mbox_write(device_t dev, int chan, uint32_t data)
 	sc = device_get_softc(dev);
 	TI_MBOX_LOCK(sc);
 	/* XXX implement interrupt method */
-	while (ti_mbox_reg_read(sc, TI_MBOX_FIFOSTATUS(chan)) == 1 && 
+	while (ti_mbox_reg_read(sc, TI_MBOX_FIFOSTATUS(chan)) == 1 &&
 	    limit--) {
 		DELAY(10);
 	}

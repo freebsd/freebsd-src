@@ -627,7 +627,7 @@ abort_fatal(struct trapframe *tf, u_int idx, u_int fsr, u_int far,
  *
  *  FAULT_ALIGN - Alignment fault
  *
- * Everything should be aligned in kernel with exception of user to kernel 
+ * Everything should be aligned in kernel with exception of user to kernel
  * and vice versa data copying, so if pcb_onfault is not set, it's fatal.
  * We generate signal in case of abort from user mode.
  */

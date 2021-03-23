@@ -103,7 +103,7 @@ struct cpu_functions arm1176_cpufuncs = {
 	.cf_l2cache_drain_writebuf = (void *)cpufunc_nullop,
 
 	/* Other functions */
-	.cf_sleep = arm11x6_sleep, 
+	.cf_sleep = arm11x6_sleep,
 
 	/* Soft functions */
 	.cf_setup = arm11x6_setup

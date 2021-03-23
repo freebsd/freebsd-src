@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2012, Broadcom Europe Ltd
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *    1. Redistributions of source code must retain the above copyright
@@ -39,7 +39,7 @@
 /* Maximum message length */
 #define VC_AUDIO_MAX_MSG_LEN  (sizeof( VC_AUDIO_MSG_T ))
 
-/* 
+/*
  * List of screens that are currently supported
  * All message types supported for HOST->VC direction
  */

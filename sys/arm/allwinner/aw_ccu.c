@@ -158,7 +158,7 @@ aw_ccu_device_unlock(device_t dev)
 }
 
 static const struct ofw_compat_data *
-aw_ccu_search_compatible(void) 
+aw_ccu_search_compatible(void)
 {
 	const struct ofw_compat_data *compat;
 	phandle_t root;

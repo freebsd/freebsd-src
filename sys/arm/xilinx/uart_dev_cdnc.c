@@ -253,7 +253,7 @@ cdnc_uart_set_params(struct uart_bas *bas, int baudrate, int databits,
 	case UART_PARITY_NONE:
 	default:
 		mode_reg_value |= CDNC_UART_MODE_REG_PAR_NONE;
-		break;		
+		break;
 	}
 
 	WR4(bas, CDNC_UART_MODE_REG, mode_reg_value);

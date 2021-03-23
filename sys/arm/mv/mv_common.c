@@ -2035,7 +2035,7 @@ decode_win_idma_dump(u_long base)
 	for (i = 0; i < MV_WIN_IDMA_MAX; i++) {
 		printf("IDMA window#%d: b 0x%08x, s 0x%08x", i,
 		    win_idma_br_read(base, i), win_idma_sz_read(base, i));
-		
+
 		if (win_idma_can_remap(i))
 			printf(", ha 0x%08x", win_idma_har_read(base, i));
 

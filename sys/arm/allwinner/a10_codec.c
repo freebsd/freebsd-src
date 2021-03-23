@@ -87,7 +87,7 @@ struct a10codec_config {
 #define	RX_TRIG_LEVEL	0x7
 #define	DRQ_CLR_CNT	0x3
 
-#define	AC_DAC_DPC(_sc)		((_sc)->cfg->DPC)	
+#define	AC_DAC_DPC(_sc)		((_sc)->cfg->DPC)
 #define	 DAC_DPC_EN_DA			0x80000000
 #define	AC_DAC_FIFOC(_sc)	((_sc)->cfg->DAC_FIFOC)
 #define	 DAC_FIFOC_FS_SHIFT		29
@@ -145,7 +145,7 @@ struct a10codec_info;
 
 struct a10codec_chinfo {
 	struct snd_dbuf		*buffer;
-	struct pcm_channel	*channel;	
+	struct pcm_channel	*channel;
 	struct a10codec_info	*parent;
 	bus_dmamap_t		dmamap;
 	void			*dmaaddr;
@@ -256,7 +256,7 @@ static const struct a10_mixer {
 				    A10_LNPREG_SHIFT },
 	[SOUND_MIXER_RECLEV]	= { A10_ADC_ACTL, A10_ADCG_MASK,
 				    A10_ADCG_SHIFT },
-}; 
+};
 
 static int
 a10_mixer_set(struct snd_mixer *m, unsigned dev, unsigned left,
@@ -418,7 +418,7 @@ MIXER_DECLARE(a10_mixer);
 #define	 H3_ADCG_SHIFT		0
 #define	 H3_ADCG_MASK		(0x7 << H3_ADCG_SHIFT)
 
-static u_int 
+static u_int
 h3_pr_read(struct a10codec_info *sc, u_int addr)
 {
 	uint32_t val;

@@ -429,7 +429,7 @@ epit_attach(device_t dev)
 
 	switch (clksrc) {
 	default:
-		device_printf(dev, 
+		device_printf(dev,
 		    "Unsupported clock source '%d', using IPG\n", clksrc);
                 /* FALLTHROUGH */
 	case EPIT_CR_CLKSRC_IPG:

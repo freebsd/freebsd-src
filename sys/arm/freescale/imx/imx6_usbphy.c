@@ -129,12 +129,12 @@ usbphy_attach(device_t dev)
 	 * detection, because of the screwball mix of active-high and active-low
 	 * bits in this register.
 	 */
-	imx6_anatop_write_4(IMX6_ANALOG_USB1_CHRG_DETECT + regoff, 
-	    IMX6_ANALOG_USB_CHRG_DETECT_N_ENABLE | 
+	imx6_anatop_write_4(IMX6_ANALOG_USB1_CHRG_DETECT + regoff,
+	    IMX6_ANALOG_USB_CHRG_DETECT_N_ENABLE |
 	    IMX6_ANALOG_USB_CHRG_DETECT_N_CHK_CHRG);
 
-	imx6_anatop_write_4(IMX6_ANALOG_USB1_CHRG_DETECT + regoff, 
-	    IMX6_ANALOG_USB_CHRG_DETECT_N_ENABLE | 
+	imx6_anatop_write_4(IMX6_ANALOG_USB1_CHRG_DETECT + regoff,
+	    IMX6_ANALOG_USB_CHRG_DETECT_N_ENABLE |
 	    IMX6_ANALOG_USB_CHRG_DETECT_N_CHK_CHRG);
 
 	/* XXX Configure the overcurrent detection here. */

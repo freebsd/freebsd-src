@@ -340,7 +340,7 @@ am335x_mode_is_valid(const struct videomode *mode)
 		return (0);
 	if (vsw > 0x3f)
 		return (0);
-	if (mode->vdisplay*mode->hdisplay*am335x_mode_vrefresh(mode) 
+	if (mode->vdisplay*mode->hdisplay*am335x_mode_vrefresh(mode)
 	    > MAX_BANDWIDTH)
 		return (0);
 
@@ -521,7 +521,7 @@ static void
 am335x_lcd_intr(void *arg)
 {
 	struct am335x_lcd_softc *sc = arg;
-	uint32_t reg; 
+	uint32_t reg;
 
 	reg = LCD_READ4(sc, LCD_IRQSTATUS);
 	LCD_WRITE4(sc, LCD_IRQSTATUS, reg);
@@ -531,34 +531,34 @@ am335x_lcd_intr(void *arg)
 	if (reg & IRQ_SYNC_LOST) {
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
 		reg &= ~RASTER_CTRL_LCDEN;
-		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
+		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg);
 
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
 		reg |= RASTER_CTRL_LCDEN;
-		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
+		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg);
 		goto done;
 	}
 
 	if (reg & IRQ_PL) {
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
 		reg &= ~RASTER_CTRL_LCDEN;
-		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
+		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg);
 
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
 		reg |= RASTER_CTRL_LCDEN;
-		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
+		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg);
 		goto done;
 	}
 
 	if (reg & IRQ_EOF0) {
-		LCD_WRITE4(sc, LCD_LCDDMA_FB0_BASE, sc->sc_fb_phys); 
-		LCD_WRITE4(sc, LCD_LCDDMA_FB0_CEILING, sc->sc_fb_phys + sc->sc_fb_size - 1); 
+		LCD_WRITE4(sc, LCD_LCDDMA_FB0_BASE, sc->sc_fb_phys);
+		LCD_WRITE4(sc, LCD_LCDDMA_FB0_CEILING, sc->sc_fb_phys + sc->sc_fb_size - 1);
 		reg &= ~IRQ_EOF0;
 	}
 
 	if (reg & IRQ_EOF1) {
-		LCD_WRITE4(sc, LCD_LCDDMA_FB1_BASE, sc->sc_fb_phys); 
-		LCD_WRITE4(sc, LCD_LCDDMA_FB1_CEILING, sc->sc_fb_phys + sc->sc_fb_size - 1); 
+		LCD_WRITE4(sc, LCD_LCDDMA_FB1_BASE, sc->sc_fb_phys);
+		LCD_WRITE4(sc, LCD_LCDDMA_FB1_CEILING, sc->sc_fb_phys + sc->sc_fb_size - 1);
 		reg &= ~IRQ_EOF1;
 	}
 
@@ -686,7 +686,7 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 	reg = CTRL_RASTER_MODE;
 	div = am335x_lcd_calc_divisor(ref_freq, sc->sc_panel.panel_pxl_clk);
 	reg |= (div << CTRL_DIV_SHIFT);
-	LCD_WRITE4(sc, LCD_CTRL, reg); 
+	LCD_WRITE4(sc, LCD_CTRL, reg);
 
 	/* Set timing */
 	timing0 = timing1 = timing2 = 0;
@@ -724,9 +724,9 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 	    << RASTER_TIMING_0_PPLLSB_SHIFT;
 
 	/* Lines per panel */
-	timing1 |= (height & 0x3ff) 
+	timing1 |= (height & 0x3ff)
 	    << RASTER_TIMING_1_LPP_SHIFT;
-	timing2 |= ((height >> 10 ) & 1) 
+	timing2 |= ((height >> 10 ) & 1)
 	    << RASTER_TIMING_2_LPP_B10_SHIFT;
 
 	/* clock signal settings */
@@ -747,9 +747,9 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 	timing2 |= (sc->sc_panel.ac_bias << RASTER_TIMING_2_ACB_SHIFT);
 	timing2 |= (sc->sc_panel.ac_bias_intrpt << RASTER_TIMING_2_ACBI_SHIFT);
 
-	LCD_WRITE4(sc, LCD_RASTER_TIMING_0, timing0); 
-	LCD_WRITE4(sc, LCD_RASTER_TIMING_1, timing1); 
-	LCD_WRITE4(sc, LCD_RASTER_TIMING_2, timing2); 
+	LCD_WRITE4(sc, LCD_RASTER_TIMING_0, timing0);
+	LCD_WRITE4(sc, LCD_RASTER_TIMING_1, timing1);
+	LCD_WRITE4(sc, LCD_RASTER_TIMING_2, timing2);
 
 	/* DMA settings */
 	reg = LCDDMA_CTRL_FB0_FB1;
@@ -775,12 +775,12 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 	reg |= (burst_log << LCDDMA_CTRL_BURST_SIZE_SHIFT);
 	/* XXX: FIFO TH */
 	reg |= (0 << LCDDMA_CTRL_TH_FIFO_RDY_SHIFT);
-	LCD_WRITE4(sc, LCD_LCDDMA_CTRL, reg); 
+	LCD_WRITE4(sc, LCD_LCDDMA_CTRL, reg);
 
-	LCD_WRITE4(sc, LCD_LCDDMA_FB0_BASE, sc->sc_fb_phys); 
-	LCD_WRITE4(sc, LCD_LCDDMA_FB0_CEILING, sc->sc_fb_phys + sc->sc_fb_size - 1); 
-	LCD_WRITE4(sc, LCD_LCDDMA_FB1_BASE, sc->sc_fb_phys); 
-	LCD_WRITE4(sc, LCD_LCDDMA_FB1_CEILING, sc->sc_fb_phys + sc->sc_fb_size - 1); 
+	LCD_WRITE4(sc, LCD_LCDDMA_FB0_BASE, sc->sc_fb_phys);
+	LCD_WRITE4(sc, LCD_LCDDMA_FB0_CEILING, sc->sc_fb_phys + sc->sc_fb_size - 1);
+	LCD_WRITE4(sc, LCD_LCDDMA_FB1_BASE, sc->sc_fb_phys);
+	LCD_WRITE4(sc, LCD_LCDDMA_FB1_CEILING, sc->sc_fb_phys + sc->sc_fb_size - 1);
 
 	/* Enable LCD */
 	reg = RASTER_CTRL_LCDTFT;
@@ -790,7 +790,7 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 		reg |= RASTER_CTRL_TFT24;
 	if (sc->sc_panel.bpp == 32)
 		reg |= RASTER_CTRL_TFT24_UNPACKED;
-	LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
+	LCD_WRITE4(sc, LCD_RASTER_CTRL, reg);
 
 	LCD_WRITE4(sc, LCD_CLKC_ENABLE,
 	    CLKC_ENABLE_DMA | CLKC_ENABLE_LDID | CLKC_ENABLE_CORE);
@@ -806,10 +806,10 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 
 	reg = LCD_READ4(sc, LCD_RASTER_CTRL);
  	reg |= RASTER_CTRL_LCDEN;
-	LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
+	LCD_WRITE4(sc, LCD_RASTER_CTRL, reg);
 
 	LCD_WRITE4(sc, LCD_SYSCONFIG,
-	    SYSCONFIG_STANDBY_SMART | SYSCONFIG_IDLE_SMART); 
+	    SYSCONFIG_STANDBY_SMART | SYSCONFIG_IDLE_SMART);
 
 	sc->sc_fb_info.fb_name = device_get_nameunit(sc->sc_dev);
 	sc->sc_fb_info.fb_vbase = (intptr_t)sc->sc_fb_base;
@@ -944,7 +944,7 @@ am335x_lcd_probe(device_t dev)
 	device_set_desc(dev, "AM335x LCD controller");
 
 #ifdef DEV_SC
-	err = sc_probe_unit(device_get_unit(dev), 
+	err = sc_probe_unit(device_get_unit(dev),
 	    device_get_flags(dev) | SC_AUTODETECT_KBD);
 	if (err != 0)
 		return (err);

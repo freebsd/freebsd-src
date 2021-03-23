@@ -392,7 +392,7 @@ cpsw_debugf(const char *fmt, ...)
 	cpsw_write_4(sc, (queue)->hdp_offset, cpsw_cpdma_bd_paddr(sc, slot))
 #define	CP_OFFSET (CPSW_CPDMA_TX_CP(0) - CPSW_CPDMA_TX_HDP(0))
 #define	cpsw_read_cp(sc, queue)						\
-	cpsw_read_4(sc, (queue)->hdp_offset + CP_OFFSET) 
+	cpsw_read_4(sc, (queue)->hdp_offset + CP_OFFSET)
 #define	cpsw_write_cp(sc, queue, val)					\
 	cpsw_write_4(sc, (queue)->hdp_offset + CP_OFFSET, (val))
 #define	cpsw_write_cp_slot(sc, queue, slot)				\
@@ -838,7 +838,7 @@ cpsw_attach(device_t dev)
 	}
 
 	sc->mem_rid = 0;
-	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
+	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &sc->mem_rid, RF_ACTIVE);
 	if (sc->mem_res == NULL) {
 		device_printf(sc->dev, "failed to allocate memory resource\n");
@@ -972,7 +972,7 @@ cpsw_detach(device_t dev)
 	error = bus_generic_detach(dev);
 	if (error != 0)
 		return (error);
-        
+
 	return (device_delete_children(dev));
 }
 
@@ -2218,7 +2218,7 @@ cpswp_tick(void *msc)
 	/* Check for media type change */
 	mii_tick(sc->mii);
 	if (sc->media_status != sc->mii->mii_media.ifm_media) {
-		printf("%s: media type changed (ifm_media=%x)\n", __func__, 
+		printf("%s: media type changed (ifm_media=%x)\n", __func__,
 			sc->mii->mii_media.ifm_media);
 		cpswp_ifmedia_upd(sc->ifp);
 	}
@@ -2365,7 +2365,7 @@ cpsw_ale_mc_entry_set(struct cpsw_softc *sc, uint8_t portmap, int vlan,
 	for (i = 10; i < CPSW_MAX_ALE_ENTRIES; i++) {
 		cpsw_ale_read_entry(sc, i, ale_entry);
 
-		/* Entry Type[61:60] is 0 for free entry */ 
+		/* Entry Type[61:60] is 0 for free entry */
 		if (free_index < 0 && ALE_TYPE(ale_entry) == 0)
 			free_index = i;
 
@@ -2496,7 +2496,7 @@ cpswp_ale_update_addresses(struct cpswp_softc *sc, int purge)
 
 	/* Keep the broadcast address at table entry 1 (or 3). */
 	ale_entry[0] = 0xffffffff; /* Lower 32 bits of MAC */
-	/* ALE_MCAST_FWD, Addr type, upper 16 bits of Mac */ 
+	/* ALE_MCAST_FWD, Addr type, upper 16 bits of Mac */
 	ale_entry[1] = ALE_MCAST_FWD | ale_type | 0xffff;
 	ale_entry[2] = portmask << 2;
 	cpsw_ale_write_entry(sc->swsc, 1 + 2 * sc->unit, ale_entry);
@@ -2524,7 +2524,7 @@ cpsw_ale_update_vlan_table(struct cpsw_softc *sc, int vlan, int ports,
 	for (i = 5; i < CPSW_MAX_ALE_ENTRIES; i++) {
 		cpsw_ale_read_entry(sc, i, ale_entry);
 
-		/* Entry Type[61:60] is 0 for free entry */ 
+		/* Entry Type[61:60] is 0 for free entry */
 		if (free_index < 0 && ALE_TYPE(ale_entry) == 0)
 			free_index = i;
 

@@ -138,7 +138,7 @@ snvs_gettime(device_t dev, struct timespec *ts)
 
 	*ts = sbttots(counter1);
 
-	clock_dbgprint_ts(sc->dev, CLOCK_DBG_READ, ts); 
+	clock_dbgprint_ts(sc->dev, CLOCK_DBG_READ, ts);
 
 	return (0);
 }
@@ -164,7 +164,7 @@ snvs_settime(device_t dev, struct timespec *ts)
 	WR4(sc, SNVS_LPSRTCLR, (uint32_t)(sbt >> (SBT_LSB)));
 	snvs_rtc_enable(sc, true);
 
-	clock_dbgprint_ts(sc->dev, CLOCK_DBG_WRITE, ts); 
+	clock_dbgprint_ts(sc->dev, CLOCK_DBG_WRITE, ts);
 
 	return (0);
 }

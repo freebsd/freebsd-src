@@ -274,7 +274,7 @@ versatile_clcdc_attach(device_t dev)
 	 * we need to keep table of timing register values
 	 */
 	/*
-	 * XXX: set SYS_OSC1 
+	 * XXX: set SYS_OSC1
 	 */
 	versatile_clcdc_write_4(sc, CLCDC_TIMING0, 0x3F1F3F9C);
 	versatile_clcdc_write_4(sc, CLCDC_TIMING1, 0x090B61DF);
@@ -492,7 +492,7 @@ clcdr_draw(scr_stat* scp, int from, int count, int flip)
 	if (!flip) {
 		/* Normal printing */
 		vidd_puts(adp, from, (uint16_t*)sc_vtb_pointer(&scp->vtb, from), count);
-	} else {	
+	} else {
 		/* This is for selections and such: invert the color attribute */
 		for (i = count; i-- > 0; ++from) {
 			c = sc_vtb_getc(&scp->vtb, from);
@@ -906,7 +906,7 @@ versatilefb_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len)
 {
 	int i;
 
-	for (i = 0; i < len; i++) 
+	for (i = 0; i < len; i++)
 		versatilefb_putc(adp, off + i, s[i] & 0xff, (s[i] & 0xff00) >> 8);
 
 	return (0);

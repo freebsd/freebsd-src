@@ -140,7 +140,7 @@ static device_detach_t omap_ehci_detach;
  *	@sc: omap ehci device context
  *	@off: byte offset within the register set to read from
  *	@val: the value to write into the register
- *	
+ *
  *
  *	LOCKING:
  *	None
@@ -164,7 +164,7 @@ omap_ehci_write_4(struct omap_ehci_softc *sc, bus_size_t off, uint32_t val)
  *	omap_ehci_soft_phy_reset - resets the phy using the reset command
  *	@isc: omap ehci device context
  *	@port: port to send the reset over
- *	
+ *
  *
  *	LOCKING:
  *	none
@@ -172,7 +172,7 @@ omap_ehci_write_4(struct omap_ehci_softc *sc, bus_size_t off, uint32_t val)
  *	RETURNS:
  *	nothing
  */
-static void 
+static void
 omap_ehci_soft_phy_reset(struct omap_ehci_softc *isc, unsigned int port)
 {
 	unsigned long timeout = (hz < 10) ? 1 : ((100 * hz) / 1000);
@@ -195,7 +195,7 @@ omap_ehci_soft_phy_reset(struct omap_ehci_softc *isc, unsigned int port)
 	       & (1 << OMAP_USBHOST_INSNREG05_ULPI_CONTROL_SHIFT))) {
 		/* Sleep for a tick */
 		pause("USBPHY_RESET", 1);
-		
+
 		if (timeout-- == 0) {
 			device_printf(isc->sc_dev, "PHY reset operation timed out\n");
 			break;
@@ -247,8 +247,8 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 
 /**
  *	omap_ehci_probe - starts the given command
- *	@dev: 
- *	
+ *	@dev:
+ *
  *	Effectively boilerplate EHCI resume code.
  *
  *	LOCKING:
@@ -274,7 +274,7 @@ omap_ehci_probe(device_t dev)
 /**
  *	omap_ehci_attach - driver entry point, sets up the ECHI controller/driver
  *	@dev: the new device handle
- *	
+ *
  *	Sets up bus spaces, interrupt handles, etc for the EHCI controller.  It also
  *	parses the resource hints and calls omap_ehci_init() to initialise the
  *	H/W.
@@ -297,8 +297,8 @@ omap_ehci_attach(device_t dev)
 	int rid;
 
 #ifdef SOC_OMAP4
-	/* 
-	 * If we're running a Pandaboard, run Pandaboard-specific 
+	/*
+	 * If we're running a Pandaboard, run Pandaboard-specific
 	 * init code.
 	 */
 	root = OF_finddevice("/");
@@ -354,7 +354,7 @@ omap_ehci_attach(device_t dev)
 		device_printf(dev, "Error: could not setup OMAP EHCI, %d\n", err);
 		goto error;
 	}
-		
+
 	/* Set the tag and size of the register set in the EHCI context */
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_tag = rman_get_bustag(sc->sc_io_res);
@@ -389,7 +389,7 @@ error:
 /**
  *	omap_ehci_detach - detach the device and cleanup the driver
  *	@dev: device handle
- *	
+ *
  *	Clean-up routine where everything initialised in omap_ehci_attach is
  *	freed and cleaned up.  This function calls omap_ehci_fini() to shutdown
  *	the on-chip module.
@@ -422,7 +422,7 @@ omap_ehci_detach(device_t dev)
 		 * only call ehci_detach() after ehci_init()
 		 */
 		ehci_detach(sc);
-		
+
 		err = bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_intr_hdl);
 		if (err)
 			device_printf(dev, "Error: could not tear down irq, %d\n", err);

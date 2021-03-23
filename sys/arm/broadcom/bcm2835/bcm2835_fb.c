@@ -132,7 +132,7 @@ bcm_fb_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "BCM2835 framebuffer device");
-	error = sc_probe_unit(device_get_unit(dev), 
+	error = sc_probe_unit(device_get_unit(dev),
 	    device_get_flags(dev) | SC_AUTODETECT_KBD);
 	if (error != 0)
 		return (error);
@@ -329,7 +329,7 @@ bcmrend_draw(scr_stat* scp, int from, int count, int flip)
 	if (!flip) {
 		/* Normal printing */
 		vidd_puts(adp, from, (uint16_t*)sc_vtb_pointer(&scp->vtb, from), count);
-	} else {	
+	} else {
 		/* This is for selections and such: invert the color attribute */
 		for (i = count; i-- > 0; ++from) {
 			c = sc_vtb_getc(&scp->vtb, from);
@@ -471,7 +471,7 @@ bcmfb_configure(int flags)
 	}
 
 	root = OF_finddevice("/");
-	if ((root != -1) && 
+	if ((root != -1) &&
 	    (display = fdt_find_compatible(root, "broadcom,bcm2835-fb", 1))) {
 		if (sc->width == 0) {
 			if ((OF_getencprop(display, "broadcom,width",
@@ -480,7 +480,7 @@ bcmfb_configure(int flags)
 		}
 
 		if (sc->height == 0) {
-			if ((OF_getencprop(display, "broadcom,height", 
+			if ((OF_getencprop(display, "broadcom,height",
 			    &cell, sizeof(cell))) > 0)
 				sc->height = cell;
 		}
@@ -836,7 +836,7 @@ bcmfb_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len)
 {
 	int i;
 
-	for (i = 0; i < len; i++) 
+	for (i = 0; i < len; i++)
 		bcmfb_putc(adp, off + i, s[i] & 0xff, (s[i] & 0xff00) >> 8);
 
 	return (0);

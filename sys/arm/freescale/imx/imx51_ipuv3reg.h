@@ -879,10 +879,10 @@
 #define	GPU_BASE	0x30000000
 #define	GPU_SIZE	0x10000000
 
-/* 
- * Image Processing Unit 
+/*
+ * Image Processing Unit
  *
- * All addresses are relative to the base SoC address. 
+ * All addresses are relative to the base SoC address.
  */
 #define	IPU_CM_BASE(_base)	((_base) + 0x1e000000)
 #define	IPU_CM_SIZE		0x8000

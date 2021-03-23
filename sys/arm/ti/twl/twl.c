@@ -327,11 +327,11 @@ twl_scan(void *dev)
 }
 
 /**
- *	twl_probe - 
+ *	twl_probe -
  *	@dev: the twl device
  *
  *	Scans the FDT for a match for the device, possible compatible device
- *	strings are; "ti,twl6030", "ti,twl6025", "ti,twl4030".  
+ *	strings are; "ti,twl6030", "ti,twl6025", "ti,twl4030".
  *
  *	The FDT compat string also determines the type of device (it is currently
  *	not possible to dynamically determine the device type).
@@ -366,7 +366,7 @@ twl_probe(device_t dev)
 			sc->sc_type = TWL_DEVICE_6025;
 		else if (strncasecmp(compat, "ti,twl4030", 10) == 0)
 			sc->sc_type = TWL_DEVICE_4030;
-		
+
 		if (sc->sc_type != TWL_DEVICE_UNKNOWN)
 			break;
 

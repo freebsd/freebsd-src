@@ -153,7 +153,7 @@ static struct ssi_rate rate_map[] = {
 /*
  *  i.MX6 example bit clock formula
  *
- *  BCLK = 2 channels * 192000 hz * 24 bit = 9216000 hz = 
+ *  BCLK = 2 channels * 192000 hz * 24 bit = 9216000 hz =
  *     (24000000 * (49 + 152/1000.0) / 4 / 4 / 2 / 2 / 2 / 1 / 1)
  *             ^     ^     ^      ^    ^   ^   ^   ^   ^   ^   ^
  *             |     |     |      |    |   |   |   |   |   |   |

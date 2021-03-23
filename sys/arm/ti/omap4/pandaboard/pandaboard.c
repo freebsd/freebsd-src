@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 
 /**
  *	usb_hub_init - initialises and resets the external USB hub
- *	
+ *
  *	The USB hub needs to be held in reset while the power is being applied
  *	and the reference clock is enabled at 19.2MHz.  The following is the
  *	layout of the USB hub taken from the Pandaboard reference manual.
@@ -109,7 +109,7 @@ __FBSDID("$FreeBSD$");
  *	   |      GPIO_1 | ------> |   TPS73633   |-----'
  *	   |             |         '--------------'
  *	   '-------------'
- *	
+ *
  *
  *	RETURNS:
  *	nothing.
@@ -122,7 +122,7 @@ pandaboard_usb_hub_init(void)
 	if (bus_space_map(fdtbus_bs_tag, OMAP44XX_SCRM_HWBASE,
 	    OMAP44XX_SCRM_SIZE, 0, &scrm_addr) != 0)
 		panic("Couldn't map SCRM registers");
-	if (bus_space_map(fdtbus_bs_tag, OMAP44XX_GPIO1_HWBASE, 
+	if (bus_space_map(fdtbus_bs_tag, OMAP44XX_GPIO1_HWBASE,
 	    OMAP44XX_GPIO1_SIZE, 0, &gpio1_addr) != 0)
 		panic("Couldn't map GPIO1 registers");
 	if (bus_space_map(fdtbus_bs_tag, OMAP44XX_GPIO2_HWBASE,
@@ -140,20 +140,20 @@ pandaboard_usb_hub_init(void)
 	                          (0 << 1) |     /* Use the SYS_CLK as the source */
 	                          (1 << 8));     /* Enable the clock */
 
-	/* Enable the clock out to the pin (GPIO_WK31). 
+	/* Enable the clock out to the pin (GPIO_WK31).
 	 *   muxmode=fref_clk3_out, pullup/down=disabled, input buffer=disabled,
 	 *   wakeup=disabled.
 	 */
 	REG_WRITE16(scm_addr + CONTROL_WKUP_PAD0_FREF_CLK3_OUT, 0x0000);
 
 	/* Disable the power to the USB hub, drive GPIO1 low */
-	REG_WRITE32(gpio1_addr + GPIO1_OE, REG_READ32(gpio1_addr + 
+	REG_WRITE32(gpio1_addr + GPIO1_OE, REG_READ32(gpio1_addr +
 	    GPIO1_OE) & ~(1UL << 1));
 	REG_WRITE32(gpio1_addr + GPIO1_CLEARDATAOUT, (1UL << 1));
 	REG_WRITE16(scm_addr + CONTROL_CORE_PAD1_KPD_COL2, 0x0003);
 
 	/* Reset the USB PHY and Hub using GPIO_62 */
-	REG_WRITE32(gpio2_addr + GPIO2_OE, 
+	REG_WRITE32(gpio2_addr + GPIO2_OE,
 	    REG_READ32(gpio2_addr + GPIO2_OE) & ~(1UL << 30));
 	REG_WRITE32(gpio2_addr + GPIO2_CLEARDATAOUT, (1UL << 30));
 	REG_WRITE16(scm_addr + CONTROL_CORE_PAD0_GPMC_WAIT1, 0x0003);

@@ -338,9 +338,9 @@ aw_rtc_settime(device_t dev, struct timespec *ts)
 	RTC_WRITE(sc, sc->conf->rtc_time, 0);
 
 	rdate = SET_DAY_VALUE(ct.day) | SET_MON_VALUE(ct.mon) |
-		SET_YEAR_VALUE(ct.year - YEAR_OFFSET) | 
+		SET_YEAR_VALUE(ct.year - YEAR_OFFSET) |
 		SET_LEAP_VALUE(IS_LEAP_YEAR(ct.year));
-			
+
 	rtime = SET_SEC_VALUE(ct.sec) | SET_MIN_VALUE(ct.min) |
 		SET_HOUR_VALUE(ct.hour);
 

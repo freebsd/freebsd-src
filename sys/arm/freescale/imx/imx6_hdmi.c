@@ -117,7 +117,7 @@ imx_hdmi_init(void *dev)
 		device_printf((device_t)dev, "Waiting for DDC i2c device\n");
 
 	if (sc->eh_tag == NULL) {
-		sc->eh_tag = EVENTHANDLER_REGISTER(device_attach, 
+		sc->eh_tag = EVENTHANDLER_REGISTER(device_attach,
 		    imx_hdmi_init, dev, EVENTHANDLER_PRI_ANY);
 	}
 }

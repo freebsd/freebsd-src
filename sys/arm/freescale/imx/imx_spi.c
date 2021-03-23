@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #define	  CFGREG_DATACTL_SHIFT	  16
 #define	  CFGREG_SSPOL_SHIFT	  12
 #define	  CFGREG_SSCTL_SHIFT	   8
-#define	  CFGREG_SCLKPOL_SHIFT	   4 
+#define	  CFGREG_SCLKPOL_SHIFT	   4
 #define	  CFGREG_SCLKPHA_SHIFT	   0
 #define	  CFGREG_MASK		   0x0f /* all CFGREG fields are 4 bits */
 #define	ECSPI_INTREG            0x10
@@ -508,7 +508,7 @@ spi_attach(device_t dev)
 	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	/* Set up debug-enable sysctl. */
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev), 
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
 	    OID_AUTO, "debug", CTLFLAG_RWTUN, &sc->debug, 0,
 	    "Enable debug, higher values = more info");

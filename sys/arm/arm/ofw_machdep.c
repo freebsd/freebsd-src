@@ -59,7 +59,7 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 		flags = 0;
 	} else {
 		*tag = fdtbus_bs_tag;
-		flags = (pci_hi & OFW_PCI_PHYS_HI_PREFETCHABLE) ? 
+		flags = (pci_hi & OFW_PCI_PHYS_HI_PREFETCHABLE) ?
 		    BUS_SPACE_MAP_PREFETCHABLE: 0;
 	}
 #else

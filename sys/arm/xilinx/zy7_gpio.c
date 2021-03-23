@@ -222,7 +222,7 @@ zy7_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 		WR4(sc, ZY7_GPIO_OEN(pin >> 5),
 		    RD4(sc, ZY7_GPIO_OEN(pin >> 5)) & ~(1 << (pin & 31)));
 	}
-		
+
 	ZGPIO_UNLOCK(sc);
 
 	return (0);

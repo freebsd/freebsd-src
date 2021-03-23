@@ -296,7 +296,7 @@ ipu3_fb_attach(device_t dev)
 #endif
 
 	/*
-	 * We have to wait until interrupts are enabled. 
+	 * We have to wait until interrupts are enabled.
 	 * Mailbox relies on it to get data from VideoCore
 	 */
 	ipu3_fb_init(sc);

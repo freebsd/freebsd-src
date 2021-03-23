@@ -774,7 +774,7 @@ tegra_gpio_attach(device_t dev)
 	for (i = 0; i < sc->gpio_npins; i++) {
 		sc->gpio_pins[i].gp_pin = i;
 		sc->gpio_pins[i].gp_caps = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |
-		    GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH | 
+		    GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH |
 		    GPIO_INTR_EDGE_RISING | GPIO_INTR_EDGE_FALLING |
 		    GPIO_INTR_EDGE_BOTH;
 		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME, "gpio_%s.%d",

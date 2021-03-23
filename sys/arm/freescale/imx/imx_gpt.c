@@ -181,7 +181,7 @@ imx_gpt_attach(device_t dev)
 	case GPT_CR_CLKSRC_NONE:/* Can't run without a clock. */
 	case GPT_CR_CLKSRC_EXT:	/* No way to get the freq of an ext clock. */
 	default:
-		device_printf(dev, "Unsupported clock source '%d'\n", 
+		device_printf(dev, "Unsupported clock source '%d'\n",
 		    sc->sc_clksrc);
 		return (EINVAL);
 	}

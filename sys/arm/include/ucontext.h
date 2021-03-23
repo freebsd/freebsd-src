@@ -78,7 +78,7 @@ typedef struct {
 
 	/*
 	 * Originally, rest of this structure was named __fpu, 35 * 4 bytes
-	 * long, never accessed from kernel. 
+	 * long, never accessed from kernel.
 	 */
 	__size_t	mc_vfp_size;
 	void 		*mc_vfp_ptr;

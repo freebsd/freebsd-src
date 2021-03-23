@@ -356,7 +356,7 @@ gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	} else {
 		CLEAR4(sc, IMX_GPIO_EDGE_REG, (1u << irq));
 		switch (mode) {
-		default: 
+		default:
 			/* silence warnings; default can't actually happen. */
 			/* FALLTHROUGH */
 		case GPIO_INTR_LEVEL_LOW:
@@ -845,7 +845,7 @@ imx51_gpio_attach(device_t dev)
 			imx51_gpio_detach(dev);
 			return (ENXIO);
 		}
-#endif		
+#endif
 	}
 
 	unit = device_get_unit(dev);

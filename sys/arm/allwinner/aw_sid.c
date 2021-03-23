@@ -51,8 +51,8 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmem_if.h"
 
-/* 
- * Starting at least from sun8iw6 (A83T) EFUSE starts at 0x200 
+/*
+ * Starting at least from sun8iw6 (A83T) EFUSE starts at 0x200
  * There is 3 registers in the low area to read/write protected EFUSE.
  */
 #define	SID_PRCTL		0x40

@@ -203,7 +203,7 @@ mv_spi_rx_byte(struct mv_spi_softc *sc)
 	uint32_t read;
 	uint8_t *p;
 
-	cmd = sc->sc_cmd; 
+	cmd = sc->sc_cmd;
 	p = (uint8_t *)cmd->rx_cmd;
 	read = sc->sc_read++;
 	if (read >= cmd->rx_cmd_sz) {
@@ -220,7 +220,7 @@ mv_spi_tx_byte(struct mv_spi_softc *sc)
 	uint32_t written;
 	uint8_t *p;
 
-	cmd = sc->sc_cmd; 
+	cmd = sc->sc_cmd;
 	p = (uint8_t *)cmd->tx_cmd;
 	written = sc->sc_written++;
 	if (written >= cmd->tx_cmd_sz) {

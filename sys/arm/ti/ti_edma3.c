@@ -100,8 +100,8 @@ __FBSDID("$FreeBSD$");
 
 struct ti_edma3_softc {
 	device_t		sc_dev;
-	/* 
-	 * We use one-element array in case if we need to add 
+	/*
+	 * We use one-element array in case if we need to add
 	 * mem resources for transfer control windows
 	 */
 	struct resource *	mem_res[1];

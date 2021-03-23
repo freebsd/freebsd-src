@@ -206,7 +206,7 @@ static const struct twl_regulator twl6030_regulators[] = {
 	TWL_REGULATOR_FIXED("vcxio", 0, 0x90, 1800),
 	TWL_REGULATOR_FIXED("vdac",  0, 0x94, 1800),
 	TWL_REGULATOR_FIXED("vana",  0, 0x80, 2100),
-	{ NULL, 0, 0x00, 0, NULL, 0 } 
+	{ NULL, 0, 0x00, 0, NULL, 0 }
 };
 
 #define TWL_VREG_MAX_NAMELEN  32
@@ -217,7 +217,7 @@ struct twl_regulator_entry {
 	struct sysctl_oid   *oid;
 	uint8_t          sub_dev;           /* TWL sub-device group */
 	uint8_t          reg_off;           /* base register offset for the LDO */
-	uint16_t         fixed_voltage;	    /* the (milli)voltage if LDO is fixed */ 
+	uint16_t         fixed_voltage;	    /* the (milli)voltage if LDO is fixed */
 	const uint16_t  *supp_voltages;     /* pointer to an array of possible voltages */
 	uint32_t         num_supp_voltages; /* the number of supplied voltages */
 };
@@ -262,7 +262,7 @@ static inline int
 twl_vreg_read_1(struct twl_vreg_softc *sc, struct twl_regulator_entry *regulator,
 	uint8_t off, uint8_t *val)
 {
-	return (twl_read(sc->sc_pdev, regulator->sub_dev, 
+	return (twl_read(sc->sc_pdev, regulator->sub_dev,
 	    regulator->reg_off + off, val, 1));
 }
 
@@ -626,7 +626,7 @@ twl_vreg_read_regulator_voltage(struct twl_vreg_softc *sc,
 	if (err)
 		goto done;
 
-	*millivolts = 0;	
+	*millivolts = 0;
 	if (!en)
 		goto done;
 
@@ -888,14 +888,14 @@ twl_vreg_add_regulators(struct twl_vreg_softc *sc,
 			len += strlen(name) + 1;
 			if ((len >= prop_len) || (name[0] == '\0'))
 				break;
-			
+
 			voltage = rnames + len;
 			len += strlen(voltage) + 1;
 			if (voltage[0] == '\0')
 				break;
-			
+
 			millivolts = strtoul(voltage, NULL, 0);
-			
+
 			LIST_FOREACH(entry, &sc->sc_vreg_list, entries) {
 				if (strcmp(entry->name, name) == 0) {
 					twl_vreg_write_regulator_voltage(sc, entry, millivolts);

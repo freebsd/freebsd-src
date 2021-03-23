@@ -103,14 +103,14 @@ struct twl_clock {
 
 static const struct twl_clock twl4030_clocks[] = {
 	{ "32kclkout", 0, 0x8e },
-	{ NULL, 0, 0x00 } 
+	{ NULL, 0, 0x00 }
 };
 
 static const struct twl_clock twl6030_clocks[] = {
 	{ "clk32kg",     0, 0xbc },
 	{ "clk32kao",    0, 0xb9 },
 	{ "clk32kaudio", 0, 0xbf },
-	{ NULL, 0, 0x00 } 
+	{ NULL, 0, 0x00 }
 };
 
 #define TWL_CLKS_MAX_NAMELEN  32
@@ -225,7 +225,7 @@ twl_clks_is_enabled(device_t dev, const char *name, int *enabled)
 				TWL_CLKS_LOCK_DOWNGRADE(sc);
 				goto done;
 			}
-			
+
 			if (!(grp & TWL6030_P1_GRP)) {
 				TWL_CLKS_LOCK_DOWNGRADE(sc);
 				*enabled = 0; /* disabled */
@@ -237,7 +237,7 @@ twl_clks_is_enabled(device_t dev, const char *name, int *enabled)
 		err = twl_clks_read_1(sc, clk, TWL_CLKS_STATE, &state);
 		if (!err)
 			*enabled = ((state & 0x0C) == 0x04);
-			
+
 		TWL_CLKS_LOCK_DOWNGRADE(sc);
 
 	} else {
@@ -288,7 +288,7 @@ twl_clks_set_state(struct twl_clks_softc *sc, struct twl_clk_entry *clk,
 			grp |= TWL4030_P1_GRP;
 		else
 			grp &= ~(TWL4030_P1_GRP | TWL4030_P2_GRP | TWL4030_P3_GRP);
-		
+
 		err = twl_clks_write_1(sc, clk, TWL_CLKS_GRP, grp);
 
 	} else if (twl_is_6030(sc->sc_pdev) || twl_is_6025(sc->sc_pdev)) {
@@ -313,7 +313,7 @@ twl_clks_set_state(struct twl_clks_softc *sc, struct twl_clk_entry *clk,
 			err = twl_clks_write_1(sc, clk, TWL_CLKS_STATE, (grp << 5));
 
 	} else {
-		
+
 		err = EINVAL;
 	}
 
@@ -422,7 +422,7 @@ twl_clks_sysctl_clock(SYSCTL_HANDLER_ARGS)
  *	@nsub: the number of the subdevice
  *	@regbase: the base address of the clocks registers
  *
- *	Adds a single clock to the device and also a sysctl interface for 
+ *	Adds a single clock to the device and also a sysctl interface for
  *	querying it's status.
  *
  *	LOCKING:
@@ -514,14 +514,14 @@ twl_clks_add_clocks(struct twl_clks_softc *sc, const struct twl_clock *clks)
 			len += strlen(name) + 1;
 			if ((len >= prop_len) || (name[0] == '\0'))
 				break;
-			
+
 			state = rnames + len;
 			len += strlen(state) + 1;
 			if (state[0] == '\0')
 				break;
-			
+
 			enable = !strncmp(state, "on", 2);
-			
+
 			LIST_FOREACH(entry, &sc->sc_clks_list, link) {
 				if (strcmp(entry->name, name) == 0) {
 					twl_clks_set_state(sc, entry, enable);

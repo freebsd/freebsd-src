@@ -407,9 +407,9 @@ bcm_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	sc = device_get_softc(dev);
 
-	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz, 
+	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz,
 	    ("TX/RX command sizes should be equal"));
-	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz, 
+	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz,
 	    ("TX/RX data sizes should be equal"));
 
 	/* Get the bus speed, mode, and chip select for this child. */

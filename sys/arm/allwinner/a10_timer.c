@@ -242,9 +242,9 @@ a10_timer_attach(device_t dev)
 	if (bootverbose) {
 		device_printf(sc->sc_dev, "clock: hz=%d stathz = %d\n", hz, stathz);
 
-		device_printf(sc->sc_dev, "event timer clock frequency %ju\n", 
+		device_printf(sc->sc_dev, "event timer clock frequency %ju\n",
 		    sc->timer0_freq);
-		device_printf(sc->sc_dev, "timecounter clock frequency %jd\n", 
+		device_printf(sc->sc_dev, "timecounter clock frequency %jd\n",
 		    a10_timer_timecounter.tc_frequency);
 	}
 
@@ -265,9 +265,9 @@ a10_timer_irq(void *arg)
 	val = timer_read_4(sc, TIMER_CTRL_REG(0));
 
 	/*
-	 * Disabled autoreload and sc_period > 0 means 
+	 * Disabled autoreload and sc_period > 0 means
 	 * timer_start was called with non NULL first value.
-	 * Now we will set periodic timer with the given period 
+	 * Now we will set periodic timer with the given period
 	 * value.
 	 */
 	if ((val & (1<<1)) == 0 && sc->sc_period > 0) {

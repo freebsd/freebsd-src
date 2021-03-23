@@ -28,7 +28,7 @@
  * $FreeBSD$
  */
 
-/* 
+/*
  * Zynq-7000 Devcfg driver.  This allows programming the PL (FPGA) section
  * of Zynq.
  *
@@ -120,7 +120,7 @@ SYSCTL_INT(_hw, OID_AUTO, ps_vers, CTLFLAG_RD, &zy7_ps_vers, 0,
 	   "Zynq-7000 PS version");
 
 static int zy7_devcfg_fclk_sysctl_level_shifters(SYSCTL_HANDLER_ARGS);
-SYSCTL_PROC(_hw_fpga, OID_AUTO, level_shifters, 
+SYSCTL_PROC(_hw_fpga, OID_AUTO, level_shifters,
     CTLFLAG_RW | CTLTYPE_INT | CTLFLAG_NEEDGIANT, NULL, 0,
     zy7_devcfg_fclk_sysctl_level_shifters, "I",
     "Enable/disable level shifters");
@@ -376,19 +376,19 @@ zy7_devcfg_init_fclk_sysctl(struct zy7_devcfg_softc *sc)
 
 		SYSCTL_ADD_INT(&sc->sysctl_tree,
 		    SYSCTL_CHILDREN(fclk_node), OID_AUTO,
-		    "actual_freq", CTLFLAG_RD, 
+		    "actual_freq", CTLFLAG_RD,
 		    &fclk_configs[i].actual_frequency, i,
 		    "Actual frequency");
 		SYSCTL_ADD_PROC(&sc->sysctl_tree,
 		    SYSCTL_CHILDREN(fclk_node), OID_AUTO,
-		    "freq", CTLFLAG_RW | CTLTYPE_INT | CTLFLAG_NEEDGIANT, 
+		    "freq", CTLFLAG_RW | CTLTYPE_INT | CTLFLAG_NEEDGIANT,
 		    &fclk_configs[i], i,
 		    zy7_devcfg_fclk_sysctl_freq,
 		    "I", "Configured frequency");
 		SYSCTL_ADD_PROC(&sc->sysctl_tree,
 		    SYSCTL_CHILDREN(fclk_node), OID_AUTO,
-		    "source", CTLFLAG_RW | CTLTYPE_STRING | CTLFLAG_NEEDGIANT, 
-		    &fclk_configs[i], i, 
+		    "source", CTLFLAG_RW | CTLTYPE_STRING | CTLFLAG_NEEDGIANT,
+		    &fclk_configs[i], i,
 		    zy7_devcfg_fclk_sysctl_source,
 		    "A", "Clock source");
 	}
@@ -780,7 +780,7 @@ zy7_devcfg_attach(device_t dev)
 
 	for (i = 0; i < FCLK_NUM; i++) {
 		fclk_configs[i].source = zy7_pl_fclk_get_source(i);
-		fclk_configs[i].actual_frequency = 
+		fclk_configs[i].actual_frequency =
 			zy7_pl_fclk_enabled(i) ? zy7_pl_fclk_get_freq(i) : 0;
 		/* Initially assume actual frequency is the configure one */
 		fclk_configs[i].frequency = fclk_configs[i].actual_frequency;

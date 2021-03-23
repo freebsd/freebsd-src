@@ -78,7 +78,7 @@ static const struct allwinner_pins h6_pins[] = {
 	{ "PD20", 3, 20,  { "gpio_in", "gpio_out", "lcd0", "ts2", "uart2", "emac" } },
 	{ "PD21", 3, 21,  { "gpio_in", "gpio_out", "lcd0", "ts2", "uart2" } },
 	{ "PD22", 3, 22,  { "gpio_in", "gpio_out", "pwm0", "ts3", "uart2" } },
-	{ "PD23", 3, 23,  { "gpio_in", "gpio_out", "i2c2", "ts3", "uart3", "jtag" } }, 
+	{ "PD23", 3, 23,  { "gpio_in", "gpio_out", "i2c2", "ts3", "uart3", "jtag" } },
 	{ "PD24", 3, 24,  { "gpio_in", "gpio_out", "i2c2", "ts3", "uart3", "jtag" } },
 	{ "PD25", 3, 25,  { "gpio_in", "gpio_out", "i2c0", "ts3", "uart3", "jtag" } },
 	{ "PD26", 3, 26,  { "gpio_in", "gpio_out", "i2c0", "ts3", "uart3", "jtag" } },

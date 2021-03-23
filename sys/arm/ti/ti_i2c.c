@@ -253,7 +253,7 @@ ti_i2c_transfer_intr(struct ti_i2c_softc* sc, uint16_t status)
 
 		/* Read the bytes from the fifo. */
 		for (i = 0; i < amount; i++)
-			sc->sc_buffer->buf[sc->sc_buffer_pos++] = 
+			sc->sc_buffer->buf[sc->sc_buffer_pos++] =
 			    (uint8_t)(ti_i2c_read_2(sc, I2C_REG_DATA) & 0xff);
 
 		if (status & I2C_STAT_RDR)
@@ -779,7 +779,7 @@ ti_i2c_sysctl_timeout(SYSCTL_HANDLER_ARGS)
 
 	sc = arg1;
 
-	/* 
+	/*
 	 * MTX_DEF lock can't be held while doing uimove in
 	 * sysctl_handle_int
 	 */

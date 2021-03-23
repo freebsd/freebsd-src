@@ -26,7 +26,7 @@
  */
 
 /*
- * Allwinner A10/A20 HDMI TX 
+ * Allwinner A10/A20 HDMI TX
  */
 
 #include <sys/cdefs.h>

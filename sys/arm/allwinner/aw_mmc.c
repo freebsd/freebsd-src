@@ -1178,7 +1178,7 @@ aw_mmc_request(device_t bus, device_t child, struct mmc_request *req)
 	/* Write the command argument */
 	AW_MMC_WRITE_4(sc, AW_MMC_CAGR, cmd->arg);
 
-	/* 
+	/*
 	 * If we don't have data start the request
 	 * if we do prepare the dma request and start the request
 	 */

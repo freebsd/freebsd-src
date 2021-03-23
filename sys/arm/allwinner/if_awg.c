@@ -492,7 +492,7 @@ awg_enable_mac(struct awg_softc *sc, bool enable)
 	WR4(sc, EMAC_RX_CTL_0, rx);
 }
 
-static void 
+static void
 awg_get_eaddr(device_t dev, uint8_t *eaddr)
 {
 	struct awg_softc *sc;

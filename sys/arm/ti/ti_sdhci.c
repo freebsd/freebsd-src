@@ -246,7 +246,7 @@ ti_sdhci_read_multi_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 }
 
 static void
-ti_sdhci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off, 
+ti_sdhci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
     uint8_t val)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
@@ -276,7 +276,7 @@ ti_sdhci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 }
 
 static void
-ti_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, 
+ti_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
     uint16_t val)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
@@ -321,11 +321,11 @@ ti_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 	val32 = RD4(sc, off & ~3);
 	val32 &= ~(0xffff << (off & 3) * 8);
 	val32 |= ((val & 0xffff) << (off & 3) * 8);
-	WR4(sc, off & ~3, val32);	
+	WR4(sc, off & ~3, val32);
 }
 
 static void
-ti_sdhci_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off, 
+ti_sdhci_write_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
     uint32_t val)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
@@ -664,7 +664,7 @@ ti_sdhci_attach(device_t dev)
 	 * property, honor it.
 	 */
 	if (OF_getencprop(node, "bus-width", &prop, sizeof(prop)) > 0) {
-		sc->slot.host.caps &= ~(MMC_CAP_4_BIT_DATA | 
+		sc->slot.host.caps &= ~(MMC_CAP_4_BIT_DATA |
 		    MMC_CAP_8_BIT_DATA);
 		switch (prop) {
 		case 8:

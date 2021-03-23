@@ -125,7 +125,7 @@ imx6_mp_start_ap(platform_t plat)
 	 * Diagnostic Control Register helps work around the problem.
 	 */
 	val = bus_space_read_4(fdtbus_bs_tag, scu, SCU_DIAG_CONTROL);
-	bus_space_write_4(fdtbus_bs_tag, scu, SCU_DIAG_CONTROL, 
+	bus_space_write_4(fdtbus_bs_tag, scu, SCU_DIAG_CONTROL,
 	    val | SCU_DIAG_DISABLE_MIGBIT);
 
 	/*
@@ -136,7 +136,7 @@ imx6_mp_start_ap(platform_t plat)
 	 * their SCU tag ram above, so they will be coherent from startup.
 	 */
 	val = bus_space_read_4(fdtbus_bs_tag, scu, SCU_CONTROL_REG);
-	bus_space_write_4(fdtbus_bs_tag, scu, SCU_CONTROL_REG, 
+	bus_space_write_4(fdtbus_bs_tag, scu, SCU_CONTROL_REG,
 	    val | SCU_CONTROL_ENABLE);
 	dcache_wbinv_poc_all();
 

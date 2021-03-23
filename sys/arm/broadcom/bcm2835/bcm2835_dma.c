@@ -285,8 +285,8 @@ bcm_dma_init(device_t dev)
 			break;
 		}
 
-		/* 
-		 * Least alignment for busdma-allocated stuff is cache 
+		/*
+		 * Least alignment for busdma-allocated stuff is cache
 		 * line size, so just make sure nothing stupid happened
 		 * and we got properly aligned address
 		 */
@@ -412,12 +412,12 @@ bcm_dma_setup_intr(int ch, void (*func)(int, void *), void *arg)
  *     dreq - hardware DREQ # or BCM_DMA_DREQ_NONE if
  *         source is physical memory
  *     inc_addr - BCM_DMA_INC_ADDR if source address
- *         should be increased after each access or 
- *         BCM_DMA_SAME_ADDR if address should remain 
+ *         should be increased after each access or
+ *         BCM_DMA_SAME_ADDR if address should remain
  *         the same
  *     width - size of read operation, BCM_DMA_32BIT
  *         for 32bit bursts, BCM_DMA_128BIT for 128 bits
- *	  
+ *
  * Returns 0 on success, -1 otherwise
  */
 int
@@ -462,12 +462,12 @@ bcm_dma_setup_src(int ch, int dreq, int inc_addr, int width)
  *     dreq - hardware DREQ # or BCM_DMA_DREQ_NONE if
  *         destination is physical memory
  *     inc_addr - BCM_DMA_INC_ADDR if source address
- *         should be increased after each access or 
- *         BCM_DMA_SAME_ADDR if address should remain 
+ *         should be increased after each access or
+ *         BCM_DMA_SAME_ADDR if address should remain
  *         the same
  *     width - size of write operation, BCM_DMA_32BIT
  *         for 32bit bursts, BCM_DMA_128BIT for 128 bits
- *	  
+ *
  * Returns 0 on success, -1 otherwise
  */
 int
@@ -547,9 +547,9 @@ bcm_dma_reg_dump(int ch)
  * Start DMA transaction
  *     ch - channel number
  *     src, dst - source and destination address in
- *         ARM physical memory address space. 
+ *         ARM physical memory address space.
  *     len - amount of bytes to be transferred
- *	  
+ *
  * Returns 0 on success, -1 otherwise
  */
 int
@@ -588,7 +588,7 @@ bcm_dma_start(int ch, vm_paddr_t src, vm_paddr_t dst, int len)
 /*
  * Get length requested for DMA transaction
  *     ch - channel number
- *	  
+ *
  * Returns size of transaction, 0 if channel is invalid
  */
 uint32_t
@@ -635,14 +635,14 @@ bcm_dma_intr(void *arg)
 		debug = bus_read_4(sc->sc_mem, BCM_DMA_DEBUG(ch->ch));
 		device_printf(sc->sc_dev, "DMA error %d on CH%d\n",
 			debug & DEBUG_ERROR_MASK, ch->ch);
-		bus_write_4(sc->sc_mem, BCM_DMA_DEBUG(ch->ch), 
+		bus_write_4(sc->sc_mem, BCM_DMA_DEBUG(ch->ch),
 		    debug & DEBUG_ERROR_MASK);
 		bcm_dma_reset(sc->sc_dev, ch->ch);
 	}
 
 	if (cs & CS_INT) {
 		/* acknowledge interrupt */
-		bus_write_4(sc->sc_mem, BCM_DMA_CS(ch->ch), 
+		bus_write_4(sc->sc_mem, BCM_DMA_CS(ch->ch),
 		    CS_INT | CS_END);
 
 		/* Prepare for possible access to len field */

@@ -156,7 +156,7 @@ ocotp_probe(device_t dev)
 	if (ofw_bus_is_compatible(dev, "fsl,imx6q-ocotp") == 0)
 		return (ENXIO);
 
-	device_set_desc(dev, 
+	device_set_desc(dev,
 	    "Freescale On-Chip One-Time-Programmable Memory");
 
 	return (BUS_PROBE_DEFAULT);

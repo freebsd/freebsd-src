@@ -96,7 +96,7 @@ int ti_sdma_deactivate_channel(unsigned int ch);
 int ti_sdma_start_xfer(unsigned int ch, unsigned int src_paddr,
     unsigned long dst_paddr, unsigned int frmcnt, unsigned int elmcnt);
 int ti_sdma_start_xfer_packet(unsigned int ch, unsigned int src_paddr,
-    unsigned long dst_paddr, unsigned int frmcnt, unsigned int elmcnt, 
+    unsigned long dst_paddr, unsigned int frmcnt, unsigned int elmcnt,
     unsigned int pktsize);
 int ti_sdma_stop_xfer(unsigned int ch);
 int ti_sdma_enable_channel_irq(unsigned int ch, uint32_t flags);

@@ -78,7 +78,7 @@ struct a10hdmiaudio_info;
 
 struct a10hdmiaudio_chinfo {
 	struct snd_dbuf		*buffer;
-	struct pcm_channel	*channel;	
+	struct pcm_channel	*channel;
 	struct a10hdmiaudio_info	*parent;
 	bus_dmamap_t		dmamap;
 	void			*dmaaddr;

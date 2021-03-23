@@ -169,7 +169,7 @@ static struct aw_clk_nkmp_def pll_core = {
 	.flags = AW_CLK_HAS_GATE,
 };
 
-/* 
+/*
  * We only implement pll-audio for now
  * For pll-audio-2/4/8 x we need a way to change the frequency
  * of the parent clocks

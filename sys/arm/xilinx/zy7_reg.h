@@ -29,7 +29,7 @@
  */
 
 /*
- * Address regions of Zynq-7000.  
+ * Address regions of Zynq-7000.
  * Reference: Zynq-7000 All Programmable SoC Technical Reference Manual.
  * (v1.4) November 16, 2012.  Xilinx doc UG585.
  */

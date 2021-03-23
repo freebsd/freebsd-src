@@ -255,10 +255,10 @@ cgem_set_ref_clk(int unit, int frequency)
 	return (0);
 }
 
-/* 
+/*
  * PL clocks management function
  */
-int 
+int
 zy7_pl_fclk_set_source(int unit, int source)
 {
 	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
@@ -286,7 +286,7 @@ zy7_pl_fclk_set_source(int unit, int source)
 	return (0);
 }
 
-int 
+int
 zy7_pl_fclk_get_source(int unit)
 {
 	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
@@ -300,7 +300,7 @@ zy7_pl_fclk_get_source(int unit)
 
 	/* Modify GEM reference clock. */
 	reg = RD4(sc, ZY7_SLCR_FPGA_CLK_CTRL(unit));
-	source = (reg & ZY7_SLCR_FPGA_CLK_CTRL_SRCSEL_MASK) >> 
+	source = (reg & ZY7_SLCR_FPGA_CLK_CTRL_SRCSEL_MASK) >>
 	    ZY7_SLCR_FPGA_CLK_CTRL_SRCSEL_SHIFT;
 
 	/* ZY7_PL_FCLK_SRC_IO is actually b0x */
@@ -434,7 +434,7 @@ zy7_pl_fclk_get_freq(int unit)
 	return (frequency);
 }
 
-int 
+int
 zy7_pl_fclk_enable(int unit)
 {
 	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
@@ -458,7 +458,7 @@ zy7_pl_fclk_enable(int unit)
 	return (0);
 }
 
-int 
+int
 zy7_pl_fclk_disable(int unit)
 {
 	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
@@ -482,7 +482,7 @@ zy7_pl_fclk_disable(int unit)
 	return (0);
 }
 
-int 
+int
 zy7_pl_fclk_enabled(int unit)
 {
 	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;

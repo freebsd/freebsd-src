@@ -244,7 +244,7 @@ am335x_rend_draw(scr_stat* scp, int from, int count, int flip)
 	if (!flip) {
 		/* Normal printing */
 		vidd_puts(adp, from, (uint16_t*)sc_vtb_pointer(&scp->vtb, from), count);
-	} else {	
+	} else {
 		/* This is for selections and such: invert the color attribute */
 		for (i = count; i-- > 0; ++from) {
 			c = sc_vtb_getc(&scp->vtb, from);
@@ -382,7 +382,7 @@ am335x_syscons_configure(int flags)
 	 * to fetch data from FDT and go with defaults if failed
 	 */
 	root = OF_finddevice("/");
-	if ((root != -1) && 
+	if ((root != -1) &&
 	    (display = am335x_syscons_find_panel_node(root))) {
 		if ((OF_getencprop(display, "panel_width", &cell,
 		    sizeof(cell))) > 0)
@@ -736,7 +736,7 @@ am335x_syscons_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len
 {
 	int i;
 
-	for (i = 0; i < len; i++) 
+	for (i = 0; i < len; i++)
 		am335x_syscons_putc(adp, off + i, s[i] & 0xff, (s[i] & 0xff00) >> 8);
 
 	return (0);

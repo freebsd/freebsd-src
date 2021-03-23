@@ -584,7 +584,7 @@ imx_ccm_usbphy_enable(device_t dev)
 	uint32_t regval;
 
 	/*
-	 * Select PLL3 as the source for the USBPHY clock.  U-boot does this 
+	 * Select PLL3 as the source for the USBPHY clock.  U-boot does this
 	 * only for imx53, but the bit exists on imx51.  That seems a bit
 	 * strange, but we'll go with it until more is known.
 	 */

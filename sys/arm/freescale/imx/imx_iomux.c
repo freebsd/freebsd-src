@@ -167,7 +167,7 @@ iomux_configure_pins(device_t dev, phandle_t cfgxref)
 		if ((cfg->padconf_val & PADCONF_NONE) == 0)
 			WR4(sc, cfg->padconf_reg, cfg->padconf_val);
 		if (bootverbose) {
-			char name[32]; 
+			char name[32];
 			OF_getprop(cfgnode, "name", &name, sizeof(name));
 			printf("%16s: muxreg 0x%04x muxval 0x%02x "
 			    "inpreg 0x%04x inpval 0x%02x "
@@ -268,7 +268,7 @@ imx_iomux_gpr_get(u_int regaddr)
 
 	sc = iomux_sc;
 	KASSERT(sc != NULL, ("%s called before attach", __FUNCTION__));
-	KASSERT(regaddr >= 0 && regaddr <= sc->last_gpregaddr, 
+	KASSERT(regaddr >= 0 && regaddr <= sc->last_gpregaddr,
 	    ("%s bad regaddr %u, max %u", __FUNCTION__, regaddr,
 	    sc->last_gpregaddr));
 
@@ -282,7 +282,7 @@ imx_iomux_gpr_set(u_int regaddr, uint32_t val)
 
 	sc = iomux_sc;
 	KASSERT(sc != NULL, ("%s called before attach", __FUNCTION__));
-	KASSERT(regaddr >= 0 && regaddr <= sc->last_gpregaddr, 
+	KASSERT(regaddr >= 0 && regaddr <= sc->last_gpregaddr,
 	    ("%s bad regaddr %u, max %u", __FUNCTION__, regaddr,
 	    sc->last_gpregaddr));
 
@@ -297,7 +297,7 @@ imx_iomux_gpr_set_masked(u_int regaddr, uint32_t clrbits, uint32_t setbits)
 
 	sc = iomux_sc;
 	KASSERT(sc != NULL, ("%s called before attach", __FUNCTION__));
-	KASSERT(regaddr >= 0 && regaddr <= sc->last_gpregaddr, 
+	KASSERT(regaddr >= 0 && regaddr <= sc->last_gpregaddr,
 	    ("%s bad regaddr %u, max %u", __FUNCTION__, regaddr,
 	    sc->last_gpregaddr));
 
@@ -326,5 +326,5 @@ static driver_t imx_iomux_driver = {
 
 static devclass_t imx_iomux_devclass;
 
-EARLY_DRIVER_MODULE(imx_iomux, simplebus, imx_iomux_driver, 
+EARLY_DRIVER_MODULE(imx_iomux, simplebus, imx_iomux_driver,
     imx_iomux_devclass, 0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_LATE);

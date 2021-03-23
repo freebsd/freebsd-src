@@ -439,8 +439,8 @@ aw_spi_intr(void *arg)
 
 	if (intr & AW_SPI_IER_TF_EMP) {
 		aw_spi_fill_txfifo(sc);
-		/* 
-		 * If we don't have anything else to write 
+		/*
+		 * If we don't have anything else to write
 		 * disable TXFifo interrupts
 		 */
 		if (sc->txcnt == sc->txlen)
@@ -501,7 +501,7 @@ aw_spi_xfer(struct aw_spi_softc *sc, void *rxbuf, void *txbuf, uint32_t txlen, u
 	reg |= AW_SPI_TCR_XCH;
 	AW_SPI_WRITE_4(sc, AW_SPI_TCR, reg);
 
-	/* 
+	/*
 	 * Enable interrupts for :
 	 * Transmit complete
 	 * TX Fifo empty

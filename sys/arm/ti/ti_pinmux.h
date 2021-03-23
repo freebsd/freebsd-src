@@ -69,7 +69,7 @@ struct ti_pinmux_softc {
 	bus_space_handle_t	sc_bsh;
 };
 
-int ti_pinmux_padconf_set(const char *padname, const char *muxmode, 
+int ti_pinmux_padconf_set(const char *padname, const char *muxmode,
     unsigned int state);
 int ti_pinmux_padconf_get(const char *padname, const char **muxmode,
     unsigned int *state);

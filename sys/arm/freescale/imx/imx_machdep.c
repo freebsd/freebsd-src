@@ -51,10 +51,10 @@ SYSCTL_NODE(_hw, OID_AUTO, imx, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "i.MX container");
 
 static int last_reset_status;
-SYSCTL_UINT(_hw_imx, OID_AUTO, last_reset_status, CTLFLAG_RD, 
+SYSCTL_UINT(_hw_imx, OID_AUTO, last_reset_status, CTLFLAG_RD,
     &last_reset_status, 0, "Last reset status register");
 
-SYSCTL_STRING(_hw_imx, OID_AUTO, last_reset_reason, CTLFLAG_RD, 
+SYSCTL_STRING(_hw_imx, OID_AUTO, last_reset_reason, CTLFLAG_RD,
     "unknown", 0, "Last reset reason");
 
 /*

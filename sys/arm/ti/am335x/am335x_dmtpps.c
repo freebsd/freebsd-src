@@ -313,7 +313,7 @@ dmtpps_poll(struct timecounter *tc)
 }
 
 static int
-dmtpps_open(struct cdev *dev, int flags, int fmt, 
+dmtpps_open(struct cdev *dev, int flags, int fmt,
     struct thread *td)
 {
 	struct dmtpps_softc *sc;
@@ -332,7 +332,7 @@ dmtpps_open(struct cdev *dev, int flags, int fmt,
 }
 
 static	int
-dmtpps_close(struct cdev *dev, int flags, int fmt, 
+dmtpps_close(struct cdev *dev, int flags, int fmt,
     struct thread *td)
 {
 	struct dmtpps_softc *sc;
@@ -350,7 +350,7 @@ dmtpps_close(struct cdev *dev, int flags, int fmt,
 }
 
 static int
-dmtpps_ioctl(struct cdev *dev, u_long cmd, caddr_t data, 
+dmtpps_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
     int flags, struct thread *td)
 {
 	struct dmtpps_softc *sc;

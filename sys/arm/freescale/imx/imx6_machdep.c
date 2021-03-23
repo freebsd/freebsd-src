@@ -304,7 +304,7 @@ imx_soc_type(void)
 		return (soctype);
 
 	digprog = imx6_anatop_read_4(IMX6_ANALOG_DIGPROG_SL);
-	hwsoc = (digprog >> IMX6_ANALOG_DIGPROG_SOCTYPE_SHIFT) & 
+	hwsoc = (digprog >> IMX6_ANALOG_DIGPROG_SOCTYPE_SHIFT) &
 	    IMX6_ANALOG_DIGPROG_SOCTYPE_MASK;
 
 	if (hwsoc != HWSOC_MX6SL) {
@@ -359,8 +359,8 @@ imx_soc_type(void)
  * makes sense now, but if multiple SOCs do that it will make early_putc another
  * duplicate symbol to be eliminated on the path to a generic kernel.
  */
-#if 0 
-static void 
+#if 0
+static void
 imx6_early_putc(int c)
 {
 	volatile uint32_t * UART_STAT_REG = (uint32_t *)0x02020098;

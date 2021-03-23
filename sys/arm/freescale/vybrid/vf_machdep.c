@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/fdt.h>
-#include <machine/platform.h> 
+#include <machine/platform.h>
 #include <machine/platformvar.h>
 
 #include <arm/freescale/vybrid/vf_src.h>

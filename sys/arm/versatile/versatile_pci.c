@@ -222,8 +222,8 @@ versatile_pci_attach(device_t dev)
 	/* Prepare resource managers */
 	sc->mem_rman.rm_type = RMAN_ARRAY;
 	sc->mem_rman.rm_descr = "versatile PCI memory window";
-	if (rman_init(&sc->mem_rman) != 0 || 
-	    rman_manage_region(&sc->mem_rman, PCI_NPREFETCH_WINDOW, 
+	if (rman_init(&sc->mem_rman) != 0 ||
+	    rman_manage_region(&sc->mem_rman, PCI_NPREFETCH_WINDOW,
 		PCI_NPREFETCH_WINDOW + PCI_NPREFETCH_SIZE - 1) != 0) {
 		panic("versatile_pci_attach: failed to set up memory rman");
 	}
@@ -231,8 +231,8 @@ versatile_pci_attach(device_t dev)
 	bootverbose = 1;
 	sc->io_rman.rm_type = RMAN_ARRAY;
 	sc->io_rman.rm_descr = "versatile PCI IO window";
-	if (rman_init(&sc->io_rman) != 0 || 
-	    rman_manage_region(&sc->io_rman, PCI_IO_WINDOW, 
+	if (rman_init(&sc->io_rman) != 0 ||
+	    rman_manage_region(&sc->io_rman, PCI_IO_WINDOW,
 		PCI_IO_WINDOW + PCI_IO_SIZE - 1) != 0) {
 		panic("versatile_pci_attach: failed to set up I/O rman");
 	}
@@ -240,7 +240,7 @@ versatile_pci_attach(device_t dev)
 	sc->irq_rman.rm_type = RMAN_ARRAY;
 	sc->irq_rman.rm_descr = "versatile PCI IRQs";
 	if (rman_init(&sc->irq_rman) != 0 ||
-	    rman_manage_region(&sc->irq_rman, VERSATILE_PCI_IRQ_START, 
+	    rman_manage_region(&sc->irq_rman, VERSATILE_PCI_IRQ_START,
 	        VERSATILE_PCI_IRQ_END) != 0) {
 		panic("versatile_pci_attach: failed to set up IRQ rman");
 	}
@@ -443,7 +443,7 @@ versatile_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 
 	if (sc->pcib_slot == slot) {
 		switch (bytes) {
-			case 4: 
+			case 4:
 				return (0xffffffff);
 				break;
 			case 2:
@@ -468,7 +468,7 @@ versatile_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 	else
 		mask = 0xffffffff;
 
-	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot, 
+	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot,
 	    func, reg, bytes);
 
 	mtx_lock_spin(&sc->mtx);
@@ -500,7 +500,7 @@ versatile_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 	addr = (bus << 16) | (slot << 11) | (func << 8) | reg;
 	mtx_lock_spin(&sc->mtx);
 	switch (bytes) {
-		case 4: 
+		case 4:
 			versatile_pci_conf_write_4(addr, data);
 			break;
 		case 2:
