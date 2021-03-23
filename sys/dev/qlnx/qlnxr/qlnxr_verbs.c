@@ -36,8 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "qlnxr_roce.h"
 #include "qlnxr_cm.h"
 
-#define upper_32_bits(x) (uint32_t)(x >> 32)
-#define lower_32_bits(x) (uint32_t)(x)
 #define HILO_U64(hi, lo)		((((u64)(hi)) << 32) + (lo))
 
 #define TYPEPTR_ADDR_SET(type_ptr, field, vaddr)			\
@@ -1364,9 +1362,6 @@ qlnxr_prepare_pbl_tbl(struct qlnxr_dev *dev,
 
 	return 0;
 }
-
-#define upper_32_bits(x) (uint32_t)(x >> 32)
-#define lower_32_bits(x) (uint32_t)(x)
 
 static void
 qlnxr_populate_pbls(struct qlnxr_dev *dev, struct ib_umem *umem,
