@@ -48,7 +48,7 @@ pci_hostbridge_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	value = get_config_value_node(nvl, "vendor");
 	if (value != NULL)
 		vendor = strtol(value, NULL, 0);
-	value = get_config_value_node(nvl, "device");
+	value = get_config_value_node(nvl, "devid");
 	if (value != NULL)
 		device = strtol(value, NULL, 0);
 
@@ -69,7 +69,7 @@ pci_amd_hostbridge_legacy_config(nvlist_t *nvl, const char *opts)
 {
 
 	set_config_value_node(nvl, "vendor", "0x1022");	/* AMD */
-	set_config_value_node(nvl, "device", "0x7432");	/* made up */
+	set_config_value_node(nvl, "devid", "0x7432");	/* made up */
 
 	return (0);
 }
