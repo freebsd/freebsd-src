@@ -2470,30 +2470,31 @@ load_needed_objects(Obj_Entry *first, int flags)
 static int
 load_preload_objects(void)
 {
-    char *p = ld_preload;
-    Obj_Entry *obj;
-    static const char delim[] = " \t:;";
+	char *p = ld_preload;
+	Obj_Entry *obj;
+	static const char delim[] = " \t:;";
 
-    if (p == NULL)
-	return 0;
+	if (p == NULL)
+		return (0);
 
-    p += strspn(p, delim);
-    while (*p != '\0') {
-	size_t len = strcspn(p, delim);
-	char savech;
-
-	savech = p[len];
-	p[len] = '\0';
-	obj = load_object(p, -1, NULL, 0);
-	if (obj == NULL)
-	    return -1;	/* XXX - cleanup */
-	obj->z_interpose = true;
-	p[len] = savech;
-	p += len;
 	p += strspn(p, delim);
-    }
-    LD_UTRACE(UTRACE_PRELOAD_FINISHED, NULL, NULL, 0, 0, NULL);
-    return 0;
+	while (*p != '\0') {
+		size_t len = strcspn(p, delim);
+		char savech;
+
+		savech = p[len];
+		p[len] = '\0';
+		obj = load_object(p, -1, NULL, 0);
+		if (obj == NULL)
+			return (-1);	/* XXX - cleanup */
+		obj->z_interpose = true;
+		p[len] = savech;
+		p += len;
+		p += strspn(p, delim);
+	}
+	LD_UTRACE(UTRACE_PRELOAD_FINISHED, NULL, NULL, 0, 0, NULL);
+
+	return (0);
 }
 
 static const char *
