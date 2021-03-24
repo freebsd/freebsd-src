@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .PATH: ${SRCTOP}/sys/compat/linux ${SRCTOP}/sys/${MACHINE}/linux
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 .PATH: ${SRCTOP}/sys/x86/linux
 .endif
 
@@ -16,16 +16,13 @@ SRCS=	linux_fork.c linux_dummy_machdep.c linux_file.c linux_event.c \
 	opt_compat.h opt_inet6.h opt_posix.h opt_usb.h \
 	vnode_if.h device_if.h bus_if.h \
 	linux_support.s
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	linux_dummy_x86.c
 .endif
 DPSRCS=	assym.inc linux_genassym.c
 
 # XXX: for assym.inc
 SRCS+=  opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
-.if ${MACHINE_CPUARCH} == "i386"
-SRCS+=	opt_apic.h
-.endif
 
 CLEANFILES=	linux_assym.h linux_genassym.o linux_locore.o \
 		genassym.o
