@@ -303,7 +303,6 @@ typedef u_int64_t pml5_entry_t;
 #define	P5Dmap		((pd_entry_t *)(addr_P5Dmap))
 
 extern int nkpt;		/* Initial number of kernel page tables */
-extern u_int64_t KPDPphys;	/* physical address of kernel level 3 */
 extern u_int64_t KPML4phys;	/* physical address of kernel level 4 */
 extern u_int64_t KPML5phys;	/* physical address of kernel level 5 */
 
