@@ -78,8 +78,10 @@ pass1b(void)
 			continue;
 		setinodebuf(c, inosused);
 		for (i = 0; i < inosused; i++, inumber++) {
-			if (inumber < UFS_ROOTINO)
+			if (inumber < UFS_ROOTINO) {
+				(void)getnextinode(inumber, 0);
 				continue;
+			}
 			dp = getnextinode(inumber, 0);
 			idesc.id_number = inumber;
 			idesc.id_type = inoinfo(inumber)->ino_idtype;
