@@ -812,8 +812,11 @@ static int read_card_mem(struct adapter *, int, struct t4_mem_range *);
 static int read_i2c(struct adapter *, struct t4_i2c_data *);
 static int clear_stats(struct adapter *, u_int);
 #ifdef TCP_OFFLOAD
-static int toe_capability(struct vi_info *, int);
+static int toe_capability(struct vi_info *, bool);
 static void t4_async_event(void *, int);
+#endif
+#ifdef KERN_TLS
+static int ktls_capability(struct adapter *, bool);
 #endif
 static int mod_event(module_t, int, void *);
 static int notify_siblings(device_t, int);
@@ -1838,7 +1841,7 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 	}
 
 #ifdef TCP_OFFLOAD
-	if (vi->nofldrxq != 0 && (sc->flags & KERN_TLS_OK) == 0)
+	if (vi->nofldrxq != 0)
 		ifp->if_capabilities |= IFCAP_TOE;
 #endif
 #ifdef RATELIMIT
@@ -1859,9 +1862,10 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 #endif
 	ifp->if_hw_tsomaxsegsize = 65536;
 #ifdef KERN_TLS
-	if (sc->flags & KERN_TLS_OK) {
+	if (is_ktls(sc)) {
 		ifp->if_capabilities |= IFCAP_TXTLS;
-		ifp->if_capenable |= IFCAP_TXTLS;
+		if (sc->flags & KERN_TLS_ON)
+			ifp->if_capenable |= IFCAP_TXTLS;
 	}
 #endif
 
@@ -2186,8 +2190,15 @@ cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 			ifp->if_capenable ^= IFCAP_MEXTPG;
 
 #ifdef KERN_TLS
-		if (mask & IFCAP_TXTLS)
+		if (mask & IFCAP_TXTLS) {
+			int enable = (ifp->if_capenable ^ mask) & IFCAP_TXTLS;
+
+			rc = ktls_capability(sc, enable);
+			if (rc != 0)
+				goto fail;
+
 			ifp->if_capenable ^= (mask & IFCAP_TXTLS);
+		}
 #endif
 		if (mask & IFCAP_VXLAN_HWCSUM) {
 			ifp->if_capenable ^= IFCAP_VXLAN_HWCSUM;
@@ -4782,47 +4793,36 @@ ktls_tick(void *arg)
 	uint32_t tstamp;
 
 	sc = arg;
-
-	tstamp = tcp_ts_getticks();
-	t4_write_reg(sc, A_TP_SYNC_TIME_HI, tstamp >> 1);
-	t4_write_reg(sc, A_TP_SYNC_TIME_LO, tstamp << 31);
-
+	if (sc->flags & KERN_TLS_ON) {
+		tstamp = tcp_ts_getticks();
+		t4_write_reg(sc, A_TP_SYNC_TIME_HI, tstamp >> 1);
+		t4_write_reg(sc, A_TP_SYNC_TIME_LO, tstamp << 31);
+	}
 	callout_schedule_sbt(&sc->ktls_tick, SBT_1MS, 0, C_HARDCLOCK);
 }
 
-static void
-t4_enable_kern_tls(struct adapter *sc)
+static int
+t4_config_kern_tls(struct adapter *sc, bool enable)
 {
-	uint32_t m, v;
+	int rc;
+	uint32_t param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_KTLS_HW) |
+	    V_FW_PARAMS_PARAM_Y(enable ? 1 : 0) |
+	    V_FW_PARAMS_PARAM_Z(FW_PARAMS_PARAM_DEV_KTLS_HW_USER_ENABLE);
 
-	m = F_ENABLECBYP;
-	v = F_ENABLECBYP;
-	t4_set_reg_field(sc, A_TP_PARA_REG6, m, v);
+	rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &param);
+	if (rc != 0) {
+		CH_ERR(sc, "failed to %s NIC TLS: %d\n",
+		    enable ?  "enable" : "disable", rc);
+		return (rc);
+	}
 
-	m = F_CPL_FLAGS_UPDATE_EN | F_SEQ_UPDATE_EN;
-	v = F_CPL_FLAGS_UPDATE_EN | F_SEQ_UPDATE_EN;
-	t4_set_reg_field(sc, A_ULP_TX_CONFIG, m, v);
+	if (enable)
+		sc->flags |= KERN_TLS_ON;
+	else
+		sc->flags &= ~KERN_TLS_ON;
 
-	m = F_NICMODE;
-	v = F_NICMODE;
-	t4_set_reg_field(sc, A_TP_IN_CONFIG, m, v);
-
-	m = F_LOOKUPEVERYPKT;
-	v = 0;
-	t4_set_reg_field(sc, A_TP_INGRESS_CONFIG, m, v);
-
-	m = F_TXDEFERENABLE | F_DISABLEWINDOWPSH | F_DISABLESEPPSHFLAG;
-	v = F_DISABLEWINDOWPSH;
-	t4_set_reg_field(sc, A_TP_PC_CONFIG, m, v);
-
-	m = V_TIMESTAMPRESOLUTION(M_TIMESTAMPRESOLUTION);
-	v = V_TIMESTAMPRESOLUTION(0x1f);
-	t4_set_reg_field(sc, A_TP_TIMER_RESOLUTION, m, v);
-
-	sc->flags |= KERN_TLS_OK;
-
-	sc->tlst.inline_keys = t4_tls_inline_keys;
-	sc->tlst.combo_wrs = t4_tls_combo_wrs;
+	return (rc);
 }
 #endif
 
@@ -4936,18 +4936,19 @@ set_params__post_init(struct adapter *sc)
 #ifdef KERN_TLS
 	if (sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS &&
 	    sc->toecaps & FW_CAPS_CONFIG_TOE) {
-		if (t4_kern_tls != 0)
-			t4_enable_kern_tls(sc);
-		else {
-			/*
-			 * Limit TOE connections to 2 reassembly
-			 * "islands".  This is required for TOE TLS
-			 * connections to downgrade to plain TOE
-			 * connections if an unsupported TLS version
-			 * or ciphersuite is used.
-			 */
-			t4_tp_wr_bits_indirect(sc, A_TP_FRAG_CONFIG,
-			    V_PASSMODE(M_PASSMODE), V_PASSMODE(2));
+		/*
+		 * Limit TOE connections to 2 reassembly "islands".  This is
+		 * required for TOE TLS connections to downgrade to plain TOE
+		 * connections if an unsupported TLS version or ciphersuite is
+		 * used.
+		 */
+		t4_tp_wr_bits_indirect(sc, A_TP_FRAG_CONFIG,
+		    V_PASSMODE(M_PASSMODE), V_PASSMODE(2));
+		if (is_ktls(sc)) {
+			sc->tlst.inline_keys = t4_tls_inline_keys;
+			sc->tlst.combo_wrs = t4_tls_combo_wrs;
+			if (t4_kern_tls != 0)
+				t4_config_kern_tls(sc, true);
 		}
 	}
 #endif
@@ -5863,7 +5864,7 @@ adapter_full_init(struct adapter *sc)
 		t4_intr_enable(sc);
 	}
 #ifdef KERN_TLS
-	if (sc->flags & KERN_TLS_OK)
+	if (is_ktls(sc))
 		callout_reset_sbt(&sc->ktls_tick, SBT_1MS, 0, ktls_tick, sc,
 		    C_HARDCLOCK);
 #endif
@@ -6753,7 +6754,7 @@ t4_sysctls(struct adapter *sc)
 	}
 
 #ifdef KERN_TLS
-	if (sc->flags & KERN_TLS_OK) {
+	if (is_ktls(sc)) {
 		/*
 		 * dev.t4nex.0.tls.
 		 */
@@ -11047,7 +11048,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 
 #ifdef TCP_OFFLOAD
 static int
-toe_capability(struct vi_info *vi, int enable)
+toe_capability(struct vi_info *vi, bool enable)
 {
 	int rc;
 	struct port_info *pi = vi->pi;
@@ -11059,6 +11060,39 @@ toe_capability(struct vi_info *vi, int enable)
 		return (ENODEV);
 
 	if (enable) {
+#ifdef KERN_TLS
+		if (sc->flags & KERN_TLS_ON) {
+			int i, j, n;
+			struct port_info *p;
+			struct vi_info *v;
+
+			/*
+			 * Reconfigure hardware for TOE if TXTLS is not enabled
+			 * on any ifnet.
+			 */
+			n = 0;
+			for_each_port(sc, i) {
+				p = sc->port[i];
+				for_each_vi(p, j, v) {
+					if (v->ifp->if_capenable & IFCAP_TXTLS) {
+						CH_WARN(sc,
+						    "%s has NIC TLS enabled.\n",
+						    device_get_nameunit(v->dev));
+						n++;
+					}
+				}
+			}
+			if (n > 0) {
+				CH_WARN(sc, "Disable NIC TLS on all interfaces "
+				    "associated with this adapter before "
+				    "trying to enable TOE.\n");
+				return (EAGAIN);
+			}
+			rc = t4_config_kern_tls(sc, false);
+			if (rc)
+				return (rc);
+		}
+#endif
 		if ((vi->ifp->if_capenable & IFCAP_TOE) != 0) {
 			/* TOE is already enabled. */
 			return (0);
@@ -11264,6 +11298,35 @@ uld_active(struct adapter *sc, int uld_id)
 	MPASS(uld_id >= 0 && uld_id <= ULD_MAX);
 
 	return (isset(&sc->active_ulds, uld_id));
+}
+#endif
+
+#ifdef KERN_TLS
+static int
+ktls_capability(struct adapter *sc, bool enable)
+{
+	ASSERT_SYNCHRONIZED_OP(sc);
+
+	if (!is_ktls(sc))
+		return (ENODEV);
+
+	if (enable) {
+		if (sc->flags & KERN_TLS_ON)
+			return (0);	/* already on */
+		if (sc->offload_map != 0) {
+			CH_WARN(sc,
+			    "Disable TOE on all interfaces associated with "
+			    "this adapter before trying to enable NIC TLS.\n");
+			return (EAGAIN);
+		}
+		return (t4_config_kern_tls(sc, true));
+	} else {
+		/*
+		 * Nothing to do for disable.  If TOE is enabled sometime later
+		 * then toe_capability will reconfigure the hardware.
+		 */
+		return (0);
+	}
 }
 #endif
 
