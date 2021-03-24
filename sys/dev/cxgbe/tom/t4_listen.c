@@ -538,7 +538,7 @@ t4_listen_start(struct toedev *tod, struct tcpcb *tp)
 	if (!(inp->inp_vflag & INP_IPV6) &&
 	    IN_LOOPBACK(ntohl(inp->inp_laddr.s_addr)))
 		return (0);
-	if (sc->flags & KERN_TLS_OK)
+	if (sc->flags & KERN_TLS_ON)
 		return (0);
 #if 0
 	ADAPTER_LOCK(sc);

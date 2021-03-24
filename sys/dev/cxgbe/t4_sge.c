@@ -4419,7 +4419,7 @@ alloc_txq(struct vi_info *vi, struct sge_txq *txq, int idx,
 	    "# of times hardware assisted with inner checksums (VXLAN)");
 
 #ifdef KERN_TLS
-	if (sc->flags & KERN_TLS_OK) {
+	if (is_ktls(sc)) {
 		SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO,
 		    "kern_tls_records", CTLFLAG_RD, &txq->kern_tls_records,
 		    "# of NIC TLS records transmitted");

@@ -161,7 +161,7 @@
 	nserver = 512
 	nhpfilter = 0
 	nhash = 16384
-	protocol = ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside
+	protocol = ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside, nic_ktls_ofld
 	tp_l2t = 4096
 	tp_ddp = 2
 	tp_ddp_iscsi = 2
@@ -273,7 +273,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0xa92352a8
+	checksum = 0x5fbc0a4a
 #
 # $FreeBSD$
 #
