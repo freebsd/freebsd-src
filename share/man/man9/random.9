@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd December 26, 2019
+.Dd March 22, 2021
 .Dt RANDOM 9
 .Os
 .Sh NAME
@@ -132,17 +132,13 @@ If the function is interrupted before the random device is seeded, no data is
 returned.
 .Pp
 The deprecated
-.Xr random 9
-function will produce a sequence of pseudorandom numbers using a similar weak
-linear congruential generator as
-.Xr rand 3
-(the 1988 Park-Miller LCG).
+.Fn random
+function will return a 31-bit value.
 It is obsolete and scheduled to be removed in
-.Fx 13.0 .
-It is strongly advised that the
-.Xr random 9
-function not be used to generate random numbers.
-See
+.Fx 14.0 .
+Consider
+.Xr prng 9
+instead and see
 .Sx SECURITY CONSIDERATIONS .
 .Sh RETURN VALUES
 The
@@ -167,6 +163,13 @@ the number of bytes placed in
 .Fn read_random_uio
 returns zero when successful,
 otherwise an error code is returned.
+.Pp
+.Fn random
+returns numbers
+in the range from 0 to
+.if t 2\u\s731\s10\d\(mi1.
+.if n (2**31)\(mi1.
+
 .Sh ERRORS
 .Fn read_random_uio
 may fail if:
