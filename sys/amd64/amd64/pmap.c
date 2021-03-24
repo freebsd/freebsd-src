@@ -383,7 +383,7 @@ static int pat_index[PAT_INDEX_SIZE];	/* cache mode to PAT index conversion */
 
 static u_int64_t	KPTphys;	/* phys addr of kernel level 1 */
 static u_int64_t	KPDphys;	/* phys addr of kernel level 2 */
-u_int64_t		KPDPphys;	/* phys addr of kernel level 3 */
+static u_int64_t	KPDPphys;	/* phys addr of kernel level 3 */
 u_int64_t		KPML4phys;	/* phys addr of kernel level 4 */
 
 static u_int64_t	DMPDphys;	/* phys addr of direct mapped level 2 */

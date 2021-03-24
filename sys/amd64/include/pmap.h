@@ -274,7 +274,6 @@ typedef u_int64_t pml4_entry_t;
 #define	PML4pml4e	((pd_entry_t *)(addr_PML4pml4e))
 
 extern int nkpt;		/* Initial number of kernel page tables */
-extern u_int64_t KPDPphys;	/* physical address of kernel level 3 */
 extern u_int64_t KPML4phys;	/* physical address of kernel level 4 */
 
 /*
