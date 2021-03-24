@@ -162,6 +162,9 @@ dump_openstate(void)
 				printf("%-45s ", " ");
 			break;
 #endif
+		default:
+			printf("%-45s ", " ");
+			break;
 		}
 		for (i = 0; i < dp[cnt].ndcl_clid.nclid_idlen; i++)
 			printf("%02x", dp[cnt].ndcl_clid.nclid_id[i]);
