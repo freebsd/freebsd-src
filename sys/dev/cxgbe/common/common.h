@@ -499,6 +499,11 @@ static inline int is_hashfilter(const struct adapter *adap)
 	return adap->params.hash_filter;
 }
 
+static inline int is_ktls(const struct adapter *adap)
+{
+	return adap->cryptocaps & FW_CAPS_CONFIG_TLS_HW;
+}
+
 static inline int chip_id(struct adapter *adap)
 {
 	return adap->params.chipid;
