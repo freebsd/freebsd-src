@@ -3719,7 +3719,7 @@ moea64_sp_enter(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pvo = pvos[i];
 
 		pvo->pvo_pte.prot = prot;
-		pvo->pvo_pte.pa = (pa & ~LPTE_LP_MASK) | LPTE_LP_4K_16M |
+		pvo->pvo_pte.pa = (pa & ~HPT_SP_MASK) | LPTE_LP_4K_16M |
 		    moea64_calc_wimg(pa, pmap_page_get_memattr(m));
 
 		if ((flags & PMAP_ENTER_WIRED) != 0)
@@ -3876,7 +3876,7 @@ moea64_sp_promote(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	for (pvo = first, va_end = PVO_VADDR(pvo) + HPT_SP_SIZE;
 	    pvo != NULL && PVO_VADDR(pvo) < va_end;
 	    pvo = RB_NEXT(pvo_tree, &pmap->pmap_pvo, pvo)) {
-		pvo->pvo_pte.pa &= ~LPTE_LP_MASK;
+		pvo->pvo_pte.pa &= ADDR_POFF | ~HPT_SP_MASK;
 		pvo->pvo_pte.pa |= LPTE_LP_4K_16M;
 		pvo->pvo_vaddr |= PVO_LARGE;
 	}
