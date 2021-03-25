@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2015
+.Dd March 25, 2021
 .Dt MPSUTIL 8
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@
 .Cm show all
 .Nm
 .Op Fl u Ar unit
-.Cm show cfgpages page
+.Cm show cfgpage page
 .Op Ar num
 .Op Ar addr
 .Nm
@@ -129,7 +129,7 @@ Displays all enclosures.
 .It Cm show iocfacts
 Displays IOC Facts messages.
 .It Cm show cfgpage page Oo Ar num Oc Op Ar addr
-Show IOC Facts Message
+Dump raw config page in hex.
 .El
 .Pp
 Controller management commands include:
