@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #define	PV_NV_IMPL_UINT(fnname, type, max)					\
 	int									\
-	fnname(const nvlist_t *nvl, const char *name, type *val)		\
+	pf_nv ## fnname(const nvlist_t *nvl, const char *name, type *val)	\
 	{									\
 		uint64_t raw;							\
 		if (! nvlist_exists_number(nvl, name))				\
@@ -49,8 +49,8 @@ __FBSDID("$FreeBSD$");
 		return (0);							\
 	}									\
 	int									\
-	fnname ## _array(const nvlist_t *nvl, const char *name, type *array, 	\
-	    size_t maxelems, size_t *nelems)					\
+	pf_nv ## fnname ## _array(const nvlist_t *nvl, const char *name,	\
+	    type *array, size_t maxelems, size_t *nelems)			\
 	{									\
 		const uint64_t *n;						\
 		size_t nitems;							\
@@ -68,7 +68,18 @@ __FBSDID("$FreeBSD$");
 			array[i] = (type)n[i];					\
 		}								\
 		return (0);							\
+	}									\
+	void									\
+	pf_ ## fnname ## _array_nv(nvlist_t *nvl, const char *name,		\
+	    const type *numbers, size_t count)					\
+	{									\
+		uint64_t tmp;							\
+		for (size_t i = 0; i < count; i++) {				\
+			tmp = numbers[i];					\
+			nvlist_append_number_array(nvl, name, tmp);		\
+		}								\
 	}
+
 int
 pf_nvbinary(const nvlist_t *nvl, const char *name, void *data,
     size_t expected_size)
@@ -90,9 +101,9 @@ pf_nvbinary(const nvlist_t *nvl, const char *name, void *data,
 	return (0);
 }
 
-PV_NV_IMPL_UINT(pf_nvuint8, uint8_t, UINT8_MAX)
-PV_NV_IMPL_UINT(pf_nvuint16, uint16_t, UINT16_MAX);
-PV_NV_IMPL_UINT(pf_nvuint32, uint32_t, UINT32_MAX)
+PV_NV_IMPL_UINT(uint8, uint8_t, UINT8_MAX)
+PV_NV_IMPL_UINT(uint16, uint16_t, UINT16_MAX);
+PV_NV_IMPL_UINT(uint32, uint32_t, UINT32_MAX)
 
 int
 pf_nvint(const nvlist_t *nvl, const char *name, int *val)
