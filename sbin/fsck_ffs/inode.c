@@ -600,6 +600,9 @@ setinodebuf(int cg, ino_t inosused)
 	nextino = inum;
 	lastinum = inum;
 	readcount = 0;
+	/* Flush old contents in case they have been updated */
+	flush(fswritefd, &inobuf);
+	inobuf.b_bno = 0;
 	if (inobuf.b_un.b_buf == NULL) {
 		inobufsize = blkroundup(&sblock,
 		    MAX(INOBUFSIZE, sblock.fs_bsize));
