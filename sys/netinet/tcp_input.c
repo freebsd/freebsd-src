@@ -2564,6 +2564,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 */
 				if (th->th_ack != tp->snd_una ||
 				    ((tp->t_flags & TF_SACK_PERMIT) &&
+				    (to.to_flags & TOF_SACK) &&
 				    !sack_changed))
 					break;
 				else if (!tcp_timer_active(tp, TT_REXMT))
@@ -2617,6 +2618,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						tp->snd_cwnd = imax(maxseg, tp->snd_nxt - tp->snd_recover +
 						    tp->sackhint.sack_bytes_rexmit + (snd_cnt * maxseg));
 					} else if ((tp->t_flags & TF_SACK_PERMIT) &&
+					    (to.to_flags & TOF_SACK) &&
 					    IN_FASTRECOVERY(tp->t_flags)) {
 						int awnd;
 
@@ -2694,7 +2696,8 @@ enter_recovery:
 						tp->sackhint.recover_fs = max(1,
 						    tp->snd_nxt - tp->snd_una);
 					}
-					if (tp->t_flags & TF_SACK_PERMIT) {
+					if ((tp->t_flags & TF_SACK_PERMIT) &&
+					    (to.to_flags & TOF_SACK)) {
 						TCPSTAT_INC(
 						    tcps_sack_recovery_episode);
 						tp->snd_recover = tp->snd_nxt;
