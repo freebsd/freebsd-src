@@ -2576,47 +2576,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					if (V_tcp_do_prr &&
 					    IN_FASTRECOVERY(tp->t_flags) &&
 					    (tp->t_flags & TF_SACK_PERMIT)) {
-						int snd_cnt = 0, limit = 0;
-						int del_data = 0, pipe = 0;
-						/*
-						 * In a duplicate ACK del_data is only the
-						 * diff_in_sack. If no SACK is used del_data
-						 * will be 0. Pipe is the amount of data we
-						 * estimate to be in the network.
-						 */
-						del_data = tp->sackhint.delivered_data;
-						if (V_tcp_do_rfc6675_pipe)
-							pipe = tcp_compute_pipe(tp);
-						else
-							pipe = (tp->snd_nxt - tp->snd_fack) +
-								tp->sackhint.sack_bytes_rexmit;
-						tp->sackhint.prr_delivered += del_data;
-						if (pipe >= tp->snd_ssthresh) {
-							if (tp->sackhint.recover_fs == 0)
-								tp->sackhint.recover_fs =
-								    imax(1, tp->snd_nxt - tp->snd_una);
-							snd_cnt = howmany((long)tp->sackhint.prr_delivered *
-							    tp->snd_ssthresh, tp->sackhint.recover_fs) -
-							    tp->sackhint.prr_out;
-						} else {
-							if (V_tcp_do_prr_conservative)
-								limit = tp->sackhint.prr_delivered -
-									tp->sackhint.prr_out;
-							else
-								limit = imax(tp->sackhint.prr_delivered -
-									    tp->sackhint.prr_out,
-									    del_data) + maxseg;
-							snd_cnt = imin(tp->snd_ssthresh - pipe, limit);
-						}
-						snd_cnt = imax(snd_cnt, 0) / maxseg;
-						/*
-						 * Send snd_cnt new data into the network in
-						 * response to this ACK. If there is a going
-						 * to be a SACK retransmission, adjust snd_cwnd
-						 * accordingly.
-						 */
-						tp->snd_cwnd = imax(maxseg, tp->snd_nxt - tp->snd_recover +
-						    tp->sackhint.sack_bytes_rexmit + (snd_cnt * maxseg));
+						tcp_do_prr_ack(tp, th);
 					} else if ((tp->t_flags & TF_SACK_PERMIT) &&
 					    (to.to_flags & TOF_SACK) &&
 					    IN_FASTRECOVERY(tp->t_flags)) {
@@ -2814,9 +2774,13 @@ resume_partialack:
 		if (IN_FASTRECOVERY(tp->t_flags)) {
 			if (SEQ_LT(th->th_ack, tp->snd_recover)) {
 				if (tp->t_flags & TF_SACK_PERMIT)
-					if (V_tcp_do_prr && to.to_flags & TOF_SACK)
-						tcp_prr_partialack(tp, th);
-					else
+					if (V_tcp_do_prr && to.to_flags & TOF_SACK) {
+						tcp_timer_activate(tp, TT_REXMT, 0);
+						tp->t_rtttime = 0;
+						tcp_do_prr_ack(tp, th);
+						tp->t_flags |= TF_ACKNOW;
+						(void) tcp_output(tp);
+					} else
 						tcp_sack_partialack(tp, th);
 				else
 					tcp_newreno_partial_ack(tp, th);
@@ -3944,15 +3908,13 @@ tcp_mssopt(struct in_conninfo *inc)
 }
 
 void
-tcp_prr_partialack(struct tcpcb *tp, struct tcphdr *th)
+tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th)
 {
 	int snd_cnt = 0, limit = 0, del_data = 0, pipe = 0;
 	int maxseg = tcp_maxseg(tp);
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
-	tcp_timer_activate(tp, TT_REXMT, 0);
-	tp->t_rtttime = 0;
 	/*
 	 * Compute the amount of data that this ACK is indicating
 	 * (del_data) and an estimate of how many bytes are in the
@@ -3992,8 +3954,6 @@ tcp_prr_partialack(struct tcpcb *tp, struct tcphdr *th)
 	 */
 	tp->snd_cwnd = imax(maxseg, tp->snd_nxt - tp->snd_recover +
 		tp->sackhint.sack_bytes_rexmit + (snd_cnt * maxseg));
-	tp->t_flags |= TF_ACKNOW;
-	(void) tcp_output(tp);
 }
 
 /*
