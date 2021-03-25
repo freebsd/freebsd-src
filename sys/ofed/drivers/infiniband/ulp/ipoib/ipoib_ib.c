@@ -107,7 +107,7 @@ ipoib_dma_mb(struct ipoib_dev_priv *priv, struct mbuf *mb, unsigned int length)
 
 struct mbuf *
 ipoib_alloc_map_mb(struct ipoib_dev_priv *priv, struct ipoib_rx_buf *rx_req,
-    int size)
+    int size, int max_frags)
 {
 	struct mbuf *mb, *m;
 	int i, j;
@@ -117,6 +117,8 @@ ipoib_alloc_map_mb(struct ipoib_dev_priv *priv, struct ipoib_rx_buf *rx_req,
 	if (mb == NULL)
 		return (NULL);
 	for (i = 0, m = mb; m != NULL; m = m->m_next, i++) {
+		MPASS(i < max_frags);
+
 		m->m_len = (m->m_flags & M_EXT) ? m->m_ext.ext_size :
 		    ((m->m_flags & M_PKTHDR) ? MHLEN : MLEN);
 		mb->m_pkthdr.len += m->m_len;
@@ -168,9 +170,8 @@ static int ipoib_ib_post_receive(struct ipoib_dev_priv *priv, int id)
 static struct mbuf *
 ipoib_alloc_rx_mb(struct ipoib_dev_priv *priv, int id)
 {
-
 	return ipoib_alloc_map_mb(priv, &priv->rx_ring[id],
-	    priv->max_ib_mtu + IB_GRH_BYTES);
+	    priv->max_ib_mtu + IB_GRH_BYTES, IPOIB_UD_RX_SG);
 }
 
 static int ipoib_ib_post_receives(struct ipoib_dev_priv *priv)

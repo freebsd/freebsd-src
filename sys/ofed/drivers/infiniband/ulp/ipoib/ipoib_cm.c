@@ -148,7 +148,7 @@ static struct mbuf *
 ipoib_cm_alloc_rx_mb(struct ipoib_dev_priv *priv, struct ipoib_cm_rx_buf *rx_req)
 {
 	return ipoib_alloc_map_mb(priv, (struct ipoib_rx_buf *)rx_req,
-	    priv->cm.max_cm_mtu);
+	    priv->cm.max_cm_mtu, IPOIB_CM_RX_SG);
 }
 
 static void ipoib_cm_free_rx_ring(struct ipoib_dev_priv *priv,
