@@ -36,12 +36,19 @@ int	pf_nvint(const nvlist_t *, const char *, int *);
 int	pf_nvuint8(const nvlist_t *, const char *, uint8_t *);
 int	pf_nvuint8_array(const nvlist_t *, const char *, uint8_t *,
 	    size_t, size_t *);
+void	pf_uint8_array_nv(nvlist_t *, const char *, const uint8_t *,
+	    size_t);
 int	pf_nvuint16(const nvlist_t *, const char *, uint16_t *);
 int	pf_nvuint16_array(const nvlist_t *, const char *, uint16_t *,
 	    size_t, size_t *);
+void	pf_uint16_array_nv(nvlist_t *, const char *, const uint16_t *,
+	    size_t);
 int	pf_nvuint32(const nvlist_t *, const char *, uint32_t *);
 int	pf_nvuint32_array(const nvlist_t *, const char *, uint32_t *,
 	    size_t, size_t *);
+void	pf_uint32_array_nv(nvlist_t *, const char *, const uint32_t *,
+	    size_t);
+
 int	pf_nvstring(const nvlist_t *, const char *, char *, size_t);
 
 #define	PFNV_CHK(x)	do {	\
