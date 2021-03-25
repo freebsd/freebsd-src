@@ -20,10 +20,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#   define NPCI 1
-
-#if NPCI > 0
-
 #include <sys/ucred.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
@@ -2126,4 +2122,3 @@ DRIVER_MODULE (cemod, pci, ce_driver, ce_devclass, ce_modevent, NULL);
 #else
 DRIVER_MODULE (ce, pci, ce_driver, ce_devclass, ce_modevent, NULL);
 #endif
-#endif /* NPCI */
