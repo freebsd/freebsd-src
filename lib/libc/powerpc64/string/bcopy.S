@@ -34,6 +34,11 @@ __FBSDID("$FreeBSD$");
 #define BLOCK_SIZE			(1 << BLOCK_SIZE_BITS)
 #define BLOCK_SIZE_MASK			(BLOCK_SIZE - 1)
 
+/* Minimum 8 byte alignment, to avoid cache-inhibited alignment faults.*/
+#ifndef ALIGN_MASK
+#define ALIGN_MASK			0x7
+#endif
+
 #define MULTI_PHASE_THRESHOLD		512
 
 #ifndef FN_NAME
@@ -66,9 +71,38 @@ ENTRY(FN_NAME)
 	mr	%r4, %r0
 #endif
 
+	/* First check for relative alignment, if unaligned copy one byte at a time */
+	andi.	%r8, %r3, ALIGN_MASK
+	andi.	%r7, %r4, ALIGN_MASK
+	cmpd	%r7, %r8
+	bne 	.Lunaligned
+
+
 	cmpldi	%r5, MULTI_PHASE_THRESHOLD
 	bge	.Lmulti_phase
+	b	.Lfast_copy
 
+.Lunaligned:
+	/* forward or backward copy? */
+	cmpd	%r4, %r3
+	blt	.Lbackward_unaligned
+
+	/* Just need to setup increment and jump to copy */
+	li	%r0, 1
+	mtctr	%r5
+	b	.Lsingle_1_loop
+
+.Lbackward_unaligned:
+	/* advance src and dst to last byte, set decrement and jump to copy */
+	add	%r3, %r3, %r5
+	addi	%r3, %r3, -1
+	add	%r4, %r4, %r5
+	addi	%r4, %r4, -1
+	li	%r0, -1
+	mtctr	%r5
+	b 	.Lsingle_1_loop
+
+.Lfast_copy:
 	/* align src */
 	cmpd	%r4, %r3		/* forward or backward copy? */
 	blt	.Lbackward_align
