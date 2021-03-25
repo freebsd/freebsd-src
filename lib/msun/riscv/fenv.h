@@ -231,7 +231,7 @@ feenableexcept(int __mask __unused)
 
 	/* No exception traps. */
 
-	return (-1);
+	return (0);
 }
 
 static inline int
