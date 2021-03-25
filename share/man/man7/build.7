@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2020
+.Dd March 25, 2020
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -647,6 +647,14 @@ This variable can also be useful when debugging failed builds.
 .Bd -literal -offset indent
 make some-target SUBDIR_OVERRIDE=foo/bar
 .Ed
+.It Va SYSDIR
+Specify the location of the kernel source to override the default
+.Pa /usr/src/sys .
+The kernel source is located in the
+.Pa sys
+subdirectory of the source tree checked out from the
+.Pa src.git
+repository.
 .It Va TARGET
 The target hardware platform.
 This is analogous to the
