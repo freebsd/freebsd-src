@@ -235,8 +235,7 @@ test_title "Setting up system..."
 load_modules netgraph ng_socket ng_ether ng_macfilter ng_one2many
 eth=$(find_iface)
 if [ -z "$eth" ]; then
-	echo "1..1"
-	echo "not ok 1 - Could not find a valid interface"
+	echo "1..0 # SKIP could not find a valid interface"
 	echo "Available interfaces:"
 	ifconfig
 	exit 1
