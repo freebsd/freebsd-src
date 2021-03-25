@@ -58,6 +58,8 @@ struct extra_syscall {
 struct procabi {
 	const char *type;
 	enum sysdecode_abi abi;
+	size_t pointer_size;
+	const char *compat_prefix;
 	STAILQ_HEAD(, extra_syscall) extra_syscalls;
 	struct syscall *syscalls[SYSCALL_NORMAL_COUNT];
 };
