@@ -350,12 +350,12 @@ build_commit_list()
     echo "$commits"
 }
 
-gitarc::create()
+gitarc__create()
 {
     local commit commits doprompt list o prev reviewers subscribers
 
     list=
-    if [ "$(git config --bool --default false --get arc.list)" != "false" ]; then
+    if [ "$(git config --bool --get arc.list 2>/dev/null || echo false)" != "false" ]; then
         list=1
     fi
     doprompt=1
@@ -402,7 +402,7 @@ gitarc::create()
     restore_head
 }
 
-gitarc::list()
+gitarc__list()
 {
     local chash commit commits diff title
 
@@ -435,7 +435,7 @@ gitarc::list()
     done
 }
 
-gitarc::patch()
+gitarc__patch()
 {
     local rev
 
@@ -450,7 +450,7 @@ gitarc::patch()
     done
 }
 
-gitarc::stage()
+gitarc__stage()
 {
     local author branch commit commits diff reviewers tmp
 
@@ -498,7 +498,7 @@ gitarc::stage()
     done
 }
 
-gitarc::update()
+gitarc__update()
 {
     local commit commits diff
 
@@ -524,7 +524,7 @@ gitarc::update()
 set -e
 
 ASSUME_YES=
-if [ "$(git config --bool --default false --get arc.assume-yes)" != "false" ]; then
+if [ "$(git config --bool --get arc.assume-yes 2>/dev/null || echo false)" != "false" ]; then
     ASSUME_YES=1
 fi
 
@@ -588,10 +588,10 @@ list|patch)
     ;;
 esac
 
-if [ "$(git config --bool --default false --get arc.browse)" != "false" ]; then
+if [ "$(git config --bool --get arc.browse 2>/dev/null || echo false)" != "false" ]; then
     BROWSE=--browse
 fi
 
 trap restore_head EXIT INT
 
-gitarc::"${verb}" "$@"
+gitarc__"${verb}" "$@"
