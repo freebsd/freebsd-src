@@ -40,6 +40,7 @@
 #include <sys/counter.h>
 #include <sys/cpuset.h>
 #include <sys/malloc.h>
+#include <sys/nv.h>
 #include <sys/refcount.h>
 #include <sys/sysctl.h>
 #include <sys/lock.h>
@@ -1233,6 +1234,7 @@ struct pfioc_iface {
 #define DIOCADDRULENV	_IOWR('D',  4, struct pfioc_nv)
 #define DIOCGETRULES	_IOWR('D',  6, struct pfioc_rule)
 #define DIOCGETRULE	_IOWR('D',  7, struct pfioc_rule)
+#define DIOCGETRULENV	_IOWR('D',  7, struct pfioc_nv)
 /* XXX cut 8 - 17 */
 #define DIOCCLRSTATES	_IOWR('D', 18, struct pfioc_state_kill)
 #define DIOCGETSTATE	_IOWR('D', 19, struct pfioc_state)
@@ -1636,6 +1638,8 @@ VNET_DECLARE(struct pf_kanchor,			 pf_main_anchor);
 void			 pf_init_kruleset(struct pf_kruleset *);
 int			 pf_kanchor_setup(struct pf_krule *,
 			    const struct pf_kruleset *, const char *);
+int			 pf_kanchor_nvcopyout(const struct pf_kruleset *,
+			    const struct pf_krule *, nvlist_t *);
 int			 pf_kanchor_copyout(const struct pf_kruleset *,
 			    const struct pf_krule *, struct pfioc_rule *);
 void			 pf_kanchor_remove(struct pf_krule *);
