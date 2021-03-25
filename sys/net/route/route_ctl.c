@@ -1270,8 +1270,8 @@ rt_checkdelroute(struct radix_node *rn, void *arg)
 		 * Free old multipath group.
 		 */
 		nhop_free_any(di->rc.rc_nh_old);
-	}
 #endif
+	}
 
 	return (0);
 }
