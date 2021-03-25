@@ -11,7 +11,11 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
-20210223:	p1	FreeBSD-SA-21:03.pam_login_access
+20210325: 13.0-RC3-p1	FreeBSD-SA-21:07.openssl
+
+	Fix multiple OpenSSL issues [SA-21:07.openssl]
+
+20210223: 13.0-BETA3-p1	FreeBSD-SA-21:03.pam_login_access
 			FreeBSD-SA-21:06.xen
 
 	login.access fails to apply rules [SA-21:03.pam_login_access]
