@@ -12,12 +12,7 @@ MDSRCS+= \
 	memmove_resolver.c \
 	strncpy_arch_2_05.S \
 	strncpy.c \
-	strncpy_resolver.c
-
-# XXX Port strcpy to LE.
-.if ${MACHINE_ARCH} == "powerpc64"
-MDSRCS+= \
+	strncpy_resolver.c \
 	strcpy_arch_2_05.S \
 	strcpy.c \
 	strcpy_resolver.c
-.endif
