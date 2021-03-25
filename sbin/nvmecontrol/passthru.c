@@ -246,7 +246,8 @@ passthru(const struct cmd *f, int argc, char *argv[])
 	errno = 0;
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(EX_IOERR, "passthrough request failed");
-	/* XXX report status */
+	if (!opt.binary)
+		printf("DWORD0 status= %#x\n", pt.cpl.cdw0);
 	if (opt.read) {
 		if (opt.binary)
 			write(STDOUT_FILENO, data, opt.data_len);
