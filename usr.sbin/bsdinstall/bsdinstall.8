@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 22, 2021
+.Dd March 26, 2021
 .Dt BSDINSTALL 8
 .Os
 .Sh NAME
@@ -158,7 +158,13 @@ Multiple disk setups are separated by semicolons.
 The
 .Ar disk
 argument specifies the disk on which to operate (which will be erased),
-while the
+or the special value
+.Em DEFAULT ,
+which will result in either a selection window (as in
+.Cm autopart )
+for the destination disk or, if there is only one possible disk, will
+automatically select it.
+The
 .Ar scheme
 argument specifies the
 .Xr gpart 8
@@ -208,6 +214,10 @@ A shorter invocation to use the default partitioning (as
 would have used) on the same disk:
 .Pp
 bsdinstall scriptedpart ada0
+.Pp
+or, even shorter:
+.Pp
+bsdinstall scriptedpart DEFAULT
 .It Cm mount
 Mounts the file systems previously configured by
 .Cm autopart ,
@@ -279,7 +289,9 @@ See
 of
 the
 .Sx TARGETS
-section for format details.
+section for format details. If this variable is unset, the installer will
+use the default partitioning as in
+.Cm autopart .
 Default: unset
 .It Ev BSDINSTALL_DISTDIR
 The directory in which the distribution files can be found (or to which they
@@ -454,7 +466,7 @@ the interpreter for the setup script.
 .Pp
 A typical bsdinstall script looks like this:
 .Bd -literal -offset indent
-PARTITIONS=ada0
+PARTITIONS=DEFAULT
 DISTRIBUTIONS="kernel.txz base.txz"
 
 #!/bin/sh
