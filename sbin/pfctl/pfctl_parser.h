@@ -252,7 +252,7 @@ TAILQ_HEAD(pf_opt_queue, pf_opt_rule);
 int	pfctl_rules(int, char *, int, int, char *, struct pfr_buffer *);
 int	pfctl_optimize_ruleset(struct pfctl *, struct pf_ruleset *);
 
-int	pfctl_add_rule(struct pfctl *, struct pf_rule *, const char *);
+int	pfctl_append_rule(struct pfctl *, struct pf_rule *, const char *);
 int	pfctl_add_altq(struct pfctl *, struct pf_altq *);
 int	pfctl_add_pool(struct pfctl *, struct pf_pool *, sa_family_t);
 void	pfctl_move_pool(struct pf_pool *, struct pf_pool *);

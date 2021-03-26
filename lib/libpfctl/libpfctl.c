@@ -48,7 +48,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "pfctl_ioctl.h"
+#include "libpfctl.h"
 
 static void
 pf_nvuint_8_array(const nvlist_t *nvl, const char *name, size_t maxelems,
@@ -119,6 +119,17 @@ pf_nvuint_64_array(const nvlist_t *nvl, const char *name, size_t maxelems,
 }
 
 static void
+pfctl_nv_add_addr(nvlist_t *nvparent, const char *name,
+    const struct pf_addr *addr)
+{
+	nvlist_t *nvl = nvlist_create(0);
+
+	nvlist_add_binary(nvl, "addr", addr, sizeof(*addr));
+
+	nvlist_add_nvlist(nvparent, name, nvl);
+}
+
+static void
 pf_nvaddr_to_addr(const nvlist_t *nvl, struct pf_addr *addr)
 {
 	size_t len;
@@ -127,6 +138,22 @@ pf_nvaddr_to_addr(const nvlist_t *nvl, struct pf_addr *addr)
 	data = nvlist_get_binary(nvl, "addr", &len);
 	assert(len == sizeof(struct pf_addr));
 	memcpy(addr, data, len);
+}
+
+static void
+pfctl_nv_add_addr_wrap(nvlist_t *nvparent, const char *name,
+    const struct pf_addr_wrap *addr)
+{
+	nvlist_t *nvl = nvlist_create(0);
+
+	nvlist_add_number(nvl, "type", addr->type);
+	nvlist_add_number(nvl, "iflags", addr->iflags);
+	nvlist_add_string(nvl, "ifname", addr->v.ifname);
+	nvlist_add_string(nvl, "tblname", addr->v.tblname);
+	pfctl_nv_add_addr(nvl, "addr", &addr->v.a.addr);
+	pfctl_nv_add_addr(nvl, "mask", &addr->v.a.mask);
+
+	nvlist_add_nvlist(nvparent, name, nvl);
 }
 
 static void
@@ -143,6 +170,23 @@ pf_nvaddr_wrap_to_addr_wrap(const nvlist_t *nvl, struct pf_addr_wrap *addr)
 }
 
 static void
+pfctl_nv_add_rule_addr(nvlist_t *nvparent, const char *name,
+    const struct pf_rule_addr *addr)
+{
+	u_int64_t ports[2];
+	nvlist_t *nvl = nvlist_create(0);
+
+	pfctl_nv_add_addr_wrap(nvl, "addr", &addr->addr);
+	ports[0] = addr->port[0];
+	ports[1] = addr->port[1];
+	nvlist_add_number_array(nvl, "port", ports, 2);
+	nvlist_add_number(nvl, "neg", addr->neg);
+	nvlist_add_number(nvl, "port_op", addr->port_op);
+
+	nvlist_add_nvlist(nvparent, name, nvl);
+}
+
+static void
 pf_nvrule_addr_to_rule_addr(const nvlist_t *nvl, struct pf_rule_addr *addr)
 {
 	pf_nvaddr_wrap_to_addr_wrap(nvlist_get_nvlist(nvl, "addr"), &addr->addr);
@@ -150,6 +194,25 @@ pf_nvrule_addr_to_rule_addr(const nvlist_t *nvl, struct pf_rule_addr *addr)
 	pf_nvuint_16_array(nvl, "port", 2, addr->port, NULL);
 	addr->neg = nvlist_get_number(nvl, "neg");
 	addr->port_op = nvlist_get_number(nvl, "port_op");
+}
+
+static void
+pfctl_nv_add_pool(nvlist_t *nvparent, const char *name,
+    const struct pf_pool *pool)
+{
+	u_int64_t ports[2];
+	nvlist_t *nvl = nvlist_create(0);
+
+	nvlist_add_binary(nvl, "key", &pool->key, sizeof(pool->key));
+	pfctl_nv_add_addr(nvl, "counter", &pool->counter);
+	nvlist_add_number(nvl, "tblidx", pool->tblidx);
+
+	ports[0] = pool->proxy_port[0];
+	ports[1] = pool->proxy_port[1];
+	nvlist_add_number_array(nvl, "proxy_port", ports, 2);
+	nvlist_add_number(nvl, "opts", pool->opts);
+
+	nvlist_add_nvlist(nvparent, name, nvl);
 }
 
 static void
@@ -170,10 +233,37 @@ pf_nvpool_to_pool(const nvlist_t *nvl, struct pf_pool *pool)
 }
 
 static void
+pfctl_nv_add_uid(nvlist_t *nvparent, const char *name,
+    const struct pf_rule_uid *uid)
+{
+	u_int64_t uids[2];
+	nvlist_t *nvl = nvlist_create(0);
+
+	uids[0] = uid->uid[0];
+	uids[1] = uid->uid[1];
+	nvlist_add_number_array(nvl, "uid", uids, 2);
+	nvlist_add_number(nvl, "op", uid->op);
+
+	nvlist_add_nvlist(nvparent, name, nvl);
+}
+
+static void
 pf_nvrule_uid_to_rule_uid(const nvlist_t *nvl, struct pf_rule_uid *uid)
 {
 	pf_nvuint_32_array(nvl, "uid", 2, uid->uid, NULL);
 	uid->op = nvlist_get_number(nvl, "op");
+}
+
+static void
+pfctl_nv_add_divert(nvlist_t *nvparent, const char *name,
+    const struct pf_rule *r)
+{
+	nvlist_t *nvl = nvlist_create(0);
+
+	pfctl_nv_add_addr(nvl, "addr", &r->divert.addr);
+	nvlist_add_number(nvl, "port", r->divert.port);
+
+	nvlist_add_nvlist(nvparent, name, nvl);
 }
 
 static void
@@ -282,6 +372,113 @@ pf_nvrule_to_rule(const nvlist_t *nvl, struct pf_rule *rule)
 	rule->u_src_nodes = nvlist_get_number(nvl, "src_nodes");
 }
 
+int
+pfctl_add_rule(int dev, const struct pf_rule *r, const char *anchor,
+    const char *anchor_call, u_int32_t ticket, u_int32_t pool_ticket)
+{
+	struct pfioc_nv nv;
+	u_int64_t timeouts[PFTM_MAX];
+	u_int64_t set_prio[2];
+	nvlist_t *nvl, *nvlr;
+	int ret;
+
+	nvl = nvlist_create(0);
+	nvlr = nvlist_create(0);
+
+	nvlist_add_number(nvl, "ticket", ticket);
+	nvlist_add_number(nvl, "pool_ticket", pool_ticket);
+	nvlist_add_string(nvl, "anchor", anchor);
+	nvlist_add_string(nvl, "anchor_call", anchor_call);
+
+	nvlist_add_number(nvlr, "nr", r->nr);
+	pfctl_nv_add_rule_addr(nvlr, "src", &r->src);
+	pfctl_nv_add_rule_addr(nvlr, "dst", &r->dst);
+
+	nvlist_add_string(nvlr, "label", r->label);
+	nvlist_add_string(nvlr, "ifname", r->ifname);
+	nvlist_add_string(nvlr, "qname", r->qname);
+	nvlist_add_string(nvlr, "pqname", r->pqname);
+	nvlist_add_string(nvlr, "tagname", r->tagname);
+	nvlist_add_string(nvlr, "match_tagname", r->match_tagname);
+	nvlist_add_string(nvlr, "overload_tblname", r->overload_tblname);
+
+	pfctl_nv_add_pool(nvlr, "rpool", &r->rpool);
+
+	nvlist_add_number(nvlr, "os_fingerprint", r->os_fingerprint);
+
+	nvlist_add_number(nvlr, "rtableid", r->rtableid);
+	for (int i = 0; i < PFTM_MAX; i++)
+		timeouts[i] = r->timeout[i];
+	nvlist_add_number_array(nvlr, "timeout", timeouts, PFTM_MAX);
+	nvlist_add_number(nvlr, "max_states", r->max_states);
+	nvlist_add_number(nvlr, "max_src_nodes", r->max_src_nodes);
+	nvlist_add_number(nvlr, "max_src_states", r->max_src_states);
+	nvlist_add_number(nvlr, "max_src_conn", r->max_src_conn);
+	nvlist_add_number(nvlr, "max_src_conn_rate.limit",
+	    r->max_src_conn_rate.limit);
+	nvlist_add_number(nvlr, "max_src_conn_rate.seconds",
+	    r->max_src_conn_rate.seconds);
+	nvlist_add_number(nvlr, "prob", r->prob);
+	nvlist_add_number(nvlr, "cuid", r->cuid);
+	nvlist_add_number(nvlr, "cpid", r->cpid);
+
+	nvlist_add_number(nvlr, "return_icmp", r->return_icmp);
+	nvlist_add_number(nvlr, "return_icmp6", r->return_icmp6);
+
+	nvlist_add_number(nvlr, "max_mss", r->max_mss);
+	nvlist_add_number(nvlr, "scrub_flags", r->scrub_flags);
+
+	pfctl_nv_add_uid(nvlr, "uid", &r->uid);
+	pfctl_nv_add_uid(nvlr, "gid", (const struct pf_rule_uid *)&r->gid);
+
+	nvlist_add_number(nvlr, "rule_flag", r->rule_flag);
+	nvlist_add_number(nvlr, "action", r->action);
+	nvlist_add_number(nvlr, "direction", r->direction);
+	nvlist_add_number(nvlr, "log", r->log);
+	nvlist_add_number(nvlr, "logif", r->logif);
+	nvlist_add_number(nvlr, "quick", r->quick);
+	nvlist_add_number(nvlr, "ifnot", r->ifnot);
+	nvlist_add_number(nvlr, "match_tag_not", r->match_tag_not);
+	nvlist_add_number(nvlr, "natpass", r->natpass);
+
+	nvlist_add_number(nvlr, "keep_state", r->keep_state);
+	nvlist_add_number(nvlr, "af", r->af);
+	nvlist_add_number(nvlr, "proto", r->proto);
+	nvlist_add_number(nvlr, "type", r->type);
+	nvlist_add_number(nvlr, "code", r->code);
+	nvlist_add_number(nvlr, "flags", r->flags);
+	nvlist_add_number(nvlr, "flagset", r->flagset);
+	nvlist_add_number(nvlr, "min_ttl", r->min_ttl);
+	nvlist_add_number(nvlr, "allow_opts", r->allow_opts);
+	nvlist_add_number(nvlr, "rt", r->rt);
+	nvlist_add_number(nvlr, "return_ttl", r->return_ttl);
+	nvlist_add_number(nvlr, "tos", r->tos);
+	nvlist_add_number(nvlr, "set_tos", r->set_tos);
+	nvlist_add_number(nvlr, "anchor_relative", r->anchor_relative);
+	nvlist_add_number(nvlr, "anchor_wildcard", r->anchor_wildcard);
+
+	nvlist_add_number(nvlr, "flush", r->flush);
+
+	nvlist_add_number(nvlr, "prio", r->prio);
+	set_prio[0] = r->set_prio[0];
+	set_prio[1] = r->set_prio[1];
+	nvlist_add_number_array(nvlr, "set_prio", set_prio, 2);
+
+	pfctl_nv_add_divert(nvlr, "divert", r);
+
+	nvlist_add_nvlist(nvl, "rule", nvlr);
+
+	/* Now do the call. */
+	nv.data = nvlist_pack(nvl, &nv.len);
+	nv.size = nv.len;
+
+	ret = ioctl(dev, DIOCADDRULENV, &nv);
+
+	free(nv.data);
+	nvlist_destroy(nvl);
+
+	return (ret);
+}
 
 int
 pfctl_get_rule(int dev, u_int32_t nr, u_int32_t ticket, const char *anchor,
