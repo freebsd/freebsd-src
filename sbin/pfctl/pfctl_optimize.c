@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
+#include "pfctl_ioctl.h"
 #include "pfctl_parser.h"
 #include "pfctl.h"
 
@@ -909,8 +910,10 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 			return (1);
 		}
 		pr.nr = nr;
-		if (ioctl(pf->dev, DIOCGETRULE, &pr)) {
-			warn("DIOCGETRULES");
+
+		if (pfctl_get_rule(pf->dev, nr, pr.ticket, "", PF_PASS,
+		    &pr.rule, pr.anchor_call)) {
+			warn("DIOCGETRULENV");
 			return (1);
 		}
 		memcpy(&por->por_rule, &pr.rule, sizeof(por->por_rule));
