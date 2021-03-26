@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <arpa/inet.h>
 
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -66,6 +67,11 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <libcasper.h>
+#include <casper/cap_net.h>
+#include <casper/cap_netdb.h>
+#include <casper/cap_sysctl.h>
 
 #define	sstosin(ss)	((struct sockaddr_in *)(ss))
 #define	sstosin6(ss)	((struct sockaddr_in6 *)(ss))
@@ -132,6 +138,10 @@ static struct sock *sockhash[HASHSIZE];
 static struct xfile *xfiles;
 static int nxfiles;
 
+static cap_channel_t *capnet;
+static cap_channel_t *capnetdb;
+static cap_channel_t *capsysctl;
+
 static int
 xprintf(const char *fmt, ...)
 {
@@ -153,9 +163,9 @@ get_proto_type(const char *proto)
 
 	if (strlen(proto) == 0)
 		return (0);
-	pent = getprotobyname(proto);
+	pent = cap_getprotobyname(capnetdb, proto);
 	if (pent == NULL) {
-		warn("getprotobyname");
+		warn("cap_getprotobyname");
 		return (-1);
 	}
 	return (pent->p_proto);
@@ -321,17 +331,17 @@ gather_sctp(void)
 		vflag |= INP_IPV6;
 
 	varname = "net.inet.sctp.assoclist";
-	if (sysctlbyname(varname, 0, &len, 0, 0) < 0) {
+	if (cap_sysctlbyname(capsysctl, varname, 0, &len, 0, 0) < 0) {
 		if (errno != ENOENT)
-			err(1, "sysctlbyname()");
+			err(1, "cap_sysctlbyname()");
 		return;
 	}
 	if ((buf = (char *)malloc(len)) == NULL) {
 		err(1, "malloc()");
 		return;
 	}
-	if (sysctlbyname(varname, buf, &len, 0, 0) < 0) {
-		err(1, "sysctlbyname()");
+	if (cap_sysctlbyname(capsysctl, varname, buf, &len, 0, 0) < 0) {
+		err(1, "cap_sysctlbyname()");
 		free(buf);
 		return;
 	}
@@ -618,12 +628,13 @@ gather_inet(int proto)
 			if ((buf = realloc(buf, bufsize)) == NULL)
 				err(1, "realloc()");
 			len = bufsize;
-			if (sysctlbyname(varname, buf, &len, NULL, 0) == 0)
+			if (cap_sysctlbyname(capsysctl, varname, buf, &len,
+			    NULL, 0) == 0)
 				break;
 			if (errno == ENOENT)
 				goto out;
 			if (errno != ENOMEM || len != bufsize)
-				err(1, "sysctlbyname()");
+				err(1, "cap_sysctlbyname()");
 			bufsize *= 2;
 		}
 		xig = (struct xinpgen *)buf;
@@ -768,10 +779,11 @@ gather_unix(int proto)
 			if ((buf = realloc(buf, bufsize)) == NULL)
 				err(1, "realloc()");
 			len = bufsize;
-			if (sysctlbyname(varname, buf, &len, NULL, 0) == 0)
+			if (cap_sysctlbyname(capsysctl, varname, buf, &len,
+			    NULL, 0) == 0)
 				break;
 			if (errno != ENOMEM || len != bufsize)
-				err(1, "sysctlbyname()");
+				err(1, "cap_sysctlbyname()");
 			bufsize *= 2;
 		}
 		xug = (struct xunpgen *)buf;
@@ -835,9 +847,10 @@ getfiles(void)
 	olen = len = sizeof(*xfiles);
 	if ((xfiles = malloc(len)) == NULL)
 		err(1, "malloc()");
-	while (sysctlbyname("kern.file", xfiles, &len, 0, 0) == -1) {
+	while (cap_sysctlbyname(capsysctl, "kern.file", xfiles, &len, 0, 0)
+	    == -1) {
 		if (errno != ENOMEM || len != olen)
-			err(1, "sysctlbyname()");
+			err(1, "cap_sysctlbyname()");
 		olen = len *= 2;
 		if ((xfiles = realloc(xfiles, len)) == NULL)
 			err(1, "realloc()");
@@ -871,10 +884,10 @@ printaddr(struct sockaddr_storage *ss)
 		return (xprintf("%.*s", sun->sun_len - off, sun->sun_path));
 	}
 	if (addrstr[0] == '\0') {
-		error = getnameinfo(sstosa(ss), ss->ss_len, addrstr,
-		    sizeof(addrstr), NULL, 0, NI_NUMERICHOST);
+		error = cap_getnameinfo(capnet, sstosa(ss), ss->ss_len,
+		    addrstr, sizeof(addrstr), NULL, 0, NI_NUMERICHOST);
 		if (error)
-			errx(1, "getnameinfo()");
+			errx(1, "cap_getnameinfo()");
 	}
 	if (port == 0)
 		return xprintf("%s:*", addrstr);
@@ -894,10 +907,11 @@ getprocname(pid_t pid)
 	mib[2] = KERN_PROC_PID;
 	mib[3] = (int)pid;
 	len = sizeof(proc);
-	if (sysctl(mib, nitems(mib), &proc, &len, NULL, 0) == -1) {
+	if (cap_sysctl(capsysctl, mib, nitems(mib), &proc, &len, NULL, 0)
+	    == -1) {
 		/* Do not warn if the process exits before we get its name. */
 		if (errno != ESRCH)
-			warn("sysctl()");
+			warn("cap_sysctl()");
 		return ("??");
 	}
 	return (proc.ki_comm);
@@ -915,10 +929,11 @@ getprocjid(pid_t pid)
 	mib[2] = KERN_PROC_PID;
 	mib[3] = (int)pid;
 	len = sizeof(proc);
-	if (sysctl(mib, nitems(mib), &proc, &len, NULL, 0) == -1) {
+	if (cap_sysctl(capsysctl, mib, nitems(mib), &proc, &len, NULL, 0)
+	    == -1) {
 		/* Do not warn if the process exits before we get its jid. */
 		if (errno != ESRCH)
-			warn("sysctl()");
+			warn("cap_sysctl()");
 		return (-1);
 	}
 	return (proc.ki_jid);
@@ -1254,9 +1269,9 @@ set_default_protos(void)
 
 	for (pindex = 0; pindex < default_numprotos; pindex++) {
 		pname = default_protos[pindex];
-		prot = getprotobyname(pname);
+		prot = cap_getprotobyname(capnetdb, pname);
 		if (prot == NULL)
-			err(1, "getprotobyname: %s", pname);
+			err(1, "cap_getprotobyname: %s", pname);
 		protos[pindex] = prot->p_proto;
 	}
 	numprotos = pindex;
@@ -1306,6 +1321,8 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
+	cap_channel_t *capcas;
+	cap_net_limit_t *limit;
 	int protos_defined = -1;
 	int o, i;
 
@@ -1389,6 +1406,27 @@ main(int argc, char *argv[])
 			break;
 		}
 	}
+
+	capcas = cap_init();
+	if (capcas == NULL)
+		err(1, "Unable to contact Casper");
+	if (caph_enter_casper() < 0)
+		err(1, "Unable to enter capability mode");
+	capnet = cap_service_open(capcas, "system.net");
+	if (capnet == NULL)
+		err(1, "Unable to open system.net service");
+	capnetdb = cap_service_open(capcas, "system.netdb");
+	if (capnetdb == NULL)
+		err(1, "Unable to open system.netdb service");
+	capsysctl = cap_service_open(capcas, "system.sysctl");
+	if (capsysctl == NULL)
+		err(1, "Unable to open system.sysctl service");
+	cap_close(capcas);
+	limit = cap_net_limit_init(capnet, CAPNET_ADDR2NAME);
+	if (limit == NULL)
+		err(1, "Unable to init cap_net limits");
+	if (cap_net_limit(limit) < 0)
+		err(1, "Unable to apply limits");
 
 	if ((!opt_4 && !opt_6) && protos_defined != -1)
 		opt_4 = opt_6 = 1;
