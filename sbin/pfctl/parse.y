@@ -1040,7 +1040,7 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			decide_address_family($6.src.host, &r.af);
 			decide_address_family($6.dst.host, &r.af);
 
-			pfctl_add_rule(pf, &r, $2);
+			pfctl_append_rule(pf, &r, $2);
 			free($2);
 		}
 		;
@@ -4390,7 +4390,7 @@ binatrule	: no BINAT natpasslog interface af proto FROM ipspec toipspec tag
 				free($13);
 			}
 
-			pfctl_add_rule(pf, &binat, "");
+			pfctl_append_rule(pf, &binat, "");
 		}
 		;
 
@@ -5407,7 +5407,7 @@ expand_rule(struct pf_rule *r,
 			yyerror("skipping rule due to errors");
 		else {
 			r->nr = pf->astack[pf->asd]->match++;
-			pfctl_add_rule(pf, r, anchor_call);
+			pfctl_append_rule(pf, r, anchor_call);
 			added++;
 		}
 
