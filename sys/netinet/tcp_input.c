@@ -2786,6 +2786,16 @@ resume_partialack:
 					tcp_newreno_partial_ack(tp, th);
 			} else
 				cc_post_recovery(tp, th);
+		} else if (IN_CONGRECOVERY(tp->t_flags)) {
+			if (SEQ_LT(th->th_ack, tp->snd_recover)) {
+				if (V_tcp_do_prr) {
+					tp->sackhint.delivered_data = BYTES_THIS_ACK(tp, th);
+					tp->snd_fack = th->th_ack;
+					tcp_do_prr_ack(tp, th);
+					(void) tcp_output(tp);
+				}
+			} else
+				cc_post_recovery(tp, th);
 		}
 		/*
 		 * If we reach this point, ACK is not a duplicate,
@@ -3954,8 +3964,12 @@ tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th)
 	 * If there is going to be a SACK retransmission, adjust snd_cwnd
 	 * accordingly.
 	 */
-	tp->snd_cwnd = imax(maxseg, tp->snd_nxt - tp->snd_recover +
-		tp->sackhint.sack_bytes_rexmit + (snd_cnt * maxseg));
+	if (IN_FASTRECOVERY(tp->t_flags)) {
+		tp->snd_cwnd = imax(maxseg, tp->snd_nxt - tp->snd_recover +
+			tp->sackhint.sack_bytes_rexmit + (snd_cnt * maxseg));
+	} else if (IN_CONGRECOVERY(tp->t_flags))
+		tp->snd_cwnd = imax(maxseg, pipe - del_data +
+				    (snd_cnt * maxseg));
 }
 
 /*
