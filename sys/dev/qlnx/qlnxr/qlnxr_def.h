@@ -41,7 +41,6 @@
 #include <linux/spinlock.h>
 #include <linux/idr.h>
 #include <linux/completion.h>
-#include <linux/netdevice.h>
 #include <linux/sched.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
