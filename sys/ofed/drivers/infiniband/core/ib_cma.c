@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/mutex.h>
 #include <linux/random.h>
 #include <linux/idr.h>
-#include <linux/inetdevice.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <net/route.h>
@@ -66,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <rdma/rdma_sdp.h>
 #include <rdma/ib.h>
 #include <rdma/ib_addr.h>
+#include <rdma/ib_addr_freebsd.h>
 #include <rdma/ib_cache.h>
 #include <rdma/ib_cm.h>
 #include <rdma/ib_sa.h>
@@ -1364,7 +1364,7 @@ static bool validate_ipv4_net_dev(struct net_device *net_dev,
 	    ipv4_is_loopback(saddr))
 		return false;
 
-	dst_dev = ip_dev_find(net_dev->if_vnet, daddr);
+	dst_dev = ip_ifp_find(net_dev->if_vnet, daddr);
 	if (dst_dev != net_dev) {
 		if (dst_dev != NULL)
 			dev_put(dst_dev);
@@ -1402,7 +1402,7 @@ static bool validate_ipv6_net_dev(struct net_device *net_dev,
 	struct nhop_object *nh;
 	bool ret;
 
-	dst_dev = ip6_dev_find(net_dev->if_vnet, dst_tmp.sin6_addr,
+	dst_dev = ip6_ifp_find(net_dev->if_vnet, dst_tmp.sin6_addr,
 	    net_dev->if_index);
 	if (dst_dev != net_dev) {
 		if (dst_dev != NULL)

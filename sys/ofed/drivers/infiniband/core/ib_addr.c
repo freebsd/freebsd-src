@@ -39,7 +39,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <linux/mutex.h>
-#include <linux/inetdevice.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/module.h>
@@ -47,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route/nhop.h>
 #include <net/netevent.h>
 #include <rdma/ib_addr.h>
+#include <rdma/ib_addr_freebsd.h>
 #include <rdma/ib.h>
 
 #include <netinet/in_fib.h>
@@ -181,13 +181,13 @@ int rdma_translate_ip(const struct sockaddr *addr,
 	} else switch (addr->sa_family) {
 #ifdef INET
 	case AF_INET:
-		dev = ip_dev_find(dev_addr->net,
+		dev = ip_ifp_find(dev_addr->net,
 			((const struct sockaddr_in *)addr)->sin_addr.s_addr);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		dev = ip6_dev_find(dev_addr->net,
+		dev = ip6_ifp_find(dev_addr->net,
 			((const struct sockaddr_in6 *)addr)->sin6_addr, 0);
 		break;
 #endif
@@ -325,7 +325,7 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 		if (addr->bound_dev_if != 0) {
 			ifp = dev_get_by_index(addr->net, addr->bound_dev_if);
 		} else {
-			ifp = ip_dev_find(addr->net, src_in->sin_addr.s_addr);
+			ifp = ip_ifp_find(addr->net, src_in->sin_addr.s_addr);
 		}
 
 		/* check source interface */
@@ -516,7 +516,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		if (addr->bound_dev_if != 0) {
 			ifp = dev_get_by_index(addr->net, addr->bound_dev_if);
 		} else {
-			ifp = ip6_dev_find(addr->net, src_in->sin6_addr, 0);
+			ifp = ip6_ifp_find(addr->net, src_in->sin6_addr, 0);
 		}
 
 		/* check source interface */
