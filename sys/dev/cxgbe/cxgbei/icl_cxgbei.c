@@ -551,7 +551,7 @@ send_iscsi_flowc_wr(struct adapter *sc, struct toepcb *toep, int maxlen)
 
 	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
 
-	wr = alloc_wrqe(roundup2(flowclen, 16), toep->ofld_txq);
+	wr = alloc_wrqe(roundup2(flowclen, 16), &toep->ofld_txq->wrq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
@@ -843,8 +843,8 @@ no_ddp:
 		goto no_ddp;
 	}
 
-	rc = t4_write_page_pods_for_buf(sc, toep->ofld_txq, toep->tid, prsv,
-	    (vm_offset_t)csio->data_ptr, csio->dxfer_len);
+	rc = t4_write_page_pods_for_buf(sc, &toep->ofld_txq->wrq, toep->tid,
+	    prsv, (vm_offset_t)csio->data_ptr, csio->dxfer_len);
 	if (rc != 0) {
 		t4_free_page_pods(prsv);
 		uma_zfree(prsv_zone, prsv);
@@ -957,8 +957,8 @@ no_ddp:
 			goto no_ddp;
 		}
 
-		rc = t4_write_page_pods_for_buf(sc, toep->ofld_txq, toep->tid,
-		    prsv, buf, xferlen);
+		rc = t4_write_page_pods_for_buf(sc, &toep->ofld_txq->wrq,
+		    toep->tid, prsv, buf, xferlen);
 		if (rc != 0) {
 			t4_free_page_pods(prsv);
 			uma_zfree(prsv_zone, prsv);
