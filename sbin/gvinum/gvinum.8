@@ -28,12 +28,28 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2014
+.Dd March 28, 2021
 .Dt GVINUM 8
 .Os
 .Sh NAME
 .Nm gvinum
 .Nd Logical Volume Manager control program
+.Sh DEPRECATION NOTICE
+.Nm
+and associated
+.Xr geom 4
+kernel support is deprecated, and may not be available in
+.Fx 14.0
+and later.
+Users are advised to migrate to
+.Xr gconcat 8 ,
+.Xr gmirror 8 ,
+.Xr gstripe 8 ,
+.Xr graid 8 ,
+or
+.Xr ZFS 8 .
+More information is available at
+.Pa https://wiki.freebsd.org/DeprecationPlan/gvinum .
 .Sh SYNOPSIS
 .Nm
 .Op Ar command
