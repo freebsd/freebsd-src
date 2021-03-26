@@ -73,8 +73,6 @@ struct cpl_set_tcb_rpl;
 #include "iw_cxgbe.h"
 #include <linux/module.h>
 #include <linux/workqueue.h>
-#include <linux/notifier.h>
-#include <linux/inetdevice.h>
 #include <linux/if_vlan.h>
 #include <net/netevent.h>
 #include <rdma/rdma_cm.h>
