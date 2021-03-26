@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "pfctl_ioctl.h"
 #include "pfctl_parser.h"
 #include "pfctl.h"
 
@@ -952,8 +953,9 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 
 	for (nr = 0; nr < mnr; ++nr) {
 		pr.nr = nr;
-		if (ioctl(dev, DIOCGETRULE, &pr)) {
-			warn("DIOCGETRULE");
+		if (pfctl_get_rule(dev, nr, pr.ticket, path, PF_SCRUB,
+		    &pr.rule, pr.anchor_call)) {
+			warn("DIOCGETRULENV");
 			goto error;
 		}
 
@@ -984,7 +986,8 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 	mnr = pr.nr;
 	for (nr = 0; nr < mnr; ++nr) {
 		pr.nr = nr;
-		if (ioctl(dev, DIOCGETRULE, &pr)) {
+		if (pfctl_get_rule(dev, nr, pr.ticket, path, PF_PASS,
+		    &pr.rule, pr.anchor_call)) {
 			warn("DIOCGETRULE");
 			goto error;
 		}
@@ -1074,7 +1077,8 @@ pfctl_show_nat(int dev, int opts, char *anchorname)
 		mnr = pr.nr;
 		for (nr = 0; nr < mnr; ++nr) {
 			pr.nr = nr;
-			if (ioctl(dev, DIOCGETRULE, &pr)) {
+			if (pfctl_get_rule(dev, nr, pr.ticket, anchorname,
+			    nattype[i], &pr.rule, pr.anchor_call)) {
 				warn("DIOCGETRULE");
 				return (-1);
 			}
