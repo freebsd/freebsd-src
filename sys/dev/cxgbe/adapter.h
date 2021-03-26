@@ -316,10 +316,6 @@ struct port_info {
 	u_int tx_parse_error;
 	int fcs_reg;
 	uint64_t fcs_base;
-	u_long	tx_toe_tls_records;
-	u_long	tx_toe_tls_octets;
-	u_long	rx_toe_tls_records;
-	u_long	rx_toe_tls_octets;
 
 	struct callout tick;
 };
@@ -654,6 +650,8 @@ iq_to_rxq(struct sge_iq *iq)
 struct sge_ofld_rxq {
 	struct sge_iq iq;	/* MUST be first */
 	struct sge_fl fl;	/* MUST follow iq */
+	u_long	rx_toe_tls_records;
+	u_long	rx_toe_tls_octets;
 } __aligned(CACHE_LINE_SIZE);
 
 static inline struct sge_ofld_rxq *
@@ -715,6 +713,8 @@ struct sge_wrq {
 /* ofld_txq: SGE egress queue + miscellaneous items */
 struct sge_ofld_txq {
 	struct sge_wrq wrq;
+	counter_u64_t tx_toe_tls_records;
+	counter_u64_t tx_toe_tls_octets;
 } __aligned(CACHE_LINE_SIZE);
 
 #define INVALID_NM_RXQ_CNTXT_ID ((uint16_t)(-1))

@@ -3958,6 +3958,13 @@ alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq,
 	add_iq_sysctls(&vi->ctx, oid, &ofld_rxq->iq);
 	add_fl_sysctls(pi->adapter, &vi->ctx, oid, &ofld_rxq->fl);
 
+	SYSCTL_ADD_ULONG(&vi->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_toe_tls_records", CTLFLAG_RD, &ofld_rxq->rx_toe_tls_records,
+	    "# of TOE TLS records received");
+	SYSCTL_ADD_ULONG(&vi->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_toe_tls_octets", CTLFLAG_RD, &ofld_rxq->rx_toe_tls_octets,
+	    "# of payload octets in received TOE TLS records");
+
 	return (rc);
 }
 
@@ -4494,10 +4501,20 @@ alloc_ofld_txq(struct vi_info *vi, struct sge_ofld_txq *ofld_txq, int idx,
 	snprintf(name, sizeof(name), "%d", idx);
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name,
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "offload tx queue");
+	children = SYSCTL_CHILDREN(oid);
 
 	rc = alloc_wrq(sc, vi, &ofld_txq->wrq, oid);
 	if (rc != 0)
 		return (rc);
+
+	ofld_txq->tx_toe_tls_records = counter_u64_alloc(M_WAITOK);
+	ofld_txq->tx_toe_tls_octets = counter_u64_alloc(M_WAITOK);
+	SYSCTL_ADD_COUNTER_U64(&vi->ctx, children, OID_AUTO,
+	    "tx_toe_tls_records", CTLFLAG_RD, &ofld_txq->tx_toe_tls_records,
+	    "# of TOE TLS records transmitted");
+	SYSCTL_ADD_COUNTER_U64(&vi->ctx, children, OID_AUTO,
+	    "tx_toe_tls_octets", CTLFLAG_RD, &ofld_txq->tx_toe_tls_octets,
+	    "# of payload octets in transmitted TOE TLS records");
 
 	return (rc);
 }
@@ -4511,6 +4528,9 @@ free_ofld_txq(struct vi_info *vi, struct sge_ofld_txq *ofld_txq)
 	rc = free_wrq(sc, &ofld_txq->wrq);
 	if (rc != 0)
 		return (rc);
+
+	counter_u64_free(ofld_txq->tx_toe_tls_records);
+	counter_u64_free(ofld_txq->tx_toe_tls_octets);
 
 	bzero(ofld_txq, sizeof(*ofld_txq));
 	return (0);
