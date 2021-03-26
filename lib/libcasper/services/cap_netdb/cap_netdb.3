@@ -1,0 +1,90 @@
+.\" Copyright (c) 2020 Ryan Moeller <freqlabs@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 12, 2020
+.Dt CAP_NETDB 3
+.Os
+.Sh NAME
+.Nm cap_getprotobyname ,
+.Nd "library for getting network proto entry in capability mode"
+.Sh LIBRARY
+.Lb libcap_netdb
+.Sh SYNOPSIS
+.In sys/nv.h
+.In libcasper.h
+.In casper/cap_netdb.h
+.Ft "struct protoent *"
+.Fn cap_getprotobyname "const cap_channel_t *chan" "const char *name"
+.Sh DESCRIPTION
+.Bf -symbolic
+The function
+.Fn cap_getprotobyname
+is equivalent to
+.Xr getprotobyname 3
+except that the connection to the
+.Nm system.netdb
+service needs to be provided.
+.Sh EXAMPLES
+The following example first opens a capability to casper and then uses this
+capability to create the
+.Nm system.netdb
+casper service and uses it to look up a protocol by name.
+.Bd -literal
+cap_channel_t *capcas, *capnetdb;
+struct protoent *ent;
+
+/* Open capability to Casper. */
+capcas = cap_init();
+if (capcas == NULL)
+	err(1, "Unable to contact Casper");
+
+/* Enter capability mode sandbox. */
+if (caph_enter() < 0)
+	err(1, "Unable to enter capability mode");
+
+/* Use Casper capability to create capability to the system.netdb service. */
+capnetdb = cap_service_open(capcas, "system.netdb");
+if (capnetdb == NULL)
+	err(1, "Unable to open system.netdb service");
+
+/* Close Casper capability, we don't need it anymore. */
+cap_close(capcas);
+
+ent = cap_getprotobyname(capnetdb, "http");
+if (ent == NULL)
+       errx(1, "cap_getprotobyname failed to find http proto");
+.Ed
+.Sh SEE ALSO
+.Xr cap_enter 2 ,
+.Xr caph_enter 3 ,
+.Xr err 3 ,
+.Xr getprotobyname 3 ,
+.Xr capsicum 4 ,
+.Xr nv 9
+.Sh AUTHORS
+The
+.Nm cap_netdb
+service was implemented by
+.An Ryan Moeller Aq Mt freqlabs@FreeBSD.org .
