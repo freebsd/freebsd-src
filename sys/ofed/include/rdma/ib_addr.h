@@ -42,7 +42,6 @@
 #include <linux/in6.h>
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
-#include <linux/inetdevice.h>
 #include <linux/socket.h>
 #include <linux/if_vlan.h>
 #include <net/ipv6.h>
