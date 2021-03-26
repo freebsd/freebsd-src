@@ -38,7 +38,6 @@
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
-#include <linux/inetdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/fs.h>
 #include <linux/rcupdate.h>
