@@ -39,8 +39,6 @@ struct gprovider;
 struct gmesh;
 struct ggeom;
 
-extern int tmpdfd;
-
 TAILQ_HEAD(pmetadata_head, partition_metadata);
 extern struct pmetadata_head part_metadata;
 
