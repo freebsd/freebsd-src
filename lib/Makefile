@@ -210,6 +210,7 @@ SUBDIR.${MK_BHYVE}+=	libvmmapi
 SUBDIR.${MK_OPENMP}+=	libomp
 .endif
 SUBDIR.${MK_OPENSSL}+=	libmp
+SUBDIR.${MK_PF}+=	libpfctl
 SUBDIR.${MK_PMC}+=	libpmc libpmcstat
 SUBDIR.${MK_RADIUS_SUPPORT}+=	libradius
 SUBDIR.${MK_SENDMAIL}+=	libmilter libsm libsmdb libsmutil

@@ -9,13 +9,14 @@ MAN=	pfctl.8
 
 SRCS = pfctl.c parse.y pfctl_parser.c pf_print_state.c pfctl_altq.c
 SRCS+= pfctl_osfp.c pfctl_radix.c pfctl_table.c pfctl_qstats.c
-SRCS+= pfctl_optimize.c pfctl_ioctl.c
+SRCS+= pfctl_optimize.c
 SRCS+= pf_ruleset.c
 
 WARNS?=	2
 CFLAGS+= -Wall -Wmissing-prototypes -Wno-uninitialized
 CFLAGS+= -Wstrict-prototypes
 CFLAGS+= -DENABLE_ALTQ -I${.CURDIR}
+CFLAGS+= -I${SRCTOP}/lib/libpfctl -I${OBJTOP}/lib/libpfctl
 
 # Need to use "WITH_" prefix to not conflict with the l/y INET/INET6 keywords
 .if ${MK_INET6_SUPPORT} != "no"
@@ -27,7 +28,7 @@ CFLAGS+= -DWITH_INET
 
 YFLAGS=
 
-LIBADD=	m md nv
+LIBADD=	m md pfctl
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests

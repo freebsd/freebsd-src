@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+PACKAGE=	lib${LIB}
+LIB=		pfctl
+INTERNALLIB=	true
+
+SRCS=	libpfctl.c
+INCS=	libpfctl.h
+
+CFLAGS+=	-fPIC
+
+.include <bsd.lib.mk>
