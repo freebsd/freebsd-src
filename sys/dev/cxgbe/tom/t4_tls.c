@@ -70,7 +70,7 @@ t4_set_tls_tcb_field(struct toepcb *toep, uint16_t word, uint64_t mask,
 {
 	struct adapter *sc = td_adapter(toep->td);
 
-	t4_set_tcb_field(sc, toep->ofld_txq, toep, word, mask, val, 0, 0);
+	t4_set_tcb_field(sc, &toep->ofld_txq->wrq, toep, word, mask, val, 0, 0);
 }
 
 /* TLS and DTLS common routines */
@@ -518,7 +518,7 @@ tls_program_key_id(struct toepcb *toep, struct tls_key_context *k_ctx)
 		keyid = get_keyid(tls_ofld, k_ctx->l_p_key);
 	}
 
-	wr = alloc_wrqe(len, toep->ofld_txq);
+	wr = alloc_wrqe(len, &toep->ofld_txq->wrq);
 	if (wr == NULL) {
 		free_keyid(toep, keyid);
 		return (ENOMEM);
@@ -1596,7 +1596,7 @@ t4_push_tls_records(struct adapter *sc, struct toepcb *toep, int drop)
 			    ((3 * (nsegs - 1)) / 2 + ((nsegs - 1) & 1)) * 8;
 		}
 
-		wr = alloc_wrqe(roundup2(wr_len, 16), toep->ofld_txq);
+		wr = alloc_wrqe(roundup2(wr_len, 16), &toep->ofld_txq->wrq);
 		if (wr == NULL) {
 			/* XXX: how will we recover from this? */
 			toep->flags |= TPF_TX_SUSPENDED;
@@ -1907,7 +1907,7 @@ t4_push_ktls(struct adapter *sc, struct toepcb *toep, int drop)
 		if (__predict_false(toep->flags & TPF_FIN_SENT))
 			panic("%s: excess tx.", __func__);
 
-		wr = alloc_wrqe(roundup2(wr_len, 16), toep->ofld_txq);
+		wr = alloc_wrqe(roundup2(wr_len, 16), &toep->ofld_txq->wrq);
 		if (wr == NULL) {
 			/* XXX: how will we recover from this? */
 			toep->flags |= TPF_TX_SUSPENDED;
