@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2012
+.Dd March 26, 2021
 .Dt KTR 4
 .Os
 .Sh NAME
@@ -78,7 +78,7 @@ It can also be examined and set after booting via the
 sysctl.
 By default the run time mask is set to block any tracing.
 The definitions of the event mask bits can be found in
-.In sys/ktr.h .
+.In sys/ktr_class.h .
 .Pp
 Furthermore, there is a CPU event mask whose default value can be changed via
 the
