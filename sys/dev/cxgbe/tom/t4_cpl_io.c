@@ -108,7 +108,7 @@ send_flowc_wr(struct toepcb *toep, struct tcpcb *tp)
 
 	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
 
-	wr = alloc_wrqe(roundup2(flowclen, 16), toep->ofld_txq);
+	wr = alloc_wrqe(roundup2(flowclen, 16), &toep->ofld_txq->wrq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
@@ -202,7 +202,8 @@ update_tx_rate_limit(struct adapter *sc, struct toepcb *toep, u_int Bps)
 		    fw_flowc_mnemval);
 		flowclen16 = howmany(flowclen, 16);
 		if (toep->tx_credits < flowclen16 || toep->txsd_avail == 0 ||
-		    (wr = alloc_wrqe(roundup2(flowclen, 16), toep->ofld_txq)) == NULL) {
+		    (wr = alloc_wrqe(roundup2(flowclen, 16),
+		    &toep->ofld_txq->wrq)) == NULL) {
 			if (tc_idx >= 0)
 				t4_release_cl_rl(sc, port_id, tc_idx);
 			return (ENOMEM);
@@ -266,7 +267,7 @@ send_reset(struct adapter *sc, struct toepcb *toep, uint32_t snd_nxt)
 	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %d.", __func__, tid));
 
-	wr = alloc_wrqe(sizeof(*req), toep->ofld_txq);
+	wr = alloc_wrqe(sizeof(*req), &toep->ofld_txq->wrq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
@@ -491,7 +492,7 @@ t4_close_conn(struct adapter *sc, struct toepcb *toep)
 	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %u.", __func__, tid));
 
-	wr = alloc_wrqe(sizeof(*req), toep->ofld_txq);
+	wr = alloc_wrqe(sizeof(*req), &toep->ofld_txq->wrq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
@@ -823,7 +824,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			/* Immediate data tx */
 
 			wr = alloc_wrqe(roundup2(sizeof(*txwr) + plen, 16),
-					toep->ofld_txq);
+					&toep->ofld_txq->wrq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
 				toep->flags |= TPF_TX_SUSPENDED;
@@ -841,7 +842,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 
 			wr_len = sizeof(*txwr) + sizeof(struct ulptx_sgl) +
 			    ((3 * (nsegs - 1)) / 2 + ((nsegs - 1) & 1)) * 8;
-			wr = alloc_wrqe(roundup2(wr_len, 16), toep->ofld_txq);
+			wr = alloc_wrqe(roundup2(wr_len, 16),
+			    &toep->ofld_txq->wrq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
 				toep->flags |= TPF_TX_SUSPENDED;
@@ -1018,7 +1020,7 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 			/* Immediate data tx */
 
 			wr = alloc_wrqe(roundup2(sizeof(*txwr) + plen, 16),
-					toep->ofld_txq);
+					&toep->ofld_txq->wrq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
 				toep->flags |= TPF_TX_SUSPENDED;
@@ -1036,7 +1038,8 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 			/* DSGL tx */
 			wr_len = sizeof(*txwr) + sizeof(struct ulptx_sgl) +
 			    ((3 * (nsegs - 1)) / 2 + ((nsegs - 1) & 1)) * 8;
-			wr = alloc_wrqe(roundup2(wr_len, 16), toep->ofld_txq);
+			wr = alloc_wrqe(roundup2(wr_len, 16),
+			    &toep->ofld_txq->wrq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
 				toep->flags |= TPF_TX_SUSPENDED;
@@ -1351,13 +1354,13 @@ done:
 }
 
 void
-send_abort_rpl(struct adapter *sc, struct sge_wrq *ofld_txq, int tid,
+send_abort_rpl(struct adapter *sc, struct sge_ofld_txq *ofld_txq, int tid,
     int rst_status)
 {
 	struct wrqe *wr;
 	struct cpl_abort_rpl *cpl;
 
-	wr = alloc_wrqe(sizeof(*cpl), ofld_txq);
+	wr = alloc_wrqe(sizeof(*cpl), &ofld_txq->wrq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
@@ -1397,7 +1400,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	const struct cpl_abort_req_rss *cpl = (const void *)(rss + 1);
 	unsigned int tid = GET_TID(cpl);
 	struct toepcb *toep = lookup_tid(sc, tid);
-	struct sge_wrq *ofld_txq = toep->ofld_txq;
+	struct sge_ofld_txq *ofld_txq = toep->ofld_txq;
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	struct epoch_tracker et;

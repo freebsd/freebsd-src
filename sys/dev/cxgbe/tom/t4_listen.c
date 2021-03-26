@@ -350,7 +350,7 @@ send_flowc_wr_synqe(struct adapter *sc, struct synq_entry *synqe)
 	struct port_info *pi = vi->pi;
 	struct wrqe *wr;
 	struct fw_flowc_wr *flowc;
-	struct sge_wrq *ofld_txq;
+	struct sge_ofld_txq *ofld_txq;
 	struct sge_ofld_rxq *ofld_rxq;
 	const int nparams = 6;
 	const int flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
@@ -362,7 +362,7 @@ send_flowc_wr_synqe(struct adapter *sc, struct synq_entry *synqe)
 	ofld_txq = &sc->sge.ofld_txq[synqe->params.txq_idx];
 	ofld_rxq = &sc->sge.ofld_rxq[synqe->params.rxq_idx];
 
-	wr = alloc_wrqe(roundup2(flowclen, 16), ofld_txq);
+	wr = alloc_wrqe(roundup2(flowclen, 16), &ofld_txq->wrq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
@@ -411,7 +411,8 @@ send_abort_rpl_synqe(struct toedev *tod, struct synq_entry *synqe,
 	if (!(synqe->flags & TPF_FLOWC_WR_SENT))
 		send_flowc_wr_synqe(sc, synqe);
 
-	wr = alloc_wrqe(sizeof(*req), &sc->sge.ofld_txq[synqe->params.txq_idx]);
+	wr = alloc_wrqe(sizeof(*req),
+	    &sc->sge.ofld_txq[synqe->params.txq_idx].wrq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
@@ -885,7 +886,7 @@ do_abort_req_synqe(struct sge_iq *iq, const struct rss_header *rss,
 	struct synq_entry *synqe = lookup_tid(sc, tid);
 	struct listen_ctx *lctx = synqe->lctx;
 	struct inpcb *inp = lctx->inp;
-	struct sge_wrq *ofld_txq;
+	struct sge_ofld_txq *ofld_txq;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
