@@ -327,6 +327,7 @@ void moea_scan_init(void);
 vm_offset_t moea_quick_enter_page(vm_page_t m);
 void moea_quick_remove_page(vm_offset_t addr);
 boolean_t moea_page_is_mapped(vm_page_t m);
+bool moea_ps_enabled(pmap_t pmap);
 static int moea_map_user_ptr(pmap_t pm,
     volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen);
 static int moea_decode_kernel_ptr(vm_offset_t addr,
@@ -370,6 +371,7 @@ static struct pmap_funcs moea_methods = {
 	.quick_enter_page =  moea_quick_enter_page,
 	.quick_remove_page =  moea_quick_remove_page,
 	.page_is_mapped = moea_page_is_mapped,
+	.ps_enabled = moea_ps_enabled,
 
 	/* Internal interfaces */
 	.bootstrap =        	moea_bootstrap,
@@ -1120,6 +1122,12 @@ boolean_t
 moea_page_is_mapped(vm_page_t m)
 {
 	return (!LIST_EMPTY(&(m)->md.mdpg_pvoh));
+}
+
+bool
+moea_ps_enabled(pmap_t pmap __unused)
+{
+	return (false);
 }
 
 /*
