@@ -89,8 +89,8 @@ if [ "$bootable" != "" ]; then
 	$MKIMG -s gpt \
 	    --capacity $imgsize \
 	    -b "$BASEBITSDIR/boot/pmbr" \
-	    $espparam \
 	    -p freebsd-boot:="$BASEBITSDIR/boot/isoboot" \
+	    $espparam \
 	    -o hybrid.img
 
 	# Drop the PMBR, GPT, and boot code into the System Area of the ISO.
