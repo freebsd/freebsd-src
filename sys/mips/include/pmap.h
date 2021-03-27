@@ -192,6 +192,12 @@ pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)
 	return (0);
 }
 
+static inline bool
+pmap_ps_enabled(pmap_t pmap __unused)
+{
+	return (false);
+}
+
 #endif				/* _KERNEL */
 
 #endif				/* !LOCORE */

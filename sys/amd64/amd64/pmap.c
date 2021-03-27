@@ -7228,7 +7228,7 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 	 */
 	if (!pmap_pkru_same(pmap, va, va + NBPDR)) {
 		pmap_abort_ptp(pmap, va, pdpg);
-		return (KERN_FAILURE);
+		return (KERN_PROTECTION_FAILURE);
 	}
 	if (va < VM_MAXUSER_ADDRESS && pmap->pm_type == PT_X86) {
 		newpde &= ~X86_PG_PKU_MASK;
