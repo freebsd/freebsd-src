@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/dirent.h>
 #include <sys/kernel.h>
 #include <sys/capsicum.h>
 #include <sys/fcntl.h>
@@ -746,6 +747,14 @@ needs_exclusive_leaf(struct mount *mp, int flags)
 	 */
 	return (0);
 }
+
+/*
+ * Various filesystems expect to be able to copy a name component with length
+ * bounded by NAME_MAX into a directory entry buffer of size MAXNAMLEN.  Make
+ * sure that these are the same size.
+ */
+_Static_assert(MAXNAMLEN == NAME_MAX,
+    "MAXNAMLEN and NAME_MAX have different values");
 
 /*
  * Search a pathname.
