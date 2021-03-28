@@ -32,19 +32,25 @@ main() {
 	shift $(( ${OPTIND} - 1 ))
 
 	outname="$(echo ${outname} | tr '-' '_')"
+	vital="false"
 
 	case "${outname}" in
 		clibs)
+			vital="true"
 			# clibs should not have any dependencies or anything
 			# else imposed on it.
 			;;
 		caroot)
 			pkgdeps="utilities"
 			;;
+		utilities)
+			uclfile="${uclfile}"
+			vital="true"
+			;;
 		runtime)
 			outname="runtime"
-			uclfile="${uclfile}"
 			_descr="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESCR)"
+			vital="true"
 			;;
 		*_lib32_dev)
 			outname="${outname%%_lib32_dev}"
@@ -108,6 +114,7 @@ main() {
 		echo "uclfile=${uclfile}"
 		echo "desc=${desc}"
 		echo "comment=${comment}"
+		echo "vital=${vital}"
 		echo "cp ${uclsource} -> ${uclfile}"
 		echo "==============================================================="
 		echo ""
@@ -135,6 +142,7 @@ EOF
 		-e "s/%PKGNAME%/${origname}/" \
 		-e "s/%COMMENT%/${comment}/" \
 		-e "s/%DESC%/${desc}/" \
+		-e "s/%VITAL%/${vital}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/${cap_arg}/g" \
 		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
 		-e "s|%PKG_WWW%|${PKG_WWW}|" \
