@@ -65,7 +65,7 @@ MLINKS=	\
 	editline.3 tok_wreset.3 \
 	editline.3 tok_wstr.3
 
-INCS=	histedit.h
+INCS=	histedit.h filecomplete.h
 
 SRCS+=	common.h emacs.h fcns.h func.h help.h vi.h
 CLEANFILES+= common.h emacs.h fcns.h func.h help.h vi.h
