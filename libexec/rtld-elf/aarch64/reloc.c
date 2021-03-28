@@ -506,10 +506,10 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 		 * as 1028. But actual bfd linker and the glibc RTLD linker
 		 * treats TLS_DTPMOD64 as 1028 and TLS_DTPREL64 1029.
 		 */
-		case R_AARCH64_TLS_DTPREL64: /* efectively is TLS_DTPMOD64 */
+		case R_AARCH64_TLS_DTPREL64: /* effectively is TLS_DTPMOD64 */
 			*where += (Elf_Addr)defobj->tlsindex;
 			break;
-		case R_AARCH64_TLS_DTPMOD64: /* efectively is TLS_DTPREL64 */
+		case R_AARCH64_TLS_DTPMOD64: /* effectively is TLS_DTPREL64 */
 			*where += (Elf_Addr)(def->st_value + rela->r_addend);
 			break;
 		case R_AARCH64_RELATIVE:

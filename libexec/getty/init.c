@@ -62,7 +62,7 @@ struct	gettystrs gettystrs[] = {
 	{ "lm", loginmsg, NULL },	/* login message */
 	{ "er", M(VERASE), NULL },	/* erase character */
 	{ "kl", M(VKILL), NULL },	/* kill character */
-	{ "et", M(VEOF), NULL },	/* eof chatacter (eot) */
+	{ "et", M(VEOF), NULL },	/* eof character (eot) */
 	{ "pc", nullstr, NULL },	/* pad character */
 	{ "tt", NULL, NULL },		/* terminal type */
 	{ "ev", NULL, NULL },		/* environment */
