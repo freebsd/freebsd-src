@@ -87,7 +87,7 @@ int
 pt_reg_sstep(struct reg *reg __unused, int step __unused)
 {
 	/*
-	 * XXX: mips doesnt store single step info in any registers
+	 * XXX: mips doesn't store single step info in any registers
 	 */
 	return (0);
 }

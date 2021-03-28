@@ -761,7 +761,7 @@ libusb20_me_decode(const void *ptr, uint16_t len, void *pd)
 						ps->type = LIBUSB20_ME_IS_DECODED;
 						ps->len = 0;
 						/*
-						 * Recursivly decode
+						 * Recursively decode
 						 * the next structure
 						 */
 						(void) libusb20_me_decode(buf,
