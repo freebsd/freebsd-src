@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2016 Matthew Macy (mmacy@mattmacy.io)
- * Copyright (c) 2017-2020 Hans Petter Selasky (hselasky@freebsd.org)
+ * Copyright (c) 2017-2021 Hans Petter Selasky (hselasky@freebsd.org)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,6 +84,15 @@ struct linux_epoch_record {
  * LinuxKPI.
  */
 CTASSERT(sizeof(struct rcu_head) == sizeof(struct callback_head));
+
+/*
+ * Verify that "rcu_section[0]" has the same size as
+ * "ck_epoch_section_t". This has been done to avoid having to add
+ * special compile flags for including ck_epoch.h to all clients of
+ * the LinuxKPI.
+ */
+CTASSERT(sizeof(((struct task_struct *)0)->rcu_section[0] ==
+    sizeof(ck_epoch_section_t)));
 
 /*
  * Verify that "epoch_record" is at beginning of "struct
@@ -190,6 +199,14 @@ linux_rcu_read_lock(unsigned type)
 	if (RCU_SKIP())
 		return;
 
+	ts = current;
+
+	/* assert valid refcount */
+	MPASS(ts->rcu_recurse[type] != INT_MAX);
+
+	if (++(ts->rcu_recurse[type]) != 1)
+		return;
+
 	/*
 	 * Pin thread to current CPU so that the unlock code gets the
 	 * same per-CPU epoch record:
@@ -197,17 +214,15 @@ linux_rcu_read_lock(unsigned type)
 	sched_pin();
 
 	record = &DPCPU_GET(linux_epoch_record[type]);
-	ts = current;
 
 	/*
 	 * Use a critical section to prevent recursion inside
 	 * ck_epoch_begin(). Else this function supports recursion.
 	 */
 	critical_enter();
-	ck_epoch_begin(&record->epoch_record, NULL);
-	ts->rcu_recurse[type]++;
-	if (ts->rcu_recurse[type] == 1)
-		TAILQ_INSERT_TAIL(&record->ts_head, ts, rcu_entry[type]);
+	ck_epoch_begin(&record->epoch_record,
+	    (ck_epoch_section_t *)&ts->rcu_section[type]);
+	TAILQ_INSERT_TAIL(&record->ts_head, ts, rcu_entry[type]);
 	critical_exit();
 }
 
@@ -222,18 +237,24 @@ linux_rcu_read_unlock(unsigned type)
 	if (RCU_SKIP())
 		return;
 
-	record = &DPCPU_GET(linux_epoch_record[type]);
 	ts = current;
+
+	/* assert valid refcount */
+	MPASS(ts->rcu_recurse[type] > 0);
+	
+	if (--(ts->rcu_recurse[type]) != 0)
+		return;
+
+	record = &DPCPU_GET(linux_epoch_record[type]);
 
 	/*
 	 * Use a critical section to prevent recursion inside
 	 * ck_epoch_end(). Else this function supports recursion.
 	 */
 	critical_enter();
-	ck_epoch_end(&record->epoch_record, NULL);
-	ts->rcu_recurse[type]--;
-	if (ts->rcu_recurse[type] == 0)
-		TAILQ_REMOVE(&record->ts_head, ts, rcu_entry[type]);
+	ck_epoch_end(&record->epoch_record,
+	    (ck_epoch_section_t *)&ts->rcu_section[type]);
+	TAILQ_REMOVE(&record->ts_head, ts, rcu_entry[type]);
 	critical_exit();
 
 	sched_unpin();
