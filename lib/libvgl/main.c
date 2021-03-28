@@ -250,7 +250,7 @@ VGLInit(int mode)
 
   /*
    * Calculate the shadow screen buffer size.  In -CURRENT, va_buffer_size
-   * always holds the entire frame buffer size, wheather it's in the linear
+   * always holds the entire frame buffer size, whether it's in the linear
    * mode or windowed mode.  
    *     VGLBufSize = VGLAdpInfo.va_buffer_size;
    * In -STABLE, va_buffer_size holds the frame buffer size, only if

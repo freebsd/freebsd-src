@@ -634,7 +634,7 @@ log1pl(long double x)
 	/*
 	 * This is _2sumF(d_hi, d_lo) inlined.  The condition
 	 * (d_hi == 0 || |d_hi| >= |d_lo|) for using _2sumF() is not
-	 * always satisifed, so it is not clear that this works, but
+	 * always satisfied, so it is not clear that this works, but
 	 * it works in practice.  It works even if it gives a wrong
 	 * normalized d_lo, since |d_lo| > |d_hi| implies that i is
 	 * nonzero and d is tiny, so the F(i) term dominates d_lo.

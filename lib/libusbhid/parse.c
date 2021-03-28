@@ -557,7 +557,7 @@ hid_report_size(report_desc_t r, enum hid_kind k, int id)
 	}
 	hid_end_parse(d);
 
-	/* safety check - can happen in case of currupt descriptors */
+	/* safety check - can happen in case of corrupt descriptors */
 	if (lpos > hpos)
 		temp = 0;
 	else

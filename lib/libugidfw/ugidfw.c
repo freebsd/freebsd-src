@@ -607,7 +607,7 @@ bsde_get_jailid(const char *name, size_t buflen, char *errstr)
 	int jid;
 	struct iovec jiov[4];
 
-	/* Copy jail_getid(3) instead of messing with library dependancies */
+	/* Copy jail_getid(3) instead of messing with library dependencies */
 	jid = strtoul(name, &ep, 10);
 	if (*name && !*ep)
 		return jid;
