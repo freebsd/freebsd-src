@@ -625,7 +625,7 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 {
 	const int linesize = 128;
 	struct sbuf sb;
-	int i, error;
+	int i, error, len;
 	struct hc_metrics *hc_entry;
 	char ip4buf[INET_ADDRSTRLEN];
 #ifdef INET6
@@ -635,11 +635,22 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 	if (jailed_without_vnet(curthread->td_ucred) != 0)
 		return (EPERM);
 
-	sbuf_new(&sb, NULL, linesize * (V_tcp_hostcache.cache_count + 1),
-		SBUF_INCLUDENUL);
+	/* Optimize Buffer length query by sbin/sysctl */
+	if (req->oldptr == NULL) {
+		len = (V_tcp_hostcache.cache_count + 1) * linesize;
+		return (SYSCTL_OUT(req, NULL, len));
+	}
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0) {
+		return(error);
+	}
+
+	/* Use a buffer for 16 lines */
+	sbuf_new_for_sysctl(&sb, NULL, 16 * linesize, req);
 
 	sbuf_printf(&sb,
-	        "\nIP address        MTU  SSTRESH      RTT   RTTVAR "
+		"\nIP address        MTU  SSTRESH      RTT   RTTVAR "
 		"    CWND SENDPIPE RECVPIPE HITS  UPD  EXP\n");
 
 #define msec(u) (((u) + 500) / 1000)
@@ -674,8 +685,6 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 	}
 #undef msec
 	error = sbuf_finish(&sb);
-	if (error == 0)
-		error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
 	sbuf_delete(&sb);
 	return(error);
 }
