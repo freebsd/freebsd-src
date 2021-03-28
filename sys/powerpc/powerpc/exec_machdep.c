@@ -566,7 +566,8 @@ cleanup_power_extras(struct thread *td)
 	if (pcb_flags & PCB_CDSCR) 
 		mtspr(SPR_DSCRP, 0);
 
-	cleanup_fpscr();
+	if (pcb_flags & PCB_FPU)
+		cleanup_fpscr();
 }
 
 /*
