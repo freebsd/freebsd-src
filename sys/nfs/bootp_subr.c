@@ -1682,9 +1682,11 @@ retry:
 
 		NET_EPOCH_ENTER(et);
 		bootpc_add_default_route(ifctx);
+		NET_EPOCH_EXIT(et);
 		error = md_mount(&nd->root_saddr, nd->root_hostnam,
 				 nd->root_fh, &nd->root_fhsize,
 				 &nd->root_args, td);
+		NET_EPOCH_ENTER(et);
 		bootpc_remove_default_route(ifctx);
 		NET_EPOCH_EXIT(et);
 		if (error != 0) {
