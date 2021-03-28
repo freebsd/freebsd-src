@@ -70,7 +70,7 @@ bootp_print(bp, length, sport, dport)
 	if (length != sizeof(struct bootp))
 		(void) printf(" [len=%d]", length);
 
-	/* 'ep' points to the end of avaible data. */
+	/* 'ep' points to the end of available data. */
 	ep = (u_char *) snapend;
 
 	switch (bp->bp_op) {

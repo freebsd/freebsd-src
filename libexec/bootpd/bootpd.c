@@ -1296,7 +1296,7 @@ dovend_rfc1048(bp, hp, bootsize)
 				case TAG_SUBNET_MASK:
 					/* XXX - Should preserve this if given... */
 					break;
-				} /* swtich */
+				} /* switch */
 				p += len;
 			}
 

@@ -69,7 +69,7 @@ PRIVATE void hashi_FreeMembers(hash_member *, hash_freefp);
 /*
  * Hash table initialization routine.
  *
- * This routine creates and intializes a hash table of size "tablesize"
+ * This routine creates and initializes a hash table of size "tablesize"
  * entries.  Successful calls return a pointer to the hash table (which must
  * be passed to other hash routines to identify the hash table).  Failed
  * calls return NULL.

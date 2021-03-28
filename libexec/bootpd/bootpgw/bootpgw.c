@@ -335,7 +335,7 @@ main(argc, argv)
 		} /* switch */
 	} /* for args */
 
-	/* Make sure server name argument is suplied. */
+	/* Make sure server name argument is supplied. */
 	servername = argv[0];
 	if (!servername) {
 		warnx("missing server name");
