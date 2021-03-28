@@ -532,7 +532,9 @@ powernv_node_numa_domain(platform_t platform, phandle_t node)
 #ifndef NUMA
 	return (0);
 #endif
-	if (vm_ndomains == 1)
+	i = 0;
+	TUNABLE_INT_FETCH("vm.numa.disabled", &i);
+	if (i)
 		return (0);
 
 	res = OF_getencprop(node, "ibm,associativity",
