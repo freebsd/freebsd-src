@@ -147,6 +147,7 @@ struct netmap_mem_d* netmap_mem_private_new( u_int txr, u_int txd, u_int rxr, u_
 #define netmap_mem_get(d) __netmap_mem_get(d, __FUNCTION__, __LINE__)
 #define netmap_mem_put(d) __netmap_mem_put(d, __FUNCTION__, __LINE__)
 struct netmap_mem_d* __netmap_mem_get(struct netmap_mem_d *, const char *, int);
+struct netmap_mem_d* netmap_mem_get_iommu(struct netmap_adapter *);
 void __netmap_mem_put(struct netmap_mem_d *, const char *, int);
 struct netmap_mem_d* netmap_mem_find(nm_memid_t);
 unsigned netmap_mem_bufsize(struct netmap_mem_d *nmd);
@@ -172,7 +173,6 @@ int netmap_mem_pools_info_get(struct nmreq_pools_info *,
 
 #define NETMAP_MEM_PRIVATE	0x2	/* allocator uses private address space */
 #define NETMAP_MEM_IO		0x4	/* the underlying memory is mmapped I/O */
-#define NETMAP_MEM_EXT		0x10	/* external memory (not remappable) */
 
 uint32_t netmap_extra_alloc(struct netmap_adapter *, uint32_t *, uint32_t n);
 

@@ -123,11 +123,28 @@
 	( ((char *)(buf) - ((char *)(ring) + (ring)->buf_ofs) ) / \
 		(ring)->nr_buf_size )
 
+/* read the offset field in a ring's slot */
+#define NETMAP_ROFFSET(ring, slot)			\
+	((slot)->ptr & (ring)->offset_mask)
+
+/* update the offset field in a ring's slot */
+#define NETMAP_WOFFSET(ring, slot, offset)		\
+	do { (slot)->ptr = ((slot)->ptr & ~(ring)->offset_mask) | \
+		((offset) & (ring)->offset_mask); } while (0)
+
+/* obtain the start of the buffer pointed to by  a ring's slot, taking the
+ * offset field into accout
+ */
+#define NETMAP_BUF_OFFSET(ring, slot)			\
+	(NETMAP_BUF(ring, (slot)->buf_idx) + NETMAP_ROFFSET(ring, slot))
+
+
 static inline uint32_t
 nm_ring_next(struct netmap_ring *r, uint32_t i)
 {
 	return ( unlikely(i + 1 == r->num_slots) ? 0 : i + 1);
 }
+
 
 /*
  * Return 1 if we have pending transmissions in the tx ring.
@@ -350,6 +367,7 @@ enum {
 	NM_OPEN_RING_CFG =	0x800000, /* tx|rx rings|slots */
 };
 
+
 /*
  * nm_close()	closes and restores the port to its previous state
  */
@@ -429,6 +447,7 @@ win_remove_fd_record(int fd)
 		break;
 	}
 }
+
 
 HANDLE
 win_get_netmap_handle(int fd)
@@ -916,6 +935,7 @@ nm_open(const char *ifname, const struct nmreq *req,
 		goto fail;
 	}
 
+
 #ifdef DEBUG_NETMAP_USER
     { /* debugging code */
 	int i;
@@ -946,6 +966,7 @@ fail:
 		errno = EINVAL;
 	return NULL;
 }
+
 
 static int
 nm_close(struct nm_desc *d)
@@ -1059,6 +1080,7 @@ nm_inject(struct nm_desc *d, const void *buf, size_t size)
 	return 0; /* fail */
 }
 
+
 /*
  * Same prototype as pcap_dispatch(), only need to cast.
  */
@@ -1108,7 +1130,7 @@ nm_dispatch(struct nm_desc *d, int cnt, nm_cb_t cb, u_char *arg)
 				slot = &ring->slot[i];
 				d->hdr.len += slot->len;
 				nbuf = (u_char *)NETMAP_BUF(ring, slot->buf_idx);
-				if (oldbuf != NULL && nbuf - oldbuf == (int)ring->nr_buf_size &&
+				if (oldbuf != NULL && nbuf - oldbuf == ring->nr_buf_size &&
 						oldlen == ring->nr_buf_size) {
 					d->hdr.caplen += slot->len;
 					oldbuf = nbuf;
