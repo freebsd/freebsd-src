@@ -806,7 +806,7 @@ nhgrp_dump_sysctl(struct rib_head *rh, struct sysctl_req *w)
 	sz = sizeof(struct rt_msghdr) + sizeof(struct nhgrp_external);
 	sz += 2 * sizeof(struct nhgrp_container);
 	sz += 2 * sizeof(struct nhgrp_nhop_external) * RIB_MAX_MPATH_WIDTH;
-	buffer = malloc(sz, M_TEMP, M_MOWAIT);
+	buffer = malloc(sz, M_TEMP, M_NOWAIT);
 	if (buffer == NULL)
 		return (ENOMEM);
 
