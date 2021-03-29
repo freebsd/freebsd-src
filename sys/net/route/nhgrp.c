@@ -243,8 +243,8 @@ consider_resize(struct nh_control *ctl, uint32_t new_nh_buckets, uint32_t new_id
 		CHT_SLIST_RESIZE(&ctl->gr_head, mpath, nh_ptr, new_nh_buckets);
 	}
 	if (nh_idx_ptr != NULL) {
-		if (bitmask_copy(&ctl->gr_idx_head, nh_idx_ptr, new_idx_items))
-			bitmask_swap(&ctl->nh_idx_head, nh_idx_ptr, new_idx_items, &old_idx_ptr);
+		if (bitmask_copy(&ctl->gr_idx_head, nh_idx_ptr, new_idx_items) == 0)
+			bitmask_swap(&ctl->gr_idx_head, nh_idx_ptr, new_idx_items, &old_idx_ptr);
 	}
 	NHOPS_WUNLOCK(ctl);
 
