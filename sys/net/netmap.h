@@ -235,6 +235,7 @@ struct netmap_slot {
 
 #define NETMAP_MAX_FRAGS	64	/* max number of fragments */
 
+
 /*
  * struct netmap_ring
  *
@@ -296,6 +297,19 @@ struct netmap_ring {
 
 	struct timeval	ts;		/* (k) time of last *sync() */
 
+	/* offset_mask is used to isolate the part of the ptr field
+	 * in the slots used to contain an offset in the buffer.
+	 * It is zero if the ring has not be opened using the
+	 * NETMAP_REQ_OPT_OFFSETS option.
+	 */
+	const uint64_t	offset_mask;
+	/* the alignment requirement, in bytes, for the start
+	 * of the packets inside the buffers.
+	 * User programs should take this alignment into
+	 * account when specifing buffer-offsets in TX slots.
+	 */
+	const uint64_t	buf_align;
+
 	/* opaque room for a mutex or similar object */
 #if !defined(_WIN32) || defined(__CYGWIN__)
 	uint8_t	__attribute__((__aligned__(NM_CACHE_ALIGN))) sem[128];
@@ -306,6 +320,7 @@ struct netmap_ring {
 	/* the slots follow. This struct has variable size */
 	struct netmap_slot slot[0];	/* array of slots. */
 };
+
 
 /*
  * RING FLAGS
@@ -561,6 +576,12 @@ enum {
 	 */
 	NETMAP_REQ_OPT_SYNC_KLOOP_MODE,
 
+	/* On NETMAP_REQ_REGISTER, ask for (part of) the ptr field in the
+	 * slots of the registered rings to be used as an offset field
+	 * for the start of the packets inside the netmap buffer.
+	 */
+	NETMAP_REQ_OPT_OFFSETS,
+
 	/* This is a marker to count the number of available options.
 	 * New options must be added above it. */
 	NETMAP_REQ_OPT_MAX,
@@ -811,7 +832,16 @@ static inline void nm_ldld_barrier(void)
 #define nm_ldld_barrier	atomic_thread_fence_acq
 #define nm_stld_barrier	atomic_thread_fence_seq_cst
 #else  /* !_KERNEL */
+
+#ifdef __cplusplus
+#include <atomic>
+using std::memory_order_release;
+using std::memory_order_acquire;
+
+#else /* __cplusplus */
 #include <stdatomic.h>
+#endif /* __cplusplus */
+
 static inline void nm_stst_barrier(void)
 {
 	atomic_thread_fence(memory_order_release);
@@ -931,6 +961,31 @@ struct nmreq_opt_csb {
 	/* Array of CSB entries for kernel --> application communication
 	 * (N entries). */
 	uint64_t		csb_ktoa;
+};
+
+/* option NETMAP_REQ_OPT_OFFSETS */
+struct nmreq_opt_offsets {
+	struct nmreq_option	nro_opt;
+	/* the user must declare the maximum offset value that she is
+	 * going to put into the offset slot-fields. Any larger value
+	 * found at runtime will be cropped. On output the (possibly
+	 * higher) effective max value is returned.
+	 */
+	uint64_t		nro_max_offset;
+	/* optional initial offset value, to be set in all slots. */
+	uint64_t		nro_initial_offset;
+	/* number of bits in the lower part of the 'ptr' field to be
+	 * used as the offset field. On output the (possibily larger)
+	 * effective number of bits is returned.
+	 * 0 means: use the whole ptr field.
+	 */
+	uint32_t		nro_offset_bits;
+	/* required alignment for the beginning of the packets
+	 * (base of the buffer plus offset) in the TX slots.
+	 */
+	uint32_t		nro_tx_align;
+	/* Reserved: set to zero. */
+	uint64_t		nro_min_gap;
 };
 
 #endif /* _NET_NETMAP_H_ */
