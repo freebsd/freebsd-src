@@ -178,6 +178,7 @@ struct nmport_extmem_from_file_cleanup_d {
 void nmport_extmem_from_file_cleanup(struct nmport_cleanup_d *c,
 		struct nmport_d *d)
 {
+	(void)d;
 	struct nmport_extmem_from_file_cleanup_d *cc =
 		(struct nmport_extmem_from_file_cleanup_d *)c;
 
@@ -245,6 +246,59 @@ nmport_extmem_getinfo(struct nmport_d *d)
 	if (d->extmem == NULL)
 		return NULL;
 	return &d->extmem->nro_info;
+}
+
+struct nmport_offset_cleanup_d {
+	struct nmport_cleanup_d up;
+	struct nmreq_opt_offsets *opt;
+};
+
+static void
+nmport_offset_cleanup(struct nmport_cleanup_d *c,
+		struct nmport_d *d)
+{
+	struct nmport_offset_cleanup_d *cc =
+		(struct nmport_offset_cleanup_d *)c;
+
+	nmreq_remove_option(&d->hdr, &cc->opt->nro_opt);
+	nmctx_free(d->ctx, cc->opt);
+}
+
+int
+nmport_offset(struct nmport_d *d, uint64_t initial,
+		uint64_t maxoff, uint64_t bits, uint64_t mingap)
+{
+	struct nmctx *ctx = d->ctx;
+	struct nmreq_opt_offsets *opt;
+	struct nmport_offset_cleanup_d *clnup = NULL;
+
+	clnup = nmctx_malloc(ctx, sizeof(*clnup));
+	if (clnup == NULL) {
+		nmctx_ferror(ctx, "cannot allocate cleanup descriptor");
+		errno = ENOMEM;
+		return -1;
+	}
+
+	opt = nmctx_malloc(ctx, sizeof(*opt));
+	if (opt == NULL) {
+		nmctx_ferror(ctx, "%s: cannot allocate offset option", d->hdr.nr_name);
+		nmctx_free(ctx, clnup);
+		errno = ENOMEM;
+		return -1;
+	}
+	memset(opt, 0, sizeof(*opt));
+	opt->nro_opt.nro_reqtype = NETMAP_REQ_OPT_OFFSETS;
+	opt->nro_offset_bits = bits;
+	opt->nro_initial_offset = initial;
+	opt->nro_max_offset = maxoff;
+	opt->nro_min_gap = mingap;
+	nmreq_push_option(&d->hdr, &opt->nro_opt);
+
+	clnup->up.cleanup = nmport_offset_cleanup;
+	clnup->opt = opt;
+	nmport_push_cleanup(d, &clnup->up);
+
+	return 0;
 }
 
 /* head of the list of options */
@@ -327,6 +381,9 @@ NPOPT_DECL(conf, 0)
 	NPKEY_DECL(conf, host_rx_rings, 0)
 	NPKEY_DECL(conf, tx_slots, 0)
 	NPKEY_DECL(conf, rx_slots, 0)
+NPOPT_DECL(offset, NMREQ_OPTF_DISABLED)
+	NPKEY_DECL(offset, initial, NMREQ_OPTK_DEFAULT|NMREQ_OPTK_MUSTSET)
+	NPKEY_DECL(offset, bits, 0)
 
 
 static int
@@ -431,6 +488,23 @@ NPOPT_PARSER(conf)(struct nmreq_parse_ctx *p)
 	}
 	return 0;
 }
+
+static int
+NPOPT_PARSER(offset)(struct nmreq_parse_ctx *p)
+{
+	struct nmport_d *d;
+	uint64_t initial, bits;
+
+	d = p->token;
+
+	initial = atoi(nmport_key(p, offset, initial));
+	bits = 0;
+	if (nmport_key(p, offset, bits) != NULL)
+		bits = atoi(nmport_key(p, offset, bits));
+
+	return nmport_offset(d, initial, initial, bits, 0);
+}
+
 
 void
 nmport_disable_option(const char *opt)
@@ -586,7 +660,7 @@ nmport_mmap(struct nmport_d *d)
 	struct nmctx *ctx = d->ctx;
 	struct nmem_d *m = NULL;
 	u_int num_tx, num_rx;
-	int i;
+	unsigned int i;
 
 	if (d->mmap_done) {
 		errno = EINVAL;
@@ -643,7 +717,7 @@ nmport_mmap(struct nmport_d *d)
 	num_tx = d->reg.nr_tx_rings + d->nifp->ni_host_tx_rings;
 	for (i = 0; i < num_tx && !d->nifp->ring_ofs[i]; i++)
 		;
-	d->first_tx_ring = i;
+	d->cur_tx_ring = d->first_tx_ring = i;
 	for ( ; i < num_tx && d->nifp->ring_ofs[i]; i++)
 		;
 	d->last_tx_ring = i - 1;
@@ -651,7 +725,7 @@ nmport_mmap(struct nmport_d *d)
 	num_rx = d->reg.nr_rx_rings + d->nifp->ni_host_rx_rings;
 	for (i = 0; i < num_rx && !d->nifp->ring_ofs[i + num_tx]; i++)
 		;
-	d->first_rx_ring = i;
+	d->cur_rx_ring = d->first_rx_ring = i;
 	for ( ; i < num_rx && d->nifp->ring_ofs[i + num_tx]; i++)
 		;
 	d->last_rx_ring = i - 1;
