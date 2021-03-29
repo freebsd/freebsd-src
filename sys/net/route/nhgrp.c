@@ -82,7 +82,7 @@
  *
  */
 
-static void consider_resize(struct nh_control *ctl, uint32_t new_nh_buckets,
+static void consider_resize(struct nh_control *ctl, uint32_t new_gr_buckets,
     uint32_t new_idx_items);
 
 static int cmp_nhgrp(const struct nhgrp_priv *a, const struct nhgrp_priv *b);
@@ -209,47 +209,47 @@ unlink_nhgrp(struct nh_control *ctl, struct nhgrp_priv *key)
  * Checks if hash needs resizing and performs this resize if necessary
  *
  */
-__noinline static void
-consider_resize(struct nh_control *ctl, uint32_t new_nh_buckets, uint32_t new_idx_items)
+static void
+consider_resize(struct nh_control *ctl, uint32_t new_gr_bucket, uint32_t new_idx_items)
 {
-	void *nh_ptr, *nh_idx_ptr;
+	void *gr_ptr, *gr_idx_ptr;
 	void *old_idx_ptr;
 	size_t alloc_size;
 
-	nh_ptr = NULL ;
-	if (new_nh_buckets != 0) {
-		alloc_size = CHT_SLIST_GET_RESIZE_SIZE(new_nh_buckets);
-		nh_ptr = malloc(alloc_size, M_NHOP, M_NOWAIT | M_ZERO);
+	gr_ptr = NULL ;
+	if (new_gr_bucket != 0) {
+		alloc_size = CHT_SLIST_GET_RESIZE_SIZE(new_gr_bucket);
+		gr_ptr = malloc(alloc_size, M_NHOP, M_NOWAIT | M_ZERO);
 	}
 
-	nh_idx_ptr = NULL;
+	gr_idx_ptr = NULL;
 	if (new_idx_items != 0) {
 		alloc_size = bitmask_get_size(new_idx_items);
-		nh_idx_ptr = malloc(alloc_size, M_NHOP, M_NOWAIT | M_ZERO);
+		gr_idx_ptr = malloc(alloc_size, M_NHOP, M_NOWAIT | M_ZERO);
 	}
 
-	if (nh_ptr == NULL && nh_idx_ptr == NULL) {
+	if (gr_ptr == NULL && gr_idx_ptr == NULL) {
 		/* Either resize is not required or allocations have failed. */
 		return;
 	}
 
-	DPRINTF("mp: going to resize: nh:[ptr:%p sz:%u] idx:[ptr:%p sz:%u]",
-	    nh_ptr, new_nh_buckets, nh_idx_ptr, new_idx_items);
+	DPRINTF("mp: going to resize: gr:[ptr:%p sz:%u] idx:[ptr:%p sz:%u]",
+	    gr_ptr, new_gr_bucket, gr_idx_ptr, new_idx_items);
 
 	old_idx_ptr = NULL;
 
 	NHOPS_WLOCK(ctl);
-	if (nh_ptr != NULL) {
-		CHT_SLIST_RESIZE(&ctl->gr_head, mpath, nh_ptr, new_nh_buckets);
+	if (gr_ptr != NULL) {
+		CHT_SLIST_RESIZE(&ctl->gr_head, mpath, gr_ptr, new_gr_bucket);
 	}
-	if (nh_idx_ptr != NULL) {
-		if (bitmask_copy(&ctl->gr_idx_head, nh_idx_ptr, new_idx_items) == 0)
-			bitmask_swap(&ctl->gr_idx_head, nh_idx_ptr, new_idx_items, &old_idx_ptr);
+	if (gr_idx_ptr != NULL) {
+		if (bitmask_copy(&ctl->gr_idx_head, gr_idx_ptr, new_idx_items) == 0)
+			bitmask_swap(&ctl->gr_idx_head, gr_idx_ptr, new_idx_items, &old_idx_ptr);
 	}
 	NHOPS_WUNLOCK(ctl);
 
-	if (nh_ptr != NULL)
-		free(nh_ptr, M_NHOP);
+	if (gr_ptr != NULL)
+		free(gr_ptr, M_NHOP);
 	if (old_idx_ptr != NULL)
 		free(old_idx_ptr, M_NHOP);
 }
