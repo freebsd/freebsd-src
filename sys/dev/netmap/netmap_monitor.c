@@ -38,6 +38,8 @@
  * the traffic transiting on both the tx and rx corresponding rings in the
  * monitored adapter. During registration, the user can choose if she wants
  * to intercept tx only, rx only, or both tx and rx traffic.
+ * The slots containing traffic intercepted in the tx direction will have
+ * the NS_TXMON flag set.
  *
  * If the monitor is not able to cope with the stream of frames, excess traffic
  * will be dropped.
@@ -592,6 +594,7 @@ netmap_zmon_parent_sync(struct netmap_kring *kring, int flags, enum txrx tx)
 	u_int beg, end, i;
 	u_int lim = kring->nkr_num_slots - 1,
 	      mlim; // = mkring->nkr_num_slots - 1;
+	uint16_t txmon = kring->tx == NR_TX ? NS_TXMON : 0;
 
 	if (mkring == NULL) {
 		nm_prlim(5, "NULL monitor on %s", kring->name);
@@ -661,7 +664,7 @@ netmap_zmon_parent_sync(struct netmap_kring *kring, int flags, enum txrx tx)
 		ms->len = s->len;
 		s->len = tmp;
 
-		ms->flags = s->flags;
+		ms->flags = (s->flags & ~NS_TXMON) | txmon;
 		s->flags |= NS_BUF_CHANGED;
 
 		beg = nm_next(beg, lim);
@@ -728,6 +731,7 @@ static void
 netmap_monitor_parent_sync(struct netmap_kring *kring, u_int first_new, int new_slots)
 {
 	u_int j;
+	uint16_t txmon = kring->tx == NR_TX ? NS_TXMON : 0;
 
 	for (j = 0; j < kring->n_monitors; j++) {
 		struct netmap_kring *mkring = kring->monitors[j];
@@ -779,7 +783,7 @@ netmap_monitor_parent_sync(struct netmap_kring *kring, u_int first_new, int new_
 
 			memcpy(dst, src, copy_len);
 			ms->len = copy_len;
-			ms->flags = s->flags;
+			ms->flags = (s->flags & ~NS_TXMON) | txmon;
 			sent++;
 
 			beg = nm_next(beg, lim);
