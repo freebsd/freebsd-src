@@ -84,7 +84,6 @@ MAN=	aac.4 \
 	bnxt.4 \
 	bpf.4 \
 	bridge.4 \
-	bt.4 \
 	bwi.4 \
 	bwn.4 \
 	${_bytgpio.4} \
