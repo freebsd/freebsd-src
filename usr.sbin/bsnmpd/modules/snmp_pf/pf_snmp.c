@@ -38,6 +38,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <libpfctl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1528,7 +1529,8 @@ pfl_scan_ruleset(const char *path)
 
 	for (nr = pr.nr, i = 0; i < nr; i++) {
 		pr.nr = i;
-		if (ioctl(dev, DIOCGETRULE, &pr)) {
+		if (pfctl_add_rule(dev, &pr.rule, pr.anchor, pr.anchor_call,
+		    pr.ticket, pr.pool_ticket)) {
 			syslog(LOG_ERR, "pfl_scan_ruleset: ioctl(DIOCGETRULE):"
 			    " %s", strerror(errno));
 			goto err;
