@@ -748,14 +748,23 @@ mmu_booke_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 		sync_sz = min(sync_sz, sz);
 		if (valid) {
 			if (!active) {
-				/* Create a mapping in the active pmap. */
+				/*
+				 * Create a mapping in the active pmap.
+				 *
+				 * XXX: We use the zero page here, because
+				 * it isn't likely to be in use.
+				 * If we ever decide to support
+				 * security.bsd.map_at_zero on Book-E, change
+				 * this to some other address that isn't
+				 * normally mappable.
+				 */
 				addr = 0;
 				m = PHYS_TO_VM_PAGE(pa);
 				PMAP_LOCK(pmap);
 				pte_enter(pmap, m, addr,
 				    PTE_SR | PTE_VALID, FALSE);
-				addr += (va & PAGE_MASK);
-				__syncicache((void *)addr, sync_sz);
+				__syncicache((void *)(addr + (va & PAGE_MASK)),
+				    sync_sz);
 				pte_remove(pmap, addr, PTBL_UNHOLD);
 				PMAP_UNLOCK(pmap);
 			} else
