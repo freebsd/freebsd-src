@@ -219,6 +219,11 @@ struct netmap_slot {
 	 * The 'len' field refers to the individual fragment.
 	 */
 
+#define NS_TXMON	0x0040
+	/* (monitor ports only) the packet comes from the TX
+	 * ring of the monitored port
+	 */
+
 #define	NS_PORT_SHIFT	8
 #define	NS_PORT_MASK	(0xff << NS_PORT_SHIFT)
 	/*
