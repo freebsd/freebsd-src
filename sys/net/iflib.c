@@ -830,6 +830,26 @@ iflib_netmap_register(struct netmap_adapter *na, int onoff)
 }
 
 static int
+iflib_netmap_config(struct netmap_adapter *na, struct nm_config_info *info)
+{
+	if_t ifp = na->ifp;
+	if_ctx_t ctx = ifp->if_softc;
+	iflib_rxq_t rxq = &ctx->ifc_rxqs[0];
+	iflib_fl_t fl = &rxq->ifr_fl[0];
+
+	info->num_tx_rings = ctx->ifc_softc_ctx.isc_ntxqsets;
+	info->num_rx_rings = ctx->ifc_softc_ctx.isc_nrxqsets;
+	info->num_tx_descs = iflib_num_tx_descs(ctx);
+	info->num_rx_descs = iflib_num_rx_descs(ctx);
+	info->rx_buf_maxsize = fl->ifl_buf_size;
+	nm_prinf("txr %u rxr %u txd %u rxd %u rbufsz %u",
+		info->num_tx_rings, info->num_rx_rings, info->num_tx_descs,
+		info->num_rx_descs, info->rx_buf_maxsize);
+
+	return 0;
+}
+
+static int
 netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, bool init)
 {
 	struct netmap_adapter *na = kring->na;
@@ -1279,6 +1299,7 @@ iflib_netmap_attach(if_ctx_t ctx)
 	na.nm_rxsync = iflib_netmap_rxsync;
 	na.nm_register = iflib_netmap_register;
 	na.nm_intr = iflib_netmap_intr;
+	na.nm_config = iflib_netmap_config;
 	na.num_tx_rings = ctx->ifc_softc_ctx.isc_ntxqsets;
 	na.num_rx_rings = ctx->ifc_softc_ctx.isc_nrxqsets;
 	return (netmap_attach(&na));
