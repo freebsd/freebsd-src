@@ -267,17 +267,15 @@ nfscl_open(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t amode, int usedeleg,
 		}
 	}
 
-	if (dp != NULL) {
+	/* For NFSv4.1/4.2 and this option, use a single open_owner. */
+	if (NFSHASONEOPENOWN(VFSTONFS(vp->v_mount)))
+		nfscl_filllockowner(NULL, own, F_POSIX);
+	else
 		nfscl_filllockowner(p->td_proc, own, F_POSIX);
+	if (dp != NULL)
 		ohp = &dp->nfsdl_owner;
-	} else {
-		/* For NFSv4.1 and this option, use a single open_owner. */
-		if (NFSHASONEOPENOWN(VFSTONFS(vp->v_mount)))
-			nfscl_filllockowner(NULL, own, F_POSIX);
-		else
-			nfscl_filllockowner(p->td_proc, own, F_POSIX);
+	else
 		ohp = &clp->nfsc_owner;
-	}
 	/* Now, search for an openowner */
 	LIST_FOREACH(owp, ohp, nfsow_list) {
 		if (!NFSBCMP(owp->nfsow_owner, own, NFSV4CL_LOCKNAMELEN))
