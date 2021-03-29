@@ -455,6 +455,9 @@ static long cache_lock_vnodes_cel_3_failures;
 DEBUGNODE_ULONG(vnodes_cel_3_failures, cache_lock_vnodes_cel_3_failures,
     "Number of times 3-way vnode locking failed");
 
+static void cache_fplookup_lockout(void);
+static void cache_fplookup_restore(void);
+
 static void cache_zap_locked(struct namecache *ncp);
 static int vn_fullpath_hardlink(struct nameidata *ndp, char **retbuf,
     char **freebuf, size_t *buflen);
@@ -2549,11 +2552,76 @@ cache_vnode_init(struct vnode *vp)
 	cache_prehash(vp);
 }
 
+/*
+ * Induce transient cache misses for lockless operation in cache_lookup() by
+ * using a temporary hash table.
+ *
+ * This will force a fs lookup.
+ *
+ * Synchronisation is done in 2 steps, calling vfs_smr_quiesce each time
+ * to observe all CPUs not performing the lookup.
+ */
+static void
+cache_changesize_set_temp(struct nchashhead *temptbl, u_long temphash)
+{
+
+	MPASS(temphash < nchash);
+	/*
+	 * Change the size. The new size is smaller and can safely be used
+	 * against the existing table. All lookups which now hash wrong will
+	 * result in a cache miss, which all callers are supposed to know how
+	 * to handle.
+	 */
+	atomic_store_long(&nchash, temphash);
+	atomic_thread_fence_rel();
+	vfs_smr_quiesce();
+	/*
+	 * At this point everyone sees the updated hash value, but they still
+	 * see the old table.
+	 */
+	atomic_store_ptr(&nchashtbl, temptbl);
+	atomic_thread_fence_rel();
+	vfs_smr_quiesce();
+	/*
+	 * At this point everyone sees the updated table pointer and size pair.
+	 */
+}
+
+/*
+ * Set the new hash table.
+ *
+ * Similarly to cache_changesize_set_temp(), this has to synchronize against
+ * lockless operation in cache_lookup().
+ */
+static void
+cache_changesize_set_new(struct nchashhead *new_tbl, u_long new_hash)
+{
+
+	MPASS(nchash < new_hash);
+	/*
+	 * Change the pointer first. This wont result in out of bounds access
+	 * since the temporary table is guaranteed to be smaller.
+	 */
+	atomic_store_ptr(&nchashtbl, new_tbl);
+	atomic_thread_fence_rel();
+	vfs_smr_quiesce();
+	/*
+	 * At this point everyone sees the updated pointer value, but they
+	 * still see the old size.
+	 */
+	atomic_store_long(&nchash, new_hash);
+	atomic_thread_fence_rel();
+	vfs_smr_quiesce();
+	/*
+	 * At this point everyone sees the updated table pointer and size pair.
+	 */
+}
+
 void
 cache_changesize(u_long newmaxvnodes)
 {
-	struct nchashhead *new_nchashtbl, *old_nchashtbl;
-	u_long new_nchash, old_nchash;
+	struct nchashhead *new_nchashtbl, *old_nchashtbl, *temptbl;
+	u_long new_nchash, old_nchash, temphash;
 	struct namecache *ncp;
 	uint32_t hash;
 	u_long newncsize;
@@ -2570,30 +2638,36 @@ cache_changesize(u_long newmaxvnodes)
 		ncfreetbl(new_nchashtbl);
 		return;
 	}
+
+	temptbl = nchinittbl(1, &temphash);
+
 	/*
 	 * Move everything from the old hash table to the new table.
 	 * None of the namecache entries in the table can be removed
 	 * because to do so, they have to be removed from the hash table.
 	 */
+	cache_fplookup_lockout();
 	cache_lock_all_vnodes();
 	cache_lock_all_buckets();
 	old_nchashtbl = nchashtbl;
 	old_nchash = nchash;
-	nchashtbl = new_nchashtbl;
-	nchash = new_nchash;
+	cache_changesize_set_temp(temptbl, temphash);
 	for (i = 0; i <= old_nchash; i++) {
 		while ((ncp = CK_SLIST_FIRST(&old_nchashtbl[i])) != NULL) {
 			hash = cache_get_hash(ncp->nc_name, ncp->nc_nlen,
 			    ncp->nc_dvp);
 			CK_SLIST_REMOVE(&old_nchashtbl[i], ncp, namecache, nc_hash);
-			CK_SLIST_INSERT_HEAD(NCHHASH(hash), ncp, nc_hash);
+			CK_SLIST_INSERT_HEAD(&new_nchashtbl[hash & new_nchash], ncp, nc_hash);
 		}
 	}
 	ncsize = newncsize;
 	cache_recalc_neg_min(ncnegminpct);
+	cache_changesize_set_new(new_nchashtbl, new_nchash);
 	cache_unlock_all_buckets();
 	cache_unlock_all_vnodes();
+	cache_fplookup_restore();
 	ncfreetbl(old_nchashtbl);
+	ncfreetbl(temptbl);
 }
 
 /*
@@ -3665,6 +3739,33 @@ syscal_vfs_cache_fast_lookup(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_vfs, OID_AUTO, cache_fast_lookup, CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_MPSAFE,
     &cache_fast_lookup, 0, syscal_vfs_cache_fast_lookup, "IU", "");
+
+/*
+ * Disable lockless lookup and observe all CPUs not executing it.
+ *
+ * Used when resizing the hash table.
+ *
+ * TODO: no provisions are made to handle tweaking of the knob at the same time
+ */
+static void
+cache_fplookup_lockout(void)
+{
+	bool on;
+
+	on = atomic_load_char(&cache_fast_lookup_enabled);
+	if (on) {
+		atomic_store_char(&cache_fast_lookup_enabled, false);
+		atomic_thread_fence_rel();
+		vfs_smr_quiesce();
+	}
+}
+
+static void
+cache_fplookup_restore(void)
+{
+
+	cache_fast_lookup_enabled_recalc();
+}
 
 /*
  * Components of nameidata (or objects it can point to) which may
