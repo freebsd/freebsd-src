@@ -171,6 +171,7 @@ struct vxlan_softc {
 #define VXLAN_FLAG_INIT		0x0001
 #define VXLAN_FLAG_TEARDOWN	0x0002
 #define VXLAN_FLAG_LEARN	0x0004
+#define VXLAN_FLAG_USER_MTU	0x0008
 
 	uint32_t			 vxl_port_hash_key;
 	uint16_t			 vxl_min_port;
@@ -1620,6 +1621,8 @@ vxlan_setup_interface_hdrlen(struct vxlan_softc *sc)
 {
 	struct ifnet *ifp;
 
+	VXLAN_LOCK_WASSERT(sc);
+
 	ifp = sc->vxl_ifp;
 	ifp->if_hdrlen = ETHER_HDR_LEN + sizeof(struct vxlanudphdr);
 
@@ -1627,6 +1630,9 @@ vxlan_setup_interface_hdrlen(struct vxlan_softc *sc)
 		ifp->if_hdrlen += sizeof(struct ip);
 	else if (VXLAN_SOCKADDR_IS_IPV6(&sc->vxl_dst_addr) != 0)
 		ifp->if_hdrlen += sizeof(struct ip6_hdr);
+
+	if ((sc->vxl_flags & VXLAN_FLAG_USER_MTU) == 0)
+		ifp->if_mtu = ETHERMTU - ifp->if_hdrlen;
 }
 
 static int
@@ -2354,10 +2360,14 @@ vxlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFMTU:
-		if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > VXLAN_MAX_MTU)
+		if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > VXLAN_MAX_MTU) {
 			error = EINVAL;
-		else
+		} else {
+			VXLAN_WLOCK(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
+			sc->vxl_flags |= VXLAN_FLAG_USER_MTU;
+			VXLAN_WUNLOCK(sc);
+		}
 		break;
 
 	case SIOCSIFCAP:
@@ -3210,7 +3220,10 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ether_ifattach(ifp, sc->vxl_hwaddr.octet);
 
 	ifp->if_baudrate = 0;
+
+	VXLAN_WLOCK(sc);
 	vxlan_setup_interface_hdrlen(sc);
+	VXLAN_WUNLOCK(sc);
 
 	return (0);
 
