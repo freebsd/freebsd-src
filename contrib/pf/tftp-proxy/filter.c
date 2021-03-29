@@ -32,6 +32,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libpfctl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,7 +73,8 @@ add_filter(u_int32_t id, u_int8_t dir, struct sockaddr *src,
 		return (-1);
 
 	pfr.rule.direction = dir;
-	if (ioctl(dev, DIOCADDRULE, &pfr) == -1)
+	if (pfctl_add_rule(dev, &pfr.rule, pfr.anchor, pfr.anchor_call,
+	    pfr.ticket, pfr.pool_ticket))
 		return (-1);
 
 	return (0);
@@ -106,7 +108,8 @@ add_nat(u_int32_t id, struct sockaddr *src, struct sockaddr *dst,
 
 	pfr.rule.rpool.proxy_port[0] = nat_range_low;
 	pfr.rule.rpool.proxy_port[1] = nat_range_high;
-	if (ioctl(dev, DIOCADDRULE, &pfr) == -1)
+	if (pfctl_add_rule(dev, &pfr.rule, pfr.anchor, pfr.anchor_call,
+	    pfr.ticket, pfr.pool_ticket))
 		return (-1);
 
 	return (0);
@@ -138,7 +141,8 @@ add_rdr(u_int32_t id, struct sockaddr *src, struct sockaddr *dst,
 		return (-1);
 
 	pfr.rule.rpool.proxy_port[0] = rdr_port;
-	if (ioctl(dev, DIOCADDRULE, &pfr) == -1)
+	if (pfctl_add_rule(dev, &pfr.rule, pfr.anchor, pfr.anchor_call,
+	    pfr.ticket, pfr.pool_ticket))
 		return (-1);
 
 	return (0);
