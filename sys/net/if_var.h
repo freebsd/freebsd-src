@@ -577,7 +577,7 @@ struct ifaddr {
 struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
-int	ifa_try_ref(struct ifaddr *ifa);
+int __result_use_check ifa_try_ref(struct ifaddr *ifa);
 
 /*
  * Multicast address structure.  This is analogous to the ifaddr
@@ -662,7 +662,7 @@ int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);
 int	if_log(struct ifnet *, int, const char *, ...) __printflike(3, 4);
 void	if_ref(struct ifnet *);
 void	if_rele(struct ifnet *);
-bool	if_try_ref(struct ifnet *);
+bool	__result_use_check if_try_ref(struct ifnet *);
 int	if_setlladdr(struct ifnet *, const u_char *, int);
 int	if_tunnel_check_nesting(struct ifnet *, struct mbuf *, uint32_t, int);
 void	if_up(struct ifnet *);
