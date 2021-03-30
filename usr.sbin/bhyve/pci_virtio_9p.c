@@ -197,32 +197,24 @@ pci_vt9p_notify(void *vsc, struct vqueue_info *vq)
 	struct iovec iov[VT9P_MAX_IOV];
 	struct pci_vt9p_softc *sc;
 	struct pci_vt9p_request *preq;
-	uint16_t idx, n, i;
-	uint16_t flags[VT9P_MAX_IOV];
+	struct vi_req req;
+	uint16_t n;
 
 	sc = vsc;
 
 	while (vq_has_descs(vq)) {
-		n = vq_getchain(vq, &idx, iov, VT9P_MAX_IOV, flags);
+		n = vq_getchain(vq, iov, VT9P_MAX_IOV, &req);
 		preq = calloc(1, sizeof(struct pci_vt9p_request));
 		preq->vsr_sc = sc;
-		preq->vsr_idx = idx;
+		preq->vsr_idx = req.idx;
 		preq->vsr_iov = iov;
 		preq->vsr_niov = n;
-		preq->vsr_respidx = 0;
-
-		/* Count readable descriptors */
-		for (i = 0; i < n; i++) {
-			if (flags[i] & VRING_DESC_F_WRITE)
-				break;
-
-			preq->vsr_respidx++;
-		}
+		preq->vsr_respidx = req.readable;
 
 		for (int i = 0; i < n; i++) {
 			DPRINTF(("vt9p: vt9p_notify(): desc%d base=%p, "
-			    "len=%zu, flags=0x%04x\r\n", i, iov[i].iov_base,
-			    iov[i].iov_len, flags[i]));
+			    "len=%zu\r\n", i, iov[i].iov_base,
+			    iov[i].iov_len));
 		}
 
 		l9p_connection_recv(sc->vsc_conn, iov, preq->vsr_respidx, preq);

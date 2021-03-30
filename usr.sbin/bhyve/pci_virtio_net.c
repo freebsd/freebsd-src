@@ -248,6 +248,7 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 	struct virtio_mrg_rxbuf_info info[VTNET_MAXSEGS];
 	struct iovec iov[VTNET_MAXSEGS + 1];
 	struct vqueue_info *vq;
+	struct vi_req req;
 
 	vq = &sc->vsc_queues[VTNET_RXQ];
 
@@ -288,8 +289,9 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 		riov = iov;
 		n_chains = 0;
 		do {
-			int n = vq_getchain(vq, &info[n_chains].idx, riov,
-			    VTNET_MAXSEGS - riov_len, NULL);
+			int n = vq_getchain(vq, riov, VTNET_MAXSEGS - riov_len,
+			    &req);
+			info[n_chains].idx = req.idx;
 
 			if (n == 0) {
 				/*
@@ -435,7 +437,7 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vqueue_info *vq)
 {
 	struct iovec iov[VTNET_MAXSEGS + 1];
 	struct iovec *siov = iov;
-	uint16_t idx;
+	struct vi_req req;
 	ssize_t len;
 	int n;
 
@@ -443,7 +445,7 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vqueue_info *vq)
 	 * Obtain chain of descriptors. The first descriptor also
 	 * contains the virtio-net header.
 	 */
-	n = vq_getchain(vq, &idx, iov, VTNET_MAXSEGS, NULL);
+	n = vq_getchain(vq, iov, VTNET_MAXSEGS, &req);
 	assert(n >= 1 && n <= VTNET_MAXSEGS);
 
 	if (sc->vhdrlen != sc->be_vhdrlen) {
@@ -473,7 +475,7 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vqueue_info *vq)
 	 * Return the processed chain to the guest, reporting
 	 * the number of bytes that we read.
 	 */
-	vq_relchain(vq, idx, len);
+	vq_relchain(vq, req.idx, len);
 }
 
 /* Called on TX kick. */

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 #include <pthread.h>
 #include <pthread_np.h>
 
@@ -213,15 +214,18 @@ vi_vq_init(struct virtio_softc *vs, uint32_t pfn)
  * descriptor.
  */
 static inline void
-_vq_record(int i, volatile struct vring_desc *vd, struct vmctx *ctx,
-	   struct iovec *iov, int n_iov, uint16_t *flags) {
+_vq_record(int i, volatile struct vring_desc *vd,
+	   struct vmctx *ctx, struct iovec *iov, int n_iov,
+	   struct vi_req *reqp) {
 
 	if (i >= n_iov)
 		return;
 	iov[i].iov_base = paddr_guest2host(ctx, vd->addr, vd->len);
 	iov[i].iov_len = vd->len;
-	if (flags != NULL)
-		flags[i] = vd->flags;
+	if ((vd->flags & VRING_DESC_F_WRITE) == 0)
+		reqp->readable++;
+	else
+		reqp->writable++;
 }
 #define	VQ_MAX_DESCRIPTORS	512	/* see below */
 
@@ -253,11 +257,6 @@ _vq_record(int i, volatile struct vring_desc *vd, struct vmctx *ctx,
  * a larger iov array if needed, or supply a zero length to find
  * out how much space is needed).
  *
- * If you want to verify the WRITE flag on each descriptor, pass a
- * non-NULL "flags" pointer to an array of "uint16_t" of the same size
- * as n_iov and we'll copy each "flags" field after unwinding any
- * indirects.
- *
  * If some descriptor(s) are invalid, this prints a diagnostic message
  * and returns -1.  If no descriptors are ready now it simply returns 0.
  *
@@ -265,12 +264,13 @@ _vq_record(int i, volatile struct vring_desc *vd, struct vmctx *ctx,
  * that vq_has_descs() does one).
  */
 int
-vq_getchain(struct vqueue_info *vq, uint16_t *pidx,
-	    struct iovec *iov, int n_iov, uint16_t *flags)
+vq_getchain(struct vqueue_info *vq, struct iovec *iov, int niov,
+	    struct vi_req *reqp)
 {
 	int i;
 	u_int ndesc, n_indir;
 	u_int idx, next;
+	struct vi_req req;
 	volatile struct vring_desc *vdir, *vindir, *vp;
 	struct vmctx *ctx;
 	struct virtio_softc *vs;
@@ -278,6 +278,7 @@ vq_getchain(struct vqueue_info *vq, uint16_t *pidx,
 
 	vs = vq->vq_vs;
 	name = vs->vs_vc->vc_name;
+	memset(&req, 0, sizeof(req));
 
 	/*
 	 * Note: it's the responsibility of the guest not to
@@ -313,7 +314,7 @@ vq_getchain(struct vqueue_info *vq, uint16_t *pidx,
 	 * index, but we just abort if the count gets excessive.
 	 */
 	ctx = vs->vs_pi->pi_vmctx;
-	*pidx = next = vq->vq_avail->ring[idx & (vq->vq_qsize - 1)];
+	req.idx = next = vq->vq_avail->ring[idx & (vq->vq_qsize - 1)];
 	vq->vq_last_avail++;
 	for (i = 0; i < VQ_MAX_DESCRIPTORS; next = vdir->next) {
 		if (next >= vq->vq_qsize) {
@@ -325,7 +326,7 @@ vq_getchain(struct vqueue_info *vq, uint16_t *pidx,
 		}
 		vdir = &vq->vq_desc[next];
 		if ((vdir->flags & VRING_DESC_F_INDIRECT) == 0) {
-			_vq_record(i, vdir, ctx, iov, n_iov, flags);
+			_vq_record(i, vdir, ctx, iov, niov, &req);
 			i++;
 		} else if ((vs->vs_vc->vc_hv_caps &
 		    VIRTIO_RING_F_INDIRECT_DESC) == 0) {
@@ -362,7 +363,7 @@ vq_getchain(struct vqueue_info *vq, uint16_t *pidx,
 					    name);
 					return (-1);
 				}
-				_vq_record(i, vp, ctx, iov, n_iov, flags);
+				_vq_record(i, vp, ctx, iov, niov, &req);
 				if (++i > VQ_MAX_DESCRIPTORS)
 					goto loopy;
 				if ((vp->flags & VRING_DESC_F_NEXT) == 0)
@@ -378,13 +379,18 @@ vq_getchain(struct vqueue_info *vq, uint16_t *pidx,
 			}
 		}
 		if ((vdir->flags & VRING_DESC_F_NEXT) == 0)
-			return (i);
+			goto done;
 	}
+
 loopy:
 	EPRINTLN(
 	    "%s: descriptor loop? count > %d - driver confused?",
 	    name, i);
 	return (-1);
+
+done:
+	*reqp = req;
+	return (i);
 }
 
 /*
