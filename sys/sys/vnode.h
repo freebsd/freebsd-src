@@ -1112,6 +1112,7 @@ int vn_dir_check_exec(struct vnode *vp, struct componentname *cnp);
 #define VFS_SMR()	vfs_smr
 #define vfs_smr_enter()	smr_enter(VFS_SMR())
 #define vfs_smr_exit()	smr_exit(VFS_SMR())
+#define vfs_smr_quiesce()	quiesce_all_critical()
 #define vfs_smr_entered_load(ptr)	smr_entered_load((ptr), VFS_SMR())
 #define VFS_SMR_ASSERT_ENTERED()	SMR_ASSERT_ENTERED(VFS_SMR())
 #define VFS_SMR_ASSERT_NOT_ENTERED()	SMR_ASSERT_NOT_ENTERED(VFS_SMR())
