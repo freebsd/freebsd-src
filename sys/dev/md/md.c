@@ -187,8 +187,6 @@ int mfs_root_size;
 #else
 extern volatile u_char __weak_symbol mfs_root;
 extern volatile u_char __weak_symbol mfs_root_end;
-__GLOBL(mfs_root);
-__GLOBL(mfs_root_end);
 #define mfs_root_size ((uintptr_t)(&mfs_root_end - &mfs_root))
 #endif
 #endif
