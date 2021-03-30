@@ -499,6 +499,7 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 			 * This is an immediate CCB, so it's okay to
 			 * allocate it on the stack.
 			 */
+			memset(&ccb, 0, sizeof(ccb));
 
 			/*
 			 * Create a path using the bus, target, and lun the
@@ -2595,6 +2596,7 @@ xptsetasyncfunc(struct cam_ed *device, void *arg)
 	if ((device->flags & CAM_DEV_UNCONFIGURED) != 0)
 		return (1);
 
+	memset(&cgd, 0, sizeof(cgd));
 	xpt_compile_path(&path,
 			 NULL,
 			 device->target->bus->path_id,
@@ -5078,6 +5080,7 @@ xpt_start_tags(struct cam_path *path)
 				  sim->max_tagged_dev_openings);
 	xpt_dev_ccbq_resize(path, newopenings);
 	xpt_async(AC_GETDEV_CHANGED, path, NULL);
+	memset(&crs, 0, sizeof(crs));
 	xpt_setup_ccb(&crs.ccb_h, path, CAM_PRIORITY_NORMAL);
 	crs.ccb_h.func_code = XPT_REL_SIMQ;
 	crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
@@ -5103,6 +5106,7 @@ xpt_stop_tags(struct cam_path *path)
 	device->inq_flags &= ~SID_CmdQue;
 	xpt_dev_ccbq_resize(path, sim->max_dev_openings);
 	xpt_async(AC_GETDEV_CHANGED, path, NULL);
+	memset(&crs, 0, sizeof(crs));
 	xpt_setup_ccb(&crs.ccb_h, path, CAM_PRIORITY_NORMAL);
 	crs.ccb_h.func_code = XPT_REL_SIMQ;
 	crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
@@ -5260,6 +5264,7 @@ xpt_register_async(int event, ac_callback_t *cbfunc, void *cbarg,
 		xptpath = 1;
 	}
 
+	memset(&csa, 0, sizeof(csa));
 	xpt_setup_ccb(&csa.ccb_h, path, CAM_PRIORITY_NORMAL);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = event;
