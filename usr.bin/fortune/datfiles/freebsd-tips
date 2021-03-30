@@ -336,7 +336,7 @@ write
 This won't work if you don't have write permissions to the directory
 and probably won't be suitable if you're editing through a symbolic link.
 
-If you have sudo(8) installed and permissions to use it, type 
+If you have sudo(8) installed and permissions to use it, type
 ``<ESC>w ! sudo tee %'' to force a write.
 %
 You can adjust the volume of various parts of the sound system in your
@@ -563,7 +563,7 @@ sysctl(8) tell you with the following command:
 sysctl hw.realmem
 
 The realmem value is memory before the kernel and modules are loaded, whereas
-hw.physmem is what is left after they were loaded. 
+hw.physmem is what is left after they were loaded.
 
 The number of active CPUs is displayed using this command:
 
@@ -573,7 +573,7 @@ sysctl hw.ncpu
 %
 When using ZFS as the file system the "df" command is reporting the pool size
 and not file system sizes. It also does not know about descendent ZFS
-datasets, snapshots, quotas, and reservations with their individual space usage. 
+datasets, snapshots, quotas, and reservations with their individual space usage.
 Use the built-in "zfs list" command to get a better overview of space usage:
 
 zfs list -o space
@@ -604,7 +604,7 @@ The zfs userspace command can display the quota and current space usage:
 
 # zfs userspace pool/home/foo
 
-To unset a quota, assign "none" as the value. 
+To unset a quota, assign "none" as the value.
 		-- Benedict Reuschling <bcr@FreeBSD.org>
 %
 ZFS can display I/O statistics for a given pool using the iostat subcommand.
@@ -688,7 +688,7 @@ zfs list -H
 Another helpful option for script writers is -p, which displays the numbers
 in non-rounded, exact values:
 
-zfs list -p 
+zfs list -p
 
 		-- Benedict Reuschling <bcr@FreeBSD.org>
 %
@@ -705,7 +705,7 @@ parameter to execute the destroy operation.
 		-- Benedict Reuschling <bcr@FreeBSD.org>
 %
 You can delete a range of ZFS snapshots (a-z) in multiple ways.
-The following will delete d and all earlier snapshots: 
+The following will delete d and all earlier snapshots:
 
 zfs destroy mypool/data@%d
 
@@ -718,8 +718,8 @@ To delete all dataset snapshots:
 zfs destroy mypool/data@%
 
 Make sure to let ZFS perform a dry run (-n option) first and display (-v) what
-it would do to confirm that the delete operation is removing exactly what you 
-intended. 
+it would do to confirm that the delete operation is removing exactly what you
+intended.
 		-- Benedict Reuschling <bcr@FreeBSD.org>
 %
 To set a custom ZFS property on the mypool pool, you need to provide it
@@ -796,7 +796,8 @@ always have space left this way.
 
 		-- Benedict Reuschling <bcr@FreeBSD.org>
 %
-Sometimes a single slow HDD can cripple the performance of your entire system.  You can spot one like this:
+Sometimes a single slow HDD can cripple the performance of your entire system.
+You can spot one like this:
 
 # gstat -I5s | sort -rn -k9 | head
 
