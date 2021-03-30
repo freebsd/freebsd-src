@@ -6189,7 +6189,6 @@ nfsrv_checksequence(struct nfsrv_descript *nd, uint32_t sequenceid,
 	struct nfsdsession *sep;
 	struct nfssessionhash *shp;
 	int error;
-	SVCXPRT *savxprt;
 
 	shp = NFSSESSIONHASH(nd->nd_sessionid);
 	NFSLOCKSESSION(shp);
@@ -6211,36 +6210,11 @@ nfsrv_checksequence(struct nfsrv_descript *nd, uint32_t sequenceid,
 	nd->nd_clientid.qval = sep->sess_clp->lc_clientid.qval;
 	nd->nd_flag |= ND_IMPLIEDCLID;
 
-	/*
-	 * If this session handles the backchannel, save the nd_xprt for this
-	 * RPC, since this is the one being used.
-	 * RFC-5661 specifies that the fore channel will be implicitly
-	 * bound by a Sequence operation.  However, since some NFSv4.1 clients
-	 * erroneously assumed that the back channel would be implicitly
-	 * bound as well, do the implicit binding unless a
-	 * BindConnectiontoSession has already been done on the session.
-	 */
-	savxprt = NULL;
-	if (sep->sess_clp->lc_req.nr_client != NULL &&
-	    sep->sess_cbsess.nfsess_xprt != nd->nd_xprt &&
-	    (sep->sess_crflags & NFSV4CRSESS_CONNBACKCHAN) != 0 &&
-	    (sep->sess_clp->lc_flags & LCL_DONEBINDCONN) == 0) {
-		NFSD_DEBUG(2,
-		    "nfsrv_checksequence: implicit back channel bind\n");
-		savxprt = sep->sess_cbsess.nfsess_xprt;
-		SVC_ACQUIRE(nd->nd_xprt);
-		nd->nd_xprt->xp_p2 =
-		    sep->sess_clp->lc_req.nr_client->cl_private;
-		nd->nd_xprt->xp_idletimeout = 0;	/* Disable timeout. */
-		sep->sess_cbsess.nfsess_xprt = nd->nd_xprt;
-	}
-
 	*sflagsp = 0;
-	if (sep->sess_clp->lc_req.nr_client == NULL)
+	if (sep->sess_clp->lc_req.nr_client == NULL ||
+	    (sep->sess_clp->lc_flags & LCL_CBDOWN) != 0)
 		*sflagsp |= NFSV4SEQ_CBPATHDOWN;
 	NFSUNLOCKSESSION(shp);
-	if (savxprt != NULL)
-		SVC_RELEASE(savxprt);
 	if (error == NFSERR_EXPIRED) {
 		*sflagsp |= NFSV4SEQ_EXPIREDALLSTATEREVOKED;
 		error = 0;
@@ -6440,7 +6414,8 @@ nfsrv_bindconnsess(struct nfsrv_descript *nd, uint8_t *sessionid, int *foreaftp)
 				nd->nd_xprt->xp_idletimeout = 0;
 				sep->sess_cbsess.nfsess_xprt = nd->nd_xprt;
 				sep->sess_crflags |= NFSV4CRSESS_CONNBACKCHAN;
-				clp->lc_flags |= LCL_DONEBINDCONN;
+				clp->lc_flags |= LCL_DONEBINDCONN |
+				    LCL_NEEDSCBNULL;
 				if (*foreaftp == NFSCDFS4_BACK)
 					*foreaftp = NFSCDFS4_BACK;
 				else
