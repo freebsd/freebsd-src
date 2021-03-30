@@ -120,12 +120,13 @@ comp(const char *origline, char **compline, size_t *len)
 	for (p = (const unsigned char *)origline; l && *p && isspace(*p);
 	    p++, l--)
 		continue;
+	if (*p == '\0' || l == 0)
+		return 0;
+
 	if ((cline = malloc(l + 1)) == NULL)
 		err(1, "Cannot allocate %zu bytes", l + 1);
 	(void)memcpy(cline, p, l);
 	cline[l] = '\0';
-	if (*cline == '\0')
-		return 0;
 
 	complen = 0;
 	hasalnum = 0;
@@ -155,6 +156,11 @@ comp(const char *origline, char **compline, size_t *len)
 		--complen;
 	}
 	*q = '\0';
+	if (!hasalnum) {
+		free(cline);
+		cline = NULL;
+		complen = 0;
+	}
 	*compline = cline;
 	*len = complen;
 	return hasalnum;
