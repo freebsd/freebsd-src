@@ -415,10 +415,10 @@ pci_vtcon_sock_rx(int fd __unused, enum ev_type t __unused, void *arg)
 	struct pci_vtcon_port *port;
 	struct pci_vtcon_sock *sock = (struct pci_vtcon_sock *)arg;
 	struct vqueue_info *vq;
+	struct vi_req req;
 	struct iovec iov;
 	static char dummybuf[2048];
 	int len, n;
-	uint16_t idx;
 
 	port = sock->vss_port;
 	vq = pci_vtcon_port_to_vq(port, true);
@@ -441,7 +441,7 @@ pci_vtcon_sock_rx(int fd __unused, enum ev_type t __unused, void *arg)
 	}
 
 	do {
-		n = vq_getchain(vq, &idx, &iov, 1, NULL);
+		n = vq_getchain(vq, &iov, 1, &req);
 		len = readv(sock->vss_conn_fd, &iov, n);
 
 		if (len == 0 || (len < 0 && errno == EWOULDBLOCK)) {
@@ -453,7 +453,7 @@ pci_vtcon_sock_rx(int fd __unused, enum ev_type t __unused, void *arg)
 			return;
 		}
 
-		vq_relchain(vq, idx, len);
+		vq_relchain(vq, req.idx, len);
 	} while (vq_has_descs(vq));
 
 	vq_endchains(vq, 1);
@@ -572,8 +572,8 @@ pci_vtcon_control_send(struct pci_vtcon_softc *sc,
     struct pci_vtcon_control *ctrl, const void *payload, size_t len)
 {
 	struct vqueue_info *vq;
+	struct vi_req req;
 	struct iovec iov;
-	uint16_t idx;
 	int n;
 
 	vq = pci_vtcon_port_to_vq(&sc->vsc_control_port, true);
@@ -581,7 +581,7 @@ pci_vtcon_control_send(struct pci_vtcon_softc *sc,
 	if (!vq_has_descs(vq))
 		return;
 
-	n = vq_getchain(vq, &idx, &iov, 1, NULL);
+	n = vq_getchain(vq, &iov, 1, &req);
 
 	assert(n == 1);
 
@@ -590,7 +590,7 @@ pci_vtcon_control_send(struct pci_vtcon_softc *sc,
 		memcpy(iov.iov_base + sizeof(struct pci_vtcon_control),
 		     payload, len);
 
-	vq_relchain(vq, idx, sizeof(struct pci_vtcon_control) + len);
+	vq_relchain(vq, req.idx, sizeof(struct pci_vtcon_control) + len);
 	vq_endchains(vq, 1);
 }
     
@@ -601,14 +601,14 @@ pci_vtcon_notify_tx(void *vsc, struct vqueue_info *vq)
 	struct pci_vtcon_softc *sc;
 	struct pci_vtcon_port *port;
 	struct iovec iov[1];
-	uint16_t idx, n;
-	uint16_t flags[8];
+	struct vi_req req;
+	uint16_t n;
 
 	sc = vsc;
 	port = pci_vtcon_vq_to_port(sc, vq);
 
 	while (vq_has_descs(vq)) {
-		n = vq_getchain(vq, &idx, iov, 1, flags);
+		n = vq_getchain(vq, iov, 1, &req);
 		assert(n >= 1);
 		if (port != NULL)
 			port->vsp_cb(port, port->vsp_arg, iov, 1);
@@ -616,7 +616,7 @@ pci_vtcon_notify_tx(void *vsc, struct vqueue_info *vq)
 		/*
 		 * Release this chain and handle more
 		 */
-		vq_relchain(vq, idx, 0);
+		vq_relchain(vq, req.idx, 0);
 	}
 	vq_endchains(vq, 1);	/* Generate interrupt if appropriate. */
 }
