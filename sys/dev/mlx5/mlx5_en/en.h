@@ -36,7 +36,6 @@
 #include <linux/vmalloc.h>
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ktime.h>
 #include <linux/net_dim.h>
