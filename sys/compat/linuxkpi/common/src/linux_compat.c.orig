@@ -1520,9 +1520,8 @@ linux_file_close(struct file *file, struct thread *td)
 	if (filp->f_vnode != NULL)
 		vdrop(filp->f_vnode);
 	linux_drop_fop(ldev);
-	ldev = filp->f_cdev;
-	if (ldev != NULL)
-		linux_cdev_deref(ldev);
+	if (filp->f_cdev != NULL)
+		linux_cdev_deref(filp->f_cdev);
 	kfree(filp);
 
 	return (error);
