@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/printk.h>
+#include <linux/netdevice.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_smi.h>
 #include <dev/mlx5/cq.h>
@@ -627,7 +628,7 @@ struct mlx5_roce {
 	 * netdev pointer
 	 */
 	rwlock_t		netdev_lock;
-	struct net_device	*netdev;
+	struct ifnet		*netdev;
 	struct notifier_block	nb;
 	atomic_t		next_port;
 };

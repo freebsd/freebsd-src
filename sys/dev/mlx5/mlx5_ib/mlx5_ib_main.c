@@ -93,7 +93,7 @@ mlx5_ib_port_link_layer(struct ib_device *device, u8 port_num)
 	return mlx5_port_type_cap_to_rdma_ll(port_type_cap);
 }
 
-static bool mlx5_netdev_match(struct net_device *ndev,
+static bool mlx5_netdev_match(struct ifnet *ndev,
 			      struct mlx5_core_dev *mdev,
 			      const char *dname)
 {
@@ -107,7 +107,7 @@ static bool mlx5_netdev_match(struct net_device *ndev,
 static int mlx5_netdev_event(struct notifier_block *this,
 			     unsigned long event, void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct ifnet *ndev = netdev_notifier_info_to_dev(ptr);
 	struct mlx5_ib_dev *ibdev = container_of(this, struct mlx5_ib_dev,
 						 roce.nb);
 
@@ -124,7 +124,7 @@ static int mlx5_netdev_event(struct notifier_block *this,
 
 	case NETDEV_UP:
 	case NETDEV_DOWN: {
-		struct net_device *upper = NULL;
+		struct ifnet *upper = NULL;
 
 		if ((upper == ndev || (!upper && ndev == ibdev->roce.netdev))
 		    && ibdev->ib_active) {
@@ -146,18 +146,18 @@ static int mlx5_netdev_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct net_device *mlx5_ib_get_netdev(struct ib_device *device,
+static struct ifnet *mlx5_ib_get_netdev(struct ib_device *device,
 					     u8 port_num)
 {
 	struct mlx5_ib_dev *ibdev = to_mdev(device);
-	struct net_device *ndev;
+	struct ifnet *ndev;
 
-	/* Ensure ndev does not disappear before we invoke dev_hold()
+	/* Ensure ndev does not disappear before we invoke if_ref()
 	 */
 	read_lock(&ibdev->roce.netdev_lock);
 	ndev = ibdev->roce.netdev;
 	if (ndev)
-		dev_hold(ndev);
+		if_ref(ndev);
 	read_unlock(&ibdev->roce.netdev_lock);
 
 	return ndev;
@@ -283,7 +283,7 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 {
 	struct mlx5_ib_dev *dev = to_mdev(device);
 	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {};
-	struct net_device *ndev;
+	struct ifnet *ndev;
 	enum ib_mtu ndev_ib_mtu;
 	u16 qkey_viol_cntr;
 	u32 eth_prot_oper;
@@ -328,14 +328,15 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 	if (!ndev)
 		return 0;
 
-	if (netif_running(ndev) && netif_carrier_ok(ndev)) {
+	if (ndev->if_drv_flags & IFF_DRV_RUNNING &&
+	    ndev->if_link_state == LINK_STATE_UP) {
 		props->state      = IB_PORT_ACTIVE;
 		props->phys_state = 5;
 	}
 
 	ndev_ib_mtu = iboe_get_mtu(ndev->if_mtu);
 
-	dev_put(ndev);
+	if_rele(ndev);
 
 	props->active_mtu	= min(props->max_mtu, ndev_ib_mtu);
 	return 0;
@@ -437,7 +438,7 @@ __be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev, u8 port_num,
 	if (!attr.ndev)
 		return 0;
 
-	dev_put(attr.ndev);
+	if_rele(attr.ndev);
 
 	if (attr.gid_type != IB_GID_TYPE_ROCE_UDP_ENCAP)
 		return 0;
@@ -459,7 +460,7 @@ int mlx5_get_roce_gid_type(struct mlx5_ib_dev *dev, u8 port_num,
 	if (!attr.ndev)
 		return -ENODEV;
 
-	dev_put(attr.ndev);
+	if_rele(attr.ndev);
 
 	*gid_type = attr.gid_type;
 
@@ -3060,7 +3061,7 @@ static void mlx5_remove_roce_notifier(struct mlx5_ib_dev *dev)
 static int mlx5_enable_roce(struct mlx5_ib_dev *dev)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
-	struct net_device *idev;
+	struct ifnet *idev;
 	int err;
 
 	/* Check if mlx5en net device already exists */
