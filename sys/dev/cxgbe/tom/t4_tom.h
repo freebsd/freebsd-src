@@ -352,6 +352,7 @@ int init_toepcb(struct vi_info *, struct toepcb *);
 struct toepcb *hold_toepcb(struct toepcb *);
 void free_toepcb(struct toepcb *);
 void offload_socket(struct socket *, struct toepcb *);
+void restore_so_proto(struct socket *, bool);
 void undo_offload_socket(struct socket *);
 void final_cpl_received(struct toepcb *);
 void insert_tid(struct adapter *, int, void *, int);
