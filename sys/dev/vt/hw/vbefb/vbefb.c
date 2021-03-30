@@ -50,12 +50,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/vt/colors/vt_termcolors.h>
 
 static vd_init_t vt_vbefb_init;
+static vd_fini_t vt_vbefb_fini;
 static vd_probe_t vt_vbefb_probe;
 
 static struct vt_driver vt_vbefb_driver = {
 	.vd_name = "vbefb",
 	.vd_probe = vt_vbefb_probe,
 	.vd_init = vt_vbefb_init,
+	.vd_fini = vt_vbefb_fini,
 	.vd_blank = vt_fb_blank,
 	.vd_bitblt_text = vt_fb_bitblt_text,
 	.vd_invalidate_text = vt_fb_invalidate_text,
@@ -150,4 +152,13 @@ vt_vbefb_init(struct vt_device *vd)
 	vt_fb_init(vd);
 
 	return (CN_INTERNAL);
+}
+
+static void
+vt_vbefb_fini(struct vt_device *vd, void *softc)
+{
+	struct fb_info	*info = softc;
+
+	vt_fb_fini(vd, softc);
+	pmap_unmapdev(info->fb_vbase, info->fb_size);
 }
