@@ -142,8 +142,10 @@ bad:
 		if (el) {
 			if (Vflag)
 				el_set(el, EL_EDITOR, "vi");
-			else if (Eflag)
+			else if (Eflag) {
 				el_set(el, EL_EDITOR, "emacs");
+				el_set(el, EL_BIND, "^R", "em-inc-search-prev", NULL);
+			}
 			el_set(el, EL_BIND, "^I", "sh-complete", NULL);
 			el_source(el, NULL);
 		}
