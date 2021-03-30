@@ -2224,16 +2224,14 @@ linux_cdev_static_release(struct kobject *kobj)
 {
 	struct cdev *cdev;
 	struct linux_cdev *ldev;
-	struct kobject *parent;
 
 	ldev = container_of(kobj, struct linux_cdev, kobj);
-	parent = kobj->parent;
 	cdev = ldev->cdev;
 	if (cdev != NULL) {
 		destroy_dev(cdev);
 		ldev->cdev = NULL;
 	}
-	kobject_put(parent);
+	kobject_put(kobj->parent);
 }
 
 void
