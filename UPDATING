@@ -26,6 +26,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20210330:
+	Commit 01ae8969a9ee fixed the NFSv4.1/4.2 server so that it
+	handles binding of the back channel as required by RFC5661.
+	Until this patch is in your server, avoid use of the "nconnects"
+	mount option for Linux NFSv4.1/4.2 mounts.
+
 20210225:
 	For 64-bit architectures the base system is now built with Position
 	Independent Executable (PIE) support enabled by default.  It may be
