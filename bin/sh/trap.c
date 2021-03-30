@@ -536,6 +536,9 @@ exitshell_savedstatus(void)
 #if JOBS
 		setjobctl(0);
 #endif
+#ifndef NO_HISTORY
+		histsave();
+#endif
 	}
 	if (sig != 0 && sig != SIGSTOP && sig != SIGTSTP && sig != SIGTTIN &&
 	    sig != SIGTTOU) {

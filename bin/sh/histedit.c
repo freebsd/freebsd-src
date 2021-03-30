@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <paths.h>
 #include <stdio.h>
@@ -77,6 +78,64 @@ static int str_to_event(const char *, int);
 static int comparator(const void *, const void *, void *);
 static char **sh_matches(const char *, int, int);
 static unsigned char sh_complete(EditLine *, int);
+
+static const char *
+get_histfile(void)
+{
+	const char *histfile;
+
+	/* don't try to save if the history size is 0 */
+	if (hist == NULL || histsizeval() == 0)
+		return (NULL);
+	histfile = expandstr("${HISTFILE-${HOME-}/.sh_history}");
+
+	if (histfile[0] == '\0')
+		return (NULL);
+	return (histfile);
+}
+
+void
+histsave(void)
+{
+	HistEvent he;
+	char *histtmpname = NULL;
+	const char *histfile;
+	int fd;
+	FILE *f;
+
+	if ((histfile = get_histfile()) == NULL)
+		return;
+	INTOFF;
+	asprintf(&histtmpname, "%s.XXXXXXXXXX", histfile);
+	if (histtmpname == NULL) {
+		INTON;
+		return;
+	}
+	fd = mkstemp(histtmpname);
+	if (fd == -1 || (f = fdopen(fd, "w")) == NULL) {
+		free(histtmpname);
+		INTON;
+		return;
+	}
+	if (history(hist, &he, H_SAVE_FP, f) < 1 ||
+	    rename(histtmpname, histfile) == -1)
+		unlink(histtmpname);
+	fclose(f);
+	free(histtmpname);
+	INTON;
+
+}
+
+void
+histload(void)
+{
+	const char *histfile;
+	HistEvent he;
+
+	if ((histfile = get_histfile()) == NULL)
+		return;
+	history(hist, &he, H_LOAD, histfile);
+}
 
 /*
  * Set history and editing status.  Called whenever the status may
