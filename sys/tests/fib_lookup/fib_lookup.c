@@ -505,6 +505,58 @@ SYSCTL_PROC(_net_route_test, OID_AUTO, run_inet_scan,
     CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, run_test_inet_scan, "I", "Execute fib4_lookup scan tests");
 
+static int
+rnd_lps(SYSCTL_HANDLER_ARGS)
+{
+	struct epoch_tracker et;
+	struct in_addr *keys;
+	struct nhop_object **nhops;
+
+	struct timespec ts_pre, ts_post;
+	uint64_t total_diff, lps;
+	int error;
+	int count = 0;
+
+	error = sysctl_handle_int(oidp, &count, 0, req);
+	if (error != 0)
+		return (error);
+	if (count <= 0)
+		return (0);
+
+	keys = malloc(sizeof(*keys) * count, M_TEMP, M_NOWAIT);
+	nhops = malloc(sizeof(*nhops) * count, M_TEMP, M_NOWAIT);
+	if (keys == NULL || nhops == NULL) {
+		free(keys, M_TEMP);
+		free(nhops, M_TEMP);
+		return (ENOMEM);
+	}
+
+	printf("Preparing %d random keys...\n", count);
+	arc4random_buf(keys, sizeof(*keys) * count);
+	printf("Starting LPS test...\n");
+
+	NET_EPOCH_ENTER(et);
+	nanouptime(&ts_pre);
+	for (int i = 0; i < count; i++)
+		nhops[i] = fib4_lookup(RT_DEFAULT_FIB, keys[i], 0, NHR_NONE, 0);
+	nanouptime(&ts_post);
+	NET_EPOCH_EXIT(et);
+
+	free(keys, M_TEMP);
+	free(nhops, M_TEMP);
+
+	total_diff = (ts_post.tv_sec - ts_pre.tv_sec) * 1000000000 +
+	    (ts_post.tv_nsec - ts_pre.tv_nsec);
+	lps = 1000000000ULL * count / total_diff;
+	printf("%d lookups in %zu nanoseconds, %lu.%06lu MLPS\n",
+	    count, total_diff, lps / 1000000, lps % 1000000);
+
+	return (0);
+}
+SYSCTL_PROC(_net_route_test, OID_AUTO, rnd_lps,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, 0, rnd_lps, "I",
+    "Measure lookups per second using uniformly random keys");
 
 static int
 test_fib_lookup_modevent(module_t mod, int type, void *unused)
