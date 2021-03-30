@@ -717,15 +717,19 @@ linux_get_fop(struct linux_file *filp, const struct file_operations **fop,
 	ldev = filp->f_cdev;
 	*fop = filp->f_op;
 	if (ldev != NULL) {
-		for (siref = ldev->siref;;) {
-			if ((siref & LDEV_SI_DTR) != 0) {
-				ldev = &dummy_ldev;
-				siref = ldev->siref;
-				*fop = ldev->ops;
-				MPASS((ldev->siref & LDEV_SI_DTR) == 0);
-			} else if (atomic_fcmpset_int(&ldev->siref, &siref,
-			    siref + LDEV_SI_REF)) {
-				break;
+		if (ldev->kobj.ktype == &linux_cdev_static_ktype) {
+			refcount_acquire(&ldev->refs);
+		} else {
+			for (siref = ldev->siref;;) {
+				if ((siref & LDEV_SI_DTR) != 0) {
+					ldev = &dummy_ldev;
+					*fop = ldev->ops;
+					siref = ldev->siref;
+					MPASS((ldev->siref & LDEV_SI_DTR) == 0);
+				} else if (atomic_fcmpset_int(&ldev->siref,
+				    &siref, siref + LDEV_SI_REF)) {
+					break;
+				}
 			}
 		}
 	}
@@ -738,8 +742,13 @@ linux_drop_fop(struct linux_cdev *ldev)
 
 	if (ldev == NULL)
 		return;
-	MPASS((ldev->siref & ~LDEV_SI_DTR) != 0);
-	atomic_subtract_int(&ldev->siref, LDEV_SI_REF);
+	if (ldev->kobj.ktype == &linux_cdev_static_ktype) {
+		linux_cdev_deref(ldev);
+	} else {
+		MPASS(ldev->kobj.ktype == &linux_cdev_ktype);
+		MPASS((ldev->siref & ~LDEV_SI_DTR) != 0);
+		atomic_subtract_int(&ldev->siref, LDEV_SI_REF);
+	}
 }
 
 #define	OPW(fp,td,code) ({			\
