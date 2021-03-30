@@ -2199,8 +2199,8 @@ linux_completion_done(struct completion *c)
 static void
 linux_cdev_deref(struct linux_cdev *ldev)
 {
-
-	if (refcount_release(&ldev->refs))
+	if (refcount_release(&ldev->refs) &&
+	    ldev->kobj.ktype == &linux_cdev_ktype)
 		kfree(ldev);
 }
 
@@ -2220,12 +2220,17 @@ linux_cdev_release(struct kobject *kobj)
 static void
 linux_cdev_static_release(struct kobject *kobj)
 {
+	struct cdev *cdev;
 	struct linux_cdev *ldev;
 	struct kobject *parent;
 
 	ldev = container_of(kobj, struct linux_cdev, kobj);
 	parent = kobj->parent;
-	linux_destroy_dev(ldev);
+	cdev = ldev->cdev;
+	if (cdev != NULL) {
+		destroy_dev(cdev);
+		ldev->cdev = NULL;
+	}
 	kobject_put(parent);
 }
 
@@ -2237,6 +2242,8 @@ linux_destroy_dev(struct linux_cdev *ldev)
 		return;
 
 	MPASS((ldev->siref & LDEV_SI_DTR) == 0);
+	MPASS(ldev->kobj.ktype == &linux_cdev_ktype);
+
 	atomic_set_int(&ldev->siref, LDEV_SI_DTR);
 	while ((atomic_load_int(&ldev->siref) & ~LDEV_SI_DTR) != 0)
 		pause("ldevdtr", hz / 4);
