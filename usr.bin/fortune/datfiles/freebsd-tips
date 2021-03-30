@@ -803,3 +803,37 @@ You can spot one like this:
 
 		-- Alan Somers <asomers@FreeBSD.org>
 %
+FreeBSDs ps can create a dependency tree based on parent/child relationships
+between processes, like this:
+
+$ ps -d
+
+		-- Daniel Ebdrup Jensen <debdrup@FreeBSD.org>
+%
+It is possible to get a meassure of the resident memory set:
+
+$ vmstat -o | awk 'NR>1 { t[$7] += $1 } \
+END { for (i in t) printf "%s %d\n",i,t[i] }'
+
+The rows have the following meaning:
+df = default (not assigned a specific pager)
+sw = swap
+df = virtual
+vn = vnode
+ph = heap
+md = memory device
+
+This will be reported in number of pages, so it needs to be multiplied by the
+page size of the architecture which can be found via:
+
+$ sysctl -n hw.pagesize
+
+		-- Daniel Ebdrup Jensen <debdrup@FreeBSD.org>
+%
+To establish a serial connection to anything including a USB device,
+nothing more than cu(1) is needed:
+
+$ cu -s 9600 -l /dev/ttyU0
+
+		-- Daniel Ebdrup Jensen <debdrup@FreeBSD.org>
+%
