@@ -2213,12 +2213,12 @@ linux_cdev_release(struct kobject *kobj)
 static void
 linux_cdev_static_release(struct kobject *kobj)
 {
-	struct linux_cdev *cdev;
+	struct linux_cdev *ldev;
 	struct kobject *parent;
 
-	cdev = container_of(kobj, struct linux_cdev, kobj);
+	ldev = container_of(kobj, struct linux_cdev, kobj);
 	parent = kobj->parent;
-	linux_destroy_dev(cdev);
+	linux_destroy_dev(ldev);
 	kobject_put(parent);
 }
 
