@@ -397,7 +397,7 @@ mmc_fdt_gpio_get_present(struct mmc_fdt_helper *helper)
 
 	gpio_pin_is_active(helper->cd_pin, &pinstate);
 
-	return (pinstate ^ (helper->props & MMC_PROP_CD_INVERTED));
+	return (pinstate ^ (bool)(helper->props & MMC_PROP_CD_INVERTED));
 }
 
 bool
@@ -413,5 +413,5 @@ mmc_fdt_gpio_get_readonly(struct mmc_fdt_helper *helper)
 
 	gpio_pin_is_active(helper->wp_pin, &pinstate);
 
-	return (pinstate ^ (helper->props & MMC_PROP_WP_INVERTED));
+	return (pinstate ^ (bool)(helper->props & MMC_PROP_WP_INVERTED));
 }
