@@ -8,10 +8,6 @@
 #
 
 #
-# We want LINT to cover profiling as well.
-profile         2
-
-#
 # Enable the kernel DTrace hooks which are required to load the DTrace
 # kernel modules.
 #
@@ -907,7 +903,6 @@ options 	PV_STATS
 
 options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
 
-options 	I586_PMC_GUPROF=0x70000
 options 	KBDIO_DEBUG=2
 options 	KBD_MAXRETRY=4
 options 	KBD_MAXWAIT=6

@@ -69,11 +69,11 @@
 	.text
 .p2align PAGE_SHIFT, 0x90	/* Hypercall_page needs to be PAGE aligned */
 
-NON_GPROF_ENTRY(hypercall_page)
+ENTRY(hypercall_page)
 	.skip	0x1000, 0x90	/* Fill with "nop"s */
 
 /* Legacy PVH entry point, to be removed. */
-NON_GPROF_ENTRY(xen_start)
+ENTRY(xen_start)
 	/* Don't trust what the loader gives for rflags. */
 	pushq	$PSL_KERNEL
 	popfq
@@ -97,7 +97,7 @@ NON_GPROF_ENTRY(xen_start)
 
 /* PVH entry point. */
 	.code32
-NON_GPROF_ENTRY(xen_start32)
+ENTRY(xen_start32)
 
 	/* Load flat GDT */
 	movl	$VTOP(gdtdesc32), %eax

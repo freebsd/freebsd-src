@@ -37,7 +37,6 @@
 #include "assym.inc"
 
 #define INTR_POP				\
-	MEXITCOUNT;				\
 	movq	TF_RDI(%rsp),%rdi;		\
 	movq	TF_RSI(%rsp),%rsi;		\
 	movq	TF_RDX(%rsp),%rdx;		\
@@ -72,7 +71,7 @@
 	movq	%rsp, %rsi
 	movq	TF_RAX(%rsp), %rdx
 	call	dtrace_invop
-	ALTENTRY(dtrace_invop_callsite)
+	ENTRY(dtrace_invop_callsite)
 	cmpl	$DTRACE_INVOP_PUSHL_EBP, %eax
 	je	bp_push
 	cmpl	$DTRACE_INVOP_LEAVE, %eax

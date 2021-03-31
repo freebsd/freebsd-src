@@ -463,7 +463,4 @@ embedfs_${MFS_IMAGE:T:R}.o: ${MFS_IMAGE} $S/dev/md/embedfs.S
 .endif
 .endif
 
-# XXX strictly, everything depends on Makefile because changes to ${PROF}
-# only appear there, but we don't handle that.
-
 .include "kern.mk"

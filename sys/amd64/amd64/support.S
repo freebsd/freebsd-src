@@ -1490,7 +1490,6 @@ ENTRY(lgdt)
 	popq	%rax
 	pushq	$KCSEL
 	pushq	%rax
-	MEXITCOUNT
 	lretq
 END(lgdt)
 

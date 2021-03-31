@@ -101,9 +101,6 @@ dtrace_invop_calltrap_addr:
  * registers are reloaded on return to the usermode.
  */
 
-MCOUNT_LABEL(user)
-MCOUNT_LABEL(btrap)
-
 /* Traps that we leave interrupts disabled for. */
 	.macro	TRAP_NOEN	l, trapno
 	PTI_ENTRY	\l,\l\()_pti_k,\l\()_pti_u
@@ -257,7 +254,6 @@ alltraps_pushregs_no_rax:
 	pushfq
 	andq	$~(PSL_D | PSL_AC),(%rsp)
 	popfq
-	FAKE_MCOUNT(TF_RIP(%rsp))
 #ifdef KDTRACE_HOOKS
 	/*
 	 * DTrace Function Boundary Trace (fbt) probes are triggered
@@ -288,7 +284,6 @@ alltraps_pushregs_no_rax:
 calltrap:
 	movq	%rsp,%rdi
 	call	trap_check
-	MEXITCOUNT
 	jmp	doreti			/* Handle any pending ASTs */
 
 	/*
@@ -576,7 +571,6 @@ fast_syscall_common:
 	movq	%r14,TF_R14(%rsp)	/* C preserved */
 	movq	%r15,TF_R15(%rsp)	/* C preserved */
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
-	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	PCPU(CURTHREAD),%rdi
 	movq	%rsp,TD_FRAME(%rdi)
 	movl	TF_RFLAGS(%rsp),%esi
@@ -594,7 +588,6 @@ fast_syscall_common:
 	call	handle_ibrs_exit
 	callq	*mds_handler
 	/* Restore preserved registers. */
-	MEXITCOUNT
 	movq	TF_RDI(%rsp),%rdi	/* bonus; preserve arg 1 */
 	movq	TF_RSI(%rsp),%rsi	/* bonus: preserve arg 2 */
 	movq	TF_RDX(%rsp),%rdx	/* return value 2 */
@@ -621,7 +614,6 @@ fast_syscall_common:
 	jmp	1b
 
 4:	/* Requested full context restore, use doreti for that. */
-	MEXITCOUNT
 	jmp	doreti
 
 /*
@@ -692,10 +684,8 @@ IDTVEC(dbg)
 	rdmsr
 	movl	%eax,%r14d
 	call	handle_ibrs_entry
-2:	FAKE_MCOUNT(TF_RIP(%rsp))
-	movq	%rsp,%rdi
+2:	movq	%rsp,%rdi
 	call	trap
-	MEXITCOUNT
 	testl	$CPUID_STDEXT3_IBPB,cpu_stdext_feature3(%rip)
 	je	3f
 	movl	%r14d,%eax
@@ -866,10 +856,8 @@ nmi_fromuserspace:
 3:
 /* Note: this label is also used by ddb and gdb: */
 nmi_calltrap:
-	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	%rsp,%rdi
 	call	trap
-	MEXITCOUNT
 #ifdef HWPMC_HOOKS
 	/*
 	 * Capture a userspace callchain if needed.
@@ -1055,10 +1043,8 @@ mchk_fromuserspace:
 1:	call	handle_ibrs_entry
 /* Note: this label is also used by ddb and gdb: */
 mchk_calltrap:
-	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	%rsp,%rdi
 	call	mca_intr
-	MEXITCOUNT
 	testl	%ebx,%ebx	/* %ebx != 0 => return to userland */
 	jnz	doreti_exit
 	/*
@@ -1089,7 +1075,6 @@ ENTRY(fork_trampoline)
 	movq	%rbx,%rsi		/* arg1 */
 	movq	%rsp,%rdx		/* trapframe pointer */
 	call	fork_exit
-	MEXITCOUNT
 	jmp	doreti			/* Handle any ASTs */
 
 /*
@@ -1115,8 +1100,6 @@ ENTRY(fork_trampoline)
 	.p2align 4
 	.text
 	SUPERALIGN_TEXT
-MCOUNT_LABEL(bintr)
-
 #include <amd64/amd64/apic_vector.S>
 
 #ifdef DEV_ATPIC
@@ -1128,9 +1111,6 @@ MCOUNT_LABEL(bintr)
 #include <amd64/amd64/atpic_vector.S>
 #endif
 
-	.text
-MCOUNT_LABEL(eintr)
-
 /*
  * void doreti(struct trapframe)
  *
@@ -1141,7 +1121,6 @@ MCOUNT_LABEL(eintr)
 	.type	doreti,@function
 	.globl	doreti
 doreti:
-	FAKE_MCOUNT($bintr)		/* init "from" bintr -> doreti */
 	/*
 	 * Check if ASTs can be handled now.
 	 */
@@ -1171,7 +1150,6 @@ doreti_ast:
 	 *	registers.  The fault is handled in trap.c.
 	 */
 doreti_exit:
-	MEXITCOUNT
 	movq	PCPU(CURPCB),%r8
 
 	/*
@@ -1332,7 +1310,6 @@ doreti_iret_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
 	movq	$0,TF_ERR(%rsp)	/* XXX should be the error code */
 	movq	$0,TF_ADDR(%rsp)
-	FAKE_MCOUNT(TF_RIP(%rsp))
 	jmp	calltrap
 
 	ALIGN_TEXT

@@ -48,7 +48,7 @@
 /*
  * Signal trampoline, copied to top of user stack
  */
-NON_GPROF_ENTRY(sigcode)
+ENTRY(sigcode)
 	calll	*SIGF_HANDLER(%esp)
 	leal	SIGF_UC(%esp),%eax	/* get ucontext */
 	pushl	%eax
