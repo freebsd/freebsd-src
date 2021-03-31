@@ -721,8 +721,9 @@ flush_disable_caches(void)
 	mtmsr(msr);
 }
 
+#ifndef __powerpc64__
 void
-cpu_sleep()
+mpc745x_sleep()
 {
 	static u_quad_t timebase = 0;
 	static register_t sprgs[4];
@@ -785,3 +786,4 @@ cpu_sleep()
 		enable_vec(curthread);
 	powerpc_sync();
 }
+#endif
