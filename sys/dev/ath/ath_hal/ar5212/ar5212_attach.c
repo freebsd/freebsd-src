@@ -137,6 +137,8 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_setQuiet			= ar5212SetQuiet,
 	.ah_getMibCycleCounts		= ar5212GetMibCycleCounts,
 	.ah_setChainMasks		= ar5212SetChainMasks,
+	.ah_getNav			= ar5212GetNav,
+	.ah_setNav			= ar5212SetNav,
 
 	/* DFS Functions */
 	.ah_enableDfs			= ar5212EnableDfs,
