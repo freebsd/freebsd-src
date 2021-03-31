@@ -269,6 +269,8 @@ extern	void ar5210SetChainMasks(struct ath_hal *, uint32_t, uint32_t);
 extern	void ar5210EnableDfs(struct ath_hal *, HAL_PHYERR_PARAM *);
 extern	void ar5210GetDfsThresh(struct ath_hal *, HAL_PHYERR_PARAM *);
 extern	void ar5210UpdateDiagReg(struct ath_hal *ah, uint32_t val);
+extern	void ar5210SetNav(struct ath_hal *ah, u_int val);
+extern	u_int ar5210GetNav(struct ath_hal *ah);
 
 extern	u_int ar5210GetKeyCacheSize(struct ath_hal *);
 extern	HAL_BOOL ar5210IsKeyCacheEntryValid(struct ath_hal *, uint16_t);
