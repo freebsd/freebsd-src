@@ -92,6 +92,7 @@ int		 sbuf_vprintf(struct sbuf *, const char *, __va_list)
 	__printflike(2, 0);
 int		 sbuf_putc(struct sbuf *, int);
 void		 sbuf_set_drain(struct sbuf *, sbuf_drain_func *, void *);
+int		 sbuf_drain(struct sbuf *);
 int		 sbuf_trim(struct sbuf *);
 int		 sbuf_error(const struct sbuf *);
 int		 sbuf_finish(struct sbuf *);
