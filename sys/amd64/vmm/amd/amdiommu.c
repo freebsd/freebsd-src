@@ -165,7 +165,7 @@ ivhd_teardown_intr(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (sc->event_res != NULL) {
+	if (sc->event_tag != NULL) {
 		bus_teardown_intr(dev, sc->event_res, sc->event_tag);
 		sc->event_tag = NULL;
 	}
