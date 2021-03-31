@@ -39,7 +39,6 @@ all	_rip6stat
 all	_ripcbinfo
 all	_rtree
 all	_rtstat
-all	_rttrash
 all	_sctpstat
 all	_sfstat
 all	_tcbinfo
