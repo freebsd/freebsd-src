@@ -182,7 +182,7 @@ static void ucma_close_id(struct work_struct *work)
 	struct ucma_context *ctx =  container_of(work, struct ucma_context, close_work);
 
 	/* once all inflight tasks are finished, we close all underlying
-	 * resources. The context is still alive till its explicit destryoing
+	 * resources. The context is still alive till its explicit destroying
 	 * by its creator.
 	 */
 	ucma_put_ctx(ctx);

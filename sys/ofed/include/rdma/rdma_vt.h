@@ -220,7 +220,7 @@ struct rvt_driver_provided {
 	void (*qp_priv_free)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 
 	/*
-	 * Inform the driver the particular qp in quesiton has been reset so
+	 * Inform the driver the particular qp in question has been reset so
 	 * that it can clean up anything it needs to.
 	 */
 	void (*notify_qp_reset)(struct rvt_qp *qp);

@@ -86,7 +86,7 @@ int ib_find_cached_gid(struct ib_device *device,
  * @device: The device to query.
  * @gid: The GID value to search for.
  * @gid_type: The GID type to search for.
- * @port_num: The port number of the device where the GID value sould be
+ * @port_num: The port number of the device where the GID value should be
  *   searched.
  * @ndev: In RoCE, the net device of the device. Null means ignore.
  * @index: The index into the cached GID table where the GID was found.  This

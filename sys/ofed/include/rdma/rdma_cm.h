@@ -378,7 +378,7 @@ int rdma_set_reuseaddr(struct rdma_cm_id *id, int reuse);
 /**
  * rdma_set_afonly - Specify that listens are restricted to the
  *    bound address family only.
- * @id: Communication identifer to configure.
+ * @id: Communication identifier to configure.
  * @afonly: Value indicating if listens are restricted.
  *
  * Must be set before identifier is in the listening state.

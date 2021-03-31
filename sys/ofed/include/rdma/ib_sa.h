@@ -437,7 +437,7 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 			 struct ib_ah_attr *ah_attr);
 
 /**
- * ib_sa_pack_path - Conert a path record from struct ib_sa_path_rec
+ * ib_sa_pack_path - Convert a path record from struct ib_sa_path_rec
  * to IB MAD wire format.
  */
 void ib_sa_pack_path(struct ib_sa_path_rec *rec, void *attribute);

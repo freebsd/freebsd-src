@@ -185,7 +185,7 @@ static int write_gid(struct ib_device *ib_dev, u8 port,
 	struct net_device *old_net_dev;
 	enum ib_gid_type old_gid_type;
 
-	/* in rdma_cap_roce_gid_table, this funciton should be protected by a
+	/* in rdma_cap_roce_gid_table, this function should be protected by a
 	 * sleep-able lock.
 	 */
 
@@ -715,7 +715,7 @@ void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
 			      GID_ATTR_FIND_MASK_DEFAULT,
 			      NULL);
 
-		/* Coudn't find default GID location */
+		/* Couldn't find default GID location */
 		if (WARN_ON(ix < 0))
 			goto release;
 

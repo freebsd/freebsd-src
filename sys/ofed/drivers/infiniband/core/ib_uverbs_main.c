@@ -394,7 +394,7 @@ static ssize_t ib_uverbs_event_read(struct file *filp, char __user *buf,
 		if (wait_event_interruptible(file->poll_wait,
 					     (!list_empty(&file->event_list) ||
 			/* The barriers built into wait_event_interruptible()
-			 * and wake_up() guarentee this will see the null set
+			 * and wake_up() guarantee this will see the null set
 			 * without using RCU
 			 */
 					     !file->uverbs_file->device->ib_dev)))

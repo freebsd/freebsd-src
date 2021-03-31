@@ -323,7 +323,7 @@ struct sdp_moderation {
 #define	SDP_TIMEWAIT	0x0001		/* In ssk timewait state. */
 #define	SDP_DROPPED	0x0002		/* Socket has been dropped. */
 #define	SDP_SOCKREF	0x0004		/* Holding a sockref for close. */
-#define	SDP_NODELAY	0x0008		/* Disble nagle. */
+#define	SDP_NODELAY	0x0008		/* Disable nagle. */
 #define	SDP_NEEDFIN	0x0010		/* Send a fin on the next tx. */
 #define	SDP_DREQWAIT	0x0020		/* Waiting on DREQ. */
 #define	SDP_DESTROY	0x0040		/* Being destroyed. */
