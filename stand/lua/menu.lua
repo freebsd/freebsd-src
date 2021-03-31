@@ -257,6 +257,7 @@ menu.welcome = {
 			menu_entries.zpool_checkpoints,
 			menu_entries.boot_envs,
 			menu_entries.chainload,
+			menu_entries.vendor,
 		}
 	end,
 	all_entries = {
@@ -399,6 +400,10 @@ menu.welcome = {
 				return loader.getenv('chain_disk') ~= nil
 			end,
 			alias = {"l", "L"},
+		},
+		vendor = {
+			entry_type = core.MENU_ENTRY,
+			visible = false,
 		},
 	},
 }
