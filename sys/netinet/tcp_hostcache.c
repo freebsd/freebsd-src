@@ -649,12 +649,13 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 		return(error);
 	}
 
-	/* Use a buffer for 16 lines */
-	sbuf_new_for_sysctl(&sb, NULL, 16 * linesize, req);
+	/* Use a buffer sized for one full bucket */
+	sbuf_new_for_sysctl(&sb, NULL, V_tcp_hostcache.bucket_limit * linesize, req);
 
 	sbuf_printf(&sb,
 		"\nIP address        MTU  SSTRESH      RTT   RTTVAR "
 		"    CWND SENDPIPE RECVPIPE HITS  UPD  EXP\n");
+	sbuf_drain(&sb);
 
 #define msec(u) (((u) + 500) / 1000)
 	for (i = 0; i < V_tcp_hostcache.hashsize; i++) {
@@ -685,6 +686,7 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 			    hc_entry->rmx_expire);
 		}
 		THC_UNLOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
+		sbuf_drain(&sb);
 	}
 #undef msec
 	error = sbuf_finish(&sb);
