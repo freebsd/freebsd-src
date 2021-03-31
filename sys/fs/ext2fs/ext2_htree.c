@@ -794,7 +794,7 @@ ext2_htree_add_entry(struct vnode *dvp, struct ext2fs_direct_2 *entry,
 	char *newidxblock = NULL;
 	struct ext2fs_htree_node *dst_node;
 	struct ext2fs_htree_entry *dst_entries;
-	struct ext2fs_htree_entry *root_entires;
+	struct ext2fs_htree_entry *root_entries;
 	struct buf *dst_bp = NULL;
 	int error, write_bp = 0, write_dst_bp = 0, write_info = 0;
 
@@ -817,7 +817,7 @@ ext2_htree_add_entry(struct vnode *dvp, struct ext2fs_direct_2 *entry,
 	ent_num = ext2_htree_get_count(entries);
 	if (ent_num == ext2_htree_get_limit(entries)) {
 		/* Split the index node. */
-		root_entires = info.h_levels[0].h_entries;
+		root_entries = info.h_levels[0].h_entries;
 		newidxblock = malloc(blksize, M_TEMP, M_WAITOK | M_ZERO);
 		dst_node = (struct ext2fs_htree_node *)newidxblock;
 		memset(&dst_node->h_fake_dirent, 0,
@@ -841,8 +841,8 @@ ext2_htree_add_entry(struct vnode *dvp, struct ext2fs_direct_2 *entry,
 		if (info.h_levels_num == 2) {
 			uint16_t src_ent_num, dst_ent_num;
 
-			if (ext2_htree_get_count(root_entires) ==
-			    ext2_htree_get_limit(root_entires)) {
+			if (ext2_htree_get_count(root_entries) ==
+			    ext2_htree_get_limit(root_entries)) {
 				SDT_PROBE2(ext2fs, , trace, htree, 1,
 				    "directory index is full");
 				error = EIO;
