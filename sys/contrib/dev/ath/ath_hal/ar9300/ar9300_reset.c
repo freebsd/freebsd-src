@@ -4538,7 +4538,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
     u_int8_t                clk_25mhz = AH9300(ah)->clk_25mhz;
     HAL_BOOL                    stopped, cal_ret;
     HAL_BOOL                    apply_last_iqcorr = AH_FALSE;
-
+    uint64_t tsf;
 
     if (OS_REG_READ(ah, AR_IER) == AR_IER_ENABLE) {
         HALDEBUG(AH_NULL, HAL_DEBUG_UNMASKABLE, "** Reset called with WLAN "
@@ -4869,10 +4869,15 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
     /* Mark PHY inactive prior to reset, to be undone in ar9300_init_bb () */
     ar9300_mark_phy_inactive(ah);
 
+    /* Save/restore TSF across a potentially full reset */
+    /* XXX TODO: only do this if we do a cold reset */
+    tsf = ar9300_get_tsf64(ah);
     if (!ar9300_chip_reset(ah, chan, reset_type)) {
         HALDEBUG(ah, HAL_DEBUG_RESET, "%s: chip reset failed\n", __func__);
         FAIL(HAL_EIO);
     }
+    if (tsf != 0)
+        ar9300_set_tsf64(ah, tsf);
 
     OS_MARK(ah, AH_MARK_RESET_LINE, __LINE__);
 
