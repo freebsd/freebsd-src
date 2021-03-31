@@ -2699,7 +2699,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum, vtype, dephd, key)
 	}
 	/*
 	 * If this block is a continuation of the range (either
-	 * follows at the end or preceeds in the front) then we
+	 * follows at the end or precedes in the front) then we
 	 * add it to the front or back of the list and return.
 	 *
 	 * If it is not a continuation of the trim that we were

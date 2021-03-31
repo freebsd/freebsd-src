@@ -2050,7 +2050,7 @@ process_worklist_item(mp, target, flags)
 		wake_worklist(wk);
 		add_to_worklist(wk, WK_HEAD);
 	}
-	/* Sentinal could've become the tail from remove_from_worklist. */
+	/* Sentinel could've become the tail from remove_from_worklist. */
 	if (ump->softdep_worklist_tail == &sentinel)
 		ump->softdep_worklist_tail =
 		    (struct worklist *)sentinel.wk_list.le_prev;
@@ -6739,7 +6739,7 @@ complete_trunc_indir(freework)
 		/* See if the block was discarded. */
 		if (bp == NULL)
 			break;
-		/* Inline part of getdirtybuf().  We dont want bremfree. */
+		/* Inline part of getdirtybuf().  We don't want bremfree. */
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) == 0)
 			break;
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
@@ -7962,7 +7962,7 @@ softdep_freefile(pvp, ino, mode)
 	 * written to disk, then the on-disk inode is zero'ed. In either
 	 * case we can free the file immediately.  If the journal was
 	 * canceled before being written the inode will never make it to
-	 * disk and we must send the canceled journal entrys to
+	 * disk and we must send the canceled journal entries to
 	 * ffs_freefile() to be cleared in conjunction with the bitmap.
 	 * Any blocks waiting on the inode to write can be safely freed
 	 * here as it will never been written.
@@ -14025,7 +14025,7 @@ schedule_cleanup(struct mount *mp)
 		/*
 		 * No ast is delivered to kernel threads, so nobody
 		 * would deref the mp.  Some kernel threads
-		 * explicitely check for AST, e.g. NFS daemon does
+		 * explicitly check for AST, e.g. NFS daemon does
 		 * this in the serving loop.
 		 */
 		return;
