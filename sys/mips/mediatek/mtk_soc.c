@@ -54,6 +54,7 @@ static uint32_t mtk_soc_timerclk = MTK_CPU_CLK_880MHZ / 2;
 
 static uint32_t mtk_soc_chipid0_3 = MTK_UNKNOWN_CHIPID0_3;
 static uint32_t mtk_soc_chipid4_7 = MTK_UNKNOWN_CHIPID4_7;
+static char mtk_soc_cpu_model[64];
 
 static const struct ofw_compat_data compat_data[] = {
 	{ "ralink,rt2880-soc",		MTK_SOC_RT2880 },
@@ -412,12 +413,18 @@ mtk_soc_set_cpu_model(void)
 	 * obtained for some reason.
 	 */
 	for (idx = 0; idx < offset; idx++) {
-		cpu_model[idx] = chipid0_3[idx];
-		cpu_model[idx + offset] = chipid4_7[idx];
+		mtk_soc_cpu_model[idx] = chipid0_3[idx];
+		mtk_soc_cpu_model[idx + offset] = chipid4_7[idx];
 	}
 
 	/* Null-terminate the string */
-	cpu_model[2 * offset] = 0;
+	mtk_soc_cpu_model[2 * offset] = 0;
+}
+
+const char *
+mtk_soc_get_cpu_model(void)
+{
+	return mtk_soc_cpu_model;
 }
 
 uint32_t

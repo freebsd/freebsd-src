@@ -258,11 +258,14 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 
 	printf("FDT DTB  at: 0x%08x\n", (uint32_t)dtbp);
 
+	printf("CPU   model: %s\n", mtk_soc_get_cpu_model());
 	printf("CPU   clock: %4dMHz\n", mtk_soc_get_cpuclk()/(1000*1000));
 	printf("Timer clock: %4dMHz\n", timer_clk/(1000*1000));
 	printf("UART  clock: %4dMHz\n\n", mtk_soc_get_uartclk()/(1000*1000));
 
 	printf("U-Boot args (from %d args):\n", argc - 1);
+
+	strcpy(cpu_model, mtk_soc_get_cpu_model());
 
 	if (argc == 1)
 		printf("\tNone\n");

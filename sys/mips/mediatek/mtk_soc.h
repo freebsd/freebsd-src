@@ -123,6 +123,7 @@ enum mtk_soc_id {
 
 extern void     mtk_soc_try_early_detect(void);
 extern void	mtk_soc_set_cpu_model(void);
+extern const char *mtk_soc_get_cpu_model(void);
 extern uint32_t mtk_soc_get_uartclk(void);
 extern uint32_t mtk_soc_get_cpuclk(void);
 extern uint32_t mtk_soc_get_timerclk(void);
