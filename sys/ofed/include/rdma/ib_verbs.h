@@ -776,8 +776,8 @@ struct ib_sig_domain {
 /**
  * struct ib_sig_attrs - Parameters for signature handover operation
  * @check_mask: bitmask for signature byte check (8 bytes)
- * @mem: memory domain layout desciptor.
- * @wire: wire domain layout desciptor.
+ * @mem: memory domain layout descriptor.
+ * @wire: wire domain layout descriptor.
  */
 struct ib_sig_attrs {
 	u8			check_mask;
@@ -811,7 +811,7 @@ enum ib_mr_status_check {
  *
  * @fail_status: Bitmask of MR checks status. For each
  *     failed check a corresponding status bit is set.
- * @sig_err: Additional info for IB_MR_CEHCK_SIG_STATUS
+ * @sig_err: Additional info for IB_MR_CHECK_SIG_STATUS
  *     failure.
  */
 struct ib_mr_status {
@@ -2399,7 +2399,7 @@ static inline bool rdma_cap_ib_cm(const struct ib_device *device, u8 port_num)
  * @port_num: Port number to check
  *
  * Similar to above, but specific to iWARP connections which have a different
- * managment protocol than InfiniBand.
+ * management protocol than InfiniBand.
  *
  * Return: true if the port supports an iWARP CM (this does not guarantee that
  * a CM is actually running however).
@@ -2442,7 +2442,7 @@ static inline bool rdma_cap_ib_sa(const struct ib_device *device, u8 port_num)
  * to this group.  And it should leave the group only after all queue pairs
  * attached to the group have been detached.
  *
- * Return: true if the port must undertake the additional adminstrative
+ * Return: true if the port must undertake the additional administrative
  * overhead of registering/unregistering with the SM and tracking of the
  * total number of queue pairs attached to the multicast group.
  */
@@ -2577,7 +2577,7 @@ enum ib_pd_flags {
 	 * ULPs to avoid the overhead of dynamic MRs.
 	 *
 	 * This flag is generally considered unsafe and must only be used in
-	 * extremly trusted environments.  Every use of it will log a warning
+	 * extremely trusted environments.  Every use of it will log a warning
 	 * in the kernel log.
 	 */
 	IB_PD_UNSAFE_GLOBAL_RKEY	= 0x01,

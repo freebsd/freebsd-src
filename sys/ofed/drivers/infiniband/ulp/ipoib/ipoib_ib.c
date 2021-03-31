@@ -986,9 +986,9 @@ void ipoib_ib_dev_cleanup(struct ipoib_dev_priv *priv)
 }
 
 /*
- * Delayed P_Key Assigment Interim Support
+ * Delayed P_Key Assignment Interim Support
  *
- * The following is initial implementation of delayed P_Key assigment
+ * The following is initial implementation of delayed P_Key assignment
  * mechanism. It is using the same approach implemented for the multicast
  * group join. The single goal of this implementation is to quickly address
  * Bug #2507. This implementation will probably be removed when the P_Key
@@ -1018,7 +1018,7 @@ int ipoib_pkey_dev_delay_open(struct ipoib_dev_priv *priv)
 {
 
 	/* Look for the interface pkey value in the IB Port P_Key table and */
-	/* set the interface pkey assigment flag                            */
+	/* set the interface pkey assignment flag                            */
 	ipoib_pkey_dev_check_presence(priv);
 
 	/* P_Key value not assigned yet - start polling */

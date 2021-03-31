@@ -702,7 +702,7 @@ out:
  * Passive Side: CM_ID <-- ESTABLISHED
  *
  * The provider generated an ESTABLISHED event which means that
- * the MPA negotion has completed successfully and we are now in MPA
+ * the MPA negotiation has completed successfully and we are now in MPA
  * FPDU mode.
  *
  * This event can only be received in the CONN_RECV state. If the
