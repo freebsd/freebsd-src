@@ -803,14 +803,14 @@ You can spot one like this:
 
 		-- Alan Somers <asomers@FreeBSD.org>
 %
-FreeBSDs ps can create a dependency tree based on parent/child relationships
-between processes, like this:
+FreeBSD's ps(1) can create a dependency tree based on parent/child
+relationships between processes, like this:
 
 $ ps -d
 
 		-- Daniel Ebdrup Jensen <debdrup@FreeBSD.org>
 %
-It is possible to get a meassure of the resident memory set:
+It is possible to measure the resident memory set:
 
 $ vmstat -o | awk 'NR>1 { t[$7] += $1 } \
 END { for (i in t) printf "%s %d\n",i,t[i] }'
