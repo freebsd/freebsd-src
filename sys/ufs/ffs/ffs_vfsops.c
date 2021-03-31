@@ -742,7 +742,7 @@ ffs_mount(struct mount *mp)
 		/*
 		 * Unmount does not start if MNT_UPDATE is set.  Mount
 		 * update busies mp before setting MNT_UPDATE.  We
-		 * must be able to retain our busy ref succesfully,
+		 * must be able to retain our busy ref successfully,
 		 * without sleep.
 		 */
 		error1 = vfs_busy(mp, MBF_NOWAIT);
