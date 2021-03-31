@@ -35,7 +35,7 @@ INCLUDES+= -I$S/contrib/libfdt -I$S/contrib/device-tree/include
 LINUX_DTS_VERSION!=	awk '/freebsd,dts-version/ { sub(/;$$/,"", $$NF); print $$NF }' $S/dts/freebsd-compatible.dts
 CFLAGS += -DLINUX_DTS_VERSION=\"${LINUX_DTS_VERSION}\"
 
-.if !defined(DEBUG) && !defined(PROFLEVEL)
+.if !defined(DEBUG)
 STRIP_FLAGS = -S
 .endif
 

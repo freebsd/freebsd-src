@@ -79,7 +79,6 @@ X\()\vec_name:
 	SET_KERNEL_SREGS
 	cld
 	KENTER
-	FAKE_MCOUNT(TF_EIP(%esp))
 	cmpl	$0,x2apic_mode
 	je	2f
 	movl	$(MSR_APIC_ISR0 + \index),%ecx
@@ -98,7 +97,6 @@ X\()\vec_name:
 	call	*%eax
 	addl	$8, %esp	/* discard parameter */
 4:
-	MEXITCOUNT
 	jmp	doreti
 	.endm
 
@@ -136,12 +134,10 @@ IDTVEC(timerint)
 	SET_KERNEL_SREGS
 	cld
 	KENTER
-	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
 	movl	$lapic_handle_timer, %eax
 	call	*%eax
 	add	$4, %esp
-	MEXITCOUNT
 	jmp	doreti
 
 /*
@@ -155,10 +151,8 @@ IDTVEC(cmcint)
 	SET_KERNEL_SREGS
 	cld
 	KENTER
-	FAKE_MCOUNT(TF_EIP(%esp))
 	movl	$lapic_handle_cmc, %eax
 	call	*%eax
-	MEXITCOUNT
 	jmp	doreti
 
 /*
@@ -172,10 +166,8 @@ IDTVEC(errorint)
 	SET_KERNEL_SREGS
 	cld
 	KENTER
-	FAKE_MCOUNT(TF_EIP(%esp))
 	movl	$lapic_handle_error, %eax
 	call	*%eax
-	MEXITCOUNT
 	jmp	doreti
 
 #ifdef XENHVM
@@ -190,12 +182,10 @@ IDTVEC(xen_intr_upcall)
 	SET_KERNEL_SREGS
 	cld
 	KENTER
-	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
 	movl	$xen_intr_handle_upcall, %eax
 	call	*%eax
 	add	$4, %esp
-	MEXITCOUNT
 	jmp	doreti
 #endif
 
@@ -272,10 +262,8 @@ IDTVEC(ipi_intr_bitmap_handler)
 	cld
 	KENTER
 	call	as_lapic_eoi
-	FAKE_MCOUNT(TF_EIP(%esp))
 	movl	$ipi_bitmap_handler, %eax
 	call	*%eax
-	MEXITCOUNT
 	jmp	doreti
 
 /*
@@ -319,10 +307,8 @@ IDTVEC(ipi_swi)
 	cld
 	KENTER
 	call	as_lapic_eoi
-	FAKE_MCOUNT(TF_EIP(%esp))
 	movl	$ipi_swi_handler, %eax
 	call	*%eax
-	MEXITCOUNT
 	jmp	doreti
 
 /*

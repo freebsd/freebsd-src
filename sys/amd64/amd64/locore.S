@@ -54,7 +54,7 @@
  *
  * We are already in long mode, on a 64 bit %cs and running at KERNBASE.
  */
-NON_GPROF_ENTRY(btext)
+ENTRY(btext)
 
 	/* Tell the bios to warmboot next time */
 	movw	$0x1234,0x472
@@ -79,7 +79,7 @@ NON_GPROF_ENTRY(btext)
 	jmp	0b
 
 /* la57_trampoline(%rdi pml5) */
-NON_GPROF_ENTRY(la57_trampoline)
+ENTRY(la57_trampoline)
 	movq	%rsp,%r11
 	movq	%rbx,%r10
 	leaq	la57_trampoline_end(%rip),%rsp
@@ -118,11 +118,11 @@ l2:	movq	%r11,%rsp
 	movq	%r10,%rbx
 	retq
 	.p2align 4,0
-NON_GPROF_ENTRY(la57_trampoline_gdt_desc)
+ENTRY(la57_trampoline_gdt_desc)
 	.word	la57_trampoline_end - la57_trampoline_gdt
 	.long	0		/* filled by pmap_bootstrap_la57 */
 	.p2align 4,0
-NON_GPROF_ENTRY(la57_trampoline_gdt)
+ENTRY(la57_trampoline_gdt)
 	.long	0x00000000	/* null desc */
 	.long	0x00000000
 	.long	0x00000000	/* 64bit code */
@@ -132,7 +132,7 @@ NON_GPROF_ENTRY(la57_trampoline_gdt)
 	.long	0x0000ffff	/* universal data */
 	.long	0x00cf9300
 	.dcb.l	16,0
-NON_GPROF_ENTRY(la57_trampoline_end)
+ENTRY(la57_trampoline_end)
 
 	.bss
 	ALIGN_DATA			/* just to be sure */

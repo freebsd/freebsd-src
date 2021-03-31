@@ -155,7 +155,6 @@ ENTRY(bcopy)
 	movl	8(%esp),%edx
 	movl	%eax,8(%esp)
 	movl	%edx,4(%esp)
-	MEXITCOUNT
 	jmp	memmove
 END(bcopy)
 
@@ -284,7 +283,6 @@ ENTRY(lgdt)
 	movl	(%esp),%eax
 	pushl	%eax
 	movl	$KCSEL,4(%esp)
-	MEXITCOUNT
 	lret
 END(lgdt)
 

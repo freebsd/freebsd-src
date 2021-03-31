@@ -38,7 +38,7 @@
  * Signal trampoline, copied to top of user stack
  *
  */
-NON_GPROF_ENTRY(sigcode)
+ENTRY(sigcode)
 	call	*SIGF_HANDLER(%rsp)	/* call signal handler */
 	lea	SIGF_UC(%rsp),%rdi	/* get ucontext_t */
 	pushq	$0			/* junk to fake return addr. */

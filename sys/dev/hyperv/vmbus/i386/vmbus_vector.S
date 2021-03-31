@@ -44,9 +44,7 @@ IDTVEC(vmbus_isr)
 	SET_KERNEL_SREGS
 	cld
 	KENTER
-	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
 	call	vmbus_handle_intr
 	add	$4, %esp
-	MEXITCOUNT
 	jmp	doreti

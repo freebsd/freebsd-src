@@ -81,7 +81,6 @@ as_lapic_eoi:
  */
 	.macro	ISR_VEC	index, vec_name
 	INTR_HANDLER	\vec_name
-	FAKE_MCOUNT(TF_RIP(%rsp))
 	cmpl	$0,x2apic_mode
 	je	1f
 	movl	$(MSR_APIC_ISR0 + \index),%ecx
@@ -98,7 +97,6 @@ as_lapic_eoi:
 	movl	%eax, %edi	/* pass the IRQ */
 	call	lapic_handle_intr
 3:
-	MEXITCOUNT
 	jmp	doreti
 	.endm
 
@@ -127,28 +125,22 @@ IDTVEC(spuriousint)
  * Local APIC periodic timer handler.
  */
 	INTR_HANDLER	timerint
-	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	%rsp, %rdi
 	call	lapic_handle_timer
-	MEXITCOUNT
 	jmp	doreti
 
 /*
  * Local APIC CMCI handler.
  */
 	INTR_HANDLER cmcint
-	FAKE_MCOUNT(TF_RIP(%rsp))
 	call	lapic_handle_cmc
-	MEXITCOUNT
 	jmp	doreti
 
 /*
  * Local APIC error interrupt handler.
  */
 	INTR_HANDLER errorint
-	FAKE_MCOUNT(TF_RIP(%rsp))
 	call	lapic_handle_error
-	MEXITCOUNT
 	jmp	doreti
 
 #ifdef XENHVM
@@ -157,10 +149,8 @@ IDTVEC(spuriousint)
  * Only used when the hypervisor supports direct vector callbacks.
  */
 	INTR_HANDLER xen_intr_upcall
-	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	%rsp, %rdi
 	call	xen_intr_handle_upcall
-	MEXITCOUNT
 	jmp	doreti
 #endif
 
@@ -184,9 +174,7 @@ IDTVEC(spuriousint)
  */
 	INTR_HANDLER ipi_intr_bitmap_handler
 	call	as_lapic_eoi
-	FAKE_MCOUNT(TF_RIP(%rsp))
 	call	ipi_bitmap_handler
-	MEXITCOUNT
 	jmp	doreti
 
 /*
@@ -210,9 +198,7 @@ IDTVEC(spuriousint)
  */
 	INTR_HANDLER ipi_swi
 	call	as_lapic_eoi
-	FAKE_MCOUNT(TF_RIP(%rsp))
 	call	ipi_swi_handler
-	MEXITCOUNT
 	jmp	doreti
 
 /*
