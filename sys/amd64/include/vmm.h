@@ -426,7 +426,7 @@ int vm_get_intinfo(struct vm *vm, int vcpuid, uint64_t *info1, uint64_t *info2);
 
 /*
  * Function used to keep track of the guest's TSC offset. The
- * offset is used by the virutalization extensions to provide a consistent
+ * offset is used by the virtualization extensions to provide a consistent
  * value for the Time Stamp Counter to the guest.
  *
  * Return value is 0 on success and non-zero on failure.
