@@ -68,7 +68,9 @@ static int powermac_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static int powermac_smp_start_cpu(platform_t, struct pcpu *cpu);
 static void powermac_smp_timebase_sync(platform_t, u_long tb, int ap);
 static void powermac_reset(platform_t);
+#ifndef __powerpc64__
 static void powermac_sleep(platform_t);
+#endif
 
 static platform_method_t powermac_methods[] = {
 	PLATFORMMETHOD(platform_probe, 		powermac_probe),
@@ -83,7 +85,9 @@ static platform_method_t powermac_methods[] = {
 	PLATFORMMETHOD(platform_smp_timebase_sync, powermac_smp_timebase_sync),
 
 	PLATFORMMETHOD(platform_reset,		powermac_reset),
+#ifndef __powerpc64__
 	PLATFORMMETHOD(platform_sleep,		powermac_sleep),
+#endif
 
 	PLATFORMMETHOD_END
 };
@@ -404,10 +408,17 @@ powermac_reset(platform_t platform)
 	OF_reboot();
 }
 
+#ifndef __powerpc64__
 void
 powermac_sleep(platform_t platform)
 {
+	/* Only supports MPC745x for now. */
+	if (!MPC745X_P(mfspr(SPR_PVR) >> 16)) {
+		printf("sleep only supported for G4 PowerMac hardware.\n");
+		return;
+	}
 
 	*(unsigned long *)0x80 = 0x100;
-	cpu_sleep();
+	mpc745x_sleep();
 }
+#endif
