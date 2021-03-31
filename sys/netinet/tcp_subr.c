@@ -1233,9 +1233,7 @@ tcp_init(void)
 	tcp_inp_lro_direct_queue = counter_u64_alloc(M_WAITOK);
 	tcp_inp_lro_wokeup_queue = counter_u64_alloc(M_WAITOK);
 	tcp_inp_lro_compressed = counter_u64_alloc(M_WAITOK);
-	tcp_inp_lro_single_push = counter_u64_alloc(M_WAITOK);
 	tcp_inp_lro_locks_taken = counter_u64_alloc(M_WAITOK);
-	tcp_inp_lro_sack_wake = counter_u64_alloc(M_WAITOK);
 #ifdef TCPPCAP
 	tcp_pcap_init();
 #endif

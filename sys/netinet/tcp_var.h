@@ -983,9 +983,7 @@ int tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb 
 extern counter_u64_t tcp_inp_lro_direct_queue;
 extern counter_u64_t tcp_inp_lro_wokeup_queue;
 extern counter_u64_t tcp_inp_lro_compressed;
-extern counter_u64_t tcp_inp_lro_single_push;
 extern counter_u64_t tcp_inp_lro_locks_taken;
-extern counter_u64_t tcp_inp_lro_sack_wake;
 
 #ifdef NETFLIX_EXP_DETECTION
 /* Various SACK attack thresholds */
