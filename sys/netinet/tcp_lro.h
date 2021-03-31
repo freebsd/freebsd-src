@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2006, Myricom Inc.
  * Copyright (c) 2008, Intel Corporation.
- * Copyright (c) 2016 Mellanox Technologies.
+ * Copyright (c) 2016-2021 Mellanox Technologies.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,69 +57,93 @@
 #define TSTMP_HDWR		0x0200
 #define HAS_TSTMP		0x0400
 
-/* Flags in LRO entry */
-#define CAN_USE_ACKCMP		0x0001
-#define HAS_COMP_ENTRIES	0x0002
-
 struct inpcb;
 
+union lro_address {
+	u_long raw[1];
+	struct {
+		uint16_t lro_type;	/* internal */
+#define	LRO_TYPE_NONE     0
+#define	LRO_TYPE_IPV4_TCP 1
+#define	LRO_TYPE_IPV6_TCP 2
+#define	LRO_TYPE_IPV4_UDP 3
+#define	LRO_TYPE_IPV6_UDP 4
+		uint16_t vlan_id;	/* VLAN identifier */
+		uint16_t s_port;	/* source TCP/UDP port */
+		uint16_t d_port;	/* destination TCP/UDP port */
+		uint32_t vxlan_vni;	/* VXLAN virtual network identifier */
+		union {
+#ifdef INET
+			struct in_addr v4;
+#endif
+#ifdef INET6
+			struct in6_addr v6;
+#endif
+		} s_addr;	/* source IPv4/IPv6 address */
+		union {
+#ifdef INET
+			struct in_addr v4;
+#endif
+#ifdef INET6
+			struct in6_addr v6;
+#endif
+		} d_addr;	/* destination IPv4/IPv6 address */
+	};
+} __aligned(sizeof(u_long));
+
+#define	LRO_RAW_ADDRESS_MAX \
+    (sizeof(union lro_address) / sizeof(u_long))
+
+/* Optimize address comparison by comparing one unsigned long at a time: */
+
+static inline bool
+lro_address_compare(const union lro_address *pa, const union lro_address *pb)
+{
+	if (pa->lro_type == LRO_TYPE_NONE && pb->lro_type == LRO_TYPE_NONE) {
+		return (true);
+	} else for (unsigned i = 0; i < LRO_RAW_ADDRESS_MAX; i++) {
+		if (pa->raw[i] != pb->raw[i])
+			return (false);
+	}
+	return (true);
+}
+
+struct lro_parser {
+	union lro_address data;
+	union {
+		uint8_t *l3;
+		struct ip *ip4;
+		struct ip6_hdr *ip6;
+	};
+	union {
+		uint8_t *l4;
+		struct tcphdr *tcp;
+		struct udphdr *udp;
+	};
+	uint16_t total_hdr_len;
+};
+
+/* This structure is zeroed frequently, try to keep it small. */
 struct lro_entry {
 	LIST_ENTRY(lro_entry)	next;
 	LIST_ENTRY(lro_entry)	hash_next;
 	struct mbuf		*m_head;
 	struct mbuf		*m_tail;
 	struct mbuf		*m_last_mbuf;
-	struct mbuf		*m_prev_last;
-	struct inpcb 		*inp;
-	union {
-		struct ip	*ip4;
-		struct ip6_hdr	*ip6;
-	} leip;
-	union {
-		in_addr_t	s_ip4;
-		struct in6_addr	s_ip6;
-	} lesource;
-	union {
-		in_addr_t	d_ip4;
-		struct in6_addr	d_ip6;
-	} ledest;
-	uint16_t		source_port;
-	uint16_t		dest_port;
-	uint16_t		eh_type;	/* EthernetHeader type. */
-	uint16_t		append_cnt;
-	uint32_t		p_len;		/* IP header payload length. */
-	uint32_t		ulp_csum;	/* TCP, etc. checksum. */
+	struct lro_parser	outer;
+	struct lro_parser	inner;
 	uint32_t		next_seq;	/* tcp_seq */
 	uint32_t		ack_seq;	/* tcp_seq */
 	uint32_t		tsval;
 	uint32_t		tsecr;
-	uint32_t		tcp_tot_p_len;	/* TCP payload length of chain */
+	uint16_t		compressed;
+	uint16_t		uncompressed;
 	uint16_t		window;
 	uint16_t		timestamp;	/* flag, not a TCP hdr field. */
-	uint16_t		need_wakeup;
-	uint16_t		mbuf_cnt;	/* Count of mbufs collected see note */
-	uint16_t		mbuf_appended;
-	uint16_t		cmp_ack_cnt;
-	uint16_t		flags;
-	uint16_t		strip_cnt;
-	struct timeval		mtime;
+	sbintime_t		alloc_time;	/* time when entry was allocated */
 };
-/*
- * Note: The mbuf_cnt field tracks our number of mbufs added to the m_next
- *       list. Each mbuf counted can have data and of course it will
- *	 have an ack as well (by defintion any inbound tcp segment will
- *	 have an ack value. We use this count to tell us how many ACK's
- *	 are present for our ack-count threshold. If we exceed that or
- *	 the data threshold we will wake up the endpoint.
- */
-LIST_HEAD(lro_head, lro_entry);
 
-#define	le_ip4			leip.ip4
-#define	le_ip6			leip.ip6
-#define	source_ip4		lesource.s_ip4
-#define	dest_ip4		ledest.d_ip4
-#define	source_ip6		lesource.s_ip6
-#define	dest_ip6		ledest.d_ip6
+LIST_HEAD(lro_head, lro_entry);
 
 struct lro_mbuf_sort {
 	uint64_t seq;
@@ -130,7 +154,7 @@ struct lro_mbuf_sort {
 struct lro_ctrl {
 	struct ifnet	*ifp;
 	struct lro_mbuf_sort *lro_mbuf_data;
-	struct timeval lro_last_flush;
+	sbintime_t	lro_last_queue_time;	/* last time data was queued */
 	uint64_t	lro_queued;
 	uint64_t	lro_flushed;
 	uint64_t	lro_bad_csum;
@@ -163,7 +187,7 @@ struct tcp_ackent {
 #define M_ACKCMP	M_PROTO4   /* Indicates LRO is sending in a  Ack-compression mbuf */
 #define M_LRO_EHDRSTRP	M_PROTO6   /* Indicates that LRO has stripped the etherenet header */
 
-#define	TCP_LRO_LENGTH_MAX	65535
+#define	TCP_LRO_LENGTH_MAX	(65535 - 255)	/* safe value with room for outer headers */
 #define	TCP_LRO_ACKCNT_MAX	65535		/* unlimited */
 
 int tcp_lro_init(struct lro_ctrl *);
