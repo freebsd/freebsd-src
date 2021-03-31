@@ -1247,7 +1247,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		filesize = 0;
 	} else {
 		struct timespec now, timeout;
-		int ncpticks; /* here to accomodate for API contract */
+		int ncpticks; /* here to accommodate for API contract */
 
 		err = cache_lookup(dvp, vpp, cnp, &timeout, &ncpticks);
 		getnanouptime(&now);

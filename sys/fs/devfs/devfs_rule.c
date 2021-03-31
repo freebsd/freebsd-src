@@ -47,7 +47,7 @@
  *
  * A note on "special" identifiers: Ruleset 0 is the NULL, or empty,
  * ruleset; it cannot be deleted or changed in any way.  This may be
- * assumed inside the code; e.g., a ruleset of 0 may be interpeted to
+ * assumed inside the code; e.g., a ruleset of 0 may be interpreted to
  * mean "no ruleset".  The interpretation of rule 0 is
  * command-dependent, but in no case is there a real rule with number
  * 0.
@@ -353,7 +353,7 @@ devfs_rule_applyde_recursive(struct devfs_krule *dk, struct devfs_mount *dm,
 }
 
 /*
- * Apply dk to all entires in dm.
+ * Apply dk to all entries in dm.
  */
 static void
 devfs_rule_applydm(struct devfs_krule *dk, struct devfs_mount *dm)
@@ -435,7 +435,7 @@ devfs_rule_delete(struct devfs_krule *dk)
  * Get a struct cdev *corresponding to de so we can try to match rules based
  * on it.  If this routine returns NULL, there is no struct cdev *associated
  * with the dirent (symlinks and directories don't have dev_ts), and
- * the caller should assume that any critera dependent on a dev_t
+ * the caller should assume that any criteria dependent on a dev_t
  * don't match.
  */
 static struct cdev *
@@ -657,7 +657,7 @@ devfs_ruleset_applyde(struct devfs_ruleset *ds, struct devfs_mount *dm,
 }
 
 /*
- * Apply all the rules in ds to all the entires in dm.
+ * Apply all the rules in ds to all the entries in dm.
  */
 static void
 devfs_ruleset_applydm(struct devfs_ruleset *ds, struct devfs_mount *dm)
