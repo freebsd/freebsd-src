@@ -65,6 +65,9 @@ static struct {
   { "tdma",
     "input,output,bexmit,tdmau,tdmadj,crcerr,phyerr,phytor,rssi,noise,rate"
   },
+  { "beacon",
+    "bstuck,bmiss,bexmit,beacons,bmisscount,reset,ofdm,cck,input,output"
+  },
 };
 
 static const char *
