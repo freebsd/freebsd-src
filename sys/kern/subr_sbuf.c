@@ -355,7 +355,7 @@ sbuf_set_drain(struct sbuf *s, sbuf_drain_func *func, void *ctx)
 /*
  * Call the drain and process the return.
  */
-static int
+int
 sbuf_drain(struct sbuf *s)
 {
 	int len;
