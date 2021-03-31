@@ -311,9 +311,6 @@ cpudep_ap_setup()
 
 	vers = mfpvr() >> 16;
 
-	/* The following is needed for restoring from sleep. */
-	platform_smp_timebase_sync(0, 1);
-
 	switch(vers) {
 	case IBM970:
 	case IBM970FX:

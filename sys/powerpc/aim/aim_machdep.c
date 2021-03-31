@@ -768,7 +768,8 @@ mpc745x_sleep()
 		while (1)
 			mtmsr(msr);
 	}
-	platform_smp_timebase_sync(timebase, 0);
+	/* XXX: The mttb() means this *only* works on single-CPU systems. */
+	mttb(timebase);
 	PCPU_SET(curthread, curthread);
 	PCPU_SET(curpcb, curthread->td_pcb);
 	pmap_activate(curthread);
