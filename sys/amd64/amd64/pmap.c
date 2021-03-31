@@ -10563,7 +10563,7 @@ pmap_large_map_wb_large(vm_offset_t sva, vm_offset_t eva)
 
 				/*
 				 * If we saw other write-back
-				 * occuring, we cannot rely on PG_M to
+				 * occurring, we cannot rely on PG_M to
 				 * indicate state of the cache.  The
 				 * PG_M bit is cleared before the
 				 * flush to avoid ignoring new writes,

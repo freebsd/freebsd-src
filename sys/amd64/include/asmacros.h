@@ -234,7 +234,7 @@ X\vec_name\()_pti:
 	.type	X\vec_name,@function
 X\vec_name:
 	testb	$SEL_RPL_MASK,PTI_CS-3*8(%rsp) /* come from kernel? */
-	jz	.L\vec_name\()_u		/* Yes, dont swapgs again */
+	jz	.L\vec_name\()_u		/* Yes, don't swapgs again */
 	swapgs
 .L\vec_name\()_u:
 	lfence

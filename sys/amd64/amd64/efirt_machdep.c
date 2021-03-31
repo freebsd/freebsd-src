@@ -275,7 +275,7 @@ fail:
  *
  * The fpu_kern_enter() call allows firmware to use FPU, as mandated
  * by the specification.  In particular, CR0.TS bit is cleared.  Also
- * it enters critical section, giving us neccessary protection against
+ * it enters critical section, giving us necessary protection against
  * context switch.
  *
  * There is no need to disable interrupts around the change of %cr3,
