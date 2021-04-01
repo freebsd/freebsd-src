@@ -155,8 +155,6 @@ makefile(void)
 	}
 	if (debugging)
 		fprintf(ofp, "DEBUG=-g\n");
-	if (profiling)
-		fprintf(ofp, "PROFLEVEL=%d\n", profiling);
 	if (*srcdir != '\0')
 		fprintf(ofp,"S=%s\n", srcdir);
 	while (fgets(line, BUFSIZ, ifp) != NULL) {
@@ -406,7 +404,7 @@ next:
 	/*
 	 * include "filename"
 	 * filename    [ standard | optional ]
-	 *	[ dev* [ | dev* ... ] | profiling-routine ] [ no-obj ]
+	 *	[ dev* [ | dev* ... ] | [ no-obj ]
 	 *	[ compile-with "compile rule" [no-implicit-rule] ]
 	 *      [ dependency "dependency-list"] [ before-depend ]
 	 *	[ clean "file-list"] [ warning "text warning" ]
@@ -554,10 +552,6 @@ next:
 			continue;
 		}
 		nreqs++;
-		if (eq(wd, "profiling-routine")) {
-			filetype = PROFILING;
-			continue;
-		}
 		if (std)
 			errout("standard entry %s has optional inclusion specifier %s!\n",
 			       this, wd);
@@ -585,8 +579,6 @@ nextparam:;
 		if (std == 0 && nreqs == 0)
 			errout("%s: what is %s optional on?\n",
 			       fname, this);
-		if (filetype == PROFILING && profiling == 0)
-			goto next;
 		tp = new_fent();
 		tp->f_fn = this;
 		tp->f_type = filetype;
@@ -788,11 +780,6 @@ do_rules(FILE *f)
 			switch (ftp->f_type) {
 			case NORMAL:
 				ftype = "NORMAL";
-				break;
-			case PROFILING:
-				if (!profiling)
-					continue;
-				ftype = "PROFILE";
 				break;
 			default:
 				fprintf(stderr,

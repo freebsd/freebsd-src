@@ -401,20 +401,6 @@ Options specific to architecture
 .Ar arch
 are specified in the file
 .Pa sys/conf/options . Ns Aq Ar arch .
-.\" -------- PROFILE --------
-.Pp
-.It Ic profile Ar number
-Enables kernel profiling if
-.Ar number
-is non-zero.
-If
-.Ar number
-is 2 or greater, the kernel is configured for
-high-resolution profiling.
-Kernels can also be built for profiling using the
-.Fl p
-option to
-.Xr config 8 .
 .El
 .Ss Obsolete Directives
 The following kernel configuration directives are obsolete.

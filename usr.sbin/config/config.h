@@ -69,7 +69,6 @@ struct files_name {
  * Types.
  */
 #define NORMAL		1
-#define	PROFILING	3
 #define NODEPEND	4
 #define LOCAL		5
 #define DEVDONE		0x80000000
@@ -210,7 +209,6 @@ extern STAILQ_HEAD(file_list_head, file_list) ftab;
 
 extern STAILQ_HEAD(files_name_head, files_name) fntab;
 
-extern int	profiling;
 extern int	debugging;
 extern int	found_defaults;
 
