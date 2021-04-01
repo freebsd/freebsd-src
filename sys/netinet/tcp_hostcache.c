@@ -121,6 +121,7 @@ VNET_DEFINE_STATIC(struct callout, tcp_hc_callout);
 static struct hc_metrics *tcp_hc_lookup(struct in_conninfo *);
 static struct hc_metrics *tcp_hc_insert(struct in_conninfo *);
 static int sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS);
+static int sysctl_tcp_hc_histo(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_hc_purgenow(SYSCTL_HANDLER_ARGS);
 static void tcp_hc_purge_internal(int);
 static void tcp_hc_purge(void *);
@@ -167,6 +168,11 @@ SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, list,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_MPSAFE,
     0, 0, sysctl_tcp_hc_list, "A",
     "List of all hostcache entries");
+
+SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, histo,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_MPSAFE,
+    0, 0, sysctl_tcp_hc_histo, "A",
+    "Print a histogram of hostcache hashbucket utilization");
 
 SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, purgenow,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
@@ -390,6 +396,11 @@ tcp_hc_insert(struct in_conninfo *inc)
 			return NULL;
 		}
 		TAILQ_REMOVE(&hc_head->hch_bucket, hc_entry, rmx_q);
+		KASSERT(V_tcp_hostcache.hashbase[hash].hch_length > 0 &&
+			V_tcp_hostcache.hashbase[hash].hch_length <=
+			V_tcp_hostcache.bucket_limit,
+			("tcp_hostcache: bucket length range violated at %u: %u",
+			hash, V_tcp_hostcache.hashbase[hash].hch_length));
 		V_tcp_hostcache.hashbase[hash].hch_length--;
 		atomic_subtract_int(&V_tcp_hostcache.cache_count, 1);
 		TCPSTAT_INC(tcps_hc_bucketoverflow);
@@ -424,6 +435,10 @@ tcp_hc_insert(struct in_conninfo *inc)
 	 */
 	TAILQ_INSERT_HEAD(&hc_head->hch_bucket, hc_entry, rmx_q);
 	V_tcp_hostcache.hashbase[hash].hch_length++;
+	KASSERT(V_tcp_hostcache.hashbase[hash].hch_length <
+		V_tcp_hostcache.bucket_limit,
+		("tcp_hostcache: bucket length too high at %u: %u",
+		hash, V_tcp_hostcache.hashbase[hash].hch_length));
 	atomic_add_int(&V_tcp_hostcache.cache_count, 1);
 	TCPSTAT_INC(tcps_hc_added);
 
@@ -697,6 +712,48 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 }
 
 /*
+ * Sysctl function: prints a histogram of the hostcache hashbucket
+ * utilization.
+ */
+static int
+sysctl_tcp_hc_histo(SYSCTL_HANDLER_ARGS)
+{
+	const int linesize = 50;
+	struct sbuf sb;
+	int i, error;
+	int *histo;
+	u_int hch_length;
+
+	if (jailed_without_vnet(curthread->td_ucred) != 0)
+		return (EPERM);
+
+	histo = (int *)malloc(sizeof(int) * (V_tcp_hostcache.bucket_limit + 1),
+			M_TEMP, M_NOWAIT|M_ZERO);
+	if (histo == NULL)
+		return(ENOMEM);
+
+	for (i = 0; i < V_tcp_hostcache.hashsize; i++) {
+		hch_length = V_tcp_hostcache.hashbase[i].hch_length;
+		KASSERT(hch_length <= V_tcp_hostcache.bucket_limit,
+			("tcp_hostcache: bucket limit exceeded at %u: %u",
+			i, hch_length));
+		histo[hch_length]++;
+	}
+
+	/* Use a buffer for 16 lines */
+	sbuf_new_for_sysctl(&sb, NULL, 16 * linesize, req);
+
+	sbuf_printf(&sb, "\nLength\tCount\n");
+	for (i = 0; i <= V_tcp_hostcache.bucket_limit; i++) {
+		sbuf_printf(&sb, "%u\t%u\n", i, histo[i]);
+	}
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	free(histo, M_TEMP);
+	return(error);
+}
+
+/*
  * Caller has to make sure the curvnet is set properly.
  */
 static void
@@ -709,6 +766,11 @@ tcp_hc_purge_internal(int all)
 		THC_LOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
 		TAILQ_FOREACH_SAFE(hc_entry,
 		    &V_tcp_hostcache.hashbase[i].hch_bucket, rmx_q, hc_next) {
+			KASSERT(V_tcp_hostcache.hashbase[i].hch_length > 0 &&
+				V_tcp_hostcache.hashbase[i].hch_length <=
+				V_tcp_hostcache.bucket_limit,
+				("tcp_hostcache: bucket langth out of range at %u: %u",
+				i, V_tcp_hostcache.hashbase[i].hch_length));
 			if (all || hc_entry->rmx_expire <= 0) {
 				TAILQ_REMOVE(&V_tcp_hostcache.hashbase[i].hch_bucket,
 					      hc_entry, rmx_q);
