@@ -72,7 +72,7 @@ struct tcp_hostcache {
 	u_int		hashsize;
 	u_int		hashmask;
 	u_int		bucket_limit;
-	counter_u64_t	cache_count;
+	u_int		cache_count;
 	u_int		cache_limit;
 	int		expire;
 	int		prune;
