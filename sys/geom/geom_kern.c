@@ -74,7 +74,7 @@ int g_notaste;
  * G_UP and G_DOWN are the two threads which push I/O through the
  * stack.
  *
- * Things are procesed in a FIFO order, but these threads could be
+ * Things are processed in a FIFO order, but these threads could be
  * part of I/O prioritization by deciding which bios/bioqs to service
  * in what order.
  *

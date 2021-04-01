@@ -178,7 +178,7 @@ find_marker(struct g_consumer *cp, const char *line, off_t *offset)
 		g_topology_lock();
 
 		/*
-		 * Don't bother doing the rest if buf==NULL; eg derefencing
+		 * Don't bother doing the rest if buf==NULL; eg dereferencing
 		 * to assemble 'key'.
 		 */
 		if (buf == NULL)

@@ -95,7 +95,7 @@ extern int g_mirror_debug;
 #define	G_MIRROR_BIO_FLAG_SYNC		0x02
 
 /*
- * Informations needed for synchronization.
+ * Information needed for synchronization.
  */
 struct g_mirror_disk_sync {
 	struct g_consumer *ds_consumer;	/* Consumer connected to our mirror. */
@@ -109,7 +109,7 @@ struct g_mirror_disk_sync {
 };
 
 /*
- * Informations needed for synchronization.
+ * Information needed for synchronization.
  */
 struct g_mirror_device_sync {
 	struct g_geom	*ds_geom;	/* Synchronization geom. */

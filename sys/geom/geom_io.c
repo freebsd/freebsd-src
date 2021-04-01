@@ -398,7 +398,7 @@ g_io_check(struct bio *bp)
 	cp = bp->bio_from;
 	pp = bp->bio_to;
 
-	/* Fail if access counters dont allow the operation */
+	/* Fail if access counters don't allow the operation */
 	switch(bp->bio_cmd) {
 	case BIO_READ:
 	case BIO_GETATTR:

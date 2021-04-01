@@ -1013,7 +1013,7 @@ gv_worker(void *arg)
 					bp->bio_pflags &= ~GV_BIO_ONHOLD;
 					g_io_request(bp, s->drive_sc->consumer);
 				}
-			/* A special request requireing special handling. */
+			/* A special request requiring special handling. */
 			} else if (bp->bio_pflags & GV_BIO_INTERNAL) {
 				p = bp->bio_caller1;
 				gv_plex_start(p, bp);
