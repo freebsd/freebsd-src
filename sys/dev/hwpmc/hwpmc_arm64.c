@@ -505,6 +505,7 @@ pmc_arm64_initialize()
 	struct pmc_classdep *pcd;
 	int idcode, impcode;
 	int reg;
+	uint64_t midr;
 
 	reg = arm64_pmcr_read();
 	arm64_npmcs = (reg & PMCR_N_MASK) >> PMCR_N_SHIFT;
@@ -512,6 +513,18 @@ pmc_arm64_initialize()
 	idcode = (reg & PMCR_IDCODE_MASK) >> PMCR_IDCODE_SHIFT;
 
 	PMCDBG1(MDP, INI, 1, "arm64-init npmcs=%d", arm64_npmcs);
+
+	/*
+	 * Write the CPU model to kern.hwpmc.cpuid.
+	 *
+	 * We zero the variant and revision fields.
+	 *
+	 * TODO: how to handle differences between cores due to big.LITTLE?
+	 * For now, just use MIDR from CPU 0.
+	 */
+	midr = (uint64_t)(pcpu_find(0)->pc_midr);
+	midr &= ~(CPU_VAR_MASK | CPU_REV_MASK);
+	snprintf(pmc_cpuid, sizeof(pmc_cpuid), "0x%016lx", midr);
 
 	/*
 	 * Allocate space for pointers to PMC HW descriptors and for
