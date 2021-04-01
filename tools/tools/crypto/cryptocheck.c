@@ -228,7 +228,7 @@ static const struct alg {
 
 static bool verbose;
 static int requested_crid;
-static size_t aad_sizes[48], sizes[128];
+static size_t aad_sizes[48], sizes[EALG_MAX_BLOCK_LEN * 2];
 static u_int naad_sizes, nsizes;
 
 static void
@@ -1729,12 +1729,18 @@ main(int ac, char **av)
 
 	if (nsizes == 0) {
 		if (testall) {
-			for (i = 1; i <= 32; i++) {
+			for (i = 1; i <= EALG_MAX_BLOCK_LEN; i++) {
 				sizes[nsizes] = i;
 				nsizes++;
 			}
 
-			base_size = 32;
+			for (i = EALG_MAX_BLOCK_LEN + 8;
+			     i <= EALG_MAX_BLOCK_LEN * 2; i += 8) {
+				sizes[nsizes] = i;
+				nsizes++;
+			}
+
+			base_size = EALG_MAX_BLOCK_LEN * 2;
 			while (base_size * 2 < 240 * 1024) {
 				base_size *= 2;
 				assert(nsizes < nitems(sizes));
