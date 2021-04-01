@@ -88,7 +88,6 @@ char 	destdir[MAXPATHLEN];
 char 	srcdir[MAXPATHLEN];
 
 int	debugging;
-int	profiling;
 int	found_defaults;
 int	incignore;
 
@@ -169,9 +168,6 @@ main(int argc, char **argv)
 			break;
 		case 'm':
 			printmachine = 1;
-			break;
-		case 'p':
-			profiling++;
 			break;
 		case 's':
 			if (*srcdir == '\0')
