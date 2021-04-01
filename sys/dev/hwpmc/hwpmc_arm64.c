@@ -181,7 +181,9 @@ arm64_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	}
 	pe = a->pm_ev;
 
-	config = (pe & EVENT_ID_MASK);
+	config = (uint32_t)pe - PMC_EV_ARMV8_FIRST;
+	if (config > (PMC_EV_ARMV8_LAST - PMC_EV_ARMV8_FIRST))
+		return (EINVAL);
 	pm->pm_md.pm_arm64.pm_arm64_evsel = config;
 
 	PMCDBG2(MDP, ALL, 2, "arm64-allocate ri=%d -> config=0x%x", ri, config);
