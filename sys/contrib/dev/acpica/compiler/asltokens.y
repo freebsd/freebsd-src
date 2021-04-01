@@ -283,6 +283,7 @@ NoEcho('
 %token <i> PARSEOP_FUNCTION
 %token <i> PARSEOP_GPIO_INT
 %token <i> PARSEOP_GPIO_IO
+%token <i> PARSEOP_CSI2_SERIALBUS
 %token <i> PARSEOP_I2C_SERIALBUS
 %token <i> PARSEOP_I2C_SERIALBUS_V2
 %token <i> PARSEOP_IF

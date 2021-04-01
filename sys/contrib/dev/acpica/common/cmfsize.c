@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: cfsize - Common get file size function
+ * Module Name: cmfsize - Common get file size function
  *
  *****************************************************************************/
 

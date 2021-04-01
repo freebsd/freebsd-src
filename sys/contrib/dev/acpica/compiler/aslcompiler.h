@@ -1539,6 +1539,10 @@ RsDoUartSerialBusDescriptor (
     ASL_RESOURCE_INFO       *Info);
 
 ASL_RESOURCE_NODE *
+RsDoCsi2SerialBusDescriptor (
+    ASL_RESOURCE_INFO       *Info);
+
+ASL_RESOURCE_NODE *
 RsDoPinFunctionDescriptor (
     ASL_RESOURCE_INFO       *Info);
 

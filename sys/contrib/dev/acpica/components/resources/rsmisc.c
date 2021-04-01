@@ -225,6 +225,8 @@ AcpiRsConvertAmlToResource (
     Count = INIT_TABLE_LENGTH (Info);
     while (Count)
     {
+        Target = NULL;
+
         /*
          * Source is the external AML byte stream buffer,
          * destination is the internal resource descriptor
@@ -273,6 +275,14 @@ AcpiRsConvertAmlToResource (
              */
             ACPI_SET8 (Destination,
                 ((ACPI_GET8 (Source) >> Info->Value) & 0x07));
+            break;
+
+        case ACPI_RSC_6BITFLAG:
+            /*
+             * Mask and shift the flag bits
+             */
+            ACPI_SET8 (Destination,
+                ((ACPI_GET8 (Source) >> Info->Value) & 0x3F));
             break;
 
         case ACPI_RSC_COUNT:
@@ -652,6 +662,14 @@ AcpiRsConvertResourceToAml (
              */
             ACPI_SET_BIT (*ACPI_CAST8 (Destination), (UINT8)
                 ((ACPI_GET8 (Source) & 0x07) << Info->Value));
+            break;
+
+        case ACPI_RSC_6BITFLAG:
+            /*
+             * Mask and shift the flag bits
+             */
+            ACPI_SET_BIT (*ACPI_CAST8 (Destination), (UINT8)
+                ((ACPI_GET8 (Source) & 0x3F) << Info->Value));
             break;
 
         case ACPI_RSC_COUNT:

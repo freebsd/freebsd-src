@@ -277,6 +277,11 @@ AcpiRsDumpResourceList (
                 ResourceList->Type);
             return;
         }
+        else if (!ResourceList->Type)
+        {
+            ACPI_ERROR ((AE_INFO, "Invalid Zero Resource Type"));
+            return;
+        }
 
         /* Sanity check the length. It must not be zero, or we loop forever */
 
@@ -458,6 +463,11 @@ AcpiRsDumpDescriptor (
         case ACPI_RSD_3BITFLAG:
 
             AcpiRsOutString (Name, Table->Pointer [*Target & 0x07]);
+            break;
+
+        case ACPI_RSD_6BITFLAG:
+
+            AcpiRsOutInteger8 (Name, (ACPI_GET8 (Target) & 0x3F));
             break;
 
         case ACPI_RSD_SHORTLIST:
