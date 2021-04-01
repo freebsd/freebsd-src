@@ -389,6 +389,7 @@ typedef enum
     ASL_MSG_LOWER_CASE_NAMESEG,
     ASL_MSG_LOWER_CASE_NAMEPATH,
     ASL_MSG_UUID_NOT_FOUND,
+    ASL_MSG_LEGACY_DDB_TYPE,
 
 
     /* These messages are used by the Data Table compiler only */

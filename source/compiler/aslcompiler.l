@@ -434,6 +434,7 @@ NamePathTail                [.]{NameSeg}
 "ResourceTemplate"          { count (1); return (PARSEOP_RESOURCETEMPLATE); }
 "RawDataBuffer"             { count (1); return (PARSEOP_DATABUFFER); }
 
+"Csi2Bus"                   { count (1); return (PARSEOP_CSI2_SERIALBUS); }
 "DMA"                       { count (1); return (PARSEOP_DMA); }
 "DWordIO"                   { count (1); return (PARSEOP_DWORDIO); }
 "DWordMemory"               { count (1); return (PARSEOP_DWORDMEMORY); }

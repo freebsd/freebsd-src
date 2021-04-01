@@ -329,6 +329,82 @@ AcpiDmDumpAsf (
     }
 }
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpCedt
+ *
+ * PARAMETERS:  Table               - A CEDT table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a CEDT. This table type consists
+ *              of an open-ended number of subtables.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpCedt (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    ACPI_CEDT_HEADER        *Subtable;
+    UINT32                  Length = Table->Length;
+    UINT32                  Offset = sizeof (ACPI_TABLE_CEDT);
+    ACPI_DMTABLE_INFO       *InfoTable;
+
+
+    /* There is no main table (other than the standard ACPI header) */
+
+    Subtable = ACPI_ADD_PTR (ACPI_CEDT_HEADER, Table, Offset);
+    while (Offset < Table->Length)
+    {
+        /* Common subtable header */
+
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Length, Offset, Subtable,
+            Subtable->Length, AcpiDmTableInfoCedtHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        switch (Subtable->Type)
+        {
+        case ACPI_CEDT_TYPE_CHBS:
+
+            InfoTable = AcpiDmTableInfoCedt0;
+            break;
+
+        default:
+
+            AcpiOsPrintf ("\n**** Unknown CEDT subtable type 0x%X\n\n",
+                Subtable->Type);
+
+            /* Attempt to continue */
+
+            if (!Subtable->Length)
+            {
+                AcpiOsPrintf ("Invalid zero length subtable\n");
+                return;
+            }
+            goto NextSubtable;
+        }
+
+        Status = AcpiDmDumpTable (Length, Offset, Subtable,
+            Subtable->Length, InfoTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+NextSubtable:
+        /* Point to next subtable */
+
+        Offset += Subtable->Length;
+        Subtable = ACPI_ADD_PTR (ACPI_CEDT_HEADER, Subtable,
+            Subtable->Length);
+    }
+}
 
 /*******************************************************************************
  *

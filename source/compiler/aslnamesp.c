@@ -519,7 +519,8 @@ NsDoOneNamespaceObject (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Print the full pathname and addtional info for a namespace node.
+ * DESCRIPTION: Print the full pathname and additional info for a namespace
+ * node.
  *
  ******************************************************************************/
 
