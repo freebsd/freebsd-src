@@ -101,6 +101,7 @@ static int stablefd = -1;	/* Fd for the stable restart file */
 static int backupfd;		/* Fd for the backup stable restart file */
 static const char *getopt_shortopts;
 static const char *getopt_usage;
+static int nfs_minvers = NFS_VER2;
 
 static int minthreads_set;
 static int maxthreads_set;
@@ -170,7 +171,6 @@ main(int argc, char **argv)
 	int bindhostc, bindanyflag, rpcbreg, rpcbregcnt;
 	int nfssvc_addsock;
 	int longindex = 0;
-	int nfs_minvers = NFS_VER2;
 	size_t nfs_minvers_size;
 	const char *lopt;
 	char **bindhost = NULL;
@@ -307,6 +307,16 @@ main(int argc, char **argv)
 			errx(1, "Out of memory");
 	}
 
+	if (unregister) {
+		/*
+		 * Unregister before setting nfs_minvers, in case the
+		 * value of vfs.nfsd.server_min_nfsvers has changed
+		 * since registering with rpcbind.
+		 */
+		unregistration();
+		exit (0);
+	}
+
 	nfs_minvers_size = sizeof(nfs_minvers);
 	error = sysctlbyname("vfs.nfsd.server_min_nfsvers", &nfs_minvers,
 	    &nfs_minvers_size, NULL, 0);
@@ -316,10 +326,6 @@ main(int argc, char **argv)
 		nfs_minvers = NFS_VER2;
 	}
 
-	if (unregister) {
-		unregistration();
-		exit (0);
-	}
 	if (reregister) {
 		if (udpflag) {
 			memset(&hints, 0, sizeof hints);
@@ -935,8 +941,8 @@ reapchild(__unused int signo)
 static void
 unregistration(void)
 {
-	if ((!rpcb_unset(NFS_PROGRAM, 2, NULL)) ||
-	    (!rpcb_unset(NFS_PROGRAM, 3, NULL)))
+	if ((nfs_minvers == NFS_VER2 && !rpcb_unset(NFS_PROGRAM, 2, NULL)) ||
+	    (nfs_minvers <= NFS_VER3 && !rpcb_unset(NFS_PROGRAM, 3, NULL)))
 		syslog(LOG_ERR, "rpcb_unset failed");
 }
 
