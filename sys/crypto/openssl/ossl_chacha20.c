@@ -88,7 +88,8 @@ ossl_chacha20(struct cryptop *crp, const struct crypto_session_params *csp)
 			out = outseg;
 
 		/* Figure out how many blocks we can encrypt/decrypt at once. */
-		todo = rounddown(MIN(inlen, outlen), CHACHA_BLK_SIZE);
+		todo = rounddown(MIN(resid, MIN(inlen, outlen)),
+		    CHACHA_BLK_SIZE);
 
 #ifdef __LP64__
 		/* ChaCha20_ctr32() assumes length is <= 4GB. */
@@ -218,7 +219,8 @@ ossl_chacha20_poly1305_encrypt(struct cryptop *crp,
 			out = outseg;
 
 		/* Figure out how many blocks we can encrypt/decrypt at once. */
-		todo = rounddown(MIN(inlen, outlen), CHACHA_BLK_SIZE);
+		todo = rounddown(MIN(resid, MIN(inlen, outlen)),
+		    CHACHA_BLK_SIZE);
 
 #ifdef __LP64__
 		/* ChaCha20_ctr32() assumes length is <= 4GB. */
@@ -389,7 +391,8 @@ ossl_chacha20_poly1305_decrypt(struct cryptop *crp,
 			out = outseg;
 
 		/* Figure out how many blocks we can encrypt/decrypt at once. */
-		todo = rounddown(MIN(inlen, outlen), CHACHA_BLK_SIZE);
+		todo = rounddown(MIN(resid, MIN(inlen, outlen)),
+		    CHACHA_BLK_SIZE);
 
 #ifdef __LP64__
 		/* ChaCha20_ctr32() assumes length is <= 4GB. */
