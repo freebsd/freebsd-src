@@ -141,7 +141,7 @@ fb_get_options(const char *connector_name, char **option)
  * DOC: fbdev helpers
  *
  * The fb helper functions are useful to provide an fbdev on top of a drm kernel
- * mode setting driver. They can be used mostly independantely from the crtc
+ * mode setting driver. They can be used mostly independentely from the crtc
  * helper functions used by many drivers to implement the kernel mode setting
  * interfaces.
  */

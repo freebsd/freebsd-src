@@ -1724,7 +1724,7 @@ ffec_attach(device_t dev)
 	 *
 	 * All in all, it seems likely that 13 is a safe divisor for now,
 	 * because if we really do need to base it on the peripheral clock
-	 * speed, then we need a platform-independant get-clock-freq API.
+	 * speed, then we need a platform-independent get-clock-freq API.
 	 */
 	mscr = 13 << FEC_MSCR_MII_SPEED_SHIFT;
 	if (OF_hasprop(ofw_node, "phy-disable-preamble")) {
