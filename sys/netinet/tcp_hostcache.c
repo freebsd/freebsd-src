@@ -644,6 +644,7 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 	const int linesize = 128;
 	struct sbuf sb;
 	int i, error, len;
+	bool do_drain = false;
 	struct hc_metrics *hc_entry;
 	char ip4buf[INET_ADDRSTRLEN];
 #ifdef INET6
@@ -701,9 +702,16 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 			    hc_entry->rmx_hits,
 			    hc_entry->rmx_updates,
 			    hc_entry->rmx_expire);
+			do_drain = true;
 		}
 		THC_UNLOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
-		sbuf_drain(&sb);
+		/* Need to track if sbuf has data, to avoid
+		 * a KASSERT when calling sbuf_drain.
+		 */
+		if (do_drain) {
+			sbuf_drain(&sb);
+			do_drain = false;
+		}
 	}
 #undef msec
 	error = sbuf_finish(&sb);
@@ -769,7 +777,7 @@ tcp_hc_purge_internal(int all)
 			KASSERT(V_tcp_hostcache.hashbase[i].hch_length > 0 &&
 				V_tcp_hostcache.hashbase[i].hch_length <=
 				V_tcp_hostcache.bucket_limit,
-				("tcp_hostcache: bucket langth out of range at %u: %u",
+				("tcp_hostcache: bucket length out of range at %u: %u",
 				i, V_tcp_hostcache.hashbase[i].hch_length));
 			if (all || hc_entry->rmx_expire <= 0) {
 				TAILQ_REMOVE(&V_tcp_hostcache.hashbase[i].hch_bucket,
