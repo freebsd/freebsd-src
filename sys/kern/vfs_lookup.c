@@ -1578,7 +1578,7 @@ NDVALIDATE(struct nameidata *ndp)
 	case DELETE:
 	case RENAME:
 		/*
-		 * Some filesystems set SAVENAME to provoke HASBUF, accomodate
+		 * Some filesystems set SAVENAME to provoke HASBUF, accommodate
 		 * for it until it gets fixed.
 		 */
 		orig &= NDMODIFYINGFLAGS;

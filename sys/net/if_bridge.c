@@ -197,7 +197,7 @@ extern void	nd6_setmtu(struct ifnet *);
  *  - BRIDGE_RT_LOCK, for any change to bridge_rtnodes
  *  - BRIDGE_LOCK, for any other change
  *
- * The BRIDGE_LOCK is a sleepable lock, because it is held accross ioctl()
+ * The BRIDGE_LOCK is a sleepable lock, because it is held across ioctl()
  * calls to bridge member interfaces and these ioctl()s can sleep.
  * The BRIDGE_RT_LOCK is a non-sleepable mutex, because it is sometimes
  * required while we're in NET_EPOCH and then we're not allowed to sleep.

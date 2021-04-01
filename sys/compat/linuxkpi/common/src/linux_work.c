@@ -89,7 +89,7 @@ linux_update_state(atomic_t *v, const uint8_t *pstate)
  * completed. This function gives the linux_work_fn() function a hint,
  * that the task is not going away and can have its state checked
  * again. Without this extra hint LinuxKPI tasks cannot be serialized
- * accross multiple worker threads.
+ * across multiple worker threads.
  */
 static bool
 linux_work_exec_unblock(struct work_struct *work)

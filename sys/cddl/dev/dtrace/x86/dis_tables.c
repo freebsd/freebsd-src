@@ -3984,7 +3984,7 @@ just_mem:
 
 		/*FALLTHROUGH*/
 
-	/* prefetch instruction - memory operand, but no memory acess */
+	/* prefetch instruction - memory operand, but no memory access */
 	case PREF:
 		NOMEM;
 		/*FALLTHROUGH*/
