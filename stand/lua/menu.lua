@@ -403,7 +403,9 @@ menu.welcome = {
 		},
 		vendor = {
 			entry_type = core.MENU_ENTRY,
-			visible = false,
+			visible = function()
+				return false
+			end
 		},
 	},
 }
