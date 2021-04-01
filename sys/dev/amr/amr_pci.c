@@ -332,7 +332,7 @@ amr_pci_attach(device_t dev)
     debug(2, "ccb mapped");
 
     /*
-     * Do bus-independant initialisation, bring controller online.
+     * Do bus-independent initialisation, bring controller online.
      */
     error = amr_attach(sc);
 
