@@ -40,7 +40,6 @@
 
 #define	ARMV8_RELOAD_COUNT_TO_PERFCTR_VALUE(R)	(-(R))
 #define	ARMV8_PERFCTR_VALUE_TO_RELOAD_COUNT(P)	(-(P))
-#define	EVENT_ID_MASK	0xFF
 
 #ifdef _KERNEL
 /* MD extension for 'struct pmc' */
