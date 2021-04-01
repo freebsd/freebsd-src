@@ -273,7 +273,7 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 	} else  {
 		/*
 		 * We probably should not work around
-		 * but kassert, since lro alwasy sets rcvif.
+		 * but kassert, since lro always sets rcvif.
 		 */
 		no_vn = 1;
 		goto skip_vnet;

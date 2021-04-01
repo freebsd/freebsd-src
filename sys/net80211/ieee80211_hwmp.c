@@ -783,7 +783,7 @@ hwmp_add_meshperr(uint8_t *frm, const struct ieee80211_meshperr_ie *perr)
 #undef	PERR_DRCODE
 
 /*
- * Add a Root Annoucement IE to a frame.
+ * Add a Root Announcement IE to a frame.
  */
 static uint8_t *
 hwmp_add_meshrann(uint8_t *frm, const struct ieee80211_meshrann_ie *rann)
@@ -870,7 +870,7 @@ hwmp_rootmode_cb(void *arg)
 #undef	PREQ_TSEQ
 
 /*
- * Send a Root Annoucement (RANN) to find all the nodes on the mesh. We are
+ * Send a Root Announcement (RANN) to find all the nodes on the mesh. We are
  * called when the vap is configured as a HWMP RANN root node.
  */
 static void
@@ -1840,7 +1840,7 @@ hwmp_send_rann(struct ieee80211vap *vap,
 	 *     [6] addr3 = sa
 	 *     [1] action
 	 *     [1] category
-	 *     [tlv] root annoucement
+	 *     [tlv] root announcement
 	 */
 	rann->rann_ie = IEEE80211_ELEMID_MESHRANN;
 	rann->rann_len = IEEE80211_MESHRANN_BASE_SZ;

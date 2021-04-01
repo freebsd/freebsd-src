@@ -161,7 +161,7 @@ enum {
 };
 
 #ifdef notyet
-/* Mesh Channel Switch Annoucement */
+/* Mesh Channel Switch Announcement */
 struct ieee80211_meshcsa_ie {
 	uint8_t		csa_ie;		/* IEEE80211_ELEMID_MESHCSA */
 	uint8_t		csa_len;
@@ -194,7 +194,7 @@ struct ieee80211_meshbeacont_ie {
 } __packed;
 #endif
 
-/* Gate (GANN) Annoucement */
+/* Gate (GANN) Announcement */
 /*
  * NB: these macros used for the length in the IEs does not include 2 bytes
  * for _ie and _len fields as is defined by the standard.
@@ -211,7 +211,7 @@ struct ieee80211_meshgann_ie {
 	uint16_t	gann_interval;		/* GANN Interval */
 } __packed;
 
-/* Root (MP) Annoucement */
+/* Root (MP) Announcement */
 #define	IEEE80211_MESHRANN_BASE_SZ 	(21)
 struct ieee80211_meshrann_ie {
 	uint8_t		rann_ie;		/* IEEE80211_ELEMID_MESHRANN */

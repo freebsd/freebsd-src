@@ -10585,7 +10585,7 @@ bbr_set_probebw_gains(struct tcp_bbr *bbr, uint32_t cts, uint32_t losses)
 	}
 	if (cts == 0) {
 		/*
-		 * Never alow cts to be 0 we
+		 * Never allow cts to be 0 we
 		 * do this so we can judge if
 		 * we have set a timestamp.
 		 */

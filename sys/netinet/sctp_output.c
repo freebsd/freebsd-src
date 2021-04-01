@@ -7781,7 +7781,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 	 * - Service the stream queue that is next, moving any
 	 *   message (note I must get a complete message i.e. FIRST/MIDDLE and
 	 *   LAST to the out queue in one pass) and assigning TSN's. This
-	 *   only applys though if the peer does not support NDATA. For NDATA
+	 *   only applies though if the peer does not support NDATA. For NDATA
 	 *   chunks its ok to not send the entire message ;-)
 	 * - Check to see if the cwnd/rwnd allows any output, if so we go ahead and
 	 *   fomulate and send the low level chunks. Making sure to combine

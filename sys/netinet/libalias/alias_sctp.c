@@ -1282,7 +1282,7 @@ GetAsconfVtags(struct libalias *la, struct sctp_nat_msg *sm, uint32_t *l_vtag, u
 		if (ntohs(param->param_type) == SCTP_VTAG_PARAM) {
 			vtag_param = (struct sctp_vtag_param *) param;
 			switch (direction) {
-				/* The Internet draft is a little ambigious as to order of these vtags.
+				/* The Internet draft is a little ambiguous as to order of these vtags.
 				   We think it is this way around. If we are wrong, the order will need
 				   to be changed. */
 			case SN_TO_GLOBAL:
