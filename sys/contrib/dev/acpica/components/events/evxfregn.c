@@ -362,6 +362,7 @@ AcpiRemoveAddressSpaceHandler (
 
             /* Now we can delete the handler object */
 
+            AcpiOsReleaseMutex (HandlerObj->AddressSpace.ContextMutex);
             AcpiUtRemoveReference (HandlerObj);
             goto UnlockAndExit;
         }

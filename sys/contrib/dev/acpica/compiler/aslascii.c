@@ -184,7 +184,7 @@ FlConsumeNewComment (
  *              not handle comment delimiters within string literals. However,
  *              on the rare chance this happens and an invalid character is
  *              missed, the parser will catch the error by failing in some
- *              spectactular manner.
+ *              spectacular manner.
  *
  ******************************************************************************/
 
@@ -216,7 +216,7 @@ FlIsFileAsciiSource (
 
     while (fread (&Byte, 1, 1, Handle) == 1)
     {
-        /* Ignore comment fields (allow non-ascii within) */
+        /* Ignore comment fields (allow non-ASCII within) */
 
         if (OpeningComment)
         {

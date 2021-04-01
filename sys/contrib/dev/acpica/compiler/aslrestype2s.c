@@ -1389,6 +1389,142 @@ RsDoUartSerialBusDescriptor (
 
 /*******************************************************************************
  *
+ * FUNCTION:    RsDoCsi2SerialBusDescriptor
+ *
+ * PARAMETERS:  Info                - Parse Op and resource template offset
+ *
+ * RETURN:      Completed resource node
+ *
+ * DESCRIPTION: Construct a long "Csi2SerialBus" descriptor
+ *
+ ******************************************************************************/
+
+ASL_RESOURCE_NODE *
+RsDoCsi2SerialBusDescriptor (
+    ASL_RESOURCE_INFO       *Info)
+{
+    AML_RESOURCE            *Descriptor;
+    ACPI_PARSE_OBJECT       *InitializerOp;
+    ASL_RESOURCE_NODE       *Rnode;
+    char                    *ResourceSource = NULL;
+    UINT8                   *VendorData = NULL;
+    UINT16                  ResSourceLength;
+    UINT16                  VendorLength;
+    UINT16                  DescriptorSize;
+    UINT32                  CurrentByteOffset;
+    UINT32                  i;
+
+
+    InitializerOp = Info->DescriptorTypeOp->Asl.Child;
+    CurrentByteOffset = Info->CurrentByteOffset;
+
+    /*
+     * Calculate lengths for fields that have variable length:
+     * 1) Resource Source string
+     * 2) Vendor Data buffer
+     */
+    ResSourceLength = RsGetStringDataLength (InitializerOp);
+    VendorLength = RsGetBufferDataLength (InitializerOp);
+
+    DescriptorSize = ACPI_AML_SIZE_LARGE (AML_RESOURCE_CSI2_SERIALBUS) +
+        ResSourceLength + VendorLength;
+
+    /* Allocate the local resource node and initialize */
+
+    Rnode = RsAllocateResourceNode (DescriptorSize +
+        sizeof (AML_RESOURCE_LARGE_HEADER));
+
+    Descriptor = Rnode->Buffer;
+    Descriptor->Csi2SerialBus.ResourceLength = DescriptorSize;
+    Descriptor->Csi2SerialBus.DescriptorType = ACPI_RESOURCE_NAME_SERIAL_BUS;
+    Descriptor->Csi2SerialBus.RevisionId = AML_RESOURCE_CSI2_REVISION;
+    Descriptor->Csi2SerialBus.TypeRevisionId = AML_RESOURCE_CSI2_TYPE_REVISION;
+    Descriptor->Csi2SerialBus.Type = AML_RESOURCE_CSI2_SERIALBUSTYPE;
+    Descriptor->Csi2SerialBus.TypeDataLength = AML_RESOURCE_CSI2_MIN_DATA_LEN + VendorLength;
+
+    /* Build pointers to optional areas */
+
+    VendorData = ACPI_ADD_PTR (UINT8, Descriptor, sizeof (AML_RESOURCE_CSI2_SERIALBUS));
+    ResourceSource = ACPI_ADD_PTR (char, VendorData, VendorLength);
+
+    /* Process all child initialization nodes */
+
+    for (i = 0; InitializerOp; i++)
+    {
+        switch (i)
+        {
+        case 0: /* Slave Mode [Flag] (_SLV) */
+
+            RsSetFlagBits (&Descriptor->Csi2SerialBus.Flags, InitializerOp, 0, 0);
+            RsCreateBitField (InitializerOp, ACPI_RESTAG_SLAVEMODE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (I2cSerialBus.Flags), 0);
+            break;
+
+        case 1: /* Phy Type [Flag] (_PHY) */
+
+            RsSetFlagBits16 ((UINT16 *) &Descriptor->Csi2SerialBus.TypeSpecificFlags, InitializerOp, 0, 0);
+            RsCreateBitField (InitializerOp, ACPI_RESTAG_PHYTYPE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Csi2SerialBus.TypeSpecificFlags), 0);
+            break;
+
+        case 2: /* Local Port Instance [Integer] (_PRT) */
+
+            RsSetFlagBits16 ((UINT16 *) &Descriptor->Csi2SerialBus.TypeSpecificFlags, InitializerOp, 0, 0);
+            RsCreateMultiBitField (InitializerOp, ACPI_RESTAG_LOCALPORT,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Csi2SerialBus.TypeSpecificFlags), 2, 6);
+            break;
+
+        case 3: /* ResSource [Optional Field - STRING] */
+
+            if (ResSourceLength)
+            {
+                /* Copy string to the descriptor */
+
+                strcpy (ResourceSource,
+                    InitializerOp->Asl.Value.String);
+            }
+            break;
+
+        case 4: /* Resource Index */
+
+            if (InitializerOp->Asl.ParseOpcode != PARSEOP_DEFAULT_ARG)
+            {
+                Descriptor->Csi2SerialBus.ResSourceIndex =
+                    (UINT8) InitializerOp->Asl.Value.Integer;
+            }
+            break;
+
+        case 5: /* Resource Usage (consumer/producer) */
+
+            RsSetFlagBits (&Descriptor->Csi2SerialBus.Flags, InitializerOp, 1, 1);
+            break;
+
+        case 6: /* Resource Tag (Descriptor Name) */
+
+            UtAttachNamepathToOwner (Info->DescriptorTypeOp, InitializerOp);
+            break;
+
+        case 7: /* Vendor Data (Optional - Buffer of BYTEs) (_VEN) */
+
+            RsGetVendorData (InitializerOp, VendorData,
+                CurrentByteOffset + sizeof (AML_RESOURCE_CSI2_SERIALBUS));
+            break;
+
+        default:    /* Ignore any extra nodes */
+
+            break;
+        }
+
+        InitializerOp = RsCompleteNodeAndGetNext (InitializerOp);
+    }
+
+    MpSaveSerialInfo (Info->MappingOp, Descriptor, ResourceSource);
+    return (Rnode);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    RsDoPinFunctionDescriptor
  *
  * PARAMETERS:  Info                - Parse Op and resource template offset

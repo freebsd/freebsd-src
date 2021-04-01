@@ -245,7 +245,7 @@ ACPI_RSCONVERT_INFO         *AcpiGbl_GetResourceDispatch[] =
     AcpiRsConvertPinGroupConfig,    /* 0x12, ACPI_RESOURCE_NAME_PIN_GROUP_CONFIG */
 };
 
-/* Subtype table for SerialBus -- I2C, SPI, and UART */
+/* Subtype table for SerialBus -- I2C, SPI, UART, and CSI2 */
 
 ACPI_RSCONVERT_INFO         *AcpiGbl_ConvertResourceSerialBusDispatch[] =
 {
@@ -253,6 +253,7 @@ ACPI_RSCONVERT_INFO         *AcpiGbl_ConvertResourceSerialBusDispatch[] =
     AcpiRsConvertI2cSerialBus,
     AcpiRsConvertSpiSerialBus,
     AcpiRsConvertUartSerialBus,
+    AcpiRsConvertCsi2SerialBus
 };
 
 
@@ -295,6 +296,7 @@ ACPI_RSDUMP_INFO            *AcpiGbl_DumpSerialBusDispatch[] =
     AcpiRsDumpI2cSerialBus,         /* AML_RESOURCE_I2C_BUS_TYPE */
     AcpiRsDumpSpiSerialBus,         /* AML_RESOURCE_SPI_BUS_TYPE */
     AcpiRsDumpUartSerialBus,        /* AML_RESOURCE_UART_BUS_TYPE */
+    AcpiRsDumpCsi2SerialBus,        /* AML_RESOURCE_CSI2_BUS_TYPE */
 };
 #endif
 
@@ -384,6 +386,7 @@ const UINT8                 AcpiGbl_AmlResourceSerialBusSizes[] =
     sizeof (AML_RESOURCE_I2C_SERIALBUS),
     sizeof (AML_RESOURCE_SPI_SERIALBUS),
     sizeof (AML_RESOURCE_UART_SERIALBUS),
+    sizeof (AML_RESOURCE_CSI2_SERIALBUS),
 };
 
 const UINT8                 AcpiGbl_ResourceStructSerialBusSizes[] =
@@ -392,4 +395,5 @@ const UINT8                 AcpiGbl_ResourceStructSerialBusSizes[] =
     ACPI_RS_SIZE (ACPI_RESOURCE_I2C_SERIALBUS),
     ACPI_RS_SIZE (ACPI_RESOURCE_SPI_SERIALBUS),
     ACPI_RS_SIZE (ACPI_RESOURCE_UART_SERIALBUS),
+    ACPI_RS_SIZE (ACPI_RESOURCE_CSI2_SERIALBUS),
 };

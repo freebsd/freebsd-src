@@ -454,6 +454,21 @@ ACPI_RSDUMP_INFO        AcpiRsDumpCommonSerialBus[11] =
     ACPI_RS_DUMP_COMMON_SERIAL_BUS
 };
 
+ACPI_RSDUMP_INFO        AcpiRsDumpCsi2SerialBus[11] =
+{
+    {ACPI_RSD_TITLE,    ACPI_RSD_TABLE_SIZE (AcpiRsDumpCsi2SerialBus),      "Camera Serial Bus",        NULL},
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (Csi2SerialBus.RevisionId),         "RevisionId",               NULL},
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (Csi2SerialBus.Type),               "Type",                     AcpiGbl_SbtDecode},
+    {ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (Csi2SerialBus.ProducerConsumer),   "ProducerConsumer",         AcpiGbl_ConsumeDecode},
+    {ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (Csi2SerialBus.SlaveMode),          "SlaveMode",                AcpiGbl_SmDecode},
+    {ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET (Csi2SerialBus.PhyType),            "PhyType",                  AcpiGbl_PhyDecode},
+    {ACPI_RSD_6BITFLAG, ACPI_RSD_OFFSET (Csi2SerialBus.LocalPortInstance),  "LocalPortInstance",        NULL},
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (Csi2SerialBus.TypeRevisionId),     "TypeRevisionId",           NULL},
+    {ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (Csi2SerialBus.VendorLength),       "VendorLength",             NULL},
+    {ACPI_RSD_SHORTLISTX,ACPI_RSD_OFFSET (Csi2SerialBus.VendorData),        "VendorData",               NULL},
+    {ACPI_RSD_SOURCE,   ACPI_RSD_OFFSET (Csi2SerialBus.ResourceSource),     "ResourceSource",           NULL},
+};
+
 ACPI_RSDUMP_INFO        AcpiRsDumpI2cSerialBus[14] =
 {
     {ACPI_RSD_TITLE,    ACPI_RSD_TABLE_SIZE (AcpiRsDumpI2cSerialBus),       "I2C Serial Bus",           NULL},

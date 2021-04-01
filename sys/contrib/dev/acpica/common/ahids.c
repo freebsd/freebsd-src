@@ -188,6 +188,8 @@ const AH_DEVICE_ID  AslDeviceIds[] =
     {"ACPI0012",    "NVDIMM Root Device"},
     {"ACPI0013",    "Generic Event Device"},
     {"ACPI0014",    "Wireless Power Calibration Device"},
+    {"ACPI0015",    "USB4 host interface device"},
+    {"ACPI0016",    "Compute Express Link Host Bridge"},
     {"ADMA0F28",    "Intel Audio DMA"},
     {"AMCR0F28",    "Intel Audio Machine Driver"},
     {"ATK4001",     "Asus Radio Control Button"},

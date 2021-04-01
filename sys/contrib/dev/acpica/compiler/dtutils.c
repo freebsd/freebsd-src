@@ -438,6 +438,7 @@ DtGetFieldType (
     case ACPI_DMT_BUF16:
     case ACPI_DMT_BUF128:
     case ACPI_DMT_PCI_PATH:
+    case ACPI_DMT_PMTT_VENDOR:
 
         Type = DT_FIELD_TYPE_BUFFER;
         break;
@@ -573,6 +574,7 @@ DtGetFieldLength (
     case ACPI_DMT_CHKSUM:
     case ACPI_DMT_SPACEID:
     case ACPI_DMT_ACCWIDTH:
+    case ACPI_DMT_CEDT:
     case ACPI_DMT_IVRS:
     case ACPI_DMT_GTDT:
     case ACPI_DMT_MADT:
@@ -589,6 +591,7 @@ DtGetFieldLength (
     case ACPI_DMT_ERSTACT:
     case ACPI_DMT_ERSTINST:
     case ACPI_DMT_DMAR_SCOPE:
+    case ACPI_DMT_VIOT:
 
         ByteLength = 1;
         break;
@@ -599,6 +602,7 @@ DtGetFieldLength (
     case ACPI_DMT_HMAT:
     case ACPI_DMT_NFIT:
     case ACPI_DMT_PCI_PATH:
+    case ACPI_DMT_PHAT:
 
         ByteLength = 2;
         break;
@@ -673,6 +677,7 @@ DtGetFieldLength (
 
     case ACPI_DMT_BUFFER:
     case ACPI_DMT_RAW_BUFFER:
+    case ACPI_DMT_PMTT_VENDOR:
 
         Value = DtGetFieldValue (Field);
         if (Value)

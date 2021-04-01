@@ -521,6 +521,7 @@ typedef struct acpi_object_addr_handler
     ACPI_ADR_SPACE_HANDLER          Handler;
     ACPI_NAMESPACE_NODE             *Node;              /* Parent device */
     void                            *Context;
+    ACPI_MUTEX                      ContextMutex;
     ACPI_ADR_SPACE_SETUP            Setup;
     union acpi_operand_object       *RegionList;        /* Regions using this handler */
     union acpi_operand_object       *Next;

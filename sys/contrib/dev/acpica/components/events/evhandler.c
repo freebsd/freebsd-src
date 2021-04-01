@@ -677,6 +677,13 @@ AcpiEvInstallSpaceHandler (
 
     /* Init handler obj */
 
+    Status = AcpiOsCreateMutex (&HandlerObj->AddressSpace.ContextMutex);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiUtRemoveReference (HandlerObj);
+        goto UnlockAndExit;
+    }
+
     HandlerObj->AddressSpace.SpaceId = (UINT8) SpaceId;
     HandlerObj->AddressSpace.HandlerFlags = Flags;
     HandlerObj->AddressSpace.RegionList = NULL;

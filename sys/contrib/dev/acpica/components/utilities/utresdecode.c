@@ -240,6 +240,14 @@ const char                      *AcpiGbl_MtpDecode[] =
     "AddressRangeNVS"
 };
 
+const char                      *AcpiGbl_PhyDecode[] =
+{
+    "Type C",
+    "Type D",
+    "Unknown Type",
+    "Unknown Type"
+};
+
 const char                      *AcpiGbl_RngDecode[] =
 {
     "InvalidRanges",
@@ -331,7 +339,8 @@ const char                      *AcpiGbl_SbtDecode[] =
     "/* UNKNOWN serial bus type */",
     "I2C",
     "SPI",
-    "UART"
+    "UART",
+    "CSI2"
 };
 
 /* I2C serial bus access mode */

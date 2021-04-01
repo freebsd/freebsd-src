@@ -384,7 +384,8 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_EXTERNAL_FOUND_HERE */        "External declaration below ",
 /*    ASL_MSG_LOWER_CASE_NAMESEG */         "At least one lower case letter found in NameSeg, ASL is case insensitive - converting to upper case",
 /*    ASL_MSG_LOWER_CASE_NAMEPATH */        "At least one lower case letter found in NamePath, ASL is case insensitive - converting to upper case",
-/*    ASL_MSG_UUID_NOT_FOUND */             "Unknown UUID string"
+/*    ASL_MSG_UUID_NOT_FOUND */             "Unknown UUID string",
+/*    ASL_MSG_LEGACY_DDB_TYPE */            "DDBHandleObj has been deprecated along with the Unload operator. DDBHandlObj objects are only used in Unload"
 };
 
 /* Table compiler */

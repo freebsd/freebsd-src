@@ -1125,7 +1125,7 @@ void
 AslCheckExpectedExceptions (
     void)
 {
-    UINT8                   i;
+    UINT32                  i;
     ASL_EXPECTED_MSG_NODE   *Current = AslGbl_ExpectedErrorCodeList;
     ASL_LOCATION_NODE       *LocationNode;
 
@@ -1188,7 +1188,7 @@ AslLogExpectedException (
 
     if (MessageId > 6999)
     {
-        printf ("\"%s\" is not a valid warning/remark/erro ID\n",
+        printf ("\"%s\" is not a valid warning/remark/error ID\n",
             MessageIdString);
         return (AE_BAD_PARAMETER);
     }
@@ -1336,7 +1336,7 @@ AslElevateException (
 
     if (MessageId > 6999)
     {
-        printf ("\"%s\" is not a valid warning/remark/erro ID\n",
+        printf ("\"%s\" is not a valid warning/remark/error ID\n",
             MessageIdString);
         return (AE_BAD_PARAMETER);
     }

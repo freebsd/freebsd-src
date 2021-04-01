@@ -352,7 +352,7 @@ OpcParsePrintf (
 
             /*
              * Append an empty string if the first argument is
-             * not a string. This will implicitly conver the 2nd
+             * not a string. This will implicitly convert the 2nd
              * concat source to a string per the ACPI specification.
              */
             if (!Op->Asl.Child)

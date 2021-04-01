@@ -360,6 +360,11 @@ OptionalSlaveMode
     | ',' SlaveModeKeyword          {$$ = $2;}
     ;
 
+OptionalSlaveMode_First
+    :                               {$$ = NULL;}
+    | SlaveModeKeyword              {$$ = $1;}
+    ;
+
 OptionalShareType
     :                               {$$ = NULL;}
     | ','                           {$$ = NULL;}

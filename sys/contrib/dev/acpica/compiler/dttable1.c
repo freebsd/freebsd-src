@@ -344,6 +344,80 @@ DtCompileAsf (
 
 /******************************************************************************
  *
+ * FUNCTION:    DtCompileCedt
+ *
+ * PARAMETERS:  List                - Current field list pointer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile CEDT.
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileCedt (
+    void                    **List)
+{
+    ACPI_STATUS             Status;
+    DT_SUBTABLE             *Subtable;
+    DT_SUBTABLE             *ParentTable;
+    DT_FIELD                **PFieldList = (DT_FIELD **) List;
+    ACPI_CEDT_HEADER        *CedtHeader;
+    DT_FIELD                *SubtableStart;
+
+
+    /* Walk the parse tree */
+
+    while (*PFieldList)
+    {
+        SubtableStart = *PFieldList;
+
+        /* CEDT Header */
+
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoCedtHdr,
+            &Subtable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+        DtPushSubtable (Subtable);
+
+        CedtHeader = ACPI_CAST_PTR (ACPI_CEDT_HEADER, Subtable->Buffer);
+
+        switch (CedtHeader->Type)
+        {
+        case ACPI_CEDT_TYPE_CHBS:
+
+            break;
+
+        default:
+
+            DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "CEDT");
+            return (AE_ERROR);
+        }
+
+        /* CEDT Subtable */
+
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoCedt0, &Subtable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+        DtPopSubtable ();
+    }
+
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    DtCompileCpep
  *
  * PARAMETERS:  List                - Current field list pointer
@@ -1582,10 +1656,12 @@ DtCompileIort (
     DT_SUBTABLE             *ParentTable;
     DT_FIELD                **PFieldList = (DT_FIELD **) List;
     DT_FIELD                *SubtableStart;
+    ACPI_TABLE_HEADER       *Table;
     ACPI_TABLE_IORT         *Iort;
     ACPI_IORT_NODE          *IortNode;
     ACPI_IORT_ITS_GROUP     *IortItsGroup;
     ACPI_IORT_SMMU          *IortSmmu;
+    ACPI_IORT_RMR           *IortRmr;
     UINT32                  NodeNumber;
     UINT32                  NodeLength;
     UINT32                  IdMappingNumber;
@@ -1593,6 +1669,8 @@ DtCompileIort (
     UINT32                  ContextIrptNumber;
     UINT32                  PmuIrptNumber;
     UINT32                  PaddingLength;
+    UINT8                   Revision;
+    UINT32                  RmrCount;
 
 
     ParentTable = DtPeekSubtable ();
@@ -1604,6 +1682,17 @@ DtCompileIort (
         return (Status);
     }
     DtInsertSubtable (ParentTable, Subtable);
+
+    Table = ACPI_CAST_PTR (ACPI_TABLE_HEADER, ParentTable->Buffer);
+    Revision = Table->Revision;
+
+    /* Both IORT Rev E and E.a have known issues and are not supported */
+
+    if (Revision == 1 || Revision == 2)
+    {
+        DtError (ASL_ERROR, ASL_MSG_UNSUPPORTED, NULL, "IORT table revision");
+        return (AE_ERROR);
+    }
 
     /*
      * Using ACPI_SUB_PTR, We needn't define a separate structure. Care
@@ -1645,8 +1734,17 @@ DtCompileIort (
     while (*PFieldList)
     {
         SubtableStart = *PFieldList;
-        Status = DtCompileTable (PFieldList, AcpiDmTableInfoIortHdr,
-            &Subtable);
+        if (Revision == 0)
+        {
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoIortHdr,
+                &Subtable);
+        }
+        else if (Revision >= 3)
+        {
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoIortHdr3,
+                &Subtable);
+        }
+
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -1864,7 +1962,46 @@ DtCompileIort (
             NodeLength += Subtable->Length;
             break;
 
-        default:
+        case ACPI_IORT_NODE_RMR:
+
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort6,
+                &Subtable);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
+            DtInsertSubtable (ParentTable, Subtable);
+            IortRmr = ACPI_CAST_PTR (ACPI_IORT_RMR, Subtable->Buffer);
+            NodeLength += Subtable->Length;
+
+            /* Compile RMR Descriptors */
+
+            RmrCount = 0;
+            IortRmr->RmrOffset = NodeLength;
+            while (*PFieldList)
+            {
+                Status = DtCompileTable (PFieldList, AcpiDmTableInfoIort6a,
+                    &Subtable);
+                if (ACPI_FAILURE (Status))
+                {
+                    return (Status);
+                }
+
+                if (!Subtable)
+                {
+                    break;
+                }
+
+                DtInsertSubtable (ParentTable, Subtable);
+                NodeLength += sizeof (ACPI_IORT_RMR_DESC);
+                RmrCount++;
+            }
+
+            IortRmr->RmrCount = RmrCount;
+            break;
+
+	default:
 
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "IORT");
             return (AE_ERROR);

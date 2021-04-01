@@ -410,6 +410,7 @@ NoEcho('
 /* Resource Descriptors */
 
 %type <n> ConnectionTerm
+%type <n> Csi2SerialBusTerm
 %type <n> DMATerm
 %type <n> DWordIOTerm
 %type <n> DWordMemoryTerm
@@ -501,6 +502,7 @@ NoEcho('
 %type <n> OptionalShareType
 %type <n> OptionalShareType_First
 %type <n> OptionalSlaveMode
+%type <n> OptionalSlaveMode_First
 %type <n> OptionalStopBits
 %type <n> OptionalStringData
 %type <n> OptionalSyncLevel

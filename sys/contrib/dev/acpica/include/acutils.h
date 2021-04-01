@@ -171,6 +171,7 @@ extern const char                       *AcpiGbl_MaxDecode[];
 extern const char                       *AcpiGbl_MemDecode[];
 extern const char                       *AcpiGbl_MinDecode[];
 extern const char                       *AcpiGbl_MtpDecode[];
+extern const char                       *AcpiGbl_PhyDecode[];
 extern const char                       *AcpiGbl_RngDecode[];
 extern const char                       *AcpiGbl_RwDecode[];
 extern const char                       *AcpiGbl_ShrDecode[];

@@ -574,6 +574,10 @@ DtCompileCpep (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileCedt (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileCsrt (
     void                    **PFieldList);
 
@@ -658,6 +662,10 @@ DtCompilePdtt (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompilePhat (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompilePmtt (
     void                    **PFieldList);
 
@@ -706,6 +714,10 @@ DtCompileUefi (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileViot (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileWdat (
     void                    **PFieldList);
 
@@ -733,6 +745,7 @@ extern const unsigned char  TemplateAsf[];
 extern const unsigned char  TemplateBoot[];
 extern const unsigned char  TemplateBert[];
 extern const unsigned char  TemplateBgrt[];
+extern const unsigned char  TemplateCedt[];
 extern const unsigned char  TemplateCpep[];
 extern const unsigned char  TemplateCsrt[];
 extern const unsigned char  TemplateDbg2[];
@@ -760,6 +773,7 @@ extern const unsigned char  TemplateMsdm[];
 extern const unsigned char  TemplateNfit[];
 extern const unsigned char  TemplatePcct[];
 extern const unsigned char  TemplatePdtt[];
+extern const unsigned char  TemplatePhat[];
 extern const unsigned char  TemplatePmtt[];
 extern const unsigned char  TemplatePptt[];
 extern const unsigned char  TemplateRasf[];
@@ -777,6 +791,7 @@ extern const unsigned char  TemplateStao[];
 extern const unsigned char  TemplateTcpa[];
 extern const unsigned char  TemplateTpm2[];
 extern const unsigned char  TemplateUefi[];
+extern const unsigned char  TemplateViot[];
 extern const unsigned char  TemplateWaet[];
 extern const unsigned char  TemplateWdat[];
 extern const unsigned char  TemplateWddt[];
