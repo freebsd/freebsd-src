@@ -1797,7 +1797,8 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 	struct adapter *sc = vi->adapter;
 
 	vi->xact_addr_filt = -1;
-	callout_init(&vi->tick, 1);
+	mtx_init(&vi->tick_mtx, "vi tick", NULL, MTX_DEF);
+	callout_init_mtx(&vi->tick, &vi->tick_mtx, 0);
 	if (sc->flags & IS_VF || t4_tx_vm_wr != 0)
 		vi->flags |= TX_USES_VM_WR;
 
@@ -1921,8 +1922,6 @@ cxgbe_attach(device_t dev)
 	struct vi_info *vi;
 	int i, rc;
 
-	callout_init_mtx(&pi->tick, &pi->pi_lock, 0);
-
 	rc = cxgbe_vi_attach(dev, &pi->vi[0]);
 	if (rc)
 		return (rc);
@@ -1991,7 +1990,6 @@ cxgbe_detach(device_t dev)
 	}
 
 	cxgbe_vi_detach(&pi->vi[0]);
-	callout_drain(&pi->tick);
 	ifmedia_removeall(&pi->media);
 
 	end_synchronized_op(sc, 0);
@@ -5583,14 +5581,16 @@ cxgbe_init_synchronized(struct vi_info *vi)
 	/* all ok */
 	pi->up_vis++;
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-
-	if (pi->nvi > 1 || sc->flags & IS_VF)
-		callout_reset(&vi->tick, hz, vi_tick, vi);
-	else
-		callout_reset(&pi->tick, hz, cxgbe_tick, pi);
 	if (pi->link_cfg.link_ok)
 		t4_os_link_changed(pi);
 	PORT_UNLOCK(pi);
+
+	mtx_lock(&vi->tick_mtx);
+	if (pi->nvi > 1 || sc->flags & IS_VF)
+		callout_reset(&vi->tick, hz, vi_tick, vi);
+	else
+		callout_reset(&vi->tick, hz, cxgbe_tick, vi);
+	mtx_unlock(&vi->tick_mtx);
 done:
 	if (rc != 0)
 		cxgbe_uninit_synchronized(vi);
@@ -5642,11 +5642,11 @@ cxgbe_uninit_synchronized(struct vi_info *vi)
 		TXQ_UNLOCK(txq);
 	}
 
+	mtx_lock(&vi->tick_mtx);
+	callout_stop(&vi->tick);
+	mtx_unlock(&vi->tick_mtx);
+
 	PORT_LOCK(pi);
-	if (pi->nvi > 1 || sc->flags & IS_VF)
-		callout_stop(&vi->tick);
-	else
-		callout_stop(&pi->tick);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		PORT_UNLOCK(pi);
 		return (0);
@@ -6277,11 +6277,11 @@ read_vf_stat(struct adapter *sc, u_int vin, int reg)
 {
 	u32 stats[2];
 
-	mtx_assert(&sc->reg_lock, MA_OWNED);
 	if (sc->flags & IS_VF) {
 		stats[0] = t4_read_reg(sc, VF_MPS_REG(reg));
 		stats[1] = t4_read_reg(sc, VF_MPS_REG(reg + 4));
 	} else {
+		mtx_assert(&sc->reg_lock, MA_OWNED);
 		t4_write_reg(sc, A_PL_INDIR_CMD, V_PL_AUTOINC(1) |
 		    V_PL_VFID(vin) | V_PL_ADDR(VF_MPS_REG(reg)));
 		stats[0] = t4_read_reg(sc, A_PL_INDIR_DATA);
@@ -6297,6 +6297,8 @@ t4_get_vi_stats(struct adapter *sc, u_int vin, struct fw_vi_stats_vf *stats)
 #define GET_STAT(name) \
 	read_vf_stat(sc, vin, A_MPS_VF_STAT_##name##_L)
 
+	if (!(sc->flags & IS_VF))
+		mtx_lock(&sc->reg_lock);
 	stats->tx_bcast_bytes    = GET_STAT(TX_VF_BCAST_BYTES);
 	stats->tx_bcast_frames   = GET_STAT(TX_VF_BCAST_FRAMES);
 	stats->tx_mcast_bytes    = GET_STAT(TX_VF_MCAST_BYTES);
@@ -6313,6 +6315,8 @@ t4_get_vi_stats(struct adapter *sc, u_int vin, struct fw_vi_stats_vf *stats)
 	stats->rx_ucast_bytes    = GET_STAT(RX_VF_UCAST_BYTES);
 	stats->rx_ucast_frames   = GET_STAT(RX_VF_UCAST_FRAMES);
 	stats->rx_err_frames     = GET_STAT(RX_VF_ERR_FRAMES);
+	if (!(sc->flags & IS_VF))
+		mtx_unlock(&sc->reg_lock);
 
 #undef GET_STAT
 }
@@ -6343,10 +6347,8 @@ vi_refresh_stats(struct adapter *sc, struct vi_info *vi)
 	if (timevalcmp(&tv, &vi->last_refreshed, <))
 		return;
 
-	mtx_lock(&sc->reg_lock);
 	t4_get_vi_stats(sc, vi->vin, &vi->stats);
 	getmicrotime(&vi->last_refreshed);
-	mtx_unlock(&sc->reg_lock);
 }
 
 static void
@@ -6380,13 +6382,14 @@ cxgbe_refresh_stats(struct adapter *sc, struct port_info *pi)
 static void
 cxgbe_tick(void *arg)
 {
-	struct port_info *pi = arg;
-	struct adapter *sc = pi->adapter;
+	struct vi_info *vi = arg;
+	struct adapter *sc = vi->adapter;
 
-	PORT_LOCK_ASSERT_OWNED(pi);
-	cxgbe_refresh_stats(sc, pi);
+	MPASS(IS_MAIN_VI(vi));
+	mtx_assert(&vi->tick_mtx, MA_OWNED);
 
-	callout_schedule(&pi->tick, hz);
+	cxgbe_refresh_stats(sc, vi->pi);
+	callout_schedule(&vi->tick, hz);
 }
 
 void
@@ -6395,8 +6398,9 @@ vi_tick(void *arg)
 	struct vi_info *vi = arg;
 	struct adapter *sc = vi->adapter;
 
-	vi_refresh_stats(sc, vi);
+	mtx_assert(&vi->tick_mtx, MA_OWNED);
 
+	vi_refresh_stats(sc, vi);
 	callout_schedule(&vi->tick, hz);
 }
 

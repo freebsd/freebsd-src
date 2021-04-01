@@ -237,8 +237,9 @@ struct vi_info {
 
 	struct timeval last_refreshed;
 	struct fw_vi_stats_vf stats;
-
+	struct mtx tick_mtx;
 	struct callout tick;
+
 	struct sysctl_ctx_list ctx;	/* from ifconfig up to driver detach */
 
 	uint8_t hw_addr[ETHER_ADDR_LEN]; /* factory MAC address, won't change */
@@ -316,8 +317,6 @@ struct port_info {
 	u_int tx_parse_error;
 	int fcs_reg;
 	uint64_t fcs_base;
-
-	struct callout tick;
 };
 
 #define	IS_MAIN_VI(vi)		((vi) == &((vi)->pi->vi[0]))
