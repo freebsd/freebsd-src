@@ -256,7 +256,7 @@ struct meminfo {
 #endif
 
 /*
- * We use our own malloc/realloc/free funtions, so we can collect statistics
+ * We use our own malloc/realloc/free functions, so we can collect statistics
  * and force journal switch when we're running out of cache.
  */
 static void *
@@ -1726,7 +1726,7 @@ g_journal_mark_as_dirty(struct g_journal_softc *sc)
 
 /*
  * Function read record header from the given journal.
- * It is very simlar to g_read_data(9), but it doesn't allocate memory for bio
+ * It is very similar to g_read_data(9), but it doesn't allocate memory for bio
  * and data on every call.
  */
 static int
@@ -2445,7 +2445,7 @@ g_journal_destroy(struct g_journal_softc *sc)
 		if (cp->acr + cp->acw + cp->ace > 0)
 			g_access(cp, -1, -1, -1);
 		/*
-		 * We keep all consumers open for writting, so if I'll detach
+		 * We keep all consumers open for writing, so if I'll detach
 		 * and destroy consumer here, I'll get providers for taste, so
 		 * journal will be started again.
 		 * Sending an event here, prevents this from happening.

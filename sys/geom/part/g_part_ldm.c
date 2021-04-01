@@ -171,7 +171,7 @@ struct ldm_vmdbhdr {
  * partitions in the GEOM_PART meaning. But volume VBLK does not
  * contain all information needed to create GEOM provider. And we
  * should get this information from the related VBLK. This is how
- * VBLK releated:
+ * VBLK related:
  *	Volumes <- Components <- Partitions -> Disks
  *
  * One volume can contain several components. In this case LDM

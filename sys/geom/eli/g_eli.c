@@ -229,7 +229,7 @@ g_eli_getattr_done(struct bio *bp)
 }
 
 /*
- * The function is called afer reading encrypted data from the provider.
+ * The function is called after reading encrypted data from the provider.
  *
  * g_eli_start -> g_eli_crypto_read -> g_io_request -> G_ELI_READ_DONE -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
  */

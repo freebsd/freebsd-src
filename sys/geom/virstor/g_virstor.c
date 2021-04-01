@@ -1131,7 +1131,7 @@ add_provider_to_geom(struct g_virstor_softc *sc, struct g_provider *pp,
 	if (md->no >= sc->n_components)
 		return (EINVAL);
 
-	/* "Current" compontent */
+	/* "Current" component */
 	component = &(sc->components[md->no]);
 	if (component->gcons != NULL)
 		return (EEXIST);

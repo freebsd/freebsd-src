@@ -33,7 +33,7 @@
  *
  * $FreeBSD$
  */
-/* This souce file contains routines which operates on the lock sectors, both
+/* This source file contains routines which operates on the lock sectors, both
  * for the kernel and the userland program gbde(1).
  *
  */
@@ -90,7 +90,7 @@ g_bde_hash_pass(struct g_bde_softc *sc, const void *input, u_int len)
  *
  * Security objectives: Store in pass-phrase dependent variant format.
  *
- * C-structure packing and byte-endianess depends on architecture, compiler
+ * C-structure packing and byte-endianness depends on architecture, compiler
  * and compiler options.  Writing raw structures to disk is therefore a bad
  * idea in these enlightend days.
  *

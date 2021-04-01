@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 SYSCTL_DECL(_kern_geom_raid_raid1e);
 
-#define RAID1E_REBUILD_SLAB	(1 << 20) /* One transation in a rebuild */
+#define RAID1E_REBUILD_SLAB	(1 << 20) /* One transaction in a rebuild */
 static int g_raid1e_rebuild_slab = RAID1E_REBUILD_SLAB;
 SYSCTL_UINT(_kern_geom_raid_raid1e, OID_AUTO, rebuild_slab_size, CTLFLAG_RWTUN,
     &g_raid1e_rebuild_slab, 0,
