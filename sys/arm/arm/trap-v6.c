@@ -121,7 +121,7 @@ struct abort {
  *    operation (except DMB, DSB, and Flush Prefetch Buffer) are priviledged,
  *    the abort is fatal for user mode as well for now. (This is good place to
  *    note that cache maintenance on virtual address fill TLB.)
- * Acces Bit (L1 & L2):
+ * Access Bit (L1 & L2):
  *  - Fast hardware emulation for kernel and user mode.
  * Translation Fault (L1 & L2):
  *  - Standard fault mechanism is held including vm_fault().
@@ -541,7 +541,7 @@ out:
  * abort_fatal() handles the following data aborts:
  *
  *  FAULT_DEBUG		- Debug Event
- *  FAULT_ACCESS_xx	- Acces Bit
+ *  FAULT_ACCESS_xx	- Access Bit
  *  FAULT_EA_PREC	- Precise External Abort
  *  FAULT_DOMAIN_xx	- Domain Fault
  *  FAULT_EA_TRAN_xx	- External Translation Abort

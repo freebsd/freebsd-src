@@ -1577,7 +1577,7 @@ typedef struct zap_leaf_phys {
 		uint16_t lh_nentries;		/* number of entries */
 		uint16_t lh_prefix_len;		/* num bits used to id this */
 
-/* above is accessable to zap, below is zap_leaf private */
+/* above is accessible to zap, below is zap_leaf private */
 
 		uint16_t lh_freelist;		/* chunk head of free list */
 		uint8_t lh_pad2[12];

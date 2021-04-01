@@ -109,7 +109,7 @@
 #define PCI_WINDOW5_ADDR		0x15000000
 #define PCI_WINDOW6_ADDR		0x16000000
 #define PCI_WINDOW7_ADDR		0x17000000
-/* This value enables acces to PCI config registers */
+/* This value enables access to PCI config registers */
 #define PCI_WINDOW7_CONF_ADDR		0x07000000
 
 #define	AR71XX_UART_ADDR		0x18020000
