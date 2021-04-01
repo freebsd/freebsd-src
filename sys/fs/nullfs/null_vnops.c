@@ -389,10 +389,21 @@ null_lookup(struct vop_lookup_args *ap)
 	 */
 	ldvp = NULLVPTOLOWERVP(dvp);
 	vp = lvp = NULL;
-	KASSERT((ldvp->v_vflag & VV_ROOT) == 0 ||
-	    ((dvp->v_vflag & VV_ROOT) != 0 && (flags & ISDOTDOT) == 0),
-	    ("ldvp %p fl %#x dvp %p fl %#x flags %#x", ldvp, ldvp->v_vflag,
-	     dvp, dvp->v_vflag, flags));
+
+	/*
+	 * Renames in the lower mounts might create an inconsistent
+	 * configuration where lower vnode is moved out of the
+	 * directory tree remounted by our null mount.  Do not try to
+	 * handle it fancy, just avoid VOP_LOOKUP() with DOTDOT name
+	 * which cannot be handled by VOP, at least passing over lower
+	 * root.
+	 */
+	if ((ldvp->v_vflag & VV_ROOT) != 0 && (flags & ISDOTDOT) != 0) {
+		KASSERT((dvp->v_vflag & VV_ROOT) == 0,
+		    ("ldvp %p fl %#x dvp %p fl %#x flags %#x",
+		    ldvp, ldvp->v_vflag, dvp, dvp->v_vflag, flags));
+		return (ENOENT);
+	}
 
 	/*
 	 * Hold ldvp.  The reference on it, owned by dvp, is lost in
