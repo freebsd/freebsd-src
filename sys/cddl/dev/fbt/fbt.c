@@ -474,16 +474,17 @@ fbt_typoff_init(linker_ctf_t *lc)
 	int ctf_typemax = 0;
 	uint32_t *xp;
 	ulong_t pop[CTF_K_MAX + 1] = { 0 };
+	uint8_t version;
 
 
 	/* Sanity check. */
 	if (hp->cth_magic != CTF_MAGIC)
 		return (EINVAL);
 
+	version = hp->cth_version;
+
 	tbuf = (const ctf_type_t *) (ctfdata + hp->cth_typeoff);
 	tend = (const ctf_type_t *) (ctfdata + hp->cth_stroff);
-
-	int child = hp->cth_parname != 0;
 
 	/*
 	 * We make two passes through the entire type section.  In this first
@@ -495,9 +496,8 @@ fbt_typoff_init(linker_ctf_t *lc)
 		ssize_t size, increment;
 
 		size_t vbytes;
-		uint_t n;
 
-		(void) fbt_get_ctt_size(hp->cth_version, tp, &size, &increment);
+		(void) fbt_get_ctt_size(version, tp, &size, &increment);
 
 		switch (kind) {
 		case CTF_K_INTEGER:
@@ -512,22 +512,10 @@ fbt_typoff_init(linker_ctf_t *lc)
 			break;
 		case CTF_K_STRUCT:
 		case CTF_K_UNION:
-			if (size < CTF_LSTRUCT_THRESH) {
-				ctf_member_t *mp = (ctf_member_t *)
-				    ((uintptr_t)tp + increment);
-
+			if (size < CTF_LSTRUCT_THRESH)
 				vbytes = sizeof (ctf_member_t) * vlen;
-				for (n = vlen; n != 0; n--, mp++)
-					child |= CTF_TYPE_ISCHILD(mp->ctm_type);
-			} else {
-				ctf_lmember_t *lmp = (ctf_lmember_t *)
-				    ((uintptr_t)tp + increment);
-
+			else
 				vbytes = sizeof (ctf_lmember_t) * vlen;
-				for (n = vlen; n != 0; n--, lmp++)
-					child |=
-					    CTF_TYPE_ISCHILD(lmp->ctlm_type);
-			}
 			break;
 		case CTF_K_ENUM:
 			vbytes = sizeof (ctf_enum_t) * vlen;
@@ -552,7 +540,6 @@ fbt_typoff_init(linker_ctf_t *lc)
 		case CTF_K_VOLATILE:
 		case CTF_K_CONST:
 		case CTF_K_RESTRICT:
-			child |= CTF_TYPE_ISCHILD(tp->ctt_type);
 			vbytes = 0;
 			break;
 		default:
@@ -584,9 +571,8 @@ fbt_typoff_init(linker_ctf_t *lc)
 		ssize_t size, increment;
 
 		size_t vbytes;
-		uint_t n;
 
-		(void) fbt_get_ctt_size(hp->cth_version, tp, &size, &increment);
+		(void) fbt_get_ctt_size(version, tp, &size, &increment);
 
 		switch (kind) {
 		case CTF_K_INTEGER:
@@ -601,22 +587,10 @@ fbt_typoff_init(linker_ctf_t *lc)
 			break;
 		case CTF_K_STRUCT:
 		case CTF_K_UNION:
-			if (size < CTF_LSTRUCT_THRESH) {
-				ctf_member_t *mp = (ctf_member_t *)
-				    ((uintptr_t)tp + increment);
-
+			if (size < CTF_LSTRUCT_THRESH)
 				vbytes = sizeof (ctf_member_t) * vlen;
-				for (n = vlen; n != 0; n--, mp++)
-					child |= CTF_TYPE_ISCHILD(mp->ctm_type);
-			} else {
-				ctf_lmember_t *lmp = (ctf_lmember_t *)
-				    ((uintptr_t)tp + increment);
-
+			else
 				vbytes = sizeof (ctf_lmember_t) * vlen;
-				for (n = vlen; n != 0; n--, lmp++)
-					child |=
-					    CTF_TYPE_ISCHILD(lmp->ctlm_type);
-			}
 			break;
 		case CTF_K_ENUM:
 			vbytes = sizeof (ctf_enum_t) * vlen;
