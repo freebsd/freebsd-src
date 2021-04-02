@@ -571,6 +571,7 @@ sendfile_getobj(struct thread *td, struct file *fp, vm_object_t *obj_res,
 	struct shmfd *shmfd;
 	int error;
 
+	error = 0;
 	vp = *vp_res = NULL;
 	obj = NULL;
 	shmfd = *shmfd_res = NULL;
@@ -610,7 +611,6 @@ sendfile_getobj(struct thread *td, struct file *fp, vm_object_t *obj_res,
 			VM_OBJECT_RLOCK(obj);
 		}
 	} else if (fp->f_type == DTYPE_SHM) {
-		error = 0;
 		shmfd = fp->f_data;
 		obj = shmfd->shm_object;
 		VM_OBJECT_RLOCK(obj);
