@@ -784,7 +784,6 @@ DIRDEPS.amd64= \
 	usr.sbin/hyperv/tools \
 	usr.sbin/hyperv/tools/kvp \
 	usr.sbin/hyperv/tools/vss \
-	usr.sbin/kgmon \
 	usr.sbin/lptcontrol \
 	usr.sbin/mptable \
 	usr.sbin/spkrtest \
@@ -794,8 +793,7 @@ DIRDEPS.amd64= \
 DIRDEPS.arm= \
 	sbin/bsdlabel \
 	sbin/fdisk \
-	usr.sbin/ofwdump \
-	usr.sbin/kgmon
+	usr.sbin/ofwdump
 
 DIRDEPS.i386= \
 	sbin/bsdlabel \
@@ -809,7 +807,6 @@ DIRDEPS.i386= \
 	usr.sbin/hyperv/tools \
 	usr.sbin/hyperv/tools/kvp \
 	usr.sbin/hyperv/tools/vss \
-	usr.sbin/kgmon \
 	usr.sbin/lptcontrol \
 	usr.sbin/mptable \
 	usr.sbin/pnpinfo \
