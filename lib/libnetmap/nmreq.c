@@ -257,6 +257,8 @@ nmreq_register_decode(const char **pifname, struct nmreq_register *r, struct nmc
 	uint16_t nr_ringid;
 	uint64_t nr_flags;
 
+	errno = 0;
+
 	/* fill the request */
 
 	p_state = P_START;
