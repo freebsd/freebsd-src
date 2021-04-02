@@ -236,10 +236,12 @@ extern int sujrecovery;			/* 1 => doing check using the journal */
 } while (0)
 #define	initbarea(bp, type) do { \
 	(bp)->b_bno = (ufs2_daddr_t)-1; \
+	(bp)->b_size = 0; \
+	(bp)->b_errs = 0; \
 	(bp)->b_flags = 0; \
+	(bp)->b_type = type; \
 	(bp)->b_refcnt = 0; \
 	(bp)->b_index = 0; \
-	(bp)->b_type = type; \
 } while (0)
 
 #define	sbdirty()	dirty(&sblk)

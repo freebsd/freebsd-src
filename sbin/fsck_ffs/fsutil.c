@@ -84,7 +84,6 @@ static LIST_HEAD(bufhash, bufarea) bufhashhd[HASHSIZE]; /* buffer hash list */
 static int numbufs;				/* size of buffer cache */
 static int cachelookups;			/* number of cache lookups */
 static int cachereads;				/* number of cache reads */
-static struct bufarea *cgbufs;	/* header for cylinder group cache */
 static int flushtries;		/* number of tries to reclaim memory */
 
 char *buftype[BT_NUMBUFTYPES] = BT_NAMES;
@@ -187,13 +186,9 @@ bufinit(void)
 {
 	int i;
 
-	pdirbp = (struct bufarea *)0;
-	bzero(&cgblk, sizeof(struct bufarea));
-	cgblk.b_un.b_buf = Malloc((unsigned int)sblock.fs_bsize);
-	if (cgblk.b_un.b_buf == NULL)
+	if ((cgblk.b_un.b_buf = Malloc((unsigned int)sblock.fs_bsize)) == NULL)
 		errx(EEXIT, "Initial malloc(%d) failed", sblock.fs_bsize);
 	initbarea(&cgblk, BT_CYLGRP);
-	cgbufs = NULL;
 	numbufs = cachelookups = cachereads = 0;
 	TAILQ_INIT(&bufqueuehd);
 	for (i = 0; i < HASHSIZE; i++)
@@ -559,7 +554,8 @@ void
 ckfini(int markclean)
 {
 	struct bufarea *bp, *nbp;
-	int ofsmodified, cnt;
+	struct inoinfo *inp, *ninp;
+	int ofsmodified, cnt, cg, i;
 
 	if (bkgrdflag) {
 		unlink(snapname);
@@ -609,16 +605,20 @@ ckfini(int markclean)
 			free(cgbufs[cnt].b_un.b_cg);
 		}
 		free(cgbufs);
+		cgbufs = NULL;
 	}
 	flush(fswritefd, &cgblk);
 	free(cgblk.b_un.b_buf);
+	cgblk.b_un.b_buf = NULL;
 	cnt = 0;
 	/* Step 2: indirect, directory, external attribute, and data blocks */
 	if (debug)
 		printf("Flush indirect, directory, external attribute, "
 		    "and data blocks\n");
-	if (pdirbp != NULL)
+	if (pdirbp != NULL) {
 		brelse(pdirbp);
+		pdirbp = NULL;
+	}
 	TAILQ_FOREACH_REVERSE_SAFE(bp, &bufqueuehd, bufqueue, b_list, nbp) {
 		switch (bp->b_type) {
 		/* These should not be in the buffer cache list */
@@ -658,8 +658,10 @@ ckfini(int markclean)
 	/* Step 3: inode blocks */
 	if (debug)
 		printf("Flush inode blocks\n");
-	if (icachebp != NULL)
+	if (icachebp != NULL) {
 		brelse(icachebp);
+		icachebp = NULL;
+	}
 	TAILQ_FOREACH_REVERSE_SAFE(bp, &bufqueuehd, bufqueue, b_list, nbp) {
 		if (debug && bp->b_refcnt != 0) {
 			prtbuf("ckfini: clearing in-use buffer", bp);
@@ -686,7 +688,6 @@ ckfini(int markclean)
 		sbdirty();
 		flush(fswritefd, &sblk);
 	}
-	pdirbp = (struct bufarea *)0;
 	if (cursnapshot == 0 && sblock.fs_clean != markclean) {
 		if ((sblock.fs_clean = markclean) != 0) {
 			sblock.fs_flags &= ~(FS_UNCLEAN | FS_NEEDSFSCK);
@@ -711,6 +712,32 @@ ckfini(int markclean)
 			rerun = 1;
 		}
 	}
+	/*
+	 * Free allocated tracking structures.
+	 */
+	if (blockmap != NULL)
+		free(blockmap);
+	blockmap = NULL;
+	if (inostathead != NULL) {
+		for (cg = 0; cg < sblock.fs_ncg; cg++)
+			if (inostathead[cg].il_stat != NULL)
+				free((char *)inostathead[cg].il_stat);
+		free(inostathead);
+	}
+	inostathead = NULL;
+	if (inpsort != NULL)
+		free(inpsort);
+	inpsort = NULL;
+	if (inphead != NULL) {
+		for (i = 0; i < dirhash; i++) {
+			for (inp = inphead[i]; inp != NULL; inp = ninp) {
+				ninp = inp->i_nexthash;
+				free(inp);
+			}
+		}
+		free(inphead);
+	}
+	inphead = NULL;
 	finalIOstats();
 	(void)close(fsreadfd);
 	(void)close(fswritefd);
