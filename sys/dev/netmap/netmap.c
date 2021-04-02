@@ -193,7 +193,7 @@ ports attached to the switch)
  * 	      always attached to a bridge.
  * 	      Persistent VALE ports must must be created separately, and i
  * 	      then attached like normal NICs. The NIOCREGIF we are examining
- * 	      will find them only if they had previosly been created and
+ * 	      will find them only if they had previously been created and
  * 	      attached (see VALE_CTL below).
  *
  * 	- netmap_pipe_adapter 	      [netmap_pipe.c]
@@ -977,7 +977,7 @@ static void
 netmap_mem_drop(struct netmap_adapter *na)
 {
 	int last = netmap_mem_deref(na->nm_mem, na);
-	/* if the native allocator had been overrided on regif,
+	/* if the native allocator had been overridden on regif,
 	 * restore it now and drop the temporary one
 	 */
 	if (last && na->nm_mem_prev) {
@@ -1057,7 +1057,7 @@ netmap_do_unregif(struct netmap_priv_d *priv)
 		}
 	}
 
-	/* possibily decrement counter of tx_si/rx_si users */
+	/* possibly decrement counter of tx_si/rx_si users */
 	netmap_unset_ringid(priv);
 	/* delete the nifp */
 	netmap_mem_if_delete(na, priv->np_nifp);
@@ -1139,7 +1139,7 @@ netmap_dtor(void *data)
  *   they will be forwarded to the hw TX rings, saving the application
  *   from doing the same task in user-space.
  *
- * Transparent fowarding can be enabled per-ring, by setting the NR_FORWARD
+ * Transparent forwarding can be enabled per-ring, by setting the NR_FORWARD
  * flag, or globally with the netmap_fwd sysctl.
  *
  * The transfer NIC --> host is relatively easy, just encapsulate
@@ -1603,7 +1603,7 @@ netmap_get_na(struct nmreq_header *hdr,
 	netmap_adapter_get(ret);
 
 	/*
-	 * if the adapter supports the host rings and it is not alread open,
+	 * if the adapter supports the host rings and it is not already open,
 	 * try to set the number of host rings as requested by the user
 	 */
 	if (((*na)->na_flags & NAF_HOST_RINGS) && (*na)->active_fds == 0) {
@@ -2027,7 +2027,7 @@ netmap_krings_get(struct netmap_priv_d *priv)
 			priv->np_qlast[NR_RX]);
 
 	/* first round: check that all the requested rings
-	 * are neither alread exclusively owned, nor we
+	 * are neither already exclusively owned, nor we
 	 * want exclusive ownership when they are already in use
 	 */
 	foreach_selected_ring(priv, t, i, kring) {
@@ -2502,7 +2502,7 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 		}
 
 		/* Make a kernel-space copy of the user-space nr_body.
-		 * For convenince, the nr_body pointer and the pointers
+		 * For convenience, the nr_body pointer and the pointers
 		 * in the options list will be replaced with their
 		 * kernel-space counterparts. The original pointers are
 		 * saved internally and later restored by nmreq_copyout
@@ -3092,7 +3092,7 @@ nmreq_opt_size_by_type(uint32_t nro_reqtype, uint64_t nro_size)
  * The list of options is copied and the pointers adjusted. The
  * original pointers are saved before the option they belonged.
  *
- * The option table has an entry for every availabe option.  Entries
+ * The option table has an entry for every available option.  Entries
  * for options that have not been passed contain NULL.
  *
  */

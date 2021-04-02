@@ -446,7 +446,7 @@ generic_mbuf_destructor(struct mbuf *m)
 	/*
 	 * First, clear the event mbuf.
 	 * In principle, the event 'm' should match the one stored
-	 * on ring 'r'. However we check it explicitely to stay
+	 * on ring 'r'. However we check it explicitly to stay
 	 * safe against lower layers (qdisc, driver, etc.) changing
 	 * MBUF_TXQ(m) under our feet. If the match is not found
 	 * on 'r', we try to see if it belongs to some other ring.

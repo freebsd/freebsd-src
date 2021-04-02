@@ -804,7 +804,7 @@ nm_bdg_ctl_polling_stop(struct netmap_adapter *na)
 	bps->configured = false;
 	nm_os_free(bps);
 	bna->na_polling_state = NULL;
-	/* reenable interrupts */
+	/* re-enable interrupts */
 	nma_intr_enable(bna->hwna, 1);
 	return 0;
 }

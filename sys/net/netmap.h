@@ -147,7 +147,7 @@
  *   netmap:foo*, or another registration should be done to open at least a
  *   NIC TX queue in netmap mode.
  *
- * + Netmap is not currently able to deal with intercepted trasmit mbufs which
+ * + Netmap is not currently able to deal with intercepted transmit mbufs which
  *   require offloadings like TSO, UFO, checksumming offloadings, etc. It is
  *   responsibility of the user to disable those offloadings (e.g. using
  *   ifconfig on FreeBSD or ethtool -K on Linux) for an interface that is being
@@ -479,7 +479,7 @@ struct netmap_if {
 
 /* Header common to all request options. */
 struct nmreq_option {
-	/* Pointer ot the next option. */
+	/* Pointer to the next option. */
 	uint64_t		nro_next;
 	/* Option type. */
 	uint32_t		nro_reqtype;

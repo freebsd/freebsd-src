@@ -283,7 +283,7 @@ struct nm_bridge;
 struct netmap_priv_d;
 struct nm_bdg_args;
 
-/* os-specific NM_SELINFO_T initialzation/destruction functions */
+/* os-specific NM_SELINFO_T initialization/destruction functions */
 int nm_os_selinfo_init(NM_SELINFO_T *, const char *name);
 void nm_os_selinfo_uninit(NM_SELINFO_T *);
 
@@ -466,7 +466,7 @@ struct netmap_kring {
 	struct netmap_adapter *na;
 
 	/* the adapter that wants to be notified when this kring has
-	 * new slots avaialable. This is usually the same as the above,
+	 * new slots available. This is usually the same as the above,
 	 * but wrappers may let it point to themselves
 	 */
 	struct netmap_adapter *notify_na;
@@ -660,7 +660,7 @@ struct nm_config_info {
 
 /*
  * default type for the magic field.
- * May be overriden in glue code.
+ * May be overridden in glue code.
  */
 #ifndef NM_OS_MAGIC
 #define NM_OS_MAGIC uint32_t
@@ -1611,7 +1611,7 @@ extern int netmap_debug;		/* for debugging */
 #define netmap_debug (0)
 #endif /* !CONFIG_NETMAP_DEBUG */
 enum {                                  /* debug flags */
-	NM_DEBUG_ON = 1,		/* generic debug messsages */
+	NM_DEBUG_ON = 1,		/* generic debug messages */
 	NM_DEBUG_HOST = 0x2,            /* debug host stack */
 	NM_DEBUG_RXSYNC = 0x10,         /* debug on rxsync/txsync */
 	NM_DEBUG_TXSYNC = 0x20,

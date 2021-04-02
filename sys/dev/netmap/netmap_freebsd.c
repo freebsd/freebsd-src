@@ -260,7 +260,7 @@ nm_os_csum_tcpudp_ipv4(struct nm_iphdr *iph, void *data,
 #ifdef INET
 	uint16_t pseudolen = datalen + iph->protocol;
 
-	/* Compute and insert the pseudo-header cheksum. */
+	/* Compute and insert the pseudo-header checksum. */
 	*check = in_pseudo(iph->saddr, iph->daddr,
 				 htobe16(pseudolen));
 	/* Compute the checksum on TCP/UDP header + payload

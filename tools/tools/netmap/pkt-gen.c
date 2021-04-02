@@ -3171,7 +3171,7 @@ main(int arc, char **argv)
 
 	if (g.virt_header) {
 		/* Set the virtio-net header length, since the user asked
-		 * for it explicitely. */
+		 * for it explicitly. */
 		set_vnet_hdr_len(&g);
 	} else {
 		/* Check whether the netmap port we opened requires us to send

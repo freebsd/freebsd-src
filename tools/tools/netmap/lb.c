@@ -498,7 +498,7 @@ init_groups(void)
  * when the need to drop arises, we roll it back to head.
  */
 struct morefrag {
-	uint16_t last_flag;	/* for intput rings */
+	uint16_t last_flag;	/* for input rings */
 	uint32_t last_hash;	/* for input rings */
 	uint32_t shadow_head;	/* for output rings */
 };

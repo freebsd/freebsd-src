@@ -57,7 +57,7 @@
  * of the object, and from there locate the offset from the beginning
  * of the region.
  *
- * The invididual allocators manage a pool of memory for objects of
+ * The individual allocators manage a pool of memory for objects of
  * the same size.
  * The pool is split into smaller clusters, whose size is a
  * multiple of the page size. The cluster size is chosen
@@ -70,7 +70,7 @@
  * Allocation scans the bitmap; this is done only on attach, so we are not
  * too worried about performance
  *
- * For each allocator we can define (thorugh sysctl) the size and
+ * For each allocator we can define (through sysctl) the size and
  * number of each object. Memory is allocated at the first use of a
  * netmap file descriptor, and can be freed when all such descriptors
  * have been released (including unmapping the memory).
