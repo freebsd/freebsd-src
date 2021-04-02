@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 2, 2012
+.Dd Apryl 3, 2021
 .Dt HWPMC 4
 .Os
 .Sh NAME
@@ -198,13 +198,6 @@ This modifier is valid only for a PMC being allocated in process-private
 mode.
 It signifies that the PMC will track hardware events for its
 target process and the target's current and future descendants.
-.It Dv PMC_F_KGMON
-This modifier is valid only for a PMC being allocated in system-wide
-sampling mode.
-It signifies that the PMC's sampling interrupt is to be used to drive
-kernel profiling via
-.Xr kgmon 8 .
-This functionality is currently unimplemented.
 .It Dv PMC_F_LOG_PROCCSW
 This modifier is valid only for a PMC being allocated in process-private
 mode.
@@ -764,7 +757,6 @@ operation is not being monitored by
 .Xr kenv 1 ,
 .Xr pmc 3 ,
 .Xr pmclog 3 ,
-.Xr kgmon 8 ,
 .Xr kldload 8 ,
 .Xr pmccontrol 8 ,
 .Xr pmcstat 8 ,

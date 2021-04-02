@@ -36,6 +36,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210403: remove kgmon(8)
+OLD_FILES+=usr/sbin/kgmon
+OLD_FILES+=usr/share/man/man8/kgmon.8.gz
+
 # 20210401: remove bt(4) man page
 OLD_FILES+=usr/share/man/man4/bt.4.gz
 
