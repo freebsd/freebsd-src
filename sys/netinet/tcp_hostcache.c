@@ -704,7 +704,6 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 		}
 		THC_UNLOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
 		sbuf_drain(&sb);
-		}
 	}
 #undef msec
 	error = sbuf_finish(&sb);
