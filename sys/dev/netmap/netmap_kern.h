@@ -832,7 +832,7 @@ struct netmap_adapter {
 	 *      current NETMAP_BUF_SIZE (b) of the memory region used by the
 	 *      adapter. We want the largest supported l such that o + l <= b.
 	 *      If m is known to be <= b - o, the callback may also choose the
-	 *      largest l <= b, ignoring the offset.  The buf_align field is
+	 *      largest l <= m, ignoring the offset.  The buf_align field is
 	 *      most important for TX rings when there are offsets.  The user
 	 *      will see this value in the ring->buf_align field.  Misaligned
 	 *      offsets will cause the corresponding packets to be silently
