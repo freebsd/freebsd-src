@@ -388,8 +388,12 @@ sbuf_drain(struct sbuf *s)
 {
 	int len;
 
-	KASSERT(s->s_len > 0, ("Shouldn't drain empty sbuf %p", s));
-	KASSERT(s->s_error == 0, ("Called %s with error on %p", __func__, s));
+	/*
+	 * Immediately return when no work to do,
+	 * or an error has already been accumulated.
+	 */
+	if ((s->s_len == 0) || (s->s_error != 0))
+		return(s->s_error);
 
 	if (SBUF_DODRAINTOEOR(s) && s->s_rec_off == 0)
 		return (s->s_error = EDEADLK);
