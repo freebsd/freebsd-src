@@ -294,7 +294,7 @@ struct nm_bridge;
 struct netmap_priv_d;
 struct nm_bdg_args;
 
-/* os-specific NM_SELINFO_T initialzation/destruction functions */
+/* os-specific NM_SELINFO_T initialization/destruction functions */
 int nm_os_selinfo_init(NM_SELINFO_T *, const char *name);
 void nm_os_selinfo_uninit(NM_SELINFO_T *);
 
@@ -485,7 +485,7 @@ struct netmap_kring {
 	struct netmap_adapter *na;
 
 	/* the adapter that wants to be notified when this kring has
-	 * new slots avaialable. This is usually the same as the above,
+	 * new slots available. This is usually the same as the above,
 	 * but wrappers may let it point to themselves
 	 */
 	struct netmap_adapter *notify_na;
@@ -562,7 +562,7 @@ struct netmap_kring {
 	 */
 	uint64_t hwbuf_len;
 
-	/* required aligment (in bytes) for the buffers used by this ring.
+	/* required alignment (in bytes) for the buffers used by this ring.
 	 * Netmap buffers are aligned to cachelines, which should suffice
 	 * for most NICs. If the user is passing offsets, though, we need
 	 * to check that the resulting buf address complies with any
@@ -570,7 +570,7 @@ struct netmap_kring {
 	 */
 	uint64_t buf_align;
 
-	/* harware specific logic for the selection of the hwbuf_len */
+	/* hardware specific logic for the selection of the hwbuf_len */
 	int (*nm_bufcfg)(struct netmap_kring *kring, uint64_t target);
 
 	int (*save_notify)(struct netmap_kring *kring, int flags);
@@ -709,7 +709,7 @@ struct nm_config_info {
 
 /*
  * default type for the magic field.
- * May be overriden in glue code.
+ * May be overridden in glue code.
  */
 #ifndef NM_OS_MAGIC
 #define NM_OS_MAGIC uint32_t
@@ -827,7 +827,7 @@ struct netmap_adapter {
 	 *      (l) and kring->buf_align fields. The l value is most important
 	 *      for RX rings, where we want to disallow writes outside of the
 	 *      netmap buffer. The l value must be computed taking into account
-	 *      the stipulated max_offset (o), possibily increased if there are
+	 *      the stipulated max_offset (o), possibly increased if there are
 	 *      alignment constraints, the maxframe (m), if known, and the
 	 *      current NETMAP_BUF_SIZE (b) of the memory region used by the
 	 *      adapter. We want the largest supported l such that o + l <= b.
@@ -1680,7 +1680,7 @@ extern int netmap_debug;		/* for debugging */
 #define netmap_debug (0)
 #endif /* !CONFIG_NETMAP_DEBUG */
 enum {                                  /* debug flags */
-	NM_DEBUG_ON = 1,		/* generic debug messsages */
+	NM_DEBUG_ON = 1,		/* generic debug messages */
 	NM_DEBUG_HOST = 0x2,            /* debug host stack */
 	NM_DEBUG_RXSYNC = 0x10,         /* debug on rxsync/txsync */
 	NM_DEBUG_TXSYNC = 0x20,
