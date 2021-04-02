@@ -622,7 +622,6 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 	const int linesize = 128;
 	struct sbuf sb;
 	int i, error, len;
-	bool do_drain = false;
 	struct hc_metrics *hc_entry;
 	char ip4buf[INET_ADDRSTRLEN];
 #ifdef INET6
@@ -680,16 +679,9 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 			    hc_entry->rmx_hits,
 			    hc_entry->rmx_updates,
 			    hc_entry->rmx_expire);
-			do_drain = true;
 		}
 		THC_UNLOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
-		/* Need to track if sbuf has data, to avoid
-		 * a KASSERT when calling sbuf_drain.
-		 */
-		if (do_drain) {
-			sbuf_drain(&sb);
-			do_drain = false;
-		}
+		sbuf_drain(&sb);
 	}
 #undef msec
 	error = sbuf_finish(&sb);
