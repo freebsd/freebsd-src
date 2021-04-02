@@ -10,5 +10,6 @@ PLAIN_TESTS_C+=	ctrl-api-test
 
 CFLAGS+=	-I${SRCTOP}/tests
 LIBADD+= 	pthread
+LIBADD+= 	netmap
 
 .include <bsd.test.mk>
