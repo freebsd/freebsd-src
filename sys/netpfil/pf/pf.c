@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/md5.h>
 #include <sys/random.h>
 #include <sys/refcount.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
@@ -111,6 +112,15 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 #define	DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
+
+SDT_PROVIDER_DEFINE(pf);
+SDT_PROBE_DEFINE4(pf, ip, test, done, "int", "int", "struct pf_krule *",
+    "struct pf_state *");
+SDT_PROBE_DEFINE4(pf, ip, test6, done, "int", "int", "struct pf_krule *",
+    "struct pf_state *");
+SDT_PROBE_DEFINE5(pf, ip, state, lookup, "struct pfi_kkif *",
+    "struct pf_state_key_cmp *", "int", "struct pf_pdesc *",
+    "struct pf_state *");
 
 /*
  * Global variables
@@ -326,6 +336,7 @@ VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 #define	STATE_LOOKUP(i, k, d, s, pd)					\
 	do {								\
 		(s) = pf_find_state((i), (k), (d));			\
+		SDT_PROBE5(pf, ip, state, lookup, i, k, d, pd, (s));	\
 		if ((s) == NULL)					\
 			return (PF_DROP);				\
 		if (PACKET_LOOPED(pd))					\
@@ -6318,6 +6329,8 @@ done:
 	if (s)
 		PF_STATE_UNLOCK(s);
 
+	SDT_PROBE4(pf, ip, test, done, action, reason, r, s);
+
 	return (action);
 }
 #endif /* INET */
@@ -6725,6 +6738,8 @@ done:
 	if (action == PF_PASS && *m0 && (pflags & PFIL_FWD) &&
 	    (mtag = m_tag_find(m, PF_REASSEMBLED, NULL)) != NULL)
 		action = pf_refragment6(ifp, m0, mtag);
+
+	SDT_PROBE4(pf, ip, test6, done, action, reason, r, s);
 
 	return (action);
 }
