@@ -55,7 +55,7 @@
  * To compute the next index in a circular ring you can use
  *	i = nm_ring_next(ring, i);
  *
- * To ease porting apps from pcap to netmap we supply a few fuctions
+ * To ease porting apps from pcap to netmap we supply a few functions
  * that can be called to open, close, read and write on netmap in a way
  * similar to libpcap. Note that the read/write function depend on
  * an ioctl()/select()/poll() being issued to refill rings or push
@@ -133,7 +133,7 @@
 		((offset) & (ring)->offset_mask); } while (0)
 
 /* obtain the start of the buffer pointed to by  a ring's slot, taking the
- * offset field into accout
+ * offset field into account
  */
 #define NETMAP_BUF_OFFSET(ring, slot)			\
 	(NETMAP_BUF(ring, (slot)->buf_idx) + NETMAP_ROFFSET(ring, slot))
@@ -322,7 +322,7 @@ typedef void (*nm_cb_t)(u_char *, const struct nm_pkthdr *, const u_char *d);
  * nm_open() opens a file descriptor, binds to a port and maps memory.
  *
  * ifname	(netmap:foo or vale:foo) is the port name
- *		a suffix can indicate the follwing:
+ *		a suffix can indicate the following:
  *		^		bind the host (sw) ring pair
  *		*		bind host and NIC ring pairs
  *		-NN		bind individual NIC ring pair
@@ -701,7 +701,7 @@ nm_parse(const char *ifname, struct nm_desc *d, char *err)
 				nr_flags = NR_REG_PIPE_MASTER;
 				p_state = P_GETNUM;
 				break;
-			case '}': /* pipe (slave endoint) */
+			case '}': /* pipe (slave endpoint) */
 				nr_flags = NR_REG_PIPE_SLAVE;
 				p_state = P_GETNUM;
 				break;
@@ -991,11 +991,11 @@ nm_close(struct nm_desc *d)
 	return 0;
 }
 
+
 static int
 nm_mmap(struct nm_desc *d, const struct nm_desc *parent)
 {
-	if (d->done_mmap)
-		return 0;
+	//XXX TODO: check if mmap is already done
 
 	if (IS_NETMAP_DESC(parent) && parent->mem &&
 	    parent->req.nr_arg2 == d->req.nr_arg2) {

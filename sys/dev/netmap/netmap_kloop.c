@@ -222,7 +222,7 @@ netmap_sync_kloop_tx_ring(const struct sync_kloop_ring_args *a)
 
 		if (unlikely(kring->nm_sync(kring, shadow_ring.flags))) {
 			if (!a->busy_wait) {
-				/* Reenable notifications. */
+				/* Re-enable notifications. */
 				csb_ktoa_kick_enable(csb_ktoa, 1);
 			}
 			nm_prerr("txsync() failed");
@@ -267,7 +267,7 @@ netmap_sync_kloop_tx_ring(const struct sync_kloop_ring_args *a)
 			 * go to sleep, waiting for a kick from the application when new
 			 * new slots are ready for transmission.
 			 */
-			/* Reenable notifications. */
+			/* Re-enable notifications. */
 			csb_ktoa_kick_enable(csb_ktoa, 1);
 			/* Double check, with store-load memory barrier. */
 			nm_stld_barrier();
@@ -356,7 +356,7 @@ netmap_sync_kloop_rx_ring(const struct sync_kloop_ring_args *a)
 
 		if (unlikely(kring->nm_sync(kring, shadow_ring.flags))) {
 			if (!a->busy_wait) {
-				/* Reenable notifications. */
+				/* Re-enable notifications. */
 				csb_ktoa_kick_enable(csb_ktoa, 1);
 			}
 			nm_prerr("rxsync() failed");
@@ -402,7 +402,7 @@ netmap_sync_kloop_rx_ring(const struct sync_kloop_ring_args *a)
 			 * go to sleep, waiting for a kick from the application when new receive
 			 * slots are available.
 			 */
-			/* Reenable notifications. */
+			/* Re-enable notifications. */
 			csb_ktoa_kick_enable(csb_ktoa, 1);
 			/* Double check, with store-load memory barrier. */
 			nm_stld_barrier();
@@ -1000,7 +1000,7 @@ netmap_pt_guest_txsync(struct nm_csb_atok *atok, struct nm_csb_ktoa *ktoa,
 	 * space is available.
          */
 	if (nm_kr_wouldblock(kring) && !(kring->nr_kflags & NKR_NOINTR)) {
-		/* Reenable notifications. */
+		/* Re-enable notifications. */
 		atok->appl_need_kick = 1;
                 /* Double check, with store-load memory barrier. */
 		nm_stld_barrier();
@@ -1061,7 +1061,7 @@ netmap_pt_guest_rxsync(struct nm_csb_atok *atok, struct nm_csb_ktoa *ktoa,
 	 * completed.
          */
 	if (nm_kr_wouldblock(kring) && !(kring->nr_kflags & NKR_NOINTR)) {
-		/* Reenable notifications. */
+		/* Re-enable notifications. */
                 atok->appl_need_kick = 1;
                 /* Double check, with store-load memory barrier. */
 		nm_stld_barrier();

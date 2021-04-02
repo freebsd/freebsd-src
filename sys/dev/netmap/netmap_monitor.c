@@ -483,7 +483,7 @@ netmap_monitor_stop(struct netmap_adapter *na)
 					netmap_adapter_put(next->priv.np_na); /* nop if null */
 					next->priv.np_na = NULL;
 				}
-				/* orhpan the zmon list */
+				/* orphan the zmon list */
 				if (z->next != NULL)
 					z->next->zmon_list[t].prev = NULL;
 				z->next = NULL;
@@ -601,7 +601,7 @@ netmap_zmon_parent_sync(struct netmap_kring *kring, int flags, enum txrx tx)
 	mring = mkring->ring;
 	mlim = mkring->nkr_num_slots - 1;
 
-	/* get the relased slots (rel_slots) */
+	/* get the released slots (rel_slots) */
 	if (tx == NR_TX) {
 		beg = kring->nr_hwtail + 1;
 		error = kring->mon_sync(kring, flags);

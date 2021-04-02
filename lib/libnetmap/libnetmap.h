@@ -418,7 +418,7 @@ struct nmreq_pools_info* nmport_extmem_getinfo(struct nmport_d *d);
  * @initial	the initial offset for all the slots
  * @maxoff	the maximum offset
  * @bits	the number of bits of slot->ptr to use for the offsets
- * @mingap	the minimum gap betwen offsets (in shared buffers)
+ * @mingap	the minimum gap between offsets (in shared buffers)
  *
  * With this option the lower @bits bits of the ptr field in the netmap_slot
  * can be used to specify an offset into the buffer.  All offsets will be set
@@ -440,7 +440,7 @@ struct nmreq_pools_info* nmport_extmem_getinfo(struct nmport_d *d);
  * starting o bytes in the buffer. Note that the address of the packet must
  * comply with any alignment constraints that the port may have, or the result
  * will be undefined. The user may read the alignment constraint in the new
- * ring->buf_align field.  It is also possibile that empty slots already come
+ * ring->buf_align field.  It is also possible that empty slots already come
  * with a non-zero offset o specified in the offset field. In this case, the
  * user will have to write the packet at an offset o' >= o.
  *
