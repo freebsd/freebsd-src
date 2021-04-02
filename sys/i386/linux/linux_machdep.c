@@ -292,7 +292,7 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 			idx = 3;
 		}
 
-		/* this doesnt happen in practice */
+		/* this doesn't happen in practice */
 		if (idx == 6) {
 			/* we might copy out the entry_number as 3 */
 			info.entry_number = 3;
@@ -491,7 +491,7 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 }
 
 /*
- * Linux has two extra args, restart and oldmask.  We dont use these,
+ * Linux has two extra args, restart and oldmask.  We don't use these,
  * but it seems that "restart" is actually a context pointer that
  * enables the signal to happen with a different register set.
  */
@@ -582,7 +582,7 @@ linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args
 	/*
 	 * Semantics of Linux version: every thread in the system has array of
 	 * 3 tls descriptors. 1st is GLIBC TLS, 2nd is WINE, 3rd unknown. This
-	 * syscall loads one of the selected tls decriptors with a value and
+	 * syscall loads one of the selected tls descriptors with a value and
 	 * also loads GDT descriptors 6, 7 and 8 with the content of the
 	 * per-thread descriptors.
 	 *

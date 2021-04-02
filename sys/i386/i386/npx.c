@@ -604,7 +604,7 @@ npxformat(void)
  *
  * Multiple bits may be set if the user process modifies the control
  * word while a status word bit is already set.  While this is a sign
- * of bad coding, we have no choise than to narrow them down to one
+ * of bad coding, we have no choice than to narrow them down to one
  * bit, since we must not send a trapcode that is not exactly one of
  * the FPE_ macros.
  *
