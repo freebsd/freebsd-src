@@ -128,7 +128,6 @@ fsckinit(void)
 	bzero(totalreadtime, sizeof(struct timespec) * BT_NUMBUFTYPES);
 	bzero(&startprog, sizeof(struct timespec));
 	bzero(&sblk, sizeof(struct bufarea));
-	pdirbp = NULL;
 	cursnapshot = 0;
 	listmax = numdirs = dirhash = inplast = 0;
 	countdirs = 0;
@@ -159,7 +158,6 @@ fsckinit(void)
 	fsreadfd = 0;
 	fswritefd = 0;
 	maxfsblock = 0;
-	blockmap = NULL;
 	maxino = 0;
 	lfdir = 0;
 	lfname = "lost+found";

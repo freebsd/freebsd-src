@@ -243,7 +243,6 @@ checkfilesys(char *filesys)
 	char errmsg[255];
 	int ofsmodified;
 	int iovlen;
-	int cylno;
 	intmax_t blks, files;
 	size_t size;
 
@@ -627,11 +626,6 @@ checkfilesys(char *filesys)
 		resolved = 0;
 	ckfini(resolved);
 
-	for (cylno = 0; cylno < sblock.fs_ncg; cylno++)
-		if (inostathead[cylno].il_stat != NULL)
-			free((char *)inostathead[cylno].il_stat);
-	free((char *)inostathead);
-	inostathead = NULL;
 	if (fsmodified && !preen)
 		printf("\n***** FILE SYSTEM WAS MODIFIED *****\n");
 	if (rerun) {
