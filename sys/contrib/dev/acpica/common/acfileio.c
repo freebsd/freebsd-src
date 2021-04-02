@@ -559,6 +559,9 @@ AcValidateTableHeader (
 
     if (Actual < sizeof (ACPI_TABLE_HEADER))
     {
+        fprintf (stderr,
+            "Could not read entire table header: Actual %u, Requested %u\n",
+            (UINT32) Actual, (UINT32) sizeof (ACPI_TABLE_HEADER));
         return (AE_ERROR);
     }
 

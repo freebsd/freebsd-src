@@ -99,7 +99,7 @@ __FBSDID("$FreeBSD$");
  * In the tx loop, we aggregate traffic in batches to make all operations
  * faster. The batch size is bridge_batch.
  */
-#define NM_BDG_MAXRINGS		16	/* XXX unclear how many. */
+#define NM_BDG_MAXRINGS		16	/* XXX unclear how many (must be a pow of 2). */
 #define NM_BDG_MAXSLOTS		4096	/* XXX same as above */
 #define NM_BRIDGE_RINGSIZE	1024	/* in the device */
 #define NM_BDG_BATCH		1024	/* entries in the forwarding buffer */
@@ -154,8 +154,9 @@ struct netmap_bdg_ops vale_bdg_ops = {
  * with other odd sizes. We assume there is enough room
  * in the source and destination buffers.
  *
- * XXX only for multiples of 64 bytes, non overlapped.
+ * XXX only for multiples of NM_BUF_ALIGN bytes, non overlapped.
  */
+
 static inline void
 pkt_copy(void *_src, void *_dst, int l)
 {
@@ -165,7 +166,8 @@ pkt_copy(void *_src, void *_dst, int l)
 		memcpy(dst, src, l);
 		return;
 	}
-	for (; likely(l > 0); l-=64) {
+	for (; likely(l > 0); l -= NM_BUF_ALIGN) {
+		/* XXX NM_BUF_ALIGN/sizeof(uint64_t) statements */
 		*dst++ = *src++;
 		*dst++ = *src++;
 		*dst++ = *src++;
@@ -387,144 +389,6 @@ netmap_vale_list(struct nmreq_header *hdr)
 	return error;
 }
 
-/* Process NETMAP_REQ_VALE_ATTACH.
- */
-int
-netmap_vale_attach(struct nmreq_header *hdr, void *auth_token)
-{
-	struct nmreq_vale_attach *req =
-		(struct nmreq_vale_attach *)(uintptr_t)hdr->nr_body;
-	struct netmap_vp_adapter * vpna;
-	struct netmap_adapter *na = NULL;
-	struct netmap_mem_d *nmd = NULL;
-	struct nm_bridge *b = NULL;
-	int error;
-
-	NMG_LOCK();
-	/* permission check for modified bridges */
-	b = nm_find_bridge(hdr->nr_name, 0 /* don't create */, NULL);
-	if (b && !nm_bdg_valid_auth_token(b, auth_token)) {
-		error = EACCES;
-		goto unlock_exit;
-	}
-
-	if (req->reg.nr_mem_id) {
-		nmd = netmap_mem_find(req->reg.nr_mem_id);
-		if (nmd == NULL) {
-			error = EINVAL;
-			goto unlock_exit;
-		}
-	}
-
-	/* check for existing one */
-	error = netmap_get_vale_na(hdr, &na, nmd, 0);
-	if (na) {
-		error = EBUSY;
-		goto unref_exit;
-	}
-	error = netmap_get_vale_na(hdr, &na,
-				nmd, 1 /* create if not exists */);
-	if (error) { /* no device */
-		goto unlock_exit;
-	}
-
-	if (na == NULL) { /* VALE prefix missing */
-		error = EINVAL;
-		goto unlock_exit;
-	}
-
-	if (NETMAP_OWNED_BY_ANY(na)) {
-		error = EBUSY;
-		goto unref_exit;
-	}
-
-	if (na->nm_bdg_ctl) {
-		/* nop for VALE ports. The bwrap needs to put the hwna
-		 * in netmap mode (see netmap_bwrap_bdg_ctl)
-		 */
-		error = na->nm_bdg_ctl(hdr, na);
-		if (error)
-			goto unref_exit;
-		nm_prdis("registered %s to netmap-mode", na->name);
-	}
-	vpna = (struct netmap_vp_adapter *)na;
-	req->port_index = vpna->bdg_port;
-
-	if (nmd)
-		netmap_mem_put(nmd);
-
-	NMG_UNLOCK();
-	return 0;
-
-unref_exit:
-	netmap_adapter_put(na);
-unlock_exit:
-	if (nmd)
-		netmap_mem_put(nmd);
-
-	NMG_UNLOCK();
-	return error;
-}
-
-/* Process NETMAP_REQ_VALE_DETACH.
- */
-int
-netmap_vale_detach(struct nmreq_header *hdr, void *auth_token)
-{
-	struct nmreq_vale_detach *nmreq_det = (void *)(uintptr_t)hdr->nr_body;
-	struct netmap_vp_adapter *vpna;
-	struct netmap_adapter *na;
-	struct nm_bridge *b = NULL;
-	int error;
-
-	NMG_LOCK();
-	/* permission check for modified bridges */
-	b = nm_find_bridge(hdr->nr_name, 0 /* don't create */, NULL);
-	if (b && !nm_bdg_valid_auth_token(b, auth_token)) {
-		error = EACCES;
-		goto unlock_exit;
-	}
-
-	error = netmap_get_vale_na(hdr, &na, NULL, 0 /* don't create */);
-	if (error) { /* no device, or another bridge or user owns the device */
-		goto unlock_exit;
-	}
-
-	if (na == NULL) { /* VALE prefix missing */
-		error = EINVAL;
-		goto unlock_exit;
-	} else if (nm_is_bwrap(na) &&
-		   ((struct netmap_bwrap_adapter *)na)->na_polling_state) {
-		/* Don't detach a NIC with polling */
-		error = EBUSY;
-		goto unref_exit;
-	}
-
-	vpna = (struct netmap_vp_adapter *)na;
-	if (na->na_vp != vpna) {
-		/* trying to detach first attach of VALE persistent port attached
-		 * to 2 bridges
-		 */
-		error = EBUSY;
-		goto unref_exit;
-	}
-	nmreq_det->port_index = vpna->bdg_port;
-
-	if (na->nm_bdg_ctl) {
-		/* remove the port from bridge. The bwrap
-		 * also needs to put the hwna in normal mode
-		 */
-		error = na->nm_bdg_ctl(hdr, na);
-	}
-
-unref_exit:
-	netmap_adapter_put(na);
-unlock_exit:
-	NMG_UNLOCK();
-	return error;
-
-}
-
 
 /* nm_dtor callback for ephemeral VALE ports */
 static void
@@ -651,8 +515,9 @@ nm_vale_preflush(struct netmap_kring *kring, u_int end)
 		/* this slot goes into a list so initialize the link field */
 		ft[ft_i].ft_next = NM_FT_NULL;
 		buf = ft[ft_i].ft_buf = (slot->flags & NS_INDIRECT) ?
-			(void *)(uintptr_t)slot->ptr : NMB(&na->up, slot);
-		if (unlikely(buf == NULL)) {
+			(void *)(uintptr_t)slot->ptr : NMB_O(kring, slot);
+		if (unlikely(buf == NULL ||
+		     slot->len > NETMAP_BUF_SIZE(&na->up) - nm_get_offset(kring, slot))) {
 			nm_prlim(5, "NULL %s buffer pointer from %s slot %d len %d",
 				(slot->flags & NS_INDIRECT) ? "INDIRECT" : "DIRECT",
 				kring->name, j, ft[ft_i].ft_len);
@@ -713,7 +578,7 @@ do {                                                                    \
 static __inline uint32_t
 nm_vale_rthash(const uint8_t *addr)
 {
-	uint32_t a = 0x9e3779b9, b = 0x9e3779b9, c = 0; // hask key
+	uint32_t a = 0x9e3779b9, b = 0x9e3779b9, c = 0; // hash key
 
 	b += addr[5] << 8;
 	b += addr[4];
@@ -939,9 +804,6 @@ nm_vale_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 	/*
 	 * Broadcast traffic goes to ring 0 on all destinations.
 	 * So we need to add these rings to the list of ports to scan.
-	 * XXX at the moment we scan all NM_BDG_MAXPORTS ports, which is
-	 * expensive. We should keep a compact list of active destinations
-	 * so we could shorten this loop.
 	 */
 	brddst = dst_ents + NM_BDG_BROADCAST * NM_BDG_MAXRINGS;
 	if (brddst->bq_head != NM_FT_NULL) {
@@ -998,7 +860,7 @@ nm_vale_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 		next = d->bq_head;
 		/* we need to reserve this many slots. If fewer are
 		 * available, some packets will be dropped.
-		 * Packets may have multiple fragments, so we may not use
+		 * Packets may have multiple fragments, so
 		 * there is a chance that we may not use all of the slots
 		 * we have claimed, so we will need to handle the leftover
 		 * ones when we regain the lock.
@@ -1108,21 +970,36 @@ retry:
 				do {
 					char *dst, *src = ft_p->ft_buf;
 					size_t copy_len = ft_p->ft_len, dst_len = copy_len;
+					uintptr_t src_cb;
+					uint64_t dstoff, dstoff_cb;
+					int src_co, dst_co;
+					const uintptr_t mask = NM_BUF_ALIGN - 1;
 
 					slot = &ring->slot[j];
 					dst = NMB(&dst_na->up, slot);
+					dstoff = nm_get_offset(kring, slot);
+					dstoff_cb = dstoff & ~mask;
+					src_cb = ((uintptr_t)src) & ~mask;
+					src_co = ((uintptr_t)src) & mask;
+					dst_co = ((uintptr_t)(dst + dstoff)) & mask;
+					if (dst_co < src_co) {
+						dstoff_cb += NM_BUF_ALIGN;
+					}
+					dstoff = dstoff_cb + src_co;
+					copy_len += src_co;
 
 					nm_prdis("send [%d] %d(%d) bytes at %s:%d",
 							i, (int)copy_len, (int)dst_len,
-							dst_na->up.name, j);
-					/* round to a multiple of 64 */
-					copy_len = (copy_len + 63) & ~63;
+							NM_IFPNAME(dst_ifp), j);
 
-					if (unlikely(copy_len > NETMAP_BUF_SIZE(&dst_na->up) ||
-						     copy_len > NETMAP_BUF_SIZE(&na->up))) {
-						nm_prlim(5, "invalid len %d, down to 64", (int)copy_len);
-						copy_len = dst_len = 64; // XXX
+					if (unlikely(dstoff > NETMAP_BUF_SIZE(&dst_na->up) ||
+				                     dst_len > NETMAP_BUF_SIZE(&dst_na->up) - dstoff)) {
+						nm_prlim(5, "dropping packet/fragment of len %zu, dest offset %llu",
+								dst_len, (unsigned long long)dstoff);
+						copy_len = dst_len = 0;
+						dstoff = nm_get_offset(kring, slot);
 					}
+
 					if (ft_p->ft_flags & NS_INDIRECT) {
 						if (copyin(src, dst, copy_len)) {
 							// invalid user pointer, pretend len is 0
@@ -1130,10 +1007,11 @@ retry:
 						}
 					} else {
 						//memcpy(dst, src, copy_len);
-						pkt_copy(src, dst, (int)copy_len);
+						pkt_copy((char *)src_cb, dst + dstoff_cb, (int)copy_len);
 					}
 					slot->len = dst_len;
 					slot->flags = (cnt << 8)| NS_MOREFRAG;
+					nm_write_offset(kring, slot, dstoff);
 					j = nm_next(j, lim);
 					needed--;
 					ft_p++;
@@ -1312,7 +1190,7 @@ netmap_vale_vp_create(struct nmreq_header *hdr, struct ifnet *ifp,
 	if (netmap_verbose)
 		nm_prinf("max frame size %u", vpna->mfs);
 
-	na->na_flags |= NAF_BDG_MAYSLEEP;
+	na->na_flags |= (NAF_BDG_MAYSLEEP | NAF_OFFSETS);
 	/* persistent VALE ports look like hw devices
 	 * with a native netmap adapter
 	 */
@@ -1409,6 +1287,7 @@ netmap_vale_bwrap_attach(const char *nr_name, struct netmap_adapter *hwna)
 	na->nm_krings_create = netmap_vale_bwrap_krings_create;
 	na->nm_krings_delete = netmap_vale_bwrap_krings_delete;
 	na->nm_notify = netmap_bwrap_notify;
+	bna->nm_intr_notify = netmap_bwrap_intr_notify;
 	bna->up.retry = 1; /* XXX maybe this should depend on the hwna */
 	/* Set the mfs, needed on the VALE mismatch datapath. */
 	bna->up.mfs = NM_BDG_MFS_DEFAULT;
@@ -1490,7 +1369,7 @@ nm_vi_destroy(const char *name)
 		goto err;
 	}
 
-	/* also make sure that nobody is using the inferface */
+	/* also make sure that nobody is using the interface */
 	if (NETMAP_OWNED_BY_ANY(&vpna->up) ||
 	    vpna->up.na_refcount > 1 /* any ref besides the one in nm_vi_create()? */) {
 		error = EBUSY;

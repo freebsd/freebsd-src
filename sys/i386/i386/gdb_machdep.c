@@ -36,13 +36,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/signal.h>
 
+#include <machine/endian.h>
+#include <machine/frame.h>
 #include <machine/gdb_machdep.h>
 #include <machine/pcb.h>
+#include <machine/reg.h>
 #include <machine/trap.h>
-#include <machine/frame.h>
-#include <machine/endian.h>
 
 #include <gdb/gdb.h>
+#include <gdb/gdb_int.h>
 
 void *
 gdb_cpu_getreg(int regnum, size_t *regsz)
@@ -113,4 +115,38 @@ gdb_cpu_signal(int type, int code)
 	case T_XMMFLT: return (SIGFPE);
 	}
 	return (SIGEMT);
+}
+
+void
+gdb_cpu_stop_reason(int type, int code)
+{
+	uintmax_t val;
+
+	val = 0;
+	if (type == T_TRCTRAP) {
+		/* NB: 'code' contains the value of dr6 at the trap. */
+		if ((code & DBREG_DR6_B(0)) != 0) {
+			val = rdr0();
+		}
+		if ((code & DBREG_DR6_B(1)) != 0) {
+			val = rdr1();
+		}
+		if ((code & DBREG_DR6_B(2)) != 0) {
+			val = rdr2();
+		}
+		if ((code & DBREG_DR6_B(3)) != 0) {
+			val = rdr3();
+		}
+
+		/*
+		 * TODO: validate the bits in DR7 to differentiate between a
+		 * watchpoint trap and a hardware breakpoint trap (currently
+		 * unsupported).
+		 */
+		if (val != 0) {
+			gdb_tx_str("watch:");
+			gdb_tx_varhex(val);
+			gdb_tx_char(';');
+		}
+	}
 }

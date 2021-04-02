@@ -264,7 +264,7 @@ nm_os_csum_tcpudp_ipv4(struct nm_iphdr *iph, void *data,
 #ifdef INET
 	uint16_t pseudolen = datalen + iph->protocol;
 
-	/* Compute and insert the pseudo-header cheksum. */
+	/* Compute and insert the pseudo-header checksum. */
 	*check = in_pseudo(iph->saddr, iph->daddr,
 				 htobe16(pseudolen));
 	/* Compute the checksum on TCP/UDP header + payload
@@ -1057,7 +1057,7 @@ netmap_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
 		vm_page_replace(page, object, (*mres)->pindex, *mres);
 		*mres = page;
 	}
-	vm_page_valid(page);
+	page->valid = VM_PAGE_BITS_ALL;
 	return (VM_PAGER_OK);
 }
 

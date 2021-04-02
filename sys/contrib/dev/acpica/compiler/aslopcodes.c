@@ -676,7 +676,7 @@ OpcDoUnicode (
  *                      Bits 4-0    - 3rd character of mfg code
  *              Byte 2: Bits 7-4    - 1st hex digit of product number
  *                      Bits 3-0    - 2nd hex digit of product number
- *              Byte 3: Bits 7-4    - 3st hex digit of product number
+ *              Byte 3: Bits 7-4    - 3rd hex digit of product number
  *                      Bits 3-0    - Hex digit of the revision number
  *
  ******************************************************************************/

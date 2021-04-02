@@ -603,6 +603,106 @@ AcpiDmDumpTpm2 (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDmDumpViot
+ *
+ * PARAMETERS:  Table               - A VIOT table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a VIOT
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpViot (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    ACPI_TABLE_VIOT         *Viot;
+    ACPI_VIOT_HEADER        *ViotHeader;
+    UINT16                  Length;
+    UINT16                  Offset;
+    ACPI_DMTABLE_INFO       *InfoTable;
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoViot);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    Viot = ACPI_CAST_PTR (ACPI_TABLE_VIOT, Table);
+
+    Offset = Viot->NodeOffset;
+    while (Offset < Table->Length)
+    {
+        /* Common subtable header */
+        ViotHeader = ACPI_ADD_PTR (ACPI_VIOT_HEADER, Table, Offset);
+        AcpiOsPrintf ("\n");
+
+        Length = sizeof (ACPI_VIOT_HEADER);
+        Status = AcpiDmDumpTable (Table->Length, Offset, ViotHeader, Length,
+            AcpiDmTableInfoViotHeader);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        Length = ViotHeader->Length;
+        switch (ViotHeader->Type)
+        {
+        case ACPI_VIOT_NODE_PCI_RANGE:
+
+            InfoTable = AcpiDmTableInfoViot1;
+            break;
+
+        case ACPI_VIOT_NODE_MMIO:
+
+            InfoTable = AcpiDmTableInfoViot2;
+            break;
+
+        case ACPI_VIOT_NODE_VIRTIO_IOMMU_PCI:
+
+            InfoTable = AcpiDmTableInfoViot3;
+            break;
+
+        case ACPI_VIOT_NODE_VIRTIO_IOMMU_MMIO:
+
+            InfoTable = AcpiDmTableInfoViot4;
+            break;
+
+        default:
+
+            AcpiOsPrintf ("\n*** Unknown VIOT node type 0x%X\n",
+                ViotHeader->Type);
+
+            /* Attempt to continue */
+
+            if (!Length)
+            {
+                AcpiOsPrintf ("Invalid zero length VIOT node\n");
+                return;
+            }
+            goto NextSubtable;
+        }
+
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Table->Length, Offset, ViotHeader, Length,
+            InfoTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+NextSubtable:
+        Offset += Length;
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDmDumpWdat
  *
  * PARAMETERS:  Table               - A WDAT table

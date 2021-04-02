@@ -371,6 +371,18 @@ vq_kick_disable(struct vqueue_info *vq)
 }
 
 struct iovec;
+
+/*
+ * Request description returned by vq_getchain.
+ *
+ * Writable iovecs start at iov[req.readable].
+ */
+struct vi_req {
+	int readable;		/* num of readable iovecs */
+	int writable;		/* num of writable iovecs */
+	unsigned int idx;	/* ring index */
+};
+
 void	vi_softc_linkup(struct virtio_softc *vs, struct virtio_consts *vc,
 			void *dev_softc, struct pci_devinst *pi,
 			struct vqueue_info *queues);
@@ -378,8 +390,8 @@ int	vi_intr_init(struct virtio_softc *vs, int barnum, int use_msix);
 void	vi_reset_dev(struct virtio_softc *);
 void	vi_set_io_bar(struct virtio_softc *, int);
 
-int	vq_getchain(struct vqueue_info *vq, uint16_t *pidx,
-		    struct iovec *iov, int n_iov, uint16_t *flags);
+int	vq_getchain(struct vqueue_info *vq, struct iovec *iov, int niov,
+	    struct vi_req *reqp);
 void	vq_retchains(struct vqueue_info *vq, uint16_t n_chains);
 void	vq_relchain_prepare(struct vqueue_info *vq, uint16_t idx,
 			    uint32_t iolen);

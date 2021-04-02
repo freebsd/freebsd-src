@@ -57,7 +57,7 @@
  * of the object, and from there locate the offset from the beginning
  * of the region.
  *
- * The invididual allocators manage a pool of memory for objects of
+ * The individual allocators manage a pool of memory for objects of
  * the same size.
  * The pool is split into smaller clusters, whose size is a
  * multiple of the page size. The cluster size is chosen
@@ -70,7 +70,7 @@
  * Allocation scans the bitmap; this is done only on attach, so we are not
  * too worried about performance
  *
- * For each allocator we can define (thorugh sysctl) the size and
+ * For each allocator we can define (through sysctl) the size and
  * number of each object. Memory is allocated at the first use of a
  * netmap file descriptor, and can be freed when all such descriptors
  * have been released (including unmapping the memory).
@@ -147,6 +147,7 @@ struct netmap_mem_d* netmap_mem_private_new( u_int txr, u_int txd, u_int rxr, u_
 #define netmap_mem_get(d) __netmap_mem_get(d, __FUNCTION__, __LINE__)
 #define netmap_mem_put(d) __netmap_mem_put(d, __FUNCTION__, __LINE__)
 struct netmap_mem_d* __netmap_mem_get(struct netmap_mem_d *, const char *, int);
+struct netmap_mem_d* netmap_mem_get_iommu(struct netmap_adapter *);
 void __netmap_mem_put(struct netmap_mem_d *, const char *, int);
 struct netmap_mem_d* netmap_mem_find(nm_memid_t);
 unsigned netmap_mem_bufsize(struct netmap_mem_d *nmd);
@@ -172,7 +173,6 @@ int netmap_mem_pools_info_get(struct nmreq_pools_info *,
 
 #define NETMAP_MEM_PRIVATE	0x2	/* allocator uses private address space */
 #define NETMAP_MEM_IO		0x4	/* the underlying memory is mmapped I/O */
-#define NETMAP_MEM_EXT		0x10	/* external memory (not remappable) */
 
 uint32_t netmap_extra_alloc(struct netmap_adapter *, uint32_t *, uint32_t n);
 

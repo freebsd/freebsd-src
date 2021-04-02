@@ -208,6 +208,7 @@ const AH_UUID  Gbl_AcpiUuids[] =
     {"Device Graphs for _DSD",      UUID_DEVICE_GRAPHS},
     {"Hierarchical Data Extension", UUID_HIERARCHICAL_DATA_EXTENSION},
     {"ARM Coresight Graph",         UUID_CORESIGHT_GRAPH},
+    {"USB4 Capabilities",           UUID_USB4_CAPABILITIES},
     {NULL, NULL}
 };
 

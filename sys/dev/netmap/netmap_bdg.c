@@ -540,11 +540,158 @@ out:
 	return error;
 }
 
+/* Process NETMAP_REQ_VALE_ATTACH.
+ */
+int
+netmap_bdg_attach(struct nmreq_header *hdr, void *auth_token)
+{
+	struct nmreq_vale_attach *req =
+		(struct nmreq_vale_attach *)(uintptr_t)hdr->nr_body;
+	struct netmap_vp_adapter * vpna;
+	struct netmap_adapter *na = NULL;
+	struct netmap_mem_d *nmd = NULL;
+	struct nm_bridge *b = NULL;
+	int error;
+
+	NMG_LOCK();
+	/* permission check for modified bridges */
+	b = nm_find_bridge(hdr->nr_name, 0 /* don't create */, NULL);
+	if (b && !nm_bdg_valid_auth_token(b, auth_token)) {
+		error = EACCES;
+		goto unlock_exit;
+	}
+
+	if (req->reg.nr_mem_id) {
+		nmd = netmap_mem_find(req->reg.nr_mem_id);
+		if (nmd == NULL) {
+			error = EINVAL;
+			goto unlock_exit;
+		}
+	}
+
+	/* check for existing one */
+	error = netmap_get_vale_na(hdr, &na, nmd, 0);
+	if (na) {
+		error = EBUSY;
+		goto unref_exit;
+	}
+	error = netmap_get_vale_na(hdr, &na,
+				nmd, 1 /* create if not exists */);
+	if (error) { /* no device */
+		goto unlock_exit;
+	}
+
+	if (na == NULL) { /* VALE prefix missing */
+		error = EINVAL;
+		goto unlock_exit;
+	}
+
+	if (NETMAP_OWNED_BY_ANY(na)) {
+		error = EBUSY;
+		goto unref_exit;
+	}
+
+	if (na->nm_bdg_ctl) {
+		/* nop for VALE ports. The bwrap needs to put the hwna
+		 * in netmap mode (see netmap_bwrap_bdg_ctl)
+		 */
+		error = na->nm_bdg_ctl(hdr, na);
+		if (error)
+			goto unref_exit;
+		nm_prdis("registered %s to netmap-mode", na->name);
+	}
+	vpna = (struct netmap_vp_adapter *)na;
+	req->port_index = vpna->bdg_port;
+
+	if (nmd)
+		netmap_mem_put(nmd);
+
+	NMG_UNLOCK();
+	return 0;
+
+unref_exit:
+	netmap_adapter_put(na);
+unlock_exit:
+	if (nmd)
+		netmap_mem_put(nmd);
+
+	NMG_UNLOCK();
+	return error;
+}
+
 
 int
 nm_is_bwrap(struct netmap_adapter *na)
 {
 	return na->nm_register == netmap_bwrap_reg;
+}
+
+/* Process NETMAP_REQ_VALE_DETACH.
+ */
+int
+netmap_bdg_detach(struct nmreq_header *hdr, void *auth_token)
+{
+	int error;
+
+	NMG_LOCK();
+	error = netmap_bdg_detach_locked(hdr, auth_token);
+	NMG_UNLOCK();
+	return error;
+}
+
+int
+netmap_bdg_detach_locked(struct nmreq_header *hdr, void *auth_token)
+{
+	struct nmreq_vale_detach *nmreq_det = (void *)(uintptr_t)hdr->nr_body;
+	struct netmap_vp_adapter *vpna;
+	struct netmap_adapter *na;
+	struct nm_bridge *b = NULL;
+	int error;
+
+	/* permission check for modified bridges */
+	b = nm_find_bridge(hdr->nr_name, 0 /* don't create */, NULL);
+	if (b && !nm_bdg_valid_auth_token(b, auth_token)) {
+		error = EACCES;
+		goto error_exit;
+	}
+
+	error = netmap_get_vale_na(hdr, &na, NULL, 0 /* don't create */);
+	if (error) { /* no device, or another bridge or user owns the device */
+		goto error_exit;
+	}
+
+	if (na == NULL) { /* VALE prefix missing */
+		error = EINVAL;
+		goto error_exit;
+	} else if (nm_is_bwrap(na) &&
+		   ((struct netmap_bwrap_adapter *)na)->na_polling_state) {
+		/* Don't detach a NIC with polling */
+		error = EBUSY;
+		goto unref_exit;
+	}
+
+	vpna = (struct netmap_vp_adapter *)na;
+	if (na->na_vp != vpna) {
+		/* trying to detach first attach of VALE persistent port attached
+		 * to 2 bridges
+		 */
+		error = EBUSY;
+		goto unref_exit;
+	}
+	nmreq_det->port_index = vpna->bdg_port;
+
+	if (na->nm_bdg_ctl) {
+		/* remove the port from bridge. The bwrap
+		 * also needs to put the hwna in normal mode
+		 */
+		error = na->nm_bdg_ctl(hdr, na);
+	}
+
+unref_exit:
+	netmap_adapter_put(na);
+error_exit:
+	return error;
+
 }
 
 
@@ -804,7 +951,7 @@ nm_bdg_ctl_polling_stop(struct netmap_adapter *na)
 	bps->configured = false;
 	nm_os_free(bps);
 	bna->na_polling_state = NULL;
-	/* reenable interrupts */
+	/* re-enable interrupts */
 	nma_intr_enable(bna->hwna, 1);
 	return 0;
 }
@@ -1092,7 +1239,7 @@ netmap_bwrap_dtor(struct netmap_adapter *na)
  * hwna rx ring.
  * The bridge wrapper then sends the packets through the bridge.
  */
-static int
+int
 netmap_bwrap_intr_notify(struct netmap_kring *kring, int flags)
 {
 	struct netmap_adapter *na = kring->na;
@@ -1217,7 +1364,7 @@ netmap_bwrap_reg(struct netmap_adapter *na, int onoff)
 		/* intercept the hwna nm_nofify callback on the hw rings */
 		for (i = 0; i < hwna->num_rx_rings; i++) {
 			hwna->rx_rings[i]->save_notify = hwna->rx_rings[i]->nm_notify;
-			hwna->rx_rings[i]->nm_notify = netmap_bwrap_intr_notify;
+			hwna->rx_rings[i]->nm_notify = bna->nm_intr_notify;
 		}
 		i = hwna->num_rx_rings; /* for safety */
 		/* save the host ring notify unconditionally */
@@ -1250,12 +1397,6 @@ netmap_bwrap_reg(struct netmap_adapter *na, int onoff)
 		hwna->na_lut.objtotal = 0;
 		hwna->na_lut.objsize = 0;
 
-		/* pass ownership of the netmap rings to the hwna */
-		for_rx_tx(t) {
-			for (i = 0; i < netmap_all_rings(na, t); i++) {
-				NMR(na, t)[i]->ring = NULL;
-			}
-		}
 		/* reset the number of host rings to default */
 		for_rx_tx(t) {
 			nma_set_host_nrings(hwna, t, 1);
@@ -1275,6 +1416,11 @@ netmap_bwrap_config(struct netmap_adapter *na, struct nm_config_info *info)
 	struct netmap_adapter *hwna = bna->hwna;
 	int error;
 
+	/* cache the lut in the embedded host adapter */
+	error = netmap_mem_get_lut(hwna->nm_mem, &bna->host.up.na_lut);
+	if (error)
+		return error;
+
 	/* Forward the request to the hwna. It may happen that nobody
 	 * registered hwna yet, so netmap_mem_get_lut() may have not
 	 * been called yet. */
@@ -1289,9 +1435,69 @@ netmap_bwrap_config(struct netmap_adapter *na, struct nm_config_info *info)
 	info->num_rx_descs = hwna->num_tx_desc;
 	info->rx_buf_maxsize = hwna->rx_buf_maxsize;
 
+	if (na->na_flags & NAF_HOST_RINGS) {
+		struct netmap_adapter *hostna = &bna->host.up;
+		enum txrx t;
+
+		/* limit the number of host rings to that of hw */
+		if (na->na_flags & NAF_HOST_ALL) {
+			hostna->num_tx_rings = nma_get_nrings(hwna, NR_RX);
+			hostna->num_rx_rings = nma_get_nrings(hwna, NR_TX);
+		} else {
+			nm_bound_var(&hostna->num_tx_rings, 1, 1,
+				nma_get_nrings(hwna, NR_TX), NULL);
+			nm_bound_var(&hostna->num_rx_rings, 1, 1,
+				nma_get_nrings(hwna, NR_RX), NULL);
+		}
+		for_rx_tx(t) {
+			enum txrx r = nm_txrx_swap(t);
+			u_int nr = nma_get_nrings(hostna, t);
+
+			nma_set_host_nrings(na, t, nr);
+			if (nma_get_host_nrings(hwna, t) < nr) {
+				nma_set_host_nrings(hwna, t, nr);
+			}
+			nma_set_ndesc(hostna, t, nma_get_ndesc(hwna, r));
+		}
+	}
+
 	return 0;
 }
 
+/* nm_bufcfg callback for bwrap */
+static int
+netmap_bwrap_bufcfg(struct netmap_kring *kring, uint64_t target)
+{
+	struct netmap_adapter *na = kring->na;
+	struct netmap_bwrap_adapter *bna =
+		(struct netmap_bwrap_adapter *)na;
+	struct netmap_adapter *hwna = bna->hwna;
+	struct netmap_kring *hwkring;
+	enum txrx r;
+	int error;
+
+	/* we need the hw kring that corresponds to the bwrap one:
+	 * remember that rx and tx are swapped
+	 */
+	r = nm_txrx_swap(kring->tx);
+	hwkring = NMR(hwna, r)[kring->ring_id];
+
+	/* copy down the offset information, forward the request
+	 * and copy up the results
+	 */
+	hwkring->offset_mask = kring->offset_mask;
+	hwkring->offset_max  = kring->offset_max;
+	hwkring->offset_gap  = kring->offset_gap;
+
+	error = hwkring->nm_bufcfg(hwkring, target);
+	if (error)
+		return error;
+
+	kring->hwbuf_len = hwkring->hwbuf_len;
+	kring->buf_align = hwkring->buf_align;
+
+	return 0;
+}
 
 /* nm_krings_create callback for bwrap */
 int
@@ -1314,6 +1520,9 @@ netmap_bwrap_krings_create_common(struct netmap_adapter *na)
 	for_rx_tx(t) {
 		for (i = 0; i < netmap_all_rings(hwna, t); i++) {
 			NMR(hwna, t)[i]->users++;
+			/* this to prevent deletion of the rings through
+			 * our krings, instead of through the hwna ones */
+			NMR(na, t)[i]->nr_kflags |= NKR_NEEDRING;
 		}
 	}
 
@@ -1355,6 +1564,7 @@ err_dec_users:
 	for_rx_tx(t) {
 		for (i = 0; i < netmap_all_rings(hwna, t); i++) {
 			NMR(hwna, t)[i]->users--;
+			NMR(na, t)[i]->users--;
 		}
 	}
 	hwna->nm_krings_delete(hwna);
@@ -1377,6 +1587,7 @@ netmap_bwrap_krings_delete_common(struct netmap_adapter *na)
 	for_rx_tx(t) {
 		for (i = 0; i < netmap_all_rings(hwna, t); i++) {
 			NMR(hwna, t)[i]->users--;
+			NMR(na, t)[i]->users--;
 		}
 	}
 
@@ -1480,6 +1691,7 @@ netmap_bwrap_bdg_ctl(struct nmreq_header *hdr, struct netmap_adapter *na)
 		error = netmap_do_regif(npriv, na, hdr);
 		if (error) {
 			netmap_priv_delete(npriv);
+			netmap_mem_restore(bna->hwna);
 			return error;
 		}
 		bna->na_kpriv = npriv;
@@ -1490,6 +1702,7 @@ netmap_bwrap_bdg_ctl(struct nmreq_header *hdr, struct netmap_adapter *na)
 		netmap_priv_delete(bna->na_kpriv);
 		bna->na_kpriv = NULL;
 		na->na_flags &= ~NAF_BUSY;
+		netmap_mem_restore(bna->hwna);
 	}
 
 	return error;
@@ -1527,6 +1740,7 @@ netmap_bwrap_attach_common(struct netmap_adapter *na,
 	}
 	na->nm_dtor = netmap_bwrap_dtor;
 	na->nm_config = netmap_bwrap_config;
+	na->nm_bufcfg = netmap_bwrap_bufcfg;
 	na->nm_bdg_ctl = netmap_bwrap_bdg_ctl;
 	na->pdev = hwna->pdev;
 	na->nm_mem = netmap_mem_get(hwna->nm_mem);
@@ -1546,25 +1760,8 @@ netmap_bwrap_attach_common(struct netmap_adapter *na,
 		na->na_flags |= NAF_HOST_RINGS;
 		hostna = &bna->host.up;
 
-		/* limit the number of host rings to that of hw */
-		nm_bound_var(&hostna->num_tx_rings, 1, 1,
-				nma_get_nrings(hwna, NR_TX), NULL);
-		nm_bound_var(&hostna->num_rx_rings, 1, 1,
-				nma_get_nrings(hwna, NR_RX), NULL);
-
 		snprintf(hostna->name, sizeof(hostna->name), "%s^", na->name);
 		hostna->ifp = hwna->ifp;
-		for_rx_tx(t) {
-			enum txrx r = nm_txrx_swap(t);
-			u_int nr = nma_get_nrings(hostna, t);
-
-			nma_set_nrings(hostna, t, nr);
-			nma_set_host_nrings(na, t, nr);
-			if (nma_get_host_nrings(hwna, t) < nr) {
-				nma_set_host_nrings(hwna, t, nr);
-			}
-			nma_set_ndesc(hostna, t, nma_get_ndesc(hwna, r));
-		}
 		// hostna->nm_txsync = netmap_bwrap_host_txsync;
 		// hostna->nm_rxsync = netmap_bwrap_host_rxsync;
 		hostna->nm_mem = netmap_mem_get(na->nm_mem);
@@ -1574,6 +1771,7 @@ netmap_bwrap_attach_common(struct netmap_adapter *na,
 			hostna->na_hostvp = &bna->host;
 		hostna->na_flags = NAF_BUSY; /* prevent NIOCREGIF */
 		hostna->rx_buf_maxsize = hwna->rx_buf_maxsize;
+		/* bwrap_config() will determine the number of host rings */
 	}
 	if (hwna->na_flags & NAF_MOREFRAG)
 		na->na_flags |= NAF_MOREFRAG;

@@ -85,9 +85,10 @@ _linuxkpi_request_firmware(const char *fw_name, const struct linuxkpi_firmware *
 		fwimg = fw_name;
 		fbdfw = firmware_get_flags(fwimg, flags);
 	}
-	/* (3) Flatten '/' and then '.' to '_' and try with adjusted name. */
+	/* (3) Flatten '/', '.' and '-' to '_' and try with adjusted name. */
 	if (fbdfw == NULL &&
-	    (strchr(fw_name, '/') != NULL || strchr(fw_name, '.') != NULL)) {
+	    (strchr(fw_name, '/') != NULL || strchr(fw_name, '.') != NULL ||
+	    strchr(fw_name, '-'))) {
 		fwimg = strdup(fw_name, M_LKPI_FW);
 		if (fwimg != NULL) {
 			while ((p = strchr(fwimg, '/')) != NULL)
@@ -95,6 +96,11 @@ _linuxkpi_request_firmware(const char *fw_name, const struct linuxkpi_firmware *
 			fbdfw = firmware_get_flags(fwimg, flags);
 			if (fbdfw == NULL) {
 				while ((p = strchr(fwimg, '.')) != NULL)
+					*p = '_';
+				fbdfw = firmware_get_flags(fwimg, flags);
+			}
+			if (fbdfw == NULL) {
+				while ((p = strchr(fwimg, '-')) != NULL)
 					*p = '_';
 				fbdfw = firmware_get_flags(fwimg, flags);
 			}

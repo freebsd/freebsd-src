@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2018
+.Dd March 31, 2021
 .Dt MENU.LUA 8
 .Os
 .Sh NAME
@@ -204,19 +204,85 @@ To add another option to the welcome menu:
 local core = require("core")
 local menu = require("menu")
 
+local my_entry = {
+	entry_type = core.MENU_ENTRY,
+	name = "Fancy Boot",
+	func = core.boot,
+},
+
+local stock_entries = menu.welcome.entries
+function menu.welcome.entries()
+	local ents = stock_entries()
+	ents[#ents + 1] = my_entry
+	return ents
+end
+.Ed
+.Pp
+To create a vendor submenu or other vendor menu option,
+override
+.Ic menu.welcome.all_entires.vendor
+like so:
+.Pp
+.Bd -literal -offset indent -compact
+local core = require("core")
+local menu = require("menu")
+
+-- Fill in with vendor specific entries
+local vendor_options = {
+	entries = {
+	...
+	},
+}
+
 local welcome_entries = menu.welcome.all_entries
-welcome_entries[#welcome_entries + 1] = {
-	entry_type = core.MENU_CAROUSEL_ENTRY,
-	carousel_id = "unique_boot_entry_name",
-	items = {"NO", "YES"},
-	name = function(_, choice, _)
-		return "Option: " .. choice
-	end,
-	func = function(_, _, _)
-		loader.setenv("some_envvar", "some_value")
+welcome_entries.vendor = {
+        entry_type = core.MENU_SUBMENU,
+        name = color.highlight("V") .. "endor Options",
+        submenu = vendor_options,
+        alias = {"v", "V"},
+	visible = function()
+		return true
 	end,
 }
 .Ed
+In the above example,
+.Ic vendor_options
+is a local variable that defines the vendor submenu.
+.Pp
+To add an additional option, change the
+.Ic menu.boot_options.entries
+array.
+The following illustrates this concept:
+.Pp
+.Bd -literal -offset indent -compact
+-- This is a silly example that rotates local_option through the values
+-- 0 to 4.  local_option would still need to be used elsewhere.
+local local_option = 0
+
+-- The `entries` of a menu may either be a table or a function.  In this
+-- example we're augmenting a menu that just has a static table, but if we
+-- wanted to be more robust then we would need to instead check the type
+-- of `stock_options` here to determine our next move.
+--
+-- If `entries` is a table, then the stock menu system won't be changing it
+-- so we can just add our menu option as we do below.
+--
+-- If `entries` is a function, then we would need to provide a new function to
+-- replace `entries` that does a core.deepCopyTable() of the result and adds
+-- the below item to it.  The deep copy is necessary to avoid duplicating our
+-- new menu item and allowing the menu to alter its behavior however it pleases.
+local stock_options = menu.boot_options.entries
+stock_options[#stock_options + 1] = {
+	entry_type = core.MENU_ENTRY,
+	name = function()
+		return color.highlight('L') ..
+		    "ocal Option     : " .. local_option
+	end,
+	func = function()
+		local_option = (local_option + 1) % 5
+	end,
+	alias= {"l", "L"}
+}
 .Sh SEE ALSO
 .Xr loader.conf 5 ,
 .Xr core.lua 8 ,

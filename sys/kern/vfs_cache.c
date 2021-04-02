@@ -82,6 +82,131 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
+/*
+ * High level overview of name caching in the VFS layer.
+ *
+ * Originally caching was implemented as part of UFS, later extracted to allow
+ * use by other filesystems. A decision was made to make it optional and
+ * completely detached from the rest of the kernel, which comes with limitations
+ * outlined near the end of this comment block.
+ *
+ * This fundamental choice needs to be revisited. In the meantime, the current
+ * state is described below. Significance of all notable routines is explained
+ * in comments placed above their implementation. Scattered thoroughout the
+ * file are TODO comments indicating shortcomings which can be fixed without
+ * reworking everything (most of the fixes will likely be reusable). Various
+ * details are omitted from this explanation to not clutter the overview, they
+ * have to be checked by reading the code and associated commentary.
+ *
+ * Keep in mind that it's individual path components which are cached, not full
+ * paths. That is, for a fully cached path "foo/bar/baz" there are 3 entries,
+ * one for each name.
+ *
+ * I. Data organization
+ *
+ * Entries are described by "struct namecache" objects and stored in a hash
+ * table. See cache_get_hash for more information.
+ *
+ * "struct vnode" contains pointers to source entries (names which can be found
+ * when traversing through said vnode), destination entries (names of that
+ * vnode (see "Limitations" for a breakdown on the subject) and a pointer to
+ * the parent vnode.
+ *
+ * The (directory vnode; name) tuple reliably determines the target entry if
+ * it exists.
+ *
+ * Since there are no small locks at this time (all are 32 bytes in size on
+ * LP64), the code works around the problem by introducing lock arrays to
+ * protect hash buckets and vnode lists.
+ *
+ * II. Filesystem integration
+ *
+ * Filesystems participating in name caching do the following:
+ * - set vop_lookup routine to vfs_cache_lookup
+ * - set vop_cachedlookup to whatever can perform the lookup if the above fails
+ * - if they support lockless lookup (see below), vop_fplookup_vexec and
+ *   vop_fplookup_symlink are set along with the MNTK_FPLOOKUP flag on the
+ *   mount point
+ * - call cache_purge or cache_vop_* routines to eliminate stale entries as
+ *   applicable
+ * - call cache_enter to add entries depending on the MAKEENTRY flag
+ *
+ * With the above in mind, there are 2 entry points when doing lookups:
+ * - ... -> namei -> cache_fplookup -- this is the default
+ * - ... -> VOP_LOOKUP -> vfs_cache_lookup -- normally only called by namei
+ *   should the above fail
+ *
+ * Example code flow how an entry is added:
+ * ... -> namei -> cache_fplookup -> cache_fplookup_noentry -> VOP_LOOKUP ->
+ * vfs_cache_lookup -> VOP_CACHEDLOOKUP -> ufs_lookup_ino -> cache_enter
+ *
+ * III. Performance considerations
+ *
+ * For lockless case forward lookup avoids any writes to shared areas apart
+ * from the terminal path component. In other words non-modifying lookups of
+ * different files don't suffer any scalability problems in the namecache.
+ * Looking up the same file is limited by VFS and goes beyond the scope of this
+ * file.
+ *
+ * At least on amd64 the single-threaded bottleneck for long paths is hashing
+ * (see cache_get_hash). There are cases where the code issues acquire fence
+ * multiple times, they can be combined on architectures which suffer from it.
+ *
+ * For locked case each encountered vnode has to be referenced and locked in
+ * order to be handed out to the caller (normally that's namei). This
+ * introduces significant hit single-threaded and serialization multi-threaded.
+ *
+ * Reverse lookup (e.g., "getcwd") fully scales provided it is fully cached --
+ * avoids any writes to shared areas to any components.
+ *
+ * Unrelated insertions are partially serialized on updating the global entry
+ * counter and possibly serialized on colliding bucket or vnode locks.
+ *
+ * IV. Observability
+ *
+ * Note not everything has an explicit dtrace probe nor it should have, thus
+ * some of the one-liners below depend on implementation details.
+ *
+ * Examples:
+ *
+ * # Check what lookups failed to be handled in a lockless manner. Column 1 is
+ * # line number, column 2 is status code (see cache_fpl_status)
+ * dtrace -n 'vfs:fplookup:lookup:done { @[arg1, arg2] = count(); }'
+ *
+ * # Lengths of names added by binary name
+ * dtrace -n 'fbt::cache_enter_time:entry { @[execname] = quantize(args[2]->cn_namelen); }'
+ *
+ * # Same as above but only those which exceed 64 characters
+ * dtrace -n 'fbt::cache_enter_time:entry /args[2]->cn_namelen > 64/ { @[execname] = quantize(args[2]->cn_namelen); }'
+ *
+ * # Who is performing lookups with spurious slashes (e.g., "foo//bar") and what
+ * # path is it
+ * dtrace -n 'fbt::cache_fplookup_skip_slashes:entry { @[execname, stringof(args[0]->cnp->cn_pnbuf)] = count(); }'
+ *
+ * V. Limitations and implementation defects
+ *
+ * - since it is possible there is no entry for an open file, tools like
+ *   "procstat" may fail to resolve fd -> vnode -> path to anything
+ * - even if a filesystem adds an entry, it may get purged (e.g., due to memory
+ *   shortage) in which case the above problem applies
+ * - hardlinks are not tracked, thus if a vnode is reachable in more than one
+ *   way, resolving a name may return a different path than the one used to
+ *   open it (even if said path is still valid)
+ * - by default entries are not added for newly created files
+ * - adding an entry may need to evict negative entry first, which happens in 2
+ *   distinct places (evicting on lookup, adding in a later VOP) making it
+ *   impossible to simply reuse it
+ * - there is a simple scheme to evict negative entries as the cache is approaching
+ *   its capacity, but it is very unclear if doing so is a good idea to begin with
+ * - vnodes are subject to being recycled even if target inode is left in memory,
+ *   which loses the name cache entries when it perhaps should not. in case of tmpfs
+ *   names get duplicated -- kept by filesystem itself and namecache separately
+ * - struct namecache has a fixed size and comes in 2 variants, often wasting space.
+ *   now hard to replace with malloc due to dependence on SMR.
+ * - lack of better integration with the kernel also turns nullfs into a layered
+ *   filesystem instead of something which can take advantage of caching
+ */
+
 static SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Name cache");
 
@@ -454,6 +579,9 @@ DEBUGNODE_ULONG(zap_bucket_fail2, zap_bucket_fail2, "");
 static long cache_lock_vnodes_cel_3_failures;
 DEBUGNODE_ULONG(vnodes_cel_3_failures, cache_lock_vnodes_cel_3_failures,
     "Number of times 3-way vnode locking failed");
+
+static void cache_fplookup_lockout(void);
+static void cache_fplookup_restore(void);
 
 static void cache_zap_locked(struct namecache *ncp);
 static int vn_fullpath_hardlink(struct nameidata *ndp, char **retbuf,
@@ -2549,11 +2677,76 @@ cache_vnode_init(struct vnode *vp)
 	cache_prehash(vp);
 }
 
+/*
+ * Induce transient cache misses for lockless operation in cache_lookup() by
+ * using a temporary hash table.
+ *
+ * This will force a fs lookup.
+ *
+ * Synchronisation is done in 2 steps, calling vfs_smr_quiesce each time
+ * to observe all CPUs not performing the lookup.
+ */
+static void
+cache_changesize_set_temp(struct nchashhead *temptbl, u_long temphash)
+{
+
+	MPASS(temphash < nchash);
+	/*
+	 * Change the size. The new size is smaller and can safely be used
+	 * against the existing table. All lookups which now hash wrong will
+	 * result in a cache miss, which all callers are supposed to know how
+	 * to handle.
+	 */
+	atomic_store_long(&nchash, temphash);
+	atomic_thread_fence_rel();
+	vfs_smr_quiesce();
+	/*
+	 * At this point everyone sees the updated hash value, but they still
+	 * see the old table.
+	 */
+	atomic_store_ptr(&nchashtbl, temptbl);
+	atomic_thread_fence_rel();
+	vfs_smr_quiesce();
+	/*
+	 * At this point everyone sees the updated table pointer and size pair.
+	 */
+}
+
+/*
+ * Set the new hash table.
+ *
+ * Similarly to cache_changesize_set_temp(), this has to synchronize against
+ * lockless operation in cache_lookup().
+ */
+static void
+cache_changesize_set_new(struct nchashhead *new_tbl, u_long new_hash)
+{
+
+	MPASS(nchash < new_hash);
+	/*
+	 * Change the pointer first. This wont result in out of bounds access
+	 * since the temporary table is guaranteed to be smaller.
+	 */
+	atomic_store_ptr(&nchashtbl, new_tbl);
+	atomic_thread_fence_rel();
+	vfs_smr_quiesce();
+	/*
+	 * At this point everyone sees the updated pointer value, but they
+	 * still see the old size.
+	 */
+	atomic_store_long(&nchash, new_hash);
+	atomic_thread_fence_rel();
+	vfs_smr_quiesce();
+	/*
+	 * At this point everyone sees the updated table pointer and size pair.
+	 */
+}
+
 void
 cache_changesize(u_long newmaxvnodes)
 {
-	struct nchashhead *new_nchashtbl, *old_nchashtbl;
-	u_long new_nchash, old_nchash;
+	struct nchashhead *new_nchashtbl, *old_nchashtbl, *temptbl;
+	u_long new_nchash, old_nchash, temphash;
 	struct namecache *ncp;
 	uint32_t hash;
 	u_long newncsize;
@@ -2570,30 +2763,36 @@ cache_changesize(u_long newmaxvnodes)
 		ncfreetbl(new_nchashtbl);
 		return;
 	}
+
+	temptbl = nchinittbl(1, &temphash);
+
 	/*
 	 * Move everything from the old hash table to the new table.
 	 * None of the namecache entries in the table can be removed
 	 * because to do so, they have to be removed from the hash table.
 	 */
+	cache_fplookup_lockout();
 	cache_lock_all_vnodes();
 	cache_lock_all_buckets();
 	old_nchashtbl = nchashtbl;
 	old_nchash = nchash;
-	nchashtbl = new_nchashtbl;
-	nchash = new_nchash;
+	cache_changesize_set_temp(temptbl, temphash);
 	for (i = 0; i <= old_nchash; i++) {
 		while ((ncp = CK_SLIST_FIRST(&old_nchashtbl[i])) != NULL) {
 			hash = cache_get_hash(ncp->nc_name, ncp->nc_nlen,
 			    ncp->nc_dvp);
 			CK_SLIST_REMOVE(&old_nchashtbl[i], ncp, namecache, nc_hash);
-			CK_SLIST_INSERT_HEAD(NCHHASH(hash), ncp, nc_hash);
+			CK_SLIST_INSERT_HEAD(&new_nchashtbl[hash & new_nchash], ncp, nc_hash);
 		}
 	}
 	ncsize = newncsize;
 	cache_recalc_neg_min(ncnegminpct);
+	cache_changesize_set_new(new_nchashtbl, new_nchash);
 	cache_unlock_all_buckets();
 	cache_unlock_all_vnodes();
+	cache_fplookup_restore();
 	ncfreetbl(old_nchashtbl);
+	ncfreetbl(temptbl);
 }
 
 /*
@@ -3665,6 +3864,33 @@ syscal_vfs_cache_fast_lookup(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_vfs, OID_AUTO, cache_fast_lookup, CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_MPSAFE,
     &cache_fast_lookup, 0, syscal_vfs_cache_fast_lookup, "IU", "");
+
+/*
+ * Disable lockless lookup and observe all CPUs not executing it.
+ *
+ * Used when resizing the hash table.
+ *
+ * TODO: no provisions are made to handle tweaking of the knob at the same time
+ */
+static void
+cache_fplookup_lockout(void)
+{
+	bool on;
+
+	on = atomic_load_char(&cache_fast_lookup_enabled);
+	if (on) {
+		atomic_store_char(&cache_fast_lookup_enabled, false);
+		atomic_thread_fence_rel();
+		vfs_smr_quiesce();
+	}
+}
+
+static void
+cache_fplookup_restore(void)
+{
+
+	cache_fast_lookup_enabled_recalc();
+}
 
 /*
  * Components of nameidata (or objects it can point to) which may

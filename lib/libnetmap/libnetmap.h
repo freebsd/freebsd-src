@@ -151,6 +151,22 @@ struct nmem_d;
  *			causing netmap to take the corresponding values from
  *			the priv_{if,ring,buf}_{num,size} sysctls.
  *
+ *  offset (multi-key)
+ *			reserve (part of) the ptr fields as an offset field
+ *			and write an initial offset into them.
+ *
+ *			The keys are:
+ *
+ *		        bits		number of bits of ptr to use
+ *		       *initial		initial offset value
+ *
+ *		        initial must be assigned. If bits is omitted, it
+ *		        defaults to the entire ptr field. The max offset is set
+ *		        at the same value as the initial offset. Note that the
+ *		        actual values may be increased by the kernel.
+ *
+ *		        This option is disabled by default (see
+ *			nmport_enable_option() below)
  */
 
 
@@ -397,6 +413,47 @@ int nmport_extmem_from_file(struct nmport_d *d, const char *fname);
  */
 struct nmreq_pools_info* nmport_extmem_getinfo(struct nmport_d *d);
 
+
+/* nmport_offset - use offsets for this port
+ * @initial	the initial offset for all the slots
+ * @maxoff	the maximum offset
+ * @bits	the number of bits of slot->ptr to use for the offsets
+ * @mingap	the minimum gap between offsets (in shared buffers)
+ *
+ * With this option the lower @bits bits of the ptr field in the netmap_slot
+ * can be used to specify an offset into the buffer.  All offsets will be set
+ * to the @initial value by netmap.
+ *
+ * The offset field can be read and updated using the bitmask found in
+ * ring->offset_mask after a successful register.  netmap_user.h contains
+ * some helper macros (NETMAP_ROFFSET, NETMAP_WOFFSET and NETMAP_BUF_OFFSET).
+ *
+ * For RX rings, the user writes the offset o in an empty slot before passing
+ * it to netmap; then, netmap will write the incoming packet at an offset o' >=
+ * o in the buffer. o' may be larger than o because of, e.g., alignment
+ * constrains.  If o' > o netmap will also update the offset field in the slot.
+ * Note that large offsets may cause the port to split the packet over several
+ * slots, setting the NS_MOREFRAG flag accordingly.
+ *
+ * For TX rings, the user may prepare the packet to send at an offset o into
+ * the buffer and write o in the offset field. Netmap will send the packets
+ * starting o bytes in the buffer. Note that the address of the packet must
+ * comply with any alignment constraints that the port may have, or the result
+ * will be undefined. The user may read the alignment constraint in the new
+ * ring->buf_align field.  It is also possible that empty slots already come
+ * with a non-zero offset o specified in the offset field. In this case, the
+ * user will have to write the packet at an offset o' >= o.
+ *
+ * The user must also declare the @maxoff offset that she is going to use. Any
+ * offset larger than this will be truncated.
+ *
+ * The user may also declare a @mingap (ignored if zero) if she plans to use
+ * offsets to share the same buffer among several slots. Netmap will guarantee
+ * that it will never write more than @mingap bytes for each slot, irrespective
+ * of the buffer length.
+ */
+int nmport_offset(struct nmport_d *d, uint64_t initial, uint64_t maxoff,
+		uint64_t bits, uint64_t mingap);
 
 /* enable/disable options
  *

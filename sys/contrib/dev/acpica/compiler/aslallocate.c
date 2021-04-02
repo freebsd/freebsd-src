@@ -153,7 +153,7 @@
 
 /*
  * Local heap allocation wrappers. See aslcache.c for allocation from local
- * cache alloctions
+ * cache allocations
  */
 
 

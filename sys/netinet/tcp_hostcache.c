@@ -121,6 +121,7 @@ VNET_DEFINE_STATIC(struct callout, tcp_hc_callout);
 static struct hc_metrics *tcp_hc_lookup(struct in_conninfo *);
 static struct hc_metrics *tcp_hc_insert(struct in_conninfo *);
 static int sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS);
+static int sysctl_tcp_hc_histo(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_hc_purgenow(SYSCTL_HANDLER_ARGS);
 static void tcp_hc_purge_internal(int);
 static void tcp_hc_purge(void *);
@@ -168,6 +169,11 @@ SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, list,
     0, 0, sysctl_tcp_hc_list, "A",
     "List of all hostcache entries");
 
+SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, histo,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP | CTLFLAG_MPSAFE,
+    0, 0, sysctl_tcp_hc_histo, "A",
+    "Print a histogram of hostcache hashbucket utilization");
+
 SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, purgenow,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_tcp_hc_purgenow, "I",
@@ -199,7 +205,7 @@ tcp_hc_init(void)
 	/*
 	 * Initialize hostcache structures.
 	 */
-	V_tcp_hostcache.cache_count = 0;
+	atomic_store_int(&V_tcp_hostcache.cache_count, 0);
 	V_tcp_hostcache.hashsize = TCP_HOSTCACHE_HASHSIZE;
 	V_tcp_hostcache.bucket_limit = TCP_HOSTCACHE_BUCKETLIMIT;
 	V_tcp_hostcache.expire = TCP_HOSTCACHE_EXPIRE;
@@ -374,7 +380,7 @@ tcp_hc_insert(struct in_conninfo *inc)
 	 * If the bucket limit is reached, reuse the least-used element.
 	 */
 	if (hc_head->hch_length >= V_tcp_hostcache.bucket_limit ||
-	    V_tcp_hostcache.cache_count >= V_tcp_hostcache.cache_limit) {
+	    atomic_load_int(&V_tcp_hostcache.cache_count) >= V_tcp_hostcache.cache_limit) {
 		hc_entry = TAILQ_LAST(&hc_head->hch_bucket, hc_qhead);
 		/*
 		 * At first we were dropping the last element, just to
@@ -390,8 +396,13 @@ tcp_hc_insert(struct in_conninfo *inc)
 			return NULL;
 		}
 		TAILQ_REMOVE(&hc_head->hch_bucket, hc_entry, rmx_q);
+		KASSERT(V_tcp_hostcache.hashbase[hash].hch_length > 0 &&
+			V_tcp_hostcache.hashbase[hash].hch_length <=
+			V_tcp_hostcache.bucket_limit,
+			("tcp_hostcache: bucket length range violated at %u: %u",
+			hash, V_tcp_hostcache.hashbase[hash].hch_length));
 		V_tcp_hostcache.hashbase[hash].hch_length--;
-		V_tcp_hostcache.cache_count--;
+		atomic_subtract_int(&V_tcp_hostcache.cache_count, 1);
 		TCPSTAT_INC(tcps_hc_bucketoverflow);
 #if 0
 		uma_zfree(V_tcp_hostcache.zone, hc_entry);
@@ -424,7 +435,11 @@ tcp_hc_insert(struct in_conninfo *inc)
 	 */
 	TAILQ_INSERT_HEAD(&hc_head->hch_bucket, hc_entry, rmx_q);
 	V_tcp_hostcache.hashbase[hash].hch_length++;
-	V_tcp_hostcache.cache_count++;
+	KASSERT(V_tcp_hostcache.hashbase[hash].hch_length <
+		V_tcp_hostcache.bucket_limit,
+		("tcp_hostcache: bucket length too high at %u: %u",
+		hash, V_tcp_hostcache.hashbase[hash].hch_length));
+	atomic_add_int(&V_tcp_hostcache.cache_count, 1);
 	TCPSTAT_INC(tcps_hc_added);
 
 	return hc_entry;
@@ -628,7 +643,8 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 {
 	const int linesize = 128;
 	struct sbuf sb;
-	int i, error;
+	int i, error, len;
+	bool do_drain = false;
 	struct hc_metrics *hc_entry;
 	char ip4buf[INET_ADDRSTRLEN];
 #ifdef INET6
@@ -638,12 +654,26 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 	if (jailed_without_vnet(curthread->td_ucred) != 0)
 		return (EPERM);
 
-	sbuf_new(&sb, NULL, linesize * (V_tcp_hostcache.cache_count + 1),
-		SBUF_INCLUDENUL);
+	/* Optimize Buffer length query by sbin/sysctl */
+	if (req->oldptr == NULL) {
+		len = (atomic_load_int(&V_tcp_hostcache.cache_count) + 1) *
+			linesize;
+		return (SYSCTL_OUT(req, NULL, len));
+	}
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0) {
+		return(error);
+	}
+
+	/* Use a buffer sized for one full bucket */
+	sbuf_new_for_sysctl(&sb, NULL, V_tcp_hostcache.bucket_limit *
+		linesize, req);
 
 	sbuf_printf(&sb,
-	        "\nIP address        MTU  SSTRESH      RTT   RTTVAR "
+		"\nIP address        MTU  SSTRESH      RTT   RTTVAR "
 		"    CWND SENDPIPE RECVPIPE HITS  UPD  EXP\n");
+	sbuf_drain(&sb);
 
 #define msec(u) (((u) + 500) / 1000)
 	for (i = 0; i < V_tcp_hostcache.hashsize; i++) {
@@ -672,14 +702,62 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 			    hc_entry->rmx_hits,
 			    hc_entry->rmx_updates,
 			    hc_entry->rmx_expire);
+			do_drain = true;
 		}
 		THC_UNLOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
+		/* Need to track if sbuf has data, to avoid
+		 * a KASSERT when calling sbuf_drain.
+		 */
+		if (do_drain) {
+			sbuf_drain(&sb);
+			do_drain = false;
+		}
 	}
 #undef msec
 	error = sbuf_finish(&sb);
-	if (error == 0)
-		error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
 	sbuf_delete(&sb);
+	return(error);
+}
+
+/*
+ * Sysctl function: prints a histogram of the hostcache hashbucket
+ * utilization.
+ */
+static int
+sysctl_tcp_hc_histo(SYSCTL_HANDLER_ARGS)
+{
+	const int linesize = 50;
+	struct sbuf sb;
+	int i, error;
+	int *histo;
+	u_int hch_length;
+
+	if (jailed_without_vnet(curthread->td_ucred) != 0)
+		return (EPERM);
+
+	histo = (int *)malloc(sizeof(int) * (V_tcp_hostcache.bucket_limit + 1),
+			M_TEMP, M_NOWAIT|M_ZERO);
+	if (histo == NULL)
+		return(ENOMEM);
+
+	for (i = 0; i < V_tcp_hostcache.hashsize; i++) {
+		hch_length = V_tcp_hostcache.hashbase[i].hch_length;
+		KASSERT(hch_length <= V_tcp_hostcache.bucket_limit,
+			("tcp_hostcache: bucket limit exceeded at %u: %u",
+			i, hch_length));
+		histo[hch_length]++;
+	}
+
+	/* Use a buffer for 16 lines */
+	sbuf_new_for_sysctl(&sb, NULL, 16 * linesize, req);
+
+	sbuf_printf(&sb, "\nLength\tCount\n");
+	for (i = 0; i <= V_tcp_hostcache.bucket_limit; i++) {
+		sbuf_printf(&sb, "%u\t%u\n", i, histo[i]);
+	}
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	free(histo, M_TEMP);
 	return(error);
 }
 
@@ -696,12 +774,17 @@ tcp_hc_purge_internal(int all)
 		THC_LOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
 		TAILQ_FOREACH_SAFE(hc_entry,
 		    &V_tcp_hostcache.hashbase[i].hch_bucket, rmx_q, hc_next) {
+			KASSERT(V_tcp_hostcache.hashbase[i].hch_length > 0 &&
+				V_tcp_hostcache.hashbase[i].hch_length <=
+				V_tcp_hostcache.bucket_limit,
+				("tcp_hostcache: bucket length out of range at %u: %u",
+				i, V_tcp_hostcache.hashbase[i].hch_length));
 			if (all || hc_entry->rmx_expire <= 0) {
 				TAILQ_REMOVE(&V_tcp_hostcache.hashbase[i].hch_bucket,
 					      hc_entry, rmx_q);
 				uma_zfree(V_tcp_hostcache.zone, hc_entry);
 				V_tcp_hostcache.hashbase[i].hch_length--;
-				V_tcp_hostcache.cache_count--;
+				atomic_subtract_int(&V_tcp_hostcache.cache_count, 1);
 			} else
 				hc_entry->rmx_expire -= V_tcp_hostcache.prune;
 		}

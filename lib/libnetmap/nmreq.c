@@ -615,10 +615,10 @@ nmreq_find_option(struct nmreq_header *h, uint32_t t)
 void
 nmreq_remove_option(struct nmreq_header *h, struct nmreq_option *o)
 {
-        struct nmreq_option **nmo;
+	struct nmreq_option **nmo;
 
 	for (nmo = (struct nmreq_option **)&h->nr_options; *nmo != NULL;
-			nmo = (struct nmreq_option **)&(*nmo)->nro_next) {
+	    nmo = (struct nmreq_option **)&(*nmo)->nro_next) {
 		if (*nmo == o) {
 			*((uint64_t *)(*nmo)) = o->nro_next;
 			o->nro_next = (uint64_t)(uintptr_t)NULL;
@@ -656,6 +656,8 @@ nmreq_option_name(uint32_t nro_reqtype)
 		return "csb";
 	case NETMAP_REQ_OPT_SYNC_KLOOP_MODE:
 		return "sync-kloop-mode";
+	case NETMAP_REQ_OPT_OFFSETS:
+		return "offsets";
 	default:
 		return "unknown";
 	}

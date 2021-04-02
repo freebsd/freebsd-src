@@ -114,7 +114,7 @@ vtnet_netmap_txsync(struct netmap_kring *kring, int flags)
 		virtqueue_notify(vq);
 
 		/* Update hwcur depending on where we stopped. */
-		kring->nr_hwcur = nm_i; /* note we migth break early */
+		kring->nr_hwcur = nm_i; /* note we might break early */
 	}
 
 	/* Free used slots. We only consider our own used buffers, recognized

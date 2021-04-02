@@ -1400,13 +1400,15 @@ moea64_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 
 	PMAP_LOCK(pmap);
 
-	/* XXX Add support for superpages */
 	pvo = moea64_pvo_find_va(pmap, addr);
 	if (pvo != NULL) {
 		pa = PVO_PADDR(pvo);
 		m = PHYS_TO_VM_PAGE(pa);
 		managed = (pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED;
-		val = MINCORE_INCORE;
+		if (PVO_IS_SP(pvo))
+			val = MINCORE_INCORE | MINCORE_PSIND(1);
+		else
+			val = MINCORE_INCORE;
 	} else {
 		PMAP_UNLOCK(pmap);
 		return (0);

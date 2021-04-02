@@ -312,14 +312,22 @@ ivhd_dev_parse(ACPI_IVRS_HARDWARE1 *ivhd, struct amdvi_softc *softc)
 static bool
 ivhd_is_newer(ACPI_IVRS_HEADER *old, ACPI_IVRS_HEADER  *new)
 {
-	/*
-	 * Newer IVRS header type take precedence.
-	 */
-	if ((old->DeviceId == new->DeviceId) &&
-		(old->Type == IVRS_TYPE_HARDWARE_LEGACY) &&
-		((new->Type == IVRS_TYPE_HARDWARE_EFR) ||
-		(new->Type == IVRS_TYPE_HARDWARE_MIXED))) {
-		return (true);
+	if (old->DeviceId == new->DeviceId) {
+		/*
+		 * Newer IVRS header type take precedence.
+		 */
+		if (old->Type == IVRS_TYPE_HARDWARE_LEGACY &&
+		    ((new->Type == IVRS_TYPE_HARDWARE_EFR) ||
+		    (new->Type == IVRS_TYPE_HARDWARE_MIXED)))
+			return (true);
+
+		/*
+		 * Mixed format IVHD header type take precedence
+		 * over fixed format IVHD header types.
+		 */
+		if (old->Type == IVRS_TYPE_HARDWARE_EFR &&
+		    new->Type == IVRS_TYPE_HARDWARE_MIXED)
+			return (true);
 	}
 
 	return (false);

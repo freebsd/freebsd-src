@@ -558,7 +558,8 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 {
 	struct pci_vtscsi_softc *sc;
 	struct iovec iov[VTSCSI_MAXSEG];
-	uint16_t idx, n;
+	struct vi_req req;
+	uint16_t n;
 	void *buf = NULL;
 	size_t bufsize;
 	int iolen;
@@ -566,7 +567,7 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 	sc = vsc;
 
 	while (vq_has_descs(vq)) {
-		n = vq_getchain(vq, &idx, iov, VTSCSI_MAXSEG, NULL);
+		n = vq_getchain(vq, iov, VTSCSI_MAXSEG, &req);
 		bufsize = iov_to_buf(iov, n, &buf);
 		iolen = pci_vtscsi_control_handle(sc, buf, bufsize);
 		buf_to_iov(buf + bufsize - iolen, iolen, iov, n,
@@ -575,7 +576,7 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 		/*
 		 * Release this chain and handle more
 		 */
-		vq_relchain(vq, idx, iolen);
+		vq_relchain(vq, req.idx, iolen);
 	}
 	vq_endchains(vq, 1);	/* Generate interrupt if appropriate. */
 	free(buf);
@@ -595,33 +596,23 @@ pci_vtscsi_requestq_notify(void *vsc, struct vqueue_info *vq)
 	struct pci_vtscsi_queue *q;
 	struct pci_vtscsi_request *req;
 	struct iovec iov[VTSCSI_MAXSEG];
-	uint16_t flags[VTSCSI_MAXSEG];
-	uint16_t idx, n, i;
-	int readable;
+	struct vi_req vireq;
+	uint16_t n;
 
 	sc = vsc;
 	q = &sc->vss_queues[vq->vq_num - 2];
 
 	while (vq_has_descs(vq)) {
-		readable = 0;
-		n = vq_getchain(vq, &idx, iov, VTSCSI_MAXSEG, flags);
-
-		/* Count readable descriptors */
-		for (i = 0; i < n; i++) {
-			if (flags[i] & VRING_DESC_F_WRITE)
-				break;
-
-			readable++;
-		}
+		n = vq_getchain(vq, iov, VTSCSI_MAXSEG, &vireq);
 
 		req = calloc(1, sizeof(struct pci_vtscsi_request));
-		req->vsr_idx = idx;
+		req->vsr_idx = vireq.idx;
 		req->vsr_queue = q;
-		req->vsr_niov_in = readable;
-		req->vsr_niov_out = n - readable;
+		req->vsr_niov_in = vireq.readable;
+		req->vsr_niov_out = vireq.writable;
 		memcpy(req->vsr_iov_in, iov,
 		    req->vsr_niov_in * sizeof(struct iovec));
-		memcpy(req->vsr_iov_out, iov + readable,
+		memcpy(req->vsr_iov_out, iov + vireq.readable,
 		    req->vsr_niov_out * sizeof(struct iovec));
 
 		pthread_mutex_lock(&q->vsq_mtx);
@@ -629,7 +620,8 @@ pci_vtscsi_requestq_notify(void *vsc, struct vqueue_info *vq)
 		pthread_cond_signal(&q->vsq_cv);
 		pthread_mutex_unlock(&q->vsq_mtx);
 
-		DPRINTF(("virtio-scsi: request <idx=%d> enqueued", idx));
+		DPRINTF(("virtio-scsi: request <idx=%d> enqueued",
+		    vireq.idx));
 	}
 }
 
@@ -739,6 +731,7 @@ pci_vtscsi_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 struct pci_devemu pci_de_vscsi = {
 	.pe_emu =	"virtio-scsi",
 	.pe_init =	pci_vtscsi_init,
+	.pe_legacy_config = pci_vtscsi_legacy_config,
 	.pe_barwrite =	vi_pci_write,
 	.pe_barread =	vi_pci_read
 };
