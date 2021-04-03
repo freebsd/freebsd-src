@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 
 	/*
 	 * The __error() function is thread aware. For non-threaded
-	 * programs and the initial threaded in threaded programs,
+	 * programs and the initial thread in threaded programs,
 	 * it returns a pointer to the global errno variable.
 	 */
 ENTRY_NOPROF(HIDENAME(cerror))
