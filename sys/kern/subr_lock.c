@@ -130,17 +130,17 @@ lock_delay(struct lock_delay_arg *la)
 
 	for (i = la->delay; i > 0; i--)
 		cpu_spinwait();
-
 	la->spin_cnt += la->delay;
+
+	la->delay <<= 1;
+	if (__predict_false(la->delay > lc->max))
+		la->delay = lc->max;
+
 	if (__predict_false(la->spin_cnt > starvation_limit)) {
 		SDT_PROBE1(lock, , , starvation, la->delay);
 		if (restrict_starvation)
 			la->delay = lc->base;
 	}
-
-	la->delay <<= 1;
-	if (__predict_false(la->delay > lc->max))
-		la->delay = lc->max;
 }
 
 static u_int
