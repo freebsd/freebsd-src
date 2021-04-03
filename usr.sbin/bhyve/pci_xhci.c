@@ -2720,7 +2720,7 @@ pci_xhci_parse_devices(struct pci_xhci_softc *sc, nvlist_t *nvl)
 
 	ndevices = 0;
 
-	slots_nvl = find_relative_config_node(nvl, "slots");
+	slots_nvl = find_relative_config_node(nvl, "slot");
 	if (slots_nvl == NULL)
 		goto portsfinal;
 
@@ -2806,6 +2806,7 @@ pci_xhci_parse_devices(struct pci_xhci_softc *sc, nvlist_t *nvl)
 		dev->dev_sc = devsc;
 
 		XHCI_SLOTDEV_PTR(sc, slot) = dev;
+		ndevices++;
 	}
 
 portsfinal:
