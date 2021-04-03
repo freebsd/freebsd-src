@@ -37,6 +37,7 @@
  * Common option names
  */
 #define	PAM_OPT_NULLOK		"nullok"
+#define	PAM_OPT_EMPTYOK		"emptyok"
 #define PAM_OPT_AUTH_AS_SELF	"auth_as_self"
 #define PAM_OPT_ECHO_PASS	"echo_pass"
 #define PAM_OPT_DEBUG		"debug"

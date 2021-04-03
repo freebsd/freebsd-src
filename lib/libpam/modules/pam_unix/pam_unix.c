@@ -94,6 +94,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	struct passwd *pwd;
 	int retval;
 	const char *pass, *user, *realpw, *prompt;
+	const char *emptypasswd = "";
 
 	if (openpam_get_option(pamh, PAM_OPT_AUTH_AS_SELF)) {
 		user = getlogin();
@@ -116,6 +117,15 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 			PAM_LOG("Password is empty, using fake password");
 			realpw = "*";
 		}
+		/*
+		 * Check whether the saved password hash matches the one
+		 * generated from an empty password - as opposed to empty
+		 * saved password hash, which is handled above.
+		 */
+		if (!(flags & PAM_DISALLOW_NULL_AUTHTOK) &&
+		    openpam_get_option(pamh, PAM_OPT_EMPTYOK) &&
+		    strcmp(crypt(emptypasswd, realpw), realpw) == 0)
+			return (PAM_SUCCESS);
 		lc = login_getpwclass(pwd);
 	} else {
 		PAM_LOG("Doing dummy authentication");
