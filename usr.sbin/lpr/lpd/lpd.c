@@ -102,6 +102,7 @@ static char sccsid[] = "@(#)lpd.c	8.7 (Berkeley) 5/10/95";
 
 int	lflag;				/* log requests flag */
 int	sflag;				/* no incoming port flag */
+int	Fflag;				/* run in foreground flag */
 int	from_remote;			/* from remote socket */
 
 int		 main(int argc, char **_argv);
@@ -150,7 +151,7 @@ main(int argc, char **argv)
 		errx(EX_NOPERM,"must run as root");
 
 	errs = 0;
-	while ((i = getopt(argc, argv, "cdlpswW46")) != -1)
+	while ((i = getopt(argc, argv, "cdlpswFW46")) != -1)
 		switch (i) {
 		case 'c':
 			/* log all kinds of connection-errors to syslog */
@@ -182,6 +183,9 @@ main(int argc, char **argv)
 			syslog(LOG_WARNING,
 			    "NOTE: please change your lpd config to use -W");
 			/* FALLTHROUGH */
+		case 'F':
+			Fflag++;
+			break;
 		case 'W':
 			/* allow connections coming from a non-reserved port */
 			/* (done by some lpr-implementations for MS-Windows) */ 
@@ -262,12 +266,16 @@ main(int argc, char **argv)
 			     WEXITSTATUS(status));
 	}
 
-#ifndef DEBUG
-	/*
-	 * Set up standard environment by detaching from the parent.
-	 */
-	daemon(0, 0);
+#ifdef DEBUG
+	Fflag++;
 #endif
+	/*
+	 * Set up standard environment by detaching from the parent
+	 * if -F not specified
+	 */
+	if (Fflag == 0) {
+		daemon(0, 0);
+	}
 
 	openlog("lpd", LOG_PID, LOG_LPR);
 	syslog(LOG_INFO, "lpd startup: logging=%d%s%s", lflag,
@@ -930,9 +938,9 @@ static void
 usage(void)
 {
 #ifdef INET6
-	fprintf(stderr, "usage: lpd [-cdlsW46] [port#]\n");
+	fprintf(stderr, "usage: lpd [-cdlsFW46] [port#]\n");
 #else
-	fprintf(stderr, "usage: lpd [-cdlsW] [port#]\n");
+	fprintf(stderr, "usage: lpd [-cdlsFW] [port#]\n");
 #endif
 	exit(EX_USAGE);
 }
