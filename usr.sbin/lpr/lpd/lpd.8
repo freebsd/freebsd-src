@@ -108,6 +108,17 @@ This means that
 will not accept any connections from any remote
 hosts, although it will still accept print requests
 from all local users.
+.It Fl F
+By default,
+.Nm
+will daemonize into the background.
+The
+.Fl F
+flag causes
+.Nm
+to remain in the foreground.
+Logging is still performed with
+.Xr syslog 3 .
 .It Fl W
 By default, the
 .Nm
