@@ -380,7 +380,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 					error = ENOTDIR;
 				} else {
 					*dpp = dfp->f_vnode;
-					vrefact(*dpp);
+					vref(*dpp);
 
 					if ((dfp->f_flag & FSEARCH) != 0)
 						cnp->cn_flags |= NOEXECCHECK;
