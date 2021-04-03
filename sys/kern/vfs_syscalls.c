@@ -896,7 +896,7 @@ sys_fchdir(struct thread *td, struct fchdir_args *uap)
 	if (error != 0)
 		return (error);
 	vp = fp->f_vnode;
-	vrefact(vp);
+	vref(vp);
 	fdrop(fp, td);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	AUDIT_ARG_VNODE1(vp);
@@ -1191,8 +1191,13 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 	if (fp->f_ops == &badfileops) {
 		KASSERT(vp->v_type != VFIFO || (flags & O_PATH) != 0,
 		    ("Unexpected fifo fp %p vp %p", fp, vp));
-		finit_vnode(fp, flags, NULL, (flags & O_PATH) != 0 ?
-		    &path_fileops : &vnops);
+		if ((flags & O_PATH) != 0) {
+			finit_vnode(fp, flags, NULL, &path_fileops);
+			vhold(vp);
+			vunref(vp);
+		} else {
+			finit_vnode(fp, flags, NULL, &vnops);
+		}
 	}
 
 	VOP_UNLOCK(vp);

@@ -349,6 +349,9 @@ But operations like
 and any other that operate on file and not on file descriptor (except
 .Xr fstat 2 ),
 are not allowed.
+File opened with the
+.Dv O_PATH
+flag does not prevent non-forced unmount of the volume it belongs to.
 See also the description of
 .Dv AT_EMPTY_PATH
 flag for

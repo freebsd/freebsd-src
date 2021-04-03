@@ -3430,7 +3430,7 @@ _fgetvp(struct thread *td, int fd, int flags, cap_rights_t *needrightsp,
 		error = EINVAL;
 	} else {
 		*vpp = fp->f_vnode;
-		vrefact(*vpp);
+		vref(*vpp);
 	}
 	fdrop(fp, td);
 
@@ -3466,7 +3466,7 @@ fgetvp_rights(struct thread *td, int fd, cap_rights_t *needrightsp,
 
 	*havecaps = caps;
 	*vpp = fp->f_vnode;
-	vrefact(*vpp);
+	vref(*vpp);
 	fdrop(fp, td);
 
 	return (0);
@@ -4978,7 +4978,7 @@ path_close(struct file *fp, struct thread *td)
 {
 	MPASS(fp->f_type == DTYPE_VNODE);
 	fp->f_ops = &badfileops;
-	vrele(fp->f_vnode);
+	vdrop(fp->f_vnode);
 	return (0);
 }
 
