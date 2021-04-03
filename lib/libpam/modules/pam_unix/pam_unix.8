@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2009
+.Dd April 3, 2020
 .Dt PAM_UNIX 8
 .Os
 .Sh NAME
@@ -116,6 +116,16 @@ privileges), the
 option may cause
 .Nm
 to allow any user to log in with any password.
+.It Cm emptyok
+If the password database contains the password for the entity being
+authenticated, but the password matches an empty string,
+then this option will forgo password prompting, and
+silently allow authentication to succeed.
+.Pp
+The difference between this and
+.Cm nullok
+is that it avoids prompting for password when the password is set
+to an empty string, as opposed to not being set.
 .It Cm local_pass
 Use only the local password database, even if NIS is in use.
 This will cause an authentication failure if the system is configured
