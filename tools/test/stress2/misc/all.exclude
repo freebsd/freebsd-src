@@ -4,9 +4,9 @@
 backingstore.sh		g_vfs_done():md6a[WRITE(offset=...)]error = 28			20111220
 backingstore2.sh	panic: 43 vncache entries remaining				20111220
 backingstore3.sh	g_vfs_done():md6a[WRITE(offset=...)]error = 28			20111230
-collapse.sh		panic: freeing mapped page 0xfffffe0028ed1d50			20200106
 dd.sh			CAM stuck in vmwait						20200116
 devfs4.sh		Hang seen							20210210
+force4.sh		https://people.freebsd.org/~pho/stress/log/log0082.txt		20210328
 fsync.sh		panic: Journal overflow						20190208
 fuse.sh			Memory corruption seen in log file kostik734.txt		20141114
 fuse2.sh		Deadlock seen							20121129
@@ -26,17 +26,14 @@ graid1_9.sh		panic: Bad effnlink						20180212
 lockf5.sh		Spinning threads seen						20160718
 ifconfig.sh		Bug 253824							20210322
 ifconfig2.sh		https://people.freebsd.org/~pho/stress/log/log0051.txt		20210210
-maxvnodes.sh		Only supposed to work in single user mode			20190412
-maxvnodes2.sh		Only supposed to work in single user mode			20190412
-memguard.sh		Waiting for fix commit
+maxvnodes2.sh		https://people.freebsd.org/~pho/stress/log/log0083.txt		20210329
+memguard.sh		https://people.freebsd.org/~pho/stress/log/log0088.txt		20210402
 memguard2.sh		Waiting for fix commit
 memguard3.sh		Waiting for fix commit
 memsetdomain.sh		May change policy for random threads to to domainset_fixed	20210104
 mlockall2.sh		Unrecoverable OOM killing seen					20190203
 mlockall7.sh		Needs further investigation					20210123
 nfs15lockd.sh		panic: Assertion td->td_realucred == td->td_ucred failed ...	20210211
-Xnfs15lockd2.sh		WiP								20200805
-Xnfs15lockd3.sh		WiP								20200805
 newfs4.sh		watchdog fired. newbuf						20190225
 nfs10.sh		Double fault							20151013
 nfs13.sh		mount_nfs hangs in mntref					20191007
@@ -51,7 +48,6 @@ quota10.sh		people.freebsd.org/~pho/stress/log/quota10-2.txt		20200525
 quota2.sh		panic: dqflush: stray dquot					20120221
 quota3.sh		panic: softdep_deallocate_dependencies: unrecovered ...		20111222
 quota7.sh		panic: dqflush: stray dquot					20120221
-Xrename14.sh		mark136.txt							20200525
 sctp.sh			panic: Queues are not empty when handling ... i386		20201104
 sctp2.sh		panic: soclose: SS_NOFDREF on enter				20200307
 sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
@@ -60,10 +56,6 @@ signal.sh		Timing issues. Needs fixing					20171116
 snap8.sh		https://people.freebsd.org/~pho/stress/log/log0049.txt		20210216
 snap9.sh		panic: handle_written_filepage: not started			20170722
 snap11.sh		panic: handle_written_filepage: not started			20200928
-suj13.sh		Stuck with suspfs						20210105
-suj31.sh		Stuck with suspfs						20210105
-suj34.sh		Various hangs and panics (SUJ + NULLFS issue)			20131210
-Xswap4.sh		WiP								20171208
 swapoff2.sh		swap_pager_force_pagein: read from swap failed			20171223
 swapoff5.sh		log0005.txt, known issue					20210111
 systrace.sh		WiP								20200227
