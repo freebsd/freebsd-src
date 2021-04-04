@@ -1046,7 +1046,7 @@ usage(void)
 	    "       jail [-qv] [-f file] -[rR] ['*' | jail ...]\n"
 	    "       jail [-dhilqv] [-J jid_file] [-u username] [-U username]\n"
 	    "            [-n jailname] [-s securelevel]\n"
-	    "            path hostname [ip[,...]] command ...\n"
+	    "            path hostname ip[,...] command ...\n"
 	    "       jail [-f file] -e separator\n");
 	exit(1);
 }
