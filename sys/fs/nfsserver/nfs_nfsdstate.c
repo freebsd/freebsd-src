@@ -6416,6 +6416,7 @@ nfsrv_bindconnsess(struct nfsrv_descript *nd, uint8_t *sessionid, int *foreaftp)
 				sep->sess_crflags |= NFSV4CRSESS_CONNBACKCHAN;
 				clp->lc_flags |= LCL_DONEBINDCONN |
 				    LCL_NEEDSCBNULL;
+				clp->lc_flags &= ~LCL_CBDOWN;
 				if (*foreaftp == NFSCDFS4_BACK)
 					*foreaftp = NFSCDFS4_BACK;
 				else
