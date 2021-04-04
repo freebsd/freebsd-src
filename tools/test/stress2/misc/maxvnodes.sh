@@ -33,9 +33,12 @@
 # "panic: vm_fault_hold: fault on nofault entry, addr: 0xfffffe00b1b3c000"
 # seen: https://people.freebsd.org/~pho/stress/log/kostik1175.txt
 
+# https://people.freebsd.org/~pho/stress/log/log0084.txt
+# Fixed by: dc532884d582
+
 . ../default.cfg
 
-kldstat | grep -q tmpfs.ko || notloaded=1
+kldstat | grep -q tmpfs && loaded=1
 mount | grep $mntpoint | grep -q /dev/md && umount -f $mntpoint
 mount -o size=2g -t tmpfs tmpfs $mntpoint || exit 1
 chmod 777 $mntpoint
@@ -59,12 +62,12 @@ min=1000
 max=$((oldmx * 4))
 while kill -0 $! 2>/dev/null; do
 	sysctl kern.maxvnodes=`jot -r 1 $min $max` > /dev/null
-	sleep `jot -r 1 1 3`
+	sleep .2
 done
 wait
 
 while mount | grep $mntpoint | grep -q tmpfs; do
 	umount $mntpoint || sleep 1
 done
-[ $notloaded ] && kldunload tmpfs.ko
+[ $loaded ] && kldunload tmpfs.ko
 exit 0
