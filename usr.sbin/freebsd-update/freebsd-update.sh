@@ -2958,7 +2958,8 @@ Kernel updates have been installed.  Please reboot and run
 			if [ ! -d ${BASEDIR}/$D ]; then
 				continue
 			fi
-			if [ -z "$(find ${BASEDIR}/$D -type f -newer ${BASEDIR}/$D/mandoc.db)" ]; then
+			if [ -f ${BASEDIR}/$D/mandoc.db ] && \
+			    [ -z "$(find ${BASEDIR}/$D -type f -newer ${BASEDIR}/$D/mandoc.db)" ]; then
 				continue;
 			fi
 			makewhatis ${BASEDIR}/$D
