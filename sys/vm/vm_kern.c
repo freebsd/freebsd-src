@@ -886,7 +886,7 @@ debug_vm_lowmem(SYSCTL_HANDLER_ARGS)
 
 	i = 0;
 	error = sysctl_handle_int(oidp, &i, 0, req);
-	if (error)
+	if (error != 0)
 		return (error);
 	if ((i & ~(VM_LOW_KMEM | VM_LOW_PAGES)) != 0)
 		return (EINVAL);
@@ -895,5 +895,6 @@ debug_vm_lowmem(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-SYSCTL_PROC(_debug, OID_AUTO, vm_lowmem, CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, 0,
-    debug_vm_lowmem, "I", "set to trigger vm_lowmem event with given flags");
+SYSCTL_PROC(_debug, OID_AUTO, vm_lowmem,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, 0, debug_vm_lowmem, "I",
+    "set to trigger vm_lowmem event with given flags");
