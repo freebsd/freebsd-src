@@ -860,3 +860,21 @@ debug_vm_lowmem(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_debug, OID_AUTO, vm_lowmem,
     CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, 0, debug_vm_lowmem, "I",
     "set to trigger vm_lowmem event with given flags");
+
+static int
+debug_uma_reclaim(SYSCTL_HANDLER_ARGS)
+{
+	int error, i;
+
+	i = 0;
+	error = sysctl_handle_int(oidp, &i, 0, req);
+	if (error != 0)
+		return (error);
+	if (i != 0)
+		uma_reclaim();
+	return (0);
+}
+
+SYSCTL_PROC(_debug, OID_AUTO, uma_reclaim,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, 0, debug_uma_reclaim, "I",
+    "set to generate request to reclaim uma caches");
