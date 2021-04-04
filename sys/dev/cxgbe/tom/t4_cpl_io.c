@@ -2201,8 +2201,7 @@ out:
 		job->aio_error = (void *)(intptr_t)error;
 		aiotx_free_job(job);
 	}
-	if (m != NULL)
-		m_free(m);
+	m_freem(m);
 	SOCKBUF_LOCK(sb);
 }
 
