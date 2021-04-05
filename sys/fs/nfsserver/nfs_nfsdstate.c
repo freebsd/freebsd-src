@@ -3070,6 +3070,7 @@ tryagain:
 		new_deleg->ls_clp = clp;
 		new_deleg->ls_filerev = filerev;
 		new_deleg->ls_compref = nd->nd_compref;
+		new_deleg->ls_lastrecall = 0;
 		LIST_INSERT_HEAD(&lfp->lf_deleg, new_deleg, ls_file);
 		LIST_INSERT_HEAD(NFSSTATEHASH(clp,
 		    new_deleg->ls_stateid), new_deleg, ls_hash);
@@ -3191,6 +3192,7 @@ tryagain:
 			new_deleg->ls_clp = clp;
 			new_deleg->ls_filerev = filerev;
 			new_deleg->ls_compref = nd->nd_compref;
+			new_deleg->ls_lastrecall = 0;
 			nfsrv_writedelegcnt++;
 			LIST_INSERT_HEAD(&lfp->lf_deleg, new_deleg, ls_file);
 			LIST_INSERT_HEAD(NFSSTATEHASH(clp,
@@ -3261,6 +3263,7 @@ tryagain:
 			new_deleg->ls_clp = clp;
 			new_deleg->ls_filerev = filerev;
 			new_deleg->ls_compref = nd->nd_compref;
+			new_deleg->ls_lastrecall = 0;
 			LIST_INSERT_HEAD(&lfp->lf_deleg, new_deleg, ls_file);
 			LIST_INSERT_HEAD(NFSSTATEHASH(clp,
 			    new_deleg->ls_stateid), new_deleg, ls_hash);
@@ -3339,6 +3342,7 @@ tryagain:
 				new_deleg->ls_clp = clp;
 				new_deleg->ls_filerev = filerev;
 				new_deleg->ls_compref = nd->nd_compref;
+				new_deleg->ls_lastrecall = 0;
 				LIST_INSERT_HEAD(&lfp->lf_deleg, new_deleg,
 				    ls_file);
 				LIST_INSERT_HEAD(NFSSTATEHASH(clp,
@@ -5265,7 +5269,8 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 	 * - check to see if the delegation has expired
 	 *   - if so, get the v4root lock and then expire it
 	 */
-	if (!(stp->ls_flags & NFSLCK_DELEGRECALL)) {
+	if ((stp->ls_flags & NFSLCK_DELEGRECALL) == 0 || stp->ls_lastrecall <
+	    time_uptime) {
 		/*
 		 * - do a recall callback, since not yet done
 		 * For now, never allow truncate to be set. To use
@@ -5280,11 +5285,14 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 		 * will be extended when ops are done on the delegation
 		 * stateid, up to the timelimit.)
 		 */
-		stp->ls_delegtime = NFSD_MONOSEC + (2 * nfsrv_lease) +
-		    NFSRV_LEASEDELTA;
-		stp->ls_delegtimelimit = NFSD_MONOSEC + (6 * nfsrv_lease) +
-		    NFSRV_LEASEDELTA;
-		stp->ls_flags |= NFSLCK_DELEGRECALL;
+		if ((stp->ls_flags & NFSLCK_DELEGRECALL) == 0) {
+			stp->ls_delegtime = NFSD_MONOSEC + (2 * nfsrv_lease) +
+			    NFSRV_LEASEDELTA;
+			stp->ls_delegtimelimit = NFSD_MONOSEC + (6 *
+			    nfsrv_lease) + NFSRV_LEASEDELTA;
+			stp->ls_flags |= NFSLCK_DELEGRECALL;
+		}
+		stp->ls_lastrecall = time_uptime + 1;
 
 		/*
 		 * Loop NFSRV_CBRETRYCNT times while the CBRecall replies
