@@ -438,6 +438,19 @@ Default:
 .El
 .Sh SCRIPTING
 .Nm
+supports unattended, or minimally-attended, installations using scripting.
+This can be used with either modified physical installation media or with
+.Xr diskless 8
+installations over the network; information on preparing such media can be
+found in
+.Sx BUILDING AUTOMATIC INSTALL MEDIA
+.Pp
+Scripted installations follow an essentially identical path to interactive
+installations, though with some minor feature differences (for example,
+scripted installations do not support fetching of remote distribution files
+since scripted installations normally install the same files and the distributions
+can be added directly to the installation media).
+.Nm
 scripts consist of two parts: a
 .Em preamble
 and a
