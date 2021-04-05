@@ -424,6 +424,13 @@ See
 Also it indicates the presence of
 .Va l_refname
 member of the structure.
+.It Dv _rtld_version_dlpi_tls_data
+The
+.Va dlpi_tls_data
+member of the structure
+.Vt dl_phdr_info
+contains the address of the module TLS segment for the calling thread,
+and not the address of the initialization segment.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/ld-elf32.so.hints" -compact
