@@ -215,6 +215,7 @@ device		smu		# Apple System Management Unit
 device		adm1030		# Apple G4 MDD fan controller
 device		atibl		# ATI-based backlight driver for PowerBooks/iBooks
 device		nvbl		# nVidia-based backlight driver for PowerBooks/iBooks
+device		pswitch		# Macio programmer's switch
 
 # ADB support
 device		adb

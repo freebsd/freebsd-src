@@ -41,14 +41,15 @@
 
 #include <machine/resource.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <powerpc/powermac/maciovar.h>
 
 struct pswitch_softc {
-	int	sc_irqrid;
-	struct	resource *sc_irq;
-	void	*sc_ih;
+	int		sc_irq_rid;
+	struct resource	*sc_irq;
+	void		*sc_ih;
 };
 
 static int	pswitch_probe(device_t);
@@ -71,14 +72,15 @@ static driver_t pswitch_driver = {
 
 static devclass_t pswitch_devclass;
 
-DRIVER_MODULE(pswitch, macio, pswitch_driver, pswitch_devclass, 0, 0);
+EARLY_DRIVER_MODULE(pswitch, macgpio, pswitch_driver, pswitch_devclass,
+    0, 0, BUS_PASS_RESOURCE);
 
 static int
 pswitch_probe(device_t dev)
 {
-	char	*type = macio_get_devtype(dev);
+	const char *type = ofw_bus_get_type(dev);
 
-	if (strcmp(type, "gpio") != 0)
+	if (strcmp(type, "programmer-switch") != 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "GPIO Programmer's Switch");
@@ -89,43 +91,21 @@ static int
 pswitch_attach(device_t dev)
 {
 	struct		pswitch_softc *sc;
-	phandle_t	node, child;
-	char		type[32];
-	u_int		irq[2];
 
 	sc = device_get_softc(dev);
-	node = macio_get_node(dev);
 
-	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
-		if (OF_getprop(child, "device_type", type, 32) == -1)
-			continue;
-
-		if (strcmp(type, "programmer-switch") == 0)
-			break;
-	}
-
-	if (child == 0) {
-		device_printf(dev, "could not find correct node\n");
-		return (ENXIO);
-	}
-
-	if (OF_getprop(child, "interrupts", irq, sizeof(irq)) == -1) {
-		device_printf(dev, "could not get interrupt\n");
-		return (ENXIO);
-	}
-
-	sc->sc_irqrid = 0;
-	sc->sc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->sc_irqrid,
-	    irq[0], irq[0], 1, RF_ACTIVE);
+	sc->sc_irq_rid = 0;
+	sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+	    &sc->sc_irq_rid, RF_ACTIVE);
 	if (sc->sc_irq == NULL) {
 		device_printf(dev, "could not allocate interrupt\n");
 		return (ENXIO);
 	}
 
-	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC,
+	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC | INTR_EXCL,
 	    pswitch_intr, NULL, dev, &sc->sc_ih) != 0) {
 		device_printf(dev, "could not setup interrupt\n");
-		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irqrid,
+		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irq_rid,
 		    sc->sc_irq);
 		return (ENXIO);
 	}
