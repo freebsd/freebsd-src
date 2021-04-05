@@ -169,6 +169,7 @@ dev/dwc/if_dwc_if.m				optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_
 dev/gpio/pl061.c				optional pl061 gpio
 dev/gpio/pl061_acpi.c				optional pl061 gpio acpi
 dev/gpio/pl061_fdt.c				optional pl061 gpio fdt
+dev/gpio/qoriq_gpio.c				optional SOC_NXP_LS gpio fdt
 
 dev/hwpmc/hwpmc_arm64.c				optional hwpmc
 dev/hwpmc/hwpmc_arm64_md.c			optional hwpmc
@@ -494,7 +495,6 @@ tegra210_xusb.fw				optional tegra210_xusb_fw	\
 
 # NXP
 arm/freescale/vybrid/vf_i2c.c			optional vf_i2c iicbus SOC_NXP_LS
-arm64/qoriq/ls1046_gpio.c			optional ls1046_gpio gpio fdt SOC_NXP_LS
 arm64/qoriq/qoriq_dw_pci.c			optional pci fdt SOC_NXP_LS
 arm64/qoriq/qoriq_therm.c			optional pci fdt SOC_NXP_LS
 arm64/qoriq/qoriq_therm_if.m			optional pci fdt SOC_NXP_LS

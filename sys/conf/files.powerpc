@@ -24,6 +24,7 @@ dev/adb/adb_if.m		optional	adb
 dev/adb/adb_buttons.c		optional	adb
 dev/agp/agp_apple.c		optional	agp powermac
 dev/fb/fb.c			optional	sc
+dev/gpio/qoriq_gpio.c		optional	mpc85xx gpio
 dev/hwpmc/hwpmc_e500.c		optional	hwpmc
 dev/hwpmc/hwpmc_mpc7xxx.c	optional	hwpmc
 dev/hwpmc/hwpmc_power8.c	optional	hwpmc
@@ -186,7 +187,6 @@ powerpc/mpc85xx/mpc85xx_gpio.c	optional	mpc85xx gpio
 powerpc/mpc85xx/platform_mpc85xx.c	optional	mpc85xx
 powerpc/mpc85xx/pci_mpc85xx.c	optional	pci mpc85xx
 powerpc/mpc85xx/pci_mpc85xx_pcib.c	optional	pci mpc85xx
-powerpc/mpc85xx/qoriq_gpio.c	optional	mpc85xx gpio
 powerpc/ofw/ofw_machdep.c	standard
 powerpc/ofw/ofw_pcibus.c	optional	pci
 powerpc/ofw/ofw_pcib_pci.c	optional	pci
