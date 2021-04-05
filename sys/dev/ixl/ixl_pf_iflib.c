@@ -1094,7 +1094,7 @@ ixl_sysctl_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	aq_error = i40e_set_fc(hw, &fc_aq_err, TRUE);
 	if (aq_error) {
 		device_printf(dev,
-		    "%s: Error setting new fc mode %d; fc_err %#x\n",
+		    "%s: Error setting Flow Control mode %d; fc_err %#x\n",
 		    __func__, aq_error, fc_aq_err);
 		return (EIO);
 	}
