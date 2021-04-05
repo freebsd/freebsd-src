@@ -971,7 +971,7 @@ dns_group(void *retval, void *mdata, va_list ap)
 	hes = NULL;
 	name = NULL;
 	gid = (gid_t)-1;
-	how = (enum nss_lookup_type)mdata;
+	how = (enum nss_lookup_type)(uintptr_t)mdata;
 	switch (how) {
 	case nss_lt_name:
 		name = va_arg(ap, const char *);
