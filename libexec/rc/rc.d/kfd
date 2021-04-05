@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: kfd
-# REQUIRE: NETWORK
+# REQUIRE: NETWORKING
 # KEYWORD: shutdown
 
 . /etc/rc.subr
