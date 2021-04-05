@@ -220,6 +220,7 @@ struct nfsstate {
 			time_t		expiry;
 			time_t		limit;
 			u_int64_t	compref;
+			time_t		last;
 		} deleg;
 	} ls_un;
 	struct nfslockfile	*ls_lfp;	/* Back pointer */
@@ -238,6 +239,7 @@ struct nfsstate {
 #define	ls_delegtime		ls_un.deleg.expiry
 #define	ls_delegtimelimit	ls_un.deleg.limit
 #define	ls_compref		ls_un.deleg.compref
+#define	ls_lastrecall		ls_un.deleg.last
 
 /*
  * Nfs lock structure.
