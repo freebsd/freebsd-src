@@ -477,7 +477,8 @@ exits.
 The two parts are separated by the usual script header (#!), which also sets
 the interpreter for the setup script.
 .Pp
-A typical bsdinstall script looks like this:
+A typical bsdinstall script, using the default filesystem layout and the UFS
+filesystem, looks like this:
 .Bd -literal -offset indent
 PARTITIONS=DEFAULT
 DISTRIBUTIONS="kernel.txz base.txz"
@@ -488,11 +489,12 @@ sysrc sshd_enable=YES
 pkg install puppet
 .Ed
 .Pp
-For a ZFS scripted installation, the script looks like this:
+For a scripted installation involving a ZFS pool spanning multiple disks,
+the script instead looks like this:
 .Bd -literal -offset indent
 DISTRIBUTIONS="kernel.txz base.txz"
 export ZFSBOOT_VDEV_TYPE=stripe
-export ZFSBOOT_DISKS=ada0
+export ZFSBOOT_DISKS="ada0 ada1"
 export nonInteractive="YES"
 
 #!/bin/sh
@@ -529,6 +531,7 @@ the preamble can contain a variable
 which is passed to the
 .Cm scriptedpart
 target to control disk setup.
+.Pp
 Alternatively,
 to use
 .Cm zfsboot
@@ -537,12 +540,13 @@ instead of
 the preamble can contain the variable
 .Ev ZFSBOOT_DATASETS
 instead of
-.Ev PARTITIONS ,
-and setting the variables
+.Ev PARTITIONS
+(see below).
+If using .Cm zfsboot, the variables
 .Ev ZFSBOOT_DISKS
 and
 .Ev ZFSBOOT_VDEV_TYPE
-to create the pool of disks for the base system.
+must be set to create the pool of disks for the base system.
 Usually, for a mirrored booting disk, this two variables looks like this:
 .Bd -literal -offset indent
 ZFSBOOT_DISKS="ada0 ada1"
@@ -551,7 +555,7 @@ ZFSBOOT_VDEV_TYPE=mirror
 .Pp
 Remember to export all the variables for the
 .Cm zfsboot
-command, otherwise it will not get set.
+command, otherwise installation will fail.
 .Ss SETUP SCRIPT
 Following the preamble is an optional shell script, beginning with a #!
 declaration.
@@ -563,15 +567,17 @@ Note that newly configured system services, e.g., networking have not
 been started in the installed system at this time and only installation
 host services are available.
 .Ss ZFS DATASETS
-The
+If using
 .Cm zfsboot
-partitioning takes the
+in an installation script, the
+.Cm zfsboot
+partitioning tool takes the
 .Ev ZFSBOOT_DATASETS
-variable to create the datasets on the base system.
-This variable can get pretty huge if the pool contains a lot of datasets.
+variable to create the ZFS datasets on the base system.
+This variable definition can become large if the pool contains many datasets.
 The default value of the
 .Ev ZFSBOOT_DATASETS
-looks like this:
+is:
 .Bd -literal -offset indent
 # DATASET	OPTIONS (comma or space separated; or both)
 
@@ -603,11 +609,11 @@ looks like this:
 /var/tmp	setuid=off
 .Ed
 .Pp
-The first column if the dataset to be created on the top of the
+The first column is the name of the dataset to be created as part of the
 .Ev ZFSBOOT_POOL_NAME
-and the rest of the columns are the options to be set on each dataset.
-The options must be written on a coma or space separated list, or both.
-And everything behind a pound/hash character is ignored as a comment.
+pool and the remainder of each line contains the options to be set on each dataset.
+If multiple options are given, they can be separated by either commas or whitespace;
+everything following a pound/hash character is ignored as a comment.
 .Ss BUILDING AUTOMATIC INSTALL MEDIA
 If building automatic install media, use tar to extract a release ISO:
 .Dl mkdir release-media
@@ -629,3 +635,5 @@ first appeared in
 .Fx 9.0 .
 .Sh AUTHORS
 .An Nathan Whitehorn Aq Mt nwhitehorn@FreeBSD.org
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Allan Jude Aq Mt allanjude@FreeBSD.org
