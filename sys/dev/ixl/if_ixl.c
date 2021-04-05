@@ -304,6 +304,10 @@ TUNABLE_INT("hw.ixl.tx_itr", &ixl_tx_itr);
 SYSCTL_INT(_hw_ixl, OID_AUTO, tx_itr, CTLFLAG_RDTUN,
     &ixl_tx_itr, 0, "TX Interrupt Rate");
 
+static int ixl_flow_control = -1;
+SYSCTL_INT(_hw_ixl, OID_AUTO, flow_control, CTLFLAG_RDTUN,
+    &ixl_flow_control, 0, "Initial Flow Control setting");
+
 #ifdef IXL_IW
 int ixl_enable_iwarp = 0;
 TUNABLE_INT("hw.ixl.enable_iwarp", &ixl_enable_iwarp);
@@ -1892,5 +1896,20 @@ ixl_save_pf_tunables(struct ixl_pf *pf)
 		pf->rx_itr = IXL_ITR_8K;
 	} else
 		pf->rx_itr = ixl_rx_itr;
+
+	pf->fc = -1;
+	if (ixl_flow_control != -1) {
+		if (ixl_flow_control < 0 || ixl_flow_control > 3) {
+			device_printf(dev,
+			    "Invalid flow_control value of %d set!\n",
+			    ixl_flow_control);
+			device_printf(dev,
+			    "flow_control must be between %d and %d, "
+			    "inclusive\n", 0, 3);
+			device_printf(dev,
+			    "Using default configuration instead\n");
+		} else
+			pf->fc = ixl_flow_control;
+	}
 }
 
