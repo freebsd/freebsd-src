@@ -3889,13 +3889,16 @@ dlinfo(void *handle, int request, void *p)
 static void
 rtld_fill_dl_phdr_info(const Obj_Entry *obj, struct dl_phdr_info *phdr_info)
 {
+	tls_index ti;
 
 	phdr_info->dlpi_addr = (Elf_Addr)obj->relocbase;
 	phdr_info->dlpi_name = obj->path;
 	phdr_info->dlpi_phdr = obj->phdr;
 	phdr_info->dlpi_phnum = obj->phsize / sizeof(obj->phdr[0]);
 	phdr_info->dlpi_tls_modid = obj->tlsindex;
-	phdr_info->dlpi_tls_data = obj->tlsinit;
+	ti.ti_module = obj->tlsindex;
+	ti.ti_offset = 0;
+	phdr_info->dlpi_tls_data = __tls_get_addr(&ti);
 	phdr_info->dlpi_adds = obj_loads;
 	phdr_info->dlpi_subs = obj_loads - obj_count;
 }
@@ -5894,3 +5897,6 @@ int _rtld_version__FreeBSD_version = __FreeBSD_version;
 
 extern char _rtld_version_laddr_offset __exported;
 char _rtld_version_laddr_offset;
+
+extern char _rtld_version_dlpi_tls_data __exported;
+char _rtld_version_dlpi_tls_data;
