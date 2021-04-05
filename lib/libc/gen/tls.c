@@ -41,6 +41,7 @@
 #include <elf.h>
 #include <unistd.h>
 
+#include "rtld.h"
 #include "libc_private.h"
 
 #define	tls_assert(cond)	((cond) ? (void) 0 :			\
@@ -96,10 +97,10 @@ void __libc_free_tls(void *tls, size_t tcbsize, size_t tcbalign);
 
 #ifndef PIC
 
-static size_t tls_static_space;
-static size_t tls_init_size;
-static size_t tls_init_align;
-static void *tls_init;
+static size_t libc_tls_static_space;
+static size_t libc_tls_init_size;
+static size_t libc_tls_init_align;
+static void *libc_tls_init;
 #endif
 
 #ifdef __i386__
@@ -124,7 +125,7 @@ __libc_tls_get_addr(void *ti __unused)
 #ifndef PIC
 
 static void *
-malloc_aligned(size_t size, size_t align)
+libc_malloc_aligned(size_t size, size_t align)
 {
 	void *mem, *res;
 
@@ -138,7 +139,7 @@ malloc_aligned(size_t size, size_t align)
 }
 
 static void
-free_aligned(void *ptr)
+libc_free_aligned(void *ptr)
 {
 	void *mem;
 	uintptr_t x;
@@ -188,8 +189,6 @@ free_aligned(void *ptr)
  * [5] I'm not able to validate "values are biased" assertions.
  */
 
-#define	TLS_TCB_SIZE	(2 * sizeof(void *))
-
 /*
  * Return pointer to allocated TLS block
  */
@@ -201,12 +200,13 @@ get_tls_block_ptr(void *tcb, size_t tcbsize)
 	/* Compute fragments sizes. */
 	extra_size = tcbsize - TLS_TCB_SIZE;
 #if defined(__aarch64__) || defined(__arm__)
-	post_size =  roundup2(TLS_TCB_SIZE, tls_init_align) - TLS_TCB_SIZE;
+	post_size =  roundup2(TLS_TCB_SIZE, libc_tls_init_align) - TLS_TCB_SIZE;
 #else
 	post_size = 0;
 #endif
 	tls_block_size = tcbsize + post_size;
-	pre_size = roundup2(tls_block_size, tls_init_align) - tls_block_size;
+	pre_size = roundup2(tls_block_size, libc_tls_init_align) -
+	    tls_block_size;
 
 	return ((char *)tcb - pre_size - extra_size);
 }
@@ -225,7 +225,7 @@ __libc_free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
 	tls = (Elf_Addr **)tcb;
 	dtv = tls[0];
 	__je_bootstrap_free(dtv);
-	free_aligned(get_tls_block_ptr(tcb, tcbsize));
+	libc_free_aligned(get_tls_block_ptr(tcb, tcbsize));
 }
 
 /*
@@ -259,21 +259,22 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign)
 		return (oldtcb);
 
 	tls_assert(tcbalign >= TLS_TCB_ALIGN);
-	maxalign = MAX(tcbalign, tls_init_align);
+	maxalign = MAX(tcbalign, libc_tls_init_align);
 
 	/* Compute fragmets sizes. */
 	extra_size = tcbsize - TLS_TCB_SIZE;
 #if defined(__aarch64__) || defined(__arm__)
-	post_size = roundup2(TLS_TCB_SIZE, tls_init_align) - TLS_TCB_SIZE;
+	post_size = roundup2(TLS_TCB_SIZE, libc_tls_init_align) - TLS_TCB_SIZE;
 #else
 	post_size = 0;
 #endif
 	tls_block_size = tcbsize + post_size;
-	pre_size = roundup2(tls_block_size, tls_init_align) - tls_block_size;
-	tls_block_size += pre_size + tls_static_space;
+	pre_size = roundup2(tls_block_size, libc_tls_init_align) -
+	    tls_block_size;
+	tls_block_size += pre_size + libc_tls_static_space;
 
 	/* Allocate whole TLS block */
-	tls_block = malloc_aligned(tls_block_size, maxalign);
+	tls_block = libc_malloc_aligned(tls_block_size, maxalign);
 	if (tls_block == NULL) {
 		tls_msg("__libc_allocate_tls: Out of memory.\n");
 		abort();
@@ -285,7 +286,7 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign)
 	if (oldtcb != NULL) {
 		memcpy(tls_block, get_tls_block_ptr(oldtcb, tcbsize),
 		    tls_block_size);
-		free_aligned(oldtcb);
+		libc_free_aligned(oldtcb);
 
 		/* Adjust the DTV. */
 		dtv = tcb[0];
@@ -302,8 +303,8 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign)
 		dtv[1] = 1;		/* Segments count. */
 		dtv[2] = (Elf_Addr)(tls + DTV_OFFSET);
 
-		if (tls_init_size > 0)
-			memcpy(tls, tls_init, tls_init_size);
+		if (libc_tls_init_size > 0)
+			memcpy(tls, libc_tls_init, libc_tls_init_size);
 	}
 
 	return (tcb);
@@ -329,13 +330,13 @@ __libc_free_tls(void *tcb, size_t tcbsize __unused, size_t tcbalign)
 	 * Figure out the size of the initial TLS block so that we can
 	 * find stuff which ___tls_get_addr() allocated dynamically.
 	 */
-	tcbalign = MAX(tcbalign, tls_init_align);
-	size = roundup2(tls_static_space, tcbalign);
+	tcbalign = MAX(tcbalign, libc_tls_init_align);
+	size = roundup2(libc_tls_static_space, tcbalign);
 
 	dtv = ((Elf_Addr**)tcb)[1];
 	tlsend = (Elf_Addr) tcb;
 	tlsstart = tlsend - size;
-	free_aligned((void*)tlsstart);
+	libc_free_aligned((void*)tlsstart);
 	__je_bootstrap_free(dtv);
 }
 
@@ -350,12 +351,12 @@ __libc_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
 	Elf_Addr *dtv;
 	Elf_Addr segbase, oldsegbase;
 
-	tcbalign = MAX(tcbalign, tls_init_align);
-	size = roundup2(tls_static_space, tcbalign);
+	tcbalign = MAX(tcbalign, libc_tls_init_align);
+	size = roundup2(libc_tls_static_space, tcbalign);
 
 	if (tcbsize < 2 * sizeof(Elf_Addr))
 		tcbsize = 2 * sizeof(Elf_Addr);
-	tls = malloc_aligned(size + tcbsize, tcbalign);
+	tls = libc_malloc_aligned(size + tcbsize, tcbalign);
 	if (tls == NULL) {
 		tls_msg("__libc_allocate_tls: Out of memory.\n");
 		abort();
@@ -373,16 +374,16 @@ __libc_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
 
 	dtv[0] = 1;
 	dtv[1] = 1;
-	dtv[2] = segbase - tls_static_space;
+	dtv[2] = segbase - libc_tls_static_space;
 
 	if (oldtls) {
 		/*
 		 * Copy the static TLS block over whole.
 		 */
 		oldsegbase = (Elf_Addr) oldtls;
-		memcpy((void *)(segbase - tls_static_space),
-		    (const void *)(oldsegbase - tls_static_space),
-		    tls_static_space);
+		memcpy((void *)(segbase - libc_tls_static_space),
+		    (const void *)(oldsegbase - libc_tls_static_space),
+		    libc_tls_static_space);
 
 		/*
 		 * We assume that this block was the one we created with
@@ -390,10 +391,11 @@ __libc_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
 		 */
 		_rtld_free_tls(oldtls, 2*sizeof(Elf_Addr), sizeof(Elf_Addr));
 	} else {
-		memcpy((void *)(segbase - tls_static_space),
-		    tls_init, tls_init_size);
-		memset((void *)(segbase - tls_static_space + tls_init_size),
-		    0, tls_static_space - tls_init_size);
+		memcpy((void *)(segbase - libc_tls_static_space),
+		    libc_tls_init, libc_tls_init_size);
+		memset((void *)(segbase - libc_tls_static_space +
+		    libc_tls_init_size), 0,
+		    libc_tls_static_space - libc_tls_init_size);
 	}
 
 	return (void*) segbase;
@@ -457,11 +459,11 @@ _init_tls(void)
 
 	for (i = 0; (unsigned) i < phnum; i++) {
 		if (phdr[i].p_type == PT_TLS) {
-			tls_static_space = roundup2(phdr[i].p_memsz,
+			libc_tls_static_space = roundup2(phdr[i].p_memsz,
 			    phdr[i].p_align);
-			tls_init_size = phdr[i].p_filesz;
-			tls_init_align = phdr[i].p_align;
-			tls_init = (void*) phdr[i].p_vaddr;
+			libc_tls_init_size = phdr[i].p_filesz;
+			libc_tls_init_align = phdr[i].p_align;
+			libc_tls_init = (void *)phdr[i].p_vaddr;
 			break;
 		}
 	}
