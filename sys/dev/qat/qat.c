@@ -276,8 +276,8 @@ static const struct qat_sym_hash_def qat_sym_hash_defs[] = {
 static const struct qat_product *qat_lookup(device_t);
 static int	qat_probe(device_t);
 static int	qat_attach(device_t);
-static int	qat_init(struct device *);
-static int	qat_start(struct device *);
+static int	qat_init(device_t);
+static int	qat_start(device_t);
 static int	qat_detach(device_t);
 
 static int	qat_newsession(device_t dev, crypto_session_t cses,
