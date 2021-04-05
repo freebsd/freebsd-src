@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "reentrant.h"
 
-static char sorry[] = "Service unavailable";
+static const char sorry[] = "Service unavailable";
 
 void _rtld_thread_init(void *);
 void _rtld_atfork_pre(int *);
@@ -91,7 +91,7 @@ char *
 dlerror(void)
 {
 
-	return (sorry);
+	return (__DECONST(char *, sorry));
 }
 
 #pragma weak dllockinit
