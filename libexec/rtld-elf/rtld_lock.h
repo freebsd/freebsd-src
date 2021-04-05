@@ -46,9 +46,13 @@ struct RtldLockInfo
 	void  (*at_fork)(void);
 };
 
+#if defined(IN_RTLD) || defined(PTHREAD_KERNEL)
+
 void _rtld_thread_init(struct RtldLockInfo *) __exported;
 void _rtld_atfork_pre(int *) __exported;
 void _rtld_atfork_post(int *) __exported;
+
+#endif /* IN_RTLD || PTHREAD_KERNEL */
 
 #ifdef IN_RTLD
 
