@@ -918,10 +918,10 @@ vfs_domount_first(
 
 	/*
 	 * If the jail of the calling thread lacks permission for this type of
-	 * file system, deny immediately.
+	 * file system, or is trying to cover its own root, deny immediately.
 	 */
-	if (jailed(td->td_ucred) && !prison_allow(td->td_ucred,
-	    vfsp->vfc_prison_flag)) {
+	if (jailed(td->td_ucred) && (!prison_allow(td->td_ucred,
+	    vfsp->vfc_prison_flag) || vp == td->td_ucred->cr_prison->pr_root)) {
 		vput(vp);
 		return (EPERM);
 	}
