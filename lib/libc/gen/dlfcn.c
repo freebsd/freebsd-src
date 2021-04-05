@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <pthread.h>
 #include "un-namespace.h"
+#include "rtld.h"
 #include "libc_private.h"
 #include "reentrant.h"
 
