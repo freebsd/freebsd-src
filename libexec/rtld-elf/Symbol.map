@@ -34,4 +34,5 @@ FBSDprivate_1.0 {
     _r_debug_postinit;
     _rtld_version__FreeBSD_version;
     _rtld_version_laddr_offset;
+    _rtld_version_dlpi_tls_data;
 };
