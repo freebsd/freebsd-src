@@ -4267,6 +4267,45 @@ pci_create_iov_child_method(device_t bus, device_t pf, uint16_t rid,
 }
 #endif
 
+/*
+ * For PCIe device set Max_Payload_Size to match PCIe root's.
+ */
+static void
+pcie_setup_mps(device_t dev)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	device_t root;
+	uint16_t rmps, mmps, mps;
+
+	if (dinfo->cfg.pcie.pcie_location == 0)
+		return;
+	root = pci_find_pcie_root_port(dev);
+	if (root == NULL)
+		return;
+	/* Check whether the MPS is already configured. */
+	rmps = pcie_read_config(root, PCIER_DEVICE_CTL, 2) &
+	    PCIEM_CTL_MAX_PAYLOAD;
+	mps = pcie_read_config(dev, PCIER_DEVICE_CTL, 2) &
+	    PCIEM_CTL_MAX_PAYLOAD;
+	if (mps == rmps)
+		return;
+	/* Check whether the device is capable of the root's MPS. */
+	mmps = (pcie_read_config(dev, PCIER_DEVICE_CAP, 2) &
+	    PCIEM_CAP_MAX_PAYLOAD) << 5;
+	if (rmps > mmps) {
+		/*
+		 * The device is unable to handle root's MPS.  Limit root.
+		 * XXX: We should traverse through all the tree, applying
+		 * it to all the devices.
+		 */
+		pcie_adjust_config(root, PCIER_DEVICE_CTL,
+		    PCIEM_CTL_MAX_PAYLOAD, mmps, 2);
+	} else {
+		pcie_adjust_config(dev, PCIER_DEVICE_CTL,
+		    PCIEM_CTL_MAX_PAYLOAD, rmps, 2);
+	}
+}
+
 static void
 pci_add_child_clear_aer(device_t dev, struct pci_devinfo *dinfo)
 {
@@ -4354,6 +4393,7 @@ pci_add_child(device_t bus, struct pci_devinfo *dinfo)
 	pci_cfg_restore(dev, dinfo);
 	pci_print_verbose(dinfo);
 	pci_add_resources(bus, dev, 0, 0);
+	pcie_setup_mps(dev);
 	pci_child_added(dinfo->cfg.dev);
 
 	if (pci_clear_aer_on_attach)
