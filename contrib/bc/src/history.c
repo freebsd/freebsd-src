@@ -505,8 +505,8 @@ static size_t bc_history_cursorPos(void) {
 	size_t cols, rows, i;
 
 	// Report cursor location.
-	bc_file_write(&vm.fout, "\x1b[6n", 4);
-	bc_file_flush(&vm.fout);
+	bc_file_write(&vm.fout, bc_flush_none, "\x1b[6n", 4);
+	bc_file_flush(&vm.fout, bc_flush_none);
 
 	// Read the response: ESC [ rows ; cols R.
 	for (i = 0; i < sizeof(buf) - 1; ++i) {
@@ -556,15 +556,15 @@ static size_t bc_history_columns(void) {
 		if (BC_ERR(start == SIZE_MAX)) return BC_HIST_DEF_COLS;
 
 		// Go to right margin and get position.
-		bc_file_write(&vm.fout, "\x1b[999C", 6);
-		bc_file_flush(&vm.fout);
+		bc_file_write(&vm.fout, bc_flush_none, "\x1b[999C", 6);
+		bc_file_flush(&vm.fout, bc_flush_none);
 		cols = bc_history_cursorPos();
 		if (BC_ERR(cols == SIZE_MAX)) return BC_HIST_DEF_COLS;
 
 		// Restore position.
 		if (cols > start) {
 			bc_file_printf(&vm.fout, "\x1b[%zuD", cols - start);
-			bc_file_flush(&vm.fout);
+			bc_file_flush(&vm.fout, bc_flush_none);
 		}
 
 		return cols;
@@ -632,7 +632,7 @@ static void bc_history_refresh(BcHistory *h) {
 	char* buf = h->buf.v;
 	size_t colpos, len = BC_HIST_BUF_LEN(h), pos = h->pos;
 
-	bc_file_flush(&vm.fout);
+	bc_file_flush(&vm.fout, bc_flush_none);
 
 	while(h->pcol + bc_history_colPos(buf, len, pos) >= h->cols) {
 
@@ -647,24 +647,32 @@ static void bc_history_refresh(BcHistory *h) {
 		len -= bc_history_prevLen(buf, len, NULL);
 
 	// Cursor to left edge.
-	bc_file_write(&vm.fout, "\r", 1);
+	bc_file_write(&vm.fout, bc_flush_none, "\r", 1);
+
+	// Take the extra stuff into account.
+	if (h->extras.len > 1) {
+		len += h->extras.len - 1;
+		pos += h->extras.len - 1;
+		bc_file_write(&vm.fout, bc_flush_none, h->extras.v, h->extras.len - 1);
+	}
 
 	// Write the prompt, if desired.
 #if BC_ENABLE_PROMPT
-	if (BC_USE_PROMPT) bc_file_write(&vm.fout, h->prompt, h->plen);
+	if (BC_USE_PROMPT)
+		bc_file_write(&vm.fout, bc_flush_none, h->prompt, h->plen);
 #endif // BC_ENABLE_PROMPT
 
-	bc_file_write(&vm.fout, buf, BC_HIST_BUF_LEN(h));
+	bc_file_write(&vm.fout, bc_flush_none, buf, BC_HIST_BUF_LEN(h));
 
 	// Erase to right.
-	bc_file_write(&vm.fout, "\x1b[0K", 4);
+	bc_file_write(&vm.fout, bc_flush_none, "\x1b[0K", 4);
 
 	// Move cursor to original position.
 	colpos = bc_history_colPos(buf, len, pos) + h->pcol;
 
 	if (colpos) bc_file_printf(&vm.fout, "\r\x1b[%zuC", colpos);
 
-	bc_file_flush(&vm.fout);
+	bc_file_flush(&vm.fout, bc_flush_none);
 }
 
 /**
@@ -684,7 +692,7 @@ static void bc_history_edit_insert(BcHistory *h, const char *cbuf, size_t clen)
 		h->buf.len += clen - 1;
 		bc_vec_pushByte(&h->buf, '\0');
 
-		len = BC_HIST_BUF_LEN(h);
+		len = BC_HIST_BUF_LEN(h) + h->extras.len - 1;
 #if BC_ENABLE_PROMPT
 		colpos = bc_history_promptColLen(h->prompt, h->plen);
 #endif // BC_ENABLE_PROMPT
@@ -693,8 +701,8 @@ static void bc_history_edit_insert(BcHistory *h, const char *cbuf, size_t clen)
 		if (colpos < h->cols) {
 
 			// Avoid a full update of the line in the trivial case.
-			bc_file_write(&vm.fout, cbuf, clen);
-			bc_file_flush(&vm.fout);
+			bc_file_write(&vm.fout, bc_flush_none, cbuf, clen);
+			bc_file_flush(&vm.fout, bc_flush_none);
 		}
 		else bc_history_refresh(h);
 	}
@@ -1102,7 +1110,7 @@ static void bc_history_printCtrl(BcHistory *h, unsigned int c) {
 	bc_vec_pushByte(&h->buf, '\0');
 
 	if (c != BC_ACTION_CTRL_C && c != BC_ACTION_CTRL_D) {
-		bc_file_write(&vm.fout, newline, sizeof(newline) - 1);
+		bc_file_write(&vm.fout, bc_flush_none, newline, sizeof(newline) - 1);
 		bc_history_refresh(h);
 	}
 }
@@ -1116,6 +1124,11 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 
 	bc_history_reset(h);
 
+	// Don't write the saved output the first time. This is because it has
+	// already been written to output. In other words, don't uncomment the
+	// line below or add anything like it.
+	// bc_file_write(&vm.fout, bc_flush_none, h->extras.v, h->extras.len - 1);
+
 #if BC_ENABLE_PROMPT
 	if (BC_USE_PROMPT) {
 
@@ -1123,8 +1136,8 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 		h->plen = strlen(prompt);
 		h->pcol = bc_history_promptColLen(prompt, h->plen);
 
-		bc_file_write(&vm.fout, prompt, h->plen);
-		bc_file_flush(&vm.fout);
+		bc_file_write(&vm.fout, bc_flush_none, prompt, h->plen);
+		bc_file_flush(&vm.fout, bc_flush_none);
 	}
 #endif // BC_ENABLE_PROMPT
 
@@ -1158,8 +1171,8 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 			case BC_ACTION_CTRL_C:
 			{
 				bc_history_printCtrl(h, c);
-				bc_file_write(&vm.fout, vm.sigmsg, vm.siglen);
-				bc_file_write(&vm.fout, bc_program_ready_msg,
+				bc_file_write(&vm.fout, bc_flush_none, vm.sigmsg, vm.siglen);
+				bc_file_write(&vm.fout, bc_flush_none, bc_program_ready_msg,
 				              bc_program_ready_msg_len);
 				bc_history_reset(h);
 				bc_history_refresh(h);
@@ -1254,7 +1267,7 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 			// Clear screen.
 			case BC_ACTION_CTRL_L:
 			{
-				bc_file_write(&vm.fout, "\x1b[H\x1b[2J", 7);
+				bc_file_write(&vm.fout, bc_flush_none, "\x1b[H\x1b[2J", 7);
 				bc_history_refresh(h);
 				break;
 			}
@@ -1302,8 +1315,8 @@ static BcStatus bc_history_raw(BcHistory *h, const char *prompt) {
 	h->stdin_has_data = bc_history_stdinHasData(h);
 	if (!h->stdin_has_data) bc_history_disableRaw(h);
 
-	bc_file_write(&vm.fout, "\n", 1);
-	bc_file_flush(&vm.fout);
+	bc_file_write(&vm.fout, bc_flush_none, "\n", 1);
+	bc_file_flush(&vm.fout, bc_flush_none);
 
 	return s;
 }
@@ -1382,6 +1395,7 @@ void bc_history_init(BcHistory *h) {
 
 	bc_vec_init(&h->buf, sizeof(char), NULL);
 	bc_vec_init(&h->history, sizeof(char*), bc_history_string_free);
+	bc_vec_init(&h->extras, sizeof(char), NULL);
 
 	FD_ZERO(&h->rdset);
 	FD_SET(STDIN_FILENO, &h->rdset);
@@ -1401,6 +1415,7 @@ void bc_history_free(BcHistory *h) {
 #ifndef NDEBUG
 	bc_vec_free(&h->buf);
 	bc_vec_free(&h->history);
+	bc_vec_free(&h->extras);
 #endif // NDEBUG
 }
 
@@ -1439,8 +1454,8 @@ void bc_history_printKeyCodes(BcHistory *h) {
 		             isprint(c) ? c : '?', (unsigned long) c);
 
 		// Go left edge manually, we are in raw mode.
-		bc_vm_putchar('\r');
-		bc_file_flush(&vm.fout);
+		bc_vm_putchar('\r', bc_flush_none);
+		bc_file_flush(&vm.fout, bc_flush_none);
 	}
 
 	bc_history_disableRaw(h);

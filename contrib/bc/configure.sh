@@ -1221,6 +1221,8 @@ contents=$(replace "$contents" "DC_TESTS" "$dc_tests")
 contents=$(replace "$contents" "DC_SCRIPT_TESTS" "$dc_script_tests")
 contents=$(replace "$contents" "DC_TEST_EXEC" "$dc_test_exec")
 
+contents=$(replace "$contents" "BUILD_TYPE" "$manpage_args")
+
 contents=$(replace "$contents" "LIBRARY" "$library")
 contents=$(replace "$contents" "HISTORY" "$hist")
 contents=$(replace "$contents" "EXTRA_MATH" "$extra_math")

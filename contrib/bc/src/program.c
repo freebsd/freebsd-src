@@ -456,7 +456,9 @@ static void bc_program_read(BcProgram *p) {
 	bc_lex_file(&parse.l, bc_program_stdin_name);
 	bc_vec_popAll(&f->code);
 
-	s = bc_read_line(&buf, BC_IS_BC ? "read> " : "?> ");
+	if (BC_R) s = bc_read_line(&buf, "");
+	else s = bc_read_line(&buf, BC_IS_BC ? "read> " : "?> ");
+
 	if (s == BC_STATUS_EOF) bc_vm_err(BC_ERR_EXEC_READ_EXPR);
 
 	bc_parse_text(&parse, buf.v);
@@ -512,7 +514,7 @@ static void bc_program_printChars(const char *str) {
 	const char *nl;
 	size_t len = vm.nchars + strlen(str);
 
-	bc_file_puts(&vm.fout, str);
+	bc_file_puts(&vm.fout, bc_flush_save, str);
 	nl = strrchr(str, '\n');
 
 	if (nl != NULL) len = strlen(nl + 1);
@@ -526,7 +528,7 @@ static void bc_program_printString(const char *restrict str) {
 
 #if DC_ENABLED
 	if (!len && BC_IS_DC) {
-		bc_vm_putchar('\0');
+		bc_vm_putchar('\0', bc_flush_save);
 		return;
 	}
 #endif // DC_ENABLED
@@ -549,11 +551,11 @@ static void bc_program_printString(const char *restrict str) {
 			else {
 				// Just print the backslash. The following
 				// character will be printed later.
-				bc_vm_putchar('\\');
+				bc_vm_putchar('\\', bc_flush_save);
 			}
 		}
 
-		bc_vm_putchar(c);
+		bc_vm_putchar(c, bc_flush_save);
 	}
 }
 
@@ -598,13 +600,14 @@ static void bc_program_print(BcProgram *p, uchar inst, size_t idx) {
 
 		size_t i = (r->t == BC_RESULT_STR) ? r->d.loc.loc : n->scale;
 
-		bc_file_flush(&vm.fout);
+		bc_file_flush(&vm.fout, bc_flush_save);
 		str = *((char**) bc_vec_item(p->strs, i));
 
 		if (inst == BC_INST_PRINT_STR) bc_program_printChars(str);
 		else {
 			bc_program_printString(str);
-			if (inst == BC_INST_PRINT) bc_vm_putchar('\n');
+			if (inst == BC_INST_PRINT)
+				bc_vm_putchar('\n', bc_flush_err);
 		}
 	}
 
@@ -1440,6 +1443,8 @@ static void bc_program_printStream(BcProgram *p) {
 		size_t idx = (r->t == BC_RESULT_STR) ? r->d.loc.loc : n->scale;
 		bc_program_printChars(*((char**) bc_vec_item(p->strs, idx)));
 	}
+
+	bc_vec_pop(&p->results);
 }
 
 static void bc_program_nquit(BcProgram *p, uchar inst) {
@@ -1463,7 +1468,7 @@ static void bc_program_nquit(BcProgram *p, uchar inst) {
 	for (i = 0; val && i < p->tail_calls.len; ++i) {
 		size_t calls = *((size_t*) bc_vec_item_rev(&p->tail_calls, i)) + 1;
 		if (calls >= val) val = 0;
-		else val -= calls;
+		else val -= (BcBigDig) calls;
 	}
 
 	if (i == p->stack.len) {
@@ -1807,8 +1812,9 @@ void bc_program_reset(BcProgram *p) {
 	memset(ip, 0, sizeof(BcInstPtr));
 
 	if (vm.sig) {
-		bc_file_write(&vm.fout, bc_program_ready_msg, bc_program_ready_msg_len);
-		bc_file_flush(&vm.fout);
+		bc_file_write(&vm.fout, bc_flush_none, bc_program_ready_msg,
+		              bc_program_ready_msg_len);
+		bc_file_flush(&vm.fout, bc_flush_err);
 		vm.sig = 0;
 	}
 }
@@ -1930,7 +1936,7 @@ void bc_program_exec(BcProgram *p) {
 			{
 				// We want to flush output before
 				// this in case there is a prompt.
-				bc_file_flush(&vm.fout);
+				bc_file_flush(&vm.fout, bc_flush_save);
 
 				bc_program_read(p);
 
@@ -2264,9 +2270,9 @@ void bc_program_exec(BcProgram *p) {
 #if BC_DEBUG_CODE
 #if BC_ENABLED && DC_ENABLED
 void bc_program_printStackDebug(BcProgram *p) {
-	bc_file_puts(&vm.fout, "-------------- Stack ----------\n");
+	bc_file_puts(&vm.fout, bc_flush_err, "-------------- Stack ----------\n");
 	bc_program_printStack(p);
-	bc_file_puts(&vm.fout, "-------------- Stack End ------\n");
+	bc_file_puts(&vm.fout, bc_flush_err, "-------------- Stack End ------\n");
 }
 
 static void bc_program_printIndex(const char *restrict code,
@@ -2320,7 +2326,7 @@ void bc_program_printInst(const BcProgram *p, const char *restrict code,
 		if (inst == BC_INST_CALL) bc_program_printIndex(code, bgn);
 	}
 
-	bc_vm_putchar('\n');
+	bc_vm_putchar('\n', bc_flush_err);
 }
 
 void bc_program_code(const BcProgram* p) {
@@ -2340,7 +2346,7 @@ void bc_program_code(const BcProgram* p) {
 
 		bc_vm_printf("func[%zu]:\n", ip.func);
 		while (ip.idx < f->code.len) bc_program_printInst(p, code, &ip.idx);
-		bc_file_puts(&vm.fout, "\n\n");
+		bc_file_puts(&vm.fout, bc_flush_err, "\n\n");
 	}
 }
 #endif // BC_ENABLED && DC_ENABLED
