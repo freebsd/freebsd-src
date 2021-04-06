@@ -44,7 +44,13 @@
 #include <string.h>
 #include <time.h>
 #include <fcntl.h>
+
+#ifndef _WIN32
 #include <unistd.h>
+#else // _WIN32
+#include <Windows.h>
+#include <bcrypt.h>
+#endif // _WIN32
 
 #include <status.h>
 #include <rand.h>
@@ -140,7 +146,8 @@ static void bc_rand_copy(BcRNGData *d, BcRNGData *s) {
 	else if (!BC_RAND_NOTMODIFIED(s)) bc_rand_clearModified(d);
 }
 
-static ulong bc_rand_frand(void *ptr) {
+#ifndef _WIN32
+static ulong bc_rand_frand(void* ptr) {
 
 	ulong buf[1];
 	int fd;
@@ -148,14 +155,31 @@ static ulong bc_rand_frand(void *ptr) {
 
 	assert(ptr != NULL);
 
-	fd = *((int*) ptr);
+	fd = *((int*)ptr);
 
 	nread = read(fd, buf, sizeof(ulong));
 
 	if (BC_ERR(nread != sizeof(ulong))) bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
 
-	return *((ulong*) buf);
+	return *((ulong*)buf);
 }
+#else // _WIN32
+static ulong bc_rand_winrand(void* ptr) {
+
+	ulong buf[1];
+	NTSTATUS s;
+
+	BC_UNUSED(ptr);
+
+	buf[0] = 0;
+
+	s = BCryptGenRandom(NULL, (char*) buf, sizeof(ulong), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+
+	if (BC_ERR(!BCRYPT_SUCCESS(s))) buf[0] = 0;
+
+	return buf[0];
+}
+#endif // _WIN32
 
 static ulong bc_rand_rand(void *ptr) {
 
@@ -252,10 +276,11 @@ static void bc_rand_seedZeroes(BcRNG *r, BcRNGData *rng, size_t idx) {
 
 void bc_rand_srand(BcRNGData *rng) {
 
-	int fd;
+	int fd = 0;
 
 	BC_SIG_LOCK;
 
+#ifndef _WIN32
 	fd = open("/dev/urandom", O_RDONLY);
 
 	if (BC_NO_ERR(fd >= 0)) {
@@ -271,6 +296,9 @@ void bc_rand_srand(BcRNGData *rng) {
 			close(fd);
 		}
 	}
+#else // _WIN32
+	bc_rand_fill(rng, bc_rand_winrand, NULL);
+#endif // _WIN32
 
 	while (BC_ERR(BC_RAND_ZERO(rng))) bc_rand_fill(rng, bc_rand_rand, NULL);
 

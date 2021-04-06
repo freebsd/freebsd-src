@@ -186,6 +186,9 @@ typedef struct BcHistory {
 	/// The history.
 	BcVec history;
 
+	/// Any material printed without a trailing newline.
+	BcVec extras;
+
 #if BC_ENABLE_PROMPT
 	/// Prompt to display.
 	const char *prompt;

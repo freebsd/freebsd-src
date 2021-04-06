@@ -34,7 +34,7 @@ dc - arbitrary-precision decimal reverse-Polish notation calculator
 
 # SYNOPSIS
 
-**dc** [**-hiPvVx**] [**-\-version**] [**-\-help**] [**-\-interactive**] [**-\-no-prompt**] [**-\-extended-register**] [**-e** *expr*] [**-\-expression**=*expr*...] [**-f** *file*...] [**-\-file**=*file*...] [*file*...]
+**dc** [**-hiPRvVx**] [**-\-version**] [**-\-help**] [**-\-interactive**] [**-\-no-prompt**] [**-\-no-read-prompt**] [**-\-extended-register**] [**-e** *expr*] [**-\-expression**=*expr*...] [**-f** *file*...] [**-\-file**=*file*...] [*file*...]
 
 # DESCRIPTION
 
@@ -81,9 +81,23 @@ The following are the options that dc(1) accepts.
 **-P**, **-\-no-prompt**
 
 :   Disables the prompt in TTY mode. (The prompt is only enabled in TTY mode.
-    See the **TTY MODE** section) This is mostly for those users that do not
+    See the **TTY MODE** section.) This is mostly for those users that do not
     want a prompt or are not used to having them in dc(1). Most of those users
     would want to put this option in **DC_ENV_ARGS**.
+
+    This is a **non-portable extension**.
+
+**-R**, **-\-no-read-prompt**
+
+:   Disables the read prompt in TTY mode. (The read prompt is only enabled in
+    TTY mode. See the **TTY MODE** section.) This is mostly for those users that
+    do not want a read prompt or are not used to having them in dc(1). Most of
+    those users would want to put this option in **BC_ENV_ARGS** (see the
+    **ENVIRONMENT VARIABLES** section). This option is also useful in hash bang
+    lines of dc(1) scripts that prompt for user input.
+
+    This option does not disable the regular prompt because the read prompt is
+    only used when the **?** command is used.
 
     This is a **non-portable extension**.
 
@@ -556,25 +570,25 @@ These commands control the stack.
 
 These commands control registers (see the **REGISTERS** section).
 
-**s***r*
+**s**_r_
 
 :   Pops the value off the top of the stack and stores it into register *r*.
 
-**l***r*
+**l**_r_
 
 :   Copies the value in register *r* and pushes it onto the stack. This does not
     alter the contents of *r*.
 
-**S***r*
+**S**_r_
 
 :   Pops the value off the top of the (main) stack and pushes it onto the stack
     of register *r*. The previous value of the register becomes inaccessible.
 
-**L***r*
+**L**_r_
 
 :   Pops the value off the top of the stack for register *r* and push it onto
     the main stack. The previous value in the stack for register *r*, if any, is
-    now accessible via the **l***r* command.
+    now accessible via the **l**_r_ command.
 
 ## Parameters
 
@@ -723,7 +737,7 @@ will be printed with a newline after and then popped from the stack.
     This behavior is the norm whenever a macro is executed, whether by this
     command or by the conditional execution commands below.
 
-**\>***r*
+**\>**_r_
 
 :   Pops two values off of the stack that must be numbers and compares them. If
     the first value is greater than the second, then the contents of register
@@ -735,7 +749,7 @@ will be printed with a newline after and then popped from the stack.
     If either or both of the values are not numbers, dc(1) will raise an error
     and reset (see the **RESET** section).
 
-**>***r***e***s*
+**>**_r_**e**_s_
 
 :   Like the above, but will execute register *s* if the comparison fails.
 
@@ -744,7 +758,7 @@ will be printed with a newline after and then popped from the stack.
 
     This is a **non-portable extension**.
 
-**!\>***r*
+**!\>**_r_
 
 :   Pops two values off of the stack that must be numbers and compares them. If
     the first value is not greater than the second (less than or equal to), then
@@ -753,7 +767,7 @@ will be printed with a newline after and then popped from the stack.
     If either or both of the values are not numbers, dc(1) will raise an error
     and reset (see the **RESET** section).
 
-**!\>***r***e***s*
+**!\>**_r_**e**_s_
 
 :   Like the above, but will execute register *s* if the comparison fails.
 
@@ -762,7 +776,7 @@ will be printed with a newline after and then popped from the stack.
 
     This is a **non-portable extension**.
 
-**\<***r*
+**\<**_r_
 
 :   Pops two values off of the stack that must be numbers and compares them. If
     the first value is less than the second, then the contents of register *r*
@@ -771,7 +785,7 @@ will be printed with a newline after and then popped from the stack.
     If either or both of the values are not numbers, dc(1) will raise an error
     and reset (see the **RESET** section).
 
-**\<***r***e***s*
+**\<**_r_**e**_s_
 
 :   Like the above, but will execute register *s* if the comparison fails.
 
@@ -780,7 +794,7 @@ will be printed with a newline after and then popped from the stack.
 
     This is a **non-portable extension**.
 
-**!\<***r*
+**!\<**_r_
 
 :   Pops two values off of the stack that must be numbers and compares them. If
     the first value is not less than the second (greater than or equal to), then
@@ -789,7 +803,7 @@ will be printed with a newline after and then popped from the stack.
     If either or both of the values are not numbers, dc(1) will raise an error
     and reset (see the **RESET** section).
 
-**!\<***r***e***s*
+**!\<**_r_**e**_s_
 
 :   Like the above, but will execute register *s* if the comparison fails.
 
@@ -798,7 +812,7 @@ will be printed with a newline after and then popped from the stack.
 
     This is a **non-portable extension**.
 
-**=***r*
+**=**_r_
 
 :   Pops two values off of the stack that must be numbers and compares them. If
     the first value is equal to the second, then the contents of register *r*
@@ -807,7 +821,7 @@ will be printed with a newline after and then popped from the stack.
     If either or both of the values are not numbers, dc(1) will raise an error
     and reset (see the **RESET** section).
 
-**=***r***e***s*
+**=**_r_**e**_s_
 
 :   Like the above, but will execute register *s* if the comparison fails.
 
@@ -816,7 +830,7 @@ will be printed with a newline after and then popped from the stack.
 
     This is a **non-portable extension**.
 
-**!=***r*
+**!=**_r_
 
 :   Pops two values off of the stack that must be numbers and compares them. If
     the first value is not equal to the second, then the contents of register
@@ -825,7 +839,7 @@ will be printed with a newline after and then popped from the stack.
     If either or both of the values are not numbers, dc(1) will raise an error
     and reset (see the **RESET** section).
 
-**!=***r***e***s*
+**!=**_r_**e**_s_
 
 :   Like the above, but will execute register *s* if the comparison fails.
 
@@ -881,12 +895,12 @@ These commands query status of the stack or its top value.
 
 These commands manipulate arrays.
 
-**:***r*
+**:**_r_
 
 :   Pops the top two values off of the stack. The second value will be stored in
     the array *r* (see the **REGISTERS** section), indexed by the first value.
 
-**;***r*
+**;**_r_
 
 :   Pops the value on top of the stack and uses it as an index into the array
     *r*. The selected value is then pushed onto the stack.
