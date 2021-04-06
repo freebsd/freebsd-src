@@ -316,7 +316,7 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 	if (xen_intr_auto_vector_count > NR_EVENT_CHANNELS) {
 		if (!warned) {
 			warned = 1;
-			printf("xen_intr_alloc: Event channels exhausted.\n");
+			printf("%s: Event channels exhausted.\n", __func__);
 		}
 		return (NULL);
 	}
@@ -406,8 +406,7 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 
 	*isrcp = NULL;
 	if (port_handlep == NULL) {
-		printf("%s: xen_intr_bind_isrc: Bad event handle\n",
-		    intr_owner);
+		printf("%s: %s: Bad event handle\n", intr_owner, __func__);
 		return (EINVAL);
 	}
 
@@ -1217,7 +1216,7 @@ xen_intr_unbind(xen_intr_handle_t *port_handlep)
 	struct xenisrc *isrc;
 
 	KASSERT(port_handlep != NULL,
-	    ("NULL xen_intr_handle_t passed to xen_intr_unbind"));
+	    ("NULL xen_intr_handle_t passed to %s", __func__));
 
 	isrc = xen_intr_isrc_from_handle(*port_handlep);
 	*port_handlep = NULL;
@@ -1277,11 +1276,9 @@ xen_intr_add_handler(const char *name, driver_filter_t filter,
 
 	error = intr_add_handler(name, isrc->xi_vector,filter, handler, arg,
 	    flags|INTR_EXCL, &isrc->xi_cookie, 0);
-	if (error != 0) {
-		printf(
-		    "%s: xen_intr_add_handler: intr_add_handler failed: %d\n",
-		    name, error);
-	}
+	if (error != 0)
+		printf("%s: %s: add handler failed: %d\n", name, __func__,
+		    error);
 
 	return (error);
 }
