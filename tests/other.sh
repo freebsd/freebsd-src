@@ -118,6 +118,9 @@ if [ "$d" = "bc" ]; then
 
 	err="$?"
 	checktest_retcode "$d" "$?" "environment var"
+
+	printf 'pass\n'
+
 else
 
 	export DC_ENV_ARGS="'-x'"
@@ -130,9 +133,39 @@ else
 	"$exe" -e 4pR "$@" > /dev/null
 
 	checktest_retcode "$d" "$?" "environment var"
-fi
 
-printf 'pass\n'
+	printf 'pass\n'
+
+	set +e
+
+	printf 'three\n' | head -c3 > /dev/null
+	err=$?
+
+	if [ "$err" -eq 0 ]; then
+
+		printf 'Running dc Easter script...'
+
+		easter_res="$testdir/dc_outputs/easter.txt"
+		easter_out="$testdir/dc_outputs/easter_results.txt"
+
+		outdir=$(dirname "$easter_out")
+
+		if [ ! -d "$outdir" ]; then
+			mkdir -p "$outdir"
+		fi
+
+		printf '4 April 2021\n' > "$easter_res"
+
+		"$testdir/dc/scripts/easter.sh" "$exe" 2021 | head -c12 > "$easter_out"
+		printf '\n' >> "$easter_out"
+		err="$?"
+
+		checktest "$d" "$err" "Easter script" "$easter_res" "$easter_out"
+
+		printf 'pass\n'
+	fi
+
+fi
 
 out1="$testdir/../.log_$d.txt"
 out2="$testdir/../.log_${d}_test.txt"

@@ -172,9 +172,10 @@ struct BcRNG;
 #endif // BC_DEBUG_CODE
 
 typedef void (*BcNumBinaryOp)(BcNum*, BcNum*, BcNum*, size_t);
+typedef void (*BcNumBinOp)(BcNum*, BcNum*, BcNum* restrict, size_t);
 typedef size_t (*BcNumBinaryOpReq)(const BcNum*, const BcNum*, size_t);
 typedef void (*BcNumDigitOp)(size_t, size_t, bool);
-typedef void (*BcNumShiftAddOp)(BcDig*, const BcDig*, size_t);
+typedef void (*BcNumShiftAddOp)(BcDig* restrict, const BcDig* restrict, size_t);
 
 void bc_num_init(BcNum *restrict n, size_t req);
 void bc_num_setup(BcNum *restrict n, BcDig *restrict num, size_t cap);

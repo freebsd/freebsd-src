@@ -1,5 +1,30 @@
 # News
 
+## 4.0.0
+
+This is a production release with many fixes, a new command-line option, and a
+big surprise:
+
+* A bug was fixed in `dc`'s `P` command where the item on the stack was *not*
+  popped.
+* Various bugs in the manuals have been fixed.
+* A known bug was fixed where history did not interact well with prompts printed
+  by user code without newlines.
+* A new command-line option, `-R` and `--no-read-prompt` was added to disable
+  just the prompt when using `read()` (`bc`) or `?` (`dc`).
+* And finally, **official support for Windows was added**.
+
+The last item is why this is a major version bump.
+
+Currently, only one set of build options (extra math and prompt enabled, history
+and NLS/locale support disabled, both calculators enabled) is supported on
+Windows. However, both debug and release builds are supported.
+
+In addition, Windows builds are supported for the the library (`bcl`).
+
+For more details about how to build on Windows, see the [README][5] or the
+[build manual][13].
+
 ## 3.3.4
 
 This is a production release that fixes a small bug.

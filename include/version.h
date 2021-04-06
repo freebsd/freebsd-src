@@ -29,57 +29,13 @@
  *
  * *****************************************************************************
  *
- * The entry point for bc.
+ * Definitions for processing command-line arguments.
  *
  */
 
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
+#ifndef BC_VERSION_H
+#define BC_VERSION_H
 
-#include <locale.h>
+#define VERSION 4.0.0
 
-#ifndef _WIN32
-#include <libgen.h>
-#endif // _WIN32
-
-#include <setjmp.h>
-
-#include <version.h>
-#include <status.h>
-#include <vm.h>
-#include <bc.h>
-#include <dc.h>
-
-int main(int argc, char *argv[]) {
-
-	char *name;
-	size_t len = strlen(BC_EXECPREFIX);
-
-	vm.locale = setlocale(LC_ALL, "");
-
-	name = strrchr(argv[0], BC_FILE_SEP);
-	vm.name = (name == NULL) ? argv[0] : name + 1;
-
-	if (strlen(vm.name) > len) vm.name += len;
-
-	BC_SIG_LOCK;
-
-	bc_vec_init(&vm.jmp_bufs, sizeof(sigjmp_buf), NULL);
-
-	BC_SETJMP_LOCKED(exit);
-
-#if !DC_ENABLED
-	bc_main(argc, argv);
-#elif !BC_ENABLED
-	dc_main(argc, argv);
-#else
-	if (BC_IS_BC) bc_main(argc, argv);
-	else dc_main(argc, argv);
-#endif
-
-exit:
-	BC_SIG_MAYLOCK;
-
-	return bc_vm_atexit((int) vm.status);
-}
+#endif // BC_VERSION_H
