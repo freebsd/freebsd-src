@@ -410,8 +410,12 @@ main(int argc, char **argv)
 	if (pid < 0)
 		err(1, "fork");
 
-	if (pid == 0)
+	if (pid == 0) {
+		close(pipefds[0]);
 		exit(child(inpath, outpath, pipefds[1], Vflag, vflag));
+	}
+
+	close(pipefds[1]);
 
 	if (!Vflag) {
 		certfp = checked_fopen(certpath, "r");
