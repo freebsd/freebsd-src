@@ -190,6 +190,7 @@ ffs_prep_opts(fsinfo_t *fsopts)
 	ffs_opts->fsize= -1;
 	ffs_opts->cpg= -1;
 	ffs_opts->density= -1;
+	ffs_opts->min_inodes= false;
 	ffs_opts->minfree= -1;
 	ffs_opts->optimization= -1;
 	ffs_opts->maxcontig= -1;
@@ -265,6 +266,11 @@ ffs_makefs(const char *image, const char *dir, fsnode *root, fsinfo_t *fsopts)
 	if (debug & DEBUG_FS_MAKEFS)
 		printf("ffs_makefs: image %s directory %s root %p\n",
 		    image, dir, root);
+
+		/* if user wants no free space, use minimum number of inodes */
+	if (fsopts->minsize == 0 && fsopts->freeblockpc == 0 &&
+	    fsopts->freeblocks == 0)
+		((ffs_opt_t *)fsopts->fs_specific)->min_inodes = true;
 
 		/* validate tree and options */
 	TIMER_START(start);
@@ -424,7 +430,7 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 	if (fsopts->roundup > 0)
 		fsopts->size = roundup(fsopts->size, fsopts->roundup);
 
-		/* calculate density if necessary */
+		/* calculate density to just fit inodes if no free space */
 	if (ffs_opts->density == -1)
 		ffs_opts->density = fsopts->size / fsopts->inodes + 1;
 
