@@ -830,6 +830,11 @@ vfs_domount_first(
 	ASSERT_VOP_ELOCKED(vp, __func__);
 	KASSERT((fsflags & MNT_UPDATE) == 0, ("MNT_UPDATE shouldn't be here"));
 
+	if (vp == td->td_ucred->cr_prison->pr_root) {
+		vput(vp);
+		return (EPERM);
+	}
+
 	/*
 	 * If the user is not root, ensure that they own the directory
 	 * onto which we are attempting to mount.
