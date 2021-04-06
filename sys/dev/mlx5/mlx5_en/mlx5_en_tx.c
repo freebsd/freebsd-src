@@ -256,7 +256,7 @@ mlx5e_get_full_header_size(const struct mbuf *mb, const struct tcphdr **ppth)
 	if (unlikely(mb->m_len < ETHER_HDR_LEN))
 		goto failure;
 	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-		if (unlikely(mb->m_len < (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN)))
+		if (unlikely(mb->m_len < ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN))
 			goto failure;
 		eth_type = ntohs(eh->evl_proto);
 		eth_hdr_len = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
