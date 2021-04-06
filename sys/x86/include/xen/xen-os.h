@@ -30,6 +30,9 @@
 #ifndef _MACHINE_X86_XEN_XEN_OS_H_
 #define _MACHINE_X86_XEN_XEN_OS_H_
 
+/* Shared memory needs write-back as its cache attribute for coherency. */
+#define VM_MEMATTR_XEN VM_MEMATTR_WRITE_BACK
+
 /* Everything below this point is not included by assembler (.S) files. */
 #ifndef __ASSEMBLY__
 

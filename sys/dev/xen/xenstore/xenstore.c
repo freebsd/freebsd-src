@@ -1130,7 +1130,7 @@ xs_attach(device_t dev)
 	} else {
 		xs.gpfn = xen_get_xenstore_mfn();
 		xen_store = pmap_mapdev_attr(ptoa(xs.gpfn), PAGE_SIZE,
-		    PAT_WRITE_BACK);
+		    VM_MEMATTR_XEN);
 		xs.initialized = true;
 	}
 

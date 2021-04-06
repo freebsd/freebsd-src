@@ -125,7 +125,7 @@ xenpv_alloc_physmem(device_t dev, device_t child, int *res_id, size_t size)
 
 	phys_addr = rman_get_start(res);
 	error = vm_phys_fictitious_reg_range(phys_addr, phys_addr + size,
-	    VM_MEMATTR_DEFAULT);
+	    VM_MEMATTR_XEN);
 	if (error) {
 		bus_release_resource(child, SYS_RES_MEMORY, *res_id, res);
 		return (NULL);
