@@ -3185,6 +3185,7 @@ pmap_enter_l3e(pmap_t pmap, vm_offset_t va, pml3_entry_t newpde, u_int flags,
 			 * a reserved PT page could be freed.
 			 */
 			(void)pmap_remove_l3e(pmap, l3e, va, &free, lockp);
+			pmap_invalidate_l3e_page(pmap, va, oldl3e);
 		} else {
 			if (pmap_remove_ptes(pmap, va, va + L3_PAGE_SIZE, l3e,
 			    &free, lockp))
@@ -3243,6 +3244,7 @@ pmap_enter_l3e(pmap_t pmap, vm_offset_t va, pml3_entry_t newpde, u_int flags,
 	 * be any lingering 4KB page mappings in the TLB.)
 	 */
 	pte_store(l3e, newpde);
+	ptesync();
 
 	atomic_add_long(&pmap_l3e_mappings, 1);
 	CTR2(KTR_PMAP, "pmap_enter_pde: success for va %#lx"
@@ -4944,7 +4946,7 @@ pmap_demote_l3e_locked(pmap_t pmap, pml3_entry_t *l3e, vm_offset_t va,
 	 * the read above and the store below.
 	 */
 	pde_store(l3e, mptepa);
-	ptesync();
+	pmap_invalidate_l3e_page(pmap, trunc_2mpage(va), oldpde);
 	/*
 	 * Demote the PV entry.
 	 */
@@ -5225,6 +5227,7 @@ mmu_radix_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			 */
 			if (sva + L3_PAGE_SIZE == va_next && eva >= va_next) {
 				pmap_remove_l3e(pmap, l3e, sva, &free, &lock);
+				anyvalid = true;
 				continue;
 			} else if (!pmap_demote_l3e_locked(pmap, l3e, sva,
 			    &lock)) {
