@@ -4558,6 +4558,12 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	priv->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
 	    mlx5e_vlan_rx_kill_vid, priv, EVENTHANDLER_PRI_FIRST);
 
+	/* Register for VxLAN events */
+	priv->vxlan_start = EVENTHANDLER_REGISTER(vxlan_start,
+	    mlx5e_vxlan_start, priv, EVENTHANDLER_PRI_ANY);
+	priv->vxlan_stop = EVENTHANDLER_REGISTER(vxlan_stop,
+	    mlx5e_vxlan_stop, priv, EVENTHANDLER_PRI_ANY);
+
 	/* Link is down by default */
 	if_link_state_change(ifp, LINK_STATE_DOWN);
 
@@ -4660,6 +4666,10 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 		EVENTHANDLER_DEREGISTER(vlan_config, priv->vlan_attach);
 	if (priv->vlan_detach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_unconfig, priv->vlan_detach);
+	if (priv->vxlan_start != NULL)
+		EVENTHANDLER_DEREGISTER(vxlan_start, priv->vxlan_start);
+	if (priv->vxlan_stop != NULL)
+		EVENTHANDLER_DEREGISTER(vxlan_stop, priv->vxlan_stop);
 
 	/* make sure device gets closed */
 	PRIV_LOCK(priv);

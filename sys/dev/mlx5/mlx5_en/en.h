@@ -944,6 +944,18 @@ struct mlx5e_vlan_db {
 	bool	filter_disabled;
 };
 
+struct mlx5e_vxlan_db_el {
+	u_int refcount;
+	u_int proto;
+	u_int port;
+	struct mlx5_flow_rule *vxlan_ft_rule;
+	TAILQ_ENTRY(mlx5e_vxlan_db_el) link;
+};
+
+struct mlx5e_vxlan_db {
+	TAILQ_HEAD(, mlx5e_vxlan_db_el) head;
+};
+
 struct mlx5e_flow_table {
 	int num_groups;
 	struct mlx5_flow_table *t;
@@ -953,7 +965,11 @@ struct mlx5e_flow_table {
 struct mlx5e_flow_tables {
 	struct mlx5_flow_namespace *ns;
 	struct mlx5e_flow_table vlan;
+	struct mlx5e_flow_table vxlan;
+	struct mlx5_flow_rule *vxlan_catchall_ft_rule;
 	struct mlx5e_flow_table main;
+	struct mlx5e_flow_table main_vxlan;
+	struct mlx5_flow_rule *main_vxlan_rule[MLX5E_NUM_TT];
 	struct mlx5e_flow_table inner_rss;
 };
 
@@ -1005,10 +1021,12 @@ struct mlx5e_priv {
 	u32	tisn[MLX5E_MAX_TX_NUM_TC];
 	u32	rqtn;
 	u32	tirn[MLX5E_NUM_TT];
+	u32	tirn_inner_vxlan[MLX5E_NUM_TT];
 
 	struct mlx5e_flow_tables fts;
 	struct mlx5e_eth_addr_db eth_addr;
 	struct mlx5e_vlan_db vlan;
+	struct mlx5e_vxlan_db vxlan;
 
 	struct mlx5e_params params;
 	struct mlx5e_params_ethtool params_ethtool;
@@ -1035,6 +1053,8 @@ struct mlx5e_priv {
 	struct ifmedia media;
 	int	media_status_last;
 	int	media_active_last;
+	eventhandler_tag vxlan_start;
+	eventhandler_tag vxlan_stop;
 
 	struct callout watchdog;
 
@@ -1123,6 +1143,11 @@ void	mlx5e_enable_vlan_filter(struct mlx5e_priv *priv);
 void	mlx5e_disable_vlan_filter(struct mlx5e_priv *priv);
 int	mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv);
 void	mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv);
+
+void	mlx5e_vxlan_start(void *arg, struct ifnet *ifp, sa_family_t family,
+	    u_int port);
+void	mlx5e_vxlan_stop(void *arg, struct ifnet *ifp, sa_family_t family,
+	    u_int port);
 
 static inline void
 mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe)
