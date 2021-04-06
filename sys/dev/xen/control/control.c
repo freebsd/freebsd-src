@@ -132,7 +132,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/_inttypes.h>
 #include <machine/intr_machdep.h>
 
+#if defined(__amd64__) || defined(__i386__)
 #include <x86/apicvar.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -289,8 +291,10 @@ xctrl_suspend()
 		 * resume CPUs.
 		 */
 		resume_cpus(cpu_suspend_map);
+#if defined(__amd64__) || defined(__i386__)
 		/* Send an IPI_BITMAP in case there are pending bitmap IPIs. */
 		lapic_ipi_vectored(IPI_BITMAP_VECTOR, APIC_IPI_DEST_ALL);
+#endif
 	}
 #endif
 
