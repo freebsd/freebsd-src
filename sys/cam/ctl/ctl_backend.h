@@ -47,6 +47,7 @@
 
 typedef enum {
 	CTL_LUN_SERSEQ_OFF,
+	CTL_LUN_SERSEQ_SOFT,
 	CTL_LUN_SERSEQ_READ,
 	CTL_LUN_SERSEQ_ON
 } ctl_lun_serseq;

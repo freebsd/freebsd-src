@@ -507,7 +507,8 @@ nospc:
 	if ((ARGS(io)->flags & CTL_LLF_READ) &&
 	    ARGS(io)->len <= PRIV(io)->len) {
 		ctl_set_success(&io->scsiio);
-		ctl_serseq_done(io);
+		if (cbe_lun->serseq >= CTL_LUN_SERSEQ_SOFT)
+			ctl_serseq_done(io);
 	}
 	ctl_datamove(io);
 }
@@ -1036,6 +1037,8 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 		cbe_lun->serseq = CTL_LUN_SERSEQ_ON;
 	else if (value != NULL && strcmp(value, "read") == 0)
 		cbe_lun->serseq = CTL_LUN_SERSEQ_READ;
+	else if (value != NULL && strcmp(value, "soft") == 0)
+		cbe_lun->serseq = CTL_LUN_SERSEQ_SOFT;
 	else if (value != NULL && strcmp(value, "off") == 0)
 		cbe_lun->serseq = CTL_LUN_SERSEQ_OFF;
 

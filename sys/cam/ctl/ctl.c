@@ -13272,9 +13272,6 @@ ctl_serseq_done(union ctl_io *io)
 {
 	struct ctl_lun *lun = CTL_LUN(io);
 
-	if (lun->be_lun->serseq == CTL_LUN_SERSEQ_OFF)
-		return;
-
 	/* This is racy, but should not be a problem. */
 	if (!TAILQ_EMPTY(&io->io_hdr.blocked_queue)) {
 		mtx_lock(&lun->lun_lock);
