@@ -2217,6 +2217,7 @@ product FTDI SIGNALYZER_SH2	0xbca2	FTDI compatible adapter
 product FTDI SIGNALYZER_SH4	0xbca4	FTDI compatible adapter
 product FTDI SIGNALYZER_SLITE	0xbca1	FTDI compatible adapter
 product FTDI SIGNALYZER_ST	0xbca0	FTDI compatible adapter
+product FTDI SITOP_UPS500S	0xe0e4	Siemens UPS500S standby power
 product FTDI SPECIAL_1		0xfc70	FTDI compatible adapter
 product FTDI SPECIAL_3		0xfc72	FTDI compatible adapter
 product FTDI SPECIAL_4		0xfc73	FTDI compatible adapter
