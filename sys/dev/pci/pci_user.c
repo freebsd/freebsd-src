@@ -855,7 +855,7 @@ pci_bar_mmap(device_t pcidev, struct pci_bar_mmap *pbm)
 	struct thread *td;
 	struct sglist *sg;
 	struct pci_map *pm;
-	vm_paddr_t membase;
+	rman_res_t membase;
 	vm_paddr_t pbase;
 	vm_size_t plen;
 	vm_offset_t addr;
@@ -878,7 +878,11 @@ pci_bar_mmap(device_t pcidev, struct pci_bar_mmap *pbm)
 		return (EBUSY); /* XXXKIB enable if _ACTIVATE */
 	if (!PCI_BAR_MEM(pm->pm_value))
 		return (EIO);
-	membase = pm->pm_value & PCIM_BAR_MEM_BASE;
+	error = BUS_TRANSLATE_RESOURCE(pcidev, SYS_RES_MEMORY,
+	    pm->pm_value & PCIM_BAR_MEM_BASE, &membase);
+	if (error != 0)
+		return (error);
+
 	pbase = trunc_page(membase);
 	plen = round_page(membase + ((pci_addr_t)1 << pm->pm_size)) -
 	    pbase;
