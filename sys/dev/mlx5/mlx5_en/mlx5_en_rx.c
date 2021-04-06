@@ -307,13 +307,37 @@ mlx5e_build_rx_mbuf(struct mlx5_cqe64 *cqe,
 #else
 		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE_HASH);
 #endif
+#ifdef M_HASHTYPE_SETINNER
+		if (cqe_is_tunneled(cqe))
+			M_HASHTYPE_SETINNER(mb);
+#endif
 	} else {
 		mb->m_pkthdr.flowid = rq->ix;
 		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
 	}
 	mb->m_pkthdr.rcvif = ifp;
 
-	if (likely(ifp->if_capenable & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) &&
+	if (cqe_is_tunneled(cqe)) {
+		/*
+		 * CQE can be tunneled only if TIR is configured to
+		 * enable parsing of tunneled payload, so no need to
+		 * check for capabilities.
+		 */
+		if (((cqe->hds_ip_ext & (CQE_L2_OK | CQE_L3_OK)) ==
+		    (CQE_L2_OK | CQE_L3_OK))) {
+			mb->m_pkthdr.csum_flags |=
+			    CSUM_INNER_L3_CALC | CSUM_INNER_L3_VALID |
+			    CSUM_IP_CHECKED | CSUM_IP_VALID |
+			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			mb->m_pkthdr.csum_data = htons(0xffff);
+		}
+		if (((cqe->hds_ip_ext & (CQE_L2_OK | CQE_L3_OK | CQE_L4_OK)) ==
+		    (CQE_L2_OK | CQE_L3_OK | CQE_L4_OK))) {
+			mb->m_pkthdr.csum_flags |=
+			    CSUM_INNER_L4_CALC | CSUM_INNER_L4_VALID;
+		}
+	} else if (likely((ifp->if_capenable & (IFCAP_RXCSUM |
+	    IFCAP_RXCSUM_IPV6)) != 0) &&
 	    ((cqe->hds_ip_ext & (CQE_L2_OK | CQE_L3_OK | CQE_L4_OK)) ==
 	    (CQE_L2_OK | CQE_L3_OK | CQE_L4_OK))) {
 		mb->m_pkthdr.csum_flags =
