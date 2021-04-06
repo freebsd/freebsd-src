@@ -36,12 +36,13 @@
 usage: %s [options] [file...]
 
 dc is a reverse-polish notation command-line calculator which supports unlimited
-precision arithmetic. For details, use `man %s`.
+precision arithmetic. For details, use `man %s` or see the online documentation
+at https://git.yzena.com/gavin/bc/src/tag/%s/manuals/bc/%s.1.md.
 
-This dc is (mostly) compatible with the FreeBSD dc and the GNU dc. See the
-FreeBSD man page (https://www.unix.com/man-page/FreeBSD/1/dc/) and the GNU dc
-manual (https://www.gnu.org/software/bc/manual/dc-1.05/html_mono/dc.html) for
-details.
+This dc is (mostly) compatible with the OpenBSD dc and the GNU dc. See the
+OpenBSD man page (http://man.openbsd.org/OpenBSD-current/man1/dc.1) and the GNU
+dc manual (https://www.gnu.org/software/bc/manual/dc-1.05/html_mono/dc.html)
+for details.
 
 This dc has a few differences from the two above:
 
@@ -90,7 +91,11 @@ Options:
 
   -P  --no-prompt
 
-      Disable the prompt in interactive mode.
+      Disable the prompts in interactive mode.
+
+  -R  --no-read-prompt
+
+      Disable the read prompt in interactive mode.
 
   -V  --version
 

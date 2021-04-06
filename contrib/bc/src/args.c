@@ -39,7 +39,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef _WIN32
 #include <unistd.h>
+#endif // _WIN32
 
 #include <vector.h>
 #include <read.h>
@@ -53,6 +55,7 @@ static const BcOptLong bc_args_lopt[] = {
 	{ "help", BC_OPT_NONE, 'h' },
 	{ "interactive", BC_OPT_NONE, 'i' },
 	{ "no-prompt", BC_OPT_NONE, 'P' },
+	{ "no-read-prompt", BC_OPT_NONE, 'R' },
 #if BC_ENABLED
 	{ "global-stacks", BC_OPT_BC_ONLY, 'g' },
 	{ "mathlib", BC_OPT_BC_ONLY, 'l' },
@@ -141,6 +144,12 @@ void bc_args(int argc, char *argv[], bool exit_exprs) {
 			case 'P':
 			{
 				vm.flags |= BC_FLAG_P;
+				break;
+			}
+
+			case 'R':
+			{
+				vm.flags |= BC_FLAG_R;
 				break;
 			}
 

@@ -34,7 +34,7 @@ bc - arbitrary-precision decimal arithmetic language and calculator
 
 # SYNOPSIS
 
-**bc** [**-ghilPqsvVw**] [**-\-global-stacks**] [**-\-help**] [**-\-interactive**] [**-\-mathlib**] [**-\-no-prompt**] [**-\-quiet**] [**-\-standard**] [**-\-warn**] [**-\-version**] [**-e** *expr*] [**-\-expression**=*expr*...] [**-f** *file*...] [**-\-file**=*file*...] [*file*...]
+**bc** [**-ghilPqRsvVw**] [**-\-global-stacks**] [**-\-help**] [**-\-interactive**] [**-\-mathlib**] [**-\-no-prompt**] [**-\-no-read-prompt**] [**-\-quiet**] [**-\-standard**] [**-\-warn**] [**-\-version**] [**-e** *expr*] [**-\-expression**=*expr*...] [**-f** *file*...] [**-\-file**=*file*...] [*file*...]
 
 # DESCRIPTION
 
@@ -139,10 +139,24 @@ The following are the options that bc(1) accepts.
 **-P**, **-\-no-prompt**
 
 :   Disables the prompt in TTY mode. (The prompt is only enabled in TTY mode.
-    See the **TTY MODE** section) This is mostly for those users that do not
+    See the **TTY MODE** section.) This is mostly for those users that do not
     want a prompt or are not used to having them in bc(1). Most of those users
     would want to put this option in **BC_ENV_ARGS** (see the
     **ENVIRONMENT VARIABLES** section).
+
+    This is a **non-portable extension**.
+
+**-R**, **-\-no-read-prompt**
+
+:   Disables the read prompt in TTY mode. (The read prompt is only enabled in
+    TTY mode. See the **TTY MODE** section.) This is mostly for those users that
+    do not want a read prompt or are not used to having them in bc(1). Most of
+    those users would want to put this option in **BC_ENV_ARGS** (see the
+    **ENVIRONMENT VARIABLES** section). This option is also useful in hash bang
+    lines of bc(1) scripts that prompt for user input.
+
+    This option does not disable the regular prompt because the read prompt is
+    only used when the **read()** built-in function is called.
 
     This is a **non-portable extension**.
 

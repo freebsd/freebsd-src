@@ -43,12 +43,29 @@
 
 #include <fcntl.h>
 #include <sys/stat.h>
+
+#ifndef _WIN32
 #include <unistd.h>
+#endif // _WIN32
 
 #include <read.h>
 #include <history.h>
 #include <program.h>
 #include <vm.h>
+
+static int bc_read_open(const char* path, int mode) {
+
+	int fd;
+
+#ifndef _WIN32
+	fd = open(path, mode);
+#else // _WIN32
+	fd = -1;
+	open(&fd, path, mode);
+#endif
+
+	return fd;
+}
 
 static bool bc_read_binary(const char *buf, size_t size) {
 
@@ -100,8 +117,8 @@ BcStatus bc_read_chars(BcVec *vec, const char *prompt) {
 
 #if BC_ENABLE_PROMPT
 	if (BC_USE_PROMPT) {
-		bc_file_puts(&vm.fout, prompt);
-		bc_file_flush(&vm.fout);
+		bc_file_puts(&vm.fout, bc_flush_none, prompt);
+		bc_file_flush(&vm.fout, bc_flush_none);
 	}
 #endif // BC_ENABLE_PROMPT
 
@@ -132,9 +149,10 @@ BcStatus bc_read_chars(BcVec *vec, const char *prompt) {
 
 				vm.status = (sig_atomic_t) BC_STATUS_SUCCESS;
 #if BC_ENABLE_PROMPT
-				if (BC_USE_PROMPT) bc_file_puts(&vm.fout, prompt);
+				if (BC_USE_PROMPT)
+					bc_file_puts(&vm.fout, bc_flush_none, prompt);
 #endif // BC_ENABLE_PROMPT
-				bc_file_flush(&vm.fout);
+				bc_file_flush(&vm.fout, bc_flush_none);
 
 				BC_SIG_UNLOCK;
 
@@ -193,7 +211,8 @@ void bc_read_file(const char *path, char **buf) {
 
 	assert(path != NULL);
 
-	fd = open(path, O_RDONLY);
+	fd = bc_read_open(path, O_RDONLY);
+
 	if (BC_ERR(fd < 0)) bc_vm_verr(BC_ERR_FATAL_FILE_ERR, path);
 	if (BC_ERR(fstat(fd, &pstat) == -1)) goto malloc_err;
 

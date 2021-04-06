@@ -43,7 +43,7 @@ print_manpage() {
 	cat "$manualsdir/header.txt" > "$_print_manpage_out"
 	cat "$manualsdir/header_${manpage}.txt" >> "$_print_manpage_out"
 
-	pandoc -f markdown -t man "$_print_manpage_md" >> "$_print_manpage_out"
+	pandoc -f commonmark -t man "$_print_manpage_md" >> "$_print_manpage_out"
 
 }
 

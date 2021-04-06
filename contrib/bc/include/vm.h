@@ -52,6 +52,7 @@
 
 #endif // BC_ENABLE_NLS
 
+#include <version.h>
 #include <status.h>
 #include <num.h>
 #include <parse.h>
@@ -77,22 +78,27 @@
 
 #ifndef MAINEXEC
 #define MAINEXEC bc
-#endif
+#endif // MAINEXEC
 
+#ifndef _WIN32
 #ifndef EXECPREFIX
 #define EXECPREFIX
-#endif
+#endif // EXECPREFIX
+#else // _WIN32
+#undef EXECPREFIX
+#endif // _WIN32
 
 #define GEN_STR(V) #V
 #define GEN_STR2(V) GEN_STR(V)
 
 #define BC_VERSION GEN_STR2(VERSION)
-#define BC_EXECPREFIX GEN_STR2(EXECPREFIX)
 #define BC_MAINEXEC GEN_STR2(MAINEXEC)
+#define BC_BUILD_TYPE GEN_STR2(BUILD_TYPE)
 
-// Windows has deprecated isatty().
-#ifdef _WIN32
-#define isatty _isatty
+#ifndef _WIN32
+#define BC_EXECPREFIX GEN_STR2(EXECPREFIX)
+#else // _WIN32
+#define BC_EXECPREFIX ""
 #endif // _WIN32
 
 #if !BC_ENABLE_LIBRARY
@@ -110,8 +116,9 @@
 
 #define BC_FLAG_I (UINTMAX_C(1)<<5)
 #define BC_FLAG_P (UINTMAX_C(1)<<6)
-#define BC_FLAG_TTYIN (UINTMAX_C(1)<<7)
-#define BC_FLAG_TTY (UINTMAX_C(1)<<8)
+#define BC_FLAG_R (UINTMAX_C(1)<<7)
+#define BC_FLAG_TTYIN (UINTMAX_C(1)<<8)
+#define BC_FLAG_TTY (UINTMAX_C(1)<<9)
 #define BC_TTYIN (vm.flags & BC_FLAG_TTYIN)
 #define BC_TTY (vm.flags & BC_FLAG_TTY)
 
@@ -130,6 +137,7 @@
 
 #define BC_I (vm.flags & BC_FLAG_I)
 #define BC_P (vm.flags & BC_FLAG_P)
+#define BC_R (vm.flags & BC_FLAG_R)
 
 #if BC_ENABLED
 
@@ -421,13 +429,19 @@ void bc_vm_init(void);
 void bc_vm_shutdown(void);
 void bc_vm_freeTemps(void);
 
+#if !BC_ENABLE_HISTORY
+#define bc_vm_putchar(c, t) bc_vm_putchar(c)
+#endif // !BC_ENABLE_HISTORY
+
 void bc_vm_printf(const char *fmt, ...);
-void bc_vm_putchar(int c);
+void bc_vm_putchar(int c, BcFlushType type);
 size_t bc_vm_arraySize(size_t n, size_t size);
 size_t bc_vm_growSize(size_t a, size_t b);
 void* bc_vm_malloc(size_t n);
 void* bc_vm_realloc(void *ptr, size_t n);
 char* bc_vm_strdup(const char *str);
+char* bc_vm_getenv(const char* var);
+void bc_vm_getenvFree(char* var);
 
 #if BC_DEBUG_CODE
 void bc_vm_jmp(const char *f);

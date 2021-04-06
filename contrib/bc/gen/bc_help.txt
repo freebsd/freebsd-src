@@ -36,7 +36,8 @@
 usage: %s [options] [file...]
 
 bc is a command-line, arbitrary-precision calculator with a Turing-complete
-language. For details, use `man %s`.
+language. For details, use `man %s` or see the online documentation at
+https://git.yzena.com/gavin/bc/src/tag/%s/manuals/bc/%s.1.md.
 
 This bc is compatible with both the GNU bc and the POSIX bc spec. See the GNU bc
 manual (https://www.gnu.org/software/bc/manual/bc.html) and bc spec
@@ -56,7 +57,7 @@ This bc has three differences to the GNU bc:
      scripts to work while somewhat preserving expected behavior (versus C) and
      making parsing easier.
   3) This bc has many more extensions than the GNU bc does. For details, see the
-     man page.
+     man page or online documentation.
 
 This bc also implements the dot (.) extension of the BSD bc.
 
@@ -74,8 +75,8 @@ Options:
   -g  --global-stacks
 
       Turn scale, ibase, and obase into stacks. This makes the value of each be
-      be restored on returning from functions. See the man page for more
-      details.
+      be restored on returning from functions. See the man page or online
+      documentation for more details.
 
   -h  --help
 
@@ -96,12 +97,16 @@ Options:
           e(expr)  =  raises e to the power of expr
           j(n, x)  =  Bessel function of integer order n of x
 
-      This bc may load more functions with these options. See the manpage for
-      details.
+      This bc may load more functions with these options. See the manpage or
+      online documentation for details.
 
   -P  --no-prompt
 
-      Disable the prompt in interactive mode.
+      Disable the prompts in interactive mode.
+
+  -R  --no-read-prompt
+
+      Disable the read prompt in interactive mode.
 
   -q  --quiet
 

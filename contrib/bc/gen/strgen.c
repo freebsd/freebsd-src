@@ -40,7 +40,9 @@
 
 #include <errno.h>
 
+#ifndef _WIN32
 #include <libgen.h>
+#endif // _WIN32
 
 static const char* const bc_gen_header =
 	"// Copyright (c) 2018-2021 Gavin D. Howard and contributors.\n"
@@ -59,6 +61,54 @@ static const char* const bc_gen_name_extern = "extern const char %s[];\n\n";
 #define INVALID_PARAMS (3)
 
 #define MAX_WIDTH (74)
+
+static void open_file(FILE** f, const char* filename, const char* mode) {
+
+#ifndef _WIN32
+	*f = fopen(filename, mode);
+#else // _WIN32
+	*f = NULL;
+	fopen_s(f, filename, mode);
+#endif // _WIN32
+}
+
+static int output_label(FILE* out, const char* label, const char* name) {
+
+#ifndef _WIN32
+	return fprintf(out, bc_gen_label, label, name);
+#else // _WIN32
+
+	size_t i, count = 0, len = strlen(name);
+	char* buf;
+	int ret;
+
+	for (i = 0; i < len; ++i) {
+		count += (name[i] == '\\');
+	}
+
+	buf = (char*) malloc(len + 1 + count);
+	if (buf == NULL) return -1;
+
+	count = 0;
+
+	for (i = 0; i < len; ++i) {
+		buf[i + count] = name[i];
+		if (name[i] == '\\') {
+			count += 1;
+			buf[i + count] = name[i];
+		}
+	}
+
+	buf[i + count] = '\0';
+
+	ret = fprintf(out, bc_gen_label, label, buf);
+
+	free(buf);
+
+	return ret;
+
+#endif // _WIN32
+}
 
 int main(int argc, char *argv[]) {
 
@@ -82,17 +132,17 @@ int main(int argc, char *argv[]) {
 
 	remove_tabs = (argc > 6);
 
-	in = fopen(argv[1], "r");
+	open_file(&in, argv[1], "r");
 	if (!in) return INVALID_INPUT_FILE;
 
-	out = fopen(argv[2], "w");
+	open_file(&out, argv[2], "w");
 	if (!out) goto out_err;
 
 	if (fprintf(out, bc_gen_header, argv[1]) < 0) goto err;
 	if (has_label && fprintf(out, bc_gen_label_extern, label) < 0) goto err;
 	if (fprintf(out, bc_gen_name_extern, name) < 0) goto err;
 	if (has_define && fprintf(out, bc_gen_ifdef, define) < 0) goto err;
-	if (has_label && fprintf(out, bc_gen_label, label, argv[1]) < 0) goto err;
+	if (has_label && output_label(out, label, argv[1]) < 0) goto err;
 	if (fprintf(out, bc_gen_name, name) < 0) goto err;
 
 	c = count = slashes = 0;
