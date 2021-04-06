@@ -1,5 +1,5 @@
-.\" Copyright (c) 2013 Warren Block
-.\" All rights reserved.
+.\" Copyright (c) 2013 Warren Block All rights reserved.
+.\" Copyright (c) 2021 Warner Losh
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,25 +24,42 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2023
-.Dt GPTBOOT 8
+.Dd April 6, 2021
+.Dt GPTBOOT.EFI 8
 .Os
 .Sh NAME
-.Nm gptboot
-.Nd GPT bootcode for UFS on BIOS-based computers
+.Nm gptboot.efi
+.Nd GPT bootcode for UFS on UEFI computers
 .Sh DESCRIPTION
 .Nm
-is used on BIOS-based computers to boot from a UFS partition on a
+is used on UEFI computers to boot from a UFS partition on a
 GPT-partitioned disk.
 .Nm
-is installed in a
-.Cm freebsd-boot
-partition with
-.Xr gpart 8 .
-For UEFI,
-.Xr gptboot.efi 8
-is used instead.
+is installed in the EFI System Partition (ESP).
+For BIOS-based computers,
+see
+.Xr gptboot 8
+for details.
 While conceptually similar, the details differ.
+.Nm
+works only with UFS root file systems.
+Users with ZFS partitions should use
+.Xr loader.efi 8
+with
+.Xr bectl 8
+to control what dataset is used for root.
+.Pp
+What UEFI computers boot is usually controlled via the mechanisms explained in
+.Xr efibootmgr 8
+using
+.Xr loader.efi 8
+or
+.Xr boot1.efi 8 .
+However, some setups cannot use those mechanisms.
+When the users cannot rely on host-supplied UEFI variables
+or they want the contents of the media alone to decide root,
+.Nm
+accomplishes these goals.
 .Pp
 When it starts,
 .Nm
@@ -50,13 +67,10 @@ first reads the GPT and determines which drive and partition to
 boot from, as described under
 .Sx BOOTING ,
 below.
-If it does not find an eligible partition, or if the user hits a
-key within three seconds,
-.Nm
-switches from auto-boot to interactive mode.
-Interactive mode allows manual selection of the disk, partition,
-filename, and boot option flags, as described in
-.Xr boot 8 .
+If it does not find an eligible partition, it returns to the UEFI
+firmware.
+The firmware will then try the next bootable item in the UEFI Boot Manager's
+list, if any, usually a different disk.
 .Sh IMPLEMENTATION NOTES
 The GPT standard allows a variable number of partitions, but
 .Nm
@@ -64,6 +78,9 @@ only boots from tables with 128 partitions or less.
 .Sh PARTITION ATTRIBUTES
 .Nm
 checks and manages several attributes of GPT UFS partitions.
+These flags are
+.Fx
+specific and non-standard.
 .Bl -tag -width ".Cm bootfailed"
 .It Cm bootme
 Attempt to boot from this partition.
@@ -101,7 +118,7 @@ below for details.
 For normal usage, the user does not have to set or manage any of the
 partition attributes.
 .Nm
-will boot from the first UFS partition found.
+will boot from the first UFS partition found on the device.
 .Pp
 The
 .Cm bootonce
@@ -199,41 +216,36 @@ The
 attribute is cleared from the partition that successfully booted.
 There is normally only one of these.
 .Sh FILES
-.Bl -tag -width /boot/gptboot -compact
-.It Pa /boot/gptboot
+.Bl -tag -width /boot/gptboot.efi -compact
+.It Pa /boot/gptboot.efi
 bootcode binary
-.It Pa /boot.config
-parameters for the boot blocks
-.Pq optional
+.It Pa /boot/efi/efi/boot/bootx64.efi
+Default boot loader for amd64 systems.
+.It Pa /boot/efi/efi/boot/bootaa64.efi
+Default boot loader for arm64 systems.
+.It Pa /boot/efi/efi/boot/bootarm.efi
+Default boot loader for arm systems.
+.It Pa /boot/efi/efi/boot/bootriscv64.efi
+Default boot loader for riscv systems.
 .El
 .Sh EXAMPLES
 .Nm
-is installed in a
-.Cm freebsd-boot
-partition, usually the first partition on the disk.
-A
-.Dq protective MBR
-.Po
-see
-.Xr gpart 8
-.Pc
-is typically installed in combination with
-.Nm .
+is installed in the ESP with
+.Xr cp 1 .
 .Pp
 Install
 .Nm
-on the
-.Pa ada0
-drive:
-.Bd -literal -offset indent
-gpart bootcode -b /boot/pmbr -p /boot/gptboot -i 1 ada0
+into the ESP for the system.
+This assumes the ESP is mounted in the standard
+.Pa /boot/efi
+directory.
+For amd64, use the following
+.Bd -literal -offset indent -compact
+cp /boot/gptboot.efi /boot/efi/efi/boot/bootx64.efi
 .Ed
-.Pp
-.Nm
-can also be installed without the PMBR:
-.Bd -literal -offset indent
-gpart bootcode -p /boot/gptboot -i 1 ada0
-.Ed
+For other systems, use the file listed in the
+.Sx FILES
+section.
 .Pp
 Set the
 .Cm bootme
@@ -251,14 +263,20 @@ attribute:
 gpart set -a bootonce -i 2 ada0
 .Ed
 .Sh SEE ALSO
-.Xr boot.config 5 ,
 .Xr rc.conf 5 ,
 .Xr boot 8 ,
-.Xr gpart 8
+.Xr efibootmgr 8 ,
+.Xr gpart 8 ,
+.Xr gptboot 8 ,
+.Xr loader.efi 8
 .Sh HISTORY
 .Nm
 appeared in
-.Fx 7.1 .
+.Fx 13.0
 .Sh AUTHORS
-This manual page was written by
+This manual page written by
+.An Warner Losh Aq imp@FreeBSD.org .
+It is based heavily on the
+.Xr gptboot 8
+man page by
 .An Warren Block Aq wblock@FreeBSD.org .
