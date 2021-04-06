@@ -44,6 +44,7 @@
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+#include <stdbool.h>
 
 typedef struct {
 	char	label[MAXVOLLEN];	/* volume name/label */
@@ -52,6 +53,7 @@ typedef struct {
 	int	cpg;		/* cylinders per group */
 	int	cpgflg;		/* cpg was specified by user */
 	int	density;	/* bytes per inode */
+	bool	min_inodes;	/* allocate minimum number of inodes */
 	int	ntracks;	/* number of tracks */
 	int	nsectors;	/* number of sectors */
 	int	rpm;		/* rpm */

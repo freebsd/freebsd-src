@@ -117,10 +117,13 @@ static int     avgfpdir;	   /* expected number of files per directory */
 struct fs *
 ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 {
-	int fragsperinode, optimalfpg, origdensity, minfpg, lastminfpg;
+	int fragsperinode, optimalfpg, origdensity, mindensity;
+	int minfpg, lastminfpg;
 	int32_t csfrags;
 	uint32_t i, cylno;
 	long long sizepb;
+	ino_t maxinum;
+	int minfragsperinode;   /* minimum ratio of frags to inodes */
 	void *space;
 	int size;
 	int nprintcols, printcolwidth;
@@ -311,7 +314,20 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts, time_t tstamp)
 	 * can put into each cylinder group. If this is too big, we reduce
 	 * the density until it fits.
 	 */
+	maxinum = (((int64_t)(1)) << 32) - INOPB(&sblock);
+	minfragsperinode = 1 + fssize / maxinum;
+	mindensity = minfragsperinode * fsize;
+	if (density == 0)
+		density = MAX(2, minfragsperinode) * fsize;
+	if (density < mindensity) {
+		origdensity = density;
+		density = mindensity;
+		fprintf(stderr, "density increased from %d to %d\n",
+		    origdensity, density);
+	}
 	origdensity = density;
+	if (!ffs_opts->min_inodes)
+		density = MIN(density, MAX(2, minfragsperinode) * fsize);
 	for (;;) {
 		fragsperinode = MAX(numfrags(&sblock, density), 1);
 		minfpg = fragsperinode * INOPB(&sblock);
