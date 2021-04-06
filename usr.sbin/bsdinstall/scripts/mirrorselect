@@ -125,7 +125,6 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 	ftp://ftp4.uk.freebsd.org 	"UK #4"\
 	ftp://ftp5.uk.freebsd.org 	"UK #5"\
 	ftp://ftp.ua.freebsd.org 	"Ukraine"\
-	ftp://ftp7.ua.freebsd.org 	"Ukraine #7"\
 	ftp://ftp1.us.freebsd.org 	"USA #1"\
 	ftp://ftp2.us.freebsd.org 	"USA #2"\
 	ftp://ftp3.us.freebsd.org 	"USA #3"\
