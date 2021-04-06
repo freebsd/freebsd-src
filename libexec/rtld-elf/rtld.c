@@ -3890,16 +3890,16 @@ dlinfo(void *handle, int request, void *p)
 static void
 rtld_fill_dl_phdr_info(const Obj_Entry *obj, struct dl_phdr_info *phdr_info)
 {
-	tls_index ti;
+	Elf_Addr **dtvp;
 
 	phdr_info->dlpi_addr = (Elf_Addr)obj->relocbase;
 	phdr_info->dlpi_name = obj->path;
 	phdr_info->dlpi_phdr = obj->phdr;
 	phdr_info->dlpi_phnum = obj->phsize / sizeof(obj->phdr[0]);
 	phdr_info->dlpi_tls_modid = obj->tlsindex;
-	ti.ti_module = obj->tlsindex;
-	ti.ti_offset = 0;
-	phdr_info->dlpi_tls_data = __tls_get_addr(&ti);
+	dtvp = _get_tp();
+	phdr_info->dlpi_tls_data = (char *)tls_get_addr_slow(dtvp,
+	    obj->tlsindex, 0, true) + TLS_DTV_OFFSET;
 	phdr_info->dlpi_adds = obj_loads;
 	phdr_info->dlpi_subs = obj_loads - obj_count;
 }
