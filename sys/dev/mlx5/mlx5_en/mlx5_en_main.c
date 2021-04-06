@@ -2774,9 +2774,11 @@ mlx5e_get_rss_key(void *key_ptr)
 }
 
 static void
-mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt)
+mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt, bool inner_vxlan)
 {
 	void *hfso = MLX5_ADDR_OF(tirc, tirc, rx_hash_field_selector_outer);
+	void *hfsi = MLX5_ADDR_OF(tirc, tirc, rx_hash_field_selector_inner);
+	void *hfs = inner_vxlan ? hfsi : hfso;
 	__be32 *hkey;
 
 	MLX5_SET(tirc, tirc, transport_domain, priv->tdn);
@@ -2806,6 +2808,11 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt)
 		MLX5_SET(tirc, tirc, lro_timeout_period_usecs,
 		    MLX5_CAP_ETH(priv->mdev,
 		    lro_timer_supported_periods[2]));
+	}
+
+	if (inner_vxlan &&
+	    (priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
+		MLX5_SET(tirc, tirc, tunneled_offload_en, 1);
 	}
 
 	/* setup parameters for hashing TIR type, if any */
@@ -2842,104 +2849,104 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt)
 
 	switch (tt) {
 	case MLX5E_TT_IPV4_TCP:
-		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
+		MLX5_SET(rx_hash_field_select, hfs, l3_prot_type,
 		    MLX5_L3_PROT_TYPE_IPV4);
-		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
+		MLX5_SET(rx_hash_field_select, hfs, l4_prot_type,
 		    MLX5_L4_PROT_TYPE_TCP);
 #ifdef RSS
 		if (!(rss_gethashconfig() & RSS_HASHTYPE_RSS_TCP_IPV4)) {
-			MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+			MLX5_SET(rx_hash_field_select, hfs, selected_fields,
 			    MLX5_HASH_IP);
 		} else
 #endif
-		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+		MLX5_SET(rx_hash_field_select, hfs, selected_fields,
 		    MLX5_HASH_ALL);
 		break;
 
 	case MLX5E_TT_IPV6_TCP:
-		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
+		MLX5_SET(rx_hash_field_select, hfs, l3_prot_type,
 		    MLX5_L3_PROT_TYPE_IPV6);
-		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
+		MLX5_SET(rx_hash_field_select, hfs, l4_prot_type,
 		    MLX5_L4_PROT_TYPE_TCP);
 #ifdef RSS
 		if (!(rss_gethashconfig() & RSS_HASHTYPE_RSS_TCP_IPV6)) {
-			MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+			MLX5_SET(rx_hash_field_select, hfs, selected_fields,
 			    MLX5_HASH_IP);
 		} else
 #endif
-		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+		MLX5_SET(rx_hash_field_select, hfs, selected_fields,
 		    MLX5_HASH_ALL);
 		break;
 
 	case MLX5E_TT_IPV4_UDP:
-		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
+		MLX5_SET(rx_hash_field_select, hfs, l3_prot_type,
 		    MLX5_L3_PROT_TYPE_IPV4);
-		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
+		MLX5_SET(rx_hash_field_select, hfs, l4_prot_type,
 		    MLX5_L4_PROT_TYPE_UDP);
 #ifdef RSS
 		if (!(rss_gethashconfig() & RSS_HASHTYPE_RSS_UDP_IPV4)) {
-			MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+			MLX5_SET(rx_hash_field_select, hfs, selected_fields,
 			    MLX5_HASH_IP);
 		} else
 #endif
-		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+		MLX5_SET(rx_hash_field_select, hfs, selected_fields,
 		    MLX5_HASH_ALL);
 		break;
 
 	case MLX5E_TT_IPV6_UDP:
-		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
+		MLX5_SET(rx_hash_field_select, hfs, l3_prot_type,
 		    MLX5_L3_PROT_TYPE_IPV6);
-		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
+		MLX5_SET(rx_hash_field_select, hfs, l4_prot_type,
 		    MLX5_L4_PROT_TYPE_UDP);
 #ifdef RSS
 		if (!(rss_gethashconfig() & RSS_HASHTYPE_RSS_UDP_IPV6)) {
-			MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+			MLX5_SET(rx_hash_field_select, hfs, selected_fields,
 			    MLX5_HASH_IP);
 		} else
 #endif
-		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+		MLX5_SET(rx_hash_field_select, hfs, selected_fields,
 		    MLX5_HASH_ALL);
 		break;
 
 	case MLX5E_TT_IPV4_IPSEC_AH:
-		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
+		MLX5_SET(rx_hash_field_select, hfs, l3_prot_type,
 		    MLX5_L3_PROT_TYPE_IPV4);
-		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+		MLX5_SET(rx_hash_field_select, hfs, selected_fields,
 		    MLX5_HASH_IP_IPSEC_SPI);
 		break;
 
 	case MLX5E_TT_IPV6_IPSEC_AH:
-		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
+		MLX5_SET(rx_hash_field_select, hfs, l3_prot_type,
 		    MLX5_L3_PROT_TYPE_IPV6);
-		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+		MLX5_SET(rx_hash_field_select, hfs, selected_fields,
 		    MLX5_HASH_IP_IPSEC_SPI);
 		break;
 
 	case MLX5E_TT_IPV4_IPSEC_ESP:
-		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
+		MLX5_SET(rx_hash_field_select, hfs, l3_prot_type,
 		    MLX5_L3_PROT_TYPE_IPV4);
-		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+		MLX5_SET(rx_hash_field_select, hfs, selected_fields,
 		    MLX5_HASH_IP_IPSEC_SPI);
 		break;
 
 	case MLX5E_TT_IPV6_IPSEC_ESP:
-		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
+		MLX5_SET(rx_hash_field_select, hfs, l3_prot_type,
 		    MLX5_L3_PROT_TYPE_IPV6);
-		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+		MLX5_SET(rx_hash_field_select, hfs, selected_fields,
 		    MLX5_HASH_IP_IPSEC_SPI);
 		break;
 
 	case MLX5E_TT_IPV4:
-		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
+		MLX5_SET(rx_hash_field_select, hfs, l3_prot_type,
 		    MLX5_L3_PROT_TYPE_IPV4);
-		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+		MLX5_SET(rx_hash_field_select, hfs, selected_fields,
 		    MLX5_HASH_IP);
 		break;
 
 	case MLX5E_TT_IPV6:
-		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
+		MLX5_SET(rx_hash_field_select, hfs, l3_prot_type,
 		    MLX5_L3_PROT_TYPE_IPV6);
-		MLX5_SET(rx_hash_field_select, hfso, selected_fields,
+		MLX5_SET(rx_hash_field_select, hfs, selected_fields,
 		    MLX5_HASH_IP);
 		break;
 
@@ -2949,7 +2956,7 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt)
 }
 
 static int
-mlx5e_open_tir(struct mlx5e_priv *priv, int tt)
+mlx5e_open_tir(struct mlx5e_priv *priv, int tt, bool inner_vxlan)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u32 *in;
@@ -2963,9 +2970,10 @@ mlx5e_open_tir(struct mlx5e_priv *priv, int tt)
 		return (-ENOMEM);
 	tirc = MLX5_ADDR_OF(create_tir_in, in, tir_context);
 
-	mlx5e_build_tir_ctx(priv, tirc, tt);
+	mlx5e_build_tir_ctx(priv, tirc, tt, inner_vxlan);
 
-	err = mlx5_core_create_tir(mdev, in, inlen, &priv->tirn[tt]);
+	err = mlx5_core_create_tir(mdev, in, inlen, inner_vxlan ?
+	    &priv->tirn_inner_vxlan[tt] : &priv->tirn[tt]);
 
 	kvfree(in);
 
@@ -2973,19 +2981,20 @@ mlx5e_open_tir(struct mlx5e_priv *priv, int tt)
 }
 
 static void
-mlx5e_close_tir(struct mlx5e_priv *priv, int tt)
+mlx5e_close_tir(struct mlx5e_priv *priv, int tt, bool inner_vxlan)
 {
-	mlx5_core_destroy_tir(priv->mdev, priv->tirn[tt]);
+	mlx5_core_destroy_tir(priv->mdev, inner_vxlan ?
+	    priv->tirn_inner_vxlan[tt] : priv->tirn[tt]);
 }
 
 static int
-mlx5e_open_tirs(struct mlx5e_priv *priv)
+mlx5e_open_tirs(struct mlx5e_priv *priv, bool inner_vxlan)
 {
 	int err;
 	int i;
 
 	for (i = 0; i < MLX5E_NUM_TT; i++) {
-		err = mlx5e_open_tir(priv, i);
+		err = mlx5e_open_tir(priv, i, inner_vxlan);
 		if (err)
 			goto err_close_tirs;
 	}
@@ -2994,18 +3003,18 @@ mlx5e_open_tirs(struct mlx5e_priv *priv)
 
 err_close_tirs:
 	for (i--; i >= 0; i--)
-		mlx5e_close_tir(priv, i);
+		mlx5e_close_tir(priv, i, inner_vxlan);
 
 	return (err);
 }
 
 static void
-mlx5e_close_tirs(struct mlx5e_priv *priv)
+mlx5e_close_tirs(struct mlx5e_priv *priv, bool inner_vxlan)
 {
 	int i;
 
 	for (i = 0; i < MLX5E_NUM_TT; i++)
-		mlx5e_close_tir(priv, i);
+		mlx5e_close_tir(priv, i, inner_vxlan);
 }
 
 /*
@@ -3113,16 +3122,21 @@ mlx5e_open_locked(struct ifnet *ifp)
 		mlx5_en_err(ifp, "mlx5e_open_rqt failed, %d\n", err);
 		goto err_close_channels;
 	}
-	err = mlx5e_open_tirs(priv);
+	err = mlx5e_open_tirs(priv, false);
 	if (err) {
-		mlx5_en_err(ifp, "mlx5e_open_tir failed, %d\n", err);
+		mlx5_en_err(ifp, "mlx5e_open_tir(main) failed, %d\n", err);
 		goto err_close_rqls;
+	}
+	err = mlx5e_open_tirs(priv, true);
+	if (err) {
+		mlx5_en_err(ifp, "mlx5e_open_tir(inner) failed, %d\n", err);
+		goto err_close_tirs;
 	}
 	err = mlx5e_open_flow_table(priv);
 	if (err) {
 		mlx5_en_err(ifp,
 		    "mlx5e_open_flow_table failed, %d\n", err);
-		goto err_close_tirs;
+		goto err_close_tirs_inner;
 	}
 	err = mlx5e_add_all_vlan_rules(priv);
 	if (err) {
@@ -3140,8 +3154,11 @@ mlx5e_open_locked(struct ifnet *ifp)
 err_close_flow_table:
 	mlx5e_close_flow_table(priv);
 
+err_close_tirs_inner:
+	mlx5e_close_tirs(priv, true);
+
 err_close_tirs:
-	mlx5e_close_tirs(priv);
+	mlx5e_close_tirs(priv, false);
 
 err_close_rqls:
 	mlx5e_close_rqt(priv);
@@ -3189,7 +3206,8 @@ mlx5e_close_locked(struct ifnet *ifp)
 	mlx5e_del_all_vlan_rules(priv);
 	if_link_state_change(priv->ifp, LINK_STATE_DOWN);
 	mlx5e_close_flow_table(priv);
-	mlx5e_close_tirs(priv);
+	mlx5e_close_tirs(priv, true);
+	mlx5e_close_tirs(priv, false);
 	mlx5e_close_rqt(priv);
 	mlx5e_close_channels(priv);
 	mlx5_vport_dealloc_q_counter(priv->mdev,
