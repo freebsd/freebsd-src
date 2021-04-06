@@ -1126,7 +1126,11 @@ dump_bar(const char *name, const char *reg, const char *bar_start,
 	if (*reg == '\0' || *el != '\0')
 		errx(1, "Invalid bar specification %s", reg);
 	pbm.pbm_flags = 0;
-	pbm.pbm_memattr = VM_MEMATTR_UNCACHEABLE; /* XXX */
+#ifdef VM_MEMATTR_DEVICE
+	pbm.pbm_memattr = VM_MEMATTR_DEVICE;
+#else
+	pbm.pbm_memattr = VM_MEMATTR_UNCACHEABLE;
+#endif
 
 	fd = open(_PATH_DEVPCI, O_RDWR, 0);
 	if (fd < 0)
