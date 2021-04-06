@@ -3446,6 +3446,21 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 		if (mask & IFCAP_WOL_MAGIC)
 			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
+		if (mask & IFCAP_VXLAN_HWCSUM) {
+			ifp->if_capenable ^= IFCAP_VXLAN_HWCSUM;
+			ifp->if_hwassist ^= CSUM_INNER_IP | CSUM_INNER_IP_UDP |
+			    CSUM_INNER_IP_TCP | CSUM_INNER_IP6_UDP |
+			    CSUM_INNER_IP6_TCP;
+			if (test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+				mlx5e_close_locked(ifp);
+				mlx5e_open_locked(ifp);
+			}
+		}
+		if (mask & IFCAP_VXLAN_HWTSO) {
+			ifp->if_capenable ^= IFCAP_VXLAN_HWTSO;
+			ifp->if_hwassist ^= CSUM_INNER_IP_TSO |
+			    CSUM_INNER_IP6_TSO;
+		}
 
 		VLAN_CAPABILITIES(ifp);
 		/* turn off LRO means also turn of HW LRO - if it's on */
@@ -4421,6 +4436,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 #ifdef RATELIMIT
 	ifp->if_capabilities |= IFCAP_TXRTLMT | IFCAP_TXTLS_RTLMT;
 #endif
+	ifp->if_capabilities |= IFCAP_VXLAN_HWCSUM | IFCAP_VXLAN_HWTSO;
 	ifp->if_snd_tag_alloc = mlx5e_snd_tag_alloc;
 	ifp->if_snd_tag_free = mlx5e_snd_tag_free;
 	ifp->if_snd_tag_modify = mlx5e_snd_tag_modify;
@@ -4441,6 +4457,12 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP | CSUM_IP);
 	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
 		ifp->if_hwassist |= (CSUM_UDP_IPV6 | CSUM_TCP_IPV6);
+	if (ifp->if_capabilities & IFCAP_VXLAN_HWCSUM)
+		ifp->if_hwassist |= CSUM_INNER_IP6_UDP | CSUM_INNER_IP6_TCP |
+		    CSUM_INNER_IP | CSUM_INNER_IP_UDP | CSUM_INNER_IP_TCP |
+		    CSUM_ENCAP_VXLAN;
+	if (ifp->if_capabilities  & IFCAP_VXLAN_HWTSO)
+		ifp->if_hwassist |= CSUM_INNER_IP6_TSO | CSUM_INNER_IP_TSO;
 
 	/* ifnet sysctl tree */
 	sysctl_ctx_init(&priv->sysctl_ctx);
