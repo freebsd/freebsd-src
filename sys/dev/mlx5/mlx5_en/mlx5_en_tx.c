@@ -332,6 +332,221 @@ failure:
 	return (0);
 }
 
+/*
+ * Locate a pointer inside a mbuf chain. Returns NULL upon failure.
+ */
+static inline void *
+mlx5e_parse_mbuf_chain(const struct mbuf **mb, int *poffset, int eth_hdr_len,
+    int min_len)
+{
+	if (unlikely(mb[0]->m_len == eth_hdr_len)) {
+		poffset[0] = eth_hdr_len;
+		if (unlikely((mb[0] = mb[0]->m_next) == NULL))
+			return (NULL);
+	}
+	if (unlikely(mb[0]->m_len < eth_hdr_len - poffset[0] + min_len))
+		return (NULL);
+	return (mb[0]->m_data + eth_hdr_len - poffset[0]);
+}
+
+/*
+ * This function parse IPv4 and IPv6 packets looking for UDP, VXLAN
+ * and TCP headers.
+ *
+ * The return value indicates the number of bytes from the beginning
+ * of the packet until the first byte after the TCP header. If this
+ * function returns zero, the parsing failed.
+ */
+static int
+mlx5e_get_vxlan_header_size(const struct mbuf *mb, struct mlx5e_tx_wqe *wqe,
+    uint8_t cs_mask, uint8_t opcode)
+{
+	const struct ether_vlan_header *eh;
+	struct ip *ip4;
+	struct ip6_hdr *ip6;
+	struct tcphdr *th;
+	struct udphdr *udp;
+	bool has_outer_vlan_tag;
+	uint16_t eth_type;
+	uint8_t ip_type;
+	int pkt_hdr_len;
+	int eth_hdr_len;
+	int tcp_hlen;
+	int ip_hlen;
+	int offset;
+
+	pkt_hdr_len = mb->m_pkthdr.len;
+	has_outer_vlan_tag = (mb->m_flags & M_VLANTAG) != 0;
+	offset = 0;
+
+	eh = mtod(mb, const struct ether_vlan_header *);
+	if (unlikely(mb->m_len < ETHER_HDR_LEN))
+		return (0);
+
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		if (unlikely(mb->m_len < ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN))
+			return (0);
+		eth_type = eh->evl_proto;
+		eth_hdr_len = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+	} else {
+		eth_type = eh->evl_encap_proto;
+		eth_hdr_len = ETHER_HDR_LEN;
+	}
+
+	switch (eth_type) {
+	case htons(ETHERTYPE_IP):
+		ip4 = mlx5e_parse_mbuf_chain(&mb, &offset, eth_hdr_len,
+		    sizeof(*ip4));
+		if (unlikely(ip4 == NULL))
+			return (0);
+		ip_type = ip4->ip_p;
+		if (unlikely(ip_type != IPPROTO_UDP))
+			return (0);
+		wqe->eth.swp_outer_l3_offset = eth_hdr_len / 2;
+		wqe->eth.cs_flags = MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
+		ip_hlen = ip4->ip_hl << 2;
+		eth_hdr_len += ip_hlen;
+		udp = mlx5e_parse_mbuf_chain(&mb, &offset, eth_hdr_len,
+		    sizeof(*udp));
+		if (unlikely(udp == NULL))
+			return (0);
+		wqe->eth.swp_outer_l4_offset = eth_hdr_len / 2;
+		wqe->eth.swp_flags |= MLX5_ETH_WQE_SWP_OUTER_L4_TYPE;
+		eth_hdr_len += sizeof(*udp);
+		break;
+	case htons(ETHERTYPE_IPV6):
+		ip6 = mlx5e_parse_mbuf_chain(&mb, &offset, eth_hdr_len,
+		    sizeof(*ip6));
+		if (unlikely(ip6 == NULL))
+			return (0);
+		ip_type = ip6->ip6_nxt;
+		if (unlikely(ip_type != IPPROTO_UDP))
+			return (0);
+		wqe->eth.swp_outer_l3_offset = eth_hdr_len / 2;
+		wqe->eth.cs_flags = MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
+		eth_hdr_len += sizeof(*ip6);
+		udp = mlx5e_parse_mbuf_chain(&mb, &offset, eth_hdr_len,
+		    sizeof(*udp));
+		if (unlikely(udp == NULL))
+			return (0);
+		wqe->eth.swp_outer_l4_offset = eth_hdr_len / 2;
+		wqe->eth.swp_flags |= MLX5_ETH_WQE_SWP_OUTER_L4_TYPE |
+		    MLX5_ETH_WQE_SWP_OUTER_L3_TYPE;
+		eth_hdr_len += sizeof(*udp);
+		break;
+	default:
+		return (0);
+	}
+
+	/*
+	 * If the hardware is not computing inner IP checksum, then
+	 * skip inlining the inner outer UDP and VXLAN header:
+	 */
+	if (unlikely((cs_mask & MLX5_ETH_WQE_L3_INNER_CSUM) == 0))
+		goto done;
+	if (unlikely(mlx5e_parse_mbuf_chain(&mb, &offset, eth_hdr_len,
+	    8) == NULL))
+		return (0);
+	eth_hdr_len += 8;
+
+	/* Check for ethernet header again. */
+	eh = mlx5e_parse_mbuf_chain(&mb, &offset, eth_hdr_len, ETHER_HDR_LEN);
+	if (unlikely(eh == NULL))
+		return (0);
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		if (unlikely(mb->m_len < eth_hdr_len - offset + ETHER_HDR_LEN +
+		    ETHER_VLAN_ENCAP_LEN))
+			return (0);
+		eth_type = eh->evl_proto;
+		eth_hdr_len += ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+	} else {
+		eth_type = eh->evl_encap_proto;
+		eth_hdr_len += ETHER_HDR_LEN;
+	}
+
+	/* Check for IP header again. */
+	switch (eth_type) {
+	case htons(ETHERTYPE_IP):
+		ip4 = mlx5e_parse_mbuf_chain(&mb, &offset, eth_hdr_len,
+		    sizeof(*ip4));
+		if (unlikely(ip4 == NULL))
+			return (0);
+		wqe->eth.swp_inner_l3_offset = eth_hdr_len / 2;
+		wqe->eth.cs_flags |= MLX5_ETH_WQE_L3_INNER_CSUM;
+		ip_type = ip4->ip_p;
+		ip_hlen = ip4->ip_hl << 2;
+		eth_hdr_len += ip_hlen;
+		break;
+	case htons(ETHERTYPE_IPV6):
+		ip6 = mlx5e_parse_mbuf_chain(&mb, &offset, eth_hdr_len,
+		    sizeof(*ip6));
+		if (unlikely(ip6 == NULL))
+			return (0);
+		wqe->eth.swp_inner_l3_offset = eth_hdr_len / 2;
+		wqe->eth.cs_flags |= MLX5_ETH_WQE_L3_INNER_CSUM;
+		wqe->eth.swp_flags |= MLX5_ETH_WQE_SWP_INNER_L3_TYPE;
+		ip_type = ip6->ip6_nxt;
+		eth_hdr_len += sizeof(*ip6);
+		break;
+	default:
+		return (0);
+	}
+
+	/*
+	 * If the hardware is not computing inner UDP/TCP checksum,
+	 * then skip inlining the inner UDP/TCP header:
+	 */
+	if (unlikely((cs_mask & MLX5_ETH_WQE_L4_INNER_CSUM) == 0))
+		goto done;
+
+	switch (ip_type) {
+	case IPPROTO_UDP:
+		udp = mlx5e_parse_mbuf_chain(&mb, &offset, eth_hdr_len,
+		    sizeof(*udp));
+		if (unlikely(udp == NULL))
+			return (0);
+		wqe->eth.swp_inner_l4_offset = (eth_hdr_len / 2);
+		wqe->eth.cs_flags |= MLX5_ETH_WQE_L4_INNER_CSUM;
+		wqe->eth.swp_flags |= MLX5_ETH_WQE_SWP_INNER_L4_TYPE;
+		eth_hdr_len += sizeof(*udp);
+		break;
+	case IPPROTO_TCP:
+		th = mlx5e_parse_mbuf_chain(&mb, &offset, eth_hdr_len,
+		    sizeof(*th));
+		if (unlikely(th == NULL))
+			return (0);
+		wqe->eth.swp_inner_l4_offset = eth_hdr_len / 2;
+		wqe->eth.cs_flags |= MLX5_ETH_WQE_L4_INNER_CSUM;
+		wqe->eth.swp_flags |= MLX5_ETH_WQE_SWP_INNER_L4_TYPE;
+		tcp_hlen = th->th_off << 2;
+		eth_hdr_len += tcp_hlen;
+		break;
+	default:
+		return (0);
+	}
+done:
+	if (unlikely(pkt_hdr_len < eth_hdr_len))
+		return (0);
+
+	/* Account for software inserted VLAN tag, if any. */
+	if (unlikely(has_outer_vlan_tag)) {
+		wqe->eth.swp_outer_l3_offset += ETHER_VLAN_ENCAP_LEN / 2;
+		wqe->eth.swp_outer_l4_offset += ETHER_VLAN_ENCAP_LEN / 2;
+		wqe->eth.swp_inner_l3_offset += ETHER_VLAN_ENCAP_LEN / 2;
+		wqe->eth.swp_inner_l4_offset += ETHER_VLAN_ENCAP_LEN / 2;
+	}
+
+	/*
+	 * When inner checksums are set, outer L4 checksum flag must
+	 * be disabled.
+	 */
+	if (wqe->eth.cs_flags & (MLX5_ETH_WQE_L3_INNER_CSUM |
+	    MLX5_ETH_WQE_L4_INNER_CSUM))
+		wqe->eth.cs_flags &= ~MLX5_ETH_WQE_L4_CSUM;
+
+	return (eth_hdr_len);
+}
+
 struct mlx5_wqe_dump_seg {
 	struct mlx5_wqe_ctrl_seg ctrl;
 	struct mlx5_wqe_data_seg data;
@@ -574,8 +789,77 @@ top:
 			num_pkts = DIV_ROUND_UP(payload_len, mss);
 		sq->mbuf[pi].num_bytes = payload_len + (num_pkts * args.ihs);
 
+
 		sq->stats.tso_packets++;
 		sq->stats.tso_bytes += payload_len;
+	} else if (mb->m_pkthdr.csum_flags & CSUM_ENCAP_VXLAN) {
+		/* check for inner TCP TSO first */
+		if (mb->m_pkthdr.csum_flags & (CSUM_INNER_IP_TSO |
+		    CSUM_INNER_IP6_TSO)) {
+			u32 payload_len;
+			u32 mss = mb->m_pkthdr.tso_segsz;
+			u32 num_pkts;
+
+			wqe->eth.mss = cpu_to_be16(mss);
+			opcode = MLX5_OPCODE_LSO;
+
+			if (likely(args.ihs == 0)) {
+				args.ihs = mlx5e_get_vxlan_header_size(mb, wqe,
+				       MLX5_ETH_WQE_L3_INNER_CSUM |
+				       MLX5_ETH_WQE_L4_INNER_CSUM |
+				       MLX5_ETH_WQE_L4_CSUM |
+				       MLX5_ETH_WQE_L3_CSUM,
+				       opcode);
+				if (unlikely(args.ihs == 0)) {
+					err = EINVAL;
+					goto tx_drop;
+				}
+			}
+
+			payload_len = mb->m_pkthdr.len - args.ihs;
+			if (payload_len == 0)
+				num_pkts = 1;
+			else
+				num_pkts = DIV_ROUND_UP(payload_len, mss);
+			sq->mbuf[pi].num_bytes = payload_len +
+			    num_pkts * args.ihs;
+
+			sq->stats.tso_packets++;
+			sq->stats.tso_bytes += payload_len;
+		} else {
+			opcode = MLX5_OPCODE_SEND;
+
+			if (likely(args.ihs == 0)) {
+				uint8_t cs_mask;
+
+				if (mb->m_pkthdr.csum_flags &
+				    (CSUM_INNER_IP_TCP | CSUM_INNER_IP_UDP)) {
+					cs_mask =
+					    MLX5_ETH_WQE_L3_INNER_CSUM |
+					    MLX5_ETH_WQE_L4_INNER_CSUM |
+					    MLX5_ETH_WQE_L4_CSUM |
+					    MLX5_ETH_WQE_L3_CSUM;
+				} else if (mb->m_pkthdr.csum_flags & CSUM_INNER_IP) {
+					cs_mask =
+					    MLX5_ETH_WQE_L3_INNER_CSUM |
+					    MLX5_ETH_WQE_L4_CSUM |
+					    MLX5_ETH_WQE_L3_CSUM;
+				} else {
+					cs_mask =
+					    MLX5_ETH_WQE_L4_CSUM |
+					    MLX5_ETH_WQE_L3_CSUM;
+				}
+				args.ihs = mlx5e_get_vxlan_header_size(mb, wqe,
+				    cs_mask, opcode);
+				if (unlikely(args.ihs == 0)) {
+					err = EINVAL;
+					goto tx_drop;
+				}
+			}
+
+			sq->mbuf[pi].num_bytes = max_t (unsigned int,
+			    mb->m_pkthdr.len, ETHER_MIN_LEN - ETHER_CRC_LEN);
+		}
 	} else {
 		opcode = MLX5_OPCODE_SEND;
 
@@ -622,7 +906,7 @@ top:
 
 		/* Range checks */
 		if (unlikely(args.ihs > (sq->max_inline - ETHER_VLAN_ENCAP_LEN))) {
-			if (mb->m_pkthdr.csum_flags & CSUM_TSO) {
+			if (mb->m_pkthdr.csum_flags & (CSUM_TSO | CSUM_ENCAP_VXLAN)) {
 				err = EINVAL;
 				goto tx_drop;
 			}
@@ -646,7 +930,8 @@ top:
 	} else {
 		/* check if inline header size is too big */
 		if (unlikely(args.ihs > sq->max_inline)) {
-			if (unlikely(mb->m_pkthdr.csum_flags & CSUM_TSO)) {
+			if (unlikely(mb->m_pkthdr.csum_flags & (CSUM_TSO |
+			    CSUM_ENCAP_VXLAN))) {
 				err = EINVAL;
 				goto tx_drop;
 			}
