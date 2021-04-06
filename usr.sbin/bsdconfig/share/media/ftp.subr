@@ -164,7 +164,6 @@ f_dialog_menu_media_ftp()
 		' $msg_uk #4'             'ftp4.uk.freebsd.org'
 		' $msg_uk #5'             'ftp5.uk.freebsd.org'
 		'$msg_ukraine'            'ftp.ua.freebsd.org'
-		' $msg_ukraine #7'        'ftp7.ua.freebsd.org'
 		'$msg_usa #1'             'ftp1.us.freebsd.org'
 		' $msg_usa #2'            'ftp2.us.freebsd.org'
 		' $msg_usa #3'            'ftp3.us.freebsd.org'
