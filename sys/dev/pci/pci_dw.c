@@ -231,7 +231,7 @@ pci_dw_setup_hw(struct pci_dw_softc *sc)
 	/* If we have enouht viewports ..*/
 	if (sc->num_viewport >= 3 && sc->io_range.size != 0) {
 		/* Setup outbound I/O window */
-		rv = pci_dw_map_out_atu(sc, 0, IATU_CTRL1_TYPE_MEM,
+		rv = pci_dw_map_out_atu(sc, 2, IATU_CTRL1_TYPE_IO,
 		    sc->io_range.host, sc->io_range.pci, sc->io_range.size);
 		if (rv != 0)
 			return (rv);
