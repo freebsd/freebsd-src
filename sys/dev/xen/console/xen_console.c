@@ -273,7 +273,7 @@ static void
 xencons_early_init_ring(struct xencons_priv *cons)
 {
 	cons->intf = pmap_mapdev_attr(ptoa(xen_get_console_mfn()), PAGE_SIZE,
-	    VM_MEMATTR_WRITE_BACK);
+	    VM_MEMATTR_XEN);
 	cons->evtchn = xen_get_console_evtchn();
 }
 
