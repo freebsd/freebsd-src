@@ -1,6 +1,6 @@
 .\"
 .\" Copyright (c) 2003 Silicon Graphics International Corp.
-.\" Copyright (c) 2015-2020 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2015-2021 Alexander Motin <mav@FreeBSD.org>
 .\" Copyright (c) 2018 Marcelo Araujo <araujo@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -36,7 +36,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd November 23, 2020
+.Dd March 9, 2021
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -919,8 +919,9 @@ appropriate commands and task attributes.
 The default value is "restricted".
 It improves data integrity, but may introduce some additional delays.
 .It Va serseq
-Set to "on" to serialize consecutive reads/writes.
-Set to "read" to serialize consecutive reads.
+Set to "on" to fully serialize consecutive reads/writes.
+Set to "read" to fully serialize consecutive reads.
+Set to "soft" to slightly serialize consecutive reads.
 Set to "off" to allow them be issued in parallel.
 Parallel issue of consecutive operations may confuse logic of the
 backing file system, hurting performance; but it may improve performance
