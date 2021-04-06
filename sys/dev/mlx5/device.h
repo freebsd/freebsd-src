@@ -662,8 +662,9 @@ struct mlx5_err_cqe {
 };
 
 struct mlx5_cqe64 {
-	u8		tunneled_etc;
-	u8		rsvd0[3];
+	u8		tls_outer_l3_tunneled;
+	u8		rsvd0;
+	__be16		wqe_id;
 	u8		lro_tcppsh_abort_dupack;
 	u8		lro_min_ttl;
 	__be16		lro_tcp_win;
@@ -724,7 +725,7 @@ static inline bool cqe_has_vlan(struct mlx5_cqe64 *cqe)
 
 static inline bool cqe_is_tunneled(struct mlx5_cqe64 *cqe)
 {
-	return cqe->tunneled_etc & 0x1;
+	return cqe->tls_outer_l3_tunneled & 0x1;
 }
 
 enum {
