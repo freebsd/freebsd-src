@@ -490,13 +490,12 @@ ctl_be_block_move_done(union ctl_io *io, bool samethr)
 static void
 ctl_be_block_biodone(struct bio *bio)
 {
-	struct ctl_be_block_io *beio;
-	struct ctl_be_block_lun *be_lun;
+	struct ctl_be_block_io *beio = bio->bio_caller1;
+	struct ctl_be_block_lun *be_lun = beio->lun;
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	union ctl_io *io;
 	int error;
 
-	beio = bio->bio_caller1;
-	be_lun = beio->lun;
 	io = beio->io;
 
 	DPRINTF("entered\n");
@@ -576,7 +575,8 @@ ctl_be_block_biodone(struct bio *bio)
 		if ((ARGS(io)->flags & CTL_LLF_READ) &&
 		    beio->beio_cont == NULL) {
 			ctl_set_success(&io->scsiio);
-			ctl_serseq_done(io);
+			if (cbe_lun->serseq >= CTL_LUN_SERSEQ_SOFT)
+				ctl_serseq_done(io);
 		}
 		ctl_datamove(io);
 	}
@@ -636,6 +636,7 @@ static void
 ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 			   struct ctl_be_block_io *beio)
 {
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	struct ctl_be_block_filedata *file_data;
 	union ctl_io *io;
 	struct uio xuio;
@@ -679,6 +680,9 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 	if (beio->bio_cmd == BIO_READ) {
 		vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
 
+		if (beio->beio_cont == NULL &&
+		    cbe_lun->serseq == CTL_LUN_SERSEQ_SOFT)
+			ctl_serseq_done(io);
 		/*
 		 * UFS pays attention to IO_DIRECT for reads.  If the
 		 * DIRECTIO option is configured into the kernel, it calls
@@ -786,7 +790,8 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		if ((ARGS(io)->flags & CTL_LLF_READ) &&
 		    beio->beio_cont == NULL) {
 			ctl_set_success(&io->scsiio);
-			ctl_serseq_done(io);
+			if (cbe_lun->serseq > CTL_LUN_SERSEQ_SOFT)
+				ctl_serseq_done(io);
 		}
 		ctl_datamove(io);
 	}
@@ -863,6 +868,7 @@ static void
 ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 			   struct ctl_be_block_io *beio)
 {
+	struct ctl_be_lun *cbe_lun = &be_lun->cbe_lun;
 	union ctl_io *io;
 	struct cdevsw *csw;
 	struct cdev *dev;
@@ -904,9 +910,12 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 
 	csw = devvn_refthread(be_lun->vn, &dev, &ref);
 	if (csw) {
-		if (beio->bio_cmd == BIO_READ)
+		if (beio->bio_cmd == BIO_READ) {
+			if (beio->beio_cont == NULL &&
+			    cbe_lun->serseq == CTL_LUN_SERSEQ_SOFT)
+				ctl_serseq_done(io);
 			error = csw->d_read(dev, &xuio, flags);
-		else
+		} else
 			error = csw->d_write(dev, &xuio, flags);
 		dev_relthread(dev, ref);
 	} else
@@ -952,7 +961,8 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 		if ((ARGS(io)->flags & CTL_LLF_READ) &&
 		    beio->beio_cont == NULL) {
 			ctl_set_success(&io->scsiio);
-			ctl_serseq_done(io);
+			if (cbe_lun->serseq > CTL_LUN_SERSEQ_SOFT)
+				ctl_serseq_done(io);
 		}
 		ctl_datamove(io);
 	}
@@ -2187,12 +2197,14 @@ again:
 		ctl_be_block_close(be_lun);
 	cbe_lun->serseq = CTL_LUN_SERSEQ_OFF;
 	if (be_lun->dispatch != ctl_be_block_dispatch_dev)
-		cbe_lun->serseq = CTL_LUN_SERSEQ_READ;
+		cbe_lun->serseq = CTL_LUN_SERSEQ_SOFT;
 	value = dnvlist_get_string(cbe_lun->options, "serseq", NULL);
 	if (value != NULL && strcmp(value, "on") == 0)
 		cbe_lun->serseq = CTL_LUN_SERSEQ_ON;
 	else if (value != NULL && strcmp(value, "read") == 0)
 		cbe_lun->serseq = CTL_LUN_SERSEQ_READ;
+	else if (value != NULL && strcmp(value, "soft") == 0)
+		cbe_lun->serseq = CTL_LUN_SERSEQ_SOFT;
 	else if (value != NULL && strcmp(value, "off") == 0)
 		cbe_lun->serseq = CTL_LUN_SERSEQ_OFF;
 	return (0);
