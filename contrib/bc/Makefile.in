@@ -29,8 +29,6 @@
 #
 .POSIX:
 
-VERSION = 3.3.4
-
 SRC = %%SRC%%
 OBJ = %%OBJ%%
 GCDA = %%GCDA%%
@@ -128,6 +126,8 @@ MAIN_EXEC = $(EXEC_PREFIX)$(%%MAIN_EXEC%%)$(EXEC_SUFFIX)
 EXEC = $(%%EXEC%%)
 NLSPATH = %%NLSPATH%%
 
+BC_BUILD_TYPE = %%BUILD_TYPE%%
+
 BC_ENABLE_LIBRARY = %%LIBRARY%%
 
 BC_ENABLE_HISTORY = %%HISTORY%%
@@ -158,7 +158,7 @@ TEST_STARS = "******************************************************************
 BC_NUM_KARATSUBA_LEN = %%KARATSUBA_LEN%%
 
 CPPFLAGS1 = -D$(BC_ENABLED_NAME)=$(BC_ENABLED) -D$(DC_ENABLED_NAME)=$(DC_ENABLED)
-CPPFLAGS2 = $(CPPFLAGS1) -I./include/ -DVERSION=$(VERSION) %%LONG_BIT_DEFINE%%
+CPPFLAGS2 = $(CPPFLAGS1) -I./include/ -DBUILD_TYPE=$(BC_BUILD_TYPE) %%LONG_BIT_DEFINE%%
 CPPFLAGS3 = $(CPPFLAGS2) -DEXECPREFIX=$(EXEC_PREFIX) -DMAINEXEC=$(MAIN_EXEC)
 CPPFLAGS4 = $(CPPFLAGS3) -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700
 CPPFLAGS5 = $(CPPFLAGS4) -DBC_NUM_KARATSUBA_LEN=$(BC_NUM_KARATSUBA_LEN)
@@ -322,9 +322,6 @@ coverage_output:
 
 coverage:%%COVERAGE_PREREQS%%
 
-version:
-	@printf '%s' "$(VERSION)"
-
 libcname:
 	@printf '%s' "$(BC_LIB_C)"
 
@@ -341,6 +338,7 @@ clean_gen:
 
 clean:%%CLEAN_PREREQS%%
 	@printf 'Cleaning files...\n'
+	@$(RM) -f src/*.tmp gen/*.tmp
 	@$(RM) -f $(OBJ)
 	@$(RM) -f $(BC_EXEC)
 	@$(RM) -f $(DC_EXEC)
@@ -352,6 +350,7 @@ clean:%%CLEAN_PREREQS%%
 	@$(RM) -f $(DC_HELP_C) $(DC_HELP_O)
 	@$(RM) -fr $(BC_TEST_OUTPUTS) $(DC_TEST_OUTPUTS)
 	@$(RM) -fr $(BC_FUZZ_OUTPUTS) $(DC_FUZZ_OUTPUTS)
+	@$(RM) -fr Debug/ Release/
 
 clean_config: clean
 	@printf 'Cleaning config...\n'

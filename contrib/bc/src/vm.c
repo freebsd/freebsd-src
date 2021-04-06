@@ -56,6 +56,7 @@
 
 #endif // _WIN32
 
+#include <status.h>
 #include <vector.h>
 #include <args.h>
 #include <vm.h>
@@ -76,10 +77,10 @@ BC_NORETURN void bc_vm_jmp(void) {
 	BC_SIG_MAYLOCK;
 
 #if BC_DEBUG_CODE
-	bc_file_puts(&vm.ferr, "Longjmp: ");
-	bc_file_puts(&vm.ferr, f);
-	bc_file_putchar(&vm.ferr, '\n');
-	bc_file_flush(&vm.ferr);
+	bc_file_puts(&vm.ferr, bc_flush_none, "Longjmp: ");
+	bc_file_puts(&vm.ferr, bc_flush_none, f);
+	bc_file_putchar(&vm.ferr, bc_flush_none, '\n');
+	bc_file_flush(&vm.ferr, bc_flush_none);
 #endif // BC_DEBUG_CODE
 
 #ifndef NDEBUG
@@ -119,22 +120,47 @@ static void bc_vm_sig(int sig) {
 	if (!vm.sig_lock) BC_VM_JMP;
 }
 
+static void bc_vm_sigaction(void) {
+#ifndef _WIN32
+
+	struct sigaction sa;
+
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = bc_vm_sig;
+	sa.sa_flags = SA_NODEFER;
+
+	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGQUIT, &sa, NULL);
+	sigaction(SIGINT, &sa, NULL);
+
+#if BC_ENABLE_HISTORY
+	if (BC_TTY) sigaction(SIGHUP, &sa, NULL);
+#endif // BC_ENABLE_HISTORY
+
+#else // _WIN32
+
+	signal(SIGTERM, bc_vm_sig);
+
+#endif // _WIN32
+}
+
 void bc_vm_info(const char* const help) {
 
 	BC_SIG_ASSERT_LOCKED;
 
-	bc_file_puts(&vm.fout, vm.name);
-	bc_file_putchar(&vm.fout, ' ');
-	bc_file_puts(&vm.fout, BC_VERSION);
-	bc_file_putchar(&vm.fout, '\n');
-	bc_file_puts(&vm.fout, bc_copyright);
+	bc_file_puts(&vm.fout, bc_flush_none, vm.name);
+	bc_file_putchar(&vm.fout, bc_flush_none, ' ');
+	bc_file_puts(&vm.fout, bc_flush_none, BC_VERSION);
+	bc_file_putchar(&vm.fout, bc_flush_none, '\n');
+	bc_file_puts(&vm.fout, bc_flush_none, bc_copyright);
 
 	if (help) {
-		bc_file_putchar(&vm.fout, '\n');
-		bc_file_printf(&vm.fout, help, vm.name, vm.name);
+		bc_file_putchar(&vm.fout, bc_flush_none, '\n');
+		bc_file_printf(&vm.fout, help, vm.name, vm.name,
+		               BC_VERSION, BC_BUILD_TYPE);
 	}
 
-	bc_file_flush(&vm.fout);
+	bc_file_flush(&vm.fout, bc_flush_err);
 }
 #endif // !BC_ENABLE_LIBRARY
 
@@ -192,7 +218,7 @@ void bc_vm_handleError(BcErr e, size_t line, ...) {
 	BC_SIG_TRYLOCK(lock);
 
 	// Make sure all of stdout is written first.
-	s = bc_file_flushErr(&vm.fout);
+	s = bc_file_flushErr(&vm.fout, bc_flush_err);
 
 	if (BC_ERR(s == BC_STATUS_ERROR_FATAL)) {
 		vm.status = (sig_atomic_t) s;
@@ -200,9 +226,9 @@ void bc_vm_handleError(BcErr e, size_t line, ...) {
 	}
 
 	va_start(args, line);
-	bc_file_putchar(&vm.ferr, '\n');
-	bc_file_puts(&vm.ferr, err_type);
-	bc_file_putchar(&vm.ferr, ' ');
+	bc_file_putchar(&vm.ferr, bc_flush_none, '\n');
+	bc_file_puts(&vm.ferr, bc_flush_none, err_type);
+	bc_file_putchar(&vm.ferr, bc_flush_none, ' ');
 	bc_file_vprintf(&vm.ferr, vm.err_msgs[e], args);
 	va_end(args);
 
@@ -211,8 +237,8 @@ void bc_vm_handleError(BcErr e, size_t line, ...) {
 		// This is the condition for parsing vs runtime.
 		// If line is not 0, it is parsing.
 		if (line) {
-			bc_file_puts(&vm.ferr, "\n    ");
-			bc_file_puts(&vm.ferr, vm.file);
+			bc_file_puts(&vm.ferr, bc_flush_none, "\n    ");
+			bc_file_puts(&vm.ferr, bc_flush_none, vm.file);
 			bc_file_printf(&vm.ferr, bc_err_line, line);
 		}
 		else {
@@ -220,24 +246,24 @@ void bc_vm_handleError(BcErr e, size_t line, ...) {
 			BcInstPtr *ip = bc_vec_item_rev(&vm.prog.stack, 0);
 			BcFunc *f = bc_vec_item(&vm.prog.fns, ip->func);
 
-			bc_file_puts(&vm.ferr, "\n    ");
-			bc_file_puts(&vm.ferr, vm.func_header);
-			bc_file_putchar(&vm.ferr, ' ');
-			bc_file_puts(&vm.ferr, f->name);
+			bc_file_puts(&vm.ferr, bc_flush_none, "\n    ");
+			bc_file_puts(&vm.ferr, bc_flush_none, vm.func_header);
+			bc_file_putchar(&vm.ferr, bc_flush_none, ' ');
+			bc_file_puts(&vm.ferr, bc_flush_none, f->name);
 
 #if BC_ENABLED
 			if (BC_IS_BC && ip->func != BC_PROG_MAIN &&
 			    ip->func != BC_PROG_READ)
 			{
-				bc_file_puts(&vm.ferr, "()");
+				bc_file_puts(&vm.ferr, bc_flush_none, "()");
 			}
 #endif // BC_ENABLED
 		}
 	}
 
-	bc_file_puts(&vm.ferr, "\n\n");
+	bc_file_puts(&vm.ferr, bc_flush_none, "\n\n");
 
-	s = bc_file_flushErr(&vm.ferr);
+	s = bc_file_flushErr(&vm.ferr, bc_flush_err);
 
 #if !BC_ENABLE_MEMCHECK
 	// Because this function is called by a BC_NORETURN function when fatal
@@ -260,14 +286,19 @@ void bc_vm_handleError(BcErr e, size_t line, ...) {
 
 static void bc_vm_envArgs(const char* const env_args_name) {
 
-	char *env_args = getenv(env_args_name), *buf, *start;
+	char *env_args = bc_vm_getenv(env_args_name), *buf, *start;
 	char instr = '\0';
 
 	BC_SIG_ASSERT_LOCKED;
 
 	if (env_args == NULL) return;
 
+	// Windows already allocates, so we don't need to.
+#ifndef _WIN32
 	start = buf = vm.env_args_buffer = bc_vm_strdup(env_args);
+#else // _WIN32
+	start = buf = vm.env_args_buffer = env_args;
+#endif // _WIN32
 
 	assert(buf != NULL);
 
@@ -320,7 +351,7 @@ static void bc_vm_envArgs(const char* const env_args_name) {
 
 static size_t bc_vm_envLen(const char *var) {
 
-	char *lenv = getenv(var);
+	char *lenv = bc_vm_getenv(var);
 	size_t i, len = BC_NUM_PRINT_WIDTH;
 	int num;
 
@@ -335,6 +366,8 @@ static size_t bc_vm_envLen(const char *var) {
 		if (len < 2 || len >= UINT16_MAX) len = BC_NUM_PRINT_WIDTH;
 	}
 	else len = BC_NUM_PRINT_WIDTH;
+
+	bc_vm_getenvFree(lenv);
 
 	return len;
 }
@@ -455,13 +488,33 @@ void bc_vm_printf(const char *fmt, ...) {
 }
 #endif // !BC_ENABLE_LIBRARY
 
-void bc_vm_putchar(int c) {
+void bc_vm_putchar(int c, BcFlushType type) {
 #if BC_ENABLE_LIBRARY
 	bc_vec_pushByte(&vm.out, (uchar) c);
 #else // BC_ENABLE_LIBRARY
-	bc_file_putchar(&vm.fout, (uchar) c);
+	bc_file_putchar(&vm.fout, type, (uchar) c);
 	vm.nchars = (c == '\n' ? 0 : vm.nchars + 1);
 #endif // BC_ENABLE_LIBRARY
+}
+
+char* bc_vm_getenv(const char* var) {
+
+	char* ret;
+
+#ifndef _WIN32
+	ret = getenv(var);
+#else // _WIN32
+	_dupenv_s(&ret, NULL, var);
+#endif // _WIN32
+
+	return ret;
+}
+
+void bc_vm_getenvFree(char* var) {
+	BC_UNUSED(var);
+#ifdef _WIN32
+	free(var);
+#endif // _WIN32
 }
 
 #if !BC_ENABLE_LIBRARY
@@ -531,7 +584,7 @@ static void bc_vm_process(const char *text) {
 
 		assert(BC_IS_DC || vm.prog.results.len == 0);
 
-		if (BC_I) bc_file_flush(&vm.fout);
+		if (BC_I) bc_file_flush(&vm.fout, bc_flush_save);
 
 	} while (vm.prs.l.t != BC_LEX_EOF);
 }
@@ -853,7 +906,6 @@ void bc_vm_boot(int argc, char *argv[], const char *env_len,
                 const char* const env_args)
 {
 	int ttyin, ttyout, ttyerr;
-	struct sigaction sa;
 
 	BC_SIG_ASSERT_LOCKED;
 
@@ -865,17 +917,7 @@ void bc_vm_boot(int argc, char *argv[], const char *env_len,
 	vm.flags |= (ttyin != 0 && ttyout != 0 && ttyerr != 0) ? BC_FLAG_TTY : 0;
 	vm.flags |= ttyin && ttyout ? BC_FLAG_I : 0;
 
-	sigemptyset(&sa.sa_mask);
-	sa.sa_handler = bc_vm_sig;
-	sa.sa_flags = SA_NODEFER;
-
-	sigaction(SIGTERM, &sa, NULL);
-	sigaction(SIGQUIT, &sa, NULL);
-	sigaction(SIGINT, &sa, NULL);
-
-#if BC_ENABLE_HISTORY
-	if (BC_TTY) sigaction(SIGHUP, &sa, NULL);
-#endif // BC_ENABLE_HISTORY
+	bc_vm_sigaction();
 
 	bc_vm_init();
 
@@ -901,7 +943,11 @@ void bc_vm_boot(int argc, char *argv[], const char *env_len,
 #endif // BC_ENABLE_HISTORY
 
 #if BC_ENABLED
-	if (BC_IS_BC) vm.flags |= BC_FLAG_S * (getenv("POSIXLY_CORRECT") != NULL);
+	if (BC_IS_BC) {
+		char* var = bc_vm_getenv("POSIXLY_CORRECT");
+		vm.flags |= BC_FLAG_S * (var != NULL);
+		bc_vm_getenvFree(var);
+	}
 #endif // BC_ENABLED
 
 	bc_vm_envArgs(env_args);

@@ -36,7 +36,10 @@
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
+
+#ifndef _WIN32
 #include <unistd.h>
+#endif // _WIN32
 
 #include <file.h>
 #include <vm.h>
@@ -82,11 +85,32 @@ static BcStatus bc_file_output(int fd, const char *buf, size_t n) {
 	return BC_STATUS_SUCCESS;
 }
 
-BcStatus bc_file_flushErr(BcFile *restrict f) {
-
+BcStatus bc_file_flushErr(BcFile *restrict f, BcFlushType type)
+{
 	BcStatus s;
 
 	if (f->len) {
+
+#if BC_ENABLE_HISTORY
+		if (BC_TTY) {
+			if (f->buf[f->len - 1] != '\n' &&
+			    (type == BC_FLUSH_SAVE_EXTRAS_CLEAR ||
+			     type == BC_FLUSH_SAVE_EXTRAS_NO_CLEAR))
+			{
+				size_t i;
+
+				for (i = f->len - 2; i < f->len && f->buf[i] != '\n'; --i);
+
+				i += 1;
+
+				bc_vec_string(&vm.history.extras, f->len - i, f->buf + i);
+			}
+			else if (type >= BC_FLUSH_NO_EXTRAS_CLEAR) {
+				bc_vec_popAll(&vm.history.extras);
+			}
+		}
+#endif // BC_ENABLE_HISTORY
+
 		s = bc_file_output(f->fd, f->buf, f->len);
 		f->len = 0;
 	}
@@ -95,9 +119,9 @@ BcStatus bc_file_flushErr(BcFile *restrict f) {
 	return s;
 }
 
-void bc_file_flush(BcFile *restrict f) {
+void bc_file_flush(BcFile *restrict f, BcFlushType type) {
 
-	BcStatus s = bc_file_flushErr(f);
+	BcStatus s = bc_file_flushErr(f, type);
 
 	if (BC_ERR(s)) {
 
@@ -109,10 +133,11 @@ void bc_file_flush(BcFile *restrict f) {
 	}
 }
 
-void bc_file_write(BcFile *restrict f, const char *buf, size_t n) {
-
+void bc_file_write(BcFile *restrict f, BcFlushType type,
+                   const char *buf, size_t n)
+{
 	if (n > f->cap - f->len) {
-		bc_file_flush(f);
+		bc_file_flush(f, type);
 		assert(!f->len);
 	}
 
@@ -123,8 +148,8 @@ void bc_file_write(BcFile *restrict f, const char *buf, size_t n) {
 	}
 }
 
-void bc_file_printf(BcFile *restrict f, const char *fmt, ...) {
-
+void bc_file_printf(BcFile *restrict f, const char *fmt, ...)
+{
 	va_list args;
 
 	va_start(args, fmt);
@@ -144,7 +169,7 @@ void bc_file_vprintf(BcFile *restrict f, const char *fmt, va_list args) {
 
 		if (percent != ptr) {
 			size_t len = (size_t) (percent - ptr);
-			bc_file_write(f, ptr, len);
+			bc_file_write(f, bc_flush_none, ptr, len);
 		}
 
 		c = percent[1];
@@ -153,13 +178,13 @@ void bc_file_vprintf(BcFile *restrict f, const char *fmt, va_list args) {
 
 			uchar uc = (uchar) va_arg(args, int);
 
-			bc_file_putchar(f, uc);
+			bc_file_putchar(f, bc_flush_none, uc);
 		}
 		else if (c == 's') {
 
 			char *s = va_arg(args, char*);
 
-			bc_file_puts(f, s);
+			bc_file_puts(f, bc_flush_none, s);
 		}
 #if BC_DEBUG_CODE
 		else if (c == 'd') {
@@ -167,14 +192,14 @@ void bc_file_vprintf(BcFile *restrict f, const char *fmt, va_list args) {
 			int d = va_arg(args, int);
 
 			if (d < 0) {
-				bc_file_putchar(f, '-');
+				bc_file_putchar(f, bc_flush_none, '-');
 				d = -d;
 			}
 
-			if (!d) bc_file_putchar(f, '0');
+			if (!d) bc_file_putchar(f, bc_flush_none, '0');
 			else {
 				bc_file_ultoa((unsigned long long) d, buf);
-				bc_file_puts(f, buf);
+				bc_file_puts(f, bc_flush_none, buf);
 			}
 		}
 #endif // BC_DEBUG_CODE
@@ -187,25 +212,25 @@ void bc_file_vprintf(BcFile *restrict f, const char *fmt, va_list args) {
 			if (c == 'z') ull = (unsigned long long) va_arg(args, size_t);
 			else ull = (unsigned long long) va_arg(args, unsigned long);
 
-			if (!ull) bc_file_putchar(f, '0');
+			if (!ull) bc_file_putchar(f, bc_flush_none, '0');
 			else {
 				bc_file_ultoa(ull, buf);
-				bc_file_puts(f, buf);
+				bc_file_puts(f, bc_flush_none, buf);
 			}
 		}
 
 		ptr = percent + 2 + (c == 'l' || c == 'z');
 	}
 
-	if (ptr[0]) bc_file_puts(f, ptr);
+	if (ptr[0]) bc_file_puts(f, bc_flush_none, ptr);
 }
 
-void bc_file_puts(BcFile *restrict f, const char *str) {
-	bc_file_write(f, str, strlen(str));
+void bc_file_puts(BcFile *restrict f, BcFlushType type, const char *str) {
+	bc_file_write(f, type, str, strlen(str));
 }
 
-void bc_file_putchar(BcFile *restrict f, uchar c) {
-	if (f->len == f->cap) bc_file_flush(f);
+void bc_file_putchar(BcFile *restrict f, BcFlushType type, uchar c) {
+	if (f->len == f->cap) bc_file_flush(f, type);
 	assert(f->len < f->cap);
 	f->buf[f->len] = (char) c;
 	f->len += 1;
@@ -221,5 +246,5 @@ void bc_file_init(BcFile *f, int fd, char *buf, size_t cap) {
 
 void bc_file_free(BcFile *f) {
 	BC_SIG_ASSERT_LOCKED;
-	bc_file_flush(f);
+	bc_file_flush(f, bc_flush_none);
 }
