@@ -878,6 +878,11 @@ pci_bar_mmap(device_t pcidev, struct pci_bar_mmap *pbm)
 	if (!PCI_BAR_MEM(pm->pm_value))
 		return (EIO);
 	membase = pm->pm_value & PCIM_BAR_MEM_BASE;
+	error = BUS_TRANSLATE_RESOURCE(pcidev, SYS_RES_MEMORY, membase,
+	    &membase);
+	if (error != 0)
+		return (error);
+
 	pbase = trunc_page(membase);
 	plen = round_page(membase + ((pci_addr_t)1 << pm->pm_size)) -
 	    pbase;
