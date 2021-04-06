@@ -166,6 +166,7 @@ static int symlook_list(SymLook *, const Objlist *, DoneList *);
 static int symlook_needed(SymLook *, const Needed_Entry *, DoneList *);
 static int symlook_obj1_sysv(SymLook *, const Obj_Entry *);
 static int symlook_obj1_gnu(SymLook *, const Obj_Entry *);
+static void *tls_get_addr_slow(Elf_Addr **, int, size_t, bool) __noinline;
 static void trace_loaded_objects(Obj_Entry *);
 static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *, RtldLockState *lockstate);
@@ -4851,9 +4852,8 @@ unref_dag(Obj_Entry *root)
 /*
  * Common code for MD __tls_get_addr().
  */
-static void *tls_get_addr_slow(Elf_Addr **, int, size_t) __noinline;
 static void *
-tls_get_addr_slow(Elf_Addr **dtvp, int index, size_t offset)
+tls_get_addr_slow(Elf_Addr **dtvp, int index, size_t offset, bool locked)
 {
 	Elf_Addr *newdtv, *dtv;
 	RtldLockState lockstate;
@@ -4862,7 +4862,8 @@ tls_get_addr_slow(Elf_Addr **dtvp, int index, size_t offset)
 	dtv = *dtvp;
 	/* Check dtv generation in case new modules have arrived */
 	if (dtv[0] != tls_dtv_generation) {
-		wlock_acquire(rtld_bind_lock, &lockstate);
+		if (!locked)
+			wlock_acquire(rtld_bind_lock, &lockstate);
 		newdtv = xcalloc(tls_max_index + 2, sizeof(Elf_Addr));
 		to_copy = dtv[1];
 		if (to_copy > tls_max_index)
@@ -4871,17 +4872,20 @@ tls_get_addr_slow(Elf_Addr **dtvp, int index, size_t offset)
 		newdtv[0] = tls_dtv_generation;
 		newdtv[1] = tls_max_index;
 		free(dtv);
-		lock_release(rtld_bind_lock, &lockstate);
+		if (!locked)
+			lock_release(rtld_bind_lock, &lockstate);
 		dtv = *dtvp = newdtv;
 	}
 
 	/* Dynamically allocate module TLS if necessary */
 	if (dtv[index + 1] == 0) {
 		/* Signal safe, wlock will block out signals. */
-		wlock_acquire(rtld_bind_lock, &lockstate);
+		if (!locked)
+			wlock_acquire(rtld_bind_lock, &lockstate);
 		if (!dtv[index + 1])
 			dtv[index + 1] = (Elf_Addr)allocate_module_tls(index);
-		lock_release(rtld_bind_lock, &lockstate);
+		if (!locked)
+			lock_release(rtld_bind_lock, &lockstate);
 	}
 	return ((void *)(dtv[index + 1] + offset));
 }
@@ -4896,7 +4900,7 @@ tls_get_addr_common(Elf_Addr **dtvp, int index, size_t offset)
 	if (__predict_true(dtv[0] == tls_dtv_generation &&
 	    dtv[index + 1] != 0))
 		return ((void *)(dtv[index + 1] + offset));
-	return (tls_get_addr_slow(dtvp, index, offset));
+	return (tls_get_addr_slow(dtvp, index, offset, false));
 }
 
 #if defined(__aarch64__) || defined(__arm__) || defined(__mips__) || \
