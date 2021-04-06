@@ -503,7 +503,7 @@ unmap_pte_fn(pte_t *pte, struct page *pmd_page,
 
 static vm_paddr_t resume_frames;
 
-static int
+static void
 gnttab_map(unsigned int start_idx, unsigned int end_idx)
 {
 	struct xen_add_to_physmap xatp;
@@ -521,21 +521,6 @@ gnttab_map(unsigned int start_idx, unsigned int end_idx)
 		if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
 			panic("HYPERVISOR_memory_op failed to map gnttab");
 	} while (i-- > start_idx);
-
-	if (shared == NULL) {
-		vm_offset_t area;
-
-		area = kva_alloc(PAGE_SIZE * max_nr_grant_frames());
-		KASSERT(area, ("can't allocate VM space for grant table"));
-		shared = (grant_entry_t *)area;
-	}
-
-	for (i = start_idx; i <= end_idx; i++) {
-		pmap_kenter((vm_offset_t) shared + i * PAGE_SIZE,
-		    resume_frames + i * PAGE_SIZE);
-	}
-
-	return (0);
 }
 
 int
@@ -557,15 +542,16 @@ gnttab_resume(device_t dev)
 		if (gnttab_pseudo_phys_res == NULL)
 			panic("Unable to reserve physical memory for gnttab");
 		resume_frames = rman_get_start(gnttab_pseudo_phys_res);
+		shared = rman_get_virtual(gnttab_pseudo_phys_res);
 	}
+	gnttab_map(0, nr_gframes - 1);
 
-	return (gnttab_map(0, nr_gframes - 1));
+	return (0);
 }
 
 static int
 gnttab_expand(unsigned int req_entries)
 {
-	int error;
 	unsigned int cur, extra;
 
 	cur = nr_grant_frames;
@@ -573,11 +559,9 @@ gnttab_expand(unsigned int req_entries)
 	if (cur + extra > max_nr_grant_frames())
 		return (ENOSPC);
 
-	error = gnttab_map(cur, cur + extra - 1);
-	if (!error)
-		error = grow_gnttab_list(extra);
+	gnttab_map(cur, cur + extra - 1);
 
-	return (error);
+	return (grow_gnttab_list(extra));
 }
 
 MTX_SYSINIT(gnttab, &gnttab_list_lock, "GNTTAB LOCK", MTX_DEF | MTX_RECURSE);
