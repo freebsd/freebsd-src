@@ -16,6 +16,22 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20210406:	p6	FreeBSD-EN-21:06.pf
+			FreeBSD-EN-21:07.lldb
+			FreeBSD-SA-21:08.vm
+			FreeBSD-SA-21:09.accept_filter
+			FreeBSD-SA-21:10.jail_mount
+
+		net.pf.request_maxcount not settable from loader.conf(5) [EN-21:06.pf]
+
+		lldb abort on print command [EN-21:07.lldb]
+
+		Memory disclosure by stale virtual memory mapping [SA-21:08.vm]
+
+		Double free in accept_filter(9) socket configuration interface [SA-21:09.accept_filter]
+
+		Jail escape possible by mounting over jail root [SA-21:10.jail_mount]
+
 20210325:	p5	FreeBSD-SA-21:07.openssl
 
 	Fix multiple OpenSSL issues [SA-21:07.openssl]
