@@ -277,7 +277,7 @@ mlx5e_get_full_header_size(const struct mbuf *mb, const struct tcphdr **ppth)
 			goto tcp_packet;
 		case IPPROTO_UDP:
 			ip_hlen = ip->ip_hl << 2;
-			eth_hdr_len += ip_hlen + 8;
+			eth_hdr_len += ip_hlen + sizeof(struct udphdr);
 			th = NULL;
 			goto udp_packet;
 		default:
@@ -293,7 +293,7 @@ mlx5e_get_full_header_size(const struct mbuf *mb, const struct tcphdr **ppth)
 			eth_hdr_len += sizeof(*ip6);
 			goto tcp_packet;
 		case IPPROTO_UDP:
-			eth_hdr_len += sizeof(*ip6) + 8;
+			eth_hdr_len += sizeof(*ip6) + sizeof(struct udphdr);
 			th = NULL;
 			goto udp_packet;
 		default:
