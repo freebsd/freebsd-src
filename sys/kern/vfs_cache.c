@@ -4655,7 +4655,8 @@ cache_fplookup_final_withparent(struct cache_fpl *fpl)
 
 	error = cache_fplookup_final_child(fpl, tvs);
 	if (__predict_false(error != 0)) {
-		MPASS(fpl->status == CACHE_FPL_STATUS_ABORTED);
+		MPASS(fpl->status == CACHE_FPL_STATUS_ABORTED ||
+		    fpl->status == CACHE_FPL_STATUS_DESTROYED);
 		if ((cnp->cn_flags & LOCKPARENT) != 0)
 			vput(dvp);
 		else
