@@ -6,7 +6,6 @@ PROG=		gh-bc
 PROGNAME=	bc
 
 BCDIR=		${SRCTOP}/contrib/${PROGNAME}
-BCVERSION!=	sed -n -e '/.*VERSION *= *[0-9]/s/.*VERSION *= *//p' ${BCDIR}/Makefile.in
 
 SRCS=		args.c data.c file.c lang.c lex.c main.c num.c parse.c program.c read.c vector.c vm.c
 SRCS+=		bc.c bc_lex.c bc_parse.c dc.c dc_lex.c dc_parse.c history.c library.c
@@ -41,7 +40,6 @@ CFLAGS+=	-DBC_ENABLE_HISTORY
 CFLAGS+=	-DBC_ENABLE_RAND
 CFLAGS+=	-DDC_ENABLED
 CFLAGS+=	-DNDEBUG
-CFLAGS+=	-DVERSION=${BCVERSION}
 CFLAGS+=	-I${BCDIR}/include
 
 .if ${MK_NLS_CATALOGS} == "no"
