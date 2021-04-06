@@ -1147,6 +1147,33 @@ readrest:
 					vm_page_unwire(fs.m, PQ_INACTIVE);
 					vm_page_unlock(fs.m);
 				}
+
+				/*
+				 * Typically, the shadow object is either
+				 * private to this address space
+				 * (OBJ_ONEMAPPING) or its pages are read only.
+				 * In the highly unusual case where the pages of
+				 * a shadow object are read/write shared between
+				 * this and other address spaces, we need to
+				 * ensure that any pmap-level mappings to the
+				 * original, copy-on-write page from the backing
+				 * object are removed from those other address
+				 * spaces.
+				 *
+				 * The flag check is racy, but this is
+				 * tolerable: if OBJ_ONEMAPPING is cleared after
+				 * the check, the busy state ensures that new
+				 * mappings of fs.m can't be created.
+				 * pmap_enter() will replace an existing mapping
+				 * in the current address space.  If
+				 * OBJ_ONEMAPPING is set after the check,
+				 * removing mappings will at worse trigger some
+				 * unnecessary page faults.
+				 */
+				vm_page_assert_xbusied(fs.m);
+				if ((fs.first_object->flags & OBJ_ONEMAPPING) == 0)
+					pmap_remove_all(fs.m);
+
 				/*
 				 * We no longer need the old page or object.
 				 */
