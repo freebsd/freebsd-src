@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20210406:	p9	FreeBSD-SA-21:08.vm
+			FreeBSD-SA-21:10.jail_mount
+
+	Memory disclosure by stale virtual memory mapping [SA-21:08.vm]
+
+	Jail escape possible by mounting over jail root [SA-21:10.jail_mount]
+
 20210223:	p8	FreeBSD-SA-21:03.pam_login_access
 			FreeBSD-SA-21:04.jail_remove
 			FreeBSD-SA-21:05.jail_chdir
