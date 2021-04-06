@@ -4875,35 +4875,35 @@ static void *tls_get_addr_slow(Elf_Addr **, int, size_t) __noinline;
 static void *
 tls_get_addr_slow(Elf_Addr **dtvp, int index, size_t offset)
 {
-    Elf_Addr *newdtv, *dtv;
-    RtldLockState lockstate;
-    int to_copy;
+	Elf_Addr *newdtv, *dtv;
+	RtldLockState lockstate;
+	int to_copy;
 
-    dtv = *dtvp;
-    /* Check dtv generation in case new modules have arrived */
-    if (dtv[0] != tls_dtv_generation) {
-	wlock_acquire(rtld_bind_lock, &lockstate);
-	newdtv = xcalloc(tls_max_index + 2, sizeof(Elf_Addr));
-	to_copy = dtv[1];
-	if (to_copy > tls_max_index)
-	    to_copy = tls_max_index;
-	memcpy(&newdtv[2], &dtv[2], to_copy * sizeof(Elf_Addr));
-	newdtv[0] = tls_dtv_generation;
-	newdtv[1] = tls_max_index;
-	free(dtv);
-	lock_release(rtld_bind_lock, &lockstate);
-	dtv = *dtvp = newdtv;
-    }
+	dtv = *dtvp;
+	/* Check dtv generation in case new modules have arrived */
+	if (dtv[0] != tls_dtv_generation) {
+		wlock_acquire(rtld_bind_lock, &lockstate);
+		newdtv = xcalloc(tls_max_index + 2, sizeof(Elf_Addr));
+		to_copy = dtv[1];
+		if (to_copy > tls_max_index)
+			to_copy = tls_max_index;
+		memcpy(&newdtv[2], &dtv[2], to_copy * sizeof(Elf_Addr));
+		newdtv[0] = tls_dtv_generation;
+		newdtv[1] = tls_max_index;
+		free(dtv);
+		lock_release(rtld_bind_lock, &lockstate);
+		dtv = *dtvp = newdtv;
+	}
 
-    /* Dynamically allocate module TLS if necessary */
-    if (dtv[index + 1] == 0) {
-	/* Signal safe, wlock will block out signals. */
-	wlock_acquire(rtld_bind_lock, &lockstate);
-	if (!dtv[index + 1])
-	    dtv[index + 1] = (Elf_Addr)allocate_module_tls(index);
-	lock_release(rtld_bind_lock, &lockstate);
-    }
-    return ((void *)(dtv[index + 1] + offset));
+	/* Dynamically allocate module TLS if necessary */
+	if (dtv[index + 1] == 0) {
+		/* Signal safe, wlock will block out signals. */
+		wlock_acquire(rtld_bind_lock, &lockstate);
+		if (!dtv[index + 1])
+			dtv[index + 1] = (Elf_Addr)allocate_module_tls(index);
+		lock_release(rtld_bind_lock, &lockstate);
+	}
+	return ((void *)(dtv[index + 1] + offset));
 }
 
 void *
