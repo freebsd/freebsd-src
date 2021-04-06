@@ -125,7 +125,7 @@
 #define	MLX5E_SQ_TX_QUEUE_SIZE	4096	/* SQ drbr queue size */
 
 #define	MLX5E_MAX_TX_NUM_TC	8	/* units */
-#define	MLX5E_MAX_TX_HEADER	128	/* bytes */
+#define	MLX5E_MAX_TX_HEADER	192	/* bytes */
 #define	MLX5E_MAX_TX_PAYLOAD_SIZE	65536	/* bytes */
 #define	MLX5E_MAX_TX_MBUF_SIZE	65536	/* bytes */
 #define	MLX5E_MAX_TX_MBUF_FRAGS	\
