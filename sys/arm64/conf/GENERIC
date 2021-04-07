@@ -272,6 +272,7 @@ device		pl011
 
 # PCI/PCI-X/PCIe Ethernet NICs that use iflib infrastructure
 device		iflib
+device		enetc			# NXP Gigabit NIC
 device		em			# Intel PRO/1000 Gigabit Ethernet Family
 device		ix			# Intel 10Gb Ethernet Family
 device		vmx			# VMware VMXNET3 Ethernet
