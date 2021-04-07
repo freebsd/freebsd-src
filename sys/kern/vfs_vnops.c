@@ -426,8 +426,12 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 		if (error != 0)
 			return (error);
 	}
-	if ((fmode & O_PATH) != 0)
+	if ((fmode & O_PATH) != 0) {
+		error = VOP_ACCESS(vp, VREAD, cred, td);
+		if (error == 0)
+			fp->f_flag |= FKQALLOWED;
 		return (0);
+	}
 
 	if (vp->v_type == VFIFO && VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
 		vn_lock(vp, LK_UPGRADE | LK_RETRY);
@@ -2137,6 +2141,14 @@ vn_kqfilter(struct file *fp, struct knote *kn)
 {
 
 	return (VOP_KQFILTER(fp->f_vnode, kn));
+}
+
+int
+vn_kqfilter_opath(struct file *fp, struct knote *kn)
+{
+	if ((fp->f_flag & FKQALLOWED) == 0)
+		return (EBADF);
+	return (vn_kqfilter(fp, kn));
 }
 
 /*
