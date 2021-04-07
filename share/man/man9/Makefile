@@ -401,6 +401,7 @@ MAN=	accept_filter.9 \
 	vn_isdisk.9 \
 	vnet.9 \
 	vnode.9 \
+	vnode_pager_setsize.9 \
 	VOP_ACCESS.9 \
 	VOP_ACLCHECK.9 \
 	VOP_ADVISE.9 \
