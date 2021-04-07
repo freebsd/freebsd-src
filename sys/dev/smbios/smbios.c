@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
+#include <sys/efi.h>
 
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -79,20 +80,28 @@ static int	smbios_cksum	(struct smbios_eps *);
 static void
 smbios_identify (driver_t *driver, device_t parent)
 {
+#ifdef ARCH_MAY_USE_EFI
+	struct uuid efi_smbios = EFI_TABLE_SMBIOS;
+	void *addr_efi;
+#endif
 	struct smbios_eps *eps;
 	device_t child;
-	vm_paddr_t addr;
+	vm_paddr_t addr = 0;
 	int length;
 	int rid;
 
 	if (!device_is_alive(parent))
 		return;
 
+#ifdef ARCH_MAY_USE_EFI
+	if (!efi_get_table(&efi_smbios, &addr_efi))
+		addr = (vm_paddr_t)addr_efi;
+#endif
+
 #if defined(__amd64__) || defined(__i386__)
-	addr = bios_sigsearch(SMBIOS_START, SMBIOS_SIG, SMBIOS_LEN,
-	    SMBIOS_STEP, SMBIOS_OFF);
-#else
-	addr = 0;
+	if (addr == 0)
+		addr = bios_sigsearch(SMBIOS_START, SMBIOS_SIG, SMBIOS_LEN,
+		    SMBIOS_STEP, SMBIOS_OFF);
 #endif
 
 	if (addr != 0) {
@@ -242,6 +251,9 @@ static driver_t smbios_driver = {
 };
 
 DRIVER_MODULE(smbios, nexus, smbios_driver, smbios_devclass, smbios_modevent, 0);
+#ifdef ARCH_MAY_USE_EFI
+MODULE_DEPEND(smbios, efirt, 1, 1, 1);
+#endif
 MODULE_VERSION(smbios, 1);
 
 static int

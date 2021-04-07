@@ -36,6 +36,8 @@
 #define	EFIABI_ATTR
 
 #ifdef _KERNEL
+#define ARCH_MAY_USE_EFI
+
 #define	EFI_TIME_LOCK()
 #define	EFI_TIME_UNLOCK()
 #define	EFI_TIME_OWNED()
