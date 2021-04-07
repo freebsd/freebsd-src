@@ -538,7 +538,8 @@ allocate_initial_tls(Obj_Entry *objs)
 		sysarch(AMD64_SET_FSBASE, &addr);
 }
 
-void *__tls_get_addr(tls_index *ti)
+void *
+__tls_get_addr(tls_index *ti)
 {
     Elf_Addr** segbase;
 
