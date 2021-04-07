@@ -562,8 +562,12 @@ fileargs_add_cache(nvlist_t *nvlout, const nvlist_t *limits,
 			break;
 		}
 
-		if (type != NV_TYPE_NULL || (current_name != NULL &&
-		    strcmp(fname, current_name) == 0)) {
+		if (type != NV_TYPE_NULL) {
+			i--;
+			continue;
+		}
+		if (current_name != NULL &&
+		    strcmp(fname, current_name) == 0) {
 			current_name = NULL;
 			i--;
 			continue;
