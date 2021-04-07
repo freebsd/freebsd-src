@@ -128,4 +128,12 @@ u_int32_t
 	 pfctl_get_ticket(struct pfr_buffer *, int, const char *);
 int	 pfctl_trans(int, struct pfr_buffer *, u_long, int);
 
+int	 pf_get_ruleset_number(u_int8_t);
+void	 pf_init_ruleset(struct pf_ruleset *);
+int	 pf_anchor_setup(struct pf_rule *,
+	    const struct pf_ruleset *, const char *);
+void	 pf_remove_if_empty_ruleset(struct pf_ruleset *);
+struct pf_ruleset	*pf_find_ruleset(const char *);
+struct pf_ruleset	*pf_find_or_create_ruleset(const char *);
+
 #endif /* _PFCTL_H_ */
