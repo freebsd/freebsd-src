@@ -513,7 +513,7 @@ device 		xenpci		# Xen HVM Hypervisor services driver
 #
 # ipmi: Intelligent Platform Management Interface
 # pbio: Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
-# smbios: DMI/SMBIOS entry point
+# smbios: DMI/SMBIOS entry point (requires EFIRT option)
 # vpd: Vital Product Data kernel interface
 # asmc: Apple System Management Controller
 # si: Specialix International SI/XIO or SX intelligent serial card
