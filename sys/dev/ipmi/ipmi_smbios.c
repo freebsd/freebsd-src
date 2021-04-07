@@ -79,8 +79,6 @@ struct ipmi_entry {
 #define	SPACING_32		0x1
 #define	SPACING_16		0x2
 
-typedef void (*smbios_callback_t)(struct smbios_structure_header *, void *);
-
 static struct ipmi_get_info ipmi_info;
 static int ipmi_probed;
 static struct mtx ipmi_info_mtx;
@@ -88,8 +86,6 @@ MTX_SYSINIT(ipmi_info, &ipmi_info_mtx, "ipmi info", MTX_DEF);
 
 static void	ipmi_smbios_probe(struct ipmi_get_info *);
 static int	smbios_cksum(struct smbios_eps *);
-static void	smbios_walk_table(uint8_t *, int, smbios_callback_t,
-		    void *);
 static void	smbios_ipmi_info(struct smbios_structure_header *, void *);
 
 static void
@@ -144,31 +140,6 @@ smbios_ipmi_info(struct smbios_structure_header *h, void *arg)
 			info->irq = s->interrupt_number;
 	}
 	info->iface_type = s->interface_type;
-}
-
-static void
-smbios_walk_table(uint8_t *p, int entries, smbios_callback_t cb, void *arg)
-{
-	struct smbios_structure_header *s;
-
-	while (entries--) {
-		s = (struct smbios_structure_header *)p;
-		cb(s, arg);
-
-		/*
-		 * Look for a double-nul after the end of the
-		 * formatted area of this structure.
-		 */
-		p += s->length;
-		while (!(p[0] == 0 && p[1] == 0))
-			p++;
-
-		/*
-		 * Skip over the double-nul to the start of the next
-		 * structure.
-		 */
-		p += 2;
-	}
 }
 
 /*
