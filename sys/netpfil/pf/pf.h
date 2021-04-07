@@ -637,13 +637,6 @@ struct pf_anchor {
 RB_PROTOTYPE(pf_anchor_global, pf_anchor, entry_global, pf_anchor_compare);
 RB_PROTOTYPE(pf_anchor_node, pf_anchor, entry_node, pf_anchor_compare);
 
-/* these ruleset functions can be linked into userland programs (pfctl) */
-int			 pf_get_ruleset_number(u_int8_t);
-void			 pf_init_ruleset(struct pf_ruleset *);
-int			 pf_anchor_setup(struct pf_rule *,
-			    const struct pf_ruleset *, const char *);
-void			 pf_remove_if_empty_ruleset(struct pf_ruleset *);
-struct pf_ruleset	*pf_find_ruleset(const char *);
-struct pf_ruleset	*pf_find_or_create_ruleset(const char *);
+int	 pf_get_ruleset_number(u_int8_t);
 
 #endif	/* _NET_PF_H_ */
