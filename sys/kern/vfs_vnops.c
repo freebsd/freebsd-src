@@ -385,8 +385,10 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 	accmode_t accmode;
 	int error;
 
-	if (vp->v_type == VLNK)
-		return (EMLINK);
+	if (vp->v_type == VLNK) {
+		if ((fmode & O_PATH) == 0 || (fmode & FEXEC) != 0)
+			return (EMLINK);
+	}
 	if (vp->v_type == VSOCK)
 		return (EOPNOTSUPP);
 	if (vp->v_type != VDIR && fmode & O_DIRECTORY)
