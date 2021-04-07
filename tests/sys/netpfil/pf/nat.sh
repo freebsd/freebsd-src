@@ -27,7 +27,7 @@ exhaust_body()
 	jexec nat sysctl net.inet.ip.forwarding=1
 
 	jexec echo ifconfig ${epair_echo}b 198.51.100.2/24 up
-	jexec echo /usr/sbin/inetd $(atf_get_srcdir)/echo_inetd.conf
+	jexec echo /usr/sbin/inetd -p inetd-echo.pid $(atf_get_srcdir)/echo_inetd.conf
 
 	# Enable pf!
 	jexec nat pfctl -e
@@ -55,6 +55,7 @@ exhaust_body()
 
 exhaust_cleanup()
 {
+	rm -f inetd-echo.pid
 	pft_cleanup
 }
 
