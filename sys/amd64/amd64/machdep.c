@@ -959,28 +959,6 @@ ssdtosyssd(ssd, sd)
 	sd->sd_gran  = ssd->ssd_gran;
 }
 
-#if !defined(DEV_ATPIC) && defined(DEV_ISA)
-#include <isa/isavar.h>
-#include <isa/isareg.h>
-/*
- * Return a bitmap of the current interrupt requests.  This is 8259-specific
- * and is only suitable for use at probe time.
- * This is only here to pacify sio.  It is NOT FATAL if this doesn't work.
- * It shouldn't be here.  There should probably be an APIC centric
- * implementation in the apic driver code, if at all.
- */
-intrmask_t
-isa_irq_pending(void)
-{
-	u_char irr1;
-	u_char irr2;
-
-	irr1 = inb(IO_ICU1);
-	irr2 = inb(IO_ICU2);
-	return ((irr2 << 8) | irr1);
-}
-#endif
-
 u_int basemem;
 
 static int
