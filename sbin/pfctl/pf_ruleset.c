@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #define rs_malloc(x)		 calloc(1, x)
 #define rs_free(x)		 free(x)
 
+#include "pfctl.h"
+
 #ifdef PFDEBUG
 #include <sys/stdarg.h>
 #define DPFPRINTF(format, x...)	fprintf(stderr, format , ##x)
