@@ -519,7 +519,8 @@ allocate_initial_tls(Obj_Entry *objs)
 
 /* GNU ABI */
 __attribute__((__regparm__(1)))
-void *___tls_get_addr(tls_index *ti)
+void *
+___tls_get_addr(tls_index *ti)
 {
     Elf_Addr** segbase;
 
@@ -529,7 +530,8 @@ void *___tls_get_addr(tls_index *ti)
 }
 
 /* Sun ABI */
-void *__tls_get_addr(tls_index *ti)
+void *
+__tls_get_addr(tls_index *ti)
 {
     Elf_Addr** segbase;
 
