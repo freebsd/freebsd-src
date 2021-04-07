@@ -56,12 +56,39 @@ struct smbios_eps {
 	uint32_t	structure_table_address;
 	uint16_t	number_structures;
 	uint8_t		BCD_revision;
-};
+} __packed;
 
 struct smbios_structure_header {
 	uint8_t		type;
 	uint8_t		length;
 	uint16_t	handle;
-};
+} __packed;
+
+typedef void (*smbios_callback_t)(struct smbios_structure_header *, void *);
+
+static inline void
+smbios_walk_table(uint8_t *p, int entries, smbios_callback_t cb, void *arg)
+{
+	struct smbios_structure_header *s;
+
+	while (entries--) {
+		s = (struct smbios_structure_header *)p;
+		cb(s, arg);
+
+		/*
+		 * Look for a double-nul after the end of the
+		 * formatted area of this structure.
+		 */
+		p += s->length;
+		while (!(p[0] == 0 && p[1] == 0))
+			p++;
+
+		/*
+		 * Skip over the double-nul to the start of the next
+		 * structure.
+		 */
+		p += 2;
+	}
+}
 
 #endif /* _SMBIOS_H_ */
