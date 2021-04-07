@@ -383,6 +383,9 @@ ATF_TC_BODY(rtm_get_v4_hostbits_failure, tc)
 {
 	DECLARE_TEST_VARS;
 
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_expect_fail("Needs https://reviews.freebsd.org/D28886");
+
 	c = presetup_ipv4(tc);
 
 	/* Q the same prefix */
@@ -446,6 +449,9 @@ RTM_DECLARE_ROOT_TEST(rtm_add_v4_no_rtf_host_failure,
 ATF_TC_BODY(rtm_add_v4_no_rtf_host_failure, tc)
 {
 	DECLARE_TEST_VARS;
+
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_expect_fail("Needs https://reviews.freebsd.org/D28886");
 
 	c = presetup_ipv4(tc);
 
