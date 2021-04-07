@@ -577,6 +577,10 @@ struct pthread {
 
 	/* pthread_set/get_name_np */
 	char			*name;
+
+	/* rtld thread-local dlerror message and seen control */
+	char			dlerror_msg[512];
+	int			dlerror_seen;
 };
 
 #define THR_SHOULD_GC(thrd) 						\

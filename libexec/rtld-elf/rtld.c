@@ -195,7 +195,6 @@ int __sys_openat(int, const char *, int, ...);
 /*
  * Data declarations.
  */
-static char *error_message;	/* Message for dlerror(), or NULL */
 struct r_debug r_debug __exported;	/* for GDB; */
 static bool libmap_disable;	/* Disable libmap */
 static bool ld_loadfltr;	/* Immediate filters processing */
@@ -442,6 +441,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     /* Initialize and relocate ourselves. */
     assert(aux_info[AT_BASE] != NULL);
     init_rtld((caddr_t) aux_info[AT_BASE]->a_un.a_ptr, aux_info);
+
+    dlerror_dflt_init();
 
     __progname = obj_rtld.path;
     argv0 = argv[0] != NULL ? argv[0] : "(null)";
@@ -927,14 +928,14 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 void
 _rtld_error(const char *fmt, ...)
 {
-    static char buf[512];
-    va_list ap;
+	va_list ap;
 
-    va_start(ap, fmt);
-    rtld_vsnprintf(buf, sizeof buf, fmt, ap);
-    error_message = buf;
-    va_end(ap);
-    LD_UTRACE(UTRACE_RTLD_ERROR, NULL, NULL, 0, 0, error_message);
+	va_start(ap, fmt);
+	rtld_vsnprintf(lockinfo.dlerror_loc(), lockinfo.dlerror_loc_sz,
+	    fmt, ap);
+	va_end(ap);
+	*lockinfo.dlerror_seen() = 0;
+	LD_UTRACE(UTRACE_RTLD_ERROR, NULL, NULL, 0, 0, lockinfo.dlerror_loc());
 }
 
 /*
@@ -943,7 +944,7 @@ _rtld_error(const char *fmt, ...)
 static char *
 errmsg_save(void)
 {
-    return error_message == NULL ? NULL : xstrdup(error_message);
+	return (xstrdup(lockinfo.dlerror_loc()));
 }
 
 /*
@@ -953,12 +954,12 @@ errmsg_save(void)
 static void
 errmsg_restore(char *saved_msg)
 {
-    if (saved_msg == NULL)
-	error_message = NULL;
-    else {
-	_rtld_error("%s", saved_msg);
-	free(saved_msg);
-    }
+	if (saved_msg == NULL)
+		_rtld_error("");
+	else {
+		_rtld_error("%s", saved_msg);
+		free(saved_msg);
+	}
 }
 
 static const char *
@@ -3389,9 +3390,10 @@ dlclose_locked(void *handle, RtldLockState *lockstate)
 char *
 dlerror(void)
 {
-    char *msg = error_message;
-    error_message = NULL;
-    return msg;
+	if (*(lockinfo.dlerror_seen()) != 0)
+		return (NULL);
+	*lockinfo.dlerror_seen() = 1;
+	return (lockinfo.dlerror_loc());
 }
 
 /*
