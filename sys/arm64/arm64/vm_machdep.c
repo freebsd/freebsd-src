@@ -93,6 +93,9 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	td2->td_pcb = pcb2;
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
+	/* Clear the debug register state. */
+	bzero(&pcb2->pcb_dbg_regs, sizeof(pcb2->pcb_dbg_regs));
+
 	tf = (struct trapframe *)STACKALIGN((struct trapframe *)pcb2 - 1);
 	bcopy(td1->td_frame, tf, sizeof(*tf));
 	tf->tf_x[0] = 0;
