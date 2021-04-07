@@ -38,11 +38,7 @@ _libc_get_static_tls_base(size_t offset)
 {
 	uintptr_t tlsbase;
 
-#ifdef ARM_TP_ADDRESS
-	tlsbase = *(uintptr_t *)ARM_TP_ADDRESS;
-#else
 	__asm __volatile("mrc  p15, 0, %0, c13, c0, 3" : "=r" (tlsbase));
-#endif
 
 	tlsbase += offset;
 	return (tlsbase);

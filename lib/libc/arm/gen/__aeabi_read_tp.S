@@ -31,18 +31,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/sysarch.h>
 
 ENTRY(__aeabi_read_tp)
-#ifdef ARM_TP_ADDRESS
-	ldr	r0, .Larm_tp_address
-	ldr	r0, [r0]
-#else
 	mrc	p15, 0, r0, c13, c0, 3
-#endif
 	RET
 END(__aeabi_read_tp)
-
-#ifdef ARM_TP_ADDRESS
-.Larm_tp_address:
-	.word ARM_TP_ADDRESS
-#endif
 
 	.section .note.GNU-stack,"",%progbits
