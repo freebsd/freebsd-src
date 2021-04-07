@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2020
+.Dd April 7, 2021
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -987,6 +987,23 @@ See
 for details.
 In order for this to be effective, one should also configure the firmware
 (BIOS or UEFI) to prevent booting from unauthorized devices.
+.Sh MD
+Memory disk (MD) can be used when the
+.Nm
+was compiled with
+.Va MD_IMAGE_SIZE .
+The size of the memory disk is determined by
+.Va MD_IMAGE_SIZE .
+If MD available, a file system can be embedded into the
+.Nm
+with
+.Pa /sys/tools/embed_mfs.sh .
+Then, MD will be probed and be set to
+.Va currdev
+during initialization.
+.Pp
+Currently, MD is only supported in
+.Xr loader.efi 8 .
 .Sh FILES
 .Bl -tag -width /usr/share/examples/bootforth/ -compact
 .It Pa /boot/loader
