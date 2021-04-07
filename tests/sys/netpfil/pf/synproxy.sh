@@ -53,7 +53,7 @@ synproxy_body()
 	jexec singsing ifconfig ${link}b 198.51.100.2/24 up
 	jexec singsing route add default 198.51.100.1
 
-	jexec singsing /usr/sbin/inetd $(atf_get_srcdir)/echo_inetd.conf
+	jexec singsing /usr/sbin/inetd -p inetd-singsing.pid $(atf_get_srcdir)/echo_inetd.conf
 
 	jexec alcatraz pfctl -e
 	pft_set_rules alcatraz "set fail-policy return" \
@@ -75,6 +75,7 @@ synproxy_body()
 
 synproxy_cleanup()
 {
+	rm -f inetd-singsing.pid
 	pft_cleanup
 }
 
