@@ -86,4 +86,6 @@ extern void arm_abi_variant_hook(Elf_Auxinfo **);
 #define md_abi_variant_hook(x)
 #endif
 
+#define	TLS_DTV_OFFSET	0
+
 #endif
