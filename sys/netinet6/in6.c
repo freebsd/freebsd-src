@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/eventhandler.h>
 #include <sys/errno.h>
 #include <sys/jail.h>
@@ -253,6 +254,9 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	int carp_attached = 0;
 	int error;
 	u_long ocmd = cmd;
+
+	if (td != NULL && IN_CAPABILITY_MODE(td))
+		return (ECAPMODE);
 
 	/*
 	 * Compat to make pre-10.x ifconfig(8) operable.
