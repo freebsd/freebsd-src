@@ -1192,7 +1192,8 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 		KASSERT(vp->v_type != VFIFO || (flags & O_PATH) != 0,
 		    ("Unexpected fifo fp %p vp %p", fp, vp));
 		if ((flags & O_PATH) != 0) {
-			finit_vnode(fp, flags, NULL, &path_fileops);
+			finit(fp, (flags & FMASK) | (fp->f_flag & FKQALLOWED),
+			    DTYPE_VNODE, NULL, &path_fileops);
 			vhold(vp);
 			vunref(vp);
 		} else {

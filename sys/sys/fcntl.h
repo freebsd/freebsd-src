@@ -153,6 +153,8 @@ typedef	__pid_t		pid_t;
 #define	FREVOKE		O_VERIFY
 /* Only for fo_close() from half-succeeded open */
 #define	FOPENFAILED	O_TTY_INIT
+/* Only for O_PATH files which passed ACCESS FREAD check on open */
+#define	FKQALLOWED	O_RESOLVE_BENEATH
 
 /* convert from open() flags to/from fflags; convert O_RD/WR to FREAD/FWRITE */
 #define	FFLAGS(oflags)	((oflags) & O_EXEC ? (oflags) : (oflags) + 1)
