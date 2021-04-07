@@ -271,7 +271,7 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 			error = ifioctl(so, cmd, data, td);
 		else if (IOCGROUP(cmd) == 'r') {
 			CURVNET_SET(so->so_vnet);
-			error = rtioctl_fib(cmd, data, so->so_fibnum);
+			error = rtioctl_fib(cmd, data, so->so_fibnum, td);
 			CURVNET_RESTORE();
 		} else {
 			CURVNET_SET(so->so_vnet);

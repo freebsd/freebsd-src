@@ -428,14 +428,15 @@ static struct protosw localsw[] = {
 {
 	.pr_type =		SOCK_STREAM,
 	.pr_domain =		&localdomain,
-	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS,
+	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS|
+				    PR_CAPATTACH,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_usrreqs =		&uipc_usrreqs_stream
 },
 {
 	.pr_type =		SOCK_DGRAM,
 	.pr_domain =		&localdomain,
-	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_RIGHTS,
+	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_RIGHTS|PR_CAPATTACH,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_usrreqs =		&uipc_usrreqs_dgram
 },
@@ -448,8 +449,8 @@ static struct protosw localsw[] = {
 	 * due to our use of sbappendaddr.  A new sbappend variants is needed
 	 * that supports both atomic record writes and control data.
 	 */
-	.pr_flags =		PR_ADDR|PR_ATOMIC|PR_CONNREQUIRED|PR_WANTRCVD|
-				    PR_RIGHTS,
+	.pr_flags =		PR_ADDR|PR_ATOMIC|PR_CONNREQUIRED|
+				    PR_WANTRCVD|PR_RIGHTS|PR_CAPATTACH,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_usrreqs =		&uipc_usrreqs_seqpacket,
 },
