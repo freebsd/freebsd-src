@@ -36,6 +36,8 @@
 #ifndef _PFCTL_PARSER_H_
 #define _PFCTL_PARSER_H_
 
+#include <libpfctl.h>
+
 #define PF_OSFP_FILE		"/etc/pf.os"
 
 #define PF_OPT_DISABLE		0x0001
@@ -82,12 +84,12 @@ struct pfctl {
 	int brace;
 	int tdirty;			/* kernel dirty */
 #define PFCTL_ANCHOR_STACK_DEPTH 64
-	struct pf_anchor *astack[PFCTL_ANCHOR_STACK_DEPTH];
+	struct pfctl_anchor *astack[PFCTL_ANCHOR_STACK_DEPTH];
 	struct pfioc_pooladdr paddr;
 	struct pfioc_altq *paltq;
 	struct pfioc_queue *pqueue;
 	struct pfr_buffer *trans;
-	struct pf_anchor *anchor, *alast;
+	struct pfctl_anchor *anchor, *alast;
 	const char *ruleset;
 
 	/* 'set foo' options */
@@ -239,7 +241,7 @@ struct pf_opt_tbl {
 
 /* optimizer pf_rule container */
 struct pf_opt_rule {
-	struct pf_rule		 por_rule;
+	struct pfctl_rule	 por_rule;
 	struct pf_opt_tbl	*por_src_tbl;
 	struct pf_opt_tbl	*por_dst_tbl;
 	u_int64_t		 por_profile_count;
@@ -250,9 +252,9 @@ struct pf_opt_rule {
 TAILQ_HEAD(pf_opt_queue, pf_opt_rule);
 
 int	pfctl_rules(int, char *, int, int, char *, struct pfr_buffer *);
-int	pfctl_optimize_ruleset(struct pfctl *, struct pf_ruleset *);
+int	pfctl_optimize_ruleset(struct pfctl *, struct pfctl_ruleset *);
 
-int	pfctl_append_rule(struct pfctl *, struct pf_rule *, const char *);
+int	pfctl_append_rule(struct pfctl *, struct pfctl_rule *, const char *);
 int	pfctl_add_altq(struct pfctl *, struct pf_altq *);
 int	pfctl_add_pool(struct pfctl *, struct pf_pool *, sa_family_t);
 void	pfctl_move_pool(struct pf_pool *, struct pf_pool *);
@@ -272,7 +274,7 @@ int	pfctl_load_anchors(int, struct pfctl *, struct pfr_buffer *);
 
 void	print_pool(struct pf_pool *, u_int16_t, u_int16_t, sa_family_t, int);
 void	print_src_node(struct pf_src_node *, int);
-void	print_rule(struct pf_rule *, const char *, int, int);
+void	print_rule(struct pfctl_rule *, const char *, int, int);
 void	print_tabledef(const char *, int, int, struct node_tinithead *);
 void	print_status(struct pf_status *, int);
 void	print_running(struct pf_status *);
