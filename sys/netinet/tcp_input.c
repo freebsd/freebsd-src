@@ -2576,7 +2576,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					if (V_tcp_do_prr &&
 					    IN_FASTRECOVERY(tp->t_flags) &&
 					    (tp->t_flags & TF_SACK_PERMIT)) {
-						tcp_do_prr_ack(tp, th);
+						tcp_do_prr_ack(tp, th, &to);
 					} else if ((tp->t_flags & TF_SACK_PERMIT) &&
 					    (to.to_flags & TOF_SACK) &&
 					    IN_FASTRECOVERY(tp->t_flags)) {
@@ -2777,7 +2777,7 @@ resume_partialack:
 					if (V_tcp_do_prr && to.to_flags & TOF_SACK) {
 						tcp_timer_activate(tp, TT_REXMT, 0);
 						tp->t_rtttime = 0;
-						tcp_do_prr_ack(tp, th);
+						tcp_do_prr_ack(tp, th, &to);
 						tp->t_flags |= TF_ACKNOW;
 						(void) tcp_output(tp);
 					} else
@@ -2791,7 +2791,7 @@ resume_partialack:
 				if (V_tcp_do_prr) {
 					tp->sackhint.delivered_data = BYTES_THIS_ACK(tp, th);
 					tp->snd_fack = th->th_ack;
-					tcp_do_prr_ack(tp, th);
+					tcp_do_prr_ack(tp, th, &to);
 					(void) tcp_output(tp);
 				}
 			} else
@@ -3920,7 +3920,7 @@ tcp_mssopt(struct in_conninfo *inc)
 }
 
 void
-tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th)
+tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to)
 {
 	int snd_cnt = 0, limit = 0, del_data = 0, pipe = 0;
 	int maxseg = tcp_maxseg(tp);
