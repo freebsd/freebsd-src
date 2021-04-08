@@ -186,6 +186,7 @@ struct vfsopt {
  * 	l - mnt_listmtx
  *	m - mountlist_mtx
  *	i - interlock
+ *	i* - interlock of uppers' list head
  *	v - vnode freelist mutex
  *
  * Unmarked fields are considered stable as long as a ref is held.
@@ -229,8 +230,8 @@ struct mount {
 	struct vnodelst	mnt_tmpfreevnodelist;	/* (l) list of free vnodes */
 	int		mnt_tmpfreevnodelistsize;/* (l) # of free vnodes */
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
-	TAILQ_ENTRY(mount) mnt_upper_link;	/* (m) we in the all uppers */
-	TAILQ_HEAD(, mount) mnt_uppers;		/* (m) upper mounts over us*/
+	TAILQ_ENTRY(mount) mnt_upper_link;	/* (i*) we in the all uppers */
+	TAILQ_HEAD(, mount) mnt_uppers;		/* (i) upper mounts over us */
 };
 
 /*
