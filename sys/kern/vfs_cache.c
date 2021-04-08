@@ -2678,7 +2678,7 @@ cache_vnode_init(struct vnode *vp)
  *
  * This will force a fs lookup.
  *
- * Synchronisation is done in 2 steps, calling vfs_smr_quiesce each time
+ * Synchronisation is done in 2 steps, calling vfs_smr_synchronize each time
  * to observe all CPUs not performing the lookup.
  */
 static void
@@ -2694,14 +2694,14 @@ cache_changesize_set_temp(struct nchashhead *temptbl, u_long temphash)
 	 */
 	atomic_store_long(&nchash, temphash);
 	atomic_thread_fence_rel();
-	vfs_smr_quiesce();
+	vfs_smr_synchronize();
 	/*
 	 * At this point everyone sees the updated hash value, but they still
 	 * see the old table.
 	 */
 	atomic_store_ptr(&nchashtbl, temptbl);
 	atomic_thread_fence_rel();
-	vfs_smr_quiesce();
+	vfs_smr_synchronize();
 	/*
 	 * At this point everyone sees the updated table pointer and size pair.
 	 */
@@ -2724,14 +2724,14 @@ cache_changesize_set_new(struct nchashhead *new_tbl, u_long new_hash)
 	 */
 	atomic_store_ptr(&nchashtbl, new_tbl);
 	atomic_thread_fence_rel();
-	vfs_smr_quiesce();
+	vfs_smr_synchronize();
 	/*
 	 * At this point everyone sees the updated pointer value, but they
 	 * still see the old size.
 	 */
 	atomic_store_long(&nchash, new_hash);
 	atomic_thread_fence_rel();
-	vfs_smr_quiesce();
+	vfs_smr_synchronize();
 	/*
 	 * At this point everyone sees the updated table pointer and size pair.
 	 */
@@ -3876,7 +3876,7 @@ cache_fplookup_lockout(void)
 	if (on) {
 		atomic_store_char(&cache_fast_lookup_enabled, false);
 		atomic_thread_fence_rel();
-		vfs_smr_quiesce();
+		vfs_smr_synchronize();
 	}
 }
 
