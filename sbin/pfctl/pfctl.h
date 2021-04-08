@@ -36,6 +36,8 @@
 #ifndef _PFCTL_H_
 #define _PFCTL_H_
 
+#include <libpfctl.h>
+
 enum pfctl_show { PFCTL_SHOW_RULES, PFCTL_SHOW_LABELS, PFCTL_SHOW_NOTHING };
 
 enum {	PFRB_TABLES = 1, PFRB_TSTATS, PFRB_ADDRS, PFRB_ASTATS,
@@ -129,11 +131,11 @@ u_int32_t
 int	 pfctl_trans(int, struct pfr_buffer *, u_long, int);
 
 int	 pf_get_ruleset_number(u_int8_t);
-void	 pf_init_ruleset(struct pf_ruleset *);
-int	 pf_anchor_setup(struct pf_rule *,
-	    const struct pf_ruleset *, const char *);
-void	 pf_remove_if_empty_ruleset(struct pf_ruleset *);
-struct pf_ruleset	*pf_find_ruleset(const char *);
-struct pf_ruleset	*pf_find_or_create_ruleset(const char *);
+void	 pf_init_ruleset(struct pfctl_ruleset *);
+int	 pfctl_anchor_setup(struct pfctl_rule *,
+	    const struct pfctl_ruleset *, const char *);
+void	 pf_remove_if_empty_ruleset(struct pfctl_ruleset *);
+struct pfctl_ruleset	*pf_find_ruleset(const char *);
+struct pfctl_ruleset	*pf_find_or_create_ruleset(const char *);
 
 #endif /* _PFCTL_H_ */

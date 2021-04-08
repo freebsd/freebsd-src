@@ -1515,6 +1515,7 @@ static int
 pfl_scan_ruleset(const char *path)
 {
 	struct pfioc_rule pr;
+	struct pfctl_rule rule;
 	struct pfl_entry *e;
 	u_int32_t nr, i;
 
@@ -1529,14 +1530,14 @@ pfl_scan_ruleset(const char *path)
 
 	for (nr = pr.nr, i = 0; i < nr; i++) {
 		pr.nr = i;
-		if (pfctl_add_rule(dev, &pr.rule, pr.anchor, pr.anchor_call,
+		if (pfctl_add_rule(dev, &rule, pr.anchor, pr.anchor_call,
 		    pr.ticket, pr.pool_ticket)) {
 			syslog(LOG_ERR, "pfl_scan_ruleset: ioctl(DIOCGETRULE):"
 			    " %s", strerror(errno));
 			goto err;
 		}
 
-		if (pr.rule.label[0]) {
+		if (rule.label[0]) {
 			e = (struct pfl_entry *)malloc(sizeof(*e));
 			if (e == NULL)
 				goto err;
@@ -1544,13 +1545,13 @@ pfl_scan_ruleset(const char *path)
 			strlcpy(e->name, path, sizeof(e->name));
 			if (path[0])
 				strlcat(e->name, "/", sizeof(e->name));
-			strlcat(e->name, pr.rule.label, sizeof(e->name));
+			strlcat(e->name, rule.label, sizeof(e->name));
 
-			e->evals = pr.rule.evaluations;
-			e->bytes[IN] = pr.rule.bytes[IN];
-			e->bytes[OUT] = pr.rule.bytes[OUT];
-			e->pkts[IN] = pr.rule.packets[IN];
-			e->pkts[OUT] = pr.rule.packets[OUT];
+			e->evals = rule.evaluations;
+			e->bytes[IN] = rule.bytes[IN];
+			e->bytes[OUT] = rule.bytes[OUT];
+			e->pkts[IN] = rule.packets[IN];
+			e->pkts[OUT] = rule.packets[OUT];
 			e->index = ++pfl_table_count;
 
 			TAILQ_INSERT_TAIL(&pfl_table, e, link);
