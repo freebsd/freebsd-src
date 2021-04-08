@@ -288,6 +288,8 @@ rm_init_flags(struct rmlock *rm, const char *name, int opts)
 		liflags |= LO_RECURSABLE;
 	if (opts & RM_NEW)
 		liflags |= LO_NEW;
+	if (opts & RM_DUPOK)
+		liflags |= LO_DUPOK;
 	rm->rm_writecpus = all_cpus;
 	LIST_INIT(&rm->rm_activeReaders);
 	if (opts & RM_SLEEPABLE) {
