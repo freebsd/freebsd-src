@@ -891,12 +891,12 @@ pfctl_print_rule_counters(struct pfctl_rule *rule, int opts)
 			    (unsigned long long)(rule->packets[0] +
 			    rule->packets[1]),
 			    (unsigned long long)(rule->bytes[0] +
-			    rule->bytes[1]), (uintmax_t)rule->u_states_cur);
+			    rule->bytes[1]), (uintmax_t)rule->states_cur);
 		if (!(opts & PF_OPT_DEBUG))
 			printf("  [ Inserted: uid %u pid %u "
 			    "State Creations: %-6ju]\n",
 			    (unsigned)rule->cuid, (unsigned)rule->cpid,
-			    (uintmax_t)rule->u_states_tot);
+			    (uintmax_t)rule->states_tot);
 	}
 }
 
@@ -1012,7 +1012,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 				    (unsigned long long)rule.bytes[0],
 				    (unsigned long long)rule.packets[1],
 				    (unsigned long long)rule.bytes[1],
-				    (uintmax_t)rule.u_states_tot);
+				    (uintmax_t)rule.states_tot);
 			}
 			break;
 		case PFCTL_SHOW_RULES:
