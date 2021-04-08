@@ -356,7 +356,6 @@ struct pf_krule {
 	}			 max_src_conn_rate;
 	u_int32_t		 qid;
 	u_int32_t		 pqid;
-	u_int32_t		 rt_listid;
 	u_int32_t		 nr;
 	u_int32_t		 prob;
 	uid_t			 cuid;
