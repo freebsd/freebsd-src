@@ -1181,7 +1181,7 @@ send:
 			tp->t_flags2 &= ~TF2_ECN_SND_ECE;
 	}
 
-	if (tp->t_state == TCPS_ESTABLISHED &&
+	if (TCPS_HAVEESTABLISHED(tp->t_state) &&
 	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
 		/*
 		 * If the peer has ECN, mark data packets with
