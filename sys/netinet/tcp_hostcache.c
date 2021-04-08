@@ -559,37 +559,9 @@ tcp_hc_getmtu(struct in_conninfo *inc)
 void
 tcp_hc_updatemtu(struct in_conninfo *inc, uint32_t mtu)
 {
-	struct hc_metrics *hc_entry;
+	struct hc_metrics_lite hcml = { .rmx_mtu = mtu };
 
-	if (!V_tcp_use_hostcache)
-		return;
-
-	/*
-	 * Find the right bucket.
-	 */
-	hc_entry = tcp_hc_lookup(inc, true);
-
-	/*
-	 * If we don't have an existing object, try to insert a new one.
-	 */
-	if (hc_entry == NULL) {
-		hc_entry = tcp_hc_insert(inc);
-		if (hc_entry == NULL)
-			return;
-	}
-
-	hc_entry->rmx_mtu = mtu;
-
-	/*
-	 * Put it upfront so we find it faster next time.
-	 */
-	TAILQ_REMOVE(&hc_entry->rmx_head->hch_bucket, hc_entry, rmx_q);
-	TAILQ_INSERT_HEAD(&hc_entry->rmx_head->hch_bucket, hc_entry, rmx_q);
-
-	/*
-	 * Unlock bucket row.
-	 */
-	THC_UNLOCK(&hc_entry->rmx_head->hch_mtx);
+	return (tcp_hc_update(inc, &hcml));
 }
 
 /*
@@ -611,6 +583,9 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 			return;
 	}
 
+	if (hcml->rmx_mtu != 0) {
+		hc_entry->rmx_mtu = hcml->rmx_mtu;
+	}
 	if (hcml->rmx_rtt != 0) {
 		if (hc_entry->rmx_rtt == 0)
 			hc_entry->rmx_rtt = hcml->rmx_rtt;
