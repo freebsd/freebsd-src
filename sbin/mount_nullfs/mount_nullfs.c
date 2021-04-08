@@ -104,7 +104,7 @@ main(int argc, char *argv[])
 	if (checkpath(argv[1], mountpoint) != 0)
 		err(EX_USAGE, "%s", mountpoint);
 
-	if (subdir(target, source) || subdir(source, target))
+	if (subdir(target, mountpoint) || subdir(mountpoint, target))
 		errx(EX_USAGE, "%s (%s) and %s are not distinct paths",
 		    argv[0], target, argv[1]);
 
