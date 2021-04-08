@@ -81,9 +81,9 @@ struct pfctl_rule {
 	uid_t			 cuid;
 	pid_t			 cpid;
 
-	counter_u64_t		 states_cur;
-	counter_u64_t		 states_tot;
-	counter_u64_t		 src_nodes;
+	uint64_t		 states_cur;
+	uint64_t		 states_tot;
+	uint64_t		 src_nodes;
 
 	u_int16_t		 return_icmp;
 	u_int16_t		 return_icmp6;
@@ -129,10 +129,6 @@ struct pfctl_rule {
 		struct pf_addr		addr;
 		u_int16_t		port;
 	}			divert;
-
-	uint64_t		 u_states_cur;
-	uint64_t		 u_states_tot;
-	uint64_t		 u_src_nodes;
 };
 
 TAILQ_HEAD(pfctl_rulequeue, pfctl_rule);
