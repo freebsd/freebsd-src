@@ -1570,6 +1570,9 @@ display_object(struct kinfo_vmobject *kvo)
 #ifdef VM_MEMATTR_DEVICE
 	MEMATTR_STR(VM_MEMATTR_DEVICE, "DEV")
 #endif
+#ifdef VM_MEMATTR_DEVICE_NP
+	MEMATTR_STR(VM_MEMATTR_DEVICE, "NP")
+#endif
 #ifdef VM_MEMATTR_CACHEABLE
 	MEMATTR_STR(VM_MEMATTR_CACHEABLE, "C")
 #endif

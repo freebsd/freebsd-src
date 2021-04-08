@@ -36,7 +36,12 @@
 #define	VM_MEMATTR_WRITE_THROUGH	3
 #define	VM_MEMATTR_DEVICE_nGnRE		4
 
+/*
+ * VM_MEMATTR_DEVICE can be changed to VM_MEMATTR_DEVICE_nGnRE when
+ * the PCI drivers use VM_MEMATTR_DEVICE_NP for their config space.
+ */
 #define	VM_MEMATTR_DEVICE		VM_MEMATTR_DEVICE_nGnRnE
+#define	VM_MEMATTR_DEVICE_NP		VM_MEMATTR_DEVICE_nGnRnE
 
 #ifdef _KERNEL
 /* If defined vmstat will try to use both of these in a switch statement */

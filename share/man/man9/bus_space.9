@@ -52,7 +52,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2020
+.Dd May 1, 2021
 .Dt BUS_SPACE 9
 .Os
 .Sh NAME
@@ -876,6 +876,11 @@ call should fail.
 If this
 flag is not specified, the system may map the space in whatever way is
 most convenient.
+.It Dv BUS_SPACE_MAP_NONPOSTED
+Try to map the space using non-posted device memory.
+This is to support buses and devices where mapping with posted device
+memory is unsupported or broken.
+This flag is currently only available on arm64.
 .El
 .Pp
 Not all combinations of flags make sense or are supported with all
