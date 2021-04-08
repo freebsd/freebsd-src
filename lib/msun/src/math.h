@@ -81,9 +81,8 @@ extern const union __nan_un {
 #define	FP_SUBNORMAL	0x08
 #define	FP_ZERO		0x10
 
-#if (__STDC_VERSION__ >= 201112L && defined(__clang__)) || \
-    __has_extension(c_generic_selections)
-#define	__fp_type_select(x, f, d, ld) _Generic((x),			\
+#if __STDC_VERSION__ >= 201112L || __has_extension(c_generic_selections)
+#define	__fp_type_select(x, f, d, ld) __extension__ _Generic((x),	\
     float: f(x),							\
     double: d(x),							\
     long double: ld(x),							\
