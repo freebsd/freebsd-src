@@ -1553,6 +1553,8 @@ nfsd_errmap(struct nfsrv_descript *nd)
 		else if (nd->nd_repstat == NFSERR_MINORVERMISMATCH ||
 			 nd->nd_repstat == NFSERR_OPILLEGAL)
 			return (txdr_unsigned(nd->nd_repstat));
+		else if (nd->nd_repstat == NFSERR_REPLYFROMCACHE)
+			return (txdr_unsigned(NFSERR_IO));
 		else if ((nd->nd_flag & ND_NFSV41) != 0) {
 			if (nd->nd_repstat == EOPNOTSUPP)
 				nd->nd_repstat = NFSERR_NOTSUPP;
