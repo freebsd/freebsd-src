@@ -100,8 +100,8 @@ static struct pf_rule_field {
 #define PF_RULE_FIELD(field, ty)	\
     {#field,				\
     ty,					\
-    offsetof(struct pf_rule, field),	\
-    sizeof(((struct pf_rule *)0)->field)}
+    offsetof(struct pfctl_rule, field),	\
+    sizeof(((struct pfctl_rule *)0)->field)}
 
 
     /*
@@ -214,10 +214,10 @@ int	addrs_combineable(struct pf_rule_addr *, struct pf_rule_addr *);
 int	addrs_equal(struct pf_rule_addr *, struct pf_rule_addr *);
 int	block_feedback(struct pfctl *, struct superblock *);
 int	combine_rules(struct pfctl *, struct superblock *);
-void	comparable_rule(struct pf_rule *, const struct pf_rule *, int);
+void	comparable_rule(struct pfctl_rule *, const struct pfctl_rule *, int);
 int	construct_superblocks(struct pfctl *, struct pf_opt_queue *,
 	    struct superblocks *);
-void	exclude_supersets(struct pf_rule *, struct pf_rule *);
+void	exclude_supersets(struct pfctl_rule *, struct pfctl_rule *);
 int	interface_group(const char *);
 int	load_feedback_profile(struct pfctl *, struct superblocks *);
 int	optimize_superblock(struct pfctl *, struct superblock *);
@@ -226,25 +226,25 @@ void	remove_from_skipsteps(struct skiplist *, struct superblock *,
 	    struct pf_opt_rule *, struct pf_skip_step *);
 int	remove_identical_rules(struct pfctl *, struct superblock *);
 int	reorder_rules(struct pfctl *, struct superblock *, int);
-int	rules_combineable(struct pf_rule *, struct pf_rule *);
+int	rules_combineable(struct pfctl_rule *, struct pfctl_rule *);
 void	skip_append(struct superblock *, int, struct pf_skip_step *,
 	    struct pf_opt_rule *);
 int	skip_compare(int, struct pf_skip_step *, struct pf_opt_rule *);
 void	skip_init(void);
-int	skip_cmp_af(struct pf_rule *, struct pf_rule *);
-int	skip_cmp_dir(struct pf_rule *, struct pf_rule *);
-int	skip_cmp_dst_addr(struct pf_rule *, struct pf_rule *);
-int	skip_cmp_dst_port(struct pf_rule *, struct pf_rule *);
-int	skip_cmp_ifp(struct pf_rule *, struct pf_rule *);
-int	skip_cmp_proto(struct pf_rule *, struct pf_rule *);
-int	skip_cmp_src_addr(struct pf_rule *, struct pf_rule *);
-int	skip_cmp_src_port(struct pf_rule *, struct pf_rule *);
+int	skip_cmp_af(struct pfctl_rule *, struct pfctl_rule *);
+int	skip_cmp_dir(struct pfctl_rule *, struct pfctl_rule *);
+int	skip_cmp_dst_addr(struct pfctl_rule *, struct pfctl_rule *);
+int	skip_cmp_dst_port(struct pfctl_rule *, struct pfctl_rule *);
+int	skip_cmp_ifp(struct pfctl_rule *, struct pfctl_rule *);
+int	skip_cmp_proto(struct pfctl_rule *, struct pfctl_rule *);
+int	skip_cmp_src_addr(struct pfctl_rule *, struct pfctl_rule *);
+int	skip_cmp_src_port(struct pfctl_rule *, struct pfctl_rule *);
 int	superblock_inclusive(struct superblock *, struct pf_opt_rule *);
 void	superblock_free(struct pfctl *, struct superblock *);
 
 
-static int (*skip_comparitors[PF_SKIP_COUNT])(struct pf_rule *,
-    struct pf_rule *);
+static int (*skip_comparitors[PF_SKIP_COUNT])(struct pfctl_rule *,
+    struct pfctl_rule *);
 static const char *skip_comparitors_names[PF_SKIP_COUNT];
 #define PF_SKIP_COMPARITORS {				\
     { "ifp", PF_SKIP_IFP, skip_cmp_ifp },		\
@@ -262,14 +262,14 @@ static int table_identifier;
 
 
 int
-pfctl_optimize_ruleset(struct pfctl *pf, struct pf_ruleset *rs)
+pfctl_optimize_ruleset(struct pfctl *pf, struct pfctl_ruleset *rs)
 {
 	struct superblocks superblocks;
 	struct pf_opt_queue opt_queue;
 	struct superblock *block;
 	struct pf_opt_rule *por;
-	struct pf_rule *r;
-	struct pf_rulequeue *old_rules;
+	struct pfctl_rule *r;
+	struct pfctl_rulequeue *old_rules;
 
 	DEBUG("optimizing ruleset");
 	memset(&table_buffer, 0, sizeof(table_buffer));
@@ -450,7 +450,7 @@ int
 remove_identical_rules(struct pfctl *pf, struct superblock *block)
 {
 	struct pf_opt_rule *por1, *por2, *por_next, *por2_next;
-	struct pf_rule a, a2, b, b2;
+	struct pfctl_rule a, a2, b, b2;
 
 	for (por1 = TAILQ_FIRST(&block->sb_rules); por1; por1 = por_next) {
 		por_next = TAILQ_NEXT(por1, por_entry);
@@ -818,7 +818,7 @@ block_feedback(struct pfctl *pf, struct superblock *block)
 	TAILQ_HEAD( , pf_opt_rule) queue;
 	struct pf_opt_rule *por1, *por2;
 	u_int64_t total_count = 0;
-	struct pf_rule a, b;
+	struct pfctl_rule a, b;
 
 
 	/*
@@ -888,7 +888,7 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 	struct pf_opt_rule *por;
 	struct pf_opt_queue queue;
 	struct pfioc_rule pr;
-	struct pf_rule a, b;
+	struct pfctl_rule a, b, rule;
 	int nr, mnr;
 
 	TAILQ_INIT(&queue);
@@ -904,7 +904,7 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 
 	DEBUG("Loading %d active rules for a feedback profile", mnr);
 	for (nr = 0; nr < mnr; ++nr) {
-		struct pf_ruleset *rs;
+		struct pfctl_ruleset *rs;
 		if ((por = calloc(1, sizeof(*por))) == NULL) {
 			warn("calloc");
 			return (1);
@@ -912,11 +912,11 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 		pr.nr = nr;
 
 		if (pfctl_get_rule(pf->dev, nr, pr.ticket, "", PF_PASS,
-		    &pr.rule, pr.anchor_call)) {
+		    &rule, pr.anchor_call)) {
 			warn("DIOCGETRULENV");
 			return (1);
 		}
-		memcpy(&por->por_rule, &pr.rule, sizeof(por->por_rule));
+		memcpy(&por->por_rule, &rule, sizeof(por->por_rule));
 		rs = pf_find_or_create_ruleset(pr.anchor_call);
 		por->por_rule.anchor = rs->anchor;
 		if (TAILQ_EMPTY(&por->por_rule.rpool.list))
@@ -924,9 +924,9 @@ load_feedback_profile(struct pfctl *pf, struct superblocks *superblocks)
 			    sizeof(por->por_rule.rpool));
 		TAILQ_INSERT_TAIL(&queue, por, por_entry);
 
-		/* XXX pfctl_get_pool(pf->dev, &pr.rule.rpool, nr, pr.ticket,
+		/* XXX pfctl_get_pool(pf->dev, &rule.rpool, nr, pr.ticket,
 		 *         PF_PASS, pf->anchor) ???
-		 * ... pfctl_clear_pool(&pr.rule.rpool)
+		 * ... pfctl_clear_pool(&rule.rpool)
 		 */
 	}
 
@@ -977,7 +977,7 @@ int
 skip_compare(int skipnum, struct pf_skip_step *skiplist,
     struct pf_opt_rule *por)
 {
-	struct pf_rule *a, *b;
+	struct pfctl_rule *a, *b;
 	if (skipnum >= PF_SKIP_COUNT || skipnum < 0)
 		errx(1, "skip_compare() out of bounds");
 	a = &por->por_rule;
@@ -1053,7 +1053,7 @@ remove_from_skipsteps(struct skiplist *head, struct superblock *block,
 
 /* Compare two rules AF field for skiplist construction */
 int
-skip_cmp_af(struct pf_rule *a, struct pf_rule *b)
+skip_cmp_af(struct pfctl_rule *a, struct pfctl_rule *b)
 {
 	if (a->af != b->af || a->af == 0)
 		return (1);
@@ -1062,7 +1062,7 @@ skip_cmp_af(struct pf_rule *a, struct pf_rule *b)
 
 /* Compare two rules DIRECTION field for skiplist construction */
 int
-skip_cmp_dir(struct pf_rule *a, struct pf_rule *b)
+skip_cmp_dir(struct pfctl_rule *a, struct pfctl_rule *b)
 {
 	if (a->direction == 0 || a->direction != b->direction)
 		return (1);
@@ -1071,7 +1071,7 @@ skip_cmp_dir(struct pf_rule *a, struct pf_rule *b)
 
 /* Compare two rules DST Address field for skiplist construction */
 int
-skip_cmp_dst_addr(struct pf_rule *a, struct pf_rule *b)
+skip_cmp_dst_addr(struct pfctl_rule *a, struct pfctl_rule *b)
 {
 	if (a->dst.neg != b->dst.neg ||
 	    a->dst.addr.type != b->dst.addr.type)
@@ -1111,7 +1111,7 @@ skip_cmp_dst_addr(struct pf_rule *a, struct pf_rule *b)
 
 /* Compare two rules DST port field for skiplist construction */
 int
-skip_cmp_dst_port(struct pf_rule *a, struct pf_rule *b)
+skip_cmp_dst_port(struct pfctl_rule *a, struct pfctl_rule *b)
 {
 	/* XXX if (a->proto != b->proto && a->proto != 0 && b->proto != 0
 	 *    && (a->proto == IPPROTO_TCP || a->proto == IPPROTO_UDP ||
@@ -1127,7 +1127,7 @@ skip_cmp_dst_port(struct pf_rule *a, struct pf_rule *b)
 
 /* Compare two rules IFP field for skiplist construction */
 int
-skip_cmp_ifp(struct pf_rule *a, struct pf_rule *b)
+skip_cmp_ifp(struct pfctl_rule *a, struct pfctl_rule *b)
 {
 	if (strcmp(a->ifname, b->ifname) || a->ifname[0] == '\0')
 		return (1);
@@ -1136,14 +1136,14 @@ skip_cmp_ifp(struct pf_rule *a, struct pf_rule *b)
 
 /* Compare two rules PROTO field for skiplist construction */
 int
-skip_cmp_proto(struct pf_rule *a, struct pf_rule *b)
+skip_cmp_proto(struct pfctl_rule *a, struct pfctl_rule *b)
 {
 	return (a->proto != b->proto || a->proto == 0);
 }
 
 /* Compare two rules SRC addr field for skiplist construction */
 int
-skip_cmp_src_addr(struct pf_rule *a, struct pf_rule *b)
+skip_cmp_src_addr(struct pfctl_rule *a, struct pfctl_rule *b)
 {
 	if (a->src.neg != b->src.neg ||
 	    a->src.addr.type != b->src.addr.type)
@@ -1183,7 +1183,7 @@ skip_cmp_src_addr(struct pf_rule *a, struct pf_rule *b)
 
 /* Compare two rules SRC port field for skiplist construction */
 int
-skip_cmp_src_port(struct pf_rule *a, struct pf_rule *b)
+skip_cmp_src_port(struct pfctl_rule *a, struct pfctl_rule *b)
 {
 	if (a->src.port_op == PF_OP_NONE || a->src.port_op != b->src.port_op ||
 	    a->src.port[0] != b->src.port[0] ||
@@ -1204,7 +1204,7 @@ skip_init(void)
 	struct {
 		char *name;
 		int skipnum;
-		int (*func)(struct pf_rule *, struct pf_rule *);
+		int (*func)(struct pfctl_rule *, struct pfctl_rule *);
 	} comps[] = PF_SKIP_COMPARITORS;
 	int skipnum, i;
 
@@ -1397,9 +1397,9 @@ addrs_combineable(struct pf_rule_addr *a, struct pf_rule_addr *b)
  * Are we allowed to combine these two rules
  */
 int
-rules_combineable(struct pf_rule *p1, struct pf_rule *p2)
+rules_combineable(struct pfctl_rule *p1, struct pfctl_rule *p2)
 {
-	struct pf_rule a, b;
+	struct pfctl_rule a, b;
 
 	comparable_rule(&a, p1, COMBINED);
 	comparable_rule(&b, p2, COMBINED);
@@ -1413,7 +1413,7 @@ rules_combineable(struct pf_rule *p1, struct pf_rule *p2)
 int
 superblock_inclusive(struct superblock *block, struct pf_opt_rule *por)
 {
-	struct pf_rule a, b;
+	struct pfctl_rule a, b;
 	int i, j;
 
 	/* First check for hard breaks */
@@ -1528,7 +1528,7 @@ interface_group(const char *ifname)
  * Make a rule that can directly compared by memcmp()
  */
 void
-comparable_rule(struct pf_rule *dst, const struct pf_rule *src, int type)
+comparable_rule(struct pfctl_rule *dst, const struct pfctl_rule *src, int type)
 {
 	int i;
 	/*
@@ -1553,7 +1553,7 @@ comparable_rule(struct pf_rule *dst, const struct pf_rule *src, int type)
  * with memcmp()
  */
 void
-exclude_supersets(struct pf_rule *super, struct pf_rule *sub)
+exclude_supersets(struct pfctl_rule *super, struct pfctl_rule *sub)
 {
 	if (super->ifname[0] == '\0')
 		memset(sub->ifname, 0, sizeof(sub->ifname));

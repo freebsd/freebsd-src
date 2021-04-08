@@ -256,7 +256,7 @@ pf_nvrule_uid_to_rule_uid(const nvlist_t *nvl, struct pf_rule_uid *uid)
 
 static void
 pfctl_nv_add_divert(nvlist_t *nvparent, const char *name,
-    const struct pf_rule *r)
+    const struct pfctl_rule *r)
 {
 	nvlist_t *nvl = nvlist_create(0);
 
@@ -267,14 +267,14 @@ pfctl_nv_add_divert(nvlist_t *nvparent, const char *name,
 }
 
 static void
-pf_nvdivert_to_divert(const nvlist_t *nvl, struct pf_rule *rule)
+pf_nvdivert_to_divert(const nvlist_t *nvl, struct pfctl_rule *rule)
 {
 	pf_nvaddr_to_addr(nvlist_get_nvlist(nvl, "addr"), &rule->divert.addr);
 	rule->divert.port = nvlist_get_number(nvl, "port");
 }
 
 static void
-pf_nvrule_to_rule(const nvlist_t *nvl, struct pf_rule *rule)
+pf_nvrule_to_rule(const nvlist_t *nvl, struct pfctl_rule *rule)
 {
 	const uint64_t *skip;
 	size_t skipcount;
@@ -373,7 +373,7 @@ pf_nvrule_to_rule(const nvlist_t *nvl, struct pf_rule *rule)
 }
 
 int
-pfctl_add_rule(int dev, const struct pf_rule *r, const char *anchor,
+pfctl_add_rule(int dev, const struct pfctl_rule *r, const char *anchor,
     const char *anchor_call, u_int32_t ticket, u_int32_t pool_ticket)
 {
 	struct pfioc_nv nv;
@@ -482,7 +482,7 @@ pfctl_add_rule(int dev, const struct pf_rule *r, const char *anchor,
 
 int
 pfctl_get_rule(int dev, u_int32_t nr, u_int32_t ticket, const char *anchor,
-    u_int32_t ruleset, struct pf_rule *rule, char *anchor_call)
+    u_int32_t ruleset, struct pfctl_rule *rule, char *anchor_call)
 {
 	struct pfioc_nv nv;
 	nvlist_t *nvl;
