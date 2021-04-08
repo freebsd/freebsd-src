@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/hash.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -127,6 +128,7 @@ struct tcp_hostcache {
 	uma_zone_t	zone;
 	u_int		hashsize;
 	u_int		hashmask;
+	u_int		hashsalt;
 	u_int		bucket_limit;
 	u_int		cache_count;
 	u_int		cache_limit;
@@ -210,16 +212,14 @@ SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, purgenow,
 
 static MALLOC_DEFINE(M_HOSTCACHE, "hostcache", "TCP hostcache");
 
+/* Use jenkins_hash32(), as in other parts of the tcp stack */
 #define HOSTCACHE_HASH(ip) \
-	(((ip)->s_addr ^ ((ip)->s_addr >> 7) ^ ((ip)->s_addr >> 17)) &	\
-	  V_tcp_hostcache.hashmask)
+	(jenkins_hash32((uint32_t *)(ip), 1, V_tcp_hostcache.hashsalt) & \
+	 V_tcp_hostcache.hashmask)
 
-/* XXX: What is the recommended hash to get good entropy for IPv6 addresses? */
 #define HOSTCACHE_HASH6(ip6)				\
-	(((ip6)->s6_addr32[0] ^				\
-	  (ip6)->s6_addr32[1] ^				\
-	  (ip6)->s6_addr32[2] ^				\
-	  (ip6)->s6_addr32[3]) &			\
+	(jenkins_hash32((uint32_t *)&((ip6)->s6_addr32[0]), 4, \
+	 V_tcp_hostcache.hashsalt) & \
 	 V_tcp_hostcache.hashmask)
 
 #define THC_LOCK(lp)		mtx_lock(lp)
@@ -239,6 +239,7 @@ tcp_hc_init(void)
 	V_tcp_hostcache.bucket_limit = TCP_HOSTCACHE_BUCKETLIMIT;
 	V_tcp_hostcache.expire = TCP_HOSTCACHE_EXPIRE;
 	V_tcp_hostcache.prune = TCP_HOSTCACHE_PRUNE;
+	V_tcp_hostcache.hashsalt = arc4random();
 
 	TUNABLE_INT_FETCH("net.inet.tcp.hostcache.hashsize",
 	    &V_tcp_hostcache.hashsize);
@@ -836,6 +837,8 @@ tcp_hc_purge(void *arg)
 	int all = 0;
 
 	if (V_tcp_hostcache.purgeall) {
+		if (V_tcp_hostcache.purgeall == 2)
+			V_tcp_hostcache.hashsalt = arc4random();
 		all = 1;
 		V_tcp_hostcache.purgeall = 0;
 	}
@@ -860,6 +863,8 @@ sysctl_tcp_hc_purgenow(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return (error);
 
+	if (val == 2)
+		V_tcp_hostcache.hashsalt = arc4random();
 	tcp_hc_purge_internal(1);
 
 	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz,

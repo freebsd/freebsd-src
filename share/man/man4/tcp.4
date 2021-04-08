@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2021
+.Dd April 8, 2021
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -628,7 +628,6 @@ Defaults to 60 seconds.
 Enable support for TCP Explicit Congestion Notification (ECN).
 ECN allows a TCP sender to reduce the transmission rate in order to
 avoid packet drops.
-Settings:
 .Bl -tag -compact
 .It 0
 Disable ECN.
@@ -638,6 +637,7 @@ Outgoing connections will request ECN.
 .It 2
 Allow incoming connections to request ECN.
 Outgoing connections will not request ECN.
+(default)
 .El
 .It Va ecn.maxretries
 Number of retries (SYN or SYN/ACK retransmits) before disabling ECN on a
@@ -674,6 +674,54 @@ Enable path MTU blackhole detection only for IPv6.
 MSS to try for IPv4 if PMTU blackhole detection is turned on.
 .It Va v6pmtud_blackhole_mss
 MSS to try for IPv6 if PMTU blackhole detection is turned on.
+.It Va hostcache.enable
+The TCP host cache is used to cache connection details and metrics to
+improve future performance of connections between the same hosts.
+At the completion of a TCP connection, a host will cache information
+for the connection for some defined period of time.
+.Bl -tag -compact
+.It 0
+Disable the host cache.
+.It 1
+Enable the host cache. (default)
+.It Va hostcache.purgenow
+Immediately purge all entries once set to any value.
+Setting this to 2 will also reseed the hash salt.
+.It Va hostcache.purge
+Expire all entires on next pruning of host cache entries.
+Any non-zero setting will be reset to zero, once the pruge
+is running.
+.Bl -tag -compact
+.It 0
+Do not purge all entries when pruning the host cache. (default)
+.It 1
+Purge all entries when doing the next pruning.
+.It 2
+Purge all entries, and also reseed the hash salt.
+.It Va hostcache.prune
+Time in seconds between pruning expired host cache entries.
+Defaults to 300 (5 minutes).
+.It Va hostcache.expire
+Time in seconds, how long a entry should be kept in the
+host cache since last accessed.
+Defaults to 3600 (1 hour).
+.It Va hostcache.count
+The current number of entries in the host cache.
+.It Va hostcache.bucketlimit
+The maximum number of entries for the same hash.
+Defaults to 30.
+.It Va hostcache.hashsize
+Size of TCP hostcache hashtable.
+This number has to be a power of two, or will be rejected.
+Defaults to 512.
+.It Va hostcache.cachelimit
+Overall entry limit for hostcache.
+Defaults to hashsize * bucketlimit.
+.It Va hostcache.histo
+Provide a Histogram of the hostcache hash utilization.
+.It Va hostcache.list
+Provide a complete list of all current entries in the host
+cache.
 .It Va functions_available
 List of available TCP function blocks (TCP stacks).
 .It Va functions_default
