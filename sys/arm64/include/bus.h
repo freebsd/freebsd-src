@@ -79,12 +79,12 @@
 #define	BUS_SPACE_MAXSIZE_32BIT	0xFFFFFFFFUL
 #define	BUS_SPACE_MAXSIZE_40BIT	0xFFFFFFFFFFUL
 
-#define	BUS_SPACE_MAXADDR 	0xFFFFFFFFFFFFFFFFUL
-#define	BUS_SPACE_MAXSIZE 	0xFFFFFFFFFFFFFFFFUL
+#define	BUS_SPACE_MAXADDR	0xFFFFFFFFFFFFFFFFUL
+#define	BUS_SPACE_MAXSIZE	0xFFFFFFFFFFFFFFFFUL
 
 #define	BUS_SPACE_MAP_CACHEABLE		0x01
 #define	BUS_SPACE_MAP_LINEAR		0x02
-#define	BUS_SPACE_MAP_PREFETCHABLE     	0x04
+#define	BUS_SPACE_MAP_PREFETCHABLE	0x04
 
 #define	BUS_SPACE_UNRESTRICTED	(~0)
 
@@ -141,7 +141,7 @@ struct bus_space {
 			    bus_size_t, u_int32_t *, bus_size_t);
 	void		(*bs_rm_8) (void *, bus_space_handle_t,
 			    bus_size_t, u_int64_t *, bus_size_t);
-					
+
 	/* read region */
 	void		(*bs_rr_1) (void *, bus_space_handle_t,
 			    bus_size_t, u_int8_t *, bus_size_t);
@@ -151,7 +151,7 @@ struct bus_space {
 			    bus_size_t, u_int32_t *, bus_size_t);
 	void		(*bs_rr_8) (void *, bus_space_handle_t,
 			    bus_size_t, u_int64_t *, bus_size_t);
-					
+
 	/* write single */
 	void		(*bs_w_1) (void *, bus_space_handle_t,
 			    bus_size_t, u_int8_t);
@@ -171,7 +171,7 @@ struct bus_space {
 			    bus_size_t, const u_int32_t *, bus_size_t);
 	void		(*bs_wm_8) (void *, bus_space_handle_t,
 			    bus_size_t, const u_int64_t *, bus_size_t);
-					
+
 	/* write region */
 	void		(*bs_wr_1) (void *, bus_space_handle_t,
 			    bus_size_t, const u_int8_t *, bus_size_t);
@@ -227,7 +227,7 @@ struct bus_space {
 			    bus_size_t, u_int32_t *, bus_size_t);
 	void		(*bs_rm_8_s) (void *, bus_space_handle_t,
 			    bus_size_t, u_int64_t *, bus_size_t);
-					
+
 	/* read region stream */
 	void		(*bs_rr_1_s) (void *, bus_space_handle_t,
 			    bus_size_t, u_int8_t *, bus_size_t);
@@ -237,7 +237,7 @@ struct bus_space {
 			    bus_size_t, u_int32_t *, bus_size_t);
 	void		(*bs_rr_8_s) (void *, bus_space_handle_t,
 			    bus_size_t, u_int64_t *, bus_size_t);
-					
+
 	/* write single stream */
 	void		(*bs_w_1_s) (void *, bus_space_handle_t,
 			    bus_size_t, u_int8_t);
@@ -257,7 +257,7 @@ struct bus_space {
 			    bus_size_t, const u_int32_t *, bus_size_t);
 	void		(*bs_wm_8_s) (void *, bus_space_handle_t,
 			    bus_size_t, const u_int64_t *, bus_size_t);
-					
+
 	/* write region stream */
 	void		(*bs_wr_1_s) (void *, bus_space_handle_t,
 			    bus_size_t, const u_int8_t *, bus_size_t);
@@ -267,6 +267,7 @@ struct bus_space {
 			    bus_size_t, const u_int32_t *, bus_size_t);
 	void		(*bs_wr_8_s) (void *, bus_space_handle_t,
 			    bus_size_t, const u_int64_t *, bus_size_t);
+
 	/* peek */
 	int		(*bs_peek_1)(void *, bus_space_handle_t,
 			    bus_size_t , uint8_t *);
@@ -276,6 +277,7 @@ struct bus_space {
 			    bus_size_t , uint32_t *);
 	int		(*bs_peek_8)(void *, bus_space_handle_t,
 			    bus_size_t , uint64_t *);
+
 	/* poke */
 	int		(*bs_poke_1)(void *, bus_space_handle_t,
 			   bus_size_t, uint8_t);
@@ -349,9 +351,9 @@ struct bus_space {
 #define	bus_space_read_4(t, h, o)	__bs_rs(4,(t),(h),(o))
 #define	bus_space_read_8(t, h, o)	__bs_rs(8,(t),(h),(o))
 
-#define	bus_space_read_stream_1(t, h, o)        __bs_rs_s(1,(t), (h), (o))
-#define	bus_space_read_stream_2(t, h, o)        __bs_rs_s(2,(t), (h), (o))
-#define	bus_space_read_stream_4(t, h, o)        __bs_rs_s(4,(t), (h), (o))
+#define	bus_space_read_stream_1(t, h, o)	__bs_rs_s(1,(t), (h), (o))
+#define	bus_space_read_stream_2(t, h, o)	__bs_rs_s(2,(t), (h), (o))
+#define	bus_space_read_stream_4(t, h, o)	__bs_rs_s(4,(t), (h), (o))
 #define	bus_space_read_stream_8(t, h, o)	__bs_rs_s(8,(t), (h), (o))
 
 /*
