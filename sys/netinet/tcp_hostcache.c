@@ -325,9 +325,6 @@ tcp_hc_lookup(struct in_conninfo *inc, bool update)
 	struct hc_head *hc_head;
 	struct hc_metrics *hc_entry;
 
-	if (!V_tcp_use_hostcache)
-		return NULL;
-
 	KASSERT(inc != NULL, ("tcp_hc_lookup with NULL in_conninfo pointer"));
 
 	/*
@@ -394,9 +391,6 @@ tcp_hc_insert(struct in_conninfo *inc)
 	int hash;
 	struct hc_head *hc_head;
 	struct hc_metrics *hc_entry;
-
-	if (!V_tcp_use_hostcache)
-		return NULL;
 
 	KASSERT(inc != NULL, ("tcp_hc_insert with NULL in_conninfo pointer"));
 
