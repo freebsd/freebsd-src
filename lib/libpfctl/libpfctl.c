@@ -367,9 +367,9 @@ pf_nvrule_to_rule(const nvlist_t *nvl, struct pfctl_rule *rule)
 
 	pf_nvdivert_to_divert(nvlist_get_nvlist(nvl, "divert"), rule);
 
-	rule->u_states_cur = nvlist_get_number(nvl, "states_cur");
-	rule->u_states_tot = nvlist_get_number(nvl, "states_tot");
-	rule->u_src_nodes = nvlist_get_number(nvl, "src_nodes");
+	rule->states_cur = nvlist_get_number(nvl, "states_cur");
+	rule->states_tot = nvlist_get_number(nvl, "states_tot");
+	rule->src_nodes = nvlist_get_number(nvl, "src_nodes");
 }
 
 int
