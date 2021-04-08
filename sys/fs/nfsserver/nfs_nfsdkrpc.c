@@ -395,8 +395,13 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 				m = NULL;
 			if ((nd->nd_flag & ND_HASSEQUENCE) != 0)
 				nfsrv_cache_session(nd, &m);
-			if (nd->nd_repstat == NFSERR_REPLYFROMCACHE)
+			if (nd->nd_repstat == NFSERR_REPLYFROMCACHE) {
 				nd->nd_repstat = 0;
+				if (m != NULL) {
+					m_freem(nd->nd_mreq);
+					nd->nd_mreq = m;
+				}
+			}
 			cacherep = RC_REPLY;
 		} else {
 			if (nd->nd_repstat == NFSERR_DONTREPLY)
