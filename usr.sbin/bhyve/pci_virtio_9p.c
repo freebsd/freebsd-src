@@ -224,7 +224,7 @@ pci_vt9p_notify(void *vsc, struct vqueue_info *vq)
 static int
 pci_vt9p_legacy_config(nvlist_t *nvl, const char *opts)
 {
-	char *sharename, *tofree, *token, *tokens;
+	char *sharename = NULL, *tofree, *token, *tokens;
 
 	if (opts == NULL)
 		return (0);
