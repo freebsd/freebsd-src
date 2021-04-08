@@ -99,9 +99,13 @@ static int
 generic_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
 {
+	vm_memattr_t ma;
 	void *va;
 
-	va = pmap_mapdev(bpa, size);
+	ma = VM_MEMATTR_DEVICE;
+	if (flags == BUS_SPACE_MAP_NONPOSTED)
+		ma = VM_MEMATTR_DEVICE_NP;
+	va = pmap_mapdev_attr(bpa, size, ma);
 	if (va == NULL)
 		return (ENOMEM);
 	*bshp = (bus_space_handle_t)va;
