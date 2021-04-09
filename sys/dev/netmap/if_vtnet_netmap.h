@@ -87,10 +87,9 @@ vtnet_netmap_txsync(struct netmap_kring *kring, int flags)
 			uint64_t offset = nm_get_offset(kring, slot);
 			u_int len = slot->len;
 			uint64_t paddr;
-			void *addr = PNMB(na, slot, &paddr);
 			int err;
 
-			(void)addr;
+			(void)PNMB(na, slot, &paddr);
 			NM_CHECK_ADDR_LEN_OFF(na, len, offset);
 
 			slot->flags &= ~(NS_REPORT | NS_BUF_CHANGED);
