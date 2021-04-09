@@ -127,6 +127,7 @@ u_int	cpu_auxmsr(void);
 bool	cpu_mwait_usable(void);
 void	cpu_probe_amdc1e(void);
 void	cpu_setregs(void);
+void	x86_clear_dbregs(struct pcb *pcb);
 bool	disable_wp(void);
 void	restore_wp(bool old_wp);
 void	dump_add_page(vm_paddr_t);
