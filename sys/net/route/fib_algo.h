@@ -36,6 +36,7 @@ enum flm_op_result {
 	FLM_SUCCESS,	/* No errors, operation successful */
 	FLM_REBUILD,	/* Operation cannot be completed, schedule algorithm rebuild */
 	FLM_ERROR,	/* Operation failed, this algo cannot be used */
+	FLM_BATCH,	/* Operation cannot be completed, algorithm asks to batch changes */
 };
 
 struct rib_rtable_info {
@@ -51,6 +52,24 @@ struct flm_lookup_key {
 	};
 };
 
+struct fib_change_entry {
+	union {
+		struct in_addr	addr4;
+		struct in6_addr	addr6;
+	};
+	uint32_t		scopeid;
+	uint8_t			plen;
+	struct nhop_object	*nh_old;
+	struct nhop_object	*nh_new;
+};
+
+struct fib_change_queue {
+	uint32_t 		count;
+	uint32_t		size;
+	struct fib_change_entry	*entries;
+};
+
+
 typedef struct nhop_object *flm_lookup_t(void *algo_data,
     const struct flm_lookup_key key, uint32_t scopeid);
 typedef enum flm_op_result flm_init_t (uint32_t fibnum, struct fib_data *fd,
@@ -60,6 +79,8 @@ typedef enum flm_op_result flm_dump_t(struct rtentry *rt, void *data);
 typedef enum flm_op_result flm_dump_end_t(void *data, struct fib_dp *dp);
 typedef enum flm_op_result flm_change_t(struct rib_head *rnh,
     struct rib_cmd_info *rc, void *data);
+typedef enum flm_op_result flm_change_batch_t(struct rib_head *rnh,
+    struct fib_change_queue *q, void *data);
 typedef uint8_t flm_get_pref_t(const struct rib_rtable_info *rinfo);
 
 struct fib_lookup_module {
@@ -69,12 +90,14 @@ struct fib_lookup_module {
 	uint32_t	flm_flags;		/* flags */
 	uint8_t		flm_index;		/* internal algo index */
 	flm_init_t	*flm_init_cb;		/* instance init */
-	flm_destroy_t	*flm_destroy_cb;		/* destroy instance */
+	flm_destroy_t	*flm_destroy_cb;	/* destroy instance */
 	flm_change_t	*flm_change_rib_item_cb;/* routing table change hook */
 	flm_dump_t	*flm_dump_rib_item_cb;	/* routing table dump cb */
 	flm_dump_end_t	*flm_dump_end_cb;	/* end of dump */
 	flm_lookup_t	*flm_lookup;		/* lookup function */
 	flm_get_pref_t	*flm_get_pref;		/* get algo preference */
+	flm_change_batch_t	*flm_change_rib_items_cb;/* routing table change hook */
+	void		*spare[8];		/* Spare callbacks */
 	TAILQ_ENTRY(fib_lookup_module)	entries;
 };
 

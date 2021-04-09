@@ -151,6 +151,7 @@ enum fib_callout_action {
 	FDA_NONE,	/* No callout scheduled */
 	FDA_REBUILD,	/* Asks to rebuild algo instance */
 	FDA_EVAL,	/* Asks to evaluate if the current algo is still be best */
+	FDA_BATCH,	/* Asks to submit batch of updates to the algo */
 };
 
 struct fib_sync_status {
@@ -158,6 +159,7 @@ struct fib_sync_status {
 	uint32_t		num_changes;	/* number of changes since sync */
 	uint32_t		bucket_changes;	/* num changes within the current bucket */
 	uint64_t		bucket_id;	/* 50ms bucket # */
+	struct fib_change_queue	fd_change_queue;/* list of scheduled entries */
 };
 
 /*
@@ -170,6 +172,7 @@ struct fib_data {
 	uint32_t		fd_dead:1;	/* Scheduled for deletion */
 	uint32_t		fd_linked:1;	/* true if linked */
 	uint32_t		fd_need_rebuild:1;	/* true if rebuild scheduled */
+	uint32_t		fd_batch:1;	/* true if batched notification scheduled */
 	uint8_t			fd_family;	/* family */
 	uint32_t		fd_fibnum;	/* fibnum */
 	uint32_t		fd_failed_rebuilds;	/* stat: failed rebuilds */
@@ -383,6 +386,8 @@ print_op_result(enum flm_op_result result)
 		return "success";
 	case FLM_REBUILD:
 		return "rebuild";
+	case FLM_BATCH:
+		return "batch";
 	case FLM_ERROR:
 		return "error";
 	}
@@ -508,6 +513,8 @@ schedule_fd_rebuild(struct fib_data *fd, const char *reason)
 
 	if (!fd->fd_need_rebuild) {
 		fd->fd_need_rebuild = true;
+		/* Stop batch updates */
+		fd->fd_batch = false;
 
 		/*
 		 * Potentially re-schedules pending callout
@@ -568,7 +575,7 @@ mark_diverge_time(struct fib_data *fd)
  *   the update gets delayed, up to maximum delay threshold.
  */
 static void
-update_rebuild_delay(struct fib_data *fd)
+update_rebuild_delay(struct fib_data *fd, enum fib_callout_action action)
 {
 	uint32_t bucket_id, new_delay = 0;
 	struct timeval tv;
@@ -616,7 +623,7 @@ update_rebuild_delay(struct fib_data *fd)
 		add_tv_diff_ms(&new_tv, new_delay);
 
 		int32_t delay_ms = get_tv_diff_ms(&tv, &new_tv);
-		schedule_callout(fd, FDA_REBUILD, delay_ms);
+		schedule_callout(fd, action, delay_ms);
 	}
 }
 
@@ -626,8 +633,9 @@ update_algo_state(struct fib_data *fd)
 
 	RIB_WLOCK_ASSERT(fd->fd_rh);
 
-	if (fd->fd_need_rebuild) {
-		update_rebuild_delay(fd);
+	if (fd->fd_batch || fd->fd_need_rebuild) {
+		enum fib_callout_action action = fd->fd_need_rebuild ? FDA_REBUILD : FDA_BATCH;
+		update_rebuild_delay(fd, action);
 		return;
 	}
 
@@ -664,6 +672,77 @@ need_immediate_sync(struct fib_data *fd, struct rib_cmd_info *rc)
 	return (false);
 }
 
+static bool
+apply_rtable_changes(struct fib_data *fd)
+{
+	enum flm_op_result result;
+	struct fib_change_queue *q = &fd->fd_ss.fd_change_queue;
+
+	result = fd->fd_flm->flm_change_rib_items_cb(fd->fd_rh, q, fd->fd_algo_data);
+
+	if (result == FLM_SUCCESS) {
+		for (int i = 0; i < q->count; i++)
+			if (q->entries[i].nh_old)
+				fib_unref_nhop(fd, q->entries[i].nh_old);
+		q->count = 0;
+	}
+	fd->fd_batch = false;
+
+	return (result == FLM_SUCCESS);
+}
+
+static bool
+fill_change_entry(struct fib_data *fd, struct fib_change_entry *ce, struct rib_cmd_info *rc)
+{
+	int plen = 0;
+
+	switch (fd->fd_family) {
+	case AF_INET:
+		rt_get_inet_prefix_plen(rc->rc_rt, &ce->addr4, &plen, &ce->scopeid);
+		break;
+	case AF_INET6:
+		rt_get_inet6_prefix_plen(rc->rc_rt, &ce->addr6, &plen, &ce->scopeid);
+		break;
+	}
+
+	ce->plen = plen;
+	ce->nh_old = rc->rc_nh_old;
+	ce->nh_new = rc->rc_nh_new;
+	if (ce->nh_new != NULL) {
+		if (fib_ref_nhop(fd, ce->nh_new) == 0)
+			return (false);
+	}
+
+	return (true);
+}
+
+static bool
+queue_rtable_change(struct fib_data *fd, struct rib_cmd_info *rc)
+{
+	struct fib_change_queue *q = &fd->fd_ss.fd_change_queue;
+
+	if (q->count >= q->size) {
+		uint32_t q_size;
+
+		if (q->size == 0)
+			q_size = 256; /* ~18k memory */
+		else
+			q_size = q->size * 2;
+
+		size_t size = q_size * sizeof(struct fib_change_entry);
+		void *a = realloc(q->entries, size, M_TEMP, M_NOWAIT | M_ZERO);
+		if (a == NULL) {
+			FD_PRINTF(LOG_INFO, fd, "Unable to realloc queue for %u elements",
+			    q_size);
+			return (false);
+		}
+		q->entries = a;
+		q->size = q_size;
+	}
+
+	return (fill_change_entry(fd, &q->entries[q->count++], rc));
+}
+
 /*
  * Rib subscription handler. Checks if the algorithm is ready to
  *  receive updates, handles nexthop refcounting and passes change
@@ -695,8 +774,26 @@ handle_rtable_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
 	 * If algo requested rebuild, stop sending updates by default.
 	 * This simplifies nexthop refcount handling logic.
 	 */
-	if (fd->fd_need_rebuild)
+	if (fd->fd_need_rebuild) {
+		if (immediate_sync)
+			rebuild_fd(fd, "rtable change type enforced sync");
 		return;
+	}
+
+	/*
+	 * Algo requested updates to be delivered in batches.
+	 * Add the current change to the queue and return.
+	 */
+	if (fd->fd_batch) {
+		if (immediate_sync) {
+			if (!queue_rtable_change(fd, rc) || !apply_rtable_changes(fd))
+				rebuild_fd(fd, "batch sync failed");
+		} else {
+			if (!queue_rtable_change(fd, rc))
+				schedule_fd_rebuild(fd, "batch queue failed");
+		}
+		return;
+	}
 
 	/*
 	 * Maintain guarantee that every nexthop returned by the dataplane
@@ -719,6 +816,23 @@ handle_rtable_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
 		if (rc->rc_nh_old != NULL)
 			fib_unref_nhop(fd, rc->rc_nh_old);
 		break;
+	case FLM_BATCH:
+
+		/*
+		 * Algo asks to batch the changes.
+		 */
+		if (queue_rtable_change(fd, rc)) {
+			if (!immediate_sync) {
+				fd->fd_batch = true;
+				mark_diverge_time(fd);
+				update_rebuild_delay(fd, FDA_BATCH);
+				break;
+			}
+			if (apply_rtable_changes(fd))
+				break;
+		}
+		FD_PRINTF(LOG_ERR, fd, "batched sync failed, force the rebuild");
+
 	case FLM_REBUILD:
 
 		/*
@@ -982,6 +1096,9 @@ destroy_fd_instance(struct fib_data *fd)
 	if (fd->nh_ref_table != NULL)
 		free(fd->nh_ref_table, M_RTABLE);
 
+	if (fd->fd_ss.fd_change_queue.entries != NULL)
+		free(fd->fd_ss.fd_change_queue.entries, M_TEMP);
+
 	fib_unref_algo(fd->fd_flm);
 
 	free(fd, M_RTABLE);
@@ -1182,6 +1299,7 @@ execute_callout_action(struct fib_data *fd)
 	RIB_WLOCK_ASSERT(fd->fd_rh);
 
 	fd->fd_need_rebuild = false;
+	fd->fd_batch = false;
 	fd->fd_num_changes = 0;
 
 	/* First, check if we're still OK to use this algo */
@@ -1189,6 +1307,12 @@ execute_callout_action(struct fib_data *fd)
 		flm_new = fib_check_best_algo(fd->fd_rh, fd->fd_flm);
 	if (flm_new != NULL)
 		action = FDA_REBUILD;
+
+	if (action == FDA_BATCH) {
+		/* Try to sync */
+		if (!apply_rtable_changes(fd))
+			action = FDA_REBUILD;
+	}
 
 	if (action == FDA_REBUILD)
 		result = rebuild_fd_flm(fd, flm_new != NULL ? flm_new : fd->fd_flm);
@@ -1201,6 +1325,7 @@ execute_callout_action(struct fib_data *fd)
 /*
  * Callout for all scheduled fd-related work.
  * - Checks if the current algo is still the best algo
+ * - Synchronises algo instance to the rtable (batch usecase)
  * - Creates a new instance of an algo for af/fib if desired.
  */
 static void
