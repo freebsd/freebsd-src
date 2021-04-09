@@ -45,5 +45,5 @@ __FBSDID("$FreeBSD$");
 	.4byte		NT_FREEBSD_ABI_TAG
 1:	.asciz		NOTE_FREEBSD_VENDOR
 2:	.p2align	2
-3:	.4byte		__FreeBSD_version
+3:	.4byte		1300139
 4:
