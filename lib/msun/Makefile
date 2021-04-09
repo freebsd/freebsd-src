@@ -34,6 +34,16 @@ CFLAGS+=	-I${.CURDIR}/ld128
 
 CFLAGS+=	-I${.CURDIR}/${ARCH_SUBDIR}
 
+.include <bsd.compiler.mk>
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 100000
+# When using clang with x86_64 CPUs that support AVX, some floating point
+# transformations may raise exceptions that would not have been raised by the
+# original code. To avoid this, use the -fp-exception-behavior=maytrap flag,
+# introduced in clang 10.0.0.
+# See also: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=254911
+CFLAGS+=	-ffp-exception-behavior=maytrap
+.endif
+
 .PATH:	${.CURDIR}/bsdsrc
 .PATH:	${.CURDIR}/src
 .PATH:	${.CURDIR}/man
@@ -113,7 +123,6 @@ COMMON_SRCS+=	catrigl.c \
 #     'long double' [-Werror=overflow]
 #     if( y >= LDBL_MAX )
 # See also: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=130067
-.include <bsd.compiler.mk>
 .if ${COMPILER_TYPE} == "gcc"
 CFLAGS.e_powl.c+= -Wno-error=overflow
 .endif
