@@ -242,12 +242,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	copy_thread(td1, td2);
 
 	/* Reset debug registers in the new process */
-	pcb2->pcb_dr0 = 0;
-	pcb2->pcb_dr1 = 0;
-	pcb2->pcb_dr2 = 0;
-	pcb2->pcb_dr3 = 0;
-	pcb2->pcb_dr6 = 0;
-	pcb2->pcb_dr7 = 0;
+	x86_clear_dbregs(pcb2);
 
 	/* Point mdproc and then copy over td1's contents */
 	mdp2 = &p2->p_md;
