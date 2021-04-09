@@ -342,6 +342,18 @@ pci_dw_decode_ranges(struct pci_dw_softc *sc, struct ofw_pci_range *ranges,
 		    " Not all required ranges are found in DT\n");
 		return (ENXIO);
 	}
+	if (sc->io_range.size > UINT32_MAX) {
+		device_printf(sc->dev,
+		    "ATU IO window size is too large. Up to 4GB windows "
+		    "are supported, trimming window size to 4GB\n");
+		sc->io_range.size = UINT32_MAX;
+	}
+	if (sc->mem_range.size > UINT32_MAX) {
+		device_printf(sc->dev,
+		    "ATU MEM window size is too large. Up to 4GB windows "
+		    "are supported, trimming window size to 4GB\n");
+		sc->mem_range.size = UINT32_MAX;
+	}
 	return (0);
 }
 
