@@ -70,9 +70,8 @@ static struct option longopts[] = {
 };
 
 
-static int aflag, Aflag, bflag, dflag, Dflag, gflag, Hflag, Nflag,
-	lflag, Lflag, Rflag, wflag, pflag, uflag, load_opt_flag;
-static bool quiet;
+static bool aflag, Aflag, bflag, dflag, Dflag, gflag, Hflag, Nflag,
+	lflag, Lflag, Rflag, wflag, pflag, uflag, load_opt_flag, quiet;
 static char *varname;
 static char *fromfile;
 static u_long attrib = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS;
@@ -316,58 +315,58 @@ parse_args(int argc, char **argv)
 		    longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'a':
-			aflag++;
+			aflag = true;
 			break;
 		case 'A':
-			Aflag++;
+			Aflag = true;
 			break;
 		case 'b':
-			bflag++;
+			bflag = true;
 			break;
 		case 'd':
-			dflag++;
+			dflag = true;
 			break;
 		case 'D':
-			Dflag++;
+			Dflag = true;
 			break;
 		case 'g':
-			gflag++;
+			gflag = true;
 			break;
 		case 'H':
-			Hflag++;
+			Hflag = true;
 			break;
 		case 'l':
-			lflag++;
+			lflag = true;
 			break;
 		case 'L':
-			Lflag++;
+			Lflag = true;
 			break;
 		case 'n':
 			varname = optarg;
 			break;
 		case 'N':
-			Nflag++;
+			Nflag = true;
 			break;
 		case 'O':
-			load_opt_flag++;
+			load_opt_flag = true;
 			break;
 		case 'p':
-			pflag++;
+			pflag = true;
 			break;
 		case 'q':
 			quiet = true;
 			break;
 		case 'R':
-			Rflag++;
+			Rflag = true;
 			break;
 		case 't':
 			attrib = strtoul(optarg, NULL, 16);
 			break;
 		case 'u':
-			uflag++;
+			uflag = true;
 			break;
 		case 'w':
-			wflag++;
+			wflag = true;
 			break;
 		case 'f':
 			free(fromfile);
@@ -386,13 +385,13 @@ parse_args(int argc, char **argv)
 	if (argc == 1)
 		varname = argv[0];
 
-	if (aflag + Dflag + wflag > 1) {
+	if ((int)aflag + (int)Dflag + (int)wflag > 1) {
 		warnx("Can only use one of -a (--append), "
 		    "-D (--delete) and -w (--write)");
 		usage();
 	}
 
-	if (aflag + Dflag + wflag > 0 && varname == NULL) {
+	if ((int)aflag + (int)Dflag + (int)wflag > 0 && varname == NULL) {
 		warnx("Must specify a variable for -a (--append), "
 		    "-D (--delete) or -w (--write)");
 		usage();
@@ -407,13 +406,13 @@ parse_args(int argc, char **argv)
 	else if (Lflag)
 		print_known_guid();
 	else if (fromfile) {
-		Nflag = 1;
+		Nflag = true;
 		print_var(NULL, NULL);
 	} else if (varname) {
-		pflag++;
+		pflag = true;
 		print_variable(varname);
 	} else if (argc > 0) {
-		pflag++;
+		pflag = true;
 		for (i = 0; i < argc; i++)
 			print_variable(argv[i]);
 	} else
