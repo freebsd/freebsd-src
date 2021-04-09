@@ -9,7 +9,8 @@ handbook:
     https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
 
 Items affecting the ports and packages system can be found in
-/usr/ports/UPDATING.  Please read that file before running portupgrade.
+/usr/ports/UPDATING.  Please read that file before updating system packages
+and/or ports.
 
 20210429:
 	Commit 5a45802b3c8c changed the internal KAPI between
