@@ -9,7 +9,8 @@ handbook:
     https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
 
 Items affecting the ports and packages system can be found in
-/usr/ports/UPDATING.  Please read that file before running portupgrade.
+/usr/ports/UPDATING.  Please read that file before updating system packages
+and/or ports.
 
 NOTE: FreeBSD has switched from gcc to clang. If you have trouble bootstrapping
 from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
