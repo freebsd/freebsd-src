@@ -1400,11 +1400,50 @@ pcpu_cache_drain_safe(uma_zone_t zone)
  * estimated working set size.
  */
 static void
-bucket_cache_reclaim(uma_zone_t zone, bool drain)
+bucket_cache_reclaim_domain(uma_zone_t zone, bool drain, int domain)
 {
 	uma_zone_domain_t zdom;
 	uma_bucket_t bucket;
 	long target;
+
+	/*
+	 * The cross bucket is partially filled and not part of
+	 * the item count.  Reclaim it individually here.
+	 */
+	zdom = ZDOM_GET(zone, domain);
+	if ((zone->uz_flags & UMA_ZONE_SMR) == 0 || drain) {
+		ZONE_CROSS_LOCK(zone);
+		bucket = zdom->uzd_cross;
+		zdom->uzd_cross = NULL;
+		ZONE_CROSS_UNLOCK(zone);
+		if (bucket != NULL)
+			bucket_free(zone, bucket, NULL);
+	}
+
+	/*
+	 * If we were asked to drain the zone, we are done only once
+	 * this bucket cache is empty.  Otherwise, we reclaim items in
+	 * excess of the zone's estimated working set size.  If the
+	 * difference nitems - imin is larger than the WSS estimate,
+	 * then the estimate will grow at the end of this interval and
+	 * we ignore the historical average.
+	 */
+	ZDOM_LOCK(zdom);
+	target = drain ? 0 : lmax(zdom->uzd_wss, zdom->uzd_nitems -
+	    zdom->uzd_imin);
+	while (zdom->uzd_nitems > target) {
+		bucket = zone_fetch_bucket(zone, zdom, true);
+		if (bucket == NULL)
+			break;
+		bucket_free(zone, bucket, NULL);
+		ZDOM_LOCK(zdom);
+	}
+	ZDOM_UNLOCK(zdom);
+}
+
+static void
+bucket_cache_reclaim(uma_zone_t zone, bool drain)
+{
 	int i;
 
 	/*
@@ -1414,41 +1453,8 @@ bucket_cache_reclaim(uma_zone_t zone, bool drain)
 	if (zone->uz_bucket_size > zone->uz_bucket_size_min)
 		zone->uz_bucket_size--;
 
-	for (i = 0; i < vm_ndomains; i++) {
-		/*
-		 * The cross bucket is partially filled and not part of
-		 * the item count.  Reclaim it individually here.
-		 */
-		zdom = ZDOM_GET(zone, i);
-		if ((zone->uz_flags & UMA_ZONE_SMR) == 0 || drain) {
-			ZONE_CROSS_LOCK(zone);
-			bucket = zdom->uzd_cross;
-			zdom->uzd_cross = NULL;
-			ZONE_CROSS_UNLOCK(zone);
-			if (bucket != NULL)
-				bucket_free(zone, bucket, NULL);
-		}
-
-		/*
-		 * If we were asked to drain the zone, we are done only once
-		 * this bucket cache is empty.  Otherwise, we reclaim items in
-		 * excess of the zone's estimated working set size.  If the
-		 * difference nitems - imin is larger than the WSS estimate,
-		 * then the estimate will grow at the end of this interval and
-		 * we ignore the historical average.
-		 */
-		ZDOM_LOCK(zdom);
-		target = drain ? 0 : lmax(zdom->uzd_wss, zdom->uzd_nitems -
-		    zdom->uzd_imin);
-		while (zdom->uzd_nitems > target) {
-			bucket = zone_fetch_bucket(zone, zdom, true);
-			if (bucket == NULL)
-				break;
-			bucket_free(zone, bucket, NULL);
-			ZDOM_LOCK(zdom);
-		}
-		ZDOM_UNLOCK(zdom);
-	}
+	for (i = 0; i < vm_ndomains; i++)
+		bucket_cache_reclaim_domain(zone, drain, i);
 }
 
 static void
