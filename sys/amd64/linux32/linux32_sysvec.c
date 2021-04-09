@@ -722,6 +722,8 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 	regs->tf_cs = _ucode32sel;
 	regs->tf_rbx = (register_t)imgp->ps_strings;
 
+	x86_clear_dbregs(pcb);
+
 	fpstate_drop(td);
 
 	/* Do full restore on return so that we can change to a different %cs */
