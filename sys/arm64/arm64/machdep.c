@@ -569,7 +569,10 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 	vfp_reset_state(td, pcb);
 #endif
 
-	/* TODO: Shouldn't we also reset pcb_dbg_regs? */
+	/*
+	 * Clear debug register state. It is not applicable to the new process.
+	 */
+	bzero(&pcb->pcb_dbg_regs, sizeof(pcb->pcb_dbg_regs));
 }
 
 /* Sanity check these are the same size, they will be memcpy'd to and fro */

@@ -239,6 +239,7 @@ freebsd32_setregs(struct thread *td, struct image_params *imgp,
    uintptr_t stack)
 {
 	struct trapframe *tf = td->td_frame;
+	struct pcb *pcb = td->td_pcb;
 
 	memset(tf, 0, sizeof(struct trapframe));
 
@@ -256,8 +257,13 @@ freebsd32_setregs(struct thread *td, struct image_params *imgp,
 	tf->tf_spsr = PSR_M_32;
 
 #ifdef VFP
-	vfp_reset_state(td, td->td_pcb);
+	vfp_reset_state(td, pcb);
 #endif
+
+	/*
+	 * Clear debug register state. It is not applicable to the new process.
+	 */
+	bzero(&pcb->pcb_dbg_regs, sizeof(pcb->pcb_dbg_regs));
 }
 
 void

@@ -351,6 +351,7 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
     uintptr_t stack)
 {
 	struct trapframe *regs = td->td_frame;
+	struct pcb *pcb = td->td_pcb;
 
 	/* LINUXTODO: validate */
 	LIN_SDT_PROBE0(sysvec, linux_exec_setregs, todo);
@@ -365,14 +366,19 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 #endif
         regs->tf_elr = imgp->entry_addr;
 
-	td->td_pcb->pcb_tpidr_el0 = 0;
-	td->td_pcb->pcb_tpidrro_el0 = 0;
+	pcb->pcb_tpidr_el0 = 0;
+	pcb->pcb_tpidrro_el0 = 0;
 	WRITE_SPECIALREG(tpidrro_el0, 0);
 	WRITE_SPECIALREG(tpidr_el0, 0);
 
 #ifdef VFP
-	vfp_reset_state(td, td->td_pcb);
+	vfp_reset_state(td, pcb);
 #endif
+
+	/*
+	 * Clear debug register state. It is not applicable to the new process.
+	 */
+	bzero(&pcb->pcb_dbg_regs, sizeof(pcb->pcb_dbg_regs));
 }
 
 int
