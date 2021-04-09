@@ -122,6 +122,7 @@ void	cpu_setregs(void);
 int	dbreg_set_watchpoint(vm_offset_t addr, vm_size_t size, int access);
 int	dbreg_clr_watchpoint(vm_offset_t addr, vm_size_t size);
 void	dbreg_list_watchpoints(void);
+void	x86_clear_dbregs(struct pcb *pcb);
 bool	disable_wp(void);
 void	restore_wp(bool old_wp);
 void	finishidentcpu(void);
