@@ -1393,15 +1393,6 @@ The socket's protocol control routine is called to implement the
 requested action.
 .El
 .El
-.Pp
-.Fn if_down ,
-.Fn ifioctl ,
-.Fn ifpromisc ,
-and
-.Fn if_up
-must be called at
-.Fn splnet
-or higher.
 .Ss "Interface Address Functions"
 Several functions exist to look up an interface address structure
 given an address.
