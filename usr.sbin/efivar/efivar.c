@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Netflix, Inc.
+ * Copyright (c) 2016-2021 Netflix, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,6 +62,7 @@ static struct option longopts[] = {
 	{ "no-name",		no_argument,		NULL,	'N' },
 	{ "print",		no_argument,		NULL,	'p' },
 //	{ "print-decimal",	no_argument,		NULL,	'd' }, /* unimplemnted clash with linux version */
+	{ "quiet",		no_argument,		NULL,	'q' },
 	{ "raw-guid",		no_argument,		NULL,   'R' },
 	{ "utf8",		no_argument,		NULL,	'u' },
 	{ "write",		no_argument,		NULL,	'w' },
@@ -69,6 +72,7 @@ static struct option longopts[] = {
 
 static int aflag, Aflag, bflag, dflag, Dflag, gflag, Hflag, Nflag,
 	lflag, Lflag, Rflag, wflag, pflag, uflag, load_opt_flag;
+static bool quiet;
 static char *varname;
 static char *fromfile;
 static u_long attrib = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS;
@@ -77,11 +81,38 @@ static void
 usage(void)
 {
 
-	errx(1, "efivar [-abdDHlLNpRtuw] [-n name] [-f file] [--append] [--ascii]\n"
+	errx(1, "efivar [-abdDHlLNpqRtuw] [-n name] [-f file] [--append] [--ascii]\n"
 	    "\t[--attributes] [--binary] [--delete] [--fromfile file] [--hex]\n"
 	    "\t[--list-guids] [--list] [--load-option] [--name name] [--no-name]\n"
 	    "\t[--print] [--print-decimal] [--raw-guid] [--utf8] [--write]\n"
+	    "\t[--quiet]\n"
 	    "\tname[=value]");
+}
+
+static void
+rep_err(int eval, const char *fmt, ...)
+{
+	va_list ap;
+
+	if (quiet)
+		exit(eval);
+
+	va_start(ap, fmt);
+	verr(eval, fmt, ap);
+	va_end(ap);
+}
+
+static void
+rep_errx(int eval, const char *fmt, ...)
+{
+	va_list ap;
+
+	if (quiet)
+		exit(eval);
+
+	va_start(ap, fmt);
+	verrx(eval, fmt, ap);
+	va_end(ap);
 }
 
 static void
@@ -91,11 +122,11 @@ breakdown_name(char *name, efi_guid_t *guid, char **vname)
 
 	cp = strrchr(name, '-');
 	if (cp == NULL)
-		errx(1, "Invalid name: %s", name);
+		rep_errx(1, "Invalid name: %s", name);
 	*vname = cp + 1;
 	*cp = '\0';
 	if (efi_name_to_guid(name, guid) < 0)
-		errx(1, "Invalid guid %s", name);
+		rep_errx(1, "Invalid guid %s", name);
 }
 
 static uint8_t *
@@ -124,7 +155,7 @@ append_variable(char *name, char *val)
 	breakdown_name(name, &guid, &vname);
 	data = get_value(val, &datalen);
 	if (efi_append_variable(guid, vname, data, datalen, attrib) < 0)
-		err(1, "efi_append_variable");
+		rep_err(1, "efi_append_variable");
 }
 
 static void
@@ -135,7 +166,7 @@ delete_variable(char *name)
 
 	breakdown_name(name, &guid, &vname);
 	if (efi_del_variable(guid, vname) < 0)
-		err(1, "efi_del_variable");
+		rep_err(1, "efi_del_variable");
 }
 
 static void
@@ -149,7 +180,7 @@ write_variable(char *name, char *val)
 	breakdown_name(name, &guid, &vname);
 	data = get_value(val, &datalen);
 	if (efi_set_variable(guid, vname, data, datalen, attrib) < 0)
-		err(1, "efi_set_variable");
+		rep_err(1, "efi_set_variable");
 }
 
 static void
@@ -195,18 +226,18 @@ print_var(efi_guid_t *guid, char *name)
 
 			fd = open(fromfile, O_RDONLY);
 			if (fd < 0)
-				err(1, "open %s", fromfile);
+				rep_err(1, "open %s", fromfile);
 			data = malloc(64 * 1024);
 			if (data == NULL)
-				err(1, "malloc");
+				rep_err(1, "malloc");
 			datalen = read(fd, data, 64 * 1024);
 			if (datalen <= 0)
-				err(1, "read");
+				rep_err(1, "read");
 			close(fd);
 		} else {
 			rv = efi_get_variable(*guid, name, &data, &datalen, &att);
 			if (rv < 0)
-				err(1, "fetching %s-%s", gname, name);
+				rep_err(1, "fetching %s-%s", gname, name);
 		}
 
 
@@ -253,7 +284,7 @@ print_variables(void)
 		print_var(guid, name);
 
 	if (rv < 0)
-		err(1, "Error listing names");
+		rep_err(1, "Error listing names");
 }
 
 static void
@@ -272,7 +303,7 @@ parse_args(int argc, char **argv)
 {
 	int ch, i;
 
-	while ((ch = getopt_long(argc, argv, "aAbdDf:gHlLNn:OpRt:uw",
+	while ((ch = getopt_long(argc, argv, "aAbdDf:gHlLNn:OpqRt:uw",
 		    longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'a':
@@ -314,6 +345,9 @@ parse_args(int argc, char **argv)
 		case 'p':
 			pflag++;
 			break;
+		case 'q':
+			quiet = true;
+			break;
 		case 'R':
 			Rflag++;
 			break;
@@ -331,7 +365,7 @@ parse_args(int argc, char **argv)
 			fromfile = strdup(optarg);
 			break;
 		case 0:
-			errx(1, "unknown or unimplemented option\n");
+			rep_errx(1, "unknown or unimplemented option\n");
 			break;
 		default:
 			usage();

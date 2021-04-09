@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2017-2019 Netflix, Inc.
+.\" Copyright (c) 2017-2021 Netflix, Inc.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2020
+.Dd April 7, 2021
 .Dt EFIVAR 8
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Nd UEFI environment variable interaction
 .Sh SYNOPSIS
 .Nm
-.Op Fl abdDHlLNpRtuw
+.Op Fl abdDHlLNpqRtuw
 .Op Fl n Ar name
 .Op Fl f Ar file
 .Op Fl -append
@@ -51,6 +51,7 @@
 .Op Fl -no-name
 .Op Fl -print
 .Op Fl -print-decimal
+.Op Fl -quiet
 .Op Fl -raw-guid
 .Op Fl -utf8
 .Op Fl -write
@@ -155,6 +156,9 @@ Decode the variable as if it were a UEFI Boot Option, including information abou
 Do not display the variable name.
 .It Fl p Fl -print
 Print the value of the variable.
+.It Fl q Fl -quiet
+When an error occurs, exit with a non-zero value without outputting any error messages.
+Otherwise, produce the normal output and exit with a zero status.
 .It Fl R Fl -raw-guid
 Do not substitute well known names for GUID numeric values in output.
 .It Fl u Fl -utf8
