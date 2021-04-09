@@ -118,15 +118,24 @@ rep_errx(int eval, const char *fmt, ...)
 static void
 breakdown_name(char *name, efi_guid_t *guid, char **vname)
 {
-	char *cp;
+	char *cp, *ocp;
 
-	cp = strrchr(name, '-');
-	if (cp == NULL)
-		rep_errx(1, "Invalid name: %s", name);
-	*vname = cp + 1;
-	*cp = '\0';
-	if (efi_name_to_guid(name, guid) < 0)
-		rep_errx(1, "Invalid guid %s", name);
+	ocp = NULL;
+	while (true) {
+		cp = strrchr(name, '-');
+		if (cp == NULL) {
+			if (ocp != NULL)
+				*ocp = '-';
+			rep_errx(1, "Invalid guid in: %s", name);
+		}
+		if (ocp != NULL)
+			*ocp = '-';
+		*vname = cp + 1;
+		*cp = '\0';
+		ocp = cp;
+		if (efi_name_to_guid(name, guid) >= 0)
+			break;
+	}
 }
 
 static uint8_t *
