@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-Set to include support for save and restore (snapshots) in
+Include support for save and restore (snapshots) in
 .Xr bhyve 8
 and
 .Xr bhyvectl 8 .

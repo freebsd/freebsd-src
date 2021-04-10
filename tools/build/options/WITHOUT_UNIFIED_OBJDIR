@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-Set to use the historical object directory format for
+Use the historical object directory format for
 .Xr build 7
 targets.
 For native-builds and builds done directly in sub-directories the format of

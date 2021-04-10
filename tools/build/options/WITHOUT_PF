@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to not build PF firewall package.
+Do not build PF firewall package.

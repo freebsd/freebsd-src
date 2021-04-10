@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to not build IPFW tools.
+Do not build IPFW tools.

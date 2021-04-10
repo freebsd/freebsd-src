@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-Set to use
+Use
 .Xr ccache 1
 for the build.
 No configuration is required except to install the

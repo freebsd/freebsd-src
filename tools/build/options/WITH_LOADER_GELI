@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to build GELI bootloader support.
+Build GELI bootloader support.

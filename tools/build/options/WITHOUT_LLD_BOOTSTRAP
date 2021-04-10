@@ -1,4 +1,4 @@
 .\" $FreeBSD$
-Set to not build the LLD linker during the bootstrap phase of
+Do not build the LLD linker during the bootstrap phase of
 the build.
 To be able to build the system an alternate linker must be provided via XLD.

@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to build extra TCP stack modules.
+Build extra TCP stack modules.

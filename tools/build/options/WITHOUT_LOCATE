@@ -1,4 +1,4 @@
 .\" $FreeBSD$
-Set to not build
+Do not build
 .Xr locate 1
 and related programs.
