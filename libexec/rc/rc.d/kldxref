@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: kldxref
-# REQUIRE: FILESYSTEMS
+# REQUIRE: root
 # BEFORE:  netif
 # KEYWORD: nojail
 
