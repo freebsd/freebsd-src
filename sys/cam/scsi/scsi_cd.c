@@ -1259,6 +1259,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 
 				status = done_ccb->ccb_h.status;
 
+				bzero(&cgd, sizeof(cgd));
 				xpt_setup_ccb(&cgd.ccb_h,
 					      done_ccb->ccb_h.path,
 					      CAM_PRIORITY_NORMAL);

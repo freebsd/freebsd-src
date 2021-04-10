@@ -634,6 +634,7 @@ nvme_device_transport(struct cam_path *path)
 	path->device->protocol_version = cpi.protocol_version;
 
 	/* Tell the controller what we think */
+	memset(&cts, 0, sizeof(cts));
 	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
 	cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;
@@ -792,6 +793,7 @@ nvme_announce_periph(struct cam_periph *periph)
 	cam_periph_assert(periph, MA_OWNED);
 
 	/* Ask the SIM for connection details */
+	memset(&cts, 0, sizeof(cts));
 	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;

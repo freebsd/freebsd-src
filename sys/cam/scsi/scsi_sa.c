@@ -2403,6 +2403,7 @@ saregister(struct cam_periph *periph, void *arg)
 
 		bzero(&ext_inq, sizeof(ext_inq));
 
+		memset(&cdai, 0, sizeof(cdai));
 		xpt_setup_ccb(&cdai.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 
 		cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
@@ -4416,6 +4417,7 @@ saextget(struct cdev *dev, struct cam_periph *periph, struct sbuf *sb,
 	SASBADDVARSTR(sb, indent, periph->periph_name, %s, periph_name,
 	    strlen(periph->periph_name) + 1);
 	SASBADDUINT(sb, indent, periph->unit_number, %u, unit_number);
+	memset(&cgd, 0, sizeof(cgd));
 	xpt_setup_ccb(&cgd.ccb_h,
 		      periph->path,
 		      CAM_PRIORITY_NORMAL);

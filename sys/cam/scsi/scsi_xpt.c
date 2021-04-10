@@ -2737,6 +2737,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_path *path
 
 	inq_data = &device->inq_data;
 	scsi = &cts->proto_specific.scsi;
+	memset(&cpi, 0, sizeof(cpi));
 	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
@@ -3093,6 +3094,7 @@ scsi_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 	struct	ccb_trans_settings cts;
 	u_int speed, freq, mb;
 
+	memset(&cts, 0, sizeof(cts));
 	_scsi_announce_periph(periph, &speed, &freq, &cts);
 	if (cam_ccb_status((union ccb *)&cts) != CAM_REQ_CMP)
 		return;
