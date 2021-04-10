@@ -35,7 +35,8 @@ CFLAGS+=	-I${.CURDIR}/ld128
 CFLAGS+=	-I${.CURDIR}/${ARCH_SUBDIR}
 
 .include <bsd.compiler.mk>
-.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 100000
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 100000 && \
+    (${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386")
 # When using clang with x86_64 CPUs that support AVX, some floating point
 # transformations may raise exceptions that would not have been raised by the
 # original code. To avoid this, use the -fp-exception-behavior=maytrap flag,
