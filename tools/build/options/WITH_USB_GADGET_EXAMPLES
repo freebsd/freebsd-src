@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to build USB gadget kernel modules.
+Build USB gadget kernel modules.

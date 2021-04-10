@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to not build OpenSSH.
+Do not build OpenSSH.

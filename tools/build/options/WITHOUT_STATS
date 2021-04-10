@@ -1,4 +1,4 @@
 .\" $FreeBSD$
-Set to neither build nor install
+Neither build nor install
 .Lb libstats
 and dependent binaries.

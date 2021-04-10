@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-Set to not build any cross compiler in the cross-tools stage of buildworld.
+Do not build any cross compiler in the cross-tools stage of buildworld.
 When compiling a different version of
 .Fx
 than what is installed on the system, provide an alternate

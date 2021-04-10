@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-Set to not build ELF Tool Chain tools
+Do not build ELF Tool Chain tools
 (addr2line, nm, size, strings and strip)
 as part of the bootstrap process.
 .Bf -symbolic

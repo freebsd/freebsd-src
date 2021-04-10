@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to not build the boot blocks and loader.
+Do not build the boot blocks and loader.

@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to not build any mail support (MUA or MTA).
+Do not build any mail support (MUA or MTA).
