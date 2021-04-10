@@ -471,11 +471,8 @@ __max_nr_grant_frames(void)
 static inline
 unsigned int max_nr_grant_frames(void)
 {
-	unsigned int xen_max = __max_nr_grant_frames();
 
-	if (xen_max > boot_max_nr_grant_frames)
-		return (boot_max_nr_grant_frames);
-	return (xen_max);
+	return (min(__max_nr_grant_frames(), boot_max_nr_grant_frames));
 }
 
 #ifdef notyet
