@@ -3155,7 +3155,7 @@ resource_init_map_request_impl(struct resource_map_request *args, size_t sz)
 {
 	bzero(args, sz);
 	args->size = sz;
-	args->memattr = VM_MEMATTR_UNCACHEABLE;
+	args->memattr = VM_MEMATTR_DEVICE;
 }
 
 /**
