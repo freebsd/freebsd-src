@@ -182,6 +182,13 @@ _thr_rtld_clr_flag(int mask __unused)
 	return (0);
 }
 
+/*
+ * ABI bug workaround: This symbol must be present for rtld to accept
+ * RTLI_VERSION from RtldLockInfo
+ */
+extern char _pli_rtli_version;
+char _pli_rtli_version;
+
 void
 _thr_rtld_init(void)
 {
@@ -205,6 +212,7 @@ _thr_rtld_init(void)
 	mprotect(NULL, 0, 0);
 	_rtld_get_stack_prot();
 
+	li.rtli_version = RTLI_VERSION;
 	li.lock_create  = _thr_rtld_lock_create;
 	li.lock_destroy = _thr_rtld_lock_destroy;
 	li.rlock_acquire = _thr_rtld_rlock_acquire;
