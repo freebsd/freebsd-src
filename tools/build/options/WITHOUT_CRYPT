@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to not build any crypto code.
+Do not build any crypto code.

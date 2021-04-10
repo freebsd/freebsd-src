@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to not build libgssapi.
+Do not build libgssapi.

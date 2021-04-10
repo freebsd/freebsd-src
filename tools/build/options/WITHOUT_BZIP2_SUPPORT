@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to build some programs without optional bzip2 support.
+Build some programs without optional bzip2 support.

@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to not build NLS catalogs.
+Do not build NLS catalogs.

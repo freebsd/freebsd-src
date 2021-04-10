@@ -1,4 +1,4 @@
 .\" $FreeBSD$
-Set to not build
+Do not build
 .Xr ppp 8
 and related programs.

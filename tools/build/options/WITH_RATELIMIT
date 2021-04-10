@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-Set to build the system with rate limit support.
+Build the system with rate limit support.
 .Pp
 This makes
 .Dv SO_MAX_PACING_RATE

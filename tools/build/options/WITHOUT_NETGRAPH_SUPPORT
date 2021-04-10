@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to build libraries, programs, and kernel modules without netgraph support.
+Build libraries, programs, and kernel modules without netgraph support.

@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to build openfirmware bootloader components.
+Build openfirmware bootloader components.

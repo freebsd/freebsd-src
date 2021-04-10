@@ -1,4 +1,4 @@
 .\" $FreeBSD$
-Set to not install
+Do not install
 .Xr make 1
 and related support files.

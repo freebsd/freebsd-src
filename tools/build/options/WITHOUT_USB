@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to not build USB-related programs and libraries.
+Do not build USB-related programs and libraries.

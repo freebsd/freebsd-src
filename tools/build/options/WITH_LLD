@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to build LLVM's lld linker.
+Build LLVM's lld linker.

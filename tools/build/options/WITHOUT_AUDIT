@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to not build audit support into system programs.
+Do not build audit support into system programs.

@@ -1,4 +1,4 @@
 .\" $FreeBSD$
-Set to disable the build of the
+Disable the build of the
 .Dq "OpenFabrics Enterprise Distribution"
 Infiniband software stack, including kernel modules and userspace libraries.
