@@ -293,9 +293,9 @@ zio_fini(void)
 
 	for (i = 0; i < n; i++) {
 		if (zio_buf_cache[i] != NULL)
-			panic("zio_fini: zio_buf_cache[%d] != NULL", (int)i);
+			panic("zio_fini: zio_buf_cache[%zd] != NULL", i);
 		if (zio_data_buf_cache[i] != NULL)
-			panic("zio_fini: zio_data_buf_cache[%d] != NULL", (int)i);
+			panic("zio_fini: zio_data_buf_cache[%zd] != NULL", i);
 	}
 
 	kmem_cache_destroy(zio_link_cache);
