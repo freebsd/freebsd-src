@@ -632,7 +632,9 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 	}
 
 	M_SETFIB(m, ifp->if_fib);
+	CURVNET_SET_QUIET(ifp->if_vnet);
 	netisr_dispatch(isr, m);
+	CURVNET_RESTORE();
 }
 
 int
