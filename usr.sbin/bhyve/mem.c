@@ -109,9 +109,11 @@ mmio_rb_add(struct mmio_rb_tree *rbt, struct mmio_rb_range *new)
 
 	if (overlap != NULL) {
 #ifdef RB_DEBUG
-		printf("overlap detected: new %lx:%lx, tree %lx:%lx\n",
+		printf("overlap detected: new %lx:%lx, tree %lx:%lx, '%s' "
+		       "claims region already claimed for '%s'\n",
 		       new->mr_base, new->mr_end,
-		       overlap->mr_base, overlap->mr_end);
+		       overlap->mr_base, overlap->mr_end,
+		       new->mr_param.name, overlap->mr_param.name);
 #endif
 
 		return (EEXIST);
