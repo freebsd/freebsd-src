@@ -1381,20 +1381,21 @@ cleanup_xaddrs_gateway(struct rt_addrinfo *info)
 #endif
 	case AF_LINK:
 		{
-			struct sockaddr_dl_short *gw_sdl;
+			struct sockaddr_dl *gw_sdl;
 
-			gw_sdl = (struct sockaddr_dl_short *)gw;
-			if (gw_sdl->sdl_len < sizeof(struct sockaddr_dl_short)) {
+			size_t sdl_min_len = offsetof(struct sockaddr_dl, sdl_data);
+			gw_sdl = (struct sockaddr_dl *)gw;
+			if (gw_sdl->sdl_len < sdl_min_len) {
 				printf("gw sdl_len too small\n");
 				return (EINVAL);
 			}
 
 			const struct sockaddr_dl_short sdl = {
 				.sdl_family = AF_LINK,
-				.sdl_len = sizeof(struct sockaddr_dl_short),
+				.sdl_len = sdl_min_len,
 				.sdl_index = gw_sdl->sdl_index,
 			};
-			*gw_sdl = sdl;
+			memcpy(gw_sdl, &sdl, sdl_min_len);
 			break;
 		}
 	}
