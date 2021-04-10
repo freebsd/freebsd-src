@@ -344,8 +344,23 @@ lockdflt_init(void)
 void
 _rtld_thread_init(struct RtldLockInfo *pli)
 {
-	int flags, i;
+	const Obj_Entry *obj;
+	SymLook req;
 	void *locks[RTLD_LOCK_CNT];
+	int flags, i, res;
+
+	if (pli == NULL) {
+		lockinfo.rtli_version = RTLI_VERSION;
+	} else {
+		lockinfo.rtli_version = RTLI_VERSION_ONE;
+		obj = obj_from_addr(pli->lock_create);
+		if (obj != NULL) {
+			symlook_init(&req, "_pli_rtli_version");
+			res = symlook_obj(&req, obj);
+			if (res == 0)
+				lockinfo.rtli_version = pli->rtli_version;
+		}
+	}
 
 	/* disable all locking while this function is running */
 	flags =	thread_mask_set(~0);

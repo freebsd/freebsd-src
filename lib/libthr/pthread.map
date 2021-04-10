@@ -296,6 +296,9 @@ FBSDprivate_1.0 {
 	_thread_size_key;
 	_thread_state_running;
 	_thread_state_zoombie;
+
+	/* ABI bug workaround, indicate that pli->rtli_version is valid */
+	_pli_rtli_version;
 };
 
 FBSD_1.1 {
