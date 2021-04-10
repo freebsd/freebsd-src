@@ -63,6 +63,8 @@ extern rtld_lock_t	rtld_bind_lock;
 extern rtld_lock_t	rtld_libc_lock;
 extern rtld_lock_t	rtld_phdr_lock;
 
+extern struct RtldLockInfo lockinfo;
+
 #define	RTLD_LOCK_UNLOCKED	0
 #define	RTLD_LOCK_RLOCKED	1
 #define	RTLD_LOCK_WLOCKED	2

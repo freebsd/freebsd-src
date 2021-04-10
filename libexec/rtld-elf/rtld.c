@@ -124,7 +124,6 @@ static Obj_Entry *load_object(const char *, int fd, const Obj_Entry *, int);
 static void map_stacks_exec(RtldLockState *);
 static int obj_disable_relro(Obj_Entry *);
 static int obj_enforce_relro(Obj_Entry *);
-static Obj_Entry *obj_from_addr(const void *);
 static void objlist_call_fini(Objlist *, Obj_Entry *, RtldLockState *);
 static void objlist_call_init(Objlist *, RtldLockState *);
 static void objlist_clear(Objlist *);
@@ -2668,7 +2667,7 @@ errp:
     return (NULL);
 }
 
-static Obj_Entry *
+Obj_Entry *
 obj_from_addr(const void *addr)
 {
     Obj_Entry *obj;

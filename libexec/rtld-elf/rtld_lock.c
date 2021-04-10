@@ -192,7 +192,7 @@ def_thread_clr_flag(int mask)
 /*
  * Public interface exposed to the rest of the dynamic linker.
  */
-static struct RtldLockInfo lockinfo;
+struct RtldLockInfo lockinfo;
 static struct RtldLockInfo deflockinfo;
 
 static __inline int
