@@ -4619,6 +4619,7 @@ int
 nfsv4_seqsession(uint32_t seqid, uint32_t slotid, uint32_t highslot,
     struct nfsslot *slots, struct mbuf **reply, uint16_t maxslot)
 {
+	struct mbuf *m;
 	int error;
 
 	error = 0;
@@ -4632,8 +4633,14 @@ nfsv4_seqsession(uint32_t seqid, uint32_t slotid, uint32_t highslot,
 			error = NFSERR_DELAY;
 		else if (slots[slotid].nfssl_reply != NULL) {
 			if (reply != NULL) {
-				*reply = slots[slotid].nfssl_reply;
-				slots[slotid].nfssl_reply = NULL;
+				m = m_copym(slots[slotid].nfssl_reply, 0,
+				    M_COPYALL, M_NOWAIT);
+				if (m != NULL)
+					*reply = m;
+				else {
+					*reply = slots[slotid].nfssl_reply;
+					slots[slotid].nfssl_reply = NULL;
+				}
 			}
 			slots[slotid].nfssl_inprog = 1;
 			error = NFSERR_REPLYFROMCACHE;
@@ -4660,10 +4667,29 @@ void
 nfsv4_seqsess_cacherep(uint32_t slotid, struct nfsslot *slots, int repstat,
    struct mbuf **rep)
 {
+	struct mbuf *m;
 
 	if (repstat == NFSERR_REPLYFROMCACHE) {
-		*rep = slots[slotid].nfssl_reply;
-		slots[slotid].nfssl_reply = NULL;
+		if (slots[slotid].nfssl_reply != NULL) {
+			/*
+			 * We cannot sleep here, but copy will usually
+			 * succeed.
+			 */
+			m = m_copym(slots[slotid].nfssl_reply, 0, M_COPYALL,
+			    M_NOWAIT);
+			if (m != NULL)
+				*rep = m;
+			else {
+				/*
+				 * Multiple retries would be extremely rare,
+				 * so using the cached reply will likely
+				 * be ok.
+				 */
+				*rep = slots[slotid].nfssl_reply;
+				slots[slotid].nfssl_reply = NULL;
+			}
+		} else
+			*rep = NULL;
 	} else {
 		if (slots[slotid].nfssl_reply != NULL)
 			m_freem(slots[slotid].nfssl_reply);
