@@ -428,7 +428,7 @@ rn_insert(void *v_arg, struct radix_head *head, int *dupentry,
 	int head_off = top->rn_offset, vlen = LEN(v);
 	struct radix_node *t = rn_search(v_arg, top);
 	caddr_t cp = v + head_off;
-	int b;
+	unsigned b;
 	struct radix_node *p, *tt, *x;
     	/*
 	 * Find first bit at which v and t->rn_key differ
