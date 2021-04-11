@@ -31,6 +31,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	Commit 7763814fc9c2 changed the internal KAPI between
 	the krpc and NFS.  As such, the krpc, nfscommon and
 	nfscl modules must all be rebuilt from sources.
+	Without this patch, NFSv4.1/4.2 mounts should not
+	be done with the nfscbd(8) daemon running, to avoid
+	needing a working back channel for server->client RPCs.
 
 20210330:
 	Commit 01ae8969a9ee fixed the NFSv4.1/4.2 server so that it
