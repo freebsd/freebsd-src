@@ -11,6 +11,10 @@
 # In case of a complete directory hierarchy the sorting is in depth first
 # order.
 #
+# Files that are installed or removed depending on some build option
+# are to be listed in /usr/src/tools/build/mk/OptionalObsoleteFiles.inc
+# instead of in this file.
+#
 # Before you commit changes to this file please check if any entries in
 # tools/build/mk/OptionalObsoleteFiles.inc can be removed. The following
 # command tells which files are listed more than once regardless of some
