@@ -1135,7 +1135,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, syscall_ret_flush_l1d, CTLTYPE_INT |
     CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, NULL, 0,
     machdep_syscall_ret_flush_l1d, "I",
     "Flush L1D on syscall return with error (0 - off, 1 - on, "
-    "2 - use hw only, 3 - use sw only");
+    "2 - use hw only, 3 - use sw only)");
 
 /*
  * System call handler for native binaries.  The trap frame is already

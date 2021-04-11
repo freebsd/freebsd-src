@@ -119,7 +119,7 @@ static int pin_pcpu_swi = 0;
 SYSCTL_INT(_kern, OID_AUTO, pin_default_swi, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &pin_default_swi,
     0, "Pin the default (non-per-cpu) swi (shared with PCPU 0 swi)");
 SYSCTL_INT(_kern, OID_AUTO, pin_pcpu_swi, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &pin_pcpu_swi,
-    0, "Pin the per-CPU swis (except PCPU 0, which is also default");
+    0, "Pin the per-CPU swis (except PCPU 0, which is also default)");
 
 /*
  * TODO:
