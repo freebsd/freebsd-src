@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: head/sys/dev/hyperv/input/hv_kbdc.h 316515 2017-04-05 05:01:23Z sephe $
  */
 
 #ifndef _HV_KBD_H
@@ -35,6 +35,12 @@
 #include <sys/systm.h>
 
 #include <dev/kbd/kbdreg.h>
+
+#include "opt_evdev.h"
+#ifdef EVDEV_SUPPORT
+#include <dev/evdev/evdev.h>
+#include <dev/evdev/input.h>
+#endif
 
 #define HVKBD_DRIVER_NAME	"hvkbd"
 #define IS_UNICODE		(1)
@@ -87,6 +93,11 @@ typedef struct hv_kbd_sc_t {
 	int				sc_polling;	/* polling recursion count */
 	uint32_t			sc_flags;
 	int				debug;
+
+#ifdef EVDEV_SUPPORT
+	struct evdev_dev		*ks_evdev;
+	int				ks_evdev_state;
+#endif
 } hv_kbd_sc;
 
 int	hv_kbd_produce_ks(hv_kbd_sc *sc, const keystroke *ks);
