@@ -554,6 +554,13 @@ char *argv[];
 	for (counter = 1; counter < 24; counter++)
 		signal(counter, SIG_IGN);
 
+	/* Always read from (and write to) a terminal. */
+	if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO)) {
+		fprintf(stderr,
+		    "ee's standard input and output must be a terminal\n");
+		exit(1);
+	}
+
 	signal(SIGCHLD, SIG_DFL);
 	signal(SIGSEGV, SIG_DFL);
 	signal(SIGINT, edit_abort);
