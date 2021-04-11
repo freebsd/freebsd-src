@@ -1538,66 +1538,48 @@ display_object(struct kinfo_vmobject *kvo)
 	xo_emit("{:inactive/%5ju} ", (uintmax_t)kvo->kvo_inactive);
 	xo_emit("{:refcount/%3d} ", kvo->kvo_ref_count);
 	xo_emit("{:shadowcount/%3d} ", kvo->kvo_shadow_count);
-	switch (kvo->kvo_memattr) {
+
+#define	MEMATTR_STR(type, val)					\
+	if (kvo->kvo_memattr == (type)) {			\
+		str = (val);					\
+	} else
 #ifdef VM_MEMATTR_UNCACHEABLE
-	case VM_MEMATTR_UNCACHEABLE:
-		str = "UC";
-		break;
+	MEMATTR_STR(VM_MEMATTR_UNCACHEABLE, "UC")
 #endif
 #ifdef VM_MEMATTR_WRITE_COMBINING
-	case VM_MEMATTR_WRITE_COMBINING:
-		str = "WC";
-		break;
+	MEMATTR_STR(VM_MEMATTR_WRITE_COMBINING, "WC")
 #endif
 #ifdef VM_MEMATTR_WRITE_THROUGH
-	case VM_MEMATTR_WRITE_THROUGH:
-		str = "WT";
-		break;
+	MEMATTR_STR(VM_MEMATTR_WRITE_THROUGH, "WT")
 #endif
 #ifdef VM_MEMATTR_WRITE_PROTECTED
-	case VM_MEMATTR_WRITE_PROTECTED:
-		str = "WP";
-		break;
+	MEMATTR_STR(VM_MEMATTR_WRITE_PROTECTED, "WP")
 #endif
 #ifdef VM_MEMATTR_WRITE_BACK
-	case VM_MEMATTR_WRITE_BACK:
-		str = "WB";
-		break;
+	MEMATTR_STR(VM_MEMATTR_WRITE_BACK, "WB")
 #endif
 #ifdef VM_MEMATTR_WEAK_UNCACHEABLE
-	case VM_MEMATTR_WEAK_UNCACHEABLE:
-		str = "UC-";
-		break;
+	MEMATTR_STR(VM_MEMATTR_WEAK_UNCACHEABLE, "UC-")
 #endif
 #ifdef VM_MEMATTR_WB_WA
-	case VM_MEMATTR_WB_WA:
-		str = "WB";
-		break;
+	MEMATTR_STR(VM_MEMATTR_WB_WA, "WB")
 #endif
 #ifdef VM_MEMATTR_NOCACHE
-	case VM_MEMATTR_NOCACHE:
-		str = "NC";
-		break;
+	MEMATTR_STR(VM_MEMATTR_NOCACHE, "NC")
 #endif
 #ifdef VM_MEMATTR_DEVICE
-	case VM_MEMATTR_DEVICE:
-		str = "DEV";
-		break;
+	MEMATTR_STR(VM_MEMATTR_DEVICE, "DEV")
 #endif
 #ifdef VM_MEMATTR_CACHEABLE
-	case VM_MEMATTR_CACHEABLE:
-		str = "C";
-		break;
+	MEMATTR_STR(VM_MEMATTR_CACHEABLE, "C")
 #endif
 #ifdef VM_MEMATTR_PREFETCHABLE
-	case VM_MEMATTR_PREFETCHABLE:
-		str = "PRE";
-		break;
+	MEMATTR_STR(VM_MEMATTR_PREFETCHABLE, "PRE")
 #endif
-	default:
+	{
 		str = "??";
-		break;
 	}
+#undef MEMATTR_STR
 	xo_emit("{:attribute/%-3s} ", str);
 	switch (kvo->kvo_type) {
 	case KVME_TYPE_NONE:
