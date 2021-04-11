@@ -98,6 +98,11 @@ int nfs_maxcopyrange = 10 * 1024 * 1024;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, maxcopyrange, CTLFLAG_RW,
     &nfs_maxcopyrange, 0, "Max size of a Copy so RPC times reasonable");
 
+static int nfs_allowskip_sessionseq = 1;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, linuxseqsesshack, CTLFLAG_RW,
+    &nfs_allowskip_sessionseq, 0, "Allow client to skip ahead one seq# for"
+    " session slot");
+
 /*
  * This array of structures indicates, for V4:
  * retfh - which of 3 types of calling args are used
@@ -4614,7 +4619,7 @@ nfsmout:
  * Handle an NFSv4.1 Sequence request for the session.
  * If reply != NULL, use it to return the cached reply, as required.
  * The client gets a cached reply via this call for callbacks, however the
- * server gets a cached reply via the nfsv4_seqsess_cachereply() call.
+ * server gets a cached reply via the nfsv4_seqsess_cacherep() call.
  */
 int
 nfsv4_seqsession(uint32_t seqid, uint32_t slotid, uint32_t highslot,
@@ -4648,12 +4653,24 @@ nfsv4_seqsession(uint32_t seqid, uint32_t slotid, uint32_t highslot,
 		} else
 			/* No reply cached, so just do it. */
 			slots[slotid].nfssl_inprog = 1;
-	} else if ((slots[slotid].nfssl_seq + 1) == seqid) {
+	} else if (slots[slotid].nfssl_seq + 1 == seqid ||
+	    (slots[slotid].nfssl_seq + 2 == seqid &&
+	     nfs_allowskip_sessionseq != 0)) {
+		/*
+		 * Allowing the seqid to be ahead by 2 is technically
+		 * a violation of RFC5661, but it seems harmless to do
+		 * and avoids returning NFSERR_SEQMISORDERED to a
+		 * slightly broken Linux NFSv4.1/4.2 client.
+		 * If the RPCs are really out of order, one with a
+		 * lower seqid will be subsequently received and that
+		 * one will get a NFSERR_SEQMISORDERED reply.
+		 * Can be disabled by setting vfs.nfs.linuxseqsesshack to 0.
+		 */
 		if (slots[slotid].nfssl_reply != NULL)
 			m_freem(slots[slotid].nfssl_reply);
 		slots[slotid].nfssl_reply = NULL;
 		slots[slotid].nfssl_inprog = 1;
-		slots[slotid].nfssl_seq++;
+		slots[slotid].nfssl_seq = seqid;
 	} else
 		error = NFSERR_SEQMISORDERED;
 	return (error);
