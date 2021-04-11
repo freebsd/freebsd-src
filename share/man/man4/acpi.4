@@ -126,14 +126,17 @@ with legacy rebooting support.
 .It Va hw.acpi.lid_switch_state
 Suspend state
 .Pq Li S1 Ns \[en] Ns Li S5
-to enter when the lid switch (i.e., a notebook screen) is closed.
-Default is
+to enter when the lid switch (i.e., a notebook screen) is closed, or
 .Dq Li NONE
-(do nothing).
+.Pq do nothing .
+Default is
+.Dq Li NONE .
 .It Va hw.acpi.power_button_state
 Suspend state
 .Pq Li S1 Ns \[en] Ns Li S5
-to enter when the power button is pressed.
+to enter when the power button is pressed, or
+.Dq Li NONE
+.Pq do nothing .
 Default is
 .Li S5
 (power-off nicely).
