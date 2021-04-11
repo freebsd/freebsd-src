@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/taskqueue.h>
 #include <sys/selinfo.h>
@@ -81,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #define	HVKBD_UNLOCK()		HVKBD_MTX_UNLOCK(&Giant)
 #define	HVKBD_LOCK_ASSERT()	HVKBD_MTX_ASSERT(&Giant, MA_OWNED)
 
+#define	HVKBD_FLAG_COMPOSE	0x00000001	/* compose char flag */
 #define HVKBD_FLAG_POLLING	0x00000002
 
 #ifdef EVDEV_SUPPORT
@@ -237,6 +239,8 @@ hvkbd_check_char_locked(keyboard_t *kbd)
 		return (FALSE);
 
 	hv_kbd_sc *sc = kbd->kb_data;
+	if (!(sc->sc_flags & HVKBD_FLAG_COMPOSE) && sc->sc_composed_char != 0)
+		return (TRUE);
 	if (sc->sc_flags & HVKBD_FLAG_POLLING)
 		hvkbd_do_poll(sc, 0);
 	if (hv_kbd_prod_is_ready(sc)) {
@@ -262,6 +266,7 @@ static uint32_t
 hvkbd_read_char_locked(keyboard_t *kbd, int wait)
 {
 	uint32_t scancode = NOKEY;
+	uint32_t action;
 	keystroke ks;
 	hv_kbd_sc *sc = kbd->kb_data;
 #ifdef EVDEV_SUPPORT
@@ -271,67 +276,268 @@ hvkbd_read_char_locked(keyboard_t *kbd, int wait)
 
 	if (!KBD_IS_ACTIVE(kbd) || !hv_kbd_prod_is_ready(sc))
 		return (NOKEY);
-	if (sc->sc_mode == K_RAW) {
-		if (hv_kbd_fetch_top(sc, &ks)) {
-			return (NOKEY);
-		}
-		if ((ks.info & IS_E0) || (ks.info & IS_E1)) {
-			/**
-			 * Emulate the generation of E0 or E1 scancode,
-			 * the real scancode will be consumed next time.
-			 */
-			if (ks.info & IS_E0) {
-				scancode = XTKBD_EMUL0;
-				ks.info &= ~IS_E0;
-			} else if (ks.info & IS_E1) {
-				scancode = XTKBD_EMUL1;
-				ks.info &= ~IS_E1;
-			}
-			/**
-			 * Change the top item to avoid encountering
-			 * E0 or E1 twice.
-			 */
-			hv_kbd_modify_top(sc, &ks);
-		} else if (ks.info & IS_UNICODE) {
-			/**
-			 * XXX: Hyperv host send unicode to VM through
-			 * 'Type clipboard text', the mapping from
-			 * unicode to scancode depends on the keymap.
-			 * It is so complicated that we do not plan to
-			 * support it yet.
-			 */
-			if (bootverbose)
-				device_printf(sc->dev, "Unsupported unicode\n");
-			hv_kbd_remove_top(sc);
-			return (NOKEY);
-		} else {
-			scancode = ks.makecode;
-			if (ks.info & IS_BREAK) {
-				scancode |= XTKBD_RELEASE;
-			}
-			hv_kbd_remove_top(sc);
-		}
-#ifdef EVDEV_SUPPORT
-		/* push evdev event */
-		if (evdev_rcpt_mask & EVDEV_RCPT_HW_KBD &&
-		    sc->ks_evdev != NULL) {
-			keycode = evdev_scancode2key(&sc->ks_evdev_state,
-			    scancode);
 
-			if (keycode != KEY_RESERVED) {
-				evdev_push_event(sc->ks_evdev, EV_KEY,
-				    (uint16_t)keycode, scancode & 0x80 ? 0 : 1);
-				evdev_sync(sc->ks_evdev);
-			}
+next_code:
+
+	/* do we have a composed char to return? */
+	if (!(sc->sc_flags & HVKBD_FLAG_COMPOSE) && sc->sc_composed_char > 0) {
+		action = sc->sc_composed_char;
+		sc->sc_composed_char = 0;
+		if (action > UCHAR_MAX) {
+			return (ERRKEY);
 		}
-#endif
-	} else {
-		if (bootverbose)
-			device_printf(sc->dev, "Unsupported mode: %d\n", sc->sc_mode);
+		return (action);
 	}
+
+	if (hv_kbd_fetch_top(sc, &ks)) {
+		return (NOKEY);
+	}
+	if ((ks.info & IS_E0) || (ks.info & IS_E1)) {
+		/**
+		 * Emulate the generation of E0 or E1 scancode,
+		 * the real scancode will be consumed next time.
+		 */
+		if (ks.info & IS_E0) {
+			scancode = XTKBD_EMUL0;
+			ks.info &= ~IS_E0;
+		} else if (ks.info & IS_E1) {
+			scancode = XTKBD_EMUL1;
+			ks.info &= ~IS_E1;
+		}
+		/**
+		 * Change the top item to avoid encountering
+		 * E0 or E1 twice.
+		 */
+		hv_kbd_modify_top(sc, &ks);
+	} else if (ks.info & IS_UNICODE) {
+		/**
+		 * XXX: Hyperv host send unicode to VM through
+		 * 'Type clipboard text', the mapping from
+		 * unicode to scancode depends on the keymap.
+		 * It is so complicated that we do not plan to
+		 * support it yet.
+		 */
+		if (bootverbose)
+			device_printf(sc->dev, "Unsupported unicode\n");
+		hv_kbd_remove_top(sc);
+		return (NOKEY);
+	} else {
+		scancode = ks.makecode;
+		if (ks.info & IS_BREAK) {
+			scancode |= XTKBD_RELEASE;
+		}
+		hv_kbd_remove_top(sc);
+	}
+#ifdef EVDEV_SUPPORT
+	/* push evdev event */
+	if (evdev_rcpt_mask & EVDEV_RCPT_HW_KBD &&
+	    sc->ks_evdev != NULL) {
+		keycode = evdev_scancode2key(&sc->ks_evdev_state,
+		    scancode);
+
+		if (keycode != KEY_RESERVED) {
+			evdev_push_event(sc->ks_evdev, EV_KEY,
+			    (uint16_t)keycode, scancode & 0x80 ? 0 : 1);
+			evdev_sync(sc->ks_evdev);
+		}
+	}
+#endif
 	++kbd->kb_count;
 	DEBUG_HVKBD(kbd, "read scan: 0x%x\n", scancode);
-	return scancode;
+
+	/* return the byte as is for the K_RAW mode */
+	if (sc->sc_mode == K_RAW)
+		return scancode;
+
+	/* translate the scan code into a keycode */
+	keycode = scancode & 0x7F;
+	switch (sc->sc_prefix) {
+	case 0x00:      /* normal scancode */
+		switch(scancode) {
+		case 0xB8:      /* left alt (compose key) released */
+			if (sc->sc_flags & HVKBD_FLAG_COMPOSE) {
+				sc->sc_flags &= ~HVKBD_FLAG_COMPOSE;
+				if (sc->sc_composed_char > UCHAR_MAX)
+					sc->sc_composed_char = 0;
+			}
+			break;
+		case 0x38:      /* left alt (compose key) pressed */
+			if (!(sc->sc_flags & HVKBD_FLAG_COMPOSE)) {
+				sc->sc_flags |= HVKBD_FLAG_COMPOSE;
+				sc->sc_composed_char = 0;
+			}
+			break;
+		case 0xE0:
+		case 0xE1:
+			sc->sc_prefix = scancode;
+			goto next_code;
+		}
+		break;
+	case 0xE0:		/* 0xE0 prefix */
+		sc->sc_prefix = 0;
+		switch (keycode) {
+		case 0x1C:	/* right enter key */
+			keycode = 0x59;
+			break;
+		case 0x1D:	/* right ctrl key */
+			keycode = 0x5A;
+			break;
+		case 0x35:	/* keypad divide key */
+			keycode = 0x5B;
+			break;
+		case 0x37:	/* print scrn key */
+			keycode = 0x5C;
+			break;
+		case 0x38:	/* right alt key (alt gr) */
+			keycode = 0x5D;
+			break;
+		case 0x46:	/* ctrl-pause/break on AT 101 (see below) */
+			keycode = 0x68;
+			break;
+		case 0x47:	/* grey home key */
+			keycode = 0x5E;
+			break;
+		case 0x48:	/* grey up arrow key */
+			keycode = 0x5F;
+			break;
+		case 0x49:	/* grey page up key */
+			keycode = 0x60;
+			break;
+		case 0x4B:	/* grey left arrow key */
+			keycode = 0x61;
+			break;
+		case 0x4D:	/* grey right arrow key */
+			keycode = 0x62;
+			break;
+		case 0x4F:	/* grey end key */
+			keycode = 0x63;
+			break;
+		case 0x50:	/* grey down arrow key */
+			keycode = 0x64;
+			break;
+		case 0x51:	/* grey page down key */
+			keycode = 0x65;
+			break;
+		case 0x52:	/* grey insert key */
+			keycode = 0x66;
+			break;
+		case 0x53:	/* grey delete key */
+			keycode = 0x67;
+			break;
+			/* the following 3 are only used on the MS "Natural" keyboard */
+		case 0x5b:	/* left Window key */
+			keycode = 0x69;
+			break;
+		case 0x5c:	/* right Window key */
+			keycode = 0x6a;
+			break;
+		case 0x5d:	/* menu key */
+			keycode = 0x6b;
+			break;
+		case 0x5e:	/* power key */
+			keycode = 0x6d;
+			break;
+		case 0x5f:	/* sleep key */
+			keycode = 0x6e;
+			break;
+		case 0x63:	/* wake key */
+			keycode = 0x6f;
+			break;
+		default:	/* ignore everything else */
+			goto next_code;
+		}
+		break;
+	case 0xE1:	/* 0xE1 prefix */
+		/*
+		 * The pause/break key on the 101 keyboard produces:
+		 * E1-1D-45 E1-9D-C5
+		 * Ctrl-pause/break produces:
+		 * E0-46 E0-C6 (See above.)
+		 */
+		sc->sc_prefix = 0;
+		if (keycode == 0x1D)
+			sc->sc_prefix = 0x1D;
+		goto next_code;
+		/* NOT REACHED */
+	case 0x1D:	/* pause / break */
+		sc->sc_prefix = 0;
+		if (keycode != 0x45)
+			goto next_code;
+		keycode = 0x68;
+		break;
+	}
+
+	/* XXX assume 101/102 keys AT keyboard */
+	switch (keycode) {
+	case 0x5c:      /* print screen */
+		if (sc->sc_flags & ALTS)
+			keycode = 0x54; /* sysrq */
+		break;
+	case 0x68:      /* pause/break */
+		if (sc->sc_flags & CTLS)
+			keycode = 0x6c; /* break */
+		break;
+	}
+
+	/* return the key code in the K_CODE mode */
+	if (sc->sc_mode == K_CODE)
+		return (keycode | (scancode & 0x80));
+
+	/* compose a character code */
+	if (sc->sc_flags &  HVKBD_FLAG_COMPOSE) {
+		switch (keycode | (scancode & 0x80)) {
+		/* key pressed, process it */
+		case 0x47: case 0x48: case 0x49:	/* keypad 7,8,9 */
+			sc->sc_composed_char *= 10;
+			sc->sc_composed_char += keycode - 0x40;
+			if (sc->sc_composed_char > UCHAR_MAX)
+				return ERRKEY;
+			goto next_code;
+		case 0x4B: case 0x4C: case 0x4D:	/* keypad 4,5,6 */
+			sc->sc_composed_char *= 10;
+			sc->sc_composed_char += keycode - 0x47;
+			if (sc->sc_composed_char > UCHAR_MAX)
+				return ERRKEY;
+			goto next_code;
+		case 0x4F: case 0x50: case 0x51:	/* keypad 1,2,3 */
+			sc->sc_composed_char *= 10;
+			sc->sc_composed_char += keycode - 0x4E;
+			if (sc->sc_composed_char > UCHAR_MAX)
+				return ERRKEY;
+			goto next_code;
+		case 0x52:				/* keypad 0 */
+			sc->sc_composed_char *= 10;
+			if (sc->sc_composed_char > UCHAR_MAX)
+				return ERRKEY;
+			goto next_code;
+
+		/* key released, no interest here */
+		case 0xC7: case 0xC8: case 0xC9:	/* keypad 7,8,9 */
+		case 0xCB: case 0xCC: case 0xCD:	/* keypad 4,5,6 */
+		case 0xCF: case 0xD0: case 0xD1:	/* keypad 1,2,3 */
+		case 0xD2:				/* keypad 0 */
+			goto next_code;
+
+		case 0x38:				/* left alt key */
+			break;
+
+		default:
+			if (sc->sc_composed_char > 0) {
+				sc->sc_flags &= ~HVKBD_FLAG_COMPOSE;
+				sc->sc_composed_char = 0;
+				return (ERRKEY);
+			}
+			break;
+		}
+	}
+
+	/* keycode to key action */
+	action = genkbd_keyaction(kbd, keycode, scancode & 0x80,
+				  &sc->sc_state, &sc->sc_accents);
+	if (action == NOKEY)
+		goto next_code;
+	else
+		return (action);
 }
 
 /* Currently wait is always false. */
@@ -353,7 +559,9 @@ hvkbd_clear_state(keyboard_t *kbd)
 {
 	hv_kbd_sc *sc = kbd->kb_data;
 	sc->sc_state &= LOCK_MASK;	/* preserve locking key state */
-	sc->sc_flags &= ~HVKBD_FLAG_POLLING;
+	sc->sc_flags &= ~(HVKBD_FLAG_POLLING | HVKBD_FLAG_COMPOSE);
+	sc->sc_accents = 0;
+	sc->sc_composed_char = 0;
 }
 
 static int
@@ -453,6 +661,12 @@ hvkbd_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
 #endif
 		KBD_LED_VAL(kbd) = *(int *)arg;
 		break;
+	case PIO_KEYMAP:	/* set keyboard translation table */
+	case OPIO_KEYMAP:	/* set keyboard translation table (compat) */
+	case PIO_KEYMAPENT:	/* set keyboard translation table entry */
+	case PIO_DEADKEYMAP:	/* set accent key translation table */
+		sc->sc_accents = 0;
+		/* FALLTHROUGH */
 	default:
 		return (genkbd_commonioctl(kbd, cmd, arg));
 	}
@@ -578,7 +792,7 @@ hv_kbd_drv_attach(device_t dev)
 	hvkbd_clear_state(kbd);
 	KBD_PROBE_DONE(kbd);
 	KBD_INIT_DONE(kbd);
-	sc->sc_mode = K_RAW;
+	sc->sc_mode = K_XLATE;
 	(*sw->enable)(kbd);
 
 #ifdef EVDEV_SUPPORT
