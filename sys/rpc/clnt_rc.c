@@ -111,6 +111,8 @@ clnt_reconnect_create(
 	rc->rc_client = NULL;
 	rc->rc_tls = false;
 	rc->rc_tlscertname = NULL;
+	rc->rc_reconcall = NULL;
+	rc->rc_reconarg = NULL;
 
 	cl->cl_refs = 1;
 	cl->cl_ops = &clnt_reconnect_ops;
@@ -213,6 +215,9 @@ clnt_reconnect_connect(CLIENT *cl)
 				goto out;
 			}
 		}
+		if (newclient != NULL && rc->rc_reconcall != NULL)
+			(*rc->rc_reconcall)(newclient, rc->rc_reconarg,
+			    rc->rc_ucred);
 	}
 	td->td_ucred = oldcred;
 
@@ -408,6 +413,7 @@ clnt_reconnect_control(CLIENT *cl, u_int request, void *info)
 	struct rc_data *rc = (struct rc_data *)cl->cl_private;
 	SVCXPRT *xprt;
 	size_t slen;
+	struct rpc_reconupcall *upcp;
 
 	if (info == NULL) {
 		return (FALSE);
@@ -513,6 +519,12 @@ clnt_reconnect_control(CLIENT *cl, u_int request, void *info)
 		strlcpy(rc->rc_tlscertname, info, slen);
 		break;
 
+	case CLSET_RECONUPCALL:
+		upcp = (struct rpc_reconupcall *)info;
+		rc->rc_reconcall = upcp->call;
+		rc->rc_reconarg = upcp->arg;
+		break;
+
 	default:
 		return (FALSE);
 	}
@@ -555,12 +567,15 @@ clnt_reconnect_destroy(CLIENT *cl)
 		CLNT_DESTROY(rc->rc_client);
 	if (rc->rc_backchannel) {
 		xprt = (SVCXPRT *)rc->rc_backchannel;
+		KASSERT(xprt->xp_socket == NULL,
+		    ("clnt_reconnect_destroy: xp_socket not NULL"));
 		xprt_unregister(xprt);
 		SVC_RELEASE(xprt);
 	}
 	crfree(rc->rc_ucred);
 	mtx_destroy(&rc->rc_lock);
 	mem_free(rc->rc_tlscertname, 0);	/* 0 ok, since arg. ignored. */
+	mem_free(rc->rc_reconarg, 0);
 	mem_free(rc, sizeof(*rc));
 	mem_free(cl, sizeof (CLIENT));
 }
