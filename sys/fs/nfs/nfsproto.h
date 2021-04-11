@@ -359,10 +359,13 @@
 #define	NFSPROC_OPENLAYGET	54
 #define	NFSPROC_CREATELAYGET	55
 
+/* BindConnectionToSession, done by the krpc for a new connection. */
+#define	NFSPROC_BINDCONNTOSESS	56
+
 /*
  * Must be defined as one higher than the last NFSv4.1 Proc# above.
  */
-#define	NFSV41_NPROCS		56
+#define	NFSV41_NPROCS		57
 
 #endif	/* NFS_V3NPROCS */
 

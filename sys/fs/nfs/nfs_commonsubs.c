@@ -192,7 +192,7 @@ static struct nfsrv_lughash	*nfsgroupnamehash;
  */
 static int nfs_bigreply[NFSV41_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 };
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 };
 
 /* local functions */
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
@@ -267,6 +267,7 @@ static struct {
 	{ NFSV4OP_COMMIT, 1, "CommitDS", 8, },
 	{ NFSV4OP_OPEN, 3, "OpenLayoutGet", 13, },
 	{ NFSV4OP_OPEN, 8, "CreateLayGet", 12, },
+	{ NFSV4OP_BINDCONNTOSESS, 1, "BindConSess", 11, },
 };
 
 /*
@@ -275,7 +276,7 @@ static struct {
 static int nfs_bigrequest[NFSV41_NPROCS] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0
+	0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0
 };
 
 /*

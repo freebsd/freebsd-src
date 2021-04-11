@@ -357,6 +357,12 @@ enum clnt_stat clnt_call_private(CLIENT *, struct rpc_callextra *, rpcproc_t,
 #define CLSET_PRIVPORT		27	/* set privileged source port flag */
 #define CLGET_PRIVPORT		28	/* get privileged source port flag */
 #define CLSET_BACKCHANNEL	29	/* set backchannel for socket */
+/* Structure used as the argument for CLSET_RECONUPCALL. */
+struct rpc_reconupcall {
+	void	(*call)(CLIENT *, void *, struct ucred *);
+	void	*arg;
+};
+#define	CLSET_RECONUPCALL	30	/* Reconnect upcall */
 #endif
 
 

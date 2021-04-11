@@ -78,6 +78,9 @@ struct rc_data {
 	CLIENT*			rc_client; /* underlying RPC client */
 	struct rpc_err		rc_err;
 	void			*rc_backchannel;
+	void			(*rc_reconcall)(CLIENT *, void *,
+				    struct ucred *); /* reconection upcall */
+	void			*rc_reconarg;	/* upcall arg */
 };
 
 struct ct_data {
