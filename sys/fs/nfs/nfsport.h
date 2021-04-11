@@ -412,10 +412,13 @@
 #define	NFSPROC_RMEXTATTR	63
 #define	NFSPROC_LISTEXTATTR	64
 
+/* BindConnectionToSession, done by the krpc for a new connection. */
+#define	NFSPROC_BINDCONNTOSESS	65
+
 /*
  * Must be defined as one higher than the last NFSv4.2 Proc# above.
  */
-#define	NFSV42_NPROCS		65
+#define	NFSV42_NPROCS		66
 
 #endif	/* NFS_V3NPROCS */
 
@@ -444,7 +447,7 @@ struct nfsstatsv1 {
 	uint64_t	readlink_bios;
 	uint64_t	biocache_readdirs;
 	uint64_t	readdir_bios;
-	uint64_t	rpccnt[NFSV42_NPROCS + 15];
+	uint64_t	rpccnt[NFSV42_NPROCS + 14];
 	uint64_t	rpcretries;
 	uint64_t	srvrpccnt[NFSV42_NOPS + NFSV4OP_FAKENOPS + 15];
 	uint64_t	reserved_0;
@@ -509,7 +512,7 @@ struct nfsstatsov1 {
 	uint64_t	readlink_bios;
 	uint64_t	biocache_readdirs;
 	uint64_t	readdir_bios;
-	uint64_t	rpccnt[NFSV42_NPROCS + 4];
+	uint64_t	rpccnt[NFSV42_NPROCS + 3];
 	uint64_t	rpcretries;
 	uint64_t	srvrpccnt[NFSV42_PURENOPS + NFSV4OP_FAKENOPS];
 	uint64_t	reserved_0;
