@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_evdev.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
@@ -56,6 +58,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/kbd/kbdreg.h>
 #include <dev/kbd/kbdtables.h>
 
+#ifdef EVDEV_SUPPORT
+#include <dev/evdev/evdev.h>
+#include <dev/evdev/input.h>
+#endif
+
 #include "dev/hyperv/input/hv_kbdc.h"
 
 #define HVKBD_MTX_LOCK(_m) do {		\
@@ -75,6 +82,14 @@ __FBSDID("$FreeBSD$");
 #define	HVKBD_LOCK_ASSERT()	HVKBD_MTX_ASSERT(&Giant, MA_OWNED)
 
 #define HVKBD_FLAG_POLLING	0x00000002
+
+#ifdef EVDEV_SUPPORT
+static evdev_event_t hvkbd_ev_event;
+
+static const struct evdev_methods hvkbd_evdev_methods = {
+	.ev_event = hvkbd_ev_event,
+};
+#endif
 
 /* early keyboard probe, not supported */
 static int
@@ -249,6 +264,9 @@ hvkbd_read_char_locked(keyboard_t *kbd, int wait)
 	uint32_t scancode = NOKEY;
 	keystroke ks;
 	hv_kbd_sc *sc = kbd->kb_data;
+#ifdef EVDEV_SUPPORT
+	int keycode;
+#endif
 	HVKBD_LOCK_ASSERT();
 
 	if (!KBD_IS_ACTIVE(kbd) || !hv_kbd_prod_is_ready(sc))
@@ -293,6 +311,20 @@ hvkbd_read_char_locked(keyboard_t *kbd, int wait)
 			}
 			hv_kbd_remove_top(sc);
 		}
+#ifdef EVDEV_SUPPORT
+		/* push evdev event */
+		if (evdev_rcpt_mask & EVDEV_RCPT_HW_KBD &&
+		    sc->ks_evdev != NULL) {
+			keycode = evdev_scancode2key(&sc->ks_evdev_state,
+			    scancode);
+
+			if (keycode != KEY_RESERVED) {
+				evdev_push_event(sc->ks_evdev, EV_KEY,
+				    (uint16_t)keycode, scancode & 0x80 ? 0 : 1);
+				evdev_sync(sc->ks_evdev);
+			}
+		}
+#endif
 	} else {
 		if (bootverbose)
 			device_printf(sc->dev, "Unsupported mode: %d\n", sc->sc_mode);
@@ -413,6 +445,12 @@ hvkbd_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			DEBUG_HVSC(sc, "setled 0x%x\n", *(int *)arg);
 		}
 
+#ifdef EVDEV_SUPPORT
+		/* push LED states to evdev */
+		if (sc->ks_evdev != NULL &&
+		    evdev_rcpt_mask & EVDEV_RCPT_HW_KBD)
+			evdev_push_leds(sc->ks_evdev, *(int *)arg);
+#endif
 		KBD_LED_VAL(kbd) = *(int *)arg;
 		break;
 	default:
@@ -444,6 +482,22 @@ hvkbd_read(keyboard_t *kbd, int wait)
 		return (-1);
 	return hvkbd_read_char_locked(kbd, wait);
 }
+
+#ifdef EVDEV_SUPPORT
+static void
+hvkbd_ev_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
+    int32_t value)
+{
+	keyboard_t *kbd = evdev_get_softc(evdev);
+
+	if (evdev_rcpt_mask & EVDEV_RCPT_HW_KBD &&
+	(type == EV_LED || type == EV_REP)) {
+		mtx_lock(&Giant);
+		kbd_ev_event(kbd, type, code, value);
+		mtx_unlock(&Giant);
+	}
+}
+#endif
 
 static keyboard_switch_t hvkbdsw = {
 	.probe =	hvkbd_probe,		/* not used */
@@ -508,6 +562,10 @@ hv_kbd_drv_attach(device_t dev)
 	int unit = device_get_unit(dev);
 	keyboard_t *kbd = &sc->sc_kbd;
 	keyboard_switch_t *sw;
+#ifdef EVDEV_SUPPORT
+	struct evdev_dev *evdev;
+#endif
+
 	sw = kbd_get_switch(HVKBD_DRIVER_NAME);
 	if (sw == NULL) {
 		return (ENXIO);
@@ -522,6 +580,27 @@ hv_kbd_drv_attach(device_t dev)
 	KBD_INIT_DONE(kbd);
 	sc->sc_mode = K_RAW;
 	(*sw->enable)(kbd);
+
+#ifdef EVDEV_SUPPORT
+	evdev = evdev_alloc();
+	evdev_set_name(evdev, "Hyper-V keyboard");
+	evdev_set_phys(evdev, device_get_nameunit(dev));
+	evdev_set_id(evdev, BUS_VIRTUAL, 0, 0, 0);
+	evdev_set_methods(evdev, kbd, &hvkbd_evdev_methods);
+	evdev_support_event(evdev, EV_SYN);
+	evdev_support_event(evdev, EV_KEY);
+	evdev_support_event(evdev, EV_LED);
+	evdev_support_event(evdev, EV_REP);
+	evdev_support_all_known_keys(evdev);
+	evdev_support_led(evdev, LED_NUML);
+	evdev_support_led(evdev, LED_CAPSL);
+	evdev_support_led(evdev, LED_SCROLLL);
+	if (evdev_register_mtx(evdev, &Giant))
+		evdev_free(evdev);
+	else
+		sc->ks_evdev = evdev;
+	sc->ks_evdev_state = 0;
+#endif
 
 	if (kbd_register(kbd) < 0) {
 		goto detach;
@@ -547,6 +626,9 @@ hv_kbd_drv_detach(device_t dev)
 	int error = 0;
 	hv_kbd_sc *sc = device_get_softc(dev);
 	hvkbd_disable(&sc->sc_kbd);
+#ifdef EVDEV_SUPPORT
+	evdev_free(sc->ks_evdev);
+#endif
 	if (KBD_IS_CONFIGURED(&sc->sc_kbd)) {
 		error = kbd_unregister(&sc->sc_kbd);
 		if (error) {
