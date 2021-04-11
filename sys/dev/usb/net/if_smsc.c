@@ -119,11 +119,19 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
+SYSCTL_NODE(_hw_usb, OID_AUTO, smsc, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "USB smsc");
+
+static bool smsc_rx_packet_batching = 1;
+
+SYSCTL_BOOL(_hw_usb_smsc, OID_AUTO, smsc_rx_packet_batching, CTLFLAG_RDTUN,
+    &smsc_rx_packet_batching, 0,
+    "If set, allows packet batching to increase throughput and latency. "
+    "Else throughput and latency is decreased.");
+
 #ifdef USB_DEBUG
 static int smsc_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, smsc, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "USB smsc");
 SYSCTL_INT(_hw_usb_smsc, OID_AUTO, debug, CTLFLAG_RWTUN, &smsc_debug, 0,
     "Debug level");
 #endif
@@ -1377,7 +1385,9 @@ smsc_chip_init(struct smsc_softc *sc)
 	 * Burst capability is the number of URBs that can be in a burst of data/
 	 * ethernet frames.
 	 */
-	if (usbd_get_speed(sc->sc_ue.ue_udev) == USB_SPEED_HIGH)
+	if (!smsc_rx_packet_batching)
+		burst_cap = 0;
+	else if (usbd_get_speed(sc->sc_ue.ue_udev) == USB_SPEED_HIGH)
 		burst_cap = 37;
 	else
 		burst_cap = 128;
@@ -1404,7 +1414,8 @@ smsc_chip_init(struct smsc_softc *sc)
 	/* The following setings are used for 'turbo mode', a.k.a multiple frames
 	 * per Rx transaction (again info taken form Linux driver).
 	 */
-	reg_val |= (SMSC_HW_CFG_MEF | SMSC_HW_CFG_BCE);
+	if (smsc_rx_packet_batching)
+		reg_val |= (SMSC_HW_CFG_MEF | SMSC_HW_CFG_BCE);
 
 	smsc_write_reg(sc, SMSC_HW_CFG, reg_val);
 
