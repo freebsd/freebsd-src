@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/miivar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#include <dev/mii/mii_fdt.h>
 
 #ifdef EXT_RESOURCES
 #include <dev/extres/clk/clk.h>
@@ -1434,7 +1435,6 @@ dwc_attach(device_t dev)
 	struct ifnet *ifp;
 	int error, i;
 	uint32_t reg;
-	char *phy_mode;
 	phandle_t node;
 
 	sc = device_get_softc(dev);
@@ -1445,12 +1445,19 @@ dwc_attach(device_t dev)
 	sc->mactype = IF_DWC_MAC_TYPE(dev);
 
 	node = ofw_bus_get_node(dev);
-	if (OF_getprop_alloc(node, "phy-mode", (void **)&phy_mode)) {
-		if (strcmp(phy_mode, "rgmii") == 0)
+	switch (mii_fdt_get_contype(node)) {
+	case MII_CONTYPE_RGMII:
+	case MII_CONTYPE_RGMII_ID:
+	case MII_CONTYPE_RGMII_RXID:
+	case MII_CONTYPE_RGMII_TXID:
 			sc->phy_mode = PHY_MODE_RGMII;
-		if (strcmp(phy_mode, "rmii") == 0)
+			break;
+	case MII_CONTYPE_RMII:
 			sc->phy_mode = PHY_MODE_RMII;
-		OF_prop_free(phy_mode);
+			break;
+	default:
+		device_printf(dev, "Unsupported MII type\n");
+		return (ENXIO);
 	}
 
 	if (IF_DWC_INIT(dev) != 0)
