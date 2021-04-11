@@ -308,7 +308,7 @@ netmap_mem_rings_delete(struct netmap_adapter *na)
 
 static int netmap_mem_map(struct netmap_obj_pool *, struct netmap_adapter *);
 static int netmap_mem_unmap(struct netmap_obj_pool *, struct netmap_adapter *);
-static int nm_mem_assign_group(struct netmap_mem_d *, struct device *);
+static int nm_mem_check_group(struct netmap_mem_d *, bus_dma_tag_t);
 static void nm_mem_release_id(struct netmap_mem_d *);
 
 nm_memid_t
@@ -356,7 +356,7 @@ int
 netmap_mem_finalize(struct netmap_mem_d *nmd, struct netmap_adapter *na)
 {
 	int lasterr = 0;
-	if (nm_mem_assign_group(nmd, na->pdev) < 0) {
+	if (nm_mem_check_group(nmd, na->pdev) < 0) {
 		return ENOMEM;
 	}
 
@@ -725,7 +725,7 @@ netmap_mem_find(nm_memid_t id)
 }
 
 static int
-nm_mem_assign_group(struct netmap_mem_d *nmd, struct device *dev)
+nm_mem_check_group(struct netmap_mem_d *nmd, bus_dma_tag_t dev)
 {
 	int err = 0, id;
 	id = nm_iommu_group_id(dev);
