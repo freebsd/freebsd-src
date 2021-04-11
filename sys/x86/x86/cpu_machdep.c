@@ -970,12 +970,12 @@ hw_ssb_disable_handler(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_hw, OID_AUTO, spec_store_bypass_disable, CTLTYPE_INT |
     CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, NULL, 0,
     hw_ssb_disable_handler, "I",
-    "Speculative Store Bypass Disable (0 - off, 1 - on, 2 - auto");
+    "Speculative Store Bypass Disable (0 - off, 1 - on, 2 - auto)");
 
 SYSCTL_PROC(_machdep_mitigations_ssb, OID_AUTO, disable, CTLTYPE_INT |
     CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, NULL, 0,
     hw_ssb_disable_handler, "I",
-    "Speculative Store Bypass Disable (0 - off, 1 - on, 2 - auto");
+    "Speculative Store Bypass Disable (0 - off, 1 - on, 2 - auto)");
 
 int hw_mds_disable;
 
@@ -1189,13 +1189,13 @@ SYSCTL_PROC(_hw, OID_AUTO, mds_disable, CTLTYPE_INT |
     CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_mds_disable_handler, "I",
     "Microarchitectural Data Sampling Mitigation "
-    "(0 - off, 1 - on VERW, 2 - on SW, 3 - on AUTO");
+    "(0 - off, 1 - on VERW, 2 - on SW, 3 - on AUTO)");
 
 SYSCTL_PROC(_machdep_mitigations_mds, OID_AUTO, disable, CTLTYPE_INT |
     CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_mds_disable_handler, "I",
     "Microarchitectural Data Sampling Mitigation "
-    "(0 - off, 1 - on VERW, 2 - on SW, 3 - on AUTO");
+    "(0 - off, 1 - on VERW, 2 - on SW, 3 - on AUTO)");
 
 /*
  * Intel Transactional Memory Asynchronous Abort Mitigation
@@ -1334,7 +1334,7 @@ SYSCTL_PROC(_machdep_mitigations_taa, OID_AUTO, enable, CTLTYPE_INT |
     CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_taa_handler, "I",
     "TAA Mitigation enablement control "
-    "(0 - off, 1 - disable TSX, 2 - VERW, 3 - on AUTO");
+    "(0 - off, 1 - disable TSX, 2 - VERW, 3 - on AUTO)");
 
 static int
 sysctl_taa_state_handler(SYSCTL_HANDLER_ARGS)
@@ -1407,7 +1407,7 @@ SYSCTL_PROC(_machdep_mitigations_rngds, OID_AUTO, enable, CTLTYPE_INT |
     CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_rngds_mitg_enable_handler, "I",
     "MCU Optimization, disabling RDSEED mitigation control "
-    "(0 - mitigation disabled (RDSEED optimized), 1 - mitigation enabled");
+    "(0 - mitigation disabled (RDSEED optimized), 1 - mitigation enabled)");
 
 static int
 sysctl_rngds_state_handler(SYSCTL_HANDLER_ARGS)
