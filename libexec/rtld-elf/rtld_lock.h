@@ -35,9 +35,20 @@
 
 #define	MAX_RTLD_LOCKS	8
 
+/*
+ * This structure is part of the ABI between rtld and threading
+ * libraries, like libthr and even libc_r.  Its layout is fixed and
+ * can be changed only by appending new fields at the end, with the
+ * bump of RTLI_VERSION.
+ */
 struct RtldLockInfo
 {
+	/*
+	 * Valid if the object calling _rtld_thread_init() exported
+	 * symbol _pli_rtli_version.  Otherwise assume RTLI_VERSION_ONE.
+	 */
 	unsigned int rtli_version;
+
 	void *(*lock_create)(void);
 	void  (*lock_destroy)(void *);
 	void  (*rlock_acquire)(void *);
@@ -46,6 +57,8 @@ struct RtldLockInfo
 	int   (*thread_set_flag)(int);
 	int   (*thread_clr_flag)(int);
 	void  (*at_fork)(void);
+
+	/* Version 2 fields */
 	char *(*dlerror_loc)(void);
 	int  *(*dlerror_seen)(void);
 	int   dlerror_loc_sz;
