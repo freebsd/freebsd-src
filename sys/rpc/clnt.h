@@ -360,6 +360,12 @@ enum clnt_stat clnt_call_private(CLIENT *, struct rpc_callextra *, rpcproc_t,
 #define	CLSET_TLS		30	/* set TLS for socket */
 #define	CLSET_BLOCKRCV		31	/* Temporarily block reception */
 #define	CLSET_TLSCERTNAME	32	/* TLS certificate file name */
+/* Structure used as the argument for CLSET_RECONUPCALL. */
+struct rpc_reconupcall {
+	void	(*call)(CLIENT *, void *, struct ucred *);
+	void	*arg;
+};
+#define	CLSET_RECONUPCALL	33	/* Reconnect upcall */
 #endif
 
 

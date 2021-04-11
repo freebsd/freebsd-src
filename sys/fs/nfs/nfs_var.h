@@ -561,6 +561,7 @@ int nfsrpc_listextattr(vnode_t, uint64_t *, struct uio *, size_t *, bool *,
     struct nfsvattr *, int *, struct ucred *, NFSPROC_T *);
 int nfsrpc_rmextattr(vnode_t, const char *, struct nfsvattr *, int *,
     struct ucred *, NFSPROC_T *);
+void nfsrpc_bindconnsess(CLIENT *, void *, struct ucred *);
 
 /* nfs_clstate.c */
 int nfscl_open(vnode_t, u_int8_t *, int, u_int32_t, int,
