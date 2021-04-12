@@ -242,6 +242,8 @@ typedef signed long ssize_t;
 #define	_OFF_T_DECLARED
 typedef unsigned long off_t;
 
+typedef int64_t sbintime_t;
+
 typedef unsigned char   u_char;
 typedef unsigned short  u_short;
 typedef unsigned int    u_int;

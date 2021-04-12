@@ -53,7 +53,7 @@
 #define __GPIO_H__
 
 #include <sys/ioccom.h>
-#ifndef _KERNEL
+#if !defined(_KERNEL) && !defined(_STANDALONE)
 #include <stdbool.h>
 #endif
 
