@@ -736,7 +736,7 @@ lkpi_pci_restore_state(struct pci_dev *pdev)
 /* XXX This should not be necessary. */
 #define	pcix_set_mmrbc(d, v)	0
 #define	pcix_get_max_mmrbc(d)	0
-#define	pcie_set_readrq(d, v)	pci_set_max_read_req(&(d)->dev, (v))
+#define	pcie_set_readrq(d, v)	pci_set_max_read_req((d)->dev.bsddev, (v))
 
 #define	PCI_DMA_BIDIRECTIONAL	0
 #define	PCI_DMA_TODEVICE	1
