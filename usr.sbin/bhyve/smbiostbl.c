@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #define	SMBIOS_TYPE_BIOS	0
 #define	SMBIOS_TYPE_SYSTEM	1
+#define	SMBIOS_TYPE_BOARD	2
 #define	SMBIOS_TYPE_CHASSIS	3
 #define	SMBIOS_TYPE_PROCESSOR	4
 #define	SMBIOS_TYPE_MEMARRAY	16
@@ -158,9 +159,30 @@ struct smbios_table_type1 {
 } __packed;
 
 /*
+ * Baseboard (or Module) Information
+ */
+#define SMBIOS_BRF_HOSTING	0x1
+#define SMBIOS_BRT_MOTHERBOARD	0xa
+
+struct smbios_table_type2 {
+	struct smbios_structure	header;
+	uint8_t			manufacturer;	/* manufacturer string */
+	uint8_t			product;	/* product name string */
+	uint8_t			version;	/* version string */
+	uint8_t			serial;		/* serial number string */
+	uint8_t			asset;		/* asset tag string */
+	uint8_t			fflags;		/* feature flags */
+	uint8_t			location;	/* location in chassis */
+	uint16_t		chandle;	/* chassis handle */
+	uint8_t			type;		/* board type */
+	uint8_t			n_objs;		/* number of contained object handles */
+} __packed;
+
+/*
  * System Enclosure or Chassis
  */
 #define	SMBIOS_CHT_UNKNOWN	0x02	/* unknown */
+#define	SMBIOS_CHT_DESKTOP	0x03	/* desktop */
 
 #define	SMBIOS_CHST_SAFE	0x03	/* safe */
 
@@ -360,6 +382,30 @@ const char *smbios_type1_strings[] = {
 	NULL
 };
 
+struct smbios_table_type2 smbios_type2_template = {
+	{ SMBIOS_TYPE_BOARD, sizeof (struct smbios_table_type2), 0 },
+	1,			/* manufacturer string */
+	2,			/* product string */
+	3,			/* version string */
+	4,			/* serial number string */
+	5,			/* asset tag string */
+	SMBIOS_BRF_HOSTING,	/* feature flags */
+	6,			/* location string */
+	SMBIOS_CHT_DESKTOP,	/* chassis handle */
+	SMBIOS_BRT_MOTHERBOARD,	/* board type */
+	0
+};
+
+const char *smbios_type2_strings[] = {
+	"FreeBSD",		/* manufacturer string */
+	"BHYVE",		/* product name string */
+	"1.0",			/* version string */
+	"None",			/* serial number string */
+	"None",			/* asset tag string */
+	"None",			/* location string */
+	NULL
+};
+
 struct smbios_table_type3 smbios_type3_template = {
 	{ SMBIOS_TYPE_CHASSIS, sizeof (struct smbios_table_type3), 0 },
 	1,		/* manufacturer string */
@@ -518,6 +564,9 @@ static struct smbios_template_entry smbios_template[] = {
 	{ (struct smbios_structure *)&smbios_type1_template,
 	  smbios_type1_strings,
 	  smbios_type1_initializer },
+	{ (struct smbios_structure *)&smbios_type2_template,
+	  smbios_type2_strings,
+	  smbios_generic_initializer },
 	{ (struct smbios_structure *)&smbios_type3_template,
 	  smbios_type3_strings,
 	  smbios_generic_initializer },
