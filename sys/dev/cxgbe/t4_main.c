@@ -10733,6 +10733,8 @@ clear_stats(struct adapter *sc, u_int port_id)
 			for_each_ofld_txq(vi, i, ofld_txq) {
 				ofld_txq->wrq.tx_wrs_direct = 0;
 				ofld_txq->wrq.tx_wrs_copied = 0;
+				counter_u64_zero(ofld_txq->tx_iscsi_pdus);
+				counter_u64_zero(ofld_txq->tx_iscsi_octets);
 				counter_u64_zero(ofld_txq->tx_toe_tls_records);
 				counter_u64_zero(ofld_txq->tx_toe_tls_octets);
 			}
