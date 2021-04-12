@@ -626,9 +626,8 @@ void counted_warning(unsigned *counter, const char *msg);
 /*
  * APIs to manage deprecation and obsolescence.
  */
-struct device;
 void _gone_in(int major, const char *msg);
-void _gone_in_dev(struct device *dev, int major, const char *msg);
+void _gone_in_dev(device_t dev, int major, const char *msg);
 #ifdef NO_OBSOLETE_CODE
 #define __gone_ok(m, msg)					 \
 	_Static_assert(m < P_OSREL_MAJOR(__FreeBSD_version)),	 \
@@ -641,5 +640,4 @@ void _gone_in_dev(struct device *dev, int major, const char *msg);
 #endif /* _KERNEL */
 
 __NULLABILITY_PRAGMA_POP
-
 #endif /* !_SYS_SYSTM_H_ */

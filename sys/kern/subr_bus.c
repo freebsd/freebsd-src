@@ -95,7 +95,7 @@ struct driverlink {
  */
 typedef TAILQ_HEAD(devclass_list, devclass) devclass_list_t;
 typedef TAILQ_HEAD(driver_list, driverlink) driver_list_t;
-typedef TAILQ_HEAD(device_list, device) device_list_t;
+typedef TAILQ_HEAD(device_list, _device) device_list_t;
 
 struct devclass {
 	TAILQ_ENTRY(devclass) link;
@@ -112,9 +112,12 @@ struct devclass {
 };
 
 /**
- * @brief Implementation of device.
+ * @brief Implementation of _device.
+ *
+ * The structure is named "_device" instead of "device" to avoid type confusion
+ * caused by other subsystems defining a (struct device).
  */
-struct device {
+struct _device {
 	/*
 	 * A device is a kernel object. The first field must be the
 	 * current ops table for the object.
@@ -124,8 +127,8 @@ struct device {
 	/*
 	 * Device hierarchy.
 	 */
-	TAILQ_ENTRY(device)	link;	/**< list of devices in parent */
-	TAILQ_ENTRY(device)	devlink; /**< global device list membership */
+	TAILQ_ENTRY(_device)	link;	/**< list of devices in parent */
+	TAILQ_ENTRY(_device)	devlink; /**< global device list membership */
 	device_t	parent;		/**< parent of this device  */
 	device_list_t	children;	/**< list of child devices */
 
@@ -853,7 +856,7 @@ devctl_safe_quote_sb(struct sbuf *sb, const char *src)
 
 /* End of /dev/devctl code */
 
-static TAILQ_HEAD(,device)	bus_data_devices;
+static struct device_list bus_data_devices;
 static int bus_data_generation = 1;
 
 static kobj_method_t null_methods[] = {
