@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 9, 2020
+.Dd April 12, 2021
 .Dt CRYPTO_DRIVER 9
 .Os
 .Sh NAME
@@ -285,13 +285,10 @@ is the value returned by
 .Fn crypto_get_driverid .
 .Fa what
 indicates which types of requests the driver is able to handle again:
-.Bl -tag -width "CRYPTO_ASYMQ"
+.Bl -tag -width "CRYPTO_SYMQ"
 .It Dv CRYPTO_SYMQ
 indicates that the driver is able to handle symmetric requests passed to
 .Fn CRYPTODEV_PROCESS .
-.It Dv CRYPTO_ASYMQ
-indicates that the driver is able to handle asymmetric requests passed to
-.Fn CRYPTODEV_KPROCESS .
 .El
 .Pp
 .Pp

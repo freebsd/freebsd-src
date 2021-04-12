@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2021
+.Dd April 12, 2021
 .Dt CRYPTO 9
 .Os
 .Sh NAME
@@ -35,15 +35,10 @@ through the
 device.
 .Pp
 .Nm
-supports two modes of operation:
-one mode for symmetric-keyed cryptographic requests and digest,
-and a second mode for asymmetric-key requests and modular arithmetic.
-.Ss Symmetric-Key Mode
-Symmetric-key operations include encryption and decryption operations
+supports encryption and decryption operations
 using block and stream ciphers as well as computation and verification
 of message authentication codes (MACs).
-In this mode,
-consumers allocate sessions to describe a transform as discussed in
+Consumers allocate sessions to describe a transform as discussed in
 .Xr crypto_session 9 .
 Consumers then allocate request objects to describe each transformation
 such as encrypting a network packet or decrypting a disk sector.
@@ -56,18 +51,6 @@ consumers.
 describes the interfaces drivers use to register with the framework,
 helper routines the framework provides to faciliate request processing,
 and the interfaces drivers are required to provide.
-.Ss Asymmetric-Key Mode
-Assymteric-key operations do not use sessions.
-Instead,
-these operations perform individual mathematical operations using a set
-of input and output parameters.
-These operations are described in
-.Xr crypto_asym 9 .
-Drivers that support asymmetric operations use additional interfaces
-described in
-.Xr crypto_asym 9
-in addition to the base interfaces described in
-.Xr crypto_driver 9 .
 .Ss Callbacks
 Since the consumers may not be associated with a process, drivers may
 not
@@ -83,10 +66,9 @@ Errors are reported to the callback function.
 Session initialization does not use callbacks and returns errors
 synchronously.
 .Ss Session Migration
-For symmetric-key operations,
-a specific error code,
+Operations may fail with a specific error code,
 .Er EAGAIN ,
-is used to indicate that a session handle has changed and that the
+to indicate that a session handle has changed and that the
 request may be re-submitted immediately with the new session.
 The consumer should update its saved copy of the session handle
 to the value of
@@ -95,9 +77,6 @@ so that future requests use the new session.
 .Ss Supported Algorithms
 More details on some algorithms may be found in
 .Xr crypto 7 .
-These algorithms are used for symmetric-mode operations.
-Asymmetric-mode operations support operations described in
-.Xr crypto_asym 9 .
 .Pp
 The following authentication algorithms are supported:
 .Pp
@@ -156,7 +135,6 @@ most of the framework code
 .Xr crypto 4 ,
 .Xr ipsec 4 ,
 .Xr crypto 7 ,
-.Xr crypto_asym 9 ,
 .Xr crypto_driver 9 ,
 .Xr crypto_request 9 ,
 .Xr crypto_session 9 ,
