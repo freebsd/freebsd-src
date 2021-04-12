@@ -486,6 +486,7 @@ pfi_dynaddr_setup(struct pf_addr_wrap *aw, sa_family_t af)
 		dyn->pfid_kif = pfi_kkif_attach(kif, IFG_ALL);
 	else
 		dyn->pfid_kif = pfi_kkif_attach(kif, aw->v.ifname);
+	kif = NULL;
 	pfi_kkif_ref(dyn->pfid_kif);
 
 	dyn->pfid_net = pfi_unmask(&aw->v.a.mask);
