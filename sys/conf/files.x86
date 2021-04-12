@@ -109,10 +109,7 @@ hptmvraid.o			optional	hptmv			\
 dev/hptnr/hptnr_os_bsd.c	optional	hptnr
 dev/hptnr/hptnr_osm_bsd.c	optional	hptnr
 dev/hptnr/hptnr_config.c	optional	hptnr
-hptnr_lib.o			optional	hptnr			\
-	dependency	"$S/dev/hptnr/$M-elf.hptnr_lib.o.uu"		\
-	compile-with	"uudecode < $S/dev/hptnr/$M-elf.hptnr_lib.o.uu" \
-	no-implicit-rule
+dev/hptnr/$M-elf.hptnr_lib.o	optional	hptnr
 dev/hptrr/hptrr_os_bsd.c	optional	hptrr
 dev/hptrr/hptrr_osm_bsd.c	optional	hptrr
 dev/hptrr/hptrr_config.c	optional	hptrr
