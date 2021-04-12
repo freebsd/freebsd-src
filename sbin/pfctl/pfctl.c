@@ -949,13 +949,11 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 			pfctl_print_title("LABEL COUNTERS:");
 	}
 	mnr = pr.nr;
-	if (opts & PF_OPT_CLRRULECTRS)
-		pr.action = PF_GET_CLR_CNTR;
 
 	for (nr = 0; nr < mnr; ++nr) {
 		pr.nr = nr;
-		if (pfctl_get_rule(dev, nr, pr.ticket, path, PF_SCRUB,
-		    &rule, pr.anchor_call)) {
+		if (pfctl_get_clear_rule(dev, nr, pr.ticket, path, PF_SCRUB,
+		    &rule, pr.anchor_call, opts & PF_OPT_CLRRULECTRS)) {
 			warn("DIOCGETRULENV");
 			goto error;
 		}
@@ -987,8 +985,8 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 	mnr = pr.nr;
 	for (nr = 0; nr < mnr; ++nr) {
 		pr.nr = nr;
-		if (pfctl_get_rule(dev, nr, pr.ticket, path, PF_PASS,
-		    &rule, pr.anchor_call)) {
+		if (pfctl_get_clear_rule(dev, nr, pr.ticket, path, PF_PASS,
+		    &rule, pr.anchor_call, opts & PF_OPT_CLRRULECTRS)) {
 			warn("DIOCGETRULE");
 			goto error;
 		}
