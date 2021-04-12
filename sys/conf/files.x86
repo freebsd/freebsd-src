@@ -93,10 +93,7 @@ dev/gpio/chvgpio.c		optional	chvgpio
 dev/hpt27xx/hpt27xx_os_bsd.c	optional	hpt27xx
 dev/hpt27xx/hpt27xx_osm_bsd.c	optional	hpt27xx
 dev/hpt27xx/hpt27xx_config.c	optional	hpt27xx
-hpt27xx_lib.o			optional	hpt27xx			\
-	dependency	"$S/dev/hpt27xx/$M-elf.hpt27xx_lib.o.uu"	\
-	compile-with	"uudecode < $S/dev/hpt27xx/$M-elf.hpt27xx_lib.o.uu" \
-	no-implicit-rule
+dev/hpt27xx/$M-elf.hpt27xx_lib.o optional	hpt27xx
 dev/hptmv/entry.c		optional	hptmv
 dev/hptmv/mv.c			optional	hptmv
 dev/hptmv/gui_lib.c		optional	hptmv
