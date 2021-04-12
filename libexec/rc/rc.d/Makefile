@@ -13,7 +13,6 @@ CONFS=	DAEMON \
 	SERVERS \
 	addswap \
 	adjkerntz \
-	archdep \
 	bgfsck \
 	${_blacklistd} \
 	bridge \
