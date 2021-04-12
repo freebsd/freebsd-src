@@ -198,7 +198,7 @@ pf_nvrule_addr_to_rule_addr(const nvlist_t *nvl, struct pf_rule_addr *addr)
 
 static void
 pfctl_nv_add_pool(nvlist_t *nvparent, const char *name,
-    const struct pf_pool *pool)
+    const struct pfctl_pool *pool)
 {
 	u_int64_t ports[2];
 	nvlist_t *nvl = nvlist_create(0);
@@ -216,7 +216,7 @@ pfctl_nv_add_pool(nvlist_t *nvparent, const char *name,
 }
 
 static void
-pf_nvpool_to_pool(const nvlist_t *nvl, struct pf_pool *pool)
+pf_nvpool_to_pool(const nvlist_t *nvl, struct pfctl_pool *pool)
 {
 	size_t len;
 	const void *data;

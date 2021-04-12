@@ -92,7 +92,7 @@ int	 pfctl_load_timeout(struct pfctl *, unsigned int, unsigned int);
 int	 pfctl_load_debug(struct pfctl *, unsigned int);
 int	 pfctl_load_logif(struct pfctl *, char *);
 int	 pfctl_load_hostid(struct pfctl *, u_int32_t);
-int	 pfctl_get_pool(int, struct pf_pool *, u_int32_t, u_int32_t, int,
+int	 pfctl_get_pool(int, struct pfctl_pool *, u_int32_t, u_int32_t, int,
 	    char *);
 void	 pfctl_print_rule_counters(struct pfctl_rule *, int);
 int	 pfctl_show_rules(int, char *, int, enum pfctl_show, char *, int);
@@ -805,7 +805,7 @@ pfctl_id_kill_states(int dev, const char *iface, int opts)
 }
 
 int
-pfctl_get_pool(int dev, struct pf_pool *pool, u_int32_t nr,
+pfctl_get_pool(int dev, struct pfctl_pool *pool, u_int32_t nr,
     u_int32_t ticket, int r_action, char *anchorname)
 {
 	struct pfioc_pooladdr pp;
@@ -840,7 +840,7 @@ pfctl_get_pool(int dev, struct pf_pool *pool, u_int32_t nr,
 }
 
 void
-pfctl_move_pool(struct pf_pool *src, struct pf_pool *dst)
+pfctl_move_pool(struct pfctl_pool *src, struct pfctl_pool *dst)
 {
 	struct pf_pooladdr *pa;
 
@@ -851,7 +851,7 @@ pfctl_move_pool(struct pf_pool *src, struct pf_pool *dst)
 }
 
 void
-pfctl_clear_pool(struct pf_pool *pool)
+pfctl_clear_pool(struct pfctl_pool *pool)
 {
 	struct pf_pooladdr *pa;
 
@@ -1272,7 +1272,7 @@ pfctl_show_limits(int dev, int opts)
 
 /* callbacks for rule/nat/rdr/addr */
 int
-pfctl_add_pool(struct pfctl *pf, struct pf_pool *p, sa_family_t af)
+pfctl_add_pool(struct pfctl *pf, struct pfctl_pool *p, sa_family_t af)
 {
 	struct pf_pooladdr *pa;
 

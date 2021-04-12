@@ -38,6 +38,16 @@
 
 struct pfctl_anchor;
 
+struct pfctl_pool {
+	struct pf_palist	 list;
+	struct pf_pooladdr	*cur;
+	struct pf_poolhashkey	 key;
+	struct pf_addr		 counter;
+	int			 tblidx;
+	u_int16_t		 proxy_port[2];
+	u_int8_t		 opts;
+};
+
 struct pfctl_rule {
 	struct pf_rule_addr	 src;
 	struct pf_rule_addr	 dst;
@@ -52,7 +62,7 @@ struct pfctl_rule {
 	char			 overload_tblname[PF_TABLE_NAME_SIZE];
 
 	TAILQ_ENTRY(pfctl_rule)	 entries;
-	struct pf_pool		 rpool;
+	struct pfctl_pool	 rpool;
 
 	u_int64_t		 evaluations;
 	u_int64_t		 packets[2];
