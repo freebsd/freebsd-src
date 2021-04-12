@@ -215,6 +215,9 @@ update_clip_table(struct adapter *sc)
 	last_vnet = (uintptr_t)(-1);
 	for_each_port(sc, i)
 	for_each_vi(sc->port[i], j, vi) {
+		if (IS_DOOMED(vi))
+			continue;
+
 		if (last_vnet == (uintptr_t)vi->ifp->if_vnet)
 			continue;
 
