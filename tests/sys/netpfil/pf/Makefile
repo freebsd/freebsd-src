@@ -19,6 +19,7 @@ ATF_TESTS_SH+=	altq \
 		pfsync	\
 		rdr \
 		route_to \
+		rules_counter \
 		set_skip \
 		set_tos \
 		src_track \
