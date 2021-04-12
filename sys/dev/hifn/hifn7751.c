@@ -2252,7 +2252,7 @@ hifn_intr(void *arg)
 	HIFN_UNLOCK(sc);
 
 	if (sc->sc_needwakeup) {		/* XXX check high watermark */
-		int wakeup = sc->sc_needwakeup & (CRYPTO_SYMQ|CRYPTO_ASYMQ);
+		int wakeup = sc->sc_needwakeup & CRYPTO_SYMQ;
 #ifdef HIFN_DEBUG
 		if (hifn_debug)
 			device_printf(sc->sc_dev,

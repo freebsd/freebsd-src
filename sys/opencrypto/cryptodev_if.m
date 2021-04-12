@@ -116,9 +116,9 @@ METHOD void freesession {
 } DEFAULT null_freesession;
 
 /**
- * @brief Perform a symmetric crypto operation
+ * @brief Perform a crypto operation
  *
- * The crypto framework invokes this method for each symmetric crypto
+ * The crypto framework invokes this method for each crypto
  * operation performed on a session.  A reference to the containing
  * session is stored as a member of 'struct cryptop'.  This routine
  * should not block, but queue the operation if necessary.
@@ -143,37 +143,5 @@ METHOD void freesession {
 METHOD int process {
 	device_t	dev;
 	struct cryptop	*op;
-	int		flags;
-};
-
-/**
- * @brief Perform an asymmetric crypto operation
- *
- * The crypto framework invokes this method for each asymmetric crypto
- * operation.  Each asymmetric crypto operation should be
- * self-contained and is not assicated with any persistent session.
- * This routine should not block, but queue the operation if
- * necessary.
- *
- * This method may return ERESTART to indicate that any internal
- * queues are full so the operation should be queued in the crypto
- * framework and retried in the future.
- *
- * To report errors with a crypto operation, 'krp_status' should be set
- * and the operation completed by calling 'crypto_kdone'.  This method
- * should then return zero.
- *
- * @param dev		the crypto driver device
- * @param op		crypto operation to perform
- * @param flags		set to CRYPTO_HINT_MORE if additional asymmetric
- *			crypto operations are queued for this driver;
- *			otherwise set to zero.
- *
- * @retval 0		success
- * @retval ERESTART	internal queue is full
- */
-METHOD int kprocess {
-	device_t	dev;
-	struct cryptkop	*op;
 	int		flags;
 };

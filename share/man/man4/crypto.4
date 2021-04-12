@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2020
+.Dd April 12, 2021
 .Dt CRYPTO 4
 .Os
 .Sh NAME
@@ -93,53 +93,32 @@ then issue
 calls on the descriptor.
 User-mode access to
 .Pa /dev/crypto
-is controlled by two
+is controlled by the
+.Ic kern.cryptodevallowsoft
 .Xr sysctl 8
-variables:
-.Ic kern.userasymcrypto
-and
-.Ic kern.cryptodevallowsoft .
-.Pp
-The
-.Nm
-device provides two distinct modes of operation: one mode for
-symmetric-keyed cryptographic requests and digests, and a second mode for
-both asymmetric-key (public-key/private-key) requests and
-modular arithmetic (for Diffie-Hellman key exchange and other
-cryptographic protocols).
-The two modes are described separately below.
-.Sh DEPRECATION NOTICE
-The asymmetric-key operations supported by this interface will not be
-present in
-.Fx 14.0
-and later.
+variable.
+If this variable is zero,
+then user-mode sessions are only permitted to use cryptography coprocessors.
 .Sh THEORY OF OPERATION
-Regardless of whether symmetric-key or asymmetric-key operations are
-to be performed, use of the device requires a basic series of steps:
+Use of the device requires a basic series of steps:
 .Bl -enum
 .It
 Open the
 .Pa /dev/crypto
 device.
 .It
-If any symmetric-keyed cryptographic or digest operations will be performed,
-create a session with
+Create a session with
 .Dv CIOCGSESSION
 or
 .Dv CIOCGSESSION2 .
-Most applications will require at least one symmetric session.
+Applications will require at least one symmetric session.
 Since cipher and MAC keys are tied to sessions, many
 applications will require more.
-Asymmetric operations do not use sessions.
 .It
 Submit requests, synchronously with
 .Dv CIOCCRYPT
-(symmetric),
-.Dv CIOCCRYPTAEAD
-(symmetric),
 or
-.Dv CIOCKEY
-(asymmetric).
+.Dv CIOCCRYPTAEAD .
 .It
 Optionally destroy a session with
 .Dv CIOCFSESSION .
@@ -151,22 +130,27 @@ This will automatically close any remaining sessions associated with the
 file desriptor.
 .El
 .Sh SYMMETRIC-KEY OPERATION
-The symmetric-key operation mode provides a context-based API
+.Nm cryptodev
+provides a context-based API
 to traditional symmetric-key encryption (or privacy) algorithms,
-or to keyed and unkeyed one-way hash (HMAC and MAC) algorithms.
-The symmetric-key mode also permits encrypt-then-authenticate fused operation,
-where the hardware performs both a privacy algorithm and an integrity-check
+keyed and unkeyed one-way hash (HMAC and MAC) algorithms,
+encrypt-then-authenticate (ETA) fused operations,
+and authenticated encryption with additional data (AEAD) operations.
+For ETA operations,
+drivers perform both a privacy algorithm and an integrity-check
 algorithm in a single pass over the data: either a fused
 encrypt/HMAC-generate operation, or a fused HMAC-verify/decrypt operation.
+Similarly, for AEAD operations,
+drivers perform either an encrypt/MAC-generate operation
+or a MAC-verify/decrypt operation.
 .Pp
-To use symmetric mode, you must first create a session specifying
-the algorithm(s) and key(s) to use; then issue encrypt or decrypt
-requests against the session.
+The algorithm(s) and key(s) to use are specified when a session is
+created.
+Individual requests are able to specify per-request initialization vectors
+or nonces.
 .Ss Algorithms
 For a list of supported algorithms, see
-.Xr crypto 7
-and
-.Xr crypto 9 .
+.Xr crypto 7 .
 .Ss IOCTL Request Descriptions
 .\"
 .Bl -tag -width CIOCGSESSION
@@ -216,11 +200,13 @@ privacy algorithm, integrity algorithm, and keys specified in
 The special value 0 for either privacy or integrity
 is reserved to indicate that the indicated operation (privacy or integrity)
 is not desired for this session.
+ETA sessions specify both privacy and integrity algorithms.
+AEAD sessions specify only a privacy algorithm.
 .Pp
 Multiple sessions may be bound to a single file descriptor.
 The session ID returned in
 .Fa sessp-\*[Gt]ses
-is supplied as a required field in the symmetric-operation structure
+is supplied as a required field in the operation structure
 .Fa crypt_op
 for future encryption or hashing requests.
 .\" .Pp
@@ -229,7 +215,7 @@ for future encryption or hashing requests.
 .\" .Nx
 .\" extension.
 .Pp
-For non-zero symmetric-key privacy algorithms, the privacy algorithm
+For non-zero privacy algorithms, the privacy algorithm
 must be specified in
 .Fa sessp-\*[Gt]cipher ,
 the key length in
@@ -290,7 +276,7 @@ struct crypt_op {
 };
 
 .Ed
-Request a symmetric-key (or hash) operation.
+Request an encryption/decryption (or hash) operation.
 To encrypt, set
 .Fa cr_op-\*[Gt]op
 to
@@ -344,75 +330,6 @@ to include in the authentication mode.
 Destroys the session identified by
 .Fa ses_id .
 .El
-.\"
-.Sh ASYMMETRIC-KEY OPERATION
-.Ss Asymmetric-key algorithms
-Contingent upon hardware support, the following asymmetric
-(public-key/private-key; or key-exchange subroutine) operations may
-also be available:
-.Pp
-.Bl -column "CRK_DH_COMPUTE_KEY" "Input parameter" "Output parameter" -offset indent -compact
-.It Em "Algorithm" Ta "Input parameter" Ta "Output parameter"
-.It Em " " Ta "Count" Ta "Count"
-.It Dv CRK_MOD_EXP Ta 3 Ta 1
-.It Dv CRK_MOD_EXP_CRT Ta 6 Ta 1
-.It Dv CRK_DSA_SIGN Ta 5 Ta 2
-.It Dv CRK_DSA_VERIFY Ta 7 Ta 0
-.It Dv CRK_DH_COMPUTE_KEY Ta 3 Ta 1
-.El
-.Pp
-See below for discussion of the input and output parameter counts.
-.Ss Asymmetric-key commands
-.Bl -tag -width CIOCKEY
-.It Dv CIOCASYMFEAT Fa int *feature_mask
-Returns a bitmask of supported asymmetric-key operations.
-Each of the above-listed asymmetric operations is present
-if and only if the bit position numbered by the code for that operation
-is set.
-For example,
-.Dv CRK_MOD_EXP
-is available if and only if the bit
-.Pq 1 \*[Lt]\*[Lt] Dv CRK_MOD_EXP
-is set.
-.It Dv CIOCKEY Fa struct crypt_kop *kop
-.Bd -literal
-struct crypt_kop {
-    u_int crk_op;		/* e.g. CRK_MOD_EXP */
-    u_int crk_status;		/* return status */
-    u_short crk_iparams;	/* # of input params */
-    u_short crk_oparams;	/* # of output params */
-    u_int crk_pad1;
-    struct crparam crk_param[CRK_MAXPARAM];
-};
-
-/* Bignum parameter, in packed bytes. */
-struct crparam {
-    void * crp_p;
-    u_int crp_nbits;
-};
-
-.Ed
-Performs an asymmetric-key operation from the list above.
-The specific operation is supplied in
-.Fa kop-\*[Gt]crk_op ;
-final status for the operation is returned in
-.Fa kop-\*[Gt]crk_status .
-The number of input arguments and the number of output arguments
-is specified in
-.Fa kop-\*[Gt]crk_iparams
-and
-.Fa kop-\*[Gt]crk_iparams ,
-respectively.
-The field
-.Fa crk_param[]
-must be filled in with exactly
-.Fa kop-\*[Gt]crk_iparams + kop-\*[Gt]crk_oparams
-arguments, each encoded as a
-.Fa struct crparam
-(address, bitlength) pair.
-.Pp
-The semantics of these arguments are currently undocumented.
-.El
 .Sh SEE ALSO
 .Xr aesni 4 ,
 .Xr hifn 4 ,
@@ -444,5 +361,3 @@ must follow whether privacy or integrity algorithms were specified for
 session: if you request a
 .No non- Ns Dv NULL
 algorithm, you must supply a suitably-sized buffer.
-.Pp
-The scheme for passing arguments for asymmetric requests is baroque.
