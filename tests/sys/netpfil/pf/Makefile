@@ -18,6 +18,7 @@ ATF_TESTS_SH+=	anchor \
 		pfsync	\
 		rdr \
 		route_to \
+		rules_counter \
 		set_skip \
 		set_tos \
 		src_track \
