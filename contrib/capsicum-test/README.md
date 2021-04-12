@@ -5,7 +5,7 @@ object-capabilities. The tests exercise the syscall interface to a Capsicum-enab
 currently either [FreeBSD >=10.x](http://www.freebsd.org) or a modified Linux kernel (the
 [capsicum-linux](http://github.com/google/capsicum-linux) project).
 
-The tests are written in C++98, and use the [Google Test](https://code.google.com/p/googletest/)
+The tests are written in C++11 and use the [Google Test](https://code.google.com/p/googletest/)
 framework, with some additions to fork off particular tests (because a process that enters capability
 mode cannot leave it again).
 
