@@ -14,6 +14,7 @@ ATF_TESTS_SH+=	anchor \
 		killstate \
 		names \
 		nat \
+		rules_counter \
 		set_tos \
 		src_track \
 		rdr \
