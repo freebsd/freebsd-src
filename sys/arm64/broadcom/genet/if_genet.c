@@ -538,7 +538,7 @@ gen_dma_disable(device_t dev)
 static int
 gen_bus_dma_init(struct gen_softc *sc)
 {
-	struct device *dev = sc->dev;
+	device_t dev = sc->dev;
 	int i, error;
 
 	error = bus_dma_tag_create(
