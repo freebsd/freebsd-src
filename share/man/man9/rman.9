@@ -88,12 +88,12 @@
 .Ft "struct resource *"
 .Fo rman_reserve_resource
 .Fa "struct rman *rm" "rman_res_t start" "rman_res_t end" "rman_res_t count"
-.Fa "u_int flags" "struct device *dev"
+.Fa "u_int flags" "device_t dev"
 .Fc
 .Ft "struct resource *"
 .Fo rman_reserve_resource_bound
 .Fa "struct rman *rm" "rman_res_t start" "rman_res_t end" "rman_res_t count"
-.Fa "rman_res_t bound" "u_int flags" "struct device *dev"
+.Fa "rman_res_t bound" "u_int flags" "device_t dev"
 .Fc
 .Ft uint32_t
 .Fn rman_make_alignment_flags "uint32_t size"
@@ -101,7 +101,7 @@
 .Fn rman_get_start "struct resource *r"
 .Ft rman_res_t
 .Fn rman_get_end "struct resource *r"
-.Ft "struct device *"
+.Ft "device_t"
 .Fn rman_get_device "struct resource *r"
 .Ft rman_res_t
 .Fn rman_get_size "struct resource *r"

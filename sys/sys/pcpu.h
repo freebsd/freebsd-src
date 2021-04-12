@@ -187,7 +187,7 @@ struct pcpu {
 	STAILQ_ENTRY(pcpu) pc_allcpu;
 	struct lock_list_entry *pc_spinlocks;
 	long		pc_cp_time[CPUSTATES];	/* statclock ticks */
-	struct device	*pc_device;
+	struct _device	*pc_device;		/* CPU device handle */
 	void		*pc_netisr;		/* netisr SWI cookie */
 	int		pc_unused1;		/* unused field */
 	int		pc_domain;		/* Memory domain. */
