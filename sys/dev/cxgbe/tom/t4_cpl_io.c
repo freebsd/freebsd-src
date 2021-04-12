@@ -1092,6 +1092,9 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 		}
 		toep->txsd_avail--;
 
+		counter_u64_add(toep->ofld_txq->tx_iscsi_pdus, 1);
+		counter_u64_add(toep->ofld_txq->tx_iscsi_octets, plen);
+
 		t4_l2t_send(sc, wr, toep->l2te);
 	}
 
