@@ -11,10 +11,7 @@ KMOD= hptmv
 SRCS= opt_scsi.h opt_cam.h
 SRCS+= bus_if.h device_if.h pci_if.h
 SRCS+= mv.c entry.c ioctl.c hptproc.c gui_lib.c
-OBJS+= hptmvraid.o
-
-hptmvraid.o:
-	uudecode -p < ${HPTMV}/${MACHINE_CPUARCH}-elf.raid.o.uu > ${.TARGET}
+OBJS+= ${HPTMV}/${MACHINE_CPUARCH}-elf.hptmvraid.o
 
 #
 # Debug Options:

@@ -99,10 +99,7 @@ dev/hptmv/mv.c			optional	hptmv
 dev/hptmv/gui_lib.c		optional	hptmv
 dev/hptmv/hptproc.c		optional	hptmv
 dev/hptmv/ioctl.c		optional	hptmv
-hptmvraid.o			optional	hptmv			\
-	dependency	"$S/dev/hptmv/$M-elf.raid.o.uu"			\
-	compile-with	"uudecode < $S/dev/hptmv/$M-elf.raid.o.uu"	\
-	no-implicit-rule
+dev/hptmv/$M-elf.hptmvraid.o	optional	hptmv
 dev/hptnr/hptnr_os_bsd.c	optional	hptnr
 dev/hptnr/hptnr_osm_bsd.c	optional	hptnr
 dev/hptnr/hptnr_config.c	optional	hptnr
