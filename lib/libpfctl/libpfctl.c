@@ -508,6 +508,14 @@ int
 pfctl_get_rule(int dev, u_int32_t nr, u_int32_t ticket, const char *anchor,
     u_int32_t ruleset, struct pfctl_rule *rule, char *anchor_call)
 {
+	return (pfctl_get_clear_rule(dev, nr, ticket, anchor, ruleset, rule,
+	    anchor_call, false));
+}
+
+int	pfctl_get_clear_rule(int dev, u_int32_t nr, u_int32_t ticket,
+	    const char *anchor, u_int32_t ruleset, struct pfctl_rule *rule,
+	    char *anchor_call, bool clear)
+{
 	struct pfioc_nv nv;
 	nvlist_t *nvl;
 	void *nvlpacked;
@@ -521,6 +529,9 @@ pfctl_get_rule(int dev, u_int32_t nr, u_int32_t ticket, const char *anchor,
 	nvlist_add_number(nvl, "ticket", ticket);
 	nvlist_add_string(nvl, "anchor", anchor);
 	nvlist_add_number(nvl, "ruleset", ruleset);
+
+	if (clear)
+		nvlist_add_bool(nvl, "clear_counter", true);
 
 	nvlpacked = nvlist_pack(nvl, &nv.len);
 	if (nvlpacked == NULL) {

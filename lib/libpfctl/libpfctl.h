@@ -182,6 +182,9 @@ RB_PROTOTYPE(pfctl_anchor_node, pfctl_anchor, entry_node,
 int	pfctl_get_rule(int dev, u_int32_t nr, u_int32_t ticket,
 	    const char *anchor, u_int32_t ruleset, struct pfctl_rule *rule,
 	    char *anchor_call);
+int	pfctl_get_clear_rule(int dev, u_int32_t nr, u_int32_t ticket,
+	    const char *anchor, u_int32_t ruleset, struct pfctl_rule *rule,
+	    char *anchor_call, bool clear);
 int	pfctl_add_rule(int dev, const struct pfctl_rule *r,
 	    const char *anchor, const char *anchor_call, u_int32_t ticket,
 	    u_int32_t pool_ticket);
