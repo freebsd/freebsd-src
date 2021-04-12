@@ -1333,6 +1333,11 @@ iscsi_ioctl_daemon_wait(struct iscsi_softc *sc,
 		}
 
 		if (is == NULL) {
+			if (sc->sc_unloading) {
+				sx_sunlock(&sc->sc_lock);
+				return (ENXIO);
+			}
+
 			/*
 			 * No session requires attention from iscsid(8); wait.
 			 */
@@ -2559,6 +2564,12 @@ iscsi_load(void)
 static int
 iscsi_unload(void)
 {
+
+	/* Awaken any threads asleep in iscsi_ioctl(). */
+	sx_xlock(&sc->sc_lock);
+	sc->sc_unloading = true;
+	cv_signal(&sc->sc_cv);
+	sx_xunlock(&sc->sc_lock);
 
 	if (sc->sc_cdev != NULL) {
 		ISCSI_DEBUG("removing device node");
