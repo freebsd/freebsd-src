@@ -365,7 +365,7 @@ struct qlnxr_dev {
 	struct ecore_dev	*cdev;
 
 	/* Added to extend Applications Support */
-        struct pci_dev          *pdev;
+        struct pci_dev          pdev;
 	uint32_t		dp_module;
 	uint8_t			dp_level;
 
