@@ -11,5 +11,5 @@ newline.  Entries should be separated by a newline.
 Changes to this file should not be MFCed.
 
 76681661be28
-	Remove support for assymetric cryptographic operations from
+	Remove support for asymmetric cryptographic operations from
 	the kernel open cryptographic framework (OCF).
