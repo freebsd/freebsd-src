@@ -344,7 +344,6 @@ static int mesh_rsn_build_sae_commit(struct wpa_supplicant *wpa_s,
 	}
 	return sae_prepare_commit(wpa_s->own_addr, sta->addr,
 				  (u8 *) password, os_strlen(password),
-				  ssid->sae_password_id,
 				  sta->sae);
 }
 

@@ -70,14 +70,17 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s);
 
 /**
  * wpa_supplicant_ctrl_iface_deinit - Deinitialize control interface
+ * @wpa_s: Pointer to wpa_supplicant data
  * @priv: Pointer to private data from wpa_supplicant_ctrl_iface_init()
  *
  * Deinitialize the control interface that was initialized with
- * wpa_supplicant_ctrl_iface_init().
+ * wpa_supplicant_ctrl_iface_init() and any data related to the wpa_s instance.
+ * @priv may be %NULL if the control interface has not yet been initialized.
  *
  * Required to be implemented in each control interface backend.
  */
-void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv);
+void wpa_supplicant_ctrl_iface_deinit(struct wpa_supplicant *wpa_s,
+				      struct ctrl_iface_priv *priv);
 
 /**
  * wpa_supplicant_ctrl_iface_wait - Wait for ctrl_iface monitor
@@ -128,7 +131,8 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 }
 
 static inline void
-wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
+wpa_supplicant_ctrl_iface_deinit(struct wpa_supplicant *wpa_s,
+				 struct ctrl_iface_priv *priv)
 {
 }
 

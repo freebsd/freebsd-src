@@ -2581,6 +2581,14 @@ def test_dpp_pkex_hostapd_errors(dev, apdev):
 
 def test_dpp_hostapd_configurator(dev, apdev):
     """DPP with hostapd as configurator/initiator"""
+    run_dpp_hostapd_configurator(dev, apdev)
+
+def test_dpp_hostapd_configurator_enrollee_v1(dev, apdev):
+    """DPP with hostapd as configurator/initiator with v1 enrollee"""
+    dev[0].set("dpp_version_override", "1")
+    run_dpp_hostapd_configurator(dev, apdev)
+
+def run_dpp_hostapd_configurator(dev, apdev):
     check_dpp_capab(dev[0])
     hapd = hostapd.add_ap(apdev[0], {"ssid": "unconfigured",
                                      "channel": "1"})
@@ -2639,6 +2647,340 @@ def test_dpp_hostapd_configurator_fragmentation(dev, apdev):
     hapd.dpp_auth_init(peer=id1, configurator=conf_id, conf="sta-dpp")
     wait_auth_success(dev[0], hapd, configurator=hapd, enrollee=dev[0],
                       stop_responder=True)
+
+def test_dpp_hostapd_enrollee_fragmentation(dev, apdev):
+    """DPP and hostapd as Enrollee with GAS fragmentation"""
+    check_dpp_capab(dev[0])
+    hapd = hostapd.add_ap(apdev[0], {"ssid": "unconfigured",
+                                     "channel": "6"})
+    check_dpp_capab(hapd)
+    conf_id = dev[0].dpp_configurator_add()
+    id0 = dev[0].dpp_bootstrap_gen(chan="81/6", mac=True)
+    uri0 = dev[0].request("DPP_BOOTSTRAP_GET_URI %d" % id0)
+    conf = '{"wi-fi_tech":"infra", "discovery":{"ssid":"test"},"cred":{"akm":"psk","pass":"secret passphrase"}}' + 3000*' '
+    dev[0].set("dpp_config_obj_override", conf)
+    dev[0].set("dpp_configurator_params",
+               " conf=ap-dpp configurator=%d" % conf_id)
+    dev[0].dpp_listen(2437, role="configurator")
+    hapd.dpp_auth_init(uri=uri0, role="enrollee")
+    wait_auth_success(dev[0], hapd, configurator=dev[0], enrollee=hapd,
+                      stop_responder=True)
+
+def test_dpp_hostapd_enrollee_gas_timeout(dev, apdev):
+    """DPP and hostapd as Enrollee with GAS timeout"""
+    check_dpp_capab(dev[0])
+    hapd = hostapd.add_ap(apdev[0], {"ssid": "unconfigured",
+                                     "channel": "6"})
+    check_dpp_capab(hapd)
+    conf_id = dev[0].dpp_configurator_add()
+    id0 = dev[0].dpp_bootstrap_gen(chan="81/6", mac=True)
+    uri0 = dev[0].request("DPP_BOOTSTRAP_GET_URI %d" % id0)
+    conf = '{"wi-fi_tech":"infra", "discovery":{"ssid":"test"},"cred":{"akm":"psk","pass":"secret passphrase"}}' + 3000*' '
+    dev[0].set("dpp_config_obj_override", conf)
+    dev[0].set("dpp_configurator_params",
+               "conf=ap-dpp configurator=%d" % conf_id)
+    dev[0].set("ext_mgmt_frame_handling", "1")
+    dev[0].dpp_listen(2437, role="configurator")
+    hapd.dpp_auth_init(uri=uri0, role="enrollee")
+    process_dpp_frames(dev[0])
+    ev = hapd.wait_event(["GAS-QUERY-DONE"], timeout=10)
+    if "result=TIMEOUT" not in ev:
+        raise Exception("GAS timeout not reported")
+
+def test_dpp_hostapd_enrollee_gas_timeout_comeback(dev, apdev):
+    """DPP and hostapd as Enrollee with GAS timeout during comeback"""
+    check_dpp_capab(dev[0])
+    hapd = hostapd.add_ap(apdev[0], {"ssid": "unconfigured",
+                                     "channel": "6"})
+    check_dpp_capab(hapd)
+    conf_id = dev[0].dpp_configurator_add()
+    id0 = dev[0].dpp_bootstrap_gen(chan="81/6", mac=True)
+    uri0 = dev[0].request("DPP_BOOTSTRAP_GET_URI %d" % id0)
+    conf = '{"wi-fi_tech":"infra", "discovery":{"ssid":"test"},"cred":{"akm":"psk","pass":"secret passphrase"}}' + 3000*' '
+    dev[0].set("dpp_config_obj_override", conf)
+    dev[0].set("dpp_configurator_params",
+               "conf=ap-dpp configurator=%d" % conf_id)
+    dev[0].set("ext_mgmt_frame_handling", "1")
+    dev[0].dpp_listen(2437, role="configurator")
+    hapd.dpp_auth_init(uri=uri0, role="enrollee")
+    process_dpp_frames(dev[0], count=4)
+    ev = hapd.wait_event(["GAS-QUERY-DONE"], timeout=10)
+    if "result=TIMEOUT" not in ev:
+        raise Exception("GAS timeout not reported")
+
+def process_dpp_frames(dev, count=3):
+    for i in range(count):
+        msg = dev.mgmt_rx()
+        cmd = "MGMT_RX_PROCESS freq={} datarate={} ssi_signal={} frame={}".format(msg['freq'], msg['datarate'], msg['ssi_signal'], binascii.hexlify(msg['frame']).decode())
+        if "OK" not in dev.request(cmd):
+            raise Exception("MGMT_RX_PROCESS failed")
+
+def test_dpp_hostapd_enrollee_gas_errors(dev, apdev):
+    """DPP and hostapd as Enrollee with GAS query local errors"""
+    check_dpp_capab(dev[0])
+    hapd = hostapd.add_ap(apdev[0], {"ssid": "unconfigured",
+                                     "channel": "6"})
+    check_dpp_capab(hapd)
+    conf_id = dev[0].dpp_configurator_add()
+    id0 = dev[0].dpp_bootstrap_gen(chan="81/6", mac=True)
+    uri0 = dev[0].request("DPP_BOOTSTRAP_GET_URI %d" % id0)
+    dev[0].set("dpp_configurator_params",
+               "conf=ap-dpp configurator=%d" % conf_id)
+    dev[0].set("ext_mgmt_frame_handling", "1")
+
+    # GAS without comeback
+    tests = [(1, "gas_query_append;gas_query_rx_initial", 3, True),
+             (1, "gas_query_rx_initial", 3, True),
+             (1, "gas_query_tx_initial_req", 2, True),
+             (1, "gas_query_ap_req", 2, False)]
+    for count, func, frame_count, wait_ev in tests:
+        dev[0].request("DPP_STOP_LISTEN")
+        dev[0].dpp_listen(2437, role="configurator")
+        dev[0].dump_monitor()
+        hapd.dump_monitor()
+        with alloc_fail(hapd, count, func):
+            hapd.dpp_auth_init(uri=uri0, role="enrollee")
+            process_dpp_frames(dev[0], count=frame_count)
+            if wait_ev:
+                ev = hapd.wait_event(["GAS-QUERY-DONE"], timeout=10)
+                if not ev or "result=INTERNAL_ERROR" not in ev:
+                    raise Exception("Unexpect GAS query result: " + str(ev))
+
+    # GAS with comeback
+    conf = '{"wi-fi_tech":"infra", "discovery":{"ssid":"test"},"cred":{"akm":"psk","pass":"secret passphrase"}}' + 3000*' '
+    dev[0].set("dpp_config_obj_override", conf)
+
+    tests = [(1, "gas_query_append;gas_query_rx_comeback", 4),
+             (1, "wpabuf_alloc;gas_query_tx_comeback_req", 3),
+             (1, "hostapd_drv_send_action;gas_query_tx_comeback_req", 3)]
+    for count, func, frame_count in tests:
+        dev[0].request("DPP_STOP_LISTEN")
+        dev[0].dpp_listen(2437, role="configurator")
+        dev[0].dump_monitor()
+        hapd.dump_monitor()
+        with alloc_fail(hapd, count, func):
+            hapd.dpp_auth_init(uri=uri0, role="enrollee")
+            process_dpp_frames(dev[0], count=frame_count)
+            ev = hapd.wait_event(["GAS-QUERY-DONE"], timeout=10)
+            if not ev or "result=INTERNAL_ERROR" not in ev:
+                raise Exception("Unexpect GAS query result: " + str(ev))
+
+def test_dpp_hostapd_enrollee_gas_proto(dev, apdev):
+    """DPP and hostapd as Enrollee with GAS query protocol testing"""
+    check_dpp_capab(dev[0])
+    hapd = hostapd.add_ap(apdev[0], {"ssid": "unconfigured",
+                                     "channel": "6"})
+    check_dpp_capab(hapd)
+    bssid = hapd.own_addr()
+    conf_id = dev[0].dpp_configurator_add()
+    id0 = dev[0].dpp_bootstrap_gen(chan="81/6", mac=True)
+    uri0 = dev[0].request("DPP_BOOTSTRAP_GET_URI %d" % id0)
+    dev[0].set("dpp_configurator_params",
+               "conf=ap-dpp configurator=%d" % conf_id)
+    conf = '{"wi-fi_tech":"infra", "discovery":{"ssid":"test"},"cred":{"akm":"psk","pass":"secret passphrase"}}' + 3000*' '
+    dev[0].set("dpp_config_obj_override", conf)
+    dev[0].set("ext_mgmt_frame_handling", "1")
+    dev[0].dpp_listen(2437, role="configurator")
+    hapd.dpp_auth_init(uri=uri0, role="enrollee")
+    process_dpp_frames(dev[0], count=3)
+    msg = dev[0].mgmt_rx()
+    payload = msg['payload']
+    dialog_token, = struct.unpack('B', payload[2:3])
+    hdr = struct.pack('<BBBHBH', 4, 13, dialog_token, 0, 0x80, 0)
+    # GAS: Advertisement Protocol changed between initial and comeback response from 02:00:00:00:00:00
+    adv_proto = "6c087fdd05506f9a1a02"
+    action = binascii.hexlify(hdr).decode() + adv_proto + "0300" + "001001"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    ev = hapd.wait_event(["GAS-QUERY-DONE"], timeout=10)
+    if not ev or "result=PEER_ERROR" not in ev:
+        raise Exception("Unexpect GAS query result: " + str(ev))
+    dev[0].request("DPP_STOP_LISTEN")
+    hapd.dump_monitor()
+    dev[0].dump_monitor()
+
+    dev[0].dpp_listen(2437, role="configurator")
+    hapd.dpp_auth_init(uri=uri0, role="enrollee")
+    process_dpp_frames(dev[0], count=3)
+    msg = dev[0].mgmt_rx()
+    payload = msg['payload']
+    dialog_token, = struct.unpack('B', payload[2:3])
+    # Another comeback delay
+    hdr = struct.pack('<BBBHBH', 4, 13, dialog_token, 0, 0x80, 1)
+    adv_proto = "6c087fdd05506f9a1a01"
+    action = binascii.hexlify(hdr).decode() + adv_proto + "0300" + "001001"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    msg = dev[0].mgmt_rx()
+    hdr = struct.pack('<BBBHBH', 4, 13, dialog_token, 0, 0x81, 1)
+    # GAS: Invalid comeback response with non-zero frag_id and comeback_delay from 02:00:00:00:00:00
+    action = binascii.hexlify(hdr).decode() + adv_proto + "0300" + "001001"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    ev = hapd.wait_event(["GAS-QUERY-DONE"], timeout=10)
+    if not ev or "result=PEER_ERROR" not in ev:
+        raise Exception("Unexpect GAS query result: " + str(ev))
+    dev[0].request("DPP_STOP_LISTEN")
+    hapd.dump_monitor()
+    dev[0].dump_monitor()
+
+    dev[0].dpp_listen(2437, role="configurator")
+    hapd.dpp_auth_init(uri=uri0, role="enrollee")
+    process_dpp_frames(dev[0], count=3)
+    msg = dev[0].mgmt_rx()
+    payload = msg['payload']
+    dialog_token, = struct.unpack('B', payload[2:3])
+    # Valid comeback response
+    hdr = struct.pack('<BBBHBH', 4, 13, dialog_token, 0, 0x80, 0)
+    action = binascii.hexlify(hdr).decode() + adv_proto + "0300" + "001001"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    msg = dev[0].mgmt_rx()
+    # GAS: Drop frame as possible retry of previous fragment
+    hdr = struct.pack('<BBBHBH', 4, 13, dialog_token, 0, 0x80, 0)
+    action = binascii.hexlify(hdr).decode() + adv_proto + "0300" + "001001"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    # GAS: Unexpected frag_id in response from 02:00:00:00:00:00
+    hdr = struct.pack('<BBBHBH', 4, 13, dialog_token, 0, 0x82, 0)
+    action = binascii.hexlify(hdr).decode() + adv_proto + "0300" + "001001"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    ev = hapd.wait_event(["GAS-QUERY-DONE"], timeout=10)
+    if not ev or "result=PEER_ERROR" not in ev:
+        raise Exception("Unexpect GAS query result: " + str(ev))
+    dev[0].request("DPP_STOP_LISTEN")
+    hapd.dump_monitor()
+    dev[0].dump_monitor()
+
+    dev[0].dpp_listen(2437, role="configurator")
+    hapd.dpp_auth_init(uri=uri0, role="enrollee")
+    process_dpp_frames(dev[0], count=3)
+    msg = dev[0].mgmt_rx()
+    payload = msg['payload']
+    dialog_token, = struct.unpack('B', payload[2:3])
+    # GAS: Unexpected initial response from 02:00:00:00:00:00 dialog token 3 when waiting for comeback response
+    hdr = struct.pack('<BBBHBH', 4, 11, dialog_token, 0, 0x80, 0)
+    action = binascii.hexlify(hdr).decode() + adv_proto + "0300" + "001001"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    # GAS: Allow non-zero status for outstanding comeback response
+    hdr = struct.pack('<BBBHBH', 4, 13, dialog_token, 95, 0x80, 0)
+    # GAS: Ignore 1 octets of extra data after Query Response from 02:00:00:00:00:00
+    action = binascii.hexlify(hdr).decode() + adv_proto + "0300" + "001001" + "ff"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    # GAS: No pending query found for 02:00:00:00:00:00 dialog token 4
+    hdr = struct.pack('<BBBHBH', 4, 13, (dialog_token + 1) % 256, 0, 0x80, 0)
+    action = binascii.hexlify(hdr).decode() + adv_proto + "0300" + "001001"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    # GAS: Truncated Query Response in response from 02:00:00:00:00:00
+    hdr = struct.pack('<BBBHBH', 4, 13, dialog_token, 0, 0x81, 0)
+    action = binascii.hexlify(hdr).decode() + adv_proto + "0300" + "0010"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    # GAS: No room for GAS Response Length
+    hdr = struct.pack('<BBBHBH', 4, 13, dialog_token, 0, 0x81, 0)
+    action = binascii.hexlify(hdr).decode() + adv_proto + "03"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    # GAS: Unexpected Advertisement Protocol element ID 0 in response from 02:00:00:00:00:00
+    hdr = struct.pack('<BBBHBH', 4, 13, dialog_token, 0, 0x81, 0)
+    adv_proto_broken = "0000"
+    action = binascii.hexlify(hdr).decode() + adv_proto_broken + "0300" + "001001"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    # GAS: No room for Advertisement Protocol element in the response from 02:00:00:00:00:00
+    hdr = struct.pack('<BBBHBH', 4, 13, dialog_token, 0, 0x81, 0)
+    adv_proto_broken = "00ff"
+    action = binascii.hexlify(hdr).decode() + adv_proto_broken + "0300" + "001001"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    # No room for Comeback Delay
+    hdr = struct.pack('<BBBHBB', 4, 13, dialog_token, 0, 0x81, 0)
+    action = binascii.hexlify(hdr).decode()
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    # No room for frag_id
+    hdr = struct.pack('<BBBH', 4, 13, dialog_token, 0)
+    action = binascii.hexlify(hdr).decode()
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    # GAS: Query to 02:00:00:00:00:00 dialog token 3 failed - status code 1
+    hdr = struct.pack('<BBBHBH', 4, 13, dialog_token, 1, 0x81, 0)
+    action = binascii.hexlify(hdr).decode() + adv_proto + "0300" + "001001"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    ev = hapd.wait_event(["GAS-QUERY-DONE"], timeout=10)
+    if not ev or "result=FAILURE" not in ev:
+        raise Exception("Unexpect GAS query result: " + str(ev))
+    dev[0].request("DPP_STOP_LISTEN")
+    hapd.dump_monitor()
+    dev[0].dump_monitor()
+
+    dev[0].dpp_listen(2437, role="configurator")
+    hapd.dpp_auth_init(uri=uri0, role="enrollee")
+    process_dpp_frames(dev[0], count=2)
+    msg = dev[0].mgmt_rx()
+    payload = msg['payload']
+    dialog_token, = struct.unpack('B', payload[2:3])
+    # Unexpected comeback delay
+    hdr = struct.pack('<BBBHBH', 4, 13, dialog_token, 0, 0x80, 0)
+    adv_proto = "6c087fdd05506f9a1a01"
+    action = binascii.hexlify(hdr).decode() + adv_proto + "0300" + "001001"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    # GAS: Query to 02:00:00:00:00:00 dialog token 3 failed - status code 1
+    hdr = struct.pack('<BBBHBH', 4, 11, dialog_token, 1, 0x80, 0)
+    action = binascii.hexlify(hdr).decode() + adv_proto + "0300" + "001001"
+    cmd = "MGMT_TX %s %s freq=2437 wait_time=100 action=%s" % (bssid, bssid, action)
+    dev[0].request(cmd)
+    ev = hapd.wait_event(["GAS-QUERY-DONE"], timeout=10)
+    if not ev or "result=FAILURE" not in ev:
+        raise Exception("Unexpect GAS query result: " + str(ev))
+    dev[0].request("DPP_STOP_LISTEN")
+    hapd.dump_monitor()
+    dev[0].dump_monitor()
+
+def test_dpp_hostapd_enrollee_gas_tx_status_errors(dev, apdev):
+    """DPP and hostapd as Enrollee with GAS TX status errors"""
+    check_dpp_capab(dev[0])
+    hapd = hostapd.add_ap(apdev[0], {"ssid": "unconfigured",
+                                     "channel": "6"})
+    check_dpp_capab(hapd)
+    conf_id = dev[0].dpp_configurator_add()
+    id0 = dev[0].dpp_bootstrap_gen(chan="81/6", mac=True)
+    uri0 = dev[0].request("DPP_BOOTSTRAP_GET_URI %d" % id0)
+    conf = '{"wi-fi_tech":"infra", "discovery":{"ssid":"test"},"cred":{"akm":"psk","pass":"secret passphrase"}}' + 3000*' '
+    dev[0].set("dpp_config_obj_override", conf)
+    dev[0].set("dpp_configurator_params",
+               "conf=ap-dpp configurator=%d" % conf_id)
+    dev[0].set("ext_mgmt_frame_handling", "1")
+    dev[0].dpp_listen(2437, role="configurator")
+    hapd.dpp_auth_init(uri=uri0, role="enrollee")
+    process_dpp_frames(dev[0], count=3)
+
+    hapd.set("ext_mgmt_frame_handling", "1")
+    # GAS: TX status for unexpected destination
+    frame = "d0003a01" + "222222222222"
+    frame += hapd.own_addr().replace(':', '') + "ffffffffffff"
+    frame += "5000" + "040a"
+    hapd.request("MGMT_TX_STATUS_PROCESS stype=13 ok=1 buf=" + frame)
+
+    # GAS: No ACK to GAS request
+    frame = "d0003a01" + dev[0].own_addr().replace(':', '')
+    frame += hapd.own_addr().replace(':', '') + "ffffffffffff"
+    frame += "5000" + "040a"
+    hapd.request("MGMT_TX_STATUS_PROCESS stype=13 ok=0 buf=" + frame)
+
+    ev = hapd.wait_event(["GAS-QUERY-DONE"], timeout=10)
+    if "result=TIMEOUT" not in ev:
+        raise Exception("GAS timeout not reported")
+
+    # GAS: Unexpected TX status: dst=02:00:00:00:00:00 ok=1 - no query in progress
+    hapd.request("MGMT_TX_STATUS_PROCESS stype=13 ok=1 buf=" + frame)
+    hapd.set("ext_mgmt_frame_handling", "0")
 
 def test_dpp_hostapd_configurator_override_objects(dev, apdev):
     """DPP with hostapd as configurator and override objects"""
@@ -5303,6 +5645,49 @@ def run_dpp_conn_status(dev, apdev, result=0, assoc_reject=False):
     if result == 10 and "channel_list=" not in ev:
         raise Exception("Channel list not reported for no-AP")
 
+def test_dpp_conn_status_success_hostapd_configurator(dev, apdev):
+    """DPP connection status - success with hostapd as Configurator"""
+    try:
+        run_dpp_conn_status_hostapd_configurator(dev, apdev)
+    finally:
+        dev[0].set("dpp_config_processing", "0", allow_fail=True)
+
+def run_dpp_conn_status_hostapd_configurator(dev, apdev):
+    check_dpp_capab(dev[0])
+    hapd = hostapd.add_ap(apdev[0], {"ssid": "unconfigured",
+                                     "channel": "1"})
+    check_dpp_capab(hapd)
+    conf_id = hapd.dpp_configurator_add()
+
+    cmd = "DPP_CONFIGURATOR_SIGN conf=ap-dpp configurator=%d" % conf_id
+    res = hapd.request(cmd)
+    if "FAIL" in res:
+        raise Exception("Failed to generate own configuration")
+    update_hapd_config(hapd)
+
+    id0 = dev[0].dpp_bootstrap_gen(chan="81/1", mac=True)
+    uri0 = dev[0].request("DPP_BOOTSTRAP_GET_URI %d" % id0)
+    id1 = hapd.dpp_qr_code(uri0)
+    res = hapd.request("DPP_BOOTSTRAP_INFO %d" % id1)
+    if "FAIL" in res:
+        raise Exception("DPP_BOOTSTRAP_INFO failed")
+    if "type=QRCODE" not in res:
+        raise Exception("DPP_BOOTSTRAP_INFO did not report correct type")
+    if "mac_addr=" + dev[0].own_addr() not in res:
+        raise Exception("DPP_BOOTSTRAP_INFO did not report correct mac_addr")
+    dev[0].set("dpp_config_processing", "2")
+    dev[0].dpp_listen(2412)
+    hapd.dpp_auth_init(peer=id1, configurator=conf_id, conf="sta-dpp",
+                       conn_status=True)
+    res = wait_auth_success(dev[0], hapd, configurator=hapd, enrollee=dev[0])
+    if 'wait_conn_status' not in res:
+        raise Exception("Configurator did not request connection status")
+    ev = hapd.wait_event(["DPP-CONN-STATUS-RESULT"], timeout=20)
+    if ev is None:
+        raise Exception("No connection status reported")
+    if "result=0" not in ev:
+        raise Exception("Unexpected connection status: " + ev)
+
 def test_dpp_mud_url(dev, apdev):
     """DPP MUD URL"""
     check_dpp_capab(dev[0])
@@ -5408,6 +5793,24 @@ def test_dpp_nfc_uri_hostapd(dev, apdev):
     dev[0].dpp_auth_init(nfc_uri=uri, configurator=conf_id, conf="ap-dpp")
     wait_auth_success(hapd, dev[0], configurator=dev[0], enrollee=hapd)
 
+def test_dpp_nfc_uri_hostapd_tag_read(dev, apdev):
+    """DPP bootstrapping via NFC URI record (hostapd reading tag)"""
+    check_dpp_capab(dev[0])
+
+    hapd = hostapd.add_ap(apdev[0], {"ssid": "unconfigured"})
+    check_dpp_capab(hapd)
+
+    id = dev[0].dpp_bootstrap_gen(type="nfc-uri", chan="81/1", mac=True)
+    uri = dev[0].request("DPP_BOOTSTRAP_GET_URI %d" % id)
+    info = dev[0].request("DPP_BOOTSTRAP_INFO %d" % id)
+    conf_id = dev[0].dpp_configurator_add()
+    dev[0].set("dpp_configurator_params",
+               "conf=ap-dpp configurator=%d" % conf_id)
+    dev[0].dpp_listen(2412)
+
+    hapd.dpp_auth_init(nfc_uri=uri, role="enrollee")
+    wait_auth_success(dev[0], hapd, configurator=dev[0], enrollee=hapd)
+
 def test_dpp_nfc_negotiated_handover(dev, apdev):
     """DPP bootstrapping via NFC negotiated handover"""
     run_dpp_nfc_negotiated_handover(dev)
@@ -5470,6 +5873,40 @@ def run_dpp_nfc_negotiated_handover(dev, curve0=None, curve1=None,
     dev[0].dpp_auth_init(peer=peer, own=id0, configurator=conf_id,
                          conf=conf)
     wait_auth_success(dev[1], dev[0], configurator=dev[0], enrollee=dev[1])
+
+def test_dpp_nfc_errors_hostapd(dev, apdev):
+    """DPP NFC operation failures in hostapd"""
+    check_dpp_capab(dev[0])
+    check_dpp_capab(dev[1])
+
+    id0 = dev[0].dpp_bootstrap_gen(type="nfc-uri", chan="81/11", mac=True,
+                                   curve="secp384r1")
+    uri0 = dev[0].request("DPP_BOOTSTRAP_GET_URI %d" % id0)
+
+    hapd = hostapd.add_ap(apdev[0], {"ssid": "unconfigured",
+                                     "channel": "6"})
+    check_dpp_capab(hapd)
+
+    id_h = hapd.dpp_bootstrap_gen(type="nfc-uri", chan="81/6", mac=True)
+    uri_h = hapd.request("DPP_BOOTSTRAP_GET_URI %d" % id_h)
+
+    tests = ["",
+             "own=123456789",
+             "own=%d" % id_h,
+             "own=%d uri=%s" % (id_h, "foo")]
+    for t in tests:
+        if "FAIL" not in hapd.request("DPP_NFC_HANDOVER_REQ " + t):
+            raise Exception("Invalid DPP_NFC_HANDOVER_REQ accepted")
+        if "FAIL" not in hapd.request("DPP_NFC_HANDOVER_SEL " + t):
+            raise Exception("Invalid DPP_NFC_HANDOVER_SEL accepted")
+
+    # DPP: Peer (NFC Handover Selector) used different curve
+    if "FAIL" not in hapd.request("DPP_NFC_HANDOVER_SEL own=%d uri=%s" % (id_h, uri0)):
+        raise Exception("Invalid DPP_NFC_HANDOVER_SEL accepted")
+
+    # DPP: No common channel found
+    if "FAIL" not in hapd.request("DPP_NFC_HANDOVER_REQ own=%d uri=%s" % (id_h, uri0)):
+        raise Exception("DPP_NFC_HANDOVER_REQ with local error accepted")
 
 def test_dpp_with_p2p_device(dev, apdev):
     """DPP exchange when driver uses a separate P2P Device interface"""
@@ -5648,6 +6085,74 @@ def test_dpp_chirp_ap(dev, apdev):
                       timeout=20)
     update_hapd_config(hapd)
 
+@long_duration_test
+def test_dpp_chirp_ap_5g(dev, apdev):
+    """DPP chirp by an AP on 5 GHz"""
+    check_dpp_capab(dev[0], min_ver=2)
+
+    try:
+        hapd = None
+        hapd2 = None
+
+        params = {"ssid": "unconfigured",
+                  "country_code": "US",
+                  "hw_mode": "a",
+                  "channel": "40",
+                  "dpp_configurator_connectivity": "1"}
+        hapd2 = hostapd.add_ap(apdev[1], params)
+        check_dpp_capab(hapd2, min_ver=2)
+
+        params = {"ssid": "unconfigured",
+                  "country_code": "US",
+                  "hw_mode": "a",
+                  "channel": "36",
+                  "start_disabled": "1"}
+        hapd = hostapd.add_ap(apdev[0], params)
+        check_dpp_capab(hapd, min_ver=2)
+
+        id_h = hapd.dpp_bootstrap_gen(chan="81/1", mac=True)
+        uri = hapd.request("DPP_BOOTSTRAP_GET_URI %d" % id_h)
+
+        # First, check chirping iteration and timeout
+        if "OK" not in hapd.request("DPP_CHIRP own=%d iter=2" % id_h):
+            raise Exception("DPP_CHIRP failed")
+        chan1 = 0
+        chan6 = 0
+        chan40 = 0
+        chan149 = 0
+        for i in range(30):
+            ev = hapd.wait_event(["DPP-CHIRP-STOPPED", "DPP-TX "], timeout=60)
+            if ev is None:
+                raise Exception("DPP chirp stop not reported")
+            if "DPP-CHIRP-STOPPED" in ev:
+                break
+            if "type=13" not in ev:
+                continue
+            freq = int(ev.split(' ')[2].split('=')[1])
+            if freq == 2412:
+                chan1 += 1
+            elif freq == 2437:
+                chan6 += 1
+            elif freq == 5200:
+                chan40 += 1
+            elif freq == 5745:
+                chan149 += 1
+        if not chan1 or not chan6 or not chan40 or not chan149:
+            raise Exception("Chirp not sent on all channels")
+
+        # Then, check successful chirping
+        conf_id = dev[0].dpp_configurator_add()
+        idc = dev[0].dpp_qr_code(uri)
+        dev[0].dpp_bootstrap_set(idc, conf="ap-dpp", configurator=conf_id)
+        dev[0].dpp_listen(5200)
+        if "OK" not in hapd.request("DPP_CHIRP own=%d iter=5" % id_h):
+            raise Exception("DPP_CHIRP failed")
+        wait_auth_success(hapd, dev[0], configurator=dev[0], enrollee=hapd,
+                          timeout=20)
+        update_hapd_config(hapd)
+    finally:
+        clear_regdom(hapd, dev)
+
 def test_dpp_chirp_ap_errors(dev, apdev):
     """DPP chirp errors in hostapd"""
     hapd = hostapd.add_ap(apdev[0], {"ssid": "unconfigured",
@@ -5778,6 +6283,25 @@ def test_dpp_pfs_ap_0_sta_ver1(dev, apdev):
     dev[0].set("dpp_version_override", "1")
     hapd = start_dpp_pfs_ap(apdev[0], 0)
     run_dpp_pfs_sta(dev[0], 0, pfs_expected=False)
+
+def test_dpp_pfs_errors(dev, apdev):
+    """DPP PFS error cases"""
+    check_dpp_capab(dev[0], min_ver=2)
+    hapd = start_dpp_pfs_ap(apdev[0], 1)
+    tests = [(1, "dpp_pfs_init"),
+             (1, "crypto_ecdh_init;dpp_pfs_init"),
+             (1, "wpabuf_alloc;dpp_pfs_init")]
+    for count, func in tests:
+        with alloc_fail(dev[0], count, func):
+            dev[0].connect("dpp", key_mgmt="DPP", scan_freq="2412",
+                           ieee80211w="2", dpp_pfs="1",
+                           dpp_csign=params1_csign,
+                           dpp_connector=params1_sta_connector,
+                           dpp_netaccesskey=params1_sta_netaccesskey)
+            dev[0].request("REMOVE_NETWORK all")
+            dev[0].wait_disconnected()
+            dev[0].dump_monitor()
+            hapd.dump_monitor()
 
 def test_dpp_reconfig_connector(dev, apdev):
     """DPP reconfiguration connector"""

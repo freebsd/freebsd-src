@@ -107,7 +107,8 @@ static void hostapd_reload_bss(struct hostapd_data *hapd)
 		return;
 
 	if (hapd->conf->wmm_enabled < 0)
-		hapd->conf->wmm_enabled = hapd->iconf->ieee80211n;
+		hapd->conf->wmm_enabled = hapd->iconf->ieee80211n |
+			hapd->iconf->ieee80211ax;
 
 #ifndef CONFIG_NO_RADIUS
 	radius_client_reconfig(hapd->radius, hapd->conf->radius);
@@ -1173,7 +1174,8 @@ static int hostapd_setup_bss(struct hostapd_data *hapd, int first)
 	}
 
 	if (conf->wmm_enabled < 0)
-		conf->wmm_enabled = hapd->iconf->ieee80211n;
+		conf->wmm_enabled = hapd->iconf->ieee80211n |
+			hapd->iconf->ieee80211ax;
 
 #ifdef CONFIG_IEEE80211R_AP
 	if (is_zero_ether_addr(conf->r1_key_holder))

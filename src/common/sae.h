@@ -122,7 +122,7 @@ void sae_clear_data(struct sae_data *sae);
 
 int sae_prepare_commit(const u8 *addr1, const u8 *addr2,
 		       const u8 *password, size_t password_len,
-		       const char *identifier, struct sae_data *sae);
+		       struct sae_data *sae);
 int sae_prepare_commit_pt(struct sae_data *sae, const struct sae_pt *pt,
 			  const u8 *addr1, const u8 *addr2,
 			  int *rejected_groups, const struct sae_pk *pk);

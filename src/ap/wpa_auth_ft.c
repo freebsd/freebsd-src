@@ -3198,8 +3198,7 @@ pmk_r1_derived:
 
 	if (sm->wpa_auth->conf.force_kdk_derivation ||
 	    (sm->wpa_auth->conf.secure_ltf &&
-	     sm->rsnxe && sm->rsnxe_len >= 4 &&
-	     sm->rsnxe[3] & BIT(WLAN_RSNX_CAPAB_SECURE_LTF - 8)))
+	     ieee802_11_rsnx_capab(sm->rsnxe, WLAN_RSNX_CAPAB_SECURE_LTF)))
 		kdk_len = WPA_KDK_MAX_LEN;
 	else
 		kdk_len = 0;

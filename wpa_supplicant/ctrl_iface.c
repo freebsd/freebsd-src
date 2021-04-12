@@ -512,6 +512,19 @@ static int wpa_supplicant_ctrl_iface_set(struct wpa_supplicant *wpa_s,
 	} else if (os_strcasecmp(cmd, "EAPOL::maxStart") == 0) {
 		eapol_sm_configure(wpa_s->eapol,
 				   -1, -1, -1, atoi(value));
+#ifdef CONFIG_TESTING_OPTIONS
+	} else if (os_strcasecmp(cmd, "EAPOL::portControl") == 0) {
+		if (os_strcmp(value, "Auto") == 0)
+			eapol_sm_notify_portControl(wpa_s->eapol, Auto);
+		else if (os_strcmp(value, "ForceUnauthorized") == 0)
+			eapol_sm_notify_portControl(wpa_s->eapol,
+						    ForceUnauthorized);
+		else if (os_strcmp(value, "ForceAuthorized") == 0)
+			eapol_sm_notify_portControl(wpa_s->eapol,
+						    ForceAuthorized);
+		else
+			ret = -1;
+#endif /* CONFIG_TESTING_OPTIONS */
 	} else if (os_strcasecmp(cmd, "dot11RSNAConfigPMKLifetime") == 0) {
 		if (wpa_sm_set_param(wpa_s->wpa, RSNA_PMK_LIFETIME,
 				     atoi(value))) {
@@ -2999,19 +3012,17 @@ static int wpa_supplicant_ctrl_iface_scan_result(
 					    ie2, 2 + ie2[1]);
 	}
 	rsnxe = wpa_bss_get_ie(bss, WLAN_EID_RSNX);
-	if (rsnxe && rsnxe[1] >= 1) {
-		if (rsnxe[2] & BIT(WLAN_RSNX_CAPAB_SAE_H2E)) {
-			ret = os_snprintf(pos, end - pos, "[SAE-H2E]");
-			if (os_snprintf_error(end - pos, ret))
-				return -1;
-			pos += ret;
-		}
-		if (rsnxe[2] & BIT(WLAN_RSNX_CAPAB_SAE_PK)) {
-			ret = os_snprintf(pos, end - pos, "[SAE-PK]");
-			if (os_snprintf_error(end - pos, ret))
-				return -1;
-			pos += ret;
-		}
+	if (ieee802_11_rsnx_capab(rsnxe, WLAN_RSNX_CAPAB_SAE_H2E)) {
+		ret = os_snprintf(pos, end - pos, "[SAE-H2E]");
+		if (os_snprintf_error(end - pos, ret))
+			return -1;
+		pos += ret;
+	}
+	if (ieee802_11_rsnx_capab(rsnxe, WLAN_RSNX_CAPAB_SAE_PK)) {
+		ret = os_snprintf(pos, end - pos, "[SAE-PK]");
+		if (os_snprintf_error(end - pos, ret))
+			return -1;
+		pos += ret;
 	}
 	osen_ie = wpa_bss_get_vendor_ie(bss, OSEN_IE_VENDOR_TYPE);
 	if (osen_ie)
@@ -5099,19 +5110,17 @@ static int print_bss_info(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 						    mesh ? "RSN" : "WPA2", ie2,
 						    2 + ie2[1]);
 		rsnxe = wpa_bss_get_ie(bss, WLAN_EID_RSNX);
-		if (rsnxe && rsnxe[1] >= 1) {
-			if (rsnxe[2] & BIT(WLAN_RSNX_CAPAB_SAE_H2E)) {
-				ret = os_snprintf(pos, end - pos, "[SAE-H2E]");
-				if (os_snprintf_error(end - pos, ret))
-					return -1;
-				pos += ret;
-			}
-			if (rsnxe[2] & BIT(WLAN_RSNX_CAPAB_SAE_PK)) {
-				ret = os_snprintf(pos, end - pos, "[SAE-PK]");
-				if (os_snprintf_error(end - pos, ret))
-					return -1;
-				pos += ret;
-			}
+		if (ieee802_11_rsnx_capab(rsnxe, WLAN_RSNX_CAPAB_SAE_H2E)) {
+			ret = os_snprintf(pos, end - pos, "[SAE-H2E]");
+			if (os_snprintf_error(end - pos, ret))
+				return -1;
+			pos += ret;
+		}
+		if (ieee802_11_rsnx_capab(rsnxe, WLAN_RSNX_CAPAB_SAE_PK)) {
+			ret = os_snprintf(pos, end - pos, "[SAE-PK]");
+			if (os_snprintf_error(end - pos, ret))
+				return -1;
+			pos += ret;
 		}
 		osen_ie = wpa_bss_get_vendor_ie(bss, OSEN_IE_VENDOR_TYPE);
 		if (osen_ie)
@@ -9300,6 +9309,132 @@ fail:
 }
 
 
+static int wpas_ctrl_iface_driver_event_assoc(struct wpa_supplicant *wpa_s,
+					      char *param)
+{
+	union wpa_event_data event;
+	struct assoc_info *ai;
+	char *ctx = NULL;
+	int ret = -1;
+	struct wpabuf *req_ies = NULL;
+	struct wpabuf *resp_ies = NULL;
+	struct wpabuf *resp_frame = NULL;
+	struct wpabuf *beacon_ies = NULL;
+	struct wpabuf *key_replay_ctr = NULL;
+	struct wpabuf *ptk_kck = NULL;
+	struct wpabuf *ptk_kek = NULL;
+	struct wpabuf *fils_pmk = NULL;
+	char *str, *pos;
+	u8 addr[ETH_ALEN];
+	u8 fils_pmkid[PMKID_LEN];
+
+	os_memset(&event, 0, sizeof(event));
+	ai = &event.assoc_info;
+
+	while ((str = str_token(param, " ", &ctx))) {
+		pos = os_strchr(str, '=');
+		if (!pos)
+			goto fail;
+		*pos++ = '\0';
+
+		if (os_strcmp(str, "reassoc") == 0) {
+			ai->reassoc = atoi(pos);
+		} else if (os_strcmp(str, "req_ies") == 0) {
+			wpabuf_free(req_ies);
+			req_ies = wpabuf_parse_bin(pos);
+			if (!req_ies)
+				goto fail;
+			ai->req_ies = wpabuf_head(req_ies);
+			ai->req_ies_len = wpabuf_len(req_ies);
+		} else if (os_strcmp(str, "resp_ies") == 0) {
+			wpabuf_free(resp_ies);
+			resp_ies = wpabuf_parse_bin(pos);
+			if (!resp_ies)
+				goto fail;
+			ai->resp_ies = wpabuf_head(resp_ies);
+			ai->resp_ies_len = wpabuf_len(resp_ies);
+		} else if (os_strcmp(str, "resp_frame") == 0) {
+			wpabuf_free(resp_frame);
+			resp_frame = wpabuf_parse_bin(pos);
+			if (!resp_frame)
+				goto fail;
+			ai->resp_frame = wpabuf_head(resp_frame);
+			ai->resp_frame_len = wpabuf_len(resp_frame);
+		} else if (os_strcmp(str, "beacon_ies") == 0) {
+			wpabuf_free(beacon_ies);
+			beacon_ies = wpabuf_parse_bin(pos);
+			if (!beacon_ies)
+				goto fail;
+			ai->beacon_ies = wpabuf_head(beacon_ies);
+			ai->beacon_ies_len = wpabuf_len(beacon_ies);
+		} else if (os_strcmp(str, "freq") == 0) {
+			ai->freq = atoi(pos);
+		} else if (os_strcmp(str, "wmm::info_bitmap") == 0) {
+			ai->wmm_params.info_bitmap = atoi(pos);
+		} else if (os_strcmp(str, "wmm::uapsd_queues") == 0) {
+			ai->wmm_params.uapsd_queues = atoi(pos);
+		} else if (os_strcmp(str, "addr") == 0) {
+			if (hwaddr_aton(pos, addr))
+				goto fail;
+			ai->addr = addr;
+		} else if (os_strcmp(str, "authorized") == 0) {
+			ai->authorized = atoi(pos);
+		} else if (os_strcmp(str, "key_replay_ctr") == 0) {
+			wpabuf_free(key_replay_ctr);
+			key_replay_ctr = wpabuf_parse_bin(pos);
+			if (!key_replay_ctr)
+				goto fail;
+			ai->key_replay_ctr = wpabuf_head(key_replay_ctr);
+			ai->key_replay_ctr_len = wpabuf_len(key_replay_ctr);
+		} else if (os_strcmp(str, "ptk_kck") == 0) {
+			wpabuf_free(ptk_kck);
+			ptk_kck = wpabuf_parse_bin(pos);
+			if (!ptk_kck)
+				goto fail;
+			ai->ptk_kck = wpabuf_head(ptk_kck);
+			ai->ptk_kck_len = wpabuf_len(ptk_kck);
+		} else if (os_strcmp(str, "ptk_kek") == 0) {
+			wpabuf_free(ptk_kek);
+			ptk_kek = wpabuf_parse_bin(pos);
+			if (!ptk_kek)
+				goto fail;
+			ai->ptk_kek = wpabuf_head(ptk_kek);
+			ai->ptk_kek_len = wpabuf_len(ptk_kek);
+		} else if (os_strcmp(str, "subnet_status") == 0) {
+			ai->subnet_status = atoi(pos);
+		} else if (os_strcmp(str, "fils_erp_next_seq_num") == 0) {
+			ai->fils_erp_next_seq_num = atoi(pos);
+		} else if (os_strcmp(str, "fils_pmk") == 0) {
+			wpabuf_free(fils_pmk);
+			fils_pmk = wpabuf_parse_bin(pos);
+			if (!fils_pmk)
+				goto fail;
+			ai->fils_pmk = wpabuf_head(fils_pmk);
+			ai->fils_pmk_len = wpabuf_len(fils_pmk);
+		} else if (os_strcmp(str, "fils_pmkid") == 0) {
+			if (hexstr2bin(pos, fils_pmkid, PMKID_LEN) < 0)
+				goto fail;
+			ai->fils_pmkid = fils_pmkid;
+		} else {
+			goto fail;
+		}
+	}
+
+	wpa_supplicant_event(wpa_s, EVENT_ASSOC, &event);
+	ret = 0;
+fail:
+	wpabuf_free(req_ies);
+	wpabuf_free(resp_ies);
+	wpabuf_free(resp_frame);
+	wpabuf_free(beacon_ies);
+	wpabuf_free(key_replay_ctr);
+	wpabuf_free(ptk_kck);
+	wpabuf_free(ptk_kek);
+	wpabuf_free(fils_pmk);
+	return ret;
+}
+
+
 static int wpas_ctrl_iface_driver_event(struct wpa_supplicant *wpa_s, char *cmd)
 {
 	char *pos, *param;
@@ -9332,6 +9467,8 @@ static int wpas_ctrl_iface_driver_event(struct wpa_supplicant *wpa_s, char *cmd)
 		return 0;
 	} else if (os_strcmp(cmd, "SCAN_RES") == 0) {
 		return wpas_ctrl_iface_driver_scan_res(wpa_s, param);
+	} else if (os_strcmp(cmd, "ASSOC") == 0) {
+		return wpas_ctrl_iface_driver_event_assoc(wpa_s, param);
 	} else {
 		wpa_dbg(wpa_s, MSG_DEBUG, "Testing - unknown driver event: %s",
 			cmd);
@@ -10598,15 +10735,18 @@ static int wpas_ctrl_iface_pasn_start(struct wpa_supplicant *wpa_s, char *cmd)
 	u8 bssid[ETH_ALEN];
 	int akmp = -1, cipher = -1, got_bssid = 0;
 	u16 group = 0xFFFF;
-	int id = 0;
+	u8 *comeback = NULL;
+	size_t comeback_len = 0;
+	int id = 0, ret = -1;
 
 	/*
 	 * Entry format: bssid=<BSSID> akmp=<AKMP> cipher=<CIPHER> group=<group>
+	 *    [comeback=<hexdump>]
 	 */
 	while ((token = str_token(cmd, " ", &context))) {
 		if (os_strncmp(token, "bssid=", 6) == 0) {
 			if (hwaddr_aton(token + 6, bssid))
-				return -1;
+				goto out;
 			got_bssid = 1;
 		} else if (os_strcmp(token, "akmp=PASN") == 0) {
 			akmp = WPA_KEY_MGMT_PASN;
@@ -10640,20 +10780,34 @@ static int wpas_ctrl_iface_pasn_start(struct wpa_supplicant *wpa_s, char *cmd)
 			group = atoi(token + 6);
 		} else if (os_strncmp(token, "nid=", 4) == 0) {
 			id = atoi(token + 4);
+		} else if (os_strncmp(token, "comeback=", 9) == 0) {
+			comeback_len = os_strlen(token + 9);
+			if (comeback || !comeback_len || comeback_len % 2)
+				goto out;
+
+			comeback_len /= 2;
+			comeback = os_malloc(comeback_len);
+			if (!comeback ||
+			    hexstr2bin(token + 9, comeback, comeback_len))
+				goto out;
 		} else {
 			wpa_printf(MSG_DEBUG,
 				   "CTRL: PASN Invalid parameter: '%s'",
 				   token);
-			return -1;
+			goto out;
 		}
 	}
 
 	if (!got_bssid || akmp == -1 || cipher == -1 || group == 0xFFFF) {
 		wpa_printf(MSG_DEBUG,"CTRL: PASN missing parameter");
-		return -1;
+		goto out;
 	}
 
-	return wpas_pasn_auth_start(wpa_s, bssid, akmp, cipher, group, id);
+	ret = wpas_pasn_auth_start(wpa_s, bssid, akmp, cipher, group, id,
+				   comeback, comeback_len);
+out:
+	os_free(comeback);
+	return ret;
 }
 
 

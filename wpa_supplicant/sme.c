@@ -186,7 +186,6 @@ static struct wpabuf * sme_auth_build_sae_commit(struct wpa_supplicant *wpa_s,
 	if (!use_pt &&
 	    sae_prepare_commit(wpa_s->own_addr, bssid,
 			       (u8 *) password, os_strlen(password),
-			       ssid->sae_password_id,
 			       &wpa_s->sme.sae) < 0) {
 		wpa_printf(MSG_DEBUG, "SAE: Could not pick PWE");
 		return NULL;

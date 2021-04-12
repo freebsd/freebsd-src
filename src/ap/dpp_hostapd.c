@@ -915,7 +915,8 @@ static void hostapd_dpp_gas_resp_cb(void *ctx, const u8 *addr, u8 dialog_token,
 		wpa_printf(MSG_DEBUG, "DPP: No matching exchange in progress");
 		return;
 	}
-	if (!resp || status_code != WLAN_STATUS_SUCCESS) {
+	if (result != GAS_QUERY_AP_SUCCESS ||
+	    !resp || status_code != WLAN_STATUS_SUCCESS) {
 		wpa_printf(MSG_DEBUG, "DPP: GAS query did not succeed");
 		goto fail;
 	}
@@ -1189,6 +1190,7 @@ static void hostapd_dpp_rx_conf_result(struct hostapd_data *hapd, const u8 *src,
 		wpa_printf(MSG_DEBUG, "DPP: Wait for Connection Status Result");
 		eloop_cancel_timeout(hostapd_dpp_config_result_wait_timeout,
 				     hapd, NULL);
+		auth->waiting_conn_status_result = 1;
 		eloop_cancel_timeout(
 			hostapd_dpp_conn_status_result_wait_timeout,
 			hapd, NULL);
@@ -1981,6 +1983,19 @@ hostapd_dpp_gas_req_handler(struct hostapd_data *hapd, const u8 *sa,
 		wpa_printf(MSG_DEBUG, "DPP: No matching exchange in progress");
 		return NULL;
 	}
+
+	if (hapd->dpp_auth_ok_on_ack && auth->configurator) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Have not received ACK for Auth Confirm yet - assume it was received based on this GAS request");
+		/* hostapd_dpp_auth_success() would normally have been called
+		 * from TX status handler, but since there was no such handler
+		 * call yet, simply send out the event message and proceed with
+		 * exchange. */
+		wpa_msg(hapd->msg_ctx, MSG_INFO,
+			DPP_EVENT_AUTH_SUCCESS "init=1");
+		hapd->dpp_auth_ok_on_ack = 0;
+	}
+
 	wpa_hexdump(MSG_DEBUG,
 		    "DPP: Received Configuration Request (GAS Query Request)",
 		    query, query_len);

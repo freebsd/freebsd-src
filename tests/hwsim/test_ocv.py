@@ -982,12 +982,22 @@ def check_ocv_failure(dev, frame_txt, frame, addr):
 
 def test_wpa2_ocv_ap_override_eapol_m3(dev, apdev):
     """OCV on 2.4 GHz and AP override EAPOL-Key msg 3/4"""
+    run_wpa2_ocv_ap_override_eapol_m3(dev, apdev)
+
+def test_wpa2_ocv_ap_override_eapol_m3_post_enable(dev, apdev):
+    """OCV on 2.4 GHz and AP override EAPOL-Key msg 3/4 (post enable)"""
+    run_wpa2_ocv_ap_override_eapol_m3(dev, apdev, True)
+
+def run_wpa2_ocv_ap_override_eapol_m3(dev, apdev, post_enable=False):
     params = {"channel": "1",
               "ieee80211w": "2",
-              "ocv": "1",
-              "oci_freq_override_eapol_m3": "2462"}
+              "ocv": "1"}
+    if not post_enable:
+        params["oci_freq_override_eapol_m3"] = "2462"
     hapd, ssid, passphrase = ocv_setup_ap(apdev[0], params)
     bssid = hapd.own_addr()
+    if post_enable:
+        hapd.set("oci_freq_override_eapol_m3", "2462")
     dev[0].connect(ssid, psk=passphrase, scan_freq="2412", ocv="1",
                    ieee80211w="2", wait_connect=False)
 
@@ -999,15 +1009,25 @@ def test_wpa2_ocv_ap_override_eapol_m3(dev, apdev):
 
 def test_wpa2_ocv_ap_override_eapol_g1(dev, apdev):
     """OCV on 2.4 GHz and AP override EAPOL-Key group msg 1/2"""
+    run_wpa2_ocv_ap_override_eapol_g1(dev, apdev)
+
+def test_wpa2_ocv_ap_override_eapol_g1_post_enable(dev, apdev):
+    """OCV on 2.4 GHz and AP override EAPOL-Key group msg 1/2 (post enable)"""
+    run_wpa2_ocv_ap_override_eapol_g1(dev, apdev, True)
+
+def run_wpa2_ocv_ap_override_eapol_g1(dev, apdev, post_enable=False):
     params = {"channel": "1",
               "ieee80211w": "2",
-              "ocv": "1",
-              "oci_freq_override_eapol_g1": "2462"}
+              "ocv": "1"}
+    if not post_enable:
+        params["oci_freq_override_eapol_g1"] = "2462"
     hapd, ssid, passphrase = ocv_setup_ap(apdev[0], params)
     bssid = hapd.own_addr()
     dev[0].connect(ssid, psk=passphrase, scan_freq="2412", ocv="1",
                    ieee80211w="2")
 
+    if post_enable:
+        hapd.set("oci_freq_override_eapol_g1", "2462")
     if "OK" not in hapd.request("REKEY_GTK"):
         raise Exception("REKEY_GTK failed")
     check_ocv_failure(dev[0], "EAPOL-Key group msg 1/2", "eapol-key-g1", bssid)
@@ -1044,6 +1064,13 @@ def test_wpa2_ocv_ap_override_saquery_resp(dev, apdev):
 
 def test_wpa2_ocv_ap_override_fils_assoc(dev, apdev, params):
     """OCV on 2.4 GHz and AP override FILS association"""
+    run_wpa2_ocv_ap_override_fils_assoc(dev, apdev, params)
+
+def test_wpa2_ocv_ap_override_fils_assoc_post_enable(dev, apdev, params):
+    """OCV on 2.4 GHz and AP override FILS association (post enable)"""
+    run_wpa2_ocv_ap_override_fils_assoc(dev, apdev, params, True)
+
+def run_wpa2_ocv_ap_override_fils_assoc(dev, apdev, params, post_enable=False):
     check_fils_capa(dev[0])
     check_erp_capa(dev[0])
 
@@ -1060,7 +1087,8 @@ def test_wpa2_ocv_ap_override_fils_assoc(dev, apdev, params):
     params['wpa_group_rekey'] = '1'
     params["ieee80211w"] = "2"
     params["ocv"] = "1"
-    params["oci_freq_override_fils_assoc"] = "2462"
+    if not post_enable:
+        params["oci_freq_override_fils_assoc"] = "2462"
     try:
         hapd = hostapd.add_ap(apdev[0], params)
     except Exception as e:
@@ -1068,6 +1096,8 @@ def test_wpa2_ocv_ap_override_fils_assoc(dev, apdev, params):
             raise HwsimSkip("OCV not supported")
         raise
     bssid = hapd.own_addr()
+    if post_enable:
+        hapd.set("oci_freq_override_fils_assoc", "2462")
     dev[0].request("ERP_FLUSH")
     id = dev[0].connect(ssid, key_mgmt="FILS-SHA256",
                         eap="PSK", identity="psk.user@example.com",
@@ -1085,12 +1115,20 @@ def test_wpa2_ocv_ap_override_fils_assoc(dev, apdev, params):
 
 def test_wpa2_ocv_ap_override_ft_assoc(dev, apdev):
     """OCV on 2.4 GHz and AP override FT reassociation"""
+    run_wpa2_ocv_ap_override_ft_assoc(dev, apdev)
+
+def test_wpa2_ocv_ap_override_ft_assoc_post_enable(dev, apdev):
+    """OCV on 2.4 GHz and AP override FT reassociation (post enable)"""
+    run_wpa2_ocv_ap_override_ft_assoc(dev, apdev, True)
+
+def run_wpa2_ocv_ap_override_ft_assoc(dev, apdev, post_enable=False):
     ssid = "test-wpa2-ocv"
     passphrase = "qwertyuiop"
     params = ft_params1(ssid=ssid, passphrase=passphrase)
     params["ieee80211w"] = "2"
     params["ocv"] = "1"
-    params["oci_freq_override_fils_assoc"] = "2462"
+    if not post_enable:
+        params["oci_freq_override_ft_assoc"] = "2462"
     try:
         hapd0 = hostapd.add_ap(apdev[0], params)
     except Exception as e:
@@ -1100,8 +1138,13 @@ def test_wpa2_ocv_ap_override_ft_assoc(dev, apdev):
     params = ft_params2(ssid=ssid, passphrase=passphrase)
     params["ieee80211w"] = "2"
     params["ocv"] = "1"
-    params["oci_freq_override_ft_assoc"] = "2462"
+    if not post_enable:
+        params["oci_freq_override_ft_assoc"] = "2462"
     hapd1 = hostapd.add_ap(apdev[1], params)
+
+    if post_enable:
+        hapd0.set("oci_freq_override_ft_assoc", "2462")
+        hapd1.set("oci_freq_override_ft_assoc", "2462")
 
     dev[0].connect(ssid, key_mgmt="FT-PSK", psk=passphrase,
                    scan_freq="2412", ocv="1", ieee80211w="2")

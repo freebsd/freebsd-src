@@ -118,7 +118,7 @@ void wpas_handle_robust_av_recv_action(struct wpa_supplicant *wpa_s,
 		return;
 	}
 
-	status_code = *buf;
+	status_code = WPA_GET_LE16(buf);
 	wpa_msg(wpa_s, MSG_INFO, WPA_EVENT_MSCS_RESULT "bssid=" MACSTR
 		" status_code=%u", MAC2STR(src), status_code);
 	wpa_s->mscs_setup_done = status_code == WLAN_STATUS_SUCCESS;

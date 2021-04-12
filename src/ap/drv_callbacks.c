@@ -459,8 +459,8 @@ int hostapd_notif_assoc(struct hostapd_data *hapd, const u8 *addr,
 		if (hapd->conf->sae_pwe == 2 &&
 		    sta->auth_alg == WLAN_AUTH_SAE &&
 		    sta->sae && !sta->sae->h2e &&
-		    elems.rsnxe && elems.rsnxe_len >= 1 &&
-		    (elems.rsnxe[0] & BIT(WLAN_RSNX_CAPAB_SAE_H2E))) {
+		    ieee802_11_rsnx_capab_len(elems.rsnxe, elems.rsnxe_len,
+					      WLAN_RSNX_CAPAB_SAE_H2E)) {
 			wpa_printf(MSG_INFO, "SAE: " MACSTR
 				   " indicates support for SAE H2E, but did not use it",
 				   MAC2STR(sta->addr));

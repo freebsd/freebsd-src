@@ -403,3 +403,35 @@ def _test_ap_track_taxonomy(dev, apdev):
         raise Exception("Unexpected SIGNATURE prefix")
     if "|assoc:" not in res:
         raise Exception("Missing assoc info in SIGNATURE")
+
+def test_ap_track_taxonomy_5g(dev, apdev):
+    """AP tracking STA taxonomy (5 GHz)"""
+    try:
+        _test_ap_track_taxonomy_5g(dev, apdev)
+    finally:
+        subprocess.call(['iw', 'reg', 'set', '00'])
+        dev[0].flush_scan_cache()
+
+def _test_ap_track_taxonomy_5g(dev, apdev):
+    params = {"ssid": "track",
+              "country_code": "US",
+              "hw_mode": "a",
+              "channel": "40",
+              "track_sta_max_num": "2"}
+    hapd = hostapd.add_ap(apdev[0], params)
+    bssid = apdev[0]['bssid']
+
+    dev[0].scan_for_bss(bssid, freq=5200, force_scan=True)
+    addr0 = dev[0].own_addr()
+    dev[0].connect("track", key_mgmt="NONE", scan_freq="5200")
+
+    res = hapd.request("SIGNATURE " + addr0)
+    logger.info("sta0: " + res)
+    if not res.startswith("wifi4|probe:"):
+        raise Exception("Unexpected SIGNATURE prefix")
+    if "|assoc:" not in res:
+        raise Exception("Missing assoc info in SIGNATURE")
+    if ",htcap:" not in res:
+        raise Exception("Missing HT info in SIGNATURE")
+    if ",vhtcap:" not in res:
+        raise Exception("Missing VHT info in SIGNATURE")

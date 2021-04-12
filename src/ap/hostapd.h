@@ -354,6 +354,8 @@ struct hostapd_data {
 	int last_bigtk_key_idx;
 	u8 last_bigtk[WPA_BIGTK_MAX_LEN];
 	size_t last_bigtk_len;
+
+	bool force_backlog_bytes;
 #endif /* CONFIG_TESTING_OPTIONS */
 
 #ifdef CONFIG_MBO

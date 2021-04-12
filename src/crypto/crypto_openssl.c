@@ -81,12 +81,14 @@ static void EVP_MD_CTX_free(EVP_MD_CTX *ctx)
 }
 
 
+#ifdef CONFIG_ECC
 static EC_KEY * EVP_PKEY_get0_EC_KEY(EVP_PKEY *pkey)
 {
 	if (pkey->type != EVP_PKEY_EC)
 		return NULL;
 	return pkey->pkey.ec;
 }
+#endif /* CONFIG_ECC */
 
 #endif /* OpenSSL version < 1.1.0 */
 

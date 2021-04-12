@@ -674,10 +674,8 @@ static void test_eapol_clean(struct eapol_test_data *e,
 	os_free(e->radius_conf);
 	e->radius_conf = NULL;
 	scard_deinit(wpa_s->scard);
-	if (wpa_s->ctrl_iface) {
-		wpa_supplicant_ctrl_iface_deinit(wpa_s->ctrl_iface);
-		wpa_s->ctrl_iface = NULL;
-	}
+	wpa_supplicant_ctrl_iface_deinit(wpa_s, wpa_s->ctrl_iface);
+	wpa_s->ctrl_iface = NULL;
 
 	ext_password_deinit(wpa_s->ext_pw);
 	wpa_s->ext_pw = NULL;

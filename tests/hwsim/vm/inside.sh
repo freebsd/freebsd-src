@@ -15,11 +15,16 @@ mount sysfs -t sysfs /sys
 # needed for tracing
 mount debugfs -t debugfs /sys/kernel/debug
 
+mkdir /tmp/wireshark-share
+mount --bind /usr/share/wireshark /tmp/wireshark-share
+mount tmpfs -t tmpfs /usr/share/wireshark
+
 # for inside telnet
 mkdir /dev/pts
 mount devpts -t devpts /dev/pts
 
 export PATH=/usr/sbin:$PATH
+export HOME=/tmp
 
 # reboot on any sort of crash
 sysctl kernel.panic_on_oops=1

@@ -462,8 +462,11 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 }
 
 
-void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
+void wpa_supplicant_ctrl_iface_deinit(struct wpa_supplicant *wpa_s,
+				      struct ctrl_iface_priv *priv)
 {
+	if (!priv)
+		return;
 	while (priv->ctrl_dst)
 		ctrl_close_pipe(priv->ctrl_dst);
 	if (priv->sec_attr_set)

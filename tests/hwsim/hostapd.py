@@ -419,6 +419,12 @@ class Hostapd:
             raise Exception("Failed to parse QR Code URI")
         return int(res)
 
+    def dpp_nfc_uri(self, uri):
+        res = self.request("DPP_NFC_URI " + uri)
+        if "FAIL" in res:
+            raise Exception("Failed to parse NFC URI")
+        return int(res)
+
     def dpp_bootstrap_gen(self, type="qrcode", chan=None, mac=None, info=None,
                           curve=None, key=None):
         cmd = "DPP_BOOTSTRAP_GEN type=" + type
@@ -466,10 +472,14 @@ class Hostapd:
 
     def dpp_auth_init(self, peer=None, uri=None, conf=None, configurator=None,
                       extra=None, own=None, role=None, neg_freq=None,
-                      ssid=None, passphrase=None, expect_fail=False):
+                      ssid=None, passphrase=None, expect_fail=False,
+                      conn_status=False, nfc_uri=None):
         cmd = "DPP_AUTH_INIT"
         if peer is None:
-            peer = self.dpp_qr_code(uri)
+            if nfc_uri:
+                peer = self.dpp_nfc_uri(nfc_uri)
+            else:
+                peer = self.dpp_qr_code(uri)
         cmd += " peer=%d" % peer
         if own is not None:
             cmd += " own=%d" % own
@@ -487,6 +497,8 @@ class Hostapd:
             cmd += " ssid=" + binascii.hexlify(ssid.encode()).decode()
         if passphrase:
             cmd += " pass=" + binascii.hexlify(passphrase.encode()).decode()
+        if conn_status:
+            cmd += " conn_status=1"
         res = self.request(cmd)
         if expect_fail:
             if "FAIL" not in res:

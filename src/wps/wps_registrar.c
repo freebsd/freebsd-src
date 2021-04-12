@@ -1320,13 +1320,9 @@ static int wps_set_ie(struct wps_registrar *reg)
 	}
 
 	beacon = wpabuf_alloc(400 + vendor_len);
-	if (beacon == NULL)
-		return -1;
 	probe = wpabuf_alloc(500 + vendor_len);
-	if (probe == NULL) {
-		wpabuf_free(beacon);
-		return -1;
-	}
+	if (!beacon || !probe)
+		goto fail;
 
 	auth_macs = wps_authorized_macs(reg, &count);
 
@@ -1342,19 +1338,13 @@ static int wps_set_ie(struct wps_registrar *reg)
 	    (reg->dualband && wps_build_rf_bands(&reg->wps->dev, beacon, 0)) ||
 	    wps_build_wfa_ext(beacon, 0, auth_macs, count, 0) ||
 	    wps_build_vendor_ext(&reg->wps->dev, beacon) ||
-	    wps_build_application_ext(&reg->wps->dev, beacon)) {
-		wpabuf_free(beacon);
-		wpabuf_free(probe);
-		return -1;
-	}
+	    wps_build_application_ext(&reg->wps->dev, beacon))
+		goto fail;
 
 #ifdef CONFIG_P2P
 	if (wps_build_dev_name(&reg->wps->dev, beacon) ||
-	    wps_build_primary_dev_type(&reg->wps->dev, beacon)) {
-		wpabuf_free(beacon);
-		wpabuf_free(probe);
-		return -1;
-	}
+	    wps_build_primary_dev_type(&reg->wps->dev, beacon))
+		goto fail;
 #endif /* CONFIG_P2P */
 
 	wpa_printf(MSG_DEBUG, "WPS: Build Probe Response IEs");
@@ -1373,22 +1363,20 @@ static int wps_set_ie(struct wps_registrar *reg)
 	    (reg->dualband && wps_build_rf_bands(&reg->wps->dev, probe, 0)) ||
 	    wps_build_wfa_ext(probe, 0, auth_macs, count, 0) ||
 	    wps_build_vendor_ext(&reg->wps->dev, probe) ||
-	    wps_build_application_ext(&reg->wps->dev, probe)) {
-		wpabuf_free(beacon);
-		wpabuf_free(probe);
-		return -1;
-	}
+	    wps_build_application_ext(&reg->wps->dev, probe))
+		goto fail;
 
 	beacon = wps_ie_encapsulate(beacon);
 	probe = wps_ie_encapsulate(probe);
 
-	if (!beacon || !probe) {
-		wpabuf_free(beacon);
-		wpabuf_free(probe);
-		return -1;
-	}
+	if (!beacon || !probe)
+		goto fail;
 
 	return wps_cb_set_ie(reg, beacon, probe);
+fail:
+	wpabuf_free(beacon);
+	wpabuf_free(probe);
+	return -1;
 }
 
 

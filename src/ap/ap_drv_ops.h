@@ -403,4 +403,17 @@ static inline int hostapd_drv_driver_cmd(struct hostapd_data *hapd,
 }
 #endif /* ANDROID */
 
+#ifdef CONFIG_TESTING_OPTIONS
+static inline int
+hostapd_drv_register_frame(struct hostapd_data *hapd, u16 type,
+			   const u8 *match, size_t match_len,
+			   bool multicast)
+{
+	if (!hapd->driver || !hapd->drv_priv || !hapd->driver->register_frame)
+		return -1;
+	return hapd->driver->register_frame(hapd->drv_priv, type, match,
+					    match_len, multicast);
+}
+#endif /* CONFIG_TESTING_OPTIONS */
+
 #endif /* AP_DRV_OPS */

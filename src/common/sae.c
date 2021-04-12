@@ -280,13 +280,12 @@ fail:
 
 static int sae_derive_pwe_ecc(struct sae_data *sae, const u8 *addr1,
 			      const u8 *addr2, const u8 *password,
-			      size_t password_len, const char *identifier)
+			      size_t password_len)
 {
 	u8 counter, k;
 	u8 addrs[2 * ETH_ALEN];
-	const u8 *addr[3];
-	size_t len[3];
-	size_t num_elem;
+	const u8 *addr[2];
+	size_t len[2];
 	u8 *dummy_password, *tmp_password;
 	int pwd_seed_odd = 0;
 	u8 prime[SAE_MAX_ECC_PRIME_LEN];
@@ -324,13 +323,10 @@ static int sae_derive_pwe_ecc(struct sae_data *sae, const u8 *addr1,
 
 	wpa_hexdump_ascii_key(MSG_DEBUG, "SAE: password",
 			      password, password_len);
-	if (identifier)
-		wpa_printf(MSG_DEBUG, "SAE: password identifier: %s",
-			   identifier);
 
 	/*
 	 * H(salt, ikm) = HMAC-SHA256(salt, ikm)
-	 * base = password [|| identifier]
+	 * base = password
 	 * pwd-seed = H(MAX(STA-A-MAC, STA-B-MAC) || MIN(STA-A-MAC, STA-B-MAC),
 	 *              base || counter)
 	 */
@@ -338,15 +334,8 @@ static int sae_derive_pwe_ecc(struct sae_data *sae, const u8 *addr1,
 
 	addr[0] = tmp_password;
 	len[0] = password_len;
-	num_elem = 1;
-	if (identifier) {
-		addr[num_elem] = (const u8 *) identifier;
-		len[num_elem] = os_strlen(identifier);
-		num_elem++;
-	}
-	addr[num_elem] = &counter;
-	len[num_elem] = sizeof(counter);
-	num_elem++;
+	addr[1] = &counter;
+	len[1] = sizeof(counter);
 
 	/*
 	 * Continue for at least k iterations to protect against side-channel
@@ -367,7 +356,7 @@ static int sae_derive_pwe_ecc(struct sae_data *sae, const u8 *addr1,
 		wpa_printf(MSG_DEBUG, "SAE: counter = %03u", counter);
 		const_time_select_bin(found, dummy_password, password,
 				      password_len, tmp_password);
-		if (hmac_sha256_vector(addrs, sizeof(addrs), num_elem,
+		if (hmac_sha256_vector(addrs, sizeof(addrs), 2,
 				       addr, len, pwd_seed) < 0)
 			break;
 
@@ -438,13 +427,12 @@ fail:
 
 static int sae_derive_pwe_ffc(struct sae_data *sae, const u8 *addr1,
 			      const u8 *addr2, const u8 *password,
-			      size_t password_len, const char *identifier)
+			      size_t password_len)
 {
 	u8 counter, k, sel_counter = 0;
 	u8 addrs[2 * ETH_ALEN];
-	const u8 *addr[3];
-	size_t len[3];
-	size_t num_elem;
+	const u8 *addr[2];
+	size_t len[2];
 	u8 found = 0; /* 0 (false) or 0xff (true) to be used as const_time_*
 		       * mask */
 	u8 mask;
@@ -468,21 +456,14 @@ static int sae_derive_pwe_ffc(struct sae_data *sae, const u8 *addr1,
 	/*
 	 * H(salt, ikm) = HMAC-SHA256(salt, ikm)
 	 * pwd-seed = H(MAX(STA-A-MAC, STA-B-MAC) || MIN(STA-A-MAC, STA-B-MAC),
-	 *              password [|| identifier] || counter)
+	 *              password || counter)
 	 */
 	sae_pwd_seed_key(addr1, addr2, addrs);
 
 	addr[0] = password;
 	len[0] = password_len;
-	num_elem = 1;
-	if (identifier) {
-		addr[num_elem] = (const u8 *) identifier;
-		len[num_elem] = os_strlen(identifier);
-		num_elem++;
-	}
-	addr[num_elem] = &counter;
-	len[num_elem] = sizeof(counter);
-	num_elem++;
+	addr[1] = &counter;
+	len[1] = sizeof(counter);
 
 	k = dragonfly_min_pwe_loop_iter(sae->group);
 
@@ -497,7 +478,7 @@ static int sae_derive_pwe_ffc(struct sae_data *sae, const u8 *addr1,
 		}
 
 		wpa_printf(MSG_DEBUG, "SAE: counter = %02u", counter);
-		if (hmac_sha256_vector(addrs, sizeof(addrs), num_elem,
+		if (hmac_sha256_vector(addrs, sizeof(addrs), 2,
 				       addr, len, pwd_seed) < 0)
 			break;
 		res = sae_test_pwd_seed_ffc(sae, pwd_seed, pwe);
@@ -1354,15 +1335,13 @@ static int sae_derive_commit(struct sae_data *sae)
 
 int sae_prepare_commit(const u8 *addr1, const u8 *addr2,
 		       const u8 *password, size_t password_len,
-		       const char *identifier, struct sae_data *sae)
+		       struct sae_data *sae)
 {
 	if (sae->tmp == NULL ||
 	    (sae->tmp->ec && sae_derive_pwe_ecc(sae, addr1, addr2, password,
-						password_len,
-						identifier) < 0) ||
+						password_len) < 0) ||
 	    (sae->tmp->dh && sae_derive_pwe_ffc(sae, addr1, addr2, password,
-						password_len,
-						identifier) < 0))
+						password_len) < 0))
 		return -1;
 
 	sae->h2e = 0;
@@ -2268,10 +2247,10 @@ int sae_write_confirm(struct sae_data *sae, struct wpabuf *buf)
 	hash_len = sae->tmp->kck_len;
 
 	/* Send-Confirm */
-	sc = wpabuf_put(buf, 0);
-	wpabuf_put_le16(buf, sae->send_confirm);
 	if (sae->send_confirm < 0xffff)
 		sae->send_confirm++;
+	sc = wpabuf_put(buf, 0);
+	wpabuf_put_le16(buf, sae->send_confirm);
 
 	if (sae->tmp->ec)
 		res = sae_cn_confirm_ecc(sae, sc, sae->tmp->own_commit_scalar,

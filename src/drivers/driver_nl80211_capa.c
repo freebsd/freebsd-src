@@ -891,7 +891,7 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 
 	if (tb[NL80211_ATTR_MAC_ACL_MAX])
 		capa->max_acl_mac_addrs =
-			nla_get_u8(tb[NL80211_ATTR_MAC_ACL_MAX]);
+			nla_get_u32(tb[NL80211_ATTR_MAC_ACL_MAX]);
 
 	wiphy_info_supported_iftypes(info, tb[NL80211_ATTR_SUPPORTED_IFTYPES]);
 	wiphy_info_iface_comb(info, tb[NL80211_ATTR_INTERFACE_COMBINATIONS]);

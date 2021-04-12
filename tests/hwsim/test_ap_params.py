@@ -909,3 +909,64 @@ def test_ap_notify_mgmt_frames_disabled(dev, apdev):
     ev = hapd.wait_event(["AP-MGMT-FRAME-RECEIVED"], timeout=0.1)
     if ev is not None:
         raise Exception("Unexpected AP-MGMT-FRAME-RECEIVED")
+
+def test_ap_airtime_policy_static(dev, apdev):
+    """Airtime policy - static"""
+    ssid = "test-wpa2-psk"
+    passphrase = 'qwertyuiop'
+    params = hostapd.wpa2_params(ssid=ssid, passphrase=passphrase)
+    params['airtime_mode'] = "1"
+    params['airtime_update_interval'] = "200"
+    params['airtime_sta_weight'] = dev[0].own_addr() + " 512"
+    hapd = hostapd.add_ap(apdev[0], params)
+    dev[0].connect(ssid, psk=passphrase, scan_freq="2412")
+    dev[1].connect(ssid, psk=passphrase, scan_freq="2412")
+    time.sleep(1)
+
+def test_ap_airtime_policy_per_bss_dynamic(dev, apdev):
+    """Airtime policy - per-BSS dynamic"""
+    ssid = "test-wpa2-psk"
+    passphrase = 'qwertyuiop'
+    params = hostapd.wpa2_params(ssid=ssid, passphrase=passphrase)
+    params['airtime_mode'] = "2"
+    params['airtime_update_interval'] = "200"
+    params['airtime_bss_weight'] = "2"
+    hapd = hostapd.add_ap(apdev[0], params)
+    dev[0].connect(ssid, psk=passphrase, scan_freq="2412")
+    dev[1].connect(ssid, psk=passphrase, scan_freq="2412")
+    time.sleep(1)
+
+def test_ap_airtime_policy_per_bss_limit(dev, apdev):
+    """Airtime policy - per-BSS limit"""
+    ssid = "test-wpa2-psk"
+    passphrase = 'qwertyuiop'
+    params = hostapd.wpa2_params(ssid=ssid, passphrase=passphrase)
+    params['airtime_mode'] = "3"
+    params['airtime_update_interval'] = "200"
+    params['airtime_bss_weight'] = "2"
+    params['airtime_bss_limit'] = "1"
+    hapd = hostapd.add_ap(apdev[0], params)
+    dev[0].connect(ssid, psk=passphrase, scan_freq="2412")
+    dev[1].connect(ssid, psk=passphrase, scan_freq="2412")
+    time.sleep(1)
+    hapd.set("force_backlog_bytes", "1")
+    time.sleep(1)
+
+def test_ap_airtime_policy_per_bss_limit_invalid(dev, apdev):
+    """Airtime policy - per-BSS limit (invalid)"""
+    ssid = "test-wpa2-psk"
+    passphrase = 'qwertyuiop'
+    params = hostapd.wpa2_params(ssid=ssid, passphrase=passphrase)
+    params['airtime_mode'] = "3"
+    params['airtime_update_interval'] = "0"
+    params['airtime_bss_weight'] = "2"
+    params['airtime_bss_limit'] = "1"
+    hapd = hostapd.add_ap(apdev[0], params, no_enable=True)
+    if "FAIL" not in hapd.request("ENABLE"):
+        raise Exception("Invalid airtime policy configuration accepted")
+    hapd.set("airtime_update_interval", "200")
+    hapd.enable()
+    hapd.set("airtime_update_interval", "0")
+    dev[0].connect(ssid, psk=passphrase, scan_freq="2412")
+    dev[1].connect(ssid, psk=passphrase, scan_freq="2412")
+    time.sleep(1)

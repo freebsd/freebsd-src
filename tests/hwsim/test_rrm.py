@@ -212,6 +212,20 @@ def test_rrm_neighbor_db(dev, apdev):
     if apdev[0]['bssid'] not in res:
         raise Exception("Own BSS not visible in SHOW_NEIGHBOR output")
 
+def test_rrm_neighbor_db_failures(dev, apdev):
+    """hostapd ctrl_iface SET_NEIGHBOR failures"""
+    params = {"ssid": "test", "rrm_neighbor_report": "1"}
+    hapd = hostapd.add_ap(apdev[0]['ifname'], params)
+    cmd = "SET_NEIGHBOR 00:11:22:33:44:55 ssid=\"test1\" nr=" + nr + " lci=" + lci + " civic=" + civic
+    tests = [(1, "hostapd_neighbor_add"),
+             (1, "wpabuf_dup;hostapd_neighbor_set"),
+             (2, "wpabuf_dup;hostapd_neighbor_set"),
+             (3, "wpabuf_dup;hostapd_neighbor_set")]
+    for count, func in tests:
+        with alloc_fail(hapd, count, func):
+            if "FAIL" not in hapd.request(cmd):
+                raise Exception("Set neighbor succeeded")
+
 def test_rrm_neighbor_db_disabled(dev, apdev):
     """hostapd ctrl_iface SHOW_NEIGHBOR while neighbor report disabled"""
     params = {"ssid": "test"}

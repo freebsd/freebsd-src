@@ -165,6 +165,11 @@ void hostapd_config_defaults_bss(struct hostapd_bss_config *bss)
 #ifdef CONFIG_TESTING_OPTIONS
 	bss->sae_commit_status = -1;
 #endif /* CONFIG_TESTING_OPTIONS */
+
+#ifdef CONFIG_PASN
+	/* comeback after 10 TUs */
+	bss->pasn_comeback_after = 10;
+#endif /* CONFIG_PASN */
 }
 
 

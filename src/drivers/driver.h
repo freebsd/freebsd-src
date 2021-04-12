@@ -4553,6 +4553,12 @@ struct wpa_driver_ops {
 	 * explicitly allow reception of broadcast Public Action frames.
 	 */
 	int (*dpp_listen)(void *priv, bool enable);
+
+#ifdef CONFIG_TESTING_OPTIONS
+	int (*register_frame)(void *priv, u16 type,
+			      const u8 *match, size_t match_len,
+			      bool multicast);
+#endif /* CONFIG_TESTING_OPTIONS */
 };
 
 /**

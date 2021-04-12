@@ -572,7 +572,7 @@ static struct wpabuf * auth_build_sae_commit(struct hostapd_data *hapd,
 
 	if (update && !use_pt &&
 	    sae_prepare_commit(hapd->own_addr, sta->addr,
-			       (u8 *) password, os_strlen(password), rx_id,
+			       (u8 *) password, os_strlen(password),
 			       sta->sae) < 0) {
 		wpa_printf(MSG_DEBUG, "SAE: Could not pick PWE");
 		return NULL;
@@ -702,13 +702,15 @@ static int use_anti_clogging(struct hostapd_data *hapd)
 
 	for (sta = hapd->sta_list; sta; sta = sta->next) {
 #ifdef CONFIG_SAE
-		if (!sta->sae)
-			continue;
-		if (sta->sae->state != SAE_COMMITTED &&
-		    sta->sae->state != SAE_CONFIRMED)
-			continue;
-		open++;
+		if (sta->sae &&
+		    (sta->sae->state == SAE_COMMITTED ||
+		     sta->sae->state == SAE_CONFIRMED))
+			open++;
 #endif /* CONFIG_SAE */
+#ifdef CONFIG_PASN
+		if (sta->pasn && sta->pasn->ecdh)
+			open++;
+#endif /* CONFIG_PASN */
 		if (open >= hapd->conf->anti_clogging_threshold)
 			return 1;
 	}
@@ -806,7 +808,8 @@ static struct wpabuf * auth_build_token_req(struct hostapd_data *hapd,
 	if (buf == NULL)
 		return NULL;
 
-	wpabuf_put_le16(buf, group); /* Finite Cyclic Group */
+	if (group)
+		wpabuf_put_le16(buf, group); /* Finite Cyclic Group */
 
 	if (h2e) {
 		/* Encapsulate Anti-clogging Token field in a container IE */
@@ -2380,11 +2383,12 @@ static int pasn_wd_handle_sae_commit(struct hostapd_data *hapd,
 				     struct wpabuf *wd)
 {
 	struct pasn_data *pasn = sta->pasn;
-	const char *password = NULL;
+	const char *password;
 	const u8 *data;
 	size_t buf_len;
 	u16 res, alg, seq, status;
 	int groups[] = { pasn->group, 0 };
+	struct sae_pt *pt = NULL;
 	int ret;
 
 	if (!wd)
@@ -2406,8 +2410,8 @@ static int pasn_wd_handle_sae_commit(struct hostapd_data *hapd,
 	wpa_printf(MSG_DEBUG, "PASN: SAE commit: alg=%u, seq=%u, status=%u",
 		   alg, seq, status);
 
-	/* TODO: SAE H2E */
-	if (alg != WLAN_AUTH_SAE || seq != 1 || status != WLAN_STATUS_SUCCESS) {
+	if (alg != WLAN_AUTH_SAE || seq != 1 ||
+	    status != WLAN_STATUS_SAE_HASH_TO_ELEMENT) {
 		wpa_printf(MSG_DEBUG, "PASN: Dropping peer SAE commit");
 		return -1;
 	}
@@ -2421,15 +2425,14 @@ static int pasn_wd_handle_sae_commit(struct hostapd_data *hapd,
 		return -1;
 	}
 
-	password = sae_get_password(hapd, sta, NULL, NULL, NULL, NULL);
-	if (!password) {
-		wpa_printf(MSG_DEBUG, "PASN: No SAE password found");
+	password = sae_get_password(hapd, sta, NULL, NULL, &pt, NULL);
+	if (!password || !pt) {
+		wpa_printf(MSG_DEBUG, "PASN: No SAE PT found");
 		return -1;
 	}
 
-	ret = sae_prepare_commit(hapd->own_addr, sta->addr,
-				 (const u8 *) password, os_strlen(password), 0,
-				 &pasn->sae);
+	ret = sae_prepare_commit_pt(&pasn->sae, pt, hapd->own_addr, sta->addr,
+				    NULL, NULL);
 	if (ret) {
 		wpa_printf(MSG_DEBUG, "PASN: Failed to prepare SAE commit");
 		return -1;
@@ -2526,7 +2529,7 @@ static struct wpabuf * pasn_get_sae_wd(struct hostapd_data *hapd,
 	len_ptr = wpabuf_put(buf, 2);
 	wpabuf_put_le16(buf, WLAN_AUTH_SAE);
 	wpabuf_put_le16(buf, 1);
-	wpabuf_put_le16(buf, WLAN_STATUS_SUCCESS);
+	wpabuf_put_le16(buf, WLAN_STATUS_SAE_HASH_TO_ELEMENT);
 
 	/* Write the actual commit and update the length accordingly */
 	sae_write_commit(&pasn->sae, buf, NULL, 0);
@@ -2643,7 +2646,7 @@ static void pasn_fils_auth_resp(struct hostapd_data *hapd,
 			      wpabuf_head(pasn->secret),
 			      wpabuf_len(pasn->secret),
 			      &sta->pasn->ptk, sta->pasn->akmp,
-			      sta->pasn->cipher, WPA_KDK_MAX_LEN);
+			      sta->pasn->cipher, sta->pasn->kdk_len);
 	if (ret) {
 		wpa_printf(MSG_DEBUG, "PASN: FILS: Failed to derive PTK");
 		goto fail;
@@ -2880,7 +2883,7 @@ pasn_derive_keys(struct hostapd_data *hapd, struct sta_info *sta,
 	ret = pasn_pmk_to_ptk(pmk, pmk_len, sta->addr, hapd->own_addr,
 			      wpabuf_head(secret), wpabuf_len(secret),
 			      &sta->pasn->ptk, sta->pasn->akmp,
-			      sta->pasn->cipher, WPA_KDK_MAX_LEN);
+			      sta->pasn->cipher, sta->pasn->kdk_len);
 	if (ret) {
 		wpa_printf(MSG_DEBUG, "PASN: Failed to derive PTK");
 		return -1;
@@ -2888,6 +2891,54 @@ pasn_derive_keys(struct hostapd_data *hapd, struct sta_info *sta,
 
 	wpa_printf(MSG_DEBUG, "PASN: PTK successfully derived");
 	return 0;
+}
+
+
+static void handle_auth_pasn_comeback(struct hostapd_data *hapd,
+				      struct sta_info *sta, u16 group)
+{
+	struct wpabuf *buf, *comeback;
+	int ret;
+
+	wpa_printf(MSG_DEBUG,
+		   "PASN: Building comeback frame 2. Comeback after=%u",
+		   hapd->conf->pasn_comeback_after);
+
+	buf = wpabuf_alloc(1500);
+	if (!buf)
+		return;
+
+	wpa_pasn_build_auth_header(buf, hapd->own_addr, hapd->own_addr,
+				   sta->addr, 2,
+				   WLAN_STATUS_ASSOC_REJECTED_TEMPORARILY);
+
+	/*
+	 * Do not include the group as a part of the token since it is not going
+	 * to be used.
+	 */
+	comeback = auth_build_token_req(hapd, 0, sta->addr, 0);
+	if (!comeback) {
+		wpa_printf(MSG_DEBUG,
+			   "PASN: Failed sending auth with comeback");
+		wpabuf_free(buf);
+		return;
+	}
+
+	wpa_pasn_add_parameter_ie(buf, group,
+				  WPA_PASN_WRAPPED_DATA_NO,
+				  NULL, 0, comeback,
+				  hapd->conf->pasn_comeback_after);
+	wpabuf_free(comeback);
+
+	wpa_printf(MSG_DEBUG,
+		   "PASN: comeback: STA=" MACSTR, MAC2STR(sta->addr));
+
+	ret = hostapd_drv_send_mlme(hapd, wpabuf_head(buf), wpabuf_len(buf), 0,
+				    NULL, 0, 0);
+	if (ret)
+		wpa_printf(MSG_INFO, "PASN: Failed to send comeback frame 2");
+
+	wpabuf_free(buf);
 }
 
 
@@ -3100,6 +3151,15 @@ static void handle_auth_pasn_1(struct hostapd_data *hapd, struct sta_info *sta,
 	sta->pasn->akmp = rsn_data.key_mgmt;
 	sta->pasn->cipher = rsn_data.pairwise_cipher;
 
+	if (hapd->conf->force_kdk_derivation ||
+	    ((hapd->iface->drv_flags2 & WPA_DRIVER_FLAGS2_SEC_LTF) &&
+	     ieee802_11_rsnx_capab_len(elems.rsnxe, elems.rsnxe_len,
+				       WLAN_RSNX_CAPAB_SECURE_LTF)))
+		sta->pasn->kdk_len = WPA_KDK_MAX_LEN;
+	else
+		sta->pasn->kdk_len = 0;
+	wpa_printf(MSG_DEBUG, "PASN: kdk_len=%zu", sta->pasn->kdk_len);
+
 	if (!elems.pasn_params || !elems.pasn_params_len) {
 		wpa_printf(MSG_DEBUG,
 			   "PASN: No PASN Parameters element found");
@@ -3131,6 +3191,25 @@ static void handle_auth_pasn_1(struct hostapd_data *hapd, struct sta_info *sta,
 		wpa_printf(MSG_DEBUG, "PASN: Invalid public key");
 		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 		goto send_resp;
+	}
+
+	if (pasn_params.comeback) {
+		wpa_printf(MSG_DEBUG, "PASN: Checking peer comeback token");
+
+		ret = check_comeback_token(hapd, sta->addr,
+					   pasn_params.comeback,
+					   pasn_params.comeback_len);
+
+		if (ret) {
+			wpa_printf(MSG_DEBUG, "PASN: Invalid comeback token");
+			status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+			goto send_resp;
+		}
+	} else if (use_anti_clogging(hapd)) {
+		wpa_printf(MSG_DEBUG, "PASN: Respond with comeback");
+		handle_auth_pasn_comeback(hapd, sta, pasn_params.group);
+		ap_free_sta(hapd, sta);
+		return;
 	}
 
 	sta->pasn->ecdh = crypto_ecdh_init(pasn_params.group);
@@ -4614,8 +4693,8 @@ static int check_assoc_ies(struct hostapd_data *hapd, struct sta_info *sta,
 		if (hapd->conf->sae_pwe == 2 &&
 		    sta->auth_alg == WLAN_AUTH_SAE &&
 		    sta->sae && !sta->sae->h2e &&
-		    elems.rsnxe && elems.rsnxe_len >= 1 &&
-		    (elems.rsnxe[0] & BIT(WLAN_RSNX_CAPAB_SAE_H2E))) {
+		    ieee802_11_rsnx_capab_len(elems.rsnxe, elems.rsnxe_len,
+					      WLAN_RSNX_CAPAB_SAE_H2E)) {
 			wpa_printf(MSG_INFO, "SAE: " MACSTR
 				   " indicates support for SAE H2E, but did not use it",
 				   MAC2STR(sta->addr));

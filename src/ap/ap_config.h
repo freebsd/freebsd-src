@@ -267,6 +267,8 @@ struct airtime_sta_weight {
 	u8 addr[ETH_ALEN];
 };
 
+#define EXT_CAPA_MAX_LEN 15
+
 /**
  * struct hostapd_bss_config - Per-BSS configuration
  */
@@ -880,9 +882,18 @@ struct hostapd_bss_config {
 #endif /* CONFIG_TESTING_OPTIONS */
 
 	int *pasn_groups;
+
+	/*
+	 * The time in TUs after which the non-AP STA is requested to retry the
+	 * PASN authentication in case there are too many parallel operations.
+	 */
+	u16 pasn_comeback_after;
 #endif /* CONFIG_PASN */
 
 	unsigned int unsol_bcast_probe_resp_interval;
+
+	u8 ext_capa_mask[EXT_CAPA_MAX_LEN];
+	u8 ext_capa[EXT_CAPA_MAX_LEN];
 };
 
 /**

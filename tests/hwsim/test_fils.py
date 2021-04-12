@@ -2358,3 +2358,54 @@ def test_fils_discovery_frame(dev, apdev, params):
                    eap="PSK", identity="psk.user@example.com",
                    password_hex="0123456789abcdef0123456789abcdef",
                    erp="1", scan_freq="2412")
+
+def test_fils_offload_to_driver(dev, apdev, params):
+    """FILS offload to driver"""
+    check_fils_capa(dev[0])
+    check_erp_capa(dev[0])
+    run_fils_offload_to_driver(dev[0], apdev, params)
+
+def test_fils_offload_to_driver2(dev, apdev, params):
+    """FILS offload to driver"""
+    wpas = WpaSupplicant(global_iface='/tmp/wpas-wlan5')
+    wpas.interface_add("wlan5", drv_params="force_connect_cmd=1")
+    run_fils_offload_to_driver(wpas, apdev, params)
+
+def run_fils_offload_to_driver(dev, apdev, params):
+    start_erp_as(msk_dump=os.path.join(params['logdir'], "msk.lst"))
+
+    bssid = apdev[0]['bssid']
+    params = hostapd.wpa2_eap_params(ssid="fils")
+    params['wpa_key_mgmt'] = "FILS-SHA256"
+    params['auth_server_port'] = "18128"
+    params['erp_send_reauth_start'] = '1'
+    params['erp_domain'] = 'example.com'
+    params['fils_realm'] = 'example.com'
+    params['disable_pmksa_caching'] = '1'
+    hapd = hostapd.add_ap(apdev[0]['ifname'], params)
+
+    dev.request("ERP_FLUSH")
+    id = dev.connect("fils", key_mgmt="FILS-SHA256",
+                     eap="PSK", identity="psk.user@example.com",
+                     password_hex="0123456789abcdef0123456789abcdef",
+                     erp="1", scan_freq="2412")
+
+    p = "freq=2412 authorized=1 fils_erp_next_seq_num=4"
+    if "OK" not in dev.request("DRIVER_EVENT ASSOC " + p):
+        raise Exception("DRIVER_EVENT ASSOC did not succeed")
+    dev.wait_connected()
+
+    dev.request("DISCONNECT")
+    dev.wait_disconnected()
+    dev.dump_monitor()
+
+    dev.select_network(id, freq=2412)
+    dev.wait_connected()
+    dev.dump_monitor()
+
+    # This does not really work properly with SME-in-wpa_supplicant case
+    p = "freq=2412 authorized=1 fils_erp_next_seq_num=4"
+    if "OK" not in dev.request("DRIVER_EVENT ASSOC " + p):
+        raise Exception("DRIVER_EVENT ASSOC did not succeed")
+
+    dev.wait_connected()

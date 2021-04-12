@@ -37,7 +37,8 @@ def start_wnm_ap(apdev, bss_transition=True, time_adv=False, ssid=None,
                  wnm_sleep_mode=False, wnm_sleep_mode_no_keys=False, rsn=False,
                  ocv=False, ap_max_inactivity=0, coloc_intf_reporting=False,
                  hw_mode=None, channel=None, country_code=None, country3=None,
-                 pmf=True, passphrase=None, ht=True, vht=False, mbo=False):
+                 pmf=True, passphrase=None, ht=True, vht=False, mbo=False,
+                 beacon_prot=False):
     if rsn:
         if not ssid:
             ssid = "test-wnm-rsn"
@@ -47,6 +48,8 @@ def start_wnm_ap(apdev, bss_transition=True, time_adv=False, ssid=None,
         if pmf:
             params["wpa_key_mgmt"] = "WPA-PSK-SHA256"
             params["ieee80211w"] = "2"
+            if beacon_prot:
+                params["beacon_prot"] = "1"
     else:
         params = {"ssid": "test-wnm"}
     if bss_transition:
@@ -195,7 +198,8 @@ def test_wnm_ess_disassoc_imminent_pmf(dev, apdev):
     if ev is None:
         raise Exception("Timeout while waiting for re-connection scan")
 
-def check_wnm_sleep_mode_enter_exit(hapd, dev, interval=None, tfs_req=None):
+def check_wnm_sleep_mode_enter_exit(hapd, dev, interval=None, tfs_req=None,
+                                    rekey=False):
     addr = dev.p2p_interface_addr()
     sta = hapd.get_sta(addr)
     if "[WNM_SLEEP_MODE]" in sta['flags']:
@@ -219,6 +223,14 @@ def check_wnm_sleep_mode_enter_exit(hapd, dev, interval=None, tfs_req=None):
     if not ok:
         raise Exception("Station failed to enter WNM-Sleep Mode")
 
+    if rekey:
+        time.sleep(0.1)
+        if "OK" not in hapd.request("REKEY_GTK"):
+            raise Exception("REKEY_GTK failed")
+        ev = dev.wait_event(["WPA: Group rekeying completed"], timeout=0.1)
+        if ev is not None:
+                raise Exception("Unexpected report of GTK rekey during WNM-Sleep Mode")
+
     logger.info("Waking up from WNM Sleep Mode")
     ok = False
     dev.request("WNM_SLEEP exit")
@@ -230,6 +242,14 @@ def check_wnm_sleep_mode_enter_exit(hapd, dev, interval=None, tfs_req=None):
             break
     if not ok:
         raise Exception("Station failed to exit WNM-Sleep Mode")
+
+    if rekey:
+        time.sleep(0.1)
+        if "OK" not in hapd.request("REKEY_GTK"):
+            raise Exception("REKEY_GTK failed")
+        ev = dev.wait_event(["WPA: Group rekeying completed"], timeout=2)
+        if ev is None:
+                raise Exception("GTK rekey timed out")
 
 @remote_compatible
 def test_wnm_sleep_mode_open(dev, apdev):
@@ -302,6 +322,19 @@ def test_wnm_sleep_mode_rsn_pmf(dev, apdev):
     if ev is None:
         raise Exception("No connection event received from hostapd")
     check_wnm_sleep_mode_enter_exit(hapd, dev[0])
+
+def test_wnm_sleep_mode_rsn_beacon_prot(dev, apdev):
+    """WNM Sleep Mode - RSN with PMF and beacon protection"""
+    hapd = start_wnm_ap(apdev[0], rsn=True, wnm_sleep_mode=True, time_adv=True,
+                        beacon_prot=True)
+    dev[0].connect("test-wnm-rsn", psk="12345678", ieee80211w="2",
+                   beacon_prot="1",
+                   key_mgmt="WPA-PSK-SHA256", proto="WPA2", scan_freq="2412")
+    ev = hapd.wait_event(["AP-STA-CONNECTED"], timeout=5)
+    if ev is None:
+        raise Exception("No connection event received from hostapd")
+    check_wnm_sleep_mode_enter_exit(hapd, dev[0])
+    check_wnm_sleep_mode_enter_exit(hapd, dev[0], rekey=True)
 
 @remote_compatible
 def test_wnm_sleep_mode_rsn_ocv(dev, apdev):

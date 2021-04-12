@@ -881,6 +881,7 @@ def test_ap_wpa2_eap_sim_ext_anonymous(dev, apdev):
     try:
         run_ap_wpa2_eap_sim_ext_anonymous(dev, "anonymous@example.org")
         run_ap_wpa2_eap_sim_ext_anonymous(dev, "@example.org")
+        run_ap_wpa2_eap_sim_ext_anonymous(dev, "example.org!anonymous@otherexample.org")
     finally:
         dev[0].request("SET external_sim 0")
 

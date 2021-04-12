@@ -3428,8 +3428,8 @@ int wpa_pasn_add_rsne(struct wpabuf *buf, const u8 *pmkid, int akmp, int cipher)
  */
 void wpa_pasn_add_parameter_ie(struct wpabuf *buf, u16 pasn_group,
 			       u8 wrapped_data_format,
-			       struct wpabuf *pubkey, bool compressed,
-			       struct wpabuf *comeback, int after)
+			       const struct wpabuf *pubkey, bool compressed,
+			       const struct wpabuf *comeback, int after)
 {
 	struct pasn_parameter_ie *params;
 

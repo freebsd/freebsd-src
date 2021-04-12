@@ -1158,8 +1158,8 @@ int wpa_supplicant_reload_configuration(struct wpa_supplicant *wpa_s)
 		    os_strcmp(conf->ctrl_interface,
 			      wpa_s->conf->ctrl_interface) != 0);
 
-	if (reconf_ctrl && wpa_s->ctrl_iface) {
-		wpa_supplicant_ctrl_iface_deinit(wpa_s->ctrl_iface);
+	if (reconf_ctrl) {
+		wpa_supplicant_ctrl_iface_deinit(wpa_s, wpa_s->ctrl_iface);
 		wpa_s->ctrl_iface = NULL;
 	}
 
@@ -6748,10 +6748,8 @@ static void wpa_supplicant_deinit_iface(struct wpa_supplicant *wpa_s,
 	if (terminate)
 		wpa_msg(wpa_s, MSG_INFO, WPA_EVENT_TERMINATING);
 
-	if (wpa_s->ctrl_iface) {
-		wpa_supplicant_ctrl_iface_deinit(wpa_s->ctrl_iface);
-		wpa_s->ctrl_iface = NULL;
-	}
+	wpa_supplicant_ctrl_iface_deinit(wpa_s, wpa_s->ctrl_iface);
+	wpa_s->ctrl_iface = NULL;
 
 #ifdef CONFIG_MESH
 	if (wpa_s->ifmsh) {

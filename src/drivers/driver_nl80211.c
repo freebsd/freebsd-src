@@ -656,12 +656,10 @@ struct nl_msg * nl80211_cmd_msg(struct i802_bss *bss, int flags, uint8_t cmd)
 
 
 static struct nl_msg *
-nl80211_ifindex_msg(struct wpa_driver_nl80211_data *drv, int ifindex,
-		    int flags, uint8_t cmd)
+nl80211_ifindex_msg_build(struct wpa_driver_nl80211_data *drv,
+			  struct nl_msg *msg, int ifindex, int flags,
+			  uint8_t cmd)
 {
-	struct nl_msg *msg;
-
-	msg = nlmsg_alloc();
 	if (!msg)
 		return NULL;
 
@@ -672,6 +670,15 @@ nl80211_ifindex_msg(struct wpa_driver_nl80211_data *drv, int ifindex,
 	}
 
 	return msg;
+}
+
+
+static struct nl_msg *
+nl80211_ifindex_msg(struct wpa_driver_nl80211_data *drv, int ifindex,
+		    int flags, uint8_t cmd)
+{
+	return nl80211_ifindex_msg_build(drv, nlmsg_alloc(), ifindex, flags,
+					 cmd);
 }
 
 
@@ -4151,6 +4158,7 @@ static int wpa_driver_nl80211_set_acl(void *priv,
 	struct nl_msg *acl;
 	unsigned int i;
 	int ret;
+	size_t acl_nla_sz, acl_nlmsg_sz, nla_sz, nlmsg_sz;
 
 	if (!(drv->capa.max_acl_mac_addrs))
 		return -ENOTSUP;
@@ -4161,7 +4169,9 @@ static int wpa_driver_nl80211_set_acl(void *priv,
 	wpa_printf(MSG_DEBUG, "nl80211: Set %s ACL (num_mac_acl=%u)",
 		   params->acl_policy ? "Accept" : "Deny", params->num_mac_acl);
 
-	acl = nlmsg_alloc();
+	acl_nla_sz = nla_total_size(ETH_ALEN) * params->num_mac_acl;
+	acl_nlmsg_sz = nlmsg_total_size(acl_nla_sz);
+	acl = nlmsg_alloc_size(acl_nlmsg_sz);
 	if (!acl)
 		return -ENOMEM;
 	for (i = 0; i < params->num_mac_acl; i++) {
@@ -4171,7 +4181,19 @@ static int wpa_driver_nl80211_set_acl(void *priv,
 		}
 	}
 
-	if (!(msg = nl80211_drv_msg(drv, 0, NL80211_CMD_SET_MAC_ACL)) ||
+	/*
+	 * genetlink message header (Length of user header is 0) +
+	 * u32 attr: NL80211_ATTR_IFINDEX +
+	 * u32 attr: NL80211_ATTR_ACL_POLICY +
+	 * nested acl attr
+	 */
+	nla_sz = GENL_HDRLEN +
+		nla_total_size(4) * 2 +
+		nla_total_size(acl_nla_sz);
+	nlmsg_sz = nlmsg_total_size(nla_sz);
+	if (!(msg = nl80211_ifindex_msg_build(drv, nlmsg_alloc_size(nlmsg_sz),
+					      drv->ifindex, 0,
+					      NL80211_CMD_SET_MAC_ACL)) ||
 	    nla_put_u32(msg, NL80211_ATTR_ACL_POLICY, params->acl_policy ?
 			NL80211_ACL_POLICY_DENY_UNLESS_LISTED :
 			NL80211_ACL_POLICY_ACCEPT_UNLESS_LISTED) ||
@@ -5789,6 +5811,7 @@ static int driver_nl80211_sta_set_airtime_weight(void *priv, const u8 *addr,
 {
 	struct i802_bss *bss = priv;
 	struct nl_msg *msg;
+	int ret;
 
 	wpa_printf(MSG_DEBUG,
 		   "nl80211: Set STA airtime weight - ifname=%s addr=" MACSTR
@@ -5799,7 +5822,13 @@ static int driver_nl80211_sta_set_airtime_weight(void *priv, const u8 *addr,
 	    nla_put_u16(msg, NL80211_ATTR_AIRTIME_WEIGHT, weight))
 		goto fail;
 
-	return send_and_recv_msgs(bss->drv, msg, NULL, NULL, NULL, NULL);
+	ret = send_and_recv_msgs(bss->drv, msg, NULL, NULL, NULL, NULL);
+	if (ret) {
+		wpa_printf(MSG_DEBUG,
+			   "nl80211: SET_STATION[AIRTIME_WEIGHT] failed: ret=%d (%s)",
+			   ret, strerror(-ret));
+	}
+	return ret;
 fail:
 	nlmsg_free(msg);
 	return -ENOBUFS;
@@ -12028,6 +12057,23 @@ static int nl80211_dpp_listen(void *priv, bool enable)
 #endif /* CONFIG_DPP */
 
 
+#ifdef CONFIG_TESTING_OPTIONS
+static int testing_nl80211_register_frame(void *priv, u16 type,
+					  const u8 *match, size_t match_len,
+					  bool multicast)
+{
+	struct i802_bss *bss = priv;
+	struct nl_sock *handle;
+
+	if (!bss->nl_mgmt)
+		return -1;
+	handle = (void *) (((intptr_t) bss->nl_mgmt) ^ ELOOP_SOCKET_INVALID);
+	return nl80211_register_frame(bss, handle, type, match, match_len,
+				      multicast);
+}
+#endif /* CONFIG_TESTING_OPTIONS */
+
+
 const struct wpa_driver_ops wpa_driver_nl80211_ops = {
 	.name = "nl80211",
 	.desc = "Linux nl80211/cfg80211",
@@ -12166,4 +12212,7 @@ const struct wpa_driver_ops wpa_driver_nl80211_ops = {
 #ifdef CONFIG_DPP
 	.dpp_listen = nl80211_dpp_listen,
 #endif /* CONFIG_DPP */
+#ifdef CONFIG_TESTING_OPTIONS
+	.register_frame = testing_nl80211_register_frame,
+#endif /* CONFIG_TESTING_OPTIONS */
 };

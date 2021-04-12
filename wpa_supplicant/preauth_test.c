@@ -193,10 +193,8 @@ static void test_eapol_clean(struct wpa_supplicant *wpa_s)
 	pmksa_candidate_free(wpa_s->wpa);
 	wpa_sm_deinit(wpa_s->wpa);
 	scard_deinit(wpa_s->scard);
-	if (wpa_s->ctrl_iface) {
-		wpa_supplicant_ctrl_iface_deinit(wpa_s->ctrl_iface);
-		wpa_s->ctrl_iface = NULL;
-	}
+	wpa_supplicant_ctrl_iface_deinit(wpa_s, wpa_s->ctrl_iface);
+	wpa_s->ctrl_iface = NULL;
 	wpa_config_free(wpa_s->conf);
 }
 

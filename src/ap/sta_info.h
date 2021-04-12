@@ -88,6 +88,7 @@ struct pasn_data {
 	u16 group;
 	u8 trans_seq;
 	u8 wrapped_data_format;
+	size_t kdk_len;
 
 	u8 hash[SHA384_MAC_LEN];
 	struct wpa_ptk ptk;

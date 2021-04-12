@@ -245,6 +245,23 @@ def test_ieee8021x_held(dev, apdev):
         dev[0].request("SET EAPOL::maxStart 3")
         dev[0].request("SET EAPOL::heldPeriod 60")
 
+def test_ieee8021x_force_unauth(dev, apdev):
+    """IEEE 802.1X and FORCE_UNAUTH state"""
+    params = hostapd.radius_params()
+    params["ssid"] = "ieee8021x-open"
+    params["ieee8021x"] = "1"
+    hapd = hostapd.add_ap(apdev[0], params)
+    bssid = apdev[0]['bssid']
+
+    dev[0].connect("ieee8021x-open", key_mgmt="IEEE8021X", eapol_flags="0",
+                   eap="PSK", identity="psk.user@example.com",
+                   password_hex="0123456789abcdef0123456789abcdef",
+                   scan_freq="2412")
+    dev[0].request("SET EAPOL::portControl ForceUnauthorized")
+    pae = dev[0].get_status_field('Supplicant PAE state')
+    dev[0].wait_disconnected()
+    dev[0].request("SET EAPOL::portControl Auto")
+
 def send_eapol_key(dev, bssid, signkey, frame_start, frame_end):
     zero_sign = "00000000000000000000000000000000"
     frame = frame_start + zero_sign + frame_end

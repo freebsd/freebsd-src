@@ -539,6 +539,7 @@ struct wpas_pasn {
 	int cipher;
 	u16 group;
 	int freq;
+	size_t kdk_len;
 
 	u8 trans_seq;
 	u8 status;
@@ -553,6 +554,9 @@ struct wpas_pasn {
 	struct wpabuf *beacon_rsne_rsnxe;
 	struct wpa_ptk ptk;
 	struct crypto_ecdh *ecdh;
+
+	struct wpabuf *comeback;
+	u16 comeback_after;
 
 #ifdef CONFIG_SAE
 	struct sae_data sae;
@@ -1730,7 +1734,8 @@ void wpas_handle_assoc_resp_mscs(struct wpa_supplicant *wpa_s, const u8 *bssid,
 
 int wpas_pasn_auth_start(struct wpa_supplicant *wpa_s,
 			 const u8 *bssid, int akmp, int cipher,
-			 u16 group, int network_id);
+			 u16 group, int network_id,
+			 const u8 *comeback, size_t comeback_len);
 void wpas_pasn_auth_stop(struct wpa_supplicant *wpa_s);
 int wpas_pasn_auth_tx_status(struct wpa_supplicant *wpa_s,
 			     const u8 *data, size_t data_len, u8 acked);

@@ -543,15 +543,32 @@ def test_mbo_without_pmf(dev, apdev):
 def test_mbo_without_pmf_workaround(dev, apdev):
     """MBO and WPA2 without PMF on misbehaving AP"""
     ssid = "test-wnm-mbo"
-    params = {'ssid': ssid, "wpa": '2',
-              "wpa_key_mgmt": "WPA-PSK", "rsn_pairwise": "CCMP",
-              "wpa_passphrase": "12345678",
-              "vendor_elements": "dd07506f9a16010100"}
-    hapd = hostapd.add_ap(apdev[0], params)
+    params0 = {'ssid': ssid, "wpa": '2',
+               "wpa_key_mgmt": "WPA-PSK", "rsn_pairwise": "CCMP",
+               "wpa_passphrase": "12345678",
+               "vendor_elements": "dd07506f9a16010100"}
+    params1 = {'ssid': ssid, "mbo": '1', "wpa": '2',
+               "wpa_key_mgmt": "WPA-PSK", "rsn_pairwise": "CCMP",
+               "wpa_passphrase": "12345678", "ieee80211w": "1"}
+    hapd0 = hostapd.add_ap(apdev[0], params0)
     dev[0].connect(ssid, psk="12345678", key_mgmt="WPA-PSK",
                    proto="WPA2", ieee80211w="1", scan_freq="2412")
-    hapd.wait_sta()
-    sta = hapd.get_sta(dev[0].own_addr())
+    hapd0.wait_sta()
+    sta = hapd0.get_sta(dev[0].own_addr())
+    ext_capab = bytearray(binascii.unhexlify(sta['ext_capab']))
+    if ext_capab[2] & 0x08:
+        raise Exception("STA did not disable BSS Transition capability")
+    hapd1 = hostapd.add_ap(apdev[1], params1)
+    dev[0].scan_for_bss(hapd1.own_addr(), 2412, force_scan=True)
+    dev[0].roam(hapd1.own_addr())
+    hapd1.wait_sta()
+    sta = hapd1.get_sta(dev[0].own_addr())
+    ext_capab = bytearray(binascii.unhexlify(sta['ext_capab']))
+    if not ext_capab[2] & 0x08:
+        raise Exception("STA disabled BSS Transition capability")
+    dev[0].roam(hapd0.own_addr())
+    hapd0.wait_sta()
+    sta = hapd0.get_sta(dev[0].own_addr())
     ext_capab = bytearray(binascii.unhexlify(sta['ext_capab']))
     if ext_capab[2] & 0x08:
         raise Exception("STA did not disable BSS Transition capability")

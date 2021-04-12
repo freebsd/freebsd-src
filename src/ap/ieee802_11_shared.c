@@ -451,70 +451,10 @@ static void hostapd_ext_capab_byte(struct hostapd_data *hapd, u8 *pos, int idx)
 u8 * hostapd_eid_ext_capab(struct hostapd_data *hapd, u8 *eid)
 {
 	u8 *pos = eid;
-	u8 len = 0, i;
+	u8 len = EXT_CAPA_MAX_LEN, i;
 
-	if (hapd->conf->qos_map_set_len ||
-	    (hapd->conf->tdls & (TDLS_PROHIBIT | TDLS_PROHIBIT_CHAN_SWITCH)))
-		len = 5;
-	if (len < 4 &&
-	    (hapd->conf->time_advertisement == 2 || hapd->conf->interworking))
-		len = 4;
-	if (len < 3 &&
-	    (hapd->conf->wnm_sleep_mode || hapd->conf->bss_transition))
-		len = 3;
-	if (len < 1 &&
-	    (hapd->iconf->obss_interval ||
-	     (hapd->iface->drv_flags & WPA_DRIVER_FLAGS_AP_CSA)))
-		len = 1;
-	if (len < 2 &&
-	    (hapd->conf->proxy_arp || hapd->conf->coloc_intf_reporting))
-		len = 2;
-	if (len < 7 && hapd->conf->ssid.utf8_ssid)
-		len = 7;
-	if (len < 9 &&
-	    (hapd->conf->ftm_initiator || hapd->conf->ftm_responder))
-		len = 9;
-#ifdef CONFIG_WNM_AP
-	if (len < 4)
-		len = 4;
-#endif /* CONFIG_WNM_AP */
-#ifdef CONFIG_HS20
-	if (hapd->conf->hs20 && len < 6)
-		len = 6;
-#endif /* CONFIG_HS20 */
-#ifdef CONFIG_MBO
-	if (hapd->conf->mbo_enabled && len < 6)
-		len = 6;
-#endif /* CONFIG_MBO */
-#ifdef CONFIG_FILS
-	if ((!(hapd->conf->wpa & WPA_PROTO_RSN) ||
-	     !wpa_key_mgmt_fils(hapd->conf->wpa_key_mgmt)) && len < 10)
-		len = 10;
-#endif /* CONFIG_FILS */
-#ifdef CONFIG_IEEE80211AX
-	if (len < 10 && hapd->iconf->ieee80211ax &&
-	    hostapd_get_he_twt_responder(hapd, IEEE80211_MODE_AP))
-		len = 10;
-#endif /* CONFIG_IEEE80211AX */
-#ifdef CONFIG_SAE
-	if (len < 11 && hapd->conf->wpa &&
-	    wpa_key_mgmt_sae(hapd->conf->wpa_key_mgmt) &&
-	    hostapd_sae_pw_id_in_use(hapd->conf))
-		len = 11;
-#endif /* CONFIG_SAE */
-	if (len < 11 && hapd->conf->beacon_prot &&
-	    (hapd->iface->drv_flags & WPA_DRIVER_FLAGS_BEACON_PROTECTION))
-		len = 11;
-#ifdef CONFIG_SAE_PK
-	if (len < 12 && hapd->conf->wpa &&
-	    wpa_key_mgmt_sae(hapd->conf->wpa_key_mgmt) &&
-	    hostapd_sae_pk_exclusively(hapd->conf))
-		len = 12;
-#endif /* CONFIG_SAE_PK */
 	if (len < hapd->iface->extended_capa_len)
 		len = hapd->iface->extended_capa_len;
-	if (len == 0)
-		return eid;
 
 	*pos++ = WLAN_EID_EXT_CAPAB;
 	*pos++ = len;
@@ -524,6 +464,11 @@ u8 * hostapd_eid_ext_capab(struct hostapd_data *hapd, u8 *eid)
 		if (i < hapd->iface->extended_capa_len) {
 			*pos &= ~hapd->iface->extended_capa_mask[i];
 			*pos |= hapd->iface->extended_capa[i];
+		}
+
+		if (i < EXT_CAPA_MAX_LEN) {
+			*pos &= ~hapd->conf->ext_capa_mask[i];
+			*pos |= hapd->conf->ext_capa[i];
 		}
 	}
 

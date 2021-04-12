@@ -818,3 +818,54 @@ def test_p2p_group_cli_invalid(dev, apdev):
         ev = dev[i].wait_global_event(["P2P-DEVICE-FOUND"], timeout=5)
         if not ev:
             raise Exception("P2P device not found")
+
+def test_discovery_max_peers(dev):
+    """P2P device discovery and maximum peer limit exceeded"""
+    dev[0].p2p_listen()
+    dev[0].request("SET ext_mgmt_frame_handling 1")
+    probereq1 = "40000000ffffffffffff"
+    probereq2 = "ffffffffffff000000074449524543542d01080c1218243048606c0301012d1afe131bffff000000000000000000000100000000000000000000ff16230178c812400000bfce0000000000000000fafffaffdd730050f204104a000110103a00010110080002314810470010572cf82fc95756539b16b5cfb298abf1105400080000000000000000103c0001031002000200001009000200001012000200001021000120102300012010240001201011000844657669636520421049000900372a000120030101dd11506f9a0902020025000605005858045106"
+
+    # Fill the P2P peer table with max+1 entries based on Probe Request frames
+    # to verify correct behavior on# removing the oldest entry when running out
+    # of room.
+    for i in range(101):
+        addr = "0202020202%02x" % i
+        probereq = probereq1 + addr + probereq2
+        if "OK" not in dev[0].request("MGMT_RX_PROCESS freq=2412 datarate=60 ssi_signal=-30 frame=" + probereq):
+            raise Exception("MGMT_RX_PROCESS failed")
+
+    res = dev[0].global_request("P2P_PEER FIRST")
+    addr = res.splitlines()[0]
+    peers = [addr]
+    limit = 200
+    while limit > 0:
+        res = dev[0].global_request("P2P_PEER NEXT-" + addr)
+        addr = res.splitlines()[0]
+        if addr == "FAIL":
+            break
+        peers.append(addr)
+        limit -= 1
+    logger.info("Peers: " + str(peers))
+
+    if len(peers) != 100:
+        raise Exception("Unexpected number of peer entries")
+    oldest = "02:02:02:02:02:00"
+    if oldest in peers:
+        raise Exception("Oldest entry is still present")
+    for i in range(101):
+        addr = "02:02:02:02:02:%02x" % i
+        if addr == oldest:
+            continue
+        if addr not in peers:
+            raise Exception("Peer missing from table: " + addr)
+
+    # Provision Discovery Request from the oldest peer (SA) using internally
+    # different P2P Device Address as a regression test for incorrect processing
+    # for this corner case.
+    dst = dev[0].own_addr().replace(':', '')
+    src = peers[99].replace(':', '')
+    devaddr = "0202020202ff"
+    pdreq = "d0004000" + dst + src + dst + "d0000409506f9a090701dd29506f9a0902020025000d1d00" + devaddr + "1108000000000000000000101100084465766963652041dd0a0050f204100800020008"
+    if "OK" not in dev[0].request("MGMT_RX_PROCESS freq=2412 datarate=60 ssi_signal=-30 frame=" + pdreq):
+        raise Exception("MGMT_RX_PROCESS failed")

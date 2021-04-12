@@ -2332,6 +2332,22 @@ fail:
 #endif /* CONFIG_DPP2 */
 
 
+static int get_hex_config(u8 *buf, size_t max_len, int line,
+			  const char *field, const char *val)
+{
+	size_t hlen = os_strlen(val), len = hlen / 2;
+	u8 tmp[EXT_CAPA_MAX_LEN];
+
+	os_memset(tmp, 0, EXT_CAPA_MAX_LEN);
+	if (hlen & 1 || len > EXT_CAPA_MAX_LEN || hexstr2bin(val, tmp, len)) {
+		wpa_printf(MSG_ERROR, "Line %d: Invalid %s", line, field);
+		return -1;
+	}
+	os_memcpy(buf, tmp, EXT_CAPA_MAX_LEN);
+	return 0;
+}
+
+
 static int hostapd_config_fill(struct hostapd_config *conf,
 			       struct hostapd_bss_config *bss,
 			       const char *buf, char *pos, int line)
@@ -2458,12 +2474,13 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 		bss->ieee802_1x = atoi(pos);
 	} else if (os_strcmp(buf, "eapol_version") == 0) {
 		int eapol_version = atoi(pos);
-
 #ifdef CONFIG_MACSEC
-		if (eapol_version < 1 || eapol_version > 3) {
+		int max_ver = 3;
 #else /* CONFIG_MACSEC */
-		if (eapol_version < 1 || eapol_version > 2) {
+		int max_ver = 2;
 #endif /* CONFIG_MACSEC */
+
+		if (eapol_version < 1 || eapol_version > max_ver) {
 			wpa_printf(MSG_ERROR,
 				   "Line %d: invalid EAPOL version (%d): '%s'.",
 				   line, eapol_version, pos);
@@ -4675,7 +4692,17 @@ static int hostapd_config_fill(struct hostapd_config *conf,
 				   line, pos);
 			return 1;
 		}
+	} else if (os_strcmp(buf, "pasn_comeback_after") == 0) {
+		bss->pasn_comeback_after = atoi(pos);
 #endif /* CONFIG_PASN */
+	} else if (os_strcmp(buf, "ext_capa_mask") == 0) {
+		if (get_hex_config(bss->ext_capa_mask, EXT_CAPA_MAX_LEN,
+				   line, "ext_capa_mask", pos))
+			return 1;
+	} else if (os_strcmp(buf, "ext_capa") == 0) {
+		if (get_hex_config(bss->ext_capa, EXT_CAPA_MAX_LEN,
+				   line, "ext_capa", pos))
+			return 1;
 	} else {
 		wpa_printf(MSG_ERROR,
 			   "Line %d: unknown configuration item '%s'",

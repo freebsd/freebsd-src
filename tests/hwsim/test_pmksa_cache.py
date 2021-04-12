@@ -1251,3 +1251,17 @@ def test_rsn_preauth_local_errors(dev, apdev):
         raise Exception("ENABLE failed")
     sock.send(_bssid + foreign + proto + struct.pack('>BBH', 2, 1, 0))
     sock.send(_bssid + foreign2 + proto + struct.pack('>BBH', 2, 1, 0))
+
+def test_pmksa_cache_add_failure(dev, apdev):
+    """PMKSA cache add failure"""
+    params = hostapd.wpa2_eap_params(ssid="test-pmksa-cache")
+    hostapd.add_ap(apdev[0], params)
+    bssid = apdev[0]['bssid']
+    with alloc_fail(dev[0], 1, "pmksa_cache_add"):
+        dev[0].connect("test-pmksa-cache", proto="RSN", key_mgmt="WPA-EAP",
+                       eap="GPSK", identity="gpsk user",
+                       password="abcdefghijklmnop0123456789abcdef",
+                       scan_freq="2412")
+    pmksa = dev[0].get_pmksa(bssid)
+    if pmksa is None:
+        raise Exception("No PMKSA cache entry created")
