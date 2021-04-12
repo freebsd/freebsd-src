@@ -412,7 +412,7 @@ print_fromto(struct pf_rule_addr *src, pf_osfp_t osfp, struct pf_rule_addr *dst,
 }
 
 void
-print_pool(struct pf_pool *pool, u_int16_t p1, u_int16_t p2,
+print_pool(struct pfctl_pool *pool, u_int16_t p1, u_int16_t p2,
     sa_family_t af, int id)
 {
 	struct pf_pooladdr	*pooladdr;
