@@ -40,6 +40,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210410: remove unused libexec/rc.d/archdep
+OLD_FILES+=etc/rc.d/archdep
+
 # 20210408: remove tcp_hostcache.h
 OLD_FILES+=usr/include/netinet/tcp_hostcache.h
 
