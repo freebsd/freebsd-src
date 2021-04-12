@@ -558,7 +558,7 @@ al_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 }
 
 static int
-al_dma_alloc_coherent(struct device *dev, bus_dma_tag_t *tag, bus_dmamap_t *map,
+al_dma_alloc_coherent(device_t dev, bus_dma_tag_t *tag, bus_dmamap_t *map,
     bus_addr_t *baddr, void **vaddr, uint32_t size)
 {
 	int ret;
@@ -2295,7 +2295,7 @@ static int
 al_eth_setup_tx_resources(struct al_eth_adapter *adapter, int qid)
 {
 	struct al_eth_ring *tx_ring = &adapter->tx_ring[qid];
-	struct device *dev = tx_ring->dev;
+	device_t dev = tx_ring->dev;
 	struct al_udma_q_params *q_params = &tx_ring->q_params;
 	int size;
 	int ret;
@@ -2472,7 +2472,7 @@ static int
 al_eth_setup_rx_resources(struct al_eth_adapter *adapter, unsigned int qid)
 {
 	struct al_eth_ring *rx_ring = &adapter->rx_ring[qid];
-	struct device *dev = rx_ring->dev;
+	device_t dev = rx_ring->dev;
 	struct al_udma_q_params *q_params = &rx_ring->q_params;
 	int size;
 	int ret;
