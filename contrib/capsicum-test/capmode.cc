@@ -3,6 +3,9 @@
 // whether or not they return the expected ECAPMODE.
 #include <sys/types.h>
 #include <sys/socket.h>
+#ifdef __FreeBSD__
+#include <sys/sockio.h>
+#endif
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/mman.h>
@@ -11,6 +14,7 @@
 #include <sys/resource.h>
 #include <sys/ptrace.h>
 #include <dirent.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <fcntl.h>
 #include <sched.h>
@@ -201,6 +205,39 @@ FORK_TEST_F(WithFiles, AllowedSocketSyscalls) {
   EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, fd_pair));
   if (fd_pair[0] >= 0) close(fd_pair[0]);
   if (fd_pair[1] >= 0) close(fd_pair[1]);
+}
+
+FORK_TEST_F(WithFiles, AllowedSocketSyscallsIfRoot) {
+  GTEST_SKIP_IF_NOT_ROOT();
+
+  EXPECT_OK(cap_enter());  // Enter capability mode.
+
+  // Creation of raw sockets is not permitted in capability mode.
+  EXPECT_CAPMODE(socket(AF_INET, SOCK_RAW, 0));
+  EXPECT_CAPMODE(socket(AF_INET, SOCK_RAW, IPPROTO_ICMP));
+  EXPECT_CAPMODE(socket(AF_INET, SOCK_RAW, IPPROTO_TCP));
+  EXPECT_CAPMODE(socket(AF_INET, SOCK_RAW, IPPROTO_UDP));
+
+  EXPECT_CAPMODE(socket(AF_INET6, SOCK_RAW, IPPROTO_ICMP));
+  EXPECT_CAPMODE(socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6));
+  EXPECT_CAPMODE(socket(AF_INET6, SOCK_RAW, IPPROTO_TCP));
+  EXPECT_CAPMODE(socket(AF_INET6, SOCK_RAW, IPPROTO_UDP));
+
+  EXPECT_CAPMODE(socket(AF_ROUTE, SOCK_RAW, 0));
+
+  // Interface configuration ioctls are not permitted in capability
+  // mode.
+#ifdef __FreeBSD__
+  struct if_clonereq req;
+
+  req.ifcr_total = 0;
+  req.ifcr_count = 1;
+  req.ifcr_buffer = static_cast<char *>(malloc(IFNAMSIZ));
+
+  EXPECT_CAPMODE(ioctl(fd_socket_, SIOCIFGCLONERS, &req));
+
+  free(req.ifcr_buffer);
+#endif
 }
 
 #ifdef HAVE_SEND_RECV_MMSG

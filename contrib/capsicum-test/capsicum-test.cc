@@ -76,7 +76,10 @@ char ProcessState(int pid) {
   errno = 0;
   struct kinfo_proc *p = procstat_getprocs(prstat, KERN_PROC_PID, pid, &count);
   if (p == NULL || count == 0) {
-    if (verbose) fprintf(stderr, "procstat_getprocs failed with %p/%d: %s\n", p, count, strerror(errno));
+    if (verbose) {
+      fprintf(stderr, "procstat_getprocs failed with %p/%d: %s\n", (void *)p,
+              count, strerror(errno));
+    }
     procstat_close(prstat);
     return '\0';
   }
