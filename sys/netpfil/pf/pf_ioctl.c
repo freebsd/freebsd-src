@@ -2345,6 +2345,7 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 		rule->nr = 0;
 	if (rule->ifname[0]) {
 		rule->kif = pfi_kkif_attach(kif, rule->ifname);
+		kif = NULL;
 		pfi_kkif_ref(rule->kif);
 	} else
 		rule->kif = NULL;
@@ -2962,6 +2963,7 @@ DIOCGETRULENV_error:
 			if (newrule->ifname[0]) {
 				newrule->kif = pfi_kkif_attach(kif,
 				    newrule->ifname);
+				kif = NULL;
 				pfi_kkif_ref(newrule->kif);
 			} else
 				newrule->kif = NULL;
@@ -3747,6 +3749,7 @@ DIOCGETSTATES_full:
 		}
 		if (pa->ifname[0]) {
 			pa->kif = pfi_kkif_attach(kif, pa->ifname);
+			kif = NULL;
 			pfi_kkif_ref(pa->kif);
 		} else
 			pa->kif = NULL;
