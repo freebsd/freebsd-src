@@ -266,6 +266,10 @@ sbuf_uionew(struct sbuf *s, struct uio *uio, int *error)
 	KASSERT(error != NULL,
 	    ("%s called with NULL error pointer", __func__));
 
+	if (uio->uio_resid >= INT_MAX || uio->uio_resid < SBUF_MINSIZE - 1) {
+		*error = EINVAL;
+		return (NULL);
+	}
 	s = sbuf_new(s, NULL, uio->uio_resid + 1, 0);
 	if (s == NULL) {
 		*error = ENOMEM;
