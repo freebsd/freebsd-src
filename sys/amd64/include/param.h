@@ -134,7 +134,11 @@
 #define	IOPERM_BITMAP_SIZE	(IOPAGES * PAGE_SIZE + 1)
 
 #ifndef	KSTACK_PAGES
+#ifdef KASAN
+#define	KSTACK_PAGES	6
+#else
 #define	KSTACK_PAGES	4	/* pages of kstack (with pcb) */
+#endif
 #endif
 #define	KSTACK_GUARD_PAGES 1	/* pages of kstack guard; 0 disables */
 

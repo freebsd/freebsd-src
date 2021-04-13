@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/asan.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
@@ -1915,6 +1916,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	x86_init_fdt();
 #endif
 	thread0.td_critnest = 0;
+
+	kasan_init();
 
 	TSEXIT();
 
