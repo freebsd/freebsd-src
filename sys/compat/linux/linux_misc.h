@@ -88,6 +88,7 @@ extern const char *linux_kplatform;
 					 * differ from AT_PLATFORM.
 					 */
 #define	LINUX_AT_RANDOM		25	/* address of random bytes */
+#define	LINUX_AT_HWCAP2		26	/* CPU capabilities, second part */
 #define	LINUX_AT_EXECFN		31	/* filename of program */
 #define	LINUX_AT_SYSINFO	32	/* vsyscall */
 #define	LINUX_AT_SYSINFO_EHDR	33	/* vdso header */
