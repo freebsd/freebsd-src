@@ -94,6 +94,9 @@ do
 	    silent=1
 	    shift
 	    ;;
+	-V|--version)
+	    exec ${grep} -V
+	    ;;
 	--*)
 	    grep_args="${grep_args} $1"
 	    shift
@@ -127,9 +130,6 @@ do
 	-r|-R)
 	    echo "${prg}: the ${1} flag is not currently supported" >&2
 	    exit 1
-	    ;;
-	-V|--version)
-	    exec ${grep} -V
 	    ;;
 	-*)
 	    grep_args="${grep_args} $1"
