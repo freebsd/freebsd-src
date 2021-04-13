@@ -153,6 +153,8 @@ kasan_code_name(uint8_t code)
 		return "UMAUseAfterFree";
 	case KASAN_KSTACK_FREED:
 		return "KernelStack";
+	case KASAN_EXEC_ARGS_FREED:
+		return "ExecKVA";
 	case 1 ... 7:
 		return "RedZonePartial";
 	case KASAN_STACK_LEFT:
