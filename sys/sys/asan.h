@@ -53,6 +53,7 @@
 #define KASAN_KMEM_REDZONE	0xFC
 #define	KASAN_UMA_FREED		0xFD
 #define	KASAN_KSTACK_FREED	0xFE
+#define	KASAN_EXEC_ARGS_FREED	0xFF
 
 void kasan_init(void);
 void kasan_shadow_map(void *, size_t);
