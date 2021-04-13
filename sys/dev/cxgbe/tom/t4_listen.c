@@ -643,7 +643,7 @@ alloc_synqe(struct adapter *sc __unused, struct listen_ctx *lctx, int flags)
 {
 	struct synq_entry *synqe;
 
-	INP_WLOCK_ASSERT(lctx->inp);
+	INP_RLOCK_ASSERT(lctx->inp);
 	MPASS(flags == M_WAITOK || flags == M_NOWAIT);
 
 	synqe = malloc(sizeof(*synqe), M_CXGBE, flags);
@@ -1323,11 +1323,11 @@ found:
 	}
 
 	inp = lctx->inp;		/* listening socket, not owned by TOE */
-	INP_WLOCK(inp);
+	INP_RLOCK(inp);
 
 	/* Don't offload if the listening socket has closed */
 	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
-		INP_WUNLOCK(inp);
+		INP_RUNLOCK(inp);
 		NET_EPOCH_EXIT(et);
 		REJECT_PASS_ACCEPT_REQ(false);
 	}
@@ -1337,14 +1337,14 @@ found:
 	    EVL_MAKETAG(0xfff, 0, 0), inp);
 	rw_runlock(&sc->policy_lock);
 	if (!settings.offload) {
-		INP_WUNLOCK(inp);
+		INP_RUNLOCK(inp);
 		NET_EPOCH_EXIT(et);
 		REJECT_PASS_ACCEPT_REQ(true);	/* Rejected by COP. */
 	}
 
 	synqe = alloc_synqe(sc, lctx, M_NOWAIT);
 	if (synqe == NULL) {
-		INP_WUNLOCK(inp);
+		INP_RUNLOCK(inp);
 		NET_EPOCH_EXIT(et);
 		REJECT_PASS_ACCEPT_REQ(true);
 	}
