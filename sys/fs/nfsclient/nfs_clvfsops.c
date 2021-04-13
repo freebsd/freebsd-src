@@ -155,6 +155,7 @@ MODULE_VERSION(nfs, 1);
 MODULE_DEPEND(nfs, nfscommon, 1, 1, 1);
 MODULE_DEPEND(nfs, krpc, 1, 1, 1);
 MODULE_DEPEND(nfs, nfssvc, 1, 1, 1);
+MODULE_DEPEND(nfs, xdr, 1, 1, 1);
 
 /*
  * This structure is now defined in sys/nfs/nfs_diskless.c so that it
