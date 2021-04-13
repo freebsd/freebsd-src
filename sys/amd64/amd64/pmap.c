@@ -112,6 +112,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_vm.h"
 
 #include <sys/param.h>
+#include <sys/asan.h>
 #include <sys/bitstring.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
@@ -154,6 +155,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_dumpset.h>
 #include <vm/uma.h>
 
+#include <machine/asan.h>
 #include <machine/intr_machdep.h>
 #include <x86/apicvar.h>
 #include <x86/ifunc.h>
@@ -424,6 +426,10 @@ static u_int64_t	KPDPphys;	/* phys addr of kernel level 3 */
 u_int64_t		KPML4phys;	/* phys addr of kernel level 4 */
 u_int64_t		KPML5phys;	/* phys addr of kernel level 5,
 					   if supported */
+
+#ifdef KASAN
+static uint64_t		KASANPDPphys;
+#endif
 
 static pml4_entry_t	*kernel_pml4;
 static u_int64_t	DMPDphys;	/* phys addr of direct mapped level 2 */
@@ -1626,11 +1632,17 @@ bootaddr_rwx(vm_paddr_t pa)
 static void
 create_pagetables(vm_paddr_t *firstaddr)
 {
-	int i, j, ndm1g, nkpdpe, nkdmpde;
 	pd_entry_t *pd_p;
 	pdp_entry_t *pdp_p;
 	pml4_entry_t *p4_p;
 	uint64_t DMPDkernphys;
+#ifdef KASAN
+	pt_entry_t *pt_p;
+	uint64_t KASANPDphys, KASANPTphys, KASANphys;
+	vm_offset_t kasankernbase;
+	int kasankpdpi, kasankpdi, nkasanpte;
+#endif
+	int i, j, ndm1g, nkpdpe, nkdmpde;
 
 	/* Allocate page table pages for the direct map */
 	ndmpdp = howmany(ptoa(Maxmem), NBPDP);
@@ -1670,6 +1682,10 @@ create_pagetables(vm_paddr_t *firstaddr)
 	/* Allocate pages */
 	KPML4phys = allocpages(firstaddr, 1);
 	KPDPphys = allocpages(firstaddr, NKPML4E);
+#ifdef KASAN
+	KASANPDPphys = allocpages(firstaddr, NKASANPML4E);
+	KASANPDphys = allocpages(firstaddr, 1);
+#endif
 
 	/*
 	 * Allocate the initial number of kernel page table pages required to
@@ -1686,6 +1702,12 @@ create_pagetables(vm_paddr_t *firstaddr)
 
 	KPTphys = allocpages(firstaddr, nkpt);
 	KPDphys = allocpages(firstaddr, nkpdpe);
+
+#ifdef KASAN
+	nkasanpte = howmany(nkpt, KASAN_SHADOW_SCALE);
+	KASANPTphys = allocpages(firstaddr, nkasanpte);
+	KASANphys = allocpages(firstaddr, nkasanpte * NPTEPG);
+#endif
 
 	/*
 	 * Connect the zero-filled PT pages to their PD entries.  This
@@ -1718,6 +1740,25 @@ create_pagetables(vm_paddr_t *firstaddr)
 	pdp_p = (pdp_entry_t *)(KPDPphys + ptoa(KPML4I - KPML4BASE));
 	for (i = 0; i < nkpdpe; i++)
 		pdp_p[i + KPDPI] = (KPDphys + ptoa(i)) | X86_PG_RW | X86_PG_V;
+
+#ifdef KASAN
+	kasankernbase = kasan_md_addr_to_shad(KERNBASE);
+	kasankpdpi = pmap_pdpe_index(kasankernbase);
+	kasankpdi = pmap_pde_index(kasankernbase);
+
+	pdp_p = (pdp_entry_t *)KASANPDPphys;
+	pdp_p[kasankpdpi] = (KASANPDphys | X86_PG_RW | X86_PG_V | pg_nx);
+
+	pd_p = (pd_entry_t *)KASANPDphys;
+	for (i = 0; i < nkasanpte; i++)
+		pd_p[i + kasankpdi] = (KASANPTphys + ptoa(i)) | X86_PG_RW |
+		    X86_PG_V | pg_nx;
+
+	pt_p = (pt_entry_t *)KASANPTphys;
+	for (i = 0; i < nkasanpte * NPTEPG; i++)
+		pt_p[i] = (KASANphys + ptoa(i)) | X86_PG_RW | X86_PG_V |
+		    X86_PG_M | X86_PG_A | pg_nx;
+#endif
 
 	/*
 	 * Now, set up the direct map region using 2MB and/or 1GB pages.  If
@@ -1767,7 +1808,15 @@ create_pagetables(vm_paddr_t *firstaddr)
 	p4_p[PML4PML4I] = KPML4phys;
 	p4_p[PML4PML4I] |= X86_PG_RW | X86_PG_V | pg_nx;
 
-	/* Connect the Direct Map slot(s) up to the PML4. */
+#ifdef KASAN
+	/* Connect the KASAN shadow map slots up to the PML4. */
+	for (i = 0; i < NKASANPML4E; i++) {
+		p4_p[KASANPML4I + i] = KASANPDPphys + ptoa(i);
+		p4_p[KASANPML4I + i] |= X86_PG_RW | X86_PG_V | pg_nx;
+	}
+#endif
+
+	/* Connect the Direct Map slots up to the PML4. */
 	for (i = 0; i < ndmpdpphys; i++) {
 		p4_p[DMPML4I + i] = DMPDPphys + ptoa(i);
 		p4_p[DMPML4I + i] |= X86_PG_RW | X86_PG_V | pg_nx;
@@ -4131,6 +4180,12 @@ pmap_pinit_pml4(vm_page_t pml4pg)
 		pm_pml4[KPML4BASE + i] = (KPDPphys + ptoa(i)) | X86_PG_RW |
 		    X86_PG_V;
 	}
+#ifdef KASAN
+	for (i = 0; i < NKASANPML4E; i++) {
+		pm_pml4[KASANPML4I + i] = (KASANPDPphys + ptoa(i)) | X86_PG_RW |
+		    X86_PG_V | pg_nx;
+	}
+#endif
 	for (i = 0; i < ndmpdpphys; i++) {
 		pm_pml4[DMPML4I + i] = (DMPDPphys + ptoa(i)) | X86_PG_RW |
 		    X86_PG_V;
@@ -4713,6 +4768,10 @@ pmap_release(pmap_t pmap)
 	} else {
 		for (i = 0; i < NKPML4E; i++)	/* KVA */
 			pmap->pm_pmltop[KPML4BASE + i] = 0;
+#ifdef KASAN
+		for (i = 0; i < NKASANPML4E; i++) /* KASAN shadow map */
+			pmap->pm_pmltop[KASANPML4I + i] = 0;
+#endif
 		for (i = 0; i < ndmpdpphys; i++)/* Direct Map */
 			pmap->pm_pmltop[DMPML4I + i] = 0;
 		pmap->pm_pmltop[PML4PML4I] = 0;	/* Recursive Mapping */
@@ -4830,6 +4889,8 @@ pmap_growkernel(vm_offset_t addr)
 	addr = roundup2(addr, NBPDR);
 	if (addr - 1 >= vm_map_max(kernel_map))
 		addr = vm_map_max(kernel_map);
+	if (kernel_vm_end < addr)
+		kasan_shadow_map((void *)kernel_vm_end, addr - kernel_vm_end);
 	while (kernel_vm_end < addr) {
 		pdpe = pmap_pdpe(kernel_pmap, kernel_vm_end);
 		if ((*pdpe & X86_PG_V) == 0) {
@@ -11190,6 +11251,78 @@ pmap_pkru_clear(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	return (error);
 }
 
+#ifdef KASAN
+static vm_page_t
+pmap_kasan_enter_alloc_4k(void)
+{
+	vm_page_t m;
+
+	m = vm_page_alloc(NULL, 0, VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
+	    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+	if (m == NULL)
+		panic("%s: no memory to grow shadow map", __func__);
+	if ((m->flags & PG_ZERO) == 0)
+		pmap_zero_page(m);
+	return (m);
+}
+
+static vm_page_t
+pmap_kasan_enter_alloc_2m(void)
+{
+	vm_page_t m;
+
+	m = vm_page_alloc_contig(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
+	    VM_ALLOC_WIRED, NPTEPG, 0, ~0ul, NBPDR, 0, VM_MEMATTR_DEFAULT);
+	if (m != NULL)
+		memset((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)), 0, NBPDR);
+	return (m);
+}
+
+/*
+ * Grow the shadow map by at least one 4KB page at the specified address.  Use
+ * 2MB pages when possible.
+ */
+void
+pmap_kasan_enter(vm_offset_t va)
+{
+	pdp_entry_t *pdpe;
+	pd_entry_t *pde;
+	pt_entry_t *pte;
+	vm_page_t m;
+
+	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
+
+	pdpe = pmap_pdpe(kernel_pmap, va);
+	if ((*pdpe & X86_PG_V) == 0) {
+		m = pmap_kasan_enter_alloc_4k();
+		*pdpe = (pdp_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW |
+		    X86_PG_V | pg_nx);
+	}
+	pde = pmap_pdpe_to_pde(pdpe, va);
+	if ((*pde & X86_PG_V) == 0) {
+		m = pmap_kasan_enter_alloc_2m();
+		if (m != NULL) {
+			*pde = (pd_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW |
+			    X86_PG_PS | X86_PG_V | pg_nx);
+		} else {
+			m = pmap_kasan_enter_alloc_4k();
+			*pde = (pd_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW |
+			    X86_PG_V | pg_nx);
+		}
+	}
+	if ((*pde & X86_PG_PS) != 0)
+		return;
+	pte = pmap_pde_to_pte(pde, va);
+	if ((*pte & X86_PG_V) != 0)
+		return;
+	KASSERT((*pte & X86_PG_V) == 0,
+	    ("%s: shadow address %#lx is already mapped", __func__, va));
+	m = pmap_kasan_enter_alloc_4k();
+	*pte = (pt_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW | X86_PG_V |
+	    X86_PG_M | X86_PG_A | pg_nx);
+}
+#endif
+
 /*
  * Track a range of the kernel's virtual address space that is contiguous
  * in various mapping attributes.
@@ -11367,6 +11500,11 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 		case DMPML4I:
 			sbuf_printf(sb, "\nDirect map:\n");
 			break;
+#ifdef KASAN
+		case KASANPML4I:
+			sbuf_printf(sb, "\nKASAN shadow map:\n");
+			break;
+#endif
 		case KPML4BASE:
 			sbuf_printf(sb, "\nKernel map:\n");
 			break;

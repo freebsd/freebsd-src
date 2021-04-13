@@ -1151,6 +1151,16 @@ kmeminit(void)
 		vm_kmem_size = 2 * mem_size * PAGE_SIZE;
 
 	vm_kmem_size = round_page(vm_kmem_size);
+
+#ifdef KASAN
+	/*
+	 * With KASAN enabled, dynamically allocated kernel memory is shadowed.
+	 * Account for this when setting the UMA limit.
+	 */
+	vm_kmem_size = (vm_kmem_size * KASAN_SHADOW_SCALE) /
+	    (KASAN_SHADOW_SCALE + 1);
+#endif
+
 #ifdef DEBUG_MEMGUARD
 	tmp = memguard_fudge(vm_kmem_size, kernel_map);
 #else
