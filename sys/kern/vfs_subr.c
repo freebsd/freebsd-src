@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/asan.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/capsicum.h>
@@ -527,6 +528,54 @@ vn_free_marker(struct vnode *vp)
 	free(vp, M_VNODE_MARKER);
 }
 
+#ifdef KASAN
+static int
+vnode_ctor(void *mem, int size, void *arg __unused, int flags __unused)
+{
+	kasan_mark(mem, size, roundup2(size, UMA_ALIGN_PTR + 1), 0);
+	return (0);
+}
+
+static void
+vnode_dtor(void *mem, int size, void *arg __unused)
+{
+	size_t end1, end2, off1, off2;
+
+	_Static_assert(offsetof(struct vnode, v_vnodelist) <
+	    offsetof(struct vnode, v_dbatchcpu),
+	    "KASAN marks require updating");
+
+	off1 = offsetof(struct vnode, v_vnodelist);
+	off2 = offsetof(struct vnode, v_dbatchcpu);
+	end1 = off1 + sizeof(((struct vnode *)NULL)->v_vnodelist);
+	end2 = off2 + sizeof(((struct vnode *)NULL)->v_dbatchcpu);
+
+	/*
+	 * Access to the v_vnodelist and v_dbatchcpu fields are permitted even
+	 * after the vnode has been freed.  Try to get some KASAN coverage by
+	 * marking everything except those two fields as invalid.  Because
+	 * KASAN's tracking is not byte-granular, any preceding fields sharing
+	 * the same 8-byte aligned word must also be marked valid.
+	 */
+
+	/* Handle the area from the start until v_vnodelist... */
+	off1 = rounddown2(off1, KASAN_SHADOW_SCALE);
+	kasan_mark(mem, off1, off1, KASAN_UMA_FREED);
+
+	/* ... then the area between v_vnodelist and v_dbatchcpu ... */
+	off1 = roundup2(end1, KASAN_SHADOW_SCALE);
+	off2 = rounddown2(off2, KASAN_SHADOW_SCALE);
+	if (off2 > off1)
+		kasan_mark((void *)((char *)mem + off1), off2 - off1,
+		    off2 - off1, KASAN_UMA_FREED);
+
+	/* ... and finally the area from v_dbatchcpu to the end. */
+	off2 = roundup2(end2, KASAN_SHADOW_SCALE);
+	kasan_mark((void *)((char *)mem + off2), size - off2, size - off2,
+	    KASAN_UMA_FREED);
+}
+#endif /* KASAN */
+
 /*
  * Initialize a vnode as it first enters the zone.
  */
@@ -592,6 +641,8 @@ vnode_fini(void *mem, int size)
 	mtx_destroy(&vp->v_interlock);
 	bo = &vp->v_bufobj;
 	rw_destroy(BO_LOCKPTR(bo));
+
+	kasan_mark(mem, size, size, 0);
 }
 
 /*
@@ -619,6 +670,8 @@ static void
 vntblinit(void *dummy __unused)
 {
 	struct vdbatch *vd;
+	uma_ctor ctor;
+	uma_dtor dtor;
 	int cpu, physvnodes, virtvnodes;
 	u_int i;
 
@@ -658,9 +711,18 @@ vntblinit(void *dummy __unused)
 	TAILQ_INSERT_HEAD(&vnode_list, vnode_list_free_marker, v_vnodelist);
 	vnode_list_reclaim_marker = vn_alloc_marker(NULL);
 	TAILQ_INSERT_HEAD(&vnode_list, vnode_list_reclaim_marker, v_vnodelist);
-	vnode_zone = uma_zcreate("VNODE", sizeof (struct vnode), NULL, NULL,
-	    vnode_init, vnode_fini, UMA_ALIGN_PTR, 0);
+
+#ifdef KASAN
+	ctor = vnode_ctor;
+	dtor = vnode_dtor;
+#else
+	ctor = NULL;
+	dtor = NULL;
+#endif
+	vnode_zone = uma_zcreate("VNODE", sizeof(struct vnode), ctor, dtor,
+	    vnode_init, vnode_fini, UMA_ALIGN_PTR, UMA_ZONE_NOKASAN);
 	uma_zone_set_smr(vnode_zone, vfs_smr);
+
 	/*
 	 * Preallocate enough nodes to support one-per buf so that
 	 * we can not fail an insert.  reassignbuf() callers can not
