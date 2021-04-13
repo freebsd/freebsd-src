@@ -1,7 +1,6 @@
 {
 	"repository.callsign" : "S",
 	"phabricator.uri" : "https://reviews.freebsd.org/",
-	"history.immutable" : true,
 	"arc.land.onto.default": "main",
 	"arc.land.onto": ["main"]
 }
