@@ -105,6 +105,7 @@ static int	realtimer_settime(struct itimer *, int,
 static int	realtimer_delete(struct itimer *);
 static void	realtimer_clocktime(clockid_t, struct timespec *);
 static void	realtimer_expire(void *);
+static void	realtimer_expire_l(struct itimer *it, bool proc_locked);
 
 static int	register_posix_clock(int, const struct kclock *);
 static void	itimer_fire(struct itimer *it);
@@ -919,7 +920,7 @@ itimer_proc_continue(struct proc *p)
 				if ((it->it_flags & ITF_PSTOPPED) != 0) {
 					it->it_flags &= ~ITF_PSTOPPED;
 					if ((it->it_flags & ITF_DELETING) == 0)
-						realtimer_expire(it);
+						realtimer_expire_l(it, true);
 				}
 				ITIMER_UNLOCK(it);
 			}
@@ -1663,17 +1664,13 @@ itimespecfix(struct timespec *ts)
 	.tv_nsec = (ns) % 1000000000		\
 }
 
-/* Timeout callback for realtime timer */
 static void
-realtimer_expire(void *arg)
+realtimer_expire_l(struct itimer *it, bool proc_locked)
 {
 	struct timespec cts, ts;
 	struct timeval tv;
-	struct itimer *it;
 	struct proc *p;
 	uint64_t interval, now, overruns, value;
-
-	it = (struct itimer *)arg;
 
 	realtimer_clocktime(it->it_clockid, &cts);
 	/* Only fire if time is reached. */
@@ -1708,8 +1705,9 @@ realtimer_expire(void *arg)
 			/* single shot timer ? */
 			timespecclear(&it->it_time.it_value);
 		}
+
+		p = it->it_proc;
 		if (timespecisset(&it->it_time.it_value)) {
-			p = it->it_proc;
 			if (P_SHOULDSTOP(p) || P_KILLED(p)) {
 				it->it_flags |= ITF_PSTOPPED;
 			} else {
@@ -1719,9 +1717,14 @@ realtimer_expire(void *arg)
 				    realtimer_expire, it);
 			}
 		}
+
 		itimer_enter(it);
 		ITIMER_UNLOCK(it);
+		if (proc_locked)
+			PROC_UNLOCK(p);
 		itimer_fire(it);
+		if (proc_locked)
+			PROC_LOCK(p);
 		ITIMER_LOCK(it);
 		itimer_leave(it);
 	} else if (timespecisset(&it->it_time.it_value)) {
@@ -1736,6 +1739,13 @@ realtimer_expire(void *arg)
 			    realtimer_expire, it);
 		}
 	}
+}
+
+/* Timeout callback for realtime timer */
+static void
+realtimer_expire(void *arg)
+{
+	realtimer_expire_l(arg, false);
 }
 
 static void
