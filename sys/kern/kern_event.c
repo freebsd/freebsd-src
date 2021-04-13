@@ -161,6 +161,7 @@ static void	filt_procdetach(struct knote *kn);
 static int	filt_proc(struct knote *kn, long hint);
 static int	filt_fileattach(struct knote *kn);
 static void	filt_timerexpire(void *knx);
+static void	filt_timerexpire_l(struct knote *kn, bool proc_locked);
 static int	filt_timerattach(struct knote *kn);
 static void	filt_timerdetach(struct knote *kn);
 static void	filt_timerstart(struct knote *kn, sbintime_t to);
@@ -706,21 +707,19 @@ kqtimer_proc_continue(struct proc *p)
 	TAILQ_FOREACH_SAFE(kc, &p->p_kqtim_stop, link, kc1) {
 		TAILQ_REMOVE(&p->p_kqtim_stop, kc, link);
 		if (kc->next <= now)
-			filt_timerexpire(kc->kn);
+			filt_timerexpire_l(kc->kn, true);
 		else
 			kqtimer_sched_callout(kc);
 	}
 }
 
 static void
-filt_timerexpire(void *knx)
+filt_timerexpire_l(struct knote *kn, bool proc_locked)
 {
-	struct knote *kn;
 	struct kq_timer_cb_data *kc;
 	struct proc *p;
 	sbintime_t now;
 
-	kn = knx;
 	kc = kn->kn_ptr.p_v;
 
 	if ((kn->kn_flags & EV_ONESHOT) != 0 || kc->to == 0) {
@@ -742,15 +741,24 @@ filt_timerexpire(void *knx)
 	 */
 	p = kc->p;
 	if (P_SHOULDSTOP(p) || P_KILLED(p)) {
-		PROC_LOCK(p);
+		if (!proc_locked)
+			PROC_LOCK(p);
 		if (P_SHOULDSTOP(p) || P_KILLED(p)) {
 			TAILQ_INSERT_TAIL(&p->p_kqtim_stop, kc, link);
-			PROC_UNLOCK(p);
+			if (!proc_locked)
+				PROC_UNLOCK(p);
 			return;
 		}
-		PROC_UNLOCK(p);
+		if (!proc_locked)
+			PROC_UNLOCK(p);
 	}
 	kqtimer_sched_callout(kc);
+}
+
+static void
+filt_timerexpire(void *knx)
+{
+	filt_timerexpire_l(knx, false);
 }
 
 /*
