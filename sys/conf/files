@@ -3885,6 +3885,8 @@ kern/stack_protector.c		standard \
 	compile-with "${NORMAL_C:N-fstack-protector*}"
 kern/subr_acl_nfs4.c		optional ufs_acl | zfs
 kern/subr_acl_posix1e.c		optional ufs_acl
+kern/subr_asan.c		optional kasan \
+	compile-with "${NORMAL_C:N-fsanitize*}"
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
 kern/subr_boot.c		standard

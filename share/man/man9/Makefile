@@ -185,6 +185,7 @@ MAN=	accept_filter.9 \
 	insmntque.9 \
 	intro.9 \
 	ithread.9 \
+	kasan.9 \
 	KASSERT.9 \
 	kern_testfrwk.9 \
 	kernacc.9 \
@@ -1306,6 +1307,8 @@ MLINKS+=kernel_mount.9 free_mntarg.9 \
 	kernel_mount.9 mount_argb.9 \
 	kernel_mount.9 mount_argf.9 \
 	kernel_mount.9 mount_argsu.9
+MLINKS+=kasan.9 KASAN.9 \
+	kasan.9 kasan_mark.9
 MLINKS+=khelp.9 khelp_add_hhook.9 \
 	khelp.9 KHELP_DECLARE_MOD.9 \
 	khelp.9 KHELP_DECLARE_MOD_UMA.9 \
