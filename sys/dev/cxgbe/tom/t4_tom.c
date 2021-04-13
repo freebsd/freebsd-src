@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
+#include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/toecore.h>
@@ -840,6 +841,165 @@ t4_alloc_tls_session(struct toedev *tod, struct tcpcb *tp,
 	return (tls_alloc_ktls(toep, tls, direction));
 }
 #endif
+
+/* SET_TCB_FIELD sent as a ULP command looks like this */
+#define LEN__SET_TCB_FIELD_ULP (sizeof(struct ulp_txpkt) + \
+    sizeof(struct ulptx_idata) + sizeof(struct cpl_set_tcb_field_core))
+
+static void *
+mk_set_tcb_field_ulp(struct ulp_txpkt *ulpmc, uint64_t word, uint64_t mask,
+		uint64_t val, uint32_t tid)
+{
+	struct ulptx_idata *ulpsc;
+	struct cpl_set_tcb_field_core *req;
+
+	ulpmc->cmd_dest = htonl(V_ULPTX_CMD(ULP_TX_PKT) | V_ULP_TXPKT_DEST(0));
+	ulpmc->len = htobe32(howmany(LEN__SET_TCB_FIELD_ULP, 16));
+
+	ulpsc = (struct ulptx_idata *)(ulpmc + 1);
+	ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
+	ulpsc->len = htobe32(sizeof(*req));
+
+	req = (struct cpl_set_tcb_field_core *)(ulpsc + 1);
+	OPCODE_TID(req) = htobe32(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
+	req->reply_ctrl = htobe16(V_NO_REPLY(1));
+	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(0));
+	req->mask = htobe64(mask);
+	req->val = htobe64(val);
+
+	ulpsc = (struct ulptx_idata *)(req + 1);
+	if (LEN__SET_TCB_FIELD_ULP % 16) {
+		ulpsc->cmd_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_NOOP));
+		ulpsc->len = htobe32(0);
+		return (ulpsc + 1);
+	}
+	return (ulpsc);
+}
+
+static void
+send_mss_flowc_wr(struct adapter *sc, struct toepcb *toep)
+{
+	struct wrq_cookie cookie;
+	struct fw_flowc_wr *flowc;
+	struct ofld_tx_sdesc *txsd;
+	const int flowclen = sizeof(*flowc) + sizeof(struct fw_flowc_mnemval);
+	const int flowclen16 = howmany(flowclen, 16);
+
+	if (toep->tx_credits < flowclen16 || toep->txsd_avail == 0) {
+		CH_ERR(sc, "%s: tid %u out of tx credits (%d, %d).\n", __func__,
+		    toep->tid, toep->tx_credits, toep->txsd_avail);
+		return;
+	}
+
+	flowc = start_wrq_wr(&toep->ofld_txq->wrq, flowclen16, &cookie);
+	if (__predict_false(flowc == NULL)) {
+		CH_ERR(sc, "ENOMEM in %s for tid %u.\n", __func__, toep->tid);
+		return;
+	}
+	flowc->op_to_nparams = htobe32(V_FW_WR_OP(FW_FLOWC_WR) |
+	    V_FW_FLOWC_WR_NPARAMS(1));
+	flowc->flowid_len16 = htonl(V_FW_WR_LEN16(flowclen16) |
+	    V_FW_WR_FLOWID(toep->tid));
+	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_MSS;
+	flowc->mnemval[0].val = htobe32(toep->params.emss);
+
+	txsd = &toep->txsd[toep->txsd_pidx];
+	txsd->tx_credits = flowclen16;
+	txsd->plen = 0;
+	toep->tx_credits -= txsd->tx_credits;
+	if (__predict_false(++toep->txsd_pidx == toep->txsd_total))
+		toep->txsd_pidx = 0;
+	toep->txsd_avail--;
+	commit_wrq_wr(&toep->ofld_txq->wrq, flowc, &cookie);
+}
+
+static void
+t4_pmtu_update(struct toedev *tod, struct tcpcb *tp, tcp_seq seq, int mtu)
+{
+	struct work_request_hdr *wrh;
+	struct ulp_txpkt *ulpmc;
+	int idx, len;
+	struct wrq_cookie cookie;
+	struct inpcb *inp = tp->t_inpcb;
+	struct toepcb *toep = tp->t_toe;
+	struct adapter *sc = td_adapter(toep->td);
+	unsigned short *mtus = &sc->params.mtus[0];
+
+	INP_WLOCK_ASSERT(inp);
+	MPASS(mtu > 0);	/* kernel is supposed to provide something usable. */
+
+	/* tp->snd_una and snd_max are in host byte order too. */
+	seq = be32toh(seq);
+
+	CTR6(KTR_CXGBE, "%s: tid %d, seq 0x%08x, mtu %u, mtu_idx %u (%d)",
+	    __func__, toep->tid, seq, mtu, toep->params.mtu_idx,
+	    mtus[toep->params.mtu_idx]);
+
+	if (ulp_mode(toep) == ULP_MODE_NONE &&	/* XXX: Read TCB otherwise? */
+	    (SEQ_LT(seq, tp->snd_una) || SEQ_GEQ(seq, tp->snd_max))) {
+		CTR5(KTR_CXGBE,
+		    "%s: tid %d, seq 0x%08x not in range [0x%08x, 0x%08x).",
+		    __func__, toep->tid, seq, tp->snd_una, tp->snd_max);
+		return;
+	}
+
+	/* Find the best mtu_idx for the suggested MTU. */
+	for (idx = 0; idx < NMTUS - 1 && mtus[idx + 1] <= mtu; idx++)
+		continue;
+	if (idx >= toep->params.mtu_idx)
+		return;	/* Never increase the PMTU (just like the kernel). */
+
+	/*
+	 * We'll send a compound work request with 2 SET_TCB_FIELDs -- the first
+	 * one updates the mtu_idx and the second one triggers a retransmit.
+	 */
+	len = sizeof(*wrh) + 2 * roundup2(LEN__SET_TCB_FIELD_ULP, 16);
+	wrh = start_wrq_wr(toep->ctrlq, howmany(len, 16), &cookie);
+	if (wrh == NULL) {
+		CH_ERR(sc, "failed to change mtu_idx of tid %d (%u -> %u).\n",
+		    toep->tid, toep->params.mtu_idx, idx);
+		return;
+	}
+	INIT_ULPTX_WRH(wrh, len, 1, 0);	/* atomic */
+	ulpmc = (struct ulp_txpkt *)(wrh + 1);
+	ulpmc = mk_set_tcb_field_ulp(ulpmc, W_TCB_T_MAXSEG,
+	    V_TCB_T_MAXSEG(M_TCB_T_MAXSEG), V_TCB_T_MAXSEG(idx), toep->tid);
+	ulpmc = mk_set_tcb_field_ulp(ulpmc, W_TCB_TIMESTAMP,
+	    V_TCB_TIMESTAMP(0x7FFFFULL << 11), 0, toep->tid);
+	commit_wrq_wr(toep->ctrlq, wrh, &cookie);
+
+	/* Update the software toepcb and tcpcb. */
+	toep->params.mtu_idx = idx;
+	tp->t_maxseg = mtus[toep->params.mtu_idx];
+	if (inp->inp_inc.inc_flags & INC_ISIPV6)
+		tp->t_maxseg -= sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
+	else
+		tp->t_maxseg -= sizeof(struct ip) + sizeof(struct tcphdr);
+	toep->params.emss = tp->t_maxseg;
+	if (tp->t_flags & TF_RCVD_TSTMP)
+		toep->params.emss -= TCPOLEN_TSTAMP_APPA;
+
+	/* Update the firmware flowc. */
+	send_mss_flowc_wr(sc, toep);
+
+	/* Update the MTU in the kernel's hostcache. */
+	if (sc->tt.update_hc_on_pmtu_change != 0) {
+		struct in_conninfo inc = {0};
+
+		inc.inc_fibnum = inp->inp_inc.inc_fibnum;
+		if (inp->inp_inc.inc_flags & INC_ISIPV6) {
+			inc.inc_flags |= INC_ISIPV6;
+			inc.inc6_faddr = inp->inp_inc.inc6_faddr;
+		} else {
+			inc.inc_faddr = inp->inp_inc.inc_faddr;
+		}
+		tcp_hc_updatemtu(&inc, mtu);
+	}
+
+	CTR6(KTR_CXGBE, "%s: tid %d, mtu_idx %u (%u), t_maxseg %u, emss %u",
+	    __func__, toep->tid, toep->params.mtu_idx,
+	    mtus[toep->params.mtu_idx], tp->t_maxseg, toep->params.emss);
+}
 
 /*
  * The TOE driver will not receive any more CPLs for the tid associated with the
@@ -1754,6 +1914,7 @@ t4_tom_activate(struct adapter *sc)
 #ifdef KERN_TLS
 	tod->tod_alloc_tls_session = t4_alloc_tls_session;
 #endif
+	tod->tod_pmtu_update = t4_pmtu_update;
 
 	for_each_port(sc, i) {
 		for_each_vi(sc->port[i], v, vi) {

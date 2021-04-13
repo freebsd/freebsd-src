@@ -6844,6 +6844,12 @@ t4_sysctls(struct adapter *sc)
 		    CTLFLAG_RW, &sc->tt.autorcvbuf_inc, 0,
 		    "autorcvbuf increment");
 
+		sc->tt.update_hc_on_pmtu_change = 1;
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+		    "update_hc_on_pmtu_change", CTLFLAG_RW,
+		    &sc->tt.update_hc_on_pmtu_change, 0,
+		    "Update hostcache entry if the PMTU changes");
+
 		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "timer_tick",
 		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 		    sysctl_tp_tick, "A", "TP timer tick (us)");
