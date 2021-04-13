@@ -317,6 +317,12 @@ struct pf_poolhashkey {
 #define key32	pfk.key32
 };
 
+struct pf_mape_portset {
+	u_int8_t		offset;
+	u_int8_t		psidlen;
+	u_int16_t		psid;
+};
+
 struct pf_pool {
 	struct pf_palist	 list;
 	struct pf_pooladdr	*cur;

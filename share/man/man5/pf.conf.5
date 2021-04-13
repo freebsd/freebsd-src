@@ -1998,6 +1998,27 @@ rules, the
 option prevents
 .Xr pf 4
 from modifying the source port on TCP and UDP packets.
+.It Xo Ar map-e-portset Aq Ar psid-offset
+.No / Aq Ar psid-len
+.No / Aq Ar psid
+.Xc
+With
+.Ar nat
+rules, the
+.Ar map-e-portset
+option enables the source port translation of MAP-E (RFC 7597) Customer Edge.
+In order to make the host act as a MAP-E Customer Edge, setting up a tunneling
+interface and pass rules for encapsulated packets are required in addition
+to the map-e-portset nat rule.
+.Pp
+For example:
+.Bd -literal -offset indent
+nat on $gif_mape_if from $int_if:network to any \e
+      -> $ipv4_mape_src map-e-portset 6/8/0x34
+.Ed
+.Pp
+sets PSID offset 6, PSID length 8, PSID 0x34.
+.Ed
 .El
 .Pp
 Additionally, the
@@ -2893,7 +2914,8 @@ nat-rule       = [ "no" ] "nat" [ "pass" [ "log" [ "(" logopts ")" ] ] ]
                  [ "on" ifspec ] [ af ]
                  [ protospec ] hosts [ "tag" string ] [ "tagged" string ]
                  [ "-\*(Gt" ( redirhost | "{" redirhost-list "}" )
-                 [ portspec ] [ pooltype ] [ "static-port" ] ]
+                 [ portspec ] [ pooltype ] [ "static-port" ]
+                 [ "map-e-portset" number "/" number "/" number ] ]
 
 binat-rule     = [ "no" ] "binat" [ "pass" [ "log" [ "(" logopts ")" ] ] ]
                  [ "on" interface-name ] [ af ]

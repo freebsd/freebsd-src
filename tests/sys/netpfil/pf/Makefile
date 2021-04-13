@@ -12,6 +12,7 @@ ATF_TESTS_SH+=	altq \
 		forward \
 		fragmentation \
 		icmp \
+		map_e \
 		names \
 		nat \
 		pass_block \

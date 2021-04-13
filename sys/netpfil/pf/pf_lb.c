@@ -224,11 +224,6 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 	if (pf_map_addr(af, r, saddr, naddr, &init_addr, sn))
 		return (1);
 
-	if (proto == IPPROTO_ICMP) {
-		low = 1;
-		high = 65535;
-	}
-
 	bzero(&key, sizeof(key));
 	key.af = af;
 	key.proto = proto;
@@ -308,6 +303,42 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
 		}
 	} while (! PF_AEQ(&init_addr, naddr, af) );
 	return (1);					/* none available */
+}
+
+static int
+pf_get_mape_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
+    struct pf_addr *saddr, uint16_t sport, struct pf_addr *daddr,
+    uint16_t dport, struct pf_addr *naddr, uint16_t *nport,
+    struct pf_ksrc_node **sn)
+{
+	uint16_t psmask, low, highmask;
+	uint16_t i, ahigh, cut;
+	int ashift, psidshift;
+
+	ashift = 16 - r->rpool.mape.offset;
+	psidshift = ashift - r->rpool.mape.psidlen;
+	psmask = r->rpool.mape.psid & ((1U << r->rpool.mape.psidlen) - 1);
+	psmask = psmask << psidshift;
+	highmask = (1U << psidshift) - 1;
+
+	ahigh = (1U << r->rpool.mape.offset) - 1;
+	cut = arc4random() & ahigh;
+	if (cut == 0)
+		cut = 1;
+
+	for (i = cut; i <= ahigh; i++) {
+		low = (i << ashift) | psmask;
+		if (!pf_get_sport(af, proto, r, saddr, sport, daddr, dport,
+		    naddr, nport, low, low | highmask, sn))
+			return (0);
+	}
+	for (i = cut - 1; i > 0; i--) {
+		low = (i << ashift) | psmask;
+		if (!pf_get_sport(af, proto, r, saddr, sport, daddr, dport,
+		    naddr, nport, low, low | highmask, sn))
+			return (0);
+	}
+	return (1);
 }
 
 int
@@ -530,6 +561,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 	struct pf_krule	*r = NULL;
 	struct pf_addr	*naddr;
 	uint16_t	*nport;
+	uint16_t	 low, high;
 
 	PF_RULES_RASSERT();
 	KASSERT(*skp == NULL, ("*skp not NULL"));
@@ -577,9 +609,26 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 
 	switch (r->action) {
 	case PF_NAT:
-		if (pf_get_sport(pd->af, pd->proto, r, saddr, sport, daddr,
-		    dport, naddr, nport, r->rpool.proxy_port[0],
-		    r->rpool.proxy_port[1], sn)) {
+		if (pd->proto == IPPROTO_ICMP) {
+			low  = 1;
+			high = 65535;
+		} else {
+			low  = r->rpool.proxy_port[0];
+			high = r->rpool.proxy_port[1];
+		}
+		if (r->rpool.mape.offset > 0) {
+			if (pf_get_mape_sport(pd->af, pd->proto, r, saddr,
+			    sport, daddr, dport, naddr, nport, sn)) {
+				DPFPRINTF(PF_DEBUG_MISC,
+				    ("pf: MAP-E port allocation (%u/%u/%u)"
+				    " failed\n",
+				    r->rpool.mape.offset,
+				    r->rpool.mape.psidlen,
+				    r->rpool.mape.psid));
+				goto notrans;
+			}
+		} else if (pf_get_sport(pd->af, pd->proto, r, saddr, sport,
+		    daddr, dport, naddr, nport, low, high, sn)) {
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("pf: NAT proxy port allocation (%u-%u) failed\n",
 			    r->rpool.proxy_port[0], r->rpool.proxy_port[1]));
