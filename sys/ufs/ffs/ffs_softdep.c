@@ -7546,7 +7546,9 @@ cleanrestart:
 			BO_LOCK(bo);
 			goto cleanrestart;
 		}
+		BO_LOCK(bo);
 		bp->b_vflags |= BV_SCANNED;
+		BO_UNLOCK(bo);
 		bremfree(bp);
 		if (blkoff != 0) {
 			allocbuf(bp, blkoff);
