@@ -199,6 +199,14 @@ toedev_alloc_tls_session(struct toedev *tod __unused, struct tcpcb *tp __unused,
 	return (EINVAL);
 }
 
+static void
+toedev_pmtu_update(struct toedev *tod __unused, struct tcpcb *tp __unused,
+    tcp_seq seq __unused, int mtu __unused)
+{
+
+	return;
+}
+
 /*
  * Inform one or more TOE devices about a listening socket.
  */
@@ -290,6 +298,7 @@ init_toedev(struct toedev *tod)
 	tod->tod_ctloutput = toedev_ctloutput;
 	tod->tod_tcp_info = toedev_tcp_info;
 	tod->tod_alloc_tls_session = toedev_alloc_tls_session;
+	tod->tod_pmtu_update = toedev_pmtu_update;
 }
 
 /*

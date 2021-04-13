@@ -36,6 +36,8 @@
 #error "no user-serviceable parts inside"
 #endif
 
+#include <netinet/tcp.h>
+
 extern int registered_toedevs;
 
 int  tcp_offload_connect(struct socket *, struct sockaddr *);
@@ -48,5 +50,6 @@ void tcp_offload_ctloutput(struct tcpcb *, int, int);
 void tcp_offload_tcp_info(struct tcpcb *, struct tcp_info *);
 int  tcp_offload_alloc_tls_session(struct tcpcb *, struct ktls_session *, int);
 void tcp_offload_detach(struct tcpcb *);
+void tcp_offload_pmtu_update(struct tcpcb *, tcp_seq, int);
 
 #endif
