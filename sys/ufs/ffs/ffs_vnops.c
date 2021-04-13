@@ -321,8 +321,9 @@ loop:
 			if (BUF_LOCK(bp,
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
 			    BO_LOCKPTR(bo)) != 0) {
+				BO_LOCK(bo);
 				bp->b_vflags &= ~BV_SCANNED;
-				goto next;
+				goto next_locked;
 			}
 		} else
 			continue;
@@ -385,6 +386,7 @@ next:
 		 * to start from a known point.
 		 */
 		BO_LOCK(bo);
+next_locked:
 		nbp = TAILQ_FIRST(&bo->bo_dirty.bv_hd);
 	}
 	if (waitfor != MNT_WAIT) {
