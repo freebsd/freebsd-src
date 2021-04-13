@@ -219,3 +219,14 @@ tcp_offload_detach(struct tcpcb *tp)
 
 	tod->tod_pcb_detach(tod, tp);
 }
+
+void
+tcp_offload_pmtu_update(struct tcpcb *tp, tcp_seq seq, int mtu)
+{
+	struct toedev *tod = tp->tod;
+
+	KASSERT(tod != NULL, ("%s: tp->tod is NULL, tp %p", __func__, tp));
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	tod->tod_pmtu_update(tod, tp, seq, mtu);
+}

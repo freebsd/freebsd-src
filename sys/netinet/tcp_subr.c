@@ -2791,6 +2791,21 @@ SYSCTL_PROC(_net_inet6_tcp6, OID_AUTO, getcred,
 #endif /* INET6 */
 
 #ifdef INET
+/* Path MTU to try next when a fragmentation-needed message is received. */
+static inline int
+tcp_next_pmtu(const struct icmp *icp, const struct ip *ip)
+{
+	int mtu = ntohs(icp->icmp_nextmtu);
+
+	/* If no alternative MTU was proposed, try the next smaller one. */
+	if (!mtu)
+		mtu = ip_next_mtu(ntohs(ip->ip_len), 1);
+	if (mtu < V_tcp_minmss + sizeof(struct tcpiphdr))
+		mtu = V_tcp_minmss + sizeof(struct tcpiphdr);
+
+	return (mtu);
+}
+
 static void
 tcp_ctlinput_with_port(int cmd, struct sockaddr *sa, void *vip, uint16_t port)
 {
@@ -2846,6 +2861,17 @@ tcp_ctlinput_with_port(int cmd, struct sockaddr *sa, void *vip, uint16_t port)
 		    !(inp->inp_flags & INP_DROPPED) &&
 		    !(inp->inp_socket == NULL)) {
 			tp = intotcpcb(inp);
+#ifdef TCP_OFFLOAD
+			if (tp->t_flags & TF_TOE && cmd == PRC_MSGSIZE) {
+				/*
+				 * MTU discovery for offloaded connections.  Let
+				 * the TOE driver verify seq# and process it.
+				 */
+				mtu = tcp_next_pmtu(icp, ip);
+				tcp_offload_pmtu_update(tp, icmp_tcp_seq, mtu);
+				goto out;
+			}
+#endif
 			if (tp->t_port != port) {
 				goto out;
 			}
@@ -2853,24 +2879,11 @@ tcp_ctlinput_with_port(int cmd, struct sockaddr *sa, void *vip, uint16_t port)
 			    SEQ_LT(ntohl(icmp_tcp_seq), tp->snd_max)) {
 				if (cmd == PRC_MSGSIZE) {
 					/*
-					 * MTU discovery:
-					 * If we got a needfrag set the MTU
-					 * in the route to the suggested new
-					 * value (if given) and then notify.
+					 * MTU discovery: we got a needfrag and
+					 * will potentially try a lower MTU.
 					 */
-					mtu = ntohs(icp->icmp_nextmtu);
-					/*
-					 * If no alternative MTU was
-					 * proposed, try the next smaller
-					 * one.
-					 */
-					if (!mtu)
-						mtu = ip_next_mtu(
-						    ntohs(ip->ip_len), 1);
-					if (mtu < V_tcp_minmss +
-					    sizeof(struct tcpiphdr))
-						mtu = V_tcp_minmss +
-						    sizeof(struct tcpiphdr);
+					mtu = tcp_next_pmtu(icp, ip);
+
 					/*
 					 * Only process the offered MTU if it
 					 * is smaller than the current one.
@@ -2948,6 +2961,20 @@ tcp_ctlinput_viaudp(int cmd, struct sockaddr *sa, void *vip, void *unused)
 #endif /* INET */
 
 #ifdef INET6
+static inline int
+tcp6_next_pmtu(const struct icmp6_hdr *icmp6)
+{
+	int mtu = ntohl(icmp6->icmp6_mtu);
+
+	/*
+	 * If no alternative MTU was proposed, or the proposed MTU was too
+	 * small, set to the min.
+	 */
+	if (mtu < IPV6_MMTU)
+		mtu = IPV6_MMTU - 8;	/* XXXNP: what is the adjustment for? */
+	return (mtu);
+}
+
 static void
 tcp6_ctlinput_with_port(int cmd, struct sockaddr *sa, void *d, uint16_t port)
 {
@@ -3039,6 +3066,14 @@ tcp6_ctlinput_with_port(int cmd, struct sockaddr *sa, void *d, uint16_t port)
 		    !(inp->inp_flags & INP_DROPPED) &&
 		    !(inp->inp_socket == NULL)) {
 			tp = intotcpcb(inp);
+#ifdef TCP_OFFLOAD
+			if (tp->t_flags & TF_TOE && cmd == PRC_MSGSIZE) {
+				/* MTU discovery for offloaded connections. */
+				mtu = tcp6_next_pmtu(icmp6);
+				tcp_offload_pmtu_update(tp, icmp_tcp_seq, mtu);
+				goto out;
+			}
+#endif
 			if (tp->t_port != port) {
 				goto out;
 			}
@@ -3051,15 +3086,8 @@ tcp6_ctlinput_with_port(int cmd, struct sockaddr *sa, void *d, uint16_t port)
 					 * in the route to the suggested new
 					 * value (if given) and then notify.
 					 */
-					mtu = ntohl(icmp6->icmp6_mtu);
-					/*
-					 * If no alternative MTU was
-					 * proposed, or the proposed
-					 * MTU was too small, set to
-					 * the min.
-					 */
-					if (mtu < IPV6_MMTU)
-						mtu = IPV6_MMTU - 8;
+					mtu = tcp6_next_pmtu(icmp6);
+
 					bzero(&inc, sizeof(inc));
 					inc.inc_fibnum = M_GETFIB(m);
 					inc.inc_flags |= INC_ISIPV6;

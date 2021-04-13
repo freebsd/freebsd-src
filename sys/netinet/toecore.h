@@ -35,6 +35,7 @@
 #error "no user-serviceable parts inside"
 #endif
 
+#include <netinet/tcp.h>
 #include <sys/_eventhandler.h>
 
 struct tcpopt;
@@ -114,6 +115,9 @@ struct toedev {
 	/* Create a TLS session */
 	int (*tod_alloc_tls_session)(struct toedev *, struct tcpcb *,
 	    struct ktls_session *, int);
+
+	/* ICMP fragmentation-needed received, adjust PMTU. */
+	void (*tod_pmtu_update)(struct toedev *, struct tcpcb *, tcp_seq, int);
 };
 
 typedef	void (*tcp_offload_listen_start_fn)(void *, struct tcpcb *);
