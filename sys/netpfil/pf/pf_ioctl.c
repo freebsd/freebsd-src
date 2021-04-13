@@ -1645,6 +1645,36 @@ pf_addr_to_nvaddr(const struct pf_addr *paddr)
 }
 
 static int
+pf_nvmape_to_mape(const nvlist_t *nvl, struct pf_mape_portset *mape)
+{
+	int error = 0;
+
+	bzero(mape, sizeof(*mape));
+	PFNV_CHK(pf_nvuint8(nvl, "offset", &mape->offset));
+	PFNV_CHK(pf_nvuint8(nvl, "psidlen", &mape->psidlen));
+	PFNV_CHK(pf_nvuint16(nvl, "psid", &mape->psid));
+
+errout:
+	return (error);
+}
+
+static nvlist_t *
+pf_mape_to_nvmape(const struct pf_mape_portset *mape)
+{
+	nvlist_t *nvl;
+
+	nvl = nvlist_create(0);
+	if (nvl == NULL)
+		return (NULL);
+
+	nvlist_add_number(nvl, "offset", mape->offset);
+	nvlist_add_number(nvl, "psidlen", mape->psidlen);
+	nvlist_add_number(nvl, "psid", mape->psid);
+
+	return (nvl);
+}
+
+static int
 pf_nvpool_to_pool(const nvlist_t *nvl, struct pf_kpool *kpool)
 {
 	int error = 0;
@@ -1662,6 +1692,11 @@ pf_nvpool_to_pool(const nvlist_t *nvl, struct pf_kpool *kpool)
 	PFNV_CHK(pf_nvuint16_array(nvl, "proxy_port", kpool->proxy_port, 2,
 	    NULL));
 	PFNV_CHK(pf_nvuint8(nvl, "opts", &kpool->opts));
+
+	if (nvlist_exists_nvlist(nvl, "mape")) {
+		PFNV_CHK(pf_nvmape_to_mape(nvlist_get_nvlist(nvl, "mape"),
+		    &kpool->mape));
+	}
 
 errout:
 	return (error);
@@ -1686,6 +1721,11 @@ pf_pool_to_nvpool(const struct pf_kpool *pool)
 	nvlist_add_number(nvl, "tblidx", pool->tblidx);
 	pf_uint16_array_nv(nvl, "proxy_port", pool->proxy_port, 2);
 	nvlist_add_number(nvl, "opts", pool->opts);
+
+	tmp = pf_mape_to_nvmape(&pool->mape);
+	if (tmp == NULL)
+		goto error;
+	nvlist_add_nvlist(nvl, "mape", tmp);
 
 	return (nvl);
 
