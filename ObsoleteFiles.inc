@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210413: Remove pfctlinput2
+OLD_FILES+=usr/share/man/man9/pfctlinput2.9.gz
+
 # 20210329: Remove kernel-only crypto headers from /usr/include
 OLD_FILES+=usr/include/crypto/_cryptodev.h
 OLD_FILES+=usr/include/crypto/cbc_mac.h

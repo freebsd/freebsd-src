@@ -1010,7 +1010,6 @@ MLINKS+=dnv.9 dnvlist.9 \
 MLINKS+=domain.9 DOMAIN_SET.9 \
 	domain.9 domain_add.9 \
 	domain.9 pfctlinput.9 \
-	domain.9 pfctlinput2.9 \
 	domain.9 pffinddomain.9 \
 	domain.9 pffindproto.9 \
 	domain.9 pffindtype.9
