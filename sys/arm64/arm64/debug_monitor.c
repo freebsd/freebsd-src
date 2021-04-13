@@ -549,11 +549,11 @@ dbg_monitor_exit(struct thread *thread, struct trapframe *frame)
 	if (!(SV_PROC_FLAG(thread->td_proc, SV_ILP32)))
 		frame->tf_spsr |= PSR_D;
 	if ((thread->td_pcb->pcb_dbg_regs.dbg_flags & DBGMON_ENABLED) != 0) {
-		/* Install the kernel version of the registers */
+		/* Install the thread's version of the registers */
 		dbg_register_sync(&thread->td_pcb->pcb_dbg_regs);
 		frame->tf_spsr &= ~PSR_D;
 	} else if ((kernel_monitor.dbg_flags & DBGMON_ENABLED) != 0) {
-		/* Disable the user breakpoints until we return to userspace */
+		/* Disable the kernel breakpoints until we re-enter */
 		for (i = 0; i < dbg_watchpoint_num; i++) {
 			dbg_wb_write_reg(DBG_REG_BASE_WCR, i, 0);
 			dbg_wb_write_reg(DBG_REG_BASE_WVR, i, 0);
