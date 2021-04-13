@@ -1102,6 +1102,9 @@ pfs_write(struct vop_write_args *va)
 	if (pn->pn_fill == NULL)
 		PFS_RETURN (EIO);
 
+	if (uio->uio_resid > PFS_MAXBUFSIZ)
+		PFS_RETURN (EIO);
+
 	/*
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.
