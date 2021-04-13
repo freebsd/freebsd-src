@@ -40,6 +40,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210413: Remove pfctlinput2
+OLD_FILES+=usr/share/man/man9/pfctlinput2.9.gz
+
 # 20210412: Remove kernel asymmetric crypto
 OLD_FILES+=usr/share/man/man9/crypto_asym.9
 OLD_FILES+=usr/share/man/man9/crypto_kdispatch.9
