@@ -2072,6 +2072,8 @@ have_mbuf:
 			rxq->rxcsum++;
 		} else {
 			MPASS(tnl_type == RX_PKT_TNL_TYPE_VXLAN);
+
+			M_HASHTYPE_SETINNER(m0);
 			if (__predict_false(cpl->ip_frag)) {
 				/*
 				 * csum_data is for the inner frame (which is an
