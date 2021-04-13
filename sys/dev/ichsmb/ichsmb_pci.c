@@ -109,6 +109,7 @@ __FBSDID("$FreeBSD$");
 #define	ID_COMETLAKE2			0x06a3
 #define	ID_TIGERLAKE			0xa0a3
 #define	ID_TIGERLAKE2			0x43a3
+#define	ID_GEMINILAKE			0x31d4
 
 static const struct pci_device_table ichsmb_devices[] = {
 	{ PCI_DEV(PCI_VENDOR_INTEL, ID_82801AA),
@@ -199,6 +200,8 @@ static const struct pci_device_table ichsmb_devices[] = {
 	  PCI_DESCR("Intel Tiger Lake SMBus controller") },
 	{ PCI_DEV(PCI_VENDOR_INTEL, ID_TIGERLAKE2),
 	  PCI_DESCR("Intel Tiger Lake SMBus controller") },
+	{ PCI_DEV(PCI_VENDOR_INTEL, ID_GEMINILAKE),
+	  PCI_DESCR("Intel Gemini Lake SMBus controller") },
 };
 
 /* Internal functions */
