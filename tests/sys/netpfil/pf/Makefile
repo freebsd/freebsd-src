@@ -12,6 +12,7 @@ ATF_TESTS_SH+=	anchor \
 		fragmentation \
 		icmp \
 		killstate \
+		map_e \
 		names \
 		nat \
 		pass_block \
