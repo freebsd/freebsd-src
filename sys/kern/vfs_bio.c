@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/asan.h>
 #include <sys/bio.h>
 #include <sys/bitset.h>
 #include <sys/conf.h>
@@ -1042,6 +1043,15 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 {
 	int tuned_nbuf;
 	long maxbuf, maxbuf_sz, buf_sz,	biotmap_sz;
+
+#ifdef KASAN
+	/*
+	 * With KASAN enabled, the kernel map is shadowed.  Account for this
+	 * when sizing maps based on the amount of physical memory available.
+	 */
+	physmem_est = (physmem_est * KASAN_SHADOW_SCALE) /
+	    (KASAN_SHADOW_SCALE + 1);
+#endif
 
 	/*
 	 * physmem_est is in pages.  Convert it to kilobytes (assumes
