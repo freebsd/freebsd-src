@@ -276,6 +276,11 @@ uma_zone_t uma_zcache_create(const char *name, int size, uma_ctor ctor,
 					 *
 					 * See sys/smr.h for more details.
 					 */
+#define	UMA_ZONE_NOKASAN	0x80000	/*
+					 * Disable KASAN verification.  This is
+					 * implied by NOFREE.  Cache zones are
+					 * not verified by default.
+					 */
 /* In use by UMA_ZFLAGs:	0xffe00000 */
 
 /*
@@ -286,7 +291,7 @@ uma_zone_t uma_zcache_create(const char *name, int size, uma_ctor ctor,
 #define	UMA_ZONE_INHERIT						\
     (UMA_ZONE_NOTOUCH | UMA_ZONE_MALLOC | UMA_ZONE_NOFREE |		\
      UMA_ZONE_VM | UMA_ZONE_NOTPAGE | UMA_ZONE_PCPU |			\
-     UMA_ZONE_FIRSTTOUCH | UMA_ZONE_ROUNDROBIN)
+     UMA_ZONE_FIRSTTOUCH | UMA_ZONE_ROUNDROBIN | UMA_ZONE_NOKASAN)
 
 /* Definitions for align */
 #define UMA_ALIGN_PTR	(sizeof(void *) - 1)	/* Alignment fit for ptr */
