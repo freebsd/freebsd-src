@@ -442,7 +442,7 @@ arm_add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
 				type = types[p->md_type];
 			else
 				type = "<INVALID>";
-			printf("%23s %012llx %12p %08llx ", type, p->md_phys,
+			printf("%23s %012llx %012llx %08llx ", type, p->md_phys,
 			    p->md_virt, p->md_pages);
 			if (p->md_attr & EFI_MD_ATTR_UC)
 				printf("UC ");
