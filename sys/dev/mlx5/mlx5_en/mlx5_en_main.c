@@ -3144,12 +3144,21 @@ mlx5e_open_locked(struct ifnet *ifp)
 		    "mlx5e_add_all_vlan_rules failed, %d\n", err);
 		goto err_close_flow_table;
 	}
+	err = mlx5e_add_all_vxlan_rules(priv);
+	if (err) {
+		mlx5_en_err(ifp,
+		    "mlx5e_add_all_vxlan_rules failed, %d\n", err);
+		goto err_del_vlan_rules;
+	}
 	set_bit(MLX5E_STATE_OPENED, &priv->state);
 
 	mlx5e_update_carrier(priv);
 	mlx5e_set_rx_mode_core(priv);
 
 	return (0);
+
+err_del_vlan_rules:
+	mlx5e_del_all_vlan_rules(priv);
 
 err_close_flow_table:
 	mlx5e_close_flow_table(priv);
@@ -3204,6 +3213,7 @@ mlx5e_close_locked(struct ifnet *ifp)
 
 	mlx5e_set_rx_mode_core(priv);
 	mlx5e_del_all_vlan_rules(priv);
+	mlx5e_del_all_vxlan_rules(priv);
 	if_link_state_change(priv->ifp, LINK_STATE_DOWN);
 	mlx5e_close_flow_table(priv);
 	mlx5e_close_tirs(priv, true);

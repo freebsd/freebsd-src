@@ -1840,13 +1840,15 @@ mlx5e_add_vxlan_rule(struct mlx5e_priv *priv, sa_family_t family, u_int port)
 	el = mlx5e_vxlan_find_db_el(priv, proto, port);
 	if (el != NULL) {
 		el->refcount++;
-		return (0);
+		if (el->installed)
+			return (0);
 	}
 	el = mlx5e_vxlan_alloc_db_el(priv, proto, port);
 
 	err = mlx5e_add_vxlan_rule_from_db(priv, el);
 	if (err == 0) {
 		TAILQ_INSERT_TAIL(&priv->vxlan.head, el, link);
+		el->installed = true;
 	} else {
 		kvfree(el);
 	}
@@ -1905,6 +1907,25 @@ add_vxlan_rule_out:
 	return (err);
 }
 
+int
+mlx5e_add_all_vxlan_rules(struct mlx5e_priv *priv)
+{
+	struct mlx5e_vxlan_db_el *el;
+	int err;
+
+	err = 0;
+	TAILQ_FOREACH(el, &priv->vxlan.head, link) {
+		if (el->installed)
+			continue;
+		err = mlx5e_add_vxlan_rule_from_db(priv, el);
+		if (err != 0)
+			break;
+		el->installed = false;
+	}
+
+	return (err);
+}
+
 static int
 mlx5e_del_vxlan_rule(struct mlx5e_priv *priv, sa_family_t family, u_int port)
 {
@@ -1928,6 +1949,19 @@ mlx5e_del_vxlan_rule(struct mlx5e_priv *priv, sa_family_t family, u_int port)
 	TAILQ_REMOVE(&priv->vxlan.head, el, link);
 	kvfree(el);
 	return (0);
+}
+
+void
+mlx5e_del_all_vxlan_rules(struct mlx5e_priv *priv)
+{
+	struct mlx5e_vxlan_db_el *el;
+
+	TAILQ_FOREACH(el, &priv->vxlan.head, link) {
+		if (!el->installed)
+			continue;
+		mlx5_del_flow_rule(el->vxlan_ft_rule);
+		el->installed = false;
+	}
 }
 
 static void
