@@ -948,6 +948,7 @@ struct mlx5e_vxlan_db_el {
 	u_int refcount;
 	u_int proto;
 	u_int port;
+	bool installed;
 	struct mlx5_flow_rule *vxlan_ft_rule;
 	TAILQ_ENTRY(mlx5e_vxlan_db_el) link;
 };
@@ -1148,6 +1149,9 @@ void	mlx5e_vxlan_start(void *arg, struct ifnet *ifp, sa_family_t family,
 	    u_int port);
 void	mlx5e_vxlan_stop(void *arg, struct ifnet *ifp, sa_family_t family,
 	    u_int port);
+
+int	mlx5e_add_all_vxlan_rules(struct mlx5e_priv *priv);
+void	mlx5e_del_all_vxlan_rules(struct mlx5e_priv *priv);
 
 static inline void
 mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe)
