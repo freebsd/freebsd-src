@@ -95,6 +95,10 @@ struct domainset {
 	domainid_t	ds_order[MAXMEMDOM];  /* nth domain table. */
 };
 
+extern struct domainset domainset_firsttouch;
+#define	DOMAINSET_FT()		(&domainset_firsttouch)
+extern struct domainset domainset_interleave;
+#define	DOMAINSET_IL()		(&domainset_interleave)
 extern struct domainset domainset_fixed[MAXMEMDOM], domainset_prefer[MAXMEMDOM];
 #define	DOMAINSET_FIXED(domain)	(&domainset_fixed[(domain)])
 #define	DOMAINSET_PREF(domain)	(&domainset_prefer[(domain)])
