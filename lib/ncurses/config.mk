@@ -45,6 +45,7 @@ MANFILTER=	sed -e 's%@TERMINFO@%${TERMINFODIR}/terminfo%g' \
 		    -e 's%@NCURSES_MAJOR@%${NCURSES_MAJOR}%g' \
 		    -e 's%@NCURSES_MINOR@%${NCURSES_MINOR}%g' \
 		    -e 's%@NCURSES_PATCH@%${NCURSES_PATCH}%g' \
+		    -e 's%@TPUT@%tput%g' \
 		    -e 's%@TSET@%tset%g' \
 		    -e 's%@RESET@%reset%g' \
 		    -e 's%@CLEAR@%clear%g' \
