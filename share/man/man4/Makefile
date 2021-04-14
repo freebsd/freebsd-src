@@ -838,7 +838,6 @@ _ntb_transport.4=ntb_transport.4
 _nvd.4=		nvd.4
 _nvme.4=	nvme.4
 _nvram.4=	nvram.4
-_ossl.4=	ossl.4
 _padlock.4=	padlock.4
 _pchtherm.4=	pchtherm.4
 _qat.4=		qat.4
@@ -890,6 +889,11 @@ _nvram2env.4=	nvram2env.4
 .if ${MACHINE_CPUARCH} == "powerpc"
 _nvd.4= 	nvd.4
 _nvme.4=	nvme.4
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
+	 ${MACHINE_CPUARCH} == "aarch64"
+_ossl.4=	ossl.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64" || \
