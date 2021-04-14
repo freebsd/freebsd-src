@@ -119,7 +119,9 @@ __FBSDID("$FreeBSD$");
  */
 
 LIST_HEAD(domainlist, domainset);
+struct domainset __read_mostly domainset_firsttouch;
 struct domainset __read_mostly domainset_fixed[MAXMEMDOM];
+struct domainset __read_mostly domainset_interleave;
 struct domainset __read_mostly domainset_prefer[MAXMEMDOM];
 struct domainset __read_mostly domainset_roundrobin;
 
@@ -130,7 +132,7 @@ static struct setlist cpuset_ids;
 static struct domainlist cpuset_domains;
 static struct unrhdr *cpuset_unr;
 static struct cpuset *cpuset_zero, *cpuset_default, *cpuset_kernel;
-static struct domainset domainset0, domainset2;
+static struct domainset *domainset0, *domainset2;
 
 /* Return the size of cpuset_t at the kernel level */
 SYSCTL_INT(_kern_sched, OID_AUTO, cpusetsize, CTLFLAG_RD | CTLFLAG_CAPRD,
@@ -568,7 +570,7 @@ domainset_create(const struct domainset *domain)
 	if (domain->ds_policy == DOMAINSET_POLICY_PREFER &&
 	    !DOMAINSET_ISSET(domain->ds_prefer, &domain->ds_mask))
 		return (NULL);
-	if (!DOMAINSET_SUBSET(&domainset0.ds_mask, &domain->ds_mask))
+	if (!DOMAINSET_SUBSET(&domainset0->ds_mask, &domain->ds_mask))
 		return (NULL);
 	ndomain = uma_zalloc(domainset_zone, M_WAITOK | M_ZERO);
 	domainset_copy(domain, ndomain);
@@ -1532,6 +1534,18 @@ domainset_init(void)
 	struct domainset *dset;
 	int i;
 
+	dset = &domainset_firsttouch;
+	DOMAINSET_COPY(&all_domains, &dset->ds_mask);
+	dset->ds_policy = DOMAINSET_POLICY_FIRSTTOUCH;
+	dset->ds_prefer = -1;
+	_domainset_create(dset, NULL);
+
+	dset = &domainset_interleave;
+	DOMAINSET_COPY(&all_domains, &dset->ds_mask);
+	dset->ds_policy = DOMAINSET_POLICY_INTERLEAVE;
+	dset->ds_prefer = -1;
+	_domainset_create(dset, NULL);
+
 	dset = &domainset_roundrobin;
 	DOMAINSET_COPY(&all_domains, &dset->ds_mask);
 	dset->ds_policy = DOMAINSET_POLICY_ROUNDROBIN;
@@ -1554,7 +1568,7 @@ domainset_init(void)
 }
 
 /*
- * Create the domainset for cpuset 0, 1 and cpuset 2.
+ * Define the domainsets for cpuset 0, 1 and cpuset 2.
  */
 void
 domainset_zero(void)
@@ -1563,15 +1577,11 @@ domainset_zero(void)
 
 	mtx_init(&cpuset_lock, "cpuset", NULL, MTX_SPIN | MTX_RECURSE);
 
-	dset = &domainset0;
-	DOMAINSET_COPY(&all_domains, &dset->ds_mask);
-	dset->ds_policy = DOMAINSET_POLICY_FIRSTTOUCH;
-	dset->ds_prefer = -1;
-	curthread->td_domain.dr_policy = _domainset_create(dset, NULL);
+	domainset0 = &domainset_firsttouch;
+	curthread->td_domain.dr_policy = domainset0;
 
-	domainset_copy(dset, &domainset2);
-	domainset2.ds_policy = DOMAINSET_POLICY_INTERLEAVE;
-	kernel_object->domain.dr_policy = _domainset_create(&domainset2, NULL);
+	domainset2 = &domainset_interleave;
+	kernel_object->domain.dr_policy = domainset2;
 
 	/* Remove empty domains from the global policies. */
 	LIST_FOREACH_SAFE(dset, &cpuset_domains, ds_link, tmp)
@@ -1613,7 +1623,7 @@ cpuset_thread0(void)
 	LIST_INSERT_HEAD(&cpuset_ids, set, cs_link);
 	refcount_init(&set->cs_ref, 1);
 	set->cs_flags = CPU_SET_ROOT | CPU_SET_RDONLY;
-	set->cs_domain = &domainset0;
+	set->cs_domain = domainset0;
 	cpuset_zero = set;
 	cpuset_root = &set->cs_mask;
 
@@ -1630,7 +1640,7 @@ cpuset_thread0(void)
 	set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
 	error = cpuset_init(set, cpuset_zero, NULL, NULL, 2);
 	KASSERT(error == 0, ("Error creating kernel set: %d\n", error));
-	set->cs_domain = &domainset2;
+	set->cs_domain = domainset2;
 	cpuset_kernel = set;
 
 	/*
@@ -2315,7 +2325,7 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	 * across all domains.
 	 */
 	if (domainset_empty_vm(&domain))
-		domainset_copy(&domainset2, &domain);
+		domainset_copy(domainset2, &domain);
 
 	switch (level) {
 	case CPU_LEVEL_ROOT:
