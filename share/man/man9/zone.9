@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2021
+.Dd April 14, 2021
 .Dt UMA 9
 .Os
 .Sh NAME
@@ -98,7 +98,11 @@ typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 .Ft void
 .Fn uma_reclaim "int req"
 .Ft void
+.Fn uma_reclaim_domain "int req" "int domain"
+.Ft void
 .Fn uma_zone_reclaim "uma_zone_t zone" "int req"
+.Ft void
+.Fn uma_zone_reclaim_domain "uma_zone_t zone" "int req" "int domain"
 .Ft void
 .Fn uma_zone_set_allocf "uma_zone_t zone" "uma_alloc allocf"
 .Ft void
@@ -471,6 +475,14 @@ Free items in the per-CPU caches are left alone.
 .It Dv UMA_RECLAIM_DRAIN_CPU
 Reclaim all cached items.
 .El
+The
+.Fn uma_reclaim_domain
+and
+.Fn uma_zone_reclaim_domain
+functions apply only to items allocated from the specified domain.
+In the case of domains using a round-robin NUMA policy, cached items from all
+domains are freed to the keg, but only slabs from the specific domain will
+be freed.
 .Pp
 The
 .Fn uma_zone_set_allocf

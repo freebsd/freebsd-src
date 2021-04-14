@@ -162,7 +162,6 @@
 #define	UMA_ZFLAG_CTORDTOR	0x01000000	/* Zone has ctor/dtor set. */
 #define	UMA_ZFLAG_LIMIT		0x02000000	/* Zone has limit set. */
 #define	UMA_ZFLAG_CACHE		0x04000000	/* uma_zcache_create()d it */
-#define	UMA_ZFLAG_RECLAIMING	0x08000000	/* Running zone_reclaim(). */
 #define	UMA_ZFLAG_BUCKET	0x10000000	/* Bucket zone. */
 #define	UMA_ZFLAG_INTERNAL	0x20000000	/* No offpage no PCPU. */
 #define	UMA_ZFLAG_TRASH		0x40000000	/* Add trash ctor/dtor. */
@@ -175,7 +174,6 @@
     "\37TRASH"				\
     "\36INTERNAL"			\
     "\35BUCKET"				\
-    "\34RECLAIMING"			\
     "\33CACHE"				\
     "\32LIMIT"				\
     "\31CTORDTOR"			\
@@ -490,7 +488,7 @@ struct uma_zone {
 	char		*uz_ctlname;	/* sysctl safe name string. */
 	int		uz_namecnt;	/* duplicate name count. */
 	uint16_t	uz_bucket_size_min; /* Min number of items in bucket */
-	uint16_t	uz_pad0;
+	uint16_t	uz_reclaimers;	/* pending reclaim operations. */
 
 	/* Offset 192, rare read-only. */
 	struct sysctl_oid *uz_oid;	/* sysctl oid pointer. */
@@ -582,6 +580,7 @@ static __inline uma_slab_t hash_sfind(struct uma_hash *hash, uint8_t *data);
 
 #define	ZONE_LOCK(z)	ZDOM_LOCK(ZDOM_GET((z), 0))
 #define	ZONE_UNLOCK(z)	ZDOM_UNLOCK(ZDOM_GET((z), 0))
+#define	ZONE_LOCKPTR(z)	(&ZDOM_GET((z), 0)->uzd_lock)
 
 #define	ZONE_CROSS_LOCK_INIT(z)					\
 	mtx_init(&(z)->uz_cross_lock, "UMA Cross", NULL, MTX_DEF)
