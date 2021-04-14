@@ -50,12 +50,12 @@ arm/freescale/imx/imx6_usbphy.c		optional ehci
 # SDMA firmware.
 sdma-imx6q.c				optional fslsdma		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk sdma-imx6q.bin:sdma-imx6q -msdma -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local				\
 	clean		"sdma-imx6q.c"
 sdma-imx6q.fwo			        optional fslsdma		\
 	dependency	"sdma-imx6q.bin"				\
 	compile-with	"${LD} -m ${LD_EMULATION} -b binary -d -warn-common -r -d -o ${.TARGET} sdma-imx6q.bin" \
-	no-implicit-rule						\
+	no-ctfconvert  no-implicit-rule						\
 	clean		"sdma-imx6q.fwo"
 sdma-imx6q.bin			        optional fslsdma		\
 	dependency	"$S/contrib/dev/imx/sdma-imx6q.bin.uu"      	\
