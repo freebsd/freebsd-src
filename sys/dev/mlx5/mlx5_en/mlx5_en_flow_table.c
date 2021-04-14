@@ -1728,8 +1728,8 @@ mlx5e_destroy_vlan_flow_table(struct mlx5e_priv *priv)
 }
 
 static int
-mlx5e_add_vxlan_rule_sub(struct mlx5e_priv *priv, u_int protocol, u_int port,
-    u32 *mc, u32 *mv, struct mlx5e_vxlan_db_el *el)
+mlx5e_add_vxlan_rule_sub(struct mlx5e_priv *priv, u32 *mc, u32 *mv,
+    struct mlx5e_vxlan_db_el *el)
 {
 	struct mlx5_flow_table *ft = priv->fts.vxlan.t;
 	struct mlx5_flow_destination dest = {};
@@ -1743,11 +1743,11 @@ mlx5e_add_vxlan_rule_sub(struct mlx5e_priv *priv, u_int protocol, u_int port,
 	mc_enable = MLX5_MATCH_OUTER_HEADERS;
 	rule_p = &el->vxlan_ft_rule;
 	MLX5_SET_TO_ONES(fte_match_param, mc, outer_headers.ethertype);
-	MLX5_SET(fte_match_param, mv, outer_headers.ethertype, protocol);
+	MLX5_SET(fte_match_param, mv, outer_headers.ethertype, el->proto);
 	MLX5_SET_TO_ONES(fte_match_param, mc, outer_headers.ip_protocol);
 	MLX5_SET(fte_match_param, mv, outer_headers.ip_protocol, IPPROTO_UDP);
 	MLX5_SET_TO_ONES(fte_match_param, mc, outer_headers.udp_dport);
-	MLX5_SET(fte_match_param, mv, outer_headers.udp_dport, port);
+	MLX5_SET(fte_match_param, mv, outer_headers.udp_dport, el->port);
 
 	*rule_p = mlx5_add_flow_rule(ft, mc_enable, mc, mv,
 	    MLX5_FLOW_CONTEXT_ACTION_FWD_DEST, MLX5_FS_ETH_FLOW_TAG, &dest);
@@ -1829,8 +1829,7 @@ mlx5e_add_vxlan_rule(struct mlx5e_priv *priv, sa_family_t family, u_int port)
 		goto add_vxlan_rule_out;
 	}
 
-	err = mlx5e_add_vxlan_rule_sub(priv, proto, port, match_criteria,
-	    match_value, el);
+	err = mlx5e_add_vxlan_rule_sub(priv, match_criteria, match_value, el);
 	if (err == 0) {
 		TAILQ_INSERT_TAIL(&priv->vxlan.head, el, link);
 	} else {
