@@ -49,7 +49,6 @@
 #include <dlfcn.h>
 #include <libzutil.h>
 #include <fcntl.h>
-#include <unistd.h>
 
 #include "zfs_namecheck.h"
 #include "zfs_prop.h"
@@ -2669,6 +2668,36 @@ vdev_to_nvlist_iter(nvlist_t *nv, nvlist_t *search, boolean_t *avail_spare,
 
 			errno = 0;
 			vdev_id = strtoull(idx, &end, 10);
+
+			/*
+			 * If we are looking for a raidz and a parity is
+			 * specified, make sure it matches.
+			 */
+			int rzlen = strlen(VDEV_TYPE_RAIDZ);
+			assert(rzlen == strlen(VDEV_TYPE_DRAID));
+			int typlen = strlen(type);
+			if ((strncmp(type, VDEV_TYPE_RAIDZ, rzlen) == 0 ||
+			    strncmp(type, VDEV_TYPE_DRAID, rzlen) == 0) &&
+			    typlen != rzlen) {
+				uint64_t vdev_parity;
+				int parity = *(type + rzlen) - '0';
+
+				if (parity <= 0 || parity > 3 ||
+				    (typlen - rzlen) != 1) {
+					/*
+					 * Nonsense parity specified, can
+					 * never match
+					 */
+					free(type);
+					return (NULL);
+				}
+				verify(nvlist_lookup_uint64(nv,
+				    ZPOOL_CONFIG_NPARITY, &vdev_parity) == 0);
+				if ((int)vdev_parity != parity) {
+					free(type);
+					break;
+				}
+			}
 
 			free(type);
 			if (errno != 0)

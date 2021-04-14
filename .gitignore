@@ -1,0 +1,70 @@
+#
+# N.B.
+# This is the toplevel .gitignore file.
+# This is not the place for entries that are specific to
+# a subdirectory.  Instead add those files to the
+# .gitignore file in that subdirectory.
+#
+# N.B.
+# Please use 'git ls-files -i --exclude-standard'
+# command after changing this file, to see if there are
+# any tracked files which get ignored after the change.
+
+#
+# Normal rules
+#
+*.[oa]
+*.o.ur-safe
+*.lo
+*.la
+*.mod.c
+*~
+*.swp
+*.gcno
+*.gcda
+*.pyc
+*.pyo
+.deps
+.libs
+.dirstamp
+.DS_Store
+modules.order
+Makefile
+Makefile.in
+
+#
+# Top level generated files specific to this top level dir
+#
+/bin
+/build
+/configure
+/config.log
+/config.status
+/libtool
+/zfs_config.h
+/zfs_config.h.in
+/zfs.release
+/stamp-h1
+/aclocal.m4
+/autom4te.cache
+
+#
+# Top level generic files
+#
+!.gitignore
+tags
+TAGS
+current
+cscope.*
+*.rpm
+*.deb
+*.tar.gz
+*.patch
+*.orig
+*.log
+*.tmp
+venv
+
+*.so
+*.so.debug
+*.so.full
