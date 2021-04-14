@@ -1802,11 +1802,34 @@ mlx5e_vxlan_family_to_proto(sa_family_t family, u_int *proto)
 }
 
 static int
+mlx5e_add_vxlan_rule_from_db(struct mlx5e_priv *priv,
+    struct mlx5e_vxlan_db_el *el)
+{
+	u32 *match_criteria;
+	u32 *match_value;
+	int err;
+
+	match_value = mlx5_vzalloc(MLX5_ST_SZ_BYTES(fte_match_param));
+	match_criteria = mlx5_vzalloc(MLX5_ST_SZ_BYTES(fte_match_param));
+	if (match_value == NULL || match_criteria == NULL) {
+		mlx5_en_err(priv->ifp, "alloc failed\n");
+		err = -ENOMEM;
+		goto add_vxlan_rule_out;
+	}
+
+	err = mlx5e_add_vxlan_rule_sub(priv, match_criteria, match_value, el);
+
+add_vxlan_rule_out:
+	kvfree(match_criteria);
+	kvfree(match_value);
+
+	return (err);
+}
+
+static int
 mlx5e_add_vxlan_rule(struct mlx5e_priv *priv, sa_family_t family, u_int port)
 {
 	struct mlx5e_vxlan_db_el *el;
-	u32 *match_criteria;
-	u32 *match_value;
 	u_int proto;
 	int err;
 
@@ -1821,24 +1844,12 @@ mlx5e_add_vxlan_rule(struct mlx5e_priv *priv, sa_family_t family, u_int port)
 	}
 	el = mlx5e_vxlan_alloc_db_el(priv, proto, port);
 
-	match_value = mlx5_vzalloc(MLX5_ST_SZ_BYTES(fte_match_param));
-	match_criteria = mlx5_vzalloc(MLX5_ST_SZ_BYTES(fte_match_param));
-	if (match_value == NULL || match_criteria == NULL) {
-		mlx5_en_err(priv->ifp, "alloc failed\n");
-		err = -ENOMEM;
-		goto add_vxlan_rule_out;
-	}
-
-	err = mlx5e_add_vxlan_rule_sub(priv, match_criteria, match_value, el);
+	err = mlx5e_add_vxlan_rule_from_db(priv, el);
 	if (err == 0) {
 		TAILQ_INSERT_TAIL(&priv->vxlan.head, el, link);
 	} else {
 		kvfree(el);
 	}
-
-add_vxlan_rule_out:
-	kvfree(match_criteria);
-	kvfree(match_value);
 
 	return (err);
 }
