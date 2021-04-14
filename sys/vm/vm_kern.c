@@ -907,7 +907,6 @@ debug_vm_lowmem(SYSCTL_HANDLER_ARGS)
 		EVENTHANDLER_INVOKE(vm_lowmem, i);
 	return (0);
 }
-
 SYSCTL_PROC(_debug, OID_AUTO, vm_lowmem,
     CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, 0, debug_vm_lowmem, "I",
     "set to trigger vm_lowmem event with given flags");
@@ -919,7 +918,7 @@ debug_uma_reclaim(SYSCTL_HANDLER_ARGS)
 
 	i = 0;
 	error = sysctl_handle_int(oidp, &i, 0, req);
-	if (error != 0)
+	if (error != 0 || req->newptr == NULL)
 		return (error);
 	if (i != UMA_RECLAIM_TRIM && i != UMA_RECLAIM_DRAIN &&
 	    i != UMA_RECLAIM_DRAIN_CPU)
@@ -927,7 +926,31 @@ debug_uma_reclaim(SYSCTL_HANDLER_ARGS)
 	uma_reclaim(i);
 	return (0);
 }
-
 SYSCTL_PROC(_debug, OID_AUTO, uma_reclaim,
     CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, 0, debug_uma_reclaim, "I",
     "set to generate request to reclaim uma caches");
+
+static int
+debug_uma_reclaim_domain(SYSCTL_HANDLER_ARGS)
+{
+	int domain, error, request;
+
+	request = 0;
+	error = sysctl_handle_int(oidp, &request, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	domain = request >> 4;
+	request &= 0xf;
+	if (request != UMA_RECLAIM_TRIM && request != UMA_RECLAIM_DRAIN &&
+	    request != UMA_RECLAIM_DRAIN_CPU)
+		return (EINVAL);
+	if (domain < 0 || domain >= vm_ndomains)
+		return (EINVAL);
+	uma_reclaim_domain(request, domain);
+	return (0);
+}
+SYSCTL_PROC(_debug, OID_AUTO, uma_reclaim_domain,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, 0,
+    debug_uma_reclaim_domain, "I",
+    "");
