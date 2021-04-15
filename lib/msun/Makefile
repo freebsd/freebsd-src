@@ -255,4 +255,10 @@ MLINKS+=trunc.3 truncf.3 trunc.3 truncl.3
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
+.include <bsd.compiler.mk>
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 120000
+# Silence '#pragma FENV_ACCESS' is not supported on this target - ignored
+CWARNFLAGS+=	-Wno-error=ignored-pragmas
+.endif
+
 .include <bsd.lib.mk>
