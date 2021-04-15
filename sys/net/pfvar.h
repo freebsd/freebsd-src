@@ -378,6 +378,7 @@ struct pf_krule {
 	struct pf_rule_gid	 gid;
 
 	u_int32_t		 rule_flag;
+	uint32_t		 rule_ref;
 	u_int8_t		 action;
 	u_int8_t		 direction;
 	u_int8_t		 log;
