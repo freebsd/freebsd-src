@@ -495,7 +495,7 @@ SYSCTL_INT(_hw_em, OID_AUTO, smart_pwr_down, CTLFLAG_RDTUN, &em_smart_pwr_down,
     0, "Set to true to leave smart power down enabled on newer adapters");
 
 /* Controls whether promiscuous also shows bad packets */
-static int em_debug_sbp = TRUE;
+static int em_debug_sbp = FALSE;
 SYSCTL_INT(_hw_em, OID_AUTO, sbp, CTLFLAG_RDTUN, &em_debug_sbp, 0,
     "Show bad packets in promiscuous mode");
 
