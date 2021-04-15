@@ -98,6 +98,7 @@ struct pfctl {
 	u_int32_t	 debug;
 	u_int32_t	 hostid;
 	char		*ifname;
+	bool		 keep_counters;
 
 	u_int8_t	 timeout_set[PFTM_MAX];
 	u_int8_t	 limit_set[PF_LIMIT_MAX];
