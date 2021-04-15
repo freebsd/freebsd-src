@@ -105,5 +105,7 @@ uint32_t fib_get_nhop_idx(struct fib_data *fd, struct nhop_object *nh);
 struct nhop_object **fib_get_nhop_array(struct fib_data *fd);
 void fib_get_rtable_info(struct rib_head *rh, struct rib_rtable_info *rinfo);
 struct rib_head *fib_get_rh(struct fib_data *fd);
-
+bool fib_set_datapath_ptr(struct fib_data *fd, struct fib_dp *dp);
+void fib_set_algo_ptr(struct fib_data *fd, void *algo_data);
+void fib_epoch_call(epoch_callback_t callback, epoch_context_t ctx);
 
