@@ -1745,6 +1745,10 @@ pfctl_load_options(struct pfctl *pf)
 		if (pfctl_load_hostid(pf, pf->hostid))
 			error = 1;
 
+	/* load keepcounters */
+	if (pfctl_set_keepcounters(pf->dev, pf->keep_counters))
+		error = 1;
+
 	return (error);
 }
 
