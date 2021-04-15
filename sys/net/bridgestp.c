@@ -597,6 +597,23 @@ bstp_received_bpdu(struct bstp_state *bs, struct bstp_port *bp,
 			return;
 	}
 
+	/* range checks */
+	if (cu->cu_message_age >= cu->cu_max_age) {
+		return;
+	}
+	if (cu->cu_max_age < BSTP_MIN_MAX_AGE ||
+	    cu->cu_max_age > BSTP_MAX_MAX_AGE) {
+		return;
+	}
+	if (cu->cu_forward_delay < BSTP_MIN_FORWARD_DELAY ||
+	    cu->cu_forward_delay > BSTP_MAX_FORWARD_DELAY) {
+		return;
+	}
+	if (cu->cu_hello_time < BSTP_MIN_HELLO_TIME ||
+	    cu->cu_hello_time > BSTP_MAX_HELLO_TIME) {
+		return;
+	}
+
 	type = bstp_pdu_rcvtype(bp, cu);
 
 	switch (type) {
