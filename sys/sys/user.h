@@ -529,12 +529,17 @@ struct kinfo_vmentry {
 	uint32_t kve_vn_rdev_freebsd11;		/* Device id if device. */
 	uint16_t kve_vn_mode;			/* File mode. */
 	uint16_t kve_status;			/* Status flags. */
-	uint64_t kve_vn_fsid;			/* dev_t of vnode location */
+	union {
+		uint64_t _kve_vn_fsid;		/* dev_t of vnode location */
+		uint64_t _kve_obj;		/* handle of anon obj */
+	} kve_type_spec;
 	uint64_t kve_vn_rdev;			/* Device id if device. */
 	int	 _kve_ispare[8];		/* Space for more stuff. */
 	/* Truncated before copyout in sysctl */
 	char	 kve_path[PATH_MAX];		/* Path to VM obj, if any. */
 };
+#define	kve_vn_fsid	kve_type_spec._kve_vn_fsid
+#define	kve_obj		kve_type_spec._kve_obj
 
 /*
  * The "vm.objects" sysctl provides a list of all VM objects in the system
@@ -552,11 +557,18 @@ struct kinfo_vmobject {
 	uint64_t kvo_resident;			/* Number of resident pages. */
 	uint64_t kvo_active;			/* Number of active pages. */
 	uint64_t kvo_inactive;			/* Number of inactive pages. */
-	uint64_t kvo_vn_fsid;
-	uint64_t _kvo_qspare[7];
-	uint32_t _kvo_ispare[8];
+	union {
+		uint64_t _kvo_vn_fsid;
+		uint64_t _kvo_backing_obj;	/* Handle for the backing obj */
+	} kvo_type_spec;			/* Type-specific union */
+	uint64_t kvo_me;			/* Uniq handle for anon obj */
+	uint64_t _kvo_qspare[6];
+	uint32_t kvo_swapped;			/* Number of swapped pages */
+	uint32_t _kvo_ispare[7];
 	char	kvo_path[PATH_MAX];		/* Pathname, if any. */
 };
+#define	kvo_vn_fsid	kvo_type_spec._kvo_vn_fsid
+#define	kvo_backing_obj	kvo_type_spec._kvo_backing_obj
 
 /*
  * The KERN_PROC_KSTACK sysctl allows a process to dump the kernel stacks of
