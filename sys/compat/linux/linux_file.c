@@ -162,6 +162,8 @@ linux_common_openflags(int l_flags)
 		bsd_flags |= O_NOFOLLOW;
 	if (l_flags & LINUX_O_DIRECTORY)
 		bsd_flags |= O_DIRECTORY;
+	if (l_flags & LINUX_O_PATH)
+		bsd_flags |= O_PATH;
 	/* XXX LINUX_O_NOATIME: unable to be easily implemented. */
 	return (bsd_flags);
 }
