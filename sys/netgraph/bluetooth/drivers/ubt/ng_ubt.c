@@ -827,8 +827,6 @@ ubt_probe_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
         case USB_ST_SETUP:
 submit_next:
-		/* Try clear stall first */
-		usbd_xfer_set_stall(xfer);
 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		break;
@@ -837,6 +835,8 @@ submit_next:
 		if (error != USB_ERR_CANCELLED) {
 			printf("ng_ubt: interrupt transfer failed: %s\n",
 				usbd_errstr(error));
+			/* Try clear stall first */
+			usbd_xfer_set_stall(xfer);
 			goto submit_next;
 		}
 		break;
