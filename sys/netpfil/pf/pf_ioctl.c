@@ -197,6 +197,7 @@ static void		 pf_clear_states(void);
 static int		 pf_clear_tables(void);
 static void		 pf_clear_srcnodes(struct pf_ksrc_node *);
 static void		 pf_kill_srcnodes(struct pfioc_src_node_kill *);
+static int		 pf_keepcounters(struct pfioc_nv *);
 static void		 pf_tbladdr_copyout(struct pf_addr_wrap *);
 
 /*
@@ -1022,11 +1023,27 @@ pf_hash_rule(MD5_CTX *ctx, struct pf_krule *rule)
 	PF_MD5_UPD(rule, tos);
 }
 
+static bool
+pf_krule_compare(struct pf_krule *a, struct pf_krule *b)
+{
+	MD5_CTX		ctx[2];
+	u_int8_t	digest[2][PF_MD5_DIGEST_LENGTH];
+
+	MD5Init(&ctx[0]);
+	MD5Init(&ctx[1]);
+	pf_hash_rule(&ctx[0], a);
+	pf_hash_rule(&ctx[1], b);
+	MD5Final(digest[0], &ctx[0]);
+	MD5Final(digest[1], &ctx[1]);
+
+	return (memcmp(digest[0], digest[1], PF_MD5_DIGEST_LENGTH) == 0);
+}
+
 static int
 pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 {
 	struct pf_kruleset	*rs;
-	struct pf_krule		*rule, **old_array;
+	struct pf_krule		*rule, **old_array, *tail;
 	struct pf_krulequeue	*old_rules;
 	int			 error;
 	u_int32_t		 old_rcount;
@@ -1058,6 +1075,29 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 	    rs->rules[rs_num].inactive.ptr_array;
 	rs->rules[rs_num].active.rcount =
 	    rs->rules[rs_num].inactive.rcount;
+
+	/* Attempt to preserve counter information. */
+	if (V_pf_status.keep_counters) {
+		TAILQ_FOREACH(rule, rs->rules[rs_num].active.ptr,
+		    entries) {
+			tail = TAILQ_FIRST(old_rules);
+			while ((tail != NULL) && ! pf_krule_compare(tail, rule))
+				tail = TAILQ_NEXT(tail, entries);
+			if (tail != NULL) {
+				counter_u64_add(rule->evaluations,
+				    counter_u64_fetch(tail->evaluations));
+				counter_u64_add(rule->packets[0],
+				    counter_u64_fetch(tail->packets[0]));
+				counter_u64_add(rule->packets[1],
+				    counter_u64_fetch(tail->packets[1]));
+				counter_u64_add(rule->bytes[0],
+				    counter_u64_fetch(tail->bytes[0]));
+				counter_u64_add(rule->bytes[1],
+				    counter_u64_fetch(tail->bytes[1]));
+			}
+		}
+	}
+
 	rs->rules[rs_num].inactive.ptr = old_rules;
 	rs->rules[rs_num].inactive.ptr_array = old_array;
 	rs->rules[rs_num].inactive.rcount = old_rcount;
@@ -4948,6 +4988,10 @@ DIOCCHANGEADDR_error:
 		pf_kill_srcnodes((struct pfioc_src_node_kill *)addr);
 		break;
 
+	case DIOCKEEPCOUNTERS:
+		error = pf_keepcounters((struct pfioc_nv *)addr);
+		break;
+
 	case DIOCSETHOSTID: {
 		u_int32_t	*hostid = (u_int32_t *)addr;
 
@@ -5225,6 +5269,41 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 	}
 
 	psnk->psnk_killed = pf_free_src_nodes(&kill);
+}
+
+static int
+pf_keepcounters(struct pfioc_nv *nv)
+{
+	nvlist_t	*nvl = NULL;
+	void		*nvlpacked = NULL;
+	int		 error = 0;
+
+#define	ERROUT(x)	do { error = (x); goto on_error; } while (0)
+
+	if (nv->len > pf_ioctl_maxcount)
+		ERROUT(ENOMEM);
+
+	nvlpacked = malloc(nv->len, M_TEMP, M_WAITOK);
+	if (nvlpacked == NULL)
+		ERROUT(ENOMEM);
+
+	error = copyin(nv->data, nvlpacked, nv->len);
+	if (error)
+		ERROUT(error);
+
+	nvl = nvlist_unpack(nvlpacked, nv->len, 0);
+	if (nvl == NULL)
+		ERROUT(EBADMSG);
+
+	if (! nvlist_exists_bool(nvl, "keep_counters"))
+		ERROUT(EBADMSG);
+
+	V_pf_status.keep_counters = nvlist_get_bool(nvl, "keep_counters");
+
+on_error:
+	nvlist_destroy(nvl);
+	free(nvlpacked, M_TEMP);
+	return (error);
 }
 
 /*

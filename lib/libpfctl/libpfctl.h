@@ -188,5 +188,6 @@ int	pfctl_get_clear_rule(int dev, u_int32_t nr, u_int32_t ticket,
 int	pfctl_add_rule(int dev, const struct pfctl_rule *r,
 	    const char *anchor, const char *anchor_call, u_int32_t ticket,
 	    u_int32_t pool_ticket);
+int	pfctl_set_keepcounters(int dev, bool keep);
 
 #endif

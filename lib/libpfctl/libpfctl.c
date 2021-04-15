@@ -569,3 +569,25 @@ int	pfctl_get_clear_rule(int dev, u_int32_t nr, u_int32_t ticket,
 
 	return (0);
 }
+
+int
+pfctl_set_keepcounters(int dev, bool keep)
+{
+	struct pfioc_nv	 nv;
+	nvlist_t	*nvl;
+	int		 ret;
+
+	nvl = nvlist_create(0);
+
+	nvlist_add_bool(nvl, "keep_counters", keep);
+
+	nv.data = nvlist_pack(nvl, &nv.len);
+	nv.size = nv.len;
+
+	nvlist_destroy(nvl);
+
+	ret = ioctl(dev, DIOCKEEPCOUNTERS, &nv);
+
+	free(nv.data);
+	return (ret);
+}
