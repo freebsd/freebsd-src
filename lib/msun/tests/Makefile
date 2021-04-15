@@ -100,6 +100,12 @@ CFLAGS+=	-DLDBL_PREC=${LDBL_PREC}
 
 CFLAGS.fe_round_test+=	-D__HAVE_FENV
 
+.include <bsd.compiler.mk>
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 120000
+# Silence '#pragma FENV_ACCESS' is not supported on this target - ignored
+CWARNFLAGS+=	-Wno-error=ignored-pragmas
+.endif
+
 .include <netbsd-tests.test.mk>
 
 .include <bsd.test.mk>
