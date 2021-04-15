@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/blockcount.h>
 #include <sys/cpuset.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
@@ -2524,6 +2525,7 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 	struct vattr va;
 	vm_object_t obj;
 	vm_page_t m;
+	u_long sp;
 	int count, error;
 
 	if (req->oldptr == NULL) {
@@ -2590,8 +2592,17 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 		freepath = NULL;
 		fullpath = "";
 		kvo->kvo_type = vm_object_kvme_type(obj, &vp);
-		if (vp != NULL)
+		if (vp != NULL) {
 			vref(vp);
+		} else if ((obj->flags & OBJ_ANON) != 0) {
+			MPASS(kvo->kvo_type == KVME_TYPE_DEFAULT ||
+			    kvo->kvo_type == KVME_TYPE_SWAP);
+			kvo->kvo_me = (uintptr_t)obj;
+			/* tmpfs objs are reported as vnodes */
+			kvo->kvo_backing_obj = (uintptr_t)obj->backing_object;
+			sp = swap_pager_swapped_pages(obj);
+			kvo->kvo_swapped = sp > UINT32_MAX ? UINT32_MAX : sp;
+		}
 		VM_OBJECT_RUNLOCK(obj);
 		if (vp != NULL) {
 			vn_fullpath(vp, &fullpath, &freepath);

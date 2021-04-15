@@ -1763,6 +1763,29 @@ swp_pager_force_dirty(vm_page_t m)
 	vm_page_launder(m);
 }
 
+u_long
+swap_pager_swapped_pages(vm_object_t object)
+{
+	struct swblk *sb;
+	vm_pindex_t pi;
+	u_long res;
+	int i;
+
+	VM_OBJECT_ASSERT_LOCKED(object);
+	if (object->type != OBJT_SWAP)
+		return (0);
+
+	for (res = 0, pi = 0; (sb = SWAP_PCTRIE_LOOKUP_GE(
+	    &object->un_pager.swp.swp_blks, pi)) != NULL;
+	    pi = sb->p + SWAP_META_PAGES) {
+		for (i = 0; i < SWAP_META_PAGES; i++) {
+			if (sb->d[i] != SWAPBLK_NONE)
+				res++;
+		}
+	}
+	return (res);
+}
+
 /*
  *	swap_pager_swapoff_object:
  *
