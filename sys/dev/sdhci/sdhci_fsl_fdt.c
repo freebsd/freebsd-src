@@ -111,6 +111,12 @@ struct sdhci_fsl_fdt_soc_data {
 	int baseclk_div;
 };
 
+static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1028a_soc_data = {
+	.quirks = SDHCI_QUIRK_DONT_SET_HISPD_BIT |
+	    SDHCI_QUIRK_BROKEN_AUTO_STOP | SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK,
+	.baseclk_div = 2,
+};
+
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1046a_soc_data = {
 	.quirks = SDHCI_QUIRK_DONT_SET_HISPD_BIT | SDHCI_QUIRK_BROKEN_AUTO_STOP,
 	.baseclk_div = 2,
@@ -122,6 +128,7 @@ static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_gen_data = {
 };
 
 static const struct ofw_compat_data sdhci_fsl_fdt_compat_data[] = {
+	{"fsl,ls1028a-esdhc",	(uintptr_t)&sdhci_fsl_fdt_ls1028a_soc_data},
 	{"fsl,ls1046a-esdhc",	(uintptr_t)&sdhci_fsl_fdt_ls1046a_soc_data},
 	{"fsl,esdhc",		(uintptr_t)&sdhci_fsl_fdt_gen_data},
 	{NULL,			0}
