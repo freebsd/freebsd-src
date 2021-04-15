@@ -145,15 +145,8 @@ static device_method_t	ubt_intel_methods[] =
 	DEVMETHOD_END
 };
 
-static kobj_class_t ubt_baseclasses[] = { &ubt_driver, NULL };
-static driver_t		ubt_intel_driver =
-{
-	.name =	   "ubt",
-	.methods = ubt_intel_methods,
-	.size =	   sizeof(struct ubt_softc),
-	.baseclasses = ubt_baseclasses,
-};
-
+DEFINE_CLASS_1(ubt, ubt_intel_driver, ubt_intel_methods,
+    sizeof(struct ubt_softc), ubt_driver);
 DRIVER_MODULE(ng_ubt_intel, uhub, ubt_intel_driver, ubt_devclass, 0, 0);
 MODULE_VERSION(ng_ubt_intel, NG_BLUETOOTH_VERSION);
 MODULE_DEPEND(ng_ubt_intel, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
