@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+PACKAGE=	tests
 
 TESTSDIR=	${TESTSBASE}/sys/net
 BINDIR=		${TESTSDIR}
@@ -19,6 +19,11 @@ TESTS_SUBDIRS+=	routing
 # panics.  I think it's because the kernel's list of interfaces isn't properly
 # locked.
 TEST_METADATA+=	is_exclusive=true
+
+${PACKAGE}FILES+=	\
+		stp.py
+
+${PACKAGE}FILESMODE_stp.py=		0555
 
 MAN=
 PROGS+=		randsleep
