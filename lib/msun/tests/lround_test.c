@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 ATF_TC_WITHOUT_HEAD(main);
 ATF_TC_BODY(main, tc)
 {
-	atf_tc_expect_fail("https://bugs.freebsd.org/205451");
 	testall(0.0, 0, 0);
 	testall(0.25, 0, FE_INEXACT);
 	testall(0.5, 1, FE_INEXACT);
