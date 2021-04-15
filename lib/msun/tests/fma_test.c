@@ -484,10 +484,6 @@ ATF_TC_BODY(zeroes, tc)
 ATF_TC_WITHOUT_HEAD(infinities);
 ATF_TC_BODY(infinities, tc)
 {
-#if defined(__amd64__)
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_expect_fail("https://bugs.freebsd.org/205448");
-#endif
 	for (size_t i = 0; i < nitems(rmodes); i++) {
 		printf("rmode = %d\n", rmodes[i]);
 		fesetround(rmodes[i]);
