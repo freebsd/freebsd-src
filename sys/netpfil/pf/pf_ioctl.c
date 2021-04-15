@@ -426,7 +426,7 @@ pf_unlink_rule(struct pf_krulequeue *rulequeue, struct pf_krule *rule)
 	TAILQ_REMOVE(rulequeue, rule, entries);
 
 	PF_UNLNKDRULES_LOCK();
-	rule->rule_flag |= PFRULE_REFS;
+	rule->rule_ref |= PFRULE_REFS;
 	TAILQ_INSERT_TAIL(&V_pf_unlinked_rules, rule, entries);
 	PF_UNLNKDRULES_UNLOCK();
 }
