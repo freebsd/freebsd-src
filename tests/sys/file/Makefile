@@ -4,6 +4,7 @@ TESTSDIR=	${TESTSBASE}/sys/file
 
 BINDIR=		${TESTSDIR}
 
+ATF_TESTS_C+=	path_test
 TAP_TESTS_C+=	closefrom_test
 TAP_TESTS_C+=	dup_test
 TAP_TESTS_C+=	fcntlflags_test
