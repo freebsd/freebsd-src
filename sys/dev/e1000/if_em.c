@@ -1061,9 +1061,17 @@ em_if_attach_pre(if_ctx_t ctx)
 	}
 
 	if (!em_is_valid_ether_addr(hw->mac.addr)) {
-		device_printf(dev, "Invalid MAC address\n");
-		error = EIO;
-		goto err_late;
+		if (adapter->vf_ifp) {
+			u8 addr[ETHER_ADDR_LEN];
+			arc4rand(&addr, sizeof(addr), 0);
+			addr[0] &= 0xFE;
+			addr[0] |= 0x02;
+			bcopy(addr, hw->mac.addr, sizeof(addr));
+		} else {
+			device_printf(dev, "Invalid MAC address\n");
+			error = EIO;
+			goto err_late;
+		}
 	}
 
 	/* Disable ULP support */
@@ -1923,6 +1931,13 @@ em_identify_hardware(if_ctx_t ctx)
 		device_printf(dev, "Setup init failure\n");
 		return;
 	}
+
+	/* Are we a VF device? */
+	if ((adapter->hw.mac.type == e1000_vfadapt) ||
+	    (adapter->hw.mac.type == e1000_vfadapt_i350))
+		adapter->vf_ifp = 1;
+	else
+		adapter->vf_ifp = 0;
 }
 
 static int
