@@ -5,7 +5,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2019 Vladimir Kondratyev <wulf@FreeBSD.org>
+ * Copyright (c) 2019, 2021 Vladimir Kondratyev <wulf@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,6 +58,24 @@
 #include <netgraph/bluetooth/include/ng_ubt.h>
 #include <netgraph/bluetooth/drivers/ubt/ng_ubt_var.h>
 
+enum {
+	UBT_INTEL_DEVICE_7260,
+	UBT_INTEL_DEVICE_8260,
+};
+
+struct ubt_intel_version_rp {
+	uint8_t status;
+	uint8_t hw_platform;
+	uint8_t hw_variant;
+	uint8_t hw_revision;
+	uint8_t fw_variant;
+	uint8_t fw_revision;
+	uint8_t fw_build_num;
+	uint8_t fw_build_ww;
+	uint8_t fw_build_yy;
+	uint8_t fw_patch_num;
+} __attribute__ ((packed));
+
 static device_probe_t	ubt_intel_probe;
 
 /*
@@ -67,44 +85,49 @@ static device_probe_t	ubt_intel_probe;
 
 static const STRUCT_USB_HOST_ID ubt_intel_devs[] =
 {
+	/* Intel Wireless 7260/7265 and successors */
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x07dc, UBT_INTEL_DEVICE_7260) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0a2a, UBT_INTEL_DEVICE_7260) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0aa7, UBT_INTEL_DEVICE_7260) },
 	/* Intel Wireless 8260/8265 and successors */
-	{ USB_VPI(USB_VENDOR_INTEL2, 0x0a2b, 0) },
-	{ USB_VPI(USB_VENDOR_INTEL2, 0x0aaa, 0) },
-	{ USB_VPI(USB_VENDOR_INTEL2, 0x0025, 0) },
-	{ USB_VPI(USB_VENDOR_INTEL2, 0x0026, 0) },
-	{ USB_VPI(USB_VENDOR_INTEL2, 0x0029, 0) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0a2b, UBT_INTEL_DEVICE_8260) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0aaa, UBT_INTEL_DEVICE_8260) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0025, UBT_INTEL_DEVICE_8260) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0026, UBT_INTEL_DEVICE_8260) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0029, UBT_INTEL_DEVICE_8260) },
 };
 
 /*
- * Find if the Intel Wireless 8260/8265 device is in bootloader mode or is
- * running operational firmware with checking of 4-th byte "Intel version"
- * HCI command response. The value 0x23 identifies the operational firmware.
+ * Execute generic HCI command and return response in provided buffer.
  */
 
-static bool
-ubt_intel_check_firmware_state(struct usb_device *udev)
+static usb_error_t
+ubt_intel_do_hci_request(struct usb_device *udev, uint16_t opcode,
+    void *resp, uint8_t resp_len)
 {
-#define	UBT_INTEL_VER_LEN		13
 #define	UBT_INTEL_HCICMD_TIMEOUT	2000	/* ms */
 	struct ubt_hci_event_command_compl *evt;
-	uint8_t buf[offsetof(struct ubt_hci_event, data) + UBT_INTEL_VER_LEN];
-	static struct ubt_hci_cmd cmd = {
-		.opcode = htole16(NG_HCI_OPCODE(NG_HCI_OGF_VENDOR, 0x05)),
-		.length = 0,
-	};
+	struct ubt_hci_cmd cmd;
 	usb_error_t error;
 
-	bzero(buf, sizeof(buf));
-	evt = (struct ubt_hci_event_command_compl *)buf;
-	evt->header.length = UBT_INTEL_VER_LEN;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.opcode = htole16(opcode);
+	evt = malloc(offsetof(struct ubt_hci_event_command_compl, data) +
+	    resp_len, M_TEMP, M_ZERO | M_WAITOK);
+	evt->header.length = resp_len + UBT_HCI_EVENT_COMPL_HEAD_SIZE;
 
 	error = ubt_do_hci_request(udev, &cmd, evt, UBT_INTEL_HCICMD_TIMEOUT);
 	if (error != USB_ERR_NORMAL_COMPLETION)
-		return false;
+		goto exit;
 
-	return (evt->header.event == NG_HCI_EVENT_COMMAND_COMPL &&
-		evt->header.length == UBT_INTEL_VER_LEN &&
-		evt->data[4] == 0x23);
+	if (evt->header.event == NG_HCI_EVENT_COMMAND_COMPL &&
+	    evt->header.length == resp_len + UBT_HCI_EVENT_COMPL_HEAD_SIZE)
+		memcpy(resp, evt->data, resp_len);
+	else
+		error = USB_ERR_INVAL;
+exit:
+	free(evt, M_TEMP);
+	return (error);
 }
 
 /*
@@ -115,6 +138,8 @@ static int
 ubt_intel_probe(device_t dev)
 {
 	struct usb_attach_arg	*uaa = device_get_ivars(dev);
+	struct ubt_intel_version_rp version;
+	ng_hci_reset_rp reset;
 	int error;
 
 	if (uaa->usb_mode != USB_MODE_HOST)
@@ -128,8 +153,51 @@ ubt_intel_probe(device_t dev)
 	if (error != 0)
 		return (error);
 
-	if (!ubt_intel_check_firmware_state(uaa->device))
-		return (ENXIO);
+	switch (USB_GET_DRIVER_INFO(uaa)) {
+	case UBT_INTEL_DEVICE_7260:
+		/*
+		 * Send HCI Reset command to workaround controller bug with the
+		 * first HCI command sent to it returning number of completed
+		 * commands as zero.  This will reset the number of completed
+		 * commands and allow further normal command processing.
+		 */
+		if (ubt_intel_do_hci_request(uaa->device,
+		    NG_HCI_OPCODE(NG_HCI_OGF_HC_BASEBAND, NG_HCI_OCF_RESET),
+		    &reset, sizeof(reset)) != USB_ERR_NORMAL_COMPLETION)
+			return (ENXIO);
+		if (reset.status != 0)
+			return (ENXIO);
+		/*
+		 * fw_patch_num indicates the version of patch the device
+		 * currently have.  If there is no patch data in the device,
+		 * it is always 0x00 and we need to patch the device again.
+		 */
+		if (ubt_intel_do_hci_request(uaa->device,
+		    NG_HCI_OPCODE(NG_HCI_OGF_VENDOR, 0x05),
+		    &version, sizeof(version)) != USB_ERR_NORMAL_COMPLETION)
+			return (ENXIO);
+		if (version.fw_patch_num == 0)
+			return (ENXIO);
+		break;
+
+	case UBT_INTEL_DEVICE_8260:
+		/*
+		 * Find if the Intel Wireless 8260/8265 device is in bootloader
+		 * mode or is running operational firmware with checking of
+		 * variant byte of "Intel version" HCI command response.
+		 * The value 0x23 identifies the operational firmware.
+		 */
+		if (ubt_intel_do_hci_request(uaa->device,
+		    NG_HCI_OPCODE(NG_HCI_OGF_VENDOR, 0x05),
+		    &version, sizeof(version)) != USB_ERR_NORMAL_COMPLETION)
+			return (ENXIO);
+		if (version.fw_variant != 0x23)
+			return (ENXIO);
+		break;
+
+	default:
+		KASSERT(0 == 1, ("Unknown DRIVER_INFO"));
+	}
 
 	return (BUS_PROBE_DEFAULT);
 }
