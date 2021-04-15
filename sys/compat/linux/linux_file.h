@@ -84,6 +84,7 @@
 #define	LINUX_O_NOFOLLOW	000400000	/* Do not follow links */
 #define	LINUX_O_NOATIME		001000000
 #define	LINUX_O_CLOEXEC		002000000
+#define	LINUX_O_PATH		010000000
 
 #define	LINUX_F_DUPFD		0
 #define	LINUX_F_GETFD		1
