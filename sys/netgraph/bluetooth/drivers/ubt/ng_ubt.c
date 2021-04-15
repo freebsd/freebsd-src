@@ -423,7 +423,10 @@ static const STRUCT_USB_HOST_ID ubt_ignore_devs[] =
 	{ USB_VPI(0x0489, 0xe03c, 0), USB_DEV_BCD_LTEQ(1) },
 	{ USB_VPI(0x0489, 0xe036, 0), USB_DEV_BCD_LTEQ(1) },
 
-	/* Intel Wireless 8260 and successors are handled in ng_ubt_intel.c */
+	/* Intel Wireless controllers are handled in ng_ubt_intel.c */
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x07dc, 0) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0a2a, 0) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0aa7, 0) },
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0a2b, 0) },
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0aaa, 0) },
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0025, 0) },
