@@ -408,6 +408,50 @@ inherit_mac_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "stp_validation" "cleanup"
+stp_validation_head()
+{
+	atf_set descr 'Check STP validation'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+stp_validation_body()
+{
+	vnet_init
+
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+	bridge=$(vnet_mkbridge)
+
+	ifconfig ${bridge} up
+	ifconfig ${bridge} addm ${epair_one}a addm ${epair_two}a
+	ifconfig ${bridge} stp ${epair_one}a stp ${epair_two}a
+
+	ifconfig ${epair_one}a up
+	ifconfig ${epair_one}b up
+	ifconfig ${epair_two}a up
+	ifconfig ${epair_two}b up
+
+	# Wait until the interfaces are no longer discarding
+	while ifconfig ${bridge} | grep 'state discarding' >/dev/null
+	do
+		sleep 1
+	done
+
+	# Now inject invalid STP BPDUs on epair_one and see if they're repeated
+	# on epair_two
+	atf_check -s exit:0 \
+	    $(atf_get_srcdir)/stp.py \
+	    --sendif ${epair_one}b \
+	    --recvif ${epair_two}b
+}
+
+stp_validation_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
@@ -418,4 +462,5 @@ atf_init_test_cases()
 	atf_add_test_case "inherit_mac"
 	atf_add_test_case "delete_with_members"
 	atf_add_test_case "mac_conflict"
+	atf_add_test_case "stp_validation"
 }
