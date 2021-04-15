@@ -2468,12 +2468,12 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 			MPASS(cache_ncp_canuse(n2));
 			if ((n2->nc_flag & NCF_NEGATIVE) != 0)
 				KASSERT(vp == NULL,
-				    ("%s: found entry pointing to a different vnode (%p != %p)",
-				    __func__, NULL, vp));
+				    ("%s: found entry pointing to a different vnode (%p != %p) ; name [%s]",
+				    __func__, NULL, vp, cnp->cn_nameptr));
 			else
 				KASSERT(n2->nc_vp == vp,
-				    ("%s: found entry pointing to a different vnode (%p != %p)",
-				    __func__, n2->nc_vp, vp));
+				    ("%s: found entry pointing to a different vnode (%p != %p) ; name [%s]",
+				    __func__, n2->nc_vp, vp, cnp->cn_nameptr));
 			/*
 			 * Entries are supposed to be immutable unless in the
 			 * process of getting destroyed. Accommodating for
