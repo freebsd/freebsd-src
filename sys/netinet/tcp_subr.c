@@ -1612,7 +1612,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		 * Packet is associated with a socket, so allow the
 		 * label of the response to reflect the socket label.
 		 */
-		INP_WLOCK_ASSERT(inp);
+		INP_LOCK_ASSERT(inp);
 		mac_inpcb_create_mbuf(inp, m);
 	} else {
 		/*
