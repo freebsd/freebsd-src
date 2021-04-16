@@ -443,7 +443,7 @@ bus_space_tag_t
 	bus_generic_get_bus_tag(device_t dev, device_t child);
 int	bus_generic_get_domain(device_t dev, device_t child, int *domain);
 struct resource_list *
-	bus_generic_get_resource_list (device_t, device_t);
+	bus_generic_get_resource_list(device_t, device_t);
 int	bus_generic_map_resource(device_t dev, device_t child, int type,
 				 struct resource *r,
 				 struct resource_map_request *args,
