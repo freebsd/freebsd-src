@@ -1396,6 +1396,11 @@ ether_gen_addr(struct ifnet *ifp, struct ether_addr *hwaddr)
 	char jailname[MAXHOSTNAMELEN];
 
 	getcredhostuuid(curthread->td_ucred, uuid, sizeof(uuid));
+	if (strncmp(uuid, DEFAULT_HOSTUUID, sizeof(uuid)) == 0) {
+		/* Fall back to a random mac address. */
+		goto rando;
+	}
+
 	/* If each (vnet) jail would also have a unique hostuuid this would not
 	 * be necessary. */
 	getjailname(curthread->td_ucred, jailname, sizeof(jailname));
@@ -1403,9 +1408,7 @@ ether_gen_addr(struct ifnet *ifp, struct ether_addr *hwaddr)
 	    jailname);
 	if (sz < 0) {
 		/* Fall back to a random mac address. */
-		arc4rand(hwaddr, sizeof(*hwaddr), 0);
-		hwaddr->octet[0] = 0x02;
-		return;
+		goto rando;
 	}
 
 	SHA1Init(&ctx);
@@ -1420,6 +1423,14 @@ ether_gen_addr(struct ifnet *ifp, struct ether_addr *hwaddr)
 		hwaddr->octet[i] = addr >> ((ETHER_ADDR_LEN - i - 1) * 8) &
 		    0xFF;
 	}
+
+	return;
+rando:
+	arc4rand(hwaddr, sizeof(*hwaddr), 0);
+	/* Unicast */
+	hwaddr->octet[0] &= 0xFE;
+	/* Locally administered. */
+	hwaddr->octet[0] |= 0x02;
 }
 
 DECLARE_MODULE(ether, ether_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);
