@@ -159,7 +159,10 @@ free:
 struct ifmediareq *
 ifmedia_getstate(void)
 {
-	static struct ifmediareq *ifmr;
+	static struct ifmediareq *ifmr = NULL;
+
+	if (ifmr != NULL)
+		return (ifmr);
 
 	if (ifconfig_media_get_mediareq(lifh, name, &ifmr) == -1)
 		errc(1, ifconfig_err_errno(lifh),
