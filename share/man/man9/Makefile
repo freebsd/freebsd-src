@@ -136,6 +136,7 @@ MAN=	accept_filter.9 \
 	DRIVER_MODULE.9 \
 	efirt.9 \
 	epoch.9 \
+	ether_gen_addr.9 \
 	EVENTHANDLER.9 \
 	eventtimers.9 \
 	extattr.9 \
