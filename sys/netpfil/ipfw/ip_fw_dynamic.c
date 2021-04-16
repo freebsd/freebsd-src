@@ -2582,7 +2582,7 @@ dyn_send_keepalive_ipv6(struct ip_fw_chain *chain)
 #endif /* INET6 */
 
 static void
-dyn_grow_hashtable(struct ip_fw_chain *chain, uint32_t new)
+dyn_grow_hashtable(struct ip_fw_chain *chain, uint32_t new, int flags)
 {
 #ifdef INET6
 	struct dyn_ipv6ck_slist *ipv6, *ipv6_parent;
@@ -2600,31 +2600,64 @@ dyn_grow_hashtable(struct ip_fw_chain *chain, uint32_t new)
 	DYN_DEBUG("grow hash size %u -> %u", V_curr_dyn_buckets, new);
 	/*
 	 * Allocate and initialize new lists.
-	 * XXXAE: on memory pressure this can disable callout timer.
 	 */
 	bucket_lock = malloc(new * sizeof(struct mtx), M_IPFW,
-	    M_WAITOK | M_ZERO);
+	    flags | M_ZERO);
+	if (bucket_lock == NULL)
+		return;
+
+	ipv4 = ipv4_parent = NULL;
+	ipv4_add = ipv4_del = ipv4_parent_add = ipv4_parent_del = NULL;
+#ifdef INET6
+	ipv6 = ipv6_parent = NULL;
+	ipv6_add = ipv6_del = ipv6_parent_add = ipv6_parent_del = NULL;
+#endif
+
 	ipv4 = malloc(new * sizeof(struct dyn_ipv4ck_slist), M_IPFW,
-	    M_WAITOK | M_ZERO);
+	    flags | M_ZERO);
+	if (ipv4 == NULL)
+		goto bad;
 	ipv4_parent = malloc(new * sizeof(struct dyn_ipv4ck_slist), M_IPFW,
-	    M_WAITOK | M_ZERO);
-	ipv4_add = malloc(new * sizeof(uint32_t), M_IPFW, M_WAITOK | M_ZERO);
-	ipv4_del = malloc(new * sizeof(uint32_t), M_IPFW, M_WAITOK | M_ZERO);
+	    flags | M_ZERO);
+	if (ipv4_parent == NULL)
+		goto bad;
+	ipv4_add = malloc(new * sizeof(uint32_t), M_IPFW, flags | M_ZERO);
+	if (ipv4_add == NULL)
+		goto bad;
+	ipv4_del = malloc(new * sizeof(uint32_t), M_IPFW, flags | M_ZERO);
+	if (ipv4_del == NULL)
+		goto bad;
 	ipv4_parent_add = malloc(new * sizeof(uint32_t), M_IPFW,
-	    M_WAITOK | M_ZERO);
+	    flags | M_ZERO);
+	if (ipv4_parent_add == NULL)
+		goto bad;
 	ipv4_parent_del = malloc(new * sizeof(uint32_t), M_IPFW,
-	    M_WAITOK | M_ZERO);
+	    flags | M_ZERO);
+	if (ipv4_parent_del == NULL)
+		goto bad;
 #ifdef INET6
 	ipv6 = malloc(new * sizeof(struct dyn_ipv6ck_slist), M_IPFW,
-	    M_WAITOK | M_ZERO);
+	    flags | M_ZERO);
+	if (ipv6 == NULL)
+		goto bad;
 	ipv6_parent = malloc(new * sizeof(struct dyn_ipv6ck_slist), M_IPFW,
-	    M_WAITOK | M_ZERO);
-	ipv6_add = malloc(new * sizeof(uint32_t), M_IPFW, M_WAITOK | M_ZERO);
-	ipv6_del = malloc(new * sizeof(uint32_t), M_IPFW, M_WAITOK | M_ZERO);
+	    flags | M_ZERO);
+	if (ipv6_parent == NULL)
+		goto bad;
+	ipv6_add = malloc(new * sizeof(uint32_t), M_IPFW, flags | M_ZERO);
+	if (ipv6_add == NULL)
+		goto bad;
+	ipv6_del = malloc(new * sizeof(uint32_t), M_IPFW, flags | M_ZERO);
+	if (ipv6_del == NULL)
+		goto bad;
 	ipv6_parent_add = malloc(new * sizeof(uint32_t), M_IPFW,
-	    M_WAITOK | M_ZERO);
+	    flags | M_ZERO);
+	if (ipv6_parent_add == NULL)
+		goto bad;
 	ipv6_parent_del = malloc(new * sizeof(uint32_t), M_IPFW,
-	    M_WAITOK | M_ZERO);
+	    flags | M_ZERO);
+	if (ipv6_parent_del == NULL)
+		goto bad;
 #endif
 	for (bucket = 0; bucket < new; bucket++) {
 		DYN_BUCKET_LOCK_INIT(bucket_lock, bucket);
@@ -2695,6 +2728,7 @@ dyn_grow_hashtable(struct ip_fw_chain *chain, uint32_t new)
 	/* Release old resources */
 	while (bucket-- != 0)
 		DYN_BUCKET_LOCK_DESTROY(bucket_lock, bucket);
+bad:
 	free(bucket_lock, M_IPFW);
 	free(ipv4, M_IPFW);
 	free(ipv4_parent, M_IPFW);
@@ -2762,7 +2796,7 @@ dyn_tick(void *vnetx)
 		buckets = 1 << fls(V_dyn_count);
 		if (buckets > V_dyn_buckets_max)
 			buckets = V_dyn_buckets_max;
-		dyn_grow_hashtable(&V_layer3_chain, buckets);
+		dyn_grow_hashtable(&V_layer3_chain, buckets, M_NOWAIT);
 	}
 
 	callout_reset_on(&V_dyn_timeout, hz, dyn_tick, vnetx, 0);
@@ -3187,7 +3221,7 @@ ipfw_dyn_init(struct ip_fw_chain *chain)
 	/* Initialize buckets. */
 	V_curr_dyn_buckets = 0;
 	V_dyn_bucket_lock = NULL;
-	dyn_grow_hashtable(chain, 256);
+	dyn_grow_hashtable(chain, 256, M_WAITOK);
 
 	if (IS_DEFAULT_VNET(curvnet))
 		dyn_hp_cache = malloc(mp_ncpus * sizeof(void *), M_IPFW,
