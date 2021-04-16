@@ -456,10 +456,6 @@ _if_stf=	if_stf
 .endif
 
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
-_if_wg=		if_wg
-.endif
-
-.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
 _if_me=		if_me
 _ipdivert=	ipdivert
 _ipfw=		ipfw
