@@ -1834,7 +1834,7 @@ static void agtiapi_cam_action( struct cam_sim *sim, union ccb * ccb )
     cpi->max_target = maxTargets - 1;
     cpi->max_lun = AGTIAPI_MAX_LUN;
     /* Max supported I/O size, in bytes. */
-    cpi->maxio = ulmin(1024 * 1024, MAXPHYS);
+    cpi->maxio = ctob(AGTIAPI_NSEGS - 1);
     cpi->initiator_id = 255;
     strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
     strlcpy(cpi->hba_vid, "PMC", HBA_IDLEN);
