@@ -2523,6 +2523,72 @@ errout_unlocked:
 }
 
 static int
+pf_killstates_row(struct pfioc_state_kill *psk, struct pf_idhash *ih)
+{
+	struct pf_state		*s;
+	struct pf_state_key	*sk;
+	struct pf_addr		*srcaddr, *dstaddr;
+	int			 killed = 0;
+	u_int16_t		 srcport, dstport;
+
+relock_DIOCKILLSTATES:
+	PF_HASHROW_LOCK(ih);
+	LIST_FOREACH(s, &ih->states, entry) {
+		sk = s->key[PF_SK_WIRE];
+		if (s->direction == PF_OUT) {
+			srcaddr = &sk->addr[1];
+			dstaddr = &sk->addr[0];
+			srcport = sk->port[1];
+			dstport = sk->port[0];
+		} else {
+			srcaddr = &sk->addr[0];
+			dstaddr = &sk->addr[1];
+			srcport = sk->port[0];
+			dstport = sk->port[1];
+		}
+
+		if (psk->psk_af && sk->af != psk->psk_af)
+			continue;
+
+		if (psk->psk_proto && psk->psk_proto != sk->proto)
+			continue;
+
+		if (! PF_MATCHA(psk->psk_src.neg, &psk->psk_src.addr.v.a.addr,
+		    &psk->psk_src.addr.v.a.mask, srcaddr, sk->af))
+			continue;
+
+		if (! PF_MATCHA(psk->psk_dst.neg, &psk->psk_dst.addr.v.a.addr,
+		    &psk->psk_dst.addr.v.a.mask, dstaddr, sk->af))
+			continue;
+
+		if (psk->psk_src.port_op != 0 &&
+		    ! pf_match_port(psk->psk_src.port_op,
+		    psk->psk_src.port[0], psk->psk_src.port[1], srcport))
+			continue;
+
+		if (psk->psk_dst.port_op != 0 &&
+		    ! pf_match_port(psk->psk_dst.port_op,
+		    psk->psk_dst.port[0], psk->psk_dst.port[1], dstport))
+			continue;
+
+		if (psk->psk_label[0] && (! s->rule.ptr->label[0] ||
+		    strcmp(psk->psk_label, s->rule.ptr->label)))
+			continue;
+
+		if (psk->psk_ifname[0] && strcmp(psk->psk_ifname,
+		    s->kif->pfik_name))
+			continue;
+
+		pf_unlink_state(s, PF_ENTER_LOCKED);
+		killed++;
+		goto relock_DIOCKILLSTATES;
+	}
+	PF_HASHROW_UNLOCK(ih);
+
+	return (killed);
+}
+
+static int
 pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	int			 error = 0;
@@ -3218,9 +3284,6 @@ relock_DIOCCLRSTATES:
 
 	case DIOCKILLSTATES: {
 		struct pf_state		*s;
-		struct pf_state_key	*sk;
-		struct pf_addr		*srcaddr, *dstaddr;
-		u_int16_t		 srcport, dstport;
 		struct pfioc_state_kill	*psk = (struct pfioc_state_kill *)addr;
 		u_int			 i, killed = 0;
 
@@ -3235,58 +3298,9 @@ relock_DIOCCLRSTATES:
 			break;
 		}
 
-		for (i = 0; i <= pf_hashmask; i++) {
-			struct pf_idhash *ih = &V_pf_idhash[i];
+		for (i = 0; i <= pf_hashmask; i++)
+			killed += pf_killstates_row(psk, &V_pf_idhash[i]);
 
-relock_DIOCKILLSTATES:
-			PF_HASHROW_LOCK(ih);
-			LIST_FOREACH(s, &ih->states, entry) {
-				sk = s->key[PF_SK_WIRE];
-				if (s->direction == PF_OUT) {
-					srcaddr = &sk->addr[1];
-					dstaddr = &sk->addr[0];
-					srcport = sk->port[1];
-					dstport = sk->port[0];
-				} else {
-					srcaddr = &sk->addr[0];
-					dstaddr = &sk->addr[1];
-					srcport = sk->port[0];
-					dstport = sk->port[1];
-				}
-
-				if ((!psk->psk_af || sk->af == psk->psk_af)
-				    && (!psk->psk_proto || psk->psk_proto ==
-				    sk->proto) &&
-				    PF_MATCHA(psk->psk_src.neg,
-				    &psk->psk_src.addr.v.a.addr,
-				    &psk->psk_src.addr.v.a.mask,
-				    srcaddr, sk->af) &&
-				    PF_MATCHA(psk->psk_dst.neg,
-				    &psk->psk_dst.addr.v.a.addr,
-				    &psk->psk_dst.addr.v.a.mask,
-				    dstaddr, sk->af) &&
-				    (psk->psk_src.port_op == 0 ||
-				    pf_match_port(psk->psk_src.port_op,
-				    psk->psk_src.port[0], psk->psk_src.port[1],
-				    srcport)) &&
-				    (psk->psk_dst.port_op == 0 ||
-				    pf_match_port(psk->psk_dst.port_op,
-				    psk->psk_dst.port[0], psk->psk_dst.port[1],
-				    dstport)) &&
-				    (!psk->psk_label[0] ||
-				    (s->rule.ptr->label[0] &&
-				    !strcmp(psk->psk_label,
-				    s->rule.ptr->label))) &&
-				    (!psk->psk_ifname[0] ||
-				    !strcmp(psk->psk_ifname,
-				    s->kif->pfik_name))) {
-					pf_unlink_state(s, PF_ENTER_LOCKED);
-					killed++;
-					goto relock_DIOCKILLSTATES;
-				}
-			}
-			PF_HASHROW_UNLOCK(ih);
-		}
 		psk->psk_killed = killed;
 		break;
 	}
