@@ -1740,12 +1740,17 @@ linux_fchownat(struct thread *td, struct linux_fchownat_args *args)
 	char *path;
 	int error, dfd, flag;
 
-	if (args->flag & ~LINUX_AT_SYMLINK_NOFOLLOW)
+	if (args->flag & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH)) {
+		linux_msg(td, "fchownat unsupported flag 0x%x", args->flag);
 		return (EINVAL);
+	}
 
-	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD :  args->dfd;
 	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) == 0 ? 0 :
 	    AT_SYMLINK_NOFOLLOW;
+	flag |= (args->flag & LINUX_AT_EMPTY_PATH) == 0 ? 0 :
+	    AT_EMPTY_PATH;
+
+	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD :  args->dfd;
 	if (!LUSECONVPATH(td)) {
 		return (kern_fchownat(td, dfd, args->filename, UIO_USERSPACE,
 		    args->uid, args->gid, flag));
