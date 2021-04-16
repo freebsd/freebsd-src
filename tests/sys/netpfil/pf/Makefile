@@ -10,6 +10,8 @@ ATF_TESTS_SH+=	anchor \
 		checksum \
 		forward \
 		fragmentation \
+		icmp \
+		killstate \
 		names \
 		nat \
 		set_tos \
@@ -20,8 +22,7 @@ ATF_TESTS_SH+=	anchor \
 		set_skip \
 		pfsync \
 		table \
-		tos \
-		icmp
+		tos
 
 ${PACKAGE}FILES+=	utils.subr \
 			echo_inetd.conf \
