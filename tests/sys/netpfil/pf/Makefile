@@ -11,6 +11,7 @@ ATF_TESTS_SH+=	anchor \
 		forward \
 		fragmentation \
 		icmp \
+		killstate \
 		names \
 		nat \
 		pass_block \
