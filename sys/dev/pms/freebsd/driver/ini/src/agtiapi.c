@@ -2629,9 +2629,11 @@ static void agtiapi_PrepareSGListCB( void *arg,
     {
       AGTIAPI_PRINTK("agtiapi_PrepareSGListCB: error status 0x%x\n", error);
       bus_dmamap_unload(pmcsc->buffer_dmat, pccb->CCB_dmamap);
-      bus_dmamap_destroy(pmcsc->buffer_dmat, pccb->CCB_dmamap);
       agtiapi_FreeCCB(pmcsc, pccb);
-      ccb->ccb_h.status = CAM_REQ_CMP;
+      if (error == EFBIG)
+        ccb->ccb_h.status = CAM_REQ_TOO_BIG;
+      else
+        ccb->ccb_h.status = CAM_REQ_CMP_ERR;
       xpt_done(ccb);
       return;
     }
@@ -2643,9 +2645,8 @@ static void agtiapi_PrepareSGListCB( void *arg,
                     " AGTIAPI_MAX_DMA_SEGS %d\n", 
                     nsegs, AGTIAPI_MAX_DMA_SEGS );
     bus_dmamap_unload(pmcsc->buffer_dmat, pccb->CCB_dmamap);
-    bus_dmamap_destroy(pmcsc->buffer_dmat, pccb->CCB_dmamap);
     agtiapi_FreeCCB(pmcsc, pccb);
-    ccb->ccb_h.status = CAM_REQ_CMP;
+    ccb->ccb_h.status = CAM_REQ_TOO_BIG;
     xpt_done(ccb);   
     return;
   }
@@ -3689,9 +3690,11 @@ static void agtiapi_PrepareSMPSGListCB( void *arg,
       AGTIAPI_PRINTK( "agtiapi_PrepareSMPSGListCB: error status 0x%x\n",
                       error );
       bus_dmamap_unload( pmcsc->buffer_dmat, pccb->CCB_dmamap );
-      bus_dmamap_destroy( pmcsc->buffer_dmat, pccb->CCB_dmamap );
       agtiapi_FreeCCB( pmcsc, pccb );
-      ccb->ccb_h.status = CAM_REQ_CMP;
+      if (error == EFBIG)
+        ccb->ccb_h.status = CAM_REQ_TOO_BIG;
+      else
+        ccb->ccb_h.status = CAM_REQ_CMP_ERR;
       xpt_done( ccb );
       return;
     }
@@ -3703,9 +3706,8 @@ static void agtiapi_PrepareSMPSGListCB( void *arg,
                     "AGTIAPI_MAX_DMA_SEGS %d\n",
                     nsegs, AGTIAPI_MAX_DMA_SEGS );
     bus_dmamap_unload( pmcsc->buffer_dmat, pccb->CCB_dmamap );
-    bus_dmamap_destroy( pmcsc->buffer_dmat, pccb->CCB_dmamap );
     agtiapi_FreeCCB( pmcsc, pccb );
-    ccb->ccb_h.status = CAM_REQ_CMP;
+    ccb->ccb_h.status = CAM_REQ_TOO_BIG;
     xpt_done( ccb );
     return;
   }
@@ -4410,7 +4412,7 @@ static int agtiapi_QueueSMP(struct agtiapi_softc *pmcsc, union ccb * ccb)
   if ((pccb = agtiapi_GetCCB(pmcsc)) == NULL)
   {
     AGTIAPI_PRINTK("agtiapi_QueueSMP: GetCCB ERROR\n");
-    ccb->ccb_h.status = CAM_REQ_CMP;
+    ccb->ccb_h.status = CAM_REQ_CMP_ERR;
     xpt_done(ccb);
     return tiBusy;
   }
