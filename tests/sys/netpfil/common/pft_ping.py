@@ -116,7 +116,10 @@ def check_ping6_request(args, packet):
 	return True
 
 def check_ping_reply(args, packet):
-	return check_ping4_reply(args, packet)
+	if args.ip6:
+		return check_ping6_reply(args, packet)
+	else:
+		return check_ping4_reply(args, packet)
 
 def check_ping4_reply(args, packet):
 	"""
@@ -140,6 +143,29 @@ def check_ping4_reply(args, packet):
 	if not raw:
 		return False
 	if raw.load != PAYLOAD_MAGIC:
+		return False
+
+	return True
+
+def check_ping6_reply(args, packet):
+	"""
+	Check that this is a reply to the ping request we sent
+	"""
+	dst_ip = args.to[0]
+
+	ip = packet.getlayer(sp.IPv6)
+	if not ip:
+		return False
+	if ip.src != dst_ip:
+		return False
+
+	icmp = packet.getlayer(sp.ICMPv6EchoReply)
+	if not icmp:
+		print("No echo reply!")
+		return False
+
+	if icmp.data != PAYLOAD_MAGIC:
+		print("data mismatch")
 		return False
 
 	return True

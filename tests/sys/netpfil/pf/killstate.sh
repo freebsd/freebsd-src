@@ -101,6 +101,78 @@ v4_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "v6" "cleanup"
+v6_head()
+{
+	atf_set descr 'Test killing states by IPv6 address'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+v6_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a inet6 2001:db8::1/64 up no_dad
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b inet6 2001:db8::2/64 up no_dad
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz "block all" \
+		"pass in proto icmp6"
+
+	# Sanity check & establish state
+	# Note: use pft_ping so we always use the same ID, so pf considers all
+	# echo requests part of the same flow.
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--ip6 \
+		--sendif ${epair}a \
+		--to 2001:db8::2 \
+		--replyif ${epair}a
+
+	# Change rules to now deny the ICMP traffic
+	pft_set_rules noflush alcatraz "block all"
+
+	# Established state means we can still ping alcatraz
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--ip6 \
+		--sendif ${epair}a \
+		--to 2001:db8::2 \
+		--replyif ${epair}a
+
+	# Killing with the wrong IP doesn't affect our state
+	jexec alcatraz pfctl -k 2001:db8::3
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--ip6 \
+		--sendif ${epair}a \
+		--to 2001:db8::2 \
+		--replyif ${epair}a
+
+	# Killing with one correct address and one incorrect doesn't kill the state
+	jexec alcatraz pfctl -k 2001:db8::1 -k 2001:db8::3
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--ip6 \
+		--sendif ${epair}a \
+		--to 2001:db8::2 \
+		--replyif ${epair}a
+
+	# Killing with correct address does remove the state
+	jexec alcatraz pfctl -k 2001:db8::1
+	atf_check -s exit:1 -o ignore ${common_dir}/pft_ping.py \
+		--ip6 \
+		--sendif ${epair}a \
+		--to 2001:db8::2 \
+		--replyif ${epair}a
+
+}
+
+v6_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "label" "cleanup"
 label_head()
 {
@@ -171,5 +243,6 @@ label_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
+	atf_add_test_case "v6"
 	atf_add_test_case "label"
 }
