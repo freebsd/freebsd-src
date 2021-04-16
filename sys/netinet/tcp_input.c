@@ -984,16 +984,6 @@ findpcb:
 	 * or duplicate segments arriving late.  If this segment was a
 	 * legitimate new connection attempt, the old INPCB gets removed and
 	 * we can try again to find a listening socket.
-	 *
-	 * At this point, due to earlier optimism, we may hold only an inpcb
-	 * lock, and not the inpcbinfo write lock.  If so, we need to try to
-	 * acquire it, or if that fails, acquire a reference on the inpcb,
-	 * drop all locks, acquire a global write lock, and then re-acquire
-	 * the inpcb lock.  We may at that point discover that another thread
-	 * has tried to free the inpcb, in which case we need to loop back
-	 * and try to find a new inpcb to deliver to.
-	 *
-	 * XXXRW: It may be time to rethink timewait locking.
 	 */
 	if (inp->inp_flags & INP_TIMEWAIT) {
 		tcp_dooptions(&to, optp, optlen,
@@ -1361,7 +1351,6 @@ tfo_socket_result:
 		 * Entry added to syncache and mbuf consumed.
 		 * Only the listen socket is unlocked by syncache_add().
 		 */
-		INP_INFO_WUNLOCK_ASSERT(&V_tcbinfo);
 		return (IPPROTO_DONE);
 	} else if (tp->t_state == TCPS_LISTEN) {
 		/*
@@ -1414,7 +1403,6 @@ dropunlock:
 		INP_UNLOCK(inp);
 
 drop:
-	INP_INFO_WUNLOCK_ASSERT(&V_tcbinfo);
 	if (s != NULL)
 		free(s, M_TCPLOG);
 	if (m != NULL)
