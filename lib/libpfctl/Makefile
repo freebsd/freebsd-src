@@ -7,6 +7,6 @@ INTERNALLIB=	true
 SRCS=	libpfctl.c
 INCS=	libpfctl.h
 
-CFLAGS+=	-fPIC
+CFLAGS+=${PICFLAG}
 
 .include <bsd.lib.mk>
