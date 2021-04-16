@@ -377,7 +377,9 @@ tcp_twstart(struct tcpcb *tp)
 /*
  * Returns 1 if the TIME_WAIT state was killed and we should start over,
  * looking for a pcb in the listen state.  Returns 0 otherwise.
- * It be called with to == NULL only for pure SYN-segments.
+ *
+ * For pure SYN-segments the PCB shall be read-locked and the tcpopt pointer
+ * may be NULL.  For the rest write-lock and valid tcpopt.
  */
 int
 tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
@@ -388,7 +390,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	tcp_seq seq;
 
 	NET_EPOCH_ASSERT();
-	INP_WLOCK_ASSERT(inp);
+	INP_LOCK_ASSERT(inp);
 
 	/*
 	 * XXXRW: Time wait state for inpcb has been recycled, but inpcb is
@@ -401,8 +403,16 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 		goto drop;
 
 	thflags = th->th_flags;
-	KASSERT(to != NULL || (thflags & (TH_SYN | TH_ACK)) == TH_SYN,
-	        ("tcp_twcheck: called without options on a non-SYN segment"));
+#ifdef INVARIANTS
+	if ((thflags & (TH_SYN | TH_ACK)) == TH_SYN)
+		INP_RLOCK_ASSERT(inp);
+	else {
+		INP_WLOCK_ASSERT(inp);
+		KASSERT(to != NULL,
+		    ("%s: called without options on a non-SYN segment",
+		    __func__));
+	}
+#endif
 
 	/*
 	 * NOTE: for FIN_WAIT_2 (to be added later),
@@ -442,6 +452,13 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	 * Allow UDP port number changes in this case.
 	 */
 	if ((thflags & TH_SYN) && SEQ_GT(th->th_seq, tw->rcv_nxt)) {
+		/*
+		 * In case we can't upgrade our lock just pretend we have
+		 * lost this packet.
+		 */
+		if (((thflags & (TH_SYN | TH_ACK)) == TH_SYN) &&
+		    INP_TRY_UPGRADE(inp) == 0)
+			goto drop;
 		tcp_twclose(tw, 0);
 		return (1);
 	}
@@ -470,6 +487,8 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	 */
 	if ((thflags & TH_ACK) == 0)
 		goto drop;
+
+	INP_WLOCK_ASSERT(inp);
 
 	/*
 	 * If timestamps were negotiated during SYN/ACK and a
@@ -503,7 +522,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 drop:
 	TCP_PROBE5(receive, NULL, NULL, m, NULL, th);
 dropnoprobe:
-	INP_WUNLOCK(inp);
+	INP_UNLOCK(inp);
 	m_freem(m);
 	return (0);
 }

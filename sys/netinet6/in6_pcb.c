@@ -1299,12 +1299,6 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 			INP_WLOCK(inp);
 		} else if (lookupflags & INPLOOKUP_RLOCKPCB) {
 			INP_RLOCK(inp);
-		} else if (lookupflags & INPLOOKUP_RLOCKLISTEN) {
-			if (inp->inp_socket != NULL &&
-			    SOLISTENING(inp->inp_socket))
-				INP_RLOCK(inp);
-			else
-				INP_WLOCK(inp);
 		} else
 			panic("%s: locking bug", __func__);
 		if (__predict_false(inp->inp_flags2 & INP_FREED)) {
@@ -1331,8 +1325,8 @@ in6_pcblookup(struct inpcbinfo *pcbinfo, struct in6_addr *faddr, u_int fport,
 
 	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
 	    ("%s: invalid lookup flags %d", __func__, lookupflags));
-	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB |
-	    INPLOOKUP_RLOCKLISTEN)) != 0, ("%s: LOCKPCB not set", __func__));
+	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
+	    ("%s: LOCKPCB not set", __func__));
 
 	/*
 	 * When not using RSS, use connection groups in preference to the
@@ -1367,8 +1361,7 @@ in6_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 
 	KASSERT((lookupflags & ~INPLOOKUP_MASK) == 0,
 	    ("%s: invalid lookup flags %d", __func__, lookupflags));
-	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB |
-	    INPLOOKUP_RLOCKLISTEN)) != 0,
+	KASSERT((lookupflags & (INPLOOKUP_RLOCKPCB | INPLOOKUP_WLOCKPCB)) != 0,
 	    ("%s: LOCKPCB not set", __func__));
 
 #ifdef PCBGROUP

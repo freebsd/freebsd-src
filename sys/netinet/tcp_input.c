@@ -834,11 +834,12 @@ tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 		fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
 
 	/*
-	 * For initial SYN packets arriving on listening socket,
-	 * we don't need write lock.
+	 * For initial SYN packets we don't need write lock on matching
+	 * PCB, be it a listening one or a synchronized one.  The packet
+	 * shall not modify its state.
 	 */
 	lookupflag = (thflags & (TH_ACK|TH_SYN)) == TH_SYN ?
-	    INPLOOKUP_RLOCKLISTEN : INPLOOKUP_WLOCKPCB;
+	    INPLOOKUP_RLOCKPCB : INPLOOKUP_WLOCKPCB;
 findpcb:
 #ifdef INET6
 	if (isipv6 && fwd_tag != NULL) {
@@ -1380,7 +1381,16 @@ tfo_socket_result:
 	 * Segment belongs to a connection in SYN_SENT, ESTABLISHED or later
 	 * state.  tcp_do_segment() always consumes the mbuf chain, unlocks
 	 * the inpcb, and unlocks pcbinfo.
+	 *
+	 * XXXGL: in case of a pure SYN arriving on existing connection
+	 * TCP stacks won't need to modify the PCB, they would either drop
+	 * the segment silently, or send a challenge ACK.  However, we try
+	 * to upgrade the lock, because calling convention for stacks is
+	 * write-lock on PCB.  If upgrade fails, drop the SYN.
 	 */
+	if (lookupflag == INPLOOKUP_RLOCKPCB && INP_TRY_UPGRADE(inp) == 0)
+		goto dropunlock;
+
 	tp->t_fb->tfb_tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen, iptos);
 	return (IPPROTO_DONE);
 
