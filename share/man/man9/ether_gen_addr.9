@@ -61,8 +61,9 @@ or on machines that do not use
 .Xr loader 8 .
 .Pp
 .Nm
-can fail to derive a MAC address due to memory allocation failure.
-In this case, a locally-administered unicast MAC address will be randomly
+can fail to derive a MAC address due to memory allocation failure, or because
+the hostid has not been populated.
+In these cases, a locally-administered unicast MAC address will be randomly
 generated and returned via the
 .Ar hwaddr
 parameter.
