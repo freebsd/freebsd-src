@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2001
+.Dd April 18, 2021
 .Dt GETPROGNAME 3
 .Os
 .Sh NAME
@@ -84,6 +84,32 @@ Calling
 .Fn setprogname
 allows the aforementioned library to learn the program name without
 modifications to the start-up code.
+.Sh EXAMPLES
+The following example presents a simple program, which shows the difference
+between
+.Fn getprogname
+and
+.Va "argv[0]" .
+.Bd -literal -offset indent
+#include <stdio.h>
+#include <stdlib.h>
+
+int
+main(int argc, char** argv)
+{
+	printf("getprogname(): %s\en", getprogname());
+	printf("argv[0]: %s\en", argv[0]);
+	return (0);
+}
+.Ed
+.Pp
+When compiled and executed (e.g., with
+.Ql ./a.out )
+the output of the program is going to look like this:
+.Bd -literal -offset indent
+getprogname(): a.out
+argv[0]: ./a.out
+.Ed
 .Sh SEE ALSO
 .Xr err 3 ,
 .Xr setproctitle 3
