@@ -31,6 +31,7 @@ __RCSID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <sys/mman.h>
+#include <sys/endian.h>
 
 #include <errno.h>
 #include <err.h>
@@ -99,7 +100,8 @@ slot_set(int argc, char **argv)
 		return (error);
 	}
 
-	if (mps_set_slot_status(fd, handle, slot, status) != 0) {
+	if (mps_set_slot_status(fd, htole16(handle), htole16(slot),
+	    htole32(status)) != 0) {
 		warnx("Failed to set status");
 		close(fd);
 		return (1);
