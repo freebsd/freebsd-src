@@ -28,7 +28,7 @@
 .\"	@(#)fork.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2017
+.Dd April 17, 2021
 .Dt FORK 2
 .Os
 .Sh NAME
@@ -99,6 +99,42 @@ to the parent process, no child process is created, and the global
 variable
 .Va errno
 is set to indicate the error.
+.Sh EXAMPLES
+The following example shows a common pattern of how
+.Fn fork
+is used in practice.
+.Bd -literal -offset indent
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int
+main(void)
+{
+	pid_t pid;
+
+	switch (pid = fork()) {
+	case -1:
+		err(1, "Failed to fork");
+	case 0:
+		printf("Hello from child process!\en");
+		exit(0);
+	default:
+		break;
+	}
+
+	printf("Hello from parent process (child's PID: %d)!\en", pid);
+
+	return (0);
+}
+.Ed
+.Pp
+The output of such a program is along the lines of:
+.Bd -literal -offset indent
+Hello from parent (child's PID: 27804)!
+Hello from child process!
+.Ed
 .Sh ERRORS
 The
 .Fn fork
