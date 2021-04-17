@@ -2,8 +2,7 @@
 
 .include "../Makefile.inc"
 
-.PATH.c:${HOSTAPD_DISTDIR} \
-	${WPA_DISTDIR}/src/utils
+.PATH.c:${HOSTAPD_DISTDIR}
 
 PACKAGE=	hostapd
 PROG=	hostapd_cli

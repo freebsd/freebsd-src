@@ -8,7 +8,6 @@
 	${WPA_DISTDIR}/src/eap_server \
 	${WPA_DISTDIR}/src/eap_peer \
 	${WPA_DISTDIR}/src/drivers \
-	${WPA_DISTDIR}/src/utils \
 	${WPA_DISTDIR}/wpa_supplicant
 
 PACKAGE=	hostapd
@@ -25,7 +24,6 @@ SRCS=	accounting.c \
 	chap.c \
 	common.c \
 	config_file.c \
-	crc32.c \
 	ctrl_iface.c \
 	ctrl_iface_ap.c \
 	ctrl_iface_common.c \
