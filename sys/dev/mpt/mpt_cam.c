@@ -1292,10 +1292,6 @@ mpt_execute_req_a64(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	hdrp = req->req_vbuf;
 	mpt_off = req->req_vbuf;
 
-	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
-		error = EFBIG;
-	}
-
 	if (error == 0) {
 		switch (hdrp->Function) {
 		case MPI_FUNCTION_SCSI_IO_REQUEST:
@@ -1313,12 +1309,6 @@ mpt_execute_req_a64(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			error = EINVAL;
 			break;
 		}
-	}
-
-	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
-		error = EFBIG;
-		mpt_prt(mpt, "segment count %d too large (max %u)\n",
-		    nseg, mpt->max_seg_cnt);
 	}
 
 bad:
@@ -1694,10 +1684,6 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	hdrp = req->req_vbuf;
 	mpt_off = req->req_vbuf;
 
-	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
-		error = EFBIG;
-	}
-
 	if (error == 0) {
 		switch (hdrp->Function) {
 		case MPI_FUNCTION_SCSI_IO_REQUEST:
@@ -1714,12 +1700,6 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			error = EINVAL;
 			break;
 		}
-	}
-
-	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
-		error = EFBIG;
-		mpt_prt(mpt, "segment count %d too large (max %u)\n",
-		    nseg, mpt->max_seg_cnt);
 	}
 
 bad:
