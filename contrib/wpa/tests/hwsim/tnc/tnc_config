@@ -1,0 +1,4 @@
+IMC "hostap IMC" tnc/libhostap_imc.so
+IMV "hostap IMV" tnc/libhostap_imv.so
+IMC "hostap2 IMC" tnc/libhostap2_imc.so
+IMV "hostap2 IMV" tnc/libhostap2_imv.so

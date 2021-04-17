@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+      package="w1.fi.wpadebug"
+      android:versionCode="1"
+      android:versionName="1.0">
+    <uses-sdk android:minSdkVersion="10" android:targetSdkVersion="17" />
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <application android:label="wpadebug" android:usesCleartextTraffic="true">
+        <activity android:name="w1.fi.wpadebug.MainActivity"
+                  android:label="wpadebug">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+	<activity android:name="w1.fi.wpadebug.DisplayMessageActivity"
+		  android:label="Operation result"
+		  android:parentActivityName="w1.fi.wpadebug.MainActivity">
+	</activity>
+	<activity android:name="w1.fi.wpadebug.WpaNfcActivity"
+		  android:label="wpa_supplicant NFC operation"
+		  android:parentActivityName="w1.fi.wpadebug.MainActivity">
+            <intent-filter>
+		<action android:name="android.nfc.action.NDEF_DISCOVERED"/>
+		<category android:name="android.intent.category.DEFAULT"/>
+		<data android:mimeType="application/vnd.wfa.wsc" />
+            </intent-filter>
+	</activity>
+	<activity android:name="w1.fi.wpadebug.CommandListActivity"
+		  android:label="Command list"
+		  android:parentActivityName="w1.fi.wpadebug.MainActivity">
+	</activity>
+	<activity android:name="w1.fi.wpadebug.WpaCommandListActivity"
+		  android:label="WPA command list"
+		  android:parentActivityName="w1.fi.wpadebug.MainActivity">
+	</activity>
+	<activity android:name="w1.fi.wpadebug.WpaCredActivity"
+		  android:label="Credentials"
+		  android:parentActivityName="w1.fi.wpadebug.MainActivity">
+	</activity>
+	<activity android:name="w1.fi.wpadebug.WpaCredEditActivity"
+		  android:label="Credential"
+		  android:parentActivityName="w1.fi.wpadebug.WpaCredActivity">
+	</activity>
+	<activity android:name="w1.fi.wpadebug.QrCodeScannerActivity"
+		  android:label="QR Code Reader"
+		  android:parentActivityName="w1.fi.wpadebug.MainActivity">
+	</activity>
+	<activity android:name="w1.fi.wpadebug.QrCodeDisplayActivity"
+		  android:label="QR Code Display"
+		  android:parentActivityName="w1.fi.wpadebug.MainActivity">
+	</activity>
+	<activity
+		  android:name="w1.fi.wpadebug.InputUri"
+		  android:label="Input URI"
+		  android:parentActivityName="w1.fi.wpadebug.MainActivity">
+	</activity>
+	<activity
+		  android:name="w1.fi.wpadebug.QrCodeReadActivity"
+		  android:label="Start Scan"
+		 android:parentActivityName="w1.fi.wpadebug.MainActivity">
+	</activity>
+	<activity android:name="w1.fi.wpadebug.WpaWebViewActivity"
+		  android:label="WebView"
+		  android:launchMode="singleTop"
+		  android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+            </intent-filter>
+	</activity>
+	<receiver android:name="w1.fi.wpadebug.WifiReceiver">
+		<intent-filter>
+			<action android:name="android.net.wifi.STATE_CHANGE" />
+			<action android:name="android.net.wifi.RSSI_CHANGED" />
+			<action android:name="android.net.wifi.SCAN_RESULTS" />
+			<action android:name="android.net.wifi.supplicant.CONNECTION_CHANGE" />
+			<action android:name="android.net.wifi.supplicant.STATE_CHANGE" />
+			<action android:name="android.net.wifi.WIFI_STATE_CHANGED" />
+		</intent-filter>
+	</receiver>
+    </application>
+</manifest>

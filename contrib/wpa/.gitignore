@@ -1,0 +1,8 @@
+*.pyc
+*~
+tests/hwsim/logs
+tests/remote/logs
+wpaspy/build
+**/parallel-vm.log
+tags
+build/

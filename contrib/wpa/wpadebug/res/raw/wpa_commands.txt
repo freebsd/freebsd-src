@@ -1,0 +1,9 @@
+Status@STATUS
+PMKSA cache@PMKSA
+Networks@LIST_NETWORKS
+Interworking connect@INTERWORKING_SELECT auto
+Creds@LIST_CREDS
+Scan results@SCAN_RESULTS
+Flush@FLUSH
+Disconnect@DISCONNECT
+Reassociate@REASSOCIATE

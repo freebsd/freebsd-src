@@ -1,0 +1,5 @@
+.config
+hostapd
+hostapd_cli
+hlr_auc_gw
+nt_password_hash

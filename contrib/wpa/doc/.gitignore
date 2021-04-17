@@ -1,0 +1,14 @@
+doxygen.warnings
+hostapd.eps
+hostapd.png
+html
+latex
+p2p_arch.eps
+p2p_arch.png
+p2p_arch2.eps
+p2p_arch2.png
+p2p_sm.eps
+p2p_sm.png
+wpa_supplicant.eps
+wpa_supplicant.png
+wpa_supplicant-devel.pdf

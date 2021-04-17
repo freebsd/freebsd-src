@@ -1,0 +1,78 @@
+wpadebug - wpa_supplicant and Wi-Fi debugging app for Android
+Copyright (c) 2013, Jouni Malinen <j@w1.fi> and contributors
+All Rights Reserved.
+
+This program is licensed under the BSD license (the one with
+advertisement clause removed). See the top level README for detailed
+license text.
+
+If you are submitting changes to the project, please see CONTRIBUTIONS
+file for more instructions.
+
+
+NOTE! This Android app is for debugging and testing purposes only. It is
+not supposed to be installed on a production use device and doing so may
+result in complete loss of security protections on the device.
+
+
+
+Build
+-----
+
+- Install Android SDK and build tools
+
+wpadebug depends on zxing core to launch QR code display/scanning.
+To build zxing core:
+
+- mkdir hostap/wpadebug/libs # target for the jar file
+- Install maven tool
+- clone latest zxing code [git clone https://github.com/zxing/zxing.git]
+- cd zxing/core
+- run: mvn install -DskipTests
+- copy target/core-*.*.*-SNAPSHOT.jar to hostap/wpadebug/libs
+
+To build wpadebug application:
+
+- update project target if desired; for example:
+  android list targets
+  android update project --target 1 --path $PWD
+- run: ant debug
+
+
+Installation (with adb over USB)
+------------
+
+adb install bin/wpadebug-debug.apk
+
+NOTE: Following steps enable any app on the system to get root access!
+This is not suitable for any production use. This is needed for direct
+wpa_supplicant access and some networking operating in general. You can
+still use rest of the wpadebug app without doing this, but those
+functions will not work unless this step part of installation is
+done. It should be obvious that these steps require a rooted device. In
+addition, if you do not understand what the following commands do,
+please do not run them.
+
+adb root
+adb remount
+adb shell cp /system/bin/mksh /system/bin/mksh-su
+adb shell chmod 6755 /system/bin/mksh-su
+
+Optionally, a text file with a set of command can be installed to allow
+arbitrary shell commands to be executed. This text file need to be in
+/data/local/wpadebug.cmds and use title@command format per line. For
+example:
+version@cat /proc/version
+
+Similarly, /data/local/wpadebug.wpacmds can be used to define additional
+wpa_supplicant control interface commands.
+
+
+Uninstallation
+--------------
+
+adb root
+adb remount
+adb shell rm /system/bin/mksh-su
+
+adb uninstall w1.fi.wpadebug
