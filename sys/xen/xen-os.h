@@ -71,12 +71,6 @@ xen_get_console_evtchn(void)
 
 	return (hvm_get_parameter(HVM_PARAM_CONSOLE_EVTCHN));
 }
-#endif
-
-#include <machine/xen/xen-os.h>
-
-/* Everything below this point is not included by assembler (.S) files. */
-#ifndef __ASSEMBLY__
 
 extern shared_info_t *HYPERVISOR_shared_info;
 
@@ -117,6 +111,12 @@ xen_initial_domain(void)
 
 	return (xen_domain() && (hvm_start_flags & SIF_INITDOMAIN) != 0);
 }
+#endif
+
+#include <machine/xen/xen-os.h>
+
+/* Everything below this point is not included by assembler (.S) files. */
+#ifndef __ASSEMBLY__
 
 /*
  * Based on ofed/include/linux/bitops.h

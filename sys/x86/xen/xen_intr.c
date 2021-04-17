@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <machine/xen/synch_bitops.h>
-#include <machine/xen/xen-os.h>
 
 #include <xen/xen-os.h>
 #include <xen/hvm.h>

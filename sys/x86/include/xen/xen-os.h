@@ -30,6 +30,10 @@
 #ifndef _MACHINE_X86_XEN_XEN_OS_H_
 #define _MACHINE_X86_XEN_XEN_OS_H_
 
+#ifndef _XEN_XEN_OS_H_
+#error "do not #include machine/xen/xen-os.h, #include xen/xen-os.h instead"
+#endif
+
 /* Shared memory needs write-back as its cache attribute for coherency. */
 #define VM_MEMATTR_XEN VM_MEMATTR_WRITE_BACK
 
