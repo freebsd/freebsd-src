@@ -1002,6 +1002,22 @@ netmap_mem_drop(struct netmap_adapter *na)
 	}
 }
 
+static void
+netmap_update_hostrings_mode(struct netmap_adapter *na)
+{
+	enum txrx t;
+	struct netmap_kring *kring;
+	int i;
+
+	for_rx_tx(t) {
+		for (i = nma_get_nrings(na, t);
+		     i < netmap_real_rings(na, t); i++) {
+			kring = NMR(na, t)[i];
+			kring->nr_mode = kring->nr_pending_mode;
+		}
+	}
+}
+
 /*
  * Undo everything that was done in netmap_do_regif(). In particular,
  * call nm_register(ifp,0) to stop netmap mode on the interface and
@@ -1031,8 +1047,12 @@ netmap_do_unregif(struct netmap_priv_d *priv)
 	}
 #endif
 
+	netmap_update_hostrings_mode(na);
+
 	if (na->active_fds <= 0 || nm_kring_pending(priv)) {
+		netmap_set_all_rings(na, NM_KR_LOCKED);
 		na->nm_register(na, 0);
+		netmap_set_all_rings(na, 0);
 	}
 
 	/* delete rings and buffers that are no longer needed */
@@ -2609,10 +2629,17 @@ netmap_do_regif(struct netmap_priv_d *priv, struct netmap_adapter *na,
 		goto err_rel_excl;
 	}
 
+	/* make sure we don't call na->nm_register() when only
+	 * host rings are changing mode
+	 */
+	netmap_update_hostrings_mode(na);
+
 	if (nm_kring_pending(priv)) {
 		/* Some kring is switching mode, tell the adapter to
 		 * react on this. */
+		netmap_set_all_rings(na, NM_KR_LOCKED);
 		error = na->nm_register(na, 1);
+		netmap_set_all_rings(na, 0);
 		if (error)
 			goto err_del_if;
 	}
@@ -2634,6 +2661,7 @@ err_del_if:
 	netmap_mem_if_delete(na, nifp);
 err_rel_excl:
 	netmap_krings_put(priv);
+	netmap_update_hostrings_mode(na);
 	netmap_mem_rings_delete(na);
 err_del_krings:
 	if (na->active_fds == 0)
@@ -2840,6 +2868,8 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 						&nifp->ni_bufs_head, req->nr_extra_bufs);
 					if (netmap_verbose)
 						nm_prinf("got %d extra buffers", req->nr_extra_bufs);
+				} else {
+					nifp->ni_bufs_head = 0;
 				}
 				req->nr_offset = netmap_mem_if_offset(na->nm_mem, nifp);
 
@@ -4473,7 +4503,6 @@ nm_set_native_flags(struct netmap_adapter *na)
 
 	na->na_flags |= NAF_NETMAP_ON;
 	nm_os_onenter(ifp);
-	nm_update_hostrings_mode(na);
 }
 
 void
@@ -4487,7 +4516,6 @@ nm_clear_native_flags(struct netmap_adapter *na)
 		return;
 	}
 
-	nm_update_hostrings_mode(na);
 	nm_os_onexit(ifp);
 
 	na->na_flags &= ~NAF_NETMAP_ON;
