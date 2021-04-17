@@ -168,11 +168,6 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, newcwv, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_newcwv), 0,
     "Enable New Congestion Window Validation per RFC7661");
 
-VNET_DEFINE(int, tcp_do_rfc6675_pipe) = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc6675_pipe, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(tcp_do_rfc6675_pipe), 0,
-    "Use calculated pipe/in-flight bytes per RFC 6675");
-
 VNET_DEFINE(int, tcp_do_rfc3042) = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc3042), 0,
@@ -2595,7 +2590,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						 * we have less than 1/2 the original window's
 						 * worth of data in flight.
 						 */
-						if (V_tcp_do_rfc6675_pipe)
+						if (V_tcp_do_newsack)
 							awnd = tcp_compute_pipe(tp);
 						else
 							awnd = (tp->snd_nxt - tp->snd_fack) +
@@ -2612,7 +2607,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					goto drop;
 				} else if (tp->t_dupacks == tcprexmtthresh ||
 					    (tp->t_flags & TF_SACK_PERMIT &&
-					     V_tcp_do_rfc6675_pipe &&
+					     V_tcp_do_newsack &&
 					     tp->sackhint.sacked_bytes >
 					     (tcprexmtthresh - 1) * maxseg)) {
 enter_recovery:
@@ -3940,7 +3935,7 @@ tcp_do_prr_ack(struct tcpcb *tp, struct tcphdr *th, struct tcpopt *to)
 	 * network.
 	 */
 	del_data = tp->sackhint.delivered_data;
-	if (V_tcp_do_rfc6675_pipe)
+	if (V_tcp_do_newsack)
 		pipe = tcp_compute_pipe(tp);
 	else
 		pipe = (tp->snd_nxt - tp->snd_fack) + tp->sackhint.sack_bytes_rexmit;

@@ -302,7 +302,7 @@ newreno_post_recovery(struct cc_var *ccv)
 		 *
 		 * XXXLAS: Find a way to do this without needing curack
 		 */
-		if (V_tcp_do_rfc6675_pipe)
+		if (V_tcp_do_newsack)
 			pipe = tcp_compute_pipe(ccv->ccvc.tcp);
 		else
 			pipe = CCV(ccv, snd_max) - ccv->curack;
