@@ -3239,18 +3239,18 @@ ixgbe_config_delay_values(struct adapter *adapter)
  *   Called whenever multicast address list is updated.
  ************************************************************************/
 static int
-ixgbe_mc_filter_apply(void *arg, struct ifmultiaddr *ifma, int count)
+ixgbe_mc_filter_apply(void *arg, struct ifmultiaddr *ifma, int idx)
 {
 	struct adapter *adapter = arg;
 	struct ixgbe_mc_addr *mta = adapter->mta;
 
 	if (ifma->ifma_addr->sa_family != AF_LINK)
 		return (0);
-	if (count == MAX_NUM_MULTICAST_ADDRESSES)
+	if (idx == MAX_NUM_MULTICAST_ADDRESSES)
 		return (0);
 	bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-	    mta[count].addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
-	mta[count].vmdq = adapter->pool;
+	    mta[idx].addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
+	mta[idx].vmdq = adapter->pool;
 
 	return (1);
 } /* ixgbe_mc_filter_apply */
