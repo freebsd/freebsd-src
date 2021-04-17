@@ -164,8 +164,9 @@ typedef void (*dev_lookup_fn)(void *arg, const char *name,
 EVENTHANDLER_DECLARE(dev_lookup, dev_lookup_fn);
 
 /**
- * @brief A device driver (included mainly for compatibility with
- * FreeBSD 4.x).
+ * @brief A device driver.
+ *
+ * Provides an abstraction layer for driver dispatch.
  */
 typedef struct kobj_class	driver_t;
 
