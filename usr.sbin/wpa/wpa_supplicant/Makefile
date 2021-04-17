@@ -6,13 +6,12 @@
 
 .PATH.c:${WPA_SUPPLICANT_DISTDIR} \
 	${WPA_DISTDIR}/src/eap_peer \
-	${WPA_DISTDIR}/src/utils \
 	${WPA_DISTDIR}/src/drivers
 
 PACKAGE=	wpa
 PROG=	wpa_supplicant
 
-SRCS=	base64.c bitfield.c bss.c bssid_ignore.c cli.c common.c \
+SRCS=	base64.c bitfield.c blacklist.c bss.c cli.c common.c \
 	config.c config_file.c \
 	ctrl_iface.c ctrl_iface_common.c ctrl_iface_unix.c \
 	driver_bsd.c driver_common.c \
@@ -22,10 +21,8 @@ SRCS=	base64.c bitfield.c bss.c bssid_ignore.c cli.c common.c \
 	http_client.c http_server.c \
 	httpread.c hw_features_common.c \
 	ieee802_11_common.c l2_packet_freebsd.c main.c \
-	notify.c offchannel.c op_classes.c os_unix.c \
-	pmksa_cache.c preauth.c \
-	robust_av.c \
-	rrm.c scan.c twt.c upnp_xml.c \
+	notify.c offchannel.c op_classes.c os_unix.c pmksa_cache.c preauth.c \
+	rrm.c scan.c upnp_xml.c \
 	wmm_ac.c wpa.c wpa_common.c wpa_ctrl.c \
 	wpa_debug.c wpa_ft.c wpa_ie.c wpa_supplicant.c wpabuf.c wpas_glue.c
 
@@ -159,10 +156,6 @@ SRCS+=	eap_pax.c \
 SRCS+=	eap_sake.c \
 	eap_sake_common.c
 .endif
-
-OBJS+=	utils_config.o
-utils_config.o:	${WPA_DISTDIR}/src/utils/config.c
-	${CC} -c ${CFLAGS} -o ${.OBJDIR}/utils_config.o ${WPA_DISTDIR}/src/utils/config.c
 
 .include "../Makefile.crypto"
 

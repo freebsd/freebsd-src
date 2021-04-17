@@ -2,8 +2,7 @@
 
 .include "../Makefile.inc"
 
-.PATH.c:${WPA_SUPPLICANT_DISTDIR} \
-	${WPA_DISTDIR}/src/utils
+.PATH.c:${WPA_SUPPLICANT_DISTDIR}
 
 PACKAGE=	wpa
 PROG=	wpa_passphrase
