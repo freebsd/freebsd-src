@@ -18,7 +18,6 @@ HOSTAPD_DISTDIR?=	${WPA_DISTDIR}/hostapd
 	${WPA_DISTDIR}/src/radius \
 	${WPA_DISTDIR}/src/rsn_supp \
 	${WPA_DISTDIR}/src/tls \
-	${WPA_DISTDIR}/src/utils \
 	${WPA_DISTDIR}/src/wps
 
 CFLAGS+=-I${.CURDIR}
