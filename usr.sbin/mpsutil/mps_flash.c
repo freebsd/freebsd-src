@@ -29,6 +29,7 @@ __RCSID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <sys/mman.h>
+#include <sys/endian.h>
 
 #include <errno.h>
 #include <err.h>
@@ -203,21 +204,21 @@ flash_update(int argc, char **argv)
 		}
 	} else {
 		fwheader = (MPI2_FW_IMAGE_HEADER *)mem;
-		if (fwheader->VendorID != MPI2_MFGPAGE_VENDORID_LSI) {
+		if (le16toh(fwheader->VendorID) != MPI2_MFGPAGE_VENDORID_LSI) {
 			warnx("Invalid firmware:");
 			warnx("  Expected Vendor ID: %04x",
 			    MPI2_MFGPAGE_VENDORID_LSI);
-			warnx("  Image Vendor ID: %04x", fwheader->VendorID);
+			warnx("  Image Vendor ID: %04x", le16toh(fwheader->VendorID));
 			munmap(mem, st.st_size);
 			close(fd);
 			free(facts);
 			return (1);
 		}
 
-		if (fwheader->ProductID != facts->ProductID) {
+		if (le16toh(fwheader->ProductID) != facts->ProductID) {
 			warnx("Invalid image:");
 			warnx("  Expected Product ID: %04x", facts->ProductID);
-			warnx("  Image Product ID: %04x", fwheader->ProductID);
+			warnx("  Image Product ID: %04x", le16toh(fwheader->ProductID));
 			munmap(mem, st.st_size);
 			close(fd);
 			free(facts);

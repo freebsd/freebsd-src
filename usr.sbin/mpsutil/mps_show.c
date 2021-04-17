@@ -36,6 +36,7 @@ __RCSID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/errno.h>
+#include <sys/endian.h>
 #include <err.h>
 #include <libutil.h>
 #include <stdio.h>
@@ -111,7 +112,7 @@ show_adapter(int ac, char **av)
 		warn("Failed to get BIOS page 3 info");
 		return (error);
 	}
-	v = bios3->BiosVersion;
+	v = le32toh(bios3->BiosVersion);
 	printf("    BIOS Revision: %d.%02d.%02d.%02d\n",
 	    ((v & 0xff000000) >> 24), ((v &0xff0000) >> 16),
 	    ((v & 0xff00) >> 8), (v & 0xff));
@@ -206,12 +207,12 @@ show_adapter(int ac, char **av)
 
 		minspeed = get_device_speed(phy1->MaxMinLinkRate);
 		maxspeed = get_device_speed(phy1->MaxMinLinkRate >> 4);
-		type = get_device_type(phy0->ControllerPhyDeviceInfo);
+		type = get_device_type(le32toh(phy0->ControllerPhyDeviceInfo));
 
-		if (phy0->AttachedDevHandle != 0) {
-			snprintf(devhandle, 5, "%04x", phy0->AttachedDevHandle);
+		if (le16toh(phy0->AttachedDevHandle) != 0) {
+			snprintf(devhandle, 5, "%04x", le16toh(phy0->AttachedDevHandle));
 			snprintf(ctrlhandle, 5, "%04x",
-			    phy0->ControllerDevHandle);
+			    le16toh(phy0->ControllerDevHandle));
 			speed = get_device_speed(phy0->NegotiatedLinkRate);
 		} else {
 			snprintf(devhandle, 5, "    ");
@@ -545,7 +546,7 @@ show_devices(int ac, char **av)
 			close(fd);
 			return (error);
 		}
-		handle = device->DevHandle;
+		handle = le16toh(device->DevHandle);
 
 		if (device->ParentDevHandle == 0x0) {
 			free(device);
@@ -564,7 +565,7 @@ show_devices(int ac, char **av)
 		else
 			snprintf(bt, sizeof(bt), "%02d   %02d", bus, target);
 
-		type = get_device_type(device->DeviceInfo);
+		type = get_device_type(le32toh(device->DeviceInfo));
 
 		if (device->PhyNum < nphys) {
 			phydata = &sas0->PhyData[device->PhyNum];
@@ -576,7 +577,7 @@ show_devices(int ac, char **av)
 			    MPI2_SAS_EXPAND_PGAD_FORM_HNDL_PHY_NUM |
 			    (device->PhyNum <<
 			    MPI2_SAS_EXPAND_PGAD_PHYNUM_SHIFT) |
-			    device->ParentDevHandle, &IOCStatus);
+			    le16toh(device->ParentDevHandle), &IOCStatus);
 			if (exp1 == NULL) {
 				if (IOCStatus != MPI2_IOCSTATUS_CONFIG_INVALID_PAGE) {
 					error = errno;
@@ -595,19 +596,19 @@ show_devices(int ac, char **av)
 			speed = " ";
 
 		if (device->EnclosureHandle != 0) {
-			snprintf(enchandle, 5, "%04x", device->EnclosureHandle);
-			snprintf(slot, 3, "%02d", device->Slot);
+			snprintf(enchandle, 5, "%04x", le16toh(device->EnclosureHandle));
+			snprintf(slot, 3, "%02d", le16toh(device->Slot));
 		} else {
 			snprintf(enchandle, 5, "    ");
 			snprintf(slot, 3, "  ");
 		}
 		printf("%-10s", bt);
-		snprintf(buf, sizeof(buf), "%08x%08x", device->SASAddress.High,
-		    device->SASAddress.Low);
+		snprintf(buf, sizeof(buf), "%08x%08x", le32toh(device->SASAddress.High),
+		    le32toh(device->SASAddress.Low));
 		printf("%-17s", buf);
-		snprintf(buf, sizeof(buf), "%04x", device->DevHandle);
+		snprintf(buf, sizeof(buf), "%04x", le16toh(device->DevHandle));
 		printf("%-8s", buf);
-		snprintf(buf, sizeof(buf), "%04x", device->ParentDevHandle);
+		snprintf(buf, sizeof(buf), "%04x", le16toh(device->ParentDevHandle));
 		printf("%-10s", buf);
 		printf("%-14s%-6s%-5s%-6s%d\n", type, speed,
 		    enchandle, slot, device->MaxPortConnections);
@@ -651,16 +652,16 @@ show_enclosures(int ac, char **av)
 			close(fd);
 			return (error);
 		}
-		type = get_enc_type(enc->Flags, &issep);
+		type = get_enc_type(le16toh(enc->Flags), &issep);
 		if (issep == 0)
 			snprintf(sepstr, 5, "    ");
 		else
-			snprintf(sepstr, 5, "%04x", enc->SEPDevHandle);
+			snprintf(sepstr, 5, "%04x", le16toh(enc->SEPDevHandle));
 		printf("  %.2d    %08x%08x    %s       %04x     %s\n",
-		    enc->NumSlots, enc->EnclosureLogicalID.High,
-		    enc->EnclosureLogicalID.Low, sepstr, enc->EnclosureHandle,
+		    le16toh(enc->NumSlots), le32toh(enc->EnclosureLogicalID.High),
+		    le32toh(enc->EnclosureLogicalID.Low), sepstr, le16toh(enc->EnclosureHandle),
 		    type);
-		handle = enc->EnclosureHandle;
+		handle = le16toh(enc->EnclosureHandle);
 		free(enc);
 	}
 	printf("\n");
@@ -704,19 +705,19 @@ show_expanders(int ac, char **av)
 		}
 
 		nphys = exp0->NumPhys;
-		handle = exp0->DevHandle;
+		handle = le16toh(exp0->DevHandle);
 
 		if (exp0->EnclosureHandle == 0x00)
 			snprintf(enchandle, 5, "    ");
 		else
-			snprintf(enchandle, 5, "%04d", exp0->EnclosureHandle);
+			snprintf(enchandle, 5, "%04d", le16toh(exp0->EnclosureHandle));
 		if (exp0->ParentDevHandle == 0x0)
 			snprintf(parent, 5, "    ");
 		else
-			snprintf(parent, 5, "%04x", exp0->ParentDevHandle);
+			snprintf(parent, 5, "%04x", le16toh(exp0->ParentDevHandle));
 		printf("  %02d    %08x%08x    %04x       %s     %s       %d\n",
-		    exp0->NumPhys, exp0->SASAddress.High, exp0->SASAddress.Low,
-		    exp0->DevHandle, parent, enchandle, exp0->SASLevel);
+		    exp0->NumPhys, le32toh(exp0->SASAddress.High), le32toh(exp0->SASAddress.Low),
+		    le16toh(exp0->DevHandle), parent, enchandle, exp0->SASLevel);
 
 		printf("\n");
 		printf("     Phy  RemotePhy  DevHandle  Speed   Min    Max    Device\n");
@@ -733,8 +734,8 @@ show_expanders(int ac, char **av)
 					warn("Error retrieving expander pg 1");
 				continue;
 			}
-			type = get_device_type(exp1->AttachedDeviceInfo);
-			if ((exp1->AttachedDeviceInfo &0x7) == 0) {
+			type = get_device_type(le32toh(exp1->AttachedDeviceInfo));
+			if ((le32toh(exp1->AttachedDeviceInfo) &0x7) == 0) {
 				speed = "     ";
 				snprintf(rphy, 3, "  ");
 				snprintf(rhandle, 5, "     ");
@@ -744,7 +745,7 @@ show_expanders(int ac, char **av)
 				snprintf(rphy, 3, "%02d",
 				    exp1->AttachedPhyIdentifier);
 				snprintf(rhandle, 5, "%04x",
-				    exp1->AttachedDevHandle);
+				    le16toh(exp1->AttachedDevHandle));
 			}
 			min = get_device_speed(exp1->HwLinkRate);
 			max = get_device_speed(exp1->HwLinkRate >> 4);
@@ -787,7 +788,7 @@ show_cfgpage(int ac, char **av)
 
 	switch (ac) {
 	case 4:
-		addr = (uint32_t)strtoul(av[3], NULL, 0);
+		addr = htole32((uint32_t)strtoul(av[3], NULL, 0));
 	case 3:
 		num = (uint8_t)strtoul(av[2], NULL, 0);
 	case 2:
@@ -814,7 +815,7 @@ show_cfgpage(int ac, char **av)
 
 	if (page >= 0x10) {
 		ehdr = data;
-		len = ehdr->ExtPageLength * 4;
+		len = le16toh(ehdr->ExtPageLength) * 4;
 		page = ehdr->ExtPageType;
 		attrs = ehdr->PageType >> 4;
 	} else {
