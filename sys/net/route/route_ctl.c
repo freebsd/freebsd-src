@@ -808,7 +808,7 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info
 	rt->rte_flags &= ~RTF_UP;
 
 	/* Finalize notification */
-	rnh->rnh_gen++;
+	rib_bump_gen(rnh);
 	rnh->rnh_prefixes--;
 
 	rc->rc_cmd = RTM_DELETE;
@@ -1060,7 +1060,7 @@ add_route_nhop(struct rib_head *rnh, struct rtentry *rt,
 			tmproutes_update(rnh, rt);
 
 		/* Finalize notification */
-		rnh->rnh_gen++;
+		rib_bump_gen(rnh);
 		rnh->rnh_prefixes++;
 
 		rc->rc_cmd = RTM_ADD;
@@ -1116,7 +1116,7 @@ change_route_nhop(struct rib_head *rnh, struct rtentry *rt,
 	}
 
 	/* Finalize notification */
-	rnh->rnh_gen++;
+	rib_bump_gen(rnh);
 	if (rnd->rnd_nhop == NULL)
 		rnh->rnh_prefixes--;
 
