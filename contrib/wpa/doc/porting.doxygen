@@ -1,0 +1,209 @@
+/**
+\page porting Porting to different target boards and operating systems
+
+wpa_supplicant was designed to be easily portable to different
+hardware (board, CPU) and software (OS, drivers) targets. It is
+already used with number of operating systems and numerous wireless
+card models and drivers. The main wpa_supplicant repository includes
+support for Linux, FreeBSD, and Windows. In addition, the code has been
+ported to number of other operating systems like VxWorks, PalmOS,
+Windows CE, and Windows Mobile. On the hardware
+side, wpa_supplicant is used on various systems: desktops, laptops,
+PDAs, and embedded devices with CPUs including x86, PowerPC,
+arm/xscale, and MIPS. Both big and little endian configurations are
+supported.
+
+
+\section ansi_c_extra Extra functions on top of ANSI C
+
+wpa_supplicant is mostly using ANSI C functions that are available on
+most targets. However, couple of additional functions that are common
+on modern UNIX systems are used. Number of these are listed with
+prototypes in \ref common.h (the \verbatim #ifdef CONFIG_ANSI_C_EXTRA \endverbatim
+block). These functions may need to be implemented or at least defined
+as macros to native functions in the target OS or C library.
+
+Many of the common ANSI C functions are used through a wrapper
+definitions in \ref os.h to allow these to be replaced easily with a
+platform specific version in case standard C libraries are not
+available. In addition, \ref os.h defines couple of common platform
+specific functions that are implemented in \ref os_unix.c for UNIX like
+targets and in \ref os_win32.c for Win32 API. If the target platform does
+not support either of these examples, a new os_*.c file may need to be
+added.
+
+Unless OS_NO_C_LIB_DEFINES is defined, the standard ANSI C and POSIX
+functions are used by defining the os_*() wrappers to use them
+directly in order to avoid extra cost in size and speed. If the target
+platform needs different versions of the functions, \ref os.h can be
+modified to define the suitable macros or alternatively,
+OS_NO_C_LIB_DEFINES may be defined for the build and the wrapper
+functions can then be implemented in a new os_*.c wrapper file.
+
+\ref common.h defines number of helper macros for handling integers of
+different size and byte order. Suitable version of these definitions
+may need to be added for the target platform.
+
+
+\section configuration_backend Configuration backend
+
+wpa_supplicant implements a configuration interface that allows the
+backend to be easily replaced in order to read configuration data from
+a suitable source depending on the target platform. \ref config.c
+implements the generic code that can be shared with all configuration
+backends. Each backend is implemented in its own config_*.c file.
+
+The included \ref config_file.c backend uses a text file for configuration
+and \ref config_winreg.c uses Windows registry. These files can be used as
+an example for a new configuration backend if the target platform uses
+different mechanism for configuration parameters. In addition,
+\ref config_none.c can be used as an empty starting point for building a
+new configuration backend.
+
+
+\section driver_iface_porting Driver interface
+
+Unless the target OS and driver is already supported, most porting
+projects have to implement a driver wrapper. This may be done by
+adding a new driver interface module or modifying an existing module
+(driver_*.c) if the new target is similar to one of them. \ref
+driver_wrapper "Driver wrapper implementation" describes the details
+of the driver interface and discusses the tasks involved in porting
+this part of wpa_supplicant.
+
+
+\section l2_packet_porting l2_packet (link layer access)
+
+wpa_supplicant needs to have access to sending and receiving layer 2
+(link layer) packets with two Ethertypes: EAP-over-LAN (EAPOL) 0x888e
+and RSN pre-authentication 0x88c7. \ref l2_packet.h defines the interfaces
+used for this in the core wpa_supplicant implementation.
+
+If the target operating system supports a generic mechanism for link
+layer access, that is likely the best mechanism for providing the
+needed functionality for wpa_supplicant. Linux packet socket is an
+example of such a generic mechanism. If this is not available, a
+separate interface may need to be implemented to the network stack or
+driver. This is usually an intermediate or protocol driver that is
+operating between the device driver and the OS network stack. If such
+a mechanism is not feasible, the interface can also be implemented
+directly in the device driver.
+
+The main wpa_supplicant repository includes l2_packet implementations
+for Linux using packet sockets (\ref l2_packet_linux.c), more portable
+version using libpcap/libdnet libraries (\ref l2_packet_pcap.c; this
+supports WinPcap, too), and FreeBSD specific version of libpcap
+interface (\ref l2_packet_freebsd.c).
+
+If the target operating system is supported by libpcap (receiving) and
+libdnet (sending), \ref l2_packet_pcap.c can likely be used with minimal or
+no changes. If this is not a case or a proprietary interface for link
+layer is required, a new l2_packet module may need to be
+added. Alternatively, for hostapd,
+struct \ref wpa_driver_ops::hapd_send_eapol() handler can
+be used to override the l2_packet library if the link layer access is
+integrated with the driver interface implementation.
+
+
+\section eloop_porting Event loop
+
+wpa_supplicant uses a single process/thread model and an event loop
+to provide callbacks on events (registered timeout, received packet,
+signal). eloop.h defines the event loop interface. \ref eloop.c is an
+implementation of such an event loop using select() and sockets. This
+is suitable for most UNIX/POSIX systems. When porting to other
+operating systems, it may be necessary to replace that implementation
+with OS specific mechanisms that provide similar functionality.
+
+
+\section ctrl_iface_porting Control interface
+
+wpa_supplicant uses a \ref ctrl_iface_page "control interface"
+to allow external processed
+to get status information and to control the operations. Currently,
+this is implemented with socket based communication; both UNIX domain
+sockets and UDP sockets are supported. If the target OS does not
+support sockets, this interface will likely need to be modified to use
+another mechanism like message queues. The control interface is
+optional component, so it is also possible to run wpa_supplicant
+without porting this part.
+
+The wpa_supplicant side of the control interface is implemented in
+\ref wpa_supplicant/ctrl_iface.c. Matching client side is implemented as a control
+interface library in \ref wpa_ctrl.c.
+
+
+\section entry_point Program entry point
+
+wpa_supplicant defines a set of functions that can be used to
+initialize main supplicant processing. Each operating system has a
+mechanism for starting new processing or threads. This is usually a
+function with a specific set of arguments and calling convention. This
+function is responsible on initializing wpa_supplicant.
+
+\ref wpa_supplicant/main.c includes an entry point for UNIX-like
+operating system, i.e., main() function that uses command line arguments
+for setting parameters for wpa_supplicant. When porting to other
+operating systems, similar OS-specific entry point implementation is
+needed. It can be implemented in a new file that is then linked with
+wpa_supplicant instead of main.o. \ref wpa_supplicant/main.c is also a
+good example on how the initialization process should be done.
+
+The supplicant initialization functions are defined in
+\ref wpa_supplicant_i.h. In most cases, the entry point function should
+start by fetching configuration parameters. After this, a global
+wpa_supplicant context is initialized with a call to
+\ref wpa_supplicant_init(). After this, existing network interfaces can be
+added with \ref wpa_supplicant_add_iface(). \ref wpa_supplicant_run() is then
+used to start the main event loop. Once this returns at program
+termination time, \ref wpa_supplicant_deinit() is used to release global
+context data.
+
+\ref wpa_supplicant_add_iface() and \ref wpa_supplicant_remove_iface() can be
+used dynamically to add and remove interfaces based on when
+wpa_supplicant processing is needed for them. This can be done, e.g.,
+when hotplug network adapters are being inserted and ejected. It is
+also possible to do this when a network interface is being
+enabled/disabled if it is desirable that wpa_supplicant processing
+for the interface is fully enabled/disabled at the same time.
+
+
+\section simple_build Simple build example
+
+One way to start a porting project is to begin with a very simple
+build of wpa_supplicant with WPA-PSK support and once that is
+building correctly, start adding features.
+
+Following command can be used to build very simple version of
+wpa_supplicant:
+
+\verbatim
+cc -o wpa_supplicant config.c eloop.c common.c md5.c rc4.c sha1.c \
+	config_none.c l2_packet_none.c tls_none.c wpa.c preauth.c \
+	aes_wrap.c wpa_supplicant.c events.c main_none.c drivers.c
+\endverbatim
+
+The end result is not really very useful since it uses empty functions
+for configuration parsing and layer 2 packet access and does not
+include a driver interface. However, this is a good starting point
+since the build is complete in the sense that all functions are
+present and this is easy to configure to a build system by just
+including the listed C files.
+
+Once this version can be build successfully, the end result can be
+made functional by adding a proper program entry point (main*.c),
+driver interface (driver_*.c and matching CONFIG_DRIVER_* define for
+registration in \ref drivers.c), configuration parser/writer (config_*.c),
+and layer 2 packet access implementation (l2_packet_*.c). After these
+components have been added, the end result should be a working
+WPA/WPA2-PSK enabled supplicant.
+
+After the basic functionality has been verified to work, more features
+can be added by linking in more files and defining C pre-processor
+defines. Currently, the best source of information for what options
+are available and which files needs to be included is in the Makefile
+used for building the supplicant with make. Similar configuration will
+be needed for build systems that either use different type of make
+tool or a GUI-based project configuration.
+
+*/

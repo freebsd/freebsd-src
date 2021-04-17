@@ -1,0 +1,4 @@
+*.d
+eap_example
+libeap.so
+libeap.a

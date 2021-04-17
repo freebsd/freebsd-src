@@ -1,0 +1,90 @@
+/**
+
+\dir hostapd hostapd
+
+hostapd-specific code for configuration, control interface, and AP
+management.
+
+
+\dir src/common Common functionality
+
+This module includes IEEE 802.11, IEEE 802.1X, and WPA related
+functionality that is shared between AP and station modes.
+
+
+\dir src/crypto Cryptographical functionality and wrappers
+
+This module defines crypto and tls interfaces to provide portability
+layer for different crypto/TLS libraries. Wrappers for number of
+libraries are also included here. In addition, internal implementation
+of various crypto functions are provided as an alternative for an
+external library and to extend some algorithms.
+
+
+\dir src/drivers Driver wrappers
+
+This directory includes the driver interface definition and all the
+driver wrappers that can be used to interact with different drivers
+without making rest of the software dependent on which particular
+driver is used.
+
+
+\dir src/eap_common Common EAP functionality for server and peer
+
+
+\dir src/eap_peer EAP peer
+
+
+\dir src/eap_server EAP server
+
+
+\dir src/eapol_auth EAPOL authenticator
+
+
+\dir src/eapol_supp EAPOL supplicant
+
+
+\dir src/l2_packet Layer 2 packet interface
+
+This module defines an interface for layer 2 (link layer) packet
+sendinf and receiving. All the wrappers for supported mechanisms are
+also included here. This is used to port packet access for new
+operating systems without having to make rest of the source code
+depend on which OS network stack is used.
+
+
+\dir src/radius RADIUS
+
+RADIUS module includes RADIUS message building and parsing
+functionality and separate RADIUS client and server functions.
+
+
+\dir src/rsn_supp IEEE 802.11 RSN and WPA supplicant
+
+
+\dir src/tls Internal TLS server and client implementation
+
+This module can be used as an alternative to using an external TLS
+library.
+
+
+\dir src/utils Utility functions
+
+Independent set of helper functions that most other components
+use. This includes portability wrappers and helpers for common tasks.
+
+
+\dir src/wps Wi-Fi Protected Setup
+
+This directory includes Wi-Fi Protected Setup functions for Registrar
+(both internal in an AP and an External Registrar and
+Enrollee. Minimal UPnP and HTTP functionality is also provided for the
+functionality needed to implement Wi-Fi Protected Setup.
+
+
+\dir wpa_supplicant wpa_supplicant
+
+wpa_supplicant-specific code for configuration, control interface, and
+client management.
+
+*/

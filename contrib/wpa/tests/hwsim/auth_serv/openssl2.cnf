@@ -1,0 +1,147 @@
+HOME			= .
+RANDFILE		= $ENV::HOME/.rnd
+oid_section		= new_oids
+
+[ new_oids ]
+
+[ ca ]
+default_ca	= CA_default
+
+[ CA_default ]
+
+dir		= ./test-ca
+certs		= $dir/certs
+crl_dir		= $dir/crl
+database	= $dir/index.txt
+unique_subject	= no
+new_certs_dir	= $dir/newcerts
+certificate	= $dir/cacert.pem
+serial		= $dir/serial
+crlnumber	= $dir/crlnumber
+crl		= $dir/crl.pem
+private_key	= $dir/private/cakey.pem
+RANDFILE	= $dir/private/.rand
+
+x509_extensions	= usr_cert
+
+name_opt 	= ca_default
+cert_opt 	= ca_default
+
+default_days	= 365
+default_crl_days= 30
+default_md	= default
+preserve	= no
+
+policy		= policy_match
+
+[ policy_match ]
+countryName		= match
+stateOrProvinceName	= optional
+organizationName	= match
+organizationalUnitName	= optional
+commonName		= supplied
+emailAddress		= optional
+
+[ policy_anything ]
+countryName		= optional
+stateOrProvinceName	= optional
+localityName		= optional
+organizationName	= optional
+organizationalUnitName	= optional
+commonName		= supplied
+emailAddress		= optional
+
+[ req ]
+default_bits		= 2048
+default_keyfile 	= privkey.pem
+distinguished_name	= req_distinguished_name
+attributes		= req_attributes
+x509_extensions	= v3_ca
+
+string_mask = utf8only
+
+[ req_distinguished_name ]
+countryName			= Country Name (2 letter code)
+countryName_default		= FI
+countryName_min			= 2
+countryName_max			= 2
+
+localityName			= Locality Name (eg, city)
+localityName_default		= Tuusula
+
+0.organizationName		= Organization Name (eg, company)
+0.organizationName_default	= w1.fi
+
+commonName			= Common Name (e.g. server FQDN or YOUR name)
+#@CN@
+commonName_max			= 64
+
+emailAddress			= Email Address
+emailAddress_max		= 64
+
+##0.subjectAltName = dNSName:server.w1.fi
+
+[ req_attributes ]
+
+[ usr_cert ]
+
+basicConstraints=CA:FALSE
+
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
+
+authorityInfoAccess = OCSP;URI:http://server.w1.fi:8888/
+
+[ v3_req ]
+
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName=DNS:example.com,DNS:another.example.com
+
+[ v3_ca ]
+
+subjectKeyIdentifier=hash
+
+authorityKeyIdentifier=keyid:always,issuer
+
+basicConstraints = CA:true
+
+[ crl_ext ]
+
+authorityKeyIdentifier=keyid:always
+
+[ v3_OCSP ]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = OCSPSigning
+
+[ ext_client ]
+
+basicConstraints=CA:FALSE
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
+authorityInfoAccess = OCSP;URI:http://server.w1.fi:8888/
+#@ALTNAME@
+
+extendedKeyUsage = clientAuth
+
+[ ext_server ]
+
+basicConstraints=CA:FALSE
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
+authorityInfoAccess = OCSP;URI:http://server.w1.fi:8888/
+#@ALTNAME@
+#@CERTPOL@
+
+extendedKeyUsage = serverAuth
+
+[ ext_client_server ]
+
+basicConstraints=CA:FALSE
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid,issuer
+authorityInfoAccess = OCSP;URI:http://server.w1.fi:8888/
+#@ALTNAME@
+
+extendedKeyUsage = clientAuth, serverAuth

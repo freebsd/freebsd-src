@@ -1,0 +1,47 @@
+#!/bin/sh
+
+set -e
+
+if [ -z "$1" ]; then
+    echo "build_release <version>"
+    exit 1
+fi
+
+TMP=tmp.build_release
+RELDIR=`pwd`/Release
+VER=$1
+NOW=`date +%Y-%m-%d`
+
+echo "Version: $VER - $NOW"
+
+DATEw=`head -n 3 wpa_supplicant/ChangeLog | tail -n 1 | sed "s/ .*//"`
+DATEh=`head -n 3 hostapd/ChangeLog | tail -n 1 | sed "s/ .*//"`
+
+if [ "$DATEw" != "$NOW" -o "$DATEh" != "$NOW" ]; then
+    echo "NOTE! Date mismatch in ChangeLog: wpa_supplicant $DATEw hostapd $DATEh != $NOW"
+fi
+
+if [ -r $TMP ]; then
+    echo "Temporary directory '$TMP' exists. Remove it before running this."
+    exit 1
+fi
+
+mkdir $TMP
+mkdir -p $RELDIR
+
+git archive --format=tar --prefix=wpa-$VER/ HEAD \
+	README COPYING CONTRIBUTIONS src wpa_supplicant hostapd hs20 |
+	gzip > $RELDIR/wpa-$VER.tar.gz
+git archive --format=tar --prefix=hostapd-$VER/ HEAD \
+	README COPYING CONTRIBUTIONS src hostapd |
+	gzip > $RELDIR/hostapd-$VER.tar.gz
+git archive --format=tar --prefix=wpa_supplicant-$VER/ HEAD \
+	README COPYING CONTRIBUTIONS src wpa_supplicant hs20/client |
+	tar --directory=$TMP -xf -
+
+cd $TMP
+make -C wpa_supplicant-$VER/wpa_supplicant/doc/docbook man
+rm -f wpa_supplicant-$VER/wpa_supplicant/doc/docbook/manpage.{links,refs}
+tar czf $RELDIR/wpa_supplicant-$VER.tar.gz wpa_supplicant-$VER
+cd ..
+rm -r $TMP
