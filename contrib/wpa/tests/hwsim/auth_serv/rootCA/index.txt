@@ -1,6 +1,0 @@
-V	251222193736Z		D8D3E3A6CBE3CCF3	unknown	/C=FI/O=w1.fi/CN=Server Intermediate CA
-V	251222193736Z		D8D3E3A6CBE3CCF4	unknown	/C=FI/O=w1.fi/CN=User Intermediate CA
-V	300503151922Z		D8D3E3A6CBE3CCF5	unknown	/C=FI/O=w1.fi/CN=Server Intermediate CA
-V	300503151922Z		D8D3E3A6CBE3CCF6	unknown	/C=FI/O=w1.fi/CN=User Intermediate CA
-V	300503152010Z		D8D3E3A6CBE3CCF7	unknown	/C=FI/O=w1.fi/CN=Server Intermediate CA
-V	300503152010Z		D8D3E3A6CBE3CCF8	unknown	/C=FI/O=w1.fi/CN=User Intermediate CA

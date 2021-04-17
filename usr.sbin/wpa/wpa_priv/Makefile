@@ -3,6 +3,7 @@
 .include "../Makefile.inc"
 
 .PATH.c:${WPA_SUPPLICANT_DISTDIR} \
+	${WPA_DISTDIR}/src/utils \
 	${WPA_DISTDIR}/src/drivers
 
 PACKAGE=	wpa

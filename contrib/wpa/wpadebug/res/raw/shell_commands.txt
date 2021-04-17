@@ -1,2 +1,0 @@
-id@id
-version@cat /proc/version
