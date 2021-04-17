@@ -525,6 +525,13 @@ schedule_fd_rebuild(struct fib_data *fd, const char *reason)
 	}
 }
 
+static void
+sync_rib_gen(struct fib_data *fd)
+{
+	FD_PRINTF(LOG_DEBUG, fd, "Sync gen %u -> %u", fd->fd_rh->rnh_gen, fd->fd_rh->rnh_gen_rib);
+	fd->fd_rh->rnh_gen = fd->fd_rh->rnh_gen_rib;
+}
+
 static int64_t
 get_tv_diff_ms(const struct timeval *old_tv, const struct timeval *new_tv)
 {
@@ -680,6 +687,7 @@ apply_rtable_changes(struct fib_data *fd)
 	result = fd->fd_flm->flm_change_rib_items_cb(fd->fd_rh, q, fd->fd_algo_data);
 
 	if (result == FLM_SUCCESS) {
+		sync_rib_gen(fd);
 		for (int i = 0; i < q->count; i++)
 			if (q->entries[i].nh_old)
 				fib_unref_nhop(fd, q->entries[i].nh_old);
@@ -811,6 +819,7 @@ handle_rtable_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
 
 	switch (result) {
 	case FLM_SUCCESS:
+		sync_rib_gen(fd);
 		/* Unref old nexthop on success */
 		if (rc->rc_nh_old != NULL)
 			fib_unref_nhop(fd, rc->rc_nh_old);
@@ -1236,7 +1245,9 @@ setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
 		result = try_setup_fd_instance(flm, rh, prev_fd, &new_fd);
 
 		if ((result == FLM_SUCCESS) && attach) {
-			if (!fib_set_datapath_ptr(new_fd, &new_fd->fd_dp))
+			if (fib_set_datapath_ptr(new_fd, &new_fd->fd_dp))
+				sync_rib_gen(new_fd);
+			else
 				result = FLM_REBUILD;
 		}
 
