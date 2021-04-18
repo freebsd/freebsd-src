@@ -95,15 +95,17 @@ runs until the guest operating system reboots or an unhandled hypervisor
 exit is detected.
 .Sh OPTIONS
 .Bl -tag -width 10n
-.It Fl a
-The guest's local APIC is configured in xAPIC mode.
-The xAPIC mode is the default setting so this option is redundant.
-It will be deprecated in a future version.
 .It Fl A
 Generate ACPI tables.
 Required for
 .Fx Ns /amd64
 guests.
+.It Fl a
+The guest's local APIC is configured in xAPIC mode.
+The xAPIC mode is the default setting so this option is redundant.
+It will be deprecated in a future version.
+.It Fl C
+Include guest memory in core file.
 .It Fl c Op Ar setting ...
 Number of guest virtual CPUs
 and/or the CPU topology.
@@ -128,8 +130,6 @@ and
 If a
 .Ar setting
 is specified more than once the last one has precedence.
-.It Fl C
-Include guest memory in core file.
 .It Fl D
 Destroy the VM on guest initiated power-off.
 .It Fl e
@@ -150,11 +150,11 @@ begins with
 .Sq w ,
 .Nm
 will pause execution at the first instruction waiting for a debugger to attach.
-.It Fl h
-Print help message and exit.
 .It Fl H
 Yield the virtual CPU thread when a HLT instruction is detected.
 If this option is not specified, virtual CPUs will use 100% of a host CPU.
+.It Fl h
+Print help message and exit.
 .It Fl k Ar file
 Set configuration variables from a simple, key-value config file.
 Each line of the config file is expected to consist of a config variable
@@ -196,13 +196,13 @@ Set the configuration variable
 .Ar var
 to
 .Ar value .
+.It Fl P
+Force the guest virtual CPU to exit when a PAUSE instruction is detected.
 .It Fl p Ar vcpu:hostcpu
 Pin guest's virtual CPU
 .Em vcpu
 to
 .Em hostcpu .
-.It Fl P
-Force the guest virtual CPU to exit when a PAUSE instruction is detected.
 .It Fl r Ar file
 Resume a guest from a snapshot.
 The guest memory contents are restored from
@@ -218,6 +218,8 @@ and
 .Op Fl l
 options.
 The count of vCPUs and memory configuration are read from the snapshot.
+.It Fl S
+Wire guest memory.
 .It Fl s Op Ar help|slot,emulation Ns Op , Ns Ar conf
 Configure a virtual PCI slot and function.
 .Pp
@@ -591,22 +593,20 @@ Recording device, typically
 .Ar /dev/dsp0 .
 .El
 .El
-.It Fl S
-Wire guest memory.
-.It Fl u
-RTC keeps UTC time.
 .It Fl U Ar uuid
 Set the universally unique identifier
 .Pq UUID
 in the guest's System Management BIOS System Information structure.
 By default a UUID is generated from the host's hostname and
 .Ar vmname .
-.It Fl w
-Ignore accesses to unimplemented Model Specific Registers (MSRs).
-This is intended for debug purposes.
+.It Fl u
+RTC keeps UTC time.
 .It Fl W
 Force virtio PCI device emulations to use MSI interrupts instead of MSI-X
 interrupts.
+.It Fl w
+Ignore accesses to unimplemented Model Specific Registers (MSRs).
+This is intended for debug purposes.
 .It Fl x
 The guest's local APIC is configured in x2APIC mode.
 .It Fl Y
