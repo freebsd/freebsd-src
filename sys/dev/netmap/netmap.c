@@ -2381,6 +2381,12 @@ out:
 
 }
 
+
+/* set the hardware buffer length in each one of the newly opened rings
+ * (hwbuf_len field in the kring struct). The purpose it to select
+ * the maximum supported input buffer lenght that will not cause writes
+ * outside of the available space, even when offsets are in use.
+ */
 static int
 netmap_compute_buf_len(struct netmap_priv_d *priv)
 {
@@ -2390,32 +2396,44 @@ netmap_compute_buf_len(struct netmap_priv_d *priv)
 	int error = 0;
 	unsigned mtu = 0;
 	struct netmap_adapter *na = priv->np_na;
-	uint64_t target, maxframe;
-
-	if (na->ifp != NULL)
-		mtu = nm_os_ifnet_mtu(na->ifp);
+	uint64_t target;
 
 	foreach_selected_ring(priv, t, i, kring) {
-
+		/* rings that are already active have their hwbuf_len
+		 * already set and we cannot change it.
+		 */
 		if (kring->users > 1)
 			continue;
 
+		/* For netmap buffers which are not shared among several ring
+		 * slots (the normal case), the available space is the buf size
+		 * minus the max offset declared by the user at open time.  If
+		 * the user plans to have several slots pointing to different
+		 * offsets into the same large buffer, she must also declare a
+		 * "minimum gap" between two such consecutive offsets. In this
+		 * case the user-declared 'offset_gap' is taken as the
+		 * available space and offset_max is ignored.
+		 */
+
+		/* start with the normal case (unshared buffers) */
 		target = NETMAP_BUF_SIZE(kring->na) -
 			kring->offset_max;
+		/* if offset_gap is zero, the user does not intend to use
+		 * shared buffers. In this case the minimum gap between
+		 * two consective offsets into the same buffer can be
+		 * assumed to be equal to the buffer size. In this way
+		 * offset_gap always contains the available space ignoring
+		 * offset_max. This may be used by drivers of NICs that
+		 * are guaranteed to never write more than MTU bytes, even
+		 * if the input buffer is larger: if the MTU is less
+		 * than the target they can set hwbuf_len to offset_gap.
+		 */
 		if (!kring->offset_gap)
 			kring->offset_gap =
 				NETMAP_BUF_SIZE(kring->na);
+
 		if (kring->offset_gap < target)
 			target = kring->offset_gap;
-
-		if (mtu) {
-			maxframe = mtu + ETH_HLEN +
-				ETH_FCS_LEN + VLAN_HLEN;
-			if (maxframe < target) {
-				target = maxframe;
-			}
-		}
-
 		error = kring->nm_bufcfg(kring, target);
 		if (error)
 			goto out;
