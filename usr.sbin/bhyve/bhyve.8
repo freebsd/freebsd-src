@@ -405,29 +405,33 @@ must comply with
 .Xr netgraph 4
 addressing rules.
 .Pp
-Block storage devices:
-.Bl -tag -width 10n
-.It Pa /filename Ns Oo , Ns Ar block-device-options Oc
-.It Pa /dev/xxx Ns Oo , Ns Ar block-device-options Oc
+Block storage device backends:
+.Sm off
+.Bl -bullet
+.It
+.Ar /filename Op Cm \&, Ar block-device-options
+.It
+.Ar /dev/xxx Op Cm \&, Ar block-device-options
 .El
+.Sm on
 .Pp
 The
 .Ar block-device-options
 are:
-.Bl -tag -width 8n
-.It Li nocache
+.Bl -tag -width 10n
+.It Cm nocache
 Open the file with
 .Dv O_DIRECT .
-.It Li direct
+.It Cm direct
 Open the file using
 .Dv O_SYNC .
-.It Li ro
+.It Cm ro
 Force the file to be opened read-only.
-.It Li sectorsize= Ns Ar logical Ns Oo / Ns Ar physical Oc
+.It Cm sectorsize= Ns Ar logical Ns Oo Cm \&/ Ns Ar physical Oc
 Specify the logical and physical sector sizes of the emulated disk.
 The physical sector size is optional and is equal to the logical sector size
 if not explicitly specified.
-.It Li nodelete
+.It Cm nodelete
 Disable emulation of guest trim requests via
 .Dv DIOCGDELETE
 requests.
@@ -646,7 +650,6 @@ Playback device, typically
 .It Li rec
 Recording device, typically
 .Ar /dev/dsp0 .
-.El
 .El
 .It Fl U Ar uuid
 Set the universally unique identifier
