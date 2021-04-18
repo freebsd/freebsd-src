@@ -558,7 +558,7 @@ sx_drop_critical(uintptr_t x, bool *in_critical, int *extra_work)
 	}
 }
 #else
-#define sx_drop_critical(x, in_critical, extra_work) do { } while(0)
+#define sx_drop_critical(x, in_critical, extra_work) do { } while (0)
 #endif
 
 /*

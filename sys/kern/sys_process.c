@@ -104,7 +104,7 @@ __FBSDID("$FreeBSD$");
 	else								\
 		error = (action);					\
 	return (error);							\
-} while(0)
+} while (0)
 
 int
 proc_read_regs(struct thread *td, struct reg *regs)

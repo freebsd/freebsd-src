@@ -164,7 +164,7 @@ extern uintptr_t dpcpu_off[];
 	CPU_FOREACH(_i) {						\
 		bzero(DPCPU_ID_PTR(_i, n), sizeof(*DPCPU_PTR(n)));	\
 	}								\
-} while(0)
+} while (0)
 
 #endif /* _KERNEL */
 
