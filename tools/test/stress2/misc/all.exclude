@@ -71,6 +71,7 @@ syzkaller29.sh		May change policy for random threads to to domainset_fixed	20210
 syzkaller30.sh		May change policy for random threads to to domainset_fixed	20210104
 syzkaller31.sh		panic: Bad tailq NEXT(0xfffffe0079608f00->tqh_last) != NULL	20210322
 syzkaller32.sh		Fatal trap 18: integer divide fault while in kernel mode	20210322
+syzkaller33.sh		Fatal trap 18: integer divide fault while in kernel mode	20210418
 truss3.sh		WiP								20200915
 unionfs.sh		insmntque: non-locked vp: xx is not exclusive locked...		20130909
 unionfs2.sh		insmntque: mp-safe fs and non-locked vp is not ...		20111219
