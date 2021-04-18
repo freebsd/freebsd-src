@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 30, 2020
+.Dd March 28, 2021
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -98,7 +98,7 @@ Display the protocol state, if applicable.
 This is currently only implemented for SCTP and TCP.
 .It Fl U
 Display the remote UDP encapsulation port number, if applicable.
-This is currently only implemented for SCTP.
+This is currently only implemented for SCTP and TCP.
 .It Fl u
 Show
 .Dv AF_LOCAL
@@ -163,7 +163,7 @@ The address the foreign end of the socket is bound to (see
 .It Li ENCAPS
 The remote UDP encapsulation port number if
 .Fl U
-is specified (only for SCTP).
+is specified (only for SCTP or TCP).
 .It Li PATH STATE
 The path state if
 .Fl s

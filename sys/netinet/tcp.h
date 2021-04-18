@@ -183,6 +183,7 @@ struct tcphdr {
 #define	TCP_RXTLS_MODE	42	/* Receive TLS mode */
 #define	TCP_CONGESTION	64	/* get/set congestion control algorithm */
 #define	TCP_CCALGOOPT	65	/* get/set cc algorithm specific options */
+#define TCP_REMOTE_UDP_ENCAPS_PORT 71	/* Enable TCP over UDP tunneling via the specified port */
 #define TCP_DELACK  	72	/* socket option for delayed ack */
 #define TCP_FIN_IS_RST 73	/* A fin from the peer is treated has a RST */
 #define TCP_LOG_LIMIT  74	/* Limit to number of records in tcp-log */

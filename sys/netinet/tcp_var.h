@@ -282,6 +282,16 @@ struct tcptemp {
 	struct	tcphdr tt_t;
 };
 
+/* Enable TCP/UDP tunneling port */
+#define TCP_TUNNELING_PORT_MIN		0
+#define TCP_TUNNELING_PORT_MAX		65535
+#define TCP_TUNNELING_PORT_DEFAULT	0
+
+/* Enable TCP/UDP tunneling port */
+#define TCP_TUNNELING_OVERHEAD_MIN	sizeof(struct udphdr)
+#define TCP_TUNNELING_OVERHEAD_MAX	1024
+#define TCP_TUNNELING_OVERHEAD_DEFAULT	TCP_TUNNELING_OVERHEAD_MIN
+
 /* Minimum map entries limit value, if set */
 #define TCP_MIN_MAP_ENTRIES_LIMIT	128
 
@@ -502,6 +512,8 @@ struct in_conninfo;
 
 struct tcptw {
 	struct inpcb	*tw_inpcb;	/* XXX back pointer to internet pcb */
+	uint32_t  t_port:16,		/* UDP port number if TCPoUDP */
+		t_unused:16;
 	tcp_seq		snd_nxt;
 	tcp_seq		rcv_nxt;
 	tcp_seq		iss;
@@ -678,7 +690,10 @@ struct	tcpstat {
 	uint64_t tcps_pmtud_blackhole_activated_min_mss; /* BH at min MSS Count */
 	uint64_t tcps_pmtud_blackhole_failed;		 /* Black Hole Failure Count */
 
-	uint64_t _pad[12];		/* 6 UTO, 6 TBD */
+	uint64_t tcps_tunneled_pkts;	/* Packets encap's in UDP received */
+	uint64_t tcps_tunneled_errs;	/* Packets that had errors that were UDP encaped */
+
+	uint64_t _pad[10];		/* 6 UTO, 6 TBD */
 };
 
 #define	tcps_rcvmemdrop	tcps_rcvreassfull	/* compat */
@@ -776,7 +791,9 @@ struct xtcpcb {
 	uint32_t	t_rcv_wnd;		/* (s) */
 	uint32_t	t_snd_wnd;		/* (s) */
 	uint32_t	xt_ecn;			/* (s) */
-	int32_t		spare32[26];
+	uint16_t	xt_encaps_port;		/* (s) */
+	int16_t		spare16;
+	int32_t		spare32[25];
 } __aligned(8);
 
 #ifdef _KERNEL
@@ -867,6 +884,8 @@ VNET_DECLARE(int, tcp_sack_globalmaxholes);
 VNET_DECLARE(int, tcp_sack_maxholes);
 VNET_DECLARE(int, tcp_sc_rst_sock_fail);
 VNET_DECLARE(int, tcp_sendspace);
+VNET_DECLARE(int, tcp_udp_tunneling_overhead);
+VNET_DECLARE(int, tcp_udp_tunneling_port);
 VNET_DECLARE(struct inpcbhead, tcb);
 VNET_DECLARE(struct inpcbinfo, tcbinfo);
 
@@ -929,6 +948,7 @@ void	 tcp_twstart(struct tcpcb *);
 void	 tcp_twclose(struct tcptw *, int);
 void	 tcp_ctlinput(int, struct sockaddr *, void *);
 int	 tcp_ctloutput(struct socket *, struct sockopt *);
+void 	 tcp_ctlinput_viaudp(int, struct sockaddr *, void *, void *);
 struct tcpcb *
 	 tcp_drop(struct tcpcb *, int);
 void	 tcp_drain(void);
@@ -963,6 +983,7 @@ void	hhook_run_tcp_est_in(struct tcpcb *tp,
 int	 tcp_input(struct mbuf **, int *, int);
 int	 tcp_autorcvbuf(struct mbuf *, struct tcphdr *, struct socket *,
 	    struct tcpcb *, int);
+int	 tcp_input_with_port(struct mbuf **, int *, int, uint16_t);
 void	 tcp_handle_wakeup(struct tcpcb *, struct socket *);
 void	 tcp_do_segment(struct mbuf *, struct tcphdr *,
 			struct socket *, struct tcpcb *, int, int, uint8_t);
@@ -1033,7 +1054,7 @@ void	 tcp_setpersist(struct tcpcb *);
 void	 tcp_slowtimo(void);
 struct tcptemp *
 	 tcpip_maketemplate(struct inpcb *);
-void	 tcpip_fillheaders(struct inpcb *, void *, void *);
+void	 tcpip_fillheaders(struct inpcb *, uint16_t, void *, void *);
 void	 tcp_timer_activate(struct tcpcb *, uint32_t, u_int);
 int	 tcp_timer_suspend(struct tcpcb *, uint32_t);
 void	 tcp_timers_unsuspend(struct tcpcb *, uint32_t);

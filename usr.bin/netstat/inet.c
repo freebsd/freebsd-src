@@ -664,6 +664,10 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:(for} {:received-ack-bytes/%ju} {N:/byte%s})\n");
 	p(tcps_rcvdupack, "\t\t{:received-duplicate-acks/%ju} "
 	    "{N:/duplicate ack%s}\n");
+	p(tcps_tunneled_pkts, "\t\t{:received-udp-tunneled-pkts/%ju} "
+	    "{N:/UDP tunneled pkt%s}\n");
+	p(tcps_tunneled_errs, "\t\t{:received-bad-udp-tunneled-pkts/%ju} "
+	    "{N:/UDP tunneled pkt cnt with error%s}\n");
 	p(tcps_rcvacktoomuch, "\t\t{:received-acks-for-unsent-data/%ju} "
 	    "{N:/ack%s for unsent data}\n");
 	p2(tcps_rcvpack, tcps_rcvbyte, "\t\t"
