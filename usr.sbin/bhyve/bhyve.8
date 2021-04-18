@@ -281,53 +281,53 @@ The
 .Ar emulation
 argument
 can be one of the following:
-.Bl -tag -width 10n
-.It Li hostbridge | Li amd_hostbridge
-.Pp
-Provide a simple host bridge.
+.Bl -tag -width "amd_hostbridge"
+.It Cm hostbridge
+A simple host bridge.
 This is usually configured at slot 0, and is required by most guest
 operating systems.
-The
-.Li amd_hostbridge
-emulation is identical but uses a PCI vendor ID of
-.Li AMD .
-.It Li passthru
+.It Cm amd_hostbridge
+Emulation identical to
+.Cm hostbridge
+using a PCI vendor ID of AMD.
+.It Cm passthru
 PCI pass-through device.
-.It Li virtio-net
+.It Cm virtio-net
 Virtio network interface.
-.It Li virtio-blk
+.It Cm virtio-blk
 Virtio block storage interface.
-.It Li virtio-scsi
+.It Cm virtio-scsi
 Virtio SCSI interface.
-.It Li virtio-9p
+.It Cm virtio-9p
 Virtio 9p (VirtFS) interface.
-.It Li virtio-rnd
+.It Cm virtio-rnd
 Virtio RNG interface.
-.It Li virtio-console
+.It Cm virtio-console
 Virtio console interface, which exposes multiple ports
 to the guest in the form of simple char devices for simple IO
 between the guest and host userspaces.
-.It Li ahci
+.It Cm ahci
 AHCI controller attached to arbitrary devices.
-.It Li ahci-cd
+.It Cm ahci-cd
 AHCI controller attached to an ATAPI CD/DVD.
-.It Li ahci-hd
-AHCI controller attached to a SATA hard-drive.
-.It Li e1000
+.It Cm ahci-hd
+AHCI controller attached to a SATA hard drive.
+.It Cm e1000
 Intel e82545 network interface.
-.It Li uart
+.It Cm uart
 PCI 16550 serial device.
-.It Li lpc
-LPC PCI-ISA bridge with COM1 and COM2 16550 serial ports, a boot ROM, and,
+.It Cm lpc
+LPC PCI-ISA bridge with COM1, COM2, COM3, and COM4 16550 serial ports,
+a boot ROM, and,
 optionally, the debug/test device.
 The LPC bridge emulation can only be configured on bus 0.
-.It Li fbuf
+.It Cm fbuf
 Raw framebuffer device attached to VNC server.
-.It Li xhci
+.It Cm xhci
 eXtensible Host Controller Interface (xHCI) USB controller.
-.It Li nvme
+.It Cm nvme
 NVM Express (NVMe) controller.
-.It Li hda
+.It Cm hda
 High Definition Audio Controller.
 .El
 .Pp
