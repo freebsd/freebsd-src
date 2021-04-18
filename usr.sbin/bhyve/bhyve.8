@@ -166,19 +166,24 @@ value.
 Blank lines and lines starting with
 .Sq #
 are ignored.
-.It Fl l Op Ar help|lpcdev Ns Op , Ns Ar conf
+.It Fl l Cm help
+Print a list of supported LPC devices.
+.It Fl l Ar lpcdev Ns Op Cm \&, Ns Ar conf
 Allow devices behind the LPC PCI-ISA bridge to be configured.
 The only supported devices are the TTY-class devices
-.Ar com1
-through
-.Ar com4 ,
+.Cm com1 , com2 , com3 ,
+and
+.Cm com4 ,
 the boot ROM device
-.Ar bootrom ,
+.Cm bootrom ,
 and the debug/test device
-.Ar pc-testdev .
+.Cm pc-testdev .
 .Pp
-.Ar help
-print a list of supported LPC devices.
+The possible values for the
+.Ar conf
+argument are listed in the
+.Fl s
+flag description.
 .It Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
 Guest physical memory size in bytes.
 This must be the same size that was given to
