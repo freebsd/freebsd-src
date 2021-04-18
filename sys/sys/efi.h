@@ -203,7 +203,7 @@ extern const struct efi_ops *active_efi_ops;
 static inline int efi_rt_ok(void)
 {
 
-	if(active_efi_ops->rt_ok == NULL)
+	if (active_efi_ops->rt_ok == NULL)
 		return (ENXIO);
 	return (active_efi_ops->rt_ok());
 }

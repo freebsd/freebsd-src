@@ -179,7 +179,7 @@ name##_SPLAY_INSERT(struct name *head, struct type *elm)		\
 	    int __comp;							\
 	    name##_SPLAY(head, elm);					\
 	    __comp = (cmp)(elm, (head)->sph_root);			\
-	    if(__comp < 0) {						\
+	    if (__comp < 0) {						\
 		    SPLAY_LEFT(elm, field) = SPLAY_LEFT((head)->sph_root, field);\
 		    SPLAY_RIGHT(elm, field) = (head)->sph_root;		\
 		    SPLAY_LEFT((head)->sph_root, field) = NULL;		\

@@ -73,7 +73,7 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 	 */
 	for (i = br->br_cons_head; i != br->br_prod_head;
 	     i = ((i + 1) & br->br_cons_mask))
-		if(br->br_ring[i] == buf)
+		if (br->br_ring[i] == buf)
 			panic("buf=%p already enqueue at %d prod=%d cons=%d",
 			    buf, i, br->br_prod_tail, br->br_cons_tail);
 #endif	

@@ -679,7 +679,7 @@ sysctl_ctx_entry_find(struct sysctl_ctx_list *clist, struct sysctl_oid *oidp)
 	if (clist == NULL || oidp == NULL)
 		return(NULL);
 	TAILQ_FOREACH(e, clist, link) {
-		if(e->entry == oidp)
+		if (e->entry == oidp)
 			return(e);
 	}
 	return (e);

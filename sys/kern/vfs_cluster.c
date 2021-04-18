@@ -371,7 +371,7 @@ cluster_rbuild(struct vnode *vp, u_quad_t filesize, daddr_t lbn,
 		tbp->b_iocmd = BIO_READ;
 	}
 	tbp->b_blkno = blkno;
-	if( (tbp->b_flags & B_MALLOC) ||
+	if ( (tbp->b_flags & B_MALLOC) ||
 		((tbp->b_flags & B_VMIO) == 0) || (run <= 1) )
 		return tbp;
 
