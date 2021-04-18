@@ -437,16 +437,19 @@ Disable emulation of guest trim requests via
 requests.
 .El
 .Pp
-SCSI devices:
-.Bl -tag -width 10n
-.It Pa /dev/cam/ctl Ns Oo Ar pp . Ns Ar vp Oc Ns Oo , Ns Ar scsi-device-options Oc
+SCSI device backends:
+.Sm off
+.Bl -bullet
+.It
+.Pa /dev/cam/ctl Oo Ar pp Cm \&. Ar vp Oc Oo Cm \&, Ar scsi-device-options Oc
 .El
+.Sm on
 .Pp
 The
 .Ar scsi-device-options
 are:
 .Bl -tag -width 10n
-.It Li iid= Ns Ar IID
+.It Cm iid= Ns Ar IID
 Initiator ID to use when sending requests to specified CTL port.
 The default value is 0.
 .El
