@@ -234,7 +234,7 @@ extern u_int kobj_lookup_misses;
 	} else							\
 		kobj_lookup_hits++;				\
 	_m = _ce->func;						\
-} while(0)
+} while (0)
 #else
 #define KOBJOPLOOKUP(OPS,OP) do {				\
 	kobjop_desc_t _desc = &OP##_##desc;			\
@@ -245,7 +245,7 @@ extern u_int kobj_lookup_misses;
 		_ce = kobj_lookup_method(OPS->cls,		\
 					 _cep, _desc);		\
 	_m = _ce->func;						\
-} while(0)
+} while (0)
 #endif
 
 kobj_method_t* kobj_lookup_method(kobj_class_t cls,
