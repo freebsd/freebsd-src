@@ -222,7 +222,7 @@ SYSCTL_UINT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
 		knote_enqueue((kn));					\
 	if (!(islock))							\
 		KQ_UNLOCK((kn)->kn_kq);					\
-} while(0)
+} while (0)
 #define KQ_LOCK(kq) do {						\
 	mtx_lock(&(kq)->kq_lock);					\
 } while (0)
@@ -312,7 +312,7 @@ kn_leave_flux(struct knote *kn)
 	knl->kl_assert_lock((knl)->kl_lockarg, LA_UNLOCKED);		\
 } while (0)
 #else /* !INVARIANTS */
-#define	KNL_ASSERT_LOCKED(knl) do {} while(0)
+#define	KNL_ASSERT_LOCKED(knl) do {} while (0)
 #define	KNL_ASSERT_UNLOCKED(knl) do {} while (0)
 #endif /* INVARIANTS */
 

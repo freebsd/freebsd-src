@@ -147,7 +147,7 @@ do {									\
 									\
 	if ((_el = eventhandler_find_list(#name)) != NULL)		\
 		eventhandler_deregister(_el, tag);			\
-} while(0)
+} while (0)
 
 #define EVENTHANDLER_DEREGISTER_NOWAIT(name, tag)			\
 do {									\
@@ -155,7 +155,7 @@ do {									\
 									\
 	if ((_el = eventhandler_find_list(#name)) != NULL)		\
 		eventhandler_deregister_nowait(_el, tag);		\
-} while(0)
+} while (0)
 
 eventhandler_tag eventhandler_register(struct eventhandler_list *list, 
 	    const char *name, void *func, void *arg, int priority);
