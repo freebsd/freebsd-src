@@ -1785,6 +1785,15 @@ sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 		sx_xlock(&sysctlstringlock);
 		((char *)arg1)[0] = '\0';
 		sx_xunlock(&sysctlstringlock);
+	} else if (req->newfunc == sysctl_new_kernel) {
+		arg2 = req->newlen - req->newidx;
+		sx_xlock(&sysctlstringlock);
+		error = SYSCTL_IN(req, arg1, arg2);
+		if (error == 0) {
+			((char *)arg1)[arg2] = '\0';
+			req->newidx += arg2;
+		}
+		sx_xunlock(&sysctlstringlock);
 	} else {
 		arg2 = req->newlen - req->newidx;
 		tmparg = malloc(arg2, M_SYSCTLTMP, M_WAITOK);
