@@ -509,9 +509,14 @@ The host device must have been reserved at boot-time using the
 loader variable as described in
 .Xr vmm 4 .
 .Pp
-Virtio console devices:
-.Bl -tag -width 10n
-.It Li port1= Ns Pa /path/to/port1.sock Ns ,anotherport= Ns Pa ...
+Virtio console device backends:
+.Bl -bullet
+.Sm off
+.It
+.Cm port1= Ns Ar /path/to/port1.sock Ns Op Cm ,port Ns Ar N Cm \&= Ns Ar /path/to/port2.sock No \~ Ar ...
+.Sm on
+.El
+.Pp
 A maximum of 16 ports per device can be created.
 Every port is named and corresponds to a Unix domain socket created by
 .Nm .
@@ -519,7 +524,7 @@ Every port is named and corresponds to a Unix domain socket created by
 accepts at most one connection per port at a time.
 .Pp
 Limitations:
-.Bl -bullet -offset 2n
+.Bl -bullet -offset
 .It
 Due to lack of destructors in
 .Nm ,
@@ -527,11 +532,12 @@ sockets on the filesystem must be cleaned up manually after
 .Nm
 exits.
 .It
-There is no way to use the "console port" feature, nor the console port
+There is no way to use the
+.Dq console port
+feature, nor the console port
 resize at present.
 .It
 Emergency write is advertised, but no-op at present.
-.El
 .El
 .Pp
 Framebuffer devices:
