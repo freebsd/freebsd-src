@@ -707,12 +707,21 @@ Revision Number with maximum 8 characters.
 Model Number with maximum 40 characters.
 .El
 .Pp
-HD Audio devices:
+HD Audio device backends:
+.Bl -bullet
+.It
+.Sm off
+.Op Cm play= Ar playback
+.Op Cm ,rec= Ar recording
+.Sm on
+.El
+.Pp
+Configuration options are defined as follows:
 .Bl -tag -width 10n
-.It Li play
+.It Cm play
 Playback device, typically
 .Ar /dev/dsp0 .
-.It Li rec
+.It Cm rec
 Recording device, typically
 .Ar /dev/dsp0 .
 .El
