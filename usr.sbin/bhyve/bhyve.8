@@ -184,18 +184,26 @@ The possible values for the
 argument are listed in the
 .Fl s
 flag description.
-.It Fl m Ar memsize Ns Op Ar K|k|M|m|G|g|T|t
-Guest physical memory size in bytes.
+.It Xo
+.Fl m Ar memsize Ns Oo
+.Sm off
+.Cm K | k | M | m | G | g | T | t
+.Sm on
+.Oc
+.Xc
+Set the guest physical memory size
 This must be the same size that was given to
 .Xr bhyveload 8 .
 .Pp
-The size argument may be suffixed with one of K, M, G or T (either upper
-or lower case) to indicate a multiple of kilobytes, megabytes, gigabytes,
-or terabytes.
+The size argument may be suffixed with one of
+.Cm K , M , G
+or
+.Cm T
+(either upper or lower case)
+to indicate a multiple of kilobytes, megabytes, gigabytes, or terabytes.
 If no suffix is given, the value is assumed to be in megabytes.
 .Pp
-.Ar memsize
-defaults to 256M.
+The default is 256M.
 .It Fl o Ar var Ns Cm = Ns Ar value
 Set the configuration variable
 .Ar var
