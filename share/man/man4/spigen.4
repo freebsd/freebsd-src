@@ -57,7 +57,7 @@ device is associated with a single chip-select
 line on the bus, and all I/O performed through that instance is done
 with that chip-select line asserted.
 .Pp
-SPI data transfers are inherently bi-directional; there are not separate
+SPI data transfers are inherently bi-directional; there are no separate
 read and write operations.
 When commands and data are sent to a device, data also comes back from
 the device, although in some cases the data may not be useful (or even
@@ -117,7 +117,7 @@ Set the maximum clock speed (bus frequency in Hertz) to be used
 when communicating with this slave device.
 The setting remains in effect for subsequent transfers; it
 is not necessary to reset this before each transfer.
-The actual bus frequency may be lower due to hardware limitiations
+The actual bus frequency may be lower due to hardware limitations
 of the SPI bus controller device.
 .It Dv SPIGENIOC_GET_SPI_MODE Pq Vt uint32_t
 Get the SPI mode (clock polarity and phase) to be used
