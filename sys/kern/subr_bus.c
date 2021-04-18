@@ -100,7 +100,7 @@ typedef TAILQ_HEAD(device_list, _device) device_list_t;
 struct devclass {
 	TAILQ_ENTRY(devclass) link;
 	devclass_t	parent;		/* parent in devclass hierarchy */
-	driver_list_t	drivers;     /* bus devclasses store drivers for bus */
+	driver_list_t	drivers;	/* bus devclasses store drivers for bus */
 	char		*name;
 	device_t	*devices;	/* array of devices indexed by unit */
 	int		maxunit;	/* size of devices array */
