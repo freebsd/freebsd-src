@@ -233,7 +233,9 @@ options.
 The count of vCPUs and memory configuration are read from the snapshot.
 .It Fl S
 Wire guest memory.
-.It Fl s Op Ar help|slot,emulation Ns Op , Ns Ar conf
+.It Fl s Cm help
+Print a list of supported PCI devices.
+.It Fl s Ar slot Ns Cm \&, Ns Ar emulation Ns Op Cm \&, Ns Ar conf
 Configure a virtual PCI slot and function.
 .Pp
 .Nm
@@ -242,8 +244,6 @@ slots on the bus.
 There are 32 available slots, with the option of providing up to 8 functions
 per slot.
 .Bl -tag -width 10n
-.It Ar help
-print a list of supported PCI devices.
 .It Ar slot
 .Ar pcislot[:function]
 .Ar bus:pcislot:function
