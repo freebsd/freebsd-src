@@ -56,7 +56,7 @@
 .Sm off
 .Ar memsize
 .Oo
-.Cm K No | Cm k No | Cm M No | Cm m No | Cm G No | Cm g No | Cm T No | Cm t
+.Cm K | Cm k | Cm M | Cm m | Cm G | Cm g | Cm T | Cm t
 .Oc
 .Sm on
 .Oc
@@ -339,8 +339,7 @@ If
 is not specified, the device emulation has no backend and can be
 considered unconnected.
 .Pp
-Network backends formats for
-.Ar conf :
+Network device backends:
 .Sm off
 .Bl -bullet
 .It
@@ -524,7 +523,7 @@ Every port is named and corresponds to a Unix domain socket created by
 accepts at most one connection per port at a time.
 .Pp
 Limitations:
-.Bl -bullet -offset
+.Bl -bullet
 .It
 Due to lack of destructors in
 .Nm ,
@@ -560,12 +559,12 @@ An IP address and a port VNC should listen on.
 There are two formats:
 .Pp
 .Bl -bullet -compact
-.It IPv4
+.It
 .Sm off
 .Op Ar IPv4 Cm \&:
 .Ar port
 .Sm on
-.It IPv6
+.It
 .Sm off
 .Cm \&[ Ar IPv6%zone Cm \&] Cm \&: Ar port
 .Sm on
