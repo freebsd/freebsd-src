@@ -491,7 +491,7 @@ static struct sackhole *
 tcp_sackhole_insert(struct tcpcb *tp, tcp_seq start, tcp_seq end,
     struct sackhole *after)
 {
-	struct sackhole *hole;
+	struct sackhole *hole, *tail;
 
 	/* Allocate a new SACK hole. */
 	hole = tcp_sackhole_alloc(tp, start, end);
@@ -502,7 +502,15 @@ tcp_sackhole_insert(struct tcpcb *tp, tcp_seq start, tcp_seq end,
 	if (after != NULL)
 		TAILQ_INSERT_AFTER(&tp->snd_holes, after, hole, scblink);
 	else
-		TAILQ_INSERT_TAIL(&tp->snd_holes, hole, scblink);
+		/*
+		 * With Rescue Retransmission, new holes may need to
+		 * be inserted just before the tail.
+		 */
+		if (((tail = TAILQ_LAST_FAST(&tp->snd_holes, sackhole,
+		    scblink)) != NULL) && SEQ_LEQ(end, tail->start))
+			TAILQ_INSERT_BEFORE(tail, hole, scblink);
+		else
+			TAILQ_INSERT_TAIL(&tp->snd_holes, hole, scblink);
 
 	/* Update SACK hint. */
 	if (tp->sackhint.nexthole == NULL)
