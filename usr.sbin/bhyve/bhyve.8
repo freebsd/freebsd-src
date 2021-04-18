@@ -243,10 +243,23 @@ provides PCI bus emulation and virtual devices that can be attached to
 slots on the bus.
 There are 32 available slots, with the option of providing up to 8 functions
 per slot.
-.Bl -tag -width 10n
-.It Ar slot
-.Ar pcislot[:function]
-.Ar bus:pcislot:function
+.Pp
+The
+.Ar slot
+can be specified in one of the following formats:
+.Pp
+.Bl -bullet -compact
+.It
+.Ar pcislot
+.It
+.Sm off
+.Ar pcislot Cm \&: Ar function
+.Sm on
+.It
+.Sm off
+.Ar bus Cm \&: Ar pcislot Cm \&: Ar function
+.Sm on
+.El
 .Pp
 The
 .Ar pcislot
@@ -263,7 +276,11 @@ value defaults to 0.
 If not specified, the
 .Ar bus
 value defaults to 0.
-.It Ar emulation
+.Pp
+The
+.Ar emulation
+argument
+can be one of the following:
 .Bl -tag -width 10n
 .It Li hostbridge | Li amd_hostbridge
 .Pp
@@ -313,8 +330,10 @@ NVM Express (NVMe) controller.
 .It Li hda
 High Definition Audio Controller.
 .El
-.It Op Ar conf
-This optional parameter describes the backend for device emulations.
+.Pp
+The optional parameter
+.Ar conf
+describes the backend for device emulations.
 If
 .Ar conf
 is not specified, the device emulation has no backend and can be
