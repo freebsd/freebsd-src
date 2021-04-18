@@ -681,15 +681,29 @@ and
 .Cm disable .
 .El
 .Pp
-AHCI devices:
+AHCI device backends:
+.Bl -bullet
+.It
+.Sm off
+.Op Oo Cm hd\&: | cd\&: Oc Ar path
+.Op Cm ,nmrr= Ar nmrr
+.Op Cm ,ser= Ar #
+.Op Cm ,rev= Ar #
+.Op Cm ,model= Ar #
+.Sm on
+.El
+.Pp
+Configuration options are defined as follows:
 .Bl -tag -width 10n
-.It Li nmrr
-Nominal Media Rotation Rate, known as RPM. value 1 will indicate device as Solid State Disk. default value is 0, not report.
-.It Li ser
+.It Cm nmrr
+Nominal Media Rotation Rate, known as RPM.
+Value 1 will indicate device as Solid State Disk.
+Default value is 0, not report.
+.It Cm ser
 Serial Number with maximum 20 characters.
-.It Li rev
+.It Cm rev
 Revision Number with maximum 8 characters.
-.It Li model
+.It Cm model
 Model Number with maximum 40 characters.
 .El
 .Pp
