@@ -454,16 +454,19 @@ Initiator ID to use when sending requests to specified CTL port.
 The default value is 0.
 .El
 .Pp
-9P devices:
-.Bl -tag -width 10n
-.It Pa sharename=/path/to/share[,9p-device-options]
+9P device backends:
+.Sm off
+.Bl -bullet
+.It
+.Ar sharename Cm = Ar /path/to/share Op Cm \&, Ar 9p-device-options
 .El
+.Sm on
 .Pp
 The
 .Ar 9p-device-options
 are:
 .Bl -tag -width 10n
-.It Li ro
+.It Cm ro
 Expose the share in read-only mode.
 .El
 .Pp
