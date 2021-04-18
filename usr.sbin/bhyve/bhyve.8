@@ -93,15 +93,15 @@ runs until the guest operating system reboots or an unhandled hypervisor
 exit is detected.
 .Sh OPTIONS
 .Bl -tag -width 10n
-.It Fl a
-The guest's local APIC is configured in xAPIC mode.
-The xAPIC mode is the default setting so this option is redundant.
-It will be deprecated in a future version.
 .It Fl A
 Generate ACPI tables.
 Required for
 .Fx Ns /amd64
 guests.
+.It Fl a
+The guest's local APIC is configured in xAPIC mode.
+The xAPIC mode is the default setting so this option is redundant.
+It will be deprecated in a future version.
 .It Fl b
 Enable a low-level console device supported by
 .Fx
@@ -109,6 +109,8 @@ kernels compiled with
 .Cd "device bvmconsole" .
 This option is deprecated and will be removed in
 .Fx 13.0 .
+.It Fl C
+Include guest memory in core file.
 .It Fl c Op Ar setting ...
 Number of guest virtual CPUs
 and/or the CPU topology.
@@ -133,8 +135,6 @@ and
 If a
 .Ar setting
 is specified more than once the last one has precedence.
-.It Fl C
-Include guest memory in core file.
 .It Fl D
 Destroy the VM on guest initiated power-off.
 .It Fl e
@@ -142,15 +142,6 @@ Force
 .Nm
 to exit when a guest issues an access to an I/O port that is not emulated.
 This is intended for debug purposes.
-.It Fl g Ar gdbport
-For
-.Fx
-kernels compiled with
-.Cd "device bvmdebug" ,
-allow a remote kernel kgdb to be relayed to the guest kernel gdb stub
-via a local IPv4 address and this port.
-This option is deprecated and will be removed in
-.Fx 13.0 .
 .It Fl G Ar port
 Start a debug server that uses the GDB protocol to export guest state to a
 debugger.
@@ -164,11 +155,31 @@ begins with
 .Sq w ,
 .Nm
 will pause execution at the first instruction waiting for a debugger to attach.
-.It Fl h
-Print help message and exit.
+.It Fl g Ar gdbport
+For
+.Fx
+kernels compiled with
+.Cd "device bvmdebug" ,
+allow a remote kernel kgdb to be relayed to the guest kernel gdb stub
+via a local IPv4 address and this port.
+This option is deprecated and will be removed in
+.Fx 13.0 .
 .It Fl H
 Yield the virtual CPU thread when a HLT instruction is detected.
 If this option is not specified, virtual CPUs will use 100% of a host CPU.
+.It Fl h
+Print help message and exit.
+.It Fl k Ar file
+Set configuration variables from a simple, key-value config file.
+Each line of the config file is expected to consist of a config variable
+name, an equals sign
+.Pq Sq = ,
+and a value.
+No spaces are permitted between the variable name, equals sign, or
+value.
+Blank lines and lines starting with
+.Sq #
+are ignored.
 .It Fl l Op Ar help|lpcdev Ns Op , Ns Ar conf
 Allow devices behind the LPC PCI-ISA bridge to be configured.
 The only supported devices are the TTY-class devices
@@ -194,6 +205,13 @@ If no suffix is given, the value is assumed to be in megabytes.
 .Pp
 .Ar memsize
 defaults to 256M.
+.It Fl o Ar var Ns Cm = Ns Ar value
+Set the configuration variable
+.Ar var
+to
+.Ar value .
+.It Fl P
+Force the guest virtual CPU to exit when a PAUSE instruction is detected.
 .It Fl p Ar vcpu:hostcpu
 Pin guest's virtual CPU
 .Em vcpu
@@ -201,6 +219,8 @@ to
 .Em hostcpu .
 .It Fl P
 Force the guest virtual CPU to exit when a PAUSE instruction is detected.
+.It Fl S
+Wire guest memory.
 .It Fl s Op Ar help|slot,emulation Ns Op , Ns Ar conf
 Configure a virtual PCI slot and function.
 .Pp
@@ -525,22 +545,21 @@ Playback device, typically
 Recording device, typically
 .Ar /dev/dsp0 .
 .El
-.It Fl S
-Wire guest memory.
-.It Fl u
-RTC keeps UTC time.
+.El
 .It Fl U Ar uuid
 Set the universally unique identifier
 .Pq UUID
 in the guest's System Management BIOS System Information structure.
 By default a UUID is generated from the host's hostname and
 .Ar vmname .
-.It Fl w
-Ignore accesses to unimplemented Model Specific Registers (MSRs).
-This is intended for debug purposes.
+.It Fl u
+RTC keeps UTC time.
 .It Fl W
 Force virtio PCI device emulations to use MSI interrupts instead of MSI-X
 interrupts.
+.It Fl w
+Ignore accesses to unimplemented Model Specific Registers (MSRs).
+This is intended for debug purposes.
 .It Fl x
 The guest's local APIC is configured in x2APIC mode.
 .It Fl Y
