@@ -630,32 +630,55 @@ Many implementations will want to use stronger security, such as running
 the session over an encrypted channel provided by IPsec or SSH.
 .El
 .Pp
-xHCI USB devices:
+xHCI USB device backends:
 .Bl -tag -width 10n
-.It Li tablet
+.It Cm tablet
 A USB tablet device which provides precise cursor synchronization
 when using VNC.
 .El
 .Pp
-NVMe devices:
+NVMe device backends:
+.Bl -bullet
+.Sm off
+.It
+.Ar devpath
+.Op Cm ,maxq= Ar #
+.Op Cm ,qsz= Ar #
+.Op Cm ,ioslots= Ar #
+.Op Cm ,sectsz= Ar #
+.Op Cm ,ser= Ar #
+.Op Cm ,eui64= Ar #
+.Op Cm ,dsm= Ar opt
+.Sm on
+.El
+.Pp
+Configuration options are defined as follows:
 .Bl -tag -width 10n
-.It Li devpath
+.It Ar devpath
 Accepted device paths are:
 .Ar /dev/blockdev
 or
 .Ar /path/to/image
 or
-.Ar ram=size_in_MiB .
-.It Li maxq
+.Cm ram= Ns Ar size_in_MiB .
+.It Cm maxq
 Max number of queues.
-.It Li qsz
+.It Cm qsz
 Max elements in each queue.
-.It Li ioslots
+.It Cm ioslots
 Max number of concurrent I/O requests.
-.It Li sectsz
+.It Cm sectsz
 Sector size (defaults to blockif sector size).
-.It Li ser
+.It Cm ser
 Serial number with maximum 20 characters.
+.It Cm eui64
+IEEE Extended Unique Identifier (8 byte value).
+.It Cm dsm
+DataSet Management support.
+Supported values are:
+.Cm auto , enable ,
+and
+.Cm disable .
 .El
 .Pp
 AHCI devices:
