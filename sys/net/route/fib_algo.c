@@ -1561,6 +1561,17 @@ replace_rtables_family(struct fib_dp **pdp, struct fib_data *fd, struct fib_dp *
 	FIB_MOD_LOCK();
 	old_fdh = get_fib_dp_header(*pdp);
 
+	if (old_fdh->fdh_idx[fd->fd_fibnum].f == dp->f) {
+		/*
+		 * Function is the same, data pointer needs update.
+		 * Perform in-line replace without reallocation.
+		 */
+		old_fdh->fdh_idx[fd->fd_fibnum].arg = dp->arg;
+		FD_PRINTF(LOG_DEBUG, fd, "FDH %p inline update", old_fdh);
+		FIB_MOD_UNLOCK();
+		return (true);
+	}
+
 	new_fdh = alloc_fib_dp_array(old_fdh->fdh_num_tables, false);
 	FD_PRINTF(LOG_DEBUG, fd, "OLD FDH: %p NEW FDH: %p", old_fdh, new_fdh);
 	if (new_fdh == NULL) {
