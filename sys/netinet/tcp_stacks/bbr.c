@@ -11969,14 +11969,10 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 #endif
 	struct tcp_bbr *bbr;
 	struct tcphdr *th;
-#ifdef NETFLIX_TCPOUDP
 	struct udphdr *udp = NULL;
-#endif
 	u_char opt[TCP_MAXOLEN];
 	unsigned ipoptlen, optlen, hdrlen;
-#ifdef NETFLIX_TCPOUDP
 	unsigned ulen;
-#endif
 	uint32_t bbr_seq;
 	uint32_t delay_calc=0;
 	uint8_t doing_tlp = 0;
@@ -12991,10 +12987,8 @@ send:
 		/* Maximum segment size. */
 		if (flags & TH_SYN) {
 			to.to_mss = tcp_mssopt(&inp->inp_inc);
-#ifdef NETFLIX_TCPOUDP
 			if (tp->t_port)
 				to.to_mss -= V_tcp_udp_tunneling_overhead;
-#endif
 			to.to_flags |= TOF_MSS;
 			/*
 			 * On SYN or SYN|ACK transmits on TFO connections,
@@ -13063,7 +13057,6 @@ send:
 		    !(to.to_flags & TOF_FASTOPEN))
 			len = 0;
 	}
-#ifdef NETFLIX_TCPOUDP
 	if (tp->t_port) {
 		if (V_tcp_udp_tunneling_port == 0) {
 			/* The port was removed?? */
@@ -13072,7 +13065,6 @@ send:
 		}
 		hdrlen += sizeof(struct udphdr);
 	}
-#endif
 #ifdef INET6
 	if (isipv6)
 		ipoptlen = ip6_optlen(tp->t_inpcb);
@@ -13408,7 +13400,6 @@ send:
 #ifdef INET6
 	if (isipv6) {
 		ip6 = mtod(m, struct ip6_hdr *);
-#ifdef NETFLIX_TCPOUDP
 		if (tp->t_port) {
 			udp = (struct udphdr *)((caddr_t)ip6 + ipoptlen + sizeof(struct ip6_hdr));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
@@ -13417,17 +13408,9 @@ send:
 			udp->uh_ulen = htons(ulen);
 			th = (struct tcphdr *)(udp + 1);
 		} else {
-#endif
 			th = (struct tcphdr *)(ip6 + 1);
-
-#ifdef NETFLIX_TCPOUDP
 		}
-#endif
-		tcpip_fillheaders(inp,
-#ifdef NETFLIX_TCPOUDP
-				  tp->t_port,
-#endif
-				  ip6, th);
+		tcpip_fillheaders(inp, tp->t_port, ip6, th);
 	} else
 #endif				/* INET6 */
 	{
@@ -13435,7 +13418,6 @@ send:
 #ifdef TCPDEBUG
 		ipov = (struct ipovly *)ip;
 #endif
-#ifdef NETFLIX_TCPOUDP
 		if (tp->t_port) {
 			udp = (struct udphdr *)((caddr_t)ip + ipoptlen + sizeof(struct ip));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
@@ -13443,14 +13425,10 @@ send:
 			ulen = hdrlen + len - sizeof(struct ip);
 			udp->uh_ulen = htons(ulen);
 			th = (struct tcphdr *)(udp + 1);
-		} else
-#endif
+		} else {
 			th = (struct tcphdr *)(ip + 1);
-		tcpip_fillheaders(inp,
-#ifdef NETFLIX_TCPOUDP
-				  tp->t_port,
-#endif
-				  ip, th);
+		}
+		tcpip_fillheaders(inp, tp->t_port, ip, th);
 	}
 	/*
 	 * If we are doing retransmissions, then snd_nxt will not reflect
@@ -13600,7 +13578,6 @@ send:
 		 * ip6_plen is not need to be filled now, and will be filled
 		 * in ip6_output.
 		 */
-#ifdef NETFLIX_TCPOUDP
 		if (tp->t_port) {
 			m->m_pkthdr.csum_flags = CSUM_UDP_IPV6;
 			m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
@@ -13608,14 +13585,11 @@ send:
 			th->th_sum = htons(0);
 			UDPSTAT_INC(udps_opackets);
 		} else {
-#endif
 			csum_flags = m->m_pkthdr.csum_flags = CSUM_TCP_IPV6;
 			m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 			th->th_sum = in6_cksum_pseudo(ip6, sizeof(struct tcphdr) +
 			    optlen + len, IPPROTO_TCP, 0);
-#ifdef NETFLIX_TCPOUDP
 		}
-#endif
 	}
 #endif
 #if defined(INET6) && defined(INET)
@@ -13623,7 +13597,6 @@ send:
 #endif
 #ifdef INET
 	{
-#ifdef NETFLIX_TCPOUDP
 		if (tp->t_port) {
 			m->m_pkthdr.csum_flags = CSUM_UDP;
 			m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
@@ -13632,15 +13605,12 @@ send:
 			th->th_sum = htons(0);
 			UDPSTAT_INC(udps_opackets);
 		} else {
-#endif
 			csum_flags = m->m_pkthdr.csum_flags = CSUM_TCP;
 			m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 			th->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(sizeof(struct tcphdr) +
 			    IPPROTO_TCP + len + optlen));
-#ifdef NETFLIX_TCPOUDP
 		}
-#endif
 		/* IP version must be set here for ipv4/ipv6 checking later */
 		KASSERT(ip->ip_v == IPVERSION,
 		    ("%s: IP version incorrect: %d", __func__, ip->ip_v));

@@ -2049,6 +2049,31 @@ unlock_and_done:
 			}
 			goto unlock_and_done;
 
+		case TCP_REMOTE_UDP_ENCAPS_PORT:
+			INP_WUNLOCK(inp);
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+			    sizeof optval);
+			if (error)
+				return (error);
+			if ((optval < TCP_TUNNELING_PORT_MIN) ||
+			    (optval > TCP_TUNNELING_PORT_MAX)) {
+				/* Its got to be in range */
+				return (EINVAL);
+			}
+			if ((V_tcp_udp_tunneling_port == 0) && (optval != 0)) {
+				/* You have to have enabled a UDP tunneling port first */
+				return (EINVAL);
+			}
+			INP_WLOCK_RECHECK(inp);
+			if (tp->t_state != TCPS_CLOSED) {
+				/* You can't change after you are connected */
+				error = EINVAL;
+			} else {
+				/* Ok we are all good set the port */
+				tp->t_port = htons(optval);
+			}
+			goto unlock_and_done;
+
 		case TCP_MAXSEG:
 			INP_WUNLOCK(inp);
 			error = sooptcopyin(sopt, &optval, sizeof optval,
@@ -2385,6 +2410,11 @@ unlock_and_done:
 			break;
 		case TCP_MAXSEG:
 			optval = tp->t_maxseg;
+			INP_WUNLOCK(inp);
+			error = sooptcopyout(sopt, &optval, sizeof optval);
+			break;
+		case TCP_REMOTE_UDP_ENCAPS_PORT:
+			optval = ntohs(tp->t_port);
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;

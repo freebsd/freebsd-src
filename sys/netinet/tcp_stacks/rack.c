@@ -13008,10 +13008,8 @@ send:
 		if (flags & TH_SYN) {
 			tp->snd_nxt = tp->iss;
 			to.to_mss = tcp_mssopt(&inp->inp_inc);
-#ifdef NETFLIX_TCPOUDP
 			if (tp->t_port)
 				to.to_mss -= V_tcp_udp_tunneling_overhead;
-#endif
 			to.to_flags |= TOF_MSS;
 
 			/*
@@ -13088,7 +13086,6 @@ send:
 		    !(to.to_flags & TOF_FASTOPEN))
 			len = 0;
 	}
-#ifdef NETFLIX_TCPOUDP
 	if (tp->t_port) {
 		if (V_tcp_udp_tunneling_port == 0) {
 			/* The port was removed?? */
@@ -13097,7 +13094,6 @@ send:
 		}
 		hdrlen += sizeof(struct udphdr);
 	}
-#endif
 #ifdef INET6
 	if (isipv6)
 		ipoptlen = ip6_optlen(tp->t_inpcb);
@@ -13372,7 +13368,6 @@ send:
 #ifdef INET6
 	if (isipv6) {
 		ip6 = mtod(m, struct ip6_hdr *);
-#ifdef NETFLIX_TCPOUDP
 		if (tp->t_port) {
 			udp = (struct udphdr *)((caddr_t)ip6 + ipoptlen + sizeof(struct ip6_hdr));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
@@ -13380,14 +13375,10 @@ send:
 			ulen = hdrlen + len - sizeof(struct ip6_hdr);
 			udp->uh_ulen = htons(ulen);
 			th = (struct tcphdr *)(udp + 1);
-		} else
-#endif
+		} else {
 			th = (struct tcphdr *)(ip6 + 1);
-		tcpip_fillheaders(inp,
-#ifdef NETFLIX_TCPOUDP
-				  tp->t_port,
-#endif
-				  ip6, th);
+		}
+		tcpip_fillheaders(inp, tp->t_port, ip6, th);
 	} else
 #endif				/* INET6 */
 	{
@@ -13395,7 +13386,6 @@ send:
 #ifdef TCPDEBUG
 		ipov = (struct ipovly *)ip;
 #endif
-#ifdef NETFLIX_TCPOUDP
 		if (tp->t_port) {
 			udp = (struct udphdr *)((caddr_t)ip + ipoptlen + sizeof(struct ip));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
@@ -13403,14 +13393,10 @@ send:
 			ulen = hdrlen + len - sizeof(struct ip);
 			udp->uh_ulen = htons(ulen);
 			th = (struct tcphdr *)(udp + 1);
-		} else
-#endif
+		} else {
 			th = (struct tcphdr *)(ip + 1);
-		tcpip_fillheaders(inp,
-#ifdef NETFLIX_TCPOUDP
-				  tp->t_port,
-#endif
-				  ip, th);
+		}
+		tcpip_fillheaders(inp, tp->t_port, ip, th);
 	}
 	/*
 	 * Fill in fields, remembering maximum advertised window for use in

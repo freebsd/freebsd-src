@@ -352,7 +352,7 @@ toe_syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	INP_RLOCK_ASSERT(inp);
 
 	(void )syncache_add(inc, to, th, inp, inp->inp_socket, NULL, tod,
-	    todctx, iptos);
+	    todctx, iptos, htons(0));
 }
 
 int
@@ -362,7 +362,7 @@ toe_syncache_expand(struct in_conninfo *inc, struct tcpopt *to,
 
 	NET_EPOCH_ASSERT();
 
-	return (syncache_expand(inc, to, th, lsop, NULL));
+	return (syncache_expand(inc, to, th, lsop, NULL, htons(0)));
 }
 
 /*

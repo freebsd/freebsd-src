@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd April 17, 2021
+.Dd April 18, 2021
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -329,6 +329,9 @@ currently executing.
 This is typically used after a process or thread inherits a listen
 socket from its parent, and sets its CPU affinity to a particular core.
 .El
+.It Dv TCP_REMOTE_UDP_ENCAPS_PORT
+Set and get the remote UDP encapsulation port.
+It can only be set on a closed TCP socket.
 .El
 .Pp
 The option level for the
@@ -755,6 +758,16 @@ A CSV list of template_spec=percent key-value pairs which controls the per
 template sampling rates when
 .Xr stats 3
 sampling is enabled.
+.It Va udp_tunneling_port
+The local UDP encapsulation port.
+A value of 0 indicates that UDP encapsulation is disabled.
+The default is 0.
+.It Va udp_tunneling_overhead
+The overhead taken into account when using UDP encapsulation.
+Since MSS clamping by middleboxes will most likely not work, values larger than
+8 (the size of the UDP header) are also supported.
+Supported values are between 8 and 1024.
+The default is 8.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
