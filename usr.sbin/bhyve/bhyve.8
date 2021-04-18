@@ -470,28 +470,28 @@ are:
 Expose the share in read-only mode.
 .El
 .Pp
-TTY devices:
+TTY device backends:
 .Bl -tag -width 10n
-.It Li stdio
+.It Cm stdio
 Connect the serial port to the standard input and output of
 the
 .Nm
 process.
-.It Pa /dev/xxx
+.It Ar /dev/xxx
 Use the host TTY device for serial port I/O.
 .El
 .Pp
-Boot ROM device:
+Boot ROM device backends:
 .Bl -tag -width 10n
-.It Pa romfile
+.It Ar romfile
 Map
 .Ar romfile
 in the guest address space reserved for boot firmware.
 .El
 .Pp
-Pass-through devices:
+Pass-through device backends:
 .Bl -tag -width 10n
-.It Ns Ar slot Ns / Ns Ar bus Ns / Ns Ar function
+.It Ns Ar slot Ns Cm \&/ Ns Ar bus Ns Cm \&/ Ns Ar function
 Connect to a PCI device on the host at the selector described by
 .Ar slot ,
 .Ar bus ,
