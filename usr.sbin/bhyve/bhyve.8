@@ -336,21 +336,31 @@ If
 is not specified, the device emulation has no backend and can be
 considered unconnected.
 .Pp
-Network devices:
-.Bl -tag -width 10n
-.It Ar tapN Ns Op , Ns Ar mac=xx:xx:xx:xx:xx:xx
-.It Ar vmnetN Ns Op , Ns Ar mac=xx:xx:xx:xx:xx:xx
-.Pp
-If
-.Ar mac
-is not specified, the MAC address is derived from a fixed OUI and the
-remaining bytes from an MD5 hash of the slot and function numbers and
-the device name.
-.Pp
-The MAC address is an ASCII string in
-.Xr ethers 5
-format.
+Network backends formats for
+.Ar conf :
+.Sm off
+.Bl -bullet
+.It
+.Xo
+.Cm tap Ar N
+.Op Cm \&,mac= Ar xx:xx:xx:xx:xx:xx
+.Op Cm \&,mtu= Ar N
+.Xc
+.It
+.Xo
+.Cm vmnet Ar N
+.Op Cm \&,mac= Ar xx:xx:xx:xx:xx:xx
+.Op Cm \&,mtu= Ar N
+.Xc
 .El
+.Sm on
+.Pp
+With
+.Cm virtio-net
+devices, the
+.Cm mtu
+parameter can be specified to inform the guest about the largest MTU
+that should be allowed, expressed in bytes.
 .Pp
 Block storage devices:
 .Bl -tag -width 10n
