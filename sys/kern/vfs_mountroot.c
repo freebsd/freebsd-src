@@ -1138,8 +1138,7 @@ parse_mountroot_options(struct mntarg *ma, const char *options)
 			*val = '\0';
 			++val;
 		}
-		if( strcmp(name, "rw") == 0 ||
-		    strcmp(name, "noro") == 0) {
+		if (strcmp(name, "rw") == 0 || strcmp(name, "noro") == 0) {
 			/*
 			 * The first time we mount the root file system,
 			 * we need to mount 'ro', so We need to ignore

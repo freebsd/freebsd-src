@@ -61,7 +61,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 		return (ENXIO);
 
 	/* XXX: sanity check */
-	if(dev->si_iosize_max < PAGE_SIZE) {
+	if (dev->si_iosize_max < PAGE_SIZE) {
 		printf("WARNING: %s si_iosize_max=%d, using DFLTPHYS.\n",
 		    devtoname(dev), dev->si_iosize_max);
 		dev->si_iosize_max = DFLTPHYS;
