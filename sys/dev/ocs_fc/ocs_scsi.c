@@ -201,6 +201,7 @@ ocs_scsi_io_alloc(ocs_node_t *node, ocs_scsi_io_role_e role)
 
 		if (io->hio != NULL) {
 			ocs_log_err(node->ocs, "assertion failed: io->hio is not NULL\n");
+			ocs_io_free(ocs, io);
 			ocs_unlock(&node->active_ios_lock);
 			return NULL;
 		}
