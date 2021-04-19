@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* File created from flex.skl via mkskel.sh */
 
 #include "flexdef.h"
@@ -448,11 +447,7 @@ const char *skel[] = {
   "/* First, we deal with  platform-specific or compiler-specific issues. */",
   "",
   "#if defined(__FreeBSD__)",
-  "#ifndef __STDC_LIMIT_MACROS",
-  "#define	__STDC_LIMIT_MACROS",
-  "#endif",
   "#include <sys/cdefs.h>",
-  "#include <stdint.h>",
   "#else",
   "#define	__dead2",
   "#endif",
@@ -2301,7 +2296,11 @@ const char *skel[] = {
   "				case EOB_ACT_END_OF_FILE:",
   "					{",
   "					if ( yywrap( M4_YY_CALL_ONLY_ARG ) )",
+  "#ifdef YY_FLEX_LEX_COMPAT",
   "						return 0;",
+  "#else",
+  "						return EOF;",
+  "#endif",
   "",
   "					if ( ! YY_G(yy_did_buffer_switch_on_eof) )",
   "						YY_NEW_FILE;",

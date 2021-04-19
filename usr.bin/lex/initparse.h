@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 #define CHAR 257
 #define NUMBER 258
 #define SECTEND 259
