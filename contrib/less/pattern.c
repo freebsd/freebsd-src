@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -145,9 +145,10 @@ compile_pattern2(pattern, search_type, comp_pattern, show_error)
  * Like compile_pattern2, but convert the pattern to lowercase if necessary.
  */
 	public int
-compile_pattern(pattern, search_type, comp_pattern)
+compile_pattern(pattern, search_type, show_error, comp_pattern)
 	char *pattern;
 	int search_type;
+	int show_error;
 	PATTERN_TYPE *comp_pattern;
 {
 	char *cvt_pattern;
@@ -160,7 +161,7 @@ compile_pattern(pattern, search_type, comp_pattern)
 		cvt_pattern = (char*) ecalloc(1, cvt_length(strlen(pattern), CVT_TO_LC));
 		cvt_text(cvt_pattern, pattern, (int *)NULL, (int *)NULL, CVT_TO_LC);
 	}
-	result = compile_pattern2(cvt_pattern, search_type, comp_pattern, 1);
+	result = compile_pattern2(cvt_pattern, search_type, comp_pattern, show_error);
 	if (cvt_pattern != pattern)
 		free(cvt_pattern);
 	return (result);
@@ -214,6 +215,7 @@ uncompile_pattern(pattern)
 #endif
 }
 
+#if 0
 /*
  * Can a pattern be successfully compiled?
  */
@@ -224,13 +226,14 @@ valid_pattern(pattern)
 	PATTERN_TYPE comp_pattern;
 	int result;
 
-	CLEAR_PATTERN(comp_pattern);
+	SET_NULL_PATTERN(comp_pattern);
 	result = compile_pattern2(pattern, 0, &comp_pattern, 0);
 	if (result != 0)
 		return (0);
 	uncompile_pattern(&comp_pattern);
 	return (1);
 }
+#endif
 
 /*
  * Is a compiled pattern null?

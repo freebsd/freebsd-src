@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -18,52 +18,56 @@
 /*
  * Variables controlled by command line options.
  */
-public int quiet;		/* Should we suppress the audible bell? */
-public int how_search;		/* Where should forward searches start? */
-public int top_scroll;		/* Repaint screen from top?
-				   (alternative is scroll from bottom) */
-public int pr_type;		/* Type of prompt (short, medium, long) */
-public int bs_mode;		/* How to process backspaces */
-public int know_dumb;		/* Don't complain about dumb terminals */
-public int quit_at_eof;		/* Quit after hitting end of file twice */
-public int quit_if_one_screen;	/* Quit if EOF on first screen */
-public int squeeze;		/* Squeeze multiple blank lines into one */
-public int tabstop;		/* Tab settings */
-public int back_scroll;		/* Repaint screen on backwards movement */
-public int forw_scroll;		/* Repaint screen on forward movement */
-public int caseless;		/* Do "caseless" searches */
-public int linenums;		/* Use line numbers */
-public int autobuf;		/* Automatically allocate buffers as needed */
-public int bufspace;		/* Max buffer space per file (K) */
-public int ctldisp;		/* Send control chars to screen untranslated */
-public int force_open;		/* Open the file even if not regular file */
-public int swindow;		/* Size of scrolling window */
-public int jump_sline;		/* Screen line of "jump target" */
+public int quiet;               /* Should we suppress the audible bell? */
+public int how_search;          /* Where should forward searches start? */
+public int top_scroll;          /* Repaint screen from top?
+                                   (alternative is scroll from bottom) */
+public int pr_type;             /* Type of prompt (short, medium, long) */
+public int bs_mode;             /* How to process backspaces */
+public int know_dumb;           /* Don't complain about dumb terminals */
+public int quit_at_eof;         /* Quit after hitting end of file twice */
+public int quit_if_one_screen;  /* Quit if EOF on first screen */
+public int squeeze;             /* Squeeze multiple blank lines into one */
+public int tabstop;             /* Tab settings */
+public int back_scroll;         /* Repaint screen on backwards movement */
+public int forw_scroll;         /* Repaint screen on forward movement */
+public int caseless;            /* Do "caseless" searches */
+public int linenums;            /* Use line numbers */
+public int autobuf;             /* Automatically allocate buffers as needed */
+public int bufspace;            /* Max buffer space per file (K) */
+public int ctldisp;             /* Send control chars to screen untranslated */
+public int force_open;          /* Open the file even if not regular file */
+public int swindow;             /* Size of scrolling window */
+public int jump_sline;          /* Screen line of "jump target" */
 public long jump_sline_fraction = -1;
 public long shift_count_fraction = -1;
-public int chopline;		/* Truncate displayed lines at screen width */
-public int no_init;		/* Disable sending ti/te termcap strings */
-public int no_keypad;		/* Disable sending ks/ke termcap strings */
+public int chopline;            /* Truncate displayed lines at screen width */
+public int no_init;             /* Disable sending ti/te termcap strings */
+public int no_keypad;           /* Disable sending ks/ke termcap strings */
 public int twiddle;             /* Show tildes after EOF */
-public int show_attn;		/* Hilite first unread line */
-public int shift_count;		/* Number of positions to shift horizontally */
-public int status_col;		/* Display a status column */
-public int use_lessopen;	/* Use the LESSOPEN filter */
-public int quit_on_intr;	/* Quit on interrupt */
-public int follow_mode;		/* F cmd Follows file desc or file name? */
-public int oldbot;		/* Old bottom of screen behavior {{REMOVE}} */
-public int opt_use_backslash;	/* Use backslash escaping in option parsing */
-public char rscroll_char;	/* Char which marks chopped lines with -S */
-public int rscroll_attr;	/* Attribute of rscroll_char */
-public int no_hist_dups;	/* Remove dups from history list */
-public int mousecap;		/* Allow mouse for scrolling */
-public int wheel_lines;		/* Number of lines to scroll on mouse wheel scroll */
-public int perma_marks;		/* Save marks in history file */
+public int show_attn;           /* Hilite first unread line */
+public int shift_count;         /* Number of positions to shift horizontally */
+public int status_col;          /* Display a status column */
+public int use_lessopen;        /* Use the LESSOPEN filter */
+public int quit_on_intr;        /* Quit on interrupt */
+public int follow_mode;         /* F cmd Follows file desc or file name? */
+public int oldbot;              /* Old bottom of screen behavior {{REMOVE}} */
+public int opt_use_backslash;   /* Use backslash escaping in option parsing */
+public char rscroll_char;       /* Char which marks chopped lines with -S */
+public int rscroll_attr;        /* Attribute of rscroll_char */
+public int no_hist_dups;        /* Remove dups from history list */
+public int mousecap;            /* Allow mouse for scrolling */
+public int wheel_lines;         /* Number of lines to scroll on mouse wheel scroll */
+public int perma_marks;         /* Save marks in history file */
+public int linenum_width;       /* Width of line numbers */
+public int status_col_width;    /* Width of status column */
+public int incr_search;         /* Incremental search */
+public int use_color;           /* Use UI color */
 #if HILITE_SEARCH
-public int hilite_search;	/* Highlight matched search patterns? */
+public int hilite_search;       /* Highlight matched search patterns? */
 #endif
 
-public int less_is_more = 0;	/* Make compatible with POSIX more */
+public int less_is_more = 0;    /* Make compatible with POSIX more */
 
 /*
  * Long option names.
@@ -73,9 +77,7 @@ static struct optname b_optname      = { "buffers",              NULL };
 static struct optname B__optname     = { "auto-buffers",         NULL };
 static struct optname c_optname      = { "clear-screen",         NULL };
 static struct optname d_optname      = { "dumb",                 NULL };
-#if MSDOS_COMPILER
 static struct optname D__optname     = { "color",                NULL };
-#endif
 static struct optname e_optname      = { "quit-at-eof",          NULL };
 static struct optname f_optname      = { "force",                NULL };
 static struct optname F__optname     = { "quit-if-one-screen",   NULL };
@@ -127,7 +129,15 @@ static struct optname rscroll_optname = { "rscroll", NULL };
 static struct optname nohistdups_optname = { "no-histdups",      NULL };
 static struct optname mousecap_optname = { "mouse",              NULL };
 static struct optname wheel_lines_optname = { "wheel-lines",     NULL };
-static struct optname perma_marks_optname = { "save-marks",     NULL };
+static struct optname perma_marks_optname = { "save-marks",      NULL };
+static struct optname linenum_width_optname = { "line-num-width", NULL };
+static struct optname status_col_width_optname = { "status-col-width", NULL };
+static struct optname incr_search_optname = { "incsearch",       NULL };
+static struct optname use_color_optname = { "use-color",         NULL };
+#if LESSTEST
+static struct optname ttyin_name_optname = { "tty",              NULL };
+static struct optname rstat_optname  = { "rstat",                NULL };
+#endif /*LESSTEST*/
 
 
 /*
@@ -185,16 +195,14 @@ static struct loption option[] =
 			NULL
 		}
 	},
-#if MSDOS_COMPILER
 	{ 'D', &D__optname,
-		STRING|REPAINT, 0, NULL, opt_D,
+		STRING|REPAINT|NO_QUERY, 0, NULL, opt_D,
 		{
 			"color desc: ", 
-			"Dadknsu0123456789.",
+			NULL,
 			NULL
 		}
 	},
-#endif
 	{ 'e', &e_optname,
 		TRIPLE, OPT_OFF, &quit_at_eof, NULL,
 		{
@@ -503,6 +511,56 @@ static struct loption option[] =
 			NULL
 		}
 	},
+	{ OLETTER_NONE, &linenum_width_optname,
+		NUMBER|REPAINT, MIN_LINENUM_WIDTH, &linenum_width, opt_linenum_width,
+		{
+			"Line number width: ",
+			"Line number width is %d chars",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &status_col_width_optname,
+		NUMBER|REPAINT, 2, &status_col_width, opt_status_col_width,
+		{
+			"Status column width: ",
+			"Status column width is %d chars",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &incr_search_optname,
+		BOOL, OPT_OFF, &incr_search, NULL,
+		{
+			"Incremental search is off",
+			"Incremental search is on",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &use_color_optname,
+		BOOL|REPAINT, OPT_OFF, &use_color, NULL,
+		{
+			"Don't use color",
+			"Use color",
+			NULL
+		}
+	},
+#if LESSTEST
+	{ OLETTER_NONE, &ttyin_name_optname,
+		STRING|NO_TOGGLE, 0, NULL, opt_ttyin_name,
+		{
+			NULL,
+			NULL,
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &rstat_optname,
+		STRING|NO_TOGGLE, 0, NULL, opt_rstat,
+		{
+			NULL,
+			NULL,
+			NULL
+		}
+	},
+#endif /*LESSTEST*/
 	{ '\0', NULL, NOVAR, 0, NULL, NULL, { NULL, NULL, NULL } }
 };
 

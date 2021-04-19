@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -38,10 +38,10 @@ struct mark
  * Each mark is identified by a lowercase or uppercase letter.
  * The final one is lmark, for the "last mark"; addressed by the apostrophe.
  */
-#define	NMARKS		((2*26)+2)	/* a-z, A-Z, mousemark, lastmark */
-#define	NUMARKS		((2*26)+1)	/* user marks (not lastmark) */
-#define	MOUSEMARK	(NMARKS-2)
-#define	LASTMARK	(NMARKS-1)
+#define NMARKS          ((2*26)+2)      /* a-z, A-Z, mousemark, lastmark */
+#define NUMARKS         ((2*26)+1)      /* user marks (not lastmark) */
+#define MOUSEMARK       (NMARKS-2)
+#define LASTMARK        (NMARKS-1)
 static struct mark marks[NMARKS];
 public int marks_modified = 0;
 
@@ -116,13 +116,17 @@ mark_get_ifile(m)
 getumark(c)
 	int c;
 {
+	PARG parg;
 	if (c >= 'a' && c <= 'z')
 		return (&marks[c-'a']);
 	if (c >= 'A' && c <= 'Z')
 		return (&marks[c-'A'+26]);
+	if (c == '\'')
+		return (&marks[LASTMARK]);
 	if (c == '#')
 		return (&marks[MOUSEMARK]);
-	error("Invalid mark letter", NULL_PARG);
+	parg.p_char = (char) c;
+	error("Invalid mark letter %c", &parg);
 	return (NULL);
 }
 
@@ -259,6 +263,7 @@ lastmark(VOID_PARAM)
 	if (scrpos.pos == NULL_POSITION)
 		return;
 	cmark(&marks[LASTMARK], curr_ifile, scrpos.pos, scrpos.ln);
+	marks_modified = 1;
 }
 
 /*
@@ -370,7 +375,7 @@ mark_check_ifile(ifile)
 	IFILE ifile;
 {
 	int i;
-	char *filename = lrealpath(get_filename(ifile));
+	char *filename = get_real_filename(ifile);
 
 	for (i = 0;  i < NMARKS;  i++)
 	{
@@ -384,7 +389,6 @@ mark_check_ifile(ifile)
 			free(mark_filename);
 		}
 	}
-	free(filename);
 }
 
 #if CMD_HISTORY
@@ -403,7 +407,7 @@ save_marks(fout, hdr)
 		return;
 
 	fprintf(fout, "%s\n", hdr);
-	for (i = 0;  i < NUMARKS;  i++)
+	for (i = 0;  i < NMARKS;  i++)
 	{
 		char *filename;
 		struct mark *m = &marks[i];
@@ -413,12 +417,10 @@ save_marks(fout, hdr)
 		postoa(m->m_scrpos.pos, pos_str);
 		filename = m->m_filename;
 		if (filename == NULL)
-			filename = get_filename(m->m_ifile);
-		filename = lrealpath(filename);
+			filename = get_real_filename(m->m_ifile);
 		if (strcmp(filename, "-") != 0)
 			fprintf(fout, "m %c %d %s %s\n",
 				m->m_letter, m->m_scrpos.ln, pos_str, filename);
-		free(filename);
 	}
 }
 
