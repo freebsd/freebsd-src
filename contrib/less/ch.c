@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -41,7 +41,7 @@ struct bufnode {
 	struct bufnode *hnext, *hprev;
 };
 
-#define	LBUFSIZE	8192
+#define LBUFSIZE        8192
 struct buf {
 	struct bufnode node;
 	BLOCKNUM block;
@@ -54,7 +54,7 @@ struct buf {
  * The file state is maintained in a filestate structure.
  * A pointer to the filestate is kept in the ifile structure.
  */
-#define	BUFHASH_SIZE	1024
+#define BUFHASH_SIZE    1024
 struct filestate {
 	struct bufnode buflist;
 	struct bufnode hashtbl[BUFHASH_SIZE];
@@ -67,24 +67,24 @@ struct filestate {
 	POSITION fsize;
 };
 
-#define	ch_bufhead	thisfile->buflist.next
-#define	ch_buftail	thisfile->buflist.prev
-#define	ch_nbufs	thisfile->nbufs
-#define	ch_block	thisfile->block
-#define	ch_offset	thisfile->offset
-#define	ch_fpos		thisfile->fpos
-#define	ch_fsize	thisfile->fsize
-#define	ch_flags	thisfile->flags
-#define	ch_file		thisfile->file
+#define ch_bufhead      thisfile->buflist.next
+#define ch_buftail      thisfile->buflist.prev
+#define ch_nbufs        thisfile->nbufs
+#define ch_block        thisfile->block
+#define ch_offset       thisfile->offset
+#define ch_fpos         thisfile->fpos
+#define ch_fsize        thisfile->fsize
+#define ch_flags        thisfile->flags
+#define ch_file         thisfile->file
 
-#define	END_OF_CHAIN	(&thisfile->buflist)
-#define	END_OF_HCHAIN(h) (&thisfile->hashtbl[h])
-#define BUFHASH(blk)	((blk) & (BUFHASH_SIZE-1))
+#define END_OF_CHAIN    (&thisfile->buflist)
+#define END_OF_HCHAIN(h) (&thisfile->hashtbl[h])
+#define BUFHASH(blk)    ((blk) & (BUFHASH_SIZE-1))
 
 /*
  * Macros to manipulate the list of buffers in thisfile->buflist.
  */
-#define	FOR_BUFS(bn) \
+#define FOR_BUFS(bn) \
 	for (bn = ch_bufhead;  bn != END_OF_CHAIN;  bn = bn->next)
 
 #define BUF_RM(bn) \
@@ -106,15 +106,15 @@ struct filestate {
 /*
  * Macros to manipulate the list of buffers in thisfile->hashtbl[n].
  */
-#define	FOR_BUFS_IN_CHAIN(h,bn) \
+#define FOR_BUFS_IN_CHAIN(h,bn) \
 	for (bn = thisfile->hashtbl[h].hnext;  \
 	     bn != END_OF_HCHAIN(h);  bn = bn->hnext)
 
-#define	BUF_HASH_RM(bn) \
+#define BUF_HASH_RM(bn) \
 	(bn)->hnext->hprev = (bn)->hprev; \
 	(bn)->hprev->hnext = (bn)->hnext;
 
-#define	BUF_HASH_INS(bn,h) \
+#define BUF_HASH_INS(bn,h) \
 	(bn)->hnext = thisfile->hashtbl[h].hnext; \
 	(bn)->hprev = END_OF_HCHAIN(h); \
 	thisfile->hashtbl[h].hnext->hprev = (bn); \
@@ -240,12 +240,12 @@ ch_get(VOID_PARAM)
 			return ('?');
 		if (lseek(ch_file, (off_t)pos, SEEK_SET) == BAD_LSEEK)
 		{
- 			error("seek error", NULL_PARG);
+			error("seek error", NULL_PARG);
 			clear_eol();
 			return (EOI);
- 		}
- 		ch_fpos = pos;
- 	}
+		}
+		ch_fpos = pos;
+	}
 
 	/*
 	 * Read the block.
@@ -311,13 +311,7 @@ ch_get(VOID_PARAM)
 				parg.p_string = wait_message();
 				ierror("%s", &parg);
 			}
-#if !MSDOS_COMPILER
-	 		sleep(1);
-#else
-#if MSDOS_COMPILER==WIN32C
-			Sleep(1000);
-#endif
-#endif
+			sleep_ms(2); /* Reduce system load */
 			slept = TRUE;
 
 #if HAVE_STAT_INO
