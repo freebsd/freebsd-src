@@ -7,9 +7,9 @@
 **************************************************************************
 **************************************************************************
 
-                            Less, version 563
+                            Less, version 581
 
-    This is the distribution of less, version 563, released 13 Jun 2020.
+    This is the distribution of less, version 581, released 06 Apr 2021.
     This program is part of the GNU project (http://www.gnu.org).
 
     This program is free software.  You may redistribute it and/or
@@ -21,33 +21,29 @@
     or
     2. The Less License, in the file LICENSE.
 
-    Please report any problems to bug-less@gnu.org.
-    See http://www.greenwoodsoftware.com/less for the latest info.
+    Please report any problems at https://github.com/gwsw/less/issues.
+    See https://greenwoodsoftware.com/less for the latest info.
     Source repository is at https://github.com/gwsw/less.git.
 
 =========================================================================
-
-This is the distribution of "less", a paginator similar to "more" or "pg".
 
 The formatted manual page is in less.man.
 The manual page nroff source is in less.nro.
 Major changes made since the last posted version are in NEWS.
 
 =======================================================================
-PRE-INSTALLATION (when using git)
-
-If you are building from a clone of a git repository,
-type "make -f Makefile.aut".
-If you are building from a numbered release package (a tar or zip file 
-with a name like less-999.tar.gz or less-999.zip), you should skip this step. 
-
-=======================================================================
-INSTALLATION (Unix systems only):
+INSTALLATION (Unix & Linux systems only):
 
 1. Move the distributed source to its own directory and unpack it,
    if you have not already done so.  
 
-2. Type "sh configure".
+2. If you are building from a clone of a git repository,
+   type "make -f Makefile.aut".
+   If you are building from a numbered release package (a tar or 
+   zip file with a name like less-999.tar.gz or less-999.zip downloaded 
+   from greenwoodsoftware.com, not from github), you should skip this step. 
+
+3. Type "sh configure".
    This will generate a Makefile and a defines.h.
    Warning: if you have a GNU sed, make sure it is version 2.05 or later.
 
@@ -79,7 +75,7 @@ INSTALLATION (Unix systems only):
      commands, etc.
 
 
-3. It is a good idea to look over the generated Makefile and defines.h
+4. It is a good idea to look over the generated Makefile and defines.h
    and make sure they look ok.  If you know of any peculiarities of
    your system that configure might not have detected, you may fix the
    Makefile now.  Take particular notice of the list of "terminal" 
@@ -93,13 +89,13 @@ INSTALLATION (Unix systems only):
    to remove the descriptions of the features which you are removing.
    If you edit less.hlp, you should run "make -f Makefile.aut help.c".
 
-4. Type "make" and watch the fun.
+5. Type "make" and watch the fun.
 
-5. If the make succeeds, it will generate the programs "less",
+6. If the make succeeds, it will generate the programs "less",
    "lesskey" and "lessecho" in your current directory.  Test the 
    generated programs.
 
-6. When satisfied that it works, if you wish to install it
+7. When satisfied that it works, if you wish to install it
    in a public place, type "make install".
 
    The default install destinations are:
@@ -108,8 +104,6 @@ INSTALLATION (Unix systems only):
    If you want to install any of these files elsewhere, define
    bindir and/or mandir to the appropriate directories.
 
-If you have any problems building or running "less", suggestions, 
-complaints, etc., you may mail to bug-less@gnu.org.
 
 Note to hackers: comments noting possible improvements are enclosed
 in double curly brackets {{ like this }}.

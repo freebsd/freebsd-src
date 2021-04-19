@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -21,7 +21,7 @@
 #include "less.h"
 #include "position.h"
 
-static POSITION *table = NULL;	/* The position table */
+static POSITION *table = NULL;  /* The position table */
 static int table_size = 0;
 
 extern int sc_width, sc_height;
@@ -30,10 +30,10 @@ extern int sc_width, sc_height;
  * Return the starting file position of a line displayed on the screen.
  * The line may be specified as a line number relative to the top
  * of the screen, but is usually one of these special cases:
- *	the top (first) line on the screen
- *	the second line on the screen
- *	the bottom line on the screen
- *	the line after the bottom line on the screen
+ *      the top (first) line on the screen
+ *      the second line on the screen
+ *      the bottom line on the screen
+ *      the line after the bottom line on the screen
  */
 	public POSITION
 position(sindex)

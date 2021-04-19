@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -13,16 +13,16 @@
  * Simply echos its filename arguments on standard output.
  * But any argument containing spaces is enclosed in quotes.
  *
- * -ox	Specifies "x" to be the open quote character.
- * -cx	Specifies "x" to be the close quote character.
- * -pn	Specifies "n" to be the open quote character, as an integer.
- * -dn	Specifies "n" to be the close quote character, as an integer.
+ * -ox  Specifies "x" to be the open quote character.
+ * -cx  Specifies "x" to be the close quote character.
+ * -pn  Specifies "n" to be the open quote character, as an integer.
+ * -dn  Specifies "n" to be the close quote character, as an integer.
  * -mx  Specifies "x" to be a metachar.
  * -nn  Specifies "n" to be a metachar, as an integer.
  * -ex  Specifies "x" to be the escape char for metachars.
  * -fn  Specifies "x" to be the escape char for metachars, as an integer.
- * -a	Specifies that all arguments are to be quoted.
- *	The default is that only arguments containing spaces are quoted.
+ * -a   Specifies that all arguments are to be quoted.
+ *      The default is that only arguments containing spaces are quoted.
  */
 
 #include "less.h"

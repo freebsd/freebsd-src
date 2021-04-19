@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -26,12 +26,12 @@ extern int no_hist_dups;
 extern int marks_modified;
 
 static char cmdbuf[CMDBUF_SIZE]; /* Buffer for holding a multi-char command */
-static int cmd_col;		/* Current column of the cursor */
-static int prompt_col;		/* Column of cursor just after prompt */
-static char *cp;		/* Pointer into cmdbuf */
-static int cmd_offset;		/* Index into cmdbuf of first displayed char */
-static int literal;		/* Next input char should not be interpreted */
-static int updown_match = -1;	/* Prefix length in up/down movement */
+static int cmd_col;              /* Current column of the cursor */
+static int prompt_col;           /* Column of cursor just after prompt */
+static char *cp;                 /* Pointer into cmdbuf */
+static int cmd_offset;           /* Index into cmdbuf of first displayed char */
+static int literal;              /* Next input char should not be interpreted */
+static int updown_match = -1;    /* Prefix length in up/down movement */
 
 #if TAB_COMPLETE_FILENAME
 static int cmd_complete LESSPARAMS((int action));
@@ -223,7 +223,7 @@ cmd_step_common(p, ch, len, pwidth, bswidth)
 		}
 	}
 	if (pwidth != NULL)
-		*pwidth	= width;
+		*pwidth = width;
 	if (bswidth != NULL)
 		*bswidth = width;
 	return (pr);
@@ -260,16 +260,41 @@ cmd_step_left(pp, pwidth, bswidth)
 }
 
 /*
+ * Put the cursor at "home" (just after the prompt),
+ * and set cp to the corresponding char in cmdbuf.
+ */
+	static void
+cmd_home(VOID_PARAM)
+{
+	while (cmd_col > prompt_col)
+	{
+		int width, bswidth;
+
+		cmd_step_left(&cp, &width, &bswidth);
+		while (bswidth-- > 0)
+			putbs();
+		cmd_col -= width;
+	}
+
+	cp = &cmdbuf[cmd_offset];
+}
+
+/*
  * Repaint the line from cp onwards.
  * Then position the cursor just after the char old_cp (a pointer into cmdbuf).
  */
-	static void
+	public void
 cmd_repaint(old_cp)
 	constant char *old_cp;
 {
 	/*
 	 * Repaint the line from the current position.
 	 */
+	if (old_cp == NULL)
+	{
+		old_cp = cp;
+		cmd_home();
+	}
 	clear_eol();
 	while (*cp != '\0')
 	{
@@ -298,26 +323,6 @@ cmd_repaint(old_cp)
 	 */
 	while (cp > old_cp)
 		cmd_left();
-}
-
-/*
- * Put the cursor at "home" (just after the prompt),
- * and set cp to the corresponding char in cmdbuf.
- */
-	static void
-cmd_home(VOID_PARAM)
-{
-	while (cmd_col > prompt_col)
-	{
-		int width, bswidth;
-
-		cmd_step_left(&cp, &width, &bswidth);
-		while (bswidth-- > 0)
-			putbs();
-		cmd_col -= width;
-	}
-
-	cp = &cmdbuf[cmd_offset];
 }
 
 /*
@@ -826,9 +831,9 @@ cmd_accept(VOID_PARAM)
  * Try to perform a line-edit function on the command buffer,
  * using a specified char as a line-editing command.
  * Returns:
- *	CC_PASS	The char does not invoke a line edit function.
- *	CC_OK	Line edit function done.
- *	CC_QUIT	The char requests the current command to be aborted.
+ *      CC_PASS The char does not invoke a line edit function.
+ *      CC_OK   Line edit function done.
+ *      CC_QUIT The char requests the current command to be aborted.
  */
 	static int
 cmd_edit(c)
@@ -838,9 +843,9 @@ cmd_edit(c)
 	int flags;
 
 #if TAB_COMPLETE_FILENAME
-#define	not_in_completion()	in_completion = 0
+#define not_in_completion()     in_completion = 0
 #else
-#define	not_in_completion(VOID_PARAM)
+#define not_in_completion(VOID_PARAM)
 #endif
 	
 	/*
@@ -852,20 +857,22 @@ cmd_edit(c)
 		/*
 		 * No current history; don't accept history manipulation cmds.
 		 */
-		flags |= EC_NOHISTORY;
+		flags |= ECF_NOHISTORY;
 #endif
 #if TAB_COMPLETE_FILENAME
 	if (curr_mlist == ml_search)
 		/*
 		 * In a search command; don't accept file-completion cmds.
 		 */
-		flags |= EC_NOCOMPLETE;
+		flags |= ECF_NOCOMPLETE;
 #endif
 
 	action = editchar(c, flags);
 
 	switch (action)
 	{
+	case A_NOACTION:
+		return (CC_OK);
 	case EC_RIGHT:
 		not_in_completion();
 		return (cmd_right());
@@ -934,8 +941,6 @@ cmd_edit(c)
 	case EC_EXPAND:
 		return (cmd_complete(action));
 #endif
-	case EC_NOACTION:
-		return (CC_OK);
 	default:
 		not_in_completion();
 		return (CC_PASS);
@@ -1237,9 +1242,9 @@ fail:
  * Process a single character of a multi-character command, such as
  * a number, or the pattern of a search command.
  * Returns:
- *	CC_OK		The char was accepted.
- *	CC_QUIT		The char requests the command to be aborted.
- *	CC_ERROR	The char could not be accepted due to an error.
+ *      CC_OK           The char was accepted.
+ *      CC_QUIT         The char requests the command to be aborted.
+ *      CC_ERROR        The char could not be accepted due to an error.
  */
 	public int
 cmd_char(c)

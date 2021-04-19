@@ -1,5 +1,5 @@
 '\" t
-.TH LESSKEY 1 "Version 563: 13 Jun 2020"
+.TH LESSKEY 1 "Version 581: 06 Apr 2021"
 .SH NAME
 lesskey \- specify key bindings for less
 .SH SYNOPSIS
@@ -18,10 +18,10 @@ The input file is a text file which describes the key bindings.
 If the input file is "\-", standard input is read.
 If no input file is specified, a standard filename is used
 as the name of the input file, which depends on the system being used:
-On Unix systems, $HOME/.lesskey is used;
-on MS-DOS systems, $HOME/_lesskey is used;
-and on OS/2 systems $HOME/lesskey.ini is used,
-or $INIT/lesskey.ini if $HOME is undefined.
+On Unix systems, "$HOME/.lesskey" is used;
+on MS-DOS systems, "$HOME/_lesskey" is used;
+and on OS/2 systems "$HOME/lesskey.ini" is used,
+or "$INIT/lesskey.ini" if $HOME is undefined.
 The output file is a binary file which is used by
 .IR less .
 If no output file is specified,
@@ -29,10 +29,10 @@ and the environment variable LESSKEY is set,
 the value of LESSKEY is used as the name of the output file.
 Otherwise, a standard filename is used as the name of the output file,
 which depends on the system being used:
-On Unix and OS-9 systems, $HOME/.less is used;
-on MS-DOS systems, $HOME/_less is used;
-and on OS/2 systems, $HOME/less.ini is used,
-or $INIT/less.ini if $HOME is undefined.
+On Unix and OS-9 systems, "$HOME/.less" is used;
+on MS-DOS systems, "$HOME/_less" is used;
+and on OS/2 systems, "$HOME/less.ini" is used,
+or "$INIT/less.ini" if $HOME is undefined.
 If the output file already exists,
 .I lesskey
 will overwrite it.
@@ -123,7 +123,7 @@ For example, see the "{" and ":t" commands in the example below.
 The extra string has a special meaning for the "quit" action:
 when
 .I less
-quits, first character of the extra string is used as its exit status.
+quits, the first character of the extra string is used as its exit status.
 .
 .SH EXAMPLE
 The following input file describes the set of
@@ -171,6 +171,7 @@ r	repaint
 ^R	repaint
 ^L	repaint
 \eeu	undo-hilite
+\eeU	clear-search
 g	goto-line
 \ekh	goto-line
 <	goto-line
@@ -370,7 +371,7 @@ which start with a NUL character (0).
 This NUL character should be represented as \e340 in a lesskey file.
 .
 .SH COPYRIGHT
-Copyright (C) 1984-2020  Mark Nudelman
+Copyright (C) 1984-2021  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it
@@ -395,4 +396,4 @@ See the GNU General Public License for more details.
 .
 Mark Nudelman
 .br
-Send bug reports or comments to <bug-less@gnu.org>.
+Report bugs at https://github.com/gwsw/less/issues.

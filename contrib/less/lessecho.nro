@@ -1,4 +1,4 @@
-.TH LESSECHO 1 "Version 563: 13 Jun 2020"
+.TH LESSECHO 1 "Version 581: 06 Apr 2021"
 .SH NAME
 lessecho \- expand metacharacters
 .SH SYNOPSIS
@@ -19,7 +19,7 @@ are surrounded by quotes instead.
 .TP
 .B \-ox
 Specifies "x", rather than double-quote, to be the open quote character,
-which is used if the -e- option is specified.
+which is used if the \-e- option is specified.
 .TP
 .B \-cx
 Specifies "x" to be the close quote character.
@@ -42,11 +42,11 @@ Specifies "n" to be the escape char for metachars, as an integer.
 .TP
 .B \-a
 Specifies that all arguments are to be quoted.
-The default is that only arguments containing metacharacters are quoted
+The default is that only arguments containing metacharacters are quoted.
 .SH "SEE ALSO"
 .BR less (1)
 .SH AUTHOR
 This manual page was written by Thomas Schoepf <schoepf@debian.org>,
 for the Debian GNU/Linux system (but may be used by others).
 .PP
-Send bug reports or comments to bug-less@gnu.org.
+Report bugs at https://github.com/gwsw/less/issues.

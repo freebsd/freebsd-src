@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -23,6 +23,9 @@
 #include "less.h"
 #include <signal.h>
 #include <setjmp.h>
+#if MSDOS_COMPILER==WIN32C
+#include <windows.h>
+#endif
 #if HAVE_TIME_H
 #include <time.h>
 #endif
@@ -33,6 +36,15 @@
 #include <values.h>
 #endif
 
+#if HAVE_POLL && !MSDOS_COMPILER && !defined(__APPLE__)
+#define USE_POLL 1
+#else
+#define USE_POLL 0
+#endif
+#if USE_POLL
+#include <poll.h>
+#endif
+
 /*
  * BSD setjmp() saves (and longjmp() restores) the signal mask.
  * This costs a system call or two per setjmp(), so if possible we clear the
@@ -41,11 +53,11 @@
  * _setjmp() does not exist; we just use setjmp().
  */
 #if HAVE__SETJMP && HAVE_SIGSETMASK
-#define SET_JUMP	_setjmp
-#define LONG_JUMP	_longjmp
+#define SET_JUMP        _setjmp
+#define LONG_JUMP       _longjmp
 #else
-#define SET_JUMP	setjmp
-#define LONG_JUMP	longjmp
+#define SET_JUMP        setjmp
+#define LONG_JUMP       longjmp
 #endif
 
 public int reading;
@@ -53,6 +65,27 @@ public int reading;
 static jmp_buf read_label;
 
 extern int sigs;
+extern int ignore_eoi;
+#if !MSDOS_COMPILER
+extern int tty;
+#endif
+
+#if USE_POLL
+/*
+ * Return true if one of the events has occurred on the specified file.
+ */
+	static int
+poll_events(fd, events)
+	int fd;
+	int events;
+{
+	struct pollfd poller = { fd, events, 0 };
+	int n = poll(&poller, 1, 0);
+	if (n <= 0)
+		return 0;
+	return (poller.revents & events);
+}
+#endif
 
 /*
  * Like read() system call, but is deliberately interruptible.
@@ -127,6 +160,29 @@ start:
 			return (-1);
 	}
 #endif
+#if USE_POLL
+	if (ignore_eoi && fd != tty)
+	{
+		if (poll_events(tty, POLLIN) && getchr() == CONTROL('X'))
+		{
+			sigs |= S_INTERRUPT;
+			return (READ_INTR);
+		}
+		if (poll_events(fd, POLLERR|POLLHUP))
+		{
+			sigs |= S_INTERRUPT;
+			return (READ_INTR);
+		}
+	}
+#else
+#if MSDOS_COMPILER==WIN32C
+	if (win32_kbhit() && WIN32getch() == CONTROL('X'))
+	{
+		sigs |= S_INTERRUPT;
+		return (READ_INTR);
+	}
+#endif
+#endif
 	n = read(fd, buf, len);
 #if 1
 	/*
@@ -135,7 +191,6 @@ start:
 	 * start returning 0 forever, instead of -1.
 	 */
 	{
-		extern int ignore_eoi;
 		if (!ignore_eoi)
 		{
 			static int consecutive_nulls = 0;
@@ -204,18 +259,16 @@ get_time(VOID_PARAM)
 strerror(err)
 	int err;
 {
-#if HAVE_SYS_ERRLIST
 	static char buf[16];
+#if HAVE_SYS_ERRLIST
 	extern char *sys_errlist[];
 	extern int sys_nerr;
   
 	if (err < sys_nerr)
 		return sys_errlist[err];
+#endif
 	sprintf(buf, "Error %d", err);
 	return buf;
-#else
-	return ("cannot open");
-#endif
 }
 #endif
 
@@ -356,3 +409,24 @@ isatty(f)
 }
 	
 #endif
+
+	public void
+sleep_ms(ms)
+	int ms;
+{
+#if MSDOS_COMPILER==WIN32C
+	Sleep(ms);
+#else
+#if HAVE_NANOSLEEP
+	int sec = ms / 1000;
+	struct timespec t = { sec, (ms - sec*1000) * 1000000 };
+	nanosleep(&t, NULL);
+#else
+#if HAVE_USLEEP
+	usleep(ms);
+#else
+	sleep((ms+999) / 1000);
+#endif
+#endif
+#endif
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -9,73 +9,73 @@
 
 
 /*
- *	lesskey [-o output] [input]
+ *  lesskey [-o output] [input]
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
  *
- *	Make a .less file.
- *	If no input file is specified, standard input is used.
- *	If no output file is specified, $HOME/.less is used.
+ *  Make a .less file.
+ *  If no input file is specified, standard input is used.
+ *  If no output file is specified, $HOME/.less is used.
  *
- *	The .less file is used to specify (to "less") user-defined
- *	key bindings.  Basically any sequence of 1 to MAX_CMDLEN
- *	keystrokes may be bound to an existing less function.
- *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
- *
- *	The input file is an ascii file consisting of a 
- *	sequence of lines of the form:
- *		string <whitespace> action [chars] <newline>
- *
- *	"string" is a sequence of command characters which form
- *		the new user-defined command.  The command
- *		characters may be:
- *		1. The actual character itself.
- *		2. A character preceded by ^ to specify a
- *		   control character (e.g. ^X means control-X).
- *		3. A backslash followed by one to three octal digits
- *		   to specify a character by its octal value.
- *		4. A backslash followed by b, e, n, r or t
- *		   to specify \b, ESC, \n, \r or \t, respectively.
- *		5. Any character (other than those mentioned above) preceded 
- *		   by a \ to specify the character itself (characters which
- *		   must be preceded by \ include ^, \, and whitespace.
- *	"action" is the name of a "less" action, from the table below.
- *	"chars" is an optional sequence of characters which is treated
- *		as keyboard input after the command is executed.
- *
- *	Blank lines and lines which start with # are ignored, 
- *	except for the special control lines:
- *		#command	Signals the beginning of the command
- *				keys section.
- *		#line-edit	Signals the beginning of the line-editing
- *				keys section.
- *		#env		Signals the beginning of the environment
- *				variable section.
- *		#stop		Stops command parsing in less;
- *				causes all default keys to be disabled.
+ *  The .less file is used to specify (to "less") user-defined
+ *  key bindings.  Basically any sequence of 1 to MAX_CMDLEN
+ *  keystrokes may be bound to an existing less function.
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
  *
- *	The output file is a non-ascii file, consisting of a header,
- *	one or more sections, and a trailer.
- *	Each section begins with a section header, a section length word
- *	and the section data.  Normally there are three sections:
- *		CMD_SECTION	Definition of command keys.
- *		EDIT_SECTION	Definition of editing keys.
- *		END_SECTION	A special section header, with no 
- *				length word or section data.
+ *  The input file is an ascii file consisting of a 
+ *  sequence of lines of the form:
+ *          string <whitespace> action [chars] <newline>
  *
- *	Section data consists of zero or more byte sequences of the form:
- *		string <0> <action>
- *	or
- *		string <0> <action|A_EXTRA> chars <0>
+ *      "string" is a sequence of command characters which form
+ *              the new user-defined command.  The command
+ *              characters may be:
+ *              1. The actual character itself.
+ *              2. A character preceded by ^ to specify a
+ *                 control character (e.g. ^X means control-X).
+ *              3. A backslash followed by one to three octal digits
+ *                 to specify a character by its octal value.
+ *              4. A backslash followed by b, e, n, r or t
+ *                 to specify \b, ESC, \n, \r or \t, respectively.
+ *              5. Any character (other than those mentioned above) preceded 
+ *                 by a \ to specify the character itself (characters which
+ *                 must be preceded by \ include ^, \, and whitespace.
+ *      "action" is the name of a "less" action, from the table below.
+ *      "chars" is an optional sequence of characters which is treated
+ *              as keyboard input after the command is executed.
  *
- *	"string" is the command string.
- *	"<0>" is one null byte.
- *	"<action>" is one byte containing the action code (the A_xxx value).
- *	If action is ORed with A_EXTRA, the action byte is followed
- *		by the null-terminated "chars" string.
+ *      Blank lines and lines which start with # are ignored, 
+ *      except for the special control lines:
+ *              #command        Signals the beginning of the command
+ *                              keys section.
+ *              #line-edit      Signals the beginning of the line-editing
+ *                              keys section.
+ *              #env            Signals the beginning of the environment
+ *                              variable section.
+ *              #stop           Stops command parsing in less;
+ *                              causes all default keys to be disabled.
+ *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+ *
+ *      The output file is a non-ascii file, consisting of a header,
+ *      one or more sections, and a trailer.
+ *      Each section begins with a section header, a section length word
+ *      and the section data.  Normally there are three sections:
+ *              CMD_SECTION     Definition of command keys.
+ *              EDIT_SECTION    Definition of editing keys.
+ *              END_SECTION     A special section header, with no 
+ *                              length word or section data.
+ *
+ *      Section data consists of zero or more byte sequences of the form:
+ *              string <0> <action>
+ *      or
+ *              string <0> <action|A_EXTRA> chars <0>
+ *
+ *      "string" is the command string.
+ *      "<0>" is one null byte.
+ *      "<action>" is one byte containing the action code (the A_xxx value).
+ *      If action is ORed with A_EXTRA, the action byte is followed
+ *              by the null-terminated "chars" string.
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
  */
@@ -153,6 +153,7 @@ struct cmdname cmdnames[] =
 	{ "toggle-flag",          A_OPT_TOGGLE },
 	{ "toggle-option",        A_OPT_TOGGLE },
 	{ "undo-hilite",          A_UNDO_SEARCH },
+	{ "clear-search",         A_CLR_SEARCH },
 	{ "version",              A_VERSION },
 	{ "visual",               A_VISUAL },
 	{ NULL,   0 }
@@ -160,26 +161,26 @@ struct cmdname cmdnames[] =
 
 struct cmdname editnames[] = 
 {
-	{ "back-complete",	EC_B_COMPLETE },
-	{ "backspace",		EC_BACKSPACE },
-	{ "delete",		EC_DELETE },
-	{ "down",		EC_DOWN },
-	{ "end",		EC_END },
-	{ "expand",		EC_EXPAND },
-	{ "forw-complete",	EC_F_COMPLETE },
-	{ "home",		EC_HOME },
-	{ "insert",		EC_INSERT },
-	{ "invalid",		EC_UINVALID },
-	{ "kill-line",		EC_LINEKILL },
-	{ "abort",		EC_ABORT },
-	{ "left",		EC_LEFT },
-	{ "literal",		EC_LITERAL },
-	{ "right",		EC_RIGHT },
-	{ "up",			EC_UP },
-	{ "word-backspace",	EC_W_BACKSPACE },
-	{ "word-delete",	EC_W_DELETE },
-	{ "word-left",		EC_W_LEFT },
-	{ "word-right",		EC_W_RIGHT },
+	{ "back-complete",      EC_B_COMPLETE },
+	{ "backspace",          EC_BACKSPACE },
+	{ "delete",             EC_DELETE },
+	{ "down",               EC_DOWN },
+	{ "end",                EC_END },
+	{ "expand",             EC_EXPAND },
+	{ "forw-complete",      EC_F_COMPLETE },
+	{ "home",               EC_HOME },
+	{ "insert",             EC_INSERT },
+	{ "invalid",            EC_UINVALID },
+	{ "kill-line",          EC_LINEKILL },
+	{ "abort",              EC_ABORT },
+	{ "left",               EC_LEFT },
+	{ "literal",            EC_LITERAL },
+	{ "right",              EC_RIGHT },
+	{ "up",                 EC_UP },
+	{ "word-backspace",     EC_W_BACKSPACE },
+	{ "word-delete",        EC_W_DELETE },
+	{ "word-left",          EC_W_LEFT },
+	{ "word-right",         EC_W_RIGHT },
 	{ NULL, 0 }
 };
 
@@ -206,10 +207,10 @@ char filetrailer[] = {
 	C1_END_LESSKEY_MAGIC, 
 	C2_END_LESSKEY_MAGIC
 };
-char cmdsection[1] =	{ CMD_SECTION };
-char editsection[1] =	{ EDIT_SECTION };
-char varsection[1] =	{ VAR_SECTION };
-char endsection[1] =	{ END_SECTION };
+char cmdsection[1] =    { CMD_SECTION };
+char editsection[1] =   { EDIT_SECTION };
+char varsection[1] =    { VAR_SECTION };
+char endsection[1] =    { END_SECTION };
 
 char *infile = NULL;
 char *outfile = NULL ;
@@ -459,7 +460,7 @@ tstr(pp, xlate)
 		*pp = p+2;
 		buf[0] = CONTROL(p[1]);
 		buf[1] = '\0';
-		if (buf[0] == CONTROL('K'))
+		if (xlate && buf[0] == CONTROL('K'))
 			return tstr_control_k;
 		return (buf);
 	}
@@ -478,7 +479,7 @@ tstr(pp, xlate)
 skipsp(s)
 	char *s;
 {
-	while (*s == ' ' || *s == '\t')	
+	while (*s == ' ' || *s == '\t')
 		s++;
 	return (s);
 }
@@ -546,7 +547,7 @@ add_cmd_str(s)
 control_line(s)
 	char *s;
 {
-#define	PREFIX(str,pat)	(strncmp(str,pat,strlen(pat)) == 0)
+#define PREFIX(str,pat) (strncmp(str,pat,strlen(pat)) == 0)
 
 	if (PREFIX(s, "#line-edit"))
 	{
