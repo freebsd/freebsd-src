@@ -2145,7 +2145,8 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 
 	if (deq > 0) {
 #if defined(INET) || defined(INET6)
-		tcp_lro_flush_all(&rxq->vtnrx_lro);
+		if (vtnet_software_lro(sc))
+			tcp_lro_flush_all(&rxq->vtnrx_lro);
 #endif
 		virtqueue_notify(vq);
 	}
