@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -34,8 +34,10 @@ extern int linenums;
 extern int wscroll;
 extern int reading;
 extern int quit_on_intr;
-extern int less_is_more;
+extern int secure;
 extern long jump_sline_fraction;
+
+extern int less_is_more;
 
 /*
  * Interrupt signal handler.
@@ -63,6 +65,9 @@ u_interrupt(type)
 #endif
 	if (less_is_more)
 		quit(0);
+#if HILITE_SEARCH
+	set_filter_pattern(NULL, 0);
+#endif
 	if (reading)
 		intread(); /* May longjmp */
 }
@@ -125,6 +130,9 @@ wbreak_handler(dwCtrlType)
 	case CTRL_C_EVENT:
 	case CTRL_BREAK_EVENT:
 		sigs |= S_INTERRUPT;
+#if HILITE_SEARCH
+		set_filter_pattern(NULL, 0);
+#endif
 		return (TRUE);
 	default:
 		break;
@@ -158,7 +166,7 @@ init_signals(on)
 		(void) LSIGNAL(SIGINT, u_interrupt);
 #endif
 #ifdef SIGTSTP
-		(void) LSIGNAL(SIGTSTP, stop);
+		(void) LSIGNAL(SIGTSTP, secure ? SIG_IGN : stop);
 #endif
 #ifdef SIGWINCH
 		(void) LSIGNAL(SIGWINCH, winch);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -14,7 +14,7 @@
  * This is all table driven.
  * A command table is a sequence of command descriptors.
  * Each command descriptor is a sequence of bytes with the following format:
- *	<c1><c2>...<cN><0><action>
+ *     <c1><c2>...<cN><0><action>
  * The characters c1,c2,...,cN are the command string; that is,
  * the characters which the user must type.
  * It is terminated by a null <0> byte.
@@ -48,173 +48,176 @@ extern int sc_height;
 
 static unsigned char cmdtable[] =
 {
-	'\r',0,				A_F_LINE,
-	'\n',0,				A_F_LINE,
-	'e',0,				A_F_LINE,
-	'j',0,				A_F_LINE,
-	SK(SK_DOWN_ARROW),0,		A_F_LINE,
-	CONTROL('E'),0,			A_F_LINE,
-	CONTROL('N'),0,			A_F_LINE,
-	'k',0,				A_B_LINE,
-	'y',0,				A_B_LINE,
-	CONTROL('Y'),0,			A_B_LINE,
-	SK(SK_CONTROL_K),0,		A_B_LINE,
-	CONTROL('P'),0,			A_B_LINE,
-	SK(SK_UP_ARROW),0,		A_B_LINE,
-	'J',0,				A_FF_LINE,
-	'K',0,				A_BF_LINE,
-	'Y',0,				A_BF_LINE,
-	'd',0,				A_F_SCROLL,
-	CONTROL('D'),0,			A_F_SCROLL,
-	'u',0,				A_B_SCROLL,
-	CONTROL('U'),0,			A_B_SCROLL,
-	ESC,'[','M',0,			A_X11MOUSE_IN,
-	ESC,'[','<',0,			A_X116MOUSE_IN,
-	' ',0,				A_F_SCREEN,
-	'f',0,				A_F_SCREEN,
-	CONTROL('F'),0,			A_F_SCREEN,
-	CONTROL('V'),0,			A_F_SCREEN,
-	SK(SK_PAGE_DOWN),0,		A_F_SCREEN,
-	'b',0,				A_B_SCREEN,
-	CONTROL('B'),0,			A_B_SCREEN,
-	ESC,'v',0,			A_B_SCREEN,
-	SK(SK_PAGE_UP),0,		A_B_SCREEN,
-	'z',0,				A_F_WINDOW,
-	'w',0,				A_B_WINDOW,
-	ESC,' ',0,			A_FF_SCREEN,
-	'F',0,				A_F_FOREVER,
-	ESC,'F',0,			A_F_UNTIL_HILITE,
-	'R',0,				A_FREPAINT,
-	'r',0,				A_REPAINT,
-	CONTROL('R'),0,			A_REPAINT,
-	CONTROL('L'),0,			A_REPAINT,
-	ESC,'u',0,			A_UNDO_SEARCH,
-	'g',0,				A_GOLINE,
-	SK(SK_HOME),0,			A_GOLINE,
-	'<',0,				A_GOLINE,
-	ESC,'<',0,			A_GOLINE,
-	'p',0,				A_PERCENT,
-	'%',0,				A_PERCENT,
-	ESC,'[',0,			A_LSHIFT,
-	ESC,']',0,			A_RSHIFT,
-	ESC,'(',0,			A_LSHIFT,
-	ESC,')',0,			A_RSHIFT,
-	ESC,'{',0,			A_LLSHIFT,
-	ESC,'}',0,			A_RRSHIFT,
-	SK(SK_RIGHT_ARROW),0,		A_RSHIFT,
-	SK(SK_LEFT_ARROW),0,		A_LSHIFT,
-	SK(SK_CTL_RIGHT_ARROW),0,	A_RRSHIFT,
-	SK(SK_CTL_LEFT_ARROW),0,	A_LLSHIFT,
-	'{',0,				A_F_BRACKET|A_EXTRA,	'{','}',0,
-	'}',0,				A_B_BRACKET|A_EXTRA,	'{','}',0,
-	'(',0,				A_F_BRACKET|A_EXTRA,	'(',')',0,
-	')',0,				A_B_BRACKET|A_EXTRA,	'(',')',0,
-	'[',0,				A_F_BRACKET|A_EXTRA,	'[',']',0,
-	']',0,				A_B_BRACKET|A_EXTRA,	'[',']',0,
-	ESC,CONTROL('F'),0,		A_F_BRACKET,
-	ESC,CONTROL('B'),0,		A_B_BRACKET,
-	'G',0,				A_GOEND,
-	ESC,'G',0,			A_GOEND_BUF,
-	ESC,'>',0,			A_GOEND,
-	'>',0,				A_GOEND,
-	SK(SK_END),0,			A_GOEND,
-	'P',0,				A_GOPOS,
+	'\r',0,                         A_F_LINE,
+	'\n',0,                         A_F_LINE,
+	'e',0,                          A_F_LINE,
+	'j',0,                          A_F_LINE,
+	SK(SK_DOWN_ARROW),0,            A_F_LINE,
+	CONTROL('E'),0,                 A_F_LINE,
+	CONTROL('N'),0,                 A_F_LINE,
+	'k',0,                          A_B_LINE,
+	'y',0,                          A_B_LINE,
+	CONTROL('Y'),0,                 A_B_LINE,
+	SK(SK_CONTROL_K),0,             A_B_LINE,
+	CONTROL('P'),0,                 A_B_LINE,
+	SK(SK_UP_ARROW),0,              A_B_LINE,
+	'J',0,                          A_FF_LINE,
+	'K',0,                          A_BF_LINE,
+	'Y',0,                          A_BF_LINE,
+	'd',0,                          A_F_SCROLL,
+	CONTROL('D'),0,                 A_F_SCROLL,
+	'u',0,                          A_B_SCROLL,
+	CONTROL('U'),0,                 A_B_SCROLL,
+	ESC,'[','M',0,                  A_X11MOUSE_IN,
+	ESC,'[','<',0,                  A_X116MOUSE_IN,
+	' ',0,                          A_F_SCREEN,
+	'f',0,                          A_F_SCREEN,
+	CONTROL('F'),0,                 A_F_SCREEN,
+	CONTROL('V'),0,                 A_F_SCREEN,
+	SK(SK_PAGE_DOWN),0,             A_F_SCREEN,
+	'b',0,                          A_B_SCREEN,
+	CONTROL('B'),0,                 A_B_SCREEN,
+	ESC,'v',0,                      A_B_SCREEN,
+	SK(SK_PAGE_UP),0,               A_B_SCREEN,
+	'z',0,                          A_F_WINDOW,
+	'w',0,                          A_B_WINDOW,
+	ESC,' ',0,                      A_FF_SCREEN,
+	'F',0,                          A_F_FOREVER,
+	ESC,'F',0,                      A_F_UNTIL_HILITE,
+	'R',0,                          A_FREPAINT,
+	'r',0,                          A_REPAINT,
+	CONTROL('R'),0,                 A_REPAINT,
+	CONTROL('L'),0,                 A_REPAINT,
+	ESC,'u',0,                      A_UNDO_SEARCH,
+	ESC,'U',0,                      A_CLR_SEARCH,
+	'g',0,                          A_GOLINE,
+	SK(SK_HOME),0,                  A_GOLINE,
+	'<',0,                          A_GOLINE,
+	ESC,'<',0,                      A_GOLINE,
+	'p',0,                          A_PERCENT,
+	'%',0,                          A_PERCENT,
+	ESC,'[',0,                      A_LSHIFT,
+	ESC,']',0,                      A_RSHIFT,
+	ESC,'(',0,                      A_LSHIFT,
+	ESC,')',0,                      A_RSHIFT,
+	ESC,'{',0,                      A_LLSHIFT,
+	ESC,'}',0,                      A_RRSHIFT,
+	SK(SK_RIGHT_ARROW),0,           A_RSHIFT,
+	SK(SK_LEFT_ARROW),0,            A_LSHIFT,
+	SK(SK_CTL_RIGHT_ARROW),0,       A_RRSHIFT,
+	SK(SK_CTL_LEFT_ARROW),0,        A_LLSHIFT,
+	'{',0,                          A_F_BRACKET|A_EXTRA,        '{','}',0,
+	'}',0,                          A_B_BRACKET|A_EXTRA,        '{','}',0,
+	'(',0,                          A_F_BRACKET|A_EXTRA,        '(',')',0,
+	')',0,                          A_B_BRACKET|A_EXTRA,        '(',')',0,
+	'[',0,                          A_F_BRACKET|A_EXTRA,        '[',']',0,
+	']',0,                          A_B_BRACKET|A_EXTRA,        '[',']',0,
+	ESC,CONTROL('F'),0,             A_F_BRACKET,
+	ESC,CONTROL('B'),0,             A_B_BRACKET,
+	'G',0,                          A_GOEND,
+	ESC,'G',0,                      A_GOEND_BUF,
+	ESC,'>',0,                      A_GOEND,
+	'>',0,                          A_GOEND,
+	SK(SK_END),0,                   A_GOEND,
+	'P',0,                          A_GOPOS,
 
-	'0',0,				A_DIGIT,
-	'1',0,				A_DIGIT,
-	'2',0,				A_DIGIT,
-	'3',0,				A_DIGIT,
-	'4',0,				A_DIGIT,
-	'5',0,				A_DIGIT,
-	'6',0,				A_DIGIT,
-	'7',0,				A_DIGIT,
-	'8',0,				A_DIGIT,
-	'9',0,				A_DIGIT,
-	'.',0,				A_DIGIT,
+	'0',0,                          A_DIGIT,
+	'1',0,                          A_DIGIT,
+	'2',0,                          A_DIGIT,
+	'3',0,                          A_DIGIT,
+	'4',0,                          A_DIGIT,
+	'5',0,                          A_DIGIT,
+	'6',0,                          A_DIGIT,
+	'7',0,                          A_DIGIT,
+	'8',0,                          A_DIGIT,
+	'9',0,                          A_DIGIT,
+	'.',0,                          A_DIGIT,
 
-	'=',0,				A_STAT,
-	CONTROL('G'),0,			A_STAT,
-	':','f',0,			A_STAT,
-	'/',0,				A_F_SEARCH,
-	'?',0,				A_B_SEARCH,
-	ESC,'/',0,			A_F_SEARCH|A_EXTRA,	'*',0,
-	ESC,'?',0,			A_B_SEARCH|A_EXTRA,	'*',0,
-	'n',0,				A_AGAIN_SEARCH,
-	ESC,'n',0,			A_T_AGAIN_SEARCH,
-	'N',0,				A_REVERSE_SEARCH,
-	ESC,'N',0,			A_T_REVERSE_SEARCH,
-	'&',0,				A_FILTER,
-	'm',0,				A_SETMARK,
-	'M',0,				A_SETMARKBOT,
-	ESC,'m',0,			A_CLRMARK,
-	'\'',0,				A_GOMARK,
-	CONTROL('X'),CONTROL('X'),0,	A_GOMARK,
-	'E',0,				A_EXAMINE,
-	':','e',0,			A_EXAMINE,
-	CONTROL('X'),CONTROL('V'),0,	A_EXAMINE,
-	':','n',0,			A_NEXT_FILE,
-	':','p',0,			A_PREV_FILE,
-	't',0,				A_NEXT_TAG,
-	'T',0,				A_PREV_TAG,
-	':','x',0,			A_INDEX_FILE,
-	':','d',0,			A_REMOVE_FILE,
-	'-',0,				A_OPT_TOGGLE,
-	':','t',0,			A_OPT_TOGGLE|A_EXTRA,	't',0,
-	's',0,				A_OPT_TOGGLE|A_EXTRA,	'o',0,
-	'_',0,				A_DISP_OPTION,
-	'|',0,				A_PIPE,
-	'v',0,				A_VISUAL,
-	'!',0,				A_SHELL,
-	'+',0,				A_FIRSTCMD,
+	'=',0,                          A_STAT,
+	CONTROL('G'),0,                 A_STAT,
+	':','f',0,                      A_STAT,
+	'/',0,                          A_F_SEARCH,
+	'?',0,                          A_B_SEARCH,
+	ESC,'/',0,                      A_F_SEARCH|A_EXTRA,        '*',0,
+	ESC,'?',0,                      A_B_SEARCH|A_EXTRA,        '*',0,
+	'n',0,                          A_AGAIN_SEARCH,
+	ESC,'n',0,                      A_T_AGAIN_SEARCH,
+	'N',0,                          A_REVERSE_SEARCH,
+	ESC,'N',0,                      A_T_REVERSE_SEARCH,
+	'&',0,                          A_FILTER,
+	'm',0,                          A_SETMARK,
+	'M',0,                          A_SETMARKBOT,
+	ESC,'m',0,                      A_CLRMARK,
+	'\'',0,                         A_GOMARK,
+	CONTROL('X'),CONTROL('X'),0,    A_GOMARK,
+	'E',0,                          A_EXAMINE,
+	':','e',0,                      A_EXAMINE,
+	CONTROL('X'),CONTROL('V'),0,    A_EXAMINE,
+	':','n',0,                      A_NEXT_FILE,
+	':','p',0,                      A_PREV_FILE,
+	't',0,                          A_NEXT_TAG,
+	'T',0,                          A_PREV_TAG,
+	':','x',0,                      A_INDEX_FILE,
+	':','d',0,                      A_REMOVE_FILE,
+	'-',0,                          A_OPT_TOGGLE,
+	':','t',0,                      A_OPT_TOGGLE|A_EXTRA,        't',0,
+	's',0,                          A_OPT_TOGGLE|A_EXTRA,        'o',0,
+	'_',0,                          A_DISP_OPTION,
+	'|',0,                          A_PIPE,
+	'v',0,                          A_VISUAL,
+	'!',0,                          A_SHELL,
+	'+',0,                          A_FIRSTCMD,
 
-	'H',0,				A_HELP,
-	'h',0,				A_HELP,
-	SK(SK_F1),0,			A_HELP,
-	'V',0,				A_VERSION,
-	'q',0,				A_QUIT,
-	'Q',0,				A_QUIT,
-	':','q',0,			A_QUIT,
-	':','Q',0,			A_QUIT,
-	'Z','Z',0,			A_QUIT
+	'H',0,                          A_HELP,
+	'h',0,                          A_HELP,
+	SK(SK_F1),0,                    A_HELP,
+	'V',0,                          A_VERSION,
+	'q',0,                          A_QUIT,
+	'Q',0,                          A_QUIT,
+	':','q',0,                      A_QUIT,
+	':','Q',0,                      A_QUIT,
+	'Z','Z',0,                      A_QUIT
 };
 
 static unsigned char edittable[] =
 {
-	'\t',0,	    			EC_F_COMPLETE,	/* TAB */
-	'\17',0,			EC_B_COMPLETE,	/* BACKTAB */
-	SK(SK_BACKTAB),0,		EC_B_COMPLETE,	/* BACKTAB */
-	ESC,'\t',0,			EC_B_COMPLETE,	/* ESC TAB */
-	CONTROL('L'),0,			EC_EXPAND,	/* CTRL-L */
-	CONTROL('V'),0,			EC_LITERAL,	/* BACKSLASH */
-	CONTROL('A'),0,			EC_LITERAL,	/* BACKSLASH */
-   	ESC,'l',0,			EC_RIGHT,	/* ESC l */
-	SK(SK_RIGHT_ARROW),0,		EC_RIGHT,	/* RIGHTARROW */
-	ESC,'h',0,			EC_LEFT,	/* ESC h */
-	SK(SK_LEFT_ARROW),0,		EC_LEFT,	/* LEFTARROW */
-	ESC,'b',0,			EC_W_LEFT,	/* ESC b */
-	ESC,SK(SK_LEFT_ARROW),0,	EC_W_LEFT,	/* ESC LEFTARROW */
-	SK(SK_CTL_LEFT_ARROW),0,	EC_W_LEFT,	/* CTRL-LEFTARROW */
-	ESC,'w',0,			EC_W_RIGHT,	/* ESC w */
-	ESC,SK(SK_RIGHT_ARROW),0,	EC_W_RIGHT,	/* ESC RIGHTARROW */
-	SK(SK_CTL_RIGHT_ARROW),0,	EC_W_RIGHT,	/* CTRL-RIGHTARROW */
-	ESC,'i',0,			EC_INSERT,	/* ESC i */
-	SK(SK_INSERT),0,		EC_INSERT,	/* INSERT */
-	ESC,'x',0,			EC_DELETE,	/* ESC x */
-	SK(SK_DELETE),0,		EC_DELETE,	/* DELETE */
-	ESC,'X',0,			EC_W_DELETE,	/* ESC X */
-	ESC,SK(SK_DELETE),0,		EC_W_DELETE,	/* ESC DELETE */
-	SK(SK_CTL_DELETE),0,		EC_W_DELETE,	/* CTRL-DELETE */
-	SK(SK_CTL_BACKSPACE),0,		EC_W_BACKSPACE, /* CTRL-BACKSPACE */
-	ESC,'\b',0,			EC_W_BACKSPACE,	/* ESC BACKSPACE */
-	ESC,'0',0,			EC_HOME,	/* ESC 0 */
-	SK(SK_HOME),0,			EC_HOME,	/* HOME */
-	ESC,'$',0,			EC_END,		/* ESC $ */
-	SK(SK_END),0,			EC_END,		/* END */
-	ESC,'k',0,			EC_UP,		/* ESC k */
-	SK(SK_UP_ARROW),0,		EC_UP,		/* UPARROW */
-	ESC,'j',0,			EC_DOWN,	/* ESC j */
-	SK(SK_DOWN_ARROW),0,		EC_DOWN,	/* DOWNARROW */
-	CONTROL('G'),0,			EC_ABORT,	/* CTRL-G */
+	'\t',0,                         EC_F_COMPLETE,  /* TAB */
+	'\17',0,                        EC_B_COMPLETE,  /* BACKTAB */
+	SK(SK_BACKTAB),0,               EC_B_COMPLETE,  /* BACKTAB */
+	ESC,'\t',0,                     EC_B_COMPLETE,  /* ESC TAB */
+	CONTROL('L'),0,                 EC_EXPAND,      /* CTRL-L */
+	CONTROL('V'),0,                 EC_LITERAL,     /* BACKSLASH */
+	CONTROL('A'),0,                 EC_LITERAL,     /* BACKSLASH */
+	ESC,'l',0,                      EC_RIGHT,       /* ESC l */
+	SK(SK_RIGHT_ARROW),0,           EC_RIGHT,       /* RIGHTARROW */
+	ESC,'h',0,                      EC_LEFT,        /* ESC h */
+	SK(SK_LEFT_ARROW),0,            EC_LEFT,        /* LEFTARROW */
+	ESC,'b',0,                      EC_W_LEFT,      /* ESC b */
+	ESC,SK(SK_LEFT_ARROW),0,        EC_W_LEFT,      /* ESC LEFTARROW */
+	SK(SK_CTL_LEFT_ARROW),0,        EC_W_LEFT,      /* CTRL-LEFTARROW */
+	ESC,'w',0,                      EC_W_RIGHT,     /* ESC w */
+	ESC,SK(SK_RIGHT_ARROW),0,       EC_W_RIGHT,     /* ESC RIGHTARROW */
+	SK(SK_CTL_RIGHT_ARROW),0,       EC_W_RIGHT,     /* CTRL-RIGHTARROW */
+	ESC,'i',0,                      EC_INSERT,      /* ESC i */
+	SK(SK_INSERT),0,                EC_INSERT,      /* INSERT */
+	ESC,'x',0,                      EC_DELETE,      /* ESC x */
+	SK(SK_DELETE),0,                EC_DELETE,      /* DELETE */
+	ESC,'X',0,                      EC_W_DELETE,    /* ESC X */
+	ESC,SK(SK_DELETE),0,            EC_W_DELETE,    /* ESC DELETE */
+	SK(SK_CTL_DELETE),0,            EC_W_DELETE,    /* CTRL-DELETE */
+	SK(SK_CTL_BACKSPACE),0,         EC_W_BACKSPACE, /* CTRL-BACKSPACE */
+	ESC,'\b',0,                     EC_W_BACKSPACE, /* ESC BACKSPACE */
+	ESC,'0',0,                      EC_HOME,        /* ESC 0 */
+	SK(SK_HOME),0,                  EC_HOME,        /* HOME */
+	ESC,'$',0,                      EC_END,         /* ESC $ */
+	SK(SK_END),0,                   EC_END,         /* END */
+	ESC,'k',0,                      EC_UP,          /* ESC k */
+	SK(SK_UP_ARROW),0,              EC_UP,          /* UPARROW */
+	ESC,'j',0,                      EC_DOWN,        /* ESC j */
+	SK(SK_DOWN_ARROW),0,            EC_DOWN,        /* DOWNARROW */
+	CONTROL('G'),0,                 EC_ABORT,       /* CTRL-G */
+	ESC,'[','M',0,                  EC_X11MOUSE,    /* X11 mouse report */
+	ESC,'[','<',0,                  EC_X116MOUSE,   /* X11 1006 mouse report */
 };
 
 /*
@@ -487,11 +490,14 @@ getcc_int(pterm)
  * The prefix ("\e[M") has already been read.
  */
 	static int
-x11mouse_action(VOID_PARAM)
+x11mouse_action(skip)
+	int skip;
 {
 	int b = getcc() - X11MOUSE_OFFSET;
 	int x = getcc() - X11MOUSE_OFFSET-1;
 	int y = getcc() - X11MOUSE_OFFSET-1;
+	if (skip)
+		return (A_NOACTION);
 	switch (b) {
 	default:
 		return (A_NOACTION);
@@ -509,7 +515,8 @@ x11mouse_action(VOID_PARAM)
  * The prefix ("\e[<") has already been read.
  */
 	static int
-x116mouse_action(VOID_PARAM)
+x116mouse_action(skip)
+	int skip;
 {
 	char ch;
 	int x, y;
@@ -519,6 +526,8 @@ x116mouse_action(VOID_PARAM)
 	if (x < 0 || ch != ';') return (A_NOACTION);
 	y = getcc_int(&ch) - 1;
 	if (y < 0) return (A_NOACTION);
+	if (skip)
+		return (A_NOACTION);
 	switch (b) {
 	case X11MOUSE_WHEEL_DOWN:
 		return mouse_wheel_down();
@@ -580,9 +589,9 @@ cmd_search(cmd, table, endtable, sp)
 					a &= ~A_EXTRA;
 				}
 				if (a == A_X11MOUSE_IN)
-					a = x11mouse_action();
+					a = x11mouse_action(0);
 				else if (a == A_X116MOUSE_IN)
-					a = x116mouse_action();
+					a = x116mouse_action(0);
 				return (a);
 			}
 		} else if (*q == '\0')
@@ -924,7 +933,6 @@ editchar(c, flags)
 #if MSDOS_COMPILER==WIN32C
 		if (!win32_kbhit())
 #endif
-
 		return (EC_LINEKILL);
 	}
 		
@@ -934,15 +942,20 @@ editchar(c, flags)
 	 */
 	nch = 0;
 	do {
-	  	if (nch > 0)
+	        if (nch > 0)
 			c = getcc();
 		usercmd[nch] = c;
 		usercmd[nch+1] = '\0';
 		nch++;
 		action = ecmd_decode(usercmd, &s);
-	} while (action == A_PREFIX);
-	
-	if (flags & EC_NORIGHTLEFT)
+	} while (action == A_PREFIX && nch < MAX_CMDLEN);
+
+	if (action == EC_X11MOUSE)
+		return (x11mouse_action(1));
+	if (action == EC_X116MOUSE)
+		return (x116mouse_action(1));
+
+	if (flags & ECF_NORIGHTLEFT)
 	{
 		switch (action)
 		{
@@ -953,7 +966,7 @@ editchar(c, flags)
 		}
 	}
 #if CMD_HISTORY
-	if (flags & EC_NOHISTORY) 
+	if (flags & ECF_NOHISTORY) 
 	{
 		/*
 		 * The caller says there is no history list.
@@ -969,7 +982,7 @@ editchar(c, flags)
 	}
 #endif
 #if TAB_COMPLETE_FILENAME
-	if (flags & EC_NOCOMPLETE) 
+	if (flags & ECF_NOCOMPLETE) 
 	{
 		/*
 		 * The caller says we don't want any filename completion cmds.
@@ -985,7 +998,7 @@ editchar(c, flags)
 		}
 	}
 #endif
-	if ((flags & EC_PEEK) || action == A_INVALID)
+	if ((flags & ECF_PEEK) || action == A_INVALID)
 	{
 		/*
 		 * We're just peeking, or we didn't understand the command.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -40,27 +40,27 @@ struct charset {
 	int *p_flag;
 	char *desc;
 } charsets[] = {
-	{ "ascii",		NULL,       "8bcccbcc18b95.b" },
-	{ "utf-8",		&utf_mode,  "8bcccbcc18b95.b126.bb" },
-	{ "iso8859",		NULL,       "8bcccbcc18b95.33b." },
-	{ "latin3",		NULL,       "8bcccbcc18b95.33b5.b8.b15.b4.b12.b18.b12.b." },
-	{ "arabic",		NULL,       "8bcccbcc18b95.33b.3b.7b2.13b.3b.b26.5b19.b" },
-	{ "greek",		NULL,       "8bcccbcc18b95.33b4.2b4.b3.b35.b44.b" },
-	{ "greek2005",		NULL,       "8bcccbcc18b95.33b14.b35.b44.b" },
-	{ "hebrew",		NULL,       "8bcccbcc18b95.33b.b29.32b28.2b2.b" },
-	{ "koi8-r",		NULL,       "8bcccbcc18b95.b." },
-	{ "KOI8-T",		NULL,       "8bcccbcc18b95.b8.b6.b8.b.b.5b7.3b4.b4.b3.b.b.3b." },
-	{ "georgianps",		NULL,       "8bcccbcc18b95.3b11.4b12.2b." },
-	{ "tcvn",		NULL,       "b..b...bcccbccbbb7.8b95.b48.5b." },
-	{ "TIS-620",		NULL,       "8bcccbcc18b95.b.4b.11b7.8b." },
-	{ "next",		NULL,       "8bcccbcc18b95.bb125.bb" },
-	{ "dos",		NULL,       "8bcccbcc12bc5b95.b." },
-	{ "windows-1251",	NULL,       "8bcccbcc12bc5b95.b24.b." },
-	{ "windows-1252",	NULL,       "8bcccbcc12bc5b95.b.b11.b.2b12.b." },
-	{ "windows-1255",	NULL,       "8bcccbcc12bc5b95.b.b8.b.5b9.b.4b." },
-	{ "ebcdic",		NULL,       "5bc6bcc7bcc41b.9b7.9b5.b..8b6.10b6.b9.7b9.8b8.17b3.3b9.7b9.8b8.6b10.b.b.b." },
-	{ "IBM-1047",		NULL,       "4cbcbc3b9cbccbccbb4c6bcc5b3cbbc4bc4bccbc191.b" },
-	{ NULL, NULL, NULL }
+		{ "ascii",              NULL,       "8bcccbcc18b95.b" },
+		{ "utf-8",              &utf_mode,  "8bcccbcc18b95.b126.bb" },
+		{ "iso8859",            NULL,       "8bcccbcc18b95.33b." },
+		{ "latin3",             NULL,       "8bcccbcc18b95.33b5.b8.b15.b4.b12.b18.b12.b." },
+		{ "arabic",             NULL,       "8bcccbcc18b95.33b.3b.7b2.13b.3b.b26.5b19.b" },
+		{ "greek",              NULL,       "8bcccbcc18b95.33b4.2b4.b3.b35.b44.b" },
+		{ "greek2005",          NULL,       "8bcccbcc18b95.33b14.b35.b44.b" },
+		{ "hebrew",             NULL,       "8bcccbcc18b95.33b.b29.32b28.2b2.b" },
+		{ "koi8-r",             NULL,       "8bcccbcc18b95.b." },
+		{ "KOI8-T",             NULL,       "8bcccbcc18b95.b8.b6.b8.b.b.5b7.3b4.b4.b3.b.b.3b." },
+		{ "georgianps",         NULL,       "8bcccbcc18b95.3b11.4b12.2b." },
+		{ "tcvn",               NULL,       "b..b...bcccbccbbb7.8b95.b48.5b." },
+		{ "TIS-620",            NULL,       "8bcccbcc18b95.b.4b.11b7.8b." },
+		{ "next",               NULL,       "8bcccbcc18b95.bb125.bb" },
+		{ "dos",                NULL,       "8bcccbcc12bc5b95.b." },
+		{ "windows-1251",       NULL,       "8bcccbcc12bc5b95.b24.b." },
+		{ "windows-1252",       NULL,       "8bcccbcc12bc5b95.b.b11.b.2b12.b." },
+		{ "windows-1255",       NULL,       "8bcccbcc12bc5b95.b.b8.b.5b9.b.4b." },
+		{ "ebcdic",             NULL,       "5bc6bcc7bcc41b.9b7.9b5.b..8b6.10b6.b9.7b9.8b8.17b3.3b9.7b9.8b8.6b10.b.b.b." },
+		{ "IBM-1047",           NULL,       "4cbcbc3b9cbccbccbb4c6bcc5b3cbbc4bc4bccbc191.b" },
+		{ NULL, NULL, NULL }
 };
 
 /*
@@ -70,58 +70,58 @@ struct cs_alias {
 	char *name;
 	char *oname;
 } cs_aliases[] = {
-	{ "UTF-8",		"utf-8" },
-	{ "utf8",		"utf-8" },
-	{ "UTF8",		"utf-8" },
-	{ "ANSI_X3.4-1968",	"ascii" },
-	{ "US-ASCII",		"ascii" },
-	{ "latin1",		"iso8859" },
-	{ "ISO-8859-1",		"iso8859" },
-	{ "latin9",		"iso8859" },
-	{ "ISO-8859-15",	"iso8859" },
-	{ "latin2",		"iso8859" },
-	{ "ISO-8859-2",		"iso8859" },
-	{ "ISO-8859-3",		"latin3" },
-	{ "latin4",		"iso8859" },
-	{ "ISO-8859-4",		"iso8859" },
-	{ "cyrillic",		"iso8859" },
-	{ "ISO-8859-5",		"iso8859" },
-	{ "ISO-8859-6",		"arabic" },
-	{ "ISO-8859-7",		"greek" },
-	{ "IBM9005",		"greek2005" },
-	{ "ISO-8859-8",		"hebrew" },
-	{ "latin5",		"iso8859" },
-	{ "ISO-8859-9",		"iso8859" },
-	{ "latin6",		"iso8859" },
-	{ "ISO-8859-10",	"iso8859" },
-	{ "latin7",		"iso8859" },
-	{ "ISO-8859-13",	"iso8859" },
-	{ "latin8",		"iso8859" },
-	{ "ISO-8859-14",	"iso8859" },
-	{ "latin10",		"iso8859" },
-	{ "ISO-8859-16",	"iso8859" },
-	{ "IBM437",		"dos" },
-	{ "EBCDIC-US",		"ebcdic" },
-	{ "IBM1047",		"IBM-1047" },
-	{ "KOI8-R",		"koi8-r" },
-	{ "KOI8-U",		"koi8-r" },
-	{ "GEORGIAN-PS",	"georgianps" },
-	{ "TCVN5712-1", 	"tcvn" },
-	{ "NEXTSTEP",		"next" },
-	{ "windows",		"windows-1252" }, /* backward compatibility */
-	{ "CP1251",		"windows-1251" },
-	{ "CP1252",		"windows-1252" },
-	{ "CP1255",		"windows-1255" },
+	{ "UTF-8",              "utf-8" },
+	{ "utf8",               "utf-8" },
+	{ "UTF8",               "utf-8" },
+	{ "ANSI_X3.4-1968",     "ascii" },
+	{ "US-ASCII",           "ascii" },
+	{ "latin1",             "iso8859" },
+	{ "ISO-8859-1",         "iso8859" },
+	{ "latin9",             "iso8859" },
+	{ "ISO-8859-15",        "iso8859" },
+	{ "latin2",             "iso8859" },
+	{ "ISO-8859-2",         "iso8859" },
+	{ "ISO-8859-3",         "latin3" },
+	{ "latin4",             "iso8859" },
+	{ "ISO-8859-4",         "iso8859" },
+	{ "cyrillic",           "iso8859" },
+	{ "ISO-8859-5",         "iso8859" },
+	{ "ISO-8859-6",         "arabic" },
+	{ "ISO-8859-7",         "greek" },
+	{ "IBM9005",            "greek2005" },
+	{ "ISO-8859-8",         "hebrew" },
+	{ "latin5",             "iso8859" },
+	{ "ISO-8859-9",         "iso8859" },
+	{ "latin6",             "iso8859" },
+	{ "ISO-8859-10",        "iso8859" },
+	{ "latin7",             "iso8859" },
+	{ "ISO-8859-13",        "iso8859" },
+	{ "latin8",             "iso8859" },
+	{ "ISO-8859-14",        "iso8859" },
+	{ "latin10",            "iso8859" },
+	{ "ISO-8859-16",        "iso8859" },
+	{ "IBM437",             "dos" },
+	{ "EBCDIC-US",          "ebcdic" },
+	{ "IBM1047",            "IBM-1047" },
+	{ "KOI8-R",             "koi8-r" },
+	{ "KOI8-U",             "koi8-r" },
+	{ "GEORGIAN-PS",        "georgianps" },
+	{ "TCVN5712-1",         "tcvn" },
+	{ "NEXTSTEP",           "next" },
+	{ "windows",            "windows-1252" }, /* backward compatibility */
+	{ "CP1251",             "windows-1251" },
+	{ "CP1252",             "windows-1252" },
+	{ "CP1255",             "windows-1255" },
 	{ NULL, NULL }
 };
 
-#define	IS_BINARY_CHAR	01
-#define	IS_CONTROL_CHAR	02
+#define IS_BINARY_CHAR  01
+#define IS_CONTROL_CHAR 02
 
 static char chardef[256];
 static char *binfmt = NULL;
 static char *utfbinfmt = NULL;
-public int binattr = AT_STANDOUT;
+public int binattr = AT_STANDOUT|AT_COLOR_BIN;
 
 
 /*
@@ -134,9 +134,9 @@ public int binattr = AT_STANDOUT;
  * repetition of the letter.
  *
  * Each letter is one of:
- *	. normal character
- *	b binary character
- *	c control character
+ *      . normal character
+ *      b binary character
+ *      c control character
  */
 	static void
 ichardef(s)
@@ -457,16 +457,16 @@ prchar(c)
 		SNPRINTF1(buf, sizeof(buf), "^%c",
 		/*
 		 * This array roughly inverts CONTROL() #defined in less.h,
-	 	 * and should be kept in sync with CONTROL() and IBM-1047.
- 	 	 */
+		 * and should be kept in sync with CONTROL() and IBM-1047.
+		 */
 		"@ABC.I.?...KLMNO"
 		"PQRS.JH.XY.."
 		"\\]^_"
 		"......W[.....EFG"
 		"..V....D....TU.Z"[c]);
 #else
-  	else if (c < 128 && !control_char(c ^ 0100))
-  		SNPRINTF1(buf, sizeof(buf), "^%c", (int) (c ^ 0100));
+	else if (c < 128 && !control_char(c ^ 0100))
+		SNPRINTF1(buf, sizeof(buf), "^%c", (int) (c ^ 0100));
 #endif
 	else
 		SNPRINTF1(buf, sizeof(buf), binfmt, c);
@@ -484,7 +484,7 @@ prutfchar(ch)
 
 	if (ch == ESC)
 		strcpy(buf, "ESC");
-  	else if (ch < 128 && control_char(ch))
+	else if (ch < 128 && control_char(ch))
 	{
 		if (!control_char(ch ^ 0100))
 			SNPRINTF1(buf, sizeof(buf), "^%c", ((char) ch) ^ 0100);
@@ -732,9 +732,9 @@ step_char(pp, dir, limit)
  */
 
 #define DECLARE_RANGE_TABLE_START(name) \
-    static struct wchar_range name##_array[] = {
+	static struct wchar_range name##_array[] = {
 #define DECLARE_RANGE_TABLE_END(name) \
-    }; struct wchar_range_table name##_table = { name##_array, sizeof(name##_array)/sizeof(*name##_array) };
+	}; struct wchar_range_table name##_table = { name##_array, sizeof(name##_array)/sizeof(*name##_array) };
 
 DECLARE_RANGE_TABLE_START(compose)
 #include "compose.uni"

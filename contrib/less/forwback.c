@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -49,6 +49,13 @@ extern char *tagoption;
 	static void
 eof_bell(VOID_PARAM)
 {
+#if HAVE_TIME
+	static time_type last_eof_bell = 0;
+	time_type now = get_time();
+	if (now == last_eof_bell) /* max once per second */
+		return;
+	last_eof_bell = now;
+#endif
 	if (quiet == NOT_QUIET)
 		bell();
 	else
@@ -189,7 +196,7 @@ forw(n, pos, force, only_last, nblank)
 			{
 				clear();
 				home();
-			} else if (!first_time)
+			} else if (!first_time && !is_filtering())
 			{
 				putstr("...skipping...\n");
 			}

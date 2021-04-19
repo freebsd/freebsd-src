@@ -10,13 +10,13 @@
 
 #define NSUBEXP  10
 typedef struct regexp {
-	char *startp[NSUBEXP];
-	char *endp[NSUBEXP];
-	char regstart;		/* Internal use only. */
-	char reganch;		/* Internal use only. */
-	char *regmust;		/* Internal use only. */
-	int regmlen;		/* Internal use only. */
-	char program[1];	/* Unwarranted chumminess with compiler. */
+        char *startp[NSUBEXP];
+        char *endp[NSUBEXP];
+        char regstart;          /* Internal use only. */
+        char reganch;           /* Internal use only. */
+        char *regmust;          /* Internal use only. */
+        int regmlen;            /* Internal use only. */
+        char program[1];        /* Unwarranted chumminess with compiler. */
 } regexp;
 
 #if defined(__STDC__) || defined(__cplusplus)
