@@ -126,6 +126,9 @@ struct ifa_msghdrl32 {
 
 #endif /* COMPAT_FREEBSD32 */
 
+#define	RTS_PID_PRINTF(_fmt, ...) \
+    printf("rtsock:%s(): PID %d: " _fmt "\n", __func__, curproc->p_pid, ## __VA_ARGS__)
+
 MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 
 /* NB: these are not modified */
@@ -571,7 +574,7 @@ fill_blackholeinfo(struct rt_addrinfo *info, union sockaddr_union *saun)
 	sa_family_t saf;
 
 	if (V_loif == NULL) {
-		printf("Unable to add blackhole/reject nhop without loopback");
+		RTS_PID_PRINTF("Unable to add blackhole/reject nhop without loopback");
 		return (ENOTSUP);
 	}
 	info->rti_ifp = V_loif;
@@ -1360,7 +1363,7 @@ cleanup_xaddrs_gateway(struct rt_addrinfo *info)
 		{
 			struct sockaddr_in *gw_sin = (struct sockaddr_in *)gw;
 			if (gw_sin->sin_len < sizeof(struct sockaddr_in)) {
-				printf("gw sin_len too small\n");
+				RTS_PID_PRINTF("gateway sin_len too small: %d", gw->sa_len);
 				return (EINVAL);
 			}
 			fill_sockaddr_inet(gw_sin, gw_sin->sin_addr);
@@ -1372,7 +1375,7 @@ cleanup_xaddrs_gateway(struct rt_addrinfo *info)
 		{
 			struct sockaddr_in6 *gw_sin6 = (struct sockaddr_in6 *)gw;
 			if (gw_sin6->sin6_len < sizeof(struct sockaddr_in6)) {
-				printf("gw sin6_len too small\n");
+				RTS_PID_PRINTF("gateway sin6_len too small: %d", gw->sa_len);
 				return (EINVAL);
 			}
 			fill_sockaddr_inet6(gw_sin6, &gw_sin6->sin6_addr, 0);
@@ -1386,7 +1389,7 @@ cleanup_xaddrs_gateway(struct rt_addrinfo *info)
 			size_t sdl_min_len = offsetof(struct sockaddr_dl, sdl_data);
 			gw_sdl = (struct sockaddr_dl *)gw;
 			if (gw_sdl->sdl_len < sdl_min_len) {
-				printf("gw sdl_len too small\n");
+				RTS_PID_PRINTF("gateway sdl_len too small: %d", gw_sdl->sdl_len);
 				return (EINVAL);
 			}
 
@@ -1433,7 +1436,7 @@ cleanup_xaddrs_inet(struct rt_addrinfo *info)
 		return (EINVAL);
 	}
 	if (mask_sa && mask_sa->sin_len < sizeof(struct sockaddr_in)) {
-		printf("mask sin_len too small\n");
+		RTS_PID_PRINTF("prefix mask sin_len too small: %d", mask_sa->sin_len);
 		return (EINVAL);
 	}
 	fill_sockaddr_inet(dst_sa, dst);
@@ -1466,11 +1469,11 @@ cleanup_xaddrs_inet6(struct rt_addrinfo *info)
 	IN6_MASK_ADDR(&dst_sa->sin6_addr, &mask);
 
 	if (dst_sa->sin6_len < sizeof(struct sockaddr_in6)) {
-		printf("dst sin6_len too small\n");
+		RTS_PID_PRINTF("prefix dst sin6_len too small: %d", dst_sa->sin6_len);
 		return (EINVAL);
 	}
 	if (mask_sa && mask_sa->sin6_len < sizeof(struct sockaddr_in6)) {
-		printf("mask sin6_len too small\n");
+		RTS_PID_PRINTF("rtsock: prefix mask sin6_len too small: %d", mask_sa->sin6_len);
 		return (EINVAL);
 	}
 	fill_sockaddr_inet6(dst_sa, &dst_sa->sin6_addr, 0);
@@ -2092,9 +2095,9 @@ rt_dispatch(struct mbuf *m, sa_family_t saf)
 }
 
 /*
- * Checks if rte can be exported v.r.t jails/vnets.
+ * Checks if rte can be exported w.r.t jails/vnets.
  *
- * Returns 1 if it can, 0 otherwise.
+ * Returns true if it can, false otherwise.
  */
 static bool
 can_export_rte(struct ucred *td_ucred, bool rt_is_host,
