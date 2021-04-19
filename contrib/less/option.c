@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -23,8 +23,7 @@
 static struct loption *pendopt;
 public int plusoption = FALSE;
 
-static char *optstring LESSPARAMS((char *s, char **p_str, char *printopt,
-    char *validchars));
+static char *optstring LESSPARAMS((char *s, char **p_str, char *printopt, char *validchars));
 static int flip_triple LESSPARAMS((int val, int lc));
 
 extern int screen_trashed;
@@ -157,8 +156,8 @@ scan_option(s)
 				every_first_cmd = save(str+1);
 			} else
 			{
-				ungetcc(CHAR_END_COMMAND);
 				ungetsc(str);
+				ungetcc_back(CHAR_END_COMMAND);
 			}
 			free(str);
 			continue;
@@ -297,10 +296,10 @@ scan_option(s)
  * Toggle command line flags from within the program.
  * Used by the "-" and "_" commands.
  * how_toggle may be:
- *	OPT_NO_TOGGLE	just report the current setting, without changing it.
- *	OPT_TOGGLE	invert the current setting
- *	OPT_UNSET	set to the default value
- *	OPT_SET		set to the inverse of the default value
+ *      OPT_NO_TOGGLE   just report the current setting, without changing it.
+ *      OPT_TOGGLE      invert the current setting
+ *      OPT_UNSET       set to the default value
+ *      OPT_SET         set to the inverse of the default value
  */
 	public void
 toggle_option(o, lower, s, how_toggle)
@@ -384,10 +383,10 @@ toggle_option(o, lower, s, how_toggle)
 		case TRIPLE:
 			/*
 			 * Triple:
-			 *	If user gave the lower case letter, then switch 
-			 *	to 1 unless already 1, in which case make it 0.
-			 *	If user gave the upper case letter, then switch
-			 *	to 2 unless already 2, in which case make it 0.
+			 *      If user gave the lower case letter, then switch 
+			 *      to 1 unless already 1, in which case make it 0.
+			 *      If user gave the upper case letter, then switch
+			 *      to 2 unless already 2, in which case make it 0.
 			 */
 			switch (how_toggle)
 			{
@@ -405,7 +404,7 @@ toggle_option(o, lower, s, how_toggle)
 		case STRING:
 			/*
 			 * String: don't do anything here.
-			 *	The handling function will do everything.
+			 *      The handling function will do everything.
 			 */
 			switch (how_toggle)
 			{
