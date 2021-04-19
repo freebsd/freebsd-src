@@ -1,11 +1,14 @@
 # $FreeBSD$
 
-freebsd_instance:
-  # image: freebsd-12-1-stable-amd64
-  # We need a newer image to install llvm11
-  image_family: freebsd-12-1-snap
+compute_engine_instance:
+  # Image list available via
+  # gcloud compute images list --project freebsd-org-cloud-dev --no-standard-images
+  platform: freebsd
+  image_project: freebsd-org-cloud-dev
+  image: freebsd-13-0-release-amd64
   cpu: 8
   memory: 24G
+  disk: 40
 
 env:
   CIRRUS_CLONE_DEPTH: 1
@@ -14,7 +17,7 @@ task:
   only_if: $CIRRUS_BRANCH != 'svn_head'
   timeout_in: 120m
   install_script:
-  - pkg install -y qemu42 uefi-edk2-qemu-x86_64 llvm11
+  - pkg install -y qemu uefi-edk2-qemu-x86_64 llvm11
   setup_user_script:
   - pw useradd user
   - mkdir -p /usr/obj/$(pwd -P)
@@ -25,3 +28,6 @@ task:
   - su user -c "make CROSS_TOOLCHAIN=llvm11 WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
   test_script:
   - sh tools/boot/ci-qemu-test.sh
+  post_script:
+  - df -m
+  - du -m -s /usr/obj
