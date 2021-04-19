@@ -57,7 +57,7 @@ int	ivhd_count;			/* Number of IVHD header. */
  * Cached IVHD header list.
  * Single entry for each IVHD, filtered the legacy one.
  */
-ACPI_IVRS_HARDWARE1 *ivhd_hdrs[10];	
+ACPI_IVRS_HARDWARE1 **ivhd_hdrs;
 
 extern int amdvi_ptp_level;		/* Page table levels. */
 
@@ -134,9 +134,11 @@ ivrs_is_ivhd(UINT8 type)
 static int
 ivhd_count_iter(ACPI_IVRS_HEADER * ivrs_he, void *arg)
 {
+	int *count;
 
+	count = (int *)arg;
 	if (ivrs_is_ivhd(ivrs_he->Type))
-		ivhd_count++;
+		(*count)++;
 
 	return (1);
 }
@@ -339,7 +341,7 @@ ivhd_identify(driver_t *driver, device_t parent)
 	ACPI_TABLE_IVRS *ivrs;
 	ACPI_IVRS_HARDWARE1 *ivhd;
 	ACPI_STATUS status;
-	int i, count = 0;
+	int i, j, count = 0;
 	uint32_t ivrs_ivinfo;
 
 	if (acpi_disabled("ivhd"))
@@ -360,32 +362,35 @@ ivhd_identify(driver_t *driver, device_t parent)
 		REG_BITS(ivrs_ivinfo, 7, 5), REG_BITS(ivrs_ivinfo, 22, 22),
 		"\020\001EFRSup");
 
-	ivrs_hdr_iterate_tbl(ivhd_count_iter, NULL);
-	if (!ivhd_count)
+	ivrs_hdr_iterate_tbl(ivhd_count_iter, &count);
+	if (!count)
 		return;
 
-	for (i = 0; i < ivhd_count; i++) {
+	ivhd_hdrs = malloc(sizeof(void *) * count, M_DEVBUF,
+		M_WAITOK | M_ZERO);
+	for (i = 0; i < count; i++) {
 		ivhd = ivhd_find_by_index(i);
 		KASSERT(ivhd, ("ivhd%d is NULL\n", i));
-		ivhd_hdrs[i] = ivhd;
-	}
 
-        /* 
-	 * Scan for presence of legacy and non-legacy device type
-	 * for same AMD-Vi device and override the old one.
-	 */
-	for (i = ivhd_count - 1 ; i > 0 ; i--){
-       		if (ivhd_is_newer(&ivhd_hdrs[i-1]->Header, 
-			&ivhd_hdrs[i]->Header)) {
-			memmove(&ivhd_hdrs[i-1], &ivhd_hdrs[i],
-			    sizeof(void *) * (ivhd_count - i));
-			ivhd_count--;
+		/*
+		 * Scan for presence of legacy and non-legacy device type
+		 * for same IOMMU device and override the old one.
+		 *
+		 * If there is no existing IVHD to the same IOMMU device,
+		 * the IVHD header pointer is appended.
+		 */
+		for (j = 0; j < ivhd_count; j++) {
+			if (ivhd_is_newer(&ivhd_hdrs[j]->Header, &ivhd->Header))
+				break;
 		}
+		ivhd_hdrs[j] = ivhd;
+		if (j == ivhd_count)
+			ivhd_count++;
 	}
 
 	ivhd_devs = malloc(sizeof(device_t) * ivhd_count, M_DEVBUF,
 		M_WAITOK | M_ZERO);
-	for (i = 0; i < ivhd_count; i++) {
+	for (i = 0, j = 0; i < ivhd_count; i++) {
 		ivhd = ivhd_hdrs[i];
 		KASSERT(ivhd, ("ivhd%d is NULL\n", i));
 
@@ -407,13 +412,13 @@ ivhd_identify(driver_t *driver, device_t parent)
 				break;
 			}
 		}
-		count++;
+		j++;
 	}
 
 	/*
 	 * Update device count in case failed to attach.
 	 */
-	ivhd_count = count;
+	ivhd_count = j;
 }
 
 static int
