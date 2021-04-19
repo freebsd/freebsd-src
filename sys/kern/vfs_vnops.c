@@ -451,16 +451,34 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 	/*
 	 * Error from advlock or VOP_ADD_WRITECOUNT() still requires
 	 * calling VOP_CLOSE() to pair with earlier VOP_OPEN().
-	 * Arrange for that by having fdrop() to use vn_closefile().
 	 */
 	if (error != 0) {
-		fp->f_flag |= FOPENFAILED;
-		fp->f_vnode = vp;
-		if (fp->f_ops == &badfileops) {
-			fp->f_type = DTYPE_VNODE;
-			fp->f_ops = &vnops;
+		if (fp != NULL) {
+			/*
+			 * Arrange the call by having fdrop() to use
+			 * vn_closefile().  This is to satisfy
+			 * filesystems like devfs or tmpfs, which
+			 * override fo_close().
+			 */
+			fp->f_flag |= FOPENFAILED;
+			fp->f_vnode = vp;
+			if (fp->f_ops == &badfileops) {
+				fp->f_type = DTYPE_VNODE;
+				fp->f_ops = &vnops;
+			}
+			vref(vp);
+		} else {
+			/*
+			 * If there is no fp, due to kernel-mode open,
+			 * we can call VOP_CLOSE() now.
+			 */
+			if (vp->v_type != VFIFO && (fmode & FWRITE) != 0 &&
+			    !MNT_EXTENDED_SHARED(vp->v_mount) &&
+			    VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
+				vn_lock(vp, LK_UPGRADE | LK_RETRY);
+			(void)VOP_CLOSE(vp, fmode & (FREAD | FWRITE | FEXEC),
+			    cred, td);
 		}
-		vref(vp);
 	}
 
 	ASSERT_VOP_LOCKED(vp, "vn_open_vnode");
