@@ -126,8 +126,6 @@ bcr -> "0mp"
 bcr -> gbe
 bcr -> debdrup
 
-bge -> fernape
-
 blackend -> ale
 
 brueffer -> joel
@@ -151,6 +149,8 @@ gabor -> taras
 gabor -> issyl0
 gabor -> ebrandi
 gabor -> carlavilla
+
+gbe -> fernape
 
 gjb -> wblock
 gjb -> rene
