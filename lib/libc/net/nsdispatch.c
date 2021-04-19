@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/stat.h>
 
-#include <assert.h>
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -77,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <nsswitch.h>
 #include <pthread.h>
 #include <pthread_np.h>
-#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -99,52 +97,7 @@ enum _nss_constants {
  * Global NSS data structures are mostly read-only, but we update
  * them when we read or re-read the nsswitch.conf.
  */
-static pthread_rwlock_t nss_lock = PTHREAD_RWLOCK_INITIALIZER;
-#ifndef NDEBUG
-static void *nss_wlock_owner __guarded_by(nss_lock);
-#endif
-
-static inline /* __lock_annotate(locks_excluded(nss_lock)) */
-__locks_exclusive(nss_lock) int
-nss_wlock(void)
-{
-	int err;
-
-	err = _pthread_rwlock_wrlock(&nss_lock);
-#ifndef NDEBUG
-	assert(nss_wlock_owner == NULL);
-	nss_wlock_owner = _pthread_self();
-#endif
-	assert(err == 0 && "Locking should not have failed!");
-	return (err);
-}
-
-/*
- * XXX: The manpage says already held lock may result in EDEADLK, but
- * actually libthr returns always EBUSY, so we need the extra owner
- * variable for assertions.
- */
-#define ASSERT_NSS_WLOCK_HELD()                                                \
-	do {                                                                   \
-		if (__isthreaded) {                                            \
-			assert(_pthread_rwlock_trywrlock(&nss_lock) == EBUSY); \
-			assert(nss_wlock_owner == _pthread_self());            \
-		}                                                              \
-	} while (0)
-
-static inline __requires_exclusive(nss_lock) __unlocks(nss_lock) int
-nss_wunlock(void)
-{
-	int err;
-
-	ASSERT_NSS_WLOCK_HELD();
-#ifndef NDEBUG
-	nss_wlock_owner = NULL;
-#endif
-	err = _pthread_rwlock_unlock(&nss_lock);
-	assert(err == 0 && "Unlocking should not have failed!");
-	return (err);
-}
+static	pthread_rwlock_t	nss_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 /*
  * Runtime determination of whether we are dynamically linked or not.
@@ -161,12 +114,12 @@ const ns_src __nsdefaultsrc[] = {
 };
 
 /* Database, source mappings. */
-static	unsigned int		 _nsmapsize __guarded_by(nss_lock);
-static	ns_dbt			*_nsmap __guarded_by(nss_lock);
+static	unsigned int		 _nsmapsize;
+static	ns_dbt			*_nsmap = NULL;
 
 /* NSS modules. */
-static	unsigned int		 _nsmodsize __guarded_by(nss_lock);
-static	ns_mod			*_nsmod __guarded_by(nss_lock);
+static	unsigned int		 _nsmodsize;
+static	ns_mod			*_nsmod;
 
 /* Placeholder for builtin modules' dlopen `handle'. */
 static	int			 __nss_builtin_handle;
@@ -213,7 +166,8 @@ typedef	int	(*vector_comparison)(const void *, const void *);
 typedef	void	(*vector_free_elem)(void *);
 static	void	  vector_sort(void *, unsigned int, size_t,
 		    vector_comparison);
-static	void	  _vector_free(void *, unsigned int, size_t, vector_free_elem);
+static	void	  vector_free(void *, unsigned int *, size_t,
+		    vector_free_elem);
 static	void	 *vector_ref(unsigned int, void *, unsigned int, size_t);
 static	void	 *vector_search(const void *, void *, unsigned int, size_t,
 		    vector_comparison);
@@ -284,24 +238,22 @@ vector_ref(unsigned int i, void *vec, unsigned int count, size_t esize)
 }
 
 
-#define VECTOR_FREE(vec, count, es, fe) do {	\
-	_vector_free(vec, count, es, fe);	\
-	vec = NULL;				\
-	count = 0;				\
-} while (0)
+#define VECTOR_FREE(v, c, s, f) \
+	do { vector_free(v, c, s, f); v = NULL; } while (0)
 static void
-_vector_free(void *vec, unsigned int count, size_t esize,
+vector_free(void *vec, unsigned int *count, size_t esize,
     vector_free_elem free_elem)
 {
 	unsigned int	 i;
 	void		*elem;
 
-	for (i = 0; i < count; i++) {
-		elem = vector_ref(i, vec, count, esize);
+	for (i = 0; i < *count; i++) {
+		elem = vector_ref(i, vec, *count, esize);
 		if (elem != NULL)
 			free_elem(elem);
 	}
 	free(vec);
+	*count = 0;
 }
 
 /*
@@ -330,14 +282,13 @@ mtab_compare(const void *a, const void *b)
 /*
  * NSS nsmap management.
  */
-__requires_exclusive(nss_lock) void
+void
 _nsdbtaddsrc(ns_dbt *dbt, const ns_src *src)
 {
 	const ns_mod	*modp;
 
-	ASSERT_NSS_WLOCK_HELD();
-	dbt->srclist = vector_append(src, dbt->srclist,
-	    (unsigned int *)&dbt->srclistsize, sizeof(*src));
+	dbt->srclist = vector_append(src, dbt->srclist, &dbt->srclistsize,
+	    sizeof(*src));
 	modp = vector_search(&src->name, _nsmod, _nsmodsize, sizeof(*_nsmod),
 	    string_compare);
 	if (modp == NULL)
@@ -374,28 +325,26 @@ _nsdbtdump(const ns_dbt *dbt)
 }
 #endif
 
-#ifndef NS_REREAD_CONF
-static int __guarded_by(nss_lock) already_initialized = 0;
-#endif
 
 /*
  * The first time nsdispatch is called (during a process's lifetime,
  * or after nsswitch.conf has been updated), nss_configure will
  * prepare global data needed by NSS.
  */
-static __requires_shared(nss_lock) int
-__lock_annotate(no_thread_safety_analysis) /* RWLock upgrade not supported. */
-do_nss_configure(void)
+static int
+nss_configure(void)
 {
-	static time_t __guarded_by(nss_lock) confmod = 0;
+	static time_t	 confmod;
+	static int	 already_initialized = 0;
 	struct stat	 statbuf;
-	int		 result;
+	int		 result, isthreaded;
 	const char	*path;
 #ifdef NS_CACHING
 	void		*handle;
 #endif
 
 	result = 0;
+	isthreaded = __isthreaded;
 #if defined(_NSS_DEBUG) && defined(_NSS_SHOOT_FOOT)
 	/* NOTE WELL:  THIS IS A SECURITY HOLE. This must only be built
 	 * for debugging purposes and MUST NEVER be used in production.
@@ -404,33 +353,36 @@ do_nss_configure(void)
 	if (path == NULL)
 #endif
 		path = _PATH_NS_CONF;
-
-	result = _pthread_rwlock_unlock(&nss_lock);
-	if (result != 0)
-		return (result);
-	result = nss_wlock();
-	if (result != 0)
-		return (result);
 #ifndef NS_REREAD_CONF
 	/*
-	 * Another thread could have already run the initialization
-	 * logic while we were waiting for the write lock. Check
-	 * already_initialized to avoid re-initializing.
+	 * Define NS_REREAD_CONF to have nsswitch notice changes
+	 * to nsswitch.conf(5) during runtime.  This involves calling
+	 * stat(2) every time, which can result in performance hit.
 	 */
 	if (already_initialized)
-		goto fin;
+		return (0);
+	already_initialized = 1;
 #endif /* NS_REREAD_CONF */
-	ASSERT_NSS_WLOCK_HELD();
 	if (stat(path, &statbuf) != 0)
-		goto fin;
+		return (0);
 	if (statbuf.st_mtime <= confmod)
-		goto fin;
+		return (0);
+	if (isthreaded) {
+		(void)_pthread_rwlock_unlock(&nss_lock);
+		result = _pthread_rwlock_wrlock(&nss_lock);
+		if (result != 0)
+			return (result);
+		if (stat(path, &statbuf) != 0)
+			goto fin;
+		if (statbuf.st_mtime <= confmod)
+			goto fin;
+	}
 	_nsyyin = fopen(path, "re");
 	if (_nsyyin == NULL)
 		goto fin;
-	VECTOR_FREE(_nsmap, _nsmapsize, sizeof(*_nsmap),
+	VECTOR_FREE(_nsmap, &_nsmapsize, sizeof(*_nsmap),
 	    (vector_free_elem)ns_dbt_free);
-	VECTOR_FREE(_nsmod, _nsmodsize, sizeof(*_nsmod),
+	VECTOR_FREE(_nsmod, &_nsmodsize, sizeof(*_nsmod),
 	    (vector_free_elem)ns_mod_free);
 	if (confmod == 0)
 		(void)atexit(nss_atexit);
@@ -448,41 +400,21 @@ do_nss_configure(void)
 		dlclose(handle);
 	}
 #endif
-#ifndef NS_REREAD_CONF
-	already_initialized = 1;
-#endif
 fin:
-	result = nss_wunlock();
-	if (result == 0)
-		result = _pthread_rwlock_rdlock(&nss_lock);
-	return (result);
-}
-
-static __requires_shared(nss_lock) int
-nss_configure(void)
-{
-	int result;
-#ifndef NS_REREAD_CONF
-	/*
-	 * Define NS_REREAD_CONF to have nsswitch notice changes
-	 * to nsswitch.conf(5) during runtime.  This involves calling
-	 * stat(2) every time, which can result in performance hit.
-	 */
-	if (already_initialized)
-		return (0);
-#endif /* NS_REREAD_CONF */
-	result = do_nss_configure();
+	if (isthreaded) {
+		(void)_pthread_rwlock_unlock(&nss_lock);
+		if (result == 0)
+			result = _pthread_rwlock_rdlock(&nss_lock);
+	}
 	return (result);
 }
 
 
-__requires_exclusive(nss_lock) void
+void
 _nsdbtput(const ns_dbt *dbt)
 {
 	unsigned int	 i;
 	ns_dbt		*p;
-
-	ASSERT_NSS_WLOCK_HELD();
 
 	for (i = 0; i < _nsmapsize; i++) {
 		p = vector_ref(i, _nsmap, _nsmapsize, sizeof(*_nsmap));
@@ -546,14 +478,12 @@ nss_load_builtin_modules(void)
  * argument is non-NULL, assume a built-in module and use reg_fn to
  * register it.  Otherwise, search for a dynamic NSS module.
  */
-static __requires_exclusive(nss_lock) void
+static void
 nss_load_module(const char *source, nss_module_register_fn reg_fn)
 {
 	char		 buf[PATH_MAX];
 	ns_mod		 mod;
 	nss_module_register_fn fn;
-
-	ASSERT_NSS_WLOCK_HELD();
 
 	memset(&mod, 0, sizeof(mod));
 	mod.name = strdup(source);
@@ -618,9 +548,9 @@ fin:
 	vector_sort(_nsmod, _nsmodsize, sizeof(*_nsmod), string_compare);
 }
 
-static int exiting __guarded_by(nss_lock) = 0;
+static int exiting = 0;
 
-static __requires_exclusive(nss_lock) void
+static void
 ns_mod_free(ns_mod *mod)
 {
 
@@ -639,19 +569,24 @@ ns_mod_free(ns_mod *mod)
 static void
 nss_atexit(void)
 {
-	(void)nss_wlock();
+	int isthreaded;
+
 	exiting = 1;
-	VECTOR_FREE(_nsmap, _nsmapsize, sizeof(*_nsmap),
+	isthreaded = __isthreaded;
+	if (isthreaded)
+		(void)_pthread_rwlock_wrlock(&nss_lock);
+	VECTOR_FREE(_nsmap, &_nsmapsize, sizeof(*_nsmap),
 	    (vector_free_elem)ns_dbt_free);
-	VECTOR_FREE(_nsmod, _nsmapsize, sizeof(*_nsmod),
+	VECTOR_FREE(_nsmod, &_nsmodsize, sizeof(*_nsmod),
 	    (vector_free_elem)ns_mod_free);
-	(void)nss_wunlock();
+	if (isthreaded)
+		(void)_pthread_rwlock_unlock(&nss_lock);
 }
 
 /*
  * Finally, the actual implementation.
  */
-static __requires_shared(nss_lock) nss_method
+static nss_method
 nss_method_lookup(const char *source, const char *database,
     const char *method, const ns_dtab disp_tab[], void **mdata)
 {
@@ -690,7 +625,7 @@ fb_endstate(void *p)
 
 __weak_reference(_nsdispatch, nsdispatch);
 
-__requires_unlocked(nss_lock) int
+int
 _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 	    const char *method_name, const ns_src defaults[], ...)
 {
@@ -699,7 +634,7 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 	const ns_src	*srclist;
 	nss_method	 method, fb_method;
 	void		*mdata;
-	int		serrno, i, result, srclistsize;
+	int		 isthreaded, serrno, i, result, srclistsize;
 	struct fb_state	*st;
 	int		 saved_depth;
 
@@ -712,8 +647,15 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 	dbt = NULL;
 	fb_method = NULL;
 
+	isthreaded = __isthreaded;
 	serrno = errno;
-	(void)_pthread_rwlock_rdlock(&nss_lock);
+	if (isthreaded) {
+		result = _pthread_rwlock_rdlock(&nss_lock);
+		if (result != 0) {
+			result = NS_UNAVAIL;
+			goto fin;
+		}
+	}
 
 	result = fb_getstate(&st);
 	if (result != 0) {
@@ -832,9 +774,10 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 	}
 #endif /* NS_CACHING */
 
+	if (isthreaded)
+		(void)_pthread_rwlock_unlock(&nss_lock);
 	--st->dispatch_depth;
 fin:
-	(void)_pthread_rwlock_unlock(&nss_lock);
 	errno = serrno;
 	return (result);
 }
