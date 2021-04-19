@@ -193,7 +193,7 @@ sanitize_envline(char *result, const char *src)
 
 	/* If there is no '=' it's not a well-formed name=value line. */
 	if ((eq = strchr(src, '=')) == NULL) {
-		*result = 0;
+		*result = '\0';
 		return;
 	}
 	dst = result;
@@ -210,7 +210,7 @@ sanitize_envline(char *result, const char *src)
 
 	/* If it was all leading space, we don't have a well-formed line. */
 	if (leading) {
-		*result = 0;
+		*result = '\0';
 		return;
 	}
 
@@ -221,7 +221,7 @@ sanitize_envline(char *result, const char *src)
 
 	/* Copy chars after the '=', skipping any leading whitespace. */
 	leading = true;
-	while ((c = *src++) != 0) {
+	while ((c = *src++) != '\0') {
 		if (leading && (isspace(c) || c == '"'))
 			continue;
 		*dst++ = c;
@@ -230,7 +230,7 @@ sanitize_envline(char *result, const char *src)
 
 	/* If it was all leading space, it's a valid 'var=' (nil value). */
 	if (leading) {
-		*dst = 0;
+		*dst = '\0';
 		return;
 	}
 
@@ -238,7 +238,7 @@ sanitize_envline(char *result, const char *src)
 	while (isspace(dst[-1]) || dst[-1] == '"')
 		--dst;
 
-	*dst = 0;
+	*dst = '\0';
 }
 
 /*
@@ -444,10 +444,10 @@ next:
 	compile = 0;
 	match = 1;
 	nreqs = 0;
-	compilewith = 0;
-	depends = 0;
-	clean = 0;
-	warning = 0;
+	compilewith = NULL;
+	depends = NULL;
+	clean = NULL;
+	warning = NULL;
 	std = 0;
 	imp_rule = 0;
 	no_ctfconvert = 0;
