@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -23,7 +23,7 @@
 #if MSDOS_COMPILER==DJGPPC
 #include <glob.h>
 #include <dir.h>
-#define _MAX_PATH	PATH_MAX
+#define _MAX_PATH      PATH_MAX
 #endif
 #endif
 #ifdef _OSK
@@ -36,10 +36,10 @@
 #if HAVE_STAT
 #include <sys/stat.h>
 #ifndef S_ISDIR
-#define	S_ISDIR(m)	(((m) & S_IFMT) == S_IFDIR)
+#define S_ISDIR(m)      (((m) & S_IFMT) == S_IFDIR)
 #endif
 #ifndef S_ISREG
-#define	S_ISREG(m)	(((m) & S_IFMT) == S_IFREG)
+#define S_ISREG(m)      (((m) & S_IFMT) == S_IFREG)
 #endif
 #endif
 
@@ -312,7 +312,7 @@ fexpand(s)
 	char *e;
 	IFILE ifile;
 
-#define	fchar_ifile(c) \
+#define fchar_ifile(c) \
 	((c) == '%' ? curr_ifile : \
 	 (c) == '#' ? old_ifile : NULL_IFILE)
 
@@ -486,9 +486,12 @@ bin_file(f)
 		} else 
 		{
 			LWCHAR c = step_char(&p, +1, edata);
-			if (ctldisp == OPT_ONPLUS && IS_CSI_START(c))
-				skip_ansi(&p, edata);
-			else if (binary_char(c))
+			struct ansi_state *pansi;
+			if (ctldisp == OPT_ONPLUS && (pansi = ansi_start(c)) != NULL)
+			{
+				skip_ansi(pansi, &p, edata);
+				ansi_done(pansi);
+			} else if (binary_char(c))
 				bin_count++;
 		}
 	}
@@ -648,7 +651,7 @@ lglob(filename)
 		qfilename = shell_quote(p);
 		if (qfilename != NULL)
 		{
-	  		length += strlen(qfilename) + 1;
+			length += strlen(qfilename) + 1;
 			free(qfilename);
 		}
 	}
@@ -914,7 +917,7 @@ open_altfile(filename, pf, pfd)
 		int f;
 
 		/*
-		 * The first time we open the file, read one char 
+		 * The alt file is a pipe. Read one char 
 		 * to see if the pipe will produce any data.
 		 * If it does, push the char back on the pipe.
 		 */
@@ -931,18 +934,22 @@ open_altfile(filename, pf, pfd)
 			 */
 			int status = pclose(fd);
 			if (returnfd > 1 && status == 0) {
+				/* File is empty. */
 				*pfd = NULL;
 				*pf = -1;
 				return (save(FAKE_EMPTYFILE));
 			}
+			/* No alt file. */
 			return (NULL);
 		}
+		/* Alt pipe contains data, so use it. */
 		ch_ungetchar(c);
 		*pfd = (void *) fd;
 		*pf = f;
 		return (save("-"));
 	}
 #endif
+	/* The alt file is a regular file. Read its name from LESSOPEN. */
 	cmd = readfd(fd);
 	pclose(fd);
 	if (*cmd == '\0')
@@ -972,7 +979,7 @@ close_altfile(altfilename, filename)
 		return;
 	ch_ungetchar(-1);
 	if ((lessclose = lgetenv("LESSCLOSE")) == NULL)
-	     	return;
+		return;
 	if (num_pct_s(lessclose) > 2) 
 	{
 		error("LESSCLOSE ignored; must contain no more than 2 %%s", NULL_PARG);

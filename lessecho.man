@@ -38,7 +38,7 @@ LESSECHO(1)                 General Commands Manual                LESSECHO(1)
               ger.
 
        [1m-a     [22mSpecifies that all arguments are to be quoted.  The  default  is
-              that only arguments containing metacharacters are quoted
+              that only arguments containing metacharacters are quoted.
 
 [1mSEE ALSO[0m
        [1mless[22m(1)
@@ -47,8 +47,8 @@ LESSECHO(1)                 General Commands Manual                LESSECHO(1)
        This  manual  page  was written by Thomas Schoepf <schoepf@debian.org>,
        for the Debian GNU/Linux system (but may be used by others).
 
-       Send bug reports or comments to bug-less@gnu.org.
+       Report bugs at https://github.com/gwsw/less/issues.
 
 
 
-                           Version 563: 13 Jun 2020                LESSECHO(1)
+                           Version 581: 06 Apr 2021                LESSECHO(1)

@@ -4189,7 +4189,7 @@ if test "x$TERMLIBS" = x; then
     LIBS="$LIBS $TERMLIBS"
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-
+#include <termcap.h>
 int
 main ()
 {
@@ -4855,7 +4855,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-for ac_func in fsync popen _setjmp sigprocmask sigsetmask snprintf stat system fchmod realpath
+for ac_func in fchmod fsync nanosleep poll popen realpath _setjmp sigprocmask sigsetmask snprintf stat system ttyname usleep
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"

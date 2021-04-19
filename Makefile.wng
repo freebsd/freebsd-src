@@ -1,0 +1,132 @@
+# Makefile for less using mingw-w64 package:
+#   http://mingw-w64.org/doku.php
+#
+# Derived from Makefile.wnm
+#
+# Usage: mingw32-make -f Makefile.wng [REGEX_PACKAGE={posix|gnu|regcomp-local}]
+#
+# The optional command line parameter "REGEX_PACKAGE" is used to specify 
+# a regular expression package for compilation and linking.  This parameter
+# can assume one of three values.  
+#
+# REGEX_PACKAGE == regcomp-local
+#   This choice selects the regular expression package written by Henry
+#   Spencer.  It is implemented by the repository file "regexp.c".  
+#
+# REGEX_PACKAGE == posix
+#   This choice selects the POSIX implementation and is provided by MingW.  
+#   This is the default choice.  
+#
+# REGEX_PACKAGE == gnu
+#   This choice selects the GNU implementation and is provided by MingW.  
+#
+
+#### Start of system configuration section. ####
+
+CC = gcc
+
+# Definitions specific to mingw
+#
+MINGW_DEFINES     = -DMINGW -DWIN32
+
+# This specifies the "root" directory of the MingW installation.  
+# It is defined so that the compiler and linker can find the header files
+# and library that provide regular expression support.  
+#
+MINGW_ROOT_PATH = /mingw-w64/mingw64
+
+# Determine the regular expression package to be used.  
+#
+REGEX_PACKAGE ?= posix
+ifeq (${REGEX_PACKAGE},regcomp-local)
+    MINGW_DEFINES += -DUSE_REGEXP_C
+else ifeq (${REGEX_PACKAGE},posix)
+    MINGW_DEFINES += -DUSE_POSIX_REGCOMP
+else ifeq (${REGEX_PACKAGE},gnu)
+    MINGW_DEFINES += -DUSE_GNU_REGEX
+else
+    $(error REGEX_PACKAGE must be posix, gnu or regcomp-local)
+endif
+
+MINGW_REGEX_IPATH = -I${MINGW_ROOT_PATH}/opt/include
+MINGW_REGEX_LPATH = -L${MINGW_ROOT_PATH}/opt/lib
+MINGW_REGEX_LIB   = -lregex
+
+CFLAGS_MINGW = ${MINGW_DEFINES}
+ifneq  (${REGEX_PACKAGE},regcomp-local)
+CFLAGS_MINGW += ${MINGW_REGEX_IPATH}
+endif
+
+# MingW may use sh.exe instead of cmd.exe.  
+# Make sure it does not.
+#
+SHELL = cmd.exe
+
+CFLAGS  = -O2 ${CFLAGS_MINGW}
+ifneq  (${REGEX_PACKAGE},regcomp-local)
+LDFLAGS = ${MINGW_REGEX_LPATH}
+LIBS    = ${MINGW_REGEX_LIB}
+endif
+
+#### End of system configuration section. ####
+
+# This rule allows us to supply the necessary -D options
+# in addition to whatever the user asks for.
+.c.o:
+	${CC} -c -I. ${CFLAGS} $<
+
+LESS_SRC = brac.c ch.c charset.c cmdbuf.c command.c		\
+           cvt.c decode.c edit.c filename.c forwback.c 		\
+           ifile.c input.c jump.c line.c linenum.c 		\
+           lsystem.c main.c mark.c optfunc.c option.c 		\
+	   opttbl.c os.c output.c pattern.c position.c 		\
+	   prompt.c          screen.c scrsize.c search.c 	\
+	   signal.c tags.c ttyin.c version.c
+ifeq  (${REGEX_PACKAGE},regcomp-local)
+LESS_SRC += regexp.c
+endif
+
+OBJ = \
+	main.o screen.o brac.o ch.o charset.o cmdbuf.o \
+	command.o cvt.o decode.o edit.o filename.o forwback.o \
+	help.o ifile.o input.o jump.o line.o linenum.o \
+	lsystem.o mark.o optfunc.o option.o opttbl.o os.o \
+	output.o pattern.o position.o prompt.o search.o signal.o \
+	tags.o ttyin.o version.o
+ifeq  (${REGEX_PACKAGE},regcomp-local)
+OBJ += regexp.o
+endif
+
+
+all: clean less lesskey lessecho
+
+less: ${OBJ}
+	${CC} ${LDFLAGS} -o $@ ${OBJ} ${LIBS}
+
+lesskey: lesskey.o version.o
+	${CC} ${LDFLAGS} -o $@ lesskey.o version.o
+
+lessecho: lessecho.o version.o
+	${CC} ${LDFLAGS} -o $@ lessecho.o version.o
+
+defines.h: defines.wn
+	copy $< $@
+
+funcs.h:
+	perl mkfuncs.pl ${LESS_SRC}  > $@
+
+help.c: less.hlp
+	perl mkhelp.pl  < $<  > $@
+
+${OBJ}: less.h defines.h funcs.h
+
+TAGS:
+	etags *.c *.h
+
+clean:
+	-del *.o
+	-del *.exe
+	-del defines.h
+	-del funcs.h
+	-del help.c
+	-if exist TAGS del TAGS

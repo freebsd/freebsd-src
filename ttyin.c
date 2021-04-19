@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -28,9 +28,34 @@ public HANDLE tty;
 #else
 public int tty;
 #endif
+#if LESSTEST
+public char *ttyin_name = NULL;
+public int rstat_file = -1;
+#endif /*LESSTEST*/
 extern int sigs;
 extern int utf_mode;
 extern int wheel_lines;
+
+/*
+ * Get name of tty device.
+ */
+#if !MSDOS_COMPILER
+	public char *
+tty_device(VOID_PARAM)
+{
+	char *dev = NULL;
+#if HAVE_TTYNAME
+	dev = ttyname(2);
+#endif
+	if (dev == NULL)
+		dev = "/dev/tty";
+#if LESSTEST
+	if (ttyin_name != NULL)
+		dev = ttyin_name;
+#endif /*LESSTEST*/
+	return dev;
+}
+#endif /* MSDOS_COMPILER */
 
 /*
  * Open keyboard for input.
@@ -76,9 +101,9 @@ open_getchr(VOID_PARAM)
 	 */
 #if OS2
 	/* The __open() system call translates "/dev/tty" to "con". */
-	tty = __open("/dev/tty", OPEN_READ);
+	tty = __open(tty_device(), OPEN_READ);
 #else
-	tty = open("/dev/tty", OPEN_READ);
+	tty = open(tty_device(), OPEN_READ);
 #endif
 	if (tty < 0)
 		tty = 2;
@@ -131,6 +156,18 @@ default_wheel_lines(VOID_PARAM)
 	return lines;
 }
 
+#if LESSTEST
+	public void
+rstat(st)
+	char st;
+{
+	if (rstat_file < 0)
+		return;
+	lseek(rstat_file, SEEK_SET, 0);
+	write(rstat_file, &st, 1);
+}
+#endif /*LESSTEST*/
+
 /*
  * Get a character from the keyboard.
  */
@@ -142,11 +179,11 @@ getchr(VOID_PARAM)
 
 	do
 	{
+		flush();
 #if MSDOS_COMPILER && MSDOS_COMPILER != DJGPPC
 		/*
 		 * In raw read, we don't see ^C so look here for it.
 		 */
-		flush();
 #if MSDOS_COMPILER==WIN32C
 		if (ABORT_SIGS())
 			return (READ_INTR);
@@ -158,11 +195,17 @@ getchr(VOID_PARAM)
 		if (c == '\003')
 			return (READ_INTR);
 #else
+#if LESSTEST
+		rstat('R');
+#endif /*LESSTEST*/
 		{
 			unsigned char uc;
 			result = iread(tty, &uc, sizeof(char));
 			c = (char) uc;
 		}
+#if LESSTEST
+		rstat('B');
+#endif /*LESSTEST*/
 		if (result == READ_INTR)
 			return (READ_INTR);
 		if (result < 0)

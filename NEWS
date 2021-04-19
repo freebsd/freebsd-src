@@ -4,10 +4,56 @@
 ======================================================================
 
   For the latest news about less, see the "less" Web page:
-      http://www.greenwoodsoftware.com/less
+      https://greenwoodsoftware.com/less
   You can also download the latest version of less from there.
 
-  To report bugs, suggestions or comments, send email to bug-less@gnu.org
+  Report bugs, suggestions or comments at 
+  https://github.com/gwsw/less/issues.
+
+======================================================================
+
+	Major changes between "less" versions 563 and 581
+
+* Change ESC-u command to toggle, not disable, highlighting per man page.
+
+* Add ESC-U command. 
+
+* Add ctrl-W search modifier for wrapping search.
+
+* F command can be interrupted by ^X.
+
+* Support OSC 8 hyperlinks when -R is in effect.
+
+* g command with no number will ignore -j and put first line at top of screen.
+
+* Multiple + or -p command line options are handled better.
+
+* Add the --incsearch option.
+
+* Add the --line-num-width option.
+
+* Add the --status-col-width option.
+
+* Add the --use-color and --color options.
+
+* Display -w highlight even if highlighted line is empty.
+
+* If search result is in a long line, scroll to ensure it is visible.
+
+* Editing the same file under different names now creates only
+  one entry in the file list.
+
+* Make visual bell more visible on some terminals.
+
+* Ring end-of-file bell no more than once per second.
+
+* Build can use either Python or Perl for Makefile.aut operations.
+
+* Fix crash when using the @ search modifier.
+
+* Fix crash in the 's' command due to duplicate free.
+
+* Fix realpath crash on Darwin.
 
 ======================================================================
 

@@ -1,5 +1,5 @@
 '\" t
-.TH LESS 1 "Version 563: 13 Jun 2020"
+.TH LESS 1 "Version 581: 06 Apr 2021"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -109,6 +109,7 @@ Scroll horizontally left back to the first column.
 Repaint the screen.
 .IP R
 Repaint the screen, discarding any buffered input.
+That is, reload the current file.
 Useful if the file is changing while it is being viewed.
 .IP "F"
 Scroll forward, and keep trying to read when the
@@ -117,6 +118,8 @@ Normally this command would be used when already at the end of the file.
 It is a way to monitor the tail of a file which is growing
 while it is being viewed.
 (The behavior is similar to the "tail \-f" command.)
+To stop waiting for more data, enter the interrupt character (usually ^C).
+On some systems you can also use ^X.
 .IP "ESC-F"
 Like F, but as soon as a line is found which matches
 the last search pattern, the terminal bell is rung
@@ -226,6 +229,11 @@ but don't move to the first match (KEEP current position).
 .IP "^R"
 Don't interpret regular expression metacharacters;
 that is, do a simple textual comparison.
+.IP "^W"
+WRAP around the current file.
+That is, if the search reaches the end of the current file
+without finding a match, the search continues from the first line of the
+current file up to the line where it started.
 .RE
 .IP ?pattern
 Search backward in the file for the N-th line containing the pattern.
@@ -250,6 +258,11 @@ or the settings of the \-a or \-j options.
 As in forward searches.
 .IP "^R"
 As in forward searches.
+.IP "^W"
+WRAP around the current file.
+That is, if the search reaches the beginning of the current file
+without finding a match, the search continues from the last line of the
+current file up to the line where it started.
 .RE
 .IP "ESC-/pattern"
 Same as "/*".
@@ -280,6 +293,10 @@ turn highlighting back on.
 Any search command will also turn highlighting back on.
 (Highlighting can also be disabled by toggling the \-G option;
 in that case search commands do not turn highlighting back on.)
+.IP "ESC-U"
+Like ESC-u but also clears the saved search pattern.
+If the status column is enabled via the \-J option,
+this clears all search matches marked in the status column.
 .IP "&pattern"
 Display only lines which match the pattern;
 lines which do not match the pattern are not displayed.
@@ -288,6 +305,8 @@ any filtering is turned off, and all lines are displayed.
 While filtering is in effect, an ampersand is displayed at the
 beginning of the prompt,
 as a reminder that some lines in the file may be hidden.
+Multiple & commands may be entered, in which case only lines
+which match all of the patterns will be displayed.
 .sp
 Certain characters are special as in the / command:
 .RS
@@ -552,20 +571,105 @@ The \-d option does not otherwise change the behavior of
 .I less
 on a dumb terminal.
 .IP "\-D\fBx\fP\fIcolor\fP or \-\-color=\fBx\fP\fIcolor\fP"
-[MS-DOS only]
-Sets the color of the text displayed.
-\fBx\fP is a single character which selects the type of text whose color is
-being set: n=normal, s=standout, d=bold, u=underlined, k=blink.
-\fIcolor\fP is a pair of numbers separated by a period.
-The first number selects the foreground color and the second selects
-the background color of the text.
-A single number \fIN\fP is the same as \fIN.M\fP,
-where \fIM\fP is the normal background color.
-The color may start or end with \fBu\fP to use underline (with the normal
-color, if by itself), if the system supports it (Windows only).
-\fBx\fP may also be \fBa\fP to toggle strict ANSI sequence rendering
-(SGR mode).
-.
+Changes the color of different parts of the displayed text.
+\fBx\fP is a single character which selects the type of text 
+whose color is being set:
+.RS
+.IP "B"
+Binary characters.
+.IP "C"
+Control characters.
+.IP "E"
+Errors and informational messages.
+.IP "M"
+Mark letters in the status column.
+.IP "N"
+Line numbers enabled via the \-N option.
+.IP "P"
+Prompts.
+.IP "R"
+The rscroll character.
+.IP "S"
+Search results.
+.IP "W"
+The highlight enabled via the \-w option.
+.IP "d"
+Bold text.
+.IP "k"
+Blinking text.
+.IP "s"
+Standout text.
+.IP "u"
+Underlined text.
+.RE
+ 
+.RS
+The uppercase letters can be used only when the \-\-use-color option is enabled.
+When text color is specified by both an uppercase letter and a lowercase letter,
+the uppercase letter takes precedence. 
+For example, error messages are normally displayed as standout text.
+So if both "s" and "E" are given a color, the "E" color applies
+to error messages, and the "s" color applies to other standout text.
+The "d" and "u" letters refer to bold and underline text formed by 
+overstriking with backspaces (see the \-u option), 
+not to text using ANSI escape sequences with the \-R option.
+.PP
+A lowercase letter may be followed by a + to indicate that
+both the normal format change and the specified color should both be used.
+For example, \-Dug displays underlined text as green without underlining;
+the green color has replaced the usual underline formatting.
+But \-Du+g displays underlined text as both green and in underlined format.
+.PP
+\fIcolor\fP is either a 4-bit color string or an 8-bit color string:
+.PP
+A 4-bit color string is zero, one or two characters, where 
+the first character specifies the foreground color and 
+the second specifies the background color as follows:
+.IP "b"
+Blue
+.IP "c"
+Cyan
+.IP "g"
+Green
+.IP "k"
+Black
+.IP "m"
+Magenta
+.IP "r"
+Red
+.IP "w"
+White
+.IP "y"
+Yellow
+.PP
+The corresponding upper-case letter denotes a brighter shade of the color.
+For example, \-DNGk displays line numbers as bright green text on a black 
+background, and \-DEbR displays error messages as blue text on a 
+bright red background.
+If either character is a "-" or is omitted, the corresponding color 
+is set to that of normal text.
+.PP
+An 8-bit color string is one or two decimal integers separated by a dot,
+where the first integer specifies the foreground color and 
+the second specifies the background color.
+Each integer is a value between 0 and 255 inclusive which selects
+a "CSI 38;5" color value (see
+.br
+.nh
+https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_parameters)
+.hy
+If either integer is a "-" or is omitted,
+the corresponding color is set to that of normal text.
+On MS-DOS versions of 
+.IR less ,
+8-bit color is not supported; instead, decimal values are interpreted as 4-bit
+CHAR_INFO.Attributes values
+(see 
+.br
+.nh
+https://docs.microsoft.com/en-us/windows/console/char-info-str).
+.hy
+.RE
 .IP "\-e or \-\-quit-at-eof"
 Causes
 .I less
@@ -650,7 +754,6 @@ always begin at the start or end of the current screen respectively.
 Displays a status column at the left edge of the screen.
 The status column shows the lines that matched the current search,
 and any lines that are marked (via the m or M command).
-The status column is also used if the \-w or \-W option is in effect.
 .IP "\-k\fIfilename\fP or \-\-lesskey-file=\fIfilename\fP"
 Causes
 .I less
@@ -676,7 +779,8 @@ command prompt from the "F" command.
 .IP "\-L or \-\-no-lessopen"
 Ignore the LESSOPEN environment variable
 (see the INPUT PREPROCESSOR section below).
-This option can be set from within \fIless\fP,
+This option can be set from within
+.IR less ,
 but it will apply only to files opened subsequently, not to the
 file which is currently open.
 .IP "\-m or \-\-long-prompt"
@@ -776,16 +880,33 @@ cannot keep track of the actual appearance of the screen
 each type of control character).
 Thus, various display problems may result,
 such as long lines being split in the wrong place.
+.sp
+USE OF THE \-r OPTION IS NOT RECOMMENDED.
 .IP "\-R or \-\-RAW-CONTROL-CHARS"
-Like \-r, but only ANSI "color" escape sequences are output in "raw" form.
-Unlike \-r, the screen appearance is maintained correctly in most cases.
-ANSI "color" escape sequences are sequences of the form:
+Like \-r, but only ANSI "color" escape sequences and OSC 8 hyperlink
+sequences are output in "raw" form.
+Unlike \-r, the screen appearance is maintained correctly,
+provided that there are no escape sequences in the file 
+other than these types of escape sequences.
+Color escape sequences are only supported when the color
+is changed within one line, not across lines. 
+In other words, the beginning of each line is assumed to be
+normal (non-colored), regardless of any escape sequences in previous lines.
+For the purpose of keeping track of screen appearance,
+these escape sequences are assumed to not move the cursor.
+.sp
+OSC 8 hyperlinks are sequences of the form:
+.sp
+	ESC ] 8 ; \&...\& \\7
+.sp
+The terminating sequence may be either a BEL character (\\7) 
+or the two-character sequence "ESC \\".
+.sp
+ANSI color escape sequences are sequences of the form:
 .sp
 	ESC [ \&...\& m
 .sp
-where the "...\&" is zero or more color specification characters
-For the purpose of keeping track of screen appearance,
-ANSI color escape sequences are assumed to not move the cursor.
+where the "...\&" is zero or more color specification characters.
 You can make
 .I less
 think that characters other than "m" can end ANSI color escape sequences
@@ -820,7 +941,10 @@ If the environment variable LESSGLOBALTAGS is set, it is taken to be
 the name of a command compatible with
 .IR global (1),
 and that command is executed to find the tag.
-(See http://www.gnu.org/software/global/global.html).
+(See 
+.nh
+http://www.gnu.org/software/global/global.html).
+.hy
 The \-t option may also be specified from within
 .I less
 (using the \- command) as a way of examining a new file.
@@ -848,6 +972,8 @@ using the terminal's hardware boldface capability.
 Other backspaces are deleted, along with the preceding character.
 Carriage returns immediately followed by a newline are deleted.
 Other carriage returns are handled as specified by the \-r option.
+Unicode formatting characters, such as the Byte Order Mark,
+are sent to the terminal.
 Text which is overstruck or underlined can be searched for
 if neither \-u nor \-U is in effect.
 .IP "\-V or \-\-version"
@@ -941,6 +1067,14 @@ If the reopen succeeds and the file is a different file from the original
 with the same name as the original (now renamed) file),
 .I less
 will display the contents of that new file.
+.IP "\-\-incsearch"
+Subsequent search commands will be "incremental"; that is,
+.I less
+will advance to the next line containing the search pattern 
+as each character of the pattern is typed in.
+.IP "\-\-line-num-width"
+Sets the minimum width of the line number field when the \-N option is in effect.
+The default is 7 characters.
 .IP "\-\-mouse"
 Enables mouse input:
 scrolling the mouse wheel down moves forward in the file,
@@ -973,12 +1107,26 @@ If there is no attribute indicator, standout is used.
 If set to "\-", truncated lines are not marked.
 .IP "\-\-save-marks"
 Save marks in the history file, so marks are retained
-across different invocations of \fIless\fP.
+across different invocations of
+.IR less .
+.IP "\-\-status-col-width"
+Sets the width of the status column when the \-J option is in effect.
+The default is 2 characters.
 .IP "\-\-use-backslash"
 This option changes the interpretations of options which follow this one.
 After the \-\-use-backslash option, any backslash in an option string is
 removed and the following character is taken literally.
 This allows a dollar sign to be included in option strings.
+.IP "\-\-use-color"
+Enables the colored text in various places.
+The -D option can be used to change the colors.
+Colored text works only if the terminal supports 
+ANSI color escape sequences (as defined in ECMA-48 SGR;
+see 
+.br
+.nh
+https://www.ecma-international.org/publications-and-standards/standards/ecma-48).
+.hy
 .IP "\-\-wheel-lines=\fIn\fP"
 Set the number of lines to scroll when the mouse wheel is scrolled
 and the \-\-mouse or \-\-MOUSE option is in effect.
@@ -1004,7 +1152,7 @@ The + command described previously
 may also be used to set (or change) an initial command for every file.
 .
 .SH "LINE EDITING"
-When entering command line at the bottom of the screen
+When entering a command line at the bottom of the screen
 (for example, a filename for the :e command,
 or the pattern for a search command),
 certain keys can be used to manipulate the command line.
@@ -1804,7 +1952,7 @@ The name of the editor (used for the v command).
 .BR lesskey (1)
 .
 .SH COPYRIGHT
-Copyright (C) 1984-2020  Mark Nudelman
+Copyright (C) 1984-2021  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it
@@ -1833,4 +1981,4 @@ Report bugs at https://github.com/gwsw/less/issues.
 .br
 For more information, see the less homepage at
 .br
-http://www.greenwoodsoftware.com/less.
+https://greenwoodsoftware.com/less.

@@ -16,24 +16,25 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
        The input file is a text file which describes the key bindings.  If the
        input  file is "-", standard input is read.  If no input file is speci-
        fied, a standard filename is used as the name of the input file,  which
-       depends  on  the  system being used: On Unix systems, $HOME/.lesskey is
-       used; on MS-DOS systems, $HOME/_lesskey is used; and  on  OS/2  systems
-       $HOME/lesskey.ini  is used, or $INIT/lesskey.ini if $HOME is undefined.
-       The output file is a binary file which is used by [4mless[24m.  If  no  output
-       file  is  specified,  and  the environment variable LESSKEY is set, the
-       value of LESSKEY is used as the name of the output file.  Otherwise,  a
-       standard filename is used as the name of the output file, which depends
-       on the system being used: On Unix  and  OS-9  systems,  $HOME/.less  is
-       used;  on  MS-DOS  systems,  $HOME/_less  is used; and on OS/2 systems,
-       $HOME/less.ini is used, or $INIT/less.ini if $HOME  is  undefined.   If
-       the output file already exists, [4mlesskey[24m will overwrite it.
+       depends  on the system being used: On Unix systems, "$HOME/.lesskey" is
+       used; on MS-DOS systems, "$HOME/_lesskey" is used; and on OS/2  systems
+       "$HOME/lesskey.ini"  is  used, or "$INIT/lesskey.ini" if $HOME is unde-
+       fined.  The output file is a binary file which is used by [4mless[24m.  If  no
+       output  file is specified, and the environment variable LESSKEY is set,
+       the value of LESSKEY is used as the name of the  output  file.   Other-
+       wise, a standard filename is used as the name of the output file, which
+       depends  on  the  system  being  used:  On  Unix  and   OS-9   systems,
+       "$HOME/.less" is used; on MS-DOS systems, "$HOME/_less" is used; and on
+       OS/2 systems, "$HOME/less.ini" is used, or "$INIT/less.ini" if $HOME is
+       undefined.   If  the output file already exists, [4mlesskey[24m will overwrite
+       it.
 
-       The  -V  or --version option causes [4mlesskey[24m to print its version number
+       The -V or --version option causes [4mlesskey[24m to print its  version  number
        and immediately exit.  If -V or --version is present, other options and
        arguments are ignored.
 
-       The  input  file consists of one or more [4msections.[24m  Each section starts
-       with a line that identifies the type  of  section.   Possible  sections
+       The input file consists of one or more [4msections.[24m  Each  section  starts
+       with  a  line  that  identifies the type of section.  Possible sections
        are:
 
        #command
@@ -44,7 +45,7 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
 
        #env   Defines environment variables.
 
-       Blank  lines  and  lines which start with a pound sign (#) are ignored,
+       Blank lines and lines which start with a pound sign  (#)  are  ignored,
        except for the special section header lines.
 
 [1mCOMMAND SECTION[0m
@@ -52,18 +53,18 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
 
        #command
 
-       If the command section is the first section in the file, this line  may
+       If  the command section is the first section in the file, this line may
        be omitted.  The command section consists of lines of the form:
 
             [4mstring[24m <whitespace> [4maction[24m [extra-string] <newline>
 
-       Whitespace  is  any  sequence  of  one or more spaces and/or tabs.  The
-       [4mstring[24m is the command key(s) which invoke the action.  The  [4mstring[24m  may
+       Whitespace is any sequence of one or  more  spaces  and/or  tabs.   The
+       [4mstring[24m  is  the command key(s) which invoke the action.  The [4mstring[24m may
        be a single command key, or a sequence of up to 15 keys.  The [4maction[24m is
-       the name of the less action, from the list below.   The  characters  in
-       the  [4mstring[24m may appear literally, or be prefixed by a caret to indicate
-       a control key.  A backslash followed by one to three octal  digits  may
-       be  used  to  specify a character by its octal value.  A backslash fol-
+       the  name  of  the less action, from the list below.  The characters in
+       the [4mstring[24m may appear literally, or be prefixed by a caret to  indicate
+       a  control  key.  A backslash followed by one to three octal digits may
+       be used to specify a character by its octal value.   A  backslash  fol-
        lowed by certain characters specifies input characters as follows:
 
        \b     BACKSPACE
@@ -95,16 +96,17 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
        \kx    DELETE
 
        A backslash followed by any other character indicates that character is
-       to  be taken literally.  Characters which must be preceded by backslash
+       to be taken literally.  Characters which must be preceded by  backslash
        include caret, space, tab and the backslash itself.
 
        An action may be followed by an "extra" string.  When such a command is
        entered while running [4mless[24m, the action is performed, and then the extra
-       string is parsed, just as if it were typed in to  [4mless[24m.   This  feature
-       can  be used in certain cases to extend the functionality of a command.
-       For example, see the "{" and ":t" commands in the example  below.   The
-       extra  string  has  a  special meaning for the "quit" action: when [4mless[0m
-       quits, first character of the extra string is used as its exit status.
+       string  is  parsed,  just as if it were typed in to [4mless[24m.  This feature
+       can be used in certain cases to extend the functionality of a  command.
+       For  example,  see the "{" and ":t" commands in the example below.  The
+       extra string has a special meaning for the  "quit"  action:  when  [4mless[0m
+       quits, the first character of the extra string is used as its exit sta-
+       tus.
 
 [1mEXAMPLE[0m
        The following input file describes the set of default command keys used
@@ -127,9 +129,9 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
             J          forw-line-force
             K          back-line-force
             Y          back-line-force
+
             d          forw-scroll
             ^D         forw-scroll
-
             u          back-scroll
             ^U         back-scroll
             \40        forw-screen
@@ -151,6 +153,7 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
             ^R         repaint
             ^L         repaint
             \eu        undo-hilite
+            \eU        clear-search
             g          goto-line
             \kh        goto-line
             <          goto-line
@@ -192,10 +195,10 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
             &          filter
             m          set-mark
             M          set-mark-bottom
+
             \em        clear-mark
             '          goto-mark
             ^X^X       goto-mark
-
             E          examine
             :e         examine
             ^X^V       examine
@@ -332,7 +335,7 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
        represented as \340 in a lesskey file.
 
 [1mCOPYRIGHT[0m
-       Copyright (C) 1984-2020  Mark Nudelman
+       Copyright (C) 1984-2021  Mark Nudelman
 
        less  is  part of the GNU project and is free software.  You can redis-
        tribute it and/or modify it under the terms of either (1) the GNU  Gen-
@@ -351,8 +354,8 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
 
 [1mAUTHOR[0m
        Mark Nudelman
-       Send bug reports or comments to <bug-less@gnu.org>.
+       Report bugs at https://github.com/gwsw/less/issues.
 
 
 
-                           Version 563: 13 Jun 2020                 LESSKEY(1)
+                           Version 581: 06 Apr 2021                 LESSKEY(1)

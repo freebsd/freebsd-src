@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2020  Mark Nudelman
+ * Copyright (C) 1984-2021  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -21,12 +21,13 @@
 
 #include "less.h"
 
-extern IFILE	curr_ifile;
+extern IFILE    curr_ifile;
 
 struct ifile {
 	struct ifile *h_next;           /* Links for command line list */
 	struct ifile *h_prev;
 	char *h_filename;               /* Name of the file */
+	char *h_rfilename;              /* Canonical name of the file */
 	void *h_filestate;              /* File state (used in ch.c) */
 	int h_index;                    /* Index within command line list */
 	int h_hold;                     /* Hold count */
@@ -40,13 +41,13 @@ struct ifile {
  * Convert an IFILE (external representation)
  * to a struct file (internal representation), and vice versa.
  */
-#define int_ifile(h)	((struct ifile *)(h))
-#define ext_ifile(h)	((IFILE)(h))
+#define int_ifile(h)    ((struct ifile *)(h))
+#define ext_ifile(h)    ((IFILE)(h))
 
 /*
  * Anchor for linked list.
  */
-static struct ifile anchor = { &anchor, &anchor, NULL, NULL, 0, 0, '\0',
+static struct ifile anchor = { &anchor, &anchor, NULL, NULL, NULL, 0, 0, '\0',
 				{ NULL_POSITION, 0 } };
 static int ifiles = 0;
 
@@ -116,10 +117,13 @@ new_ifile(filename, prev)
 	 */
 	p = (struct ifile *) ecalloc(1, sizeof(struct ifile));
 	p->h_filename = save(filename);
+	p->h_rfilename = lrealpath(filename);
 	p->h_scrpos.pos = NULL_POSITION;
 	p->h_opened = 0;
 	p->h_hold = 0;
 	p->h_filestate = NULL;
+	p->h_altfilename = NULL;
+	p->h_altpipe = NULL;
 	link_ifile(p, prev);
 	/*
 	 * {{ It's dodgy to call mark.c functions from here;
@@ -150,6 +154,7 @@ del_ifile(h)
 		curr_ifile = getoff_ifile(curr_ifile);
 	p = int_ifile(h);
 	unlink_ifile(p);
+	free(p->h_rfilename);
 	free(p->h_filename);
 	free(p);
 }
@@ -221,15 +226,17 @@ find_ifile(filename)
 
 	for (p = anchor.h_next;  p != &anchor;  p = p->h_next)
 	{
-		if (strcmp(filename, p->h_filename) == 0 ||
-		    strcmp(rfilename, p->h_filename) == 0)
+		if (strcmp(rfilename, p->h_rfilename) == 0)
 		{
 			/*
 			 * If given name is shorter than the name we were
 			 * previously using for this file, adopt shorter name.
 			 */
 			if (strlen(filename) < strlen(p->h_filename))
-				strcpy(p->h_filename, filename);
+			{
+				free(p->h_filename);
+				p->h_filename = save(filename);
+			}
 			break;
 		}
 	}
@@ -257,7 +264,7 @@ get_ifile(filename, prev)
 }
 
 /*
- * Get the filename associated with a ifile.
+ * Get the display filename associated with a ifile.
  */
 	public char *
 get_filename(ifile)
@@ -266,6 +273,18 @@ get_filename(ifile)
 	if (ifile == NULL)
 		return (NULL);
 	return (int_ifile(ifile)->h_filename);
+}
+
+/*
+ * Get the canonical filename associated with a ifile.
+ */
+	public char *
+get_real_filename(ifile)
+	IFILE ifile;
+{
+	if (ifile == NULL)
+		return (NULL);
+	return (int_ifile(ifile)->h_rfilename);
 }
 
 /*
@@ -372,7 +391,7 @@ set_altfilename(ifile, altfilename)
 	char *altfilename;
 {
 	struct ifile *p = int_ifile(ifile);
-	if (p->h_altfilename != NULL)
+	if (p->h_altfilename != NULL && p->h_altfilename != altfilename)
 		free(p->h_altfilename);
 	p->h_altfilename = altfilename;
 }
