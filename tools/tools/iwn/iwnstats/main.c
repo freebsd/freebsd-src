@@ -72,8 +72,7 @@ iwnstats_new(const char *ifname)
 }
 
 static void
-iwn_stats_phy_print(struct iwnstats *is, struct iwn_rx_phy_stats *rxphy,
-    const char *prefix)
+iwn_stats_phy_print(struct iwn_rx_phy_stats *rxphy, const char *prefix)
 {
 
 	printf("%s: %s: ina=%d, fina=%d, bad_plcp=%d, bad_crc32=%d, overrun=%d, eoverrun=%d\n",
@@ -108,7 +107,7 @@ iwn_stats_phy_print(struct iwnstats *is, struct iwn_rx_phy_stats *rxphy,
 }
 
 static void
-iwn_stats_rx_general_print(struct iwnstats *is, struct iwn_rx_general_stats *g)
+iwn_stats_rx_general_print(struct iwn_rx_general_stats *g)
 {
 
 	printf("%s: bad_cts=%d, bad_ack=%d, not_bss=%d, filtered=%d, bad_chan=%d, beacons=%d\n",
@@ -147,7 +146,7 @@ iwn_stats_rx_general_print(struct iwnstats *is, struct iwn_rx_general_stats *g)
 }
 
 static void
-iwn_stats_tx_print(struct iwnstats *is, struct iwn_tx_stats *tx)
+iwn_stats_tx_print(struct iwn_tx_stats *tx)
 {
 
 	printf("%s: preamble=%d, rx_detected=%d, bt_defer=%d, bt_kill=%d, short_len=%d\n",
@@ -191,7 +190,7 @@ iwn_stats_tx_print(struct iwnstats *is, struct iwn_tx_stats *tx)
 }
 
 static void
-iwn_stats_ht_phy_print(struct iwnstats *is, struct iwn_rx_ht_phy_stats *ht)
+iwn_stats_ht_phy_print(struct iwn_rx_ht_phy_stats *ht)
 {
 
 	printf("%s: bad_plcp=%d, overrun=%d, eoverrun=%d, good_crc32=%d, bad_crc32=%d\n",
@@ -212,7 +211,7 @@ iwn_stats_ht_phy_print(struct iwnstats *is, struct iwn_rx_ht_phy_stats *ht)
 
 
 static void
-iwn_stats_general_print(struct iwnstats *is, struct iwn_stats *stats)
+iwn_stats_general_print(struct iwn_stats *stats)
 {
 
 	/* General */
@@ -249,16 +248,16 @@ iwn_print(struct iwnstats *is)
 	gettimeofday(&tv, NULL);
 	printf("time=%ld.%.6ld\n", (long)tv.tv_sec, (long)tv.tv_usec);
 
-	iwn_stats_general_print(is, s);
+	iwn_stats_general_print(s);
 
 	/* RX */
-	iwn_stats_phy_print(is, &s->rx.ofdm, "ofdm");
-	iwn_stats_phy_print(is, &s->rx.cck, "cck");
-	iwn_stats_ht_phy_print(is, &s->rx.ht);
-	iwn_stats_rx_general_print(is, &s->rx.general);
+	iwn_stats_phy_print(&s->rx.ofdm, "ofdm");
+	iwn_stats_phy_print(&s->rx.cck, "cck");
+	iwn_stats_ht_phy_print(&s->rx.ht);
+	iwn_stats_rx_general_print(&s->rx.general);
 
 	/* TX */
-	iwn_stats_tx_print(is, &s->tx);
+	iwn_stats_tx_print(&s->tx);
 	printf("--\n");
 }
 
@@ -278,9 +277,6 @@ main(int argc, char *argv[])
 	int ch;
 	char *ifname;
 	bool first;
-	char *sysctlname;
-	size_t len;
-	int ret;
 
 	ifname = strdup(IWN_DEFAULT_IF);
 
