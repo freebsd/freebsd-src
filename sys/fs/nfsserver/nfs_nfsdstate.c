@@ -6873,14 +6873,8 @@ nfsrv_filelayout(struct nfsrv_descript *nd, int iomode, fhandle_t *fhp,
 	NFSBCOPY(devid, tl, NFSX_V4DEVICEID);		/* Device ID. */
 	tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
 
-	/*
-	 * Make the stripe size as many 64K blocks as will fit in the stripe
-	 * mask. Since there is only one stripe, the stripe size doesn't really
-	 * matter, except that the Linux client will only handle an exact
-	 * multiple of their PAGE_SIZE (usually 4K).  I chose 64K as a value
-	 * that should cover most/all arches w.r.t. PAGE_SIZE.
-	 */
-	*tl++ = txdr_unsigned(NFSFLAYUTIL_STRIPE_MASK & ~0xffff);
+	/* Set the stripe size to the maximum I/O size. */
+	*tl++ = txdr_unsigned(NFS_SRVMAXIO & NFSFLAYUTIL_STRIPE_MASK);
 	*tl++ = 0;					/* 1st stripe index. */
 	pattern_offset = 0;
 	txdr_hyper(pattern_offset, tl); tl += 2;	/* Pattern offset. */
