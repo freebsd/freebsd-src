@@ -470,7 +470,7 @@ tcp_hc_insert(struct in_conninfo *inc)
 	 */
 	TAILQ_INSERT_HEAD(&hc_head->hch_bucket, hc_entry, rmx_q);
 	V_tcp_hostcache.hashbase[hash].hch_length++;
-	KASSERT(V_tcp_hostcache.hashbase[hash].hch_length <
+	KASSERT(V_tcp_hostcache.hashbase[hash].hch_length <=
 	    V_tcp_hostcache.bucket_limit,
 	    ("tcp_hostcache: bucket length too high at %u: %u",
 	    hash, V_tcp_hostcache.hashbase[hash].hch_length));
