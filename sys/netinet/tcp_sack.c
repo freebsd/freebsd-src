@@ -491,7 +491,7 @@ static struct sackhole *
 tcp_sackhole_insert(struct tcpcb *tp, tcp_seq start, tcp_seq end,
     struct sackhole *after)
 {
-	struct sackhole *hole, *tail;
+	struct sackhole *hole;
 
 	/* Allocate a new SACK hole. */
 	hole = tcp_sackhole_alloc(tp, start, end);
@@ -502,15 +502,7 @@ tcp_sackhole_insert(struct tcpcb *tp, tcp_seq start, tcp_seq end,
 	if (after != NULL)
 		TAILQ_INSERT_AFTER(&tp->snd_holes, after, hole, scblink);
 	else
-		/*
-		 * With Rescue Retransmission, new holes may need to
-		 * be inserted just before the tail.
-		 */
-		if (((tail = TAILQ_LAST_FAST(&tp->snd_holes, sackhole,
-		    scblink)) != NULL) && SEQ_LEQ(end, tail->start))
-			TAILQ_INSERT_BEFORE(tail, hole, scblink);
-		else
-			TAILQ_INSERT_TAIL(&tp->snd_holes, hole, scblink);
+		TAILQ_INSERT_TAIL(&tp->snd_holes, hole, scblink);
 
 	/* Update SACK hint. */
 	if (tp->sackhint.nexthole == NULL)
@@ -567,6 +559,15 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 		left_edge_delta = th_ack - tp->snd_una;
 		sack_blocks[num_sack_blks].start = tp->snd_una;
 		sack_blocks[num_sack_blks++].end = th_ack;
+		/*
+		 * Pulling snd_fack forward if we got here
+		 * due to DSACK blocks
+		 */
+		if (SEQ_LT(tp->snd_fack, th_ack)) {
+			delivered_data += th_ack - tp->snd_una;
+			tp->snd_fack = th_ack;
+			sack_changed = 1;
+		}
 	}
 	/*
 	 * Append received valid SACK blocks to sack_blocks[], but only if we
@@ -636,35 +637,52 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 	tp->sackhint.last_sack_ack = sblkp->end;
 	if (SEQ_LT(tp->snd_fack, sblkp->start)) {
 		/*
-		 * The highest SACK block is beyond fack.  Append new SACK
-		 * hole at the tail.  If the second or later highest SACK
-		 * blocks are also beyond the current fack, they will be
-		 * inserted by way of hole splitting in the while-loop below.
+		 * The highest SACK block is beyond fack.  First,
+		 * check if there was a successful Rescue Retransmission,
+		 * and move this hole left. With normal holes, snd_fack
+		 * is always to the right of the end.
 		 */
-		temp = tcp_sackhole_insert(tp, tp->snd_fack,sblkp->start,NULL);
-		if (temp != NULL) {
+		if (((temp = TAILQ_LAST(&tp->snd_holes, sackhole_head)) != NULL) &&
+		    SEQ_LEQ(tp->snd_fack,temp->end)) {
+			temp->start = SEQ_MAX(tp->snd_fack, SEQ_MAX(tp->snd_una, th_ack));
+			temp->end = sblkp->start;
+			temp->rxmit = temp->start;
 			delivered_data += sblkp->end - sblkp->start;
 			tp->snd_fack = sblkp->end;
-			/* Go to the previous sack block. */
 			sblkp--;
 			sack_changed = 1;
 		} else {
 			/*
-			 * We failed to add a new hole based on the current
-			 * sack block.  Skip over all the sack blocks that
-			 * fall completely to the right of snd_fack and
-			 * proceed to trim the scoreboard based on the
-			 * remaining sack blocks.  This also trims the
-			 * scoreboard for th_ack (which is sack_blocks[0]).
+			 * Append a new SACK hole at the tail.  If the
+			 * second or later highest SACK blocks are also
+			 * beyond the current fack, they will be inserted
+			 * by way of hole splitting in the while-loop below.
 			 */
-			while (sblkp >= sack_blocks &&
-			       SEQ_LT(tp->snd_fack, sblkp->start))
-				sblkp--;
-			if (sblkp >= sack_blocks &&
-			    SEQ_LT(tp->snd_fack, sblkp->end)) {
-				delivered_data += sblkp->end - tp->snd_fack;
+			temp = tcp_sackhole_insert(tp, tp->snd_fack,sblkp->start,NULL);
+			if (temp != NULL) {
+				delivered_data += sblkp->end - sblkp->start;
 				tp->snd_fack = sblkp->end;
+				/* Go to the previous sack block. */
+				sblkp--;
 				sack_changed = 1;
+			} else {
+				/*
+				 * We failed to add a new hole based on the current
+				 * sack block.  Skip over all the sack blocks that
+				 * fall completely to the right of snd_fack and
+				 * proceed to trim the scoreboard based on the
+				 * remaining sack blocks.  This also trims the
+				 * scoreboard for th_ack (which is sack_blocks[0]).
+				 */
+				while (sblkp >= sack_blocks &&
+				       SEQ_LT(tp->snd_fack, sblkp->start))
+					sblkp--;
+				if (sblkp >= sack_blocks &&
+				    SEQ_LT(tp->snd_fack, sblkp->end)) {
+					delivered_data += sblkp->end - tp->snd_fack;
+					tp->snd_fack = sblkp->end;
+					sack_changed = 1;
+				}
 			}
 		}
 	} else if (SEQ_LT(tp->snd_fack, sblkp->end)) {
