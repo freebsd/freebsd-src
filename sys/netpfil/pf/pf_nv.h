@@ -53,6 +53,7 @@ int	pf_nvstring(const nvlist_t *, const char *, char *, size_t);
 
 #define	PFNV_CHK(x)	do {	\
 	error = (x);		\
+	SDT_PROBE2(pf, ioctl, nvchk, error, error, __LINE__);	\
 	if (error != 0)		\
 		goto errout;	\
 	} while (0)
