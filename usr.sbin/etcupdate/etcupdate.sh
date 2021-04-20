@@ -442,7 +442,7 @@ empty_destdir()
 #
 # $1 - first tree
 # $2 - second tree
-# $3 - node name 
+# $3 - node name
 # $4 - label for first tree
 # $5 - label for second tree
 diffnode()
@@ -867,7 +867,7 @@ merge_file()
 # $1 - pathname of the file to resolve (relative to DESTDIR)
 has_conflicts()
 {
-	
+
 	egrep -q '^(<{7}|\|{7}|={7}|>{7}) ' $CONFLICTS/$1
 }
 
@@ -1526,7 +1526,7 @@ EOF
 	if [ -n "$preworld" ]; then
 		> $WORKDIR/removed.files
 	fi
-	
+
 	# The order for the following sections is important.  In the
 	# odd case that a directory is converted into a file, the
 	# existing subfiles need to be removed if possible before the
