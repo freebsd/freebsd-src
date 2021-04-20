@@ -732,7 +732,8 @@ mlx5e_add_vlan_rule_sub(struct mlx5e_priv *priv,
 	int err = 0;
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	dest.ft = priv->fts.vxlan.t;
+	dest.ft = ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) ?
+	    priv->fts.vxlan.t : priv->fts.main.t;
 
 	mc_enable = MLX5_MATCH_OUTER_HEADERS;
 
@@ -1845,13 +1846,15 @@ mlx5e_add_vxlan_rule(struct mlx5e_priv *priv, sa_family_t family, u_int port)
 	}
 	el = mlx5e_vxlan_alloc_db_el(priv, proto, port);
 
-	err = mlx5e_add_vxlan_rule_from_db(priv, el);
-	if (err == 0) {
-		TAILQ_INSERT_TAIL(&priv->vxlan.head, el, link);
-		el->installed = true;
-	} else {
-		kvfree(el);
+	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
+		err = mlx5e_add_vxlan_rule_from_db(priv, el);
+		if (err == 0)
+			el->installed = true;
 	}
+	if (err == 0)
+		TAILQ_INSERT_TAIL(&priv->vxlan.head, el, link);
+	else
+		kvfree(el);
 
 	return (err);
 }
@@ -2235,40 +2238,53 @@ mlx5e_open_flow_table(struct mlx5e_priv *priv)
 	if (err)
 		return (err);
 
-	err = mlx5e_create_vxlan_flow_table(priv);
-	if (err)
-		goto err_destroy_vlan_flow_table;
+	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
+		err = mlx5e_create_vxlan_flow_table(priv);
+		if (err)
+			goto err_destroy_vlan_flow_table;
+	}
 
 	err = mlx5e_create_main_flow_table(priv, false);
 	if (err)
 		goto err_destroy_vxlan_flow_table;
 
-	err = mlx5e_create_main_flow_table(priv, true);
-	if (err)
-		goto err_destroy_main_flow_table;
+	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
+		err = mlx5e_create_main_flow_table(priv, true);
+		if (err)
+			goto err_destroy_main_flow_table;
+	}
 
-	err = mlx5e_create_inner_rss_flow_table(priv);
-	if (err)
-		goto err_destroy_main_vxlan_flow_table;
+	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
+		err = mlx5e_create_inner_rss_flow_table(priv);
+		if (err)
+			goto err_destroy_main_vxlan_flow_table;
+	}
 
-	err = mlx5e_add_vxlan_catchall_rule(priv);
-	if (err != 0)
-		goto err_destroy_inner_rss_flow_table;
+	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
+		err = mlx5e_add_vxlan_catchall_rule(priv);
+		if (err != 0)
+			goto err_destroy_inner_rss_flow_table;
+	}
 
-	err = mlx5e_add_main_vxlan_rules(priv);
-	if (err != 0)
-		goto err_destroy_inner_rss_flow_table;
+	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
+		err = mlx5e_add_main_vxlan_rules(priv);
+		if (err != 0)
+			goto err_destroy_inner_rss_flow_table;
+	}
 
 	return (0);
 
 err_destroy_inner_rss_flow_table:
-	mlx5e_destroy_inner_rss_flow_table(priv);
+	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0)
+		mlx5e_destroy_inner_rss_flow_table(priv);
 err_destroy_main_vxlan_flow_table:
-	mlx5e_destroy_main_vxlan_flow_table(priv);
+	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0)
+		mlx5e_destroy_main_vxlan_flow_table(priv);
 err_destroy_main_flow_table:
 	mlx5e_destroy_main_flow_table(priv);
 err_destroy_vxlan_flow_table:
-	mlx5e_destroy_vxlan_flow_table(priv);
+	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0)
+		mlx5e_destroy_vxlan_flow_table(priv);
 err_destroy_vlan_flow_table:
 	mlx5e_destroy_vlan_flow_table(priv);
 
@@ -2280,11 +2296,14 @@ mlx5e_close_flow_table(struct mlx5e_priv *priv)
 {
 
 	mlx5e_handle_ifp_addr(priv);
-	mlx5e_destroy_inner_rss_flow_table(priv);
-	mlx5e_del_vxlan_catchall_rule(priv);
-	mlx5e_destroy_vxlan_flow_table(priv);
-	mlx5e_del_main_vxlan_rules(priv);
+	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
+		mlx5e_destroy_inner_rss_flow_table(priv);
+		mlx5e_del_vxlan_catchall_rule(priv);
+		mlx5e_destroy_vxlan_flow_table(priv);
+		mlx5e_del_main_vxlan_rules(priv);
+	}
 	mlx5e_destroy_main_flow_table(priv);
-	mlx5e_destroy_main_vxlan_flow_table(priv);
+	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0)
+		mlx5e_destroy_main_vxlan_flow_table(priv);
 	mlx5e_destroy_vlan_flow_table(priv);
 }
