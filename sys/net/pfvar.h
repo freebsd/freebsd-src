@@ -324,7 +324,7 @@ struct pf_krule {
 	struct pf_rule_addr	 src;
 	struct pf_rule_addr	 dst;
 	union pf_krule_ptr	 skip[PF_SKIP_COUNT];
-	char			 label[PF_RULE_LABEL_SIZE];
+	char			 label[PF_RULE_MAX_LABEL_COUNT][PF_RULE_LABEL_SIZE];
 	char			 ifname[IFNAMSIZ];
 	char			 qname[PF_QNAME_SIZE];
 	char			 pqname[PF_QNAME_SIZE];

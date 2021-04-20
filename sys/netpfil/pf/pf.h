@@ -450,6 +450,7 @@ struct pf_rule {
 #define PF_SKIP_COUNT		8
 	union pf_rule_ptr	 skip[PF_SKIP_COUNT];
 #define PF_RULE_LABEL_SIZE	 64
+#define PF_RULE_MAX_LABEL_COUNT	 5
 	char			 label[PF_RULE_LABEL_SIZE];
 	char			 ifname[IFNAMSIZ];
 	char			 qname[PF_QNAME_SIZE];
