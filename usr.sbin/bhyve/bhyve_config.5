@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 24, 2021
+.Dd April 20, 2021
 .Dt BHYVE_CONFIG 5
 .Os
 .Sh NAME
@@ -143,11 +143,13 @@ the host's hostname and the VM name.
 Use MSI-X interrupts for PCI VirtIO devices.
 If set to false, MSI interrupts are used instead.
 .It Va config.dump Ta bool Ta false Ta
-If this value is set to true,
+If this value is set to true after
+.Xr bhyve 8
+has finished parsing command line options,
 then
 .Xr bhyve 8
-will write all of its configuration variables to stdout and exit
-after it has finished parsing command line options.
+will write all of its configuration variables to stdout and exit.
+No VM will be started.
 .El
 .Ss x86-Specific Settings
 .Bl -column "x86.vmexit_on_pause" "integer" "Default"
