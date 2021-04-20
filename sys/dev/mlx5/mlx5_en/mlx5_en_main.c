@@ -2810,10 +2810,8 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt, bool inner_vxla
 		    lro_timer_supported_periods[2]));
 	}
 
-	if (inner_vxlan &&
-	    (priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
+	if (inner_vxlan)
 		MLX5_SET(tirc, tirc, tunneled_offload_en, 1);
-	}
 
 	/* setup parameters for hashing TIR type, if any */
 	switch (tt) {
@@ -3127,10 +3125,13 @@ mlx5e_open_locked(struct ifnet *ifp)
 		mlx5_en_err(ifp, "mlx5e_open_tir(main) failed, %d\n", err);
 		goto err_close_rqls;
 	}
-	err = mlx5e_open_tirs(priv, true);
-	if (err) {
-		mlx5_en_err(ifp, "mlx5e_open_tir(inner) failed, %d\n", err);
-		goto err_close_tirs;
+	if ((ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
+		err = mlx5e_open_tirs(priv, true);
+		if (err) {
+			mlx5_en_err(ifp, "mlx5e_open_tir(inner) failed, %d\n",
+			    err);
+			goto err_close_tirs;
+		}
 	}
 	err = mlx5e_open_flow_table(priv);
 	if (err) {
@@ -3144,11 +3145,13 @@ mlx5e_open_locked(struct ifnet *ifp)
 		    "mlx5e_add_all_vlan_rules failed, %d\n", err);
 		goto err_close_flow_table;
 	}
-	err = mlx5e_add_all_vxlan_rules(priv);
-	if (err) {
-		mlx5_en_err(ifp,
-		    "mlx5e_add_all_vxlan_rules failed, %d\n", err);
-		goto err_del_vlan_rules;
+	if ((ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
+		err = mlx5e_add_all_vxlan_rules(priv);
+		if (err) {
+			mlx5_en_err(ifp,
+			    "mlx5e_add_all_vxlan_rules failed, %d\n", err);
+			goto err_del_vlan_rules;
+		}
 	}
 	set_bit(MLX5E_STATE_OPENED, &priv->state);
 
@@ -3164,7 +3167,8 @@ err_close_flow_table:
 	mlx5e_close_flow_table(priv);
 
 err_close_tirs_inner:
-	mlx5e_close_tirs(priv, true);
+	if ((ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0)
+		mlx5e_close_tirs(priv, true);
 
 err_close_tirs:
 	mlx5e_close_tirs(priv, false);
@@ -3213,10 +3217,12 @@ mlx5e_close_locked(struct ifnet *ifp)
 
 	mlx5e_set_rx_mode_core(priv);
 	mlx5e_del_all_vlan_rules(priv);
-	mlx5e_del_all_vxlan_rules(priv);
+	if ((ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0)
+		mlx5e_del_all_vxlan_rules(priv);
 	if_link_state_change(priv->ifp, LINK_STATE_DOWN);
 	mlx5e_close_flow_table(priv);
-	mlx5e_close_tirs(priv, true);
+	if ((ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0)
+		mlx5e_close_tirs(priv, true);
 	mlx5e_close_tirs(priv, false);
 	mlx5e_close_rqt(priv);
 	mlx5e_close_channels(priv);
@@ -3457,14 +3463,16 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (mask & IFCAP_WOL_MAGIC)
 			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
 		if (mask & IFCAP_VXLAN_HWCSUM) {
+			int was_opened = test_bit(MLX5E_STATE_OPENED,
+			    &priv->state);
+			if (was_opened)
+				mlx5e_close_locked(ifp);
 			ifp->if_capenable ^= IFCAP_VXLAN_HWCSUM;
 			ifp->if_hwassist ^= CSUM_INNER_IP | CSUM_INNER_IP_UDP |
 			    CSUM_INNER_IP_TCP | CSUM_INNER_IP6_UDP |
 			    CSUM_INNER_IP6_TCP;
-			if (test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-				mlx5e_close_locked(ifp);
+			if (was_opened)
 				mlx5e_open_locked(ifp);
-			}
 		}
 		if (mask & IFCAP_VXLAN_HWTSO) {
 			ifp->if_capenable ^= IFCAP_VXLAN_HWTSO;
