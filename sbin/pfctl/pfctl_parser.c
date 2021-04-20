@@ -1019,8 +1019,9 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 
 		printf(" fragment reassemble");
 	}
-	if (r->label[0])
-		printf(" label \"%s\"", r->label);
+	i = 0;
+	while (r->label[i][0])
+		printf(" label \"%s\"", r->label[i++]);
 	if (r->qname[0] && r->pqname[0])
 		printf(" queue(%s, %s)", r->qname, r->pqname);
 	else if (r->qname[0])

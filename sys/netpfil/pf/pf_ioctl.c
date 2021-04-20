@@ -992,7 +992,8 @@ pf_hash_rule(MD5_CTX *ctx, struct pf_krule *rule)
 
 	pf_hash_rule_addr(ctx, &rule->src);
 	pf_hash_rule_addr(ctx, &rule->dst);
-	PF_MD5_UPD_STR(rule, label);
+	for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++)
+		PF_MD5_UPD_STR(rule, label[i]);
 	PF_MD5_UPD_STR(rule, ifname);
 	PF_MD5_UPD_STR(rule, match_tagname);
 	PF_MD5_UPD_HTONS(rule, match_tag, x); /* dup? */
@@ -1556,7 +1557,7 @@ pf_krule_to_rule(const struct pf_krule *krule, struct pf_rule *rule)
 			rule->skip[i].nr = krule->skip[i].ptr->nr;
 	}
 
-	strlcpy(rule->label, krule->label, sizeof(rule->label));
+	strlcpy(rule->label, krule->label[0], sizeof(rule->label));
 	strlcpy(rule->ifname, krule->ifname, sizeof(rule->ifname));
 	strlcpy(rule->qname, krule->qname, sizeof(rule->qname));
 	strlcpy(rule->pqname, krule->pqname, sizeof(rule->pqname));
@@ -1977,7 +1978,30 @@ pf_nvrule_to_krule(const nvlist_t *nvl, struct pf_krule **prule)
 	PFNV_CHK(pf_nvrule_addr_to_rule_addr(nvlist_get_nvlist(nvl, "dst"),
 	    &rule->dst));
 
-	PFNV_CHK(pf_nvstring(nvl, "label", rule->label, sizeof(rule->label)));
+	if (nvlist_exists_string(nvl, "label")) {
+		PFNV_CHK(pf_nvstring(nvl, "label", rule->label[0],
+		    sizeof(rule->label[0])));
+	} else if (nvlist_exists_string_array(nvl, "labels")) {
+		const char *const *strs;
+		size_t items;
+		int ret;
+
+		strs = nvlist_get_string_array(nvl, "labels", &items);
+		if (items > PF_RULE_MAX_LABEL_COUNT) {
+			error = E2BIG;
+			goto errout;
+		}
+
+		for (size_t i = 0; i < items; i++) {
+			ret = strlcpy(rule->label[i], strs[i],
+			    sizeof(rule->label[0]));
+			if (ret >= sizeof(rule->label[0])) {
+				error = E2BIG;
+				goto errout;
+			}
+		}
+	}
+
 	PFNV_CHK(pf_nvstring(nvl, "ifname", rule->ifname,
 	    sizeof(rule->ifname)));
 	PFNV_CHK(pf_nvstring(nvl, "qname", rule->qname, sizeof(rule->qname)));
@@ -2151,7 +2175,10 @@ pf_krule_to_nvrule(const struct pf_krule *rule)
 		    rule->skip[i].ptr ? rule->skip[i].ptr->nr : -1);
 	}
 
-	nvlist_add_string(nvl, "label", rule->label);
+	for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++) {
+		nvlist_append_string_array(nvl, "labels", rule->label[i]);
+	}
+	nvlist_add_string(nvl, "label", rule->label[0]);
 	nvlist_add_string(nvl, "ifname", rule->ifname);
 	nvlist_add_string(nvl, "qname", rule->qname);
 	nvlist_add_string(nvl, "pqname", rule->pqname);
@@ -2284,7 +2311,7 @@ pf_rule_to_krule(const struct pf_rule *rule, struct pf_krule *krule)
 	bcopy(&rule->src, &krule->src, sizeof(rule->src));
 	bcopy(&rule->dst, &krule->dst, sizeof(rule->dst));
 
-	strlcpy(krule->label, rule->label, sizeof(rule->label));
+	strlcpy(krule->label[0], rule->label, sizeof(rule->label));
 	strlcpy(krule->ifname, rule->ifname, sizeof(rule->ifname));
 	strlcpy(krule->qname, rule->qname, sizeof(rule->qname));
 	strlcpy(krule->pqname, rule->pqname, sizeof(rule->pqname));
@@ -2522,6 +2549,20 @@ errout_unlocked:
 	return (error);
 }
 
+static bool
+pf_label_match(const struct pf_krule *rule, const char *label)
+{
+	int i = 0;
+
+	while (*rule->label[i]) {
+		if (strcmp(rule->label[i], label) == 0)
+			return (true);
+		i++;
+	}
+
+	return (false);
+}
+
 static int
 pf_killstates_row(struct pfioc_state_kill *psk, struct pf_idhash *ih)
 {
@@ -2571,8 +2612,8 @@ relock_DIOCKILLSTATES:
 		    psk->psk_dst.port[0], psk->psk_dst.port[1], dstport))
 			continue;
 
-		if (psk->psk_label[0] && (! s->rule.ptr->label[0] ||
-		    strcmp(psk->psk_label, s->rule.ptr->label)))
+		if (psk->psk_label[0] &&
+		    ! pf_label_match(s->rule.ptr, psk->psk_label))
 			continue;
 
 		if (psk->psk_ifname[0] && strcmp(psk->psk_ifname,

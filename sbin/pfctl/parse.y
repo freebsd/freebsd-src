@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <net/altq/altq_hfsc.h>
 #include <net/altq/altq_fairq.h>
 
+#include <assert.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -241,7 +242,8 @@ static struct filter_opts {
 	} keep;
 	int			 fragment;
 	int			 allowopts;
-	char			*label;
+	char			*label[PF_RULE_MAX_LABEL_COUNT];
+	int			 labelcount;
 	struct node_qassign	 queues;
 	char			*tag;
 	char			*match_tag;
@@ -256,7 +258,8 @@ static struct filter_opts {
 } filter_opts;
 
 static struct antispoof_opts {
-	char			*label;
+	char			*label[PF_RULE_MAX_LABEL_COUNT];
+	int			 labelcount;
 	u_int			 rtableid;
 } antispoof_opts;
 
@@ -349,7 +352,7 @@ int		 expand_skip_interface(struct node_if *);
 
 int	 check_rulestate(int);
 int	 getservice(char *);
-int	 rule_label(struct pfctl_rule *, char *);
+int	 rule_label(struct pfctl_rule *, char *s[PF_RULE_MAX_LABEL_COUNT]);
 int	 rt_tableid_max(void);
 
 void	 mv_rules(struct pfctl_ruleset *, struct pfctl_ruleset *);
@@ -887,7 +890,8 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			r.match_tag_not = $9.match_tag_not;
 			if (rule_label(&r, $9.label))
 				YYERROR;
-			free($9.label);
+			for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++)
+				free($9.label[i]);
 			r.flags = $9.flags.b1;
 			r.flagset = $9.flags.b2;
 			if (($9.flags.b1 & $9.flags.b2) != $9.flags.b1) {
@@ -1333,7 +1337,8 @@ antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
 				} else
 					free(hh);
 			}
-			free($5.label);
+			for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++)
+				free($5.label[i]);
 		}
 		;
 
@@ -1374,11 +1379,11 @@ antispoof_opts_l	: antispoof_opts_l antispoof_opt
 			;
 
 antispoof_opt	: label	{
-			if (antispoof_opts.label) {
-				yyerror("label cannot be redefined");
+			if (antispoof_opts.labelcount >= PF_RULE_MAX_LABEL_COUNT) {
+				yyerror("label can only be used %d times", PF_RULE_MAX_LABEL_COUNT);
 				YYERROR;
 			}
-			antispoof_opts.label = $1;
+			antispoof_opts.label[antispoof_opts.labelcount++] = $1;
 		}
 		| RTABLE NUMBER				{
 			if ($2 < 0 || $2 > rt_tableid_max()) {
@@ -2093,7 +2098,8 @@ pfrule		: action dir logquick interface route af proto fromto
 			r.match_tag_not = $9.match_tag_not;
 			if (rule_label(&r, $9.label))
 				YYERROR;
-			free($9.label);
+			for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++)
+				free($9.label[i]);
 			r.flags = $9.flags.b1;
 			r.flagset = $9.flags.b2;
 			if (($9.flags.b1 & $9.flags.b2) != $9.flags.b1) {
@@ -2531,11 +2537,11 @@ filter_opt	: USER uids {
 			filter_opts.allowopts = 1;
 		}
 		| label	{
-			if (filter_opts.label) {
-				yyerror("label cannot be redefined");
+			if (filter_opts.labelcount >= PF_RULE_MAX_LABEL_COUNT) {
+				yyerror("label can only be used %d times", PF_RULE_MAX_LABEL_COUNT);
 				YYERROR;
 			}
-			filter_opts.label = $1;
+			filter_opts.label[filter_opts.labelcount++] = $1;
 		}
 		| qname	{
 			if (filter_opts.queues.qname) {
@@ -5316,15 +5322,15 @@ expand_rule(struct pfctl_rule *r,
 	sa_family_t		 af = r->af;
 	int			 added = 0, error = 0;
 	char			 ifname[IF_NAMESIZE];
-	char			 label[PF_RULE_LABEL_SIZE];
+	char			 label[PF_RULE_MAX_LABEL_COUNT][PF_RULE_LABEL_SIZE];
 	char			 tagname[PF_TAG_NAME_SIZE];
 	char			 match_tagname[PF_TAG_NAME_SIZE];
 	struct pf_pooladdr	*pa;
 	struct node_host	*h;
 	u_int8_t		 flags, flagset, keep_state;
 
-	if (strlcpy(label, r->label, sizeof(label)) >= sizeof(label))
-		errx(1, "expand_rule: strlcpy");
+	memcpy(label, r->label, sizeof(r->label));
+	assert(sizeof(r->label) == sizeof(label));
 	if (strlcpy(tagname, r->tagname, sizeof(tagname)) >= sizeof(tagname))
 		errx(1, "expand_rule: strlcpy");
 	if (strlcpy(match_tagname, r->match_tagname, sizeof(match_tagname)) >=
@@ -5373,17 +5379,17 @@ expand_rule(struct pfctl_rule *r,
 		else
 			memset(r->ifname, '\0', sizeof(r->ifname));
 
-		if (strlcpy(r->label, label, sizeof(r->label)) >=
-		    sizeof(r->label))
-			errx(1, "expand_rule: strlcpy");
+		memcpy(r->label, label, sizeof(r->label));
 		if (strlcpy(r->tagname, tagname, sizeof(r->tagname)) >=
 		    sizeof(r->tagname))
 			errx(1, "expand_rule: strlcpy");
 		if (strlcpy(r->match_tagname, match_tagname,
 		    sizeof(r->match_tagname)) >= sizeof(r->match_tagname))
 			errx(1, "expand_rule: strlcpy");
-		expand_label(r->label, PF_RULE_LABEL_SIZE, r->ifname, r->af,
-		    src_host, src_port, dst_host, dst_port, proto->proto);
+		for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++)
+			expand_label(r->label[i], PF_RULE_LABEL_SIZE,
+			    r->ifname, r->af, src_host, src_port, dst_host,
+			    dst_port, proto->proto);
 		expand_label(r->tagname, PF_TAG_NAME_SIZE, r->ifname, r->af,
 		    src_host, src_port, dst_host, dst_port, proto->proto);
 		expand_label(r->match_tagname, PF_TAG_NAME_SIZE, r->ifname,
@@ -6273,13 +6279,16 @@ getservice(char *n)
 }
 
 int
-rule_label(struct pfctl_rule *r, char *s)
+rule_label(struct pfctl_rule *r, char *s[PF_RULE_MAX_LABEL_COUNT])
 {
-	if (s) {
-		if (strlcpy(r->label, s, sizeof(r->label)) >=
-		    sizeof(r->label)) {
+	for (int i = 0; i < PF_RULE_MAX_LABEL_COUNT; i++) {
+		if (s[i] == NULL)
+			return (0);
+
+		if (strlcpy(r->label[i], s[i], sizeof(r->label[0])) >=
+		    sizeof(r->label[0])) {
 			yyerror("rule label too long (max %d chars)",
-			    sizeof(r->label)-1);
+			    sizeof(r->label[0])-1);
 			return (-1);
 		}
 	}

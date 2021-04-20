@@ -996,11 +996,18 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 			goto error;
 
 		switch (format) {
-		case PFCTL_SHOW_LABELS:
-			if (rule.label[0]) {
-				printf("%s %llu %llu %llu %llu"
+		case PFCTL_SHOW_LABELS: {
+			bool show = false;
+			int i = 0;
+
+			while (rule.label[i][0]) {
+				printf("%s ", rule.label[i++]);
+				show = true;
+			}
+
+			if (show) {
+				printf("%llu %llu %llu %llu"
 				    " %llu %llu %llu %ju\n",
-				    rule.label,
 				    (unsigned long long)rule.evaluations,
 				    (unsigned long long)(rule.packets[0] +
 				    rule.packets[1]),
@@ -1013,6 +1020,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 				    (uintmax_t)rule.states_tot);
 			}
 			break;
+		}
 		case PFCTL_SHOW_RULES:
 			brace = 0;
 			if (rule.label[0] && (opts & PF_OPT_SHOWALL))

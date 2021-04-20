@@ -301,7 +301,8 @@ static void
 pf_nvrule_to_rule(const nvlist_t *nvl, struct pfctl_rule *rule)
 {
 	const uint64_t *skip;
-	size_t skipcount;
+	const char *const *labels;
+	size_t skipcount, labelcount;
 
 	rule->nr = nvlist_get_number(nvl, "nr");
 
@@ -314,7 +315,10 @@ pf_nvrule_to_rule(const nvlist_t *nvl, struct pfctl_rule *rule)
 	for (int i = 0; i < PF_SKIP_COUNT; i++)
 		rule->skip[i].nr = skip[i];
 
-	strlcpy(rule->label, nvlist_get_string(nvl, "label"), PF_RULE_LABEL_SIZE);
+	labels = nvlist_get_string_array(nvl, "labels", &labelcount);
+	assert(labelcount <= PF_RULE_MAX_LABEL_COUNT);
+	for (size_t i = 0; i < labelcount; i++)
+		strlcpy(rule->label[i], labels[i], PF_RULE_LABEL_SIZE);
 	strlcpy(rule->ifname, nvlist_get_string(nvl, "ifname"), IFNAMSIZ);
 	strlcpy(rule->qname, nvlist_get_string(nvl, "qname"), PF_QNAME_SIZE);
 	strlcpy(rule->pqname, nvlist_get_string(nvl, "pqname"), PF_QNAME_SIZE);
@@ -404,6 +408,7 @@ pfctl_add_rule(int dev, const struct pfctl_rule *r, const char *anchor,
 	u_int64_t timeouts[PFTM_MAX];
 	u_int64_t set_prio[2];
 	nvlist_t *nvl, *nvlr;
+	size_t labelcount;
 	int ret;
 
 	nvl = nvlist_create(0);
@@ -418,7 +423,14 @@ pfctl_add_rule(int dev, const struct pfctl_rule *r, const char *anchor,
 	pfctl_nv_add_rule_addr(nvlr, "src", &r->src);
 	pfctl_nv_add_rule_addr(nvlr, "dst", &r->dst);
 
-	nvlist_add_string(nvlr, "label", r->label);
+	labelcount = 0;
+	while (r->label[labelcount][0] != 0 &&
+	    labelcount < PF_RULE_MAX_LABEL_COUNT) {
+		nvlist_append_string_array(nvlr, "labels",
+		    r->label[labelcount]);
+		labelcount++;
+	}
+
 	nvlist_add_string(nvlr, "ifname", r->ifname);
 	nvlist_add_string(nvlr, "qname", r->qname);
 	nvlist_add_string(nvlr, "pqname", r->pqname);
