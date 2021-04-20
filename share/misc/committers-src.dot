@@ -237,6 +237,7 @@ ken [label="Ken Merry\nken@FreeBSD.org\n1998/09/08"]
 kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
 kevans [label="Kyle Evans\nkevans@FreeBSD.org\n2017/06/20"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
+khng [label="Ka Ho Ng\nkhng@FreeBSD.org\n2021/03/15"]
 kib [label="Konstantin Belousov\nkib@FreeBSD.org\n2006/06/03"]
 kibab [label="Ilya Bakulin\nkibab@FreeBSD.org\n2017/09/02"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
@@ -711,6 +712,8 @@ kmacy -> lstewart
 kp -> donner
 kp -> nick
 
+lwhsu -> khng
+
 marcel -> allanjude
 marcel -> art
 marcel -> arun
@@ -785,6 +788,7 @@ philip -> benl
 philip -> donner
 philip -> ed
 philip -> jls
+philip -> khng
 philip -> matteo
 philip -> uqs
 philip -> kp
