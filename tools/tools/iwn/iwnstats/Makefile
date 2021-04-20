@@ -15,6 +15,8 @@ PROG=	iwnstats
 # to not compile, use gcc for now.
 #CC=	gcc
 
+BINDIR?=/usr/local/sbin
+
 SRCS=	main.c iwn_ioctl.c
 
 # CFLAGS.clang+= -fbracket-depth=512

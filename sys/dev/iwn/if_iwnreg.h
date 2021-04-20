@@ -2267,7 +2267,8 @@ static const struct iwn_sensitivity_limits iwn2030_sensitivity_limits = {
 	160,310,
 	97,
 	97,
-	110
+	110,
+	390
 };
 
 /* Map TID to TX scheduler's FIFO. */
