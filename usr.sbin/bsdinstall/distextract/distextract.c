@@ -53,11 +53,6 @@ static void	sig_int(int sig);
 static int	count_files(const char *file);
 static int	extract_files(struct dpv_file_node *file, int out);
 
-#if __FreeBSD_version <= 1000008 /* r232154: bump for libarchive update */
-#define archive_read_support_filter_all(x) \
-	archive_read_support_compression_all(x)
-#endif
-
 #define _errx(...) (end_dialog(), errx(__VA_ARGS__))
 
 int
