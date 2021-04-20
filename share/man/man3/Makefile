@@ -72,6 +72,7 @@ MLINKS=		arb.3 ARB8_ENTRY.3 \
 		arb.3 ARB_RIGHT.3 \
 		arb.3 ARB_RIGHTIDX.3 \
 		arb.3 ARB_ROOT.3
+MLINKS+=	assert.3 static_assert.3
 MLINKS+=	ATOMIC_VAR_INIT.3 atomic_compare_exchange_strong.3 \
 		ATOMIC_VAR_INIT.3 atomic_compare_exchange_strong_explicit.3 \
 		ATOMIC_VAR_INIT.3 atomic_compare_exchange_weak.3 \
