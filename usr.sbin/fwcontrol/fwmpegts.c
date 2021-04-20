@@ -40,11 +40,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/uio.h>
-
-#if __FreeBSD_version >= 500000
 #include <arpa/inet.h>
-#endif
-
 #include <err.h>
 #include <errno.h>
 #include <unistd.h>
