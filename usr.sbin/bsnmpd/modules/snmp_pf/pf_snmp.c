@@ -1545,7 +1545,7 @@ pfl_scan_ruleset(const char *path)
 			strlcpy(e->name, path, sizeof(e->name));
 			if (path[0])
 				strlcat(e->name, "/", sizeof(e->name));
-			strlcat(e->name, rule.label, sizeof(e->name));
+			strlcat(e->name, rule.label[0], sizeof(e->name));
 
 			e->evals = rule.evaluations;
 			e->bytes[IN] = rule.bytes[IN];
