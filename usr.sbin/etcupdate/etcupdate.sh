@@ -226,9 +226,11 @@ build_tree()
 	return 0
 }
 
-# Generate a new NEWTREE tree.  If tarball is set, then the tree is
+# Generate a new tree.  If tarball is set, then the tree is
 # extracted from the tarball.  Otherwise the tree is built from a
 # source tree.
+#
+# $1 - directory to store new tree in
 extract_tree()
 {
 	local files
@@ -239,16 +241,16 @@ extract_tree()
 		if [ -n "$preworld" ]; then
 			files="$PREWORLD_FILES"
 		fi
-		if ! (mkdir -p $NEWTREE && tar xf $tarball -C $NEWTREE $files) \
+		if ! (mkdir -p $1 && tar xf $tarball -C $1 $files) \
 		    >&3 2>&1; then
 			echo "Failed to extract new tree."
-			remove_tree $NEWTREE
+			remove_tree $1
 			exit 1
 		fi
 	else
-		if ! build_tree $NEWTREE; then
+		if ! build_tree $1; then
 			echo "Failed to build new tree."
-			remove_tree $NEWTREE
+			remove_tree $1
 			exit 1
 		fi
 	fi
@@ -1353,14 +1355,28 @@ extract_cmd()
 
 	log "extract command: tarball=$tarball"
 
+	# Create a temporary directory to hold the tree
+	dir=`mktemp -d $WORKDIR/etcupdate-XXXXXXX`
+	if [ $? -ne 0 ]; then
+		echo "Unable to create temporary directory."
+		exit 1
+	fi
+
+	extract_tree $dir
+
 	if [ -d $NEWTREE ]; then
 		if ! remove_tree $NEWTREE; then
 			echo "Unable to remove current tree."
+			remove_tree $dir
 			exit 1
 		fi
 	fi
 
-	extract_tree
+	if ! mv $dir $NEWTREE >&3 2>&1; then
+		echo "Unable to rename temp tree to current tree."
+		remove_tree $dir
+		exit 1
+	fi
 }
 
 # Resolve conflicts left from an earlier merge.
@@ -1420,7 +1436,7 @@ status_cmd()
 # source tree.
 update_cmd()
 {
-	local dir
+	local dir new old
 
 	if [ $# -ne 0 ]; then
 		usage
@@ -1449,60 +1465,44 @@ update_cmd()
 		exit 1
 	fi
 
+	# Save tree names to use for rotation later.
+	old=$OLDTREE
+	new=$NEWTREE
 	if [ -z "$rerun" ]; then
-		# For a dryrun that is not a rerun, do not rotate the existing
-		# stock tree.  Instead, extract a tree to a temporary directory
-		# and use that for the comparison.
-		if [ -n "$dryrun" ]; then
-			dir=`mktemp -d $WORKDIR/etcupdate-XXXXXXX`
-			if [ $? -ne 0 ]; then
-				echo "Unable to create temporary directory."
-				exit 1
-			fi
-
-			# A pre-world dryrun has already set OLDTREE to
-			# point to the current stock tree.
-			if [ -z "$preworld" ]; then
-				OLDTREE=$NEWTREE
-			fi
-			NEWTREE=$dir
-
-		# For a pre-world update, blow away any pre-existing
-		# NEWTREE.
-		elif [ -n "$preworld" ]; then
-			if ! remove_tree $NEWTREE; then
-				echo "Unable to remove pre-world tree."
-				exit 1
-			fi
-
-		# Rotate the existing stock tree to the old tree.
-		elif [ -d $NEWTREE ]; then
-			# First, delete the previous old tree if it exists.
-			if ! remove_tree $OLDTREE; then
-				echo "Unable to remove old tree."
-				exit 1
-			fi
-
-			# Move the current stock tree.
-			if ! mv $NEWTREE $OLDTREE >&3 2>&1; then
-				echo "Unable to rename current stock tree."
-				exit 1
-			fi
-		fi
-
-		if ! [ -d $OLDTREE ]; then
-			cat <<EOF
-No previous tree to compare against, a sane comparison is not possible.
-EOF
-			log "No previous tree to compare against."
-			if [ -n "$dir" ]; then
-				rmdir $dir
-			fi
+		# Extract the new tree to a temporary directory.  The
+	        # trees are only rotated after a successful update to
+	        # avoid races if an update command is interrupted
+	        # before it completes.
+		dir=`mktemp -d $WORKDIR/etcupdate-XXXXXXX`
+		if [ $? -ne 0 ]; then
+			echo "Unable to create temporary directory."
 			exit 1
 		fi
 
 		# Populate the new tree.
-		extract_tree
+		extract_tree $dir
+
+		# Compare the new tree against the previous tree.  For
+		# the preworld case OLDTREE already points to the
+		# current stock tree.
+		if [ -z "$preworld" ]; then
+			OLDTREE=$NEWTREE
+		fi
+		NEWTREE=$dir
+	fi
+
+	if ! [ -d $OLDTREE ]; then
+		cat <<EOF
+No previous tree to compare against, a sane comparison is not possible.
+EOF
+		log "No previous tree to compare against."
+		if [ -n "$dir" ]; then
+			if [ -n "$rerun" ]; then
+				panic "Should not have a temporary directory"
+			fi
+			remove_tree $dir
+		fi
+		exit 1
 	fi
 
 	# Build lists of nodes in the old and new trees.
@@ -1568,12 +1568,48 @@ EOF
 		cat $WARNINGS
 	fi
 
-	if [ -n "$dir" ]; then
-		if [ -z "$dryrun" -o -n "$rerun" ]; then
+	# Finally, rotate any needed trees.
+	if [ "$new" != "$NEWTREE" ]; then
+		if [ -n "$rerun" ]; then
 			panic "Should not have a temporary directory"
 		fi
-		
-		remove_tree $dir
+		if [ -z "$dir" ]; then
+			panic "Should have a temporary directory"
+		fi
+
+		# Rotate the old tree if needed
+		if [ "$old" != "$OLDTREE" ]; then
+			if [ -n "$preworld" ]; then
+				panic "Old tree should be unchanged"
+			fi
+
+			if ! remove_tree $old; then
+				echo "Unable to remove previous old tree."
+				exit 1
+			fi
+
+			if ! mv $OLDTREE $old >&3 2>&1; then
+				echo "Unable to rename old tree."
+				exit 1
+			fi
+		fi
+
+		# Rotate the new tree.  Remove a previous pre-world
+		# tree if it exists.
+		if [ -d $new ]; then
+			if [ -z "$preworld" ]; then
+				panic "New tree should be rotated to old"
+			fi
+			if ! remove_tree $old; then
+				echo "Unable to remove previous pre-world tree."
+				exit 1
+			fi
+		fi
+
+		if ! mv $NEWTREE $new >&3 2>&1; then
+			echo "Unable to rename current tree."
+			exit 1
+		fi
 	fi
 }
 
