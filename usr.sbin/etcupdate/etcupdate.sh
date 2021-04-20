@@ -58,7 +58,6 @@
 
 # TODO:
 # - automatable conflict resolution
-# - a 'revert' command to make a file "stock"
 
 usage()
 {
@@ -72,6 +71,7 @@ usage: etcupdate [-npBF] [-d workdir] [-r | -s source | -t tarball]
        etcupdate extract [-B] [-d workdir] [-s source | -t tarball] [-L logfile]
                  [-M options]
        etcupdate resolve [-p] [-d workdir] [-D destdir] [-L logfile]
+       etcupdate revert [-d workdir] [-D destdir] [-L logfile] file ...
        etcupdate status [-d workdir] [-D destdir]
 EOF
 	exit 1
@@ -1415,6 +1415,47 @@ resolve_cmd()
 	fi
 }
 
+# Restore files to the stock version.  Only files with a local change
+# are restored from the stock version.
+revert_cmd()
+{
+	local cmp file
+
+	if [ $# -eq 0 ]; then
+		usage
+	fi
+
+	for file; do
+		log "revert $file"
+
+		if ! [ -e $NEWTREE/$file ]; then
+			echo "File $file does not exist in the current tree."
+			exit 1
+		fi
+		if [ -d $NEWTREE/$file ]; then
+			echo "File $file is a directory."
+			exit 1
+		fi
+
+		compare $DESTDIR/$file $NEWTREE/$file
+		cmp=$?
+		if [ $cmp -eq $COMPARE_EQUAL ]; then
+			continue
+		fi
+
+		if update_unmodified $file; then
+			# If this file had a conflict, clean up the
+			# conflict.
+			if [ -e $CONFLICTS/$file ]; then
+				if ! rm $CONFLICTS/$file >&3 2>&1; then
+					echo "Failed to remove conflict " \
+					     "for $file".
+				fi
+			fi
+		fi
+	done
+}
+
 # Report a summary of the previous merge.  Specifically, list any
 # remaining conflicts followed by any warnings from the previous
 # update.
@@ -1622,7 +1663,7 @@ EOF
 command="update"
 if [ $# -gt 0 ]; then
 	case "$1" in
-		build|diff|extract|status|resolve)
+		build|diff|extract|status|resolve|revert)
 			command="$1"
 			shift
 			;;
@@ -1801,7 +1842,7 @@ case $command in
 			usage
 		fi
 		;;
-	build|diff|status)
+	build|diff|status|revert)
 		if [ -n "$dryrun" -o -n "$rerun" -o -n "$tarball" -o \
 		     -n "$preworld" ]; then
 			usage
@@ -1835,7 +1876,7 @@ if ! mkdir -p $WORKDIR 2>/dev/null; then
 fi
 
 case $command in
-	diff|resolve|status)
+	diff|resolve|revert|status)
 		exec 3>>$LOGFILE
 		;;
 	*)

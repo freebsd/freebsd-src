@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 27, 2018
+.Dd April 20, 2021
 .Dt ETCUPDATE 8
 .Os
 .Sh NAME
@@ -68,6 +68,12 @@
 .Op Fl d Ar workdir
 .Op Fl D Ar destdir
 .Op Fl L Ar logfile
+.Nm
+.Cm revert
+.Op Fl d Ar workdir
+.Op Fl D Ar destdir
+.Op Fl L Ar logfile
+.Ar
 .Nm
 .Cm status
 .Op Fl d Ar workdir
@@ -342,6 +348,14 @@ tree and discard any local changes made to the file.
 .It (h)  help
 Display the list of commands.
 .El
+.Ss Revert Mode
+The
+.Cm revert
+mode is used to restore the stock versions of files.
+In this mode,
+.Nm
+installs the stock version of requested files.
+This mode cannot be used to restore directories, only individual files.
 .Ss Status Mode
 The
 .Cm status
@@ -879,14 +893,6 @@ For example, one can imagine a syntax along the lines of
 .Dl "etcupdate resolve tf /some/file"
 .Pp
 to resolve a specific conflict in an automated fashion.
-.Pp
-It might be nice to have something like a
-.Sq revert
-command to replace a locally modified version of a file with the stock
-version of the file.
-For example:
-.Pp
-.Dl "etcupdate revert /etc/mail/freebsd.cf"
 .Pp
 Bootstrapping
 .Nm
