@@ -179,17 +179,21 @@ always_install()
 	return 1
 }
 
-# Build a new tree
+# Build a new tree.  This runs inside a subshell to trap SIGINT.
 #
 # $1 - directory to store new tree in
 build_tree()
-{
+(
 	local destdir dir file make
 
 	make="make $MAKE_OPTIONS -DNO_FILEMON"
 
 	log "Building tree at $1 with $make"
-	mkdir -p $1/usr/obj >&3 2>&1
+
+	exec >&3 2>&1
+	trap 'return 1' INT
+
+	mkdir -p $1/usr/obj
 	destdir=`realpath $1`
 
 	if [ -n "$preworld" ]; then
@@ -197,34 +201,33 @@ build_tree()
 		# crucial to installworld.
 		for file in $PREWORLD_FILES; do
 			name=$(basename $file)
-			mkdir -p $1/etc >&3 2>&1 || return 1
+			mkdir -p $1/etc || return 1
 			cp -p $SRCDIR/$file $1/etc/$name || return 1
 		done
 	elif ! [ -n "$nobuild" ]; then
 		(cd $SRCDIR; $make DESTDIR=$destdir distrib-dirs &&
     MAKEOBJDIRPREFIX=$destdir/usr/obj $make _obj SUBDIR_OVERRIDE=etc &&
     MAKEOBJDIRPREFIX=$destdir/usr/obj $make everything SUBDIR_OVERRIDE=etc &&
-    MAKEOBJDIRPREFIX=$destdir/usr/obj $make DESTDIR=$destdir distribution) \
-		    >&3 2>&1 || return 1
+    MAKEOBJDIRPREFIX=$destdir/usr/obj $make DESTDIR=$destdir distribution) || \
+		    return 1
 	else
 		(cd $SRCDIR; $make DESTDIR=$destdir distrib-dirs &&
-		    $make DESTDIR=$destdir distribution) >&3 2>&1 || return 1
+		    $make DESTDIR=$destdir distribution) || return 1
 	fi
-	chflags -R noschg $1 >&3 2>&1 || return 1
-	rm -rf $1/usr/obj >&3 2>&1 || return 1
+	chflags -R noschg $1 || return 1
+	rm -rf $1/usr/obj || return 1
 
 	# Purge auto-generated files.  Only the source files need to
 	# be updated after which these files are regenerated.
-	rm -f $1/etc/*.db $1/etc/passwd $1/var/db/services.db >&3 2>&1 || \
-	    return 1
+	rm -f $1/etc/*.db $1/etc/passwd $1/var/db/services.db || return 1
 
 	# Remove empty files.  These just clutter the output of 'diff'.
-	find $1 -type f -size 0 -delete >&3 2>&1 || return 1
+	find $1 -type f -size 0 -delete || return 1
 
 	# Trim empty directories.
-	find -d $1 -type d -empty -delete >&3 2>&1 || return 1
+	find -d $1 -type d -empty -delete || return 1
 	return 0
-}
+)
 
 # Generate a new tree.  If tarball is set, then the tree is
 # extracted from the tarball.  Otherwise the tree is built from a
