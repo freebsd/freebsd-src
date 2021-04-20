@@ -4614,7 +4614,7 @@ nfsmout:
  * Handle an NFSv4.1 Sequence request for the session.
  * If reply != NULL, use it to return the cached reply, as required.
  * The client gets a cached reply via this call for callbacks, however the
- * server gets a cached reply via the nfsv4_seqsess_cachereply() call.
+ * server gets a cached reply via the nfsv4_seqsess_cacherep() call.
  */
 int
 nfsv4_seqsession(uint32_t seqid, uint32_t slotid, uint32_t highslot,
