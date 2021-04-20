@@ -143,9 +143,10 @@ parse_flags_verbose(const char *strp, uint32_t *var,
     int *try_compact)
 {
 	int i, found, ever_found = 0;
-	char *str, *flag;
+	char *str, *flag, *to_free;
 
 	str = strdup(strp);
+	to_free = str;
 	*try_compact = 0;
 	*var = 0;
 
@@ -167,12 +168,12 @@ parse_flags_verbose(const char *strp, uint32_t *var,
 				    "invalid flag \"%s\"", flags_name, flag);
 			else
 				*try_compact = 1;
-			free(str);
+			free(to_free);
 			return (-1);
 		}
 	}
 
-	free(str);
+	free(to_free);
 	return (0);
 }
 
