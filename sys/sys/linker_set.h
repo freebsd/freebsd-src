@@ -60,8 +60,8 @@
  */
 #ifdef __GNUCLIKE___SECTION
 #define __MAKE_SET_QV(set, sym, qv)			\
-	__GLOBL(__CONCAT(__start_set_,set));		\
-	__GLOBL(__CONCAT(__stop_set_,set));		\
+	__WEAK(__CONCAT(__start_set_,set));		\
+	__WEAK(__CONCAT(__stop_set_,set));		\
 	static void const * qv				\
 	__set_##set##_sym_##sym __section("set_" #set)	\
 	__nosanitizeaddress				\
