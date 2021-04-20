@@ -28,15 +28,18 @@
 .\"     @(#)assert.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2018
+.Dd April 20, 2021
 .Dt ASSERT 3
 .Os
 .Sh NAME
-.Nm assert
+.Nm assert ,
+.Nm static_assert
 .Nd expression verification macro
 .Sh SYNOPSIS
 .In assert.h
 .Fn assert expression
+.Fn static_assert expression
+.Fn static_assert expression message
 .Sh DESCRIPTION
 The
 .Fn assert
@@ -81,6 +84,21 @@ The
 macro should only be used for ensuring the developer's expectations
 hold true.
 It is not appropriate for regular run-time error detection.
+.Pp
+The
+.Fn static_assert
+macro expands to
+.Fn _Static_assert ,
+and, contrarily to
+.Fn assert ,
+makes assertions at compile-time.
+Once the constraint is violated, the compiler produces a diagnostic
+message including the string literal message, if provided.
+The initial form of the
+.Fn _Static_assert
+containing a string literal message was introduced in C11 standard, and
+the other form with no string literal is to be implemented by C2x and
+some compilers may lack its adoption at present.
 .Sh EXAMPLES
 The assertion:
 .Dl "assert(1 == 0);"
@@ -95,14 +113,29 @@ indicate a bug.
 Second, the code will disappear if
 .Dv NDEBUG
 is defined, changing the semantics of the program.
+.Pp
+The following asserts that the size of the S structure is 16.
+Otherwise, it produces a diagnostic message which points at the
+constraint and includes the provided string literal:
+.Dl "static_assert(sizeof(struct S) == 16, ""size mismatch"");"
+If none is provided, it only points at the constraint.
 .Sh SEE ALSO
 .Xr abort2 2 ,
 .Xr abort 3
 .Sh STANDARDS
+.Rs
 The
 .Fn assert
 macro conforms to
 .St -isoC-99 .
+.Re
+.Pp
+.Rs
+The
+.Fn static_assert
+macro conforms to
+.St -isoC-2011 .
+.Re
 .Sh HISTORY
 An
 .Nm
