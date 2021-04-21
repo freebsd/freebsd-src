@@ -41,6 +41,8 @@
 
 #include "opt_mmccam.h"
 
+#include <cam/mmc/mmc_sim.h>
+
 enum {
 	HWTYPE_NONE,
 	HWTYPE_ALTERA,
@@ -58,9 +60,7 @@ struct dwmmc_softc {
 	struct mtx		sc_mtx;
 #ifdef MMCCAM
 	union ccb *		ccb;
-	struct cam_devq *	devq;
-	struct cam_sim * 	sim;
-	struct mtx		sim_mtx;
+	struct mmc_sim		mmc_sim;
 #else
 	struct mmc_request	*req;
 #endif
