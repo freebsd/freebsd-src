@@ -898,7 +898,8 @@ main(int argc, char **argv)
 		pmcstat_show_usage();
 
 	/* check for -t pid without a process PMC spec */
-	if ((args.pa_required & FLAG_HAS_TARGET) &&
+	if ((args.pa_flags & FLAG_HAS_TARGET) &&
+	    (args.pa_required & FLAG_HAS_PROCESS_PMCS) &&
 	    (args.pa_flags & FLAG_HAS_PROCESS_PMCS) == 0)
 		errx(EX_USAGE,
 "ERROR: option -t requires a process mode PMC to be specified."
