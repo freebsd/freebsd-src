@@ -136,7 +136,7 @@ labelswap(void)
 
 	werase(wnd);
 
-	dslabel(12, 0, 18);
+	dslabel(12, 0, LINES - DISKHIGHT - 1);
 
 	if (kvnsw <= 0) {
 		mvwprintw(wnd, 0, 0, "(swap not configured)");
@@ -162,7 +162,7 @@ showswap(void)
 	if (kvnsw != okvnsw)
 		labelswap();
 
-	dsshow(12, 0, 18, &cur_dev, &last_dev);
+	dsshow(12, 0, LINES - DISKHIGHT - 1, &cur_dev, &last_dev);
 
 	if (kvnsw <= 0)
 		return;
