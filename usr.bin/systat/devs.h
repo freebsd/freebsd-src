@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 1998 David E. O'Brien
- *               2015 Yoshihiro Ota
+ *               2015, 2021 Yoshihiro Ota
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,8 @@
 #define DEVS_H
 
 #include <devstat.h>
+
+#define DISKHIGHT 5
 
 int dsinit(int);
 void dsgetinfo(struct statinfo *);
