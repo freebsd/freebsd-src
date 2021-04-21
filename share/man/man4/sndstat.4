@@ -31,7 +31,7 @@
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd December 7, 2020
+.Dd April 15, 2021
 .Dt SNDSTAT 4
 .Os
 .Sh NAME
@@ -52,7 +52,7 @@ device allows callers to enumeration PCM audio devices available for use.
 For all ioctls requiring data exchange between the subsystem and callers,
 the following structures are used to describe a serialized nvlist:
 .Bd -literal -offset indent
-struct sndstat_nvlbuf_arg {
+struct sndstioc_nv_arg {
 	size_t nbytes;
 	void *buf;
 };
@@ -67,9 +67,12 @@ dsps (NVLIST ARRAY): 1
     desc (STRING): [Generic (0x8086) (Analog Line-out)]
     pchan (NUMBER): 1 (1) (0x1)
     rchan (NUMBER): 0 (0) (0x0)
-    pminrate (NUMBER): 48000 (48000) (0xbb80)
-    pmaxrate (NUMBER): 48000 (48000) (0xbb80)
-    pfmts (NUMBER): 2097168 (2097168) (0x200010)
+    info_play (NVLIST):
+        min_rate (NUMBER): 48000 (48000) (0xbb80)
+        max_rate (NUMBER): 48000 (48000) (0xbb80)
+        formats (NUMBER): 16 (16) (0x10)
+        min_chn (NUMBER): 2 (2) (0x2)
+        max_chn (NUMBER): 2 (2) (0x2)
     provider_info (NVLIST):
         unit (NUMBER): 0 (0) (0x0)
         bitperfect (BOOL): FALSE
@@ -94,24 +97,38 @@ This can be 0 if this PCM audio device does not support playback at all.
 .It Dv rchan
 The number of recording channels supported by hardware.
 This can be 0 if this PCM audio device does not support recording at all.
-.It Dv pminrate
-The minimum supported playback direction sampling rate.
-Only exists if pchan is greater than 0.
-.It Dv pmaxrate
-The maximum supported playback direction sampling rate.
-Only exists if pchan is greater than 0.
-.It Dv pfmts
-The supported playback direction sample format.
-Only exists if pchan is greater than 0.
-.It Dv rminrate
-The minimum supported recording direction sampling rate.
-Only exists if rchan is greater than 0.
-.It Dv rmaxrate
-The maximum supported recording direction sampling rate.
-Only exists if rchan is greater than 0.
-.It Dv rfmts
-The supported playback recording sample format.
-Only exists if rchan is greater than 0.
+.It Dv info_play
+Supported configurations in playback direction.
+This exists only if this PCM audio device supports playback.
+There are a number of name/value pairs inside this field:
+.Bl -tag -width ".Dv min_rate"
+.It Dv min_rate
+Minimum supported sampling rate.
+.It Dv max_rate
+Maximum supported sampling rate.
+.It Dv formats
+Supported sample formats.
+.It Dv min_chn
+Minimum supported number of channels in channel layout
+.It Dv max_chn
+Maximum supported number of channels in channel layout
+.El
+.It Dv info_rec
+Supported configurations in recording direction.
+This exists only if this PCM audio device supports recording.
+There are a number of name/value pairs inside this field:
+.Bl -tag -width ".Dv min_rate"
+.It Dv min_rate
+Minimum supported sampling rate.
+.It Dv max_rate
+Maximum supported sampling rate.
+.It Dv formats
+Supported sample formats.
+.It Dv min_chn
+Minimum supported number of channels in channel layout
+.It Dv max_chn
+Maximum supported number of channels in channel layout
+.El
 .It Dv provider_info
 Provider-specific fields.
 This field may not exist if the PCM audio device is not provided by in-kernel
@@ -121,15 +138,15 @@ This field will not exist if the provider field is an empty string.
 A string specifying the provider of the PCm audio device.
 .El
 .Pp
-The following ioctls are providede for use:
-.Bl -tag -width ".Dv SNDSTAT_FLUSH_USER_DEVS"
-.It Dv SNDSTAT_REFRESH_DEVS
+The following ioctls are provided for use:
+.Bl -tag -width ".Dv SNDSTIOC_FLUSH_USER_DEVS"
+.It Dv SNDSTIOC_REFRESH_DEVS
 Drop any previously fetched PCM audio devices list snapshots.
 This ioctl takes no arguments.
-.It Dv SNDSTAT_GET_DEVS
+.It Dv SNDSTIOC_GET_DEVS
 Generate and/or return PCM audio devices list snapshots to callers.
 This ioctl takes a pointer to
-.Fa struct sndstat_nvlbuf_arg
+.Fa struct sndstioc_nv_arg
 as the first and the only argument.
 Callers need to provide a sufficiently large buffer to hold a serialized
 nvlist.
@@ -159,12 +176,12 @@ Once a PCM audio device list snapshot is returned to user-space successfully,
 the snapshot stored in the subsystem's internal structure of the given
 .Fa fd
 will be freed.
-.It Dv SNDSTAT_ADD_USER_DEVS
+.It Dv SNDSTIOC_ADD_USER_DEVS
 Add a list of PCM audio devices provided by callers to
 .Pa /dev/sndstat
 device.
 This ioctl takes a pointer to
-.Fa struct sndstat_nvlbuf_arg
+.Fa struct sndstioc_nv_arg
 as the first and the only argument.
 Callers have to provide a buffer holding a serialized nvlist.
 .Fa nbytes
@@ -173,7 +190,7 @@ should be set to the length in bytes of the serialized nvlist.
 should be pointed to a buffer storing the serialized nvlist.
 Userspace-backed PCM audio device nodes should be listed inside the serialized
 nvlist.
-.It Dv SNDSTAT_FLUSH_USER_DEVS
+.It Dv SNDSTIOC_FLUSH_USER_DEVS
 Flush any PCM audio devices previously added by callers.
 This ioctl takes no arguments.
 .El
@@ -198,7 +215,7 @@ int
 main()
 {
 	int fd;
-	struct sndstat_nvlbuf_arg arg;
+	struct sndstioc_nv_arg arg;
 	const nvlist_t * const *di;
 	size_t i, nitems;
 	nvlist_t *nvl;
@@ -206,28 +223,28 @@ main()
 	/* Open sndstat node in read-only first */
 	fd = open("/dev/sndstat", O_RDONLY);
 
-	if (ioctl(fd, SNDSTAT_REFRESH_DEVS, NULL))
-		err(1, "ioctl(fd, SNDSTAT_REFRESH_DEVS, NULL)");
+	if (ioctl(fd, SNDSTIOC_REFRESH_DEVS, NULL))
+		err(1, "ioctl(fd, SNDSTIOC_REFRESH_DEVS, NULL)");
 
 	/* Get the size of snapshot, when nbytes = 0 */
 	arg.nbytes = 0;
 	arg.buf = NULL;
-	if (ioctl(fd, SNDSTAT_GET_DEVS, &arg))
-		err(1, "ioctl(fd, SNDSTAT_GET_DEVS, &arg)");
+	if (ioctl(fd, SNDSTIOC_GET_DEVS, &arg))
+		err(1, "ioctl(fd, SNDSTIOC_GET_DEVS, &arg)");
 
 	/* Get snapshot data */
 	arg.buf = malloc(arg.nbytes);
 	if (arg.buf == NULL)
 		err(EX_OSERR, "malloc");
-	if (ioctl(fd, SNDSTAT_GET_DEVS, &arg))
-		err(1, "ioctl(fd, SNDSTAT_GET_DEVS, &arg)");
+	if (ioctl(fd, SNDSTIOC_GET_DEVS, &arg))
+		err(1, "ioctl(fd, SNDSTIOC_GET_DEVS, &arg)");
 
 	/* Deserialize the nvlist stream */
 	nvl = nvlist_unpack(arg.buf, arg.nbytes, 0);
 	free(arg.buf);
 
 	/* Get DSPs array */
-	di = nvlist_get_nvlist_array(nvl, SNDSTAT_LABEL_DSPS, &nitems);
+	di = nvlist_get_nvlist_array(nvl, SNDST_DSPS, &nitems);
 	for (i = 0; i < nitems; i++) {
 		const char *nameunit, *devnode, *desc;
 
@@ -235,9 +252,9 @@ main()
 		 * Examine each device nvlist item
 		 */
 
-		nameunit = nvlist_get_string(di[i], SNDSTAT_LABEL_NAMEUNIT);
-		devnode = nvlist_get_string(di[i], SNDSTAT_LABEL_DEVNODE);
-		desc = nvlist_get_string(di[i], SNDSTAT_LABEL_DESC);
+		nameunit = nvlist_get_string(di[i], SNDST_DSPS_NAMEUNIT);
+		devnode = nvlist_get_string(di[i], SNDST_DSPS_DEVNODE);
+		desc = nvlist_get_string(di[i], SNDST_DSPS_DESC);
 		printf("Name unit: `%s`, Device node: `%s`, Description: `%s`\n",
 		    nameunit, devnode, desc);
 	}

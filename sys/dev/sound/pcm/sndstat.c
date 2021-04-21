@@ -89,12 +89,13 @@ struct sndstat_userdev {
 	char *desc;
 	unsigned int pchan;
 	unsigned int rchan;
-	uint32_t pminrate;
-	uint32_t pmaxrate;
-	uint32_t rminrate;
-	uint32_t rmaxrate;
-	uint32_t pfmts;
-	uint32_t rfmts;
+	struct {
+		uint32_t min_rate;
+		uint32_t max_rate;
+		uint32_t formats;
+		uint32_t min_chn;
+		uint32_t max_chn;
+	} info_play, info_rec;
 	nvlist_t *provider_nvl;
 };
 
@@ -326,46 +327,77 @@ sndstat_write(struct cdev *i_dev, struct uio *buf, int flag)
 
 static void
 sndstat_get_caps(struct snddev_info *d, bool play, uint32_t *min_rate,
-    uint32_t *max_rate, uint32_t *fmts)
+    uint32_t *max_rate, uint32_t *fmts, uint32_t *minchn, uint32_t *maxchn)
 {
 	struct pcm_channel *c;
+	unsigned int encoding;
 	int dir;
 
 	dir = play ? PCMDIR_PLAY : PCMDIR_REC;
-	*min_rate = 0;
-	*max_rate = 0;
-	*fmts = 0;
 
 	if (play && d->pvchancount > 0) {
 		*min_rate = *max_rate = d->pvchanrate;
-		*fmts = d->pvchanformat;
+		*fmts = AFMT_ENCODING(d->pvchanformat);
+		*minchn = *maxchn = AFMT_CHANNEL(d->pvchanformat);
 		return;
 	} else if (!play && d->rvchancount > 0) {
 		*min_rate = *max_rate = d->rvchanrate;
-		*fmts = d->rvchanformat;
+		*fmts = AFMT_ENCODING(d->rvchanformat);
+		*minchn = *maxchn = AFMT_CHANNEL(d->rvchanformat);
 		return;
 	}
 
+	*min_rate = UINT32_MAX;
+	*max_rate = 0;
+	*minchn = UINT32_MAX;
+	*maxchn = 0;
+	encoding = 0;
 	CHN_FOREACH(c, d, channels.pcm) {
 		struct pcmchan_caps *caps;
+		int i;
 
 		if (c->direction != dir || (c->flags & CHN_F_VIRTUAL) != 0)
 			continue;
 
 		CHN_LOCK(c);
 		caps = chn_getcaps(c);
-		*min_rate = caps->minspeed;
-		*max_rate = caps->maxspeed;
-		*fmts = chn_getformats(c);
+		*min_rate = min(caps->minspeed, *min_rate);
+		*max_rate = max(caps->maxspeed, *max_rate);
+		for (i = 0; caps->fmtlist[i]; i++) {
+			encoding |= AFMT_ENCODING(caps->fmtlist[i]);
+			*minchn = min(AFMT_CHANNEL(encoding), *minchn);
+			*maxchn = max(AFMT_CHANNEL(encoding), *maxchn);
+		}
 		CHN_UNLOCK(c);
 	}
+	if (*min_rate == UINT32_MAX)
+		*min_rate = 0;
+	if (*minchn == UINT32_MAX)
+		*minchn = 0;
+}
+
+static nvlist_t *
+sndstat_create_diinfo_nv(uint32_t min_rate, uint32_t max_rate, uint32_t formats,
+	    uint32_t min_chn, uint32_t max_chn)
+{
+	nvlist_t *nv;
+
+	nv = nvlist_create(0);
+	if (nv == NULL)
+		return (NULL);
+	nvlist_add_number(nv, SNDST_DSPS_INFO_MIN_RATE, min_rate);
+	nvlist_add_number(nv, SNDST_DSPS_INFO_MAX_RATE, max_rate);
+	nvlist_add_number(nv, SNDST_DSPS_INFO_FORMATS, formats);
+	nvlist_add_number(nv, SNDST_DSPS_INFO_MIN_CHN, min_chn);
+	nvlist_add_number(nv, SNDST_DSPS_INFO_MAX_CHN, max_chn);
+	return (nv);
 }
 
 static int
 sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 {
-	uint32_t maxrate, minrate, fmts;
-	nvlist_t *di = NULL, *sound4di = NULL;
+	uint32_t maxrate, minrate, fmts, minchn, maxchn;
+	nvlist_t *di = NULL, *sound4di = NULL, *diinfo = NULL;
 	int err;
 
 	di = nvlist_create(0);
@@ -379,40 +411,54 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		goto done;
 	}
 
-	nvlist_add_bool(di, SNDSTAT_LABEL_FROM_USER, false);
-	nvlist_add_stringf(di, SNDSTAT_LABEL_NAMEUNIT, "%s",
+	nvlist_add_bool(di, SNDST_DSPS_FROM_USER, false);
+	nvlist_add_stringf(di, SNDST_DSPS_NAMEUNIT, "%s",
 			device_get_nameunit(d->dev));
-	nvlist_add_stringf(di, SNDSTAT_LABEL_DEVNODE, "dsp%d",
+	nvlist_add_stringf(di, SNDST_DSPS_DEVNODE, "dsp%d",
 			device_get_unit(d->dev));
 	nvlist_add_string(
-			di, SNDSTAT_LABEL_DESC, device_get_desc(d->dev));
+			di, SNDST_DSPS_DESC, device_get_desc(d->dev));
 
 	PCM_ACQUIRE_QUICK(d);
-	nvlist_add_number(di, SNDSTAT_LABEL_PCHAN, d->playcount);
-	nvlist_add_number(di, SNDSTAT_LABEL_RCHAN, d->reccount);
+	nvlist_add_number(di, SNDST_DSPS_PCHAN, d->playcount);
+	nvlist_add_number(di, SNDST_DSPS_RCHAN, d->reccount);
 	if (d->playcount > 0) {
-		sndstat_get_caps(d, true, &minrate, &maxrate, &fmts);
-		nvlist_add_number(di, SNDSTAT_LABEL_PMINRATE, minrate);
-		nvlist_add_number(di, SNDSTAT_LABEL_PMAXRATE, maxrate);
-		nvlist_add_number(di, SNDSTAT_LABEL_PFMTS, fmts);
+		sndstat_get_caps(d, true, &minrate, &maxrate, &fmts, &minchn,
+		    &maxchn);
+		nvlist_add_number(di, "pminrate", minrate);
+		nvlist_add_number(di, "pmaxrate", maxrate);
+		nvlist_add_number(di, "pfmts", fmts);
+		diinfo = sndstat_create_diinfo_nv(minrate, maxrate, fmts,
+		    minchn, maxchn);
+		if (diinfo == NULL)
+			nvlist_set_error(di, ENOMEM);
+		else
+			nvlist_move_nvlist(di, SNDST_DSPS_INFO_PLAY, diinfo);
 	}
 	if (d->reccount > 0) {
-		sndstat_get_caps(d, false, &minrate, &maxrate, &fmts);
-		nvlist_add_number(di, SNDSTAT_LABEL_RMINRATE, minrate);
-		nvlist_add_number(di, SNDSTAT_LABEL_RMAXRATE, maxrate);
-		nvlist_add_number(di, SNDSTAT_LABEL_RFMTS, fmts);
+		sndstat_get_caps(d, false, &minrate, &maxrate, &fmts, &minchn,
+		    &maxchn);
+		nvlist_add_number(di, "rminrate", minrate);
+		nvlist_add_number(di, "rmaxrate", maxrate);
+		nvlist_add_number(di, "rfmts", fmts);
+		diinfo = sndstat_create_diinfo_nv(minrate, maxrate, fmts,
+		    minchn, maxchn);
+		if (diinfo == NULL)
+			nvlist_set_error(di, ENOMEM);
+		else
+			nvlist_move_nvlist(di, SNDST_DSPS_INFO_REC, diinfo);
 	}
 
-	nvlist_add_number(sound4di, SNDSTAT_LABEL_SOUND4_UNIT,
+	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_UNIT,
 			device_get_unit(d->dev)); // XXX: I want signed integer here
 	nvlist_add_bool(
-	    sound4di, SNDSTAT_LABEL_SOUND4_BITPERFECT, d->flags & SD_F_BITPERFECT);
-	nvlist_add_number(sound4di, SNDSTAT_LABEL_SOUND4_PVCHAN, d->pvchancount);
-	nvlist_add_number(sound4di, SNDSTAT_LABEL_SOUND4_RVCHAN, d->rvchancount);
-	nvlist_move_nvlist(di, SNDSTAT_LABEL_PROVIDER_INFO, sound4di);
+	    sound4di, SNDST_DSPS_SOUND4_BITPERFECT, d->flags & SD_F_BITPERFECT);
+	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHAN, d->pvchancount);
+	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_RVCHAN, d->rvchancount);
+	nvlist_move_nvlist(di, SNDST_DSPS_PROVIDER_INFO, sound4di);
 	sound4di = NULL;
 	PCM_RELEASE_QUICK(d);
-	nvlist_add_string(di, SNDSTAT_LABEL_PROVIDER, SNDSTAT_LABEL_SOUND4_PROVIDER);
+	nvlist_add_string(di, SNDST_DSPS_PROVIDER, SNDST_DSPS_SOUND4_PROVIDER);
 
 	err = nvlist_error(di);
 	if (err)
@@ -431,7 +477,7 @@ done:
 static int
 sndstat_build_userland_nvlist(struct sndstat_userdev *ud, nvlist_t **dip)
 {
-	nvlist_t *di;
+	nvlist_t *di, *diinfo;
 	int err;
 
 	di = nvlist_create(0);
@@ -440,34 +486,48 @@ sndstat_build_userland_nvlist(struct sndstat_userdev *ud, nvlist_t **dip)
 		goto done;
 	}
 
-	nvlist_add_bool(di, SNDSTAT_LABEL_FROM_USER, true);
-	nvlist_add_number(di, SNDSTAT_LABEL_PCHAN, ud->pchan);
-	nvlist_add_number(di, SNDSTAT_LABEL_RCHAN, ud->rchan);
-	nvlist_add_string(di, SNDSTAT_LABEL_NAMEUNIT, ud->nameunit);
+	nvlist_add_bool(di, SNDST_DSPS_FROM_USER, true);
+	nvlist_add_number(di, SNDST_DSPS_PCHAN, ud->pchan);
+	nvlist_add_number(di, SNDST_DSPS_RCHAN, ud->rchan);
+	nvlist_add_string(di, SNDST_DSPS_NAMEUNIT, ud->nameunit);
 	nvlist_add_string(
-			di, SNDSTAT_LABEL_DEVNODE, ud->devnode);
-	nvlist_add_string(di, SNDSTAT_LABEL_DESC, ud->desc);
+			di, SNDST_DSPS_DEVNODE, ud->devnode);
+	nvlist_add_string(di, SNDST_DSPS_DESC, ud->desc);
 	if (ud->pchan != 0) {
-		nvlist_add_number(
-				di, SNDSTAT_LABEL_PMINRATE, ud->pminrate);
-		nvlist_add_number(
-				di, SNDSTAT_LABEL_PMAXRATE, ud->pmaxrate);
-		nvlist_add_number(
-				di, SNDSTAT_LABEL_PFMTS, ud->pfmts);
+		nvlist_add_number(di, "pminrate",
+		    ud->info_play.min_rate);
+		nvlist_add_number(di, "pmaxrate",
+		    ud->info_play.max_rate);
+		nvlist_add_number(di, "pfmts",
+		    ud->info_play.formats);
+		diinfo = sndstat_create_diinfo_nv(ud->info_play.min_rate,
+		    ud->info_play.max_rate, ud->info_play.formats,
+		    ud->info_play.min_chn, ud->info_play.max_chn);
+		if (diinfo == NULL)
+			nvlist_set_error(di, ENOMEM);
+		else
+			nvlist_move_nvlist(di, SNDST_DSPS_INFO_PLAY, diinfo);
 	}
 	if (ud->rchan != 0) {
-		nvlist_add_number(
-				di, SNDSTAT_LABEL_RMINRATE, ud->rminrate);
-		nvlist_add_number(
-				di, SNDSTAT_LABEL_RMAXRATE, ud->rmaxrate);
-		nvlist_add_number(
-				di, SNDSTAT_LABEL_RFMTS, ud->rfmts);
+		nvlist_add_number(di, "rminrate",
+		    ud->info_rec.min_rate);
+		nvlist_add_number(di, "rmaxrate",
+		    ud->info_rec.max_rate);
+		nvlist_add_number(di, "rfmts",
+		    ud->info_rec.formats);
+		diinfo = sndstat_create_diinfo_nv(ud->info_rec.min_rate,
+		    ud->info_rec.max_rate, ud->info_rec.formats,
+		    ud->info_rec.min_chn, ud->info_rec.max_chn);
+		if (diinfo == NULL)
+			nvlist_set_error(di, ENOMEM);
+		else
+			nvlist_move_nvlist(di, SNDST_DSPS_INFO_REC, diinfo);
 	}
-	nvlist_add_string(di, SNDSTAT_LABEL_PROVIDER,
+	nvlist_add_string(di, SNDST_DSPS_PROVIDER,
 	    (ud->provider != NULL) ? ud->provider : "");
 	if (ud->provider_nvl != NULL)
 		nvlist_add_nvlist(
-		    di, SNDSTAT_LABEL_PROVIDER_INFO, ud->provider_nvl);
+		    di, SNDST_DSPS_PROVIDER_INFO, ud->provider_nvl);
 
 	err = nvlist_error(di);
 	if (err)
@@ -511,7 +571,7 @@ sndstat_create_devs_nvlist(nvlist_t **nvlp)
 		if (err)
 			goto done;
 
-		nvlist_append_nvlist_array(nvl, SNDSTAT_LABEL_DSPS, di);
+		nvlist_append_nvlist_array(nvl, SNDST_DSPS, di);
 		nvlist_destroy(di);
 		err = nvlist_error(nvl);
 		if (err)
@@ -531,7 +591,7 @@ sndstat_create_devs_nvlist(nvlist_t **nvlp)
 				sx_xunlock(&pf->lock);
 				goto done;
 			}
-			nvlist_append_nvlist_array(nvl, SNDSTAT_LABEL_DSPS, di);
+			nvlist_append_nvlist_array(nvl, SNDST_DSPS, di);
 			nvlist_destroy(di);
 
 			err = nvlist_error(nvl);
@@ -568,7 +628,7 @@ static int
 sndstat_get_devs(struct sndstat_file *pf, caddr_t data)
 {
 	int err;
-	struct sndstat_nvlbuf_arg *arg = (struct sndstat_nvlbuf_arg *)data;
+	struct sndstioc_nv_arg *arg = (struct sndstioc_nv_arg *)data;
 
 	SNDSTAT_LOCK();
 	sx_xlock(&pf->lock);
@@ -655,28 +715,62 @@ sndstat_unpack_user_nvlbuf(const void *unvlbuf, size_t nbytes, nvlist_t **nvl)
 }
 
 static bool
+sndstat_diinfo_is_sane(const nvlist_t *diinfo)
+{
+	if (!(nvlist_exists_number(diinfo, SNDST_DSPS_INFO_MIN_RATE) &&
+	    nvlist_exists_number(diinfo, SNDST_DSPS_INFO_MAX_RATE) &&
+	    nvlist_exists_number(diinfo, SNDST_DSPS_INFO_FORMATS) &&
+	    nvlist_exists_number(diinfo, SNDST_DSPS_INFO_MIN_CHN) &&
+	    nvlist_exists_number(diinfo, SNDST_DSPS_INFO_MAX_CHN)))
+		return (false);
+	return (true);
+}
+
+static bool
 sndstat_dsp_nvlist_is_sane(const nvlist_t *nvlist)
 {
-	if (!(nvlist_exists_string(nvlist, SNDSTAT_LABEL_DEVNODE) &&
-	    nvlist_exists_string(nvlist, SNDSTAT_LABEL_DESC) &&
-	    nvlist_exists_number(nvlist, SNDSTAT_LABEL_PCHAN) &&
-	    nvlist_exists_number(nvlist, SNDSTAT_LABEL_RCHAN)))
+	if (!(nvlist_exists_string(nvlist, SNDST_DSPS_DEVNODE) &&
+	    nvlist_exists_string(nvlist, SNDST_DSPS_DESC) &&
+	    nvlist_exists_number(nvlist, SNDST_DSPS_PCHAN) &&
+	    nvlist_exists_number(nvlist, SNDST_DSPS_RCHAN)))
 		return (false);
 
-	if (nvlist_get_number(nvlist, SNDSTAT_LABEL_PCHAN) > 0)
-		if (!(nvlist_exists_number(nvlist, SNDSTAT_LABEL_PMINRATE) &&
-		    nvlist_exists_number(nvlist, SNDSTAT_LABEL_PMAXRATE) &&
-		    nvlist_exists_number(nvlist, SNDSTAT_LABEL_PFMTS)))
+	if (nvlist_get_number(nvlist, SNDST_DSPS_PCHAN) > 0) {
+		if (nvlist_exists_nvlist(nvlist, SNDST_DSPS_INFO_PLAY)) {
+			if (!sndstat_diinfo_is_sane(nvlist_get_nvlist(nvlist,
+			    SNDST_DSPS_INFO_PLAY)))
+				return (false);
+		} else if (!(nvlist_exists_number(nvlist, "pminrate") &&
+		    nvlist_exists_number(nvlist, "pmaxrate") &&
+		    nvlist_exists_number(nvlist, "pfmts")))
 			return (false);
+	}
 
-	if (nvlist_get_number(nvlist, SNDSTAT_LABEL_RCHAN) > 0)
-		if (!(nvlist_exists_number(nvlist, SNDSTAT_LABEL_RMINRATE) &&
-		    nvlist_exists_number(nvlist, SNDSTAT_LABEL_RMAXRATE) &&
-		    nvlist_exists_number(nvlist, SNDSTAT_LABEL_RFMTS)))
+	if (nvlist_get_number(nvlist, SNDST_DSPS_RCHAN) > 0) {
+		if (nvlist_exists_nvlist(nvlist, SNDST_DSPS_INFO_REC)) {
+			if (!sndstat_diinfo_is_sane(nvlist_get_nvlist(nvlist,
+			    SNDST_DSPS_INFO_REC)))
+				return (false);
+		} else if (!(nvlist_exists_number(nvlist, "rminrate") &&
+		    nvlist_exists_number(nvlist, "rmaxrate") &&
+		    nvlist_exists_number(nvlist, "rfmts")))
 			return (false);
+	}
 	
 	return (true);
 
+}
+
+static void
+sndstat_get_diinfo_nv(const nvlist_t *nv, uint32_t *min_rate,
+	    uint32_t *max_rate, uint32_t *formats, uint32_t *min_chn,
+	    uint32_t *max_chn)
+{
+	*min_rate = nvlist_get_number(nv, SNDST_DSPS_INFO_MIN_RATE);
+	*max_rate = nvlist_get_number(nv, SNDST_DSPS_INFO_MAX_RATE);
+	*formats = nvlist_get_number(nv, SNDST_DSPS_INFO_FORMATS);
+	*min_chn = nvlist_get_number(nv, SNDST_DSPS_INFO_MIN_CHN);
+	*max_chn = nvlist_get_number(nv, SNDST_DSPS_INFO_MAX_CHN);
 }
 
 static int
@@ -687,36 +781,53 @@ sndstat_dsp_unpack_nvlist(const nvlist_t *nvlist, struct sndstat_userdev *ud)
 	uint32_t pminrate = 0, pmaxrate = 0;
 	uint32_t rminrate = 0, rmaxrate = 0;
 	uint32_t pfmts = 0, rfmts = 0;
+	uint32_t pminchn = 0, pmaxchn = 0;
+	uint32_t rminchn = 0, rmaxchn = 0;
 	nvlist_t *provider_nvl = NULL;
+	const nvlist_t *diinfo;
 	const char *provider;
 
-	devnode = nvlist_get_string(nvlist, SNDSTAT_LABEL_DEVNODE);
-	if (nvlist_exists_string(nvlist, SNDSTAT_LABEL_NAMEUNIT))
-		nameunit = nvlist_get_string(nvlist, SNDSTAT_LABEL_NAMEUNIT);
+	devnode = nvlist_get_string(nvlist, SNDST_DSPS_DEVNODE);
+	if (nvlist_exists_string(nvlist, SNDST_DSPS_NAMEUNIT))
+		nameunit = nvlist_get_string(nvlist, SNDST_DSPS_NAMEUNIT);
 	else
 		nameunit = devnode;
-	desc = nvlist_get_string(nvlist, SNDSTAT_LABEL_DESC);
-	pchan = nvlist_get_number(nvlist, SNDSTAT_LABEL_PCHAN);
-	rchan = nvlist_get_number(nvlist, SNDSTAT_LABEL_RCHAN);
+	desc = nvlist_get_string(nvlist, SNDST_DSPS_DESC);
+	pchan = nvlist_get_number(nvlist, SNDST_DSPS_PCHAN);
+	rchan = nvlist_get_number(nvlist, SNDST_DSPS_RCHAN);
 	if (pchan != 0) {
-		pminrate = nvlist_get_number(nvlist, SNDSTAT_LABEL_PMINRATE);
-		pmaxrate = nvlist_get_number(nvlist, SNDSTAT_LABEL_PMAXRATE);
-		pfmts = nvlist_get_number(nvlist, SNDSTAT_LABEL_PFMTS);
+		if (nvlist_exists_nvlist(nvlist, SNDST_DSPS_INFO_PLAY)) {
+			diinfo = nvlist_get_nvlist(nvlist,
+			    SNDST_DSPS_INFO_PLAY);
+			sndstat_get_diinfo_nv(diinfo, &pminrate, &pmaxrate,
+			    &pfmts, &pminchn, &pmaxchn);
+		} else {
+			pminrate = nvlist_get_number(nvlist, "pminrate");
+			pmaxrate = nvlist_get_number(nvlist, "pmaxrate");
+			pfmts = nvlist_get_number(nvlist, "pfmts");
+		}
 	}
 	if (rchan != 0) {
-		rminrate = nvlist_get_number(nvlist, SNDSTAT_LABEL_RMINRATE);
-		rmaxrate = nvlist_get_number(nvlist, SNDSTAT_LABEL_RMAXRATE);
-		rfmts = nvlist_get_number(nvlist, SNDSTAT_LABEL_RFMTS);
+		if (nvlist_exists_nvlist(nvlist, SNDST_DSPS_INFO_REC)) {
+			diinfo = nvlist_get_nvlist(nvlist,
+			    SNDST_DSPS_INFO_REC);
+			sndstat_get_diinfo_nv(diinfo, &rminrate, &rmaxrate,
+			    &rfmts, &rminchn, &rmaxchn);
+		} else {
+			rminrate = nvlist_get_number(nvlist, "rminrate");
+			rmaxrate = nvlist_get_number(nvlist, "rmaxrate");
+			rfmts = nvlist_get_number(nvlist, "rfmts");
+		}
 	}
 
-	provider = dnvlist_get_string(nvlist, SNDSTAT_LABEL_PROVIDER, "");
+	provider = dnvlist_get_string(nvlist, SNDST_DSPS_PROVIDER, "");
 	if (provider[0] == '\0')
 		provider = NULL;
 
 	if (provider != NULL &&
-	    nvlist_exists_nvlist(nvlist, SNDSTAT_LABEL_PROVIDER_INFO)) {
+	    nvlist_exists_nvlist(nvlist, SNDST_DSPS_PROVIDER_INFO)) {
 		provider_nvl = nvlist_clone(
-		    nvlist_get_nvlist(nvlist, SNDSTAT_LABEL_PROVIDER_INFO));
+		    nvlist_get_nvlist(nvlist, SNDST_DSPS_PROVIDER_INFO));
 		if (provider_nvl == NULL)
 			return (ENOMEM);
 	}
@@ -727,12 +838,16 @@ sndstat_dsp_unpack_nvlist(const nvlist_t *nvlist, struct sndstat_userdev *ud)
 	ud->desc = strdup(desc, M_DEVBUF);
 	ud->pchan = pchan;
 	ud->rchan = rchan;
-	ud->pminrate = pminrate;
-	ud->pmaxrate = pmaxrate;
-	ud->rminrate = rminrate;
-	ud->rmaxrate = rmaxrate;
-	ud->pfmts = pfmts;
-	ud->rfmts = rfmts;
+	ud->info_play.min_rate = pminrate;
+	ud->info_play.max_rate = pmaxrate;
+	ud->info_play.formats = pfmts;
+	ud->info_play.min_chn = pminchn;
+	ud->info_play.max_chn = pmaxchn;
+	ud->info_rec.min_rate = rminrate;
+	ud->info_rec.max_rate = rmaxrate;
+	ud->info_rec.formats = rfmts;
+	ud->info_rec.min_chn = rminchn;
+	ud->info_rec.max_chn = rmaxchn;
 	ud->provider_nvl = provider_nvl;
 	return (0);
 }
@@ -744,7 +859,7 @@ sndstat_add_user_devs(struct sndstat_file *pf, caddr_t data)
 	nvlist_t *nvl = NULL;
 	const nvlist_t * const *dsps;
 	size_t i, ndsps;
-	struct sndstat_nvlbuf_arg *arg = (struct sndstat_nvlbuf_arg *)data;
+	struct sndstioc_nv_arg *arg = (struct sndstioc_nv_arg *)data;
 
 	if ((pf->fflags & FWRITE) == 0) {
 		err = EPERM;
@@ -755,11 +870,11 @@ sndstat_add_user_devs(struct sndstat_file *pf, caddr_t data)
 	if (err != 0)
 		goto done;
 
-	if (!nvlist_exists_nvlist_array(nvl, SNDSTAT_LABEL_DSPS)) {
+	if (!nvlist_exists_nvlist_array(nvl, SNDST_DSPS)) {
 		err = EINVAL;
 		goto done;
 	}
-	dsps = nvlist_get_nvlist_array(nvl, SNDSTAT_LABEL_DSPS, &ndsps);
+	dsps = nvlist_get_nvlist_array(nvl, SNDST_DSPS, &ndsps);
 	for (i = 0; i < ndsps; i++) {
 		if (!sndstat_dsp_nvlist_is_sane(dsps[i])) {
 			err = EINVAL;
@@ -801,8 +916,8 @@ sndstat_flush_user_devs(struct sndstat_file *pf)
 static int
 compat_sndstat_get_devs32(struct sndstat_file *pf, caddr_t data)
 {
-	struct sndstat_nvlbuf_arg32 *arg32 = (struct sndstat_nvlbuf_arg32 *)data;
-	struct sndstat_nvlbuf_arg arg;
+	struct sndstioc_nv_arg32 *arg32 = (struct sndstioc_nv_arg32 *)data;
+	struct sndstioc_nv_arg arg;
 	int err;
 
 	arg.buf = (void *)(uintptr_t)arg32->buf;
@@ -820,8 +935,8 @@ compat_sndstat_get_devs32(struct sndstat_file *pf, caddr_t data)
 static int
 compat_sndstat_add_user_devs32(struct sndstat_file *pf, caddr_t data)
 {
-	struct sndstat_nvlbuf_arg32 *arg32 = (struct sndstat_nvlbuf_arg32 *)data;
-	struct sndstat_nvlbuf_arg arg;
+	struct sndstioc_nv_arg32 *arg32 = (struct sndstioc_nv_arg32 *)data;
+	struct sndstioc_nv_arg arg;
 	int err;
 
 	arg.buf = (void *)(uintptr_t)arg32->buf;
@@ -849,11 +964,11 @@ sndstat_ioctl(
 		return (err);
 
 	switch (cmd) {
-	case SNDSTAT_GET_DEVS:
+	case SNDSTIOC_GET_DEVS:
 		err = sndstat_get_devs(pf, data);
 		break;
 #ifdef COMPAT_FREEBSD32
-	case SNDSTAT_GET_DEVS32:
+	case SNDSTIOC_GET_DEVS32:
 		if (!SV_CURPROC_FLAG(SV_ILP32)) {
 			err = ENODEV;
 			break;
@@ -861,11 +976,11 @@ sndstat_ioctl(
 		err = compat_sndstat_get_devs32(pf, data);
 		break;
 #endif
-	case SNDSTAT_ADD_USER_DEVS:
+	case SNDSTIOC_ADD_USER_DEVS:
 		err = sndstat_add_user_devs(pf, data);
 		break;
 #ifdef COMPAT_FREEBSD32
-	case SNDSTAT_ADD_USER_DEVS32:
+	case SNDSTIOC_ADD_USER_DEVS32:
 		if (!SV_CURPROC_FLAG(SV_ILP32)) {
 			err = ENODEV;
 			break;
@@ -873,10 +988,10 @@ sndstat_ioctl(
 		err = compat_sndstat_add_user_devs32(pf, data);
 		break;
 #endif
-	case SNDSTAT_REFRESH_DEVS:
+	case SNDSTIOC_REFRESH_DEVS:
 		err = sndstat_refresh_devs(pf);
 		break;
-	case SNDSTAT_FLUSH_USER_DEVS:
+	case SNDSTIOC_FLUSH_USER_DEVS:
 		err = sndstat_flush_user_devs(pf);
 		break;
 	default:
