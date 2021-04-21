@@ -66,6 +66,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_debug.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
+#include <cam/mmc/mmc_sim.h>
+
+#include "mmc_sim_if.h"
 #endif
 
 #define	AW_MMC_MEMRES		0
@@ -128,9 +131,7 @@ struct aw_mmc_softc {
 	struct mmc_fdt_helper	mmc_helper;
 #ifdef MMCCAM
 	union ccb *		ccb;
-	struct cam_devq *	devq;
-	struct cam_sim * 	sim;
-	struct mtx		sim_mtx;
+	struct mmc_sim		mmc_sim;
 #else
 	struct mmc_request *	aw_req;
 #endif
@@ -173,15 +174,11 @@ static void aw_mmc_helper_cd_handler(device_t, bool);
 static void aw_mmc_print_error(uint32_t);
 static int aw_mmc_update_ios(device_t, device_t);
 static int aw_mmc_request(device_t, device_t, struct mmc_request *);
+
+#ifndef MMCCAM
 static int aw_mmc_get_ro(device_t, device_t);
 static int aw_mmc_acquire_host(device_t, device_t);
 static int aw_mmc_release_host(device_t, device_t);
-#ifdef MMCCAM
-static void aw_mmc_cam_action(struct cam_sim *, union ccb *);
-static void aw_mmc_cam_poll(struct cam_sim *);
-static int aw_mmc_cam_settran_settings(struct aw_mmc_softc *, union ccb *);
-static int aw_mmc_cam_request(struct aw_mmc_softc *, union ccb *);
-static void aw_mmc_cam_handle_mmcio(struct cam_sim *, union ccb *);
 #endif
 
 #define	AW_MMC_LOCK(_sc)	mtx_lock(&(_sc)->aw_mtx)
@@ -203,109 +200,33 @@ SYSCTL_INT(_hw_aw_mmc, OID_AUTO, debug, CTLFLAG_RWTUN, &aw_mmc_debug, 0,
 #define	AW_MMC_DEBUG_CMD	0x8
 
 #ifdef MMCCAM
-static void
-aw_mmc_cam_handle_mmcio(struct cam_sim *sim, union ccb *ccb)
+static int
+aw_mmc_get_tran_settings(device_t dev, struct ccb_trans_settings_mmc *cts)
 {
 	struct aw_mmc_softc *sc;
 
-	sc = cam_sim_softc(sim);
+	sc = device_get_softc(dev);
 
-	aw_mmc_cam_request(sc, ccb);
-}
+	cts->host_ocr = sc->aw_host.host_ocr;
+	cts->host_f_min = sc->aw_host.f_min;
+	cts->host_f_max = sc->aw_host.f_max;
+	cts->host_caps = sc->aw_host.caps;
+	cts->host_max_data = (sc->aw_mmc_conf->dma_xferlen *
+	    AW_MMC_DMA_SEGS) / MMC_SECTOR_SIZE;
+	memcpy(&cts->ios, &sc->aw_host.ios, sizeof(struct mmc_ios));
 
-static void
-aw_mmc_cam_action(struct cam_sim *sim, union ccb *ccb)
-{
-	struct aw_mmc_softc *sc;
-
-	sc = cam_sim_softc(sim);
-	if (sc == NULL) {
-		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
-		xpt_done(ccb);
-		return;
-	}
-
-	mtx_assert(&sc->sim_mtx, MA_OWNED);
-
-	switch (ccb->ccb_h.func_code) {
-	case XPT_PATH_INQ:
-		mmc_path_inq(&ccb->cpi, "Deglitch Networks", sim,
-		    (sc->aw_mmc_conf->dma_xferlen * AW_MMC_DMA_SEGS) /
-		    MMC_SECTOR_SIZE);
-		break;
-
-	case XPT_GET_TRAN_SETTINGS:
-	{
-		struct ccb_trans_settings *cts = &ccb->cts;
-
-		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_IOS))
-			device_printf(sc->aw_dev, "Got XPT_GET_TRAN_SETTINGS\n");
-
-		cts->protocol = PROTO_MMCSD;
-		cts->protocol_version = 1;
-		cts->transport = XPORT_MMCSD;
-		cts->transport_version = 1;
-		cts->xport_specific.valid = 0;
-		cts->proto_specific.mmc.host_ocr = sc->aw_host.host_ocr;
-		cts->proto_specific.mmc.host_f_min = sc->aw_host.f_min;
-		cts->proto_specific.mmc.host_f_max = sc->aw_host.f_max;
-		cts->proto_specific.mmc.host_caps = sc->aw_host.caps;
-		cts->proto_specific.mmc.host_max_data = (sc->aw_mmc_conf->dma_xferlen *
-		    AW_MMC_DMA_SEGS) / MMC_SECTOR_SIZE;
-		memcpy(&cts->proto_specific.mmc.ios, &sc->aw_host.ios, sizeof(struct mmc_ios));
-		ccb->ccb_h.status = CAM_REQ_CMP;
-		break;
-	}
-	case XPT_SET_TRAN_SETTINGS:
-	{
-		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_IOS))
-			device_printf(sc->aw_dev, "Got XPT_SET_TRAN_SETTINGS\n");
-		aw_mmc_cam_settran_settings(sc, ccb);
-		ccb->ccb_h.status = CAM_REQ_CMP;
-		break;
-	}
-	case XPT_RESET_BUS:
-		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_IOS))
-			device_printf(sc->aw_dev, "Got XPT_RESET_BUS, ACK it...\n");
-		ccb->ccb_h.status = CAM_REQ_CMP;
-		break;
-	case XPT_MMC_IO:
-		/*
-		 * Here is the HW-dependent part of
-		 * sending the command to the underlying h/w
-		 * At some point in the future an interrupt comes.
-		 * Then the request will be marked as completed.
-		 */
-		ccb->ccb_h.status = CAM_REQ_INPROG;
-
-		aw_mmc_cam_handle_mmcio(sim, ccb);
-		return;
-		/* NOTREACHED */
-		break;
-	default:
-		ccb->ccb_h.status = CAM_REQ_INVALID;
-		break;
-	}
-	xpt_done(ccb);
-	return;
-}
-
-static void
-aw_mmc_cam_poll(struct cam_sim *sim)
-{
-	return;
+	return (0);
 }
 
 static int
-aw_mmc_cam_settran_settings(struct aw_mmc_softc *sc, union ccb *ccb)
+aw_mmc_set_tran_settings(device_t dev, struct ccb_trans_settings_mmc *cts)
 {
+	struct aw_mmc_softc *sc;
 	struct mmc_ios *ios;
 	struct mmc_ios *new_ios;
-	struct ccb_trans_settings_mmc *cts;
 
+	sc = device_get_softc(dev);
 	ios = &sc->aw_host.ios;
-
-	cts = &ccb->cts.proto_specific.mmc;
 	new_ios = &cts->ios;
 
 	/* Update only requested fields */
@@ -349,10 +270,12 @@ aw_mmc_cam_settran_settings(struct aw_mmc_softc *sc, union ccb *ccb)
 }
 
 static int
-aw_mmc_cam_request(struct aw_mmc_softc *sc, union ccb *ccb)
+aw_mmc_cam_request(device_t dev, union ccb *ccb)
 {
+	struct aw_mmc_softc *sc;
 	struct ccb_mmcio *mmcio;
 
+	sc = device_get_softc(dev);
 	mmcio = &ccb->mmcio;
 
 	AW_MMC_LOCK(sc);
@@ -388,7 +311,7 @@ aw_mmc_helper_cd_handler(device_t dev, bool present)
 
 	sc = device_get_softc(dev);
 #ifdef MMCCAM
-	mmccam_start_discovery(sc->sim);
+	mmc_cam_sim_discover(&sc->mmc_sim);
 #else
 	AW_MMC_LOCK(sc);
 	if (present) {
@@ -528,31 +451,11 @@ aw_mmc_attach(device_t dev)
 
 #ifdef MMCCAM
 	sc->ccb = NULL;
-	if ((sc->devq = cam_simq_alloc(1)) == NULL) {
+
+	if (mmc_cam_sim_alloc(dev, "aw_mmc", &sc->mmc_sim) != 0) {
+		device_printf(dev, "cannot alloc cam sim\n");
 		goto fail;
 	}
-
-	mtx_init(&sc->sim_mtx, "awmmcsim", NULL, MTX_DEF);
-	sc->sim = cam_sim_alloc_dev(aw_mmc_cam_action, aw_mmc_cam_poll,
-	    "aw_mmc_sim", sc, dev,
-	    &sc->sim_mtx, 1, 1, sc->devq);
-
-	if (sc->sim == NULL) {
-		cam_simq_free(sc->devq);
-		device_printf(dev, "cannot allocate CAM SIM\n");
-		goto fail;
-	}
-
-	mtx_lock(&sc->sim_mtx);
-	if (xpt_bus_register(sc->sim, sc->aw_dev, 0) != 0) {
-		device_printf(dev, "cannot register SCSI pass-through bus\n");
-		cam_sim_free(sc->sim, FALSE);
-		cam_simq_free(sc->devq);
-		mtx_unlock(&sc->sim_mtx);
-		goto fail;
-	}
-
-	mtx_unlock(&sc->sim_mtx);
 #endif /* MMCCAM */
 
 	return (0);
@@ -563,17 +466,6 @@ fail:
 	bus_teardown_intr(dev, sc->aw_res[AW_MMC_IRQRES], sc->aw_intrhand);
 	bus_release_resources(dev, aw_mmc_res_spec, sc->aw_res);
 
-#ifdef MMCCAM
-	if (sc->sim != NULL) {
-		mtx_lock(&sc->sim_mtx);
-		xpt_bus_deregister(cam_sim_path(sc->sim));
-		cam_sim_free(sc->sim, FALSE);
-		mtx_unlock(&sc->sim_mtx);
-	}
-
-	if (sc->devq != NULL)
-		cam_simq_free(sc->devq);
-#endif
 	return (ENXIO);
 }
 
@@ -608,15 +500,7 @@ aw_mmc_detach(device_t dev)
 	bus_release_resources(dev, aw_mmc_res_spec, sc->aw_res);
 
 #ifdef MMCCAM
-	if (sc->sim != NULL) {
-		mtx_lock(&sc->sim_mtx);
-		xpt_bus_deregister(cam_sim_path(sc->sim));
-		cam_sim_free(sc->sim, FALSE);
-		mtx_unlock(&sc->sim_mtx);
-	}
-
-	if (sc->devq != NULL)
-		cam_simq_free(sc->devq);
+	mmc_cam_sim_free(&sc->mmc_sim);
 #endif
 
 	return (0);
@@ -1357,6 +1241,7 @@ aw_mmc_update_clock(struct aw_mmc_softc *sc, uint32_t clkon)
 	return (0);
 }
 
+#ifndef MMCCAM
 static int
 aw_mmc_switch_vccq(device_t bus, device_t child)
 {
@@ -1390,6 +1275,7 @@ aw_mmc_switch_vccq(device_t bus, device_t child)
 
 	return (0);
 }
+#endif
 
 static int
 aw_mmc_update_ios(device_t bus, device_t child)
@@ -1510,6 +1396,7 @@ aw_mmc_update_ios(device_t bus, device_t child)
 	return (0);
 }
 
+#ifndef MMCCAM
 static int
 aw_mmc_get_ro(device_t bus, device_t child)
 {
@@ -1554,6 +1441,7 @@ aw_mmc_release_host(device_t bus, device_t child)
 
 	return (0);
 }
+#endif
 
 static device_method_t aw_mmc_methods[] = {
 	/* Device interface */
@@ -1566,6 +1454,7 @@ static device_method_t aw_mmc_methods[] = {
 	DEVMETHOD(bus_write_ivar,	aw_mmc_write_ivar),
 	DEVMETHOD(bus_add_child,        bus_generic_add_child),
 
+#ifndef MMCCAM
 	/* MMC bridge interface */
 	DEVMETHOD(mmcbr_update_ios,	aw_mmc_update_ios),
 	DEVMETHOD(mmcbr_request,	aw_mmc_request),
@@ -1573,6 +1462,14 @@ static device_method_t aw_mmc_methods[] = {
 	DEVMETHOD(mmcbr_switch_vccq,	aw_mmc_switch_vccq),
 	DEVMETHOD(mmcbr_acquire_host,	aw_mmc_acquire_host),
 	DEVMETHOD(mmcbr_release_host,	aw_mmc_release_host),
+#endif
+
+#ifdef MMCCAM
+	/* MMCCAM interface */
+	DEVMETHOD(mmc_sim_get_tran_settings,	aw_mmc_get_tran_settings),
+	DEVMETHOD(mmc_sim_set_tran_settings,	aw_mmc_set_tran_settings),
+	DEVMETHOD(mmc_sim_cam_request,		aw_mmc_cam_request),
+#endif
 
 	DEVMETHOD_END
 };
