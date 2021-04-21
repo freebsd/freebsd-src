@@ -706,12 +706,16 @@ fill_change_entry(struct fib_data *fd, struct fib_change_entry *ce, struct rib_c
 	int plen = 0;
 
 	switch (fd->fd_family) {
+#ifdef INET
 	case AF_INET:
 		rt_get_inet_prefix_plen(rc->rc_rt, &ce->addr4, &plen, &ce->scopeid);
 		break;
+#endif
+#ifdef INET6
 	case AF_INET6:
 		rt_get_inet6_prefix_plen(rc->rc_rt, &ce->addr6, &plen, &ce->scopeid);
 		break;
+#endif
 	}
 
 	ce->plen = plen;
