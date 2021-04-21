@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/interrupt.h>
 #include <sys/pcpu.h>
+#include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/refcount.h>
 
@@ -56,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <xen/xen-os.h>
-#include <xen/hvm.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <xen/evtchn/evtchnvar.h>
@@ -101,9 +101,6 @@ struct xen_intr_pcpu_data {
 	 * bitmap being scanned.
 	 */
 	u_int	last_processed_l2i;
-
-	/** Pointer to this CPU's interrupt statistic counter. */
-	u_long *evtchn_intrcnt;
 
 	/**
 	 * A bitmap of ports that can be serviced from this CPU.
@@ -259,25 +256,6 @@ evtchn_cpu_unmask_port(u_int cpu, evtchn_port_t port)
 
 	pcpu = DPCPU_ID_PTR(cpu, xen_intr_pcpu);
 	xen_set_bit(port, pcpu->evtchn_enabled);
-}
-
-/**
- * Allocate and register a per-cpu Xen upcall interrupt counter.
- *
- * \param cpu  The cpu for which to register this interrupt count.
- */
-static void
-xen_intr_intrcnt_add(u_int cpu)
-{
-	char buf[MAXCOMLEN + 1];
-	struct xen_intr_pcpu_data *pcpu;
-
-	pcpu = DPCPU_ID_PTR(cpu, xen_intr_pcpu);
-	if (pcpu->evtchn_intrcnt != NULL)
-		return;
-
-	snprintf(buf, sizeof(buf), "cpu%d:xen", cpu);
-	intrcnt_add(buf, &pcpu->evtchn_intrcnt);
 }
 
 /**
@@ -526,9 +504,10 @@ xen_intr_active_ports(const struct xen_intr_pcpu_data *const pcpu,
  * 
  * \param trap_frame  The trap frame context for the current interrupt.
  */
-void
-xen_intr_handle_upcall(struct trapframe *trap_frame)
+int
+xen_intr_handle_upcall(void *unused __unused)
 {
+	struct trapframe *trap_frame = curthread->td_intr_frame;
 	u_int l1i, l2i, port, cpu __diagused;
 	u_long masked_l1, masked_l2;
 	struct xenisrc *isrc;
@@ -536,11 +515,8 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 	struct xen_intr_pcpu_data *pc;
 	u_long l1, l2;
 
-	/*
-	 * Disable preemption in order to always check and fire events
-	 * on the right vCPU
-	 */
-	critical_enter();
+	/* We must remain on the same vCPU during this function */
+	CRITICAL_ASSERT(curthread);
 
 	cpu = PCPU_GET(cpuid);
 	pc  = DPCPU_PTR(xen_intr_pcpu);
@@ -551,19 +527,15 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 	}
 
 	v->evtchn_upcall_pending = 0;
-
-#if 0
-#ifndef CONFIG_X86 /* No need for a barrier -- XCHG is a barrier on x86. */
+/* No need for a barrier on x86 -- XCHG is a barrier on x86. */
+#if !defined(__amd64__) && !defined(__i386__)
 	/* Clear master flag /before/ clearing selector flag. */
 	wmb();
 #endif
-#endif
-
 	l1 = atomic_readandclear_long(&v->evtchn_pending_sel);
 
 	l1i = pc->last_processed_l1i;
 	l2i = pc->last_processed_l2i;
-	(*pc->evtchn_intrcnt)++;
 
 	while (l1 != 0) {
 		l1i = (l1i + 1) % LONG_BIT;
@@ -627,10 +599,7 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 		}
 	}
 
-	if (xen_evtchn_needs_ack)
-		lapic_eoi();
-
-	critical_exit();
+	return (FILTER_HANDLED);
 }
 
 static int
@@ -681,23 +650,6 @@ xen_intr_init(void *dummy __unused)
 	return (0);
 }
 SYSINIT(xen_intr_init, SI_SUB_INTR, SI_ORDER_SECOND, xen_intr_init, NULL);
-
-static void
-xen_intrcnt_init(void *dummy __unused)
-{
-	unsigned int i;
-
-	if (!xen_domain())
-		return;
-
-	/*
-	 * Register interrupt count manually as we aren't guaranteed to see a
-	 * call to xen_intr_assign_cpu() before our first interrupt.
-	 */
-	CPU_FOREACH(i)
-		xen_intr_intrcnt_add(i);
-}
-SYSINIT(xen_intrcnt_init, SI_SUB_INTR, SI_ORDER_MIDDLE, xen_intrcnt_init, NULL);
 
 void
 xen_intr_alloc_irqs(void)

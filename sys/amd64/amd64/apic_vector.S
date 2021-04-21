@@ -159,7 +159,7 @@ IDTVEC(spuriousint)
 	INTR_HANDLER xen_intr_upcall
 	KMSAN_ENTER
 	movq	%rsp, %rdi
-	call	xen_intr_handle_upcall
+	call	xen_arch_intr_handle_upcall
 	KMSAN_LEAVE
 	jmp	doreti
 #endif
