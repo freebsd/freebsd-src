@@ -15,6 +15,12 @@
 
 /* First, we deal with  platform-specific or compiler-specific issues. */
 
+#if defined(__FreeBSD__)
+#include <sys/cdefs.h>
+#else
+#define	__dead2
+#endif
+
 /* begin standard C headers. */
 #include <stdio.h>
 #include <string.h>
@@ -342,7 +348,7 @@ extern char *yytext;
 static yy_state_type yy_get_previous_state ( void );
 static yy_state_type yy_try_NUL_trans ( yy_state_type current_state  );
 static int yy_get_next_buffer ( void );
-static void yynoreturn yy_fatal_error ( const char* msg  );
+static void yynoreturn yy_fatal_error ( const char* msg  ) __dead2;
 
 /* Done after the current pattern has been matched and before the
  * corresponding action - sets up yytext.
@@ -1965,9 +1971,9 @@ extern int yylval;
     if (!indented_code) line_directive_out(NULL, 0);\
 } while (0)
 
-#line 1968 "<stdout>"
+#line 1974 "<stdout>"
 
-#line 1970 "<stdout>"
+#line 1976 "<stdout>"
 
 #define INITIAL 0
 #define SECT2 1
@@ -2233,7 +2239,7 @@ YY_DECL
 	char nmdef[MAXLINE];
 
 
-#line 2236 "<stdout>"
+#line 2242 "<stdout>"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -4134,7 +4140,7 @@ YY_RULE_SETUP
 #line 1014 "scan.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 4137 "<stdout>"
+#line 4143 "<stdout>"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(SECT2):
 case YY_STATE_EOF(CODEBLOCK):
