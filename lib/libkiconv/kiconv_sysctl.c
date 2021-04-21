@@ -57,6 +57,7 @@ kiconv_lookupconv(const char *drvname)
 				free(drivers);
 				return (0);
 			}
+		free(drivers);
 	}
 	return (ENOENT);
 }
@@ -84,6 +85,7 @@ kiconv_lookupcs(const char *tocode, const char *fromcode)
 				return (0);
 			}
 		}
+		free(csi);
 	}
 	return (ENOENT);
 }
