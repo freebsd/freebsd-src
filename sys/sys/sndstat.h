@@ -38,56 +38,65 @@
 #include <sys/ioccom.h>
 #endif  /* !_IOWR */
 
-struct sndstat_nvlbuf_arg {
+struct sndstioc_nv_arg {
 	size_t nbytes;	/* [IN/OUT] buffer size/number of bytes filled */
 	void *buf;	/* [OUT] buffer holding a packed nvlist */
 };
 
 /*
- * Common labels
+ * Common name/value pair names
  */
-#define SNDSTAT_LABEL_DSPS	"dsps"
-#define SNDSTAT_LABEL_FROM_USER	"from_user"
-#define SNDSTAT_LABEL_PCHAN	"pchan"
-#define SNDSTAT_LABEL_RCHAN	"rchan"
-#define SNDSTAT_LABEL_PMINRATE	"pminrate"
-#define SNDSTAT_LABEL_PMAXRATE	"pmaxrate"
-#define SNDSTAT_LABEL_RMINRATE	"rminrate"
-#define SNDSTAT_LABEL_RMAXRATE	"rmaxrate"
-#define SNDSTAT_LABEL_PFMTS	"pfmts"
-#define SNDSTAT_LABEL_RFMTS	"rfmts"
-#define SNDSTAT_LABEL_NAMEUNIT	"nameunit"
-#define SNDSTAT_LABEL_DEVNODE	"devnode"
-#define SNDSTAT_LABEL_DESC	"desc"
-#define SNDSTAT_LABEL_PROVIDER	"provider"
-#define SNDSTAT_LABEL_PROVIDER_INFO	"provider_info"
+#define SNDST_DSPS			"dsps"
+#define SNDST_DSPS_FROM_USER		"from_user"
+#define SNDST_DSPS_PCHAN		"pchan"
+#define SNDST_DSPS_RCHAN		"rchan"
+#define SNDST_DSPS_NAMEUNIT		"nameunit"
+#define SNDST_DSPS_DEVNODE		"devnode"
+#define SNDST_DSPS_DESC			"desc"
+#define SNDST_DSPS_PROVIDER		"provider"
+#define SNDST_DSPS_PROVIDER_INFO	"provider_info"
 
 /*
- * sound(4)-specific labels
+ * Common name/value pair names for play/rec info
  */
-#define SNDSTAT_LABEL_SOUND4_PROVIDER	"sound(4)"
-#define SNDSTAT_LABEL_SOUND4_UNIT	"unit"
-#define SNDSTAT_LABEL_SOUND4_BITPERFECT	"bitperfect"
-#define SNDSTAT_LABEL_SOUND4_PVCHAN	"pvchan"
-#define SNDSTAT_LABEL_SOUND4_RVCHAN	"rvchan"
+#define SNDST_DSPS_INFO_PLAY		"info_play"
+#define SNDST_DSPS_INFO_REC		"info_rec"
+#define SNDST_DSPS_INFO_MIN_RATE	"min_rate"
+#define SNDST_DSPS_INFO_MAX_RATE	"max_rate"
+#define SNDST_DSPS_INFO_FORMATS		"formats"
+#define SNDST_DSPS_INFO_MIN_CHN		"min_chn"
+#define SNDST_DSPS_INFO_MAX_CHN		"max_chn"
 
-#define SNDSTAT_REFRESH_DEVS	_IO('D', 100)
-#define SNDSTAT_GET_DEVS	_IOWR('D', 101, struct sndstat_nvlbuf_arg)
-#define SNDSTAT_ADD_USER_DEVS	_IOWR('D', 102, struct sndstat_nvlbuf_arg)
-#define SNDSTAT_FLUSH_USER_DEVS	_IO('D', 103)
+/*
+ * sound(4)-specific name/value pair names
+ */
+#define SNDST_DSPS_SOUND4_PROVIDER	"sound(4)"
+#define SNDST_DSPS_SOUND4_UNIT		"unit"
+#define SNDST_DSPS_SOUND4_BITPERFECT	"bitperfect"
+#define SNDST_DSPS_SOUND4_PVCHAN	"pvchan"
+#define SNDST_DSPS_SOUND4_RVCHAN	"rvchan"
+
+#define SNDSTIOC_REFRESH_DEVS \
+	_IO('D', 100)
+#define SNDSTIOC_GET_DEVS \
+	_IOWR('D', 101, struct sndstioc_nv_arg)
+#define SNDSTIOC_ADD_USER_DEVS \
+	_IOWR('D', 102, struct sndstioc_nv_arg)
+#define SNDSTIOC_FLUSH_USER_DEVS \
+	_IO('D', 103)
 
 #ifdef _KERNEL
 #ifdef COMPAT_FREEBSD32
 
-struct sndstat_nvlbuf_arg32 {
+struct sndstioc_nv_arg32 {
 	uint32_t nbytes;
 	uint32_t buf;
 };
 
-#define SNDSTAT_GET_DEVS32 \
-	_IOC_NEWTYPE(SNDSTAT_GET_DEVS, struct sndstat_nvlbuf_arg32)
-#define SNDSTAT_ADD_USER_DEVS32 \
-	_IOC_NEWTYPE(SNDSTAT_ADD_USER_DEVS, struct sndstat_nvlbuf_arg32)
+#define SNDSTIOC_GET_DEVS32 \
+	_IOC_NEWTYPE(SNDSTIOC_GET_DEVS, struct sndstioc_nv_arg32)
+#define SNDSTIOC_ADD_USER_DEVS32 \
+	_IOC_NEWTYPE(SNDSTIOC_ADD_USER_DEVS, struct sndstioc_nv_arg32)
 
 #endif
 #endif
