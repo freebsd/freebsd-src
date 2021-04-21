@@ -53,20 +53,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/xen/xenpci/xenpcivar.h>
 
 static int
-xenpci_intr_filter(void *trap_frame)
-{
-	xen_intr_handle_upcall(trap_frame);
-	return (FILTER_HANDLED);
-}
-
-static int
 xenpci_irq_init(device_t device, struct xenpci_softc *scp)
 {
 	int error;
 
 	error = BUS_SETUP_INTR(device_get_parent(device), device,
 			       scp->res_irq, INTR_MPSAFE|INTR_TYPE_MISC,
-			       xenpci_intr_filter, NULL, /*trap_frame*/NULL,
+			       xen_intr_handle_upcall, NULL, NULL,
 			       &scp->intr_cookie);
 	if (error)
 		return error;
