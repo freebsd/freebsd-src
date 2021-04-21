@@ -108,19 +108,19 @@ SYSCTL_NODE(_net_route, OID_AUTO, algo, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 /* Algorithm sync policy */
 
 /* Time interval to bucket updates */
-VNET_DEFINE(unsigned int, bucket_time_ms) = 50;
-#define	V_bucket_time_ms	VNET(bucket_time_ms)
+VNET_DEFINE_STATIC(unsigned int, update_bucket_time_ms) = 50;
+#define	V_update_bucket_time_ms	VNET(update_bucket_time_ms)
 SYSCTL_UINT(_net_route_algo, OID_AUTO, bucket_time_ms, CTLFLAG_RW | CTLFLAG_VNET,
-    &VNET_NAME(bucket_time_ms), 0, "Time interval to calculate update rate");
+    &VNET_NAME(update_bucket_time_ms), 0, "Time interval to calculate update rate");
 
 /* Minimum update rate to delay sync */
-VNET_DEFINE(unsigned int, bucket_change_threshold_rate) = 500;
+VNET_DEFINE_STATIC(unsigned int, bucket_change_threshold_rate) = 500;
 #define	V_bucket_change_threshold_rate	VNET(bucket_change_threshold_rate)
 SYSCTL_UINT(_net_route_algo, OID_AUTO, bucket_change_threshold_rate, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(bucket_change_threshold_rate), 0, "Minimum update rate to delay sync");
 
 /* Max allowed delay to sync */
-VNET_DEFINE(unsigned int, fib_max_sync_delay_ms) = 1000;
+VNET_DEFINE_STATIC(unsigned int, fib_max_sync_delay_ms) = 1000;
 #define	V_fib_max_sync_delay_ms	VNET(fib_max_sync_delay_ms)
 SYSCTL_UINT(_net_route_algo, OID_AUTO, fib_max_sync_delay_ms, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(fib_max_sync_delay_ms), 0, "Maximum time to delay sync (ms)");
@@ -589,7 +589,7 @@ update_rebuild_delay(struct fib_data *fd, enum fib_callout_action action)
 	struct timeval tv;
 
 	/* Fetch all variables at once to ensure consistent reads */
-	uint32_t bucket_time_ms = V_bucket_time_ms;
+	uint32_t bucket_time_ms = V_update_bucket_time_ms;
 	uint32_t threshold_rate = V_bucket_change_threshold_rate;
 	uint32_t max_delay_ms = V_fib_max_sync_delay_ms;
 
@@ -1618,10 +1618,14 @@ static struct fib_dp **
 get_family_dp_ptr(int family)
 {
 	switch (family) {
+#ifdef INET
 	case AF_INET:
 		return (&V_inet_dp);
+#endif
+#ifdef INET6
 	case AF_INET6:
 		return (&V_inet6_dp);
+#endif
 	}
 	return (NULL);
 }
