@@ -1113,6 +1113,17 @@ m_extrefcnt(struct mbuf *m)
 	KASSERT((((struct mbuf *)m)->m_flags & 0) == 0,			\
 	    ("%s: attempted use of a free mbuf!", __func__))
 
+/* Check whether any mbuf in the chain is unmapped. */
+#ifdef INVARIANTS
+#define	M_ASSERTMAPPED(m) do {						\
+	for (struct mbuf *__m = (m); __m != NULL; __m = __m->m_next)	\
+		KASSERT((__m->m_flags & M_EXTPG) == 0,			\
+		    ("%s: chain %p contains an unmapped mbuf", __func__, (m)));\
+} while (0)
+#else
+#define	M_ASSERTMAPPED(m)
+#endif
+
 /*
  * Return the address of the start of the buffer associated with an mbuf,
  * handling external storage, packet-header mbufs, and regular data mbufs.
