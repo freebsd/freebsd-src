@@ -34,7 +34,7 @@
 struct bhyvegc;
 
 typedef void (*fb_render_func_t)(struct bhyvegc *gc, void *arg);
-typedef void (*kbd_event_func_t)(int down, uint32_t keysym, void *arg);
+typedef void (*kbd_event_func_t)(int down, uint32_t keysym, uint32_t keycode, void *arg);
 typedef void (*ptr_event_func_t)(uint8_t mask, int x, int y, void *arg);
 
 void console_init(int w, int h, void *fbaddr);
@@ -47,7 +47,7 @@ void console_fb_register(fb_render_func_t render_cb, void *arg);
 void console_refresh(void);
 
 void console_kbd_register(kbd_event_func_t event_cb, void *arg, int pri);
-void console_key_event(int down, uint32_t keysym);
+void console_key_event(int down, uint32_t keysym, uint32_t keycode);
 
 void console_ptr_register(ptr_event_func_t event_cb, void *arg, int pri);
 void console_ptr_event(uint8_t button, int x, int y);

@@ -98,6 +98,7 @@ static int rfb_debug = 0;
 #define CS_KEY_EVENT		4
 #define CS_POINTER_EVENT	5
 #define CS_CUT_TEXT		6
+#define CS_MSG_CLIENT_QEMU	255
 
 #define SECURITY_TYPE_NONE	1
 #define SECURITY_TYPE_VNC_AUTH	2
@@ -118,6 +119,9 @@ struct rfb_softc {
 	bool		enc_raw_ok;
 	bool		enc_zlib_ok;
 	bool		enc_resize_ok;
+	bool		enc_extkeyevent_ok;
+
+	bool		enc_extkeyevent_send;
 
 	z_stream	zstream;
 	uint8_t		*zbuf;
@@ -170,6 +174,9 @@ struct rfb_pixfmt_msg {
 #define	RFB_ENCODING_RAW		0
 #define	RFB_ENCODING_ZLIB		6
 #define	RFB_ENCODING_RESIZE		-223
+#define	RFB_ENCODING_EXT_KEYEVENT	-258
+
+#define	RFB_CLIENTMSG_EXT_KEYEVENT	0
 
 #define	RFB_MAX_WIDTH			2000
 #define	RFB_MAX_HEIGHT			1200
@@ -197,6 +204,19 @@ struct rfb_key_msg {
 	uint8_t		type;
 	uint8_t		down;
 	uint16_t	pad;
+	uint32_t	sym;
+};
+
+struct rfb_client_msg {
+	uint8_t		type;
+	uint8_t		subtype;
+};
+
+struct rfb_extended_key_msg {
+	uint8_t		type;
+	uint8_t		subtype;
+	uint16_t	down;
+	uint32_t	sym;
 	uint32_t	code;
 };
 
@@ -277,6 +297,27 @@ rfb_send_resize_update_msg(struct rfb_softc *rc, int cfd)
 }
 
 static void
+rfb_send_extended_keyevent_update_msg(struct rfb_softc *rc, int cfd)
+{
+	struct rfb_srvr_updt_msg supdt_msg;
+	struct rfb_srvr_rect_hdr srect_hdr;
+
+	/* Number of rectangles: 1 */
+	supdt_msg.type = 0;
+	supdt_msg.pad = 0;
+	supdt_msg.numrects = htons(1);
+	stream_write(cfd, &supdt_msg, sizeof(struct rfb_srvr_updt_msg));
+
+	/* Rectangle header */
+	srect_hdr.x = htons(0);
+	srect_hdr.y = htons(0);
+	srect_hdr.width = htons(rc->width);
+	srect_hdr.height = htons(rc->height);
+	srect_hdr.encoding = htonl(RFB_ENCODING_EXT_KEYEVENT);
+	stream_write(cfd, &srect_hdr, sizeof(struct rfb_srvr_rect_hdr));
+}
+
+static void
 rfb_recv_set_pixfmt_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_pixfmt_msg pixfmt_msg;
@@ -308,6 +349,9 @@ rfb_recv_set_encodings_msg(struct rfb_softc *rc, int cfd)
 			break;
 		case RFB_ENCODING_RESIZE:
 			rc->enc_resize_ok = true;
+			break;
+		case RFB_ENCODING_EXT_KEYEVENT:
+			rc->enc_extkeyevent_ok = true;
 			break;
 		}
 	}
@@ -686,6 +730,11 @@ rfb_recv_update_msg(struct rfb_softc *rc, int cfd)
 
 	(void)stream_read(cfd, ((void *)&updt_msg) + 1 , sizeof(updt_msg) - 1);
 
+	if (rc->enc_extkeyevent_ok && (!rc->enc_extkeyevent_send)) {
+		rfb_send_extended_keyevent_update_msg(rc, cfd);
+		rc->enc_extkeyevent_send = true;
+	}
+
 	rc->pending = true;
 	if (!updt_msg.incremental)
 		rc->update_all = true;
@@ -698,8 +747,23 @@ rfb_recv_key_msg(struct rfb_softc *rc, int cfd)
 
 	(void)stream_read(cfd, ((void *)&key_msg) + 1, sizeof(key_msg) - 1);
 
-	console_key_event(key_msg.down, htonl(key_msg.code));
+	console_key_event(key_msg.down, htonl(key_msg.sym), htonl(0));
 	rc->input_detected = true;
+}
+
+static void
+rfb_recv_client_msg(struct rfb_softc *rc, int cfd)
+{
+	struct rfb_client_msg client_msg;
+	struct rfb_extended_key_msg extkey_msg;
+
+	(void)stream_read(cfd, ((void *)&client_msg) + 1, sizeof(client_msg) - 1);
+
+	if (client_msg.subtype == RFB_CLIENTMSG_EXT_KEYEVENT ) {
+		(void)stream_read(cfd, ((void *)&extkey_msg) + 2, sizeof(extkey_msg) - 2);
+		console_key_event((int)extkey_msg.down, htonl(extkey_msg.sym), htonl(extkey_msg.code));
+		rc->input_detected = true;
+	}
 }
 
 static void
@@ -1000,6 +1064,9 @@ report_and_done:
 		case CS_CUT_TEXT:
 			rfb_recv_cuttext_msg(rc, cfd);
 			break;
+		case CS_MSG_CLIENT_QEMU:
+			rfb_recv_client_msg(rc, cfd);
+			break;
 		default:
 			WPRINTF(("rfb unknown cli-code %d!", buf[0] & 0xff));
 			goto done;
@@ -1034,6 +1101,9 @@ rfb_thr(void *arg)
 		rc->enc_raw_ok = false;
 		rc->enc_zlib_ok = false;
 		rc->enc_resize_ok = false;
+		rc->enc_extkeyevent_ok = false;
+
+		rc->enc_extkeyevent_send = false;
 
 		cfd = accept(rc->sfd, NULL, NULL);
 		if (rc->conn_wait) {
