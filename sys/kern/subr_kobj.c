@@ -112,7 +112,7 @@ kobj_class_compile_common(kobj_class_t cls, kobj_ops_t ops)
 	/*
 	 * First register any methods which need it.
 	 */
-	for (i = 0, m = cls->methods; m->desc; i++, m++) {
+	for (m = cls->methods; m->desc; m++) {
 		if (m->desc->id == 0)
 			m->desc->id = kobj_next_id++;
 	}
