@@ -1423,7 +1423,8 @@ finish_ccb:
 		strlcpy(cpi->sim_vid, "VMware", SIM_IDLEN);
 		strlcpy(cpi->hba_vid, "VMware", HBA_IDLEN);
 		strlcpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
-		cpi->maxio = PVSCSI_MAX_SG_ENTRIES_PER_SEGMENT * PAGE_SIZE;
+		/* Limit I/O to 256k since we can't do 512k unaligned I/O */
+		cpi->maxio = (PVSCSI_MAX_SG_ENTRIES_PER_SEGMENT / 2) * PAGE_SIZE;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_SPC2;
 		cpi->transport = XPORT_SAS;
