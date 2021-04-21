@@ -126,8 +126,15 @@ config_setup(const atf_tc_t *tc, struct rtsock_config_options *co)
 	inet_ntop(AF_INET6, &c->net6.sin6_addr, c->net6_str, INET6_ADDRSTRLEN);
 	inet_ntop(AF_INET6, &c->addr6.sin6_addr, c->addr6_str, INET6_ADDRSTRLEN);
 
+	ATF_CHECK_ERRNO(0, true);
+
 	if (co->num_interfaces > 0) {
-		kldload("if_epair");
+		if (kldload("if_epair") == -1) {
+			/* Any errno other than EEXIST is fatal. */
+			ATF_REQUIRE_ERRNO(EEXIST, true);
+			/* Clear errno for the following tests. */
+			errno = 0;
+		}
 		ATF_REQUIRE_KERNEL_MODULE("if_epair");
 
 		c->ifnames = calloc(co->num_interfaces, sizeof(char *));

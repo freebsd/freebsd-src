@@ -64,6 +64,7 @@ presetup_ipv6_iface(const atf_tc_t *tc)
 
 	ret = iface_enable_ipv6(c->ifname);
 	ATF_REQUIRE_MSG(ret == 0, "Unable to enable IPv6 on %s", c->ifname);
+	ATF_REQUIRE_ERRNO(0, true);
 
 	return (c);
 }
@@ -79,6 +80,7 @@ presetup_ipv6(const atf_tc_t *tc)
 	ret = iface_setup_addr(c->ifname, c->addr6_str, c->plen6);
 
 	c->rtsock_fd = rtsock_setup_socket();
+	ATF_REQUIRE_ERRNO(0, true);
 
 	return (c);
 }
@@ -90,11 +92,13 @@ presetup_ipv4_iface(const atf_tc_t *tc)
 	int ret;
 
 	c = config_setup(tc, NULL);
+	ATF_REQUIRE(c != NULL);
 
 	jump_vnet(c, tc);
 
 	ret = iface_turn_up(c->ifname);
 	ATF_REQUIRE_MSG(ret == 0, "Unable to turn up %s", c->ifname);
+	ATF_REQUIRE_ERRNO(0, true);
 
 	return (c);
 }
@@ -112,6 +116,7 @@ presetup_ipv4(const atf_tc_t *tc)
 	ATF_REQUIRE_MSG(ret == 0, "ifconfig failed");
 
 	c->rtsock_fd = rtsock_setup_socket();
+	ATF_REQUIRE_ERRNO(0, true);
 
 	return (c);
 }
@@ -365,7 +370,7 @@ ATF_TC_BODY(rtm_get_v4_empty_dst_failure, tc)
 	    (struct sockaddr *)&c->mask4, NULL);
 	rtsock_update_rtm_len(rtm);
 
-	ATF_CHECK_ERRNO(EINVAL, write(c->rtsock_fd, rtm, rtm->rtm_msglen));
+	ATF_CHECK_ERRNO(EINVAL, write(c->rtsock_fd, rtm, rtm->rtm_msglen) == -1);
 }
 
 ATF_TC_CLEANUP(rtm_get_v4_empty_dst_failure, tc)
@@ -373,18 +378,15 @@ ATF_TC_CLEANUP(rtm_get_v4_empty_dst_failure, tc)
 	CLEANUP_AFTER_TEST;
 }
 
-ATF_TC_WITH_CLEANUP(rtm_get_v4_hostbits_failure);
-ATF_TC_HEAD(rtm_get_v4_hostbits_failure, tc)
+ATF_TC_WITH_CLEANUP(rtm_get_v4_hostbits_success);
+ATF_TC_HEAD(rtm_get_v4_hostbits_success, tc)
 {
 	DESCRIBE_ROOT_TEST("Tests RTM_GET with prefix with some hosts-bits set");
 }
 
-ATF_TC_BODY(rtm_get_v4_hostbits_failure, tc)
+ATF_TC_BODY(rtm_get_v4_hostbits_success, tc)
 {
 	DECLARE_TEST_VARS;
-
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_expect_fail("Needs https://reviews.freebsd.org/D28886");
 
 	c = presetup_ipv4(tc);
 
@@ -393,10 +395,11 @@ ATF_TC_BODY(rtm_get_v4_hostbits_failure, tc)
 	    (struct sockaddr *)&c->mask4, NULL);
 	rtsock_update_rtm_len(rtm);
 
-	ATF_CHECK_ERRNO(ESRCH, write(c->rtsock_fd, rtm, rtm->rtm_msglen));
+	ATF_REQUIRE_ERRNO(0, true);
+	ATF_CHECK_ERRNO(0, write(c->rtsock_fd, rtm, rtm->rtm_msglen) > 0);
 }
 
-ATF_TC_CLEANUP(rtm_get_v4_hostbits_failure, tc)
+ATF_TC_CLEANUP(rtm_get_v4_hostbits_success, tc)
 {
 	CLEANUP_AFTER_TEST;
 }
@@ -443,15 +446,12 @@ ATF_TC_CLEANUP(rtm_add_v4_gw_direct_success, tc)
 	CLEANUP_AFTER_TEST;
 }
 
-RTM_DECLARE_ROOT_TEST(rtm_add_v4_no_rtf_host_failure,
-    "Tests failure with netmask sa and RTF_HOST inconsistency");
+RTM_DECLARE_ROOT_TEST(rtm_add_v4_no_rtf_host_success,
+    "Tests success with netmask sa and RTF_HOST inconsistency");
 
-ATF_TC_BODY(rtm_add_v4_no_rtf_host_failure, tc)
+ATF_TC_BODY(rtm_add_v4_no_rtf_host_success, tc)
 {
 	DECLARE_TEST_VARS;
-
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_expect_fail("Needs https://reviews.freebsd.org/D28886");
 
 	c = presetup_ipv4(tc);
 
@@ -466,8 +466,8 @@ ATF_TC_BODY(rtm_add_v4_no_rtf_host_failure, tc)
 	rtsock_update_rtm_len(rtm);
 
 	/* RTF_HOST is NOT specified, while netmask is empty */
-
-	ATF_CHECK_ERRNO(EINVAL, write(c->rtsock_fd, rtm, rtm->rtm_msglen));
+	ATF_REQUIRE_ERRNO(0, true);
+	ATF_CHECK_ERRNO(0, write(c->rtsock_fd, rtm, rtm->rtm_msglen) > 0);
 }
 
 ATF_TC_WITH_CLEANUP(rtm_del_v4_prefix_nogw_success);
@@ -1393,9 +1393,9 @@ ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, rtm_get_v4_exact_success);
 	ATF_TP_ADD_TC(tp, rtm_get_v4_lpm_success);
-	ATF_TP_ADD_TC(tp, rtm_get_v4_hostbits_failure);
+	ATF_TP_ADD_TC(tp, rtm_get_v4_hostbits_success);
 	ATF_TP_ADD_TC(tp, rtm_get_v4_empty_dst_failure);
-	ATF_TP_ADD_TC(tp, rtm_add_v4_no_rtf_host_failure);
+	ATF_TP_ADD_TC(tp, rtm_add_v4_no_rtf_host_success);
 	ATF_TP_ADD_TC(tp, rtm_add_v4_gw_direct_success);
 	ATF_TP_ADD_TC(tp, rtm_del_v4_prefix_nogw_success);
 	ATF_TP_ADD_TC(tp, rtm_add_v6_gu_gw_gu_direct_success);
