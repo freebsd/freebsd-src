@@ -240,9 +240,88 @@ label_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "multilabel" "cleanup"
+multilabel_head()
+{
+	atf_set descr 'Test killing states with multiple labels by label'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+multilabel_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz "block all" \
+		"pass in proto icmp label foo label bar"
+
+	# Sanity check & establish state
+	# Note: use pft_ping so we always use the same ID, so pf considers all
+	# echo requests part of the same flow.
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+
+	# Change rules to now deny the ICMP traffic
+	pft_set_rules noflush alcatraz "block all"
+
+	# Established state means we can still ping alcatraz
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+
+	# Killing a label on a different rules keeps the state
+	jexec alcatraz pfctl -k label -k baz
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+
+	# Killing the state with the last label works
+	jexec alcatraz pfctl -k label -k bar
+	atf_check -s exit:1 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+
+	pft_set_rules alcatraz "block all" \
+		"pass in proto icmp label foo label bar"
+
+	# Reestablish state
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+
+	# Change rules to now deny the ICMP traffic
+	pft_set_rules noflush alcatraz "block all"
+
+	# Killing with the first label works too
+	jexec alcatraz pfctl -k label -k foo
+	atf_check -s exit:1 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+}
+
+multilabel_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
 	atf_add_test_case "v6"
 	atf_add_test_case "label"
+	atf_add_test_case "multilabel"
 }
