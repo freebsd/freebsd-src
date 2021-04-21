@@ -307,6 +307,7 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 		args->m = NULL;
 		return (IP_FW_DENY);
 	}
+	M_ASSERTMAPPED(mcl);
 	ip = mtod(mcl, struct ip *);
 
 	/*
