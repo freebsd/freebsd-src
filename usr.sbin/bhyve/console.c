@@ -106,10 +106,10 @@ console_ptr_register(ptr_event_func_t event_cb, void *arg, int pri)
 }
 
 void
-console_key_event(int down, uint32_t keysym)
+console_key_event(int down, uint32_t keysym, uint32_t keycode)
 {
 	if (console.kbd_event_cb)
-		(*console.kbd_event_cb)(down, keysym, console.kbd_arg);
+		(*console.kbd_event_cb)(down, keysym, keycode, console.kbd_arg);
 }
 
 void
