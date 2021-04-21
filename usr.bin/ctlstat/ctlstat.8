@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.bin/ctlstat/ctlstat.8#2 $
 .\" $FreeBSD$
 .\"
-.Dd January 9, 2017
+.Dd April 22, 2021
 .Dt CTLSTAT 8
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@
 .Op Fl d
 .Op Fl D
 .Op Fl j
+.Op Fl P
 .Op Fl l Ar lun
 .Op Fl n Ar numdevs
 .Op Fl p Ar port
@@ -83,6 +84,19 @@ Suppress display of the header.
 JSON dump mode.
 Dump statistics every 30 seconds in JavaScript Object Notation (JSON) format.
 No statistics are computed in this mode, only raw numbers are displayed.
+.It Fl P
+Prometheus dump mode.
+Dump statistics in a format suitable for ingestion into Prometheus.
+When invoked with this option,
+.Nm
+dumps once, regardless of the
+.Fl t
+option.
+This option is especially useful when invoked by
+.Xr inetd 8 .
+See the comments in
+.Pa /etc/inetd.conf
+for an example configuration.
 .It Fl l Ar lun
 Request statistics for the specified LUN.
 .It Fl n Ar numdevs
@@ -116,7 +130,13 @@ every 10 seconds.
 .Xr camcontrol 8 ,
 .Xr ctladm 8 ,
 .Xr ctld 8 ,
-.Xr iostat 8
+.Xr iostat 8 ,
+.Lk
+Prometheus project:
+.Pa https://prometheus.io/ .
+.Pp
+Prometheus exposition formats:
+.Lk https://prometheus.io/docs/instrumenting/exposition_formats/ .
 .Sh AUTHORS
 .An Ken Merry Aq Mt ken@FreeBSD.org
 .An Will Andrews Aq Mt will@FreeBSD.org
