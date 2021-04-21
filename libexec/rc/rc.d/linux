@@ -46,6 +46,12 @@ linux_start()
 	# Linux uses the pre-pts(4) tty naming scheme.
 	load_kld pty
 
+	# Explicitly load the filesystem modules; they are usually required,
+	# even with linux_mounts_enable="NO".
+	load_kld fdescfs
+	load_kld linprocfs
+	load_kld linsysfs
+
 	# Handle unbranded ELF executables by defaulting to ELFOSABI_LINUX.
 	if [ `sysctl -ni kern.elf64.fallback_brand` -eq "-1" ]; then
 		sysctl kern.elf64.fallback_brand=3 > /dev/null
