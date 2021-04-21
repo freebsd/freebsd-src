@@ -675,7 +675,7 @@ main(int argc, char **argv)
 			if (option == 'S' || option == 'P')
 				ev->ev_count = current_sampling_count ? current_sampling_count : pmc_pmu_sample_rate_get(ev->ev_spec);
 			else
-				ev->ev_count = -1;
+				ev->ev_count = 0;
 
 			if (option == 'S' || option == 's')
 				ev->ev_cpu = CPU_FFS(&cpumask) - 1;
