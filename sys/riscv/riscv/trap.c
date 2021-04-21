@@ -280,6 +280,9 @@ do_trap_supervisor(struct trapframe *frame)
 	KASSERT((csr_read(sstatus) & (SSTATUS_SPP | SSTATUS_SIE)) ==
 	    SSTATUS_SPP, ("Came from S mode with interrupts enabled"));
 
+	KASSERT((csr_read(sstatus) & (SSTATUS_SUM)) == 0,
+	    ("Came from S mode with SUM enabled"));
+
 	exception = frame->tf_scause & SCAUSE_CODE;
 	if ((frame->tf_scause & SCAUSE_INTR) != 0) {
 		/* Interrupt */
@@ -347,6 +350,9 @@ do_trap_user(struct trapframe *frame)
 	/* Ensure we came from usermode, interrupts disabled */
 	KASSERT((csr_read(sstatus) & (SSTATUS_SPP | SSTATUS_SIE)) == 0,
 	    ("Came from U mode with interrupts enabled"));
+
+	KASSERT((csr_read(sstatus) & (SSTATUS_SUM)) == 0,
+	    ("Came from U mode with SUM enabled"));
 
 	exception = frame->tf_scause & SCAUSE_CODE;
 	if ((frame->tf_scause & SCAUSE_INTR) != 0) {
