@@ -1590,15 +1590,26 @@ safexcel_instr_eta(struct safexcel_request *req, struct safexcel_instr *instr,
 
 	start = instr;
 
-	/* Encrypt any data left in the request. */
+	/* Insert the AAD into the input stream. */
 	instr->opcode = SAFEXCEL_INSTR_OPCODE_DIRECTION;
-	instr->length = req->enc->crd_len;
-	instr->status = SAFEXCEL_INSTR_STATUS_LAST_HASH;
+	instr->length = req->mac->crd_len - req->enc->crd_len;
+	instr->status = req->enc->crd_len == 0 ?
+	    SAFEXCEL_INSTR_STATUS_LAST_HASH : 0;
 	instr->instructions = SAFEXCEL_INSTR_INS_LAST |
-	    SAFEXCEL_INSTR_DEST_CRYPTO |
-	    SAFEXCEL_INSTR_DEST_HASH |
-	    SAFEXCEL_INSTR_DEST_OUTPUT;
+	    SAFEXCEL_INSTR_DEST_HASH;
 	instr++;
+
+	/* Encrypt any data left in the request. */
+	if (req->enc->crd_len > 0) {
+		instr->opcode = SAFEXCEL_INSTR_OPCODE_DIRECTION;
+		instr->length = req->enc->crd_len;
+		instr->status = SAFEXCEL_INSTR_STATUS_LAST_HASH;
+		instr->instructions = SAFEXCEL_INSTR_INS_LAST |
+		    SAFEXCEL_INSTR_DEST_CRYPTO |
+		    SAFEXCEL_INSTR_DEST_HASH |
+		    SAFEXCEL_INSTR_DEST_OUTPUT;
+		instr++;
+	}
 
 	/*
 	 * Compute the digest, or extract it and place it in the output stream.
@@ -2029,16 +2040,30 @@ safexcel_create_chain_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 	 * consumers place the digest first in the input buffer, in which case
 	 * we have to create an extra descriptor.
 	 *
+	 * Note that for encrypt-then-auth algorithms, mac->crd_len corresponds
+	 * to the sum of the lengths of the AAD and payload, while for GCM and
+	 * CCM it is the length of the AAD.
+	 *
 	 * As an optimization, unmodified data is not passed to the output
 	 * stream.
 	 */
 	sglist_reset(ring->cmd_data);
 	sglist_reset(ring->res_data);
-	if (req->mac != NULL && (req->enc == NULL ||
-	    req->enc->crd_alg == CRYPTO_AES_NIST_GCM_16 ||
-	    req->enc->crd_alg == CRYPTO_AES_CCM_16)) {
-		safexcel_append_segs(segs, nseg, ring->cmd_data,
-		    req->mac->crd_skip, req->mac->crd_len);
+	if (req->mac != NULL) {
+		if (req->enc == NULL ||
+		    req->enc->crd_alg == CRYPTO_AES_NIST_GCM_16 ||
+		    req->enc->crd_alg == CRYPTO_AES_CCM_16) {
+			safexcel_append_segs(segs, nseg, ring->cmd_data,
+			    req->mac->crd_skip, req->mac->crd_len);
+		} else {
+			if (req->mac->crd_len < req->enc->crd_len) {
+				req->error = EINVAL;
+				return;
+			}
+			safexcel_append_segs(segs, nseg, ring->cmd_data,
+			    req->mac->crd_skip,
+			    req->mac->crd_len - req->enc->crd_len);
+		}
 	}
 	if (req->enc != NULL) {
 		safexcel_append_segs(segs, nseg, ring->cmd_data,
