@@ -9147,7 +9147,7 @@ sysctl_mps_tcam_t6(SYSCTL_HANDLER_ARGS)
 		if (lookup_type && lookup_type != M_DATALKPTYPE) {
 			sbuf_printf(sb, "\n%3u %02x:%02x:%02x:%02x:%02x:%02x "
 			    "%012jx %06x %06x    -    -   %3c"
-			    "      'I'  %4x   %3c   %#x%4u%4d", i, addr[0],
+			    "        I  %4x   %3c   %#x%4u%4d", i, addr[0],
 			    addr[1], addr[2], addr[3], addr[4], addr[5],
 			    (uintmax_t)mask, vniy, vnix, dip_hit ? 'Y' : 'N',
 			    port_num, cls_lo & F_T6_SRAM_VLD ? 'Y' : 'N',
