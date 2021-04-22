@@ -858,7 +858,7 @@ dwmmc_setup_bus(struct dwmmc_softc *sc, int freq)
 	tout = 1000;
 	do {
 		if (tout-- < 0) {
-			device_printf(sc->dev, "Failed to update clk");
+			device_printf(sc->dev, "Failed to update clk\n");
 			return (1);
 		}
 	} while (READ4(sc, SDMMC_CMD) & SDMMC_CMD_START);
