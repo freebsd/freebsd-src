@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 14, 2020
+.Dd April 22, 2021
 .Dt STATS 7
 .Os
 .Sh NAME
@@ -46,6 +46,8 @@ are currently included in the base system, with more appearing periodically.
 Show Bluetooth socket information
 .It Nm ctlstat
 CAM Target Layer statistics utility
+.It Nm dwatch
+watch processes as they trigger a particular DTrace probe
 .It Nm fstat
 Identify active files
 .It Nm gstat
@@ -87,6 +89,12 @@ Report virtual memory statistics
 .It Nm zpool iostat
 Report ZFS I/O statistics
 .Sh SEE ALSO
+<<<<<<< HEAD
+=======
+.Xr btsockstat 1 ,
+.Xr dwatch 1 ,
+.Xr fstat 1 ,
+>>>>>>> 2e5929a75634 (stats.7: Add dwatch(1) to the list)
 .Xr intro 1 ,
 .Xr intro 7 ,
 .Xr intro 8 ,
