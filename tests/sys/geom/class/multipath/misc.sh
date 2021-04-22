@@ -198,7 +198,7 @@ fail_on_error_cleanup()
 atf_test_case physpath cleanup
 physpath_head()
 {
-	atf_set "descr" "gmultipath should pass through the underlying providers' physical path"
+	atf_set "descr" "gmultipath should append /mp to the underlying providers' physical path"
 	atf_set "require.user" "root"
 }
 physpath_body()
@@ -217,7 +217,7 @@ physpath_body()
 	atf_check gnop create -z $physpath /dev/${md1}
 	atf_check -s exit:0 gmultipath create "$name" ${md0}.nop ${md1}.nop
 	gmultipath_physpath=$(diskinfo -p multipath/"$name") 
-	atf_check_equal "$physpath" "$gmultipath_physpath"
+	atf_check_equal "$physpath/mp" "$gmultipath_physpath"
 }
 physpath_cleanup()
 {
