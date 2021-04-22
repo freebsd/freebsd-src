@@ -807,7 +807,7 @@ zfs_lookup(vnode_t *dvp, const char *nm, vnode_t **vpp,
 	ZFS_ENTER(zfsvfs);
 	ZFS_VERIFY_ZP(zdp);
 
-	dvp_seqc = vn_seqc_read_any(dvp);
+	dvp_seqc = vn_seqc_read_notmodify(dvp);
 
 	*vpp = NULL;
 
