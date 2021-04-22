@@ -54,13 +54,29 @@
  *
  *	documentation/content/en/books/porters-handbook/versions/_index.adoc
  *
- * scheme is:  <major><two digit minor>Rxx
+ * Encoding:	<major><two digit minor>Rxx
  *		'R' is in the range 0 to 4 if this is a release branch or
  *		X.0-CURRENT before releng/X.0 is created, otherwise 'R' is
  *		in the range 5 to 9.
+ * Short hand: MMmmXXX
+ *
+ * __FreeBSD_version is bumped every time there's a change in the base system
+ * that's noteworthy. A noteworthy change is any change which changes the
+ * kernel's KBI in -CURRENT, one that changes some detail about the system that
+ * external software (or the ports system) would want to know about, one that
+ * adds a system call, one that adds or deletes a shipped library, a secuirty
+ * fix, or similar change not specifically noted here. Bumps should be limited
+ * to one per day / a couple per week except for security fixes.
+ *
+ * The approved way to obtain this from a shell script is:
+ *	awk '/^\#define[[:space:]]*__FreeBSD_version/ {print $3}'
+ * Other methods to parse this file may work, but are not guaranteed against
+ * future changes. The above script works back to FreeBSD 3.x when this macro
+ * was introduced. This number is propigated to other places needing it that
+ * cannot include sys/param.h and should only be updated here.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1400013	/* Master, propagated to newvers */
+#define __FreeBSD_version 1400013
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
