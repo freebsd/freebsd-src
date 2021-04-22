@@ -394,6 +394,12 @@ g_multipath_done(struct bio *bp)
 			mtx_unlock(&sc->sc_mtx);
 		} else
 			mtx_unlock(&sc->sc_mtx);
+		if (bp->bio_error == 0 &&
+			bp->bio_cmd == BIO_GETATTR &&
+			!strcmp(bp->bio_attribute, "GEOM::physpath"))
+		{
+			strlcat(bp->bio_data, "/mp", bp->bio_length);
+		}
 		g_std_done(bp);
 	}
 }
