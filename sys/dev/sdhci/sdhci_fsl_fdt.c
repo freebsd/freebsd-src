@@ -90,6 +90,9 @@ __FBSDID("$FreeBSD$");
 #define	SDHCI_FSL_ESDHC_CTRL_SNOOP	(1 << 6)
 #define	SDHCI_FSL_ESDHC_CTRL_CLK_DIV2	(1 << 19)
 
+#define SDHCI_FSL_CAN_VDD_MASK		\
+    (SDHCI_CAN_VDD_180 | SDHCI_CAN_VDD_300 | SDHCI_CAN_VDD_330)
+
 struct sdhci_fsl_fdt_softc {
 	device_t				dev;
 	const struct sdhci_fsl_fdt_soc_data	*soc_data;
@@ -295,18 +298,11 @@ sdhci_fsl_fdt_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 
 	val32 = RD4(sc, off);
 
-	switch (off) {
-	case SDHCI_CAPABILITIES:
-		val32 &= ~(SDHCI_CAN_DO_SUSPEND | SDHCI_CAN_VDD_180);
-		break;
-	case SDHCI_PRESENT_STATE:
+	if (off == SDHCI_PRESENT_STATE) {
 		wrk32 = val32;
 		val32 &= SDHCI_FSL_PRES_COMPAT_MASK;
 		val32 |= (wrk32 >> 4) & SDHCI_STATE_DAT_MASK;
 		val32 |= (wrk32 << 1) & SDHCI_STATE_CMD;
-		break;
-	default:
-		break;
 	}
 
 	return (val32);
@@ -546,17 +542,78 @@ sdhci_fsl_fdt_get_card_present(device_t dev, struct sdhci_slot *slot)
 	return (sdhci_fdt_gpio_get_present(sc->gpio));
 }
 
+static uint32_t
+sdhci_fsl_fdt_vddrange_to_mask(device_t dev, uint32_t *vdd_ranges, int len)
+{
+	uint32_t vdd_min, vdd_max;
+	uint32_t vdd_mask = 0;
+	int i;
+
+	/* Ranges are organized as pairs of values. */
+	if ((len % 2) != 0) {
+		device_printf(dev, "Invalid voltage range\n");
+		return (0);
+	}
+	len = len / 2;
+
+	for (i = 0; i < len; i++) {
+		vdd_min = vdd_ranges[2 * i];
+		vdd_max = vdd_ranges[2 * i + 1];
+
+		if (vdd_min > vdd_max || vdd_min < 1650 || vdd_min > 3600 ||
+		    vdd_max < 1650 || vdd_max > 3600) {
+			device_printf(dev, "Voltage range %d - %d is out of bounds\n",
+			    vdd_min, vdd_max);
+			return (0);
+		}
+
+		if (vdd_min <= 1800 && vdd_max >= 1800)
+			vdd_mask |= SDHCI_CAN_VDD_180;
+		if (vdd_min <= 3000 && vdd_max >= 3000)
+			vdd_mask |= SDHCI_CAN_VDD_300;
+		if (vdd_min <= 3300 && vdd_max >= 3300)
+			vdd_mask |= SDHCI_CAN_VDD_330;
+	}
+
+	return (vdd_mask);
+}
+
 static void
 sdhci_fsl_fdt_of_parse(device_t dev)
 {
 	struct sdhci_fsl_fdt_softc *sc;
 	phandle_t node;
+	pcell_t *voltage_ranges;
+	uint32_t vdd_mask = 0;
+	ssize_t num_ranges;
 
 	sc = device_get_softc(dev);
 	node = ofw_bus_get_node(dev);
 
 	/* Call mmc_fdt_parse in order to get mmc related properties. */
 	mmc_fdt_parse(dev, node, &sc->fdt_helper, &sc->slot.host);
+
+	sc->slot.caps = sdhci_fsl_fdt_read_4(dev, &sc->slot,
+	    SDHCI_CAPABILITIES) & ~(SDHCI_CAN_DO_SUSPEND);
+	sc->slot.caps2 = sdhci_fsl_fdt_read_4(dev, &sc->slot,
+	    SDHCI_CAPABILITIES2);
+
+	/* Parse the "voltage-ranges" dts property. */
+	num_ranges = OF_getencprop_alloc(node, "voltage-ranges",
+	    (void **) &voltage_ranges);
+	if (num_ranges <= 0)
+		return;
+	vdd_mask = sdhci_fsl_fdt_vddrange_to_mask(dev, voltage_ranges,
+	    num_ranges / sizeof(uint32_t));
+	OF_prop_free(voltage_ranges);
+
+	/* Overwrite voltage caps only if we got something from dts. */
+	if (vdd_mask != 0 &&
+	    (vdd_mask != (sc->slot.caps & SDHCI_FSL_CAN_VDD_MASK))) {
+		sc->slot.caps &= ~(SDHCI_FSL_CAN_VDD_MASK);
+		sc->slot.caps |= vdd_mask;
+		sc->slot.quirks |= SDHCI_QUIRK_MISSING_CAPS;
+	}
 }
 
 static int
