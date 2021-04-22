@@ -662,6 +662,9 @@ pci_vtscsi_legacy_config(nvlist_t *nvl, const char *opts)
 {
 	char *cp, *devname;
 
+	if (opts == NULL)
+		return (0);
+
 	cp = strchr(opts, ',');
 	if (cp == NULL) {
 		set_config_value_node(nvl, "dev", opts);
