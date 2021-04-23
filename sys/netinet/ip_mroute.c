@@ -244,6 +244,8 @@ static const struct encaptab *pim_encap_cookie;
 static int pim_encapcheck(const struct mbuf *, int, int, void *);
 static int pim_input(struct mbuf *, int, int, void *);
 
+extern int in_mcast_loop;
+
 static const struct encap_config ipv4_encap_cfg = {
 	.proto = IPPROTO_PIM,
 	.min_length = sizeof(struct ip) + PIM_MINLEN,
@@ -1685,7 +1687,7 @@ send_packet(struct vif *vifp, struct mbuf *m)
 
 	imo.imo_multicast_ifp  = vifp->v_ifp;
 	imo.imo_multicast_ttl  = mtod(m, struct ip *)->ip_ttl - 1;
-	imo.imo_multicast_loop = 1;
+	imo.imo_multicast_loop = !!in_mcast_loop;
 	imo.imo_multicast_vif  = -1;
 	STAILQ_INIT(&imo.imo_head);
 
