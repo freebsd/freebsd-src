@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 25, 2021
+.Dd April 28, 2021
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -40,9 +40,11 @@ normally
 and
 .Pa /usr/ports .
 These directories may be initially empty or non-existent until updated with
-.Xr svn 1
-(or
-.Xr svnlite 1 ) .
+Git
+.Po installed from packages with
+.Xr pkg 7
+or from
+.Xr ports 7 Pc .
 Directory
 .Pa /usr/src
 contains the
@@ -873,11 +875,10 @@ manpage first appeared in
 .Xr cc 1 ,
 .Xr install 1 ,
 .Xr make 1 ,
-.Xr svn 1 ,
-.Xr svnlite 1 ,
 .Xr make.conf 5 ,
 .Xr src.conf 5 ,
 .Xr arch 7 ,
+.Xr pkg 7 ,
 .Xr ports 7 ,
 .Xr release 7 ,
 .Xr tests 7 ,
