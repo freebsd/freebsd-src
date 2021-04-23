@@ -2521,6 +2521,42 @@ out:
 	thread_unlock(td);
 }
 
+static void
+ptrace_coredump(struct thread *td)
+{
+	struct proc *p;
+	struct thr_coredump_req *tcq;
+	void *rl_cookie;
+
+	MPASS(td == curthread);
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	if ((td->td_dbgflags & TDB_COREDUMPRQ) == 0)
+		return;
+	KASSERT((p->p_flag & P_STOPPED_TRACE) != 0, ("not stopped"));
+
+	tcq = td->td_coredump;
+	KASSERT(tcq != NULL, ("td_coredump is NULL"));
+
+	if (p->p_sysent->sv_coredump == NULL) {
+		tcq->tc_error = ENOSYS;
+		goto wake;
+	}
+
+	PROC_UNLOCK(p);
+	rl_cookie = vn_rangelock_wlock(tcq->tc_vp, 0, OFF_MAX);
+
+	tcq->tc_error = p->p_sysent->sv_coredump(td, tcq->tc_vp,
+	    tcq->tc_limit, tcq->tc_flags);
+
+	vn_rangelock_unlock(tcq->tc_vp, rl_cookie);
+	PROC_LOCK(p);
+wake:
+	td->td_dbgflags &= ~TDB_COREDUMPRQ;
+	td->td_coredump = NULL;
+	wakeup(p);
+}
+
 static int
 sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 {
@@ -2651,6 +2687,12 @@ stopme:
 			td->td_dbgflags |= TDB_SSWITCH;
 			thread_suspend_switch(td, p);
 			td->td_dbgflags &= ~TDB_SSWITCH;
+			if ((td->td_dbgflags & TDB_COREDUMPRQ) != 0) {
+				PROC_SUNLOCK(p);
+				ptrace_coredump(td);
+				PROC_SLOCK(p);
+				goto stopme;
+			}
 			if (p->p_xthread == td)
 				p->p_xthread = NULL;
 			if (!(p->p_flag & P_TRACED))
