@@ -175,6 +175,7 @@ enum {
 	VI_INIT_DONE	= (1 << 1),
 	VI_SYSCTL_CTX	= (1 << 2),
 	TX_USES_VM_WR 	= (1 << 3),
+	VI_SKIP_STATS 	= (1 << 4),
 
 	/* adapter debug_flags */
 	DF_DUMP_MBOX		= (1 << 0),	/* Log all mbox cmd/rpl. */
@@ -311,7 +312,6 @@ struct port_info {
 	struct link_config link_cfg;
 	struct ifmedia media;
 
-	struct timeval last_refreshed;
  	struct port_stats stats;
 	u_int tnl_cong_drops;
 	u_int tx_parse_error;
@@ -1213,11 +1213,9 @@ void end_synchronized_op(struct adapter *, int);
 int update_mac_settings(struct ifnet *, int);
 int adapter_full_init(struct adapter *);
 int adapter_full_uninit(struct adapter *);
-uint64_t cxgbe_get_counter(struct ifnet *, ift_counter);
 int vi_full_init(struct vi_info *);
 int vi_full_uninit(struct vi_info *);
 void vi_sysctls(struct vi_info *);
-void vi_tick(void *);
 int rw_via_memwin(struct adapter *, int, uint32_t, uint32_t *, int, int);
 int alloc_atid(struct adapter *, void *);
 void *lookup_atid(struct adapter *, int);

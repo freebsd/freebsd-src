@@ -735,9 +735,10 @@ static int t4_free_irq(struct adapter *, struct irq *);
 static void t4_init_atid_table(struct adapter *);
 static void t4_free_atid_table(struct adapter *);
 static void get_regs(struct adapter *, struct t4_regdump *, uint8_t *);
-static void vi_refresh_stats(struct adapter *, struct vi_info *);
-static void cxgbe_refresh_stats(struct adapter *, struct port_info *);
+static void vi_refresh_stats(struct vi_info *);
+static void cxgbe_refresh_stats(struct vi_info *);
 static void cxgbe_tick(void *);
+static void vi_tick(void *);
 static void cxgbe_sysctls(struct port_info *);
 static int sysctl_int_array(SYSCTL_HANDLER_ARGS);
 static int sysctl_bitfield_8b(SYSCTL_HANDLER_ARGS);
@@ -820,6 +821,8 @@ static int ktls_capability(struct adapter *, bool);
 #endif
 static int mod_event(module_t, int, void *);
 static int notify_siblings(device_t, int);
+static uint64_t vi_get_counter(struct ifnet *, ift_counter);
+static uint64_t cxgbe_get_counter(struct ifnet *, ift_counter);
 
 struct {
 	uint16_t device;
@@ -1818,7 +1821,10 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 	ifp->if_ioctl = cxgbe_ioctl;
 	ifp->if_transmit = cxgbe_transmit;
 	ifp->if_qflush = cxgbe_qflush;
-	ifp->if_get_counter = cxgbe_get_counter;
+	if (vi->pi->nvi > 1 || sc->flags & IS_VF)
+		ifp->if_get_counter = vi_get_counter;
+	else
+		ifp->if_get_counter = cxgbe_get_counter;
 #if defined(KERN_TLS) || defined(RATELIMIT)
 	ifp->if_snd_tag_alloc = cxgbe_snd_tag_alloc;
 	ifp->if_snd_tag_modify = cxgbe_snd_tag_modify;
@@ -2336,7 +2342,9 @@ vi_get_counter(struct ifnet *ifp, ift_counter c)
 	struct vi_info *vi = ifp->if_softc;
 	struct fw_vi_stats_vf *s = &vi->stats;
 
-	vi_refresh_stats(vi->adapter, vi);
+	mtx_lock(&vi->tick_mtx);
+	vi_refresh_stats(vi);
+	mtx_unlock(&vi->tick_mtx);
 
 	switch (c) {
 	case IFCOUNTER_IPACKETS:
@@ -2380,18 +2388,16 @@ vi_get_counter(struct ifnet *ifp, ift_counter c)
 	}
 }
 
-uint64_t
+static uint64_t
 cxgbe_get_counter(struct ifnet *ifp, ift_counter c)
 {
 	struct vi_info *vi = ifp->if_softc;
 	struct port_info *pi = vi->pi;
-	struct adapter *sc = pi->adapter;
 	struct port_stats *s = &pi->stats;
 
-	if (pi->nvi > 1 || sc->flags & IS_VF)
-		return (vi_get_counter(ifp, c));
-
-	cxgbe_refresh_stats(sc, pi);
+	mtx_lock(&vi->tick_mtx);
+	cxgbe_refresh_stats(vi);
+	mtx_unlock(&vi->tick_mtx);
 
 	switch (c) {
 	case IFCOUNTER_IPACKETS:
@@ -5586,7 +5592,7 @@ cxgbe_init_synchronized(struct vi_info *vi)
 	PORT_UNLOCK(pi);
 
 	mtx_lock(&vi->tick_mtx);
-	if (pi->nvi > 1 || sc->flags & IS_VF)
+	if (ifp->if_get_counter == vi_get_counter)
 		callout_reset(&vi->tick, hz, vi_tick, vi);
 	else
 		callout_reset(&vi->tick, hz, cxgbe_tick, vi);
@@ -6334,12 +6340,14 @@ t4_clr_vi_stats(struct adapter *sc, u_int vin)
 }
 
 static void
-vi_refresh_stats(struct adapter *sc, struct vi_info *vi)
+vi_refresh_stats(struct vi_info *vi)
 {
 	struct timeval tv;
 	const struct timeval interval = {0, 250000};	/* 250ms */
 
-	if (!(vi->flags & VI_INIT_DONE))
+	mtx_assert(&vi->tick_mtx, MA_OWNED);
+
+	if (!(vi->flags & VI_INIT_DONE) || vi->flags & VI_SKIP_STATS)
 		return;
 
 	getmicrotime(&tv);
@@ -6347,22 +6355,31 @@ vi_refresh_stats(struct adapter *sc, struct vi_info *vi)
 	if (timevalcmp(&tv, &vi->last_refreshed, <))
 		return;
 
-	t4_get_vi_stats(sc, vi->vin, &vi->stats);
+	t4_get_vi_stats(vi->adapter, vi->vin, &vi->stats);
 	getmicrotime(&vi->last_refreshed);
 }
 
 static void
-cxgbe_refresh_stats(struct adapter *sc, struct port_info *pi)
+cxgbe_refresh_stats(struct vi_info *vi)
 {
 	u_int i, v, tnl_cong_drops, chan_map;
 	struct timeval tv;
 	const struct timeval interval = {0, 250000};	/* 250ms */
+	struct port_info *pi;
+	struct adapter *sc;
+
+	mtx_assert(&vi->tick_mtx, MA_OWNED);
+
+	if (vi->flags & VI_SKIP_STATS)
+		return;
 
 	getmicrotime(&tv);
 	timevalsub(&tv, &interval);
-	if (timevalcmp(&tv, &pi->last_refreshed, <))
+	if (timevalcmp(&tv, &vi->last_refreshed, <))
 		return;
 
+	pi = vi->pi;
+	sc = vi->adapter;
 	tnl_cong_drops = 0;
 	t4_get_port_stats(sc, pi->tx_chan, &pi->stats);
 	chan_map = pi->rx_e_chan_map;
@@ -6376,31 +6393,29 @@ cxgbe_refresh_stats(struct adapter *sc, struct port_info *pi)
 		chan_map &= ~(1 << i);
 	}
 	pi->tnl_cong_drops = tnl_cong_drops;
-	getmicrotime(&pi->last_refreshed);
+	getmicrotime(&vi->last_refreshed);
 }
 
 static void
 cxgbe_tick(void *arg)
 {
 	struct vi_info *vi = arg;
-	struct adapter *sc = vi->adapter;
 
 	MPASS(IS_MAIN_VI(vi));
 	mtx_assert(&vi->tick_mtx, MA_OWNED);
 
-	cxgbe_refresh_stats(sc, vi->pi);
+	cxgbe_refresh_stats(vi);
 	callout_schedule(&vi->tick, hz);
 }
 
-void
+static void
 vi_tick(void *arg)
 {
 	struct vi_info *vi = arg;
-	struct adapter *sc = vi->adapter;
 
 	mtx_assert(&vi->tick_mtx, MA_OWNED);
 
-	vi_refresh_stats(sc, vi);
+	vi_refresh_stats(vi);
 	callout_schedule(&vi->tick, hz);
 }
 
