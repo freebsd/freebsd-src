@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.c,v 1.111 2020/08/27 01:06:19 djm Exp $ */
+/* $OpenBSD: sshkey.c,v 1.115 2021/02/02 22:36:46 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Alexander von Gernler.  All rights reserved.
@@ -3076,7 +3076,7 @@ sshkey_certify(struct sshkey *k, struct sshkey *ca, const char *alg,
 
 int
 sshkey_cert_check_authority(const struct sshkey *k,
-    int want_host, int require_principal,
+    int want_host, int require_principal, int wildcard_pattern,
     const char *name, const char **reason)
 {
 	u_int i, principal_matches;
@@ -3084,7 +3084,10 @@ sshkey_cert_check_authority(const struct sshkey *k,
 
 	if (reason == NULL)
 		return SSH_ERR_INVALID_ARGUMENT;
-
+	if (!sshkey_is_cert(k)) {
+		*reason = "Key is not a certificate";
+		return SSH_ERR_KEY_CERT_INVALID;
+	}
 	if (want_host) {
 		if (k->cert->type != SSH2_CERT_TYPE_HOST) {
 			*reason = "Certificate invalid: not a host certificate";
@@ -3117,7 +3120,13 @@ sshkey_cert_check_authority(const struct sshkey *k,
 	} else if (name != NULL) {
 		principal_matches = 0;
 		for (i = 0; i < k->cert->nprincipals; i++) {
-			if (strcmp(name, k->cert->principals[i]) == 0) {
+			if (wildcard_pattern) {
+				if (match_pattern(k->cert->principals[i],
+				    name)) {
+					principal_matches = 1;
+					break;
+				}
+			} else if (strcmp(name, k->cert->principals[i]) == 0) {
 				principal_matches = 1;
 				break;
 			}
@@ -3131,10 +3140,32 @@ sshkey_cert_check_authority(const struct sshkey *k,
 	return 0;
 }
 
+int
+sshkey_cert_check_host(const struct sshkey *key, const char *host,
+    int wildcard_principals, const char *ca_sign_algorithms,
+    const char **reason)
+{
+	int r;
+
+	if ((r = sshkey_cert_check_authority(key, 1, 0, wildcard_principals,
+	    host, reason)) != 0)
+		return r;
+	if (sshbuf_len(key->cert->critical) != 0) {
+		*reason = "Certificate contains unsupported critical options";
+		return SSH_ERR_KEY_CERT_INVALID;
+	}
+	if (ca_sign_algorithms != NULL &&
+	    (r = sshkey_check_cert_sigtype(key, ca_sign_algorithms)) != 0) {
+		*reason = "Certificate signed with disallowed algorithm";
+		return SSH_ERR_KEY_CERT_INVALID;
+	}
+	return 0;
+}
+
 size_t
 sshkey_format_cert_validity(const struct sshkey_cert *cert, char *s, size_t l)
 {
-	char from[32], to[32], ret[64];
+	char from[32], to[32], ret[128];
 	time_t tt;
 	struct tm *tm;
 
@@ -3380,10 +3411,12 @@ int
 sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 {
 	char *tname = NULL, *curve = NULL, *xmss_name = NULL;
+	char *expect_sk_application = NULL;
 	struct sshkey *k = NULL;
 	size_t pklen = 0, sklen = 0;
 	int type, r = SSH_ERR_INTERNAL_ERROR;
 	u_char *ed25519_pk = NULL, *ed25519_sk = NULL;
+	u_char *expect_ed25519_pk = NULL;
 	u_char *xmss_pk = NULL, *xmss_sk = NULL;
 #ifdef WITH_OPENSSL
 	BIGNUM *exponent = NULL;
@@ -3416,6 +3449,14 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 			r = SSH_ERR_KEY_CERT_MISMATCH;
 			goto out;
 		}
+		/*
+		 * Several fields are redundant between certificate and
+		 * private key body, we require these to match.
+		 */
+		expect_sk_application = k->sk_application;
+		expect_ed25519_pk = k->ed25519_pk;
+		k->sk_application = NULL;
+		k->ed25519_pk = NULL;
 	} else {
 		if ((k = sshkey_new(type)) == NULL) {
 			r = SSH_ERR_ALLOC_FAIL;
@@ -3637,6 +3678,13 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 		break;
 	}
 #endif /* WITH_OPENSSL */
+	if ((expect_sk_application != NULL && (k->sk_application == NULL ||
+	    strcmp(expect_sk_application, k->sk_application) != 0)) ||
+	    (expect_ed25519_pk != NULL && (k->ed25519_pk == NULL ||
+	     memcmp(expect_ed25519_pk, k->ed25519_pk, ED25519_PK_SZ) != 0))) {
+		r = SSH_ERR_KEY_CERT_MISMATCH;
+		goto out;
+	}
 	/* success */
 	r = 0;
 	if (kp != NULL) {
@@ -3666,6 +3714,8 @@ sshkey_private_deserialize(struct sshbuf *buf, struct sshkey **kp)
 	free(xmss_name);
 	freezero(xmss_pk, pklen);
 	freezero(xmss_sk, sklen);
+	free(expect_sk_application);
+	free(expect_ed25519_pk);
 	return r;
 }
 
@@ -4700,7 +4750,7 @@ sshkey_parse_pubkey_from_private_fileblob_type(struct sshbuf *blob, int type,
  */
 int
 sshkey_private_serialize_maxsign(struct sshkey *k, struct sshbuf *b,
-    u_int32_t maxsign, sshkey_printfn *pr)
+    u_int32_t maxsign, int printerror)
 {
 	int r, rupdate;
 
@@ -4708,14 +4758,14 @@ sshkey_private_serialize_maxsign(struct sshkey *k, struct sshbuf *b,
 	    sshkey_type_plain(k->type) != KEY_XMSS)
 		return sshkey_private_serialize_opt(k, b,
 		    SSHKEY_SERIALIZE_DEFAULT);
-	if ((r = sshkey_xmss_get_state(k, pr)) != 0 ||
+	if ((r = sshkey_xmss_get_state(k, printerror)) != 0 ||
 	    (r = sshkey_private_serialize_opt(k, b,
 	    SSHKEY_SERIALIZE_STATE)) != 0 ||
 	    (r = sshkey_xmss_forward_state(k, maxsign)) != 0)
 		goto out;
 	r = 0;
 out:
-	if ((rupdate = sshkey_xmss_update_state(k, pr)) != 0) {
+	if ((rupdate = sshkey_xmss_update_state(k, printerror)) != 0) {
 		if (r == 0)
 			r = rupdate;
 	}
@@ -4754,7 +4804,7 @@ sshkey_set_filename(struct sshkey *k, const char *filename)
 #else
 int
 sshkey_private_serialize_maxsign(struct sshkey *k, struct sshbuf *b,
-    u_int32_t maxsign, sshkey_printfn *pr)
+    u_int32_t maxsign, int printerror)
 {
 	return sshkey_private_serialize_opt(k, b, SSHKEY_SERIALIZE_DEFAULT);
 }

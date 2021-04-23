@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-sk-helper.c,v 1.10 2020/05/26 01:59:46 djm Exp $ */
+/* $OpenBSD: ssh-sk-helper.c,v 1.11 2020/10/18 11:32:02 djm Exp $ */
 /*
  * Copyright (c) 2019 Google LLC
  *
@@ -67,7 +67,7 @@ reply_error(int r, char *fmt, ...)
 	free(msg);
 
 	if (r >= 0)
-		fatal("%s: invalid error code %d", __func__, r);
+		fatal_f("invalid error code %d", r);
 
 	if ((resp = sshbuf_new()) == NULL)
 		fatal("%s: sshbuf_new failed", __progname);
@@ -106,17 +106,19 @@ process_sign(struct sshbuf *req)
 	    (r = sshbuf_get_cstring(req, NULL, NULL)) != 0 || /* alg */
 	    (r = sshbuf_get_u32(req, &compat)) != 0 ||
 	    (r = sshbuf_get_cstring(req, &pin, NULL)) != 0)
-		fatal("%s: buffer error: %s", __progname, ssh_err(r));
+		fatal_r(r, "%s: parse", __progname);
 	if (sshbuf_len(req) != 0)
 		fatal("%s: trailing data in request", __progname);
 
 	if ((r = sshkey_private_deserialize(kbuf, &key)) != 0)
-		fatal("Unable to parse private key: %s", ssh_err(r));
-	if (!sshkey_is_sk(key))
-		fatal("Unsupported key type %s", sshkey_ssh_name(key));
+		fatal_r(r, "%s: Unable to parse private key", __progname);
+	if (!sshkey_is_sk(key)) {
+		fatal("%s: Unsupported key type %s",
+		    __progname, sshkey_ssh_name(key));
+	}
 
-	debug("%s: ready to sign with key %s, provider %s: "
-	    "msg len %zu, compat 0x%lx", __progname, sshkey_type(key),
+	debug_f("ready to sign with key %s, provider %s: "
+	    "msg len %zu, compat 0x%lx", sshkey_type(key),
 	    provider, msglen, (u_long)compat);
 
 	null_empty(&pin);
@@ -132,7 +134,7 @@ process_sign(struct sshbuf *req)
 
 	if ((r = sshbuf_put_u32(resp, SSH_SK_HELPER_SIGN)) != 0 ||
 	    (r = sshbuf_put_string(resp, sig, siglen)) != 0)
-		fatal("%s: buffer error: %s", __progname, ssh_err(r));
+		fatal_r(r, "%s: compose", __progname);
  out:
 	sshkey_free(key);
 	sshbuf_free(kbuf);
@@ -166,7 +168,7 @@ process_enroll(struct sshbuf *req)
 	    (r = sshbuf_get_u8(req, &flags)) != 0 ||
 	    (r = sshbuf_get_cstring(req, &pin, NULL)) != 0 ||
 	    (r = sshbuf_froms(req, &challenge)) != 0)
-		fatal("%s: buffer error: %s", __progname, ssh_err(r));
+		fatal_r(r, "%s: parse", __progname);
 	if (sshbuf_len(req) != 0)
 		fatal("%s: trailing data in request", __progname);
 
@@ -189,11 +191,11 @@ process_enroll(struct sshbuf *req)
 	if ((resp = sshbuf_new()) == NULL)
 		fatal("%s: sshbuf_new failed", __progname);
 	if ((r = sshkey_private_serialize(key, kbuf)) != 0)
-		fatal("%s: serialize private key: %s", __progname, ssh_err(r));
+		fatal_r(r, "%s: encode key", __progname);
 	if ((r = sshbuf_put_u32(resp, SSH_SK_HELPER_ENROLL)) != 0 ||
 	    (r = sshbuf_put_stringb(resp, kbuf)) != 0 ||
 	    (r = sshbuf_put_stringb(resp, attest)) != 0)
-		fatal("%s: buffer error: %s", __progname, ssh_err(r));
+		fatal_r(r, "%s: compose", __progname);
 
  out:
 	sshkey_free(key);
@@ -223,7 +225,7 @@ process_load_resident(struct sshbuf *req)
 	if ((r = sshbuf_get_cstring(req, &provider, NULL)) != 0 ||
 	    (r = sshbuf_get_cstring(req, &device, NULL)) != 0 ||
 	    (r = sshbuf_get_cstring(req, &pin, NULL)) != 0)
-		fatal("%s: buffer error: %s", __progname, ssh_err(r));
+		fatal_r(r, "%s: parse", __progname);
 	if (sshbuf_len(req) != 0)
 		fatal("%s: trailing data in request", __progname);
 
@@ -241,18 +243,17 @@ process_load_resident(struct sshbuf *req)
 		fatal("%s: sshbuf_new failed", __progname);
 
 	if ((r = sshbuf_put_u32(resp, SSH_SK_HELPER_LOAD_RESIDENT)) != 0)
-		fatal("%s: buffer error: %s", __progname, ssh_err(r));
+		fatal_r(r, "%s: compose", __progname);
 
 	for (i = 0; i < nkeys; i++) {
-		debug("%s: key %zu %s %s", __func__, i,
-		    sshkey_type(keys[i]), keys[i]->sk_application);
+		debug_f("key %zu %s %s", i, sshkey_type(keys[i]),
+		    keys[i]->sk_application);
 		sshbuf_reset(kbuf);
 		if ((r = sshkey_private_serialize(keys[i], kbuf)) != 0)
-			fatal("%s: serialize private key: %s",
-			    __progname, ssh_err(r));
+			fatal_r(r, "%s: encode key", __progname);
 		if ((r = sshbuf_put_stringb(resp, kbuf)) != 0 ||
 		    (r = sshbuf_put_cstring(resp, "")) != 0) /* comment */
-			fatal("%s: buffer error: %s", __progname, ssh_err(r));
+			fatal_r(r, "%s: compose key", __progname);
 	}
 
  out:
@@ -311,10 +312,10 @@ main(int argc, char **argv)
 	if (ssh_msg_recv(in, req) < 0)
 		fatal("ssh_msg_recv failed");
 	close(in);
-	debug("%s: received message len %zu", __progname, sshbuf_len(req));
+	debug_f("received message len %zu", sshbuf_len(req));
 
 	if ((r = sshbuf_get_u8(req, &version)) != 0)
-		fatal("%s: buffer error: %s", __progname, ssh_err(r));
+		fatal_r(r, "%s: parse version", __progname);
 	if (version != SSH_SK_HELPER_VERSION) {
 		fatal("unsupported version: received %d, expected %d",
 		    version, SSH_SK_HELPER_VERSION);
@@ -323,7 +324,7 @@ main(int argc, char **argv)
 	if ((r = sshbuf_get_u32(req, &rtype)) != 0 ||
 	    (r = sshbuf_get_u8(req, &log_stderr)) != 0 ||
 	    (r = sshbuf_get_u32(req, &ll)) != 0)
-		fatal("%s: buffer error: %s", __progname, ssh_err(r));
+		fatal_r(r, "%s: parse", __progname);
 
 	if (!vflag && log_level_name((LogLevel)ll) != NULL)
 		log_init(__progname, (LogLevel)ll, log_facility, log_stderr);
@@ -342,7 +343,7 @@ main(int argc, char **argv)
 		fatal("%s: unsupported request type %u", __progname, rtype);
 	}
 	sshbuf_free(req);
-	debug("%s: reply len %zu", __progname, sshbuf_len(resp));
+	debug_f("reply len %zu", sshbuf_len(resp));
 
 	if (ssh_msg_send(out, SSH_SK_HELPER_VERSION, resp) == -1)
 		fatal("ssh_msg_send failed");

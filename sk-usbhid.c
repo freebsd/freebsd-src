@@ -1,4 +1,4 @@
-/* $OpenBSD: sk-usbhid.c,v 1.26 2020/09/09 03:08:01 djm Exp $ */
+/* $OpenBSD: sk-usbhid.c,v 1.29 2021/02/18 02:15:07 djm Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl
  * Copyright (c) 2020 Pedro Martelletto
@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include <time.h>
 #ifdef HAVE_SHA2_H
 #include <sha2.h>
 #endif
@@ -117,7 +118,7 @@ int sk_enroll(uint32_t alg, const uint8_t *challenge, size_t challenge_len,
     struct sk_option **options, struct sk_enroll_response **enroll_response);
 
 /* Sign a challenge */
-int sk_sign(uint32_t alg, const uint8_t *message, size_t message_len,
+int sk_sign(uint32_t alg, const uint8_t *data, size_t data_len,
     const char *application, const uint8_t *key_handle, size_t key_handle_len,
     uint8_t flags, const char *pin, struct sk_option **options,
     struct sk_sign_response **sign_response);
@@ -814,7 +815,7 @@ sk_enroll(uint32_t alg, const uint8_t *challenge, size_t challenge_len,
 	}
 	if ((ptr = fido_cred_x5c_ptr(cred)) != NULL) {
 		len = fido_cred_x5c_len(cred);
-		debug3("%s: attestation cert len=%zu", __func__, len);
+		skdebug(__func__, "attestation cert len=%zu", len);
 		if ((response->attestation_cert = calloc(1, len)) == NULL) {
 			skdebug(__func__, "calloc attestation cert failed");
 			goto out;
@@ -824,7 +825,7 @@ sk_enroll(uint32_t alg, const uint8_t *challenge, size_t challenge_len,
 	}
 	if ((ptr = fido_cred_authdata_ptr(cred)) != NULL) {
 		len = fido_cred_authdata_len(cred);
-		debug3("%s: authdata len=%zu", __func__, len);
+		skdebug(__func__, "authdata len=%zu", len);
 		if ((response->authdata = calloc(1, len)) == NULL) {
 			skdebug(__func__, "calloc authdata failed");
 			goto out;

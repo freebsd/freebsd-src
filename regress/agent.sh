@@ -1,4 +1,4 @@
-#	$OpenBSD: agent.sh,v 1.19 2020/07/15 04:55:47 dtucker Exp $
+#	$OpenBSD: agent.sh,v 1.20 2021/02/25 03:27:34 djm Exp $
 #	Placed in the Public Domain.
 
 tid="simple agent test"
@@ -87,8 +87,8 @@ fi
 for t in ${SSH_KEYTYPES}; do
 	trace "connect via agent using $t key"
 	if [ "$t" = "ssh-dss" ]; then
-		echo "PubkeyAcceptedKeyTypes +ssh-dss" >> $OBJ/ssh_proxy
-		echo "PubkeyAcceptedKeyTypes +ssh-dss" >> $OBJ/sshd_proxy
+		echo "PubkeyAcceptedAlgorithms +ssh-dss" >> $OBJ/ssh_proxy
+		echo "PubkeyAcceptedAlgorithms +ssh-dss" >> $OBJ/sshd_proxy
 	fi
 	${SSH} -F $OBJ/ssh_proxy -i $OBJ/$t-agent.pub -oIdentitiesOnly=yes \
 		somehost exit 52

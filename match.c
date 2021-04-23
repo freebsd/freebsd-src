@@ -1,4 +1,4 @@
-/* $OpenBSD: match.c,v 1.42 2020/07/05 23:59:45 djm Exp $ */
+/* $OpenBSD: match.c,v 1.43 2020/11/03 22:53:12 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -53,7 +53,6 @@
  * Returns true if the given string matches the pattern (which may contain ?
  * and * as wildcards), and zero if it does not match.
  */
-
 int
 match_pattern(const char *s, const char *pattern)
 {
@@ -63,8 +62,9 @@ match_pattern(const char *s, const char *pattern)
 			return !*s;
 
 		if (*pattern == '*') {
-			/* Skip the asterisk. */
-			pattern++;
+			/* Skip this and any consecutive asterisks. */
+			while (*pattern == '*')
+				pattern++;
 
 			/* If at end of pattern, accept immediately. */
 			if (!*pattern)

@@ -1,4 +1,4 @@
-/* 	$OpenBSD: tests.c,v 1.3 2020/05/29 04:32:26 dtucker Exp $ */
+/* 	$OpenBSD: tests.c,v 1.4 2021/01/15 02:58:11 dtucker Exp $ */
 /*
  * Regress test for misc helper functions.
  *
@@ -22,6 +22,7 @@ tests(void)
 {
 	int port, parseerr;
 	char *user, *host, *path, *ret;
+	char buf[1024];
 
 	TEST_START("misc_parse_user_host_path");
 	ASSERT_INT_EQ(parse_user_host_path("someuser@some.host:some/path",
@@ -79,22 +80,32 @@ tests(void)
 	TEST_DONE();
 
 	TEST_START("misc_convtime");
-	ASSERT_LONG_EQ(convtime("1"), 1);
-	ASSERT_LONG_EQ(convtime("2s"), 2);
-	ASSERT_LONG_EQ(convtime("3m"), 180);
-	ASSERT_LONG_EQ(convtime("1m30"), 90);
-	ASSERT_LONG_EQ(convtime("1m30s"), 90);
-	ASSERT_LONG_EQ(convtime("1h1s"), 3601);
-	ASSERT_LONG_EQ(convtime("1h30m"), 90 * 60);
-	ASSERT_LONG_EQ(convtime("1d"), 24 * 60 * 60);
-	ASSERT_LONG_EQ(convtime("1w"), 7 * 24 * 60 * 60);
-	ASSERT_LONG_EQ(convtime("1w2d3h4m5"), 788645);
-	ASSERT_LONG_EQ(convtime("1w2d3h4m5s"), 788645);
+	ASSERT_INT_EQ(convtime("0"), 0);
+	ASSERT_INT_EQ(convtime("1"), 1);
+	ASSERT_INT_EQ(convtime("2s"), 2);
+	ASSERT_INT_EQ(convtime("3m"), 180);
+	ASSERT_INT_EQ(convtime("1m30"), 90);
+	ASSERT_INT_EQ(convtime("1m30s"), 90);
+	ASSERT_INT_EQ(convtime("1h1s"), 3601);
+	ASSERT_INT_EQ(convtime("1h30m"), 90 * 60);
+	ASSERT_INT_EQ(convtime("1d"), 24 * 60 * 60);
+	ASSERT_INT_EQ(convtime("1w"), 7 * 24 * 60 * 60);
+	ASSERT_INT_EQ(convtime("1w2d3h4m5"), 788645);
+	ASSERT_INT_EQ(convtime("1w2d3h4m5s"), 788645);
 	/* any negative number or error returns -1 */
-	ASSERT_LONG_EQ(convtime("-1"),  -1);
-	ASSERT_LONG_EQ(convtime(""),  -1);
-	ASSERT_LONG_EQ(convtime("trout"),  -1);
-	ASSERT_LONG_EQ(convtime("-77"),  -1);
+	ASSERT_INT_EQ(convtime("-1"),  -1);
+	ASSERT_INT_EQ(convtime(""),  -1);
+	ASSERT_INT_EQ(convtime("trout"),  -1);
+	ASSERT_INT_EQ(convtime("-77"),  -1);
+	/* boundary conditions */
+	snprintf(buf, sizeof buf, "%llu", (long long unsigned)INT_MAX);
+	ASSERT_INT_EQ(convtime(buf), INT_MAX);
+	snprintf(buf, sizeof buf, "%llu", (long long unsigned)INT_MAX + 1);
+	ASSERT_INT_EQ(convtime(buf), -1);
+	ASSERT_INT_EQ(convtime("3550w5d3h14m7s"), 2147483647);
+#if INT_MAX == 2147483647
+	ASSERT_INT_EQ(convtime("3550w5d3h14m8s"), -1);
+#endif
 	TEST_DONE();
 
 	TEST_START("dollar_expand");

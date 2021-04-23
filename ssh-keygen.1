@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.209 2020/09/09 03:08:01 djm Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.212 2020/11/27 10:12:30 dtucker Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: September 9 2020 $
+.Dd $Mdocdate: November 27 2020 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -53,6 +53,7 @@
 .Op Fl O Ar option
 .Op Fl t Cm dsa | ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa
 .Op Fl w Ar provider
+.Op Fl Z Ar cipher
 .Nm ssh-keygen
 .Fl p
 .Op Fl a Ar rounds
@@ -60,6 +61,7 @@
 .Op Fl m Ar format
 .Op Fl N Ar new_passphrase
 .Op Fl P Ar old_passphrase
+.Op Fl Z Ar cipher
 .Nm ssh-keygen
 .Fl i
 .Op Fl f Ar input_keyfile
@@ -274,7 +276,9 @@ This is used by
 to generate new host keys.
 .It Fl a Ar rounds
 When saving a private key, this option specifies the number of KDF
-(key derivation function) rounds used.
+(key derivation function, currently
+.Xr bcrypt_pbkdf 3 )
+rounds used.
 Higher numbers result in slower passphrase verification and increased
 resistance to brute-force password cracking (should the keys be stolen).
 The default is 16 rounds.
@@ -634,7 +638,7 @@ For example:
 .Dq 20100101123000:20110101123000
 (valid from 12:30 PM, January 1st, 2010 to 12:30 PM, January 1st, 2011),
 .Dq -1d:20110101
-(valid from yesterday to midnight, January 1st, 2011).
+(valid from yesterday to midnight, January 1st, 2011),
 .Dq -1m:forever
 (valid from one minute ago and never expiring).
 .It Fl v
@@ -738,6 +742,13 @@ returning a zero exit status.
 .It Fl y
 This option will read a private
 OpenSSH format file and print an OpenSSH public key to stdout.
+.It Fl Z Ar cipher
+Specifies the cipher to use for encryption when writing an OpenSSH-format
+private key file.
+The list of available ciphers may be obtained using
+.Qq ssh -Q cipher .
+The default is
+.Dq aes256-ctr .
 .It Fl z Ar serial_number
 Specifies a serial number to be embedded in the certificate to distinguish
 this certificate from others from the same CA.
@@ -1003,7 +1014,7 @@ The
 option allows specification of certificate start and end times.
 A certificate that is presented at a time outside this range will not be
 considered valid.
-By default, certificates are valid from
+By default, certificates are valid from the
 .Ux
 Epoch to the distant future.
 .Pp
@@ -1107,7 +1118,7 @@ Empty lines and lines starting with a
 .Ql #
 are ignored as comments.
 .Pp
-The principals field is a pattern-list (See PATTERNS in
+The principals field is a pattern-list (see PATTERNS in
 .Xr ssh_config 5 )
 consisting of one or more comma-separated USER@DOMAIN identity patterns
 that are accepted for signing.

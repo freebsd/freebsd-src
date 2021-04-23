@@ -1,12 +1,15 @@
-#	$OpenBSD: hostkey-rotate.sh,v 1.8 2019/11/26 23:43:10 djm Exp $
+#	$OpenBSD: hostkey-rotate.sh,v 1.9 2020/10/07 06:38:16 djm Exp $
 #	Placed in the Public Domain.
 
 tid="hostkey rotate"
 
-rm -f $OBJ/hkr.* $OBJ/ssh_proxy.orig
+rm -f $OBJ/hkr.* $OBJ/ssh_proxy.orig $OBJ/ssh_proxy.orig
 
 grep -vi 'hostkey' $OBJ/sshd_proxy > $OBJ/sshd_proxy.orig
+mv $OBJ/ssh_proxy $OBJ/ssh_proxy.orig
+grep -vi 'globalknownhostsfile' $OBJ/ssh_proxy.orig > $OBJ/ssh_proxy
 echo "UpdateHostkeys=yes" >> $OBJ/ssh_proxy
+echo "GlobalKnownHostsFile=none" >> $OBJ/ssh_proxy
 rm $OBJ/known_hosts
 
 # The "primary" key type is ed25519 since it's supported even when built

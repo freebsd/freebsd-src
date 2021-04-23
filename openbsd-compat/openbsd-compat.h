@@ -48,6 +48,10 @@
 #include "blf.h"
 #include "fnmatch.h"
 
+#if defined(HAVE_LOGIN_CAP) && !defined(HAVE_LOGIN_GETPWCLASS)
+# define login_getpwclass(pw) login_getclass(pw->pw_class)
+#endif
+
 #ifndef HAVE_BASENAME
 char *basename(const char *path);
 #endif
@@ -122,7 +126,7 @@ void strmode(int mode, char *p);
 char *strptime(const char *buf, const char *fmt, struct tm *tm);
 #endif
 
-#if !defined(HAVE_MKDTEMP) || defined(HAVE_STRICT_MKSTEMP)
+#if !defined(HAVE_MKDTEMP)
 int mkstemps(char *path, int slen);
 int mkstemp(char *path);
 char *mkdtemp(char *path);

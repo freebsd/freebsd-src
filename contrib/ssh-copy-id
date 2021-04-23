@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # Copyright (c) 1999-2020 Philip Hands <phil@hands.com>
+#               2020 Matthias Blümel <blaimi@blaimi.de>
 #               2017 Sebastien Boyron <seb@boyron.eu>
 #               2013 Martin Kletzander <mkletzan@redhat.com>
 #               2010 Adeodato =?iso-8859-1?Q?Sim=F3?= <asp16@alu.ua.es>
@@ -61,11 +62,14 @@ fi
 
 # shellcheck disable=SC2010
 DEFAULT_PUB_ID_FILE=$(ls -t "${HOME}"/.ssh/id*.pub 2>/dev/null | grep -v -- '-cert.pub$' | head -n 1)
+SSH="ssh -a -x"
+umask 0177
 
 usage () {
-  printf 'Usage: %s [-h|-?|-f|-n] [-i [identity_file]] [-p port] [-F alternative ssh_config file] [[-o <ssh -o options>] ...] [user@]hostname\n' "$0" >&2
+  printf 'Usage: %s [-h|-?|-f|-n|-s] [-i [identity_file]] [-p port] [-F alternative ssh_config file] [[-o <ssh -o options>] ...] [user@]hostname\n' "$0" >&2
   printf '\t-f: force mode -- copy keys without trying to check if they are already installed\n' >&2
   printf '\t-n: dry run    -- no keys are actually copied\n' >&2
+  printf '\t-s: use sftp   -- use sftp instead of executing remote-commands. Can be useful if the remote only allows sftp\n' >&2
   printf '\t-h|-?: print this help\n' >&2
   exit 1
 }
@@ -76,7 +80,7 @@ quote() {
 }
 
 use_id_file() {
-  local L_ID_FILE="$1"
+  L_ID_FILE="$1"
 
   if [ -z "$L_ID_FILE" ] ; then
     printf '%s: ERROR: no ID file found\n' "$0"
@@ -94,7 +98,7 @@ use_id_file() {
   # check that the files are readable
   for f in "$PUB_ID_FILE" ${PRIV_ID_FILE:+"$PRIV_ID_FILE"} ; do
     ErrMSG=$( { : < "$f" ; } 2>&1 ) || {
-      local L_PRIVMSG=""
+      L_PRIVMSG=""
       [ "$f" = "$PRIV_ID_FILE" ] && L_PRIVMSG="	(to install the contents of '$PUB_ID_FILE' anyway, look at the -f option)"
       printf "\\n%s: ERROR: failed to open ID file '%s': %s\\n" "$0" "$f" "$(printf '%s\n%s\n' "$ErrMSG" "$L_PRIVMSG" | sed -e 's/.*: *//')"
       exit 1
@@ -108,9 +112,8 @@ if [ -n "$SSH_AUTH_SOCK" ] && ssh-add -L >/dev/null 2>&1 ; then
   GET_ID="ssh-add -L"
 fi
 
-while getopts "i:o:p:F:fnh?" OPT
+while getopts "i:o:p:F:fnsh?" OPT
 do
-
   case "$OPT" in
     i)
       [ "${SEEN_OPT_I}" ] && {
@@ -129,6 +132,9 @@ do
     n)
       DRY_RUN=1
       ;;
+    s)
+      SFTP=sftp
+      ;;
     h|\?)
       usage
       ;;
@@ -136,9 +142,6 @@ do
 done 
 #shift all args to keep only USER_HOST
 shift $((OPTIND-1))
-
-
-
 
 if [ $# = 0 ] ; then
   usage
@@ -166,60 +169,57 @@ if [ -z "$(eval $GET_ID)" ] ; then
   exit 1
 fi
 
+# filter_ids()
+# tries to log in using the keys piped to it, and filters out any that work
+filter_ids() {
+  L_SUCCESS="$1"
+  L_TMP_ID_FILE="$SCRATCH_DIR"/popids_tmp_id
+  L_OUTPUT_FILE="$SCRATCH_DIR"/popids_output
+
+  # repopulate "$@" inside this function
+  eval set -- "$SSH_OPTS"
+
+  while read -r ID || [ "$ID" ] ; do
+    printf '%s\n' "$ID" > "$L_TMP_ID_FILE"
+
+    # the next line assumes $PRIV_ID_FILE only set if using a single id file - this
+    # assumption will break if we implement the possibility of multiple -i options.
+    # The point being that if file based, ssh needs the private key, which it cannot
+    # find if only given the contents of the .pub file in an unrelated tmpfile
+    $SSH -i "${PRIV_ID_FILE:-$L_TMP_ID_FILE}" \
+      -o ControlPath=none \
+      -o LogLevel=INFO \
+      -o PreferredAuthentications=publickey \
+      -o IdentitiesOnly=yes "$@" exit >"$L_OUTPUT_FILE" 2>&1 </dev/null
+    if [ "$?" = "$L_SUCCESS" ] || {
+         [ "$SFTP" ] && grep 'allows sftp connections only' "$L_OUTPUT_FILE" >/dev/null
+         # this error counts as a success if we're setting up an sftp connection
+       }
+    then
+      : > "$L_TMP_ID_FILE"
+    else
+      grep 'Permission denied' "$L_OUTPUT_FILE" >/dev/null || {
+        sed -e 's/^/ERROR: /' <"$L_OUTPUT_FILE" >"$L_TMP_ID_FILE"
+        cat >/dev/null #consume the other keys, causing loop to end
+      }
+    fi
+
+    cat "$L_TMP_ID_FILE"
+  done
+}
+
 # populate_new_ids() uses several global variables ($USER_HOST, $SSH_OPTS ...)
 # and has the side effect of setting $NEW_IDS
 populate_new_ids() {
-  local L_SUCCESS="$1"
-
-  # shellcheck disable=SC2086
   if [ "$FORCED" ] ; then
+    # shellcheck disable=SC2086
     NEW_IDS=$(eval $GET_ID)
     return
   fi
 
-  # repopulate "$@" inside this function 
-  eval set -- "$SSH_OPTS"
-
-  umask 0177
-  local L_TMP_ID_FILE
-  L_TMP_ID_FILE=$(mktemp ~/.ssh/ssh-copy-id_id.XXXXXXXXXX)
-  if test $? -ne 0 || test "x$L_TMP_ID_FILE" = "x" ; then
-    printf '%s: ERROR: mktemp failed\n' "$0" >&2
-    exit 1
-  fi
-  local L_CLEANUP="rm -f \"$L_TMP_ID_FILE\" \"${L_TMP_ID_FILE}.stderr\""
-  # shellcheck disable=SC2064
-  trap "$L_CLEANUP" EXIT TERM INT QUIT
   printf '%s: INFO: attempting to log in with the new key(s), to filter out any that are already installed\n' "$0" >&2
   # shellcheck disable=SC2086
-  NEW_IDS=$(
-    eval $GET_ID | {
-      while read -r ID || [ "$ID" ] ; do
-        printf '%s\n' "$ID" > "$L_TMP_ID_FILE"
-
-        # the next line assumes $PRIV_ID_FILE only set if using a single id file - this
-        # assumption will break if we implement the possibility of multiple -i options.
-        # The point being that if file based, ssh needs the private key, which it cannot
-        # find if only given the contents of the .pub file in an unrelated tmpfile
-        ssh -i "${PRIV_ID_FILE:-$L_TMP_ID_FILE}" \
-            -o ControlPath=none \
-            -o LogLevel=INFO \
-            -o PreferredAuthentications=publickey \
-            -o IdentitiesOnly=yes "$@" exit 2>"$L_TMP_ID_FILE.stderr" </dev/null
-        if [ "$?" = "$L_SUCCESS" ] ; then
-          : > "$L_TMP_ID_FILE"
-        else
-          grep 'Permission denied' "$L_TMP_ID_FILE.stderr" >/dev/null || {
-            sed -e 's/^/ERROR: /' <"$L_TMP_ID_FILE.stderr" >"$L_TMP_ID_FILE"
-            cat >/dev/null #consume the other keys, causing loop to end
-          }
-        fi
-
-        cat "$L_TMP_ID_FILE"
-      done
-    }
-  )
-  eval "$L_CLEANUP" && trap - EXIT TERM INT QUIT
+  NEW_IDS=$(eval $GET_ID | filter_ids $1)
 
   if expr "$NEW_IDS" : "^ERROR: " >/dev/null ; then
     printf '\n%s: %s\n\n' "$0" "$NEW_IDS" >&2
@@ -237,7 +237,8 @@ populate_new_ids() {
 #    produce a one-liner to add the keys to remote authorized_keys file
 #    optionally takes an alternative path for authorized_keys
 installkeys_sh() {
-  local AUTH_KEY_FILE=${1:-.ssh/authorized_keys}
+  AUTH_KEY_FILE=${1:-.ssh/authorized_keys}
+  AUTH_KEY_DIR=$(dirname "${AUTH_KEY_FILE}")
 
   # In setting INSTALLKEYS_SH:
   #    the tr puts it all on one line (to placate tcsh)
@@ -247,23 +248,67 @@ installkeys_sh() {
   #    the -z `tail ...` checks for a trailing newline. The echo adds one if was missing
   #    the cat adds the keys we're getting via STDIN
   #    and if available restorecon is used to restore the SELinux context
-  INSTALLKEYS_SH=$(tr '\t\n' ' ' <<-EOF)
+  INSTALLKEYS_SH=$(tr '\t\n' ' ' <<-EOF
 	cd;
 	umask 077;
-	mkdir -p $(dirname "${AUTH_KEY_FILE}") &&
-	  { [ -z \`tail -1c ${AUTH_KEY_FILE} 2>/dev/null\` ] || echo >> ${AUTH_KEY_FILE}; } &&
-	  cat >> ${AUTH_KEY_FILE} ||
-	  exit 1;
+	mkdir -p "${AUTH_KEY_DIR}" &&
+		{ [ -z \`tail -1c ${AUTH_KEY_FILE} 2>/dev/null\` ] ||
+			echo >> "${AUTH_KEY_FILE}" || exit 1; } &&
+		cat >> "${AUTH_KEY_FILE}" || exit 1;
 	if type restorecon >/dev/null 2>&1; then
-	  restorecon -F .ssh ${AUTH_KEY_FILE};
+		restorecon -F "${AUTH_KEY_DIR}" "${AUTH_KEY_FILE}";
 	fi
-EOF
+	EOF
+  )
 
   # to defend against quirky remote shells: use 'exec sh -c' to get POSIX;
   printf "exec sh -c '%s'" "${INSTALLKEYS_SH}"
 }
 
-REMOTE_VERSION=$(ssh -v -o PreferredAuthentications=',' -o ControlPath=none "$@" 2>&1 |
+#shellcheck disable=SC2120 # the 'eval set' confuses this
+installkeys_via_sftp() {
+
+  # repopulate "$@" inside this function
+  eval set -- "$SSH_OPTS"
+
+  L_KEYS=$SCRATCH_DIR/authorized_keys
+  L_SHARED_CON=$SCRATCH_DIR/master-conn
+  $SSH -f -N -M -S "$L_SHARED_CON" "$@"
+  L_CLEANUP="$SSH -S $L_SHARED_CON -O exit 'ignored' >/dev/null 2>&1 ; $SCRATCH_CLEANUP"
+  #shellcheck disable=SC2064
+  trap "$L_CLEANUP" EXIT TERM INT QUIT
+  sftp -b - -o "ControlPath=$L_SHARED_CON" "ignored" <<-EOF || return 1
+	-get .ssh/authorized_keys $L_KEYS
+	EOF
+  # add a newline or create file if it's missing, same like above
+  [ -z "$(tail -1c "$L_KEYS" 2>/dev/null)" ] || echo >> "$L_KEYS"
+  # append the keys being piped in here
+  cat >> "$L_KEYS"
+  sftp -b - -o "ControlPath=$L_SHARED_CON" "ignored" <<-EOF || return 1
+	-mkdir .ssh
+	chmod 700 .ssh
+	put $L_KEYS .ssh/authorized_keys
+	chmod 600 .ssh/authorized_keys
+	EOF
+  #shellcheck disable=SC2064
+  eval "$L_CLEANUP" && trap "$SCRATCH_CLEANUP" EXIT TERM INT QUIT
+}
+
+
+# create a scratch dir for any temporary files needed
+if SCRATCH_DIR=$(mktemp -d ~/.ssh/ssh-copy-id.XXXXXXXXXX) &&
+    [ "$SCRATCH_DIR" ] && [ -d "$SCRATCH_DIR" ]
+then
+  chmod 0700 "$SCRATCH_DIR"
+  SCRATCH_CLEANUP="rm -rf \"$SCRATCH_DIR\""
+  #shellcheck disable=SC2064
+  trap "$SCRATCH_CLEANUP" EXIT TERM INT QUIT
+else
+  printf '%s: ERROR: failed to create required temporary directory under ~/.ssh\n' "$0" >&2
+  exit 1
+fi
+
+REMOTE_VERSION=$($SSH -v -o PreferredAuthentications=',' -o ControlPath=none "$@" 2>&1 |
                  sed -ne 's/.*remote software version //p')
 
 # shellcheck disable=SC2029
@@ -276,7 +321,7 @@ case "$REMOTE_VERSION" in
          printf '%s: WARNING: Non-dsa key (#%d) skipped (NetScreen only supports DSA keys)\n' "$0" "$KEY_NO" >&2
          continue
       }
-      [ "$DRY_RUN" ] || printf 'set ssh pka-dsa key %s\nsave\nexit\n' "$KEY" | ssh -T "$@" >/dev/null 2>&1
+      [ "$DRY_RUN" ] || printf 'set ssh pka-dsa key %s\nsave\nexit\n' "$KEY" | $SSH -T "$@" >/dev/null 2>&1
       if [ $? = 255 ] ; then
         printf '%s: ERROR: installation of key #%d failed (please report a bug describing what caused this, so that we can make this message useful)\n' "$0" "$KEY_NO" >&2
       else
@@ -290,16 +335,22 @@ case "$REMOTE_VERSION" in
   dropbear*)
     populate_new_ids 0
     [ "$DRY_RUN" ] || printf '%s\n' "$NEW_IDS" | \
-      ssh "$@" "$(installkeys_sh /etc/dropbear/authorized_keys)" \
+      $SSH "$@" "$(installkeys_sh /etc/dropbear/authorized_keys)" \
       || exit 1
     ADDED=$(printf '%s\n' "$NEW_IDS" | wc -l)
     ;;
   *)
     # Assuming that the remote host treats ~/.ssh/authorized_keys as one might expect
     populate_new_ids 0
-    [ "$DRY_RUN" ] || printf '%s\n' "$NEW_IDS" | \
-      ssh "$@" "$(installkeys_sh)" \
-      || exit 1
+    if ! [ "$DRY_RUN" ] ; then
+      printf '%s\n' "$NEW_IDS" | \
+        if [ "$SFTP" ] ; then
+          #shellcheck disable=SC2119
+          installkeys_via_sftp
+        else
+          $SSH "$@" "$(installkeys_sh)"
+        fi || exit 1
+    fi
     ADDED=$(printf '%s\n' "$NEW_IDS" | wc -l)
     ;;
 esac
@@ -317,7 +368,7 @@ else
 
 	Number of key(s) added: $ADDED
 
-	Now try logging into the machine, with:   "ssh $SSH_OPTS"
+	Now try logging into the machine, with:   "${SFTP:-ssh} $SSH_OPTS"
 	and check to make sure that only the key(s) you wanted were added.
 
 	EOF

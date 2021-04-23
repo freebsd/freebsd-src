@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey-xmss.c,v 1.8 2019/11/13 07:53:10 markus Exp $ */
+/* $OpenBSD: sshkey-xmss.c,v 1.9 2020/10/19 22:49:23 dtucker Exp $ */
 /*
  * Copyright (c) 2017 Markus Friedl.  All rights reserved.
  *
@@ -45,6 +45,7 @@
 #include "sshkey.h"
 #include "sshkey-xmss.h"
 #include "atomicio.h"
+#include "log.h"
 
 #include "xmss_fast.h"
 
@@ -79,7 +80,7 @@ int	 sshkey_xmss_init_bds_state(struct sshkey *);
 int	 sshkey_xmss_init_enc_key(struct sshkey *, const char *);
 void	 sshkey_xmss_free_bds(struct sshkey *);
 int	 sshkey_xmss_get_state_from_file(struct sshkey *, const char *,
-	    int *, sshkey_printfn *);
+	    int *, int);
 int	 sshkey_xmss_encrypt_state(const struct sshkey *, struct sshbuf *,
 	    struct sshbuf **);
 int	 sshkey_xmss_decrypt_state(const struct sshkey *, struct sshbuf *,
@@ -87,7 +88,8 @@ int	 sshkey_xmss_decrypt_state(const struct sshkey *, struct sshbuf *,
 int	 sshkey_xmss_serialize_enc_key(const struct sshkey *, struct sshbuf *);
 int	 sshkey_xmss_deserialize_enc_key(struct sshkey *, struct sshbuf *);
 
-#define PRINT(s...) do { if (pr) pr(s); } while (0)
+#define PRINT(...) do { if (printerror) sshlog(__FILE__, __func__, __LINE__, \
+    0, SYSLOG_LEVEL_ERROR, __VA_ARGS__); } while (0)
 
 int
 sshkey_xmss_init(struct sshkey *key, const char *name)
@@ -392,7 +394,7 @@ sshkey_xmss_generate_private_key(struct sshkey *k, u_int bits)
 
 int
 sshkey_xmss_get_state_from_file(struct sshkey *k, const char *filename,
-    int *have_file, sshkey_printfn *pr)
+    int *have_file, int printerror)
 {
 	struct sshbuf *b = NULL, *enc = NULL;
 	int ret = SSH_ERR_SYSTEM_ERROR, r, fd = -1;
@@ -440,7 +442,7 @@ done:
 }
 
 int
-sshkey_xmss_get_state(const struct sshkey *k, sshkey_printfn *pr)
+sshkey_xmss_get_state(const struct sshkey *k, int printerror)
 {
 	struct ssh_xmss_state *state = k->xmss_state;
 	u_int32_t idx = 0;
@@ -493,9 +495,9 @@ sshkey_xmss_get_state(const struct sshkey *k, sshkey_printfn *pr)
 	}
 	/* XXX no longer const */
 	if ((r = sshkey_xmss_get_state_from_file((struct sshkey *)k,
-	    statefile, &have_state, pr)) != 0) {
+	    statefile, &have_state, printerror)) != 0) {
 		if ((r = sshkey_xmss_get_state_from_file((struct sshkey *)k,
-		    ostatefile, &have_ostate, pr)) == 0) {
+		    ostatefile, &have_ostate, printerror)) == 0) {
 			state->allow_update = 1;
 			r = sshkey_xmss_forward_state(k, 1);
 			state->idx = PEEK_U32(k->xmss_sk);
@@ -563,7 +565,7 @@ sshkey_xmss_forward_state(const struct sshkey *k, u_int32_t reserve)
 }
 
 int
-sshkey_xmss_update_state(const struct sshkey *k, sshkey_printfn *pr)
+sshkey_xmss_update_state(const struct sshkey *k, int printerror)
 {
 	struct ssh_xmss_state *state = k->xmss_state;
 	struct sshbuf *b = NULL, *enc = NULL;

@@ -501,6 +501,9 @@
 /* Define to 1 if you have the `EVP_CIPHER_CTX_get_iv' function. */
 #undef HAVE_EVP_CIPHER_CTX_GET_IV
 
+/* Define to 1 if you have the `EVP_CIPHER_CTX_get_updated_iv' function. */
+#undef HAVE_EVP_CIPHER_CTX_GET_UPDATED_IV
+
 /* Define to 1 if you have the `EVP_CIPHER_CTX_iv' function. */
 #undef HAVE_EVP_CIPHER_CTX_IV
 
@@ -548,6 +551,9 @@
 
 /* Define to 1 if you have the `explicit_bzero' function. */
 #undef HAVE_EXPLICIT_BZERO
+
+/* Define to 1 if you have the `explicit_memset' function. */
+#undef HAVE_EXPLICIT_MEMSET
 
 /* Define to 1 if you have the `fchmod' function. */
 #undef HAVE_FCHMOD
@@ -905,6 +911,9 @@
 
 /* Define to 1 if you have the `login_getcapbool' function. */
 #undef HAVE_LOGIN_GETCAPBOOL
+
+/* Define to 1 if you have the `login_getpwclass' function. */
+#undef HAVE_LOGIN_GETPWCLASS
 
 /* Define to 1 if you have the <login.h> header file. */
 #undef HAVE_LOGIN_H
@@ -1319,9 +1328,6 @@
 
 /* Define to 1 if you have the `strftime' function. */
 #undef HAVE_STRFTIME
-
-/* Silly mkstemp() */
-#undef HAVE_STRICT_MKSTEMP
 
 /* Define to 1 if you have the <strings.h> header file. */
 #undef HAVE_STRINGS_H
@@ -1874,9 +1880,6 @@
 /* The size of `short int', as computed by sizeof. */
 #undef SIZEOF_SHORT_INT
 
-/* The size of `size_t', as computed by sizeof. */
-#undef SIZEOF_SIZE_T
-
 /* Define as const if snprintf() can declare const char *fmt */
 #undef SNPRINTF_CONST
 
@@ -1932,9 +1935,6 @@
 /* Support routing domains using Linux VRF */
 #undef SYS_RDOMAIN_LINUX
 
-/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
-#undef TIME_WITH_SYS_TIME
-
 /* Support passwords > 8 chars */
 #undef UNIXWARE_LONG_PASSWORDS
 
@@ -1973,6 +1973,9 @@
 
 /* Define if you have Solaris projects */
 #undef USE_SOLARIS_PROJECTS
+
+/* compiler supports variable length arrays */
+#undef VARIABLE_LENGTH_ARRAYS
 
 /* Define if you shouldn't strip 'tty' from your ttyname in [uw]tmp */
 #undef WITH_ABBREV_NO_TTY

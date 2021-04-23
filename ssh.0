@@ -269,8 +269,8 @@ DESCRIPTION
                    GSSAPIDelegateCredentials
                    HashKnownHosts
                    Host
+                   HostbasedAcceptedAlgorithms
                    HostbasedAuthentication
-                   HostbasedKeyTypes
                    HostKeyAlgorithms
                    HostKeyAlias
                    Hostname
@@ -281,6 +281,7 @@ DESCRIPTION
                    KbdInteractiveAuthentication
                    KbdInteractiveDevices
                    KexAlgorithms
+                   KnownHostsCommand
                    LocalCommand
                    LocalForward
                    LogLevel
@@ -290,13 +291,14 @@ DESCRIPTION
                    NumberOfPasswordPrompts
                    PasswordAuthentication
                    PermitLocalCommand
+                   PermitRemoteOpen
                    PKCS11Provider
                    Port
                    PreferredAuthentications
                    ProxyCommand
                    ProxyJump
                    ProxyUseFdpass
-                   PubkeyAcceptedKeyTypes
+                   PubkeyAcceptedAlgorithms
                    PubkeyAuthentication
                    RekeyLimit
                    RemoteCommand
@@ -999,4 +1001,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.8                      July 15, 2020                     OpenBSD 6.8
+OpenBSD 6.8                    February 15, 2021                   OpenBSD 6.8

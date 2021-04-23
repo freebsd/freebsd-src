@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-hostkey.sh,v 1.23 2020/01/03 03:02:26 djm Exp $
+#	$OpenBSD: cert-hostkey.sh,v 1.24 2021/02/25 03:27:34 djm Exp $
 #	Placed in the Public Domain.
 
 tid="certified host keys"
@@ -29,12 +29,12 @@ for i in `$SSH -Q key | maybe_filter_sk`; do
 done
 (
 	echo "HostKeyAlgorithms ${types}"
-	echo "PubkeyAcceptedKeyTypes *"
+	echo "PubkeyAcceptedAlgorithms *"
 ) >> $OBJ/ssh_proxy
 cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
 (
 	echo "HostKeyAlgorithms *"
-	echo "PubkeyAcceptedKeyTypes *"
+	echo "PubkeyAcceptedAlgorithms *"
 ) >> $OBJ/sshd_proxy_bak
 
 HOSTS='localhost-with-alias,127.0.0.1,::1'

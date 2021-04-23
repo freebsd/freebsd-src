@@ -176,8 +176,8 @@ DESCRIPTION
              Specifies which algorithms are allowed for signing of
              certificates by certificate authorities (CAs).  The default is:
 
-                   ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-                   ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+                   ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,
+                   ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 
              ssh(1) will not accept host certificates signed using algorithms
              other than those specified.
@@ -204,12 +204,12 @@ DESCRIPTION
              argument to this keyword must be yes (the default) or no.
 
      CheckHostIP
-             If set to yes (the default), ssh(1) will additionally check the
-             host IP address in the known_hosts file.  This allows it to
-             detect if a host key changed due to DNS spoofing and will add
-             addresses of destination hosts to ~/.ssh/known_hosts in the
-             process, regardless of the setting of StrictHostKeyChecking.  If
-             the option is set to no, the check will not be executed.
+             If set to yes ssh(1) will additionally check the host IP address
+             in the known_hosts file.  This allows it to detect if a host key
+             changed due to DNS spoofing and will add addresses of destination
+             hosts to ~/.ssh/known_hosts in the process, regardless of the
+             setting of StrictHostKeyChecking.  If the option is set to no
+             (the default), the check will not be executed.
 
      Ciphers
              Specifies the ciphers allowed and their order of preference.
@@ -450,69 +450,74 @@ DESCRIPTION
              addresses in known hosts files will not be converted
              automatically, but may be manually hashed using ssh-keygen(1).
 
+     HostbasedAcceptedAlgorithms
+             Specifies the signature algorithms that will be used for
+             hostbased authentication as a comma-separated list of patterns.
+             Alternately if the specified list begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
+             then the specified signature algorithms will be appended to the
+             default set instead of replacing them.  If the specified list
+             begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified signature
+             algorithms (including wildcards) will be removed from the default
+             set instead of replacing them.  If the specified list begins with
+             a M-bM-^@M-^X^M-bM-^@M-^Y character, then the specified signature algorithms will be
+             placed at the head of the default set.  The default for this
+             option is:
+
+                ssh-ed25519-cert-v01@openssh.com,
+                ecdsa-sha2-nistp256-cert-v01@openssh.com,
+                ecdsa-sha2-nistp384-cert-v01@openssh.com,
+                ecdsa-sha2-nistp521-cert-v01@openssh.com,
+                sk-ssh-ed25519-cert-v01@openssh.com,
+                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
+                rsa-sha2-512-cert-v01@openssh.com,
+                rsa-sha2-256-cert-v01@openssh.com,
+                ssh-rsa-cert-v01@openssh.com,
+                ssh-ed25519,
+                ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+                sk-ssh-ed25519@openssh.com,
+                sk-ecdsa-sha2-nistp256@openssh.com,
+                rsa-sha2-512,rsa-sha2-256,ssh-rsa
+
+             The -Q option of ssh(1) may be used to list supported signature
+             algorithms.  This was formerly named HostbasedKeyTypes.
+
      HostbasedAuthentication
              Specifies whether to try rhosts based authentication with public
              key authentication.  The argument must be yes or no (the
              default).
 
-     HostbasedKeyTypes
-             Specifies the key types that will be used for hostbased
-             authentication as a comma-separated list of patterns.
-             Alternately if the specified list begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
-             then the specified key types will be appended to the default set
-             instead of replacing them.  If the specified list begins with a
-             M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified key types (including wildcards)
-             will be removed from the default set instead of replacing them.
-             If the specified list begins with a M-bM-^@M-^X^M-bM-^@M-^Y character, then the
-             specified key types will be placed at the head of the default
-             set.  The default for this option is:
-
-                ecdsa-sha2-nistp256-cert-v01@openssh.com,
-                ecdsa-sha2-nistp384-cert-v01@openssh.com,
-                ecdsa-sha2-nistp521-cert-v01@openssh.com,
-                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
-                ssh-ed25519-cert-v01@openssh.com,
-                sk-ssh-ed25519-cert-v01@openssh.com,
-                rsa-sha2-512-cert-v01@openssh.com,
-                rsa-sha2-256-cert-v01@openssh.com,
-                ssh-rsa-cert-v01@openssh.com,
-                ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-                sk-ecdsa-sha2-nistp256@openssh.com,
-                ssh-ed25519,sk-ssh-ed25519@openssh.com,
-                rsa-sha2-512,rsa-sha2-256,ssh-rsa
-
-             The -Q option of ssh(1) may be used to list supported key types.
-
      HostKeyAlgorithms
-             Specifies the host key algorithms that the client wants to use in
-             order of preference.  Alternately if the specified list begins
-             with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified key types will be
-             appended to the default set instead of replacing them.  If the
-             specified list begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified
-             key types (including wildcards) will be removed from the default
-             set instead of replacing them.  If the specified list begins with
-             a M-bM-^@M-^X^M-bM-^@M-^Y character, then the specified key types will be placed at
-             the head of the default set.  The default for this option is:
+             Specifies the host key signature algorithms that the client wants
+             to use in order of preference.  Alternately if the specified list
+             begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the specified signature
+             algorithms will be appended to the default set instead of
+             replacing them.  If the specified list begins with a M-bM-^@M-^X-M-bM-^@M-^Y
+             character, then the specified signature algorithms (including
+             wildcards) will be removed from the default set instead of
+             replacing them.  If the specified list begins with a M-bM-^@M-^X^M-bM-^@M-^Y
+             character, then the specified signature algorithms will be placed
+             at the head of the default set.  The default for this option is:
 
+                ssh-ed25519-cert-v01@openssh.com,
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
                 ecdsa-sha2-nistp521-cert-v01@openssh.com,
-                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
-                ssh-ed25519-cert-v01@openssh.com,
                 sk-ssh-ed25519-cert-v01@openssh.com,
+                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 rsa-sha2-512-cert-v01@openssh.com,
                 rsa-sha2-256-cert-v01@openssh.com,
                 ssh-rsa-cert-v01@openssh.com,
+                ssh-ed25519,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
                 sk-ecdsa-sha2-nistp256@openssh.com,
-                ssh-ed25519,sk-ssh-ed25519@openssh.com,
+                sk-ssh-ed25519@openssh.com,
                 rsa-sha2-512,rsa-sha2-256,ssh-rsa
 
              If hostkeys are known for the destination host then this default
              is modified to prefer their algorithms.
 
-             The list of available key types may also be obtained using "ssh
-             -Q HostKeyAlgorithms".
+             The list of available signature algorithms may also be obtained
+             using "ssh -Q HostKeyAlgorithms".
 
      HostKeyAlias
              Specifies an alias that should be used instead of the real host
@@ -650,6 +655,22 @@ DESCRIPTION
              The list of available key exchange algorithms may also be
              obtained using "ssh -Q kex".
 
+     KnownHostsCommand
+             Specifies a command to use to obtain a list of host keys, in
+             addition to those listed in UserKnownHostsFile and
+             GlobalKnownHostsFile.  This command is executed after the files
+             have been read.  It may write host key lines to standard output
+             in identical format to the usual files (described in the
+             VERIFYING HOST KEYS section in ssh(1)).  Arguments to
+             KnownHostsCommand accept the tokens described in the TOKENS
+             section.  The command may be invoked multiple times per
+             connection: once when preparing the preference list of host key
+             algorithms to use, again to obtain the host key for the requested
+             host name and, if CheckHostIP is enabled, one more time to obtain
+             the host key matching the server's address.  If the command exits
+             abnormally or returns a non-zero exit status then the connection
+             is terminated.
+
      LocalCommand
              Specifies a command to execute on the local machine after
              successfully connecting to the server.  The command string
@@ -691,6 +712,19 @@ DESCRIPTION
              VERBOSE, DEBUG, DEBUG1, DEBUG2, and DEBUG3.  The default is INFO.
              DEBUG and DEBUG1 are equivalent.  DEBUG2 and DEBUG3 each specify
              higher levels of verbose output.
+
+     LogVerbose
+             Specify one or more overrides to LogLevel.  An override consists
+             of a pattern lists that matches the source file, function and
+             line number to force detailed logging for.  For example, an
+             override pattern of:
+
+                   kex.c:*:1000,*:kex_exchange_identification():*,packet.c:*
+
+             would enable detailed logging for line 1000 of kex.c, everything
+             in the kex_exchange_identification() function, and all code in
+             the packet.c file.  This option is intended for debugging and no
+             overrides are enabled by default.
 
      MACs    Specifies the MAC (message authentication code) algorithms in
              order of preference.  The MAC algorithm is used for data
@@ -735,6 +769,23 @@ DESCRIPTION
              Allow local command execution via the LocalCommand option or
              using the !command escape sequence in ssh(1).  The argument must
              be yes or no (the default).
+
+     PermitRemoteOpen
+             Specifies the destinations to which remote TCP port forwarding is
+             permitted when RemoteForward is used as a SOCKS proxy.  The
+             forwarding specification must be one of the following forms:
+
+                   PermitRemoteOpen host:port
+                   PermitRemoteOpen IPv4_addr:port
+                   PermitRemoteOpen [IPv6_addr]:port
+
+             Multiple forwards may be specified by separating them with
+             whitespace.  An argument of any can be used to remove all
+             restrictions and permit any forwarding requests.  An argument of
+             none can be used to prohibit all forwarding requests.  The
+             wildcard M-bM-^@M-^X*M-bM-^@M-^Y can be used for host or port to allow all hosts or
+             ports respectively.  Otherwise, no pattern matching or address
+             lookups are performed on supplied names.
 
      PKCS11Provider
              Specifies which PKCS#11 provider to use or none to indicate that
@@ -784,6 +835,7 @@ DESCRIPTION
              will cause ssh(1) to connect to the target host by first making a
              ssh(1) connection to the specified ProxyJump host and then
              establishing a TCP forwarding to the ultimate target from there.
+             Setting the host to none disables this option entirely.
 
              Note that this option will compete with the ProxyCommand option -
              whichever is specified first will prevent later instances of the
@@ -799,34 +851,35 @@ DESCRIPTION
              back to ssh(1) instead of continuing to execute and pass data.
              The default is no.
 
-     PubkeyAcceptedKeyTypes
-             Specifies the key types that will be used for public key
-             authentication as a comma-separated list of patterns.  If the
-             specified list begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the key types
+     PubkeyAcceptedAlgorithms
+             Specifies the signature algorithms that will be used for public
+             key authentication as a comma-separated list of patterns.  If the
+             specified list begins with a M-bM-^@M-^X+M-bM-^@M-^Y character, then the algorithms
              after it will be appended to the default instead of replacing it.
              If the specified list begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then the
-             specified key types (including wildcards) will be removed from
+             specified algorithms (including wildcards) will be removed from
              the default set instead of replacing them.  If the specified list
-             begins with a M-bM-^@M-^X^M-bM-^@M-^Y character, then the specified key types will be
-             placed at the head of the default set.  The default for this
+             begins with a M-bM-^@M-^X^M-bM-^@M-^Y character, then the specified algorithms will
+             be placed at the head of the default set.  The default for this
              option is:
 
+                ssh-ed25519-cert-v01@openssh.com,
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
                 ecdsa-sha2-nistp521-cert-v01@openssh.com,
-                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
-                ssh-ed25519-cert-v01@openssh.com,
                 sk-ssh-ed25519-cert-v01@openssh.com,
+                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 rsa-sha2-512-cert-v01@openssh.com,
                 rsa-sha2-256-cert-v01@openssh.com,
                 ssh-rsa-cert-v01@openssh.com,
+                ssh-ed25519,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+                sk-ssh-ed25519@openssh.com,
                 sk-ecdsa-sha2-nistp256@openssh.com,
-                ssh-ed25519,sk-ssh-ed25519@openssh.com,
                 rsa-sha2-512,rsa-sha2-256,ssh-rsa
 
-             The list of available key types may also be obtained using "ssh
-             -Q PubkeyAcceptedKeyTypes".
+             The list of available signature algorithms may also be obtained
+             using "ssh -Q PubkeyAcceptedAlgorithms".
 
      PubkeyAuthentication
              Specifies whether to try public key authentication.  The argument
@@ -834,7 +887,7 @@ DESCRIPTION
 
      RekeyLimit
              Specifies the maximum amount of data that may be transmitted
-             before the session key is renegotiated, optionally followed a
+             before the session key is renegotiated, optionally followed by a
              maximum amount of time that may pass before the session key is
              renegotiated.  The first argument is specified in bytes and may
              have a suffix of M-bM-^@M-^XKM-bM-^@M-^Y, M-bM-^@M-^XMM-bM-^@M-^Y, or M-bM-^@M-^XGM-bM-^@M-^Y to indicate Kilobytes,
@@ -864,7 +917,9 @@ DESCRIPTION
              domain socket path.  If forwarding to a specific destination then
              the second argument must be host:hostport or a Unix domain socket
              path, otherwise if no destination argument is specified then the
-             remote forwarding will be established as a SOCKS proxy.
+             remote forwarding will be established as a SOCKS proxy.  When
+             acting as a SOCKS proxy the destination of the connection can be
+             restricted by PermitRemoteOpen.
 
              IPv6 addresses can be specified by enclosing addresses in square
              brackets.  Multiple forwardings may be specified, and additional
@@ -1039,13 +1094,18 @@ DESCRIPTION
              be yes, no or ask.  This option allows learning alternate
              hostkeys for a server and supports graceful key rotation by
              allowing a server to send replacement public keys before old ones
-             are removed.  Additional hostkeys are only accepted if the key
-             used to authenticate the host was already trusted or explicitly
-             accepted by the user.
+             are removed.
+
+             Additional hostkeys are only accepted if the key used to
+             authenticate the host was already trusted or explicitly accepted
+             by the user, the host was authenticated via UserKnownHostsFile
+             (i.e. not GlobalKnownHostsFile) and the host was authenticated
+             using a plain key and not a certificate.
 
              UpdateHostKeys is enabled by default if the user has not
-             overridden the default UserKnownHostsFile setting, otherwise
-             UpdateHostKeys will be set to ask.
+             overridden the default UserKnownHostsFile setting and has not
+             enabled VerifyHostKeyDNS, otherwise UpdateHostKeys will be set to
+             no.
 
              If UpdateHostKeys is set to ask, then the user is asked to
              confirm the modifications to the known_hosts file.  Confirmation
@@ -1133,8 +1193,17 @@ TOKENS
            %%    A literal M-bM-^@M-^X%M-bM-^@M-^Y.
            %C    Hash of %l%h%p%r.
            %d    Local user's home directory.
+           %f    The fingerprint of the server's host key.
+           %H    The known_hosts hostname or address that is being searched
+                 for.
            %h    The remote hostname.
+           %I    A string describing the reason for a KnownHostsCommand
+                 execution: either ADDRESS when looking up a host by address
+                 (only when CheckHostIP is enabled), HOSTNAME when searching
+                 by hostname, or ORDER when preparing the host key algorithm
+                 preference list to use for the destination host.
            %i    The local user ID.
+           %K    The base64 encoded host key.
            %k    The host key alias if specified, otherwise the orignal remote
                  hostname given on the command line.
            %L    The local hostname.
@@ -1144,11 +1213,15 @@ TOKENS
            %r    The remote username.
            %T    The local tun(4) or tap(4) network interface assigned if
                  tunnel forwarding was requested, or "NONE" otherwise.
+           %t    The type of the server host key, e.g.  ssh-ed25519
            %u    The local username.
 
-     CertificateFile, ControlPath, IdentityAgent, IdentityFile, LocalForward,
-     Match exec, RemoteCommand, RemoteForward, and UserKnownHostsFile accept
-     the tokens %%, %C, %d, %h, %i, %L, %l, %n, %p, %r, and %u.
+     CertificateFile, ControlPath, IdentityAgent, IdentityFile,
+     KnownHostsCommand, LocalForward, Match exec, RemoteCommand,
+     RemoteForward, and UserKnownHostsFile accept the tokens %%, %C, %d, %h,
+     %i, %k, %L, %l, %n, %p, %r, and %u.
+
+     KnownHostsCommand additionally accepts the tokens %f, %H, %I, %K and %t.
 
      Hostname accepts the tokens %% and %h.
 
@@ -1164,9 +1237,9 @@ ENVIRONMENT VARIABLES
      the setting for that keyword will be ignored.
 
      The keywords CertificateFile, ControlPath, IdentityAgent, IdentityFile
-     and UserKnownHostsFile support environment variables.  The keywords
-     LocalForward and RemoteForward support environment variables only for
-     Unix domain socket paths.
+     KnownHostsCommand, and UserKnownHostsFile support environment variables.
+     The keywords LocalForward and RemoteForward support environment variables
+     only for Unix domain socket paths.
 
 FILES
      ~/.ssh/config
@@ -1191,4 +1264,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.8                     August 11, 2020                    OpenBSD 6.8
+OpenBSD 6.8                    February 28, 2021                   OpenBSD 6.8

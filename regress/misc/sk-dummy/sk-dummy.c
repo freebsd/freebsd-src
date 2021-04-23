@@ -51,6 +51,13 @@
 # error SK API has changed, sk-dummy.c needs an update
 #endif
 
+#ifdef SK_DUMMY_INTEGRATE
+# define sk_api_version		ssh_sk_api_version
+# define sk_enroll		ssh_sk_enroll
+# define sk_sign		ssh_sk_sign
+# define sk_load_resident_keys	ssh_sk_load_resident_keys
+#endif /* !SK_STANDALONE */
+
 static void skdebug(const char *func, const char *fmt, ...)
     __attribute__((__format__ (printf, 2, 3)));
 

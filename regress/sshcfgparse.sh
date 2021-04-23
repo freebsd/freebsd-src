@@ -1,4 +1,4 @@
-#	$OpenBSD: sshcfgparse.sh,v 1.6 2019/12/21 02:33:07 djm Exp $
+#	$OpenBSD: sshcfgparse.sh,v 1.7 2021/02/24 23:12:35 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="ssh config parse"
@@ -62,34 +62,34 @@ test "$f" = "bar" || fail "user first match -l, expected 'bar' got '$f'"
 f=`${SSH} -GF $OBJ/ssh_config baz@host -o user=foo -l bar baz@host | awk '/^user /{print $2}'`
 test "$f" = "baz" || fail "user first match user@host, expected 'baz' got '$f'"
 
-verbose "pubkeyacceptedkeytypes"
+verbose "pubkeyacceptedalgorithms"
 # Default set
-f=`${SSH} -GF none host | awk '/^pubkeyacceptedkeytypes /{print $2}'`
+f=`${SSH} -GF none host | awk '/^pubkeyacceptedalgorithms /{print $2}'`
 expect_result_present "$f" "ssh-ed25519" "ssh-ed25519-cert-v01.*"
 expect_result_absent "$f" "ssh-dss"
 # Explicit override
-f=`${SSH} -GF none -opubkeyacceptedkeytypes=ssh-ed25519 host | \
-    awk '/^pubkeyacceptedkeytypes /{print $2}'`
+f=`${SSH} -GF none -opubkeyacceptedalgorithms=ssh-ed25519 host | \
+    awk '/^pubkeyacceptedalgorithms /{print $2}'`
 expect_result_present "$f" "ssh-ed25519"
 expect_result_absent "$f" "ssh-ed25519-cert-v01.*" "ssh-dss"
 # Removal from default set
-f=`${SSH} -GF none -opubkeyacceptedkeytypes=-ssh-ed25519-cert* host | \
-    awk '/^pubkeyacceptedkeytypes /{print $2}'`
+f=`${SSH} -GF none -opubkeyacceptedalgorithms=-ssh-ed25519-cert* host | \
+    awk '/^pubkeyacceptedalgorithms /{print $2}'`
 expect_result_present "$f" "ssh-ed25519"
 expect_result_absent "$f" "ssh-ed25519-cert-v01.*" "ssh-dss"
-f=`${SSH} -GF none -opubkeyacceptedkeytypes=-ssh-ed25519 host | \
-    awk '/^pubkeyacceptedkeytypes /{print $2}'`
+f=`${SSH} -GF none -opubkeyacceptedalgorithms=-ssh-ed25519 host | \
+    awk '/^pubkeyacceptedalgorithms /{print $2}'`
 expect_result_present "$f" "ssh-ed25519-cert-v01.*"
 expect_result_absent "$f" "ssh-ed25519" "ssh-dss"
 # Append to default set.
 # This is not tested when built !WITH_OPENSSL
 if [ "$dsa" = "1" ]; then
-	f=`${SSH} -GF none -opubkeyacceptedkeytypes=+ssh-dss-cert* host | \
-	    awk '/^pubkeyacceptedkeytypes /{print $2}'`
+	f=`${SSH} -GF none -opubkeyacceptedalgorithms=+ssh-dss-cert* host | \
+	    awk '/^pubkeyacceptedalgorithms /{print $2}'`
 	expect_result_present "$f" "ssh-ed25519" "ssh-dss-cert-v01.*"
 	expect_result_absent "$f" "ssh-dss"
-	f=`${SSH} -GF none -opubkeyacceptedkeytypes=+ssh-dss host | \
-	    awk '/^pubkeyacceptedkeytypes /{print $2}'`
+	f=`${SSH} -GF none -opubkeyacceptedalgorithms=+ssh-dss host | \
+	    awk '/^pubkeyacceptedalgorithms /{print $2}'`
 	expect_result_present "$f" "ssh-ed25519" "ssh-ed25519-cert-v01.*" "ssh-dss"
 	expect_result_absent "$f" "ssh-dss-cert-v01.*"
 fi

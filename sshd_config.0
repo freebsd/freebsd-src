@@ -207,8 +207,8 @@ DESCRIPTION
              Specifies which algorithms are allowed for signing of
              certificates by certificate authorities (CAs).  The default is:
 
-                   ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-                   ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+                   ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,
+                   ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 
              Certificates signed using other algorithms will not be accepted
              for public key or host-based authentication.
@@ -390,34 +390,37 @@ DESCRIPTION
              facility is provided to assist with operation on multi homed
              machines.  The default is yes.
 
-     HostbasedAcceptedKeyTypes
-             Specifies the key types that will be accepted for hostbased
-             authentication as a list of comma-separated patterns.
+     HostbasedAcceptedAlgorithms
+             Specifies the signature algorithms that will be accepted for
+             hostbased authentication as a list of comma-separated patterns.
              Alternately if the specified list begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
-             then the specified key types will be appended to the default set
-             instead of replacing them.  If the specified list begins with a
-             M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified key types (including wildcards)
-             will be removed from the default set instead of replacing them.
-             If the specified list begins with a M-bM-^@M-^X^M-bM-^@M-^Y character, then the
-             specified key types will be placed at the head of the default
-             set.  The default for this option is:
+             then the specified signature algorithms will be appended to the
+             default set instead of replacing them.  If the specified list
+             begins with a M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified signature
+             algorithms (including wildcards) will be removed from the default
+             set instead of replacing them.  If the specified list begins with
+             a M-bM-^@M-^X^M-bM-^@M-^Y character, then the specified signature algorithms will be
+             placed at the head of the default set.  The default for this
+             option is:
 
+                ssh-ed25519-cert-v01@openssh.com,
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
                 ecdsa-sha2-nistp521-cert-v01@openssh.com,
-                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
-                ssh-ed25519-cert-v01@openssh.com,
                 sk-ssh-ed25519-cert-v01@openssh.com,
+                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 rsa-sha2-512-cert-v01@openssh.com,
                 rsa-sha2-256-cert-v01@openssh.com,
                 ssh-rsa-cert-v01@openssh.com,
+                ssh-ed25519,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+                sk-ssh-ed25519@openssh.com,
                 sk-ecdsa-sha2-nistp256@openssh.com,
-                ssh-ed25519,sk-ssh-ed25519@openssh.com,
                 rsa-sha2-512,rsa-sha2-256,ssh-rsa
 
-             The list of available key types may also be obtained using "ssh
-             -Q HostbasedAcceptedKeyTypes".
+             The list of available signature algorithms may also be obtained
+             using "ssh -Q HostbasedAcceptedAlgorithms".  This was formerly
+             named HostbasedAcceptedKeyTypes.
 
      HostbasedAuthentication
              Specifies whether rhosts or /etc/hosts.equiv authentication
@@ -460,25 +463,26 @@ DESCRIPTION
              read from the SSH_AUTH_SOCK environment variable.
 
      HostKeyAlgorithms
-             Specifies the host key algorithms that the server offers.  The
-             default for this option is:
+             Specifies the host key signature algorithms that the server
+             offers.  The default for this option is:
 
+                ssh-ed25519-cert-v01@openssh.com,
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
                 ecdsa-sha2-nistp521-cert-v01@openssh.com,
-                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
-                ssh-ed25519-cert-v01@openssh.com,
                 sk-ssh-ed25519-cert-v01@openssh.com,
+                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 rsa-sha2-512-cert-v01@openssh.com,
                 rsa-sha2-256-cert-v01@openssh.com,
                 ssh-rsa-cert-v01@openssh.com,
+                ssh-ed25519,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+                sk-ssh-ed25519@openssh.com,
                 sk-ecdsa-sha2-nistp256@openssh.com,
-                ssh-ed25519,sk-ssh-ed25519@openssh.com,
                 rsa-sha2-512,rsa-sha2-256,ssh-rsa
 
-             The list of available key types may also be obtained using "ssh
-             -Q HostKeyAlgorithms".
+             The list of available signature algorithms may also be obtained
+             using "ssh -Q HostKeyAlgorithms".
 
      IgnoreRhosts
              Specifies whether to ignore per-user .rhosts and .shosts files
@@ -566,7 +570,7 @@ DESCRIPTION
                    ecdh-sha2-nistp256
                    ecdh-sha2-nistp384
                    ecdh-sha2-nistp521
-                   sntrup4591761x25519-sha512@tinyssh.org
+                   sntrup761x25519-sha512@openssh.com
 
              The default is:
 
@@ -608,6 +612,19 @@ DESCRIPTION
              DEBUG and DEBUG1 are equivalent.  DEBUG2 and DEBUG3 each specify
              higher levels of debugging output.  Logging with a DEBUG level
              violates the privacy of users and is not recommended.
+
+     LogVerbose
+             Specify one or more overrides to LogLevel.  An override consists
+             of a pattern lists that matches the source file, function and
+             line number to force detailed logging for.  For example, an
+             override pattern of:
+
+                   kex.c:*:1000,*:kex_exchange_identification():*,packet.c:*
+
+             would enable detailed logging for line 1000 of kex.c, everything
+             in the kex_exchange_identification() function, and all code in
+             the packet.c file.  This option is intended for debugging and no
+             overrides are enabled by default.
 
      MACs    Specifies the available MAC (message authentication code)
              algorithms.  The MAC algorithm is used for data integrity
@@ -686,17 +703,17 @@ DESCRIPTION
              AuthorizedKeysFile, AuthorizedPrincipalsCommand,
              AuthorizedPrincipalsCommandUser, AuthorizedPrincipalsFile,
              Banner, ChrootDirectory, ClientAliveCountMax,
-             ClientAliveInterval, DenyGroups, DenyUsers, ForceCommand,
-             GatewayPorts, GSSAPIAuthentication, HostbasedAcceptedKeyTypes,
-             HostbasedAuthentication, HostbasedUsesNameFromPacketOnly,
-             IgnoreRhosts, Include, IPQoS, KbdInteractiveAuthentication,
-             KerberosAuthentication, LogLevel, MaxAuthTries, MaxSessions,
-             PasswordAuthentication, PermitEmptyPasswords, PermitListen,
-             PermitOpen, PermitRootLogin, PermitTTY, PermitTunnel,
-             PermitUserRC, PubkeyAcceptedKeyTypes, PubkeyAuthentication,
-             RekeyLimit, RevokedKeys, RDomain, SetEnv, StreamLocalBindMask,
-             StreamLocalBindUnlink, TrustedUserCAKeys, X11DisplayOffset,
-             X11Forwarding and X11UseLocalhost.
+             ClientAliveInterval, DenyGroups, DenyUsers, DisableForwarding,
+             ForceCommand, GatewayPorts, GSSAPIAuthentication,
+             HostbasedAcceptedAlgorithms, HostbasedAuthentication,
+             HostbasedUsesNameFromPacketOnly, IgnoreRhosts, Include, IPQoS,
+             KbdInteractiveAuthentication, KerberosAuthentication, LogLevel,
+             MaxAuthTries, MaxSessions, PasswordAuthentication,
+             PermitEmptyPasswords, PermitListen, PermitOpen, PermitRootLogin,
+             PermitTTY, PermitTunnel, PermitUserRC, PubkeyAcceptedAlgorithms,
+             PubkeyAuthentication, RekeyLimit, RevokedKeys, RDomain, SetEnv,
+             StreamLocalBindMask, StreamLocalBindUnlink, TrustedUserCAKeys,
+             X11DisplayOffset, X11Forwarding and X11UseLocalhost.
 
      MaxAuthTries
              Specifies the maximum number of authentication attempts permitted
@@ -818,6 +835,19 @@ DESCRIPTION
              Specifies whether any ~/.ssh/rc file is executed.  The default is
              yes.
 
+     PerSourceMaxStartups
+             Specifies the number of unauthenticated connections allowed from
+             a given source address, or M-bM-^@M-^\noneM-bM-^@M-^] if there is no limit.  This
+             limit is applied in addition to MaxStartups, whichever is lower.
+             The default is none.
+
+     PerSourceNetBlockSize
+             Specifies the number of bits of source address that are grouped
+             together for the purposes of applying PerSourceMaxStartups
+             limits.  Values for IPv4 and optionally IPv6 may be specified,
+             separated by a colon.  The default is 32:128, which means each
+             address is considered individually.
+
      PidFile
              Specifies the file that contains the process ID of the SSH
              daemon, or none to not write one.  The default is
@@ -837,34 +867,35 @@ DESCRIPTION
              in interactively.  (On some systems it is also printed by the
              shell, /etc/profile, or equivalent.)  The default is yes.
 
-     PubkeyAcceptedKeyTypes
-             Specifies the key types that will be accepted for public key
-             authentication as a list of comma-separated patterns.
+     PubkeyAcceptedAlgorithms
+             Specifies the signature algorithms that will be accepted for
+             public key authentication as a list of comma-separated patterns.
              Alternately if the specified list begins with a M-bM-^@M-^X+M-bM-^@M-^Y character,
-             then the specified key types will be appended to the default set
+             then the specified algorithms will be appended to the default set
              instead of replacing them.  If the specified list begins with a
-             M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified key types (including wildcards)
-             will be removed from the default set instead of replacing them.
-             If the specified list begins with a M-bM-^@M-^X^M-bM-^@M-^Y character, then the
-             specified key types will be placed at the head of the default
-             set.  The default for this option is:
+             M-bM-^@M-^X-M-bM-^@M-^Y character, then the specified algorithms (including
+             wildcards) will be removed from the default set instead of
+             replacing them.  If the specified list begins with a M-bM-^@M-^X^M-bM-^@M-^Y
+             character, then the specified algorithms will be placed at the
+             head of the default set.  The default for this option is:
 
+                ssh-ed25519-cert-v01@openssh.com,
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
                 ecdsa-sha2-nistp521-cert-v01@openssh.com,
-                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
-                ssh-ed25519-cert-v01@openssh.com,
                 sk-ssh-ed25519-cert-v01@openssh.com,
+                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 rsa-sha2-512-cert-v01@openssh.com,
                 rsa-sha2-256-cert-v01@openssh.com,
                 ssh-rsa-cert-v01@openssh.com,
+                ssh-ed25519,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+                sk-ssh-ed25519@openssh.com,
                 sk-ecdsa-sha2-nistp256@openssh.com,
-                ssh-ed25519,sk-ssh-ed25519@openssh.com,
                 rsa-sha2-512,rsa-sha2-256,ssh-rsa
 
-             The list of available key types may also be obtained using "ssh
-             -Q PubkeyAcceptedKeyTypes".
+             The list of available signature algorithms may also be obtained
+             using "ssh -Q PubkeyAcceptedAlgorithms".
 
      PubkeyAuthOptions
              Sets one or more public key authentication options.  The
@@ -892,7 +923,7 @@ DESCRIPTION
 
      RekeyLimit
              Specifies the maximum amount of data that may be transmitted
-             before the session key is renegotiated, optionally followed a
+             before the session key is renegotiated, optionally followed by a
              maximum amount of time that may pass before the session key is
              renegotiated.  The first argument is specified in bytes and may
              have a suffix of M-bM-^@M-^XKM-bM-^@M-^Y, M-bM-^@M-^XMM-bM-^@M-^Y, or M-bM-^@M-^XGM-bM-^@M-^Y to indicate Kilobytes,
@@ -1150,4 +1181,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.8                     August 27, 2020                    OpenBSD 6.8
+OpenBSD 6.8                    February 27, 2021                   OpenBSD 6.8

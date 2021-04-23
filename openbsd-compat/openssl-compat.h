@@ -113,8 +113,12 @@ int DSA_set0_key(DSA *d, BIGNUM *pub_key, BIGNUM *priv_key);
 #endif /* HAVE_DSA_SET0_KEY */
 
 #ifndef HAVE_EVP_CIPHER_CTX_GET_IV
+# ifdef HAVE_EVP_CIPHER_CTX_GET_UPDATED_IV
+#  define EVP_CIPHER_CTX_get_iv EVP_CIPHER_CTX_get_updated_iv
+# else /* HAVE_EVP_CIPHER_CTX_GET_UPDATED_IV */
 int EVP_CIPHER_CTX_get_iv(const EVP_CIPHER_CTX *ctx,
     unsigned char *iv, size_t len);
+# endif /* HAVE_EVP_CIPHER_CTX_GET_UPDATED_IV */
 #endif /* HAVE_EVP_CIPHER_CTX_GET_IV */
 
 #ifndef HAVE_EVP_CIPHER_CTX_SET_IV

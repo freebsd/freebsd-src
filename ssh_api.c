@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh_api.c,v 1.21 2020/08/27 01:06:18 djm Exp $ */
+/* $OpenBSD: ssh_api.c,v 1.26 2021/01/27 10:05:28 djm Exp $ */
 /*
  * Copyright (c) 2012 Markus Friedl.  All rights reserved.
  *
@@ -60,10 +60,6 @@ int	mm_sshkey_sign(struct sshkey *, u_char **, u_int *,
 DH	*mm_choose_dh(int, int, int);
 #endif
 
-/* Define these two variables here so that they are part of the library */
-u_char *session_id2 = NULL;
-u_int session_id2_len = 0;
-
 int
 mm_sshkey_sign(struct sshkey *key, u_char **sigp, u_int *lenp,
     const u_char *data, u_int datalen, const char *alg,
@@ -122,7 +118,7 @@ ssh_init(struct ssh **sshp, int is_server, struct kex_params *kex_params)
 # endif
 #endif /* WITH_OPENSSL */
 		ssh->kex->kex[KEX_C25519_SHA256] = kex_gen_server;
-		ssh->kex->kex[KEX_KEM_SNTRUP4591761X25519_SHA512] = kex_gen_server;
+		ssh->kex->kex[KEX_KEM_SNTRUP761X25519_SHA512] = kex_gen_server;
 		ssh->kex->load_host_public_key=&_ssh_host_public_key;
 		ssh->kex->load_host_private_key=&_ssh_host_private_key;
 		ssh->kex->sign=&_ssh_host_key_sign;
@@ -140,7 +136,7 @@ ssh_init(struct ssh **sshp, int is_server, struct kex_params *kex_params)
 # endif
 #endif /* WITH_OPENSSL */
 		ssh->kex->kex[KEX_C25519_SHA256] = kex_gen_client;
-		ssh->kex->kex[KEX_KEM_SNTRUP4591761X25519_SHA512] = kex_gen_client;
+		ssh->kex->kex[KEX_KEM_SNTRUP761X25519_SHA512] = kex_gen_client;
 		ssh->kex->verify_host_key =&_ssh_verify_host_key;
 	}
 	*sshp = ssh;
@@ -151,6 +147,9 @@ void
 ssh_free(struct ssh *ssh)
 {
 	struct key_entry *k;
+
+	if (ssh == NULL)
+		return;
 
 	/*
 	 * we've only created the public keys variants in case we
@@ -356,7 +355,7 @@ _ssh_read_banner(struct ssh *ssh, struct sshbuf *banner)
 		if (sshbuf_len(banner) >= 4 &&
 		    memcmp(sshbuf_ptr(banner), "SSH-", 4) == 0)
 			break;
-		debug("%s: %.*s", __func__, (int)sshbuf_len(banner),
+		debug_f("%.*s", (int)sshbuf_len(banner),
 		    sshbuf_ptr(banner));
 		/* Accept lines before banner only on client */
 		if (ssh->kex->server || ++n > SSH_MAX_PRE_BANNER_LINES) {
@@ -389,7 +388,7 @@ _ssh_read_banner(struct ssh *ssh, struct sshbuf *banner)
 	debug("Remote protocol version %d.%d, remote software version %.100s",
 	    remote_major, remote_minor, remote_version);
 
-	ssh->compat = compat_datafellows(remote_version);
+	compat_banner(ssh, remote_version);
 	if  (remote_major == 1 && remote_minor == 99) {
 		remote_major = 2;
 		remote_minor = 0;
@@ -469,9 +468,9 @@ _ssh_host_public_key(int type, int nid, struct ssh *ssh)
 {
 	struct key_entry *k;
 
-	debug3("%s: need %d", __func__, type);
+	debug3_f("need %d", type);
 	TAILQ_FOREACH(k, &ssh->public_keys, next) {
-		debug3("%s: check %s", __func__, sshkey_type(k->key));
+		debug3_f("check %s", sshkey_type(k->key));
 		if (k->key->type == type &&
 		    (type != KEY_ECDSA || k->key->ecdsa_nid == nid))
 			return (k->key);
@@ -484,9 +483,9 @@ _ssh_host_private_key(int type, int nid, struct ssh *ssh)
 {
 	struct key_entry *k;
 
-	debug3("%s: need %d", __func__, type);
+	debug3_f("need %d", type);
 	TAILQ_FOREACH(k, &ssh->private_keys, next) {
-		debug3("%s: check %s", __func__, sshkey_type(k->key));
+		debug3_f("check %s", sshkey_type(k->key));
 		if (k->key->type == type &&
 		    (type != KEY_ECDSA || k->key->ecdsa_nid == nid))
 			return (k->key);
@@ -499,9 +498,9 @@ _ssh_verify_host_key(struct sshkey *hostkey, struct ssh *ssh)
 {
 	struct key_entry *k;
 
-	debug3("%s: need %s", __func__, sshkey_type(hostkey));
+	debug3_f("need %s", sshkey_type(hostkey));
 	TAILQ_FOREACH(k, &ssh->public_keys, next) {
-		debug3("%s: check %s", __func__, sshkey_type(k->key));
+		debug3_f("check %s", sshkey_type(k->key));
 		if (sshkey_equal_public(hostkey, k->key))
 			return (0);	/* ok */
 	}
@@ -547,8 +546,8 @@ _ssh_order_hostkeyalgs(struct ssh *ssh)
 		}
 	}
 	if (*replace != '\0') {
-		debug2("%s: orig/%d    %s", __func__, ssh->kex->server, orig);
-		debug2("%s: replace/%d %s", __func__, ssh->kex->server, replace);
+		debug2_f("orig/%d    %s", ssh->kex->server, orig);
+		debug2_f("replace/%d %s", ssh->kex->server, replace);
 		free(orig);
 		proposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = replace;
 		replace = NULL;	/* owned by proposal */

@@ -8,9 +8,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.90 2020/08/03 02:43:41 djm Exp $
+.\" $OpenBSD: scp.1,v 1.95 2021/01/26 15:40:17 naddy Exp $
 .\"
-.Dd $Mdocdate: August 3 2020 $
+.Dd $Mdocdate: January 26 2021 $
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -31,11 +31,15 @@
 .Sh DESCRIPTION
 .Nm
 copies files between hosts on a network.
+.Pp
 It uses
 .Xr ssh 1
 for data transfer, and uses the same authentication and provides the
-same security as
-.Xr ssh 1 .
+same security as a login session.
+The scp protocol requires execution of the remote user's shell to perform
+.Xr glob 3
+pattern matching.
+.Pp
 .Nm
 will ask for passwords or passphrases if they are needed for
 authentication.
@@ -168,8 +172,8 @@ For full details of the options listed below, and their possible values, see
 .It GSSAPIDelegateCredentials
 .It HashKnownHosts
 .It Host
+.It HostbasedAcceptedAlgorithms
 .It HostbasedAuthentication
-.It HostbasedKeyTypes
 .It HostKeyAlgorithms
 .It HostKeyAlias
 .It Hostname
@@ -180,6 +184,7 @@ For full details of the options listed below, and their possible values, see
 .It KbdInteractiveAuthentication
 .It KbdInteractiveDevices
 .It KexAlgorithms
+.It KnownHostsCommand
 .It LogLevel
 .It MACs
 .It NoHostAuthenticationForLocalhost
@@ -190,7 +195,7 @@ For full details of the options listed below, and their possible values, see
 .It PreferredAuthentications
 .It ProxyCommand
 .It ProxyJump
-.It PubkeyAcceptedKeyTypes
+.It PubkeyAcceptedAlgorithms
 .It PubkeyAuthentication
 .It RekeyLimit
 .It SendEnv

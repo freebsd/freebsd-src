@@ -1,4 +1,4 @@
-/* $OpenBSD: canohost.c,v 1.74 2019/06/28 13:35:04 deraadt Exp $ */
+/* $OpenBSD: canohost.c,v 1.75 2020/10/18 11:32:01 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -96,7 +96,7 @@ get_socket_address(int sock, int remote, int flags)
 		/* Get the address in ascii. */
 		if ((r = getnameinfo((struct sockaddr *)&addr, addrlen, ntop,
 		    sizeof(ntop), NULL, 0, flags)) != 0) {
-			error("%s: getnameinfo %d failed: %s", __func__,
+			error_f("getnameinfo %d failed: %s",
 			    flags, ssh_gai_strerror(r));
 			return NULL;
 		}
@@ -141,7 +141,7 @@ get_local_name(int fd)
 
 	/* Handle the case where we were passed a pipe */
 	if (gethostname(myname, sizeof(myname)) == -1) {
-		verbose("%s: gethostname: %s", __func__, strerror(errno));
+		verbose_f("gethostname: %s", strerror(errno));
 		host = xstrdup("UNKNOWN");
 	} else {
 		host = xstrdup(myname);
@@ -186,7 +186,7 @@ get_sock_port(int sock, int local)
 	/* Return port number. */
 	if ((r = getnameinfo((struct sockaddr *)&from, fromlen, NULL, 0,
 	    strport, sizeof(strport), NI_NUMERICSERV)) != 0)
-		fatal("%s: getnameinfo NI_NUMERICSERV failed: %s", __func__,
+		fatal_f("getnameinfo NI_NUMERICSERV failed: %s",
 		    ssh_gai_strerror(r));
 	return atoi(strport);
 }

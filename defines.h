@@ -894,4 +894,11 @@ struct winsize {
 # define USE_SYSTEM_GLOB
 #endif
 
+/*
+ * sntrup761 uses variable length arrays, only enable if the compiler
+ * supports them.
+ */
+#ifdef VARIABLE_LENGTH_ARRAYS
+# define USE_SNTRUP761X25519 1
+#endif
 #endif /* _DEFINES_H */

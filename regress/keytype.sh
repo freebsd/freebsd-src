@@ -1,4 +1,4 @@
-#	$OpenBSD: keytype.sh,v 1.10 2019/12/16 02:39:05 djm Exp $
+#	$OpenBSD: keytype.sh,v 1.11 2021/02/25 03:27:34 djm Exp $
 #	Placed in the Public Domain.
 
 tid="login with different key types"
@@ -58,13 +58,13 @@ for ut in $ktypes; do
 		(
 			grep -v HostKey $OBJ/sshd_proxy_bak
 			echo HostKey $OBJ/key.$ht
-			echo PubkeyAcceptedKeyTypes $user_type
+			echo PubkeyAcceptedAlgorithms $user_type
 			echo HostKeyAlgorithms $host_type
 		) > $OBJ/sshd_proxy
 		(
 			grep -v IdentityFile $OBJ/ssh_proxy_bak
 			echo IdentityFile $OBJ/key.$ut
-			echo PubkeyAcceptedKeyTypes $user_type
+			echo PubkeyAcceptedAlgorithms $user_type
 			echo HostKeyAlgorithms $host_type
 		) > $OBJ/ssh_proxy
 		(

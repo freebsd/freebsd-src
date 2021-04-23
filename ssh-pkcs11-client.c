@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11-client.c,v 1.16 2020/01/25 00:03:36 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11-client.c,v 1.17 2020/10/18 11:32:02 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  * Copyright (c) 2014 Pedro Martelletto. All rights reserved.
@@ -65,7 +65,7 @@ send_msg(struct sshbuf *m)
 	    sshbuf_len(m)) != sshbuf_len(m))
 		error("write to helper failed");
 	if ((r = sshbuf_consume(m, mlen)) != 0)
-		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+		fatal_fr(r, "consume");
 }
 
 static int
@@ -93,11 +93,11 @@ recv_msg(struct sshbuf *m)
 			return (0); /* XXX */
 		}
 		if ((r = sshbuf_put(m, buf, l)) != 0)
-			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+			fatal_fr(r, "sshbuf_put");
 		len -= l;
 	}
 	if ((r = sshbuf_get_u8(m, &c)) != 0)
-		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+		fatal_fr(r, "parse type");
 	return c;
 }
 
@@ -127,29 +127,29 @@ rsa_encrypt(int flen, const u_char *from, u_char *to, RSA *rsa, int padding)
 		goto fail;
 	key = sshkey_new(KEY_UNSPEC);
 	if (key == NULL) {
-		error("%s: sshkey_new failed", __func__);
+		error_f("sshkey_new failed");
 		goto fail;
 	}
 	key->type = KEY_RSA;
 	RSA_up_ref(rsa);
 	key->rsa = rsa;
 	if ((r = sshkey_to_blob(key, &blob, &blen)) != 0) {
-		error("%s: sshkey_to_blob: %s", __func__, ssh_err(r));
+		error_fr(r, "encode key");
 		goto fail;
 	}
 	if ((msg = sshbuf_new()) == NULL)
-		fatal("%s: sshbuf_new failed", __func__);
+		fatal_f("sshbuf_new failed");
 	if ((r = sshbuf_put_u8(msg, SSH2_AGENTC_SIGN_REQUEST)) != 0 ||
 	    (r = sshbuf_put_string(msg, blob, blen)) != 0 ||
 	    (r = sshbuf_put_string(msg, from, flen)) != 0 ||
 	    (r = sshbuf_put_u32(msg, 0)) != 0)
-		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+		fatal_fr(r, "compose");
 	send_msg(msg);
 	sshbuf_reset(msg);
 
 	if (recv_msg(msg) == SSH2_AGENT_SIGN_RESPONSE) {
 		if ((r = sshbuf_get_string(msg, &signature, &slen)) != 0)
-			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+			fatal_fr(r, "parse");
 		if (slen <= (size_t)RSA_size(rsa)) {
 			memcpy(to, signature, slen);
 			ret = slen;
@@ -178,13 +178,13 @@ ecdsa_do_sign(const unsigned char *dgst, int dgst_len, const BIGNUM *inv,
 
 	nid = sshkey_ecdsa_key_to_nid(ec);
 	if (nid < 0) {
-		error("%s: couldn't get curve nid", __func__);
+		error_f("couldn't get curve nid");
 		goto fail;
 	}
 
 	key = sshkey_new(KEY_UNSPEC);
 	if (key == NULL) {
-		error("%s: sshkey_new failed", __func__);
+		error_f("sshkey_new failed");
 		goto fail;
 	}
 	key->ecdsa = ec;
@@ -193,22 +193,22 @@ ecdsa_do_sign(const unsigned char *dgst, int dgst_len, const BIGNUM *inv,
 	EC_KEY_up_ref(ec);
 
 	if ((r = sshkey_to_blob(key, &blob, &blen)) != 0) {
-		error("%s: sshkey_to_blob: %s", __func__, ssh_err(r));
+		error_fr(r, "encode key");
 		goto fail;
 	}
 	if ((msg = sshbuf_new()) == NULL)
-		fatal("%s: sshbuf_new failed", __func__);
+		fatal_f("sshbuf_new failed");
 	if ((r = sshbuf_put_u8(msg, SSH2_AGENTC_SIGN_REQUEST)) != 0 ||
 	    (r = sshbuf_put_string(msg, blob, blen)) != 0 ||
 	    (r = sshbuf_put_string(msg, dgst, dgst_len)) != 0 ||
 	    (r = sshbuf_put_u32(msg, 0)) != 0)
-		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+		fatal_fr(r, "compose");
 	send_msg(msg);
 	sshbuf_reset(msg);
 
 	if (recv_msg(msg) == SSH2_AGENT_SIGN_RESPONSE) {
 		if ((r = sshbuf_get_string(msg, &signature, &slen)) != 0)
-			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+			fatal_fr(r, "parse");
 		cp = signature;
 		ret = d2i_ECDSA_SIG(NULL, &cp, slen);
 		free(signature);
@@ -238,7 +238,7 @@ wrap_key(struct sshkey *k)
 		EC_KEY_set_method(k->ecdsa, helper_ecdsa);
 #endif /* HAVE_EC_KEY_METHOD_NEW */
 	else
-		fatal("%s: unknown key type", __func__);
+		fatal_f("unknown key type");
 }
 
 static int
@@ -260,10 +260,10 @@ pkcs11_start_helper_methods(void)
 #endif /* HAVE_EC_KEY_METHOD_NEW */
 
 	if ((helper_rsa = RSA_meth_dup(RSA_get_default_method())) == NULL)
-		fatal("%s: RSA_meth_dup failed", __func__);
+		fatal_f("RSA_meth_dup failed");
 	if (!RSA_meth_set1_name(helper_rsa, "ssh-pkcs11-helper") ||
 	    !RSA_meth_set_priv_enc(helper_rsa, rsa_encrypt))
-		fatal("%s: failed to prepare method", __func__);
+		fatal_f("failed to prepare method");
 
 	return (0);
 }
@@ -300,7 +300,7 @@ pkcs11_start_helper(void)
 		helper = getenv("SSH_PKCS11_HELPER");
 		if (helper == NULL || strlen(helper) == 0)
 			helper = _PATH_SSH_PKCS11_HELPER;
-		debug("%s: starting %s %s", __func__, helper,
+		debug_f("starting %s %s", helper,
 		    verbosity == NULL ? "" : verbosity);
 		execlp(helper, helper, verbosity, (char *)NULL);
 		fprintf(stderr, "exec: %s: %s\n", helper, strerror(errno));
@@ -327,18 +327,18 @@ pkcs11_add_provider(char *name, char *pin, struct sshkey ***keysp,
 		return (-1);
 
 	if ((msg = sshbuf_new()) == NULL)
-		fatal("%s: sshbuf_new failed", __func__);
+		fatal_f("sshbuf_new failed");
 	if ((r = sshbuf_put_u8(msg, SSH_AGENTC_ADD_SMARTCARD_KEY)) != 0 ||
 	    (r = sshbuf_put_cstring(msg, name)) != 0 ||
 	    (r = sshbuf_put_cstring(msg, pin)) != 0)
-		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+		fatal_fr(r, "compose");
 	send_msg(msg);
 	sshbuf_reset(msg);
 
 	type = recv_msg(msg);
 	if (type == SSH2_AGENT_IDENTITIES_ANSWER) {
 		if ((r = sshbuf_get_u32(msg, &nkeys)) != 0)
-			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+			fatal_fr(r, "parse nkeys");
 		*keysp = xcalloc(nkeys, sizeof(struct sshkey *));
 		if (labelsp)
 			*labelsp = xcalloc(nkeys, sizeof(char *));
@@ -346,10 +346,9 @@ pkcs11_add_provider(char *name, char *pin, struct sshkey ***keysp,
 			/* XXX clean up properly instead of fatal() */
 			if ((r = sshbuf_get_string(msg, &blob, &blen)) != 0 ||
 			    (r = sshbuf_get_cstring(msg, &label, NULL)) != 0)
-				fatal("%s: buffer error: %s",
-				    __func__, ssh_err(r));
+				fatal_fr(r, "parse key");
 			if ((r = sshkey_from_blob(blob, blen, &k)) != 0)
-				fatal("%s: bad key: %s", __func__, ssh_err(r));
+				fatal_fr(r, "decode key");
 			wrap_key(k);
 			(*keysp)[i] = k;
 			if (labelsp)
@@ -375,11 +374,11 @@ pkcs11_del_provider(char *name)
 	struct sshbuf *msg;
 
 	if ((msg = sshbuf_new()) == NULL)
-		fatal("%s: sshbuf_new failed", __func__);
+		fatal_f("sshbuf_new failed");
 	if ((r = sshbuf_put_u8(msg, SSH_AGENTC_REMOVE_SMARTCARD_KEY)) != 0 ||
 	    (r = sshbuf_put_cstring(msg, name)) != 0 ||
 	    (r = sshbuf_put_cstring(msg, "")) != 0)
-		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+		fatal_fr(r, "compose");
 	send_msg(msg);
 	sshbuf_reset(msg);
 

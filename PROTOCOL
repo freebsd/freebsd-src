@@ -292,6 +292,7 @@ has completed.
 
 	byte		SSH_MSG_GLOBAL_REQUEST
 	string		"hostkeys-00@openssh.com"
+	char		0 /* want-reply */
 	string[]	hostkeys
 
 Upon receiving this message, a client should check which of the
@@ -465,6 +466,65 @@ respond with a SSH_FXP_STATUS message.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
+3.7. sftp: Extension request "lsetstat@openssh.com"
+
+This request is like the "setstat" command, but sets file attributes on
+symlinks.  It is implemented as a SSH_FXP_EXTENDED request with the
+following format:
+
+	uint32		id
+	string		"lsetstat@openssh.com"
+	string		path
+	ATTRS		attrs
+
+See the "setstat" command for more details.
+
+This extension is advertised in the SSH_FXP_VERSION hello with version
+"1".
+
+3.8. sftp: Extension request "limits@openssh.com"
+
+This request is used to determine various limits the server might impose.
+Clients should not attempt to exceed these limits as the server might sever
+the connection immediately.
+
+	uint32		id
+	string		"limits@openssh.com"
+
+The server will respond with a SSH_FXP_EXTENDED_REPLY reply:
+
+	uint32		id
+	uint64		max-packet-length
+	uint64		max-read-length
+	uint64		max-write-length
+	uint64		max-open-handles
+
+The 'max-packet-length' applies to the total number of bytes in a
+single SFTP packet.  Servers SHOULD set this at least to 34000.
+
+The 'max-read-length' is the largest length in a SSH_FXP_READ packet.
+Even if the client requests a larger size, servers will usually respond
+with a shorter SSH_FXP_DATA packet.  Servers SHOULD set this at least to
+32768.
+
+The 'max-write-length' is the largest length in a SSH_FXP_WRITE packet
+the server will accept.  Servers SHOULD set this at least to 32768.
+
+The 'max-open-handles' is the maximum number of active handles that the
+server allows (e.g. handles created by SSH_FXP_OPEN and SSH_FXP_OPENDIR
+packets).  Servers MAY count internal file handles against this limit
+(e.g. system logging or stdout/stderr), so clients SHOULD NOT expect to
+open this many handles in practice.
+
+If the server doesn't enforce a specific limit, then the field may be
+set to 0.  This implies the server relies on the OS to enforce limits
+(e.g. available memory or file handles), and such limits might be
+dynamic.  The client SHOULD take care to not try to exceed reasonable
+limits.
+
+This extension is advertised in the SSH_FXP_VERSION hello with version
+"1".
+
 4. Miscellaneous changes
 
 4.1 Public key format
@@ -496,4 +556,4 @@ OpenSSH's connection multiplexing uses messages as described in
 PROTOCOL.mux over a Unix domain socket for communications between a
 master instance and later clients.
 
-$OpenBSD: PROTOCOL,v 1.38 2020/07/05 23:59:45 djm Exp $
+$OpenBSD: PROTOCOL,v 1.41 2021/02/18 02:49:35 djm Exp $

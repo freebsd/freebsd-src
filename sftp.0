@@ -139,8 +139,8 @@ DESCRIPTION
                    GSSAPIDelegateCredentials
                    HashKnownHosts
                    Host
+                   HostbasedAcceptedAlgorithms
                    HostbasedAuthentication
-                   HostbasedKeyTypes
                    HostKeyAlgorithms
                    HostKeyAlias
                    Hostname
@@ -151,6 +151,7 @@ DESCRIPTION
                    KbdInteractiveAuthentication
                    KbdInteractiveDevices
                    KexAlgorithms
+                   KnownHostsCommand
                    LogLevel
                    MACs
                    NoHostAuthenticationForLocalhost
@@ -161,7 +162,7 @@ DESCRIPTION
                    PreferredAuthentications
                    ProxyCommand
                    ProxyJump
-                   PubkeyAcceptedKeyTypes
+                   PubkeyAcceptedAlgorithms
                    PubkeyAuthentication
                    RekeyLimit
                    SendEnv
@@ -218,21 +219,30 @@ INTERACTIVE COMMANDS
              change directory to the one the session started in.
 
      chgrp [-h] grp path
-             Change group of file path to grp.  If the -h flag is specified,
-             then symlinks will not be followed.  path may contain glob(7)
+             Change group of file path to grp.  path may contain glob(7)
              characters and may match multiple files.  grp must be a numeric
              GID.
 
+             If the -h flag is specified, then symlinks will not be followed.
+             Note that this is only supported by servers that implement the
+             "lsetstat@openssh.com" extension.
+
      chmod [-h] mode path
-             Change permissions of file path to mode.  If the -h flag is
-             specified, then symlinks will not be followed.  path may contain
+             Change permissions of file path to mode.  path may contain
              glob(7) characters and may match multiple files.
 
+             If the -h flag is specified, then symlinks will not be followed.
+             Note that this is only supported by servers that implement the
+             "lsetstat@openssh.com" extension.
+
      chown [-h] own path
-             Change owner of file path to own.  If the -h flag is specified,
-             then symlinks will not be followed.  path may contain glob(7)
+             Change owner of file path to own.  path may contain glob(7)
              characters and may match multiple files.  own must be a numeric
              UID.
+
+             If the -h flag is specified, then symlinks will not be followed.
+             Note that this is only supported by servers that implement the
+             "lsetstat@openssh.com" extension.
 
      df [-hi] [path]
              Display usage information for the filesystem holding the current
@@ -399,4 +409,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 6.8                     August 3, 2020                     OpenBSD 6.8
+OpenBSD 6.8                    February 12, 2021                   OpenBSD 6.8

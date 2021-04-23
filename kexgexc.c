@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexc.c,v 1.35 2019/11/25 00:51:37 djm Exp $ */
+/* $OpenBSD: kexgexc.c,v 1.37 2021/01/31 22:55:29 djm Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -68,7 +68,7 @@ kexgex_client(struct ssh *ssh)
 	kex->min = DH_GRP_MIN;
 	kex->max = DH_GRP_MAX;
 	kex->nbits = nbits;
-	if (datafellows & SSH_BUG_DHGEX_LARGE)
+	if (ssh->compat & SSH_BUG_DHGEX_LARGE)
 		kex->nbits = MINIMUM(kex->nbits, 4096);
 	/* New GEX request */
 	if ((r = sshpkt_start(ssh, SSH2_MSG_KEX_DH_GEX_REQUEST)) != 0 ||
@@ -83,6 +83,7 @@ kexgex_client(struct ssh *ssh)
 	fprintf(stderr, "\nmin = %d, nbits = %d, max = %d\n",
 	    kex->min, kex->nbits, kex->max);
 #endif
+	debug("expecting SSH2_MSG_KEX_DH_GEX_GROUP");
 	ssh_dispatch_set(ssh, SSH2_MSG_KEX_DH_GEX_GROUP,
 	    &input_kex_dh_gex_group);
 	r = 0;
@@ -98,7 +99,8 @@ input_kex_dh_gex_group(int type, u_int32_t seq, struct ssh *ssh)
 	const BIGNUM *pub_key;
 	int r, bits;
 
-	debug("got SSH2_MSG_KEX_DH_GEX_GROUP");
+	debug("SSH2_MSG_KEX_DH_GEX_GROUP received");
+	ssh_dispatch_set(ssh, SSH2_MSG_KEX_DH_GEX_GROUP, &kex_protocol_error);
 
 	if ((r = sshpkt_get_bignum2(ssh, &p)) != 0 ||
 	    (r = sshpkt_get_bignum2(ssh, &g)) != 0 ||
@@ -130,7 +132,7 @@ input_kex_dh_gex_group(int type, u_int32_t seq, struct ssh *ssh)
 	BN_print_fp(stderr, pub_key);
 	fprintf(stderr, "\n");
 #endif
-	ssh_dispatch_set(ssh, SSH2_MSG_KEX_DH_GEX_GROUP, NULL);
+	debug("expecting SSH2_MSG_KEX_DH_GEX_REPLY");
 	ssh_dispatch_set(ssh, SSH2_MSG_KEX_DH_GEX_REPLY, &input_kex_dh_gex_reply);
 	r = 0;
 out:
@@ -153,7 +155,9 @@ input_kex_dh_gex_reply(int type, u_int32_t seq, struct ssh *ssh)
 	size_t slen, hashlen;
 	int r;
 
-	debug("got SSH2_MSG_KEX_DH_GEX_REPLY");
+	debug("SSH2_MSG_KEX_DH_GEX_REPLY received");
+	ssh_dispatch_set(ssh, SSH2_MSG_KEX_DH_GEX_REPLY, &kex_protocol_error);
+
 	/* key, cert */
 	if ((r = sshpkt_getb_froms(ssh, &server_host_key_blob)) != 0)
 		goto out;

@@ -69,6 +69,9 @@
 # include <sys/byteorder.h>
 #endif
 
+/* rename to avoid collision in libssh */
+#define timeout_connect netcat_timeout_connect
+
 /* Telnet options from arpa/telnet.h */
 #define IAC	255
 #define DONT	254

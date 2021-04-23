@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-sk-client.c,v 1.7 2020/01/23 07:10:22 dtucker Exp $ */
+/* $OpenBSD: ssh-sk-client.c,v 1.8 2020/10/18 11:32:02 djm Exp $ */
 /*
  * Copyright (c) 2019 Google LLC
  *
@@ -47,7 +47,7 @@ static int
 start_helper(int *fdp, pid_t *pidp, void (**osigchldp)(int))
 {
 	void (*osigchld)(int);
-	int oerrno, pair[2], r = SSH_ERR_INTERNAL_ERROR;
+	int oerrno, pair[2];
 	pid_t pid;
 	char *helper, *verbosity = NULL;
 
@@ -60,8 +60,7 @@ start_helper(int *fdp, pid_t *pidp, void (**osigchldp)(int))
 		helper = _PATH_SSH_SK_HELPER;
 	if (access(helper, X_OK) != 0) {
 		oerrno = errno;
-		error("%s: helper \"%s\" unusable: %s", __func__, helper,
-		    strerror(errno));
+		error_f("helper \"%s\" unusable: %s", helper, strerror(errno));
 		errno = oerrno;
 		return SSH_ERR_SYSTEM_ERROR;
 	}
@@ -87,22 +86,22 @@ start_helper(int *fdp, pid_t *pidp, void (**osigchldp)(int))
 	if (pid == 0) {
 		if ((dup2(pair[1], STDIN_FILENO) == -1) ||
 		    (dup2(pair[1], STDOUT_FILENO) == -1)) {
-			error("%s: dup2: %s", __func__, ssh_err(r));
+			error_f("dup2: %s", strerror(errno));
 			_exit(1);
 		}
 		close(pair[0]);
 		close(pair[1]);
 		closefrom(STDERR_FILENO + 1);
-		debug("%s: starting %s %s", __func__, helper,
+		debug_f("starting %s %s", helper,
 		    verbosity == NULL ? "" : verbosity);
 		execlp(helper, helper, verbosity, (char *)NULL);
-		error("%s: execlp: %s", __func__, strerror(errno));
+		error_f("execlp: %s", strerror(errno));
 		_exit(1);
 	}
 	close(pair[1]);
 
 	/* success */
-	debug3("%s: started pid=%ld", __func__, (long)pid);
+	debug3_f("started pid=%ld", (long)pid);
 	*fdp = pair[0];
 	*pidp = pid;
 	*osigchldp = osigchld;
@@ -114,7 +113,7 @@ reap_helper(pid_t pid)
 {
 	int status, oerrno;
 
-	debug3("%s: pid=%ld", __func__, (long)pid);
+	debug3_f("pid=%ld", (long)pid);
 
 	errno = 0;
 	while (waitpid(pid, &status, 0) == -1) {
@@ -123,15 +122,15 @@ reap_helper(pid_t pid)
 			continue;
 		}
 		oerrno = errno;
-		error("%s: waitpid: %s", __func__, strerror(errno));
+		error_f("waitpid: %s", strerror(errno));
 		errno = oerrno;
 		return SSH_ERR_SYSTEM_ERROR;
 	}
 	if (!WIFEXITED(status)) {
-		error("%s: helper exited abnormally", __func__);
+		error_f("helper exited abnormally");
 		return SSH_ERR_AGENT_FAILURE;
 	} else if (WEXITSTATUS(status) != 0) {
-		error("%s: helper exited with non-zero exit status", __func__);
+		error_f("helper exited with non-zero exit status");
 		return SSH_ERR_AGENT_FAILURE;
 	}
 	return 0;
@@ -161,37 +160,37 @@ client_converse(struct sshbuf *msg, struct sshbuf **respp, u_int type)
 	   (r = sshbuf_put_u8(req, log_is_on_stderr() != 0)) != 0 ||
 	   (r = sshbuf_put_u32(req, ll < 0 ? 0 : ll)) != 0 ||
 	   (r = sshbuf_putb(req, msg)) != 0) {
-		error("%s: build: %s", __func__, ssh_err(r));
+		error_fr(r, "compose");
 		goto out;
 	}
 	if ((r = ssh_msg_send(fd, SSH_SK_HELPER_VERSION, req)) != 0) {
-		error("%s: send: %s", __func__, ssh_err(r));
+		error_fr(r, "send");
 		goto out;
 	}
 	if ((r = ssh_msg_recv(fd, resp)) != 0) {
-		error("%s: receive: %s", __func__, ssh_err(r));
+		error_fr(r, "receive");
 		goto out;
 	}
 	if ((r = sshbuf_get_u8(resp, &version)) != 0) {
-		error("%s: parse version: %s", __func__, ssh_err(r));
+		error_fr(r, "parse version");
 		goto out;
 	}
 	if (version != SSH_SK_HELPER_VERSION) {
-		error("%s: unsupported version: got %u, expected %u",
-		    __func__, version, SSH_SK_HELPER_VERSION);
+		error_f("unsupported version: got %u, expected %u",
+		    version, SSH_SK_HELPER_VERSION);
 		r = SSH_ERR_INVALID_FORMAT;
 		goto out;
 	}
 	if ((r = sshbuf_get_u32(resp, &rtype)) != 0) {
-		error("%s: parse message type: %s", __func__, ssh_err(r));
+		error_fr(r, "parse message type");
 		goto out;
 	}
 	if (rtype == SSH_SK_HELPER_ERROR) {
 		if ((r = sshbuf_get_u32(resp, &rerr)) != 0) {
-			error("%s: parse error: %s", __func__, ssh_err(r));
+			error_fr(r, "parse");
 			goto out;
 		}
-		debug("%s: helper returned error -%u", __func__, rerr);
+		debug_f("helper returned error -%u", rerr);
 		/* OpenSSH error values are negative; encoded as -err on wire */
 		if (rerr == 0 || rerr >= INT_MAX)
 			r = SSH_ERR_INTERNAL_ERROR;
@@ -199,8 +198,8 @@ client_converse(struct sshbuf *msg, struct sshbuf **respp, u_int type)
 			r = -(int)rerr;
 		goto out;
 	} else if (rtype != type) {
-		error("%s: helper returned incorrect message type %u, "
-		    "expecting %u", __func__, rtype, type);
+		error_f("helper returned incorrect message type %u, "
+		    "expecting %u", rtype, type);
 		r = SSH_ERR_INTERNAL_ERROR;
 		goto out;
 	}
@@ -250,7 +249,7 @@ sshsk_sign(const char *provider, struct sshkey *key,
 	}
 
 	if ((r = sshkey_private_serialize(key, kbuf)) != 0) {
-		error("%s: serialize private key: %s", __func__, ssh_err(r));
+		error_fr(r, "encode key");
 		goto out;
 	}
 	if ((r = sshbuf_put_stringb(req, kbuf)) != 0 ||
@@ -259,13 +258,13 @@ sshsk_sign(const char *provider, struct sshkey *key,
 	    (r = sshbuf_put_cstring(req, NULL)) != 0 || /* alg */
 	    (r = sshbuf_put_u32(req, compat)) != 0 ||
 	    (r = sshbuf_put_cstring(req, pin)) != 0) {
-		error("%s: compose: %s", __func__, ssh_err(r));
+		error_fr(r, "compose");
 		goto out;
 	}
 
 	if ((fp = sshkey_fingerprint(key, SSH_FP_HASH_DEFAULT,
 	    SSH_FP_DEFAULT)) == NULL) {
-		error("%s: sshkey_fingerprint failed", __func__);
+		error_f("sshkey_fingerprint failed");
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
@@ -273,12 +272,12 @@ sshsk_sign(const char *provider, struct sshkey *key,
 		goto out;
 
 	if ((r = sshbuf_get_string(resp, sigp, lenp)) != 0) {
-		error("%s: parse signature: %s", __func__, ssh_err(r));
+		error_fr(r, "parse signature");
 		r = SSH_ERR_INVALID_FORMAT;
 		goto out;
 	}
 	if (sshbuf_len(resp) != 0) {
-		error("%s: trailing data in response", __func__);
+		error_f("trailing data in response");
 		r = SSH_ERR_INVALID_FORMAT;
 		goto out;
 	}
@@ -334,7 +333,7 @@ sshsk_enroll(int type, const char *provider_path, const char *device,
 	    (r = sshbuf_put_u8(req, flags)) != 0 ||
 	    (r = sshbuf_put_cstring(req, pin)) != 0 ||
 	    (r = sshbuf_put_stringb(req, challenge_buf)) != 0) {
-		error("%s: compose: %s", __func__, ssh_err(r));
+		error_fr(r, "compose");
 		goto out;
 	}
 
@@ -343,21 +342,21 @@ sshsk_enroll(int type, const char *provider_path, const char *device,
 
 	if ((r = sshbuf_get_stringb(resp, kbuf)) != 0 ||
 	    (r = sshbuf_get_stringb(resp, abuf)) != 0) {
-		error("%s: parse signature: %s", __func__, ssh_err(r));
+		error_fr(r, "parse");
 		r = SSH_ERR_INVALID_FORMAT;
 		goto out;
 	}
 	if (sshbuf_len(resp) != 0) {
-		error("%s: trailing data in response", __func__);
+		error_f("trailing data in response");
 		r = SSH_ERR_INVALID_FORMAT;
 		goto out;
 	}
 	if ((r = sshkey_private_deserialize(kbuf, &key)) != 0) {
-		error("Unable to parse private key: %s", ssh_err(r));
+		error_fr(r, "encode");
 		goto out;
 	}
 	if (attest != NULL && (r = sshbuf_putb(attest, abuf)) != 0) {
-		error("%s: buffer error: %s", __func__, ssh_err(r));
+		error_fr(r, "encode attestation information");
 		goto out;
 	}
 
@@ -398,7 +397,7 @@ sshsk_load_resident(const char *provider_path, const char *device,
 	if ((r = sshbuf_put_cstring(req, provider_path)) != 0 ||
 	    (r = sshbuf_put_cstring(req, device)) != 0 ||
 	    (r = sshbuf_put_cstring(req, pin)) != 0) {
-		error("%s: compose: %s", __func__, ssh_err(r));
+		error_fr(r, "compose");
 		goto out;
 	}
 
@@ -409,21 +408,21 @@ sshsk_load_resident(const char *provider_path, const char *device,
 		/* key, comment */
 		if ((r = sshbuf_get_stringb(resp, kbuf)) != 0 ||
 		    (r = sshbuf_get_cstring(resp, NULL, NULL)) != 0) {
-			error("%s: parse signature: %s", __func__, ssh_err(r));
+			error_fr(r, "parse signature");
 			r = SSH_ERR_INVALID_FORMAT;
 			goto out;
 		}
 		if ((r = sshkey_private_deserialize(kbuf, &key)) != 0) {
-			error("Unable to parse private key: %s", ssh_err(r));
+			error_fr(r, "decode key");
 			goto out;
 		}
 		if ((tmp = recallocarray(keys, nkeys, nkeys + 1,
 		    sizeof(*keys))) == NULL) {
-			error("%s: recallocarray keys failed", __func__);
+			error_f("recallocarray keys failed");
 			goto out;
 		}
-		debug("%s: keys[%zu]: %s %s", __func__,
-		    nkeys, sshkey_type(key), key->sk_application);
+		debug_f("keys[%zu]: %s %s", nkeys, sshkey_type(key),
+		    key->sk_application);
 		keys = tmp;
 		keys[nkeys++] = key;
 		key = NULL;

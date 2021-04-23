@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.315 2020/08/27 12:34:00 jmc Exp $
-.Dd $Mdocdate: August 27 2020 $
+.\" $OpenBSD: sshd_config.5,v 1.328 2021/02/27 23:42:37 djm Exp $
+.Dd $Mdocdate: February 27 2021 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -377,8 +377,8 @@ Specifies which algorithms are allowed for signing of certificates
 by certificate authorities (CAs).
 The default is:
 .Bd -literal -offset indent
-ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,
+ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
 Certificates signed using other algorithms will not be accepted for
@@ -658,40 +658,42 @@ machine's default store.
 This facility is provided to assist with operation on multi homed machines.
 The default is
 .Cm yes .
-.It Cm HostbasedAcceptedKeyTypes
-Specifies the key types that will be accepted for hostbased authentication
-as a list of comma-separated patterns.
+.It Cm HostbasedAcceptedAlgorithms
+Specifies the signature algorithms that will be accepted for hostbased
+authentication as a list of comma-separated patterns.
 Alternately if the specified list begins with a
 .Sq +
-character, then the specified key types will be appended to the default set
-instead of replacing them.
+character, then the specified signature algorithms will be appended to
+the default set instead of replacing them.
 If the specified list begins with a
 .Sq -
-character, then the specified key types (including wildcards) will be removed
-from the default set instead of replacing them.
+character, then the specified signature algorithms (including wildcards)
+will be removed from the default set instead of replacing them.
 If the specified list begins with a
 .Sq ^
-character, then the specified key types will be placed at the head of the
-default set.
+character, then the specified signature algorithms will be placed at
+the head of the default set.
 The default for this option is:
 .Bd -literal -offset 3n
+ssh-ed25519-cert-v01@openssh.com,
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
-ssh-ed25519-cert-v01@openssh.com,
 sk-ssh-ed25519-cert-v01@openssh.com,
+sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 rsa-sha2-512-cert-v01@openssh.com,
 rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
+ssh-ed25519,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+sk-ssh-ed25519@openssh.com,
 sk-ecdsa-sha2-nistp256@openssh.com,
-ssh-ed25519,sk-ssh-ed25519@openssh.com,
 rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
-The list of available key types may also be obtained using
-.Qq ssh -Q HostbasedAcceptedKeyTypes .
+The list of available signature algorithms may also be obtained using
+.Qq ssh -Q HostbasedAcceptedAlgorithms .
+This was formerly named HostbasedAcceptedKeyTypes.
 .It Cm HostbasedAuthentication
 Specifies whether rhosts or /etc/hosts.equiv authentication together
 with successful public key client host authentication is allowed
@@ -754,26 +756,27 @@ is specified, the location of the socket will be read from the
 .Ev SSH_AUTH_SOCK
 environment variable.
 .It Cm HostKeyAlgorithms
-Specifies the host key algorithms
+Specifies the host key signature algorithms
 that the server offers.
 The default for this option is:
 .Bd -literal -offset 3n
+ssh-ed25519-cert-v01@openssh.com,
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
-ssh-ed25519-cert-v01@openssh.com,
 sk-ssh-ed25519-cert-v01@openssh.com,
+sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 rsa-sha2-512-cert-v01@openssh.com,
 rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
+ssh-ed25519,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+sk-ssh-ed25519@openssh.com,
 sk-ecdsa-sha2-nistp256@openssh.com,
-ssh-ed25519,sk-ssh-ed25519@openssh.com,
 rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
-The list of available key types may also be obtained using
+The list of available signature algorithms may also be obtained using
 .Qq ssh -Q HostKeyAlgorithms .
 .It Cm IgnoreRhosts
 Specifies whether to ignore per-user
@@ -947,7 +950,7 @@ ecdh-sha2-nistp384
 .It
 ecdh-sha2-nistp521
 .It
-sntrup4591761x25519-sha512@tinyssh.org
+sntrup761x25519-sha512@openssh.com
 .El
 .Pp
 The default is:
@@ -1026,6 +1029,23 @@ The default is INFO.
 DEBUG and DEBUG1 are equivalent.
 DEBUG2 and DEBUG3 each specify higher levels of debugging output.
 Logging with a DEBUG level violates the privacy of users and is not recommended.
+.It Cm LogVerbose
+Specify one or more overrides to LogLevel.
+An override consists of a pattern lists that matches the source file, function
+and line number to force detailed logging for.
+For example, an override pattern of:
+.Bd -literal -offset indent
+kex.c:*:1000,*:kex_exchange_identification():*,packet.c:*
+.Ed
+.Pp
+would enable detailed logging for line 1000 of
+.Pa kex.c ,
+everything in the
+.Fn kex_exchange_identification
+function, and all code in the
+.Pa packet.c
+file.
+This option is intended for debugging and no overrides are enabled by default.
 .It Cm MACs
 Specifies the available MAC (message authentication code) algorithms.
 The MAC algorithm is used for data integrity protection.
@@ -1167,10 +1187,11 @@ Available keywords are
 .Cm ClientAliveInterval ,
 .Cm DenyGroups ,
 .Cm DenyUsers ,
+.Cm DisableForwarding ,
 .Cm ForceCommand ,
 .Cm GatewayPorts ,
 .Cm GSSAPIAuthentication ,
-.Cm HostbasedAcceptedKeyTypes ,
+.Cm HostbasedAcceptedAlgorithms ,
 .Cm HostbasedAuthentication ,
 .Cm HostbasedUsesNameFromPacketOnly ,
 .Cm IgnoreRhosts ,
@@ -1189,7 +1210,7 @@ Available keywords are
 .Cm PermitTTY ,
 .Cm PermitTunnel ,
 .Cm PermitUserRC ,
-.Cm PubkeyAcceptedKeyTypes ,
+.Cm PubkeyAcceptedAlgorithms ,
 .Cm PubkeyAuthentication ,
 .Cm RekeyLimit ,
 .Cm RevokedKeys ,
@@ -1407,6 +1428,23 @@ Specifies whether any
 file is executed.
 The default is
 .Cm yes .
+.It Cm PerSourceMaxStartups
+Specifies the number of unauthenticated connections allowed from a
+given source address, or
+.Dq none
+if there is no limit.
+This limit is applied in addition to
+.Cm MaxStartups ,
+whichever is lower.
+The default is
+.Cm none .
+.It Cm PerSourceNetBlockSize
+Specifies the number of bits of source address that are grouped together
+for the purposes of applying PerSourceMaxStartups limits.
+Values for IPv4 and optionally IPv6 may be specified, separated by a colon.
+The default is
+.Cm 32:128 ,
+which means each address is considered individually.
 .It Cm PidFile
 Specifies the file that contains the process ID of the
 SSH daemon, or
@@ -1440,40 +1478,41 @@ when a user logs in interactively.
 or equivalent.)
 The default is
 .Cm yes .
-.It Cm PubkeyAcceptedKeyTypes
-Specifies the key types that will be accepted for public key authentication
-as a list of comma-separated patterns.
+.It Cm PubkeyAcceptedAlgorithms
+Specifies the signature algorithms that will be accepted for public key
+authentication as a list of comma-separated patterns.
 Alternately if the specified list begins with a
 .Sq +
-character, then the specified key types will be appended to the default set
+character, then the specified algorithms will be appended to the default set
 instead of replacing them.
 If the specified list begins with a
 .Sq -
-character, then the specified key types (including wildcards) will be removed
+character, then the specified algorithms (including wildcards) will be removed
 from the default set instead of replacing them.
 If the specified list begins with a
 .Sq ^
-character, then the specified key types will be placed at the head of the
+character, then the specified algorithms will be placed at the head of the
 default set.
 The default for this option is:
 .Bd -literal -offset 3n
+ssh-ed25519-cert-v01@openssh.com,
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
-ssh-ed25519-cert-v01@openssh.com,
 sk-ssh-ed25519-cert-v01@openssh.com,
+sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 rsa-sha2-512-cert-v01@openssh.com,
 rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
+ssh-ed25519,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+sk-ssh-ed25519@openssh.com,
 sk-ecdsa-sha2-nistp256@openssh.com,
-ssh-ed25519,sk-ssh-ed25519@openssh.com,
 rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
-The list of available key types may also be obtained using
-.Qq ssh -Q PubkeyAcceptedKeyTypes .
+The list of available signature algorithms may also be obtained using
+.Qq ssh -Q PubkeyAcceptedAlgorithms .
 .It Cm PubkeyAuthOptions
 Sets one or more public key authentication options.
 The supported keywords are:
@@ -1515,7 +1554,7 @@ The default is
 .Cm yes .
 .It Cm RekeyLimit
 Specifies the maximum amount of data that may be transmitted before the
-session key is renegotiated, optionally followed a maximum amount of
+session key is renegotiated, optionally followed by a maximum amount of
 time that may pass before the session key is renegotiated.
 The first argument is specified in bytes and may have a suffix of
 .Sq K ,

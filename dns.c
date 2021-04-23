@@ -1,4 +1,4 @@
-/* $OpenBSD: dns.c,v 1.38 2018/02/23 15:58:37 markus Exp $ */
+/* $OpenBSD: dns.c,v 1.39 2020/10/18 11:32:01 djm Exp $ */
 
 /*
  * Copyright (c) 2003 Wesley Griffin. All rights reserved.
@@ -128,8 +128,7 @@ dns_read_key(u_int8_t *algorithm, u_int8_t *digest_type,
 	if (*algorithm && *digest_type) {
 		if ((r = sshkey_fingerprint_raw(key, fp_alg, digest,
 		    digest_len)) != 0)
-			fatal("%s: sshkey_fingerprint_raw: %s", __func__,
-			   ssh_err(r));
+			fatal_fr(r, "sshkey_fingerprint_raw");
 		success = 1;
 	} else {
 		*digest = NULL;
@@ -348,7 +347,7 @@ export_dns_rr(const char *hostname, struct sshkey *key, FILE *f, int generic)
 
 	/* No SSHFP record was generated at all */
 	if (success == 0) {
-		error("%s: unsupported algorithm and/or digest_type", __func__);
+		error_f("unsupported algorithm and/or digest_type");
 	}
 
 	return success;

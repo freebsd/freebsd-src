@@ -9,10 +9,14 @@ SYNOPSIS
          source ... target
 
 DESCRIPTION
-     scp copies files between hosts on a network.  It uses ssh(1) for data
-     transfer, and uses the same authentication and provides the same security
-     as ssh(1).  scp will ask for passwords or passphrases if they are needed
-     for authentication.
+     scp copies files between hosts on a network.
+
+     It uses ssh(1) for data transfer, and uses the same authentication and
+     provides the same security as a login session.  The scp protocol requires
+     execution of the remote user's shell to perform glob(3) pattern matching.
+
+     scp will ask for passwords or passphrases if they are needed for
+     authentication.
 
      The source and target may be specified as a local pathname, a remote host
      with optional path in the form [user@]host:[path], or a URI in the form
@@ -100,8 +104,8 @@ DESCRIPTION
                    GSSAPIDelegateCredentials
                    HashKnownHosts
                    Host
+                   HostbasedAcceptedAlgorithms
                    HostbasedAuthentication
-                   HostbasedKeyTypes
                    HostKeyAlgorithms
                    HostKeyAlias
                    Hostname
@@ -112,6 +116,7 @@ DESCRIPTION
                    KbdInteractiveAuthentication
                    KbdInteractiveDevices
                    KexAlgorithms
+                   KnownHostsCommand
                    LogLevel
                    MACs
                    NoHostAuthenticationForLocalhost
@@ -122,7 +127,7 @@ DESCRIPTION
                    PreferredAuthentications
                    ProxyCommand
                    ProxyJump
-                   PubkeyAcceptedKeyTypes
+                   PubkeyAcceptedAlgorithms
                    PubkeyAuthentication
                    RekeyLimit
                    SendEnv
@@ -183,4 +188,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 6.8                     August 3, 2020                     OpenBSD 6.8
+OpenBSD 6.8                    January 26, 2021                    OpenBSD 6.8

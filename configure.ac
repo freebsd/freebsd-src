@@ -18,8 +18,19 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([ssh.c])
 AC_LANG([C])
 
-AC_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 AC_PROG_CC([cc gcc])
+
+# XXX relax this after reimplementing logit() etc.
+AC_MSG_CHECKING([if $CC supports C99-style variadic macros])
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+int f(int a, int b, int c) { return a + b + c; }
+#define F(a, ...) f(a, __VA_ARGS__)
+]], [[return F(1, 2, -3);]])],
+	[ AC_MSG_RESULT([yes]) ],
+	[ AC_MSG_ERROR([*** OpenSSH requires support for C99-style variadic macros]) ]
+)
+
 AC_CANONICAL_HOST
 AC_C_BIGENDIAN
 
@@ -286,6 +297,16 @@ typedef void foo(const char *, ...) __attribute__((format(printf, 1, 2)));]],
 	 [compiler does not accept __attribute__ on prototype args]) ]
 )
 
+AC_MSG_CHECKING([if compiler supports variable length arrays])
+AC_COMPILE_IFELSE(
+    [AC_LANG_PROGRAM([[#include <stdlib.h>]],
+    [[ int i; for (i=0; i<3; i++){int a[i]; a[i-1]=0;} exit(0); ]])],
+    [ AC_MSG_RESULT([yes])
+      AC_DEFINE(VARIABLE_LENGTH_ARRAYS, [1],
+	 [compiler supports variable length arrays]) ],
+    [ AC_MSG_RESULT([no]) ]
+)
+
 if test "x$no_attrib_nonnull" != "x1" ; then
 	AC_DEFINE([HAVE_ATTRIBUTE__NONNULL__], [1], [Have attribute nonnull])
 fi
@@ -520,8 +541,6 @@ SPP_MSG="no"
 # Support for Solaris/Illumos privileges (this test is used by both
 # the --with-solaris-privs option and --with-sandbox=solaris).
 SOLARIS_PRIVS="no"
-
-AC_CHECK_SIZEOF([size_t])
 
 # Check for some target-specific stuff
 case "$host" in
@@ -867,10 +886,6 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	case "$host" in
 	x86_64-*)
 		seccomp_audit_arch=AUDIT_ARCH_X86_64
-		# X32: AMD64 instructions in 32bit address space.
-		if test "x$ac_cv_sizeof_size_t" = "x4" ; then
-			seccomp_audit_arch=AUDIT_ARCH_I386
-		fi
 		;;
 	i*86-*)
 		seccomp_audit_arch=AUDIT_ARCH_I386
@@ -1431,6 +1446,10 @@ AC_CHECK_FUNCS([fmt_scaled scan_scaled login logout openpty updwtmp logwtmp])
 AC_SEARCH_LIBS([inet_ntop], [resolv nsl])
 AC_SEARCH_LIBS([gethostbyname], [resolv nsl])
 
+# Some Linux distribtions ship the BSD libc hashing functions in
+# separate libraries.
+AC_SEARCH_LIBS([SHA256Update], [md bsd])
+
 # "Particular Function Checks"
 # see https://www.gnu.org/software/autoconf/manual/autoconf-2.69/html_node/Particular-Functions.html
 AC_FUNC_STRFTIME
@@ -1790,6 +1809,7 @@ AC_CHECK_FUNCS([ \
 	err \
 	errx \
 	explicit_bzero \
+	explicit_memset \
 	fchmod \
 	fchmodat \
 	fchown \
@@ -1825,6 +1845,7 @@ AC_CHECK_FUNCS([ \
 	llabs \
 	localtime_r \
 	login_getcapbool \
+	login_getpwclass \
 	md5_crypt \
 	memmem \
 	memmove \
@@ -1987,7 +2008,7 @@ AC_SEARCH_LIBS([clock_gettime], [rt],
 
 dnl check if we need -D_REENTRANT for localtime_r declaration.
 AC_CHECK_DECL([localtime_r], [],
-	[ saved_CPPFLAGS="$CFLAGS"
+	[ saved_CPPFLAGS="$CPPFLAGS"
 	  CPPFLAGS="$CPPFLAGS -D_REENTRANT"
 	  unset ac_cv_have_decl_localtime_r
 	  AC_CHECK_DECL([localtime_r], [],
@@ -2280,34 +2301,6 @@ if test "x$ac_cv_func_getpeereid" != "xyes" -a "x$ac_cv_func_getpeerucred" != "x
 		], [AC_MSG_RESULT([no])
 		NO_PEERCHECK=1
         ])
-fi
-
-dnl see whether mkstemp() requires XXXXXX
-if test "x$ac_cv_func_mkdtemp" = "xyes" ; then
-AC_MSG_CHECKING([for (overly) strict mkstemp])
-AC_RUN_IFELSE(
-	[AC_LANG_PROGRAM([[
-#include <stdlib.h>
-#include <unistd.h>
-	]], [[
-	char template[]="conftest.mkstemp-test";
-	if (mkstemp(template) == -1)
-		exit(1);
-	unlink(template);
-	exit(0);
-	]])],
-	[
-		AC_MSG_RESULT([no])
-	],
-	[
-		AC_MSG_RESULT([yes])
-		AC_DEFINE([HAVE_STRICT_MKSTEMP], [1], [Silly mkstemp()])
-	],
-	[
-		AC_MSG_RESULT([yes])
-		AC_DEFINE([HAVE_STRICT_MKSTEMP])
-	]
-)
 fi
 
 dnl make sure that openpty does not reacquire controlling terminal
@@ -2878,6 +2871,7 @@ if test "x$openssl" = "xyes" ; then
 		EVP_CIPHER_CTX_iv \
 		EVP_CIPHER_CTX_iv_noconst \
 		EVP_CIPHER_CTX_get_iv \
+		EVP_CIPHER_CTX_get_updated_iv \
 		EVP_CIPHER_CTX_set_iv \
 		RSA_get0_crt_params \
 		RSA_get0_factors \
@@ -4155,8 +4149,6 @@ if test "x$ac_cv_have_struct_addrinfo" = "xyes" ; then
 		[define if you have struct addrinfo data type])
 fi
 
-AC_HEADER_TIME
-
 AC_CACHE_CHECK([for struct timeval], ac_cv_have_struct_timeval, [
 	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ #include <sys/time.h> ]],
 	[[ struct timeval tv; tv.tv_sec = 1;]])],
@@ -4171,15 +4163,11 @@ fi
 
 AC_CACHE_CHECK([for struct timespec], ac_cv_have_struct_timespec, [
 	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-    #ifdef TIME_WITH_SYS_TIME
+    #ifdef HAVE_SYS_TIME_H
     # include <sys/time.h>
+    #endif
+    #ifdef HAVE_TIME_H
     # include <time.h>
-    #else
-    # ifdef HAVE_SYS_TIME_H
-    #  include <sys/time.h>
-    # else
-    #  include <time.h>
-    # endif
     #endif
 	]],
 	[[ struct timespec ts; ts.tv_sec = 1;]])],

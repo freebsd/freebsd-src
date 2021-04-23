@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.158 2020/03/06 18:16:21 markus Exp $ */
+/* $OpenBSD: auth2.c,v 1.160 2021/01/27 10:05:28 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -61,8 +61,6 @@
 
 /* import */
 extern ServerOptions options;
-extern u_char *session_id2;
-extern u_int session_id2_len;
 extern struct sshbuf *loginmsg;
 
 /* methods */
@@ -145,7 +143,7 @@ userauth_send_banner(struct ssh *ssh, const char *msg)
 	    (r = sshpkt_put_cstring(ssh, msg)) != 0 ||
 	    (r = sshpkt_put_cstring(ssh, "")) != 0 ||	/* language, unused */
 	    (r = sshpkt_send(ssh)) != 0)
-		fatal("%s: %s", __func__, ssh_err(r));
+		fatal_fr(r, "send packet");
 	debug("%s: sent", __func__);
 }
 
@@ -232,11 +230,11 @@ user_specific_delay(const char *user)
 	(void)snprintf(b, sizeof b, "%llu%s",
 	     (unsigned long long)options.timing_secret, user);
 	if (ssh_digest_memory(SSH_DIGEST_SHA512, b, strlen(b), hash, len) != 0)
-		fatal("%s: ssh_digest_memory", __func__);
+		fatal_f("ssh_digest_memory");
 	/* 0-4.2 ms of delay */
 	delay = (double)PEEK_U32(hash) / 1000 / 1000 / 1000 / 1000;
 	freezero(hash, len);
-	debug3("%s: user specific delay %0.3lfms", __func__, delay/1000);
+	debug3_f("user specific delay %0.3lfms", delay/1000);
 	return MIN_FAIL_DELAY_SECONDS + delay;
 }
 
@@ -252,8 +250,8 @@ ensure_minimum_time_since(double start, double seconds)
 
 	ts.tv_sec = remain;
 	ts.tv_nsec = (remain - ts.tv_sec) * 1000000000;
-	debug3("%s: elapsed %0.3lfms, delaying %0.3lfms (requested %0.3lfms)",
-	    __func__, elapsed*1000, remain*1000, req*1000);
+	debug3_f("elapsed %0.3lfms, delaying %0.3lfms (requested %0.3lfms)",
+	    elapsed*1000, remain*1000, req*1000);
 	nanosleep(&ts, NULL);
 }
 
@@ -286,8 +284,7 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 		authctxt->user = xstrdup(user);
 		if (authctxt->pw && strcmp(service, "ssh-connection")==0) {
 			authctxt->valid = 1;
-			debug2("%s: setting up authctxt for %s",
-			    __func__, user);
+			debug2_f("setting up authctxt for %s", user);
 		} else {
 			/* Invalid user, fake password information */
 			authctxt->pw = fakepw();
@@ -417,7 +414,7 @@ userauth_finish(struct ssh *ssh, int authenticated, const char *method,
 		if ((r = sshpkt_start(ssh, SSH2_MSG_USERAUTH_SUCCESS)) != 0 ||
 		    (r = sshpkt_send(ssh)) != 0 ||
 		    (r = ssh_packet_write_wait(ssh)) != 0)
-			fatal("%s: %s", __func__, ssh_err(r));
+			fatal_fr(r, "send success packet");
 		/* now we can break out */
 		authctxt->success = 1;
 		ssh_packet_set_log_preamble(ssh, "user %s", authctxt->user);
@@ -433,14 +430,14 @@ userauth_finish(struct ssh *ssh, int authenticated, const char *method,
 			auth_maxtries_exceeded(ssh);
 		}
 		methods = authmethods_get(authctxt);
-		debug3("%s: failure partial=%d next methods=\"%s\"", __func__,
+		debug3_f("failure partial=%d next methods=\"%s\"",
 		    partial, methods);
 		if ((r = sshpkt_start(ssh, SSH2_MSG_USERAUTH_FAILURE)) != 0 ||
 		    (r = sshpkt_put_cstring(ssh, methods)) != 0 ||
 		    (r = sshpkt_put_u8(ssh, partial)) != 0 ||
 		    (r = sshpkt_send(ssh)) != 0 ||
 		    (r = ssh_packet_write_wait(ssh)) != 0)
-			fatal("%s: %s", __func__, ssh_err(r));
+			fatal_fr(r, "send failure packet");
 		free(methods);
 	}
 }
@@ -478,7 +475,7 @@ authmethods_get(Authctxt *authctxt)
 	int i, r;
 
 	if ((b = sshbuf_new()) == NULL)
-		fatal("%s: sshbuf_new failed", __func__);
+		fatal_f("sshbuf_new failed");
 	for (i = 0; authmethods[i] != NULL; i++) {
 		if (strcmp(authmethods[i]->name, "none") == 0)
 			continue;
@@ -490,10 +487,10 @@ authmethods_get(Authctxt *authctxt)
 			continue;
 		if ((r = sshbuf_putf(b, "%s%s", sshbuf_len(b) ? "," : "",
 		    authmethods[i]->name)) != 0)
-			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+			fatal_fr(r, "buffer error");
 	}
 	if ((list = sshbuf_dup_string(b)) == NULL)
-		fatal("%s: sshbuf_dup_string failed", __func__);
+		fatal_f("sshbuf_dup_string failed");
 	sshbuf_free(b);
 	return list;
 }
@@ -585,7 +582,7 @@ auth2_setup_methods_lists(Authctxt *authctxt)
 
 	if (options.num_auth_methods == 0)
 		return 0;
-	debug3("%s: checking methods", __func__);
+	debug3_f("checking methods");
 	authctxt->auth_methods = xcalloc(options.num_auth_methods,
 	    sizeof(*authctxt->auth_methods));
 	authctxt->num_auth_methods = 0;
@@ -673,7 +670,7 @@ auth2_update_methods_lists(Authctxt *authctxt, const char *method,
 {
 	u_int i, found = 0;
 
-	debug3("%s: updating methods list after \"%s\"", __func__, method);
+	debug3_f("updating methods list after \"%s\"", method);
 	for (i = 0; i < authctxt->num_auth_methods; i++) {
 		if (!remove_method(&(authctxt->auth_methods[i]), method,
 		    submethod))
@@ -688,7 +685,7 @@ auth2_update_methods_lists(Authctxt *authctxt, const char *method,
 	}
 	/* This should not happen, but would be bad if it did */
 	if (!found)
-		fatal("%s: method not in AuthenticationMethods", __func__);
+		fatal_f("method not in AuthenticationMethods");
 	return 0;
 }
 
@@ -716,7 +713,7 @@ auth2_record_info(Authctxt *authctxt, const char *fmt, ...)
 	va_end(ap);
 
 	if (i == -1)
-		fatal("%s: vasprintf failed", __func__);
+		fatal_f("vasprintf failed");
 }
 
 /*
@@ -732,7 +729,7 @@ auth2_record_key(Authctxt *authctxt, int authenticated,
 	int r;
 
 	if ((r = sshkey_from_private(key, &dup)) != 0)
-		fatal("%s: copy key: %s", __func__, ssh_err(r));
+		fatal_fr(r, "copy key");
 	sshkey_free(authctxt->auth_method_key);
 	authctxt->auth_method_key = dup;
 
@@ -741,11 +738,11 @@ auth2_record_key(Authctxt *authctxt, int authenticated,
 
 	/* If authenticated, make sure we don't accept this key again */
 	if ((r = sshkey_from_private(key, &dup)) != 0)
-		fatal("%s: copy key: %s", __func__, ssh_err(r));
+		fatal_fr(r, "copy key");
 	if (authctxt->nprev_keys >= INT_MAX ||
 	    (tmp = recallocarray(authctxt->prev_keys, authctxt->nprev_keys,
 	    authctxt->nprev_keys + 1, sizeof(*authctxt->prev_keys))) == NULL)
-		fatal("%s: reallocarray failed", __func__);
+		fatal_f("reallocarray failed");
 	authctxt->prev_keys = tmp;
 	authctxt->prev_keys[authctxt->nprev_keys] = dup;
 	authctxt->nprev_keys++;
@@ -763,7 +760,7 @@ auth2_key_already_used(Authctxt *authctxt, const struct sshkey *key)
 		if (sshkey_equal_public(key, authctxt->prev_keys[i])) {
 			fp = sshkey_fingerprint(authctxt->prev_keys[i],
 			    options.fingerprint_hash, SSH_FP_DEFAULT);
-			debug3("%s: key already used: %s %s", __func__,
+			debug3_f("key already used: %s %s",
 			    sshkey_type(authctxt->prev_keys[i]),
 			    fp == NULL ? "UNKNOWN" : fp);
 			free(fp);
@@ -785,35 +782,34 @@ auth2_update_session_info(Authctxt *authctxt, const char *method,
 
 	if (authctxt->session_info == NULL) {
 		if ((authctxt->session_info = sshbuf_new()) == NULL)
-			fatal("%s: sshbuf_new", __func__);
+			fatal_f("sshbuf_new");
 	}
 
 	/* Append method[/submethod] */
 	if ((r = sshbuf_putf(authctxt->session_info, "%s%s%s",
 	    method, submethod == NULL ? "" : "/",
 	    submethod == NULL ? "" : submethod)) != 0)
-		fatal("%s: append method: %s", __func__, ssh_err(r));
+		fatal_fr(r, "append method");
 
 	/* Append key if present */
 	if (authctxt->auth_method_key != NULL) {
 		if ((r = sshbuf_put_u8(authctxt->session_info, ' ')) != 0 ||
 		    (r = sshkey_format_text(authctxt->auth_method_key,
 		    authctxt->session_info)) != 0)
-			fatal("%s: append key: %s", __func__, ssh_err(r));
+			fatal_fr(r, "append key");
 	}
 
 	if (authctxt->auth_method_info != NULL) {
 		/* Ensure no ambiguity here */
 		if (strchr(authctxt->auth_method_info, '\n') != NULL)
-			fatal("%s: auth_method_info contains \\n", __func__);
+			fatal_f("auth_method_info contains \\n");
 		if ((r = sshbuf_put_u8(authctxt->session_info, ' ')) != 0 ||
 		    (r = sshbuf_putf(authctxt->session_info, "%s",
 		    authctxt->auth_method_info)) != 0) {
-			fatal("%s: append method info: %s",
-			    __func__, ssh_err(r));
+			fatal_fr(r, "append method info");
 		}
 	}
 	if ((r = sshbuf_put_u8(authctxt->session_info, '\n')) != 0)
-		fatal("%s: append: %s", __func__, ssh_err(r));
+		fatal_fr(r, "append");
 }
 

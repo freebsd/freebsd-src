@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.536 2020/09/21 07:29:09 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.552 2021/02/23 00:05:31 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -173,11 +173,6 @@ char *host;
  */
 char *forward_agent_sock_path = NULL;
 
-/* Various strings used to to percent_expand() arguments */
-static char thishost[NI_MAXHOST], shorthost[NI_MAXHOST], portstr[NI_MAXSERV];
-static char uidstr[32], *host_arg, *conn_hash_hex;
-static const char *keyalias;
-
 /* socket address the host resolves to */
 struct sockaddr_storage hostaddr;
 
@@ -214,8 +209,8 @@ usage(void)
 	exit(255);
 }
 
-static int ssh_session2(struct ssh *, struct passwd *);
-static void load_public_identity_files(struct passwd *);
+static int ssh_session2(struct ssh *, const struct ssh_conn_info *);
+static void load_public_identity_files(const struct ssh_conn_info *);
 static void main_sigchld_handler(int);
 
 /* ~/ expand a list of paths. NB. assumes path[n] is heap-allocated. */
@@ -232,32 +227,17 @@ tilde_expand_paths(char **paths, u_int num_paths)
 	}
 }
 
-#define DEFAULT_CLIENT_PERCENT_EXPAND_ARGS \
-    "C", conn_hash_hex, \
-    "L", shorthost, \
-    "i", uidstr, \
-    "k", keyalias, \
-    "l", thishost, \
-    "n", host_arg, \
-    "p", portstr
-
 /*
  * Expands the set of percent_expand options used by the majority of keywords
  * in the client that support percent expansion.
  * Caller must free returned string.
  */
 static char *
-default_client_percent_expand(const char *str, const char *homedir,
-    const char *remhost, const char *remuser, const char *locuser)
+default_client_percent_expand(const char *str,
+    const struct ssh_conn_info *cinfo)
 {
 	return percent_expand(str,
-	    /* values from statics above */
-	    DEFAULT_CLIENT_PERCENT_EXPAND_ARGS,
-	    /* values from arguments */
-	    "d", homedir,
-	    "h", remhost,
-	    "r", remuser,
-	    "u", locuser,
+	    DEFAULT_CLIENT_PERCENT_EXPAND_ARGS(cinfo),
 	    (char *)NULL);
 }
 
@@ -267,19 +247,13 @@ default_client_percent_expand(const char *str, const char *homedir,
  * Caller must free returned string.
  */
 static char *
-default_client_percent_dollar_expand(const char *str, const char *homedir,
-    const char *remhost, const char *remuser, const char *locuser)
+default_client_percent_dollar_expand(const char *str,
+    const struct ssh_conn_info *cinfo)
 {
 	char *ret;
 
 	ret = percent_dollar_expand(str,
-	    /* values from statics above */
-	    DEFAULT_CLIENT_PERCENT_EXPAND_ARGS,
-	    /* values from arguments */
-	    "d", homedir,
-	    "h", remhost,
-	    "r", remuser,
-	    "u", locuser,
+	    DEFAULT_CLIENT_PERCENT_EXPAND_ARGS(cinfo),
 	    (char *)NULL);
 	if (ret == NULL)
 		fatal("invalid environment variable expansion");
@@ -321,8 +295,8 @@ resolve_host(const char *name, int port, int logerr, char *cname, size_t clen)
 	}
 	if (cname != NULL && res->ai_canonname != NULL) {
 		if (strlcpy(cname, res->ai_canonname, clen) >= clen) {
-			error("%s: host \"%s\" cname \"%s\" too long (max %lu)",
-			    __func__, name,  res->ai_canonname, (u_long)clen);
+			error_f("host \"%s\" cname \"%s\" too long (max %lu)",
+			    name,  res->ai_canonname, (u_long)clen);
 			if (clen > 0)
 				*cname = '\0';
 		}
@@ -386,29 +360,27 @@ resolve_addr(const char *name, int port, char *caddr, size_t clen)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_NUMERICHOST|AI_NUMERICSERV;
 	if ((gaierr = getaddrinfo(name, strport, &hints, &res)) != 0) {
-		debug2("%s: could not resolve name %.100s as address: %s",
-		    __func__, name, ssh_gai_strerror(gaierr));
+		debug2_f("could not resolve name %.100s as address: %s",
+		    name, ssh_gai_strerror(gaierr));
 		return NULL;
 	}
 	if (res == NULL) {
-		debug("%s: getaddrinfo %.100s returned no addresses",
-		 __func__, name);
+		debug_f("getaddrinfo %.100s returned no addresses", name);
 		return NULL;
 	}
 	if (res->ai_next != NULL) {
-		debug("%s: getaddrinfo %.100s returned multiple addresses",
-		    __func__, name);
+		debug_f("getaddrinfo %.100s returned multiple addresses", name);
 		goto fail;
 	}
 	if ((gaierr = getnameinfo(res->ai_addr, res->ai_addrlen,
 	    addr, sizeof(addr), NULL, 0, NI_NUMERICHOST)) != 0) {
-		debug("%s: Could not format address for name %.100s: %s",
-		    __func__, name, ssh_gai_strerror(gaierr));
+		debug_f("Could not format address for name %.100s: %s",
+		    name, ssh_gai_strerror(gaierr));
 		goto fail;
 	}
 	if (strlcpy(caddr, addr, clen) >= clen) {
-		error("%s: host \"%s\" addr \"%s\" too long (max %lu)",
-		    __func__, name,  addr, (u_long)clen);
+		error_f("host \"%s\" addr \"%s\" too long (max %lu)",
+		    name,  addr, (u_long)clen);
 		if (clen > 0)
 			*caddr = '\0';
  fail:
@@ -441,7 +413,7 @@ check_follow_cname(int direct, char **namep, const char *cname)
 	if (!direct &&
 	    options.canonicalize_hostname != SSH_CANONICALISE_ALWAYS)
 		return 0;
-	debug3("%s: check \"%s\" CNAME \"%s\"", __func__, *namep, cname);
+	debug3_f("check \"%s\" CNAME \"%s\"", *namep, cname);
 	for (i = 0; i < options.num_permitted_cnames; i++) {
 		rule = options.permitted_cnames + i;
 		if (match_pattern_list(*namep, rule->source_list, 1) != 1 ||
@@ -475,10 +447,10 @@ resolve_canonicalize(char **hostp, int port)
 	 */
 	if ((addrs = resolve_addr(*hostp, port,
 	    newname, sizeof(newname))) != NULL) {
-		debug2("%s: hostname %.100s is address", __func__, *hostp);
+		debug2_f("hostname %.100s is address", *hostp);
 		if (strcasecmp(*hostp, newname) != 0) {
-			debug2("%s: canonicalised address \"%s\" => \"%s\"",
-			    __func__, *hostp, newname);
+			debug2_f("canonicalised address \"%s\" => \"%s\"",
+			    *hostp, newname);
 			free(*hostp);
 			*hostp = xstrdup(newname);
 		}
@@ -491,8 +463,7 @@ resolve_canonicalize(char **hostp, int port)
 	 * attempts at canonicalisation.
 	 */
 	if (is_addr_fast(*hostp)) {
-		debug("%s: hostname %.100s is an unrecognised address",
-		    __func__, *hostp);
+		debug_f("hostname %.100s is an unrecognised address", *hostp);
 		return NULL;
 	}
 
@@ -511,7 +482,7 @@ resolve_canonicalize(char **hostp, int port)
 
 	/* If domain name is anchored, then resolve it now */
 	if ((*hostp)[strlen(*hostp) - 1] == '.') {
-		debug3("%s: name is fully qualified", __func__);
+		debug3_f("name is fully qualified");
 		fullhost = xstrdup(*hostp);
 		if ((addrs = resolve_host(fullhost, port, 0,
 		    newname, sizeof(newname))) != NULL)
@@ -527,16 +498,15 @@ resolve_canonicalize(char **hostp, int port)
 			ndots++;
 	}
 	if (ndots > options.canonicalize_max_dots) {
-		debug3("%s: not canonicalizing hostname \"%s\" (max dots %d)",
-		    __func__, *hostp, options.canonicalize_max_dots);
+		debug3_f("not canonicalizing hostname \"%s\" (max dots %d)",
+		    *hostp, options.canonicalize_max_dots);
 		return NULL;
 	}
 	/* Attempt each supplied suffix */
 	for (i = 0; i < options.num_canonical_domains; i++) {
 		xasprintf(&fullhost, "%s.%s.", *hostp,
 		    options.canonical_domains[i]);
-		debug3("%s: attempting \"%s\" => \"%s\"", __func__,
-		    *hostp, fullhost);
+		debug3_f("attempting \"%s\" => \"%s\"", *hostp, fullhost);
 		if ((addrs = resolve_host(fullhost, port, 0,
 		    newname, sizeof(newname))) == NULL) {
 			free(fullhost);
@@ -557,7 +527,7 @@ resolve_canonicalize(char **hostp, int port)
  notfound:
 	if (!options.canonicalize_fallback_local)
 		fatal("%s: Could not resolve host \"%s\"", __progname, *hostp);
-	debug2("%s: host %s not found in any suffix", __func__, *hostp);
+	debug2_f("host %s not found in any suffix", *hostp);
 	return NULL;
 }
 
@@ -573,14 +543,14 @@ check_load(int r, const char *path, const char *message)
 		break;
 	case SSH_ERR_INTERNAL_ERROR:
 	case SSH_ERR_ALLOC_FAIL:
-		fatal("load %s \"%s\": %s", message, path, ssh_err(r));
+		fatal_r(r, "load %s \"%s\"", message, path);
 	case SSH_ERR_SYSTEM_ERROR:
 		/* Ignore missing files */
 		if (errno == ENOENT)
 			break;
 		/* FALLTHROUGH */
 	default:
-		error("load %s \"%s\": %s", message, path, ssh_err(r));
+		error_r(r, "load %s \"%s\"", message, path);
 		break;
 	}
 }
@@ -638,6 +608,25 @@ set_addrinfo_port(struct addrinfo *addrs, int port)
 	}
 }
 
+static void
+ssh_conn_info_free(struct ssh_conn_info *cinfo)
+{
+	if (cinfo == NULL)
+		return;
+	free(cinfo->conn_hash_hex);
+	free(cinfo->shorthost);
+	free(cinfo->uidstr);
+	free(cinfo->keyalias);
+	free(cinfo->thishost);
+	free(cinfo->host_arg);
+	free(cinfo->portstr);
+	free(cinfo->remhost);
+	free(cinfo->remuser);
+	free(cinfo->homedir);
+	free(cinfo->locuser);
+	free(cinfo);
+}
+
 /*
  * Main program for the ssh client.
  */
@@ -647,8 +636,8 @@ main(int ac, char **av)
 	struct ssh *ssh = NULL;
 	int i, r, opt, exit_status, use_syslog, direct, timeout_ms;
 	int was_addr, config_test = 0, opt_terminated = 0, want_final_pass = 0;
-	char *p, *cp, *line, *argv0, *logfile;
-	char cname[NI_MAXHOST];
+	char *p, *cp, *line, *argv0, *logfile, *host_arg;
+	char cname[NI_MAXHOST], thishost[NI_MAXHOST];
 	struct stat st;
 	struct passwd *pw;
 	extern int optind, optreset;
@@ -657,6 +646,7 @@ main(int ac, char **av)
 	struct addrinfo *addrs = NULL;
 	size_t n, len;
 	u_int j;
+	struct ssh_conn_info *cinfo = NULL;
 
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
@@ -808,10 +798,12 @@ main(int ac, char **av)
 			else if (strcmp(optarg, "key-plain") == 0)
 				cp = sshkey_alg_list(0, 1, 0, '\n');
 			else if (strcmp(optarg, "key-sig") == 0 ||
-			    strcasecmp(optarg, "PubkeyAcceptedKeyTypes") == 0 ||
+			    strcasecmp(optarg, "PubkeyAcceptedKeyTypes") == 0 || /* deprecated name */
+			    strcasecmp(optarg, "PubkeyAcceptedAlgorithms") == 0 ||
 			    strcasecmp(optarg, "HostKeyAlgorithms") == 0 ||
-			    strcasecmp(optarg, "HostbasedKeyTypes") == 0 ||
-			    strcasecmp(optarg, "HostbasedAcceptedKeyTypes") == 0)
+			    strcasecmp(optarg, "HostbasedKeyTypes") == 0 || /* deprecated name */
+			    strcasecmp(optarg, "HostbasedAcceptedKeyTypes") == 0 || /* deprecated name */
+			    strcasecmp(optarg, "HostbasedAcceptedAlgorithms") == 0)
 				cp = sshkey_alg_list(0, 0, 1, '\n');
 			else if (strcmp(optarg, "sig") == 0)
 				cp = sshkey_alg_list(0, 1, 1, '\n');
@@ -897,13 +889,7 @@ main(int ac, char **av)
 			break;
 		case 'V':
 			fprintf(stderr, "%s, %s\n",
-			    SSH_RELEASE,
-#ifdef WITH_OPENSSL
-			    OpenSSL_version(OPENSSL_VERSION)
-#else
-			    "without OpenSSL"
-#endif
-			);
+			    SSH_RELEASE, SSH_OPENSSL_VERSION);
 			if (opt == 'V')
 				exit(0);
 			break;
@@ -1144,8 +1130,7 @@ main(int ac, char **av)
 		for (i = 0; i < ac; i++) {
 			if ((r = sshbuf_putf(command, "%s%s",
 			    i ? " " : "", av[i])) != 0)
-				fatal("%s: buffer error: %s",
-				    __func__, ssh_err(r));
+				fatal_fr(r, "buffer error");
 		}
 	}
 
@@ -1165,13 +1150,7 @@ main(int ac, char **av)
 	    !use_syslog);
 
 	if (debug_flag)
-		logit("%s, %s", SSH_RELEASE,
-#ifdef WITH_OPENSSL
-		    OpenSSL_version(OPENSSL_VERSION)
-#else
-		    "without OpenSSL"
-#endif
-		);
+		logit("%s, %s", SSH_RELEASE, SSH_OPENSSL_VERSION);
 
 	/* Parse the configuration files */
 	process_config_files(host_arg, pw, 0, &want_final_pass);
@@ -1254,7 +1233,8 @@ main(int ac, char **av)
 	}
 
 	/* Fill configuration defaults. */
-	fill_default_options(&options);
+	if (fill_default_options(&options) != 0)
+		cleanup_exit(255);
 
 	if (options.user == NULL)
 		options.user = xstrdup(pw->pw_name);
@@ -1355,6 +1335,8 @@ main(int ac, char **av)
 
 	/* reinit */
 	log_init(argv0, options.log_level, options.log_facility, !use_syslog);
+	for (j = 0; j < options.num_log_verbose; j++)
+		log_verbose_add(options.log_verbose[j]);
 
 	if (options.request_tty == REQUEST_TTY_YES ||
 	    options.request_tty == REQUEST_TTY_FORCE)
@@ -1378,17 +1360,24 @@ main(int ac, char **av)
 	}
 
 	/* Set up strings used to percent_expand() arguments */
+	cinfo = xcalloc(1, sizeof(*cinfo));
 	if (gethostname(thishost, sizeof(thishost)) == -1)
 		fatal("gethostname: %s", strerror(errno));
-	strlcpy(shorthost, thishost, sizeof(shorthost));
-	shorthost[strcspn(thishost, ".")] = '\0';
-	snprintf(portstr, sizeof(portstr), "%d", options.port);
-	snprintf(uidstr, sizeof(uidstr), "%llu",
+	cinfo->thishost = xstrdup(thishost);
+	thishost[strcspn(thishost, ".")] = '\0';
+	cinfo->shorthost = xstrdup(thishost);
+	xasprintf(&cinfo->portstr, "%d", options.port);
+	xasprintf(&cinfo->uidstr, "%llu",
 	    (unsigned long long)pw->pw_uid);
-	keyalias = options.host_key_alias ? options.host_key_alias : host_arg;
-
-	conn_hash_hex = ssh_connection_hash(thishost, host, portstr,
-	    options.user);
+	cinfo->keyalias = xstrdup(options.host_key_alias ?
+	    options.host_key_alias : host_arg);
+	cinfo->conn_hash_hex = ssh_connection_hash(cinfo->thishost, host,
+	    cinfo->portstr, options.user);
+	cinfo->host_arg = xstrdup(host_arg);
+	cinfo->remhost = xstrdup(host);
+	cinfo->remuser = xstrdup(options.user);
+	cinfo->homedir = xstrdup(pw->pw_dir);
+	cinfo->locuser = xstrdup(pw->pw_name);
 
 	/*
 	 * Expand tokens in arguments. NB. LocalCommand is expanded later,
@@ -1399,26 +1388,25 @@ main(int ac, char **av)
 		debug3("expanding RemoteCommand: %s", options.remote_command);
 		cp = options.remote_command;
 		options.remote_command = default_client_percent_expand(cp,
-		    pw->pw_dir, host, options.user, pw->pw_name);
+		    cinfo);
 		debug3("expanded RemoteCommand: %s", options.remote_command);
 		free(cp);
 		if ((r = sshbuf_put(command, options.remote_command,
 		    strlen(options.remote_command))) != 0)
-			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+			fatal_fr(r, "buffer error");
 	}
 
 	if (options.control_path != NULL) {
 		cp = tilde_expand_filename(options.control_path, getuid());
 		free(options.control_path);
 		options.control_path = default_client_percent_dollar_expand(cp,
-		    pw->pw_dir, host, options.user, pw->pw_name);
+		    cinfo);
 		free(cp);
 	}
 
 	if (options.identity_agent != NULL) {
 		p = tilde_expand_filename(options.identity_agent, getuid());
-		cp = default_client_percent_dollar_expand(p,
-		    pw->pw_dir, host, options.user, pw->pw_name);
+		cp = default_client_percent_dollar_expand(p, cinfo);
 		free(p);
 		free(options.identity_agent);
 		options.identity_agent = cp;
@@ -1427,34 +1415,55 @@ main(int ac, char **av)
 	if (options.forward_agent_sock_path != NULL) {
 		p = tilde_expand_filename(options.forward_agent_sock_path,
 		    getuid());
-		cp = default_client_percent_dollar_expand(p,
-		    pw->pw_dir, host, options.user, pw->pw_name);
+		cp = default_client_percent_dollar_expand(p, cinfo);
 		free(p);
 		free(options.forward_agent_sock_path);
 		options.forward_agent_sock_path = cp;
+		if (stat(options.forward_agent_sock_path, &st) != 0) {
+			error("Cannot forward agent socket path \"%s\": %s",
+			    options.forward_agent_sock_path, strerror(errno));
+			if (options.exit_on_forward_failure)
+				cleanup_exit(255);
+		}
 	}
 
+	if (options.num_system_hostfiles > 0 &&
+	    strcasecmp(options.system_hostfiles[0], "none") == 0) {
+		if (options.num_system_hostfiles > 1)
+			fatal("Invalid GlobalKnownHostsFiles: \"none\" "
+			    "appears with other entries");
+		free(options.system_hostfiles[0]);
+		options.system_hostfiles[0] = NULL;
+		options.num_system_hostfiles = 0;
+	}
+
+	if (options.num_user_hostfiles > 0 &&
+	    strcasecmp(options.user_hostfiles[0], "none") == 0) {
+		if (options.num_user_hostfiles > 1)
+			fatal("Invalid UserKnownHostsFiles: \"none\" "
+			    "appears with other entries");
+		free(options.user_hostfiles[0]);
+		options.user_hostfiles[0] = NULL;
+		options.num_user_hostfiles = 0;
+	}
 	for (j = 0; j < options.num_user_hostfiles; j++) {
-		if (options.user_hostfiles[j] != NULL) {
-			cp = tilde_expand_filename(options.user_hostfiles[j],
-			    getuid());
-			p = default_client_percent_dollar_expand(cp,
-			    pw->pw_dir, host, options.user, pw->pw_name);
-			if (strcmp(options.user_hostfiles[j], p) != 0)
-				debug3("expanded UserKnownHostsFile '%s' -> "
-				    "'%s'", options.user_hostfiles[j], p);
-			free(options.user_hostfiles[j]);
-			free(cp);
-			options.user_hostfiles[j] = p;
-		}
+		if (options.user_hostfiles[j] == NULL)
+			continue;
+		cp = tilde_expand_filename(options.user_hostfiles[j], getuid());
+		p = default_client_percent_dollar_expand(cp, cinfo);
+		if (strcmp(options.user_hostfiles[j], p) != 0)
+			debug3("expanded UserKnownHostsFile '%s' -> "
+			    "'%s'", options.user_hostfiles[j], p);
+		free(options.user_hostfiles[j]);
+		free(cp);
+		options.user_hostfiles[j] = p;
 	}
 
 	for (i = 0; i < options.num_local_forwards; i++) {
 		if (options.local_forwards[i].listen_path != NULL) {
 			cp = options.local_forwards[i].listen_path;
 			p = options.local_forwards[i].listen_path =
-			    default_client_percent_expand(cp,
-			    pw->pw_dir, host, options.user, pw->pw_name);
+			    default_client_percent_expand(cp, cinfo);
 			if (strcmp(cp, p) != 0)
 				debug3("expanded LocalForward listen path "
 				    "'%s' -> '%s'", cp, p);
@@ -1463,8 +1472,7 @@ main(int ac, char **av)
 		if (options.local_forwards[i].connect_path != NULL) {
 			cp = options.local_forwards[i].connect_path;
 			p = options.local_forwards[i].connect_path =
-			    default_client_percent_expand(cp,
-			    pw->pw_dir, host, options.user, pw->pw_name);
+			    default_client_percent_expand(cp, cinfo);
 			if (strcmp(cp, p) != 0)
 				debug3("expanded LocalForward connect path "
 				    "'%s' -> '%s'", cp, p);
@@ -1476,8 +1484,7 @@ main(int ac, char **av)
 		if (options.remote_forwards[i].listen_path != NULL) {
 			cp = options.remote_forwards[i].listen_path;
 			p = options.remote_forwards[i].listen_path =
-			    default_client_percent_expand(cp,
-			    pw->pw_dir, host, options.user, pw->pw_name);
+			    default_client_percent_expand(cp, cinfo);
 			if (strcmp(cp, p) != 0)
 				debug3("expanded RemoteForward listen path "
 				    "'%s' -> '%s'", cp, p);
@@ -1486,8 +1493,7 @@ main(int ac, char **av)
 		if (options.remote_forwards[i].connect_path != NULL) {
 			cp = options.remote_forwards[i].connect_path;
 			p = options.remote_forwards[i].connect_path =
-			    default_client_percent_expand(cp,
-			    pw->pw_dir, host, options.user, pw->pw_name);
+			    default_client_percent_expand(cp, cinfo);
 			if (strcmp(cp, p) != 0)
 				debug3("expanded RemoteForward connect path "
 				    "'%s' -> '%s'", cp, p);
@@ -1538,11 +1544,14 @@ main(int ac, char **av)
 			cleanup_exit(255); /* resolve_host logs the error */
 	}
 
-	timeout_ms = options.connection_timeout * 1000;
+	if (options.connection_timeout >= INT_MAX/1000)
+		timeout_ms = INT_MAX;
+	else
+		timeout_ms = options.connection_timeout * 1000;
 
 	/* Open a connection to the remote host. */
 	if (ssh_connect(ssh, host, host_arg, addrs, &hostaddr, options.port,
-	    options.address_family, options.connection_attempts,
+	    options.connection_attempts,
 	    &timeout_ms, options.tcp_keep_alive) != 0)
  		exit(255);
 
@@ -1570,13 +1579,13 @@ main(int ac, char **av)
 		/* XXX check errors? */
 #define L_PUBKEY(p,o) do { \
 	if ((o) >= sensitive_data.nkeys) \
-		fatal("%s pubkey out of array bounds", __func__); \
+		fatal_f("pubkey out of array bounds"); \
 	check_load(sshkey_load_public(p, &(sensitive_data.keys[o]), NULL), \
 	    p, "pubkey"); \
 } while (0)
 #define L_CERT(p,o) do { \
 	if ((o) >= sensitive_data.nkeys) \
-		fatal("%s cert out of array bounds", __func__); \
+		fatal_f("cert out of array bounds"); \
 	check_load(sshkey_load_cert(p, &(sensitive_data.keys[o])), p, "cert"); \
 } while (0)
 
@@ -1595,7 +1604,7 @@ main(int ac, char **av)
 	}
 
 	/* load options.identity_files */
-	load_public_identity_files(pw);
+	load_public_identity_files(cinfo);
 
 	/* optionally set the SSH_AUTHSOCKET_ENV_NAME variable */
 	if (options.identity_agent &&
@@ -1647,7 +1656,7 @@ main(int ac, char **av)
 
 	/* Log into the remote system.  Never returns if the login fails. */
 	ssh_login(ssh, &sensitive_data, host, (struct sockaddr *)&hostaddr,
-	    options.port, pw, timeout_ms);
+	    options.port, pw, timeout_ms, cinfo);
 
 	if (ssh_packet_connection_is_on_socket(ssh)) {
 		verbose("Authenticated to %s ([%s]:%d).", host,
@@ -1682,7 +1691,8 @@ main(int ac, char **av)
 	}
 
  skip_connect:
-	exit_status = ssh_session2(ssh, pw);
+	exit_status = ssh_session2(ssh, cinfo);
+	ssh_conn_info_free(cinfo);
 	ssh_packet_close(ssh);
 
 	if (options.control_path != NULL && muxserver_sock != -1)
@@ -1698,9 +1708,8 @@ static void
 control_persist_detach(void)
 {
 	pid_t pid;
-	int devnull, keep_stderr;
 
-	debug("%s: backgrounding master process", __func__);
+	debug_f("backgrounding master process");
 
 	/*
 	 * master (current process) into the background, and make the
@@ -1708,13 +1717,13 @@ control_persist_detach(void)
 	 */
 	switch ((pid = fork())) {
 	case -1:
-		fatal("%s: fork: %s", __func__, strerror(errno));
+		fatal_f("fork: %s", strerror(errno));
 	case 0:
 		/* Child: master process continues mainloop */
 		break;
 	default:
 		/* Parent: set up mux client to connect to backgrounded master */
-		debug2("%s: background process is %ld", __func__, (long)pid);
+		debug2_f("background process is %ld", (long)pid);
 		stdin_null_flag = ostdin_null_flag;
 		options.request_tty = orequest_tty;
 		tty_flag = otty_flag;
@@ -1725,18 +1734,8 @@ control_persist_detach(void)
 		/* muxclient() doesn't return on success. */
 		fatal("Failed to connect to new control master");
 	}
-	if ((devnull = open(_PATH_DEVNULL, O_RDWR)) == -1) {
-		error("%s: open(\"/dev/null\"): %s", __func__,
-		    strerror(errno));
-	} else {
-		keep_stderr = log_is_on_stderr() && debug_flag;
-		if (dup2(devnull, STDIN_FILENO) == -1 ||
-		    dup2(devnull, STDOUT_FILENO) == -1 ||
-		    (!keep_stderr && dup2(devnull, STDERR_FILENO) == -1))
-			error("%s: dup2: %s", __func__, strerror(errno));
-		if (devnull > STDERR_FILENO)
-			close(devnull);
-	}
+	if (stdfd_devnull(1, 1, !(log_is_on_stderr() && debug_flag)) == -1)
+		error_f("stdfd_devnull failed");
 	daemon(1, 1);
 	setproctitle("%s [mux]", options.control_path);
 }
@@ -1745,26 +1744,14 @@ control_persist_detach(void)
 static void
 fork_postauth(void)
 {
-	int devnull, keep_stderr;
-
 	if (need_controlpersist_detach)
 		control_persist_detach();
 	debug("forking to background");
 	fork_after_authentication_flag = 0;
 	if (daemon(1, 1) == -1)
 		fatal("daemon() failed: %.200s", strerror(errno));
-	if ((devnull = open(_PATH_DEVNULL, O_WRONLY)) == -1)
-		error("%s: open %s: %s", __func__,
-		    _PATH_DEVNULL, strerror(errno));
-	else {
-		keep_stderr = log_is_on_stderr() && debug_flag;
-		if (dup2(devnull, STDIN_FILENO) == -1 ||
-		    dup2(devnull, STDOUT_FILENO) == -1 ||
-		    (!keep_stderr && dup2(devnull, STDOUT_FILENO) == -1))
-			fatal("%s: dup2() stdio failed", __func__);
-		if (devnull > STDERR_FILENO)
-			close(devnull);
-	}
+	if (stdfd_devnull(1, 1, !(log_is_on_stderr() && debug_flag)) == -1)
+		error_f("stdfd_devnull failed");
 }
 
 static void
@@ -1773,12 +1760,12 @@ forwarding_success(void)
 	if (forward_confirms_pending == -1)
 		return;
 	if (--forward_confirms_pending == 0) {
-		debug("%s: all expected forwarding replies received", __func__);
+		debug_f("all expected forwarding replies received");
 		if (fork_after_authentication_flag)
 			fork_postauth();
 	} else {
-		debug2("%s: %d expected forwarding replies remaining",
-		    __func__, forward_confirms_pending);
+		debug2_f("%d expected forwarding replies remaining",
+		    forward_confirms_pending);
 	}
 }
 
@@ -1801,7 +1788,7 @@ ssh_confirm_remote_forward(struct ssh *ssh, int type, u_int32_t seq, void *ctxt)
 	if (rfwd->listen_path == NULL && rfwd->listen_port == 0) {
 		if (type == SSH2_MSG_REQUEST_SUCCESS) {
 			if ((r = sshpkt_get_u32(ssh, &port)) != 0)
-				fatal("%s: %s", __func__, ssh_err(r));
+				fatal_fr(r, "parse packet");
 			if (port > 65535) {
 				error("Invalid allocated port %u for remote "
 				    "forward to %s:%d", port,
@@ -1867,7 +1854,7 @@ ssh_tun_confirm(struct ssh *ssh, int id, int success, void *arg)
 			cleanup_exit(255);
 	}
 
-	debug("%s: tunnel forward established, id=%d", __func__, id);
+	debug_f("tunnel forward established, id=%d", id);
 	forwarding_success();
 }
 
@@ -1880,7 +1867,7 @@ ssh_init_stdio_forwarding(struct ssh *ssh)
 	if (options.stdio_forward_host == NULL)
 		return;
 
-	debug3("%s: %s:%d", __func__, options.stdio_forward_host,
+	debug3_f("%s:%d", options.stdio_forward_host,
 	    options.stdio_forward_port);
 
 	if ((in = dup(STDIN_FILENO)) == -1 ||
@@ -1888,9 +1875,46 @@ ssh_init_stdio_forwarding(struct ssh *ssh)
 		fatal("channel_connect_stdio_fwd: dup() in/out failed");
 	if ((c = channel_connect_stdio_fwd(ssh, options.stdio_forward_host,
 	    options.stdio_forward_port, in, out)) == NULL)
-		fatal("%s: channel_connect_stdio_fwd failed", __func__);
+		fatal_f("channel_connect_stdio_fwd failed");
 	channel_register_cleanup(ssh, c->self, client_cleanup_stdio_fwd, 0);
 	channel_register_open_confirm(ssh, c->self, ssh_stdio_confirm, NULL);
+}
+
+static void
+ssh_init_forward_permissions(struct ssh *ssh, const char *what, char **opens,
+    u_int num_opens)
+{
+	u_int i;
+	int port;
+	char *addr, *arg, *oarg, ch;
+	int where = FORWARD_LOCAL;
+
+	channel_clear_permission(ssh, FORWARD_ADM, where);
+	if (num_opens == 0)
+		return; /* permit any */
+
+	/* handle keywords: "any" / "none" */
+	if (num_opens == 1 && strcmp(opens[0], "any") == 0)
+		return;
+	if (num_opens == 1 && strcmp(opens[0], "none") == 0) {
+		channel_disable_admin(ssh, where);
+		return;
+	}
+	/* Otherwise treat it as a list of permitted host:port */
+	for (i = 0; i < num_opens; i++) {
+		oarg = arg = xstrdup(opens[i]);
+		ch = '\0';
+		addr = hpdelim2(&arg, &ch);
+		if (addr == NULL || ch == '/')
+			fatal_f("missing host in %s", what);
+		addr = cleanhostname(addr);
+		if (arg == NULL || ((port = permitopen_port(arg)) < 0))
+			fatal_f("bad port number in %s", what);
+		/* Send it to channels layer */
+		channel_add_permission(ssh, FORWARD_ADM,
+		    where, addr, port);
+		free(oarg);
+	}
 }
 
 static void
@@ -1898,6 +1922,10 @@ ssh_init_forwarding(struct ssh *ssh, char **ifname)
 {
 	int success = 0;
 	int i;
+
+	ssh_init_forward_permissions(ssh, "permitremoteopen",
+	    options.permitted_remote_opens,
+	    options.num_permitted_remote_opens);
 
 	if (options.exit_on_forward_failure)
 		forward_confirms_pending = 0; /* track pending requests */
@@ -1961,7 +1989,7 @@ ssh_init_forwarding(struct ssh *ssh, char **ifname)
 			error("Could not request tunnel forwarding.");
 	}
 	if (forward_confirms_pending > 0) {
-		debug("%s: expecting replies for %d forwards", __func__,
+		debug_f("expecting replies for %d forwards",
 		    forward_confirms_pending);
 	}
 }
@@ -1976,8 +2004,7 @@ check_agent_present(void)
 		if ((r = ssh_get_authentication_socket(NULL)) != 0) {
 			options.forward_agent = 0;
 			if (r != SSH_ERR_AGENT_NOT_PRESENT)
-				debug("ssh_get_authentication_socket: %s",
-				    ssh_err(r));
+				debug_r(r, "ssh_get_authentication_socket");
 		}
 	}
 }
@@ -2014,7 +2041,7 @@ ssh_session2_setup(struct ssh *ssh, int id, int success, void *arg)
 		debug("Requesting authentication agent forwarding.");
 		channel_request_start(ssh, id, "auth-agent-req@openssh.com", 0);
 		if ((r = sshpkt_send(ssh)) != 0)
-			fatal("%s: %s", __func__, ssh_err(r));
+			fatal_fr(r, "send packet");
 	}
 
 	/* Tell the packet module whether this is an interactive session. */
@@ -2062,7 +2089,7 @@ ssh_session2_open(struct ssh *ssh)
 	    window, packetmax, CHAN_EXTENDED_WRITE,
 	    "client-session", /*nonblock*/0);
 
-	debug3("%s: channel_new: %d", __func__, c->self);
+	debug3_f("channel_new: %d", c->self);
 
 	channel_send_open(ssh, c->self);
 	if (!no_shell_flag)
@@ -2073,9 +2100,9 @@ ssh_session2_open(struct ssh *ssh)
 }
 
 static int
-ssh_session2(struct ssh *ssh, struct passwd *pw)
+ssh_session2(struct ssh *ssh, const struct ssh_conn_info *cinfo)
 {
-	int r, devnull, id = -1;
+	int r, id = -1;
 	char *cp, *tun_fwd_ifname = NULL;
 
 	/* XXX should be pre-session */
@@ -2088,11 +2115,7 @@ ssh_session2(struct ssh *ssh, struct passwd *pw)
 		debug3("expanding LocalCommand: %s", options.local_command);
 		cp = options.local_command;
 		options.local_command = percent_expand(cp,
-		    DEFAULT_CLIENT_PERCENT_EXPAND_ARGS,
-		    "d", pw->pw_dir,
-		    "h", host,
-		    "r", options.user,
-		    "u", pw->pw_name,
+		    DEFAULT_CLIENT_PERCENT_EXPAND_ARGS(cinfo),
 		    "T", tun_fwd_ifname == NULL ? "NONE" : tun_fwd_ifname,
 		    (char *)NULL);
 		debug3("expanded LocalCommand: %s", options.local_command);
@@ -2141,14 +2164,14 @@ ssh_session2(struct ssh *ssh, struct passwd *pw)
 
 	/* If we don't expect to open a new session, then disallow it */
 	if (options.control_master == SSHCTL_MASTER_NO &&
-	    (datafellows & SSH_NEW_OPENSSH)) {
+	    (ssh->compat & SSH_NEW_OPENSSH)) {
 		debug("Requesting no-more-sessions@openssh.com");
 		if ((r = sshpkt_start(ssh, SSH2_MSG_GLOBAL_REQUEST)) != 0 ||
 		    (r = sshpkt_put_cstring(ssh,
 		    "no-more-sessions@openssh.com")) != 0 ||
 		    (r = sshpkt_put_u8(ssh, 0)) != 0 ||
 		    (r = sshpkt_send(ssh)) != 0)
-			fatal("%s: %s", __func__, ssh_err(r));
+			fatal_fr(r, "send packet");
 	}
 
 	/* Execute a local command */
@@ -2162,17 +2185,8 @@ ssh_session2(struct ssh *ssh, struct passwd *pw)
 	 * NB. this can only happen after LocalCommand has completed,
 	 * as it may want to write to stdout.
 	 */
-	if (!need_controlpersist_detach) {
-		if ((devnull = open(_PATH_DEVNULL, O_WRONLY)) == -1) {
-			error("%s: open %s: %s", __func__,
-			    _PATH_DEVNULL, strerror(errno));
-		} else {
-			if (dup2(devnull, STDOUT_FILENO) == -1)
-				fatal("%s: dup2() stdout failed", __func__);
-			if (devnull > STDERR_FILENO)
-				close(devnull);
-		}
-	}
+	if (!need_controlpersist_detach && stdfd_devnull(0, 1, 0) == -1)
+		error_f("stdfd_devnull failed");
 
 	/*
 	 * If requested and we are not interested in replies to remote
@@ -2193,7 +2207,7 @@ ssh_session2(struct ssh *ssh, struct passwd *pw)
 
 /* Loads all IdentityFile and CertificateFile keys */
 static void
-load_public_identity_files(struct passwd *pw)
+load_public_identity_files(const struct ssh_conn_info *cinfo)
 {
 	char *filename, *cp;
 	struct sshkey *public;
@@ -2249,8 +2263,7 @@ load_public_identity_files(struct passwd *pw)
 			continue;
 		}
 		cp = tilde_expand_filename(options.identity_files[i], getuid());
-		filename = default_client_percent_dollar_expand(cp,
-		    pw->pw_dir, host, options.user, pw->pw_name);
+		filename = default_client_percent_dollar_expand(cp, cinfo);
 		free(cp);
 		check_load(sshkey_load_public(filename, &public, NULL),
 		    filename, "pubkey");
@@ -2280,8 +2293,8 @@ load_public_identity_files(struct passwd *pw)
 			continue;
 		}
 		if (!sshkey_is_cert(public)) {
-			debug("%s: key %s type %s is not a certificate",
-			    __func__, cp, sshkey_type(public));
+			debug_f("key %s type %s is not a certificate",
+			    cp, sshkey_type(public));
 			sshkey_free(public);
 			free(cp);
 			continue;
@@ -2295,12 +2308,11 @@ load_public_identity_files(struct passwd *pw)
 	}
 
 	if (options.num_certificate_files > SSH_MAX_CERTIFICATE_FILES)
-		fatal("%s: too many certificates", __func__);
+		fatal_f("too many certificates");
 	for (i = 0; i < options.num_certificate_files; i++) {
 		cp = tilde_expand_filename(options.certificate_files[i],
 		    getuid());
-		filename = default_client_percent_dollar_expand(cp,
-		    pw->pw_dir, host, options.user, pw->pw_name);
+		filename = default_client_percent_dollar_expand(cp, cinfo);
 		free(cp);
 
 		check_load(sshkey_load_public(filename, &public, NULL),
@@ -2314,8 +2326,8 @@ load_public_identity_files(struct passwd *pw)
 			continue;
 		}
 		if (!sshkey_is_cert(public)) {
-			debug("%s: key %s type %s is not a certificate",
-			    __func__, filename, sshkey_type(public));
+			debug_f("key %s type %s is not a certificate",
+			    filename, sshkey_type(public));
 			sshkey_free(public);
 			free(filename);
 			continue;

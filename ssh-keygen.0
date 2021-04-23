@@ -7,9 +7,9 @@ SYNOPSIS
      ssh-keygen [-q] [-a rounds] [-b bits] [-C comment] [-f output_keyfile]
                 [-m format] [-N new_passphrase] [-O option]
                 [-t dsa | ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa]
-                [-w provider]
+                [-w provider] [-Z cipher]
      ssh-keygen -p [-a rounds] [-f keyfile] [-m format] [-N new_passphrase]
-                [-P old_passphrase]
+                [-P old_passphrase] [-Z cipher]
      ssh-keygen -i [-f input_keyfile] [-m key_format]
      ssh-keygen -e [-f input_keyfile] [-m key_format]
      ssh-keygen -y [-f input_keyfile]
@@ -103,10 +103,10 @@ DESCRIPTION
 
      -a rounds
              When saving a private key, this option specifies the number of
-             KDF (key derivation function) rounds used.  Higher numbers result
-             in slower passphrase verification and increased resistance to
-             brute-force password cracking (should the keys be stolen).  The
-             default is 16 rounds.
+             KDF (key derivation function, currently bcrypt_pbkdf(3)) rounds
+             used.  Higher numbers result in slower passphrase verification
+             and increased resistance to brute-force password cracking (should
+             the keys be stolen).  The default is 16 rounds.
 
      -B      Show the bubblebabble digest of specified private or public key
              file.
@@ -375,7 +375,7 @@ DESCRIPTION
              from now), M-bM-^@M-^\-4w:+4wM-bM-^@M-^] (valid from four weeks ago to four weeks
              from now), M-bM-^@M-^\20100101123000:20110101123000M-bM-^@M-^] (valid from 12:30 PM,
              January 1st, 2010 to 12:30 PM, January 1st, 2011), M-bM-^@M-^\-1d:20110101M-bM-^@M-^]
-             (valid from yesterday to midnight, January 1st, 2011).
+             (valid from yesterday to midnight, January 1st, 2011),
              M-bM-^@M-^\-1m:foreverM-bM-^@M-^] (valid from one minute ago and never expiring).
 
      -v      Verbose mode.  Causes ssh-keygen to print debugging messages
@@ -440,6 +440,12 @@ DESCRIPTION
 
      -y      This option will read a private OpenSSH format file and print an
              OpenSSH public key to stdout.
+
+     -Z cipher
+             Specifies the cipher to use for encryption when writing an
+             OpenSSH-format private key file.  The list of available ciphers
+             may be obtained using "ssh -Q cipher".  The default is
+             M-bM-^@M-^\aes256-ctrM-bM-^@M-^].
 
      -z serial_number
              Specifies a serial number to be embedded in the certificate to
@@ -640,8 +646,8 @@ CERTIFICATES
      Finally, certificates may be defined with a validity lifetime.  The -V
      option allows specification of certificate start and end times.  A
      certificate that is presented at a time outside this range will not be
-     considered valid.  By default, certificates are valid from UNIX Epoch to
-     the distant future.
+     considered valid.  By default, certificates are valid from the UNIX Epoch
+     to the distant future.
 
      For certificates to be used for user or host authentication, the CA
      public key must be trusted by sshd(8) or ssh(1).  Please refer to those
@@ -718,7 +724,7 @@ ALLOWED SIGNERS
      keytype, base64-encoded key.  Empty lines and lines starting with a M-bM-^@M-^X#M-bM-^@M-^Y
      are ignored as comments.
 
-     The principals field is a pattern-list (See PATTERNS in ssh_config(5))
+     The principals field is a pattern-list (see PATTERNS in ssh_config(5))
      consisting of one or more comma-separated USER@DOMAIN identity patterns
      that are accepted for signing.  When verifying, the identity presented
      via the -I option must match a principals pattern in order for the
@@ -806,4 +812,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.8                    September 9, 2020                   OpenBSD 6.8
+OpenBSD 6.8                    November 27, 2020                   OpenBSD 6.8

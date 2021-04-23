@@ -1,5 +1,5 @@
 
-/* $OpenBSD: servconf.c,v 1.369 2020/08/28 03:15:52 dtucker Exp $ */
+/* $OpenBSD: servconf.c,v 1.377 2021/02/24 01:18:08 dtucker Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -122,13 +122,15 @@ initialize_server_options(ServerOptions *options)
 	options->tcp_keep_alive = -1;
 	options->log_facility = SYSLOG_FACILITY_NOT_SET;
 	options->log_level = SYSLOG_LEVEL_NOT_SET;
+	options->num_log_verbose = 0;
+	options->log_verbose = NULL;
 	options->hostbased_authentication = -1;
 	options->hostbased_uses_name_from_packet_only = -1;
-	options->hostbased_key_types = NULL;
+	options->hostbased_accepted_algos = NULL;
 	options->hostkeyalgorithms = NULL;
 	options->pubkey_authentication = -1;
 	options->pubkey_auth_options = -1;
-	options->pubkey_key_types = NULL;
+	options->pubkey_accepted_algos = NULL;
 	options->kerberos_authentication = -1;
 	options->kerberos_or_local_passwd = -1;
 	options->kerberos_ticket_cleanup = -1;
@@ -163,6 +165,9 @@ initialize_server_options(ServerOptions *options)
 	options->max_startups_begin = -1;
 	options->max_startups_rate = -1;
 	options->max_startups = -1;
+	options->per_source_max_startups = -1;
+	options->per_source_masklen_ipv4 = -1;
+	options->per_source_masklen_ipv6 = -1;
 	options->max_authtries = -1;
 	options->max_sessions = -1;
 	options->banner = NULL;
@@ -221,14 +226,14 @@ assemble_algorithms(ServerOptions *o)
 #define ASSEMBLE(what, defaults, all) \
 	do { \
 		if ((r = kex_assemble_names(&o->what, defaults, all)) != 0) \
-			fatal("%s: %s: %s", __func__, #what, ssh_err(r)); \
+			fatal_fr(r, "%s", #what); \
 	} while (0)
 	ASSEMBLE(ciphers, def_cipher, all_cipher);
 	ASSEMBLE(macs, def_mac, all_mac);
 	ASSEMBLE(kex_algorithms, def_kex, all_kex);
 	ASSEMBLE(hostkeyalgorithms, def_key, all_key);
-	ASSEMBLE(hostbased_key_types, def_key, all_key);
-	ASSEMBLE(pubkey_key_types, def_key, all_key);
+	ASSEMBLE(hostbased_accepted_algos, def_key, all_key);
+	ASSEMBLE(pubkey_accepted_algos, def_key, all_key);
 	ASSEMBLE(ca_sign_algorithms, def_sig, all_sig);
 #undef ASSEMBLE
 	free(all_cipher);
@@ -243,39 +248,13 @@ assemble_algorithms(ServerOptions *o)
 	free(def_sig);
 }
 
-static void
-array_append2(const char *file, const int line, const char *directive,
-    char ***array, int **iarray, u_int *lp, const char *s, int i)
-{
-
-	if (*lp >= INT_MAX)
-		fatal("%s line %d: Too many %s entries", file, line, directive);
-
-	if (iarray != NULL) {
-		*iarray = xrecallocarray(*iarray, *lp, *lp + 1,
-		    sizeof(**iarray));
-		(*iarray)[*lp] = i;
-	}
-
-	*array = xrecallocarray(*array, *lp, *lp + 1, sizeof(**array));
-	(*array)[*lp] = xstrdup(s);
-	(*lp)++;
-}
-
-static void
-array_append(const char *file, const int line, const char *directive,
-    char ***array, u_int *lp, const char *s)
-{
-	array_append2(file, line, directive, array, NULL, lp, s, 0);
-}
-
 void
 servconf_add_hostkey(const char *file, const int line,
     ServerOptions *options, const char *path, int userprovided)
 {
 	char *apath = derelativise_path(path);
 
-	array_append2(file, line, "HostKey",
+	opt_array_append2(file, line, "HostKey",
 	    &options->host_key_files, &options->host_key_file_userprovided,
 	    &options->num_host_key_files, apath, userprovided);
 	free(apath);
@@ -287,7 +266,7 @@ servconf_add_hostcert(const char *file, const int line,
 {
 	char *apath = derelativise_path(path);
 
-	array_append(file, line, "HostCertificate",
+	opt_array_append(file, line, "HostCertificate",
 	    &options->host_cert_files, &options->num_host_cert_files, apath);
 	free(apath);
 }
@@ -417,6 +396,12 @@ fill_default_server_options(ServerOptions *options)
 		options->max_startups_rate = 30;		/* 30% */
 	if (options->max_startups_begin == -1)
 		options->max_startups_begin = 10;
+	if (options->per_source_max_startups == -1)
+		options->per_source_max_startups = INT_MAX;
+	if (options->per_source_masklen_ipv4 == -1)
+		options->per_source_masklen_ipv4 = 32;
+	if (options->per_source_masklen_ipv6 == -1)
+		options->per_source_masklen_ipv6 = 128;
 	if (options->max_authtries == -1)
 		options->max_authtries = DEFAULT_AUTH_FAIL_MAX;
 	if (options->max_sessions == -1)
@@ -428,11 +413,11 @@ fill_default_server_options(ServerOptions *options)
 	if (options->client_alive_count_max == -1)
 		options->client_alive_count_max = 3;
 	if (options->num_authkeys_files == 0) {
-		array_append("[default]", 0, "AuthorizedKeysFiles",
+		opt_array_append("[default]", 0, "AuthorizedKeysFiles",
 		    &options->authorized_keys_files,
 		    &options->num_authkeys_files,
 		    _PATH_SSH_USER_PERMITTED_KEYS);
-		array_append("[default]", 0, "AuthorizedKeysFiles",
+		opt_array_append("[default]", 0, "AuthorizedKeysFiles",
 		    &options->authorized_keys_files,
 		    &options->num_authkeys_files,
 		    _PATH_SSH_USER_PERMITTED_KEYS2);
@@ -504,7 +489,7 @@ typedef enum {
 	sUsePAM,
 	/* Standard Options */
 	sPort, sHostKeyFile, sLoginGraceTime,
-	sPermitRootLogin, sLogFacility, sLogLevel,
+	sPermitRootLogin, sLogFacility, sLogLevel, sLogVerbose,
 	sRhostsRSAAuthentication, sRSAAuthentication,
 	sKerberosAuthentication, sKerberosOrLocalPasswd, sKerberosTicketCleanup,
 	sKerberosGetAFSToken, sChallengeResponseAuthentication,
@@ -516,11 +501,11 @@ typedef enum {
 	sPermitUserEnvironment, sAllowTcpForwarding, sCompression,
 	sRekeyLimit, sAllowUsers, sDenyUsers, sAllowGroups, sDenyGroups,
 	sIgnoreUserKnownHosts, sCiphers, sMacs, sPidFile,
-	sGatewayPorts, sPubkeyAuthentication, sPubkeyAcceptedKeyTypes,
+	sGatewayPorts, sPubkeyAuthentication, sPubkeyAcceptedAlgorithms,
 	sXAuthLocation, sSubsystem, sMaxStartups, sMaxAuthTries, sMaxSessions,
 	sBanner, sUseDNS, sHostbasedAuthentication,
-	sHostbasedUsesNameFromPacketOnly, sHostbasedAcceptedKeyTypes,
-	sHostKeyAlgorithms,
+	sHostbasedUsesNameFromPacketOnly, sHostbasedAcceptedAlgorithms,
+	sHostKeyAlgorithms, sPerSourceMaxStartups, sPerSourceNetBlockSize,
 	sClientAliveInterval, sClientAliveCountMax, sAuthorizedKeysFile,
 	sGssAuthentication, sGssCleanupCreds, sGssStrictAcceptor,
 	sAcceptEnv, sSetEnv, sPermitTunnel,
@@ -569,15 +554,18 @@ static struct {
 	{ "permitrootlogin", sPermitRootLogin, SSHCFG_ALL },
 	{ "syslogfacility", sLogFacility, SSHCFG_GLOBAL },
 	{ "loglevel", sLogLevel, SSHCFG_ALL },
+	{ "logverbose", sLogVerbose, SSHCFG_ALL },
 	{ "rhostsauthentication", sDeprecated, SSHCFG_GLOBAL },
 	{ "rhostsrsaauthentication", sDeprecated, SSHCFG_ALL },
 	{ "hostbasedauthentication", sHostbasedAuthentication, SSHCFG_ALL },
 	{ "hostbasedusesnamefrompacketonly", sHostbasedUsesNameFromPacketOnly, SSHCFG_ALL },
-	{ "hostbasedacceptedkeytypes", sHostbasedAcceptedKeyTypes, SSHCFG_ALL },
+	{ "hostbasedacceptedalgorithms", sHostbasedAcceptedAlgorithms, SSHCFG_ALL },
+	{ "hostbasedacceptedkeytypes", sHostbasedAcceptedAlgorithms, SSHCFG_ALL }, /* obsolete */
 	{ "hostkeyalgorithms", sHostKeyAlgorithms, SSHCFG_GLOBAL },
 	{ "rsaauthentication", sDeprecated, SSHCFG_ALL },
 	{ "pubkeyauthentication", sPubkeyAuthentication, SSHCFG_ALL },
-	{ "pubkeyacceptedkeytypes", sPubkeyAcceptedKeyTypes, SSHCFG_ALL },
+	{ "pubkeyacceptedalgorithms", sPubkeyAcceptedAlgorithms, SSHCFG_ALL },
+	{ "pubkeyacceptedkeytypes", sPubkeyAcceptedAlgorithms, SSHCFG_ALL }, /* obsolete */
 	{ "pubkeyauthoptions", sPubkeyAuthOptions, SSHCFG_ALL },
 	{ "dsaauthentication", sPubkeyAuthentication, SSHCFG_GLOBAL }, /* alias */
 #ifdef KRB5
@@ -645,6 +633,8 @@ static struct {
 	{ "gatewayports", sGatewayPorts, SSHCFG_ALL },
 	{ "subsystem", sSubsystem, SSHCFG_GLOBAL },
 	{ "maxstartups", sMaxStartups, SSHCFG_GLOBAL },
+	{ "persourcemaxstartups", sPerSourceMaxStartups, SSHCFG_GLOBAL },
+	{ "persourcenetblocksize", sPerSourceNetBlockSize, SSHCFG_GLOBAL },
 	{ "maxauthtries", sMaxAuthTries, SSHCFG_ALL },
 	{ "maxsessions", sMaxSessions, SSHCFG_ALL },
 	{ "banner", sBanner, SSHCFG_ALL },
@@ -748,7 +738,7 @@ derelativise_path(const char *path)
 	if (path_absolute(expanded))
 		return expanded;
 	if (getcwd(cwd, sizeof(cwd)) == NULL)
-		fatal("%s: getcwd: %s", __func__, strerror(errno));
+		fatal_f("getcwd: %s", strerror(errno));
 	xasprintf(&ret, "%s/%s", cwd, expanded);
 	free(expanded);
 	return ret;
@@ -791,7 +781,7 @@ add_one_listen_addr(ServerOptions *options, const char *addr,
 	if (i >= options->num_listen_addrs) {
 		/* No entry for this rdomain; allocate one */
 		if (i >= INT_MAX)
-			fatal("%s: too many listen addresses", __func__);
+			fatal_f("too many listen addresses");
 		options->listen_addrs = xrecallocarray(options->listen_addrs,
 		    options->num_listen_addrs, options->num_listen_addrs + 1,
 		    sizeof(*options->listen_addrs));
@@ -928,10 +918,10 @@ process_permitopen_list(struct ssh *ssh, ServerOpCodes opcode,
 		ch = '\0';
 		host = hpdelim2(&arg, &ch);
 		if (host == NULL || ch == '/')
-			fatal("%s: missing host in %s", __func__, what);
+			fatal_f("missing host in %s", what);
 		host = cleanhostname(host);
 		if (arg == NULL || ((port = permitopen_port(arg)) < 0))
-			fatal("%s: bad port number in %s", __func__, what);
+			fatal_f("bad port number in %s", what);
 		/* Send it to channels layer */
 		channel_add_permission(ssh, FORWARD_ADM,
 		    where, host, port);
@@ -1485,9 +1475,9 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		intptr = &options->hostbased_uses_name_from_packet_only;
 		goto parse_flag;
 
-	case sHostbasedAcceptedKeyTypes:
-		charptr = &options->hostbased_key_types;
- parse_keytypes:
+	case sHostbasedAcceptedAlgorithms:
+		charptr = &options->hostbased_accepted_algos;
+ parse_pubkey_algos:
 		arg = strdelim(&cp);
 		if (!arg || *arg == '\0')
 			fatal("%s line %d: Missing argument.",
@@ -1503,19 +1493,19 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 
 	case sHostKeyAlgorithms:
 		charptr = &options->hostkeyalgorithms;
-		goto parse_keytypes;
+		goto parse_pubkey_algos;
 
 	case sCASignatureAlgorithms:
 		charptr = &options->ca_sign_algorithms;
-		goto parse_keytypes;
+		goto parse_pubkey_algos;
 
 	case sPubkeyAuthentication:
 		intptr = &options->pubkey_authentication;
 		goto parse_flag;
 
-	case sPubkeyAcceptedKeyTypes:
-		charptr = &options->pubkey_key_types;
-		goto parse_keytypes;
+	case sPubkeyAcceptedAlgorithms:
+		charptr = &options->pubkey_accepted_algos;
+		goto parse_pubkey_algos;
 
 	case sPubkeyAuthOptions:
 		intptr = &options->pubkey_auth_options;
@@ -1717,6 +1707,16 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 			*log_level_ptr = (LogLevel) value;
 		break;
 
+	case sLogVerbose:
+		while ((arg = strdelim(&cp)) && *arg != '\0') {
+			if (!*activep)
+				continue;
+			opt_array_append(filename, linenum, "oLogVerbose",
+			    &options->log_verbose, &options->num_log_verbose,
+			    arg);
+		}
+		break;
+
 	case sAllowTcpForwarding:
 		intptr = &options->allow_tcp_forwarding;
 		multistate_ptr = multistate_tcpfwd;
@@ -1742,7 +1742,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 				    "\"%.100s\"", filename, linenum, arg);
 			if (!*activep)
 				continue;
-			array_append(filename, linenum, "AllowUsers",
+			opt_array_append(filename, linenum, "AllowUsers",
 			    &options->allow_users, &options->num_allow_users,
 			    arg);
 		}
@@ -1755,7 +1755,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 				    "\"%.100s\"", filename, linenum, arg);
 			if (!*activep)
 				continue;
-			array_append(filename, linenum, "DenyUsers",
+			opt_array_append(filename, linenum, "DenyUsers",
 			    &options->deny_users, &options->num_deny_users,
 			    arg);
 		}
@@ -1765,7 +1765,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		while ((arg = strdelim(&cp)) && *arg != '\0') {
 			if (!*activep)
 				continue;
-			array_append(filename, linenum, "AllowGroups",
+			opt_array_append(filename, linenum, "AllowGroups",
 			    &options->allow_groups, &options->num_allow_groups,
 			    arg);
 		}
@@ -1775,7 +1775,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		while ((arg = strdelim(&cp)) && *arg != '\0') {
 			if (!*activep)
 				continue;
-			array_append(filename, linenum, "DenyGroups",
+			opt_array_append(filename, linenum, "DenyGroups",
 			    &options->deny_groups, &options->num_deny_groups,
 			    arg);
 		}
@@ -1878,6 +1878,45 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 			options->max_startups = options->max_startups_begin;
 		break;
 
+	case sPerSourceNetBlockSize:
+		arg = strdelim(&cp);
+		if (!arg || *arg == '\0')
+			fatal("%s line %d: Missing PerSourceNetBlockSize spec.",
+			    filename, linenum);
+		switch (n = sscanf(arg, "%d:%d", &value, &value2)) {
+		case 2:
+			if (value2 < 0 || value2 > 128)
+				n = -1;
+			/* FALLTHROUGH */
+		case 1:
+			if (value < 0 || value > 32)
+				n = -1;
+		}
+		if (n != 1 && n != 2)
+			fatal("%s line %d: Invalid PerSourceNetBlockSize"
+			    " spec.", filename, linenum);
+		if (*activep) {
+			options->per_source_masklen_ipv4 = value;
+			options->per_source_masklen_ipv6 = value2;
+		}
+		break;
+
+	case sPerSourceMaxStartups:
+		arg = strdelim(&cp);
+		if (!arg || *arg == '\0')
+			fatal("%s line %d: Missing PerSourceMaxStartups spec.",
+			    filename, linenum);
+		if (strcmp(arg, "none") == 0) { /* no limit */
+			value = INT_MAX;
+		} else {
+			if ((errstr = atoi_err(arg, &value)) != NULL)
+				fatal("%s line %d: integer value %s.",
+				    filename, linenum, errstr);
+		}
+		if (*activep)
+			options->per_source_max_startups = value;
+		break;
+
 	case sMaxAuthTries:
 		intptr = &options->max_authtries;
 		goto parse_int;
@@ -1900,7 +1939,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		if (*activep && options->num_authkeys_files == 0) {
 			while ((arg = strdelim(&cp)) && *arg != '\0') {
 				arg = tilde_expand_filename(arg, getuid());
-				array_append(filename, linenum,
+				opt_array_append(filename, linenum,
 				    "AuthorizedKeysFile",
 				    &options->authorized_keys_files,
 				    &options->num_authkeys_files, arg);
@@ -1938,7 +1977,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 				    filename, linenum);
 			if (!*activep)
 				continue;
-			array_append(filename, linenum, "AcceptEnv",
+			opt_array_append(filename, linenum, "AcceptEnv",
 			    &options->accept_env, &options->num_accept_env,
 			    arg);
 		}
@@ -1952,7 +1991,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 				    filename, linenum);
 			if (!*activep || uvalue != 0)
 				continue;
-			array_append(filename, linenum, "SetEnv",
+			opt_array_append(filename, linenum, "SetEnv",
 			    &options->setenv, &options->num_setenv, arg);
 		}
 		break;
@@ -2038,17 +2077,15 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 				    item, entry);
 			}
 			if (gbuf.gl_pathc > INT_MAX)
-				fatal("%s: too many glob results", __func__);
+				fatal_f("too many glob results");
 			for (n = 0; n < (int)gbuf.gl_pathc; n++) {
 				debug2("%s line %d: including %s",
 				    filename, linenum, gbuf.gl_pathv[n]);
 				item = xcalloc(1, sizeof(*item));
 				item->selector = strdup(arg);
 				item->filename = strdup(gbuf.gl_pathv[n]);
-				if ((item->contents = sshbuf_new()) == NULL) {
-					fatal("%s: sshbuf_new failed",
-					    __func__);
-				}
+				if ((item->contents = sshbuf_new()) == NULL)
+					fatal_f("sshbuf_new failed");
 				load_server_config(item->filename,
 				    item->contents);
 				parse_server_config_depth(options,
@@ -2133,7 +2170,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 				    lookup_opcode_name(opcode));
 			}
 			if (*activep && uvalue == 0) {
-				array_append(filename, linenum,
+				opt_array_append(filename, linenum,
 				    lookup_opcode_name(opcode),
 				    chararrayptr, uintptr, arg2);
 			}
@@ -2295,7 +2332,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 				value2 = 1;
 				if (!*activep)
 					continue;
-				array_append(filename, linenum,
+				opt_array_append(filename, linenum,
 				    "AuthenticationMethods",
 				    &options->auth_methods,
 				    &options->num_auth_methods, arg);
@@ -2402,7 +2439,7 @@ load_server_config(const char *filename, struct sshbuf *conf)
 	FILE *f;
 	int r, lineno = 0;
 
-	debug2("%s: filename %s", __func__, filename);
+	debug2_f("filename %s", filename);
 	if ((f = fopen(filename, "r")) == NULL) {
 		perror(filename);
 		exit(1);
@@ -2411,7 +2448,7 @@ load_server_config(const char *filename, struct sshbuf *conf)
 	/* grow buffer, so realloc is avoided for large config files */
 	if (fstat(fileno(f), &st) == 0 && st.st_size > 0 &&
             (r = sshbuf_allocate(conf, st.st_size)) != 0)
-		fatal("%s: allocate failed: %s", __func__, ssh_err(r));
+		fatal_fr(r, "allocate");
 	while (getline(&line, &linesize, f) != -1) {
 		lineno++;
 		/*
@@ -2423,13 +2460,13 @@ load_server_config(const char *filename, struct sshbuf *conf)
 			memcpy(cp, "\n", 2);
 		cp = line + strspn(line, " \t\r");
 		if ((r = sshbuf_put(conf, cp, strlen(cp))) != 0)
-			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+			fatal_fr(r, "sshbuf_put");
 	}
 	free(line);
 	if ((r = sshbuf_put_u8(conf, 0)) != 0)
-		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+		fatal_fr(r, "sshbuf_put_u8");
 	fclose(f);
-	debug2("%s: done config len = %zu", __func__, sshbuf_len(conf));
+	debug2_f("done config len = %zu", sshbuf_len(conf));
 }
 
 void
@@ -2597,11 +2634,11 @@ parse_server_config_depth(ServerOptions *options, const char *filename,
 	if (depth < 0 || depth > SERVCONF_MAX_DEPTH)
 		fatal("Too many recursive configuration includes");
 
-	debug2("%s: config %s len %zu%s", __func__, filename, sshbuf_len(conf),
+	debug2_f("config %s len %zu%s", filename, sshbuf_len(conf),
 	    (flags & SSHCFG_NEVERMATCH ? " [checking syntax only]" : ""));
 
 	if ((obuf = cbuf = sshbuf_dup_string(conf)) == NULL)
-		fatal("%s: sshbuf_dup_string failed", __func__);
+		fatal_f("sshbuf_dup_string failed");
 	linenum = 1;
 	while ((cp = strsep(&cbuf, "\n")) != NULL) {
 		if (process_server_config_line_depth(options, cp,
@@ -2858,9 +2895,9 @@ dump_config(ServerOptions *o)
 	dump_cfg_string(sHostKeyAgent, o->host_key_agent);
 	dump_cfg_string(sKexAlgorithms, o->kex_algorithms);
 	dump_cfg_string(sCASignatureAlgorithms, o->ca_sign_algorithms);
-	dump_cfg_string(sHostbasedAcceptedKeyTypes, o->hostbased_key_types);
+	dump_cfg_string(sHostbasedAcceptedAlgorithms, o->hostbased_accepted_algos);
 	dump_cfg_string(sHostKeyAlgorithms, o->hostkeyalgorithms);
-	dump_cfg_string(sPubkeyAcceptedKeyTypes, o->pubkey_key_types);
+	dump_cfg_string(sPubkeyAcceptedAlgorithms, o->pubkey_accepted_algos);
 #if defined(__OpenBSD__) || defined(HAVE_SYS_SET_PROCESS_RDOMAIN)
 	dump_cfg_string(sRDomain, o->routing_domain);
 #endif
@@ -2884,6 +2921,8 @@ dump_config(ServerOptions *o)
 	dump_cfg_strarray(sSetEnv, o->num_setenv, o->setenv);
 	dump_cfg_strarray_oneline(sAuthenticationMethods,
 	    o->num_auth_methods, o->auth_methods);
+	dump_cfg_strarray_oneline(sLogVerbose,
+	    o->num_log_verbose, o->log_verbose);
 
 	/* other arguments */
 	for (i = 0; i < o->num_subsystems; i++)
@@ -2892,6 +2931,13 @@ dump_config(ServerOptions *o)
 
 	printf("maxstartups %d:%d:%d\n", o->max_startups_begin,
 	    o->max_startups_rate, o->max_startups);
+	printf("persourcemaxstartups ");
+	if (o->per_source_max_startups == INT_MAX)
+		printf("none\n");
+	else
+		printf("%d\n", o->per_source_max_startups);
+	printf("persourcenetblocksize %d:%d\n", o->per_source_masklen_ipv4,
+	    o->per_source_masklen_ipv6);
 
 	s = NULL;
 	for (i = 0; tunmode_desc[i].val != -1; i++) {

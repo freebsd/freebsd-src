@@ -1,4 +1,4 @@
-#	$OpenBSD: limit-keytype.sh,v 1.9 2019/12/16 02:39:05 djm Exp $
+#	$OpenBSD: limit-keytype.sh,v 1.10 2021/02/25 03:27:34 djm Exp $
 #	Placed in the Public Domain.
 
 tid="restrict pubkey type"
@@ -69,7 +69,7 @@ prepare_config() {
  	) > $OBJ/sshd_proxy
 }
 
-# Return the required parameter for PubkeyAcceptedKeyTypes corresponding to
+# Return the required parameter for PubkeyAcceptedAlgorithms corresponding to
 # the supplied key type.
 keytype() {
 	case "$1" in
@@ -92,14 +92,14 @@ ${SSH} $opts -i $OBJ/user_key2 proxy true || fatal "key2 failed"
 # Allow plain Ed25519 and RSA. The certificate should fail.
 verbose "allow $ktype2,$ktype1"
 prepare_config \
-	"PubkeyAcceptedKeyTypes `keytype $ktype2`,`keytype $ktype1`"
+	"PubkeyAcceptedAlgorithms `keytype $ktype2`,`keytype $ktype1`"
 ${SSH} $certopts proxy true && fatal "cert succeeded"
 ${SSH} $opts -i $OBJ/user_key1 proxy true || fatal "key1 failed"
 ${SSH} $opts -i $OBJ/user_key2 proxy true || fatal "key2 failed"
 
 # Allow Ed25519 only.
 verbose "allow $ktype1"
-prepare_config "PubkeyAcceptedKeyTypes `keytype $ktype1`"
+prepare_config "PubkeyAcceptedAlgorithms `keytype $ktype1`"
 ${SSH} $certopts proxy true && fatal "cert succeeded"
 ${SSH} $opts -i $OBJ/user_key1 proxy true || fatal "key1 failed"
 if [ "$ktype1" != "$ktype2" ]; then
@@ -108,15 +108,15 @@ fi
 
 # Allow all certs. Plain keys should fail.
 verbose "allow cert only"
-prepare_config "PubkeyAcceptedKeyTypes *-cert-v01@openssh.com"
+prepare_config "PubkeyAcceptedAlgorithms *-cert-v01@openssh.com"
 ${SSH} $certopts proxy true || fatal "cert failed"
 ${SSH} $opts -i $OBJ/user_key1 proxy true && fatal "key1 succeeded"
 ${SSH} $opts -i $OBJ/user_key2 proxy true && fatal "key2 succeeded"
 
 # Allow RSA in main config, Ed25519 for non-existent user.
 verbose "match w/ no match"
-prepare_config "PubkeyAcceptedKeyTypes `keytype $ktype2`" \
-	"Match user x$USER" "PubkeyAcceptedKeyTypes +`keytype $ktype1`"
+prepare_config "PubkeyAcceptedAlgorithms `keytype $ktype2`" \
+	"Match user x$USER" "PubkeyAcceptedAlgorithms +`keytype $ktype1`"
 ${SSH} $certopts proxy true && fatal "cert succeeded"
 if [ "$ktype1" != "$ktype2" ]; then
 	${SSH} $opts -i $OBJ/user_key1 proxy true && fatal "key1 succeeded"
@@ -125,8 +125,8 @@ ${SSH} $opts -i $OBJ/user_key2 proxy true || fatal "key2 failed"
 
 # Allow only DSA in main config, Ed25519 for user.
 verbose "match w/ matching"
-prepare_config "PubkeyAcceptedKeyTypes `keytype $ktype4`" \
-	"Match user $USER" "PubkeyAcceptedKeyTypes +`keytype $ktype1`"
+prepare_config "PubkeyAcceptedAlgorithms `keytype $ktype4`" \
+	"Match user $USER" "PubkeyAcceptedAlgorithms +`keytype $ktype1`"
 ${SSH} $certopts proxy true || fatal "cert failed"
 ${SSH} $opts -i $OBJ/user_key1 proxy true || fatal "key1 failed"
 ${SSH} $opts -i $OBJ/user_key4 proxy true && fatal "key4 succeeded"

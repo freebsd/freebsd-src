@@ -22,7 +22,7 @@ fi
 
 # Because sandbox is sensitive to changes in libc, especially malloc, retest
 # with every malloc.conf option (and none).
-if [ -z "TEST_MALLOC_OPTIONS" ]; then
+if [ -z "$TEST_MALLOC_OPTIONS" ]; then
 	mopts="C F G J R S U X < >"
 else
 	mopts=`echo $TEST_MALLOC_OPTIONS | sed 's/./& /g'`

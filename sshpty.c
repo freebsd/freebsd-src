@@ -27,6 +27,7 @@
 #endif
 #include <pwd.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 #include <termios.h>
 #ifdef HAVE_UTIL_H

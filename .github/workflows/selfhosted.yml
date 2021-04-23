@@ -1,0 +1,68 @@
+name: C/C++ CI self-hosted
+
+on:
+  push:
+    branches: [ master, ci ]
+
+jobs:
+  selfhosted:
+    if: github.repository == 'openssh/openssh-portable-selfhosted'
+    runs-on: ${{ matrix.os }}
+    env:
+      TARGET_HOST: ${{ matrix.os }}
+      SUDO: sudo
+    strategy:
+      fail-fast: false
+      # We use a matrix in two parts: firstly all of the VMs are tested with the
+      # default config.  "vm" corresponds to a label associated with the worker.
+      matrix:
+        os: [bbone, dfly30, dfly48, dfly58, fbsd6, fbsd7, fbsd12, sol10, sol11]
+        configs:
+          - default
+        # Then we include any extra configs we want to test for specific VMs.
+        include:
+         - { os: dfly30, configs: without-openssl}
+         - { os: dfly48, configs: pam }
+         - { os: dfly58, configs: pam }
+         - { os: fbsd6,  configs: pam }
+         - { os: fbsd7,  configs: pam }
+         - { os: fbsd12, configs: pam }
+         - { os: sol10,  configs: pam }
+         - { os: sol11,  configs: pam }
+         - { os: sol11,  configs: sol64 }
+         # - { os: sol11,  configs: sol64-pam }
+    steps:
+    - uses: actions/checkout@v2
+    - name: autoreconf
+      run: autoreconf
+    - name: shutdown VM if running
+      run: vmshutdown
+    - name: startup VM
+      run: vmstartup
+    - name: configure
+      run: vmrun ./.github/configure.sh ${{ matrix.configs }}
+    - name: save config files
+      if: failure()
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ matrix.os }}-${{ matrix.configs }}-config-files
+        path: |
+          config.h
+          config.log
+    - name: make
+      run: vmrun make
+    - name: install moduli
+      run: vmrun "sudo mkdir -p /usr/local/etc/; sudo cp moduli /usr/local/etc/"
+    - name: make tests
+      run: vmrun ./.github/run_test.sh ${{ matrix.configs }}
+    - name: save regress logs
+      if: failure()
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ matrix.os }}-${{ matrix.configs }}-regress-logs
+        path: |
+          regress/*.log
+          regress/valgrind-out/
+    - name: shutdown VM
+      if: always()
+      run: vmshutdown

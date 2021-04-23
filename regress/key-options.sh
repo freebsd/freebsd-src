@@ -9,7 +9,7 @@ cp $authkeys $origkeys
 
 # Allocating ptys can require privileges on some platforms.
 skip_pty=""
-if ! config_defined HAVE_OPENPTY && [ "x$SUDO" == "x" ]; then
+if ! config_defined HAVE_OPENPTY && [ "x$SUDO" = "x" ]; then
 	skip_pty="no openpty(3) and SUDO not set"
 fi
 

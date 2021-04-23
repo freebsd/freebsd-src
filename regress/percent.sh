@@ -1,4 +1,4 @@
-#	$OpenBSD: percent.sh,v 1.9 2020/07/17 07:10:24 dtucker Exp $
+#	$OpenBSD: percent.sh,v 1.11 2021/02/05 22:03:40 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="percent expansions"

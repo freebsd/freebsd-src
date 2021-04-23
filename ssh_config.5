@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.332 2020/08/11 09:49:57 djm Exp $
-.Dd $Mdocdate: August 11 2020 $
+.\" $OpenBSD: ssh_config.5,v 1.349 2021/02/28 22:56:30 dtucker Exp $
+.Dd $Mdocdate: February 28 2021 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -372,8 +372,8 @@ Specifies which algorithms are allowed for signing of certificates
 by certificate authorities (CAs).
 The default is:
 .Bd -literal -offset indent
-ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,
+ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
 .Xr ssh 1
@@ -421,7 +421,6 @@ or
 .It Cm CheckHostIP
 If set to
 .Cm yes
-(the default),
 .Xr ssh 1
 will additionally check the host IP address in the
 .Pa known_hosts
@@ -432,7 +431,8 @@ and will add addresses of destination hosts to
 in the process, regardless of the setting of
 .Cm StrictHostKeyChecking .
 If the option is set to
-.Cm no ,
+.Cm no
+(the default),
 the check will not be executed.
 .It Cm Ciphers
 Specifies the ciphers allowed and their order of preference.
@@ -800,6 +800,45 @@ Note that existing names and addresses in known hosts files
 will not be converted automatically,
 but may be manually hashed using
 .Xr ssh-keygen 1 .
+.It Cm HostbasedAcceptedAlgorithms
+Specifies the signature algorithms that will be used for hostbased
+authentication as a comma-separated list of patterns.
+Alternately if the specified list begins with a
+.Sq +
+character, then the specified signature algorithms will be appended
+to the default set instead of replacing them.
+If the specified list begins with a
+.Sq -
+character, then the specified signature algorithms (including wildcards)
+will be removed from the default set instead of replacing them.
+If the specified list begins with a
+.Sq ^
+character, then the specified signature algorithms will be placed
+at the head of the default set.
+The default for this option is:
+.Bd -literal -offset 3n
+ssh-ed25519-cert-v01@openssh.com,
+ecdsa-sha2-nistp256-cert-v01@openssh.com,
+ecdsa-sha2-nistp384-cert-v01@openssh.com,
+ecdsa-sha2-nistp521-cert-v01@openssh.com,
+sk-ssh-ed25519-cert-v01@openssh.com,
+sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
+rsa-sha2-512-cert-v01@openssh.com,
+rsa-sha2-256-cert-v01@openssh.com,
+ssh-rsa-cert-v01@openssh.com,
+ssh-ed25519,
+ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+sk-ssh-ed25519@openssh.com,
+sk-ecdsa-sha2-nistp256@openssh.com,
+rsa-sha2-512,rsa-sha2-256,ssh-rsa
+.Ed
+.Pp
+The
+.Fl Q
+option of
+.Xr ssh 1
+may be used to list supported signature algorithms.
+This was formerly named HostbasedKeyTypes.
 .It Cm HostbasedAuthentication
 Specifies whether to try rhosts based authentication with public key
 authentication.
@@ -808,79 +847,43 @@ The argument must be
 or
 .Cm no
 (the default).
-.It Cm HostbasedKeyTypes
-Specifies the key types that will be used for hostbased authentication
-as a comma-separated list of patterns.
-Alternately if the specified list begins with a
-.Sq +
-character, then the specified key types will be appended to the default set
-instead of replacing them.
-If the specified list begins with a
-.Sq -
-character, then the specified key types (including wildcards) will be removed
-from the default set instead of replacing them.
-If the specified list begins with a
-.Sq ^
-character, then the specified key types will be placed at the head of the
-default set.
-The default for this option is:
-.Bd -literal -offset 3n
-ecdsa-sha2-nistp256-cert-v01@openssh.com,
-ecdsa-sha2-nistp384-cert-v01@openssh.com,
-ecdsa-sha2-nistp521-cert-v01@openssh.com,
-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
-ssh-ed25519-cert-v01@openssh.com,
-sk-ssh-ed25519-cert-v01@openssh.com,
-rsa-sha2-512-cert-v01@openssh.com,
-rsa-sha2-256-cert-v01@openssh.com,
-ssh-rsa-cert-v01@openssh.com,
-ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-sk-ecdsa-sha2-nistp256@openssh.com,
-ssh-ed25519,sk-ssh-ed25519@openssh.com,
-rsa-sha2-512,rsa-sha2-256,ssh-rsa
-.Ed
-.Pp
-The
-.Fl Q
-option of
-.Xr ssh 1
-may be used to list supported key types.
 .It Cm HostKeyAlgorithms
-Specifies the host key algorithms
+Specifies the host key signature algorithms
 that the client wants to use in order of preference.
 Alternately if the specified list begins with a
 .Sq +
-character, then the specified key types will be appended to the default set
-instead of replacing them.
+character, then the specified signature algorithms will be appended to
+the default set instead of replacing them.
 If the specified list begins with a
 .Sq -
-character, then the specified key types (including wildcards) will be removed
-from the default set instead of replacing them.
+character, then the specified signature algorithms (including wildcards)
+will be removed from the default set instead of replacing them.
 If the specified list begins with a
 .Sq ^
-character, then the specified key types will be placed at the head of the
-default set.
+character, then the specified signature algorithms will be placed
+at the head of the default set.
 The default for this option is:
 .Bd -literal -offset 3n
+ssh-ed25519-cert-v01@openssh.com,
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
-ssh-ed25519-cert-v01@openssh.com,
 sk-ssh-ed25519-cert-v01@openssh.com,
+sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 rsa-sha2-512-cert-v01@openssh.com,
 rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
+ssh-ed25519,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
 sk-ecdsa-sha2-nistp256@openssh.com,
-ssh-ed25519,sk-ssh-ed25519@openssh.com,
+sk-ssh-ed25519@openssh.com,
 rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
 If hostkeys are known for the destination host then this default is modified
 to prefer their algorithms.
 .Pp
-The list of available key types may also be obtained using
+The list of available signature algorithms may also be obtained using
 .Qq ssh -Q HostKeyAlgorithms .
 .It Cm HostKeyAlias
 Specifies an alias that should be used instead of the
@@ -1118,6 +1121,31 @@ diffie-hellman-group14-sha256
 .Pp
 The list of available key exchange algorithms may also be obtained using
 .Qq ssh -Q kex .
+.It Cm KnownHostsCommand
+Specifies a command to use to obtain a list of host keys, in addition to
+those listed in
+.Cm UserKnownHostsFile
+and
+.Cm GlobalKnownHostsFile .
+This command is executed after the files have been read.
+It may write host key lines to standard output in identical format to the
+usual files (described in the
+.Sx VERIFYING HOST KEYS
+section in
+.Xr ssh 1 ) .
+Arguments to
+.Cm KnownHostsCommand
+accept the tokens described in the
+.Sx TOKENS
+section.
+The command may be invoked multiple times per connection: once when preparing
+the preference list of host key algorithms to use, again to obtain the
+host key for the requested host name and, if
+.Cm CheckHostIP
+is enabled, one more time to obtain the host key matching the server's
+address.
+If the command exits abnormally or returns a non-zero exit status then the
+connection is terminated.
 .It Cm LocalCommand
 Specifies a command to execute on the local machine after successfully
 connecting to the server.
@@ -1181,6 +1209,23 @@ QUIET, FATAL, ERROR, INFO, VERBOSE, DEBUG, DEBUG1, DEBUG2, and DEBUG3.
 The default is INFO.
 DEBUG and DEBUG1 are equivalent.
 DEBUG2 and DEBUG3 each specify higher levels of verbose output.
+.It Cm LogVerbose
+Specify one or more overrides to LogLevel.
+An override consists of a pattern lists that matches the source file, function
+and line number to force detailed logging for.
+For example, an override pattern of:
+.Bd -literal -offset indent
+kex.c:*:1000,*:kex_exchange_identification():*,packet.c:*
+.Ed
+.Pp
+would enable detailed logging for line 1000 of
+.Pa kex.c ,
+everything in the
+.Fn kex_exchange_identification
+function, and all code in the
+.Pa packet.c
+file.
+This option is intended for debugging and no overrides are enabled by default.
 .It Cm MACs
 Specifies the MAC (message authentication code) algorithms
 in order of preference.
@@ -1245,6 +1290,42 @@ The argument must be
 or
 .Cm no
 (the default).
+.It Cm PermitRemoteOpen
+Specifies the destinations to which remote TCP port forwarding is permitted when
+.Cm RemoteForward
+is used as a SOCKS proxy.
+The forwarding specification must be one of the following forms:
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Cm PermitRemoteOpen
+.Sm off
+.Ar host : port
+.Sm on
+.It
+.Cm PermitRemoteOpen
+.Sm off
+.Ar IPv4_addr : port
+.Sm on
+.It
+.Cm PermitRemoteOpen
+.Sm off
+.Ar \&[ IPv6_addr \&] : port
+.Sm on
+.El
+.Pp
+Multiple forwards may be specified by separating them with whitespace.
+An argument of
+.Cm any
+can be used to remove all restrictions and permit any forwarding requests.
+An argument of
+.Cm none
+can be used to prohibit all forwarding requests.
+The wildcard
+.Sq *
+can be used for host or port to allow all hosts or ports respectively.
+Otherwise, no pattern matching or address lookups are performed on supplied
+names.
 .It Cm PKCS11Provider
 Specifies which PKCS#11 provider to use or
 .Cm none
@@ -1325,6 +1406,9 @@ connection to the specified
 .Cm ProxyJump
 host and then establishing a
 TCP forwarding to the ultimate target from there.
+Setting the host to
+.Cm none
+disables this option entirely.
 .Pp
 Note that this option will compete with the
 .Cm ProxyCommand
@@ -1344,40 +1428,41 @@ will pass a connected file descriptor back to
 instead of continuing to execute and pass data.
 The default is
 .Cm no .
-.It Cm PubkeyAcceptedKeyTypes
-Specifies the key types that will be used for public key authentication
-as a comma-separated list of patterns.
+.It Cm PubkeyAcceptedAlgorithms
+Specifies the signature algorithms that will be used for public key
+authentication as a comma-separated list of patterns.
 If the specified list begins with a
 .Sq +
-character, then the key types after it will be appended to the default
+character, then the algorithms after it will be appended to the default
 instead of replacing it.
 If the specified list begins with a
 .Sq -
-character, then the specified key types (including wildcards) will be removed
+character, then the specified algorithms (including wildcards) will be removed
 from the default set instead of replacing them.
 If the specified list begins with a
 .Sq ^
-character, then the specified key types will be placed at the head of the
+character, then the specified algorithms will be placed at the head of the
 default set.
 The default for this option is:
 .Bd -literal -offset 3n
+ssh-ed25519-cert-v01@openssh.com,
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
-sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
-ssh-ed25519-cert-v01@openssh.com,
 sk-ssh-ed25519-cert-v01@openssh.com,
+sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 rsa-sha2-512-cert-v01@openssh.com,
 rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
+ssh-ed25519,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+sk-ssh-ed25519@openssh.com,
 sk-ecdsa-sha2-nistp256@openssh.com,
-ssh-ed25519,sk-ssh-ed25519@openssh.com,
 rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
-The list of available key types may also be obtained using
-.Qq ssh -Q PubkeyAcceptedKeyTypes .
+The list of available signature algorithms may also be obtained using
+.Qq ssh -Q PubkeyAcceptedAlgorithms .
 .It Cm PubkeyAuthentication
 Specifies whether to try public key authentication.
 The argument to this keyword must be
@@ -1387,7 +1472,7 @@ or
 .Cm no .
 .It Cm RekeyLimit
 Specifies the maximum amount of data that may be transmitted before the
-session key is renegotiated, optionally followed a maximum amount of
+session key is renegotiated, optionally followed by a maximum amount of
 time that may pass before the session key is renegotiated.
 The first argument is specified in bytes and may have a suffix of
 .Sq K ,
@@ -1435,6 +1520,9 @@ If forwarding to a specific destination then the second argument must be
 or a Unix domain socket path,
 otherwise if no destination argument is specified then the remote forwarding
 will be established as a SOCKS proxy.
+When acting as a SOCKS proxy the destination of the connection can be
+restricted by
+.Cm PermitRemoteOpen .
 .Pp
 IPv6 addresses can be specified by enclosing addresses in square brackets.
 Multiple forwardings may be specified, and additional
@@ -1714,16 +1802,24 @@ or
 This option allows learning alternate hostkeys for a server
 and supports graceful key rotation by allowing a server to send replacement
 public keys before old ones are removed.
+.Pp
 Additional hostkeys are only accepted if the key used to authenticate the
-host was already trusted or explicitly accepted by the user.
+host was already trusted or explicitly accepted by the user, the host was
+authenticated via
+.Cm UserKnownHostsFile
+(i.e. not
+.Cm GlobalKnownHostsFile )
+and the host was authenticated using a plain key and not a certificate.
 .Pp
 .Cm UpdateHostKeys
 is enabled by default if the user has not overridden the default
 .Cm UserKnownHostsFile
-setting, otherwise
+setting and has not enabled
+.Cm VerifyHostKeyDNS ,
+otherwise
 .Cm UpdateHostKeys
 will be set to
-.Cm ask .
+.Cm no .
 .Pp
 If
 .Cm UpdateHostKeys
@@ -1855,10 +1951,31 @@ A literal
 Hash of %l%h%p%r.
 .It %d
 Local user's home directory.
+.It %f
+The fingerprint of the server's host key.
+.It %H
+The
+.Pa known_hosts
+hostname or address that is being searched for.
 .It %h
 The remote hostname.
+.It \%%I
+A string describing the reason for a
+.Cm KnownHostsCommand
+execution: either
+.Cm ADDRESS
+when looking up a host by address (only when
+.Cm CheckHostIP
+is enabled),
+.Cm HOSTNAME
+when searching by hostname, or
+.Cm ORDER
+when preparing the host key algorithm preference list to use for the
+destination host.
 .It %i
 The local user ID.
+.It %K
+The base64 encoded host key.
 .It %k
 The host key alias if specified, otherwise the orignal remote hostname given
 on the command line.
@@ -1881,6 +1998,9 @@ network interface assigned if
 tunnel forwarding was requested, or
 .Qq NONE
 otherwise.
+.It %t
+The type of the server host key, e.g.
+.Cm ssh-ed25519
 .It %u
 The local username.
 .El
@@ -1889,13 +2009,17 @@ The local username.
 .Cm ControlPath ,
 .Cm IdentityAgent ,
 .Cm IdentityFile ,
+.Cm KnownHostsCommand ,
 .Cm LocalForward ,
 .Cm Match exec ,
 .Cm RemoteCommand ,
 .Cm RemoteForward ,
 and
 .Cm UserKnownHostsFile
-accept the tokens %%, %C, %d, %h, %i, %L, %l, %n, %p, %r, and %u.
+accept the tokens %%, %C, %d, %h, %i, %k, %L, %l, %n, %p, %r, and %u.
+.Pp
+.Cm KnownHostsCommand
+additionally accepts the tokens %f, %H, %I, %K and %t.
 .Pp
 .Cm Hostname
 accepts the tokens %% and %h.
@@ -1920,6 +2044,7 @@ The keywords
 .Cm ControlPath ,
 .Cm IdentityAgent ,
 .Cm IdentityFile
+.Cm KnownHostsCommand ,
 and
 .Cm UserKnownHostsFile
 support environment variables.

@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.76 2020/04/04 23:04:41 dtucker Exp $
+#	$OpenBSD: test-exec.sh,v 1.77 2021/02/17 03:59:00 dtucker Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -41,6 +41,10 @@ elif logname >/dev/null 2>&1; then
 	USER=`logname`
 else
 	USER=`id -un`
+fi
+if test -z "$LOGNAME"; then
+	LOGNAME="${USER}"
+	export LOGNAME
 fi
 
 OBJ=$1
@@ -319,6 +323,15 @@ md5 () {
 		wc -c
 	fi
 }
+
+# Some platforms don't have hostname at all, but on others uname -n doesn't
+# provide the fully qualified name we need, so in the former case we create
+# our own hostname function.
+if ! have_prog hostname; then
+	hostname() {
+		uname -n
+	}
+fi
 # End of portable specific functions
 
 stop_sshd ()
@@ -588,10 +601,11 @@ if test -x "$CONCH" ; then
 	REGRESS_INTEROP_CONCH=yes
 fi
 
-# If PuTTY is present and we are running a PuTTY test, prepare keys and
-# configuration
+# If PuTTY is present, new enough and we are running a PuTTY test, prepare
+# keys and configuration.
 REGRESS_INTEROP_PUTTY=no
-if test -x "$PUTTYGEN" -a -x "$PLINK" ; then
+if test -x "$PUTTYGEN" -a -x "$PLINK" &&
+    "$PUTTYGEN" --help 2>&1 | grep -- --new-passphrase >/dev/null; then
 	REGRESS_INTEROP_PUTTY=yes
 fi
 case "$SCRIPT" in
@@ -604,13 +618,13 @@ if test "$REGRESS_INTEROP_PUTTY" = "yes" ; then
 
 	# Add a PuTTY key to authorized_keys
 	rm -f ${OBJ}/putty.rsa2
-	if ! puttygen -t rsa -o ${OBJ}/putty.rsa2 \
+	if ! "$PUTTYGEN" -t rsa -o ${OBJ}/putty.rsa2 \
 	    --random-device=/dev/urandom \
 	    --new-passphrase /dev/null < /dev/null > /dev/null; then
-		echo "Your installed version of PuTTY is too old to support --new-passphrase; trying without (may require manual interaction) ..." >&2
-		puttygen -t rsa -o ${OBJ}/putty.rsa2 < /dev/null > /dev/null
+		echo "Your installed version of PuTTY is too old to support --new-passphrase, skipping test" >&2
+		exit 1
 	fi
-	puttygen -O public-openssh ${OBJ}/putty.rsa2 \
+	"$PUTTYGEN" -O public-openssh ${OBJ}/putty.rsa2 \
 	    >> $OBJ/authorized_keys_$USER
 
 	# Convert rsa2 host key to PuTTY format
@@ -634,8 +648,6 @@ if test "$REGRESS_INTEROP_PUTTY" = "yes" ; then
 
 	PUTTYDIR=${OBJ}/.putty
 	export PUTTYDIR
-
-	REGRESS_INTEROP_PUTTY=yes
 fi
 
 # create a proxy version of the client config

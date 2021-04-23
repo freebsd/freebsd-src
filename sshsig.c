@@ -1,4 +1,4 @@
-/* $OpenBSD: sshsig.c,v 1.17 2020/08/31 00:17:41 djm Exp $ */
+/* $OpenBSD: sshsig.c,v 1.20 2021/01/31 10:50:10 dtucker Exp $ */
 /*
  * Copyright (c) 2019 Google LLC
  *
@@ -54,27 +54,26 @@ sshsig_armor(const struct sshbuf *blob, struct sshbuf **out)
 	*out = NULL;
 
 	if ((buf = sshbuf_new()) == NULL) {
-		error("%s: sshbuf_new failed", __func__);
+		error_f("sshbuf_new failed");
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
 
 	if ((r = sshbuf_put(buf, BEGIN_SIGNATURE,
 	    sizeof(BEGIN_SIGNATURE)-1)) != 0) {
-		error("%s: sshbuf_putf failed: %s", __func__, ssh_err(r));
+		error_fr(r, "sshbuf_putf");
 		goto out;
 	}
 
 	if ((r = sshbuf_dtob64(blob, buf, 1)) != 0) {
-		error("%s: Couldn't base64 encode signature blob: %s",
-		    __func__, ssh_err(r));
+		error_fr(r, "base64 encode signature");
 		goto out;
 	}
 
 	if ((r = sshbuf_put(buf, END_SIGNATURE,
 	    sizeof(END_SIGNATURE)-1)) != 0 ||
 	    (r = sshbuf_put_u8(buf, '\n')) != 0) {
-		error("%s: sshbuf_put failed: %s", __func__, ssh_err(r));
+		error_fr(r, "sshbuf_put");
 		goto out;
 	}
 	/* success */
@@ -96,7 +95,7 @@ sshsig_dearmor(struct sshbuf *sig, struct sshbuf **out)
 	char *b64 = NULL;
 
 	if ((sbuf = sshbuf_fromb(sig)) == NULL) {
-		error("%s: sshbuf_fromb failed", __func__);
+		error_f("sshbuf_fromb failed");
 		return SSH_ERR_ALLOC_FAIL;
 	}
 
@@ -107,7 +106,7 @@ sshsig_dearmor(struct sshbuf *sig, struct sshbuf **out)
 	}
 
 	if ((r = sshbuf_consume(sbuf, sizeof(BEGIN_SIGNATURE)-1)) != 0) {
-		error("%s: sshbuf_consume failed: %s", __func__, ssh_err(r));
+		error_fr(r, "consume");
 		goto done;
 	}
 
@@ -118,24 +117,24 @@ sshsig_dearmor(struct sshbuf *sig, struct sshbuf **out)
 	}
 
 	if ((r = sshbuf_consume_end(sbuf, sshbuf_len(sbuf)-eoffset)) != 0) {
-		error("%s: sshbuf_consume failed: %s", __func__, ssh_err(r));
+		error_fr(r, "consume");
 		goto done;
 	}
 
 	if ((b64 = sshbuf_dup_string(sbuf)) == NULL) {
-		error("%s: sshbuf_dup_string failed", __func__);
+		error_f("sshbuf_dup_string failed");
 		r = SSH_ERR_ALLOC_FAIL;
 		goto done;
 	}
 
 	if ((buf = sshbuf_new()) == NULL) {
-		error("%s: sshbuf_new() failed", __func__);
+		error_f("sshbuf_new() failed");
 		r = SSH_ERR_ALLOC_FAIL;
 		goto done;
 	}
 
 	if ((r = sshbuf_b64tod(buf, b64)) != 0) {
-		error("Couldn't decode signature: %s", ssh_err(r));
+		error_fr(r, "decode base64");
 		goto done;
 	}
 
@@ -165,7 +164,7 @@ sshsig_wrap_sign(struct sshkey *key, const char *hashalg,
 
 	if ((tosign = sshbuf_new()) == NULL ||
 	    (blob = sshbuf_new()) == NULL) {
-		error("%s: sshbuf_new failed", __func__);
+		error_f("sshbuf_new failed");
 		r = SSH_ERR_ALLOC_FAIL;
 		goto done;
 	}
@@ -175,7 +174,7 @@ sshsig_wrap_sign(struct sshkey *key, const char *hashalg,
 	    (r = sshbuf_put_string(tosign, NULL, 0)) != 0 || /* reserved */
 	    (r = sshbuf_put_cstring(tosign, hashalg)) != 0 ||
 	    (r = sshbuf_put_stringb(tosign, h_message)) != 0) {
-		error("Couldn't construct message to sign: %s", ssh_err(r));
+		error_fr(r, "assemble message to sign");
 		goto done;
 	}
 
@@ -187,14 +186,14 @@ sshsig_wrap_sign(struct sshkey *key, const char *hashalg,
 		if ((r = signer(key, &sig, &slen,
 		    sshbuf_ptr(tosign), sshbuf_len(tosign),
 		    sign_alg, sk_provider, sk_pin, 0, signer_ctx)) != 0) {
-			error("Couldn't sign message: %s", ssh_err(r));
+			error_r(r, "Couldn't sign message (signer)");
 			goto done;
 		}
 	} else {
 		if ((r = sshkey_sign(key, &sig, &slen,
 		    sshbuf_ptr(tosign), sshbuf_len(tosign),
 		    sign_alg, sk_provider, sk_pin, 0)) != 0) {
-			error("Couldn't sign message: %s", ssh_err(r));
+			error_r(r, "Couldn't sign message");
 			goto done;
 		}
 	}
@@ -206,7 +205,7 @@ sshsig_wrap_sign(struct sshkey *key, const char *hashalg,
 	    (r = sshbuf_put_string(blob, NULL, 0)) != 0 || /* reserved */
 	    (r = sshbuf_put_cstring(blob, hashalg)) != 0 ||
 	    (r = sshbuf_put_string(blob, sig, slen)) != 0) {
-		error("Couldn't populate blob: %s", ssh_err(r));
+		error_fr(r, "assemble signature object");
 		goto done;
 	}
 
@@ -250,7 +249,7 @@ sshsig_check_hashalg(const char *hashalg)
 	if (hashalg == NULL ||
 	    match_pattern_list(hashalg, HASHALG_ALLOWED, 0) == 1)
 		return 0;
-	error("%s: unsupported hash algorithm \"%.100s\"", __func__, hashalg);
+	error_f("unsupported hash algorithm \"%.100s\"", hashalg);
 	return SSH_ERR_SIGN_ALG_UNSUPPORTED;
 }
 
@@ -272,7 +271,7 @@ sshsig_peek_hashalg(struct sshbuf *signature, char **hashalgp)
 	    (r = sshbuf_get_string(buf, NULL, NULL)) != 0 ||
 	    (r = sshbuf_get_cstring(buf, &hashalg, NULL)) != 0 ||
 	    (r = sshbuf_get_string_direct(buf, NULL, NULL)) != 0) {
-		error("Couldn't parse signature blob: %s", ssh_err(r));
+		error_fr(r, "parse signature object");
 		goto done;
 	}
 
@@ -298,14 +297,14 @@ sshsig_wrap_verify(struct sshbuf *signature, const char *hashalg,
 	char *got_namespace = NULL, *sigtype = NULL, *sig_hashalg = NULL;
 	size_t siglen;
 
-	debug("%s: verify message length %zu", __func__, sshbuf_len(h_message));
+	debug_f("verify message length %zu", sshbuf_len(h_message));
 	if (sig_details != NULL)
 		*sig_details = NULL;
 	if (sign_keyp != NULL)
 		*sign_keyp = NULL;
 
 	if ((toverify = sshbuf_new()) == NULL) {
-		error("%s: sshbuf_new failed", __func__);
+		error_f("sshbuf_new failed");
 		r = SSH_ERR_ALLOC_FAIL;
 		goto done;
 	}
@@ -315,7 +314,7 @@ sshsig_wrap_verify(struct sshbuf *signature, const char *hashalg,
 	    (r = sshbuf_put_string(toverify, NULL, 0)) != 0 || /* reserved */
 	    (r = sshbuf_put_cstring(toverify, hashalg)) != 0 ||
 	    (r = sshbuf_put_stringb(toverify, h_message)) != 0) {
-		error("Couldn't construct message to verify: %s", ssh_err(r));
+		error_fr(r, "assemble message to verify");
 		goto done;
 	}
 
@@ -327,7 +326,7 @@ sshsig_wrap_verify(struct sshbuf *signature, const char *hashalg,
 	    (r = sshbuf_get_string(signature, NULL, NULL)) != 0 ||
 	    (r = sshbuf_get_cstring(signature, &sig_hashalg, NULL)) != 0 ||
 	    (r = sshbuf_get_string_direct(signature, &sig, &siglen)) != 0) {
-		error("Couldn't parse signature blob: %s", ssh_err(r));
+		error_fr(r, "parse signature object");
 		goto done;
 	}
 
@@ -339,23 +338,23 @@ sshsig_wrap_verify(struct sshbuf *signature, const char *hashalg,
 
 	if (strcmp(expect_namespace, got_namespace) != 0) {
 		error("Couldn't verify signature: namespace does not match");
-		debug("%s: expected namespace \"%s\" received \"%s\"",
-		    __func__, expect_namespace, got_namespace);
+		debug_f("expected namespace \"%s\" received \"%s\"",
+		    expect_namespace, got_namespace);
 		r = SSH_ERR_SIGNATURE_INVALID;
 		goto done;
 	}
 	if (strcmp(hashalg, sig_hashalg) != 0) {
 		error("Couldn't verify signature: hash algorithm mismatch");
-		debug("%s: expected algorithm \"%s\" received \"%s\"",
-		    __func__, hashalg, sig_hashalg);
+		debug_f("expected algorithm \"%s\" received \"%s\"",
+		    hashalg, sig_hashalg);
 		r = SSH_ERR_SIGNATURE_INVALID;
 		goto done;
 	}
 	/* Ensure that RSA keys use an acceptable signature algorithm */
 	if (sshkey_type_plain(key->type) == KEY_RSA) {
 		if ((r = sshkey_get_sigtype(sig, siglen, &sigtype)) != 0) {
-			error("Couldn't verify signature: unable to get "
-			    "signature type: %s", ssh_err(r));
+			error_r(r, "Couldn't verify signature: unable to get "
+			    "signature type");
 			goto done;
 		}
 		if (match_pattern_list(sigtype, RSA_SIGN_ALLOWED, 0) != 1) {
@@ -367,7 +366,7 @@ sshsig_wrap_verify(struct sshbuf *signature, const char *hashalg,
 	}
 	if ((r = sshkey_verify(key, sig, siglen, sshbuf_ptr(toverify),
 	    sshbuf_len(toverify), NULL, 0, sig_details)) != 0) {
-		error("Signature verification failed: %s", ssh_err(r));
+		error_r(r, "Signature verification failed");
 		goto done;
 	}
 
@@ -400,16 +399,15 @@ hash_buffer(const struct sshbuf *m, const char *hashalg, struct sshbuf **bp)
 	if ((r = sshsig_check_hashalg(hashalg)) != 0)
 		return r;
 	if ((alg = ssh_digest_alg_by_name(hashalg)) == -1) {
-		error("%s: can't look up hash algorithm %s",
-		    __func__, hashalg);
+		error_f("can't look up hash algorithm %s", hashalg);
 		return SSH_ERR_INTERNAL_ERROR;
 	}
 	if ((r = ssh_digest_buffer(alg, m, hash, sizeof(hash))) != 0) {
-		error("%s: ssh_digest_buffer failed: %s", __func__, ssh_err(r));
+		error_fr(r, "ssh_digest_buffer");
 		return r;
 	}
 	if ((hex = tohex(hash, ssh_digest_bytes(alg))) != NULL) {
-		debug3("%s: final hash: %s", __func__, hex);
+		debug3_f("final hash: %s", hex);
 		freezero(hex, strlen(hex));
 	}
 	if ((b = sshbuf_new()) == NULL) {
@@ -417,7 +415,7 @@ hash_buffer(const struct sshbuf *m, const char *hashalg, struct sshbuf **bp)
 		goto out;
 	}
 	if ((r = sshbuf_put(b, hash, ssh_digest_bytes(alg))) != 0) {
-		error("%s: sshbuf_put: %s", __func__, ssh_err(r));
+		error_fr(r, "sshbuf_put");
 		goto out;
 	}
 	*bp = b;
@@ -444,7 +442,7 @@ sshsig_signb(struct sshkey *key, const char *hashalg,
 	if (out != NULL)
 		*out = NULL;
 	if ((r = hash_buffer(message, hashalg, &b)) != 0) {
-		error("%s: hash_buffer failed: %s", __func__, ssh_err(r));
+		error_fr(r, "hash buffer");
 		goto out;
 	}
 	if ((r = sshsig_wrap_sign(key, hashalg, sk_provider, sk_pin, b,
@@ -472,9 +470,9 @@ sshsig_verifyb(struct sshbuf *signature, const struct sshbuf *message,
 		*sign_keyp = NULL;
 	if ((r = sshsig_peek_hashalg(signature, &hashalg)) != 0)
 		return r;
-	debug("%s: signature made with hash \"%s\"", __func__, hashalg);
+	debug_f("signature made with hash \"%s\"", hashalg);
 	if ((r = hash_buffer(message, hashalg, &b)) != 0) {
-		error("%s: hash_buffer failed: %s", __func__, ssh_err(r));
+		error_fr(r, "hash buffer");
 		goto out;
 	}
 	if ((r = sshsig_wrap_verify(signature, hashalg, b, expect_namespace,
@@ -503,12 +501,11 @@ hash_file(int fd, const char *hashalg, struct sshbuf **bp)
 	if ((r = sshsig_check_hashalg(hashalg)) != 0)
 		return r;
 	if ((alg = ssh_digest_alg_by_name(hashalg)) == -1) {
-		error("%s: can't look up hash algorithm %s",
-		    __func__, hashalg);
+		error_f("can't look up hash algorithm %s", hashalg);
 		return SSH_ERR_INTERNAL_ERROR;
 	}
 	if ((ctx = ssh_digest_start(alg)) == NULL) {
-		error("%s: ssh_digest_start failed", __func__);
+		error_f("ssh_digest_start failed");
 		return SSH_ERR_INTERNAL_ERROR;
 	}
 	for (;;) {
@@ -516,28 +513,27 @@ hash_file(int fd, const char *hashalg, struct sshbuf **bp)
 			if (errno == EINTR || errno == EAGAIN)
 				continue;
 			oerrno = errno;
-			error("%s: read: %s", __func__, strerror(errno));
+			error_f("read: %s", strerror(errno));
 			ssh_digest_free(ctx);
 			errno = oerrno;
 			r = SSH_ERR_SYSTEM_ERROR;
 			goto out;
 		} else if (n == 0) {
-			debug2("%s: hashed %zu bytes", __func__, total);
+			debug2_f("hashed %zu bytes", total);
 			break; /* EOF */
 		}
 		total += (size_t)n;
 		if ((r = ssh_digest_update(ctx, rbuf, (size_t)n)) != 0) {
-			error("%s: ssh_digest_update: %s",
-			    __func__, ssh_err(r));
+			error_fr(r, "ssh_digest_update");
 			goto out;
 		}
 	}
 	if ((r = ssh_digest_final(ctx, hash, sizeof(hash))) != 0) {
-		error("%s: ssh_digest_final: %s", __func__, ssh_err(r));
+		error_fr(r, "ssh_digest_final");
 		goto out;
 	}
 	if ((hex = tohex(hash, ssh_digest_bytes(alg))) != NULL) {
-		debug3("%s: final hash: %s", __func__, hex);
+		debug3_f("final hash: %s", hex);
 		freezero(hex, strlen(hex));
 	}
 	if ((b = sshbuf_new()) == NULL) {
@@ -545,7 +541,7 @@ hash_file(int fd, const char *hashalg, struct sshbuf **bp)
 		goto out;
 	}
 	if ((r = sshbuf_put(b, hash, ssh_digest_bytes(alg))) != 0) {
-		error("%s: sshbuf_put: %s", __func__, ssh_err(r));
+		error_fr(r, "sshbuf_put");
 		goto out;
 	}
 	*bp = b;
@@ -573,7 +569,7 @@ sshsig_sign_fd(struct sshkey *key, const char *hashalg,
 	if (out != NULL)
 		*out = NULL;
 	if ((r = hash_file(fd, hashalg, &b)) != 0) {
-		error("%s: hash_file failed: %s", __func__, ssh_err(r));
+		error_fr(r, "hash_file");
 		return r;
 	}
 	if ((r = sshsig_wrap_sign(key, hashalg, sk_provider, sk_pin, b,
@@ -601,9 +597,9 @@ sshsig_verify_fd(struct sshbuf *signature, int fd,
 		*sign_keyp = NULL;
 	if ((r = sshsig_peek_hashalg(signature, &hashalg)) != 0)
 		return r;
-	debug("%s: signature made with hash \"%s\"", __func__, hashalg);
+	debug_f("signature made with hash \"%s\"", hashalg);
 	if ((r = hash_file(fd, hashalg, &b)) != 0) {
-		error("%s: hash_file failed: %s", __func__, ssh_err(r));
+		error_fr(r, "hash_file");
 		goto out;
 	}
 	if ((r = sshsig_wrap_verify(signature, hashalg, b, expect_namespace,
@@ -713,7 +709,7 @@ parse_principals_key_and_options(const char *path, u_long linenum, char *line,
 		goto out;
 	}
 	if ((principals = strdup(tmp)) == NULL) {
-		error("%s: strdup failed", __func__);
+		error_f("strdup failed");
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
@@ -728,12 +724,12 @@ parse_principals_key_and_options(const char *path, u_long linenum, char *line,
 			r = SSH_ERR_KEY_NOT_FOUND;
 			goto out;
 		}
-		debug("%s: %s:%lu: matched principal \"%s\"",
-		    __func__, path, linenum, required_principal);
+		debug_f("%s:%lu: matched principal \"%s\"",
+		    path, linenum, required_principal);
 	}
 
 	if ((key = sshkey_new(KEY_UNSPEC)) == NULL) {
-		error("%s: sshkey_new failed", __func__);
+		error_f("sshkey_new failed");
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
@@ -813,7 +809,7 @@ check_allowed_keys_line(const char *path, u_long linenum, char *line,
 	} else if (sigopts->ca && sshkey_is_cert(sign_key) &&
 	    sshkey_equal_public(sign_key->cert->signature_key, found_key)) {
 		/* Match of certificate's CA key */
-		if ((r = sshkey_cert_check_authority(sign_key, 0, 1,
+		if ((r = sshkey_cert_check_authority(sign_key, 0, 1, 0,
 		    principal, &reason)) != 0) {
 			error("%s:%lu: certificate not authorized: %s",
 			    path, linenum, reason);
@@ -857,6 +853,7 @@ sshsig_check_allowed_keys(const char *path, const struct sshkey *sign_key,
 		    principal, sig_namespace);
 		free(line);
 		line = NULL;
+		linesize = 0;
 		if (r == SSH_ERR_KEY_NOT_FOUND)
 			continue;
 		else if (r == 0) {
@@ -896,7 +893,7 @@ cert_filter_principals(const char *path, u_long linenum,
 			continue;
 		}
 		/* Check against principals list in certificate */
-		if ((r = sshkey_cert_check_authority(cert, 0, 1,
+		if ((r = sshkey_cert_check_authority(cert, 0, 1, 0,
 		    cp, &reason)) != 0) {
 			debug("%s:%lu: principal \"%s\" not authorized: %s",
 			    path, linenum, cp, reason);
@@ -904,7 +901,7 @@ cert_filter_principals(const char *path, u_long linenum,
 		}
 		if ((r = sshbuf_putf(nprincipals, "%s%s",
 		    sshbuf_len(nprincipals) != 0 ? "," : "", cp)) != 0) {
-			error("%s: buffer error", __func__);
+			error_f("buffer error");
 			goto out;
 		}
 	}
@@ -914,7 +911,7 @@ cert_filter_principals(const char *path, u_long linenum,
 		goto out;
 	}
 	if ((principals = sshbuf_dup_string(nprincipals)) == NULL) {
-		error("%s: buffer error", __func__);
+		error_f("buffer error");
 		goto out;
 	}
 	/* success */
@@ -956,8 +953,8 @@ get_matching_principals_from_line(const char *path, u_long linenum, char *line,
 		if ((r = cert_filter_principals(path, linenum,
 		    &principals, sign_key)) != 0) {
 			/* error already displayed */
-			debug("%s:%lu: cert_filter_principals: %s",
-			    path, linenum, ssh_err(r));
+			debug_r(r, "%s:%lu: cert_filter_principals",
+			    path, linenum);
 			goto done;
 		}
 		debug("%s:%lu: matched certificate CA key", path, linenum);
@@ -1002,6 +999,7 @@ sshsig_find_principals(const char *path, const struct sshkey *sign_key,
 		    sign_key, principals);
 		free(line);
 		line = NULL;
+		linesize = 0;
 		if (r == SSH_ERR_KEY_NOT_FOUND)
 			continue;
 		else if (r == 0) {

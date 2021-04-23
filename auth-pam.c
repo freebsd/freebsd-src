@@ -689,6 +689,12 @@ sshpam_init(struct ssh *ssh, Authctxt *authctxt)
 	const char *pam_user, *user = authctxt->user;
 	const char **ptr_pam_user = &pam_user;
 
+#if defined(PAM_SUN_CODEBASE) && defined(PAM_MAX_RESP_SIZE)
+	/* Protect buggy PAM implementations from excessively long usernames */
+	if (strlen(user) >= PAM_MAX_RESP_SIZE)
+		fatal("Username too long from %s port %d",
+		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh));
+#endif
 	if (sshpam_handle == NULL) {
 		if (ssh == NULL) {
 			fatal("%s: called initially with no "

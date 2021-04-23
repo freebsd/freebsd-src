@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.147 2020/08/27 01:07:09 djm Exp $ */
+/* $OpenBSD: auth.c,v 1.151 2020/12/22 00:12:22 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -468,7 +468,7 @@ check_key_in_hostfiles(struct passwd *pw, struct sshkey *key, const char *host,
 	const struct hostkey_entry *found;
 
 	hostkeys = init_hostkeys();
-	load_hostkeys(hostkeys, host, sysfile);
+	load_hostkeys(hostkeys, host, sysfile, 0);
 	if (userfile != NULL) {
 		user_hostfile = tilde_expand_filename(userfile, pw->pw_uid);
 		if (options.strict_modes &&
@@ -482,7 +482,7 @@ check_key_in_hostfiles(struct passwd *pw, struct sshkey *key, const char *host,
 			    user_hostfile);
 		} else {
 			temporarily_use_uid(pw);
-			load_hostkeys(hostkeys, host, user_hostfile);
+			load_hostkeys(hostkeys, host, user_hostfile, 0);
 			restore_uid();
 		}
 		free(user_hostfile);
@@ -492,10 +492,10 @@ check_key_in_hostfiles(struct passwd *pw, struct sshkey *key, const char *host,
 		error("WARNING: revoked key for %s attempted authentication",
 		    host);
 	else if (host_status == HOST_OK)
-		debug("%s: key for %s found at %s:%ld", __func__,
+		debug_f("key for %s found at %s:%ld",
 		    found->host, found->file, found->line);
 	else
-		debug("%s: key for host %s not found", __func__, host);
+		debug_f("key for host %s not found", host);
 
 	free_hostkeys(hostkeys);
 
@@ -569,11 +569,15 @@ getpwnamallow(struct ssh *ssh, const char *user)
 #endif
 	struct passwd *pw;
 	struct connection_info *ci;
+	u_int i;
 
 	ci = get_connection_info(ssh, 1, options.use_dns);
 	ci->user = user;
 	parse_server_match_config(&options, &includes, ci);
 	log_change_level(options.log_level);
+	log_verbose_reset();
+	for (i = 0; i < options.num_log_verbose; i++)
+		log_verbose_add(options.log_verbose[i]);
 	process_permitopen(ssh, &options);
 
 #if defined(_AIX) && defined(HAVE_SETAUTHDB)
@@ -600,7 +604,7 @@ getpwnamallow(struct ssh *ssh, const char *user)
 	if (!allowed_user(ssh, pw))
 		return (NULL);
 #ifdef HAVE_LOGIN_CAP
-	if ((lc = login_getclass(pw->pw_class)) == NULL) {
+	if ((lc = login_getpwclass(pw)) == NULL) {
 		debug("unable to get login class: %s", user);
 		return (NULL);
 	}
@@ -631,7 +635,7 @@ auth_key_is_revoked(struct sshkey *key)
 	if ((fp = sshkey_fingerprint(key, options.fingerprint_hash,
 	    SSH_FP_DEFAULT)) == NULL) {
 		r = SSH_ERR_ALLOC_FAIL;
-		error("%s: fingerprint key: %s", __func__, ssh_err(r));
+		error_fr(r, "fingerprint key");
 		goto out;
 	}
 
@@ -644,9 +648,9 @@ auth_key_is_revoked(struct sshkey *key)
 		    sshkey_type(key), fp, options.revoked_keys_file);
 		goto out;
 	default:
-		error("Error checking authentication key %s %s in "
-		    "revoked keys file %s: %s", sshkey_type(key), fp,
-		    options.revoked_keys_file, ssh_err(r));
+		error_r(r, "Error checking authentication key %s %s in "
+		    "revoked keys file %s", sshkey_type(key), fp,
+		    options.revoked_keys_file);
 		goto out;
 	}
 
@@ -672,7 +676,7 @@ auth_debug_add(const char *fmt,...)
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 	if ((r = sshbuf_put_cstring(auth_debug, buf)) != 0)
-		fatal("%s: sshbuf_put_cstring: %s", __func__, ssh_err(r));
+		fatal_fr(r, "sshbuf_put_cstring");
 }
 
 void
@@ -685,8 +689,7 @@ auth_debug_send(struct ssh *ssh)
 		return;
 	while (sshbuf_len(auth_debug) != 0) {
 		if ((r = sshbuf_get_cstring(auth_debug, &msg, NULL)) != 0)
-			fatal("%s: sshbuf_get_cstring: %s",
-			    __func__, ssh_err(r));
+			fatal_fr(r, "sshbuf_get_cstring");
 		ssh_packet_send_debug(ssh, "%s", msg);
 		free(msg);
 	}
@@ -698,7 +701,7 @@ auth_debug_reset(void)
 	if (auth_debug != NULL)
 		sshbuf_reset(auth_debug);
 	else if ((auth_debug = sshbuf_new()) == NULL)
-		fatal("%s: sshbuf_new failed", __func__);
+		fatal_f("sshbuf_new failed");
 }
 
 struct passwd *
@@ -838,158 +841,6 @@ auth_get_canonical_hostname(struct ssh *ssh, int use_dns)
 	}
 }
 
-/*
- * Runs command in a subprocess with a minimal environment.
- * Returns pid on success, 0 on failure.
- * The child stdout and stderr maybe captured, left attached or sent to
- * /dev/null depending on the contents of flags.
- * "tag" is prepended to log messages.
- * NB. "command" is only used for logging; the actual command executed is
- * av[0].
- */
-pid_t
-subprocess(const char *tag, struct passwd *pw, const char *command,
-    int ac, char **av, FILE **child, u_int flags)
-{
-	FILE *f = NULL;
-	struct stat st;
-	int fd, devnull, p[2], i;
-	pid_t pid;
-	char *cp, errmsg[512];
-	u_int envsize;
-	char **child_env;
-
-	if (child != NULL)
-		*child = NULL;
-
-	debug3("%s: %s command \"%s\" running as %s (flags 0x%x)", __func__,
-	    tag, command, pw->pw_name, flags);
-
-	/* Check consistency */
-	if ((flags & SSH_SUBPROCESS_STDOUT_DISCARD) != 0 &&
-	    (flags & SSH_SUBPROCESS_STDOUT_CAPTURE) != 0) {
-		error("%s: inconsistent flags", __func__);
-		return 0;
-	}
-	if (((flags & SSH_SUBPROCESS_STDOUT_CAPTURE) == 0) != (child == NULL)) {
-		error("%s: inconsistent flags/output", __func__);
-		return 0;
-	}
-
-	/*
-	 * If executing an explicit binary, then verify the it exists
-	 * and appears safe-ish to execute
-	 */
-	if (!path_absolute(av[0])) {
-		error("%s path is not absolute", tag);
-		return 0;
-	}
-	temporarily_use_uid(pw);
-	if (stat(av[0], &st) == -1) {
-		error("Could not stat %s \"%s\": %s", tag,
-		    av[0], strerror(errno));
-		restore_uid();
-		return 0;
-	}
-	if (safe_path(av[0], &st, NULL, 0, errmsg, sizeof(errmsg)) != 0) {
-		error("Unsafe %s \"%s\": %s", tag, av[0], errmsg);
-		restore_uid();
-		return 0;
-	}
-	/* Prepare to keep the child's stdout if requested */
-	if (pipe(p) == -1) {
-		error("%s: pipe: %s", tag, strerror(errno));
-		restore_uid();
-		return 0;
-	}
-	restore_uid();
-
-	switch ((pid = fork())) {
-	case -1: /* error */
-		error("%s: fork: %s", tag, strerror(errno));
-		close(p[0]);
-		close(p[1]);
-		return 0;
-	case 0: /* child */
-		/* Prepare a minimal environment for the child. */
-		envsize = 5;
-		child_env = xcalloc(sizeof(*child_env), envsize);
-		child_set_env(&child_env, &envsize, "PATH", _PATH_STDPATH);
-		child_set_env(&child_env, &envsize, "USER", pw->pw_name);
-		child_set_env(&child_env, &envsize, "LOGNAME", pw->pw_name);
-		child_set_env(&child_env, &envsize, "HOME", pw->pw_dir);
-		if ((cp = getenv("LANG")) != NULL)
-			child_set_env(&child_env, &envsize, "LANG", cp);
-
-		for (i = 0; i < NSIG; i++)
-			ssh_signal(i, SIG_DFL);
-
-		if ((devnull = open(_PATH_DEVNULL, O_RDWR)) == -1) {
-			error("%s: open %s: %s", tag, _PATH_DEVNULL,
-			    strerror(errno));
-			_exit(1);
-		}
-		if (dup2(devnull, STDIN_FILENO) == -1) {
-			error("%s: dup2: %s", tag, strerror(errno));
-			_exit(1);
-		}
-
-		/* Set up stdout as requested; leave stderr in place for now. */
-		fd = -1;
-		if ((flags & SSH_SUBPROCESS_STDOUT_CAPTURE) != 0)
-			fd = p[1];
-		else if ((flags & SSH_SUBPROCESS_STDOUT_DISCARD) != 0)
-			fd = devnull;
-		if (fd != -1 && dup2(fd, STDOUT_FILENO) == -1) {
-			error("%s: dup2: %s", tag, strerror(errno));
-			_exit(1);
-		}
-		closefrom(STDERR_FILENO + 1);
-
-		/* Don't use permanently_set_uid() here to avoid fatal() */
-		if (setresgid(pw->pw_gid, pw->pw_gid, pw->pw_gid) == -1) {
-			error("%s: setresgid %u: %s", tag, (u_int)pw->pw_gid,
-			    strerror(errno));
-			_exit(1);
-		}
-		if (setresuid(pw->pw_uid, pw->pw_uid, pw->pw_uid) == -1) {
-			error("%s: setresuid %u: %s", tag, (u_int)pw->pw_uid,
-			    strerror(errno));
-			_exit(1);
-		}
-		/* stdin is pointed to /dev/null at this point */
-		if ((flags & SSH_SUBPROCESS_STDOUT_DISCARD) != 0 &&
-		    dup2(STDIN_FILENO, STDERR_FILENO) == -1) {
-			error("%s: dup2: %s", tag, strerror(errno));
-			_exit(1);
-		}
-
-		execve(av[0], av, child_env);
-		error("%s exec \"%s\": %s", tag, command, strerror(errno));
-		_exit(127);
-	default: /* parent */
-		break;
-	}
-
-	close(p[1]);
-	if ((flags & SSH_SUBPROCESS_STDOUT_CAPTURE) == 0)
-		close(p[0]);
-	else if ((f = fdopen(p[0], "r")) == NULL) {
-		error("%s: fdopen: %s", tag, strerror(errno));
-		close(p[0]);
-		/* Don't leave zombie child */
-		kill(pid, SIGTERM);
-		while (waitpid(pid, NULL, 0) == -1 && errno == EINTR)
-			;
-		return 0;
-	}
-	/* Success */
-	debug3("%s: %s pid %ld", __func__, tag, (long)pid);
-	if (child != NULL)
-		*child = f;
-	return pid;
-}
-
 /* These functions link key/cert options to the auth framework */
 
 /* Log sshauthopt options locally and (optionally) for remote transmission */
@@ -1069,7 +920,7 @@ auth_activate_options(struct ssh *ssh, struct sshauthopt *opts)
 	struct sshauthopt *old = auth_opts;
 	const char *emsg = NULL;
 
-	debug("%s: setting new authentication options", __func__);
+	debug_f("setting new authentication options");
 	if ((auth_opts = sshauthopt_merge(old, opts, &emsg)) == NULL) {
 		error("Inconsistent authentication options: %s", emsg);
 		return -1;
@@ -1083,7 +934,7 @@ auth_restrict_session(struct ssh *ssh)
 {
 	struct sshauthopt *restricted;
 
-	debug("%s: restricting session", __func__);
+	debug_f("restricting session");
 
 	/* A blank sshauthopt defaults to permitting nothing */
 	restricted = sshauthopt_new();
@@ -1091,7 +942,7 @@ auth_restrict_session(struct ssh *ssh)
 	restricted->restricted = 1;
 
 	if (auth_activate_options(ssh, restricted) != 0)
-		fatal("%s: failed to restrict session", __func__);
+		fatal_f("failed to restrict session");
 	sshauthopt_free(restricted);
 }
 
@@ -1166,8 +1017,7 @@ auth_authorise_keyopts(struct ssh *ssh, struct passwd *pw,
 		case -1:
 		default:
 			/* invalid */
-			error("%s: Certificate source-address invalid",
-			    loc);
+			error("%s: Certificate source-address invalid", loc);
 			/* FALLTHROUGH */
 		case 0:
 			logit("%s: Authentication tried for %.100s with valid "
