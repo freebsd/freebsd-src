@@ -823,6 +823,7 @@ static int mod_event(module_t, int, void *);
 static int notify_siblings(device_t, int);
 static uint64_t vi_get_counter(struct ifnet *, ift_counter);
 static uint64_t cxgbe_get_counter(struct ifnet *, ift_counter);
+static void enable_vxlan_rx(struct adapter *);
 
 struct {
 	uint16_t device;
@@ -11671,12 +11672,38 @@ struct vxlan_evargs {
 };
 
 static void
+enable_vxlan_rx(struct adapter *sc)
+{
+	int i, rc;
+	struct port_info *pi;
+	uint8_t match_all_mac[ETHER_ADDR_LEN] = {0};
+
+	ASSERT_SYNCHRONIZED_OP(sc);
+
+	t4_write_reg(sc, A_MPS_RX_VXLAN_TYPE, V_VXLAN(sc->vxlan_port) |
+	    F_VXLAN_EN);
+	for_each_port(sc, i) {
+		pi = sc->port[i];
+		if (pi->vxlan_tcam_entry == true)
+			continue;
+		rc = t4_alloc_raw_mac_filt(sc, pi->vi[0].viid, match_all_mac,
+		    match_all_mac, sc->rawf_base + pi->port_id, 1, pi->port_id,
+		    true);
+		if (rc < 0) {
+			rc = -rc;
+			CH_ERR(&pi->vi[0],
+			    "failed to add VXLAN TCAM entry: %d.\n", rc);
+		} else {
+			MPASS(rc == sc->rawf_base + pi->port_id);
+			pi->vxlan_tcam_entry = true;
+		}
+	}
+}
+
+static void
 t4_vxlan_start(struct adapter *sc, void *arg)
 {
 	struct vxlan_evargs *v = arg;
-	struct port_info *pi;
-	uint8_t match_all_mac[ETHER_ADDR_LEN] = {0};
-	int i, rc;
 
 	if (sc->nrawf == 0 || chip_id(sc) <= CHELSIO_T5)
 		return;
@@ -11686,32 +11713,13 @@ t4_vxlan_start(struct adapter *sc, void *arg)
 	if (sc->vxlan_refcount == 0) {
 		sc->vxlan_port = v->port;
 		sc->vxlan_refcount = 1;
-		t4_write_reg(sc, A_MPS_RX_VXLAN_TYPE,
-		    V_VXLAN(v->port) | F_VXLAN_EN);
-		for_each_port(sc, i) {
-			pi = sc->port[i];
-			if (pi->vxlan_tcam_entry == true)
-				continue;
-			rc = t4_alloc_raw_mac_filt(sc, pi->vi[0].viid,
-			    match_all_mac, match_all_mac,
-			    sc->rawf_base + pi->port_id, 1, pi->port_id, true);
-			if (rc < 0) {
-				rc = -rc;
-				log(LOG_ERR,
-				    "%s: failed to add VXLAN TCAM entry: %d.\n",
-				    device_get_name(pi->vi[0].dev), rc);
-			} else {
-				MPASS(rc == sc->rawf_base + pi->port_id);
-				rc = 0;
-				pi->vxlan_tcam_entry = true;
-			}
-		}
+		enable_vxlan_rx(sc);
 	} else if (sc->vxlan_port == v->port) {
 		sc->vxlan_refcount++;
 	} else {
-		log(LOG_ERR, "%s: VXLAN already configured on port  %d; "
+		CH_ERR(sc, "VXLAN already configured on port  %d; "
 		    "ignoring attempt to configure it on port %d\n",
-		    device_get_nameunit(sc->dev), sc->vxlan_port, v->port);
+		    sc->vxlan_port, v->port);
 	}
 	end_synchronized_op(sc, 0);
 }
