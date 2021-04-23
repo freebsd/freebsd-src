@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-#include <machine/intr_machdep.h>
 #include <machine/vmparam.h>
 
 #include <xen/xen-os.h>
