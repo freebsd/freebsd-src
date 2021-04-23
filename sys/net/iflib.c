@@ -5891,15 +5891,13 @@ iflib_rx_structures_setup(if_ctx_t ctx)
 
 	for (q = 0; q < ctx->ifc_softc_ctx.isc_nrxqsets; q++, rxq++) {
 #if defined(INET6) || defined(INET)
-		if (if_getcapabilities(ctx->ifc_ifp) & IFCAP_LRO) {
-			err = tcp_lro_init_args(&rxq->ifr_lc, ctx->ifc_ifp,
-			    TCP_LRO_ENTRIES, min(1024,
-			    ctx->ifc_softc_ctx.isc_nrxd[rxq->ifr_fl_offset]));
-			if (err != 0) {
-				device_printf(ctx->ifc_dev,
-				    "LRO Initialization failed!\n");
-				goto fail;
-			}
+		err = tcp_lro_init_args(&rxq->ifr_lc, ctx->ifc_ifp,
+		    TCP_LRO_ENTRIES, min(1024,
+		    ctx->ifc_softc_ctx.isc_nrxd[rxq->ifr_fl_offset]));
+		if (err != 0) {
+			device_printf(ctx->ifc_dev,
+			    "LRO Initialization failed!\n");
+			goto fail;
 		}
 #endif
 		IFDI_RXQ_SETUP(ctx, rxq->ifr_id);
@@ -5914,8 +5912,7 @@ fail:
 	 */
 	rxq = ctx->ifc_rxqs;
 	for (i = 0; i < q; ++i, rxq++) {
-		if (if_getcapabilities(ctx->ifc_ifp) & IFCAP_LRO)
-			tcp_lro_free(&rxq->ifr_lc);
+		tcp_lro_free(&rxq->ifr_lc);
 	}
 	return (err);
 #endif
@@ -5938,8 +5935,7 @@ iflib_rx_structures_free(if_ctx_t ctx)
 			iflib_dma_free(&rxq->ifr_ifdi[j]);
 		iflib_rx_sds_free(rxq);
 #if defined(INET6) || defined(INET)
-		if (if_getcapabilities(ctx->ifc_ifp) & IFCAP_LRO)
-			tcp_lro_free(&rxq->ifr_lc);
+		tcp_lro_free(&rxq->ifr_lc);
 #endif
 	}
 	free(ctx->ifc_rxqs, M_IFLIB);
