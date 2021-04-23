@@ -129,13 +129,11 @@ config_setup(const atf_tc_t *tc, struct rtsock_config_options *co)
 	ATF_CHECK_ERRNO(0, true);
 
 	if (co->num_interfaces > 0) {
-		if (kldload("if_epair") == -1) {
-			/* Any errno other than EEXIST is fatal. */
-			ATF_REQUIRE_ERRNO(EEXIST, true);
-			/* Clear errno for the following tests. */
-			errno = 0;
-		}
+		/* Try loading if_epair and if that fails skip the test. */
+		kldload("if_epair");
 		ATF_REQUIRE_KERNEL_MODULE("if_epair");
+		/* Clear errno for the following tests. */
+		errno = 0;
 
 		c->ifnames = calloc(co->num_interfaces, sizeof(char *));
 		for (int i = 0; i < co->num_interfaces; i++)
