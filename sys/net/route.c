@@ -43,7 +43,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/capsicum.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -246,10 +245,8 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
  * Routing table ioctl interface.
  */
 int
-rtioctl_fib(u_long req, caddr_t data, u_int fibnum, struct thread *td)
+rtioctl_fib(u_long req, caddr_t data, u_int fibnum)
 {
-	if (IN_CAPABILITY_MODE(td))
-		return (ECAPMODE);
 
 	/*
 	 * If more ioctl commands are added here, make sure the proper

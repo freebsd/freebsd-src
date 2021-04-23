@@ -2968,15 +2968,6 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	bool shutdown;
 #endif
 
-	/*
-	 * Interface ioctls access a global namespace.  There is currently no
-	 * capability-based representation for interfaces, so the configuration
-	 * interface is simply unaccessible from capability mode.  If necessary,
-	 * select ioctls may be permitted here.
-	 */
-	if (IN_CAPABILITY_MODE(td))
-		return (ECAPMODE);
-
 	CURVNET_SET(so->so_vnet);
 #ifdef VIMAGE
 	/* Make sure the VNET is stable. */

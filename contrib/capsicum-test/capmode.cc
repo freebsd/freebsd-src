@@ -227,6 +227,10 @@ FORK_TEST_F(WithFiles, AllowedSocketSyscallsIfRoot) {
 
   // Interface configuration ioctls are not permitted in capability
   // mode.
+  //
+  // This test is disabled for now as the corresponding kernel change was
+  // disabled.
+#if 0
 #ifdef __FreeBSD__
   struct if_clonereq req;
 
@@ -237,6 +241,7 @@ FORK_TEST_F(WithFiles, AllowedSocketSyscallsIfRoot) {
   EXPECT_CAPMODE(ioctl(fd_socket_, SIOCIFGCLONERS, &req));
 
   free(req.ifcr_buffer);
+#endif
 #endif
 }
 

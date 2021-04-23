@@ -431,13 +431,11 @@ void	rt_updatemtu(struct ifnet *);
 
 void	rt_flushifroutes(struct ifnet *ifp);
 
-struct thread;
-
 /* XXX MRT NEW VERSIONS THAT USE FIBs
  * For now the protocol indepedent versions are the same as the AF_INET ones
  * but this will change.. 
  */
-int	rtioctl_fib(u_long, caddr_t, u_int, struct thread *);
+int	rtioctl_fib(u_long, caddr_t, u_int);
 int	rib_lookup_info(uint32_t, const struct sockaddr *, uint32_t, uint32_t,
 	    struct rt_addrinfo *);
 void	rib_free_info(struct rt_addrinfo *info);
