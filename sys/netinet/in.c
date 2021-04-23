@@ -36,7 +36,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/capsicum.h>
 #include <sys/eventhandler.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -237,9 +236,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 
 	if (ifp == NULL)
 		return (EADDRNOTAVAIL);
-
-	if (td != NULL && IN_CAPABILITY_MODE(td))
-		return (ECAPMODE);
 
 	/*
 	 * Filter out 4 ioctls we implement directly.  Forward the rest
