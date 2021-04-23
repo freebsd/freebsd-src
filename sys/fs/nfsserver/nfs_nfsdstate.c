@@ -166,7 +166,8 @@ static int nfsrv_docallback(struct nfsclient *clp, int procnum,
     nfsv4stateid_t *stateidp, int trunc, fhandle_t *fhp,
     struct nfsvattr *nap, nfsattrbit_t *attrbitp, int laytype, NFSPROC_T *p);
 static int nfsrv_cbcallargs(struct nfsrv_descript *nd, struct nfsclient *clp,
-    uint32_t callback, int op, const char *optag, struct nfsdsession **sepp);
+    uint32_t callback, int op, const char *optag, struct nfsdsession **sepp,
+    int *slotposp);
 static u_int32_t nfsrv_nextclientindex(void);
 static u_int32_t nfsrv_nextstateindex(struct nfsclient *clp);
 static void nfsrv_markstable(struct nfsclient *clp);
@@ -201,7 +202,7 @@ static void nfsrv_unlocklf(struct nfslockfile *lfp);
 static struct nfsdsession *nfsrv_findsession(uint8_t *sessionid);
 static int nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid);
 static int nfsv4_setcbsequence(struct nfsrv_descript *nd, struct nfsclient *clp,
-    int dont_replycache, struct nfsdsession **sepp);
+    int dont_replycache, struct nfsdsession **sepp, int *slotposp);
 static int nfsv4_getcbsession(struct nfsclient *clp, struct nfsdsession **sepp);
 static int nfsrv_addlayout(struct nfsrv_descript *nd, struct nfslayout **lypp,
     nfsv4stateid_t *stateidp, char *layp, int *layoutlenp, NFSPROC_T *p);
@@ -4434,7 +4435,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 	u_int32_t *tl;
 	struct nfsrv_descript *nd;
 	struct ucred *cred;
-	int error = 0;
+	int error = 0, slotpos;
 	u_int32_t callback;
 	struct nfsdsession *sep = NULL;
 	uint64_t tval;
@@ -4492,7 +4493,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 	if (procnum == NFSV4OP_CBGETATTR) {
 		nd->nd_procnum = NFSV4PROC_CBCOMPOUND;
 		error = nfsrv_cbcallargs(nd, clp, callback, NFSV4OP_CBGETATTR,
-		    "CB Getattr", &sep);
+		    "CB Getattr", &sep, &slotpos);
 		if (error != 0) {
 			m_freem(nd->nd_mreq);
 			goto errout;
@@ -4502,7 +4503,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 	} else if (procnum == NFSV4OP_CBRECALL) {
 		nd->nd_procnum = NFSV4PROC_CBCOMPOUND;
 		error = nfsrv_cbcallargs(nd, clp, callback, NFSV4OP_CBRECALL,
-		    "CB Recall", &sep);
+		    "CB Recall", &sep, &slotpos);
 		if (error != 0) {
 			m_freem(nd->nd_mreq);
 			goto errout;
@@ -4521,7 +4522,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 		NFSD_DEBUG(4, "docallback layout recall\n");
 		nd->nd_procnum = NFSV4PROC_CBCOMPOUND;
 		error = nfsrv_cbcallargs(nd, clp, callback,
-		    NFSV4OP_CBLAYOUTRECALL, "CB Reclayout", &sep);
+		    NFSV4OP_CBLAYOUTRECALL, "CB Reclayout", &sep, &slotpos);
 		NFSD_DEBUG(4, "aft cbcallargs=%d\n", error);
 		if (error != 0) {
 			m_freem(nd->nd_mreq);
@@ -4570,6 +4571,8 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 	if (clp->lc_req.nr_client == NULL) {
 		if ((clp->lc_flags & LCL_NFSV41) != 0) {
 			error = ECONNREFUSED;
+			if (procnum != NFSV4PROC_CBNULL)
+				nfsv4_freeslot(&sep->sess_cbsess, slotpos);
 			nfsrv_freesession(sep, NULL);
 		} else if (nd->nd_procnum == NFSV4PROC_CBNULL)
 			error = newnfs_connect(NULL, &clp->lc_req, cred,
@@ -4601,6 +4604,8 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 				error = ECONNREFUSED;
 			}
 			NFSD_DEBUG(4, "aft newnfs_request=%d\n", error);
+			if (error != 0 && procnum != NFSV4PROC_CBNULL)
+				nfsv4_freeslot(&sep->sess_cbsess, slotpos);
 			nfsrv_freesession(sep, NULL);
 		} else
 			error = newnfs_request(nd, NULL, clp, &clp->lc_req,
@@ -4663,7 +4668,8 @@ errout:
  */
 static int
 nfsrv_cbcallargs(struct nfsrv_descript *nd, struct nfsclient *clp,
-    uint32_t callback, int op, const char *optag, struct nfsdsession **sepp)
+    uint32_t callback, int op, const char *optag, struct nfsdsession **sepp,
+    int *slotposp)
 {
 	uint32_t *tl;
 	int error, len;
@@ -4679,7 +4685,7 @@ nfsrv_cbcallargs(struct nfsrv_descript *nd, struct nfsclient *clp,
 		*tl++ = txdr_unsigned(callback);
 		*tl++ = txdr_unsigned(2);
 		*tl = txdr_unsigned(NFSV4OP_CBSEQUENCE);
-		error = nfsv4_setcbsequence(nd, clp, 1, sepp);
+		error = nfsv4_setcbsequence(nd, clp, 1, sepp, slotposp);
 		if (error != 0)
 			return (error);
 		NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
@@ -6599,11 +6605,11 @@ nfsrv_teststateid(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
  */
 static int
 nfsv4_setcbsequence(struct nfsrv_descript *nd, struct nfsclient *clp,
-    int dont_replycache, struct nfsdsession **sepp)
+    int dont_replycache, struct nfsdsession **sepp, int *slotposp)
 {
 	struct nfsdsession *sep;
 	uint32_t *tl, slotseq = 0;
-	int maxslot, slotpos;
+	int maxslot;
 	uint8_t sessionid[NFSX_V4SESSIONID];
 	int error;
 
@@ -6611,7 +6617,7 @@ nfsv4_setcbsequence(struct nfsrv_descript *nd, struct nfsclient *clp,
 	if (error != 0)
 		return (error);
 	sep = *sepp;
-	(void)nfsv4_sequencelookup(NULL, &sep->sess_cbsess, &slotpos, &maxslot,
+	(void)nfsv4_sequencelookup(NULL, &sep->sess_cbsess, slotposp, &maxslot,
 	    &slotseq, sessionid);
 	KASSERT(maxslot >= 0, ("nfsv4_setcbsequence neg maxslot"));
 
@@ -6621,7 +6627,7 @@ nfsv4_setcbsequence(struct nfsrv_descript *nd, struct nfsclient *clp,
 	tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
 	nd->nd_slotseq = tl;
 	*tl++ = txdr_unsigned(slotseq);
-	*tl++ = txdr_unsigned(slotpos);
+	*tl++ = txdr_unsigned(*slotposp);
 	*tl++ = txdr_unsigned(maxslot);
 	if (dont_replycache == 0)
 		*tl++ = newnfs_true;
