@@ -429,4 +429,11 @@ struct timex32 {
 	int32_t	stbcnt;
 };
 
+struct ptrace_coredump32 {
+	int		pc_fd;
+	uint32_t	pc_flags;
+	uint32_t	pc_limit1, pc_limit2;
+};
+
+
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */

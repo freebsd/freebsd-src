@@ -74,6 +74,8 @@
 #define	PT_GET_SC_ARGS	27	/* fetch syscall args */
 #define	PT_GET_SC_RET	28	/* fetch syscall results */
 
+#define PT_COREDUMP	29	/* create a coredump */
+
 #define PT_GETREGS      33	/* get general-purpose registers */
 #define PT_SETREGS      34	/* set general-purpose registers */
 #define PT_GETFPREGS    35	/* get floating-point registers */
@@ -176,7 +178,26 @@ struct ptrace_vm_entry {
 	char		*pve_path;	/* Path name of object. */
 };
 
+/* Argument structure for PT_COREDUMP */
+struct ptrace_coredump {
+	int		pc_fd;		/* File descriptor to write dump to. */
+	uint32_t	pc_flags;	/* Flags PC_* */
+	off_t		pc_limit;	/* Maximum size of the coredump,
+					   0 for no limit. */
+};
+
+/* Flags for PT_COREDUMP pc_flags */
+#define	PC_COMPRESS	0x00000001	/* Allow compression */
+#define	PC_ALL		0x00000002	/* Include non-dumpable entries */
+
 #ifdef _KERNEL
+
+struct thr_coredump_req {
+	struct vnode	*tc_vp;		/* vnode to write coredump to. */
+	off_t		tc_limit;	/* max coredump file size. */
+	int		tc_flags;	/* user flags */
+	int		tc_error;	/* request result */
+};
 
 int	ptrace_set_pc(struct thread *_td, unsigned long _addr);
 int	ptrace_single_step(struct thread *_td);
