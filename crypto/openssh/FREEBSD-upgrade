@@ -39,6 +39,13 @@
 
     $ git tag -a -m "Tag OpenSSH X.YpZ" vendor/openssh/X.YpZ
 
+    At this point the vendor branch can be pushed to the FreeBSD repo via:
+
+    $ git push freebsd vendor/openssh
+
+    (It could also be pushed later on, along with the merge to main, but
+    pushing now allows others to collaborate.)
+
 08) Check out head and run the pre-merge script, which strips our RCS
     tags from files that have them:
 
