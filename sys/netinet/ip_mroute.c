@@ -720,6 +720,8 @@ X_ip_mrouter_done(void)
     ip_mrouter_cnt--;
     V_mrt_api_config = 0;
 
+    MROUTER_WAIT();
+
     VIF_LOCK();
 
     /*
