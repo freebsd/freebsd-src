@@ -1503,6 +1503,7 @@ cleanup_xaddrs_inet(struct rt_addrinfo *info, struct linear_buffer *lb)
 			return (ENOBUFS);
 		fill_sockaddr_inet(mask_sa, mask);
 		info->rti_info[RTAX_NETMASK] = (struct sockaddr *)mask_sa;
+		info->rti_flags &= ~RTF_HOST;
 	} else
 		remove_netmask(info);
 
@@ -1563,6 +1564,7 @@ cleanup_xaddrs_inet6(struct rt_addrinfo *info, struct linear_buffer *lb)
 			return (ENOBUFS);
 		fill_sockaddr_inet6((struct sockaddr_in6 *)sa, &mask, 0);
 		info->rti_info[RTAX_NETMASK] = sa;
+		info->rti_flags &= ~RTF_HOST;
 	} else
 		remove_netmask(info);
 
