@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/vnode.h>
 
-#include <machine/intr_machdep.h>
 #include <machine/xen/synch_bitops.h>
 
 #include <xen/xen-os.h>
