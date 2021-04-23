@@ -1,4 +1,4 @@
-/* $OpenBSD: log.h,v 1.30 2020/12/04 02:25:13 djm Exp $ */
+/* $OpenBSD: log.h,v 1.33 2021/04/15 16:24:31 markus Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -16,7 +16,7 @@
 #define SSH_LOG_H
 
 #include <stdarg.h> /* va_list */
-#include <ssherr.h> /* ssh_err() */
+#include "ssherr.h" /* ssh_err() */
 
 /* Supported syslog facilities and levels. */
 typedef enum {
@@ -49,8 +49,7 @@ typedef enum {
 	SYSLOG_LEVEL_NOT_SET = -1
 }       LogLevel;
 
-typedef void (log_handler_fn)(const char *, const char *, int, LogLevel,
-    const char *, void *);
+typedef void (log_handler_fn)(LogLevel, int, const char *, void *);
 
 void     log_init(const char *, LogLevel, SyslogFacility, int);
 LogLevel log_level_get(void);
@@ -61,7 +60,7 @@ void	 log_verbose_add(const char *);
 void	 log_verbose_reset(void);
 
 SyslogFacility	log_facility_number(char *);
-const char * 	log_facility_name(SyslogFacility);
+const char *	log_facility_name(SyslogFacility);
 LogLevel	log_level_number(char *);
 const char *	log_level_name(LogLevel);
 
@@ -82,6 +81,8 @@ void	 sshlogdie(const char *, const char *, int, int,
 void	 sshfatal(const char *, const char *, int, int,
     LogLevel, const char *, const char *, ...) __attribute__((noreturn))
     __attribute__((format(printf, 7, 8)));
+void	 sshlogdirect(LogLevel, int, const char *, ...)
+    __attribute__((format(printf, 3, 4)));
 
 #define do_log2(level, ...)	sshlog(__FILE__, __func__, __LINE__, 0, level, NULL, __VA_ARGS__)
 #define debug3(...)		sshlog(__FILE__, __func__, __LINE__, 0, SYSLOG_LEVEL_DEBUG3, NULL, __VA_ARGS__)

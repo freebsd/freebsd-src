@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.151 2021/01/26 05:32:21 dtucker Exp $ */
+/* $OpenBSD: servconf.h,v 1.154 2021/04/03 06:18:40 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -93,6 +93,7 @@ typedef struct {
 
 	char   *host_key_agent;		/* ssh-agent socket for host keys. */
 	char   *pid_file;		/* Where to put our pid */
+	char   *moduli_file;		/* moduli file for DH-GEX */
 	int     login_grace_time;	/* Disconnect if no auth in this time
 					 * (sec). */
 	int     permit_root_login;	/* PERMIT_*, see above */
@@ -235,7 +236,7 @@ typedef struct {
 struct connection_info {
 	const char *user;
 	const char *host;	/* possibly resolved hostname */
-	const char *address; 	/* remote address */
+	const char *address;	/* remote address */
 	const char *laddress;	/* local address */
 	int lport;		/* local port */
 	const char *rdomain;	/* routing domain if available */
@@ -293,13 +294,13 @@ struct connection_info *get_connection_info(struct ssh *, int, int);
 void	 initialize_server_options(ServerOptions *);
 void	 fill_default_server_options(ServerOptions *);
 int	 process_server_config_line(ServerOptions *, char *, const char *, int,
-	     int *, struct connection_info *, struct include_list *includes);
+	    int *, struct connection_info *, struct include_list *includes);
 void	 process_permitopen(struct ssh *ssh, ServerOptions *options);
 void	 load_server_config(const char *, struct sshbuf *);
 void	 parse_server_config(ServerOptions *, const char *, struct sshbuf *,
-	     struct include_list *includes, struct connection_info *);
+	    struct include_list *includes, struct connection_info *);
 void	 parse_server_match_config(ServerOptions *,
-	     struct include_list *includes, struct connection_info *);
+	    struct include_list *includes, struct connection_info *);
 int	 parse_server_match_testspec(struct connection_info *, char *);
 int	 server_match_spec_complete(struct connection_info *);
 void	 copy_set_server_options(ServerOptions *, ServerOptions *, int);

@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.349 2021/02/28 22:56:30 dtucker Exp $
-.Dd $Mdocdate: February 28 2021 $
+.\" $OpenBSD: ssh_config.5,v 1.353 2021/04/04 11:36:56 jmc Exp $
+.Dd $Mdocdate: April 4 2021 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -372,8 +372,9 @@ Specifies which algorithms are allowed for signing of certificates
 by certificate authorities (CAs).
 The default is:
 .Bd -literal -offset indent
-ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,
-ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,
+rsa-sha2-512,rsa-sha2-256
 .Ed
 .Pp
 .Xr ssh 1
@@ -1977,7 +1978,7 @@ The local user ID.
 .It %K
 The base64 encoded host key.
 .It %k
-The host key alias if specified, otherwise the orignal remote hostname given
+The host key alias if specified, otherwise the original remote hostname given
 on the command line.
 .It %L
 The local hostname.
@@ -2043,7 +2044,7 @@ The keywords
 .Cm CertificateFile ,
 .Cm ControlPath ,
 .Cm IdentityAgent ,
-.Cm IdentityFile
+.Cm IdentityFile ,
 .Cm KnownHostsCommand ,
 and
 .Cm UserKnownHostsFile

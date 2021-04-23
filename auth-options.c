@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-options.c,v 1.94 2020/10/18 11:32:01 djm Exp $ */
+/* $OpenBSD: auth-options.c,v 1.95 2021/04/03 06:18:40 djm Exp $ */
 /*
  * Copyright (c) 2018 Damien Miller <djm@mindrot.org>
  *
@@ -810,7 +810,7 @@ sshauthopt_serialise(const struct sshauthopt *opts, struct sshbuf *m,
 	    (r = serialise_nullable_string(m,
 	    untrusted ? NULL : opts->required_from_host_cert)) != 0 ||
 	    (r = serialise_nullable_string(m,
-	     untrusted ? NULL : opts->required_from_host_keys)) != 0)
+	    untrusted ? NULL : opts->required_from_host_keys)) != 0)
 		return r;
 
 	/* Array options */

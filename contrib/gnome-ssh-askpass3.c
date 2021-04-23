@@ -63,22 +63,6 @@
 #include <gdk/gdkkeysyms.h>
 
 static void
-report_failed_grab (GtkWidget *parent_window, const char *what)
-{
-	GtkWidget *err;
-
-	err = gtk_message_dialog_new(GTK_WINDOW(parent_window), 0,
-	    GTK_MESSAGE_ERROR, GTK_BUTTONS_CLOSE,
-	    "Could not grab %s. A malicious client may be eavesdropping "
-	    "on your session.", what);
-	gtk_window_set_position(GTK_WINDOW(err), GTK_WIN_POS_CENTER);
-
-	gtk_dialog_run(GTK_DIALOG(err));
-
-	gtk_widget_destroy(err);
-}
-
-static void
 ok_dialog(GtkWidget *entry, gpointer dialog)
 {
 	g_return_if_fail(GTK_IS_DIALOG(dialog));
@@ -153,9 +137,12 @@ passphrase_dialog(char *message, int prompt_type)
 	char *passphrase, *local;
 	int result, grab_tries, grab_server, grab_pointer;
 	int buttons, default_response;
-	GtkWidget *parent_window, *dialog, *entry;
+	GtkWidget *parent_window, *dialog, *entry, *err;
 	GdkGrabStatus status;
 	GdkColor fg, bg;
+	GdkSeat *seat;
+	GdkDisplay *display;
+	GdkSeatCapabilities caps;
 	int fg_set = 0, bg_set = 0;
 
 	grab_server = (getenv("GNOME_SSH_ASKPASS_GRAB_SERVER") != NULL);
@@ -226,48 +213,30 @@ passphrase_dialog(char *message, int prompt_type)
 			    G_CALLBACK(check_none), dialog);
 		}
 	}
-
 	/* Grab focus */
 	gtk_widget_show_now(dialog);
-	if (grab_pointer) {
-		for(;;) {
-			status = gdk_pointer_grab(
-			    (gtk_widget_get_window(GTK_WIDGET(dialog))), TRUE,
-			    0, NULL, NULL, GDK_CURRENT_TIME);
-			if (status == GDK_GRAB_SUCCESS)
-				break;
-			usleep(GRAB_WAIT * 1000);
-			if (++grab_tries > GRAB_TRIES) {
-				failed = "mouse";
-				goto nograb;
-			}
-		}
-	}
-	for(;;) {
-		status = gdk_keyboard_grab(
-		    gtk_widget_get_window(GTK_WIDGET(dialog)), FALSE,
-		    GDK_CURRENT_TIME);
+	display = gtk_widget_get_display(GTK_WIDGET(dialog));
+	seat = gdk_display_get_default_seat(display);
+	caps = GDK_SEAT_CAPABILITY_KEYBOARD;
+	if (grab_pointer)
+		caps |= GDK_SEAT_CAPABILITY_ALL_POINTING;
+	if (grab_server)
+		caps = GDK_SEAT_CAPABILITY_ALL;
+	for (;;) {
+		status = gdk_seat_grab(seat, gtk_widget_get_window(dialog),
+		    caps, TRUE, NULL, NULL, NULL, NULL);
 		if (status == GDK_GRAB_SUCCESS)
 			break;
 		usleep(GRAB_WAIT * 1000);
-		if (++grab_tries > GRAB_TRIES) {
-			failed = "keyboard";
-			goto nograbkb;
-		}
-	}
-	if (grab_server) {
-		gdk_x11_grab_server();
+		if (++grab_tries > GRAB_TRIES)
+			goto nograb;
 	}
 
 	result = gtk_dialog_run(GTK_DIALOG(dialog));
 
 	/* Ungrab */
-	if (grab_server)
-		XUngrabServer(gdk_x11_get_default_xdisplay());
-	if (grab_pointer)
-		gdk_pointer_ungrab(GDK_CURRENT_TIME);
-	gdk_keyboard_ungrab(GDK_CURRENT_TIME);
-	gdk_flush();
+	gdk_seat_ungrab(seat);
+	gdk_display_flush(display);
 
 	/* Report passphrase if user selected OK */
 	if (prompt_type == PROMPT_ENTRY) {
@@ -295,21 +264,16 @@ passphrase_dialog(char *message, int prompt_type)
 		return -1;
 	return 0;
 
- nograbkb:
-	/*
-	 * At least one grab failed - ungrab what we got, and report
-	 * the failure to the user.  Note that XGrabServer() cannot
-	 * fail.
-	 */
-	gdk_pointer_ungrab(GDK_CURRENT_TIME);
  nograb:
-	if (grab_server)
-		XUngrabServer(gdk_x11_get_default_xdisplay());
 	gtk_widget_destroy(dialog);
-	
-	report_failed_grab(parent_window, failed);
-
-	return (-1);
+	err = gtk_message_dialog_new(GTK_WINDOW(parent_window), 0,
+	    GTK_MESSAGE_ERROR, GTK_BUTTONS_CLOSE,
+	    "Could not grab input. A malicious client may be eavesdropping "
+	    "on your session.");
+	gtk_window_set_position(GTK_WINDOW(err), GTK_WIN_POS_CENTER);
+	gtk_dialog_run(GTK_DIALOG(err));
+	gtk_widget_destroy(err);
+	return -1;
 }
 
 int

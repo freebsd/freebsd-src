@@ -1,4 +1,4 @@
-/*	$OpenBSD: addrmatch.c,v 1.16 2021/01/09 11:58:50 dtucker Exp $ */
+/*	$OpenBSD: addrmatch.c,v 1.17 2021/04/03 06:18:40 djm Exp $ */
 
 /*
  * Copyright (c) 2004-2008 Damien Miller <djm@mindrot.org>
@@ -76,7 +76,7 @@ addr_match_list(const char *addr, const char *_list)
 			break;
 		} else if (r == 0) {
 			if (addr != NULL && addr_netmatch(&try_addr,
-                           &match_addr, masklen) == 0) {
+			    &match_addr, masklen) == 0) {
  foundit:
 				if (neg) {
 					ret = -1;

@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.93 2021/02/15 20:36:35 markus Exp $ */
+/* $OpenBSD: misc.h,v 1.95 2021/04/03 06:18:40 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -18,6 +18,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <stdio.h>
 
 /* Data structure for representing a forwarding request. */
 struct Forward {
@@ -116,9 +117,9 @@ struct arglist {
 	u_int   nalloc;
 };
 void	 addargs(arglist *, char *, ...)
-	     __attribute__((format(printf, 2, 3)));
+	    __attribute__((format(printf, 2, 3)));
 void	 replacearg(arglist *, u_int, char *, ...)
-	     __attribute__((format(printf, 3, 4)));
+	    __attribute__((format(printf, 3, 4)));
 void	 freeargs(arglist *);
 
 int	 tun_open(int, int, char **);
@@ -173,7 +174,7 @@ const char *iptos2str(int);
 void mktemp_proto(char *, size_t);
 
 void	 child_set_env(char ***envp, u_int *envsizep, const char *name,
-	     const char *value);
+	    const char *value);
 
 int	 argv_split(const char *, int *, char ***);
 char	*argv_assemble(int, char **argv);
@@ -181,9 +182,9 @@ int	 exited_cleanly(pid_t, const char *, const char *, int);
 
 struct stat;
 int	 safe_path(const char *, struct stat *, const char *, uid_t,
-	     char *, size_t);
+	    char *, size_t);
 int	 safe_path_fd(int, const char *, struct passwd *,
-	     char *err, size_t errlen);
+	    char *err, size_t errlen);
 
 /* authorized_key-style options parsing helpers */
 int	opt_flag(const char *opt, int allow_negate, const char **optsp);

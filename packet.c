@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.299 2021/01/27 10:05:28 djm Exp $ */
+/* $OpenBSD: packet.c,v 1.300 2021/04/03 06:18:40 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -684,7 +684,7 @@ static int
 ssh_packet_init_compression(struct ssh *ssh)
 {
 	if (!ssh->state->compression_buffer &&
-	   ((ssh->state->compression_buffer = sshbuf_new()) == NULL))
+	    ((ssh->state->compression_buffer = sshbuf_new()) == NULL))
 		return SSH_ERR_ALLOC_FAIL;
 	return 0;
 }
@@ -886,11 +886,11 @@ ssh_set_newkeys(struct ssh *ssh, int mode)
 	}
 	if (state->newkeys[mode] != NULL) {
 		debug_f("rekeying %s, input %llu bytes %llu blocks, "
-		   "output %llu bytes %llu blocks", dir,
-		   (unsigned long long)state->p_read.bytes,
-		   (unsigned long long)state->p_read.blocks,
-		   (unsigned long long)state->p_send.bytes,
-		   (unsigned long long)state->p_send.blocks);
+		    "output %llu bytes %llu blocks", dir,
+		    (unsigned long long)state->p_read.bytes,
+		    (unsigned long long)state->p_read.blocks,
+		    (unsigned long long)state->p_send.bytes,
+		    (unsigned long long)state->p_send.blocks);
 		kex_free_newkeys(state->newkeys[mode]);
 		state->newkeys[mode] = NULL;
 	}
@@ -925,7 +925,7 @@ ssh_set_newkeys(struct ssh *ssh, int mode)
 	   explicit_bzero(mac->key, mac->key_len); */
 	if ((comp->type == COMP_ZLIB ||
 	    (comp->type == COMP_DELAYED &&
-	     state->after_authentication)) && comp->enabled == 0) {
+	    state->after_authentication)) && comp->enabled == 0) {
 		if ((r = ssh_packet_init_compression(ssh)) < 0)
 			return r;
 		if (mode == MODE_OUT) {

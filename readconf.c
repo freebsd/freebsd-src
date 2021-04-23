@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.352 2021/02/24 01:18:08 dtucker Exp $ */
+/* $OpenBSD: readconf.c,v 1.353 2021/04/03 06:18:40 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -676,7 +676,7 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 			snprintf(uidstr, sizeof(uidstr), "%llu",
 			    (unsigned long long)pw->pw_uid);
 			conn_hash_hex = ssh_connection_hash(thishost, host,
-			   portstr, ruser);
+			    portstr, ruser);
 			keyalias = options->host_key_alias ?
 			    options->host_key_alias : host;
 
@@ -1026,7 +1026,7 @@ parse_time:
  parse_multistate:
 		arg = strdelim(&s);
 		if ((value = parse_multistate_value(arg, filename, linenum,
-		     multistate_ptr)) == -1) {
+		    multistate_ptr)) == -1) {
 			error("%s line %d: unsupported option \"%s\".",
 			    filename, linenum, arg);
 			return -1;
@@ -1994,7 +1994,7 @@ parse_pubkey_algos:
 		arg = strdelim(&s);
 		arg2 = strdelim(&s);
 		value = parse_multistate_value(arg, filename, linenum,
-		     multistate_yesnoaskconfirm);
+		    multistate_yesnoaskconfirm);
 		value2 = 0; /* unlimited lifespan by default */
 		if (value == 3 && arg2 != NULL) {
 			/* allow "AddKeysToAgent confirm 5m" */

@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.350 2021/01/26 00:49:30 djm Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.352 2021/04/03 06:18:41 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -91,7 +91,7 @@ expand_proxy_command(const char *proxy_command, const char *user,
 {
 	char *tmp, *ret, strport[NI_MAXSERV];
 	const char *keyalias = options.host_key_alias ?
-	     options.host_key_alias : host_arg;
+	    options.host_key_alias : host_arg;
 
 	snprintf(strport, sizeof strport, "%d", port);
 	xasprintf(&tmp, "exec %s", proxy_command);
@@ -243,8 +243,10 @@ ssh_proxy_connect(struct ssh *ssh, const char *host, const char *host_arg,
 		argv[2] = command_string;
 		argv[3] = NULL;
 
-		/* Execute the proxy command.  Note that we gave up any
-		   extra privileges above. */
+		/*
+		 * Execute the proxy command.  Note that we gave up any
+		 * extra privileges above.
+		 */
 		ssh_signal(SIGPIPE, SIG_DFL);
 		execv(argv[0], argv);
 		perror(argv[0]);
@@ -394,14 +396,14 @@ ssh_create_socket(struct addrinfo *ai)
 #ifdef HAVE_IFADDRS_H
 		if ((r = getifaddrs(&ifaddrs)) != 0) {
 			error("getifaddrs: %s: %s", options.bind_interface,
-			      strerror(errno));
+			    strerror(errno));
 			goto fail;
 		}
 		bindaddrlen = sizeof(bindaddr);
 		if (check_ifaddrs(options.bind_interface, ai->ai_family,
 		    ifaddrs, &bindaddr, &bindaddrlen) != 0) {
 			logit("getifaddrs: %s: no suitable addresses",
-			      options.bind_interface);
+			    options.bind_interface);
 			goto fail;
 		}
 #else
@@ -826,7 +828,7 @@ other_hostkeys_message(const char *host, const char *ip,
 		xextendf(&ret, "\n", "    %s", othernames[i]);
 	}
 	if (n < num_othernames) {
-		xextendf(&ret, "\n", "    (%d additional names ommitted)",
+		xextendf(&ret, "\n", "    (%d additional names omitted)",
 		    num_othernames - n);
 	}
 	for (i = 0; i < num_othernames; i++)
@@ -865,7 +867,7 @@ load_hostkeys_command(struct hostkeys *hostkeys, const char *command_template,
 	/* Turn the command into an argument vector */
 	if (argv_split(command_template, &ac, &av) != 0) {
 		error("%s \"%s\" contains invalid quotes", tag,
-		   command_template);
+		    command_template);
 		goto out;
 	}
 	if (ac == 0) {

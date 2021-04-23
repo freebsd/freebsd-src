@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.139 2020/12/04 02:41:10 djm Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.142 2021/04/03 06:18:41 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -61,6 +61,12 @@
 extern volatile sig_atomic_t interrupted;
 extern int showprogress;
 
+/* Default size of buffer for up/download */
+#define DEFAULT_COPY_BUFLEN	32768
+
+/* Default number of concurrent outstanding requests */
+#define DEFAULT_NUM_REQUESTS	64
+
 /* Minimum amount of data to read at a time */
 #define MIN_READ_SIZE	512
 
@@ -77,7 +83,8 @@ extern int showprogress;
 struct sftp_conn {
 	int fd_in;
 	int fd_out;
-	u_int transfer_buflen;
+	u_int download_buflen;
+	u_int upload_buflen;
 	u_int num_requests;
 	u_int version;
 	u_int msg_id;
@@ -87,6 +94,7 @@ struct sftp_conn {
 #define SFTP_EXT_HARDLINK	0x00000008
 #define SFTP_EXT_FSYNC		0x00000010
 #define SFTP_EXT_LSETSTAT	0x00000020
+#define SFTP_EXT_LIMITS		0x00000040
 	u_int exts;
 	u_int64_t limit_kbps;
 	struct bwlimit bwlimit_in, bwlimit_out;
@@ -405,8 +413,10 @@ do_init(int fd_in, int fd_out, u_int transfer_buflen, u_int num_requests,
 	ret->msg_id = 1;
 	ret->fd_in = fd_in;
 	ret->fd_out = fd_out;
-	ret->transfer_buflen = transfer_buflen;
-	ret->num_requests = num_requests;
+	ret->download_buflen = ret->upload_buflen =
+	    transfer_buflen ? transfer_buflen : DEFAULT_COPY_BUFLEN;
+	ret->num_requests =
+	    num_requests ? num_requests : DEFAULT_NUM_REQUESTS;
 	ret->exts = 0;
 	ret->limit_kbps = 0;
 
@@ -417,8 +427,6 @@ do_init(int fd_in, int fd_out, u_int transfer_buflen, u_int num_requests,
 		fatal_fr(r, "parse");
 
 	send_msg(ret, msg);
-
-	sshbuf_reset(msg);
 
 	get_msg_extended(ret, msg, 1);
 
@@ -471,6 +479,10 @@ do_init(int fd_in, int fd_out, u_int transfer_buflen, u_int num_requests,
 		    strcmp((char *)value, "1") == 0) {
 			ret->exts |= SFTP_EXT_LSETSTAT;
 			known = 1;
+		} else if (strcmp(name, "limits@openssh.com") == 0 &&
+		    strcmp((char *)value, "1") == 0) {
+			ret->exts |= SFTP_EXT_LIMITS;
+			known = 1;
 		}
 		if (known) {
 			debug2("Server supports extension \"%s\" revision %s",
@@ -484,16 +496,42 @@ do_init(int fd_in, int fd_out, u_int transfer_buflen, u_int num_requests,
 
 	sshbuf_free(msg);
 
+	/* Query the server for its limits */
+	if (ret->exts & SFTP_EXT_LIMITS) {
+		struct sftp_limits limits;
+		if (do_limits(ret, &limits) != 0)
+			fatal_f("limits failed");
+
+		/* If the caller did not specify, find a good value */
+		if (transfer_buflen == 0) {
+			ret->download_buflen = limits.read_length;
+			ret->upload_buflen = limits.write_length;
+			debug("Using server download size %u", ret->download_buflen);
+			debug("Using server upload size %u", ret->upload_buflen);
+		}
+
+		/* Use the server limit to scale down our value only */
+		if (num_requests == 0 && limits.open_handles) {
+			ret->num_requests =
+			    MINIMUM(DEFAULT_NUM_REQUESTS, limits.open_handles);
+			debug("Server handle limit %llu; using %u",
+			    (unsigned long long)limits.open_handles,
+			    ret->num_requests);
+		}
+	}
+
 	/* Some filexfer v.0 servers don't support large packets */
-	if (ret->version == 0)
-		ret->transfer_buflen = MINIMUM(ret->transfer_buflen, 20480);
+	if (ret->version == 0) {
+		ret->download_buflen = MINIMUM(ret->download_buflen, 20480);
+		ret->upload_buflen = MINIMUM(ret->upload_buflen, 20480);
+	}
 
 	ret->limit_kbps = limit_kbps;
 	if (ret->limit_kbps > 0) {
 		bandwidth_limit_init(&ret->bwlimit_in, ret->limit_kbps,
-		    ret->transfer_buflen);
+		    ret->download_buflen);
 		bandwidth_limit_init(&ret->bwlimit_out, ret->limit_kbps,
-		    ret->transfer_buflen);
+		    ret->upload_buflen);
 	}
 
 	return ret;
@@ -503,6 +541,56 @@ u_int
 sftp_proto_version(struct sftp_conn *conn)
 {
 	return conn->version;
+}
+
+int
+do_limits(struct sftp_conn *conn, struct sftp_limits *limits)
+{
+	u_int id, msg_id;
+	u_char type;
+	struct sshbuf *msg;
+	int r;
+
+	if ((conn->exts & SFTP_EXT_LIMITS) == 0) {
+		error("Server does not support limits@openssh.com extension");
+		return -1;
+	}
+
+	if ((msg = sshbuf_new()) == NULL)
+		fatal_f("sshbuf_new failed");
+
+	id = conn->msg_id++;
+	if ((r = sshbuf_put_u8(msg, SSH2_FXP_EXTENDED)) != 0 ||
+	    (r = sshbuf_put_u32(msg, id)) != 0 ||
+	    (r = sshbuf_put_cstring(msg, "limits@openssh.com")) != 0)
+		fatal_fr(r, "compose");
+	send_msg(conn, msg);
+	debug3("Sent message limits@openssh.com I:%u", id);
+
+	get_msg(conn, msg);
+
+	if ((r = sshbuf_get_u8(msg, &type)) != 0 ||
+	    (r = sshbuf_get_u32(msg, &msg_id)) != 0)
+		fatal_fr(r, "parse");
+
+	debug3("Received limits reply T:%u I:%u", type, msg_id);
+	if (id != msg_id)
+		fatal("ID mismatch (%u != %u)", msg_id, id);
+	if (type != SSH2_FXP_EXTENDED_REPLY) {
+		fatal("Expected SSH2_FXP_EXTENDED_REPLY(%u) packet, got %u",
+		    SSH2_FXP_EXTENDED_REPLY, type);
+	}
+
+	memset(limits, 0, sizeof(*limits));
+	if ((r = sshbuf_get_u64(msg, &limits->packet_length)) != 0 ||
+	    (r = sshbuf_get_u64(msg, &limits->read_length)) != 0 ||
+	    (r = sshbuf_get_u64(msg, &limits->write_length)) != 0 ||
+	    (r = sshbuf_get_u64(msg, &limits->open_handles)) != 0)
+		fatal_fr(r, "parse limits");
+
+	sshbuf_free(msg);
+
+	return 0;
 }
 
 int
@@ -949,7 +1037,7 @@ do_hardlink(struct sftp_conn *conn, const char *oldpath, const char *newpath)
 		fatal_fr(r, "compose");
 	send_msg(conn, msg);
 	debug3("Sent message hardlink@openssh.com \"%s\" -> \"%s\"",
-	       oldpath, newpath);
+	    oldpath, newpath);
 	sshbuf_free(msg);
 
 	status = get_status(conn, id);
@@ -1238,7 +1326,7 @@ do_download(struct sftp_conn *conn, const char *remote_path,
 	else
 		size = 0;
 
-	buflen = conn->transfer_buflen;
+	buflen = conn->download_buflen;
 	if ((msg = sshbuf_new()) == NULL)
 		fatal_f("sshbuf_new failed");
 
@@ -1666,7 +1754,7 @@ do_upload(struct sftp_conn *conn, const char *local_path,
 
 		if ((off_t)c->size >= sb.st_size) {
 			error("destination file bigger or same size as "
-			      "source file");
+			    "source file");
 			close(local_fd);
 			return -1;
 		}
@@ -1703,7 +1791,7 @@ do_upload(struct sftp_conn *conn, const char *local_path,
 	}
 
 	startid = ackid = id + 1;
-	data = xmalloc(conn->transfer_buflen);
+	data = xmalloc(conn->upload_buflen);
 
 	/* Read from local and write to remote */
 	offset = progress_counter = (resume ? c->size : 0);
@@ -1723,7 +1811,7 @@ do_upload(struct sftp_conn *conn, const char *local_path,
 		if (interrupted || status != SSH2_FX_OK)
 			len = 0;
 		else do
-			len = read(local_fd, data, conn->transfer_buflen);
+			len = read(local_fd, data, conn->upload_buflen);
 		while ((len == -1) &&
 		    (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK));
 

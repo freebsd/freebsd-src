@@ -16,6 +16,7 @@ sysconfdir=@sysconfdir@
 piddir=@piddir@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
+abs_top_srcdir=@abs_top_srcdir@
 
 DESTDIR=
 VPATH=@srcdir@
@@ -271,12 +272,8 @@ clean:	regressclean
 	rm -f regress/mkdtemp$(EXEEXT)
 	rm -f regress/unittests/test_helper/*.a
 	rm -f regress/unittests/test_helper/*.o
-	rm -f regress/unittests/sshbuf/*.o
-	rm -f regress/unittests/sshbuf/test_sshbuf$(EXEEXT)
-	rm -f regress/unittests/sshkey/*.o
-	rm -f regress/unittests/sshkey/test_sshkey$(EXEEXT)
-	rm -f regress/unittests/sshsig/*.o
-	rm -f regress/unittests/sshsig/test_sshsig$(EXEEXT)
+	rm -f regress/unittests/authopt/*.o
+	rm -f regress/unittests/authopt/test_authopt$(EXEEXT)
 	rm -f regress/unittests/bitmap/*.o
 	rm -f regress/unittests/bitmap/test_bitmap$(EXEEXT)
 	rm -f regress/unittests/conversion/*.o
@@ -287,6 +284,14 @@ clean:	regressclean
 	rm -f regress/unittests/kex/test_kex$(EXEEXT)
 	rm -f regress/unittests/match/*.o
 	rm -f regress/unittests/match/test_match$(EXEEXT)
+	rm -f regress/unittests/misc/*.o
+	rm -f regress/unittests/misc/test_misc$(EXEEXT)
+	rm -f regress/unittests/sshbuf/*.o
+	rm -f regress/unittests/sshbuf/test_sshbuf$(EXEEXT)
+	rm -f regress/unittests/sshkey/*.o
+	rm -f regress/unittests/sshkey/test_sshkey$(EXEEXT)
+	rm -f regress/unittests/sshsig/*.o
+	rm -f regress/unittests/sshsig/test_sshsig$(EXEEXT)
 	rm -f regress/unittests/utf8/*.o
 	rm -f regress/unittests/utf8/test_utf8$(EXEEXT)
 	rm -f regress/misc/sk-dummy/*.o
@@ -304,12 +309,8 @@ distclean:	regressclean
 	rm -f regress/mkdtemp
 	rm -f regress/unittests/test_helper/*.a
 	rm -f regress/unittests/test_helper/*.o
-	rm -f regress/unittests/sshbuf/*.o
-	rm -f regress/unittests/sshbuf/test_sshbuf
-	rm -f regress/unittests/sshkey/*.o
-	rm -f regress/unittests/sshkey/test_sshkey
-	rm -f regress/unittests/sshsig/*.o
-	rm -f regress/unittests/sshsig/test_sshsig
+	rm -f regress/unittests/authopt/*.o
+	rm -f regress/unittests/authopt/test_authopt
 	rm -f regress/unittests/bitmap/*.o
 	rm -f regress/unittests/bitmap/test_bitmap
 	rm -f regress/unittests/conversion/*.o
@@ -320,6 +321,14 @@ distclean:	regressclean
 	rm -f regress/unittests/kex/test_kex
 	rm -f regress/unittests/match/*.o
 	rm -f regress/unittests/match/test_match
+	rm -f regress/unittests/misc/*.o
+	rm -f regress/unittests/misc/test_misc
+	rm -f regress/unittests/sshbuf/*.o
+	rm -f regress/unittests/sshbuf/test_sshbuf
+	rm -f regress/unittests/sshkey/*.o
+	rm -f regress/unittests/sshkey/test_sshkey
+	rm -f regress/unittests/sshsig/*.o
+	rm -f regress/unittests/sshsig/test_sshsig
 	rm -f regress/unittests/utf8/*.o
 	rm -f regress/unittests/utf8/test_utf8
 	(cd openbsd-compat && $(MAKE) distclean)
@@ -484,14 +493,16 @@ uninstall:
 
 regress-prep:
 	$(MKDIR_P) `pwd`/regress/unittests/test_helper
-	$(MKDIR_P) `pwd`/regress/unittests/sshbuf
-	$(MKDIR_P) `pwd`/regress/unittests/sshkey
-	$(MKDIR_P) `pwd`/regress/unittests/sshsig
+	$(MKDIR_P) `pwd`/regress/unittests/authopt
 	$(MKDIR_P) `pwd`/regress/unittests/bitmap
 	$(MKDIR_P) `pwd`/regress/unittests/conversion
 	$(MKDIR_P) `pwd`/regress/unittests/hostkeys
 	$(MKDIR_P) `pwd`/regress/unittests/kex
 	$(MKDIR_P) `pwd`/regress/unittests/match
+	$(MKDIR_P) `pwd`/regress/unittests/misc
+	$(MKDIR_P) `pwd`/regress/unittests/sshbuf
+	$(MKDIR_P) `pwd`/regress/unittests/sshkey
+	$(MKDIR_P) `pwd`/regress/unittests/sshsig
 	$(MKDIR_P) `pwd`/regress/unittests/utf8
 	$(MKDIR_P) `pwd`/regress/misc/sk-dummy
 	[ -f `pwd`/regress/Makefile ] || \
@@ -577,6 +588,18 @@ regress/unittests/bitmap/test_bitmap$(EXEEXT): ${UNITTESTS_TEST_BITMAP_OBJS} \
 	    regress/unittests/test_helper/libtest_helper.a \
 	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
+UNITTESTS_TEST_AUTHOPT_OBJS=\
+	regress/unittests/authopt/tests.o \
+	auth-options.o \
+	$(SKOBJS)
+
+regress/unittests/authopt/test_authopt$(EXEEXT): \
+    ${UNITTESTS_TEST_AUTHOPT_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_AUTHOPT_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
 UNITTESTS_TEST_CONVERSION_OBJS=\
 	regress/unittests/conversion/tests.o
 
@@ -620,6 +643,20 @@ regress/unittests/match/test_match$(EXEEXT): \
 	    regress/unittests/test_helper/libtest_helper.a \
 	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
+UNITTESTS_TEST_MISC_OBJS=\
+	regress/unittests/misc/tests.o \
+	regress/unittests/misc/test_parse.o \
+	regress/unittests/misc/test_expand.o \
+	regress/unittests/misc/test_convtime.o \
+	regress/unittests/misc/test_argv.o
+
+regress/unittests/misc/test_misc$(EXEEXT): \
+    ${UNITTESTS_TEST_MISC_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_MISC_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
 UNITTESTS_TEST_UTF8_OBJS=\
 	regress/unittests/utf8/tests.o
 
@@ -654,14 +691,16 @@ regress-binaries: regress-prep $(LIBCOMPAT) \
 	$(SK_DUMMY_LIBRARY)
 
 regress-unit-binaries: regress-prep $(REGRESSLIBS) \
-	regress/unittests/sshbuf/test_sshbuf$(EXEEXT) \
-	regress/unittests/sshkey/test_sshkey$(EXEEXT) \
-	regress/unittests/sshsig/test_sshsig$(EXEEXT) \
+	regress/unittests/authopt/test_authopt$(EXEEXT) \
 	regress/unittests/bitmap/test_bitmap$(EXEEXT) \
 	regress/unittests/conversion/test_conversion$(EXEEXT) \
 	regress/unittests/hostkeys/test_hostkeys$(EXEEXT) \
 	regress/unittests/kex/test_kex$(EXEEXT) \
 	regress/unittests/match/test_match$(EXEEXT) \
+	regress/unittests/misc/test_misc$(EXEEXT) \
+	regress/unittests/sshbuf/test_sshbuf$(EXEEXT) \
+	regress/unittests/sshkey/test_sshkey$(EXEEXT) \
+	regress/unittests/sshsig/test_sshsig$(EXEEXT) \
 	regress/unittests/utf8/test_utf8$(EXEEXT) \
 
 tests:	file-tests t-exec interop-tests unit
@@ -673,6 +712,7 @@ unit: regress-unit-binaries
 	$(MAKE) \
 		.OBJDIR="$${BUILDDIR}/regress" \
 		.CURDIR="`pwd`" \
+		OBJ="$${BUILDDIR}/regress" \
 		$@ && echo $@ tests passed
 
 interop-tests t-exec file-tests: regress-prep regress-binaries $(TARGETS)
@@ -699,6 +739,7 @@ interop-tests t-exec file-tests: regress-prep regress-binaries $(TARGETS)
 		TEST_SSH_PKCS11_HELPER="$${BUILDDIR}/ssh-pkcs11-helper" \
 		TEST_SSH_SK_HELPER="$${BUILDDIR}/ssh-sk-helper" \
 		TEST_SSH_SFTPSERVER="$${BUILDDIR}/sftp-server" \
+		TEST_SSH_MODULI_FILE="$(abs_top_srcdir)/moduli" \
 		TEST_SSH_PLINK="plink" \
 		TEST_SSH_PUTTYGEN="puttygen" \
 		TEST_SSH_CONCH="conch" \

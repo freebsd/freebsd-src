@@ -1,4 +1,4 @@
-/* $OpenBSD: hostfile.c,v 1.89 2021/01/26 00:51:30 djm Exp $ */
+/* $OpenBSD: hostfile.c,v 1.90 2021/04/03 06:58:30 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -391,7 +391,7 @@ check_hostkeys_by_key_or_type(struct hostkeys *hostkeys,
 					*found = hostkeys->entries + i;
 				break;
 			}
-			/* A non-maching key exists */
+			/* A non-matching key exists */
 			end_return = HOST_CHANGED;
 			if (found != NULL)
 				*found = hostkeys->entries + i;

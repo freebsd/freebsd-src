@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey-xmss.h,v 1.2 2020/10/19 22:49:23 dtucker Exp $ */
+/* $OpenBSD: sshkey-xmss.h,v 1.3 2021/04/03 06:18:41 djm Exp $ */
 /*
  * Copyright (c) 2017 Markus Friedl.  All rights reserved.
  *
@@ -25,10 +25,10 @@
 #ifndef SSHKEY_XMSS_H
 #define SSHKEY_XMSS_H
 
-#define XMSS_SHA2_256_W16_H10_NAME "XMSS_SHA2-256_W16_H10"
-#define XMSS_SHA2_256_W16_H16_NAME "XMSS_SHA2-256_W16_H16"
-#define XMSS_SHA2_256_W16_H20_NAME "XMSS_SHA2-256_W16_H20"
-#define XMSS_DEFAULT_NAME	   XMSS_SHA2_256_W16_H10_NAME
+#define XMSS_SHA2_256_W16_H10_NAME	"XMSS_SHA2-256_W16_H10"
+#define XMSS_SHA2_256_W16_H16_NAME	"XMSS_SHA2-256_W16_H16"
+#define XMSS_SHA2_256_W16_H20_NAME	"XMSS_SHA2-256_W16_H20"
+#define XMSS_DEFAULT_NAME		XMSS_SHA2_256_W16_H10_NAME
 
 size_t	 sshkey_xmss_pklen(const struct sshkey *);
 size_t	 sshkey_xmss_sklen(const struct sshkey *);
@@ -37,7 +37,7 @@ void	 sshkey_xmss_free_state(struct sshkey *);
 int	 sshkey_xmss_generate_private_key(struct sshkey *, u_int);
 int	 sshkey_xmss_serialize_state(const struct sshkey *, struct sshbuf *);
 int	 sshkey_xmss_serialize_state_opt(const struct sshkey *, struct sshbuf *,
-            enum sshkey_serialize_rep);
+	    enum sshkey_serialize_rep);
 int	 sshkey_xmss_serialize_pk_info(const struct sshkey *, struct sshbuf *,
 	    enum sshkey_serialize_rep);
 int	 sshkey_xmss_deserialize_state(struct sshkey *, struct sshbuf *);

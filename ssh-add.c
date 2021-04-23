@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-add.c,v 1.159 2021/01/11 02:12:58 dtucker Exp $ */
+/* $OpenBSD: ssh-add.c,v 1.160 2021/04/03 06:18:41 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -336,10 +336,10 @@ add_file(int agent_fd, const char *filename, int key_only, int qflag,
 			fprintf(stderr, "Skipping update: ");
 			if (left == minleft) {
 				fprintf(stderr,
-				   "required signatures left (%d).\n", left);
+				    "required signatures left (%d).\n", left);
 			} else {
 				fprintf(stderr,
-				   "more signatures left (%d) than"
+				    "more signatures left (%d) than"
 				    " required (%d).\n", left, minleft);
 			}
 			ssh_free_identitylist(idlist);

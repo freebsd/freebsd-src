@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.328 2021/02/27 23:42:37 djm Exp $
-.Dd $Mdocdate: February 27 2021 $
+.\" $OpenBSD: sshd_config.5,v 1.331 2021/04/04 11:36:56 jmc Exp $
+.Dd $Mdocdate: April 4 2021 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -377,8 +377,9 @@ Specifies which algorithms are allowed for signing of certificates
 by certificate authorities (CAs).
 The default is:
 .Bd -literal -offset indent
-ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,
-ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,
+rsa-sha2-512,rsa-sha2-256
 .Ed
 .Pp
 Certificates signed using other algorithms will not be accepted for
@@ -1256,6 +1257,16 @@ will refuse connection attempts with a probability of rate/100 (30%)
 if there are currently start (10) unauthenticated connections.
 The probability increases linearly and all connection attempts
 are refused if the number of unauthenticated connections reaches full (60).
+.It Cm ModuliFile
+Specifies the
+.Xr moduli 5
+file that contains the Diffie-Hellman groups used for the
+.Dq diffie-hellman-group-exchange-sha1
+and
+.Dq diffie-hellman-group-exchange-sha256
+key exchange methods.
+The default is
+.Pa /etc/moduli .
 .It Cm PasswordAuthentication
 Specifies whether password authentication is allowed.
 The default is

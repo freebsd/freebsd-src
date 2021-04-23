@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-agent.c,v 1.277 2021/02/12 03:14:18 djm Exp $ */
+/* $OpenBSD: ssh-agent.c,v 1.278 2021/04/03 06:18:41 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -259,8 +259,8 @@ process_request_identities(SocketEntry *e)
 	    (r = sshbuf_put_u32(msg, idtab->nentries)) != 0)
 		fatal_fr(r, "compose");
 	TAILQ_FOREACH(id, &idtab->idlist, next) {
-		if ((r = sshkey_puts_opts(id->key, msg, SSHKEY_SERIALIZE_INFO))
-		     != 0 ||
+		if ((r = sshkey_puts_opts(id->key, msg,
+		    SSHKEY_SERIALIZE_INFO)) != 0 ||
 		    (r = sshbuf_put_cstring(msg, id->comment)) != 0) {
 			error_fr(r, "compose key/comment");
 			continue;
@@ -1285,7 +1285,7 @@ prepare_poll(struct pollfd **pfdp, size_t *npfdp, int *timeoutp, u_int maxfds)
 			if ((r = sshbuf_check_reserve(sockets[i].input,
 			    AGENT_RBUF_LEN)) == 0 &&
 			    (r = sshbuf_check_reserve(sockets[i].output,
-			     AGENT_MAX_LEN)) == 0)
+			    AGENT_MAX_LEN)) == 0)
 				pfd[j].events = POLLIN;
 			else if (r != SSH_ERR_NO_BUFFER_SPACE)
 				fatal_fr(r, "reserve");

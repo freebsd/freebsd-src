@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.151 2020/12/22 00:12:22 djm Exp $ */
+/* $OpenBSD: auth.c,v 1.152 2021/04/03 06:18:40 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -514,7 +514,7 @@ auth_openfile(const char *file, struct passwd *pw, int strict_modes,
 	if ((fd = open(file, O_RDONLY|O_NONBLOCK)) == -1) {
 		if (log_missing || errno != ENOENT)
 			debug("Could not open %s '%s': %s", file_type, file,
-			   strerror(errno));
+			    strerror(errno));
 		return NULL;
 	}
 

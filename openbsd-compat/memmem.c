@@ -61,8 +61,11 @@ fourbyte_memmem(const unsigned char *h, size_t k, const unsigned char *n)
 	return hw == nw ? (char *)h-4 : 0;
 }
 
+#if 0
+/* In -portable, defines.h ensures that these are already defined. */
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
+#endif
 
 #define BITOP(a,b,op) \
  ((a)[(size_t)(b)/(8*sizeof *(a))] op (size_t)1<<((size_t)(b)%(8*sizeof *(a))))

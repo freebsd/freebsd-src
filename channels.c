@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.405 2021/02/15 20:43:15 markus Exp $ */
+/* $OpenBSD: channels.c,v 1.406 2021/04/03 06:18:40 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1921,7 +1921,7 @@ channel_handle_rfd(struct ssh *ssh, Channel *c,
 	    ((errno == EAGAIN || errno == EWOULDBLOCK) && !force)))
 		return 1;
 #ifndef PTY_ZEROREAD
- 	if (len <= 0) {
+	if (len <= 0) {
 #else
 	if ((!c->isatty && len <= 0) ||
 	    (c->isatty && (len < 0 || (len == 0 && errno != 0)))) {
@@ -2299,7 +2299,7 @@ channel_handler_init(struct ssh_channels *sc)
 	chan_fn **pre, **post;
 
 	if ((pre = calloc(SSH_CHANNEL_MAX_TYPE, sizeof(*pre))) == NULL ||
-	   (post = calloc(SSH_CHANNEL_MAX_TYPE, sizeof(*post))) == NULL)
+	    (post = calloc(SSH_CHANNEL_MAX_TYPE, sizeof(*post))) == NULL)
 		fatal_f("allocation failed");
 
 	pre[SSH_CHANNEL_OPEN] =			&channel_pre_open;
@@ -2699,7 +2699,7 @@ channel_proxy_downstream(struct ssh *ssh, Channel *downstream)
 			goto out;
 		}
 		c = channel_new(ssh, "mux proxy", SSH_CHANNEL_MUX_PROXY,
-		   -1, -1, -1, 0, 0, 0, ctype, 1);
+		    -1, -1, -1, 0, 0, 0, ctype, 1);
 		c->mux_ctx = downstream;	/* point to mux client */
 		c->mux_downstream_id = id;	/* original downstream id */
 		if ((r = sshbuf_put_cstring(modified, ctype)) != 0 ||
@@ -2726,7 +2726,7 @@ channel_proxy_downstream(struct ssh *ssh, Channel *downstream)
 			goto out;
 		}
 		c = channel_new(ssh, "mux proxy", SSH_CHANNEL_MUX_PROXY,
-		   -1, -1, -1, 0, 0, 0, "mux-down-connect", 1);
+		    -1, -1, -1, 0, 0, 0, "mux-down-connect", 1);
 		c->mux_ctx = downstream;	/* point to mux client */
 		c->mux_downstream_id = id;
 		c->remote_id = remote_id;

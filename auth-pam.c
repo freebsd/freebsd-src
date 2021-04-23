@@ -727,9 +727,9 @@ sshpam_init(struct ssh *ssh, Authctxt *authctxt)
 		 */
 		sshpam_rhost = xstrdup(auth_get_canonical_hostname(ssh,
 		    options.use_dns));
-	        sshpam_laddr = get_local_ipaddr(
+		sshpam_laddr = get_local_ipaddr(
 		    ssh_packet_get_connection_in(ssh));
-	        xasprintf(&sshpam_conninfo, "SSH_CONNECTION=%.50s %d %.50s %d",
+		xasprintf(&sshpam_conninfo, "SSH_CONNECTION=%.50s %d %.50s %d",
 		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh),
 		    sshpam_laddr, ssh_local_port(ssh));
 	}

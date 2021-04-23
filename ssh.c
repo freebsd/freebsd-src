@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.552 2021/02/23 00:05:31 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.553 2021/04/03 05:40:39 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1553,7 +1553,7 @@ main(int ac, char **av)
 	if (ssh_connect(ssh, host, host_arg, addrs, &hostaddr, options.port,
 	    options.connection_attempts,
 	    &timeout_ms, options.tcp_keep_alive) != 0)
- 		exit(255);
+		exit(255);
 
 	if (addrs != NULL)
 		freeaddrinfo(addrs);
@@ -1689,6 +1689,10 @@ main(int ac, char **av)
 		free(options.certificate_files[i]);
 		options.certificate_files[i] = NULL;
 	}
+
+#ifdef ENABLE_PKCS11
+	(void)pkcs11_del_provider(options.pkcs11_provider);
+#endif
 
  skip_connect:
 	exit_status = ssh_session2(ssh, cinfo);

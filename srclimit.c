@@ -102,7 +102,7 @@ srclimit_check_allow(int sock, int id)
 		return 1;
 	}
 	debug3("%s: new unauthenticated connection from %s/%d, at %d of %d",
-	     __func__, xas, bits, count, max_persource);
+	    __func__, xas, bits, count, max_persource);
 
 	if (first_unused == max_children) { /* no free slot found */
 		debug3("%s: no free slot", __func__);

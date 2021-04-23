@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.160 2021/01/27 10:05:28 djm Exp $ */
+/* $OpenBSD: auth2.c,v 1.161 2021/04/03 06:18:40 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -228,7 +228,7 @@ user_specific_delay(const char *user)
 	double delay;
 
 	(void)snprintf(b, sizeof b, "%llu%s",
-	     (unsigned long long)options.timing_secret, user);
+	    (unsigned long long)options.timing_secret, user);
 	if (ssh_digest_memory(SSH_DIGEST_SHA512, b, strlen(b), hash, len) != 0)
 		fatal_f("ssh_digest_memory");
 	/* 0-4.2 ms of delay */
@@ -703,7 +703,7 @@ void
 auth2_record_info(Authctxt *authctxt, const char *fmt, ...)
 {
 	va_list ap;
-        int i;
+	int i;
 
 	free(authctxt->auth_method_info);
 	authctxt->auth_method_info = NULL;

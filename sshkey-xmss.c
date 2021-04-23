@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey-xmss.c,v 1.9 2020/10/19 22:49:23 dtucker Exp $ */
+/* $OpenBSD: sshkey-xmss.c,v 1.11 2021/04/03 06:18:41 djm Exp $ */
 /*
  * Copyright (c) 2017 Markus Friedl.  All rights reserved.
  *
@@ -89,7 +89,7 @@ int	 sshkey_xmss_serialize_enc_key(const struct sshkey *, struct sshbuf *);
 int	 sshkey_xmss_deserialize_enc_key(struct sshkey *, struct sshbuf *);
 
 #define PRINT(...) do { if (printerror) sshlog(__FILE__, __func__, __LINE__, \
-    0, SYSLOG_LEVEL_ERROR, __VA_ARGS__); } while (0)
+    0, SYSLOG_LEVEL_ERROR, NULL, __VA_ARGS__); } while (0)
 
 int
 sshkey_xmss_init(struct sshkey *key, const char *name)
@@ -405,7 +405,7 @@ sshkey_xmss_get_state_from_file(struct sshkey *k, const char *filename,
 	if ((fd = open(filename, O_RDONLY)) >= 0) {
 		*have_file = 1;
 		if (atomicio(read, fd, buf, sizeof(buf)) != sizeof(buf)) {
-			PRINT("%s: corrupt state file: %s", __func__, filename);
+			PRINT("corrupt state file: %s", filename);
 			goto done;
 		}
 		len = PEEK_U32(buf);
@@ -414,7 +414,7 @@ sshkey_xmss_get_state_from_file(struct sshkey *k, const char *filename,
 			goto done;
 		}
 		if (atomicio(read, fd, data, len) != len) {
-			PRINT("%s: cannot read blob: %s", __func__, filename);
+			PRINT("cannot read blob: %s", filename);
 			goto done;
 		}
 		if ((enc = sshbuf_from(data, len)) == NULL) {
@@ -477,18 +477,18 @@ sshkey_xmss_get_state(const struct sshkey *k, int printerror)
 	}
 	if ((lockfd = open(lockfile, O_CREAT|O_RDONLY, 0600)) == -1) {
 		ret = SSH_ERR_SYSTEM_ERROR;
-		PRINT("%s: cannot open/create: %s", __func__, lockfile);
+		PRINT("cannot open/create: %s", lockfile);
 		goto done;
 	}
 	while (flock(lockfd, LOCK_EX|LOCK_NB) == -1) {
 		if (errno != EWOULDBLOCK) {
 			ret = SSH_ERR_SYSTEM_ERROR;
-			PRINT("%s: cannot lock: %s", __func__, lockfile);
+			PRINT("cannot lock: %s", lockfile);
 			goto done;
 		}
 		if (++tries > 10) {
 			ret = SSH_ERR_SYSTEM_ERROR;
-			PRINT("%s: giving up on: %s", __func__, lockfile);
+			PRINT("giving up on: %s", lockfile);
 			goto done;
 		}
 		usleep(1000*100*tries);
@@ -508,13 +508,13 @@ sshkey_xmss_get_state(const struct sshkey *k, int printerror)
 		/* check that bds state is initialized */
 		if (state->bds.auth == NULL)
 			goto done;
-		PRINT("%s: start from scratch idx 0: %u", __func__, state->idx);
+		PRINT("start from scratch idx 0: %u", state->idx);
 	} else if (r != 0) {
 		ret = r;
 		goto done;
 	}
 	if (state->idx + 1 < state->idx) {
-		PRINT("%s: state wrap: %u", __func__, state->idx);
+		PRINT("state wrap: %u", state->idx);
 		goto done;
 	}
 	state->have_state = have_state;
@@ -589,8 +589,8 @@ sshkey_xmss_update_state(const struct sshkey *k, int printerror)
 		ret = 0;
 		goto done;
 	} else if (idx != state->idx + 1) {
-		PRINT("%s: more than one signature happened: idx %u state %u",
-		     __func__, idx, state->idx);
+		PRINT("more than one signature happened: idx %u state %u",
+		    idx, state->idx);
 		goto done;
 	}
 	state->idx = idx;
@@ -608,55 +608,54 @@ sshkey_xmss_update_state(const struct sshkey *k, int printerror)
 		goto done;
 	}
 	if ((ret = sshkey_xmss_serialize_state(k, b)) != 0) {
-		PRINT("%s: SERLIALIZE FAILED: %d", __func__, ret);
+		PRINT("SERLIALIZE FAILED: %d", ret);
 		goto done;
 	}
 	if ((ret = sshkey_xmss_encrypt_state(k, b, &enc)) != 0) {
-		PRINT("%s: ENCRYPT FAILED: %d", __func__, ret);
+		PRINT("ENCRYPT FAILED: %d", ret);
 		goto done;
 	}
 	if ((fd = open(nstatefile, O_CREAT|O_WRONLY|O_EXCL, 0600)) == -1) {
 		ret = SSH_ERR_SYSTEM_ERROR;
-		PRINT("%s: open new state file: %s", __func__, nstatefile);
+		PRINT("open new state file: %s", nstatefile);
 		goto done;
 	}
 	POKE_U32(buf, sshbuf_len(enc));
 	if (atomicio(vwrite, fd, buf, sizeof(buf)) != sizeof(buf)) {
 		ret = SSH_ERR_SYSTEM_ERROR;
-		PRINT("%s: write new state file hdr: %s", __func__, nstatefile);
+		PRINT("write new state file hdr: %s", nstatefile);
 		close(fd);
 		goto done;
 	}
 	if (atomicio(vwrite, fd, sshbuf_mutable_ptr(enc), sshbuf_len(enc)) !=
 	    sshbuf_len(enc)) {
 		ret = SSH_ERR_SYSTEM_ERROR;
-		PRINT("%s: write new state file data: %s", __func__, nstatefile);
+		PRINT("write new state file data: %s", nstatefile);
 		close(fd);
 		goto done;
 	}
 	if (fsync(fd) == -1) {
 		ret = SSH_ERR_SYSTEM_ERROR;
-		PRINT("%s: sync new state file: %s", __func__, nstatefile);
+		PRINT("sync new state file: %s", nstatefile);
 		close(fd);
 		goto done;
 	}
 	if (close(fd) == -1) {
 		ret = SSH_ERR_SYSTEM_ERROR;
-		PRINT("%s: close new state file: %s", __func__, nstatefile);
+		PRINT("close new state file: %s", nstatefile);
 		goto done;
 	}
 	if (state->have_state) {
 		unlink(ostatefile);
 		if (link(statefile, ostatefile)) {
 			ret = SSH_ERR_SYSTEM_ERROR;
-			PRINT("%s: backup state %s to %s", __func__, statefile,
-			    ostatefile);
+			PRINT("backup state %s to %s", statefile, ostatefile);
 			goto done;
 		}
 	}
 	if (rename(nstatefile, statefile) == -1) {
 		ret = SSH_ERR_SYSTEM_ERROR;
-		PRINT("%s: rename %s to %s", __func__, nstatefile, statefile);
+		PRINT("rename %s to %s", nstatefile, statefile);
 		goto done;
 	}
 	ret = 0;

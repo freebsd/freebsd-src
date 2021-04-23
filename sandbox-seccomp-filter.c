@@ -154,6 +154,9 @@ static const struct sock_filter preauth_insns[] = {
 #ifdef __NR_fstat64
 	SC_DENY(__NR_fstat64, EACCES),
 #endif
+#ifdef __NR_fstatat64
+	SC_DENY(__NR_fstatat64, EACCES),
+#endif
 #ifdef __NR_open
 	SC_DENY(__NR_open, EACCES),
 #endif
@@ -381,7 +384,7 @@ ssh_sandbox_child_debugging(void)
 		fatal("%s: sigaction(SIGSYS): %s", __func__, strerror(errno));
 	if (sigprocmask(SIG_UNBLOCK, &mask, NULL) == -1)
 		fatal("%s: sigprocmask(SIGSYS): %s",
-		      __func__, strerror(errno));
+		    __func__, strerror(errno));
 }
 #endif /* SANDBOX_SECCOMP_FILTER_DEBUG */
 
@@ -410,13 +413,13 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 	debug3("%s: setting PR_SET_NO_NEW_PRIVS", __func__);
 	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
 		debug("%s: prctl(PR_SET_NO_NEW_PRIVS): %s",
-		      __func__, strerror(errno));
+		    __func__, strerror(errno));
 		nnp_failed = 1;
 	}
 	debug3("%s: attaching seccomp filter program", __func__);
 	if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &preauth_program) == -1)
 		debug("%s: prctl(PR_SET_SECCOMP): %s",
-		      __func__, strerror(errno));
+		    __func__, strerror(errno));
 	else if (nnp_failed)
 		fatal("%s: SECCOMP_MODE_FILTER activated but "
 		    "PR_SET_NO_NEW_PRIVS failed", __func__);

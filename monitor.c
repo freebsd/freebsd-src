@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.223 2021/01/27 10:05:28 djm Exp $ */
+/* $OpenBSD: monitor.c,v 1.225 2021/04/15 16:24:31 markus Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -159,7 +159,7 @@ static Authctxt *authctxt;
 /* local state for key verify */
 static u_char *key_blob = NULL;
 static size_t key_bloblen = 0;
-static int key_blobtype = MM_NOKEY;
+static u_int key_blobtype = MM_NOKEY;
 static struct sshauthopt *key_opts = NULL;
 static char *hostbased_cuser = NULL;
 static char *hostbased_chost = NULL;
@@ -417,8 +417,8 @@ static int
 monitor_read_log(struct monitor *pmonitor)
 {
 	struct sshbuf *logmsg;
-	u_int len, level, line;
-	char *msg, *file, *func;
+	u_int len, level, forced;
+	char *msg;
 	u_char *p;
 	int r;
 
@@ -449,21 +449,17 @@ monitor_read_log(struct monitor *pmonitor)
 		fatal_fr(r, "reserve msg");
 	if (atomicio(read, pmonitor->m_log_recvfd, p, len) != len)
 		fatal_f("log fd read: %s", strerror(errno));
-	if ((r = sshbuf_get_cstring(logmsg, &file, NULL)) != 0 ||
-	    (r = sshbuf_get_cstring(logmsg, &func, NULL)) != 0 ||
-	    (r = sshbuf_get_u32(logmsg, &line)) != 0 ||
-	    (r = sshbuf_get_u32(logmsg, &level)) != 0 ||
+	if ((r = sshbuf_get_u32(logmsg, &level)) != 0 ||
+	    (r = sshbuf_get_u32(logmsg, &forced)) != 0 ||
 	    (r = sshbuf_get_cstring(logmsg, &msg, NULL)) != 0)
 		fatal_fr(r, "parse");
 
 	/* Log it */
 	if (log_level_name(level) == NULL)
 		fatal_f("invalid log level %u (corrupted message?)", level);
-	sshlog(file, func, line, 0, level, NULL, "%s [preauth]", msg);
+	sshlogdirect(level, forced, "%s [preauth]", msg);
 
 	sshbuf_free(logmsg);
-	free(file);
-	free(func);
 	free(msg);
 
 	return 0;
@@ -1157,7 +1153,7 @@ mm_answer_keyallowed(struct ssh *ssh, int sock, struct sshbuf *m)
 	struct sshkey *key = NULL;
 	char *cuser, *chost;
 	u_int pubkey_auth_attempt;
-	enum mm_keytype type = 0;
+	u_int type = 0;
 	int r, allowed = 0;
 	struct sshauthopt *opts = NULL;
 
@@ -1206,7 +1202,7 @@ mm_answer_keyallowed(struct ssh *ssh, int sock, struct sshbuf *m)
 			    cuser, chost);
 			break;
 		default:
-			fatal_f("unknown key type %d", type);
+			fatal_f("unknown key type %u", type);
 			break;
 		}
 	}

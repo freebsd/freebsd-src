@@ -94,7 +94,7 @@ struct logininfo *login_alloc_entry(pid_t pid, const char *username,
 void login_free_entry(struct logininfo *li);
 /* fill out a pre-allocated structure with useful information */
 int login_init_entry(struct logininfo *li, pid_t pid, const char *username,
-		     const char *hostname, const char *line);
+    const char *hostname, const char *line);
 /* place the current time in a logininfo struct */
 void login_set_current_time(struct logininfo *li);
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: umac.c,v 1.20 2020/03/13 03:17:07 djm Exp $ */
+/* $OpenBSD: umac.c,v 1.21 2021/04/03 06:58:30 djm Exp $ */
 /* -----------------------------------------------------------------------
  *
  * umac.c -- C Implementation UMAC Message Authentication
@@ -290,7 +290,7 @@ static void pdf_gen_xor(pdf_ctx *pc, const UINT8 nonce[8], UINT8 buf[8])
  * versions, one expects the entire message being hashed to be passed
  * in a single buffer and returns the hash result immediately. The second
  * allows the message to be passed in a sequence of buffers. In the
- * muliple-buffer interface, the client calls the routine nh_update() as
+ * multiple-buffer interface, the client calls the routine nh_update() as
  * many times as necessary. When there is no more data to be fed to the
  * hash, the client calls nh_final() which calculates the hash output.
  * Before beginning another hash calculation the nh_reset() routine

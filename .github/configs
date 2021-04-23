@@ -56,22 +56,38 @@ case "$config" in
 	LIBCRYPTOFLAGS="--without-openssl"
 	TEST_TARGET=t-exec
 	;;
-    valgrind-1)
+    valgrind-[1-4]|valgrind-unit)
 	# rlimit sandbox and FORTIFY_SOURCE confuse Valgrind.
 	CONFIGFLAGS="--without-sandbox --without-hardening"
 	CONFIGFLAGS="$CONFIGFLAGS --with-cppflags=-D_FORTIFY_SOURCE=0"
+	TEST_TARGET="t-exec USE_VALGRIND=1"
+	TEST_SSH_ELAPSED_TIMES=1
+	export TEST_SSH_ELAPSED_TIMES
 	# Valgrind slows things down enough that the agent timeout test
 	# won't reliably pass, and the unit tests run longer than allowed
-	# by github.
-	TEST_TARGET="t-exec USE_VALGRIND=1"
-	SKIP_LTESTS="agent-timeout rekey try-ciphers cert-userkey integrity"
-	;;
-    valgrind-2)
-	CONFIGFLAGS="--without-sandbox --without-hardening"
-	CONFIGFLAGS="$CONFIGFLAGS --with-cppflags=-D_FORTIFY_SOURCE=0"
-	# The rekey test takes >30 min so run separately.
-	TEST_TARGET="t-exec USE_VALGRIND=1"
-	LTESTS="rekey try-ciphers cert-userkey integrity"
+	# by github so split into three separate tests.
+	tests2="rekey integrity"
+	tests3="krl forward-control sshsig"
+	tests4="cert-userkey cert-hostkey kextype sftp-perm keygen-comment"
+	case "$config" in
+	    valgrind-1)
+		# All tests except agent-timeout (which is flaky under valgrind)
+		#) and slow ones that run separately to increase parallelism.
+		SKIP_LTESTS="agent-timeout ${tests2} ${tests3} ${tests4}"
+		;;
+	    valgrind-2)
+		LTESTS="${tests2}"
+		;;
+	    valgrind-3)
+		LTESTS="${tests3}"
+		;;
+	    valgrind-4)
+		LTESTS="${tests4}"
+		;;
+	    valgrind-unit)
+		TEST_TARGET="unit USE_VALGRIND=1"
+		;;
+	esac
 	;;
     *)
 	echo "Unknown configuration $config"

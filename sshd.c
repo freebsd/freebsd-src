@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.570 2021/02/05 02:20:23 dtucker Exp $ */
+/* $OpenBSD: sshd.c,v 1.572 2021/04/03 06:18:41 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -124,6 +124,7 @@
 #include "ssherr.h"
 #include "sk-api.h"
 #include "srclimit.h"
+#include "dh.h"
 
 /* Re-exec fds */
 #define REEXEC_DEVCRYPTO_RESERVED_FD	(STDERR_FILENO + 1)
@@ -1701,7 +1702,7 @@ main(int ac, char **av)
 	 */
 	if (test_flag < 2 && connection_info != NULL)
 		fatal("Config test connection parameter (-C) provided without "
-		   "test mode (-T)");
+		    "test mode (-T)");
 
 	/* Fetch our configuration */
 	if ((cfg = sshbuf_new()) == NULL)
@@ -1723,6 +1724,11 @@ main(int ac, char **av)
 
 	parse_server_config(&options, rexeced_flag ? "rexec" : config_file_name,
 	    cfg, &includes, NULL);
+
+#ifdef WITH_OPENSSL
+	if (options.moduli_file != NULL)
+		dh_set_moduli_file(options.moduli_file);
+#endif
 
 	/* Fill in default values for those options not explicitly set. */
 	fill_default_server_options(&options);
@@ -2010,8 +2016,10 @@ main(int ac, char **av)
 	/* Reinitialize the log (because of the fork above). */
 	log_init(__progname, options.log_level, options.log_facility, log_stderr);
 
-	/* Chdir to the root directory so that the current disk can be
-	   unmounted if desired. */
+	/*
+	 * Chdir to the root directory so that the current disk can be
+	 * unmounted if desired.
+	 */
 	if (chdir("/") == -1)
 		error("chdir(\"/\"): %s", strerror(errno));
 

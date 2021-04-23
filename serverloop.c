@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.225 2021/01/27 10:05:28 djm Exp $ */
+/* $OpenBSD: serverloop.c,v 1.226 2021/04/03 06:18:41 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -333,7 +333,7 @@ process_input(struct ssh *ssh, fd_set *readset, int connection_in)
 			return -1;
 		} else if (len == -1) {
 			if (errno == EINTR || errno == EAGAIN ||
-			    errno != EWOULDBLOCK)
+			    errno == EWOULDBLOCK)
 				return 0;
 			verbose("Read error from remote host %s port %d: %s",
 			    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh),
@@ -838,7 +838,7 @@ server_input_global_request(int type, u_int32_t seq, struct ssh *ssh)
 		    options.disable_forwarding ||
 		    (!want_reply && fwd.listen_port == 0) ||
 		    (fwd.listen_port != 0 &&
-		     !bind_permitted(fwd.listen_port, pw->pw_uid))) {
+		    !bind_permitted(fwd.listen_port, pw->pw_uid))) {
 			success = 0;
 			ssh_packet_send_debug(ssh, "Server has disabled port forwarding.");
 		} else {

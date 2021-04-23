@@ -1,4 +1,4 @@
-#	$OpenBSD: sftp-perm.sh,v 1.2 2013/10/17 22:00:18 djm Exp $
+#	$OpenBSD: sftp-perm.sh,v 1.3 2021/03/31 21:59:26 djm Exp $
 #	Placed in the Public Domain.
 
 tid="sftp permissions"
@@ -220,13 +220,15 @@ perm_test \
 	"test ! -d ${COPY}.dd" \
 	"test -d ${COPY}.dd"
 
-perm_test \
-	"posix-rename" \
-	"realpath,stat,lstat" \
-	"rename $COPY ${COPY}.1" \
-	"touch $COPY" \
-	"test -f ${COPY}.1 -a ! -f $COPY" \
-	"test -f $COPY -a ! -f ${COPY}.1"
+# Can't readily test this because the client falls back to traditional rename.
+# XXX maybe there is a behaviorial difference we can test for?
+#perm_test \
+#	"posix-rename" \
+#	"realpath,stat,lstat" \
+#	"rename $COPY ${COPY}.1" \
+#	"touch $COPY" \
+#	"test -f ${COPY}.1 -a ! -f $COPY" \
+#	"test -f $COPY -a ! -f ${COPY}.1"
 
 perm_test \
 	"rename" \

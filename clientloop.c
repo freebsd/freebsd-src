@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.358 2021/01/27 10:05:28 djm Exp $ */
+/* $OpenBSD: clientloop.c,v 1.359 2021/03/19 02:22:34 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -571,7 +571,7 @@ client_wait_until_can_do_something(struct ssh *ssh,
 			fatal_fr(r, "sshbuf_putf");
 		quit_pending = 1;
 	} else if (options.server_alive_interval > 0 && !FD_ISSET(connection_in,
-	     *readsetp) && monotime() >= server_alive_time)
+	    *readsetp) && monotime() >= server_alive_time)
 		/*
 		 * ServerAlive check is needed. We can't rely on the select
 		 * timing out since traffic on the client side such as port
@@ -1423,7 +1423,7 @@ client_loop(struct ssh *ssh, int have_pty, int escape_char_arg,
 
 	if (received_signal) {
 		verbose("Killed by signal %d.", (int) received_signal);
-		cleanup_exit(0);
+		cleanup_exit(255);
 	}
 
 	/*

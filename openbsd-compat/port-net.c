@@ -68,7 +68,7 @@ sys_set_rdomain(int fd, const char *name)
 	if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE,
 	    name, strlen(name)) == -1) {
 		error("%s: setsockopt(%d, SO_BINDTODEVICE, %s): %s",
-		      __func__, fd, name, strerror(errno));
+		    __func__, fd, name, strerror(errno));
 		return -1;
 	}
 	return 0;

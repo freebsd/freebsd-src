@@ -20,6 +20,9 @@ jobs:
         include:
           - { os: ubuntu-20.04, configs: valgrind-1 }
           - { os: ubuntu-20.04, configs: valgrind-2 }
+          - { os: ubuntu-20.04, configs: valgrind-3 }
+          - { os: ubuntu-20.04, configs: valgrind-4 }
+          - { os: ubuntu-20.04, configs: valgrind-unit }
           - { os: ubuntu-20.04, configs: pam }
           - { os: ubuntu-20.04, configs: kitchensink }
           - { os: ubuntu-20.04, configs: hardenedmalloc }
@@ -46,18 +49,18 @@ jobs:
       run: ./.github/configure.sh ${{ matrix.configs }}
     - name: make
       run: make -j2
-    - name: install moduli
-      run: sudo sh -c "mkdir -p /usr/local/etc/; cp moduli /usr/local/etc/"
     - name: make tests
       run: ./.github/run_test.sh ${{ matrix.configs }}
       env:
         SUDO: sudo
         TEST_SSH_UNSAFE_PERMISSIONS: 1
-    - name: save regress logs
+    - name: save logs
       if: failure()
       uses: actions/upload-artifact@v2
       with:
-        name: ${{ matrix.os }}-${{ matrix.configs }}-regress-logs
+        name: ${{ matrix.os }}-${{ matrix.configs }}-logs
         path: |
+          config.h
+          config.log
           regress/*.log
           regress/valgrind-out/

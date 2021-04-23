@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.135 2020/09/20 05:47:25 djm Exp $ */
+/* $OpenBSD: channels.h,v 1.137 2021/04/03 06:18:40 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -177,7 +177,7 @@ struct Channel {
 	channel_filter_cleanup_fn *filter_cleanup;
 
 	/* keep boundaries */
-	int     		datagram;
+	int			datagram;
 
 	/* non-blocking connect */
 	/* XXX make this a pointer so the structure can be opaque */
@@ -187,7 +187,7 @@ struct Channel {
 	mux_callback_fn		*mux_rcb;
 	void			*mux_ctx;
 	int			mux_pause;
-	int     		mux_downstream_id;
+	int			mux_downstream_id;
 };
 
 #define CHAN_EXTENDED_IGNORE		0
@@ -289,7 +289,7 @@ int	 channel_input_status_confirm(int, u_int32_t, struct ssh *);
 /* file descriptor handling (read/write) */
 
 void	 channel_prepare_select(struct ssh *, fd_set **, fd_set **, int *,
-	     u_int*, time_t*);
+	    u_int*, time_t*);
 void     channel_after_select(struct ssh *, fd_set *, fd_set *);
 void     channel_output_poll(struct ssh *);
 

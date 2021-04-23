@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh_api.c,v 1.26 2021/01/27 10:05:28 djm Exp $ */
+/* $OpenBSD: ssh_api.c,v 1.27 2021/04/03 06:18:41 djm Exp $ */
 /*
  * Copyright (c) 2012 Markus Friedl.  All rights reserved.
  *
@@ -81,7 +81,7 @@ mm_choose_dh(int min, int nbits, int max)
 int
 ssh_init(struct ssh **sshp, int is_server, struct kex_params *kex_params)
 {
-        char *myproposal[PROPOSAL_MAX] = { KEX_CLIENT };
+	char *myproposal[PROPOSAL_MAX] = { KEX_CLIENT };
 	struct ssh *ssh;
 	char **proposal;
 	static int called;
@@ -361,7 +361,7 @@ _ssh_read_banner(struct ssh *ssh, struct sshbuf *banner)
 		if (ssh->kex->server || ++n > SSH_MAX_PRE_BANNER_LINES) {
   bad:
 			if ((r = sshbuf_put(ssh_packet_get_output(ssh),
-			   mismatch, strlen(mismatch))) != 0)
+			    mismatch, strlen(mismatch))) != 0)
 				return r;
 			return SSH_ERR_NO_PROTOCOL_VERSION;
 		}

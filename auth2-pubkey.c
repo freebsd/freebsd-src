@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.106 2021/01/27 10:05:28 djm Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.107 2021/04/03 06:18:40 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -674,7 +674,8 @@ check_authkey_line(struct ssh *ssh, struct passwd *pw, struct sshkey *key,
 		goto fail_reason;
 	}
 	if (sshkey_cert_check_authority(key, 0, 0, 0,
-	   keyopts->cert_principals == NULL ? pw->pw_name : NULL, &reason) != 0)
+	    keyopts->cert_principals == NULL ? pw->pw_name : NULL,
+	    &reason) != 0)
 		goto fail_reason;
 
 	verbose("Accepted certificate ID \"%s\" (serial %llu) "
@@ -785,7 +786,7 @@ user_cert_trusted_ca(struct ssh *ssh, struct passwd *pw, struct sshkey *key,
 		found_principal = 1;
 	/* If principals file or command is specified, then require a match */
 	use_authorized_principals = principals_file != NULL ||
-            options.authorized_principals_command != NULL;
+	    options.authorized_principals_command != NULL;
 	if (!found_principal && use_authorized_principals) {
 		reason = "Certificate does not contain an authorized principal";
 		goto fail_reason;

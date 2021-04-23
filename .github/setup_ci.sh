@@ -39,7 +39,7 @@ for TARGET in $TARGETS; do
         ;;
     sk)
         INSTALL_FIDO_PPA="yes"
-        PACKAGES="$PACKAGES libfido2-dev libu2f-host-dev"
+        PACKAGES="$PACKAGES libfido2-dev libu2f-host-dev libcbor-dev"
         ;;
     selinux)
         PACKAGES="$PACKAGES libselinux1-dev selinux-policy-dev"

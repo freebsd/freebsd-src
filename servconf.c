@@ -1,5 +1,5 @@
 
-/* $OpenBSD: servconf.c,v 1.377 2021/02/24 01:18:08 dtucker Exp $ */
+/* $OpenBSD: servconf.c,v 1.379 2021/04/03 06:18:40 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -305,6 +305,8 @@ fill_default_server_options(ServerOptions *options)
 		add_listen_addr(options, NULL, NULL, 0);
 	if (options->pid_file == NULL)
 		options->pid_file = xstrdup(_PATH_SSH_DAEMON_PID_FILE);
+	if (options->moduli_file == NULL)
+		options->moduli_file = xstrdup(_PATH_DH_MODULI);
 	if (options->login_grace_time == -1)
 		options->login_grace_time = 120;
 	if (options->permit_root_login == PERMIT_NOT_SET)
@@ -500,7 +502,7 @@ typedef enum {
 	sPermitTTY, sStrictModes, sEmptyPasswd, sTCPKeepAlive,
 	sPermitUserEnvironment, sAllowTcpForwarding, sCompression,
 	sRekeyLimit, sAllowUsers, sDenyUsers, sAllowGroups, sDenyGroups,
-	sIgnoreUserKnownHosts, sCiphers, sMacs, sPidFile,
+	sIgnoreUserKnownHosts, sCiphers, sMacs, sPidFile, sModuliFile,
 	sGatewayPorts, sPubkeyAuthentication, sPubkeyAcceptedAlgorithms,
 	sXAuthLocation, sSubsystem, sMaxStartups, sMaxAuthTries, sMaxSessions,
 	sBanner, sUseDNS, sHostbasedAuthentication,
@@ -548,6 +550,7 @@ static struct {
 	{ "hostdsakey", sHostKeyFile, SSHCFG_GLOBAL },		/* alias */
 	{ "hostkeyagent", sHostKeyAgent, SSHCFG_GLOBAL },
 	{ "pidfile", sPidFile, SSHCFG_GLOBAL },
+	{ "modulifile", sModuliFile, SSHCFG_GLOBAL },
 	{ "serverkeybits", sDeprecated, SSHCFG_GLOBAL },
 	{ "logingracetime", sLoginGraceTime, SSHCFG_GLOBAL },
 	{ "keyregenerationinterval", sDeprecated, SSHCFG_GLOBAL },
@@ -1451,6 +1454,10 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		}
 		break;
 
+	case sModuliFile:
+		charptr = &options->moduli_file;
+		goto parse_filename;
+
 	case sPermitRootLogin:
 		intptr = &options->permit_root_login;
 		multistate_ptr = multistate_permitrootlogin;
@@ -2110,7 +2117,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 	case sMatch:
 		if (cmdline)
 			fatal("Match directive not supported as a command-line "
-			   "option");
+			    "option");
 		value = match_cfg_line(&cp, linenum,
 		    (*inc_flags & SSHCFG_NEVERMATCH ? NULL : connectinfo));
 		if (value < 0)
@@ -2447,7 +2454,7 @@ load_server_config(const char *filename, struct sshbuf *conf)
 	sshbuf_reset(conf);
 	/* grow buffer, so realloc is avoided for large config files */
 	if (fstat(fileno(f), &st) == 0 && st.st_size > 0 &&
-            (r = sshbuf_allocate(conf, st.st_size)) != 0)
+	    (r = sshbuf_allocate(conf, st.st_size)) != 0)
 		fatal_fr(r, "allocate");
 	while (getline(&line, &linesize, f) != -1) {
 		lineno++;
@@ -2500,12 +2507,12 @@ int parse_server_match_testspec(struct connection_info *ci, char *spec)
 			ci->lport = a2port(p + 6);
 			if (ci->lport == -1) {
 				fprintf(stderr, "Invalid port '%s' in test mode"
-				   " specification %s\n", p+6, p);
+				    " specification %s\n", p+6, p);
 				return -1;
 			}
 		} else {
 			fprintf(stderr, "Invalid test mode specification %s\n",
-			   p);
+			    p);
 			return -1;
 		}
 	}
@@ -2875,6 +2882,7 @@ dump_config(ServerOptions *o)
 
 	/* string arguments */
 	dump_cfg_string(sPidFile, o->pid_file);
+	dump_cfg_string(sModuliFile, o->moduli_file);
 	dump_cfg_string(sXAuthLocation, o->xauth_location);
 	dump_cfg_string(sCiphers, o->ciphers);
 	dump_cfg_string(sMacs, o->macs);
@@ -2910,9 +2918,9 @@ dump_config(ServerOptions *o)
 	dump_cfg_strarray_oneline(sAuthorizedKeysFile, o->num_authkeys_files,
 	    o->authorized_keys_files);
 	dump_cfg_strarray(sHostKeyFile, o->num_host_key_files,
-	     o->host_key_files);
+	    o->host_key_files);
 	dump_cfg_strarray(sHostCertificate, o->num_host_cert_files,
-	     o->host_cert_files);
+	    o->host_cert_files);
 	dump_cfg_strarray(sAllowUsers, o->num_allow_users, o->allow_users);
 	dump_cfg_strarray(sDenyUsers, o->num_deny_users, o->deny_users);
 	dump_cfg_strarray(sAllowGroups, o->num_allow_groups, o->allow_groups);

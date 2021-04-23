@@ -42,7 +42,7 @@
    is not part of the posix specification. */
 #define SAVED_IDS_WORK_WITH_SETEUID
 /* Saved effective uid. */
-static uid_t 	saved_euid = 0;
+static uid_t	saved_euid = 0;
 static gid_t	saved_egid = 0;
 #endif
 

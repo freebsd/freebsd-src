@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.86 2020/10/29 02:52:43 djm Exp $ */
+/* $OpenBSD: mux.c,v 1.87 2021/04/03 06:18:40 djm Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -554,7 +554,7 @@ format_forward(u_int ftype, struct Forward *fwd)
 		xasprintf(&ret, "dynamic forward %.200s:%d -> *",
 		    (fwd->listen_host == NULL) ?
 		    (options.fwd_opts.gateway_ports ? "*" : "LOCALHOST") :
-		     fwd->listen_host, fwd->listen_port);
+		    fwd->listen_host, fwd->listen_port);
 		break;
 	case MUX_FWD_REMOTE:
 		xasprintf(&ret, "remote forward %.200s:%d -> %.200s:%d",
@@ -649,7 +649,7 @@ mux_confirm_remote_forward(struct ssh *ssh, int type, u_int32_t seq, void *ctxt)
 			    rfwd->allocated_port)) != 0)
 				fatal_fr(r, "reply");
 			channel_update_permission(ssh, rfwd->handle,
-			   rfwd->allocated_port);
+			    rfwd->allocated_port);
 		} else {
 			reply_ok(out, fctx->rid);
 		}
@@ -664,7 +664,7 @@ mux_confirm_remote_forward(struct ssh *ssh, int type, u_int32_t seq, void *ctxt)
 			xasprintf(&failmsg, "remote port forwarding failed for "
 			    "listen port %d", rfwd->listen_port);
 
-                debug2_f("clearing registered forwarding for listen %d, "
+		debug2_f("clearing registered forwarding for listen %d, "
 		    "connect %s:%d", rfwd->listen_port,
 		    rfwd->connect_path ? rfwd->connect_path :
 		    rfwd->connect_host, rfwd->connect_port);
@@ -2278,7 +2278,7 @@ muxclient(const char *path)
 	if (strlcpy(addr.sun_path, path,
 	    sizeof(addr.sun_path)) >= sizeof(addr.sun_path))
 		fatal("ControlPath too long ('%s' >= %u bytes)", path,
-		     (unsigned int)sizeof(addr.sun_path));
+		    (unsigned int)sizeof(addr.sun_path));
 
 	if ((sock = socket(PF_UNIX, SOCK_STREAM, 0)) == -1)
 		fatal_f("socket(): %s", strerror(errno));

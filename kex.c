@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.c,v 1.167 2021/01/31 22:55:29 djm Exp $ */
+/* $OpenBSD: kex.c,v 1.168 2021/04/03 06:18:40 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
@@ -1188,7 +1188,7 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 	if (version_addendum != NULL && *version_addendum == '\0')
 		version_addendum = NULL;
 	if ((r = sshbuf_putf(our_version, "SSH-%d.%d-%.100s%s%s\r\n",
-	   PROTOCOL_MAJOR_2, PROTOCOL_MINOR_2, SSH_VERSION,
+	    PROTOCOL_MAJOR_2, PROTOCOL_MINOR_2, SSH_VERSION,
 	    version_addendum == NULL ? "" : " ",
 	    version_addendum == NULL ? "" : version_addendum)) != 0) {
 		oerrno = errno;

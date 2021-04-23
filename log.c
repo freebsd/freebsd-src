@@ -1,4 +1,4 @@
-/* $OpenBSD: log.c,v 1.56 2020/12/04 02:25:13 djm Exp $ */
+/* $OpenBSD: log.c,v 1.58 2021/04/15 16:24:31 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -318,7 +318,7 @@ log_redirect_stderr_to(const char *logfile)
 
 	if ((fd = open(logfile, O_WRONLY|O_CREAT|O_APPEND, 0600)) == -1) {
 		fprintf(stderr, "Couldn't open logfile %s: %s\n", logfile,
-		     strerror(errno));
+		    strerror(errno));
 		exit(1);
 	}
 	log_stderr_fd = fd;
@@ -334,8 +334,8 @@ set_log_handler(log_handler_fn *handler, void *ctx)
 }
 
 static void
-do_log(const char *file, const char *func, int line, LogLevel level,
-    int force, const char *suffix, const char *fmt, va_list args)
+do_log(LogLevel level, int force, const char *suffix, const char *fmt,
+    va_list args)
 {
 #if defined(HAVE_OPENLOG_R) && defined(SYSLOG_DATA_INIT)
 	struct syslog_data sdata = SYSLOG_DATA_INIT;
@@ -400,7 +400,7 @@ do_log(const char *file, const char *func, int line, LogLevel level,
 		/* Avoid recursion */
 		tmp_handler = log_handler;
 		log_handler = NULL;
-		tmp_handler(file, func, line, level, fmtbuf, log_handler_ctx);
+		tmp_handler(level, force, fmtbuf, log_handler_ctx);
 		log_handler = tmp_handler;
 	} else if (log_on_stderr) {
 		snprintf(msgbuf, sizeof msgbuf, "%.*s\r\n",
@@ -475,12 +475,22 @@ sshlogv(const char *file, const char *func, int line, int showfunc,
 		}
 	}
 
-	if (log_handler == NULL && forced)
+	if (forced)
 		snprintf(fmt2, sizeof(fmt2), "%s: %s", tag, fmt);
 	else if (showfunc)
 		snprintf(fmt2, sizeof(fmt2), "%s: %s", func, fmt);
 	else
 		strlcpy(fmt2, fmt, sizeof(fmt2));
 
-	do_log(file, func, line, level, forced, suffix, fmt2, args);
+	do_log(level, forced, suffix, fmt2, args);
+}
+
+void
+sshlogdirect(LogLevel level, int forced, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	do_log(level, forced, NULL, fmt, args);
+	va_end(args);
 }

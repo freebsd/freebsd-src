@@ -176,8 +176,9 @@ DESCRIPTION
              Specifies which algorithms are allowed for signing of
              certificates by certificate authorities (CAs).  The default is:
 
-                   ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,
-                   ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+                   ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+                   sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,
+                   rsa-sha2-512,rsa-sha2-256
 
              ssh(1) will not accept host certificates signed using algorithms
              other than those specified.
@@ -1204,8 +1205,8 @@ TOKENS
                  preference list to use for the destination host.
            %i    The local user ID.
            %K    The base64 encoded host key.
-           %k    The host key alias if specified, otherwise the orignal remote
-                 hostname given on the command line.
+           %k    The host key alias if specified, otherwise the original
+                 remote hostname given on the command line.
            %L    The local hostname.
            %l    The local hostname, including the domain name.
            %n    The original remote hostname, as given on the command line.
@@ -1236,7 +1237,7 @@ ENVIRONMENT VARIABLES
      environment variable does not exist then an error will be returned and
      the setting for that keyword will be ignored.
 
-     The keywords CertificateFile, ControlPath, IdentityAgent, IdentityFile
+     The keywords CertificateFile, ControlPath, IdentityAgent, IdentityFile,
      KnownHostsCommand, and UserKnownHostsFile support environment variables.
      The keywords LocalForward and RemoteForward support environment variables
      only for Unix domain socket paths.
@@ -1264,4 +1265,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.8                    February 28, 2021                   OpenBSD 6.8
+OpenBSD 6.9                      April 4, 2021                     OpenBSD 6.9

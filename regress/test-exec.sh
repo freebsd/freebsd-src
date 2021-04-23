@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.77 2021/02/17 03:59:00 dtucker Exp $
+#	$OpenBSD: test-exec.sh,v 1.79 2021/04/06 23:57:56 dtucker Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -16,12 +16,6 @@ CYGWIN*)
 	os=cygwin
 	;;
 esac
-
-if [ ! -z "$TEST_SSH_PORT" ]; then
-	PORT="$TEST_SSH_PORT"
-else
-	PORT=4242
-fi
 
 # If configure tells us to use a different egrep, create a wrapper function
 # to call it.  This means we don't need to change all the tests that depend
@@ -45,6 +39,16 @@ fi
 if test -z "$LOGNAME"; then
 	LOGNAME="${USER}"
 	export LOGNAME
+fi
+
+if [ ! -x "$TEST_SSH_ELAPSED_TIMES" ]; then
+	STARTTIME=`date '+%s'`
+fi
+
+if [ ! -z "$TEST_SSH_PORT" ]; then
+	PORT="$TEST_SSH_PORT"
+else
+	PORT=4242
 fi
 
 OBJ=$1
@@ -332,6 +336,12 @@ if ! have_prog hostname; then
 		uname -n
 	}
 fi
+
+make_tmpdir ()
+{
+	SSH_REGRESS_TMP="$($OBJ/mkdtemp openssh-XXXXXXXX)" || \
+	    fatal "failed to create temporary directory"
+}
 # End of portable specific functions
 
 stop_sshd ()
@@ -365,12 +375,6 @@ stop_sshd ()
 	fi
 }
 
-make_tmpdir ()
-{
-	SSH_REGRESS_TMP="$($OBJ/mkdtemp openssh-XXXXXXXX)" || \
-	    fatal "failed to create temporary directory"
-}
-
 # helper
 cleanup ()
 {
@@ -385,6 +389,11 @@ cleanup ()
 		rm -rf "$SSH_REGRESS_TMP"
 	fi
 	stop_sshd
+	if [ ! -z "$TEST_SSH_ELAPSED_TIMES" ]; then
+		now=`date '+%s'`
+		elapsed=$(($now - $STARTTIME))
+		echo elapsed $elapsed `basename $SCRIPT .sh`
+	fi
 }
 
 start_debug_log ()
@@ -418,12 +427,6 @@ verbose ()
 	if [ "X$TEST_SSH_QUIET" != "Xyes" ]; then
 		echo "$@"
 	fi
-}
-
-warn ()
-{
-	echo "WARNING: $@" >>$TEST_SSH_LOGFILE
-	echo "WARNING: $@"
 }
 
 fail ()
@@ -470,7 +473,7 @@ EOF
 # but if you aren't careful with permissions then the unit tests could
 # be abused to locally escalate privileges.
 if [ ! -z "$TEST_SSH_UNSAFE_PERMISSIONS" ]; then
-	echo "StrictModes no" >> $OBJ/sshd_config
+	echo "	StrictModes no" >> $OBJ/sshd_config
 else
 	# check and warn if excessive permissions are likely to cause failures.
 	unsafe=""
@@ -496,6 +499,11 @@ bypass this check by setting TEST_SSH_UNSAFE_PERMISSIONS=1
 
 EOD
 	fi
+fi
+
+if [ ! -z "$TEST_SSH_MODULI_FILE" ]; then
+	trace "adding modulifile='$TEST_SSH_MODULI_FILE' to sshd_config"
+	echo "	ModuliFile '$TEST_SSH_MODULI_FILE'" >> $OBJ/sshd_config
 fi
 
 if [ ! -z "$TEST_SSH_SSHD_CONFOPTS" ]; then
