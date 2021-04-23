@@ -35,11 +35,11 @@ BEGIN
 	this->b = -2;
 
 	system("echo %s %d %d", "foo", this->a, this->b);
-	system("ping -q -c 1 localhost 2>/dev/null | grep -v '^round-trip '");
+	system("ping -q -c 1 127.0.0.1 2>/dev/null | grep -v '^round-trip '");
 	system("echo %d", ++this->a);
-	system("ping -q -c 1 localhost 2>/dev/null | grep -v '^round-trip '");
+	system("ping -4 -q -c 1 127.0.0.1 2>/dev/null | grep -v '^round-trip '");
 	system("echo %d", ++this->a);
-	system("ping -q -c 1 localhost 2>/dev/null | grep -v '^round-trip '");
+	system("ping -4 -q -c 1 127.0.0.1 2>/dev/null | grep -v '^round-trip '");
 	system("echo %d", ++this->a);
 	exit(0);
 }
