@@ -1644,7 +1644,7 @@ EOF
 			if [ -z "$preworld" ]; then
 				panic "New tree should be rotated to old"
 			fi
-			if ! remove_tree $old; then
+			if ! remove_tree $new; then
 				echo "Unable to remove previous pre-world tree."
 				exit 1
 			fi
