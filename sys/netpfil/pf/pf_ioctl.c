@@ -1784,10 +1784,12 @@ pf_nvaddr_wrap_to_addr_wrap(const nvlist_t *nvl, struct pf_addr_wrap *addr)
 
 	PFNV_CHK(pf_nvuint8(nvl, "type", &addr->type));
 	PFNV_CHK(pf_nvuint8(nvl, "iflags", &addr->iflags));
-	PFNV_CHK(pf_nvstring(nvl, "ifname", addr->v.ifname,
-	    sizeof(addr->v.ifname)));
-	PFNV_CHK(pf_nvstring(nvl, "tblname", addr->v.tblname,
-	    sizeof(addr->v.tblname)));
+	if (addr->type == PF_ADDR_DYNIFTL)
+		PFNV_CHK(pf_nvstring(nvl, "ifname", addr->v.ifname,
+		    sizeof(addr->v.ifname)));
+	if (addr->type == PF_ADDR_TABLE)
+		PFNV_CHK(pf_nvstring(nvl, "tblname", addr->v.tblname,
+		    sizeof(addr->v.tblname)));
 
 	if (! nvlist_exists_nvlist(nvl, "addr"))
 		return (EINVAL);
@@ -1827,8 +1829,10 @@ pf_addr_wrap_to_nvaddr_wrap(const struct pf_addr_wrap *addr)
 
 	nvlist_add_number(nvl, "type", addr->type);
 	nvlist_add_number(nvl, "iflags", addr->iflags);
-	nvlist_add_string(nvl, "ifname", addr->v.ifname);
-	nvlist_add_string(nvl, "tblname", addr->v.tblname);
+	if (addr->type == PF_ADDR_DYNIFTL)
+		nvlist_add_string(nvl, "ifname", addr->v.ifname);
+	if (addr->type == PF_ADDR_TABLE)
+		nvlist_add_string(nvl, "tblname", addr->v.tblname);
 
 	tmp = pf_addr_to_nvaddr(&addr->v.a.addr);
 	if (tmp == NULL)
