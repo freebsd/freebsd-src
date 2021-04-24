@@ -485,6 +485,7 @@ do {									\
 #define	TDB_VFORK	0x00000800 /* vfork indicator for ptrace() */
 #define	TDB_FSTP	0x00001000 /* The thread is PT_ATTACH leader */
 #define	TDB_STEP	0x00002000 /* (x86) PSL_T set for PT_STEP */
+#define	TDB_SSWITCH	0x00004000 /* Suspended in ptracestop */
 
 /*
  * "Private" flags kept in td_pflags:
