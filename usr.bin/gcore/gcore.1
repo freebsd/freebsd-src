@@ -28,7 +28,7 @@
 .\"	@(#)gcore.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd July 13, 2016
+.Dd April 24, 2021
 .Dt GCORE 1
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f
+.Op Fl k
 .Op Fl c Ar core
 .Op Ar executable
 .Ar pid
@@ -58,13 +59,24 @@ The following options are available:
 Write the core file to the specified file instead of
 .Dq Pa core.<pid> .
 .It Fl f
-Dumps all available segments, excluding only malformed and undumpable segments.
+Dumps all available segments, excluding only malformed and undumpable
+segments.
 Unlike the default invocation, this flag dumps mappings of devices which
 may invalidate the state of device transactions or trigger other unexpected
 behavior.
 As a result, this flag should only be used when the behavior of the
 application and any devices it has mapped is fully understood and any side
 effects can be controlled or tolerated.
+.It Fl k
+Use the
+.Xr ptrace 2
+.Dv PT_COREDUMP
+kernel facility to write the core dump, instead of reading the process'
+memory and constructing the dump file in
+.Nm
+itself.
+This is faster, and the dump is written by the
+same kernel code that writes core dumps upon fatal signals.
 .El
 .Sh FILES
 .Bl -tag -width /var/log/messages -compact
