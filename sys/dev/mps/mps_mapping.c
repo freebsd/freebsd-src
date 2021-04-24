@@ -1176,9 +1176,10 @@ _mapping_get_dev_info(struct mps_softc *sc,
 				phy_change->is_processed = 1;
 				mps_dprint(sc, MPS_ERROR | MPS_MAPPING, "%s: "
 				    "failed to add the device with handle "
-				    "0x%04x because the enclosure is not in "
-				    "the mapping table\n", __func__,
-				    phy_change->dev_handle);
+				    "0x%04x because enclosure handle 0x%04x "
+				    "is not in the mapping table\n", __func__,
+				    phy_change->dev_handle,
+				    topo_change->enc_handle);
 				continue;
 			}
 			if (!((phy_change->device_info &
@@ -1421,9 +1422,10 @@ _mapping_add_new_device(struct mps_softc *sc,
 				phy_change->is_processed = 1;
 				mps_dprint(sc, MPS_ERROR | MPS_MAPPING, "%s: "
 				    "failed to add the device with handle "
-				    "0x%04x because the enclosure is not in "
-				    "the mapping table\n", __func__,
-				    phy_change->dev_handle);
+				    "0x%04x because enclosure handle 0x%04x "
+				    "is not in the mapping table\n", __func__,
+				    phy_change->dev_handle,
+				    topo_change->enc_handle);
 				continue;
 			}
 
@@ -1887,8 +1889,8 @@ _mapping_process_dpm_pg0(struct mps_softc *sc)
 				    MPS_DPM_BAD_IDX) {
 					mps_dprint(sc, MPS_ERROR | MPS_MAPPING,
 					    "%s: Conflict in mapping table for "
-					    " enclosure %d\n", __func__,
-					    enc_idx);
+					    "enclosure %d device %d\n",
+					    __func__, enc_idx, map_idx);
 					break;
 				}
 				physical_id =
@@ -2364,14 +2366,24 @@ mps_mapping_enclosure_dev_status_change_event(struct mps_softc *sc,
 			 * and the enclosure has enough space in the Mapping
 			 * Table to map its devices.
 			 */
-			enc_idx = sc->num_enc_table_entries;
-			if (enc_idx >= sc->max_enclosures) {
+			if (sc->num_enc_table_entries < sc->max_enclosures) {
+				enc_idx = sc->num_enc_table_entries;
+				sc->num_enc_table_entries++;
+			} else {
+				enc_idx = _mapping_get_high_missing_et_idx(sc);
+				if (enc_idx != MPS_ENCTABLE_BAD_IDX) {
+					et_entry = &sc->enclosure_table[enc_idx];
+					_mapping_add_to_removal_table(sc,
+					    et_entry->dpm_entry_num);
+					_mapping_clear_enc_entry(et_entry);
+				}
+			}
+			if (enc_idx == MPS_ENCTABLE_BAD_IDX) {
 				mps_dprint(sc, MPS_ERROR | MPS_MAPPING, "%s: "
 				    "Enclosure cannot be added to mapping "
 				    "table because it's full.\n", __func__);
 				goto out;
 			}
-			sc->num_enc_table_entries++;
 			et_entry = &sc->enclosure_table[enc_idx];
 			et_entry->enc_handle = le16toh(event_data->
 			    EnclosureHandle);
@@ -2398,8 +2410,9 @@ mps_mapping_enclosure_dev_status_change_event(struct mps_softc *sc,
 		    le16toh(event_data->EnclosureHandle));
 		if (enc_idx == MPS_ENCTABLE_BAD_IDX) {
 			mps_dprint(sc, MPS_ERROR | MPS_MAPPING, "%s: Cannot "
-			    "unmap enclosure %d because it has already been "
-			    "deleted.\n", __func__, enc_idx);
+			    "unmap enclosure with handle 0x%04x because it "
+			    "has already been deleted.\n", __func__,
+			    le16toh(event_data->EnclosureHandle));
 			goto out;
 		}
 		et_entry = &sc->enclosure_table[enc_idx];
