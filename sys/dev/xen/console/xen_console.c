@@ -589,7 +589,8 @@ static void
 xencons_cnprobe(struct consdev *cp)
 {
 
-	if (!xen_domain())
+	/* on some architectures Xen may not have been probed yet */
+	if (!xen_domain_early())
 		return;
 
 	cp->cn_pri = (boothowto & RB_SERIAL) ? CN_REMOTE : CN_NORMAL;
