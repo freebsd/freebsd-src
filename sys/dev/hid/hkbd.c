@@ -917,7 +917,7 @@ hkbd_attach(device_t dev)
 	/* interrupt handler will be called with hkbd mutex taken */
 	hidbus_set_lock(dev, &sc->sc_mtx);
 	/* interrupt handler can be called during panic */
-	hidbus_set_flags(dev, hidbus_get_flags(dev) & HIDBUS_FLAG_CAN_POLL);
+	hidbus_set_flags(dev, hidbus_get_flags(dev) | HIDBUS_FLAG_CAN_POLL);
 
 	/* setup default keyboard maps */
 
