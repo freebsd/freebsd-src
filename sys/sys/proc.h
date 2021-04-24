@@ -829,6 +829,7 @@ struct proc {
 #define	P2_STKGAP_DISABLE_EXEC	0x00001000	/* Stack gap disabled
 						   after exec */
 #define	P2_ITSTOPPED		0x00002000
+#define	P2_PTRACEREQ		0x00004000	/* Active ptrace req */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
