@@ -1191,6 +1191,7 @@ void	thread_stopped(struct proc *p);
 void	childproc_stopped(struct proc *child, int reason);
 void	childproc_continued(struct proc *child);
 void	childproc_exited(struct proc *child);
+void	thread_run_flash(struct thread *td);
 int	thread_suspend_check(int how);
 bool	thread_suspend_check_needed(void);
 void	thread_suspend_switch(struct thread *, struct proc *p);
