@@ -171,6 +171,11 @@ struct sysentvec {
 #define	SV_ABI_CLOUDABI	17
 #define	SV_ABI_UNDEF	255
 
+/* sv_coredump flags */
+#define	SVC_PT_COREDUMP	0x00000001	/* dump requested by ptrace(2) */
+#define	SVC_NOCOMPRESS	0x00000002	/* disable compression. */
+#define	SVC_ALL		0x00000004	/* dump everything */
+
 #ifdef _KERNEL
 extern struct sysentvec aout_sysvec;
 extern struct sysent sysent[];

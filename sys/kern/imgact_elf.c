@@ -1655,7 +1655,7 @@ int
 __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 {
 	struct ucred *cred = td->td_ucred;
-	int error = 0;
+	int compm, error = 0;
 	struct sseg_closure seginfo;
 	struct note_info_list notelst;
 	struct coredump_params params;
@@ -1706,9 +1706,13 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	}
 
 	/* Create a compression stream if necessary. */
-	if (compress_user_cores != 0) {
+	compm = compress_user_cores;
+	if ((flags & (SVC_PT_COREDUMP | SVC_NOCOMPRESS)) == SVC_PT_COREDUMP &&
+	    compm == 0)
+		compm = COMPRESS_GZIP;
+	if (compm != 0) {
 		params.comp = compressor_init(core_compressed_write,
-		    compress_user_cores, CORE_BUF_SIZE,
+		    compm, CORE_BUF_SIZE,
 		    compress_user_cores_level, &params);
 		if (params.comp == NULL) {
 			error = EFAULT;
@@ -1826,12 +1830,15 @@ each_dumpable_segment(struct thread *td, segment_callback func, void *closure,
 		 * are marked MAP_ENTRY_NOCOREDUMP now so we no longer
 		 * need to arbitrarily ignore such segments.
 		 */
-		if (elf_legacy_coredump) {
-			if ((entry->protection & VM_PROT_RW) != VM_PROT_RW)
-				continue;
-		} else {
-			if ((entry->protection & VM_PROT_ALL) == 0)
-				continue;
+		if ((flags & SVC_ALL) == 0) {
+			if (elf_legacy_coredump) {
+				if ((entry->protection & VM_PROT_RW) !=
+				    VM_PROT_RW)
+					continue;
+			} else {
+				if ((entry->protection & VM_PROT_ALL) == 0)
+					continue;
+			}
 		}
 
 		/*
@@ -1840,9 +1847,11 @@ each_dumpable_segment(struct thread *td, segment_callback func, void *closure,
 		 * madvise(2).  Do not dump submaps (i.e. parts of the
 		 * kernel map).
 		 */
-		if (entry->eflags & (MAP_ENTRY_NOCOREDUMP|MAP_ENTRY_IS_SUB_MAP))
+		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0)
 			continue;
-
+		if ((entry->eflags & MAP_ENTRY_NOCOREDUMP) != 0 &&
+		    (flags & SVC_ALL) == 0)
+			continue;
 		if ((object = entry->object.vm_object) == NULL)
 			continue;
 
