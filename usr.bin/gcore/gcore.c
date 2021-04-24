@@ -78,12 +78,27 @@ static pid_t pid;
 
 SET_DECLARE(dumpset, struct dumpers);
 
+static int
+open_corefile(char *corefile)
+{
+	char fname[MAXPATHLEN];
+
+	if (corefile == NULL) {
+		(void)snprintf(fname, sizeof(fname), "core.%d", pid);
+		corefile = fname;
+	}
+	fd = open(corefile, O_RDWR | O_CREAT | O_TRUNC, DEFFILEMODE);
+	if (fd < 0)
+		err(1, "%s", corefile);
+	return (fd);
+}
+
 int
 main(int argc, char *argv[])
 {
 	int ch, efd, fd, name[4];
 	char *binfile, *corefile;
-	char passpath[MAXPATHLEN], fname[MAXPATHLEN];
+	char passpath[MAXPATHLEN];
 	struct dumpers **d, *dumper;
 	size_t len;
 
@@ -138,13 +153,7 @@ main(int argc, char *argv[])
 	}
 	if (dumper == NULL)
 		errx(1, "Invalid executable file");
-	if (corefile == NULL) {
-		(void)snprintf(fname, sizeof(fname), "core.%d", pid);
-		corefile = fname;
-	}
-	fd = open(corefile, O_RDWR|O_CREAT|O_TRUNC, DEFFILEMODE);
-	if (fd < 0)
-		err(1, "%s", corefile);
+	fd = open_corefile(corefile);
 
 	dumper->dump(efd, fd, pid);
 	(void)close(fd);
