@@ -1439,11 +1439,11 @@ tcp_lro_flush_all(struct lro_ctrl *lc)
 	uint64_t nseq;
 	unsigned x;
 
-	CURVNET_SET(lc->ifp->if_vnet);
-
 	/* check if no mbufs to flush */
 	if (lc->lro_mbuf_count == 0)
 		goto done;
+
+	CURVNET_SET(lc->ifp->if_vnet);
 
 	/* get current time */
 	lc->lro_last_queue_time = getsbinuptime();
@@ -1478,13 +1478,12 @@ tcp_lro_flush_all(struct lro_ctrl *lc)
 			lc->lro_flushed++;
 		}
 	}
+	CURVNET_RESTORE();
 done:
 	/* flush active streams */
 	tcp_lro_rx_done(lc);
 
 	lc->lro_mbuf_count = 0;
-
-	CURVNET_RESTORE();
 }
 
 #ifdef TCPHPTS
