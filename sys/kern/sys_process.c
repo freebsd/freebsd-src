@@ -604,10 +604,17 @@ proc_set_traced(struct proc *p, bool stop)
 static int
 proc_can_ptrace(struct thread *td, struct proc *p)
 {
+	int error;
+
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	if ((p->p_flag & P_WEXIT) != 0)
 		return (ESRCH);
+
+	if ((error = p_cansee(td, p)) != 0)
+		return (error);
+	if ((error = p_candebug(td, p)) != 0)
+		return (error);
 
 	/* not being traced... */
 	if ((p->p_flag & P_TRACED) == 0)
@@ -640,10 +647,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 #ifdef COMPAT_FREEBSD32
 	int wrap32 = 0, safe = 0;
 #endif
-	bool proctree_locked;
+	bool proctree_locked, p2_req_set;
 
 	curp = td->td_proc;
 	proctree_locked = false;
+	p2_req_set = false;
 
 	/* Lock proctree before locking the process. */
 	switch (req) {
@@ -782,15 +790,47 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 		/* FALLTHROUGH */
 	default:
+		/*
+		 * Check for ptrace eligibility before waiting for
+		 * holds to drain.
+		 */
 		error = proc_can_ptrace(td, p);
 		if (error != 0)
 			goto fail;
+
+		/*
+		 * Block parallel ptrace requests.  Most important, do
+		 * not allow other thread in debugger to continue the
+		 * debuggee until coredump finished.
+		 */
+		while ((p->p_flag2 & P2_PTRACEREQ) != 0) {
+			if (proctree_locked)
+				sx_xunlock(&proctree_lock);
+			error = msleep(&p->p_flag2, &p->p_mtx, PPAUSE | PCATCH |
+			    (proctree_locked ? PDROP : 0), "pptrace", 0);
+			if (proctree_locked) {
+				sx_xlock(&proctree_lock);
+				PROC_LOCK(p);
+			}
+			if (error == 0 && td2->td_proc != p)
+				error = ESRCH;
+			if (error == 0)
+				error = proc_can_ptrace(td, p);
+			if (error != 0)
+				goto fail;
+		}
 
 		/* Ok */
 		break;
 	}
 
-	/* Keep this process around until we finish this request. */
+	/*
+	 * Keep this process around and request parallel ptrace()
+	 * request to wait until we finish this request.
+	 */
+	MPASS((p->p_flag2 & P2_PTRACEREQ) == 0);
+	p->p_flag2 |= P2_PTRACEREQ;
+	p2_req_set = true;
 	_PHOLD(p);
 
 	/*
@@ -1325,6 +1365,11 @@ out:
 	/* Drop our hold on this process now that the request has completed. */
 	_PRELE(p);
 fail:
+	if (p2_req_set) {
+		if ((p->p_flag2 & P2_PTRACEREQ) != 0)
+			wakeup(&p->p_flag2);
+		p->p_flag2 &= ~P2_PTRACEREQ;
+	}
 	PROC_UNLOCK(p);
 	if (proctree_locked)
 		sx_xunlock(&proctree_lock);
