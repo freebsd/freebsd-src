@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2021
+.Dd April 24, 2021
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -690,6 +690,7 @@ for the connection for some defined period of time.
 Disable the host cache.
 .It 1
 Enable the host cache. (default)
+.El
 .It Va hostcache.purgenow
 Immediately purge all entries once set to any value.
 Setting this to 2 will also reseed the hash salt.
@@ -704,6 +705,7 @@ Do not purge all entries when pruning the host cache. (default)
 Purge all entries when doing the next pruning.
 .It 2
 Purge all entries, and also reseed the hash salt.
+.El
 .It Va hostcache.prune
 Time in seconds between pruning expired host cache entries.
 Defaults to 300 (5 minutes).
