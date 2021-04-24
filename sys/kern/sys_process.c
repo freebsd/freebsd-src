@@ -601,6 +601,30 @@ proc_set_traced(struct proc *p, bool stop)
 	p->p_ptevents = PTRACE_DEFAULT;
 }
 
+static int
+proc_can_ptrace(struct thread *td, struct proc *p)
+{
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if ((p->p_flag & P_WEXIT) != 0)
+		return (ESRCH);
+
+	/* not being traced... */
+	if ((p->p_flag & P_TRACED) == 0)
+		return (EPERM);
+
+	/* not being traced by YOU */
+	if (p->p_pptr != td->td_proc)
+		return (EBUSY);
+
+	/* not currently stopped */
+	if ((p->p_flag & P_STOPPED_TRACE) == 0 ||
+	    p->p_suspcount != p->p_numthreads  ||
+	    (p->p_flag & P_WAITED) == 0)
+		return (EBUSY);
+
+	return (0);
+}
 int
 kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 {
@@ -758,27 +782,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 		/* FALLTHROUGH */
 	default:
-		/* not being traced... */
-		if ((p->p_flag & P_TRACED) == 0) {
-			error = EPERM;
+		error = proc_can_ptrace(td, p);
+		if (error != 0)
 			goto fail;
-		}
 
-		/* not being traced by YOU */
-		if (p->p_pptr != td->td_proc) {
-			error = EBUSY;
-			goto fail;
-		}
-
-		/* not currently stopped */
-		if ((p->p_flag & P_STOPPED_TRACE) == 0 ||
-		    p->p_suspcount != p->p_numthreads  ||
-		    (p->p_flag & P_WAITED) == 0) {
-			error = EBUSY;
-			goto fail;
-		}
-
-		/* OK */
+		/* Ok */
 		break;
 	}
 
