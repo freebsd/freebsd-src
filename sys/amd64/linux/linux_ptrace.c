@@ -313,6 +313,8 @@ linux_ptrace_peek(struct thread *td, pid_t pid, void *addr, void *data)
 	error = kern_ptrace(td, PT_READ_I, pid, addr, 0);
 	if (error == 0)
 		error = copyout(td->td_retval, data, sizeof(l_int));
+	else if (error == ENOMEM)
+		error = EIO;
 	td->td_retval[0] = error;
 
 	return (error);
