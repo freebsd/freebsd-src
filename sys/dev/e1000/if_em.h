@@ -342,8 +342,6 @@
 #define EM_VFTA_SIZE		128
 #define EM_TSO_SIZE		65535
 #define EM_TSO_SEG_SIZE		4096	/* Max dma segment size */
-#define EM_MSIX_MASK		0x01F00000 /* For 82574 use */
-#define EM_MSIX_LINK		0x01000000 /* For 82574 use */
 #define ETH_ZLEN		60
 #define ETH_ADDR_LEN		6
 #define EM_CSUM_OFFLOAD		(CSUM_IP | CSUM_IP_UDP | CSUM_IP_TCP) /* Offload bits in mbuf flag */
