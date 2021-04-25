@@ -74,6 +74,7 @@ struct rib_head {
 	rt_gen_t		rnh_gen_rib;	/* fib algo: rib generation counter */
 	uint32_t		rib_dying:1;	/* rib is detaching */
 	uint32_t		rib_algo_fixed:1;/* fixed algorithm */
+	uint32_t		rib_algo_init:1;/* algo init done */
 	struct nh_control	*nh_control;	/* nexthop subsystem data */
 	CK_STAILQ_HEAD(, rib_subscription)	rnh_subscribers;/* notification subscribers */
 };
@@ -326,7 +327,7 @@ int rtsock_addrmsg(int cmd, struct ifaddr *ifa, int fibnum);
 
 /* lookup_framework.c */
 void fib_grow_rtables(uint32_t new_num_tables);
-int fib_select_algo_initial(struct rib_head *rh);
+void fib_setup_family(int family, uint32_t num_tables);
 void fib_destroy_rib(struct rib_head *rh);
 void vnet_fib_init(void);
 void vnet_fib_destroy(void);
