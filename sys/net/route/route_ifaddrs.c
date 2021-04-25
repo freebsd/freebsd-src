@@ -100,7 +100,7 @@ rib_handle_ifaddr_one(uint32_t fibnum, int cmd, struct rt_addrinfo *info)
 int
 rib_handle_ifaddr_info(uint32_t fibnum, int cmd, struct rt_addrinfo *info)
 {
-	int error, last_error = 0;
+	int error = 0, last_error = 0;
 	bool didwork = false;
 
 	if (V_rt_add_addr_allfibs == 0) {
