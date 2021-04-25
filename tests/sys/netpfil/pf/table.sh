@@ -183,10 +183,42 @@ automatic_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "network" "cleanup"
+network_head()
+{
+	atf_set descr 'Test <ifgroup>:network'
+	atf_set require.user root
+}
+
+network_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+		"table <allow> const { epair:network }"\
+		"block in" \
+		"pass in from <allow>"
+
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+}
+
+network_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
 	atf_add_test_case "v6_counters"
 	atf_add_test_case "pr251414"
 	atf_add_test_case "automatic"
+	atf_add_test_case "network"
 }
