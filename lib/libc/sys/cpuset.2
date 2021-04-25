@@ -1,5 +1,6 @@
 .\" Copyright (c) 2008 Christian Brueffer
 .\" Copyright (c) 2008 Jeffrey Roberson
+.\" Copyright (c) 2021 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -180,9 +181,72 @@ The actual contents of the sets may be retrieved or manipulated using
 .Xr cpuset_setaffinity 2 ,
 .Xr cpuset_getdomain 2 , and
 .Xr cpuset_setdomain 2 .
+The
+.Xr cpuset 9
+macros may be used to manipulate masks of type
+.Ft cpuset_t
+get and set using those APIs.
 See those manual pages for more detail.
 .Sh RETURN VALUES
 .Rv -std
+.Sh EXAMPLES
+In this example, a CPU set mask is configured to limit execution to the first
+CPU using
+.Xr CPU_ZERO 9
+and
+.Xr CPU_SET 9 ,
+members of the
+.Xr cpuset 9
+programming interface.
+Then, the mask is applied to a new anonymous CPU set associated with the
+current process using
+.Xr cpuset_setaffinity 2 .
+This mask will be used by the current process, and inherited by any new
+child processes.
+.Bd  -literal -offset indent
+#include <sys/param.h>
+#include <sys/cpuset.h>
+
+#include <sysexits.h>
+
+cpuset_t cpuset_mask;
+
+/* Initialize a CPU mask and enable CPU 0. */
+CPU_ZERO(&cpuset_mask);
+CPU_SET(0, &cpuset_mask);
+
+/* Set affinity for the CPU set for the current process. */
+if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1,
+    sizeof(cpuset_mask), &cpuset_mask) < 0)
+	err(EX_OSERR, "cpuset_setaffinity");
+.Ed
+.Pp
+In the next example, a named CPU set is created containing the current
+process, and its affinity similarly configured.
+The resulting CPU set ID can then be used for further external management of
+the affinity of the set.
+.Bd  -literal -offset indent
+#include <sys/param.h>
+#include <sys/cpuset.h>
+
+#include <sysexits.h>
+
+cpusetid_t cpuset_id;
+cpuset_t cpuset_mask;
+
+/* Create new cpuset for the current process. */
+if (cpuset(&cpuset_id) < 0)
+	err(EX_OSERR, "cpuset");
+
+/* Initialize a CPU mask and enable CPU 0. */
+CPU_ZERO(&cpuset_mask);
+CPU_SET(0, &cpuset_mask);
+
+/* Set affinity for the CPU set for the current process. */
+if (cpuset_setaffinity(CPU_LEVEL_SET, CPU_WHICH_CPUSET, cpuset_id,
+    sizeof(cpuset_mask), &cpuset_mask) < 0)
+	err(EX_OSERR, "cpuset_setaffinity");
+.Ed
 .Sh ERRORS
 The following error codes may be set in
 .Va errno :
@@ -226,6 +290,8 @@ for allocation.
 .Xr cpuset_setdomain 2 ,
 .Xr pthread_affinity_np 3 ,
 .Xr pthread_attr_affinity_np 3 ,
+.Xr CPU_SET 9 ,
+.Xr CPU_ZERO 9 ,
 .Xr cpuset 9
 .Sh HISTORY
 The
