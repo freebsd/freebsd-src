@@ -28,15 +28,17 @@
 #
 
 # PROVIDE: growfs
-# BEFORE: sysctl
+# REQUIRE: fsck
+# BEFORE: root
 # KEYWORD: firstboot
 
 # This allows us to distribute an image
 # and have it work on essentially any size drive.
-#
-# TODO: Figure out where this should really be ordered.
-# I suspect it should go just after fsck but before mountcritlocal.
-# 
+
+# Note that this uses awk(1), and thus will not work if /usr is on a separate
+# filesystem.  We need to run early, because there might be not enough free
+# space on rootfs for the boot to succeed, and on images we ship - which are
+# the primary purpose of this script - there is no separate /usr anyway.
 
 . /etc/rc.subr
 
