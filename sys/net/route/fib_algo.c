@@ -365,7 +365,7 @@ fib_error_clear_flm(struct fib_lookup_module *flm)
  * Clears all errors in current VNET.
  */
 static void
-fib_error_clear()
+fib_error_clear(void)
 {
 	struct fib_error *fe, *fe_tmp;
 
