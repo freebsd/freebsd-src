@@ -1,5 +1,10 @@
 # News
 
+## 4.0.1
+
+This is a production release that only adds one thing: flushing output when it
+is printed with a print statement.
+
 ## 4.0.0
 
 This is a production release with many fixes, a new command-line option, and a

@@ -2034,6 +2034,7 @@ void bc_program_exec(BcProgram *p) {
 			case BC_INST_PRINT_STR:
 			{
 				bc_program_print(p, inst, 0);
+				bc_file_flush(&vm.fout, bc_flush_save);
 				break;
 			}
 
