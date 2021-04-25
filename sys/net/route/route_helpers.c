@@ -129,6 +129,38 @@ rib_walk(uint32_t fibnum, int family, bool wlock, rib_walktree_f_t *wa_f,
 }
 
 /*
+ * Calls @wa_f with @arg for each entry in the table matching @prefix/@mask.
+ *
+ * The following flags are supported:
+ *  RIB_FLAG_WLOCK: acquire exclusive lock
+ *  RIB_FLAG_LOCKED: Assumes the table is already locked & skip locking
+ *
+ * By default, table is traversed under read lock.
+ */
+void
+rib_walk_from(uint32_t fibnum, int family, uint32_t flags, struct sockaddr *prefix,
+    struct sockaddr *mask, rib_walktree_f_t *wa_f, void *arg)
+{
+	RIB_RLOCK_TRACKER;
+	struct rib_head *rnh = rt_tables_get_rnh(fibnum, family);
+
+	if (rnh == NULL)
+		return;
+
+	if (flags & RIB_FLAG_WLOCK)
+		RIB_WLOCK(rnh);
+	else if (!(flags & RIB_FLAG_LOCKED))
+		RIB_RLOCK(rnh);
+
+	rnh->rnh_walktree_from(&rnh->head, prefix, mask, (walktree_f_t *)wa_f, arg);
+
+	if (flags & RIB_FLAG_WLOCK)
+		RIB_WUNLOCK(rnh);
+	else if (!(flags & RIB_FLAG_LOCKED))
+		RIB_RUNLOCK(rnh);
+}
+
+/*
  * Iterates over all existing fibs in system calling
  *  @hook_f function before/after traversing each fib.
  *  Calls @wa_f function for each element in current fib.
