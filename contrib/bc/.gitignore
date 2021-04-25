@@ -68,3 +68,7 @@ core.*
 
 cscope*.out
 tags
+
+*.vcxproj.user
+Debug/*
+Release/*
