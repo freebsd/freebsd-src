@@ -1538,6 +1538,12 @@ SYSCTL_PROC(_net_route_algo_inet6, OID_AUTO, algo,
     set_algo_inet6_sysctl_handler, "A", "Set IPv6 lookup algo");
 #endif
 
+static struct nhop_object *
+dummy_lookup(void *algo_data, const struct flm_lookup_key key, uint32_t scopeid)
+{
+	return (NULL);
+}
+
 static void
 destroy_fdh_epoch(epoch_context_t ctx)
 {
@@ -1556,8 +1562,15 @@ alloc_fib_dp_array(uint32_t num_tables, bool waitok)
 	sz = sizeof(struct fib_dp_header);
 	sz += sizeof(struct fib_dp) * num_tables;
 	fdh = malloc(sz, M_RTABLE, (waitok ? M_WAITOK : M_NOWAIT) | M_ZERO);
-	if (fdh != NULL)
+	if (fdh != NULL) {
 		fdh->fdh_num_tables = num_tables;
+		/*
+		 * Set dummy lookup function ptr always returning NULL, so
+		 * we can delay algo init.
+		 */
+		for (uint32_t i = 0; i < num_tables; i++)
+			fdh->fdh_idx[i].f = dummy_lookup;
+	}
 	return (fdh);
 }
 
@@ -1933,19 +1946,18 @@ fib_check_best_algo(struct rib_head *rh, struct fib_lookup_module *orig_flm)
  * Called when new route table is created.
  * Selects, allocates and attaches fib algo for the table.
  */
-int
-fib_select_algo_initial(struct rib_head *rh)
+static bool
+fib_select_algo_initial(struct rib_head *rh, struct fib_dp *dp)
 {
 	struct fib_lookup_module *flm;
 	struct fib_data *fd = NULL;
 	enum flm_op_result result;
 	struct epoch_tracker et;
-	int error = 0;
 
 	flm = fib_check_best_algo(rh, NULL);
 	if (flm == NULL) {
 		RH_PRINTF(LOG_CRIT, rh, "no algo selected");
-		return (ENOENT);
+		return (false);
 	}
 	RH_PRINTF(LOG_INFO, rh, "selected algo %s", flm->flm_name);
 
@@ -1956,29 +1968,58 @@ fib_select_algo_initial(struct rib_head *rh)
 	NET_EPOCH_EXIT(et);
 
 	RH_PRINTF(LOG_DEBUG, rh, "result=%d fd=%p", result, fd);
-	if (result == FLM_SUCCESS) {
-
-		/*
-		 * Attach datapath directly to avoid multiple reallocations
-		 * during fib growth
-		 */
-		struct fib_dp_header *fdp;
-		struct fib_dp **pdp;
-
-		pdp = get_family_dp_ptr(rh->rib_family);
-		if (pdp != NULL) {
-			fdp = get_fib_dp_header(*pdp);
-			fdp->fdh_idx[fd->fd_fibnum] = fd->fd_dp;
-			FD_PRINTF(LOG_INFO, fd, "datapath attached");
-		}
-	} else {
-		error = EINVAL;
+	if (result == FLM_SUCCESS)
+		*dp = fd->fd_dp;
+	else
 		RH_PRINTF(LOG_CRIT, rh, "unable to setup algo %s", flm->flm_name);
-	}
 
 	fib_unref_algo(flm);
 
-	return (error);
+	return (result == FLM_SUCCESS);
+}
+
+/*
+ * Sets up fib algo instances for the non-initialized RIBs in the @family.
+ * Allocates temporary datapath index to amortize datapaint index updates
+ * with large @num_tables.
+ */
+void
+fib_setup_family(int family, uint32_t num_tables)
+{
+	struct fib_dp_header *new_fdh = alloc_fib_dp_array(num_tables, false);
+	if (new_fdh == NULL) {
+		ALGO_PRINTF(LOG_CRIT, "Unable to setup framework for %s", print_family(family));
+		return;
+	}
+
+	for (int i = 0; i < num_tables; i++) {
+		struct rib_head *rh = rt_tables_get_rnh(i, family);
+		if (rh->rib_algo_init)
+			continue;
+		if (!fib_select_algo_initial(rh, &new_fdh->fdh_idx[i]))
+			continue;
+
+		rh->rib_algo_init = true;
+	}
+
+	FIB_MOD_LOCK();
+	struct fib_dp **pdp = get_family_dp_ptr(family);
+	struct fib_dp_header *old_fdh = get_fib_dp_header(*pdp);
+
+	/* Update the items not touched by the new init, from the old data pointer */
+	for (int i = 0; i < num_tables; i++) {
+		if (new_fdh->fdh_idx[i].f == dummy_lookup)
+			new_fdh->fdh_idx[i] = old_fdh->fdh_idx[i];
+	}
+
+	/* Ensure all index writes have completed */
+	atomic_thread_fence_rel();
+	/* Set new datapath pointer */
+	*pdp = &new_fdh->fdh_idx[0];
+
+	FIB_MOD_UNLOCK();
+
+	fib_epoch_call(destroy_fdh_epoch, &old_fdh->fdh_epoch_ctx);
 }
 
 /*
