@@ -239,7 +239,9 @@ SYSCTL_INT(_net_route_algo, OID_AUTO, debug_level, CTLFLAG_RW | CTLFLAG_RWTUN,
 #endif
 
 #define	_PASS_MSG(_l)	(flm_debug_level >= (_l))
-#define	ALGO_PRINTF(_fmt, ...)	printf("[fib_algo] %s: " _fmt "\n", __func__, ##__VA_ARGS__)
+#define	ALGO_PRINTF(_l, _fmt, ...)	if (_PASS_MSG(_l)) {		\
+	printf("[fib_algo] %s: " _fmt "\n", __func__, ##__VA_ARGS__);	\
+}
 #define	_ALGO_PRINTF(_fib, _fam, _aname, _gen, _func, _fmt, ...) \
     printf("[fib_algo] %s.%u (%s#%u) %s: " _fmt "\n",\
     print_family(_fam), _fib, _aname, _gen, _func, ## __VA_ARGS__)
@@ -1971,7 +1973,7 @@ fib_module_register(struct fib_lookup_module *flm)
 {
 
 	FIB_MOD_LOCK();
-	ALGO_PRINTF("attaching %s to %s", flm->flm_name,
+	ALGO_PRINTF(LOG_INFO, "attaching %s to %s", flm->flm_name,
 	    print_family(flm->flm_family));
 	TAILQ_INSERT_TAIL(&all_algo_list, flm, entries);
 	FIB_MOD_UNLOCK();
@@ -1995,7 +1997,7 @@ fib_module_unregister(struct fib_lookup_module *flm)
 		return (EBUSY);
 	}
 	fib_error_clear_flm(flm);
-	ALGO_PRINTF("detaching %s from %s", flm->flm_name,
+	ALGO_PRINTF(LOG_INFO, "detaching %s from %s", flm->flm_name,
 	    print_family(flm->flm_family));
 	TAILQ_REMOVE(&all_algo_list, flm, entries);
 	FIB_MOD_UNLOCK();
