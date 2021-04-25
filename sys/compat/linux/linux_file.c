@@ -1111,7 +1111,7 @@ linux_link(struct thread *td, struct linux_link_args *args)
 
 	if (!LUSECONVPATH(td)) {
 		return (kern_linkat(td, AT_FDCWD, AT_FDCWD, args->path, args->to,
-		    UIO_USERSPACE, FOLLOW));
+		    UIO_USERSPACE, AT_SYMLINK_FOLLOW));
 	}
 	LCONVPATHEXIST(td, args->path, &path);
 	/* Expand LCONVPATHCREATE so that `path' can be freed on errors */
@@ -1121,7 +1121,7 @@ linux_link(struct thread *td, struct linux_link_args *args)
 		return (error);
 	}
 	error = kern_linkat(td, AT_FDCWD, AT_FDCWD, path, to, UIO_SYSSPACE,
-	    FOLLOW);
+	    AT_SYMLINK_FOLLOW);
 	LFREEPATH(path);
 	LFREEPATH(to);
 	return (error);
@@ -1132,18 +1132,19 @@ int
 linux_linkat(struct thread *td, struct linux_linkat_args *args)
 {
 	char *path, *to;
-	int error, olddfd, newdfd, follow;
+	int error, olddfd, newdfd, flag;
 
 	if (args->flag & ~LINUX_AT_SYMLINK_FOLLOW)
 		return (EINVAL);
 
+	flag = (args->flag & LINUX_AT_SYMLINK_FOLLOW) == 0 ? AT_SYMLINK_FOLLOW :
+	    0;
+
 	olddfd = (args->olddfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->olddfd;
 	newdfd = (args->newdfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->newdfd;
-	follow = (args->flag & LINUX_AT_SYMLINK_FOLLOW) == 0 ? NOFOLLOW :
-	    FOLLOW;
 	if (!LUSECONVPATH(td)) {
 		return (kern_linkat(td, olddfd, newdfd, args->oldname,
-		    args->newname, UIO_USERSPACE, follow));
+		    args->newname, UIO_USERSPACE, flag));
 	}
 	LCONVPATHEXIST_AT(td, args->oldname, &path, olddfd);
 	/* Expand LCONVPATHCREATE so that `path' can be freed on errors */
@@ -1152,7 +1153,7 @@ linux_linkat(struct thread *td, struct linux_linkat_args *args)
 		LFREEPATH(path);
 		return (error);
 	}
-	error = kern_linkat(td, olddfd, newdfd, path, to, UIO_SYSSPACE, follow);
+	error = kern_linkat(td, olddfd, newdfd, path, to, UIO_SYSSPACE, flag);
 	LFREEPATH(path);
 	LFREEPATH(to);
 	return (error);
