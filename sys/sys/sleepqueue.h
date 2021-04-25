@@ -100,6 +100,7 @@ void	sleepq_release(const void *wchan);
 void	sleepq_remove(struct thread *td, const void *wchan);
 int	sleepq_remove_matching(struct sleepqueue *sq, int queue,
 	    bool (*matches)(struct thread *), int pri);
+void	sleepq_remove_nested(struct thread *td);
 int	sleepq_signal(const void *wchan, int flags, int pri, int queue);
 void	sleepq_set_timeout_sbt(const void *wchan, sbintime_t sbt,
 	    sbintime_t pr, int flags);

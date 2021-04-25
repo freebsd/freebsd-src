@@ -854,6 +854,26 @@ sleepq_remove_thread(struct sleepqueue *sq, struct thread *td)
 	    (void *)td, (long)td->td_proc->p_pid, td->td_name);
 }
 
+void
+sleepq_remove_nested(struct thread *td)
+{
+	struct sleepqueue_chain *sc;
+	struct sleepqueue *sq;
+	const void *wchan;
+
+	MPASS(TD_ON_SLEEPQ(td));
+
+	wchan = td->td_wchan;
+	sc = SC_LOOKUP(wchan);
+	mtx_lock_spin(&sc->sc_lock);
+	sq = sleepq_lookup(wchan);
+	MPASS(sq != NULL);
+	thread_lock(td);
+	sleepq_remove_thread(sq, td);
+	mtx_unlock_spin(&sc->sc_lock);
+	/* Returns with the thread lock owned. */
+}
+
 #ifdef INVARIANTS
 /*
  * UMA zone item deallocator.
