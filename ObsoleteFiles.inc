@@ -40,6 +40,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210426: remove unused libexec/rc.d/addswap
+OLD_FILES+=etc/rc.d/addswap
+
 # 20210413: Remove pfctlinput2
 OLD_FILES+=usr/share/man/man9/pfctlinput2.9.gz
 
