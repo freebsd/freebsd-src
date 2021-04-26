@@ -653,7 +653,7 @@ static int em_get_regs(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(sb, "General Registers\n");
 	sbuf_printf(sb, "\tCTRL\t %08x\n", regs_buff[0]);
 	sbuf_printf(sb, "\tSTATUS\t %08x\n", regs_buff[1]);
-	sbuf_printf(sb, "\tCTRL_EXIT\t %08x\n\n", regs_buff[2]);
+	sbuf_printf(sb, "\tCTRL_EXT\t %08x\n\n", regs_buff[2]);
 
 	sbuf_printf(sb, "Interrupt Registers\n");
 	sbuf_printf(sb, "\tICR\t %08x\n\n", regs_buff[3]);
