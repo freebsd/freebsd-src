@@ -4562,7 +4562,8 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 		if ((clp->lc_flags & LCL_NFSV41) != 0) {
 			error = ECONNREFUSED;
 			if (procnum != NFSV4PROC_CBNULL)
-				nfsv4_freeslot(&sep->sess_cbsess, slotpos);
+				nfsv4_freeslot(&sep->sess_cbsess, slotpos,
+				    true);
 			nfsrv_freesession(sep, NULL);
 		} else if (nd->nd_procnum == NFSV4PROC_CBNULL)
 			error = newnfs_connect(NULL, &clp->lc_req, cred,
@@ -4594,8 +4595,24 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 				error = ECONNREFUSED;
 			}
 			NFSD_DEBUG(4, "aft newnfs_request=%d\n", error);
-			if (error != 0 && procnum != NFSV4PROC_CBNULL)
-				nfsv4_freeslot(&sep->sess_cbsess, slotpos);
+			if (error != 0 && procnum != NFSV4PROC_CBNULL) {
+				/*
+				 * It is likely that the callback was never
+				 * processed by the client and, as such,
+				 * the sequence# for the session slot needs
+				 * to be backed up by one to avoid a
+				 * NFSERR_SEQMISORDERED error reply.
+				 * For the unlikely case where the callback
+				 * was processed by the client, this will
+				 * make the next callback on the slot
+				 * appear to be a retry.
+				 * Since callbacks never specify that the
+				 * reply be cached, this "apparent retry"
+				 * should not be a problem.
+				 */
+				nfsv4_freeslot(&sep->sess_cbsess, slotpos,
+				    true);
+			}
 			nfsrv_freesession(sep, NULL);
 		} else
 			error = newnfs_request(nd, NULL, clp, &clp->lc_req,
