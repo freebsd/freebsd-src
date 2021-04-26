@@ -27,6 +27,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20210426:
+	Commit 875977314881 changed the internal KAPI between
+	the nfsd and nfscommon modules.  As such these modules
+	need to be rebuilt from sources.
+	Without this patch in your NFSv4.1/4.2 server, enabling
+	delegations by setting vfs.nfsd.issue_delegations non-zero
+	is not recommended.
+
 20210411:
 	Commit 7763814fc9c2 changed the internal KAPI between
 	the krpc and NFS.  As such, the krpc, nfscommon and
