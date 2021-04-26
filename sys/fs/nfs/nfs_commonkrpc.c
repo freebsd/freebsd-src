@@ -871,7 +871,7 @@ tryagain:
 			sep->nfsess_slotseq[nd->nd_slotid] += 10;
 			mtx_unlock(&sep->nfsess_mtx);
 			/* And free the slot. */
-			nfsv4_freeslot(sep, nd->nd_slotid);
+			nfsv4_freeslot(sep, nd->nd_slotid, false);
 		}
 		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
 		error = ENXIO;
@@ -1108,7 +1108,7 @@ tryagain:
 		if ((nd->nd_flag & ND_NFSV4) != 0) {
 			/* Free the slot, as required. */
 			if (freeslot != -1)
-				nfsv4_freeslot(sep, freeslot);
+				nfsv4_freeslot(sep, freeslot, false);
 			/*
 			 * If this op is Putfh, throw its results away.
 			 */
