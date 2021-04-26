@@ -148,7 +148,8 @@ static int nfscl_trylock(struct nfsmount *, vnode_t , u_int8_t *,
     struct ucred *, NFSPROC_T *);
 static int nfsrpc_reopen(struct nfsmount *, u_int8_t *, int, u_int32_t,
     struct nfsclopen *, struct nfscldeleg **, struct ucred *, NFSPROC_T *);
-static void nfscl_freedeleg(struct nfscldeleghead *, struct nfscldeleg *);
+static void nfscl_freedeleg(struct nfscldeleghead *, struct nfscldeleg *,
+    bool);
 static int nfscl_errmap(struct nfsrv_descript *, u_int32_t);
 static void nfscl_cleanup_common(struct nfsclclient *, u_int8_t *);
 static int nfscl_recalldeleg(struct nfsclclient *, struct nfsmount *,
@@ -1610,12 +1611,13 @@ nfscl_cleandeleg(struct nfscldeleg *dp)
  * Free a delegation.
  */
 static void
-nfscl_freedeleg(struct nfscldeleghead *hdp, struct nfscldeleg *dp)
+nfscl_freedeleg(struct nfscldeleghead *hdp, struct nfscldeleg *dp, bool freeit)
 {
 
 	TAILQ_REMOVE(hdp, dp, nfsdl_list);
 	LIST_REMOVE(dp, nfsdl_hash);
-	free(dp, M_NFSCLDELEG);
+	if (freeit)
+		free(dp, M_NFSCLDELEG);
 	nfsstatsv1.cldelegates--;
 	nfscl_delegcnt--;
 }
@@ -1713,7 +1715,7 @@ nfscl_expireclient(struct nfsclclient *clp, struct nfsmount *nmp,
 		printf("nfsv4 expired locks lost\n");
 	    }
 	    nfscl_cleandeleg(dp);
-	    nfscl_freedeleg(&clp->nfsc_deleg, dp);
+	    nfscl_freedeleg(&clp->nfsc_deleg, dp, true);
 	    dp = ndp;
 	}
 	if (!TAILQ_EMPTY(&clp->nfsc_deleg))
@@ -2230,7 +2232,7 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 		     * away. Ouch!!
 		     */
 		    nfscl_cleandeleg(dp);
-		    nfscl_freedeleg(&clp->nfsc_deleg, dp);
+		    nfscl_freedeleg(&clp->nfsc_deleg, dp, true);
 		} else {
 		    LIST_INSERT_HEAD(&extra_open, nop, nfso_list);
 		}
@@ -3247,8 +3249,37 @@ nfscl_delegreturnall(struct nfsclclient *clp, NFSPROC_T *p)
 	TAILQ_FOREACH_SAFE(dp, &clp->nfsc_deleg, nfsdl_list, ndp) {
 		nfscl_cleandeleg(dp);
 		(void) nfscl_trydelegreturn(dp, cred, clp->nfsc_nmp, p);
-		nfscl_freedeleg(&clp->nfsc_deleg, dp);
+		nfscl_freedeleg(&clp->nfsc_deleg, dp, true);
 	}
+	NFSFREECRED(cred);
+}
+
+/*
+ * Return any delegation for this vp.
+ */
+void
+nfscl_delegreturnvp(vnode_t vp, NFSPROC_T *p)
+{
+	struct nfsclclient *clp;
+	struct nfscldeleg *dp;
+	struct ucred *cred;
+	struct nfsnode *np;
+
+	np = VTONFS(vp);
+	cred = newnfs_getcred();
+	NFSLOCKCLSTATE();
+	clp = VFSTONFS(vp->v_mount)->nm_clp;
+	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh,
+	    np->n_fhp->nfh_len);
+	if (dp != NULL) {
+		nfscl_cleandeleg(dp);
+		nfscl_freedeleg(&clp->nfsc_deleg, dp, false);
+		NFSUNLOCKCLSTATE();
+		newnfs_copycred(&dp->nfsdl_cred, cred);
+		nfscl_trydelegreturn(dp, cred, clp->nfsc_nmp, p);
+		free(dp, M_NFSCLDELEG);
+	} else
+		NFSUNLOCKCLSTATE();
 	NFSFREECRED(cred);
 }
 
@@ -4478,7 +4509,7 @@ nfscl_removedeleg(vnode_t vp, NFSPROC_T *p, nfsv4stateid_t *stp)
 		    *stp = dp->nfsdl_stateid;
 		    retcnt = 1;
 		    nfscl_cleandeleg(dp);
-		    nfscl_freedeleg(&clp->nfsc_deleg, dp);
+		    nfscl_freedeleg(&clp->nfsc_deleg, dp, true);
 		}
 		if (igotlock)
 		    nfsv4_unlock(&clp->nfsc_lock, 0);
@@ -4578,7 +4609,7 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 		    retcnt++;
 		    *gotfdp = 1;
 		    nfscl_cleandeleg(dp);
-		    nfscl_freedeleg(&clp->nfsc_deleg, dp);
+		    nfscl_freedeleg(&clp->nfsc_deleg, dp, true);
 		}
 		if (igotlock) {
 		    nfsv4_unlock(&clp->nfsc_lock, 0);
@@ -4614,7 +4645,7 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 			retcnt++;
 			*gottdp = 1;
 			nfscl_cleandeleg(dp);
-			nfscl_freedeleg(&clp->nfsc_deleg, dp);
+			nfscl_freedeleg(&clp->nfsc_deleg, dp, true);
 		    }
 		}
 		NFSUNLOCKCLSTATE();
