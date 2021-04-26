@@ -4611,10 +4611,7 @@ process_control_chunks:
 		    chunk_buf);
 		if (ch == NULL) {
 			*offset = length;
-			if (stcb != NULL) {
-				SCTP_TCB_UNLOCK(stcb);
-			}
-			return (NULL);
+			return (stcb);
 		}
 
 		num_chunks++;
@@ -4648,12 +4645,12 @@ process_control_chunks:
 			/* The INIT chunk must be the only chunk. */
 			if ((num_chunks > 1) ||
 			    (length - *offset > (int)SCTP_SIZE32(chk_length))) {
-				/* RFC 4960 requires that no ABORT is sent */
+				/*
+				 * RFC 4960bis requires stopping the
+				 * processing of the packet.
+				 */
 				*offset = length;
-				if (stcb != NULL) {
-					SCTP_TCB_UNLOCK(stcb);
-				}
-				return (NULL);
+				return (stcb);
 			}
 			/* Honor our resource limit. */
 			if (chk_length > SCTP_LARGEST_INIT_ACCEPTED) {
