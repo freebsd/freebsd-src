@@ -213,8 +213,9 @@ void NativeProcessFreeBSD::MonitorSIGTRAP(lldb::pid_t pid) {
       llvm::Error error = t.CopyWatchpointsFrom(
           static_cast<NativeThreadFreeBSD &>(*GetCurrentThread()));
       if (error) {
-        LLDB_LOG(log, "failed to copy watchpoints to new thread {0}: {1}",
-                 info.pl_lwpid, llvm::toString(std::move(error)));
+        LLDB_LOG_ERROR(log, std::move(error),
+                       "failed to copy watchpoints to new thread {1}: {0}",
+                       info.pl_lwpid);
         SetState(StateType::eStateInvalid);
         return;
       }
@@ -264,19 +265,35 @@ void NativeProcessFreeBSD::MonitorSIGTRAP(lldb::pid_t pid) {
 
     switch (info.pl_siginfo.si_code) {
     case TRAP_BRKPT:
+      LLDB_LOG(log, "SIGTRAP/TRAP_BRKPT: si_addr: {0}",
+               info.pl_siginfo.si_addr);
+
       if (thread) {
-        thread->SetStoppedByBreakpoint();
+        auto thread_info =
+            m_threads_stepping_with_breakpoint.find(thread->GetID());
+        if (thread_info != m_threads_stepping_with_breakpoint.end()) {
+          thread->SetStoppedByTrace();
+          Status brkpt_error = RemoveBreakpoint(thread_info->second);
+          if (brkpt_error.Fail())
+            LLDB_LOG(log, "pid = {0} remove stepping breakpoint: {1}",
+                     thread_info->first, brkpt_error);
+          m_threads_stepping_with_breakpoint.erase(thread_info);
+        } else
+          thread->SetStoppedByBreakpoint();
         FixupBreakpointPCAsNeeded(*thread);
       }
       SetState(StateType::eStateStopped, true);
       return;
     case TRAP_TRACE:
+      LLDB_LOG(log, "SIGTRAP/TRAP_TRACE: si_addr: {0}",
+               info.pl_siginfo.si_addr);
+
       if (thread) {
         auto &regctx = static_cast<NativeRegisterContextFreeBSD &>(
             thread->GetRegisterContext());
         uint32_t wp_index = LLDB_INVALID_INDEX32;
-        Status error =
-            regctx.GetWatchpointHitIndex(wp_index, LLDB_INVALID_ADDRESS);
+        Status error = regctx.GetWatchpointHitIndex(
+            wp_index, reinterpret_cast<uintptr_t>(info.pl_siginfo.si_addr));
         if (error.Fail())
           LLDB_LOG(log,
                    "received error while checking for watchpoint hits, pid = "
@@ -352,6 +369,27 @@ Status NativeProcessFreeBSD::PtraceWrapper(int req, lldb::pid_t pid, void *addr,
     LLDB_LOG(log, "ptrace() failed: {0}", error);
 
   return error;
+}
+
+llvm::Expected<llvm::ArrayRef<uint8_t>>
+NativeProcessFreeBSD::GetSoftwareBreakpointTrapOpcode(size_t size_hint) {
+  static const uint8_t g_arm_opcode[] = {0xfe, 0xde, 0xff, 0xe7};
+  static const uint8_t g_thumb_opcode[] = {0x01, 0xde};
+
+  switch (GetArchitecture().GetMachine()) {
+  case llvm::Triple::arm:
+    switch (size_hint) {
+    case 2:
+      return llvm::makeArrayRef(g_thumb_opcode);
+    case 4:
+      return llvm::makeArrayRef(g_arm_opcode);
+    default:
+      return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                     "Unrecognised trap opcode size hint!");
+    }
+  default:
+    return NativeProcessProtocol::GetSoftwareBreakpointTrapOpcode(size_hint);
+  }
 }
 
 Status NativeProcessFreeBSD::Resume(const ResumeActionList &resume_actions) {
@@ -623,9 +661,8 @@ size_t NativeProcessFreeBSD::UpdateThreads() { return m_threads.size(); }
 Status NativeProcessFreeBSD::SetBreakpoint(lldb::addr_t addr, uint32_t size,
                                            bool hardware) {
   if (hardware)
-    return Status("NativeProcessFreeBSD does not support hardware breakpoints");
-  else
-    return SetSoftwareBreakpoint(addr, size);
+    return SetHardwareBreakpoint(addr, size);
+  return SetSoftwareBreakpoint(addr, size);
 }
 
 Status NativeProcessFreeBSD::GetLoadedModuleFileSpec(const char *module_path,
@@ -877,4 +914,8 @@ Status NativeProcessFreeBSD::ReinitializeThreads() {
     AddThread(lwp);
 
   return error;
+}
+
+bool NativeProcessFreeBSD::SupportHardwareSingleStepping() const {
+  return !m_arch.IsMIPS();
 }

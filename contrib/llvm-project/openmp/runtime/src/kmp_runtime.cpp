@@ -32,7 +32,7 @@
 #include "ompt-specific.h"
 #endif
 
-#if OMPTARGET_PROFILING_SUPPORT
+#if OMP_PROFILING_SUPPORT
 #include "llvm/Support/TimeProfiler.h"
 static char *ProfileTraceFile = nullptr;
 #endif
@@ -919,6 +919,12 @@ static int __kmp_reserve_threads(kmp_root_t *root, kmp_team_t *parent_team,
   capacity = __kmp_threads_capacity;
   if (TCR_PTR(__kmp_threads[0]) == NULL) {
     --capacity;
+  }
+  // If it is not for initializing the hidden helper team, we need to take
+  // __kmp_hidden_helper_threads_num out of the capacity because it is included
+  // in __kmp_threads_capacity.
+  if (__kmp_enable_hidden_helper && !TCR_4(__kmp_init_hidden_helper_threads)) {
+    capacity -= __kmp_hidden_helper_threads_num;
   }
   if (__kmp_nth + new_nthreads -
           (root->r.r_active ? 1 : root->r.r_hot_team->t.t_nproc) >
@@ -3632,6 +3638,13 @@ int __kmp_register_root(int initial_thread) {
     --capacity;
   }
 
+  // If it is not for initializing the hidden helper team, we need to take
+  // __kmp_hidden_helper_threads_num out of the capacity because it is included
+  // in __kmp_threads_capacity.
+  if (__kmp_enable_hidden_helper && !TCR_4(__kmp_init_hidden_helper_threads)) {
+    capacity -= __kmp_hidden_helper_threads_num;
+  }
+
   /* see if there are too many threads */
   if (__kmp_all_nth >= capacity && !__kmp_expand_threads(1)) {
     if (__kmp_tp_cached) {
@@ -3664,7 +3677,7 @@ int __kmp_register_root(int initial_thread) {
     /* find an available thread slot */
     // Don't reassign the zero slot since we need that to only be used by
     // initial thread. Slots for hidden helper threads should also be skipped.
-    if (initial_thread && __kmp_threads[0] == NULL) {
+    if (initial_thread && TCR_PTR(__kmp_threads[0]) == NULL) {
       gtid = 0;
     } else {
       for (gtid = __kmp_hidden_helper_threads_num + 1;
@@ -5740,7 +5753,7 @@ void __kmp_free_thread(kmp_info_t *this_th) {
 /* ------------------------------------------------------------------------ */
 
 void *__kmp_launch_thread(kmp_info_t *this_thr) {
-#if OMPTARGET_PROFILING_SUPPORT
+#if OMP_PROFILING_SUPPORT
   ProfileTraceFile = getenv("LIBOMPTARGET_PROFILE");
   // TODO: add a configuration option for time granularity
   if (ProfileTraceFile)
@@ -5848,7 +5861,7 @@ void *__kmp_launch_thread(kmp_info_t *this_thr) {
   KA_TRACE(10, ("__kmp_launch_thread: T#%d done\n", gtid));
   KMP_MB();
 
-#if OMPTARGET_PROFILING_SUPPORT
+#if OMP_PROFILING_SUPPORT
   llvm::timeTraceProfilerFinishThread();
 #endif
   return this_thr;

@@ -147,7 +147,7 @@ std::error_code SampleProfileWriterExtBinaryBase::write(
 std::error_code
 SampleProfileWriterExtBinaryBase::writeSample(const FunctionSamples &S) {
   uint64_t Offset = OutputStream->tell();
-  StringRef Name = S.getName();
+  StringRef Name = S.getNameWithContext(true);
   FuncOffsetTable[Name] = Offset - SecLBRProfileStart;
   encodeULEB128(S.getHeadSamples(), *OutputStream);
   return writeBody(S);
@@ -360,10 +360,7 @@ std::error_code SampleProfileWriterCompactBinary::write(
 /// it needs to be parsed by the SampleProfileReaderText class.
 std::error_code SampleProfileWriterText::writeSample(const FunctionSamples &S) {
   auto &OS = *OutputStream;
-  if (FunctionSamples::ProfileIsCS)
-    OS << "[" << S.getNameWithContext() << "]:" << S.getTotalSamples();
-  else
-    OS << S.getName() << ":" << S.getTotalSamples();
+  OS << S.getNameWithContext(true) << ":" << S.getTotalSamples();
   if (Indent == 0)
     OS << ":" << S.getHeadSamples();
   OS << "\n";
@@ -635,7 +632,7 @@ std::error_code SampleProfileWriterBinary::writeSummary() {
 std::error_code SampleProfileWriterBinary::writeBody(const FunctionSamples &S) {
   auto &OS = *OutputStream;
 
-  if (std::error_code EC = writeNameIdx(S.getName()))
+  if (std::error_code EC = writeNameIdx(S.getNameWithContext(true)))
     return EC;
 
   encodeULEB128(S.getTotalSamples(), OS);
@@ -752,9 +749,5 @@ SampleProfileWriter::create(std::unique_ptr<raw_ostream> &OS,
 void SampleProfileWriter::computeSummary(
     const StringMap<FunctionSamples> &ProfileMap) {
   SampleProfileSummaryBuilder Builder(ProfileSummaryBuilder::DefaultCutoffs);
-  for (const auto &I : ProfileMap) {
-    const FunctionSamples &Profile = I.second;
-    Builder.addRecord(Profile);
-  }
-  Summary = Builder.getSummary();
+  Summary = Builder.computeSummaryForProfiles(ProfileMap);
 }

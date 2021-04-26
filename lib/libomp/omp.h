@@ -153,6 +153,85 @@
     extern int   __KAI_KMPC_CONVENTION  omp_get_device_num (void);
     typedef void * omp_depend_t;
 
+    /* OpenMP 5.1 interop */
+    typedef intptr_t omp_intptr_t;
+
+    /* 0..omp_get_num_interop_properties()-1 are reserved for implementation-defined properties */
+    typedef enum omp_interop_property {
+        omp_ipr_fr_id = -1,
+        omp_ipr_fr_name = -2,
+        omp_ipr_vendor = -3,
+        omp_ipr_vendor_name = -4,
+        omp_ipr_device_num = -5,
+        omp_ipr_platform = -6,
+        omp_ipr_device = -7,
+        omp_ipr_device_context = -8,
+        omp_ipr_targetsync = -9,
+        omp_ipr_first = -9
+    } omp_interop_property_t;
+
+    #define omp_interop_none 0
+
+    typedef enum omp_interop_rc {
+        omp_irc_no_value = 1,
+        omp_irc_success = 0,
+        omp_irc_empty = -1,
+        omp_irc_out_of_range = -2,
+        omp_irc_type_int = -3,
+        omp_irc_type_ptr = -4,
+        omp_irc_type_str = -5,
+        omp_irc_other = -6
+    } omp_interop_rc_t;
+
+    typedef void * omp_interop_t;
+
+    /*!
+     * The `omp_get_num_interop_properties` routine retrieves the number of implementation-defined properties available for an `omp_interop_t` object.
+     */
+    extern int          __KAI_KMPC_CONVENTION  omp_get_num_interop_properties(const omp_interop_t);
+    /*!
+     * The `omp_get_interop_int` routine retrieves an integer property from an `omp_interop_t` object.
+     */
+    extern omp_intptr_t __KAI_KMPC_CONVENTION  omp_get_interop_int(const omp_interop_t, omp_interop_property_t, int *);
+    /*!
+     * The `omp_get_interop_ptr` routine retrieves a pointer property from an `omp_interop_t` object.
+     */
+    extern void *       __KAI_KMPC_CONVENTION  omp_get_interop_ptr(const omp_interop_t, omp_interop_property_t, int *);
+    /*!
+     * The `omp_get_interop_str` routine retrieves a string property from an `omp_interop_t` object.
+     */
+    extern const char * __KAI_KMPC_CONVENTION  omp_get_interop_str(const omp_interop_t, omp_interop_property_t, int *);
+    /*!
+     * The `omp_get_interop_name` routine retrieves a property name from an `omp_interop_t` object.
+     */
+    extern const char * __KAI_KMPC_CONVENTION  omp_get_interop_name(const omp_interop_t, omp_interop_property_t);
+    /*!
+     * The `omp_get_interop_type_desc` routine retrieves a description of the type of a property associated with an `omp_interop_t` object.
+     */
+    extern const char * __KAI_KMPC_CONVENTION  omp_get_interop_type_desc(const omp_interop_t, omp_interop_property_t);
+    /*!
+     * The `omp_get_interop_rc_desc` routine retrieves a description of the return code associated with an `omp_interop_t` object.
+     */
+    extern const char * __KAI_KMPC_CONVENTION  omp_get_interop_rc_desc(const omp_interop_rc_t, omp_interop_rc_t);
+
+    /* OpenMP 5.1 device memory routines */
+
+    /*!
+     * The `omp_target_memcpy_async` routine asynchronously performs a copy between any combination of host and device pointers.
+     */
+    extern int    __KAI_KMPC_CONVENTION  omp_target_memcpy_async(void *, const void *, size_t, size_t, size_t, int,
+                                             int, int, omp_depend_t *);
+    /*!
+     * The `omp_target_memcpy_rect_async` routine asynchronously performs a copy between any combination of host and device pointers.
+     */
+    extern int    __KAI_KMPC_CONVENTION  omp_target_memcpy_rect_async(void *, const void *, size_t, int, const size_t *,
+                                             const size_t *, const size_t *, const size_t *, const size_t *, int, int,
+                                             int, omp_depend_t *);
+    /*!
+     * The `omp_get_mapped_ptr` routine returns the device pointer that is associated with a host pointer for a given device.
+     */
+    extern void * __KAI_KMPC_CONVENTION  omp_get_mapped_ptr(const void *, int);
+
     /* kmp API functions */
     extern int    __KAI_KMPC_CONVENTION  kmp_get_stacksize          (void);
     extern void   __KAI_KMPC_CONVENTION  kmp_set_stacksize          (int);
@@ -229,37 +308,38 @@
     typedef uintptr_t omp_uintptr_t;
 
     typedef enum {
-        OMP_ATK_THREADMODEL = 1,
-        OMP_ATK_ALIGNMENT = 2,
-        OMP_ATK_ACCESS = 3,
-        OMP_ATK_POOL_SIZE = 4,
-        OMP_ATK_FALLBACK = 5,
-        OMP_ATK_FB_DATA = 6,
-        OMP_ATK_PINNED = 7,
-        OMP_ATK_PARTITION = 8
+        omp_atk_sync_hint = 1,
+        omp_atk_alignment = 2,
+        omp_atk_access = 3,
+        omp_atk_pool_size = 4,
+        omp_atk_fallback = 5,
+        omp_atk_fb_data = 6,
+        omp_atk_pinned = 7,
+        omp_atk_partition = 8
     } omp_alloctrait_key_t;
 
     typedef enum {
-        OMP_ATV_FALSE = 0,
-        OMP_ATV_TRUE = 1,
-        OMP_ATV_DEFAULT = 2,
-        OMP_ATV_CONTENDED = 3,
-        OMP_ATV_UNCONTENDED = 4,
-        OMP_ATV_SEQUENTIAL = 5,
-        OMP_ATV_PRIVATE = 6,
-        OMP_ATV_ALL = 7,
-        OMP_ATV_THREAD = 8,
-        OMP_ATV_PTEAM = 9,
-        OMP_ATV_CGROUP = 10,
-        OMP_ATV_DEFAULT_MEM_FB = 11,
-        OMP_ATV_NULL_FB = 12,
-        OMP_ATV_ABORT_FB = 13,
-        OMP_ATV_ALLOCATOR_FB = 14,
-        OMP_ATV_ENVIRONMENT = 15,
-        OMP_ATV_NEAREST = 16,
-        OMP_ATV_BLOCKED = 17,
-        OMP_ATV_INTERLEAVED = 18
+        omp_atv_false = 0,
+        omp_atv_true = 1,
+        omp_atv_contended = 3,
+        omp_atv_uncontended = 4,
+        omp_atv_serialized = 5,
+        omp_atv_sequential = omp_atv_serialized, // (deprecated)
+        omp_atv_private = 6,
+        omp_atv_all = 7,
+        omp_atv_thread = 8,
+        omp_atv_pteam = 9,
+        omp_atv_cgroup = 10,
+        omp_atv_default_mem_fb = 11,
+        omp_atv_null_fb = 12,
+        omp_atv_abort_fb = 13,
+        omp_atv_allocator_fb = 14,
+        omp_atv_environment = 15,
+        omp_atv_nearest = 16,
+        omp_atv_blocked = 17,
+        omp_atv_interleaved = 18
     } omp_alloctrait_value_t;
+    #define omp_atv_default ((omp_uintptr_t)-1)
 
     typedef struct {
         omp_alloctrait_key_t key;
@@ -324,9 +404,16 @@
     extern omp_allocator_handle_t __KAI_KMPC_CONVENTION omp_get_default_allocator(void);
 #   ifdef __cplusplus
     extern void *__KAI_KMPC_CONVENTION omp_alloc(size_t size, omp_allocator_handle_t a = omp_null_allocator);
+    extern void *__KAI_KMPC_CONVENTION omp_calloc(size_t nmemb, size_t size, omp_allocator_handle_t a = omp_null_allocator);
+    extern void *__KAI_KMPC_CONVENTION omp_realloc(void *ptr, size_t size,
+                                                   omp_allocator_handle_t allocator = omp_null_allocator,
+                                                   omp_allocator_handle_t free_allocator = omp_null_allocator);
     extern void __KAI_KMPC_CONVENTION omp_free(void * ptr, omp_allocator_handle_t a = omp_null_allocator);
 #   else
     extern void *__KAI_KMPC_CONVENTION omp_alloc(size_t size, omp_allocator_handle_t a);
+    extern void *__KAI_KMPC_CONVENTION omp_calloc(size_t nmemb, size_t size, omp_allocator_handle_t a);
+    extern void *__KAI_KMPC_CONVENTION omp_realloc(void *ptr, size_t size, omp_allocator_handle_t allocator,
+                                                   omp_allocator_handle_t free_allocator);
     extern void __KAI_KMPC_CONVENTION omp_free(void *ptr, omp_allocator_handle_t a);
 #   endif
 
@@ -355,6 +442,9 @@
     extern int __KAI_KMPC_CONVENTION omp_pause_resource_all(omp_pause_resource_t);
 
     extern int __KAI_KMPC_CONVENTION omp_get_supported_active_levels(void);
+
+    /* OpenMP 5.1 Display Environment */
+    extern void omp_display_env(int verbose);
 
 #   undef __KAI_KMPC_CONVENTION
 #   undef __KMP_IMP
