@@ -4669,20 +4669,14 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
-  if (Triple.isOSAIX() && Args.hasArg(options::OPT_maltivec)) {
-    if (Args.getLastArg(options::OPT_mabi_EQ_vec_extabi)) {
-      CmdArgs.push_back("-mabi=vec-extabi");
-    } else {
-      D.Diag(diag::err_aix_default_altivec_abi);
-    }
-  }
-
   if (Arg *A = Args.getLastArg(options::OPT_mabi_EQ_vec_extabi,
                                options::OPT_mabi_EQ_vec_default)) {
     if (!Triple.isOSAIX())
       D.Diag(diag::err_drv_unsupported_opt_for_target)
           << A->getSpelling() << RawTriple.str();
-    if (A->getOption().getID() == options::OPT_mabi_EQ_vec_default)
+    if (A->getOption().getID() == options::OPT_mabi_EQ_vec_extabi)
+      CmdArgs.push_back("-mabi=vec-extabi");
+    else
       D.Diag(diag::err_aix_default_altivec_abi);
   }
 
@@ -5625,6 +5619,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                                options::OPT_fno_reroll_loops))
     if (A->getOption().matches(options::OPT_freroll_loops))
       CmdArgs.push_back("-freroll-loops");
+
+  Args.AddLastArg(CmdArgs, options::OPT_ffinite_loops,
+                  options::OPT_fno_finite_loops);
 
   Args.AddLastArg(CmdArgs, options::OPT_fwritable_strings);
   Args.AddLastArg(CmdArgs, options::OPT_funroll_loops,

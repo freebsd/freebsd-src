@@ -8,7 +8,7 @@
 ///
 /// This file contains the required infrastructure and SDNode patterns to
 /// support code generation for the standard 'V' (Vector) extension, version
-/// 0.9.  This version is still experimental as the 'V' extension hasn't been
+/// 0.10.  This version is still experimental as the 'V' extension hasn't been
 /// ratified yet.
 ///
 /// This file is included from and depends upon RISCVInstrInfoVPseudos.td
@@ -384,8 +384,8 @@ defm "" : VPatBinarySDNode_VV_VX<mulhs, "PseudoVMULH">;
 defm "" : VPatBinarySDNode_VV_VX<mulhu, "PseudoVMULHU">;
 
 // 12.11. Vector Integer Divide Instructions
-defm "" : VPatBinarySDNode_VV_VX<sdiv, "PseudoVDIVU">;
-defm "" : VPatBinarySDNode_VV_VX<udiv, "PseudoVDIV">;
+defm "" : VPatBinarySDNode_VV_VX<udiv, "PseudoVDIVU">;
+defm "" : VPatBinarySDNode_VV_VX<sdiv, "PseudoVDIV">;
 defm "" : VPatBinarySDNode_VV_VX<urem, "PseudoVREMU">;
 defm "" : VPatBinarySDNode_VV_VX<srem, "PseudoVREM">;
 

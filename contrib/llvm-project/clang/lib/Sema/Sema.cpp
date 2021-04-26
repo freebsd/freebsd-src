@@ -14,6 +14,7 @@
 #include "UsedDeclVisitor.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
+#include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclFriend.h"
 #include "clang/AST/DeclObjC.h"
@@ -535,6 +536,13 @@ void Sema::diagnoseZeroToNullptrConversion(CastKind Kind, const Expr* E) {
   if (Kind != CK_NullToPointer && Kind != CK_NullToMemberPointer)
     return;
   if (E->IgnoreParenImpCasts()->getType()->isNullPtrType())
+    return;
+
+  // Don't diagnose the conversion from a 0 literal to a null pointer argument
+  // in a synthesized call to operator<=>.
+  if (!CodeSynthesisContexts.empty() &&
+      CodeSynthesisContexts.back().Kind ==
+          CodeSynthesisContext::RewritingOperatorAsSpaceship)
     return;
 
   // If it is a macro from system header, and if the macro name is not "NULL",
@@ -1733,11 +1741,12 @@ Sema::SemaDiagnosticBuilder::~SemaDiagnosticBuilder() {
   }
 }
 
-Sema::SemaDiagnosticBuilder Sema::targetDiag(SourceLocation Loc,
-                                             unsigned DiagID) {
+Sema::SemaDiagnosticBuilder
+Sema::targetDiag(SourceLocation Loc, unsigned DiagID, FunctionDecl *FD) {
+  FD = FD ? FD : getCurFunctionDecl();
   if (LangOpts.OpenMP)
-    return LangOpts.OpenMPIsDevice ? diagIfOpenMPDeviceCode(Loc, DiagID)
-                                   : diagIfOpenMPHostCode(Loc, DiagID);
+    return LangOpts.OpenMPIsDevice ? diagIfOpenMPDeviceCode(Loc, DiagID, FD)
+                                   : diagIfOpenMPHostCode(Loc, DiagID, FD);
   if (getLangOpts().CUDA)
     return getLangOpts().CUDAIsDevice ? CUDADiagIfDeviceCode(Loc, DiagID)
                                       : CUDADiagIfHostCode(Loc, DiagID);
@@ -1746,7 +1755,7 @@ Sema::SemaDiagnosticBuilder Sema::targetDiag(SourceLocation Loc,
     return SYCLDiagIfDeviceCode(Loc, DiagID);
 
   return SemaDiagnosticBuilder(SemaDiagnosticBuilder::K_Immediate, Loc, DiagID,
-                               getCurFunctionDecl(), *this);
+                               FD, *this);
 }
 
 Sema::SemaDiagnosticBuilder Sema::Diag(SourceLocation Loc, unsigned DiagID,
@@ -1765,15 +1774,14 @@ Sema::SemaDiagnosticBuilder Sema::Diag(SourceLocation Loc, unsigned DiagID,
                                  DiagID, getCurFunctionDecl(), *this);
   }
 
-  SemaDiagnosticBuilder DB =
-      getLangOpts().CUDAIsDevice
-          ? CUDADiagIfDeviceCode(Loc, DiagID)
-          : CUDADiagIfHostCode(Loc, DiagID);
+  SemaDiagnosticBuilder DB = getLangOpts().CUDAIsDevice
+                                 ? CUDADiagIfDeviceCode(Loc, DiagID)
+                                 : CUDADiagIfHostCode(Loc, DiagID);
   SetIsLastErrorImmediate(DB.isImmediate());
   return DB;
 }
 
-void Sema::checkDeviceDecl(const ValueDecl *D, SourceLocation Loc) {
+void Sema::checkDeviceDecl(ValueDecl *D, SourceLocation Loc) {
   if (isUnevaluatedContext())
     return;
 
@@ -1791,13 +1799,17 @@ void Sema::checkDeviceDecl(const ValueDecl *D, SourceLocation Loc) {
         return;
   }
 
+  // Try to associate errors with the lexical context, if that is a function, or
+  // the value declaration otherwise.
+  FunctionDecl *FD =
+      isa<FunctionDecl>(C) ? cast<FunctionDecl>(C) : dyn_cast<FunctionDecl>(D);
   auto CheckType = [&](QualType Ty) {
     if (Ty->isDependentType())
       return;
 
     if (Ty->isExtIntType()) {
       if (!Context.getTargetInfo().hasExtIntType()) {
-        targetDiag(Loc, diag::err_device_unsupported_type)
+        targetDiag(Loc, diag::err_device_unsupported_type, FD)
             << D << false /*show bit size*/ << 0 /*bitsize*/
             << Ty << Context.getTargetInfo().getTriple().str();
       }
@@ -1810,11 +1822,12 @@ void Sema::checkDeviceDecl(const ValueDecl *D, SourceLocation Loc) {
          !Context.getTargetInfo().hasFloat128Type()) ||
         (Ty->isIntegerType() && Context.getTypeSize(Ty) == 128 &&
          !Context.getTargetInfo().hasInt128Type())) {
-      targetDiag(Loc, diag::err_device_unsupported_type)
+      if (targetDiag(Loc, diag::err_device_unsupported_type, FD)
           << D << true /*show bit size*/
           << static_cast<unsigned>(Context.getTypeSize(Ty)) << Ty
-          << Context.getTargetInfo().getTriple().str();
-      targetDiag(D->getLocation(), diag::note_defined_here) << D;
+          << Context.getTargetInfo().getTriple().str())
+        D->setInvalidDecl();
+      targetDiag(D->getLocation(), diag::note_defined_here, FD) << D;
     }
   };
 
@@ -1826,6 +1839,8 @@ void Sema::checkDeviceDecl(const ValueDecl *D, SourceLocation Loc) {
       CheckType(ParamTy);
     CheckType(FPTy->getReturnType());
   }
+  if (const auto *FNPTy = dyn_cast<FunctionNoProtoType>(Ty))
+    CheckType(FNPTy->getReturnType());
 }
 
 /// Looks through the macro-expansion chain for the given

@@ -1,198 +1,493 @@
-.\" Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-.\" See https://llvm.org/LICENSE.txt for license information.
-.\" SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-.\"
-.Dd December 19, 2018
-.Dt LLVM-OBJDUMP 1
-.Os
-.Sh NAME
-.Nm llvm-objdump
-.Nd LLVM object file dumper
-.Sh SYNOPSIS
-.Nm llvm-objdump
-.Op Ar options
-.Ar objfile ...
-.Sh DESCRIPTION
-.Nm
-prints the contents of object files and final linked images named on the
-command line.
-If no file name is specified,
-.Nm
-will attempt to read from
-.Pa a.out .
-If
-.Pa -
-is used as a file name,
-.Nm
-will process a file on its standard input stream.
-.Nm
-accepts many of the same command line arguments as GNU objdump.
-.Sh OPTIONS
-.Ss General Options
-.Bl -tag -width indent
-.It Fl -aarch64-neon-syntax Ns = Ns Ar value
-Choose style of NEON code to emit from AArch64 backend.
-.Ar value
-may be one of:
-.Bl -tag -width indent
-.It generic
-Generic NEON assembly
-.It apple
-Apple-style NEON assembly
-.El
-.It Fl -arch Ns = Ns Ar value
-Choose architecture(s) from a Mach-O file to dump
-.It Fl -arch-name Ns = Ns ar arch
-Target arch to disassemble for.
-See
-.Fl -version
-for available targets.
-.It Fl -bind
-Display mach-o binding info.
-.It Fl -color
-Use colored syntax highlighting.
-Default autodetect.
-.It Fl -disassemble
-Display assembler mnemonics for machine instructions.
-.It Fl -disassemble-all
-Display assembler mnemonics for the machine instruction in all sections.
-.It Fl -dsym Ns = Ns Ar file
-Use
-.Ar file
-for debug info.
-.It Fl -dwarf Ns = Ns Ar sections
-Dump of dwarf debug sections.
-.Bl -tag -width indent
-.It frames
-.Dv .debug_frame
-.El
-.It Fl -exports-trie
-Display mach-o exported symbols.
-.It Fl -fault-map-section
-Display contents of faultmap section.
-.It Fl -filter-print-funcs Ns = Ns Ar functions
-Only print IR for functions whose name match
-.Ar functions
-for all print-[before|after][-all] options.
-.It Fl -full-leading-addr
-Print full leading address.
-.It Fl g
-Print line information from debug info if available.
-.It Fl h , -headers , -section-headers
+.\" $FreeBSD$
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "LLVM-OBJDUMP" "1" "2021-06-07" "12" "LLVM"
+.SH NAME
+llvm-objdump \- LLVM's object file dumper
+.SH SYNOPSIS
+.sp
+\fBllvm\-objdump\fP [\fIcommands\fP] [\fIoptions\fP] [\fIfilenames...\fP]
+.SH DESCRIPTION
+.sp
+The \fBllvm\-objdump\fP utility prints the contents of object files and
+final linked images named on the command line. If no file name is specified,
+\fBllvm\-objdump\fP will attempt to read from \fIa.out\fP\&. If \fI\-\fP is used as a
+file name, \fBllvm\-objdump\fP will process a file on its standard input
+stream.
+.SH COMMANDS
+.sp
+At least one of the following commands are required, and some commands can be
+combined with other commands:
+.INDENT 0.0
+.TP
+.B \-a, \-\-archive\-headers
+Display the information contained within an archive\(aqs headers.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-d, \-\-disassemble
+Disassemble all text sections found in the input files.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-D, \-\-disassemble\-all
+Disassemble all sections found in the input files.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-disassemble\-symbols=<symbol1[,symbol2,...]>
+Disassemble only the specified symbols. Takes demangled symbol names when
+\fI\%\-\-demangle\fP is specified, otherwise takes mangled symbol names.
+Implies \fI\%\-\-disassemble\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dwarf=<value>
+Dump the specified DWARF debug sections. The supported values are:
+.sp
+\fIframes\fP \- .debug_frame
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-f, \-\-file\-headers
+Display the contents of the overall file header.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-fault\-map\-section
+Display the content of the fault map section.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-h, \-\-headers, \-\-section\-headers
 Display summaries of the headers for each section.
-.It Fl -help
-Display available options.
-Use
-.Fl -help-hidden
-for more.
-.It Fl -lazy-bind
-Display mach-o lazy binding info.
-.It Fl -line-numbers
-Display source line numbers with disassembly.
-Implies disassemble object.
-.It Fl -macho
-Use MachO specific object file parser.
-.It Fl -mattr Ns = Ns Ar attribute ...
-Target specific attributes.
-.It Fl -mcpu Ns = Ns Ar CPU
-Target a specific cpu type.
-Use
-.Fl mcpu Ns = Ns help
-for details.
-.It Fl -no-leading-addr
-Print no leading address.
-.It Fl -no-leading-headers
-Print no leading headers.
-.It Fl -no-show-raw-insn
-When disassembling instructions, do not print the instruction bytes.
-.It Fl -print-imm-hex
-Use hex format for immediate values.
-.It Fl -private-header
-Display only the first format specific file header.
-.It Fl -private-headers
-Display format specific file headers.
-.It Fl r
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-help
+Display usage information and exit. Does not stack with other commands.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-p, \-\-private\-headers
+Display format\-specific file headers.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-r, \-\-reloc
 Display the relocation entries in the file.
-.It Fl -raw-clang-ast
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-R, \-\-dynamic\-reloc
+Display the dynamic relocation entries in the file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-raw\-clang\-ast
 Dump the raw binary contents of the clang AST section.
-.It Fl -rebase
-Display mach-o rebasing info.
-.It Fl -reverse-iterate
-Reverse iterate.
-.It Fl s
-Display the content of each section.
-.It Fl -section Ns = Ns Ar section
-Operate on the specified sections only.
-With
-.Fl -macho
-dump segment,section.
-.It Fl -source
-Display source inline with disassembly.
-Implies disassmble object.
-.It Fl -start-address Ns = Ns Ar address
-Disassemble beginning at
-.Ar address .
-.It Fl -stop-address Ns = Ns Ar address
-Stop disassembly at
-.Ar address .
-.It Fl t
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-s, \-\-full\-contents
+Display the contents of each section.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-t, \-\-syms
 Display the symbol table.
-.It Fl -triple Ns = Ns Ar triple
-Target triple to disassemble for.
-See
-.Fl -version
-for available targets.
-.It Fl -unwind-info
-Display unwind information.
-.It Fl -version
-Display the version of this program.
-.It Fl -weak-bind
-Display mach-o weak binding info.
-.It Fl -x86-asm-syntax Ns = Ns Ar syntax
-Choose style of code to emit from X86 backend.
-.Bl -tag -width indent
-.It att
-Emit AT&T-style assembly.
-.It intel
-Emit Intel-style assembly.
-.El
-.El
-.Ss Mach-O Options
-There are a number of options specific to the Mach-O format.
-These are used in combination with the
-.Fl -macho
-option.
-.Bl -tag -width indent
-.It Fl -archive-headers
-Print archive headers for Mach-O archives.
-.It Fl -archive-member-offsets
-Print the offset to each archive member for Mach-O archives.
-Requires
-.Fl -macho
-and
-.Fl -archive-headers .
-.It Fl -data-in-code
-Print the data in code table for Mach-O objects.
-.It Fl -dis-symname Ns = Ns Ar symbol
-Disassemble just
-.Ar symbol 's
-instructions.
-.It Fl -dylib-id
-Print the shared library's id for the dylib Mach-O file.
-.It Fl -dylibs-used
-Print the shared libraries used for linked Mach-O files.
-.It Fl -indirect-symbols
-Print indirect symbol table for Mach-O objects.
-.It Fl -info-plist
-Print the info plist section as strings for Mach-O objects.
-.It Fl -link-opt-hints
-Print the linker optimization hints for Mach-O objects.
-.It Fl -no-symbolic-operands
-do not symbolic operands when disassembling.
-.It Fl -non-verbose
-Print the info for Mach-O objects in non-verbose or numeric form.
-.It Fl -objc-meta-data
-Print the Objective-C runtime meta data for Mach-O files.
-.It Fl -universal-headers
-Print Mach-O universal headers.
-.El
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-T, \-\-dynamic\-syms
+Display the contents of the dynamic symbol table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-u, \-\-unwind\-info
+Display the unwind info of the input(s).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-version
+Display the version of the \fBllvm\-objdump\fP executable. Does not stack
+with other commands.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-x, \-\-all\-headers
+Display all available header information. Equivalent to specifying
+\fI\%\-\-archive\-headers\fP, \fI\%\-\-file\-headers\fP,
+\fI\%\-\-private\-headers\fP, \fI\%\-\-reloc\fP, \fI\%\-\-section\-headers\fP,
+and \fI\%\-\-syms\fP\&.
+.UNINDENT
+.SH OPTIONS
+.sp
+\fBllvm\-objdump\fP supports the following options:
+.INDENT 0.0
+.TP
+.B \-\-adjust\-vma=<offset>
+Increase the displayed address in disassembly or section header printing by
+the specified offset.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-arch\-name=<string>
+Specify the target architecture when disassembling. Use \fI\%\-\-version\fP
+for a list of available targets.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-C, \-\-demangle
+Demangle symbol names in the output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debug\-vars=<format>
+Print the locations (in registers or memory) of source\-level variables
+alongside disassembly. \fBformat\fP may be \fBunicode\fP or \fBascii\fP, defaulting
+to \fBunicode\fP if omitted.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debug\-vars\-indent=<width>
+Distance to indent the source\-level variable display, relative to the start
+of the disassembly. Defaults to 40 characters.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-j, \-\-section=<section1[,section2,...]>
+Perform commands on the specified sections only. For Mach\-O use
+\fIsegment,section\fP to specify the section name.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-l, \-\-line\-numbers
+When disassembling, display source line numbers. Implies
+\fI\%\-\-disassemble\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-M, \-\-disassembler\-options=<opt1[,opt2,...]>
+Pass target\-specific disassembler options. Currently supported for ARM targets
+only. Available options are \fBreg\-names\-std\fP and \fBreg\-names\-raw\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-mcpu=<cpu\-name>
+Target a specific CPU type for disassembly. Specify \fB\-\-mcpu=help\fP to display
+available CPUs.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-mattr=<a1,+a2,\-a3,...>
+Enable/disable target\-specific attributes. Specify \fB\-\-mattr=help\fP to display
+the available attributes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-leading\-addr
+When disassembling, do not print leading addresses.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-show\-raw\-insn
+When disassembling, do not print the raw bytes of each instruction.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-prefix=<prefix>
+When disassembling with the \fI\%\-\-source\fP option, prepend \fBprefix\fP to
+absolute paths.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-print\-imm\-hex
+Use hex format when printing immediate values in disassembly output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-S, \-\-source
+When disassembling, display source interleaved with the disassembly. Implies
+\fI\%\-\-disassemble\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-show\-lma
+Display the LMA column when dumping ELF section headers. Defaults to off
+unless any section has different VMA and LMAs.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-start\-address=<address>
+When disassembling, only disassemble from the specified address.
+.sp
+When printing relocations, only print the relocations patching offsets from at least \fBaddress\fP\&.
+.sp
+When printing symbols, only print symbols with a value of at least \fBaddress\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-stop\-address=<address>
+When disassembling, only disassemble up to, but not including the specified address.
+.sp
+When printing relocations, only print the relocations patching offsets up to \fBaddress\fP\&.
+.sp
+When printing symbols, only print symbols with a value up to \fBaddress\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-symbolize\-operands
+When disassembling, symbolize a branch target operand to print a label instead of a real address.
+.sp
+When printing a PC\-relative global symbol reference, print it as an offset from the leading symbol.
+.sp
+Only works with an X86 linked image.
+.INDENT 7.0
+.TP
+.B Example:
+A non\-symbolized branch instruction with a local target and pc\-relative memory access like
+.UNINDENT
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+cmp eax, dword ptr [rip + 4112]
+jge 0x20117e <_start+0x25>
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+might become
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+<L0>:
+  cmp eax, dword ptr <g>
+  jge      <L0>
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-triple=<string>
+Target triple to disassemble for, see \fB\-\-version\fP for available targets.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-w, \-\-wide
+Ignored for compatibility with GNU objdump.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-x86\-asm\-syntax=<style>
+When used with \fI\%\-\-disassemble\fP, choose style of code to emit from
+X86 backend. Supported values are:
+.INDENT 7.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B att
+AT&T\-style assembly
+.UNINDENT
+.INDENT 0.0
+.TP
+.B intel
+Intel\-style assembly
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The default disassembly style is \fBatt\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-z, \-\-disassemble\-zeroes
+Do not skip blocks of zeroes when disassembling.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B @<FILE>
+Read command\-line options and commands from response file \fI<FILE>\fP\&.
+.UNINDENT
+.SH MACH-O ONLY OPTIONS AND COMMANDS
+.INDENT 0.0
+.TP
+.B \-\-arch=<architecture>
+Specify the architecture to disassemble. see \fB\-\-version\fP for available
+architectures.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-archive\-member\-offsets
+Print the offset to each archive member for Mach\-O archives (requires
+\fI\%\-\-archive\-headers\fP).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-bind
+Display binding info
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-cfg
+Create a CFG for every symbol in the object file and write it to a graphviz
+file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-data\-in\-code
+Display the data in code table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dis\-symname=<name>
+Disassemble just the specified symbol\(aqs instructions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dylibs\-used
+Display the shared libraries used for linked files.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dsym=<string>
+Use .dSYM file for debug info.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dylib\-id
+Display the shared library\(aqs ID for dylib files.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-exports\-trie
+Display exported symbols.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-g
+Print line information from debug info if available.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-full\-leading\-addr
+Print the full leading address when disassembling.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-indirect\-symbols
+Display the indirect symbol table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-info\-plist
+Display the info plist section as strings.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-lazy\-bind
+Display lazy binding info.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-link\-opt\-hints
+Display the linker optimization hints.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-m, \-\-macho
+Use Mach\-O specific object file parser. Commands and other options may behave
+differently when used with \fB\-\-macho\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-leading\-headers
+Do not print any leading headers.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-symbolic\-operands
+Do not print symbolic operands when disassembling.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-non\-verbose
+Display the information for Mach\-O objects in non\-verbose or numeric form.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-objc\-meta\-data
+Display the Objective\-C runtime meta data.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-private\-header
+Display only the first format specific file header.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-rebase
+Display rebasing information.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-universal\-headers
+Display universal headers.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-weak\-bind
+Display weak binding information.
+.UNINDENT
+.SH XCOFF ONLY OPTIONS AND COMMANDS
+.INDENT 0.0
+.TP
+.B \-\-symbol\-description
+Add symbol description to disassembly output.
+.UNINDENT
+.SH BUGS
+.sp
+To report bugs, please visit <\fI\%https://bugs.llvm.org/\fP>.
+.SH SEE ALSO
+.sp
+\fBllvm\-nm(1)\fP, \fBllvm\-readelf(1)\fP, \fBllvm\-readobj(1)\fP
+.SH AUTHOR
+Maintained by the LLVM Team (https://llvm.org/).
+.SH COPYRIGHT
+2003-2021, LLVM Project
+.\" Generated by docutils manpage writer.
+.

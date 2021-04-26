@@ -56,6 +56,7 @@ SUBDIR+=	lld
 .endif
 .if ${MK_LLDB} != "no"
 SUBDIR+=	lldb
+SUBDIR+=	lldb-server
 .endif
 .if ${MK_LLVM_COV} != "no"
 SUBDIR+=	llvm-cov

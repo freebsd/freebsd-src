@@ -18,11 +18,13 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Analysis/CallGraph.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/ProfileData/SampleProf.h"
 #include <list>
 #include <map>
+#include <vector>
 
 using namespace llvm;
 using namespace sampleprof;
@@ -42,7 +44,7 @@ public:
         CallSiteLoc(CallLoc){};
   ContextTrieNode *getChildContext(const LineLocation &CallSite,
                                    StringRef CalleeName);
-  ContextTrieNode *getChildContext(const LineLocation &CallSite);
+  ContextTrieNode *getHottestChildContext(const LineLocation &CallSite);
   ContextTrieNode *getOrCreateChildContext(const LineLocation &CallSite,
                                            StringRef CalleeName,
                                            bool AllowCreate = true);
@@ -89,16 +91,24 @@ private:
 // calling context and the context is identified by path from root to the node.
 class SampleContextTracker {
 public:
+  using ContextSamplesTy = SmallSet<FunctionSamples *, 16>;
+
   SampleContextTracker(StringMap<FunctionSamples> &Profiles);
   // Query context profile for a specific callee with given name at a given
   // call-site. The full context is identified by location of call instruction.
   FunctionSamples *getCalleeContextSamplesFor(const CallBase &Inst,
                                               StringRef CalleeName);
+  // Get samples for indirect call targets for call site at given location.
+  std::vector<const FunctionSamples *>
+  getIndirectCalleeContextSamplesFor(const DILocation *DIL);
   // Query context profile for a given location. The full context
   // is identified by input DILocation.
   FunctionSamples *getContextSamplesFor(const DILocation *DIL);
   // Query context profile for a given sample contxt of a function.
   FunctionSamples *getContextSamplesFor(const SampleContext &Context);
+  // Get all context profile for given function.
+  ContextSamplesTy &getAllContextSamplesFor(const Function &Func);
+  ContextSamplesTy &getAllContextSamplesFor(StringRef Name);
   // Query base profile for a given function. A base profile is a merged view
   // of all context profiles for contexts that are not inlined.
   FunctionSamples *getBaseSamplesFor(const Function &Func,
@@ -109,6 +119,9 @@ public:
   // This makes sure that inlined context profile will be excluded in
   // function's base profile.
   void markContextSamplesInlined(const FunctionSamples *InlinedSamples);
+  void promoteMergeContextSamplesTree(const Instruction &Inst,
+                                      StringRef CalleeName);
+  void addCallGraphEdges(CallGraph &CG, StringMap<Function *> &SymbolMap);
   // Dump the internal context profile trie.
   void dump();
 
@@ -122,8 +135,6 @@ private:
   ContextTrieNode *getTopLevelContextNode(StringRef FName);
   ContextTrieNode &addTopLevelContextNode(StringRef FName);
   ContextTrieNode &promoteMergeContextSamplesTree(ContextTrieNode &NodeToPromo);
-  void promoteMergeContextSamplesTree(const Instruction &Inst,
-                                      StringRef CalleeName);
   void mergeContextNode(ContextTrieNode &FromNode, ContextTrieNode &ToNode,
                         StringRef ContextStrToRemove);
   ContextTrieNode &promoteMergeContextSamplesTree(ContextTrieNode &FromNode,
@@ -131,7 +142,7 @@ private:
                                                   StringRef ContextStrToRemove);
 
   // Map from function name to context profiles (excluding base profile)
-  StringMap<SmallSet<FunctionSamples *, 16>> FuncToCtxtProfileSet;
+  StringMap<ContextSamplesTy> FuncToCtxtProfileSet;
 
   // Root node for context trie tree
   ContextTrieNode RootContext;

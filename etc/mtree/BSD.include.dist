@@ -79,6 +79,8 @@
             ..
         ..
         v1
+            __memory
+            ..
             experimental
             ..
             ext

@@ -1011,6 +1011,7 @@ SRCS_MIN+=	Support/regexec.c
 SRCS_MIN+=	Support/regfree.c
 SRCS_MIN+=	Support/regstrlcpy.c
 SRCS_MIN+=	Support/xxhash.cpp
+SRCS_MIN+=	TableGen/DetailedRecordsBackend.cpp
 SRCS_MIN+=	TableGen/Error.cpp
 SRCS_MIN+=	TableGen/JSONBackend.cpp
 SRCS_MIN+=	TableGen/Main.cpp

@@ -3302,9 +3302,12 @@ static bool evaluateVarDeclInit(EvalInfo &Info, const Expr *E,
 
   // Check that we can fold the initializer. In C++, we will have already done
   // this in the cases where it matters for conformance.
-  if (!VD->evaluateValue()) {
-    Info.FFDiag(E, diag::note_constexpr_var_init_non_constant, 1) << VD;
+  SmallVector<PartialDiagnosticAt, 8> Notes;
+  if (!VD->evaluateValue(Notes)) {
+    Info.FFDiag(E, diag::note_constexpr_var_init_non_constant,
+              Notes.size() + 1) << VD;
     NoteLValueLocation(Info, Base);
+    Info.addNotes(Notes);
     return false;
   }
 
@@ -3497,8 +3500,8 @@ static bool diagnoseMutableFields(EvalInfo &Info, const Expr *E, AccessKinds AK,
 static bool lifetimeStartedInEvaluation(EvalInfo &Info,
                                         APValue::LValueBase Base,
                                         bool MutableSubobject = false) {
-  // A temporary we created.
-  if (Base.getCallIndex())
+  // A temporary or transient heap allocation we created.
+  if (Base.getCallIndex() || Base.is<DynamicAllocLValue>())
     return true;
 
   switch (Info.IsEvaluatingDecl) {
@@ -10009,6 +10012,7 @@ bool RecordExprEvaluator::VisitLambdaExpr(const LambdaExpr *E) {
   auto *CaptureInitIt = E->capture_init_begin();
   const LambdaCapture *CaptureIt = ClosureClass->captures_begin();
   bool Success = true;
+  const ASTRecordLayout &Layout = Info.Ctx.getASTRecordLayout(ClosureClass);
   for (const auto *Field : ClosureClass->fields()) {
     assert(CaptureInitIt != E->capture_init_end());
     // Get the initializer for this field
@@ -10019,8 +10023,13 @@ bool RecordExprEvaluator::VisitLambdaExpr(const LambdaExpr *E) {
     if (!CurFieldInit)
       return Error(E);
 
+    LValue Subobject = This;
+
+    if (!HandleLValueMember(Info, E, Subobject, Field, &Layout))
+      return false;
+
     APValue &FieldVal = Result.getStructField(Field->getFieldIndex());
-    if (!EvaluateInPlace(FieldVal, Info, This, CurFieldInit)) {
+    if (!EvaluateInPlace(FieldVal, Info, Subobject, CurFieldInit)) {
       if (!Info.keepEvaluatingAfterFailure())
         return false;
       Success = false;
@@ -14786,11 +14795,14 @@ bool Expr::EvaluateAsLValue(EvalResult &Result, const ASTContext &Ctx,
 
 static bool EvaluateDestruction(const ASTContext &Ctx, APValue::LValueBase Base,
                                 APValue DestroyedValue, QualType Type,
-                                SourceLocation Loc, Expr::EvalStatus &EStatus) {
-  EvalInfo Info(Ctx, EStatus, EvalInfo::EM_ConstantExpression);
+                                SourceLocation Loc, Expr::EvalStatus &EStatus,
+                                bool IsConstantDestruction) {
+  EvalInfo Info(Ctx, EStatus,
+                IsConstantDestruction ? EvalInfo::EM_ConstantExpression
+                                      : EvalInfo::EM_ConstantFold);
   Info.setEvaluatingDecl(Base, DestroyedValue,
                          EvalInfo::EvaluatingDeclKind::Dtor);
-  Info.InConstantContext = true;
+  Info.InConstantContext = IsConstantDestruction;
 
   LValue LVal;
   LVal.set(Base);
@@ -14844,7 +14856,8 @@ bool Expr::EvaluateAsConstantExpr(EvalResult &Result, const ASTContext &Ctx,
   // If this is a class template argument, it's required to have constant
   // destruction too.
   if (Kind == ConstantExprKind::ClassTemplateArgument &&
-      (!EvaluateDestruction(Ctx, Base, Result.Val, T, getBeginLoc(), Result) ||
+      (!EvaluateDestruction(Ctx, Base, Result.Val, T, getBeginLoc(), Result,
+                            true) ||
        Result.HasSideEffects)) {
     // FIXME: Prefix a note to indicate that the problem is lack of constant
     // destruction.
@@ -14856,8 +14869,7 @@ bool Expr::EvaluateAsConstantExpr(EvalResult &Result, const ASTContext &Ctx,
 
 bool Expr::EvaluateAsInitializer(APValue &Value, const ASTContext &Ctx,
                                  const VarDecl *VD,
-                                 SmallVectorImpl<PartialDiagnosticAt> &Notes,
-                                 bool IsConstantInitialization) const {
+                            SmallVectorImpl<PartialDiagnosticAt> &Notes) const {
   assert(!isValueDependent() &&
          "Expression evaluator can't be called on a dependent expression.");
 
@@ -14870,12 +14882,11 @@ bool Expr::EvaluateAsInitializer(APValue &Value, const ASTContext &Ctx,
   Expr::EvalStatus EStatus;
   EStatus.Diag = &Notes;
 
-  EvalInfo Info(Ctx, EStatus,
-                (IsConstantInitialization && Ctx.getLangOpts().CPlusPlus11)
-                    ? EvalInfo::EM_ConstantExpression
-                    : EvalInfo::EM_ConstantFold);
+  EvalInfo Info(Ctx, EStatus, VD->isConstexpr()
+                                      ? EvalInfo::EM_ConstantExpression
+                                      : EvalInfo::EM_ConstantFold);
   Info.setEvaluatingDecl(VD, Value);
-  Info.InConstantContext = IsConstantInitialization;
+  Info.InConstantContext = true;
 
   SourceLocation DeclLoc = VD->getLocation();
   QualType DeclTy = VD->getType();
@@ -14910,6 +14921,10 @@ bool VarDecl::evaluateDestruction(
   Expr::EvalStatus EStatus;
   EStatus.Diag = &Notes;
 
+  // Only treat the destruction as constant destruction if we formally have
+  // constant initialization (or are usable in a constant expression).
+  bool IsConstantDestruction = hasConstantInitialization();
+
   // Make a copy of the value for the destructor to mutate, if we know it.
   // Otherwise, treat the value as default-initialized; if the destructor works
   // anyway, then the destruction is constant (and must be essentially empty).
@@ -14920,7 +14935,8 @@ bool VarDecl::evaluateDestruction(
     return false;
 
   if (!EvaluateDestruction(getASTContext(), this, std::move(DestroyedValue),
-                           getType(), getLocation(), EStatus) ||
+                           getType(), getLocation(), EStatus,
+                           IsConstantDestruction) ||
       EStatus.HasSideEffects)
     return false;
 

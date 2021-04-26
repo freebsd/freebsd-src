@@ -4718,7 +4718,9 @@ OLD_LIBS+=usr/lib/libc++.so.1
 OLD_FILES+=usr/lib/libcxxrt.a
 OLD_FILES+=usr/lib/libcxxrt.so
 OLD_FILES+=usr/lib/libcxxrt_p.a
+OLD_FILES+=usr/include/c++/v1/__availability
 OLD_FILES+=usr/include/c++/v1/__bit_reference
+OLD_FILES+=usr/include/c++/v1/__bits
 OLD_FILES+=usr/include/c++/v1/__bsd_locale_defaults.h
 OLD_FILES+=usr/include/c++/v1/__bsd_locale_fallbacks.h
 OLD_FILES+=usr/include/c++/v1/__config
@@ -4730,6 +4732,11 @@ OLD_FILES+=usr/include/c++/v1/__functional_base_03
 OLD_FILES+=usr/include/c++/v1/__hash_table
 OLD_FILES+=usr/include/c++/v1/__libcpp_version
 OLD_FILES+=usr/include/c++/v1/__locale
+OLD_FILES+=usr/include/c++/v1/__memory/allocator_traits.h
+OLD_FILES+=usr/include/c++/v1/__memory/base.h
+OLD_FILES+=usr/include/c++/v1/__memory/pointer_traits.h
+OLD_FILES+=usr/include/c++/v1/__memory/utilities.h
+OLD_DIRS+=usr/include/c++/v1/__memory
 OLD_FILES+=usr/include/c++/v1/__mutex_base
 OLD_FILES+=usr/include/c++/v1/__node_handle
 OLD_FILES+=usr/include/c++/v1/__nullptr
@@ -4869,7 +4876,9 @@ OLD_FILES+=usr/include/c++/v1/strstream
 OLD_FILES+=usr/include/c++/v1/system_error
 OLD_FILES+=usr/include/c++/v1/tgmath.h
 OLD_FILES+=usr/include/c++/v1/thread
+OLD_FILES+=usr/include/c++/v1/tr1/__availability
 OLD_FILES+=usr/include/c++/v1/tr1/__bit_reference
+OLD_FILES+=usr/include/c++/v1/tr1/__bits
 OLD_FILES+=usr/include/c++/v1/tr1/__bsd_locale_defaults.h
 OLD_FILES+=usr/include/c++/v1/tr1/__bsd_locale_fallbacks.h
 OLD_FILES+=usr/include/c++/v1/tr1/__config
@@ -5048,6 +5057,8 @@ OLD_FILES+=usr/bin/ld.lld
 
 .if ${MK_LLDB} == no
 OLD_FILES+=usr/bin/lldb
+OLD_FILES+=usr/bin/lldb-server
+OLD_FILES+=usr/share/man/man1/lldb-server.1.gz
 OLD_FILES+=usr/share/man/man1/lldb.1.gz
 .endif
 
