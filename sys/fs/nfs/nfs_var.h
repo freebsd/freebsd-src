@@ -604,6 +604,7 @@ void nfscl_lockinit(struct nfsv4lock *);
 void nfscl_lockexcl(struct nfsv4lock *, void *);
 void nfscl_lockunlock(struct nfsv4lock *);
 void nfscl_lockderef(struct nfsv4lock *);
+void nfscl_delegreturnvp(vnode_t, NFSPROC_T *);
 void nfscl_docb(struct nfsrv_descript *, NFSPROC_T *);
 void nfscl_releasealllocks(struct nfsclclient *, vnode_t, NFSPROC_T *, void *,
     int);
