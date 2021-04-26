@@ -202,6 +202,7 @@ static u_long lapic_timer_divisor, count_freq;
 static struct eventtimer lapic_et;
 #ifdef SMP
 static uint64_t lapic_ipi_wait_mult;
+static int __read_mostly lapic_ds_idle_timeout = 1000000;
 #endif
 unsigned int max_apic_id;
 
@@ -212,6 +213,11 @@ SYSCTL_INT(_hw_apic, OID_AUTO, eoi_suppression, CTLFLAG_RD,
     &lapic_eoi_suppression, 0, "");
 SYSCTL_INT(_hw_apic, OID_AUTO, timer_tsc_deadline, CTLFLAG_RD,
     &lapic_timer_tsc_deadline, 0, "");
+#ifdef SMP
+SYSCTL_INT(_hw_apic, OID_AUTO, ds_idle_timeout, CTLFLAG_RWTUN,
+    &lapic_ds_idle_timeout, 0,
+    "timeout (in us) for APIC Delivery Status to become Idle (xAPIC only)");
+#endif
 
 static void lapic_calibrate_initcount(struct lapic *la);
 static void lapic_calibrate_deadline(struct lapic *la);
@@ -2035,7 +2041,6 @@ native_lapic_ipi_raw(register_t icrlo, u_int dest)
 	}
 }
 
-#define	BEFORE_SPIN	50000
 #ifdef DETECT_DEADLOCK
 #define	AFTER_SPIN	50
 #endif
@@ -2082,7 +2087,7 @@ native_lapic_ipi_vectored(u_int vector, int dest)
 	icrlo |= APIC_DESTMODE_PHY | APIC_TRIGMOD_EDGE | APIC_LEVEL_ASSERT;
 
 	/* Wait for an earlier IPI to finish. */
-	if (!lapic_ipi_wait(BEFORE_SPIN)) {
+	if (!lapic_ipi_wait(lapic_ds_idle_timeout)) {
 		if (KERNEL_PANICKED())
 			return;
 		else
