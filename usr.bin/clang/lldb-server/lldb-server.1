@@ -1,0 +1,262 @@
+.\" $FreeBSD$
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "LLDB-SERVER" "1" "2021-06-07" "12" "LLDB"
+.SH NAME
+lldb-server \- LLDB Documentation
+.SH SYNOPSIS
+.nf
+\fBlldb\-server\fP v[ersion]
+\fBlldb\-server\fP g[dbserver] [\fIoptions\fP]
+\fBlldb\-server\fP p[latform] [\fIoptions\fP]
+.fi
+.sp
+.SH DESCRIPTION
+.sp
+\fBlldb\-server\fP provides the server counterpart of the LLVM debugger.
+The server runs and monitors the debugged program, while the user interfaces
+with it via a client, either running locally or connecting remotely.
+.sp
+All of the code in the LLDB project is available under the Apache 2.0 License
+with LLVM exceptions.
+.SH COMMANDS
+.sp
+The first argument to lldb\-server specifies a command to run.
+.INDENT 0.0
+.TP
+.B v[ersion]
+Prints lldb\-server version and exits.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B g[dbserver]
+Runs the server using the gdb\-remote protocol. LLDB can afterwards
+connect to the server using \fIgdb\-remote\fP command.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B p[latform]
+Runs the platform server. LLDB can afterwards connect to the server using
+\fIplatform select\fP, followed by \fIplatform connect\fP\&.
+.UNINDENT
+.SH GDBSERVER COMMAND
+.nf
+\fBlldb\-server\fP g[dbserver] [\fIoptions\fP] [[\fIhost\fP]:\fIport\fP] [[\-\-] \fIprogram\fP \fIargs\fP\&...]
+.fi
+.sp
+.SS CONNECTION
+.INDENT 0.0
+.TP
+.B host:port
+Specifies the hostname and TCP port to listen on. Obligatory unless another
+listening option is used. If host is empty, \fIlocalhost\fP will be used.  If port
+is zero, a random port will be selected, and written as specified by \-\-pipe
+or \-\-named\-pipe options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-fd <fd>
+Communicate over the given file descriptor instead of sockets.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-named\-pipe <name>
+Write the listening port number to the specified named pipe.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-pipe <fd>
+Write the listening port number to the specified pipe (fd).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-reverse\-connect
+Connect to the client instead of passively waiting for a connection. In this
+case, [host]:port denotes the remote address to connect to.
+.UNINDENT
+.SS GENERAL OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-help
+Prints out the usage information and exits.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-log\-channels <channel1 categories...:channel2 categories...>
+Channels to log. A colon\-separated list of entries. Each entry starts with
+a channel followed by a space\-separated list of categories.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-log\-file <file>
+Destination file to log to. If empty, log to stderr.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-setsid
+Run lldb\-server in a new session.
+.UNINDENT
+.SS TARGET SELECTION
+.INDENT 0.0
+.TP
+.B \-\-attach <pid\-or\-name>
+Attach to the process given by a (numeric) process id or a name.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\- program args
+Launch a program for debugging.
+.UNINDENT
+.sp
+If neither of target options are used, \fBlldb\-server\fP is started
+without a specific target. It can be afterwards instructed by the client
+to launch or attach.
+.SH PLATFORM COMMAND
+.nf
+\fBlldb\-server\fP p[latform] [\fIoptions\fP] \-\-server \-\-listen [[\fIhost\fP]:\fIport\fP]
+.fi
+.sp
+.SS CONNECTION
+.INDENT 0.0
+.TP
+.B \-\-server
+Run in server mode, handling multiple connections. If this is not specified,
+lldb\-server will accept only one connection and exit when it is finished.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-listen <host>:<port>
+Hostname and port to listen on. Obligatory. If \fIport\fP is zero, a random port
+will be used.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-socket\-file <path>
+Write the listening socket port number to the specified file.
+.UNINDENT
+.SS GENERAL OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-log\-channels <channel1 categories...:channel2 categories...>
+Channels to log. A colon\-separated list of entries. Each entry starts with
+a channel followed by a space\-separated list of categories.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-log\-file <file>
+Destination file to log to. If empty, log to stderr.
+.UNINDENT
+.SS GDB\-SERVER CONNECTIONS
+.INDENT 0.0
+.TP
+.B \-\-gdbserver\-port <port>
+Define a port to be used for gdb\-server connections. Can be specified multiple
+times to allow multiple ports. Has no effect if \-\-min\-gdbserver\-port
+and \-\-max\-gdbserver\-port are specified.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-min\-gdbserver\-port <port>
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-max\-gdbserver\-port <port>
+Specify the range of ports that can be used for gdb\-server connections. Both
+options need to be specified simultaneously. Overrides \-\-gdbserver\-port.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-port\-offset <offset>
+Add the specified offset to port numbers returned by server. This is useful
+if the server is running behind a firewall, and a range of ports is redirected
+to it with an offset.
+.UNINDENT
+.SH EXAMPLES
+.sp
+The server can be started in several modes.
+.sp
+In order to launch a new process inside the debugger, pass the path to it
+and the arguments to the debugged executable as positional arguments.
+To disambiguate between arguments passed to lldb and arguments passed
+to the debugged executable, arguments starting with a \- must be passed after
+\-\-. The server will launch the new executable and stop it immediately, waiting
+for the client to connect.
+.INDENT 0.0
+.INDENT 3.5
+lldb\-server g :1234 /path/to/program program\-argument \-\- \-\-program\-option
+.UNINDENT
+.UNINDENT
+.sp
+For convenience, passing the executable after \-\- is also supported.
+.INDENT 0.0
+.INDENT 3.5
+lldb\-server g :1234 \-\- /path/to/program program\-argument \-\-program\-option
+.UNINDENT
+.UNINDENT
+.sp
+In order to attach to a running process, pass \-\-attach along with the process
+identifier or name. The process will be stopped immediately after starting
+the server. Note that terminating the server will usually cause the process
+to be detached and continue execution.
+.INDENT 0.0
+.INDENT 3.5
+lldb\-server g :1234 \-\-attach 12345
+lldb\-server g :1234 \-\-attach program\-name
+.UNINDENT
+.UNINDENT
+.sp
+Use \fIgdb\-remote\fP command to connect to the server:
+.INDENT 0.0
+.INDENT 3.5
+(lldb) gdb\-remote 1234
+.UNINDENT
+.UNINDENT
+.sp
+lldb\-server can also be started without an inferior. In this case, the client
+can select the target after connecting to the server. Note that some commands
+(e.g. \fItarget create\fP) will disconnect and launch a local lldb\-server instead.
+.INDENT 0.0
+.INDENT 3.5
+lldb\-server g :1234
+.sp
+(lldb) gdb\-remote 1234
+(lldb) process launch a.out
+.UNINDENT
+.UNINDENT
+.SH SEE ALSO
+.sp
+The LLDB project page \fI\%https://lldb.llvm.org\fP has many different resources
+for \fBlldb\-server\fP users.
+.SH AUTHOR
+LLVM project
+.SH COPYRIGHT
+2007-2021, The LLDB Team
+.\" Generated by docutils manpage writer.
+.
