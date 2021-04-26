@@ -1048,8 +1048,10 @@ allocblk(long frags)
 			cg = dtog(&sblock, i + j);
 			cgbp = cglookup(cg);
 			cgp = cgbp->b_un.b_cg;
-			if (!check_cgmagic(cg, cgbp, 0))
-				return (0);
+			if (!check_cgmagic(cg, cgbp, 0)) {
+				i = (cg + 1) * sblock.fs_fpg - sblock.fs_frag;
+				continue;
+			}
 			baseblk = dtogd(&sblock, i + j);
 			for (k = 0; k < frags; k++) {
 				setbmap(i + j + k);
