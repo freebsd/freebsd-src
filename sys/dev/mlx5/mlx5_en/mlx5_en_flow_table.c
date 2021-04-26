@@ -31,6 +31,35 @@
 #include <dev/mlx5/fs.h>
 #include <dev/mlx5/mpfs.h>
 
+/*
+ * The flow tables with rules define the packet processing on receive.
+ * Currently, the following structure is set up to handle different offloads
+ * like VLAN decapsulation, packet classification, RSS hashing, VxLAN checksum
+ * offloading:
+ *
+ *
+ *   +=========+       +=========+	+=================+
+ *   |VLAN ft: |       |VxLAN	 |	|VxLAN Main    	  |
+ *   |CTAG/STAG|------>|      VNI|----->|Inner Proto Match|=====> Inner TIR n
+ *   |VID/noVID|/      |Catch-all|\	|		  |
+ *   +=========+       +=========+|	+=================+
+ *     	       	       	     	  |
+ *			     	  |
+ *			     	  |
+ *			     	  v
+ *		       	+=================+
+ *			|Main             |
+ *			|Outer Proto Match|=====> TIR n
+ *			|	          |
+ *     	       	       	+=================+
+ *
+ * The path through flow rules directs each packet into an appropriate TIR,
+ * according to the:
+ * - VLAN encapsulation
+ * - Outer protocol
+ * - Presence of inner protocol
+ */
+
 #define MLX5_SET_CFG(p, f, v) MLX5_SET(create_flow_group_in, p, f, v)
 
 enum {
