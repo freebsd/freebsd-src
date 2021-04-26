@@ -31,6 +31,7 @@
 #ifndef	_LINUX_SPINLOCK_H_
 #define	_LINUX_SPINLOCK_H_
 
+#include <asm/atomic.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -159,5 +160,17 @@ spin_lock_destroy(spinlock_t *lock)
 		break;				\
 	mtx_assert(&(_l)->m, MA_OWNED);		\
 } while (0)
+
+static inline int
+atomic_dec_and_lock_irqsave(atomic_t *cnt, spinlock_t *lock,
+    unsigned long flags)
+{
+	spin_lock_irqsave(lock, flags);
+	if (atomic_dec_and_test(cnt)) {
+		return (1);
+	}
+	spin_unlock_irqrestore(lock, flags);
+	return (0);
+}
 
 #endif					/* _LINUX_SPINLOCK_H_ */
