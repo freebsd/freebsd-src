@@ -146,9 +146,47 @@ pr251414_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "automatic" "cleanup"
+automatic_head()
+{
+	atf_set descr "Test automatic - optimizer generated - tables"
+	atf_set require.user root
+}
+
+automatic_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+		"block in" \
+		"pass in proto icmp from 192.0.2.1" \
+		"pass in proto icmp from 192.0.2.3" \
+		"pass in proto icmp from 192.0.2.4" \
+		"pass in proto icmp from 192.0.2.5" \
+		"pass in proto icmp from 192.0.2.6" \
+		"pass in proto icmp from 192.0.2.7" \
+		"pass in proto icmp from 192.0.2.8" \
+		"pass in proto icmp from 192.0.2.9"
+
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+}
+
+automatic_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
 	atf_add_test_case "v6_counters"
 	atf_add_test_case "pr251414"
+	atf_add_test_case "automatic"
 }
