@@ -801,6 +801,8 @@ allocdir(ino_t parent, ino_t request, int mode)
 	struct dirtemplate *dirp;
 
 	ino = allocino(request, IFDIR|mode);
+	if (ino == 0)
+		return (0);
 	dirp = &dirhead;
 	dirp->dot_ino = ino;
 	dirp->dotdot_ino = parent;
