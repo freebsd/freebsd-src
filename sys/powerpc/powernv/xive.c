@@ -170,8 +170,6 @@ struct xive_irq {
 	uint32_t	lirq;
 	uint64_t	vp;
 	uint64_t	flags;
-#define	OPAL_XIVE_IRQ_EOI_VIA_FW	0x00000020
-#define	OPAL_XIVE_IRQ_MASK_VIA_FW	0x00000010
 #define	OPAL_XIVE_IRQ_SHIFT_BUG		0x00000008
 #define	OPAL_XIVE_IRQ_LSI		0x00000004
 #define	OPAL_XIVE_IRQ_STORE_EOI		0x00000002
@@ -598,9 +596,7 @@ xive_eoi(device_t dev, u_int irq, void *priv)
 	} else
 		rirq = priv;
 
-	if (rirq->flags & OPAL_XIVE_IRQ_EOI_VIA_FW)
-		opal_call(OPAL_INT_EOI, irq);
-	else if (rirq->flags & OPAL_XIVE_IRQ_STORE_EOI)
+	if (rirq->flags & OPAL_XIVE_IRQ_STORE_EOI)
 		xive_write_mmap8(rirq->eoi_page + XIVE_IRQ_STORE_EOI, 0);
 	else if (rirq->flags & OPAL_XIVE_IRQ_LSI)
 		xive_read_mmap8(rirq->eoi_page + XIVE_IRQ_LOAD_EOI);
