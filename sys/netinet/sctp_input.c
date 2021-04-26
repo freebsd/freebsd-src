@@ -3412,19 +3412,16 @@ sctp_find_stream_reset(struct sctp_tcb *stcb, uint32_t seq, struct sctp_tmit_chu
 	int len, clen;
 
 	asoc = &stcb->asoc;
-	if (TAILQ_EMPTY(&stcb->asoc.control_send_queue)) {
+	chk = asoc->str_reset;
+	if (TAILQ_EMPTY(&asoc->control_send_queue) ||
+	    (chk == NULL)) {
 		asoc->stream_reset_outstanding = 0;
 		return (NULL);
 	}
-	if (stcb->asoc.str_reset == NULL) {
-		asoc->stream_reset_outstanding = 0;
-		return (NULL);
-	}
-	chk = stcb->asoc.str_reset;
 	if (chk->data == NULL) {
 		return (NULL);
 	}
-	if (bchk) {
+	if (bchk != NULL) {
 		/* he wants a copy of the chk pointer */
 		*bchk = chk;
 	}
