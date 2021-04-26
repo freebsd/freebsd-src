@@ -2736,6 +2736,7 @@ note_fctl_cb(const Elf_Note *note, void *arg0, boolean_t *res)
 	desc = (const Elf32_Word *)p;
 	*arg->has_fctl0 = TRUE;
 	*arg->fctl0 = desc[0];
+	*res = TRUE;
 	return (TRUE);
 }
 
