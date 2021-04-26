@@ -1849,7 +1849,7 @@ t4_set_tcb_field(struct adapter *sc, struct sge_wrq *wrq, struct toepcb *toep,
 	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(cookie));
 	req->mask = htobe64(mask);
 	req->val = htobe64(val);
-	if ((wrq->eq.flags & EQ_TYPEMASK) == EQ_OFLD) {
+	if (wrq->eq.type == EQ_OFLD) {
 		txsd = &toep->txsd[toep->txsd_pidx];
 		txsd->tx_credits = howmany(sizeof(*req), 16);
 		txsd->plen = 0;

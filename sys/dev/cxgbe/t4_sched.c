@@ -296,8 +296,8 @@ bind_txq_to_traffic_class(struct adapter *sc, struct sge_txq *txq, int idx)
 	int rc, old_idx;
 	uint32_t fw_mnem, fw_class;
 
-	if (!(txq->eq.flags & EQ_ALLOCATED))
-		return (EAGAIN);
+	if (!(txq->eq.flags & EQ_HW_ALLOCATED))
+		return (ENXIO);
 
 	mtx_lock(&sc->tc_lock);
 	if (txq->tc_idx == -2) {
@@ -565,16 +565,13 @@ int
 sysctl_tc(SYSCTL_HANDLER_ARGS)
 {
 	struct vi_info *vi = arg1;
-	struct port_info *pi;
-	struct adapter *sc;
+	struct adapter *sc = vi->adapter;
 	struct sge_txq *txq;
 	int qidx = arg2, rc, tc_idx;
 
-	MPASS(qidx >= 0 && qidx < vi->ntxq);
-	pi = vi->pi;
-	sc = pi->adapter;
-	txq = &sc->sge.txq[vi->first_txq + qidx];
+	MPASS(qidx >= vi->first_txq && qidx < vi->first_txq + vi->ntxq);
 
+	txq = &sc->sge.txq[qidx];
 	tc_idx = txq->tc_idx;
 	rc = sysctl_handle_int(oidp, &tc_idx, 0, req);
 	if (rc != 0 || req->newptr == NULL)
