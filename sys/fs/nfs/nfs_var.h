@@ -355,7 +355,7 @@ void nfsv4_setsequence(struct nfsmount *, struct nfsrv_descript *,
     struct nfsclsession *, int);
 int nfsv4_sequencelookup(struct nfsmount *, struct nfsclsession *, int *,
     int *, uint32_t *, uint8_t *);
-void nfsv4_freeslot(struct nfsclsession *, int);
+void nfsv4_freeslot(struct nfsclsession *, int, bool);
 struct ucred *nfsrv_getgrpscred(struct ucred *);
 struct nfsdevice *nfsv4_findmirror(struct nfsmount *);
 void nfsm_set(struct nfsrv_descript *, u_int);
