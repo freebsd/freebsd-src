@@ -167,10 +167,10 @@ atomic_dec_and_lock_irqsave(atomic_t *cnt, spinlock_t *lock,
 {
 	spin_lock_irqsave(lock, flags);
 	if (atomic_dec_and_test(cnt)) {
-		return (1);
+		return 1;
 	}
 	spin_unlock_irqrestore(lock, flags);
-	return (0);
+	return 0;
 }
 
 #endif					/* _LINUX_SPINLOCK_H_ */
