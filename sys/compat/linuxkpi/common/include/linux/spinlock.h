@@ -166,9 +166,8 @@ atomic_dec_and_lock_irqsave(atomic_t *cnt, spinlock_t *lock,
     unsigned long flags)
 {
 	spin_lock_irqsave(lock, flags);
-	if (atomic_dec_and_test(cnt)) {
+	if (atomic_dec_and_test(cnt))
 		return 1;
-	}
 	spin_unlock_irqrestore(lock, flags);
 	return 0;
 }
