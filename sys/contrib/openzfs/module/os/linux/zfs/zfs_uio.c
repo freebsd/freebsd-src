@@ -261,9 +261,6 @@ zfs_uio_prefaultpages(ssize_t n, zfs_uio_t *uio)
 		}
 	}
 
-	if (iterp && iov_iter_fault_in_readable(iterp, n))
-		return (EFAULT);
-#endif
 	return (0);
 }
 EXPORT_SYMBOL(zfs_uio_prefaultpages);
