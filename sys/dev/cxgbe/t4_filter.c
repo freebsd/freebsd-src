@@ -960,11 +960,10 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4setf");
 	if (rc)
 		return (rc);
-	if (!(sc->flags & FULL_INIT_DONE) &&
-	    ((rc = adapter_full_init(sc)) != 0)) {
-		end_synchronized_op(sc, 0);
-		return (rc);
-	}
+
+	if (!(sc->flags & FULL_INIT_DONE) && ((rc = adapter_init(sc)) != 0))
+		goto done;
+
 	if (t->fs.hash) {
 		if (__predict_false(ti->hftid_hash_4t == NULL)) {
 			rc = alloc_hftid_hash(&sc->tids, HASH_NOWAIT);
