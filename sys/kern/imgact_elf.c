@@ -2666,6 +2666,7 @@ note_fctl_cb(const Elf_Note *note, void *arg0, boolean_t *res)
 	p += roundup2(note->n_namesz, ELF_NOTE_ROUNDSIZE);
 	desc = (const Elf32_Word *)p;
 	*arg->fctl0 = desc[0];
+	*res = TRUE;
 	return (TRUE);
 }
 
