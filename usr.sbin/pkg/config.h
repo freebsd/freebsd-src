@@ -44,6 +44,7 @@ typedef enum {
 	FINGERPRINTS,
 	REPOS_DIR,
 	PUBKEY,
+	PKG_ENV,
 	CONFIG_SIZE
 } pkg_config_key;
 
@@ -51,6 +52,7 @@ typedef enum {
 	PKG_CONFIG_STRING=0,
 	PKG_CONFIG_BOOL,
 	PKG_CONFIG_LIST,
+	PKG_CONFIG_OBJECT
 } pkg_config_t;
 
 typedef enum {
