@@ -1009,7 +1009,7 @@ save_add_notification(struct rib_cmd_info *rc, void *_cbdata)
 static struct sockaddr *
 alloc_sockaddr_aligned(struct linear_buffer *lb, int len)
 {
-	len |= (sizeof(uint64_t) - 1);
+	len = roundup2(len, sizeof(uint64_t));
 	if (lb->offset + len > lb->size)
 		return (NULL);
 	struct sockaddr *sa = (struct sockaddr *)(lb->base + lb->offset);
