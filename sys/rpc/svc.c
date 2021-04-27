@@ -203,6 +203,8 @@ svcpool_cleanup(SVCPOOL *pool)
 		mtx_unlock(&grp->sg_lock);
 	}
 	TAILQ_FOREACH_SAFE(xprt, &cleanup, xp_link, nxprt) {
+		if (xprt->xp_socket != NULL)
+			soshutdown(xprt->xp_socket, SHUT_WR);
 		SVC_RELEASE(xprt);
 	}
 
@@ -388,6 +390,8 @@ xprt_unregister(SVCXPRT *xprt)
 	xprt_unregister_locked(xprt);
 	mtx_unlock(&grp->sg_lock);
 
+	if (xprt->xp_socket != NULL)
+		soshutdown(xprt->xp_socket, SHUT_WR);
 	SVC_RELEASE(xprt);
 }
 
@@ -1078,6 +1082,7 @@ svc_checkidle(SVCGROUP *grp)
 
 	mtx_unlock(&grp->sg_lock);
 	TAILQ_FOREACH_SAFE(xprt, &cleanup, xp_link, nxprt) {
+		soshutdown(xprt->xp_socket, SHUT_WR);
 		SVC_RELEASE(xprt);
 	}
 	mtx_lock(&grp->sg_lock);
