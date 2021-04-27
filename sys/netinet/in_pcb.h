@@ -407,13 +407,6 @@ struct inpcbport {
 	u_short phd_port;
 };
 
-struct in_pcblist {
-	int il_count;
-	struct epoch_context il_epoch_ctx;
-	struct inpcbinfo *il_pcbinfo;
-	struct inpcb *il_inp_list[0];
-};
-
 /*-
  * Global data structure for each high-level protocol (UDP, TCP, ...) in both
  * IPv4 and IPv6.  Holds inpcb lists and information for managing them.
@@ -872,7 +865,6 @@ void	in_pcbrehash_mbuf(struct inpcb *, struct mbuf *);
 int	in_pcbrele(struct inpcb *);
 int	in_pcbrele_rlocked(struct inpcb *);
 int	in_pcbrele_wlocked(struct inpcb *);
-void	in_pcblist_rele_rlocked(epoch_context_t ctx);
 void	in_losing(struct inpcb *);
 void	in_pcbsetsolabel(struct socket *so);
 int	in_getpeeraddr(struct socket *so, struct sockaddr **nam);
