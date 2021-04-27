@@ -948,6 +948,7 @@ check_cgmagic(int cg, struct bufarea *cgbp, int request_rebuild)
 {
 	struct cg *cgp = cgbp->b_un.b_cg;
 	uint32_t cghash, calchash;
+	static int prevfailcg = -1;
 
 	/*
 	 * Extended cylinder group checks.
@@ -973,9 +974,14 @@ check_cgmagic(int cg, struct bufarea *cgbp, int request_rebuild)
 	      cgp->cg_initediblk <= sblock.fs_ipg))) {
 		return (1);
 	}
-	pfatal("CYLINDER GROUP %d: INTEGRITY CHECK FAILED", cg);
-	if (!request_rebuild)
+	if (prevfailcg == cg)
 		return (0);
+	prevfailcg = cg;
+	pfatal("CYLINDER GROUP %d: INTEGRITY CHECK FAILED", cg);
+	if (!request_rebuild) {
+		printf("\n");
+		return (0);
+	}
 	if (!reply("REBUILD CYLINDER GROUP")) {
 		printf("YOU WILL NEED TO RERUN FSCK.\n");
 		rerun = 1;
