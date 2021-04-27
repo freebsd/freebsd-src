@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/types.h>
-#include <sys/sbuf.h>
 #include <sys/wait.h>
 
 #include <archive.h>
@@ -595,7 +594,9 @@ static struct pubkey *
 read_pubkey(int fd)
 {
 	struct pubkey *pk;
-	struct sbuf *sig;
+	char *sigb;
+	size_t sigsz;
+	FILE *sig;
 	char buf[4096];
 	int r;
 
@@ -604,18 +605,22 @@ read_pubkey(int fd)
 		return (NULL);
 	}
 
-	sig = sbuf_new_auto();
+	sigsz = 0;
+	sigb = NULL;
+	sig = open_memstream(&sigb, &sigsz);
+	if (sig == NULL)
+		err(EXIT_FAILURE, "open_memstream()");
 
 	while ((r = read(fd, buf, sizeof(buf))) >0) {
-		sbuf_bcat(sig, buf, r);
+		fwrite(buf, 1, r, sig);
 	}
 
-	sbuf_finish(sig);
+	fclose(sig);
 	pk = calloc(1, sizeof(struct pubkey));
-	pk->siglen = sbuf_len(sig);
+	pk->siglen = sigsz;
 	pk->sig = calloc(1, pk->siglen);
-	memcpy(pk->sig, sbuf_data(sig), pk->siglen);
-	sbuf_delete(sig);
+	memcpy(pk->sig, sigb, pk->siglen);
+	free(sigb);
 
 	return (pk);
 }
@@ -624,16 +629,17 @@ static struct sig_cert *
 parse_cert(int fd) {
 	int my_fd;
 	struct sig_cert *sc;
-	FILE *fp;
-	struct sbuf *buf, *sig, *cert;
+	FILE *fp, *sigfp, *certfp, *tmpfp;
 	char *line;
-	size_t linecap;
+	char *sig, *cert;
+	size_t linecap, sigsz, certsz;
 	ssize_t linelen;
 
-	buf = NULL;
 	sc = NULL;
 	line = NULL;
 	linecap = 0;
+	sig = cert = NULL;
+	sigfp = certfp = tmpfp = NULL;
 
 	if (lseek(fd, 0, 0) == -1) {
 		warn("lseek");
@@ -652,41 +658,38 @@ parse_cert(int fd) {
 		return (NULL);
 	}
 
-	sig = sbuf_new_auto();
-	cert = sbuf_new_auto();
+	sigsz = certsz = 0;
+	sigfp = open_memstream(&sig, &sigsz);
+	if (sigfp == NULL)
+		err(EXIT_FAILURE, "open_memstream()");
+	certfp = open_memstream(&cert, &certsz);
+	if (certfp == NULL)
+		err(EXIT_FAILURE, "open_memstream()");
 
 	while ((linelen = getline(&line, &linecap, fp)) > 0) {
 		if (strcmp(line, "SIGNATURE\n") == 0) {
-			buf = sig;
+			tmpfp = sigfp;
 			continue;
 		} else if (strcmp(line, "CERT\n") == 0) {
-			buf = cert;
+			tmpfp = certfp;
 			continue;
 		} else if (strcmp(line, "END\n") == 0) {
 			break;
 		}
-		if (buf != NULL)
-			sbuf_bcat(buf, line, linelen);
+		if (tmpfp != NULL)
+			fwrite(line, 1, linelen, tmpfp);
 	}
 
 	fclose(fp);
-
-	/* Trim out unrelated trailing newline */
-	sbuf_setpos(sig, sbuf_len(sig) - 1);
-
-	sbuf_finish(sig);
-	sbuf_finish(cert);
+	fclose(sigfp);
+	fclose(certfp);
 
 	sc = calloc(1, sizeof(struct sig_cert));
-	sc->siglen = sbuf_len(sig);
-	sc->sig = calloc(1, sc->siglen);
-	memcpy(sc->sig, sbuf_data(sig), sc->siglen);
+	sc->siglen = sigsz -1; /* Trim out unrelated trailing newline */
+	sc->sig = sig;
 
-	sc->certlen = sbuf_len(cert);
-	sc->cert = strdup(sbuf_data(cert));
-
-	sbuf_delete(sig);
-	sbuf_delete(cert);
+	sc->certlen = certsz;
+	sc->cert = cert;
 
 	return (sc);
 }

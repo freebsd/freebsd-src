@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/utsname.h>
-#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 
 #include <dirent.h>
@@ -212,7 +211,9 @@ boolstr_to_bool(const char *str)
 static void
 config_parse(const ucl_object_t *obj, pkg_conf_file_t conftype)
 {
-	struct sbuf *buf = sbuf_new_auto();
+	FILE *buffp;
+	char *buf = NULL;
+	size_t bufsz = 0;
 	const ucl_object_t *cur, *seq, *tmp;
 	ucl_object_iter_t it = NULL, itseq = NULL, it_obj = NULL;
 	struct config_entry *temp_config;
@@ -223,39 +224,44 @@ config_parse(const ucl_object_t *obj, pkg_conf_file_t conftype)
 
 	/* Temporary config for configs that may be disabled. */
 	temp_config = calloc(CONFIG_SIZE, sizeof(struct config_entry));
+	buffp = open_memstream(&buf, &bufsz);
+	if (buffp == NULL)
+		err(EXIT_FAILURE, "open_memstream()");
 
 	while ((cur = ucl_iterate_object(obj, &it, true))) {
 		key = ucl_object_key(cur);
 		if (key == NULL)
 			continue;
-		sbuf_clear(buf);
+		if (buf != NULL)
+			memset(buf, 0, bufsz);
+		rewind(buffp);
 
 		if (conftype == CONFFILE_PKG) {
 			for (j = 0; j < strlen(key); ++j)
-				sbuf_putc(buf, toupper(key[j]));
-			sbuf_finish(buf);
+				fputc(toupper(key[j]), buffp);
+			fflush(buffp);
 		} else if (conftype == CONFFILE_REPO) {
 			if (strcasecmp(key, "url") == 0)
-				sbuf_cpy(buf, "PACKAGESITE");
+				fputs("PACKAGESITE", buffp);
 			else if (strcasecmp(key, "mirror_type") == 0)
-				sbuf_cpy(buf, "MIRROR_TYPE");
+				fputs("MIRROR_TYPE", buffp);
 			else if (strcasecmp(key, "signature_type") == 0)
-				sbuf_cpy(buf, "SIGNATURE_TYPE");
+				fputs("SIGNATURE_TYPE", buffp);
 			else if (strcasecmp(key, "fingerprints") == 0)
-				sbuf_cpy(buf, "FINGERPRINTS");
+				fputs("FINGERPRINTS", buffp);
 			else if (strcasecmp(key, "pubkey") == 0)
-				sbuf_cpy(buf, "PUBKEY");
+				fputs("PUBKEY", buffp);
 			else if (strcasecmp(key, "enabled") == 0) {
 				if ((cur->type != UCL_BOOLEAN) ||
 				    !ucl_object_toboolean(cur))
 					goto cleanup;
 			} else
 				continue;
-			sbuf_finish(buf);
+			fflush(buffp);
 		}
 
 		for (i = 0; i < CONFIG_SIZE; i++) {
-			if (strcmp(sbuf_data(buf), c[i].key) == 0)
+			if (strcmp(buf, c[i].key) == 0)
 				break;
 		}
 
@@ -330,7 +336,8 @@ config_parse(const ucl_object_t *obj, pkg_conf_file_t conftype)
 
 cleanup:
 	free(temp_config);
-	sbuf_delete(buf);
+	fclose(buffp);
+	free(buf);
 }
 
 /*-
