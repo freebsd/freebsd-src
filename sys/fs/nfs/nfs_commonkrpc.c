@@ -1062,7 +1062,9 @@ tryagain:
 			     nd->nd_procnum != NFSPROC_WRITE &&
 			     nd->nd_procnum != NFSPROC_WRITEDS &&
 			     nd->nd_procnum != NFSPROC_OPEN &&
+			     nd->nd_procnum != NFSPROC_OPENLAYGET &&
 			     nd->nd_procnum != NFSPROC_CREATE &&
+			     nd->nd_procnum != NFSPROC_CREATELAYGET &&
 			     nd->nd_procnum != NFSPROC_OPENCONFIRM &&
 			     nd->nd_procnum != NFSPROC_OPENDOWNGRADE &&
 			     nd->nd_procnum != NFSPROC_CLOSE &&
