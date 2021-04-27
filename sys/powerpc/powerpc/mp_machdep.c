@@ -299,49 +299,43 @@ powerpc_ipi_handler(void *arg)
 {
 	u_int cpuid;
 	uint32_t ipimask;
-	int msg;
 
 	CTR2(KTR_SMP, "%s: MSR 0x%08x", __func__, mfmsr());
 
 	ipimask = atomic_readandclear_32(&(pcpup->pc_ipimask));
 	if (ipimask == 0)
 		return (FILTER_STRAY);
-	while ((msg = ffs(ipimask) - 1) != -1) {
-		ipimask &= ~(1u << msg);
-		switch (msg) {
-		case IPI_AST:
-			CTR1(KTR_SMP, "%s: IPI_AST", __func__);
-			break;
-		case IPI_PREEMPT:
-			CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
-			sched_preempt(curthread);
-			break;
-		case IPI_RENDEZVOUS:
-			CTR1(KTR_SMP, "%s: IPI_RENDEZVOUS", __func__);
-			smp_rendezvous_action();
-			break;
-		case IPI_STOP:
+	if (ipimask & (1 << IPI_AST)) {
+		CTR1(KTR_SMP, "%s: IPI_AST", __func__);
+	}
+	if (ipimask & (1 << IPI_PREEMPT)) {
+		CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
+		sched_preempt(curthread);
+	}
+	if (ipimask & (1 << IPI_RENDEZVOUS)) {
+		CTR1(KTR_SMP, "%s: IPI_RENDEZVOUS", __func__);
+		smp_rendezvous_action();
+	}
+	if (ipimask & (1 << IPI_STOP)) {
 
-			/*
-			 * IPI_STOP_HARD is mapped to IPI_STOP so it is not
-			 * necessary to add such case in the switch.
-			 */
-			CTR1(KTR_SMP, "%s: IPI_STOP or IPI_STOP_HARD (stop)",
-			    __func__);
-			cpuid = PCPU_GET(cpuid);
-			savectx(&stoppcbs[cpuid]);
-			CPU_SET_ATOMIC(cpuid, &stopped_cpus);
-			while (!CPU_ISSET(cpuid, &started_cpus))
-				cpu_spinwait();
-			CPU_CLR_ATOMIC(cpuid, &stopped_cpus);
-			CPU_CLR_ATOMIC(cpuid, &started_cpus);
-			CTR1(KTR_SMP, "%s: IPI_STOP (restart)", __func__);
-			break;
-		case IPI_HARDCLOCK:
-			CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
-			hardclockintr();
-			break;
-		}
+		/*
+		 * IPI_STOP_HARD is mapped to IPI_STOP so it is not
+		 * necessary to add such case.
+		 */
+		CTR1(KTR_SMP, "%s: IPI_STOP or IPI_STOP_HARD (stop)",
+				__func__);
+		cpuid = PCPU_GET(cpuid);
+		savectx(&stoppcbs[cpuid]);
+		CPU_SET_ATOMIC(cpuid, &stopped_cpus);
+		while (!CPU_ISSET(cpuid, &started_cpus))
+			cpu_spinwait();
+		CPU_CLR_ATOMIC(cpuid, &stopped_cpus);
+		CPU_CLR_ATOMIC(cpuid, &started_cpus);
+		CTR1(KTR_SMP, "%s: IPI_STOP (restart)", __func__);
+	}
+	if (ipimask & (1 << IPI_HARDCLOCK)) {
+		CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
+		hardclockintr();
 	}
 
 	return (FILTER_HANDLED);
