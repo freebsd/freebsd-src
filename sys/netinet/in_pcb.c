@@ -1655,16 +1655,6 @@ in_pcbrele_wlocked(struct inpcb *inp)
 	return (1);
 }
 
-/*
- * Temporary wrapper.
- */
-int
-in_pcbrele(struct inpcb *inp)
-{
-
-	return (in_pcbrele_wlocked(inp));
-}
-
 static void
 inpcbport_free(epoch_context_t ctx)
 {
