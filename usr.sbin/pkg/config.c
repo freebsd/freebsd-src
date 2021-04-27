@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #include "config.h"
 
@@ -134,6 +135,15 @@ static struct config_entry c[] = {
 		NULL,
 		false,
 		false
+	},
+	[PKG_ENV] = {
+		PKG_CONFIG_OBJECT,
+		"PKG_ENV",
+		NULL,
+		NULL,
+		NULL,
+		false,
+		false,
 	}
 };
 
@@ -205,11 +215,11 @@ static void
 config_parse(const ucl_object_t *obj, pkg_conf_file_t conftype)
 {
 	struct sbuf *buf = sbuf_new_auto();
-	const ucl_object_t *cur, *seq;
-	ucl_object_iter_t it = NULL, itseq = NULL;
+	const ucl_object_t *cur, *seq, *tmp;
+	ucl_object_iter_t it = NULL, itseq = NULL, it_obj = NULL;
 	struct config_entry *temp_config;
 	struct config_value *cv;
-	const char *key;
+	const char *key, *evkey;
 	int i;
 	size_t j;
 
@@ -224,7 +234,7 @@ config_parse(const ucl_object_t *obj, pkg_conf_file_t conftype)
 
 		if (conftype == CONFFILE_PKG) {
 			for (j = 0; j < strlen(key); ++j)
-				sbuf_putc(buf, key[j]);
+				sbuf_putc(buf, toupper(key[j]));
 			sbuf_finish(buf);
 		} else if (conftype == CONFFILE_REPO) {
 			if (strcasecmp(key, "url") == 0)
@@ -284,6 +294,17 @@ config_parse(const ucl_object_t *obj, pkg_conf_file_t conftype)
 		case PKG_CONFIG_BOOL:
 			temp_config[i].value =
 			    strdup(ucl_object_toboolean(cur) ? "yes" : "no");
+			break;
+		case PKG_CONFIG_OBJECT:
+			if (strcmp(c[i].key, "PKG_ENV") == 0) {
+				while ((tmp =
+				    ucl_iterate_object(cur, &it_obj, true))) {
+					evkey = ucl_object_key(tmp);
+					if (evkey != NULL && *evkey != '\0') {
+						setenv(evkey, ucl_object_tostring_forced(tmp), 1);
+					}
+				}
+			}
 			break;
 		default:
 			/* Normal string value. */
