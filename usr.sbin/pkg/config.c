@@ -49,8 +49,8 @@ __FBSDID("$FreeBSD$");
 #include "config.h"
 
 struct config_value {
-       char *value;
-       STAILQ_ENTRY(config_value) next;
+	char *value;
+	STAILQ_ENTRY(config_value) next;
 };
 
 struct config_entry {
