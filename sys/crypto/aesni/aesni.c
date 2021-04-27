@@ -655,10 +655,10 @@ hmac_internal(void *ctx, uint32_t *res,
 {
 	size_t i;
 
-	for (i = 0; i < 64; i++)
+	for (i = 0; i < AESNI_SHA_BLOCK_LEN; i++)
 		key[i] ^= xorbyte;
-	update(ctx, key, 64);
-	for (i = 0; i < 64; i++)
+	update(ctx, key, AESNI_SHA_BLOCK_LEN);
+	for (i = 0; i < AESNI_SHA_BLOCK_LEN; i++)
 		key[i] ^= xorbyte;
 
 	crypto_apply(crpflags, __DECONST(void *, buf), off, buflen,
@@ -883,6 +883,7 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptodesc *crd,
 		struct SHA256Context sha2 __aligned(16);
 		struct sha1_ctxt sha1 __aligned(16);
 	} sctx;
+	uint8_t hmac_key[AESNI_SHA_BLOCK_LEN] __aligned(16);
 	uint32_t res[SHA2_256_HASH_LEN / sizeof(uint32_t)];
 	int hashlen, error;
 	void *ctx;
@@ -946,15 +947,16 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptodesc *crd,
 	}
 
 	if (hmac) {
+		memcpy(hmac_key, ses->hmac_key, AESNI_SHA_BLOCK_LEN);
+
 		/* Inner hash: (K ^ IPAD) || data */
 		InitFn(ctx);
-		hmac_internal(ctx, res, UpdateFn, FinalizeFn, ses->hmac_key,
-		    0x36, crp->crp_buf, crd->crd_skip, crd->crd_len,
-		    crp->crp_flags);
+		hmac_internal(ctx, res, UpdateFn, FinalizeFn, hmac_key, 0x36,
+		    crp->crp_buf, crd->crd_skip, crd->crd_len, crp->crp_flags);
 		/* Outer hash: (K ^ OPAD) || inner hash */
 		InitFn(ctx);
-		hmac_internal(ctx, res, UpdateFn, FinalizeFn, ses->hmac_key,
-		    0x5C, res, 0, hashlen, 0);
+		hmac_internal(ctx, res, UpdateFn, FinalizeFn, hmac_key, 0x5C,
+		    res, 0, hashlen, 0);
 	} else {
 		InitFn(ctx);
 		crypto_apply(crp->crp_flags, crp->crp_buf, crd->crd_skip,
