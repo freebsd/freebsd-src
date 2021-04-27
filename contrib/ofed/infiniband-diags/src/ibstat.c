@@ -48,6 +48,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/sysctl.h> // Removes sysctlbyname() warning, line 125
 
 #include <infiniband/umad.h>
 
