@@ -667,13 +667,21 @@ need_immediate_sync(struct fib_data *fd, struct rib_cmd_info *rc)
 	switch (rc->rc_cmd) {
 	case RTM_ADD:
 		nh = rc->rc_nh_new;
-		if (!NH_IS_NHGRP(nh) && (!(nh->nh_flags & NHF_GATEWAY)))
-			return (true);
+		if (!NH_IS_NHGRP(nh)) {
+			if (!(nh->nh_flags & NHF_GATEWAY))
+				return (true);
+			if (nhop_get_rtflags(nh) & RTF_STATIC)
+				return (true);
+		}
 		break;
 	case RTM_DELETE:
 		nh = rc->rc_nh_old;
-		if (!NH_IS_NHGRP(nh) && (!(nh->nh_flags & NHF_GATEWAY)))
-			return (true);
+		if (!NH_IS_NHGRP(nh)) {
+			if (!(nh->nh_flags & NHF_GATEWAY))
+				return (true);
+			if (nhop_get_rtflags(nh) & RTF_STATIC)
+				return (true);
+		}
 		break;
 	}
 
