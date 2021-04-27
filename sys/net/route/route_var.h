@@ -71,9 +71,7 @@ struct rib_head {
 	struct callout		expire_callout;	/* Callout for expiring dynamic routes */
 	time_t			next_expire;	/* Next expire run ts */
 	uint32_t		rnh_prefixes;	/* Number of prefixes */
-#ifdef FIB_ALGO
-	rt_gen_t		rnh_gen_rib;	/* rib generation counter */
-#endif
+	rt_gen_t		rnh_gen_rib;	/* fib algo: rib generation counter */
 	uint32_t		rib_dying:1;	/* rib is detaching */
 	uint32_t		rib_algo_fixed:1;/* fixed algorithm */
 	uint32_t		rib_algo_init:1;/* algo init done */
