@@ -708,22 +708,28 @@ ng_bridge_send_data(link_cp dst, int manycast, struct mbuf *m, item_p item) {
 	else
 		NG_SEND_DATA_ONLY(error, dst->hook, m);
 
-	if (error == 0) {
-		counter_u64_add(dst->stats.xmitPackets, 1);
-		counter_u64_add(dst->stats.xmitOctets, len);
-		switch (manycast) {
-		default:		       /* unknown unicast */
-			break;
-		case 1:			       /* multicast */
-			counter_u64_add(dst->stats.xmitMulticasts, 1);
-			break;
-		case 2:			       /* broadcast */
-			counter_u64_add(dst->stats.xmitBroadcasts, 1);
-			break;
-		}
+	if (error) {
+		/* The packet is still ours */
+		if (item != NULL)
+			NG_FREE_ITEM(item);
+		if (m != NULL)
+			NG_FREE_M(m);
+		return (error);
 	}
 
-	return (error);
+	counter_u64_add(dst->stats.xmitPackets, 1);
+	counter_u64_add(dst->stats.xmitOctets, len);
+	switch (manycast) {
+	default:		       /* unknown unicast */
+		break;
+	case 1:			       /* multicast */
+		counter_u64_add(dst->stats.xmitMulticasts, 1);
+		break;
+	case 2:			       /* broadcast */
+		counter_u64_add(dst->stats.xmitBroadcasts, 1);
+		break;
+	}
+	return (0);
 }
 
 /*
@@ -761,16 +767,16 @@ ng_bridge_send_ctx(hook_p dst, void *arg)
 	 * It's usable link but not the reserved (first) one.
 	 * Copy mbuf info for sending.
 	 */
-	m2 = m_dup(ctx->m, M_NOWAIT);	/* XXX m_copypacket() */
+	m2 = m_dup(ctx->m, M_NOWAIT);
 	if (m2 == NULL) {
 		counter_u64_add(ctx->incoming->stats.memoryFailures, 1);
 		ctx->error = ENOBUFS;
-		return (0);	       /* abort loop */
+		return (0);	       /* abort loop, do not try again and again */
 	}
 
 	/* Send packet */
 	error = ng_bridge_send_data(destLink, ctx->manycast, m2, NULL);
-	if(error)
+	if (error)
 	  ctx->error = error;
 	return (1);
 }
@@ -920,18 +926,17 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 	/* Distribute unknown, multicast, broadcast pkts to all other links */
 	NG_NODE_FOREACH_HOOK(node, ng_bridge_send_ctx, &ctx, ret);
 
-	/* If we never saw a good link, leave. */
-	if (ctx.foundFirst == NULL || ctx.error != 0) {
+	/* Finally send out on the first link found */
+	if (ctx.foundFirst != NULL) {
+		int error = ng_bridge_send_data(ctx.foundFirst, ctx.manycast, ctx.m, item);
+		if (error)
+			ctx.error = error;
+	} else {		       /* nothing to send at all */
 		NG_FREE_ITEM(item);
 		NG_FREE_M(ctx.m);
-		return (ctx.error);
 	}
 
-	/*
-	 * If we've sent all the others, send the original
-	 * on the first link we found.
-	 */
-	return (ng_bridge_send_data(ctx.foundFirst, ctx.manycast, ctx.m, item));
+	return (ctx.error);
 }
 
 /*
