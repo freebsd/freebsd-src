@@ -100,6 +100,7 @@ arm64/coresight/coresight_tmc_fdt.c		optional fdt
 
 arm64/iommu/iommu.c				optional iommu
 arm64/iommu/iommu_if.m				optional iommu
+arm64/iommu/iommu_pmap.c			optional iommu
 arm64/iommu/smmu.c				optional iommu
 arm64/iommu/smmu_acpi.c				optional acpi iommu
 arm64/iommu/smmu_quirks.c			optional iommu
