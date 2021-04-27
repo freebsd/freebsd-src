@@ -59,7 +59,6 @@ riscv/riscv/pmap.c		standard
 riscv/riscv/riscv_console.c	optional	rcons
 riscv/riscv/riscv_syscon.c	optional	ext_resources syscon riscv_syscon fdt
 riscv/riscv/sbi.c		standard
-riscv/riscv/soc.c		standard
 riscv/riscv/stack_machdep.c	optional	ddb | stack
 riscv/riscv/support.S		standard
 riscv/riscv/swtch.S		standard
