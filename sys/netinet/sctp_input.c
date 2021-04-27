@@ -98,49 +98,12 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 	if (stcb == NULL) {
 		SCTP_INP_RLOCK(inp);
 	}
-	/* validate length */
-	if (ntohs(cp->ch.chunk_length) < sizeof(struct sctp_init_chunk)) {
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(inp, stcb, m, iphlen, src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, port);
-		if (stcb)
-			*abort_no_unlock = 1;
-		goto outnow;
-	}
-	/* validate parameters */
+	/* Validate parameters */
 	init = &cp->init;
-	if (init->initiate_tag == 0) {
-		/* protocol error... send abort */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(inp, stcb, m, iphlen, src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, port);
-		if (stcb)
-			*abort_no_unlock = 1;
-		goto outnow;
-	}
-	if (ntohl(init->a_rwnd) < SCTP_MIN_RWND) {
-		/* invalid parameter... send abort */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(inp, stcb, m, iphlen, src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, port);
-		if (stcb)
-			*abort_no_unlock = 1;
-		goto outnow;
-	}
-	if (init->num_inbound_streams == 0) {
-		/* protocol error... send abort */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(inp, stcb, m, iphlen, src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, port);
-		if (stcb)
-			*abort_no_unlock = 1;
-		goto outnow;
-	}
-	if (init->num_outbound_streams == 0) {
+	if ((ntohl(init->initiate_tag) == 0) ||
+	    (ntohl(init->a_rwnd) < SCTP_MIN_RWND) ||
+	    (ntohs(init->num_inbound_streams) == 0) ||
+	    (ntohs(init->num_outbound_streams) == 0)) {
 		/* protocol error... send abort */
 		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
 		sctp_abort_association(inp, stcb, m, iphlen, src, dst, sh, op_err,
@@ -1277,49 +1240,12 @@ sctp_handle_init_ack(struct mbuf *m, int iphlen, int offset,
 		    "sctp_handle_init_ack: TCB is null\n");
 		return (-1);
 	}
-	if (ntohs(cp->ch.chunk_length) < sizeof(struct sctp_init_ack_chunk)) {
-		/* Invalid length */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
-		    src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, net->port);
-		*abort_no_unlock = 1;
-		return (-1);
-	}
 	init_ack = &cp->init;
-	/* validate parameters */
-	if (init_ack->initiate_tag == 0) {
-		/* protocol error... send an abort */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
-		    src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, net->port);
-		*abort_no_unlock = 1;
-		return (-1);
-	}
-	if (ntohl(init_ack->a_rwnd) < SCTP_MIN_RWND) {
-		/* protocol error... send an abort */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
-		    src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, net->port);
-		*abort_no_unlock = 1;
-		return (-1);
-	}
-	if (init_ack->num_inbound_streams == 0) {
-		/* protocol error... send an abort */
-		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
-		sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
-		    src, dst, sh, op_err,
-		    mflowtype, mflowid,
-		    vrf_id, net->port);
-		*abort_no_unlock = 1;
-		return (-1);
-	}
-	if (init_ack->num_outbound_streams == 0) {
+	/* Validate parameters. */
+	if ((ntohl(init_ack->initiate_tag) == 0) ||
+	    (ntohl(init_ack->a_rwnd) < SCTP_MIN_RWND) ||
+	    (ntohs(init_ack->num_inbound_streams) == 0) ||
+	    (ntohs(init_ack->num_outbound_streams) == 0)) {
 		/* protocol error... send an abort */
 		op_err = sctp_generate_cause(SCTP_CAUSE_INVALID_PARAM, "");
 		sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
