@@ -31,9 +31,6 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include <sys/types.h>
-#include <sys/sbuf.h>
-
 #include <err.h>
 #include <fcntl.h>
 #include <string.h>
@@ -414,9 +411,11 @@ write_userconfig(struct userconf *cnf, const char *file)
 {
 	int             fd;
 	int             i, j;
-	struct sbuf	*buf;
+	FILE           *buffp;
 	FILE           *fp;
 	char		cfgfile[MAXPATHLEN];
+	char           *buf;
+	size_t          sz;
 
 	if (file == NULL) {
 		snprintf(cfgfile, sizeof(cfgfile), "%s/" _PW_CONF,
@@ -431,117 +430,124 @@ write_userconfig(struct userconf *cnf, const char *file)
 		close(fd);
 		return (0);
 	}
-			
-	buf = sbuf_new_auto();
+
+	sz = 0;
+	buf = NULL;
+	buffp = open_memstream(&buf, &sz);
+	if (buffp == NULL)
+		err(EXIT_FAILURE, "open_memstream()");
+
 	for (i = _UC_NONE; i < _UC_FIELDS; i++) {
 		int             quote = 1;
 
-		sbuf_clear(buf);
+		if (buf != NULL)
+			memset(buf, 0, sz);
+		rewind(buffp);
 		switch (i) {
 		case _UC_DEFAULTPWD:
-			sbuf_cat(buf, boolean_str(cnf->default_password));
+			fputs(boolean_str(cnf->default_password), buffp);
 			break;
 		case _UC_REUSEUID:
-			sbuf_cat(buf, boolean_str(cnf->reuse_uids));
+			fputs(boolean_str(cnf->reuse_uids), buffp);
 			break;
 		case _UC_REUSEGID:
-			sbuf_cat(buf, boolean_str(cnf->reuse_gids));
+			fputs(boolean_str(cnf->reuse_gids), buffp);
 			break;
 		case _UC_NISPASSWD:
-			sbuf_cat(buf, cnf->nispasswd ?  cnf->nispasswd : "");
+			fputs(cnf->nispasswd ?  cnf->nispasswd : "", buffp);
 			quote = 0;
 			break;
 		case _UC_DOTDIR:
-			sbuf_cat(buf, cnf->dotdir ?  cnf->dotdir :
-			    boolean_str(0));
+			fputs(cnf->dotdir ?  cnf->dotdir : boolean_str(0),
+			    buffp);
 			break;
 		case _UC_NEWMAIL:
-			sbuf_cat(buf, cnf->newmail ?  cnf->newmail :
-			    boolean_str(0));
+			fputs(cnf->newmail ?  cnf->newmail : boolean_str(0),
+			    buffp);
 			break;
 		case _UC_LOGFILE:
-			sbuf_cat(buf, cnf->logfile ?  cnf->logfile :
-			    boolean_str(0));
+			fputs(cnf->logfile ?  cnf->logfile : boolean_str(0),
+			    buffp);
 			break;
 		case _UC_HOMEROOT:
-			sbuf_cat(buf, cnf->home);
+			fputs(cnf->home, buffp);
 			break;
 		case _UC_HOMEMODE:
-			sbuf_printf(buf, "%04o", cnf->homemode);
+			fprintf(buffp, "%04o", cnf->homemode);
 			quote = 0;
 			break;
 		case _UC_SHELLPATH:
-			sbuf_cat(buf, cnf->shelldir);
+			fputs(cnf->shelldir, buffp);
 			break;
 		case _UC_SHELLS:
 			for (j = 0; j < _UC_MAXSHELLS &&
 			    system_shells[j] != NULL; j++)
-				sbuf_printf(buf, "%s\"%s\"", j ?
+				fprintf(buffp, "%s\"%s\"", j ?
 				    "," : "", system_shells[j]);
 			quote = 0;
 			break;
 		case _UC_DEFAULTSHELL:
-			sbuf_cat(buf, cnf->shell_default ?
-			    cnf->shell_default : bourne_shell);
+			fputs(cnf->shell_default ?  cnf->shell_default :
+			    bourne_shell, buffp);
 			break;
 		case _UC_DEFAULTGROUP:
-			sbuf_cat(buf, cnf->default_group ?
-			    cnf->default_group : "");
+			fputs(cnf->default_group ?  cnf->default_group : "",
+			    buffp);
 			break;
 		case _UC_EXTRAGROUPS:
 			for (j = 0; cnf->groups != NULL &&
 			    j < (int)cnf->groups->sl_cur; j++)
-				sbuf_printf(buf, "%s\"%s\"", j ?
+				fprintf(buffp, "%s\"%s\"", j ?
 				    "," : "", cnf->groups->sl_str[j]);
 			quote = 0;
 			break;
 		case _UC_DEFAULTCLASS:
-			sbuf_cat(buf, cnf->default_class ?
-			    cnf->default_class : "");
+			fputs(cnf->default_class ?  cnf->default_class : "",
+			    buffp);
 			break;
 		case _UC_MINUID:
-			sbuf_printf(buf, "%ju", (uintmax_t)cnf->min_uid);
+			fprintf(buffp, "%ju", (uintmax_t)cnf->min_uid);
 			quote = 0;
 			break;
 		case _UC_MAXUID:
-			sbuf_printf(buf, "%ju", (uintmax_t)cnf->max_uid);
+			fprintf(buffp, "%ju", (uintmax_t)cnf->max_uid);
 			quote = 0;
 			break;
 		case _UC_MINGID:
-			sbuf_printf(buf, "%ju", (uintmax_t)cnf->min_gid);
+			fprintf(buffp, "%ju", (uintmax_t)cnf->min_gid);
 			quote = 0;
 			break;
 		case _UC_MAXGID:
-			sbuf_printf(buf, "%ju", (uintmax_t)cnf->max_gid);
+			fprintf(buffp, "%ju", (uintmax_t)cnf->max_gid);
 			quote = 0;
 			break;
 		case _UC_EXPIRE:
-			sbuf_printf(buf, "%jd", (intmax_t)cnf->expire_days);
+			fprintf(buffp, "%jd", (intmax_t)cnf->expire_days);
 			quote = 0;
 			break;
 		case _UC_PASSWORD:
-			sbuf_printf(buf, "%jd", (intmax_t)cnf->password_days);
+			fprintf(buffp, "%jd", (intmax_t)cnf->password_days);
 			quote = 0;
 			break;
 		case _UC_NONE:
 			break;
 		}
-		sbuf_finish(buf);
+		fflush(buffp);
 
 		if (comments[i])
 			fputs(comments[i], fp);
 
 		if (*kwds[i]) {
 			if (quote)
-				fprintf(fp, "%s = \"%s\"\n", kwds[i],
-				    sbuf_data(buf));
+				fprintf(fp, "%s = \"%s\"\n", kwds[i], buf);
 			else
-				fprintf(fp, "%s = %s\n", kwds[i], sbuf_data(buf));
+				fprintf(fp, "%s = %s\n", kwds[i], buf);
 #if debugging
-			printf("WROTE: %s = %s\n", kwds[i], sbuf_data(buf));
+			printf("WROTE: %s = %s\n", kwds[i], buf);
 #endif
 		}
 	}
-	sbuf_delete(buf);
+	fclose(buffp);
+	free(buf);
 	return (fclose(fp) != EOF);
 }

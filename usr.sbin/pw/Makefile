@@ -8,7 +8,7 @@ SRCS=	pw.c pw_conf.c pw_user.c pw_group.c pw_log.c pw_nis.c pw_vpw.c \
 
 WARNS?=	3
 
-LIBADD=	crypt util sbuf
+LIBADD=	crypt util
 
 .include <src.opts.mk>
 
