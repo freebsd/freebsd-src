@@ -2827,11 +2827,13 @@ iflib_rxd_pkt_get(iflib_rxq_t rxq, if_rxd_info_t ri)
 		if (pf_rv == PFIL_PASS) {
 			m_init(m, M_NOWAIT, MT_DATA, M_PKTHDR);
 #ifndef __NO_STRICT_ALIGNMENT
-			if (!IP_ALIGNED(m))
+			if (!IP_ALIGNED(m) && ri->iri_pad == 0)
 				m->m_data += 2;
 #endif
 			memcpy(m->m_data, *sd.ifsd_cl, ri->iri_len);
 			m->m_len = ri->iri_frags[0].irf_len;
+			m->m_data += ri->iri_pad;
+			ri->iri_len -= ri->iri_pad;
 		}
 	} else {
 		m = assemble_segments(rxq, ri, &sd, &pf_rv);
