@@ -480,7 +480,8 @@ dwmmc_card_task(void *arg, int pending __unused)
 #else
 	DWMMC_LOCK(sc);
 
-	if (READ4(sc, SDMMC_CDETECT) == 0) {
+	if (READ4(sc, SDMMC_CDETECT) == 0 ||
+	    (sc->mmc_helper.props & MMC_PROP_BROKEN_CD)) {
 		if (sc->child == NULL) {
 			if (bootverbose)
 				device_printf(sc->dev, "Card inserted\n");
