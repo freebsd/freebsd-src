@@ -906,7 +906,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	FILEDESC_XLOCK(fdp);
 	if (fget_locked(fdp, old) == NULL)
 		goto unlock;
-	if ((mode == FDDUP_FIXED || mode == FDDUP_MUSTREPLACE) && old == new) {
+	if (mode == FDDUP_FIXED && old == new) {
 		td->td_retval[0] = new;
 		if (flags & FDDUP_FLAG_CLOEXEC)
 			fdp->fd_ofiles[new].fde_flags |= UF_EXCLOSE;
@@ -928,13 +928,6 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	case FDDUP_NORMAL:
 	case FDDUP_FCNTL:
 		if ((error = fdalloc(td, new, &new)) != 0) {
-			fdrop(oldfp, td);
-			goto unlock;
-		}
-		break;
-	case FDDUP_MUSTREPLACE:
-		/* Target file descriptor must exist. */
-		if (fget_locked(fdp, new) == NULL) {
 			fdrop(oldfp, td);
 			goto unlock;
 		}
@@ -2320,14 +2313,6 @@ pdunshare(struct thread *td)
 	p->p_pd = pdp;
 }
 
-void
-fdinstall_remapped(struct thread *td, struct filedesc *fdp)
-{
-
-	fdescfree(td);
-	td->td_proc->p_fd = fdp;
-}
-
 /*
  * Copy a filedesc structure.  A NULL pointer in returns a NULL reference,
  * this is to ease callers, not catch errors.
@@ -2378,66 +2363,6 @@ pdcopy(struct pwddesc *pdp)
 	newpdp->pd_cmask = pdp->pd_cmask;
 	PWDDESC_XUNLOCK(pdp);
 	return (newpdp);
-}
-
-/*
- * Copies a filedesc structure, while remapping all file descriptors
- * stored inside using a translation table.
- *
- * File descriptors are copied over to the new file descriptor table,
- * regardless of whether the close-on-exec flag is set.
- */
-int
-fdcopy_remapped(struct filedesc *fdp, const int *fds, size_t nfds,
-    struct filedesc **ret)
-{
-	struct filedesc *newfdp;
-	struct filedescent *nfde, *ofde;
-	int error, i, lastfile;
-
-	MPASS(fdp != NULL);
-
-	newfdp = fdinit(fdp, true, &lastfile);
-	if (nfds > lastfile + 1) {
-		/* New table cannot be larger than the old one. */
-		error = E2BIG;
-		goto bad;
-	}
-	/* Copy all passable descriptors (i.e. not kqueue). */
-	newfdp->fd_freefile = nfds;
-	for (i = 0; i < nfds; ++i) {
-		if (fds[i] < 0 || fds[i] > lastfile) {
-			/* File descriptor out of bounds. */
-			error = EBADF;
-			goto bad;
-		}
-		ofde = &fdp->fd_ofiles[fds[i]];
-		if (ofde->fde_file == NULL) {
-			/* Unused file descriptor. */
-			error = EBADF;
-			goto bad;
-		}
-		if ((ofde->fde_file->f_ops->fo_flags & DFLAG_PASSABLE) == 0) {
-			/* File descriptor cannot be passed. */
-			error = EINVAL;
-			goto bad;
-		}
-		if (!fhold(ofde->fde_file)) {
-			error = EBADF;
-			goto bad;
-		}
-		nfde = &newfdp->fd_ofiles[i];
-		*nfde = *ofde;
-		filecaps_copy(&ofde->fde_caps, &nfde->fde_caps, true);
-		fdused_init(newfdp, i);
-	}
-	FILEDESC_SUNLOCK(fdp);
-	*ret = newfdp;
-	return (0);
-bad:
-	FILEDESC_SUNLOCK(fdp);
-	fdescfree_remapped(newfdp);
-	return (error);
 }
 
 /*
@@ -2526,7 +2451,7 @@ retry:
  * Release a filedesc structure.
  */
 static void
-fdescfree_fds(struct thread *td, struct filedesc *fdp, bool needclose)
+fdescfree_fds(struct thread *td, struct filedesc *fdp)
 {
 	struct filedesc0 *fdp0;
 	struct freetable *ft, *tft;
@@ -2551,10 +2476,7 @@ fdescfree_fds(struct thread *td, struct filedesc *fdp, bool needclose)
 		fp = fde->fde_file;
 		if (fp != NULL) {
 			fdefree_last(fde);
-			if (needclose)
-				(void) closef(fp, td);
-			else
-				fdrop(fp, td);
+			(void) closef(fp, td);
 		}
 	}
 
@@ -2598,7 +2520,7 @@ fdescfree(struct thread *td)
 	if (refcount_release(&fdp->fd_refcnt) == 0)
 		return;
 
-	fdescfree_fds(td, fdp, 1);
+	fdescfree_fds(td, fdp);
 }
 
 void
@@ -2619,17 +2541,6 @@ pdescfree(struct thread *td)
 	PROC_WAIT_UNLOCKED(p);
 
 	pddrop(pdp);
-}
-
-void
-fdescfree_remapped(struct filedesc *fdp)
-{
-#ifdef INVARIANTS
-	/* fdescfree_fds() asserts that fd_refcnt == 0. */
-	if (!refcount_release(&fdp->fd_refcnt))
-		panic("%s: fd table %p has extra references", __func__, fdp);
-#endif
-	fdescfree_fds(curthread, fdp, 0);
 }
 
 /*

@@ -597,8 +597,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	 * been preserved.
 	 */
 	p2->p_flag |= p1->p_flag & P_SUGID;
-	td2->td_pflags |= (td->td_pflags & (TDP_ALTSTACK |
-	    TDP_SIGFASTBLOCK)) | TDP_FORKING;
+	td2->td_pflags |= (td->td_pflags & (TDP_ALTSTACK | TDP_SIGFASTBLOCK));
 	SESS_LOCK(p1->p_session);
 	if (p1->p_session->s_ttyvp != NULL && p1->p_flag & P_CONTROLT)
 		p2->p_flag |= P_CONTROLT;
@@ -1100,7 +1099,6 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 
 	if (p->p_sysent->sv_schedtail != NULL)
 		(p->p_sysent->sv_schedtail)(td);
-	td->td_pflags &= ~TDP_FORKING;
 }
 
 /*
