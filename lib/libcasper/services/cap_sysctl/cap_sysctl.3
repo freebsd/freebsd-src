@@ -131,8 +131,8 @@ capability to get the value of
 cap_channel_t *capcas, *capsysctl;
 const char *name = "kern.trap_enotcap";
 void *limit;
-int value;
 size_t size;
+bool value;
 
 /* Open capability to Casper. */
 capcas = cap_init();
@@ -160,6 +160,7 @@ if (cap_sysctl_limit(limit) < 0)
 	err(1, "Unable to set limits");
 
 /* Fetch value. */
+size = sizeof(value);
 if (cap_sysctlbyname(capsysctl, name, &value, &size, NULL, 0) < 0)
 	err(1, "Unable to get value of sysctl");
 
