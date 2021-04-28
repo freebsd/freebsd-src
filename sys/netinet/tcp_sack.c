@@ -872,9 +872,11 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 		tcp_seq highdata = tp->snd_max;
 		if (tp->t_flags & TF_SENTFIN)
 			highdata--;
-		if (th->th_ack != highdata)
+		if (th->th_ack != highdata) {
+			tp->snd_fack = th->th_ack;
 			(void)tcp_sackhole_insert(tp, SEQ_MAX(th->th_ack,
 			    highdata - maxseg), highdata, NULL);
+		}
 	}
 	(void) tp->t_fb->tfb_tcp_output(tp);
 }
