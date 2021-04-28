@@ -289,8 +289,10 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsdmap *dp, *dp2;
 	struct thread *td;
+	struct mount *mp;
 
 	td = curthread;
+	mp = vp->v_mount;
 
 	/*
 	 * If the NLM is running, give it a chance to abort pending
@@ -317,7 +319,12 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 		 * vfs_hash_remove(), since it cannot be recalled once the
 		 * nfs node is no longer available.
 		 */
-		nfscl_delegreturnvp(vp, td);
+		MNT_ILOCK(mp);
+		if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) == 0) {
+			MNT_IUNLOCK(mp);
+			nfscl_delegreturnvp(vp, td);
+		} else
+			MNT_IUNLOCK(mp);
 	}
 
 	vfs_hash_remove(vp);
