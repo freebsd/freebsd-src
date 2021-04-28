@@ -726,7 +726,7 @@ struct xlat {
 static struct xlat poll_flags[] = {
 	X(POLLSTANDARD) X(POLLIN) X(POLLPRI) X(POLLOUT) X(POLLERR)
 	X(POLLHUP) X(POLLNVAL) X(POLLRDNORM) X(POLLRDBAND)
-	X(POLLWRBAND) X(POLLINIGNEOF) XEND
+	X(POLLWRBAND) X(POLLINIGNEOF) X(POLLRDHUP) XEND
 };
 
 static struct xlat sigaction_flags[] = {
