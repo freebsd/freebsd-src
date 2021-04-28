@@ -97,6 +97,13 @@
 	    (uintptr_t)(v));					\
 } while (0)
 
+#define	rcu_replace_pointer(rcu, ptr, c)			\
+({								\
+	typeof(ptr) __tmp = rcu_dereference_protected(rcu, c);	\
+	rcu_assign_pointer(rcu, ptr);				\
+	__tmp;							\
+})
+
 #define	rcu_swap_protected(rcu, ptr, c) do {			\
 	typeof(ptr) p = rcu_dereference_protected(rcu, c);	\
 	rcu_assign_pointer(rcu, ptr);				\
