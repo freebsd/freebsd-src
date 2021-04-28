@@ -1169,18 +1169,18 @@ try_setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
 	estimate_nhop_scale(old_fd, fd);
 
 	fd->fd_rh = rh;
-	fd->fd_gen = ++fib_gen;
 	fd->fd_family = rh->rib_family;
 	fd->fd_fibnum = rh->rib_fibnum;
 	callout_init_rm(&fd->fd_callout, &rh->rib_lock, 0);
 	fd->fd_vnet = curvnet;
 	fd->fd_flm = flm;
 
-	FD_PRINTF(LOG_DEBUG, fd, "allocated fd %p", fd);
-
 	FIB_MOD_LOCK();
 	flm->flm_refcount++;
+	fd->fd_gen = ++fib_gen;
 	FIB_MOD_UNLOCK();
+
+	FD_PRINTF(LOG_DEBUG, fd, "allocated fd %p", fd);
 
 	/* Allocate nhidx -> nhop_ptr table */
 	size = fd->number_nhops * sizeof(void *);
