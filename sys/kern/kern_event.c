@@ -718,6 +718,7 @@ filt_timerexpire_l(struct knote *kn, bool proc_locked)
 {
 	struct kq_timer_cb_data *kc;
 	struct proc *p;
+	uint64_t delta;
 	sbintime_t now;
 
 	kc = kn->kn_ptr.p_v;
@@ -728,9 +729,17 @@ filt_timerexpire_l(struct knote *kn, bool proc_locked)
 		return;
 	}
 
-	for (now = sbinuptime(); kc->next <= now; kc->next += kc->to)
-		kn->kn_data++;
-	KNOTE_ACTIVATE(kn, 0);	/* XXX - handle locking */
+	now = sbinuptime();
+	if (now >= kc->next) {
+		delta = (now - kc->next) / kc->to;
+		if (delta == 0)
+			delta = 1;
+		kn->kn_data += delta;
+		kc->next += (delta + 1) * kc->to;
+		if (now >= kc->next)	/* overflow */
+			kc->next = now + kc->to;
+		KNOTE_ACTIVATE(kn, 0);	/* XXX - handle locking */
+	}
 
 	/*
 	 * Initial check for stopped kc->p is racy.  It is fine to
