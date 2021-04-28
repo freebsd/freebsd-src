@@ -3267,10 +3267,12 @@ nfscl_delegreturnvp(vnode_t vp, NFSPROC_T *p)
 
 	np = VTONFS(vp);
 	cred = newnfs_getcred();
+	dp = NULL;
 	NFSLOCKCLSTATE();
 	clp = VFSTONFS(vp->v_mount)->nm_clp;
-	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh,
-	    np->n_fhp->nfh_len);
+	if (clp != NULL)
+		dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh,
+		    np->n_fhp->nfh_len);
 	if (dp != NULL) {
 		nfscl_cleandeleg(dp);
 		nfscl_freedeleg(&clp->nfsc_deleg, dp, false);
