@@ -1,61 +1,82 @@
 /* $FreeBSD$ */
 
-#include <sys/poll.h>
+#define _GNU_SOURCE         /* expose POLLRDHUP when testing on Linux */
+
 #include <sys/socket.h>
 #include <sys/stat.h>
 
 #include <err.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
-static const char *
-decode_events(int events)
+static void
+append(char *out, size_t out_size, const char *s)
 {
-	char *ncresult;
-	const char *result;
+	size_t size = strlen(out);
 
-	switch (events) {
-	case POLLIN:
-		result = "POLLIN";
-		break;
-	case POLLOUT:
-		result = "POLLOUT";
-		break;
-	case POLLIN | POLLOUT:
-		result = "POLLIN | POLLOUT";
-		break;
-	case POLLHUP:
-		result = "POLLHUP";
-		break;
-	case POLLIN | POLLHUP:
-		result = "POLLIN | POLLHUP";
-		break;
-	case POLLOUT | POLLHUP:
-		result = "POLLOUT | POLLHUP";
-		break;
-	case POLLIN | POLLOUT | POLLHUP:
-		result = "POLLIN | POLLOUT | POLLHUP";
-		break;
-	default:
-		asprintf(&ncresult, "%#x", events);
-		result = ncresult;
-		break;
+	snprintf(out + size, out_size - size, "%s", s);
+}
+
+static void
+decode_events(int events, char *out, size_t out_size)
+{
+	int unknown;
+
+	out[0] = 0;
+
+	if (events == 0) {
+		append(out, out_size, "0");
+		return;
 	}
-	return (result);
+
+#define DECODE_FLAG(x) \
+	if (events & (x)) { \
+		if (out[0] != 0) \
+			append(out, out_size, " | "); \
+		append(out, out_size, #x); \
+	}
+
+	/* Show the expected flags by name. */
+	DECODE_FLAG(POLLIN);
+	DECODE_FLAG(POLLOUT);
+	DECODE_FLAG(POLLHUP);
+#ifndef POLLRDHUP
+#define KNOWN_FLAGS (POLLIN | POLLOUT | POLLHUP)
+#else
+	DECODE_FLAG(POLLRDHUP);
+#define KNOWN_FLAGS (POLLIN | POLLOUT | POLLHUP | POLLRDHUP);
+#endif
+
+	/* Show any unexpected bits as hex. */
+	unknown = events & ~KNOWN_FLAGS;
+	if (unknown != 0) {
+		char buf[80];
+
+		snprintf(buf, sizeof(buf), "%s%x", out[0] != 0 ? " | " : "",
+			unknown);
+		append(out, out_size, buf);
+	}
 }
 
 static void
 report(int num, const char *state, int expected, int got)
 {
+	char expected_str[80];
+	char got_str[80];
+
+	decode_events(expected, expected_str, sizeof(expected_str));
+	decode_events(got, got_str, sizeof(got_str));
 	if (expected == got)
 		printf("ok %-2d    ", num);
 	else
 		printf("not ok %-2d", num);
 	printf(" state %s: expected %s; got %s\n",
-	    state, decode_events(expected), decode_events(got));
+	    state, expected_str, got_str);
 	fflush(stdout);
 }
 
@@ -197,6 +218,28 @@ main(void)
 	report(num++, "other side after shutdown(SHUT_WR)", POLLIN | POLLOUT, pfd1.revents);
 	close(fd[0]);
 	close(fd[1]);
+
+#ifdef POLLRDHUP
+	setup();
+	pfd1.events |= POLLRDHUP;
+	if (shutdown(fd[0], SHUT_RD) == -1)
+		err(1, "shutdown");
+	if (poll(&pfd1, 1, 0) == -1)
+		err(1, "poll");
+	report(num++, "other side after shutdown(SHUT_RD)", POLLOUT, pfd1.revents);
+	if (write(fd[0], "x", 1) != 1)
+		err(1, "write");
+	if (poll(&pfd1, 1, 0) == -1)
+		err(1, "poll");
+	report(num++, "other side after write", POLLIN | POLLOUT, pfd1.revents);
+	if (shutdown(fd[0], SHUT_WR) == -1)
+		err(1, "shutdown");
+	if (poll(&pfd1, 1, 0) == -1)
+		err(1, "poll");
+	report(num++, "other side after shutdown(SHUT_WR)", POLLIN | POLLOUT | POLLRDHUP, pfd1.revents);
+	close(fd[0]);
+	close(fd[1]);
+#endif
 
 	return (0);
 }
