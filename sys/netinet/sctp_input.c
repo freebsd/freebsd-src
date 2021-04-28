@@ -4294,6 +4294,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 	int ret;
 	int abort_no_unlock = 0;
 	int ecne_seen = 0;
+	int abort_flag;
 
 	/*
 	 * How big should this be, and should it be alloc'd? Lets try the
@@ -4773,8 +4774,7 @@ process_control_chunks:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_HEARTBEAT_ACK\n");
 			if ((stcb == NULL) || (chk_length != sizeof(struct sctp_heartbeat_chunk))) {
 				/* Its not ours */
-				*offset = length;
-				return (stcb);
+				break;
 			}
 			SCTP_STAT_INCR(sctps_recvheartbeatack);
 			if ((netp != NULL) && (*netp != NULL)) {
@@ -4800,12 +4800,10 @@ process_control_chunks:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN, stcb %p\n",
 			    (void *)stcb);
 			if ((stcb == NULL) || (chk_length != sizeof(struct sctp_shutdown_chunk))) {
-				*offset = length;
-				return (stcb);
+				break;
 			}
 			if ((netp != NULL) && (*netp != NULL)) {
-				int abort_flag = 0;
-
+				abort_flag = 0;
 				sctp_handle_shutdown((struct sctp_shutdown_chunk *)ch,
 				    stcb, *netp, &abort_flag);
 				if (abort_flag) {
@@ -4956,7 +4954,7 @@ process_control_chunks:
 		case SCTP_COOKIE_ACK:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_COOKIE_ACK, stcb %p\n", (void *)stcb);
 			if ((stcb == NULL) || chk_length != sizeof(struct sctp_cookie_ack_chunk)) {
-				return (stcb);
+				break;
 			}
 			if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
 				/* We are not interested anymore */
@@ -4975,25 +4973,28 @@ process_control_chunks:
 			break;
 		case SCTP_ECN_ECHO:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_ECN_ECHO\n");
-			if ((stcb == NULL) || (chk_length != sizeof(struct sctp_ecne_chunk))) {
-				/* Its not ours */
-				*offset = length;
-				return (stcb);
+			if (stcb == NULL) {
+				break;
 			}
 			if (stcb->asoc.ecn_supported == 0) {
 				goto unknown_chunk;
+			}
+			if (chk_length != sizeof(struct sctp_ecne_chunk)) {
+				break;
 			}
 			sctp_handle_ecn_echo((struct sctp_ecne_chunk *)ch, stcb);
 			ecne_seen = 1;
 			break;
 		case SCTP_ECN_CWR:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_ECN_CWR\n");
-			if ((stcb == NULL) || (chk_length != sizeof(struct sctp_cwr_chunk))) {
-				*offset = length;
-				return (stcb);
+			if (stcb == NULL) {
+				break;
 			}
 			if (stcb->asoc.ecn_supported == 0) {
 				goto unknown_chunk;
+			}
+			if (chk_length != sizeof(struct sctp_cwr_chunk)) {
+				break;
 			}
 			sctp_handle_ecn_cwr((struct sctp_cwr_chunk *)ch, stcb, *netp);
 			break;
@@ -5025,15 +5026,16 @@ process_control_chunks:
 			break;
 		case SCTP_ASCONF_ACK:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_ASCONF_ACK\n");
-			if (chk_length < sizeof(struct sctp_asconf_ack_chunk)) {
-				/* Its not ours */
-				*offset = length;
-				return (stcb);
+			if (stcb == NULL) {
+				break;
 			}
-			if ((stcb != NULL) && (netp != NULL) && (*netp != NULL)) {
-				if (stcb->asoc.asconf_supported == 0) {
-					goto unknown_chunk;
-				}
+			if (stcb->asoc.asconf_supported == 0) {
+				goto unknown_chunk;
+			}
+			if (chk_length < sizeof(struct sctp_asconf_ack_chunk)) {
+				break;
+			}
+			if ((netp != NULL) && (*netp != NULL)) {
 				/* He's alive so give him credit */
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
@@ -5053,60 +5055,57 @@ process_control_chunks:
 		case SCTP_IFORWARD_CUM_TSN:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "%s\n",
 			    ch->chunk_type == SCTP_FORWARD_CUM_TSN ? "FORWARD_TSN" : "I_FORWARD_TSN");
-			if (chk_length < sizeof(struct sctp_forward_tsn_chunk)) {
-				/* Its not ours */
-				*offset = length;
-				return (stcb);
+			if (stcb == NULL) {
+				break;
 			}
-
-			if (stcb != NULL) {
-				int abort_flag = 0;
-
-				if (stcb->asoc.prsctp_supported == 0) {
-					goto unknown_chunk;
+			if (stcb->asoc.prsctp_supported == 0) {
+				goto unknown_chunk;
+			}
+			if (chk_length < sizeof(struct sctp_forward_tsn_chunk)) {
+				break;
+			}
+			if (((stcb->asoc.idata_supported == 1) && (ch->chunk_type == SCTP_FORWARD_CUM_TSN)) ||
+			    ((stcb->asoc.idata_supported == 0) && (ch->chunk_type == SCTP_IFORWARD_CUM_TSN))) {
+				if (ch->chunk_type == SCTP_FORWARD_CUM_TSN) {
+					SCTP_SNPRINTF(msg, sizeof(msg), "%s", "FORWARD-TSN chunk received when I-FORWARD-TSN was negotiated");
+				} else {
+					SCTP_SNPRINTF(msg, sizeof(msg), "%s", "I-FORWARD-TSN chunk received when FORWARD-TSN was negotiated");
 				}
-				if (((stcb->asoc.idata_supported == 1) && (ch->chunk_type == SCTP_FORWARD_CUM_TSN)) ||
-				    ((stcb->asoc.idata_supported == 0) && (ch->chunk_type == SCTP_IFORWARD_CUM_TSN))) {
-					if (ch->chunk_type == SCTP_FORWARD_CUM_TSN) {
-						SCTP_SNPRINTF(msg, sizeof(msg), "%s", "FORWARD-TSN chunk received when I-FORWARD-TSN was negotiated");
-					} else {
-						SCTP_SNPRINTF(msg, sizeof(msg), "%s", "I-FORWARD-TSN chunk received when FORWARD-TSN was negotiated");
-					}
-					op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
-					sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
-					*offset = length;
-					return (NULL);
-				}
-				*fwd_tsn_seen = 1;
-				if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
-					/* We are not interested anymore */
-					(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
-					    SCTP_FROM_SCTP_INPUT + SCTP_LOC_31);
-					*offset = length;
-					return (NULL);
-				}
-				/*
-				 * For sending a SACK this looks like DATA
-				 * chunks.
-				 */
-				stcb->asoc.last_data_chunk_from = stcb->asoc.last_control_chunk_from;
-				sctp_handle_forward_tsn(stcb,
-				    (struct sctp_forward_tsn_chunk *)ch, &abort_flag, m, *offset);
-				if (abort_flag) {
-					*offset = length;
-					return (NULL);
-				}
+				op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
+				sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
+				*offset = length;
+				return (NULL);
+			}
+			*fwd_tsn_seen = 1;
+			if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
+				/* We are not interested anymore */
+				(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
+				    SCTP_FROM_SCTP_INPUT + SCTP_LOC_31);
+				*offset = length;
+				return (NULL);
+			}
+			/*
+			 * For sending a SACK this looks like DATA chunks.
+			 */
+			stcb->asoc.last_data_chunk_from = stcb->asoc.last_control_chunk_from;
+			abort_flag = 0;
+			sctp_handle_forward_tsn(stcb,
+			    (struct sctp_forward_tsn_chunk *)ch, &abort_flag, m, *offset);
+			if (abort_flag) {
+				*offset = length;
+				return (NULL);
 			}
 			break;
 		case SCTP_STREAM_RESET:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_STREAM_RESET\n");
-			if ((stcb == NULL) || (chk_length < sizeof(struct sctp_stream_reset_tsn_req))) {
-				/* Its not ours */
-				*offset = length;
-				return (stcb);
+			if (stcb == NULL) {
+				break;
 			}
 			if (stcb->asoc.reconfig_supported == 0) {
 				goto unknown_chunk;
+			}
+			if (chk_length < sizeof(struct sctp_stream_reset_tsn_req)) {
+				break;
 			}
 			if (sctp_handle_stream_reset(stcb, m, *offset, ch)) {
 				/* stop processing */
@@ -5116,17 +5115,16 @@ process_control_chunks:
 			break;
 		case SCTP_PACKET_DROPPED:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_PACKET_DROPPED\n");
-			/* re-get it all please */
-			if (chk_length < sizeof(struct sctp_pktdrop_chunk)) {
-				/* Its not ours */
-				*offset = length;
-				return (stcb);
+			if (stcb == NULL) {
+				break;
 			}
-
-			if ((stcb != NULL) && (netp != NULL) && (*netp != NULL)) {
-				if (stcb->asoc.pktdrop_supported == 0) {
-					goto unknown_chunk;
-				}
+			if (stcb->asoc.pktdrop_supported == 0) {
+				goto unknown_chunk;
+			}
+			if (chk_length < sizeof(struct sctp_pktdrop_chunk)) {
+				break;
+			}
+			if ((netp != NULL) && (*netp != NULL)) {
 				sctp_handle_packet_dropped((struct sctp_pktdrop_chunk *)ch,
 				    stcb, *netp,
 				    min(chk_length, contiguous));
@@ -5142,7 +5140,7 @@ process_control_chunks:
 					auth_skipped = 1;
 				}
 				/* skip this chunk (temporarily) */
-				goto next_chunk;
+				break;
 			}
 			if (stcb->asoc.auth_supported == 0) {
 				goto unknown_chunk;
@@ -5156,7 +5154,7 @@ process_control_chunks:
 			}
 			if (got_auth == 1) {
 				/* skip this chunk... it's already auth'd */
-				goto next_chunk;
+				break;
 			}
 			got_auth = 1;
 			if (sctp_handle_auth(stcb, (struct sctp_auth_chunk *)ch, m, *offset)) {
