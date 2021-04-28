@@ -427,7 +427,10 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 			return (error);
 	}
 	if ((fmode & O_PATH) != 0) {
-		error = VOP_ACCESS(vp, VREAD, cred, td);
+		if (vp->v_type == VFIFO)
+			error = EPIPE;
+		else
+			error = VOP_ACCESS(vp, VREAD, cred, td);
 		if (error == 0)
 			fp->f_flag |= FKQALLOWED;
 		return (0);
