@@ -790,7 +790,11 @@ pf_reassemble(struct mbuf **m0, struct ip *ip, int dir, u_short *reason)
 	}
 
 	ip = mtod(m, struct ip *);
+	ip->ip_sum = pf_cksum_fixup(ip->ip_sum, ip->ip_len,
+	    htons(hdrlen + total), 0);
 	ip->ip_len = htons(hdrlen + total);
+	ip->ip_sum = pf_cksum_fixup(ip->ip_sum, ip->ip_off,
+	    ip->ip_off & ~(IP_MF|IP_OFFMASK), 0);
 	ip->ip_off &= ~(IP_MF|IP_OFFMASK);
 
 	if (hdrlen + total > IP_MAXPACKET) {
