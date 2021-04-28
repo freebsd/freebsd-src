@@ -331,6 +331,7 @@ SUBDIR=	\
 	${_sctp} \
 	sdhci \
 	${_sdhci_acpi} \
+	${_sdhci_fdt} \
 	sdhci_pci \
 	sdio \
 	sem \
@@ -490,6 +491,7 @@ SUBDIR+=	iscsi_initiator
 
 .if !empty(OPT_FDT)
 SUBDIR+=	fdt
+_sdhci_fdt=	sdhci_fdt
 .endif
 
 # Linuxulator
