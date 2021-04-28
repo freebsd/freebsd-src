@@ -171,7 +171,7 @@ update_clip(struct adapter *sc, void *arg __unused)
 	if (begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4clip"))
 		return;
 
-	if (mtx_initialized(&sc->clip_table_lock))
+	if (mtx_initialized(&sc->clip_table_lock) && !hw_off_limits(sc))
 		update_clip_table(sc);
 
 	end_synchronized_op(sc, LOCK_HELD);
