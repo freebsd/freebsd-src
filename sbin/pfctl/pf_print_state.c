@@ -354,6 +354,8 @@ print_state(struct pfsync_state *s, int opts)
 		bcopy(&s->id, &id, sizeof(u_int64_t));
 		printf("   id: %016jx creatorid: %08x",
 		    (uintmax_t )be64toh(id), ntohl(s->creatorid));
+		printf("   gateway: ");
+		print_host(&s->rt_addr, 0, s->af, opts);
 		printf("\n");
 	}
 }
