@@ -3571,9 +3571,11 @@ sopoll_generic(struct socket *so, int events, struct ucred *active_cred,
 					revents |= POLLHUP;
 			}
 		}
+		if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
+			revents |= events & POLLRDHUP;
 		if (revents == 0) {
 			if (events &
-			    (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND)) {
+			    (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND | POLLRDHUP)) {
 				selrecord(td, &so->so_rdsel);
 				so->so_rcv.sb_flags |= SB_SEL;
 			}

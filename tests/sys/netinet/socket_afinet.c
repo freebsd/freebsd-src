@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <poll.h>
 
 #include <atf-c.h>
 
@@ -89,12 +90,152 @@ ATF_TC_BODY(socket_afinet_bind_ok, tc)
 	close(sd);
 }
 
+ATF_TC_WITHOUT_HEAD(socket_afinet_poll_no_rdhup);
+ATF_TC_BODY(socket_afinet_poll_no_rdhup, tc)
+{
+	int ss, ss2, cs, rc;
+	struct sockaddr_in sin;
+	struct pollfd pfd;
+	int one = 1;
+
+	/* Verify that we don't expose POLLRDHUP if not requested. */
+
+	/* Server setup. */
+	ss = socket(PF_INET, SOCK_STREAM, 0);
+	ATF_CHECK(ss >= 0);
+	rc = setsockopt(ss, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
+	ATF_CHECK_EQ(0, rc);
+	bzero(&sin, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_len = sizeof(sin);
+	sin.sin_port = htons(6666);
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	rc = bind(ss, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_CHECK_EQ(0, rc);
+	rc = listen(ss, 1);
+	ATF_CHECK_EQ(0, rc);
+
+	/* Client connects, server accepts. */
+	cs = socket(PF_INET, SOCK_STREAM, 0);
+	ATF_CHECK(cs >= 0);
+	rc = connect(cs, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_CHECK_EQ(0, rc);
+	ss2 = accept(ss, NULL, NULL);
+	ATF_CHECK(ss2 >= 0);
+
+	/* Server can write, sees only POLLOUT. */
+	pfd.fd = ss2;
+	pfd.events = POLLIN | POLLOUT;
+	rc = poll(&pfd, 1, 0);
+	ATF_CHECK_EQ(1, rc);
+	ATF_CHECK_EQ(POLLOUT, pfd.revents);
+
+	/* Client closes socket! */
+	rc = close(cs);
+	ATF_CHECK_EQ(0, rc);
+
+	/*
+	 * Server now sees POLLIN, but not POLLRDHUP because we didn't ask.
+	 * Need non-zero timeout to wait for the FIN to arrive and trigger the
+	 * socket to become readable.
+	 */
+	pfd.fd = ss2;
+	pfd.events = POLLIN;
+	rc = poll(&pfd, 1, 60000);
+	ATF_CHECK_EQ(1, rc);
+	ATF_CHECK_EQ(POLLIN, pfd.revents);
+
+	close(ss2);
+	close(ss);
+}
+
+ATF_TC_WITHOUT_HEAD(socket_afinet_poll_rdhup);
+ATF_TC_BODY(socket_afinet_poll_rdhup, tc)
+{
+	int ss, ss2, cs, rc;
+	struct sockaddr_in sin;
+	struct pollfd pfd;
+	char buffer;
+	int one = 1;
+
+	/* Verify that server sees POLLRDHUP if it asks for it. */
+
+	/* Server setup. */
+	ss = socket(PF_INET, SOCK_STREAM, 0);
+	ATF_CHECK(ss >= 0);
+	rc = setsockopt(ss, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
+	ATF_CHECK_EQ(0, rc);
+	bzero(&sin, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_len = sizeof(sin);
+	sin.sin_port = htons(6666);
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	rc = bind(ss, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_CHECK_EQ(0, rc);
+	rc = listen(ss, 1);
+	ATF_CHECK_EQ(0, rc);
+
+	/* Client connects, server accepts. */
+	cs = socket(PF_INET, SOCK_STREAM, 0);
+	ATF_CHECK(cs >= 0);
+	rc = connect(cs, (struct sockaddr *)&sin, sizeof(sin));
+	ATF_CHECK_EQ(0, rc);
+	ss2 = accept(ss, NULL, NULL);
+	ATF_CHECK(ss2 >= 0);
+
+	/* Server can write, so sees POLLOUT. */
+	pfd.fd = ss2;
+	pfd.events = POLLIN | POLLOUT | POLLRDHUP;
+	rc = poll(&pfd, 1, 0);
+	ATF_CHECK_EQ(1, rc);
+	ATF_CHECK_EQ(POLLOUT, pfd.revents);
+
+	/* Client writes two bytes, server reads only one of them. */
+	rc = write(cs, "xx", 2);
+	ATF_CHECK_EQ(2, rc);
+	rc = read(ss2, &buffer, 1);
+	ATF_CHECK_EQ(1, rc);
+
+	/* Server can read, so sees POLLIN. */
+	pfd.fd = ss2;
+	pfd.events = POLLIN | POLLOUT | POLLRDHUP;
+	rc = poll(&pfd, 1, 0);
+	ATF_CHECK_EQ(1, rc);
+	ATF_CHECK_EQ(POLLIN | POLLOUT, pfd.revents);
+
+	/* Client closes socket! */
+	rc = close(cs);
+	ATF_CHECK_EQ(0, rc);
+
+	/*
+	 * Server sees Linux-style POLLRDHUP.  Note that this is the case even
+	 * though one byte of data remains unread.
+	 *
+	 * This races against the delivery of FIN caused by the close() above.
+	 * Sometimes (more likely when run under truss or if another system
+	 * call is added in between) it hits the path where sopoll_generic()
+	 * immediately sees SBS_CANTRCVMORE, and sometimes it sleeps with flag
+	 * SB_SEL so that it's woken up almost immediately and runs again,
+	 * which is why we need a non-zero timeout here.
+	 */
+	pfd.fd = ss2;
+	pfd.events = POLLRDHUP;
+	rc = poll(&pfd, 1, 60000);
+	ATF_CHECK_EQ(1, rc);
+	ATF_CHECK_EQ(POLLRDHUP, pfd.revents);
+
+	close(ss2);
+	close(ss);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, socket_afinet);
 	ATF_TP_ADD_TC(tp, socket_afinet_bind_zero);
 	ATF_TP_ADD_TC(tp, socket_afinet_bind_ok);
+	ATF_TP_ADD_TC(tp, socket_afinet_poll_no_rdhup);
+	ATF_TP_ADD_TC(tp, socket_afinet_poll_rdhup);
 
 	return atf_no_error();
 }

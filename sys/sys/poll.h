@@ -71,6 +71,7 @@ struct pollfd {
 #if __BSD_VISIBLE
 /* General FreeBSD extension (currently only supported for sockets): */
 #define	POLLINIGNEOF	0x2000		/* like POLLIN, except ignore EOF */
+#define	POLLRDHUP	0x4000		/* half shut down */
 #endif
 
 /*
