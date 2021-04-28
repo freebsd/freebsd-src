@@ -215,8 +215,6 @@ syscallret(struct thread *td)
 	ksiginfo_t ksi;
 	int traced;
 
-	KASSERT((td->td_pflags & TDP_FORKING) == 0,
-	    ("fork() did not clear TDP_FORKING upon completion"));
 	KASSERT(td->td_errno != ERELOOKUP,
 	    ("ERELOOKUP not consumed syscall %d", td->td_sa.code));
 
