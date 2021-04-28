@@ -2652,6 +2652,9 @@ max_nsegs_allowed(struct mbuf *m, bool vm_wr)
 	return (TX_SGL_SEGS);
 }
 
+static struct timeval txerr_ratecheck = {0};
+static const struct timeval txerr_interval = {3, 0};
+
 /*
  * Analyze the mbuf to determine its tx needs.  The mbuf passed in may change:
  * a) caller can assume it's been freed if this function returns with an error.
@@ -2803,9 +2806,14 @@ restart:
 	}
 #endif
 	default:
-		panic("%s: ethertype 0x%04x unknown.  if_cxgbe must be compiled"
-		    " with the same INET/INET6 options as the kernel.",
-		    __func__, eh_type);
+		if (ratecheck(&txerr_ratecheck, &txerr_interval)) {
+			log(LOG_ERR, "%s: ethertype 0x%04x unknown.  "
+			    "if_cxgbe must be compiled with the same "
+			    "INET/INET6 options as the kernel.\n", __func__,
+			    eh_type);
+		}
+		rc = EINVAL;
+		goto fail;
 	}
 
 	if (needs_vxlan_csum(m0)) {
@@ -2841,10 +2849,15 @@ restart:
 		}
 #endif
 		default:
-			panic("%s: VXLAN hw offload requested with unknown "
-			    "ethertype 0x%04x.  if_cxgbe must be compiled"
-			    " with the same INET/INET6 options as the kernel.",
-			    __func__, eh_type);
+			if (ratecheck(&txerr_ratecheck, &txerr_interval)) {
+				log(LOG_ERR, "%s: VXLAN hw offload requested"
+				    "with unknown ethertype 0x%04x.  if_cxgbe "
+				    "must be compiled with the same INET/INET6 "
+				    "options as the kernel.\n", __func__,
+				    eh_type);
+			}
+			rc = EINVAL;
+			goto fail;
 		}
 #if defined(INET) || defined(INET6)
 		if (needs_inner_tcp_csum(m0)) {
