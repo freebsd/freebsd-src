@@ -1456,7 +1456,8 @@ pipe_poll(struct file *fp, int events, struct ucred *active_cred,
 				rpipe->pipe_state |= PIPE_SEL;
 		}
 
-		if ((fp->f_flag & FWRITE) != 0) {
+		if ((fp->f_flag & FWRITE) != 0 &&
+		    wpipe->pipe_present == PIPE_ACTIVE) {
 			selrecord(td, &wpipe->pipe_sel);
 			if (SEL_WAITING(&wpipe->pipe_sel))
 				wpipe->pipe_state |= PIPE_SEL;
