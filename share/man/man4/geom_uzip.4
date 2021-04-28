@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2019
+.Dd April 28, 2021
 .Dt GEOM_UZIP 4
 .Os
 .Sh NAME
@@ -53,7 +53,7 @@ The
 framework provides support for compressed read-only
 disk images.
 This allows significant storage savings at the expense of
-a some CPU time on each read.
+some CPU time on each read.
 Data written in the GEOM label area allows
 .Nm
 to detect compressed images which have been created with
@@ -70,7 +70,7 @@ is not limited to supporting only
 .Xr md 4
 images.
 The image can also reside on a block device.
-.Pq For example, a disk, USB flash drive,  DVD-ROM, etc.
+.Pq For example, a disk, USB flash drive, DVD-ROM, etc .
 The appropriate device node will appear with the
 .Pa .uzip
 suffix.
