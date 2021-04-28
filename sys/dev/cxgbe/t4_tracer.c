@@ -289,6 +289,11 @@ t4_get_tracer(struct adapter *sc, struct t4_tracer *t)
 	if (rc)
 		return (rc);
 
+	if (hw_off_limits(sc)) {
+		rc = ENXIO;
+		goto done;
+	}
+
 	for (i = t->idx; i < NTRACE; i++) {
 		if (isset(&sc->tracer_valid, t->idx)) {
 			t4_get_trace_filter(sc, &tp, i, &enabled);
@@ -337,6 +342,11 @@ t4_set_tracer(struct adapter *sc, struct t4_tracer *t)
 	    "t4sett");
 	if (rc)
 		return (rc);
+
+	if (hw_off_limits(sc)) {
+		rc = ENXIO;
+		goto done;
+	}
 
 	/*
 	 * If no tracing filter is specified this time then check if the filter

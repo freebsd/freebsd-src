@@ -63,7 +63,10 @@ set_sched_class_config(struct adapter *sc, int minmax)
 	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4sscc");
 	if (rc)
 		return (rc);
-	rc = -t4_sched_config(sc, FW_SCHED_TYPE_PKTSCHED, minmax, 1);
+	if (hw_off_limits(sc))
+		rc = ENXIO;
+	else
+		rc = -t4_sched_config(sc, FW_SCHED_TYPE_PKTSCHED, minmax, 1);
 	end_synchronized_op(sc, 0);
 
 	return (rc);
@@ -209,9 +212,11 @@ set_sched_class_params(struct adapter *sc, struct t4_sched_class_params *p,
 		}
 		return (rc);
 	}
-	rc = -t4_sched_params(sc, FW_SCHED_TYPE_PKTSCHED, fw_level, fw_mode,
-	    fw_rateunit, fw_ratemode, p->channel, p->cl, p->minrate, p->maxrate,
-	    p->weight, p->pktsize, 0, sleep_ok);
+	if (!hw_off_limits(sc)) {
+		rc = -t4_sched_params(sc, FW_SCHED_TYPE_PKTSCHED, fw_level,
+		    fw_mode, fw_rateunit, fw_ratemode, p->channel, p->cl,
+		    p->minrate, p->maxrate, p->weight, p->pktsize, 0, sleep_ok);
+	}
 	end_synchronized_op(sc, sleep_ok ? 0 : LOCK_HELD);
 
 	if (p->level == SCHED_CLASS_LEVEL_CL_RL) {
