@@ -79,7 +79,7 @@ int	 pfctl_clear_rules(int, int, char *);
 int	 pfctl_clear_nat(int, int, char *);
 int	 pfctl_clear_altq(int, int);
 int	 pfctl_clear_src_nodes(int, int);
-int	 pfctl_clear_states(int, const char *, int);
+int	 pfctl_clear_iface_states(int, const char *, int);
 void	 pfctl_addrprefix(char *, struct pf_addr *);
 int	 pfctl_kill_src_nodes(int, const char *, int);
 int	 pfctl_net_kill_states(int, const char *, int);
@@ -467,19 +467,20 @@ pfctl_clear_src_nodes(int dev, int opts)
 }
 
 int
-pfctl_clear_states(int dev, const char *iface, int opts)
+pfctl_clear_iface_states(int dev, const char *iface, int opts)
 {
-	struct pfioc_state_kill psk;
+	struct pfctl_kill kill;
+	unsigned int killed;
 
-	memset(&psk, 0, sizeof(psk));
-	if (iface != NULL && strlcpy(psk.psk_ifname, iface,
-	    sizeof(psk.psk_ifname)) >= sizeof(psk.psk_ifname))
+	memset(&kill, 0, sizeof(kill));
+	if (iface != NULL && strlcpy(kill.ifname, iface,
+	    sizeof(kill.ifname)) >= sizeof(kill.ifname))
 		errx(1, "invalid interface: %s", iface);
 
-	if (ioctl(dev, DIOCCLRSTATES, &psk))
+	if (pfctl_clear_states(dev, &kill, &killed))
 		err(1, "DIOCCLRSTATES");
 	if ((opts & PF_OPT_QUIET) == 0)
-		fprintf(stderr, "%d states cleared\n", psk.psk_killed);
+		fprintf(stderr, "%d states cleared\n", killed);
 	return (0);
 }
 
@@ -2417,7 +2418,7 @@ main(int argc, char *argv[])
 			pfctl_clear_altq(dev, opts);
 			break;
 		case 's':
-			pfctl_clear_states(dev, ifaceopt, opts);
+			pfctl_clear_iface_states(dev, ifaceopt, opts);
 			break;
 		case 'S':
 			pfctl_clear_src_nodes(dev, opts);
@@ -2431,7 +2432,7 @@ main(int argc, char *argv[])
 			pfctl_clear_tables(anchorname, opts);
 			if (!*anchorname) {
 				pfctl_clear_altq(dev, opts);
-				pfctl_clear_states(dev, ifaceopt, opts);
+				pfctl_clear_iface_states(dev, ifaceopt, opts);
 				pfctl_clear_src_nodes(dev, opts);
 				pfctl_clear_stats(dev, opts);
 				pfctl_clear_fingerprints(dev, opts);
