@@ -1197,6 +1197,10 @@ its_device_get(device_t dev, device_t child, u_int nvecs)
 		return (NULL);
 	}
 
+	/* Make sure device sees zeroed ITT. */
+	if ((sc->sc_its_flags & ITS_FLAGS_CMDQ_FLUSH) != 0)
+		cpu_dcache_wb_range(its_dev->itt, its_dev->itt_size);
+
 	mtx_lock_spin(&sc->sc_its_dev_lock);
 	TAILQ_INSERT_TAIL(&sc->sc_its_dev_list, its_dev, entry);
 	mtx_unlock_spin(&sc->sc_its_dev_lock);
