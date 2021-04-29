@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netpfil/pf/pf_nv.h>
 
-#define	PV_NV_IMPL_UINT(fnname, type, max)					\
+#define	PF_NV_IMPL_UINT(fnname, type, max)					\
 	int									\
 	pf_nv ## fnname(const nvlist_t *nvl, const char *name, type *val)	\
 	{									\
@@ -101,9 +101,9 @@ pf_nvbinary(const nvlist_t *nvl, const char *name, void *data,
 	return (0);
 }
 
-PV_NV_IMPL_UINT(uint8, uint8_t, UINT8_MAX)
-PV_NV_IMPL_UINT(uint16, uint16_t, UINT16_MAX);
-PV_NV_IMPL_UINT(uint32, uint32_t, UINT32_MAX)
+PF_NV_IMPL_UINT(uint8, uint8_t, UINT8_MAX);
+PF_NV_IMPL_UINT(uint16, uint16_t, UINT16_MAX);
+PF_NV_IMPL_UINT(uint32, uint32_t, UINT32_MAX);
 
 int
 pf_nvint(const nvlist_t *nvl, const char *name, int *val)
