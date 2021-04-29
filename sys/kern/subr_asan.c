@@ -97,18 +97,18 @@ static bool kasan_enabled __read_mostly = false;
 /* -------------------------------------------------------------------------- */
 
 void
-kasan_shadow_map(void *addr, size_t size)
+kasan_shadow_map(vm_offset_t addr, size_t size)
 {
 	size_t sz, npages, i;
 	vm_offset_t sva, eva;
 
-	KASSERT((vm_offset_t)addr % KASAN_SHADOW_SCALE == 0,
-	    ("%s: invalid address %p", __func__, addr));
+	KASSERT(addr % KASAN_SHADOW_SCALE == 0,
+	    ("%s: invalid address %#lx", __func__, addr));
 
 	sz = roundup(size, KASAN_SHADOW_SCALE) / KASAN_SHADOW_SCALE;
 
-	sva = kasan_md_addr_to_shad((vm_offset_t)addr);
-	eva = kasan_md_addr_to_shad((vm_offset_t)addr) + sz;
+	sva = kasan_md_addr_to_shad(addr);
+	eva = kasan_md_addr_to_shad(addr) + sz;
 
 	sva = rounddown(sva, PAGE_SIZE);
 	eva = roundup(eva, PAGE_SIZE);
