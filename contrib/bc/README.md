@@ -19,6 +19,10 @@ functionality is unnecessary.
 
 For more information, see the `dc`'s full manual.
 
+This `bc` also provides `bc`'s math as a library with C bindings, called `bcl`.
+
+For more information, see the full manual for `bcl`.
+
 This `bc` is Free and Open Source Software (FOSS). It is offered under the BSD
 2-clause License. Full license text may be found in the [`LICENSE.md`][4] file.
 
