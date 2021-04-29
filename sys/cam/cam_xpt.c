@@ -2689,6 +2689,8 @@ xpt_action_default(union ccb *start_ccb)
 	case XPT_NVME_IO:
 	case XPT_NVME_ADMIN:
 	case XPT_MMC_IO:
+	case XPT_MMC_GET_TRAN_SETTINGS:
+	case XPT_MMC_SET_TRAN_SETTINGS:
 	case XPT_RESET_DEV:
 	case XPT_ENG_EXEC:
 	case XPT_SMP_IO:
