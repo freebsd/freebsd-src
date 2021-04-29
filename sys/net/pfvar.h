@@ -1072,6 +1072,19 @@ struct pfioc_src_node_kill {
 	u_int		    psnk_killed;
 };
 
+#ifdef _KERNEL
+struct pf_kstate_kill {
+	struct pf_state_cmp	psk_pfcmp;
+	sa_family_t		psk_af;
+	int			psk_proto;
+	struct pf_rule_addr	psk_src;
+	struct pf_rule_addr	psk_dst;
+	char			psk_ifname[IFNAMSIZ];
+	char			psk_label[PF_RULE_LABEL_SIZE];
+	u_int			psk_killed;
+};
+#endif
+
 struct pfioc_state_kill {
 	struct pf_state_cmp	psk_pfcmp;
 	sa_family_t		psk_af;
@@ -1239,6 +1252,7 @@ struct pfioc_iface {
 #define DIOCGETRULENV	_IOWR('D',  7, struct pfioc_nv)
 /* XXX cut 8 - 17 */
 #define DIOCCLRSTATES	_IOWR('D', 18, struct pfioc_state_kill)
+#define DIOCCLRSTATESNV	_IOWR('D', 18, struct pfioc_nv)
 #define DIOCGETSTATE	_IOWR('D', 19, struct pfioc_state)
 #define DIOCSETSTATUSIF _IOWR('D', 20, struct pfioc_if)
 #define DIOCGETSTATUS	_IOWR('D', 21, struct pf_status)

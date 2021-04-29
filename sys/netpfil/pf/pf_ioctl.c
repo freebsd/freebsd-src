@@ -200,7 +200,9 @@ struct cdev *pf_dev;
 /*
  * XXX - These are new and need to be checked when moveing to a new version
  */
-static void		 pf_clear_states(void);
+static void		 pf_clear_all_states(void);
+static unsigned int	 pf_clear_states(const struct pf_kstate_kill *);
+static int		 pf_clearstates_nv(struct pfioc_nv *);
 static int		 pf_clear_tables(void);
 static void		 pf_clear_srcnodes(struct pf_ksrc_node *);
 static void		 pf_kill_srcnodes(struct pfioc_src_node_kill *);
@@ -2477,6 +2479,72 @@ relock_DIOCKILLSTATES:
 }
 
 static int
+pf_state_kill_to_kstate_kill(const struct pfioc_state_kill *psk,
+    struct pf_kstate_kill *kill)
+{
+	bzero(kill, sizeof(*kill));
+
+	bcopy(&psk->psk_pfcmp, &kill->psk_pfcmp, sizeof(kill->psk_pfcmp));
+	kill->psk_af = psk->psk_af;
+	kill->psk_proto = psk->psk_proto;
+	bcopy(&psk->psk_src, &kill->psk_src, sizeof(kill->psk_src));
+	bcopy(&psk->psk_dst, &kill->psk_dst, sizeof(kill->psk_dst));
+	strlcpy(kill->psk_ifname, psk->psk_ifname, sizeof(kill->psk_ifname));
+	strlcpy(kill->psk_label, psk->psk_label, sizeof(kill->psk_label));
+
+	return (0);
+}
+
+static int
+pf_nvstate_cmp_to_state_cmp(const nvlist_t *nvl, struct pf_state_cmp *cmp)
+{
+	int error = 0;
+
+	bzero(cmp, sizeof(*cmp));
+
+	PFNV_CHK(pf_nvuint64(nvl, "id", &cmp->id));
+	PFNV_CHK(pf_nvuint32(nvl, "creatorid", &cmp->creatorid));
+	PFNV_CHK(pf_nvuint8(nvl, "direction", &cmp->direction));
+
+errout:
+	return (error);
+}
+
+static int
+pf_nvstate_kill_to_kstate_kill(const nvlist_t *nvl,
+    struct pf_kstate_kill *kill)
+{
+	int error = 0;
+
+	bzero(kill, sizeof(*kill));
+
+	if (! nvlist_exists_nvlist(nvl, "cmp"))
+		return (EINVAL);
+
+	PFNV_CHK(pf_nvstate_cmp_to_state_cmp(nvlist_get_nvlist(nvl, "cmp"),
+	    &kill->psk_pfcmp));
+	PFNV_CHK(pf_nvuint8(nvl, "af", &kill->psk_af));
+	PFNV_CHK(pf_nvint(nvl, "proto", &kill->psk_proto));
+
+	if (! nvlist_exists_nvlist(nvl, "src"))
+		return (EINVAL);
+	PFNV_CHK(pf_nvrule_addr_to_rule_addr(nvlist_get_nvlist(nvl, "src"),
+	    &kill->psk_src));
+	if (! nvlist_exists_nvlist(nvl, "dst"))
+		return (EINVAL);
+	PFNV_CHK(pf_nvrule_addr_to_rule_addr(nvlist_get_nvlist(nvl, "dst"),
+	    &kill->psk_dst));
+
+	PFNV_CHK(pf_nvstring(nvl, "ifname", kill->psk_ifname,
+	    sizeof(kill->psk_ifname)));
+	PFNV_CHK(pf_nvstring(nvl, "label", kill->psk_label,
+	    sizeof(kill->psk_label)));
+
+errout:
+	return (error);
+}
+
+static int
 pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
     uint32_t pool_ticket, const char *anchor, const char *anchor_call,
     struct thread *td)
@@ -3317,33 +3385,19 @@ DIOCCHANGERULE_error:
 	}
 
 	case DIOCCLRSTATES: {
-		struct pf_state		*s;
 		struct pfioc_state_kill *psk = (struct pfioc_state_kill *)addr;
-		u_int			 i, killed = 0;
+		struct pf_kstate_kill	 kill;
 
-		for (i = 0; i <= pf_hashmask; i++) {
-			struct pf_idhash *ih = &V_pf_idhash[i];
+		error = pf_state_kill_to_kstate_kill(psk, &kill);
+		if (error)
+			break;
 
-relock_DIOCCLRSTATES:
-			PF_HASHROW_LOCK(ih);
-			LIST_FOREACH(s, &ih->states, entry)
-				if (!psk->psk_ifname[0] ||
-				    !strcmp(psk->psk_ifname,
-				    s->kif->pfik_name)) {
-					/*
-					 * Don't send out individual
-					 * delete messages.
-					 */
-					s->state_flags |= PFSTATE_NOSYNC;
-					pf_unlink_state(s, PF_ENTER_LOCKED);
-					killed++;
-					goto relock_DIOCCLRSTATES;
-				}
-			PF_HASHROW_UNLOCK(ih);
-		}
-		psk->psk_killed = killed;
-		if (V_pfsync_clear_states_ptr != NULL)
-			V_pfsync_clear_states_ptr(V_pf_status.hostid, psk->psk_ifname);
+		psk->psk_killed = pf_clear_states(&kill);
+		break;
+	}
+
+	case DIOCCLRSTATESNV: {
+		error = pf_clearstates_nv((struct pfioc_nv *)addr);
 		break;
 	}
 
@@ -5239,7 +5293,7 @@ pf_tbladdr_copyout(struct pf_addr_wrap *aw)
  * XXX - Check for version missmatch!!!
  */
 static void
-pf_clear_states(void)
+pf_clear_all_states(void)
 {
 	struct pf_state	*s;
 	u_int i;
@@ -5390,6 +5444,97 @@ on_error:
 	return (error);
 }
 
+static unsigned int
+pf_clear_states(const struct pf_kstate_kill *kill)
+{
+	struct pf_state	*s;
+	unsigned int	 killed = 0;
+
+	for (unsigned int i = 0; i <= pf_hashmask; i++) {
+		struct pf_idhash *ih = &V_pf_idhash[i];
+
+relock_DIOCCLRSTATES:
+		PF_HASHROW_LOCK(ih);
+		LIST_FOREACH(s, &ih->states, entry)
+			if (!kill->psk_ifname[0] ||
+			    !strcmp(kill->psk_ifname,
+			    s->kif->pfik_name)) {
+				/*
+				 * Don't send out individual
+				 * delete messages.
+				 */
+				s->state_flags |= PFSTATE_NOSYNC;
+				pf_unlink_state(s, PF_ENTER_LOCKED);
+				killed++;
+				goto relock_DIOCCLRSTATES;
+			}
+		PF_HASHROW_UNLOCK(ih);
+	}
+
+	if (V_pfsync_clear_states_ptr != NULL)
+		V_pfsync_clear_states_ptr(V_pf_status.hostid, kill->psk_ifname);
+
+	return (killed);
+}
+
+static int
+pf_clearstates_nv(struct pfioc_nv *nv)
+{
+	struct pf_kstate_kill	 kill;
+	nvlist_t		*nvl = NULL;
+	void			*nvlpacked = NULL;
+	int			 error = 0;
+	unsigned int		 killed;
+
+#define ERROUT(x)	ERROUT_FUNCTION(on_error, x)
+
+	if (nv->len > pf_ioctl_maxcount)
+		ERROUT(ENOMEM);
+
+	nvlpacked = malloc(nv->len, M_TEMP, M_WAITOK);
+	if (nvlpacked == NULL)
+		ERROUT(ENOMEM);
+
+	error = copyin(nv->data, nvlpacked, nv->len);
+	if (error)
+		ERROUT(error);
+
+	nvl = nvlist_unpack(nvlpacked, nv->len, 0);
+	if (nvl == NULL)
+		ERROUT(EBADMSG);
+
+	error = pf_nvstate_kill_to_kstate_kill(nvl, &kill);
+	if (error)
+		ERROUT(error);
+
+	killed = pf_clear_states(&kill);
+
+	free(nvlpacked, M_TEMP);
+	nvlpacked = NULL;
+	nvlist_destroy(nvl);
+	nvl = nvlist_create(0);
+	if (nvl == NULL)
+		ERROUT(ENOMEM);
+
+	nvlist_add_number(nvl, "killed", killed);
+
+	nvlpacked = nvlist_pack(nvl, &nv->len);
+	if (nvlpacked == NULL)
+		ERROUT(ENOMEM);
+
+	if (nv->size == 0)
+		ERROUT(0);
+	else if (nv->size < nv->len)
+		ERROUT(ENOSPC);
+
+	error = copyout(nvlpacked, nv->data, nv->len);
+
+on_error:
+	nvlist_destroy(nvl);
+	free(nvlpacked, M_TEMP);
+	return (error);
+}
+
 /*
  * XXX - Check for version missmatch!!!
  */
@@ -5449,7 +5594,7 @@ shutdown_pf(void)
 		pf_commit_altq(t[0]);
 #endif
 
-		pf_clear_states();
+		pf_clear_all_states();
 
 		pf_clear_srcnodes(NULL);
 
