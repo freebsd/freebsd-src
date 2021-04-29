@@ -1364,7 +1364,7 @@ relock:
 		}
 	}
 
-	if (DOINGSOFTDEP(fdvp)) {
+	if (DOINGSUJ(fdvp)) {
 		error = softdep_prerename(fdvp, fvp, tdvp, tvp);
 		if (error != 0) {
 			if (error == ERELOOKUP) {
