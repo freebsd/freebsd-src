@@ -28,12 +28,16 @@
 #ifndef __MMC_SIM_H__
 #define	__MMC_SIM_H__
 
+#include <sys/taskqueue.h>
+
 struct mmc_sim {
 	struct mmc_cam_sim_softc	*sc;
 	struct mtx			mtx;
 	struct cam_devq			*devq;
 	struct cam_sim			*sim;
 	device_t			dev;
+	struct task			sim_task;
+	union ccb			*ccb;
 };
 
 int mmc_cam_sim_alloc(device_t dev, const char *name, struct mmc_sim *mmc_sim);

@@ -2537,6 +2537,7 @@ sdhci_cam_action(struct cam_sim *sim, union ccb *ccb)
 		mmc_path_inq(&ccb->cpi, "Deglitch Networks", sim, maxphys);
 		break;
 
+	case XPT_MMC_GET_TRAN_SETTINGS:
 	case XPT_GET_TRAN_SETTINGS:
 	{
 		struct ccb_trans_settings *cts = &ccb->cts;
@@ -2571,6 +2572,7 @@ sdhci_cam_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
+	case XPT_MMC_SET_TRAN_SETTINGS:
 	case XPT_SET_TRAN_SETTINGS:
 		if (sdhci_debug > 1)
 			slot_printf(slot, "Got XPT_SET_TRAN_SETTINGS\n");
