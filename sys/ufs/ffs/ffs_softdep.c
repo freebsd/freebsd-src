@@ -3415,10 +3415,9 @@ softdep_prelink(dvp, vp)
 	if (vp != NULL)
 		VOP_UNLOCK(vp);
 	ffs_syncvnode(dvp, MNT_WAIT, 0);
-	VOP_UNLOCK(dvp);
-
 	/* Process vp before dvp as it may create .. removes. */
 	if (vp != NULL) {
+		VOP_UNLOCK(dvp);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (vp->v_data == NULL) {
 			vn_lock_pair(dvp, false, vp, true);
@@ -3429,12 +3428,11 @@ softdep_prelink(dvp, vp)
 		process_truncates(vp);
 		FREE_LOCK(ump);
 		VOP_UNLOCK(vp);
-	}
-
-	vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
-	if (dvp->v_data == NULL) {
-		vn_lock_pair(dvp, true, vp, false);
-		return (ERELOOKUP);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
+		if (dvp->v_data == NULL) {
+			vn_lock_pair(dvp, true, vp, false);
+			return (ERELOOKUP);
+		}
 	}
 
 	ACQUIRE_LOCK(ump);
