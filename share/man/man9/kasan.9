@@ -27,15 +27,22 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2021
+.Dd April 29, 2021
 .Dt KASAN 9
 .Os
 .Sh NAME
-.Nm kasan
-.Nd kernel address sanitizer
+.Nm KASAN
+.Nd Kernel Address SANitizer
 .Sh SYNOPSIS
-To compile KASAN into the kernel, place the following line in your kernel
-configuration file:
+The
+.Pa GENERIC-KASAN
+kernel configuration can be used to compile a KASAN-enabled kernel using
+.Pa GENERIC
+as a base configuration.
+Alternately, to compile
+.Nm
+into the kernel, place the following line in your
+kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options KASAN"
 .Ed
@@ -142,13 +149,16 @@ are equal,
 .Fa code
 should be 0.
 .Sh SEE ALSO
+.Xr build 7 ,
 .Xr malloc 9 ,
 .Xr memguard 9 ,
 .Xr redzone 9 ,
 .Xr uma 9
 .Sh HISTORY
 .Nm
-first appeared in
+was ported from
+.Nx
+and first appeared in
 .Fx 14.0 .
 .Sh BUGS
 Accesses to kernel memory outside of the kernel map are ignored by the
