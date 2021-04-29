@@ -202,6 +202,11 @@ struct cdev *pf_dev;
  */
 static void		 pf_clear_all_states(void);
 static unsigned int	 pf_clear_states(const struct pf_kstate_kill *);
+static int		 pf_killstates(struct pf_kstate_kill *,
+			    unsigned int *);
+static int		 pf_killstates_row(struct pf_kstate_kill *,
+			    struct pf_idhash *);
+static int		 pf_killstates_nv(struct pfioc_nv *);
 static int		 pf_clearstates_nv(struct pfioc_nv *);
 static int		 pf_clear_tables(void);
 static void		 pf_clear_srcnodes(struct pf_ksrc_node *);
@@ -2636,7 +2641,7 @@ pf_label_match(const struct pf_krule *rule, const char *label)
 }
 
 static int
-pf_killstates_row(struct pfioc_state_kill *psk, struct pf_idhash *ih)
+pf_killstates_row(struct pf_kstate_kill *psk, struct pf_idhash *ih)
 {
 	struct pf_state		*s;
 	struct pf_state_key	*sk;
@@ -3390,25 +3395,20 @@ DIOCCHANGERULE_error:
 	}
 
 	case DIOCKILLSTATES: {
-		struct pf_state		*s;
 		struct pfioc_state_kill	*psk = (struct pfioc_state_kill *)addr;
-		u_int			 i, killed = 0;
+		struct pf_kstate_kill	 kill;
 
-		if (psk->psk_pfcmp.id) {
-			if (psk->psk_pfcmp.creatorid == 0)
-				psk->psk_pfcmp.creatorid = V_pf_status.hostid;
-			if ((s = pf_find_state_byid(psk->psk_pfcmp.id,
-			    psk->psk_pfcmp.creatorid))) {
-				pf_unlink_state(s, PF_ENTER_LOCKED);
-				psk->psk_killed = 1;
-			}
+		error = pf_state_kill_to_kstate_kill(psk, &kill);
+		if (error)
 			break;
-		}
 
-		for (i = 0; i <= pf_hashmask; i++)
-			killed += pf_killstates_row(psk, &V_pf_idhash[i]);
+		psk->psk_killed = 0;
+		error = pf_killstates(&kill, &psk->psk_killed);
+		break;
+	}
 
-		psk->psk_killed = killed;
+	case DIOCKILLSTATESNV: {
+		error = pf_killstates_nv((struct pfioc_nv *)addr);
 		break;
 	}
 
@@ -5460,6 +5460,86 @@ relock_DIOCCLRSTATES:
 		V_pfsync_clear_states_ptr(V_pf_status.hostid, kill->psk_ifname);
 
 	return (killed);
+}
+
+static int
+pf_killstates(struct pf_kstate_kill *kill, unsigned int *killed)
+{
+	struct pf_state		*s;
+
+	if (kill->psk_pfcmp.id) {
+		if (kill->psk_pfcmp.creatorid == 0)
+			kill->psk_pfcmp.creatorid = V_pf_status.hostid;
+		if ((s = pf_find_state_byid(kill->psk_pfcmp.id,
+		    kill->psk_pfcmp.creatorid))) {
+			pf_unlink_state(s, PF_ENTER_LOCKED);
+			*killed = 1;
+		}
+		return (0);
+	}
+
+	for (unsigned int i = 0; i <= pf_hashmask; i++)
+		*killed += pf_killstates_row(kill, &V_pf_idhash[i]);
+
+	return (0);
+}
+
+static int
+pf_killstates_nv(struct pfioc_nv *nv)
+{
+	struct pf_kstate_kill	 kill;
+	nvlist_t		*nvl = NULL;
+	void			*nvlpacked = NULL;
+	int			 error = 0;
+	unsigned int		 killed = 0;
+
+#define ERROUT(x)	ERROUT_FUNCTION(on_error, x)
+
+	if (nv->len > pf_ioctl_maxcount)
+		ERROUT(ENOMEM);
+
+	nvlpacked = malloc(nv->len, M_TEMP, M_WAITOK);
+	if (nvlpacked == NULL)
+		ERROUT(ENOMEM);
+
+	error = copyin(nv->data, nvlpacked, nv->len);
+	if (error)
+		ERROUT(error);
+
+	nvl = nvlist_unpack(nvlpacked, nv->len, 0);
+	if (nvl == NULL)
+		ERROUT(EBADMSG);
+
+	error = pf_nvstate_kill_to_kstate_kill(nvl, &kill);
+	if (error)
+		ERROUT(error);
+
+	error = pf_killstates(&kill, &killed);
+
+	free(nvlpacked, M_TEMP);
+	nvlpacked = NULL;
+	nvlist_destroy(nvl);
+	nvl = nvlist_create(0);
+	if (nvl == NULL)
+		ERROUT(ENOMEM);
+
+	nvlist_add_number(nvl, "killed", killed);
+
+	nvlpacked = nvlist_pack(nvl, &nv->len);
+	if (nvlpacked == NULL)
+		ERROUT(ENOMEM);
+
+	if (nv->size == 0)
+		ERROUT(0);
+	else if (nv->size < nv->len)
+		ERROUT(ENOSPC);
+
+	error = copyout(nvlpacked, nv->data, nv->len);
+
+on_error:
+	nvlist_destroy(nvl);
+	free(nvlpacked, M_TEMP);
+	return (error);
 }
 
 static int

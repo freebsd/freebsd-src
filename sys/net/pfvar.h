@@ -1270,6 +1270,7 @@ struct pfioc_iface {
 #define DIOCGETLIMIT	_IOWR('D', 39, struct pfioc_limit)
 #define DIOCSETLIMIT	_IOWR('D', 40, struct pfioc_limit)
 #define DIOCKILLSTATES	_IOWR('D', 41, struct pfioc_state_kill)
+#define DIOCKILLSTATESNV	_IOWR('D', 41, struct pfioc_nv)
 #define DIOCSTARTALTQ	_IO  ('D', 42)
 #define DIOCSTOPALTQ	_IO  ('D', 43)
 #define DIOCADDALTQV0	_IOWR('D', 45, struct pfioc_altq_v0)
