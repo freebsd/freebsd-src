@@ -48,6 +48,11 @@ int	pf_nvuint32_array(const nvlist_t *, const char *, uint32_t *,
 	    size_t, size_t *);
 void	pf_uint32_array_nv(nvlist_t *, const char *, const uint32_t *,
 	    size_t);
+int	pf_nvuint64(const nvlist_t *, const char *, uint64_t *);
+int	pf_nvuint64_array(const nvlist_t *, const char *, uint64_t *,
+	    size_t, size_t *);
+void	pf_uint64_array_nv(nvlist_t *, const char *, const uint64_t *,
+	    size_t);
 
 int	pf_nvstring(const nvlist_t *, const char *, char *, size_t);
 

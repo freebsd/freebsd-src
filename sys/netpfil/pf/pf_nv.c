@@ -104,6 +104,7 @@ pf_nvbinary(const nvlist_t *nvl, const char *name, void *data,
 PF_NV_IMPL_UINT(uint8, uint8_t, UINT8_MAX);
 PF_NV_IMPL_UINT(uint16, uint16_t, UINT16_MAX);
 PF_NV_IMPL_UINT(uint32, uint32_t, UINT32_MAX);
+PF_NV_IMPL_UINT(uint64, uint64_t, UINT64_MAX);
 
 int
 pf_nvint(const nvlist_t *nvl, const char *name, int *val)
