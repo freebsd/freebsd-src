@@ -1248,6 +1248,7 @@ ufs_rename(ap)
 	int error = 0;
 	struct mount *mp;
 	ino_t ino;
+	seqc_t fdvp_s, fvp_s, tdvp_s, tvp_s;
 	bool want_seqc_end;
 
 	want_seqc_end = false;
@@ -1271,6 +1272,8 @@ ufs_rename(ap)
 		mp = NULL;
 		goto releout;
 	}
+
+	fdvp_s = fvp_s = tdvp_s = tvp_s = SEQC_MOD;
 relock:
 	/* 
 	 * We need to acquire 2 to 4 locks depending on whether tvp is NULL
@@ -1364,10 +1367,20 @@ relock:
 		}
 	}
 
-	if (DOINGSUJ(fdvp)) {
+	if (DOINGSUJ(fdvp) &&
+	    (seqc_in_modify(fdvp_s) || !vn_seqc_consistent(fdvp, fdvp_s) ||
+	     seqc_in_modify(fvp_s) || !vn_seqc_consistent(fvp, fvp_s) ||
+	     seqc_in_modify(tdvp_s) || !vn_seqc_consistent(tdvp, tdvp_s) ||
+	     (tvp != NULL && (seqc_in_modify(tvp_s) ||
+	     !vn_seqc_consistent(tvp, tvp_s))))) {
 		error = softdep_prerename(fdvp, fvp, tdvp, tvp);
 		if (error != 0) {
 			if (error == ERELOOKUP) {
+				fdvp_s = vn_seqc_read_any(fdvp);
+				fvp_s = vn_seqc_read_any(fvp);
+				tdvp_s = vn_seqc_read_any(tdvp);
+				if (tvp != NULL)
+					tvp_s = vn_seqc_read_any(tvp);
 				atomic_add_int(&rename_restarts, 1);
 				goto relock;
 			}
