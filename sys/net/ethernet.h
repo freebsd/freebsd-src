@@ -416,8 +416,8 @@ struct ether_vlan_header {
 #define	IEEE8021Q_PCP_BE	0	/* Best effort (default) */
 #define	IEEE8021Q_PCP_EE	2	/* Excellent effort */
 #define	IEEE8021Q_PCP_CA	3	/* Critical applications */
-#define	IEEE8021Q_PCP_VI	4	/* Video, < 100ms latency */
-#define	IEEE8021Q_PCP_VO	5	/* Video, < 10ms latency */
+#define	IEEE8021Q_PCP_VI	4	/* Video, < 100ms latency and jitter */
+#define	IEEE8021Q_PCP_VO	5	/* Voice, < 10ms latency and jitter */
 #define	IEEE8021Q_PCP_IC	6	/* Internetwork control */
 #define	IEEE8021Q_PCP_NC	7	/* Network control (highest) */
 
