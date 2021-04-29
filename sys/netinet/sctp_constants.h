@@ -596,7 +596,7 @@ __FBSDID("$FreeBSD$");
 
 #define SCTP_RTO_UPPER_BOUND	(60000)	/* 60 sec in ms */
 #define SCTP_RTO_LOWER_BOUND	(1000)	/* 1 sec is ms */
-#define SCTP_RTO_INITIAL	(3000)	/* 3 sec in ms */
+#define SCTP_RTO_INITIAL	(1000)	/* 1 sec in ms */
 
 #define SCTP_INP_KILL_TIMEOUT 20	/* number of ms to retry kill of inpcb */
 #define SCTP_ASOC_KILL_TIMEOUT 10	/* number of ms to retry kill of inpcb */
