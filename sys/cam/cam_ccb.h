@@ -253,6 +253,9 @@ typedef enum {
 	XPT_REPROBE_LUN		= 0x38 | XPT_FC_QUEUED | XPT_FC_USER_CCB,
 				/* Query device capacity and notify GEOM */
 
+	XPT_MMC_SET_TRAN_SETTINGS = 0x40 | XPT_FC_DEV_QUEUED,
+	XPT_MMC_GET_TRAN_SETTINGS = 0x41 | XPT_FC_DEV_QUEUED,
+
 /* Vendor Unique codes: 0x80->0x8F */
 	XPT_VUNIQUE		= 0x80
 } xpt_opcode;
