@@ -207,5 +207,7 @@ int	pfctl_add_rule(int dev, const struct pfctl_rule *r,
 int	pfctl_set_keepcounters(int dev, bool keep);
 int	pfctl_clear_states(int dev, const struct pfctl_kill *kill,
 	    unsigned int *killed);
+int	pfctl_kill_states(int dev, const struct pfctl_kill *kill,
+	    unsigned int *killed);
 
 #endif

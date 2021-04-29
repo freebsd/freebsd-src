@@ -50,6 +50,9 @@
 
 #include "libpfctl.h"
 
+static int	_pfctl_clear_states(int , const struct pfctl_kill *,
+		    unsigned int *, uint64_t);
+
 static void
 pf_nvuint_8_array(const nvlist_t *nvl, const char *name, size_t maxelems,
     u_int8_t *numbers, size_t *nelems)
@@ -624,9 +627,9 @@ pfctl_nv_add_state_cmp(nvlist_t *nvl, const char *name,
 	nvlist_add_nvlist(nvl, name, nv);
 }
 
-int
-pfctl_clear_states(int dev, const struct pfctl_kill *kill,
-    unsigned int *killed)
+static int
+_pfctl_clear_states(int dev, const struct pfctl_kill *kill,
+    unsigned int *killed, uint64_t ioctlval)
 {
 	struct pfioc_nv	 nv;
 	nvlist_t	*nvl;
@@ -647,7 +650,7 @@ pfctl_clear_states(int dev, const struct pfctl_kill *kill,
 	nvlist_destroy(nvl);
 	nvl = NULL;
 
-	ret = ioctl(dev, DIOCCLRSTATESNV, &nv);
+	ret = ioctl(dev, ioctlval, &nv);
 	if (ret != 0) {
 		free(nv.data);
 		return (ret);
@@ -666,4 +669,17 @@ pfctl_clear_states(int dev, const struct pfctl_kill *kill,
 	free(nv.data);
 
 	return (ret);
+}
+
+int
+pfctl_clear_states(int dev, const struct pfctl_kill *kill,
+    unsigned int *killed)
+{
+	return (_pfctl_clear_states(dev, kill, killed, DIOCCLRSTATESNV));
+}
+
+int
+pfctl_kill_states(int dev, const struct pfctl_kill *kill, unsigned int *killed)
+{
+	return (_pfctl_clear_states(dev, kill, killed, DIOCKILLSTATESNV));
 }
