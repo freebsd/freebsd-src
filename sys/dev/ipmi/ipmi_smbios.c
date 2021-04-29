@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/selinfo.h>
+#include <sys/efi.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -150,15 +151,27 @@ smbios_ipmi_info(struct smbios_structure_header *h, void *arg)
 static void
 ipmi_smbios_probe(struct ipmi_get_info *info)
 {
+#ifdef ARCH_MAY_USE_EFI
+	struct uuid efi_smbios;
+	void *addr_efi;
+#endif
 	struct smbios_eps *header;
 	void *table;
 	u_int32_t addr;
 
+	addr = 0;
 	bzero(info, sizeof(struct ipmi_get_info));
 
-	/* Find the SMBIOS table header. */
-	addr = bios_sigsearch(SMBIOS_START, SMBIOS_SIG, SMBIOS_LEN,
-			      SMBIOS_STEP, SMBIOS_OFF);
+#ifdef ARCH_MAY_USE_EFI
+	efi_smbios = (struct uuid)EFI_TABLE_SMBIOS;
+	if (!efi_get_table(&efi_smbios, &addr_efi))
+		addr = (vm_paddr_t)addr_efi;
+#endif
+
+	if (addr == 0)
+		/* Find the SMBIOS table header. */
+		addr = bios_sigsearch(SMBIOS_START, SMBIOS_SIG, SMBIOS_LEN,
+			SMBIOS_STEP, SMBIOS_OFF);
 	if (addr == 0)
 		return;
 
