@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2021
+.Dd April 29, 2021
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2729,9 +2729,9 @@ Values in order of priority are:
 .Cm 3
 .Pq Dv Critical applications ,
 .Cm 4
-.Pq Dv Video, < 100ms latency ,
+.Pq Dv Video, < 100ms latency and jitter ,
 .Cm 5
-.Pq Dv Video, < 10ms latency ,
+.Pq Dv Voice, < 10ms latency and jitter ,
 .Cm 6
 .Pq Dv Internetwork control ,
 .Cm 7
