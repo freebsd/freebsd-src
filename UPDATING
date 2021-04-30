@@ -17,6 +17,14 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20210430:
+	Commit 0a1fdb867c72 changed the internal KAPI between
+	the krpc and NFS.  As such, the krpc, nfscommon and
+	nfscl modules must all be rebuilt from sources.
+	Without this patch, NFSv4.1 mounts should not
+	be done with the nfscbd(8) daemon running, to avoid
+	needing a working back channel for server->client RPCs.
+
 20200912:
 	The make.conf(5) MALLOC_PRODUCTION variable, used for disabling and
 	enabling assertions and statistics gathering in malloc(3), has been
