@@ -83,6 +83,7 @@ int	 pfctl_clear_iface_states(int, const char *, int);
 void	 pfctl_addrprefix(char *, struct pf_addr *);
 int	 pfctl_kill_src_nodes(int, const char *, int);
 int	 pfctl_net_kill_states(int, const char *, int);
+int	 pfctl_gateway_kill_states(int, const char *, int);
 int	 pfctl_label_kill_states(int, const char *, int);
 int	 pfctl_id_kill_states(int, const char *, int);
 void	 pfctl_init_options(struct pfctl *);
@@ -246,7 +247,7 @@ usage(void)
 	fprintf(stderr,
 "usage: %s [-AdeghmNnOPqRrvz] [-a anchor] [-D macro=value] [-F modifier]\n"
 	"\t[-f file] [-i interface] [-K host | network]\n"
-	"\t[-k host | network | label | id] [-o level] [-p device]\n"
+	"\t[-k host | network | gateway | label | id] [-o level] [-p device]\n"
 	"\t[-s modifier] [-t table -T command [address ...]] [-x level]\n",
 	    __progname);
 
@@ -741,6 +742,67 @@ pfctl_net_kill_states(int dev, const char *iface, int opts)
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "killed %d states from %d sources and %d "
 		    "destinations\n", killed, sources, dests);
+	return (0);
+}
+
+int
+pfctl_gateway_kill_states(int dev, const char *iface, int opts)
+{
+	struct pfctl_kill kill;
+	struct addrinfo *res, *resp;
+	struct sockaddr last_src;
+	unsigned int newkilled;
+	int killed = 0;
+	int ret_ga;
+
+	if (state_killers != 2 || (strlen(state_kill[1]) == 0)) {
+		warnx("no gateway specified");
+		usage();
+	}
+
+	memset(&kill, 0, sizeof(kill));
+	memset(&kill.rt_addr.addr.v.a.mask, 0xff,
+	    sizeof(kill.rt_addr.addr.v.a.mask));
+	memset(&last_src, 0xff, sizeof(last_src));
+	if (iface != NULL && strlcpy(kill.ifname, iface,
+	    sizeof(kill.ifname)) >= sizeof(kill.ifname))
+		errx(1, "invalid interface: %s", iface);
+
+	pfctl_addrprefix(state_kill[1], &kill.rt_addr.addr.v.a.mask);
+
+	if ((ret_ga = getaddrinfo(state_kill[1], NULL, NULL, &res))) {
+		errx(1, "getaddrinfo: %s", gai_strerror(ret_ga));
+		/* NOTREACHED */
+	}
+	for (resp = res; resp; resp = resp->ai_next) {
+		if (resp->ai_addr == NULL)
+			continue;
+		/* We get lots of duplicates.  Catch the easy ones */
+		if (memcmp(&last_src, resp->ai_addr, sizeof(last_src)) == 0)
+			continue;
+		last_src = *(struct sockaddr *)resp->ai_addr;
+
+		kill.af = resp->ai_family;
+
+		if (kill.af == AF_INET)
+			kill.rt_addr.addr.v.a.addr.v4 =
+			    ((struct sockaddr_in *)resp->ai_addr)->sin_addr;
+		else if (kill.af == AF_INET6)
+			kill.rt_addr.addr.v.a.addr.v6 =
+			    ((struct sockaddr_in6 *)resp->ai_addr)->
+			    sin6_addr;
+		else
+			errx(1, "Unknown address family %d", kill.af);
+
+		if (pfctl_kill_states(dev, &kill, &newkilled))
+			err(1, "DIOCKILLSTATES");
+		killed += newkilled;
+	}
+
+	freeaddrinfo(res);
+
+	if ((opts & PF_OPT_QUIET) == 0)
+		fprintf(stderr, "killed %d states\n", killed);
 	return (0);
 }
 
@@ -2455,6 +2517,8 @@ main(int argc, char *argv[])
 			pfctl_label_kill_states(dev, ifaceopt, opts);
 		else if (!strcmp(state_kill[0], "id"))
 			pfctl_id_kill_states(dev, ifaceopt, opts);
+		else if (!strcmp(state_kill[0], "gateway"))
+			pfctl_gateway_kill_states(dev, ifaceopt, opts);
 		else
 			pfctl_net_kill_states(dev, ifaceopt, opts);
 	}

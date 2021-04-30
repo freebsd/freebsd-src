@@ -191,6 +191,7 @@ struct pfctl_kill {
 	int			proto;
 	struct pf_rule_addr	src;
 	struct pf_rule_addr	dst;
+	struct pf_rule_addr	rt_addr;
 	char			ifname[IFNAMSIZ];
 	char			label[PF_RULE_LABEL_SIZE];
 };
