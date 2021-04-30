@@ -2458,6 +2458,10 @@ pf_nvstate_kill_to_kstate_kill(const nvlist_t *nvl,
 		return (EINVAL);
 	PFNV_CHK(pf_nvrule_addr_to_rule_addr(nvlist_get_nvlist(nvl, "dst"),
 	    &kill->psk_dst));
+	if (nvlist_exists_nvlist(nvl, "rt_addr")) {
+		PFNV_CHK(pf_nvrule_addr_to_rule_addr(
+		    nvlist_get_nvlist(nvl, "rt_addr"), &kill->psk_rt_addr));
+	}
 
 	PFNV_CHK(pf_nvstring(nvl, "ifname", kill->psk_ifname,
 	    sizeof(kill->psk_ifname)));
@@ -2677,6 +2681,12 @@ relock_DIOCKILLSTATES:
 
 		if (! PF_MATCHA(psk->psk_dst.neg, &psk->psk_dst.addr.v.a.addr,
 		    &psk->psk_dst.addr.v.a.mask, dstaddr, sk->af))
+			continue;
+
+		if (!  PF_MATCHA(psk->psk_rt_addr.neg,
+		    &psk->psk_rt_addr.addr.v.a.addr,
+		    &psk->psk_rt_addr.addr.v.a.mask,
+		    &s->rt_addr, sk->af))
 			continue;
 
 		if (psk->psk_src.port_op != 0 &&

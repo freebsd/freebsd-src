@@ -642,6 +642,7 @@ _pfctl_clear_states(int dev, const struct pfctl_kill *kill,
 	nvlist_add_number(nvl, "proto", kill->proto);
 	pfctl_nv_add_rule_addr(nvl, "src", &kill->src);
 	pfctl_nv_add_rule_addr(nvl, "dst", &kill->dst);
+	pfctl_nv_add_rule_addr(nvl, "rt_addr", &kill->rt_addr);
 	nvlist_add_string(nvl, "ifname", kill->ifname);
 	nvlist_add_string(nvl, "label", kill->label);
 

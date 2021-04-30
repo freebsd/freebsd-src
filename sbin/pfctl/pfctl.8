@@ -45,7 +45,7 @@
 .Op Fl K Ar host | network
 .Xo
 .Oo Fl k
-.Ar host | network | label | id
+.Ar host | network | label | id | gateway
 .Oc Xc
 .Op Fl o Ar level
 .Op Fl p Ar device
@@ -256,14 +256,15 @@ option may be specified, which will kill all the source tracking
 entries from the first host/network to the second.
 .It Xo
 .Fl k
-.Ar host | network | label | id
+.Ar host | network | label | id | gateway
 .Xc
 Kill all of the state entries matching the specified
 .Ar host ,
 .Ar network ,
 .Ar label ,
+.Ar id ,
 or
-.Ar id .
+.Ar gateway.
 .Pp
 For example, to kill all of the state entries originating from
 .Dq host :
@@ -317,6 +318,19 @@ To kill a state with ID 4823e84500000018 created from a backup
 firewall with hostid 00000002 use:
 .Pp
 .Dl # pfctl -k id -k 4823e84500000018/2
+.Pp
+It is also possible to kill states created from a rule with the route-to/reply-to
+parameter set to route the connection through a particular gateway.
+Note that rules routing via the default routing table (not via a route-to
+rule) will have their rt_addr set as 0.0.0.0 or ::.
+To kill all states using a gateway of 192.168.0.1 use:
+.Pp
+.Dl # pfctl -k gateway -k 192.168.0.1
+.Pp
+A network prefix length can also be specified.
+To kill all states using a gateway in 192.168.0.0/24:
+.Pp
+.Dl # pfctl -k gateway -k 192.168.0.0/24
 .It Fl m
 Merge in explicitly given options without resetting those
 which are omitted.
