@@ -4553,7 +4553,7 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset,
  * if there is return 1, else return 0.
  */
 int
-sctp_is_there_an_abort_here(struct mbuf *m, int iphlen, uint32_t *vtagfill)
+sctp_is_there_an_abort_here(struct mbuf *m, int iphlen, uint32_t *vtag)
 {
 	struct sctp_chunkhdr *ch;
 	struct sctp_init_chunk *init_chk, chunk_buf;
@@ -4574,12 +4574,13 @@ sctp_is_there_an_abort_here(struct mbuf *m, int iphlen, uint32_t *vtagfill)
 			/* yep, tell them */
 			return (1);
 		}
-		if (ch->chunk_type == SCTP_INITIATION) {
+		if ((ch->chunk_type == SCTP_INITIATION) ||
+		    (ch->chunk_type == SCTP_INITIATION_ACK)) {
 			/* need to update the Vtag */
 			init_chk = (struct sctp_init_chunk *)sctp_m_getptr(m,
-			    offset, sizeof(*init_chk), (uint8_t *)&chunk_buf);
+			    offset, sizeof(struct sctp_init_chunk), (uint8_t *)&chunk_buf);
 			if (init_chk != NULL) {
-				*vtagfill = ntohl(init_chk->init.initiate_tag);
+				*vtag = ntohl(init_chk->init.initiate_tag);
 			}
 		}
 		/* Nope, move to the next chunk */
