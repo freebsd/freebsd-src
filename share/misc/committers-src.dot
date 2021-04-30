@@ -283,6 +283,7 @@ np [label="Navdeep Parhar\nnp@FreeBSD.org\n2009/06/05"]
 nwhitehorn [label="Nathan Whitehorn\nnwhitehorn@FreeBSD.org\n2008/07/03"]
 n_hibma [label="Nick Hibma\nn_hibma@FreeBSD.org\n1998/11/26"]
 obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
+oh [label="Oskar Holmlund\noh@FreeBSD.org\n2021/04/21"]
 olli [label="Oliver Fromme\nolli@FreeBSD.org\n2008/02/14"]
 oshogbo [label="Mariusz Zaborski\noshogbo@FreeBSD.org\n2015/04/15"]
 peadar [label="Peter Edwards\npeadar@FreeBSD.org\n2004/03/08"]
@@ -713,6 +714,8 @@ kp -> donner
 kp -> nick
 
 lwhsu -> khng
+
+manu -> oh
 
 marcel -> allanjude
 marcel -> art
