@@ -12,8 +12,9 @@ SRCS=   authpf.c
 
 # XXX ALTQ:
 CFLAGS+= -DENABLE_ALTQ
+CFLAGS+= -I${SRCTOP}/lib/libpfctl -I${OBJTOP}/lib/libpfctl
 
-LIBADD=	m util
+LIBADD=	m util pfctl
 
 WARNS?=	3
 
