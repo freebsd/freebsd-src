@@ -53,6 +53,8 @@ CFLAGS+=	-DEFI_UFS_BOOT
 CFLAGS+=	-DEFI_DEBUG
 .endif
 
+.include	"${BOOTSRC}/veriexec.mk"
+
 # Always add MI sources and REGULAR efi loader bits
 .PATH:		${EFISRC}/loader/arch/${MACHINE}
 .PATH:		${EFISRC}/loader
