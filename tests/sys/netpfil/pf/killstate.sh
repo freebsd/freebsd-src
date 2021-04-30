@@ -246,9 +246,69 @@ multilabel_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "gateway" "cleanup"
+gateway_head()
+{
+	atf_set descr 'Test killing states by route-to/reply-to address'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+gateway_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz "block all" \
+		"pass in reply-to (${epair}b 192.0.2.1) proto icmp"
+
+	# Sanity check & establish state
+	# Note: use pft_ping so we always use the same ID, so pf considers all
+	# echo requests part of the same flow.
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+
+	# Change rules to now deny the ICMP traffic
+	pft_set_rules noflush alcatraz "block all"
+
+	# Established state means we can still ping alcatraz
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+
+	# Killing with a different gateway does not affect our state
+	jexec alcatraz pfctl -k gateway -k 192.0.2.2
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+
+	# Killing states with the relevant gateway does terminate our state
+	jexec alcatraz pfctl -k gateway -k 192.0.2.1
+	atf_check -s exit:1 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+}
+
+gateway_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
 	atf_add_test_case "label"
 	atf_add_test_case "multilabel"
+	atf_add_test_case "gateway"
 }
