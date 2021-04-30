@@ -8,6 +8,8 @@ LIB=		firewire
 SRCS+=		firewire.c fwohci.c dconsole.c
 SRCS+=		dcons.c fwcrom.c
 
+.include	"${BOOTSRC}/veriexec.mk"
+
 CFLAGS+=	-D_BOOT
 
 CFLAGS+=	-I${LDRSRC}

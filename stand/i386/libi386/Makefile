@@ -17,6 +17,8 @@ CFLAGS+= -I${ZFSSRC}
 .PATH:	${SYSDIR}/teken
 SRCS+=	teken.c
 
+.include "${BOOTSRC}/veriexec.mk"
+
 BOOT_COMCONSOLE_PORT?= 0x3f8
 CFLAGS+=	-DCOMPORT=${BOOT_COMCONSOLE_PORT}
 

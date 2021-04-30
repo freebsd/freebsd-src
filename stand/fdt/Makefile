@@ -17,4 +17,6 @@ CFLAGS+=	-I${SYSDIR}/contrib/libfdt/ -I${LDRSRC}
 
 CFLAGS+=	-Wformat -Wall
 
+.include "${BOOTSRC}/veriexec.mk"
+
 .include <bsd.lib.mk>

@@ -9,6 +9,8 @@ WARNS?=		6
 
 SRCS=		efi_fdt.c
 
+.include	"${BOOTSRC}/veriexec.mk"
+
 # EFI library headers
 CFLAGS+=	-I${EFISRC}/include
 CFLAGS+=	-I${EFISRC}/include/${MACHINE}
