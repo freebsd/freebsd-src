@@ -436,13 +436,13 @@ static void	swap_pager_release_writecount(vm_object_t object,
 
 struct pagerops swappagerops = {
 	.pgo_init =	swap_pager_init,	/* early system initialization of pager	*/
-	.pgo_alloc =	swap_pager_alloc,	/* allocate an OBJT_SWAP object		*/
-	.pgo_dealloc =	swap_pager_dealloc,	/* deallocate an OBJT_SWAP object	*/
-	.pgo_getpages =	swap_pager_getpages,	/* pagein				*/
-	.pgo_getpages_async = swap_pager_getpages_async, /* pagein (async)		*/
-	.pgo_putpages =	swap_pager_putpages,	/* pageout				*/
-	.pgo_haspage =	swap_pager_haspage,	/* get backing store status for page	*/
-	.pgo_pageunswapped = swap_pager_unswapped,	/* remove swap related to page		*/
+	.pgo_alloc =	swap_pager_alloc,	/* allocate an OBJT_SWAP object */
+	.pgo_dealloc =	swap_pager_dealloc,	/* deallocate an OBJT_SWAP object */
+	.pgo_getpages =	swap_pager_getpages,	/* pagein */
+	.pgo_getpages_async = swap_pager_getpages_async, /* pagein (async) */
+	.pgo_putpages =	swap_pager_putpages,	/* pageout */
+	.pgo_haspage =	swap_pager_haspage,	/* get backing store status for page */
+	.pgo_pageunswapped = swap_pager_unswapped, /* remove swap related to page */
 	.pgo_update_writecount = swap_pager_update_writecount,
 	.pgo_release_writecount = swap_pager_release_writecount,
 };
