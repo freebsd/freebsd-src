@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 17, 2021
+.Dd June 10, 2021
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -217,6 +217,8 @@ target.
 .It Cm install
 Install the port and register it with the package system.
 This is all you really need to do.
+.It Cm install-missing-packages
+Install missing dependencies from packages instead of building them.
 .El
 .Pp
 The following targets are not run during the normal install process.
