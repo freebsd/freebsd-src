@@ -2174,32 +2174,35 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	}
 	bprintf(bp, "%05u ", rule->rulenum);
 
-	/* Print counters if enabled */
-	if (fo->pcwidth > 0 || fo->bcwidth > 0) {
-		pr_u64(bp, &cntr->pcnt, fo->pcwidth);
-		pr_u64(bp, &cntr->bcnt, fo->bcwidth);
-	}
-
-	/* Print timestamp */
-	if (co->do_time == TIMESTAMP_NUMERIC)
-		bprintf(bp, "%10u ", cntr->timestamp);
-	else if (co->do_time == TIMESTAMP_STRING) {
-		char timestr[30];
-		time_t t = (time_t)0;
-
-		if (twidth == 0) {
-			strcpy(timestr, ctime(&t));
-			*strchr(timestr, '\n') = '\0';
-			twidth = strlen(timestr);
+	/* only if counters are available */
+	if (cntr != NULL) {
+		/* Print counters if enabled */
+		if (fo->pcwidth > 0 || fo->bcwidth > 0) {
+			pr_u64(bp, &cntr->pcnt, fo->pcwidth);
+			pr_u64(bp, &cntr->bcnt, fo->bcwidth);
 		}
-		if (cntr->timestamp > 0) {
-			t = _long_to_time(cntr->timestamp);
 
-			strcpy(timestr, ctime(&t));
-			*strchr(timestr, '\n') = '\0';
-			bprintf(bp, "%s ", timestr);
-		} else {
-			bprintf(bp, "%*s ", twidth, "");
+		/* Print timestamp */
+		if (co->do_time == TIMESTAMP_NUMERIC)
+			bprintf(bp, "%10u ", cntr->timestamp);
+		else if (co->do_time == TIMESTAMP_STRING) {
+			char timestr[30];
+			time_t t = (time_t)0;
+
+			if (twidth == 0) {
+				strcpy(timestr, ctime(&t));
+				*strchr(timestr, '\n') = '\0';
+				twidth = strlen(timestr);
+			}
+			if (cntr->timestamp > 0) {
+				t = _long_to_time(cntr->timestamp);
+
+				strcpy(timestr, ctime(&t));
+				*strchr(timestr, '\n') = '\0';
+				bprintf(bp, "%s ", timestr);
+			} else {
+				bprintf(bp, "%*s ", twidth, "");
+			}
 		}
 	}
 
