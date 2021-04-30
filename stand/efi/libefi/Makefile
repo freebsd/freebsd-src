@@ -68,4 +68,6 @@ CFLAGS+= ${FORMAT_EXTENSIONS}
 
 CFLAGS+= -DTERM_EMU
 
+.include "${BOOTSRC}/veriexec.mk"
+
 .include <bsd.lib.mk>
