@@ -612,13 +612,14 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	struct ptrace_lwpinfo *pl;
 	struct ptrace_sc_ret *psr;
 	int error, num, tmp;
-	int proctree_locked = 0;
 	lwpid_t tid = 0, *buf;
 #ifdef COMPAT_FREEBSD32
 	int wrap32 = 0, safe = 0;
 #endif
+	bool proctree_locked;
 
 	curp = td->td_proc;
+	proctree_locked = false;
 
 	/* Lock proctree before locking the process. */
 	switch (req) {
@@ -636,7 +637,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	case PT_DETACH:
 	case PT_GET_SC_ARGS:
 		sx_xlock(&proctree_lock);
-		proctree_locked = 1;
+		proctree_locked = true;
 		break;
 	default:
 		break;
@@ -816,7 +817,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		    p->p_oppid);
 
 		sx_xunlock(&proctree_lock);
-		proctree_locked = 0;
+		proctree_locked = false;
 		MPASS(p->p_xthread == NULL);
 		MPASS((p->p_flag & P_STOPPED_TRACE) == 0);
 
@@ -1053,10 +1054,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 
 		sx_xunlock(&proctree_lock);
-		proctree_locked = 0;
+		proctree_locked = false;
 
 	sendsig:
-		MPASS(proctree_locked == 0);
+		MPASS(!proctree_locked);
 
 		/*
 		 * Clear the pending event for the thread that just
