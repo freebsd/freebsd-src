@@ -11,6 +11,14 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20210429:
+	Commit 5a45802b3c8c changed the internal KAPI between
+	the krpc and NFS.  As such, the krpc, nfscommon and
+	nfscl modules must all be rebuilt from sources.
+	Without this patch, NFSv4.1/4.2 mounts should not
+	be done with the nfscbd(8) daemon running, to avoid
+	needing a working back channel for server->client RPCs.
+
 20210202:
 	Various LinuxKPI functionality was added which conflicts with DRM.
 	Please update your drm-kmod port to after the __FreeBSD_verison 1300139
