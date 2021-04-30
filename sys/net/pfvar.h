@@ -1079,6 +1079,7 @@ struct pf_kstate_kill {
 	int			psk_proto;
 	struct pf_rule_addr	psk_src;
 	struct pf_rule_addr	psk_dst;
+	struct pf_rule_addr	psk_rt_addr;
 	char			psk_ifname[IFNAMSIZ];
 	char			psk_label[PF_RULE_LABEL_SIZE];
 	u_int			psk_killed;
