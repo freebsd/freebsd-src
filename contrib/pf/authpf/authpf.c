@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #ifdef __FreeBSD__
 #include <inttypes.h>
 #endif
+#include <libpfctl.h>
 #include <login_cap.h>
 #include <pwd.h>
 #include <grp.h>
@@ -889,37 +890,37 @@ change_table(int add, const char *ip_src)
 static void
 authpf_kill_states(void)
 {
-	struct pfioc_state_kill	psk;
+	struct pfctl_kill kill;
 	struct pf_addr target;
 
-	memset(&psk, 0, sizeof(psk));
+	memset(&kill, 0, sizeof(kill));
 	memset(&target, 0, sizeof(target));
 
 	if (inet_pton(AF_INET, ipsrc, &target.v4) == 1)
-		psk.psk_af = AF_INET;
+		kill.af = AF_INET;
 	else if (inet_pton(AF_INET6, ipsrc, &target.v6) == 1)
-		psk.psk_af = AF_INET6;
+		kill.af = AF_INET6;
 	else {
 		syslog(LOG_ERR, "inet_pton(%s) failed", ipsrc);
 		return;
 	}
 
 	/* Kill all states from ipsrc */
-	memcpy(&psk.psk_src.addr.v.a.addr, &target,
-	    sizeof(psk.psk_src.addr.v.a.addr));
-	memset(&psk.psk_src.addr.v.a.mask, 0xff,
-	    sizeof(psk.psk_src.addr.v.a.mask));
-	if (ioctl(dev, DIOCKILLSTATES, &psk))
-		syslog(LOG_ERR, "DIOCKILLSTATES failed (%m)");
+	memcpy(&kill.src.addr.v.a.addr, &target,
+	    sizeof(kill.src.addr.v.a.addr));
+	memset(&kill.src.addr.v.a.mask, 0xff,
+	    sizeof(kill.src.addr.v.a.mask));
+	if (pfctl_kill_states(dev, &kill, NULL))
+		syslog(LOG_ERR, "pfctl_kill_states() failed (%m)");
 
 	/* Kill all states to ipsrc */
-	memset(&psk.psk_src, 0, sizeof(psk.psk_src));
-	memcpy(&psk.psk_dst.addr.v.a.addr, &target,
-	    sizeof(psk.psk_dst.addr.v.a.addr));
-	memset(&psk.psk_dst.addr.v.a.mask, 0xff,
-	    sizeof(psk.psk_dst.addr.v.a.mask));
-	if (ioctl(dev, DIOCKILLSTATES, &psk))
-		syslog(LOG_ERR, "DIOCKILLSTATES failed (%m)");
+	memset(&kill.src, 0, sizeof(kill.src));
+	memcpy(&kill.dst.addr.v.a.addr, &target,
+	    sizeof(kill.dst.addr.v.a.addr));
+	memset(&kill.dst.addr.v.a.mask, 0xff,
+	    sizeof(kill.dst.addr.v.a.mask));
+	if (pfctl_kill_states(dev, &kill, NULL))
+		syslog(LOG_ERR, "pfctl_kill_states() failed (%m)");
 }
 
 /* signal handler that makes us go away properly */
