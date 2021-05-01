@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/mmc/bridge.h>
+#include <dev/mmc/mmc_fdt_helpers.h>
 #include <dev/mmc/mmcbrvar.h>
 #include <dev/mmc/mmcreg.h>
 
@@ -91,12 +92,12 @@ struct sdhci_xenon_softc {
 	struct sdhci_slot *slot;	/* SDHCI internal data */
 	struct resource	*mem_res;	/* Memory resource */
 
-	regulator_t	reg_vqmmc;	/* vqmmc-supply regulator */
 	uint8_t		znr;		/* PHY ZNR */
 	uint8_t		zpr;		/* PHY ZPR */
 	bool		no_18v;		/* No 1.8V support */
 	bool		slow_mode;	/* PHY slow mode */
-	bool		wp_inverted;	/* WP pin is inverted */
+
+	struct mmc_fdt_helper	mmc_helper; /* MMC helper for parsing FDT */
 };
 
 static uint8_t
@@ -189,7 +190,8 @@ sdhci_xenon_get_ro(device_t bus, device_t dev)
 {
 	struct sdhci_xenon_softc *sc = device_get_softc(bus);
 
-	return (sdhci_generic_get_ro(bus, dev) ^ sc->wp_inverted);
+	return (sdhci_generic_get_ro(bus, dev) ^
+	    (sc->mmc_helper.props & MMC_PROP_WP_INVERTED));
 }
 
 static bool
@@ -356,15 +358,19 @@ sdhci_xenon_update_ios(device_t brdev, device_t reqdev)
 		if (bootverbose)
 			device_printf(sc->dev, "Powering down sd/mmc\n");
 
-		if (sc->reg_vqmmc)
-			regulator_disable(sc->reg_vqmmc);
+		if (sc->mmc_helper.vmmc_supply)
+			regulator_disable(sc->mmc_helper.vmmc_supply);
+		if (sc->mmc_helper.vqmmc_supply)
+			regulator_disable(sc->mmc_helper.vqmmc_supply);
 		break;
 	case power_up:
 		if (bootverbose)
 			device_printf(sc->dev, "Powering up sd/mmc\n");
 
-		if (sc->reg_vqmmc)
-			regulator_enable(sc->reg_vqmmc);
+		if (sc->mmc_helper.vmmc_supply)
+			regulator_enable(sc->mmc_helper.vmmc_supply);
+		if (sc->mmc_helper.vqmmc_supply)
+			regulator_enable(sc->mmc_helper.vqmmc_supply);
 		break;
 	};
 
@@ -391,7 +397,7 @@ sdhci_xenon_switch_vccq(device_t brdev, device_t reqdev)
 
 	sc = device_get_softc(brdev);
 
-        if (sc->reg_vqmmc == NULL)
+	if (sc->mmc_helper.vqmmc_supply == NULL)
 		return EOPNOTSUPP;
 
 	slot = device_get_ivars(reqdev);
@@ -406,7 +412,7 @@ sdhci_xenon_switch_vccq(device_t brdev, device_t reqdev)
 		return EINVAL;
 	}
 
-	err = regulator_set_voltage(sc->reg_vqmmc, uvolt, uvolt);
+	err = regulator_set_voltage(sc->mmc_helper.vqmmc_supply, uvolt, uvolt);
 	if (err != 0) {
 		device_printf(sc->dev,
 		    "Cannot set vqmmc to %d<->%d\n",
@@ -444,8 +450,6 @@ sdhci_xenon_probe(device_t dev)
 		sc->max_clk = cid;
 	if (OF_hasprop(sc->node, "no-1-8-v"))
 		sc->no_18v = true;
-	if (OF_hasprop(sc->node, "wp-inverted"))
-		sc->wp_inverted = true;
 	if (OF_hasprop(sc->node, "marvell,xenon-phy-slow-mode"))
 		sc->slow_mode = true;
 	sc->znr = XENON_ZNR_DEF_VALUE;
@@ -456,11 +460,6 @@ sdhci_xenon_probe(device_t dev)
 	if ((OF_getencprop(sc->node, "marvell,xenon-phy-zpr", &cid,
 	    sizeof(cid))) > 0)
 		sc->zpr = cid & XENON_ZPR_MASK;
-	if (regulator_get_by_ofw_property(dev, 0, "vqmmc-supply",
-	    &sc->reg_vqmmc) == 0 && bootverbose) {
-		if (bootverbose)
-			device_printf(dev, "vqmmc-supply regulator found\n");
-	}
 
 	return (0);
 }
@@ -514,6 +513,8 @@ sdhci_xenon_attach(device_t dev)
 	 * fail; see comments in sdhci_fdt_gpio.h for details.
 	 */
 	sc->gpio = sdhci_fdt_gpio_setup(dev, slot);
+
+	mmc_fdt_parse(dev, 0, &sc->mmc_helper, &sc->slot->host);
 
 	if (sdhci_init_slot(dev, sc->slot, 0))
 		goto fail;
