@@ -129,13 +129,9 @@ void vm_pager_init(void);
 vm_object_t vm_pager_object_lookup(struct pagerlst *, void *);
 
 static __inline void
-vm_pager_put_pages(
-	vm_object_t object,
-	vm_page_t *m,
-	int count,
-	int flags,
-	int *rtvals
-) {
+vm_pager_put_pages(vm_object_t object, vm_page_t *m, int count, int flags,
+    int *rtvals)
+{
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	(*pagertab[object->type]->pgo_putpages)
 	    (object, m, count, flags, rtvals);
@@ -152,12 +148,9 @@ vm_pager_put_pages(
  *	The object must be locked.
  */
 static __inline boolean_t
-vm_pager_has_page(
-	vm_object_t object,
-	vm_pindex_t offset, 
-	int *before,
-	int *after
-) {
+vm_pager_has_page(vm_object_t object, vm_pindex_t offset, int *before,
+    int *after)
+{
 	boolean_t ret;
 
 	VM_OBJECT_ASSERT_LOCKED(object);
@@ -191,29 +184,33 @@ vm_pager_populate(vm_object_t object, vm_pindex_t pidx, int fault_type,
 static __inline void
 vm_pager_page_unswapped(vm_page_t m)
 {
+	pgo_pageunswapped_t *method;
 
-	if (pagertab[m->object->type]->pgo_pageunswapped)
-		(*pagertab[m->object->type]->pgo_pageunswapped)(m);
+	method = pagertab[m->object->type]->pgo_pageunswapped;
+	if (method != NULL)
+		method(m);
 }
 
 static __inline void
 vm_pager_update_writecount(vm_object_t object, vm_offset_t start,
     vm_offset_t end)
 {
+	pgo_writecount_t *method;
 
-	if (pagertab[object->type]->pgo_update_writecount)
-		pagertab[object->type]->pgo_update_writecount(object, start,
-		    end);
+	method = pagertab[object->type]->pgo_update_writecount;
+	if (method != NULL)
+		method(object, start, end);
 }
 
 static __inline void
 vm_pager_release_writecount(vm_object_t object, vm_offset_t start,
     vm_offset_t end)
 {
+	pgo_writecount_t *method;
 
-	if (pagertab[object->type]->pgo_release_writecount)
-		pagertab[object->type]->pgo_release_writecount(object, start,
-		    end);
+	method = pagertab[object->type]->pgo_release_writecount;
+	if (method != NULL)
+		method(object, start, end);
 }
 
 struct cdev_pager_ops {
