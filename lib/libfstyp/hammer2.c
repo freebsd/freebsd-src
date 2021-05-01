@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "hammer2_disk.h"
 
 #include "fstyp.h"
+#include "fstyp_p.h"
 
 static hammer2_volume_data_t*
 read_voldata(FILE *fp)

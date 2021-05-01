@@ -116,6 +116,7 @@ _LIBRARIES=	\
 		execinfo \
 		fetch \
 		figpar \
+		fstyp \
 		geom \
 		gnuregex \
 		gpio \
@@ -268,6 +269,10 @@ _DP_ssh+=	ldns
 _DP_edit=	ncursesw
 .if ${MK_OPENSSL} != "no"
 _DP_bsnmp=	crypto
+.endif
+_DP_fstyp=  geom md ufs
+.if ${MK_ZFS} != "no"
+_DP_fstyp+=	nvpair zfs spl
 .endif
 _DP_geom=	bsdxml sbuf
 _DP_cam=	sbuf

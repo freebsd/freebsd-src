@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "fstyp.h"
+#include "fstyp_p.h"
+
 #include "msdosfs.h"
 
 #define LABEL_NO_NAME		"NO NAME    "

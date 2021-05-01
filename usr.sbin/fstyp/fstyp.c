@@ -38,9 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
-#ifdef WITH_ICONV
-#include <iconv.h>
-#endif
+
 #include <locale.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -50,97 +48,15 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <vis.h>
 
-#include "fstyp.h"
+#include <fstyp.h>
 
 #define	LABEL_LEN	256
 
 bool show_label = false;
 
-typedef int (*fstyp_function)(FILE *, char *, size_t);
-
-static struct {
-	const char	*name;
-	fstyp_function	function;
-	bool		unmountable;
-	char		*precache_encoding;
-} fstypes[] = {
-	{ "apfs", &fstyp_apfs, true, NULL },
-	{ "cd9660", &fstyp_cd9660, false, NULL },
-	{ "exfat", &fstyp_exfat, false, EXFAT_ENC },
-	{ "ext2fs", &fstyp_ext2fs, false, NULL },
-	{ "geli", &fstyp_geli, true, NULL },
-	{ "hammer", &fstyp_hammer, true, NULL },
-	{ "hammer2", &fstyp_hammer2, true, NULL },
-	{ "hfs+", &fstyp_hfsp, false, NULL },
-	{ "msdosfs", &fstyp_msdosfs, false, NULL },
-	{ "ntfs", &fstyp_ntfs, false, NTFS_ENC },
-	{ "ufs", &fstyp_ufs, false, NULL },
-#ifdef HAVE_ZFS
-	{ "zfs", &fstyp_zfs, true, NULL },
-#endif
-	{ NULL, NULL, NULL, NULL }
-};
-
-void *
-read_buf(FILE *fp, off_t off, size_t len)
-{
-	int error;
-	size_t nread;
-	void *buf;
-
-	error = fseek(fp, off, SEEK_SET);
-	if (error != 0) {
-		warn("cannot seek to %jd", (uintmax_t)off);
-		return (NULL);
-	}
-
-	buf = malloc(len);
-	if (buf == NULL) {
-		warn("cannot malloc %zd bytes of memory", len);
-		return (NULL);
-	}
-
-	nread = fread(buf, len, 1, fp);
-	if (nread != 1) {
-		free(buf);
-		if (feof(fp) == 0)
-			warn("fread");
-		return (NULL);
-	}
-
-	return (buf);
-}
-
-char *
-checked_strdup(const char *s)
-{
-	char *c;
-
-	c = strdup(s);
-	if (c == NULL)
-		err(1, "strdup");
-	return (c);
-}
-
-void
-rtrim(char *label, size_t size)
-{
-	ptrdiff_t i;
-
-	for (i = size - 1; i >= 0; i--) {
-		if (label[i] == '\0')
-			continue;
-		else if (label[i] == ' ')
-			label[i] = '\0';
-		else
-			break;
-	}
-}
-
 static void
 usage(void)
 {
-
 	fprintf(stderr, "usage: fstyp [-l] [-s] [-u] special\n");
 	exit(1);
 }
@@ -169,13 +85,12 @@ type_check(const char *path, FILE *fp)
 int
 main(int argc, char **argv)
 {
-	int ch, error, i, nbytes;
+	int ch, error, nbytes;
 	bool ignore_type = false, show_unmountable = false;
 	char label[LABEL_LEN + 1], strvised[LABEL_LEN * 4 + 1];
 	char *path;
 	FILE *fp;
-	fstyp_function fstyp_f;
-
+    
 	while ((ch = getopt(argc, argv, "lsu")) != -1) {
 		switch (ch) {
 		case 'l':
@@ -203,23 +118,10 @@ main(int argc, char **argv)
 		err(1, "setlocale");
 	caph_cache_catpages();
 
-#ifdef WITH_ICONV
-	/* Cache iconv conversion data before entering capability mode. */
-	if (show_label) {
-		for (i = 0; i < nitems(fstypes); i++) {
-			iconv_t cd;
 
-			if (fstypes[i].precache_encoding == NULL)
-				continue;
-			cd = iconv_open("", fstypes[i].precache_encoding);
-			if (cd == (iconv_t)-1)
-				err(1, "%s: iconv_open %s", fstypes[i].name,
-				    fstypes[i].precache_encoding);
-			/* Iconv keeps a small cache of unused encodings. */
-			iconv_close(cd);
-		}
+	if (show_label) {
+		enable_encodings();
 	}
-#endif
 
 	fp = fopen(path, "r");
 	if (fp == NULL)
@@ -233,19 +135,10 @@ main(int argc, char **argv)
 
 	memset(label, '\0', sizeof(label));
 
-	for (i = 0;; i++) {
-		if (show_unmountable == false && fstypes[i].unmountable == true)
-			continue;
-		fstyp_f = fstypes[i].function;
-		if (fstyp_f == NULL)
-			break;
+	struct fstype const *result;
+	error = fstypef(fp, label, sizeof(label), show_unmountable, &result);
 
-		error = fstyp_f(fp, label, sizeof(label));
-		if (error == 0)
-			break;
-	}
-
-	if (fstypes[i].name == NULL) {
+	if (error == -1) {
 		warnx("%s: filesystem not recognized", path);
 		return (1);
 	}
@@ -260,9 +153,9 @@ main(int argc, char **argv)
 		if (nbytes == -1)
 			err(1, "strsnvis");
 
-		printf("%s %s\n", fstypes[i].name, strvised);
+		printf("%s %s\n", result->name, strvised);
 	} else {
-		printf("%s\n", fstypes[i].name);
+		printf("%s\n", result->name);
 	}
 
 	return (0);

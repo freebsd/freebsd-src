@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2015 Allan Jude <allanjude@FreeBSD.org>
- * Copyright (c) 2015 Xin LI <delphij@FreeBSD.org>
+ * Copyright (c) 2005 Stanislav Sedov
+ * Copyright (c) 2014 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * This software was developed by Edward Tomasz Napierala under sponsorship
+ * from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,10 +15,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -27,49 +31,56 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/time.h>
-#include <stdint.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-
-#include <libnvpair.h>
-#include <sys/vdev_impl.h>
 
 #include "fstyp.h"
+#include "fstyp_p.h"
+
+#define EXT2FS_SB_OFFSET	1024
+#define EXT2_SUPER_MAGIC	0xef53
+#define EXT2_DYNAMIC_REV	1
+
+typedef struct e2sb {
+	uint8_t		fake1[56];
+	uint16_t	s_magic;
+	uint8_t		fake2[18];
+	uint32_t	s_rev_level;
+	uint8_t		fake3[40];
+	char		s_volume_name[16];
+} e2sb_t;
 
 int
-fstyp_zfs(FILE *fp, char *label, size_t labelsize)
+fstyp_ext2fs(FILE *fp, char *label, size_t size)
 {
-	vdev_label_t *vdev_label = NULL;
-	vdev_phys_t *vdev_phys;
-	char *zpool_name = NULL;
-	nvlist_t *config = NULL;
-	int err = 0;
+	e2sb_t *fs;
+	char *s_volume_name;
 
-	/*
-	 * Read in the first ZFS vdev label ("L0"), located at the beginning
-	 * of the vdev and extract the pool name from it.
-	 *
-	 * TODO: the checksum of label should be validated.
-	 */
-	vdev_label = (vdev_label_t *)read_buf(fp, 0, sizeof(*vdev_label));
-	if (vdev_label == NULL)
+	fs = (e2sb_t *)read_buf(fp, EXT2FS_SB_OFFSET, 512);
+	if (fs == NULL)
 		return (1);
 
-	vdev_phys = &(vdev_label->vl_vdev_phys);
+	/* Check for magic and versio n*/
+	if (fs->s_magic == EXT2_SUPER_MAGIC &&
+	    fs->s_rev_level == EXT2_DYNAMIC_REV) {
+		//G_LABEL_DEBUG(1, "ext2fs file system detected on %s.",
+		//    pp->name);
+	} else {
+		free(fs);
+		return (1);
+	}
 
-	if ((nvlist_unpack(vdev_phys->vp_nvlist, sizeof(vdev_phys->vp_nvlist),
-	    &config, 0)) == 0 &&
-	    (nvlist_lookup_string(config, "name", &zpool_name) == 0)) {
-		strlcpy(label, zpool_name, labelsize);
-	} else
-		err = 1;
+	s_volume_name = fs->s_volume_name;
+	/* Terminate label */
+	s_volume_name[sizeof(fs->s_volume_name) - 1] = '\0';
 
-	nvlist_free(config);
-	free(vdev_label);
+	if (s_volume_name[0] == '/')
+		s_volume_name += 1;
 
-	return (err);
+	strlcpy(label, s_volume_name, size);
+	free(fs);
+
+	return (0);
 }

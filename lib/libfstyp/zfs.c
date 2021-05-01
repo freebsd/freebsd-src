@@ -1,11 +1,6 @@
 /*-
- * Copyright (c) 2002, 2003 Gordon Tetlow
- * Copyright (c) 2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
- * Copyright (c) 2014 The FreeBSD Foundation
- * All rights reserved.
- *
- * This software was developed by Edward Tomasz Napierala under sponsorship
- * from the FreeBSD Foundation.
+ * Copyright (c) 2015 Allan Jude <allanjude@FreeBSD.org>
+ * Copyright (c) 2015 Xin LI <delphij@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,35 +28,49 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <ufs/ufs/dinode.h>
-#include <ufs/ffs/fs.h>
-
-#include <errno.h>
-#include <libufs.h>
+#include <sys/time.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
+#include <libnvpair.h>
+#include <sys/vdev_impl.h>
 
 #include "fstyp.h"
+#include "fstyp_p.h"
 
 int
-fstyp_ufs(FILE *fp, char *label, size_t labelsize)
+fstyp_zfs(FILE *fp, char *label, size_t labelsize)
 {
-	struct fs *fs;
+	vdev_label_t *vdev_label = NULL;
+	vdev_phys_t *vdev_phys;
+	char *zpool_name = NULL;
+	nvlist_t *config = NULL;
+	int err = 0;
 
-	switch (sbget(fileno(fp), &fs, STDSB)) {
-	case 0:
-		strlcpy(label, fs->fs_volname, labelsize);
-		free(fs->fs_csp);
-		free(fs->fs_si);
-		free(fs);
-		return (0);
-	case ENOENT:
-		/* Cannot find file system superblock */
+	/*
+	 * Read in the first ZFS vdev label ("L0"), located at the beginning
+	 * of the vdev and extract the pool name from it.
+	 *
+	 * TODO: the checksum of label should be validated.
+	 */
+	vdev_label = (vdev_label_t *)read_buf(fp, 0, sizeof(*vdev_label));
+	if (vdev_label == NULL)
 		return (1);
-	default:
-		/* Unable to read file system superblock */
-		return (1);
-	}
+
+	vdev_phys = &(vdev_label->vl_vdev_phys);
+
+	if ((nvlist_unpack(vdev_phys->vp_nvlist, sizeof(vdev_phys->vp_nvlist),
+	    &config, 0)) == 0 &&
+	    (nvlist_lookup_string(config, "name", &zpool_name) == 0)) {
+		strlcpy(label, zpool_name, labelsize);
+	} else
+		err = 1;
+
+	nvlist_free(config);
+	free(vdev_label);
+
+	return (err);
 }

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "fstyp.h"
+#include "fstyp_p.h"
 
 #define	NTFS_A_VOLUMENAME	0x60
 #define	NTFS_FILEMAGIC		((uint32_t)(0x454C4946))
@@ -150,7 +151,7 @@ fstyp_ntfs(FILE *fp, char *label, size_t size)
 	if (bf == NULL || strncmp(bf->bf_sysid, "NTFS    ", 8) != 0)
 		goto fail;
 #ifdef WITH_ICONV
-	if (!show_label)
+	if (!encodings_enabled)
 		goto ok;
 
 	mftrecsz = bf->bf_mftrecsz;

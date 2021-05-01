@@ -1,10 +1,6 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
- * Copyright (c) 2014 The FreeBSD Foundation
+ * Copyright (c) 2015 Allan Jude <allanjude@FreeBSD.org>
  * All rights reserved.
- *
- * This software was developed by Edward Tomasz Napierala under sponsorship
- * from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,32 +27,46 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/disk.h>
+#include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "fstyp.h"
+#include <geom/eli/g_eli.h>
 
-#define	ISO9660_MAGIC	"\x01" "CD001" "\x01\x00"
-#define	ISO9660_OFFSET	0x8000
-#define	VOLUME_LEN	32
+#include "fstyp.h"
+#include "fstyp_p.h"
 
 int
-fstyp_cd9660(FILE *fp, char *label, size_t size)
+fstyp_geli(FILE *fp, char *label __unused, size_t labelsize __unused)
 {
-	char *sector, *volume;
+	int error;
+	off_t mediasize;
+	u_int sectorsize;
+	struct g_eli_metadata md;
+	u_char *buf;
 
-	sector = read_buf(fp, ISO9660_OFFSET, 512);
-	if (sector == NULL)
+	error = ioctl(fileno(fp), DIOCGMEDIASIZE, &mediasize);
+	if (error != 0)
 		return (1);
-	if (bcmp(sector, ISO9660_MAGIC, sizeof(ISO9660_MAGIC) - 1) != 0) {
-		free(sector);
+	error = ioctl(fileno(fp), DIOCGSECTORSIZE, &sectorsize);
+	if (error != 0)
 		return (1);
+	buf = (u_char *)read_buf(fp, mediasize - sectorsize, sectorsize);
+	if (buf == NULL)
+		goto gelierr;
+	error = eli_metadata_decode(buf, &md);
+	if (error)
+		goto gelierr;
+
+	if (strcmp(md.md_magic, G_ELI_MAGIC) == 0) {
+		free(buf);
+		return (0);
 	}
-	volume = sector + 0x28;
-	bzero(label, size);
-	strlcpy(label, volume, MIN(size, VOLUME_LEN));
-	free(sector);
-	rtrim(label, size);
-	return (0);
+
+gelierr:
+	free(buf);
+
+	return (1);
 }

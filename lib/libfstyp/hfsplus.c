@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "fstyp.h"
+#include "fstyp_p.h"
 
 /*
  * https://developer.apple.com/library/archive/technotes/tn/tn1150.html

@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "fstyp.h"
+#include "fstyp_p.h"
 
 /*
  * https://docs.microsoft.com/en-us/windows/win32/fileio/exfat-specification
@@ -361,7 +362,7 @@ fstyp_exfat(FILE *fp, char *label, size_t size)
 	}
 
 #ifdef WITH_ICONV
-	if (show_label)
+	if (encodings_enabled)
 		exfat_find_label(fp, ev, bytespersec, label, size);
 #endif
 

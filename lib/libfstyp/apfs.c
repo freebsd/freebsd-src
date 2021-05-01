@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "fstyp.h"
+#include "fstyp_p.h"
 
 /*
  * This really detects the container format, which might be best supported by

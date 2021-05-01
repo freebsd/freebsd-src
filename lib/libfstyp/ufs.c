@@ -1,6 +1,11 @@
 /*-
- * Copyright (c) 2015 Allan Jude <allanjude@FreeBSD.org>
+ * Copyright (c) 2002, 2003 Gordon Tetlow
+ * Copyright (c) 2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * This software was developed by Edward Tomasz Napierala under sponsorship
+ * from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,45 +32,41 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/disk.h>
 #include <sys/types.h>
+#include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
+
+#include "../../sys/ufs/ufs/dinode.h"
+#include "../../sys/ufs/ffs/fs.h"
+
+#include <errno.h>
+#include <libufs.h>
+#include "../libufs/libufs.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <geom/eli/g_eli.h>
-
 #include "fstyp.h"
 
+
 int
-fstyp_geli(FILE *fp, char *label __unused, size_t labelsize __unused)
+fstyp_ufs(FILE *fp, char *label, size_t labelsize)
 {
-	int error;
-	off_t mediasize;
-	u_int sectorsize;
-	struct g_eli_metadata md;
-	u_char *buf;
+	struct fs *fs;
 
-	error = ioctl(fileno(fp), DIOCGMEDIASIZE, &mediasize);
-	if (error != 0)
-		return (1);
-	error = ioctl(fileno(fp), DIOCGSECTORSIZE, &sectorsize);
-	if (error != 0)
-		return (1);
-	buf = (u_char *)read_buf(fp, mediasize - sectorsize, sectorsize);
-	if (buf == NULL)
-		goto gelierr;
-	error = eli_metadata_decode(buf, &md);
-	if (error)
-		goto gelierr;
-
-	if (strcmp(md.md_magic, G_ELI_MAGIC) == 0) {
-		free(buf);
+	switch (sbget(fileno(fp), &fs, STDSB)) {
+	case 0:
+		strlcpy(label, fs->fs_volname, labelsize);
+		free(fs->fs_csp);
+		free(fs->fs_si);
+		free(fs);
 		return (0);
+	case ENOENT:
+		/* Cannot find file system superblock */
+		return (1);
+	default:
+		/* Unable to read file system superblock */
+		return (1);
 	}
-
-gelierr:
-	free(buf);
-
-	return (1);
 }
