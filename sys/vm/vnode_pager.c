@@ -116,6 +116,7 @@ struct pagerops vnodepagerops = {
 	.pgo_update_writecount = vnode_pager_update_writecount,
 	.pgo_release_writecount = vnode_pager_release_writecount,
 	.pgo_set_writeable_dirty = vm_object_set_writeable_dirty_,
+	.pgo_mightbedirty = vm_object_mightbedirty_,
 };
 
 static struct domainset *vnode_domainset = NULL;
