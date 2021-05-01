@@ -497,3 +497,14 @@ pbrelbo(struct buf *bp)
 	bp->b_bufobj = NULL;
 	bp->b_flags &= ~B_PAGING;
 }
+
+void
+vm_object_set_writeable_dirty(vm_object_t object)
+{
+	pgo_set_writeable_dirty_t *method;
+
+	method = pagertab[object->type]->pgo_set_writeable_dirty;
+	if (method != NULL)
+		method(object);
+}
+

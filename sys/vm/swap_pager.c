@@ -433,6 +433,7 @@ static void	swap_pager_update_writecount(vm_object_t object,
     vm_offset_t start, vm_offset_t end);
 static void	swap_pager_release_writecount(vm_object_t object,
     vm_offset_t start, vm_offset_t end);
+static void	swap_pager_set_writeable_dirty(vm_object_t object);
 
 struct pagerops swappagerops = {
 	.pgo_init =	swap_pager_init,	/* early system initialization of pager	*/
@@ -445,6 +446,7 @@ struct pagerops swappagerops = {
 	.pgo_pageunswapped = swap_pager_unswapped, /* remove swap related to page */
 	.pgo_update_writecount = swap_pager_update_writecount,
 	.pgo_release_writecount = swap_pager_release_writecount,
+	.pgo_set_writeable_dirty = swap_pager_set_writeable_dirty,
 };
 
 /*
@@ -3126,4 +3128,11 @@ swap_pager_release_writecount(vm_object_t object, vm_offset_t start,
 	    ("Splittable object with writecount"));
 	object->un_pager.swp.writemappings -= (vm_ooffset_t)end - start;
 	VM_OBJECT_WUNLOCK(object);
+}
+
+static void
+swap_pager_set_writeable_dirty(vm_object_t object)
+{
+	if ((object->flags & OBJ_TMPFS_NODE) != 0)
+		vm_object_set_writeable_dirty_(object);
 }
