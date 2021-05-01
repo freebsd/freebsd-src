@@ -364,12 +364,10 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 
 	case VREG:
 		obj = nnode->tn_reg.tn_aobj =
-		    vm_pager_allocate(OBJT_SWAP, NULL, 0, VM_PROT_DEFAULT, 0,
+		    vm_pager_allocate(OBJT_SWAP_TMPFS, NULL, 0,
+			VM_PROT_DEFAULT, 0,
 			NULL /* XXXKIB - tmpfs needs swap reservation */);
-		VM_OBJECT_WLOCK(obj);
 		/* OBJ_TMPFS is set together with the setting of vp->v_object */
-		vm_object_set_flag(obj, OBJ_TMPFS_NODE);
-		VM_OBJECT_WUNLOCK(obj);
 		nnode->tn_reg.tn_tmp = tmp;
 		break;
 
@@ -1590,8 +1588,9 @@ tmpfs_check_mtime(struct vnode *vp)
 	if (vp->v_type != VREG)
 		return;
 	obj = vp->v_object;
-	KASSERT((obj->flags & (OBJ_TMPFS_NODE | OBJ_TMPFS)) ==
-	    (OBJ_TMPFS_NODE | OBJ_TMPFS), ("non-tmpfs obj"));
+	KASSERT(obj->type == OBJT_SWAP_TMPFS &&
+	    (obj->flags & (OBJ_SWAP | OBJ_TMPFS)) ==
+	    (OBJ_SWAP | OBJ_TMPFS), ("non-tmpfs obj"));
 	/* unlocked read */
 	if (obj->generation != obj->cleangeneration) {
 		VM_OBJECT_WLOCK(obj);

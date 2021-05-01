@@ -929,7 +929,7 @@ retry:
 					VM_OBJECT_WLOCK(object);
 				}
 				if (object->type == OBJT_DEFAULT ||
-				    object->type == OBJT_SWAP ||
+				    (object->flags & OBJ_SWAP) != 0 ||
 				    object->type == OBJT_VNODE) {
 					pindex = OFF_TO_IDX(current->offset +
 					    (addr - current->start));
@@ -1356,7 +1356,8 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 			goto done;
 		}
 	} else {
-		KASSERT(obj->type == OBJT_DEFAULT || obj->type == OBJT_SWAP,
+		KASSERT(obj->type == OBJT_DEFAULT ||
+		    (obj->flags & OBJ_SWAP) != 0,
 		    ("wrong object type"));
 		vm_object_reference(obj);
 #if VM_NRESERVLEVEL > 0
