@@ -621,9 +621,10 @@ softdep_prerename(fdvp, fvp, tdvp, tvp)
 }
 
 int
-softdep_prelink(dvp, vp)
+softdep_prelink(dvp, vp, cnp)
 	struct vnode *dvp;
 	struct vnode *vp;
+	struct componentname *cnp;
 {
 
 	panic("softdep_prelink called");
@@ -3384,11 +3385,13 @@ softdep_prerename(fdvp, fvp, tdvp, tvp)
  * syscall must be restarted at top level from the lookup.
  */
 int
-softdep_prelink(dvp, vp)
+softdep_prelink(dvp, vp, cnp)
 	struct vnode *dvp;
 	struct vnode *vp;
+	struct componentname *cnp;
 {
 	struct ufsmount *ump;
+	struct nameidata *ndp;
 
 	ASSERT_VOP_ELOCKED(dvp, "prelink dvp");
 	if (vp != NULL)
@@ -3404,13 +3407,28 @@ softdep_prelink(dvp, vp)
 	if (journal_space(ump, 0) || (vp != NULL && IS_SNAPSHOT(VTOI(vp))))
 		return (0);
 
+	/*
+	 * Check if the journal space consumption can in theory be
+	 * accounted on dvp and vp.  If the vnodes metadata was not
+	 * changed comparing with the previous round-trip into
+	 * softdep_prelink(), as indicated by the seqc generation
+	 * recorded in the nameidata, then there is no point in
+	 * starting the sync.
+	 */
+	ndp = __containerof(cnp, struct nameidata, ni_cnd);
+	if (!seqc_in_modify(ndp->ni_dvp_seqc) &&
+	    vn_seqc_consistent(dvp, ndp->ni_dvp_seqc) &&
+	    (vp == NULL || (!seqc_in_modify(ndp->ni_vp_seqc) &&
+	    vn_seqc_consistent(vp, ndp->ni_vp_seqc))))
+		return (0);
+
 	stat_journal_low++;
 	if (vp != NULL) {
 		VOP_UNLOCK(dvp);
 		ffs_syncvnode(vp, MNT_NOWAIT, 0);
 		vn_lock_pair(dvp, false, vp, true);
 		if (dvp->v_data == NULL)
-			return (ERELOOKUP);
+			goto out;
 	}
 	if (vp != NULL)
 		VOP_UNLOCK(vp);
@@ -3421,7 +3439,7 @@ softdep_prelink(dvp, vp)
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (vp->v_data == NULL) {
 			vn_lock_pair(dvp, false, vp, true);
-			return (ERELOOKUP);
+			goto out;
 		}
 		ACQUIRE_LOCK(ump);
 		process_removes(vp);
@@ -3431,7 +3449,7 @@ softdep_prelink(dvp, vp)
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 		if (dvp->v_data == NULL) {
 			vn_lock_pair(dvp, true, vp, false);
-			return (ERELOOKUP);
+			goto out;
 		}
 	}
 
@@ -3450,6 +3468,10 @@ softdep_prelink(dvp, vp)
 	FREE_LOCK(ump);
 
 	vn_lock_pair(dvp, false, vp, false);
+out:
+	ndp->ni_dvp_seqc = vn_seqc_read_any(dvp);
+	if (vp != NULL)
+		ndp->ni_vp_seqc = vn_seqc_read_any(vp);
 	return (ERELOOKUP);
 }
 
