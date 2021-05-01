@@ -67,6 +67,8 @@ typedef void pgo_set_writeable_dirty_t(vm_object_t);
 typedef bool pgo_mightbedirty_t(vm_object_t);
 typedef void pgo_getvp_t(vm_object_t object, struct vnode **vpp,
     bool *vp_heldp);
+typedef void pgo_freespace_t(vm_object_t object, vm_pindex_t start,
+    vm_size_t size);
 
 struct pagerops {
 	pgo_init_t		*pgo_init;		/* Initialize pager. */
@@ -83,6 +85,7 @@ struct pagerops {
 	pgo_set_writeable_dirty_t *pgo_set_writeable_dirty;
 	pgo_mightbedirty_t	*pgo_mightbedirty;
 	pgo_getvp_t		*pgo_getvp;
+	pgo_freespace_t		*pgo_freespace;
 };
 
 extern struct pagerops defaultpagerops;
@@ -234,6 +237,17 @@ vm_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
 		KASSERT(0,
 		    ("vm_pager_getvp: wrong object type obj %p", object));
 	}
+}
+
+static __inline void
+vm_pager_freespace(vm_object_t object, vm_pindex_t start,
+    vm_size_t size)
+{
+	pgo_freespace_t *method;
+
+	method = pagertab[object->type]->pgo_freespace;
+	if (method != NULL)
+		method(object, start, size);
 }
 
 struct cdev_pager_ops {
