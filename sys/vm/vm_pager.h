@@ -229,14 +229,11 @@ vm_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
 	pgo_getvp_t *method;
 
 	*vpp = NULL;
-	*vp_heldp = false;
+	if (vp_heldp != NULL)
+		*vp_heldp = false;
 	method = pagertab[object->type]->pgo_getvp;
-	if (method != NULL) {
+	if (method != NULL)
 		method(object, vpp, vp_heldp);
-	} else {
-		KASSERT(0,
-		    ("vm_pager_getvp: wrong object type obj %p", object));
-	}
 }
 
 static __inline void

@@ -2429,16 +2429,7 @@ vm_object_vnode(vm_object_t object)
 	struct vnode *vp;
 
 	VM_OBJECT_ASSERT_LOCKED(object);
-	if (object->type == OBJT_VNODE) {
-		vp = object->handle;
-		KASSERT(vp != NULL, ("%s: OBJT_VNODE has no vnode", __func__));
-	} else if (object->type == OBJT_SWAP &&
-	    (object->flags & OBJ_TMPFS) != 0) {
-		vp = object->un_pager.swp.swp_tmpfs;
-		KASSERT(vp != NULL, ("%s: OBJT_TMPFS has no vnode", __func__));
-	} else {
-		vp = NULL;
-	}
+	vm_pager_getvp(object, &vp, NULL);
 	return (vp);
 }
 
